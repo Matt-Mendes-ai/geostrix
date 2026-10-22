@@ -101,6 +101,7 @@ import { SUPPORT_COLORS, ESTIMATION_METHODS, MAX_BLOCKS, BLOCK_BUDGETS } from ".
 import { rectilinearGrid, buildExposedFaces } from "../lib/voxelFaces.js"; // TASKS.csv #793
 import { linkOutlines } from "../lib/wireframe.js"; // TASKS.csv #570
 const SurfaceSolidsPanel = React.lazy(() => import("../components/SurfaceSolidsPanel.jsx")); // TASKS.csv #802 — loads when opened (startup budget)
+const ExplicitSurfacePanel = React.lazy(() => import("../components/ExplicitSurfacePanel.jsx")); // TASKS.csv #811 — loads when opened
 // TASKS.csv #793 — a model's rectilinear grid (or null) depends only on its cell list: built once per list
 const voxelGridCache = new WeakMap();
 const voxelGridOf = (model) => { let G = voxelGridCache.get(model.cells); if (G === undefined) { G = rectilinearGrid(model.cells); voxelGridCache.set(model.cells, G); } return G; };
@@ -656,6 +657,7 @@ const SURFACE_TYPES = [
   // the geological types above: those describe something GeoStrix modelled from this project's data,
   // and an engineering design or a third-party wireframe is neither.
   { key: "imported", label: "Imported solid / design (not modelled here)" },
+  { key: "explicit_surface", label: "Explicit surface (through hand-picked contacts)" }, // TASKS.csv #811
   // TASKS.csv #570 — a solid linked by hand from section outlines: explicit, not interpolated
   { key: "explicit_wireframe", label: "Explicit wireframe (linked section outlines)" },
   { key: "other", label: "Other" },
@@ -738,6 +740,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     lithoGroups, addLithoGroup, updateLithoGroup, removeLithoGroup,
     modellingCodes, setModellingCodes, // TASKS.csv #599
     structuralTrends, setStructuralTrends, // TASKS.csv #650
+    explicitSurfaces, setExplicitSurfaces, // TASKS.csv #811
     omfObjects, updateOmfObject, removeOmfObject,
     terrain, updateTerrain,
     geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax,
@@ -986,6 +989,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // TASKS.csv #599 — modelling codes: pick an interval in the 3D view (Modelling tab), connect it to another hole
   const [mcPickMode, setMcPickMode] = useState(false);
   const [mcSelected, setMcSelected] = useState(null); // the litho row picked
+  const [explicitPickFor, setExplicitPickFor] = useState(null); // TASKS.csv #811 — the explicit surface 3D clicks add picks to
+  const [explicitSnap, setExplicitSnap] = useState(true);
   const [mcConnectFrom, setMcConnectFrom] = useState(null); // the row the next pick gets connected to
   const mcDownRef = useRef(null); // pointer-down position: a drag (orbit / pan) is not a pick
   const [pickedHolePoint, setPickedHolePoint] = useState(null);
@@ -3147,7 +3152,7 @@ ${describeTrend(t)}` };
   const lithoGroupKey = (g) => `group:${g.id}`;
   // TASKS.csv #810 — what a drawn section contact can be tagged with: modelling codes and group names as well as the
   // logged codes, so a contact can feed a "X (code)" or group unit (the picker used to offer logged codes only)
-  const sectionUnitTags = useMemo(() => ({ codes: modellingCodeList.map((c) => c.name), groups: lithoGroups.filter((g) => (g.codes || []).length).map((g) => g.name) }), [modellingCodeList, lithoGroups]);
+  const sectionUnitTags = useMemo(() => ({ codes: modellingCodeList.map((c) => c.name), groups: lithoGroups.filter((g) => (g.codes || []).length).map((g) => g.name), explicit: (explicitSurfaces || []).map((d) => d.name) /* #811 */ }), [modellingCodeList, lithoGroups, explicitSurfaces]);
   // Returns the group object for a `group:` key (null if it was deleted since), else the raw code.
   const resolveLithoTarget = (v) => (isLithoGroupKey(v) ? (lithoGroups.find((g) => g.id === v.slice(6)) || null) : isMcodeKey(v) ? { kind: "mcode", name: v.slice(6) } : v); // #599 mcode:
   // A group's role comes from its member codes: shared role if every member agrees, else null
@@ -3572,6 +3577,7 @@ ${describeTrend(t)}` };
     implicitMeshesRef,
     importStateRef,
     includeSectionContacts,
+    explicitSurfaces, // TASKS.csv #811 — lines tagged with an explicit surface are not "unmatched" in an implicit run
     interceptInActiveSet,
     isSameProject,
     layers,
@@ -6297,6 +6303,41 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     }
     setMcSelected(row);
   }, [mcPickMode, mode, mcConnectFrom, modellingCodes, mcGroupOf, layers.litho, pickHits, setModellingCodes]);
+  // TASKS.csv #811 — a click (not a drag) in the 3D view while an explicit surface is picking: the hits go to the
+  // Explicit surface panel (loaded on demand), which turns them into a pick
+  const explicitClickRef = useRef(null);
+  const onExplicitClick = useCallback((e) => {
+    if (!explicitPickFor || mode !== "modelling" || !explicitClickRef.current) return;
+    const d = mcDownRef.current;
+    if (d && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return;
+    const rect = mountRef.current.getBoundingClientRect();
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1), cameraRef.current);
+    explicitClickRef.current(pickHits(raycaster).filter((h) => h.object.parent?.visible !== false), raycaster);
+  }, [explicitPickFor, mode, pickHits]);
+  // the picks of every explicit surface, in its colour, while the Modelling tab is shown
+  const explicitOverlayRef = useRef(null);
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    if (!explicitOverlayRef.current) { explicitOverlayRef.current = new THREE.Group(); explicitOverlayRef.current.name = "explicitPicks"; scene.add(explicitOverlayRef.current); }
+    const g = explicitOverlayRef.current;
+    g.children.slice().forEach((o) => { g.remove(o); o.geometry?.dispose(); o.material?.dispose(); });
+    g.visible = mode === "modelling";
+    if (mode !== "modelling") return;
+    const o = originRef.current;
+    (explicitSurfaces || []).forEach((s) => {
+      if (!s.picks?.length) return;
+      const pos = new Float32Array(s.picks.length * 3);
+      s.picks.forEach((p, i) => { pos[3 * i] = p.x - o.x; pos[3 * i + 1] = p.z - o.z; pos[3 * i + 2] = o.y - p.y; });
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+      const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color: s.color || "#e07b39", size: s.id === explicitPickFor ? 11 : 8, sizeAttenuation: false, depthTest: false, transparent: true }));
+      pts.renderOrder = 11;
+      g.add(pts);
+    });
+    lastActivityRef.current = Date.now();
+  }, [explicitSurfaces, explicitPickFor, mode]);
   // TASKS.csv #599 — overlay in the Modelling tab: a tie line (in the code's colour) between the middles of each
   // pair of connected intervals, and the selected / "connect from" interval highlighted along its trace.
   const mcOverlayRef = useRef(null);
@@ -6930,6 +6971,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <RibbonGroup label="GemPy modelling">
             <RibbonButton icon={Mountain} label="Implicit surface" tone="model" title="Model one unit's top surface (GemPy)" {...paneProps("implicit")} />
             <RibbonButton advanced icon={Layers} label="Strat. stack" tone="model" title="Model a stratigraphic stack of units together (GemPy)" {...paneProps("stack")} />
+          </RibbonGroup>
+          {/* TASKS.csv #811 — Matt: "a tool specifically for explicit modelling ... the hard line of the modelled surface" */}
+          <RibbonGroup label="Explicit modelling">
+            <RibbonButton icon={Spline} label="Explicit surface" tone="model" title="A surface exactly through your own picks in 3D and lines drawn on sections" {...paneProps("explicit")} />
           </RibbonGroup>
           <RibbonGroup label="geoML modelling">
             <RibbonButton icon={Sparkles} label="geoML models" tone="model" title="Rock-unit and grade models with uncertainty (geoML, Gaussian processes — optional add-on)" {...paneProps("geoml")} />
@@ -7741,6 +7786,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             (AND + BAS, SLT + GWK...) into one modelled unit. Same terse add/remove-list style as the
             Layers "+ Group" header above and CoreOrientationCalculator's field-reference library —
             a short, infrequently-edited list, not a modal workflow. */}
+        </>)}
+        {toolPane === "explicit" && (<>
+        {paneHeader("Explicit surface", Spline, "model")}
+        <Suspense fallback={null}>
+          <ExplicitSurfacePanel defs={explicitSurfaces || []} setDefs={setExplicitSurfaces} sections={sections} terrain={terrain} pickFor={explicitPickFor} setPickFor={setExplicitPickFor} snap={explicitSnap} setSnap={setExplicitSnap}
+            scene={{ origin: originRef, meshes: implicitMeshesRef, group: implicitGroupRef, traces: tracesRef, activity: lastActivityRef, setSurfaces: setImplicitSurfaces, worldPointFromHits, clickRef: explicitClickRef }}
+            onRemove={(d) => { if (d.surfaceId && implicitMeshesRef.current[d.surfaceId]) removeImplicitSurface(d.surfaceId); setExplicitSurfaces((p) => p.filter((x) => x.id !== d.id)); }}
+            askPrompt={askPrompt} pBtn={pBtn} smallSel={smallSel} numInput={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
+        </Suspense>
         </>)}
         {toolPane === "mcodes" && (<>
         {paneHeader("Modelling codes", Waypoints, "model")}
@@ -8777,7 +8831,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {/* TASKS.csv #389 — was role=button + activateOnKey, so Enter/Space fired a synthetic click with no
           pointer position and placed a bogus section/measure/pick point. The 3D view is a pointer surface,
           not a button: a labelled, focusable application region with no keyboard click. */}
-      <div ref={viewFocusRef} role="application" aria-label={tr("3D view")} tabIndex={0} className="ge-main" onKeyDown={onViewKeyDown} onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { if (!isViewClick(e)) return; onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onMcodeClick(e); sculpt.handleViewClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode || (mcPickMode && mode === "modelling") || sculpt.targetId ? "crosshair" : "default" }}>
+      <div ref={viewFocusRef} role="application" aria-label={tr("3D view")} tabIndex={0} className="ge-main" onKeyDown={onViewKeyDown} onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { if (!isViewClick(e)) return; onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onMcodeClick(e); onExplicitClick(e); sculpt.handleViewClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode || ((mcPickMode || explicitPickFor) && mode === "modelling") || sculpt.targetId ? "crosshair" : "default" }}>
         <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
         {/* TASKS.csv #311 — figure furniture (title / legend / scale bar) for the screenshot people
             actually take. Rendered only once there is data to annotate, so the #294 empty state is

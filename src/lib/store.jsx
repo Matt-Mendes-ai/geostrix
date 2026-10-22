@@ -450,6 +450,7 @@ export function StoreProvider({ children }) {
   const [modellingCodes, setModellingCodes] = useState({ codes: [], assign: {}, ties: [] });
   // TASKS.csv #650 — named structural trends + which one each model uses (see lib/projectFields.js)
   const [structuralTrends, setStructuralTrends] = useState({ trends: [], use: {} });
+  const [explicitSurfaces, setExplicitSurfaces] = useState([]); // TASKS.csv #811
   const addLithoGroup = useCallback((group) => {
     const id = `lgrp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     setLithoGroups((p) => [...p, { name: "Group", color: "#8a7fbf", codes: [], ...group, id }]);
@@ -820,7 +821,7 @@ export function StoreProvider({ children }) {
     boundaries: [boundaries, setBoundaries], mapLayers: [mapLayers, setMapLayers], sectionImages: [sectionImages, setSectionImages], surfaceStructures: [surfaceStructures, setSurfaceStructures],
     fieldStructuralRefs: [fieldStructuralRefs, setFieldStructuralRefs], lithoGroups: [lithoGroups, setLithoGroups],
     geophysSurveys: [geophysSurveys, setGeophysSurveys], crmCertificates: [crmCertificates, setCrmCertificates],
-    dcipLines: [dcipLines, setDcipLines], modellingCodes: [modellingCodes, setModellingCodes], structuralTrends: [structuralTrends, setStructuralTrends], alterationBoxes: [alterationBoxes, setAlterationBoxes],
+    dcipLines: [dcipLines, setDcipLines], modellingCodes: [modellingCodes, setModellingCodes], structuralTrends: [structuralTrends, setStructuralTrends], explicitSurfaces: [explicitSurfaces, setExplicitSurfaces], alterationBoxes: [alterationBoxes, setAlterationBoxes],
     omfObjects: [omfObjects, setOmfObjects], terrain: [terrain, setTerrain],
     geophysPtsStops: [geophysPtsStops, setGeophysPtsStops], geophysPtsColorMode: [geophysPtsColorMode, setGeophysPtsColorMode],
     geophysPtsMin: [geophysPtsMin, setGeophysPtsMin], geophysPtsMax: [geophysPtsMax, setGeophysPtsMax],
@@ -1512,6 +1513,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     dcipLines, saveDcipLine, removeDcipLine, // TASKS.csv #322
     modellingCodes, setModellingCodes, // TASKS.csv #599
     structuralTrends, setStructuralTrends, // TASKS.csv #650
+    explicitSurfaces, setExplicitSurfaces, // TASKS.csv #811
     alterationBoxes, setAlterationBoxes, // TASKS.csv #503
     omfObjects, addOmfObject, updateOmfObject, removeOmfObject,
     terrain, addTerrain, updateTerrain, removeTerrain,

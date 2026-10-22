@@ -141,6 +141,7 @@ export default function SectionWindow() {
   const lithoUnits = data?.lithoUnits || [];
   // TASKS.csv #810 — modelling codes and lithology groups as tags too (a stack unit "X (code)" or a group matches them)
   const tagCodes = (data?.unitTags?.codes || []).filter((c) => !lithoUnits.includes(c)), tagGroups = data?.unitTags?.groups || [];
+  const tagExplicit = data?.unitTags?.explicit || []; // TASKS.csv #811 — a line drawn for an explicit surface is one of its hard lines
   const startDrawing = () => { if (!unitPick) return; setDrawing(true); setDrawPoints([]); };
   const cancelDrawing = () => { setDrawing(false); setDrawPoints([]); };
   const undoPoint = () => setDrawPoints((p) => p.slice(0, -1));
@@ -266,6 +267,7 @@ export default function SectionWindow() {
                   {lithoUnits.map((u) => <option key={u} value={u}>{u}</option>)}
                   {tagCodes.length > 0 && <optgroup label={tr("Modelling codes")}>{tagCodes.map((u) => <option key={`c:${u}`} value={u}>{u}</option>)}</optgroup>}
                   {tagGroups.length > 0 && <optgroup label={tr("Groups")}>{tagGroups.map((u) => <option key={`g:${u}`} value={u}>{u}</option>)}</optgroup>}
+                  {tagExplicit.length > 0 && <optgroup label={tr("Explicit surfaces")}>{tagExplicit.map((u) => <option key={`e:${u}`} value={u}>{u}</option>)}</optgroup>}
                 </select>
               ) : (
                 <input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} placeholder={tr("Unit name (no litho data loaded)")} style={{ ...selectStyle, width: 170 }} />

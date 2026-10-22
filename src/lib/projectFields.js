@@ -46,8 +46,9 @@ import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js"
 // v10 (TASKS.csv #555) stores assays and interval layers of 2,000+ rows as exact columns (compactTable.js).
 // v12 (TASKS.csv #650) adds structuralTrends (named trends + which trend each model uses).
 // v13 (TASKS.csv #660) compacts estimated / geoML / imported voxel models too (compactCells.keys names the columns).
+// v15 (TASKS.csv #811) adds explicitSurfaces (hand-picked surfaces: picks + settings; the mesh is a generated surface).
 // v14 (TASKS.csv #796) stores a terrain bigger than the Standard 200 x 200 as Float32 base64 (terrain.elevationsF32).
-export const PROJECT_VERSION = 14; // #796: big terrain grids as elevationsF32. Was 13 // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
+export const PROJECT_VERSION = 15; // #811: explicitSurfaces. Was 14 // #796: big terrain grids as elevationsF32. Was 13 // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
 
 export const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], magsusc: [], structure: [], litho_gc: [], alt_gc: [], geophys_pts: [] };
 
@@ -198,6 +199,9 @@ export const FIELDS = [
   // each model uses: use = { implicit, alteration, gradeShell, estimation, geoml } -> trend id | undefined (none)
   { key: "structuralTrends", track: "undo", empty: () => ({ trends: [], use: {} }),
     load: (data) => ({ trends: [], use: {}, ...(data.structuralTrends || {}) }) },
+  // TASKS.csv #811 — explicit surfaces: [{ id, name, color, picks: [{ id, x, y, z, hole_id?, md?, src }], margin, resolution,
+  // cutAtTerrain, surfaceId }] (world coordinates). The mesh itself is a generated surface (surfaceId), saved with those.
+  { key: "explicitSurfaces", track: "undo", empty: list },
   { key: "omfObjects", track: "undo", empty: list },
   { key: "terrain", track: "dirty", empty: () => null, save: compactTerrain, load: (data) => expandTerrain(data.terrain) }, // TASKS.csv #796
   // Geophysics point-cloud legend (pre-#122 files have none): display preferences.

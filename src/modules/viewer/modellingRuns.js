@@ -62,6 +62,7 @@ export function createModellingRuns(ctx, mcRef) {
     implicitMeshesRef,
     importStateRef,
     includeSectionContacts,
+    explicitSurfaces, // TASKS.csv #811
     interceptInActiveSet,
     isSameProject,
     layers,
@@ -1030,7 +1031,7 @@ export function createModellingRuns(ctx, mcRef) {
   // with the logged code while the run models a modelling code (or the reverse) is not ignored without a word
   const noteUnmatchedDrawnContacts = (specs) => {
     if (!includeSectionContacts) return;
-    const tags = new Set(specs.flatMap((s) => s.sectionTags || []));
+    const tags = new Set([...specs.flatMap((s) => s.sectionTags || []), ...(explicitSurfaces || []).map((d) => d.name)]); // #811: an explicit surface's lines are its own
     const other = new Map();
     for (const s of sections || []) for (const c of s.contacts || []) if (c.isUpperContact && !tags.has(c.unit)) other.set(c.unit, (other.get(c.unit) || 0) + 1);
     if (other.size) setNotices((p) => [...p, notice("Drawn cross-section contacts not used by this run (their unit matches none of its units): {v}. Re-tag them in the section window, or add that unit to the run.", { v: [...other].map(([u, n]) => `${u} ×${n}`).join(", ") })]);
