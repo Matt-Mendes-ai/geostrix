@@ -19,6 +19,16 @@ for (const f of files) {
   console.log(`${kb.toFixed(1).padStart(9)} kB  ${f}`);
 }
 console.log(`${total.toFixed(1).padStart(9)} kB  startup JavaScript (budget ${EAGER_BUDGET_KB} kB)`);
+// TASKS.csv #693 — ViewerModule.jsx re-accreted (9,284 -> 10,215 lines in three weeks) after #445's extraction; the
+// modelling panes moved to modules/viewer/ModellingPanes.jsx (9,525 lines left). Fail above the budget; raising it is
+// fine when deliberate - change VIEWER_LINE_BUDGET with a TASKS.csv note, or move the next cohesive block out.
+const VIEWER_LINE_BUDGET = 10000;
+const viewerLines = readFileSync(path.resolve("src/modules/ViewerModule.jsx"), "utf8").split(/\r?\n/).length;
+console.log(`${String(viewerLines).padStart(9)} lines src/modules/ViewerModule.jsx (budget ${VIEWER_LINE_BUDGET})`);
+if (viewerLines > VIEWER_LINE_BUDGET) {
+  console.error(`ViewerModule.jsx has ${viewerLines} lines, over its ${VIEWER_LINE_BUDGET}-line budget. Move a cohesive block out (TASKS.csv #693 lists the next ones), or raise the budget deliberately.`);
+  process.exit(1);
+}
 if (total > EAGER_BUDGET_KB) {
   console.error(`Startup JavaScript is ${total.toFixed(0)} kB, over the ${EAGER_BUDGET_KB} kB budget. Lazy-load what isn't needed at launch (see src/lib/lazyModal.jsx), or raise the budget deliberately (TASKS.csv #476).`);
   process.exit(1);

@@ -37,7 +37,8 @@ test("#810 the top uses the same rule: re-coded SIL above SILBX makes one unit w
 test("#810 wiring: drawn contacts default on, in the stack pane, and the section picker offers codes and groups", () => {
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /useState\(true\); \/\/ #810/);
-  assert.equal((v.match(/checked=\{includeSectionContacts\}/g) || []).length, 2);
+  const panes = readFileSync(new URL("../src/modules/viewer/ModellingPanes.jsx", import.meta.url), "utf8"); // #693: the panes moved here
+  assert.equal((panes.match(/checked=\{includeSectionContacts\}/g) || []).length, 2);
   const s = readFileSync(new URL("../src/components/SectionWindow.jsx", import.meta.url), "utf8");
   assert.match(s, /tagCodes\.map/);
   assert.match(s, /tagGroups\.map/);
