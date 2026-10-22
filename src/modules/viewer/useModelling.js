@@ -43,8 +43,8 @@ export function useModelling(ctx) {
     }
     return create(ctxRef.current, mcRef)[name](...args);
   }, []);
-  const runs = useMemo(() => Object.fromEntries(["runAlterationModel", "runImplicitModel", "runNumericModel", "runStackModel", "runStructuralModel", "runVeinModel"].map((n) => [n, lazyRun(n)])), [lazyRun]);
-  const { runAlterationModel, runImplicitModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel } = runs;
+  const runs = useMemo(() => Object.fromEntries(["runAlterationModel", "runImplicitModel", "runMapModel", "runNumericModel", "runStackModel", "runStructuralModel", "runVeinModel"].map((n) => [n, lazyRun(n)])), [lazyRun]);
+  const { runAlterationModel, runImplicitModel, runMapModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel } = runs; // runMapModel: #817
 
   const computeIntercepts = useCallback(() => {
     const traces = tracesRef.current;
@@ -109,5 +109,5 @@ export function useModelling(ctx) {
     });
   }, []);
 
-  return { addStackUnit, computeIntercepts, faultCandidates, moveStackUnit, removeStackUnit, runAlterationModel, runImplicitModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel };
+  return { addStackUnit, computeIntercepts, faultCandidates, moveStackUnit, removeStackUnit, runAlterationModel, runImplicitModel, runMapModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel };
 }

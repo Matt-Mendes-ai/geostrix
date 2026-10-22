@@ -53,7 +53,7 @@ export function explicitPoints(def, sections, { spacing = 10, maxPoints = 1200 }
 }
 
 // symmetric 3x3 eigen-decomposition (Jacobi); returns { values, vectors (columns) } sorted by value ascending
-function eigSym3(m) {
+export function eigSym3(m) { // exported for pileOrder.js (#817)
   const a = m.map((r) => r.slice()), v = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
   for (let sweep = 0; sweep < 50; sweep++) {
     const off = Math.abs(a[0][1]) + Math.abs(a[0][2]) + Math.abs(a[1][2]);

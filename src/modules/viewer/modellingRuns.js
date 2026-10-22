@@ -473,11 +473,19 @@ export function createModellingRuns(ctx, mcRef) {
         const realExtent = [...pad(rx.min, rx.max), ...pad(ry.min, ry.max), ...pad(rz.min, rz.max)];
         lbBlock = resampleWarpedBlock(res.block, realExtent, (q) => anisoWarpPoint(q, anisoCenter, anisoBasis, anisoScl));
       }
+      // TASKS.csv #817 — the ground above the youngest modelled top. It was labelled after specs[0], which is a FAULT whenever
+      // faults are solved with the stack (they come first): "above the top of Fault Thrust Fault 1". Now the first
+      // non-fault surface; and a model from the map names it as the youngest map unit itself (stackOpts.aboveUnit), so the
+      // predicted map scores it against that unit instead of leaving it grey and unscored (Perk-Rocky: andesite, 23 km2).
+      const topSpec = specs.find((sp) => !sp.fault) || specs[0];
+      const aboveUnit = stackOpts.aboveUnit || null;
+      const aboveText = aboveUnit || `above the top of ${topSpec.meshName} (not modelled)`;
+      const unitSpecs = specs.filter((sp) => !sp.fault);
       // TASKS.csv #759 — each evaluated section's units (packed), keyed by section id with the line it was evaluated on
       const secResults = {};
       if (exact && secGrids.length) {
         const [bx0, bx1, by0, by1, bz0, bz1] = res.block.extent;
-        const aboveSec = `above the top of ${specs[0].meshName} (not modelled)`;
+        const aboveSec = aboveText; // #817
         let off = evalRows.length + mapApi.length;
         secGrids.forEach(({ sc, grid }) => {
           const units = grid.nodes.map((_, k) => {
@@ -491,7 +499,7 @@ export function createModellingRuns(ctx, mcRef) {
         });
         setNotices((p) => [...p, notice(secGrids.length > 1 ? "Modelled units evaluated exactly on {secGrids} saved cross-sections ({v2}; {secApi} points in the same solve): open a section to see them behind the logged holes. Other sections show the model read from its block (coarser)." : "Modelled units evaluated exactly on {secGrids} saved cross-section ({v2}; {secApi} points in the same solve): open a section to see them behind the logged holes. Other sections show the model read from its block (coarser).", { secGrids: secGrids.length, v2: secGrids.map(({ sc, grid }) => `${sc.name} every ${Math.round(grid.dl)} m`).join(", "), secApi: secApi.length.toLocaleString() })]);
       }
-      setLastLithBlock({ ...(Object.keys(secResults).length ? { sections: secResults, aboveLabel: `above the top of ${specs[0].meshName} (not modelled)` } : {}), ...(exact ? { intervals: evalRows.filter((q) => "modelled" in q).map((q) => ({ hole_id: q.hole_id, from: q.row.from, to: q.row.to, logged: q.row.value, modelled: q.modelled })) } : {}), block: lbBlock, units: specs.map((sp) => ({ name: sp.meshName, label: sp.meshName, color: sp.color })), origin: { ...originRef.current }, when: new Date().toLocaleTimeString(), title: `stack ${specs.map((sp) => sp.meshName).join(" over ")}`, matchedPct: chk.total ? Math.round((100 * chk.matched) / chk.total) : null });
+      setLastLithBlock({ ...(Object.keys(secResults).length ? { sections: secResults, aboveLabel: aboveText } : {}), ...(exact ? { intervals: evalRows.filter((q) => "modelled" in q).map((q) => ({ hole_id: q.hole_id, from: q.row.from, to: q.row.to, logged: q.row.value, modelled: q.modelled })) } : {}), block: lbBlock, units: specs.map((sp) => ({ name: sp.meshName, label: sp.meshName, color: sp.color })), origin: { ...originRef.current }, when: new Date().toLocaleTimeString(), title: `stack ${unitSpecs.map((sp) => sp.meshName).join(" over ")}${unitSpecs.length < specs.length ? `, ${specs.length - unitSpecs.length} fault(s)` : ""}`, matchedPct: chk.total ? Math.round((100 * chk.matched) / chk.total) : null });
       // TASKS.csv #679 — the trend's scales multiply to 1 (trendScales: iso / max * iso / int * iso / min), so a warped
       // cell has the volume of its real-space parallelepiped; dividing by the product keeps that true if it ever isn't
       const warpDet = anisotropy.enabled ? anisoScl.major * anisoScl.semiMajor * anisoScl.minor : 1;
@@ -500,31 +508,31 @@ export function createModellingRuns(ctx, mcRef) {
       const fmtVol = (v) => (v >= 1e9 ? `${(v / 1e9).toFixed(2)} km³` : `${(v / 1e6).toFixed(1)} Mm³`);
       const perUnit = chk.units.map((u) => `${u.unit} ${pct(u.matched, u.logged)} of ${Math.round(u.logged)} m${u.mostOftenModelledAs !== undefined && u.matched < u.logged ? ` (otherwise mostly modelled as ${u.mostOftenModelledAs ?? "above the modelled tops"})` : ""}`).join("; ");
       const worst = chk.holes.filter((h) => h.logged >= 5).slice(0, 3).map((h) => `${h.hole_id} ${pct(h.matched, h.logged)}`).join(", ");
-      setNotices((p) => [...p, notice("Model check{v}: the model puts {v2} of {v3} logged metres of the modelled units in the unit they were logged as. By unit: {perUnit}.{v4}{v5} Unit volumes inside the model box ({v6}) are bounded by that box and are not resource figures.{v7}", { v: exact ? tr(" (each interval's midpoint evaluated exactly)") : tr(" (read from the {modelResolution}³ block)", { modelResolution }), v2: pct(chk.matched, chk.total), v3: Math.round(chk.total), perUnit, v4: worst ? tr(" Least reproduced holes: {worst}.", { worst }) : "", v5: chk.outside ? tr(" {v} m fell outside the model extent.", { v: Math.round(chk.outside) }) : "", v6: vols.length ? vols.map((v) => `${v.name} ${fmtVol(v.volume)}`).join(", ") : tr("none"), v7: anisotropy.enabled ? tr(" With the {trendWord} \"{v}\" the model is solved in a stretched frame: the check and volumes account for it, and \"Add as block model\" gets the model resampled onto a real-space grid.", { trendWord, v: anisotropy.params?.trend || tr("unnamed") }) : "" })]);
+      if (chk.total > 0) setNotices((p) => [...p, notice("Model check{v}: the model puts {v2} of {v3} logged metres of the modelled units in the unit they were logged as. By unit: {perUnit}.{v4}{v5} Unit volumes inside the model box ({v6}) are bounded by that box and are not resource figures.{v7}", { v: exact ? tr(" (each interval's midpoint evaluated exactly)") : tr(" (read from the {modelResolution}³ block)", { modelResolution }), v2: pct(chk.matched, chk.total), v3: Math.round(chk.total), perUnit, v4: worst ? tr(" Least reproduced holes: {worst}.", { worst }) : "", v5: chk.outside ? tr(" {v} m fell outside the model extent.", { v: Math.round(chk.outside) }) : "", v6: vols.length ? vols.map((v) => `${v.name} ${fmtVol(v.volume)}`).join(", ") : tr("none"), v7: anisotropy.enabled ? tr(" With the {trendWord} \"{v}\" the model is solved in a stretched frame: the check and volumes account for it, and \"Add as block model\" gets the model resampled onto a real-space grid.", { trendWord, v: anisotropy.params?.trend || tr("unnamed") }) : "" })]);
       // TASKS.csv #758 — the predicted geological map, and how it compares with the mapped geology
       if (mapGrid && exact && addRaster) {
         const [bx0, bx1, by0, by1, bz0, bz1] = res.block.extent;
         const off = evalRows.length;
         // id 1 (label null) is the ground ABOVE the youngest modelled top: younger rock this model does not include -
         // real ground, drawn in grey and named, not left blank (found live on Harry: 56% of the nodes looked empty)
-        const aboveLabel = `above the top of ${specs[0].meshName} (not modelled)`;
+        const aboveLabel = aboveText; // #817
         let outsideBox = 0;
         const mapUnits = mapApi.map((q, k) => {
           if (!(q.x >= bx0 && q.x <= bx1 && q.y >= by0 && q.y <= by1 && q.z >= bz0 && q.z <= bz1)) { outsideBox++; return null; }
           const id = res.evaluated[off + k];
           return id <= 1 ? aboveLabel : res.block.labels[id - 1] ?? null;
         });
-        const colorOfUnit = new Map([...specs.map((sp) => [sp.meshName, sp.color || colorForLithology(sp.meshName)]), [aboveLabel, "#d4d4d4"]]);
+        const colorOfUnit = new Map([...specs.map((sp) => [sp.meshName, sp.color || colorForLithology(sp.meshName)]), [aboveLabel, aboveUnit ? colorForLithology(aboveUnit) : "#d4d4d4"]]);
         const px = unitRaster(mapGrid, mapUnits, (u) => colorOfUnit.get(u) || colorForLithology(u));
         const cv = document.createElement("canvas");
         cv.width = mapGrid.nx; cv.height = mapGrid.ny;
         cv.getContext("2d").putImageData(new ImageData(px, mapGrid.nx, mapGrid.ny), 0, 0);
-        const covered = mapUnits.filter((u) => u != null && u !== aboveLabel).length;
+        const covered = mapUnits.filter((u) => u != null && (aboveUnit || u !== aboveLabel)).length;
         const aboveN = mapUnits.filter((u) => u === aboveLabel).length;
-        const agreements = (mapLayers || []).filter((l) => l.styleField && l.geomType !== "line" && l.geomType !== "point")
-          .map((l) => mapAgreement(mapGrid, mapUnits, l, specs.map((sp) => sp.meshName))).filter((a) => a && a.mappedNodes);
+        const agreements = (mapLayers || []).filter((l) => l.styleField && l.geomType !== "line" && l.geomType !== "polyline" && l.geomType !== "point") // #817: the importer names line layers "polyline"
+          .map((l) => mapAgreement(mapGrid, mapUnits, l, [...unitSpecs.map((sp) => sp.meshName), ...(aboveUnit ? [aboveUnit] : [])])).filter((a) => a && a.mappedNodes); // #817: faults are not map units
         const cellM = Math.round((mapGrid.dx + mapGrid.dy) / 2);
-        const mapName = `Predicted geology (${specs.map((sp) => sp.meshName).join(" over ")})`;
+        const mapName = `Predicted geology (${[...(aboveUnit ? [aboveUnit] : []), ...unitSpecs.map((sp) => sp.meshName)].join(" over ")})`; // #817: units only
         (rasters || []).filter((r) => r.name === mapName && r.provenance?.tool?.includes("#758")).forEach((r) => removeRaster?.(r.id)); // a rerun replaces it
         addRaster({
           name: mapName, bbox: mapGrid.bbox, dataUrl: cv.toDataURL("image/png"), drapeMode: "terrain", opacity: 0.8,
@@ -535,7 +543,9 @@ export function createModellingRuns(ctx, mcRef) {
         const agreeTxt = agreements.length
           ? agreements.map((a) => ` Against the mapped geology "${a.layer}" (field ${a.field}): the model agrees on ${pctTxt(a.overall)} of the mapped ground where it has a unit of the same name — ${a.units.filter((u) => u.inModel).slice(0, 6).map((u) => `${u.unit} ${pctTxt(u.pct)}${u.pct != null && u.pct < 0.5 && u.modelledAs[0] ? ` (mostly modelled as ${u.modelledAs[0].unit})` : ""}`).join(", ") || "no mapped unit shares a name with a model unit"}.${a.unmatchedMapUnits.length ? ` Mapped units with no model unit of that name (not scored): ${a.unmatchedMapUnits.slice(0, 6).join(", ")}${a.unmatchedMapUnits.length > 6 ? "…" : ""}.` : ""}`).join("")
           : " No mapped geology polygons with a unit field are loaded, so there is nothing to compare it with.";
-        setNotices((p) => [...p, notice("Predicted geological map added to Maps / rasters (draped on the terrain): the model's unit at the ground surface, every {cellM} m over {nodes} terrain nodes: {covered} in a modelled unit, {aboveN} above the top of {meshName} (younger rock this model does not include, grey){v}.{agreeTxt} A model can match every hole and still contradict the outcrop — this is the check for that.", { cellM, nodes: mapGrid.nodes.length.toLocaleString(), covered: covered.toLocaleString(), aboveN: aboveN.toLocaleString(), meshName: specs[0].meshName, v: outsideBox ? tr(", {outsideBox} outside the model box (blank)", { outsideBox: outsideBox.toLocaleString() }) : "", agreeTxt })]);
+        setNotices((p) => [...p, aboveUnit
+          ? notice("Predicted geological map added to Maps / rasters (draped on the terrain): the model's unit at the ground surface, every {cellM} m over {nodes} terrain nodes: {covered} in a modelled unit ({aboveN} of them in {unit}, the youngest, above the top of {meshName}){v}.{agreeTxt}", { cellM, nodes: mapGrid.nodes.length.toLocaleString(), covered: covered.toLocaleString(), aboveN: aboveN.toLocaleString(), unit: aboveUnit, meshName: topSpec.meshName, v: outsideBox ? tr(", {outsideBox} outside the model box (blank)", { outsideBox: outsideBox.toLocaleString() }) : "", agreeTxt })
+          : notice("Predicted geological map added to Maps / rasters (draped on the terrain): the model's unit at the ground surface, every {cellM} m over {nodes} terrain nodes: {covered} in a modelled unit, {aboveN} above the top of {meshName} (younger rock this model does not include, grey){v}.{agreeTxt} A model can match every hole and still contradict the outcrop — this is the check for that.", { cellM, nodes: mapGrid.nodes.length.toLocaleString(), covered: covered.toLocaleString(), aboveN: aboveN.toLocaleString(), meshName: topSpec.meshName, v: outsideBox ? tr(", {outsideBox} outside the model box (blank)", { outsideBox: outsideBox.toLocaleString() }) : "", agreeTxt })]);
       } else if (!mapTerrain && exact) {
         setNotices((p) => [...p, notice("No terrain is loaded, so no predicted geological map was made (it needs the ground surface to evaluate the model on).")]);
       }
@@ -1089,6 +1099,79 @@ export function createModellingRuns(ctx, mcRef) {
     if (faultSpecs.length) setNotices((p) => [...p, notice("The stack is offset by {faultSpecs} fault(s) solved in the same model: {v}.", { faultSpecs: faultSpecs.length, v: faultSpecs.map((f) => f.meshName).join(", ") })]);
 
     await runSurfaceStack([...faultSpecs, ...specs], { relation: stackRelation }); // TASKS.csv #271
+  };
+
+  // TASKS.csv #817 — a stratigraphic model from the surface geology ALONE (no drillholes needed). Matt: "I wanna have a
+  // way to import surface geology (maps and structural measuments) and build a 3d model out of it". `p`:
+  //   layer / field: the geology map (polygons) and its unit attribute; order: the stratigraphic units, youngest first
+  //   (suggested by lib/pileOrder.js, edited by the geologist); bedding / planes: orientations in world coordinates
+  //   ({ x, y, dip, dipDir } - outcrop measurements and contact dips fitted from the draped traces); faults: [{ name,
+  //   line: [[x, y]], dip, dipDir }]; relation: "onlap" | "erode".
+  // Every contact between two units of the order is draped on the terrain (a point every 25 m) and becomes interface
+  // points of the BASE of the younger unit = the top of the unit directly below it in the order (a unit missing in
+  // between pinches out there). The youngest unit's top is the ground: no surface. Units not in the order (intrusions,
+  // breccias, hornfels...) are left out of the stack and named. Then the ordinary stack run: same solve, model check,
+  // predicted geological map scored against the loaded map (#758).
+  const runMapModel = async (p) => {
+    const terrain = terrainForClipRef.current;
+    if (!terrain) { setNotices((q) => [...q, notice("A model from the map needs a terrain: the contacts and measurements are placed on the ground surface. Fetch or import one first (Geophysics > Terrain).")]); return; }
+    const order = (p.order || []).filter(Boolean);
+    if (order.length < 2) { setNotices((q) => [...q, notice("Put at least two stratigraphic units in the order to model.")]); return; }
+    const o = originRef.current;
+    const [tx0, ty0, tx1, ty1] = terrain.bbox;
+    const ground = (x, y) => (x < tx0 || x > tx1 || y < ty0 || y > ty1 ? NaN : sampleTerrainElevation(terrain, x, y));
+    const api = (x, y, z) => ({ x: x - o.x, y: y - o.y, z: z - o.z });
+    const thin = (line, step) => {
+      const out = [line[0]];
+      let acc = 0;
+      for (let i = 1; i < line.length; i++) {
+        const a = line[i - 1], b = line[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        let t = step - acc;
+        while (t <= L) { out.push([a[0] + ((b[0] - a[0]) * t) / L, a[1] + ((b[1] - a[1]) * t) / L]); t += step; }
+        acc = L - (t - step);
+      }
+      return out;
+    };
+    const { extractMapContacts } = await import("../../lib/mapLayers.js");
+    const { contacts } = extractMapContacts(p.layer, p.field);
+    const rank = new Map(order.map((u, i) => [u, i]));
+    const pointsOf = new Map(order.map((u) => [u, []]));
+    let offTerrain = 0, unused = 0;
+    for (const c of contacts) {
+      const [a, b] = c.units;
+      if (!rank.has(a) || !rank.has(b)) { unused++; continue; }
+      const younger = rank.get(a) < rank.get(b) ? a : b;
+      const surface = order[rank.get(younger) + 1]; // the top of the unit directly below the younger one
+      for (const line of c.lines) for (const [x, y] of thin(line, 25)) {
+        const z = ground(x, y);
+        if (!Number.isFinite(z)) { offTerrain++; continue; }
+        pointsOf.get(surface).push({ ...api(x, y, z), srcCode: `${a}|${b}` });
+      }
+    }
+    const orientations = [...(p.bedding || []), ...(p.planes || [])].map((m) => ({ m, z: ground(m.x, m.y) })).filter(({ m, z }) => Number.isFinite(z) && [m.dip, m.dipDir].every(Number.isFinite))
+      .map(({ m, z }) => ({ ...api(m.x, m.y, z), dip: m.dip, azimuth: m.dipDir }));
+    if (!orientations.length) { setNotices((q) => [...q, notice("No orientations on the terrain: import outcrop measurements (bedding) or fetch a terrain that covers the map so contact dips can be fitted.")]); return; }
+    const specs = [], empty = [];
+    order.slice(1).forEach((u) => {
+      const pts = pointsOf.get(u);
+      if (!pts.length) { empty.push(u); return; }
+      specs.push({ label: `Top of ${u}`, meshName: u, points: pts, orientations, color: colorForLithology(u), type: "stratigraphic_contact", codes: [u], params: { mapModel: { layer: p.layer.name, field: p.field, order, contactPoints: pts.length } } });
+    });
+    if (specs.length < 1) { setNotices((q) => [...q, notice("None of the units below the youngest one shares a contact with a unit above it on the map, so there is nothing to model. Check the order.")]); return; }
+    const faultSpecs = (p.faults || []).map((f) => {
+      const pts = thin(f.line, 25).map(([x, y]) => ({ x, y, z: ground(x, y) })).filter((q) => Number.isFinite(q.z));
+      if (pts.length < 2 || !Number.isFinite(f.dip) || !Number.isFinite(f.dipDir)) return null;
+      const or = pts.filter((_, i) => i % 8 === 0).map((q) => ({ ...api(q.x, q.y, q.z), dip: f.dip, azimuth: f.dipDir }));
+      return { label: `Fault: ${f.name}`, meshName: `Fault ${f.name}`, points: pts.map((q) => api(q.x, q.y, q.z)), orientations: or, color: colorForStructure("FLT"), type: "fault", fault: true };
+    }).filter(Boolean);
+    const left = (p.leftOut || []).filter(Boolean);
+    setNotices((q) => [...q, notice("Model from the map: {v} surface(s) from {n} contact point(s) and {m} orientation(s){f}.{e}{l}", {
+      v: specs.length, n: specs.reduce((s, x) => s + x.points.length, 0).toLocaleString(), m: orientations.length,
+      f: faultSpecs.length ? tr(", with {k} fault(s)", { k: faultSpecs.length }) : "",
+      e: empty.length ? tr(" No map contact reaches the top of: {u} (they are not modelled).", { u: empty.join(", ") }) : "",
+      l: left.length ? tr(" Left out of the stack (not stratigraphic): {u}.", { u: left.join(", ") }) : "",
+    }) + (offTerrain ? tr(" {k} contact point(s) beyond the terrain were skipped.", { k: offTerrain }) : "") + (unused ? tr(" {k} contact(s) involve units outside the order.", { k: unused }) : "")]);
+    await runSurfaceStack([...faultSpecs, ...specs], { relation: p.relation || stackRelation, aboveUnit: order[0] });
   };
 
   const gatherFaultSpec = (key, traces) => {
@@ -1726,5 +1809,5 @@ export function createModellingRuns(ctx, mcRef) {
     }, 40);
   }; // anisotropy/domains/modelDomainId: TASKS.csv #273
 
-  return { runAlterationModel, runImplicitModel, runNumericModel, runStackModel, runStructuralModel, runVeinModel };
+  return { runAlterationModel, runImplicitModel, runNumericModel, runStackModel, runMapModel, runStructuralModel, runVeinModel };
 }

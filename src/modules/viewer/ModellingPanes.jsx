@@ -19,6 +19,7 @@ import { tx } from "../../lib/i18nRich.js";
 export default function ModellingPanes(props) {
   const {
     viewDragHookRef, cameraRef, rendererRef, explicitOverlayRef, // TASKS.csv #813 — dragging explicit-surface picks
+    runMapModel, MapModelPanel, // TASKS.csv #817
     ExplicitSurfacePanel,
     ModellingCodesPane,
     PredictivePanel,
@@ -399,6 +400,12 @@ export default function ModellingPanes(props) {
             Layers "+ Group" header above and CoreOrientationCalculator's field-reference library —
             a short, infrequently-edited list, not a modal workflow. */}
         </>)}
+        {toolPane === "mapmodel" && (<>
+        {paneHeader("Model from map", Mountain, "model")}
+        <Suspense fallback={null}>
+          <MapModelPanel mapLayers={mapLayers} surfaceStructures={surfaceStructures} terrain={terrain} busy={implicitBusy} onRun={runMapModel} pBtn={pBtn} smallSel={smallSel} />
+        </Suspense>
+        </>)}{/* TASKS.csv #817 */}
         {toolPane === "explicit" && (<>
         {paneHeader("Explicit surface", Spline, "model")}
         <Suspense fallback={null}>
