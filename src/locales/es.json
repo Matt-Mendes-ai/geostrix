@@ -4940,5 +4940,10 @@
   "Link into a solid": "Unir en un sólido",
   "An outline has all its points in one place.": "Un contorno tiene todos sus puntos en el mismo lugar.",
   "At least two sections need an outline of that name.": "Al menos dos secciones necesitan un contorno con ese nombre.",
-  "two outlines lie on the same section plane; the solid is not well defined there": "dos contornos están en el mismo plano de sección; el sólido no queda bien definido allí"
+  "two outlines lie on the same section plane; the solid is not well defined there": "dos contornos están en el mismo plano de sección; el sólido no queda bien definido allí",
+  "{unitName}: modelling-code assignments followed: {assignedIn} interval(s) re-coded into it used, {assignedOut} logged as it but re-coded to another code left out.": "{unitName}: se siguieron las asignaciones de códigos de modelado: {assignedIn} intervalo(s) recodificados a esta unidad se usaron, {assignedOut} registrados como ella pero recodificados a otro código se dejaron fuera.",
+  "{unitName}: {n} drawn cross-section contact(s) were NOT used — tick \"Include drawn cross-section contacts\" to add them.": "{unitName}: {n} contacto(s) dibujados en secciones NO se usaron — marque «Incluir contactos dibujados en secciones» para añadirlos.",
+  "Drawn cross-section contacts not used by this run (their unit matches none of its units): {v}. Re-tag them in the section window, or add that unit to the run.": "Contactos dibujados en secciones que esta corrida no usa (su unidad no coincide con ninguna de sus unidades): {v}. Vuelva a etiquetarlos en la ventana de sección o añada esa unidad a la corrida.",
+  "Click points around the {unitPick} outline; it closes itself on Finish… ({drawPoints} so far)": "Haga clic alrededor del contorno de {unitPick}; se cierra solo al terminar… ({drawPoints} hasta ahora)",
+  "Click points along {unitPick}… ({drawPoints} so far)": "Haga clic a lo largo de {unitPick}… ({drawPoints} hasta ahora)"
 }

@@ -15,7 +15,7 @@ import { excludeQAQC } from "../../lib/qaqc.js";
 import { errorNotice, notice } from "../../lib/notices.js";
 import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, splitIntervalForSampling, spatialClusters, sampleTerrainElevation } from "../../lib/viewer/geomath.js";
 import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals } from "../../lib/viewer/intervals.js";
-import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode } from "../../lib/modellingCodes.js"; // TASKS.csv #599
+import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit } from "../../lib/modellingCodes.js"; // TASKS.csv #599
 import { clipMesh } from "../../lib/clipMesh.js";
 import { thinStructurePicks } from "../../lib/viewer/orientationThin.js"; // TASKS.csv #765
 import { makeEnsembleCounter, quantile, gridValuesToCells } from "../../lib/ensembleProbability.js"; // TASKS.csv #757
@@ -762,14 +762,28 @@ export function createModellingRuns(ctx, mcRef) {
     const isGroup = typeof target === "object" && target !== null && !isMcode;
     const unitName = isGroup || isMcode ? target.name : target;
     const codes = new Set(isGroup ? (target.codes || []) : [unitName]); // for an mcode: the code itself (drawn section contacts are tagged with it)
+    // TASKS.csv #810 — a drawn section contact may be tagged with the group's own name as well as a member code
+    const sectionTags = new Set([...codes, unitName]);
+    // TASKS.csv #810 — Matt: "picking contacts in the 3d view and assinging a modelling code but also implicit modelling is
+    // not following them". A raw-code or group target read only the logged code, so an interval re-coded in the
+    // Modelling codes pane was ignored. Now an interval's OVERRIDE (only an explicit assignment, never the default
+    // group mapping) decides: re-coded INTO this unit it counts, re-coded AWAY from it it does not. Without
+    // assignments nothing changes.
+    const assign = modellingCodes?.assign || {};
+    const hasAssign = !isMcode && Object.keys(assign).length > 0;
+    let assignedIn = 0, assignedOut = 0;
+    const inUnit = (r) => (hasAssign ? inTargetUnit(r, codes, unitName, assign) : codes.has(r.value));
     const domain = domains.find((d) => d.id === modelDomainId);
     const points = [];
     let mcodeInfo = null, mcodeLogged = null;
     // TASKS.csv #354 — only real tops: a row whose interval above (same hole) is also one of `codes`
     // continues the unit. For a lithology GROUP that also drops the internal AND/BAS boundaries between
     // member codes, which are not contacts of the grouped unit either.
-    const litEnds = intervalEndIndex(layers.litho);
-    const litStarts = intervalStartIndex(layers.litho); // #569 — for up-holes
+    // #810 — with assignments, "the row above is the same unit" must use the same rule, so index in / out tokens
+    const IN = "\u0000in", idxRows = hasAssign ? (layers.litho || []).map((r) => ({ hole_id: r.hole_id, from: r.from, to: r.to, value: inUnit(r) ? IN : "" })) : layers.litho;
+    const contCodes = hasAssign ? new Set([IN]) : codes;
+    const litEnds = intervalEndIndex(idxRows);
+    const litStarts = intervalStartIndex(idxRows); // #569 — for up-holes
     let splitsSkipped = 0, upHolePicks = 0;
     if (isMcode) {
       // a stack's own order is the pile order for codes the code list hasn't placed
@@ -798,9 +812,12 @@ export function createModellingRuns(ctx, mcRef) {
     }
     if (!isMcode) traces.forEach((t) => {
       const zAt = (md) => findOnTrace(t.pts, md)?.y; // scene y = elevation
-      (layers.litho || []).filter((r) => r.hole_id === t.hole_id && codes.has(r.value) && !isNaN(r.from)).forEach((r) => {
+      (layers.litho || []).filter((r) => r.hole_id === t.hole_id && !isNaN(r.from)).forEach((r) => {
+        const isIn = inUnit(r);
+        if (hasAssign && isIn !== codes.has(r.value)) { if (isIn) assignedIn++; else assignedOut++; }
+        if (!isIn) return;
         // TASKS.csv #569 — the upper contact is at `to` in a rising (up-hole) interval
-        const top = upperContactOf(r, zAt, { startIndex: litStarts, endIndex: litEnds, codes });
+        const top = upperContactOf(r, zAt, { startIndex: litStarts, endIndex: litEnds, codes: contCodes });
         if (top.continues) { splitsSkipped++; return; }
         // TASKS.csv #84 — a boundary intercept the user has explicitly reviewed and excluded (via the
         // Boundary intercepts table) never feeds a modelling run, same as if the row didn't exist.
@@ -839,12 +856,19 @@ export function createModellingRuns(ctx, mcRef) {
     // contact drawn outside the active modelling domain doesn't leak into a run scoped to exclude it.
     if (splitsSkipped && !silent) setNotices((p) => [...p, notice("{unitName}: {splitsSkipped} interval start(s) inside the unit (the row above in the same hole is the same {v}) were not used as contacts.", { unitName, splitsSkipped, v: isGroup ? tr("group") : tr("unit") })]);
     if (upHolePicks && !silent) setNotices((p) => [...p, notice("{unitName}: {upHolePicks} contact(s) are in holes drilled upward there — the unit's top was taken at the interval's deeper end (to), which is the higher one.", { unitName, upHolePicks })]); // #569
+    // #810 — always said, even inside a stack (silent): it changes which picks the surface follows
+    if (assignedIn || assignedOut) setNotices((p) => [...p, notice("{unitName}: modelling-code assignments followed: {assignedIn} interval(s) re-coded into it used, {assignedOut} logged as it but re-coded to another code left out.", { unitName, assignedIn, assignedOut })]);
     let sectionContactCount = 0;
+    // TASKS.csv #810 — drawn contacts left out because the option is off are counted and said, not dropped silently
+    if (!includeSectionContacts) {
+      const n = (sections || []).reduce((k, s) => k + (s.contacts || []).filter((c) => c.isUpperContact && sectionTags.has(c.unit)).length, 0);
+      if (n) setNotices((p) => [...p, notice("{unitName}: {n} drawn cross-section contact(s) were NOT used — tick \"Include drawn cross-section contacts\" to add them.", { unitName, n })]);
+    }
     if (includeSectionContacts) {
       const o = originRef.current;
       (sections || []).forEach((s) => {
         (s.contacts || []).forEach((c) => {
-          if (!codes.has(c.unit) || !c.isUpperContact) return; // #176 — any member code's contact feeds the group
+          if (!sectionTags.has(c.unit) || !c.isUpperContact) return; // #176 — any member code's contact feeds the group (#810: or the group's name)
           (c.points || []).forEach((cp) => {
             const api = { x: cp.x - o.x, y: cp.y - o.y, z: cp.z - o.z, srcCode: c.unit }; // srcCode: TASKS.csv #275
             const scenePt = { x: api.x, y: api.z, z: -api.y }; // inverse of sceneToApi, for the domain check
@@ -854,7 +878,7 @@ export function createModellingRuns(ctx, mcRef) {
           });
         });
       });
-      if (sectionContactCount && !silent) {
+      if (sectionContactCount) { // #810 — said inside a stack too
         setNotices((p) => [...p, notice("Included {sectionContactCount} drawn cross-section contact point(s) for \"{unitName}\" as extra interface points.", { sectionContactCount, unitName })]);
       }
     }
@@ -999,9 +1023,18 @@ export function createModellingRuns(ctx, mcRef) {
     // A group's own assignable color drives its surface/legend; falls back to the first member's
     // per-code color if none set. Raw intervals in the 3D log keep their individual code colors.
     const color = isMcode ? (mcodeInfo.color || colorForLithology([...(mcodeLogged || [])][0] || unitName)) : isGroup ? (target.color || colorForLithology([...codes][0])) : colorForLithology(unitName);
-    return { label: `Top of ${unitName}`, meshName: unitName, points, orientations, color, type, codes: isMcode ? [...mcodeLogged] : [...codes], ...(isMcode ? { mcode: true } : {}), ...(thinNote ? { params: { orientationsAveraged: thinNote } } : {}) }; // codes: #356 model check (logged codes); mcode: #599
+    return { label: `Top of ${unitName}`, meshName: unitName, points, orientations, color, type, codes: isMcode ? [...mcodeLogged] : [...codes], sectionTags: [...sectionTags] /* #810 */, ...(isMcode ? { mcode: true } : {}), ...(thinNote ? { params: { orientationsAveraged: thinNote } } : {}) }; // codes: #356 model check (logged codes); mcode: #599
   };
 
+  // TASKS.csv #810 — drawn upper contacts whose unit tag matches no unit of this run: name them, so a contact tagged
+  // with the logged code while the run models a modelling code (or the reverse) is not ignored without a word
+  const noteUnmatchedDrawnContacts = (specs) => {
+    if (!includeSectionContacts) return;
+    const tags = new Set(specs.flatMap((s) => s.sectionTags || []));
+    const other = new Map();
+    for (const s of sections || []) for (const c of s.contacts || []) if (c.isUpperContact && !tags.has(c.unit)) other.set(c.unit, (other.get(c.unit) || 0) + 1);
+    if (other.size) setNotices((p) => [...p, notice("Drawn cross-section contacts not used by this run (their unit matches none of its units): {v}. Re-tag them in the section window, or add that unit to the run.", { v: [...other].map(([u, n]) => `${u} ×${n}`).join(", ") })]);
+  };
   const runImplicitModel = async (unitName, runOpts = {}) => { // runOpts.ensemble — TASKS.csv #52 (a)
     if (!unitName) return;
     const traces = tracesRef.current;
@@ -1011,6 +1044,7 @@ export function createModellingRuns(ctx, mcRef) {
     if (!target) { setNotices((p) => [...p, notice("That lithology group no longer exists — pick another unit.")]); return; }
     const spec = gatherLithoSurfaceSpec(target, traces, { mapConstraint });
     if (!spec) return;
+    noteUnmatchedDrawnContacts([spec]);
     if (mapConstraint) spec.params = { ...(spec.params || {}), surfaceMapContact: { units: mapConstraint.units, classes: mapConstraint.classes, radiusM: mapConstraint.radius } };
     await runSurfaceModel(spec, runOpts.ensemble ? { ensemble: runOpts.ensemble } : undefined);
   };
@@ -1044,6 +1078,7 @@ export function createModellingRuns(ctx, mcRef) {
     });
     if (skipped.length) setNotices((p) => [...p, notice("Skipping from the stack (no lithology intervals found): {skipped}.", { skipped: skipped.join(", ") })]);
     if (specs.length < 2) { setNotices((p) => [...p, notice("Need at least 2 units with data to model a stack — add more units or check your lithology import.")]); return; }
+    noteUnmatchedDrawnContacts(specs);
     // TASKS.csv #360 — faults that offset the stack, solved in the same GemPy run (FAULT groups)
     const faultSpecs = [];
     stackFaults.forEach((key) => {

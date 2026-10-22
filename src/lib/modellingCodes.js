@@ -31,6 +31,14 @@ export function effectiveCode(row, mc, groupOf) {
   return g || String(row.value ?? "").trim();
 }
 
+// TASKS.csv #810 — does a row belong to a raw-code or group target (codes, named unitName)? Only an explicit override
+// in `assign` changes the answer: re-coded INTO the unit it does, re-coded AWAY it does not; the default group
+// mapping of effectiveCode is deliberately NOT applied (a group target already lists its member codes).
+export function inTargetUnit(row, codes, unitName, assign) {
+  const ov = assign?.[rowKey(row)];
+  return ov ? (ov === unitName || codes.has(ov)) : codes.has(row.value);
+}
+
 export function codeInfo(mc, name, defaultRole = () => "stratigraphic") {
   const c = (mc?.codes || []).find((x) => x.name === name);
   return { name, role: c?.role || defaultRole(name), order: Number.isFinite(c?.order) ? c.order : null, color: c?.color || null };

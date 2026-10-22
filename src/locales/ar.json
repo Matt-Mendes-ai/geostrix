@@ -4940,5 +4940,10 @@
   "Link into a solid": "ربط في مجسم",
   "An outline has all its points in one place.": "كل نقاط أحد المحيطات في الموضع نفسه.",
   "At least two sections need an outline of that name.": "يحتاج مقطعان على الأقل إلى محيط بهذا الاسم.",
-  "two outlines lie on the same section plane; the solid is not well defined there": "يقع محيطان في مستوى المقطع نفسه؛ المجسم غير محدد جيدًا هناك"
+  "two outlines lie on the same section plane; the solid is not well defined there": "يقع محيطان في مستوى المقطع نفسه؛ المجسم غير محدد جيدًا هناك",
+  "{unitName}: modelling-code assignments followed: {assignedIn} interval(s) re-coded into it used, {assignedOut} logged as it but re-coded to another code left out.": "{unitName}: اتُّبعت تعيينات رموز النمذجة: استُخدم {assignedIn} فاصل أُعيد ترميزه إلى هذه الوحدة، واستُبعد {assignedOut} مسجل بها لكن أُعيد ترميزه إلى رمز آخر.",
+  "{unitName}: {n} drawn cross-section contact(s) were NOT used — tick \"Include drawn cross-section contacts\" to add them.": "{unitName}: لم يُستخدم {n} من التماسات المرسومة على المقاطع — فعّل «تضمين التماسات المرسومة في المقاطع» لإضافتها.",
+  "Drawn cross-section contacts not used by this run (their unit matches none of its units): {v}. Re-tag them in the section window, or add that unit to the run.": "تماسات مرسومة على المقاطع لا يستخدمها هذا التشغيل (وحدتها لا تطابق أيًا من وحداته): {v}. أعد وسمها في نافذة المقطع، أو أضف تلك الوحدة إلى التشغيل.",
+  "Click points around the {unitPick} outline; it closes itself on Finish… ({drawPoints} so far)": "انقر حول محيط {unitPick}؛ يُغلق تلقائيًا عند الإنهاء… ({drawPoints} حتى الآن)",
+  "Click points along {unitPick}… ({drawPoints} so far)": "انقر على امتداد {unitPick}… ({drawPoints} حتى الآن)"
 }

@@ -139,6 +139,8 @@ export default function SectionWindow() {
   // interpretation string. Faults and strings take a typed name.
   const [kindPick, setKindPick] = useState("contact");
   const lithoUnits = data?.lithoUnits || [];
+  // TASKS.csv #810 — modelling codes and lithology groups as tags too (a stack unit "X (code)" or a group matches them)
+  const tagCodes = (data?.unitTags?.codes || []).filter((c) => !lithoUnits.includes(c)), tagGroups = data?.unitTags?.groups || [];
   const startDrawing = () => { if (!unitPick) return; setDrawing(true); setDrawPoints([]); };
   const cancelDrawing = () => { setDrawing(false); setDrawPoints([]); };
   const undoPoint = () => setDrawPoints((p) => p.slice(0, -1));
@@ -152,7 +154,9 @@ export default function SectionWindow() {
   const editPoints = (id, fn) => setContacts((p) => p.map((c) => (c.id === id ? { ...c, points: fn(c.points) } : c)));
   // what a click snaps to: the drawn / edited string's unit tops (contacts) or every logged boundary (faults, strings)
   const editing = contacts.find((c) => c.id === editingId) || null;
-  const targets = useMemo(() => snapTargets(data?.intervals, editing ? { unit: editing.unit, kind: editing.kind || "contact", holes: data?.holes } : { unit: unitPick, kind: kindPick, holes: data?.holes }), [data?.intervals, data?.holes, editing, unitPick, kindPick]); // holes: #569 up-holes
+  // #810 — a modelling code or group is not a logged label, so its contact snaps to any logged boundary (like a fault)
+  const snapKind = (unit, kind) => (kind === "contact" && !lithoUnits.includes(unit) ? "boundary" : kind);
+  const targets = useMemo(() => snapTargets(data?.intervals, editing ? { unit: editing.unit, kind: snapKind(editing.unit, editing.kind || "contact"), holes: data?.holes } : { unit: unitPick, kind: snapKind(unitPick, kindPick), holes: data?.holes }), [data?.intervals, data?.holes, editing, unitPick, kindPick]); // holes: #569 up-holes
 
   // TASKS.csv #395 — ground elevation at distance l along the section, from the terrain profile.
   const groundAt = (l) => {
@@ -260,6 +264,8 @@ export default function SectionWindow() {
                 <select value={unitPick} onChange={(e) => setUnitPick(e.target.value)} style={selectStyle}>
                   <option value="">{tr("Unit…")}</option>
                   {lithoUnits.map((u) => <option key={u} value={u}>{u}</option>)}
+                  {tagCodes.length > 0 && <optgroup label={tr("Modelling codes")}>{tagCodes.map((u) => <option key={`c:${u}`} value={u}>{u}</option>)}</optgroup>}
+                  {tagGroups.length > 0 && <optgroup label={tr("Groups")}>{tagGroups.map((u) => <option key={`g:${u}`} value={u}>{u}</option>)}</optgroup>}
                 </select>
               ) : (
                 <input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} placeholder={tr("Unit name (no litho data loaded)")} style={{ ...selectStyle, width: 170 }} />
@@ -270,7 +276,7 @@ export default function SectionWindow() {
             </>
           ) : (
             <>
-              <span style={{ color: "#e2a63c", fontSize: 11 }}>{tr("Click points along {unitPick}'s upper contact… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length })}</span>
+              <span style={{ color: "#e2a63c", fontSize: 11 }}>{kindPick === "contact" ? tr("Click points along {unitPick}'s upper contact… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length }) : kindPick === "outline" ? tr("Click points around the {unitPick} outline; it closes itself on Finish… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length }) : tr("Click points along {unitPick}… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length })}</span>
               <button onClick={undoPoint} disabled={!drawPoints.length} style={{ ...btnStyle(false), opacity: drawPoints.length ? 1 : 0.5 }}><Undo2 size={14} />{" "}{tr("Undo point")}</button>
               <button onClick={finishContact} disabled={drawPoints.length < (kindPick === "outline" ? 3 : 2)} style={{ ...btnStyle(true), opacity: drawPoints.length >= (kindPick === "outline" ? 3 : 2) ? 1 : 0.5 }}><Check size={14} />{" "}{tr("Finish")}</button>
               <button onClick={cancelDrawing} style={btnStyle(false)}><X size={14} />{" "}{tr("Cancel")}</button>

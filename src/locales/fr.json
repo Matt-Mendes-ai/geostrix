@@ -4940,5 +4940,10 @@
   "Link into a solid": "Relier en un solide",
   "An outline has all its points in one place.": "Un contour a tous ses points au même endroit.",
   "At least two sections need an outline of that name.": "Au moins deux coupes doivent avoir un contour de ce nom.",
-  "two outlines lie on the same section plane; the solid is not well defined there": "deux contours sont dans le même plan de coupe ; le solide n'y est pas bien défini"
+  "two outlines lie on the same section plane; the solid is not well defined there": "deux contours sont dans le même plan de coupe ; le solide n'y est pas bien défini",
+  "{unitName}: modelling-code assignments followed: {assignedIn} interval(s) re-coded into it used, {assignedOut} logged as it but re-coded to another code left out.": "{unitName} : affectations de codes de modélisation suivies : {assignedIn} intervalle(s) recodé(s) vers cette unité utilisé(s), {assignedOut} décrit(s) comme elle mais recodé(s) vers un autre code laissé(s) de côté.",
+  "{unitName}: {n} drawn cross-section contact(s) were NOT used — tick \"Include drawn cross-section contacts\" to add them.": "{unitName} : {n} contact(s) dessiné(s) sur coupe NON utilisé(s) — cochez « Inclure les contacts dessinés en coupe » pour les ajouter.",
+  "Drawn cross-section contacts not used by this run (their unit matches none of its units): {v}. Re-tag them in the section window, or add that unit to the run.": "Contacts dessinés sur coupe non utilisés par ce calcul (leur unité ne correspond à aucune de ses unités) : {v}. Réétiquetez-les dans la fenêtre de coupe, ou ajoutez cette unité au calcul.",
+  "Click points around the {unitPick} outline; it closes itself on Finish… ({drawPoints} so far)": "Cliquez autour du contour de {unitPick} ; il se ferme à la fin… ({drawPoints} jusqu'ici)",
+  "Click points along {unitPick}… ({drawPoints} so far)": "Cliquez le long de {unitPick}… ({drawPoints} jusqu'ici)"
 }

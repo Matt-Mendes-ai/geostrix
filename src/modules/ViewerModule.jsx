@@ -1228,7 +1228,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // drawn contacts are an interpretation, not raw data, so they shouldn't silently join every run —
   // this is the "source picker" the task note called for, kept as one explicit toggle rather than a
   // full per-source review UI (that's still a real follow-up if this turns out to need finer control).
-  const [includeSectionContacts, setIncludeSectionContacts] = useState(false);
+  const [includeSectionContacts, setIncludeSectionContacts] = useState(true); // #810: on by default (drawn contacts are deliberate picks)
   // TASKS.csv #356 — the last implicit run's lithology block (session only), offered as a block model and as
   // a "modelled unit" interval layer. { block, units: [{name,label,color}], origin, when, title }
   const [lastLithBlock, setLastLithBlock] = useState(null);
@@ -3145,6 +3145,9 @@ ${describeTrend(t)}` };
     return codesInUse(layers.litho, modellingCodes, mcGroupOf, mcodeDefaultRole).filter((c) => named.has(c.name));
   }, [modellingCodes, layers.litho, mcGroupOf]);
   const lithoGroupKey = (g) => `group:${g.id}`;
+  // TASKS.csv #810 — what a drawn section contact can be tagged with: modelling codes and group names as well as the
+  // logged codes, so a contact can feed a "X (code)" or group unit (the picker used to offer logged codes only)
+  const sectionUnitTags = useMemo(() => ({ codes: modellingCodeList.map((c) => c.name), groups: lithoGroups.filter((g) => (g.codes || []).length).map((g) => g.name) }), [modellingCodeList, lithoGroups]);
   // Returns the group object for a `group:` key (null if it was deleted since), else the raw code.
   const resolveLithoTarget = (v) => (isLithoGroupKey(v) ? (lithoGroups.find((g) => g.id === v.slice(6)) || null) : isMcodeKey(v) ? { kind: "mcode", name: v.slice(6) } : v); // #599 mcode:
   // A group's role comes from its member codes: shared role if every member agrees, else null
@@ -6763,7 +6766,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // to an actual litho unit, tagged as that unit's upper contact, is what #98 needs to feed drawn
     // contacts into 3D surface generation as real interface points later).
     const sectionImgs = await sectionImagesFor(a, b, corridor);
-    openSectionWindow({ id, title: name, section: { ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth, corridor }, holes, intervals, points, planes, contacts: [], lithoUnits: litho_units, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, sectionImages: sectionImgs, modelBackdrop,
+    openSectionWindow({ id, title: name, section: { ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth, corridor }, holes, intervals, points, planes, contacts: [], lithoUnits: litho_units, unitTags: sectionUnitTags, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, sectionImages: sectionImgs, modelBackdrop,
       ghostStrings: ghostStrings({ id, ax: a.x, ay: a.y, bx: b.x, by: b.y }, sections) }); // #519
   };
 
@@ -6771,9 +6774,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const a = { x: s.ax, y: s.ay }, b = { x: s.bx, y: s.by };
     const { holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop } = buildSectionPayload(a, b, s.corridor, s.scope || {}, s.id);
     const sectionImgs = await sectionImagesFor(a, b, s.corridor);
-    openSectionWindow({ id: s.id, title: s.name, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, contacts: s.contacts || [], lithoUnits: litho_units, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, sectionImages: sectionImgs, modelBackdrop,
+    openSectionWindow({ id: s.id, title: s.name, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, contacts: s.contacts || [], lithoUnits: litho_units, unitTags: sectionUnitTags, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, sectionImages: sectionImgs, modelBackdrop,
       ghostStrings: ghostStrings(s, sections) }); // #519 — the neighbouring sections' strings
-  }, [layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, terrain, voxelModels, implicitSurfaces, plannedHoles, sections, sectionImages, lastLithBlock]);
+  }, [layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, sectionUnitTags, terrain, voxelModels, implicitSurfaces, plannedHoles, sections, sectionImages, lastLithBlock]);
 
   // TASKS.csv #393 — sections defined by numbers rather than two clicks: saved to the Cross-sections list
   // (same shape as a drawn one) and opened at once.
@@ -7914,6 +7917,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {paneHeader("Stratigraphic stack", Layers, "model")}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models several units' top contacts together in one run so they can't cross each other — add units below in order, youngest (shallowest) first. Litho-only: veins/dykes cut across a stack by nature, so model those with the Structural tool instead, not here.")}</div>
         {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the 3D View tab (Add layer › Lithology), or load the sample project."))}
+        {/* TASKS.csv #810 — the stack reads the same option; it had no checkbox, so drawn contacts were dropped unseen */}
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title={tr("Also feed drawn cross-section contacts (Draw upper contact, in the section pop-out) tagged as this unit's upper contact into the run as extra interface points")}>
+          <input type="checkbox" checked={includeSectionContacts} onChange={(e) => setIncludeSectionContacts(e.target.checked)} />{tr("Include drawn cross-section contacts{v}", { v: sections?.some((s) => s.contacts?.length) ? ` (${sections.reduce((n, s) => n + (s.contacts?.length || 0), 0)} drawn)` : "" })}
+        </label>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select value={stackAdd} onChange={(e) => { addStackUnit(e.target.value); setStackAdd(""); }} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Add a unit…")}</option>
