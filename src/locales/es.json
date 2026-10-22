@@ -5143,5 +5143,17 @@
   "None of the chosen units has a polygon on this map.": "Ninguna de las unidades elegidas tiene polígonos en este mapa.",
   " {k} narrow outcrop(s) close before {d} m with these walls and end where they close ({a}–{b} m down).": " {k} afloramiento(s) estrecho(s) se cierran antes de {d} m con estas paredes y terminan donde se cierran ({a}–{b} m de profundidad).",
   " Walls that widen with depth can make neighbouring outcrops of a unit grow into each other: where they overlap, the unit's volume counts the overlap twice.": " Las paredes que se ensanchan en profundidad pueden hacer que afloramientos vecinos de una unidad crezcan unos dentro de otros: donde se solapan, el volumen de la unidad cuenta el solape dos veces.",
-  "This outline could not be triangulated (it may cross itself).": "No se pudo triangular este contorno (puede que se cruce consigo mismo)."
+  "This outline could not be triangulated (it may cross itself).": "No se pudo triangular este contorno (puede que se cruce consigo mismo).",
+  "at the collar": "en el collar",
+  "at the end of the hole": "al final del sondaje",
+  "at both ends": "en ambos extremos",
+  "Leader lines from a label to its hole: automatic draws one when a label had to move away from its hole (crowded collars, or dragged)": "Líneas guía de la etiqueta a su sondaje: en automático se dibuja una cuando la etiqueta tuvo que alejarse de su sondaje (collares juntos, o arrastrada)",
+  "Leaders": "Líneas guía",
+  "Leader lines": "Líneas guía",
+  "automatic": "automático",
+  "always": "siempre",
+  "Put every dragged label back where GeoStrix places it. Drag a label to move it.": "Devuelve cada etiqueta arrastrada a donde la coloca GeoStrix. Arrastre una etiqueta para moverla.",
+  "Reset labels": "Restablecer etiquetas",
+  "{hole} · EOH {v} m": "{hole} · FDS {v} m",
+  "Drag to move this label": "Arrastre para mover esta etiqueta"
 }

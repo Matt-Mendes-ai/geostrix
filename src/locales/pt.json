@@ -5143,5 +5143,17 @@
   "None of the chosen units has a polygon on this map.": "Nenhuma das unidades escolhidas tem polígonos neste mapa.",
   " {k} narrow outcrop(s) close before {d} m with these walls and end where they close ({a}–{b} m down).": " {k} afloramento(s) estreito(s) se fecham antes de {d} m com estas paredes e terminam onde se fecham ({a}–{b} m de profundidade).",
   " Walls that widen with depth can make neighbouring outcrops of a unit grow into each other: where they overlap, the unit's volume counts the overlap twice.": " Paredes que se alargam em profundidade podem fazer afloramentos vizinhos de uma unidade crescerem uns dentro dos outros: onde se sobrepõem, o volume da unidade conta a sobreposição duas vezes.",
-  "This outline could not be triangulated (it may cross itself).": "Não foi possível triangular este contorno (pode cruzar a si mesmo)."
+  "This outline could not be triangulated (it may cross itself).": "Não foi possível triangular este contorno (pode cruzar a si mesmo).",
+  "at the collar": "no colar",
+  "at the end of the hole": "no fim do furo",
+  "at both ends": "nas duas pontas",
+  "Leader lines from a label to its hole: automatic draws one when a label had to move away from its hole (crowded collars, or dragged)": "Linhas de chamada do rótulo ao furo: no automático uma é desenhada quando o rótulo teve de se afastar do furo (colares próximos, ou arrastado)",
+  "Leaders": "Linhas de chamada",
+  "Leader lines": "Linhas de chamada",
+  "automatic": "automático",
+  "always": "sempre",
+  "Put every dragged label back where GeoStrix places it. Drag a label to move it.": "Devolve cada rótulo arrastado para onde o GeoStrix o coloca. Arraste um rótulo para movê-lo.",
+  "Reset labels": "Redefinir rótulos",
+  "{hole} · EOH {v} m": "{hole} · FDF {v} m",
+  "Drag to move this label": "Arraste para mover este rótulo"
 }

@@ -76,7 +76,7 @@ const VIEWER_MODES = { viewer: "view", surface: "surface", modelling: "modelling
 export default function App() {
   const store = useStore();
   const {
-    saveProject, openProject, addLayoutImage, requestedModule, moduleRequestSeq, setSectionContacts, addPlannedHole,
+    saveProject, openProject, addLayoutImage, requestedModule, moduleRequestSeq, setSectionContacts, setSectionLabels, addPlannedHole,
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab, project,
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
     undo, redo, canUndo, canRedo,
@@ -259,9 +259,9 @@ export default function App() {
   // to jump back to the main window.
   useEffect(() => {
     // TASKS.csv #395 — the same relay also carries a planned hole designed on a section.
-    const off = onSectionContacts(({ id, contacts, plannedHole }) => { if (plannedHole) addPlannedHole(plannedHole); else setSectionContacts(id, contacts); });
+    const off = onSectionContacts(({ id, contacts, plannedHole, labels }) => { if (plannedHole) addPlannedHole(plannedHole); else if (labels) setSectionLabels(id, labels); else setSectionContacts(id, contacts); }); // labels: #823
     return off;
-  }, [setSectionContacts, addPlannedHole]);
+  }, [setSectionContacts, addPlannedHole, setSectionLabels]);
 
   // ViewerModule's "Snapshot to Layout" button calls store.goToModule("layout") after queuing the
   // image; this is the other half of that hop.

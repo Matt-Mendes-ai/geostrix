@@ -5143,5 +5143,17 @@
   "None of the chosen units has a polygon on this map.": "Aucune des unités choisies n'a de polygone sur cette carte.",
   " {k} narrow outcrop(s) close before {d} m with these walls and end where they close ({a}–{b} m down).": " {k} affleurement(s) étroit(s) se referment avant {d} m avec ces parois et s'arrêtent là où ils se referment ({a}–{b} m de profondeur).",
   " Walls that widen with depth can make neighbouring outcrops of a unit grow into each other: where they overlap, the unit's volume counts the overlap twice.": " Des parois qui s'élargissent en profondeur peuvent faire croître les affleurements voisins d'une unité les uns dans les autres : là où ils se chevauchent, le volume de l'unité compte le chevauchement deux fois.",
-  "This outline could not be triangulated (it may cross itself).": "Ce contour n'a pas pu être triangulé (il se croise peut-être lui-même)."
+  "This outline could not be triangulated (it may cross itself).": "Ce contour n'a pas pu être triangulé (il se croise peut-être lui-même).",
+  "at the collar": "au collet",
+  "at the end of the hole": "en fond de trou",
+  "at both ends": "aux deux extrémités",
+  "Leader lines from a label to its hole: automatic draws one when a label had to move away from its hole (crowded collars, or dragged)": "Lignes de rappel de l'étiquette vers son sondage : en automatique, une ligne est tracée quand l'étiquette a dû s'éloigner de son sondage (collets serrés, ou déplacée)",
+  "Leaders": "Lignes de rappel",
+  "Leader lines": "Lignes de rappel",
+  "automatic": "automatique",
+  "always": "toujours",
+  "Put every dragged label back where GeoStrix places it. Drag a label to move it.": "Remet chaque étiquette déplacée là où GeoStrix la place. Faites glisser une étiquette pour la déplacer.",
+  "Reset labels": "Réinitialiser les étiquettes",
+  "{hole} · EOH {v} m": "{hole} · FDS {v} m",
+  "Drag to move this label": "Faites glisser pour déplacer cette étiquette"
 }

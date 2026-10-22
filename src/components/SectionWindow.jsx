@@ -5,6 +5,7 @@ import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv 
 import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearestSegment } from "../lib/sectionDigitise.js"; // TASKS.csv #519
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { placeLabels, leaderEnd } from "../lib/sectionLabels.js"; // TASKS.csv #823
 
 const SECTION_W = 1100, SECTION_H = 660;
 
@@ -59,6 +60,15 @@ export default function SectionWindow() {
   const [vExag, setVExag] = useState(1);
   const [showSectionImages, setShowSectionImages] = useState(true); // TASKS.csv #631
   const [showModel, setShowModel] = useState(true); // TASKS.csv #759
+  // TASKS.csv #823 — hole labels: where (collar / end of hole / both / off), leader lines (auto: when a label had to move;
+  // always; off) and the labels the geologist dragged ({ "<hole>|collar": { dx, dy } }, SVG units from the anchor). Saved
+  // with the section (relayed to the main window like contacts), so a re-opened section and its Layout snapshot keep them.
+  const [labels, setLabels] = useState({ mode: "collar", leaders: "auto", offsets: {} });
+  const changeLabels = (patch) => setLabels((p) => {
+    const next = { ...p, ...patch };
+    if (data?.id) sendSectionContacts({ id: data.id, labels: next });
+    return next;
+  });
 
   // Layout's "assign a scale bar" feature (mirrors the existing viewport worldHeightAtTarget pattern —
   // see LayoutModule.jsx's onSyncScaleBar) needs to know the true real-world scale of whatever gets
@@ -70,14 +80,15 @@ export default function SectionWindow() {
   const geomRef = useRef({ hScale: 1 });
 
   useEffect(() => {
-    const off = onSectionData((d) => { setData(d); setContacts(d.contacts || []); });
+    const takeLabels = (d) => { if (d?.labels) setLabels((p) => ({ ...p, ...d.labels, offsets: d.labels.offsets || {} })); }; // #823
+    const off = onSectionData((d) => { setData(d); setContacts(d.contacts || []); takeLabels(d); });
     // TASKS.csv #617 — ask for the data too: the push from main can arrive before this lazy component listens
-    getSectionData().then((d) => { if (d) { setData((prev) => prev || d); setContacts((prev) => (prev.length ? prev : d.contacts || [])); } }).catch(() => {});
+    getSectionData().then((d) => { if (d) { setData((prev) => prev || d); setContacts((prev) => (prev.length ? prev : d.contacts || [])); takeLabels(d); } }).catch(() => {});
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
     const id = params.get("id");
     if (id) {
       const raw = sessionStorage.getItem(id);
-      if (raw) { const d = JSON.parse(raw); setData(d); setContacts(d.contacts || []); }
+      if (raw) { const d = JSON.parse(raw); setData(d); setContacts(d.contacts || []); takeLabels(d); }
     }
     return off;
   }, []);
@@ -330,6 +341,19 @@ export default function SectionWindow() {
             <button onClick={cancelPlanning} style={btnStyle(false)}><X size={14} />{" "}{tr("Cancel")}</button>
           </>
         )}
+        {/* TASKS.csv #823 — hole labels */}
+        <span style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto", color: "#55606e" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Hole labels")}
+            <select value={labels.mode} onChange={(e) => changeLabels({ mode: e.target.value })} style={{ ...selectStyle, padding: "3px 5px" }} aria-label={tr("Hole labels")}>
+              <option value="collar">{tr("at the collar")}</option><option value="end">{tr("at the end of the hole")}</option><option value="both">{tr("at both ends")}</option><option value="off">{tr("off")}</option>
+            </select></label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4 }} title={tr("Leader lines from a label to its hole: automatic draws one when a label had to move away from its hole (crowded collars, or dragged)")}>{tr("Leaders")}
+            <select value={labels.leaders} onChange={(e) => changeLabels({ leaders: e.target.value })} disabled={labels.mode === "off"} style={{ ...selectStyle, padding: "3px 5px" }} aria-label={tr("Leader lines")}>
+              <option value="auto">{tr("automatic")}</option><option value="always">{tr("always")}</option><option value="off">{tr("off")}</option>
+            </select></label>
+          <button onClick={() => changeLabels({ offsets: {} })} disabled={!Object.keys(labels.offsets).length} style={{ ...btnStyle(false), opacity: Object.keys(labels.offsets).length ? 1 : 0.5 }}
+            title={tr("Put every dragged label back where GeoStrix places it. Drag a label to move it.")}><Undo2 size={14} />{" "}{tr("Reset labels")}</button>
+        </span>
         {planAdded.length > 0 && !planning && <span style={{ color: "#2e7d4f" }}>{tr("Added {planAdded} {v} to Targeting.", { planAdded: planAdded.length, v: tr(planAdded.length > 1 ? "planned holes" : "planned hole") })}</span>}
       </div>
 
@@ -349,7 +373,8 @@ export default function SectionWindow() {
       <div className="ge-section-body" style={{ flex: 1, overflow: "auto", padding: 16 }}>
         {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{v2}. Click the pencil again to finish; Save contacts keeps the changes.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}</div>}
         <SectionSVG showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
-          snap={snapOn && !planning ? targets : null} editingId={editingId} onEditPoints={editPoints} />
+          snap={snapOn && !planning ? targets : null} editingId={editingId} onEditPoints={editPoints}
+          labels={labels} onMoveLabel={(key, off) => changeLabels({ offsets: { ...labels.offsets, [key]: off } })} /* #823 */ />
       </div>
     </div>
   );
@@ -360,8 +385,10 @@ function btnStyle(active) {
 }
 const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11.5 };
 
-function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints }) {
+function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onMoveLabel }) {
   const dragRef = useRef(null); // #519 — the vertex being dragged (before the early return: a hook)
+  const labelDragRef = useRef(null); // #823 — the label being dragged: { key, ax, ay, grabDx, grabDy }
+  const [labelDrag, setLabelDrag] = useState(null); // its live offset while dragging: { key, dx, dy }
   const { holes = [], section, intervals = [], points = [], planes = [], elevationProfile = null, voxelSlices = [], surfaceTraces = [], plannedHoles = [], title = "", sectionImages = [] } = data;
   const W = SECTION_W, PAD = 60;
   if (!section) return null;
@@ -447,12 +474,20 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
     onAddPoint(pointAt(local));
   };
   const handleMove = (e) => {
+    const ld = labelDragRef.current; // #823
+    if (ld) { const local = localOf(e); if (local && (e.buttons & 1)) setLabelDrag({ key: ld.key, dx: local.x - ld.grabDx - ld.ax, dy: local.y - ld.grabDy - ld.ay }); return; }
     const d = dragRef.current;
     if (!d || !(e.buttons & 1)) return;
     const local = localOf(e);
     if (local) { d.moved = true; const pt = pointAt(local); onEditPoints(d.id, (pts) => moveVertex(pts, d.i, pt)); }
   };
-  const handleUp = () => { dragRef.current = null; };
+  const handleUp = () => {
+    dragRef.current = null;
+    if (labelDragRef.current) { // #823 — a dragged label keeps its new place
+      if (labelDrag && labelDrag.key === labelDragRef.current.key) onMoveLabel?.(labelDrag.key, { dx: Math.round(labelDrag.dx * 10) / 10, dy: Math.round(labelDrag.dy * 10) / 10 });
+      labelDragRef.current = null; setLabelDrag(null);
+    }
+  };
   const insertAt = (c, e) => {
     if (c.id !== editingId) return;
     e.stopPropagation();
@@ -567,7 +602,6 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
           <g key={hi}>
             {runs && <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#9aa5b3" strokeWidth="1" strokeDasharray="4 3"><title>{tr("{hole_id}: outside the ±{corridor} m buffer — projected onto the section, no data drawn here", { hole_id: h.hole_id, corridor: section.corridor })}</title></polyline>}
             {solid.map((seg, si) => <polyline key={si} points={seg.map((p) => p.join(",")).join(" ")} fill="none" stroke="#445064" strokeWidth="1.2"><title>{`${h.hole_id}${off ? tr(": {off} from the section line", { off }) : ""}`}</title></polyline>)}
-            <text x={pts[0][0]} y={pts[0][1] - 6} fill="#1a2028" fontSize="9" textAnchor="middle">{h.hole_id}{off ? <title>{tr("{off} from the section line (in the buffer)", { off })}</title> : null}</text>
           </g>
         );
       })}
@@ -588,7 +622,6 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
         return (
           <g key={`ph${i}`}>
             <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#b06a1f" strokeWidth="1.6" strokeDasharray="6 4"><title>{tr("Planned hole: {name}", { name: ph.name })}</title></polyline>
-            <text x={pts[0][0]} y={pts[0][1] - 6} fill="#b06a1f" fontSize="10" textAnchor="middle">{tr("{name} (planned)", { name: ph.name })}</text>
           </g>
         );
       })}
@@ -653,7 +686,7 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
         return (
           <g key={`dt${hi}`}>
             {marks}
-            <text x={sx(along(last.x, last.y))} y={sz(last.z) + 11} fill="#1a2028" fontSize="9" textAnchor="middle">{tr("EOH {v} m", { v: Math.round(eoh) })}</text>
+            {labels.mode !== "end" && labels.mode !== "both" && <text x={sx(along(last.x, last.y))} y={sz(last.z) + 11} fill="#1a2028" fontSize="9" textAnchor="middle">{tr("EOH {v} m", { v: Math.round(eoh) })}</text>}{/* #823: in the end-of-hole label otherwise */}
           </g>
         );
       })}
@@ -727,6 +760,49 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
         </g>
       )}
 
+      {/* TASKS.csv #823 — hole labels, placed so none overlap (lib/sectionLabels.js), with leader lines; drag one to move it */}
+      {labels.mode !== "off" && (() => {
+        const items = [];
+        holes.forEach((h) => {
+          const t = h.trace;
+          if (!t?.length) return;
+          const first = t[0], last = t[t.length - 1];
+          if (labels.mode === "collar" || labels.mode === "both") items.push({ key: `${h.hole_id}|collar`, text: h.hole_id, ax: sx(along(first.x, first.y)), ay: sz(first.z), dir: -1, color: "#1a2028" });
+          if (labels.mode === "end" || labels.mode === "both") items.push({ key: `${h.hole_id}|end`, text: tr("{hole} · EOH {v} m", { hole: h.hole_id, v: Math.round(last.md ?? 0) }), ax: sx(along(last.x, last.y)), ay: sz(last.z), dir: 1, color: "#1a2028" });
+        });
+        plannedHoles.forEach((ph) => {
+          const t = ph.trace;
+          if (!t?.length) return;
+          const atEnd = labels.mode === "end";
+          const p = atEnd ? t[t.length - 1] : t[0];
+          items.push({ key: `plan:${ph.name}|${atEnd ? "end" : "collar"}`, text: tr("{name} (planned)", { name: ph.name }), ax: sx(along(p.x, p.y)), ay: sz(p.z), dir: atEnd ? 1 : -1, color: "#b06a1f" });
+        });
+        const fixed = { ...labels.offsets, ...(labelDrag ? { [labelDrag.key]: { dx: labelDrag.dx, dy: labelDrag.dy } } : {}) };
+        const color = Object.fromEntries(items.map((it) => [it.key, it.color]));
+        const placed = placeLabels(items, { fontSize: 9, bounds: [4, W - 4], fixed }); // the whole drawing: holes run past the plot frame
+        return (
+          <g>
+            {placed.map((b) => {
+              const lead = labels.leaders === "always" ? Math.hypot(b.x - b.ax, b.y - b.ay) > 8 : labels.leaders === "auto" && b.leader;
+              const [lx, ly] = leaderEnd(b);
+              return (
+                <g key={b.key} style={{ cursor: drawing ? "crosshair" : labelDrag?.key === b.key ? "grabbing" : "grab" }}
+                  onMouseDown={(e) => {
+                    if (drawing || e.button !== 0) return;
+                    e.stopPropagation(); e.preventDefault();
+                    const local = localOf(e);
+                    if (!local) return;
+                    labelDragRef.current = { key: b.key, ax: b.ax, ay: b.ay, grabDx: local.x - b.x, grabDy: local.y - b.y };
+                  }}>
+                  {lead && <><line x1={b.ax} y1={b.ay} x2={lx} y2={ly} stroke="#7a8494" strokeWidth="0.7" /><circle cx={b.ax} cy={b.ay} r="1.6" fill="#7a8494" /></>}
+                  <rect x={b.x - b.w / 2} y={b.y - b.h + 1} width={b.w} height={b.h + 1} fill="#ffffff" fillOpacity={lead || b.moved ? 0.85 : 0} />
+                  <text x={b.x} y={b.y - 1} fill={color[b.key]} fontSize="9" textAnchor="middle">{b.text}<title>{tr("Drag to move this label")}</title></text>
+                </g>
+              );
+            })}
+          </g>
+        );
+      })()}
       <text x={W / 2} y={H - 14} fill="#55606e" fontSize="11" textAnchor="middle">{tr("Distance along section (m)")}</text>
       <text x={16} y={H / 2} fill="#55606e" fontSize="11" textAnchor="middle" transform={`rotate(-90 16 ${H / 2})`}>{tr("Elevation (m)")}</text>
     </svg>

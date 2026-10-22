@@ -278,6 +278,10 @@ export function StoreProvider({ children }) {
   const setSectionContacts = useCallback((id, contacts) => {
     setSections((p) => p.map((s) => s.id === id ? { ...s, contacts } : s));
   }, []);
+  // TASKS.csv #823 — a section's hole-label settings and dragged label positions ({ mode, leaders, offsets })
+  const setSectionLabels = useCallback((id, labels) => {
+    setSections((p) => p.map((s) => s.id === id ? { ...s, labels } : s));
+  }, []);
   // Viewer UI state (layerVisible/categoryFilter/numericRange/legendOverride/visibleHoles/customVisible/
   // assayVisible/assayDisplayElement) is owned by ViewerModule but mirrored here (plain JSON, Sets ->
   // arrays) so it round-trips through save/open. `viewerUiStateSeq` bumps on newProject/openProject so
@@ -1493,7 +1497,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     excludedIntercepts, setExcludedIntercepts, toggleExcludedIntercept,
     softIntercepts, setSoftIntercepts, toggleSoftIntercept,
     interceptSets, addInterceptSet, renameInterceptSet, deleteInterceptSet, toggleInterceptInSet, setInterceptsInSet, // TASKS.csv #52 (c)
-    sections, setSections, upsertSection, renameSection, deleteSection, setSectionContacts, updateSections, renameSectionsBulk,
+    sections, setSections, upsertSection, renameSection, deleteSection, setSectionContacts, setSectionLabels, updateSections, renameSectionsBulk,
     sectionGroups, addSectionGroup, deleteSectionGroup, deleteAllSections,
     viewerUiState, setViewerUiState, viewerUiStateSeq,
     gridBoundViewportId, setGridBoundViewportId, gridMeters, setGridMeters,

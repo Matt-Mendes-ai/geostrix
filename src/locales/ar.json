@@ -5143,5 +5143,17 @@
   "None of the chosen units has a polygon on this map.": "لا تملك أي من الوحدات المختارة مضلعًا في هذه الخريطة.",
   " {k} narrow outcrop(s) close before {d} m with these walls and end where they close ({a}–{b} m down).": " {k} مكشف ضيق يُغلق قبل {d} م بهذه الجدران وينتهي حيث يُغلق (على عمق {a}–{b} م).",
   " Walls that widen with depth can make neighbouring outcrops of a unit grow into each other: where they overlap, the unit's volume counts the overlap twice.": " قد تجعل الجدران المتسعة مع العمق مكاشف الوحدة المتجاورة تتداخل: حيث تتداخل، يُحسب التداخل مرتين في حجم الوحدة.",
-  "This outline could not be triangulated (it may cross itself).": "تعذّر تثليث هذا المحيط (ربما يتقاطع مع نفسه)."
+  "This outline could not be triangulated (it may cross itself).": "تعذّر تثليث هذا المحيط (ربما يتقاطع مع نفسه).",
+  "at the collar": "عند الفوهة",
+  "at the end of the hole": "عند نهاية الثقب",
+  "at both ends": "عند الطرفين",
+  "Leader lines from a label to its hole: automatic draws one when a label had to move away from its hole (crowded collars, or dragged)": "خطوط ربط من التسمية إلى ثقبها: في الوضع التلقائي يُرسم خط عندما تبتعد التسمية عن ثقبها (فوهات متقاربة، أو سُحبت)",
+  "Leaders": "خطوط الربط",
+  "Leader lines": "خطوط الربط",
+  "automatic": "تلقائي",
+  "always": "دائمًا",
+  "Put every dragged label back where GeoStrix places it. Drag a label to move it.": "يعيد كل تسمية مسحوبة إلى حيث يضعها GeoStrix. اسحب تسمية لتحريكها.",
+  "Reset labels": "إعادة تعيين التسميات",
+  "{hole} · EOH {v} m": "{hole} · نهاية الثقب {v} م",
+  "Drag to move this label": "اسحب لتحريك هذه التسمية"
 }
