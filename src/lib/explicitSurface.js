@@ -60,7 +60,7 @@ export function explicitPoints(def, sections, { spacing = 10, maxPoints = 1200, 
   }
   out.push(...extraPts);
   return { points: out, picks: picks.length, lines: lines.length, sections: new Set(lines.map((l) => l.section)).size, spacing: Number.isFinite(step) ? step : null,
-    mapLines: extra.filter((l) => l.src === "map").length, guideLines: extra.filter((l) => l.src === "guide").length, extraPoints: extraPts.length, extraEvery: every };
+    mapLines: extra.filter((l) => l.src === "map").length, guideLines: extra.filter((l) => l.src === "guide").length, drawnLines: extra.filter((l) => l.src === "drawn").length, extraPoints: extraPts.length, extraEvery: every };
 }
 
 // symmetric 3x3 eigen-decomposition (Jacobi); returns { values, vectors (columns) } sorted by value ascending
@@ -89,7 +89,8 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
 // The surface's frame: origin at the centroid, n its "up" (vertical unless the points' plane is steeper than
 // steepDeg), e1 / e2 in the plane (e1 horizontal along strike when the plane is tilted).
-export function surfaceFrame(points, { steepDeg = 30 } = {}) {
+// frame (#824): "auto" (the rule above), "map" (always elevation over the map), "plane" (always over the best-fit plane)
+export function surfaceFrame(points, { steepDeg = 30, frame = "auto" } = {}) {
   const n0 = points.length;
   const c = [0, 0, 0];
   for (const p of points) { c[0] += p.x; c[1] += p.y; c[2] += p.z; }
@@ -105,7 +106,7 @@ export function surfaceFrame(points, { steepDeg = 30 } = {}) {
     let f = norm(vectors[0]);
     if (f[2] < 0) f = f.map((x) => -x);
     dip = (Math.acos(Math.min(1, Math.abs(f[2]))) * 180) / Math.PI;
-    if (dip >= steepDeg) { n = f; steep = true; }
+    if (frame === "plane" || (frame !== "map" && dip >= steepDeg)) { n = f; steep = true; }
   }
   const e1 = Math.hypot(n[0], n[1]) < 1e-9 ? [1, 0, 0] : norm(crossV([0, 0, 1], n)); // horizontal, along strike
   const e2 = crossV(n, e1);
@@ -169,12 +170,12 @@ export function thinPlate(u, v, w) {
   };
 }
 
-export function fitExplicitSurface(points, { margin = null, resolution = 80, groundAt = null, mergeTol = 0.5 } = {}) {
+export function fitExplicitSurface(points, { margin = null, resolution = 80, groundAt = null, mergeTol = 0.5, frame = "auto" } = {}) {
   const warnings = [];
   const pts = [];
   for (const p of points) if (!pts.some((q) => dist3(p, q) < mergeTol)) pts.push(p); // a repeated pick is one constraint
   if (pts.length < 3) throw new Error(tr("An explicit surface needs at least 3 points: pick contacts in 3D, or draw lines tagged with its name on sections."));
-  const F = surfaceFrame(pts);
+  const F = surfaceFrame(pts, { frame });
   const toF = (p) => { const d = [p.x - F.origin[0], p.y - F.origin[1], p.z - F.origin[2]]; return [dot(d, F.e1), dot(d, F.e2), dot(d, F.n)]; };
   const fromF = (u, v, w) => [F.origin[0] + u * F.e1[0] + v * F.e2[0] + w * F.n[0], F.origin[1] + u * F.e1[1] + v * F.e2[1] + w * F.n[1], F.origin[2] + u * F.e1[2] + v * F.e2[2] + w * F.n[2]];
   let uvw = pts.map(toF);

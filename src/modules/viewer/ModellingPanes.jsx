@@ -19,6 +19,7 @@ import { tx } from "../../lib/i18nRich.js";
 export default function ModellingPanes(props) {
   const {
     viewDragHookRef, cameraRef, rendererRef, explicitOverlayRef, // TASKS.csv #813 — dragging explicit-surface picks
+    camState, sectionImages, setDigitizeImageId, // TASKS.csv #824 — digitizing section images in the 3D view
     runMapModel, MapModelPanel, // TASKS.csv #817
     ExplicitSurfacePanel,
     ModellingCodesPane,
@@ -410,9 +411,9 @@ export default function ModellingPanes(props) {
         {toolPane === "explicit" && (<>
         {paneHeader("Explicit surface", Spline, "model")}
         <Suspense fallback={null}>
-          <ExplicitSurfacePanel defs={explicitSurfaces || []} setDefs={setExplicitSurfaces} sections={sections} terrain={terrain} mapLayers={mapLayers} surfaceStructures={surfaceStructures} /* #817 */ pickFor={explicitPickFor} setPickFor={setExplicitPickFor} snap={explicitSnap} setSnap={setExplicitSnap}
+          <ExplicitSurfacePanel defs={explicitSurfaces || []} setDefs={setExplicitSurfaces} sections={sections} terrain={terrain} mapLayers={mapLayers} surfaceStructures={surfaceStructures} /* #817 */ sectionImages={sectionImages} onDigitizeImage={setDigitizeImageId} /* #824 */ pickFor={explicitPickFor} setPickFor={setExplicitPickFor} snap={explicitSnap} setSnap={setExplicitSnap}
             scene={{ origin: originRef, meshes: implicitMeshesRef, group: implicitGroupRef, traces: tracesRef, activity: lastActivityRef, setSurfaces: setImplicitSurfaces, worldPointFromHits, clickRef: explicitClickRef,
-              dragHookRef: viewDragHookRef, camera: cameraRef, renderer: rendererRef, overlay: explicitOverlayRef, litho: layers.litho /* #813 */ }}
+              dragHookRef: viewDragHookRef, camera: cameraRef, renderer: rendererRef, overlay: explicitOverlayRef, litho: layers.litho /* #813 */, camState /* #824 */ }}
             onRemove={(d) => { if (d.surfaceId && implicitMeshesRef.current[d.surfaceId]) removeImplicitSurface(d.surfaceId); setExplicitSurfaces((p) => p.filter((x) => x.id !== d.id)); }}
             askPrompt={askPrompt} pBtn={pBtn} smallSel={smallSel} numInput={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
         </Suspense>
