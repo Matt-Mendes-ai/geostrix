@@ -5055,5 +5055,12 @@
   "{name} has no point features to read as measurements.": "{name} no tiene entidades de punto para leer como mediciones.",
   "Import map layer (.gpkg / .zip / .shp / MapInfo .tab)…": "Importar capa de mapa (.gpkg / .zip / .shp / MapInfo .tab)…",
   "Import structure measurements (.csv / MapInfo .tab)…": "Importar mediciones estructurales (.csv / MapInfo .tab)…",
-  "Predicted geological map added to Maps / rasters (draped on the terrain): the model's unit at the ground surface, every {cellM} m over {nodes} terrain nodes: {covered} in a modelled unit ({aboveN} of them in {unit}, the youngest, above the top of {meshName}){v}.{agreeTxt}": "Mapa geológico predicho añadido a Mapas / ráster (sobre el terreno): la unidad del modelo en la superficie, cada {cellM} m en {nodes} nodos del terreno: {covered} en una unidad modelada ({aboveN} de ellos en {unit}, la más joven, por encima del techo de {meshName}){v}.{agreeTxt}"
+  "Predicted geological map added to Maps / rasters (draped on the terrain): the model's unit at the ground surface, every {cellM} m over {nodes} terrain nodes: {covered} in a modelled unit ({aboveN} of them in {unit}, the youngest, above the top of {meshName}){v}.{agreeTxt}": "Mapa geológico predicho añadido a Mapas / ráster (sobre el terreno): la unidad del modelo en la superficie, cada {cellM} m en {nodes} nodos del terreno: {covered} en una unidad modelada ({aboveN} de ellos en {unit}, la más joven, por encima del techo de {meshName}){v}.{agreeTxt}",
+  " Scene {id}, {date}: {pct}% cloud or shadow over your area (scenes tried, newest first: {tried}). Natural colour (red / green / blue surface reflectance stretched together).": " Escena {id}, {date}: {pct}% de nubes o sombra sobre su área (escenas probadas, de la más reciente: {tried}). Color natural (reflectancia de superficie roja / verde / azul estirada en conjunto).",
+  "Cloudless mosaic (multi-year)": "Mosaico sin nubes (varios años)",
+  "Fetched and imported \"{name}\" ({gridW} × {gridH} px).": "Se descargó e importó «{name}» ({gridW} × {gridH} px).",
+  "Imagery": "Imágenes",
+  "Latest clear scene": "Última escena despejada",
+  "No Sentinel-2 scene of the last {m} months covers this area with under {c}% cloud.": "Ninguna escena Sentinel-2 de los últimos {m} meses cubre esta área con menos del {c}% de nubes.",
+  "Cloudless mosaic: EOX's blend of several years of Sentinel-2, always clear. Latest scene: the most recent clear Sentinel-2 date over your area (same 10 m pixels), so it shows this season's ground.": "Mosaico sin nubes: la mezcla de EOX de varios años de Sentinel-2, siempre despejada. Última escena: la fecha Sentinel-2 despejada más reciente sobre su área (mismos píxeles de 10 m), que muestra el terreno de esta temporada."
 }

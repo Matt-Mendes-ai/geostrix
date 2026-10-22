@@ -184,6 +184,9 @@ export default function RasterModule({ embedded = false } = {}) {
   // TASKS.csv #781 — resolution level, remembered per computer (a preference, not project data)
   const [satLevel, setSatLevelState] = useState(() => { try { const v = localStorage.getItem("geostrix_sat_level"); return SAT_LEVELS[v] ? v : "standard"; } catch { return "standard"; } });
   const setSatLevel = (v) => { setSatLevelState(v); try { localStorage.setItem("geostrix_sat_level", v); } catch { /* private window: session only */ } };
+  // TASKS.csv #816 — which imagery: the EOX cloudless mosaic (multi-year blend) or the latest clear Sentinel-2 scene
+  const [satSource, setSatSourceState] = useState(() => { try { return localStorage.getItem("geostrix_sat_source") === "latest" ? "latest" : "mosaic"; } catch { return "mosaic"; } });
+  const setSatSource = (v) => { setSatSourceState(v); try { localStorage.setItem("geostrix_sat_source", v); } catch { /* private window: session only */ } };
   // TASKS.csv #129 — manual tie-point georeferencer for a scanned map/claim sketch with no embedded
   // geo tags at all (a GeoTIFF/gxf still trusts its own tags, per buildRasterImport above — this is
   // specifically for when there ARE none). GeoreferencerModal.jsx does the actual UI/math; this is
@@ -272,6 +275,13 @@ export default function RasterModule({ embedded = false } = {}) {
     setSatBusy(true);
     setSatProgress({ done: 0, total: 1 });
     try {
+      if (satSource === "latest") { // TASKS.csv #816
+        const { fetchLatestTrueColour } = await import("../lib/imageryFetch.js");
+        const r = await fetchLatestTrueColour(bboxLonLat, { targetEpsg: project.epsg, maxPx: SAT_LEVELS[satLevel]?.gridMax || 2048, onProgress: (done, total) => setSatProgress({ done, total }) });
+        addRaster({ name: r.name, bbox: r.bbox, dataUrl: r.dataUrl, elevation: defaultElevation });
+        setError({ info: r.areaCloud <= 0.1, text: tr("Fetched and imported \"{name}\" ({gridW} × {gridH} px).", { name: r.name, gridW: r.gridW, gridH: r.gridH }) + r.note });
+        return;
+      }
       const parsed = await fetchSatelliteImagery({
         lonMin, latMin, lonMax, latMax, targetEpsg: project.epsg, level: satLevel, // #781
         onProgress: (done, total) => setSatProgress({ done, total }),
@@ -373,11 +383,16 @@ export default function RasterModule({ embedded = false } = {}) {
               const p = bbox ? planSatelliteFetch(bbox, satLevel) : null;
               return (
                 <span style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 10, fontSize: "var(--font-size-sm)", color: "#5a6472" }}>
+                  <select value={satSource} onChange={(e) => setSatSource(e.target.value)} aria-label={tr("Imagery")} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)" }}
+                    title={tr("Cloudless mosaic: EOX's blend of several years of Sentinel-2, always clear. Latest scene: the most recent clear Sentinel-2 date over your area (same 10 m pixels), so it shows this season's ground.")}>
+                    <option value="mosaic">{tr("Cloudless mosaic (multi-year)")}</option>
+                    <option value="latest">{tr("Latest clear scene")}</option>
+                  </select>{/* TASKS.csv #816 */}
                   <select value={satLevel} onChange={(e) => setSatLevel(e.target.value)} aria-label={tr("Image resolution")} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)" }}
                     title={tr("Higher levels download more tiles for a sharper image of large areas. Sentinel-2 imagery has 10 m pixels: past that, a higher level adds nothing.")}>
                     {Object.entries(SAT_LEVELS).map(([k, l]) => <option key={k} value={k}>{tr("{label} resolution", { label: l.label })}</option>)}
                   </select>
-                  {p && <span title={tr("zoom {zoom}: {tilesX} × {tilesY} tiles; image {gridW} × {gridH} px", { zoom: p.zoom, tilesX: p.tilesX, tilesY: p.tilesY, gridW: p.gridW, gridH: p.gridH })}>{tr("~{v} m pixels · {tiles} tiles · ~{v2} MB{v3}", { v: Math.round(p.pixelM), tiles: p.tiles, v2: p.downloadMB < 1 ? "<1" : Math.round(p.downloadMB), v3: p.nativeLimited ? tr(" · imagery's finest (10 m)") : "" })}</span>}
+                  {p && satSource === "mosaic" && <span title={tr("zoom {zoom}: {tilesX} × {tilesY} tiles; image {gridW} × {gridH} px", { zoom: p.zoom, tilesX: p.tilesX, tilesY: p.tilesY, gridW: p.gridW, gridH: p.gridH })}>{tr("~{v} m pixels · {tiles} tiles · ~{v2} MB{v3}", { v: Math.round(p.pixelM), tiles: p.tiles, v2: p.downloadMB < 1 ? "<1" : Math.round(p.downloadMB), v3: p.nativeLimited ? tr(" · imagery's finest (10 m)") : "" })}</span>}
                 </span>
               );
             }}
