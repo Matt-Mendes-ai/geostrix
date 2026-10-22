@@ -40,7 +40,7 @@ function worldPxToLonLat(wx, wy, zoom) {
 // Two modes:
 //  - "locate": expanded read-only view of the corner locator — pan/zoom freely, pin shows the
 //    project's real-world location, no editing. Opened from ViewerModule's Expand button.
-//  - "draw": the SRTM fetch-area picker — opened from GeophysicsModule's "Fetch SRTM for this area"
+//  - "draw": the SRTM fetch-area picker — opened from GeophysicsModule's "Fetch terrain for this area"
 //    button, pre-seeded with the same collar-derived bbox the old one-click auto-fetch used to send
 //    straight to fetchSRTMTerrain, but now shown as an editable rectangle the user can accept as-is or
 //    redraw/expand before confirming.
@@ -50,9 +50,9 @@ export default function BasemapView({
   initialBboxLonLat = null, // [lonMin, latMin, lonMax, latMax], draw mode only
   areaOptions = null, // TASKS.csv #200 — draw mode only: [{id, label, bboxLonLat}], existing
   // boundary/raster layers offered as a ready-made fetch area instead of drawing one by hand.
-  title = "Draw the area to fetch SRTM elevation for", // draw mode only — TASKS.csv #204 reuses this
+  title = "Draw the area to fetch terrain for", // (was "SRTM elevation": #815 added other sources) // draw mode only — TASKS.csv #204 reuses this
   // same picker for satellite imagery, where "fetch SRTM" wording would be wrong.
-  confirmLabel = "Fetch SRTM for this area", // draw mode only, same reason as `title` above.
+  confirmLabel = "Fetch terrain for this area", // draw mode only, same reason as `title` above.
   onClose,
   onConfirm, // (bboxLonLat) => void, draw mode only
   extraControls = null, // TASKS.csv #781 — draw mode only: (bboxLonLat | null) => node, shown before the area size

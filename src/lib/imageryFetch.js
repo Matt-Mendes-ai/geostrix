@@ -88,7 +88,7 @@ class RsClient extends BaseClient {
 }
 export const openCog = (href, stats) => fromCustomClient(new RsClient(href, stats)); // no blockSize: no BlockedSource (see above); exported for copernicusDem.js (#814)
 
-async function stacSearch(url, body) {
+export async function stacSearch(url, body) { // exported for nrcanDem.js (#815)
   const r = await remoteSensingFetch({ url, json: body });
   if (!r.ok) throw new Error(tr("The catalogue search failed ({v}).", { v: r.message || tr("HTTP {status}", { status: r.status }) }));
   return JSON.parse(new TextDecoder().decode(r.data));

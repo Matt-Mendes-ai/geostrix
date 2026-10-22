@@ -101,6 +101,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     omfObjects, addOmfObject, updateOmfObject, removeOmfObject,
     projectIsEmpty, setEpsg, // TASKS.csv #607
     addMapLayer, // TASKS.csv #544 — WFS polygons/lines with their attributes
+    mapLayers, // TASKS.csv #815 — the fetch area of a project without drillholes
   } = useStore();
   // TASKS.csv #323 — a block model's value along each hole, as a downhole layer ("On holes: <model>"). Numeric
   // models show as a bar track in the strip log beside the logs; discrete ones (a GemPy unit block) as units.
@@ -360,12 +361,28 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   // min/max taken, not just the center reprojected and a lon/lat margin re-applied.
   // User request (TASKS.csv): "an option to draw a rectangle on the view when we click on generate
   // SRTM so we can get it expanded to where we wish" — the old flow computed this bbox and fetched
-  // immediately with no way to see or adjust it first. Now "Fetch SRTM for this area" opens
+  // immediately with no way to see or adjust it first. Now "Fetch terrain for this area" (was "Fetch SRTM", renamed in #815) opens
   // BasemapView in "draw" mode, pre-seeded with this same collar-derived bbox (still the sensible
   // default — most of the time the drillholes ARE the area of interest) as an editable rectangle: the
   // user can accept it as-is with one click, or pan/redraw to widen or shift it before confirming.
   const defaultSrtmBboxLonLat = async () => {
-    if (!collars.length || !project?.epsg) return null;
+    if (!project?.epsg) return null;
+    if (!collars.length) {
+      // TASKS.csv #815 — no drillholes (a mapping project such as Perk-Rocky): the loaded terrain's extent, else the map
+      // layers', so the picker opens over the project and not wherever the map last was
+      let box = terrain?.bbox || null;
+      if (!box) {
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        for (const l of mapLayers || []) for (const f of l.features || []) for (const part of f.parts || [f.geometry || []]) for (const p of part) {
+          if (Number.isFinite(p?.[0]) && Number.isFinite(p?.[1])) { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); }
+        }
+        if (x1 > x0 && y1 > y0) box = [x0, y0, x1, y1];
+      }
+      if (!box) return null;
+      const lls = await Promise.all([[box[0], box[1]], [box[2], box[1]], [box[2], box[3]], [box[0], box[3]]].map(([x, y]) => toLonLat(x, y, project.epsg)));
+      if (lls.some((ll) => !ll)) return null;
+      return [arrMin(lls.map((ll) => ll.lon)), arrMin(lls.map((ll) => ll.lat)), arrMax(lls.map((ll) => ll.lon)), arrMax(lls.map((ll) => ll.lat))];
+    }
     const xs = collars.map((c) => c.x), ys = collars.map((c) => c.y);
     const xmin = arrMin(xs), xmax = arrMax(xs), ymin = arrMin(ys), ymax = arrMax(ys);
     const marginX = Math.max((xmax - xmin) * 0.25, 200), marginY = Math.max((ymax - ymin) * 0.25, 200);
@@ -438,16 +455,19 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   const runSrtmFetch = async (bboxLonLat, epsgOverride = null) => {
     const [lonMin, latMin, lonMax, latMax] = bboxLonLat;
     const targetEpsg = epsgOverride || project.epsg; // #614 — a zone fix re-fetches before the new label reaches this closure
-    if (terrain && !epsgOverride && !window.confirm(tr("Replace the current terrain (\"{name}\") with freshly-fetched SRTM for this area? Only one terrain surface is supported at a time.", { name: terrain.name }))) {
+    if (terrain && !epsgOverride && !window.confirm(tr("Replace the current terrain (\"{name}\") with freshly fetched terrain for this area? Only one terrain surface is supported at a time.", { name: terrain.name }))) {
       return;
     }
     setSrtmPickerOpen(false);
     setTerrainBusy(true);
     setSrtmProgress({ done: 0, total: 1 });
     try {
-      const parsed = await (terrainSource === "copernicus" ? fetchCopernicusTerrain : fetchSRTMTerrain)({ // #814
+      const nrcan = terrainSource === "mrdem" || terrainSource === "hrdem"; // TASKS.csv #815
+      const fetcher = nrcan ? (await import("../lib/nrcanDem.js")).fetchNrcanTerrain : terrainSource === "copernicus" ? fetchCopernicusTerrain : fetchSRTMTerrain; // #814
+      const parsed = await fetcher({
         lonMin, latMin, lonMax, latMax, targetEpsg, gridMax: terrainDetail, // #796
         onProgress: (done, total) => setSrtmProgress({ done, total }),
+        source: terrainSource,
       });
       // TASKS.csv #614 — collars hundreds of metres off the fetched ground: is the project in the wrong UTM zone?
       const misfit = collarGroundMisfit(collars, parsed);
@@ -473,7 +493,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       let msg = tr("Fetched and imported \"{name}\" as a {gridW}×{gridH} terrain mesh covering {v}×{v2} world units for the area you drew.", { name: parsed.name, gridW: parsed.gridW, gridH: parsed.gridH, v: (txmax - txmin).toFixed(0), v2: (tymax - tymin).toFixed(0) });
       if (parsed.source) msg += parsed.source.zoom != null
         ? tr(" Source: {service}, zoom {zoom} (its own pixels ~{v} m), resampled to nodes ~{v2} m apart — features smaller than that are smoothed out.", { service: parsed.source.service, zoom: parsed.source.zoom, v: Math.round(parsed.source.sourcePixelM), v2: Math.round(parsed.source.nodeM) }) // #726
-        : tr(" Source: {service}, resampled to nodes ~{v2} m apart. It is a surface model: in forest it reads some metres above the ground.", { service: parsed.source.service, v2: Math.round(parsed.source.nodeM) }); // #814
+        : parsed.source.bareEarth
+          ? tr(" Source: {service}, resampled to nodes ~{v2} m apart. It is a bare-earth terrain model (forest removed).", { service: parsed.source.service, v2: Math.round(parsed.source.nodeM) }) // #815
+          : tr(" Source: {service}, resampled to nodes ~{v2} m apart. It is a surface model: in forest it reads some metres above the ground.", { service: parsed.source.service, v2: Math.round(parsed.source.nodeM) }); // #814
       // TASKS.csv #814 — cones in the AWS tiles that Copernicus GLO-30 does not have: reported, not changed
       if (parsed.suspectCones?.length) {
         const fmt = (c) => (Number.isFinite(c.x) ? `${Math.round(c.x).toLocaleString()} E ${Math.round(c.y).toLocaleString()} N` : `${c.lon.toFixed(4)}, ${c.lat.toFixed(4)}`) + tr(" ({v} m high{v2})", { v: Math.round(c.riseM), v2: c.copRiseM == null ? "" : tr("; Copernicus {v} m", { v: Math.round(c.copRiseM) }) });
@@ -1170,9 +1192,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
           <span style={{ flexShrink: 0 }}>{tr("Online source")}</span>
           <select value={terrainSource} onChange={(e) => setTerrainSource(e.target.value)} style={{ ...numInput, width: "auto", flex: 1 }} aria-label={tr("Online source")}
-            title={tr("AWS Terrain Tiles: SRTM blended with national models (CDEM in Canada), up to ~5 m pixels; the fetch checks it for isolated cones against Copernicus and warns. Copernicus GLO-30: one consistent global model, ~30 m, a surface model (forest adds some metres).")}>
+            title={tr("AWS Terrain Tiles: SRTM blended with national models (CDEM in Canada), up to ~5 m pixels; the fetch checks it for isolated cones against Copernicus and warns. Copernicus GLO-30: one consistent global model, ~30 m, a surface model (forest adds some metres). NRCan MRDEM-30 (Canada only): 30 m bare-earth terrain, using lidar where it exists. NRCan HRDEM: 1 m lidar terrain where a survey has been flown, MRDEM-30 elsewhere.")}>
             <option value="aws">{tr("AWS Terrain Tiles (SRTM / CDEM blend)")}</option>
             <option value="copernicus">{tr("Copernicus GLO-30 (~30 m)")}</option>
+            <option value="mrdem">{tr("NRCan MRDEM-30 (Canada, bare earth)")}</option>{/* TASKS.csv #815 */}
+            <option value="hrdem">{tr("NRCan HRDEM lidar (Canada, where flown)")}</option>
           </select>
         </div>
         {/* TASKS.csv #796 — terrain detail */}
@@ -1196,13 +1220,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             disabled={terrainBusy}
             title={tr("Pick an area on a map and fetch elevation for it — no manual download needed")}
           >
-            {srtmProgress ? <Loader2 size={14} className="spin" /> : <Radio size={14} />} {srtmProgress ? tr("Fetching {done}/{total}…", { done: srtmProgress.done, total: srtmProgress.total }) : tr("Fetch SRTM for this area")}
+            {srtmProgress ? <Loader2 size={14} className="spin" /> : <Radio size={14} />} {srtmProgress ? tr("Fetching {done}/{total}…", { done: srtmProgress.done, total: srtmProgress.total }) : tr("Fetch terrain for this area")}
           </button>
         </div>
-        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("\"Fetch SRTM for this area\" opens a map to draw the exact area you want — pre-filled around your drillholes if any are loaded, but you can pan/redraw to widen or shift it. Pulls public elevation data, no manual USGS download needed. Sourced from AWS's public Terrain Tiles (SRTM-heritage, no account required), not usgs.gov directly.")}</div>
+        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("\"Fetch terrain for this area\" opens a map to draw the exact area you want — pre-filled around your drillholes, or your terrain or map layers if there are none; pan or redraw to widen or shift it. Public elevation data from the online source chosen above, no account and no manual download needed.")}</div>
         {srtmPickerOpen && (
           <BasemapView
             mode="draw"
+            title={tr("Draw the area to fetch terrain for")} // #815
             lon={srtmSeedLonLat?.lon}
             lat={srtmSeedLonLat?.lat}
             initialBboxLonLat={srtmSeedBbox}
