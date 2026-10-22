@@ -4926,5 +4926,19 @@
   "Mg-OH / carbonate 2330 nm (chlorite, epidote, calcite)": "Mg-OH / carbonate 2330 nm (chlorite, épidote, calcite)",
   "Depth: propylitic minerals and carbonate. Wavelength: ~2250 + 2330-2340 chlorite / epidote, ~2335-2345 calcite, ~2315-2325 dolomite / talc.": "Profondeur : minéraux propylitiques et carbonate. Longueur d'onde : ~2250 + 2330-2340 chlorite / épidote, ~2335-2345 calcite, ~2315-2325 dolomite / talc.",
   "Ferric iron 900 nm (hematite, goethite, jarosite)": "Fer ferrique 900 nm (hématite, goethite, jarosite)",
-  "Depth: iron oxides (gossan, oxidised cap). Wavelength: ~860-880 hematite, ~900-930 goethite / jarosite.": "Profondeur : oxydes de fer (chapeau de fer, couverture oxydée). Longueur d'onde : ~860-880 hématite, ~900-930 goethite / jarosite."
+  "Depth: iron oxides (gossan, oxidised cap). Wavelength: ~860-880 hematite, ~900-930 goethite / jarosite.": "Profondeur : oxydes de fer (chapeau de fer, couverture oxydée). Longueur d'onde : ~860-880 hématite, ~900-930 goethite / jarosite.",
+  "Outline (closed, for a solid)": "Contour (fermé, pour un solide)",
+  "Body name (same on every section)": "Nom du corps (le même sur chaque coupe)",
+  "outline": "contour",
+  "Linked {n} \"{name}\" outlines into a closed solid: {v} m³. It ends at the first and last section (flat caps, not extended beyond them) and is listed with the generated surfaces: volume, export, sections and \"Restrict to a modelled volume\" in Grade estimation.{warn}": "{n} contours « {name} » reliés en un solide fermé : {v} m³. Il s'arrête à la première et à la dernière coupe (couvercles plats, sans prolongement au-delà) et figure avec les surfaces générées : volume, export, coupes et « Restreindre à un volume modélisé » dans l'estimation des teneurs.{warn}",
+  " Note: {v}.": " Remarque : {v}.",
+  "Draw an \"Outline (closed, for a solid)\" with the same name on two or more cross-sections; this links them into a closed solid.": "Dessinez un « Contour (fermé, pour un solide) » portant le même nom sur deux coupes ou plus ; ceci les relie en un solide fermé.",
+  "Section outlines to link": "Contours de coupe à relier",
+  "Section outlines…": "Contours de coupe…",
+  "No section outlines yet": "Aucun contour de coupe pour l'instant",
+  "{name} ({n} sections)": "{name} ({n} coupes)",
+  "Link into a solid": "Relier en un solide",
+  "An outline has all its points in one place.": "Un contour a tous ses points au même endroit.",
+  "At least two sections need an outline of that name.": "Au moins deux coupes doivent avoir un contour de ce nom.",
+  "two outlines lie on the same section plane; the solid is not well defined there": "deux contours sont dans le même plan de coupe ; le solide n'y est pas bien défini"
 }

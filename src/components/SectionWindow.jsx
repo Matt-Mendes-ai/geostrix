@@ -143,7 +143,7 @@ export default function SectionWindow() {
   const cancelDrawing = () => { setDrawing(false); setDrawPoints([]); };
   const undoPoint = () => setDrawPoints((p) => p.slice(0, -1));
   const finishContact = () => {
-    if (drawPoints.length < 2 || !unitPick) { cancelDrawing(); return; }
+    if (drawPoints.length < (kindPick === "outline" ? 3 : 2) || !unitPick) { cancelDrawing(); return; } // #570: an outline is a closed loop
     const id = `contact_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     setContacts((p) => [...p, { id, unit: unitPick, kind: kindPick, isUpperContact: kindPick === "contact", color: kindPick === "fault" ? "#d9534f" : hashColor(unitPick), points: drawPoints }]);
     setDrawing(false); setDrawPoints([]);
@@ -252,9 +252,10 @@ export default function SectionWindow() {
                 <option value="contact">{tr("Upper contact")}</option>
                 <option value="fault">{tr("Fault")}</option>
                 <option value="string">{tr("String")}</option>
+                <option value="outline">{tr("Outline (closed, for a solid)")}</option>{/* TASKS.csv #570 */}
               </select>
               {kindPick !== "contact" ? (
-                <input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} placeholder={kindPick === "fault" ? tr("Fault name") : tr("String name")} style={{ ...selectStyle, width: 140 }} />
+                <input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} placeholder={kindPick === "fault" ? tr("Fault name") : kindPick === "outline" ? tr("Body name (same on every section)") : tr("String name")} style={{ ...selectStyle, width: 140 }} />
               ) : lithoUnits.length > 0 ? (
                 <select value={unitPick} onChange={(e) => setUnitPick(e.target.value)} style={selectStyle}>
                   <option value="">{tr("Unit…")}</option>
@@ -264,14 +265,14 @@ export default function SectionWindow() {
                 <input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} placeholder={tr("Unit name (no litho data loaded)")} style={{ ...selectStyle, width: 170 }} />
               )}
               <button onClick={startDrawing} disabled={!unitPick} style={{ ...btnStyle(false), opacity: unitPick ? 1 : 0.5 }} title={unitPick ? tr("Draw {unitPick}'s upper contact", { unitPick }) : tr("Pick a unit first")}>
-                <Pencil size={14} /> {kindPick === "contact" ? tr("Draw upper contact") : kindPick === "fault" ? tr("Draw fault") : tr("Draw string")}
+                <Pencil size={14} /> {kindPick === "contact" ? tr("Draw upper contact") : kindPick === "fault" ? tr("Draw fault") : kindPick === "outline" ? tr("Draw outline") : tr("Draw string")}
               </button>
             </>
           ) : (
             <>
               <span style={{ color: "#e2a63c", fontSize: 11 }}>{tr("Click points along {unitPick}'s upper contact… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length })}</span>
               <button onClick={undoPoint} disabled={!drawPoints.length} style={{ ...btnStyle(false), opacity: drawPoints.length ? 1 : 0.5 }}><Undo2 size={14} />{" "}{tr("Undo point")}</button>
-              <button onClick={finishContact} disabled={drawPoints.length < 2} style={{ ...btnStyle(true), opacity: drawPoints.length >= 2 ? 1 : 0.5 }}><Check size={14} />{" "}{tr("Finish")}</button>
+              <button onClick={finishContact} disabled={drawPoints.length < (kindPick === "outline" ? 3 : 2)} style={{ ...btnStyle(true), opacity: drawPoints.length >= (kindPick === "outline" ? 3 : 2) ? 1 : 0.5 }}><Check size={14} />{" "}{tr("Finish")}</button>
               <button onClick={cancelDrawing} style={btnStyle(false)}><X size={14} />{" "}{tr("Cancel")}</button>
             </>
           )}
@@ -329,7 +330,7 @@ export default function SectionWindow() {
           {contacts.map((c) => (
             <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 12, fontSize: 10.5 }}>
               <span style={{ width: 9, height: 9, borderRadius: "50%", background: c.color, display: "inline-block" }} />
-              {c.unit} <span style={{ color: "#65717e" }}>{tr("({v}, {points} pts)", { v: c.kind === "fault" ? tr("fault") : c.kind === "string" ? tr("string") : tr("upper contact"), points: c.points.length })}</span>
+              {c.unit} <span style={{ color: "#65717e" }}>{tr("({v}, {points} pts)", { v: c.kind === "fault" ? tr("fault") : c.kind === "string" ? tr("string") : c.kind === "outline" ? tr("outline") : tr("upper contact"), points: c.points.length })}</span>
               <Pencil role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Edit the vertices of {unit}", { unit: c.unit })} size={12} style={{ cursor: "pointer", color: editingId === c.id ? "#b06a1f" : "#55606e" }} onClick={() => { setDrawing(false); setEditingId(editingId === c.id ? null : c.id); }}><title>{tr("Edit vertices: drag to move, Alt-click to delete, click the line to insert")}</title></Pencil>
               <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Remove {v} \"{unit}\"", { v: c.kind === "fault" ? "fault" : c.kind === "string" ? "string" : "contact", unit: c.unit })} size={12} style={{ cursor: "pointer", color: "#8a5555" }} onClick={() => removeContact(c.id)} />
             </div>
@@ -682,7 +683,9 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
         <g key={c.id}>
           {/* a wide transparent hit line: clicking it inserts a vertex while this string is being edited */}
           {c.id === editingId && <polyline points={c.points.map((p) => `${sx(p.l)},${sz(p.z)}`).join(" ")} fill="none" stroke="transparent" strokeWidth="10" style={{ cursor: "copy" }} onClick={(e) => insertAt(c, e)} />}
-          <polyline points={c.points.map((p) => `${sx(p.l)},${sz(p.z)}`).join(" ")} fill="none" stroke={c.color} strokeWidth={c.id === editingId ? 3 : 2.5} strokeDasharray="6 3" pointerEvents="none" />
+          {c.kind === "outline" /* TASKS.csv #570 — a closed body outline */
+            ? <polygon points={c.points.map((p) => `${sx(p.l)},${sz(p.z)}`).join(" ")} fill={c.color} fillOpacity="0.15" stroke={c.color} strokeWidth={c.id === editingId ? 3 : 2.5} pointerEvents="none" />
+            : <polyline points={c.points.map((p) => `${sx(p.l)},${sz(p.z)}`).join(" ")} fill="none" stroke={c.color} strokeWidth={c.id === editingId ? 3 : 2.5} strokeDasharray="6 3" pointerEvents="none" />}
           {c.points.map((p, i) => {
             const common = { fill: c.color, stroke: c.id === editingId ? "#1a2028" : "none", strokeWidth: 1 };
             const handlers = c.id === editingId ? {

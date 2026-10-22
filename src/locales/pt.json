@@ -4926,5 +4926,19 @@
   "Mg-OH / carbonate 2330 nm (chlorite, epidote, calcite)": "Mg-OH / carbonato 2330 nm (clorita, epidoto, calcita)",
   "Depth: propylitic minerals and carbonate. Wavelength: ~2250 + 2330-2340 chlorite / epidote, ~2335-2345 calcite, ~2315-2325 dolomite / talc.": "Profundidade: minerais propilíticos e carbonato. Comprimento de onda: ~2250 + 2330-2340 clorita / epidoto, ~2335-2345 calcita, ~2315-2325 dolomita / talco.",
   "Ferric iron 900 nm (hematite, goethite, jarosite)": "Ferro férrico 900 nm (hematita, goethita, jarosita)",
-  "Depth: iron oxides (gossan, oxidised cap). Wavelength: ~860-880 hematite, ~900-930 goethite / jarosite.": "Profundidade: óxidos de ferro (gossan, capa oxidada). Comprimento de onda: ~860-880 hematita, ~900-930 goethita / jarosita."
+  "Depth: iron oxides (gossan, oxidised cap). Wavelength: ~860-880 hematite, ~900-930 goethite / jarosite.": "Profundidade: óxidos de ferro (gossan, capa oxidada). Comprimento de onda: ~860-880 hematita, ~900-930 goethita / jarosita.",
+  "Outline (closed, for a solid)": "Contorno (fechado, para um sólido)",
+  "Body name (same on every section)": "Nome do corpo (o mesmo em cada seção)",
+  "outline": "contorno",
+  "Linked {n} \"{name}\" outlines into a closed solid: {v} m³. It ends at the first and last section (flat caps, not extended beyond them) and is listed with the generated surfaces: volume, export, sections and \"Restrict to a modelled volume\" in Grade estimation.{warn}": "{n} contornos «{name}» foram unidos num sólido fechado: {v} m³. Termina na primeira e na última seção (tampas planas, sem se estender além delas) e aparece com as superfícies geradas: volume, exportação, seções e «Restringir a um volume modelado» na estimativa de teores.{warn}",
+  " Note: {v}.": " Nota: {v}.",
+  "Draw an \"Outline (closed, for a solid)\" with the same name on two or more cross-sections; this links them into a closed solid.": "Desenhe um «Contorno (fechado, para um sólido)» com o mesmo nome em duas ou mais seções; isto os une num sólido fechado.",
+  "Section outlines to link": "Contornos de seção para unir",
+  "Section outlines…": "Contornos de seção…",
+  "No section outlines yet": "Ainda não há contornos de seção",
+  "{name} ({n} sections)": "{name} ({n} seções)",
+  "Link into a solid": "Unir num sólido",
+  "An outline has all its points in one place.": "Um contorno tem todos os pontos no mesmo lugar.",
+  "At least two sections need an outline of that name.": "Pelo menos duas seções precisam de um contorno com esse nome.",
+  "two outlines lie on the same section plane; the solid is not well defined there": "dois contornos estão no mesmo plano de seção; o sólido não fica bem definido ali"
 }

@@ -99,6 +99,7 @@ const SculptPanel = lazyModal(() => import("../components/SculptPanel.jsx")); //
 // TASKS.csv #142 — numeric (grade-shell) implicit model: composites/assays -> dense IDW grid -> marching cubes
 import { SUPPORT_COLORS, ESTIMATION_METHODS, MAX_BLOCKS, BLOCK_BUDGETS } from "../lib/estimationMeta.js"; // SUPPORT_*: TASKS.csv #91/#92; budget: #625
 import { rectilinearGrid, buildExposedFaces } from "../lib/voxelFaces.js"; // TASKS.csv #793
+import { linkOutlines } from "../lib/wireframe.js"; // TASKS.csv #570
 const SurfaceSolidsPanel = React.lazy(() => import("../components/SurfaceSolidsPanel.jsx")); // TASKS.csv #802 — loads when opened (startup budget)
 // TASKS.csv #793 — a model's rectilinear grid (or null) depends only on its cell list: built once per list
 const voxelGridCache = new WeakMap();
@@ -655,6 +656,8 @@ const SURFACE_TYPES = [
   // the geological types above: those describe something GeoStrix modelled from this project's data,
   // and an engineering design or a third-party wireframe is neither.
   { key: "imported", label: "Imported solid / design (not modelled here)" },
+  // TASKS.csv #570 — a solid linked by hand from section outlines: explicit, not interpolated
+  { key: "explicit_wireframe", label: "Explicit wireframe (linked section outlines)" },
   { key: "other", label: "Other" },
 ];
 const RELATION_TYPES = [
@@ -3407,6 +3410,38 @@ ${describeTrend(t)}` };
     const color = mesh.material?.color ? `#${mesh.material.color.getHexString()}` : null;
     return { positions: w, indices, color };
   }, []);
+  // TASKS.csv #570 — explicit wireframes: the outline names drawn on two or more sections, and linking them
+  const outlineNames = useMemo(() => {
+    const m = new Map();
+    for (const s of sections || []) for (const c of s.contacts || []) if (c.kind === "outline" && c.points?.length >= 3) m.set(c.unit, (m.get(c.unit) || 0) + 1);
+    return [...m].filter(([, k]) => k >= 2).map(([name, k]) => ({ name, sections: k }));
+  }, [sections]);
+  const [wireframeName, setWireframeName] = useState("");
+  const linkWireframe = (name) => {
+    const outlines = [];
+    for (const s of sections || []) for (const c of s.contacts || []) if (c.kind === "outline" && c.unit === name && c.points?.length >= 3) outlines.push({ ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, section: s.name, points: c.points.filter((p) => [p.x, p.y, p.z].every(Number.isFinite)) });
+    try {
+      const w = linkOutlines(outlines);
+      const o = originRef.current, scene = new Float32Array(w.positions.length);
+      for (let i = 0; i < w.positions.length; i += 3) { scene[i] = w.positions[i] - o.x; scene[i + 1] = w.positions[i + 2] - o.z; scene[i + 2] = o.y - w.positions[i + 1]; }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(scene, 3));
+      geo.setIndex(new THREE.BufferAttribute(w.indices, 1));
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x9b6bd3, side: THREE.DoubleSide, transparent: true, opacity: 0.55 }));
+      const nVerts = scene.length / 3, nTris = w.indices.length / 3;
+      mesh.userData = { tip: `${name} — explicit wireframe\n${w.sections} section outlines, ${(w.volume / 1e6).toFixed(3)} Mm³` };
+      implicitGroupRef.current?.add(mesh);
+      const id = `impl_${Date.now()}_wireframe`;
+      implicitMeshesRef.current[id] = mesh;
+      setImplicitSurfaces((p) => [...p, {
+        id, name: `${name} (wireframe, ${w.sections} sections)`, visible: true, vertexCount: nVerts, faceCount: nTris,
+        type: "explicit_wireframe", relationships: [], closure: "closed",
+        params: { tool: "explicit wireframe from linked section outlines", body: name, sections: outlines.map((x) => x.section), pointsPerOutline: nVerts / w.sections, volumeM3: Math.round(w.volume), ends: "flat caps on the first and last outline (not extended beyond them)", builtAt: new Date().toISOString() },
+      }]);
+      setNotices((p) => [...p, notice("Linked {n} \"{name}\" outlines into a closed solid: {v} m³. It ends at the first and last section (flat caps, not extended beyond them) and is listed with the generated surfaces: volume, export, sections and \"Restrict to a modelled volume\" in Grade estimation.{warn}", { n: w.sections, name, v: Math.round(w.volume).toLocaleString(), warn: w.warnings.length ? tr(" Note: {v}.", { v: w.warnings.join("; ") }) : "" })]);
+    } catch (e) { setNotices((p) => [...p, e]); }
+  };
   const surfaceSolidsBuilt = (lb, sum) => {
     setLastLithBlock(lb);
     setSurfaceSolidsOpen(false);
@@ -5730,6 +5765,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     (sections || []).forEach((s) => (s.contacts || []).forEach((c) => {
       const pts = (c.points || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite)).map((p) => new THREE.Vector3(p.x - ox, p.z - oz, -(p.y - oy)));
       if (pts.length < 2) return;
+      if (c.kind === "outline") pts.push(pts[0].clone()); // #570 — a closed loop
       const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: new THREE.Color(c.color || "#e2a63c"), depthTest: true }));
       line.userData = { tip: `${c.unit} (${c.kind === "fault" ? "fault" : c.kind === "string" ? "string" : "upper contact"})\nsection: ${s.name}\n${pts.length} vertices` };
       group.add(line);
@@ -8240,6 +8276,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           style={{ ...pBtn, marginBottom: 8, opacity: implicitSurfaces.length ? 1 : 0.5, cursor: implicitSurfaces.length ? "pointer" : "default" }}
           title={tr("Fill a grid of blocks with the units these surfaces bound (open surfaces are unit tops, closed ones are solids), then add the units as closed solids or as a block model")}
         ><Box size={14} />{" "}{tr("Solid blocks from surfaces…")}</button>
+        {/* TASKS.csv #570 — explicit wireframe from outlines drawn on sections */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center" }} title={tr("Draw an \"Outline (closed, for a solid)\" with the same name on two or more cross-sections; this links them into a closed solid.")}>
+          <select value={outlineNames.some((o) => o.name === wireframeName) ? wireframeName : ""} onChange={(e) => setWireframeName(e.target.value)} disabled={!outlineNames.length} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Section outlines to link")}>
+            <option value="">{outlineNames.length ? tr("Section outlines…") : tr("No section outlines yet")}</option>
+            {outlineNames.map((o) => <option key={o.name} value={o.name}>{tr("{name} ({n} sections)", { name: o.name, n: o.sections })}</option>)}
+          </select>
+          <button onClick={() => linkWireframe(wireframeName)} disabled={!outlineNames.some((o) => o.name === wireframeName)} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: outlineNames.some((o) => o.name === wireframeName) ? 1 : 0.5 }}>{tr("Link into a solid")}</button>
+        </div>
         {surfaceSolidsOpen && (<Suspense fallback={null}>
           <SurfaceSolidsPanel
             surfaces={implicitSurfaces} worldMesh={surfaceWorldMesh} origin={originRef.current}

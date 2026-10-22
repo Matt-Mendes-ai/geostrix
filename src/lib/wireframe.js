@@ -1,0 +1,132 @@
+// TASKS.csv #570 — EXPLICIT wireframing: outline a body on each section, link the outlines, get a closed solid. The
+// #494 review: "auditors and many vein domains still expect an explicit, hand-controlled solid"; implicit modelling
+// stays the app's main route, this is the hand-controlled one beside it.
+//
+// linkOutlines(outlines, { n }) -> { positions (flat E, N, Z), indices, sections, volume, warnings }
+//   outlines: [{ points: [{ x, y, z }] (a closed loop, >= 3 points, not repeating the first), ax, ay, bx, by (the
+//   section line) }] in any order. Steps:
+//   1. order the sections along their common normal (the first section's), by each outline's centroid;
+//   2. resample every loop to n points (128) at equal arc length - a corner falling between two samples is cut a
+//      little (a 80 x 50 m rectangle at n = 64 lost 0.09 % of its area), so volumes are good to a fraction of a percent;
+//   3. give every loop the same winding in one shared frame (first section's horizontal direction, and up);
+//   4. for each neighbouring pair, rotate the second loop's start to the one that minimizes the summed distance
+//      between paired points measured from each loop's centroid (so a shifted outline still pairs shape to shape);
+//   5. a strip of triangles between each pair; flat end caps (ear-clipped in that same frame) on the first and last
+//      outline - the solid ENDS at the end sections (it is not extrapolated half a spacing beyond them);
+//   6. wound outward (signed volume positive) - every edge in exactly two triangles, so volumetrics accepts it.
+// Pure: no three.js.
+import { t as tr } from "./i18n.js"; // TASKS.csv #786
+
+function centroid(pts) {
+  let x = 0, y = 0, z = 0;
+  for (const p of pts) { x += p.x; y += p.y; z += p.z; }
+  return { x: x / pts.length, y: y / pts.length, z: z / pts.length };
+}
+
+// equal arc-length resampling of a closed loop, starting at its first point
+export function resampleLoop(pts, n) {
+  const m = pts.length, seg = [];
+  let total = 0;
+  for (let i = 0; i < m; i++) { const a = pts[i], b = pts[(i + 1) % m]; const d = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z); seg.push(d); total += d; }
+  if (!(total > 0)) throw new Error(tr("An outline has all its points in one place."));
+  const out = [];
+  let i = 0, acc = 0;
+  for (let k = 0; k < n; k++) {
+    const target = (k * total) / n;
+    while (acc + seg[i] < target - 1e-9 && i < m - 1) { acc += seg[i]; i++; }
+    const t = seg[i] > 0 ? (target - acc) / seg[i] : 0;
+    const a = pts[i], b = pts[(i + 1) % m];
+    out.push({ x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y), z: a.z + t * (b.z - a.z) });
+  }
+  return out;
+}
+
+// ear clipping of a simple polygon given in 2D ([u, v], counter-clockwise); returns index triples. Resampled outlines
+// have runs of collinear points (16 along each side of a rectangle at n = 64): a flat vertex is clipped as a zero-area
+// triangle - it must still be emitted, or its two edges (shared with the side strips) would be left open - and a point
+// lying ON a candidate ear's edge does not block it (only points strictly inside do).
+function earClip(pts2) {
+  const idx = pts2.map((_, i) => i), tris = [];
+  let span = 0;
+  for (const p of pts2) for (const q of [pts2[0]]) span = Math.max(span, Math.abs(p[0] - q[0]), Math.abs(p[1] - q[1]));
+  const eps = 1e-9 * Math.max(1, span * span);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const strictlyInside = (p, a, b, c) => cross(a, b, p) > eps && cross(b, c, p) > eps && cross(c, a, p) > eps;
+  let guard = 0;
+  while (idx.length > 3 && guard++ < 100000) {
+    let clipped = false;
+    // prefer real (convex) ears; take a flat one only when no convex ear is free
+    for (const wantFlat of [false, true]) {
+      for (let k = 0; k < idx.length; k++) {
+        const i0 = idx[(k + idx.length - 1) % idx.length], i1 = idx[k], i2 = idx[(k + 1) % idx.length];
+        const a = pts2[i0], b = pts2[i1], c = pts2[i2], cr = cross(a, b, c);
+        if (wantFlat ? Math.abs(cr) > eps : cr <= eps) continue;
+        let ear = true;
+        if (!wantFlat) for (const j of idx) { if (j === i0 || j === i1 || j === i2) continue; if (strictlyInside(pts2[j], a, b, c)) { ear = false; break; } }
+        if (!ear) continue;
+        tris.push([i0, i1, i2]); idx.splice(k, 1); clipped = true; break;
+      }
+      if (clipped) break;
+    }
+    if (!clipped) { // self-intersecting outline: fan the rest rather than fail
+      for (let k = 1; k < idx.length - 1; k++) tris.push([idx[0], idx[k], idx[k + 1]]);
+      return tris;
+    }
+  }
+  if (idx.length === 3) tris.push([idx[0], idx[1], idx[2]]);
+  return tris;
+}
+
+export function linkOutlines(outlines, { n = 128 } = {}) {
+  const usable = (outlines || []).filter((o) => o.points?.length >= 3);
+  if (usable.length < 2) throw new Error(tr("At least two sections need an outline of that name."));
+  const warnings = [];
+  // shared frame: u = the first section's horizontal direction, w = its normal, v = up
+  const s0 = usable[0];
+  let ux = s0.bx - s0.ax, uy = s0.by - s0.ay; const ul = Math.hypot(ux, uy) || 1; ux /= ul; uy /= ul;
+  const wx = uy, wy = -ux;
+  const items = usable.map((o) => ({ ...o, c: centroid(o.points) })).map((o) => ({ ...o, off: o.c.x * wx + o.c.y * wy }));
+  items.sort((a, b) => a.off - b.off);
+  for (let i = 1; i < items.length; i++) if (Math.abs(items[i].off - items[i - 1].off) < 1e-6) warnings.push(tr("two outlines lie on the same section plane; the solid is not well defined there"));
+  const to2 = (p) => [p.x * ux + p.y * uy, p.z];
+  const loops = items.map((o) => {
+    let r = resampleLoop(o.points, n);
+    let area = 0; const q = r.map(to2);
+    for (let i = 0; i < n; i++) { const a = q[i], b = q[(i + 1) % n]; area += a[0] * b[1] - b[0] * a[1]; }
+    if (area < 0) r = [r[0], ...r.slice(1).reverse()]; // counter-clockwise in (u, up)
+    return r;
+  });
+  // align each loop's start with the previous one's
+  for (let s = 1; s < loops.length; s++) {
+    const A = loops[s - 1], B = loops[s], cA = centroid(A), cB = centroid(B);
+    let best = 0, bestD = Infinity;
+    for (let k = 0; k < n; k++) {
+      let d = 0;
+      for (let i = 0; i < n; i++) { const a = A[i], b = B[(i + k) % n]; d += ((a.x - cA.x) - (b.x - cB.x)) ** 2 + ((a.y - cA.y) - (b.y - cB.y)) ** 2 + ((a.z - cA.z) - (b.z - cB.z)) ** 2; }
+      if (d < bestD) { bestD = d; best = k; }
+    }
+    loops[s] = B.map((_, i) => B[(i + best) % n]);
+  }
+  const positions = [], indices = [];
+  loops.forEach((L) => L.forEach((p) => positions.push(p.x, p.y, p.z)));
+  const V = (s, i) => s * n + (i % n);
+  for (let s = 0; s < loops.length - 1; s++) for (let i = 0; i < n; i++) {
+    const a = V(s, i), b = V(s, i + 1), c = V(s + 1, i + 1), d = V(s + 1, i);
+    indices.push(a, b, c, a, c, d);
+  }
+  // end caps: counter-clockwise loops in (u, up) -> one cap reversed so both face outward once the whole is oriented
+  const cap = (s, flip) => {
+    const tris = earClip(loops[s].map(to2));
+    for (const [i, j, k] of tris) flip ? indices.push(V(s, i), V(s, k), V(s, j)) : indices.push(V(s, i), V(s, j), V(s, k));
+  };
+  cap(0, true); cap(loops.length - 1, false);
+  // orient outward (signed volume taken about the first vertex: UTM coordinates would swamp it about the origin)
+  let v6 = 0;
+  const o = [positions[0], positions[1], positions[2]];
+  for (let t = 0; t < indices.length; t += 3) {
+    const [a, b, c] = [indices[t], indices[t + 1], indices[t + 2]].map((k) => [positions[3 * k] - o[0], positions[3 * k + 1] - o[1], positions[3 * k + 2] - o[2]]);
+    v6 += a[0] * (b[1] * c[2] - b[2] * c[1]) + a[1] * (b[2] * c[0] - b[0] * c[2]) + a[2] * (b[0] * c[1] - b[1] * c[0]);
+  }
+  if (v6 < 0) { for (let t = 0; t < indices.length; t += 3) { const x = indices[t + 1]; indices[t + 1] = indices[t + 2]; indices[t + 2] = x; } v6 = -v6; }
+  return { positions: Float64Array.from(positions), indices: Uint32Array.from(indices), sections: loops.length, volume: v6 / 6, warnings };
+}

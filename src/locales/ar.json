@@ -4926,5 +4926,19 @@
   "Mg-OH / carbonate 2330 nm (chlorite, epidote, calcite)": "Mg-OH / الكربونات عند 2330 نانومتر (الكلوريت، الإبيدوت، الكالسيت)",
   "Depth: propylitic minerals and carbonate. Wavelength: ~2250 + 2330-2340 chlorite / epidote, ~2335-2345 calcite, ~2315-2325 dolomite / talc.": "العمق: معادن بروبيليتية وكربونات. الطول الموجي: نحو 2250 + 2330-2340 كلوريت / إبيدوت، ونحو 2335-2345 كالسيت، ونحو 2315-2325 دولوميت / تلك.",
   "Ferric iron 900 nm (hematite, goethite, jarosite)": "الحديد الثلاثي عند 900 نانومتر (الهيماتيت، الغوثيت، الجاروسيت)",
-  "Depth: iron oxides (gossan, oxidised cap). Wavelength: ~860-880 hematite, ~900-930 goethite / jarosite.": "العمق: أكاسيد الحديد (غوسان، غطاء متأكسد). الطول الموجي: نحو 860-880 هيماتيت، ونحو 900-930 غوثيت / جاروسيت."
+  "Depth: iron oxides (gossan, oxidised cap). Wavelength: ~860-880 hematite, ~900-930 goethite / jarosite.": "العمق: أكاسيد الحديد (غوسان، غطاء متأكسد). الطول الموجي: نحو 860-880 هيماتيت، ونحو 900-930 غوثيت / جاروسيت.",
+  "Outline (closed, for a solid)": "محيط (مغلق، لمجسم)",
+  "Body name (same on every section)": "اسم الجسم (نفسه في كل مقطع)",
+  "outline": "محيط",
+  "Linked {n} \"{name}\" outlines into a closed solid: {v} m³. It ends at the first and last section (flat caps, not extended beyond them) and is listed with the generated surfaces: volume, export, sections and \"Restrict to a modelled volume\" in Grade estimation.{warn}": "رُبطت {n} محيطات «{name}» في مجسم مغلق: {v} م³. ينتهي عند المقطع الأول والأخير (أغطية مستوية دون امتداد بعدهما) ويُدرج مع الأسطح المولدة: الحجم والتصدير والمقاطع و«التقييد بحجم منمذج» في تقدير المحتوى.{warn}",
+  " Note: {v}.": " ملاحظة: {v}.",
+  "Draw an \"Outline (closed, for a solid)\" with the same name on two or more cross-sections; this links them into a closed solid.": "ارسم «محيطًا (مغلقًا، لمجسم)» بالاسم نفسه على مقطعين عرضيين أو أكثر؛ يربطها هذا في مجسم مغلق.",
+  "Section outlines to link": "محيطات المقاطع للربط",
+  "Section outlines…": "محيطات المقاطع…",
+  "No section outlines yet": "لا توجد محيطات مقاطع بعد",
+  "{name} ({n} sections)": "{name} ({n} مقاطع)",
+  "Link into a solid": "ربط في مجسم",
+  "An outline has all its points in one place.": "كل نقاط أحد المحيطات في الموضع نفسه.",
+  "At least two sections need an outline of that name.": "يحتاج مقطعان على الأقل إلى محيط بهذا الاسم.",
+  "two outlines lie on the same section plane; the solid is not well defined there": "يقع محيطان في مستوى المقطع نفسه؛ المجسم غير محدد جيدًا هناك"
 }
