@@ -98,6 +98,10 @@ import { useSculpt } from "../lib/useSculpt.js"; // TASKS.csv #145 — manual su
 const SculptPanel = lazyModal(() => import("../components/SculptPanel.jsx")); // TASKS.csv #476 // TASKS.csv #145
 // TASKS.csv #142 — numeric (grade-shell) implicit model: composites/assays -> dense IDW grid -> marching cubes
 import { SUPPORT_COLORS, ESTIMATION_METHODS, MAX_BLOCKS, BLOCK_BUDGETS } from "../lib/estimationMeta.js"; // SUPPORT_*: TASKS.csv #91/#92; budget: #625
+import { rectilinearGrid, buildExposedFaces } from "../lib/voxelFaces.js"; // TASKS.csv #793
+// TASKS.csv #793 — a model's rectilinear grid (or null) depends only on its cell list: built once per list
+const voxelGridCache = new WeakMap();
+const voxelGridOf = (model) => { let G = voxelGridCache.get(model.cells); if (G === undefined) { G = rectilinearGrid(model.cells); voxelGridCache.set(model.cells, G); } return G; };
 import { PRECIOUS_METALS } from "../lib/geochem.js";
 const PlannedHoleTargeting = lazyModal(() => import("../components/PlannedHoleTargeting.jsx")); // TASKS.csv #476 // TASKS.csv #119 - target solver + planned-vs-as-drilled
 import { solveOrientationToTarget, plannedTrace } from "../lib/holePlanning.js"; // TASKS.csv #119 - shared, Node-verified target math; plannedTrace: #524
@@ -5547,12 +5551,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const { x: ox, y: oy, z: oz } = originRef.current;
     const tmpMatrix = new THREE.Matrix4();
     const tmpColor = new THREE.Color();
+    const sliceOn = !!slice3d.on; // TASKS.csv #793 — the exposed-face mesh is only used without a 3D slice
     voxelModels.forEach((model) => {
       const prev = voxelMeshesRef.current[model.id];
       // TASKS.csv #696 — a display-only change (opacity within the transparent range, visibility, name) is applied to
       // the existing mesh. Every model used to be rebuilt on every opacity-slider tick: 539 ms and a 72 MB instance
       // upload per tick for a 1M-cell model, and every OTHER model in the project rebuilt with it.
-      if (prev && prev.userData.srcModel && voxelGeometryUnchanged(prev.userData.srcModel, model) && prev.userData.origin === `${ox},${oy},${oz}`) {
+      if (prev && prev.userData.srcModel && voxelGeometryUnchanged(prev.userData.srcModel, model) && prev.userData.origin === `${ox},${oy},${oz}` && prev.userData.sliceOn === sliceOn) { // sliceOn: #793
         const op = model.opacity ?? 0.85;
         prev.material.opacity = op;
         prev.visible = model.visible !== false;
@@ -5582,8 +5587,34 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       const cells = model.cells.filter((c) => c.value >= threshold && c.value <= rangeMax && voxelCellSupported(model, c));
       if (!cells.length) return;
 
-      const geometry = new THREE.BoxGeometry(1, 1, 1);
       const opacity = model.opacity ?? 0.85;
+      // TASKS.csv #793 — an OPAQUE model on a rectilinear grid (regular, or a tensor mesh): one mesh of its exposed faces (lib/voxelFaces.js), a
+      // fraction of the instanced boxes' triangles (a solid 100^3 model: 120k instead of 12M). Same colours and
+      // lighting; nothing reads per-instance ids from voxel meshes (they are not pick targets with tooltips).
+      // Not while a 3D slice is on: the face mesh is hollow, so a cut through it would show an empty inside where the
+      // boxes show the blocks behind the cut.
+      if (opacity >= 1 && !sliceOn) {
+        const G = voxelGridOf(model);
+        const fm = G ? buildExposedFaces(cells, G, { x: ox, y: oy, z: oz }, makeVoxelColorResolverRGB(model)) : null;
+        if (fm) {
+          const g = new THREE.BufferGeometry();
+          g.setAttribute("position", new THREE.BufferAttribute(fm.positions, 3));
+          g.setAttribute("normal", new THREE.BufferAttribute(fm.normals, 3));
+          g.setAttribute("color", new THREE.BufferAttribute(fm.colors, 3));
+          g.setIndex(new THREE.BufferAttribute(fm.indices, 1));
+          const fmesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true }));
+          fmesh.visible = model.visible !== false;
+          fmesh.userData.transparentCells = null;
+          fmesh.userData.srcModel = model;
+          fmesh.userData.origin = `${ox},${oy},${oz}`;
+          fmesh.userData.exposedFaces = { faces: fm.faces, cells: cells.length };
+          fmesh.userData.sliceOn = sliceOn;
+          group.add(fmesh);
+          voxelMeshesRef.current[model.id] = fmesh;
+          return;
+        }
+      }
+      const geometry = new THREE.BoxGeometry(1, 1, 1);
       // IMPORTANT: do NOT set vertexColors:true here. That flag is for a geometry's own per-VERTEX
       // "color" attribute (BoxGeometry has none), and three.js's InstancedMesh per-INSTANCE color
       // (mesh.setColorAt/instanceColor) is applied automatically via its own USE_INSTANCING_COLOR
@@ -5647,10 +5678,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       mesh.userData.transparentCells = transparentCells;
       mesh.userData.srcModel = model; // #696
       mesh.userData.origin = `${ox},${oy},${oz}`;
+      mesh.userData.sliceOn = sliceOn; // #793
       group.add(mesh);
       voxelMeshesRef.current[model.id] = mesh;
     });
-  }, [voxelModels, collars]);
+  }, [voxelModels, collars, slice3d.on]); // slice3d.on: #793
 
   // TASKS.csv #188 — planned drillholes (drillhole planning/targeting module). A planned hole has no
   // downhole survey (it hasn't been drilled yet) — just a collar plus a single design azimuth/dip/
