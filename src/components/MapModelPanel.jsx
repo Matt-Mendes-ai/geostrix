@@ -13,7 +13,7 @@ const ROLES = ["stratigraphic", "intrusion", "cross-cutting", "other"];
 const roleLabel = (r) => ({ stratigraphic: tr("stratigraphic"), intrusion: tr("intrusion"), "cross-cutting": tr("cross-cutting"), other: tr("other (left out)") }[r] || r);
 const fieldsOf = (l) => l?.fields || Object.keys(l?.features?.[0]?.attributes || {});
 
-export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, busy, onRun, pBtn, smallSel }) {
+export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, busy, onRun, onBuildBodies, pBtn, smallSel }) { // onBuildBodies: #821
   const polys = (mapLayers || []).filter((l) => l.geomType === "polygon");
   const lines = (mapLayers || []).filter((l) => l.geomType === "line" || l.geomType === "polyline"); // the importer names them "polyline"
   const [layerId, setLayerId] = useState("");
@@ -72,6 +72,13 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const [showWhy, setShowWhy] = useState(false);
   const unitInfo = new Map((suggestion?.units || []).map((u) => [u.unit, u]));
   const leftOut = Object.keys(roles).filter((u) => roles[u] !== "stratigraphic");
+  // TASKS.csv #821 — the units in the "intrusion" role, as closed bodies (outline to a depth, vertical or dipping walls)
+  const intrusive = Object.keys(roles).filter((u) => roles[u] === "intrusion");
+  const [bodyOff, setBodyOff] = useState({}); // unit -> true when unticked
+  const [bodyDepth, setBodyDepth] = useState(500);
+  const [bodyDip, setBodyDip] = useState(90);
+  const [bodyFlare, setBodyFlare] = useState("out");
+  const bodyUnits = intrusive.filter((u) => !bodyOff[u]);
   const why = (u) => {
     const i = unitInfo.get(u);
     if (!i) return "";
@@ -147,6 +154,36 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
         disabled={busy || !groundAt || order.length < 2} style={{ ...pBtn, justifyContent: "center", opacity: busy || !groundAt || order.length < 2 ? 0.5 : 1 }}>
         {busy ? tr("Running…") : tr("Build the model (GemPy)")}
       </button>
+      {/* TASKS.csv #821 — intrusions as bodies */}
+      <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginTop: 6 }}>
+        <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr("Intrusions as bodies")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 6 }}>
+          {tr("Each mapped polygon of a unit in the intrusion role becomes a closed body: its top is the ground, its walls go down from the mapped outline to a flat base. A construction from the map and the settings below, not a fitted model.")}
+        </div>
+        {!intrusive.length ? (
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("No unit is in the intrusion role. Set a unit's role to intrusion above.")}</div>
+        ) : (<>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", marginBottom: 6 }}>
+            {intrusive.map((u) => (
+              <label key={u} style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                <input type="checkbox" checked={!bodyOff[u]} onChange={(e) => setBodyOff((q) => ({ ...q, [u]: !e.target.checked }))} />{u}
+              </label>
+            ))}
+          </div>
+          <div style={row}><span style={{ width: 120, flexShrink: 0 }}>{tr("Depth below outcrop")}</span>
+            <input type="number" min={10} step={50} value={bodyDepth} onChange={(e) => setBodyDepth(Math.max(10, Number(e.target.value) || 500))} style={{ ...sel, width: 70, flex: "none" }} aria-label={tr("Depth below outcrop")} /><span>m</span></div>
+          <div style={row}><span style={{ width: 120, flexShrink: 0 }}>{tr("Wall dip")}</span>
+            <input type="number" min={30} max={90} step={5} value={bodyDip} onChange={(e) => setBodyDip(Math.min(90, Math.max(30, Number(e.target.value) || 90)))} style={{ ...sel, width: 70, flex: "none" }} aria-label={tr("Wall dip")} /><span>°</span>
+            <select value={bodyFlare} onChange={(e) => setBodyFlare(e.target.value)} disabled={bodyDip >= 90} style={{ ...sel, opacity: bodyDip >= 90 ? 0.5 : 1 }} aria-label={tr("Wall direction")}>
+              <option value="out">{tr("widens with depth")}</option><option value="in">{tr("narrows with depth")}</option>
+            </select></div>
+          <button onClick={() => onBuildBodies?.({ layer, field: unitField, units: bodyUnits, depthM: bodyDepth, wallDip: bodyDip, flare: bodyFlare })}
+            disabled={!groundAt || !bodyUnits.length} title={groundAt ? "" : tr("Needs a terrain: the top of each body is the ground")}
+            style={{ ...pBtn, justifyContent: "center", opacity: !groundAt || !bodyUnits.length ? 0.5 : 1 }}>
+            {tr("Build intrusion bodies")}
+          </button>
+        </>)}
+      </div>
     </div>
   );
 }

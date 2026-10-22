@@ -20,3 +20,6 @@ export const notice = (text, vars) => {
   const english = vars ? String(text).replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : String(text);
   return { text: t(text, vars), level: ERROR_RE.test(english) ? "error" : "info" };
 };
+// TASKS.csv #821 — more (already translated) text after a notice: notice() returns an object, so `notice(...) + "..."`
+// would print "[object Object]..." (it did, in the #817 "Model from the map" summary)
+export const appendNotice = (n, extra) => (extra ? { ...n, text: n.text + extra } : n);

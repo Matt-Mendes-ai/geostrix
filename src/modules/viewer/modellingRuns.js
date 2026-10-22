@@ -12,7 +12,7 @@ import { computeMeshVolume } from "../../lib/volumetrics.js";
 import { MAX_BLOCKS, SUPPORT_COLORS, MAX_BLOCK_BUDGET, gridBlockCount, cellToFit } from "../../lib/estimationMeta.js"; // budget: #625 // #552 — the estimator itself loads in the run functions
 import { compositeDownhole, rawSampleIntervals, capAudit, capAuditText } from "../../lib/geochem.js"; // capAudit: #533; rawSampleIntervals: #571
 import { excludeQAQC } from "../../lib/qaqc.js";
-import { errorNotice, notice } from "../../lib/notices.js";
+import { errorNotice, notice, appendNotice } from "../../lib/notices.js";
 import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, splitIntervalForSampling, spatialClusters, sampleTerrainElevation } from "../../lib/viewer/geomath.js";
 import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals } from "../../lib/viewer/intervals.js";
 import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit } from "../../lib/modellingCodes.js"; // TASKS.csv #599
@@ -1165,12 +1165,12 @@ export function createModellingRuns(ctx, mcRef) {
       return { label: `Fault: ${f.name}`, meshName: `Fault ${f.name}`, points: pts.map((q) => api(q.x, q.y, q.z)), orientations: or, color: colorForStructure("FLT"), type: "fault", fault: true };
     }).filter(Boolean);
     const left = (p.leftOut || []).filter(Boolean);
-    setNotices((q) => [...q, notice("Model from the map: {v} surface(s) from {n} contact point(s) and {m} orientation(s){f}.{e}{l}", {
+    setNotices((q) => [...q, appendNotice(notice("Model from the map: {v} surface(s) from {n} contact point(s) and {m} orientation(s){f}.{e}{l}", {
       v: specs.length, n: specs.reduce((s, x) => s + x.points.length, 0).toLocaleString(), m: orientations.length,
       f: faultSpecs.length ? tr(", with {k} fault(s)", { k: faultSpecs.length }) : "",
       e: empty.length ? tr(" No map contact reaches the top of: {u} (they are not modelled).", { u: empty.join(", ") }) : "",
       l: left.length ? tr(" Left out of the stack (not stratigraphic): {u}.", { u: left.join(", ") }) : "",
-    }) + (offTerrain ? tr(" {k} contact point(s) beyond the terrain were skipped.", { k: offTerrain }) : "") + (unused ? tr(" {k} contact(s) involve units outside the order.", { k: unused }) : "")]);
+    }), (offTerrain ? tr(" {k} contact point(s) beyond the terrain were skipped.", { k: offTerrain }) : "") + (unused ? tr(" {k} contact(s) involve units outside the order.", { k: unused }) : ""))]); // appendNotice: #821
     await runSurfaceStack([...faultSpecs, ...specs], { relation: p.relation || stackRelation, aboveUnit: order[0] });
   };
 

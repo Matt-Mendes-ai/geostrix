@@ -403,7 +403,8 @@ export default function ModellingPanes(props) {
         {toolPane === "mapmodel" && (<>
         {paneHeader("Model from map", Mountain, "model")}
         <Suspense fallback={null}>
-          <MapModelPanel mapLayers={mapLayers} surfaceStructures={surfaceStructures} terrain={terrain} busy={implicitBusy} onRun={runMapModel} pBtn={pBtn} smallSel={smallSel} />
+          <MapModelPanel mapLayers={mapLayers} surfaceStructures={surfaceStructures} terrain={terrain} busy={implicitBusy} onRun={runMapModel} pBtn={pBtn} smallSel={smallSel}
+            onBuildBodies={(p) => import("./intrusionRun.js").then((m) => m.buildIntrusionBodies(p, { implicitGroupRef, implicitMeshesRef, originRef, setImplicitSurfaces, setNotices, terrain }))} /* #821, loaded on use */ />
         </Suspense>
         </>)}{/* TASKS.csv #817 */}
         {toolPane === "explicit" && (<>
