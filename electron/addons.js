@@ -267,4 +267,4 @@ function createAddonManager({ app, net, send }) {
   return { status, notices, cpuCheck, install, cancelInstall, uninstall, ensure, stop, connection, stopAll };
 }
 
-module.exports = { createAddonManager, ADDON_PORTS };
+module.exports = { createAddonManager, ADDON_PORTS, pickPort }; // pickPort: exported for test/addons694 (#694)

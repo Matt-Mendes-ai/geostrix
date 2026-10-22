@@ -186,14 +186,16 @@ async def submit(request: Request):
     return _public(manager.start(kind, body.get("params") or {}))
 
 
+# TASKS.csv #694 — `request` was not a parameter of these two, so the 404 path raised NameError and answered 500: the app
+# reads a 404 as "the add-on restarted, the job is gone" and says so; a 500 only counted as a missed poll
 @app.get("/v1/jobs/{jid}")
-def status(jid: str):
+def status(jid: str, request: Request):
     job = manager.jobs.get(jid)
     return _public(job) if job else JSONResponse(status_code=404, content={"detail": "No such job."}, headers=_cors(request))
 
 
 @app.get("/v1/jobs/{jid}/result")
-def result(jid: str):
+def result(jid: str, request: Request):
     job = manager.jobs.get(jid)
     if not job or job["state"] != "done":
         return JSONResponse(status_code=404, content={"detail": "No finished result for this job."}, headers=_cors(request))

@@ -52,6 +52,15 @@ jobs:
       - name: Build and zip
         working-directory: addons/geoml
         run: python build_addon.py --out addon-out
+      # TASKS.csv #694 — the BUILT program answers its API correctly (identity proof, token / Host guards, 404 / 409,
+      # cancel, a bad job ends as an error) before anything is uploaded; it caught "No such job" answering 500.
+      - name: API test of the built add-on
+        working-directory: addons/geoml
+        run: |
+          $env:GEOSTRIX_ADDON_TOKEN = "ci-token-694"; $env:GEOSTRIX_ADDON_PORT = "8791"
+          $p = Start-Process -FilePath "addon-out/geostrix-geoml/geostrix-geoml.exe" -PassThru -WindowStyle Hidden
+          try { python tests/test_api.py 8791 ci-token-694; if ($LASTEXITCODE -ne 0) { exit 1 } }
+          finally { Get-CimInstance Win32_Process -Filter "ParentProcessId=$($p.Id)" | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }; Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: addon-files
