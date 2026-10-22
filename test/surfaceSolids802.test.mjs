@@ -72,3 +72,38 @@ test("#802 solids alone (no tops): only their insides are modelled; size guards"
   assert.equal(suggestCellSize([0, 1000, 0, 1000, 0, 500], 250_000), 20); // raw 12.6 m -> 20
   assert.equal(suggestCellSize([0, 100, 0, 100, 0, 100], 1000), 10);
 });
+
+// TASKS.csv #830 / #832 — lower contacts, several surfaces for one unit, and layers of one unit (A, B) in a stack
+const flat = (name, z, extra) => ({ ...sheet(name, -10, 110, -10, 110, () => z), ...extra });
+
+test("#830 a unit with an upper and a lower contact: a gap below its base, then the next unit", () => {
+  const r = surfacesToBlock({ tops: [flat("Top Basalt", 120, { unit: "Basalt" }), flat("Base Basalt", 90, { unit: "Basalt", role: "base" }), flat("Top Shale", 60, { unit: "Shale" })], extent: box, cell: 10 });
+  assert.deepEqual(r.block.labels, [null, "Basalt", "Shale"], "one label per unit, not per surface");
+  assert.equal(unitAt(r.block, 50, 50, 105), "Basalt");
+  assert.equal(unitAt(r.block, 50, 50, 75), null, "between Basalt's base and Shale's top: nobody modelled it");
+  assert.equal(unitAt(r.block, 50, 50, 25), "Shale");
+  assert.equal(r.counts.Basalt, 10 * 10 * 3);
+});
+
+test("#830 a unit known only by its base runs up to the ground; a base on the next unit's top", () => {
+  const r = surfacesToBlock({ tops: [flat("Base Till", 130, { unit: "Till", role: "base" }), flat("Top Andesite", 130, { unit: "Andesite" })], extent: box, cell: 10 });
+  assert.equal(unitAt(r.block, 50, 50, 145), "Till", "above its base, nothing above: the unit whose base is below");
+  assert.equal(unitAt(r.block, 50, 50, 105), "Andesite", "below both (picked on the same contact): the top wins");
+  const r2 = surfacesToBlock({ tops: [flat("Top Andesite", 130, { unit: "Andesite" }), flat("Base Till", 130, { unit: "Till", role: "base" })], extent: box, cell: 10 });
+  assert.equal(unitAt(r2.block, 50, 50, 105), "Andesite", "in either stack order");
+  assert.equal(unitAt(r2.block, 50, 50, 145), "Till");
+});
+
+test("#832 one unit in several layers (Sandstone A, B) between shale", () => {
+  const tops = [
+    flat("SST A top", 140, { unit: "Sandstone A" }), flat("SST A base", 120, { unit: "Sandstone A", role: "base" }),
+    flat("Shale top", 120, { unit: "Shale" }),
+    flat("SST B top", 80, { unit: "Sandstone B" }), flat("SST B base", 60, { unit: "Sandstone B", role: "base" }),
+  ];
+  const r = surfacesToBlock({ tops, extent: box, cell: 10 });
+  assert.deepEqual(r.block.labels, [null, "Sandstone A", "Shale", "Sandstone B"]);
+  assert.deepEqual([135, 125, 115, 85, 75, 65, 55, 5].map((z) => unitAt(r.block, 50, 50, z)), ["Sandstone A", "Sandstone A", "Shale", "Shale", "Sandstone B", "Sandstone B", null, null]);
+  // tops only (the old way): unchanged
+  const legacy = surfacesToBlock({ tops: [flat("A", 100), flat("B", 50)], extent: box, cell: 10 });
+  assert.deepEqual(legacy.block.labels, [null, "A", "B"]);
+});

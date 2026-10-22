@@ -13,6 +13,7 @@ import { dragTarget } from "../lib/explicitDrag.js"; // TASKS.csv #813
 import { mapContactPairs, mapContactLines, dipGuideLines } from "../lib/explicitMapLines.js"; // TASKS.csv #817
 import { imagePlane, rayPlane, facingCamera, densify3, medianApparentDip, sectionSnapTargets, constrainOnImage, groundProfileOnImage, nearestOnPolyline, pointOnSegment, insertPoint, splitAt, joinLines, extendTo } from "../lib/sectionDigitize3d.js"; // TASKS.csv #824 / #825 / #828
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #828 — Undo / Redo
+import { unitOf, contactOf, layerLabel, unitSummary, splitByElevation, nextLayer } from "../lib/explicitUnits.js"; // TASKS.csv #830 / #831 / #832
 
 const MAX_POINTS = 800; // ~0.4 s to solve on a laptop (1,200 took 1.2 s); section lines are thinned to fit
 const LINE_SPACING = 10; // m between the points taken along a drawn section line
@@ -87,7 +88,7 @@ function upsertMesh(sc, def, res, info) {
   return id;
 }
 
-export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain, mapLayers, surfaceStructures, sectionImages = [], onDigitizeImage, pickFor, setPickFor, snap, setSnap, scene: sc, onRemove, askPrompt, pBtn, smallSel, numInput }) {
+export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain, mapLayers, surfaceStructures, sectionImages = [], unitChoices = [] /* #831 */, onDigitizeImage, pickFor, setPickFor, snap, setSnap, scene: sc, onRemove, askPrompt, pBtn, smallSel, numInput }) {
   const hasTerrain = !!terrain?.bbox;
   const groundAt = (x, y) => {
     const [x0, y0, x1, y1] = terrain.bbox;
@@ -502,6 +503,33 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
     return () => clearTimeout(timer.current);
   }, [def, ep, hasTerrain]); // terrain and the scene refs are read at build time
 
+  // TASKS.csv #830 / #831 / #832 — the unit this surface bounds, upper or lower contact, and the unit's layers
+  const [unitNote, setUnitNote] = useState(null);
+  const summary = useMemo(() => unitSummary(defs), [defs]);
+  const allUnits = useMemo(() => [...new Set([...summary.map((u) => u.unit), ...unitChoices.filter(Boolean)])], [summary, unitChoices]);
+  const curUnit = def ? unitOf(def) : "";
+  const unitInfo = summary.find((u) => u.unit === curUnit);
+  const unitCount = unitInfo ? unitInfo.layers.reduce((k, l) => k + l.upper.length + l.lower.length, 0) : 0;
+  const layerOpts = def ? [...new Set([...(unitInfo?.layers || []).map((l) => l.layer).filter(Boolean), nextLayer(defs, curUnit), ...(def.layer ? [def.layer] : [])])].sort((a, b) => (a.length - b.length) || (a < b ? -1 : 1)) : [];
+  const assignUnit = (u) => { update({ unit: u, layer: "" }); setUnitNote(null); };
+  const newUnit = () => askPrompt(tr("Name of the unit this surface bounds (e.g. Basalt):"), "", (name) => { const n = (name || "").trim(); if (n) assignUnit(n); });
+  // a typical elevation of a surface: the median of its mesh (or of its picks before it is built)
+  const elevationOf = (d) => {
+    const m = d.surfaceId && sc.meshes.current[d.surfaceId], a = m?.geometry?.attributes?.position?.array;
+    const zs = [];
+    if (a?.length) { const step = Math.max(1, Math.floor(a.length / 3 / 2000)); for (let i = 1; i < a.length; i += 3 * step) zs.push(a[i] + sc.origin.current.z); }
+    else for (const p of d.picks || []) zs.push(p.z);
+    zs.sort((x, y) => x - y);
+    return zs.length ? zs[zs.length >> 1] : NaN;
+  };
+  const splitUnit = () => {
+    const mine = defs.filter((d) => unitOf(d) === curUnit);
+    const asg = splitByElevation(mine.map((d) => ({ id: d.id, contact: contactOf(d), z: elevationOf(d) })));
+    const left = mine.filter((d) => !asg[d.id]).length, n = new Set(Object.values(asg)).size;
+    setDefs((p) => p.map((d) => (asg[d.id] ? { ...d, layer: asg[d.id] } : d)));
+    setUnitNote(tr("{unit}: {n} layer(s), lettered from the top down.", { unit: curUnit, n }) + (left ? ` ${tr("{k} surface(s) not built yet were left as they were.", { k: left })}` : ""));
+  };
+
   const lineHint = def ? tr("To add a hard line: in a section window choose \"Upper contact\", then \"{name}\" under Explicit surfaces, and draw it.", { name: def.name }) : "";
   const row = { display: "flex", alignItems: "center", gap: 6, marginBottom: 6 };
   return (
@@ -512,7 +540,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
       <div style={row}>
         <select value={def?.id || ""} onChange={(e) => { if (digDrawing) { finishLine(); setDigDrawing(false); setDigHover(null); } setSelId(e.target.value); setPickFor(null); }} disabled={!defs.length} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Explicit surface")}>
           {!defs.length && <option value="">{tr("No explicit surfaces yet")}</option>}
-          {defs.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.picks.length})</option>)}
+          {defs.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.picks.length}){layerLabel(d) !== d.name ? ` · ${layerLabel(d)}` : ""}</option>)}
         </select>
         <button onClick={newSurface} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px" }}>{tr("+ New")}</button>
       </div>
@@ -524,6 +552,36 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
             <Crosshair size={14} />{" "}{pickFor === def.id && !digDrawing ? tr("Picking — click contacts in 3D (click to stop)") : tr("Pick contacts in 3D")}
           </button>
         </div>
+        {/* TASKS.csv #830 / #831 / #832 — unit, layer, upper / lower contact */}
+        <div style={row}>
+          <span style={{ width: 34, flexShrink: 0 }}>{tr("Unit")}</span>
+          <select value={curUnit} onChange={(e) => (e.target.value === " new" ? newUnit() : assignUnit(e.target.value))} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Unit this surface bounds")}
+            title={tr("The modelling unit this surface is a contact of. Solid blocks from surfaces fills the units between their contacts.")}>
+            {!allUnits.includes(curUnit) && <option value={curUnit}>{curUnit}</option>}
+            {allUnits.map((u) => <option key={u} value={u}>{u}</option>)}
+            <option value={" new"}>{tr("New unit…")}</option>
+          </select>
+          <select value={def.layer || ""} onChange={(e) => { update({ layer: e.target.value }); setUnitNote(null); }} style={{ ...smallSel, width: 78, flexShrink: 0 }} aria-label={tr("Layer")}
+            title={tr("When the unit occurs as several separate layers in the stack, give each its letter (A, B, C…): each layer becomes a unit of its own in the blocks.")}>
+            <option value="">{tr("One layer")}</option>
+            {layerOpts.map((l) => <option key={l} value={l}>{tr("Layer {l}", { l })}</option>)}
+          </select>
+        </div>
+        <div style={row} role="radiogroup" aria-label={tr("Contact")}>
+          {[["upper", "Upper contact", "This surface is the top of {unit}: the unit lies below it."], ["lower", "Lower contact", "This surface is the base of {unit}: the unit lies above it."]].map(([k, label, hint]) => {
+            const on = contactOf(def) === k;
+            return <button key={k} role="radio" aria-checked={on} title={tr(hint, { unit: layerLabel(def) })} onClick={() => update({ contact: k })}
+              style={{ ...pBtn, flex: 1, marginBottom: 0, justifyContent: "center", padding: "4px 6px", ...(on ? { background: "var(--color-accent)", color: "var(--color-on-accent, #fff)" } : {}) }}>{tr(label)}</button>;
+          })}
+        </div>
+        {unitCount > 1 && (
+          <div style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, lineHeight: 1.4 }}>
+            <div style={{ color: "var(--color-text-muted)" }}>{unitInfo.layers.map((l) => tr("{layer}: {u} upper, {d} lower", { layer: l.layer ? `${curUnit} ${l.layer}` : curUnit, u: l.upper.length, d: l.lower.length })).join(" · ")}</div>
+            <button onClick={splitUnit} title={tr("Letter this unit's surfaces A, B, C… from the top down: each upper contact starts a new layer, and a lower contact closes the layer above it.")}
+              style={{ ...pBtn, marginTop: 4, marginBottom: 0, justifyContent: "center", padding: "3px 7px", fontSize: "var(--font-size-xs)" }}>{tr("Split {unit} into layers by elevation", { unit: curUnit })}</button>
+            {unitNote && <div role="status" style={{ marginTop: 3, color: "var(--color-text-secondary)" }}>{unitNote}</div>}
+          </div>
+        )}
         <button onClick={() => { setPickFor(null); setEditing((v) => !v); setLineTool("move"); pendRef.current = null; setToolHint(null); }} aria-pressed={editing} disabled={!def.picks.length && !(def.lines || []).length}
           title={tr("Drag a pick to move it: a pick on a hole slides along that hole (snapping to logged contacts when Snap is on); any other pick moves up and down, or sideways with Shift held. The surface rebuilds when you let go.")}
           style={{ ...pBtn, marginBottom: 6, justifyContent: "center", opacity: def.picks.length || (def.lines || []).length ? 1 : 0.5, ...(editing ? { background: "var(--color-accent)", color: "var(--color-on-accent, #fff)" } : {}) }}>

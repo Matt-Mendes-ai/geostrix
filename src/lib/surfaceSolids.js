@@ -14,12 +14,19 @@
 //  * SOLID surfaces (closed shells) - a cell is inside when a vertical ray from it crosses the shell an odd number of
 //    times above it. Solids are applied after the stack, later ones over earlier ones (a vein shell inside a host).
 //  * ground(x, y) (optional, the terrain): cells above it are outside the model (id 0).
+//  * TASKS.csv #830 / #832 — a top may say which unit it bounds (`unit`, default its own name: several surfaces can bound
+//    one unit, e.g. "Basalt A") and whether it is that unit's UPPER contact (role "top", the default) or its LOWER one
+//    (role "base"). Under a base the unit is NOT the one above it: the cell takes the unit whose base lies nearest below
+//    it (a unit known only by its base runs up to the next contact above, or to the ground), and when the nearest
+//    contact below is another unit's top, the cell is in a gap nobody modelled (null label). A top of another unit
+//    lying at or below that base (picked on the same contact) still wins: the cell is in that unit. With tops only this
+//    is exactly the rule above.
 // Pure: no three.js. Coordinates: any frame shared by the meshes and the extent (east, north, up).
 //
 // surfacesToBlock({ tops, solids, extent: [xmin, xmax, ymin, ymax, zmin, zmax], cell, ground, maxCells })
-//   tops / solids: [{ name, positions (flat E, N, Z), indices }]
+//   tops / solids: [{ name, positions (flat E, N, Z), indices }]; a top may also carry { unit, role: "top" | "base" } (#830)
 //   -> { block: { extent, resolution: [nx, ny, nz], ids (x-major, z fastest - modelCheck.js), labels }, counts, coverage }
-//   labels = [null, ...top names, ...solid names]; id k -> labels[k - 1]; id 0 = outside (above the ground).
+//   labels = [null, ...top units (each once, in stack order), ...solid names]; id k -> labels[k - 1]; id 0 = outside.
 
 // Column centres are nudged by an irrational fraction of a cell so a ray never runs exactly along a mesh edge or
 // through a vertex (meshes built on a lattice put vertices on round coordinates, the same ones cell centres use).
@@ -70,7 +77,11 @@ export function surfacesToBlock({ tops = [], solids = [], extent, cell, ground =
     for (const l of lists.values()) l.sort((a, b) => a - b);
     return lists;
   });
-  const labels = [null, ...tops.map((m) => m.name), ...solids.map((m) => m.name)];
+  // #830 — units, each once in stack order; a top's unit is its own name unless it says otherwise
+  const unitOf = tops.map((m) => m.unit || m.name), isBase = tops.map((m) => m.role === "base");
+  const units = [...new Set(unitOf)], uid = unitOf.map((u) => 2 + units.indexOf(u));
+  const anyBase = isBase.some(Boolean), tol = dz / 2;
+  const labels = [null, ...units, ...solids.map((m) => m.name)];
   const ids = new (labels.length < 255 ? Uint8Array : Uint16Array)(nx * ny * nz);
   for (let i = 0; i < nx; i++) {
     const x = xmin + (i + 0.5) * dx;
@@ -81,7 +92,21 @@ export function surfacesToBlock({ tops = [], solids = [], extent, cell, ground =
         const z = zmin + (k + 0.5) * dz, at = i * ny * nz + j * nz + k;
         if (g === g && z > g) { ids[at] = 0; continue; } // above the terrain: outside the model
         let id = 1; // above every top (not modelled)
-        for (let s = tops.length - 1; s >= 0; s--) { const h = topZ[s][col]; if (h === h && h > z) { id = 2 + s; break; } }
+        let sa = -1;
+        for (let s = tops.length - 1; s >= 0; s--) { const h = topZ[s][col]; if (h === h && h > z) { sa = s; break; } }
+        if (sa >= 0 && !isBase[sa]) id = uid[sa];
+        else if (anyBase) {
+          // #830 — under a lower contact (or under nothing): another unit's top at or below that base, else the unit whose
+          // base is the nearest contact below
+          let s2 = -1;
+          if (sa >= 0) { const hb = topZ[sa][col]; for (let s = tops.length - 1; s >= 0; s--) { const h = topZ[s][col]; if (!isBase[s] && unitOf[s] !== unitOf[sa] && h === h && h > z && h <= hb + tol) { s2 = s; break; } } }
+          if (s2 >= 0) id = uid[s2];
+          else {
+            let hb = -Infinity, sb = -1;
+            for (let s = 0; s < tops.length; s++) { const h = topZ[s][col]; if (h === h && h <= z && (h > hb + tol || (isBase[s] && h >= hb - tol))) { hb = Math.max(h, hb); sb = s; } } // a base and a top on one contact: the base (the unit above it sits on it)
+            if (sb >= 0 && isBase[sb]) id = uid[sb];
+          }
+        }
         for (let s = 0; s < solids.length; s++) {
           const l = solidHits[s].get(col);
           if (!l) continue;

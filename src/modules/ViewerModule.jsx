@@ -7260,7 +7260,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </div>
         {surfaceSolidsOpen && (<Suspense fallback={null}>
           <SurfaceSolidsPanel
-            surfaces={implicitSurfaces} worldMesh={surfaceWorldMesh} origin={originRef.current}
+            surfaces={implicitSurfaces} explicitDefs={explicitSurfaces || []} /* #830 */ worldMesh={surfaceWorldMesh} origin={originRef.current}
             terrain={terrain} sampleGround={(x, y) => { const [tx0, ty0, tx1, ty1] = terrain.bbox; return x >= tx0 && x <= tx1 && y >= ty0 && y <= ty1 ? sampleTerrainElevation(terrain, x, y) : NaN; }}
             onBuilt={surfaceSolidsBuilt} onError={(e) => setNotices((p) => [...p, e])} onClose={() => setSurfaceSolidsOpen(false)}
             pBtn={pBtn} smallSel={smallSel} numInput={smallSel}

@@ -8,6 +8,7 @@ import { t as tr } from "../lib/i18n.js";
 import { surfacesToBlock, suggestCellSize } from "../lib/surfaceSolids.js";
 import { isMeshClosed } from "../lib/meshQuery.js";
 import { SOLID_SURFACE_TYPES } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #804
+import { unitOf, contactOf, layerLabel } from "../lib/explicitUnits.js"; // TASKS.csv #830
 
 const zStats = (pos) => {
   const zs = [];
@@ -18,23 +19,24 @@ const zStats = (pos) => {
 
 // surfaces: the Generated surfaces list; worldMesh(id) -> { positions (E, N, Z), indices, color } | null;
 // origin: the scene origin (the block is built in that offset frame, as GemPy's is); onBuilt(lastModel, summary)
-export default function SurfaceSolidsPanel({ surfaces, worldMesh, origin, terrain, sampleGround, onBuilt, onError, onClose, pBtn, smallSel, numInput }) {
+export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldMesh, origin, terrain, sampleGround, onBuilt, onError, onClose, pBtn, smallSel, numInput }) {
   // geometry and a default role for each surface, once per panel opening
   const items = useMemo(() => (surfaces || []).map((s) => {
     const m = worldMesh(s.id);
+    const d = explicitDefs.find((x) => x.surfaceId === s.id); // #830 — an explicit surface knows its unit and contact
     if (!m || m.indices.length < 3) return null;
     const closed = s.type === "unit_volume" || s.closure === "closed" || isMeshClosed(m.positions, m.indices).closed;
     let xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
     for (let i = 0; i < m.positions.length; i += 3) { const x = m.positions[i], y = m.positions[i + 1]; if (x < xmin) xmin = x; if (x > xmax) xmax = x; if (y < ymin) ymin = y; if (y > ymax) ymax = y; }
-    return { id: s.id, name: s.name, mesh: m, closed, xy: [xmin, xmax, ymin, ymax], z: zStats(m.positions), defaultRole: s.type === "unit_volume" ? "none" : closed ? "solid" : (s.type === "fault" || s.type === "vein_hangingwall" || s.type === "vein_footwall" || SOLID_SURFACE_TYPES.has(s.type)) ? "none" : "top" }; // unit volumes are this tool's own output; faults / vein walls are steep, not unit tops; an OPEN body (#804) has no inside and is no top either
-  }).filter(Boolean), [surfaces, worldMesh]);
+    return { id: s.id, name: s.name, unit: d ? layerLabel(d) : s.name, baseUnit: d ? unitOf(d) : s.name, mesh: m, closed, xy: [xmin, xmax, ymin, ymax], z: zStats(m.positions), defaultRole: s.type === "unit_volume" ? "none" : closed ? "solid" : d ? (contactOf(d) === "lower" ? "base" : "top") : (s.type === "fault" || s.type === "vein_hangingwall" || s.type === "vein_footwall" || SOLID_SURFACE_TYPES.has(s.type)) ? "none" : "top" }; // unit volumes are this tool's own output; faults / vein walls are steep, not unit tops; an OPEN body (#804) has no inside and is no top either
+  }).filter(Boolean), [surfaces, worldMesh, explicitDefs]);
   const [roles, setRoles] = useState({});
   const roleOf = (it) => roles[it.id] ?? it.defaultRole;
   const { used, tops, solids } = useMemo(() => {
     const role = (it) => roles[it.id] ?? it.defaultRole;
     const u = items.filter((it) => role(it) !== "none");
-    // tops in stack order: highest median elevation first
-    return { used: u, tops: u.filter((it) => role(it) === "top").sort((a, b) => b.z.median - a.z.median), solids: u.filter((it) => role(it) === "solid") };
+    // contacts (#830: upper and lower) in stack order: highest median elevation first
+    return { used: u, tops: u.filter((it) => role(it) === "top" || role(it) === "base").sort((a, b) => b.z.median - a.z.median), solids: u.filter((it) => role(it) === "solid") };
   }, [items, roles]);
   const auto = useMemo(() => {
     if (!used.length) return null;
@@ -58,14 +60,21 @@ export default function SurfaceSolidsPanel({ surfaces, worldMesh, origin, terrai
   const build = () => {
     try {
       const o = origin;
-      const toApi = (it) => { const p = it.mesh.positions, q = new Float64Array(p.length); for (let i = 0; i < p.length; i += 3) { q[i] = p[i] - o.x; q[i + 1] = p[i + 1] - o.y; q[i + 2] = p[i + 2] - o.z; } return { name: it.name, positions: q, indices: it.mesh.indices }; };
+      const toApi = (it) => { const p = it.mesh.positions, q = new Float64Array(p.length); for (let i = 0; i < p.length; i += 3) { q[i] = p[i] - o.x; q[i + 1] = p[i + 1] - o.y; q[i + 2] = p[i + 2] - o.z; } return { name: it.name, unit: it.unit, role: roleOf(it) === "base" ? "base" : "top", positions: q, indices: it.mesh.indices }; };
       const extent = [box[0] - o.x, box[1] - o.x, box[2] - o.y, box[3] - o.y, box[4] - o.z, box[5] - o.z];
       const ground = cutGround && terrain ? (x, y) => { const g = sampleGround(x + o.x, y + o.y); return Number.isFinite(g) ? g - o.z : NaN; } : null;
       const r = surfacesToBlock({ tops: tops.map(toApi), solids: solids.map(toApi), extent, cell, ground });
       // a surface's own colour, unless an earlier unit already has it (imported solids all share one default): then
-      // null, and the pane colours the unit by its name like a logged code
-      const seen = new Set();
-      const units = [...tops, ...solids].map((it) => { const c = it.mesh.color && !seen.has(it.mesh.color) ? it.mesh.color : null; if (c) seen.add(c); return { name: it.name, label: it.name, color: c }; });
+      // null, and the pane colours the unit by its name like a logged code. #830 / #832: one entry per unit (several
+      // contacts can bound one), and the layers of one unit (Basalt A, Basalt B) may share a colour
+      const seen = new Map(), done = new Set(), units = [];
+      for (const it of [...tops.map((t) => ({ ...t, label: t.unit })), ...solids.map((t) => ({ ...t, label: t.name, baseUnit: t.name }))]) {
+        if (done.has(it.label)) continue;
+        done.add(it.label);
+        const c = it.mesh.color && (!seen.has(it.mesh.color) || seen.get(it.mesh.color) === it.baseUnit) ? it.mesh.color : null;
+        if (c) seen.set(c, it.baseUnit);
+        units.push({ name: it.label, label: it.label, color: c });
+      }
       const title = tr("solids from {n} surface(s)", { n: tops.length + solids.length });
       onBuilt({ block: r.block, units, origin: { ...o }, when: new Date().toLocaleTimeString(), title, matchedPct: null, fromSurfaces: true },
         { counts: r.counts, coverage: r.coverage, cellVolume: r.cellVolume, resolution: r.block.resolution });
@@ -79,20 +88,21 @@ export default function SurfaceSolidsPanel({ surfaces, worldMesh, origin, terrai
         <Box size={14} aria-hidden="true" /><span style={{ flex: 1 }}>{tr("Solid blocks from surfaces")}</span>
         <XIcon size={14} role="button" tabIndex={0} aria-label={tr("Close")} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClose(); }} />
       </div>
-      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, marginBottom: 8 }}>{tr("Fills a grid of blocks with units. An open surface is the TOP of a unit: its unit runs down to the next top below (tops are stacked by elevation). A closed surface's inside is a unit of its own, over the stack. Then add the units as closed solids or as a block model.")}</div>
+      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45, marginBottom: 8 }}>{tr("Fills a grid of blocks with units. An open surface is the TOP of a unit: its unit runs down to the next top below (tops are stacked by elevation). A closed surface's inside is a unit of its own, over the stack. Then add the units as closed solids or as a block model.")}{" "}{tr("A surface set as the base of a unit has that unit above it, back up to its top; below a base the next unit starts at its own top.")}</div>
       {!items.length && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("No surfaces with geometry yet: model or import one first.")}</div>}
       {items.map((it) => (
         <div key={it.id} style={row}>
           <select value={roleOf(it)} onChange={(e) => setRoles((p) => ({ ...p, [it.id]: e.target.value }))} style={{ ...smallSel, width: 112, flexShrink: 0 }} aria-label={tr("Role of \"{name}\"", { name: it.name })}>
             <option value="top">{tr("Top of a unit")}</option>
+            <option value="base" disabled={it.closed}>{tr("Base of a unit")}</option>
             <option value="solid" disabled={!it.closed}>{tr("Solid (inside)")}</option>
             <option value="none">{tr("Not used")}</option>
           </select>
-          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={it.name}>{it.name}</span>
+          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={it.unit !== it.name ? tr("{name} — a contact of {unit}", { name: it.name, unit: it.unit }) : it.name}>{it.name}{it.unit !== it.name && <span style={{ color: "var(--color-text-muted)" }}> · {it.unit}</span>}</span>
           <span style={{ color: "var(--color-text-faint)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{it.closed ? tr("closed") : tr("open")}</span>
         </div>
       ))}
-      {tops.length > 1 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("Stack, top to bottom: {list}", { list: tops.map((t) => t.name).join(" › ") })}</div>}
+      {tops.length > 1 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("Stack, top to bottom: {list}", { list: tops.map((t) => (roleOf(t) === "base" ? tr("base of {unit}", { unit: t.unit }) : t.unit === t.name ? t.name : tr("top of {unit}", { unit: t.unit }))).join(" › ") })}</div>}
       {auto && (<>
         <div style={row}>
           <span style={{ width: 90, flexShrink: 0, color: "var(--color-text-secondary)" }}>{tr("Block size (m)")}</span>
