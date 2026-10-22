@@ -13,6 +13,9 @@ import { supportEnvelope } from "./supportEnvelope.js"; // TASKS.csv #641
 import { columnReach, smoothReachLine } from "./dcip.js"; // TASKS.csv #772
 
 // 1, 2, 5 x 10^n step giving about `n` ticks over [lo, hi]
+// TASKS.csv #322 — three significant figures without exponent notation ("1230", not toPrecision's "1.23e+3")
+export const sig3 = (v) => { if (!Number.isFinite(v)) return ""; const n = Number(v.toPrecision(3)); return Math.abs(n) >= 1000 ? n.toLocaleString("en-US") : String(n); };
+
 export function niceStep(lo, hi, n = 6) {
   const raw = Math.abs(hi - lo) / n || 1, p = 10 ** Math.floor(Math.log10(raw)), f = raw / p;
   return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
@@ -92,8 +95,8 @@ export function renderDcipSectionPng({ result, name, field = "resistivity", cuto
   }
   g.strokeStyle = colors.textSecondary; g.strokeRect(L, by, bw, bh);
   g.fillStyle = colors.textSecondary; g.font = font(fpx(printPt.caption)); g.textBaseline = "top";
-  g.textAlign = "left"; g.fillText(lo.toPrecision(3), L, by + bh + 5);
-  g.textAlign = "right"; g.fillText(hi.toPrecision(3), L + bw, by + bh + 5);
+  g.textAlign = "left"; g.fillText(sig3(lo), L, by + bh + 5);
+  g.textAlign = "right"; g.fillText(sig3(hi), L + bw, by + bh + 5);
   // #585 — the caption on its own line under the end values (at print size the three no longer fit on one)
   g.textAlign = "center"; g.fillText(isRho ? "Resistivity (ohm·m, log scale) — dark = conductive" : "Chargeability (mV/V)", L + bw / 2, by + bh + 5 + fpx(printPt.caption) * 1.3);
   // #535 — the hatch in the legend, next to the colour bar

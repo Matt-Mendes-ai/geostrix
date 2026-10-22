@@ -8,7 +8,7 @@ import Papa from "papaparse";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { parseTableFile, decodeTableBytes } from "../lib/tabular.js";
 import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineGeometry, lineFromTwoPoints, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, dataFitRows, worstReadings, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows, suggestModelDepth, deepestPseudoDepth, columnReach, smoothReachLine } from "../lib/dcip.js";
-import { renderDcipSectionPng } from "../lib/dcipSectionImage.js";
+import { renderDcipSectionPng, sig3 } from "../lib/dcipSectionImage.js"; // sig3: #322
 import { parseRes2dinv } from "../lib/res2dinv.js"; // TASKS.csv #826
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #322 — a saved line (and its inversion) is not in Undo
 import { stampLines, withStamp } from "../lib/provenance.js";
@@ -401,7 +401,7 @@ function Pseudosection({ parsed }) {
   const x = (s) => 8 + ((s - smin) / (smax - smin || 1)) * (W - 16), y = (d) => 8 + (d / dmax) * (H - 16);
   return (
     <div style={{ marginTop: 8 }}>
-      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Data (pseudosection): apparent resistivity {v}–{v2} ohm·m", { v: arrMin(parsed.rho).toPrecision(3), v2: arrMax(parsed.rho).toPrecision(3) })}</div>
+      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Data (pseudosection): apparent resistivity {v}–{v2} ohm·m", { v: sig3(arrMin(parsed.rho)), v2: sig3(arrMax(parsed.rho)) })}</div>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={tr("Apparent resistivity pseudosection")} style={{ display: "block", width: "100%", maxWidth: W, height: "auto", background: "var(--color-bg-subtle)", borderRadius: 4 }}>
         {pts.map((p, i) => <circle key={i} cx={x(p.s)} cy={y(p.depth)} r={2.6} fill={colorForVoxelValue(model, parsed.rho[i])} />)}
       </svg>
@@ -454,7 +454,7 @@ function SectionResult({ last, cutoff, epsg, pBtn }) {
       {reach && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{tr("Dashed line = DOI index {doiT} (Oldenburg & Li; median over 5 columns): below it the resistivity follows the reference model, not the data. The data reach a median {median} m per column by the DOI index, {median2} m by the support cutoff ({cutoff}).{v}", { doiT, median: reach.doi.median.toFixed(0), median2: reach.sup.median.toFixed(0), cutoff, v: doiFits ? tr(" The two reference runs fit {v} the target{v2}.", { v: doiFits.map((v) => `${v.toFixed(2)}×`).join(" and "), v2: doiFits.some((v) => v < 0.5) ? tr(" — unequal fits inflate the index, so read the line as approximate") : "" }) : "" })}</div>}
       {doiFailed && <div role="alert" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-fg)" }}>{tr("Depth-of-investigation check not shown: a reference run did not fit the data ({v} the target), so the index would measure that failure, not the depth the data reach.", { v: doiFits.map((v) => `${v.toFixed(2)}×`).join(" and ") })}</div>}
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
-        {tr("{v} · {v2} m × {v3} m, vertical exaggeration {v4}× ·", { v: field === "resistivity" ? tr("{v}–{v2} ohm·m (log colours: dark red conductive → light blue resistive)", { v: arrMin(vals).toPrecision(3), v2: arrMax(vals).toPrecision(3) }) : `0–${arrMax(vals).toPrecision(3)} mV/V`, v2: (s1 - s0).toFixed(0), v3: (z1 - z0).toFixed(0), v4: (sz / sx).toFixed(1) })}{" "}<svg width="14" height="9" style={{ verticalAlign: "middle" }} aria-hidden="true"><rect width="14" height="9" fill={`url(#${hatchId})`} stroke={HATCH.line} strokeWidth="0.5" /></svg>{" "}{tr("hatched = barely seen by the data. {v}", { v: last.restored ? tr("Inverted {v} (kept in the project).", { v: last.restored.slice(0, 10) }) : tr("Added to Block models (3D, along the line).") })}
+        {tr("{v} · {v2} m × {v3} m, vertical exaggeration {v4}× ·", { v: field === "resistivity" ? tr("{v}–{v2} ohm·m (log colours: dark red conductive → light blue resistive)", { v: sig3(arrMin(vals)), v2: sig3(arrMax(vals)) }) : `0–${sig3(arrMax(vals))} mV/V`, v2: (s1 - s0).toFixed(0), v3: (z1 - z0).toFixed(0), v4: (sz / sx).toFixed(1) })}{" "}<svg width="14" height="9" style={{ verticalAlign: "middle" }} aria-hidden="true"><rect width="14" height="9" fill={`url(#${hatchId})`} stroke={HATCH.line} strokeWidth="0.5" /></svg>{" "}{tr("hatched = barely seen by the data. {v}", { v: last.restored ? tr("Inverted {v} (kept in the project).", { v: last.restored.slice(0, 10) }) : tr("Added to Block models (3D, along the line).") })}
       </div>
       <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
         <button onClick={() => exportCsv(last, epsg, cutoff)} style={{ ...pBtn, width: "auto", flex: 1 }} title={tr("Every section cell: distance, x / y (project CRS), elevation, size, values, support")}><Download size={14} />{" "}{tr("CSV")}</button>
