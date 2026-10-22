@@ -1,0 +1,11 @@
+Version 300
+Charset "WindowsLatin1"
+Delimiter ","
+CoordSys Earth Projection 1, 104
+Columns 2
+  Name Char(16)
+  Dip Integer
+Data
+
+Point -128.5 56.25
+Point -128.75 56.125

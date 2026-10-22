@@ -8,7 +8,7 @@
 //   node scripts/drive-electron.mjs drag 640,360 700,300   (press, move, release - #813)
 //   node scripts/drive-electron.mjs key Shift+F10          (real key events: F10, ArrowDown/Up, Home, End, Enter, Escape, Tab, ContextMenu)
 //   node scripts/drive-electron.mjs type "some text"
-//   node scripts/drive-electron.mjs file "input[type=file]" C:\path\to\file.csv
+//   node scripts/drive-electron.mjs file "input[type=file]" C:\path\to\file.csv   (several: "a.TAB|a.MAP|a.ID|a.DAT")
 //   node scripts/drive-electron.mjs accept                 (accept a window.confirm / alert, which otherwise freezes the page)
 //   node scripts/drive-electron.mjs front                  (bring the window forward: a hidden window throttles timers and rAF)
 //   node scripts/drive-electron.mjs shot out.png
@@ -65,7 +65,7 @@ if (cmd === "eval") {
 } else if (cmd === "file") {
   const doc = await send("DOM.getDocument", {});
   const q = await send("DOM.querySelector", { nodeId: doc.result.root.nodeId, selector: arg });
-  const r = await send("DOM.setFileInputFiles", { nodeId: q.result.nodeId, files: [arg2] });
+  const r = await send("DOM.setFileInputFiles", { nodeId: q.result.nodeId, files: arg2.split("|") }); // several files: a|b|c (#818)
   console.log("file", JSON.stringify(r.result || r.error));
 } else if (cmd === "accept") {
   console.log(JSON.stringify(await send("Page.handleJavaScriptDialog", { accept: true })));
