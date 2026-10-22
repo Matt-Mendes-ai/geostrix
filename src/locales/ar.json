@@ -4985,5 +4985,8 @@
   "{lines} section line(s) on {sections} section(s) are hard lines of this surface (a point every {sp} m along them).": "{lines} خط مقطع على {sections} مقطع هي خطوط ثابتة لهذا السطح (نقطة كل {sp} م على امتدادها).",
   "{n} point(s) lie straight above or below another point ({d} m apart at most) and were left out: one surface cannot pass through both. If the surface really folds back, model it as two surfaces.": "{n} نقطة تقع فوق نقطة أخرى أو تحتها مباشرة ({d} م على الأكثر) واستُبعدت: لا يمكن لسطح واحد المرور بالاثنتين. إن كان السطح ينطوي فعلًا، فانمذجه كسطحين.",
   "Explicit surface (through hand-picked contacts)": "سطح صريح (عبر تماسات محددة يدويًا)",
-  "A surface exactly through your own picks in 3D and lines drawn on sections": "سطح يمر تمامًا عبر نقاطك في العرض ثلاثي الأبعاد والخطوط المرسومة على المقاطع"
+  "A surface exactly through your own picks in 3D and lines drawn on sections": "سطح يمر تمامًا عبر نقاطك في العرض ثلاثي الأبعاد والخطوط المرسومة على المقاطع",
+  "Drag a pick to move it: a pick on a hole slides along that hole (snapping to logged contacts when Snap is on); any other pick moves up and down, or sideways with Shift held. The surface rebuilds when you let go.": "اسحب نقطة لتحريكها: النقطة على ثقب حفر تنزلق على امتداد ذلك الثقب (وتلتقط التماسات المسجلة عند تفعيل الالتقاط)؛ وأي نقطة أخرى تتحرك لأعلى ولأسفل، أو أفقيًا مع الضغط على Shift. يُعاد بناء السطح عند الإفلات.",
+  "Editing — drag a pick (click to stop)": "جارٍ التحرير — اسحب نقطة (انقر للإيقاف)",
+  "Edit picks (drag to move)": "تحرير النقاط (اسحب للتحريك)"
 }

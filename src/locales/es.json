@@ -4985,5 +4985,8 @@
   "{lines} section line(s) on {sections} section(s) are hard lines of this surface (a point every {sp} m along them).": "{lines} línea(s) de sección en {sections} sección(es) son líneas fijas de esta superficie (un punto cada {sp} m a lo largo de ellas).",
   "{n} point(s) lie straight above or below another point ({d} m apart at most) and were left out: one surface cannot pass through both. If the surface really folds back, model it as two surfaces.": "{n} punto(s) están justo encima o debajo de otro punto (a {d} m como máximo) y se dejaron fuera: una superficie no puede pasar por ambos. Si la superficie realmente se repliega, modélela como dos superficies.",
   "Explicit surface (through hand-picked contacts)": "Superficie explícita (por contactos marcados a mano)",
-  "A surface exactly through your own picks in 3D and lines drawn on sections": "Una superficie exactamente por sus picks en 3D y las líneas dibujadas en secciones"
+  "A surface exactly through your own picks in 3D and lines drawn on sections": "Una superficie exactamente por sus picks en 3D y las líneas dibujadas en secciones",
+  "Drag a pick to move it: a pick on a hole slides along that hole (snapping to logged contacts when Snap is on); any other pick moves up and down, or sideways with Shift held. The surface rebuilds when you let go.": "Arrastre un pick para moverlo: un pick en un sondaje se desliza a lo largo de ese sondaje (ajustándose a los contactos registrados si Ajustar está activo); cualquier otro pick se mueve arriba y abajo, o en horizontal manteniendo Mayús. La superficie se reconstruye al soltar.",
+  "Editing — drag a pick (click to stop)": "Editando: arrastre un pick (clic para terminar)",
+  "Edit picks (drag to move)": "Editar picks (arrastrar para mover)"
 }

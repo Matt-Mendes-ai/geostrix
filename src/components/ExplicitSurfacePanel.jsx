@@ -4,11 +4,12 @@
 // ordinary generated surface, so sections, volumes, export and "Solid blocks from surfaces" use it as they are.
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { Crosshair, Undo2, Trash2, X as XIcon } from "./icons.js";
+import { Crosshair, Move, Undo2, Trash2, X as XIcon } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
 import { explicitPoints, fitExplicitSurface } from "../lib/explicitSurface.js";
 import { findOnTraceWorld } from "../lib/viewer/modelHelpers.js";
 import { sampleTerrainElevation } from "../lib/viewer/geomath.js";
+import { dragTarget } from "../lib/explicitDrag.js"; // TASKS.csv #813
 
 const MAX_POINTS = 800; // ~0.4 s to solve on a laptop (1,200 took 1.2 s); section lines are thinned to fit
 const LINE_SPACING = 10; // m between the points taken along a drawn section line
@@ -102,6 +103,54 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
   const update = (patch) => setDefs((p) => p.map((d) => (d.id === def.id ? { ...d, ...patch } : d)));
   const ep = useMemo(() => (def ? explicitPoints(def, sections, { spacing: LINE_SPACING, maxPoints: MAX_POINTS }) : null), [def, sections]);
 
+  // TASKS.csv #813 — "Edit picks": a press within 10 px of one of this surface's picks drags it (the view does not orbit);
+  // its point in the overlay follows the mouse and the surface rebuilds once on release
+  const [editing, setEditing] = useState(false);
+  const defRef = useRef(def);
+  defRef.current = def;
+  useEffect(() => {
+    if (!editing || !def) { sc.dragHookRef.current = null; return undefined; }
+    sc.dragHookRef.current = (e, mx, my) => {
+      const d = defRef.current, cam = sc.camera.current, dom = sc.renderer.current?.domElement;
+      if (!d?.picks?.length || !cam || !dom) return false;
+      const o = sc.origin.current, rect = dom.getBoundingClientRect(), v = new THREE.Vector3();
+      let hit = -1, bestPx = 10;
+      d.picks.forEach((p, i) => {
+        v.set(p.x - o.x, p.z - o.z, o.y - p.y).project(cam);
+        if (v.z > 1) return; // behind the camera
+        const px = Math.hypot((v.x + 1) / 2 * rect.width - mx, (1 - v.y) / 2 * rect.height - my);
+        if (px < bestPx) { bestPx = px; hit = i; }
+      });
+      if (hit < 0) return false;
+      const pts = (sc.overlay.current?.children || []).find((c) => c.userData.explicitId === d.id);
+      let moved = d.picks[hit];
+      const ray = new THREE.Raycaster();
+      const onMove = (ev) => {
+        const r = dom.getBoundingClientRect();
+        ray.setFromCamera(new THREE.Vector2(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1), cam);
+        const next = dragTarget(d.picks[hit], ray.ray, sc, snap, ev.shiftKey);
+        if (!next) return;
+        moved = next;
+        if (pts) { pts.geometry.attributes.position.setXYZ(hit, next.x - o.x, next.z - o.z, o.y - next.y); pts.geometry.attributes.position.needsUpdate = true; }
+        sc.activity.current = Date.now();
+      };
+      const onUp = () => {
+        dom.removeEventListener("pointermove", onMove);
+        dom.removeEventListener("pointerup", onUp);
+        dom.removeEventListener("pointercancel", onUp);
+        try { dom.releasePointerCapture(e.pointerId); } catch { /* already released */ }
+        if (moved !== d.picks[hit]) setDefs((p) => p.map((x) => (x.id === d.id ? { ...x, picks: x.picks.map((q, i) => (i === hit ? moved : q)) } : x)));
+      };
+      dom.setPointerCapture(e.pointerId);
+      dom.addEventListener("pointermove", onMove);
+      dom.addEventListener("pointerup", onUp);
+      dom.addEventListener("pointercancel", onUp);
+      return true;
+    };
+    return () => { sc.dragHookRef.current = null; };
+  }, [editing, def?.id, snap]); // the scene refs are stable
+  useEffect(() => () => { sc.dragHookRef.current = null; }, []); // on unmount only
+
   const newSurface = () => askPrompt(tr("Name of the new explicit surface (e.g. Top of SILBX):"), "", (name) => {
     const n = (name || "").trim();
     if (!n) return;
@@ -154,11 +203,16 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
       {def && (<>
         <div style={row}>
           <input type="color" value={def.color} onChange={(e) => update({ color: e.target.value })} aria-label={tr("Colour")} style={{ width: 28, height: 24, padding: 0, border: "none", background: "none" }} />
-          <button onClick={() => setPickFor(pickFor === def.id ? null : def.id)} aria-pressed={pickFor === def.id}
+          <button onClick={() => { setEditing(false); setPickFor(pickFor === def.id ? null : def.id); }} aria-pressed={pickFor === def.id}
             style={{ ...pBtn, flex: 1, marginBottom: 0, justifyContent: "center", ...(pickFor === def.id ? { background: "var(--color-accent)", color: "var(--color-on-accent, #fff)" } : {}) }}>
             <Crosshair size={14} />{" "}{pickFor === def.id ? tr("Picking — click contacts in 3D (click to stop)") : tr("Pick contacts in 3D")}
           </button>
         </div>
+        <button onClick={() => { setPickFor(null); setEditing((v) => !v); }} aria-pressed={editing} disabled={!def.picks.length}
+          title={tr("Drag a pick to move it: a pick on a hole slides along that hole (snapping to logged contacts when Snap is on); any other pick moves up and down, or sideways with Shift held. The surface rebuilds when you let go.")}
+          style={{ ...pBtn, marginBottom: 6, justifyContent: "center", opacity: def.picks.length ? 1 : 0.5, ...(editing ? { background: "var(--color-accent)", color: "var(--color-on-accent, #fff)" } : {}) }}>
+          <Move size={14} />{" "}{editing ? tr("Editing — drag a pick (click to stop)") : tr("Edit picks (drag to move)")}
+        </button>
         <label style={{ ...row, cursor: "pointer" }} title={tr("A click on a lithology interval snaps to its nearer logged boundary (its top or base); untick to take the exact point clicked on the trace")}>
           <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />{tr("Snap to logged contacts")}
         </label>

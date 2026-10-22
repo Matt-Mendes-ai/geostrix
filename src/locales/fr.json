@@ -4985,5 +4985,8 @@
   "{lines} section line(s) on {sections} section(s) are hard lines of this surface (a point every {sp} m along them).": "{lines} ligne(s) de coupe sur {sections} coupe(s) sont des lignes imposées de cette surface (un point tous les {sp} m le long de celles-ci).",
   "{n} point(s) lie straight above or below another point ({d} m apart at most) and were left out: one surface cannot pass through both. If the surface really folds back, model it as two surfaces.": "{n} point(s) se trouvent juste au-dessus ou au-dessous d'un autre point ({d} m d'écart au plus) et ont été écartés : une surface ne peut pas passer par les deux. Si la surface se replie réellement, modélisez-la en deux surfaces.",
   "Explicit surface (through hand-picked contacts)": "Surface explicite (par des contacts pointés à la main)",
-  "A surface exactly through your own picks in 3D and lines drawn on sections": "Une surface passant exactement par vos pointés en 3D et les lignes dessinées sur les coupes"
+  "A surface exactly through your own picks in 3D and lines drawn on sections": "Une surface passant exactement par vos pointés en 3D et les lignes dessinées sur les coupes",
+  "Drag a pick to move it: a pick on a hole slides along that hole (snapping to logged contacts when Snap is on); any other pick moves up and down, or sideways with Shift held. The surface rebuilds when you let go.": "Faites glisser un pointé pour le déplacer : un pointé sur un sondage glisse le long de ce sondage (en s'alignant sur les contacts décrits si l'alignement est activé) ; tout autre pointé monte ou descend, ou se déplace à l'horizontale avec Maj enfoncée. La surface se reconstruit au relâchement.",
+  "Editing — drag a pick (click to stop)": "Édition : faites glisser un pointé (cliquez pour arrêter)",
+  "Edit picks (drag to move)": "Modifier les pointés (glisser pour déplacer)"
 }

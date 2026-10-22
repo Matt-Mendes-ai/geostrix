@@ -5,6 +5,7 @@
 // (unset NODE_ENV to load dist/ over app://, as an installed copy does), then:
 //   node scripts/drive-electron.mjs eval "document.title"
 //   node scripts/drive-electron.mjs click 640,360          (mouse click at x,y)
+//   node scripts/drive-electron.mjs drag 640,360 700,300   (press, move, release - #813)
 //   node scripts/drive-electron.mjs key Shift+F10          (real key events: F10, ArrowDown/Up, Home, End, Enter, Escape, Tab, ContextMenu)
 //   node scripts/drive-electron.mjs type "some text"
 //   node scripts/drive-electron.mjs file "input[type=file]" C:\path\to\file.csv
@@ -41,6 +42,16 @@ if (cmd === "eval") {
   const [x, y] = arg.split(",").map(Number);
   for (const type of ["mouseMoved", "mousePressed", "mouseReleased"]) await send("Input.dispatchMouseEvent", { type, x, y, button: "left", clickCount: 1 });
   console.log("clicked", x, y);
+} else if (cmd === "drag") { // TASKS.csv #813 — press at x1,y1, move in 10 steps, release at x2,y2
+  const [x1, y1] = arg.split(",").map(Number), [x2, y2] = arg2.split(",").map(Number);
+  await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: x1, y: y1 });
+  await send("Input.dispatchMouseEvent", { type: "mousePressed", x: x1, y: y1, button: "left", buttons: 1, clickCount: 1 });
+  for (let i = 1; i <= 10; i++) {
+    await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: x1 + ((x2 - x1) * i) / 10, y: y1 + ((y2 - y1) * i) / 10, button: "left", buttons: 1 });
+    await new Promise((r) => setTimeout(r, 30));
+  }
+  await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: x2, y: y2, button: "left", buttons: 0, clickCount: 1 });
+  console.log("dragged", x1, y1, "->", x2, y2);
 } else if (cmd === "key") {
   const parts = arg.split("+"), key = parts.pop();
   const modifiers = (parts.includes("Alt") ? 1 : 0) | (parts.includes("Ctrl") ? 2 : 0) | (parts.includes("Shift") ? 8 : 0);
