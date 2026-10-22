@@ -178,7 +178,10 @@ const sig5 = (arr) => (Array.isArray(arr) ? arr.map((v) => (Number.isFinite(v) ?
 // are kept (5 significant digits), so a restored line still shows its observed / predicted / residual pseudosections.
 export function slimDcipResult(result) {
   const c = result.cells;
-  const cells = { s: c.s, z: c.z, ds: c.ds, dz: c.dz, resistivity: c.resistivity, support: c.support, ...(c.chargeability ? { chargeability: c.chargeability } : {}), ...(c.doi ? { doi: c.doi } : {}) }; // doi: #772
+  // #322 (a) — compact: the mesh to the millimetre, the values to 5 significant digits (a full double was ~18 JSON
+  // characters a number; an 8,190-cell line was 0.5-1.2 MB in the project file)
+  const mm = (arr) => (Array.isArray(arr) ? arr.map((v) => (Number.isFinite(v) ? Math.round(v * 1000) / 1000 : null)) : arr);
+  const cells = { s: mm(c.s), z: mm(c.z), ds: mm(c.ds), dz: mm(c.dz), resistivity: sig5(c.resistivity), support: sig5(c.support), ...(c.chargeability ? { chargeability: sig5(c.chargeability) } : {}), ...(c.doi ? { doi: sig5(c.doi) } : {}) }; // doi: #772
   return { kind: "dcip2d", cells, electrodes: result.electrodes, phi_d: result.phi_d, target: result.target, reachedTarget: result.reachedTarget,
     iterations: result.iterations, ip: result.ip ? Object.fromEntries(Object.entries({ phi_d: result.ip.phi_d, reachedTarget: result.ip.reachedTarget, iterations: result.ip.iterations, fitChoice: result.ip.fitChoice, predicted: sig5(result.ip.predicted), standardDeviation: sig5(result.ip.standardDeviation) }).filter(([, v]) => v !== undefined)) : null,
     ...(Array.isArray(result.predicted) ? { predicted: sig5(result.predicted), standardDeviation: sig5(result.standardDeviation) } : {}), mesh: result.mesh, versions: result.versions, ...(result.geometricFactor ? { geometricFactor: result.geometricFactor } : {}), ...(result.doiMethod ? { doiMethod: result.doiMethod } : {}) }; // ip fields: #581; geometricFactor: #580; doiMethod: #772
