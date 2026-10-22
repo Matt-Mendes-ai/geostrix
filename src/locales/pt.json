@@ -5187,5 +5187,9 @@
   " with chargeability": " com cargabilidade",
   " (resistances converted to apparent resistivity)": " (resistências convertidas em resistividade aparente)",
   ", {k} with a remote electrode": ", {k} com um eletrodo remoto",
-  ", {k} line(s) not read": ", {k} linha(s) não lida(s)"
+  ", {k} line(s) not read": ", {k} linha(s) não lida(s)",
+  "Remove the saved line \"{name}\"{inv} from the project?": "Remover do projeto a linha salva \"{name}\"{inv}?",
+  " and its inversion result": " e o seu resultado de inversão",
+  "re-import the line file and run the inversion again.": "importe novamente o arquivo da linha e refaça a inversão.",
+  "re-import the line file.": "importe novamente o arquivo da linha."
 }

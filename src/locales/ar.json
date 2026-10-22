@@ -5187,5 +5187,9 @@
   " with chargeability": " مع الشحنية",
   " (resistances converted to apparent resistivity)": " (حُوّلت المقاومات إلى مقاومية ظاهرية)",
   ", {k} with a remote electrode": ", {k} بقطب بعيد",
-  ", {k} line(s) not read": ", {k} سطر لم يُقرأ"
+  ", {k} line(s) not read": ", {k} سطر لم يُقرأ",
+  "Remove the saved line \"{name}\"{inv} from the project?": "إزالة الخط المحفوظ «{name}»{inv} من المشروع؟",
+  " and its inversion result": " ونتيجة عكسه",
+  "re-import the line file and run the inversion again.": "أعد استيراد ملف الخط وشغّل العكس من جديد.",
+  "re-import the line file.": "أعد استيراد ملف الخط."
 }

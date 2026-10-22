@@ -10,6 +10,7 @@ import { parseTableFile, decodeTableBytes } from "../lib/tabular.js";
 import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineGeometry, lineFromTwoPoints, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, dataFitRows, worstReadings, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows, suggestModelDepth, deepestPseudoDepth, columnReach, smoothReachLine } from "../lib/dcip.js";
 import { renderDcipSectionPng } from "../lib/dcipSectionImage.js";
 import { parseRes2dinv } from "../lib/res2dinv.js"; // TASKS.csv #826
+import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #322 — a saved line (and its inversion) is not in Undo
 import { stampLines, withStamp } from "../lib/provenance.js";
 import { version as APP_VERSION } from "../../package.json";
 import { logStops, sequentialStops, divergingStops, fitVerdict } from "../lib/inversion.js";
@@ -268,7 +269,7 @@ export default function DcipPanel({ pBtn, numInput }) {
             <option value="">{tr("Lines in this project ({dcipLines})…", { dcipLines: dcipLines.length })}</option>
             {dcipLines.map((l) => <option key={l.id} value={l.id}>{tr("{name} — {readings} readings{v}", { name: l.name, readings: l.readings.length, v: l.section ? tr(", inverted") : "" })}</option>)}
           </select>
-          {pick && <button onClick={() => { removeDcipLine(pick); setPick(""); }} title={tr("Remove this line from the project")} aria-label={tr("Remove saved line")} style={{ ...pBtn, width: "auto", padding: "3px 6px" }}><Trash2 size={14} /></button>}
+          {pick && <button onClick={() => { const e = dcipLines.find((l) => l.id === pick); if (!confirmDestructive(tr("Remove the saved line \"{name}\"{inv} from the project?", { name: e?.name || "", inv: e?.section ? tr(" and its inversion result") : "" }), { recover: e?.section ? tr("re-import the line file and run the inversion again.") : tr("re-import the line file.") })) return; removeDcipLine(pick); setPick(""); }} /* confirm: #322 */ title={tr("Remove this line from the project")} aria-label={tr("Remove saved line")} style={{ ...pBtn, width: "auto", padding: "3px 6px" }}><Trash2 size={14} /></button>}
         </div>
       )}
       <input ref={fileRef} type="file" accept=".csv,.txt,.dat,.ipg" style={{ display: "none" }} onChange={(e) => { onFile(e.target.files[0]); e.target.value = ""; }} />
