@@ -10,9 +10,11 @@ import { explicitPoints, fitExplicitSurface } from "../lib/explicitSurface.js";
 import { findOnTraceWorld } from "../lib/viewer/modelHelpers.js";
 import { sampleTerrainElevation } from "../lib/viewer/geomath.js";
 import { dragTarget } from "../lib/explicitDrag.js"; // TASKS.csv #813
+import { mapContactPairs, mapContactLines, dipGuideLines } from "../lib/explicitMapLines.js"; // TASKS.csv #817
 
 const MAX_POINTS = 800; // ~0.4 s to solve on a laptop (1,200 took 1.2 s); section lines are thinned to fit
 const LINE_SPACING = 10; // m between the points taken along a drawn section line
+const MAP_STEP = 25; // m between the points taken along a mapped contact (#817)
 
 // a short, stable fingerprint of what the surface is built from: rebuilt only when it changes
 function inputKey(def, ep, hasTerrain) {
@@ -60,8 +62,9 @@ function upsertMesh(sc, def, res, info) {
   geo.computeVertexNormals();
   geo.computeBoundingBox();
   const nVerts = P.length / 3, nTris = res.indices.length / 3;
-  const tip = `${def.name} — explicit surface\n${res.n} points (${info.picks} picks, ${info.lines} section lines)`;
+  const tip = `${def.name} — explicit surface\n${res.n} points (${info.picks} picks, ${info.lines} section lines${info.mapLines ? `, ${info.mapLines} mapped contact lines` : ""}${info.guideLines ? `, ${info.guideLines} dip guide lines` : ""})`;
   const params = { tool: "explicit surface (thin-plate spline exactly through hand-picked contacts)", picks: info.picks, sectionLines: info.lines, sections: info.sections, lineSpacingM: info.spacing ? Math.round(info.spacing * 10) / 10 : null, points: res.n,
+    mapContacts: (def.mapContacts || []).map((c) => c.units.join(" | ")), mapLines: info.mapLines || 0, dipGuide: info.guideLines ? { depthM: def.dipGuide?.depth, lines: info.guideLines, constructed: true } : null, // #817
     frame: res.frame.steep ? `over its best-fit plane (dip ${res.frame.dip.toFixed(1)}°)` : "elevation over the map", maxMisfitM: Number(res.residualMax.toExponential(2)), marginM: Math.round(res.margin), cutAtTerrain: res.groundCut > 0, builtAt: new Date().toISOString() };
   sc.activity.current = Date.now();
   const old = def.surfaceId && sc.meshes.current[def.surfaceId];
@@ -82,7 +85,7 @@ function upsertMesh(sc, def, res, info) {
   return id;
 }
 
-export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain, pickFor, setPickFor, snap, setSnap, scene: sc, onRemove, askPrompt, pBtn, smallSel, numInput }) {
+export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain, mapLayers, surfaceStructures, pickFor, setPickFor, snap, setSnap, scene: sc, onRemove, askPrompt, pBtn, smallSel, numInput }) {
   const hasTerrain = !!terrain?.bbox;
   const groundAt = (x, y) => {
     const [x0, y0, x1, y1] = terrain.bbox;
@@ -101,7 +104,32 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
   const [status, setStatus] = useState(null); // { ok, text }
   const [showPicks, setShowPicks] = useState(false);
   const update = (patch) => setDefs((p) => p.map((d) => (d.id === def.id ? { ...d, ...patch } : d)));
-  const ep = useMemo(() => (def ? explicitPoints(def, sections, { spacing: LINE_SPACING, maxPoints: MAX_POINTS }) : null), [def, sections]);
+  // TASKS.csv #817 — mapped contacts (draped on the terrain) and their dip guides as further hard lines
+  const polys = useMemo(() => (mapLayers || []).filter((l) => l.geomType === "polygon"), [mapLayers]);
+  const bedding = useMemo(() => (surfaceStructures || []).flatMap((s) => s.rows || []).filter((r) => r.cls === "bedding").map((r) => ({ x: r.x, y: r.y, dip: r.dip, dipDir: r.dipDir })), [surfaceStructures]);
+  const mapPart = useMemo(() => {
+    if (!def?.mapContacts?.length || !hasTerrain) return { lines: [], guides: null, missing: (def?.mapContacts || []).length && !hasTerrain ? def.mapContacts.length : 0, offTerrain: 0 };
+    let missing = 0, offTerrain = 0;
+    const lines = [];
+    for (const c of def.mapContacts) {
+      const layer = polys.find((l) => l.id === c.layerId);
+      const r = layer ? mapContactLines(layer, c.field, c.units, groundAt, { step: MAP_STEP }) : null;
+      if (!r?.lines.length) { missing++; continue; }
+      offTerrain += r.offTerrain;
+      lines.push(...r.lines);
+    }
+    const g = def.dipGuide?.on && lines.length ? dipGuideLines(lines, { measurements: bedding, depthM: Number(def.dipGuide.depth) || 100, radiusM: Number(def.dipGuide.radius) || 500 }) : null;
+    return { lines, guides: g, missing, offTerrain };
+  }, [def?.mapContacts, def?.dipGuide, polys, bedding, hasTerrain, terrain]); // groundAt reads terrain
+  const ep = useMemo(() => (def ? explicitPoints(def, sections, { spacing: LINE_SPACING, maxPoints: MAX_POINTS, extraLines: [...mapPart.lines, ...(mapPart.guides?.lines || [])] }) : null), [def, sections, mapPart]);
+  const [mapLayerId, setMapLayerId] = useState("");
+  const mapLayer = polys.find((l) => l.id === mapLayerId) || polys[0] || null;
+  const fieldsOf = (l) => (l?.fields || []);
+  const [mapField, setMapField] = useState("");
+  const unitField = fieldsOf(mapLayer).includes(mapField) ? mapField : (mapLayer?.styleField || fieldsOf(mapLayer)[0] || "");
+  const pairs = useMemo(() => { try { return mapContactPairs(mapLayer, unitField); } catch { return []; } }, [mapLayer, unitField]);
+  const [pairKey, setPairKey] = useState("");
+  const pair = pairs.find((p) => p.units.join("|") === pairKey) || pairs[0] || null;
 
   // TASKS.csv #813 — "Edit picks": a press within 10 px of one of this surface's picks drags it (the view does not orbit);
   // its point in the overlay follows the mouse and the surface rebuilds once on release
@@ -174,13 +202,14 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
         const t0 = performance.now();
         const res = fitExplicitSurface(ep.points, { margin: def.margin, resolution: def.resolution || 80, groundAt: def.cutAtTerrain && hasTerrain ? groundAt : null });
         const ms = Math.round(performance.now() - t0);
-        const surfaceId = upsertMesh(sc, def, res, { picks: ep.picks, lines: ep.lines, sections: ep.sections, spacing: ep.spacing });
+        const surfaceId = upsertMesh(sc, def, res, { picks: ep.picks, lines: ep.lines, sections: ep.sections, spacing: ep.spacing, mapLines: ep.mapLines, guideLines: ep.guideLines });
         setDefs((p) => p.map((d) => (d.id === def.id ? { ...d, surfaceId, builtKey: key } : d)));
         setStatus({ ok: true, text: tr("Built through {n} points ({picks} picks, {lines} section lines) in {ms} ms; largest misfit at a point {mm} mm. {frame}{cut}", {
           n: res.n, picks: ep.picks, lines: ep.lines, ms, mm: (res.residualMax * 1000).toFixed(3),
           frame: res.frame.steep ? tr("Steep surface (best-fit plane dips {d}°): modelled over its own plane.", { d: res.frame.dip.toFixed(0) }) : tr("Modelled as elevation over the map."),
           cut: res.groundCut ? tr(" Cut at the terrain.") : "",
-        }) + (res.warnings.length ? ` ${res.warnings.join(" ")}` : "") });
+        }) + (ep.mapLines ? ` ${tr("Includes {m} mapped contact line(s){g}.", { m: ep.mapLines, g: ep.guideLines ? tr(" and {g} dip guide line(s) (constructed, {d} m down-dip)", { g: ep.guideLines, d: Number(def.dipGuide?.depth) || 100 }) : "" })}` : "")
+          + (ep.extraEvery > 1 ? ` ${tr("To keep the build fast, one map line point in {k} was used.", { k: ep.extraEvery })}` : "") + (res.warnings.length ? ` ${res.warnings.join(" ")}` : "") });
       } catch (e) { setStatus({ ok: false, text: e.message || String(e) }); }
     }, 250);
     return () => clearTimeout(timer.current);
@@ -222,6 +251,59 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
         </div>
         <div style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, lineHeight: 1.4 }}>
           {ep.lines ? tr("{lines} section line(s) on {sections} section(s) are hard lines of this surface (a point every {sp} m along them).", { lines: ep.lines, sections: ep.sections, sp: Math.round(ep.spacing || LINE_SPACING) }) : tr("No section lines yet.")}{" "}<span style={{ color: "var(--color-text-muted)" }}>{lineHint}</span>
+        </div>
+        {/* TASKS.csv #817 — mapped contacts as hard lines, with an optional dip guide */}
+        <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginBottom: 6 }}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr("From the geological map")}</div>
+          {!polys.length ? (
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Import a geological map (Surface Geology > Geology map) to use its contacts as hard lines where this surface meets the ground.")}</div>
+          ) : (<>
+            <div style={row}>
+              <select value={mapLayer?.id || ""} onChange={(e) => { setMapLayerId(e.target.value); setMapField(""); setPairKey(""); }} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Map layer")}>
+                {polys.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+              <select value={unitField} onChange={(e) => { setMapField(e.target.value); setPairKey(""); }} style={{ ...smallSel, width: 96 }} aria-label={tr("Unit field")} title={tr("The attribute that names the map units")}>
+                {fieldsOf(mapLayer).map((f) => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+            <div style={row}>
+              <select value={pair ? pair.units.join("|") : ""} onChange={(e) => setPairKey(e.target.value)} disabled={!pairs.length} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Mapped contact")}>
+                {!pairs.length && <option value="">{tr("No contacts between units on this map")}</option>}
+                {pairs.map((p) => <option key={p.units.join("|")} value={p.units.join("|")}>{tr("{a} | {b} ({km} km)", { a: p.units[0], b: p.units[1], km: (p.lengthM / 1000).toFixed(2) })}</option>)}
+              </select>
+              <button disabled={!pair || !hasTerrain} title={hasTerrain ? tr("This mapped contact, draped on the terrain, becomes a hard line of the surface") : tr("Needs a terrain: the contact is placed on the ground")}
+                onClick={() => { const c = { layerId: mapLayer.id, field: unitField, units: pair.units }; if (!(def.mapContacts || []).some((x) => x.layerId === c.layerId && x.field === c.field && x.units.join("|") === c.units.join("|"))) update({ mapContacts: [...(def.mapContacts || []), c] }); }}
+                style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: pair && hasTerrain ? 1 : 0.5 }}>{tr("+ Add")}</button>
+            </div>
+            {(def.mapContacts || []).map((c, i) => (
+              <div key={`${c.layerId}|${c.units.join("|")}`} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", marginBottom: 2 }}>
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.units.join(" | ")} · {polys.find((l) => l.id === c.layerId)?.name || tr("(layer removed)")}</span>
+                <button onClick={() => update({ mapContacts: def.mapContacts.filter((_, j) => j !== i) })} aria-label={tr("Remove this mapped contact")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 0 }}><XIcon size={12} /></button>
+              </div>
+            ))}
+            {!!def.mapContacts?.length && (<>
+              <label style={{ ...row, cursor: "pointer", marginTop: 4 }} title={tr("Adds a line below each mapped contact, projected down its dip: the nearest bedding measurement within the radius, or else the dip fitted to the contact's own trace on the terrain. It is a constructed line, not an observation; the surface passes through it exactly.")}>
+                <input type="checkbox" checked={!!def.dipGuide?.on} onChange={(e) => update({ dipGuide: { depth: 100, radius: 500, ...(def.dipGuide || {}), on: e.target.checked } })} />{tr("Dip guide: project the contact down its dip")}
+              </label>
+              {def.dipGuide?.on && (
+                <>
+                  <div style={row}>
+                    <span style={{ width: 120, flexShrink: 0 }}>{tr("Guide depth")}</span>
+                    <input type="number" min={10} step={10} value={def.dipGuide.depth ?? 100} onChange={(e) => update({ dipGuide: { ...def.dipGuide, depth: Math.max(10, Number(e.target.value) || 100) } })} style={{ ...numInput, width: 64 }} aria-label={tr("Guide depth")} /><span>m</span>
+                  </div>
+                  <div style={row} title={tr("A bedding measurement within this distance of the contact gives its dip; beyond it, the dip fitted to the contact's own trace is used")}>
+                    <span style={{ width: 120, flexShrink: 0 }}>{tr("Measurements within")}</span>
+                    <input type="number" min={0} step={50} value={def.dipGuide.radius ?? 500} onChange={(e) => update({ dipGuide: { ...def.dipGuide, radius: Math.max(0, Number(e.target.value) || 0) } })} style={{ ...numInput, width: 64 }} aria-label={tr("Measurements within")} /><span>m</span>
+                  </div>
+                </>
+              )}
+              <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, color: "var(--color-text-muted)" }}>
+                {tr("{n} line(s) on the terrain.", { n: mapPart.lines.length })}
+                {mapPart.guides ? ` ${tr("Dip guide: {m} point(s) from measurements, {f} from the contact's own trace, {s} without a usable dip (no guide there).", { m: mapPart.guides.measured, f: mapPart.guides.fitted, s: mapPart.guides.skipped })}` : ""}
+                {mapPart.missing ? ` ${hasTerrain ? tr("{k} mapped contact(s) not found on the map or the terrain.", { k: mapPart.missing }) : tr("Load a terrain to place the mapped contacts.")}` : ""}
+              </div>
+            </>)}
+          </>)}
         </div>
         <div style={row}>
           <span style={{ width: 120, flexShrink: 0 }}>{tr("Extend beyond picks")}</span>

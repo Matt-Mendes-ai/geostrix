@@ -409,7 +409,7 @@ export default function ModellingPanes(props) {
         {toolPane === "explicit" && (<>
         {paneHeader("Explicit surface", Spline, "model")}
         <Suspense fallback={null}>
-          <ExplicitSurfacePanel defs={explicitSurfaces || []} setDefs={setExplicitSurfaces} sections={sections} terrain={terrain} pickFor={explicitPickFor} setPickFor={setExplicitPickFor} snap={explicitSnap} setSnap={setExplicitSnap}
+          <ExplicitSurfacePanel defs={explicitSurfaces || []} setDefs={setExplicitSurfaces} sections={sections} terrain={terrain} mapLayers={mapLayers} surfaceStructures={surfaceStructures} /* #817 */ pickFor={explicitPickFor} setPickFor={setExplicitPickFor} snap={explicitSnap} setSnap={setExplicitSnap}
             scene={{ origin: originRef, meshes: implicitMeshesRef, group: implicitGroupRef, traces: tracesRef, activity: lastActivityRef, setSurfaces: setImplicitSurfaces, worldPointFromHits, clickRef: explicitClickRef,
               dragHookRef: viewDragHookRef, camera: cameraRef, renderer: rendererRef, overlay: explicitOverlayRef, litho: layers.litho /* #813 */ }}
             onRemove={(d) => { if (d.surfaceId && implicitMeshesRef.current[d.surfaceId]) removeImplicitSurface(d.surfaceId); setExplicitSurfaces((p) => p.filter((x) => x.id !== d.id)); }}

@@ -24,7 +24,8 @@ import { t as tr } from "./i18n.js";
 
 const dist3 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 
-export function explicitPoints(def, sections, { spacing = 10, maxPoints = 1200 } = {}) {
+// extraLines (#817): further hard lines, [{ ref, src, pts }] - mapped contacts and their dip guides (explicitMapLines.js)
+export function explicitPoints(def, sections, { spacing = 10, maxPoints = 1200, extraLines = [] } = {}) {
   const picks = (def?.picks || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite)).map((p) => ({ x: p.x, y: p.y, z: p.z, src: "pick", ref: p.id }));
   const lines = [];
   for (const s of sections || []) for (const c of s.contacts || []) {
@@ -34,7 +35,15 @@ export function explicitPoints(def, sections, { spacing = 10, maxPoints = 1200 }
   }
   let len = 0, verts = 0;
   for (const l of lines) { verts += l.pts.length; for (let i = 1; i < l.pts.length; i++) len += dist3(l.pts[i - 1], l.pts[i]); }
-  const room = maxPoints - picks.length - verts;
+  // extra lines come already sampled (a point every ~25 m): taken as they are, every k-th point kept if they would not
+  // fit in what the picks and section-line corners leave (half of it at most, so section lines still get filled in)
+  const extra = extraLines.map((l) => ({ ref: l.ref, src: l.src || "line", pts: (l.pts || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite)) })).filter((l) => l.pts.length);
+  const nExtra = extra.reduce((s, l) => s + l.pts.length, 0);
+  const extraRoom = Math.max(0, lines.length ? Math.floor((maxPoints - picks.length - verts) / 2) : maxPoints - picks.length);
+  const every = nExtra > extraRoom ? Math.ceil(nExtra / Math.max(1, extraRoom)) : 1;
+  const extraPts = [];
+  for (const l of extra) l.pts.forEach((p, i) => { if (i % every === 0 || i === l.pts.length - 1) extraPts.push({ x: p.x, y: p.y, z: p.z, src: l.src, ref: l.ref }); });
+  const room = maxPoints - picks.length - verts - extraPts.length;
   const step = Math.max(spacing, room > 0 ? len / room : Infinity);
   const out = picks.slice();
   for (const l of lines) {
@@ -49,7 +58,9 @@ export function explicitPoints(def, sections, { spacing = 10, maxPoints = 1200 }
       }
     });
   }
-  return { points: out, picks: picks.length, lines: lines.length, sections: new Set(lines.map((l) => l.section)).size, spacing: Number.isFinite(step) ? step : null };
+  out.push(...extraPts);
+  return { points: out, picks: picks.length, lines: lines.length, sections: new Set(lines.map((l) => l.section)).size, spacing: Number.isFinite(step) ? step : null,
+    mapLines: extra.filter((l) => l.src === "map").length, guideLines: extra.filter((l) => l.src === "guide").length, extraPoints: extraPts.length, extraEvery: every };
 }
 
 // symmetric 3x3 eigen-decomposition (Jacobi); returns { values, vectors (columns) } sorted by value ascending
