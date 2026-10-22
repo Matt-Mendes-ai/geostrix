@@ -113,6 +113,7 @@ import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellSupported, sampleTerrainElevation } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { findOnTraceWorld, findOnTrace, pointInDomain, SOLID_SURFACE_TYPES } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693
+import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
 import { useModelling } from "./viewer/useModelling.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
 import { isMarkedQcRow } from "../lib/qaqc.js"; // TASKS.csv #601
@@ -3883,10 +3884,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // ...applied to every surface's mesh whenever the list changes, wherever the mesh was built (several places)
   useEffect(() => {
     implicitSurfaces.forEach((s) => applySurfaceStyle(implicitMeshesRef.current[s.id], s));
+    // TASKS.csv #795 — big meshes are drawn from a simplified copy; the meshes themselves are untouched
+    syncDrawLods(implicitMeshesRef.current, implicitSurfaces, { pickLayer: PICK_ONLY_LAYER, onDone: () => { lastActivityRef.current = Date.now(); setLodSeq((n) => n + 1); } });
   }, [implicitSurfaces]);
+  const [lodSeq, setLodSeq] = useState(0); // TASKS.csv #795 — re-render the surface details when a drawing copy is ready
   const removeImplicitSurface = useCallback((id) => {
     const mesh = implicitMeshesRef.current[id];
-    if (mesh) { implicitGroupRef.current?.remove(mesh); mesh.geometry?.dispose?.(); mesh.material?.dispose?.(); delete implicitMeshesRef.current[id]; }
+    if (mesh) { dropDrawLod(mesh); implicitGroupRef.current?.remove(mesh); mesh.geometry?.dispose?.(); mesh.material?.dispose?.(); delete implicitMeshesRef.current[id]; } // dropDrawLod: #795
     // TASKS.csv #83 — drop any relationship pointing AT the surface being removed too, so the
     // remaining surfaces don't end up referencing a dangling id.
     // TASKS.csv #93 — and HEAL THE VERSION CHAIN in the same pass: if the removed surface was a middle
@@ -7411,6 +7415,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                       sheet) still shows the raw divergence-theorem number but flags it rather than
                       presenting it with false confidence. */}
                   <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 10, marginBottom: 4, borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>{tr("Volume & tonnage")}</div>
+                  {implicitMeshesRef.current[s.id]?.userData?.lod && lodSeq >= 0 && ( /* TASKS.csv #795 */
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Drawn with {n} of {m} triangles to keep the view smooth; volumes, sections and exports use the full mesh.", { n: Math.round(implicitMeshesRef.current[s.id].userData.lod.triangles).toLocaleString(), m: Math.round(implicitMeshesRef.current[s.id].userData.lod.full).toLocaleString() })}</div>
+                  )}
                   {expandedSurfaceVolume ? (
                     <>
                       {/* TASKS.csv #268 — computeMeshVolume documents that it assumes scene units are

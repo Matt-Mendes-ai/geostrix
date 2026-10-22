@@ -104,7 +104,8 @@ export default defineConfig({
           // 154 KB, LERC, deflate — loaded by geotiff on demand, only for TIFFs that need them) and sql.js
           // (GeoPackage / SQL workspace). Returning undefined lets Rollup place them with their importers.
           // TASKS.csv #633 — and pdfjs-dist (PDF section images): ~460 KB that only a PDF opened in that dialog needs.
-          if (/node_modules[\/](zstddec|lerc|pako|sql\.js|xml-utils|web-worker|@petamoriken|pdfjs-dist)[\/]/.test(id)) return undefined;
+          // TASKS.csv #795 — and meshoptimizer (the drawing-copy simplifier: ~120 KB of WebAssembly, used in a worker).
+          if (/node_modules[\/](zstddec|lerc|pako|sql\.js|xml-utils|web-worker|@petamoriken|pdfjs-dist|meshoptimizer)[\/]/.test(id)) return undefined;
           return "vendor";
         },
       },

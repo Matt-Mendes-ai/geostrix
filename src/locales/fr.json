@@ -5193,5 +5193,6 @@
   "re-import the line file and run the inversion again.": "réimportez le fichier de la ligne et relancez l'inversion.",
   "re-import the line file.": "réimportez le fichier de la ligne.",
   "Intrusion body": "Corps intrusif",
-  "As built (best-fit plane)": "Tel que construit (plan moyen)"
+  "As built (best-fit plane)": "Tel que construit (plan moyen)",
+  "Drawn with {n} of {m} triangles to keep the view smooth; volumes, sections and exports use the full mesh.": "Dessiné avec {n} triangles sur {m} pour garder la vue fluide ; volumes, coupes et exports utilisent le maillage complet."
 }

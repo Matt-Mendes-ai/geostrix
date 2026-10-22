@@ -5193,5 +5193,6 @@
   "re-import the line file and run the inversion again.": "vuelva a importar el archivo de la línea y repita la inversión.",
   "re-import the line file.": "vuelva a importar el archivo de la línea.",
   "Intrusion body": "Cuerpo intrusivo",
-  "As built (best-fit plane)": "Como se construyó (plano de mejor ajuste)"
+  "As built (best-fit plane)": "Como se construyó (plano de mejor ajuste)",
+  "Drawn with {n} of {m} triangles to keep the view smooth; volumes, sections and exports use the full mesh.": "Se dibuja con {n} de {m} triángulos para que la vista sea fluida; volúmenes, secciones y exportaciones usan la malla completa."
 }
