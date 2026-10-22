@@ -5179,5 +5179,13 @@
   "{hole} crossing the section at {md} m": "{hole} يعبر المقطع عند {md} م",
   "Black dots: logged contacts of holes within 15 m of the section, and hole crossings — a point snaps to them too. Hold Shift for level / vertical / 45° segments.": "النقاط السوداء: حدود مسجلة لثقوب ضمن 15 م من المقطع، ونقاط عبور الثقوب — تلتحم بها النقطة أيضًا. اضغط Shift لمقاطع أفقية / رأسية / 45°.",
   "Snap: {v}": "التحام: {v}",
-  "Edit picks (above) also drags these lines' points, on their image; Alt + click a point deletes it. Draw each contact as its own surface, then make blocks with Solid blocks from surfaces.": "تحرير النقاط (أعلاه) يسحب أيضًا نقاط هذه الخطوط على صورتها؛ Alt + نقر على نقطة يحذفها. ارسم كل حدّ كسطح مستقل، ثم أنشئ الكتل بأداة الكتل الصلبة من الأسطح."
+  "Edit picks (above) also drags these lines' points, on their image; Alt + click a point deletes it. Draw each contact as its own surface, then make blocks with Solid blocks from surfaces.": "تحرير النقاط (أعلاه) يسحب أيضًا نقاط هذه الخطوط على صورتها؛ Alt + نقر على نقطة يحذفها. ارسم كل حدّ كسطح مستقل، ثم أنشئ الكتل بأداة الكتل الصلبة من الأسطح.",
+  "This Res2DInv file is an equatorial dipole-dipole survey, which GeoStrix cannot place on one line yet.": "ملف Res2DInv هذا مسح ثنائي القطب استوائي، ولا يستطيع GeoStrix بعدُ وضعه على خط واحد.",
+  "This Res2DInv file's header could not be read (number of data, x-location type, IP flag).": "تعذّرت قراءة ترويسة ملف Res2DInv هذا (عدد البيانات، نوع موضع x، علامة IP).",
+  " Chargeability is in {unit}, not mV/V: check it before inverting.": " الشحنية بوحدة {unit} وليست mV/V: تحقق منها قبل العكس.",
+  "Res2DInv file \"{title}\": {array}, unit spacing {spacing} m, {n} of {total} readings{ip}{res}{poles}{skipped}.": "ملف Res2DInv «{title}»: {array}، تباعد وحدة {spacing} م، {n} من {total} قراءة{ip}{res}{poles}{skipped}.",
+  " with chargeability": " مع الشحنية",
+  " (resistances converted to apparent resistivity)": " (حُوّلت المقاومات إلى مقاومية ظاهرية)",
+  ", {k} with a remote electrode": ", {k} بقطب بعيد",
+  ", {k} line(s) not read": ", {k} سطر لم يُقرأ"
 }

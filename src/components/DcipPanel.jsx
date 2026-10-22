@@ -9,6 +9,7 @@ import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { parseTableFile, decodeTableBytes } from "../lib/tabular.js";
 import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineGeometry, lineFromTwoPoints, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, dataFitRows, worstReadings, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows, suggestModelDepth, deepestPseudoDepth, columnReach, smoothReachLine } from "../lib/dcip.js";
 import { renderDcipSectionPng } from "../lib/dcipSectionImage.js";
+import { parseRes2dinv } from "../lib/res2dinv.js"; // TASKS.csv #826
 import { stampLines, withStamp } from "../lib/provenance.js";
 import { version as APP_VERSION } from "../../package.json";
 import { logStops, sequentialStops, divergingStops, fitVerdict } from "../lib/inversion.js";
@@ -92,11 +93,13 @@ export default function DcipPanel({ pBtn, numInput }) {
   const onFile = async (f) => {
     if (!f) return;
     try {
-      let t = await parseTableFile(f);
-      // TASKS.csv #600 — contractor TDIP files (.dat / .ipg): metadata lines, then a whitespace-separated table
+      let t = await parseTableFile(f).catch(() => ({ headers: [], rows: [] }));
+      // TASKS.csv #600 — contractor TDIP files (.dat / .ipg): metadata lines, then a whitespace-separated table;
+      // #826 — a Res2DInv .dat (positional header, electrodes from the array type) is tried first
       if (!guessDcipColumns(t.headers).a || !guessDcipColumns(t.headers).m) {
-        const w = parseDcipWhitespaceText(decodeTableBytes(await f.arrayBuffer()).text);
-        if (w) t = { headers: w.headers, rows: w.rows, note: w.note };
+        const text = decodeTableBytes(await f.arrayBuffer()).text;
+        const r = parseRes2dinv(text) || parseDcipWhitespaceText(text);
+        if (r) t = { headers: r.headers, rows: r.rows, note: r.note };
       }
       const m = guessDcipColumns(t.headers);
       // TASKS.csv #634 — a different line's file starts unplaced: the previous line's position (and stations) used to

@@ -5179,5 +5179,13 @@
   "{hole} crossing the section at {md} m": "{hole} traverse la coupe à {md} m",
   "Black dots: logged contacts of holes within 15 m of the section, and hole crossings — a point snaps to them too. Hold Shift for level / vertical / 45° segments.": "Points noirs : contacts décrits des sondages à moins de 15 m de la coupe, et traversées de sondages — un point s'y accroche aussi. Maintenez Maj pour des segments horizontaux / verticaux / à 45°.",
   "Snap: {v}": "Accroche : {v}",
-  "Edit picks (above) also drags these lines' points, on their image; Alt + click a point deletes it. Draw each contact as its own surface, then make blocks with Solid blocks from surfaces.": "Modifier les points (ci-dessus) déplace aussi les points de ces lignes, sur leur image ; Alt + clic sur un point le supprime. Dessinez chaque contact comme sa propre surface, puis créez les blocs avec Blocs solides depuis les surfaces."
+  "Edit picks (above) also drags these lines' points, on their image; Alt + click a point deletes it. Draw each contact as its own surface, then make blocks with Solid blocks from surfaces.": "Modifier les points (ci-dessus) déplace aussi les points de ces lignes, sur leur image ; Alt + clic sur un point le supprime. Dessinez chaque contact comme sa propre surface, puis créez les blocs avec Blocs solides depuis les surfaces.",
+  "This Res2DInv file is an equatorial dipole-dipole survey, which GeoStrix cannot place on one line yet.": "Ce fichier Res2DInv est un levé dipôle-dipôle équatorial, que GeoStrix ne sait pas encore placer sur une ligne.",
+  "This Res2DInv file's header could not be read (number of data, x-location type, IP flag).": "L'en-tête de ce fichier Res2DInv n'a pas pu être lu (nombre de données, type de position x, indicateur PP).",
+  " Chargeability is in {unit}, not mV/V: check it before inverting.": " La chargeabilité est en {unit}, pas en mV/V : vérifiez-la avant d'inverser.",
+  "Res2DInv file \"{title}\": {array}, unit spacing {spacing} m, {n} of {total} readings{ip}{res}{poles}{skipped}.": "Fichier Res2DInv « {title} » : {array}, espacement unitaire {spacing} m, {n} sur {total} lectures{ip}{res}{poles}{skipped}.",
+  " with chargeability": " avec chargeabilité",
+  " (resistances converted to apparent resistivity)": " (résistances converties en résistivité apparente)",
+  ", {k} with a remote electrode": ", {k} avec une électrode à l'infini",
+  ", {k} line(s) not read": ", {k} ligne(s) non lue(s)"
 }
