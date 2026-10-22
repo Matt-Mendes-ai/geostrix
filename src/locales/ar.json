@@ -4881,5 +4881,21 @@
   "Chlorite / epidote / carbonate (propylitic)": "الكلوريت / الإبيدوت / الكربونات (بروبيليتي)",
   "Chlorite, epidote and calcite absorb at 2.31-2.34 microns (band 8): high values = propylitic alteration or carbonate rock (Rowan & Mars 2003).": "يمتص الكلوريت والإبيدوت والكالسيت عند 2.31-2.34 ميكرون (النطاق 8): القيم العالية = تحول بروبيليتي أو صخور كربونية (Rowan وMars 2003).",
   "Mg-OH (chlorite / epidote / amphibole)": "Mg-OH (الكلوريت / الإبيدوت / الأمفيبول)",
-  "Mg-OH minerals absorb in bands 7-8: high values = chlorite, epidote, amphibole, talc - propylitic halo or mafic / ultramafic rock (Cudahy).": "تمتص معادن Mg-OH في النطاقين 7-8: القيم العالية = كلوريت، إبيدوت، أمفيبول، تلك: هالة بروبيليتية أو صخور مافية / فوق مافية (Cudahy)."
+  "Mg-OH minerals absorb in bands 7-8: high values = chlorite, epidote, amphibole, talc - propylitic halo or mafic / ultramafic rock (Cudahy).": "تمتص معادن Mg-OH في النطاقين 7-8: القيم العالية = كلوريت، إبيدوت، أمفيبول، تلك: هالة بروبيليتية أو صخور مافية / فوق مافية (Cudahy).",
+  "The spectrum has only one depth segment: there is nothing to separate.": "للطيف مقطع عمق واحد فقط: لا شيء للفصل.",
+  "Radially averaged power spectrum": "طيف القدرة بمتوسط شعاعي",
+  "wavenumber (rad/km)": "العدد الموجي (راديان/كم)",
+  "The spectrum does not fall with wavenumber: no depth can be read from it.": "لا يتناقص الطيف مع العدد الموجي: لا يمكن قراءة عمق منه.",
+  "Deep sources ~{deep} m (red), shallow sources ~{shallow} m (blue), below the sensor. Subtract the survey's sensor height for depth below ground; these are ensemble averages, not depths of single bodies.": "مصادر عميقة عند ~{deep} م (أحمر)، ومصادر ضحلة عند ~{shallow} م (أزرق)، تحت المستشعر. اطرح ارتفاع مستشعر المسح للحصول على العمق تحت سطح الأرض؛ هذه متوسطات لمجموعات من المصادر لا أعماق أجسام منفردة.",
+  "One straight segment: sources ~{deep} m below the sensor (red). Subtract the survey's sensor height for depth below ground.": "مقطع مستقيم واحد: مصادر عند ~{deep} م تحت المستشعر (أحمر). اطرح ارتفاع مستشعر المسح للحصول على العمق تحت سطح الأرض.",
+  "Add the deep component": "إضافة المكوّن العميق",
+  "Add the shallow component": "إضافة المكوّن الضحل",
+  "No tilt zero-crossings with a usable depth in \"{name}\".": "لا توجد تقاطعات صفرية لمشتقة الميل بعمق صالح في «{name}».",
+  "Added \"{name}\".": "أُضيف «{name}».",
+  "Tilt-depth (contact depths)": "عمق الميل (أعماق التماسات)",
+  "Power spectrum depths + matched filter": "أعماق طيف القدرة + المرشح المطابق",
+  "Depth to the top of contacts along the tilt's zero contour: 1 / its horizontal gradient (Salem et al. 2007). Run it on an RTP grid; it assumes near-vertical contacts and reads depth below the sensor.": "العمق إلى قمة التماسات على طول الكنتور الصفري لمشتقة الميل: 1 / تدرجها الأفقي (Salem وآخرون 2007). طبّقه على شبكة مختزلة إلى القطب (RTP)؛ يفترض تماسات شبه رأسية ويعطي العمق تحت المستشعر.",
+  "Radially averaged power spectrum: the slope of each straight segment gives the mean depth of a group of sources (Spector & Grant 1970). Deep and shallow segments are fitted for you; the matched filter then splits the grid into those two parts.": "طيف القدرة بمتوسط شعاعي: ميل كل مقطع مستقيم يعطي متوسط عمق مجموعة من المصادر (Spector وGrant 1970). يُوفَّق المقطعان العميق والضحل تلقائيًا، ثم يفصل المرشح المطابق الشبكة إلى هذين الجزأين.",
+  "Compute the spectrum": "حساب الطيف",
+  "Added \"{name}\": {n} nodes along the tilt's zero contour (the contacts), median depth {median} m below the sensor. Valid on an RTP grid over near-vertical contacts; subtract the survey's sensor height for depth below ground.": "أُضيف «{name}»: {n} عقدة على طول الكنتور الصفري لمشتقة الميل (التماسات)، والعمق الوسيط {median} م تحت المستشعر. صالح على شبكة RTP فوق تماسات شبه رأسية؛ اطرح ارتفاع مستشعر المسح للحصول على العمق تحت سطح الأرض."
 }

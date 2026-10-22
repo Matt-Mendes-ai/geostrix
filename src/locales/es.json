@@ -4881,5 +4881,21 @@
   "Chlorite / epidote / carbonate (propylitic)": "Clorita / epidota / carbonato (propilítica)",
   "Chlorite, epidote and calcite absorb at 2.31-2.34 microns (band 8): high values = propylitic alteration or carbonate rock (Rowan & Mars 2003).": "La clorita, la epidota y la calcita absorben a 2,31-2,34 micrones (banda 8): valores altos = alteración propilítica o roca carbonatada (Rowan y Mars 2003).",
   "Mg-OH (chlorite / epidote / amphibole)": "Mg-OH (clorita / epidota / anfíbol)",
-  "Mg-OH minerals absorb in bands 7-8: high values = chlorite, epidote, amphibole, talc - propylitic halo or mafic / ultramafic rock (Cudahy).": "Los minerales Mg-OH absorben en las bandas 7-8: valores altos = clorita, epidota, anfíbol, talco: halo propilítico o roca máfica / ultramáfica (Cudahy)."
+  "Mg-OH minerals absorb in bands 7-8: high values = chlorite, epidote, amphibole, talc - propylitic halo or mafic / ultramafic rock (Cudahy).": "Los minerales Mg-OH absorben en las bandas 7-8: valores altos = clorita, epidota, anfíbol, talco: halo propilítico o roca máfica / ultramáfica (Cudahy).",
+  "The spectrum has only one depth segment: there is nothing to separate.": "El espectro tiene un solo segmento de profundidad: no hay nada que separar.",
+  "Radially averaged power spectrum": "Espectro de potencia promediado radialmente",
+  "wavenumber (rad/km)": "número de onda (rad/km)",
+  "The spectrum does not fall with wavenumber: no depth can be read from it.": "El espectro no decae con el número de onda: no se puede leer una profundidad.",
+  "Deep sources ~{deep} m (red), shallow sources ~{shallow} m (blue), below the sensor. Subtract the survey's sensor height for depth below ground; these are ensemble averages, not depths of single bodies.": "Fuentes profundas a ~{deep} m (rojo), fuentes someras a ~{shallow} m (azul), bajo el sensor. Reste la altura del sensor del levantamiento para la profundidad bajo el suelo; son promedios de conjuntos de fuentes, no profundidades de cuerpos individuales.",
+  "One straight segment: sources ~{deep} m below the sensor (red). Subtract the survey's sensor height for depth below ground.": "Un solo segmento recto: fuentes a ~{deep} m bajo el sensor (rojo). Reste la altura del sensor del levantamiento para la profundidad bajo el suelo.",
+  "Add the deep component": "Agregar la componente profunda",
+  "Add the shallow component": "Agregar la componente somera",
+  "No tilt zero-crossings with a usable depth in \"{name}\".": "No hay cruces por cero de la inclinación con una profundidad utilizable en «{name}».",
+  "Added \"{name}\".": "Se agregó «{name}».",
+  "Tilt-depth (contact depths)": "Tilt-depth (profundidad de contactos)",
+  "Power spectrum depths + matched filter": "Profundidades del espectro de potencia + filtro adaptado",
+  "Depth to the top of contacts along the tilt's zero contour: 1 / its horizontal gradient (Salem et al. 2007). Run it on an RTP grid; it assumes near-vertical contacts and reads depth below the sensor.": "Profundidad al techo de los contactos a lo largo del contorno cero de la derivada tilt: 1 / su gradiente horizontal (Salem et al. 2007). Aplíquelo a una grilla RTP; supone contactos casi verticales y da la profundidad bajo el sensor.",
+  "Radially averaged power spectrum: the slope of each straight segment gives the mean depth of a group of sources (Spector & Grant 1970). Deep and shallow segments are fitted for you; the matched filter then splits the grid into those two parts.": "Espectro de potencia promediado radialmente: la pendiente de cada segmento recto da la profundidad media de un grupo de fuentes (Spector y Grant 1970). Los segmentos profundo y somero se ajustan automáticamente; el filtro adaptado separa luego la grilla en esas dos partes.",
+  "Compute the spectrum": "Calcular el espectro",
+  "Added \"{name}\": {n} nodes along the tilt's zero contour (the contacts), median depth {median} m below the sensor. Valid on an RTP grid over near-vertical contacts; subtract the survey's sensor height for depth below ground.": "Se agregó «{name}»: {n} nodos a lo largo del contorno cero de la derivada tilt (los contactos), profundidad mediana {median} m bajo el sensor. Válido en una grilla RTP sobre contactos casi verticales; reste la altura del sensor del levantamiento para la profundidad bajo el suelo."
 }

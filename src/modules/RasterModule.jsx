@@ -32,6 +32,41 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the 
 // see that module's onDrop, which calls the same buildRasterImport() helper this module uses (raster.js).
 // TASKS.csv #749 — embedded: inside the Maps tab (its ribbon triggers import / satellite / georeference through module
 // actions); no ribbon or main area of its own.
+// TASKS.csv #808 — ln(power) against wavenumber with the fitted segments, their depths, and the matched-filter buttons
+function SpectrumPanel({ spectrum, onSplit }) {
+  const { spec, fit } = spectrum;
+  const W = 260, H = 130, L = 34, B = 22;
+  const k = spec.k.map((v) => v * 1000), y = spec.lnP; // rad/km for the axis
+  const kx = Math.max(...k), ymin = Math.min(...y), ymax = Math.max(...y);
+  const X = (v) => L + ((W - L - 6) * v) / kx, Y = (v) => 6 + ((H - B - 6) * (ymax - v)) / Math.max(1e-9, ymax - ymin);
+  const line = (s) => s && <line x1={X(s.k0 * 1000)} y1={Y(s.c - 2 * s.h * s.k0)} x2={X(s.k1 * 1000)} y2={Y(s.c - 2 * s.h * s.k1)} strokeWidth="2" />;
+  const btn = { flex: 1, padding: "4px 6px", border: "1px solid var(--color-border)", background: "var(--color-bg-subtle)", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-xs)", color: "var(--color-text)" };
+  return (
+    <div style={{ marginTop: 8 }}>
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={tr("Radially averaged power spectrum")} style={{ display: "block" }}>
+        <line x1={L} y1={H - B} x2={W - 4} y2={H - B} stroke="var(--color-border)" />
+        <line x1={L} y1={4} x2={L} y2={H - B} stroke="var(--color-border)" />
+        {k.map((v, i) => <circle key={i} cx={X(v)} cy={Y(y[i])} r="1.4" fill="var(--color-text-muted)" />)}
+        <g stroke="var(--color-danger-fg)">{line(fit?.deep)}</g>
+        <g stroke="var(--color-info)">{line(fit?.shallow)}</g>
+        <text x={(L + W) / 2} y={H - 5} textAnchor="middle" fontSize="9" fill="var(--color-text-muted)">{tr("wavenumber (rad/km)")}</text>
+        <text x={9} y={(H - B) / 2} textAnchor="middle" fontSize="9" fill="var(--color-text-muted)" transform={`rotate(-90 9 ${(H - B) / 2})`}>ln P</text>
+      </svg>
+      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", lineHeight: 1.45, marginTop: 4 }}>
+        {!fit ? tr("The spectrum does not fall with wavenumber: no depth can be read from it.")
+          : fit.shallow ? tr("Deep sources ~{deep} m (red), shallow sources ~{shallow} m (blue), below the sensor. Subtract the survey's sensor height for depth below ground; these are ensemble averages, not depths of single bodies.", { deep: Math.round(fit.deep.h), shallow: Math.round(fit.shallow.h) })
+          : tr("One straight segment: sources ~{deep} m below the sensor (red). Subtract the survey's sensor height for depth below ground.", { deep: Math.round(fit.deep.h) })}
+      </div>
+      {fit?.shallow && (
+        <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+          <button onClick={() => onSplit("deep")} style={btn}>{tr("Add the deep component")}</button>
+          <button onClick={() => onSplit("shallow")} style={btn}>{tr("Add the shallow component")}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function RasterModule({ embedded = false } = {}) {
   const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, boundaries, setLayers, projectIsEmpty, setEpsg } = useStore(); // projectIsEmpty/setEpsg: #607
   // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
@@ -40,8 +75,9 @@ export default function RasterModule({ embedded = false } = {}) {
   const [filterFor, setFilterFor] = useState(null); // raster id whose filter form is open
   const [filt, setFilt] = useState({ kind: "rtp", inclination: "", declination: "", height: "" });
   const [filtering, setFiltering] = useState(false);
+  const [spectrum, setSpectrum] = useState(null); // TASKS.csv #808 — { rasterId, spec, fit } for the open grid
   const runFilter = async (r) => {
-    const { applyGridFilter, FILTERS } = await import("../lib/gridFilters.js"); // loaded on first use
+    const { applyGridFilter, FILTERS, tiltDepth, radialSpectrum, fitSpectrumDepths } = await import("../lib/gridFilters.js"); // loaded on first use
     const g = r.grid;
     const params = {};
     let declGrid = null;
@@ -62,6 +98,22 @@ export default function RasterModule({ embedded = false } = {}) {
     await new Promise((res) => setTimeout(res, 30)); // let the busy state paint before the FFTs block
     try {
       const values = b64ToF32(g.values);
+      // TASKS.csv #808 — depth estimates
+      if (filt.kind === "spectrum") {
+        const spec = radialSpectrum({ nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, values });
+        setSpectrum({ rasterId: r.id, spec, fit: fitSpectrumDepths(spec) });
+        return;
+      }
+      if (filt.kind === "tiltdepth") {
+        const td = tiltDepth({ nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, values });
+        if (!td.count) { setError({ info: false, text: tr("No tilt zero-crossings with a usable depth in \"{name}\".", { name: r.name }) }); return; }
+        const nr = rasterFromGrid({ name: `${r.name} — Tilt-depth (contact depths, m)`, values: td.values, nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, elevation: r.elevation,
+          extra: { filter: { kind: "tiltdepth", label: "Tilt-depth (Salem et al. 2007)", params: { contactNodes: td.count, medianDepthM: Math.round(td.median) }, sourceRaster: r.name, method: "depth = 1 / |horizontal gradient of the tilt (radians)| at its zero contour, on the kept grid (gridFilters.js tiltDepth)", at: new Date().toISOString() } } });
+        addRaster(nr);
+        setError({ info: true, text: tr("Added \"{name}\": {n} nodes along the tilt's zero contour (the contacts), median depth {median} m below the sensor. Valid on an RTP grid over near-vertical contacts; subtract the survey's sensor height for depth below ground.", { name: nr.name, n: td.count.toLocaleString(), median: Math.round(td.median) }) });
+        setFilterFor(null);
+        return;
+      }
       const out = applyGridFilter({ nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, values }, filt.kind, { ...params, declination: declGrid ?? undefined });
       const label = FILTERS[filt.kind].label;
       const suffix = filt.kind === "rtp" ? ` (I ${params.inclination}°, D ${params.declinationTrue}° true)` : filt.kind === "upward" ? ` (+${params.height} m)` : "";
@@ -73,6 +125,19 @@ export default function RasterModule({ embedded = false } = {}) {
     } catch (err) {
       setError({ info: false, text: tr("Filter failed: {message}", { message: err.message }) });
     } finally { setFiltering(false); }
+  };
+  // TASKS.csv #808 — matched filter: the deep or the shallow component as a new raster
+  const splitByDepth = async (r, which) => {
+    const { matchedFilter } = await import("../lib/gridFilters.js");
+    const g = r.grid, fit = spectrum?.fit;
+    try {
+      const m = matchedFilter({ nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, values: b64ToF32(g.values) }, fit);
+      const h = Math.round(fit[which].h);
+      const nr = rasterFromGrid({ name: `${r.name} — ${which === "deep" ? "deep" : "shallow"} component (~${h} m, matched filter)`, values: m[which], nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, elevation: r.elevation,
+        extra: { filter: { kind: `matched-${which}`, label: "Matched filter (Spector & Grant 1970)", params: { deepDepthM: Math.round(fit.deep.h), shallowDepthM: Math.round(fit.shallow.h) }, sourceRaster: r.name, method: "w(k) = sqrt(P_i / (P_deep + P_shallow)) from the two fitted spectrum segments (gridFilters.js matchedFilter)", at: new Date().toISOString() } } });
+      addRaster(nr);
+      setError({ info: true, text: tr("Added \"{name}\".", { name: nr.name }) });
+    } catch (err) { setError({ info: false, text: tr("Filter failed: {message}", { message: err.message }) }); }
   };
   // TASKS.csv #375 — radiometric ternary image from three grids with kept values
   const [tern, setTern] = useState({ open: false, k: "", th: "", u: "" });
@@ -383,6 +448,8 @@ export default function RasterModule({ embedded = false } = {}) {
                     <option value="tilt">{tr("Tilt derivative")}</option>
                     <option value="as">{tr("Analytic signal (3D)")}</option>
                     <option value="upward">{tr("Upward continuation")}</option>
+                    <option value="tiltdepth">{tr("Tilt-depth (contact depths)")}</option>{/* TASKS.csv #808 */}
+                    <option value="spectrum">{tr("Power spectrum depths + matched filter")}</option>
                   </select>
                 </div>
                 {filt.kind === "rtp" && (
@@ -397,11 +464,13 @@ export default function RasterModule({ embedded = false } = {}) {
                   </div>
                 )}
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 5, lineHeight: 1.4 }}>
-                  {{ rtp: tr("For total-field magnetics, assuming induced magnetization (remanence breaks it). Unstable below ~20° inclination — use tilt or analytic signal there."), vd1: tr("Sharpens shallow sources; also amplifies noise."), tilt: tr("Angle between vertical and horizontal gradients (±90°); zero-crossings trace source edges whatever the depth or amplitude."), as: tr("Peaks over source edges regardless of magnetization direction — the honest choice where remanence breaks RTP."), upward: tr("Smooths out shallow sources to show the deeper / regional field; the height is metres above the grid's observation level.") }[filt.kind]}
+                  {{ rtp: tr("For total-field magnetics, assuming induced magnetization (remanence breaks it). Unstable below ~20° inclination — use tilt or analytic signal there."), vd1: tr("Sharpens shallow sources; also amplifies noise."), tiltdepth: tr("Depth to the top of contacts along the tilt's zero contour: 1 / its horizontal gradient (Salem et al. 2007). Run it on an RTP grid; it assumes near-vertical contacts and reads depth below the sensor."), spectrum: tr("Radially averaged power spectrum: the slope of each straight segment gives the mean depth of a group of sources (Spector & Grant 1970). Deep and shallow segments are fitted for you; the matched filter then splits the grid into those two parts."), tilt: tr("Angle between vertical and horizontal gradients (±90°); zero-crossings trace source edges whatever the depth or amplitude."), as: tr("Peaks over source edges regardless of magnetization direction — the honest choice where remanence breaks RTP."), upward: tr("Smooths out shallow sources to show the deeper / regional field; the height is metres above the grid's observation level.") }[filt.kind]}
                 </div>
                 <button onClick={() => runFilter(r)} disabled={filtering} style={{ marginTop: 6, width: "100%", padding: "5px 8px", border: "1px solid var(--color-selected-border)", background: "var(--color-selected-bg)", color: "var(--color-primary)", borderRadius: 5, cursor: filtering ? "default" : "pointer", fontSize: "var(--font-size-sm)" }}>
-                  {filtering ? tr("Filtering…") : tr("Apply — adds a new raster")}
+                  {filtering ? tr("Filtering…") : filt.kind === "spectrum" ? tr("Compute the spectrum") : tr("Apply — adds a new raster")}
                 </button>
+                {/* TASKS.csv #808 — the spectrum, its fitted depths and the matched-filter split */}
+                {filt.kind === "spectrum" && spectrum?.rasterId === r.id && <SpectrumPanel spectrum={spectrum} onSplit={(which) => splitByDepth(r, which)} />}
               </div>
             )}
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>

@@ -162,6 +162,7 @@ export const FILTERS = {
   upward: { label: "Upward continuation", unitsOut: (u) => u, needsHeight: true },
   tilt: { label: "Tilt derivative", unitsOut: () => "degrees" },
   as: { label: "Analytic signal (3D)", unitsOut: (u) => `${u}/m` },
+  tiltdepth: { label: "Tilt-depth (contact depths)", unitsOut: () => "m" }, // TASKS.csv #808
 };
 
 // grid: { nx, ny, dx, dy, values (north-first array) }. Returns { values: Float64Array (north-first, NaN =
@@ -204,4 +205,115 @@ export function applyGridFilter(grid, kind, opts = {}) {
     return { values: out };
   }
   throw new Error(tr("Unknown filter \"{kind}\".", { kind }));
+}
+
+// ---------------- TASKS.csv #808 — depth estimates (from the #805 pyGMI review; written from the papers) ----------------
+
+// Tilt-depth (Salem, Williams, Fairhead, Ravat & Smith 2007, The Leading Edge 26, 1502): over a vertical contact the
+// tilt of the RTP field is theta = atan(h / z) with h the horizontal distance from the contact, so along the zero
+// contour d(theta)/dh = 1 / z: the depth to the contact's top is 1 / |grad theta| (theta in radians). Equivalently
+// half the distance between the -45 and +45 degree contours. Returns the depth at every node next to a sign change of
+// the tilt (NaN elsewhere): drawn as a raster it traces the contacts coloured by depth. Depths beyond half the grid's
+// width are dropped (a flat tilt there says "no contact", not "a deep one"). Meaningful on an RTP (or pole) grid.
+// Checked on a synthetic vertical contact at 60 m: found on every row, ~9 % shallow (the mean plane is removed before
+// the gradients, as for the tilt itself); the same plane removal can add a few weak crossings far from any contact.
+export function tiltDepth(grid) {
+  const { nx, ny, dx, dy } = grid;
+  const t = applyGridFilter(grid, "tilt").values; // degrees, north-first
+  const th = new Float64Array(t.length);
+  for (let k = 0; k < t.length; k++) th[k] = (t[k] * Math.PI) / 180;
+  const { gx, gy } = horizontalGradient(th, nx, ny, dx, dy);
+  const out = new Float64Array(nx * ny).fill(NaN);
+  const maxDepth = 0.5 * Math.min(nx * dx, ny * dy);
+  const depths = [];
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const k = j * nx + i, a = th[k];
+    if (!Number.isFinite(a)) continue;
+    // a zero crossing between this node and its east or south neighbour: keep the node nearer zero
+    let crossing = false;
+    for (const q of [i < nx - 1 ? k + 1 : -1, j < ny - 1 ? k + nx : -1, i > 0 ? k - 1 : -1, j > 0 ? k - nx : -1]) {
+      if (q < 0 || !Number.isFinite(th[q])) continue;
+      if ((a <= 0) !== (th[q] <= 0) && Math.abs(a) <= Math.abs(th[q])) { crossing = true; break; }
+    }
+    if (!crossing) continue;
+    const g = Math.hypot(gx[k], gy[k]);
+    const d = g > 0 ? 1 / g : Infinity;
+    if (d > 0 && d <= maxDepth) { out[k] = d; depths.push(d); }
+  }
+  depths.sort((x, y) => x - y);
+  return { values: out, count: depths.length, median: depths.length ? depths[depths.length >> 1] : null };
+}
+
+// Radially averaged power spectrum (Spector & Grant 1970, Geophysics 35, 293): for an ensemble of sources whose tops
+// sit at depth h below the observation plane, ln P(k) falls as -2 h k (k in radians per metre), so h = -slope / 2.
+// Returned per ring of width dk from the first ring to 90 % of Nyquist: { k, lnP, n }.
+export function radialSpectrum(grid) {
+  const { nx, ny, dx, dy, values } = grid;
+  const P = prepare(values, nx, ny, dx, dy);
+  const re = P.re.slice(), im = new Float64Array(re.length);
+  fft2(re, im, P.W, P.H, false);
+  const dk = 2 * Math.PI / Math.min(P.W * P.dx, P.H * P.dy);
+  const kmax = 0.9 * Math.min(Math.PI / P.dx, Math.PI / P.dy);
+  const nb = Math.max(4, Math.floor(kmax / dk));
+  const sum = new Float64Array(nb), cnt = new Uint32Array(nb);
+  for (let y = 0; y < P.H; y++) {
+    const ky = (2 * Math.PI * (y <= P.H / 2 ? y : y - P.H)) / (P.H * P.dy);
+    for (let x = 0; x < P.W; x++) {
+      const kx = (2 * Math.PI * (x <= P.W / 2 ? x : x - P.W)) / (P.W * P.dx);
+      const b = Math.round(Math.hypot(kx, ky) / dk);
+      if (b < 1 || b >= nb) continue;
+      const q = y * P.W + x;
+      sum[b] += re[q] * re[q] + im[q] * im[q]; cnt[b]++;
+    }
+  }
+  const k = [], lnP = [], n = [];
+  for (let b = 1; b < nb; b++) if (cnt[b] && sum[b] > 0) { k.push(b * dk); lnP.push(Math.log(sum[b] / cnt[b])); n.push(cnt[b]); }
+  return { k, lnP, n };
+}
+
+const lineFit = (x, y, a, b) => { // least squares over [a, b)
+  let n = 0, sx = 0, sy = 0, sxx = 0, sxy = 0;
+  for (let i = a; i < b; i++) { n++; sx += x[i]; sy += y[i]; sxx += x[i] * x[i]; sxy += x[i] * y[i]; }
+  const d = n * sxx - sx * sx;
+  if (n < 2 || !d) return null;
+  const m = (n * sxy - sx * sy) / d, c = (sy - m * sx) / n;
+  let sse = 0; for (let i = a; i < b; i++) sse += (y[i] - (c + m * x[i])) ** 2;
+  return { m, c, sse };
+};
+// Two straight segments on ln P(k): the low-wavenumber (deep) one steeper than the shallow one, both falling. The
+// break minimizes the total squared misfit; the tail within e^4 of the noise floor is left out. Depths
+// are below the OBSERVATION level (subtract the sensor height for depth below ground). Returns
+// { deep: { h, c, k0, k1 }, shallow: { ... } | null } or null when the spectrum does not fall.
+export function fitSpectrumDepths(spec) {
+  const { k, lnP } = spec;
+  // the noise floor: the median of the last quarter; the fit stops where the spectrum comes within e^4 of it (the knee into the floor included) (white
+  // noise, or round-off, flattens the tail and would otherwise read as a "shallow" source)
+  const tail = lnP.slice(Math.floor(lnP.length * 0.75)).sort((a, b) => a - b);
+  const floor = tail[tail.length >> 1];
+  let end = lnP.length;
+  while (end > 12 && lnP[end - 1] < floor + 4) end--;
+  let best = null;
+  for (let b = 6; b <= end - 6; b++) { // at least 6 rings per segment
+    const d = lineFit(k, lnP, 0, b), s = lineFit(k, lnP, b, end);
+    if (!d || !s || !(d.m < 0) || !(s.m < 0) || !(d.m < s.m)) continue;
+    if (!best || d.sse + s.sse < best.sse) best = { sse: d.sse + s.sse, d, s, b };
+  }
+  const seg = (f, a, b) => ({ h: -f.m / 2, c: f.c, k0: k[a], k1: k[b - 1] });
+  const one = lineFit(k, lnP, 0, end);
+  // a second segment only when it earns its place: well under half the single line's misfit and slopes at least 1.5x
+  // apart (a single ensemble otherwise grows a spurious "shallow" one from the noise tail: 150 m data gave 151 + 60 m)
+  if (best && (!one || (best.sse < 0.4 * one.sse && best.d.m < 1.5 * best.s.m))) return { deep: seg(best.d, 0, best.b), shallow: seg(best.s, best.b, end) };
+  return one && one.m < 0 ? { deep: seg(one, 0, end), shallow: null } : null;
+}
+
+// Matched filter (Spector & Grant 1970; Syberg 1972; Phillips 2001): split the grid by the two fitted ensembles. Each
+// component keeps the share of the amplitude its ensemble's power predicts at that wavenumber:
+// w_i(k) = sqrt(P_i(k) / (P_deep(k) + P_shallow(k))), P_i(k) = exp(c_i - 2 h_i k). The two add back up to ~the input.
+export function matchedFilter(grid, fit) {
+  if (!fit?.deep || !fit?.shallow) throw new Error(tr("The spectrum has only one depth segment: there is nothing to separate."));
+  const { nx, ny, dx, dy, values } = grid;
+  const P = prepare(values, nx, ny, dx, dy);
+  const pw = (s, k) => Math.exp(s.c - 2 * s.h * k);
+  const w = (which) => (kx, ky, k) => { const a = pw(fit.deep, k), b = pw(fit.shallow, k); return [Math.sqrt((which === "deep" ? a : b) / (a + b)), 0]; };
+  return { deep: applyOperator(P, nx, ny, w("deep"), { keepLevel: true }), shallow: applyOperator(P, nx, ny, w("shallow"), { keepLevel: false }) };
 }
