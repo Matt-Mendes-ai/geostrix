@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readDztHeader, parseDzt, parseDzg, scanPositions, velocityFromEpsr, depthOfTime } from "../src/lib/dzt.js";
-import { cutTimeZero, firstBreak, dewow, removeBackground, agc, powerGain, radargramPixels } from "../src/lib/gprProcess.js";
+import { cutTimeZero, cropSamples, binScans, processRadargram, firstBreak, dewow, removeBackground, agc, powerGain, radargramPixels } from "../src/lib/gprProcess.js";
 
 // a DZT: nchan channels, `scans` scans of nsamp samples, sample(c, k, i) -> signed amplitude
 function makeDzt({ nchan = 1, nsamp = 64, scans = 10, bits = 16, sps = 32, spm = 20, range = 50, position = 2, epsr = 9, antenna = "3200 MLF", sample }) {
@@ -96,4 +96,23 @@ test("#616 processing: a point target's hyperbola survives dewow, background rem
   assert.equal(img.width, 40); assert.equal(img.height, nsamp); assert.equal(img.pixels.length, 40 * nsamp * 4);
   const img2 = radargramPixels(a, scans, nsamp, { colors: "bwr" });
   assert.equal(img2.width, scans);
+});
+
+test("#616 crop to a time: the first n samples of every scan", () => {
+  const data = Float32Array.from({ length: 3 * 5 }, (_, i) => i);
+  const c = cropSamples(data, 3, 5, 2);
+  assert.equal(c.nsamp, 2); assert.deepEqual([...c.data], [0, 1, 5, 6, 10, 11]);
+  assert.equal(cropSamples(data, 3, 5, 9).nsamp, 5, "never more than there is");
+});
+
+test("#616 display-bounded processing: scans averaged to the display width, the whole chain in one call", () => {
+  const S = 10, N = 4, data = Float32Array.from({ length: S * N }, (_, i) => Math.floor(i / N)); // scan k holds k
+  const b = binScans(data, S, N, 4);
+  assert.equal(b.nscans, 4); assert.equal(b.per, 2.5);
+  assert.deepEqual([...b.data.subarray(0, 4)], [0.5, 0.5, 0.5, 0.5], "scans 0-1"); assert.deepEqual([...b.data.subarray(4, 8)], [3, 3, 3, 3], "scans 2-4");
+  assert.equal(binScans(data, S, N, 20).data, data, "fewer scans than columns: untouched");
+  const big = Float32Array.from({ length: 9000 * 64 }, (_, i) => Math.sin(i * 0.3) * 100 + (i % 64 === 30 ? 5000 : 0));
+  const r = processRadargram(big, 9000, 64, { t0: 2, keep: 40, keepNs: 20, dewowSamples: 8, bg: "line", gain: "agc", agcSamples: 10, clip: 0.98, colors: "grey" });
+  assert.equal(r.width, 4096); assert.equal(r.height, 40); assert.equal(r.nsamp, 40); assert.equal(r.pixels.length, 4096 * 40 * 4);
+  assert.ok(r.steps.some((s) => /scans per column/.test(s)) && r.steps.some((s) => /shown to 20 ns/.test(s)));
 });

@@ -11,6 +11,15 @@ export function cutTimeZero(data, nscans, nsamp, s0) {
   return { data: out, nsamp: n };
 }
 
+// Keep only the first n samples of every scan (the radargram shown down to a time): -> { data, nsamp }
+export function cropSamples(data, nscans, nsamp, n) {
+  const k = Math.max(2, Math.min(nsamp, Math.round(n)));
+  if (k === nsamp) return { data, nsamp };
+  const out = new Float32Array(nscans * k);
+  for (let s = 0; s < nscans; s++) out.set(data.subarray(s * nsamp, s * nsamp + k), s * k);
+  return { data: out, nsamp: k };
+}
+
 // The first break: the sample where the mean absolute trace first reaches `frac` of its peak (a suggestion for time zero)
 export function firstBreak(data, nscans, nsamp, frac = 0.5) {
   const m = new Float64Array(nsamp);
@@ -115,4 +124,36 @@ export function radargramPixels(data, nscans, nsamp, { clip, colors = "grey", ma
     }
   }
   return { width, height: nsamp, pixels: px };
+}
+
+// Average adjacent scans down to at most `width` columns (the display's resolution): -> { data, nscans, per }
+export function binScans(data, nscans, nsamp, width) {
+  if (nscans <= width) return { data, nscans, per: 1 };
+  const per = nscans / width, out = new Float32Array(width * nsamp);
+  for (let x = 0; x < width; x++) {
+    const k0 = Math.floor(x * per), k1 = Math.max(k0 + 1, Math.floor((x + 1) * per)), n = k1 - k0, o = x * nsamp;
+    for (let k = k0; k < k1; k++) { const s = k * nsamp; for (let i = 0; i < nsamp; i++) out[o + i] += data[s + i]; }
+    for (let i = 0; i < nsamp; i++) out[o + i] /= n;
+  }
+  return { data: out, nscans: width, per };
+}
+
+// The whole chain for display, bounded by the display: time zero, crop to tmax, scans averaged to <= maxWidth columns,
+// then dewow, background removal, gain, colours. o: { t0 (sample), keep (samples after t0, 0 = all), dewowSamples (0 =
+// off), bg: "line" | "window" | "off", bgScans, gain: "agc" | "power" | "none", agcSamples, power, clip (quantile 0-1),
+// colors }. -> { pixels, width, height, nsamp, steps }
+export function processRadargram(raw, nscans, nsamp, o, maxWidth = 4096) {
+  const steps = [`time zero at sample ${Math.round(o.t0)}`];
+  let { data, nsamp: n } = cutTimeZero(raw, nscans, nsamp, o.t0);
+  if (o.keep >= 2 && o.keep < n) { ({ data, nsamp: n } = cropSamples(data, nscans, n, o.keep)); steps.push(`shown to ${o.keepNs} ns`); }
+  const b = binScans(data, nscans, n, maxWidth);
+  data = b.data;
+  const cols = b.nscans;
+  if (b.per > 1) steps.push(`${b.per.toFixed(2)} scans per column`);
+  if (o.dewowSamples > 0) { data = dewow(data, cols, n, o.dewowSamples); steps.push(`dewow ${Math.round(o.dewowSamples)} samples`); }
+  if (o.bg && o.bg !== "off") { data = removeBackground(data, cols, n, o.bg === "window" ? Math.max(3, Math.round((Number(o.bgScans) || 0) / b.per)) : 0); steps.push(o.bg === "window" ? `background removal over ${o.bgScans} scans` : "background removal (mean trace of the line)"); }
+  if (o.gain === "agc") { data = agc(data, cols, n, o.agcSamples); steps.push(`AGC ${Math.round(o.agcSamples)} samples`); }
+  else if (o.gain === "power") { data = powerGain(data, cols, n, Number(o.power) || 1); steps.push(`power gain t^${o.power}`); }
+  const img = radargramPixels(data, cols, n, { clip: absQuantile(data, o.clip), colors: o.colors, maxWidth });
+  return { ...img, nsamp: n, steps };
 }

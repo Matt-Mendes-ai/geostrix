@@ -1620,7 +1620,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
 
       {/* TASKS.csv #616 — the GPR tool draws its radargram here, at full width; its controls stay in the sidebar */}
-      {!embedded && geoPane === "gpr" && <div className="ge-main" ref={gprMainRef} style={{ overflow: "auto", padding: 12 }} aria-label={tr("Radargram")} />}
+      {!embedded && geoPane === "gpr" && <div className="ge-main" ref={gprMainRef} style={{ overflow: "auto", padding: 12, minWidth: 0, minHeight: 0 }} aria-label={tr("Radargram")} />}
       {!embedded && geoPane !== "gpr" && (<div
         className="ge-main"
         style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14, color: "var(--color-text-muted)", border: dragOver ? "2px dashed var(--color-info)" : "2px dashed transparent", borderRadius: 8 }}

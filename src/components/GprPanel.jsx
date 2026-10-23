@@ -6,7 +6,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Upload, Download, Box } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { parseDzt, parseDzg, scanPositions, velocityFromEpsr, depthOfTime } from "../lib/dzt.js";
-import { cutTimeZero, firstBreak, dewow, removeBackground, agc, powerGain, absQuantile, radargramPixels } from "../lib/gprProcess.js";
+import { firstBreak } from "../lib/gprProcess.js";
+import { processInWorker } from "../lib/gprClient.js";
 import { terrainElevationAt } from "../lib/inversion.js";
 import { reprojectXY, getProj4Def } from "../lib/reproject.js";
 import { saveFile } from "../lib/desktop.js";
@@ -16,32 +17,42 @@ import { t as tr } from "../lib/i18n.js";
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 const MAX_COLUMNS_3D = 256; // curtain columns in the 3D view (the picture keeps its own resolution)
 
-// a radargram picture with axes: two-way time (ns) left, depth (m) right, distance (m) or scans along the bottom
-function figure(img, { timeNs, depthM, along, alongUnit, title }) {
-  const L = 52, R = 48, T = 22, B = 30, H = Math.min(img.height, 600);
-  const c = document.createElement("canvas");
-  c.width = img.width + L + R; c.height = H + T + B;
-  const g = c.getContext("2d");
-  g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+// a radargram picture with axes - two-way time (ns) left, depth (m) right, distance (m) or scans along the bottom - drawn
+// at width x height CSS pixels (x the device pixel ratio): the radargram is scaled to fit, the labels stay 11 px
+function pictureOf(img) {
   const pic = document.createElement("canvas"); pic.width = img.width; pic.height = img.height;
   pic.getContext("2d").putImageData(new ImageData(img.pixels, img.width, img.height), 0, 0);
-  g.drawImage(pic, L, T, img.width, H);
-  g.strokeStyle = "#333"; g.strokeRect(L, T, img.width, H);
+  return pic;
+}
+function figure(img, { timeNs, depthM, along, alongUnit, title, width, height, dpr = 1, pic = pictureOf(img) }) {
+  const L = 52, R = 48, T = 22, B = 32, W = Math.max(40, width - L - R), H = Math.max(40, height - T - B);
+  const c = document.createElement("canvas");
+  c.width = Math.round((W + L + R) * dpr); c.height = Math.round((H + T + B) * dpr);
+  c.style.width = `${W + L + R}px`; c.style.height = `${H + T + B}px`;
+  const g = c.getContext("2d");
+  g.scale(dpr, dpr);
+  g.fillStyle = "#fff"; g.fillRect(0, 0, W + L + R, H + T + B);
+  g.imageSmoothingEnabled = true;
+  g.drawImage(pic, L, T, W, H);
+  g.strokeStyle = "#333"; g.strokeRect(L, T, W, H);
   g.fillStyle = "#222"; g.font = "11px sans-serif";
-  g.fillText(title, L, 14);
+  let t = title;
+  while (t.length > 8 && g.measureText(t).width > W + R) t = `${t.slice(0, -2)}`;
+  g.fillText(t === title ? t : `${t}…`, L, 14);
   const tick = (x0, y0, x1, y1) => { g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); };
   const nice = (span, n) => { const r = span / n, p = 10 ** Math.floor(Math.log10(r)); return [1, 2, 2.5, 5, 10].map((m) => m * p).find((v) => v >= r) || 10 * p; };
+  const nY = Math.max(2, Math.floor(H / 45));
   g.textAlign = "right";
-  for (let t = 0, st = nice(timeNs, 6); t <= timeNs + 1e-9; t += st) { const y = T + (t / timeNs) * H; tick(L - 4, y, L, y); g.fillText(String(+t.toFixed(1)), L - 6, y + 4); }
+  for (let q = 0, st = nice(timeNs, nY); q <= timeNs + 1e-9; q += st) { const y = T + (q / timeNs) * H; tick(L - 4, y, L, y); g.fillText(String(+q.toFixed(1)), L - 6, y + 4); }
   g.save(); g.translate(12, T + H / 2); g.rotate(-Math.PI / 2); g.textAlign = "center"; g.fillText(tr("Two-way time (ns)"), 0, 0); g.restore();
   if (depthM > 0) {
     g.textAlign = "left";
-    for (let d = 0, sd = nice(depthM, 6); d <= depthM + 1e-9; d += sd) { const y = T + (d / depthM) * H; tick(L + img.width, y, L + img.width + 4, y); g.fillText(String(+d.toFixed(2)), L + img.width + 6, y + 4); }
-    g.save(); g.translate(c.width - 8, T + H / 2); g.rotate(Math.PI / 2); g.textAlign = "center"; g.fillText(tr("Depth (m)"), 0, 0); g.restore();
+    for (let q = 0, sd = nice(depthM, nY); q <= depthM + 1e-9; q += sd) { const y = T + (q / depthM) * H; tick(L + W, y, L + W + 4, y); g.fillText(String(+q.toFixed(2)), L + W + 6, y + 4); }
+    g.save(); g.translate(L + W + R - 8, T + H / 2); g.rotate(Math.PI / 2); g.textAlign = "center"; g.fillText(tr("Depth (m)"), 0, 0); g.restore();
   }
   g.textAlign = "center";
-  for (let a = 0, sa = nice(along, Math.max(2, Math.floor(img.width / 90))); a <= along + 1e-9; a += sa) { const x = L + (a / along) * img.width; tick(x, T + H, x, T + H + 4); g.fillText(String(+a.toFixed(1)), x, T + H + 15); }
-  g.fillText(alongUnit, L + img.width / 2, T + H + 27);
+  for (let q = 0, sa = nice(along, Math.max(2, Math.floor(W / 90))); q <= along + 1e-9; q += sa) { const x = L + (q / along) * W; tick(x, T + H, x, T + H + 4); g.fillText(String(+q.toFixed(1)), x, T + H + 15); }
+  g.fillText(alongUnit, L + W / 2, T + H + 28);
   return c;
 }
 
@@ -52,7 +63,7 @@ export default function GprPanel({ pBtn, numInput, mainRef }) {
   const [gpr, setGpr] = useState(null); // { name, d (parseDzt), fixes, dzgName }
   const [msg, setMsg] = useState(null);
   const [ch, setCh] = useState(0);
-  const [o, setO] = useState({ t0: "", dewow: true, dewowNs: "", bg: "line", bgScans: 200, gain: "agc", agcNs: "", power: 1, colors: "grey", clip: 98, epsr: "", zoom: "fit" });
+  const [o, setO] = useState({ t0: "", dewow: true, dewowNs: "", bg: "line", bgScans: 200, gain: "agc", agcNs: "", power: 1, colors: "grey", clip: 98, epsr: "", zoom: "fit", tmax: "" });
   const [place, setPlace] = useState({ mode: "gps", x0: "", y0: "", x1: "", y1: "", ground: "" });
   const set = (k, v) => setO((p) => ({ ...p, [k]: v }));
 
@@ -88,18 +99,36 @@ export default function GprPanel({ pBtn, numInput, mainRef }) {
     const mhz = h.antennaMHz && h.antennaMHz >= 10 && h.antennaMHz <= 3000 ? h.antennaMHz : null;
     return { raw, t0: Math.max(0, firstBreak(raw, d.nscans, d.nsamp) - 2), dewowNs: mhz ? +(2000 / mhz).toFixed(1) : +(h.range / 20).toFixed(1), agcNs: +(h.range / 8).toFixed(1) };
   }, [d, h, ch]);
-  const proc = useMemo(() => {
+  // TASKS.csv #616 — processed in a worker (gprClient.js), bounded by the display (scans averaged to <= 4,096 columns):
+  // TEST__001 (5,643 scans x 2,048 samples) froze the page for 2-40 s per setting when this ran here
+  const popts = useMemo(() => {
     if (!d) return null;
-    const t0 = Number.isFinite(num(o.t0)) ? num(o.t0) : auto.t0;
-    let { data, nsamp } = cutTimeZero(auto.raw, d.nscans, d.nsamp, t0);
-    const steps = [`time zero at sample ${Math.round(t0)}`];
-    if (o.dewow) { const w = (num(o.dewowNs) > 0 ? num(o.dewowNs) : auto.dewowNs) / d.dt; data = dewow(data, d.nscans, nsamp, w); steps.push(`dewow ${Math.round(w)} samples`); }
-    if (o.bg !== "off") { data = removeBackground(data, d.nscans, nsamp, o.bg === "window" ? Number(o.bgScans) || 0 : 0); steps.push(o.bg === "window" ? `background removal over ${o.bgScans} scans` : "background removal (mean trace of the line)"); }
-    if (o.gain === "agc") { const w = (num(o.agcNs) > 0 ? num(o.agcNs) : auto.agcNs) / d.dt; data = agc(data, d.nscans, nsamp, w); steps.push(`AGC ${Math.round(w)} samples`); }
-    else if (o.gain === "power") { data = powerGain(data, d.nscans, nsamp, Number(o.power) || 1); steps.push(`power gain t^${o.power}`); }
-    return { data, nsamp, t0, steps, timeNs: (nsamp - 1) * d.dt };
-  }, [d, auto, o.t0, o.dewow, o.dewowNs, o.bg, o.bgScans, o.gain, o.agcNs, o.power]);
-  const img = useMemo(() => (proc ? radargramPixels(proc.data, d.nscans, proc.nsamp, { clip: absQuantile(proc.data, Number(o.clip) / 100), colors: o.colors }) : null), [proc, d, o.clip, o.colors]);
+    const keepNs = num(o.tmax) > 0 ? num(o.tmax) : 0;
+    return {
+      t0: Number.isFinite(num(o.t0)) ? num(o.t0) : auto.t0, keep: keepNs ? Math.round(keepNs / d.dt) + 1 : 0, keepNs,
+      dewowSamples: o.dewow ? (num(o.dewowNs) > 0 ? num(o.dewowNs) : auto.dewowNs) / d.dt : 0,
+      bg: o.bg, bgScans: Number(o.bgScans) || 0, gain: o.gain, agcSamples: (num(o.agcNs) > 0 ? num(o.agcNs) : auto.agcNs) / d.dt, power: Number(o.power) || 1,
+      clip: Number(o.clip) / 100, colors: o.colors,
+    };
+  }, [d, auto, o.t0, o.tmax, o.dewow, o.dewowNs, o.bg, o.bgScans, o.gain, o.agcNs, o.power, o.clip, o.colors]);
+  const [res, setRes] = useState(null); // { img: { pixels, width, height }, nsamp, steps, timeNs }
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (!popts) { setRes(null); return undefined; }
+    let alive = true;
+    setBusy(true);
+    const t = setTimeout(() => { // a burst of changes (a slider dragged) processes once
+      processInWorker(`${gpr.name}|${d.nscans}|${ch}`, auto.raw, d.nscans, d.nsamp, popts).then((r) => {
+        if (!alive || !r) return;
+        setRes({ img: { pixels: r.pixels, width: r.width, height: r.height }, nsamp: r.nsamp, steps: r.steps, timeNs: (r.nsamp - 1) * d.dt });
+        setBusy(false);
+      }).catch((e) => { if (alive) { setMsg({ ok: false, text: e.message }); setBusy(false); } });
+    }, 120);
+    return () => { alive = false; clearTimeout(t); };
+  }, [popts]); // the file, channel and raw data change together with popts
+  const proc = res;
+  const img = res?.img || null;
+  const pic = useMemo(() => (img ? pictureOf(img) : null), [img]);
 
   // the scans' positions: GPS fixes reprojected to the project CRS, or a straight line between two typed points
   const [track, setTrack] = useState(null);
@@ -131,23 +160,39 @@ export default function GprPanel({ pBtn, numInput, mainRef }) {
   const along = d ? (d.distance ? { len: d.nscans * d.distance, unit: tr("Distance (m)") } : trackLen ? { len: trackLen, unit: tr("Distance along the track (m)") } : { len: d.nscans, unit: tr("Scan") }) : null;
   const depthM = proc ? depthOfTime(proc.timeNs, v) : 0;
 
-  const fig = useMemo(() => (img ? figure(img, { timeNs: proc.timeNs, depthM, along: along.len, alongUnit: along.unit, title: `${gpr.name}${d.channels.length > 1 ? ` — ch ${ch + 1}` : ""} · ${proc.steps.join(", ")} · εr ${epsr} (v ${v.toFixed(3)} m/ns)` }) : null), [img, proc, depthM, along?.len, along?.unit, gpr?.name, ch, epsr, v, d]);
-  // drawn in the module's main area when it offers one (the sidebar is too narrow for a radargram), else here
+  const figOpts = img ? { timeNs: proc.timeNs, depthM, along: along.len, alongUnit: along.unit, title: `${gpr.name}${d.channels.length > 1 ? ` — ch ${ch + 1}` : ""} · ${proc.steps.join(", ")} · εr ${epsr} (v ${v.toFixed(3)} m/ns)` } : null;
+  const figKey = figOpts ? JSON.stringify(figOpts) : "";
+  // drawn in the module's main area when it offers one (the sidebar is too narrow for a radargram), else here; redrawn at
+  // the area's size ("Fit") or at a fixed scale, and again when the area is resized
   useEffect(() => {
     const host = mainRef?.current || canvasHost.current;
     if (!host) return undefined;
-    host.innerHTML = "";
-    if (!fig) {
-      if (host !== canvasHost.current) { const p = document.createElement("div"); p.textContent = tr("Open a .DZT file on the left to see its radargram here."); p.style.cssText = "color: var(--color-text-muted); margin: 40px auto; text-align: center"; host.appendChild(p); }
-      return undefined;
-    }
-    fig.style.width = o.zoom === "fit" ? "100%" : `${Math.round(fig.width * Number(o.zoom))}px`;
-    fig.style.maxWidth = o.zoom === "fit" ? `${fig.width * 2}px` : "none";
-    fig.style.height = "auto";
-    fig.style.display = "block";
-    host.appendChild(fig);
-    return () => { if (fig.parentNode === host) host.removeChild(fig); };
-  }, [fig, o.zoom, mainRef]);
+    // redrawn only when the area's size really changes: the figure itself must not trigger the observer again (it did,
+    // through a scrollbar appearing and going: a 5,643-scan line kept the page busy, 40 s for one setting change)
+    let last = "";
+    const draw = () => {
+      const size = `${host.clientWidth}x${host.clientHeight}`;
+      if (size === last) return;
+      last = size;
+      host.innerHTML = "";
+      if (!img) {
+        if (host !== canvasHost.current) { const p = document.createElement("div"); p.textContent = tr("Open a .DZT file on the left to see its radargram here."); p.style.cssText = "color: var(--color-text-muted); margin: 40px auto; text-align: center"; host.appendChild(p); }
+        return;
+      }
+      const z = Number(o.zoom), fit = o.zoom === "fit";
+      const width = fit ? Math.max(300, host.clientWidth - 28) : img.width * z + 100;
+      const height = fit ? Math.max(260, host.clientHeight - 28) : Math.min(img.height, 1600) * z + 54;
+      const c = figure(img, { ...figOpts, width, height, dpr: window.devicePixelRatio || 1, pic });
+      c.style.display = "block";
+      host.appendChild(c);
+    };
+    draw();
+    if (o.zoom !== "fit" || typeof ResizeObserver === "undefined") return undefined;
+    let raf = 0;
+    const ro = new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(draw); });
+    ro.observe(host);
+    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
+  }, [img, pic, figKey, o.zoom, mainRef]); // figOpts is read through figKey
 
   const groundAt = (x, y, k) => {
     const t = terrain ? terrainElevationAt(terrain, x, y) : NaN;
@@ -176,8 +221,9 @@ export default function GprPanel({ pBtn, numInput, mainRef }) {
     setMsg({ ok: true, text: tr("Added to the 3D view as a curtain {len} m long and {depth} m deep along {how} (3D View sidebar > Section images).", { len: trackLen.toFixed(0), depth: depthM.toFixed(1), how: track.how }) });
   };
   const exportPng = () => {
-    if (!fig) return;
-    saveFile({ suggestedName: `${gpr.name.replace(/\.dzt$/i, "")}_radargram.png`, filters: [{ name: "PNG", extensions: ["png"] }], content: fig.toDataURL("image/png").split(",")[1], encoding: "base64" });
+    if (!img) return;
+    const c = figure(img, { ...figOpts, width: img.width + 100, height: Math.min(img.height, 1600) + 54, pic }); // the full-resolution picture
+    saveFile({ suggestedName: `${gpr.name.replace(/\.dzt$/i, "")}_radargram.png`, filters: [{ name: "PNG", extensions: ["png"] }], content: c.toDataURL("image/png").split(",")[1], encoding: "base64" });
   };
 
   const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };
@@ -204,12 +250,13 @@ export default function GprPanel({ pBtn, numInput, mainRef }) {
           {o.gain === "agc" && <input type="number" min={0} value={o.agcNs} placeholder={String(auto.agcNs)} onChange={(e) => set("agcNs", e.target.value)} style={{ ...inp, width: 56 }} aria-label={tr("AGC window (ns)")} title={tr("Window (ns)")} />}
           {o.gain === "power" && <input type="number" step={0.1} value={o.power} onChange={(e) => set("power", e.target.value)} style={{ ...inp, width: 56 }} aria-label={tr("Power")} />}
         </div>
+        <div style={row} title={tr("Show the radargram only down to this two-way time; blank = the whole window.")}><span style={lbl}>{tr("Show to (ns)")}</span><input type="number" min={1} value={o.tmax} placeholder={String(Math.round((d.nsamp - 1) * d.dt))} onChange={(e) => set("tmax", e.target.value)} style={inp} aria-label={tr("Show to (ns)")} /></div>
         <div style={row} title={tr("Relative dielectric constant of the ground: sets the radar velocity and the depth scale (dry sand ~4, dry rock 5-8, wet soil 15-30, water 81).")}><span style={lbl}>{tr("Dielectric (εr)")}</span><input type="number" min={1} max={81} step={0.5} value={o.epsr} placeholder={String(h.epsr || 9)} onChange={(e) => set("epsr", e.target.value)} style={inp} aria-label={tr("Dielectric constant")} /><span style={small}>{tr("{v} m/ns", { v: v.toFixed(3) })}</span></div>
         <div style={row}><span style={lbl}>{tr("Colours")}</span>
           <select value={o.colors} onChange={(e) => set("colors", e.target.value)} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Colours")}><option value="grey">{tr("Grey")}</option><option value="bwr">{tr("Blue - white - red")}</option></select>
           <input type="range" min={80} max={99.9} step={0.1} value={o.clip} onChange={(e) => set("clip", e.target.value)} style={{ width: 70 }} aria-label={tr("Contrast")} title={tr("Contrast: the colour scale ends at this percentile of the amplitudes")} />
         </div>
-        <div style={{ ...row, justifyContent: "space-between" }}><span style={small}>{tr("{t} ns ≈ {m} m deep at εr {e}", { t: proc.timeNs.toFixed(1), m: depthM.toFixed(2), e: epsr })}</span>
+        <div style={{ ...row, justifyContent: "space-between" }}><span style={small}>{busy || !proc ? tr("Processing…") : tr("{t} ns ≈ {m} m deep at εr {e}", { t: proc.timeNs.toFixed(1), m: depthM.toFixed(2), e: epsr })}</span>
           <select value={o.zoom} onChange={(e) => set("zoom", e.target.value)} style={{ ...numInput, width: 70 }} aria-label={tr("Zoom")}><option value="fit">{tr("Fit")}</option>{[0.5, 1, 2].map((z) => <option key={z} value={z}>{`${z * 100}%`}</option>)}</select>
         </div>
         {!mainRef && <div ref={canvasHost} style={{ marginTop: 6, overflowX: "auto", border: "1px solid var(--color-border)", borderRadius: 4, background: "#fff" }} aria-label={tr("Radargram")} role="img" />}

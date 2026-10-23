@@ -5350,5 +5350,8 @@
   "not placed": "sin ubicar",
   "slope distances need stations or a terrain": "las distancias en pendiente necesitan estaciones o un terreno",
   "no ground elevation (stations, terrain or a flat ground)": "sin cota del terreno (estaciones, terreno o un terreno plano)",
-  "Open a .DZT file on the left to see its radargram here.": "Abra un archivo .DZT a la izquierda para ver aquí su radargrama."
+  "Open a .DZT file on the left to see its radargram here.": "Abra un archivo .DZT a la izquierda para ver aquí su radargrama.",
+  "Show to (ns)": "Mostrar hasta (ns)",
+  "Show the radargram only down to this two-way time; blank = the whole window.": "Muestra el radargrama solo hasta este tiempo doble; en blanco = toda la ventana.",
+  "Processing…": "Procesando…"
 }

@@ -5350,5 +5350,8 @@
   "not placed": "غير موضوع",
   "slope distances need stations or a terrain": "تحتاج المسافات المائلة إلى محطات أو سطح تضاريس",
   "no ground elevation (stations, terrain or a flat ground)": "لا يوجد ارتفاع للأرض (محطات أو تضاريس أو أرض مستوية)",
-  "Open a .DZT file on the left to see its radargram here.": "افتح ملف .DZT على اليسار لعرض مخطط الرادار هنا."
+  "Open a .DZT file on the left to see its radargram here.": "افتح ملف .DZT على اليسار لعرض مخطط الرادار هنا.",
+  "Show to (ns)": "العرض حتى (ن.ث)",
+  "Show the radargram only down to this two-way time; blank = the whole window.": "يعرض مخطط الرادار حتى هذا الزمن ذهابًا وإيابًا فقط؛ فارغ = النافذة كلها.",
+  "Processing…": "جارٍ المعالجة…"
 }
