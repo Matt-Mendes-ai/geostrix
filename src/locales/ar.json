@@ -5353,5 +5353,9 @@
   "Open a .DZT file on the left to see its radargram here.": "افتح ملف .DZT على اليسار لعرض مخطط الرادار هنا.",
   "Show to (ns)": "العرض حتى (ن.ث)",
   "Show the radargram only down to this two-way time; blank = the whole window.": "يعرض مخطط الرادار حتى هذا الزمن ذهابًا وإيابًا فقط؛ فارغ = النافذة كلها.",
-  "Processing…": "جارٍ المعالجة…"
+  "Processing…": "جارٍ المعالجة…",
+  "{name}: EPSG publishes no datum shift to WGS 84 for this datum, so GeoStrix treats it as WGS 84 when converting to or from another datum. That can be metres to hundreds of metres out; data already in this CRS is unaffected.": "{name}: لا ينشر EPSG أي تحويل مرجع إلى WGS 84 لهذا المرجع، لذا يعامله GeoStrix كأنه WGS 84 عند التحويل من مرجع آخر أو إليه. قد يبلغ الخطأ أمتارًا أو مئات الأمتار؛ ولا تتأثر البيانات الموجودة أصلًا في نظام الإحداثيات هذا.",
+  "{name}: the datum shift to WGS 84 is accurate to about {acc} m (EPSG).": "{name}: دقة تحويل المرجع إلى WGS 84 نحو {acc} م (EPSG).",
+  "The shift is published for part of this CRS's area only.": "التحويل منشور لجزء من نطاق نظام الإحداثيات هذا فقط.",
+  "A more accurate grid-based shift exists, which GeoStrix doesn't include yet.": "يوجد تحويل أدق قائم على شبكة تصحيح، لا يتضمنه GeoStrix بعد."
 }

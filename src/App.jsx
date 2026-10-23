@@ -3,7 +3,7 @@ import { t as tr, LANGUAGES, currentLanguage, setLanguage } from "./lib/i18n.js"
 import { requestModuleAction } from "./lib/menuRequests.js"; // TASKS.csv #565
 import { onProjectCrsRequest, requestProjectCrs } from "./lib/projectCrsRequest.js"; // TASKS.csv #615
 import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Layers3, Target, FileBarChart2, Map as MapIcon, Compass } from "./components/icons.js"; // Compass: #820
-import { crsName } from "./lib/reproject.js"; // TASKS.csv #485
+import { crsName, getProj4DefSync, loadEpsgRegistry, onEpsgRegistry } from "./lib/reproject.js"; // TASKS.csv #485; #834 registry
 import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./lib/store.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
 import { pdfOptions } from "./lib/pageFormats.js"; // TASKS.csv #398
@@ -144,6 +144,16 @@ export default function App() {
   // finding nothing is not something worth a persistent UI element for.
   const [updater, setUpdater] = useState({ event: "idle" });
   useEffect(() => onUpdaterEvent(setUpdater), []);
+  // TASKS.csv #834 — the full EPSG registry (~1 MB, its own chunk): right away when the project's CRS needs it, otherwise
+  // in idle time a few seconds after start, so every file / layer lookup finds it without slowing the start
+  const [, setEpsgReg] = useState(0);
+  useEffect(() => onEpsgRegistry(() => setEpsgReg((n) => n + 1)), []);
+  useEffect(() => {
+    if (project?.epsg && !getProj4DefSync(project.epsg)) { loadEpsgRegistry().catch(() => {}); return undefined; }
+    const go = () => loadEpsgRegistry().catch(() => {});
+    const id = typeof requestIdleCallback === "function" ? requestIdleCallback(go, { timeout: 8000 }) : setTimeout(go, 4000);
+    return () => (typeof cancelIdleCallback === "function" ? cancelIdleCallback(id) : clearTimeout(id));
+  }, [project?.epsg]);
   // User report: clicking Help > Check for Updates... looked like it did nothing when already on
   // the latest version — "not-available" is otherwise a silent, no-UI event (correct for the
   // routine automatic startup check, see the status-bar rendering below), so a check the user

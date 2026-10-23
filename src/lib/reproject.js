@@ -170,6 +170,16 @@ export function datumNote(epsg) {
     // in zones far from western Canada (the shift is a fit for Alberta/BC only).
     return tr("NAD27: an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a 3-parameter fit for Alberta/BC — typically within ~10 m there). Outside western Canada it can be 30–200 m out. Not survey-grade; that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet.");
   }
+  // #834 — a code from the EPSG registry (not hand-verified): what EPSG says about its datum shift
+  const f = !handDef(c) && fullEntry(c);
+  if (f) {
+    const [name, , acc, flags] = f, notes = [];
+    if (acc === null) notes.push(tr("{name}: EPSG publishes no datum shift to WGS 84 for this datum, so GeoStrix treats it as WGS 84 when converting to or from another datum. That can be metres to hundreds of metres out; data already in this CRS is unaffected.", { name }));
+    else if (acc > 5) notes.push(tr("{name}: the datum shift to WGS 84 is accurate to about {acc} m (EPSG).", { name, acc }));
+    if (flags & 2) notes.push(tr("The shift is published for part of this CRS's area only."));
+    if (flags & 1) notes.push(tr("A more accurate grid-based shift exists, which GeoStrix doesn't include yet."));
+    return notes.length ? notes.join(" ") : null;
+  }
   if (REGISTRY.get(c)?.def.includes(SAD69_BRAZIL)) {
     return tr("SAD69: Brazil's IBGE datum shift is applied (EPSG:1877, about 5 m in Brazil). Elsewhere in South America the right shift differs by country and this can be 10–25 m out. Not survey-grade.");
   }
@@ -195,9 +205,42 @@ function utmProj4(zone, hemisphereSouth, datumParams) {
 // have to thread async/await through call sites that were never going to do I/O anyway. `getProj4Def`
 // below is kept as the async-looking wrapper so every existing `await getProj4Def(...)` call site
 // keeps working unchanged.
+// TASKS.csv #834 — Matt: "Do option 2, that way we can have a more complete registry". Beyond the hand-verified codes
+// above and below (which keep priority and their own notes), the whole EPSG registry: every projected and geographic
+// 2D CRS that proj4js reproduces PROJ for (src/lib/epsgRegistry.json, 5,810 codes, EPSG v12.029 via PROJ 9.8.1:
+// scripts/epsg/gen-epsg-registry.py then verify-epsg-registry.mjs, which keeps a code only when proj4js matches PROJ
+// within 5 cm for its projection and 10 cm with its datum shift at three points of its area of use). Each entry is
+// [name, proj4, shift accuracy in m (0 none needed, -1 not stated, null no published shift), flags (1 a better
+// grid-based shift exists, 2 the shift is published for part of the area)]. ~1 MB, so it loads on demand (its own
+// chunk, never at startup): loadEpsgRegistry(); the synchronous lookups see it once loaded.
+let FULL = null, fullPromise = null;
+const fullListeners = new Set();
+export const epsgRegistryLoaded = () => !!FULL;
+export function loadEpsgRegistry() {
+  if (FULL) return Promise.resolve(FULL);
+  if (!fullPromise) {
+    fullPromise = import("./epsgRegistry.json").then((m) => installEpsgRegistry(m.default || m)).catch((e) => { fullPromise = null; throw e; });
+  }
+  return fullPromise;
+}
+// the loaded table goes in here (also used by the tests: Node imports JSON differently from the bundler)
+export function installEpsgRegistry(reg) {
+  FULL = reg;
+  crsNameCache = null; listCache = null;
+  fullListeners.forEach((fn) => { try { fn(); } catch { /* a listener's own problem */ } });
+  return FULL;
+}
+export function onEpsgRegistry(fn) { fullListeners.add(fn); return () => fullListeners.delete(fn); }
+const fullEntry = (code) => FULL?.codes?.[String(code)] || null;
+
 export function getProj4DefSync(epsg) {
   const code = Number(epsg);
   if (!Number.isFinite(code)) return null;
+  return handDef(code) || fullEntry(code)?.[1] || null;
+}
+
+// the hand-verified definitions (#223 / #299 / #419 / #489)
+function handDef(code) {
   if (GEOGRAPHIC[code]) return GEOGRAPHIC[code];
   if (EXTRA_DEFS[code]) return EXTRA_DEFS[code]; // #419
   if (code === 3005) return EPSG_3005_BC_ALBERS;
@@ -237,6 +280,9 @@ export function isMetricProjectedEpsg(epsg) {
 // recognizes (an unrecognized code isn't a bug — it just means automatic reprojection can't help for
 // that particular target EPSG, and the caller falls back to its existing "no reprojection" warning).
 export async function getProj4Def(epsg) {
+  const d = getProj4DefSync(epsg);
+  if (d || !Number.isFinite(Number(epsg))) return d;
+  try { await loadEpsgRegistry(); } catch { return null; } // #834
   return getProj4DefSync(epsg);
 }
 
@@ -590,7 +636,9 @@ export function neighbourUtmZones(epsg, reach = 1) {
   return out;
 }
 
+let listCache = null;
 export function listSupportedCrs() {
+  if (listCache) return listCache;
   const out = CRS_NAMED.map(([code, name]) => ({ code, name }));
   const listed = new Set(out.map((c) => c.code));
   // #489 — the rest of the NAD83(CSRS) zones, by zone number, then the national frames
@@ -600,7 +648,14 @@ export function listSupportedCrs() {
   for (let z = 1; z <= 22; z++) out.push({ code: 26700 + z, name: `NAD27 / UTM zone ${z}N — ~10 m datum approximation` });
   for (let z = 1; z <= 60; z++) out.push({ code: 32600 + z, name: `WGS 84 / UTM zone ${z}N` });
   for (let z = 1; z <= 60; z++) out.push({ code: 32700 + z, name: `WGS 84 / UTM zone ${z}S` });
-  return out.map((c) => ({ ...c, geographic: /longitude/.test(c.name) }));
+  const res = out.map((c) => ({ ...c, geographic: /longitude/.test(c.name) }));
+  // #834 — then the rest of the EPSG registry, once loaded (the hand-verified entries above keep their names)
+  if (FULL) {
+    const have = new Set(res.map((c) => c.code));
+    for (const [code, e] of Object.entries(FULL.codes)) { const n = Number(code); if (!have.has(n)) res.push({ code: n, name: e[0], geographic: e[1].startsWith("+proj=longlat") }); }
+  }
+  if (FULL) listCache = res;
+  return res;
 }
 let crsNameCache = null;
 export function crsName(epsg) {

@@ -1,20 +1,22 @@
 // TASKS.csv #485 — pick a coordinate reference system by name or code (QGIS-style), from the CRSs GeoStrix can
 // actually build (reproject.js listSupportedCrs). Type "9N", "albers", "wgs 84 utm 22S" or "3156"; the list
 // filters on every word. Reused by the Cartography tab's project CRS, layer and file tools.
-import React, { useMemo, useState } from "react";
-import { listSupportedCrs, crsName } from "../lib/reproject.js";
+import React, { useEffect, useMemo, useState } from "react";
+import { listSupportedCrs, crsName, loadEpsgRegistry } from "../lib/reproject.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
-const ALL = listSupportedCrs();
 const MAX_SHOWN = 60;
 
 export default function CrsPicker({ value, onChange, label, height = 190 }) {
   const [q, setQ] = useState("");
+  // TASKS.csv #834 — the verified list at once, the whole EPSG registry as soon as it has loaded
+  const [all, setAll] = useState(listSupportedCrs);
+  useEffect(() => { let alive = true; loadEpsgRegistry().then(() => { if (alive) setAll(listSupportedCrs()); }).catch(() => {}); return () => { alive = false; }; }, []);
   const shown = useMemo(() => {
     const words = q.toLowerCase().split(/\s+/).filter(Boolean);
-    const hits = words.length ? ALL.filter((c) => { const hay = `${c.name} epsg:${c.code} ${c.code}`.toLowerCase(); return words.every((w) => hay.includes(w)); }) : ALL;
+    const hits = words.length ? all.filter((c) => { const hay = `${c.name} epsg:${c.code} ${c.code}`.toLowerCase(); return words.every((w) => hay.includes(w)); }) : all;
     return hits.slice(0, MAX_SHOWN);
-  }, [q]);
+  }, [q, all]);
   const current = value ? crsName(value) : null;
   return (
     <div>
