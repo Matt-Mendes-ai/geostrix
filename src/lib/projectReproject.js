@@ -125,7 +125,8 @@ export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
   if (live.sectionImages?.length) { // TASKS.csv #630 — corners and the section line move; elevations don't
     f.sectionImages = live.sectionImages.map((im) => {
       const [ax, ay] = xy(im.line?.a?.x, im.line?.a?.y), [bx, by] = xy(im.line?.b?.x, im.line?.b?.y);
-      return { ...im, corners: (im.corners || []).map(([x, y, z]) => [...xy(x, y), z]), ...(im.line ? { line: { a: { x: ax, y: ay }, b: { x: bx, y: by } } } : {}) };
+      const pts = (list) => list.map(([x, y, z]) => [...xy(x, y), z]);
+      return { ...im, corners: pts(im.corners || []), ...(im.strip ? { strip: { ...im.strip, top: pts(im.strip.top || []), bottom: pts(im.strip.bottom || []) } } : {}) /* #616 */, ...(im.line ? { line: { a: { x: ax, y: ay }, b: { x: bx, y: by } } } : {}) };
     });
     count("section images", f.sectionImages.length);
   }

@@ -252,16 +252,34 @@ export function syncSectionImages(group, cache, sectionImages, { origin, rendere
   const wanted = new Set((sectionImages || []).map((im) => im.id));
   Object.keys(meshes).forEach((id) => { if (!wanted.has(id)) { dispose(meshes[id]); delete meshes[id]; } });
   (sectionImages || []).forEach((im) => {
-    if (!im.corners || im.corners.length !== 4 || !im.dataUrl) return;
-    const geoKey = `${ox},${oy},${oz}|${im.corners.flat().join(",")}|${im.dataUrl.length}`;
+    // TASKS.csv #616 — or a curtain hung along a track (a GPR radargram): strip.top / strip.bottom, one [x, y, z] per column
+    const strip = im.strip?.top?.length >= 2 && im.strip.bottom?.length === im.strip.top.length ? im.strip : null;
+    if ((!strip && (!im.corners || im.corners.length !== 4)) || !im.dataUrl) return;
+    const geoKey = `${ox},${oy},${oz}|${strip ? [...strip.top, ...strip.bottom].flat().join(",") : im.corners.flat().join(",")}|${im.dataUrl.length}`;
     let mesh = meshes[im.id];
     if (mesh && mesh.userData.geoKey !== geoKey) { dispose(mesh); mesh = null; delete meshes[im.id]; }
     if (!mesh) {
-      const pos = new Float32Array(im.corners.flatMap(([x, y, z]) => [x - ox, z - oz, -(y - oy)]));
       const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-      geometry.setAttribute("uv", new THREE.BufferAttribute(new Float32Array([0, 1, 1, 1, 1, 0, 0, 0]), 2)); // TL, TR, BR, BL
-      geometry.setIndex([0, 3, 1, 1, 3, 2]);
+      if (strip) {
+        // columns placed by distance along the track, so the image is not stretched where the fixes bunch up
+        const n = strip.top.length, s = [0];
+        for (let i = 1; i < n; i++) s.push(s[i - 1] + Math.hypot(strip.top[i][0] - strip.top[i - 1][0], strip.top[i][1] - strip.top[i - 1][1]));
+        const L = s[n - 1] || 1, pos = new Float32Array(n * 6), uv = new Float32Array(n * 4), idx = [];
+        for (let i = 0; i < n; i++) {
+          const [tx, ty, tz] = strip.top[i], [bx, by, bz] = strip.bottom[i], u = im.strip.u ? im.strip.u[i] : s[i] / L;
+          pos.set([tx - ox, tz - oz, -(ty - oy), bx - ox, bz - oz, -(by - oy)], i * 6);
+          uv.set([u, 1, u, 0], i * 4);
+          if (i) idx.push(2 * i - 2, 2 * i - 1, 2 * i, 2 * i, 2 * i - 1, 2 * i + 1);
+        }
+        geometry.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        geometry.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+        geometry.setIndex(idx);
+      } else {
+        const pos = new Float32Array(im.corners.flatMap(([x, y, z]) => [x - ox, z - oz, -(y - oy)]));
+        geometry.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+        geometry.setAttribute("uv", new THREE.BufferAttribute(new Float32Array([0, 1, 1, 1, 1, 0, 0, 0]), 2)); // TL, TR, BR, BL
+        geometry.setIndex([0, 3, 1, 1, 3, 2]);
+      }
       geometry.computeBoundingSphere();
       const texture = new THREE.TextureLoader().load(im.dataUrl, () => { onTextureLoad?.(); });
       texture.colorSpace = THREE.SRGBColorSpace;

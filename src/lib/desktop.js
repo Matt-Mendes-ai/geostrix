@@ -467,6 +467,9 @@ export const sidecarPlanPotential = (request) => sidecarJson("/v1/geophys/plan",
 export const sidecarStartPotentialJob = (request) => startSidecarJob("potential", request);
 // TASKS.csv #322 — 2D DC resistivity / IP inversion job
 export const sidecarStartDcipJob = (request) => startSidecarJob("dcip2d", request);
+// TASKS.csv #643 — true 3D DC/IP of several lines: the estimate (mesh, memory, time) and the job
+export const sidecarPlanDcip3d = (request) => sidecarJson("/v1/geophys/dcip3d/plan", { method: "POST", body: request, timeoutMs: 120000 });
+export const sidecarStartDcip3dJob = (request) => startSidecarJob("dcip3d", request);
 export const sidecarJobStatus = (id) => sidecarJson(`/v1/jobs/${encodeURIComponent(id)}`, { timeoutMs: 10000 });
 // TASKS.csv #325 — asks for the per-cell columns as base64 binary (main.py binary_cells) and turns them back
 // into plain number arrays here, so every caller sees exactly the shape it always did. An older sidecar that

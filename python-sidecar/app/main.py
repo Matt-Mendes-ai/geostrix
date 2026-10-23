@@ -161,6 +161,11 @@ def _dist_version(name):
         return None
 
 
+def _dcip3d_solver():
+    from app.geophys.dcip3d import solver_name  # numpy only at import
+    return solver_name()
+
+
 @app.get("/health")
 def health(nonce: str | None = None):
     simpeg_v = _dist_version("simpeg")
@@ -179,6 +184,8 @@ def health(nonce: str | None = None):
                                 "simpeg": simpeg_v, "discretize": _dist_version("discretize"), "choclo": _dist_version("choclo")},
             # TASKS.csv #322 — 2D DC resistivity / IP (SimPEG static; no choclo needed)
             "dcip2d": {"available": bool(importlib.util.find_spec("simpeg")), "simpeg": simpeg_v},
+            # TASKS.csv #643 — 3D DC / IP of several lines (reciprocity + SciPy SuperLU in symmetric mode)
+            "dcip3d": {"available": bool(importlib.util.find_spec("simpeg")), "solver": _dcip3d_solver()},
         },
     }
 
@@ -329,6 +336,57 @@ def _validate_dcip2d(req):
         raise HTTPException(400, 'geometricFactor must be "flat" (the data used nominal flat-ground spacings) or "draped".')
 
 
+MAX_DC3D_READINGS = 20_000
+
+
+def _validate_dcip3d(req):
+    """TASKS.csv #643 — a 3D DC/IP request (see app/geophys/dcip3d.py): readings as 12 world coordinates (B / N null =
+    pole), chain as 4 along-line distances, rho > 0, optional chargeability, uncertainties stated, mesh core / depth."""
+    r = req.get("readings")
+    if not isinstance(r, list) or not r or len(r) > MAX_DC3D_READINGS:
+        raise HTTPException(400, f"readings: 1-{MAX_DC3D_READINGS} rows expected.")
+    for row in r:
+        if not isinstance(row, list) or len(row) != 12 or not all(v is None or (isinstance(v, (int, float)) and math.isfinite(v)) for v in row)                 or any(row[k] is None for k in (0, 1, 2, 6, 7, 8)) or len({row[k] is None for k in (3, 4, 5)}) != 1 or len({row[k] is None for k in (9, 10, 11)}) != 1:
+            raise HTTPException(400, "readings: every row is A, B, M, N as x, y, z (12 numbers); only B or N may be empty (a pole).")
+    rho = req.get("rho")
+    if not isinstance(rho, list) or len(rho) != len(r) or not all(isinstance(v, (int, float)) and math.isfinite(v) and v > 0 for v in rho):
+        raise HTTPException(400, "rho must hold one positive apparent resistivity (ohm.m) per reading.")
+    ch = req.get("chargeability")
+    if ch is not None and (not isinstance(ch, list) or len(ch) != len(r) or not all(isinstance(v, (int, float)) and math.isfinite(v) for v in ch)):
+        raise HTTPException(400, "chargeability must hold one value (mV/V) per reading, or be left out.")
+    c = req.get("chain")
+    if c is not None and (not isinstance(c, list) or len(c) != len(r) or not all(isinstance(row, list) and len(row) == 4 for row in c)):
+        raise HTTPException(400, "chain must hold [a, b, m, n] along-line distances per reading, or be left out.")
+    if req.get("topo") is not None:
+        _finite_rows(req["topo"], 3, "topo", MAX_TOPO)
+    m = req.get("mesh") or {}
+    try:
+        core, depth = float(m["core"]), float(m["depth"])
+    except (KeyError, TypeError, ValueError):
+        raise HTTPException(400, "mesh.core and mesh.depth are required numbers.")
+    if not (5 <= core <= 500) or not (core <= depth <= 3000):
+        raise HTTPException(400, "mesh.core must be 5-500 m and mesh.depth between the core cell and 3 km.")
+    u = req.get("uncertainty") or {}
+    if not ((isinstance(u.get("percent"), (int, float)) and u["percent"] > 0) or (isinstance(u.get("floor"), (int, float)) and u["floor"] > 0)):
+        raise HTTPException(400, "uncertainty needs a percent or a floor above zero — GeoStrix never assumes it.")
+    if ch is not None:
+        iu = req.get("ipUncertainty") or {}
+        if not ((isinstance(iu.get("percent"), (int, float)) and iu["percent"] > 0) or (isinstance(iu.get("floor"), (int, float)) and iu["floor"] > 0)):
+            raise HTTPException(400, "chargeability uncertainty needs a percent or a floor above zero — GeoStrix never assumes it.")
+    req["maxIter"] = int(min(30, max(1, int(req.get("maxIter", 12)))))
+    if req.get("geometricFactor") not in (None, "flat", "draped"):
+        raise HTTPException(400, 'geometricFactor must be "flat" or "draped".')
+
+
+@app.post("/v1/geophys/dcip3d/plan")
+def dcip3d_plan(req: dict = Body(...)):
+    """TASKS.csv #643 — the mesh, matrix size, peak memory and a time estimate, before anything is started."""
+    _validate_dcip3d(req)
+    from app.geophys.dcip3d import plan  # numpy + discretize only: no SimPEG import in this process
+    from app.jobs import sensitivity_cap_bytes
+    return plan(req, sensitivity_cap_bytes())
+
+
 @app.post("/v1/geophys/plan")
 def geophys_plan(req: dict = Body(...)):
     _validate_potential(req)
@@ -369,8 +427,20 @@ def start_job(req: dict = Body(...)):
         if job_id is None:
             return _job_slot_busy(manager)
         return {"id": job_id}
+    if req.get("jobKind") == "dcip3d":  # TASKS.csv #643
+        payload = req.get("request") or {}
+        _validate_dcip3d(payload)
+        from app.geophys.dcip3d import plan
+        from app.jobs import manager, sensitivity_cap_bytes
+        p = plan(payload, sensitivity_cap_bytes())
+        if not p["ok"]:
+            raise HTTPException(400, " ".join(p["reasons"]))
+        job_id = manager.start("dcip3d", payload)
+        if job_id is None:
+            return _job_slot_busy(manager)
+        return {"id": job_id, "plan": p}
     if req.get("jobKind") != "potential":
-        raise HTTPException(400, "jobKind must be 'potential', 'implicit' or 'dcip2d'.")
+        raise HTTPException(400, "jobKind must be 'potential', 'implicit', 'dcip2d' or 'dcip3d'.")
     payload = req.get("request") or {}
     _validate_potential(payload)
     from app.geophys.potential import plan

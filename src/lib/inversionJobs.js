@@ -3,7 +3,7 @@
 // unmounts or hides the panel) would orphan the job — still computing in the sidecar, with nobody left to
 // collect the result or offer Cancel (software-design review, #321). Here it survives any UI change, and it
 // drives the status bar's progress chip through the store's stable setter.
-import { sidecarStartPotentialJob, sidecarStartDcipJob, sidecarJobStatus, sidecarJobResult, sidecarCancelJob, abandonSidecarJob, JOB_POLL_MAX_MISSES } from "./desktop.js";
+import { sidecarStartPotentialJob, sidecarStartDcipJob, sidecarStartDcip3dJob, sidecarJobStatus, sidecarJobResult, sidecarCancelJob, abandonSidecarJob, JOB_POLL_MAX_MISSES } from "./desktop.js";
 
 let current = null; // { id, request, meta, status, result, error, onDone }
 const listeners = new Set();
@@ -18,10 +18,10 @@ export const currentInversionJob = () => current;
 
 // meta: { label, surveyName, ... } — carried to onDone so the caller can build provenance.
 // setTaskProgress: the store's stable status-bar setter. onDone(result, job) runs once on success.
-// kind: "potential" (mag/grav, #321) or "dcip2d" (2D DC resistivity / IP, #322) — one job at a time either way.
+// kind: "potential" (mag/grav, #321), "dcip2d" (2D DC resistivity / IP, #322) or "dcip3d" (#643) — one job at a time.
 export async function startInversionJob(request, meta, { setTaskProgress, onDone, kind = "potential" }) {
   if (current && current.status?.state === "running") return { ok: false, error: "An inversion is already running." };
-  const res = await (kind === "dcip2d" ? sidecarStartDcipJob(request) : sidecarStartPotentialJob(request));
+  const res = await (kind === "dcip2d" ? sidecarStartDcipJob(request) : kind === "dcip3d" ? sidecarStartDcip3dJob(request) : sidecarStartPotentialJob(request));
   if (!res.ok) return res;
   current = { id: res.data.id, request, meta, plan: res.data.plan, status: { state: "running", progress: { stage: "starting" }, history: [] }, result: null, error: null, startedAt: Date.now() };
   emit();

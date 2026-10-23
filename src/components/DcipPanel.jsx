@@ -21,6 +21,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js";
 import { HATCH } from "../lib/supportHatch.js"; // TASKS.csv #535
 import { supportEnvelope } from "../lib/supportEnvelope.js"; // TASKS.csv #641
 import DcipMergePanel from "./DcipMergePanel.jsx"; // TASKS.csv #640
+import Dcip3dPanel from "./Dcip3dPanel.jsx"; // TASKS.csv #643
 import { percentile } from "../lib/sectionMerge.js";
 import { parseStationFile, matchStationLine, fitStationLine, stationGroundProfile } from "../lib/dcipStations.js";
 import { reprojectXY, getProj4DefSync } from "../lib/reproject.js";
@@ -388,6 +389,7 @@ export default function DcipPanel({ pBtn, numInput }) {
       {job?.error && <div style={{ ...small, marginTop: 6, color: "var(--color-danger-fg)" }}>{job.error}</div>}
       {last && <SectionResult last={last} cutoff={Number(opts.supportCutoff) || 0} epsg={project?.epsg} pBtn={pBtn} />}
       <DcipMergePanel pBtn={pBtn} numInput={numInput} />
+      <Dcip3dPanel pBtn={pBtn} numInput={numInput} />
     </div>
   );
 }
