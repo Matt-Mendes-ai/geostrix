@@ -15,6 +15,17 @@
 //   depthM / tan(dip) horizontally down-dip. Dips under minDip are skipped: the point would land kilometres away.
 // Pure: no three.js, no React.
 import { extractMapContacts } from "./mapLayers.js";
+
+// TASKS.csv #887 — the whole map's contacts, extracted once per (layer, field): every mapped pair and the pair picker used
+// to re-extract them all (45-65 ms each on Perk-Rocky), on every keystroke in the dip-guide fields. A layer object is
+// replaced, never edited in place, so it is a safe key.
+const contactCache = new WeakMap();
+function contactsOf(layer, field) {
+  let byField = contactCache.get(layer);
+  if (!byField) contactCache.set(layer, (byField = new Map()));
+  if (!byField.has(field)) byField.set(field, extractMapContacts(layer, field));
+  return byField.get(field);
+}
 import { fitTracePlane } from "./pileOrder.js";
 
 function thin(line, step) {
@@ -34,7 +45,7 @@ function thin(line, step) {
 // the unit pairs that share a boundary on the map, longest first: [{ units: [a, b], lengthM }]
 export function mapContactPairs(layer, field) {
   if (!layer?.features?.length || !field) return [];
-  return extractMapContacts(layer, field).contacts.map((c) => ({ units: c.units, lengthM: c.lengthM }));
+  return contactsOf(layer, field).contacts.map((c) => ({ units: c.units, lengthM: c.lengthM }));
 }
 
 export function mapContactLines(layer, field, units, groundAt, { step = 25 } = {}) {
@@ -42,7 +53,7 @@ export function mapContactLines(layer, field, units, groundAt, { step = 25 } = {
   const out = { lines: [], lengthM: 0, offTerrain: 0 };
   if (!layer?.features?.length || !field || a == null || b == null || a === b) return out;
   const want = [String(a), String(b)].sort((x, y) => x.localeCompare(y)).join("|");
-  const c = extractMapContacts(layer, field).contacts.find((k) => k.units.map(String).sort((x, y) => x.localeCompare(y)).join("|") === want);
+  const c = contactsOf(layer, field).contacts.find((k) => k.units.map(String).sort((x, y) => x.localeCompare(y)).join("|") === want);
   if (!c) return out;
   out.lengthM = c.lengthM;
   const ref = `${a} | ${b}`;
