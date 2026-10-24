@@ -5,7 +5,7 @@ import { buildZip } from "./shapefile.js";
 
 export function buildProblemReport({ what, steps = "", crashed = false, info = {}, screenshot = null, includeShot = true, includeLog = true, includeProject = false, projectPayload = null, files = [], errors = [], project = null, userAgent = "" }) {
   const enc = new TextEncoder();
-  const { sidecarLogTail, ...sys } = info || {};
+  const { sidecarLogTail, crashLogTail, ...sys } = info || {};
   const version = sys.app || "?";
   const names = [
     includeShot && screenshot ? "window.png" : null,
@@ -23,7 +23,8 @@ export function buildProblemReport({ what, steps = "", crashed = false, info = {
   const zipFiles = [
     { name: "report.txt", data: enc.encode(text) },
     { name: "system-info.json", data: enc.encode(JSON.stringify({ ...sys, project: project?.name || null, crs: project?.epsg || null, userAgent }, null, 2)) },
-    { name: "recent-errors.txt", data: enc.encode(errors.length ? errors.map((e) => `${e.at}  ${e.kind}: ${e.message}${e.stack ? `\n${e.stack}` : ""}`).join("\n\n") : "No errors were recorded in this session.") },
+    { name: "recent-errors.txt", data: enc.encode((errors.length ? errors.map((e) => `${e.at}  ${e.kind}: ${e.message}${e.stack ? `\n${e.stack}` : ""}`).join("\n\n") : "No errors were recorded in this session.")
+      + (crashLogTail ? `\n\nSCREEN CRASHES RECORDED ON THIS COMPUTER (earlier sessions included, newest last):\n${crashLogTail}` : "")) }, // #829
   ];
   if (includeShot && screenshot) zipFiles.push({ name: "window.png", data: screenshot });
   if (includeLog && sidecarLogTail) zipFiles.push({ name: "python-engine-log.txt", data: enc.encode(sidecarLogTail) });

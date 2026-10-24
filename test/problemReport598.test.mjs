@@ -47,3 +47,11 @@ test("#598 email text asks for the attachment and warns when too big", () => {
   assert.match(big.body, /What I was doing:\nOpened it/);
   assert.match(big.body, /45 MB — too big/);
 });
+
+// TASKS.csv #829 — screen crashes kept on disk travel in recent-errors.txt
+test("#829 the recorded screen crashes are appended to recent-errors.txt", async () => {
+  const { bytes, names } = buildProblemReport({ what: "x", info: { app: "0.1", crashLogTail: '{"at":"2026-10-24","scope":"app","message":"Minified React error #185"}\n' }, includeShot: false, includeLog: false });
+  assert.ok(!names.includes("screen-crashes.txt"), "no separate file: it is part of the listed recent errors");
+  const z = await readZipEntries(bytes, /.*/);
+  assert.match(new TextDecoder().decode(z["recent-errors.txt"]), /SCREEN CRASHES RECORDED[\s\S]*React error #185/);
+});

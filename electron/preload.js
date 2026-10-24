@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld("desktop", {
   setLanguage: (code) => ipcRenderer.send("set-language", code), // TASKS.csv #786 — the native menu follows the interface language
   // TASKS.csv #598 — Help > Report a problem
   problemReportInfo: () => ipcRenderer.invoke("problem-report-info"),
+  recordCrash: (rec) => ipcRenderer.send("record-crash", rec), // TASKS.csv #829
   captureWindow: () => ipcRenderer.invoke("capture-window"),
   saveProblemReport: (bytes, name) => ipcRenderer.invoke("save-problem-report", { bytes, name }),
   emailSupport: (subject, body) => ipcRenderer.invoke("email-support", { subject, body }),

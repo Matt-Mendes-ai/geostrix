@@ -27,6 +27,10 @@ export default class ErrorBoundary extends React.Component {
       if (list) { list.push({ at: new Date().toISOString(), kind: "screen crash", message: String(error?.message || error).slice(0, 2000), stack: `${error?.stack || ""}
 ${info?.componentStack || ""}`.slice(0, 6000) }); if (list.length > 50) list.splice(0, list.length - 50); }
     } catch { /* never let reporting break the fallback */ }
+    // TASKS.csv #829 — and onto disk (desktop app), so it survives "Reload app": which boundary, which window
+    try {
+      window.desktop?.recordCrash?.({ scope: this.props.scope || "app", window: (typeof location !== "undefined" && location.hash) || "#/ (main window)", message: String(error?.message || error), stack: `${error?.stack || ""}\n${info?.componentStack || ""}` });
+    } catch { /* never let reporting break the fallback */ }
   }
   render() {
     if (!this.state.error) return this.props.children;

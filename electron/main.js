@@ -476,6 +476,19 @@ const tailOf = (file, maxBytes = 64 * 1024) => {
     return buf.toString("utf8");
   } catch { return null; }
 };
+// TASKS.csv #829 — a screen crash (a React error boundary caught it) is kept on disk, so it survives "Reload app" and
+// the next launch: one JSON line each in userData/screen-crashes.log, every field clipped, the file trimmed to its last
+// 128 KB once it passes 256 KB. Fixed path; the renderer only supplies the text.
+const crashLogPath = () => path.join(app.getPath("userData"), "screen-crashes.log");
+ipcMain.on("record-crash", (_e, rec) => {
+  try {
+    const clip = (v, n) => String(v ?? "").slice(0, n);
+    const line = JSON.stringify({ at: new Date().toISOString(), app: app.getVersion(), scope: clip(rec?.scope, 40), window: clip(rec?.window, 60), message: clip(rec?.message, 2000), stack: clip(rec?.stack, 8000) }) + "\n";
+    const f = crashLogPath();
+    try { if (fs.statSync(f).size > 256 * 1024) fs.writeFileSync(f, tailOf(f, 128 * 1024) || ""); } catch { /* no file yet */ }
+    fs.appendFileSync(f, line);
+  } catch { /* best effort: never let recording a crash cause another */ }
+});
 ipcMain.handle("problem-report-info", async () => {
   const os = require("os");
   let gpu = null;
@@ -490,6 +503,7 @@ ipcMain.handle("problem-report-info", async () => {
     display: `${disp.size.width}×${disp.size.height} @ ${disp.scaleFactor}x`,
     gpu, packaged: app.isPackaged, lastExitUnclean,
     sidecarLogTail: tailOf(path.join(app.getPath("userData"), "python-sidecar.log")),
+    crashLogTail: tailOf(crashLogPath(), 32 * 1024), // TASKS.csv #829
   };
 });
 ipcMain.handle("capture-window", async (e) => {
