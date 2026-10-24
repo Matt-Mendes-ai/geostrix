@@ -5616,5 +5616,19 @@
   "— choose —": "— اختر —",
   "Soil grid": "شبكة التربة",
   "Stream sites": "مواقع المجاري",
-  "The terrain's extent": "امتداد التضاريس"
+  "The terrain's extent": "امتداد التضاريس",
+  "GeoTIFF: band 1 = class (1 background, 2 above background, 3 anomalous), band 2 = site rank, band 3 = productivity; no data −9999; {epsg}.": "GeoTIFF: النطاق 1 = الفئة (1 خلفية، 2 فوق الخلفية، 3 شاذ)، النطاق 2 = ترتيب الموقع، النطاق 3 = الإنتاجية؛ بلا بيانات −9999؛ {epsg}.",
+  "no CRS set": "لم يُحدد نظام إحداثيات",
+  "The catchment grid as a GeoTIFF for QGIS": "شبكة المستجمعات كملف GeoTIFF لـ QGIS",
+  "Export the values of \"{name}\" as a GeoTIFF": "تصدير قيم \"{name}\" كملف GeoTIFF",
+  "Hot spots (Getis–Ord Gi*)": "البقع الساخنة (Getis–Ord Gi*)",
+  "Neighbours within (m)": "الجيران ضمن (م)",
+  "A hot spot is a sample whose neighbours are high with it; a lone spike among background is not one. Use a radius that reaches a few neighbours.": "البقعة الساخنة عينة يكون جيرانها مرتفعين معها؛ أما القمة المنفردة وسط الخلفية فليست كذلك. استخدم نصف قطر يصل إلى بضعة جيران.",
+  "Samples with classes (CSV)": "العينات مع الفئات (CSV)",
+  "cold spot (99 %)": "بقعة باردة (99 %)",
+  "cold spot (95 %)": "بقعة باردة (95 %)",
+  "not significant": "غير دال",
+  "hot spot (95 %)": "بقعة ساخنة (95 %)",
+  "hot spot (99 %)": "بقعة ساخنة (99 %)",
+  "Fewer than {min} samples with {sym}: no hot-spot statistic.": "أقل من {min} عينة تحوي {sym}: لا إحصاء للبقع الساخنة."
 }

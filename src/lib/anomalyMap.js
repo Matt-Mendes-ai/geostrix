@@ -13,6 +13,13 @@
 //
 // Coherence: an anomalous sample (top class) with fewer than `minNeighbours` other anomalous samples within `radius`
 // metres is "isolated" - usually a nugget, contamination or a typing error; coherent anomalies are the targets.
+//
+// TASKS.csv #853 — hot spots: the Getis-Ord Gi* statistic (Getis & Ord 1992, Geographical Analysis 24, 189-206) of the
+// log10 values, each sample with its neighbours within `radius` (itself included, binary weights): z > 0 where a sample
+// and its neighbours are high together, so a cluster of moderate values scores high and a lone spike among background
+// does not. Classes at the two-sided 95 % (1.96) and 99 % (2.576) levels, with NO correction for the many tests made
+// (one per sample): the usual practice, and a reason to read the 95 % class as a hint. On the logs because geochemical
+// values are skewed; the mean and SD are those of all the samples with the element.
 import { populations, groupKeyFn, candidateThresholds, robustZ, quantileSorted } from "./thresholds.js";
 import { valueIn } from "./geochem.js";
 
@@ -30,7 +37,8 @@ export const PATHFINDER_PRESETS = [
   { id: "iocg", label: "Iron oxide copper–gold (IOCG)", elements: ["Cu", "Au", "U", "La", "Ce", "Co"], ref: "Williams et al. 2005" },
 ];
 
-export const DEFAULT_ANOMALY = { mode: "medium", symbol: null, scheme: "threshold", preset: "porphyry", elements: null, groupBy: null, coherence: false, radius: 100, minNeighbours: 1 };
+export const DEFAULT_ANOMALY = { mode: "medium", symbol: null, scheme: "threshold", preset: "porphyry", elements: null, groupBy: null, coherence: false, radius: 100, minNeighbours: 1, hotRadius: 250 };
+export const HOTSPOT_MIN_SAMPLES = 8;
 const NODATA = "#e6e6e6";
 const SCHEMES = {
   threshold: ["#bdbdbd", "#fd8d3c", "#d7301f"],
@@ -43,6 +51,7 @@ const fmt = (v) => (v == null || !Number.isFinite(v) ? "—" : v >= 100 ? Math.r
 // -> { classOf: Int8Array (-1 no value), isolated: Uint8Array, classes: [{ label, color }], label, notes: [{ text, params }] (for t()), anomalousFrom }
 export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thresholds = [] } = {}) {
   const n = samples.length, classOf = new Int8Array(n).fill(-1), notes = [];
+  let stat = null; // #853 — the hot-spot z per sample
   const c = { ...DEFAULT_ANOMALY, ...cfg };
   let classes = [], label = "", anomalousFrom = Infinity;
   if (c.mode === "element" && c.symbol) {
@@ -96,6 +105,31 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
     classes = [{ label: "index below 1" }, { label: "index 1 to 2" }, { label: "index 2 to 3" }, { label: "index 3 and above" }].map((x, i) => ({ ...x, color: SCHEMES.index[i] }));
     anomalousFrom = 2;
     label = `${preset.label} index: mean robust z of ${els.join(", ") || "(none of its elements)"}${c.elements?.length ? " (edited)" : ""}; ${preset.ref}; within ${groupLabelOf(groupBy)}`;
+  } else if (c.mode === "hotspot" && c.symbol) { // TASKS.csv #853
+    const sym = c.symbol, unit = units[sym] || "ppm", R = Math.max(1, Number(c.hotRadius) || 250);
+    const idx = [], xs = [];
+    samples.forEach((s, i) => { const v = valueIn(s, sym, unit, units); if (v > 0) { idx.push(i); xs.push(Math.log10(v)); } });
+    const m = idx.length;
+    classes = [{ label: "cold spot (99 %)", color: "#2166ac" }, { label: "cold spot (95 %)", color: "#92c5de" }, { label: "not significant", color: "#bdbdbd" }, { label: "hot spot (95 %)", color: "#f4a582" }, { label: "hot spot (99 %)", color: "#b2182b" }];
+    anomalousFrom = 3;
+    if (m >= HOTSPOT_MIN_SAMPLES) {
+      const mean = xs.reduce((a, v) => a + v, 0) / m, S = Math.sqrt(xs.reduce((a, v) => a + (v - mean) ** 2, 0) / m);
+      const cell = new Map(), key = (x, y) => `${Math.floor(x / R)},${Math.floor(y / R)}`;
+      idx.forEach((i, k) => { const s = samples[i], kk = key(s.x, s.y); (cell.get(kk) || cell.set(kk, []).get(kk)).push(k); });
+      const z = new Float32Array(samples.length).fill(NaN);
+      idx.forEach((i, k) => {
+        const s = samples[i], cx = Math.floor(s.x / R), cy = Math.floor(s.y / R);
+        let W = 0, sum = 0;
+        for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (const j of cell.get(`${cx + dx},${cy + dy}`) || []) { const t = samples[idx[j]]; if (Math.hypot(t.x - s.x, t.y - s.y) <= R) { W++; sum += xs[j]; } }
+        const denom = S * Math.sqrt(Math.max(0, (m * W - W * W) / (m - 1)));
+        z[i] = denom > 0 ? (sum - mean * W) / denom : 0;
+        const g = z[i];
+        classOf[i] = g <= -2.576 ? 0 : g <= -1.96 ? 1 : g < 1.96 ? 2 : g < 2.576 ? 3 : 4;
+      });
+      stat = z;
+    } else notes.push({ text: "Fewer than {min} samples with {sym}: no hot-spot statistic.", params: { min: HOTSPOT_MIN_SAMPLES, sym } });
+    label = `${sym} (${unit}): Getis–Ord Gi* hot spots of log values, neighbours within ${R} m (Getis & Ord 1992); two-sided 95 % / 99 %, no correction for multiple tests`;
+    c.coherence = false; // already a spatial statistic
   } else {
     return null;
   }
@@ -120,7 +154,7 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
       ? { text: "{n} of {m} anomalous samples are isolated (no other anomalous sample within {r} m): drawn small.", params: { n: isolatedCount, m: anomalousCount, r: R } }
       : { text: "{n} of {m} anomalous samples are isolated (fewer than {need} anomalous neighbours within {r} m): drawn small.", params: { n: isolatedCount, m: anomalousCount, need, r: R } });
   }
-  return { classOf, isolated, classes, label, notes, anomalousFrom, noDataColor: NODATA, coherence: !!c.coherence, radius: c.radius, minNeighbours: c.minNeighbours };
+  return { classOf, isolated, classes, label, notes, anomalousFrom, noDataColor: NODATA, coherence: !!c.coherence, radius: c.radius, minNeighbours: c.minNeighbours, stat, mode: c.mode };
 }
 function groupLabelOf(groupBy) {
   if (!groupBy || groupBy === "none") return "all samples together";

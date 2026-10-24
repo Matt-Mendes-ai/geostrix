@@ -8,6 +8,7 @@ import { useStore } from "../lib/store.jsx";
 import { routeTerrainAsync } from "../lib/hydrologyClient.js";
 import { analyseCatchments, catchmentImage, streamNetwork, followUpGpx, STREAM_MEDIA, DEFAULT_CATCHMENT_OPTS } from "../lib/catchments.js";
 import { pointTransform } from "../lib/reproject.js";
+import { gridToGeoTIFF, nodeGridGeometry, saveGeoTIFF } from "../lib/gridExport.js"; // TASKS.csv #854
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
@@ -62,6 +63,22 @@ export default function CatchmentsPanel({ onClose }) {
   };
   const toLonLat = (() => { const T = project?.epsg ? pointTransform(project.epsg, 4326) : null; return (x, y) => (T ? T(x, y) : [x, y]); })();
   const exportGpx = () => saveFile({ suggestedName: `follow_up_${opts.symbol}.gpx`, filters: [{ name: "GPX", extensions: ["gpx"] }], content: followUpGpx(a, toLonLat, `Follow-up reaches: ${opts.symbol} in ${opts.medium}`) });
+  // TASKS.csv #854 — the catchment grid for QGIS: class / site rank / productivity per cell
+  const exportTif = () => {
+    const g = nodeGridGeometry(terrain), n = g.nx * g.ny;
+    const cls = new Float32Array(n).fill(NaN), rank = new Float32Array(n).fill(NaN), prod = new Float32Array(n).fill(NaN);
+    for (let k = 0; k < n; k++) {
+      const s = a.label[k];
+      if (s < 0) continue;
+      const r = a.results[s];
+      if (!r?.placed) continue;
+      cls[k] = r.anomalous ? 3 : r.value != null && a.background != null && r.value > a.background ? 2 : 1;
+      if (r.rank) rank[k] = r.rank;
+      if (r.productivity != null) prod[k] = r.productivity;
+    }
+    saveGeoTIFF(`catchments_${opts.symbol}.tif`, gridToGeoTIFF({ ...g, bands: [{ values: cls }, { values: rank }, { values: prod }], epsg: project?.epsg }));
+    setMsg(tr("GeoTIFF: band 1 = class (1 background, 2 above background, 3 anomalous), band 2 = site rank, band 3 = productivity; no data −9999; {epsg}.", { epsg: project?.epsg ? `EPSG:${project.epsg}` : tr("no CRS set") }));
+  };
   const exportCsv = () => saveFile({ suggestedName: `catchments_${opts.symbol}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(a.results.map((r) => ({
     rank: r.rank ?? "", sample_id: r.sample_id, x: r.x, y: r.y, [`${opts.symbol}_${unit}`]: r.value ?? "", catchment_km2: r.placed ? r.areaKm2.toFixed(4) : "", own_km2: r.placed ? r.ownKm2.toFixed(4) : "",
     strahler: r.order ?? "", snapped_m: r.placed ? r.moved.toFixed(0) : "", productivity: r.productivity == null ? "" : r.productivity.toFixed(3), anomalous: r.anomalous ? "yes" : "no",
@@ -99,6 +116,7 @@ export default function CatchmentsPanel({ onClose }) {
             <button type="button" style={btn(false)} onClick={showReaches} disabled={!a.results.some((r) => r.reach?.length > 1)}>{tr("Add follow-up reaches")}</button>
             <button type="button" style={{ ...btn(false), display: "flex", alignItems: "center", gap: 6 }} onClick={exportGpx} disabled={!a.results.some((r) => r.anomalous)}><Download size={14} />GPX</button>
             <button type="button" style={{ ...btn(false), display: "flex", alignItems: "center", gap: 6 }} onClick={exportCsv}><Download size={14} />CSV</button>
+            <button type="button" style={{ ...btn(false), display: "flex", alignItems: "center", gap: 6 }} onClick={exportTif} title={tr("The catchment grid as a GeoTIFF for QGIS")}><Download size={14} />GeoTIFF</button>
           </div>
           {msg && <div style={{ ...note, color: "var(--color-text)" }}>{msg}</div>}
           <div style={{ overflow: "auto", maxHeight: 380 }}>

@@ -3,11 +3,13 @@
 // spatial-coherence check. The settings live in the view state (layerStyles.surface_anomaly), so they are saved with
 // the project and in themes. Maths in lib/anomalyMap.js; the legend and notes come from the same result.
 import React, { useState } from "react";
+import Papa from "papaparse";
 import { PATHFINDER_PRESETS, DEFAULT_ANOMALY } from "../lib/anomalyMap.js";
+import { saveFile } from "../lib/desktop.js";
 import { groupOptions } from "../lib/thresholds.js";
 import { t as tr } from "../lib/i18n.js";
 
-export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSamples, surfaceElements, mapLayers, thresholds = [], result }) {
+export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSamples, surfaceElements, mapLayers, thresholds = [], result, drawn = [] }) {
   const cfg = { ...DEFAULT_ANOMALY, ...(cfg0 || {}) };
   const [open, setOpen] = useState(false);
   const set = (patch) => setCfg({ ...cfg, ...patch });
@@ -16,6 +18,12 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
   const els = cfg.elements?.length ? cfg.elements : preset.elements;
   const gOpts = groupOptions(surfaceSamples, mapLayers);
   const modeValue = cfg.mode === "element" ? `el:${cfg.symbol || ""}` : cfg.mode;
+  // TASKS.csv #854 — the drawn samples with their class (and the hot-spot z, #853) as CSV
+  const exportCsv = () => {
+    if (!result) return;
+    const rows = drawn.map((s, i) => ({ sample_id: s.sample_id, x: s.x, y: s.y, medium: s.medium, class: result.classOf[i] >= 0 ? result.classes[result.classOf[i]].label : "no value", isolated: result.isolated[i] ? "yes" : "", gi_star_z: result.stat && Number.isFinite(result.stat[i]) ? result.stat[i].toFixed(2) : "" }));
+    saveFile({ suggestedName: `anomaly_classes.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: `# ${result.label}\n` + Papa.unparse(rows) });
+  };
   const savedFor = (sym) => thresholds.some((t) => t.symbol === sym);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "0 2px 8px", fontSize: "var(--font-size-sm)" }}>
@@ -23,6 +31,7 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
         <select value={modeValue} onChange={(e) => { const v = e.target.value; if (v.startsWith("el:")) set({ mode: "element", symbol: v.slice(3) }); else set({ mode: v }); }} style={selStyle} aria-label={tr("Colour surface samples by")}>
           <option value="medium">{tr("Sampling medium")}</option>
           <option value="index">{tr("Pathfinder index")}</option>
+          <option value="hotspot">{tr("Hot spots (Getis–Ord Gi*)")}</option>
           {surfaceElements.map((e) => <option key={e.symbol} value={`el:${e.symbol}`}>{e.symbol}{savedFor(e.symbol) ? ` — ${tr("threshold saved")}` : ""}</option>)}
         </select>
         {cfg.mode !== "medium" && <button type="button" onClick={() => setOpen((o) => !o)} style={linkBtn} aria-expanded={open}>{open ? tr("Fewer options") : tr("Options")}</button>}
@@ -36,6 +45,18 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
                 <option value="percentile">{tr("Percentiles 50 / 75 / 90 / 95 / 98")}</option>
               </select>
             </label>
+          )}
+          {cfg.mode === "hotspot" && (
+            <>
+              <label style={row}>{tr("Element")}
+                <select value={cfg.symbol || ""} onChange={(e) => set({ symbol: e.target.value })} style={selStyle}>
+                  <option value="">{tr("— choose —")}</option>
+                  {surfaceElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol}</option>)}
+                </select>
+              </label>
+              <label style={row}>{tr("Neighbours within (m)")}<input type="number" min="1" step="10" value={cfg.hotRadius} onChange={(e) => set({ hotRadius: Math.max(1, Number(e.target.value) || 250) })} style={{ ...selStyle, width: 70 }} /></label>
+              <div style={{ color: "var(--color-text-muted)" }}>{tr("A hot spot is a sample whose neighbours are high with it; a lone spike among background is not one. Use a radius that reaches a few neighbours.")}</div>
+            </>
           )}
           {cfg.mode === "index" && (
             <>
@@ -54,16 +75,16 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
               <div style={{ color: "var(--color-text-muted)" }}>{preset.ref}</div>
             </>
           )}
-          <label style={row}>{tr("Populations")}
+          {cfg.mode !== "hotspot" && <label style={row}>{tr("Populations")}
             <select value={cfg.groupBy || ""} onChange={(e) => set({ groupBy: e.target.value || null })} style={{ ...selStyle, maxWidth: 190 }}>
               <option value="">{cfg.mode === "element" && cfg.scheme === "threshold" ? tr("As saved with the threshold") : tr("Sampling medium")}</option>
               {gOpts.map((o) => <option key={o.value} value={o.value}>{o.kind === "column" ? tr("Column: {v}", { v: o.label }) : o.kind === "map" ? tr("Map: {v}", { v: o.label }) : tr(o.label)}</option>)}
             </select>
-          </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          </label>}
+          {cfg.mode !== "hotspot" && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <input type="checkbox" checked={!!cfg.coherence} onChange={(e) => set({ coherence: e.target.checked })} />{tr("Mark isolated anomalies")}
-          </label>
-          {cfg.coherence && (
+          </label>}
+          {cfg.mode !== "hotspot" && cfg.coherence && (
             <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", color: "var(--color-text-secondary)" }}>
               {tr("at least")}<input type="number" min="1" step="1" value={cfg.minNeighbours} onChange={(e) => set({ minNeighbours: Math.max(1, Number(e.target.value) || 1) })} style={{ ...selStyle, width: 46 }} />
               {tr("anomalous neighbours within")}<input type="number" min="1" step="10" value={cfg.radius} onChange={(e) => set({ radius: Math.max(1, Number(e.target.value) || 100) })} style={{ ...selStyle, width: 64 }} />m
@@ -80,6 +101,7 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
             </div>
           ))}
           {result.notes.map((n) => <div key={n.text} style={{ color: "var(--color-warn-text)", fontSize: "var(--font-size-xs)", lineHeight: 1.35 }}>{tr(n.text, n.params)}</div>)}
+          <button type="button" onClick={exportCsv} style={{ ...linkBtn, alignSelf: "flex-start" }}>{tr("Samples with classes (CSV)")}</button>{/* TASKS.csv #854 */}
         </div>
       )}
     </div>

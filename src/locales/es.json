@@ -5616,5 +5616,19 @@
   "— choose —": "— elegir —",
   "Soil grid": "Malla de suelos",
   "Stream sites": "Sitios de drenaje",
-  "The terrain's extent": "La extensión del terreno"
+  "The terrain's extent": "La extensión del terreno",
+  "GeoTIFF: band 1 = class (1 background, 2 above background, 3 anomalous), band 2 = site rank, band 3 = productivity; no data −9999; {epsg}.": "GeoTIFF: banda 1 = clase (1 fondo, 2 sobre el fondo, 3 anómalo), banda 2 = puesto del sitio, banda 3 = productividad; sin dato −9999; {epsg}.",
+  "no CRS set": "sin CRS definido",
+  "The catchment grid as a GeoTIFF for QGIS": "La grilla de cuencas como GeoTIFF para QGIS",
+  "Export the values of \"{name}\" as a GeoTIFF": "Exportar los valores de \"{name}\" como GeoTIFF",
+  "Hot spots (Getis–Ord Gi*)": "Puntos calientes (Getis–Ord Gi*)",
+  "Neighbours within (m)": "Vecinos a menos de (m)",
+  "A hot spot is a sample whose neighbours are high with it; a lone spike among background is not one. Use a radius that reaches a few neighbours.": "Un punto caliente es una muestra cuyos vecinos son altos junto con ella; un pico aislado entre el fondo no lo es. Use un radio que alcance algunos vecinos.",
+  "Samples with classes (CSV)": "Muestras con clases (CSV)",
+  "cold spot (99 %)": "punto frío (99 %)",
+  "cold spot (95 %)": "punto frío (95 %)",
+  "not significant": "no significativo",
+  "hot spot (95 %)": "punto caliente (95 %)",
+  "hot spot (99 %)": "punto caliente (99 %)",
+  "Fewer than {min} samples with {sym}: no hot-spot statistic.": "Menos de {min} muestras con {sym}: sin estadístico de puntos calientes."
 }

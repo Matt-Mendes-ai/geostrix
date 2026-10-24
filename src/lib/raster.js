@@ -804,7 +804,7 @@ export function terrainToGeoTIFFArrayBuffer(terrain, projectEpsg) {
 // argument-count limit" gotcha already documented on voxel.js's coarsening fix, just for
 // String.fromCharCode.apply here instead of Math.min/max there. A merged terrain GeoTIFF (a real DEM
 // tile can easily be several MB) needs this to avoid "Maximum call stack size exceeded".
-function arrayBufferToBase64(buf) {
+export function arrayBufferToBase64(buf) { // exported for gridExport.js (#854)
   const bytes = new Uint8Array(buf);
   const chunkSize = 0x8000;
   let binary = "";
