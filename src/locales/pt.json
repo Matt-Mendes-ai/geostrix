@@ -5720,5 +5720,17 @@
   "Delete the explicit surface \"{name}\" with its picks and lines?": "Excluir a superfície explícita \"{name}\" com suas seleções e linhas?",
   "The surface shown is the previous build; it is not updated until the surface can be built again.": "A superfície mostrada é a construção anterior; ela não é atualizada até que a superfície possa ser construída de novo.",
   "All the points lie along one line (for example a single section): the surface is not defined to either side of it. Add picks or a line on another section. (A steep surface such as a dyke or fault picked in one plane: set Shape to Over its own plane.)": "Todos os pontos estão ao longo de uma linha (por exemplo, uma única seção): a superfície não está definida para nenhum dos lados. Adicione seleções ou uma linha em outra seção. (Para uma superfície íngreme como um dique ou falha selecionada em um só plano: defina Forma como Sobre o próprio plano.)",
-  "The picks lie in the plane of one drill section (the holes were drilled along it), so they cannot show how the contact runs across the section. Pick it on holes of another section, or draw it on a second section.": "As seleções estão no plano de uma única seção de furos (os furos foram perfurados ao longo dela), então não mostram como o contato segue através da seção. Selecione-o em furos de outra seção ou desenhe-o em uma segunda seção."
+  "The picks lie in the plane of one drill section (the holes were drilled along it), so they cannot show how the contact runs across the section. Pick it on holes of another section, or draw it on a second section.": "As seleções estão no plano de uma única seção de furos (os furos foram perfurados ao longo dela), então não mostram como o contato segue através da seção. Selecione-o em furos de outra seção ou desenhe-o em uma segunda seção.",
+  "Between the inputs the surface swings {d} m beyond them (near E {e}, N {n}): usually two inputs that disagree, such as a pick and a section line, or a pick on the wrong contact. Check the inputs there; the leave-one-out figure names the worst one.": "Entre os dados a superfície se afasta {d} m além deles (perto de E {e}, N {n}): normalmente dois dados que discordam, como uma seleção e uma linha de seção, ou uma seleção no contato errado. Verifique os dados ali; a validação cruzada aponta o pior.",
+  "{hole} at {md} m": "{hole} a {md} m",
+  "a 3D point": "um ponto 3D",
+  "a line on section {s}": "uma linha na seção {s}",
+  "a line point": "um ponto de linha",
+  "Leave-one-out: each input predicted from the others misses by {rms} m RMS, worst {max} m ({at}).": "Validação cruzada (deixar um de fora): cada dado previsto pelos outros erra {rms} m RMS, o pior {max} m ({at}).",
+  "Leave-one-out not computed above {n} points.": "Validação cruzada não calculada acima de {n} pontos.",
+  "{p} % of the surface lies beyond the inputs and is extrapolated (up to {d} m from the nearest).": "{p} % da superfície fica além dos dados e é extrapolada (até {d} m do mais próximo).",
+  "Built through {n} points ({picks} picks, {lines} section lines) in {ms} ms.": "Construída com {n} pontos ({picks} seleções, {lines} linhas de seção) em {ms} ms.",
+  "{frame}{cut}": "{frame}{cut}",
+  "Between the inputs it is the smoothest surface through them; beyond them it is extended with no data.": "Entre os dados é a superfície mais suave que passa por eles; além deles é estendida sem dados.",
+  "Auto: 15 % of the inputs' span. Everything beyond the inputs is extrapolated, not data.": "Auto: 15 % da extensão dos dados. Tudo além dos dados é extrapolado, não dado."
 }

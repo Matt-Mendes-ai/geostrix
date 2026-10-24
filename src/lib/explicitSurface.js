@@ -26,7 +26,7 @@ const dist3 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 
 // extraLines (#817): further hard lines, [{ ref, src, pts }] - mapped contacts and their dip guides (explicitMapLines.js)
 export function explicitPoints(def, sections, { spacing = 10, maxPoints = 1200, extraLines = [] } = {}) {
-  const picks = (def?.picks || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite)).map((p) => ({ x: p.x, y: p.y, z: p.z, src: "pick", ref: p.id, ...(p.dir ? { dir: p.dir } : {}) })); // dir: #856
+  const picks = (def?.picks || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite)).map((p) => ({ x: p.x, y: p.y, z: p.z, src: "pick", ref: p.id, ...(p.dir ? { dir: p.dir } : {}), ...(p.hole_id ? { hole: p.hole_id, md: p.md } : {}) })); // dir: #856; hole / md: #857 (named in the quality report)
   const lines = [];
   for (const s of sections || []) for (const c of s.contacts || []) {
     if (c.unit !== def?.name || c.isUpperContact === false || (c.kind && c.kind !== "contact")) continue;
@@ -158,6 +158,59 @@ function solveDense(A, b, M) {
 
 const phi = (r2) => (r2 > 0 ? 0.5 * r2 * Math.log(r2) : 0); // r^2 log r, from r^2
 
+// dense inverse by Gauss-Jordan with partial pivoting (A is overwritten); null when singular
+function invertDense(A, M) {
+  const I = new Float64Array(M * M);
+  for (let i = 0; i < M; i++) I[i * M + i] = 1;
+  for (let k = 0; k < M; k++) {
+    let piv = k, best = Math.abs(A[k * M + k]);
+    for (let i = k + 1; i < M; i++) { const v = Math.abs(A[i * M + k]); if (v > best) { best = v; piv = i; } }
+    if (!(best > 1e-12)) return null;
+    if (piv !== k) for (let j = 0; j < M; j++) { let t = A[k * M + j]; A[k * M + j] = A[piv * M + j]; A[piv * M + j] = t; t = I[k * M + j]; I[k * M + j] = I[piv * M + j]; I[piv * M + j] = t; }
+    const inv = 1 / A[k * M + k];
+    for (let j = 0; j < M; j++) { A[k * M + j] *= inv; I[k * M + j] *= inv; }
+    for (let i = 0; i < M; i++) {
+      if (i === k) continue;
+      const f = A[i * M + k];
+      if (f === 0) continue;
+      for (let j = 0; j < M; j++) { A[i * M + j] -= f * A[k * M + j]; I[i * M + j] -= f * I[k * M + j]; }
+    }
+  }
+  return I;
+}
+
+// TASKS.csv #857 — leave-one-out errors of the thin-plate spline without refitting N times: for an interpolant
+// s = A^-1 b, the error at point k when k is left out is c_k / (A^-1)_kk (Rippa 1999, Advances in Computational
+// Mathematics 11, 193-210; it holds for the system augmented with the linear part). One inverse: O(N^3).
+export const LOO_MAX_POINTS = 300;
+export function thinPlateLoo(u, v, w) {
+  const N = u.length, M = N + 3;
+  if (N < 4) return null;
+  let cu = 0, cv = 0;
+  for (let i = 0; i < N; i++) { cu += u[i]; cv += v[i]; }
+  cu /= N; cv /= N;
+  let L = 0;
+  for (let i = 0; i < N; i++) L = Math.max(L, Math.abs(u[i] - cu), Math.abs(v[i] - cv));
+  L = L || 1;
+  const su = Float64Array.from(u, (x) => (x - cu) / L), sv = Float64Array.from(v, (x) => (x - cv) / L);
+  const A = new Float64Array(M * M);
+  for (let i = 0; i < N; i++) {
+    for (let j = i + 1; j < N; j++) { const du = su[i] - su[j], dv = sv[i] - sv[j]; const k = phi(du * du + dv * dv); A[i * M + j] = k; A[j * M + i] = k; }
+    A[i * M + N] = 1; A[i * M + N + 1] = su[i]; A[i * M + N + 2] = sv[i];
+    A[N * M + i] = 1; A[(N + 1) * M + i] = su[i]; A[(N + 2) * M + i] = sv[i];
+  }
+  const Ai = invertDense(A, M);
+  if (!Ai) return null;
+  const e = new Float64Array(N);
+  for (let k = 0; k < N; k++) {
+    let c = 0;
+    for (let j = 0; j < N; j++) c += Ai[k * M + j] * w[j];
+    e[k] = c / Ai[k * M + k];
+  }
+  return e;
+}
+const pointInPoly = (x, y, poly) => { let inside = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside; } return inside; };
+
 // Thin-plate spline through (u, v, w) exactly. Coordinates are scaled to about unit size first (conditioning).
 export function thinPlate(u, v, w) {
   const N = u.length, M = N + 3;
@@ -244,6 +297,43 @@ export function fitExplicitSurface(points, { margin = null, resolution = 80, gro
     node2.push(u, v); nodeW.push(f(u, v));
   }
   for (let k = 0; k < U.length; k++) { node2.push(U[k], V[k]); nodeW.push(W[k]); }
+  // TASKS.csv #857 / #870 — what the surface does where there is no data. The fit at the inputs is exact by construction
+  // (residualMax ~ 1e-12 m says only that the solver worked), so it reports instead: (a) how far the surface swings
+  // beyond the inputs' own range INSIDE their hull - a spike between two inputs that disagree; (b) leave-one-out errors -
+  // how well each input is predicted by the others; (c) how much of the surface lies outside the inputs' hull
+  // (extrapolated) and how far its furthest point is from any input.
+  const quality = { overshootM: 0, overshootAt: null, beyondPct: 0, furthestM: 0, looRmsM: null, looMaxM: null, looWorst: null, looSkipped: U.length > LOO_MAX_POINTS };
+  {
+    const hull = U.length >= 3 ? new Delaunay(Float64Array.from(uvw.flatMap((q) => [q[0], q[1]]))).hullPolygon() : null;
+    const wmin = Math.min(...W), wmax = Math.max(...W);
+    const nGrid = node2.length / 2 - U.length;
+    let outside = 0;
+    for (let k = 0; k < nGrid; k++) {
+      const u = node2[2 * k], v = node2[2 * k + 1], w = nodeW[k];
+      let dmin = Infinity;
+      for (let q = 0; q < U.length; q++) { const d = (U[q] - u) ** 2 + (V[q] - v) ** 2; if (d < dmin) dmin = d; }
+      quality.furthestM = Math.max(quality.furthestM, Math.sqrt(dmin));
+      if (hull && pointInPoly(u, v, hull)) {
+        const over = Math.max(w - wmax, wmin - w);
+        if (over > quality.overshootM) { quality.overshootM = over; quality.overshootAt = fromF(u, v, w); }
+      } else outside++;
+    }
+    quality.beyondPct = nGrid ? (100 * outside) / nGrid : 0;
+    if (quality.overshootM > Math.max(10, 0.2 * (wmax - wmin))) {
+      const [x, y] = quality.overshootAt;
+      warnings.push(tr("Between the inputs the surface swings {d} m beyond them (near E {e}, N {n}): usually two inputs that disagree, such as a pick and a section line, or a pick on the wrong contact. Check the inputs there; the leave-one-out figure names the worst one.", { d: quality.overshootM.toFixed(0), e: x.toFixed(0), n: y.toFixed(0) }));
+    }
+    if (!quality.looSkipped) {
+      const e = thinPlateLoo(U, V, W);
+      if (e) {
+        let s2 = 0, worst = 0, wi = 0;
+        for (let k = 0; k < e.length; k++) { s2 += e[k] * e[k]; if (Math.abs(e[k]) > worst) { worst = Math.abs(e[k]); wi = k; } }
+        const p = used[wi];
+        quality.looRmsM = Math.sqrt(s2 / e.length); quality.looMaxM = worst;
+        quality.looWorst = { src: p.src, ref: p.ref ?? null, hole: p.hole ?? null, md: p.md ?? null, x: p.x, y: p.y, z: p.z };
+      }
+    }
+  }
   const del = new Delaunay(Float64Array.from(node2));
   const nv = nodeW.length;
   const world = [];
@@ -271,5 +361,5 @@ export function fitExplicitSurface(points, { margin = null, resolution = 80, gro
     const flip = dot(nn, F.n) < 0;
     indices[3 * k] = a; indices[3 * k + 1] = flip ? c : b; indices[3 * k + 2] = flip ? b : c;
   });
-  return { positions, indices, n: used.length, frame: F, residualMax, warnings, groundCut, cell: Math.min(du, dv), margin: m };
+  return { positions, indices, n: used.length, frame: F, residualMax, warnings, groundCut, cell: Math.min(du, dv), margin: m, quality };
 }

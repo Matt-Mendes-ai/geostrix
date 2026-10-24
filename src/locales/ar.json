@@ -5720,5 +5720,17 @@
   "Delete the explicit surface \"{name}\" with its picks and lines?": "حذف السطح الصريح \"{name}\" مع نقاطه وخطوطه؟",
   "The surface shown is the previous build; it is not updated until the surface can be built again.": "السطح المعروض هو البناء السابق؛ ولن يُحدَّث حتى يمكن بناء السطح من جديد.",
   "All the points lie along one line (for example a single section): the surface is not defined to either side of it. Add picks or a line on another section. (A steep surface such as a dyke or fault picked in one plane: set Shape to Over its own plane.)": "كل النقاط على خط واحد (مثل مقطع واحد): السطح غير محدد على جانبيه. أضف نقاطًا أو خطًا على مقطع آخر. (لسطح شديد الميل كقاطع أو صدع التُقط في مستوى واحد: اضبط الشكل على «فوق مستواه الخاص».)",
-  "The picks lie in the plane of one drill section (the holes were drilled along it), so they cannot show how the contact runs across the section. Pick it on holes of another section, or draw it on a second section.": "النقاط في مستوى مقطع حفر واحد (حُفرت الثقوب على امتداده)، لذا لا تُظهر كيف يمتد التماس عبر المقطع. التقطه على ثقوب مقطع آخر أو ارسمه على مقطع ثانٍ."
+  "The picks lie in the plane of one drill section (the holes were drilled along it), so they cannot show how the contact runs across the section. Pick it on holes of another section, or draw it on a second section.": "النقاط في مستوى مقطع حفر واحد (حُفرت الثقوب على امتداده)، لذا لا تُظهر كيف يمتد التماس عبر المقطع. التقطه على ثقوب مقطع آخر أو ارسمه على مقطع ثانٍ.",
+  "Between the inputs the surface swings {d} m beyond them (near E {e}, N {n}): usually two inputs that disagree, such as a pick and a section line, or a pick on the wrong contact. Check the inputs there; the leave-one-out figure names the worst one.": "بين المدخلات يحيد السطح {d} م خارجها (قرب E {e}، N {n}): عادةً مدخلان متعارضان، مثل نقطة وخط مقطع، أو نقطة على التماس الخطأ. افحص المدخلات هناك؛ والتحقق بالإسقاط يسمّي أسوأها.",
+  "{hole} at {md} m": "{hole} عند {md} م",
+  "a 3D point": "نقطة ثلاثية الأبعاد",
+  "a line on section {s}": "خط على المقطع {s}",
+  "a line point": "نقطة خط",
+  "Leave-one-out: each input predicted from the others misses by {rms} m RMS, worst {max} m ({at}).": "التحقق بإسقاط واحد: كل مُدخل متنبأ به من البقية يخطئ بـ {rms} م RMS، والأسوأ {max} م ({at}).",
+  "Leave-one-out not computed above {n} points.": "لا يُحسب التحقق بالإسقاط فوق {n} نقطة.",
+  "{p} % of the surface lies beyond the inputs and is extrapolated (up to {d} m from the nearest).": "يقع {p} % من السطح خارج المدخلات وهو مستقرأ (حتى {d} م من أقربها).",
+  "Built through {n} points ({picks} picks, {lines} section lines) in {ms} ms.": "بُني عبر {n} نقطة ({picks} نقطة ملتقطة، {lines} خط مقطع) في {ms} مللي ثانية.",
+  "{frame}{cut}": "{frame}{cut}",
+  "Between the inputs it is the smoothest surface through them; beyond them it is extended with no data.": "بين المدخلات هو أنعم سطح يمر بها؛ وخارجها يُمدّ دون بيانات.",
+  "Auto: 15 % of the inputs' span. Everything beyond the inputs is extrapolated, not data.": "تلقائي: 15 % من امتداد المدخلات. كل ما يتجاوز المدخلات مستقرأ وليس بيانات."
 }

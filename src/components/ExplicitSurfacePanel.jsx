@@ -6,7 +6,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Crosshair, Move, Undo2, Trash2, X as XIcon, Pencil } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
-import { explicitPoints, fitExplicitSurface } from "../lib/explicitSurface.js";
+import { LOO_MAX_POINTS, explicitPoints, fitExplicitSurface } from "../lib/explicitSurface.js";
 import { findOnTraceWorld, traceDirWorld } from "../lib/viewer/modelHelpers.js";
 import { sampleTerrainElevation } from "../lib/viewer/geomath.js";
 import { dragTarget } from "../lib/explicitDrag.js"; // TASKS.csv #813
@@ -69,7 +69,10 @@ function upsertMesh(sc, def, res, info) {
   const tip = `${def.name} — explicit surface\n${res.n} points (${info.picks} picks, ${info.lines} section lines${info.mapLines ? `, ${info.mapLines} mapped contact lines` : ""}${info.guideLines ? `, ${info.guideLines} dip guide lines` : ""})`;
   const params = { tool: "explicit surface (thin-plate spline exactly through hand-picked contacts)", picks: info.picks, sectionLines: info.lines, sections: info.sections, lineSpacingM: info.spacing ? Math.round(info.spacing * 10) / 10 : null, points: res.n,
     mapContacts: (def.mapContacts || []).map((c) => c.units.join(" | ")), mapLines: info.mapLines || 0, dipGuide: info.guideLines ? { depthM: def.dipGuide?.depth, lines: info.guideLines, constructed: true } : null, // #817
-    frame: res.frame.steep ? `over its best-fit plane (dip ${res.frame.dip.toFixed(1)}°)` : "elevation over the map", maxMisfitM: Number(res.residualMax.toExponential(2)), marginM: Math.round(res.margin), cutAtTerrain: res.groundCut > 0, builtAt: new Date().toISOString(),
+    frame: res.frame.steep ? `over its best-fit plane (dip ${res.frame.dip.toFixed(1)}°)` : "elevation over the map", maxMisfitM: Number(res.residualMax.toExponential(2)), marginM: Math.round(res.margin),
+    // TASKS.csv #857 / #870 — the quality figures (maxMisfitM is only solver health: the fit at the inputs is exact by construction)
+    looRmsM: res.quality.looRmsM == null ? null : Number(res.quality.looRmsM.toFixed(2)), looMaxM: res.quality.looMaxM == null ? null : Number(res.quality.looMaxM.toFixed(2)),
+    overshootM: Number(res.quality.overshootM.toFixed(1)), extrapolatedPct: Math.round(res.quality.beyondPct), furthestFromInputM: Math.round(res.quality.furthestM), cutAtTerrain: res.groundCut > 0, builtAt: new Date().toISOString(),
     builtKey: info.key }; // TASKS.csv #886 — saved with the surface, so a reopened project does not rebuild (and dirty) it
   sc.activity.current = Date.now();
   const old = def.surfaceId && sc.meshes.current[def.surfaceId];
@@ -510,8 +513,13 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
         // #828 — the mesh remembers its key (userData.builtKey); the def is only written when it had no mesh id yet (a
         // surface from before #828), so building is never an Undo step of its own that would hide the real edit
         if (surfaceId !== def.surfaceId) setDefs((p) => p.map((d) => (d.id === def.id ? { ...d, surfaceId } : d)));
-        setStatus({ ok: true, text: tr("Built through {n} points ({picks} picks, {lines} section lines) in {ms} ms; largest misfit at a point {mm} mm. {frame}{cut}", {
-          n: res.n, picks: ep.picks, lines: ep.lines, ms, mm: (res.residualMax * 1000).toFixed(3),
+        // TASKS.csv #857 / #870 — what tells a geologist something: leave-one-out and how much is extrapolated (the old
+        // "largest misfit 0.000 mm" was the solver's round-off at the inputs, always ~0 by construction)
+        const q = res.quality, w = q.looWorst;
+        const at = !w ? "" : w.hole ? tr("{hole} at {md} m", { hole: w.hole, md: Number(w.md).toFixed(1) }) : w.src === "pick" ? tr("a 3D point") : w.src === "section" ? tr("a line on section {s}", { s: w.ref }) : tr("a line point");
+        const loo = q.looRmsM != null ? ` ${tr("Leave-one-out: each input predicted from the others misses by {rms} m RMS, worst {max} m ({at}).", { rms: q.looRmsM.toFixed(1), max: q.looMaxM.toFixed(1), at })}` : q.looSkipped ? ` ${tr("Leave-one-out not computed above {n} points.", { n: LOO_MAX_POINTS })}` : "";
+        const beyond = ` ${tr("{p} % of the surface lies beyond the inputs and is extrapolated (up to {d} m from the nearest).", { p: Math.round(q.beyondPct), d: Math.round(q.furthestM) })}`;
+        setStatus({ ok: true, text: tr("Built through {n} points ({picks} picks, {lines} section lines) in {ms} ms.", { n: res.n, picks: ep.picks, lines: ep.lines, ms }) + loo + beyond + " " + tr("{frame}{cut}", {
           frame: res.frame.steep ? tr("Steep surface (best-fit plane dips {d}°): modelled over its own plane.", { d: res.frame.dip.toFixed(0) }) : tr("Modelled as elevation over the map."),
           cut: res.groundCut ? tr(" Cut at the terrain.") : "",
         }) + (ep.drawnLines ? ` ${tr("Includes {n} line(s) digitized on section images.", { n: ep.drawnLines })}` : "") + (ep.mapLines ? ` ${tr("Includes {m} mapped contact line(s){g}.", { m: ep.mapLines, g: ep.guideLines ? tr(" and {g} dip guide line(s) (constructed, {d} m down-dip)", { g: ep.guideLines, d: Number(def.dipGuide?.depth) || 100 }) : "" })}` : "")
@@ -553,7 +561,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
   return (
     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-        {tr("A surface that passes exactly through your own picks: contacts clicked on holes (or anything else) in the 3D view, and lines drawn on sections with its name. Nothing is interpolated away; it rebuilds as you pick.")}
+        {tr("A surface that passes exactly through your own picks: contacts clicked on holes (or anything else) in the 3D view, and lines drawn on sections with its name. Nothing is interpolated away; it rebuilds as you pick.")}{" "}{tr("Between the inputs it is the smoothest surface through them; beyond them it is extended with no data.") /* TASKS.csv #870 */}
       </div>
       <div style={row}>
         <select value={def?.id || ""} onChange={(e) => { if (digDrawing) { finishLine(); setDigDrawing(false); setDigHover(null); } setSelId(e.target.value); setPickFor(null); }} disabled={!defs.length} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Explicit surface")}>
@@ -712,9 +720,9 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
             </>)}
           </>)}
         </div>
-        <div style={row}>
+        <div style={row} title={tr("Auto: 15 % of the inputs' span. Everything beyond the inputs is extrapolated, not data.") /* TASKS.csv #870 */}>
           <span style={{ width: 120, flexShrink: 0 }}>{tr("Extend beyond picks")}</span>
-          <input type="number" min={0} step={10} value={def.margin ?? ""} placeholder={tr("auto")} onChange={(e) => update({ margin: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })} style={{ ...numInput, width: 64 }} /><span>m</span>
+          <input type="number" min={0} step={10} value={def.margin ?? ""} placeholder={tr("auto")} onChange={(e) => update({ margin: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })} style={{ ...numInput, width: 64 }} aria-label={tr("Extend beyond picks")} /><span>m</span>
         </div>
         <div style={row} title={tr("Automatic: lines drawn on sections decide (an overall dip under 45° on the sections gives elevation over the map); otherwise the best-fit plane of the points (steeper than 30°: over that plane)")}>
           <span style={{ width: 120, flexShrink: 0 }}>{tr("Shape")}</span>
