@@ -5356,5 +5356,15 @@
   "Free Sentinel-2 imagery (no account): the latest clear scene over an area you draw": "صور Sentinel-2 مجانية (بدون حساب): أحدث مشهد صافٍ فوق منطقة ترسمها",
   "Latest clear Sentinel-2 scene — Copernicus data, free for any use with attribution": "أحدث مشهد Sentinel-2 صافٍ — بيانات Copernicus، حرة لأي استخدام مع ذكر المصدر",
   "Higher levels keep more of the 10 m detail over a large area. Sentinel-2 imagery has 10 m pixels: past that, a higher level adds nothing.": "المستويات الأعلى تحتفظ بمزيد من تفاصيل الـ 10 م فوق منطقة كبيرة. صور Sentinel-2 بكسلها 10 م: بعد ذلك لا يضيف المستوى الأعلى شيئًا.",
-  "~{v} m pixels · image {gridW} × {gridH} px{v3}": "بكسل ~{v} م · صورة {gridW} × {gridH} بكسل{v3}"
+  "~{v} m pixels · image {gridW} × {gridH} px{v3}": "بكسل ~{v} م · صورة {gridW} × {gridH} بكسل{v3}",
+  "{n} of {total} requests failed and are left transparent.": "فشل {n} من {total} طلبًا وتُركت شفافة.",
+  "Imported \"{title}\" as a raster drape: {w} × {h} px, ~{m} m pixels ({tiles} map requests).": "تم استيراد \"{title}\" كصورة نقطية مُغطّاة: {w} × {h} بكسل، بكسل ~{m} م ({tiles} طلبات خريطة).",
+  "Detail": "التفاصيل",
+  "Image detail": "تفاصيل الصورة",
+  "The longest side of the imported image. Larger images are fetched as several map requests and stitched; they take longer and make the project file bigger.": "الضلع الأطول للصورة المستوردة. الصور الأكبر تُجلب بعدة طلبات خريطة وتُدمج؛ تستغرق وقتًا أطول وتكبّر ملف المشروع.",
+  "{label} ({px} px)": "{label} ({px} بكسل)",
+  "~{m} m pixels · {w} × {h} px · {n} map requests": "بكسل ~{m} م · {w} × {h} بكسل · {n} طلبات خريطة",
+  "Only as sharp as the service's own imagery: past its native resolution a higher detail just enlarges the same pixels. Use services whose terms allow you to save their images.": "لا تكون أوضح من صور الخدمة نفسها: بعد دقتها الأصلية، التفاصيل الأعلى تكبّر البكسلات نفسها فقط. استخدم خدمات تسمح شروطها بحفظ صورها.",
+  "High": "عالية",
+  "Very high": "عالية جدًا"
 }

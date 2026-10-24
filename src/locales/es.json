@@ -5356,5 +5356,15 @@
   "Free Sentinel-2 imagery (no account): the latest clear scene over an area you draw": "Imágenes Sentinel-2 gratuitas (sin cuenta): la escena despejada más reciente sobre un área que dibuje",
   "Latest clear Sentinel-2 scene — Copernicus data, free for any use with attribution": "Escena Sentinel-2 despejada más reciente — datos Copernicus, libres para cualquier uso con atribución",
   "Higher levels keep more of the 10 m detail over a large area. Sentinel-2 imagery has 10 m pixels: past that, a higher level adds nothing.": "Los niveles más altos conservan más del detalle de 10 m en un área grande. Las imágenes Sentinel-2 tienen píxeles de 10 m: más allá de eso, un nivel mayor no añade nada.",
-  "~{v} m pixels · image {gridW} × {gridH} px{v3}": "píxeles de ~{v} m · imagen de {gridW} × {gridH} px{v3}"
+  "~{v} m pixels · image {gridW} × {gridH} px{v3}": "píxeles de ~{v} m · imagen de {gridW} × {gridH} px{v3}",
+  "{n} of {total} requests failed and are left transparent.": "{n} de {total} solicitudes fallaron y quedan transparentes.",
+  "Imported \"{title}\" as a raster drape: {w} × {h} px, ~{m} m pixels ({tiles} map requests).": "Se importó \"{title}\" como ráster superpuesto: {w} × {h} px, píxeles de ~{m} m ({tiles} solicitudes de mapa).",
+  "Detail": "Detalle",
+  "Image detail": "Detalle de la imagen",
+  "The longest side of the imported image. Larger images are fetched as several map requests and stitched; they take longer and make the project file bigger.": "El lado más largo de la imagen importada. Las imágenes más grandes se obtienen con varias solicitudes de mapa y se unen; tardan más y aumentan el tamaño del archivo del proyecto.",
+  "{label} ({px} px)": "{label} ({px} px)",
+  "~{m} m pixels · {w} × {h} px · {n} map requests": "píxeles de ~{m} m · {w} × {h} px · {n} solicitudes de mapa",
+  "Only as sharp as the service's own imagery: past its native resolution a higher detail just enlarges the same pixels. Use services whose terms allow you to save their images.": "Solo tan nítida como las imágenes del propio servicio: más allá de su resolución nativa, un detalle mayor solo amplía los mismos píxeles. Use servicios cuyas condiciones permitan guardar sus imágenes.",
+  "High": "Alta",
+  "Very high": "Muy alta"
 }

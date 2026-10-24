@@ -68,6 +68,9 @@ function num(v) { const n = parseFloat(v); return Number.isFinite(n) ? n : null;
 export async function fetchWmsLayers(baseUrl) {
   const xml = await fetchText(buildQuery(baseUrl, { SERVICE: "WMS", REQUEST: "GetCapabilities", VERSION: "1.1.1" }));
   const doc = parseXml(xml);
+  // TASKS.csv #840 — the largest GetMap image the server will draw (WMS 1.1.1 <Service><MaxWidth>/<MaxHeight>,
+  // optional; most servers that omit it still cap a request somewhere around 2048-4096 px)
+  const maxWidth = num(text(doc, "Service > MaxWidth")), maxHeight = num(text(doc, "Service > MaxHeight"));
   const layerEls = Array.from(doc.querySelectorAll("Layer")).filter((el) => text(el, ":scope > Name"));
   return layerEls.map((el) => {
     const name = text(el, ":scope > Name");
@@ -87,7 +90,7 @@ export async function fetchWmsLayers(baseUrl) {
     const bboxLonLat = bboxEl
       ? [num(bboxEl.getAttribute("minx")), num(bboxEl.getAttribute("miny")), num(bboxEl.getAttribute("maxx")), num(bboxEl.getAttribute("maxy"))]
       : null;
-    return { name, title, abstract, bboxLonLat: bboxLonLat && bboxLonLat.every((v) => v != null) ? bboxLonLat : null };
+    return { name, title, abstract, bboxLonLat: bboxLonLat && bboxLonLat.every((v) => v != null) ? bboxLonLat : null, maxWidth, maxHeight };
   });
 }
 
@@ -106,14 +109,46 @@ export function wmsImageSize(bboxLonLat, longPx = 1024) {
   const s = longPx / Math.max(w, h);
   return { width: Math.max(64, Math.round(w * s)), height: Math.max(64, Math.round(h * s)) };
 }
+// TASKS.csv #840 — Matt: "Bigger WMS requests for orthophoto services a user has rights to ... Today a WMS layer comes
+// in at 1,024 px; stitching several requests would allow metre-scale." The detail level is the longest side of the
+// imported image; a request larger than the server draws in one go is split into a grid of GetMap tiles, each at most
+// `maxRequest` px, and stitched. In EPSG:4326 a WMS 1.1.1 image is linear in lon / lat with the BBOX edges on pixel
+// edges, so tiles cut on whole pixels of the full image meet exactly. 4,096 px is the top: a 64 MB canvas (and as much
+// again while it is warped into the project CRS), and the largest texture every GPU GeoStrix targets can hold.
+export const WMS_DETAIL = {
+  standard: { label: "Standard", longPx: 1024 },
+  high: { label: "High", longPx: 2048 },
+  veryhigh: { label: "Very high", longPx: 4096 },
+};
+export const WMS_DEFAULT_MAX_REQUEST = 2048; // when the server states no MaxWidth / MaxHeight
+// Ground size of one pixel (metres, the longer of the two directions) for an area at a long side of `longPx`
+export function wmsPixelMetres(bboxLonLat, longPx = 1024) {
+  const [lonMin, latMin, lonMax, latMax] = bboxLonLat;
+  const midLat = ((latMin + latMax) / 2) * Math.PI / 180;
+  const wM = (lonMax - lonMin) * Math.cos(midLat) * 111320, hM = (latMax - latMin) * 110574;
+  const { width, height } = wmsImageSize(bboxLonLat, longPx);
+  return Math.max(wM / width, hM / height);
+}
+// The GetMap tiles for a width x height image: [{ x0, y0, w, h }] in its pixels, row by row, none over maxW x maxH
+export function wmsTilePlan(width, height, maxW = WMS_DEFAULT_MAX_REQUEST, maxH = maxW) {
+  const nx = Math.ceil(width / Math.max(64, maxW)), ny = Math.ceil(height / Math.max(64, maxH));
+  const cut = (n, size) => Array.from({ length: n + 1 }, (_, i) => Math.round((i * size) / n));
+  const xs = cut(nx, width), ys = cut(ny, height), out = [];
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) out.push({ x0: xs[i], y0: ys[j], w: xs[i + 1] - xs[i], h: ys[j + 1] - ys[j] });
+  return out;
+}
+// A tile's own lon / lat BBOX inside the full request (row 0 = north)
+export function wmsTileBbox([lonMin, latMin, lonMax, latMax], width, height, { x0, y0, w, h }) {
+  const dx = (lonMax - lonMin) / width, dy = (latMax - latMin) / height;
+  return [lonMin + x0 * dx, latMax - (y0 + h) * dy, lonMin + (x0 + w) * dx, latMax - y0 * dy];
+}
+
 // TASKS.csv #543 — which area a WMS import starts with: the project's own area when there is one (a provincial
 // layer's declared extent is all of BC, ~1.5-2 km a pixel at 1024 px), the layer's extent only without a project.
 export function defaultWmsArea(layerBboxLonLat, projectBboxLonLat) {
   return projectBboxLonLat || layerBboxLonLat || null;
 }
-export async function fetchWmsMapAsRaster({ baseUrl, layerName, bboxLonLat, projectEpsg, width, height, transparent = true, format = "image/png" }) {
-  const [lonMin, latMin, lonMax, latMax] = bboxLonLat;
-  if (!width || !height) ({ width, height } = wmsImageSize(bboxLonLat)); // #543
+async function getMapTile(baseUrl, layerName, [lonMin, latMin, lonMax, latMax], width, height, transparent, format) {
   const url = buildQuery(baseUrl, {
     SERVICE: "WMS", REQUEST: "GetMap", VERSION: "1.1.1",
     LAYERS: layerName, STYLES: "", SRS: "EPSG:4326",
@@ -129,6 +164,14 @@ export async function fetchWmsMapAsRaster({ baseUrl, layerName, bboxLonLat, proj
     try { message = parseXml(bodyText).querySelector("ServiceException, Exception")?.textContent?.trim() || message; } catch { /* fall through to the generic message */ }
     throw new Error(message);
   }
+  return createImageBitmap(new Blob([arrayBuffer], { type: contentType || format }));
+}
+
+export async function fetchWmsMapAsRaster({ baseUrl, layerName, bboxLonLat, projectEpsg, width, height, longPx = 1024, maxRequest = null, transparent = true, format = "image/png", onProgress }) {
+  const [lonMin, latMin, lonMax, latMax] = bboxLonLat;
+  if (!width || !height) ({ width, height } = wmsImageSize(bboxLonLat, longPx)); // #543 / #840
+  const maxW = Math.min(4096, maxRequest?.width || WMS_DEFAULT_MAX_REQUEST), maxH = Math.min(4096, maxRequest?.height || maxRequest?.width || WMS_DEFAULT_MAX_REQUEST);
+  const tiles = wmsTilePlan(width, height, maxW, maxH);
   // TASKS.csv #418 — WARP the pixels into the project CRS. The image used to be stretched over the
   // projected bounding box of its four corners, which is only right at the corners: a lon/lat grid is
   // curved and rotated in UTM, so the interior was measured 148 m off over a 10 km area at -130.1 and
@@ -137,18 +180,38 @@ export async function fetchWmsMapAsRaster({ baseUrl, layerName, bboxLonLat, proj
   // transparent.
   const fromDef = getProj4DefSync(4326), toDef = getProj4DefSync(projectEpsg);
   if (!fromDef || !toDef) throw new Error(tr("Can't reproject WGS84 into the project's EPSG:{projectEpsg} — unrecognized target CRS.", { projectEpsg }));
-  const blob = new Blob([arrayBuffer], { type: contentType || format });
-  const bmp = await createImageBitmap(blob);
+  // #840 — the tiles, two at a time (polite to a government server), each drawn at its place in the full image; a
+  // tile that fails stays transparent and is counted, and if every tile fails the server's own message is thrown
   const src = document.createElement("canvas");
-  src.width = bmp.width; src.height = bmp.height;
+  src.width = width; src.height = height;
   const sctx = src.getContext("2d");
-  sctx.drawImage(bmp, 0, 0);
-  const pixels = sctx.getImageData(0, 0, bmp.width, bmp.height).data;
-  const rp = reprojectImageRGBA({ xmin: lonMin, ymin: latMin, xmax: lonMax, ymax: latMax, width: bmp.width, height: bmp.height, data: pixels }, fromDef, toDef, bmp.width, bmp.height);
+  const failed = [];
+  let done = 0, next = 0;
+  onProgress?.(0, tiles.length);
+  const worker = async () => {
+    while (next < tiles.length) {
+      const t = tiles[next++];
+      try {
+        const bmp = await getMapTile(baseUrl, layerName, wmsTileBbox(bboxLonLat, width, height, t), t.w, t.h, transparent, format);
+        sctx.drawImage(bmp, t.x0, t.y0, t.w, t.h);
+        bmp.close?.();
+      } catch (err) {
+        failed.push(err);
+      }
+      onProgress?.(++done, tiles.length);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(2, tiles.length) }, worker));
+  if (failed.length === tiles.length) throw failed[0];
+  const pixels = sctx.getImageData(0, 0, width, height).data;
+  const rp = reprojectImageRGBA({ xmin: lonMin, ymin: latMin, xmax: lonMax, ymax: latMax, width, height, data: pixels }, fromDef, toDef, width, height);
   const out = document.createElement("canvas");
   out.width = rp.width; out.height = rp.height;
   out.getContext("2d").putImageData(new ImageData(rp.data, rp.width, rp.height), 0, 0);
-  return { name: layerName, bbox: rp.bbox, dataUrl: out.toDataURL("image/png") };
+  // #840 — PNG as before up to 1,024 px (map layers keep crisp colours); larger images are stored as WebP (an orthophoto
+  // as PNG at 4,096 px would add tens of MB to every autosave), which keeps the transparent edges of the warp
+  const dataUrl = Math.max(width, height) > 1024 ? (() => { const w = out.toDataURL("image/webp", 0.9); return w.startsWith("data:image/webp") ? w : out.toDataURL("image/png"); })() : out.toDataURL("image/png");
+  return { name: layerName, bbox: rp.bbox, dataUrl, width, height, tiles: tiles.length, failedTiles: failed.length, pixelM: wmsPixelMetres(bboxLonLat, Math.max(width, height)) };
 }
 
 // ---------------- WFS ----------------

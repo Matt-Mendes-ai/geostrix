@@ -5356,5 +5356,15 @@
   "Free Sentinel-2 imagery (no account): the latest clear scene over an area you draw": "Imagerie Sentinel-2 gratuite (sans compte) : la scène dégagée la plus récente sur une zone que vous dessinez",
   "Latest clear Sentinel-2 scene — Copernicus data, free for any use with attribution": "Scène Sentinel-2 dégagée la plus récente — données Copernicus, libres pour tout usage avec attribution",
   "Higher levels keep more of the 10 m detail over a large area. Sentinel-2 imagery has 10 m pixels: past that, a higher level adds nothing.": "Les niveaux supérieurs conservent davantage du détail de 10 m sur une grande zone. L'imagerie Sentinel-2 a des pixels de 10 m : au-delà, un niveau supérieur n'apporte rien.",
-  "~{v} m pixels · image {gridW} × {gridH} px{v3}": "pixels de ~{v} m · image de {gridW} × {gridH} px{v3}"
+  "~{v} m pixels · image {gridW} × {gridH} px{v3}": "pixels de ~{v} m · image de {gridW} × {gridH} px{v3}",
+  "{n} of {total} requests failed and are left transparent.": "{n} requêtes sur {total} ont échoué et restent transparentes.",
+  "Imported \"{title}\" as a raster drape: {w} × {h} px, ~{m} m pixels ({tiles} map requests).": "« {title} » importé comme raster drapé : {w} × {h} px, pixels de ~{m} m ({tiles} requêtes de carte).",
+  "Detail": "Détail",
+  "Image detail": "Détail de l'image",
+  "The longest side of the imported image. Larger images are fetched as several map requests and stitched; they take longer and make the project file bigger.": "Le plus grand côté de l'image importée. Les images plus grandes sont obtenues en plusieurs requêtes de carte assemblées ; elles prennent plus de temps et alourdissent le fichier du projet.",
+  "{label} ({px} px)": "{label} ({px} px)",
+  "~{m} m pixels · {w} × {h} px · {n} map requests": "pixels de ~{m} m · {w} × {h} px · {n} requêtes de carte",
+  "Only as sharp as the service's own imagery: past its native resolution a higher detail just enlarges the same pixels. Use services whose terms allow you to save their images.": "Aussi nette que l'imagerie du service, pas plus : au-delà de sa résolution native, un détail supérieur ne fait qu'agrandir les mêmes pixels. Utilisez des services dont les conditions autorisent l'enregistrement de leurs images.",
+  "High": "Élevée",
+  "Very high": "Très élevée"
 }

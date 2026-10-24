@@ -3,7 +3,7 @@ import { X, Globe, Loader2, Download } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, panel, header, label as labelStyle, sel, inp, btn } from "../lib/modalStyles.js";
-import { fetchWmsLayers, fetchWmsMapAsRaster, fetchWfsFeatureTypes, fetchWfsFeaturesAsBoundary, defaultWmsArea, wfsTruncationText, pickWfsStyleField } from "../lib/webLayers.js";
+import { fetchWmsLayers, fetchWmsMapAsRaster, fetchWfsFeatureTypes, fetchWfsFeaturesAsBoundary, defaultWmsArea, wfsTruncationText, pickWfsStyleField, WMS_DETAIL, wmsImageSize, wmsPixelMetres, wmsTilePlan, WMS_DEFAULT_MAX_REQUEST } from "../lib/webLayers.js";
 import { buildLayer, autoColorFor } from "../lib/mapLayerBuild.js";
 import { autoCategories } from "../lib/mapLayers.js";
 import BasemapView from "./BasemapView.jsx";
@@ -34,6 +34,10 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
   const [bboxLonLat, setBboxLonLat] = useState(null); // WMS only
   const [clipToArea, setClipToArea] = useState(true); // WFS only
   const [wfsAs, setWfsAs] = useState("map"); // TASKS.csv #544 — "map": Map layer with attributes | "lines": boundary lines
+  // TASKS.csv #840 — WMS image detail (longest side), remembered per computer like the satellite fetch's level
+  const [wmsDetail, setWmsDetailState] = useState(() => { try { const v = localStorage.getItem("geostrix_wms_detail"); return WMS_DETAIL[v] ? v : "standard"; } catch { return "standard"; } });
+  const setWmsDetail = (v) => { setWmsDetailState(v); try { localStorage.setItem("geostrix_wms_detail", v); } catch { /* private window: session only */ } };
+  const [wmsProgress, setWmsProgress] = useState(null);
 
   const selectedLayer = layers?.find((l) => l.name === selectedName) || null;
 
@@ -69,9 +73,12 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
     try {
       if (service === "wms") {
         if (!bboxLonLat) throw new Error(tr("No area set — this layer has no declared extent and there's no project area to default to. Draw an area first."));
-        const raster = await fetchWmsMapAsRaster({ baseUrl: url.trim(), layerName: selectedLayer.name, bboxLonLat, projectEpsg });
+        const raster = await fetchWmsMapAsRaster({ baseUrl: url.trim(), layerName: selectedLayer.name, bboxLonLat, projectEpsg, longPx: WMS_DETAIL[wmsDetail].longPx,
+          maxRequest: { width: selectedLayer.maxWidth, height: selectedLayer.maxHeight }, onProgress: (done, total) => setWmsProgress(total > 1 ? { done, total } : null) }); // #840
         addRaster({ name: `WMS: ${selectedLayer.title || selectedLayer.name}`, bbox: raster.bbox, dataUrl: raster.dataUrl });
-        setResult({ ok: true, text: `Imported "${selectedLayer.title || selectedLayer.name}" as a raster drape.` });
+        const title = selectedLayer.title || selectedLayer.name;
+        const failedNote = raster.failedTiles ? " " + tr("{n} of {total} requests failed and are left transparent.", { n: raster.failedTiles, total: raster.tiles }) : "";
+        setResult({ ok: !raster.failedTiles, warn: !!raster.failedTiles, text: tr("Imported \"{title}\" as a raster drape: {w} × {h} px, ~{m} m pixels ({tiles} map requests).", { title, w: raster.width, h: raster.height, m: fmtM(raster.pixelM), tiles: raster.tiles }) + failedNote });
       } else {
         const clip = clipToArea && defaultBboxLonLat ? defaultBboxLonLat : null;
         const boundary = await fetchWfsFeaturesAsBoundary({ baseUrl: url.trim(), typeName: selectedLayer.name, projectEpsg, clipBboxLonLat: clip });
@@ -99,8 +106,16 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
       setResult({ ok: false, text: err.message });
     } finally {
       setBusy(false);
+      setWmsProgress(null);
     }
   };
+  // #840 — what the chosen detail gives for this area: image size, ground pixel, number of GetMap requests
+  const wmsPlan = (() => {
+    if (service !== "wms" || !selectedLayer || !bboxLonLat) return null;
+    const longPx = WMS_DETAIL[wmsDetail].longPx, { width, height } = wmsImageSize(bboxLonLat, longPx);
+    const maxW = Math.min(4096, selectedLayer.maxWidth || WMS_DEFAULT_MAX_REQUEST), maxH = Math.min(4096, selectedLayer.maxHeight || selectedLayer.maxWidth || WMS_DEFAULT_MAX_REQUEST);
+    return { width, height, m: wmsPixelMetres(bboxLonLat, longPx), requests: wmsTilePlan(width, height, maxW, maxH).length };
+  })();
 
   return (
     <div style={overlay} role="dialog" aria-modal="true" onClick={onClose}>
@@ -150,6 +165,15 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
               ) : (
                 <button onClick={() => setAreaPickerOpen(true)} style={{ ...btn(false), width: "auto", padding: "4px 8px" }}>{tr("Draw an area…")}</button>
               )}
+              <div style={{ ...labelStyle, marginTop: 10 }}>{tr("Detail")}</div>{/* TASKS.csv #840 */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-sm)", flexWrap: "wrap" }}>
+                <select value={wmsDetail} onChange={(e) => setWmsDetail(e.target.value)} aria-label={tr("Image detail")} style={{ ...sel, width: "auto" }}
+                  title={tr("The longest side of the imported image. Larger images are fetched as several map requests and stitched; they take longer and make the project file bigger.")}>
+                  {Object.entries(WMS_DETAIL).map(([k, d]) => <option key={k} value={k}>{tr("{label} ({px} px)", { label: tr(d.label), px: d.longPx.toLocaleString() })}</option>)}
+                </select>
+                {wmsPlan && <span style={{ opacity: 0.75 }}>{tr("~{m} m pixels · {w} × {h} px · {n} map requests", { m: fmtM(wmsPlan.m), w: wmsPlan.width, h: wmsPlan.height, n: wmsPlan.requests })}</span>}
+              </div>
+              <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.7, marginTop: 4, lineHeight: 1.4 }}>{tr("Only as sharp as the service's own imagery: past its native resolution a higher detail just enlarges the same pixels. Use services whose terms allow you to save their images.")}</div>
             </div>
           )}
 
@@ -169,7 +193,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
 
           {selectedLayer && (
             <button onClick={doImport} disabled={busy || (service === "wms" && !bboxLonLat)} style={{ ...btn(true), display: "flex", alignItems: "center", justifyContent: "center", gap: 6, opacity: busy ? 0.6 : 1 }}>
-              {busy ? <Loader2 size={14} className="spin" /> : <Download size={14} />} {busy ? tr("Importing…") : tr("Import this layer")}
+              {busy ? <Loader2 size={14} className="spin" /> : <Download size={14} />} {busy ? (wmsProgress ? tr("Fetching {done}/{total}…", wmsProgress) : tr("Importing…")) : tr("Import this layer")}
             </button>
           )}
         </div>
@@ -187,3 +211,6 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
     </div>
   );
 }
+
+// TASKS.csv #840 — a ground pixel size for the plan line: one decimal under 10 m, whole metres above
+const fmtM = (m) => (m < 10 ? m.toFixed(1) : Math.round(m).toLocaleString());
