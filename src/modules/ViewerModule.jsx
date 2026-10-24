@@ -79,6 +79,7 @@ import { codesInUse, connectIntervals, effectiveCode, codeInfo } from "../lib/mo
 import { ASSAY_ELEMENT_COLORS, assayColorFor, categoryLegendGroups, assayLegendGroups, voxelLegendGroups, scaleLegendGroup, LEGEND_CATEGORY_KEYS } from "../lib/legendGroups.js"; // TASKS.csv #725
 // TASKS.csv #843 — the anomaly map (lib/anomalyMap.js + lib/thresholds.js) and its controls load only when used: off the startup bundle
 const SurfaceAnomalyControls = React.lazy(() => import("../components/SurfaceAnomalyControls.jsx"));
+const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverlayPane.jsx")); // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
 import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut } from "../lib/levelPlan.js"; // TASKS.csv #525
 import { ghostStrings } from "../lib/sectionDigitise.js"; // TASKS.csv #519
@@ -6638,6 +6639,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <Ribbon show={visible} label="Targeting tools">
           <RibbonGroup label="Targets">
             <RibbonButton advanced icon={Box} label="Voxel ranges" tone="view" title="Isolate a value band of a geophysical / block model" {...paneProps("ranges")} />
+            <RibbonButton icon={Layers} label="Evidence overlay" tone="model" title="Where the evidence agrees: fuzzy overlay of rasters, map-layer distances and geochemistry; weights of evidence against known occurrences" {...paneProps("overlay")} />{/* TASKS.csv #851 */}
             <RibbonButton icon={Target} label="Planned holes" tone="model" title="Design planned drillholes and check them" {...paneProps("plan")} />
             <RibbonButton icon={MapPin} label="Pick collar" tone="model" active={pickHoleMode} title="Click the 3D view to place a planned hole's collar" onClick={() => { setToolPane("plan"); setPickHoleMode((v) => !v); }} />
           </RibbonGroup>
@@ -7708,6 +7710,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         )}
 
         </>)}
+        {toolPane === "overlay" && ( // TASKS.csv #851
+          <Suspense fallback={null}><EvidenceOverlayPane onClose={() => setToolPane(null)} /></Suspense>
+        )}
         {toolPane === "plan" && (<>
         {paneHeader("Planned drillholes", Target, "model")}
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>

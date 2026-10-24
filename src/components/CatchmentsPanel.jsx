@@ -9,6 +9,8 @@ import { routeTerrainAsync } from "../lib/hydrologyClient.js";
 import { analyseCatchments, catchmentImage, streamNetwork, followUpGpx, STREAM_MEDIA, DEFAULT_CATCHMENT_OPTS } from "../lib/catchments.js";
 import { pointTransform } from "../lib/reproject.js";
 import { gridToGeoTIFF, nodeGridGeometry, saveGeoTIFF } from "../lib/gridExport.js"; // TASKS.csv #854
+import { makeValueGrid } from "../lib/raster.js";
+import { f32ToB64 } from "../lib/inversion.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
@@ -47,8 +49,28 @@ export default function CatchmentsPanel({ onClose }) {
     c.width = img.width; c.height = img.height;
     c.getContext("2d").putImageData(new ImageData(img.data, img.width, img.height), 0, 0);
     const [x0, y0, x1, y1] = terrain.bbox, hx = a.g.dx / 2, hy = a.g.dy / 2; // node grid -> pixel edges
-    addRaster({ name: `Catchments: ${opts.symbol} in ${opts.medium} (${a.thresholdLabel})`, bbox: [x0 - hx, y0 - hy, x1 + hx, y1 + hy], dataUrl: c.toDataURL("image/png"), drapeMode: "terrain", opacity: 0.8 });
-    setMsg(tr("Added the catchments as a map layer draped on the terrain: red = anomalous, orange = above background, blue = background."));
+    // TASKS.csv #851 — the productivity (or, without one, the class) rides along as the raster's values (#326 grid, block-
+    // averaged like an imported GeoTIFF) so the Evidence overlay can use the ranked catchments as an evidence layer
+    const { g, cls, prod } = cellBands(), band = prod.some(Number.isFinite) ? prod : cls;
+    const vg = makeValueGrid(band, g.nx, g.ny, g.x0, g.yTop, g.dx, g.dy, (v) => !Number.isFinite(v));
+    let valid = 0; for (let i = 0; i < vg.values.length; i++) if (Number.isFinite(vg.values[i])) valid++;
+    addRaster({ name: `Catchments: ${opts.symbol} in ${opts.medium} (${a.thresholdLabel})`, bbox: [x0 - hx, y0 - hy, x1 + hx, y1 + hy], dataUrl: c.toDataURL("image/png"), drapeMode: "terrain", opacity: 0.8, grid: { ...vg, values: f32ToB64(vg.values), valid } });
+    setMsg(tr("Added the catchments as a map layer draped on the terrain: red = anomalous, orange = above background, blue = background. The catchment {band} rides along as the raster's values, for the Targeting evidence overlay and GeoTIFF export.", { band: band === prod ? tr("productivity") : tr("class") }));
+  };
+  // class / site rank / productivity per terrain node: the GeoTIFF bands (#854) and the map raster's values (#851)
+  const cellBands = () => {
+    const g = nodeGridGeometry(terrain), n = g.nx * g.ny;
+    const cls = new Float32Array(n).fill(NaN), rank = new Float32Array(n).fill(NaN), prod = new Float32Array(n).fill(NaN);
+    for (let k = 0; k < n; k++) {
+      const s = a.label[k];
+      if (s < 0) continue;
+      const r = a.results[s];
+      if (!r?.placed) continue;
+      cls[k] = r.anomalous ? 3 : r.value != null && a.background != null && r.value > a.background ? 2 : 1;
+      if (r.rank) rank[k] = r.rank;
+      if (r.productivity != null) prod[k] = r.productivity;
+    }
+    return { g, cls, rank, prod };
   };
   const showStreams = () => {
     const lines = streamNetwork(route, terrain, a.minCells);
@@ -65,17 +87,7 @@ export default function CatchmentsPanel({ onClose }) {
   const exportGpx = () => saveFile({ suggestedName: `follow_up_${opts.symbol}.gpx`, filters: [{ name: "GPX", extensions: ["gpx"] }], content: followUpGpx(a, toLonLat, `Follow-up reaches: ${opts.symbol} in ${opts.medium}`) });
   // TASKS.csv #854 — the catchment grid for QGIS: class / site rank / productivity per cell
   const exportTif = () => {
-    const g = nodeGridGeometry(terrain), n = g.nx * g.ny;
-    const cls = new Float32Array(n).fill(NaN), rank = new Float32Array(n).fill(NaN), prod = new Float32Array(n).fill(NaN);
-    for (let k = 0; k < n; k++) {
-      const s = a.label[k];
-      if (s < 0) continue;
-      const r = a.results[s];
-      if (!r?.placed) continue;
-      cls[k] = r.anomalous ? 3 : r.value != null && a.background != null && r.value > a.background ? 2 : 1;
-      if (r.rank) rank[k] = r.rank;
-      if (r.productivity != null) prod[k] = r.productivity;
-    }
+    const { g, cls, rank, prod } = cellBands();
     saveGeoTIFF(`catchments_${opts.symbol}.tif`, gridToGeoTIFF({ ...g, bands: [{ values: cls }, { values: rank }, { values: prod }], epsg: project?.epsg }));
     setMsg(tr("GeoTIFF: band 1 = class (1 background, 2 above background, 3 anomalous), band 2 = site rank, band 3 = productivity; no data −9999; {epsg}.", { epsg: project?.epsg ? `EPSG:${project.epsg}` : tr("no CRS set") }));
   };
