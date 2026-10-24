@@ -17,6 +17,7 @@ import {
   DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS,
   isElementColumn, inferUnit, pickElementColumns, parseAssayValue, valueIn, readAssayCell, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile,
   oxideOfHeader, fromOxideHeader, // TASKS.csv #403
+  surfaceAttrColumns, surfaceAttrs, // TASKS.csv #841
 } from "../lib/geochem.js";
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
 import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
@@ -34,6 +35,7 @@ import CorrelationMatrix from "../components/CorrelationMatrix.jsx";
 import BestIntercepts from "../components/BestIntercepts.jsx";
 import CompositingModal from "../components/CompositingModal.jsx";
 import GradeStatistics from "../components/GradeStatistics.jsx";
+const ThresholdToolkit = React.lazy(() => import("../components/ThresholdToolkit.jsx")); // TASKS.csv #841
 import QAQCPanel from "../components/QAQCPanel.jsx";
 // TASKS.csv #224 — see ViewerModule.jsx's own comment on this same lazy import (sql.js's 658KB wasm
 // was pulled in on every app launch via this static import chain, regardless of whether SQL workspace
@@ -49,7 +51,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 export default function GeochemModule() {
   const store = useStore();
-  const { assays, setAssays, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, replaceLayer, layers, collars, survey, boundaries, alterationBoxes, setAlterationBoxes, project, projectIsEmpty, setEpsg } = store;
+  const { assays, setAssays, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, geochemThresholds, setGeochemThresholds, mapLayers, replaceLayer, layers, collars, survey, boundaries, alterationBoxes, setAlterationBoxes, project, projectIsEmpty, setEpsg } = store;
   const [altBoxOpen, setAltBoxOpen] = useState(false); // TASKS.csv #503
   const assayHoleIds = useMemo(() => new Set(assays.map((a) => a.hole_id)), [assays]);
 
@@ -69,6 +71,7 @@ export default function GeochemModule() {
   const [bestIntOpen, setBestIntOpen] = useState(false);
   const [compositingOpen, setCompositingOpen] = useState(false);
   const [gradeStatsOpen, setGradeStatsOpen] = useState(false);
+  const [thresholdsOpen, setThresholdsOpen] = useState(false); // TASKS.csv #841
   const [qaqcOpen, setQaqcOpen] = useState(false);
   const [sqlOpen, setSqlOpen] = useState(false);
   const [notices, setNotices] = useState([]);
@@ -535,10 +538,13 @@ export default function GeochemModule() {
     if (adopted) { setEpsg(adopted); toEpsg = adopted; setNotices((p) => [...p, notice("Project CRS set to {v} (EPSG:{adopted}) from {fileName}.", { v: crsName(adopted), adopted, fileName: modal.fileName })]); }
     const doReproject = fromEpsg && toEpsg && fromEpsg !== toEpsg;
     let reprojectFailed = 0;
+    const attrCols = surfaceAttrColumns(modal.headers || Object.keys(allRows[0] || {}), allRows, mapping, elements); // TASKS.csv #841
     const rows = allRows.map((r) => {
       const values = {};
+      const bdl = []; // TASKS.csv #841 — elements reported below detection (stored at half the limit), for the censored share
       chosen.forEach((e) => {
         const c = readAssayCell(r[e.header]);
+        if (c.qualifier === "<") bdl.push(e.symbol);
         if (c.kind === "neg_bdl") negBdl++; else if (c.kind === "neg_missing") negMissing++;
         const ox = oxideOfHeader(e.header); // TASKS.csv #403
         let v = convertUnit(fromOxideHeader(c.value, e.header), ox ? "%" : e.unit, existingUnit[e.symbol] || (ox ? "%" : e.unit));
@@ -560,6 +566,8 @@ export default function GeochemModule() {
         x, y, z: zOf(r), // #508 / #606 — a blank (or all-zero) z is missing, not sea level
         medium: mediaSet.has(rawMedium) ? rawMedium : (mediumAlias(rawMedium) || defaultMedium), // #600: "rock" -> rock chip
         values,
+        ...(bdl.length ? { bdl } : {}),
+        ...surfaceAttrs(r, attrCols),
       };
     }).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y));
     const noZ = rows.filter((r) => r.z == null).length;
@@ -704,6 +712,7 @@ export default function GeochemModule() {
           <RibbonGroup label="Analyze">
             <RibbonButton advanced icon={Grid3x3} label="Correlation" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Correlation matrix" onClick={() => setCorrOpen(true)} />
             <RibbonButton icon={GBarChart} label="Grade stats" tone="analyse" disabled={!(assayElements.length || surfaceElements.length)} disabledReason="Import assays or surface samples first" title="Grade statistics (assays or surface samples)" onClick={() => setGradeStatsOpen(true)} />
+            <RibbonButton icon={GBarChart} label="Thresholds" tone="analyse" disabled={!surfaceElements.length} disabledReason="Import surface samples first" title="Anomaly thresholds for soil and stream-sediment samples, judged within populations" onClick={() => setThresholdsOpen(true)} />{/* TASKS.csv #841 */}
             <RibbonButton advanced icon={ShieldCheck} label="QAQC" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="QAQC: standards, blanks, duplicates" onClick={() => setQaqcOpen(true)} />
             <RibbonButton advanced icon={TerminalSquare} label="SQL" tone="data" disabled={!assayElements.length} disabledReason="Import assays first" title="SQL workspace" onClick={() => setSqlOpen(true)} />
           </RibbonGroup>
@@ -949,6 +958,12 @@ export default function GeochemModule() {
           layers={layers}
           onClose={() => setCompositingOpen(false)}
         />
+      )}
+
+      {thresholdsOpen && ( // TASKS.csv #841
+        <React.Suspense fallback={null}>
+          <ThresholdToolkit surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} mapLayers={mapLayers} geochemThresholds={geochemThresholds} setGeochemThresholds={setGeochemThresholds} onClose={() => setThresholdsOpen(false)} />
+        </React.Suspense>
       )}
 
       {gradeStatsOpen && (

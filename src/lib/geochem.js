@@ -1315,3 +1315,31 @@ export function metalEquivalentFormula(metals) {
   const per = (s) => (PRECIOUS_METALS.has(s) ? "/oz" : "/lb");
   return `${b.symbol}Eq = ${metals.map((m) => `${m.symbol} x ${m.symbol === b.symbol ? "1" : `(${m.price}${per(m.symbol)} x ${Math.round(m.recovery * 100)}%) / (${b.price}${per(b.symbol)} x ${Math.round(b.recovery * 100)}%)${m.unit !== b.unit ? ` [${m.unit} -> ${b.unit}]` : ""}`}`).join(" + ")}`;
 }
+
+// TASKS.csv #841 — the descriptive columns of a surface-sample file (horizon, landform, lab, year, sample type...) are
+// kept on each sample as `attrs`, so thresholds and backgrounds can be judged per population. Kept: every column that
+// is not mapped (x / y / z / id / medium) and not an element column, whose non-empty values have at most
+// SURFACE_ATTR_MAX_DISTINCT distinct entries (categories, not running numbers, comments or coordinates); text is cut
+// to 60 characters.
+export const SURFACE_ATTR_MAX_DISTINCT = 100;
+export function surfaceAttrColumns(headers, rows, mapping = {}, elements = []) {
+  const mapped = new Set(Object.values(mapping || {}).filter(Boolean));
+  const elementCols = new Set();
+  (elements || []).forEach((e) => { [e.header, e.mainHeader, e.overLimit?.header].forEach((h) => h && elementCols.add(h)); });
+  return (headers || []).filter((h) => {
+    if (!h || mapped.has(h) || elementCols.has(h)) return false;
+    const seen = new Set();
+    for (const r of rows) {
+      const v = r[h];
+      if (v == null || String(v).trim() === "") continue;
+      seen.add(String(v).trim());
+      if (seen.size > SURFACE_ATTR_MAX_DISTINCT) return false;
+    }
+    return seen.size > 0;
+  });
+}
+export function surfaceAttrs(row, cols) {
+  const attrs = {};
+  cols.forEach((h) => { const v = row[h]; if (v != null && String(v).trim() !== "") attrs[h] = String(v).trim().slice(0, 60); });
+  return Object.keys(attrs).length ? { attrs } : {};
+}
