@@ -94,6 +94,20 @@ test("#830 a unit known only by its base runs up to the ground; a base on the ne
   assert.equal(unitAt(r2.block, 50, 50, 145), "Till");
 });
 
+test("#858 a unit thinner than half a block is never coded above its own top (it was coded up to the box top)", () => {
+  // 10 m blocks, cell centres at 5, 15, ... 145; a 3 m unit (top 103, base 100) holds no cell centre
+  for (const order of [["top", "base"]]) { // stack order top first, as the panel sorts it (an inverted order is #873)
+    const s = { top: flat("Top Vein", 103, { unit: "Vein" }), base: flat("Base Vein", 100, { unit: "Vein", role: "base" }) };
+    const r = surfacesToBlock({ tops: order.map((k) => s[k]), extent: box, cell: 10 });
+    assert.equal(r.counts.Vein || 0, 0, `no cell centre lies inside a 3 m unit (${order.join(", ")})`);
+    assert.equal(unitAt(r.block, 50, 50, 145), null, "the cells above its top are not the unit");
+  }
+  // a 7.5 m unit (base 98, top 105.5) holds exactly the centres at z = 105
+  const r2 = surfacesToBlock({ tops: [flat("Top Vein", 105.5, { unit: "Vein" }), flat("Base Vein", 98, { unit: "Vein", role: "base" })], extent: box, cell: 10 });
+  assert.equal(r2.counts.Vein, 10 * 10, "exactly the one layer of centres between base and top");
+  assert.equal(unitAt(r2.block, 50, 50, 115), null);
+});
+
 test("#832 one unit in several layers (Sandstone A, B) between shale", () => {
   const tops = [
     flat("SST A top", 140, { unit: "Sandstone A" }), flat("SST A base", 120, { unit: "Sandstone A", role: "base" }),

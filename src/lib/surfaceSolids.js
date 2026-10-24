@@ -104,7 +104,10 @@ export function surfacesToBlock({ tops = [], solids = [], extent, cell, ground =
           else {
             let hb = -Infinity, sb = -1;
             for (let s = 0; s < tops.length; s++) { const h = topZ[s][col]; if (h === h && h <= z && (h > hb + tol || (isBase[s] && h >= hb - tol))) { hb = Math.max(h, hb); sb = s; } } // a base and a top on one contact: the base (the unit above it sits on it)
-            if (sb >= 0 && isBase[sb]) id = uid[sb];
+            // TASKS.csv #858 — but not when that unit's OWN top also lies below the cell (a unit thinner than half a cell
+            // has its base and top within the coincidence tolerance): the cell is above the unit, not in it
+            const ownTopBelow = sb >= 0 && isBase[sb] && tops.some((_, s) => { const h = topZ[s][col]; return !isBase[s] && unitOf[s] === unitOf[sb] && h === h && h <= z && h >= topZ[sb][col] - tol; });
+            if (sb >= 0 && isBase[sb] && !ownTopBelow) id = uid[sb];
           }
         }
         for (let s = 0; s < solids.length; s++) {
