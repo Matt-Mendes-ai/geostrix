@@ -5756,5 +5756,7 @@
   "To draw this surface on a section: 3D View > Draw section, then in the section window pick \"{name}\" under Explicit surfaces, draw the line and press Save contacts. The surface passes exactly through every such line.": "لرسم هذا السطح على مقطع: العرض ثلاثي الأبعاد > رسم مقطع، ثم في نافذة المقطع اختر \"{name}\" تحت الأسطح الصريحة وارسم الخط واضغط «حفظ التماسات». يمر السطح بكل خط كهذا تمامًا.",
   "Draw a line of {name}": "رسم خط لـ {name}",
   "Click points along the line of {name}… ({drawPoints} so far). Finish, then Save contacts to send it to the surface.": "انقر نقاطًا على امتداد خط {name}… ({drawPoints} حتى الآن). أنهِ ثم «حفظ التماسات» لإرساله إلى السطح.",
-  "Build or import a surface first: an explicit surface, an implicit model or an imported solid.": "ابنِ أو استورد سطحًا أولًا: سطحًا صريحًا أو نموذجًا ضمنيًا أو مجسمًا مستوردًا."
+  "Build or import a surface first: an explicit surface, an implicit model or an imported solid.": "ابنِ أو استورد سطحًا أولًا: سطحًا صريحًا أو نموذجًا ضمنيًا أو مجسمًا مستوردًا.",
+  "Included {n} point(s) of the explicit surface \"{name}\" (its picks and lines) as interface points of \"{unitName}\".": "أُدرجت {n} نقطة من السطح الصريح \"{name}\" (نقاطه وخطوطه) كنقاط سطح بيني لـ \"{unitName}\".",
+  "The explicit surface \"{name}\" is the LOWER contact of \"{unitName}\", so it was not used as its top.": "السطح الصريح \"{name}\" هو التماس السفلي لـ \"{unitName}\"، لذا لم يُستخدم كقمة لها."
 }

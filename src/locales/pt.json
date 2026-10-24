@@ -5756,5 +5756,7 @@
   "To draw this surface on a section: 3D View > Draw section, then in the section window pick \"{name}\" under Explicit surfaces, draw the line and press Save contacts. The surface passes exactly through every such line.": "Para desenhar esta superfície numa seção: Vista 3D > Desenhar seção; depois, na janela da seção, escolha \"{name}\" em Superfícies explícitas, desenhe a linha e clique em Salvar contatos. A superfície passa exatamente por cada linha assim.",
   "Draw a line of {name}": "Desenhar uma linha de {name}",
   "Click points along the line of {name}… ({drawPoints} so far). Finish, then Save contacts to send it to the surface.": "Clique ao longo da linha de {name}… ({drawPoints} até agora). Conclua e depois Salvar contatos para enviá-la à superfície.",
-  "Build or import a surface first: an explicit surface, an implicit model or an imported solid.": "Construa ou importe primeiro uma superfície: uma superfície explícita, um modelo implícito ou um sólido importado."
+  "Build or import a surface first: an explicit surface, an implicit model or an imported solid.": "Construa ou importe primeiro uma superfície: uma superfície explícita, um modelo implícito ou um sólido importado.",
+  "Included {n} point(s) of the explicit surface \"{name}\" (its picks and lines) as interface points of \"{unitName}\".": "Incluídos {n} ponto(s) da superfície explícita \"{name}\" (suas seleções e linhas) como pontos de interface de \"{unitName}\".",
+  "The explicit surface \"{name}\" is the LOWER contact of \"{unitName}\", so it was not used as its top.": "A superfície explícita \"{name}\" é o contato INFERIOR de \"{unitName}\", então não foi usada como seu topo."
 }

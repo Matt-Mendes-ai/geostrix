@@ -27,6 +27,7 @@ import { pickReport } from "../../lib/pickDiagnostics.js"; // TASKS.csv #762
 import { findOnTraceWorld, findOnTrace, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { capFieldAtGround } from "../../lib/groundCap.js"; // TASKS.csv #803
+import { explicitInterfacePoints } from "../../lib/explicitUnits.js"; // TASKS.csv #867
 
 // TASKS.csv #803 — the interpolated grid intersected with "below the terrain" (lib/groundCap.js), so a grade shell or
 // alteration envelope that reaches the surface closes ON the ground instead of in the air. toReal: grid frame ->
@@ -892,6 +893,27 @@ export function createModellingRuns(ctx, mcRef) {
       if (sectionContactCount) { // #810 — said inside a stack too
         setNotices((p) => [...p, notice("Included {sectionContactCount} drawn cross-section contact point(s) for \"{unitName}\" as extra interface points.", { sectionContactCount, unitName })]);
       }
+    }
+
+    // TASKS.csv #867 — Matt: an explicit surface whose Unit matches the unit being modelled "feeds it automatically": its
+    // picks, its section lines and its lines drawn on section images are interface points of this unit's top. Only an
+    // UPPER contact is this unit's top; a lower contact (the unit's base) is the top of whatever lies below, so it is
+    // left out and said. Same api conversion and domain filter as the section contacts above.
+    {
+      const o = originRef.current;
+      const { used, lower } = explicitInterfacePoints(explicitSurfaces || [], sections || [], sectionTags, { sectionLinesTaken: includeSectionContacts });
+      const near = (a) => points.some((b) => Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5 && Math.abs(a.z - b.z) < 0.5); // a pick on a logged top the run already has: coincident interface points can make the solve singular
+      for (const u of used) {
+        let n = 0;
+        for (const wp of u.points) {
+          const api = { x: wp.x - o.x, y: wp.y - o.y, z: wp.z - o.z, srcCode: `explicit:${u.name}` };
+          if (domain && !pointInDomain({ x: api.x, y: api.z, z: -api.y }, domain, implicitMeshesRef.current)) continue;
+          if (near(api)) continue;
+          points.push(api); n++;
+        }
+        if (n) setNotices((p) => [...p, notice("Included {n} point(s) of the explicit surface \"{name}\" (its picks and lines) as interface points of \"{unitName}\".", { n, name: u.name, unitName })]);
+      }
+      for (const name of lower) setNotices((p) => [...p, notice("The explicit surface \"{name}\" is the LOWER contact of \"{unitName}\", so it was not used as its top.", { name, unitName })]);
     }
 
     // TASKS.csv #318 — a mapped surface contact as extra interface points: the contact trace draped on

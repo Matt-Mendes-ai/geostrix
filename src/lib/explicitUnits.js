@@ -58,3 +58,33 @@ export function nextLayer(defs, unit) {
   const used = new Set((defs || []).filter((d) => unitOf(d) === unit && d.layer).map((d) => d.layer));
   for (let i = 0; ; i++) if (!used.has(layerLetter(i))) return layerLetter(i);
 }
+
+// TASKS.csv #867 — the explicit surfaces that feed an implicit run of a unit: every surface whose unit (or name) is one
+// of the run's tags and which is that unit's UPPER contact. Its points: the picks, the section lines tagged with its
+// name (vertices, densified every `spacing` m) and the lines drawn on section images (likewise). -> { used: [{ name,
+// points: [{ x, y, z }] }], lower: [names of matching lower contacts, left out] }
+export function explicitInterfacePoints(defs, sections, tags, { spacing = 25, sectionLinesTaken = false } = {}) {
+  const used = [], lower = [];
+  const dens = (pts) => {
+    const out = [];
+    pts.forEach((p, i) => {
+      out.push({ x: p.x, y: p.y, z: p.z });
+      const q = pts[i + 1];
+      if (!q) return;
+      const k = Math.max(0, Math.ceil(Math.hypot(q.x - p.x, q.y - p.y, q.z - p.z) / spacing) - 1);
+      for (let j = 1; j <= k; j++) { const t = j / (k + 1); out.push({ x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t, z: p.z + (q.z - p.z) * t }); }
+    });
+    return out;
+  };
+  const ok = (p) => [p?.x, p?.y, p?.z].every(Number.isFinite);
+  for (const d of defs || []) {
+    if (!tags.has(unitOf(d)) && !tags.has(d.name)) continue;
+    if (contactOf(d) === "lower") { lower.push(d.name); continue; }
+    const pts = (d.picks || []).filter(ok).map((p) => ({ x: p.x, y: p.y, z: p.z }));
+    // sectionLinesTaken: the run already took the section lines tagged with this name (the name is one of its tags)
+    if (!(sectionLinesTaken && tags.has(d.name))) for (const s of sections || []) for (const c of s.contacts || []) if (c.unit === d.name && c.isUpperContact !== false && (!c.kind || c.kind === "contact")) pts.push(...dens((c.points || []).filter(ok)));
+    for (const l of d.lines || []) if (l.pts?.length >= 2) pts.push(...dens(l.pts.filter(ok)));
+    if (pts.length) used.push({ name: d.name, points: pts });
+  }
+  return { used, lower };
+}
