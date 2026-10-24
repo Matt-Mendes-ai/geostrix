@@ -7,6 +7,16 @@ import { buildMeshQuery, closestPointOnMesh } from "../meshQuery.js"; // TASKS.c
 // (t.wx/t.wy/t.wz, parallel to t.pts) instead of scene-local ones — used by the new "Export
 // Shapefile" vector export (TASKS.csv, user request), which needs real-world coordinates, not the
 // origin-relative scene positions everything else in this file works in.
+// TASKS.csv #856 — the hole's direction (world E, N, elevation; unit length) at measured depth md, or null
+export function traceDirWorld(t, md) {
+  const pts = t?.pts;
+  if (!pts || pts.length < 2 || !t.wx) return null;
+  let i = pts.length - 2;
+  for (let k = 0; k < pts.length - 1; k++) if (md <= pts[k + 1].md + 0.01) { i = k; break; }
+  const d = [t.wx[i + 1] - t.wx[i], t.wy[i + 1] - t.wy[i], t.wz[i + 1] - t.wz[i]], l = Math.hypot(...d);
+  return l > 0 ? d.map((v) => v / l) : null;
+}
+
 export function findOnTraceWorld(t, md) {
   const pts = t.pts;
   if (!pts.length) return null;

@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { Crosshair, Move, Undo2, Trash2, X as XIcon, Pencil } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
 import { explicitPoints, fitExplicitSurface } from "../lib/explicitSurface.js";
-import { findOnTraceWorld } from "../lib/viewer/modelHelpers.js";
+import { findOnTraceWorld, traceDirWorld } from "../lib/viewer/modelHelpers.js";
 import { sampleTerrainElevation } from "../lib/viewer/geomath.js";
 import { dragTarget } from "../lib/explicitDrag.js"; // TASKS.csv #813
 import { mapContactPairs, mapContactLines, dipGuideLines } from "../lib/explicitMapLines.js"; // TASKS.csv #817
@@ -129,7 +129,13 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
   }, [def?.mapContacts, def?.dipGuide, polys, bedding, hasTerrain, terrain]); // groundAt reads terrain
   // TASKS.csv #824 — lines digitized on section images in the 3D view: hard lines too (a point every 10 m along them)
   const drawn = useMemo(() => (def?.lines || []).filter((l) => l.pts?.length >= 2).map((l) => ({ ref: `drawn ${l.id}`, src: "drawn", pts: densify3(l.pts, LINE_SPACING) })), [def?.lines]);
-  const ep = useMemo(() => (def ? explicitPoints(def, sections, { spacing: LINE_SPACING, maxPoints: MAX_POINTS, extraLines: [...drawn, ...mapPart.lines, ...(mapPart.guides?.lines || [])] }) : null), [def, sections, mapPart, drawn]);
+  // TASKS.csv #856 — each pick on a hole carries the hole's direction there, so a pick set taken along one drill section is
+  // recognized as such (its best-fit plane is the section, not the contact)
+  const ep = useMemo(() => {
+    if (!def) return null;
+    const withDir = { ...def, picks: (def.picks || []).map((p) => { const t = p.hole_id && sc.traces.current.find((tc) => tc.hole_id === p.hole_id); const dir = t ? traceDirWorld(t, p.md) : null; return dir ? { ...p, dir } : p; }) };
+    return explicitPoints(withDir, sections, { spacing: LINE_SPACING, maxPoints: MAX_POINTS, extraLines: [...drawn, ...mapPart.lines, ...(mapPart.guides?.lines || [])] });
+  }, [def, sections, mapPart, drawn, sc]);
   const [mapLayerId, setMapLayerId] = useState("");
   const mapLayer = polys.find((l) => l.id === mapLayerId) || polys[0] || null;
   const fieldsOf = (l) => (l?.fields || []);

@@ -26,7 +26,7 @@ const dist3 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 
 // extraLines (#817): further hard lines, [{ ref, src, pts }] - mapped contacts and their dip guides (explicitMapLines.js)
 export function explicitPoints(def, sections, { spacing = 10, maxPoints = 1200, extraLines = [] } = {}) {
-  const picks = (def?.picks || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite)).map((p) => ({ x: p.x, y: p.y, z: p.z, src: "pick", ref: p.id }));
+  const picks = (def?.picks || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite)).map((p) => ({ x: p.x, y: p.y, z: p.z, src: "pick", ref: p.id, ...(p.dir ? { dir: p.dir } : {}) })); // dir: #856
   const lines = [];
   for (const s of sections || []) for (const c of s.contacts || []) {
     if (c.unit !== def?.name || c.isUpperContact === false || (c.kind && c.kind !== "contact")) continue;
@@ -90,6 +90,11 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 // The surface's frame: origin at the centroid, n its "up" (vertical unless the points' plane is steeper than
 // steepDeg), e1 / e2 in the plane (e1 horizontal along strike when the plane is tilted).
 // frame (#824): "auto" (the rule above), "map" (always elevation over the map), "plane" (always over the best-fit plane)
+// TASKS.csv #856 — a FENCE: picks taken on holes of one drill section (or two close ones) spread most along the section
+// and up and down it, so the best-fit plane is the section itself, steep, and the old rule modelled the contact as a
+// vertical sheet standing in the section. Points may carry `dir`, the hole's direction at the pick: when most of the
+// known directions lie IN the candidate plane (within 15 deg), that plane is the drilling plane, not the contact (a real
+// steep contact is crossed by the holes that pick it), and the map frame is kept. fence: true is returned.
 export function surfaceFrame(points, { steepDeg = 30, frame = "auto" } = {}) {
   const n0 = points.length;
   const c = [0, 0, 0];
@@ -101,16 +106,26 @@ export function surfaceFrame(points, { steepDeg = 30, frame = "auto" } = {}) {
     for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) C[i][j] += d[i] * d[j];
   }
   const { values, vectors } = eigSym3(C);
-  let n = [0, 0, 1], steep = false, dip = 0;
+  let n = [0, 0, 1], steep = false, dip = 0, fence = false;
   if (n0 >= 3 && values[1] > 1e-6 * values[2]) {
     let f = norm(vectors[0]);
     if (f[2] < 0) f = f.map((x) => -x);
     dip = (Math.acos(Math.min(1, Math.abs(f[2]))) * 180) / Math.PI;
-    if (frame === "plane" || (frame !== "map" && dip >= steepDeg)) { n = f; steep = true; }
+    if (frame === "auto" && dip >= steepDeg) {
+      let known = 0, inPlane = 0;
+      for (const p of points) {
+        if (!p.dir) continue;
+        const d = norm(p.dir);
+        known++;
+        if (Math.abs(dot(d, f)) < 0.26) inPlane++; // sin 15 deg
+      }
+      fence = known >= 3 && inPlane >= 0.75 * known;
+    }
+    if (frame === "plane" || (frame !== "map" && dip >= steepDeg && !fence)) { n = f; steep = true; }
   }
   const e1 = Math.hypot(n[0], n[1]) < 1e-9 ? [1, 0, 0] : norm(crossV([0, 0, 1], n)); // horizontal, along strike
   const e2 = crossV(n, e1);
-  return { origin: c, n, e1, e2, steep, dip };
+  return { origin: c, n, e1, e2, steep, dip, fence };
 }
 
 // dense solve A x = b, partial pivoting; A is an M x M Float64Array (row-major), overwritten
@@ -199,7 +214,10 @@ export function fitExplicitSurface(points, { margin = null, resolution = 80, gro
   let suu = 0, svv = 0, suv = 0;
   for (const [u, v] of uvw) { suu += (u - mu) ** 2; svv += (v - mv) ** 2; suv += (u - mu) * (v - mv); }
   const tr2 = suu + svv, det = suu * svv - suv * suv, lmin = tr2 / 2 - Math.sqrt(Math.max(0, (tr2 * tr2) / 4 - det));
-  if (!(lmin > 1e-6 * tr2) || used.length < 3) throw new Error(tr("All the points lie along one line (for example a single section): the surface is not defined to either side of it. Add picks or a line on another section."));
+  // #856 — "along one line" is a shape test: the narrow side under 2 % of the long side (it was 0.1 %, which let a 500 x 4 m
+  // strip of picks through and the spline swung 1,056 m across it)
+  if (F.fence && !(lmin > 4e-4 * tr2)) throw new Error(tr("The picks lie in the plane of one drill section (the holes were drilled along it), so they cannot show how the contact runs across the section. Pick it on holes of another section, or draw it on a second section."));
+  if (!(lmin > 4e-4 * tr2) || used.length < 3) throw new Error(tr("All the points lie along one line (for example a single section): the surface is not defined to either side of it. Add picks or a line on another section. (A steep surface such as a dyke or fault picked in one plane: set Shape to Over its own plane.)"));
   const U = uvw.map((q) => q[0]), V = uvw.map((q) => q[1]), W = uvw.map((q) => q[2]);
   const f = thinPlate(U, V, W);
   if (!f) throw new Error(tr("The explicit surface could not be solved (the points are degenerate)."));
