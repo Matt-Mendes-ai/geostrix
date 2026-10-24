@@ -152,7 +152,7 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
           <button onClick={onCancel} style={{ ...btn(false), flex: 1 }}>{tr("Cancel")}</button>
-          <button onClick={onCommit} style={{ ...btn(true), flex: 2 }} disabled={!modal.mapping.x || !modal.mapping.y || !modal.mapping.z}>{tr("Import {checkedCount} {v}", { checkedCount, v: tr(checkedCount === 1 ? "element" : "elements") })}</button>
+          <button onClick={onCommit} style={{ ...btn(true), flex: 2 }} disabled={!modal.mapping.x || !modal.mapping.y /* TASKS.csv #847 — Z is optional since #606 */}>{tr("Import {checkedCount} {v}", { checkedCount, v: tr(checkedCount === 1 ? "element" : "elements") })}</button>
         </div>
       </div>
     </div>
