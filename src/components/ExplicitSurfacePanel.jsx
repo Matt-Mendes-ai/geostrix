@@ -13,6 +13,7 @@ import { dragTarget } from "../lib/explicitDrag.js"; // TASKS.csv #813
 import { mapContactPairs, mapContactLines, dipGuideLines } from "../lib/explicitMapLines.js"; // TASKS.csv #817
 import { imagePlane, rayPlane, facingCamera, densify3, medianApparentDip, sectionSnapTargets, constrainOnImage, groundProfileOnImage, nearestOnPolyline, pointOnSegment, insertPoint, splitAt, joinLines, extendTo } from "../lib/sectionDigitize3d.js"; // TASKS.csv #824 / #825 / #828
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #828 — Undo / Redo
+import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #885
 import { unitOf, contactOf, layerLabel, unitSummary, splitByElevation, nextLayer } from "../lib/explicitUnits.js"; // TASKS.csv #830 / #831 / #832
 
 const MAX_POINTS = 800; // ~0.4 s to solve on a laptop (1,200 took 1.2 s); section lines are thinned to fit
@@ -68,7 +69,8 @@ function upsertMesh(sc, def, res, info) {
   const tip = `${def.name} — explicit surface\n${res.n} points (${info.picks} picks, ${info.lines} section lines${info.mapLines ? `, ${info.mapLines} mapped contact lines` : ""}${info.guideLines ? `, ${info.guideLines} dip guide lines` : ""})`;
   const params = { tool: "explicit surface (thin-plate spline exactly through hand-picked contacts)", picks: info.picks, sectionLines: info.lines, sections: info.sections, lineSpacingM: info.spacing ? Math.round(info.spacing * 10) / 10 : null, points: res.n,
     mapContacts: (def.mapContacts || []).map((c) => c.units.join(" | ")), mapLines: info.mapLines || 0, dipGuide: info.guideLines ? { depthM: def.dipGuide?.depth, lines: info.guideLines, constructed: true } : null, // #817
-    frame: res.frame.steep ? `over its best-fit plane (dip ${res.frame.dip.toFixed(1)}°)` : "elevation over the map", maxMisfitM: Number(res.residualMax.toExponential(2)), marginM: Math.round(res.margin), cutAtTerrain: res.groundCut > 0, builtAt: new Date().toISOString() };
+    frame: res.frame.steep ? `over its best-fit plane (dip ${res.frame.dip.toFixed(1)}°)` : "elevation over the map", maxMisfitM: Number(res.residualMax.toExponential(2)), marginM: Math.round(res.margin), cutAtTerrain: res.groundCut > 0, builtAt: new Date().toISOString(),
+    builtKey: info.key }; // TASKS.csv #886 — saved with the surface, so a reopened project does not rebuild (and dirty) it
   sc.activity.current = Date.now();
   const old = def.surfaceId && sc.meshes.current[def.surfaceId];
   if (old) {
@@ -459,6 +461,15 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
     setPickFor(id);
   });
 
+  // TASKS.csv #882 — colour is not a build input (inputKey leaves it out), so it never reached the mesh until the next
+  // rebuild: the dots changed, the sheet did not, and toggling the surface off and on looked like the way to refresh it
+  useEffect(() => {
+    const m = def?.surfaceId && sc.meshes.current[def.surfaceId];
+    if (!m || !def.color || !m.material?.color) return;
+    m.material.color.set(def.color);
+    sc.activity.current = Date.now();
+  }, [def?.color, def?.surfaceId, sc]);
+
   // rebuild when the inputs change (debounced, so a burst of picks builds once)
   const timer = useRef(null);
   useEffect(() => {
@@ -468,12 +479,13 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
     // comparing with def.builtKey alone would leave the newer mesh on screen); def.builtKey for a mesh opened from a file
     const meshNow = def.surfaceId && sc.meshes.current[def.surfaceId];
     if (meshNow && key === (meshNow.userData?.builtKey ?? def.builtKey)) return undefined;
-    if (ep.points.length < 3) { setStatus({ ok: false, text: tr("Pick at least 3 contacts (in 3D or as lines on sections) to build the surface.") }); return undefined; }
+    const stale = meshNow ? ` ${tr("The surface shown is the previous build; it is not updated until the surface can be built again.")}` : ""; // TASKS.csv #889
+    if (ep.points.length < 3) { setStatus({ ok: false, text: tr("Pick at least 3 contacts (in 3D or as lines on sections) to build the surface.") + stale }); return undefined; }
     // TASKS.csv #824 — lines on ONE section only (and nothing off it): every point lies in that section's plane, so the
     // "surface" would be a sheet standing in the section, which says nothing about the contact in 3D
     const drawnImages = new Set((def.lines || []).filter((l) => l.pts?.length >= 2).map((l) => l.imageId));
     if (!ep.picks && !ep.mapLines && drawnImages.size + ep.sections === 1) {
-      setStatus({ ok: false, text: tr("All of this surface's lines are on one section, so they cannot give it a shape across the sections. Draw the contact on a second section (or pick it on holes off this one) to build it.") });
+      setStatus({ ok: false, text: tr("All of this surface's lines are on one section, so they cannot give it a shape across the sections. Draw the contact on a second section (or pick it on holes off this one) to build it.") + stale });
       return undefined;
     }
     clearTimeout(timer.current);
@@ -498,7 +510,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
           cut: res.groundCut ? tr(" Cut at the terrain.") : "",
         }) + (ep.drawnLines ? ` ${tr("Includes {n} line(s) digitized on section images.", { n: ep.drawnLines })}` : "") + (ep.mapLines ? ` ${tr("Includes {m} mapped contact line(s){g}.", { m: ep.mapLines, g: ep.guideLines ? tr(" and {g} dip guide line(s) (constructed, {d} m down-dip)", { g: ep.guideLines, d: Number(def.dipGuide?.depth) || 100 }) : "" })}` : "")
           + (ep.extraEvery > 1 ? ` ${tr("To keep the build fast, one map line point in {k} was used.", { k: ep.extraEvery })}` : "") + (res.warnings.length ? ` ${res.warnings.join(" ")}` : "") });
-      } catch (e) { setStatus({ ok: false, text: e.message || String(e) }); }
+      } catch (e) { setStatus({ ok: false, text: (e.message || String(e)) + stale }); }
     }, 250);
     return () => clearTimeout(timer.current);
   }, [def, ep, hasTerrain]); // terrain and the scene refs are read at build time
@@ -592,7 +604,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
         </label>
         <div style={row}>
           <button onClick={() => update({ picks: def.picks.slice(0, -1) })} disabled={!def.picks.length} style={{ ...pBtn, flex: 1, marginBottom: 0, opacity: def.picks.length ? 1 : 0.5 }}><Undo2 size={14} />{" "}{tr("Undo last pick")}</button>
-          <button onClick={() => { setPickFor(null); onRemove(def); setSelId(""); }} title={tr("Delete this explicit surface and its mesh")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px" }}><Trash2 size={14} /></button>
+          <button onClick={() => { if (!confirmDestructive(tr("Delete the explicit surface \"{name}\" with its picks and lines?", { name: def.name }), { undoable: true })) return; setPickFor(null); onRemove(def); setSelId(""); }} title={tr("Delete this explicit surface and its mesh")} aria-label={tr("Delete this explicit surface and its mesh")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px" }}><Trash2 size={14} /></button>
         </div>
         <div style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, lineHeight: 1.4 }}>
           {ep.lines ? tr("{lines} section line(s) on {sections} section(s) are hard lines of this surface (a point every {sp} m along them).", { lines: ep.lines, sections: ep.sections, sp: Math.round(ep.spacing || LINE_SPACING) }) : tr("No section lines yet.")}{" "}<span style={{ color: "var(--color-text-muted)" }}>{lineHint}</span>

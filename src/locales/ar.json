@@ -5715,5 +5715,8 @@
   "productivity": "إنتاجية",
   "class": "فئة",
   "Set both membership points (0 = and 1 =) on every evidence.": "حدّد نقطتي الانتماء (0 = و1 =) لكل دليل.",
-  "cutoff {c} · W+ {wp} ± {sp} · W− {wm} ± {sm} · C/s {s}": "القطع {c} · W+ {wp} ± {sp} · W− {wm} ± {sm} · C/s {s}"
+  "cutoff {c} · W+ {wp} ± {sp} · W− {wm} ± {sm} · C/s {s}": "القطع {c} · W+ {wp} ± {sp} · W− {wm} ± {sm} · C/s {s}",
+  "Remove the explicit surface \"{name}\" with its picks and lines?": "إزالة السطح الصريح \"{name}\" مع نقاطه وخطوطه؟",
+  "Delete the explicit surface \"{name}\" with its picks and lines?": "حذف السطح الصريح \"{name}\" مع نقاطه وخطوطه؟",
+  "The surface shown is the previous build; it is not updated until the surface can be built again.": "السطح المعروض هو البناء السابق؛ ولن يُحدَّث حتى يمكن بناء السطح من جديد."
 }

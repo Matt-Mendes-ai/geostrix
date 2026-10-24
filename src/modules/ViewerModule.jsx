@@ -3909,6 +3909,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     syncDrawLods(implicitMeshesRef.current, implicitSurfaces, { pickLayer: PICK_ONLY_LAYER, onDone: () => { lastActivityRef.current = Date.now(); setLodSeq((n) => n + 1); } });
   }, [implicitSurfaces]);
   const [lodSeq, setLodSeq] = useState(0); // TASKS.csv #795 — re-render the surface details when a drawing copy is ready
+  // TASKS.csv #885 — an explicit surface is rebuilt from its picks, which go with it and come back with Ctrl+Z
+  const confirmRemoveSurface = (s) => (s.type === "explicit_surface"
+    ? confirmDestructive(tr("Remove the explicit surface \"{name}\" with its picks and lines?", { name: s.name }), { undoable: true })
+    : confirmDestructive(tr("Remove surface \"{name}\"?", { name: s.name }), { recover: tr("getting it back means re-running the model.") }));
   const removeImplicitSurface = useCallback((id) => {
     const mesh = implicitMeshesRef.current[id];
     if (mesh) { dropDrawLod(mesh); implicitGroupRef.current?.remove(mesh); mesh.geometry?.dispose?.(); mesh.material?.dispose?.(); delete implicitMeshesRef.current[id]; } // dropDrawLod: #795
@@ -3931,7 +3935,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         return next;
       });
     });
-  }, []);
+    // TASKS.csv #885 — an explicit surface's definition goes with its mesh: left behind, the Explicit surface pane rebuilt
+    // the "removed" surface under the same id. Definitions are undo-tracked, so Ctrl+Z brings both back.
+    setExplicitSurfaces((p) => (p.some((d) => d.surfaceId === id) ? p.filter((d) => d.surfaceId !== id) : p));
+  }, []); // store setters are stable
   // TASKS.csv #83 — surface type + declared relationships (geological-architecture layer 2). Purely
   // metadata until #90's checker reads it (see the long comment above SURFACE_TYPES/RELATION_TYPES).
   // TASKS.csv #52 — type and relationships now persist with the surface itself, so a relationship
@@ -4878,7 +4885,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.visible = s.visible !== false;
-      mesh.userData = { tip: `${s.name}\n${(verts.length / 3) | 0} vertices (restored from the project file)` };
+      mesh.userData = { tip: `${s.name}\n${(verts.length / 3) | 0} vertices (restored from the project file)`, ...(s.params?.builtKey ? { builtKey: s.params.builtKey } : {}) }; // builtKey: TASKS.csv #886
       group.add(mesh);
       implicitMeshesRef.current[s.id] = mesh;
       surfaceGeomCacheRef.current[s.id] = { uuid: geo.uuid, vertices: verts, indices: idx };
@@ -7328,7 +7335,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               { label: tr("Zoom to"), onClick: () => zoomToImplicitSurface(s.id) },
               { label: expanded ? "Close type & relationships" : "Type & relationships…", onClick: () => setExpandedSurfaceId(expanded ? null : s.id) },
               { label: tr("Style (colour, opacity)…"), onClick: () => setStyleTarget({ key: `surface:${s.id}`, kind: "surface", label: s.name, surfaceId: s.id, defaults: { opacity: surfaceBaseLook(implicitMeshesRef.current[s.id]).opacity } }) }, // #636
-              "-", { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove surface \"{name}\"?", { name: s.name }), { recover: tr("getting it back means re-running the model.") })) removeImplicitSurface(s.id); } }])}
+              "-", { label: tr("Remove…"), onClick: () => { if (confirmRemoveSurface(s)) removeImplicitSurface(s.id); } }])}
               style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleImplicitSurface(s.id)} style={{ cursor: "pointer", color: s.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{s.visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
@@ -7352,7 +7359,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </div>
                 <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToImplicitSurface(s.id), tr("Zoom to surface \"{name}\"", { name: s.name }))} />
-                <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove surface \"{name}\"?", { name: s.name }), { recover: tr("getting it back means re-running the model.") })) removeImplicitSurface(s.id); }, tr("Remove surface \"{name}\"", { name: s.name }))} />
+                <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmRemoveSurface(s)) removeImplicitSurface(s.id); }, tr("Remove surface \"{name}\"", { name: s.name }))} />
               </div>
               {expanded && (
                 <div style={{ padding: "0 8px 8px", borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>

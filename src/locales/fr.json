@@ -5715,5 +5715,8 @@
   "productivity": "productivité",
   "class": "classe",
   "Set both membership points (0 = and 1 =) on every evidence.": "Fixez les deux points d'appartenance (0 = et 1 =) sur chaque évidence.",
-  "cutoff {c} · W+ {wp} ± {sp} · W− {wm} ± {sm} · C/s {s}": "seuil {c} · W+ {wp} ± {sp} · W− {wm} ± {sm} · C/s {s}"
+  "cutoff {c} · W+ {wp} ± {sp} · W− {wm} ± {sm} · C/s {s}": "seuil {c} · W+ {wp} ± {sp} · W− {wm} ± {sm} · C/s {s}",
+  "Remove the explicit surface \"{name}\" with its picks and lines?": "Supprimer la surface explicite « {name} » avec ses pointés et ses lignes ?",
+  "Delete the explicit surface \"{name}\" with its picks and lines?": "Supprimer la surface explicite « {name} » avec ses pointés et ses lignes ?",
+  "The surface shown is the previous build; it is not updated until the surface can be built again.": "La surface affichée est la construction précédente ; elle n'est pas mise à jour tant que la surface ne peut pas être reconstruite."
 }
