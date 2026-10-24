@@ -6,7 +6,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Crosshair, Move, Undo2, Trash2, X as XIcon, Pencil } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
-import { LOO_MAX_POINTS, explicitPoints, fitExplicitSurface } from "../lib/explicitSurface.js";
+import { LOO_MAX_POINTS, explicitPoints } from "../lib/explicitSurface.js";
+import { fitExplicitSurfaceAsync } from "../lib/explicitSurfaceClient.js"; // TASKS.csv #865
 import { findOnTraceWorld, traceDirWorld } from "../lib/viewer/modelHelpers.js";
 import { sampleTerrainElevation } from "../lib/viewer/geomath.js";
 import { dragTarget, holeContacts, nearestContact, SNAP_REACH_M } from "../lib/explicitDrag.js"; // TASKS.csv #813; contacts: #868
@@ -487,9 +488,11 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
 
   // rebuild when the inputs change (debounced, so a burst of picks builds once)
   const timer = useRef(null);
+  const wantKey = useRef(null); // TASKS.csv #865 — the build the inputs ask for now: an older result arriving later is dropped
   useEffect(() => {
     if (!def || !ep) return undefined;
     const key = inputKey(def, ep, hasTerrain);
+    wantKey.current = key;
     // #828 — the key the MESH was built from (an Undo brings back an older def.builtKey together with the older inputs, so
     // comparing with def.builtKey alone would leave the newer mesh on screen); def.builtKey for a mesh opened from a file
     const meshNow = def.surfaceId && sc.meshes.current[def.surfaceId];
@@ -504,7 +507,9 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
       return undefined;
     }
     clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
+    timer.current = setTimeout(async () => {
+      // TASKS.csv #865 — the fit runs in a worker: the old surface stays on screen and the view keeps moving meanwhile
+      const slow = setTimeout(() => { if (wantKey.current === key) setStatus({ ok: true, text: tr("Building the surface…") }); }, 150);
       try {
         const t0 = performance.now();
         // TASKS.csv #824 — the shape: chosen, or automatic; automatic with lines drawn on sections follows the lines' own
@@ -513,7 +518,9 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
         const appDip = sectionLines.length ? medianApparentDip(sectionLines) : null;
         // a surface made before #824 has no shape: it keeps the best-fit-plane rule it was built with
         const frame = def.shape === "map" || def.shape === "plane" ? def.shape : def.shape === "auto" && appDip != null ? (appDip < 45 ? "map" : "plane") : "auto";
-        const res = fitExplicitSurface(ep.points, { margin: def.margin, resolution: def.resolution || 80, groundAt: def.cutAtTerrain && hasTerrain ? groundAt : null, frame });
+        const res = await fitExplicitSurfaceAsync(ep.points, { margin: def.margin, resolution: def.resolution || 80, frame }, def.cutAtTerrain && hasTerrain ? terrain : null);
+        clearTimeout(slow);
+        if (wantKey.current !== key) return; // the inputs changed while it was building: a newer build is on its way
         const ms = Math.round(performance.now() - t0);
         const surfaceId = upsertMesh(sc, def, res, { picks: ep.picks, lines: ep.lines, sections: ep.sections, spacing: ep.spacing, mapLines: ep.mapLines, guideLines: ep.guideLines, key });
         // #828 — the mesh remembers its key (userData.builtKey); the def is only written when it had no mesh id yet (a
@@ -530,7 +537,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
           cut: res.groundCut ? tr(" Cut at the terrain.") : "",
         }) + (ep.drawnLines ? ` ${tr("Includes {n} line(s) digitized on section images.", { n: ep.drawnLines })}` : "") + (ep.mapLines ? ` ${tr("Includes {m} mapped contact line(s){g}.", { m: ep.mapLines, g: ep.guideLines ? tr(" and {g} dip guide line(s) (constructed, {d} m down-dip)", { g: ep.guideLines, d: Number(def.dipGuide?.depth) || 100 }) : "" })}` : "")
           + (ep.extraEvery > 1 ? ` ${tr("To keep the build fast, one map line point in {k} was used.", { k: ep.extraEvery })}` : "") + (res.warnings.length ? ` ${res.warnings.join(" ")}` : "") });
-      } catch (e) { setStatus({ ok: false, text: (e.message || String(e)) + stale }); }
+      } catch (e) { clearTimeout(slow); if (wantKey.current === key) setStatus({ ok: false, text: (e.message || String(e)) + stale }); }
     }, 250);
     return () => clearTimeout(timer.current);
   }, [def, ep, hasTerrain]); // terrain and the scene refs are read at build time

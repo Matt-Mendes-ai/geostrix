@@ -39,6 +39,7 @@ export async function initLanguage(code = savedLanguage()) {
 }
 
 export const currentLanguage = () => current;
+export const currentDictionary = () => dict; // TASKS.csv #865 — handed to the explicit surface worker
 
 // For tests (and the dictionary checks): use this dictionary directly.
 export function useDictionary(code, d) { current = code; dict = d; }

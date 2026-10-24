@@ -5747,5 +5747,6 @@
   " In {n} of {m} columns the tops cross (a lower unit's top above a higher one's): check the stack order and the surfaces there.": " En {n} de {m} columnas los techos se cruzan (el techo de una unidad inferior sobre el de una superior): revise el orden de la pila y las superficies allí.",
   "A click on a hole snaps to its nearest logged contact (where the unit changes) within {m} m down-hole; untick to take the exact point clicked on the trace": "Un clic en un sondaje se ajusta al contacto registrado más cercano (donde cambia la unidad) dentro de {m} m a lo largo del sondaje; desmarque para tomar el punto exacto pulsado en el sondaje.",
   "More than one pick on the same hole: {list}. A contact crosses a hole once unless it is folded or faulted; a repeated unit belongs on another layer or surface.": "Más de una selección en el mismo sondaje: {list}. Un contacto cruza un sondaje una vez salvo que esté plegado o fallado; una unidad repetida va en otra capa o superficie.",
-  "Keep the shallowest pick on each hole": "Conservar la selección menos profunda de cada sondaje"
+  "Keep the shallowest pick on each hole": "Conservar la selección menos profunda de cada sondaje",
+  "Building the surface…": "Construyendo la superficie…"
 }
