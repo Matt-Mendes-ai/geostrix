@@ -97,7 +97,7 @@ export function legendGroupsToItems(groups) {
   const items = [];
   groups.forEach((g) => {
     if (g.ramp) { items.push([g.label, null, { ramp: { colors: g.ramp.colors, minLabel: g.ramp.minLabel, maxLabel: g.ramp.maxLabel, log: !!g.ramp.log } }]); return; }
-    if (multi) items.push([g.label, null, { heading: true }]);
+    if (multi || g.alwaysHead) items.push([g.label, null, { heading: true }]); // TASKS.csv #843 — the anomaly map's rule is always printed
     g.items.forEach(([label, color]) => items.push([label, color]));
   });
   return items;

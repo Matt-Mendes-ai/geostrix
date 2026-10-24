@@ -77,6 +77,8 @@ const FenceDiagramModal = lazyModal(() => import("../components/FenceDiagramModa
 const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrientationCalculator.jsx"));  // TASKS.csv #301
 import { codesInUse, connectIntervals, effectiveCode, codeInfo } from "../lib/modellingCodes.js"; // TASKS.csv #599
 import { ASSAY_ELEMENT_COLORS, assayColorFor, categoryLegendGroups, assayLegendGroups, voxelLegendGroups, scaleLegendGroup, LEGEND_CATEGORY_KEYS } from "../lib/legendGroups.js"; // TASKS.csv #725
+// TASKS.csv #843 — the anomaly map (lib/anomalyMap.js + lib/thresholds.js) and its controls load only when used: off the startup bundle
+const SurfaceAnomalyControls = React.lazy(() => import("../components/SurfaceAnomalyControls.jsx"));
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
 import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut } from "../lib/levelPlan.js"; // TASKS.csv #525
 import { ghostStrings } from "../lib/sectionDigitise.js"; // TASKS.csv #519
@@ -735,6 +737,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     rasters, addRaster, updateRaster, removeRaster,
     boundaries, addBoundary, updateBoundary, removeBoundary,
     mapLayers, surfaceStructures, // TASKS.csv #316/#317
+    geochemThresholds, // TASKS.csv #843 — saved anomaly thresholds, for the anomaly map
     updateMapLayer, removeMapLayer, // TASKS.csv #628 — the Map layers list in this sidebar
     sectionImages, addSectionImage, updateSectionImage, removeSectionImage, // TASKS.csv #630
     fieldStructuralRefs, addFieldRef, removeFieldRef,
@@ -1150,6 +1153,20 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     }).filter(Boolean);
   }, [surfaceSamples, terrain]);
   const surfaceSamplesUnplaced = surfaceSamples.length - placedSurfaceSamples.length;
+  // TASKS.csv #843 — colour by an element's anomaly classes or a pathfinder index (null = by medium, as before);
+  // its settings live in layerStyles.surface_anomaly, so they are saved with the view and in themes
+  const [surfaceAnomaly, setSurfaceAnomaly] = useState(null);
+  useEffect(() => {
+    const cfg = layerStyles.surface_anomaly;
+    if (!cfg || cfg.mode === "medium" || !placedSurfaceSamples.length) { setSurfaceAnomaly(null); return undefined; }
+    let alive = true;
+    import("../lib/anomalyMap.js").then((m) => {
+      if (!alive) return;
+      const a = m.anomalyClasses(placedSurfaceSamples, cfg, { units: surfaceElementUnits, mapLayers, thresholds: geochemThresholds });
+      setSurfaceAnomaly(a ? { ...a, legendGroup: m.anomalyLegendGroup(a) } : null);
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [layerStyles.surface_anomaly, placedSurfaceSamples, surfaceElementUnits, mapLayers, geochemThresholds]);
   const mapAnchorKey = useMemo(() => JSON.stringify([(mapLayers || []).map((l) => l.bbox), (surfaceStructures || []).map((st) => st.rows?.length || 0)]), [mapLayers, surfaceStructures]);
   // TASKS.csv #435 — same idea for terrain, raster drapes, boundaries and OMF objects: the geometry rebuild
   // reads them ONLY for its no-collar camera anchor, so it depends on this extent signature instead of the
@@ -1786,6 +1803,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       ...assayLegendGroups({ assays, assayElements, assayVisible, assayDisplayElements, assayStyle }),
       ...voxelLegendGroups(voxelModels),
     ];
+    // TASKS.csv #843 — the anomaly map's rule and classes
+    const anomalyGroup = layerVisible.surface_samples ? surfaceAnomaly?.legendGroup : null;
+    if (anomalyGroup) groups.push({ ...anomalyGroup, items: anomalyGroup.items.map(([l, c]) => [tr(l), c]) });
     const pushScale = (key, label, model, lo, hi) => groups.push(scaleLegendGroup(key, label, model, lo, hi));
     const gpts = layers?.geophys_pts || [];
     if (layerVisible.geophys_pts && gpts.length) {
@@ -1800,7 +1820,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       }
     }
     return groups;
-  }, [layerStyles, figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax]);
+  }, [surfaceAnomaly, layerStyles, figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax]);
 
   // TASKS.csv #453 — build the clipping planes from the slice settings over the drilled extent (hole
   // traces; the terrain bbox when there is no drilling). Vertical: across the azimuth line, position along
@@ -4274,7 +4294,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const buildGeophysPtsRef = useRef(buildGeophysPts);
   buildGeophysPtsRef.current = buildGeophysPts;
 
-  const surfaceInputs = [placedSurfaceSamples, layerVisible.surface_samples, layerStyles.surface_samples]; // #635 style
+  const surfaceInputs = [placedSurfaceSamples, layerVisible.surface_samples, layerStyles.surface_samples, surfaceAnomaly]; // #635 style, #843 anomaly map
   const surfaceBuiltRef = useRef(null);
   const buildSurfaceSamples = () => {
     const g = layerGroupsRef.current.surface_samples;
@@ -4287,12 +4307,20 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const errors = [];
     const st = resolveLayerStyle(layerStyles.surface_samples, "point"); // TASKS.csv #635
     const proto = st.shape === "sphere" ? PROTO_SPHERE_8 : POINT_PROTO[st.shape];
-    placedSurfaceSamples.forEach((row) => {
+    const an = surfaceAnomaly; // #843
+    // TASKS.csv #849 — a symbol in proportion to the program's extent: a fixed 1.8 m sphere is a fraction of a pixel over a
+    // 20-30 km stream-sediment program (ARIS 42807Z: 21 x 28 km, nothing visible). 1.8 m stays the minimum (a soil grid
+    // of ~1 km keeps its look within a few pixels); 1/250 of the extent's diagonal otherwise (~5-7 px across when the whole program fills the view).
+    const sx = minMax(placedSurfaceSamples, (p) => p.x), sy = minMax(placedSurfaceSamples, (p) => p.y);
+    const baseR = Math.max(1.8, Math.hypot(sx.max - sx.min, sy.max - sy.min) / 250);
+    placedSurfaceSamples.forEach((row, i) => {
       try {
-        const mesh = new THREE.Mesh(proto, new THREE.MeshLambertMaterial({ color: st.color || colorForMedium(row.medium), transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide })); // #312
-        mesh.scale.setScalar(1.8 * st.size);
+        const cl = an ? an.classOf[i] : -2;
+        const color = an ? (cl >= 0 ? an.classes[cl].color : an.noDataColor) : (st.color || colorForMedium(row.medium));
+        const mesh = new THREE.Mesh(proto, new THREE.MeshLambertMaterial({ color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide })); // #312
+        mesh.scale.setScalar(baseR * st.size * (an?.isolated[i] ? 0.55 : 1)); // #843 — an isolated anomaly is drawn small; #849 size
         mesh.position.set(row.x - ox, row.z - oz, -(row.y - oy));
-        mesh.userData = { tip: surfaceSampleTip(row) };
+        mesh.userData = { tip: surfaceSampleTip(row) + (an ? `\n${cl >= 0 ? tr(an.classes[cl].label) : tr("no value")}${an.isolated[i] ? ` · ${tr("isolated anomaly")}` : ""}` : "") };
         g.add(mesh);
       } catch (err) { errors.push(err.message); }
     });
@@ -6955,14 +6983,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 {tr(terrain ? "{n} surface sample(s) have no elevation and lie outside the terrain — extend the DEM to cover them." : "{n} surface sample(s) have no elevation and no terrain to sit on — load a DEM or SRTM terrain (Geophysics tab) and they are placed on it.", { n: surfaceSamplesUnplaced })}
               </div>
             )}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "2px 2px 8px" }}>
+            <Suspense fallback={null}><SurfaceAnomalyControls cfg={layerStyles.surface_anomaly} setCfg={(cfg) => setLayerStyles((p) => ({ ...p, surface_anomaly: cfg }))} surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} mapLayers={mapLayers} thresholds={geochemThresholds} result={surfaceAnomaly} /></Suspense>{/* TASKS.csv #843 */}
+            {!surfaceAnomaly && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "2px 2px 8px" }}>
               {Array.from(new Set(surfaceSamples.map((s) => s.medium))).map((m) => (
                 <div key={m} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
                   <div style={{ width: 8, height: 8, borderRadius: "50%", background: colorForMedium(m), flexShrink: 0 }} />
                   {m}
                 </div>
               ))}
-            </div>
+            </div>}
           </>
         )}
 
@@ -7766,7 +7795,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             read pixels back from renderer.domElement.toDataURL(), which sees only the WebGL canvas,
             so a Layout page built from a snapshot gets the bare view and Layout's own legend/scale/
             north-arrow elements — no duplicated, half-scaled second legend baked into the image. */}
-        {!!collars.length && (
+        {(!!collars.length || !!surfaceSamples.length) && ( // #848 — a soil / stream program with no drilling gets its legend and scale too
           <ViewportFigureOverlay
             config={figureOverlay}
             title={overlayTitle}
@@ -7793,7 +7822,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             paragraphs while the shorter tabs get a one-sentence card. */}
         {/* TASKS.csv #316 — a mapping-stage project (terrain, a geology map, outcrop structures, rasters,
             no drillholes yet) is not "nothing loaded"; the card sat on top of exactly what was imported. */}
-        {!collars.length && !terrain && !rasters.length && !mapLayers.length && !surfaceStructures.length && (
+        {/* TASKS.csv #848 — nor is a soil / stream-sediment program with no drilling (the card covered the samples) */}
+        {!collars.length && !terrain && !rasters.length && !mapLayers.length && !surfaceStructures.length && !surfaceSamples.length && (
           <EmptyState
             headline={mode === "surface" ? tr("Import a geological map and outcrop measurements — or load the Perk-Rocky mapping sample") : mode === "modelling" ? tr("Load drillholes first — modelling works from collars, lithology and structure") : mode === "targeting" ? tr("Load drillholes first — targeting plans holes against your drilling and models") : tr("Nothing loaded yet")} /* #567 */
             actionLabel={sampleLoading ? tr("Loading sample project…") : tr("Sample: Harry property (37 holes)")}

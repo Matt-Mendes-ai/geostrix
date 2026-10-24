@@ -137,7 +137,7 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
   // With more than one group, each group's first row carries its heading.
   const swatchGroups = (legendGroups || []).filter((g) => g.items.length).map((g, i) => ({ g, i })).sort((a, b) => (a.g.items.length - b.g.items.length) || (a.i - b.i)).map((x) => x.g);
   const multi = swatchGroups.length > 1;
-  swatchGroups.forEach((g) => g.items.forEach(([label, color], k) => items.push({ label, color, group: g.label, head: multi && k === 0 })));
+  swatchGroups.forEach((g) => g.items.forEach(([label, color], k) => items.push({ label, color, group: g.label, head: (multi || g.alwaysHead) && k === 0 }))); // #843 alwaysHead: the anomaly map's rule
   const shown = items.slice(0, MAX_LEGEND_ITEMS);
   const hiddenCount = items.length - shown.length;
   // TASKS.csv #381 — continuous keys (block models, geophysics points): gradient bar + min/max.
