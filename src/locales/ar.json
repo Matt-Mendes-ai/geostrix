@@ -5732,5 +5732,17 @@
   "Built through {n} points ({picks} picks, {lines} section lines) in {ms} ms.": "بُني عبر {n} نقطة ({picks} نقطة ملتقطة، {lines} خط مقطع) في {ms} مللي ثانية.",
   "{frame}{cut}": "{frame}{cut}",
   "Between the inputs it is the smoothest surface through them; beyond them it is extended with no data.": "بين المدخلات هو أنعم سطح يمر بها؛ وخارجها يُمدّ دون بيانات.",
-  "Auto: 15 % of the inputs' span. Everything beyond the inputs is extrapolated, not data.": "تلقائي: 15 % من امتداد المدخلات. كل ما يتجاوز المدخلات مستقرأ وليس بيانات."
+  "Auto: 15 % of the inputs' span. Everything beyond the inputs is extrapolated, not data.": "تلقائي: 15 % من امتداد المدخلات. كل ما يتجاوز المدخلات مستقرأ وليس بيانات.",
+  "Two outlines of this name are on section {s}. A body that branches is linked one branch at a time: give each branch its own name (for example VeinA-N and VeinA-S) and link each.": "يوجد محيطان بهذا الاسم على المقطع {s}. الجسم المتفرع يُربط فرعًا فرعًا: أعطِ كل فرع اسمه الخاص (مثل VeinA-N وVeinA-S) واربط كلًا منهما.",
+  "Section {s} is not parallel to section {s0} ({deg}° apart). Outlines are linked between parallel sections only.": "المقطع {s} غير موازٍ للمقطع {s0} (بفارق {deg}°). تُربط المحيطات بين المقاطع المتوازية فقط.",
+  "The outline on section {s} crosses itself. Redraw it as one loop that does not cross.": "محيط المقطع {s} يتقاطع مع نفسه. أعد رسمه كحلقة واحدة لا تتقاطع.",
+  "The outlines on {a} and {b} lie in the same plane (under 1 m apart), so there is nothing to link between them.": "محيطا {a} و{b} في المستوى نفسه (أقل من 1 م بينهما)، فلا شيء يُربط بينهما.",
+  "The outline on section {s} encloses almost no area: it is a line, not an outline.": "محيط المقطع {s} لا يحيط بمساحة تُذكر: إنه خط وليس محيطًا.",
+  "The outline on section {s} could not be closed with a flat cap (it crosses itself after resampling). Simplify it and link again.": "تعذّر إغلاق محيط المقطع {s} بغطاء مسطح (يتقاطع مع نفسه بعد إعادة الاعتيان). بسّطه واربط من جديد.",
+  "The linked outlines do not make a valid solid ({open} open edges, {pairs} self-crossing triangle pairs, {wind} edges facing both ways). Check the outlines' shapes and order, then link again.": "المحيطات المربوطة لا تكوّن مجسمًا صالحًا ({open} حافة مفتوحة، {pairs} زوج مثلثات متقاطع، {wind} حافة بوجهين متعاكسين). افحص أشكال المحيطات وترتيبها ثم اربط من جديد.",
+  "Closed, but it crosses itself ({n} triangle pairs) or its faces point both ways, so it has no well-defined inside. Fix or rebuild it before using it as a solid.": "مغلق لكنه يتقاطع مع نفسه ({n} زوج مثلثات) أو تتجه أوجهه في اتجاهين، فليس له داخل محدد. أصلحه أو أعد بناءه قبل استخدامه كمجسم.",
+  "crosses itself": "يتقاطع مع نفسه",
+  "\"{name}\" crosses itself ({n} triangle pairs), so it has no well-defined inside to restrict to. Fix or rebuild it first.": "\"{name}\" يتقاطع مع نفسه ({n} زوج مثلثات)، فليس له داخل محدد للتقييد به. أصلحه أو أعد بناءه أولًا.",
+  " In {n} of {m} columns a unit's base lies above its own top (negative thickness): the blocks there follow the rules but not the geology.": " في {n} من {m} عمودًا تقع قاعدة وحدة فوق قمتها (سمك سالب): الكتل هناك تتبع القواعد لا الجيولوجيا.",
+  " In {n} of {m} columns the tops cross (a lower unit's top above a higher one's): check the stack order and the surfaces there.": " في {n} من {m} عمودًا تتقاطع القمم (قمة وحدة أدنى فوق قمة وحدة أعلى): افحص ترتيب الرصّة والأسطح هناك."
 }

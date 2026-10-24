@@ -68,34 +68,62 @@ function earClip(pts2) {
       }
       if (clipped) break;
     }
-    if (!clipped) { // self-intersecting outline: fan the rest rather than fail
-      for (let k = 1; k < idx.length - 1; k++) tris.push([idx[0], idx[k], idx[k + 1]]);
-      return tris;
-    }
+    if (!clipped) return null; // TASKS.csv #860 — no ear left: the outline crosses itself (it used to be fanned silently)
   }
   if (idx.length === 3) tris.push([idx[0], idx[1], idx[2]]);
   return tris;
 }
 
+// TASKS.csv #860 — does a closed 2D loop cross itself? (non-adjacent segments that properly intersect; O(n^2), n small)
+export function loopSelfIntersects(q) {
+  const m = q.length, o = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+  for (let i = 0; i < m; i++) for (let j = i + 1; j < m; j++) {
+    if (j === i + 1 || (i === 0 && j === m - 1)) continue;
+    const a = q[i], b = q[(i + 1) % m], c = q[j], d = q[(j + 1) % m];
+    const d1 = o(a, b, c), d2 = o(a, b, d), d3 = o(c, d, a), d4 = o(c, d, b);
+    if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return true;
+  }
+  return false;
+}
+
 export function linkOutlines(outlines, { n = 128 } = {}) {
-  const usable = (outlines || []).filter((o) => o.points?.length >= 3);
+  const usable = (outlines || []).filter((o) => o.points?.length >= 3).map((o, i) => ({ ...o, section: o.section || String(i + 1) })); // #860: named in messages
   if (usable.length < 2) throw new Error(tr("At least two sections need an outline of that name."));
   const warnings = [];
+  // TASKS.csv #860 — refuse what cannot be linked into a well-defined solid, instead of reporting a volume for it
+  const label = (o) => o.section;
+  const bySection = new Map();
+  usable.forEach((o, i) => { const k = o.section ?? `${o.ax},${o.ay},${o.bx},${o.by}`; bySection.set(k, [...(bySection.get(k) || []), label(o, i)]); });
+  for (const names of bySection.values()) if (names.length > 1) throw new Error(tr("Two outlines of this name are on section {s}. A body that branches is linked one branch at a time: give each branch its own name (for example VeinA-N and VeinA-S) and link each.", { s: names[0] }));
+  const az = (o) => Math.atan2(o.bx - o.ax, o.by - o.ay);
+  usable.forEach((o, i) => {
+    const d = Math.abs(((az(o) - az(usable[0])) % Math.PI + Math.PI) % Math.PI);
+    if (Math.min(d, Math.PI - d) > (10 * Math.PI) / 180) throw new Error(tr("Section {s} is not parallel to section {s0} ({deg}° apart). Outlines are linked between parallel sections only.", { s: label(o, i), s0: label(usable[0], 0), deg: ((Math.min(d, Math.PI - d) * 180) / Math.PI).toFixed(0) }));
+  });
+  usable.forEach((o, i) => {
+    let ux0 = o.bx - o.ax, uy0 = o.by - o.ay; const l0 = Math.hypot(ux0, uy0) || 1; ux0 /= l0; uy0 /= l0;
+    const q = o.points.map((p) => [p.x * ux0 + p.y * uy0, p.z]);
+    if (loopSelfIntersects(q)) throw new Error(tr("The outline on section {s} crosses itself. Redraw it as one loop that does not cross.", { s: label(o, i) }));
+  });
   // shared frame: u = the first section's horizontal direction, w = its normal, v = up
   const s0 = usable[0];
   let ux = s0.bx - s0.ax, uy = s0.by - s0.ay; const ul = Math.hypot(ux, uy) || 1; ux /= ul; uy /= ul;
   const wx = uy, wy = -ux;
   const items = usable.map((o) => ({ ...o, c: centroid(o.points) })).map((o) => ({ ...o, off: o.c.x * wx + o.c.y * wy }));
   items.sort((a, b) => a.off - b.off);
-  for (let i = 1; i < items.length; i++) if (Math.abs(items[i].off - items[i - 1].off) < 1e-6) warnings.push(tr("two outlines lie on the same section plane; the solid is not well defined there"));
+  for (let i = 1; i < items.length; i++) if (Math.abs(items[i].off - items[i - 1].off) < 1) throw new Error(tr("The outlines on {a} and {b} lie in the same plane (under 1 m apart), so there is nothing to link between them.", { a: items[i - 1].section, b: items[i].section }));
   const to2 = (p) => [p.x * ux + p.y * uy, p.z];
   const loops = items.map((o) => {
     let r = resampleLoop(o.points, n);
     let area = 0; const q = r.map(to2);
     for (let i = 0; i < n; i++) { const a = q[i], b = q[(i + 1) % n]; area += a[0] * b[1] - b[0] * a[1]; }
     if (area < 0) r = [r[0], ...r.slice(1).reverse()]; // counter-clockwise in (u, up)
+    r.area2 = Math.abs(area) / 2;
+    r.section = o.section;
     return r;
   });
+  const biggest = Math.max(...loops.map((r) => r.area2));
+  for (const r of loops) if (!(r.area2 > 1e-4 * biggest)) throw new Error(tr("The outline on section {s} encloses almost no area: it is a line, not an outline.", { s: r.section })); // a pinch-out to 0.1 % still links
   // align each loop's start with the previous one's
   for (let s = 1; s < loops.length; s++) {
     const A = loops[s - 1], B = loops[s], cA = centroid(A), cB = centroid(B);
@@ -105,7 +133,9 @@ export function linkOutlines(outlines, { n = 128 } = {}) {
       for (let i = 0; i < n; i++) { const a = A[i], b = B[(i + k) % n]; d += ((a.x - cA.x) - (b.x - cB.x)) ** 2 + ((a.y - cA.y) - (b.y - cB.y)) ** 2 + ((a.z - cA.z) - (b.z - cB.z)) ** 2; }
       if (d < bestD) { bestD = d; best = k; }
     }
+    const sec = B.section;
     loops[s] = B.map((_, i) => B[(i + best) % n]);
+    loops[s].section = sec;
   }
   const positions = [], indices = [];
   loops.forEach((L) => L.forEach((p) => positions.push(p.x, p.y, p.z)));
@@ -117,6 +147,7 @@ export function linkOutlines(outlines, { n = 128 } = {}) {
   // end caps: counter-clockwise loops in (u, up) -> one cap reversed so both face outward once the whole is oriented
   const cap = (s, flip) => {
     const tris = earClip(loops[s].map(to2));
+    if (!tris) throw new Error(tr("The outline on section {s} could not be closed with a flat cap (it crosses itself after resampling). Simplify it and link again.", { s: loops[s].section }));
     for (const [i, j, k] of tris) flip ? indices.push(V(s, i), V(s, k), V(s, j)) : indices.push(V(s, i), V(s, j), V(s, k));
   };
   cap(0, true); cap(loops.length - 1, false);

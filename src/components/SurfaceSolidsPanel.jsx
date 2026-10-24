@@ -7,6 +7,7 @@ import { Box, X as XIcon } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
 import { surfacesToBlock, suggestCellSize } from "../lib/surfaceSolids.js";
 import { isMeshClosed } from "../lib/meshQuery.js";
+import { validateSolid } from "../lib/meshValidate.js"; // TASKS.csv #860
 import { SOLID_SURFACE_TYPES } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #804
 import { unitOf, contactOf, layerLabel } from "../lib/explicitUnits.js"; // TASKS.csv #830
 
@@ -25,10 +26,14 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
     const m = worldMesh(s.id);
     const d = explicitDefs.find((x) => x.surfaceId === s.id); // #830 — an explicit surface knows its unit and contact
     if (!m || m.indices.length < 3) return null;
-    const closed = s.type === "unit_volume" || s.closure === "closed" || isMeshClosed(m.positions, m.indices).closed;
+    let closed = s.type === "unit_volume" || s.closure === "closed" || isMeshClosed(m.positions, m.indices).closed;
+    // TASKS.csv #860 — closed is not enough: inside a self-intersection the parity test that codes a solid is wrong
+    const v = closed && s.type !== "unit_volume" ? validateSolid(m.positions, m.indices) : null;
+    const broken = v && (v.selfIntersectingPairs > 0 || v.nonManifoldEdges > 0 || v.windingConflicts > 0) ? v : null;
+    if (broken) closed = false;
     let xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
     for (let i = 0; i < m.positions.length; i += 3) { const x = m.positions[i], y = m.positions[i + 1]; if (x < xmin) xmin = x; if (x > xmax) xmax = x; if (y < ymin) ymin = y; if (y > ymax) ymax = y; }
-    return { id: s.id, name: s.name, unit: d ? layerLabel(d) : s.name, baseUnit: d ? unitOf(d) : s.name, mesh: m, closed, xy: [xmin, xmax, ymin, ymax], z: zStats(m.positions), defaultRole: s.type === "unit_volume" ? "none" : closed ? "solid" : d ? (contactOf(d) === "lower" ? "base" : "top") : (s.type === "fault" || s.type === "vein_hangingwall" || s.type === "vein_footwall" || SOLID_SURFACE_TYPES.has(s.type)) ? "none" : "top" }; // unit volumes are this tool's own output; faults / vein walls are steep, not unit tops; an OPEN body (#804) has no inside and is no top either
+    return { broken, id: s.id, name: s.name, unit: d ? layerLabel(d) : s.name, baseUnit: d ? unitOf(d) : s.name, mesh: m, closed, xy: [xmin, xmax, ymin, ymax], z: zStats(m.positions), defaultRole: s.type === "unit_volume" ? "none" : closed ? "solid" : d ? (contactOf(d) === "lower" ? "base" : "top") : (s.type === "fault" || s.type === "vein_hangingwall" || s.type === "vein_footwall" || SOLID_SURFACE_TYPES.has(s.type)) ? "none" : "top" }; // unit volumes are this tool's own output; faults / vein walls are steep, not unit tops; an OPEN body (#804) has no inside and is no top either
   }).filter(Boolean), [surfaces, worldMesh, explicitDefs]);
   const [roles, setRoles] = useState({});
   const roleOf = (it) => roles[it.id] ?? it.defaultRole;
@@ -77,7 +82,7 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
       }
       const title = tr("solids from {n} surface(s)", { n: tops.length + solids.length });
       onBuilt({ block: r.block, units, origin: { ...o }, when: new Date().toLocaleTimeString(), title, matchedPct: null, fromSurfaces: true },
-        { counts: r.counts, coverage: r.coverage, cellVolume: r.cellVolume, resolution: r.block.resolution });
+        { counts: r.counts, coverage: r.coverage, cellVolume: r.cellVolume, resolution: r.block.resolution, inverted: r.inverted }); // inverted: #860
     } catch (e) { onError(e); }
   };
 
@@ -99,7 +104,7 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
             <option value="none">{tr("Not used")}</option>
           </select>
           <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={it.unit !== it.name ? tr("{name} — a contact of {unit}", { name: it.name, unit: it.unit }) : it.name}>{it.name}{it.unit !== it.name && <span style={{ color: "var(--color-text-muted)" }}> · {it.unit}</span>}</span>
-          <span style={{ color: "var(--color-text-faint)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{it.closed ? tr("closed") : tr("open")}</span>
+          <span style={{ color: "var(--color-text-faint)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{it.broken ? <span title={tr("Closed, but it crosses itself ({n} triangle pairs) or its faces point both ways, so it has no well-defined inside. Fix or rebuild it before using it as a solid.", { n: it.broken.selfIntersectingPairs })}>{tr("crosses itself")}</span> : it.closed ? tr("closed") : tr("open")}</span>
         </div>
       ))}
       {tops.length > 1 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("Stack, top to bottom: {list}", { list: tops.map((t) => (roleOf(t) === "base" ? tr("base of {unit}", { unit: t.unit }) : t.unit === t.name ? t.name : tr("top of {unit}", { unit: t.unit }))).join(" › ") })}</div>}

@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from "react";
 import { buildMeshQuery, isPointInsideMesh, isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #517
+import { validateSolid } from "../lib/meshValidate.js"; // TASKS.csv #860
 import { X, Play } from "./icons.js";
 import { compositeDownhole, rawSampleIntervals, PRECIOUS_METALS, capAudit } from "../lib/geochem.js"; // rawSampleIntervals: #571
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
@@ -212,6 +213,9 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           const sh = (volumeShells || []).find((v) => v.id === shellId);
           const closed = sh ? isMeshClosed(sh.positions, sh.indices) : null;
           if (!sh || !closed?.closed) { setError(sh ? tr("\"{name}\" is not a closed solid ({boundaryEdges} open edges) — it has no inside to restrict to.", { name: sh.name, boundaryEdges: closed.boundaryEdges }) : tr("That volume is no longer in the project.")); setRunning(false); return; }
+          // TASKS.csv #860 — a shell that crosses itself has no well-defined inside (parity flips inside the overlap)
+          const vs = validateSolid(sh.positions, sh.indices);
+          if (vs.selfIntersectingPairs > 0) { setError(tr("\"{name}\" crosses itself ({n} triangle pairs), so it has no well-defined inside to restrict to. Fix or rebuild it first.", { name: sh.name, n: vs.selfIntersectingPairs })); setRunning(false); return; }
           const q = buildMeshQuery(sh.positions, sh.indices);
           inShell = (p) => isPointInsideMesh(q, p);
           const before = points.length;

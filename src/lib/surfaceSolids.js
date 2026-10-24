@@ -121,9 +121,32 @@ export function surfacesToBlock({ tops = [], solids = [], extent, cell, ground =
       }
     }
   }
+  // TASKS.csv #860 — contacts that contradict their order, per column: a unit's base above its own top (negative
+  // thickness), or a top lower in the stack lying above one higher in it (crossing tops). Coded as the rules say, but
+  // counted so the notice can say where the result cannot be trusted.
+  const inverted = { baseAboveTop: 0, crossingTops: 0, columns: ncol };
+  for (let col = 0; col < ncol; col++) {
+    let bad = false, cross = false;
+    for (let s = 0; s < tops.length && !bad; s++) {
+      if (!isBase[s]) continue;
+      const hb = topZ[s][col];
+      if (hb !== hb) continue;
+      for (let t = 0; t < tops.length; t++) { const ht = topZ[t][col]; if (t !== s && !isBase[t] && unitOf[t] === unitOf[s] && ht === ht && hb > ht + tol) { bad = true; break; } }
+    }
+    let higher = Infinity;
+    for (let s = 0; s < tops.length && !cross; s++) {
+      if (isBase[s]) continue;
+      const h = topZ[s][col];
+      if (h !== h) continue;
+      if (h > higher + tol) cross = true;
+      higher = Math.min(higher, h);
+    }
+    if (bad) inverted.baseAboveTop++;
+    if (cross) inverted.crossingTops++;
+  }
   const counts = {};
   for (let at = 0; at < ids.length; at++) { const l = ids[at] ? labels[ids[at] - 1] : undefined; if (l) counts[l] = (counts[l] || 0) + 1; }
-  return { block: { extent: [xmin, xmax, ymin, ymax, zmin, zmax], resolution: [nx, ny, nz], ids, labels }, counts, coverage, cellVolume: dx * dy * dz };
+  return { block: { extent: [xmin, xmax, ymin, ymax, zmin, zmax], resolution: [nx, ny, nz], ids, labels }, counts, coverage, cellVolume: dx * dy * dz, inverted };
 }
 
 // A cell size giving about `target` cells in the box, rounded to 1 / 2 / 2.5 / 5 x 10^n metres

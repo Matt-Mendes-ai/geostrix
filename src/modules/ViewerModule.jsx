@@ -3449,15 +3449,20 @@ ${describeTrend(t)}` };
   // TASKS.csv #570 — explicit wireframes: the outline names drawn on two or more sections, and linking them
   const outlineNames = useMemo(() => {
     const m = new Map();
-    for (const s of sections || []) for (const c of s.contacts || []) if (c.kind === "outline" && c.points?.length >= 3) m.set(c.unit, (m.get(c.unit) || 0) + 1);
-    return [...m].filter(([, k]) => k >= 2).map(([name, k]) => ({ name, sections: k }));
+    // TASKS.csv #860 — count SECTIONS (two outlines on one section read "2 sections" and enabled the button)
+    for (const s of sections || []) for (const c of s.contacts || []) if (c.kind === "outline" && c.points?.length >= 3) m.set(c.unit, (m.get(c.unit) || new Set()).add(s.id ?? s.name));
+    return [...m].filter(([, k]) => k.size >= 2).map(([name, k]) => ({ name, sections: k.size }));
   }, [sections]);
   const [wireframeName, setWireframeName] = useState("");
-  const linkWireframe = (name) => {
+  const linkWireframe = async (name) => {
     const outlines = [];
     for (const s of sections || []) for (const c of s.contacts || []) if (c.kind === "outline" && c.unit === name && c.points?.length >= 3) outlines.push({ ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, section: s.name, points: c.points.filter((p) => [p.x, p.y, p.z].every(Number.isFinite)) });
     try {
       const w = linkOutlines(outlines);
+      // TASKS.csv #860 — the linked mesh must be a valid solid before it is offered for volumes and estimation
+      const { validateSolid, isValidSolid } = await import("../lib/meshValidate.js"); // on demand: not in the startup bundle
+      const vs = validateSolid(w.positions, w.indices);
+      if (!isValidSolid(vs)) throw new Error(tr("The linked outlines do not make a valid solid ({open} open edges, {pairs} self-crossing triangle pairs, {wind} edges facing both ways). Check the outlines' shapes and order, then link again.", { open: vs.openEdges, pairs: vs.selfIntersectingPairs, wind: vs.windingConflicts }));
       const o = originRef.current, scene = new Float32Array(w.positions.length);
       for (let i = 0; i < w.positions.length; i += 3) { scene[i] = w.positions[i] - o.x; scene[i + 1] = w.positions[i + 2] - o.z; scene[i + 2] = o.y - w.positions[i + 1]; }
       const geo = new THREE.BufferGeometry();
@@ -3483,7 +3488,9 @@ ${describeTrend(t)}` };
     setSurfaceSolidsOpen(false);
     const units = Object.entries(sum.counts).map(([u, n]) => tr("{unit} {v} Mm³", { unit: u, v: ((n * sum.cellVolume) / 1e6).toFixed(2) })).join(", ");
     const partial = Object.entries(sum.coverage).filter(([, f]) => f < 0.999).map(([u, f]) => tr("{unit} covers {pct}% of the box", { unit: u, pct: Math.round(100 * f) }));
-    setNotices((p) => [...p, notice("Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Last model box above the surface list.{v}", { n: sum.resolution.reduce((a, b) => a * b, 1).toLocaleString(), nx: sum.resolution[0], ny: sum.resolution[1], nz: sum.resolution[2], units: units || tr("no unit cells"), v: partial.length ? tr(" Beyond a top's footprint the unit above it continues down: {list}.", { list: partial.join("; ") }) : "" })]);
+    setNotices((p) => [...p, notice("Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Last model box above the surface list.{v}", { n: sum.resolution.reduce((a, b) => a * b, 1).toLocaleString(), nx: sum.resolution[0], ny: sum.resolution[1], nz: sum.resolution[2], units: units || tr("no unit cells"), v: (partial.length ? tr(" Beyond a top's footprint the unit above it continues down: {list}.", { list: partial.join("; ") }) : "")
+      + (sum.inverted?.baseAboveTop ? tr(" In {n} of {m} columns a unit's base lies above its own top (negative thickness): the blocks there follow the rules but not the geology.", { n: sum.inverted.baseAboveTop, m: sum.inverted.columns }) : "") // #860
+      + (sum.inverted?.crossingTops ? tr(" In {n} of {m} columns the tops cross (a lower unit's top above a higher one's): check the stack order and the surfaces there.", { n: sum.inverted.crossingTops, m: sum.inverted.columns }) : "") })]);
   };
   const addLithBlockModel = () => {
     const lb = lastLithBlock; if (!lb) return;
