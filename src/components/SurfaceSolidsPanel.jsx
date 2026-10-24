@@ -33,12 +33,23 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
     if (broken) closed = false;
     let xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
     for (let i = 0; i < m.positions.length; i += 3) { const x = m.positions[i], y = m.positions[i + 1]; if (x < xmin) xmin = x; if (x > xmax) xmax = x; if (y < ymin) ymin = y; if (y > ymax) ymax = y; }
-    return { broken, id: s.id, name: s.name, unit: d ? layerLabel(d) : s.name, baseUnit: d ? unitOf(d) : s.name, mesh: m, closed, xy: [xmin, xmax, ymin, ymax], z: zStats(m.positions), defaultRole: s.type === "unit_volume" ? "none" : closed ? "solid" : d ? (contactOf(d) === "lower" ? "base" : "top") : (s.type === "fault" || s.type === "vein_hangingwall" || s.type === "vein_footwall" || SOLID_SURFACE_TYPES.has(s.type)) ? "none" : "top" }; // unit volumes are this tool's own output; faults / vein walls are steep, not unit tops; an OPEN body (#804) has no inside and is no top either
+    // TASKS.csv #859 — a steep surface is a wall, not a top: vertical rays meet it over a sliver of the box and the rules
+    // fill the rest (+186 % at 45°, +238 % at 70°, nothing at 90° in the #855 review). Area-weighted dip of its faces.
+    let ax = 0, ay = 0, az = 0;
+    for (let t = 0; t < m.indices.length; t += 3) {
+      const P = m.positions, a = m.indices[t] * 3, b = m.indices[t + 1] * 3, c = m.indices[t + 2] * 3;
+      const e1 = [P[b] - P[a], P[b + 1] - P[a + 1], P[b + 2] - P[a + 2]], e2 = [P[c] - P[a], P[c + 1] - P[a + 1], P[c + 2] - P[a + 2]];
+      const nx = e1[1] * e2[2] - e1[2] * e2[1], ny = e1[2] * e2[0] - e1[0] * e2[2], nz = e1[0] * e2[1] - e1[1] * e2[0], s = nz < 0 ? -1 : 1;
+      ax += s * nx; ay += s * ny; az += s * nz;
+    }
+    const dip = (Math.atan2(Math.hypot(ax, ay), Math.abs(az)) * 180) / Math.PI;
+    const steep = !closed && Math.round(dip) >= 70, leaning = !closed && Math.round(dip) > 45 && !steep; // refuse from 70° (the review: +238 % at 70°), warn above 45°
+    return { broken, dip, steep, leaning, id: s.id, name: s.name, unit: d ? layerLabel(d) : s.name, baseUnit: d ? unitOf(d) : s.name, mesh: m, closed, xy: [xmin, xmax, ymin, ymax], z: zStats(m.positions), defaultRole: s.type === "unit_volume" ? "none" : closed ? "solid" : d ? (contactOf(d) === "lower" ? "base" : "top") : (s.type === "fault" || s.type === "vein_hangingwall" || s.type === "vein_footwall" || SOLID_SURFACE_TYPES.has(s.type)) ? "none" : "top" }; // unit volumes are this tool's own output; faults / vein walls are steep, not unit tops; an OPEN body (#804) has no inside and is no top either
   }).filter(Boolean), [surfaces, worldMesh, explicitDefs]);
   const [roles, setRoles] = useState({});
-  const roleOf = (it) => roles[it.id] ?? it.defaultRole;
+  const roleOf = (it) => roles[it.id] ?? (it.steep ? "none" : it.defaultRole);
   const { used, tops, solids } = useMemo(() => {
-    const role = (it) => roles[it.id] ?? it.defaultRole;
+    const role = (it) => roles[it.id] ?? (it.steep ? "none" : it.defaultRole);
     const u = items.filter((it) => role(it) !== "none");
     // contacts (#830: upper and lower) in stack order: highest median elevation first
     return { used: u, tops: u.filter((it) => role(it) === "top" || role(it) === "base").sort((a, b) => b.z.median - a.z.median), solids: u.filter((it) => role(it) === "solid") };
@@ -98,13 +109,13 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
       {items.map((it) => (
         <div key={it.id} style={row}>
           <select value={roleOf(it)} onChange={(e) => setRoles((p) => ({ ...p, [it.id]: e.target.value }))} style={{ ...smallSel, width: 112, flexShrink: 0 }} aria-label={tr("Role of \"{name}\"", { name: it.name })}>
-            <option value="top">{tr("Top of a unit")}</option>
-            <option value="base" disabled={it.closed}>{tr("Base of a unit")}</option>
+            <option value="top" disabled={it.steep}>{tr("Top of a unit")}</option>
+            <option value="base" disabled={it.closed || it.steep}>{tr("Base of a unit")}</option>
             <option value="solid" disabled={!it.closed}>{tr("Solid (inside)")}</option>
             <option value="none">{tr("Not used")}</option>
           </select>
           <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={it.unit !== it.name ? tr("{name} — a contact of {unit}", { name: it.name, unit: it.unit }) : it.name}>{it.name}{it.unit !== it.name && <span style={{ color: "var(--color-text-muted)" }}> · {it.unit}</span>}</span>
-          <span style={{ color: "var(--color-text-faint)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{it.broken ? <span title={tr("Closed, but it crosses itself ({n} triangle pairs) or its faces point both ways, so it has no well-defined inside. Fix or rebuild it before using it as a solid.", { n: it.broken.selfIntersectingPairs })}>{tr("crosses itself")}</span> : it.closed ? tr("closed") : tr("open")}</span>
+          <span style={{ color: "var(--color-text-faint)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{it.steep || it.leaning ? <span title={it.steep ? tr("A wall, not a top: dips {d}°. Vertical columns meet it over a sliver of the box, so it cannot bound units here. For a vein or dyke use Vein solid from two surfaces.", { d: it.dip.toFixed(0) }) : tr("Dips {d}°: blocks coded from a top this steep are approximate near its edges. For a vein or dyke use Vein solid from two surfaces.", { d: it.dip.toFixed(0) })}>{tr("dips {d}°", { d: it.dip.toFixed(0) })}</span> : it.broken ? <span title={tr("Closed, but it crosses itself ({n} triangle pairs) or its faces point both ways, so it has no well-defined inside. Fix or rebuild it before using it as a solid.", { n: it.broken.selfIntersectingPairs })}>{tr("crosses itself")}</span> : it.closed ? tr("closed") : tr("open")}</span>
         </div>
       ))}
       {tops.length > 1 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("Stack, top to bottom: {list}", { list: tops.map((t) => (roleOf(t) === "base" ? tr("base of {unit}", { unit: t.unit }) : t.unit === t.name ? t.name : tr("top of {unit}", { unit: t.unit }))).join(" › ") })}</div>}

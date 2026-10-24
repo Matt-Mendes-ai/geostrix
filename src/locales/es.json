@@ -5773,5 +5773,17 @@
   "Side to keep": "Lado a conservar",
   "New surface for the other block": "Nueva superficie para el otro bloque",
   "Name of the surface for the other block:": "Nombre de la superficie para el otro bloque:",
-  "Trimmed at the fault \"{f}\"; kept: {side}.": "Recortada en la falla \"{f}\"; se conservó: {side}."
+  "Trimmed at the fault \"{f}\"; kept: {side}.": "Recortada en la falla \"{f}\"; se conservó: {side}.",
+  "\"{a}\" and \"{b}\" do not face each other anywhere, so there is no vein between them.": "\"{a}\" y \"{b}\" no se enfrentan en ningún lugar, así que no hay veta entre ellas.",
+  "{a} – {b} (vein solid)": "{a} – {b} (sólido de veta)",
+  "Vein solid from \"{a}\" and \"{b}\": {v} m³, true thickness {t0}–{t1} m (mean {tm} m), {dip}° dip towards {dd}°. It ends where either wall ends and is stepped at {cell} m cells along its edges.{pinch}": "Sólido de veta de \"{a}\" y \"{b}\": {v} m³, espesor verdadero {t0}–{t1} m (media {tm} m), manteo {dip}° hacia {dd}°. Termina donde termina cualquiera de las paredes y es escalonado en celdas de {cell} m en sus bordes.{pinch}",
+  " The walls meet or cross at {n} grid node(s); the solid stops there.": " Las paredes se tocan o se cruzan en {n} nodo(s) de la grilla; el sólido termina allí.",
+  "A vein or dyke as a closed solid between its hangingwall and footwall surfaces (any dip, vertical included), with its true thickness": "Una veta o dique como sólido cerrado entre sus superficies de techo y muro (cualquier manteo, incluso vertical), con su espesor verdadero",
+  "Vein solid from two surfaces": "Sólido de veta a partir de dos superficies",
+  "Hangingwall…": "Techo…",
+  "Footwall…": "Muro…",
+  "Make the solid": "Crear el sólido",
+  "A wall, not a top: dips {d}°. Vertical columns meet it over a sliver of the box, so it cannot bound units here. For a vein or dyke use Vein solid from two surfaces.": "Una pared, no un techo: mantea {d}°. Las columnas verticales la cruzan solo en una franja de la caja, así que aquí no puede delimitar unidades. Para una veta o dique use Sólido de veta a partir de dos superficies.",
+  "Dips {d}°: blocks coded from a top this steep are approximate near its edges. For a vein or dyke use Vein solid from two surfaces.": "Mantea {d}°: los bloques codificados desde un techo tan empinado son aproximados cerca de sus bordes. Para una veta o dique use Sólido de veta a partir de dos superficies.",
+  "dips {d}°": "mantea {d}°"
 }

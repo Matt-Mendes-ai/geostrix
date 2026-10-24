@@ -5773,5 +5773,17 @@
   "Side to keep": "Côté à garder",
   "New surface for the other block": "Nouvelle surface pour l'autre compartiment",
   "Name of the surface for the other block:": "Nom de la surface pour l'autre compartiment :",
-  "Trimmed at the fault \"{f}\"; kept: {side}.": "Découpée à la faille « {f} » ; gardé : {side}."
+  "Trimmed at the fault \"{f}\"; kept: {side}.": "Découpée à la faille « {f} » ; gardé : {side}.",
+  "\"{a}\" and \"{b}\" do not face each other anywhere, so there is no vein between them.": "« {a} » et « {b} » ne se font face nulle part : il n'y a pas de filon entre elles.",
+  "{a} – {b} (vein solid)": "{a} – {b} (solide de filon)",
+  "Vein solid from \"{a}\" and \"{b}\": {v} m³, true thickness {t0}–{t1} m (mean {tm} m), {dip}° dip towards {dd}°. It ends where either wall ends and is stepped at {cell} m cells along its edges.{pinch}": "Solide de filon entre « {a} » et « {b} » : {v} m³, épaisseur vraie {t0}–{t1} m (moyenne {tm} m), pendage {dip}° vers {dd}°. Il s'arrête là où l'une des épontes s'arrête et ses bords sont en escalier par cellules de {cell} m.{pinch}",
+  " The walls meet or cross at {n} grid node(s); the solid stops there.": " Les épontes se touchent ou se croisent en {n} nœud(s) de la grille ; le solide s'y arrête.",
+  "A vein or dyke as a closed solid between its hangingwall and footwall surfaces (any dip, vertical included), with its true thickness": "Un filon ou dyke en solide fermé entre ses surfaces de toit et de mur (tout pendage, vertical compris), avec son épaisseur vraie",
+  "Vein solid from two surfaces": "Solide de filon à partir de deux surfaces",
+  "Hangingwall…": "Toit…",
+  "Footwall…": "Mur…",
+  "Make the solid": "Créer le solide",
+  "A wall, not a top: dips {d}°. Vertical columns meet it over a sliver of the box, so it cannot bound units here. For a vein or dyke use Vein solid from two surfaces.": "Une paroi, pas un toit : pendage {d}°. Les colonnes verticales ne la rencontrent que sur une bande de la boîte : elle ne peut pas limiter des unités ici. Pour un filon ou un dyke, utilisez Solide de filon à partir de deux surfaces.",
+  "Dips {d}°: blocks coded from a top this steep are approximate near its edges. For a vein or dyke use Vein solid from two surfaces.": "Pendage {d}° : les blocs codés depuis un toit aussi raide sont approximatifs près de ses bords. Pour un filon ou un dyke, utilisez Solide de filon à partir de deux surfaces.",
+  "dips {d}°": "pendage {d}°"
 }

@@ -5773,5 +5773,17 @@
   "Side to keep": "الجانب المُبقى",
   "New surface for the other block": "سطح جديد للكتلة الأخرى",
   "Name of the surface for the other block:": "اسم السطح للكتلة الأخرى:",
-  "Trimmed at the fault \"{f}\"; kept: {side}.": "قُصّ عند الصدع \"{f}\"؛ المُبقى: {side}."
+  "Trimmed at the fault \"{f}\"; kept: {side}.": "قُصّ عند الصدع \"{f}\"؛ المُبقى: {side}.",
+  "\"{a}\" and \"{b}\" do not face each other anywhere, so there is no vein between them.": "\"{a}\" و\"{b}\" لا يتقابلان في أي مكان، فلا عرق بينهما.",
+  "{a} – {b} (vein solid)": "{a} – {b} (مجسم عرق)",
+  "Vein solid from \"{a}\" and \"{b}\": {v} m³, true thickness {t0}–{t1} m (mean {tm} m), {dip}° dip towards {dd}°. It ends where either wall ends and is stepped at {cell} m cells along its edges.{pinch}": "مجسم عرق من \"{a}\" و\"{b}\": {v} م³، السمك الحقيقي {t0}–{t1} م (المتوسط {tm} م)، ميل {dip}° نحو {dd}°. ينتهي حيث ينتهي أي من الجدارين وحوافه متدرجة بخلايا {cell} م.{pinch}",
+  " The walls meet or cross at {n} grid node(s); the solid stops there.": " يلتقي الجداران أو يتقاطعان عند {n} عقدة من الشبكة؛ ويتوقف المجسم هناك.",
+  "A vein or dyke as a closed solid between its hangingwall and footwall surfaces (any dip, vertical included), with its true thickness": "عرق أو قاطع كمجسم مغلق بين سطحي جداره المعلق وجدار قدمه (أي ميل، بما فيه العمودي)، مع سمكه الحقيقي",
+  "Vein solid from two surfaces": "مجسم عرق من سطحين",
+  "Hangingwall…": "الجدار المعلق…",
+  "Footwall…": "جدار القدم…",
+  "Make the solid": "إنشاء المجسم",
+  "A wall, not a top: dips {d}°. Vertical columns meet it over a sliver of the box, so it cannot bound units here. For a vein or dyke use Vein solid from two surfaces.": "جدار وليس قمة: يميل {d}°. تلتقيه الأعمدة الرأسية في شريط ضيق من الصندوق، فلا يحد وحدات هنا. للعرق أو القاطع استخدم «مجسم عرق من سطحين».",
+  "Dips {d}°: blocks coded from a top this steep are approximate near its edges. For a vein or dyke use Vein solid from two surfaces.": "يميل {d}°: الكتل المرمّزة من قمة بهذا الميل تقريبية قرب حوافها. للعرق أو القاطع استخدم «مجسم عرق من سطحين».",
+  "dips {d}°": "يميل {d}°"
 }

@@ -3485,6 +3485,38 @@ ${describeTrend(t)}` };
       setNotices((p) => [...p, notice("Linked {n} \"{name}\" outlines into a closed solid: {v} m³. It ends at the first and last section (flat caps, not extended beyond them) and is listed with the generated surfaces: volume, export, sections and \"Restrict to a modelled volume\" in Grade estimation.{warn}", { n: w.sections, name, v: Math.round(w.volume).toLocaleString(), warn: w.warnings.length ? tr(" Note: {v}.", { v: w.warnings.join("; ") }) : "" })]);
     } catch (e) { setNotices((p) => [...p, e]); }
   };
+  // TASKS.csv #859 — a vein solid stitched from its hangingwall and footwall surfaces (lib/veinSolid.js, loaded on use)
+  const [veinHw, setVeinHw] = useState(""), [veinFw, setVeinFw] = useState("");
+  const buildVeinSolid = async () => {
+    const hw = implicitSurfaces.find((x) => x.id === veinHw), fw = implicitSurfaces.find((x) => x.id === veinFw);
+    const mh = surfaceWorldMesh(veinHw), mf = surfaceWorldMesh(veinFw);
+    if (!hw || !fw || !mh || !mf) return;
+    try {
+      const { veinSolidFromSurfaces } = await import("../lib/veinSolid.js");
+      let w;
+      try { w = veinSolidFromSurfaces(mh, mf); } catch (e) { if (String(e.message) === "NO_OVERLAP") throw new Error(tr("\"{a}\" and \"{b}\" do not face each other anywhere, so there is no vein between them.", { a: hw.name, b: fw.name })); throw e; }
+      const o = originRef.current, scene = new Float32Array(w.positions.length);
+      for (let i = 0; i < w.positions.length; i += 3) { scene[i] = w.positions[i] - o.x; scene[i + 1] = w.positions[i + 2] - o.z; scene[i + 2] = o.y - w.positions[i + 1]; }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(scene, 3));
+      geo.setIndex(new THREE.BufferAttribute(w.indices, 1));
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0xd98c3a, side: THREE.DoubleSide, transparent: true, opacity: 0.6 }));
+      const name = tr("{a} – {b} (vein solid)", { a: hw.name, b: fw.name });
+      mesh.userData = { tip: `${name}\n${(w.volume / 1e6).toFixed(3)} Mm³, true thickness ${w.thickness.min.toFixed(1)}–${w.thickness.max.toFixed(1)} m` };
+      implicitGroupRef.current?.add(mesh);
+      const id = `impl_${Date.now()}_veinsolid`;
+      implicitMeshesRef.current[id] = mesh;
+      setImplicitSurfaces((p) => [...p, {
+        id, name, visible: true, vertexCount: scene.length / 3, faceCount: w.indices.length / 3, type: "vein_solid", relationships: [], closure: "closed",
+        params: { tool: "vein solid stitched from a hangingwall and a footwall surface", hangingwall: hw.name, footwall: fw.name, volumeM3: Math.round(w.volume), trueThicknessM: { min: +w.thickness.min.toFixed(2), mean: +w.thickness.mean.toFixed(2), max: +w.thickness.max.toFixed(2) },
+          attitude: `${w.dip.toFixed(0)}° dip towards ${w.dipDir.toFixed(0)}°`, gridCellM: +w.cellM.toFixed(2), nodesWhereWallsMeet: w.pinchedNodes, ends: "where either wall ends or the walls meet; not extended", builtAt: new Date().toISOString() },
+      }]);
+      setNotices((p) => [...p, notice("Vein solid from \"{a}\" and \"{b}\": {v} m³, true thickness {t0}–{t1} m (mean {tm} m), {dip}° dip towards {dd}°. It ends where either wall ends and is stepped at {cell} m cells along its edges.{pinch}", {
+        a: hw.name, b: fw.name, v: Math.round(w.volume).toLocaleString(), t0: w.thickness.min.toFixed(1), t1: w.thickness.max.toFixed(1), tm: w.thickness.mean.toFixed(1), dip: w.dip.toFixed(0), dd: w.dipDir.toFixed(0), cell: w.cellM.toFixed(1),
+        pinch: w.pinchedNodes ? tr(" The walls meet or cross at {n} grid node(s); the solid stops there.", { n: w.pinchedNodes }) : "" })]);
+    } catch (e) { setNotices((p) => [...p, e]); }
+  };
   const surfaceSolidsBuilt = (lb, sum) => {
     setLastLithBlock(lb);
     setSurfaceSolidsOpen(false);
@@ -7304,6 +7336,17 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             {outlineNames.map((o) => <option key={o.name} value={o.name}>{tr("{name} ({n} sections)", { name: o.name, n: o.sections })}</option>)}
           </select>
           <button onClick={() => linkWireframe(wireframeName)} disabled={!outlineNames.some((o) => o.name === wireframeName)} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: outlineNames.some((o) => o.name === wireframeName) ? 1 : 0.5 }}>{tr("Link into a solid")}</button>
+        </div>
+        {/* TASKS.csv #859 — vein solid from two surfaces */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center", flexWrap: "wrap" }} title={tr("A vein or dyke as a closed solid between its hangingwall and footwall surfaces (any dip, vertical included), with its true thickness")}>
+          <span style={{ fontSize: "var(--font-size-xs)", width: "100%" }}>{tr("Vein solid from two surfaces")}</span>
+          {[[veinHw, setVeinHw, "Hangingwall…"], [veinFw, setVeinFw, "Footwall…"]].map(([v, set, ph]) => (
+            <select key={ph} value={implicitSurfaces.some((x) => x.id === v) ? v : ""} onChange={(e) => set(e.target.value)} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr(ph)}>
+              <option value="">{tr(ph)}</option>
+              {implicitSurfaces.filter((x) => !SOLID_SURFACE_TYPES.has(x.type) || x.type === "imported").map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}{/* imported: a wall from another package */}
+            </select>
+          ))}
+          <button onClick={buildVeinSolid} disabled={!veinHw || !veinFw || veinHw === veinFw} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: veinHw && veinFw && veinHw !== veinFw ? 1 : 0.5 }}>{tr("Make the solid")}</button>
         </div>
         {surfaceSolidsOpen && (<Suspense fallback={null}>
           <SurfaceSolidsPanel

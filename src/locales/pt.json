@@ -5773,5 +5773,17 @@
   "Side to keep": "Lado a manter",
   "New surface for the other block": "Nova superfície para o outro bloco",
   "Name of the surface for the other block:": "Nome da superfície para o outro bloco:",
-  "Trimmed at the fault \"{f}\"; kept: {side}.": "Recortada na falha \"{f}\"; mantido: {side}."
+  "Trimmed at the fault \"{f}\"; kept: {side}.": "Recortada na falha \"{f}\"; mantido: {side}.",
+  "\"{a}\" and \"{b}\" do not face each other anywhere, so there is no vein between them.": "\"{a}\" e \"{b}\" não se defrontam em nenhum lugar, então não há veio entre elas.",
+  "{a} – {b} (vein solid)": "{a} – {b} (sólido de veio)",
+  "Vein solid from \"{a}\" and \"{b}\": {v} m³, true thickness {t0}–{t1} m (mean {tm} m), {dip}° dip towards {dd}°. It ends where either wall ends and is stepped at {cell} m cells along its edges.{pinch}": "Sólido de veio de \"{a}\" e \"{b}\": {v} m³, espessura verdadeira {t0}–{t1} m (média {tm} m), mergulho {dip}° para {dd}°. Termina onde termina qualquer uma das paredes e é escalonado em células de {cell} m nas bordas.{pinch}",
+  " The walls meet or cross at {n} grid node(s); the solid stops there.": " As paredes se tocam ou se cruzam em {n} nó(s) da grade; o sólido termina ali.",
+  "A vein or dyke as a closed solid between its hangingwall and footwall surfaces (any dip, vertical included), with its true thickness": "Um veio ou dique como sólido fechado entre suas superfícies de capa e lapa (qualquer mergulho, inclusive vertical), com sua espessura verdadeira",
+  "Vein solid from two surfaces": "Sólido de veio a partir de duas superfícies",
+  "Hangingwall…": "Capa…",
+  "Footwall…": "Lapa…",
+  "Make the solid": "Criar o sólido",
+  "A wall, not a top: dips {d}°. Vertical columns meet it over a sliver of the box, so it cannot bound units here. For a vein or dyke use Vein solid from two surfaces.": "Uma parede, não um topo: mergulha {d}°. As colunas verticais a cruzam só numa faixa da caixa, então aqui não pode delimitar unidades. Para um veio ou dique use Sólido de veio a partir de duas superfícies.",
+  "Dips {d}°: blocks coded from a top this steep are approximate near its edges. For a vein or dyke use Vein solid from two surfaces.": "Mergulha {d}°: blocos codificados a partir de um topo tão íngreme são aproximados perto das bordas. Para um veio ou dique use Sólido de veio a partir de duas superfícies.",
+  "dips {d}°": "mergulha {d}°"
 }
