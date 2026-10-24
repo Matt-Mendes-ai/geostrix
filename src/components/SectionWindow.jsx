@@ -286,12 +286,12 @@ export default function SectionWindow() {
                 <input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} placeholder={tr("Unit name (no litho data loaded)")} style={{ ...selectStyle, width: 170 }} />
               )}
               <button onClick={startDrawing} disabled={!unitPick} style={{ ...btnStyle(false), opacity: unitPick ? 1 : 0.5 }} title={unitPick ? tr("Draw {unitPick}'s upper contact", { unitPick }) : tr("Pick a unit first")}>
-                <Pencil size={14} /> {kindPick === "contact" ? tr("Draw upper contact") : kindPick === "fault" ? tr("Draw fault") : kindPick === "outline" ? tr("Draw outline") : tr("Draw string")}
+                <Pencil size={14} /> {kindPick === "contact" && tagExplicit.includes(unitPick) ? tr("Draw a line of {name}", { name: unitPick }) /* TASKS.csv #884 */ : kindPick === "contact" ? tr("Draw upper contact") : kindPick === "fault" ? tr("Draw fault") : kindPick === "outline" ? tr("Draw outline") : tr("Draw string")}
               </button>
             </>
           ) : (
             <>
-              <span style={{ color: "#e2a63c", fontSize: 11 }}>{kindPick === "contact" ? tr("Click points along {unitPick}'s upper contact… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length }) : kindPick === "outline" ? tr("Click points around the {unitPick} outline; it closes itself on Finish… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length }) : tr("Click points along {unitPick}… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length })}</span>
+              <span style={{ color: "#e2a63c", fontSize: 11 }}>{kindPick === "contact" && tagExplicit.includes(unitPick) ? tr("Click points along the line of {name}… ({drawPoints} so far). Finish, then Save contacts to send it to the surface.", { name: unitPick, drawPoints: drawPoints.length }) : kindPick === "contact" ? tr("Click points along {unitPick}'s upper contact… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length }) : kindPick === "outline" ? tr("Click points around the {unitPick} outline; it closes itself on Finish… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length }) : tr("Click points along {unitPick}… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length })}</span>
               <button onClick={undoPoint} disabled={!drawPoints.length} style={{ ...btnStyle(false), opacity: drawPoints.length ? 1 : 0.5 }}><Undo2 size={14} />{" "}{tr("Undo point")}</button>
               <button onClick={finishContact} disabled={drawPoints.length < (kindPick === "outline" ? 3 : 2)} style={{ ...btnStyle(true), opacity: drawPoints.length >= (kindPick === "outline" ? 3 : 2) ? 1 : 0.5 }}><Check size={14} />{" "}{tr("Finish")}</button>
               <button onClick={cancelDrawing} style={btnStyle(false)}><X size={14} />{" "}{tr("Cancel")}</button>

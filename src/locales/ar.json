@@ -5748,5 +5748,13 @@
   "A click on a hole snaps to its nearest logged contact (where the unit changes) within {m} m down-hole; untick to take the exact point clicked on the trace": "النقر على ثقب يلتقط أقرب تماس مسجل (حيث تتغير الوحدة) ضمن {m} م على طول الثقب؛ ألغِ التحديد لأخذ النقطة المنقورة بالضبط على المسار.",
   "More than one pick on the same hole: {list}. A contact crosses a hole once unless it is folded or faulted; a repeated unit belongs on another layer or surface.": "أكثر من نقطة على الثقب نفسه: {list}. يعبر التماس الثقب مرة واحدة ما لم يكن مطويًا أو متصدعًا؛ والوحدة المتكررة مكانها طبقة أو سطح آخر.",
   "Keep the shallowest pick on each hole": "إبقاء أقل النقاط عمقًا في كل ثقب",
-  "Building the surface…": "جارٍ بناء السطح…"
+  "Building the surface…": "جارٍ بناء السطح…",
+  "Last pick: {what}": "آخر نقطة: {what}",
+  "Next: Solid blocks from surfaces (under Generated surfaces) fills the units between your contacts, and 3D View > Draw section shows this surface cut. A closed body from outlines drawn on sections: Link into a solid, also under Generated surfaces.": "التالي: «كتل صلبة من الأسطح» (تحت الأسطح المولدة) تملأ الوحدات بين تماساتك، و«العرض ثلاثي الأبعاد > رسم مقطع» يُظهر هذا السطح مقطوعًا. لجسم مغلق من محيطات مرسومة على المقاطع: «اربط في مجسم»، تحت الأسطح المولدة أيضًا.",
+  "Unit, layer and contact": "الوحدة والطبقة والتماس",
+  "Surface settings": "إعدادات السطح",
+  "To draw this surface on a section: 3D View > Draw section, then in the section window pick \"{name}\" under Explicit surfaces, draw the line and press Save contacts. The surface passes exactly through every such line.": "لرسم هذا السطح على مقطع: العرض ثلاثي الأبعاد > رسم مقطع، ثم في نافذة المقطع اختر \"{name}\" تحت الأسطح الصريحة وارسم الخط واضغط «حفظ التماسات». يمر السطح بكل خط كهذا تمامًا.",
+  "Draw a line of {name}": "رسم خط لـ {name}",
+  "Click points along the line of {name}… ({drawPoints} so far). Finish, then Save contacts to send it to the surface.": "انقر نقاطًا على امتداد خط {name}… ({drawPoints} حتى الآن). أنهِ ثم «حفظ التماسات» لإرساله إلى السطح.",
+  "Build or import a surface first: an explicit surface, an implicit model or an imported solid.": "ابنِ أو استورد سطحًا أولًا: سطحًا صريحًا أو نموذجًا ضمنيًا أو مجسمًا مستوردًا."
 }

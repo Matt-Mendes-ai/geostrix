@@ -5748,5 +5748,13 @@
   "A click on a hole snaps to its nearest logged contact (where the unit changes) within {m} m down-hole; untick to take the exact point clicked on the trace": "Un clic sur un sondage s'accroche au contact décrit le plus proche (là où l'unité change) à moins de {m} m le long du trou ; décochez pour prendre le point exact cliqué sur la trace.",
   "More than one pick on the same hole: {list}. A contact crosses a hole once unless it is folded or faulted; a repeated unit belongs on another layer or surface.": "Plus d'un pointé sur le même sondage : {list}. Un contact traverse un sondage une fois, sauf s'il est plissé ou faillé ; une unité répétée va sur une autre couche ou surface.",
   "Keep the shallowest pick on each hole": "Garder le pointé le moins profond de chaque sondage",
-  "Building the surface…": "Construction de la surface…"
+  "Building the surface…": "Construction de la surface…",
+  "Last pick: {what}": "Dernier pointé : {what}",
+  "Next: Solid blocks from surfaces (under Generated surfaces) fills the units between your contacts, and 3D View > Draw section shows this surface cut. A closed body from outlines drawn on sections: Link into a solid, also under Generated surfaces.": "Ensuite : Blocs solides à partir des surfaces (sous Surfaces générées) remplit les unités entre vos contacts, et Vue 3D > Tracer une section montre cette surface coupée. Un corps fermé à partir de contours tracés sur des sections : Relier en un solide, aussi sous Surfaces générées.",
+  "Unit, layer and contact": "Unité, couche et contact",
+  "Surface settings": "Réglages de la surface",
+  "To draw this surface on a section: 3D View > Draw section, then in the section window pick \"{name}\" under Explicit surfaces, draw the line and press Save contacts. The surface passes exactly through every such line.": "Pour tracer cette surface sur une section : Vue 3D > Tracer une section, puis dans la fenêtre de section choisissez « {name} » sous Surfaces explicites, tracez la ligne et cliquez sur Enregistrer les contacts. La surface passe exactement par chacune de ces lignes.",
+  "Draw a line of {name}": "Tracer une ligne de {name}",
+  "Click points along the line of {name}… ({drawPoints} so far). Finish, then Save contacts to send it to the surface.": "Cliquez le long de la ligne de {name}… ({drawPoints} jusqu'ici). Terminez, puis Enregistrer les contacts pour l'envoyer à la surface.",
+  "Build or import a surface first: an explicit surface, an implicit model or an imported solid.": "Construisez ou importez d'abord une surface : une surface explicite, un modèle implicite ou un solide importé."
 }

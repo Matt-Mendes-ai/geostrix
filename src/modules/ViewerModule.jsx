@@ -7295,7 +7295,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           disabled={!implicitSurfaces.length}
           aria-expanded={surfaceSolidsOpen}
           style={{ ...pBtn, marginBottom: 8, opacity: implicitSurfaces.length ? 1 : 0.5, cursor: implicitSurfaces.length ? "pointer" : "default" }}
-          title={tr("Fill a grid of blocks with the units these surfaces bound (open surfaces are unit tops, closed ones are solids), then add the units as closed solids or as a block model")}
+          title={implicitSurfaces.length ? tr("Fill a grid of blocks with the units these surfaces bound (open surfaces are unit tops, closed ones are solids), then add the units as closed solids or as a block model") : tr("Build or import a surface first: an explicit surface, an implicit model or an imported solid.") /* TASKS.csv #863 */}
         ><Box size={14} />{" "}{tr("Solid blocks from surfaces…")}</button>
         {/* TASKS.csv #570 — explicit wireframe from outlines drawn on sections */}
         <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center" }} title={tr("Draw an \"Outline (closed, for a solid)\" with the same name on two or more cross-sections; this links them into a closed solid.")}>

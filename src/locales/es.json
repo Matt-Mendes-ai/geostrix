@@ -5748,5 +5748,13 @@
   "A click on a hole snaps to its nearest logged contact (where the unit changes) within {m} m down-hole; untick to take the exact point clicked on the trace": "Un clic en un sondaje se ajusta al contacto registrado más cercano (donde cambia la unidad) dentro de {m} m a lo largo del sondaje; desmarque para tomar el punto exacto pulsado en el sondaje.",
   "More than one pick on the same hole: {list}. A contact crosses a hole once unless it is folded or faulted; a repeated unit belongs on another layer or surface.": "Más de una selección en el mismo sondaje: {list}. Un contacto cruza un sondaje una vez salvo que esté plegado o fallado; una unidad repetida va en otra capa o superficie.",
   "Keep the shallowest pick on each hole": "Conservar la selección menos profunda de cada sondaje",
-  "Building the surface…": "Construyendo la superficie…"
+  "Building the surface…": "Construyendo la superficie…",
+  "Last pick: {what}": "Última selección: {what}",
+  "Next: Solid blocks from surfaces (under Generated surfaces) fills the units between your contacts, and 3D View > Draw section shows this surface cut. A closed body from outlines drawn on sections: Link into a solid, also under Generated surfaces.": "Siguiente: Bloques sólidos desde superficies (en Superficies generadas) rellena las unidades entre sus contactos, y Vista 3D > Dibujar sección muestra esta superficie cortada. Un cuerpo cerrado a partir de contornos dibujados en secciones: Enlazar en un sólido, también en Superficies generadas.",
+  "Unit, layer and contact": "Unidad, capa y contacto",
+  "Surface settings": "Ajustes de la superficie",
+  "To draw this surface on a section: 3D View > Draw section, then in the section window pick \"{name}\" under Explicit surfaces, draw the line and press Save contacts. The surface passes exactly through every such line.": "Para dibujar esta superficie en una sección: Vista 3D > Dibujar sección; luego, en la ventana de sección, elija \"{name}\" en Superficies explícitas, dibuje la línea y pulse Guardar contactos. La superficie pasa exactamente por cada línea así.",
+  "Draw a line of {name}": "Dibujar una línea de {name}",
+  "Click points along the line of {name}… ({drawPoints} so far). Finish, then Save contacts to send it to the surface.": "Haga clic a lo largo de la línea de {name}… ({drawPoints} hasta ahora). Termine y luego Guardar contactos para enviarla a la superficie.",
+  "Build or import a surface first: an explicit surface, an implicit model or an imported solid.": "Construya o importe primero una superficie: una superficie explícita, un modelo implícito o un sólido importado."
 }

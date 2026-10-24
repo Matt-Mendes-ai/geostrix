@@ -107,7 +107,9 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
   useEffect(() => {
     sc.clickRef.current = (hits, raycaster) => {
       if (digRef.current.drawing) { digRef.current.add(raycaster); return; } // #824 — drawing a line on a section image
-      const pick = pickFromHits(hits, raycaster, sc, snap);
+      // TASKS.csv #883 — a click that lands on this surface's own mesh is not a contact (it used to add a "3D point" there)
+      const own = defRef.current?.id === pickFor && defRef.current.surfaceId ? sc.meshes.current[defRef.current.surfaceId] : null;
+      const pick = pickFromHits(own ? hits.filter((h) => h.object !== own && h.object.parent !== own) : hits, raycaster, sc, snap);
       if (pick) setDefs((p) => p.map((d) => (d.id === pickFor ? { ...d, picks: [...(d.picks || []), pick] } : d)));
     };
   }, [sc, snap, pickFor, setDefs]);
@@ -115,10 +117,12 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
   const [selId, setSelId] = useState(defs[0]?.id || "");
   const def = defs.find((d) => d.id === selId) || defs[0] || null;
   const [status, setStatus] = useState(null); // { ok, text }
-  const [showPicks, setShowPicks] = useState(false);
+  const [showPicks, setShowPicks] = useState(null); // null: open while the surface has few picks (TASKS.csv #864)
   const update = (patch) => setDefs((p) => p.map((d) => (d.id === def.id ? { ...d, ...patch } : d)));
   // TASKS.csv #866 — holes picked more than once (on an inclined hole the stacked-point test cannot see it)
   const dupHoles = useMemo(() => { const m = new Map(); for (const p of def?.picks || []) if (p.hole_id) m.set(p.hole_id, (m.get(p.hole_id) || 0) + 1); return new Map([...m].filter(([, n]) => n > 1)); }, [def?.picks]);
+  const picksOpen = showPicks ?? ((def?.picks?.length || 0) < 6);
+  const pickLabel = (p) => `${p.hole_id ? tr("{hole} at {md} m ({how})", { hole: p.hole_id, md: Number(p.md).toFixed(1), how: p.above ? `${p.above} | ${p.below}` : p.src === "boundary" ? tr("logged contact") : tr("on the trace") }) : tr("3D point")} · ${Math.round(p.z)} m`;
   const keepShallowest = () => { const best = new Map(); for (const p of def.picks) if (p.hole_id && (!best.has(p.hole_id) || p.md < best.get(p.hole_id).md)) best.set(p.hole_id, p); update({ picks: def.picks.filter((p) => !p.hole_id || best.get(p.hole_id) === p) }); };
   // TASKS.csv #817 — mapped contacts (draped on the terrain) and their dip guides as further hard lines
   const polys = useMemo(() => (mapLayers || []).filter((l) => l.geomType === "polygon"), [mapLayers]);
@@ -486,6 +490,20 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
     sc.activity.current = Date.now();
   }, [def?.color, def?.surfaceId, sc]);
 
+  // TASKS.csv #883 — Escape stops picking and Edit mode, like every other armed tool (drawing on an image has its own Esc)
+  useEffect(() => {
+    if (!pickFor && !editing) return undefined;
+    const onKey = (e) => {
+      if (e.key !== "Escape") return;
+      const t = e.target;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      if (document.querySelector("[role=dialog], [aria-modal=true]") || digRef.current.drawing) return;
+      setPickFor(null); setEditing(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [pickFor, editing, setPickFor]);
+
   // rebuild when the inputs change (debounced, so a burst of picks builds once)
   const timer = useRef(null);
   const wantKey = useRef(null); // TASKS.csv #865 — the build the inputs ask for now: an older result arriving later is dropped
@@ -532,7 +550,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
         const at = !w ? "" : w.hole ? tr("{hole} at {md} m", { hole: w.hole, md: Number(w.md).toFixed(1) }) : w.src === "pick" ? tr("a 3D point") : w.src === "section" ? tr("a line on section {s}", { s: w.ref }) : tr("a line point");
         const loo = q.looRmsM != null ? ` ${tr("Leave-one-out: each input predicted from the others misses by {rms} m RMS, worst {max} m ({at}).", { rms: q.looRmsM.toFixed(1), max: q.looMaxM.toFixed(1), at })}` : q.looSkipped ? ` ${tr("Leave-one-out not computed above {n} points.", { n: LOO_MAX_POINTS })}` : "";
         const beyond = ` ${tr("{p} % of the surface lies beyond the inputs and is extrapolated (up to {d} m from the nearest).", { p: Math.round(q.beyondPct), d: Math.round(q.furthestM) })}`;
-        setStatus({ ok: true, text: tr("Built through {n} points ({picks} picks, {lines} section lines) in {ms} ms.", { n: res.n, picks: ep.picks, lines: ep.lines, ms }) + loo + beyond + " " + tr("{frame}{cut}", {
+        setStatus({ ok: true, built: true, text: tr("Built through {n} points ({picks} picks, {lines} section lines) in {ms} ms.", { n: res.n, picks: ep.picks, lines: ep.lines, ms }) + loo + beyond + " " + tr("{frame}{cut}", {
           frame: res.frame.steep ? tr("Steep surface (best-fit plane dips {d}°): modelled over its own plane.", { d: res.frame.dip.toFixed(0) }) : tr("Modelled as elevation over the map."),
           cut: res.groundCut ? tr(" Cut at the terrain.") : "",
         }) + (ep.drawnLines ? ` ${tr("Includes {n} line(s) digitized on section images.", { n: ep.drawnLines })}` : "") + (ep.mapLines ? ` ${tr("Includes {m} mapped contact line(s){g}.", { m: ep.mapLines, g: ep.guideLines ? tr(" and {g} dip guide line(s) (constructed, {d} m down-dip)", { g: ep.guideLines, d: Number(def.dipGuide?.depth) || 100 }) : "" })}` : "")
@@ -569,7 +587,12 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
     setUnitNote(tr("{unit}: {n} layer(s), lettered from the top down.", { unit: curUnit, n }) + (left ? ` ${tr("{k} surface(s) not built yet were left as they were.", { k: left })}` : ""));
   };
 
-  const lineHint = def ? tr("To add a hard line: in a section window choose \"Upper contact\", then \"{name}\" under Explicit surfaces, and draw it.", { name: def.name }) : "";
+  // TASKS.csv #864 — the fold-outs open by themselves once they hold something
+  const unitOpen = !!def && (unitCount > 1 || !!def.layer || contactOf(def) === "lower" || (!!def.unit && def.unit !== def.name));
+  const digOpen = !!def && (!!(def.lines || []).length || digDrawing);
+  const mapOpen = !!def?.mapContacts?.length;
+  const settingsOpen = !!def && (def.margin != null || (!!def.shape && def.shape !== "auto") || (!!def.resolution && def.resolution !== 80));
+  const lineHint = def ? tr("To draw this surface on a section: 3D View > Draw section, then in the section window pick \"{name}\" under Explicit surfaces, draw the line and press Save contacts. The surface passes exactly through every such line.", { name: def.name }) : ""; // TASKS.csv #884
   const row = { display: "flex", alignItems: "center", gap: 6, marginBottom: 6 };
   return (
     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
@@ -591,7 +614,20 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
             <Crosshair size={14} />{" "}{pickFor === def.id && !digDrawing ? tr("Picking — click contacts in 3D (click to stop)") : tr("Pick contacts in 3D")}
           </button>
         </div>
+        {dupHoles.size > 0 && ( // TASKS.csv #866 — a contact crosses a hole once unless folded or faulted
+          <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-warning, #b7791f)" }}>
+            {tr("More than one pick on the same hole: {list}. A contact crosses a hole once unless it is folded or faulted; a repeated unit belongs on another layer or surface.", { list: [...dupHoles].map(([h, n]) => `${h} (${n})`).join(", ") })}{" "}
+            <button onClick={keepShallowest} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Keep the shallowest pick on each hole")}</button>
+          </div>
+        )}
+        {status && <div role="status" style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: status.ok ? "var(--color-text-secondary)" : "var(--color-warning, #b7791f)" }}>{status.text}</div>}
+        {/* TASKS.csv #883 — every pick says where it landed (a click on the terrain or another surface is not a contact) */}
+        {def.picks.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-muted)" }}>{tr("Last pick: {what}", { what: pickLabel(def.picks[def.picks.length - 1]) })}</div>}
+        {/* TASKS.csv #863 — after a build, what the surface is for */}
+        {status?.built && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-muted)" }}>{tr("Next: Solid blocks from surfaces (under Generated surfaces) fills the units between your contacts, and 3D View > Draw section shows this surface cut. A closed body from outlines drawn on sections: Link into a solid, also under Generated surfaces.")}</div>}
         {/* TASKS.csv #830 / #831 / #832 — unit, layer, upper / lower contact */}
+        <details open={unitOpen} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginBottom: 6 }}>
+          <summary style={{ fontWeight: 600, marginBottom: 4, cursor: "pointer" }}>{tr("Unit, layer and contact")}</summary>
         <div style={row}>
           <span style={{ width: 34, flexShrink: 0 }}>{tr("Unit")}</span>
           <select value={curUnit} onChange={(e) => (e.target.value === " new" ? newUnit() : assignUnit(e.target.value))} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Unit this surface bounds")}
@@ -621,6 +657,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
             {unitNote && <div role="status" style={{ marginTop: 3, color: "var(--color-text-secondary)" }}>{unitNote}</div>}
           </div>
         )}
+        </details>
         <button onClick={() => { setPickFor(null); setEditing((v) => !v); setLineTool("move"); pendRef.current = null; setToolHint(null); }} aria-pressed={editing} disabled={!def.picks.length && !(def.lines || []).length}
           title={tr("Drag a pick to move it: a pick on a hole slides along that hole (snapping to logged contacts when Snap is on); any other pick moves up and down, or sideways with Shift held. The surface rebuilds when you let go.")}
           style={{ ...pBtn, marginBottom: 6, justifyContent: "center", opacity: def.picks.length || (def.lines || []).length ? 1 : 0.5, ...(editing ? { background: "var(--color-accent)", color: "var(--color-on-accent, #fff)" } : {}) }}>
@@ -637,8 +674,8 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
           {ep.lines ? tr("{lines} section line(s) on {sections} section(s) are hard lines of this surface (a point every {sp} m along them).", { lines: ep.lines, sections: ep.sections, sp: Math.round(ep.spacing || LINE_SPACING) }) : tr("No section lines yet.")}{" "}<span style={{ color: "var(--color-text-muted)" }}>{lineHint}</span>
         </div>
         {/* TASKS.csv #824 — digitize contacts on a section image in the 3D view */}
-        <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginBottom: 6 }}>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr("Digitize a section image")}</div>
+        <details open={digOpen} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginBottom: 6 }}>
+          <summary style={{ fontWeight: 600, marginBottom: 4, cursor: "pointer" }}>{tr("Digitize a section image")}</summary>
           {!images.length ? (
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Import a hand-drawn or scanned cross-section and georeference it (3D View sidebar > Section images) to draw this surface's contact on it here.")}</div>
           ) : (<>
@@ -676,13 +713,12 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
                 <button onClick={redo} disabled={!canRedo} title={tr("Redo (Ctrl+Y)")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px", fontSize: "var(--font-size-xs)", opacity: canRedo ? 1 : 0.5 }}>{tr("Redo")}</button>
               </div>
               {editing && toolHint && <div role="status" style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 4, color: "var(--color-text-secondary)" }}>{toolHint}</div>}
-              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Draw each contact as its own surface, then make blocks with Solid blocks from surfaces.")}</div>
             </>)}
           </>)}
-        </div>
+        </details>
         {/* TASKS.csv #817 — mapped contacts as hard lines, with an optional dip guide */}
-        <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginBottom: 6 }}>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr("From the geological map")}</div>
+        <details open={mapOpen} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginBottom: 6 }}>
+          <summary style={{ fontWeight: 600, marginBottom: 4, cursor: "pointer" }}>{tr("From the geological map")}</summary>
           {!polys.length ? (
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Import a geological map (Surface Geology > Geology map) to use its contacts as hard lines where this surface meets the ground.")}</div>
           ) : (<>
@@ -732,7 +768,9 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
               </div>
             </>)}
           </>)}
-        </div>
+        </details>
+        <details open={settingsOpen} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginBottom: 6 }}>
+          <summary style={{ fontWeight: 600, marginBottom: 4, cursor: "pointer" }}>{tr("Surface settings")}</summary>
         <div style={row} title={tr("Auto: 15 % of the inputs' span. Everything beyond the inputs is extrapolated, not data.") /* TASKS.csv #870 */}>
           <span style={{ width: 120, flexShrink: 0 }}>{tr("Extend beyond picks")}</span>
           <input type="number" min={0} step={10} value={def.margin ?? ""} placeholder={tr("auto")} onChange={(e) => update({ margin: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })} style={{ ...numInput, width: 64 }} aria-label={tr("Extend beyond picks")} /><span>m</span>
@@ -753,20 +791,14 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
         <label style={{ ...row, cursor: hasTerrain ? "pointer" : "default", opacity: hasTerrain ? 1 : 0.5 }}>
           <input type="checkbox" checked={!!def.cutAtTerrain} disabled={!hasTerrain} onChange={(e) => update({ cutAtTerrain: e.target.checked })} />{hasTerrain ? tr("Cut at the terrain") : tr("Cut at the terrain (no terrain loaded)")}
         </label>
-        {dupHoles.size > 0 && ( // TASKS.csv #866 — a contact crosses a hole once unless folded or faulted
-          <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-warning, #b7791f)" }}>
-            {tr("More than one pick on the same hole: {list}. A contact crosses a hole once unless it is folded or faulted; a repeated unit belongs on another layer or surface.", { list: [...dupHoles].map(([h, n]) => `${h} (${n})`).join(", ") })}{" "}
-            <button onClick={keepShallowest} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Keep the shallowest pick on each hole")}</button>
-          </div>
-        )}
-        {status && <div role="status" style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: status.ok ? "var(--color-text-secondary)" : "var(--color-warning, #b7791f)" }}>{status.text}</div>}
-        <div role="button" tabIndex={0} onClick={() => setShowPicks((v) => !v)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setShowPicks((v) => !v); }} style={{ cursor: "pointer", fontSize: "var(--font-size-xs)", marginBottom: 4 }}>
-          {showPicks ? "▾" : "▸"} {tr("Picks ({n})", { n: def.picks.length })}
+        </details>
+        <div role="button" tabIndex={0} aria-expanded={picksOpen} onClick={() => setShowPicks(!picksOpen)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setShowPicks(!picksOpen); }} style={{ cursor: "pointer", fontSize: "var(--font-size-xs)", marginBottom: 4 }}>
+          {picksOpen ? "▾" : "▸"} {tr("Picks ({n})", { n: def.picks.length })}
         </div>
-        {showPicks && def.picks.map((p) => (
+        {picksOpen && def.picks.map((p) => (
           <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", marginBottom: 2 }}>
             <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {dupHoles.has(p.hole_id) ? "⚠ " : ""}{p.hole_id ? tr("{hole} at {md} m ({how})", { hole: p.hole_id, md: p.md.toFixed(1), how: p.above ? `${p.above} | ${p.below}` : p.src === "boundary" ? tr("logged contact") : tr("on the trace") }) : tr("3D point")} · {Math.round(p.z)} m
+              {dupHoles.has(p.hole_id) ? "⚠ " : ""}{pickLabel(p)}
             </span>
             <button onClick={() => update({ picks: def.picks.filter((q) => q.id !== p.id) })} aria-label={tr("Remove this pick")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 0 }}><XIcon size={12} /></button>
           </div>
