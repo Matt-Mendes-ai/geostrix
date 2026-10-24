@@ -5758,5 +5758,20 @@
   "Click points along the line of {name}… ({drawPoints} so far). Finish, then Save contacts to send it to the surface.": "Cliquez le long de la ligne de {name}… ({drawPoints} jusqu'ici). Terminez, puis Enregistrer les contacts pour l'envoyer à la surface.",
   "Build or import a surface first: an explicit surface, an implicit model or an imported solid.": "Construisez ou importez d'abord une surface : une surface explicite, un modèle implicite ou un solide importé.",
   "Included {n} point(s) of the explicit surface \"{name}\" (its picks and lines) as interface points of \"{unitName}\".": "{n} point(s) de la surface explicite « {name} » (ses pointés et lignes) inclus comme points d'interface de « {unitName} ».",
-  "The explicit surface \"{name}\" is the LOWER contact of \"{unitName}\", so it was not used as its top.": "La surface explicite « {name} » est le contact INFÉRIEUR de « {unitName} » : elle n'a pas été utilisée comme son toit."
+  "The explicit surface \"{name}\" is the LOWER contact of \"{unitName}\", so it was not used as its top.": "La surface explicite « {name} » est le contact INFÉRIEUR de « {unitName} » : elle n'a pas été utilisée comme son toit.",
+  "Side A (+)": "Côté A (+)",
+  "Side B (−)": "Côté B (−)",
+  "Hanging-wall side": "Côté du toit (compartiment supérieur)",
+  "Footwall side": "Côté du mur (compartiment inférieur)",
+  "The fault \"{f}\" is no longer in the project, so the surface is not trimmed.": "La faille « {f} » n'est plus dans le projet : la surface n'est pas découpée.",
+  "The fault \"{f}\" does not cross this surface, so nothing was trimmed.": "La faille « {f} » ne traverse pas cette surface : rien n'a été découpé.",
+  "The fault ends inside the surface: {n} edge(s) near its tip were left whole (no cut point exists beyond the fault).": "La faille se termine dans la surface : {n} arête(s) près de son extrémité sont restées entières (aucun point de coupe n'existe au-delà de la faille).",
+  "Fault block": "Compartiment de faille",
+  "A contact offset by a fault is modelled as one surface per block: pick each block's contacts on its own surface and trim it at the fault. The picks carry the throw; nothing is moved.": "Un contact décalé par une faille se modélise par une surface par compartiment : pointez les contacts de chaque compartiment sur sa propre surface et découpez-la à la faille. Les pointés portent le rejet ; rien n'est déplacé.",
+  "Trim at the fault": "Découper à la faille",
+  "Not trimmed at a fault": "Non découpée à une faille",
+  "Side to keep": "Côté à garder",
+  "New surface for the other block": "Nouvelle surface pour l'autre compartiment",
+  "Name of the surface for the other block:": "Nom de la surface pour l'autre compartiment :",
+  "Trimmed at the fault \"{f}\"; kept: {side}.": "Découpée à la faille « {f} » ; gardé : {side}."
 }

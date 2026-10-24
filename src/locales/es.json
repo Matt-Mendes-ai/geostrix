@@ -5758,5 +5758,20 @@
   "Click points along the line of {name}… ({drawPoints} so far). Finish, then Save contacts to send it to the surface.": "Haga clic a lo largo de la línea de {name}… ({drawPoints} hasta ahora). Termine y luego Guardar contactos para enviarla a la superficie.",
   "Build or import a surface first: an explicit surface, an implicit model or an imported solid.": "Construya o importe primero una superficie: una superficie explícita, un modelo implícito o un sólido importado.",
   "Included {n} point(s) of the explicit surface \"{name}\" (its picks and lines) as interface points of \"{unitName}\".": "Se incluyeron {n} punto(s) de la superficie explícita \"{name}\" (sus selecciones y líneas) como puntos de interfaz de \"{unitName}\".",
-  "The explicit surface \"{name}\" is the LOWER contact of \"{unitName}\", so it was not used as its top.": "La superficie explícita \"{name}\" es el contacto INFERIOR de \"{unitName}\", así que no se usó como su techo."
+  "The explicit surface \"{name}\" is the LOWER contact of \"{unitName}\", so it was not used as its top.": "La superficie explícita \"{name}\" es el contacto INFERIOR de \"{unitName}\", así que no se usó como su techo.",
+  "Side A (+)": "Lado A (+)",
+  "Side B (−)": "Lado B (−)",
+  "Hanging-wall side": "Lado del techo (bloque colgante)",
+  "Footwall side": "Lado del muro (bloque yacente)",
+  "The fault \"{f}\" is no longer in the project, so the surface is not trimmed.": "La falla \"{f}\" ya no está en el proyecto, así que la superficie no se recorta.",
+  "The fault \"{f}\" does not cross this surface, so nothing was trimmed.": "La falla \"{f}\" no cruza esta superficie, así que no se recortó nada.",
+  "The fault ends inside the surface: {n} edge(s) near its tip were left whole (no cut point exists beyond the fault).": "La falla termina dentro de la superficie: {n} arista(s) cerca de su extremo quedaron enteras (no hay punto de corte más allá de la falla).",
+  "Fault block": "Bloque de falla",
+  "A contact offset by a fault is modelled as one surface per block: pick each block's contacts on its own surface and trim it at the fault. The picks carry the throw; nothing is moved.": "Un contacto desplazado por una falla se modela como una superficie por bloque: seleccione los contactos de cada bloque en su propia superficie y recórtela en la falla. Las selecciones llevan el desplazamiento; nada se mueve.",
+  "Trim at the fault": "Recortar en la falla",
+  "Not trimmed at a fault": "Sin recorte en una falla",
+  "Side to keep": "Lado a conservar",
+  "New surface for the other block": "Nueva superficie para el otro bloque",
+  "Name of the surface for the other block:": "Nombre de la superficie para el otro bloque:",
+  "Trimmed at the fault \"{f}\"; kept: {side}.": "Recortada en la falla \"{f}\"; se conservó: {side}."
 }

@@ -5758,5 +5758,20 @@
   "Click points along the line of {name}… ({drawPoints} so far). Finish, then Save contacts to send it to the surface.": "انقر نقاطًا على امتداد خط {name}… ({drawPoints} حتى الآن). أنهِ ثم «حفظ التماسات» لإرساله إلى السطح.",
   "Build or import a surface first: an explicit surface, an implicit model or an imported solid.": "ابنِ أو استورد سطحًا أولًا: سطحًا صريحًا أو نموذجًا ضمنيًا أو مجسمًا مستوردًا.",
   "Included {n} point(s) of the explicit surface \"{name}\" (its picks and lines) as interface points of \"{unitName}\".": "أُدرجت {n} نقطة من السطح الصريح \"{name}\" (نقاطه وخطوطه) كنقاط سطح بيني لـ \"{unitName}\".",
-  "The explicit surface \"{name}\" is the LOWER contact of \"{unitName}\", so it was not used as its top.": "السطح الصريح \"{name}\" هو التماس السفلي لـ \"{unitName}\"، لذا لم يُستخدم كقمة لها."
+  "The explicit surface \"{name}\" is the LOWER contact of \"{unitName}\", so it was not used as its top.": "السطح الصريح \"{name}\" هو التماس السفلي لـ \"{unitName}\"، لذا لم يُستخدم كقمة لها.",
+  "Side A (+)": "الجانب أ (+)",
+  "Side B (−)": "الجانب ب (−)",
+  "Hanging-wall side": "جانب الجدار المعلق",
+  "Footwall side": "جانب جدار القدم",
+  "The fault \"{f}\" is no longer in the project, so the surface is not trimmed.": "الصدع \"{f}\" لم يعد في المشروع، لذا لا يُقص السطح.",
+  "The fault \"{f}\" does not cross this surface, so nothing was trimmed.": "الصدع \"{f}\" لا يعبر هذا السطح، فلم يُقص شيء.",
+  "The fault ends inside the surface: {n} edge(s) near its tip were left whole (no cut point exists beyond the fault).": "ينتهي الصدع داخل السطح: تُركت {n} حافة قرب طرفه كاملة (لا توجد نقطة قص وراء الصدع).",
+  "Fault block": "كتلة الصدع",
+  "A contact offset by a fault is modelled as one surface per block: pick each block's contacts on its own surface and trim it at the fault. The picks carry the throw; nothing is moved.": "التماس المزاح بصدع يُنمذج بسطح لكل كتلة: التقط تماسات كل كتلة على سطحها الخاص واقصصه عند الصدع. النقاط تحمل الإزاحة؛ لا شيء يُحرَّك.",
+  "Trim at the fault": "القص عند الصدع",
+  "Not trimmed at a fault": "غير مقصوص عند صدع",
+  "Side to keep": "الجانب المُبقى",
+  "New surface for the other block": "سطح جديد للكتلة الأخرى",
+  "Name of the surface for the other block:": "اسم السطح للكتلة الأخرى:",
+  "Trimmed at the fault \"{f}\"; kept: {side}.": "قُصّ عند الصدع \"{f}\"؛ المُبقى: {side}."
 }

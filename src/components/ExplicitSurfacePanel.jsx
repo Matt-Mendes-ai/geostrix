@@ -22,11 +22,33 @@ const LINE_SPACING = 10; // m between the points taken along a drawn section lin
 const MAP_STEP = 25; // m between the points taken along a mapped contact (#817)
 
 // a short, stable fingerprint of what the surface is built from: rebuilt only when it changes
-function inputKey(def, ep, hasTerrain) {
-  const s = JSON.stringify([ep.points.map((p) => [p.x, p.y, p.z].map((v) => Math.round(v * 100))), def.margin ?? null, def.resolution || 80, !!(def.cutAtTerrain && hasTerrain), ...(def.shape ? [def.shape] : [])]); // shape: #824 (absent on older surfaces: same key as before, no rebuild)
+function inputKey(def, ep, hasTerrain, faultGeo = null) {
+  const s = JSON.stringify([ep.points.map((p) => [p.x, p.y, p.z].map((v) => Math.round(v * 100))), def.margin ?? null, def.resolution || 80, !!(def.cutAtTerrain && hasTerrain), ...(def.shape ? [def.shape] : []),
+    ...(def.boundedBy ? [def.boundedBy.surfaceId, def.boundedBy.side, faultGeo] : [])]); // boundedBy: TASKS.csv #861 (absent: same key as before) // shape: #824 (absent on older surfaces: same key as before, no rebuild)
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return `${ep.points.length}:${(h >>> 0).toString(36)}`;
+}
+
+// TASKS.csv #861 — a scene mesh in world coordinates (E, N, elevation), for trimming at a fault
+function worldMesh(mesh, o) {
+  const p = mesh.geometry?.attributes?.position?.array || [], n = p.length / 3, w = new Float64Array(p.length);
+  for (let i = 0; i < n; i++) { w[i * 3] = p[i * 3] + o.x; w[i * 3 + 1] = o.y - p[i * 3 + 2]; w[i * 3 + 2] = p[i * 3 + 1] + o.z; }
+  return { positions: w, indices: mesh.geometry?.index ? Array.from(mesh.geometry.index.array) : Array.from({ length: n }, (_, i) => i) };
+}
+// +1 / -1: the side the fault's triangle normals point to / away from. For a dipping fault whose normals point up, the
+// + side is above it: the hanging wall. -> { plus, minus } labels
+function faultSideLabels(w) {
+  let nx = 0, ny = 0, nz = 0;
+  const P = w.positions, I = w.indices;
+  for (let t = 0; t < I.length; t += 3) {
+    const a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3;
+    const e1 = [P[b] - P[a], P[b + 1] - P[a + 1], P[b + 2] - P[a + 2]], e2 = [P[c] - P[a], P[c + 1] - P[a + 1], P[c + 2] - P[a + 2]];
+    nx += e1[1] * e2[2] - e1[2] * e2[1]; ny += e1[2] * e2[0] - e1[0] * e2[2]; nz += e1[0] * e2[1] - e1[1] * e2[0];
+  }
+  const L = Math.hypot(nx, ny, nz) || 1, z = nz / L;
+  if (Math.abs(z) < 0.1 || Math.abs(z) > 0.995) return { plus: tr("Side A (+)"), minus: tr("Side B (−)") }; // vertical or flat: no hanging wall
+  return z > 0 ? { plus: tr("Hanging-wall side"), minus: tr("Footwall side") } : { plus: tr("Footwall side"), minus: tr("Hanging-wall side") };
 }
 
 // 3D-view hits -> a pick (world E, N, elevation). On a lithology interval: the point on that hole's trace nearest the
@@ -97,7 +119,7 @@ function upsertMesh(sc, def, res, info) {
   return id;
 }
 
-export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain, mapLayers, surfaceStructures, sectionImages = [], unitChoices = [] /* #831 */, onDigitizeImage, pickFor, setPickFor, snap, setSnap, scene: sc, onRemove, askPrompt, pBtn, smallSel, numInput }) {
+export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, defs, setDefs, sections, terrain, mapLayers, surfaceStructures, sectionImages = [], unitChoices = [] /* #831 */, onDigitizeImage, pickFor, setPickFor, snap, setSnap, scene: sc, onRemove, askPrompt, pBtn, smallSel, numInput }) {
   const hasTerrain = !!terrain?.bbox;
   const groundAt = (x, y) => {
     const [x0, y0, x1, y1] = terrain.bbox;
@@ -121,6 +143,19 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
   const update = (patch) => setDefs((p) => p.map((d) => (d.id === def.id ? { ...d, ...patch } : d)));
   // TASKS.csv #866 — holes picked more than once (on an inclined hole the stacked-point test cannot see it)
   const dupHoles = useMemo(() => { const m = new Map(); for (const p of def?.picks || []) if (p.hole_id) m.set(p.hole_id, (m.get(p.hole_id) || 0) + 1); return new Map([...m].filter(([, n]) => n > 1)); }, [def?.picks]);
+  // TASKS.csv #861 — fault choices: every other generated surface (faults first); side names from the fault's normal
+  const faultChoices = useMemo(() => (surfaces || []).filter((x) => x.id !== def?.surfaceId && x.visible !== false).sort((a, b) => (b.type === "fault") - (a.type === "fault")), [surfaces, def?.surfaceId]);
+  const sideLabels = useMemo(() => {
+    const m = def?.boundedBy && sc.meshes.current[def.boundedBy.surfaceId];
+    return m ? faultSideLabels(worldMesh(m, sc.origin.current)) : { plus: tr("Side A (+)"), minus: tr("Side B (−)") };
+  }, [def?.boundedBy, surfaces, sc]); // surfaces: the fault may have been rebuilt
+  const otherBlock = () => askPrompt(tr("Name of the surface for the other block:"), `${def.name} — ${def.boundedBy.side > 0 ? sideLabels.minus : sideLabels.plus}`, (name) => {
+    const n = (name || "").trim();
+    if (!n) return;
+    const id = `expl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    setDefs((p) => [...p, { id, name: n, color: def.color, picks: [], margin: def.margin, resolution: def.resolution || 80, cutAtTerrain: def.cutAtTerrain, shape: def.shape || "auto", unit: unitOf(def), contact: contactOf(def), layer: def.layer || "", boundedBy: { surfaceId: def.boundedBy.surfaceId, side: -def.boundedBy.side }, surfaceId: `impl_${Date.now()}_explicit_${Math.random().toString(36).slice(2, 6)}`, builtKey: null }]);
+    setSelId(id); setPickFor(id);
+  });
   const picksOpen = showPicks ?? ((def?.picks?.length || 0) < 6);
   const pickLabel = (p) => `${p.hole_id ? tr("{hole} at {md} m ({how})", { hole: p.hole_id, md: Number(p.md).toFixed(1), how: p.above ? `${p.above} | ${p.below}` : p.src === "boundary" ? tr("logged contact") : tr("on the trace") }) : tr("3D point")} · ${Math.round(p.z)} m`;
   const keepShallowest = () => { const best = new Map(); for (const p of def.picks) if (p.hole_id && (!best.has(p.hole_id) || p.md < best.get(p.hole_id).md)) best.set(p.hole_id, p); update({ picks: def.picks.filter((p) => !p.hole_id || best.get(p.hole_id) === p) }); };
@@ -509,7 +544,8 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
   const wantKey = useRef(null); // TASKS.csv #865 — the build the inputs ask for now: an older result arriving later is dropped
   useEffect(() => {
     if (!def || !ep) return undefined;
-    const key = inputKey(def, ep, hasTerrain);
+    const faultMesh = def.boundedBy ? sc.meshes.current[def.boundedBy.surfaceId] : null;
+    const key = inputKey(def, ep, hasTerrain, def.boundedBy ? faultMesh?.geometry?.uuid || "missing" : null);
     wantKey.current = key;
     // #828 — the key the MESH was built from (an Undo brings back an older def.builtKey together with the older inputs, so
     // comparing with def.builtKey alone would leave the newer mesh on screen); def.builtKey for a mesh opened from a file
@@ -539,6 +575,30 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
         const res = await fitExplicitSurfaceAsync(ep.points, { margin: def.margin, resolution: def.resolution || 80, frame }, def.cutAtTerrain && hasTerrain ? terrain : null);
         clearTimeout(slow);
         if (wantKey.current !== key) return; // the inputs changed while it was building: a newer build is on its way
+        // TASKS.csv #861 — Matt: each fault block gets its own surface, trimmed at the fault (nothing invented: the picks of
+        // the block carry the throw). The spline is fitted through this surface's inputs, then cut at the fault and only
+        // the chosen side kept; where the fault ends inside the surface no cut point exists and those edges stay whole.
+        let trimNote = "";
+        if (def.boundedBy) {
+          const fname = surfaces.find((x) => x.id === def.boundedBy.surfaceId)?.name || "?";
+          if (!faultMesh) trimNote = tr("The fault \"{f}\" is no longer in the project, so the surface is not trimmed.", { f: fname });
+          else {
+            const { splitAcrossSurface } = await import("../lib/crosscut.js");
+            if (wantKey.current !== key) return;
+            const fw = worldMesh(faultMesh, sc.origin.current);
+            const sp = splitAcrossSurface({ positions: res.positions, indices: Array.from(res.indices) }, fw);
+            if (!sp.ok || !sp.changed) trimNote = tr("The fault \"{f}\" does not cross this surface, so nothing was trimmed.", { f: fname });
+            else {
+              const part = def.boundedBy.side > 0 ? sp.positive : sp.negative, lab = faultSideLabels(fw);
+              // the clipper keeps every input vertex: keep only the ones a triangle uses
+              const remap = new Int32Array(part.positions.length / 3).fill(-1), pos = [], idx = new Uint32Array(part.indices.length);
+              for (let k = 0; k < part.indices.length; k++) { const v = part.indices[k]; if (remap[v] < 0) { remap[v] = pos.length / 3; pos.push(part.positions[3 * v], part.positions[3 * v + 1], part.positions[3 * v + 2]); } idx[k] = remap[v]; }
+              res.positions = Float64Array.from(pos); res.indices = idx;
+              trimNote = tr("Trimmed at the fault \"{f}\"; kept: {side}.", { f: fname, side: def.boundedBy.side > 0 ? lab.plus : lab.minus })
+                + (sp.stats.unresolvedEdges ? ` ${tr("The fault ends inside the surface: {n} edge(s) near its tip were left whole (no cut point exists beyond the fault).", { n: sp.stats.unresolvedEdges })}` : "");
+            }
+          }
+        }
         const ms = Math.round(performance.now() - t0);
         const surfaceId = upsertMesh(sc, def, res, { picks: ep.picks, lines: ep.lines, sections: ep.sections, spacing: ep.spacing, mapLines: ep.mapLines, guideLines: ep.guideLines, key });
         // #828 — the mesh remembers its key (userData.builtKey); the def is only written when it had no mesh id yet (a
@@ -554,11 +614,11 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
           frame: res.frame.steep ? tr("Steep surface (best-fit plane dips {d}°): modelled over its own plane.", { d: res.frame.dip.toFixed(0) }) : tr("Modelled as elevation over the map."),
           cut: res.groundCut ? tr(" Cut at the terrain.") : "",
         }) + (ep.drawnLines ? ` ${tr("Includes {n} line(s) digitized on section images.", { n: ep.drawnLines })}` : "") + (ep.mapLines ? ` ${tr("Includes {m} mapped contact line(s){g}.", { m: ep.mapLines, g: ep.guideLines ? tr(" and {g} dip guide line(s) (constructed, {d} m down-dip)", { g: ep.guideLines, d: Number(def.dipGuide?.depth) || 100 }) : "" })}` : "")
-          + (ep.extraEvery > 1 ? ` ${tr("To keep the build fast, one map line point in {k} was used.", { k: ep.extraEvery })}` : "") + (res.warnings.length ? ` ${res.warnings.join(" ")}` : "") });
+          + (ep.extraEvery > 1 ? ` ${tr("To keep the build fast, one map line point in {k} was used.", { k: ep.extraEvery })}` : "") + (trimNote ? ` ${trimNote}` : "") + (res.warnings.length ? ` ${res.warnings.join(" ")}` : "") });
       } catch (e) { clearTimeout(slow); if (wantKey.current === key) setStatus({ ok: false, text: (e.message || String(e)) + stale }); }
     }, 250);
     return () => clearTimeout(timer.current);
-  }, [def, ep, hasTerrain]); // terrain and the scene refs are read at build time
+  }, [def, ep, hasTerrain, surfaces]); // terrain and the scene refs are read at build time; surfaces: a fault it is trimmed at may rebuild (#861)
 
   // TASKS.csv #830 / #831 / #832 — the unit this surface bounds, upper or lower contact, and the unit's layers
   const [unitNote, setUnitNote] = useState(null);
@@ -657,6 +717,26 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
             {unitNote && <div role="status" style={{ marginTop: 3, color: "var(--color-text-secondary)" }}>{unitNote}</div>}
           </div>
         )}
+        </details>
+        {/* TASKS.csv #861 — a fault block: this surface is trimmed at a fault, keeping one side */}
+        <details open={!!def.boundedBy} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginBottom: 6 }}>
+          <summary style={{ fontWeight: 600, marginBottom: 4, cursor: "pointer" }}>{tr("Fault block")}</summary>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 4 }}>{tr("A contact offset by a fault is modelled as one surface per block: pick each block's contacts on its own surface and trim it at the fault. The picks carry the throw; nothing is moved.")}</div>
+          <div style={row}>
+            <select value={def.boundedBy?.surfaceId || ""} onChange={(e) => update({ boundedBy: e.target.value ? { surfaceId: e.target.value, side: def.boundedBy?.side || 1 } : null })} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Trim at the fault")}>
+              <option value="">{tr("Not trimmed at a fault")}</option>
+              {faultChoices.map((x) => <option key={x.id} value={x.id}>{x.type === "fault" ? `${x.name} · ${tr("fault")}` : x.name}</option>)}
+            </select>
+          </div>
+          {def.boundedBy && (<>
+            <div style={row}>
+              <select value={String(def.boundedBy.side)} onChange={(e) => update({ boundedBy: { ...def.boundedBy, side: Number(e.target.value) } })} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Side to keep")}>
+                <option value="1">{sideLabels.plus}</option>
+                <option value="-1">{sideLabels.minus}</option>
+              </select>
+            </div>
+            <button onClick={otherBlock} style={{ ...pBtn, marginBottom: 0, justifyContent: "center", padding: "3px 7px", fontSize: "var(--font-size-xs)" }}>{tr("New surface for the other block")}</button>
+          </>)}
         </details>
         <button onClick={() => { setPickFor(null); setEditing((v) => !v); setLineTool("move"); pendRef.current = null; setToolHint(null); }} aria-pressed={editing} disabled={!def.picks.length && !(def.lines || []).length}
           title={tr("Drag a pick to move it: a pick on a hole slides along that hole (snapping to logged contacts when Snap is on); any other pick moves up and down, or sideways with Shift held. The surface rebuilds when you let go.")}
