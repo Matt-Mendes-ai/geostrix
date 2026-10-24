@@ -76,8 +76,8 @@ async function decodeTerrariumTile(z, x, y) {
 }
 
 // TASKS.csv #726 — the tile mosaic (Float32 elevations, `mw` x `mh`, NaN where a tile failed, covering `tiles` = the
-// tile-grid extent in lon/lat) resampled onto a gridW x gridH lon/lat grid over `bbox`, the way satelliteFetch.js's
-// resampleMosaic (#423) does it:
+// tile-grid extent in lon/lat) resampled onto a gridW x gridH lon/lat grid over `bbox`, the way the former satellite
+// tile mosaic (#423; removed in #837) did it:
 //  * PIXEL CENTRES: the mosaic's edges are tile corners, so its first / last pixel centres sit half a pixel inside.
 //    The first version sampled each tile with node 0 on its west / north EDGE: a half-pixel shift, 2.9 m at z14
 //    (an area up to ~6 km), 5.8 m at z13, 11.7 m at z12 (~25 km).

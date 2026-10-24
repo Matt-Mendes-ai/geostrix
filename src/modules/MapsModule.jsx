@@ -29,7 +29,7 @@ export default function MapsModule() {
       <Ribbon label="Map tools">
         <RibbonGroup label="Imagery & terrain">
           <RibbonButton icon={Image} label="GeoTIFF / GXF" tone="data" title="Import a georeferenced GeoTIFF or Geosoft .gxf grid and manage the raster drapes" {...btn("raster", "import-raster")} active={pane === "raster"} />
-          <RibbonButton icon={Satellite} label="Satellite" tone="data" title="Free Sentinel-2 cloudless imagery (no account) for an area you draw" {...btn("raster", "raster-satellite")} active={false} />
+          <RibbonButton icon={Satellite} label="Satellite" tone="data" title="Free Sentinel-2 imagery (no account): the latest clear scene over an area you draw" {...btn("raster", "raster-satellite")} active={false} />
           <RibbonButton icon={Mountain} label="Terrain" tone="data" title="Terrain: fetch SRTM elevation or import a DEM" {...btn("terrain")} />
           <RibbonButton advanced icon={MapPinned} label="Georeference" tone="data" title="Georeference a scanned map or sketch with no coordinates" {...btn("raster", "raster-georeference")} active={false} />
           <RibbonButton icon={Rainbow} label="Spectral index" tone="data" title="Quartz / carbonate / mafic indices from ASTER thermal emissivity, iron-oxide and clay ratios from Sentinel-2 or Landsat, from a multiband GeoTIFF" {...btn("raster", "raster-spectral")} active={false} />

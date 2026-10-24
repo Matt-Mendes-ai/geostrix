@@ -16,7 +16,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the 
 // points on it, type the matching real-world X/Y for each, and once >=3 non-collinear points are
 // placed the image is resampled into an axis-aligned world-space raster (see georef.js's
 // georeferenceImage — the same "forward-project corners for a bbox, inverse-sample per pixel" shape
-// reprojectGrid/satelliteFetch.js already use) and handed back via onImport, same shape RasterModule's
+// reprojectGrid already uses) and handed back via onImport, same shape RasterModule's
 // other importers produce ({name, bbox, dataUrl}).
 const DISPLAY_MAX = 700; // scaled-down on-screen canvas size; control points are still stored/fit at full source resolution
 

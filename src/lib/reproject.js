@@ -525,7 +525,7 @@ function rowInverse(inv, txmin, txmax, outW, tolX, tolY) {
 }
 
 // `band` (one array -> `elevations`) or `bands` (several same-shaped channels -> `bandsOut`; TASKS.csv
-// #450: satelliteFetch.js warps R, G, B and A in ONE pass instead of four).
+// #450: imagery warps R, G, B and A in ONE pass instead of four).
 // TASKS.csv #487 — opts.nearest: nearest-node sampling instead of bilinear (class grids and imagery, where a
 // blend of two values invents one that isn't in the data).
 function nearestSample(band, w, h, xmin, ymin, xmax, ymax, x, y) {

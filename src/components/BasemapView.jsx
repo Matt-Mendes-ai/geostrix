@@ -168,7 +168,9 @@ export default function BasemapView({
   //
   // So this is now refused for OSM Standard specifically, rather than throttled. Offline pre-caching is
   // legitimate against providers whose terms allow it — Tracestrack, which the user supplies their own
-  // API key for, and EOX's satellite mosaic — so the feature stays for those. Passive caching of tiles
+  // API key for, and EOX's satellite mosaic (#837: CC BY-NC-SA 4.0 from 2018 on; tiles cached for the viewer's own
+  // display are display use, which is why the project-stored EOX mosaic fetch was removed and this stays) — so the
+  // feature stays for those. Passive caching of tiles
   // the user has ALREADY viewed (CachedTile.jsx) is ordinary browser behaviour and is untouched; the
   // deliberate area sweep is the part that was over the line.
   const BULK_CACHE_BLOCKED_LAYERS = new Set(["standard"]);

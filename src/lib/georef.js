@@ -72,12 +72,12 @@ export function residuals(t, points) {
   });
 }
 
-const OUT_GRID_MAX = 1024; // matches satelliteFetch.js's GRID_MAX — a scanned map benefits from staying sharp
+const OUT_GRID_MAX = 1024; // the longest side a scanned map is kept at — it benefits from staying sharp
 
 // Resamples `imageData` (a canvas ImageData from the source scan, full pixel resolution) into a new
 // axis-aligned world-space raster using the fitted affine — the same "forward-project the source's
 // corners to get a covering bbox, then inverse-map + bilinear-sample each output pixel" shape
-// reprojectGrid/satelliteFetch.js already use, just with an affine instead of a proj4 CRS pair. This
+// reprojectGrid already uses, just with an affine instead of a proj4 CRS pair. This
 // is what makes a ROTATED scan (a common real case — a scanned map is rarely perfectly axis-aligned
 // to the project's own grid) still come out as a correctly axis-aligned raster, not just pasted in
 // unrotated at the wrong angle, matching every other raster this app already renders as a plain

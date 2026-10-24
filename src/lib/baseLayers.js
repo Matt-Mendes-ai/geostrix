@@ -12,16 +12,18 @@
 // default from then on — so once a key is entered once, Tracestrack genuinely IS the default every
 // time after that, without ever shipping a key-gated service as the out-of-the-box default.
 //
-// Satellite: EOX's "Sentinel-2 cloudless" mosaic (maps.eox.at) — verified live via its own WMTS
-// GetCapabilities (tiles.maps.eox.at/wmts/1.0.0/WMTSCapabilities.xml): no API key, no account, CC BY
-// 4.0 licensed, explicitly offered as free background imagery (same "free to display, not to scrape
-// and redistribute as your own dataset" posture this app already applies to OSM — see LocatorMap.jsx's
-// header comment). This is the same source floated in the earlier satellite-imagery discussion this
-// session (Sentinel-2 / Planetary Computer) as the licensing-safe alternative to scraping Google/Bing/
-// Esri tiles — now actually wired up as a selectable layer rather than just a talking point. Uses the
-// most recent annual mosaic (2025) via its "g" (Web Mercator / GoogleMapsCompatible) TileMatrixSet,
-// which matches this app's existing standard slippy-tile x/y/z math exactly (z/y/x order, per WMTS
-// REST's {TileMatrix}/{TileRow}/{TileCol} convention).
+// Satellite: EOX's "Sentinel-2 cloudless" mosaic (cloudless.eox.at), no API key, no account, via its "g" (Web
+// Mercator / GoogleMapsCompatible) TileMatrixSet, which matches this app's slippy-tile x/y/z math exactly (z/y/x
+// order, per WMTS REST's {TileMatrix}/{TileRow}/{TileCol} convention).
+// TASKS.csv #837 — LICENCE, from EOX's own WMTS GetCapabilities (tiles.maps.eox.at/wmts/1.0.0/WMTSCapabilities.xml,
+// read 2026-10-24): the 2016 and 2017 layers are CC BY 4.0; EVERY layer from 2018 to 2025 is CC BY-NC-SA 4.0
+// (non-commercial; "commercial use requires contacting cloudless.eox.at"). The earlier "CC BY 4.0" here read the
+// service-level AccessConstraints, not the layer abstracts. The CC BY 2017 layer serves blank tiles over British
+// Columbia (checked: Woodjam and Harry at z8-z14 are 116-668 byte blanks; Vienna is real), so it is no swap.
+// Matt chose option B: the 2025 mosaic stays as a DISPLAY-ONLY basemap, labelled with its real licence below, and
+// the fetch that stores imagery in the project (RasterModule) uses the Copernicus Sentinel-2 scene path only
+// (imageryFetch.js #816: free and open, any use with attribution). The former EOX tile mosaic fetch
+// (satelliteFetch.js, #204 / #423 / #781) was removed.
 const LS_LAYER = "geostrix_basemap_layer";
 const LS_TRACESTRACK_KEY = "geostrix_tracestrack_key";
 
@@ -45,7 +47,7 @@ export const BASE_LAYERS = [
   {
     id: "satellite",
     label: "Satellite",
-    attribution: "Sentinel-2 cloudless — contains modified Copernicus Sentinel data, © EOX IT Services GmbH (CC BY 4.0)",
+    attribution: "Sentinel-2 cloudless 2025 © EOX IT Services GmbH, contains modified Copernicus Sentinel data (CC BY-NC-SA 4.0: non-commercial use; commercial use needs a licence from EOX)",
     needsKey: false,
     tileUrl: (z, x, y) => `https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/g/${z}/${y}/${x}.jpg`,
   },
