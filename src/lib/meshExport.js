@@ -121,6 +121,10 @@ export function provenanceLines(name, provenance, extra = {}) {
     if (q.samplePoints != null) out.push(`Sample points: ${q.samplePoints}${q.alteredSamplePoints != null ? ` (${q.alteredSamplePoints} inside the assemblage)` : ""}${q.cellsEstimated != null ? ` | cells estimated: ${q.cellsEstimated}` : ""}`);
     if (q.closure) out.push(`Closure mode: ${q.closure}${q.closure === "artificial" ? " (part of the boundary is the search-radius wall, NOT a logged boundary)" : ""}`);
     if (q.generatedAt) out.push(`Generated: ${q.generatedAt}`);
+    constructionLines(q).forEach((l) => out.push(l)); // TASKS.csv #862
+    // #862 — and every field no line above knows, so a tool added later never leaves with only "Tool: ..."
+    const rest = Object.keys(q).filter((k) => !PRINTED.has(k) && !constructionKeys(q).has(k) && q[k] != null && q[k] !== "" && typeof q[k] !== "function");
+    if (rest.length) out.push(`Other parameters: ${rest.map((k) => `${k} = ${fieldText(q[k])}`).join(" | ")}`);
   } else if (provenance) {
     const q = provenance;
     out.push(`Tool: ${q.tool}`);
@@ -138,7 +142,77 @@ export function provenanceLines(name, provenance, extra = {}) {
   }
   // #674 — "No anisotropy" only when there was none (it followed the trend line above whenever a trend was used)
   const anis = provenance?.anisotropy;
-  out.push(`${anis ? "" : "No anisotropy, "}${anis ? "No" : "no"} variogram, no classification, no dilution or recovery. Must not be reported publicly as a Mineral Resource under NI 43-101 or JORC.`);
+  // #862 — a hand-built construction is not an interpolation: the grade-shell closing line ("No anisotropy, no
+  // variogram...") read as if one had been run
+  if (provenance && constructionKind(provenance)) out.push(`A geological interpretation built from the inputs listed above, not an estimate: no variogram, no classification, no dilution or recovery. Must not be reported publicly as a Mineral Resource under NI 43-101 or JORC.`);
+  else out.push(`${anis ? "" : "No anisotropy, "}${anis ? "No" : "no"} variogram, no classification, no dilution or recovery. Must not be reported publicly as a Mineral Resource under NI 43-101 or JORC.`);
+  return out;
+}
+
+// TASKS.csv #862 — the params fields the GemPy / alteration / vein branch of provenanceLines prints (or deliberately
+// leaves out: builtKey is an internal rebuild key, the edit fields are stamped by the hand-edit block).
+const PRINTED = new Set(["tool", "surface", "sourcePoints", "orientations", "target", "isoLevel", "construction", "part", "dip", "dipDir", "attitudeSource",
+  "rmsOffReferencePlaneM", "trueThicknessMinM", "trueThicknessMaxM", "trueThicknessMeanM", "downholeThicknessMeanM", "intercepts", "cellSizeM", "cellSizeAuto",
+  "searchRadiusM", "searchRadiusAuto", "gridCoarsened", "informedNodes", "minSeparationM", "pinchOut", "contactResidualRmsM", "contactResidualMaxM",
+  "midplaneLooRmsM", "midplaneLooMaxM", "incoherentSheet", "nominalHwFwLabels", "relation", "resolution", "gempyRange", "gempyRangeDefault",
+  "gempyRangeMultiplier", "gempyCO", "method", "cellSizeCoarsened", "holeSpacingM", "anisotropy", "searchEllipsoid", "domain", "clippedToDomain", "extent",
+  "samplePoints", "alteredSamplePoints", "cellsEstimated", "closure", "generatedAt", "builtKey", "manuallyEdited", "edits", "editCount"]);
+
+// one value as text, short enough for a header line
+function fieldText(v) {
+  let s;
+  if (Array.isArray(v)) s = v.map((x) => (x && typeof x === "object" ? JSON.stringify(x) : String(x))).join(", ");
+  else if (typeof v === "object") s = JSON.stringify(v);
+  else s = String(v);
+  return s.length > 300 ? `${s.slice(0, 297)}...` : s;
+}
+
+// TASKS.csv #862 — the hand-built kinds: an explicit surface, a linked-outline wireframe, a vein solid, a unit volume
+function constructionKind(q) {
+  if (q.picks != null && q.sectionLines != null) return "explicit";
+  if (q.pointsPerOutline != null) return "wireframe";
+  if (q.hangingwall != null && q.footwall != null) return "veinSolid";
+  if (q.cellVolumeM3 != null) return "unitVolume";
+  return null;
+}
+const CONSTRUCTION_KEYS = {
+  explicit: ["picks", "sectionLines", "sections", "lineSpacingM", "points", "mapContacts", "mapLines", "dipGuide", "frame", "maxMisfitM", "marginM", "looRmsM", "looMaxM", "overshootM", "extrapolatedPct", "furthestFromInputM", "cutAtTerrain", "builtAt"],
+  wireframe: ["body", "sections", "pointsPerOutline", "volumeM3", "ends", "builtAt"],
+  veinSolid: ["hangingwall", "footwall", "volumeM3", "trueThicknessM", "attitude", "gridCellM", "nodesWhereWallsMeet", "ends", "builtAt"],
+  unitVolume: ["unit", "model", "builtAt", "cells", "cellVolumeM3", "cellsVolumeM3", "shellVolumeM3", "note"],
+};
+function constructionKeys(q) { return new Set(CONSTRUCTION_KEYS[constructionKind(q)] || []); }
+
+function constructionLines(q) {
+  const kind = constructionKind(q), out = [];
+  const n = (v, d = 0) => (v == null || !Number.isFinite(+v) ? "?" : (+v).toLocaleString("en-US", { maximumFractionDigits: d }));
+  if (kind === "explicit") {
+    const secs = Array.isArray(q.sections) ? q.sections : [];
+    const inputs = [`${q.picks} pick(s) on drillhole traces`, `${q.sectionLines} section line(s)${secs.length ? ` on ${secs.join(", ")}` : ""}${q.sectionLines && q.lineSpacingM ? ` (resampled every ${q.lineSpacingM} m)` : ""}`];
+    if (q.mapLines) inputs.push(`${q.mapLines} mapped contact line(s)${q.mapContacts?.length ? ` (${q.mapContacts.join("; ")})` : ""}`);
+    if (q.dipGuide) inputs.push(`${q.dipGuide.lines} dip guide line(s) projected ${q.dipGuide.depthM} m down dip (CONSTRUCTED, not observed)`);
+    out.push(`Inputs: ${inputs.join(", ")} — ${q.points} distinct points used`);
+    out.push(`Method: thin-plate spline passing exactly through every input point, fitted ${/^over /.test(q.frame || "") ? q.frame : `as ${q.frame || "elevation over the map"}`}; solver misfit at the inputs ${q.maxMisfitM} m (exact by construction, so it says nothing about accuracy away from them)`);
+    out.push(q.looRmsM != null ? `Leave-one-out at the inputs: ${q.looRmsM} m RMS, worst ${q.looMaxM} m (each point predicted from all the others)` : `Leave-one-out at the inputs: not computed (over 300 points)`);
+    if (q.overshootM != null) out.push(`Overshoot beyond the inputs' elevation range inside their outline: ${q.overshootM} m | extrapolated beyond the inputs: ${q.extrapolatedPct}% of the surface, up to ${n(q.furthestFromInputM)} m from the nearest input | margin around the inputs: ${q.marginM} m`);
+    out.push(`Cut at the terrain: ${q.cutAtTerrain ? "yes" : "no"}`);
+  } else if (kind === "wireframe") {
+    const secs = Array.isArray(q.sections) ? q.sections : [];
+    out.push(`Body: ${q.body} | linked outlines on ${secs.length} section(s): ${secs.join(", ")} | resampled to ${q.pointsPerOutline} points per outline`);
+    out.push(`Ends: ${q.ends || "flat caps on the first and last outline"} | between outlines the solid is straight-line interpolation, nothing else is inferred`);
+    if (q.volumeM3 != null) out.push(`Volume when built: ${n(q.volumeM3)} m3`);
+  } else if (kind === "veinSolid") {
+    const t = q.trueThicknessM || {};
+    out.push(`Walls: hangingwall "${q.hangingwall}", footwall "${q.footwall}" | attitude ${q.attitude}`);
+    out.push(`TRUE thickness between the walls: ${t.min}–${t.max} m, mean ${t.mean} m | grid ${q.gridCellM} m cells (edges are stepped at that size) | ${q.nodesWhereWallsMeet || 0} node(s) where the walls meet or cross, left out`);
+    out.push(`Ends: ${q.ends}`);
+    if (q.volumeM3 != null) out.push(`Volume when built: ${n(q.volumeM3)} m3`);
+  } else if (kind === "unitVolume") {
+    out.push(`Unit: ${q.unit} | implicit model: ${q.model}${q.builtAt ? ` (run ${q.builtAt})` : ""}`);
+    out.push(`Volume = a COUNT of model blocks: ${n(q.cells)} cells x ${q.cellVolumeM3} m3 = ${n(q.cellsVolumeM3)} m3 | the shell around those blocks encloses ${n(q.shellVolumeM3)} m3`);
+    if (q.note) out.push(q.note);
+  }
+  if (kind && kind !== "unitVolume" && q.builtAt) out.push(`Built: ${q.builtAt}`);
   return out;
 }
 
