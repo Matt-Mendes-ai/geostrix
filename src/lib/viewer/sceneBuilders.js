@@ -148,7 +148,9 @@ export function syncBoundaries(group, cache, boundaries, { origin, terrain }) {
       const positions = new Float32Array(pts.length * 3);
       pts.forEach((p, i) => {
         // TASKS.csv #408 — a 3D string (DXF with elevations) is drawn at its own vertex Z.
-        const el = drapeOnTerrain ? sampleTerrainElevation(terrain, p.x, p.y) : (b.useVertexZ && Number.isFinite(p.z) ? p.z : elevation);
+        // TASKS.csv #845 — b.lift (m): a draped line in a valley bottom (a stream) sits a little above the terrain mesh,
+        // whose adaptive triangles (#796) can otherwise cover it between grid nodes
+        const el = drapeOnTerrain ? sampleTerrainElevation(terrain, p.x, p.y) + (b.lift || 0) : (b.useVertexZ && Number.isFinite(p.z) ? p.z : elevation);
         positions[i * 3] = p.x - ox;
         positions[i * 3 + 1] = el - oz;
         positions[i * 3 + 2] = -(p.y - oy);

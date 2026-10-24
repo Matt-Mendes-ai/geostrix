@@ -38,6 +38,7 @@ import CompositingModal from "../components/CompositingModal.jsx";
 import GradeStatistics from "../components/GradeStatistics.jsx";
 const ThresholdToolkit = React.lazy(() => import("../components/ThresholdToolkit.jsx")); // TASKS.csv #841
 const SurfaceQaqcPanel = React.lazy(() => import("../components/SurfaceQaqcPanel.jsx")); // TASKS.csv #842
+const CatchmentsPanel = React.lazy(() => import("../components/CatchmentsPanel.jsx")); // TASKS.csv #845
 import QAQCPanel from "../components/QAQCPanel.jsx";
 // TASKS.csv #224 — see ViewerModule.jsx's own comment on this same lazy import (sql.js's 658KB wasm
 // was pulled in on every app launch via this static import chain, regardless of whether SQL workspace
@@ -75,6 +76,7 @@ export default function GeochemModule() {
   const [gradeStatsOpen, setGradeStatsOpen] = useState(false);
   const [thresholdsOpen, setThresholdsOpen] = useState(false); // TASKS.csv #841
   const [surfaceQcOpen, setSurfaceQcOpen] = useState(false); // TASKS.csv #842
+  const [catchmentsOpen, setCatchmentsOpen] = useState(false); // TASKS.csv #845
   const [qaqcOpen, setQaqcOpen] = useState(false);
   const [sqlOpen, setSqlOpen] = useState(false);
   const [notices, setNotices] = useState([]);
@@ -526,7 +528,8 @@ export default function GeochemModule() {
     const mediaSet = new Set(SURFACE_MEDIA);
     // TASKS.csv #600 (40958Z) — the words exports use for a medium: an MX rock file says "rock", which used to
     // fall back to the default ("soil"), so every rock sample was labelled soil
-    const mediumAlias = (m) => (/rock|grab|chip|outcrop|float|channel/.test(m) ? "rock chip" : /stream|silt|sediment|\bsed\b|bleg/.test(m) ? "stream sediment" : /talus/.test(m) ? "talus fines" : /soil|b.?horizon/.test(m) ? "soil" : null);
+    // TASKS.csv #845 — the stream media apart: moss mat, heavy-mineral concentrate, BLEG and water are not active sediment
+    const mediumAlias = (m) => (/rock|grab|chip|outcrop|float|channel/.test(m) ? "rock chip" : /moss/.test(m) ? "moss mat" : /\bhmc\b|heavy.?min|concentrate|\bpan\b/.test(m) ? "heavy mineral concentrate" : /bleg|bulk.?leach/.test(m) ? "BLEG" : /water/.test(m) ? "stream water" : /stream|silt|sediment|\bsed\b/.test(m) ? "stream sediment" : /talus/.test(m) ? "talus fines" : /soil|b.?horizon/.test(m) ? "soil" : null);
     // TASKS.csv #333/#334 — same rules as drillhole assays: negative codes are never grades (-0.005 read as
     // below detection, <= -99 as not assayed), and an element already in the project keeps its unit.
     const existingUnit = Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit]));
@@ -726,6 +729,7 @@ export default function GeochemModule() {
             <RibbonButton advanced icon={Grid3x3} label="Correlation" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Correlation matrix" onClick={() => setCorrOpen(true)} />
             <RibbonButton icon={GBarChart} label="Grade stats" tone="analyse" disabled={!(assayElements.length || surfaceElements.length)} disabledReason="Import assays or surface samples first" title="Grade statistics (assays or surface samples)" onClick={() => setGradeStatsOpen(true)} />
             <RibbonButton icon={GBarChart} label="Thresholds" tone="analyse" disabled={!surfaceElements.length} disabledReason="Import surface samples first" title="Anomaly thresholds for soil and stream-sediment samples, judged within populations" onClick={() => setThresholdsOpen(true)} />{/* TASKS.csv #841 */}
+            <RibbonButton icon={GMapPin} label="Catchments" tone="analyse" disabled={!surfaceSamples.length} disabledReason="Import surface samples first" title="Stream-sediment catchments from the terrain: dilution correction (Hawkes), drainage ranking, follow-up reaches" onClick={() => setCatchmentsOpen(true)} />{/* TASKS.csv #845 */}
             <RibbonButton advanced icon={ShieldCheck} label="QAQC" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="QAQC: standards, blanks, duplicates" onClick={() => setQaqcOpen(true)} />
             <RibbonButton icon={ShieldCheck} label="Surface QAQC" tone="analyse" disabled={!(surfaceSamples.length || surfaceQc?.records?.length)} disabledReason="Import surface samples first" title="QA/QC of soil and stream-sediment programs: lab certificates, your standards, blanks and duplicates, insertion rates per batch" onClick={() => setSurfaceQcOpen(true)} />{/* TASKS.csv #842 */}
             <RibbonButton advanced icon={TerminalSquare} label="SQL" tone="data" disabled={!assayElements.length} disabledReason="Import assays first" title="SQL workspace" onClick={() => setSqlOpen(true)} />
@@ -972,6 +976,10 @@ export default function GeochemModule() {
           layers={layers}
           onClose={() => setCompositingOpen(false)}
         />
+      )}
+
+      {catchmentsOpen && ( // TASKS.csv #845
+        <React.Suspense fallback={null}><CatchmentsPanel onClose={() => setCatchmentsOpen(false)} /></React.Suspense>
       )}
 
       {surfaceQcOpen && ( // TASKS.csv #842

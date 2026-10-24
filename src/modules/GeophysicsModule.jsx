@@ -90,7 +90,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   const geoPane = forcePane || geoPaneState; // #749 — the Maps tab chooses the pane
   const geoBtn = (id) => ({ active: geoPane === id, onClick: () => setGeoPane(id) });
   const {
-    layers, replaceLayer, goToModule, collars, rasters, addRaster, project,
+    layers, replaceLayer, goToModule, collars, rasters, addRaster, project, surfaceSamples, // #845 — the terrain picker over a samples-only project
     terrain, addTerrain, updateTerrain, removeTerrain,
     geophysPtsStops, setGeophysPtsStops, geophysPtsColorMode, setGeophysPtsColorMode,
     geophysPtsMin, setGeophysPtsMin, geophysPtsMax, setGeophysPtsMax,
@@ -380,6 +380,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         }
         if (x1 > x0 && y1 > y0) box = [x0, y0, x1, y1];
       }
+      if (!box) box = surfaceSampleBox(); // TASKS.csv #845 — a soil / stream program with no drilling: its samples' area
       if (!box) return null;
       const lls = await Promise.all([[box[0], box[1]], [box[2], box[1]], [box[2], box[3]], [box[0], box[3]]].map(([x, y]) => toLonLat(x, y, project.epsg)));
       if (lls.some((ll) => !ll)) return null;
@@ -403,9 +404,21 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   // can offer it as a ready-made fetch area, same idea as the collar-derived seed bbox above but for
   // layers instead of drillholes. Boundaries store polylines, not a bbox, so it's computed here from
   // every vertex across every loop; rasters already carry their own bbox.
+  // TASKS.csv #845 — the surface samples' extent with a margin (10 %, at least 1 km: a stream site's catchment reaches well
+  // beyond the sites), in project coordinates, or null
+  const surfaceSampleBox = () => {
+    const pts = (surfaceSamples || []).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+    if (!pts.length) return null;
+    const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+    const x0 = arrMin(xs), x1 = arrMax(xs), y0 = arrMin(ys), y1 = arrMax(ys);
+    const m = Math.max(1000, 0.1 * Math.max(x1 - x0, y1 - y0));
+    return [x0 - m, y0 - m, x1 + m, y1 + m];
+  };
   const buildSrtmAreaOptions = async () => {
     if (!project?.epsg) return [];
     const jobs = [];
+    const sb = surfaceSampleBox(); // #845
+    if (sb) jobs.push({ id: "surface_samples", label: tr("Around the surface samples"), xmin: sb[0], ymin: sb[1], xmax: sb[2], ymax: sb[3] });
     for (const b of boundaries) {
       const xs = [], ys = [];
       for (const loop of b.polylines || []) for (const p of loop) { xs.push(p.x); ys.push(p.y); }

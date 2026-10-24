@@ -174,7 +174,7 @@ export function colorForStructZone(v) { return STRUCTZONE_COLORS[(v || "").toUpp
 // grid and a rock-chip traverse from the same property are visually different datasets, same as
 // lithology/alteration get their own color set here) so mixed surface-sample imports read clearly in
 // the 3D view and the legend, rather than falling back to one uniform color for everything.
-export const MEDIUM_COLORS = { soil: "#8a6a45", "rock chip": "#c0392b", "stream sediment": "#4a7ab5", "talus fines": "#8a8578", other: "#6a6a6a" };
+export const MEDIUM_COLORS = { soil: "#8a6a45", "rock chip": "#c0392b", "stream sediment": "#4a7ab5", "moss mat": "#3f8f5a", "heavy mineral concentrate": "#7a4fa3", bleg: "#c58b1a", "stream water": "#5fb3c9", "talus fines": "#8a8578", other: "#6a6a6a" }; // #845 stream media
 export function colorForMedium(m) { return MEDIUM_COLORS[(m || "").toLowerCase()] || categoricalSafeColor("medium", m); }
 
 // TASKS.csv #249 (colorblind-safety review) — this was a literal red→orange→gold→green traffic-light

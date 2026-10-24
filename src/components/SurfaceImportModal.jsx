@@ -16,7 +16,9 @@ import SourceCrsField from "./SourceCrsField.jsx"; // TASKS.csv #600
 import { crsName } from "../lib/reproject.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
-export const SURFACE_MEDIA = ["soil", "rock chip", "stream sediment", "talus fines", "other"];
+// TASKS.csv #845 — every stream program (Matt: "Do all stream programs"): moss mats, heavy-mineral concentrates, BLEG and
+// stream waters are different measurements from active sediment and are kept as their own media (never ranked together)
+export const SURFACE_MEDIA = ["soil", "rock chip", "stream sediment", "moss mat", "heavy mineral concentrate", "BLEG", "stream water", "talus fines", "other"];
 
 export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit, projectEpsg }) {
   const crsUnset = useStore().project?.crsSet === false; // TASKS.csv #615
