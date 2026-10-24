@@ -3,6 +3,26 @@
 import * as THREE from "three";
 import { findOnTraceWorld } from "./viewer/modelHelpers.js";
 
+// TASKS.csv #868 — the logged CONTACTS of a hole: where the unit changes down-hole (a same-unit logging split such as
+// DACT 11.2-25 / DACT 25-28.5 is not a contact; the #519 / #825 rule), with the units either side.
+export function holeContacts(litho, holeId) {
+  const rows = (litho || []).filter((r) => r.hole_id === holeId && Number.isFinite(Number(r.from)) && Number.isFinite(Number(r.to))).sort((a, b) => a.from - b.from);
+  const out = [];
+  for (let k = 1; k < rows.length; k++) {
+    const a = rows[k - 1], b = rows[k];
+    if (String(a.value) === String(b.value) || Math.abs(Number(a.to) - Number(b.from)) > 0.5) continue;
+    out.push({ md: Number(b.from), above: String(a.value), below: String(b.value) });
+  }
+  return out;
+}
+// the contact nearest md within maxM metres down-hole, or null (then the pick stays on the trace)
+export const SNAP_REACH_M = 15;
+export function nearestContact(contacts, md, maxM = SNAP_REACH_M) {
+  let best = null;
+  for (const c of contacts) if (Math.abs(c.md - md) <= maxM && (!best || Math.abs(c.md - md) < Math.abs(best.md - md))) best = c;
+  return best;
+}
+
 export // TASKS.csv #813 — where a dragged pick goes for the mouse ray `ray` (scene coordinates). A pick on a hole slides along
 // that hole's trace: the trace point nearest the ray, snapped to the hole's nearest logged litho boundary when snapping
 // is on. Any other pick moves vertically in the plane facing the camera, or (Shift) horizontally at its own elevation.
@@ -17,17 +37,14 @@ function dragTarget(pick, ray, sc, snap, shift) {
       const d = ray.distanceSqToSegment(a, b, null, onSeg);
       if (d < best) { best = d; const L = a.distanceTo(b); md = t.pts[i].md + (L > 0 ? onSeg.distanceTo(a) / L : 0) * (t.pts[i + 1].md - t.pts[i].md); }
     }
-    if (snap) {
-      let bm = null;
-      for (const r of sc.litho || []) {
-        if (r.hole_id !== pick.hole_id) continue;
-        for (const v of [Number(r.from), Number(r.to)]) if (Number.isFinite(v) && (bm == null || Math.abs(v - md) < Math.abs(bm - md))) bm = v;
-      }
-      if (bm != null) md = bm;
-    }
+    // #868 — snap to a logged contact (unit change) within reach; else stay on the trace
+    const c = snap ? nearestContact(holeContacts(sc.litho, pick.hole_id), md) : null;
+    if (c) md = c.md;
     const w = findOnTraceWorld(t, md);
-    return w ? { ...pick, x: w[0], y: w[1], z: w[2], md, src: snap ? "boundary" : "trace" } : null;
+    const { above: _a, below: _b, ...rest } = pick;
+    return w ? { ...rest, x: w[0], y: w[1], z: w[2], md, src: c ? "boundary" : "trace", ...(c ? { above: c.above, below: c.below } : {}) } : null;
   }
+  if (pick.hole_id && !t) { const { hole_id: _h, md: _m, above: _a, below: _b, ...free } = pick; pick = { ...free, src: "point" }; } // TASKS.csv #900 — its hole is gone
   const P = new THREE.Vector3(pick.x - o.x, pick.z - o.z, o.y - pick.y);
   let plane;
   if (shift) plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -P.y);

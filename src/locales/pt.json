@@ -5744,5 +5744,8 @@
   "crosses itself": "cruza a si mesmo",
   "\"{name}\" crosses itself ({n} triangle pairs), so it has no well-defined inside to restrict to. Fix or rebuild it first.": "\"{name}\" cruza a si mesmo ({n} pares de triângulos), então não tem um interior bem definido para restringir. Corrija ou reconstrua primeiro.",
   " In {n} of {m} columns a unit's base lies above its own top (negative thickness): the blocks there follow the rules but not the geology.": " Em {n} de {m} colunas a base de uma unidade está acima do próprio topo (espessura negativa): os blocos ali seguem as regras, mas não a geologia.",
-  " In {n} of {m} columns the tops cross (a lower unit's top above a higher one's): check the stack order and the surfaces there.": " Em {n} de {m} colunas os topos se cruzam (o topo de uma unidade inferior acima do de uma superior): verifique a ordem da pilha e as superfícies ali."
+  " In {n} of {m} columns the tops cross (a lower unit's top above a higher one's): check the stack order and the surfaces there.": " Em {n} de {m} colunas os topos se cruzam (o topo de uma unidade inferior acima do de uma superior): verifique a ordem da pilha e as superfícies ali.",
+  "A click on a hole snaps to its nearest logged contact (where the unit changes) within {m} m down-hole; untick to take the exact point clicked on the trace": "Um clique num furo se ajusta ao contato descrito mais próximo (onde a unidade muda) dentro de {m} m ao longo do furo; desmarque para usar o ponto exato clicado no traço.",
+  "More than one pick on the same hole: {list}. A contact crosses a hole once unless it is folded or faulted; a repeated unit belongs on another layer or surface.": "Mais de uma seleção no mesmo furo: {list}. Um contato cruza um furo uma vez, a menos que esteja dobrado ou falhado; uma unidade repetida vai em outra camada ou superfície.",
+  "Keep the shallowest pick on each hole": "Manter a seleção mais rasa de cada furo"
 }

@@ -9,7 +9,7 @@ import { t as tr } from "../lib/i18n.js";
 import { LOO_MAX_POINTS, explicitPoints, fitExplicitSurface } from "../lib/explicitSurface.js";
 import { findOnTraceWorld, traceDirWorld } from "../lib/viewer/modelHelpers.js";
 import { sampleTerrainElevation } from "../lib/viewer/geomath.js";
-import { dragTarget } from "../lib/explicitDrag.js"; // TASKS.csv #813
+import { dragTarget, holeContacts, nearestContact, SNAP_REACH_M } from "../lib/explicitDrag.js"; // TASKS.csv #813; contacts: #868
 import { mapContactPairs, mapContactLines, dipGuideLines } from "../lib/explicitMapLines.js"; // TASKS.csv #817
 import { imagePlane, rayPlane, facingCamera, densify3, medianApparentDip, sectionSnapTargets, constrainOnImage, groundProfileOnImage, nearestOnPolyline, pointOnSegment, insertPoint, splitAt, joinLines, extendTo } from "../lib/sectionDigitize3d.js"; // TASKS.csv #824 / #825 / #828
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #828 — Undo / Redo
@@ -45,10 +45,13 @@ function pickFromHits(hits, raycaster, sc, snap) {
       const dd = Math.hypot(a.x + s * ab[0] - q.x, a.y + s * ab[1] - q.y, a.z + s * ab[2] - q.z);
       if (dd < best) { best = dd; md = a.md + s * (b.md - a.md); }
     }
-    const from = Number(row.from), to = Number(row.to);
-    if (snap) md = Math.abs(md - from) <= Math.abs(md - to) ? from : to;
+    // TASKS.csv #868 — snap to the nearest logged CONTACT of the hole (where the unit changes; a same-unit logging split is
+    // not one) within SNAP_REACH_M down-hole - it used to take the nearer end of whatever interval was hit, splits and all,
+    // however far; the pick keeps the units either side
+    const c = snap ? nearestContact(holeContacts(sc.litho, row.hole_id), md) : null;
+    if (c) md = c.md;
     const w = findOnTraceWorld(t, md);
-    if (w) return { id, x: w[0], y: w[1], z: w[2], hole_id: row.hole_id, md, src: snap ? "boundary" : "trace" };
+    if (w) return { id, x: w[0], y: w[1], z: w[2], hole_id: row.hole_id, md, src: c ? "boundary" : "trace", ...(c ? { above: c.above, below: c.below } : {}) };
   }
   const w = sc.worldPointFromHits(raycaster, hits);
   return w ? { id, x: w.x, y: w.y, z: w.z, src: "point" } : null;
@@ -113,6 +116,9 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
   const [status, setStatus] = useState(null); // { ok, text }
   const [showPicks, setShowPicks] = useState(false);
   const update = (patch) => setDefs((p) => p.map((d) => (d.id === def.id ? { ...d, ...patch } : d)));
+  // TASKS.csv #866 — holes picked more than once (on an inclined hole the stacked-point test cannot see it)
+  const dupHoles = useMemo(() => { const m = new Map(); for (const p of def?.picks || []) if (p.hole_id) m.set(p.hole_id, (m.get(p.hole_id) || 0) + 1); return new Map([...m].filter(([, n]) => n > 1)); }, [def?.picks]);
+  const keepShallowest = () => { const best = new Map(); for (const p of def.picks) if (p.hole_id && (!best.has(p.hole_id) || p.md < best.get(p.hole_id).md)) best.set(p.hole_id, p); update({ picks: def.picks.filter((p) => !p.hole_id || best.get(p.hole_id) === p) }); };
   // TASKS.csv #817 — mapped contacts (draped on the terrain) and their dip guides as further hard lines
   const polys = useMemo(() => (mapLayers || []).filter((l) => l.geomType === "polygon"), [mapLayers]);
   const bedding = useMemo(() => (surfaceStructures || []).flatMap((s) => s.rows || []).filter((r) => r.cls === "bedding").map((r) => ({ x: r.x, y: r.y, dip: r.dip, dipDir: r.dipDir })), [surfaceStructures]);
@@ -613,7 +619,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
           style={{ ...pBtn, marginBottom: 6, justifyContent: "center", opacity: def.picks.length || (def.lines || []).length ? 1 : 0.5, ...(editing ? { background: "var(--color-accent)", color: "var(--color-on-accent, #fff)" } : {}) }}>
           <Move size={14} />{" "}{editing ? tr("Editing — drag a pick (click to stop)") : tr("Edit picks (drag to move)")}
         </button>
-        <label style={{ ...row, cursor: "pointer" }} title={tr("A click on a lithology interval snaps to its nearer logged boundary (its top or base); untick to take the exact point clicked on the trace")}>
+        <label style={{ ...row, cursor: "pointer" }} title={tr("A click on a hole snaps to its nearest logged contact (where the unit changes) within {m} m down-hole; untick to take the exact point clicked on the trace", { m: SNAP_REACH_M })}>
           <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />{tr("Snap to logged contacts")}
         </label>
         <div style={row}>
@@ -740,6 +746,12 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
         <label style={{ ...row, cursor: hasTerrain ? "pointer" : "default", opacity: hasTerrain ? 1 : 0.5 }}>
           <input type="checkbox" checked={!!def.cutAtTerrain} disabled={!hasTerrain} onChange={(e) => update({ cutAtTerrain: e.target.checked })} />{hasTerrain ? tr("Cut at the terrain") : tr("Cut at the terrain (no terrain loaded)")}
         </label>
+        {dupHoles.size > 0 && ( // TASKS.csv #866 — a contact crosses a hole once unless folded or faulted
+          <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-warning, #b7791f)" }}>
+            {tr("More than one pick on the same hole: {list}. A contact crosses a hole once unless it is folded or faulted; a repeated unit belongs on another layer or surface.", { list: [...dupHoles].map(([h, n]) => `${h} (${n})`).join(", ") })}{" "}
+            <button onClick={keepShallowest} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Keep the shallowest pick on each hole")}</button>
+          </div>
+        )}
         {status && <div role="status" style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: status.ok ? "var(--color-text-secondary)" : "var(--color-warning, #b7791f)" }}>{status.text}</div>}
         <div role="button" tabIndex={0} onClick={() => setShowPicks((v) => !v)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setShowPicks((v) => !v); }} style={{ cursor: "pointer", fontSize: "var(--font-size-xs)", marginBottom: 4 }}>
           {showPicks ? "▾" : "▸"} {tr("Picks ({n})", { n: def.picks.length })}
@@ -747,7 +759,7 @@ export default function ExplicitSurfacePanel({ defs, setDefs, sections, terrain,
         {showPicks && def.picks.map((p) => (
           <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", marginBottom: 2 }}>
             <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {p.hole_id ? tr("{hole} at {md} m ({how})", { hole: p.hole_id, md: p.md.toFixed(1), how: p.src === "boundary" ? tr("logged contact") : tr("on the trace") }) : tr("3D point")} · {Math.round(p.z)} m
+              {dupHoles.has(p.hole_id) ? "⚠ " : ""}{p.hole_id ? tr("{hole} at {md} m ({how})", { hole: p.hole_id, md: p.md.toFixed(1), how: p.above ? `${p.above} | ${p.below}` : p.src === "boundary" ? tr("logged contact") : tr("on the trace") }) : tr("3D point")} · {Math.round(p.z)} m
             </span>
             <button onClick={() => update({ picks: def.picks.filter((q) => q.id !== p.id) })} aria-label={tr("Remove this pick")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-muted)", padding: 0 }}><XIcon size={12} /></button>
           </div>

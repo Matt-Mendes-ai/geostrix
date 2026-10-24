@@ -167,8 +167,10 @@ export default function SectionWindow() {
   // what a click snaps to: the drawn / edited string's unit tops (contacts) or every logged boundary (faults, strings)
   const editing = contacts.find((c) => c.id === editingId) || null;
   // #810 — a modelling code or group is not a logged label, so its contact snaps to any logged boundary (like a fault)
-  const snapKind = (unit, kind) => (kind === "contact" && !lithoUnits.includes(unit) ? "boundary" : kind);
-  const targets = useMemo(() => snapTargets(data?.intervals, editing ? { unit: editing.unit, kind: snapKind(editing.unit, editing.kind || "contact"), holes: data?.holes } : { unit: unitPick, kind: snapKind(unitPick, kindPick), holes: data?.holes }), [data?.intervals, data?.holes, editing, unitPick, kindPick]); // holes: #569 up-holes
+  // TASKS.csv #868 — an explicit surface's line snaps like its unit's upper contact when that unit is a logged one
+  const snapUnit = (unit) => { const u = data?.unitTags?.explicitUnits?.[unit]; return u && lithoUnits.includes(u) ? u : unit; };
+  const snapKind = (unit, kind) => (kind === "contact" && !lithoUnits.includes(snapUnit(unit)) ? "boundary" : kind);
+  const targets = useMemo(() => snapTargets(data?.intervals, editing ? { unit: snapUnit(editing.unit), kind: snapKind(editing.unit, editing.kind || "contact"), holes: data?.holes } : { unit: snapUnit(unitPick), kind: snapKind(unitPick, kindPick), holes: data?.holes }), [data?.intervals, data?.holes, editing, unitPick, kindPick]); // holes: #569 up-holes
 
   // TASKS.csv #395 — ground elevation at distance l along the section, from the terrain profile.
   const groundAt = (l) => {

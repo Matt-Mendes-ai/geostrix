@@ -3180,7 +3180,9 @@ ${describeTrend(t)}` };
   const lithoGroupKey = (g) => `group:${g.id}`;
   // TASKS.csv #810 — what a drawn section contact can be tagged with: modelling codes and group names as well as the
   // logged codes, so a contact can feed a "X (code)" or group unit (the picker used to offer logged codes only)
-  const sectionUnitTags = useMemo(() => ({ codes: modellingCodeList.map((c) => c.name), groups: lithoGroups.filter((g) => (g.codes || []).length).map((g) => g.name), explicit: (explicitSurfaces || []).map((d) => d.name) /* #811 */ }), [modellingCodeList, lithoGroups, explicitSurfaces]);
+  const sectionUnitTags = useMemo(() => ({ codes: modellingCodeList.map((c) => c.name), groups: lithoGroups.filter((g) => (g.codes || []).length).map((g) => g.name), explicit: (explicitSurfaces || []).map((d) => d.name) /* #811 */,
+    // TASKS.csv #868 — the logged unit an explicit surface is the upper contact of: its lines snap to that unit's tops
+    explicitUnits: Object.fromEntries((explicitSurfaces || []).filter((d) => d.contact !== "lower").map((d) => [d.name, (d.unit || d.name).trim()])) }), [modellingCodeList, lithoGroups, explicitSurfaces]);
   // Returns the group object for a `group:` key (null if it was deleted since), else the raw code.
   const resolveLithoTarget = (v) => (isLithoGroupKey(v) ? (lithoGroups.find((g) => g.id === v.slice(6)) || null) : isMcodeKey(v) ? { kind: "mcode", name: v.slice(6) } : v); // #599 mcode:
   // A group's role comes from its member codes: shared role if every member agrees, else null
