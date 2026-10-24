@@ -3,7 +3,7 @@
 GeoStrix is a desktop application that runs on your own machine. It has no accounts, no sign-in, and
 no analytics or telemetry of any kind.
 
-This policy describes the application's behaviour as of version 0.1.62. It is published here so that
+This policy describes the application's behaviour as of version 0.1.63. It is published here so that
 anyone can check what the application does with their data before installing it.
 
 ## What is collected
@@ -14,7 +14,9 @@ project that receives data from it.
 
 **Problem reports.** *Help → Report a Problem* writes a zip file to your Downloads folder containing
 what you typed, a picture of the GeoStrix window, system details (versions, operating system, memory,
-graphics card), recent error messages and, unless you untick it, the Python engine's recent log. The
+graphics card), recent error messages (including screen crashes from earlier sessions, which GeoStrix
+keeps in a small file in its own data folder on your computer) and, unless you untick it, the Python
+engine's recent log. The
 current project is included only if you tick it. GeoStrix sends nothing itself: it opens a draft email
 to support@geostrix.com in your own email app, and the report is shared only if you attach it and send it.
 
