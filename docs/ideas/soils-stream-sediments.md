@@ -419,3 +419,50 @@ first release, since it makes item 5 immediately useful on public data before a 
    whether the certificate parser needs more lab formats than ALS.
 5. **Stream programs:** active sediment at −80 mesh only, or also moss mats, heavy-mineral concentrates and BLEG, and
    do you already have catchment polygons from past programs that GeoStrix should read rather than compute?
+
+## Matt's answers (2026-10-24) and what they change
+
+1. **Deposit types and terrain: all of them.** Every pathfinder preset in 4.2 ships, and the up-ice / down-slope tools
+   (4.5) cover glaciated, steep residual and lateritic terrain alike. The presets stay editable starting points.
+2. **Public data: a searchable picklist of every dataset, the user picks which to download.** That becomes its own
+   tool (7.5 below) and moves into the first release.
+3. **Field crews and project geologists both.** The planning tools (1.1–1.4: grid and site planner, numbering, QC
+   inserts, GPS / KML / printable lists) stay in the first release.
+4. **QC inserts: variable and numerous, the user decides.** No fixed insert scheme: insert types, rates, the
+   standards and their certified values are defined per program by the user (2.2, 1.4).
+5. **Stream programs: all of them** (active sediment, moss mats, heavy-mineral concentrates, BLEG, waters). Each
+   sample type is its own population (5.4). **No catchment polygons** were found in `Sample Data` (every file name
+   searched for catchment / watershed / basin; the BC Freshwater Atlas copy holds lakes and rivers only), so
+   catchments are computed from the terrain (5.1). What the folder does have, useful for building and testing:
+   - stream-sediment tables in five ARIS reports (MapInfo TAB and Excel: 27622Z, 28004Z, 28151Z, 42641Z, 42807Z),
+     some carrying the fields the levelling and QA/QC tools group by (sample type, lab, certificate, year);
+     42807Z is a 2024 program (156 samples, about 60 elements, with sample type and method columns) with an
+     orientation-survey report beside it;
+   - drawn drainage lines (28004Z `topo_drainage`), which site snapping can use instead of a computed network;
+   - BC surficial geology (till, colluvium, landform): the grouping field for soil background and the up-ice context.
+
+### 7.5 Public geochemistry catalogue (new)
+- **What:** a picklist of public geochemical datasets with a search bar (by name, agency, country, medium, area), each
+  entry showing its coverage on a map, sample media, number of samples, analytical methods, date range, licence and
+  download size; the user ticks the ones to fetch, and GeoStrix downloads only the samples inside the project area
+  where the source allows it (the whole file where it does not), imports them as surface samples with their method
+  fields, and records the source and licence on the layer.
+- **Why:** one place to find what public data covers a property, without hunting through a dozen portals.
+- **Honesty:** an entry becomes downloadable only once its licence has been read and its format parsed and tested;
+  until then it appears as a link to the agency's page. The list shows when each entry was last checked. Sources
+  differ in labs, methods and decades, so regional data is never mixed with property data without levelling (3.2).
+- **Who:** everyone. **Size:** large overall, staged: the catalogue plus the first sources (BC RGS, GSC National
+  Geochemical Reconnaissance, USGS National Geochemical Database, Australia's NGSA), then one source at a time.
+
+### Revised first release (six items)
+1. Threshold toolkit with populations by group (4.1 + 3.1).
+2. QA/QC for surface samples, with user-defined insert types and rates and a stated censoring rule (2.2 + 2.3 + 2.4).
+3. Pathfinder indices for every deposit type, anomaly maps that print their rule, coherence filter (4.2 + 6.1 + 4.4).
+4. Catchments from the terrain, Hawkes dilution correction, drainage ranking, every stream sample type as its own
+   population (5.1 + 5.2 + 5.3 + 5.4).
+5. Survey planner for soil grids and stream sites, sample numbering with QC inserts, GPS / KML / printable export
+   (1.1 + 1.2 + 1.3 + 1.4).
+6. Public geochemistry catalogue with the first four sources (7.5).
+
+Suggested build order is the list order: 1 → 2 → 3 make a soil grid interpretable and each builds on the previous;
+4 is the one large piece (the flow-routing engine) and the stream-site planner in 5 needs it; 6 is independent.
