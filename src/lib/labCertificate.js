@@ -22,9 +22,13 @@ import { parseAssayValue, isElementColumn } from "./geochem.js";
 import { percentileSorted } from "./arrayStats.js"; // TASKS.csv #740
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
+// TASKS.csv #842 — a certificate re-saved through Excel pads every line to the full width ("VA04079223 - Finalized,,,,,",
+// 7 of the 44 ARIS 28151Z certificates): the trailing empty cells are ignored.
 export function isLabCertificateText(text) {
   const head = String(text || "").slice(0, 20000);
-  return /^\s*"?\S+ - [A-Za-z ]+"?\s*$/m.test(head.split(/\r?\n/).find((l) => l.trim()) || "") && /^SAMPLE,/m.test(head) && /^DESCRIPTION,/m.test(head);
+  const unpad = (l) => l.replace(/,+\s*$/, "");
+  const first = unpad(head.split(/\r?\n/).find((l) => unpad(l).trim()) || "");
+  return /^\s*"?\S+ - [A-Za-z ]+"?\s*$/.test(first) && /^SAMPLE,/m.test(head) && /^DESCRIPTION,/m.test(head);
 }
 
 const META_KEYS = { "CLIENT": "client", "# of SAMPLES": "samples", "DATE RECEIVED": "received", "DATE FINALIZED": "finalized", "PROJECT": "project", "CERTIFICATE COMMENTS": "comments", "PO NUMBER": "po" };

@@ -19,6 +19,7 @@ import {
   oxideOfHeader, fromOxideHeader, // TASKS.csv #403
   surfaceAttrColumns, surfaceAttrs, // TASKS.csv #841
 } from "../lib/geochem.js";
+import { qcRecordFromFileRow, emptySurfaceQc } from "../lib/surfaceQaqc.js"; // TASKS.csv #842
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
 import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
 import { assayFileSummary, removeAssayFile, removeAssayElement } from "../lib/geochem.js"; // TASKS.csv #624
@@ -36,6 +37,7 @@ import BestIntercepts from "../components/BestIntercepts.jsx";
 import CompositingModal from "../components/CompositingModal.jsx";
 import GradeStatistics from "../components/GradeStatistics.jsx";
 const ThresholdToolkit = React.lazy(() => import("../components/ThresholdToolkit.jsx")); // TASKS.csv #841
+const SurfaceQaqcPanel = React.lazy(() => import("../components/SurfaceQaqcPanel.jsx")); // TASKS.csv #842
 import QAQCPanel from "../components/QAQCPanel.jsx";
 // TASKS.csv #224 — see ViewerModule.jsx's own comment on this same lazy import (sql.js's 658KB wasm
 // was pulled in on every app launch via this static import chain, regardless of whether SQL workspace
@@ -51,7 +53,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 export default function GeochemModule() {
   const store = useStore();
-  const { assays, setAssays, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, geochemThresholds, setGeochemThresholds, mapLayers, replaceLayer, layers, collars, survey, boundaries, alterationBoxes, setAlterationBoxes, project, projectIsEmpty, setEpsg } = store;
+  const { assays, setAssays, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, geochemThresholds, setGeochemThresholds, surfaceQc, setSurfaceQc, mapLayers, replaceLayer, layers, collars, survey, boundaries, alterationBoxes, setAlterationBoxes, project, projectIsEmpty, setEpsg } = store;
   const [altBoxOpen, setAltBoxOpen] = useState(false); // TASKS.csv #503
   const assayHoleIds = useMemo(() => new Set(assays.map((a) => a.hole_id)), [assays]);
 
@@ -72,6 +74,7 @@ export default function GeochemModule() {
   const [compositingOpen, setCompositingOpen] = useState(false);
   const [gradeStatsOpen, setGradeStatsOpen] = useState(false);
   const [thresholdsOpen, setThresholdsOpen] = useState(false); // TASKS.csv #841
+  const [surfaceQcOpen, setSurfaceQcOpen] = useState(false); // TASKS.csv #842
   const [qaqcOpen, setQaqcOpen] = useState(false);
   const [sqlOpen, setSqlOpen] = useState(false);
   const [notices, setNotices] = useState([]);
@@ -538,7 +541,11 @@ export default function GeochemModule() {
     if (adopted) { setEpsg(adopted); toEpsg = adopted; setNotices((p) => [...p, notice("Project CRS set to {v} (EPSG:{adopted}) from {fileName}.", { v: crsName(adopted), adopted, fileName: modal.fileName })]); }
     const doReproject = fromEpsg && toEpsg && fromEpsg !== toEpsg;
     let reprojectFailed = 0;
-    const attrCols = surfaceAttrColumns(modal.headers || Object.keys(allRows[0] || {}), allRows, mapping, elements); // TASKS.csv #841
+    const allHeaders = modal.headers || Object.keys(allRows[0] || {});
+    // TASKS.csv #842 — a parent / original-sample column pairs a field duplicate with its original
+    const parentCol = allHeaders.find((h) => /^(parent|orig(inal)?)[\s_-]*(sample)?[\s_-]*(id|no|number|#)?$|^dup(licate)?[\s_-]*of$/i.test(String(h).trim())) || null;
+    const attrCols = surfaceAttrColumns(allHeaders, allRows, { ...mapping, parent: parentCol }, elements); // TASKS.csv #841
+    const qcRecords = []; // TASKS.csv #842 — rows the sample-type column marks as standard / blank / duplicate
     const rows = allRows.map((r) => {
       const values = {};
       const bdl = []; // TASKS.csv #841 — elements reported below detection (stored at half the limit), for the censored share
@@ -556,6 +563,10 @@ export default function GeochemModule() {
         if (v != null) values[e.symbol] = v;
       });
       const rawMedium = mapping.medium ? String(r[mapping.medium] ?? "").trim().toLowerCase() : "";
+      if (mapping.medium) { // TASKS.csv #842 — QC inserts are not samples: kept for QA/QC, with or without coordinates
+        const rec = qcRecordFromFileRow({ sample_id: mapping.sample_id ? String(r[mapping.sample_id] ?? "").trim() : "", type: String(r[mapping.medium] ?? "").trim(), values, bdl, parent_id: parentCol ? String(r[parentCol] ?? "").trim() || null : null, ...surfaceAttrs(r, attrCols) });
+        if (rec) { rec.batch = rec.attrs?.[Object.keys(rec.attrs || {}).find((k) => /cert|batch|job|work\s*order/i.test(k))] ?? null; qcRecords.push(rec); return null; }
+      }
       let x = num(r[mapping.x]), y = num(r[mapping.y]);
       if (doReproject && Number.isFinite(x) && Number.isFinite(y)) {
         const p = reprojectXY(x, y, fromEpsg, toEpsg);
@@ -569,8 +580,9 @@ export default function GeochemModule() {
         ...(bdl.length ? { bdl } : {}),
         ...surfaceAttrs(r, attrCols),
       };
-    }).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y));
+    }).filter((r) => r && Number.isFinite(r.x) && Number.isFinite(r.y));
     const noZ = rows.filter((r) => r.z == null).length;
+    if (qcRecords.length) setSurfaceQc((prev) => ({ ...(prev || emptySurfaceQc()), records: [...(prev?.records || []), ...qcRecords] })); // TASKS.csv #842
     setSurfaceSamples((prev) => [...prev, ...rows]);
     setSurfaceElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: "%" } : e); }); return Array.from(merged.values()); }); // #403
     const extra = [
@@ -578,6 +590,7 @@ export default function GeochemModule() {
       negBdl ? `${negBdl} negative value(s) read as below detection.` : null,
       negMissing ? `${negMissing} value(s) ≤ -99 treated as not assayed (no-data codes).` : null,
       overLimitFilled.size ? `Over-limit samples filled from the ore-grade column: ${[...overLimitFilled].map(([sym, n]) => `${sym} ${n}`).join(", ")}.` : null,
+      qcRecords.length ? `${qcRecords.length} QC insert(s) (${["standard", "blank", "duplicate"].map((k) => `${qcRecords.filter((q) => q.kind === k).length} ${k}`).join(", ")}) kept apart for Surface QA/QC, not as samples.` : null,
       noZ ? `${noZ} sample(s) have no elevation${zAllZero ? ` (the "${mapping.z}" column is 0 on every row)` : ""} — the 3D view places them on the terrain.` : null,
       doReproject ? `Reprojected from EPSG:${fromEpsg} to the project's EPSG:${toEpsg}${reprojectFailed ? ` (${reprojectFailed} row(s) could not be converted and were skipped)` : ""}.` : null,
     ].filter(Boolean).join(" ");
@@ -714,6 +727,7 @@ export default function GeochemModule() {
             <RibbonButton icon={GBarChart} label="Grade stats" tone="analyse" disabled={!(assayElements.length || surfaceElements.length)} disabledReason="Import assays or surface samples first" title="Grade statistics (assays or surface samples)" onClick={() => setGradeStatsOpen(true)} />
             <RibbonButton icon={GBarChart} label="Thresholds" tone="analyse" disabled={!surfaceElements.length} disabledReason="Import surface samples first" title="Anomaly thresholds for soil and stream-sediment samples, judged within populations" onClick={() => setThresholdsOpen(true)} />{/* TASKS.csv #841 */}
             <RibbonButton advanced icon={ShieldCheck} label="QAQC" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="QAQC: standards, blanks, duplicates" onClick={() => setQaqcOpen(true)} />
+            <RibbonButton icon={ShieldCheck} label="Surface QAQC" tone="analyse" disabled={!(surfaceSamples.length || surfaceQc?.records?.length)} disabledReason="Import surface samples first" title="QA/QC of soil and stream-sediment programs: lab certificates, your standards, blanks and duplicates, insertion rates per batch" onClick={() => setSurfaceQcOpen(true)} />{/* TASKS.csv #842 */}
             <RibbonButton advanced icon={TerminalSquare} label="SQL" tone="data" disabled={!assayElements.length} disabledReason="Import assays first" title="SQL workspace" onClick={() => setSqlOpen(true)} />
           </RibbonGroup>
           <RibbonGroup label="Report">
@@ -958,6 +972,10 @@ export default function GeochemModule() {
           layers={layers}
           onClose={() => setCompositingOpen(false)}
         />
+      )}
+
+      {surfaceQcOpen && ( // TASKS.csv #842
+        <React.Suspense fallback={null}><SurfaceQaqcPanel onClose={() => setSurfaceQcOpen(false)} /></React.Suspense>
       )}
 
       {thresholdsOpen && ( // TASKS.csv #841

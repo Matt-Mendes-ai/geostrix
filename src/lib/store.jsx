@@ -131,6 +131,7 @@ export function StoreProvider({ children }) {
   const [surfaceSamples, setSurfaceSamples] = useState([]);
   const [surfaceElements, setSurfaceElements] = useState([]);
   const [geochemThresholds, setGeochemThresholds] = useState([]); // TASKS.csv #841 — the threshold rule saved per surface element
+  const [surfaceQc, setSurfaceQc] = useState(null); // TASKS.csv #842 — surface-program QC: { records, certificates, settings }
   const [customLayers, setCustomLayers] = useState([]); // plain {id,name,rows} mirror for save/load; ViewerModule owns the live three.js groups
   const [dbConnections, setDbConnections] = useState([]); // saved (non-secret) connection profiles
   // TASKS.csv #206 — "the database stays connected and accessible on a database side panel... so I
@@ -835,7 +836,7 @@ export function StoreProvider({ children }) {
     dbConnections: [dbConnections, setDbConnections], excludedIntercepts: [excludedIntercepts, setExcludedIntercepts],
     softIntercepts: [softIntercepts, setSoftIntercepts], interceptSets: [interceptSets, setInterceptSets],
     sections: [sections, setSections], sectionGroups: [sectionGroups, setSectionGroups], layoutTemplates: [layoutTemplates, setLayoutTemplates],
-    plannedHoles: [plannedHoles, setPlannedHoles], surfaceSamples: [surfaceSamples, setSurfaceSamples], surfaceElements: [surfaceElements, setSurfaceElements], geochemThresholds: [geochemThresholds, setGeochemThresholds],
+    plannedHoles: [plannedHoles, setPlannedHoles], surfaceSamples: [surfaceSamples, setSurfaceSamples], surfaceElements: [surfaceElements, setSurfaceElements], geochemThresholds: [geochemThresholds, setGeochemThresholds], surfaceQc: [surfaceQc, setSurfaceQc],
     generatedSurfaces: [generatedSurfaces, setGeneratedSurfaces], modelDomains: [modelDomains, setModelDomains],
   };
   const live = {};
@@ -1492,6 +1493,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     surfaceSamples, setSurfaceSamples,
     surfaceElements, setSurfaceElements,
     geochemThresholds, setGeochemThresholds, // TASKS.csv #841
+    surfaceQc, setSurfaceQc, // TASKS.csv #842
     customLayers, setCustomLayers,
     dbConnections, setDbConnections,
     getProjectPayload: snapshotCurrentPayload, // TASKS.csv #598 — the project, as Save would write it, for an opt-in problem report
