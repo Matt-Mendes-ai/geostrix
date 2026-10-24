@@ -39,6 +39,7 @@ import GradeStatistics from "../components/GradeStatistics.jsx";
 const ThresholdToolkit = React.lazy(() => import("../components/ThresholdToolkit.jsx")); // TASKS.csv #841
 const SurfaceQaqcPanel = React.lazy(() => import("../components/SurfaceQaqcPanel.jsx")); // TASKS.csv #842
 const CatchmentsPanel = React.lazy(() => import("../components/CatchmentsPanel.jsx")); // TASKS.csv #845
+const SurveyPlannerPanel = React.lazy(() => import("../components/SurveyPlannerPanel.jsx")); // TASKS.csv #844
 import QAQCPanel from "../components/QAQCPanel.jsx";
 // TASKS.csv #224 — see ViewerModule.jsx's own comment on this same lazy import (sql.js's 658KB wasm
 // was pulled in on every app launch via this static import chain, regardless of whether SQL workspace
@@ -77,6 +78,7 @@ export default function GeochemModule() {
   const [thresholdsOpen, setThresholdsOpen] = useState(false); // TASKS.csv #841
   const [surfaceQcOpen, setSurfaceQcOpen] = useState(false); // TASKS.csv #842
   const [catchmentsOpen, setCatchmentsOpen] = useState(false); // TASKS.csv #845
+  const [plannerOpen, setPlannerOpen] = useState(false); // TASKS.csv #844
   const [qaqcOpen, setQaqcOpen] = useState(false);
   const [sqlOpen, setSqlOpen] = useState(false);
   const [notices, setNotices] = useState([]);
@@ -730,6 +732,7 @@ export default function GeochemModule() {
             <RibbonButton icon={GBarChart} label="Grade stats" tone="analyse" disabled={!(assayElements.length || surfaceElements.length)} disabledReason="Import assays or surface samples first" title="Grade statistics (assays or surface samples)" onClick={() => setGradeStatsOpen(true)} />
             <RibbonButton icon={GBarChart} label="Thresholds" tone="analyse" disabled={!surfaceElements.length} disabledReason="Import surface samples first" title="Anomaly thresholds for soil and stream-sediment samples, judged within populations" onClick={() => setThresholdsOpen(true)} />{/* TASKS.csv #841 */}
             <RibbonButton icon={GMapPin} label="Catchments" tone="analyse" disabled={!surfaceSamples.length} disabledReason="Import surface samples first" title="Stream-sediment catchments from the terrain: dilution correction (Hawkes), drainage ranking, follow-up reaches" onClick={() => setCatchmentsOpen(true)} />{/* TASKS.csv #845 */}
+            <RibbonButton icon={GMapPin} label="Plan survey" tone="data" title="Plan a soil grid or stream-sediment sites, numbered with your QC inserts: GPX, KML, CSV and a printable field sheet" onClick={() => setPlannerOpen(true)} />{/* TASKS.csv #844 */}
             <RibbonButton advanced icon={ShieldCheck} label="QAQC" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="QAQC: standards, blanks, duplicates" onClick={() => setQaqcOpen(true)} />
             <RibbonButton icon={ShieldCheck} label="Surface QAQC" tone="analyse" disabled={!(surfaceSamples.length || surfaceQc?.records?.length)} disabledReason="Import surface samples first" title="QA/QC of soil and stream-sediment programs: lab certificates, your standards, blanks and duplicates, insertion rates per batch" onClick={() => setSurfaceQcOpen(true)} />{/* TASKS.csv #842 */}
             <RibbonButton advanced icon={TerminalSquare} label="SQL" tone="data" disabled={!assayElements.length} disabledReason="Import assays first" title="SQL workspace" onClick={() => setSqlOpen(true)} />
@@ -976,6 +979,10 @@ export default function GeochemModule() {
           layers={layers}
           onClose={() => setCompositingOpen(false)}
         />
+      )}
+
+      {plannerOpen && ( // TASKS.csv #844
+        <React.Suspense fallback={null}><SurveyPlannerPanel onClose={() => setPlannerOpen(false)} /></React.Suspense>
       )}
 
       {catchmentsOpen && ( // TASKS.csv #845
