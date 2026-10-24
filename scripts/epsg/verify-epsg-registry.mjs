@@ -38,9 +38,11 @@ for (const [code, r] of Object.entries(cand.rows)) {
     if (!geog) worstDatum = Math.max(worstDatum, d);
   }
   if (bad) { dropped.datum.push(code); continue; }
-  // [name, proj4 definition, shift accuracy (m; 0 = none needed, -1 = not stated, null = no published shift), flags]
+  // [name, proj4 definition, shift accuracy (m; 0 = none needed, -1 = not stated, null = no published shift), flags, area]
   // flags: 1 = a more accurate grid-based shift exists (not shipped), 2 = the shift is published for part of the area only
-  out[code] = [r.name, r.def.replace(/\s+\+no_defs$/, " +no_defs"), r.acc, (r.grid ? 1 : 0) | (r.part ? 2 : 0)];
+  // area (#835): EPSG's area of use [west, south, east, north] in degrees, rounded outward to 0.1 (east < west crosses 180)
+  const [w, s, e, n] = r.area, out1 = (v, up) => Math.round((up ? Math.ceil(v * 10) : Math.floor(v * 10))) / 10;
+  out[code] = [r.name, r.def.replace(/\s+\+no_defs$/, " +no_defs"), r.acc, (r.grid ? 1 : 0) | (r.part ? 2 : 0), [out1(w, false), out1(s, false), out1(e, true), out1(n, true)]];
 }
 const reg = { epsg: cand.epsg, proj: cand.proj, generated: new Date().toISOString().slice(0, 10), count: Object.keys(out).length, codes: out };
 fs.writeFileSync(outPath, JSON.stringify(reg));

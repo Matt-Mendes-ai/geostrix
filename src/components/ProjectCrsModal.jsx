@@ -2,7 +2,7 @@
 // UTM / national grids for that spot (regional datum first), or search every CRS GeoStrix can build. With collars
 // loaded, the choice is checked by showing where on Earth they would land: a wrong UTM zone puts them hundreds of
 // kilometres away, which the user sees at once (Matt's zone 10 data sat in zone 9, #614).
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { X } from "./icons.js";
 import CrsPicker from "./CrsPicker.jsx";
 import { useStore } from "../lib/store.jsx";
@@ -10,8 +10,8 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
-import { crsName, datumNote } from "../lib/reproject.js";
-import { crsCandidatesAt, parseLatLon, collarCentreLonLat, formatLonLat } from "../lib/projectCrs.js";
+import { crsName, datumNote, loadEpsgRegistry, onEpsgRegistry } from "../lib/reproject.js";
+import { crsCandidatesAt, localCrsAt, parseLatLon, collarCentreLonLat, formatLonLat } from "../lib/projectCrs.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 export default function ProjectCrsModal({ reason, points, onDone }) {
@@ -24,8 +24,19 @@ export default function ProjectCrsModal({ reason, points, onDone }) {
   useEscapeKey(cancel);
   useFocusTrap();
 
+  // TASKS.csv #835 — the EPSG registry (#834) supplies the local grids and each CRS's area of use: load it with the dialog
+  const [regTick, setRegTick] = useState(0);
+  useEffect(() => { const off = onEpsgRegistry(() => setRegTick((n) => n + 1)); loadEpsgRegistry().catch(() => {}); return off; }, []);
   const at = parseLatLon(where);
-  const candidates = useMemo(() => (at ? crsCandidatesAt(at.lon, at.lat) : []), [at?.lat, at?.lon]);
+  const candidates = useMemo(() => (at ? crsCandidatesAt(at.lon, at.lat) : []), [at?.lat, at?.lon, regTick]);
+  const locals = useMemo(() => (at ? localCrsAt(at.lon, at.lat, { exclude: candidates.map((c) => c.code) }) : []), [at?.lat, at?.lon, candidates]);
+  const [moreLocal, setMoreLocal] = useState(false);
+  const option = (c, extra) => (
+    <div key={c.code} role="option" aria-selected={choice === c.code} tabIndex={0} onClick={() => setChoice(c.code)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setChoice(c.code); } }}
+      style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "5px 8px", cursor: "pointer", fontSize: "var(--font-size-sm)", background: choice === c.code ? "var(--color-selected-bg)" : "transparent", color: "var(--color-text)" }}>
+      <span>{c.name}{extra ? <span style={{ color: "var(--color-text-muted)" }}>{" "}{extra}</span> : null}</span><span style={{ color: "var(--color-text-muted)" }}>{c.code}</span>
+    </div>
+  );
   const landing = choice ? collarCentreLonLat(collars, choice) : null;
   const relabel = project.crsSet && !projectIsEmpty && choice && choice !== Number(project.epsg);
   const kmFromStated = landing && at ? Math.round(Math.hypot((landing.lat - at.lat) * 111, (landing.lon - at.lon) * 111 * Math.cos((at.lat * Math.PI) / 180))) : null;
@@ -54,13 +65,17 @@ export default function ProjectCrsModal({ reason, points, onDone }) {
             {where && !at && <div style={{ ...note, marginTop: 4 }}>{tr("Type latitude then longitude in decimal degrees (south and west negative, or add S / W).")}</div>}
             {candidates.length > 0 && (
               <div role="listbox" aria-label={tr("Suggested CRSs")} style={{ marginTop: 6, border: "1px solid var(--color-border)", borderRadius: 5 }}>
-                {candidates.slice(0, 8).map((c, i) => (
-                  <div key={c.code} role="option" aria-selected={choice === c.code} tabIndex={0} onClick={() => setChoice(c.code)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setChoice(c.code); } }}
-                    style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "5px 8px", cursor: "pointer", fontSize: "var(--font-size-sm)", background: choice === c.code ? "var(--color-selected-bg)" : "transparent", color: "var(--color-text)" }}>
-                    <span>{c.name}{i === 0 ? <span style={{ color: "var(--color-text-muted)" }}>{" "}{tr("— most used here")}</span> : null}</span><span style={{ color: "var(--color-text-muted)" }}>{c.code}</span>
-                  </div>
-                ))}
+                {candidates.slice(0, 8).map((c, i) => option(c, i === 0 ? tr("— most used here") : null))}
               </div>
+            )}
+            {locals.length > 0 && (
+              <>
+                <div style={{ ...label, marginTop: 8 }}>{tr("Provincial, state and local grids here")}</div>
+                <div role="listbox" aria-label={tr("Provincial, state and local grids here")} style={{ border: "1px solid var(--color-border)", borderRadius: 5, maxHeight: 190, overflowY: "auto" }}>
+                  {(moreLocal ? locals : locals.slice(0, 6)).map((c) => option(c, c.noShift ? tr("— no published datum shift") : null))}
+                </div>
+                {locals.length > 6 && <button type="button" onClick={() => setMoreLocal((m) => !m)} style={{ ...linkBtn, marginTop: 4 }} aria-expanded={moreLocal}>{moreLocal ? tr("Show fewer") : tr("Show all {n}", { n: locals.length })}</button>}
+              </>
             )}
           </div>
 

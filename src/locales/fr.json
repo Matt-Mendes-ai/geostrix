@@ -5357,5 +5357,9 @@
   "{name}: EPSG publishes no datum shift to WGS 84 for this datum, so GeoStrix treats it as WGS 84 when converting to or from another datum. That can be metres to hundreds of metres out; data already in this CRS is unaffected.": "{name} : l'EPSG ne publie aucune transformation de datum vers WGS 84 pour ce datum ; GeoStrix le traite donc comme WGS 84 lors des conversions depuis ou vers un autre datum. L'écart peut aller de quelques mètres à des centaines de mètres ; les données déjà dans ce SCR ne sont pas touchées.",
   "{name}: the datum shift to WGS 84 is accurate to about {acc} m (EPSG).": "{name} : la transformation de datum vers WGS 84 est exacte à environ {acc} m (EPSG).",
   "The shift is published for part of this CRS's area only.": "La transformation n'est publiée que pour une partie de la zone de ce SCR.",
-  "A more accurate grid-based shift exists, which GeoStrix doesn't include yet.": "Une transformation plus exacte fondée sur une grille existe, que GeoStrix n'inclut pas encore."
+  "A more accurate grid-based shift exists, which GeoStrix doesn't include yet.": "Une transformation plus exacte fondée sur une grille existe, que GeoStrix n'inclut pas encore.",
+  "Show fewer": "Afficher moins",
+  "Show all {n}": "Afficher les {n}",
+  "Provincial, state and local grids here": "Quadrillages provinciaux, d'État et locaux ici",
+  "— no published datum shift": "— aucune transformation de datum publiée"
 }

@@ -211,7 +211,8 @@ function utmProj4(zone, hemisphereSouth, datumParams) {
 // scripts/epsg/gen-epsg-registry.py then verify-epsg-registry.mjs, which keeps a code only when proj4js matches PROJ
 // within 5 cm for its projection and 10 cm with its datum shift at three points of its area of use). Each entry is
 // [name, proj4, shift accuracy in m (0 none needed, -1 not stated, null no published shift), flags (1 a better
-// grid-based shift exists, 2 the shift is published for part of the area)]. ~1 MB, so it loads on demand (its own
+// grid-based shift exists, 2 the shift is published for part of the area), area of use [west, south, east, north]
+// (#835; east < west crosses 180 degrees)]. ~1.2 MB, so it loads on demand (its own
 // chunk, never at startup): loadEpsgRegistry(); the synchronous lookups see it once loaded.
 let FULL = null, fullPromise = null;
 const fullListeners = new Set();
@@ -232,6 +233,16 @@ export function installEpsgRegistry(reg) {
 }
 export function onEpsgRegistry(fn) { fullListeners.add(fn); return () => fullListeners.delete(fn); }
 const fullEntry = (code) => FULL?.codes?.[String(code)] || null;
+// #835 — what the registry knows about a code it supplies (null for hand-verified codes and before it loads):
+// { area: [w, s, e, n], acc, flags, geographic }
+export function registryInfo(epsg) {
+  const c = Number(epsg), f = !handDef(c) && fullEntry(c);
+  return f ? { area: f[4] || null, acc: f[2], flags: f[3], geographic: f[1].startsWith("+proj=longlat") } : null;
+}
+// EPSG's area of use for any code the registry also holds, hand-verified ones included (#835)
+export const crsAreaOf = (epsg) => fullEntry(Number(epsg))?.[4] || null;
+// every registry code, for the location search (#835)
+export const registryCodes = () => (FULL ? Object.keys(FULL.codes).map(Number) : []);
 
 export function getProj4DefSync(epsg) {
   const code = Number(epsg);

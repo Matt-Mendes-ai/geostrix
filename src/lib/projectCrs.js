@@ -3,7 +3,7 @@
 // (NAD83(CSRS) UTM 9N, the Golden Triangle), and a collar CSV carries no CRS, so zone 10 data sat in zone 9 and
 // online terrain came from ~400 km away (#614). The project now records whether the user chose its CRS
 // (project.crsSet); these helpers find the candidates for a place and show where collars would land.
-import { listSupportedCrs, pointTransform, crsName } from "./reproject.js";
+import { listSupportedCrs, pointTransform, crsName, registryInfo, registryCodes, crsAreaOf } from "./reproject.js";
 
 export const utmZoneOf = (lon) => Math.min(60, Math.max(1, Math.floor((((lon + 180) % 360) + 360) % 360 / 6) + 1));
 
@@ -18,19 +18,55 @@ function preferredFamilies(lon, lat) {
   return ["WGS 84"];
 }
 
+// TASKS.csv #835 — is (lon, lat) inside an EPSG area of use [w, s, e, n] (east < west crosses 180), grown by `pad` degrees
+export function inArea(a, lon, lat, pad = 0) {
+  if (!a) return true;
+  const [w, s, e, n] = a;
+  if (lat < s - pad || lat > n + pad) return false;
+  const span = e >= w ? e - w : e + 360 - w;
+  if (span + 2 * pad >= 360) return true;
+  return ((((lon - (w - pad)) % 360) + 360) % 360) <= span + 2 * pad;
+}
+const areaSize = (a) => (a[2] >= a[0] ? a[2] - a[0] : a[2] + 360 - a[0]) * (a[3] - a[1]);
+
 // Supported projected CRSs for the UTM (or MGA) zone at (lon, lat), regional datum first. Each: { code, name, zone }.
+// With the EPSG registry loaded (#834) a zone has CRSs on datums from anywhere (GR96 is Greenland, La Canoa
+// Venezuela; the hand-verified SAD69 / SIRGAS zones are South American): CRSs are kept only where their area of use reaches the place (1 degree of slack, as "roughly" is
+// enough), and the ones EPSG publishes no datum shift for go last (#835).
 export function crsCandidatesAt(lon, lat) {
   if (!Number.isFinite(lon) || !Number.isFinite(lat) || Math.abs(lat) > 84) return [];
   const zone = utmZoneOf(lon), hemi = lat >= 0 ? "N" : "S";
   const utm = new RegExp(`UTM zone ${zone}${hemi}\\b`), mga = new RegExp(`MGA zone ${zone}\\b`);
-  const hits = listSupportedCrs().filter((c) => utm.test(c.name) || (hemi === "S" && mga.test(c.name)));
+  const hits = listSupportedCrs().filter((c) => (utm.test(c.name) || (hemi === "S" && mga.test(c.name))) && inArea(crsAreaOf(c.code), lon, lat, 1));
   const fams = preferredFamilies(lon, lat);
   const rank = (c) => { const i = fams.findIndex((f) => c.name.startsWith(f + " ")); return i < 0 ? fams.length : i; };
-  const out = hits.map((c) => ({ ...c, zone })).sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+  const late = (c) => { const r = registryInfo(c.code); return !r ? 0 : r.acc === null ? 2 : 1; }; // hand-verified, registry, no shift
+  const out = hits.map((c) => ({ ...c, zone })).sort((a, b) => rank(a) - rank(b) || late(a) - late(b) || a.name.localeCompare(b.name));
   // the national grids that are not UTM, where they apply
   if (lat > 48 && lat < 60.1 && lon > -139.1 && lon < -114) out.push({ code: 3005, name: crsName(3005), zone: null });
   if (lat < -33 && lat > -48 && lon > 165 && lon < 179) out.unshift({ code: 2193, name: crsName(2193), zone: null }); // NZTM is the NZ standard
   return out.filter((c) => c.name);
+}
+
+// TASKS.csv #835 — the other projected CRSs EPSG defines for (lon, lat): provincial, state, national and local grids
+// (Quebec Lambert, MTM, State Plane, British National Grid, Alberta 10TM...), from the registry once it has loaded.
+// Continental and world projections (area over 2,500 square degrees) are left out, as are UTM / MGA zones (the list
+// above). Most local first (by factor-of-two area bands), the regional datum first within a band, CRSs with no
+// published datum shift last. Each: { code, name, noShift }.
+export function localCrsAt(lon, lat, { exclude = [] } = {}) {
+  if (!Number.isFinite(lon) || !Number.isFinite(lat)) return [];
+  const skip = new Set(exclude), fams = preferredFamilies(lon, lat), out = [];
+  for (const code of registryCodes()) {
+    if (skip.has(code)) continue;
+    const r = registryInfo(code);
+    if (!r || r.geographic || !r.area || areaSize(r.area) > 2500 || !inArea(r.area, lon, lat, 0.05)) continue;
+    const name = crsName(code);
+    if (!name || /\b(UTM|MGA) zone \d/.test(name)) continue;
+    const fi = fams.findIndex((f) => name.startsWith(f + " "));
+    out.push({ code, name, noShift: r.acc === null, band: Math.round(Math.log2(Math.max(0.01, areaSize(r.area)))), fam: fi < 0 ? fams.length : fi });
+  }
+  out.sort((a, b) => a.noShift - b.noShift || a.band - b.band || a.fam - b.fam || a.name.localeCompare(b.name));
+  return out.map(({ code, name, noShift }) => ({ code, name, noShift }));
 }
 
 // Where the collars' centre would be on Earth if they were in `epsg`: { lon, lat } or null.
