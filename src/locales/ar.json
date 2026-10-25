@@ -6017,5 +6017,21 @@
   "Show the extent of": "إظهار امتداد",
   "Draw another viewport's ground extent on this one, as on an inset location map. Both need a top-down, true-scale capture.": "ارسم الامتداد الأرضي لمنظر آخر على هذا المنظر، كما في خريطة الموقع. يحتاج كلاهما إلى التقاط عمودي بمقياس حقيقي.",
   "Viewport {n}": "المنظر {n}",
-  "The extent shows when both viewports are top-down, true-scale captures: set the 3D view to Top, pick a scale, and refresh each.": "يظهر الامتداد عندما يكون المنظران التقاطين عموديين بمقياس حقيقي: اضبط العرض ثلاثي الأبعاد على الأعلى، واختر مقياسًا، وحدّث كلًا منهما."
+  "The extent shows when both viewports are top-down, true-scale captures: set the 3D view to Top, pick a scale, and refresh each.": "يظهر الامتداد عندما يكون المنظران التقاطين عموديين بمقياس حقيقي: اضبط العرض ثلاثي الأبعاد على الأعلى، واختر مقياسًا، وحدّث كلًا منهما.",
+  "Finding the map quadrangles in the area…": "جارٍ البحث عن المربعات الخرائطية في المنطقة…",
+  "The area holds {n} map quadrangles (over {max}): draw a smaller one.": "تحتوي المنطقة على {n} مربعًا خرائطيًا (أكثر من {max}): ارسم منطقة أصغر.",
+  "Asking the USGS for {n} quadrangle(s) (this can take a minute)…": "جارٍ طلب {n} مربع خرائطي من هيئة المسح الأمريكية (قد يستغرق دقيقة)…",
+  "The USGS page did not link a data file (the service may have changed, or is busy: try again).": "لم تربط صفحة هيئة المسح الأمريكية ملف بيانات (ربما تغيّرت الخدمة أو أنها مشغولة: حاول مجددًا).",
+  "{n} sample(s) of the quadrangles fall outside the area and were left out.": "تقع {n} عينة من المربعات خارج المنطقة فاستُبعدت.",
+  "{n} sample(s) are not stream sediment (mine dumps, tailings, other sources) and come in as \"other\".": "{n} عينة ليست رواسب جداول (أكوام نفايات منجمية، مخلفات، مصادر أخرى) وتدخل كـ \"other\".",
+  "{n} lake or pond sediment sample(s) come in as \"other\".": "تدخل {n} عينة من رواسب البحيرات أو البرك كـ \"other\".",
+  "The project's coordinate system is not chosen yet, so its data cannot be placed: choose it (status bar) or draw an area.": "لم يُختر نظام إحداثيات المشروع بعد، لذا لا يمكن تحديد موقع بياناته: اختره (شريط الحالة) أو ارسم منطقة.",
+  "Looking up the surveys…": "جارٍ البحث عن المسوح…",
+  "No GSC survey with a standardised data package overlaps the area.": "لا يتداخل أي مسح لهيئة المسح الجيولوجي الكندية ذي حزمة بيانات موحدة مع المنطقة.",
+  "None of this survey's samples lie in the area (only its overall extent overlaps it).": "لا تقع أي عينة من هذا المسح في المنطقة (يتداخل امتداده العام فقط).",
+  "Survey: {name} ({year}); {pkg}, {lab}.": "المسح: {name} ({year})؛ {pkg}، {lab}.",
+  "{n} survey data package(s) overlap the area. Each is one sample type, size fraction and lab method: choose one, so every sample is comparable.": "تتداخل {n} حزمة بيانات مع المنطقة. كل حزمة نوع عينة وجزء حجمي وطريقة مخبرية واحدة: اختر واحدة لتكون كل العينات قابلة للمقارنة.",
+  "Survey and data package": "المسح وحزمة البيانات",
+  "sample type not given": "نوع العينة غير محدد",
+  "{n} sample(s) of the survey fall outside the area and were left out.": "تقع {n} عينة من المسح خارج المنطقة فاستُبعدت."
 }

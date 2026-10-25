@@ -6017,5 +6017,21 @@
   "Show the extent of": "Mostrar a extensão de",
   "Draw another viewport's ground extent on this one, as on an inset location map. Both need a top-down, true-scale capture.": "Desenhar a extensão no terreno de outra vista sobre esta, como num mapa de localização. Ambas precisam de uma captura vertical em escala real.",
   "Viewport {n}": "Vista {n}",
-  "The extent shows when both viewports are top-down, true-scale captures: set the 3D view to Top, pick a scale, and refresh each.": "A extensão aparece quando ambas as vistas são capturas verticais em escala real: coloque a vista 3D em Topo, escolha uma escala e atualize cada uma."
+  "The extent shows when both viewports are top-down, true-scale captures: set the 3D view to Top, pick a scale, and refresh each.": "A extensão aparece quando ambas as vistas são capturas verticais em escala real: coloque a vista 3D em Topo, escolha uma escala e atualize cada uma.",
+  "Finding the map quadrangles in the area…": "Procurando as quadrículas da área…",
+  "The area holds {n} map quadrangles (over {max}): draw a smaller one.": "A área contém {n} quadrículas (mais de {max}): desenhe uma menor.",
+  "Asking the USGS for {n} quadrangle(s) (this can take a minute)…": "Pedindo ao USGS {n} quadrícula(s) (pode levar um minuto)…",
+  "The USGS page did not link a data file (the service may have changed, or is busy: try again).": "A página do USGS não vinculou um arquivo de dados (o serviço pode ter mudado ou está ocupado: tente de novo).",
+  "{n} sample(s) of the quadrangles fall outside the area and were left out.": "{n} amostra(s) das quadrículas ficam fora da área e foram omitidas.",
+  "{n} sample(s) are not stream sediment (mine dumps, tailings, other sources) and come in as \"other\".": "{n} amostra(s) não são sedimento de corrente (pilhas de estéril, rejeitos, outras fontes) e entram como \"other\".",
+  "{n} lake or pond sediment sample(s) come in as \"other\".": "{n} amostra(s) de sedimento de lago ou lagoa entram como \"other\".",
+  "The project's coordinate system is not chosen yet, so its data cannot be placed: choose it (status bar) or draw an area.": "O sistema de coordenadas do projeto ainda não foi escolhido, então seus dados não podem ser posicionados: escolha-o (barra de status) ou desenhe uma área.",
+  "Looking up the surveys…": "Procurando os levantamentos…",
+  "No GSC survey with a standardised data package overlaps the area.": "Nenhum levantamento do GSC com pacote de dados padronizado se sobrepõe à área.",
+  "None of this survey's samples lie in the area (only its overall extent overlaps it).": "Nenhuma amostra deste levantamento está na área (só a extensão geral se sobrepõe).",
+  "Survey: {name} ({year}); {pkg}, {lab}.": "Levantamento: {name} ({year}); {pkg}, {lab}.",
+  "{n} survey data package(s) overlap the area. Each is one sample type, size fraction and lab method: choose one, so every sample is comparable.": "{n} pacote(s) de dados se sobrepõem à área. Cada um é um tipo de amostra, fração e método de laboratório: escolha um, para que todas as amostras sejam comparáveis.",
+  "Survey and data package": "Levantamento e pacote de dados",
+  "sample type not given": "tipo de amostra não informado",
+  "{n} sample(s) of the survey fall outside the area and were left out.": "{n} amostra(s) do levantamento ficam fora da área e foram omitidas."
 }

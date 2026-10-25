@@ -39,8 +39,8 @@ export const CATALOGUE = [
     coverage: US_BOXES,
     licence: "Public domain (U.S. Government work)", licenceUrl: "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits",
     attribution: "U.S. Geological Survey.",
-    page: "https://mrdata.usgs.gov/ngdb/sediment/", downloadable: false,
-    caveat: "Download by area is not built yet: the service hands out data by map quadrangle, not by box. Download the area from the agency page and import the CSV as surface samples.",
+    page: "https://mrdata.usgs.gov/ngdb/sediment/", host: "mrdata.usgs.gov", downloadable: true, usgs: "ngdb",
+    caveat: "The service hands out whole map quadrangles, so the download can take a minute; samples are then clipped to the area. Values are the USGS \"best value\" per element, from methods that differ between surveys (ICP-AES, older semi-quantitative emission spectrography): each sample keeps its main method as an attribute. Mine-dump and tailings samples come in as \"other\", not stream sediment."
   },
   {
     id: "usgs-nure", name: "USGS NURE Hydrogeochemical and Stream Sediment Reconnaissance (HSSR)", agency: "U.S. Geological Survey", country: "United States",
@@ -48,8 +48,8 @@ export const CATALOGUE = [
     coverage: US_BOXES,
     licence: "Public domain (U.S. Government work)", licenceUrl: "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits",
     attribution: "U.S. Geological Survey.",
-    page: "https://mrdata.usgs.gov/nure/sediment/", downloadable: false,
-    caveat: "Download by area is not built yet (by quadrangle on the agency page). Coordinates are NAD27; negative values mean below detection.",
+    page: "https://mrdata.usgs.gov/nure/sediment/", host: "mrdata.usgs.gov", downloadable: true, usgs: "nure", sourceEpsg: "4267",
+    caveat: "Whole map quadrangles, clipped to the area. Coordinates are NAD27 given to 0.0001° and converted with a regional datum shift (good to some tens of metres in the US); negative values mean below detection. Lake sediments come in as \"other\"."
   },
   {
     id: "gsc-cdogs", name: "Canadian Database of Geochemical Surveys (CDoGS) / National Geochemical Reconnaissance", agency: "Geological Survey of Canada", country: "Canada",
@@ -57,8 +57,8 @@ export const CATALOGUE = [
     coverage: [-141.0, 41.7, -52.6, 83.1],
     licence: "Open Government Licence – Canada", licenceUrl: "https://open.canada.ca/en/open-government-licence-canada",
     attribution: "Contains information licensed under the Open Government Licence – Canada.",
-    page: "https://geochem.nrcan.gc.ca/", downloadable: false,
-    caveat: "Download by area is not built yet: the data come as one workbook per survey and lab batch, with units only on the web pages. Find the survey on the agency site and import its workbook as surface samples.",
+    page: "https://geochem.nrcan.gc.ca/", host: "geochem.nrcan.gc.ca", downloadable: true, cdogs: true,
+    caveat: "The 287 surveys with standardised data packages (an index built from the GSC's metadata database, 2026-10-25). Each survey's data come as one workbook per analytical package (one sample type, size fraction and lab method): choose one so the samples are comparable; it is clipped to the area. Till, lake sediment and water samples come in under their own sample type, not as stream sediment."
   },
 ];
 
@@ -90,6 +90,137 @@ export function areaUrl(id, b, { page = 0 } = {}) {
     return `https://services.ga.gov.au/gis/inorganic-geochemistry/wfs?${q}`;
   }
   return null;
+}
+
+// TASKS.csv #905 — USGS (mrdata.usgs.gov): the WFS gives only locations and the map-quadrangle code of each sample in the
+// box (lat,lon axis order, GML); the chemistry comes as a package of whole quadrangles, asked for by a form POST that
+// answers with a page linking the output file. Tested 2026-10-25 (Leadville, Colorado: 8 quadrangles, 745 NGDB samples).
+export const USGS_MAX_QUADS = 40;
+export function usgsQuadUrl(db, b) {
+  const type = db === "nure" ? "nuresed" : "ngdbsed", prop = db === "nure" ? "quad_code" : "quad";
+  const q = new URLSearchParams({ service: "WFS", version: "1.1.0", request: "GetFeature", typeName: type, propertyName: prop, srsName: "EPSG:4326", maxFeatures: "50000" });
+  return `https://mrdata.usgs.gov/services/wfs/${type}?${q}&BBOX=${[b[1], b[0], b[3], b[2]].map(f6).join(",")},urn:ogc:def:crs:EPSG::4326`;
+}
+export function parseQuadCodes(gml) {
+  const out = new Set();
+  for (const m of String(gml || "").matchAll(/<ms:(?:quad|quad_code)>\s*(q[0-9A-Z]+)\s*<\/ms:(?:quad|quad_code)>/g)) out.add(m[1]);
+  return [...out].sort();
+}
+export function usgsPackageRequest(db, quads) {
+  const form = { format: "csv" };
+  quads.forEach((q, i) => { form[`area[${i}]`] = q; });
+  return { url: `https://mrdata.usgs.gov/${db === "nure" ? "nure" : "ngdb"}/sediment/package.php`, form };
+}
+export function usgsPackageLink(html, db) {
+  const m = String(html || "").match(/href="(output\/[A-Za-z0-9_.-]+\.(?:zip|txt|csv))"/);
+  return m ? `https://mrdata.usgs.gov/${db === "nure" ? "nure" : "ngdb"}/sediment/${m[1]}` : null;
+}
+const inBox = (lon, lat, b) => lon >= b[0] && lon <= b[2] && lat >= b[1] && lat <= b[3];
+// In USGS data a negative value is ALWAYS "below this detection limit" - and the old emission-spectrography limits are
+// often 100 or 200 ppm. Written as "<100" so the import reads it as below detection at half the limit; left negative,
+// the generic rule for drillhole databases (<= -99 = a no-data code) dropped 568 real results in a Leadville test.
+// -9999 and below stay missing.
+export const usgsValue = (v) => { const t = String(v ?? "").trim(), n = Number(t); return t === "" || !Number.isFinite(n) || n >= 0 ? t : n <= -9999 ? "" : `<${-n}`; };
+// NGDB package: main.txt (lab_id, lat_wgs84, long_wgs84, primary_class, sample_source ...) + bestvalue.txt (one row per
+// sample x element: species, unit ppm / pct, qvalue - negative = below detection, amethod)
+export function parseNgdbPackage(texts, b) {
+  const main = parseCsv(texts.main).rows, best = parseCsv(texts.bestvalue).rows;
+  const vals = new Map(), methods = new Map(), cols = new Set();
+  for (const r of best) {
+    const sp = String(r.species || "").trim(), unit = String(r.unit || "").trim().toLowerCase();
+    if (!/^[A-Z][a-z]?$/.test(sp) || !/^(ppm|ppb|pct)$/.test(unit)) continue; // C_tot, C_org...: not elements
+    const col = `${sp}_${unit}`;
+    cols.add(col);
+    if (!vals.has(r.lab_id)) vals.set(r.lab_id, {});
+    vals.get(r.lab_id)[col] = usgsValue(r.qvalue);
+    const mm = methods.get(r.lab_id) || new Map(); mm.set(r.amethod, (mm.get(r.amethod) || 0) + 1); methods.set(r.lab_id, mm);
+  }
+  let outside = 0, other = 0;
+  const out = [];
+  for (const r of main) {
+    const lon = parseFloat(r.long_wgs84), lat = parseFloat(r.lat_wgs84);
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
+    if (!inBox(lon, lat, b)) { outside++; continue; }
+    const src = String(r.sample_source || "").toLowerCase(), cls = String(r.primary_class || "").toLowerCase();
+    const medium = cls === "sediment" && /stream|river/.test(src) ? "stream sediment" : cls === "soil" ? "soil" : cls === "rock" ? "rock chip" : "other";
+    if (medium === "other") other++;
+    const mm = methods.get(r.lab_id);
+    const method = mm ? [...mm].sort((p, q) => q[1] - p[1])[0][0] : "";
+    out.push({ sample_id: r.lab_id, longitude: r.long_wgs84, latitude: r.lat_wgs84, elevation: "", medium, source_type: r.sample_source || r.primary_class || "", method, collected: r.date_collect || "", ...(vals.get(r.lab_id) || {}) });
+  }
+  const notes = [];
+  if (outside) notes.push({ key: "{n} sample(s) of the quadrangles fall outside the area and were left out.", n: outside });
+  if (other) notes.push({ key: "{n} sample(s) are not stream sediment (mine dumps, tailings, other sources) and come in as \"other\".", n: other });
+  return table(out, [...cols].sort(), ["source_type", "method", "collected"], CATALOGUE.find((e) => e.id === "usgs-ngdb"), notes);
+}
+// NURE: one wide CSV - latitude / longitude (NAD27), smpmedia, sampsrc, sampdat, <el>_ppm / _pct (uranium by several
+// methods: u_dn_ppm...), negative = below detection
+export function nureColumn(h) {
+  const m = /^([a-z]{1,2})(?:_([a-z]{2}))?_(ppm|ppb|pct)$/.exec(String(h));
+  if (!m) return null;
+  const sym = m[1][0].toUpperCase() + m[1].slice(1);
+  return /^[A-Z][a-z]?$/.test(sym) && sym !== "Po" ? `${sym}${m[2] ? `_${m[2]}` : ""}_${m[3]}` : null; // po4_ppm is phosphate, not polonium (no match anyway)
+}
+export function parseNure(csvText, b) {
+  const { headers, rows } = parseCsv(csvText);
+  const map = headers.map((h) => [h, nureColumn(h)]).filter(([, n]) => n);
+  let outside = 0, lake = 0;
+  const out = [];
+  for (const r of rows) {
+    const lon = parseFloat(r.longitude), lat = parseFloat(r.latitude);
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
+    if (!inBox(lon, lat, b)) { outside++; continue; }
+    const src = String(r.sampsrc || "").toUpperCase();
+    const medium = /STREAM/.test(src) ? "stream sediment" : "other";
+    if (/LAKE|POND/.test(src)) lake++;
+    const o = { sample_id: String(r.rec_no || ""), longitude: r.longitude, latitude: r.latitude, elevation: "", medium, source_type: [r.smpmedia, r.sampsrc].filter(Boolean).join(" / "), collected: r.sampdat || "" };
+    for (const [h, n] of map) o[n] = usgsValue(r[h]);
+    out.push(o);
+  }
+  const notes = [];
+  if (outside) notes.push({ key: "{n} sample(s) of the quadrangles fall outside the area and were left out.", n: outside });
+  if (lake) notes.push({ key: "{n} lake or pond sediment sample(s) come in as \"other\".", n: lake });
+  return table(out, map.map(([, n]) => n), ["source_type", "collected"], CATALOGUE.find((e) => e.id === "usgs-nure"), notes);
+}
+
+// TASKS.csv #905 — GSC CDoGS. index = src/lib/cdogsIndex.json (scripts/samples/build-cdogs-index.py): surveys
+// [key, name, year, w, s, e, n, [[package, sample type, fraction, samples]...]], packages { id: [name, lab, { column:
+// [symbol, unit, limit] }] }. cdogsCandidates: every survey x package whose survey extent overlaps the area.
+export function cdogsCandidates(index, b) {
+  const out = [];
+  for (const [key, name, year, w, s, e, n, pk] of index?.surveys || []) {
+    if (e < b[0] || w > b[2] || n < b[1] || s > b[3]) continue;
+    for (const [pkg, sampleType, prep, count] of pk) {
+      const p = index.packages[String(pkg)];
+      if (p) out.push({ key, name, year, pkg, pkgName: p[0], lab: p[1], sampleType, prep, n: count });
+    }
+  }
+  return out.sort((p, q) => (q.year || 0) - (p.year || 0) || p.key.localeCompare(q.key) || p.pkg - q.pkg);
+}
+export const cdogsUrl = (key, pkg) => `https://geochem.nrcan.gc.ca/ftp/data/raw_data/svy/svy${key}_pkg_${String(pkg).padStart(4, "0")}a.xlsx`;
+const CDOGS_MEDIUM = (t) => (/stream sediment/i.test(t) ? "stream sediment" : /hmc|heavy/i.test(t) ? "heavy mineral concentrate" : /stream water/i.test(t) ? "stream water" : /soil/i.test(t) ? "soil" : "other");
+// rows: the workbook's sheet (header row first: Lab_Sample_Identifier, Latitude_NAD83, Longitude_NAD83,
+// Sample_Type_Name_en, Preparation_Method_Name_en, then the package's columns, e.g. Cu_ICPES); variant "a" writes a
+// below-detection result as minus the limit
+export function parseCdogsWorkbook(rows, cols, b, cand) {
+  const head = (rows[0] || []).map((h) => String(h || "").trim());
+  const ix = (name) => head.indexOf(name);
+  const iLat = ix("Latitude_NAD83"), iLon = ix("Longitude_NAD83"), iId = ix("Lab_Sample_Identifier"), iType = ix("Sample_Type_Name_en"), iPrep = ix("Preparation_Method_Name_en");
+  if (iLat < 0 || iLon < 0) throw new Error("This workbook has no Latitude_NAD83 / Longitude_NAD83 columns.");
+  const map = head.map((h, i) => (cols[h] ? [i, `${cols[h][0]}_${h.split("_").slice(1).join("_") || "x"}_${cols[h][1]}`] : null)).filter(Boolean);
+  let outside = 0;
+  const out = [];
+  for (const r of rows.slice(1)) {
+    const lat = parseFloat(r[iLat]), lon = parseFloat(r[iLon]);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+    if (!inBox(lon, lat, b)) { outside++; continue; }
+    const type = iType >= 0 ? String(r[iType] || "") : cand?.sampleType || "";
+    const o = { sample_id: String(r[iId] ?? ""), longitude: String(lon), latitude: String(lat), elevation: "", medium: CDOGS_MEDIUM(type), source_type: type, fraction: iPrep >= 0 ? String(r[iPrep] || "") : cand?.prep || "", survey: cand ? `svy${cand.key} ${cand.year || ""}`.trim() : "" };
+    for (const [i, n] of map) o[n] = usgsValue(r[i]); // negative = below this limit, as for the USGS
+    out.push(o);
+  }
+  const notes = outside ? [{ key: "{n} sample(s) of the survey fall outside the area and were left out.", n: outside }] : [];
+  return table(out, map.map(([, n]) => n), ["source_type", "fraction", "survey"], CATALOGUE.find((e) => e.id === "gsc-cdogs"), notes);
 }
 
 // a small CSV reader (quoted fields, CRLF) - the services' CSVs are plain comma-separated UTF-8
@@ -194,7 +325,7 @@ export function parseNgsa(csvText, { fraction = "coarse", depth = "top", digesti
 // the project's working area in project coordinates [xmin, ymin, xmax, ymax], with a margin: collars, then surface
 // samples, then boundaries and map layers - null when nothing is located. The margin is at least 10 km: regional surveys
 // have a site every 10-15 km² or sparser, so a drill-pad-sized box usually holds none
-export function projectBoxXY({ collars = [], surfaceSamples = [], boundaries = [], mapLayers = [] } = {}) {
+export function projectBoxXY({ collars = [], surfaceSamples = [], boundaries = [], mapLayers = [] } = {}, { geographic = false } = {}) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   const add = (x, y) => { if (Number.isFinite(x) && Number.isFinite(y)) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } };
   for (const c of collars) add(c.x, c.y);
@@ -202,6 +333,7 @@ export function projectBoxXY({ collars = [], surfaceSamples = [], boundaries = [
   if (!(x1 >= x0)) for (const b of boundaries) for (const pl of b.polylines || []) for (const p of pl) add(p.x, p.y);
   if (!(x1 >= x0)) for (const l of mapLayers) for (const f of l.features || []) for (const part of f.parts || [f.geometry || []]) for (const p of part) add(p?.[0], p?.[1]);
   if (!(x1 >= x0)) return null;
-  const mx = Math.max((x1 - x0) * 0.25, 10000), my = Math.max((y1 - y0) * 0.25, 10000);
+  const minM = geographic ? 0.1 : 10000; // #905 — a longitude / latitude project: 0.1 degree, not 10,000 units
+  const mx = Math.max((x1 - x0) * 0.25, minM), my = Math.max((y1 - y0) * 0.25, minM);
   return [x0 - mx, y0 - my, x1 + mx, y1 + my];
 }

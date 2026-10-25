@@ -9,9 +9,9 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, panel, header, label, sel, btn } from "../lib/modalStyles.js";
 import { useStore } from "../lib/store.jsx";
-import { toLonLat } from "../lib/reproject.js";
+import { toLonLat, isMetricProjectedEpsg } from "../lib/reproject.js";
 import { geochemFetch } from "../lib/desktop.js";
-import { CATALOGUE_CHECKED, projectBoxXY, searchCatalogue, coversArea, areaUrl, BC_PAGE, serviceError, parseBcRgs, parseNgsa, ngsaChoices } from "../lib/publicGeochem.js";
+import { CATALOGUE_CHECKED, projectBoxXY, searchCatalogue, coversArea, areaUrl, BC_PAGE, serviceError, parseBcRgs, parseNgsa, ngsaChoices, usgsQuadUrl, parseQuadCodes, USGS_MAX_QUADS, usgsPackageRequest, usgsPackageLink, parseNgdbPackage, parseNure, cdogsCandidates, cdogsUrl, parseCdogsWorkbook } from "../lib/publicGeochem.js"; // usgs, cdogs: TASKS.csv #905
 import BasemapView from "./BasemapView.jsx";
 import { t as tr } from "../lib/i18n.js";
 
@@ -31,12 +31,15 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
   const [ngsa, setNgsa] = useState(null); // { text, sites, combos, pick }
+  const [cdogs, setCdogs] = useState(null); // #905 — { index, cands, pick }
 
   // the project area in lon / lat: collars, else surface samples, boundaries, map layers (with a margin)
   useEffect(() => {
     let live = true;
     (async () => {
-      const b = project?.epsg ? projectBoxXY({ collars, surfaceSamples, boundaries, mapLayers }) : null;
+      // #905 — not while the project CRS is unchosen (crsSet false): the coordinates would be read in the default CRS and
+      // the "project area" put somewhere else entirely (a Colorado UTM 13N test landed at -130.4 degrees)
+      const b = project?.epsg && project.crsSet !== false ? projectBoxXY({ collars, surfaceSamples, boundaries, mapLayers }, { geographic: isMetricProjectedEpsg(project.epsg) === false }) : null;
       if (!b) return;
       const ll = await Promise.all([[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]].map(([x, y]) => toLonLat(x, y, project.epsg)));
       if (!live || ll.some((p) => !p)) return;
@@ -52,7 +55,7 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
 
   const download = async () => {
     if (!entry || !area) return;
-    setError(null); setNgsa(null);
+    setError(null); setNgsa(null); setCdogs(null);
     try {
       if (entry.id === "bc-rgs") {
         const parts = [];
@@ -70,6 +73,45 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
         const headers = [...new Set(parts.flatMap((t) => t.headers))];
         const zeros = parts.reduce((s, t) => s + (t.notes[0]?.n || 0), 0);
         onLoaded({ headers, rows, entry, notes: zeros ? [tr("{n} zero value(s) left empty: this layer has no below-detection marker, so a 0 is not a grade.", { n: zeros })] : [] });
+      } else if (entry.cdogs) {
+        // TASKS.csv #905 — the shipped index says which surveys overlap the area; the user picks one survey x package
+        setBusy(tr("Looking up the surveys…"));
+        const index = (await import("../lib/cdogsIndex.json")).default;
+        const cands = cdogsCandidates(index, area);
+        if (!cands.length) { setError(tr("No GSC survey with a standardised data package overlaps the area.")); return; }
+        setCdogs({ index, cands, pick: 0 });
+      } else if (entry.usgs) {
+        // TASKS.csv #905 — the quadrangles in the box (WFS), their package (form POST -> a page linking the file), the file
+        const db = entry.usgs;
+        setBusy(tr("Finding the map quadrangles in the area…"));
+        const w = await geochemFetch({ url: usgsQuadUrl(db, area) });
+        if (!w.ok) throw new Error(w.message || tr("The service answered HTTP {status}.", { status: w.status }));
+        const quads = parseQuadCodes(w.text);
+        if (!quads.length) { setError(tr("No samples from this survey in the area.")); return; }
+        if (quads.length > USGS_MAX_QUADS) { setError(tr("The area holds {n} map quadrangles (over {max}): draw a smaller one.", { n: quads.length, max: USGS_MAX_QUADS })); return; }
+        setBusy(tr("Asking the USGS for {n} quadrangle(s) (this can take a minute)…", { n: quads.length }));
+        const req = usgsPackageRequest(db, quads);
+        const p = await geochemFetch(req);
+        if (!p.ok) throw new Error(p.message || tr("The service answered HTTP {status}.", { status: p.status }));
+        const link = usgsPackageLink(p.text, db);
+        if (!link) throw new Error(tr("The USGS page did not link a data file (the service may have changed, or is busy: try again)."));
+        setBusy(tr("Downloading from {host}…", { host: entry.host }));
+        let t;
+        if (db === "ngdb") {
+          const f = await geochemFetch({ url: link, binary: true });
+          if (!f.ok) throw new Error(f.message || tr("The service answered HTTP {status}.", { status: f.status }));
+          const { readZipEntries } = await import("../lib/shapefile.js");
+          const bytes = Uint8Array.from(atob(f.base64), (ch) => ch.charCodeAt(0));
+          const entries = await readZipEntries(bytes, /(main|bestvalue)\.txt$/i);
+          const dec = (re) => { const k = Object.keys(entries).find((n) => re.test(n) && entries[n]); return k ? new TextDecoder().decode(entries[k]) : ""; };
+          t = parseNgdbPackage({ main: dec(/main\.txt$/i), bestvalue: dec(/bestvalue\.txt$/i) }, area);
+        } else {
+          const f = await geochemFetch({ url: link });
+          if (!f.ok) throw new Error(f.message || tr("The service answered HTTP {status}.", { status: f.status }));
+          t = parseNure(f.text, area);
+        }
+        if (!t.rows.length) { setError(tr("No samples from this survey in the area.")); return; }
+        onLoaded({ headers: t.headers, rows: t.rows, entry, notes: t.notes.map((n) => tr(n.key, { n: n.n })) });
       } else if (entry.id === "ga-ngsa") {
         setBusy(tr("Downloading from {host}…", { host: entry.host }));
         const r = await geochemFetch({ url: areaUrl(entry.id, area) });
@@ -80,6 +122,21 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
         const first = c.combos.find((k) => k.fraction === "coarse" && k.depth === "top" && k.digestion === "aqua regia") || c.combos[0];
         setNgsa({ text: r.text, ...c, pick: first });
       }
+    } catch (e) { setError(e.message || String(e)); } finally { setBusy(null); }
+  };
+  const importCdogs = async () => {
+    const cand = cdogs.cands[cdogs.pick];
+    setError(null);
+    try {
+      setBusy(tr("Downloading from {host}…", { host: entry.host }));
+      const f = await geochemFetch({ url: cdogsUrl(cand.key, cand.pkg), binary: true });
+      if (!f.ok) throw new Error(f.message || tr("The service answered HTTP {status}.", { status: f.status }));
+      const { readXlsxSheets } = await import("../lib/xlsx.js");
+      const sheets = await readXlsxSheets(Uint8Array.from(atob(f.base64), (ch) => ch.charCodeAt(0)));
+      const sheet = sheets.find((s) => !s.hidden && s.rows.length > 1) || sheets[0];
+      const t = parseCdogsWorkbook(sheet?.rows || [], cdogs.index.packages[String(cand.pkg)][2], area, cand);
+      if (!t.rows.length) { setError(tr("None of this survey's samples lie in the area (only its overall extent overlaps it).")); return; }
+      onLoaded({ headers: t.headers, rows: t.rows, entry, notes: [tr("Survey: {name} ({year}); {pkg}, {lab}.", { name: cand.name, year: cand.year || "?", pkg: cand.pkgName, lab: cand.lab }), ...t.notes.map((n) => tr(n.key, { n: n.n }))] });
     } catch (e) { setError(e.message || String(e)); } finally { setBusy(null); }
   };
   const importNgsa = () => {
@@ -106,7 +163,7 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
             <label style={{ ...small, display: "flex", gap: 5, alignItems: "center" }}><input type="checkbox" checked={onlyHere} onChange={(e) => setOnlyHere(e.target.checked)} disabled={!area} />{tr("Only surveys covering the area")}</label>
           </div>
           <div style={{ ...small, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <span>{area ? tr("Area: {w}° × {h}° around {lon}, {lat} ({from})", { w: (area[2] - area[0]).toFixed(2), h: (area[3] - area[1]).toFixed(2), lon: ((area[0] + area[2]) / 2).toFixed(3), lat: ((area[1] + area[3]) / 2).toFixed(3), from: areaFrom === "drawn" ? tr("drawn") : tr("the project's data, with a margin") }) : tr("No area yet: the project has no located data. Draw one.")}</span>
+            <span>{!area && project?.crsSet === false ? tr("The project's coordinate system is not chosen yet, so its data cannot be placed: choose it (status bar) or draw an area.") : area ? tr("Area: {w}° × {h}° around {lon}, {lat} ({from})", { w: (area[2] - area[0]).toFixed(2), h: (area[3] - area[1]).toFixed(2), lon: ((area[0] + area[2]) / 2).toFixed(3), lat: ((area[1] + area[3]) / 2).toFixed(3), from: areaFrom === "drawn" ? tr("drawn") : tr("the project's data, with a margin") }) : tr("No area yet: the project has no located data. Draw one.")}</span>
             <button onClick={() => setDrawing(true)} style={{ ...btn(false), padding: "4px 10px" }}>{tr("Draw area…")}</button>
           </div>
           {tooBig && <div role="alert" style={{ ...small, color: "var(--color-warn-text)" }}>{tr("The area is larger than {n}° in one direction. Draw a smaller one: this is for a project, not a province.", { n: MAX_DEG })}</div>}
@@ -126,10 +183,19 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
               <div style={small}>{tr("Licence:")}{" "}<a href={entry.licenceUrl} target="_blank" rel="noreferrer">{entry.licence}</a>{". "}{tr("Attribution: {text}", { text: entry.attribution })}</div>
               <div style={small}>{entry.caveat}</div>
               <div style={small}>{tr("Last checked {date}.", { date: CATALOGUE_CHECKED })}{" "}<a href={entry.page} target="_blank" rel="noreferrer">{tr("Agency page")}</a></div>
-              {entry.downloadable && !ngsa && (
+              {entry.downloadable && !ngsa && !cdogs && (
                 <button onClick={download} disabled={!!busy || !area || tooBig || !coversArea(entry, area)} style={{ ...btn(true), padding: "7px 12px", alignSelf: "flex-start", opacity: busy || !area || tooBig ? 0.6 : 1 }}>
                   {busy || (area && !coversArea(entry, area) ? tr("This survey does not cover the area") : tr("Download the samples in the area"))}
                 </button>
+              )}
+              {cdogs && ( /* TASKS.csv #905 */
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={small}>{tr("{n} survey data package(s) overlap the area. Each is one sample type, size fraction and lab method: choose one, so every sample is comparable.", { n: cdogs.cands.length })}</div>
+                  <select value={cdogs.pick} onChange={(e) => setCdogs({ ...cdogs, pick: Number(e.target.value) })} aria-label={tr("Survey and data package")} style={sel}>
+                    {cdogs.cands.map((c, i) => <option key={i} value={i}>{`${c.year || "?"} · ${c.name.slice(0, 70)}${c.name.length > 70 ? "…" : ""} — ${c.sampleType || tr("sample type not given")}${c.prep ? `, ${c.prep}` : ""} — ${c.pkgName}${c.n ? ` (${c.n})` : ""}`}</option>)}
+                  </select>
+                  <button onClick={importCdogs} disabled={!!busy} style={{ ...btn(true), padding: "7px 12px", alignSelf: "flex-start", opacity: busy ? 0.6 : 1 }}>{busy || tr("Continue to the import")}</button>
+                </div>
               )}
               {ngsa && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>

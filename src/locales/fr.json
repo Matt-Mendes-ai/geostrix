@@ -6017,5 +6017,21 @@
   "Show the extent of": "Afficher l'emprise de",
   "Draw another viewport's ground extent on this one, as on an inset location map. Both need a top-down, true-scale capture.": "Dessiner l'emprise au sol d'une autre vue sur celle-ci, comme sur une carte de situation. Les deux doivent être des captures vues de dessus à l'échelle vraie.",
   "Viewport {n}": "Vue {n}",
-  "The extent shows when both viewports are top-down, true-scale captures: set the 3D view to Top, pick a scale, and refresh each.": "L'emprise s'affiche quand les deux vues sont des captures vues de dessus à l'échelle vraie : mettez la vue 3D sur Dessus, choisissez une échelle et actualisez chacune."
+  "The extent shows when both viewports are top-down, true-scale captures: set the 3D view to Top, pick a scale, and refresh each.": "L'emprise s'affiche quand les deux vues sont des captures vues de dessus à l'échelle vraie : mettez la vue 3D sur Dessus, choisissez une échelle et actualisez chacune.",
+  "Finding the map quadrangles in the area…": "Recherche des quadrilatères de la zone…",
+  "The area holds {n} map quadrangles (over {max}): draw a smaller one.": "La zone contient {n} quadrilatères (plus de {max}) : tracez-en une plus petite.",
+  "Asking the USGS for {n} quadrangle(s) (this can take a minute)…": "Demande de {n} quadrilatère(s) à l'USGS (cela peut prendre une minute)…",
+  "The USGS page did not link a data file (the service may have changed, or is busy: try again).": "La page de l'USGS ne liait aucun fichier de données (le service a pu changer ou est occupé : réessayez).",
+  "{n} sample(s) of the quadrangles fall outside the area and were left out.": "{n} échantillon(s) des quadrilatères tombent hors de la zone et ont été écartés.",
+  "{n} sample(s) are not stream sediment (mine dumps, tailings, other sources) and come in as \"other\".": "{n} échantillon(s) ne sont pas des sédiments de ruisseau (haldes, résidus, autres sources) et entrent comme « other ».",
+  "{n} lake or pond sediment sample(s) come in as \"other\".": "{n} échantillon(s) de sédiment de lac ou d'étang entrent comme « other ».",
+  "The project's coordinate system is not chosen yet, so its data cannot be placed: choose it (status bar) or draw an area.": "Le système de coordonnées du projet n'est pas encore choisi, ses données ne peuvent donc pas être placées : choisissez-le (barre d'état) ou tracez une zone.",
+  "Looking up the surveys…": "Recherche des levés…",
+  "No GSC survey with a standardised data package overlaps the area.": "Aucun levé de la CGC avec un paquet de données normalisé ne recoupe la zone.",
+  "None of this survey's samples lie in the area (only its overall extent overlaps it).": "Aucun échantillon de ce levé n'est dans la zone (seule son emprise générale la recoupe).",
+  "Survey: {name} ({year}); {pkg}, {lab}.": "Levé : {name} ({year}) ; {pkg}, {lab}.",
+  "{n} survey data package(s) overlap the area. Each is one sample type, size fraction and lab method: choose one, so every sample is comparable.": "{n} paquet(s) de données recoupent la zone. Chacun correspond à un type d'échantillon, une fraction et une méthode de laboratoire : choisissez-en un, pour que tous les échantillons soient comparables.",
+  "Survey and data package": "Levé et paquet de données",
+  "sample type not given": "type d'échantillon non indiqué",
+  "{n} sample(s) of the survey fall outside the area and were left out.": "{n} échantillon(s) du levé tombent hors de la zone et ont été écartés."
 }

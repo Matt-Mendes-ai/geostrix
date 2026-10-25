@@ -910,14 +910,25 @@ ipcMain.handle("remote-sensing-fetch", async (_e, { url, range = null, json = nu
 // TASKS.csv #846 — the public geochemistry catalogue: a sample table for the project area from a government survey's
 // web service (BC RGS on the BC open map service, NGSA on Geoscience Australia's). GET only, only these HTTPS hosts
 // (each tested against real responses and its licence read), the #350 address checks on every hop, 64 MB, 120 s.
-const GEOCHEM_HOSTS = new Set(["openmaps.gov.bc.ca", "services.ga.gov.au"]);
-ipcMain.handle("geochem-fetch", async (_e, { url } = {}) => {
+// TASKS.csv #905 — and the USGS NGDB / NURE packages on mrdata.usgs.gov: a form POST (the quadrangles wanted) answered by
+// a page linking the output file, which may be a zip (binary: base64 back to the renderer, read with the capped zip
+// reader there). A form is small text fields only (16 KB at most).
+// and (#905) the GSC's CDoGS data packages on geochem.nrcan.gc.ca (one Excel workbook per survey and analytical package)
+const GEOCHEM_HOSTS = new Set(["openmaps.gov.bc.ca", "services.ga.gov.au", "mrdata.usgs.gov", "geochem.nrcan.gc.ca"]);
+ipcMain.handle("geochem-fetch", async (_e, { url, form = null, binary = false } = {}) => {
   let u;
   try { u = new URL(String(url || "")); } catch { return { ok: false, status: 0, message: "Not a valid URL." }; }
   if (u.protocol !== "https:" || !GEOCHEM_HOSTS.has(u.hostname)) return { ok: false, status: 0, message: `GeoStrix only reads public geochemistry from ${[...GEOCHEM_HOSTS].join(", ")}.` };
-  const res = await guardedFetch(u.toString(), { timeoutMs: 120000, maxBytes: 64 * 1024 * 1024 });
+  let init = null;
+  if (form != null) {
+    if (typeof form !== "object" || Object.values(form).some((v) => typeof v !== "string")) return { ok: false, status: 0, message: "Bad form." };
+    const body = new URLSearchParams(form).toString();
+    if (body.length > 16384) return { ok: false, status: 0, message: "Request too large." };
+    init = { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body };
+  }
+  const res = await guardedFetch(u.toString(), { timeoutMs: 180000, maxBytes: 64 * 1024 * 1024, init });
   if (res.message) return { ok: false, status: res.status, message: res.message };
-  return { ok: res.ok, status: res.status, contentType: res.contentType, text: res.buffer.toString("utf8") };
+  return { ok: res.ok, status: res.status, contentType: res.contentType, ...(binary ? { base64: res.buffer.toString("base64") } : { text: res.buffer.toString("utf8") }) };
 });
 
 const { DB_STATEMENT_TIMEOUT_MS, pgConfig, mysqlConfig } = require("./dbConfig.js"); // TASKS.csv #348

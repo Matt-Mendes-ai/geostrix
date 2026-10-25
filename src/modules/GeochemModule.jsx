@@ -533,7 +533,7 @@ export default function GeochemModule() {
     const attrExclude = headers.filter((h) => !mapped.has(h) && isElementColumn(h));
     setPublicOpen(false);
     setSurfaceModal({
-      file: null, fileName: entry.name, headers, allRows: rows, mapping, sourceEpsg: "4326", sourceEpsgFrom: null,
+      file: null, fileName: entry.name, headers, allRows: rows, mapping, sourceEpsg: entry.sourceEpsg || "4326", sourceEpsgFrom: null, // NURE: NAD27 (#905)
       defaultMedium: "stream sediment", elements, attrExclude,
       publicNote: [tr("Source: {agency}, {name}, under the {licence}. {attribution}", { agency: entry.agency, name: entry.name, licence: entry.licence, attribution: entry.attribution }), ...notes].join(" "),
     });
