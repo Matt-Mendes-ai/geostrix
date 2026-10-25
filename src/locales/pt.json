@@ -5892,5 +5892,6 @@
   "How the solid ends beyond the first and last outline: flat at them, extended half a section spacing, or pinched out to a point half a spacing beyond": "Como o sólido termina além do primeiro e do último contorno: plano neles, estendido meio espaçamento entre seções ou afinado até um ponto a meio espaçamento",
   "Flat ends": "Extremidades planas",
   "Extend ½ spacing": "Estender ½ espaçamento",
-  "Pinch out": "Afinar"
+  "Pinch out": "Afinar",
+  "\"{name}\" was counted in {b} m blocks, so its boundary steps every {b} m. Estimating in {c} m blocks inside it does not place the contact any closer than {b} m: rebuild the unit volume at {c} m, or estimate in {b} m blocks.": "\"{name}\" foi contado em blocos de {b} m, então seu limite avança em degraus de {b} m. Estimar em blocos de {c} m dentro dele não posiciona o contato com mais precisão que {b} m: reconstrua o volume da unidade a {c} m ou estime em blocos de {b} m."
 }

@@ -439,6 +439,8 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
                 <option value="">{tr("— none (whole grid) —")}</option>
                 {volumeShells.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
               </select>
+            {/* TASKS.csv #896 — a unit volume is a count of model blocks: its boundary is stepped at that block size */}
+            {(() => { const sh = volumeShells.find((v) => v.id === shellId); const c = Math.min(cell3.dx, cell3.dy, cell3.dz); return sh?.blockSizeM && c < sh.blockSizeM - 1e-6 ? <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4, marginTop: 4 }}>{tr("\"{name}\" was counted in {b} m blocks, so its boundary steps every {b} m. Estimating in {c} m blocks inside it does not place the contact any closer than {b} m: rebuild the unit volume at {c} m, or estimate in {b} m blocks.", { name: sh.name, b: sh.blockSizeM, c })}</div> : null; })()}
             </label>
           )}
 

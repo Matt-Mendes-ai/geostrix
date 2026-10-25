@@ -3435,7 +3435,9 @@ ${describeTrend(t)}` };
       const n = pos.length / 3, w = new Float64Array(pos.length);
       for (let i = 0; i < n; i++) { w[i * 3] = pos[i * 3] + o.x; w[i * 3 + 1] = o.y - pos[i * 3 + 2]; w[i * 3 + 2] = pos[i * 3 + 1] + o.z; }
       const idx = mesh.geometry.index ? mesh.geometry.index.array : Uint32Array.from({ length: n }, (_, i) => i);
-      return [{ id: sf.id, name: sf.name, positions: w, indices: idx }];
+      // TASKS.csv #896 — a unit volume says the block size it was counted at (#877; before that only the cell volume)
+      const bs = sf.params?.blockSizeM ? Math.max(...sf.params.blockSizeM) : sf.params?.cellVolumeM3 ? Math.cbrt(sf.params.cellVolumeM3) : null;
+      return [{ id: sf.id, name: sf.name, positions: w, indices: idx, ...(sf.type === "unit_volume" && bs ? { blockSizeM: +bs.toFixed(2) } : {}) }];
     });
   };
   // TASKS.csv #802 — a generated / imported surface's mesh in WORLD coordinates (E, N, Z) with its colour, for

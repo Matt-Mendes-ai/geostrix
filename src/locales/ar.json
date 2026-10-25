@@ -5892,5 +5892,6 @@
   "How the solid ends beyond the first and last outline: flat at them, extended half a section spacing, or pinched out to a point half a spacing beyond": "كيف ينتهي المجسم بعد المحيط الأول والأخير: مستويًا عندهما، أو ممتدًا نصف تباعد بين المقاطع، أو متلاشيًا إلى نقطة على بعد نصف تباعد",
   "Flat ends": "طرفان مستويان",
   "Extend ½ spacing": "مدّ نصف التباعد",
-  "Pinch out": "تلاشٍ"
+  "Pinch out": "تلاشٍ",
+  "\"{name}\" was counted in {b} m blocks, so its boundary steps every {b} m. Estimating in {c} m blocks inside it does not place the contact any closer than {b} m: rebuild the unit volume at {c} m, or estimate in {b} m blocks.": "عُدّ \"{name}\" بكتل قدرها {b} م، لذا يتدرج حده كل {b} م. التقدير بكتل قدرها {c} م داخله لا يحدد التماس بدقة أفضل من {b} م: أعد بناء حجم الوحدة عند {c} م، أو قدّر بكتل قدرها {b} م."
 }
