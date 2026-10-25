@@ -5877,5 +5877,12 @@
   "Offset distance (m)": "مسافة الإزاحة (م)",
   "Offset direction": "اتجاه الإزاحة",
   "along its normal": "على امتداد عموده",
-  "Make": "أنشئ"
+  "Make": "أنشئ",
+  "\"{name}\" has no part inside \"{b}\": nothing to keep.": "لا يوجد جزء من \"{name}\" داخل \"{b}\": لا شيء للإبقاء عليه.",
+  "{name} inside {b}": "{name} داخل {b}",
+  "Made \"{name}\": the part of \"{src}\" inside \"{b}\" ({split} triangles cut at the boundary, {removed} outside left out). The original is unchanged.": "أُنشئ \"{name}\": جزء \"{src}\" الواقع داخل \"{b}\" (قُطع {split} مثلثًا عند الحد، واستُبعد {removed} خارجه). الأصل لم يتغير.",
+  "A copy of this surface cut to the inside of a project boundary, seen from above; the edge is cut exactly at the boundary. The original is unchanged.": "نسخة من هذا السطح مقصوصة إلى داخل حد من حدود المشروع، منظورًا من الأعلى؛ ويُقص الطرف عند الحد تمامًا. الأصل لم يتغير.",
+  "Clip to": "قص إلى",
+  "Boundary to clip to": "الحد المراد القص إليه",
+  "Boundary…": "الحد…"
 }

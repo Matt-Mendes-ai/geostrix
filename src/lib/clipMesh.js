@@ -50,3 +50,20 @@ export function clipMesh(verts, faces, isOutside, { iterations = 12 } = {}) {
   }
   return { verts: out, faces: kept, split, removed };
 }
+
+// TASKS.csv #895 — a surface (flat E, N, Z positions + triangle indices) cut to the inside of a boundary seen from above:
+// inside(x, y) -> boolean. Triangles straddling the boundary are split at it (clipMesh), so the edge follows the
+// boundary, not the triangles. A boundary corner that falls inside one triangle, away from every edge, is not cut into it
+// (the edge goes straight across that triangle). -> { positions, indices, split, removed }
+export function clipSurfaceToArea(positions, indices, inside) {
+  const verts = [];
+  for (let i = 0; i < positions.length; i += 3) verts.push({ x: positions[i], y: positions[i + 1], z: positions[i + 2] });
+  const faces = [];
+  for (let t = 0; t < indices.length; t += 3) faces.push([indices[t], indices[t + 1], indices[t + 2]]);
+  const r = clipMesh(verts, faces, (p) => !inside(p.x, p.y));
+  // keep only the vertices still used
+  const used = new Map(), P = [], I = [];
+  for (const f of r.faces) for (const k of f) { if (!used.has(k)) { used.set(k, P.length / 3); const v = r.verts[k]; P.push(v.x, v.y, v.z); } I.push(used.get(k)); }
+  return { positions: Float64Array.from(P), indices: Uint32Array.from(I), split: r.split, removed: r.removed };
+}
+

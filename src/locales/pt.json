@@ -5877,5 +5877,12 @@
   "Offset distance (m)": "Distância de deslocamento (m)",
   "Offset direction": "Direção do deslocamento",
   "along its normal": "ao longo da normal",
-  "Make": "Criar"
+  "Make": "Criar",
+  "\"{name}\" has no part inside \"{b}\": nothing to keep.": "\"{name}\" não tem parte dentro de \"{b}\": nada a manter.",
+  "{name} inside {b}": "{name} dentro de {b}",
+  "Made \"{name}\": the part of \"{src}\" inside \"{b}\" ({split} triangles cut at the boundary, {removed} outside left out). The original is unchanged.": "Criada \"{name}\": a parte de \"{src}\" dentro de \"{b}\" ({split} triângulos cortados no limite, {removed} externos descartados). A original não muda.",
+  "A copy of this surface cut to the inside of a project boundary, seen from above; the edge is cut exactly at the boundary. The original is unchanged.": "Uma cópia desta superfície recortada para o interior de um limite do projeto, vista de cima; a borda é cortada exatamente no limite. A original não muda.",
+  "Clip to": "Recortar a",
+  "Boundary to clip to": "Limite para recortar",
+  "Boundary…": "Limite…"
 }

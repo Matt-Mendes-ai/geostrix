@@ -3510,6 +3510,34 @@ ${describeTrend(t)}` };
   // TASKS.csv #895 — an offset copy of an open surface (lib/offsetSurface.js, loaded on use): along its normal (true
   // thickness, upper side positive) or vertically, as a new generated surface the user can type and use like any other
   const [offsetIn, setOffsetIn] = useState({}); // surface id -> { d, mode }
+  // TASKS.csv #895 — a copy of a surface cut to the inside of a project boundary (a claim, an area of interest, a plan
+  // outline saved as a boundary), the edge split exactly at the boundary (clipMesh, loaded on use)
+  const [clipIn, setClipIn] = useState({}); // surface id -> boundary id
+  const makeClippedSurface = async (s) => {
+    const b = (boundaries || []).find((x) => x.id === clipIn[s.id]);
+    const m = surfaceWorldMesh(s.id);
+    if (!b || !m) return;
+    try {
+      const { clipSurfaceToArea } = await import("../lib/clipMesh.js");
+      const r = clipSurfaceToArea(m.positions, m.indices, (x, y) => pointInBoundary(x, y, b.polylines));
+      if (!r.indices.length) { setNotices((p) => [...p, notice("\"{name}\" has no part inside \"{b}\": nothing to keep.", { name: s.name, b: b.name })]); return; }
+      const o = originRef.current, scene = new Float32Array(r.positions.length);
+      for (let i = 0; i < r.positions.length; i += 3) { scene[i] = r.positions[i] - o.x; scene[i + 1] = r.positions[i + 2] - o.z; scene[i + 2] = o.y - r.positions[i + 1]; }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(scene, 3));
+      geo.setIndex(new THREE.BufferAttribute(r.indices, 1));
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x6bb38a, side: THREE.DoubleSide, transparent: true, opacity: 0.6 }));
+      const name = tr("{name} inside {b}", { name: s.name, b: b.name });
+      mesh.userData = { tip: `${name}\n${scene.length / 3} vertices` };
+      implicitGroupRef.current?.add(mesh);
+      const id = `impl_${Date.now()}_clip`;
+      implicitMeshesRef.current[id] = mesh;
+      setImplicitSurfaces((p) => [...p, { id, name, visible: true, vertexCount: scene.length / 3, faceCount: r.indices.length / 3, type: s.type === "explicit_surface" ? "other" : s.type, relationships: [], closure: null,
+        params: { tool: "surface clipped to a boundary", from: s.name, boundary: b.name, trianglesSplit: r.split, trianglesRemoved: r.removed, builtAt: new Date().toISOString() } }]);
+      setNotices((p) => [...p, notice("Made \"{name}\": the part of \"{src}\" inside \"{b}\" ({split} triangles cut at the boundary, {removed} outside left out). The original is unchanged.", { name, src: s.name, b: b.name, split: r.split, removed: r.removed })]);
+    } catch (e) { setNotices((p) => [...p, e]); }
+  };
   const makeOffsetSurface = async (s) => {
     const o2 = offsetIn[s.id] || {}, d = Number(o2.d), mode = o2.mode === "vertical" ? "vertical" : "normal";
     const m = surfaceWorldMesh(s.id);
@@ -7732,6 +7760,16 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                         <option value="normal">{tr("along its normal")}</option><option value="vertical">{tr("vertically")}</option>
                       </select>
                       <button onClick={() => makeOffsetSurface(s)} disabled={!(Number(offsetIn[s.id]?.d) !== 0 && Number.isFinite(Number(offsetIn[s.id]?.d)))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px" }}>{tr("Make")}</button>
+                    </div>
+                  )}
+                  {(boundaries || []).length > 0 && ( // TASKS.csv #895 — a copy cut to a project boundary
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }} title={tr("A copy of this surface cut to the inside of a project boundary, seen from above; the edge is cut exactly at the boundary. The original is unchanged.")}>
+                      <span style={{ flexShrink: 0 }}>{tr("Clip to")}</span>
+                      <select value={clipIn[s.id] || ""} onChange={(e) => setClipIn((p) => ({ ...p, [s.id]: e.target.value }))} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Boundary to clip to")}>
+                        <option value="">{tr("Boundary…")}</option>
+                        {boundaries.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                      </select>
+                      <button onClick={() => makeClippedSurface(s)} disabled={!clipIn[s.id]} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px" }}>{tr("Make")}</button>
                     </div>
                   )}
 
