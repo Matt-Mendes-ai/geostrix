@@ -196,3 +196,20 @@ export function linkOutlines(outlines, { n = 128, ends = "flat" } = {}) {
   if (v6 < 0) { for (let t = 0; t < indices.length; t += 3) { const x = indices[t + 1]; indices[t + 1] = indices[t + 2]; indices[t + 2] = x; } v6 = -v6; }
   return { positions: Float64Array.from(positions), indices: Uint32Array.from(indices), sections: items.length /* #894: the outlines, not the extension copies */, pointsPerOutline: n, volume: v6 / 6, warnings, twisted, tied: loops.filter((L) => L.tied).length };
 }
+
+// TASKS.csv #894 — outlines drawn on LEVEL PLANS (horizontal slices at an RL; saved as boundaries with their elevation),
+// linked into a solid for a flat-lying lens: the same code as for sections, with elevation and northing swapped - each
+// plan becomes a "section" standing at northing = RL - then swapped back. The swap is a reflection, so the triangles are
+// turned round again to face outward. plans: [{ name, rl, points: [{ x, y }] }] -> linkOutlines' result (sections =
+// the plans, named "<name> at <RL> m").
+export function linkPlanOutlines(plans, opts = {}) {
+  const x0 = Math.min(...plans.flatMap((p) => p.points.map((q) => q.x)));
+  const outlines = plans.map((p) => ({ section: `${p.name} at ${Math.round(p.rl)} m`, ax: x0 - 100, ay: p.rl, bx: x0 + 900, by: p.rl, points: p.points.map((q) => ({ x: q.x, y: p.rl, z: q.y })) }));
+  const w = linkOutlines(outlines, opts);
+  const P = w.positions;
+  for (let i = 0; i < P.length; i += 3) { const t = P[i + 1]; P[i + 1] = P[i + 2]; P[i + 2] = t; }
+  const I = w.indices;
+  for (let t = 0; t < I.length; t += 3) { const a = I[t + 1]; I[t + 1] = I[t + 2]; I[t + 2] = a; }
+  return w;
+}
+

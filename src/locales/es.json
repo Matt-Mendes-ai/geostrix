@@ -5900,5 +5900,7 @@
   "{layer}: vertical thickness {min} to {max} m, mean {mean} m, over {n} columns of {c} m.": "{layer}: espesor vertical de {min} a {max} m, media {mean} m, en {n} columnas de {c} m.",
   "In {p} % of them the base is above the top (the surfaces cross: most often beyond the picks, where both are extrapolated).": "En el {p} % de ellas la base está por encima del techo (las superficies se cruzan: casi siempre más allá de los picks, donde ambas se extrapolan).",
   "The vertical distance between this unit's upper and lower contact in every map column both cover: minimum, mean, maximum, and where the base rises above the top.": "La distancia vertical entre el contacto superior e inferior de esta unidad en cada columna del mapa que ambos cubren: mínimo, media, máximo y dónde la base sube por encima del techo.",
-  "Thickness between top and base": "Espesor entre techo y base"
+  "Thickness between top and base": "Espesor entre techo y base",
+  "{name} (wireframe, {n} level plans)": "{name} (sólido, {n} planos de nivel)",
+  "{name} ({n} level plans)": "{name} ({n} planos de nivel)"
 }

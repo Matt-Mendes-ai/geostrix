@@ -5900,5 +5900,7 @@
   "{layer}: vertical thickness {min} to {max} m, mean {mean} m, over {n} columns of {c} m.": "{layer}: السماكة الرأسية من {min} إلى {max} م، بمتوسط {mean} م، على {n} عمودًا بحجم {c} م.",
   "In {p} % of them the base is above the top (the surfaces cross: most often beyond the picks, where both are extrapolated).": "في {p} % منها تقع القاعدة فوق السقف (السطحان يتقاطعان: غالبًا خارج النقاط الملتقطة حيث كلاهما مستقرأ).",
   "The vertical distance between this unit's upper and lower contact in every map column both cover: minimum, mean, maximum, and where the base rises above the top.": "المسافة الرأسية بين التماس العلوي والسفلي لهذه الوحدة في كل عمود من الخريطة يغطيه كلاهما: الأدنى والمتوسط والأقصى، وحيث ترتفع القاعدة فوق السقف.",
-  "Thickness between top and base": "السماكة بين السقف والقاعدة"
+  "Thickness between top and base": "السماكة بين السقف والقاعدة",
+  "{name} (wireframe, {n} level plans)": "{name} (مجسم، {n} مساقط مستوى)",
+  "{name} ({n} level plans)": "{name} ({n} مساقط مستوى)"
 }

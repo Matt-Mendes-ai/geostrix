@@ -16,3 +16,20 @@ test("#894 flat (as before), extended by half a spacing each end, pinched out to
   for (const w of [flat, ext, pin]) assert.ok(isValidSolid(validateSolid(w.positions, w.indices)), "a closed, consistently wound solid");
   assert.equal(ext.sections, 2, "two outlines linked, whatever the ends");
 });
+
+import { linkPlanOutlines } from "../src/lib/wireframe.js";
+test("#894 level-plan outlines link into a flat-lying solid: right volume, right place, outward", () => {
+  // a 100 x 60 m lens outlined on plans at RL 900 and 940 (40 m apart), centred at (1000, 2000)
+  const plan = (rl) => ({ name: "Lens", rl, points: [[-50, -30], [50, -30], [50, 30], [-50, 30]].map(([x, y]) => ({ x: 1000 + x, y: 2000 + y })) });
+  const w = linkPlanOutlines([plan(940), plan(900)], { n: 64 });
+  assert.ok(Math.abs(w.volume - 100 * 60 * 40) / (100 * 60 * 40) < 0.005, `${w.volume}`);
+  let zmin = Infinity, zmax = -Infinity, ymin = Infinity, ymax = -Infinity;
+  for (let k = 0; k < w.positions.length; k += 3) { ymin = Math.min(ymin, w.positions[k + 1]); ymax = Math.max(ymax, w.positions[k + 1]); zmin = Math.min(zmin, w.positions[k + 2]); zmax = Math.max(zmax, w.positions[k + 2]); }
+  assert.ok(Math.abs(zmin - 900) < 1e-6 && Math.abs(zmax - 940) < 1e-6 && Math.abs(ymin - 1970) < 0.5 && Math.abs(ymax - 2030) < 0.5, JSON.stringify({ zmin, zmax, ymin, ymax }));
+  // outward: the signed volume about any point is positive
+  let v6 = 0; const P = w.positions, o = [P[0], P[1], P[2]];
+  for (let t = 0; t < w.indices.length; t += 3) { const [a, b, c] = [w.indices[t], w.indices[t + 1], w.indices[t + 2]].map((i) => [P[3 * i] - o[0], P[3 * i + 1] - o[1], P[3 * i + 2] - o[2]]); v6 += a[0] * (b[1] * c[2] - b[2] * c[1]) + a[1] * (b[2] * c[0] - b[0] * c[2]) + a[2] * (b[0] * c[1] - b[1] * c[0]); }
+  assert.ok(v6 > 0);
+  assert.ok(isValidSolid(validateSolid(w.positions, w.indices)));
+  assert.equal(w.sections, 2);
+});
