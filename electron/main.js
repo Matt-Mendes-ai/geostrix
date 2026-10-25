@@ -664,6 +664,14 @@ ipcMain.handle("export-pdf", async (ev, { suggestedName, pageSize, landscape, pr
   return { ok: true, filePath };
 });
 
+// TASKS.csv #909 — the same print, handed back as bytes: the Layout renders a page to PNG from it (pdfjs in the
+// renderer), so an exported image is pixel-for-pixel the printed page at the chosen resolution.
+ipcMain.handle("export-pdf-data", async (ev, { preferCSSPageSize } = {}) => {
+  const win = BrowserWindow.fromWebContents(ev.sender) || mainWindow;
+  const data = await win.webContents.printToPDF({ printBackground: true, landscape: true, pageSize: "A4", margins: { marginType: "none" }, preferCSSPageSize: !!preferCSSPageSize });
+  return { ok: true, base64: data.toString("base64") };
+});
+
 // ---------- generic file save (csv / png / svg) ----------
 // TASKS.csv #553 — paths the USER chose in a save / open dialog this session. Ctrl+S writes straight back to the
 // project's file (save-file-to) only if its path is in here, so a renderer can never name an arbitrary file to

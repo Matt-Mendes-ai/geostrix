@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld("desktop", {
   sendSectionContacts: (payload) => ipcRenderer.invoke("section-contacts", payload),
   onSectionContacts: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on("section-contacts", h); return () => ipcRenderer.removeListener("section-contacts", h); },
   exportPDF: (payload) => ipcRenderer.invoke("export-pdf", payload),
+  exportPDFData: (payload) => ipcRenderer.invoke("export-pdf-data", payload), // TASKS.csv #909
   saveFile: (payload) => ipcRenderer.invoke("save-file", payload),
   saveFileTo: (payload) => ipcRenderer.invoke("save-file-to", payload), // TASKS.csv #553
   openFile: (payload) => ipcRenderer.invoke("open-file", payload),

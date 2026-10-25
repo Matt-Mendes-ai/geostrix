@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { Plus, X, Maximize2, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid } from "../components/icons.js";
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
-import { savePDF } from "../lib/desktop.js";
+import { savePDF, saveFile, exportPDFData } from "../lib/desktop.js"; // saveFile / exportPDFData: TASKS.csv #909 Export PNG
 import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
 import { useStore } from "../lib/store.jsx";
 import PromptModal from "../components/PromptModal.jsx";
@@ -79,6 +79,28 @@ export default function LayoutModule() {
   const pageFormat = pageFormatOf(activePage);
   const A4 = pagePx(pageFormat);
   const [atlasModalOpen, setAtlasModalOpen] = useState(false); // TASKS.csv #130
+  // TASKS.csv #909 — zoom of the layout canvas (QGIS: the sheet scaled to the window; an A3 did not fit a laptop and
+  // scrolled). "fit" shows the whole sheet (never above 100 %); the sheet itself stays 96-dpi px, scaled with a CSS
+  // transform, and every mouse coordinate on it divides by the zoom (zoomRef, read inside the drag / resize / freehand
+  // handlers). Remembered on this computer, not in the project.
+  const [zoomChoice, setZoomChoice] = useState(() => { try { return localStorage.getItem("geostrix.layoutZoom") || "fit"; } catch { return "fit"; } });
+  const setZoom = (v) => { setZoomChoice(v); try { localStorage.setItem("geostrix.layoutZoom", v); } catch { /* storage unavailable */ } };
+  const areaRef = useRef(null);
+  const [areaSize, setAreaSize] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = areaRef.current;
+    if (!el) return undefined;
+    const ro = new ResizeObserver(() => setAreaSize({ w: el.clientWidth, h: el.clientHeight }));
+    ro.observe(el);
+    setAreaSize({ w: el.clientWidth, h: el.clientHeight });
+    return () => ro.disconnect();
+  }, []);
+  const fitZoom = areaSize.w ? Math.max(0.1, Math.min(1, (areaSize.w - 78) / A4.w, (areaSize.h - 78) / A4.h)) : 1;
+  const zoom = zoomChoice === "fit" ? fitZoom : Number(zoomChoice) || 1;
+  const zoomRef = useRef(1);
+  zoomRef.current = zoom;
+  // TASKS.csv #909 — "Export PNG" resolution (dpi), remembered on this computer
+  const [pngDpi, setPngDpi] = useState(() => { try { return Number(localStorage.getItem("geostrix.layoutPngDpi")) || 300; } catch { return 300; } });
   // TASKS.csv #908 — Export PDF prints a PRINT ROOT, not the live screen. The old path printed the window through the
   // @media print stylesheet: the rulers, the Simple / Advanced toggle and a tab button survived (3 pages, the first two
   // near-empty), the sheet sat 12 mm off the paper's corner, and Chromium shrank the overflowing content by 0.3 % to
@@ -98,7 +120,26 @@ export default function LayoutModule() {
         await Promise.all(imgs.map((im) => im.decode().catch(() => null)));
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
         if (cancelled) return;
-        const name = `${String(project?.name || "layout").replace(/[^\w.-]+/g, "_")}.pdf`;
+        const base = String(project?.name || "layout").replace(/[^\w.-]+/g, "_");
+        if (printing.kind === "png") {
+          // TASKS.csv #909 — the current page as a PNG at pngDpi: the same print as the PDF, rendered by pdfjs (the
+          // #633 reader), so the image is the printed page pixel for pixel - text, grid lines and all
+          const pageNo = Math.max(1, layoutPages.findIndex((pg) => pg.id === activeLayoutPageId) + 1);
+          const r = await exportPDFData({ preferCSSPageSize: true });
+          if (!r?.ok) throw new Error(r?.message || tr("The image export needs the desktop app."));
+          const bytes = Uint8Array.from(atob(r.base64), (ch) => ch.charCodeAt(0));
+          const { openPdf, renderPdfPage } = await import("../lib/pdfPages.js");
+          const doc = await openPdf(bytes);
+          const [wmm, hmm] = pageMm(layoutPages[pageNo - 1]?.format);
+          const dpi = printing.dpi || 300;
+          const canvas = await renderPdfPage(doc, pageNo, (Math.max(wmm, hmm) / 25.4) * dpi);
+          const png = canvas.toDataURL("image/png").split(",")[1];
+          const name = `${base}_p${pageNo}_${dpi}dpi.png`;
+          const res = await saveFile({ suggestedName: name, filters: [{ name: "PNG", extensions: ["png"] }], content: png, encoding: "base64" });
+          if (res?.ok) setExportNote({ text: tr("Exported page {n} as a {w} × {h} px PNG ({dpi} dpi) to {path}.", { n: pageNo, w: canvas.width, h: canvas.height, dpi, path: res.filePath || name }), error: false });
+          return;
+        }
+        const name = `${base}.pdf`;
         const res = await savePDF(name, { ...pdfOptions(layoutPages[0]?.format), preferCSSPageSize: true });
         if (res?.ok) setExportNote({ text: tr("Exported {n} page(s) to {path}.", { n: layoutPages.length, path: res.filePath || name }), error: false });
       } catch (e) { setExportNote({ text: e.message || String(e), error: true }); }
@@ -271,13 +312,14 @@ export default function LayoutModule() {
     const isGroupDrag = multiSelected.has(el.id) && multiSelected.size > 1;
     if (!isGroupDrag) setMultiSelected(new Set());
     setSelected(el.id);
+    if (el.locked) return; // TASKS.csv #909 — selectable and editable, not movable
     const rect = pageRef.current.getBoundingClientRect();
     dragState.current = isGroupDrag
       ? {
-          id: el.id, offX: e.clientX - rect.left - el.x, offY: e.clientY - rect.top - el.y,
-          groupOrigin: new Map(elements.filter((e2) => multiSelected.has(e2.id)).map((e2) => [e2.id, { x: e2.x, y: e2.y }])),
+          id: el.id, offX: (e.clientX - rect.left) / zoomRef.current - el.x, offY: (e.clientY - rect.top) / zoomRef.current - el.y, // / zoom: #909
+          groupOrigin: new Map(elements.filter((e2) => multiSelected.has(e2.id) && !e2.locked).map((e2) => [e2.id, { x: e2.x, y: e2.y }])), // locked members stay: #909
         }
-      : { id: el.id, offX: e.clientX - rect.left - el.x, offY: e.clientY - rect.top - el.y, groupOrigin: null };
+      : { id: el.id, offX: (e.clientX - rect.left) / zoomRef.current - el.x, offY: (e.clientY - rect.top) / zoomRef.current - el.y, groupOrigin: null };
   };
   // TASKS.csv #907 — "Fit the holes": the smallest round scale (1 / 1.5 / 2 / 2.5 / 3 / 4 / 5 / 6 / 8 x 10^n - finer than
   // the presets, since a wide landscape frame over N-S data jumped from a needed 1:25,934 straight to 1:50,000) at which
@@ -308,9 +350,10 @@ export default function LayoutModule() {
     setSelected(el.id);
     setMultiSelected(new Set());
     const rect = pageRef.current.getBoundingClientRect();
-    const px = e.clientX - rect.left, py = e.clientY - rect.top;
+    const z = zoomRef.current; // #909
+    const px = (e.clientX - rect.left) / z, py = (e.clientY - rect.top) / z;
     const box = e.currentTarget.parentElement?.getBoundingClientRect();
-    const w0 = el.w ?? (box ? box.width : 100), h0 = el.h ?? (box ? box.height : 0);
+    const w0 = el.w ?? (box ? box.width / z : 100), h0 = el.h ?? (box ? box.height / z : 0);
     let arrow = null;
     if (el.type === "arrow") { // the tail's page position: it stays put while the tip is dragged
       const rad = (el.angle * Math.PI) / 180, ax = Math.cos(rad) * el.length, ay = Math.sin(rad) * el.length, pad = 12;
@@ -340,8 +383,9 @@ export default function LayoutModule() {
     const onMove = (e) => {
       if (!dragState.current || !pageRef.current) return;
       const rect = pageRef.current.getBoundingClientRect();
-      let x = e.clientX - rect.left - dragState.current.offX;
-      let y = e.clientY - rect.top - dragState.current.offY;
+      const z = zoomRef.current; // #909
+      let x = (e.clientX - rect.left) / z - dragState.current.offX;
+      let y = (e.clientY - rect.top) / z - dragState.current.offY;
       if (showGrid) { x = Math.round(x / snapPx) * snapPx; y = Math.round(y / snapPx) * snapPx; }
       x = Math.round(x); y = Math.round(y);
       // TASKS.csv #906 — a handle drag: the moving edge(s) follow the cursor (snapped to the grid when it is on); Shift,
@@ -350,7 +394,7 @@ export default function LayoutModule() {
       // would shift 1:1000 to 1:998).
       if (dragState.current.resize) {
         const d = dragState.current, hnd = d.resize;
-        const px = e.clientX - rect.left, py = e.clientY - rect.top;
+        const px = (e.clientX - rect.left) / zoomRef.current, py = (e.clientY - rect.top) / zoomRef.current; // #909
         if (d.arrow) {
           const vx = px - d.arrow.x, vy = py - d.arrow.y;
           const length = Math.max(10, Math.hypot(vx, vy)), angle = (Math.atan2(vy, vx) * 180) / Math.PI;
@@ -426,7 +470,7 @@ export default function LayoutModule() {
     if (!freehandTool) return;
     freehandDrawing.current = true;
     const rect = pageRef.current.getBoundingClientRect();
-    const first = [e.clientX - rect.left, e.clientY - rect.top];
+    const first = [(e.clientX - rect.left) / zoomRef.current, (e.clientY - rect.top) / zoomRef.current]; // / zoom: #909
     freehandPointsRef.current = [first];
     setFreehandPoints([first]);
   };
@@ -435,7 +479,7 @@ export default function LayoutModule() {
     const onMove = (e) => {
       if (!freehandDrawing.current || !pageRef.current) return;
       const rect = pageRef.current.getBoundingClientRect();
-      freehandPointsRef.current = [...freehandPointsRef.current, [e.clientX - rect.left, e.clientY - rect.top]];
+      freehandPointsRef.current = [...freehandPointsRef.current, [(e.clientX - rect.left) / zoomRef.current, (e.clientY - rect.top) / zoomRef.current]]; // / zoom: #909
       setFreehandPoints(freehandPointsRef.current);
     };
     const onUp = () => {
@@ -513,18 +557,82 @@ export default function LayoutModule() {
   // removeSelected() above uses, so this is just wiring a key to the existing action. Skipped while
   // focus is in a text input/textarea/contentEditable (a page-title or callout text field, an element's
   // sidebar name field, etc.) so Backspace still edits text as expected instead of deleting the element.
+  // TASKS.csv #909 — QGIS's item tools: z-order, duplicate (Ctrl+D), nudge with the arrow keys (1 mm, Shift 10 mm),
+  // lock, align / distribute a multi-selection. Boxes for aligning are measured on the page (data-el-id), so a text
+  // whose height is its content's, or a rotated viewport, aligns by what is drawn.
+  const selectionIds = () => (multiSelected.size > 1 ? [...multiSelected] : selected ? [selected] : []);
+  const reorderSelected = (where) => setElements((els) => {
+    const i = els.findIndex((e) => e.id === selected);
+    if (i < 0) return els;
+    const copy = els.slice(); const [el] = copy.splice(i, 1);
+    return where === "front" ? [...copy, el] : [el, ...copy];
+  });
+  const duplicateSelected = () => {
+    const ids = selectionIds();
+    if (!ids.length) return;
+    const off = Math.round(5 * PX_PER_MM);
+    const copies = elements.filter((e) => ids.includes(e.id)).map((e) => ({ ...e, id: `${e.type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, x: e.x + off, y: e.y + off, locked: false }));
+    setElements((els) => [...els, ...copies]);
+    setSelected(copies[copies.length - 1].id);
+    setMultiSelected(new Set(copies.length > 1 ? copies.map((c) => c.id) : []));
+  };
+  const nudgeSelected = (dx, dy) => {
+    const ids = new Set(selectionIds());
+    if (!ids.size) return;
+    setElements((els) => els.map((e) => (ids.has(e.id) && !e.locked ? { ...e, x: Math.round(e.x + dx), y: Math.round(e.y + dy) } : e)));
+  };
+  const boxOf = (id) => {
+    const d = pageRef.current?.querySelector(`[data-el-id="${id}"]`);
+    if (!d) return null;
+    const r = d.getBoundingClientRect(), pr = pageRef.current.getBoundingClientRect(), z = zoomRef.current;
+    return { x: (r.left - pr.left) / z, y: (r.top - pr.top) / z, w: r.width / z, h: r.height / z };
+  };
+  const alignSelected = (how) => {
+    const boxes = [...multiSelected].map((id) => ({ id, b: boxOf(id) })).filter((x) => x.b);
+    if (boxes.length < 2) return;
+    const L = Math.min(...boxes.map((x) => x.b.x)), R = Math.max(...boxes.map((x) => x.b.x + x.b.w)), T = Math.min(...boxes.map((x) => x.b.y)), B = Math.max(...boxes.map((x) => x.b.y + x.b.h));
+    const moves = new Map(boxes.map((x) => [x.id, {
+      dx: how === "left" ? L - x.b.x : how === "right" ? R - x.b.w - x.b.x : how === "hcentre" ? (L + R) / 2 - x.b.w / 2 - x.b.x : 0,
+      dy: how === "top" ? T - x.b.y : how === "bottom" ? B - x.b.h - x.b.y : how === "vcentre" ? (T + B) / 2 - x.b.h / 2 - x.b.y : 0,
+    }]));
+    setElements((els) => els.map((e) => { const m = moves.get(e.id); return m && !e.locked ? { ...e, x: Math.round(e.x + m.dx), y: Math.round(e.y + m.dy) } : e; }));
+  };
+  const distributeSelected = (axis) => {
+    const boxes = [...multiSelected].map((id) => ({ id, b: boxOf(id) })).filter((x) => x.b);
+    if (boxes.length < 3) return;
+    const k = axis === "h" ? "x" : "y", s = axis === "h" ? "w" : "h";
+    boxes.sort((p, q) => p.b[k] - q.b[k]);
+    const first = boxes[0].b[k], last = boxes[boxes.length - 1].b[k] + boxes[boxes.length - 1].b[s];
+    const gap = (last - first - boxes.reduce((t, x) => t + x.b[s], 0)) / (boxes.length - 1);
+    const moves = new Map(); let at = first;
+    for (const x of boxes) { moves.set(x.id, at - x.b[k]); at += x.b[s] + gap; }
+    setElements((els) => els.map((e) => { const d = moves.get(e.id); return d != null && !e.locked ? { ...e, [k]: Math.round(e[k] + d) } : e; }));
+  };
   useEffect(() => {
     const onKeyDown = (e) => {
-      if (e.key !== "Delete" && e.key !== "Backspace") return;
       const active = document.activeElement;
       const tag = active?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || active?.isContentEditable) return;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || active?.isContentEditable) return;
+      if ((e.ctrlKey || e.metaKey) && (e.key === "d" || e.key === "D")) { if (selected) { e.preventDefault(); duplicateSelected(); } return; }
+      if (e.key.startsWith("Arrow")) {
+        if (!selected) return;
+        e.preventDefault();
+        const step = (e.shiftKey ? 10 : 1) * PX_PER_MM;
+        nudgeSelected(e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0, e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0);
+        return;
+      }
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
       if (multiSelected.size > 1) { e.preventDefault(); removeElementsByIds(multiSelected); }
       else if (selected) { e.preventDefault(); removeElementsByIds([selected]); }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selected, multiSelected]);
+  }, [selected, multiSelected, elements]);
+  // TASKS.csv #909 — dynamic text: {project} {date} {page} {pages} {pagename} {scale} in a title or text (QGIS's
+  // expressions, the few a figure's title block needs); {scale} is the page's first fixed-scale viewport, else its
+  // first true-scale one, else the approximate scale of the first viewport
+  const activePageIndex = Math.max(0, layoutPages.findIndex((pg) => pg.id === activeLayoutPageId));
+  const textCtx = useMemo(() => textContextFor(elements, project, activePage, activePageIndex, layoutPages.length), [elements, project, activePage, activePageIndex, layoutPages.length]);
 
   // "Each viewport and cross section need an option to assign a scale bar to it" — previously there
   // was only ever ONE scale-bar element on a page (onSyncScaleBar found-or-created the single
@@ -554,7 +662,7 @@ export default function LayoutModule() {
       if (existing) return els.map((el) => el === existing ? { ...el, meters, pxPerMeter } : el);
       return [...els, { id: `scale_${Date.now()}`, type: "scale", boundTo: sel.id, x: sel.x, y: sel.y + (sel.h || 0) + 14, meters, pxPerMeter }];
     });
-    setSyncNotice(tr("Scale bar assigned ({meters} m) — edit the number any time and the bar will resize to match.", { meters: meters.toLocaleString() }));
+    setSyncNotice(tr("Scale bar assigned ({meters} m): it follows this view's scale; edit the number any time and the bar resizes to match.", { meters: meters.toLocaleString() }));
   };
 
   // "The legend should be able to load the lithologies present in the view attached to it" — a legend
@@ -636,7 +744,7 @@ export default function LayoutModule() {
 
   return (
     <div className="ge-body" style={{ width: "100%" }}>
-      {printing && <LayoutPrintRoot ref={printRootRef} pages={layoutPages} />}{/* TASKS.csv #908 */}
+      {printing && <LayoutPrintRoot ref={printRootRef} pages={layoutPages} project={project} />}{/* TASKS.csv #908 */}
       <div className="ge-panel" style={{ padding: "16px 14px", width: sidebarWidth }}>
         {/* TASKS.csv #458 — Layout ribbon (replaces the #65 icon palette and the Templates / Output buttons). */}
         <Ribbon label="Layout tools">
@@ -663,7 +771,8 @@ export default function LayoutModule() {
             <RibbonButton icon={FolderOpen} label={tr("Templates ({n})", { n: layoutTemplates.length })} tone="data" disabled={!layoutTemplates.length} active={templatesOpen} title="Load a saved template (list in the sidebar)" onClick={() => setTemplatesOpen((v) => !v)} />
           </RibbonGroup>
           <RibbonGroup label="Output">
-            <RibbonButton icon={FileDown} label="Export PDF" tone="output" title="Export every page as a PDF, each at its own paper size and orientation" onClick={() => requestLayoutPrint()} />{/* #511 — the page's own size / orientation, as Ctrl+P does (#398) */}
+            <RibbonButton icon={FileDown} label="Export PDF" tone="output" title="Export every page as a PDF, each at its own paper size and orientation" onClick={() => requestLayoutPrint()} />
+            <RibbonButton icon={ImageIcon} label="Export PNG" tone="output" title="Export the current page as a PNG image, at the resolution chosen in the page bar" onClick={() => requestLayoutPrint({ kind: "png", dpi: pngDpi })} />{/* TASKS.csv #909 */}{/* #511 — the page's own size / orientation, as Ctrl+P does (#398) */}
           </RibbonGroup>
         </Ribbon>
         <input ref={logoInput} type="file" accept="image/*" style={{ display: "none" }} onChange={onLogoFile} />
@@ -679,13 +788,35 @@ export default function LayoutModule() {
           </div>
         )}
 
+        {multiSelected.size > 1 && ( /* TASKS.csv #909 — align / distribute the multi-selection */
+          <div style={{ marginTop: 18 }}>
+            <div className="ge-section-label">{tr("{n} selected", { n: multiSelected.size })}</div>
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 6 }}>
+              {[["left", tr("Align left")], ["hcentre", tr("Align centre")], ["right", tr("Align right")], ["top", tr("Align top")], ["vcentre", tr("Align middle")], ["bottom", tr("Align bottom")]].map(([k, l]) => (
+                <button key={k} onClick={() => alignSelected(k)} style={smallBtn}>{l}</button>
+              ))}
+              <button onClick={() => distributeSelected("h")} style={smallBtn} title={tr("Equal gaps left to right (3 or more elements)")}>{tr("Spread across")}</button>
+              <button onClick={() => distributeSelected("v")} style={smallBtn} title={tr("Equal gaps top to bottom (3 or more elements)")}>{tr("Spread down")}</button>
+              <button onClick={duplicateSelected} style={smallBtn}>{tr("Duplicate")}</button>
+            </div>
+          </div>
+        )}
         {sel && (
           <>
             <div className="ge-section-label" style={{ marginTop: 18 }}>{tr("Selected: {type}", { type: sel.type })}</div>
             <PlaceControls sel={sel} updateSelected={updateSelected} />{/* TASKS.csv #906 — position and size in mm */}
+            <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>{/* TASKS.csv #909 */}
+              <button onClick={() => reorderSelected("front")} title={tr("Bring to front")} style={smallBtn}>{tr("To front")}</button>
+              <button onClick={() => reorderSelected("back")} title={tr("Send to back")} style={smallBtn}>{tr("To back")}</button>
+              <button onClick={duplicateSelected} title={tr("Duplicate (Ctrl+D). Arrow keys move the selection 1 mm, with Shift 10 mm.")} style={smallBtn}>{tr("Duplicate")}</button>
+              <label style={{ ...smallBtn, cursor: "pointer" }} title={tr("A locked element cannot be moved or resized (it can still be edited and deleted)")}><input type="checkbox" checked={!!sel.locked} onChange={(e) => updateSelected({ locked: e.target.checked })} />{tr("Lock")}</label>
+            </div>
             {"text" in sel && (
               <input value={sel.text} onChange={(e) => updateSelected({ text: e.target.value })} style={inp} />
             )}
+            {(sel.type === "title" || sel.type === "text") && (
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }} title={tr("Filled in when the page is shown and printed: the project's name, today's date, this page's number and name, the number of pages, the scale of the page's viewport.")}>{tr("Placeholders: {project} {date} {page} {pages} {pagename} {scale}")}</div>
+            )}{/* TASKS.csv #909 */}
             {/* TASKS.csv #102 — font controls for text elements (title/text). Not callout, which
                 already has its own distinct sticky-note styling (fill/border) and fixed text look —
                 adding font controls there wasn't asked for and risks changing an established look. */}
@@ -931,7 +1062,7 @@ export default function LayoutModule() {
         )}
 
         <div className="ge-section-label" style={{ marginTop: 20 }}>{tr("Adding views")}</div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 8, lineHeight: 1.5 }}>{tr("Use")}{" "}<b>{tr("Current view")}</b>{" "}{tr("or")}{" "}<b>{tr("Theme view")}</b>{" "}{tr("on this tab's ribbon,")}{" "}<b>{tr("Snapshot")}</b>{" "}{tr("on the 3D View ribbon (Output), or the snapshot button in a cross-section pop-out, to put a view on the page below — drag to place it, and use the width field to resize (aspect ratio locks automatically).")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 8, lineHeight: 1.5 }}>{tr("Use")}{" "}<b>{tr("Current view")}</b>{" "}{tr("or")}{" "}<b>{tr("Theme view")}</b>{" "}{tr("on this tab's ribbon,")}{" "}<b>{tr("Snapshot")}</b>{" "}{tr("on the 3D View ribbon (Output), or the snapshot button in a cross-section pop-out, to put a view on the page below — drag to place it, drag its handles to resize it, and pick its scale in the sidebar.")}</div>
       </div>
 
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
@@ -996,6 +1127,16 @@ export default function LayoutModule() {
             <option value="landscape">{tr("Landscape")}</option>
             <option value="portrait">{tr("Portrait")}</option>
           </select>
+          {/* TASKS.csv #909 — canvas zoom and the PNG export's resolution */}
+          <select value={zoomChoice} onChange={(e) => setZoom(e.target.value)} aria-label={tr("Zoom")} title={tr("Zoom of the sheet on screen (the paper size does not change)")}
+            style={{ height: 22, marginBottom: 2, marginLeft: 8, fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }}>
+            <option value="fit">{tr("Fit page ({pct} %)", { pct: Math.round(fitZoom * 100) })}</option>
+            {[0.5, 0.75, 1, 1.5, 2].map((z) => <option key={z} value={String(z)}>{Math.round(z * 100)} %</option>)}
+          </select>
+          <select value={String(pngDpi)} onChange={(e) => { const v = Number(e.target.value) || 300; setPngDpi(v); try { localStorage.setItem("geostrix.layoutPngDpi", String(v)); } catch { /* storage unavailable */ } }} aria-label={tr("PNG resolution")} title={tr("Resolution of Export PNG")}
+            style={{ height: 22, marginBottom: 2, marginLeft: 4, fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }}>
+            {[150, 200, 300].map((d) => <option key={d} value={String(d)}>{tr("PNG {dpi} dpi", { dpi: d })}</option>)}
+          </select>
           <button
             onClick={() => setAtlasModalOpen(true)}
             title={tr("Generate atlas — batch-create one page per drillhole/section from the current page as a template")}
@@ -1020,8 +1161,9 @@ export default function LayoutModule() {
           />
         )}
         {/* TASKS.csv #788 — the sheet is physical paper (rulers from the left, x in mm): it stays left-to-right in Arabic, or an RTL scroll would open on the page's right edge */}
-        <div dir="ltr" style={{ overflow: "auto", padding: 30, flex: 1 }}>
-        <div style={{ display: "inline-grid", gridTemplateColumns: "18px auto", gridTemplateRows: "18px auto", margin: "0 auto" }}>
+        <div dir="ltr" ref={areaRef} style={{ overflow: "auto", padding: 30, flex: 1 }}>
+        <div style={{ width: (18 + A4.w) * zoom, height: (18 + A4.h) * zoom, margin: "0 auto" }}>{/* TASKS.csv #909 — the scaled sheet's footprint, so the area scrolls to it */}
+        <div style={{ display: "inline-grid", gridTemplateColumns: "18px auto", gridTemplateRows: "18px auto", transform: `scale(${zoom})`, transformOrigin: "top left" }}>
           <div />
           <Ruler2D axis="x" length={A4.w} mmStep={gridMm} />
           <Ruler2D axis="y" length={A4.h} mmStep={gridMm} />
@@ -1053,8 +1195,8 @@ export default function LayoutModule() {
             onDragLeave={() => setDragOverPage(false)}
             onDrop={onPageDrop}
           >
-          {elements.map((el) => (
-            <LayoutElement key={el.id} el={el} selected={selected === el.id} multiSelected={multiSelected.size > 1 && multiSelected.has(el.id)} onDown={(e) => { e.stopPropagation(); onDown(e, el); }} onResizeStart={onResizeStart} />
+          {withLiveScaleBars(elements).map((el) => (
+            <LayoutElement key={el.id} el={el} selected={selected === el.id} multiSelected={multiSelected.size > 1 && multiSelected.has(el.id)} onDown={(e) => { e.stopPropagation(); onDown(e, el); }} onResizeStart={onResizeStart} ctx={textCtx} />
           ))}
           {freehandPoints.length > 1 && (
             <svg style={{ position: "absolute", inset: 0, pointerEvents: "none" }} width={A4.w} height={A4.h}>
@@ -1062,6 +1204,7 @@ export default function LayoutModule() {
             </svg>
           )}
           </div>
+        </div>
         </div>
         </div>
       </div>
@@ -1316,17 +1459,17 @@ function frameBorder(el, fallback = "none") {
 
 // TASKS.csv #908 — every page at its paper size, in mm, for printToPDF; shown only under @media print (app.css), its
 // siblings hidden. A named @page per distinct format lets one PDF hold A4 landscape and A3 portrait pages.
-const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages }, ref) {
+const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, project }, ref) {
   const formats = [...new Map(pages.map((pg) => { const f = pageFormatOf(pg); return [pageCssName(f), f]; })).values()];
   const css = formats.map((f) => { const [w, h] = pageMm(f), n = pageCssName(f); return `@page ${n} { size: ${w}mm ${h}mm; margin: 0; }\n.ge-print-${n} { page: ${n}; }`; }).join("\n");
   return (
     <div ref={ref} className="ge-print-root" dir="ltr">
       <style>{css}</style>
-      {pages.map((pg) => {
+      {pages.map((pg, i) => {
         const f = pageFormatOf(pg), [w, h] = pageMm(f);
         return (
           <div key={pg.id} className={`ge-print-page ge-print-${pageCssName(f)}`} style={{ width: `${w}mm`, height: `${h}mm` }}>
-            {(pg.elements || []).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} />)}
+            {withLiveScaleBars(pg.elements).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={textContextFor(pg.elements || [], project, pg, i, pages.length)} />)}
           </div>
         );
       })}
@@ -1350,13 +1493,43 @@ function Handles({ which, onStart, at = {} }) {
   ));
 }
 
-function LayoutElement({ el, selected, multiSelected, onDown, print = false, onResizeStart }) {
-  const handles = selected && !print && !multiSelected && onResizeStart && HANDLES_FOR[el.type] ? <Handles which={HANDLES_FOR[el.type]} onStart={(e, h) => onResizeStart(e, el, h)} /> : null; // #906
+// TASKS.csv #909 — a scale bar assigned to a viewport follows that viewport's CURRENT scale (QGIS links its scale bar to
+// the map): the bar used to keep the px-per-metre of the moment it was assigned, so a viewport re-captured at 1:30,000
+// still showed the 1:5,000 bar beside it - the one thing on a plot nobody double-checks. A bar whose view is gone, or
+// not captured yet, keeps its own ratio.
+function withLiveScaleBars(els) {
+  return (els || []).map((el) => {
+    if (el.type !== "scale" || !el.boundTo) return el;
+    const vp = els.find((v) => v.id === el.boundTo);
+    const imgH = vp?.capH || vp?.h, imgW = vp?.capW || vp?.w;
+    if (!vp) return el;
+    if (vp.type === "viewport" && vp.worldHeightAtTarget && imgH) return { ...el, pxPerMeter: imgH / vp.worldHeightAtTarget };
+    if (vp.type === "image" && vp.worldWidthAtCaptureM && imgW) return { ...el, pxPerMeter: imgW / vp.worldWidthAtCaptureM };
+    return el;
+  });
+}
+
+// TASKS.csv #909 — the dynamic-text context of a page, and the fill
+const PLACEHOLDER = /\{(project|date|page|pages|pagename|scale)\}/g;
+function pageScaleText(els) {
+  const v = (els || []).find((e) => e.type === "viewport" && e.trueScale && e.capturedFixedScale > 0) || (els || []).find((e) => e.type === "viewport" && e.worldHeightAtTarget && (e.capH || e.h));
+  if (!v) return "";
+  if (v.trueScale && v.capturedFixedScale > 0) return `1 : ${v.capturedFixedScale.toLocaleString()}`;
+  const ratio = v.worldHeightAtTarget / (((v.capH || v.h) / 96) * 0.0254);
+  return `${v.trueScale ? "" : "~"}1 : ${Math.round(ratio).toLocaleString()}`;
+}
+function textContextFor(els, project, page, index, count) {
+  return { project: project?.name || "", date: new Date().toLocaleDateString(), page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els) };
+}
+const fillText = (text, ctx) => (ctx && typeof text === "string" && text.includes("{") ? text.replace(PLACEHOLDER, (m, k) => (ctx[k] != null ? ctx[k] : m)) : text);
+
+function LayoutElement({ el, selected, multiSelected, onDown, print = false, onResizeStart, ctx = null }) {
+  const handles = selected && !print && !multiSelected && !el.locked && onResizeStart && HANDLES_FOR[el.type] ? <Handles which={HANDLES_FOR[el.type]} onStart={(e, h) => onResizeStart(e, el, h)} /> : null; // #906; locked: #909
   // multiSelected (part of a Ctrl+click bulk selection, but not the single "active" element) gets a
   // dashed outline so a multi-selection reads visually distinct from the one element whose properties
   // are actually showing in the sidebar. print (#908): no selection marks, no "Rendering..." overlay.
   const outline = !print && selected ? "1.5px solid var(--color-info)" : !print && multiSelected ? "1.5px dashed #4a9be0" : "none";
-  const wrap = { position: "absolute", left: el.x, top: el.y, cursor: "move", outline, outlineOffset: 3 };
+  const wrap = { position: "absolute", left: el.x, top: el.y, cursor: el.locked ? "default" : "move", outline, outlineOffset: 3 };
   // TASKS.csv #102 — font controls (size/color/bold/italic/align) + the same frame/border fields
   // ViewportControls already uses for viewport elements. frameBorder(el) below builds the CSS border
   // shorthand shared by title/text/legend; a frameWidth of 0 (the default for these types — see
@@ -1365,8 +1538,8 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   if (el.type === "title") {
     const b = frameBorder(el);
     return (
-      <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown}>
-        <div style={{ fontSize: el.fontSize ?? 26, fontWeight: (el.bold ?? true) ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || "var(--color-text)", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{el.text}</div>
+      <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id}>
+        <div style={{ fontSize: el.fontSize ?? 26, fontWeight: (el.bold ?? true) ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || "var(--color-text)", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{fillText(el.text, ctx)}</div>
         {handles}
       </div>
     );
@@ -1374,14 +1547,14 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   if (el.type === "text") {
     const b = frameBorder(el);
     return (
-      <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown}>
-        <div style={{ fontSize: el.fontSize ?? 14, fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || "#222" }}>{el.text}</div>
+      <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id}>
+        <div style={{ fontSize: el.fontSize ?? 14, fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || "#222" }}>{fillText(el.text, ctx)}</div>
         {handles}
       </div>
     );
   }
   if (el.type === "logo") return (
-    <div style={{ ...wrap, width: el.w }} onMouseDown={onDown}>
+    <div style={{ ...wrap, width: el.w }} onMouseDown={onDown} data-el-id={el.id}>
       <img src={el.src} alt={tr("logo")} style={{ width: "100%", display: "block" }} draggable={false} />
       {handles}
     </div>
@@ -1389,7 +1562,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   if (el.type === "image") {
     if (!el.src) return null; // defensive: a malformed/partial snapshot shouldn't take the whole page down
     return (
-      <div style={{ ...wrap, width: el.w || 200, height: el.h || 120 }} onMouseDown={onDown}>
+      <div style={{ ...wrap, width: el.w || 200, height: el.h || 120 }} onMouseDown={onDown} data-el-id={el.id}>
         <img src={el.src} alt={el.label || "snapshot"} style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", background: "#fff" }} draggable={false} />
         {handles}
       </div>
@@ -1406,7 +1579,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     return (
       <div
         style={{ ...wrap, width: W, height: H, transform: `rotate(${el.rotation || 0}deg)`, transformOrigin: "center center" }}
-        onMouseDown={onDown}
+        onMouseDown={onDown} data-el-id={el.id}
       >
         <div style={{ width: "100%", height: "100%", background: "#fff", position: "relative", overflow: "hidden" }}>
           {el.src && <img src={el.src} alt={tr("viewport")} style={{ position: "absolute", left: (W - imgW) / 2, top: (H - imgH) / 2, width: imgW, height: imgH, display: "block" }} draggable={false} />}
@@ -1430,7 +1603,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const ray = (deg, len) => { const r = (deg * Math.PI) / 180; return [60 + Math.sin(r) * len, 80 - Math.cos(r) * len]; };
     const [tx, ty] = ray(convergence, 58), [mx, my] = ray(mn, 52);
     return (
-      <div style={{ ...wrap, transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined, transformOrigin: "60px 80px" }} onMouseDown={onDown}>
+      <div style={{ ...wrap, transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined, transformOrigin: "60px 80px" }} onMouseDown={onDown} data-el-id={el.id}>
         <svg width="170" height="124" viewBox="0 0 170 124" style={{ fontFamily: "'Exo 2', system-ui, sans-serif" }}>{/* #585 — 170 wide: the 7 pt captions need up to 149 px */}
           <line x1="60" y1="80" x2="60" y2="14" stroke="#1a2028" strokeWidth="1.6" />
           <text x="60" y="10" fontSize={printPx(printPt.small)} fontWeight="700" textAnchor="middle" fill="#1a2028">GN</text>
@@ -1446,7 +1619,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     );
   }
   if (el.type === "north") return (
-    <div style={{ ...wrap, transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined, transformOrigin: "27px 35px" }} onMouseDown={onDown}>
+    <div style={{ ...wrap, transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined, transformOrigin: "27px 35px" }} onMouseDown={onDown} data-el-id={el.id}>
       <svg width="54" height="70" viewBox="0 0 54 70">
         <polygon points="27,4 38,44 27,36 16,44" fill="#ffffff" stroke="#1a2028" strokeWidth="1.5" strokeLinejoin="round" />
         <polygon points="27,4 38,44 27,36" fill="#666" />
@@ -1462,7 +1635,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     // fixed 180px that only ever changed its printed label.
     const px = Math.max(20, Math.round((el.meters || 100) * (el.pxPerMeter || DEFAULT_PX_PER_METER)));
     return (
-      <div style={wrap} onMouseDown={onDown}>
+      <div style={wrap} onMouseDown={onDown} data-el-id={el.id}>
         <svg width={px + 4} height="34">
           <rect x="2" y="4" width={px / 2} height="10" fill="#1a2028" />
           <rect x={2 + px / 2} y="4" width={px / 2} height="10" fill="#fbfbf8" stroke="#1a2028" />
@@ -1474,7 +1647,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     );
   }
   if (el.type === "legend") return (
-    <div style={{ ...wrap, background: "#fff", border: frameBorder(el, "1px solid #ccc"), padding: "8px 12px", minWidth: 150, width: el.w || undefined, boxSizing: "border-box" }} onMouseDown={onDown}>
+    <div style={{ ...wrap, background: "#fff", border: frameBorder(el, "1px solid #ccc"), padding: "8px 12px", minWidth: 150, width: el.w || undefined, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id}>
       {handles}
       <div style={{ fontSize: "var(--font-size-base)", fontWeight: 700, color: "#222", marginBottom: 6, fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Legend")}</div>
       {el.items.map(([name, color, opt], i) => opt?.heading ? ( /* TASKS.csv #725 — a group heading */
@@ -1495,7 +1668,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   );
   // TASKS.csv #19 — shapes/annotation tools
   if (el.type === "rect") return (
-    <div style={{ ...wrap, width: el.w, height: el.h }} onMouseDown={onDown}>
+    <div style={{ ...wrap, width: el.w, height: el.h }} onMouseDown={onDown} data-el-id={el.id}>
       <svg width={el.w} height={el.h} style={{ display: "block" }}>
         <rect x={(el.strokeWidth || 0) / 2} y={(el.strokeWidth || 0) / 2} width={Math.max(0, el.w - (el.strokeWidth || 0))} height={Math.max(0, el.h - (el.strokeWidth || 0))}
           fill={el.fillOpacity > 0 ? el.fill : "none"} stroke={el.stroke} strokeWidth={el.strokeWidth} />
@@ -1514,17 +1687,17 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const hx1 = x2 - headLen * Math.cos(rad - headAngle), hy1 = y2 - headLen * Math.sin(rad - headAngle);
     const hx2 = x2 - headLen * Math.cos(rad + headAngle), hy2 = y2 - headLen * Math.sin(rad + headAngle);
     return (
-      <div style={{ ...wrap, width: w, height: h }} onMouseDown={onDown}>
+      <div style={{ ...wrap, width: w, height: h }} onMouseDown={onDown} data-el-id={el.id}>
         <svg width={w} height={h} style={{ display: "block", overflow: "visible" }}>
           <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={el.stroke} strokeWidth={el.strokeWidth} />
           <polyline points={`${hx1},${hy1} ${x2},${y2} ${hx2},${hy2}`} fill="none" stroke={el.stroke} strokeWidth={el.strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
         </svg>
-        {selected && !print && !multiSelected && onResizeStart && <Handles which={["tip"]} at={{ tip: { left: x2, top: y2 } }} onStart={(e, h) => onResizeStart(e, el, h)} />}{/* #906 */}
+        {selected && !print && !multiSelected && !el.locked && onResizeStart && <Handles which={["tip"]} at={{ tip: { left: x2, top: y2 } }} onStart={(e, h) => onResizeStart(e, el, h)} />}{/* #906 */}
       </div>
     );
   }
   if (el.type === "callout") return (
-    <div style={{ ...wrap, width: el.w, background: el.fill, border: `1.5px solid ${el.stroke}`, borderRadius: 6, padding: "8px 12px", position: "absolute", boxSizing: "border-box" }} onMouseDown={onDown}>
+    <div style={{ ...wrap, width: el.w, background: el.fill, border: `1.5px solid ${el.stroke}`, borderRadius: 6, padding: "8px 12px", position: "absolute", boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id}>
       <div style={{ fontSize: "var(--font-size-base)", color: "#222", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{el.text}</div>
       {handles}
       <svg width="16" height="10" style={{ position: "absolute", left: 14, bottom: -9 }}>
@@ -1539,7 +1712,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     // (see layers.js's minMax header comment).
     const w = minMax(el.points.map((p) => p[0])).max + 4, h = minMax(el.points.map((p) => p[1])).max + 4;
     return (
-      <div style={{ ...wrap, width: w, height: h }} onMouseDown={onDown}>
+      <div style={{ ...wrap, width: w, height: h }} onMouseDown={onDown} data-el-id={el.id}>
         <svg width={w} height={h} style={{ display: "block" }}>
           <polyline points={el.points.map((p) => p.join(",")).join(" ")} fill="none" stroke={el.stroke} strokeWidth={el.strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
         </svg>
@@ -1585,6 +1758,7 @@ function FrameControls({ sel, updateSelected }) {
 }
 
 const pBtn = { display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", marginBottom: 6, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" };
+const smallBtn = { display: "flex", alignItems: "center", gap: 4, padding: "4px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-sm)", cursor: "pointer" }; // TASKS.csv #909
 const inp = { width: "100%", marginTop: 4, marginBottom: 8, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" };
 
 // TASKS.csv #65 — icon-only tool button, full name shown on hover via the native `title` attribute.

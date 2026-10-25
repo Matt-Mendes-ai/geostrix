@@ -12,6 +12,12 @@ export async function savePDF(suggestedName, pdf = {}) {
   return { ok: false, fallback: true };
 }
 
+// TASKS.csv #909 — the printed Layout as PDF bytes (base64), no dialog: the PNG export renders a page from it
+export async function exportPDFData(opts = {}) {
+  if (d?.exportPDFData) return d.exportPDFData(opts);
+  return { ok: false, message: "The image export needs the desktop app." };
+}
+
 export async function saveFile({ suggestedName, filters, content, encoding }) {
   if (d) return d.saveFile({ suggestedName, filters, content, encoding });
   // browser fallback: anchor download
