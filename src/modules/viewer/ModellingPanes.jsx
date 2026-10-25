@@ -221,7 +221,11 @@ export default function ModellingPanes(props) {
   } = props;
   // TASKS.csv #871 — the logged tops of a unit for the Explicit surface pane, by the implicit tool's rules (#354 / #495 /
   // #599); recomputed only when the logs, the modelling codes or the groups change
-  const setExplicitLogged = useMemo(() => withChangeLog(setExplicitSurfaces), [setExplicitSurfaces]); // TASKS.csv #878 — every edit of a surface goes in its history
+  const setExplicitLogged = useMemo(() => withChangeLog(setExplicitSurfaces), [setExplicitSurfaces]);
+  // TASKS.csv #901 — the Explicit surface pane's scene handles: one object while its parts are the same (it was a new
+  // object every render, so the pane's effects that list it re-ran on every render)
+  const explicitScene = useMemo(() => ({origin: originRef, meshes: implicitMeshesRef, group: implicitGroupRef, traces: tracesRef, activity: lastActivityRef, setSurfaces: setImplicitSurfaces, worldPointFromHits, clickRef: explicitClickRef,
+              dragHookRef: viewDragHookRef, camera: cameraRef, renderer: rendererRef, overlay: explicitOverlayRef, litho: layers.litho /* #813 */, camState /* #824 */ }), [originRef, implicitMeshesRef, implicitGroupRef, tracesRef, lastActivityRef, setImplicitSurfaces, worldPointFromHits, explicitClickRef, viewDragHookRef, cameraRef, rendererRef, explicitOverlayRef, layers.litho, camState]); // TASKS.csv #878 — every edit of a surface goes in its history
   const topsOfUnit = useCallback((unit) => {
     const runs = codedRuns(layers.litho || [], modellingCodes, mcGroupOf), { tops, skipped } = topsForCode(runs, unit, modellingCodes, mcodeDefaultRole);
     return { tops: tops.map((r) => ({ hole_id: r.hole_id, md: r.from, above: r.above?.code ?? null, below: r.code })), skipped, holes: [...new Set(runs.filter((r) => r.code === unit).map((r) => r.hole_id))] };
@@ -423,8 +427,7 @@ export default function ModellingPanes(props) {
         {paneHeader("Explicit surface", PenTool, "model")}
         <Suspense fallback={null}>
           <ExplicitSurfacePanel surfaces={implicitSurfaces} /* #861 */ tracesSeq={tracesSeq} /* #888 */ trend={explicitTrend} /* #881 */ topsOfUnit={topsOfUnit} /* #871 */ defs={explicitSurfaces || []} setDefs={setExplicitLogged} /* #878 */ sections={sections} terrain={terrain} mapLayers={mapLayers} surfaceStructures={surfaceStructures} /* #817 */ sectionImages={sectionImages} onDigitizeImage={setDigitizeImageId} /* #824 */ unitChoices={[...modellingCodeList.map((c) => c.name), ...lithoGroups.map((g) => g.name)]} /* #831 */ pickFor={explicitPickFor} setPickFor={setExplicitPickFor} snap={explicitSnap} setSnap={setExplicitSnap}
-            scene={{ origin: originRef, meshes: implicitMeshesRef, group: implicitGroupRef, traces: tracesRef, activity: lastActivityRef, setSurfaces: setImplicitSurfaces, worldPointFromHits, clickRef: explicitClickRef,
-              dragHookRef: viewDragHookRef, camera: cameraRef, renderer: rendererRef, overlay: explicitOverlayRef, litho: layers.litho /* #813 */, camState /* #824 */ }}
+            scene={explicitScene} /* #901 — memoized below the props */
             onRemove={(d) => { if (d.surfaceId && implicitMeshesRef.current[d.surfaceId]) removeImplicitSurface(d.surfaceId); setExplicitSurfaces((p) => p.filter((x) => x.id !== d.id)); }}
             askPrompt={askPrompt} pBtn={pBtn} smallSel={smallSel} numInput={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
         </Suspense>

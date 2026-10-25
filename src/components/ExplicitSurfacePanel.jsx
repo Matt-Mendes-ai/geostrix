@@ -17,6 +17,7 @@ import { useStore } from "../lib/store.jsx"; // TASKS.csv #828 — Undo / Redo
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #885
 import { unitOf, contactOf, layerLabel, unitSummary, splitByElevation, nextLayer, seedPicksFromTops } from "../lib/explicitUnits.js"; // TASKS.csv #830 / #831 / #832; seed: #871
 import { stackOrder } from "../lib/stackOrder.js"; // TASKS.csv #873
+import { inputKey, shapeFrame, onlyOneSection } from "../lib/explicitBuild.js"; // TASKS.csv #901
 
 const MAX_POINTS = 800; // ~0.4 s to solve on a laptop (1,200 took 1.2 s); section lines are thinned to fit
 // TASKS.csv #902 — the Unit select's "New unit..." value: a private-use character, not the NUL it used to be (a NUL byte made
@@ -25,14 +26,6 @@ const NEW_UNIT = "\uE000new";
 const LINE_SPACING = 10; // m between the points taken along a drawn section line
 const MAP_STEP = 25; // m between the points taken along a mapped contact (#817)
 
-// a short, stable fingerprint of what the surface is built from: rebuilt only when it changes
-function inputKey(def, ep, hasTerrain, faultGeo = null, trend = null) {
-  const s = JSON.stringify([ep.points.map((p) => [p.x, p.y, p.z].map((v) => Math.round(v * 100))), def.margin ?? null, def.resolution || 80, !!(def.cutAtTerrain && hasTerrain), ...(def.shape ? [def.shape] : []),
-    ...(def.boundedBy ? [def.boundedBy.surfaceId, def.boundedBy.side, faultGeo] : []), ...(trend ? [[trend.dip, trend.dipAzimuth, trend.pitch, trend.ratios?.max, trend.ratios?.int]] : [])]); /* trend: #881 (none: same key as before) */ // boundedBy: TASKS.csv #861 (absent: same key as before) // shape: #824 (absent on older surfaces: same key as before, no rebuild)
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
-  return `${ep.points.length}:${(h >>> 0).toString(36)}`;
-}
 
 // TASKS.csv #861 — a scene mesh in world coordinates (E, N, elevation), for trimming at a fault
 function worldMesh(mesh, o) {
@@ -648,7 +641,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
     // TASKS.csv #824 — lines on ONE section only (and nothing off it): every point lies in that section's plane, so the
     // "surface" would be a sheet standing in the section, which says nothing about the contact in 3D
     const drawnImages = new Set((def.lines || []).filter((l) => l.pts?.length >= 2).map((l) => l.imageId));
-    if (!ep.picks && !ep.mapLines && drawnImages.size + ep.sections === 1) {
+    if (onlyOneSection(ep, drawnImages.size)) { // #901: lib/explicitBuild.js
       setStatus({ ok: false, text: tr("All of this surface's lines are on one section, so they cannot give it a shape across the sections. Draw the contact on a second section (or pick it on holes off this one) to build it.") + stale });
       return undefined;
     }
@@ -663,7 +656,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         const sectionLines = [...(def.lines || []).filter((l) => l.pts?.length >= 2), ...(sections || []).flatMap((sct) => (sct.contacts || []).filter((c) => c.unit === def.name && c.isUpperContact !== false && (!c.kind || c.kind === "contact")).map((c) => ({ pts: c.points })))];
         const appDip = sectionLines.length ? medianApparentDip(sectionLines) : null;
         // a surface made before #824 has no shape: it keeps the best-fit-plane rule it was built with
-        const frame = def.shape === "map" || def.shape === "plane" ? def.shape : def.shape === "auto" && appDip != null ? (appDip < 45 ? "map" : "plane") : "auto";
+        const frame = shapeFrame(def.shape, appDip); // #901: lib/explicitBuild.js
         const res = await fitExplicitSurfaceAsync(ep.points, { margin: def.margin, resolution: def.resolution || 80, frame, trend }, def.cutAtTerrain && hasTerrain ? terrain : null); // trend: #881
         clearTimeout(slow);
         if (wantKey.current !== key) return; // the inputs changed while it was building: a newer build is on its way
