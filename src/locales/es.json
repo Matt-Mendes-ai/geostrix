@@ -5807,5 +5807,9 @@
   "Added {n} pick(s) at the logged tops of {unit}.": "Se agregaron {n} pick(s) en los techos registrados de {unit}.",
   "{n} hole(s) already had a pick and were left as they were.": "{n} sondaje(s) ya tenían un pick y se dejaron como estaban.",
   "{n} hole(s) are not drawn (no survey or collar).": "{n} sondaje(s) no están dibujados (sin levantamiento o collar).",
-  "Not tops of {unit}: {why}.": "No son techos de {unit}: {why}."
+  "Not tops of {unit}: {why}.": "No son techos de {unit}: {why}.",
+  "between {a} and {b} {k} of {n} strips are folded (the two outlines' points do not pair up, so the volume there is unreliable): mark a tie point on both outlines (Shift+click a vertex while editing) and link again": "entre {a} y {b} {k} de {n} franjas están plegadas (los puntos de los dos contornos no se emparejan, así que ahí el volumen no es fiable): marque un punto de amarre en ambos contornos (Mayús+clic en un vértice al editar) y vuelva a enlazar",
+  "Tie point: linked to the tie point of this body's outline on the next section": "Punto de amarre: se enlaza con el punto de amarre del contorno de este cuerpo en la sección siguiente",
+  "Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.": "Mayús+clic en un vértice para hacerlo el punto de amarre: se enlaza con el punto de amarre del contorno en la sección siguiente.",
+  "It replaces the previous solid of {name}.": "Reemplaza el sólido anterior de {name}."
 }

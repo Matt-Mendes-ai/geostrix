@@ -177,7 +177,7 @@ function constructionKind(q) {
 }
 const CONSTRUCTION_KEYS = {
   explicit: ["trend", "picks", "sectionLines", "sections", "lineSpacingM", "points", "mapContacts", "mapLines", "dipGuide", "frame", "maxMisfitM", "marginM", "looRmsM", "looMaxM", "overshootM", "extrapolatedPct", "furthestFromInputM", "cutAtTerrain", "builtAt"],
-  wireframe: ["body", "sections", "pointsPerOutline", "volumeM3", "ends", "builtAt"],
+  wireframe: ["body", "sections", "pointsPerOutline", "volumeM3", "ends", "builtAt", "tiedOutlines", "foldedStrips"],
   veinSolid: ["hangingwall", "footwall", "volumeM3", "trueThicknessM", "attitude", "gridCellM", "nodesWhereWallsMeet", "ends", "builtAt"],
   unitVolume: ["unit", "model", "builtAt", "cells", "cellVolumeM3", "cellsVolumeM3", "shellVolumeM3", "note", "volumeBandM3", "blockSizeM", "cutByBox"],
 };
@@ -202,6 +202,8 @@ function constructionLines(q) {
     out.push(`Body: ${q.body} | linked outlines on ${secs.length} section(s): ${secs.join(", ")} | resampled to ${q.pointsPerOutline} points per outline`);
     out.push(`Ends: ${q.ends || "flat caps on the first and last outline"} | between outlines the solid is straight-line interpolation, nothing else is inferred`);
     if (q.volumeM3 != null) out.push(`Volume when built: ${n(q.volumeM3)} m3`);
+    if (q.tiedOutlines) out.push(`Tie points: ${q.tiedOutlines} outline(s) carry one; tied neighbours are paired tie to tie`); // #874
+    if (q.foldedStrips) out.push(`WARNING: ${q.foldedStrips} strip quad(s) between outlines are folded (points that did not pair up): the volume there is unreliable`);
   } else if (kind === "veinSolid") {
     const t = q.trueThicknessM || {};
     out.push(`Walls: hangingwall "${q.hangingwall}", footwall "${q.footwall}" | attitude ${q.attitude}`);

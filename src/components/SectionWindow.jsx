@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import { Camera, Pencil, Check, Undo2, X, Save, Download, FileText, Crosshair } from "./icons.js";
 import { onSectionData, getSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF } from "../lib/desktop.js";
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #395
-import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearestSegment } from "../lib/sectionDigitise.js"; // TASKS.csv #519
+import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearestSegment, setTieVertex } from "../lib/sectionDigitise.js"; // TASKS.csv #519
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { placeLabels, leaderEnd } from "../lib/sectionLabels.js"; // TASKS.csv #823
@@ -273,7 +273,8 @@ export default function SectionWindow() {
                 <option value="outline">{tr("Outline (closed, for a solid)")}</option>{/* TASKS.csv #570 */}
               </select>
               {kindPick !== "contact" ? (
-                <input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} placeholder={kindPick === "fault" ? tr("Fault name") : kindPick === "outline" ? tr("Body name (same on every section)") : tr("String name")} style={{ ...selectStyle, width: 140 }} />
+                <><input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} list={kindPick === "outline" ? "ge-outline-names" : undefined} placeholder={kindPick === "fault" ? tr("Fault name") : kindPick === "outline" ? tr("Body name (same on every section)") : tr("String name")} style={{ ...selectStyle, width: 140 }} />
+                {kindPick === "outline" && <datalist id="ge-outline-names">{(data.outlineNames || []).map((n) => <option key={n} value={n} />)}</datalist>}{/* TASKS.csv #874 — names used on other sections */}</>
               ) : lithoUnits.length > 0 ? (
                 <select value={unitPick} onChange={(e) => setUnitPick(e.target.value)} style={selectStyle}>
                   <option value="">{tr("Unit…")}</option>
@@ -373,7 +374,7 @@ export default function SectionWindow() {
       )}
 
       <div className="ge-section-body" style={{ flex: 1, overflow: "auto", padding: 16 }}>
-        {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{v2}. Click the pencil again to finish; Save contacts keeps the changes.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}</div>}
+        {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{v2}. Click the pencil again to finish; Save contacts keeps the changes.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}{editing?.kind === "outline" ? ` ${tr("Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.")}` : ""}</div>}
         <SectionSVG showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
           snap={snapOn && !planning ? targets : null} editingId={editingId} onEditPoints={editPoints}
           labels={labels} onMoveLabel={(key, off) => changeLabels({ offsets: { ...labels.offsets, [key]: off } })} /* #823 */ />
@@ -733,10 +734,11 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
             const common = { fill: c.color, stroke: c.id === editingId ? "#1a2028" : "none", strokeWidth: 1 };
             const handlers = c.id === editingId ? {
               style: { cursor: "move" },
-              onMouseDown: (e) => { e.stopPropagation(); if (e.altKey) { onEditPoints(c.id, (pts) => deleteVertex(pts, i)); return; } dragRef.current = { id: c.id, i }; },
+              onMouseDown: (e) => { e.stopPropagation(); if (e.altKey) { onEditPoints(c.id, (pts) => deleteVertex(pts, i)); return; } if (e.shiftKey && c.kind === "outline") { onEditPoints(c.id, (pts) => setTieVertex(pts, i)); return; } /* #874 */ dragRef.current = { id: c.id, i }; },
               onClick: (e) => e.stopPropagation(),
             } : {};
             const r = c.id === editingId ? 4.5 : 2.5;
+            if (p.tie) return <g key={i}><circle cx={sx(p.l)} cy={sz(p.z)} r={r + 3.5} fill="none" stroke={c.color} strokeWidth="2" pointerEvents="none" /><circle cx={sx(p.l)} cy={sz(p.z)} r={r} {...common} {...handlers}><title>{tr("Tie point: linked to the tie point of this body's outline on the next section")}</title></circle></g>; /* #874 */
             const tip = p.snap ? `${p.hole_id} @ ${Number(p.md).toFixed(2)} m (snapped to ${p.snap === "boundary" ? "the logged contact" : "the trace"})` : "free point";
             return p.snap
               ? <rect key={i} x={sx(p.l) - r} y={sz(p.z) - r} width={2 * r} height={2 * r} {...common} {...handlers}><title>{tip}</title></rect>

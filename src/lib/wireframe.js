@@ -11,6 +11,11 @@
 //   3. give every loop the same winding in one shared frame (first section's horizontal direction, and up);
 //   4. for each neighbouring pair, rotate the second loop's start to the one that minimizes the summed distance
 //      between paired points measured from each loop's centroid (so a shifted outline still pairs shape to shape);
+//      TASKS.csv #874 — unless both outlines carry a TIE vertex (a point with `tie: true`, Shift+click in the section
+//      window): then the two ties pair with each other, as a Leapfrog / Micromine tie line does;
+//   4b. TASKS.csv #874 — strips whose two triangles face opposite ways are FOLDED (the outlines' points did not pair up:
+//      a 100 x 20 m rectangle linked to a 20 x 100 m one folded 36 of 64 quads and added 26 % volume): counted and
+//      reported per pair, in `twisted` and a warning;
 //   5. a strip of triangles between each pair; flat end caps (ear-clipped in that same frame) on the first and last
 //      outline - the solid ENDS at the end sections (it is not extrapolated half a spacing beyond them);
 //   6. wound outward (signed volume positive) - every edge in exactly two triangles, so volumetrics accepts it.
@@ -114,12 +119,15 @@ export function linkOutlines(outlines, { n = 128 } = {}) {
   for (let i = 1; i < items.length; i++) if (Math.abs(items[i].off - items[i - 1].off) < 1) throw new Error(tr("The outlines on {a} and {b} lie in the same plane (under 1 m apart), so there is nothing to link between them.", { a: items[i - 1].section, b: items[i].section }));
   const to2 = (p) => [p.x * ux + p.y * uy, p.z];
   const loops = items.map((o) => {
-    let r = resampleLoop(o.points, n);
+    // #874 — a tie vertex becomes the loop's first point (resampling starts there, the winding fix keeps it first)
+    const ti = o.points.findIndex((p) => p.tie);
+    let r = resampleLoop(ti > 0 ? [...o.points.slice(ti), ...o.points.slice(0, ti)] : o.points, n);
     let area = 0; const q = r.map(to2);
     for (let i = 0; i < n; i++) { const a = q[i], b = q[(i + 1) % n]; area += a[0] * b[1] - b[0] * a[1]; }
     if (area < 0) r = [r[0], ...r.slice(1).reverse()]; // counter-clockwise in (u, up)
     r.area2 = Math.abs(area) / 2;
     r.section = o.section;
+    r.tied = ti >= 0;
     return r;
   });
   const biggest = Math.max(...loops.map((r) => r.area2));
@@ -127,16 +135,30 @@ export function linkOutlines(outlines, { n = 128 } = {}) {
   // align each loop's start with the previous one's
   for (let s = 1; s < loops.length; s++) {
     const A = loops[s - 1], B = loops[s], cA = centroid(A), cB = centroid(B);
+    if (A.tied && B.tied) continue; // #874 — tied: index 0 pairs with index 0
     let best = 0, bestD = Infinity;
     for (let k = 0; k < n; k++) {
       let d = 0;
       for (let i = 0; i < n; i++) { const a = A[i], b = B[(i + k) % n]; d += ((a.x - cA.x) - (b.x - cB.x)) ** 2 + ((a.y - cA.y) - (b.y - cB.y)) ** 2 + ((a.z - cA.z) - (b.z - cB.z)) ** 2; }
       if (d < bestD) { bestD = d; best = k; }
     }
-    const sec = B.section;
+    const sec = B.section, tied = B.tied;
     loops[s] = B.map((_, i) => B[(i + best) % n]);
-    loops[s].section = sec;
+    loops[s].section = sec; loops[s].tied = tied;
   }
+  // #874 — folded strip quads: the normals of a quad's two triangles (a b c, a c d) point opposite ways
+  const twisted = [];
+  for (let s = 0; s < loops.length - 1; s++) {
+    let k = 0;
+    for (let i = 0; i < n; i++) {
+      const a = loops[s][i], b = loops[s][(i + 1) % n], c = loops[s + 1][(i + 1) % n], d = loops[s + 1][i];
+      const nrm = (p, q, r) => { const u = [q.x - p.x, q.y - p.y, q.z - p.z], v = [r.x - p.x, r.y - p.y, r.z - p.z]; return [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]; };
+      const n1 = nrm(a, b, c), n2 = nrm(a, c, d);
+      if (n1[0] * n2[0] + n1[1] * n2[1] + n1[2] * n2[2] < 0) k++;
+    }
+    if (k) twisted.push({ from: loops[s].section, to: loops[s + 1].section, folded: k, of: n });
+  }
+  for (const t of twisted) warnings.push(tr("between {a} and {b} {k} of {n} strips are folded (the two outlines' points do not pair up, so the volume there is unreliable): mark a tie point on both outlines (Shift+click a vertex while editing) and link again", { a: t.from, b: t.to, k: t.folded, n: t.of }));
   const positions = [], indices = [];
   loops.forEach((L) => L.forEach((p) => positions.push(p.x, p.y, p.z)));
   const V = (s, i) => s * n + (i % n);
@@ -159,5 +181,5 @@ export function linkOutlines(outlines, { n = 128 } = {}) {
     v6 += a[0] * (b[1] * c[2] - b[2] * c[1]) + a[1] * (b[2] * c[0] - b[0] * c[2]) + a[2] * (b[0] * c[1] - b[1] * c[0]);
   }
   if (v6 < 0) { for (let t = 0; t < indices.length; t += 3) { const x = indices[t + 1]; indices[t + 1] = indices[t + 2]; indices[t + 2] = x; } v6 = -v6; }
-  return { positions: Float64Array.from(positions), indices: Uint32Array.from(indices), sections: loops.length, volume: v6 / 6, warnings };
+  return { positions: Float64Array.from(positions), indices: Uint32Array.from(indices), sections: loops.length, volume: v6 / 6, warnings, twisted, tied: loops.filter((L) => L.tied).length };
 }

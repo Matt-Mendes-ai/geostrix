@@ -5807,5 +5807,9 @@
   "Added {n} pick(s) at the logged tops of {unit}.": "{n} pointé(s) ajouté(s) aux toits décrits de {unit}.",
   "{n} hole(s) already had a pick and were left as they were.": "{n} sondage(s) avaient déjà un pointé et sont restés tels quels.",
   "{n} hole(s) are not drawn (no survey or collar).": "{n} sondage(s) ne sont pas dessinés (pas de levé ni de collet).",
-  "Not tops of {unit}: {why}.": "Pas des toits de {unit} : {why}."
+  "Not tops of {unit}: {why}.": "Pas des toits de {unit} : {why}.",
+  "between {a} and {b} {k} of {n} strips are folded (the two outlines' points do not pair up, so the volume there is unreliable): mark a tie point on both outlines (Shift+click a vertex while editing) and link again": "entre {a} et {b}, {k} bandes sur {n} sont repliées (les points des deux contours ne s'apparient pas, le volume y est donc peu fiable) : marquez un point d'attache sur les deux contours (Maj+clic sur un sommet en édition) et reliez à nouveau",
+  "Tie point: linked to the tie point of this body's outline on the next section": "Point d'attache : relié au point d'attache du contour de ce corps sur la coupe suivante",
+  "Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.": "Maj+clic sur un sommet pour en faire le point d'attache : il est relié au point d'attache du contour sur la coupe suivante.",
+  "It replaces the previous solid of {name}.": "Il remplace le solide précédent de {name}."
 }

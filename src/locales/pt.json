@@ -5807,5 +5807,9 @@
   "Added {n} pick(s) at the logged tops of {unit}.": "Foram adicionados {n} pick(s) nos topos registrados de {unit}.",
   "{n} hole(s) already had a pick and were left as they were.": "{n} furo(s) já tinham um pick e ficaram como estavam.",
   "{n} hole(s) are not drawn (no survey or collar).": "{n} furo(s) não estão desenhados (sem levantamento ou colar).",
-  "Not tops of {unit}: {why}.": "Não são topos de {unit}: {why}."
+  "Not tops of {unit}: {why}.": "Não são topos de {unit}: {why}.",
+  "between {a} and {b} {k} of {n} strips are folded (the two outlines' points do not pair up, so the volume there is unreliable): mark a tie point on both outlines (Shift+click a vertex while editing) and link again": "entre {a} e {b} {k} de {n} faixas estão dobradas (os pontos dos dois contornos não se pareiam, então o volume ali não é confiável): marque um ponto de amarração nos dois contornos (Shift+clique num vértice ao editar) e vincule de novo",
+  "Tie point: linked to the tie point of this body's outline on the next section": "Ponto de amarração: ligado ao ponto de amarração do contorno deste corpo na próxima seção",
+  "Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.": "Shift+clique num vértice para torná-lo o ponto de amarração: ele é ligado ao ponto de amarração do contorno na próxima seção.",
+  "It replaces the previous solid of {name}.": "Substitui o sólido anterior de {name}."
 }

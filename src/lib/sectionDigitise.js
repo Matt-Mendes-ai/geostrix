@@ -84,7 +84,9 @@ export function snapClick(click, { holes, targets, toScreen, along, radius = 12 
 }
 
 // vertex editing — all return a NEW points array
-export const moveVertex = (points, i, pt) => points.map((p, k) => (k === i ? { l: pt.l, z: pt.z, x: pt.x, y: pt.y, ...(pt.snap ? { hole_id: pt.hole_id, md: pt.md, snap: pt.snap } : {}) } : p));
+export const moveVertex = (points, i, pt) => points.map((p, k) => (k === i ? { l: pt.l, z: pt.z, x: pt.x, y: pt.y, ...(pt.snap ? { hole_id: pt.hole_id, md: pt.md, snap: pt.snap } : {}), ...(p.tie ? { tie: true } : {}) } : p)); // tie: #874
+// TASKS.csv #874 — the tie vertex of an outline (one per outline; clicking the tie again clears it)
+export const setTieVertex = (points, i) => points.map((p, k) => { const { tie, ...rest } = p; return k === i && !tie ? { ...rest, tie: true } : rest; });
 export const deleteVertex = (points, i) => (points.length > 2 ? points.filter((_, k) => k !== i) : points);
 export const insertVertex = (points, afterIndex, pt) => [...points.slice(0, afterIndex + 1), pt, ...points.slice(afterIndex + 1)];
 // index of the segment (i -> i + 1) nearest a screen point, within `radius` px, or -1

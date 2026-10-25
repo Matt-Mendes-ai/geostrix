@@ -5807,5 +5807,9 @@
   "Added {n} pick(s) at the logged tops of {unit}.": "أُضيفت {n} نقطة ملتقطة عند القمم المسجلة لـ {unit}.",
   "{n} hole(s) already had a pick and were left as they were.": "كان لدى {n} ثقبًا نقطة ملتقطة فتُركت كما هي.",
   "{n} hole(s) are not drawn (no survey or collar).": "{n} ثقبًا غير مرسومة (لا مسح ولا فوهة).",
-  "Not tops of {unit}: {why}.": "ليست قممًا لـ {unit}: {why}."
+  "Not tops of {unit}: {why}.": "ليست قممًا لـ {unit}: {why}.",
+  "between {a} and {b} {k} of {n} strips are folded (the two outlines' points do not pair up, so the volume there is unreliable): mark a tie point on both outlines (Shift+click a vertex while editing) and link again": "بين {a} و{b} توجد {k} من أصل {n} شريحة مطوية (نقاط المحيطين لا تتزاوج، لذا فالحجم هناك غير موثوق): ضع نقطة ربط على المحيطين كليهما (Shift+نقر على رأس أثناء التحرير) ثم اربط من جديد",
+  "Tie point: linked to the tie point of this body's outline on the next section": "نقطة ربط: تُربط بنقطة ربط محيط هذا الجسم في المقطع التالي",
+  "Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.": "انقر مع Shift على رأس لجعله نقطة الربط: يُربط بنقطة ربط المحيط في المقطع التالي.",
+  "It replaces the previous solid of {name}.": "يحل محل المجسم السابق لـ {name}."
 }

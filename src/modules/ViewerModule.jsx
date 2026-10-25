@@ -3458,6 +3458,8 @@ ${describeTrend(t)}` };
     return [...m].filter(([, k]) => k.size >= 2).map(([name, k]) => ({ name, sections: k.size }));
   }, [sections]);
   const [wireframeName, setWireframeName] = useState("");
+  // TASKS.csv #874 — the body names already used by outlines, offered when one is drawn on another section
+  const outlineNamesOf = (secs) => [...new Set((secs || []).flatMap((s) => (s.contacts || []).filter((c) => c.kind === "outline" && c.unit).map((c) => c.unit)))].sort();
   const linkWireframe = async (name) => {
     const outlines = [];
     for (const s of sections || []) for (const c of s.contacts || []) if (c.kind === "outline" && c.unit === name && c.points?.length >= 3) outlines.push({ ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, section: s.name, points: c.points.filter((p) => [p.x, p.y, p.z].every(Number.isFinite)) });
@@ -3477,14 +3479,18 @@ ${describeTrend(t)}` };
       const nVerts = scene.length / 3, nTris = w.indices.length / 3;
       mesh.userData = { tip: `${name} — explicit wireframe\n${w.sections} section outlines, ${(w.volume / 1e6).toFixed(3)} Mm³` };
       implicitGroupRef.current?.add(mesh);
-      const id = `impl_${Date.now()}_wireframe`;
+      // TASKS.csv #874 — re-linking a body replaces its previous solid in place (same id, list entry and style)
+      const prev = implicitSurfaces.find((x) => x.type === "explicit_wireframe" && x.params?.body === name);
+      const id = prev?.id || `impl_${Date.now()}_wireframe`;
+      const old = implicitMeshesRef.current[id];
+      if (old) { implicitGroupRef.current?.remove(old); old.geometry?.dispose?.(); old.material?.dispose?.(); }
       implicitMeshesRef.current[id] = mesh;
-      setImplicitSurfaces((p) => [...p, {
-        id, name: `${name} (wireframe, ${w.sections} sections)`, visible: true, vertexCount: nVerts, faceCount: nTris,
-        type: "explicit_wireframe", relationships: [], closure: "closed",
-        params: { tool: "explicit wireframe from linked section outlines", body: name, sections: outlines.map((x) => x.section), pointsPerOutline: nVerts / w.sections, volumeM3: Math.round(w.volume), ends: "flat caps on the first and last outline (not extended beyond them)", builtAt: new Date().toISOString() },
+      setImplicitSurfaces((p) => [...p.filter((x) => x.id !== id), {
+        ...(prev || {}), id, name: `${name} (wireframe, ${w.sections} sections)`, visible: prev ? prev.visible : true, vertexCount: nVerts, faceCount: nTris,
+        type: "explicit_wireframe", relationships: prev?.relationships || [], closure: "closed", edited: false, editCount: 0, edits: [],
+        params: { tool: "explicit wireframe from linked section outlines", body: name, sections: outlines.map((x) => x.section), pointsPerOutline: nVerts / w.sections, volumeM3: Math.round(w.volume), ends: "flat caps on the first and last outline (not extended beyond them)", builtAt: new Date().toISOString(), tiedOutlines: w.tied, foldedStrips: w.twisted.reduce((a, t) => a + t.folded, 0) }, /* tiedOutlines / foldedStrips: #874 */
       }]);
-      setNotices((p) => [...p, notice("Linked {n} \"{name}\" outlines into a closed solid: {v} m³. It ends at the first and last section (flat caps, not extended beyond them) and is listed with the generated surfaces: volume, export, sections and \"Restrict to a modelled volume\" in Grade estimation.{warn}", { n: w.sections, name, v: Math.round(w.volume).toLocaleString(), warn: w.warnings.length ? tr(" Note: {v}.", { v: w.warnings.join("; ") }) : "" })]);
+      setNotices((p) => [...p, notice("Linked {n} \"{name}\" outlines into a closed solid: {v} m³. It ends at the first and last section (flat caps, not extended beyond them) and is listed with the generated surfaces: volume, export, sections and \"Restrict to a modelled volume\" in Grade estimation.{warn}", { n: w.sections, name, v: Math.round(w.volume).toLocaleString(), warn: (w.warnings.length ? tr(" Note: {v}.", { v: w.warnings.join("; ") }) : "") + (prev ? ` ${tr("It replaces the previous solid of {name}.", { name })}` : "") })]); // replaces: #874
     } catch (e) { setNotices((p) => [...p, e]); }
   };
   // TASKS.csv #859 — a vein solid stitched from its hangingwall and footwall surfaces (lib/veinSolid.js, loaded on use)
@@ -6492,7 +6498,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // contacts into 3D surface generation as real interface points later).
     const sectionImgs = await sectionImagesFor(a, b, corridor);
     openSectionWindow({ id, title: name, section: { ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth, corridor }, holes, intervals, points, planes, contacts: [], lithoUnits: litho_units, unitTags: sectionUnitTags, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, sectionImages: sectionImgs, modelBackdrop,
-      ghostStrings: ghostStrings({ id, ax: a.x, ay: a.y, bx: b.x, by: b.y }, sections) }); // #519
+      ghostStrings: ghostStrings({ id, ax: a.x, ay: a.y, bx: b.x, by: b.y }, sections), outlineNames: outlineNamesOf(sections) }); // #519; outlineNames: #874
   };
 
   const reopenSection = useCallback(async (s) => {
@@ -6500,7 +6506,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const { holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop } = buildSectionPayload(a, b, s.corridor, s.scope || {}, s.id);
     const sectionImgs = await sectionImagesFor(a, b, s.corridor);
     openSectionWindow({ id: s.id, title: s.name, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, contacts: s.contacts || [], labels: s.labels || null, lithoUnits: litho_units, unitTags: sectionUnitTags, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, sectionImages: sectionImgs, modelBackdrop,
-      ghostStrings: ghostStrings(s, sections) }); // #519 — the neighbouring sections' strings
+      ghostStrings: ghostStrings(s, sections), outlineNames: outlineNamesOf(sections) }); // #519 — the neighbouring sections' strings; outlineNames: #874
   }, [layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, sectionUnitTags, terrain, voxelModels, implicitSurfaces, plannedHoles, sections, sectionImages, lastLithBlock]);
 
   // TASKS.csv #393 — sections defined by numbers rather than two clicks: saved to the Cross-sections list
