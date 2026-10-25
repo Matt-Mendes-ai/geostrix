@@ -5902,5 +5902,8 @@
   "The vertical distance between this unit's upper and lower contact in every map column both cover: minimum, mean, maximum, and where the base rises above the top.": "La distance verticale entre les contacts supérieur et inférieur de cette unité dans chaque colonne de la carte qu'ils couvrent tous deux : minimum, moyenne, maximum, et là où la base passe au-dessus du toit.",
   "Thickness between top and base": "Épaisseur entre toit et base",
   "{name} (wireframe, {n} level plans)": "{name} (solide, {n} plans de niveau)",
-  "{name} ({n} level plans)": "{name} ({n} plans de niveau)"
+  "{name} ({n} level plans)": "{name} ({n} plans de niveau)",
+  "Nothing to export: no picks or drawn lines yet.": "Rien à exporter : pas encore de pointés ni de lignes dessinées.",
+  "Exported {n} row(s): picks, section-line and image-line vertices (mapped contacts and dip guides are rebuilt from the map and are not listed).": "{n} ligne(s) exportée(s) : pointés et sommets des lignes sur coupes et images (les contacts cartographiés et les guides de pendage sont reconstruits depuis la carte et ne sont pas listés).",
+  "Save this surface's picks and drawn line vertices as CSV (coordinates, hole and depth, the units either side). Shift-click: all explicit surfaces.": "Enregistrer les pointés et sommets de lignes dessinées de cette surface en CSV (coordonnées, sondage et profondeur, les unités de part et d'autre). Maj+clic : toutes les surfaces explicites."
 }

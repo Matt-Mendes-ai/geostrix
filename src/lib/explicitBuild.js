@@ -26,3 +26,24 @@ export function shapeFrame(shape, apparentDip) {
 export function onlyOneSection(ep, drawnImageCount) {
   return !ep.picks && !ep.mapLines && drawnImageCount + ep.sections === 1;
 }
+
+// TASKS.csv #880 — the raw inputs of explicit surfaces as table rows, for a CSV an auditor or another package can read
+// (Matt: "Yes, build it"): every pick, every vertex of a section line drawn for the surface, every vertex of a line drawn
+// on a section image. Mapped contacts and dip guides are derived from the map at build time and are not listed (their
+// source is the map layer). Coordinates are the project CRS; md is metres down the hole for picks on holes.
+export const INPUT_COLUMNS = ["surface", "unit", "contact", "layer", "source", "ref", "vertex", "hole_id", "md", "above", "below", "easting", "northing", "elevation", "seeded_from_logs", "pick_id"];
+export function explicitInputRows(defs, sections) {
+  const rows = [];
+  const r3 = (v) => (Number.isFinite(v) ? Math.round(v * 1000) / 1000 : "");
+  for (const d of defs || []) {
+    const base = { surface: d.name, unit: d.unit || d.name, contact: d.contact === "lower" ? "lower" : "upper", layer: d.layer || "" };
+    for (const p of d.picks || []) rows.push({ ...base, source: p.hole_id ? (p.src === "boundary" ? "pick on a logged contact" : "pick on a hole trace") : "pick (3D point)", ref: "", vertex: "", hole_id: p.hole_id || "", md: r3(p.md), above: p.above || "", below: p.below || "", easting: r3(p.x), northing: r3(p.y), elevation: r3(p.z), seeded_from_logs: p.seeded ? "yes" : "", pick_id: p.id || "" });
+    for (const s of sections || []) for (const c of s.contacts || []) {
+      if (c.unit !== d.name || c.isUpperContact === false || (c.kind && c.kind !== "contact")) continue;
+      (c.points || []).forEach((p, i) => rows.push({ ...base, source: "line on a section", ref: s.name, vertex: i + 1, hole_id: p.hole_id || "", md: r3(p.md), above: "", below: "", easting: r3(p.x), northing: r3(p.y), elevation: r3(p.z), seeded_from_logs: "", pick_id: "" }));
+    }
+    (d.lines || []).forEach((l, li) => (l.pts || []).forEach((p, i) => rows.push({ ...base, source: "line on a section image", ref: `${l.imageId || "image"} line ${li + 1}`, vertex: i + 1, hole_id: "", md: "", above: "", below: "", easting: r3(p.x), northing: r3(p.y), elevation: r3(p.z), seeded_from_logs: "", pick_id: "" })));
+  }
+  return rows;
+}
+

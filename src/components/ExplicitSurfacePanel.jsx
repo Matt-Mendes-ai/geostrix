@@ -17,7 +17,8 @@ import { useStore } from "../lib/store.jsx"; // TASKS.csv #828 — Undo / Redo
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #885
 import { unitOf, contactOf, layerLabel, unitSummary, splitByElevation, nextLayer, seedPicksFromTops } from "../lib/explicitUnits.js"; // TASKS.csv #830 / #831 / #832; seed: #871
 import { stackOrder, thicknessBetween } from "../lib/stackOrder.js"; // TASKS.csv #873; thicknessBetween: #896
-import { inputKey, shapeFrame, onlyOneSection } from "../lib/explicitBuild.js"; // TASKS.csv #901
+import { inputKey, shapeFrame, onlyOneSection, explicitInputRows, INPUT_COLUMNS } from "../lib/explicitBuild.js"; // TASKS.csv #901; rows: #880
+import { saveFile } from "../lib/desktop.js"; // TASKS.csv #880
 
 const MAX_POINTS = 800; // ~0.4 s to solve on a laptop (1,200 took 1.2 s); section lines are thinned to fit
 // TASKS.csv #902 — the Unit select's "New unit..." value: a private-use character, not the NUL it used to be (a NUL byte made
@@ -745,6 +746,18 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
     });
     setThickNote({ text: parts.join(" "), crossing });
   };
+  // TASKS.csv #880 — the inputs as CSV (this surface or all of them), with a header line saying what the file is
+  const [exportNote, setExportNote] = useState(null);
+  const exportInputs = async (all) => {
+    const list = all ? defs : def ? [def] : [];
+    const rows = explicitInputRows(list, sections);
+    if (!rows.length) { setExportNote(tr("Nothing to export: no picks or drawn lines yet.")); return; }
+    const q = (v) => { const t = String(v ?? ""); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+    const csv = [INPUT_COLUMNS.join(","), ...rows.map((r) => INPUT_COLUMNS.map((c) => q(r[c])).join(","))].join("\r\n");
+    const name = all ? "explicit_surfaces_inputs" : `${(def.name || "surface").replace(/[^\w-]+/g, "_")}_inputs`;
+    const res = await saveFile({ suggestedName: `${name}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: `${csv}\r\n`, encoding: "text" });
+    if (res?.ok) setExportNote(tr("Exported {n} row(s): picks, section-line and image-line vertices (mapped contacts and dip guides are rebuilt from the map and are not listed).", { n: rows.length }));
+  };
   const splitUnit = () => {
     const mine = defs.filter((d) => unitOf(d) === curUnit);
     // TASKS.csv #873 — the built ones are ordered pairwise where both exist (scene y is the elevation; x, z the map)
@@ -885,8 +898,10 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           {/* TASKS.csv #892 — Undo / Redo always here (they used to appear only once a line existed), Ctrl+Z named */}
           <button onClick={undo} disabled={!canUndo} title={tr("Undo (Ctrl+Z) — picks, lines and settings")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: canUndo ? 1 : 0.5 }}>{tr("Undo")}</button>
           <button onClick={redo} disabled={!canRedo} title={tr("Redo (Ctrl+Y)")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: canRedo ? 1 : 0.5 }}>{tr("Redo")}</button>
+          <button onClick={(e) => exportInputs(e.shiftKey)} title={tr("Save this surface's picks and drawn line vertices as CSV (coordinates, hole and depth, the units either side). Shift-click: all explicit surfaces.")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px" }}>{tr("CSV")}</button>{/* TASKS.csv #880 */}
           <button onClick={() => { if (!confirmDestructive(tr("Delete the explicit surface \"{name}\" with its picks and lines?", { name: def.name }), { undoable: true })) return; setPickFor(null); onRemove(def); setSelId(""); }} title={tr("Delete this explicit surface and its mesh")} aria-label={tr("Delete this explicit surface and its mesh")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px" }}><Trash2 size={14} /></button>
         </div>
+        {exportNote && <div role="status" style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, color: "var(--color-text-secondary)" }}>{exportNote}</div>}{/* #880 */}
         <div style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, lineHeight: 1.4 }}>
           {ep.lines ? tr("{lines} section line(s) on {sections} section(s) are hard lines of this surface (a point every {sp} m along them).", { lines: ep.lines, sections: ep.sections, sp: Math.round(ep.spacing || LINE_SPACING) }) : tr("No section lines yet.")}{" "}<span style={{ color: "var(--color-text-muted)" }}>{lineHint}</span>
         </div>

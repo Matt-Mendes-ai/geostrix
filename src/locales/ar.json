@@ -5902,5 +5902,8 @@
   "The vertical distance between this unit's upper and lower contact in every map column both cover: minimum, mean, maximum, and where the base rises above the top.": "المسافة الرأسية بين التماس العلوي والسفلي لهذه الوحدة في كل عمود من الخريطة يغطيه كلاهما: الأدنى والمتوسط والأقصى، وحيث ترتفع القاعدة فوق السقف.",
   "Thickness between top and base": "السماكة بين السقف والقاعدة",
   "{name} (wireframe, {n} level plans)": "{name} (مجسم، {n} مساقط مستوى)",
-  "{name} ({n} level plans)": "{name} ({n} مساقط مستوى)"
+  "{name} ({n} level plans)": "{name} ({n} مساقط مستوى)",
+  "Nothing to export: no picks or drawn lines yet.": "لا شيء للتصدير: لا توجد نقاط ملتقطة أو خطوط مرسومة بعد.",
+  "Exported {n} row(s): picks, section-line and image-line vertices (mapped contacts and dip guides are rebuilt from the map and are not listed).": "صُدّر {n} صفًا: النقاط الملتقطة ورؤوس خطوط المقاطع والصور (التماسات المرسومة وأدلة الميل يُعاد بناؤها من الخريطة ولا تُدرج).",
+  "Save this surface's picks and drawn line vertices as CSV (coordinates, hole and depth, the units either side). Shift-click: all explicit surfaces.": "احفظ النقاط الملتقطة ورؤوس الخطوط المرسومة لهذا السطح بصيغة CSV (الإحداثيات والثقب والعمق والوحدتان على جانبيها). Shift+نقر: كل الأسطح الصريحة."
 }

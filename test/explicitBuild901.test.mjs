@@ -62,3 +62,16 @@ test("#901 Solid blocks: a top with a NaN vertex loses only the triangles touchi
   assert.ok(r.counts.T > 0, "the rest of the surface still codes its unit");
   assert.ok(r.coverage.T > 0.5 && r.coverage.T < 1, `coverage ${r.coverage.T}`);
 });
+
+import { explicitInputRows, INPUT_COLUMNS } from "../src/lib/explicitBuild.js";
+test("#880 the inputs as rows: picks with hole / depth / units, section-line and image-line vertices; nothing derived", () => {
+  const defs = [{ name: "Top", unit: "DACT", contact: "upper", layer: "A", picks: [{ id: "p1", x: 1.23456, y: 2, z: 3, hole_id: "H1", md: 12.5, src: "boundary", above: "AND", below: "DACT", seeded: true }, { id: "p2", x: 5, y: 6, z: 7, src: "point" }],
+    lines: [{ id: "l", imageId: "img1", pts: [{ x: 0, y: 0, z: 0 }, { x: 1, y: 1, z: 1 }] }], mapContacts: [{ units: ["A", "B"] }] }];
+  const sections = [{ name: "S1", contacts: [{ unit: "Top", points: [{ x: 10, y: 0, z: 5 }, { x: 20, y: 0, z: 6 }] }, { unit: "Other", points: [{ x: 0, y: 0, z: 0 }] }, { unit: "Top", kind: "outline", points: [{ x: 0, y: 0, z: 0 }] }] }];
+  const rows = explicitInputRows(defs, sections);
+  assert.equal(rows.length, 2 + 2 + 2);
+  assert.deepEqual(rows.map((r) => r.source), ["pick on a logged contact", "pick (3D point)", "line on a section", "line on a section", "line on a section image", "line on a section image"]);
+  assert.equal(rows[0].easting, 1.235); assert.equal(rows[0].seeded_from_logs, "yes"); assert.equal(rows[0].above, "AND"); assert.equal(rows[0].unit, "DACT");
+  assert.equal(rows[2].ref, "S1"); assert.equal(rows[3].vertex, 2);
+  for (const r of rows) assert.deepEqual(Object.keys(r).sort(), [...INPUT_COLUMNS].sort());
+});

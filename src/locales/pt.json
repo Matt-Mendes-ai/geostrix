@@ -5902,5 +5902,8 @@
   "The vertical distance between this unit's upper and lower contact in every map column both cover: minimum, mean, maximum, and where the base rises above the top.": "A distância vertical entre o contato superior e o inferior desta unidade em cada coluna do mapa que ambos cobrem: mínimo, média, máximo e onde a base sobe acima do topo.",
   "Thickness between top and base": "Espessura entre topo e base",
   "{name} (wireframe, {n} level plans)": "{name} (sólido, {n} plantas de nível)",
-  "{name} ({n} level plans)": "{name} ({n} plantas de nível)"
+  "{name} ({n} level plans)": "{name} ({n} plantas de nível)",
+  "Nothing to export: no picks or drawn lines yet.": "Nada a exportar: ainda não há picks nem linhas desenhadas.",
+  "Exported {n} row(s): picks, section-line and image-line vertices (mapped contacts and dip guides are rebuilt from the map and are not listed).": "Foram exportadas {n} linha(s): picks e vértices de linhas em seções e imagens (os contatos mapeados e as guias de mergulho são reconstruídos a partir do mapa e não são listados).",
+  "Save this surface's picks and drawn line vertices as CSV (coordinates, hole and depth, the units either side). Shift-click: all explicit surfaces.": "Salvar os picks e vértices de linhas desenhadas desta superfície como CSV (coordenadas, furo e profundidade, as unidades de cada lado). Shift+clique: todas as superfícies explícitas."
 }
