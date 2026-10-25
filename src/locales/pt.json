@@ -5947,5 +5947,16 @@
   "{fraction}, {depth}, {digestion}: {n} sample(s)": "{fraction}, {depth}, {digestion}: {n} amostra(s)",
   "{n} NGSA site(s) in the area. Each was sampled at two depths, sieved to two fractions and analyzed by several digestions: choose one, so every sample is comparable.": "{n} sítio(s) NGSA na área. Cada um foi amostrado em duas profundidades, peneirado em duas frações e analisado por várias digestões: escolha uma, para que todas as amostras sejam comparáveis.",
   "{n} zero value(s) left empty: this layer has no below-detection marker, so a 0 is not a grade.": "{n} valor(es) zero ficaram vazios: esta camada não marca valores abaixo do limite de detecção, então um 0 não é um teor.",
-  "Media: {media}. Size: {samples}.": "Meios: {media}. Tamanho: {samples}."
+  "Media: {media}. Size: {samples}.": "Meios: {media}. Tamanho: {samples}.",
+  "The coordinates read as longitude / latitude and were reprojected from WGS 84 to the project's EPSG:{epsg}.": "As coordenadas foram lidas como longitude / latitude e reprojetadas de WGS 84 para o EPSG:{epsg} do projeto.",
+  "Built \"{name}\" from {what}: a triangulated surface of {tri} triangles sampled on a {gridW}×{gridH} grid (nodes ~{cell} m apart).": "\"{name}\" foi construído a partir de {what}: uma superfície triangulada de {tri} triângulos amostrada numa malha de {gridW}×{gridH} (nós a ~{cell} m).",
+  "Survey points (CSV, TXT or XYZ with X, Y and elevation) or contour lines and spot heights in a DXF: triangulated into a terrain, for a property with no elevation model": "Pontos topográficos (CSV, TXT ou XYZ com X, Y e elevação) ou curvas de nível e cotas num DXF: triangulados num terreno, para uma propriedade sem modelo de elevação",
+  "Terrain from points or contours…": "Terreno a partir de pontos ou curvas…",
+  "{l} contour line(s) and {p} point(s)": "{l} curva(s) de nível e {p} ponto(s)",
+  "{name} has no strings or points with elevations (a plan drawing at elevation 0 has none): a terrain needs heights.": "{name} não tem linhas nem pontos com elevação (um desenho em planta na elevação 0 não tem): um terreno precisa de alturas.",
+  "{name}: no X, Y and elevation columns found (headers such as Easting, Northing, Elevation, or three numbers per line).": "{name}: não foram encontradas colunas X, Y e elevação (cabeçalhos como Easting, Northing, Elevation, ou três números por linha).",
+  "{n} point(s)": "{n} ponto(s)",
+  "{n} triangle(s) with an edge over {m} m were left out, so no ground is invented across gaps in the data.": "{n} triângulo(s) com um lado acima de {m} m foram omitidos, para não inventar terreno nas lacunas dos dados.",
+  "{pct}% of the triangles are flat (all three corners on one contour): terraces on hilltops and valley floors, where contours alone do not say how the ground continues.": "{pct}% dos triângulos são planos (os três vértices numa mesma curva): terraços em topos e fundos de vale, onde as curvas sozinhas não dizem como o terreno continua.",
+  "{pct}% of the grid ({n} cells) lies outside the triangulated points and is left out of the 3D surface; anything that samples elevation there (collars, sections, stations) gets the mean elevation {z} m, not a real height.": "{pct}% da malha ({n} células) fica fora dos pontos triangulados e é omitido da superfície 3D; o que amostrar a elevação ali (colares, seções, estações) recebe a elevação média de {z} m, não uma altura real."
 }

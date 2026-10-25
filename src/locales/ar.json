@@ -5947,5 +5947,16 @@
   "{fraction}, {depth}, {digestion}: {n} sample(s)": "{fraction}، {depth}، {digestion}: {n} عينة",
   "{n} NGSA site(s) in the area. Each was sampled at two depths, sieved to two fractions and analyzed by several digestions: choose one, so every sample is comparable.": "{n} موقع NGSA في المنطقة. أُخذت عينات كل موقع من عمقين ونُخلت إلى جزأين وحُللت بعدة طرق هضم: اختر واحدة لتكون كل العينات قابلة للمقارنة.",
   "{n} zero value(s) left empty: this layer has no below-detection marker, so a 0 is not a grade.": "تُركت {n} قيمة صفرية فارغة: لا تميّز هذه الطبقة القيم دون حد الكشف، فالصفر ليس محتوى.",
-  "Media: {media}. Size: {samples}.": "الأوساط: {media}. الحجم: {samples}."
+  "Media: {media}. Size: {samples}.": "الأوساط: {media}. الحجم: {samples}.",
+  "The coordinates read as longitude / latitude and were reprojected from WGS 84 to the project's EPSG:{epsg}.": "قُرئت الإحداثيات كخطوط طول / عرض وأُعيد إسقاطها من WGS 84 إلى EPSG:{epsg} الخاص بالمشروع.",
+  "Built \"{name}\" from {what}: a triangulated surface of {tri} triangles sampled on a {gridW}×{gridH} grid (nodes ~{cell} m apart).": "بُني \"{name}\" من {what}: سطح مثلثي من {tri} مثلث مأخوذ على شبكة {gridW}×{gridH} (العقد على بعد ~{cell} م).",
+  "Survey points (CSV, TXT or XYZ with X, Y and elevation) or contour lines and spot heights in a DXF: triangulated into a terrain, for a property with no elevation model": "نقاط مسح (CSV أو TXT أو XYZ بـ X وY والارتفاع) أو خطوط كنتور ونقاط ارتفاع في ملف DXF: تُثلَّث إلى تضاريس، لموقع بلا نموذج ارتفاع",
+  "Terrain from points or contours…": "تضاريس من نقاط أو خطوط كنتور…",
+  "{l} contour line(s) and {p} point(s)": "{l} خط كنتور و{p} نقطة",
+  "{name} has no strings or points with elevations (a plan drawing at elevation 0 has none): a terrain needs heights.": "لا يحتوي {name} على خطوط أو نقاط ذات ارتفاع (الرسم المسقطي على ارتفاع 0 لا يحتويها): التضاريس تحتاج إلى ارتفاعات.",
+  "{name}: no X, Y and elevation columns found (headers such as Easting, Northing, Elevation, or three numbers per line).": "{name}: لم تُعثر على أعمدة X وY والارتفاع (عناوين مثل Easting وNorthing وElevation، أو ثلاثة أرقام في كل سطر).",
+  "{n} point(s)": "{n} نقطة",
+  "{n} triangle(s) with an edge over {m} m were left out, so no ground is invented across gaps in the data.": "استُبعد {n} مثلث ضلعه أطول من {m} م، كي لا تُختلق أرض عبر فجوات البيانات.",
+  "{pct}% of the triangles are flat (all three corners on one contour): terraces on hilltops and valley floors, where contours alone do not say how the ground continues.": "{pct}% من المثلثات مستوية (رؤوسها الثلاثة على خط كنتور واحد): مصاطب على القمم وفي قيعان الأودية، حيث لا تبيّن خطوط الكنتور وحدها كيف تستمر الأرض.",
+  "{pct}% of the grid ({n} cells) lies outside the triangulated points and is left out of the 3D surface; anything that samples elevation there (collars, sections, stations) gets the mean elevation {z} m, not a real height.": "{pct}% من الشبكة ({n} خلية) يقع خارج النقاط المثلَّثة ويُستبعد من السطح ثلاثي الأبعاد؛ وما يأخذ الارتفاع هناك (الفوهات والمقاطع والمحطات) يحصل على متوسط الارتفاع {z} م، لا ارتفاعًا حقيقيًا."
 }

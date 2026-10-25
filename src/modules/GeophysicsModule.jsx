@@ -340,6 +340,64 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     }
   };
 
+  // TASKS.csv #894 — terrain from survey points (CSV / TXT / XYZ: x, y, z columns) or contour lines and points in a DXF,
+  // for a project with no DEM: a TIN sampled onto the usual node grid (lib/terrainFromPoints.js, loaded on use). Points
+  // are taken to be in the project CRS; a file whose X / Y all fit longitude / latitude is reprojected from WGS 84.
+  const pointsTerrainInput = useRef(null);
+  const importPointsTerrain = async (file) => {
+    if (!file) return;
+    setTerrainError(null);
+    setTerrainBusy(true);
+    try {
+      const text = await file.text();
+      let points = [], lines = [], what;
+      if (/\.dxf$/i.test(file.name)) {
+        const d = parseDXF(text);
+        for (const pl of d.polylines || []) {
+          const pts = pl.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z));
+          if (pts.length === 1) points.push(pts[0]); else if (pts.length > 1) lines.push(pts);
+        }
+        if (!points.length && !lines.length) throw new Error(tr("{name} has no strings or points with elevations (a plan drawing at elevation 0 has none): a terrain needs heights.", { name: file.name }));
+        what = tr("{l} contour line(s) and {p} point(s)", { l: lines.length, p: points.length });
+      } else {
+        const spaced = /\.xyz$/i.test(file.name) || !/[,;\t]/.test(text.slice(0, 2000)); // XYZ / whitespace-separated: runs of spaces are one separator
+        const rows = Papa.parse(text.trim(), { skipEmptyLines: true, delimiter: spaced ? " " : "" }).data.map((r) => (spaced ? r.filter((c) => String(c).trim() !== "") : r));
+        const numeric = (r) => r.slice(0, 3).every((c) => Number.isFinite(Number(String(c).replace(",", "."))));
+        const header = rows.length && !numeric(rows[0]) ? rows[0] : null;
+        const { guessXYZ } = await import("../lib/terrainFromPoints.js");
+        const g = header ? guessXYZ(header) : { x: 0, y: 1, z: 2 };
+        const col = (k) => (header ? header.indexOf(g[k]) : g[k]);
+        const [ix, iy, iz] = [col("x"), col("y"), col("z")];
+        if (ix < 0 || iy < 0 || iz < 0) throw new Error(tr("{name}: no X, Y and elevation columns found (headers such as Easting, Northing, Elevation, or three numbers per line).", { name: file.name }));
+        const n = (v) => Number(String(v ?? "").trim().replace(",", "."));
+        points = (header ? rows.slice(1) : rows).map((r) => ({ x: n(r[ix]), y: n(r[iy]), z: n(r[iz]) })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z));
+        what = tr("{n} point(s)", { n: points.length });
+      }
+      // longitude / latitude in a projected project: reproject from WGS 84
+      const all = [...points, ...lines.flat()];
+      let reprojected = false;
+      if (project?.epsg && Number(project.epsg) !== 4326 && all.length && all.every((p) => Math.abs(p.x) <= 180 && Math.abs(p.y) <= 90)) {
+        const mv = (p) => { const q = reprojectXY(p.x, p.y, 4326, Number(project.epsg)); return q ? { x: q.x, y: q.y, z: p.z } : { x: NaN, y: NaN, z: p.z }; };
+        points = points.map(mv); lines = lines.map((l) => l.map(mv)); reprojected = true;
+      }
+      const { terrainFromPoints } = await import("../lib/terrainFromPoints.js");
+      const t = terrainFromPoints({ points, lines }, { gridMax: terrainDetail });
+      const name = file.name.replace(/\.[^.]+$/, "");
+      if (terrain && !window.confirm(tr("Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.", { name: terrain.name, name2: name }))) return;
+      addTerrain({ name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask || null, source: { kind: "tin from points", file: file.name, points: t.stats.points, nodeM: t.stats.cellM } });
+      let msg = tr("Built \"{name}\" from {what}: a triangulated surface of {tri} triangles sampled on a {gridW}×{gridH} grid (nodes ~{cell} m apart).", { name, what, tri: t.stats.triangles.toLocaleString(), gridW: t.gridW, gridH: t.gridH, cell: t.stats.cellM.toFixed(1) });
+      if (reprojected) msg += " " + tr("The coordinates read as longitude / latitude and were reprojected from WGS 84 to the project's EPSG:{epsg}.", { epsg: project.epsg });
+      if (t.stats.longDropped) msg += " " + tr("{n} triangle(s) with an edge over {m} m were left out, so no ground is invented across gaps in the data.", { n: t.stats.longDropped, m: Math.round(t.stats.maxEdgeM) });
+      if (lines.length && t.stats.flatPct >= 5) msg += " " + tr("{pct}% of the triangles are flat (all three corners on one contour): terraces on hilltops and valley floors, where contours alone do not say how the ground continues.", { pct: t.stats.flatPct.toFixed(0) });
+      if (t.stats.filledCount) msg += " " + tr("{pct}% of the grid ({n} cells) lies outside the triangulated points and is left out of the 3D surface; anything that samples elevation there (collars, sections, stations) gets the mean elevation {z} m, not a real height.", { pct: t.stats.filledPct.toFixed(1), n: t.stats.filledCount.toLocaleString(), z: t.stats.fillValue.toFixed(0) });
+      setTerrainError({ info: true, text: msg });
+    } catch (err) {
+      setTerrainError({ info: false, text: err.message });
+    } finally {
+      setTerrainBusy(false);
+    }
+  };
+
   // TASKS.csv #203 — "We need options to export the generated SRTM, at least to geotiff." The merged/
   // processed terrain (whatever was actually used — imported DEM tiles, or a fetched SRTM area) had no
   // way back out for another tool or for archiving. See raster.js's terrainToGeoTIFFBase64 for the
@@ -1243,6 +1301,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             {srtmProgress ? <Loader2 size={14} className="spin" /> : <Radio size={14} />} {srtmProgress ? tr("Fetching {done}/{total}…", { done: srtmProgress.done, total: srtmProgress.total }) : tr("Fetch terrain for this area")}
           </button>
         </div>
+        <button onClick={() => pointsTerrainInput.current.click()} style={{ ...pBtn, marginTop: 6 }} disabled={terrainBusy}
+          title={tr("Survey points (CSV, TXT or XYZ with X, Y and elevation) or contour lines and spot heights in a DXF: triangulated into a terrain, for a property with no elevation model")}>
+          <Triangle size={14} /> {tr("Terrain from points or contours…")}
+        </button>{/* TASKS.csv #894 */}
+        <input ref={pointsTerrainInput} type="file" accept=".csv,.txt,.xyz,.dxf" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) importPointsTerrain(f); e.target.value = ""; }} />
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4 }}>{tr("\"Fetch terrain for this area\" opens a map to draw the exact area you want — pre-filled around your drillholes, or your terrain or map layers if there are none; pan or redraw to widen or shift it. Public elevation data from the online source chosen above, no account and no manual download needed.")}</div>
         {srtmPickerOpen && (
           <BasemapView
