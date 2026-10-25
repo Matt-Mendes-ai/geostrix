@@ -5788,5 +5788,7 @@
   "dips {d}°": "يميل {d}°",
   "Too many points to build quickly: {n} ({picks} picks, {v} line points) against a limit of {max}. Remove some picks, or draw fewer or shorter lines.": "عدد النقاط أكبر من أن يُبنى بسرعة: {n} ({picks} نقطة ملتقطة، {v} نقطة خطوط) مقابل حد قدره {max}. احذف بعض النقاط الملتقطة، أو ارسم خطوطًا أقل أو أقصر.",
   "To keep the build fast, the section lines were simplified to within {t} m ({k} of {n} vertices kept, corners and ends included).": "لإبقاء البناء سريعًا، بُسِّطت خطوط المقاطع ضمن {t} م (أُبقي {k} من {n} رأسًا، بما فيها الزوايا والأطراف).",
-  "To keep the build fast, the map lines were simplified to within {t} m (ends and corners kept).": "لإبقاء البناء سريعًا، بُسِّطت خطوط الخريطة ضمن {t} م (مع إبقاء الأطراف والزوايا)."
+  "To keep the build fast, the map lines were simplified to within {t} m (ends and corners kept).": "لإبقاء البناء سريعًا، بُسِّطت خطوط الخريطة ضمن {t} م (مع إبقاء الأطراف والزوايا).",
+  "Explicit surfaces are not sculpted: the next rebuild from the picks would undo it. Move, add or remove picks in the Explicit surface pane instead.": "لا تُنحت الأسطح الصريحة: فإعادة البناء التالية من النقاط الملتقطة ستلغي ذلك. انقل النقاط الملتقطة أو أضفها أو احذفها في لوحة السطح الصريح بدلًا من ذلك.",
+  "{n} manual sculpt(s) of the previous surface were discarded by this rebuild.": "تجاهلت إعادة البناء هذه {n} تعديلًا يدويًا على السطح السابق."
 }

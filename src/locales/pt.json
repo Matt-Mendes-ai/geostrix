@@ -5788,5 +5788,7 @@
   "dips {d}°": "mergulha {d}°",
   "Too many points to build quickly: {n} ({picks} picks, {v} line points) against a limit of {max}. Remove some picks, or draw fewer or shorter lines.": "Pontos demais para construir rapidamente: {n} ({picks} picks, {v} pontos de linha) contra um limite de {max}. Remova alguns picks ou desenhe menos linhas ou linhas mais curtas.",
   "To keep the build fast, the section lines were simplified to within {t} m ({k} of {n} vertices kept, corners and ends included).": "Para manter a construção rápida, as linhas de seção foram simplificadas com tolerância de {t} m ({k} de {n} vértices mantidos, incluindo cantos e extremidades).",
-  "To keep the build fast, the map lines were simplified to within {t} m (ends and corners kept).": "Para manter a construção rápida, as linhas do mapa foram simplificadas com tolerância de {t} m (extremidades e cantos mantidos)."
+  "To keep the build fast, the map lines were simplified to within {t} m (ends and corners kept).": "Para manter a construção rápida, as linhas do mapa foram simplificadas com tolerância de {t} m (extremidades e cantos mantidos).",
+  "Explicit surfaces are not sculpted: the next rebuild from the picks would undo it. Move, add or remove picks in the Explicit surface pane instead.": "Superfícies explícitas não são esculpidas: a próxima reconstrução a partir dos picks desfaria isso. Mova, adicione ou remova picks no painel Superfície explícita.",
+  "{n} manual sculpt(s) of the previous surface were discarded by this rebuild.": "Esta reconstrução descartou {n} edição(ões) manual(is) da superfície anterior."
 }

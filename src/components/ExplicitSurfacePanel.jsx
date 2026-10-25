@@ -108,7 +108,8 @@ function upsertMesh(sc, def, res, info) {
     old.geometry = geo;
     old.material.color?.set(def.color);
     old.userData = { ...old.userData, tip, builtKey: info.key }; // builtKey: #828
-    sc.setSurfaces((p) => p.map((s) => (s.id === def.surfaceId ? { ...s, name: def.name, vertexCount: nVerts, faceCount: nTris, params } : s)));
+    // TASKS.csv #879 — a rebuild replaces the mesh, so any hand-edit record of the old one goes with it
+    sc.setSurfaces((p) => p.map((s) => (s.id === def.surfaceId ? { ...s, name: def.name, vertexCount: nVerts, faceCount: nTris, params, edited: false, editCount: 0, edits: [] } : s)));
     return def.surfaceId;
   }
   const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: def.color, side: THREE.DoubleSide, transparent: true, opacity: 0.75 }));
@@ -602,6 +603,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, defs, s
           }
         }
         const ms = Math.round(performance.now() - t0);
+        const sculpted = (def.surfaceId && surfaces.find((s) => s.id === def.surfaceId)?.editCount) || 0; // TASKS.csv #879
         const surfaceId = upsertMesh(sc, def, res, { picks: ep.picks, lines: ep.lines, sections: ep.sections, spacing: ep.spacing, mapLines: ep.mapLines, guideLines: ep.guideLines, key });
         // #828 — the mesh remembers its key (userData.builtKey); the def is only written when it had no mesh id yet (a
         // surface from before #828), so building is never an Undo step of its own that would hide the real edit
@@ -618,6 +620,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, defs, s
         }) + (ep.drawnLines ? ` ${tr("Includes {n} line(s) digitized on section images.", { n: ep.drawnLines })}` : "") + (ep.mapLines ? ` ${tr("Includes {m} mapped contact line(s){g}.", { m: ep.mapLines, g: ep.guideLines ? tr(" and {g} dip guide line(s) (constructed, {d} m down-dip)", { g: ep.guideLines, d: Number(def.dipGuide?.depth) || 100 }) : "" })}` : "")
           + (ep.lineTolM > 0 ? ` ${tr("To keep the build fast, the section lines were simplified to within {t} m ({k} of {n} vertices kept, corners and ends included).", { t: ep.lineTolM, k: ep.lineVerticesKept, n: ep.lineVerticesIn })}` : "")
           + (ep.extraTolM > 0 ? ` ${tr("To keep the build fast, the map lines were simplified to within {t} m (ends and corners kept).", { t: ep.extraTolM })}` : "") // TASKS.csv #869
+          + (sculpted ? ` ${tr("{n} manual sculpt(s) of the previous surface were discarded by this rebuild.", { n: sculpted })}` : "") // #879
           + (trimNote ? ` ${trimNote}` : "") + (res.warnings.length ? ` ${res.warnings.join(" ")}` : "") });
       } catch (e) { clearTimeout(slow); if (wantKey.current === key) setStatus({ ok: false, text: (e.message || String(e)) + stale }); }
     }, 250);

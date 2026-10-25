@@ -7620,7 +7620,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   {/* TASKS.csv #145 — manual sculpting of this surface, plus its hand-edit provenance.
                       Placed directly under the volume/tonnage block on purpose: an edit changes the
                       enclosed volume, and the number it changes is the one immediately above. */}
-                  <SculptPanel surface={s} sculpt={sculpt} pBtn={pBtn} smallSel={smallSel} />
+                  {/* TASKS.csv #879 — an explicit surface is rebuilt from its picks on every edit, which would silently undo a
+                      sculpt while its hand-edit stamp stayed: it is edited through its picks instead */}
+                  {s.type === "explicit_surface"
+                    ? <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 6 }}>{tr("Explicit surfaces are not sculpted: the next rebuild from the picks would undo it. Move, add or remove picks in the Explicit surface pane instead.")}</div>
+                    : <SculptPanel surface={s} sculpt={sculpt} pBtn={pBtn} smallSel={smallSel} />}
 
                   {/* TASKS.csv #93 — VERSIONS. Re-running a tool already produces a second surface; this
                       is where the user says the second one is a re-run OF the first, which is what makes

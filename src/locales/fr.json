@@ -5788,5 +5788,7 @@
   "dips {d}°": "pendage {d}°",
   "Too many points to build quickly: {n} ({picks} picks, {v} line points) against a limit of {max}. Remove some picks, or draw fewer or shorter lines.": "Trop de points pour construire rapidement : {n} ({picks} pointés, {v} points de ligne) pour une limite de {max}. Retirez des pointés, ou tracez moins de lignes ou des lignes plus courtes.",
   "To keep the build fast, the section lines were simplified to within {t} m ({k} of {n} vertices kept, corners and ends included).": "Pour garder la construction rapide, les lignes de coupe ont été simplifiées à {t} m près ({k} sommets conservés sur {n}, coins et extrémités compris).",
-  "To keep the build fast, the map lines were simplified to within {t} m (ends and corners kept).": "Pour garder la construction rapide, les lignes de la carte ont été simplifiées à {t} m près (extrémités et coins conservés)."
+  "To keep the build fast, the map lines were simplified to within {t} m (ends and corners kept).": "Pour garder la construction rapide, les lignes de la carte ont été simplifiées à {t} m près (extrémités et coins conservés).",
+  "Explicit surfaces are not sculpted: the next rebuild from the picks would undo it. Move, add or remove picks in the Explicit surface pane instead.": "Les surfaces explicites ne se sculptent pas : la prochaine reconstruction à partir des pointés l'annulerait. Déplacez, ajoutez ou retirez des pointés dans le panneau Surface explicite.",
+  "{n} manual sculpt(s) of the previous surface were discarded by this rebuild.": "Cette reconstruction a abandonné {n} retouche(s) manuelle(s) de la surface précédente."
 }
