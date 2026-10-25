@@ -5796,5 +5796,16 @@
   "(to the box base at {z} m)": "(حتى قاعدة الصندوق عند {z} م)",
   "(cut at the box sides)": "(مقطوع عند جوانب الصندوق)",
   "± is the most a count of {b} m blocks can be off by (half a block at every contact)": "± هو أقصى خطأ لعدّ كتل بحجم {b} م (نصف كتلة عند كل تماس)",
-  "Follows the trend {name}: {r} times smoother along {az}° than across.": "يتبع الاتجاه {name}: أنعم بمقدار {r} مرة على امتداد {az}° منه عرضيًا."
+  "Follows the trend {name}: {r} times smoother along {az}° than across.": "يتبع الاتجاه {name}: أنعم بمقدار {r} مرة على امتداد {az}° منه عرضيًا.",
+  "{a} of {b} holes that log {unit} have a pick on this surface.": "لدى {a} من أصل {b} ثقبًا تسجّل {unit} نقطة ملتقطة على هذا السطح.",
+  "One pick per hole where {unit} starts below a younger unit (not at a hole start, under casing or overburden, or below a gap) — the same tops the implicit tool uses. Check them, then move or delete the outliers.": "نقطة ملتقطة واحدة لكل ثقب حيث تبدأ {unit} تحت وحدة أحدث (ليس في بداية الثقب ولا تحت التغليف أو الغطاء ولا تحت فجوة غير مسجلة): وهي القمم نفسها التي تستخدمها الأداة الضمنية. راجعها ثم انقل الشاذ منها أو احذفه.",
+  "Add the logged tops of {unit}": "أضف القمم المسجلة لـ {unit}",
+  "{n} under casing, overburden or a cross-cutting unit": "{n} تحت التغليف أو الغطاء أو وحدة قاطعة",
+  "{n} at a hole start": "{n} في بداية الثقب",
+  "{n} below an unlogged gap": "{n} تحت فجوة غير مسجلة",
+  "{n} below an older unit": "{n} تحت وحدة أقدم",
+  "Added {n} pick(s) at the logged tops of {unit}.": "أُضيفت {n} نقطة ملتقطة عند القمم المسجلة لـ {unit}.",
+  "{n} hole(s) already had a pick and were left as they were.": "كان لدى {n} ثقبًا نقطة ملتقطة فتُركت كما هي.",
+  "{n} hole(s) are not drawn (no survey or collar).": "{n} ثقبًا غير مرسومة (لا مسح ولا فوهة).",
+  "Not tops of {unit}: {why}.": "ليست قممًا لـ {unit}: {why}."
 }

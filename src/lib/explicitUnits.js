@@ -56,6 +56,24 @@ export function splitByElevation(items) {
   return out;
 }
 
+// TASKS.csv #871 — picks at the logged tops of a unit, one per hole, for holes that have none yet.
+// tops: [{ hole_id, md, above, below }] (modellingCodes.topsForCode's runs, already without hole starts, casing /
+// overburden above, gaps and older units above); placeAt(hole_id, md) -> [x, y, z] | null (the hole's current trace).
+// -> { picks: [new picks], had: holes that already had a pick, noTrace: holes not drawn }
+export function seedPicksFromTops(existing, tops, placeAt, newId) {
+  const have = new Set((existing || []).filter((p) => p.hole_id).map((p) => p.hole_id));
+  const picks = [], had = new Set(), noTrace = new Set(), taken = new Set();
+  for (const t of tops || []) {
+    if (have.has(t.hole_id)) { had.add(t.hole_id); continue; }
+    if (taken.has(t.hole_id)) continue; // one per hole: the shallowest (tops come down each hole in order)
+    const w = placeAt(t.hole_id, t.md);
+    if (!w) { noTrace.add(t.hole_id); continue; }
+    taken.add(t.hole_id);
+    picks.push({ id: newId(picks.length), x: w[0], y: w[1], z: w[2], hole_id: t.hole_id, md: t.md, src: "boundary", above: t.above, below: t.below, seeded: true });
+  }
+  return { picks, had: had.size, noTrace: noTrace.size };
+}
+
 // The next unused layer letter of a unit
 export function nextLayer(defs, unit) {
   const used = new Set((defs || []).filter((d) => unitOf(d) === unit && d.layer).map((d) => d.layer));

@@ -129,6 +129,9 @@ export function colorForLithology(u) { const k = (u || "").toLowerCase(); return
 // from — new codes not listed here default to "stratigraphic" rather than guessing wrong.
 export const UNIT_ROLES = {
   obn: "overburden",
+  // TASKS.csv #871 — the usual casing / overburden codes (the Harry sample logs CAS and OVB): a unit starting under them
+  // starts at the bedrock surface, not at a geological contact. Unambiguous codes only; others are set in Modelling codes.
+  cas: "overburden", casing: "overburden", ovb: "overburden", ovbd: "overburden", ob: "overburden", overburden: "overburden",
   flt: "fault",
   i6: "dyke",
   silbx: "breccia",

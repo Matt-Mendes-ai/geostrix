@@ -5796,5 +5796,16 @@
   "(to the box base at {z} m)": "(hasta la base de la caja a {z} m)",
   "(cut at the box sides)": "(cortado en los lados de la caja)",
   "± is the most a count of {b} m blocks can be off by (half a block at every contact)": "± es lo máximo que puede errar un conteo de bloques de {b} m (medio bloque en cada contacto)",
-  "Follows the trend {name}: {r} times smoother along {az}° than across.": "Sigue la tendencia {name}: {r} veces más suave a lo largo de {az}° que en sentido transversal."
+  "Follows the trend {name}: {r} times smoother along {az}° than across.": "Sigue la tendencia {name}: {r} veces más suave a lo largo de {az}° que en sentido transversal.",
+  "{a} of {b} holes that log {unit} have a pick on this surface.": "{a} de {b} sondajes que registran {unit} tienen un pick en esta superficie.",
+  "One pick per hole where {unit} starts below a younger unit (not at a hole start, under casing or overburden, or below a gap) — the same tops the implicit tool uses. Check them, then move or delete the outliers.": "Un pick por sondaje donde {unit} comienza bajo una unidad más joven (no al inicio del sondaje, bajo entubado o cobertura, ni bajo un tramo sin registro): los mismos techos que usa la herramienta implícita. Revíselos y mueva o borre los atípicos.",
+  "Add the logged tops of {unit}": "Agregar los techos registrados de {unit}",
+  "{n} under casing, overburden or a cross-cutting unit": "{n} bajo entubado, cobertura o una unidad que corta",
+  "{n} at a hole start": "{n} al inicio del sondaje",
+  "{n} below an unlogged gap": "{n} bajo un tramo sin registro",
+  "{n} below an older unit": "{n} bajo una unidad más antigua",
+  "Added {n} pick(s) at the logged tops of {unit}.": "Se agregaron {n} pick(s) en los techos registrados de {unit}.",
+  "{n} hole(s) already had a pick and were left as they were.": "{n} sondaje(s) ya tenían un pick y se dejaron como estaban.",
+  "{n} hole(s) are not drawn (no survey or collar).": "{n} sondaje(s) no están dibujados (sin levantamiento o collar).",
+  "Not tops of {unit}: {why}.": "No son techos de {unit}: {why}."
 }

@@ -15,7 +15,7 @@ import { mapContactPairs, mapContactLines, dipGuideLines } from "../lib/explicit
 import { imagePlane, rayPlane, facingCamera, densify3, medianApparentDip, sectionSnapTargets, constrainOnImage, groundProfileOnImage, nearestOnPolyline, pointOnSegment, insertPoint, splitAt, joinLines, extendTo } from "../lib/sectionDigitize3d.js"; // TASKS.csv #824 / #825 / #828
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #828 — Undo / Redo
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #885
-import { unitOf, contactOf, layerLabel, unitSummary, splitByElevation, nextLayer } from "../lib/explicitUnits.js"; // TASKS.csv #830 / #831 / #832
+import { unitOf, contactOf, layerLabel, unitSummary, splitByElevation, nextLayer, seedPicksFromTops } from "../lib/explicitUnits.js"; // TASKS.csv #830 / #831 / #832; seed: #871
 import { stackOrder } from "../lib/stackOrder.js"; // TASKS.csv #873
 
 const MAX_POINTS = 800; // ~0.4 s to solve on a laptop (1,200 took 1.2 s); section lines are thinned to fit
@@ -122,7 +122,7 @@ function upsertMesh(sc, def, res, info) {
   return id;
 }
 
-export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesSeq = 0 /* #888 */, trend = null /* #881 */, defs, setDefs, sections, terrain, mapLayers, surfaceStructures, sectionImages = [], unitChoices = [] /* #831 */, onDigitizeImage, pickFor, setPickFor, snap, setSnap, scene: sc, onRemove, askPrompt, pBtn, smallSel, numInput }) {
+export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesSeq = 0 /* #888 */, trend = null /* #881 */, topsOfUnit = null /* #871 */, defs, setDefs, sections, terrain, mapLayers, surfaceStructures, sectionImages = [], unitChoices = [] /* #831 */, onDigitizeImage, pickFor, setPickFor, snap, setSnap, scene: sc, onRemove, askPrompt, pBtn, smallSel, numInput }) {
   const hasTerrain = !!terrain?.bbox;
   const groundAt = (x, y) => {
     const [x0, y0, x1, y1] = terrain.bbox;
@@ -160,6 +160,21 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
     setSelId(id); setPickFor(id);
   });
   const picksOpen = showPicks ?? ((def?.picks?.length || 0) < 6);
+  // TASKS.csv #871 — the unit's logged tops (the surface's unit, else its name) and which holes already carry a pick
+  const seedUnit = def ? unitOf(def) || def.name : "";
+  const seedInfo = useMemo(() => (def && topsOfUnit && seedUnit ? topsOfUnit(seedUnit) : null), [def, seedUnit, topsOfUnit]);
+  const pickedHoles = useMemo(() => new Set((def?.picks || []).filter((p) => p.hole_id).map((p) => p.hole_id)), [def?.picks]);
+  const [seedNote, setSeedNote] = useState(null);
+  const seedTops = () => {
+    if (!def || !seedInfo) return;
+    const stamp = Date.now();
+    const r = seedPicksFromTops(def.picks, seedInfo.tops, (hole, md) => { const t = sc.traces.current.find((tc) => tc.hole_id === hole); return t ? findOnTraceWorld(t, md) : null; }, (i) => `pk_${stamp}_${i}`);
+    if (r.picks.length) update({ picks: [...(def.picks || []), ...r.picks] });
+    const k = seedInfo.skipped, why = [k.belowRole ? tr("{n} under casing, overburden or a cross-cutting unit", { n: k.belowRole }) : null, k.holeStart ? tr("{n} at a hole start", { n: k.holeStart }) : null,
+      k.gap ? tr("{n} below an unlogged gap", { n: k.gap }) : null, k.olderAbove ? tr("{n} below an older unit", { n: k.olderAbove }) : null].filter(Boolean);
+    setSeedNote(tr("Added {n} pick(s) at the logged tops of {unit}.", { n: r.picks.length, unit: seedUnit }) + (r.had ? ` ${tr("{n} hole(s) already had a pick and were left as they were.", { n: r.had })}` : "")
+      + (r.noTrace ? ` ${tr("{n} hole(s) are not drawn (no survey or collar).", { n: r.noTrace })}` : "") + (why.length ? ` ${tr("Not tops of {unit}: {why}.", { unit: seedUnit, why: why.join("; ") })}` : ""));
+  };
   const pickLabel = (p) => `${p.hole_id ? tr("{hole} at {md} m ({how})", { hole: p.hole_id, md: Number(p.md).toFixed(1), how: p.above ? `${p.above} | ${p.below}` : p.src === "boundary" ? tr("logged contact") : tr("on the trace") }) : tr("3D point")} · ${Math.round(p.z)} m`;
   const keepShallowest = () => { const best = new Map(); for (const p of def.picks) if (p.hole_id && (!best.has(p.hole_id) || p.md < best.get(p.hole_id).md)) best.set(p.hole_id, p); update({ picks: def.picks.filter((p) => !p.hole_id || best.get(p.hole_id) === p) }); };
   // TASKS.csv #817 — mapped contacts (draped on the terrain) and their dip guides as further hard lines
@@ -702,6 +717,13 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             <Crosshair size={14} />{" "}{pickFor === def.id && !digDrawing ? tr("Picking — click contacts in 3D (click to stop)") : tr("Pick contacts in 3D")}
           </button>
         </div>
+        {seedInfo && seedInfo.holes.length > 0 && ( // TASKS.csv #871 — start from the logged tops, then edit
+          <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-secondary)" }}>
+            {tr("{a} of {b} holes that log {unit} have a pick on this surface.", { a: seedInfo.holes.filter((h) => pickedHoles.has(h)).length, b: seedInfo.holes.length, unit: seedUnit })}{" "}
+            {contactOf(def) !== "lower" && seedInfo.tops.some((t) => !pickedHoles.has(t.hole_id)) && <button onClick={seedTops} title={tr("One pick per hole where {unit} starts below a younger unit (not at a hole start, under casing or overburden, or below a gap) — the same tops the implicit tool uses. Check them, then move or delete the outliers.", { unit: seedUnit })} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged tops of {unit}", { unit: seedUnit })}</button>}
+          </div>
+        )}
+        {seedNote && <div role="status" style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-secondary)" }}>{seedNote}</div>}
         {dupHoles.size > 0 && ( // TASKS.csv #866 — a contact crosses a hole once unless folded or faulted
           <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-warning, #b7791f)" }}>
             {tr("More than one pick on the same hole: {list}. A contact crosses a hole once unless it is folded or faulted; a repeated unit belongs on another layer or surface.", { list: [...dupHoles].map(([h, n]) => `${h} (${n})`).join(", ") })}{" "}

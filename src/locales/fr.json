@@ -5796,5 +5796,16 @@
   "(to the box base at {z} m)": "(jusqu'à la base de la boîte à {z} m)",
   "(cut at the box sides)": "(coupé aux côtés de la boîte)",
   "± is the most a count of {b} m blocks can be off by (half a block at every contact)": "± est l'écart maximal d'un comptage de blocs de {b} m (un demi-bloc à chaque contact)",
-  "Follows the trend {name}: {r} times smoother along {az}° than across.": "Suit la tendance {name} : {r} fois plus lisse le long de {az}° qu'en travers."
+  "Follows the trend {name}: {r} times smoother along {az}° than across.": "Suit la tendance {name} : {r} fois plus lisse le long de {az}° qu'en travers.",
+  "{a} of {b} holes that log {unit} have a pick on this surface.": "{a} des {b} sondages qui décrivent {unit} ont un pointé sur cette surface.",
+  "One pick per hole where {unit} starts below a younger unit (not at a hole start, under casing or overburden, or below a gap) — the same tops the implicit tool uses. Check them, then move or delete the outliers.": "Un pointé par sondage là où {unit} commence sous une unité plus jeune (pas au début du sondage, ni sous le tubage ou les morts-terrains, ni sous une lacune) : les mêmes toits que l'outil implicite. Vérifiez-les, puis déplacez ou supprimez les valeurs aberrantes.",
+  "Add the logged tops of {unit}": "Ajouter les toits décrits de {unit}",
+  "{n} under casing, overburden or a cross-cutting unit": "{n} sous le tubage, les morts-terrains ou une unité recoupante",
+  "{n} at a hole start": "{n} au début du sondage",
+  "{n} below an unlogged gap": "{n} sous une lacune non décrite",
+  "{n} below an older unit": "{n} sous une unité plus ancienne",
+  "Added {n} pick(s) at the logged tops of {unit}.": "{n} pointé(s) ajouté(s) aux toits décrits de {unit}.",
+  "{n} hole(s) already had a pick and were left as they were.": "{n} sondage(s) avaient déjà un pointé et sont restés tels quels.",
+  "{n} hole(s) are not drawn (no survey or collar).": "{n} sondage(s) ne sont pas dessinés (pas de levé ni de collet).",
+  "Not tops of {unit}: {why}.": "Pas des toits de {unit} : {why}."
 }

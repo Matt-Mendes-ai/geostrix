@@ -5796,5 +5796,16 @@
   "(to the box base at {z} m)": "(até a base da caixa a {z} m)",
   "(cut at the box sides)": "(cortado nas laterais da caixa)",
   "± is the most a count of {b} m blocks can be off by (half a block at every contact)": "± é o máximo que uma contagem de blocos de {b} m pode errar (meio bloco em cada contato)",
-  "Follows the trend {name}: {r} times smoother along {az}° than across.": "Segue a tendência {name}: {r} vezes mais suave ao longo de {az}° do que na transversal."
+  "Follows the trend {name}: {r} times smoother along {az}° than across.": "Segue a tendência {name}: {r} vezes mais suave ao longo de {az}° do que na transversal.",
+  "{a} of {b} holes that log {unit} have a pick on this surface.": "{a} de {b} furos que registram {unit} têm um pick nesta superfície.",
+  "One pick per hole where {unit} starts below a younger unit (not at a hole start, under casing or overburden, or below a gap) — the same tops the implicit tool uses. Check them, then move or delete the outliers.": "Um pick por furo onde {unit} começa abaixo de uma unidade mais jovem (não no início do furo, sob revestimento ou cobertura, nem abaixo de uma lacuna): os mesmos topos que a ferramenta implícita usa. Confira-os e mova ou apague os discrepantes.",
+  "Add the logged tops of {unit}": "Adicionar os topos registrados de {unit}",
+  "{n} under casing, overburden or a cross-cutting unit": "{n} sob revestimento, cobertura ou uma unidade que corta",
+  "{n} at a hole start": "{n} no início do furo",
+  "{n} below an unlogged gap": "{n} abaixo de uma lacuna sem registro",
+  "{n} below an older unit": "{n} abaixo de uma unidade mais antiga",
+  "Added {n} pick(s) at the logged tops of {unit}.": "Foram adicionados {n} pick(s) nos topos registrados de {unit}.",
+  "{n} hole(s) already had a pick and were left as they were.": "{n} furo(s) já tinham um pick e ficaram como estavam.",
+  "{n} hole(s) are not drawn (no survey or collar).": "{n} furo(s) não estão desenhados (sem levantamento ou colar).",
+  "Not tops of {unit}: {why}.": "Não são topos de {unit}: {why}."
 }
