@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { X, Download } from "./icons.js";
+import { X, Download, Sheet } from "./icons.js";
 import Papa from "papaparse";
 import { computeBestIntercepts, makeRangeAverager, domainsForInterval, attachIncluding, metalEquivalent, metalEquivalentFormula, PRECIOUS_METALS } from "../lib/geochem.js"; // attachIncluding, metal equivalent: #402
 import { excludeQAQC } from "../lib/qaqc.js";
@@ -27,7 +27,7 @@ const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row
 export default function BestIntercepts({ assays, assayElements, collars, survey, layers, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
-  const { desurveyMethod, project } = useStore(); // TASKS.csv #135 — true-width needs the project's own trace
+  const { desurveyMethod, project, setLayoutElements, goToModule } = useStore(); // TASKS.csv #135 — true-width needs the project's own trace; layout: #911
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   const [symbol, setSymbol] = useState(symbols[0] || "Au");
@@ -131,6 +131,16 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
   };
   const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(results.length, RESULT_ROW_H, { containerHeight: 380 });
 
+  // TASKS.csv #911 — the results as a table on the active Layout page (a copy: send again after changing the settings)
+  const toLayout = () => {
+    const columns = [tr("Hole"), tr("From (m)"), tr("To (m)"), tr("Length (m)"), ...(twEnabled ? [tr("True width (m)")] : []), `${symbol} (${unit})`, ...(incOn ? [tr("Including")] : [])];
+    const rows = results.slice(0, 60).map((r) => [String(r.hole_id), Number(r.from).toFixed(2), Number(r.to).toFixed(2), r.length.toFixed(2), ...(twEnabled ? [r.tw ? r.tw.trueWidth.toFixed(2) : ""] : []), `${r.overRange ? "≥" : ""}${r.avgGrade.toFixed(3)}`, ...(incOn ? [r.including ? incText(r.including[0]) : ""] : [])]);
+    const from = tr("{symbol} ≥ {cutoff} {unit}, dilution ≤ {dil} m, min {min} m", { symbol, cutoff, unit, dil: maxInternalDilution, min: minLength });
+    setLayoutElements((els) => [...els, { id: `table_${Date.now()}`, type: "table", source: "static", x: 60, y: 60, w: 520, fontPt: 7, frameWidth: 1,
+      title: tr("Best intercepts: {from}", { from }), from, columns, rows: results.length > 60 ? [...rows, [tr("… {n} more intercept(s) in the CSV report", { n: results.length - 60 }), ...columns.slice(1).map(() => "")]] : rows }]);
+    goToModule("layout");
+    onClose();
+  };
   const exportCSV = () => {
     const rows = results.map((r) => ({
       hole_id: r.hole_id, from: r.from, to: r.to, length_m: r.length.toFixed(2),
@@ -361,6 +371,8 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
 
           <button onClick={exportCSV} disabled={results.length === 0} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
             <Download size={14} />{" "}{tr("Export report (CSV)")}</button>
+          <button onClick={toLayout} disabled={results.length === 0} title={tr("Put these intercepts on the current Layout page as a table (the best 60; the CSV has them all)")} style={{ ...btn(false), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6, opacity: results.length === 0 ? 0.5 : 1 }}>
+            <Sheet size={14} />{" "}{tr("To Layout")}</button>{/* TASKS.csv #911 */}
         </div>
 
         <div style={{ display: "flex", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>

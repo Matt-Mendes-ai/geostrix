@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
-import { Plus, X, Maximize2, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid } from "../components/icons.js";
+import { Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid } from "../components/icons.js";
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { savePDF, saveFile, exportPDFData } from "../lib/desktop.js"; // saveFile / exportPDFData: TASKS.csv #909 Export PNG
 import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
@@ -172,6 +172,8 @@ export default function LayoutModule() {
   // window-level mousemove/mouseup listeners (same pattern SectionWindow.jsx's contact-drawing tool
   // uses, just single-shot instead of multi-point-click).
   const [freehandTool, setFreehandTool] = useState(false);
+  // TASKS.csv #910 — smart guides: the lines a drag is snapping to right now ([{ axis: "x" | "y", at }], page px)
+  const [guides, setGuides] = useState([]);
   const [freehandPoints, setFreehandPoints] = useState([]);
   const freehandDrawing = useRef(false);
   // Bug fix (user report: "free hand tool in layout is creating numerous lines"). Points were tracked
@@ -319,7 +321,22 @@ export default function LayoutModule() {
           id: el.id, offX: (e.clientX - rect.left) / zoomRef.current - el.x, offY: (e.clientY - rect.top) / zoomRef.current - el.y, // / zoom: #909
           groupOrigin: new Map(elements.filter((e2) => multiSelected.has(e2.id) && !e2.locked).map((e2) => [e2.id, { x: e2.x, y: e2.y }])), // locked members stay: #909
         }
-      : { id: el.id, offX: (e.clientX - rect.left) / zoomRef.current - el.x, offY: (e.clientY - rect.top) / zoomRef.current - el.y, groupOrigin: null };
+      : { id: el.id, offX: (e.clientX - rect.left) / zoomRef.current - el.x, offY: (e.clientY - rect.top) / zoomRef.current - el.y, groupOrigin: null, guide: dragGuide(el) };
+  };
+  // TASKS.csv #910 — what a single drag can snap to: the other elements' edges and centres (as drawn), the page's edges,
+  // centre and 10 mm margins; plus where the dragged element's drawn box sits relative to its x / y
+  const dragGuide = (el) => {
+    const b = boxOf(el.id);
+    if (!b) return null;
+    const m = 10 * PX_PER_MM;
+    const xs = [0, m, A4.w / 2, A4.w - m, A4.w], ys = [0, m, A4.h / 2, A4.h - m, A4.h];
+    for (const o of elements) {
+      if (o.id === el.id) continue;
+      const ob = boxOf(o.id);
+      if (!ob) continue;
+      xs.push(ob.x, ob.x + ob.w / 2, ob.x + ob.w); ys.push(ob.y, ob.y + ob.h / 2, ob.y + ob.h);
+    }
+    return { bx: b.x - el.x, by: b.y - el.y, bw: b.w, bh: b.h, xs, ys };
   };
   // TASKS.csv #907 — "Fit the holes": the smallest round scale (1 / 1.5 / 2 / 2.5 / 3 / 4 / 5 / 6 / 8 x 10^n - finer than
   // the presets, since a wide landscape frame over N-S data jumped from a needed 1:25,934 straight to 1:50,000) at which
@@ -359,7 +376,8 @@ export default function LayoutModule() {
       const rad = (el.angle * Math.PI) / 180, ax = Math.cos(rad) * el.length, ay = Math.sin(rad) * el.length, pad = 12;
       arrow = { x: el.x + (ax < 0 ? Math.abs(ax) + pad : pad), y: el.y + (ay < 0 ? Math.abs(ay) + pad : pad) };
     }
-    dragState.current = { resize: handle, id: el.id, startX: px, startY: py, x0: el.x, y0: el.y, w0, h0, lockAspect: ASPECT_LOCKED.has(el.type) || e.shiftKey, widthOnly: WIDTH_ONLY.has(el.type), arrow };
+    const g = dragGuide(el); // #910 — the edges snap to the same lines (x / y of the box itself are the element's)
+    dragState.current = { resize: handle, id: el.id, startX: px, startY: py, x0: el.x, y0: el.y, w0, h0, lockAspect: ASPECT_LOCKED.has(el.type) || e.shiftKey, widthOnly: WIDTH_ONLY.has(el.type), arrow, guide: g };
   };
   // TASKS.csv #101 — derived (not stored) so it always reflects the bound viewport's LATEST scale.
   // Falls back to null (and the grid behaves exactly as before, mm-based) if nothing's bound, the
@@ -387,6 +405,17 @@ export default function LayoutModule() {
       let x = (e.clientX - rect.left) / z - dragState.current.offX;
       let y = (e.clientY - rect.top) / z - dragState.current.offY;
       if (showGrid) { x = Math.round(x / snapPx) * snapPx; y = Math.round(y / snapPx) * snapPx; }
+      // TASKS.csv #910 — smart guides (grid off; Alt drags freely): the dragged box's left / centre / right and top /
+      // middle / bottom snap to the other elements' and the page's lines within 5 screen px
+      const g = dragState.current.guide;
+      if (g && !showGrid && !dragState.current.resize && !e.altKey) {
+        const thr = 5 / z;
+        const sx = snapToGuides([x + g.bx, x + g.bx + g.bw / 2, x + g.bx + g.bw], g.xs, thr);
+        const sy = snapToGuides([y + g.by, y + g.by + g.bh / 2, y + g.by + g.bh], g.ys, thr);
+        x += sx.delta; y += sy.delta;
+        const next = [...(sx.at != null ? [{ axis: "x", at: sx.at }] : []), ...(sy.at != null ? [{ axis: "y", at: sy.at }] : [])];
+        setGuides((p) => (p.length === next.length && p.every((q, i) => q.axis === next[i].axis && q.at === next[i].at) ? p : next));
+      }
       x = Math.round(x); y = Math.round(y);
       // TASKS.csv #906 — a handle drag: the moving edge(s) follow the cursor (snapped to the grid when it is on); Shift,
       // or a type whose aspect is locked (an image, a logo), keeps the shape; an arrow's tip drag re-aims and re-lengthens
@@ -404,13 +433,22 @@ export default function LayoutModule() {
           return;
         }
         const dx = px - d.startX, dy = py - d.startY, minW = 20, minH = 20;
-        const snap = (v) => (showGrid ? Math.round(v / snapPx) * snapPx : v);
+        // #910 — with the grid off a moving edge snaps to the smart guides instead (Alt: freely)
+        const hits = [];
+        const guideSnap = (v, axis) => {
+          if (!d.guide || e.altKey) return v;
+          const r = snapToGuides([v], axis === "x" ? d.guide.xs : d.guide.ys, 5 / zoomRef.current);
+          if (r.at != null) hits.push({ axis, at: r.at });
+          return v + r.delta;
+        };
+        const snapX = (v) => (showGrid ? Math.round(v / snapPx) * snapPx : guideSnap(v, "x"));
+        const snapY = (v) => (showGrid ? Math.round(v / snapPx) * snapPx : guideSnap(v, "y"));
         let x = d.x0, y = d.y0, w = d.w0, h = d.h0;
-        if (hnd.includes("e")) w = Math.max(minW, snap(d.x0 + d.w0 + dx) - d.x0);
-        if (hnd.includes("w")) { const nx = Math.min(snap(d.x0 + dx), d.x0 + d.w0 - minW); w = d.x0 + d.w0 - nx; x = nx; }
+        if (hnd.includes("e")) w = Math.max(minW, snapX(d.x0 + d.w0 + dx) - d.x0);
+        if (hnd.includes("w")) { const nx = Math.min(snapX(d.x0 + dx), d.x0 + d.w0 - minW); w = d.x0 + d.w0 - nx; x = nx; }
         if (!d.widthOnly) {
-          if (hnd.includes("s")) h = Math.max(minH, snap(d.y0 + d.h0 + dy) - d.y0);
-          if (hnd.includes("n")) { const ny = Math.min(snap(d.y0 + dy), d.y0 + d.h0 - minH); h = d.y0 + d.h0 - ny; y = ny; }
+          if (hnd.includes("s")) h = Math.max(minH, snapY(d.y0 + d.h0 + dy) - d.y0);
+          if (hnd.includes("n")) { const ny = Math.min(snapY(d.y0 + dy), d.y0 + d.h0 - minH); h = d.y0 + d.h0 - ny; y = ny; }
           if (d.lockAspect && d.h0 > 0) {
             const a = d.w0 / d.h0;
             const byW = hnd === "e" || hnd === "w" || (hnd !== "n" && hnd !== "s" && Math.abs(dx) >= Math.abs(dy)); // the dominant delta wins on a corner
@@ -419,6 +457,7 @@ export default function LayoutModule() {
             if (hnd.includes("n")) y = d.y0 + d.h0 - h;
           }
         }
+        if (!showGrid) setGuides(d.lockAspect ? [] : hits); // an aspect-locked box moves the other edge too: no line to show
         const hOut = d.widthOnly ? {} : { h: d.lockAspect ? Math.round(h * 100) / 100 : Math.round(h) };
         setElements((els) => els.map((el) => el.id === d.id ? { ...el, x: Math.round(x), y: Math.round(y), w: Math.round(w), ...hOut } : el));
         return;
@@ -435,7 +474,7 @@ export default function LayoutModule() {
         setElements((els) => els.map((el) => el.id === id ? { ...el, x, y } : el));
       }
     };
-    const onUp = () => { dragState.current = null; };
+    const onUp = () => { dragState.current = null; setGuides([]); };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     // TASKS.csv #207 — same "OS steals input mid-drag" safety net as SidebarResizeHandle.jsx (a
@@ -457,6 +496,8 @@ export default function LayoutModule() {
     if (type === "rect") { base.w = 180; base.h = 110; base.stroke = "#1a2028"; base.strokeWidth = 2; base.fill = "#ffffff"; base.fillOpacity = 0; }
     if (type === "arrow") { base.length = 140; base.angle = 0; base.stroke = "#1a2028"; base.strokeWidth = 2.5; }
     if (type === "callout") { base.text = "Note"; base.w = 180; base.fill = "#fff9e0"; base.stroke = "#c9a227"; }
+    // TASKS.csv #911 — a drillhole collar table, live from the project's collars (static tables come from Best intercepts)
+    if (type === "table") { base.source = "collars"; base.title = "Drillhole collars"; base.w = 520; base.fontPt = 7; base.maxRows = 40; base.frameWidth = 1; }
     if (type !== "logo") setElements((els) => [...els, base]);
     setSelected(type !== "logo" ? id : null);
   };
@@ -632,7 +673,7 @@ export default function LayoutModule() {
   // expressions, the few a figure's title block needs); {scale} is the page's first fixed-scale viewport, else its
   // first true-scale one, else the approximate scale of the first viewport
   const activePageIndex = Math.max(0, layoutPages.findIndex((pg) => pg.id === activeLayoutPageId));
-  const textCtx = useMemo(() => textContextFor(elements, project, activePage, activePageIndex, layoutPages.length), [elements, project, activePage, activePageIndex, layoutPages.length]);
+  const textCtx = useMemo(() => textContextFor(elements, project, activePage, activePageIndex, layoutPages.length, collars), [elements, project, activePage, activePageIndex, layoutPages.length, collars]);
 
   // "Each viewport and cross section need an option to assign a scale bar to it" — previously there
   // was only ever ONE scale-bar element on a page (onSyncScaleBar found-or-created the single
@@ -744,7 +785,7 @@ export default function LayoutModule() {
 
   return (
     <div className="ge-body" style={{ width: "100%" }}>
-      {printing && <LayoutPrintRoot ref={printRootRef} pages={layoutPages} project={project} />}{/* TASKS.csv #908 */}
+      {printing && <LayoutPrintRoot ref={printRootRef} pages={layoutPages} project={project} collars={collars} />}{/* TASKS.csv #908 */}
       <div className="ge-panel" style={{ padding: "16px 14px", width: sidebarWidth }}>
         {/* TASKS.csv #458 — Layout ribbon (replaces the #65 icon palette and the Templates / Output buttons). */}
         <Ribbon label="Layout tools">
@@ -754,6 +795,7 @@ export default function LayoutModule() {
             <RibbonButton icon={Compass} label="North arrow" tone="output" title="Add north arrow" onClick={() => addElement("north")} />
             <RibbonButton icon={Ruler} label="Scale bar" tone="output" title="Add scale bar" onClick={() => addElement("scale")} />
             <RibbonButton icon={Plus} label="Legend" tone="output" title="Add legend" onClick={() => addElement("legend")} />
+            <RibbonButton advanced icon={Sheet} label="Collar table" tone="output" title="Add a table of the drillhole collars (hole, easting, northing, elevation, azimuth, dip, depth), kept up to date with the project. Best intercepts puts its results on the page from its own window." onClick={() => addElement("table")} />{/* TASKS.csv #911 */}
           </RibbonGroup>
           <RibbonGroup label="Views">
             <RibbonButton icon={Camera} label="Current view" tone="view" title="Add a viewport snapshot of the current 3D View (no theme needed)" onClick={() => startViewportRender(null, "new")} />
@@ -842,6 +884,18 @@ export default function LayoutModule() {
                 frameWidth/frameColor/frameStyle fields and control shape rather than a second UI. */}
             {(sel.type === "text" || sel.type === "title" || sel.type === "legend") && (
               <FrameControls sel={sel} updateSelected={updateSelected} />
+            )}
+            {sel.type === "table" && ( /* TASKS.csv #911 */
+              <>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Table title")}<input value={sel.title || ""} onChange={(e) => updateSelected({ title: e.target.value })} style={inp} /></label>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Text size (pt)")}<input type="number" min="5" max="14" step="0.5" value={sel.fontPt || 7} onChange={(e) => updateSelected({ fontPt: Math.max(5, Math.min(14, Number(e.target.value) || 7)) })} style={inp} /></label>
+                  {sel.source === "collars" && <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Rows at most")}<input type="number" min="1" step="1" value={sel.maxRows || 40} onChange={(e) => updateSelected({ maxRows: Math.max(1, Math.round(Number(e.target.value) || 40)) })} style={inp} /></label>}
+                </div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }}>
+                  {sel.source === "collars" ? tr("Kept up to date with the project's collars, sorted by hole; holes beyond the row limit are counted in the last line.") : tr("A copy of the results when it was sent (from {from}); send it again to update it.", { from: sel.from || tr("Best intercepts") })}</div>
+                <FrameControls sel={sel} updateSelected={updateSelected} />
+              </>
             )}
             {"meters" in sel && (
               <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Scale length (m)")}<input type="number" value={sel.meters} onChange={(e) => updateSelected({ meters: Number(e.target.value) })} style={inp} />
@@ -937,6 +991,7 @@ export default function LayoutModule() {
                 onRebind={(themeId) => startViewportRender(themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
                 onEnter={() => startInteractiveViewportEdit(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
                 onFit={() => fitViewport(sel)}
+                others={elements.filter((o) => o.type === "viewport" && o.id !== sel.id)}
                 onSyncScaleBar={() => syncScaleBarForElement(sel, sel.worldHeightAtTarget, sel.capH || sel.h)}
                 onSyncNorth={() => {
                   // TASKS.csv #67 — same pattern as onSyncScaleBar just above: apply this viewport's
@@ -1198,6 +1253,11 @@ export default function LayoutModule() {
           {withLiveScaleBars(elements).map((el) => (
             <LayoutElement key={el.id} el={el} selected={selected === el.id} multiSelected={multiSelected.size > 1 && multiSelected.has(el.id)} onDown={(e) => { e.stopPropagation(); onDown(e, el); }} onResizeStart={onResizeStart} ctx={textCtx} />
           ))}
+          {guides.map((g, i) => ( /* TASKS.csv #910 */
+            <div key={`guide${i}`} style={g.axis === "x"
+              ? { position: "absolute", left: g.at, top: 0, width: 0, height: A4.h, borderLeft: "1px dashed #e0407b", pointerEvents: "none", zIndex: 5 }
+              : { position: "absolute", top: g.at, left: 0, height: 0, width: A4.w, borderTop: "1px dashed #e0407b", pointerEvents: "none", zIndex: 5 }} />
+          ))}
           {freehandPoints.length > 1 && (
             <svg style={{ position: "absolute", inset: 0, pointerEvents: "none" }} width={A4.w} height={A4.h}>
               <polyline points={freehandPoints.map((p) => p.join(",")).join(" ")} fill="none" stroke="#4a9be0" strokeWidth="2" strokeDasharray="4 3" />
@@ -1255,6 +1315,26 @@ function Ruler2D({ axis, length, mmStep }) {
 // can be placed exactly. A perspective or oblique capture has no single metres-per-pixel, and a grid on
 // it would be a confident-looking fiction. Lines follow the capture's camera azimuth (a rotated map gets
 // rotated grid lines); labels sit where each line meets the frame.
+// TASKS.csv #912 — page px of a viewport's image (from its centre: u right, v down) <-> world E / N, for a top-down,
+// true-scale capture (the UtmGridOverlay maths: screen-up points at bearing -azimuth). overviewPolygon: the corners of
+// `target`'s image in `overview`'s image px (from its top-left), or null when either is not such a capture.
+function vpToWorld(el, u, v) {
+  const m = el.worldHeightAtTarget / (el.capH || el.h), b = (-(el.cameraAzimuthDeg || 0) * Math.PI) / 180, cb = Math.cos(b), sb = Math.sin(b);
+  return [el.targetWorld.x + m * (u * cb - v * sb), el.targetWorld.y - m * (u * sb + v * cb)];
+}
+function worldToVp(el, E, N) {
+  const m = el.worldHeightAtTarget / (el.capH || el.h), b = (-(el.cameraAzimuthDeg || 0) * Math.PI) / 180, cb = Math.cos(b), sb = Math.sin(b);
+  const a = (E - el.targetWorld.x) / m, c = -(N - el.targetWorld.y) / m;
+  return [a * cb + c * sb, -a * sb + c * cb];
+}
+function overviewPolygon(overview, target) {
+  if (!target || !utmGridReady(overview) || !utmGridReady(target)) return null;
+  const tw = target.capW || target.w, th = target.capH || target.h, ow = overview.capW || overview.w, oh = overview.capH || overview.h;
+  return [[-tw / 2, -th / 2], [tw / 2, -th / 2], [tw / 2, th / 2], [-tw / 2, th / 2]].map(([u, v]) => {
+    const [E, N] = vpToWorld(target, u, v), [x, y] = worldToVp(overview, E, N);
+    return [Math.round((x + ow / 2) * 10) / 10, Math.round((y + oh / 2) * 10) / 10];
+  });
+}
 function utmGridReady(el) {
   return !!(el.planView && el.trueScale && el.targetWorld && el.worldHeightAtTarget && el.h && el.w);
 }
@@ -1306,7 +1386,7 @@ function UtmGridOverlay({ el }) {
   );
 }
 
-function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, onEnter, onFit, onSyncScaleBar, onSyncNorth, syncNotice }) {
+function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, onEnter, onFit, onSyncScaleBar, onSyncNorth, syncNotice, others = [] }) {
   // TASKS.csv #907 — the scale picker: a preset, "custom" (a typed 1:N), or free (whatever the 3D view frames)
   const [customScale, setCustomScale] = useState(false);
   const scaleChoice = customScale || (sel.fixedScale > 0 && !SCALE_PRESETS.includes(sel.fixedScale)) ? "custom" : sel.fixedScale > 0 ? String(sel.fixedScale) : "";
@@ -1378,6 +1458,17 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
             style={{ width: 72, fontSize: "var(--font-size-sm)" }} />
         )}
       </label>
+      {others.length > 0 && ( /* TASKS.csv #912 — an overview (inset) map */
+        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }} title={tr("Draw another viewport's ground extent on this one, as on an inset location map. Both need a top-down, true-scale capture.")}>{tr("Show the extent of")}
+          <select value={sel.overviewOf || ""} onChange={(e) => updateSelected({ overviewOf: e.target.value || null })} style={inp}>
+            <option value="">{tr("— none —")}</option>
+            {others.map((o, i) => <option key={o.id} value={o.id}>{tr("Viewport {n}", { n: i + 1 })}{o.fixedScale > 0 ? ` (1 : ${o.fixedScale.toLocaleString()})` : ""}</option>)}
+          </select>
+        </label>
+      )}
+      {sel.overviewOf && !overviewPolygon(sel, others.find((o) => o.id === sel.overviewOf)) && (
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }}>{tr("The extent shows when both viewports are top-down, true-scale captures: set the 3D view to Top, pick a scale, and refresh each.")}</div>
+      )}
       <button onClick={onFit} disabled={sel.refreshing} title={tr("Pick the round scale at which all the drillholes (or the surface samples / boundaries) fit this frame, centre the view on them, and refresh")} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
         <Maximize2 size={14} />{" "}{tr("Fit the holes at a round scale")}</button>
       {sel.fixedScale > 0 && (
@@ -1459,7 +1550,7 @@ function frameBorder(el, fallback = "none") {
 
 // TASKS.csv #908 — every page at its paper size, in mm, for printToPDF; shown only under @media print (app.css), its
 // siblings hidden. A named @page per distinct format lets one PDF hold A4 landscape and A3 portrait pages.
-const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, project }, ref) {
+const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, project, collars }, ref) {
   const formats = [...new Map(pages.map((pg) => { const f = pageFormatOf(pg); return [pageCssName(f), f]; })).values()];
   const css = formats.map((f) => { const [w, h] = pageMm(f), n = pageCssName(f); return `@page ${n} { size: ${w}mm ${h}mm; margin: 0; }\n.ge-print-${n} { page: ${n}; }`; }).join("\n");
   return (
@@ -1469,7 +1560,7 @@ const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, proje
         const f = pageFormatOf(pg), [w, h] = pageMm(f);
         return (
           <div key={pg.id} className={`ge-print-page ge-print-${pageCssName(f)}`} style={{ width: `${w}mm`, height: `${h}mm` }}>
-            {withLiveScaleBars(pg.elements).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={textContextFor(pg.elements || [], project, pg, i, pages.length)} />)}
+            {withLiveScaleBars(pg.elements).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={textContextFor(pg.elements || [], project, pg, i, pages.length, collars)} />)}
           </div>
         );
       })}
@@ -1477,12 +1568,19 @@ const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, proje
   );
 });
 
+// TASKS.csv #910 — the nearest snap of any of `vals` to any of `lines` within thr: { delta, at } (at = the line, or null)
+function snapToGuides(vals, lines, thr) {
+  let best = null;
+  for (const v of vals) for (const l of lines) { const d = l - v; if (Math.abs(d) <= thr && (!best || Math.abs(d) < Math.abs(best.delta))) best = { delta: d, at: l }; }
+  return best || { delta: 0, at: null };
+}
+
 // TASKS.csv #906 — resize handles: 8 for a free box, the 4 corners where the aspect is locked, left / right for an
 // element that wraps text to its width, the tip of an arrow. Drawn on the single selected element only.
 const BOX_TYPES = new Set(["viewport", "image", "rect", "logo"]);
 const ASPECT_LOCKED = new Set(["image", "logo"]);
-const WIDTH_ONLY = new Set(["title", "text", "callout", "legend"]);
-const HANDLES_FOR = { viewport: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], rect: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], image: ["nw", "ne", "se", "sw"], logo: ["nw", "ne", "se", "sw"], title: ["e", "w"], text: ["e", "w"], callout: ["e", "w"], legend: ["e", "w"] };
+const WIDTH_ONLY = new Set(["title", "text", "callout", "legend", "table"]);
+const HANDLES_FOR = { viewport: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], rect: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], image: ["nw", "ne", "se", "sw"], logo: ["nw", "ne", "se", "sw"], title: ["e", "w"], text: ["e", "w"], callout: ["e", "w"], legend: ["e", "w"], table: ["e", "w"] };
 const HANDLE_CURSOR = { n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize", ne: "nesw-resize", sw: "nesw-resize", nw: "nwse-resize", se: "nwse-resize", tip: "crosshair" };
 const HANDLE_POS = { n: { left: "50%", top: 0 }, s: { left: "50%", top: "100%" }, e: { left: "100%", top: "50%" }, w: { left: 0, top: "50%" }, ne: { left: "100%", top: 0 }, nw: { left: 0, top: 0 }, se: { left: "100%", top: "100%" }, sw: { left: 0, top: "100%" } };
 function Handles({ which, onStart, at = {} }) {
@@ -1518,8 +1616,8 @@ function pageScaleText(els) {
   const ratio = v.worldHeightAtTarget / (((v.capH || v.h) / 96) * 0.0254);
   return `${v.trueScale ? "" : "~"}1 : ${Math.round(ratio).toLocaleString()}`;
 }
-function textContextFor(els, project, page, index, count) {
-  return { project: project?.name || "", date: new Date().toLocaleDateString(), page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els) };
+function textContextFor(els, project, page, index, count, collars = null) {
+  return { project: project?.name || "", date: new Date().toLocaleDateString(), page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), collars, els }; // collars: the #911 table; els: the #912 overview
 }
 const fillText = (text, ctx) => (ctx && typeof text === "string" && text.includes("{") ? text.replace(PLACEHOLDER, (m, k) => (ctx[k] != null ? ctx[k] : m)) : text);
 
@@ -1584,6 +1682,14 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
         <div style={{ width: "100%", height: "100%", background: "#fff", position: "relative", overflow: "hidden" }}>
           {el.src && <img src={el.src} alt={tr("viewport")} style={{ position: "absolute", left: (W - imgW) / 2, top: (H - imgH) / 2, width: imgW, height: imgH, display: "block" }} draggable={false} />}
           {el.utmGrid && utmGridReady(el) && <div style={{ position: "absolute", left: (W - imgW) / 2, top: (H - imgH) / 2, width: imgW, height: imgH }}><UtmGridOverlay el={{ ...el, w: imgW, h: imgH }} /></div>}
+          {el.overviewOf && (() => { /* TASKS.csv #912 — another viewport's ground footprint, as a rectangle */
+            const poly = overviewPolygon(el, (ctx?.els || []).find((v) => v.id === el.overviewOf));
+            return poly ? (
+              <svg style={{ position: "absolute", left: (W - imgW) / 2, top: (H - imgH) / 2, overflow: "visible", pointerEvents: "none" }} width={imgW} height={imgH}>
+                <polygon points={poly.map((p) => p.join(",")).join(" ")} fill="rgba(224,64,64,0.12)" stroke="#d62f2f" strokeWidth="1.5" />
+              </svg>
+            ) : null;
+          })()}
           {el.refreshing && !print && (
             <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-base)", color: "#333", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Rendering…")}</div>
           )}
@@ -1666,6 +1772,35 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
       ))}
     </div>
   );
+  // TASKS.csv #911 — a table: live drillhole collars, or a static copy (Best intercepts' results). Print typography (pt),
+  // numbers right-aligned in tabular figures, a hairline grid; rows beyond the limit are counted, not dropped silently.
+  if (el.type === "table") {
+    let columns = el.columns || [], rows = el.rows || [], more = 0;
+    if (el.source === "collars") {
+      const cs = [...(ctx?.collars || [])].sort((a, b) => String(a.hole_id).localeCompare(String(b.hole_id), undefined, { numeric: true }));
+      const f = (v, d) => (Number.isFinite(Number(v)) && v !== "" && v != null ? Number(v).toFixed(d) : "");
+      columns = [tr("Hole"), tr("Easting"), tr("Northing"), tr("Elev. (m)"), tr("Azimuth"), tr("Dip"), tr("Depth (m)")];
+      const lim = el.maxRows || 40;
+      rows = cs.slice(0, lim).map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), f(c.z, 1), f(c.azimuth, 0), f(c.dip, 0), f(c.length, 1)]);
+      more = Math.max(0, cs.length - lim);
+    }
+    const fs = printPx(el.fontPt || 7), cell = { padding: `${Math.round(fs * 0.25)}px ${Math.round(fs * 0.5)}px`, borderBottom: "0.5px solid #c9ced4", whiteSpace: "nowrap" };
+    const numeric = columns.map((_, j) => rows.length > 0 && rows.every((r) => r[j] === "" || /^[-+≥<>]?[\d.,]+$/.test(String(r[j]))));
+    return (
+      <div style={{ ...wrap, width: el.w || 520, background: "#fff", border: frameBorder(el), padding: 6, boxSizing: "border-box", fontFamily: "'Exo 2', system-ui, sans-serif", color: "#1a2028" }} onMouseDown={onDown} data-el-id={el.id}>
+        {el.title && <div style={{ fontSize: printPx((el.fontPt || 7) + 2), fontWeight: 700, marginBottom: 4 }}>{fillText(el.title, ctx)}</div>}
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: fs, fontVariantNumeric: "tabular-nums", tableLayout: "auto" }}>
+          <thead><tr>{columns.map((h, j) => <th key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left", fontWeight: 600, borderBottom: "1px solid #1a2028" }}>{h}</th>)}</tr></thead>
+          <tbody>
+            {rows.map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left" }}>{v}</td>)}</tr>)}
+            {!rows.length && <tr><td colSpan={Math.max(1, columns.length)} style={{ ...cell, color: "#777" }}>{el.source === "collars" ? tr("No collars in the project yet.") : tr("No rows.")}</td></tr>}
+            {more > 0 && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{tr("… and {n} more hole(s) (raise \"Rows at most\" or add a second table)", { n: more })}</td></tr>}
+          </tbody>
+        </table>
+        {handles}
+      </div>
+    );
+  }
   // TASKS.csv #19 — shapes/annotation tools
   if (el.type === "rect") return (
     <div style={{ ...wrap, width: el.w, height: el.h }} onMouseDown={onDown} data-el-id={el.id}>
