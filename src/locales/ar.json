@@ -5856,5 +5856,7 @@
   "Use bedding across mapped faults": "استخدم التطبق عبر الصدوع المرسومة",
   "{n} bedding reading(s) in other units not used.": "لم تُستخدم {n} قراءة تطبق في وحدات أخرى.",
   "At {n} point(s) a reading across a mapped fault was not used.": "في {n} نقطة لم تُستخدم قراءة عبر صدع مرسوم.",
-  "At {n} point(s) the bedding and the dip of the contact's own trace disagree by more than 30° (up to {d}°): check which is right there.": "في {n} نقطة يختلف التطبق عن ميل أثر التماس نفسه بأكثر من 30° (حتى {d}°): تحقق أيهما الصحيح هناك."
+  "At {n} point(s) the bedding and the dip of the contact's own trace disagree by more than 30° (up to {d}°): check which is right there.": "في {n} نقطة يختلف التطبق عن ميل أثر التماس نفسه بأكثر من 30° (حتى {d}°): تحقق أيهما الصحيح هناك.",
+  "A point snapped to a hole takes the hole's real position, off the section; a free point lies on the section plane. A line mixing the two kinks between them.": "تأخذ النقطة الملتقطة على ثقب موضع الثقب الحقيقي خارج المقطع؛ أما النقطة الحرة فتقع على مستوى المقطع. والخط الذي يمزج بينهما ينكسر بينهما.",
+  "{n} hole(s) lie more than 5 m off the section (offset printed at the end of the trace); points not snapped to a hole sit on the section plane.": "يقع {n} ثقبًا على بعد أكثر من 5 م من المقطع (الإزاحة مطبوعة عند نهاية المسار)؛ والنقاط غير الملتقطة على ثقب تقع على مستوى المقطع."
 }

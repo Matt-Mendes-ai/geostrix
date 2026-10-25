@@ -5856,5 +5856,7 @@
   "Use bedding across mapped faults": "Usar estratificación al otro lado de fallas cartografiadas",
   "{n} bedding reading(s) in other units not used.": "{n} medición(es) de estratificación en otras unidades no usadas.",
   "At {n} point(s) a reading across a mapped fault was not used.": "En {n} punto(s) no se usó una medición al otro lado de una falla cartografiada.",
-  "At {n} point(s) the bedding and the dip of the contact's own trace disagree by more than 30° (up to {d}°): check which is right there.": "En {n} punto(s) la estratificación y el buzamiento de la propia traza del contacto difieren más de 30° (hasta {d}°): compruebe cuál es correcto allí."
+  "At {n} point(s) the bedding and the dip of the contact's own trace disagree by more than 30° (up to {d}°): check which is right there.": "En {n} punto(s) la estratificación y el buzamiento de la propia traza del contacto difieren más de 30° (hasta {d}°): compruebe cuál es correcto allí.",
+  "A point snapped to a hole takes the hole's real position, off the section; a free point lies on the section plane. A line mixing the two kinks between them.": "Un punto ajustado a un sondaje toma la posición real del sondaje, fuera de la sección; un punto libre queda en el plano de la sección. Una línea que mezcla ambos se quiebra entre ellos.",
+  "{n} hole(s) lie more than 5 m off the section (offset printed at the end of the trace); points not snapped to a hole sit on the section plane.": "{n} sondaje(s) están a más de 5 m de la sección (desplazamiento impreso al final de la traza); los puntos no ajustados a un sondaje quedan en el plano de la sección."
 }

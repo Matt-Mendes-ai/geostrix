@@ -167,6 +167,7 @@ export default function SectionWindow() {
   const editPoints = (id, fn) => setContacts((p) => p.map((c) => (c.id === id ? { ...c, points: fn(c.points) } : c)));
   // what a click snaps to: the drawn / edited string's unit tops (contacts) or every logged boundary (faults, strings)
   const editing = contacts.find((c) => c.id === editingId) || null;
+  const offHoles = (data?.holes || []).filter((h) => h.minOffset != null && Math.max(Math.abs(h.minOffset), Math.abs(h.maxOffset)) > 5).length; // TASKS.csv #897
   // #810 — a modelling code or group is not a logged label, so its contact snaps to any logged boundary (like a fault)
   // TASKS.csv #868 — an explicit surface's line snaps like its unit's upper contact when that unit is a logged one
   const snapUnit = (unit) => { const u = data?.unitTags?.explicitUnits?.[unit]; return u && lithoUnits.includes(u) ? u : unit; };
@@ -294,6 +295,7 @@ export default function SectionWindow() {
           ) : (
             <>
               <span style={{ color: "#e2a63c", fontSize: 11 }}>{kindPick === "contact" && tagExplicit.includes(unitPick) ? tr("Click points along the line of {name}… ({drawPoints} so far). Finish, then Save contacts to send it to the surface.", { name: unitPick, drawPoints: drawPoints.length }) : kindPick === "contact" ? tr("Click points along {unitPick}'s upper contact… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length }) : kindPick === "outline" ? tr("Click points around the {unitPick} outline; it closes itself on Finish… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length }) : tr("Click points along {unitPick}… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length })}</span>
+              {offHoles > 0 && <span style={{ color: "#65717e", fontSize: 11 }} title={tr("A point snapped to a hole takes the hole's real position, off the section; a free point lies on the section plane. A line mixing the two kinks between them.")}>{tr("{n} hole(s) lie more than 5 m off the section (offset printed at the end of the trace); points not snapped to a hole sit on the section plane.", { n: offHoles })}</span>}{/* TASKS.csv #897 */}
               <button onClick={undoPoint} disabled={!drawPoints.length} style={{ ...btnStyle(false), opacity: drawPoints.length ? 1 : 0.5 }}><Undo2 size={14} />{" "}{tr("Undo point")}</button>
               <button onClick={finishContact} disabled={drawPoints.length < (kindPick === "outline" ? 3 : 2)} style={{ ...btnStyle(true), opacity: drawPoints.length >= (kindPick === "outline" ? 3 : 2) ? 1 : 0.5 }}><Check size={14} />{" "}{tr("Finish")}</button>
               <button onClick={cancelDrawing} style={btnStyle(false)}><X size={14} />{" "}{tr("Cancel")}</button>
@@ -611,6 +613,8 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
           <g key={hi}>
             {runs && <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#9aa5b3" strokeWidth="1" strokeDasharray="4 3"><title>{tr("{hole_id}: outside the ±{corridor} m buffer — projected onto the section, no data drawn here", { hole_id: h.hole_id, corridor: section.corridor })}</title></polyline>}
             {solid.map((seg, si) => <polyline key={si} points={seg.map((p) => p.join(",")).join(" ")} fill="none" stroke="#445064" strokeWidth="1.2"><title>{`${h.hole_id}${off ? tr(": {off} from the section line", { off }) : ""}`}</title></polyline>)}
+            {/* TASKS.csv #897 — the offset in view, not only in the tooltip, when the hole is more than 5 m off the section */}
+            {off && Math.max(Math.abs(h.minOffset), Math.abs(h.maxOffset)) > 5 && (() => { const end = solid.length ? solid[solid.length - 1].at(-1) : pts.at(-1); return end ? <text x={end[0] + 4} y={end[1] + 10} fill="#7a8494" fontSize="9" pointerEvents="none">{off}</text> : null; })()}
           </g>
         );
       })}

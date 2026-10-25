@@ -5856,5 +5856,7 @@
   "Use bedding across mapped faults": "Usar acamamento do outro lado de falhas mapeadas",
   "{n} bedding reading(s) in other units not used.": "{n} medida(s) de acamamento em outras unidades não usadas.",
   "At {n} point(s) a reading across a mapped fault was not used.": "Em {n} ponto(s) uma medida do outro lado de uma falha mapeada não foi usada.",
-  "At {n} point(s) the bedding and the dip of the contact's own trace disagree by more than 30° (up to {d}°): check which is right there.": "Em {n} ponto(s) o acamamento e o mergulho do próprio traço do contato diferem mais de 30° (até {d}°): verifique qual está certo ali."
+  "At {n} point(s) the bedding and the dip of the contact's own trace disagree by more than 30° (up to {d}°): check which is right there.": "Em {n} ponto(s) o acamamento e o mergulho do próprio traço do contato diferem mais de 30° (até {d}°): verifique qual está certo ali.",
+  "A point snapped to a hole takes the hole's real position, off the section; a free point lies on the section plane. A line mixing the two kinks between them.": "Um ponto ajustado a um furo assume a posição real do furo, fora da seção; um ponto livre fica no plano da seção. Uma linha que mistura os dois se dobra entre eles.",
+  "{n} hole(s) lie more than 5 m off the section (offset printed at the end of the trace); points not snapped to a hole sit on the section plane.": "{n} furo(s) estão a mais de 5 m da seção (afastamento impresso no fim do traçado); os pontos não ajustados a um furo ficam no plano da seção."
 }
