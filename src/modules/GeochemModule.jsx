@@ -8,7 +8,7 @@ import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "../components/icons.js";
 import Papa from "papaparse";
-import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck, X, AlertTriangle } from "../components/icons.js";
+import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck, X, AlertTriangle, Globe } from "../components/icons.js";
 import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #729
 import { addCalculatedElement, CALC_PRESETS } from "../lib/calcElement.js"; // TASKS.csv #401
 import { useStore } from "../lib/store.jsx";
@@ -41,6 +41,7 @@ const SurfaceQaqcPanel = React.lazy(() => import("../components/SurfaceQaqcPanel
 const CatchmentsPanel = React.lazy(() => import("../components/CatchmentsPanel.jsx")); // TASKS.csv #845
 const SurveyPlannerPanel = React.lazy(() => import("../components/SurveyPlannerPanel.jsx")); // TASKS.csv #844
 const DomainsPanel = React.lazy(() => import("../components/DomainsPanel.jsx")); // TASKS.csv #852
+const PublicGeochemModal = React.lazy(() => import("../components/PublicGeochemModal.jsx")); // TASKS.csv #846
 import QAQCPanel from "../components/QAQCPanel.jsx";
 // TASKS.csv #224 — see ViewerModule.jsx's own comment on this same lazy import (sql.js's 658KB wasm
 // was pulled in on every app launch via this static import chain, regardless of whether SQL workspace
@@ -80,6 +81,7 @@ export default function GeochemModule() {
   const [surfaceQcOpen, setSurfaceQcOpen] = useState(false); // TASKS.csv #842
   const [catchmentsOpen, setCatchmentsOpen] = useState(false); // TASKS.csv #845
   const [plannerOpen, setPlannerOpen] = useState(false); // TASKS.csv #844
+  const [publicOpen, setPublicOpen] = useState(false); // TASKS.csv #846
   const [domainsOpen, setDomainsOpen] = useState(false); // TASKS.csv #852
   const [qaqcOpen, setQaqcOpen] = useState(false);
   const [sqlOpen, setSqlOpen] = useState(false);
@@ -521,6 +523,22 @@ export default function GeochemModule() {
     });
   };
 
+  // TASKS.csv #846 — a public survey's samples for the area (PublicGeochemModal), into the normal surface-sample import:
+  // lon / lat (WGS 84; NAD83 / GDA94 differ by about a metre) with the columns already mapped
+  const openPublicImport = ({ headers, rows, entry, notes }) => {
+    const mapping = { x: "longitude", y: "latitude", z: rows.some((r) => String(r.elevation ?? "").trim() !== "") ? "elevation" : null, sample_id: "sample_id", medium: "medium" };
+    const mapped = new Set(["longitude", "latitude", "elevation", "sample_id", "medium"]);
+    const elements = pickElementColumns(headers.filter((h) => !mapped.has(h)), rows).map((e) => ({ ...e, mainHeader: e.header, checked: true }));
+    // a survey's other analyses of an element (Cu by AAS and by ICP-MS) are not sample attributes: only the chosen column is read
+    const attrExclude = headers.filter((h) => !mapped.has(h) && isElementColumn(h));
+    setPublicOpen(false);
+    setSurfaceModal({
+      file: null, fileName: entry.name, headers, allRows: rows, mapping, sourceEpsg: "4326", sourceEpsgFrom: null,
+      defaultMedium: "stream sediment", elements, attrExclude,
+      publicNote: [tr("Source: {agency}, {name}, under the {licence}. {attribution}", { agency: entry.agency, name: entry.name, licence: entry.licence, attribution: entry.attribution }), ...notes].join(" "),
+    });
+  };
+
   const commitSurfaceImport = (modal) => {
     const { allRows, mapping, elements, defaultMedium } = modal;
     const chosen = elements.filter((e) => e.checked);
@@ -551,7 +569,7 @@ export default function GeochemModule() {
     const allHeaders = modal.headers || Object.keys(allRows[0] || {});
     // TASKS.csv #842 — a parent / original-sample column pairs a field duplicate with its original
     const parentCol = allHeaders.find((h) => /^(parent|orig(inal)?)[\s_-]*(sample)?[\s_-]*(id|no|number|#)?$|^dup(licate)?[\s_-]*of$/i.test(String(h).trim())) || null;
-    const attrCols = surfaceAttrColumns(allHeaders, allRows, { ...mapping, parent: parentCol }, elements); // TASKS.csv #841
+    const attrCols = surfaceAttrColumns(allHeaders, allRows, { ...mapping, parent: parentCol }, elements).filter((h) => !modal.attrExclude?.includes(h)); // TASKS.csv #841; attrExclude: #846
     const qcRecords = []; // TASKS.csv #842 — rows the sample-type column marks as standard / blank / duplicate
     const rows = allRows.map((r) => {
       const values = {};
@@ -593,6 +611,7 @@ export default function GeochemModule() {
     setSurfaceSamples((prev) => [...prev, ...rows]);
     setSurfaceElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: "%" } : e); }); return Array.from(merged.values()); }); // #403
     const extra = [
+      modal.publicNote || null, // TASKS.csv #846
       converted.length ? `Converted ${converted.map((e) => `${e.symbol} ${e.unit} → ${existingUnit[e.symbol]}`).join(", ")} to match the unit already used in this project.` : null,
       negBdl ? `${negBdl} negative value(s) read as below detection.` : null,
       negMissing ? `${negMissing} value(s) ≤ -99 treated as not assayed (no-data codes).` : null,
@@ -719,6 +738,7 @@ export default function GeochemModule() {
             <RibbonButton advanced icon={Beaker} label="pXRF" tone="data" title="Import pXRF readings (CSV)" onClick={() => pxrfRef.current.click()} />
             <RibbonButton advanced icon={FileCheck} label="Lab certificates" tone="data" disabled={!assays.length} disabledReason="Import the drill samples (hole, from, to, sample id) first" title={assays.length ? "Lab certificates (ALS CSV): join them to the drill samples by sample id, check the values, and review GeoStrix's QC-type suggestions for the samples only the lab has (blanks, standards, duplicates)" : "Import the drill samples (hole, from, to, sample id) first — certificates are joined to them by sample id"} onClick={() => certRef.current.click()} />
             <RibbonButton advanced icon={GMapPin} label="Surface samples" tone="data" title="Soil, rock-chip, stream-sediment or talus-fines samples (CSV) — no drillhole needed" onClick={() => surfaceFileRef.current.click()} />
+            <RibbonButton icon={Globe} label="Public data" tone="data" title="Public geochemistry: government stream-sediment surveys (BC RGS, Australia's NGSA and others) for the project area, with their licences" onClick={() => setPublicOpen(true)} />{/* TASKS.csv #846 */}
           </RibbonGroup>
           <RibbonGroup advanced label="Classify">
             <RibbonButton icon={FlaskConical} label="AI / CCPI" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Alteration from geochem (Ishikawa AI / CCPI box plot) — screening level" onClick={() => runMethod("alteration_boxplot")} />
@@ -986,6 +1006,10 @@ export default function GeochemModule() {
 
       {domainsOpen && ( // TASKS.csv #852
         <React.Suspense fallback={null}><DomainsPanel onClose={() => setDomainsOpen(false)} /></React.Suspense>
+      )}
+
+      {publicOpen && ( // TASKS.csv #846
+        <React.Suspense fallback={null}><PublicGeochemModal onLoaded={openPublicImport} onClose={() => setPublicOpen(false)} /></React.Suspense>
       )}
 
       {plannerOpen && ( // TASKS.csv #844

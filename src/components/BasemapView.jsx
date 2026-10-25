@@ -277,8 +277,11 @@ export default function BasemapView({
       })()
     : null;
 
+  // TASKS.csv #846 — a click here must not reach the dialog that opened the map: the spectral-index, web-layer and
+  // public-geochemistry dialogs render it inside their backdrop, whose onClick closes them ("Use this area" closed the
+  // whole dialog along with the map)
   return (
-    <div style={overlayStyle} role="dialog" aria-modal="true">
+    <div style={overlayStyle} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
       <div style={topBarStyle}>
         <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "#2a323c" }}>
           {mode === "draw" ? title : tr("Locate")}

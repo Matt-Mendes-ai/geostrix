@@ -895,6 +895,19 @@ ipcMain.handle("remote-sensing-fetch", async (_e, { url, range = null, json = nu
   return { ok: res.ok, status: res.status, contentType: res.contentType, contentRange: res.contentRange, data: res.buffer };
 });
 
+// TASKS.csv #846 — the public geochemistry catalogue: a sample table for the project area from a government survey's
+// web service (BC RGS on the BC open map service, NGSA on Geoscience Australia's). GET only, only these HTTPS hosts
+// (each tested against real responses and its licence read), the #350 address checks on every hop, 64 MB, 120 s.
+const GEOCHEM_HOSTS = new Set(["openmaps.gov.bc.ca", "services.ga.gov.au"]);
+ipcMain.handle("geochem-fetch", async (_e, { url } = {}) => {
+  let u;
+  try { u = new URL(String(url || "")); } catch { return { ok: false, status: 0, message: "Not a valid URL." }; }
+  if (u.protocol !== "https:" || !GEOCHEM_HOSTS.has(u.hostname)) return { ok: false, status: 0, message: `GeoStrix only reads public geochemistry from ${[...GEOCHEM_HOSTS].join(", ")}.` };
+  const res = await guardedFetch(u.toString(), { timeoutMs: 120000, maxBytes: 64 * 1024 * 1024 });
+  if (res.message) return { ok: false, status: res.status, message: res.message };
+  return { ok: res.ok, status: res.status, contentType: res.contentType, text: res.buffer.toString("utf8") };
+});
+
 const { DB_STATEMENT_TIMEOUT_MS, pgConfig, mysqlConfig } = require("./dbConfig.js"); // TASKS.csv #348
 const { createDbCredentialStore } = require("./dbCredentials.js"); // TASKS.csv #621
 let dbCredStore = null;

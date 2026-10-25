@@ -315,6 +315,14 @@ export async function remoteSensingFetch(req) {
   } catch (e) { return { ok: false, status: 0, message: e.message }; }
 }
 
+// ---------- TASKS.csv #846: public geochemistry (a survey's web service, clipped to an area), main-process proxied ----------
+// { url } -> { ok, status, text } | { ok: false, message }
+export async function geochemFetch(req) {
+  if (d && d.geochemFetch) return d.geochemFetch(req);
+  try { const r = await fetch(req.url); return { ok: r.ok, status: r.status, text: await r.text() }; } // browser / dev fallback
+  catch (e) { return { ok: false, status: 0, message: e.message }; }
+}
+
 // ---------- Generic web-layer fetch (see electron/main.js's fetch-web-layer handler) ----------
 // TASKS.csv #127 — WMS/WMTS/WFS. Same Electron-proxy / browser-fallback split as fetchSRTMTile above,
 // generalized to an arbitrary user-supplied URL instead of one fixed source: in Electron this goes

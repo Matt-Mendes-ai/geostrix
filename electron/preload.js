@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld("desktop", {
   fetchSRTMTile: (z, x, y) => ipcRenderer.invoke("fetch-srtm-tile", { z, x, y }),
   fetchWebLayerUrl: (url) => ipcRenderer.invoke("fetch-web-layer", { url }),
   remoteSensingFetch: (req) => ipcRenderer.invoke("remote-sensing-fetch", req), // TASKS.csv #784
+  geochemFetch: (req) => ipcRenderer.invoke("geochem-fetch", req), // TASKS.csv #846
   updaterCheck: () => ipcRenderer.invoke("updater-check"),
   updaterDownload: () => ipcRenderer.invoke("updater-download"),
   updaterInstall: () => ipcRenderer.invoke("updater-install"),
