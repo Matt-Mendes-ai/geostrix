@@ -5845,5 +5845,8 @@
   "Alteration halos": "Halos d'altération",
   "Grade shells": "Enveloppes de teneur",
   "Block estimation": "Estimation par blocs",
-  "Predictive (geoML)": "Prédictif (geoML)"
+  "Predictive (geoML)": "Prédictif (geoML)",
+  "The last model has {n} unit blocks. As a block model they take roughly {mb} MB of memory, which a modest computer may not have to spare; a larger block size keeps it light. Add them anyway?": "Le dernier modèle compte {n} blocs d'unités. En modèle de blocs, ils occupent environ {mb} Mo de mémoire, qu'un ordinateur modeste n'a peut-être pas de libre ; une taille de bloc plus grande l'allège. Les ajouter quand même ?",
+  "The last model has {n} unit blocks: building their closed volumes takes a few seconds and makes large meshes. Build them anyway?": "Le dernier modèle compte {n} blocs d'unités : construire leurs volumes fermés prend quelques secondes et produit de gros maillages. Les construire quand même ?",
+  "{n} blocks in the box: building them is quick, but adding them afterwards as a block model or as unit volumes is slow and memory-hungry at this size. A larger block size keeps it light.": "{n} blocs dans la boîte : les construire est rapide, mais les ajouter ensuite comme modèle de blocs ou volumes d'unités est lent et gourmand en mémoire à cette taille. Une taille de bloc plus grande l'allège."
 }

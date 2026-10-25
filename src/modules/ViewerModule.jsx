@@ -3552,8 +3552,14 @@ ${describeTrend(t)}` };
       + (sum.inverted?.baseAboveTop ? tr(" In {n} of {m} columns a unit's base lies above its own top (negative thickness): the blocks there follow the rules but not the geology.", { n: sum.inverted.baseAboveTop, m: sum.inverted.columns }) : "") // #860
       + (sum.inverted?.crossingTops ? tr(" In {n} of {m} columns the tops cross (a lower unit's top above a higher one's): check the stack order and the surfaces there.", { n: sum.inverted.crossingTops, m: sum.inverted.columns }) : "") })]);
   };
+  // TASKS.csv #891 — the cheap step (coding the blocks) is guarded at 2 M cells; what follows is not cheap: a block model
+  // holds one object per unit cell (~210 bytes each: 1.64 M cells took +340 MB in the #855 review) and unit volumes build
+  // shells from them (1.6 s at 1.9 M). Above 300,000 unit cells (~63 MB as a block model), say so and ask.
+  const BIG_UNIT_BLOCKS = 300_000;
+  const unitCellCount = (lb) => { let n = 0; const ids = lb?.block?.ids || []; for (let i = 0; i < ids.length; i++) if (ids[i] && lb.block.labels[ids[i] - 1] != null) n++; return n; };
   const addLithBlockModel = () => {
     const lb = lastLithBlock; if (!lb) return;
+    { const n = unitCellCount(lb); if (n > BIG_UNIT_BLOCKS && !window.confirm(tr("The last model has {n} unit blocks. As a block model they take roughly {mb} MB of memory, which a modest computer may not have to spare; a larger block size keeps it light. Add them anyway?", { n: n.toLocaleString(), mb: Math.round((n * 210) / 1e6) }))) return; } // #891
     const cells = blockToCells(lb.block, lb.origin);
     if (!cells.length) { setNotices((p) => [...p, notice("The last model has no cells below its modelled tops inside the model box — nothing to add.")]); return; }
     const stops = lb.block.labels.map((l, i) => (l == null ? null : { value: i + 1, color: lithUnitColor(lb, l), label: l })).filter(Boolean); // a cell IS the unit: its name, not "Top of .."
@@ -3569,6 +3575,7 @@ ${describeTrend(t)}` };
   // readout, and usable to restrict a grade estimate ("inside modelled DACT").
   const addUnitVolumes = () => {
     const lb = lastLithBlock; if (!lb) return;
+    { const n = unitCellCount(lb); if (n > BIG_UNIT_BLOCKS && !window.confirm(tr("The last model has {n} unit blocks: building their closed volumes takes a few seconds and makes large meshes. Build them anyway?", { n: n.toLocaleString() }))) return; } // #891
     const o = originRef.current, stamp = Date.now(), added = [], lines = [];
     const ust = blockUnitStats(lb.block); // TASKS.csv #877
     lb.block.labels.forEach((label, k) => {

@@ -5845,5 +5845,8 @@
   "Alteration halos": "هالات التحول",
   "Grade shells": "أغلفة المحتوى",
   "Block estimation": "تقدير الكتل",
-  "Predictive (geoML)": "تنبؤي (geoML)"
+  "Predictive (geoML)": "تنبؤي (geoML)",
+  "The last model has {n} unit blocks. As a block model they take roughly {mb} MB of memory, which a modest computer may not have to spare; a larger block size keeps it light. Add them anyway?": "يحتوي النموذج الأخير على {n} كتلة وحدات. كنموذج كتل تشغل نحو {mb} ميغابايت من الذاكرة، وقد لا يتوفر ذلك في حاسوب متواضع؛ وحجم كتلة أكبر يخففه. هل تضيفها على أي حال؟",
+  "The last model has {n} unit blocks: building their closed volumes takes a few seconds and makes large meshes. Build them anyway?": "يحتوي النموذج الأخير على {n} كتلة وحدات: بناء أحجامها المغلقة يستغرق بضع ثوانٍ وينتج شبكات كبيرة. هل تبنيها على أي حال؟",
+  "{n} blocks in the box: building them is quick, but adding them afterwards as a block model or as unit volumes is slow and memory-hungry at this size. A larger block size keeps it light.": "{n} كتلة في الصندوق: بناؤها سريع، لكن إضافتها لاحقًا كنموذج كتل أو كأحجام وحدات بطيئة وتستهلك الذاكرة بهذا الحجم. وحجم كتلة أكبر يخففه."
 }
