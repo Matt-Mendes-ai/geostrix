@@ -53,3 +53,23 @@ export function stackOrder(items, { n = 48, minShared = 3 } = {}) {
   const idx = items.map((_, i) => i).sort((p, q) => (wins[q] - wins[p]) || (med[q] - med[p]));
   return { order: idx.map((i) => items[i].id), rank: Object.fromEntries(idx.map((i, r) => [items[i].id, r])), pairs };
 }
+
+// TASKS.csv #896 — the thickness of a unit between its top and base surfaces, on one grid: the vertical distance
+// top - base in every map column both cover (positions: x, y map, z elevation). The #855 review: top and base splines
+// are fitted independently, so they can cross (a negative thickness) - most often in the margin beyond the picks - and
+// nothing said so. -> { columns, cellM, min, mean, max, negativePct } | null when they share no column.
+export function thicknessBetween(top, base, { n = 80 } = {}) {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const m of [top, base]) for (let i = 0; i < m.positions.length; i += 3) { const x = m.positions[i], y = m.positions[i + 1]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  const box = [x0, x1, y0, y1];
+  const T = heightGrid(top.positions, top.indices, box, n), B = heightGrid(base.positions, base.indices, box, n);
+  let k = 0, sum = 0, min = Infinity, max = -Infinity, neg = 0;
+  for (let i = 0; i < n * n; i++) {
+    if (!(T[i] === T[i] && B[i] === B[i])) continue;
+    const t = T[i] - B[i];
+    k++; sum += t; if (t < min) min = t; if (t > max) max = t; if (t < 0) neg++;
+  }
+  if (!k) return null;
+  return { columns: k, cellM: Math.max(x1 - x0, y1 - y0) / n, min, mean: sum / k, max, negativePct: (100 * neg) / k };
+}
+

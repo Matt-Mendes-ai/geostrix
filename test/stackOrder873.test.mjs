@@ -46,3 +46,14 @@ test("#873 splitByElevation follows ranks: one layer, not two", () => {
   const byRank = splitByElevation([{ id: "top", contact: "upper", z: 711, rank: rank.top }, { id: "base", contact: "lower", z: 777, rank: rank.base }]);
   assert.deepEqual(byRank, { top: "A", base: "A" });
 });
+
+import { thicknessBetween } from "../src/lib/stackOrder.js";
+test("#896 thickness between a top and a base: min / mean / max on the shared columns, and where they cross", () => {
+  const sheet = (zf) => ({ positions: Float64Array.from([0, 0, zf(0), 100, 0, zf(100), 100, 100, zf(100), 0, 100, zf(0)]), indices: Uint32Array.from([0, 1, 2, 0, 2, 3]) });
+  const r = thicknessBetween(sheet(() => 100), sheet((x) => 70 + 0.2 * x), { n: 50 }); // base rises from 70 to 90 m: 30 to 10 m thick
+  assert.ok(Math.abs(r.min - 10) < 0.5 && Math.abs(r.max - 30) < 0.5 && Math.abs(r.mean - 20) < 0.5, JSON.stringify(r));
+  assert.equal(r.negativePct, 0);
+  const x = thicknessBetween(sheet(() => 100), sheet((x) => 80 + 0.4 * x), { n: 50 }); // base crosses the top at x = 50
+  assert.ok(x.negativePct > 45 && x.negativePct < 55 && x.min < 0, JSON.stringify(x));
+  assert.equal(thicknessBetween(sheet(() => 1), { positions: Float64Array.from([500, 500, 0, 600, 500, 0, 600, 600, 0]), indices: Uint32Array.from([0, 1, 2]) }, { n: 10 }), null);
+});

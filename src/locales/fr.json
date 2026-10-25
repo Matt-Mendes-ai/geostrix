@@ -5894,5 +5894,11 @@
   "Extend ½ spacing": "Prolonger ½ espacement",
   "Pinch out": "En pointe",
   "\"{name}\" was counted in {b} m blocks, so its boundary steps every {b} m. Estimating in {c} m blocks inside it does not place the contact any closer than {b} m: rebuild the unit volume at {c} m, or estimate in {b} m blocks.": "« {name} » a été compté en blocs de {b} m : sa limite avance par paliers de {b} m. Estimer en blocs de {c} m à l'intérieur ne place pas le contact plus finement que {b} m : reconstruisez le volume de l'unité à {c} m, ou estimez en blocs de {b} m.",
-  "Opacity. Over {n} blocks a see-through model is drawn as its outer skin (and, for a unit model, the contacts between units), so it stays fast; use the cutoff or a 3D slice to look inside.": "Opacité. Au-delà de {n} blocs, un modèle transparent est dessiné par sa peau extérieure (et, pour un modèle d'unités, les contacts entre unités) pour rester rapide ; utilisez le seuil ou une coupe 3D pour voir l'intérieur."
+  "Opacity. Over {n} blocks a see-through model is drawn as its outer skin (and, for a unit model, the contacts between units), so it stays fast; use the cutoff or a 3D slice to look inside.": "Opacité. Au-delà de {n} blocs, un modèle transparent est dessiné par sa peau extérieure (et, pour un modèle d'unités, les contacts entre unités) pour rester rapide ; utilisez le seuil ou une coupe 3D pour voir l'intérieur.",
+  "{layer}: build both surfaces first.": "{layer} : construisez d'abord les deux surfaces.",
+  "{layer}: the top and the base do not overlap anywhere.": "{layer} : le toit et la base ne se recouvrent nulle part.",
+  "{layer}: vertical thickness {min} to {max} m, mean {mean} m, over {n} columns of {c} m.": "{layer} : épaisseur verticale de {min} à {max} m, moyenne {mean} m, sur {n} colonnes de {c} m.",
+  "In {p} % of them the base is above the top (the surfaces cross: most often beyond the picks, where both are extrapolated).": "Dans {p} % d'entre elles, la base est au-dessus du toit (les surfaces se recoupent : le plus souvent au-delà des pointés, où les deux sont extrapolées).",
+  "The vertical distance between this unit's upper and lower contact in every map column both cover: minimum, mean, maximum, and where the base rises above the top.": "La distance verticale entre les contacts supérieur et inférieur de cette unité dans chaque colonne de la carte qu'ils couvrent tous deux : minimum, moyenne, maximum, et là où la base passe au-dessus du toit.",
+  "Thickness between top and base": "Épaisseur entre toit et base"
 }

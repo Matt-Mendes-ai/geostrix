@@ -5894,5 +5894,11 @@
   "Extend ½ spacing": "مدّ نصف التباعد",
   "Pinch out": "تلاشٍ",
   "\"{name}\" was counted in {b} m blocks, so its boundary steps every {b} m. Estimating in {c} m blocks inside it does not place the contact any closer than {b} m: rebuild the unit volume at {c} m, or estimate in {b} m blocks.": "عُدّ \"{name}\" بكتل قدرها {b} م، لذا يتدرج حده كل {b} م. التقدير بكتل قدرها {c} م داخله لا يحدد التماس بدقة أفضل من {b} م: أعد بناء حجم الوحدة عند {c} م، أو قدّر بكتل قدرها {b} م.",
-  "Opacity. Over {n} blocks a see-through model is drawn as its outer skin (and, for a unit model, the contacts between units), so it stays fast; use the cutoff or a 3D slice to look inside.": "العتامة. فوق {n} كتلة يُرسم النموذج الشفاف كقشرته الخارجية (والتماسات بين الوحدات في نموذج الوحدات) ليبقى سريعًا؛ استخدم حد القطع أو مقطعًا ثلاثي الأبعاد لرؤية الداخل."
+  "Opacity. Over {n} blocks a see-through model is drawn as its outer skin (and, for a unit model, the contacts between units), so it stays fast; use the cutoff or a 3D slice to look inside.": "العتامة. فوق {n} كتلة يُرسم النموذج الشفاف كقشرته الخارجية (والتماسات بين الوحدات في نموذج الوحدات) ليبقى سريعًا؛ استخدم حد القطع أو مقطعًا ثلاثي الأبعاد لرؤية الداخل.",
+  "{layer}: build both surfaces first.": "{layer}: ابنِ السطحين أولًا.",
+  "{layer}: the top and the base do not overlap anywhere.": "{layer}: لا يتداخل السقف والقاعدة في أي مكان.",
+  "{layer}: vertical thickness {min} to {max} m, mean {mean} m, over {n} columns of {c} m.": "{layer}: السماكة الرأسية من {min} إلى {max} م، بمتوسط {mean} م، على {n} عمودًا بحجم {c} م.",
+  "In {p} % of them the base is above the top (the surfaces cross: most often beyond the picks, where both are extrapolated).": "في {p} % منها تقع القاعدة فوق السقف (السطحان يتقاطعان: غالبًا خارج النقاط الملتقطة حيث كلاهما مستقرأ).",
+  "The vertical distance between this unit's upper and lower contact in every map column both cover: minimum, mean, maximum, and where the base rises above the top.": "المسافة الرأسية بين التماس العلوي والسفلي لهذه الوحدة في كل عمود من الخريطة يغطيه كلاهما: الأدنى والمتوسط والأقصى، وحيث ترتفع القاعدة فوق السقف.",
+  "Thickness between top and base": "السماكة بين السقف والقاعدة"
 }

@@ -16,7 +16,7 @@ import { imagePlane, rayPlane, facingCamera, densify3, medianApparentDip, sectio
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #828 — Undo / Redo
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #885
 import { unitOf, contactOf, layerLabel, unitSummary, splitByElevation, nextLayer, seedPicksFromTops } from "../lib/explicitUnits.js"; // TASKS.csv #830 / #831 / #832; seed: #871
-import { stackOrder } from "../lib/stackOrder.js"; // TASKS.csv #873
+import { stackOrder, thicknessBetween } from "../lib/stackOrder.js"; // TASKS.csv #873; thicknessBetween: #896
 import { inputKey, shapeFrame, onlyOneSection } from "../lib/explicitBuild.js"; // TASKS.csv #901
 
 const MAX_POINTS = 800; // ~0.4 s to solve on a laptop (1,200 took 1.2 s); section lines are thinned to fit
@@ -729,6 +729,22 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
     zs.sort((x, y) => x - y);
     return zs.length ? zs[zs.length >> 1] : NaN;
   };
+  // TASKS.csv #896 — thickness of a layer between its upper and lower contact (built surfaces), on one grid
+  const [thickNote, setThickNote] = useState(null);
+  const thicknessPairs = (unitInfo?.layers || []).filter((l) => l.upper.length === 1 && l.lower.length === 1);
+  const measureThickness = () => {
+    const meshOf = (d) => { const a = d.surfaceId && sc.meshes.current[d.surfaceId]?.geometry; if (!a?.attributes?.position || !a.index) return null; const s = a.attributes.position.array, q = new Float64Array(s.length); for (let i = 0; i < s.length; i += 3) { q[i] = s[i]; q[i + 1] = s[i + 2]; q[i + 2] = s[i + 1]; } return { positions: q, indices: a.index.array }; };
+    let crossing = false;
+    const parts = thicknessPairs.map((l) => {
+      const name = l.layer ? `${curUnit} ${l.layer}` : curUnit, top = meshOf(l.upper[0]), base = meshOf(l.lower[0]);
+      if (!top || !base) return tr("{layer}: build both surfaces first.", { layer: name });
+      const r = thicknessBetween(top, base);
+      if (!r) return tr("{layer}: the top and the base do not overlap anywhere.", { layer: name });
+      return tr("{layer}: vertical thickness {min} to {max} m, mean {mean} m, over {n} columns of {c} m.", { layer: name, min: r.min.toFixed(1), max: r.max.toFixed(1), mean: r.mean.toFixed(1), n: r.columns, c: r.cellM.toFixed(0) })
+        + (r.negativePct > 0 && (crossing = true) ? ` ${tr("In {p} % of them the base is above the top (the surfaces cross: most often beyond the picks, where both are extrapolated).", { p: r.negativePct < 1 ? r.negativePct.toFixed(1) : Math.round(r.negativePct) })}` : "");
+    });
+    setThickNote({ text: parts.join(" "), crossing });
+  };
   const splitUnit = () => {
     const mine = defs.filter((d) => unitOf(d) === curUnit);
     // TASKS.csv #873 — the built ones are ordered pairwise where both exist (scene y is the elevation; x, z the map)
@@ -830,6 +846,9 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             <button onClick={splitUnit} title={tr("Letter this unit's surfaces A, B, C… from the top down: each upper contact starts a new layer, and a lower contact closes the layer above it.")}
               style={{ ...pBtn, marginTop: 4, marginBottom: 0, justifyContent: "center", padding: "3px 7px", fontSize: "var(--font-size-xs)" }}>{tr("Split {unit} into layers by elevation", { unit: curUnit })}</button>
             {unitNote && <div role="status" style={{ marginTop: 3, color: "var(--color-text-secondary)" }}>{unitNote}</div>}
+            {thicknessPairs.length > 0 && <button onClick={measureThickness} title={tr("The vertical distance between this unit's upper and lower contact in every map column both cover: minimum, mean, maximum, and where the base rises above the top.")}
+              style={{ ...pBtn, marginTop: 4, marginBottom: 0, justifyContent: "center", padding: "3px 7px", fontSize: "var(--font-size-xs)" }}>{tr("Thickness between top and base")}</button>}{/* TASKS.csv #896 */}
+            {thickNote && <div role="status" style={{ marginTop: 3, color: thickNote.crossing ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{thickNote.text}</div>}
           </div>
         )}
         </details>

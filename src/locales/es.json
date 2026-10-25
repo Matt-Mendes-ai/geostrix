@@ -5894,5 +5894,11 @@
   "Extend ½ spacing": "Extender ½ separación",
   "Pinch out": "Acuñar",
   "\"{name}\" was counted in {b} m blocks, so its boundary steps every {b} m. Estimating in {c} m blocks inside it does not place the contact any closer than {b} m: rebuild the unit volume at {c} m, or estimate in {b} m blocks.": "\"{name}\" se contó en bloques de {b} m, así que su límite avanza en escalones de {b} m. Estimar en bloques de {c} m dentro de él no sitúa el contacto con más precisión que {b} m: reconstruya el volumen de la unidad a {c} m o estime en bloques de {b} m.",
-  "Opacity. Over {n} blocks a see-through model is drawn as its outer skin (and, for a unit model, the contacts between units), so it stays fast; use the cutoff or a 3D slice to look inside.": "Opacidad. Con más de {n} bloques, un modelo transparente se dibuja como su piel exterior (y, en un modelo de unidades, los contactos entre unidades) para que siga siendo rápido; use el corte por valor o una sección 3D para ver el interior."
+  "Opacity. Over {n} blocks a see-through model is drawn as its outer skin (and, for a unit model, the contacts between units), so it stays fast; use the cutoff or a 3D slice to look inside.": "Opacidad. Con más de {n} bloques, un modelo transparente se dibuja como su piel exterior (y, en un modelo de unidades, los contactos entre unidades) para que siga siendo rápido; use el corte por valor o una sección 3D para ver el interior.",
+  "{layer}: build both surfaces first.": "{layer}: construya primero ambas superficies.",
+  "{layer}: the top and the base do not overlap anywhere.": "{layer}: el techo y la base no se superponen en ningún lugar.",
+  "{layer}: vertical thickness {min} to {max} m, mean {mean} m, over {n} columns of {c} m.": "{layer}: espesor vertical de {min} a {max} m, media {mean} m, en {n} columnas de {c} m.",
+  "In {p} % of them the base is above the top (the surfaces cross: most often beyond the picks, where both are extrapolated).": "En el {p} % de ellas la base está por encima del techo (las superficies se cruzan: casi siempre más allá de los picks, donde ambas se extrapolan).",
+  "The vertical distance between this unit's upper and lower contact in every map column both cover: minimum, mean, maximum, and where the base rises above the top.": "La distancia vertical entre el contacto superior e inferior de esta unidad en cada columna del mapa que ambos cubren: mínimo, media, máximo y dónde la base sube por encima del techo.",
+  "Thickness between top and base": "Espesor entre techo y base"
 }
