@@ -277,7 +277,7 @@ export default function SectionWindow() {
                 <><input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} list={kindPick === "outline" ? "ge-outline-names" : undefined} placeholder={kindPick === "fault" ? tr("Fault name") : kindPick === "outline" ? tr("Body name (same on every section)") : tr("String name")} style={{ ...selectStyle, width: 140 }} />
                 {kindPick === "outline" && <datalist id="ge-outline-names">{(data.outlineNames || []).map((n) => <option key={n} value={n} />)}</datalist>}{/* TASKS.csv #874 — names used on other sections */}</>
               ) : lithoUnits.length > 0 ? (
-                <select value={unitPick} onChange={(e) => setUnitPick(e.target.value)} style={selectStyle}>
+                <select value={unitPick} onChange={(e) => setUnitPick(e.target.value)} style={selectStyle} aria-label={tr("Unit")}>{/* aria-label: TASKS.csv #893 */}
                   <option value="">{tr("Unit…")}</option>
                   {lithoUnits.map((u) => <option key={u} value={u}>{u}</option>)}
                   {tagCodes.length > 0 && <optgroup label={tr("Modelling codes")}>{tagCodes.map((u) => <option key={`c:${u}`} value={u}>{u}</option>)}</optgroup>}

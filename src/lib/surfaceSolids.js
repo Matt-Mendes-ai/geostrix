@@ -30,6 +30,7 @@
 
 // Column centres are nudged by an irrational fraction of a cell so a ray never runs exactly along a mesh edge or
 // through a vertex (meshes built on a lattice put vertices on round coordinates, the same ones cell centres use).
+import { t as tr } from "./i18n.js"; // TASKS.csv #898
 const JX = 1.3e-6 * Math.SQRT2, JY = 1.7e-6 * Math.PI;
 
 // For each column (i, j): every z where the vertical line at its centre crosses the mesh. Returns a visitor
@@ -57,9 +58,9 @@ function columnHits(mesh, x0, y0, dx, dy, nx, ny, cb) {
 
 export function surfacesToBlock({ tops = [], solids = [], extent, cell, ground = null, maxCells = 2_000_000 }) {
   const [xmin, xmax, ymin, ymax, zmin, zmax] = extent;
-  if (!(cell > 0) || !(xmax > xmin && ymax > ymin && zmax > zmin)) throw new Error("surfacesToBlock: empty box or cell size");
+  if (!(cell > 0) || !(xmax > xmin && ymax > ymin && zmax > zmin)) throw new Error(tr("The model box is empty or the block size is zero.")); // tr: TASKS.csv #898
   const nx = Math.max(1, Math.round((xmax - xmin) / cell)), ny = Math.max(1, Math.round((ymax - ymin) / cell)), nz = Math.max(1, Math.round((zmax - zmin) / cell));
-  if (nx * ny * nz > maxCells) throw new Error(`surfacesToBlock: ${nx} x ${ny} x ${nz} cells is over the ${maxCells.toLocaleString()} limit - use a larger cell`);
+  if (nx * ny * nz > maxCells) throw new Error(tr("{nx} x {ny} x {nz} blocks is over the {max} limit: use a larger block size.", { nx, ny, nz, max: maxCells.toLocaleString() }));
   const dx = (xmax - xmin) / nx, dy = (ymax - ymin) / ny, dz = (zmax - zmin) / nz;
   const ncol = nx * ny;
   // each top's highest crossing per column (NaN = no triangle over that column)

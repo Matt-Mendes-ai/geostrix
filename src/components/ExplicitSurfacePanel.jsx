@@ -19,6 +19,9 @@ import { unitOf, contactOf, layerLabel, unitSummary, splitByElevation, nextLayer
 import { stackOrder } from "../lib/stackOrder.js"; // TASKS.csv #873
 
 const MAX_POINTS = 800; // ~0.4 s to solve on a laptop (1,200 took 1.2 s); section lines are thinned to fit
+// TASKS.csv #902 — the Unit select's "New unit..." value: a private-use character, not the NUL it used to be (a NUL byte made
+// ripgrep / Grep treat this file as binary and skip it in searches)
+const NEW_UNIT = "\uE000new";
 const LINE_SPACING = 10; // m between the points taken along a drawn section line
 const MAP_STEP = 25; // m between the points taken along a mapped contact (#817)
 
@@ -122,7 +125,9 @@ function upsertMesh(sc, def, res, info) {
   return id;
 }
 
-export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesSeq = 0 /* #888 */, trend = null /* #881 */, topsOfUnit = null /* #871 */, defs, setDefs, sections, terrain, mapLayers, surfaceStructures, sectionImages = [], unitChoices = [] /* #831 */, onDigitizeImage, pickFor, setPickFor, snap, setSnap, scene: sc, onRemove, askPrompt, pBtn, smallSel, numInput }) {
+export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesSeq = 0 /* #888 */, trend = null /* #881 */, topsOfUnit = null /* #871 */, defs: rawDefs, setDefs, sections, terrain, mapLayers, surfaceStructures, sectionImages = [], unitChoices = [] /* #831 */, onDigitizeImage, pickFor, setPickFor, snap, setSnap, scene: sc, onRemove, askPrompt, pBtn, smallSel, numInput }) {
+  // TASKS.csv #899 — a definition saved without picks / lines (hand-edited or from an older build) reads as empty, not a crash
+  const defs = useMemo(() => (rawDefs || []).map((d) => (Array.isArray(d.picks) && (d.lines == null || Array.isArray(d.lines)) ? d : { ...d, picks: Array.isArray(d.picks) ? d.picks : [], lines: Array.isArray(d.lines) ? d.lines : [] })), [rawDefs]);
   const hasTerrain = !!terrain?.bbox;
   const groundAt = (x, y) => {
     const [x0, y0, x1, y1] = terrain.bbox;
@@ -196,7 +201,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   // TASKS.csv #817 — mapped contacts (draped on the terrain) and their dip guides as further hard lines
   const polys = useMemo(() => (mapLayers || []).filter((l) => l.geomType === "polygon"), [mapLayers]);
   const bedding = useMemo(() => (surfaceStructures || []).flatMap((s) => s.rows || []).filter((r) => r.cls === "bedding").map((r) => ({ x: r.x, y: r.y, dip: r.dip, dipDir: r.dipDir })), [surfaceStructures]);
-  const mapPart = useMemo(() => {
+  const mapPart = useMemo(() => { try { // TASKS.csv #898 — a failure is reported, it does not close the 3D View tab
     if (!def?.mapContacts?.length || !hasTerrain) return { lines: [], guides: null, missing: (def?.mapContacts || []).length && !hasTerrain ? def.mapContacts.length : 0, offTerrain: 0 };
     let missing = 0, offTerrain = 0;
     const lines = [];
@@ -209,15 +214,16 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
     }
     const g = def.dipGuide?.on && lines.length ? dipGuideLines(lines, { measurements: bedding, depthM: Number(def.dipGuide.depth) || 100, radiusM: Number.isFinite(Number(def.dipGuide.radius)) && def.dipGuide.radius !== "" ? Number(def.dipGuide.radius) : 500 }) : null;
     return { lines, guides: g, missing, offTerrain };
+  } catch (e) { return { lines: [], guides: null, missing: (def?.mapContacts || []).length, offTerrain: 0, error: e.message || String(e) }; } // #898
   }, [def?.mapContacts, def?.dipGuide, polys, bedding, hasTerrain, terrain]); // groundAt reads terrain
   // TASKS.csv #824 — lines digitized on section images in the 3D view: hard lines too (a point every 10 m along them)
-  const drawn = useMemo(() => (def?.lines || []).filter((l) => l.pts?.length >= 2).map((l) => ({ ref: `drawn ${l.id}`, src: "drawn", pts: densify3(l.pts, LINE_SPACING) })), [def?.lines]);
+  const drawn = useMemo(() => { try { return (def?.lines || []).filter((l) => l.pts?.length >= 2).map((l) => ({ ref: `drawn ${l.id}`, src: "drawn", pts: densify3(l.pts, LINE_SPACING) })); } catch { return []; } }, [def?.lines]); // try: #898
   // TASKS.csv #856 — each pick on a hole carries the hole's direction there, so a pick set taken along one drill section is
   // recognized as such (its best-fit plane is the section, not the contact)
   // TASKS.csv #888 — a pick on a hole is a DEPTH on that hole: it is placed on the hole's CURRENT trace at every build, so
   // a survey re-import, collar correction or desurvey-method change moves it with the hole (the stored x / y / z is the
   // record of where it was picked); moved: how many moved more than 0.5 m, and the largest move
-  const ep = useMemo(() => {
+  const ep = useMemo(() => { try { // try: #898 — on a failure the build is refused with the reason (tooMany carries any refusal)
     if (!def) return null;
     let moved = 0, maxMove = 0;
     const withDir = { ...def, picks: (def.picks || []).map((p) => {
@@ -230,6 +236,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
       return dir ? { ...q, dir } : q;
     }) };
     return { ...explicitPoints(withDir, sections, { spacing: LINE_SPACING, maxPoints: MAX_POINTS, extraLines: [...drawn, ...mapPart.lines, ...(mapPart.guides?.lines || [])] }), moved, maxMove };
+  } catch (e) { return { tooMany: tr("The surface's inputs could not be read: {e}", { e: e.message || String(e) }), points: [], picks: 0, lines: 0, sections: 0, mapLines: 0, guideLines: 0, drawnLines: 0, moved: 0, maxMove: 0 }; }
   }, [def, sections, mapPart, drawn, sc, tracesSeq]);
   const [mapLayerId, setMapLayerId] = useState("");
   const mapLayer = polys.find((l) => l.id === mapLayerId) || polys[0] || null;
@@ -418,7 +425,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   const allDefsRef = useRef(defs);
   allDefsRef.current = defs;
   const groundLine = useMemo(() => (plane && hasTerrain && digDrawing ? groundProfileOnImage(plane, groundAt, 200) : []), [plane, hasTerrain, terrain, digDrawing]); // groundAt reads terrain
-  const snapTargets = useMemo(() => (digDrawing && plane ? sectionSnapTargets(plane, sc.traces.current, sc.litho || [], { maxOffM: 15 }) : []), [digDrawing, plane, sc.litho]);
+  const snapTargets = useMemo(() => { try { return digDrawing && plane ? sectionSnapTargets(plane, sc.traces.current, sc.litho || [], { maxOffM: 15 }) : []; } catch { return []; } }, [digDrawing, plane, sc.litho]); // try: #898
   const shiftRef = useRef(false);
   const planePoint = (ray) => {
     if (!plane) return null;
@@ -767,11 +774,11 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           <summary style={{ fontWeight: 600, marginBottom: 4, cursor: "pointer" }}>{tr("Unit, layer and contact")}</summary>
         <div style={row}>
           <span style={{ width: 34, flexShrink: 0 }}>{tr("Unit")}</span>
-          <select value={curUnit} onChange={(e) => (e.target.value === " new" ? newUnit() : assignUnit(e.target.value))} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Unit this surface bounds")}
+          <select value={curUnit} onChange={(e) => (e.target.value === NEW_UNIT ? newUnit() : assignUnit(e.target.value))} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Unit this surface bounds")}
             title={tr("The modelling unit this surface is a contact of. Solid blocks from surfaces fills the units between their contacts.")}>
             {!allUnits.includes(curUnit) && <option value={curUnit}>{curUnit}</option>}
             {allUnits.map((u) => <option key={u} value={u}>{u}</option>)}
-            <option value={" new"}>{tr("New unit…")}</option>
+            <option value={NEW_UNIT}>{tr("New unit…")}</option>
           </select>
           <select value={def.layer || ""} onChange={(e) => { update({ layer: e.target.value }); setUnitNote(null); }} style={{ ...smallSel, width: 78, flexShrink: 0 }} aria-label={tr("Layer")}
             title={tr("When the unit occurs as several separate layers in the stack, give each its letter (A, B, C…): each layer becomes a unit of its own in the blocks.")}>
@@ -941,7 +948,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         </div>
         <div style={row}>
           <span style={{ width: 120, flexShrink: 0 }}>{tr("Mesh detail")}</span>
-          <select value={def.resolution || 80} onChange={(e) => update({ resolution: Number(e.target.value) })} style={smallSel}>
+          <select value={def.resolution || 80} onChange={(e) => update({ resolution: Number(e.target.value) })} style={smallSel} aria-label={tr("Mesh detail")}>
             <option value={40}>{tr("Coarse")}</option><option value={80}>{tr("Standard")}</option><option value={140}>{tr("Fine")}</option>
           </select>
         </div>

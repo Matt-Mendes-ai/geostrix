@@ -177,8 +177,8 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
           <div style={{ ...small, fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: 4 }}>{tr("Used by")}</div>
           {TREND_USERS.map(([tool, label]) => (
             <label key={tool} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-              <span style={{ flex: 1, minWidth: 0 }}>{label}</span>
-              <select value={use[tool] || ""} onChange={(e) => setUse(tool, e.target.value)} aria-label={tr("Trend for {label}", { label })} style={{ ...inputStyle, width: 130 }}>
+              <span style={{ flex: 1, minWidth: 0 }}>{tr(label)}</span>{/* tr: TASKS.csv #893 */}
+              <select value={use[tool] || ""} onChange={(e) => setUse(tool, e.target.value)} aria-label={tr("Trend for {label}", { label: tr(label) })} style={{ ...inputStyle, width: 130 }}>
                 <option value="">{tr("No trend")}</option>
                 {trends.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>

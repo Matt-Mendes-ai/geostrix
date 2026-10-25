@@ -7500,7 +7500,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                     </div>
                   )}
                   <label style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Type")}<select value={s.type || "other"} onChange={(e) => setSurfaceType(s.id, e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }}>
-                      {SURFACE_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+                      {SURFACE_TYPES.map((t) => <option key={t.key} value={t.key}>{tr(t.label)}</option>)}{/* tr: TASKS.csv #893 */}
                     </select>
                   </label>
                   {/* TASKS.csv #804 — Matt: "I change the type of mineralization but it doesn't do anything". Say what it does. */}
