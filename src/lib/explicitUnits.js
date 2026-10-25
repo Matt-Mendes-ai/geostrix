@@ -36,8 +36,11 @@ export function unitSummary(defs) {
 // { [id]: letter }. Walking down the stack, an upper contact opens a new layer; a lower contact closes the open layer
 // (or is a layer of its own when that layer already has a lower contact, or when there is none). So
 // upper, lower, upper, lower -> A, A, B, B; upper, upper -> A, B; lower, lower -> A, B.
+// TASKS.csv #873 — an item may carry `rank` (0 = top, from stackOrder over the built meshes): two ranked items are
+// ordered by rank, which compares them where both exist; z (a median) only orders an item that has no rank.
 export function splitByElevation(items) {
-  const sorted = [...items].filter((it) => Number.isFinite(it.z)).sort((a, b) => b.z - a.z);
+  const sorted = [...items].filter((it) => Number.isFinite(it.z) || Number.isFinite(it.rank))
+    .sort((a, b) => (Number.isFinite(a.rank) && Number.isFinite(b.rank) ? a.rank - b.rank : b.z - a.z));
   const out = {};
   let n = -1, cur = null; // cur: { upper, lower } of the open layer
   for (const it of sorted) {

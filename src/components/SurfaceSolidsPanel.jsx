@@ -10,6 +10,7 @@ import { isMeshClosed } from "../lib/meshQuery.js";
 import { validateSolid } from "../lib/meshValidate.js"; // TASKS.csv #860
 import { SOLID_SURFACE_TYPES } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #804
 import { unitOf, contactOf, layerLabel } from "../lib/explicitUnits.js"; // TASKS.csv #830
+import { stackOrder } from "../lib/stackOrder.js"; // TASKS.csv #873
 
 const zStats = (pos) => {
   const zs = [];
@@ -51,8 +52,11 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
   const { used, tops, solids } = useMemo(() => {
     const role = (it) => roles[it.id] ?? (it.steep ? "none" : it.defaultRole);
     const u = items.filter((it) => role(it) !== "none");
-    // contacts (#830: upper and lower) in stack order: highest median elevation first
-    return { used: u, tops: u.filter((it) => role(it) === "top" || role(it) === "base").sort((a, b) => b.z.median - a.z.median), solids: u.filter((it) => role(it) === "solid") };
+    // contacts (#830: upper and lower) in stack order, top first. TASKS.csv #873 — by comparing each pair where both
+    // exist, not by median elevation: a dipping top and base picked over different areas had the base's median higher
+    const c = u.filter((it) => role(it) === "top" || role(it) === "base");
+    const { rank } = stackOrder(c.map((it) => ({ id: it.id, positions: it.mesh.positions, indices: it.mesh.indices })));
+    return { used: u, tops: c.sort((a, b) => rank[a.id] - rank[b.id]), solids: u.filter((it) => role(it) === "solid") };
   }, [items, roles]);
   const auto = useMemo(() => {
     if (!used.length) return null;

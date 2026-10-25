@@ -16,6 +16,7 @@ import { imagePlane, rayPlane, facingCamera, densify3, medianApparentDip, sectio
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #828 — Undo / Redo
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #885
 import { unitOf, contactOf, layerLabel, unitSummary, splitByElevation, nextLayer } from "../lib/explicitUnits.js"; // TASKS.csv #830 / #831 / #832
+import { stackOrder } from "../lib/stackOrder.js"; // TASKS.csv #873
 
 const MAX_POINTS = 800; // ~0.4 s to solve on a laptop (1,200 took 1.2 s); section lines are thinned to fit
 const LINE_SPACING = 10; // m between the points taken along a drawn section line
@@ -641,7 +642,14 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, defs, s
   };
   const splitUnit = () => {
     const mine = defs.filter((d) => unitOf(d) === curUnit);
-    const asg = splitByElevation(mine.map((d) => ({ id: d.id, contact: contactOf(d), z: elevationOf(d) })));
+    // TASKS.csv #873 — the built ones are ordered pairwise where both exist (scene y is the elevation; x, z the map)
+    const built = mine.map((d) => ({ d, a: d.surfaceId && sc.meshes.current[d.surfaceId]?.geometry })).filter((x) => x.a?.attributes?.position && x.a.index);
+    const { rank } = stackOrder(built.map(({ d, a }) => {
+      const s = a.attributes.position.array, q = new Float64Array(s.length);
+      for (let i = 0; i < s.length; i += 3) { q[i] = s[i]; q[i + 1] = s[i + 2]; q[i + 2] = s[i + 1]; }
+      return { id: d.id, positions: q, indices: a.index.array };
+    }));
+    const asg = splitByElevation(mine.map((d) => ({ id: d.id, contact: contactOf(d), z: elevationOf(d), rank: rank[d.id] })));
     const left = mine.filter((d) => !asg[d.id]).length, n = new Set(Object.values(asg)).size;
     setDefs((p) => p.map((d) => (asg[d.id] ? { ...d, layer: asg[d.id] } : d)));
     setUnitNote(tr("{unit}: {n} layer(s), lettered from the top down.", { unit: curUnit, n }) + (left ? ` ${tr("{k} surface(s) not built yet were left as they were.", { k: left })}` : ""));
