@@ -724,8 +724,11 @@ export function StoreProvider({ children }) {
     const requestId = `vprend_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const fixedScale = trueScale && Number(opts.fixedScale) > 0 ? Number(opts.fixedScale) : null;
     const elementW = Number(opts.elementW) > 0 ? Number(opts.elementW) : null;
-    setViewportPendingRequest({ requestId, targetElementId, themeId, trueScale, interactive, fixedScale });
-    setViewportRenderRequest({ requestId, themeId, trueScale, interactive, fixedScale, elementW });
+    // TASKS.csv #906 — and the frame's height: the capture is rendered at the frame's own aspect, so the image fills
+    // whatever shape the user dragged the frame to (ViewerModule's doCaptureViewportRender).
+    const elementH = Number(opts.elementH) > 0 ? Number(opts.elementH) : null;
+    setViewportPendingRequest({ requestId, targetElementId, themeId, trueScale, interactive, fixedScale, elementW, elementH });
+    setViewportRenderRequest({ requestId, themeId, trueScale, interactive, fixedScale, elementW, elementH });
     setViewportRenderRequestSeq((s) => s + 1);
     return requestId;
   }, []);
@@ -739,6 +742,11 @@ export function StoreProvider({ children }) {
   // LayoutModule's job in that same result effect — same unmount problem, so it's routed through this
   // one-shot "please select this id next time you mount" slot instead.
   const [layoutSelectRequest, setLayoutSelectRequest] = useState(null);
+  // TASKS.csv #908 — "Export PDF" (ribbon, menu, Ctrl+P) asks LayoutModule to print: it renders every page at its paper
+  // size in a print root and calls the exporter itself, so the PDF is never the live screen (that printed the rulers,
+  // the Simple / Advanced toggle and two near-empty pages, with the sheet off its corner and scaled 0.3 %).
+  const [layoutPrintRequest, setLayoutPrintRequest] = useState(null);
+  const requestLayoutPrint = useCallback((opts = {}) => setLayoutPrintRequest({ seq: Date.now() + Math.random(), ...opts }), []);
 
   // Applies a viewport render result to layoutElements as soon as it matches the outstanding pending
   // request, regardless of whether LayoutModule happens to be mounted right now, then hops back to
@@ -747,7 +755,7 @@ export function StoreProvider({ children }) {
     if (!viewportRenderResult || !viewportPendingRequest) return;
     if (viewportRenderResult.requestId !== viewportPendingRequest.requestId) return;
     const res = viewportRenderResult;
-    const { targetElementId } = viewportPendingRequest;
+    const { targetElementId, elementW: reqW, elementH: reqH } = viewportPendingRequest;
     setViewportPendingRequest(null);
 
     if (res.error) {
@@ -764,15 +772,21 @@ export function StoreProvider({ children }) {
       const id = `viewport_${Date.now()}`;
       setLayoutElements((els) => [...els, {
         id, type: "viewport", themeId: viewportPendingRequest.themeId,
-        x: 90, y: 90, w, h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg,
+        x: 90, y: 90, w, h, capW: w, capH: h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, // capW / capH: #906
         trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, // #399
         rotation: 0, frameWidth: 1, frameColor: "#1a1a1a", frameStyle: "solid", refreshing: false,
       }]);
       setLayoutSelectRequest(id);
     } else {
       setLayoutElements((els) => els.map((el) => el.id === targetElementId
-        // #398 — a fixed-scale capture keeps the unrounded height: rounding it would shift 1:1000 to 1:998.
-        ? { ...el, src: res.src, aspect, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, refreshing: false, h: res.fixedScale ? (el.w || 700) / aspect : Math.round((el.w || 700) / aspect), capturedFixedScale: res.fixedScale || null }
+        ? { ...el, src: res.src, aspect, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, refreshing: false,
+            // TASKS.csv #906 — the capture was rendered at the frame's own aspect (reqW x reqH page px), so the frame keeps
+            // the size the user gave it and the image fills it; capW / capH remember that size, and a later resize shows
+            // the image at ITS size until the next refresh, so the scale on the page never changes under the user's feet.
+            // (Before: the frame's height was rewritten to the 3D canvas's aspect on every refresh - #398 kept it unrounded
+            // so 1:1000 did not become 1:998.) A request without a height (none left) falls back to that.
+            ...(reqH ? { capW: reqW, capH: reqH } : { h: res.fixedScale ? (el.w || 700) / aspect : Math.round((el.w || 700) / aspect), capW: el.w || 700, capH: res.fixedScale ? (el.w || 700) / aspect : Math.round((el.w || 700) / aspect) }),
+            capturedFixedScale: res.fixedScale || null }
         : el));
       setLayoutSelectRequest(targetElementId);
     }
@@ -1538,6 +1552,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     viewportRenderRequest, viewportRenderRequestSeq, requestViewportRender, viewportPendingRequest,
     viewportRenderResult, viewportRenderResultSeq, resolveViewportRender,
     layoutSelectRequest, setLayoutSelectRequest,
+    layoutPrintRequest, requestLayoutPrint, // TASKS.csv #908
     newProject, saveProject, openProject,
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab,
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465

@@ -24,6 +24,17 @@ export function pagePx(format) {
   const h = Math.round((f.orientation === "landscape" ? short : long) * PX_PER_MM);
   return { w, h };
 }
+// TASKS.csv #908 — the paper size in mm for the page's orientation, and the CSS named page (@page <name>) the Layout
+// print root gives it, so a document with mixed formats prints each page on its own paper.
+export function pageMm(format) {
+  const f = pageFormatOf({ format });
+  const [long, short] = PAGE_FORMATS[f.size].mm;
+  return f.orientation === "landscape" ? [long, short] : [short, long];
+}
+export function pageCssName(format) {
+  const f = pageFormatOf({ format });
+  return `geostrix-${f.size}-${f.orientation}`;
+}
 export function pdfOptions(format) {
   const f = pageFormatOf({ format });
   return { pageSize: PAGE_FORMATS[f.size].electron, landscape: f.orientation === "landscape" };

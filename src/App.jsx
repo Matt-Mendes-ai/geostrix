@@ -6,10 +6,9 @@ import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2
 import { crsName, getProj4DefSync, loadEpsgRegistry, onEpsgRegistry } from "./lib/reproject.js"; // TASKS.csv #485; #834 registry
 import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./lib/store.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
-import { pdfOptions } from "./lib/pageFormats.js"; // TASKS.csv #398
 import { iconAction, activateOnKey } from "./lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 import { DESURVEY_METHODS } from "./lib/desurvey.js"; // TASKS.csv #135 — status-bar desurvey-method picker
-import { onMenu, onSectionSnapshot, onSectionContacts, savePDF, pythonHealth, isSidecarRunning, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState, captureWindow, problemReportInfo } from "./lib/desktop.js";
+import { onMenu, onSectionSnapshot, onSectionContacts, pythonHealth, isSidecarRunning, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState, captureWindow, problemReportInfo } from "./lib/desktop.js";
 import ViewerModule from "./modules/ViewerModule.jsx";
 // TASKS.csv #438 — memoised so a store write while the viewer is hidden (FreezeStore below) skips it entirely
 const MemoViewerModule = React.memo(ViewerModule);
@@ -80,7 +79,7 @@ export default function App() {
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab, project,
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
     undo, redo, canUndo, canRedo,
-    layoutPages, activeLayoutPageId, // TASKS.csv #398 — PDF paper size
+    requestLayoutPrint, // TASKS.csv #908 — Export PDF prints from Layout's print root
   } = store;
   const [active, setActive] = useState("viewer");
   const activeRef = useRef(active); activeRef.current = active; // #565 — the menu bridge is subscribed once
@@ -247,10 +246,8 @@ export default function App() {
   // Electron's printToPDF grabs the page.
   const doExportPdf = useCallback(() => {
     setActive("layout");
-    // TASKS.csv #398 — export at the active layout page's own paper size / orientation.
-    const pg = layoutPages.find((p) => p.id === activeLayoutPageId);
-    requestAnimationFrame(() => requestAnimationFrame(() => savePDF("layout.pdf", pdfOptions(pg?.format))));
-  }, [layoutPages, activeLayoutPageId]);
+    requestLayoutPrint(); // TASKS.csv #908 — LayoutModule renders every page at its paper size and exports them
+  }, [requestLayoutPrint]);
 
   // A "Snapshot to Layout" click in the cross-section pop-out window can't touch this window's
   // React store directly (separate Electron renderer process) — it comes back over IPC instead.

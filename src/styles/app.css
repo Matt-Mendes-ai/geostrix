@@ -298,10 +298,18 @@ input, select { font-family: inherit; }
    the printed output. The Layout page itself (.ge-layout-page) is sized/positioned for screen via
    inline styles, so it's reset here to print at its natural A4-landscape size, full bleed. */
 @media print {
-  .ge-toolbar, .ge-subtoolbar, .ge-ribbon, .ge-tabbar, .ge-panel, .ge-status, .ge-layout-pagebar { display: none !important; }
-  html, body, #root, .ge-app, .ge-body, .ge-main { height: auto !important; overflow: visible !important; background: var(--color-bg) !important; }
+  .ge-toolbar, .ge-subtoolbar, .ge-ribbon, .ge-ribbon-row, .ge-ui-mode, .ge-tabbar, .ge-panel, .ge-status, .ge-layout-pagebar { display: none !important; }
+  html, body, #root, .ge-app, .ge-body, .ge-main { height: auto !important; width: auto !important; overflow: visible !important; background: #fff !important; display: block !important; padding: 0 !important; margin: 0 !important; }
   .ge-layout-page { margin: 0 !important; box-shadow: none !important; }
+  /* TASKS.csv #908 — only the Layout print root is printed: every page at exactly its paper size (LayoutPrintRoot in
+     LayoutModule.jsx), its siblings (the sidebar, the rulers, the on-screen sheet) hidden */
+  .ge-print-root { display: block !important; }
+  .ge-print-root ~ * { display: none !important; }
 }
+/* TASKS.csv #908 — the print root exists only while exporting and is never shown on screen */
+.ge-print-root { display: none; }
+.ge-print-page { position: relative; overflow: hidden; background: #fff; break-after: page; page-break-after: always; break-inside: avoid; }
+.ge-print-page:last-child { break-after: auto; page-break-after: auto; }
 
 /* Cross-section pop-out's own "Export PDF" button (TASKS.csv #14) reuses the same generic
    export-pdf IPC handler as the Layout page's, so it needs the same "hide the chrome, print just

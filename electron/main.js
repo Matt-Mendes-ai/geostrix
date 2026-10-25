@@ -642,7 +642,7 @@ ipcMain.handle("section-contacts", (_e, payload) => {
 
 // ---------- PDF export ----------
 const PDF_PAGE_SIZES = new Set(["A3", "A4", "A5", "Legal", "Letter", "Tabloid"]); // TASKS.csv #398
-ipcMain.handle("export-pdf", async (ev, { suggestedName, pageSize, landscape }) => {
+ipcMain.handle("export-pdf", async (ev, { suggestedName, pageSize, landscape, preferCSSPageSize }) => {
   const win = BrowserWindow.fromWebContents(ev.sender) || mainWindow; // #474 — the calling window, not whichever has focus
   const { canceled, filePath } = await dialog.showSaveDialog(win, {
     title: "Export PDF",
@@ -655,6 +655,10 @@ ipcMain.handle("export-pdf", async (ev, { suggestedName, pageSize, landscape }) 
     landscape: landscape !== false,
     pageSize: PDF_PAGE_SIZES.has(pageSize) ? pageSize : "A4",
     margins: { marginType: "none" }, // the layout page is already drawn at exactly the paper size
+    // TASKS.csv #908 — the Layout print root sets every page's size with @page; without this Chromium scales the
+    // document to fit ITS paper (0.3 % off on A4: a 1:5,000 plot was not 1:5,000). The section pop-out's export
+    // (no @page) keeps the paper size above.
+    preferCSSPageSize: !!preferCSSPageSize,
   });
   await writeFileAtomic(filePath, data); // #341
   return { ok: true, filePath };

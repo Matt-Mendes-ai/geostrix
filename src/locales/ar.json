@@ -3998,7 +3998,6 @@
   "Align centre": "توسيط",
   "Align right": "محاذاة لليمين",
   "Scale length (m)": "طول المقياس (م)",
-  "Width (px) — height locks to the captured aspect ratio": "العرض (بكسل) — الارتفاع مقفل على نسبة الأبعاد الملتقطة",
   "Rotation (°)": "الدوران (°)",
   "Declination date": "تاريخ الانحراف",
   "Update GN/TN/MN": "تحديث ش.ش/ش.ح/ش.م",
@@ -4067,8 +4066,6 @@
   "Fixed scale 1 :": "مقياس ثابت 1 :",
   "free": "حر",
   "Fixed plot scale denominator": "مقام مقياس الرسم الثابت",
-  "{v} Keep the frame's width after capturing, or the scale changes with it.": "{v} حافظ على عرض الإطار بعد الالتقاط، وإلا تغير المقياس معه.",
-  "Captured at 1 : {fixedScale}: this frame shows {v} m across.{v2}": "التُقط بمقياس 1 : {fixedScale}: يعرض هذا الإطار {v} م عرضًا.{v2}",
   "Refresh to capture at this scale.": "حدّث للالتقاط بهذا المقياس.",
   "Frame width": "عرض الإطار",
   "Frame style": "نمط الإطار",
@@ -5958,5 +5955,15 @@
   "{n} point(s)": "{n} نقطة",
   "{n} triangle(s) with an edge over {m} m were left out, so no ground is invented across gaps in the data.": "استُبعد {n} مثلث ضلعه أطول من {m} م، كي لا تُختلق أرض عبر فجوات البيانات.",
   "{pct}% of the triangles are flat (all three corners on one contour): terraces on hilltops and valley floors, where contours alone do not say how the ground continues.": "{pct}% من المثلثات مستوية (رؤوسها الثلاثة على خط كنتور واحد): مصاطب على القمم وفي قيعان الأودية، حيث لا تبيّن خطوط الكنتور وحدها كيف تستمر الأرض.",
-  "{pct}% of the grid ({n} cells) lies outside the triangulated points and is left out of the 3D surface; anything that samples elevation there (collars, sections, stations) gets the mean elevation {z} m, not a real height.": "{pct}% من الشبكة ({n} خلية) يقع خارج النقاط المثلَّثة ويُستبعد من السطح ثلاثي الأبعاد؛ وما يأخذ الارتفاع هناك (الفوهات والمقاطع والمحطات) يحصل على متوسط الارتفاع {z} م، لا ارتفاعًا حقيقيًا."
+  "{pct}% of the grid ({n} cells) lies outside the triangulated points and is left out of the 3D surface; anything that samples elevation there (collars, sections, stations) gets the mean elevation {z} m, not a real height.": "{pct}% من الشبكة ({n} خلية) يقع خارج النقاط المثلَّثة ويُستبعد من السطح ثلاثي الأبعاد؛ وما يأخذ الارتفاع هناك (الفوهات والمقاطع والمحطات) يحصل على متوسط الارتفاع {z} م، لا ارتفاعًا حقيقيًا.",
+  "Exported {n} page(s) to {path}.": "صُدّرت {n} صفحة إلى {path}.",
+  "Export every page as a PDF, each at its own paper size and orientation": "صدّر كل الصفحات كملف PDF، كل صفحة بحجم ورقها واتجاهها",
+  "Captured at 1 : {fixedScale}: the frame shows {w} × {h} m. Resize it and refresh to show more or less ground at this scale.": "التُقط بمقياس 1 : {fixedScale}: يعرض الإطار {w} × {h} م. غيّر حجمه ثم حدّث لعرض أرض أكثر أو أقل بهذا المقياس.",
+  "The frame was resized since its capture: the image keeps its scale and size until you refresh, which fills the frame.": "غُيّر حجم الإطار منذ التقاطه: تحتفظ الصورة بمقياسها وحجمها حتى تحدّث، فيمتلئ الإطار.",
+  "Drag the tip to aim and lengthen the arrow": "اسحب الرأس لتوجيه السهم وإطالته",
+  "Position and size on the paper, in millimetres (the rulers' unit). Drag an element's handles to resize it; Shift keeps its shape.": "الموضع والحجم على الورقة بالمليمتر (وحدة المساطر). اسحب مقابض العنصر لتغيير حجمه؛ Shift يحافظ على شكله.",
+  "X (mm)": "X (مم)",
+  "Y (mm)": "Y (مم)",
+  "W (mm)": "العرض (مم)",
+  "H (mm)": "الارتفاع (مم)"
 }

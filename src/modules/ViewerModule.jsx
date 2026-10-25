@@ -274,23 +274,26 @@ function makeTextSprite(text, { color = "#1a2028", bg = "rgba(255,255,255,0.85)"
 // Iris Xe-class budget). Nothing changes per frame; the canvas's CSS size never changes, so the page
 // doesn't reflow. `draw()` does the actual render(s); returns the PNG data URL and its pixel size.
 const CAPTURE_LONG_PX = 3000;
-function captureHiRes(renderer, cssW, cssH, draw) {
+// TASKS.csv #906 — outW x outH (CSS px): the size the capture is drawn at, when it is not the canvas's own (a Layout
+// frame's aspect); the renderer goes back to cssW x cssH afterwards.
+function captureHiRes(renderer, cssW, cssH, draw, outW = cssW, outH = cssH) {
   const gl = renderer.getContext();
   const maxRb = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 4096;
   const maxVp = gl.getParameter(gl.MAX_VIEWPORT_DIMS)?.[0] || 4096;
   const cap = Math.min(4096, maxRb, maxVp);
   const oldPr = renderer.getPixelRatio();
-  const longCss = Math.max(cssW, cssH) || 1;
+  const longCss = Math.max(outW, outH) || 1;
   const pr = Math.max(oldPr, Math.min(CAPTURE_LONG_PX, cap) / longCss);
+  const resize = pr !== oldPr || outW !== cssW || outH !== cssH;
   try {
-    if (pr !== oldPr) { renderer.setPixelRatio(pr); renderer.setSize(cssW, cssH, false); }
-    renderer.setViewport(0, 0, cssW, cssH);
+    if (resize) { renderer.setPixelRatio(pr); renderer.setSize(outW, outH, false); }
+    renderer.setViewport(0, 0, outW, outH);
     renderer.setScissorTest(false);
     draw();
     const c = renderer.domElement;
     return { dataUrl: c.toDataURL("image/png"), width: c.width, height: c.height };
   } finally {
-    if (pr !== oldPr) { renderer.setPixelRatio(oldPr); renderer.setSize(cssW, cssH, false); }
+    if (resize) { renderer.setPixelRatio(oldPr); renderer.setSize(cssW, cssH, false); }
   }
 }
 function fitScreenLabels(group, camera, viewportH) {
@@ -3009,15 +3012,29 @@ ${describeTrend(t)}` };
     // reported scale makes worldHeightAtTarget exact across the whole image, not an estimate valid
     // only at one particular distance. Built fresh per capture (not a persistent second camera) —
     // this never touches the live interactive `camera`, which stays perspective for normal use.
+    // TASKS.csv #906 — the capture is drawn at the Layout frame's own aspect (elementW x elementH page px) when the
+    // request carries one, so the image fills the frame whatever shape the 3D canvas has (a new viewport, with no frame
+    // yet, uses the canvas's). The vertical extent is what the live view frames; the width follows the frame.
+    const mountW = mountRef.current.clientWidth, mountH = mountRef.current.clientHeight;
+    const frameAspect = req.elementW > 0 && req.elementH > 0;
+    const outW = frameAspect ? req.elementW : mountW, outH = frameAspect ? req.elementH : mountH;
     let renderCamera = camera;
     let orthoCamera = null;
     let orthoHalfH = null; // #398
+    if (!req.trueScale && frameAspect && (outW !== mountW || outH !== mountH)) {
+      // a perspective capture at the frame's aspect: a clone of the live camera (same place, look and vertical field of
+      // view), only its aspect differs - the live camera is never touched
+      const pc = camera.clone();
+      pc.aspect = outW / outH;
+      pc.updateProjectionMatrix();
+      renderCamera = pc;
+    }
     if (req.trueScale) {
-      const aspect = mountRef.current.clientWidth / mountRef.current.clientHeight;
+      const aspect = outW / outH;
       let halfH = cs.radius * Math.tan(fovRad / 2); // same half-height the perspective camera frames AT the target distance — reused so the orthographic capture shows "the same amount of world" as what was already framed, just without the depth-dependent scale drift
       // TASKS.csv #398 — fixed plot scale: the Layout frame (elementW page px at 96 dpi) must show
-      // N x its printed width of world, centred where the camera looks. The frame's height follows the
-      // capture's aspect (store.jsx), so the vertical scale is the same 1:N.
+      // N x its printed width of world, centred where the camera looks. #906: drawn at the frame's own aspect, so
+      // its height shows N x the printed height too - the frame's size on the paper IS the ground it shows.
       if (req.fixedScale > 0 && req.elementW > 0) halfH = (req.fixedScale * (req.elementW / 96) * 0.0254) / 2 / aspect;
       const halfW = halfH * aspect;
       orthoHalfH = halfH;
@@ -3031,13 +3048,12 @@ ${describeTrend(t)}` };
     // camera holds no GPU resources (no geometry/material/texture), just plain JS-side matrices.
     let dataUrl, shotW = 0, shotH = 0;
     try {
-      const cssW = mountRef.current.clientWidth, cssH = mountRef.current.clientHeight;
-      const shot = captureHiRes(renderer, cssW, cssH, () => { // #380 — print resolution
-        fitScreenLabels(layerGroupsRef.current?.hole_labels, renderCamera, cssH); // #379
+      const shot = captureHiRes(renderer, mountW, mountH, () => { // #380 — print resolution
+        fitScreenLabels(layerGroupsRef.current?.hole_labels, renderCamera, outH); // #379
         renderer.clippingPlanes = slicePlanesRef.current; // #453 — the figure shows the slice you see
         renderer.render(scene, renderCamera);
         renderer.clippingPlanes = [];
-      });
+      }, outW, outH); // #906 — at the frame's aspect
       dataUrl = shot.dataUrl; shotW = shot.width; shotH = shot.height;
     } catch (err) { restoreLiveView(liveViewBeforeRender); resolveViewportRender({ requestId: req.requestId, error: err.message }); return; }
     // TASKS.csv #311 — this used to be the inline `2 * cs.radius * Math.tan(fovRad / 2)`. Same figure,

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
-import { Plus, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid } from "../components/icons.js";
+import { Plus, X, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid } from "../components/icons.js";
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { savePDF } from "../lib/desktop.js";
 import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
@@ -17,7 +17,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // A simple drag-and-drop page-layout canvas. Elements are absolutely positioned on an A4-landscape
 // page; "Export PDF" prints the page via the Electron main process (or the browser print dialog).
 
-import { PAGE_FORMATS, pageFormatOf, pagePx } from "../lib/pageFormats.js"; // TASKS.csv #398
+import { PAGE_FORMATS, pageFormatOf, pagePx, pageMm, pageCssName } from "../lib/pageFormats.js"; // TASKS.csv #398; mm / named pages: #908
 import { azimuthToGridOffset, setIgrfModule } from "../lib/azimuthRef.js"; // TASKS.csv #399 — GN/TN/MN diagram
 import * as igrfModule from "../lib/igrf.js"; // #552 — Layout is a lazy chunk: it brings IGRF with it
 setIgrfModule(igrfModule);
@@ -68,6 +68,7 @@ export default function LayoutModule() {
     // layoutSelectRequest above: local state here would silently drop the grid's viewport binding
     // every time Enter/Refresh switches away to the 3D View tab and back.
     gridBoundViewportId, setGridBoundViewportId, gridMeters, setGridMeters,
+    layoutPrintRequest, requestLayoutPrint, // TASKS.csv #908
   } = useStore();
   const [selected, setSelected] = useState(null);
   // TASKS.csv #398 — the active page's paper size in screen px (96 dpi); named A4 for the existing uses.
@@ -75,6 +76,33 @@ export default function LayoutModule() {
   const pageFormat = pageFormatOf(activePage);
   const A4 = pagePx(pageFormat);
   const [atlasModalOpen, setAtlasModalOpen] = useState(false); // TASKS.csv #130
+  // TASKS.csv #908 — Export PDF prints a PRINT ROOT, not the live screen. The old path printed the window through the
+  // @media print stylesheet: the rulers, the Simple / Advanced toggle and a tab button survived (3 pages, the first two
+  // near-empty), the sheet sat 12 mm off the paper's corner, and Chromium shrank the overflowing content by 0.3 % to
+  // fit - so a 1:5,000 plot was not 1:5,000. Now every page is rendered at exactly its paper size in mm with its own
+  // @page size (preferCSSPageSize), the chrome is hidden by class, and the file is named after the project.
+  const [printing, setPrinting] = useState(null);
+  const [exportNote, setExportNote] = useState(null); // { text, error } shown in the page bar (notices are per module, not in the store)
+  const printRootRef = useRef(null);
+  useEffect(() => { if (!exportNote) return undefined; const t = setTimeout(() => setExportNote(null), 12000); return () => clearTimeout(t); }, [exportNote]);
+  useEffect(() => { if (layoutPrintRequest) setPrinting(layoutPrintRequest); }, [layoutPrintRequest]);
+  useEffect(() => {
+    if (!printing) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const imgs = [...(printRootRef.current?.querySelectorAll("img") || [])];
+        await Promise.all(imgs.map((im) => im.decode().catch(() => null)));
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        if (cancelled) return;
+        const name = `${String(project?.name || "layout").replace(/[^\w.-]+/g, "_")}.pdf`;
+        const res = await savePDF(name, { ...pdfOptions(layoutPages[0]?.format), preferCSSPageSize: true });
+        if (res?.ok) setExportNote({ text: tr("Exported {n} page(s) to {path}.", { n: layoutPages.length, path: res.filePath || name }), error: false });
+      } catch (e) { setExportNote({ text: e.message || String(e), error: true }); }
+      finally { if (!cancelled) setPrinting(null); }
+    })();
+    return () => { cancelled = true; };
+  }, [printing]);
   // User request: "let's make some keyboard shortcuts. Like on layout we could have delete key to
   // delete the selected item, and ctrl + click to select multiple items." `selected` stays the single
   // "active" element (the one the properties sidebar edits — multi-selection doesn't get its own bulk-
@@ -248,12 +276,27 @@ export default function LayoutModule() {
         }
       : { id: el.id, offX: e.clientX - rect.left - el.x, offY: e.clientY - rect.top - el.y, groupOrigin: null };
   };
+  // TASKS.csv #906 — a resize handle was pressed (see Handles / the resize branch of the drag effect above)
+  const onResizeStart = (e, el, handle) => {
+    setSelected(el.id);
+    setMultiSelected(new Set());
+    const rect = pageRef.current.getBoundingClientRect();
+    const px = e.clientX - rect.left, py = e.clientY - rect.top;
+    const box = e.currentTarget.parentElement?.getBoundingClientRect();
+    const w0 = el.w ?? (box ? box.width : 100), h0 = el.h ?? (box ? box.height : 0);
+    let arrow = null;
+    if (el.type === "arrow") { // the tail's page position: it stays put while the tip is dragged
+      const rad = (el.angle * Math.PI) / 180, ax = Math.cos(rad) * el.length, ay = Math.sin(rad) * el.length, pad = 12;
+      arrow = { x: el.x + (ax < 0 ? Math.abs(ax) + pad : pad), y: el.y + (ay < 0 ? Math.abs(ay) + pad : pad) };
+    }
+    dragState.current = { resize: handle, id: el.id, startX: px, startY: py, x0: el.x, y0: el.y, w0, h0, lockAspect: ASPECT_LOCKED.has(el.type) || e.shiftKey, widthOnly: WIDTH_ONLY.has(el.type), arrow };
+  };
   // TASKS.csv #101 — derived (not stored) so it always reflects the bound viewport's LATEST scale.
   // Falls back to null (and the grid behaves exactly as before, mm-based) if nothing's bound, the
   // bound element was deleted, or that viewport hasn't been rendered yet (no worldHeightAtTarget/h
   // to compute a scale from).
   const boundViewportEl = gridBoundViewportId ? elements.find((el) => el.id === gridBoundViewportId && el.type === "viewport") : null;
-  const metersPerPx = boundViewportEl?.worldHeightAtTarget && boundViewportEl?.h ? boundViewportEl.worldHeightAtTarget / boundViewportEl.h : null;
+  const metersPerPx = boundViewportEl?.worldHeightAtTarget && (boundViewportEl?.capH || boundViewportEl?.h) ? boundViewportEl.worldHeightAtTarget / (boundViewportEl.capH || boundViewportEl.h) : null; // capH: #906
   const gridSnapPx = metersPerPx ? gridMeters / metersPerPx : gridMm * PX_PER_MM;
   // A bound viewport that gets deleted (or was never a viewport to begin with) shouldn't leave a
   // stale, silently-ignored id sitting in the picker — snap back to "None" so the UI stays truthful.
@@ -274,6 +317,41 @@ export default function LayoutModule() {
       let y = e.clientY - rect.top - dragState.current.offY;
       if (showGrid) { x = Math.round(x / snapPx) * snapPx; y = Math.round(y / snapPx) * snapPx; }
       x = Math.round(x); y = Math.round(y);
+      // TASKS.csv #906 — a handle drag: the moving edge(s) follow the cursor (snapped to the grid when it is on); Shift,
+      // or a type whose aspect is locked (an image, a logo), keeps the shape; an arrow's tip drag re-aims and re-lengthens
+      // it around its tail. x / y / w are whole px; the height of an aspect-locked box is kept exact (#398: rounding it
+      // would shift 1:1000 to 1:998).
+      if (dragState.current.resize) {
+        const d = dragState.current, hnd = d.resize;
+        const px = e.clientX - rect.left, py = e.clientY - rect.top;
+        if (d.arrow) {
+          const vx = px - d.arrow.x, vy = py - d.arrow.y;
+          const length = Math.max(10, Math.hypot(vx, vy)), angle = (Math.atan2(vy, vx) * 180) / Math.PI;
+          const ax = Math.cos((angle * Math.PI) / 180) * length, ay = Math.sin((angle * Math.PI) / 180) * length, pad = 12;
+          const x1 = ax < 0 ? Math.abs(ax) + pad : pad, y1 = ay < 0 ? Math.abs(ay) + pad : pad;
+          setElements((els) => els.map((el) => el.id === d.id ? { ...el, length: Math.round(length), angle: Math.round(angle * 10) / 10, x: Math.round(d.arrow.x - x1), y: Math.round(d.arrow.y - y1) } : el));
+          return;
+        }
+        const dx = px - d.startX, dy = py - d.startY, minW = 20, minH = 20;
+        const snap = (v) => (showGrid ? Math.round(v / snapPx) * snapPx : v);
+        let x = d.x0, y = d.y0, w = d.w0, h = d.h0;
+        if (hnd.includes("e")) w = Math.max(minW, snap(d.x0 + d.w0 + dx) - d.x0);
+        if (hnd.includes("w")) { const nx = Math.min(snap(d.x0 + dx), d.x0 + d.w0 - minW); w = d.x0 + d.w0 - nx; x = nx; }
+        if (!d.widthOnly) {
+          if (hnd.includes("s")) h = Math.max(minH, snap(d.y0 + d.h0 + dy) - d.y0);
+          if (hnd.includes("n")) { const ny = Math.min(snap(d.y0 + dy), d.y0 + d.h0 - minH); h = d.y0 + d.h0 - ny; y = ny; }
+          if (d.lockAspect && d.h0 > 0) {
+            const a = d.w0 / d.h0;
+            const byW = hnd === "e" || hnd === "w" || (hnd !== "n" && hnd !== "s" && Math.abs(dx) >= Math.abs(dy)); // the dominant delta wins on a corner
+            if (byW) h = w / a; else w = h * a;
+            if (hnd.includes("w")) x = d.x0 + d.w0 - w;
+            if (hnd.includes("n")) y = d.y0 + d.h0 - h;
+          }
+        }
+        const hOut = d.widthOnly ? {} : { h: d.lockAspect ? Math.round(h * 100) / 100 : Math.round(h) };
+        setElements((els) => els.map((el) => el.id === d.id ? { ...el, x: Math.round(x), y: Math.round(y), w: Math.round(w), ...hOut } : el));
+        return;
+      }
       const { id, groupOrigin } = dragState.current;
       if (groupOrigin) {
         // Multi-element drag (started on a member of a >1 Ctrl+click selection): move every selected
@@ -531,6 +609,7 @@ export default function LayoutModule() {
 
   return (
     <div className="ge-body" style={{ width: "100%" }}>
+      {printing && <LayoutPrintRoot ref={printRootRef} pages={layoutPages} />}{/* TASKS.csv #908 */}
       <div className="ge-panel" style={{ padding: "16px 14px", width: sidebarWidth }}>
         {/* TASKS.csv #458 — Layout ribbon (replaces the #65 icon palette and the Templates / Output buttons). */}
         <Ribbon label="Layout tools">
@@ -557,7 +636,7 @@ export default function LayoutModule() {
             <RibbonButton icon={FolderOpen} label={tr("Templates ({n})", { n: layoutTemplates.length })} tone="data" disabled={!layoutTemplates.length} active={templatesOpen} title="Load a saved template (list in the sidebar)" onClick={() => setTemplatesOpen((v) => !v)} />
           </RibbonGroup>
           <RibbonGroup label="Output">
-            <RibbonButton icon={FileDown} label="Export PDF" tone="output" title="Export this page as a PDF at its paper size" onClick={() => savePDF("layout.pdf", pdfOptions(activePage?.format))} />{/* #511 — the page's own size / orientation, as Ctrl+P does (#398) */}
+            <RibbonButton icon={FileDown} label="Export PDF" tone="output" title="Export every page as a PDF, each at its own paper size and orientation" onClick={() => requestLayoutPrint()} />{/* #511 — the page's own size / orientation, as Ctrl+P does (#398) */}
           </RibbonGroup>
         </Ribbon>
         <input ref={logoInput} type="file" accept="image/*" style={{ display: "none" }} onChange={onLogoFile} />
@@ -576,6 +655,7 @@ export default function LayoutModule() {
         {sel && (
           <>
             <div className="ge-section-label" style={{ marginTop: 18 }}>{tr("Selected: {type}", { type: sel.type })}</div>
+            <PlaceControls sel={sel} updateSelected={updateSelected} />{/* TASKS.csv #906 — position and size in mm */}
             {"text" in sel && (
               <input value={sel.text} onChange={(e) => updateSelected({ text: e.target.value })} style={inp} />
             )}
@@ -607,13 +687,6 @@ export default function LayoutModule() {
             )}
             {"meters" in sel && (
               <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Scale length (m)")}<input type="number" value={sel.meters} onChange={(e) => updateSelected({ meters: Number(e.target.value) })} style={inp} />
-              </label>
-            )}
-            {(sel.type === "image" || sel.type === "viewport") && (
-              <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Width (px) — height locks to the captured aspect ratio")}<input type="number" value={sel.w} onChange={(e) => {
-                  const w = Math.max(40, Number(e.target.value) || sel.w);
-                  updateSelected({ w, h: Math.round(w / (sel.aspect || 1)) });
-                }} style={inp} />
               </label>
             )}
             {/* Manual rotation for elements other than "viewport" (which has its own Rotation field
@@ -702,10 +775,10 @@ export default function LayoutModule() {
             {sel.type === "viewport" && (
               <ViewportControls
                 sel={sel} themes={themes} updateSelected={updateSelected} syncNotice={syncNotice}
-                onRefresh={() => startViewportRender(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w })}
-                onRebind={(themeId) => startViewportRender(themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w })}
-                onEnter={() => startInteractiveViewportEdit(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w })}
-                onSyncScaleBar={() => syncScaleBarForElement(sel, sel.worldHeightAtTarget, sel.h)}
+                onRefresh={() => startViewportRender(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
+                onRebind={(themeId) => startViewportRender(themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
+                onEnter={() => startInteractiveViewportEdit(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
+                onSyncScaleBar={() => syncScaleBarForElement(sel, sel.worldHeightAtTarget, sel.capH || sel.h)}
                 onSyncNorth={() => {
                   // TASKS.csv #67 — same pattern as onSyncScaleBar just above: apply this viewport's
                   // captured camera azimuth to the nearest existing north-arrow element, or add one if
@@ -738,12 +811,6 @@ export default function LayoutModule() {
             {/* TASKS.csv #19 — shape/annotation property editors */}
             {sel.type === "rect" && (
               <>
-                <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Width")}<input type="number" min="10" value={sel.w} onChange={(e) => updateSelected({ w: Math.max(10, Number(e.target.value) || sel.w) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
-                  </label>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Height")}<input type="number" min="10" value={sel.h} onChange={(e) => updateSelected({ h: Math.max(10, Number(e.target.value) || sel.h) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
-                  </label>
-                </div>
                 <ColorRow label={tr("Stroke")} value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Stroke width")}<input type="number" min="0" value={sel.strokeWidth} onChange={(e) => updateSelected({ strokeWidth: Math.max(0, Number(e.target.value) || 0) })} style={inp} />
                 </label>
@@ -767,8 +834,6 @@ export default function LayoutModule() {
             )}
             {sel.type === "callout" && (
               <>
-                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Width")}<input type="number" min="60" value={sel.w} onChange={(e) => updateSelected({ w: Math.max(60, Number(e.target.value) || sel.w) })} style={inp} />
-                </label>
                 <ColorRow label={tr("Fill")} value={sel.fill} onChange={(v) => updateSelected({ fill: v })} />
                 <ColorRow label={tr("Border")} value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
               </>
@@ -909,6 +974,12 @@ export default function LayoutModule() {
             style={{ display: "flex", alignItems: "center", gap: 4, height: 22, marginBottom: 2, marginLeft: 4, padding: "0 8px", background: "transparent", border: "1px solid var(--color-border)", borderRadius: 5, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)", cursor: "pointer" }}
           >
             <LayoutGrid size={12} />{" "}{tr("Atlas…")}</button>
+          {exportNote && ( /* TASKS.csv #908 */
+            <span role={exportNote.error ? "alert" : "status"} style={{ marginLeft: 10, marginBottom: 2, fontSize: "var(--font-size-sm)", color: exportNote.error ? "var(--color-danger-fg)" : "var(--color-accent-dark)", display: "flex", alignItems: "center", gap: 6, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={exportNote.text}>
+              {exportNote.text}
+              <X size={12} role="button" tabIndex={0} aria-label={tr("Dismiss message")} style={{ cursor: "pointer", flexShrink: 0 }} onClick={() => setExportNote(null)} onKeyDown={activateOnKey} />
+            </span>
+          )}
         </div>
         {atlasModalOpen && (
           <GenerateAtlasModal
@@ -955,7 +1026,7 @@ export default function LayoutModule() {
             onDrop={onPageDrop}
           >
           {elements.map((el) => (
-            <LayoutElement key={el.id} el={el} selected={selected === el.id} multiSelected={multiSelected.size > 1 && multiSelected.has(el.id)} onDown={(e) => { e.stopPropagation(); onDown(e, el); }} />
+            <LayoutElement key={el.id} el={el} selected={selected === el.id} multiSelected={multiSelected.size > 1 && multiSelected.has(el.id)} onDown={(e) => { e.stopPropagation(); onDown(e, el); }} onResizeStart={onResizeStart} />
           ))}
           {freehandPoints.length > 1 && (
             <svg style={{ position: "absolute", inset: 0, pointerEvents: "none" }} width={A4.w} height={A4.h}>
@@ -1070,11 +1141,16 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
   // orthographic camera (see startViewportRender/ViewerModule's capture effect), which makes
   // worldHeightAtTarget an exact figure, not an estimate at one particular distance.
   const scaleText = (() => {
-    if (!sel.worldHeightAtTarget || !sel.h) return null;
-    const printedHeightM = (sel.h / 96) * 0.0254;
+    // #906 — a fixed-scale capture IS that scale (the derived figure read 1 : 5,002 from the image's rounded pixel
+    // size); otherwise metres per page px of the image, which keeps its captured size when the frame is resized
+    if (sel.trueScale && sel.fixedScale > 0 && sel.capturedFixedScale === sel.fixedScale) return `1 : ${sel.fixedScale.toLocaleString()}`;
+    const imgH = sel.capH || sel.h;
+    if (!sel.worldHeightAtTarget || !imgH) return null;
+    const printedHeightM = (imgH / 96) * 0.0254;
     const ratio = sel.worldHeightAtTarget / printedHeightM;
     return `${sel.trueScale ? "" : "~"}1 : ${Math.round(ratio).toLocaleString()}`;
   })();
+  const frameChanged = !!(sel.capW && sel.capH && (Math.round(sel.w) !== Math.round(sel.capW) || Math.round(sel.h) !== Math.round(sel.capH))); // #906
   const gridOk = utmGridReady(sel); // TASKS.csv #399
   return (
     <div style={{ marginTop: 4 }}>
@@ -1117,9 +1193,12 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
       </label>
       {sel.fixedScale > 0 && (
         <div style={{ fontSize: "var(--font-size-xs)", color: sel.capturedFixedScale === sel.fixedScale ? "var(--color-success-fg)" : "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>
-          {tr("{v} Keep the frame's width after capturing, or the scale changes with it.", { v: sel.capturedFixedScale === sel.fixedScale
-            ? tr("Captured at 1 : {fixedScale}: this frame shows {v} m across.{v2}", { fixedScale: sel.fixedScale.toLocaleString(), v: Math.round(sel.fixedScale * (sel.w / 96) * 0.0254).toLocaleString(), v2: "" })
-            : tr("Refresh to capture at this scale.") })}</div>
+          {sel.capturedFixedScale === sel.fixedScale
+            ? tr("Captured at 1 : {fixedScale}: the frame shows {w} × {h} m. Resize it and refresh to show more or less ground at this scale.", { fixedScale: sel.fixedScale.toLocaleString(), w: Math.round(sel.fixedScale * ((sel.capW || sel.w) / 96) * 0.0254).toLocaleString(), h: Math.round(sel.fixedScale * ((sel.capH || sel.h) / 96) * 0.0254).toLocaleString() })
+            : tr("Refresh to capture at this scale.")}</div>
+      )}
+      {frameChanged && (
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{tr("The frame was resized since its capture: the image keeps its scale and size until you refresh, which fills the frame.")}</div>
       )}
       <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Rotation (°)")}<input type="number" value={sel.rotation || 0} onChange={(e) => updateSelected({ rotation: Number(e.target.value) || 0 })} style={inp} />
       </label>
@@ -1154,6 +1233,30 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
   );
 }
 
+// TASKS.csv #906 — where the selected element sits and how big it is, in millimetres on the paper (the rulers' and the
+// grid's unit, as in QGIS); an aspect-locked image keeps its shape when its width is typed.
+function PlaceControls({ sel, updateSelected }) {
+  const mm = (px) => Math.round((px / PX_PER_MM) * 10) / 10;
+  const toPx = (v) => Number(v) * PX_PER_MM;
+  const field = (label, key, min) => (
+    <label key={key} style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1, minWidth: 0 }}>{label}
+      <input type="number" step="0.1" value={mm(sel[key] || 0)} onChange={(e) => {
+        const v = Number(e.target.value);
+        if (!Number.isFinite(v)) return;
+        const px = min != null ? Math.max(min * PX_PER_MM, toPx(v)) : toPx(v);
+        if (key === "w" && ASPECT_LOCKED.has(sel.type) && sel.aspect) updateSelected({ w: px, h: px / sel.aspect });
+        else updateSelected({ [key]: px });
+      }} style={{ ...inp, marginTop: 4, marginBottom: 0, padding: "5px 6px" }} />
+    </label>
+  );
+  const hasW = sel.w != null && (BOX_TYPES.has(sel.type) || WIDTH_ONLY.has(sel.type)), hasH = sel.h != null && BOX_TYPES.has(sel.type);
+  return (
+    <div style={{ display: "flex", gap: 5, marginBottom: 8 }} title={tr("Position and size on the paper, in millimetres (the rulers' unit). Drag an element's handles to resize it; Shift keeps its shape.")}>
+      {field(tr("X (mm)"), "x")}{field(tr("Y (mm)"), "y")}{hasW && field(tr("W (mm)"), "w", 5)}{hasH && field(tr("H (mm)"), "h", 5)}
+    </div>
+  );
+}
+
 // TASKS.csv #102 — same width/style math the "viewport" branch below already uses (double style
 // triples the drawn width so it actually reads as a double rule at small sizes), shared here for
 // title/text/legend. `fallback` lets legend keep its pre-existing plain "1px solid #ccc" look when
@@ -1165,11 +1268,48 @@ function frameBorder(el, fallback = "none") {
   return `${w}px ${style} ${el.frameColor || "#1a1a1a"}`;
 }
 
-function LayoutElement({ el, selected, multiSelected, onDown }) {
+// TASKS.csv #908 — every page at its paper size, in mm, for printToPDF; shown only under @media print (app.css), its
+// siblings hidden. A named @page per distinct format lets one PDF hold A4 landscape and A3 portrait pages.
+const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages }, ref) {
+  const formats = [...new Map(pages.map((pg) => { const f = pageFormatOf(pg); return [pageCssName(f), f]; })).values()];
+  const css = formats.map((f) => { const [w, h] = pageMm(f), n = pageCssName(f); return `@page ${n} { size: ${w}mm ${h}mm; margin: 0; }\n.ge-print-${n} { page: ${n}; }`; }).join("\n");
+  return (
+    <div ref={ref} className="ge-print-root" dir="ltr">
+      <style>{css}</style>
+      {pages.map((pg) => {
+        const f = pageFormatOf(pg), [w, h] = pageMm(f);
+        return (
+          <div key={pg.id} className={`ge-print-page ge-print-${pageCssName(f)}`} style={{ width: `${w}mm`, height: `${h}mm` }}>
+            {(pg.elements || []).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} />)}
+          </div>
+        );
+      })}
+    </div>
+  );
+});
+
+// TASKS.csv #906 — resize handles: 8 for a free box, the 4 corners where the aspect is locked, left / right for an
+// element that wraps text to its width, the tip of an arrow. Drawn on the single selected element only.
+const BOX_TYPES = new Set(["viewport", "image", "rect", "logo"]);
+const ASPECT_LOCKED = new Set(["image", "logo"]);
+const WIDTH_ONLY = new Set(["title", "text", "callout", "legend"]);
+const HANDLES_FOR = { viewport: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], rect: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], image: ["nw", "ne", "se", "sw"], logo: ["nw", "ne", "se", "sw"], title: ["e", "w"], text: ["e", "w"], callout: ["e", "w"], legend: ["e", "w"] };
+const HANDLE_CURSOR = { n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize", ne: "nesw-resize", sw: "nesw-resize", nw: "nwse-resize", se: "nwse-resize", tip: "crosshair" };
+const HANDLE_POS = { n: { left: "50%", top: 0 }, s: { left: "50%", top: "100%" }, e: { left: "100%", top: "50%" }, w: { left: 0, top: "50%" }, ne: { left: "100%", top: 0 }, nw: { left: 0, top: 0 }, se: { left: "100%", top: "100%" }, sw: { left: 0, top: "100%" } };
+function Handles({ which, onStart, at = {} }) {
+  return which.map((h) => (
+    <div key={h} data-handle={h} role="presentation" title={h === "tip" ? tr("Drag the tip to aim and lengthen the arrow") : undefined}
+      style={{ position: "absolute", width: 9, height: 9, background: "#fff", border: "1.5px solid var(--color-info)", borderRadius: 2, boxSizing: "border-box", zIndex: 2, transform: "translate(-50%, -50%)", cursor: HANDLE_CURSOR[h], ...(HANDLE_POS[h] || at[h] || {}) }}
+      onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); onStart(e, h); }} />
+  ));
+}
+
+function LayoutElement({ el, selected, multiSelected, onDown, print = false, onResizeStart }) {
+  const handles = selected && !print && !multiSelected && onResizeStart && HANDLES_FOR[el.type] ? <Handles which={HANDLES_FOR[el.type]} onStart={(e, h) => onResizeStart(e, el, h)} /> : null; // #906
   // multiSelected (part of a Ctrl+click bulk selection, but not the single "active" element) gets a
   // dashed outline so a multi-selection reads visually distinct from the one element whose properties
-  // are actually showing in the sidebar.
-  const outline = selected ? "1.5px solid var(--color-info)" : multiSelected ? "1.5px dashed #4a9be0" : "none";
+  // are actually showing in the sidebar. print (#908): no selection marks, no "Rendering..." overlay.
+  const outline = !print && selected ? "1.5px solid var(--color-info)" : !print && multiSelected ? "1.5px dashed #4a9be0" : "none";
   const wrap = { position: "absolute", left: el.x, top: el.y, cursor: "move", outline, outlineOffset: 3 };
   // TASKS.csv #102 — font controls (size/color/bold/italic/align) + the same frame/border fields
   // ViewportControls already uses for viewport elements. frameBorder(el) below builds the CSS border
@@ -1181,6 +1321,7 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
     return (
       <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown}>
         <div style={{ fontSize: el.fontSize ?? 26, fontWeight: (el.bold ?? true) ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || "var(--color-text)", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{el.text}</div>
+        {handles}
       </div>
     );
   }
@@ -1189,33 +1330,47 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
     return (
       <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown}>
         <div style={{ fontSize: el.fontSize ?? 14, fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || "#222" }}>{el.text}</div>
+        {handles}
       </div>
     );
   }
-  if (el.type === "logo") return <img src={el.src} alt={tr("logo")} style={{ ...wrap, width: el.w }} onMouseDown={onDown} draggable={false} />;
+  if (el.type === "logo") return (
+    <div style={{ ...wrap, width: el.w }} onMouseDown={onDown}>
+      <img src={el.src} alt={tr("logo")} style={{ width: "100%", display: "block" }} draggable={false} />
+      {handles}
+    </div>
+  );
   if (el.type === "image") {
     if (!el.src) return null; // defensive: a malformed/partial snapshot shouldn't take the whole page down
     return (
       <div style={{ ...wrap, width: el.w || 200, height: el.h || 120 }} onMouseDown={onDown}>
         <img src={el.src} alt={el.label || "snapshot"} style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", background: "#fff" }} draggable={false} />
+        {handles}
       </div>
     );
   }
   if (el.type === "viewport") {
     const borderStyle = el.frameStyle === "double" ? "double" : el.frameStyle === "dashed" ? "dashed" : "solid";
     const frameW = el.frameStyle === "double" ? Math.max(3, (el.frameWidth || 1) * 3) : (el.frameWidth || 0);
+    // TASKS.csv #906 — w x h is the IMAGE area and the frame is drawn outside it (the border used to sit inside the box,
+    // so a 700 px frame showed its 926 m over 698 px: 1 : 5,014, not 1 : 5,000). The image is shown at the size it was
+    // captured for (capW x capH, centred), so resizing the frame never rescales it: the frame shows white where no
+    // ground was captured until the next refresh fills it. An older capture with no capW is fitted as before.
+    const W = el.w || 400, H = el.h || 260, imgW = el.capW || W, imgH = el.capH || H;
     return (
       <div
-        style={{ ...wrap, width: el.w || 400, height: el.h || 260, transform: `rotate(${el.rotation || 0}deg)`, transformOrigin: "center center" }}
+        style={{ ...wrap, width: W, height: H, transform: `rotate(${el.rotation || 0}deg)`, transformOrigin: "center center" }}
         onMouseDown={onDown}
       >
-        <div style={{ width: "100%", height: "100%", border: frameW ? `${frameW}px ${borderStyle} ${el.frameColor || "#1a1a1a"}` : "none", background: "#fff", position: "relative", boxSizing: "border-box" }}>
-          {el.src && <img src={el.src} alt={tr("viewport")} style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} draggable={false} />}
-          {el.utmGrid && utmGridReady(el) && <UtmGridOverlay el={el} />}
-          {el.refreshing && (
+        <div style={{ width: "100%", height: "100%", background: "#fff", position: "relative", overflow: "hidden" }}>
+          {el.src && <img src={el.src} alt={tr("viewport")} style={{ position: "absolute", left: (W - imgW) / 2, top: (H - imgH) / 2, width: imgW, height: imgH, display: "block" }} draggable={false} />}
+          {el.utmGrid && utmGridReady(el) && <div style={{ position: "absolute", left: (W - imgW) / 2, top: (H - imgH) / 2, width: imgW, height: imgH }}><UtmGridOverlay el={{ ...el, w: imgW, h: imgH }} /></div>}
+          {el.refreshing && !print && (
             <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-base)", color: "#333", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Rendering…")}</div>
           )}
         </div>
+        {frameW > 0 && <div style={{ position: "absolute", inset: -frameW, border: `${frameW}px ${borderStyle} ${el.frameColor || "#1a1a1a"}`, pointerEvents: "none" }} />}
+        {handles}
       </div>
     );
   }
@@ -1273,7 +1428,8 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
     );
   }
   if (el.type === "legend") return (
-    <div style={{ ...wrap, background: "#fff", border: frameBorder(el, "1px solid #ccc"), padding: "8px 12px", minWidth: 150 }} onMouseDown={onDown}>
+    <div style={{ ...wrap, background: "#fff", border: frameBorder(el, "1px solid #ccc"), padding: "8px 12px", minWidth: 150, width: el.w || undefined, boxSizing: "border-box" }} onMouseDown={onDown}>
+      {handles}
       <div style={{ fontSize: "var(--font-size-base)", fontWeight: 700, color: "#222", marginBottom: 6, fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Legend")}</div>
       {el.items.map(([name, color, opt], i) => opt?.heading ? ( /* TASKS.csv #725 — a group heading */
         <div key={i} style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "#444", margin: i ? "6px 0 2px" : "0 0 2px" }}>{name}</div>
@@ -1298,6 +1454,7 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
         <rect x={(el.strokeWidth || 0) / 2} y={(el.strokeWidth || 0) / 2} width={Math.max(0, el.w - (el.strokeWidth || 0))} height={Math.max(0, el.h - (el.strokeWidth || 0))}
           fill={el.fillOpacity > 0 ? el.fill : "none"} stroke={el.stroke} strokeWidth={el.strokeWidth} />
       </svg>
+      {handles}
     </div>
   );
   if (el.type === "arrow") {
@@ -1316,12 +1473,14 @@ function LayoutElement({ el, selected, multiSelected, onDown }) {
           <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={el.stroke} strokeWidth={el.strokeWidth} />
           <polyline points={`${hx1},${hy1} ${x2},${y2} ${hx2},${hy2}`} fill="none" stroke={el.stroke} strokeWidth={el.strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
         </svg>
+        {selected && !print && !multiSelected && onResizeStart && <Handles which={["tip"]} at={{ tip: { left: x2, top: y2 } }} onStart={(e, h) => onResizeStart(e, el, h)} />}{/* #906 */}
       </div>
     );
   }
   if (el.type === "callout") return (
-    <div style={{ ...wrap, width: el.w, background: el.fill, border: `1.5px solid ${el.stroke}`, borderRadius: 6, padding: "8px 12px", position: "absolute" }} onMouseDown={onDown}>
+    <div style={{ ...wrap, width: el.w, background: el.fill, border: `1.5px solid ${el.stroke}`, borderRadius: 6, padding: "8px 12px", position: "absolute", boxSizing: "border-box" }} onMouseDown={onDown}>
       <div style={{ fontSize: "var(--font-size-base)", color: "#222", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{el.text}</div>
+      {handles}
       <svg width="16" height="10" style={{ position: "absolute", left: 14, bottom: -9 }}>
         <polygon points="0,0 16,0 5,10" fill={el.fill} stroke={el.stroke} strokeWidth="1.5" />
       </svg>

@@ -3998,7 +3998,6 @@
   "Align centre": "Centralizar",
   "Align right": "Alinhar à direita",
   "Scale length (m)": "Comprimento da escala (m)",
-  "Width (px) — height locks to the captured aspect ratio": "Largura (px) — a altura acompanha a proporção capturada",
   "Rotation (°)": "Rotação (°)",
   "Declination date": "Data da declinação",
   "Update GN/TN/MN": "Atualizar NQ/NV/NM",
@@ -4067,8 +4066,6 @@
   "Fixed scale 1 :": "Escala fixa 1 :",
   "free": "livre",
   "Fixed plot scale denominator": "Denominador da escala fixa de impressão",
-  "{v} Keep the frame's width after capturing, or the scale changes with it.": "{v} Mantenha a largura do quadro depois de capturar, ou a escala muda junto.",
-  "Captured at 1 : {fixedScale}: this frame shows {v} m across.{v2}": "Capturado a 1 : {fixedScale}: este quadro mostra {v} m de largura.{v2}",
   "Refresh to capture at this scale.": "Atualize para capturar nesta escala.",
   "Frame width": "Largura do quadro",
   "Frame style": "Estilo do quadro",
@@ -5958,5 +5955,15 @@
   "{n} point(s)": "{n} ponto(s)",
   "{n} triangle(s) with an edge over {m} m were left out, so no ground is invented across gaps in the data.": "{n} triângulo(s) com um lado acima de {m} m foram omitidos, para não inventar terreno nas lacunas dos dados.",
   "{pct}% of the triangles are flat (all three corners on one contour): terraces on hilltops and valley floors, where contours alone do not say how the ground continues.": "{pct}% dos triângulos são planos (os três vértices numa mesma curva): terraços em topos e fundos de vale, onde as curvas sozinhas não dizem como o terreno continua.",
-  "{pct}% of the grid ({n} cells) lies outside the triangulated points and is left out of the 3D surface; anything that samples elevation there (collars, sections, stations) gets the mean elevation {z} m, not a real height.": "{pct}% da malha ({n} células) fica fora dos pontos triangulados e é omitido da superfície 3D; o que amostrar a elevação ali (colares, seções, estações) recebe a elevação média de {z} m, não uma altura real."
+  "{pct}% of the grid ({n} cells) lies outside the triangulated points and is left out of the 3D surface; anything that samples elevation there (collars, sections, stations) gets the mean elevation {z} m, not a real height.": "{pct}% da malha ({n} células) fica fora dos pontos triangulados e é omitido da superfície 3D; o que amostrar a elevação ali (colares, seções, estações) recebe a elevação média de {z} m, não uma altura real.",
+  "Exported {n} page(s) to {path}.": "{n} página(s) exportada(s) para {path}.",
+  "Export every page as a PDF, each at its own paper size and orientation": "Exportar todas as páginas como PDF, cada uma com seu tamanho de papel e orientação",
+  "Captured at 1 : {fixedScale}: the frame shows {w} × {h} m. Resize it and refresh to show more or less ground at this scale.": "Capturado em 1 : {fixedScale}: o quadro mostra {w} × {h} m. Redimensione-o e atualize para mostrar mais ou menos terreno nesta escala.",
+  "The frame was resized since its capture: the image keeps its scale and size until you refresh, which fills the frame.": "O quadro foi redimensionado desde a captura: a imagem mantém sua escala e tamanho até você atualizar, o que preenche o quadro.",
+  "Drag the tip to aim and lengthen the arrow": "Arraste a ponta para apontar e alongar a seta",
+  "Position and size on the paper, in millimetres (the rulers' unit). Drag an element's handles to resize it; Shift keeps its shape.": "Posição e tamanho no papel, em milímetros (a unidade das réguas). Arraste as alças de um elemento para redimensioná-lo; Shift mantém sua forma.",
+  "X (mm)": "X (mm)",
+  "Y (mm)": "Y (mm)",
+  "W (mm)": "L (mm)",
+  "H (mm)": "A (mm)"
 }
