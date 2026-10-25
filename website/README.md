@@ -20,7 +20,8 @@ The GeoStrix website: plain HTML + CSS, no build step, no framework, no cookies,
   total GitHub download count of the installer + portable zip: as a badge above the home page's headline (linked
   to the releases, space reserved so nothing jumps) and as a full sentence by the Download button. Its text, and `gallery.js`'s button labels,
   follow the page's `<html lang>`
-- `img/` — screenshots from the bundled Harry sample project (ARIS report 37584), WebP
+- `img/` — screenshots from the bundled Harry sample project (ARIS report 37584), WebP; `spectral-ferric.webp` / `spectral-truecolour.webp` are Matt's Fireweed project (the
+  Sentinel-2 ferric-iron index beside true colour), which the captions say is not the sample project
 - `fonts/` — Exo 2 (SIL OFL), served from here instead of Google Fonts
 - `img/flags/` — the language switcher's flags (Canada EN, Mexico ES — the most Spanish speakers, and
   the pages use Latin-American mining Spanish — Brazil PT, France FR, Saudi Arabia AR), from
