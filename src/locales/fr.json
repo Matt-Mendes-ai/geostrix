@@ -4920,7 +4920,6 @@
   "Outline (closed, for a solid)": "Contour (fermé, pour un solide)",
   "Body name (same on every section)": "Nom du corps (le même sur chaque coupe)",
   "outline": "contour",
-  "Linked {n} \"{name}\" outlines into a closed solid: {v} m³. It ends at the first and last section (flat caps, not extended beyond them) and is listed with the generated surfaces: volume, export, sections and \"Restrict to a modelled volume\" in Grade estimation.{warn}": "{n} contours « {name} » reliés en un solide fermé : {v} m³. Il s'arrête à la première et à la dernière coupe (couvercles plats, sans prolongement au-delà) et figure avec les surfaces générées : volume, export, coupes et « Restreindre à un volume modélisé » dans l'estimation des teneurs.{warn}",
   " Note: {v}.": " Remarque : {v}.",
   "Draw an \"Outline (closed, for a solid)\" with the same name on two or more cross-sections; this links them into a closed solid.": "Dessinez un « Contour (fermé, pour un solide) » portant le même nom sur deux coupes ou plus ; ceci les relie en un solide fermé.",
   "Section outlines to link": "Contours de coupe à relier",
@@ -5884,5 +5883,14 @@
   "A copy of this surface cut to the inside of a project boundary, seen from above; the edge is cut exactly at the boundary. The original is unchanged.": "Une copie de cette surface découpée à l'intérieur d'une limite du projet, vue de dessus ; le bord est coupé exactement à la limite. L'originale est inchangée.",
   "Clip to": "Découper à",
   "Boundary to clip to": "Limite de découpe",
-  "Boundary…": "Limite…"
+  "Boundary…": "Limite…",
+  "Linked {n} \"{name}\" outlines into a closed solid: {v} m³. {ends} It is listed with the generated surfaces: volume, export, sections and \"Restrict to a modelled volume\" in Grade estimation.{warn}": "{n} contours « {name} » reliés en un solide fermé : {v} m³. {ends} Il figure avec les surfaces générées : volume, export, coupes et « Restreindre à un volume modélisé » dans l'estimation des teneurs.{warn}",
+  "Its ends are extended half a section spacing beyond the first and last outlines.": "Ses extrémités sont prolongées d'un demi-espacement de coupe au-delà du premier et du dernier contour.",
+  "It pinches out to a point half a section spacing beyond the first and last outlines.": "Il se termine en pointe à un demi-espacement de coupe au-delà du premier et du dernier contour.",
+  "It ends at the first and last section (flat caps, not extended beyond them).": "Il s'arrête à la première et à la dernière coupe (couvercles plats, sans prolongement au-delà).",
+  "Ends of the solid": "Extrémités du solide",
+  "How the solid ends beyond the first and last outline: flat at them, extended half a section spacing, or pinched out to a point half a spacing beyond": "Comment le solide se termine au-delà du premier et du dernier contour : plat sur eux, prolongé d'un demi-espacement de coupe, ou en pointe à un demi-espacement",
+  "Flat ends": "Bouts plats",
+  "Extend ½ spacing": "Prolonger ½ espacement",
+  "Pinch out": "En pointe"
 }

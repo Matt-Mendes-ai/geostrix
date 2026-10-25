@@ -4920,7 +4920,6 @@
   "Outline (closed, for a solid)": "محيط (مغلق، لمجسم)",
   "Body name (same on every section)": "اسم الجسم (نفسه في كل مقطع)",
   "outline": "محيط",
-  "Linked {n} \"{name}\" outlines into a closed solid: {v} m³. It ends at the first and last section (flat caps, not extended beyond them) and is listed with the generated surfaces: volume, export, sections and \"Restrict to a modelled volume\" in Grade estimation.{warn}": "رُبطت {n} محيطات «{name}» في مجسم مغلق: {v} م³. ينتهي عند المقطع الأول والأخير (أغطية مستوية دون امتداد بعدهما) ويُدرج مع الأسطح المولدة: الحجم والتصدير والمقاطع و«التقييد بحجم منمذج» في تقدير المحتوى.{warn}",
   " Note: {v}.": " ملاحظة: {v}.",
   "Draw an \"Outline (closed, for a solid)\" with the same name on two or more cross-sections; this links them into a closed solid.": "ارسم «محيطًا (مغلقًا، لمجسم)» بالاسم نفسه على مقطعين عرضيين أو أكثر؛ يربطها هذا في مجسم مغلق.",
   "Section outlines to link": "محيطات المقاطع للربط",
@@ -5884,5 +5883,14 @@
   "A copy of this surface cut to the inside of a project boundary, seen from above; the edge is cut exactly at the boundary. The original is unchanged.": "نسخة من هذا السطح مقصوصة إلى داخل حد من حدود المشروع، منظورًا من الأعلى؛ ويُقص الطرف عند الحد تمامًا. الأصل لم يتغير.",
   "Clip to": "قص إلى",
   "Boundary to clip to": "الحد المراد القص إليه",
-  "Boundary…": "الحد…"
+  "Boundary…": "الحد…",
+  "Linked {n} \"{name}\" outlines into a closed solid: {v} m³. {ends} It is listed with the generated surfaces: volume, export, sections and \"Restrict to a modelled volume\" in Grade estimation.{warn}": "رُبطت {n} محيطات «{name}» في مجسم مغلق: {v} م³. {ends} ويُدرج مع الأسطح المولدة: الحجم والتصدير والمقاطع و«التقييد بحجم منمذج» في تقدير المحتوى.{warn}",
+  "Its ends are extended half a section spacing beyond the first and last outlines.": "يمتد طرفاه نصف تباعد بين المقاطع بعد المحيط الأول والأخير.",
+  "It pinches out to a point half a section spacing beyond the first and last outlines.": "يتلاشى إلى نقطة على بعد نصف تباعد بين المقاطع بعد المحيط الأول والأخير.",
+  "It ends at the first and last section (flat caps, not extended beyond them).": "ينتهي عند المقطع الأول والأخير (أغطية مستوية دون امتداد بعدهما).",
+  "Ends of the solid": "طرفا المجسم",
+  "How the solid ends beyond the first and last outline: flat at them, extended half a section spacing, or pinched out to a point half a spacing beyond": "كيف ينتهي المجسم بعد المحيط الأول والأخير: مستويًا عندهما، أو ممتدًا نصف تباعد بين المقاطع، أو متلاشيًا إلى نقطة على بعد نصف تباعد",
+  "Flat ends": "طرفان مستويان",
+  "Extend ½ spacing": "مدّ نصف التباعد",
+  "Pinch out": "تلاشٍ"
 }

@@ -4920,7 +4920,6 @@
   "Outline (closed, for a solid)": "Contorno (cerrado, para un sólido)",
   "Body name (same on every section)": "Nombre del cuerpo (el mismo en cada sección)",
   "outline": "contorno",
-  "Linked {n} \"{name}\" outlines into a closed solid: {v} m³. It ends at the first and last section (flat caps, not extended beyond them) and is listed with the generated surfaces: volume, export, sections and \"Restrict to a modelled volume\" in Grade estimation.{warn}": "Se unieron {n} contornos «{name}» en un sólido cerrado: {v} m³. Termina en la primera y la última sección (tapas planas, sin extenderse más allá) y aparece con las superficies generadas: volumen, exportación, secciones y «Restringir a un volumen modelado» en la estimación de leyes.{warn}",
   " Note: {v}.": " Nota: {v}.",
   "Draw an \"Outline (closed, for a solid)\" with the same name on two or more cross-sections; this links them into a closed solid.": "Dibuje un «Contorno (cerrado, para un sólido)» con el mismo nombre en dos o más secciones; esto los une en un sólido cerrado.",
   "Section outlines to link": "Contornos de sección para unir",
@@ -5884,5 +5883,14 @@
   "A copy of this surface cut to the inside of a project boundary, seen from above; the edge is cut exactly at the boundary. The original is unchanged.": "Una copia de esta superficie recortada al interior de un límite del proyecto, vista desde arriba; el borde se corta exactamente en el límite. La original no cambia.",
   "Clip to": "Recortar a",
   "Boundary to clip to": "Límite para recortar",
-  "Boundary…": "Límite…"
+  "Boundary…": "Límite…",
+  "Linked {n} \"{name}\" outlines into a closed solid: {v} m³. {ends} It is listed with the generated surfaces: volume, export, sections and \"Restrict to a modelled volume\" in Grade estimation.{warn}": "Se unieron {n} contornos «{name}» en un sólido cerrado: {v} m³. {ends} Aparece con las superficies generadas: volumen, exportación, secciones y «Restringir a un volumen modelado» en la estimación de leyes.{warn}",
+  "Its ends are extended half a section spacing beyond the first and last outlines.": "Sus extremos se extienden media separación entre secciones más allá del primer y el último contorno.",
+  "It pinches out to a point half a section spacing beyond the first and last outlines.": "Se acuña hasta un punto a media separación entre secciones más allá del primer y el último contorno.",
+  "It ends at the first and last section (flat caps, not extended beyond them).": "Termina en la primera y la última sección (tapas planas, sin extenderse más allá).",
+  "Ends of the solid": "Extremos del sólido",
+  "How the solid ends beyond the first and last outline: flat at them, extended half a section spacing, or pinched out to a point half a spacing beyond": "Cómo termina el sólido más allá del primer y el último contorno: plano en ellos, extendido media separación entre secciones o acuñado hasta un punto a media separación",
+  "Flat ends": "Extremos planos",
+  "Extend ½ spacing": "Extender ½ separación",
+  "Pinch out": "Acuñar"
 }

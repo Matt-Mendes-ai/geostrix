@@ -18,6 +18,9 @@
 //      reported per pair, in `twisted` and a warning;
 //   5. a strip of triangles between each pair; flat end caps (ear-clipped in that same frame) on the first and last
 //      outline - the solid ENDS at the end sections (it is not extrapolated half a spacing beyond them);
+//      TASKS.csv #894 — or, by choice (ends): "extend" - each end outline copied half its neighbour spacing further out
+//      and capped there (the usual sectional convention: a section speaks for half the way to the next); "pinch" - each
+//      end closed by a cone to the outline's centroid half a spacing beyond (the body thins out past the last section);
 //   6. wound outward (signed volume positive) - every edge in exactly two triangles, so volumetrics accepts it.
 // Pure: no three.js.
 import { t as tr } from "./i18n.js"; // TASKS.csv #786
@@ -91,7 +94,7 @@ export function loopSelfIntersects(q) {
   return false;
 }
 
-export function linkOutlines(outlines, { n = 128 } = {}) {
+export function linkOutlines(outlines, { n = 128, ends = "flat" } = {}) {
   const usable = (outlines || []).filter((o) => o.points?.length >= 3).map((o, i) => ({ ...o, section: o.section || String(i + 1) })); // #860: named in messages
   if (usable.length < 2) throw new Error(tr("At least two sections need an outline of that name."));
   const warnings = [];
@@ -146,6 +149,10 @@ export function linkOutlines(outlines, { n = 128 } = {}) {
     loops[s] = B.map((_, i) => B[(i + best) % n]);
     loops[s].section = sec; loops[s].tied = tied;
   }
+  // #894 — the ends beyond the first and last outline: half the spacing to the neighbouring section, along the normal
+  const sh0 = (items[1].off - items[0].off) / 2, sh1 = (items[items.length - 1].off - items[items.length - 2].off) / 2;
+  const moved = (L, d) => { const c = L.map((p) => ({ x: p.x + wx * d, y: p.y + wy * d, z: p.z })); c.section = `${L.section} (extended)`; c.tied = L.tied; return c; };
+  if (ends === "extend") { loops.unshift(moved(loops[0], -sh0)); loops.push(moved(loops[loops.length - 1], sh1)); }
   // #874 — folded strip quads: the normals of a quad's two triangles (a b c, a c d) point opposite ways
   const twisted = [];
   for (let s = 0; s < loops.length - 1; s++) {
@@ -172,7 +179,13 @@ export function linkOutlines(outlines, { n = 128 } = {}) {
     if (!tris) throw new Error(tr("The outline on section {s} could not be closed with a flat cap (it crosses itself after resampling). Simplify it and link again.", { s: loops[s].section }));
     for (const [i, j, k] of tris) flip ? indices.push(V(s, i), V(s, k), V(s, j)) : indices.push(V(s, i), V(s, j), V(s, k));
   };
-  cap(0, true); cap(loops.length - 1, false);
+  if (ends === "pinch") {
+    // #894 — a cone to each end outline's centroid half a spacing beyond; the fans traverse the shared end edges opposite
+    // to the strips (start: i+1 -> i, end: i -> i+1), so the whole stays consistently wound before the outward fix below
+    const apex = (L, d) => { const c = centroid(L); positions.push(c.x + wx * d, c.y + wy * d, c.z); return positions.length / 3 - 1; };
+    const a0 = apex(loops[0], -sh0), last = loops.length - 1, a1 = apex(loops[last], sh1);
+    for (let i = 0; i < n; i++) { indices.push(V(0, i + 1), V(0, i), a0); indices.push(V(last, i), V(last, i + 1), a1); }
+  } else { cap(0, true); cap(loops.length - 1, false); }
   // orient outward (signed volume taken about the first vertex: UTM coordinates would swamp it about the origin)
   let v6 = 0;
   const o = [positions[0], positions[1], positions[2]];
@@ -181,5 +194,5 @@ export function linkOutlines(outlines, { n = 128 } = {}) {
     v6 += a[0] * (b[1] * c[2] - b[2] * c[1]) + a[1] * (b[2] * c[0] - b[0] * c[2]) + a[2] * (b[0] * c[1] - b[1] * c[0]);
   }
   if (v6 < 0) { for (let t = 0; t < indices.length; t += 3) { const x = indices[t + 1]; indices[t + 1] = indices[t + 2]; indices[t + 2] = x; } v6 = -v6; }
-  return { positions: Float64Array.from(positions), indices: Uint32Array.from(indices), sections: loops.length, volume: v6 / 6, warnings, twisted, tied: loops.filter((L) => L.tied).length };
+  return { positions: Float64Array.from(positions), indices: Uint32Array.from(indices), sections: items.length /* #894: the outlines, not the extension copies */, pointsPerOutline: n, volume: v6 / 6, warnings, twisted, tied: loops.filter((L) => L.tied).length };
 }

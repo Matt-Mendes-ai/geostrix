@@ -3458,6 +3458,7 @@ ${describeTrend(t)}` };
     return [...m].filter(([, k]) => k.size >= 2).map(([name, k]) => ({ name, sections: k.size }));
   }, [sections]);
   const [wireframeName, setWireframeName] = useState("");
+  const [wireframeEnds, setWireframeEnds] = useState("flat"); // TASKS.csv #894 — flat / extend / pinch
   // TASKS.csv #878 — products whose sources changed since they were built: a wireframe whose outlines were edited, a unit
   // volume from Solid blocks whose surfaces were rebuilt, edited or removed
   const staleSurfaces = useMemo(() => {
@@ -3476,7 +3477,7 @@ ${describeTrend(t)}` };
     for (const s of sections || []) for (const c of s.contacts || []) if (c.kind === "outline" && c.unit === name && c.points?.length >= 3) outlines.push({ ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, section: s.name, points: c.points.filter((p) => [p.x, p.y, p.z].every(Number.isFinite)) });
     try {
       const { linkOutlines } = await import("../lib/wireframe.js"); // TASKS.csv #903 — loaded on use, not at startup
-      const w = linkOutlines(outlines);
+      const w = linkOutlines(outlines, { ends: wireframeEnds }); // ends: #894
       // TASKS.csv #860 — the linked mesh must be a valid solid before it is offered for volumes and estimation
       const { validateSolid, isValidSolid } = await import("../lib/meshValidate.js"); // on demand: not in the startup bundle
       const vs = validateSolid(w.positions, w.indices);
@@ -3500,9 +3501,9 @@ ${describeTrend(t)}` };
       setImplicitSurfaces((p) => [...p.filter((x) => x.id !== id), {
         ...(prev || {}), id, name: `${name} (wireframe, ${w.sections} sections)`, visible: prev ? prev.visible : true, vertexCount: nVerts, faceCount: nTris,
         type: "explicit_wireframe", relationships: prev?.relationships || [], closure: "closed", edited: false, editCount: 0, edits: [],
-        params: { tool: "explicit wireframe from linked section outlines", body: name, sections: outlines.map((x) => x.section), pointsPerOutline: nVerts / w.sections, volumeM3: Math.round(w.volume), ends: "flat caps on the first and last outline (not extended beyond them)", builtAt: new Date().toISOString(), tiedOutlines: w.tied, foldedStrips: w.twisted.reduce((a, t) => a + t.folded, 0), sourceKey: outlinesKey(sections, name) }, /* tiedOutlines / foldedStrips: #874; sourceKey: #878 */
+        params: { tool: "explicit wireframe from linked section outlines", body: name, sections: outlines.map((x) => x.section), pointsPerOutline: w.pointsPerOutline, /* #894: not vertices / sections (extension copies, apexes) */ volumeM3: Math.round(w.volume), ends: wireframeEnds === "extend" ? "extended half a section spacing beyond the first and last outlines (copies of them, flat caps there)" : wireframeEnds === "pinch" ? "pinched out to a point half a section spacing beyond the first and last outlines" : "flat caps on the first and last outline (not extended beyond them)", builtAt: new Date().toISOString(), tiedOutlines: w.tied, foldedStrips: w.twisted.reduce((a, t) => a + t.folded, 0), sourceKey: outlinesKey(sections, name) }, /* tiedOutlines / foldedStrips: #874; sourceKey: #878 */
       }]);
-      setNotices((p) => [...p, notice("Linked {n} \"{name}\" outlines into a closed solid: {v} m³. It ends at the first and last section (flat caps, not extended beyond them) and is listed with the generated surfaces: volume, export, sections and \"Restrict to a modelled volume\" in Grade estimation.{warn}", { n: w.sections, name, v: Math.round(w.volume).toLocaleString(), warn: (w.warnings.length ? tr(" Note: {v}.", { v: w.warnings.join("; ") }) : "") + (prev ? ` ${tr("It replaces the previous solid of {name}.", { name })}` : "") })]); // replaces: #874
+      setNotices((p) => [...p, notice("Linked {n} \"{name}\" outlines into a closed solid: {v} m³. {ends} It is listed with the generated surfaces: volume, export, sections and \"Restrict to a modelled volume\" in Grade estimation.{warn}", { n: w.sections, name, ends: wireframeEnds === "extend" ? tr("Its ends are extended half a section spacing beyond the first and last outlines.") : wireframeEnds === "pinch" ? tr("It pinches out to a point half a section spacing beyond the first and last outlines.") : tr("It ends at the first and last section (flat caps, not extended beyond them)."), v: Math.round(w.volume).toLocaleString(), warn: (w.warnings.length ? tr(" Note: {v}.", { v: w.warnings.join("; ") }) : "") + (prev ? ` ${tr("It replaces the previous solid of {name}.", { name })}` : "") })]); // replaces: #874
     } catch (e) { setNotices((p) => [...p, e]); }
   };
   // TASKS.csv #859 — a vein solid stitched from its hangingwall and footwall surfaces (lib/veinSolid.js, loaded on use)
@@ -7459,6 +7460,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <select value={outlineNames.some((o) => o.name === wireframeName) ? wireframeName : ""} onChange={(e) => setWireframeName(e.target.value)} disabled={!outlineNames.length} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Section outlines to link")}>
             <option value="">{outlineNames.length ? tr("Section outlines…") : tr("No section outlines yet")}</option>
             {outlineNames.map((o) => <option key={o.name} value={o.name}>{tr("{name} ({n} sections)", { name: o.name, n: o.sections })}</option>)}
+          </select>
+          <select value={wireframeEnds} onChange={(e) => setWireframeEnds(e.target.value)} style={{ ...smallSel, width: 92, flexShrink: 0 }} aria-label={tr("Ends of the solid")} title={tr("How the solid ends beyond the first and last outline: flat at them, extended half a section spacing, or pinched out to a point half a spacing beyond")}>{/* TASKS.csv #894 */}
+            <option value="flat">{tr("Flat ends")}</option><option value="extend">{tr("Extend ½ spacing")}</option><option value="pinch">{tr("Pinch out")}</option>
           </select>
           <button onClick={() => linkWireframe(wireframeName)} disabled={!outlineNames.some((o) => o.name === wireframeName)} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: outlineNames.some((o) => o.name === wireframeName) ? 1 : 0.5 }}>{tr("Link into a solid")}</button>
         </div>
