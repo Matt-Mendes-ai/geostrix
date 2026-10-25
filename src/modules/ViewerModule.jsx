@@ -3507,6 +3507,34 @@ ${describeTrend(t)}` };
   };
   // TASKS.csv #859 — a vein solid stitched from its hangingwall and footwall surfaces (lib/veinSolid.js, loaded on use)
   const [veinHw, setVeinHw] = useState(""), [veinFw, setVeinFw] = useState("");
+  // TASKS.csv #895 — an offset copy of an open surface (lib/offsetSurface.js, loaded on use): along its normal (true
+  // thickness, upper side positive) or vertically, as a new generated surface the user can type and use like any other
+  const [offsetIn, setOffsetIn] = useState({}); // surface id -> { d, mode }
+  const makeOffsetSurface = async (s) => {
+    const o2 = offsetIn[s.id] || {}, d = Number(o2.d), mode = o2.mode === "vertical" ? "vertical" : "normal";
+    const m = surfaceWorldMesh(s.id);
+    if (!m || !Number.isFinite(d) || d === 0) return;
+    try {
+      const { offsetSurface } = await import("../lib/offsetSurface.js");
+      const r = offsetSurface(m.positions, m.indices, d, { mode });
+      const o = originRef.current, scene = new Float32Array(r.positions.length);
+      for (let i = 0; i < r.positions.length; i += 3) { scene[i] = r.positions[i] - o.x; scene[i + 1] = r.positions[i + 2] - o.z; scene[i + 2] = o.y - r.positions[i + 1]; }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(scene, 3));
+      geo.setIndex(new THREE.BufferAttribute(r.indices, 1));
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0x5a9bd4, side: THREE.DoubleSide, transparent: true, opacity: 0.6 }));
+      const ds = `${d > 0 ? "+" : ""}${d}`;
+      const name = tr("{name} offset {d} m{v}", { name: s.name, d: ds, v: mode === "vertical" ? tr(" (vertical)") : "" });
+      mesh.userData = { tip: `${name}\n${scene.length / 3} vertices` };
+      implicitGroupRef.current?.add(mesh);
+      const id = `impl_${Date.now()}_offset`;
+      implicitMeshesRef.current[id] = mesh;
+      setImplicitSurfaces((p) => [...p, { id, name, visible: true, vertexCount: scene.length / 3, faceCount: r.indices.length / 3, type: "other", relationships: [], closure: null,
+        params: { tool: "offset copy of a surface", from: s.name, distanceM: d, direction: mode === "vertical" ? "vertical (z + distance)" : "along the surface normal at each vertex (positive = upper side)", builtAt: new Date().toISOString() } }]);
+      setNotices((p) => [...p, notice("Made \"{name}\": a copy of \"{src}\" moved {d} m {how}. It is a construction: it follows the original's shape, not data of its own; where the original folds tighter than the offset, the copy can cross itself.", { name, src: s.name, d: ds, how: mode === "vertical" ? tr("vertically") : tr("along its normal (upper side positive)") })]);
+    } catch (e) { setNotices((p) => [...p, e]); }
+  };
   const buildVeinSolid = async () => {
     const hw = implicitSurfaces.find((x) => x.id === veinHw), fw = implicitSurfaces.find((x) => x.id === veinFw);
     const mh = surfaceWorldMesh(veinHw), mf = surfaceWorldMesh(veinFw);
@@ -7696,6 +7724,16 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                   {s.type === "explicit_surface"
                     ? <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 6 }}>{tr("Explicit surfaces are not sculpted: the next rebuild from the picks would undo it. Move, add or remove picks in the Explicit surface pane instead.")}</div>
                     : <SculptPanel surface={s} sculpt={sculpt} pBtn={pBtn} smallSel={smallSel} />}
+                  {s.closure !== "closed" && !["unit_volume", "vein_solid", "explicit_wireframe"].includes(s.type) && ( // TASKS.csv #895 — an offset copy (open surfaces; an imported sheet too)
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }} title={tr("A copy of this surface moved by a distance: along its normal (a true thickness, positive = its upper side) or vertically. For example a hangingwall from a footwall plus the vein's width.")}>
+                      <span style={{ flexShrink: 0 }}>{tr("Offset copy")}</span>
+                      <input type="number" step={1} value={offsetIn[s.id]?.d ?? ""} placeholder="m" onChange={(e) => setOffsetIn((p) => ({ ...p, [s.id]: { ...p[s.id], d: e.target.value } }))} style={{ ...smallSel, width: 56 }} aria-label={tr("Offset distance (m)")} />
+                      <select value={offsetIn[s.id]?.mode || "normal"} onChange={(e) => setOffsetIn((p) => ({ ...p, [s.id]: { ...p[s.id], mode: e.target.value } }))} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Offset direction")}>
+                        <option value="normal">{tr("along its normal")}</option><option value="vertical">{tr("vertically")}</option>
+                      </select>
+                      <button onClick={() => makeOffsetSurface(s)} disabled={!(Number(offsetIn[s.id]?.d) !== 0 && Number.isFinite(Number(offsetIn[s.id]?.d)))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px" }}>{tr("Make")}</button>
+                    </div>
+                  )}
 
                   {/* TASKS.csv #93 — VERSIONS. Re-running a tool already produces a second surface; this
                       is where the user says the second one is a re-run OF the first, which is what makes

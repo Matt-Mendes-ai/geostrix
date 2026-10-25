@@ -5866,5 +5866,16 @@
   "Over its own plane: steep contacts, dykes and faults.": "Sobre o próprio plano: contatos íngremes, diques e falhas.",
   "Automatic: chosen from the lines on sections and the picks.": "Automático: escolhido a partir das linhas nas seções e dos picks.",
   "A point within 10 px of one already drawn on this image joins it.": "Um ponto a menos de 10 px de outro já desenhado nesta imagem se une a ele.",
-  "Undo (Ctrl+Z) — picks, lines and settings": "Desfazer (Ctrl+Z) — picks, linhas e ajustes"
+  "Undo (Ctrl+Z) — picks, lines and settings": "Desfazer (Ctrl+Z) — picks, linhas e ajustes",
+  "{name} offset {d} m{v}": "{name} deslocada {d} m{v}",
+  " (vertical)": " (vertical)",
+  "Made \"{name}\": a copy of \"{src}\" moved {d} m {how}. It is a construction: it follows the original's shape, not data of its own; where the original folds tighter than the offset, the copy can cross itself.": "Criada \"{name}\": uma cópia de \"{src}\" deslocada {d} m {how}. É uma construção: segue a forma da original, não dados próprios; onde a original dobra mais fechado que o deslocamento, a cópia pode se cruzar.",
+  "vertically": "verticalmente",
+  "along its normal (upper side positive)": "ao longo da normal (positivo para o lado superior)",
+  "A copy of this surface moved by a distance: along its normal (a true thickness, positive = its upper side) or vertically. For example a hangingwall from a footwall plus the vein's width.": "Uma cópia desta superfície deslocada por uma distância: ao longo da normal (espessura verdadeira, positivo = lado superior) ou verticalmente. Por exemplo, uma capa a partir de uma lapa mais a largura do veio.",
+  "Offset copy": "Cópia deslocada",
+  "Offset distance (m)": "Distância de deslocamento (m)",
+  "Offset direction": "Direção do deslocamento",
+  "along its normal": "ao longo da normal",
+  "Make": "Criar"
 }

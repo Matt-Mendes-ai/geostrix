@@ -5866,5 +5866,16 @@
   "Over its own plane: steep contacts, dykes and faults.": "Sobre su propio plano: contactos empinados, diques y fallas.",
   "Automatic: chosen from the lines on sections and the picks.": "Automático: elegido a partir de las líneas en secciones y los picks.",
   "A point within 10 px of one already drawn on this image joins it.": "Un punto a menos de 10 px de otro ya dibujado en esta imagen se une a él.",
-  "Undo (Ctrl+Z) — picks, lines and settings": "Deshacer (Ctrl+Z) — picks, líneas y ajustes"
+  "Undo (Ctrl+Z) — picks, lines and settings": "Deshacer (Ctrl+Z) — picks, líneas y ajustes",
+  "{name} offset {d} m{v}": "{name} desplazada {d} m{v}",
+  " (vertical)": " (vertical)",
+  "Made \"{name}\": a copy of \"{src}\" moved {d} m {how}. It is a construction: it follows the original's shape, not data of its own; where the original folds tighter than the offset, the copy can cross itself.": "Se creó \"{name}\": una copia de \"{src}\" desplazada {d} m {how}. Es una construcción: sigue la forma de la original, no datos propios; donde la original se pliega más cerrado que el desplazamiento, la copia puede cruzarse a sí misma.",
+  "vertically": "verticalmente",
+  "along its normal (upper side positive)": "según su normal (positivo hacia el lado superior)",
+  "A copy of this surface moved by a distance: along its normal (a true thickness, positive = its upper side) or vertically. For example a hangingwall from a footwall plus the vein's width.": "Una copia de esta superficie desplazada una distancia: según su normal (espesor verdadero, positivo = su lado superior) o verticalmente. Por ejemplo, un techo a partir de un piso más el ancho de la veta.",
+  "Offset copy": "Copia desplazada",
+  "Offset distance (m)": "Distancia de desplazamiento (m)",
+  "Offset direction": "Dirección del desplazamiento",
+  "along its normal": "según su normal",
+  "Make": "Crear"
 }

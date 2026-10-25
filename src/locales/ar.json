@@ -5866,5 +5866,16 @@
   "Over its own plane: steep contacts, dykes and faults.": "على مستواه الخاص: التماسات شديدة الميل والسدود والصدوع.",
   "Automatic: chosen from the lines on sections and the picks.": "تلقائي: يُختار من الخطوط على المقاطع ومن النقاط الملتقطة.",
   "A point within 10 px of one already drawn on this image joins it.": "النقطة التي تبعد أقل من 10 بكسل عن نقطة مرسومة في هذه الصورة تنضم إليها.",
-  "Undo (Ctrl+Z) — picks, lines and settings": "تراجع (Ctrl+Z) — النقاط الملتقطة والخطوط والإعدادات"
+  "Undo (Ctrl+Z) — picks, lines and settings": "تراجع (Ctrl+Z) — النقاط الملتقطة والخطوط والإعدادات",
+  "{name} offset {d} m{v}": "{name} مُزاح {d} م{v}",
+  " (vertical)": " (رأسيًا)",
+  "Made \"{name}\": a copy of \"{src}\" moved {d} m {how}. It is a construction: it follows the original's shape, not data of its own; where the original folds tighter than the offset, the copy can cross itself.": "أُنشئ \"{name}\": نسخة من \"{src}\" مُزاحة {d} م {how}. إنها بناء: تتبع شكل الأصل لا بيانات خاصة بها؛ وحيث ينطوي الأصل بأضيق من مقدار الإزاحة قد تتقاطع النسخة مع نفسها.",
+  "vertically": "رأسيًا",
+  "along its normal (upper side positive)": "على امتداد عموده (الموجب نحو الجانب العلوي)",
+  "A copy of this surface moved by a distance: along its normal (a true thickness, positive = its upper side) or vertically. For example a hangingwall from a footwall plus the vein's width.": "نسخة من هذا السطح مُزاحة بمسافة: على امتداد عموده (سماكة حقيقية، الموجب = جانبه العلوي) أو رأسيًا. مثلًا جدار معلق من جدار سفلي مضافًا إليه عرض العرق.",
+  "Offset copy": "نسخة مُزاحة",
+  "Offset distance (m)": "مسافة الإزاحة (م)",
+  "Offset direction": "اتجاه الإزاحة",
+  "along its normal": "على امتداد عموده",
+  "Make": "أنشئ"
 }

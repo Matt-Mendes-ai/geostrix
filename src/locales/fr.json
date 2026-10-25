@@ -5866,5 +5866,16 @@
   "Over its own plane: steep contacts, dykes and faults.": "Sur son propre plan : contacts raides, dykes et failles.",
   "Automatic: chosen from the lines on sections and the picks.": "Automatique : choisi d'après les lignes sur les coupes et les pointés.",
   "A point within 10 px of one already drawn on this image joins it.": "Un point à moins de 10 px d'un point déjà dessiné sur cette image s'y raccorde.",
-  "Undo (Ctrl+Z) — picks, lines and settings": "Annuler (Ctrl+Z) — pointés, lignes et réglages"
+  "Undo (Ctrl+Z) — picks, lines and settings": "Annuler (Ctrl+Z) — pointés, lignes et réglages",
+  "{name} offset {d} m{v}": "{name} décalée de {d} m{v}",
+  " (vertical)": " (vertical)",
+  "Made \"{name}\": a copy of \"{src}\" moved {d} m {how}. It is a construction: it follows the original's shape, not data of its own; where the original folds tighter than the offset, the copy can cross itself.": "« {name} » créée : une copie de « {src} » décalée de {d} m {how}. C'est une construction : elle suit la forme de l'originale, pas des données propres ; là où l'originale se plie plus serré que le décalage, la copie peut se recouper.",
+  "vertically": "verticalement",
+  "along its normal (upper side positive)": "le long de sa normale (positif vers le côté supérieur)",
+  "A copy of this surface moved by a distance: along its normal (a true thickness, positive = its upper side) or vertically. For example a hangingwall from a footwall plus the vein's width.": "Une copie de cette surface décalée d'une distance : le long de sa normale (épaisseur vraie, positif = côté supérieur) ou verticalement. Par exemple un toit à partir d'un mur plus la largeur du filon.",
+  "Offset copy": "Copie décalée",
+  "Offset distance (m)": "Distance de décalage (m)",
+  "Offset direction": "Direction du décalage",
+  "along its normal": "le long de sa normale",
+  "Make": "Créer"
 }
