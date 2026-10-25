@@ -179,7 +179,7 @@ const CONSTRUCTION_KEYS = {
   explicit: ["picks", "sectionLines", "sections", "lineSpacingM", "points", "mapContacts", "mapLines", "dipGuide", "frame", "maxMisfitM", "marginM", "looRmsM", "looMaxM", "overshootM", "extrapolatedPct", "furthestFromInputM", "cutAtTerrain", "builtAt"],
   wireframe: ["body", "sections", "pointsPerOutline", "volumeM3", "ends", "builtAt"],
   veinSolid: ["hangingwall", "footwall", "volumeM3", "trueThicknessM", "attitude", "gridCellM", "nodesWhereWallsMeet", "ends", "builtAt"],
-  unitVolume: ["unit", "model", "builtAt", "cells", "cellVolumeM3", "cellsVolumeM3", "shellVolumeM3", "note"],
+  unitVolume: ["unit", "model", "builtAt", "cells", "cellVolumeM3", "cellsVolumeM3", "shellVolumeM3", "note", "volumeBandM3", "blockSizeM", "cutByBox"],
 };
 function constructionKeys(q) { return new Set(CONSTRUCTION_KEYS[constructionKind(q)] || []); }
 
@@ -210,6 +210,9 @@ function constructionLines(q) {
   } else if (kind === "unitVolume") {
     out.push(`Unit: ${q.unit} | implicit model: ${q.model}${q.builtAt ? ` (run ${q.builtAt})` : ""}`);
     out.push(`Volume = a COUNT of model blocks: ${n(q.cells)} cells x ${q.cellVolumeM3} m3 = ${n(q.cellsVolumeM3)} m3 | the shell around those blocks encloses ${n(q.shellVolumeM3)} m3`);
+    // TASKS.csv #877
+    if (q.volumeBandM3 != null) out.push(`Up to +/- ${n(q.volumeBandM3)} m3 from the block size alone${q.blockSizeM ? ` (${q.blockSizeM.join(" x ")} m blocks; half a block at every contact)` : ""}`);
+    if (q.cutByBox?.length) out.push(`Reaches the model box ${q.cutByBox.join(", ")}: there it is cut by the box, not by geology, and its volume depends on where the box was drawn.`);
     if (q.note) out.push(q.note);
   }
   if (kind && kind !== "unitVolume" && q.builtAt) out.push(`Built: ${q.builtAt}`);

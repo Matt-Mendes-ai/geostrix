@@ -5791,5 +5791,9 @@
   "To keep the build fast, the map lines were simplified to within {t} m (ends and corners kept).": "Pour garder la construction rapide, les lignes de la carte ont été simplifiées à {t} m près (extrémités et coins conservés).",
   "Explicit surfaces are not sculpted: the next rebuild from the picks would undo it. Move, add or remove picks in the Explicit surface pane instead.": "Les surfaces explicites ne se sculptent pas : la prochaine reconstruction à partir des pointés l'annulerait. Déplacez, ajoutez ou retirez des pointés dans le panneau Surface explicite.",
   "{n} manual sculpt(s) of the previous surface were discarded by this rebuild.": "Cette reconstruction a abandonné {n} retouche(s) manuelle(s) de la surface précédente.",
-  "{n} pick(s) on holes now sit up to {d} m from where they were picked: they follow the holes' current traces (a survey, collar or desurvey method changed).": "{n} pointé(s) sur des sondages sont maintenant jusqu'à {d} m de l'endroit où ils ont été pris : ils suivent la trace actuelle des sondages (un levé, un collet ou la méthode de calcul a changé)."
+  "{n} pick(s) on holes now sit up to {d} m from where they were picked: they follow the holes' current traces (a survey, collar or desurvey method changed).": "{n} pointé(s) sur des sondages sont maintenant jusqu'à {d} m de l'endroit où ils ont été pris : ils suivent la trace actuelle des sondages (un levé, un collet ou la méthode de calcul a changé).",
+  "{unit} {v} ± {b} Mm³": "{unit} {v} ± {b} Mm³",
+  "(to the box base at {z} m)": "(jusqu'à la base de la boîte à {z} m)",
+  "(cut at the box sides)": "(coupé aux côtés de la boîte)",
+  "± is the most a count of {b} m blocks can be off by (half a block at every contact)": "± est l'écart maximal d'un comptage de blocs de {b} m (un demi-bloc à chaque contact)"
 }

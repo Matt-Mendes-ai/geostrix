@@ -84,7 +84,7 @@ import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv
 import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut } from "../lib/levelPlan.js"; // TASKS.csv #525
 import { ghostStrings } from "../lib/sectionDigitise.js"; // TASKS.csv #519
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #577 (already in the startup chunk via compactRows)
-import { unitShell, meshVolume } from "../lib/unitVolumes.js"; // TASKS.csv #517
+import { unitShell, meshVolume, blockUnitStats } from "../lib/unitVolumes.js"; // TASKS.csv #517; blockUnitStats: #877
 const ModellingCodesPane = React.lazy(() => import("../components/ModellingCodesPane.jsx")); // TASKS.csv #599 — modelling view only, so loaded on demand (#476 budget)
 import { resolveLayerStyle, cleanLayerStyle, TUBE_SEGMENTS } from "../lib/layerStyle.js"; // TASKS.csv #635
 import { LAYER_META, colorForLithology, rqdColor, magColor, hashColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, isCrossCuttingRole, colorForMedium, classifyBreaks, paletteColorsHex, PALETTES } from "../lib/layers.js";
@@ -3521,7 +3521,13 @@ ${describeTrend(t)}` };
   const surfaceSolidsBuilt = (lb, sum) => {
     setLastLithBlock(lb);
     setSurfaceSolidsOpen(false);
-    const units = Object.entries(sum.counts).map(([u, n]) => tr("{unit} {v} Mm³", { unit: u, v: ((n * sum.cellVolume) / 1e6).toFixed(2) })).join(", ");
+    // TASKS.csv #877 — each volume with the most a block count can be off by, and where the box (not geology) cuts it
+    const bs = blockUnitStats(lb.block), zb = Math.round(bs.baseZ + (lb.origin?.z || 0));
+    const units = Object.entries(sum.counts).map(([u, n]) => {
+      const q = bs.units[u];
+      return tr("{unit} {v} ± {b} Mm³", { unit: u, v: ((n * sum.cellVolume) / 1e6).toFixed(2), b: ((q?.bandM3 || 0) / 1e6).toFixed(2) })
+        + (q?.box.includes("base") ? ` ${tr("(to the box base at {z} m)", { z: zb })}` : "") + (q?.box.includes("sides") ? ` ${tr("(cut at the box sides)")}` : "");
+    }).join(", ") + (Object.keys(sum.counts).length ? ` — ${tr("± is the most a count of {b} m blocks can be off by (half a block at every contact)", { b: bs.blockM.map((v) => +v.toFixed(1)).join(" × ") })}` : "");
     const partial = Object.entries(sum.coverage).filter(([, f]) => f < 0.999).map(([u, f]) => tr("{unit} covers {pct}% of the box", { unit: u, pct: Math.round(100 * f) }));
     setNotices((p) => [...p, notice("Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Last model box above the surface list.{v}", { n: sum.resolution.reduce((a, b) => a * b, 1).toLocaleString(), nx: sum.resolution[0], ny: sum.resolution[1], nz: sum.resolution[2], units: units || tr("no unit cells"), v: (partial.length ? tr(" Beyond a top's footprint the unit above it continues down: {list}.", { list: partial.join("; ") }) : "")
       + (sum.inverted?.baseAboveTop ? tr(" In {n} of {m} columns a unit's base lies above its own top (negative thickness): the blocks there follow the rules but not the geology.", { n: sum.inverted.baseAboveTop, m: sum.inverted.columns }) : "") // #860
@@ -3545,6 +3551,7 @@ ${describeTrend(t)}` };
   const addUnitVolumes = () => {
     const lb = lastLithBlock; if (!lb) return;
     const o = originRef.current, stamp = Date.now(), added = [], lines = [];
+    const ust = blockUnitStats(lb.block); // TASKS.csv #877
     lb.block.labels.forEach((label, k) => {
       if (label == null) return;
       // the block is in the model's API frame; lb.origin is the world origin it was built with
@@ -3567,7 +3574,8 @@ ${describeTrend(t)}` };
       added.push({
         id, name: `${label} volume (${lb.title.replace(/^stack /, "")}, ${lb.when})`, visible: true, vertexCount: nVerts, faceCount: nTris,
         type: "unit_volume", relationships: [], closure: "closed",
-        params: { tool: "unit volume from the implicit model's lithology block", unit: label, model: lb.title, builtAt: lb.when, cells: s.cells, cellVolumeM3: +s.cellVolume.toFixed(3), cellsVolumeM3: Math.round(s.blockVolume), shellVolumeM3: Math.round(vol), note: lb.block.resampledFromTrend ? tr("Built from the trend model resampled onto a real-space grid (#679), so the shell follows that grid's steps; the exact unit volume is the one in the Model check message. Cut at the model box: a unit that continues beyond it is closed there.") : tr("Cut at the model box: a unit that continues beyond it is closed there.") },
+        params: { tool: "unit volume from the implicit model's lithology block", unit: label, model: lb.title, builtAt: lb.when, cells: s.cells, cellVolumeM3: +s.cellVolume.toFixed(3), cellsVolumeM3: Math.round(s.blockVolume), shellVolumeM3: Math.round(vol),
+          ...(ust.units[label] ? { volumeBandM3: Math.round(ust.units[label].bandM3), blockSizeM: ust.blockM.map((v) => +v.toFixed(2)), cutByBox: ust.units[label].box } : {}), /* TASKS.csv #877 */ note: lb.block.resampledFromTrend ? tr("Built from the trend model resampled onto a real-space grid (#679), so the shell follows that grid's steps; the exact unit volume is the one in the Model check message. Cut at the model box: a unit that continues beyond it is closed there.") : tr("Cut at the model box: a unit that continues beyond it is closed there.") },
       });
       lines.push(tr("{label} {v} Mm³", { label, v: (vol / 1e6).toFixed(2) }));
     });

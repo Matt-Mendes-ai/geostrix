@@ -100,3 +100,33 @@ export function meshVolume(positions, indices) {
   }
   return v6 / 6;
 }
+
+// TASKS.csv #877 — what a block count can and cannot say about a unit's volume. Per label of a block (surfacesToBlock's
+// or GemPy's: ids x-major, z fastest):
+//   cells;
+//   bandM3: the most the count can be off by - each face the unit shares with another unit (or with "not modelled" /
+//     outside) is where the true contact may lie anywhere within half a block of it, so +/- half a block per face (a
+//     37 m slab in 25 m blocks reads 25 or 50 m: the band is +/- 25 m of it);
+//   box: which faces of the model box the unit reaches ("base", "top", "sides") - there it is cut by the box, not by
+//     geology, and its volume depends on where the box was drawn.
+export function blockUnitStats(block) {
+  const { resolution: [nx, ny, nz], ids, labels, extent } = block;
+  const dx = (extent[1] - extent[0]) / nx, dy = (extent[3] - extent[2]) / ny, dz = (extent[5] - extent[4]) / nz, cv = dx * dy * dz;
+  const st = {};
+  const at = (i, j, k) => ids[i * ny * nz + j * nz + k];
+  for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++) {
+    const id = at(i, j, k), l = id ? labels[id - 1] : null;
+    if (l == null) continue;
+    const u = st[l] || (st[l] = { cells: 0, faces: 0, box: new Set() });
+    u.cells++;
+    const nb = [[i - 1, j, k, "sides"], [i + 1, j, k, "sides"], [i, j - 1, k, "sides"], [i, j + 1, k, "sides"], [i, j, k - 1, "base"], [i, j, k + 1, "top"]];
+    for (const [a, b, c, face] of nb) {
+      if (a < 0 || b < 0 || c < 0 || a >= nx || b >= ny || c >= nz) { u.box.add(face); continue; }
+      if (at(a, b, c) !== id) u.faces++;
+    }
+  }
+  const out = {};
+  for (const [l, u] of Object.entries(st)) out[l] = { cells: u.cells, volumeM3: u.cells * cv, bandM3: (u.faces * cv) / 2, box: ["base", "top", "sides"].filter((f) => u.box.has(f)) };
+  return { units: out, blockM: [dx, dy, dz], cellVolume: cv, baseZ: extent[4], topZ: extent[5] };
+}
+

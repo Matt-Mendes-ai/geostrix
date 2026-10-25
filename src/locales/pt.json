@@ -5791,5 +5791,9 @@
   "To keep the build fast, the map lines were simplified to within {t} m (ends and corners kept).": "Para manter a construção rápida, as linhas do mapa foram simplificadas com tolerância de {t} m (extremidades e cantos mantidos).",
   "Explicit surfaces are not sculpted: the next rebuild from the picks would undo it. Move, add or remove picks in the Explicit surface pane instead.": "Superfícies explícitas não são esculpidas: a próxima reconstrução a partir dos picks desfaria isso. Mova, adicione ou remova picks no painel Superfície explícita.",
   "{n} manual sculpt(s) of the previous surface were discarded by this rebuild.": "Esta reconstrução descartou {n} edição(ões) manual(is) da superfície anterior.",
-  "{n} pick(s) on holes now sit up to {d} m from where they were picked: they follow the holes' current traces (a survey, collar or desurvey method changed).": "{n} pick(s) em furos estão agora a até {d} m de onde foram tomados: seguem o traçado atual dos furos (mudou um levantamento, um colar ou o método de desvio)."
+  "{n} pick(s) on holes now sit up to {d} m from where they were picked: they follow the holes' current traces (a survey, collar or desurvey method changed).": "{n} pick(s) em furos estão agora a até {d} m de onde foram tomados: seguem o traçado atual dos furos (mudou um levantamento, um colar ou o método de desvio).",
+  "{unit} {v} ± {b} Mm³": "{unit} {v} ± {b} Mm³",
+  "(to the box base at {z} m)": "(até a base da caixa a {z} m)",
+  "(cut at the box sides)": "(cortado nas laterais da caixa)",
+  "± is the most a count of {b} m blocks can be off by (half a block at every contact)": "± é o máximo que uma contagem de blocos de {b} m pode errar (meio bloco em cada contato)"
 }
