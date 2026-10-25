@@ -20,7 +20,7 @@ import { sectionGrid, sameLine, unpackUnits, sectionPixels, blockSpacing, sectio
 import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/desktop.js"; // copyText: TASKS.csv #589
 import { sectionFromCentre, sectionThroughHole, fenceLines } from "../lib/sectionDefs.js";
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, RIBBON_TONES } from "../components/Ribbon.jsx"; // TASKS.csv #458
-import { Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate, Sparkles } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
+import { Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate, Sparkles } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
 import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImportMeta.js"; // TASKS.csv #148; #552 split
 import { parseSolidInWorker } from "../lib/solidImportClient.js"; // TASKS.csv #414
 // TASKS.csv #414 — imported solids, one tone per layer (grey-blue family: never the generated-surface gold).
@@ -6712,7 +6712,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </RibbonGroup>
           {/* TASKS.csv #811 — Matt: "a tool specifically for explicit modelling ... the hard line of the modelled surface" */}
           <RibbonGroup label="Explicit modelling">
-            <RibbonButton icon={Spline} label="Explicit surface" tone="model" title="A surface exactly through your own picks in 3D and lines drawn on sections" {...paneProps("explicit")} />
+            <RibbonButton icon={PenTool} label="Explicit surface" tone="model" title="A surface exactly through your own picks in 3D and lines drawn on sections" {...paneProps("explicit")} />
           </RibbonGroup>
           <RibbonGroup label="geoML modelling">
             <RibbonButton icon={Sparkles} label="geoML models" tone="model" title="Rock-unit and grade models with uncertainty (geoML, Gaussian processes — optional add-on)" {...paneProps("geoml")} />

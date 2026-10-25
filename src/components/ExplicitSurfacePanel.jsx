@@ -597,7 +597,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   };
   const startDigitizing = () => { if (!def || !digImage) return; setEditing(false); setDigDrawing(true); setDigPts([]); setPickFor(def.id); faceImage(); };
 
-  const newSurface = () => askPrompt(tr("Name of the new explicit surface (e.g. Top of SILBX):"), "", (name) => {
+  const newSurface = () => askPrompt(tr("Name of the new explicit surface (e.g. Top of basalt):"), "", (name) => {
     const n = (name || "").trim();
     if (!n) return;
     const id = `expl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
@@ -704,7 +704,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         const loo = q.looRmsM != null ? ` ${tr("Leave-one-out: each input predicted from the others misses by {rms} m RMS, worst {max} m ({at}).", { rms: q.looRmsM.toFixed(1), max: q.looMaxM.toFixed(1), at })}` : q.looSkipped ? ` ${tr("Leave-one-out not computed above {n} points.", { n: LOO_MAX_POINTS })}` : "";
         const beyond = ` ${tr("{p} % of the surface lies beyond the inputs and is extrapolated (up to {d} m from the nearest).", { p: Math.round(q.beyondPct), d: Math.round(q.furthestM) })}`;
         setStatus({ ok: true, built: true, text: tr("Built through {n} points ({picks} picks, {lines} section lines) in {ms} ms.", { n: res.n, picks: ep.picks, lines: ep.lines, ms }) + loo + beyond + " " + tr("{frame}{cut}", {
-          frame: res.frame.steep ? tr("Steep surface (best-fit plane dips {d}°): modelled over its own plane.", { d: res.frame.dip.toFixed(0) }) : tr("Modelled as elevation over the map."),
+          frame: res.frame.steep ? tr("Modelled over its best-fit plane (dips {d}°).", { d: res.frame.dip.toFixed(0) }) : tr("Modelled as elevation over the map."),
           cut: res.groundCut ? tr(" Cut at the terrain.") : "",
         }) + (ep.drawnLines ? ` ${tr("Includes {n} line(s) digitized on section images.", { n: ep.drawnLines })}` : "") + (ep.mapLines ? ` ${tr("Includes {m} mapped contact line(s){g}.", { m: ep.mapLines, g: ep.guideLines ? tr(" and {g} dip guide line(s) (constructed, {d} m down-dip)", { g: ep.guideLines, d: Number(def.dipGuide?.depth) || 100 }) : "" })}` : "")
           + (ep.lineTolM > 0 ? ` ${tr("To keep the build fast, the section lines were simplified to within {t} m ({k} of {n} vertices kept, corners and ends included).", { t: ep.lineTolM, k: ep.lineVerticesKept, n: ep.lineVerticesIn })}` : "")
@@ -766,7 +766,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
       <div style={row}>
         <select value={def?.id || ""} onChange={(e) => { if (digDrawing) { finishLine(); setDigDrawing(false); showHover(null); } setSelId(e.target.value); setPickFor(null); }} disabled={!defs.length} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Explicit surface")}>
           {!defs.length && <option value="">{tr("No explicit surfaces yet")}</option>}
-          {defs.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.picks.length}){layerLabel(d) !== d.name ? ` · ${layerLabel(d)}` : ""}</option>)}
+          {defs.map((d) => <option key={d.id} value={d.id}>{d.name} ({tr("{p} picks, {l} lines", { p: d.picks.length, l: (d.lines || []).length })}){layerLabel(d) !== d.name ? ` · ${layerLabel(d)}` : ""}</option>)}
         </select>
         <button onClick={newSurface} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px" }}>{tr("+ New")}</button>
       </div>
@@ -863,13 +863,16 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         <button onClick={() => { setPickFor(null); setEditing((v) => !v); setLineTool("move"); pendRef.current = null; setToolHint(null); }} aria-pressed={editing} disabled={!def.picks.length && !(def.lines || []).length}
           title={tr("Drag a pick to move it: a pick on a hole slides along that hole (snapping to logged contacts when Snap is on); any other pick moves up and down, or sideways with Shift held. The surface rebuilds when you let go.")}
           style={{ ...pBtn, marginBottom: 6, justifyContent: "center", opacity: def.picks.length || (def.lines || []).length ? 1 : 0.5, ...(editing ? { background: "var(--color-accent)", color: "var(--color-on-accent, #fff)" } : {}) }}>
-          <Move size={14} />{" "}{editing ? tr("Editing — drag a pick (click to stop)") : tr("Edit picks (drag to move)")}
+          <Move size={14} />{" "}{editing ? tr("Editing — drag a pick or a line point (click to stop)") : tr("Edit picks and lines")}
         </button>
         <label style={{ ...row, cursor: "pointer" }} title={tr("A click on a hole snaps to its nearest logged contact (where the unit changes) within {m} m down-hole; untick to take the exact point clicked on the trace", { m: SNAP_REACH_M })}>
           <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />{tr("Snap to logged contacts")}
         </label>
         <div style={row}>
           <button onClick={() => update({ picks: def.picks.slice(0, -1) })} disabled={!def.picks.length} style={{ ...pBtn, flex: 1, marginBottom: 0, opacity: def.picks.length ? 1 : 0.5 }}><Undo2 size={14} />{" "}{tr("Undo last pick")}</button>
+          {/* TASKS.csv #892 — Undo / Redo always here (they used to appear only once a line existed), Ctrl+Z named */}
+          <button onClick={undo} disabled={!canUndo} title={tr("Undo (Ctrl+Z) — picks, lines and settings")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: canUndo ? 1 : 0.5 }}>{tr("Undo")}</button>
+          <button onClick={redo} disabled={!canRedo} title={tr("Redo (Ctrl+Y)")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: canRedo ? 1 : 0.5 }}>{tr("Redo")}</button>
           <button onClick={() => { if (!confirmDestructive(tr("Delete the explicit surface \"{name}\" with its picks and lines?", { name: def.name }), { undoable: true })) return; setPickFor(null); onRemove(def); setSelId(""); }} title={tr("Delete this explicit surface and its mesh")} aria-label={tr("Delete this explicit surface and its mesh")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px" }}><Trash2 size={14} /></button>
         </div>
         <div style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, lineHeight: 1.4 }}>
@@ -885,16 +888,16 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
               <select value={digImage?.id || ""} onChange={(e) => { setDigImageId(e.target.value); setDigPts([]); }} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Section image")}>
                 {images.map((im) => <option key={im.id} value={im.id}>{im.name}</option>)}
               </select>
-              <button onClick={faceImage} title={tr("Turn the view square on to this section image")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px" }}>{tr("Face it")}</button>
+              <button onClick={faceImage} title={tr("Turn the view square on to this section image")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px" }}>{tr("Look square on")}</button>
             </div>
             <button onClick={() => (digDrawing ? (finishLine(), stopDigitizing()) : startDigitizing())} aria-pressed={digDrawing}
               style={{ ...pBtn, marginBottom: 4, justifyContent: "center", ...(digDrawing ? { background: "var(--color-accent)", color: "var(--color-on-accent, #fff)" } : {}) }}>
               <Pencil size={14} />{" "}{digDrawing ? tr("Drawing — click to stop") : tr("Draw contact lines on it")}
             </button>
-            {digDrawing && <div role="status" style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 4, color: "var(--color-text-secondary)" }}>
-              {tr("Click along {name}'s contact on the image. Enter or double-click: finish the line (the next click starts another). Backspace: remove the last point. Esc: stop. A point within 10 px of one already drawn on this image joins it.", { name: def.name })}
+            {/* TASKS.csv #892 — the keys in one line; what a point snaps to is the tooltip */}
+            {digDrawing && <div role="status" title={`${tr("A point within 10 px of one already drawn on this image joins it.")} ${tr("Black dots: logged contacts of holes within 15 m of the section, and hole crossings — a point snaps to them too, and onto drawn lines and the dashed ground line. Hold Shift for level / vertical / 45° segments.")}`} style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 4, color: "var(--color-text-secondary)" }}>
+              {tr("Click along {name}'s contact on the image.", { name: def.name })} {tr("Enter or double-click: finish the line · Backspace: remove the last point · Esc: stop · Shift: level / vertical / 45°.")}
               {digPts.length ? ` ${tr("{n} point(s) in this line.", { n: digPts.length })}` : ""}
-              {` ${tr("Black dots: logged contacts of holes within 15 m of the section, and hole crossings — a point snaps to them too, and onto drawn lines and the dashed ground line. Hold Shift for level / vertical / 45° segments.")}`}
               {hoverLabel ? <b>{` ${tr("Snap: {v}", { v: hoverLabel })}`}</b> : null}
             </div>}
             {(def.lines || []).map((ln, i) => (
@@ -911,8 +914,6 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
                   return <button key={k} title={tr(hint)} aria-pressed={on} onClick={() => { setLineTool(k); pendRef.current = null; setToolHint(tr(hint)); if (digDrawing) { finishLine(); setDigDrawing(false); showHover(null); } setPickFor(null); setEditing(true); }}
                     style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px", fontSize: "var(--font-size-xs)", ...(on ? { background: "var(--color-accent)", color: "var(--color-on-accent, #fff)" } : {}) }}>{tr(label)}</button>;
                 })}
-                <button onClick={undo} disabled={!canUndo} title={tr("Undo (Ctrl+Z)")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px", fontSize: "var(--font-size-xs)", opacity: canUndo ? 1 : 0.5 }}>{tr("Undo")}</button>
-                <button onClick={redo} disabled={!canRedo} title={tr("Redo (Ctrl+Y)")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px", fontSize: "var(--font-size-xs)", opacity: canRedo ? 1 : 0.5 }}>{tr("Redo")}</button>
               </div>
               {editing && toolHint && <div role="status" style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 4, color: "var(--color-text-secondary)" }}>{toolHint}</div>}
             </>)}
@@ -994,6 +995,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             <option value="auto">{tr("Automatic")}</option><option value="map">{tr("Elevation over the map")}</option><option value="plane">{tr("Over its own plane (steep)")}</option>
           </select>
         </div>
+        {def.shape && def.shape !== "legacy" && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-2px 0 6px 126px", lineHeight: 1.35 }}>{def.shape === "map" ? tr("Elevation over the map: one height per map point — contacts that are flat-lying to moderately dipping.") : def.shape === "plane" ? tr("Over its own plane: steep contacts, dykes and faults.") : tr("Automatic: chosen from the lines on sections and the picks.")}</div>}{/* #892 */}
         <div style={row}>
           <span style={{ width: 120, flexShrink: 0 }}>{tr("Mesh detail")}</span>
           <select value={def.resolution || 80} onChange={(e) => update({ resolution: Number(e.target.value) })} style={smallSel} aria-label={tr("Mesh detail")}>

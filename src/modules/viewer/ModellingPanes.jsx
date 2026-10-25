@@ -4,7 +4,7 @@
 // stands) and loaded on demand: they are only rendered once a modelling pane is opened, and ViewerModule was over its
 // startup budget. The props are exactly the free identifiers of the moved JSX that ViewerModule declares (found by
 // Babel scope analysis, not by hand); module imports are re-imported here.
-import { Activity, Calculator, ChevronDown, ChevronRight, ChevronUp, Compass, Droplets, FileBarChart2, Gem, GitCompare, Group, Layers, Layers3, Milestone, Mountain, Settings, Shapes, Sparkles, Spline, Trash2, Waves, Waypoints, X } from "../../components/icons.js";
+import { Activity, Calculator, ChevronDown, ChevronRight, ChevronUp, Compass, Droplets, FileBarChart2, Gem, GitCompare, Group, Layers, Layers3, Milestone, Mountain, Settings, Shapes, Sparkles, Trash2, Waves, Waypoints, X, PenTool } from "../../components/icons.js";
 import { BLOCK_BUDGETS, ESTIMATION_METHODS, MAX_BLOCKS } from "../../lib/estimationMeta.js";
 import InfoButton from "../../components/InfoButton.jsx";
 import { PRECIOUS_METALS } from "../../lib/geochem.js";
@@ -420,7 +420,7 @@ export default function ModellingPanes(props) {
         </Suspense>
         </>)}{/* TASKS.csv #817 */}
         {toolPane === "explicit" && (<>
-        {paneHeader("Explicit surface", Spline, "model")}
+        {paneHeader("Explicit surface", PenTool, "model")}
         <Suspense fallback={null}>
           <ExplicitSurfacePanel surfaces={implicitSurfaces} /* #861 */ tracesSeq={tracesSeq} /* #888 */ trend={explicitTrend} /* #881 */ topsOfUnit={topsOfUnit} /* #871 */ defs={explicitSurfaces || []} setDefs={setExplicitLogged} /* #878 */ sections={sections} terrain={terrain} mapLayers={mapLayers} surfaceStructures={surfaceStructures} /* #817 */ sectionImages={sectionImages} onDigitizeImage={setDigitizeImageId} /* #824 */ unitChoices={[...modellingCodeList.map((c) => c.name), ...lithoGroups.map((g) => g.name)]} /* #831 */ pickFor={explicitPickFor} setPickFor={setExplicitPickFor} snap={explicitSnap} setSnap={setExplicitSnap}
             scene={{ origin: originRef, meshes: implicitMeshesRef, group: implicitGroupRef, traces: tracesRef, activity: lastActivityRef, setSurfaces: setImplicitSurfaces, worldPointFromHits, clickRef: explicitClickRef,

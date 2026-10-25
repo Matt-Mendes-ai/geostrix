@@ -128,6 +128,7 @@ export const FileCheck = memoIcon(L.FileCheck); // TASKS.csv #601
 export const Sigma = memoIcon(L.Sigma);
 export const SlidersHorizontal = memoIcon(L.SlidersHorizontal);
 export const Spline = memoIcon(L.Spline);
+export const PenTool = memoIcon(L.PenTool); // TASKS.csv #892 — the Explicit surface tool (Spline stays with Variogram)
 export const Square = memoIcon(L.Square);
 export const SquareSplitVertical = memoIcon(L.SquareSplitVertical);
 export const Star = memoIcon(L.Star);
