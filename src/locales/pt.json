@@ -5083,7 +5083,6 @@
   "+ Add": "+ Adicionar",
   "(layer removed)": "(camada removida)",
   "Remove this mapped contact": "Remover este contato mapeado",
-  "Adds a line below each mapped contact, projected down its dip: the nearest bedding measurement within the radius, or else the dip fitted to the contact's own trace on the terrain. It is a constructed line, not an observation; the surface passes through it exactly.": "Adiciona uma linha abaixo de cada contato mapeado, projetada segundo o seu mergulho: a medida de acamamento mais próxima dentro do raio ou, se não houver, o mergulho ajustado ao próprio traço do contato no terreno. É uma linha construída, não uma observação; a superfície passa exatamente por ela.",
   "Dip guide: project the contact down its dip": "Guia de mergulho: projetar o contato segundo o seu mergulho",
   "Guide depth": "Profundidade do guia",
   "Measurements within": "Medidas a menos de",
@@ -5848,5 +5847,14 @@
   "Predictive (geoML)": "Preditivo (geoML)",
   "The last model has {n} unit blocks. As a block model they take roughly {mb} MB of memory, which a modest computer may not have to spare; a larger block size keeps it light. Add them anyway?": "O último modelo tem {n} blocos de unidades. Como modelo de blocos eles ocupam cerca de {mb} MB de memória, que um computador modesto talvez não tenha livres; um tamanho de bloco maior o deixa leve. Adicionar mesmo assim?",
   "The last model has {n} unit blocks: building their closed volumes takes a few seconds and makes large meshes. Build them anyway?": "O último modelo tem {n} blocos de unidades: construir seus volumes fechados leva alguns segundos e gera malhas grandes. Construir mesmo assim?",
-  "{n} blocks in the box: building them is quick, but adding them afterwards as a block model or as unit volumes is slow and memory-hungry at this size. A larger block size keeps it light.": "{n} blocos na caixa: construí-los é rápido, mas adicioná-los depois como modelo de blocos ou volumes de unidades é lento e consome muita memória neste tamanho. Um tamanho de bloco maior o deixa leve."
+  "{n} blocks in the box: building them is quick, but adding them afterwards as a block model or as unit volumes is slow and memory-hungry at this size. A larger block size keeps it light.": "{n} blocos na caixa: construí-los é rápido, mas adicioná-los depois como modelo de blocos ou volumes de unidades é lento e consome muita memória neste tamanho. Um tamanho de bloco maior o deixa leve.",
+  "Adds a line below each mapped contact, projected down its dip: the bedding measurements within the radius (weighted by distance), or else the dip fitted to the contact's own trace on the terrain. It is a constructed line, not an observation; the surface passes through it exactly.": "Adiciona uma linha abaixo de cada contato mapeado, projetada segundo o seu mergulho: as medidas de acamamento dentro do raio (ponderadas pela distância) ou, se não houver, o mergulho ajustado ao próprio traço do contato no terreno. É uma linha construída, não uma observação; a superfície passa exatamente por ela.",
+  "Off: only bedding inside the contact's two units is used. On: bedding of any unit within the radius.": "Desligado: só se usa o acamamento dentro das duas unidades do contato. Ligado: o de qualquer unidade dentro do raio.",
+  "Use bedding from other units": "Usar acamamento de outras unidades",
+  "Off: a reading on the other side of a mapped fault from the contact is not used. On: it is.": "Desligado: uma medida do outro lado de uma falha mapeada em relação ao contato não é usada. Ligado: é usada.",
+  "No mapped faults found (line features named fault, thrust or shear).": "Nenhuma falha mapeada encontrada (linhas com fault, thrust ou shear nos atributos).",
+  "Use bedding across mapped faults": "Usar acamamento do outro lado de falhas mapeadas",
+  "{n} bedding reading(s) in other units not used.": "{n} medida(s) de acamamento em outras unidades não usadas.",
+  "At {n} point(s) a reading across a mapped fault was not used.": "Em {n} ponto(s) uma medida do outro lado de uma falha mapeada não foi usada.",
+  "At {n} point(s) the bedding and the dip of the contact's own trace disagree by more than 30° (up to {d}°): check which is right there.": "Em {n} ponto(s) o acamamento e o mergulho do próprio traço do contato diferem mais de 30° (até {d}°): verifique qual está certo ali."
 }

@@ -8,13 +8,21 @@
 //   layer: a polygon map layer (features with .parts rings, project E/N); field: its unit attribute; units: [a, b], the
 //   two units the contact separates. Every shared boundary of a and b (lib/mapLayers.js extractMapContacts) is thinned to
 //   a point every `step` metres and draped with groundAt(E, N) (NaN = beyond the terrain: the line breaks there).
-// dipGuideLines(lines, { measurements, depthM, radiusM, windowM, minDip }) -> { lines, measured, fitted, skipped }
-//   For each point of each line, the dip to use: the nearest measurement ({ x, y, dip, dipDir }, e.g. outcrop bedding)
-//   within radiusM, else the plane fitted to the contact's own trace over a windowM stretch (pileOrder.js fitTracePlane:
+// dipGuideLines(lines, { measurements, depthM, radiusM, windowM, minDip, unitPolys, faults }) -> { lines, measured, fitted,
+//   skipped, otherUnitReadings, acrossFaultPoints, disagree, maxDisagreeDeg }
+//   For each point of each line, the dip to use: the measurements ({ x, y, dip, dipDir }, e.g. outcrop bedding) within
+//   radiusM, averaged by inverse distance squared of their poles (mapLayers.js orientationAt, as #318's projection does -
+//   TASKS.csv #872: it used to take the single nearest one, so the guide jumped 118 m between points 25 m apart where two
+//   readings met), else the plane fitted to the contact's own trace over a windowM stretch (pileOrder.js fitTracePlane:
 //   the rule of V's), else none (the point gets no guide). The guide point is depthM below the contact, moved
 //   depthM / tan(dip) horizontally down-dip. Dips under minDip are skipped: the point would land kilometres away.
+//   #872 — which readings may speak for this contact is the geologist's call (Matt: "let the user decide"):
+//   unitPolys (the rings of the contact's two units) keeps only readings inside them; faults (mapped fault lines,
+//   [[x, y], ...]) sets aside, for each guide point, a reading on the other side of a fault (the line from the point to it
+//   crosses one). Both null / empty = every reading within the radius, as before. Where a measured dip and the trace's
+//   own plane differ by more than disagreeDeg, the points are counted (disagree, maxDisagreeDeg): the data conflict.
 // Pure: no three.js, no React.
-import { extractMapContacts } from "./mapLayers.js";
+import { extractMapContacts, orientationAt, pointInRings } from "./mapLayers.js";
 
 // TASKS.csv #887 — the whole map's contacts, extracted once per (layer, field): every mapped pair and the pair picker used
 // to re-extract them all (45-65 ms each on Perk-Rocky), on every keystroke in the dip-guide fields. A layer object is
@@ -70,10 +78,26 @@ export function mapContactLines(layer, field, units, groundAt, { step = 25 } = {
   return out;
 }
 
-export function dipGuideLines(lines, { measurements = [], depthM = 100, radiusM = 500, windowM = 800, minDip = 10 } = {}) {
-  const meas = measurements.filter((m) => [m.x, m.y, m.dip, m.dipDir].every(Number.isFinite));
-  const res = { lines: [], measured: 0, fitted: 0, skipped: 0 };
+// do segments p-q and a-b cross (proper or touching)?
+function segCross(p, q, a, b) {
+  const o = (u, v, w) => Math.sign((v[0] - u[0]) * (w[1] - u[1]) - (v[1] - u[1]) * (w[0] - u[0]));
+  const d1 = o(a, b, p), d2 = o(a, b, q), d3 = o(p, q, a), d4 = o(p, q, b);
+  return d1 !== d2 && d3 !== d4;
+}
+const pole = (dip, dx, dy) => { const s = Math.sin((dip * Math.PI) / 180); return [s * dx, s * dy, Math.cos((dip * Math.PI) / 180)]; };
+
+export function dipGuideLines(lines, { measurements = [], depthM = 100, radiusM = 500, windowM = 800, minDip = 10, unitPolys = null, faults = [], disagreeDeg = 30 } = {}) {
+  let meas = measurements.filter((m) => [m.x, m.y, m.dip, m.dipDir].every(Number.isFinite));
+  const res = { lines: [], measured: 0, fitted: 0, skipped: 0, otherUnitReadings: 0, acrossFaultPoints: 0, disagree: 0, maxDisagreeDeg: 0 };
   if (!(depthM > 0)) return res;
+  // #872 — readings outside the contact's own two units, when asked to leave them out
+  if (unitPolys?.length) {
+    const keep = meas.filter((m) => unitPolys.some((rings) => pointInRings([m.x, m.y], rings)));
+    res.otherUnitReadings = meas.length - keep.length;
+    meas = keep;
+  }
+  const faultSegs = [];
+  for (const f of faults || []) for (let i = 1; i < (f?.length || 0); i++) faultSegs.push([f[i - 1], f[i]]);
   const R2 = radiusM * radiusM;
   for (const l of lines) {
     // the trace's own plane, one per windowM stretch along the line
@@ -92,13 +116,25 @@ export function dipGuideLines(lines, { measurements = [], depthM = 100, radiusM 
     let run = [];
     const flush = () => { if (run.length >= 2) res.lines.push({ ref: `${l.ref} (dip guide)`, src: "guide", pts: run }); run = []; };
     l.pts.forEach((p, i) => {
-      let best = null, bd = R2;
-      for (const m of meas) { const d = (m.x - p.x) ** 2 + (m.y - p.y) ** 2; if (d <= bd) { bd = d; best = m; } }
+      // the readings within the radius that may speak for this point (#872: not across a mapped fault)
+      let near = meas.filter((m) => (m.x - p.x) ** 2 + (m.y - p.y) ** 2 <= R2);
+      if (faultSegs.length && near.length) {
+        const ok = near.filter((m) => !faultSegs.some(([a, b]) => segCross([p.x, p.y], [m.x, m.y], a, b)));
+        if (ok.length < near.length) res.acrossFaultPoints++;
+        near = ok;
+      }
+      const best = near.length ? orientationAt(p.x, p.y, near, radiusM) : null; // inverse-distance mean of the poles (#872)
       let dip, dx, dy;
       if (best) {
         dip = best.dip;
         const az = (best.dipDir * Math.PI) / 180;
         dx = Math.sin(az); dy = Math.cos(az);
+        const pl = planeAt(i);
+        if (pl) { // #872 — the reading and the trace's own rule-of-V plane disagree: say so
+          const a = pole(dip, dx, dy), b = pole(pl.dip, pl.dx, pl.dy);
+          const ang = (Math.acos(Math.min(1, Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2]))) * 180) / Math.PI;
+          if (ang > disagreeDeg) { res.disagree++; res.maxDisagreeDeg = Math.max(res.maxDisagreeDeg, Math.round(ang)); }
+        }
       } else {
         const pl = planeAt(i);
         if (pl) { dip = pl.dip; dx = pl.dx; dy = pl.dy; }

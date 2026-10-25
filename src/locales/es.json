@@ -5083,7 +5083,6 @@
   "+ Add": "+ Añadir",
   "(layer removed)": "(capa eliminada)",
   "Remove this mapped contact": "Quitar este contacto cartografiado",
-  "Adds a line below each mapped contact, projected down its dip: the nearest bedding measurement within the radius, or else the dip fitted to the contact's own trace on the terrain. It is a constructed line, not an observation; the surface passes through it exactly.": "Añade una línea bajo cada contacto cartografiado, proyectada según su buzamiento: la medición de estratificación más cercana dentro del radio o, si no hay, el buzamiento ajustado a la propia traza del contacto sobre el terreno. Es una línea construida, no una observación; la superficie pasa exactamente por ella.",
   "Dip guide: project the contact down its dip": "Guía de buzamiento: proyectar el contacto según su buzamiento",
   "Guide depth": "Profundidad de la guía",
   "Measurements within": "Mediciones a menos de",
@@ -5848,5 +5847,14 @@
   "Predictive (geoML)": "Predictivo (geoML)",
   "The last model has {n} unit blocks. As a block model they take roughly {mb} MB of memory, which a modest computer may not have to spare; a larger block size keeps it light. Add them anyway?": "El último modelo tiene {n} bloques de unidades. Como modelo de bloques ocupan unos {mb} MB de memoria, que un equipo modesto quizá no tenga libres; un tamaño de bloque mayor lo aligera. ¿Agregarlos de todos modos?",
   "The last model has {n} unit blocks: building their closed volumes takes a few seconds and makes large meshes. Build them anyway?": "El último modelo tiene {n} bloques de unidades: construir sus volúmenes cerrados toma unos segundos y genera mallas grandes. ¿Construirlos de todos modos?",
-  "{n} blocks in the box: building them is quick, but adding them afterwards as a block model or as unit volumes is slow and memory-hungry at this size. A larger block size keeps it light.": "{n} bloques en la caja: construirlos es rápido, pero agregarlos después como modelo de bloques o como volúmenes de unidades es lento y consume mucha memoria a este tamaño. Un tamaño de bloque mayor lo aligera."
+  "{n} blocks in the box: building them is quick, but adding them afterwards as a block model or as unit volumes is slow and memory-hungry at this size. A larger block size keeps it light.": "{n} bloques en la caja: construirlos es rápido, pero agregarlos después como modelo de bloques o como volúmenes de unidades es lento y consume mucha memoria a este tamaño. Un tamaño de bloque mayor lo aligera.",
+  "Adds a line below each mapped contact, projected down its dip: the bedding measurements within the radius (weighted by distance), or else the dip fitted to the contact's own trace on the terrain. It is a constructed line, not an observation; the surface passes through it exactly.": "Añade una línea bajo cada contacto cartografiado, proyectada según su buzamiento: las mediciones de estratificación dentro del radio (ponderadas por distancia) o, si no hay, el buzamiento ajustado a la propia traza del contacto sobre el terreno. Es una línea construida, no una observación; la superficie pasa exactamente por ella.",
+  "Off: only bedding inside the contact's two units is used. On: bedding of any unit within the radius.": "Desactivado: solo se usa la estratificación dentro de las dos unidades del contacto. Activado: la de cualquier unidad dentro del radio.",
+  "Use bedding from other units": "Usar estratificación de otras unidades",
+  "Off: a reading on the other side of a mapped fault from the contact is not used. On: it is.": "Desactivado: no se usa una medición al otro lado de una falla cartografiada respecto del contacto. Activado: sí se usa.",
+  "No mapped faults found (line features named fault, thrust or shear).": "No se encontraron fallas cartografiadas (líneas con fault, thrust o shear en sus atributos).",
+  "Use bedding across mapped faults": "Usar estratificación al otro lado de fallas cartografiadas",
+  "{n} bedding reading(s) in other units not used.": "{n} medición(es) de estratificación en otras unidades no usadas.",
+  "At {n} point(s) a reading across a mapped fault was not used.": "En {n} punto(s) no se usó una medición al otro lado de una falla cartografiada.",
+  "At {n} point(s) the bedding and the dip of the contact's own trace disagree by more than 30° (up to {d}°): check which is right there.": "En {n} punto(s) la estratificación y el buzamiento de la propia traza del contacto difieren más de 30° (hasta {d}°): compruebe cuál es correcto allí."
 }

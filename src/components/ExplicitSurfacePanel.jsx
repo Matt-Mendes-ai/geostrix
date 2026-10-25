@@ -200,6 +200,9 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   const keepShallowest = () => { const best = new Map(); for (const p of def.picks) if (p.hole_id && (!best.has(p.hole_id) || p.md < best.get(p.hole_id).md)) best.set(p.hole_id, p); update({ picks: def.picks.filter((p) => !p.hole_id || best.get(p.hole_id) === p) }); };
   // TASKS.csv #817 — mapped contacts (draped on the terrain) and their dip guides as further hard lines
   const polys = useMemo(() => (mapLayers || []).filter((l) => l.geomType === "polygon"), [mapLayers]);
+  // TASKS.csv #872 — mapped faults: line features whose attributes name a fault / thrust / shear (the Model-from-map rule)
+  const faultLines = useMemo(() => (mapLayers || []).filter((l) => l.geomType === "line" || l.geomType === "polyline").flatMap((l) => (l.features || [])
+    .filter((f) => Object.values(f.attributes || {}).some((v) => /fault|thrust|shear/i.test(String(v)))).flatMap((f) => (f.parts || [f.geometry]).filter((g) => Array.isArray(g) && g.length > 1))), [mapLayers]);
   const bedding = useMemo(() => (surfaceStructures || []).flatMap((s) => s.rows || []).filter((r) => r.cls === "bedding").map((r) => ({ x: r.x, y: r.y, dip: r.dip, dipDir: r.dipDir })), [surfaceStructures]);
   const mapPart = useMemo(() => { try { // TASKS.csv #898 — a failure is reported, it does not close the 3D View tab
     if (!def?.mapContacts?.length || !hasTerrain) return { lines: [], guides: null, missing: (def?.mapContacts || []).length && !hasTerrain ? def.mapContacts.length : 0, offTerrain: 0 };
@@ -212,10 +215,12 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
       offTerrain += r.offTerrain;
       lines.push(...r.lines);
     }
-    const g = def.dipGuide?.on && lines.length ? dipGuideLines(lines, { measurements: bedding, depthM: Number(def.dipGuide.depth) || 100, radiusM: Number.isFinite(Number(def.dipGuide.radius)) && def.dipGuide.radius !== "" ? Number(def.dipGuide.radius) : 500 }) : null;
+    // #872 — the units' own readings and readings on this side of the faults only, unless the geologist allows the others
+    const unitPolys = def.dipGuide?.otherUnits ? null : def.mapContacts.flatMap((c) => { const layer = polys.find((l) => l.id === c.layerId); return (layer?.features || []).filter((f) => c.units.map(String).includes(String(f.attributes?.[c.field] ?? "").trim())).map((f) => f.parts || [f.geometry]); });
+    const g = def.dipGuide?.on && lines.length ? dipGuideLines(lines, { unitPolys, faults: def.dipGuide?.acrossFaults ? [] : faultLines, measurements: bedding, depthM: Number(def.dipGuide.depth) || 100, radiusM: Number.isFinite(Number(def.dipGuide.radius)) && def.dipGuide.radius !== "" ? Number(def.dipGuide.radius) : 500 }) : null;
     return { lines, guides: g, missing, offTerrain };
   } catch (e) { return { lines: [], guides: null, missing: (def?.mapContacts || []).length, offTerrain: 0, error: e.message || String(e) }; } // #898
-  }, [def?.mapContacts, def?.dipGuide, polys, bedding, hasTerrain, terrain]); // groundAt reads terrain
+  }, [def?.mapContacts, def?.dipGuide, polys, bedding, hasTerrain, terrain, faultLines]); // groundAt reads terrain
   // TASKS.csv #824 — lines digitized on section images in the 3D view: hard lines too (a point every 10 m along them)
   const drawn = useMemo(() => { try { return (def?.lines || []).filter((l) => l.pts?.length >= 2).map((l) => ({ ref: `drawn ${l.id}`, src: "drawn", pts: densify3(l.pts, LINE_SPACING) })); } catch { return []; } }, [def?.lines]); // try: #898
   // TASKS.csv #856 — each pick on a hole carries the hole's direction there, so a pick set taken along one drill section is
@@ -910,7 +915,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
               </div>
             ))}
             {!!def.mapContacts?.length && (<>
-              <label style={{ ...row, cursor: "pointer", marginTop: 4 }} title={tr("Adds a line below each mapped contact, projected down its dip: the nearest bedding measurement within the radius, or else the dip fitted to the contact's own trace on the terrain. It is a constructed line, not an observation; the surface passes through it exactly.")}>
+              <label style={{ ...row, cursor: "pointer", marginTop: 4 }} title={tr("Adds a line below each mapped contact, projected down its dip: the bedding measurements within the radius (weighted by distance), or else the dip fitted to the contact's own trace on the terrain. It is a constructed line, not an observation; the surface passes through it exactly.")}>
                 <input type="checkbox" checked={!!def.dipGuide?.on} onChange={(e) => update({ dipGuide: { depth: 100, radius: 500, ...(def.dipGuide || {}), on: e.target.checked } })} />{tr("Dip guide: project the contact down its dip")}
               </label>
               {def.dipGuide?.on && (
@@ -923,11 +928,21 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
                     <span style={{ width: 120, flexShrink: 0 }}>{tr("Measurements within")}</span>
                     <input type="number" min={0} step={50} value={def.dipGuide.radius ?? 500} onChange={(e) => update({ dipGuide: { ...def.dipGuide, radius: Math.max(0, Number(e.target.value) || 0) } })} style={{ ...numInput, width: 64 }} aria-label={tr("Measurements within")} /><span>m</span>
                   </div>
+                  {/* TASKS.csv #872 — which readings may speak for this contact: the geologist decides (both off by default) */}
+                  <label style={{ ...row, cursor: "pointer" }} title={tr("Off: only bedding inside the contact's two units is used. On: bedding of any unit within the radius.")}>
+                    <input type="checkbox" checked={!!def.dipGuide.otherUnits} onChange={(e) => update({ dipGuide: { ...def.dipGuide, otherUnits: e.target.checked } })} />{tr("Use bedding from other units")}
+                  </label>
+                  <label style={{ ...row, cursor: "pointer", opacity: faultLines.length ? 1 : 0.6 }} title={faultLines.length ? tr("Off: a reading on the other side of a mapped fault from the contact is not used. On: it is.") : tr("No mapped faults found (line features named fault, thrust or shear).")}>
+                    <input type="checkbox" checked={!!def.dipGuide.acrossFaults} disabled={!faultLines.length} onChange={(e) => update({ dipGuide: { ...def.dipGuide, acrossFaults: e.target.checked } })} />{tr("Use bedding across mapped faults")}
+                  </label>
                 </>
               )}
               <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, color: "var(--color-text-muted)" }}>
                 {tr("{n} line(s) on the terrain.", { n: mapPart.lines.length })}
                 {mapPart.guides ? ` ${tr("Dip guide: {m} point(s) from measurements, {f} from the contact's own trace, {s} without a usable dip (no guide there).", { m: mapPart.guides.measured, f: mapPart.guides.fitted, s: mapPart.guides.skipped })}` : ""}
+                {mapPart.guides?.otherUnitReadings ? ` ${tr("{n} bedding reading(s) in other units not used.", { n: mapPart.guides.otherUnitReadings })}` : ""}
+                {mapPart.guides?.acrossFaultPoints ? ` ${tr("At {n} point(s) a reading across a mapped fault was not used.", { n: mapPart.guides.acrossFaultPoints })}` : ""}
+                {mapPart.guides?.disagree ? <span style={{ color: "var(--color-warn-text)" }}>{` ${tr("At {n} point(s) the bedding and the dip of the contact's own trace disagree by more than 30° (up to {d}°): check which is right there.", { n: mapPart.guides.disagree, d: mapPart.guides.maxDisagreeDeg })}`}</span> : null}{/* #872 */}
                 {mapPart.missing ? ` ${hasTerrain ? tr("{k} mapped contact(s) not found on the map or the terrain.", { k: mapPart.missing }) : tr("Load a terrain to place the mapped contacts.")}` : ""}
               </div>
             </>)}
