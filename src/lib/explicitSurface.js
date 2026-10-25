@@ -24,8 +24,49 @@ import { t as tr } from "./i18n.js";
 
 const dist3 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 
+// TASKS.csv #869 — Douglas-Peucker in 3D: the indices of the vertices kept so no dropped vertex is more than tol from
+// the simplified line. Ends always stay, and so do corners (a corner sticks out of the chord), unlike every-k-th thinning.
+export function simplifyLine(pts, tol) {
+  const n = pts.length;
+  if (n <= 2 || !(tol > 0)) return pts.map((_, i) => i);
+  const keep = new Uint8Array(n); keep[0] = keep[n - 1] = 1;
+  const stack = [[0, n - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop();
+    const A = pts[a], B = pts[b], d = [B.x - A.x, B.y - A.y, B.z - A.z], L2 = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+    let worst = -1, wi = -1;
+    for (let i = a + 1; i < b; i++) {
+      const P = pts[i], v = [P.x - A.x, P.y - A.y, P.z - A.z];
+      const t = L2 > 0 ? Math.max(0, Math.min(1, (v[0] * d[0] + v[1] * d[1] + v[2] * d[2]) / L2)) : 0;
+      const e = Math.hypot(v[0] - t * d[0], v[1] - t * d[1], v[2] - t * d[2]);
+      if (e > worst) { worst = e; wi = i; }
+    }
+    if (worst > tol) { keep[wi] = 1; stack.push([a, wi], [wi, b]); }
+  }
+  const out = [];
+  for (let i = 0; i < n; i++) if (keep[i]) out.push(i);
+  return out;
+}
+// the smallest tolerance from the ladder that brings a set of lines to at most `budget` vertices -> { lines, tol }
+const TOLERANCES_M = [0.25, 0.5, 1, 2, 5, 10, 25];
+function simplifyToBudget(lines, budget) {
+  const count = (ls) => ls.reduce((s, l) => s + l.pts.length, 0);
+  if (count(lines) <= budget) return { lines, tol: 0 };
+  let res = lines, tol = 0;
+  for (const t of TOLERANCES_M) {
+    tol = t;
+    res = lines.map((l) => ({ ...l, pts: simplifyLine(l.pts, t).map((i) => l.pts[i]) }));
+    if (count(res) <= budget) break;
+  }
+  return { lines: res, tol };
+}
+
 // extraLines (#817): further hard lines, [{ ref, src, pts }] - mapped contacts and their dip guides (explicitMapLines.js)
-export function explicitPoints(def, sections, { spacing = 10, maxPoints = 1200, extraLines = [] } = {}) {
+// TASKS.csv #869 — maxPoints is now a real cap: over-long section lines and extra lines are simplified (Douglas-Peucker,
+// the smallest tolerance that fits; returned as lineTolM / extraTolM) instead of every vertex being kept, and a set that
+// still exceeds hardMax (picks alone, or lines no 25 m tolerance can bring down) comes back with `tooMany` (the message) set,
+// for the caller to refuse the build with.
+export function explicitPoints(def, sections, { spacing = 10, maxPoints = 1200, hardMax = Math.round(maxPoints * 1.5), extraLines = [] } = {}) {
   const picks = (def?.picks || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite)).map((p) => ({ x: p.x, y: p.y, z: p.z, src: "pick", ref: p.id, ...(p.dir ? { dir: p.dir } : {}), ...(p.hole_id ? { hole: p.hole_id, md: p.md } : {}) })); // dir: #856; hole / md: #857 (named in the quality report)
   const lines = [];
   for (const s of sections || []) for (const c of s.contacts || []) {
@@ -33,16 +74,22 @@ export function explicitPoints(def, sections, { spacing = 10, maxPoints = 1200, 
     const pts = (c.points || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite));
     if (pts.length) lines.push({ section: s.name, pts });
   }
+  // #869 — section-line vertices may use at most 3/4 of what the picks leave (the rest: extra lines and filling in)
+  const vertsIn = lines.reduce((s, l) => s + l.pts.length, 0);
+  const sl = simplifyToBudget(lines, Math.max(2 * lines.length, Math.floor((maxPoints - picks.length) * 0.75)));
+  lines.splice(0, lines.length, ...sl.lines);
   let len = 0, verts = 0;
   for (const l of lines) { verts += l.pts.length; for (let i = 1; i < l.pts.length; i++) len += dist3(l.pts[i - 1], l.pts[i]); }
-  // extra lines come already sampled (a point every ~25 m): taken as they are, every k-th point kept if they would not
-  // fit in what the picks and section-line corners leave (half of it at most, so section lines still get filled in)
+  // extra lines come already sampled (a point every ~25 m): taken as they are, simplified (#869: ends and corners kept)
+  // if they would not fit in what the picks and section-line corners leave (half of it at most, so section lines still
+  // get filled in)
   const extra = extraLines.map((l) => ({ ref: l.ref, src: l.src || "line", pts: (l.pts || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite)) })).filter((l) => l.pts.length);
   const nExtra = extra.reduce((s, l) => s + l.pts.length, 0);
   const extraRoom = Math.max(0, lines.length ? Math.floor((maxPoints - picks.length - verts) / 2) : maxPoints - picks.length);
-  const every = nExtra > extraRoom ? Math.ceil(nExtra / Math.max(1, extraRoom)) : 1;
+  const ex = simplifyToBudget(extra, Math.max(2 * extra.length, extraRoom));
   const extraPts = [];
-  for (const l of extra) l.pts.forEach((p, i) => { if (i % every === 0 || i === l.pts.length - 1) extraPts.push({ x: p.x, y: p.y, z: p.z, src: l.src, ref: l.ref }); });
+  for (const l of ex.lines) for (const p of l.pts) extraPts.push({ x: p.x, y: p.y, z: p.z, src: l.src, ref: l.ref });
+  const every = extraPts.length < nExtra ? Math.round(nExtra / Math.max(1, extraPts.length)) : 1;
   const room = maxPoints - picks.length - verts - extraPts.length;
   const step = Math.max(spacing, room > 0 ? len / room : Infinity);
   const out = picks.slice();
@@ -59,8 +106,10 @@ export function explicitPoints(def, sections, { spacing = 10, maxPoints = 1200, 
     });
   }
   out.push(...extraPts);
-  return { points: out, picks: picks.length, lines: lines.length, sections: new Set(lines.map((l) => l.section)).size, spacing: Number.isFinite(step) ? step : null,
-    mapLines: extra.filter((l) => l.src === "map").length, guideLines: extra.filter((l) => l.src === "guide").length, drawnLines: extra.filter((l) => l.src === "drawn").length, extraPoints: extraPts.length, extraEvery: every };
+  const tooMany = out.length > hardMax ? tr("Too many points to build quickly: {n} ({picks} picks, {v} line points) against a limit of {max}. Remove some picks, or draw fewer or shorter lines.", { n: out.length, picks: picks.length, v: out.length - picks.length, max: hardMax }) : null;
+  return { tooMany, points: out, picks: picks.length, lines: lines.length, sections: new Set(lines.map((l) => l.section)).size, spacing: Number.isFinite(step) ? step : null,
+    mapLines: extra.filter((l) => l.src === "map").length, guideLines: extra.filter((l) => l.src === "guide").length, drawnLines: extra.filter((l) => l.src === "drawn").length, extraPoints: extraPts.length, extraEvery: every,
+    lineTolM: sl.tol, lineVerticesIn: vertsIn, lineVerticesKept: verts, extraTolM: ex.tol };
 }
 
 // symmetric 3x3 eigen-decomposition (Jacobi); returns { values, vectors (columns) } sorted by value ascending

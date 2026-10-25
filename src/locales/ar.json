@@ -5785,5 +5785,8 @@
   "Make the solid": "إنشاء المجسم",
   "A wall, not a top: dips {d}°. Vertical columns meet it over a sliver of the box, so it cannot bound units here. For a vein or dyke use Vein solid from two surfaces.": "جدار وليس قمة: يميل {d}°. تلتقيه الأعمدة الرأسية في شريط ضيق من الصندوق، فلا يحد وحدات هنا. للعرق أو القاطع استخدم «مجسم عرق من سطحين».",
   "Dips {d}°: blocks coded from a top this steep are approximate near its edges. For a vein or dyke use Vein solid from two surfaces.": "يميل {d}°: الكتل المرمّزة من قمة بهذا الميل تقريبية قرب حوافها. للعرق أو القاطع استخدم «مجسم عرق من سطحين».",
-  "dips {d}°": "يميل {d}°"
+  "dips {d}°": "يميل {d}°",
+  "Too many points to build quickly: {n} ({picks} picks, {v} line points) against a limit of {max}. Remove some picks, or draw fewer or shorter lines.": "عدد النقاط أكبر من أن يُبنى بسرعة: {n} ({picks} نقطة ملتقطة، {v} نقطة خطوط) مقابل حد قدره {max}. احذف بعض النقاط الملتقطة، أو ارسم خطوطًا أقل أو أقصر.",
+  "To keep the build fast, the section lines were simplified to within {t} m ({k} of {n} vertices kept, corners and ends included).": "لإبقاء البناء سريعًا، بُسِّطت خطوط المقاطع ضمن {t} م (أُبقي {k} من {n} رأسًا، بما فيها الزوايا والأطراف).",
+  "To keep the build fast, the map lines were simplified to within {t} m (ends and corners kept).": "لإبقاء البناء سريعًا، بُسِّطت خطوط الخريطة ضمن {t} م (مع إبقاء الأطراف والزوايا)."
 }

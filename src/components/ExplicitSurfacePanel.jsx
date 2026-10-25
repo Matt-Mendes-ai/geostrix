@@ -553,6 +553,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, defs, s
     const meshNow = def.surfaceId && sc.meshes.current[def.surfaceId];
     if (meshNow && key === (meshNow.userData?.builtKey ?? def.builtKey)) return undefined;
     const stale = meshNow ? ` ${tr("The surface shown is the previous build; it is not updated until the surface can be built again.")}` : ""; // TASKS.csv #889
+    if (ep.tooMany) { setStatus({ ok: false, text: ep.tooMany + stale }); return undefined; } // TASKS.csv #869
     if (ep.points.length < 3) { setStatus({ ok: false, text: tr("Pick at least 3 contacts (in 3D or as lines on sections) to build the surface.") + stale }); return undefined; }
     // TASKS.csv #824 — lines on ONE section only (and nothing off it): every point lies in that section's plane, so the
     // "surface" would be a sheet standing in the section, which says nothing about the contact in 3D
@@ -615,7 +616,9 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, defs, s
           frame: res.frame.steep ? tr("Steep surface (best-fit plane dips {d}°): modelled over its own plane.", { d: res.frame.dip.toFixed(0) }) : tr("Modelled as elevation over the map."),
           cut: res.groundCut ? tr(" Cut at the terrain.") : "",
         }) + (ep.drawnLines ? ` ${tr("Includes {n} line(s) digitized on section images.", { n: ep.drawnLines })}` : "") + (ep.mapLines ? ` ${tr("Includes {m} mapped contact line(s){g}.", { m: ep.mapLines, g: ep.guideLines ? tr(" and {g} dip guide line(s) (constructed, {d} m down-dip)", { g: ep.guideLines, d: Number(def.dipGuide?.depth) || 100 }) : "" })}` : "")
-          + (ep.extraEvery > 1 ? ` ${tr("To keep the build fast, one map line point in {k} was used.", { k: ep.extraEvery })}` : "") + (trimNote ? ` ${trimNote}` : "") + (res.warnings.length ? ` ${res.warnings.join(" ")}` : "") });
+          + (ep.lineTolM > 0 ? ` ${tr("To keep the build fast, the section lines were simplified to within {t} m ({k} of {n} vertices kept, corners and ends included).", { t: ep.lineTolM, k: ep.lineVerticesKept, n: ep.lineVerticesIn })}` : "")
+          + (ep.extraTolM > 0 ? ` ${tr("To keep the build fast, the map lines were simplified to within {t} m (ends and corners kept).", { t: ep.extraTolM })}` : "") // TASKS.csv #869
+          + (trimNote ? ` ${trimNote}` : "") + (res.warnings.length ? ` ${res.warnings.join(" ")}` : "") });
       } catch (e) { clearTimeout(slow); if (wantKey.current === key) setStatus({ ok: false, text: (e.message || String(e)) + stale }); }
     }, 250);
     return () => clearTimeout(timer.current);

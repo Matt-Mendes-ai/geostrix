@@ -5785,5 +5785,8 @@
   "Make the solid": "Criar o sólido",
   "A wall, not a top: dips {d}°. Vertical columns meet it over a sliver of the box, so it cannot bound units here. For a vein or dyke use Vein solid from two surfaces.": "Uma parede, não um topo: mergulha {d}°. As colunas verticais a cruzam só numa faixa da caixa, então aqui não pode delimitar unidades. Para um veio ou dique use Sólido de veio a partir de duas superfícies.",
   "Dips {d}°: blocks coded from a top this steep are approximate near its edges. For a vein or dyke use Vein solid from two surfaces.": "Mergulha {d}°: blocos codificados a partir de um topo tão íngreme são aproximados perto das bordas. Para um veio ou dique use Sólido de veio a partir de duas superfícies.",
-  "dips {d}°": "mergulha {d}°"
+  "dips {d}°": "mergulha {d}°",
+  "Too many points to build quickly: {n} ({picks} picks, {v} line points) against a limit of {max}. Remove some picks, or draw fewer or shorter lines.": "Pontos demais para construir rapidamente: {n} ({picks} picks, {v} pontos de linha) contra um limite de {max}. Remova alguns picks ou desenhe menos linhas ou linhas mais curtas.",
+  "To keep the build fast, the section lines were simplified to within {t} m ({k} of {n} vertices kept, corners and ends included).": "Para manter a construção rápida, as linhas de seção foram simplificadas com tolerância de {t} m ({k} de {n} vértices mantidos, incluindo cantos e extremidades).",
+  "To keep the build fast, the map lines were simplified to within {t} m (ends and corners kept).": "Para manter a construção rápida, as linhas do mapa foram simplificadas com tolerância de {t} m (extremidades e cantos mantidos)."
 }

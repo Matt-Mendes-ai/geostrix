@@ -79,6 +79,7 @@ test("#817 the explicit surface through a mapped contact and its dip guide follo
 test("#817 map lines over the point budget are thinned, not dropped", () => {
   const long = [{ ref: "A | B", src: "map", pts: Array.from({ length: 2000 }, (_, i) => ({ x: i * 25, y: 0, z: 100 + Math.sin(i / 30) * 20 })) }];
   const ep = explicitPoints({ name: "S", picks: [{ id: "p", x: 10, y: 500, z: 50 }] }, [], { maxPoints: 800, extraLines: long });
-  assert.ok(ep.points.length <= 800 && ep.extraEvery === 3, `${ep.points.length} / every ${ep.extraEvery}`);
+  // #869 — simplified (Douglas-Peucker, smallest tolerance that fits) rather than every k-th point
+  assert.ok(ep.points.length <= 800 && ep.extraTolM > 0 && ep.extraEvery > 1, `${ep.points.length} / tol ${ep.extraTolM}`);
   assert.deepEqual(ep.points.at(-1), { x: 1999 * 25, y: 0, z: long[0].pts[1999].z, src: "map", ref: "A | B" }, "the line's end is kept");
 });
