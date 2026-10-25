@@ -269,7 +269,10 @@ export default function App() {
   // to jump back to the main window.
   useEffect(() => {
     // TASKS.csv #395 — the same relay also carries a planned hole designed on a section.
-    const off = onSectionContacts(({ id, contacts, plannedHole, labels }) => { if (plannedHole) addPlannedHole(plannedHole); else if (labels) setSectionLabels(id, labels); else setSectionContacts(id, contacts); }); // labels: #823
+    const off = onSectionContacts(({ id, contacts, plannedHole, labels, step, refresh }) => {
+      if (step || refresh) { window.dispatchEvent(new CustomEvent("geostrix-section-step", { detail: { id, step, refresh } })); return; } // TASKS.csv #876 — ViewerModule opens / refreshes it
+      if (plannedHole) addPlannedHole(plannedHole); else if (labels) setSectionLabels(id, labels); else setSectionContacts(id, contacts);
+    }); // labels: #823
     return off;
   }, [setSectionContacts, addPlannedHole, setSectionLabels]);
 

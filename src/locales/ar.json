@@ -5818,5 +5818,8 @@
   "Copy the surface as it is now into the surface list as a frozen version (it does not rebuild); this surface is marked as superseding it.": "انسخ السطح كما هو الآن إلى قائمة الأسطح كنسخة مجمدة (لا يُعاد بناؤها)؛ ويُعلَّم هذا السطح على أنه يحل محلها.",
   "Keep this build as a version": "احفظ هذا البناء كنسخة",
   "Built from an older state of its outlines: link {body} again to update it.": "بُني من حالة أقدم لمحيطاته: اربط {body} من جديد لتحديثه.",
-  "Built from an older state of its surfaces (one was rebuilt, edited or removed): build the blocks again to update it.": "بُني من حالة أقدم لأسطحه (أُعيد بناء أحدها أو عُدّل أو حُذف): ابنِ الكتل من جديد لتحديثه."
+  "Built from an older state of its surfaces (one was rebuilt, edited or removed): build the blocks again to update it.": "بُني من حالة أقدم لأسطحه (أُعيد بناء أحدها أو عُدّل أو حُذف): ابنِ الكتل من جديد لتحديثه.",
+  "Open the parallel section on the right of this one (looking along it from its start); a new one is made at the section spacing when there is none. Save your contacts first.": "يفتح المقطع الموازي على يمين هذا المقطع (بالنظر على امتداده من بدايته)؛ وإن لم يوجد يُنشأ مقطع جديد على مسافة التباعد بين المقاطع. احفظ تماساتك أولًا.",
+  "Open the parallel section on the left of this one (looking along it from its start); a new one is made at the section spacing when there is none. Save your contacts first.": "يفتح المقطع الموازي على يسار هذا المقطع (بالنظر على امتداده من بدايته)؛ وإن لم يوجد يُنشأ مقطع جديد على مسافة التباعد بين المقاطع. احفظ تماساتك أولًا.",
+  "Redraw the surface traces, models and neighbouring sections' strings on this section from the main window (what you are drawing is kept).": "يعيد رسم آثار الأسطح والنماذج وخطوط المقاطع المجاورة على هذا المقطع من النافذة الرئيسية (ما ترسمه يُحفظ)."
 }

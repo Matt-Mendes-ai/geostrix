@@ -54,11 +54,22 @@ export function traceAt(trace, md) {
 }
 
 // Snap a click. `click` = { sx, sy } screen; `toScreen(x, y, z)` -> [sx, sy]; `along(x, y)` -> l.
-// Order: a snap target within `radius` px wins (nearest); else the nearest point on any trace within `radius`;
-// else null (the caller keeps the free click).
-export function snapClick(click, { holes, targets, toScreen, along, radius = 12 }) {
+// Order: TASKS.csv #876 — a VERTEX of another string drawn on this section within `radius` px (so a vein outline can
+// share a vertex with the contact beside it: the point is copied exactly, hole snap included); then a snap target
+// (a logged boundary); then a point ALONG another string (#876); then the nearest point on any trace; else null (the
+// caller keeps the free click). strings: [{ id, points: [{ l, z, x, y, ... }] }]; skip: { id, i } (the vertex being
+// dragged, so it does not snap to itself).
+export function snapClick(click, { holes, targets, toScreen, along, radius = 12, strings = [], skip = null }) {
   const traceOf = new Map((holes || []).map((h) => [h.hole_id, h.trace]));
   let best = null;
+  for (const st of strings || []) (st.points || []).forEach((p, i) => {
+    if (skip && skip.id === st.id && skip.i === i) return;
+    if (![p.x, p.y, p.z].every(Number.isFinite)) return;
+    const [px, py] = toScreen(p.x, p.y, p.z), d = Math.hypot(px - click.sx, py - click.sy);
+    if (d <= radius && (!best || d < best.d)) best = { d, p };
+  });
+  if (best) { const p = { ...best.p, snap: best.p.snap || "vertex" }; delete p.tie; return p; } // a copy: never the other string's tie
+  best = null;
   for (const t of targets || []) {
     const p = traceAt(traceOf.get(t.hole_id), t.md);
     if (!p) continue;
@@ -67,6 +78,24 @@ export function snapClick(click, { holes, targets, toScreen, along, radius = 12 
     if (d <= radius && (!best || d < best.d)) best = { d, p, hole_id: t.hole_id, md: t.md, snap: "boundary", label: t.label };
   }
   if (best) return { l: along(best.p.x, best.p.y), z: best.p.z, x: best.p.x, y: best.p.y, hole_id: best.hole_id, md: best.md, snap: "boundary", label: best.label };
+  // #876 — along another string's segments (an outline closes back to its first point)
+  for (const st of strings || []) {
+    const P = (st.points || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite)), n = P.length;
+    const segs = st.closed ? n : n - 1;
+    for (let i = 0; i < segs; i++) {
+      if (skip && skip.id === st.id && (skip.i === i || skip.i === (i + 1) % n)) continue;
+      const a = P[i], b = P[(i + 1) % n];
+      const [ax, ay] = toScreen(a.x, a.y, a.z), [bx, by] = toScreen(b.x, b.y, b.z);
+      const vx = bx - ax, vy = by - ay, L2 = vx * vx + vy * vy;
+      const f = L2 > 0 ? Math.max(0, Math.min(1, ((click.sx - ax) * vx + (click.sy - ay) * vy) / L2)) : 0;
+      const d = Math.hypot(ax + f * vx - click.sx, ay + f * vy - click.sy);
+      if (d <= radius && (!best || d < best.d)) best = { d, line: { a, b, f } };
+    }
+  }
+  if (best?.line) {
+    const { a, b, f } = best.line, x = a.x + (b.x - a.x) * f, y = a.y + (b.y - a.y) * f;
+    return { l: along(x, y), z: a.z + (b.z - a.z) * f, x, y, snap: "line" };
+  }
   for (const h of holes || []) {
     const tr = h.trace || [];
     for (let i = 1; i < tr.length; i++) {
@@ -100,6 +129,27 @@ export function nearestSegment(points, sxsz, click, radius = 6) {
     if (d < bestD) { bestD = d; best = i - 1; }
   }
   return bestD <= radius ? best : -1;
+}
+
+// TASKS.csv #876 — the previous / next section: the nearest saved section parallel to this one (azimuth within
+// tolDeg) on that side (dir +1 = to the left of a -> b, -1 = to the right); when there is none, a new one at the spacing
+// to the nearest parallel neighbour (or `fallback` m) beyond this one. -> { existing } | { create: { ax, ay, bx, by,
+// azimuth }, offset }
+export function stepSection(current, sections, dir, { tolDeg = 5, fallback = 50 } = {}) {
+  const dx = current.bx - current.ax, dy = current.by - current.ay, len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
+  const azOf = (s) => (Math.atan2(s.bx - s.ax, s.by - s.ay) * 180) / Math.PI;
+  const az = azOf(current);
+  const par = (sections || []).filter((s) => s.id !== current.id).map((s) => {
+    let d = Math.abs(((azOf(s) - az) % 180 + 180) % 180); d = Math.min(d, 180 - d);
+    const mx = (s.ax + s.bx) / 2, my = (s.ay + s.by) / 2;
+    return { s, dAz: d, offset: (mx - current.ax) * nx + (my - current.ay) * ny };
+  }).filter((c) => c.dAz <= tolDeg && Math.abs(c.offset) > 0.5);
+  const ahead = par.filter((c) => Math.sign(c.offset) === Math.sign(dir)).sort((a, b) => Math.abs(a.offset) - Math.abs(b.offset))[0];
+  if (ahead) return { existing: ahead.s, offset: ahead.offset };
+  const near = par.sort((a, b) => Math.abs(a.offset) - Math.abs(b.offset))[0];
+  const spacing = near ? Math.abs(near.offset) : fallback, o = Math.sign(dir) * spacing;
+  return { create: { ax: current.ax + nx * o, ay: current.ay + ny * o, bx: current.bx + nx * o, by: current.by + ny * o, azimuth: current.azimuth }, offset: o };
 }
 
 // Ghosts: strings from the nearest PARALLEL sections (azimuth within `tolDeg`, either direction) on each side of

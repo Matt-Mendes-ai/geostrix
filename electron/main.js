@@ -569,6 +569,13 @@ ipcMain.handle("open-section-window", (_e, payload) => {
   // and the user was left looking at two windows for the same section with no way to tell they'd
   // drifted apart. Now it just focuses the existing window and re-sends fresh data instead.
   const existing = childWindows.get(id);
+  // TASKS.csv #876 — a refresh of whatever section windows are open: never opens a closed one, never takes the focus
+  if (payload?.ifOpen && !(existing && !existing.isDestroyed())) return { id, skipped: true };
+  if (existing && !existing.isDestroyed() && payload?.refreshOnly) {
+    sectionPayloads.set(existing.webContents.id, { id, ...payload });
+    existing.webContents.send("section-data", { id, ...payload });
+    return { id };
+  }
   if (existing && !existing.isDestroyed()) {
     sectionPayloads.set(existing.webContents.id, { id, ...payload });
     existing.webContents.send("section-data", { id, ...payload });

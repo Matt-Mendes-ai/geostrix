@@ -81,7 +81,8 @@ export default function SectionWindow() {
 
   useEffect(() => {
     const takeLabels = (d) => { if (!d) return; setLabels(d.labels ? { mode: "collar", leaders: "auto", ...d.labels, offsets: d.labels.offsets || {} } : { mode: "collar", leaders: "auto", offsets: {} }); }; // #823 — a section without saved labels starts from the defaults
-    const off = onSectionData((d) => { setData(d); setContacts(d.contacts || []); takeLabels(d); });
+    // TASKS.csv #876 — a quiet refresh (an explicit surface was rebuilt) updates the drawing but keeps what is being drawn
+    const off = onSectionData((d) => { if (d.refreshOnly) { setData((prev) => ({ ...d, contacts: prev?.contacts })); const r = document.documentElement.dataset; r.sectionRefreshes = String((Number(r.sectionRefreshes) || 0) + 1); return; } setData(d); setContacts(d.contacts || []); takeLabels(d); });
     // TASKS.csv #617 — ask for the data too: the push from main can arrive before this lazy component listens
     getSectionData().then((d) => { if (d) { setData((prev) => prev || d); setContacts((prev) => (prev.length ? prev : d.contacts || [])); takeLabels(d); } }).catch(() => {});
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
@@ -300,6 +301,10 @@ export default function SectionWindow() {
           )}
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Clicks within ~12 px of a hole snap to the chosen unit's logged top (any logged boundary for faults / strings), else to the trace; the snapped vertex keeps the hole's exact position and depth (square marker)")}>
             <input type="checkbox" checked={snapOn} onChange={(e) => setSnapOn(e.target.checked)} />{" "}{tr("Snap to holes")}</label>
+          {/* TASKS.csv #876 — step to the parallel section beside this one, and refresh what the main window draws on it */}
+          <button onClick={() => sendSectionContacts({ id: data.id, step: -1 })} title={tr("Open the parallel section on the right of this one (looking along it from its start); a new one is made at the section spacing when there is none. Save your contacts first.")} style={btnStyle(false)}>‹</button>
+          <button onClick={() => sendSectionContacts({ id: data.id, step: 1 })} title={tr("Open the parallel section on the left of this one (looking along it from its start); a new one is made at the section spacing when there is none. Save your contacts first.")} style={btnStyle(false)}>›</button>
+          <button onClick={() => sendSectionContacts({ id: data.id, refresh: true })} title={tr("Redraw the surface traces, models and neighbouring sections' strings on this section from the main window (what you are drawing is kept).")} style={btnStyle(false)}>{tr("Refresh")}</button>
           <button onClick={saveContacts} disabled={!contacts.length && !drawing} style={{ ...btnStyle(saved), opacity: contacts.length || drawing ? 1 : 0.5 }}>
             <Save size={14} /> {saved ? tr("Saved ✓") : tr("Save contacts")}
           </button>
@@ -463,7 +468,8 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
   };
   const pointAt = (local) => {
     if (snap) {
-      const s = snapClick({ sx: local.x, sy: local.y }, { holes, targets: snap, toScreen: (x, y, z) => [sx(along(x, y)), sz(z)], along, radius: 12 });
+      const s = snapClick({ sx: local.x, sy: local.y }, { holes, targets: snap, toScreen: (x, y, z) => [sx(along(x, y)), sz(z)], along, radius: 12,
+        strings: contacts.map((c) => ({ id: c.id, points: c.points, closed: c.kind === "outline" })), skip: dragRef.current ? { id: dragRef.current.id, i: dragRef.current.i } : null }); // strings: #876
       if (s) return s;
     }
     const l = Math.max(0, Math.min(maxL, invSx(local.x)));

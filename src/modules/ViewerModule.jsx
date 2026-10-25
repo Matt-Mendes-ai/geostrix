@@ -82,7 +82,7 @@ const SurfaceAnomalyControls = React.lazy(() => import("../components/SurfaceAno
 const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverlayPane.jsx")); // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
 import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut } from "../lib/levelPlan.js"; // TASKS.csv #525
-import { ghostStrings } from "../lib/sectionDigitise.js"; // TASKS.csv #519
+import { ghostStrings, stepSection } from "../lib/sectionDigitise.js"; // TASKS.csv #519; stepSection: #876
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #577 (already in the startup chunk via compactRows)
 import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 import { unitShell, meshVolume, blockUnitStats } from "../lib/unitVolumes.js"; // TASKS.csv #517; blockUnitStats: #877
@@ -6514,13 +6514,40 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       ghostStrings: ghostStrings({ id, ax: a.x, ay: a.y, bx: b.x, by: b.y }, sections), outlineNames: outlineNamesOf(sections) }); // #519; outlineNames: #874
   };
 
-  const reopenSection = useCallback(async (s) => {
+  const reopenSection = useCallback(async (s, { quiet = false } = {}) => { // quiet: TASKS.csv #876 — refresh an open window only
     const a = { x: s.ax, y: s.ay }, b = { x: s.bx, y: s.by };
     const { holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop } = buildSectionPayload(a, b, s.corridor, s.scope || {}, s.id);
     const sectionImgs = await sectionImagesFor(a, b, s.corridor);
     openSectionWindow({ id: s.id, title: s.name, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, contacts: s.contacts || [], labels: s.labels || null, lithoUnits: litho_units, unitTags: sectionUnitTags, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, sectionImages: sectionImgs, modelBackdrop,
-      ghostStrings: ghostStrings(s, sections), outlineNames: outlineNamesOf(sections) }); // #519 — the neighbouring sections' strings; outlineNames: #874
+      ghostStrings: ghostStrings(s, sections), outlineNames: outlineNamesOf(sections), ...(quiet ? { refreshOnly: true, ifOpen: true } : {}) }); // #519 — the neighbouring sections' strings; outlineNames: #874; quiet: #876
   }, [layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, sectionUnitTags, terrain, voxelModels, implicitSurfaces, plannedHoles, sections, sectionImages, lastLithBlock]);
+
+  // TASKS.csv #876 — the section window's ‹ › (previous / next parallel section) and Refresh
+  const sectionStepRef = useRef(null);
+  sectionStepRef.current = ({ id, step, refresh }) => {
+    const s = (sections || []).find((x) => x.id === id);
+    if (!s) return;
+    if (refresh) { reopenSection(s); return; }
+    const r = stepSection(s, sections, step, { fallback: Math.max(25, 2 * (s.corridor || sectionCorridor || 25)) });
+    if (r.existing) { reopenSection(r.existing); return; }
+    const off = Math.round(r.offset);
+    openDefinedSection(r.create, `${s.name} ${off > 0 ? "+" : ""}${off} m`);
+  };
+  useEffect(() => {
+    const on = (e) => sectionStepRef.current?.(e.detail || {});
+    window.addEventListener("geostrix-section-step", on);
+    return () => window.removeEventListener("geostrix-section-step", on);
+  }, []);
+  // ... and open section windows follow an explicit surface's rebuild: their surface traces are redrawn quietly (a
+  // closed window is not reopened, the focus stays where it is, what is being drawn there is kept)
+  const explicitBuildKey = (implicitSurfaces || []).filter((x) => x.type === "explicit_surface").map((x) => `${x.id}:${x.params?.builtAt || ""}`).join("|");
+  const firstExplicitKey = useRef(explicitBuildKey);
+  useEffect(() => {
+    if (explicitBuildKey === firstExplicitKey.current) return undefined; // not on load
+    firstExplicitKey.current = explicitBuildKey;
+    const t = setTimeout(() => { for (const s of sections || []) reopenSection(s, { quiet: true }); }, 800);
+    return () => clearTimeout(t);
+  }, [explicitBuildKey]); // sections / reopenSection are read at that moment
 
   // TASKS.csv #393 — sections defined by numbers rather than two clicks: saved to the Cross-sections list
   // (same shape as a drawn one) and opened at once.
