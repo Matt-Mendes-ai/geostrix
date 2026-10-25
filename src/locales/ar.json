@@ -5905,5 +5905,9 @@
   "{name} ({n} level plans)": "{name} ({n} مساقط مستوى)",
   "Nothing to export: no picks or drawn lines yet.": "لا شيء للتصدير: لا توجد نقاط ملتقطة أو خطوط مرسومة بعد.",
   "Exported {n} row(s): picks, section-line and image-line vertices (mapped contacts and dip guides are rebuilt from the map and are not listed).": "صُدّر {n} صفًا: النقاط الملتقطة ورؤوس خطوط المقاطع والصور (التماسات المرسومة وأدلة الميل يُعاد بناؤها من الخريطة ولا تُدرج).",
-  "Save this surface's picks and drawn line vertices as CSV (coordinates, hole and depth, the units either side). Shift-click: all explicit surfaces.": "احفظ النقاط الملتقطة ورؤوس الخطوط المرسومة لهذا السطح بصيغة CSV (الإحداثيات والثقب والعمق والوحدتان على جانبيها). Shift+نقر: كل الأسطح الصريحة."
+  "Save this surface's picks and drawn line vertices as CSV (coordinates, hole and depth, the units either side). Shift-click: all explicit surfaces.": "احفظ النقاط الملتقطة ورؤوس الخطوط المرسومة لهذا السطح بصيغة CSV (الإحداثيات والثقب والعمق والوحدتان على جانبيها). Shift+نقر: كل الأسطح الصريحة.",
+  "From {file}: {l} string(s) added as hard lines of {name}, {p} point(s) as picks, {o} closed string(s) placed as outlines on sections{list}.": "من {file}: أُضيفت {l} سلسلة كخطوط ثابتة لـ {name}، و{p} نقطة كنقاط ملتقطة، ووُضعت {o} سلسلة مغلقة كمحيطات على المقاطع{list}.",
+  "{n} string(s) without elevations were left out.": "استُبعدت {n} سلسلة بلا ارتفاعات.",
+  "{n} closed string(s) lie on no saved section (within 10 m) and were left out: draw or define that section first.": "{n} سلسلة مغلقة لا تقع على أي مقطع محفوظ (ضمن 10 م) فاستُبعدت: ارسم ذلك المقطع أو عرّفه أولًا.",
+  "Import interpretation strings from a DXF: open 3D strings become hard lines of this surface, points its picks, and closed strings lying on a saved section become outlines there (named after their DXF layer) for Link into a solid.": "استورد سلاسل التفسير من ملف DXF: تصبح السلاسل ثلاثية الأبعاد المفتوحة خطوطًا ثابتة لهذا السطح، والنقاط نقاطه الملتقطة، والسلاسل المغلقة الواقعة على مقطع محفوظ محيطات عليه (باسم طبقة DXF) للربط في مجسم."
 }

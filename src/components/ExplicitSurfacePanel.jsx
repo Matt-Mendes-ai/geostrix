@@ -748,6 +748,31 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   };
   // TASKS.csv #880 — the inputs as CSV (this surface or all of them), with a header line saying what the file is
   const [exportNote, setExportNote] = useState(null);
+  // TASKS.csv #875 — interpretation strings from a DXF (Micromine / Vulcan / a contractor): open 3D strings become hard
+  // lines of this surface, points its picks, closed strings on a saved section outlines there (named by DXF layer)
+  const dxfInputRef = useRef(null);
+  const { setSectionContacts } = useStore();
+  const importDxfStrings = async (file) => {
+    if (!file || !def) return;
+    try {
+      const [{ parseDXF }, { placeDxfStrings }] = await Promise.all([import("../lib/dxf.js"), import("../lib/explicitDxf.js")]);
+      const r = placeDxfStrings(parseDXF(await file.text()), sections);
+      const stamp = Date.now();
+      if (r.hardLines.length || r.picks.length) update({
+        lines: [...(def.lines || []), ...r.hardLines.map((l, i) => ({ id: `dxf_${stamp}_${i}`, imageId: "dxf", source: `${file.name} / ${l.layer}`, pts: l.pts }))],
+        picks: [...(def.picks || []), ...r.picks.map((p, i) => ({ id: `pk_dxf_${stamp}_${i}`, x: p.x, y: p.y, z: p.z, src: "point", fromDxf: `${file.name} / ${p.layer}` }))],
+      });
+      const bySection = new Map();
+      r.outlines.forEach((o) => bySection.set(o.sectionId, [...(bySection.get(o.sectionId) || []), o]));
+      for (const [sid, list] of bySection) {
+        const s = sections.find((x) => x.id === sid);
+        setSectionContacts(sid, [...(s.contacts || []), ...list.map((o, i) => ({ id: `c_dxf_${stamp}_${sid}_${i}`, unit: o.layer, kind: "outline", isUpperContact: false, color: "#9b6bd3", points: o.points }))]);
+      }
+      const names = [...new Set(r.outlines.map((o) => `${o.layer} (${o.sectionName})`))];
+      setExportNote(tr("From {file}: {l} string(s) added as hard lines of {name}, {p} point(s) as picks, {o} closed string(s) placed as outlines on sections{list}.", { file: file.name, l: r.hardLines.length, name: def.name, p: r.picks.length, o: r.outlines.length, list: names.length ? `: ${names.slice(0, 6).join(", ")}${names.length > 6 ? "…" : ""}` : "" })
+        + (r.flat ? ` ${tr("{n} string(s) without elevations were left out.", { n: r.flat })}` : "") + (r.offSection ? ` ${tr("{n} closed string(s) lie on no saved section (within 10 m) and were left out: draw or define that section first.", { n: r.offSection })}` : ""));
+    } catch (e) { setExportNote(e.message || String(e)); }
+  };
   const exportInputs = async (all) => {
     const list = all ? defs : def ? [def] : [];
     const rows = explicitInputRows(list, sections);
@@ -899,6 +924,8 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           <button onClick={undo} disabled={!canUndo} title={tr("Undo (Ctrl+Z) — picks, lines and settings")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: canUndo ? 1 : 0.5 }}>{tr("Undo")}</button>
           <button onClick={redo} disabled={!canRedo} title={tr("Redo (Ctrl+Y)")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: canRedo ? 1 : 0.5 }}>{tr("Redo")}</button>
           <button onClick={(e) => exportInputs(e.shiftKey)} title={tr("Save this surface's picks and drawn line vertices as CSV (coordinates, hole and depth, the units either side). Shift-click: all explicit surfaces.")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px" }}>{tr("CSV")}</button>{/* TASKS.csv #880 */}
+          <button onClick={() => dxfInputRef.current?.click()} title={tr("Import interpretation strings from a DXF: open 3D strings become hard lines of this surface, points its picks, and closed strings lying on a saved section become outlines there (named after their DXF layer) for Link into a solid.")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px" }}>{tr("DXF")}</button>
+          <input ref={dxfInputRef} type="file" accept=".dxf" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) importDxfStrings(f); e.target.value = ""; }} />{/* TASKS.csv #875 */}
           <button onClick={() => { if (!confirmDestructive(tr("Delete the explicit surface \"{name}\" with its picks and lines?", { name: def.name }), { undoable: true })) return; setPickFor(null); onRemove(def); setSelId(""); }} title={tr("Delete this explicit surface and its mesh")} aria-label={tr("Delete this explicit surface and its mesh")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px" }}><Trash2 size={14} /></button>
         </div>
         {exportNote && <div role="status" style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, color: "var(--color-text-secondary)" }}>{exportNote}</div>}{/* #880 */}
