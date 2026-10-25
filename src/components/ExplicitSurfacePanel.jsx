@@ -361,12 +361,12 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           const w = rayPlane([rayL.ray.origin.x + o.x, o.y - rayL.ray.origin.z, rayL.ray.origin.y + o.z], [rayL.ray.direction.x, -rayL.ray.direction.z, rayL.ray.direction.y], pl);
           if (!w) return;
           movedL = { x: w[0], y: w[1], z: w[2] };
-          setDigHover({ p: movedL, snapped: false });
+          showHover({ p: movedL, snapped: false }); // #890
         };
         const onUpL = () => {
           dom.removeEventListener("pointermove", onMoveL); dom.removeEventListener("pointerup", onUpL); dom.removeEventListener("pointercancel", onUpL);
           try { dom.releasePointerCapture(e.pointerId); } catch { /* already released */ }
-          setDigHover(null);
+          showHover(null);
           if (movedL) setDefs((p) => p.map((x) => (x.id === d.id ? { ...x, lines: x.lines.map((ln, a) => (a === li ? { ...ln, pts: ln.pts.map((q, b) => (b === vi ? movedL : q)) } : ln)) } : x)));
         };
         dom.setPointerCapture(e.pointerId);
@@ -412,7 +412,29 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   const plane = useMemo(() => (digImage ? imagePlane(digImage.corners) : null), [digImage]);
   const [digDrawing, setDigDrawing] = useState(false);
   const [digPts, setDigPts] = useState([]);
-  const [digHover, setDigHover] = useState(null); // { p, snapped }
+  // TASKS.csv #890 — the hover point lives in a ref and moves the preview's geometry in place: a pointer move used to set
+  // state (re-rendering this whole pane) and dispose / recreate up to four geometries, the 758-point snap cloud among them
+  const hoverRef = useRef(null); // { p, snapped, label }
+  const previewRef = useRef(null); // { line, marks, n }: the line being drawn and its point markers, sized for one more point
+  const [hoverLabel, setHoverLabel] = useState(null); // state only for the snap label text
+  const showHover = (r) => {
+    hoverRef.current = r;
+    const pv = previewRef.current;
+    if (pv) {
+      const put = (obj, count) => {
+        if (!obj) return;
+        const a = obj.geometry.attributes.position;
+        if (r && a.count > pv.n) { const q = toScene(r.p); a.setXYZ(pv.n, q[0], q[1], q[2]); a.needsUpdate = true; obj.geometry.computeBoundingSphere(); }
+        obj.geometry.setDrawRange(0, count);
+      };
+      put(pv.line, r && pv.n ? pv.n + 1 : pv.n);
+      put(pv.marks, r ? pv.n + 1 : pv.n);
+      if (pv.marks) { pv.marks.material.color.set(r?.snapped ? "#ffffff" : def?.color || "#e07b39"); pv.marks.material.size = r?.snapped ? 12 : 7; }
+      sc.activity.current = Date.now();
+    }
+    const label = r?.label || null;
+    setHoverLabel((old) => (old === label ? old : label));
+  };
   const toScene = (p) => { const o = sc.origin.current; return [p.x - o.x, p.z - o.z, o.y - p.y]; };
   const rayWorld = (ray) => { const o = sc.origin.current; return { origin: [ray.origin.x + o.x, o.y - ray.origin.z, ray.origin.y + o.z], dir: [ray.direction.x, -ray.direction.z, ray.direction.y] }; };
   // a world point on the image plane for a ray, snapped to a vertex already drawn on this image (any surface)
@@ -472,7 +494,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
     }
     setDigPts([]);
   };
-  const stopDigitizing = () => { setDigDrawing(false); setDigPts([]); setDigHover(null); setPickFor(null); };
+  const stopDigitizing = () => { setDigDrawing(false); setDigPts([]); showHover(null); setPickFor(null); };
   const digRef = useRef({ drawing: false, add: () => {} });
   digRef.current = {
     drawing: digDrawing,
@@ -492,7 +514,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
       shiftRef.current = e.shiftKey; // #825
       const r = dom.getBoundingClientRect();
       ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), sc.camera.current);
-      setDigHover(planePoint(ray.ray));
+      showHover(planePoint(ray.ray)); // #890 — no state, no re-render
     };
     const onKey = (e) => {
       if (e.target?.tagName === "INPUT" || e.target?.tagName === "SELECT" || e.target?.tagName === "TEXTAREA") return;
@@ -506,21 +528,40 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
     window.addEventListener("keydown", onKey);
     return () => { dom.removeEventListener("pointermove", onMove); dom.removeEventListener("dblclick", onDbl); window.removeEventListener("keydown", onKey); };
   }, [digDrawing, plane, defs, digPts, def?.id]);
-  // the line being drawn + the rubber band, drawn over everything
+  // the line being drawn + the rubber band, drawn over everything. #890: built when the drawn points change, sized for
+  // one more point - the hover point, which showHover moves in place
   useEffect(() => {
     const grp = sc.group.current;
     if (!grp) return undefined;
     const g = new THREE.Group();
     g.name = "explicitDigitizePreview";
-    const pts = [...digPts, ...(digDrawing && digHover && digPts.length ? [digHover.p] : [])];
-    if (pts.length >= 2) {
+    const n = digPts.length, mk = (count) => { const a = new Float32Array((count + 1) * 3); digPts.forEach((q, i) => a.set(toScene(q), i * 3)); return a; };
+    let line = null;
+    if (digDrawing && n >= 1) {
       const geo = new THREE.BufferGeometry();
-      geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pts.flatMap(toScene)), 3));
-      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: def?.color || "#e07b39", depthTest: false, transparent: true }));
-      line.renderOrder = 12;
+      geo.setAttribute("position", new THREE.BufferAttribute(mk(n), 3));
+      line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: def?.color || "#e07b39", depthTest: false, transparent: true }));
+      line.renderOrder = 12; line.frustumCulled = false;
       g.add(line);
     }
-    if (digDrawing && groundLine.length) { // #828 — where the terrain crosses the section
+    const mgeo = new THREE.BufferGeometry();
+    mgeo.setAttribute("position", new THREE.BufferAttribute(mk(n), 3));
+    const marks = new THREE.Points(mgeo, new THREE.PointsMaterial({ color: def?.color || "#e07b39", size: 7, sizeAttenuation: false, depthTest: false, transparent: true }));
+    marks.renderOrder = 12; marks.frustumCulled = false; // also a line point being dragged (Edit picks)
+    g.add(marks);
+    grp.add(g);
+    previewRef.current = { line, marks, n };
+    showHover(hoverRef.current);
+    sc.activity.current = Date.now();
+    return () => { previewRef.current = null; grp.remove(g); g.children.forEach((c) => { c.geometry.dispose(); c.material.dispose(); }); sc.activity.current = Date.now(); };
+  }, [digPts, digDrawing, def?.color]);
+  // #890 — the ground line and the snap targets, once per drawing session (not per pointer move)
+  useEffect(() => {
+    const grp = sc.group.current;
+    if (!grp || !digDrawing) return undefined;
+    const g = new THREE.Group();
+    g.name = "explicitDigitizeGuides";
+    if (groundLine.length) { // #828 — where the terrain crosses the section
       const geo = new THREE.BufferGeometry();
       geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(groundLine.flatMap(toScene)), 3));
       const gl = new THREE.Line(geo, new THREE.LineDashedMaterial({ color: "#8a6a1f", dashSize: 8, gapSize: 5, depthTest: false, transparent: true }));
@@ -528,25 +569,17 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
       gl.renderOrder = 12;
       g.add(gl);
     }
-    if (digDrawing && snapTargets.length) { // #825 — the logged contacts (and crossings) a point can snap to
+    if (snapTargets.length) { // #825 — the logged contacts (and crossings) a point can snap to
       const geo = new THREE.BufferGeometry();
       geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(snapTargets.flatMap((t) => toScene(t.p))), 3));
       const m = new THREE.Points(geo, new THREE.PointsMaterial({ color: "#1a2028", size: 5, sizeAttenuation: false, depthTest: false, transparent: true, opacity: 0.8 }));
       m.renderOrder = 12;
       g.add(m);
     }
-    const marks = [...digPts, ...(digHover ? [digHover.p] : [])]; // also a line point being dragged (Edit picks)
-    if (marks.length) {
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(marks.flatMap(toScene)), 3));
-      const m = new THREE.Points(geo, new THREE.PointsMaterial({ color: digHover?.snapped ? "#ffffff" : def?.color || "#e07b39", size: digHover?.snapped ? 12 : 7, sizeAttenuation: false, depthTest: false, transparent: true }));
-      m.renderOrder = 12;
-      g.add(m);
-    }
     grp.add(g);
     sc.activity.current = Date.now();
     return () => { grp.remove(g); g.children.forEach((c) => { c.geometry.dispose(); c.material.dispose(); }); sc.activity.current = Date.now(); };
-  }, [digPts, digHover, digDrawing, def?.color, snapTargets, groundLine]);
+  }, [digDrawing, snapTargets, groundLine]);
   useEffect(() => () => { digRef.current.drawing = false; }, []);
   // the other section images step aside while one is drawn on
   useEffect(() => { onDigitizeImage?.(digDrawing && digImage ? digImage.id : null); }, [digDrawing, digImage?.id]);
@@ -731,7 +764,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         {tr("A surface that passes exactly through your own picks: contacts clicked on holes (or anything else) in the 3D view, and lines drawn on sections with its name. Nothing is interpolated away; it rebuilds as you pick.")}{" "}{tr("Between the inputs it is the smoothest surface through them; beyond them it is extended with no data.") /* TASKS.csv #870 */}
       </div>
       <div style={row}>
-        <select value={def?.id || ""} onChange={(e) => { if (digDrawing) { finishLine(); setDigDrawing(false); setDigHover(null); } setSelId(e.target.value); setPickFor(null); }} disabled={!defs.length} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Explicit surface")}>
+        <select value={def?.id || ""} onChange={(e) => { if (digDrawing) { finishLine(); setDigDrawing(false); showHover(null); } setSelId(e.target.value); setPickFor(null); }} disabled={!defs.length} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Explicit surface")}>
           {!defs.length && <option value="">{tr("No explicit surfaces yet")}</option>}
           {defs.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.picks.length}){layerLabel(d) !== d.name ? ` · ${layerLabel(d)}` : ""}</option>)}
         </select>
@@ -862,7 +895,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
               {tr("Click along {name}'s contact on the image. Enter or double-click: finish the line (the next click starts another). Backspace: remove the last point. Esc: stop. A point within 10 px of one already drawn on this image joins it.", { name: def.name })}
               {digPts.length ? ` ${tr("{n} point(s) in this line.", { n: digPts.length })}` : ""}
               {` ${tr("Black dots: logged contacts of holes within 15 m of the section, and hole crossings — a point snaps to them too, and onto drawn lines and the dashed ground line. Hold Shift for level / vertical / 45° segments.")}`}
-              {digHover?.label ? <b>{` ${tr("Snap: {v}", { v: digHover.label })}`}</b> : null}
+              {hoverLabel ? <b>{` ${tr("Snap: {v}", { v: hoverLabel })}`}</b> : null}
             </div>}
             {(def.lines || []).map((ln, i) => (
               <div key={ln.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", marginBottom: 2 }}>
@@ -875,7 +908,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4, margin: "4px 0" }} role="group" aria-label={tr("Line tools")}>
                 {[["move", "Move points", "Drag a point to move it along its image; Alt + click deletes it."], ["insert", "Insert point", "Click on a line to add a point there."], ["split", "Split", "Click a point in the middle of a line to cut it in two."], ["join", "Join", "Click the end of one line, then the end of another: they become one line."], ["extend", "Extend", "Click the end of a line, then the line it should reach (another line on the same image, or the ground): it is lengthened, or trimmed, to meet it."]].map(([k, label, hint]) => {
                   const on = editing && lineTool === k;
-                  return <button key={k} title={tr(hint)} aria-pressed={on} onClick={() => { setLineTool(k); pendRef.current = null; setToolHint(tr(hint)); if (digDrawing) { finishLine(); setDigDrawing(false); setDigHover(null); } setPickFor(null); setEditing(true); }}
+                  return <button key={k} title={tr(hint)} aria-pressed={on} onClick={() => { setLineTool(k); pendRef.current = null; setToolHint(tr(hint)); if (digDrawing) { finishLine(); setDigDrawing(false); showHover(null); } setPickFor(null); setEditing(true); }}
                     style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px", fontSize: "var(--font-size-xs)", ...(on ? { background: "var(--color-accent)", color: "var(--color-on-accent, #fff)" } : {}) }}>{tr(label)}</button>;
                 })}
                 <button onClick={undo} disabled={!canUndo} title={tr("Undo (Ctrl+Z)")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px", fontSize: "var(--font-size-xs)", opacity: canUndo ? 1 : 0.5 }}>{tr("Undo")}</button>
