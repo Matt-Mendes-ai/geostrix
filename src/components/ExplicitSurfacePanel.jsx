@@ -121,7 +121,7 @@ function upsertMesh(sc, def, res, info) {
   return id;
 }
 
-export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, defs, setDefs, sections, terrain, mapLayers, surfaceStructures, sectionImages = [], unitChoices = [] /* #831 */, onDigitizeImage, pickFor, setPickFor, snap, setSnap, scene: sc, onRemove, askPrompt, pBtn, smallSel, numInput }) {
+export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesSeq = 0 /* #888 */, defs, setDefs, sections, terrain, mapLayers, surfaceStructures, sectionImages = [], unitChoices = [] /* #831 */, onDigitizeImage, pickFor, setPickFor, snap, setSnap, scene: sc, onRemove, askPrompt, pBtn, smallSel, numInput }) {
   const hasTerrain = !!terrain?.bbox;
   const groundAt = (x, y) => {
     const [x0, y0, x1, y1] = terrain.bbox;
@@ -182,11 +182,23 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, defs, s
   const drawn = useMemo(() => (def?.lines || []).filter((l) => l.pts?.length >= 2).map((l) => ({ ref: `drawn ${l.id}`, src: "drawn", pts: densify3(l.pts, LINE_SPACING) })), [def?.lines]);
   // TASKS.csv #856 — each pick on a hole carries the hole's direction there, so a pick set taken along one drill section is
   // recognized as such (its best-fit plane is the section, not the contact)
+  // TASKS.csv #888 — a pick on a hole is a DEPTH on that hole: it is placed on the hole's CURRENT trace at every build, so
+  // a survey re-import, collar correction or desurvey-method change moves it with the hole (the stored x / y / z is the
+  // record of where it was picked); moved: how many moved more than 0.5 m, and the largest move
   const ep = useMemo(() => {
     if (!def) return null;
-    const withDir = { ...def, picks: (def.picks || []).map((p) => { const t = p.hole_id && sc.traces.current.find((tc) => tc.hole_id === p.hole_id); const dir = t ? traceDirWorld(t, p.md) : null; return dir ? { ...p, dir } : p; }) };
-    return explicitPoints(withDir, sections, { spacing: LINE_SPACING, maxPoints: MAX_POINTS, extraLines: [...drawn, ...mapPart.lines, ...(mapPart.guides?.lines || [])] });
-  }, [def, sections, mapPart, drawn, sc]);
+    let moved = 0, maxMove = 0;
+    const withDir = { ...def, picks: (def.picks || []).map((p) => {
+      const t = p.hole_id && Number.isFinite(p.md) && sc.traces.current.find((tc) => tc.hole_id === p.hole_id);
+      if (!t) return p;
+      const dir = traceDirWorld(t, p.md), w = findOnTraceWorld(t, p.md);
+      const q = w ? { ...p, x: w[0], y: w[1], z: w[2] } : p;
+      const d = w ? Math.hypot(w[0] - p.x, w[1] - p.y, w[2] - p.z) : 0;
+      if (d > 0.5) { moved++; maxMove = Math.max(maxMove, d); }
+      return dir ? { ...q, dir } : q;
+    }) };
+    return { ...explicitPoints(withDir, sections, { spacing: LINE_SPACING, maxPoints: MAX_POINTS, extraLines: [...drawn, ...mapPart.lines, ...(mapPart.guides?.lines || [])] }), moved, maxMove };
+  }, [def, sections, mapPart, drawn, sc, tracesSeq]);
   const [mapLayerId, setMapLayerId] = useState("");
   const mapLayer = polys.find((l) => l.id === mapLayerId) || polys[0] || null;
   const fieldsOf = (l) => (l?.fields || []);
@@ -695,6 +707,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, defs, s
           </div>
         )}
         {status && <div role="status" style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: status.ok ? "var(--color-text-secondary)" : "var(--color-warning, #b7791f)" }}>{status.text}</div>}
+        {ep?.moved > 0 && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-secondary)" }}>{tr("{n} pick(s) on holes now sit up to {d} m from where they were picked: they follow the holes' current traces (a survey, collar or desurvey method changed).", { n: ep.moved, d: ep.maxMove.toFixed(1) })}</div>}{/* TASKS.csv #888 */}
         {/* TASKS.csv #883 — every pick says where it landed (a click on the terrain or another surface is not a contact) */}
         {def.picks.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-muted)" }}>{tr("Last pick: {what}", { what: pickLabel(def.picks[def.picks.length - 1]) })}</div>}
         {/* TASKS.csv #863 — after a build, what the surface is for */}

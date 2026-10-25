@@ -5790,5 +5790,6 @@
   "To keep the build fast, the section lines were simplified to within {t} m ({k} of {n} vertices kept, corners and ends included).": "Pour garder la construction rapide, les lignes de coupe ont été simplifiées à {t} m près ({k} sommets conservés sur {n}, coins et extrémités compris).",
   "To keep the build fast, the map lines were simplified to within {t} m (ends and corners kept).": "Pour garder la construction rapide, les lignes de la carte ont été simplifiées à {t} m près (extrémités et coins conservés).",
   "Explicit surfaces are not sculpted: the next rebuild from the picks would undo it. Move, add or remove picks in the Explicit surface pane instead.": "Les surfaces explicites ne se sculptent pas : la prochaine reconstruction à partir des pointés l'annulerait. Déplacez, ajoutez ou retirez des pointés dans le panneau Surface explicite.",
-  "{n} manual sculpt(s) of the previous surface were discarded by this rebuild.": "Cette reconstruction a abandonné {n} retouche(s) manuelle(s) de la surface précédente."
+  "{n} manual sculpt(s) of the previous surface were discarded by this rebuild.": "Cette reconstruction a abandonné {n} retouche(s) manuelle(s) de la surface précédente.",
+  "{n} pick(s) on holes now sit up to {d} m from where they were picked: they follow the holes' current traces (a survey, collar or desurvey method changed).": "{n} pointé(s) sur des sondages sont maintenant jusqu'à {d} m de l'endroit où ils ont été pris : ils suivent la trace actuelle des sondages (un levé, un collet ou la méthode de calcul a changé)."
 }

@@ -5790,5 +5790,6 @@
   "To keep the build fast, the section lines were simplified to within {t} m ({k} of {n} vertices kept, corners and ends included).": "لإبقاء البناء سريعًا، بُسِّطت خطوط المقاطع ضمن {t} م (أُبقي {k} من {n} رأسًا، بما فيها الزوايا والأطراف).",
   "To keep the build fast, the map lines were simplified to within {t} m (ends and corners kept).": "لإبقاء البناء سريعًا، بُسِّطت خطوط الخريطة ضمن {t} م (مع إبقاء الأطراف والزوايا).",
   "Explicit surfaces are not sculpted: the next rebuild from the picks would undo it. Move, add or remove picks in the Explicit surface pane instead.": "لا تُنحت الأسطح الصريحة: فإعادة البناء التالية من النقاط الملتقطة ستلغي ذلك. انقل النقاط الملتقطة أو أضفها أو احذفها في لوحة السطح الصريح بدلًا من ذلك.",
-  "{n} manual sculpt(s) of the previous surface were discarded by this rebuild.": "تجاهلت إعادة البناء هذه {n} تعديلًا يدويًا على السطح السابق."
+  "{n} manual sculpt(s) of the previous surface were discarded by this rebuild.": "تجاهلت إعادة البناء هذه {n} تعديلًا يدويًا على السطح السابق.",
+  "{n} pick(s) on holes now sit up to {d} m from where they were picked: they follow the holes' current traces (a survey, collar or desurvey method changed).": "أصبح {n} من النقاط الملتقطة على الثقوب على بعد يصل إلى {d} م من موضع التقاطها: فهي تتبع المسارات الحالية للثقوب (تغيّر مسح أو فوهة أو طريقة حساب المسار)."
 }
