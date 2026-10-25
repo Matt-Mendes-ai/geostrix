@@ -5811,5 +5811,12 @@
   "between {a} and {b} {k} of {n} strips are folded (the two outlines' points do not pair up, so the volume there is unreliable): mark a tie point on both outlines (Shift+click a vertex while editing) and link again": "بين {a} و{b} توجد {k} من أصل {n} شريحة مطوية (نقاط المحيطين لا تتزاوج، لذا فالحجم هناك غير موثوق): ضع نقطة ربط على المحيطين كليهما (Shift+نقر على رأس أثناء التحرير) ثم اربط من جديد",
   "Tie point: linked to the tie point of this body's outline on the next section": "نقطة ربط: تُربط بنقطة ربط محيط هذا الجسم في المقطع التالي",
   "Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.": "انقر مع Shift على رأس لجعله نقطة الربط: يُربط بنقطة ربط المحيط في المقطع التالي.",
-  "It replaces the previous solid of {name}.": "يحل محل المجسم السابق لـ {name}."
+  "It replaces the previous solid of {name}.": "يحل محل المجسم السابق لـ {name}.",
+  "{name} (kept {at})": "{name} (محفوظة {at})",
+  "Kept this build as a version in the surface list; this surface now supersedes it.": "حُفظ هذا البناء كنسخة في قائمة الأسطح؛ وهذا السطح يحل محلها الآن.",
+  "History ({n} changes)": "السجل ({n} تغييرًا)",
+  "Copy the surface as it is now into the surface list as a frozen version (it does not rebuild); this surface is marked as superseding it.": "انسخ السطح كما هو الآن إلى قائمة الأسطح كنسخة مجمدة (لا يُعاد بناؤها)؛ ويُعلَّم هذا السطح على أنه يحل محلها.",
+  "Keep this build as a version": "احفظ هذا البناء كنسخة",
+  "Built from an older state of its outlines: link {body} again to update it.": "بُني من حالة أقدم لمحيطاته: اربط {body} من جديد لتحديثه.",
+  "Built from an older state of its surfaces (one was rebuilt, edited or removed): build the blocks again to update it.": "بُني من حالة أقدم لأسطحه (أُعيد بناء أحدها أو عُدّل أو حُذف): ابنِ الكتل من جديد لتحديثه."
 }

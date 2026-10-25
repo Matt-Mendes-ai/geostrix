@@ -5811,5 +5811,12 @@
   "between {a} and {b} {k} of {n} strips are folded (the two outlines' points do not pair up, so the volume there is unreliable): mark a tie point on both outlines (Shift+click a vertex while editing) and link again": "entre {a} e {b} {k} de {n} faixas estão dobradas (os pontos dos dois contornos não se pareiam, então o volume ali não é confiável): marque um ponto de amarração nos dois contornos (Shift+clique num vértice ao editar) e vincule de novo",
   "Tie point: linked to the tie point of this body's outline on the next section": "Ponto de amarração: ligado ao ponto de amarração do contorno deste corpo na próxima seção",
   "Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.": "Shift+clique num vértice para torná-lo o ponto de amarração: ele é ligado ao ponto de amarração do contorno na próxima seção.",
-  "It replaces the previous solid of {name}.": "Substitui o sólido anterior de {name}."
+  "It replaces the previous solid of {name}.": "Substitui o sólido anterior de {name}.",
+  "{name} (kept {at})": "{name} (guardada {at})",
+  "Kept this build as a version in the surface list; this surface now supersedes it.": "Esta construção foi guardada como versão na lista de superfícies; esta superfície agora a substitui.",
+  "History ({n} changes)": "Histórico ({n} alterações)",
+  "Copy the surface as it is now into the surface list as a frozen version (it does not rebuild); this surface is marked as superseding it.": "Copia a superfície como está agora para a lista de superfícies como versão congelada (não é reconstruída); esta superfície fica marcada como sua substituta.",
+  "Keep this build as a version": "Guardar esta construção como versão",
+  "Built from an older state of its outlines: link {body} again to update it.": "Construído a partir de um estado anterior de seus contornos: vincule {body} de novo para atualizá-lo.",
+  "Built from an older state of its surfaces (one was rebuilt, edited or removed): build the blocks again to update it.": "Construído a partir de um estado anterior de suas superfícies (uma foi reconstruída, editada ou removida): construa os blocos de novo para atualizá-lo."
 }

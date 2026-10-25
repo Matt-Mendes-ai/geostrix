@@ -84,6 +84,7 @@ import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv
 import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut } from "../lib/levelPlan.js"; // TASKS.csv #525
 import { ghostStrings } from "../lib/sectionDigitise.js"; // TASKS.csv #519
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #577 (already in the startup chunk via compactRows)
+import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 import { unitShell, meshVolume, blockUnitStats } from "../lib/unitVolumes.js"; // TASKS.csv #517; blockUnitStats: #877
 const ModellingCodesPane = React.lazy(() => import("../components/ModellingCodesPane.jsx")); // TASKS.csv #599 — modelling view only, so loaded on demand (#476 budget)
 import { resolveLayerStyle, cleanLayerStyle, TUBE_SEGMENTS } from "../lib/layerStyle.js"; // TASKS.csv #635
@@ -664,6 +665,7 @@ const SURFACE_TYPES = [
   { key: "explicit_surface", label: "Explicit surface (through hand-picked contacts)" }, // TASKS.csv #811
   // TASKS.csv #570 — a solid linked by hand from section outlines: explicit, not interpolated
   { key: "explicit_wireframe", label: "Explicit wireframe (linked section outlines)" },
+  { key: "explicit_surface_kept", label: "Explicit surface — kept version (frozen)" }, // TASKS.csv #878
   { key: "other", label: "Other" },
 ];
 const RELATION_TYPES = [
@@ -3458,6 +3460,17 @@ ${describeTrend(t)}` };
     return [...m].filter(([, k]) => k.size >= 2).map(([name, k]) => ({ name, sections: k.size }));
   }, [sections]);
   const [wireframeName, setWireframeName] = useState("");
+  // TASKS.csv #878 — products whose sources changed since they were built: a wireframe whose outlines were edited, a unit
+  // volume from Solid blocks whose surfaces were rebuilt, edited or removed
+  const staleSurfaces = useMemo(() => {
+    const m = new Map();
+    for (const s of implicitSurfaces) {
+      const q = s.params || {};
+      if (s.type === "explicit_wireframe" && q.sourceKey && q.body && outlinesKey(sections, q.body) !== q.sourceKey) m.set(s.id, tr("Built from an older state of its outlines: link {body} again to update it.", { body: q.body }));
+      else if (s.type === "unit_volume" && q.sourceKey && q.sourceIds && blockSourceKey(q.sourceRecipe, q.sourceIds, implicitSurfaces) !== q.sourceKey) m.set(s.id, tr("Built from an older state of its surfaces (one was rebuilt, edited or removed): build the blocks again to update it."));
+    }
+    return m;
+  }, [implicitSurfaces, sections]);
   // TASKS.csv #874 — the body names already used by outlines, offered when one is drawn on another section
   const outlineNamesOf = (secs) => [...new Set((secs || []).flatMap((s) => (s.contacts || []).filter((c) => c.kind === "outline" && c.unit).map((c) => c.unit)))].sort();
   const linkWireframe = async (name) => {
@@ -3488,7 +3501,7 @@ ${describeTrend(t)}` };
       setImplicitSurfaces((p) => [...p.filter((x) => x.id !== id), {
         ...(prev || {}), id, name: `${name} (wireframe, ${w.sections} sections)`, visible: prev ? prev.visible : true, vertexCount: nVerts, faceCount: nTris,
         type: "explicit_wireframe", relationships: prev?.relationships || [], closure: "closed", edited: false, editCount: 0, edits: [],
-        params: { tool: "explicit wireframe from linked section outlines", body: name, sections: outlines.map((x) => x.section), pointsPerOutline: nVerts / w.sections, volumeM3: Math.round(w.volume), ends: "flat caps on the first and last outline (not extended beyond them)", builtAt: new Date().toISOString(), tiedOutlines: w.tied, foldedStrips: w.twisted.reduce((a, t) => a + t.folded, 0) }, /* tiedOutlines / foldedStrips: #874 */
+        params: { tool: "explicit wireframe from linked section outlines", body: name, sections: outlines.map((x) => x.section), pointsPerOutline: nVerts / w.sections, volumeM3: Math.round(w.volume), ends: "flat caps on the first and last outline (not extended beyond them)", builtAt: new Date().toISOString(), tiedOutlines: w.tied, foldedStrips: w.twisted.reduce((a, t) => a + t.folded, 0), sourceKey: outlinesKey(sections, name) }, /* tiedOutlines / foldedStrips: #874; sourceKey: #878 */
       }]);
       setNotices((p) => [...p, notice("Linked {n} \"{name}\" outlines into a closed solid: {v} m³. It ends at the first and last section (flat caps, not extended beyond them) and is listed with the generated surfaces: volume, export, sections and \"Restrict to a modelled volume\" in Grade estimation.{warn}", { n: w.sections, name, v: Math.round(w.volume).toLocaleString(), warn: (w.warnings.length ? tr(" Note: {v}.", { v: w.warnings.join("; ") }) : "") + (prev ? ` ${tr("It replaces the previous solid of {name}.", { name })}` : "") })]); // replaces: #874
     } catch (e) { setNotices((p) => [...p, e]); }
@@ -3581,7 +3594,7 @@ ${describeTrend(t)}` };
       added.push({
         id, name: `${label} volume (${lb.title.replace(/^stack /, "")}, ${lb.when})`, visible: true, vertexCount: nVerts, faceCount: nTris,
         type: "unit_volume", relationships: [], closure: "closed",
-        params: { tool: "unit volume from the implicit model's lithology block", unit: label, model: lb.title, builtAt: lb.when, cells: s.cells, cellVolumeM3: +s.cellVolume.toFixed(3), cellsVolumeM3: Math.round(s.blockVolume), shellVolumeM3: Math.round(vol),
+        params: { tool: "unit volume from the implicit model's lithology block", unit: label, model: lb.title, builtAt: lb.builtAtIso || lb.when, ...(lb.source ? { sourceKey: lb.source.key, sourceIds: lb.source.ids, sourceRecipe: lb.source.recipe } : {}), /* builtAtIso / source: #878 */ cells: s.cells, cellVolumeM3: +s.cellVolume.toFixed(3), cellsVolumeM3: Math.round(s.blockVolume), shellVolumeM3: Math.round(vol),
           ...(ust.units[label] ? { volumeBandM3: Math.round(ust.units[label].bandM3), blockSizeM: ust.blockM.map((v) => +v.toFixed(2)), cutByBox: ust.units[label].box } : {}), /* TASKS.csv #877 */ note: lb.block.resampledFromTrend ? tr("Built from the trend model resampled onto a real-space grid (#679), so the shell follows that grid's steps; the exact unit volume is the one in the Model check message. Cut at the model box: a unit that continues beyond it is closed there.") : tr("Cut at the model box: a unit that continues beyond it is closed there.") },
       });
       lines.push(tr("{label} {v} Mm³", { label, v: (vol / 1e6).toFixed(2) }));
@@ -7403,6 +7416,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {implicitSurfaces.map((s) => {
           const expanded = expandedSurfaceId === s.id;
           const otherSurfaces = implicitSurfaces.filter((o) => o.id !== s.id);
+          const stale = staleSurfaces.get(s.id); // TASKS.csv #878
           return (
             <div key={s.id} onContextMenu={(e) => openRowMenu(e, s.name, [ // TASKS.csv #635
               { label: s.visible ? "Hide" : "Show", onClick: () => toggleImplicitSurface(s.id) },
@@ -7435,6 +7449,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => zoomToImplicitSurface(s.id), tr("Zoom to surface \"{name}\"", { name: s.name }))} />
                 <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmRemoveSurface(s)) removeImplicitSurface(s.id); }, tr("Remove surface \"{name}\"", { name: s.name }))} />
               </div>
+              {stale && <div style={{ padding: "0 8px 6px", fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)" }}>{stale}</div>}
               {expanded && (
                 <div style={{ padding: "0 8px 8px", borderTop: "1px solid var(--color-divider)", paddingTop: 8 }}>
                   {/* TASKS.csv #91/#92 — data-support display for surfaces that carry a classification. */}

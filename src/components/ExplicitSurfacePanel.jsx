@@ -175,6 +175,22 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
     setSeedNote(tr("Added {n} pick(s) at the logged tops of {unit}.", { n: r.picks.length, unit: seedUnit }) + (r.had ? ` ${tr("{n} hole(s) already had a pick and were left as they were.", { n: r.had })}` : "")
       + (r.noTrace ? ` ${tr("{n} hole(s) are not drawn (no survey or collar).", { n: r.noTrace })}` : "") + (why.length ? ` ${tr("Not tops of {unit}: {why}.", { unit: seedUnit, why: why.join("; ") })}` : ""));
   };
+  // TASKS.csv #878 — keep the current build as a frozen version: a copy of the mesh in the surface list, and the live
+  // surface marked as superseding it (the #93 version chain, so the list shows v1 / v2 and the versions can be compared)
+  const [keptNote, setKeptNote] = useState(null);
+  const keepVersion = () => {
+    const live = def && surfaces.find((s) => s.id === def.surfaceId), mesh = def?.surfaceId && sc.meshes.current[def.surfaceId];
+    if (!live || !mesh) return;
+    const at = new Date().toISOString(), id = `impl_${Date.now()}_kept`;
+    const copy = new THREE.Mesh(mesh.geometry.clone(), mesh.material.clone());
+    copy.userData = { tip: `${def.name} — version kept ${at.slice(0, 16).replace("T", " ")}` };
+    sc.group.current?.add(copy);
+    sc.meshes.current[id] = copy;
+    const p = { ...(live.params || {}) }; delete p.builtKey; // a frozen copy never rebuilds
+    sc.setSurfaces((list) => [...list.map((s) => (s.id === live.id ? { ...s, supersedes: id } : s)),
+      { ...live, id, name: tr("{name} (kept {at})", { name: def.name, at: at.slice(0, 16).replace("T", " ") }), type: "explicit_surface_kept", relationships: [], params: { ...p, keptAt: at, keptFrom: def.name, picksWhenKept: (def.picks || []).length }, supersedes: live.supersedes, accepted: false }]);
+    setKeptNote(tr("Kept this build as a version in the surface list; this surface now supersedes it."));
+  };
   const pickLabel = (p) => `${p.hole_id ? tr("{hole} at {md} m ({how})", { hole: p.hole_id, md: Number(p.md).toFixed(1), how: p.above ? `${p.above} | ${p.below}` : p.src === "boundary" ? tr("logged contact") : tr("on the trace") }) : tr("3D point")} · ${Math.round(p.z)} m`;
   const keepShallowest = () => { const best = new Map(); for (const p of def.picks) if (p.hole_id && (!best.has(p.hole_id) || p.md < best.get(p.hole_id).md)) best.set(p.hole_id, p); update({ picks: def.picks.filter((p) => !p.hole_id || best.get(p.hole_id) === p) }); };
   // TASKS.csv #817 — mapped contacts (draped on the terrain) and their dip guides as further hard lines
@@ -722,6 +738,16 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             {tr("{a} of {b} holes that log {unit} have a pick on this surface.", { a: seedInfo.holes.filter((h) => pickedHoles.has(h)).length, b: seedInfo.holes.length, unit: seedUnit })}{" "}
             {contactOf(def) !== "lower" && seedInfo.tops.some((t) => !pickedHoles.has(t.hole_id)) && <button onClick={seedTops} title={tr("One pick per hole where {unit} starts below a younger unit (not at a hole start, under casing or overburden, or below a gap) — the same tops the implicit tool uses. Check them, then move or delete the outliers.", { unit: seedUnit })} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged tops of {unit}", { unit: seedUnit })}</button>}
           </div>
+        )}
+        {(def.log || []).length > 0 && ( // TASKS.csv #878
+          <details style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, color: "var(--color-text-secondary)" }}>
+            <summary style={{ cursor: "pointer" }}>{tr("History ({n} changes)", { n: def.log.length })}</summary>
+            <div style={{ maxHeight: 140, overflowY: "auto", marginTop: 4, lineHeight: 1.4 }}>
+              {[...def.log].reverse().slice(0, 50).map((e, i) => <div key={i}><span style={{ color: "var(--color-text-muted)" }}>{e.at.slice(0, 16).replace("T", " ")}</span> {e.what}</div>)}
+            </div>
+            <button onClick={keepVersion} disabled={!def.surfaceId || !sc.meshes.current[def.surfaceId]} title={tr("Copy the surface as it is now into the surface list as a frozen version (it does not rebuild); this surface is marked as superseding it.")} style={{ ...pBtn, width: "auto", display: "inline-flex", marginTop: 4, marginBottom: 0, padding: "2px 6px" }}>{tr("Keep this build as a version")}</button>
+            {keptNote && <div role="status" style={{ marginTop: 3 }}>{keptNote}</div>}
+          </details>
         )}
         {seedNote && <div role="status" style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-secondary)" }}>{seedNote}</div>}
         {dupHoles.size > 0 && ( // TASKS.csv #866 — a contact crosses a hole once unless folded or faulted

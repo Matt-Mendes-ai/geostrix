@@ -8,7 +8,8 @@ import { Activity, Calculator, ChevronDown, ChevronRight, ChevronUp, Compass, Dr
 import { BLOCK_BUDGETS, ESTIMATION_METHODS, MAX_BLOCKS } from "../../lib/estimationMeta.js";
 import InfoButton from "../../components/InfoButton.jsx";
 import { PRECIOUS_METALS } from "../../lib/geochem.js";
-import { Suspense, useCallback } from "react";
+import { Suspense, useCallback, useMemo } from "react";
+import { withChangeLog } from "../../lib/explicitLog.js"; // TASKS.csv #878
 import { activateOnKey, iconAction } from "../../lib/a11y.js";
 import { colorForLithology, isCrossCuttingRole, roleForLithology } from "../../lib/layers.js";
 import { codedRuns, topsForCode } from "../../lib/modellingCodes.js"; // TASKS.csv #871
@@ -220,6 +221,7 @@ export default function ModellingPanes(props) {
   } = props;
   // TASKS.csv #871 — the logged tops of a unit for the Explicit surface pane, by the implicit tool's rules (#354 / #495 /
   // #599); recomputed only when the logs, the modelling codes or the groups change
+  const setExplicitLogged = useMemo(() => withChangeLog(setExplicitSurfaces), [setExplicitSurfaces]); // TASKS.csv #878 — every edit of a surface goes in its history
   const topsOfUnit = useCallback((unit) => {
     const runs = codedRuns(layers.litho || [], modellingCodes, mcGroupOf), { tops, skipped } = topsForCode(runs, unit, modellingCodes, mcodeDefaultRole);
     return { tops: tops.map((r) => ({ hole_id: r.hole_id, md: r.from, above: r.above?.code ?? null, below: r.code })), skipped, holes: [...new Set(runs.filter((r) => r.code === unit).map((r) => r.hole_id))] };
@@ -420,7 +422,7 @@ export default function ModellingPanes(props) {
         {toolPane === "explicit" && (<>
         {paneHeader("Explicit surface", Spline, "model")}
         <Suspense fallback={null}>
-          <ExplicitSurfacePanel surfaces={implicitSurfaces} /* #861 */ tracesSeq={tracesSeq} /* #888 */ trend={explicitTrend} /* #881 */ topsOfUnit={topsOfUnit} /* #871 */ defs={explicitSurfaces || []} setDefs={setExplicitSurfaces} sections={sections} terrain={terrain} mapLayers={mapLayers} surfaceStructures={surfaceStructures} /* #817 */ sectionImages={sectionImages} onDigitizeImage={setDigitizeImageId} /* #824 */ unitChoices={[...modellingCodeList.map((c) => c.name), ...lithoGroups.map((g) => g.name)]} /* #831 */ pickFor={explicitPickFor} setPickFor={setExplicitPickFor} snap={explicitSnap} setSnap={setExplicitSnap}
+          <ExplicitSurfacePanel surfaces={implicitSurfaces} /* #861 */ tracesSeq={tracesSeq} /* #888 */ trend={explicitTrend} /* #881 */ topsOfUnit={topsOfUnit} /* #871 */ defs={explicitSurfaces || []} setDefs={setExplicitLogged} /* #878 */ sections={sections} terrain={terrain} mapLayers={mapLayers} surfaceStructures={surfaceStructures} /* #817 */ sectionImages={sectionImages} onDigitizeImage={setDigitizeImageId} /* #824 */ unitChoices={[...modellingCodeList.map((c) => c.name), ...lithoGroups.map((g) => g.name)]} /* #831 */ pickFor={explicitPickFor} setPickFor={setExplicitPickFor} snap={explicitSnap} setSnap={setExplicitSnap}
             scene={{ origin: originRef, meshes: implicitMeshesRef, group: implicitGroupRef, traces: tracesRef, activity: lastActivityRef, setSurfaces: setImplicitSurfaces, worldPointFromHits, clickRef: explicitClickRef,
               dragHookRef: viewDragHookRef, camera: cameraRef, renderer: rendererRef, overlay: explicitOverlayRef, litho: layers.litho /* #813 */, camState /* #824 */ }}
             onRemove={(d) => { if (d.surfaceId && implicitMeshesRef.current[d.surfaceId]) removeImplicitSurface(d.surfaceId); setExplicitSurfaces((p) => p.filter((x) => x.id !== d.id)); }}

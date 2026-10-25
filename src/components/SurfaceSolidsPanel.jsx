@@ -11,6 +11,7 @@ import { validateSolid } from "../lib/meshValidate.js"; // TASKS.csv #860
 import { SOLID_SURFACE_TYPES } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #804
 import { unitOf, contactOf, layerLabel } from "../lib/explicitUnits.js"; // TASKS.csv #830
 import { stackOrder } from "../lib/stackOrder.js"; // TASKS.csv #873
+import { blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 
 const zStats = (pos) => {
   const zs = [];
@@ -96,7 +97,11 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
         units.push({ name: it.label, label: it.label, color: c });
       }
       const title = tr("solids from {n} surface(s)", { n: tops.length + solids.length });
-      onBuilt({ block: r.block, units, origin: { ...o }, when: new Date().toLocaleTimeString(), title, matchedPct: null, fromSurfaces: true },
+      // TASKS.csv #878 — an ISO time for the record, and what it was built from (to flag its volumes when a source changes)
+      const recipe = { roles: Object.fromEntries(used.map((it) => [it.id, roleOf(it)])), cell, base, cutGround: !!(cutGround && terrain) };
+      const sourceIds = used.map((it) => it.id);
+      onBuilt({ block: r.block, units, origin: { ...o }, when: new Date().toLocaleTimeString(), builtAtIso: new Date().toISOString(), title, matchedPct: null, fromSurfaces: true,
+        source: { recipe, ids: sourceIds, key: blockSourceKey(recipe, sourceIds, surfaces) } },
         { counts: r.counts, coverage: r.coverage, cellVolume: r.cellVolume, resolution: r.block.resolution, inverted: r.inverted }); // inverted: #860
     } catch (e) { onError(e); }
   };
