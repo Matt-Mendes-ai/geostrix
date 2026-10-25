@@ -27,7 +27,7 @@ import { parseSolidInWorker } from "../lib/solidImportClient.js"; // TASKS.csv #
 const IMPORTED_SOLID_COLORS = [0x8fa3b8, 0xa89bbd, 0x8fb8aa, 0xbfae92, 0x93b3c4, 0xb89aa4];
 const SurfaceGeologyProjection = lazyModal(() => import("../components/SurfaceGeologyProjection.jsx")); // TASKS.csv #476 // TASKS.csv #318
 import { spreadColor, SPREAD_NOT_REPRODUCED } from "../lib/surfaceSpread.js"; // TASKS.csv #52 (a)
-import { pointInBoundary } from "../lib/geoprocessing.js";
+import { pointInBoundary } from "../lib/pointInPolygon.js"; // TASKS.csv #903 — not geoprocessing.js, which loads d3-delaunay
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
 import { useMenuKeys } from "../lib/useMenuKeys.js"; // TASKS.csv #730
 import { t as tr } from "../lib/i18n.js";
@@ -82,7 +82,6 @@ const SurfaceAnomalyControls = React.lazy(() => import("../components/SurfaceAno
 const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverlayPane.jsx")); // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
 import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut } from "../lib/levelPlan.js"; // TASKS.csv #525
-import { ghostStrings, stepSection } from "../lib/sectionDigitise.js"; // TASKS.csv #519; stepSection: #876
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #577 (already in the startup chunk via compactRows)
 import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 import { unitShell, meshVolume, blockUnitStats } from "../lib/unitVolumes.js"; // TASKS.csv #517; blockUnitStats: #877
@@ -96,7 +95,6 @@ const SculptPanel = lazyModal(() => import("../components/SculptPanel.jsx")); //
 // TASKS.csv #142 — numeric (grade-shell) implicit model: composites/assays -> dense IDW grid -> marching cubes
 import { SUPPORT_COLORS, MAX_BLOCKS } from "../lib/estimationMeta.js"; // SUPPORT_*: TASKS.csv #91/#92; budget: #625
 import { rectilinearGrid, buildExposedFaces } from "../lib/voxelFaces.js"; // TASKS.csv #793
-import { linkOutlines } from "../lib/wireframe.js"; // TASKS.csv #570
 const SurfaceSolidsPanel = React.lazy(() => import("../components/SurfaceSolidsPanel.jsx")); // TASKS.csv #802 — loads when opened (startup budget)
 const ExplicitSurfacePanel = React.lazy(() => import("../components/ExplicitSurfacePanel.jsx")); // TASKS.csv #811 — loads when opened
 // TASKS.csv #693 — the 3D Modelling tool panes, loaded the first time one of them is opened
@@ -3477,6 +3475,7 @@ ${describeTrend(t)}` };
     const outlines = [];
     for (const s of sections || []) for (const c of s.contacts || []) if (c.kind === "outline" && c.unit === name && c.points?.length >= 3) outlines.push({ ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, section: s.name, points: c.points.filter((p) => [p.x, p.y, p.z].every(Number.isFinite)) });
     try {
+      const { linkOutlines } = await import("../lib/wireframe.js"); // TASKS.csv #903 — loaded on use, not at startup
       const w = linkOutlines(outlines);
       // TASKS.csv #860 — the linked mesh must be a valid solid before it is offered for volumes and estimation
       const { validateSolid, isValidSolid } = await import("../lib/meshValidate.js"); // on demand: not in the startup bundle
@@ -6511,7 +6510,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // contacts into 3D surface generation as real interface points later).
     const sectionImgs = await sectionImagesFor(a, b, corridor);
     openSectionWindow({ id, title: name, section: { ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth, corridor }, holes, intervals, points, planes, contacts: [], lithoUnits: litho_units, unitTags: sectionUnitTags, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, sectionImages: sectionImgs, modelBackdrop,
-      ghostStrings: ghostStrings({ id, ax: a.x, ay: a.y, bx: b.x, by: b.y }, sections), outlineNames: outlineNamesOf(sections) }); // #519; outlineNames: #874
+      ghostStrings: (await import("../lib/sectionDigitise.js")).ghostStrings({ id, ax: a.x, ay: a.y, bx: b.x, by: b.y }, sections), /* on use: #903 */ outlineNames: outlineNamesOf(sections) }); // #519; outlineNames: #874
   };
 
   const reopenSection = useCallback(async (s, { quiet = false } = {}) => { // quiet: TASKS.csv #876 — refresh an open window only
@@ -6519,15 +6518,16 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const { holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop } = buildSectionPayload(a, b, s.corridor, s.scope || {}, s.id);
     const sectionImgs = await sectionImagesFor(a, b, s.corridor);
     openSectionWindow({ id: s.id, title: s.name, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, contacts: s.contacts || [], labels: s.labels || null, lithoUnits: litho_units, unitTags: sectionUnitTags, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, sectionImages: sectionImgs, modelBackdrop,
-      ghostStrings: ghostStrings(s, sections), outlineNames: outlineNamesOf(sections), ...(quiet ? { refreshOnly: true, ifOpen: true } : {}) }); // #519 — the neighbouring sections' strings; outlineNames: #874; quiet: #876
+      ghostStrings: (await import("../lib/sectionDigitise.js")).ghostStrings(s, sections), /* on use: #903 */ outlineNames: outlineNamesOf(sections), ...(quiet ? { refreshOnly: true, ifOpen: true } : {}) }); // #519 — the neighbouring sections' strings; outlineNames: #874; quiet: #876
   }, [layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, sectionUnitTags, terrain, voxelModels, implicitSurfaces, plannedHoles, sections, sectionImages, lastLithBlock]);
 
   // TASKS.csv #876 — the section window's ‹ › (previous / next parallel section) and Refresh
   const sectionStepRef = useRef(null);
-  sectionStepRef.current = ({ id, step, refresh }) => {
+  sectionStepRef.current = async ({ id, step, refresh }) => {
     const s = (sections || []).find((x) => x.id === id);
     if (!s) return;
     if (refresh) { reopenSection(s); return; }
+    const { stepSection } = await import("../lib/sectionDigitise.js"); // on use: #903
     const r = stepSection(s, sections, step, { fallback: Math.max(25, 2 * (s.corridor || sectionCorridor || 25)) });
     if (r.existing) { reopenSection(r.existing); return; }
     const off = Math.round(r.offset);
