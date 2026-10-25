@@ -5893,5 +5893,6 @@
   "Flat ends": "Bouts plats",
   "Extend ½ spacing": "Prolonger ½ espacement",
   "Pinch out": "En pointe",
-  "\"{name}\" was counted in {b} m blocks, so its boundary steps every {b} m. Estimating in {c} m blocks inside it does not place the contact any closer than {b} m: rebuild the unit volume at {c} m, or estimate in {b} m blocks.": "« {name} » a été compté en blocs de {b} m : sa limite avance par paliers de {b} m. Estimer en blocs de {c} m à l'intérieur ne place pas le contact plus finement que {b} m : reconstruisez le volume de l'unité à {c} m, ou estimez en blocs de {b} m."
+  "\"{name}\" was counted in {b} m blocks, so its boundary steps every {b} m. Estimating in {c} m blocks inside it does not place the contact any closer than {b} m: rebuild the unit volume at {c} m, or estimate in {b} m blocks.": "« {name} » a été compté en blocs de {b} m : sa limite avance par paliers de {b} m. Estimer en blocs de {c} m à l'intérieur ne place pas le contact plus finement que {b} m : reconstruisez le volume de l'unité à {c} m, ou estimez en blocs de {b} m.",
+  "Opacity. Over {n} blocks a see-through model is drawn as its outer skin (and, for a unit model, the contacts between units), so it stays fast; use the cutoff or a 3D slice to look inside.": "Opacité. Au-delà de {n} blocs, un modèle transparent est dessiné par sa peau extérieure (et, pour un modèle d'unités, les contacts entre unités) pour rester rapide ; utilisez le seuil ou une coupe 3D pour voir l'intérieur."
 }

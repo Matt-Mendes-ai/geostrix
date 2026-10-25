@@ -7,7 +7,10 @@
 //   Each axis has its own sorted cell boundaries (a regular block model, or a UBC / OMF tensor mesh whose padding or
 //   layer thickness varies - the Woodjam ZTEM has 75 m and 37.5 m layers); every block must span exactly one interval
 //   per axis. I / J / K are each block's interval indices. null for octree / sub-blocked / rotated models.
-// buildExposedFaces(cells, grid, origin, colorRGB) -> { positions, normals, colors, indices, faces } | null
+// buildExposedFaces(cells, grid, origin, colorRGB, { boundaries }) -> { positions, normals, colors, indices, faces } | null
+//   TASKS.csv #904 — boundaries: also the faces between two shown blocks of DIFFERENT value (a unit model's internal
+//   contacts), for a large transparent model: its insides cannot be drawn as millions of sorted boxes, but its skin
+//   and its contacts can be, as one mesh.
 //   cells: the blocks to show (a subset of the cells the grid was built from, same order not required);
 //   origin: the scene origin {x, y, z}; colorRGB(value) -> [r, g, b] 0-255 sRGB. Scene axes as everywhere in the
 //   viewer: X = east, Y = elevation, Z = -north. Colours are converted to linear (three.js's working space), so the
@@ -61,7 +64,7 @@ function faceTemplates() {
 }
 const FACES = faceTemplates();
 
-export function buildExposedFaces(cells, grid, origin, colorRGB, { maxGrid = 64e6 } = {}) {
+export function buildExposedFaces(cells, grid, origin, colorRGB, { maxGrid = 64e6, boundaries = false } = {}) {
   if (!cells.length || !grid) return null;
   const nx = grid.ex.length - 1, ny = grid.ey.length - 1, nz = grid.ez.length - 1;
   if (nx * ny * nz > maxGrid) return null;
@@ -76,17 +79,22 @@ export function buildExposedFaces(cells, grid, origin, colorRGB, { maxGrid = 64e
   }
   const occ = new Uint8Array(nx * ny * nz);
   for (let t = 0; t < n; t++) occ[(K[t] * ny + J[t]) * nx + I[t]] = 1;
-  const shown = (i, j, k) => i >= 0 && j >= 0 && k >= 0 && i < nx && j < ny && k < nz && occ[(k * ny + j) * nx + i] === 1;
+  // #904 — with boundaries, a neighbour of a different value counts as not shown (its face is drawn, from both sides)
+  let val = null;
+  if (boundaries) { val = new Float64Array(nx * ny * nz); for (let t = 0; t < n; t++) val[(K[t] * ny + J[t]) * nx + I[t]] = cells[t].value; }
+  let cur = 0; // the value of the block whose faces are being tested
+  const shown = (i, j, k) => i >= 0 && j >= 0 && k >= 0 && i < nx && j < ny && k < nz && occ[(k * ny + j) * nx + i] === 1 && (!val || val[(k * ny + j) * nx + i] === cur);
   // scene-axis neighbour step in grid indices: scene X = +i (east), scene Y = +k (elevation), scene Z = -j (north)
   const step = [[1, 0, 0], [0, 0, 1], [0, -1, 0]];
   let faces = 0;
-  for (let t = 0; t < n; t++) for (const f of FACES) { const d = step[f.a]; if (!shown(I[t] + f.s * d[0], J[t] + f.s * d[1], K[t] + f.s * d[2])) faces++; }
+  for (let t = 0; t < n; t++) { cur = cells[t].value; for (const f of FACES) { const d = step[f.a]; if (!shown(I[t] + f.s * d[0], J[t] + f.s * d[1], K[t] + f.s * d[2])) faces++; } }
   const positions = new Float32Array(faces * 12), normals = new Float32Array(faces * 12), colors = new Float32Array(faces * 12);
   const indices = new Uint32Array(faces * 6);
   const { ex, ey, ez } = grid;
   let q = 0;
   for (let t = 0; t < n; t++) {
     const i = I[t], j = J[t], k = K[t];
+    cur = cells[t].value;
     // scene bounds [low, high] per scene axis (Z = -north, so north's high edge is scene Z's low bound)
     const B = [[ex[i] - origin.x, ex[i + 1] - origin.x], [ez[k] - origin.z, ez[k + 1] - origin.z], [-(ey[j + 1] - origin.y), -(ey[j] - origin.y)]];
     let rgb = null;

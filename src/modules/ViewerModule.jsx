@@ -701,10 +701,15 @@ const TREND_PREVIEW = { ellipsoid: colors.info, plane: colors.info, axis: colors
 // TASKS.csv #684 — a "point" layer row that is really an interval (mineralisation logs)
 const isIntervalRow = (r) => Number.isFinite(r.from) && Number.isFinite(r.to) && r.to - r.from > 0.5;
 const VOXEL_DISPLAY_ONLY = new Set(["opacity", "visible", "name"]);
+// TASKS.csv #904 — above this many shown blocks a TRANSPARENT model is drawn as one face mesh (its skin and, for a unit
+// model, its contacts) instead of sorted instanced boxes: Matt, "the block models render very fast even with a high
+// budget of 10 million. But when I change the opacity they render very slow" - 10 M boxes are 120 M blended triangles,
+// and the back-to-front re-sort of 10 M instances ran every 150 ms while the camera moved.
+const TRANSPARENT_BOX_LIMIT = 200_000;
 function voxelGeometryUnchanged(a, b) {
   if (a === b) return true;
   for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) if (!VOXEL_DISPLAY_ONLY.has(k) && a[k] !== b[k]) return false;
-  return ((a.opacity ?? 0.85) < 1) === ((b.opacity ?? 0.85) < 1);
+  return ((a.opacity ?? 0.85) < 1) === ((b.opacity ?? 0.85) < 1); // (a big model's transparent face mesh is built when it turns transparent: #904)
 }
 
 export default function ViewerModule({ mode = "view", visible = true }) {
@@ -5398,21 +5403,23 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       // lighting; nothing reads per-instance ids from voxel meshes (they are not pick targets with tooltips).
       // Not while a 3D slice is on: the face mesh is hollow, so a cut through it would show an empty inside where the
       // boxes show the blocks behind the cut.
-      if (opacity >= 1 && !sliceOn) {
+      const bigTransparent = opacity < 1 && cells.length > TRANSPARENT_BOX_LIMIT; // #904
+      if ((opacity >= 1 || bigTransparent) && !sliceOn) {
         const G = voxelGridOf(model);
-        const fm = G ? buildExposedFaces(cells, G, { x: ox, y: oy, z: oz }, makeVoxelColorResolverRGB(model)) : null;
+        const fm = G ? buildExposedFaces(cells, G, { x: ox, y: oy, z: oz }, makeVoxelColorResolverRGB(model), { boundaries: bigTransparent && model.colorMode === "discrete" }) : null;
         if (fm) {
           const g = new THREE.BufferGeometry();
           g.setAttribute("position", new THREE.BufferAttribute(fm.positions, 3));
           g.setAttribute("normal", new THREE.BufferAttribute(fm.normals, 3));
           g.setAttribute("color", new THREE.BufferAttribute(fm.colors, 3));
           g.setIndex(new THREE.BufferAttribute(fm.indices, 1));
-          const fmesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true }));
+          // #904 — transparent: blended without a per-frame sort (one mesh of faces), both sides drawn so the far skin shows
+          const fmesh = new THREE.Mesh(g, bigTransparent ? new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide }) : new THREE.MeshLambertMaterial({ vertexColors: true }));
           fmesh.visible = model.visible !== false;
           fmesh.userData.transparentCells = null;
           fmesh.userData.srcModel = model;
           fmesh.userData.origin = `${ox},${oy},${oz}`;
-          fmesh.userData.exposedFaces = { faces: fm.faces, cells: cells.length };
+          fmesh.userData.exposedFaces = { faces: fm.faces, cells: cells.length, transparent: bigTransparent };
           fmesh.userData.sliceOn = sliceOn;
           group.add(fmesh);
           voxelMeshesRef.current[model.id] = fmesh;
@@ -7127,7 +7134,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <input
                   type="range" min={0.1} max={1} step={0.05} value={v.opacity ?? 1}
                   onChange={(e) => updateVoxelModel(v.id, { opacity: Number(e.target.value) })}
-                  style={{ width: 46, flexShrink: 0 }} title={tr("Opacity")}
+                  style={{ width: 46, flexShrink: 0 }} title={(v.cells?.length || 0) > TRANSPARENT_BOX_LIMIT ? tr("Opacity. Over {n} blocks a see-through model is drawn as its outer skin (and, for a unit model, the contacts between units), so it stays fast; use the cutoff or a 3D slice to look inside.", { n: TRANSPARENT_BOX_LIMIT.toLocaleString() }) : tr("Opacity")} /* #904 */
                 />
                 <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), tr("Edit legend / classify / palette for this model in the Geophysics tab"))} />
                 <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove block/voxel model \"{name}\"?", { name: v.name }), { recover: tr("it would have to be re-imported or re-run.") })) removeVoxelModel(v.id); }, tr("Remove block/voxel model \"{name}\"", { name: v.name }))} />
