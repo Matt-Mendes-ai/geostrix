@@ -96,6 +96,7 @@ p.sub { color: var(--muted); margin: 0 0 32px; max-width: 720px; }
 .slide > a img { max-width: 100%; }
 .slide .pair { display: flex; gap: 20px; justify-content: center; align-items: flex-start; width: 100%; }
 .slide .pair a { flex: 1 1 0; display: flex; justify-content: center; min-width: 0; }
+.slide .pair img { max-width: 100%; height: auto; }
 .slide figcaption { font-size: 15px; color: var(--muted); margin-top: 12px; max-width: 820px; text-align: center; }
 .controls { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; }
 .controls button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 999px; }
