@@ -4062,9 +4062,6 @@
   "Switch to the 3D View tab and interactively orbit/pan/zoom this viewport's camera, then bring the new angle back here": "الانتقال إلى تبويب العرض ثلاثي الأبعاد وتدوير/تحريك/تكبير كاميرا نافذة العرض هذه تفاعليًا، ثم إعادة الزاوية الجديدة إلى هنا",
   "Enter & adjust view…": "الدخول وضبط العرض…",
   "True scale (orthographic) — exact, not just at the camera's focus point. Refresh to apply.": "المقياس الحقيقي (متعامد) — دقيق، لا عند نقطة تركيز الكاميرا فقط. حدّث للتطبيق.",
-  "Plot this viewport at an exact scale, e.g. 1 : 1000. Turns on true scale. The view stays centred where the camera looks; resize the frame first if you need more or less ground at that scale, then refresh.": "رسم نافذة العرض هذه بمقياس دقيق، مثل 1 : 1000. يفعّل المقياس الحقيقي. يبقى العرض متمركزًا حيث تنظر الكاميرا؛ غيّر حجم الإطار أولًا إن احتجت أرضًا أكثر أو أقل بذلك المقياس، ثم حدّث.",
-  "Fixed scale 1 :": "مقياس ثابت 1 :",
-  "free": "حر",
   "Fixed plot scale denominator": "مقام مقياس الرسم الثابت",
   "Refresh to capture at this scale.": "حدّث للالتقاط بهذا المقياس.",
   "Frame width": "عرض الإطار",
@@ -5965,5 +5962,13 @@
   "X (mm)": "X (مم)",
   "Y (mm)": "Y (مم)",
   "W (mm)": "العرض (مم)",
-  "H (mm)": "الارتفاع (مم)"
+  "H (mm)": "الارتفاع (مم)",
+  "Scale 1 :": "المقياس 1 :",
+  "Plot scale": "مقياس الرسم",
+  "free (as framed)": "حر (كما أُطّر)",
+  "custom…": "مخصص…",
+  "Plot this viewport at an exact scale. The frame's size on the paper is the ground it shows: resize it for more or less ground, then refresh. Turns on true scale.": "ارسم هذا المنظر بمقياس دقيق. حجم الإطار على الورقة هو الأرض التي يعرضها: غيّر حجمه لأرض أكثر أو أقل ثم حدّث. يفعّل المقياس الحقيقي.",
+  "Nothing to fit: the project has no located data yet.": "لا شيء لملاءمته: لا يحتوي المشروع على بيانات ذات موقع بعد.",
+  "Fit the holes at a round scale": "ملاءمة ثقوب الحفر بمقياس مقرّب",
+  "Pick the round scale at which all the drillholes (or the surface samples / boundaries) fit this frame, centre the view on them, and refresh": "اختر المقياس المقرّب الذي تتسع فيه كل ثقوب الحفر (أو العينات السطحية / الحدود) داخل هذا الإطار، ومركز المنظر عليها، ثم حدّث"
 }

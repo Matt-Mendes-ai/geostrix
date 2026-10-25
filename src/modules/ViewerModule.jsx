@@ -3003,6 +3003,14 @@ ${describeTrend(t)}` };
     renderer.setScissorTest(false);
 
     const cs = camState.current;
+    // TASKS.csv #907 — a requested centre (Layout's "Fit the holes"): the orbit target moves to that world E / N, same
+    // elevation, for this capture only - restoreLiveView below puts the user's own camera back
+    if (req.centreWorld) {
+      const o = originRef.current;
+      cs.target.set(req.centreWorld.x - o.x, cs.target.y, o.y - req.centreWorld.y);
+      camera.__update?.();
+      camera.updateMatrixWorld();
+    }
     const fovRad = (camera.fov * Math.PI) / 180;
     // TASKS.csv #69 — true-scale (orthographic) capture. A perspective camera's world-to-pixel
     // scale is only exact AT the target distance (cs.radius) — nearer/farther geometry reads
@@ -3074,17 +3082,20 @@ ${describeTrend(t)}` };
     // CSS rotation on the printed page — reusing the ring's -theta directly here would point every
     // synced arrow off by a mirror-flip, not just a wrong-but-consistent offset.
     const cameraAzimuthDeg = ((cs.theta * 180) / Math.PI) % 360;
-    // Restore the user's own live view now that every value the capture needed (dataUrl,
-    // worldHeightAtTarget, cameraAzimuthDeg) has already been read out of `cs`/the canvas above —
-    // this is what actually fixes #202 (see this effect's top comment): without it, the theme
-    // applied for this capture was left in place, silently showing up as "my toggled-off layers
-    // are back on" whenever the user next looked at the 3D View tab.
-    restoreLiveView(liveViewBeforeRender);
     // TASKS.csv #399 — where the view is centred (world E/N) and whether it looks straight down, so Layout
     // can draw a labelled UTM grid over a top-down, true-scale capture. Scene -> world: E = x + ox, N = oy - z.
+    // TASKS.csv #907 — read BEFORE restoreLiveView below: it used to be read after, i.e. from the user's own live
+    // camera, not the capture's - wrong for a themed viewport whose theme looks elsewhere than the live view, and
+    // for a capture centred on the holes (Fit), whose grid would then have been offset by that difference.
     const o = originRef.current;
     const targetWorld = { x: cs.target.x + o.x, y: o.y - cs.target.z };
     const planView = cs.phi <= 0.0205; // within ~1.2 deg of straight down. #398: was "< 0.02", but the Top button sets exactly 0.02, so a Top view never counted as plan and the UTM grid stayed disabled
+    // Restore the user's own live view now that every value the capture needed (dataUrl,
+    // worldHeightAtTarget, cameraAzimuthDeg, targetWorld, planView) has already been read out of `cs`/the canvas
+    // above — this is what actually fixes #202 (see this effect's top comment): without it, the theme
+    // applied for this capture was left in place, silently showing up as "my toggled-off layers
+    // are back on" whenever the user next looked at the 3D View tab.
+    restoreLiveView(liveViewBeforeRender);
     resolveViewportRender({
       requestId: req.requestId, src: dataUrl, naturalW: shotW, naturalH: shotH,
       worldHeightAtTarget, themeName: theme?.name, cameraAzimuthDeg, trueScale: !!req.trueScale, targetWorld, planView, fixedScale: orthoHalfH != null && req.fixedScale > 0 ? req.fixedScale : null,

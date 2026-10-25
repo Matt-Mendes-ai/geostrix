@@ -4062,9 +4062,6 @@
   "Switch to the 3D View tab and interactively orbit/pan/zoom this viewport's camera, then bring the new angle back here": "Mudar para a aba Visão 3D e orbitar/mover/aproximar a câmera desta janela de visualização, depois trazer o novo ângulo para cá",
   "Enter & adjust view…": "Entrar e ajustar a visão…",
   "True scale (orthographic) — exact, not just at the camera's focus point. Refresh to apply.": "Escala real (ortográfica) — exata, não só no ponto de foco da câmera. Atualize para aplicar.",
-  "Plot this viewport at an exact scale, e.g. 1 : 1000. Turns on true scale. The view stays centred where the camera looks; resize the frame first if you need more or less ground at that scale, then refresh.": "Imprime esta janela de visualização numa escala exata, p. ex. 1 : 1000. Liga a escala real. A visão fica centrada onde a câmera olha; redimensione antes o quadro se precisar de mais ou menos terreno nessa escala, e depois atualize.",
-  "Fixed scale 1 :": "Escala fixa 1 :",
-  "free": "livre",
   "Fixed plot scale denominator": "Denominador da escala fixa de impressão",
   "Refresh to capture at this scale.": "Atualize para capturar nesta escala.",
   "Frame width": "Largura do quadro",
@@ -5965,5 +5962,13 @@
   "X (mm)": "X (mm)",
   "Y (mm)": "Y (mm)",
   "W (mm)": "L (mm)",
-  "H (mm)": "A (mm)"
+  "H (mm)": "A (mm)",
+  "Scale 1 :": "Escala 1 :",
+  "Plot scale": "Escala de plotagem",
+  "free (as framed)": "livre (como enquadrado)",
+  "custom…": "personalizada…",
+  "Plot this viewport at an exact scale. The frame's size on the paper is the ground it shows: resize it for more or less ground, then refresh. Turns on true scale.": "Plotar esta vista numa escala exata. O tamanho do quadro no papel é o terreno que ele mostra: redimensione-o para mais ou menos terreno e depois atualize. Ativa a escala real.",
+  "Nothing to fit: the project has no located data yet.": "Nada a ajustar: o projeto ainda não tem dados localizados.",
+  "Fit the holes at a round scale": "Ajustar os furos a uma escala redonda",
+  "Pick the round scale at which all the drillholes (or the surface samples / boundaries) fit this frame, centre the view on them, and refresh": "Escolher a escala redonda em que todos os furos (ou as amostras de superfície / limites) cabem neste quadro, centrar a vista neles e atualizar"
 }

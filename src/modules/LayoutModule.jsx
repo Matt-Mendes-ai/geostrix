@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
-import { Plus, X, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid } from "../components/icons.js";
+import { Plus, X, Maximize2, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid } from "../components/icons.js";
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { savePDF } from "../lib/desktop.js";
 import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
@@ -28,6 +28,8 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the 
 const SCALE_BAR_PX = 180; // default/initial bar length (px) for a freshly-added, never-synced scale bar
 const PX_PER_MM = 96 / 25.4; // matches the ~96dpi assumption used throughout Layout (scale bar, viewport scale estimate)
 const DEFAULT_PX_PER_METER = SCALE_BAR_PX / 100; // a plain "Add scale bar" starts at 100 m / 180 px, same as before this element gained a real px-per-metre ratio
+// TASKS.csv #907 — the plot scales exploration figures are drawn at (Matt: "set a scale eg 1:5000, 1:10000")
+const SCALE_PRESETS = [500, 1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000, 100000];
 
 // "Customize the scale bar by changing the number, but without changing the scale — if I change 200
 // to 300 the SIZE of the bar has to change." A scale element now carries pxPerMeter: how many on-page
@@ -63,6 +65,7 @@ export default function LayoutModule() {
     // only records which units were filtered/hidden at capture time, not the vocabulary itself.
     // TASKS.csv #130 — collars/sections needed for the Atlas batch-page-generation feature below.
     layers, collars, sections, project,
+    surfaceSamples, boundaries, // TASKS.csv #907 — what "Fit the holes" fits when there are no holes
     assays, assayElements, voxelModels, // TASKS.csv #725 — the legend loads assay classes and block-model keys too
     // TASKS.csv #101 — same "must survive the Viewer round-trip unmount" reasoning as elements/
     // layoutSelectRequest above: local state here would silently drop the grid's viewport binding
@@ -275,6 +278,30 @@ export default function LayoutModule() {
           groupOrigin: new Map(elements.filter((e2) => multiSelected.has(e2.id)).map((e2) => [e2.id, { x: e2.x, y: e2.y }])),
         }
       : { id: el.id, offX: e.clientX - rect.left - el.x, offY: e.clientY - rect.top - el.y, groupOrigin: null };
+  };
+  // TASKS.csv #907 — "Fit the holes": the smallest round scale (1 / 1.5 / 2 / 2.5 / 3 / 4 / 5 / 6 / 8 x 10^n - finer than
+  // the presets, since a wide landscape frame over N-S data jumped from a needed 1:25,934 straight to 1:50,000) at which
+  // the project's located data - collars, else surface samples, else boundaries - fits this frame with a 10 % margin, seen
+  // the way the viewport's last capture looked (its azimuth), centred on that data, then a refresh at that scale and
+  // centre. The check is in plan: for an oblique view the vertical extent is not a map distance, so it is approximate
+  // there and exact for a top-down view.
+  const fitViewport = (sel) => {
+    const pts = [];
+    for (const c of collars || []) if (Number.isFinite(c.x) && Number.isFinite(c.y)) pts.push([c.x, c.y]);
+    if (!pts.length) for (const s of surfaceSamples || []) if (Number.isFinite(s.x) && Number.isFinite(s.y)) pts.push([s.x, s.y]);
+    if (!pts.length) for (const b of boundaries || []) for (const pl of b.polylines || []) for (const p of pl) if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) pts.push([p.x, p.y]);
+    if (!pts.length) { setSyncNotice(tr("Nothing to fit: the project has no located data yet.")); return; }
+    const beta = (-(sel.cameraAzimuthDeg || 0) * Math.PI) / 180, cb = Math.cos(beta), sb = Math.sin(beta);
+    let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+    for (const [E, N] of pts) { const u = E * cb - N * sb, v = -(E * sb + N * cb); if (u < u0) u0 = u; if (u > u1) u1 = u; if (v < v0) v0 = v; if (v > v1) v1 = v; }
+    const um = (u0 + u1) / 2, vm = (v0 + v1) / 2; // the box's middle, back to world (the inverse of the rotation above)
+    const centreWorld = { x: um * cb - vm * sb, y: -(um * sb + vm * cb) };
+    const frameWm = (sel.w / 96) * 0.0254, frameHm = (sel.h / 96) * 0.0254;
+    const need = Math.max(((u1 - u0) * 1.1) / frameWm, ((v1 - v0) * 1.1) / frameHm, 1);
+    const mag = 10 ** Math.floor(Math.log10(need));
+    const scale = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].map((m) => Math.round(m * mag)).find((n) => n >= need);
+    updateSelected({ fixedScale: scale, trueScale: true });
+    startViewportRender(sel.themeId, sel.id, true, { fixedScale: scale, elementW: sel.w, elementH: sel.h, centreWorld });
   };
   // TASKS.csv #906 — a resize handle was pressed (see Handles / the resize branch of the drag effect above)
   const onResizeStart = (e, el, handle) => {
@@ -778,6 +805,7 @@ export default function LayoutModule() {
                 onRefresh={() => startViewportRender(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
                 onRebind={(themeId) => startViewportRender(themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
                 onEnter={() => startInteractiveViewportEdit(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
+                onFit={() => fitViewport(sel)}
                 onSyncScaleBar={() => syncScaleBarForElement(sel, sel.worldHeightAtTarget, sel.capH || sel.h)}
                 onSyncNorth={() => {
                   // TASKS.csv #67 — same pattern as onSyncScaleBar just above: apply this viewport's
@@ -1135,7 +1163,10 @@ function UtmGridOverlay({ el }) {
   );
 }
 
-function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, onEnter, onSyncScaleBar, onSyncNorth, syncNotice }) {
+function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, onEnter, onFit, onSyncScaleBar, onSyncNorth, syncNotice }) {
+  // TASKS.csv #907 — the scale picker: a preset, "custom" (a typed 1:N), or free (whatever the 3D view frames)
+  const [customScale, setCustomScale] = useState(false);
+  const scaleChoice = customScale || (sel.fixedScale > 0 && !SCALE_PRESETS.includes(sel.fixedScale)) ? "custom" : sel.fixedScale > 0 ? String(sel.fixedScale) : "";
   // TASKS.csv #69 — the "~" prefix and hedge text below only apply to a perspective capture (the
   // ordinary, pre-#69 default) — sel.trueScale means the LAST capture was rendered with an
   // orthographic camera (see startViewportRender/ViewerModule's capture effect), which makes
@@ -1184,13 +1215,28 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
           retroactively on the image already captured — toggling it alone doesn't re-render. */}
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }}>
         <input type="checkbox" checked={!!sel.trueScale} onChange={(e) => updateSelected({ trueScale: e.target.checked })} />{tr("True scale (orthographic) — exact, not just at the camera's focus point. Refresh to apply.")}</label>
-      {/* TASKS.csv #398 — a user-chosen plot scale. The capture is framed to it (centred where the camera
-          looks); the frame's width is kept and its height follows the view's shape. */}
+      {/* TASKS.csv #398 / #907 — the plot scale. The frame's size on the paper is the ground it shows at 1:N (#906:
+          the capture is drawn at the frame's own aspect), centred where the camera looks or, with Fit, on the data. */}
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 4 }}
-        title={tr("Plot this viewport at an exact scale, e.g. 1 : 1000. Turns on true scale. The view stays centred where the camera looks; resize the frame first if you need more or less ground at that scale, then refresh.")}>{tr("Fixed scale 1 :")}<input type="number" min="1" step="any" placeholder={tr("free")} value={sel.fixedScale || ""} aria-label={tr("Fixed plot scale denominator")}
-          onChange={(e) => { const n = Number(e.target.value) || 0; updateSelected(n > 0 ? { fixedScale: n, trueScale: true } : { fixedScale: 0 }); }}
-          style={{ width: 80, fontSize: "var(--font-size-sm)" }} />
+        title={tr("Plot this viewport at an exact scale. The frame's size on the paper is the ground it shows: resize it for more or less ground, then refresh. Turns on true scale.")}>{tr("Scale 1 :")}
+        <select value={scaleChoice} aria-label={tr("Plot scale")} onChange={(e) => {
+          const v = e.target.value;
+          if (v === "") { setCustomScale(false); updateSelected({ fixedScale: 0 }); }
+          else if (v === "custom") { setCustomScale(true); if (!(sel.fixedScale > 0)) updateSelected({ fixedScale: 1000, trueScale: true }); }
+          else { setCustomScale(false); updateSelected({ fixedScale: Number(v), trueScale: true }); }
+        }} style={{ ...inp, flex: 1, marginTop: 0, marginBottom: 0, padding: "4px 6px", fontSize: "var(--font-size-sm)" }}>
+          <option value="">{tr("free (as framed)")}</option>
+          {SCALE_PRESETS.map((n) => <option key={n} value={String(n)}>{n.toLocaleString()}</option>)}
+          <option value="custom">{tr("custom…")}</option>
+        </select>
+        {scaleChoice === "custom" && (
+          <input type="number" min="1" step="any" value={sel.fixedScale || ""} aria-label={tr("Fixed plot scale denominator")}
+            onChange={(e) => { const n = Number(e.target.value) || 0; updateSelected(n > 0 ? { fixedScale: n, trueScale: true } : { fixedScale: 0 }); }}
+            style={{ width: 72, fontSize: "var(--font-size-sm)" }} />
+        )}
       </label>
+      <button onClick={onFit} disabled={sel.refreshing} title={tr("Pick the round scale at which all the drillholes (or the surface samples / boundaries) fit this frame, centre the view on them, and refresh")} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
+        <Maximize2 size={14} />{" "}{tr("Fit the holes at a round scale")}</button>
       {sel.fixedScale > 0 && (
         <div style={{ fontSize: "var(--font-size-xs)", color: sel.capturedFixedScale === sel.fixedScale ? "var(--color-success-fg)" : "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>
           {sel.capturedFixedScale === sel.fixedScale

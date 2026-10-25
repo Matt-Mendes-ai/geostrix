@@ -4062,9 +4062,6 @@
   "Switch to the 3D View tab and interactively orbit/pan/zoom this viewport's camera, then bring the new angle back here": "Passer à l'onglet Vue 3D et orbiter/déplacer/zoomer interactivement la caméra de cette fenêtre, puis ramener le nouvel angle ici",
   "Enter & adjust view…": "Entrer et ajuster la vue…",
   "True scale (orthographic) — exact, not just at the camera's focus point. Refresh to apply.": "Échelle réelle (orthographique) — exacte, pas seulement au point de visée de la caméra. Actualisez pour appliquer.",
-  "Plot this viewport at an exact scale, e.g. 1 : 1000. Turns on true scale. The view stays centred where the camera looks; resize the frame first if you need more or less ground at that scale, then refresh.": "Tracer cette fenêtre à une échelle exacte, p. ex. 1 : 1000. Active l'échelle réelle. La vue reste centrée là où regarde la caméra ; redimensionnez d'abord le cadre si vous avez besoin de plus ou moins de terrain à cette échelle, puis actualisez.",
-  "Fixed scale 1 :": "Échelle fixe 1 :",
-  "free": "libre",
   "Fixed plot scale denominator": "Dénominateur de l'échelle de tracé fixe",
   "Refresh to capture at this scale.": "Actualisez pour capturer à cette échelle.",
   "Frame width": "Largeur du cadre",
@@ -5965,5 +5962,13 @@
   "X (mm)": "X (mm)",
   "Y (mm)": "Y (mm)",
   "W (mm)": "L (mm)",
-  "H (mm)": "H (mm)"
+  "H (mm)": "H (mm)",
+  "Scale 1 :": "Échelle 1 :",
+  "Plot scale": "Échelle du tracé",
+  "free (as framed)": "libre (tel que cadré)",
+  "custom…": "personnalisée…",
+  "Plot this viewport at an exact scale. The frame's size on the paper is the ground it shows: resize it for more or less ground, then refresh. Turns on true scale.": "Tracer cette vue à une échelle exacte. La taille du cadre sur le papier est le terrain qu'il montre : redimensionnez-le pour plus ou moins de terrain, puis actualisez. Active l'échelle vraie.",
+  "Nothing to fit: the project has no located data yet.": "Rien à ajuster : le projet n'a pas encore de données localisées.",
+  "Fit the holes at a round scale": "Ajuster les sondages à une échelle ronde",
+  "Pick the round scale at which all the drillholes (or the surface samples / boundaries) fit this frame, centre the view on them, and refresh": "Choisir l'échelle ronde à laquelle tous les sondages (ou les échantillons de surface / limites) tiennent dans ce cadre, centrer la vue dessus et actualiser"
 }

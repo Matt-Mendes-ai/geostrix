@@ -727,8 +727,10 @@ export function StoreProvider({ children }) {
     // TASKS.csv #906 — and the frame's height: the capture is rendered at the frame's own aspect, so the image fills
     // whatever shape the user dragged the frame to (ViewerModule's doCaptureViewportRender).
     const elementH = Number(opts.elementH) > 0 ? Number(opts.elementH) : null;
+    // TASKS.csv #907 — "Fit the holes": the capture is centred on this world E / N instead of where the camera looked
+    const centreWorld = opts.centreWorld && Number.isFinite(opts.centreWorld.x) && Number.isFinite(opts.centreWorld.y) ? { x: opts.centreWorld.x, y: opts.centreWorld.y } : null;
     setViewportPendingRequest({ requestId, targetElementId, themeId, trueScale, interactive, fixedScale, elementW, elementH });
-    setViewportRenderRequest({ requestId, themeId, trueScale, interactive, fixedScale, elementW, elementH });
+    setViewportRenderRequest({ requestId, themeId, trueScale, interactive, fixedScale, elementW, elementH, centreWorld });
     setViewportRenderRequestSeq((s) => s + 1);
     return requestId;
   }, []);

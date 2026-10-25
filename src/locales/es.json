@@ -4062,9 +4062,6 @@
   "Switch to the 3D View tab and interactively orbit/pan/zoom this viewport's camera, then bring the new angle back here": "Cambiar a la pestaña Vista 3D y orbitar/desplazar/acercar la cámara de esta ventana gráfica, luego traer el nuevo ángulo aquí",
   "Enter & adjust view…": "Entrar y ajustar la vista…",
   "True scale (orthographic) — exact, not just at the camera's focus point. Refresh to apply.": "Escala real (ortográfica) — exacta, no solo en el punto de foco de la cámara. Actualice para aplicar.",
-  "Plot this viewport at an exact scale, e.g. 1 : 1000. Turns on true scale. The view stays centred where the camera looks; resize the frame first if you need more or less ground at that scale, then refresh.": "Imprime esta ventana gráfica a una escala exacta, p. ej. 1 : 1000. Activa la escala real. La vista queda centrada donde mira la cámara; cambie primero el tamaño del marco si necesita más o menos terreno a esa escala, y luego actualice.",
-  "Fixed scale 1 :": "Escala fija 1 :",
-  "free": "libre",
   "Fixed plot scale denominator": "Denominador de la escala fija de impresión",
   "Refresh to capture at this scale.": "Actualice para capturar a esta escala.",
   "Frame width": "Ancho del marco",
@@ -5965,5 +5962,13 @@
   "X (mm)": "X (mm)",
   "Y (mm)": "Y (mm)",
   "W (mm)": "Ancho (mm)",
-  "H (mm)": "Alto (mm)"
+  "H (mm)": "Alto (mm)",
+  "Scale 1 :": "Escala 1 :",
+  "Plot scale": "Escala de ploteo",
+  "free (as framed)": "libre (como se encuadró)",
+  "custom…": "personalizada…",
+  "Plot this viewport at an exact scale. The frame's size on the paper is the ground it shows: resize it for more or less ground, then refresh. Turns on true scale.": "Plotear esta vista a una escala exacta. El tamaño del marco en el papel es el terreno que muestra: cambie su tamaño para más o menos terreno y luego actualice. Activa la escala real.",
+  "Nothing to fit: the project has no located data yet.": "Nada que ajustar: el proyecto aún no tiene datos ubicados.",
+  "Fit the holes at a round scale": "Ajustar los sondajes a una escala redonda",
+  "Pick the round scale at which all the drillholes (or the surface samples / boundaries) fit this frame, centre the view on them, and refresh": "Elegir la escala redonda en la que todos los sondajes (o las muestras superficiales / límites) caben en este marco, centrar la vista en ellos y actualizar"
 }
