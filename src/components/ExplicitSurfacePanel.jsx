@@ -23,9 +23,9 @@ const LINE_SPACING = 10; // m between the points taken along a drawn section lin
 const MAP_STEP = 25; // m between the points taken along a mapped contact (#817)
 
 // a short, stable fingerprint of what the surface is built from: rebuilt only when it changes
-function inputKey(def, ep, hasTerrain, faultGeo = null) {
+function inputKey(def, ep, hasTerrain, faultGeo = null, trend = null) {
   const s = JSON.stringify([ep.points.map((p) => [p.x, p.y, p.z].map((v) => Math.round(v * 100))), def.margin ?? null, def.resolution || 80, !!(def.cutAtTerrain && hasTerrain), ...(def.shape ? [def.shape] : []),
-    ...(def.boundedBy ? [def.boundedBy.surfaceId, def.boundedBy.side, faultGeo] : [])]); // boundedBy: TASKS.csv #861 (absent: same key as before) // shape: #824 (absent on older surfaces: same key as before, no rebuild)
+    ...(def.boundedBy ? [def.boundedBy.surfaceId, def.boundedBy.side, faultGeo] : []), ...(trend ? [[trend.dip, trend.dipAzimuth, trend.pitch, trend.ratios?.max, trend.ratios?.int]] : [])]); /* trend: #881 (none: same key as before) */ // boundedBy: TASKS.csv #861 (absent: same key as before) // shape: #824 (absent on older surfaces: same key as before, no rebuild)
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return `${ep.points.length}:${(h >>> 0).toString(36)}`;
@@ -100,6 +100,7 @@ function upsertMesh(sc, def, res, info) {
     // TASKS.csv #857 / #870 — the quality figures (maxMisfitM is only solver health: the fit at the inputs is exact by construction)
     looRmsM: res.quality.looRmsM == null ? null : Number(res.quality.looRmsM.toFixed(2)), looMaxM: res.quality.looMaxM == null ? null : Number(res.quality.looMaxM.toFixed(2)),
     overshootM: Number(res.quality.overshootM.toFixed(1)), extrapolatedPct: Math.round(res.quality.beyondPct), furthestFromInputM: Math.round(res.quality.furthestM), cutAtTerrain: res.groundCut > 0, builtAt: new Date().toISOString(),
+    ...(res.trend ? { trend: { name: info.trendName || null, ratio: Number(res.trend.ratio.toFixed(2)), alongAzimuthDeg: Math.round(res.trend.azimuthDeg) } } : {}), // TASKS.csv #881
     builtKey: info.key }; // TASKS.csv #886 — saved with the surface, so a reopened project does not rebuild (and dirty) it
   sc.activity.current = Date.now();
   const old = def.surfaceId && sc.meshes.current[def.surfaceId];
@@ -121,7 +122,7 @@ function upsertMesh(sc, def, res, info) {
   return id;
 }
 
-export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesSeq = 0 /* #888 */, defs, setDefs, sections, terrain, mapLayers, surfaceStructures, sectionImages = [], unitChoices = [] /* #831 */, onDigitizeImage, pickFor, setPickFor, snap, setSnap, scene: sc, onRemove, askPrompt, pBtn, smallSel, numInput }) {
+export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesSeq = 0 /* #888 */, trend = null /* #881 */, defs, setDefs, sections, terrain, mapLayers, surfaceStructures, sectionImages = [], unitChoices = [] /* #831 */, onDigitizeImage, pickFor, setPickFor, snap, setSnap, scene: sc, onRemove, askPrompt, pBtn, smallSel, numInput }) {
   const hasTerrain = !!terrain?.bbox;
   const groundAt = (x, y) => {
     const [x0, y0, x1, y1] = terrain.bbox;
@@ -559,7 +560,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   useEffect(() => {
     if (!def || !ep) return undefined;
     const faultMesh = def.boundedBy ? sc.meshes.current[def.boundedBy.surfaceId] : null;
-    const key = inputKey(def, ep, hasTerrain, def.boundedBy ? faultMesh?.geometry?.uuid || "missing" : null);
+    const key = inputKey(def, ep, hasTerrain, def.boundedBy ? faultMesh?.geometry?.uuid || "missing" : null, trend);
     wantKey.current = key;
     // #828 — the key the MESH was built from (an Undo brings back an older def.builtKey together with the older inputs, so
     // comparing with def.builtKey alone would leave the newer mesh on screen); def.builtKey for a mesh opened from a file
@@ -587,7 +588,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         const appDip = sectionLines.length ? medianApparentDip(sectionLines) : null;
         // a surface made before #824 has no shape: it keeps the best-fit-plane rule it was built with
         const frame = def.shape === "map" || def.shape === "plane" ? def.shape : def.shape === "auto" && appDip != null ? (appDip < 45 ? "map" : "plane") : "auto";
-        const res = await fitExplicitSurfaceAsync(ep.points, { margin: def.margin, resolution: def.resolution || 80, frame }, def.cutAtTerrain && hasTerrain ? terrain : null);
+        const res = await fitExplicitSurfaceAsync(ep.points, { margin: def.margin, resolution: def.resolution || 80, frame, trend }, def.cutAtTerrain && hasTerrain ? terrain : null); // trend: #881
         clearTimeout(slow);
         if (wantKey.current !== key) return; // the inputs changed while it was building: a newer build is on its way
         // TASKS.csv #861 — Matt: each fault block gets its own surface, trimmed at the fault (nothing invented: the picks of
@@ -616,7 +617,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         }
         const ms = Math.round(performance.now() - t0);
         const sculpted = (def.surfaceId && surfaces.find((s) => s.id === def.surfaceId)?.editCount) || 0; // TASKS.csv #879
-        const surfaceId = upsertMesh(sc, def, res, { picks: ep.picks, lines: ep.lines, sections: ep.sections, spacing: ep.spacing, mapLines: ep.mapLines, guideLines: ep.guideLines, key });
+        const surfaceId = upsertMesh(sc, def, res, { trendName: trend?.name, picks: ep.picks, lines: ep.lines, sections: ep.sections, spacing: ep.spacing, mapLines: ep.mapLines, guideLines: ep.guideLines, key });
         // #828 — the mesh remembers its key (userData.builtKey); the def is only written when it had no mesh id yet (a
         // surface from before #828), so building is never an Undo step of its own that would hide the real edit
         if (surfaceId !== def.surfaceId) setDefs((p) => p.map((d) => (d.id === def.id ? { ...d, surfaceId } : d)));
@@ -632,12 +633,13 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         }) + (ep.drawnLines ? ` ${tr("Includes {n} line(s) digitized on section images.", { n: ep.drawnLines })}` : "") + (ep.mapLines ? ` ${tr("Includes {m} mapped contact line(s){g}.", { m: ep.mapLines, g: ep.guideLines ? tr(" and {g} dip guide line(s) (constructed, {d} m down-dip)", { g: ep.guideLines, d: Number(def.dipGuide?.depth) || 100 }) : "" })}` : "")
           + (ep.lineTolM > 0 ? ` ${tr("To keep the build fast, the section lines were simplified to within {t} m ({k} of {n} vertices kept, corners and ends included).", { t: ep.lineTolM, k: ep.lineVerticesKept, n: ep.lineVerticesIn })}` : "")
           + (ep.extraTolM > 0 ? ` ${tr("To keep the build fast, the map lines were simplified to within {t} m (ends and corners kept).", { t: ep.extraTolM })}` : "") // TASKS.csv #869
+          + (res.trend ? ` ${tr("Follows the trend {name}: {r} times smoother along {az}° than across.", { name: trend?.name || "", r: res.trend.ratio.toFixed(1), az: Math.round(res.trend.azimuthDeg) })}` : "") // #881
           + (sculpted ? ` ${tr("{n} manual sculpt(s) of the previous surface were discarded by this rebuild.", { n: sculpted })}` : "") // #879
           + (trimNote ? ` ${trimNote}` : "") + (res.warnings.length ? ` ${res.warnings.join(" ")}` : "") });
       } catch (e) { clearTimeout(slow); if (wantKey.current === key) setStatus({ ok: false, text: (e.message || String(e)) + stale }); }
     }, 250);
     return () => clearTimeout(timer.current);
-  }, [def, ep, hasTerrain, surfaces]); // terrain and the scene refs are read at build time; surfaces: a fault it is trimmed at may rebuild (#861)
+  }, [def, ep, hasTerrain, surfaces, trend]); // terrain and the scene refs are read at build time; surfaces: a fault it is trimmed at may rebuild (#861); trend: #881
 
   // TASKS.csv #830 / #831 / #832 — the unit this surface bounds, upper or lower contact, and the unit's layers
   const [unitNote, setUnitNote] = useState(null);

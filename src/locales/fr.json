@@ -5795,5 +5795,6 @@
   "{unit} {v} ± {b} Mm³": "{unit} {v} ± {b} Mm³",
   "(to the box base at {z} m)": "(jusqu'à la base de la boîte à {z} m)",
   "(cut at the box sides)": "(coupé aux côtés de la boîte)",
-  "± is the most a count of {b} m blocks can be off by (half a block at every contact)": "± est l'écart maximal d'un comptage de blocs de {b} m (un demi-bloc à chaque contact)"
+  "± is the most a count of {b} m blocks can be off by (half a block at every contact)": "± est l'écart maximal d'un comptage de blocs de {b} m (un demi-bloc à chaque contact)",
+  "Follows the trend {name}: {r} times smoother along {az}° than across.": "Suit la tendance {name} : {r} fois plus lisse le long de {az}° qu'en travers."
 }

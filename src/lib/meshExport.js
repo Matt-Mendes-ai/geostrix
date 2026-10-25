@@ -176,7 +176,7 @@ function constructionKind(q) {
   return null;
 }
 const CONSTRUCTION_KEYS = {
-  explicit: ["picks", "sectionLines", "sections", "lineSpacingM", "points", "mapContacts", "mapLines", "dipGuide", "frame", "maxMisfitM", "marginM", "looRmsM", "looMaxM", "overshootM", "extrapolatedPct", "furthestFromInputM", "cutAtTerrain", "builtAt"],
+  explicit: ["trend", "picks", "sectionLines", "sections", "lineSpacingM", "points", "mapContacts", "mapLines", "dipGuide", "frame", "maxMisfitM", "marginM", "looRmsM", "looMaxM", "overshootM", "extrapolatedPct", "furthestFromInputM", "cutAtTerrain", "builtAt"],
   wireframe: ["body", "sections", "pointsPerOutline", "volumeM3", "ends", "builtAt"],
   veinSolid: ["hangingwall", "footwall", "volumeM3", "trueThicknessM", "attitude", "gridCellM", "nodesWhereWallsMeet", "ends", "builtAt"],
   unitVolume: ["unit", "model", "builtAt", "cells", "cellVolumeM3", "cellsVolumeM3", "shellVolumeM3", "note", "volumeBandM3", "blockSizeM", "cutByBox"],
@@ -196,6 +196,7 @@ function constructionLines(q) {
     out.push(q.looRmsM != null ? `Leave-one-out at the inputs: ${q.looRmsM} m RMS, worst ${q.looMaxM} m (each point predicted from all the others)` : `Leave-one-out at the inputs: not computed (over 300 points)`);
     if (q.overshootM != null) out.push(`Overshoot beyond the inputs' elevation range inside their outline: ${q.overshootM} m | extrapolated beyond the inputs: ${q.extrapolatedPct}% of the surface, up to ${n(q.furthestFromInputM)} m from the nearest input | margin around the inputs: ${q.marginM} m`);
     out.push(`Cut at the terrain: ${q.cutAtTerrain ? "yes" : "no"}`);
+    if (q.trend) out.push(`Structural trend${q.trend.name ? ` "${q.trend.name}"` : ""}: the spline is ${q.trend.ratio} times smoother along ${q.trend.alongAzimuthDeg} deg (the trend's major axis in the surface's plane) than across; still exact at every input`); // #881
   } else if (kind === "wireframe") {
     const secs = Array.isArray(q.sections) ? q.sections : [];
     out.push(`Body: ${q.body} | linked outlines on ${secs.length} section(s): ${secs.join(", ")} | resampled to ${q.pointsPerOutline} points per outline`);

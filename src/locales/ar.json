@@ -5795,5 +5795,6 @@
   "{unit} {v} ± {b} Mm³": "{unit} {v} ± {b} مليون م³",
   "(to the box base at {z} m)": "(حتى قاعدة الصندوق عند {z} م)",
   "(cut at the box sides)": "(مقطوع عند جوانب الصندوق)",
-  "± is the most a count of {b} m blocks can be off by (half a block at every contact)": "± هو أقصى خطأ لعدّ كتل بحجم {b} م (نصف كتلة عند كل تماس)"
+  "± is the most a count of {b} m blocks can be off by (half a block at every contact)": "± هو أقصى خطأ لعدّ كتل بحجم {b} م (نصف كتلة عند كل تماس)",
+  "Follows the trend {name}: {r} times smoother along {az}° than across.": "يتبع الاتجاه {name}: أنعم بمقدار {r} مرة على امتداد {az}° منه عرضيًا."
 }

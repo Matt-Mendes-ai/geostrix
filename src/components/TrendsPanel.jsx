@@ -17,6 +17,7 @@ export const TREND_USERS = [
   ["gradeShell", "Grade shells"],
   ["estimation", "Block estimation"],
   ["geoml", "Predictive (geoML)"],
+  ["explicit", "Explicit surfaces"], // TASKS.csv #881
 ];
 const newId = () => `trend_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 

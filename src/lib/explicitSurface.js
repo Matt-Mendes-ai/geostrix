@@ -287,7 +287,27 @@ export function thinPlate(u, v, w) {
   };
 }
 
-export function fitExplicitSurface(points, { margin = null, resolution = 80, groundAt = null, mergeTol = 0.5, frame = "auto" } = {}) {
+// TASKS.csv #881 — a structural trend (#650, { dip, dipAzimuth, pitch, ratios }) as anisotropy in the surface's own plane:
+// the trend's major axis projected into the frame (u, v) is the long direction, and distances along it count ratio =
+// max / int times less (an elongated body's contact stays smooth further along its trend). Its in-plane semi-major axis
+// is used when the major axis is nearly normal to the plane. -> { a(u, v), b(u, v), ratio, azimuthDeg } | null
+export function trendInPlane(trend, F) {
+  if (!trend) return null;
+  const rad = Math.PI / 180, dd = (Number(trend.dipAzimuth) || 0) * rad, dp = (Number(trend.dip) || 0) * rad, p = (Number(trend.pitch) || 0) * rad;
+  const strike = [-Math.cos(dd), Math.sin(dd), 0], down = [Math.sin(dd) * Math.cos(dp), Math.cos(dd) * Math.cos(dp), -Math.sin(dp)];
+  const major = strike.map((s, i) => Math.cos(p) * s + Math.sin(p) * down[i]), semi = strike.map((s, i) => -Math.sin(p) * s + Math.cos(p) * down[i]);
+  const r = trend.ratios || {}, ratio = Math.max(1, (Number(r.max) || 1) / (Number(r.int) || 1));
+  let mu = dot(major, F.e1), mv = dot(major, F.e2);
+  if (Math.hypot(mu, mv) < 0.3) { mu = dot(semi, F.e1); mv = dot(semi, F.e2); }
+  const l = Math.hypot(mu, mv);
+  if (!(l > 1e-6) || ratio <= 1.0001) return null;
+  mu /= l; mv /= l;
+  const world = [mu * F.e1[0] + mv * F.e2[0], mu * F.e1[1] + mv * F.e2[1]];
+  let az = (Math.atan2(world[0], world[1]) * 180) / Math.PI; if (az < 0) az += 360; if (az >= 180) az -= 180;
+  return { a: (u, v) => (u * mu + v * mv) / ratio, b: (u, v) => -u * mv + v * mu, ratio, azimuthDeg: az };
+}
+
+export function fitExplicitSurface(points, { margin = null, resolution = 80, groundAt = null, mergeTol = 0.5, frame = "auto", trend = null } = {}) {
   const warnings = [];
   const pts = [];
   for (const p of points) if (!pts.some((q) => dist3(p, q) < mergeTol)) pts.push(p); // a repeated pick is one constraint
@@ -321,7 +341,12 @@ export function fitExplicitSurface(points, { margin = null, resolution = 80, gro
   if (F.fence && !(lmin > 4e-4 * tr2)) throw new Error(tr("The picks lie in the plane of one drill section (the holes were drilled along it), so they cannot show how the contact runs across the section. Pick it on holes of another section, or draw it on a second section."));
   if (!(lmin > 4e-4 * tr2) || used.length < 3) throw new Error(tr("All the points lie along one line (for example a single section): the surface is not defined to either side of it. Add picks or a line on another section. (A steep surface such as a dyke or fault picked in one plane: set Shape to Over its own plane.)"));
   const U = uvw.map((q) => q[0]), V = uvw.map((q) => q[1]), W = uvw.map((q) => q[2]);
-  const f = thinPlate(U, V, W);
+  // #881 — with a trend the spline is fitted in the stretched coordinates (and evaluated through them): still exact at
+  // every input, smoother along the trend
+  const an = trendInPlane(trend, F);
+  const UA = an ? U.map((u, i) => an.a(u, V[i])) : U, VA = an ? U.map((u, i) => an.b(u, V[i])) : V;
+  const fA = thinPlate(UA, VA, W);
+  const f = fA && an ? (u, v) => fA(an.a(u, v), an.b(u, v)) : fA;
   if (!f) throw new Error(tr("The explicit surface could not be solved (the points are degenerate)."));
   let residualMax = 0;
   for (let i = 0; i < U.length; i++) residualMax = Math.max(residualMax, Math.abs(f(U[i], V[i]) - W[i]));
@@ -373,7 +398,7 @@ export function fitExplicitSurface(points, { margin = null, resolution = 80, gro
       warnings.push(tr("Between the inputs the surface swings {d} m beyond them (near E {e}, N {n}): usually two inputs that disagree, such as a pick and a section line, or a pick on the wrong contact. Check the inputs there; the leave-one-out figure names the worst one.", { d: quality.overshootM.toFixed(0), e: x.toFixed(0), n: y.toFixed(0) }));
     }
     if (!quality.looSkipped) {
-      const e = thinPlateLoo(U, V, W);
+      const e = thinPlateLoo(UA, VA, W); // #881: in the trend's coordinates
       if (e) {
         let s2 = 0, worst = 0, wi = 0;
         for (let k = 0; k < e.length; k++) { s2 += e[k] * e[k]; if (Math.abs(e[k]) > worst) { worst = Math.abs(e[k]); wi = k; } }
@@ -410,5 +435,5 @@ export function fitExplicitSurface(points, { margin = null, resolution = 80, gro
     const flip = dot(nn, F.n) < 0;
     indices[3 * k] = a; indices[3 * k + 1] = flip ? c : b; indices[3 * k + 2] = flip ? b : c;
   });
-  return { positions, indices, n: used.length, frame: F, residualMax, warnings, groundCut, cell: Math.min(du, dv), margin: m, quality };
+  return { positions, indices, n: used.length, frame: F, residualMax, warnings, groundCut, cell: Math.min(du, dv), margin: m, quality, trend: an ? { ratio: an.ratio, azimuthDeg: an.azimuthDeg } : null };
 }
