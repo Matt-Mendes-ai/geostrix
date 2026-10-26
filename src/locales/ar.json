@@ -4965,7 +4965,6 @@
   "{n} point(s) lie straight above or below another point ({d} m apart at most) and were left out: one surface cannot pass through both. If the surface really folds back, model it as two surfaces.": "{n} نقطة تقع فوق نقطة أخرى أو تحتها مباشرة ({d} م على الأكثر) واستُبعدت: لا يمكن لسطح واحد المرور بالاثنتين. إن كان السطح ينطوي فعلًا، فانمذجه كسطحين.",
   "Explicit surface (through hand-picked contacts)": "سطح صريح (عبر تماسات محددة يدويًا)",
   "A surface exactly through your own picks in 3D and lines drawn on sections": "سطح يمر تمامًا عبر نقاطك في العرض ثلاثي الأبعاد والخطوط المرسومة على المقاطع",
-  "Drag a pick to move it: a pick on a hole slides along that hole (snapping to logged contacts when Snap is on); any other pick moves up and down, or sideways with Shift held. The surface rebuilds when you let go.": "اسحب نقطة لتحريكها: النقطة على ثقب حفر تنزلق على امتداد ذلك الثقب (وتلتقط التماسات المسجلة عند تفعيل الالتقاط)؛ وأي نقطة أخرى تتحرك لأعلى ولأسفل، أو أفقيًا مع الضغط على Shift. يُعاد بناء السطح عند الإفلات.",
   " ({v} m high{v2})": " (بارتفاع {v} م{v2})",
   " Source: {service}, resampled to nodes ~{v2} m apart. It is a surface model: in forest it reads some metres above the ground.": " المصدر: {service}، أُعيد أخذ عيناته إلى عُقد كل ~{v2} م. إنه نموذج سطح: في الغابات يقرأ أمتارًا فوق الأرض.",
   " Warning: {n} isolated cone in the AWS tiles that Copernicus GLO-30 does not show — most likely a source artifact: {list}. The data were not changed; to avoid it, choose Copernicus GLO-30 as the online source and fetch again.": " تحذير: {n} مخروط معزول في بلاطات AWS لا يظهر في Copernicus GLO-30 — على الأرجح خطأ في المصدر: {list}. لم تُغيَّر البيانات؛ لتجنّبه اختر Copernicus GLO-30 مصدرًا عبر الإنترنت وأعد الجلب.",
@@ -5183,7 +5182,6 @@
   "Extended.": "مُدّد.",
   "Line tools": "أدوات الخطوط",
   "Move points": "تحريك النقاط",
-  "Drag a point to move it along its image; Alt + click deletes it.": "اسحب نقطة لتحريكها على صورتها؛ Alt + نقر يحذفها.",
   "Insert point": "إدراج نقطة",
   "Click on a line to add a point there.": "انقر على خط لإضافة نقطة هناك.",
   "Split": "تقسيم",
@@ -6033,5 +6031,10 @@
   "{n} survey data package(s) overlap the area. Each is one sample type, size fraction and lab method: choose one, so every sample is comparable.": "تتداخل {n} حزمة بيانات مع المنطقة. كل حزمة نوع عينة وجزء حجمي وطريقة مخبرية واحدة: اختر واحدة لتكون كل العينات قابلة للمقارنة.",
   "Survey and data package": "المسح وحزمة البيانات",
   "sample type not given": "نوع العينة غير محدد",
-  "{n} sample(s) of the survey fall outside the area and were left out.": "تقع {n} عينة من المسح خارج المنطقة فاستُبعدت."
+  "{n} sample(s) of the survey fall outside the area and were left out.": "تقع {n} عينة من المسح خارج المنطقة فاستُبعدت.",
+  "Drag a pick to move it: a pick on a hole slides along that hole (snapping to logged contacts when Snap is on); any other pick moves up and down, or sideways with Shift held. Alt + click deletes a pick or a line point. The surface rebuilds when you let go.": "اسحب نقطة ملتقطة لتحريكها: النقطة على ثقب تنزلق على طوله (وتلتصق بالتماسات المسجلة عند تفعيل الالتصاق)؛ وأي نقطة أخرى تتحرك لأعلى ولأسفل، أو جانبيًا مع Shift. Alt + نقر يحذف نقطة ملتقطة أو نقطة خط. يُعاد بناء السطح عند الإفلات.",
+  "Drag a point to move it; Alt + click deletes it (a pick on a hole too).": "اسحب نقطة لتحريكها؛ Alt + نقر يحذفها (والنقطة الملتقطة على ثقب أيضًا).",
+  "Deleted the pick on {hole} at {md} m.": "حُذفت النقطة الملتقطة على {hole} عند {md} م.",
+  "Deleted the pick.": "حُذفت النقطة الملتقطة.",
+  "Alt + click a pick to delete it, on a hole or anywhere else.": "Alt + نقر على نقطة ملتقطة يحذفها، على ثقب أو في أي مكان آخر."
 }

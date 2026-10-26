@@ -367,6 +367,14 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         dom.addEventListener("pointermove", onMoveL); dom.addEventListener("pointerup", onUpL); dom.addEventListener("pointercancel", onUpL);
         return true;
       }
+      // TASKS.csv #913 — Alt + click deletes a PICK too, whatever it is snapped to (Matt: "I'm not able to delete points
+      // snapped to logged contacts"): only line points had the Alt branch, so an Alt + click on a pick started a drag
+      if (e.altKey) {
+        const gone = d.picks[hit];
+        setDefs((p) => p.map((x) => (x.id === d.id ? { ...x, picks: x.picks.filter((q) => q.id !== gone.id) } : x)));
+        setToolHint(gone.hole_id ? tr("Deleted the pick on {hole} at {md} m.", { hole: gone.hole_id, md: Number(gone.md).toFixed(1) }) : tr("Deleted the pick."));
+        return true;
+      }
       const pts = (sc.overlay.current?.children || []).find((c) => c.userData.explicitId === d.id);
       let moved = d.picks[hit];
       const ray = new THREE.Raycaster();
@@ -911,10 +919,12 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           </>)}
         </details>
         <button onClick={() => { setPickFor(null); setEditing((v) => !v); setLineTool("move"); pendRef.current = null; setToolHint(null); }} aria-pressed={editing} disabled={!def.picks.length && !(def.lines || []).length}
-          title={tr("Drag a pick to move it: a pick on a hole slides along that hole (snapping to logged contacts when Snap is on); any other pick moves up and down, or sideways with Shift held. The surface rebuilds when you let go.")}
+          title={tr("Drag a pick to move it: a pick on a hole slides along that hole (snapping to logged contacts when Snap is on); any other pick moves up and down, or sideways with Shift held. Alt + click deletes a pick or a line point. The surface rebuilds when you let go.")}
           style={{ ...pBtn, marginBottom: 6, justifyContent: "center", opacity: def.picks.length || (def.lines || []).length ? 1 : 0.5, ...(editing ? { background: "var(--color-accent)", color: "var(--color-on-accent, #fff)" } : {}) }}>
           <Move size={14} />{" "}{editing ? tr("Editing — drag a pick or a line point (click to stop)") : tr("Edit picks and lines")}
         </button>
+        {/* TASKS.csv #913 — say how to delete; the deletion's confirmation (the line-tools hint shows only with section-image lines) */}
+        {editing && !(def.lines || []).length && <div role="status" style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, margin: "-2px 0 6px", color: "var(--color-text-secondary)" }}>{toolHint || tr("Alt + click a pick to delete it, on a hole or anywhere else.")}</div>}
         <label style={{ ...row, cursor: "pointer" }} title={tr("A click on a hole snaps to its nearest logged contact (where the unit changes) within {m} m down-hole; untick to take the exact point clicked on the trace", { m: SNAP_REACH_M })}>
           <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />{tr("Snap to logged contacts")}
         </label>
@@ -963,7 +973,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             {!!(def.lines || []).length && (<>
               {/* TASKS.csv #828 — line tools */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4, margin: "4px 0" }} role="group" aria-label={tr("Line tools")}>
-                {[["move", "Move points", "Drag a point to move it along its image; Alt + click deletes it."], ["insert", "Insert point", "Click on a line to add a point there."], ["split", "Split", "Click a point in the middle of a line to cut it in two."], ["join", "Join", "Click the end of one line, then the end of another: they become one line."], ["extend", "Extend", "Click the end of a line, then the line it should reach (another line on the same image, or the ground): it is lengthened, or trimmed, to meet it."]].map(([k, label, hint]) => {
+                {[["move", "Move points", "Drag a point to move it; Alt + click deletes it (a pick on a hole too)."], ["insert", "Insert point", "Click on a line to add a point there."], ["split", "Split", "Click a point in the middle of a line to cut it in two."], ["join", "Join", "Click the end of one line, then the end of another: they become one line."], ["extend", "Extend", "Click the end of a line, then the line it should reach (another line on the same image, or the ground): it is lengthened, or trimmed, to meet it."]].map(([k, label, hint]) => {
                   const on = editing && lineTool === k;
                   return <button key={k} title={tr(hint)} aria-pressed={on} onClick={() => { setLineTool(k); pendRef.current = null; setToolHint(tr(hint)); if (digDrawing) { finishLine(); setDigDrawing(false); showHover(null); } setPickFor(null); setEditing(true); }}
                     style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px", fontSize: "var(--font-size-xs)", ...(on ? { background: "var(--color-accent)", color: "var(--color-on-accent, #fff)" } : {}) }}>{tr(label)}</button>;
