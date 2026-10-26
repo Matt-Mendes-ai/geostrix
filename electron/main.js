@@ -1323,11 +1323,40 @@ function setTileUserAgent() {
 // brings the first window forward and exits; several projects already live side by side as workspace tabs.
 const gotSingleInstanceLock = isDev ? true : app.requestSingleInstanceLock(); // dev: a dev window must start beside an installed GeoStrix
 if (!gotSingleInstanceLock) app.quit();
-app.on("second-instance", () => {
+// TASKS.csv #914 — a project file opened from Explorer (double-click, "Open with", a file dropped on the shortcut):
+// Windows starts GeoStrix with the file's path on the command line - or, when GeoStrix is already running, hands that
+// command line to the running copy through second-instance - and both were ignored, so GeoStrix came up empty. The
+// first .json argument that is an existing file is kept here until the window takes it (take-launch-file below).
+let pendingLaunchFile = null;
+function launchFileFromArgv(argv) {
+  for (const a of (argv || []).slice(1)) {
+    if (!a || a.startsWith("-") || !/\.json$/i.test(a)) continue;
+    try { const p = path.resolve(a); if (fs.statSync(p).isFile()) return p; } catch { /* not a file */ }
+  }
+  return null;
+}
+pendingLaunchFile = launchFileFromArgv(process.argv);
+app.on("second-instance", (_e, argv) => {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   if (mainWindow.isMinimized()) mainWindow.restore();
   mainWindow.show();
   mainWindow.focus();
+  const file = launchFileFromArgv(argv); // #914
+  if (file) { pendingLaunchFile = file; mainWindow.webContents.send("launch-file"); }
+});
+// #914 — the window asks once it is ready (and again on "launch-file"); the path counts as one the user chose, so
+// Save writes back to it, as after File > Open (#553)
+ipcMain.handle("take-launch-file", async () => {
+  const file = pendingLaunchFile;
+  pendingLaunchFile = null;
+  if (!file) return { ok: false };
+  try {
+    const { size } = await fs.promises.stat(file);
+    if (size > 512 * 1024 * 1024) return { ok: false, error: `That file is ${Math.round(size / 1048576)} MB — larger than GeoStrix opens (512 MB).` };
+    const content = await fs.promises.readFile(file, "utf8");
+    userChosenPaths.add(pathKey(file));
+    return { ok: true, filePath: file, content, name: path.basename(file) };
+  } catch (err) { return { ok: false, error: err.message }; }
 });
 
 // TASKS.csv #591 — small app preferences that the main process needs before any window exists (userData/prefs.json)

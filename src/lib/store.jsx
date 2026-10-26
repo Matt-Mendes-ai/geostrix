@@ -1111,10 +1111,11 @@ export function StoreProvider({ children }) {
   // Opens a project file into a brand-new tab (never disturbs whatever's already open in other tabs —
   // this replaces the old single-project openProject, which used to overwrite the only project in
   // place; File > Open / Ctrl+O now always means "open into a new tab").
-  const openProject = useCallback(async () => {
+  // TASKS.csv #914 — `preRead`: a file already read (one Windows opened GeoStrix with), instead of the open dialog
+  const openProject = useCallback(async (preRead = null) => {
     // Generic "json" filter (not "geostrix.json" specifically) so both new .geostrix.json files and
     // pre-rename .geox.json files a user already has saved are still selectable/openable here.
-    const res = await openFile({ filters: [{ name: "GeoStrix Project", extensions: ["json"] }] });
+    const res = preRead?.content != null ? preRead : await openFile({ filters: [{ name: "GeoStrix Project", extensions: ["json"] }] });
     if (!res.ok) return res;
     try {
       const data = JSON.parse(res.content);
@@ -1131,8 +1132,10 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
       // fallback, already just a bare file name) both still carry GeoStrix's own save extension.
       const openedFileName = res.filePath ? res.filePath.split(/[\\/]/).pop() : res.name;
       const displayName = fileNameToProjectName(openedFileName) || data.project?.name || "Untitled project";
+      // #914 — the one empty, untouched tab a fresh start shows is replaced rather than left beside the project
+      const replaceEmpty = workspaceTabs.length === 1 && !activeTabDirty && !autosaveRef.current?.hasWork;
       setWorkspaceTabs([
-        ...workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, payload: current, dirty: activeTabDirty } : t)),
+        ...(replaceEmpty ? [] : workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, payload: current, dirty: activeTabDirty } : t))),
         { id, name: displayName, payload: null, dirty: false, filePath: res.filePath || null }, // #553
       ]);
       loadProjectPayload(data, displayName);

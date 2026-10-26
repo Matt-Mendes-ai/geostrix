@@ -150,6 +150,11 @@ export async function autosaveClear() {
   catch (err) { return { ok: false, error: err.message }; }
 }
 
+// TASKS.csv #914 — a project file Windows opened GeoStrix with (Explorer double-click), and a signal when another one
+// arrives while GeoStrix is running
+export async function takeLaunchFile() { return d?.takeLaunchFile ? d.takeLaunchFile() : { ok: false }; }
+export function onLaunchFile(cb) { return d?.onLaunchFile ? d.onLaunchFile(cb) : () => {}; }
+
 export function onMenu(cb) {
   // TASKS.csv #565 — menu items that open a file dialog arrive as a window event carrying a user gesture
   // (main.js sendMenuWithGesture), the rest over IPC; one callback for both

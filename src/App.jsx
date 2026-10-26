@@ -8,7 +8,7 @@ import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./l
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
 import { iconAction, activateOnKey } from "./lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 import { DESURVEY_METHODS } from "./lib/desurvey.js"; // TASKS.csv #135 — status-bar desurvey-method picker
-import { onMenu, onSectionSnapshot, onSectionContacts, pythonHealth, isSidecarRunning, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState, captureWindow, problemReportInfo } from "./lib/desktop.js";
+import { onMenu, onSectionSnapshot, onSectionContacts, takeLaunchFile, onLaunchFile, pythonHealth, isSidecarRunning, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState, captureWindow, problemReportInfo } from "./lib/desktop.js";
 import ViewerModule from "./modules/ViewerModule.jsx";
 // TASKS.csv #438 — memoised so a store write while the viewer is hidden (FreezeStore below) skips it entirely
 const MemoViewerModule = React.memo(ViewerModule);
@@ -232,6 +232,21 @@ export default function App() {
     if (res.ok) setActive("viewer");
     else if (res.error) window.alert(tr("Couldn't open that file: {error}", { error: res.error })); // TASKS.csv #342 — used to fail silently
   }, [openProject]);
+  // TASKS.csv #914 — a project file double-clicked in Explorer: taken once on start, and again whenever a running
+  // GeoStrix is handed another one
+  const openProjectRef = useRef(openProject);
+  openProjectRef.current = openProject;
+  useEffect(() => {
+    const take = async () => {
+      const f = await takeLaunchFile();
+      if (!f?.ok) { if (f?.error) window.alert(tr("Couldn't open that file: {error}", { error: f.error })); return; }
+      const res = await openProjectRef.current(f);
+      if (res.ok) setActive("viewer");
+      else if (res.error) window.alert(tr("Couldn't open that file: {error}", { error: res.error }));
+    };
+    take();
+    return onLaunchFile(take);
+  }, []);
   // TASKS.csv #34 — "New Project" now opens a fresh workspace tab instead of resetting the only
   // project in place, so nothing is ever discarded by this action and the old "unsaved changes will
   // be lost" confirm isn't needed anymore (see newWorkspaceTab's own comment in store.jsx).

@@ -62,4 +62,6 @@ contextBridge.exposeInMainWorld("desktop", {
   copyText: (text) => ipcRenderer.invoke("copy-text", text), // TASKS.csv #589 — no web clipboard permission needed
   onSectionData: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on("section-data", h); return () => ipcRenderer.removeListener("section-data", h); },
   onMenu: (cb) => { const h = (_e, action) => cb(action); ipcRenderer.on("menu", h); return () => ipcRenderer.removeListener("menu", h); },
+  takeLaunchFile: () => ipcRenderer.invoke("take-launch-file"), // TASKS.csv #914
+  onLaunchFile: (cb) => { const h = () => cb(); ipcRenderer.on("launch-file", h); return () => ipcRenderer.removeListener("launch-file", h); },
 });
