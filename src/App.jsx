@@ -6,6 +6,7 @@ import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2
 import { crsName, getProj4DefSync, loadEpsgRegistry, onEpsgRegistry } from "./lib/reproject.js"; // TASKS.csv #485; #834 registry
 import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./lib/store.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
+const UpdatePrompt = React.lazy(() => import("./components/UpdatePrompt.jsx")); // TASKS.csv #915 — loaded only when an update exists
 import { iconAction, activateOnKey } from "./lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 import { DESURVEY_METHODS } from "./lib/desurvey.js"; // TASKS.csv #135 — status-bar desurvey-method picker
 import { onMenu, onSectionSnapshot, onSectionContacts, takeLaunchFile, onLaunchFile, pythonHealth, isSidecarRunning, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState, captureWindow, problemReportInfo } from "./lib/desktop.js";
@@ -143,6 +144,15 @@ export default function App() {
   // finding nothing is not something worth a persistent UI element for.
   const [updater, setUpdater] = useState({ event: "idle" });
   useEffect(() => onUpdaterEvent(setUpdater), []);
+  // TASKS.csv #915 — the update dialog in the middle of the app; "Later" hides it for this session (per stage: a later
+  // "downloaded" still shows once)
+  const [updateLater, setUpdateLater] = useState(() => new Set());
+  // the progress events carry no version: keep the last one seen, so the dialog does not read "v?" while downloading
+  const lastUpdateVersion = useRef(null);
+  if (updater.version) lastUpdateVersion.current = updater.version;
+  const upd = { ...updater, version: updater.version || lastUpdateVersion.current };
+  const updateStage = upd.event === "available" || upd.event === "downloading" ? "get" : upd.event === "downloaded" ? "install" : null;
+  const showUpdatePrompt = !!updateStage && !updateLater.has(`${upd.version || ""}|${updateStage}`);
   // TASKS.csv #834 — the full EPSG registry (~1 MB, its own chunk): right away when the project's CRS needs it, otherwise
   // in idle time a few seconds after start, so every file / layer lookup finds it without slowing the start
   const [, setEpsgReg] = useState(0);
@@ -530,6 +540,7 @@ export default function App() {
       {licensesOpen && <Suspense fallback={null}><LicensesModal onClose={() => setLicensesOpen(false)} /></Suspense>}
       {reportProblem && <Suspense fallback={null}><ReportProblemModal screenshot={reportProblem.screenshot} crashed={reportProblem.crashed} onClose={() => setReportProblem(null)} /></Suspense>}
       {shortcutsTab && <Suspense fallback={null}><ShortcutsModal initialTab={shortcutsTab} pyStatus={pyStatus} onClose={() => setShortcutsTab(null)} /></Suspense>}
+      {showUpdatePrompt && <Suspense fallback={null}><UpdatePrompt updater={upd} onLater={() => setUpdateLater((s) => new Set(s).add(`${upd.version || ""}|${updateStage}`))} /></Suspense>}{/* TASKS.csv #915 */}
       {reportOpen && (
         <Suspense fallback={null}>
           <ProjectReportModal store={store} onClose={() => setReportOpen(false)} />
