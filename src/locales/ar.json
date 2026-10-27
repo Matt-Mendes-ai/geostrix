@@ -6083,5 +6083,6 @@
   "{unit} — intrusion body from the map (1 polygon)": "{unit} — جسم متداخل من الخريطة (مضلع واحد)",
   "{unit} — intrusion body from the map ({n} polygons)": "{unit} — جسم متداخل من الخريطة ({n} مضلعات)",
   "{v} Mm³, {d} m below the outcrop, walls {dip}°": "{v} مليون م³، {d} م تحت المنكشف، الجدران {dip}°",
-  "Intrusion bodies could not be built: {v}": "تعذّر بناء الأجسام المتداخلة: {v}"
+  "Intrusion bodies could not be built: {v}": "تعذّر بناء الأجسام المتداخلة: {v}",
+  ", chargeability {v}x but computed on a resistivity model that did not fit, so treat it as unfinished too": "، الشحنية {v}x لكنها حُسبت على نموذج مقاومية لم يطابق البيانات، فاعتبرها غير مكتملة أيضًا"
 }

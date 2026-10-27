@@ -203,7 +203,9 @@ def build_mesh(req):
 K_SECONDS = {"superlu-symmetric": 8.6e-7}
 
 
-def plan(req, cap_bytes):
+def plan(req, cap_bytes, ram_budget_bytes=None):
+    """ram_budget_bytes (TASKS.csv #972): the peak memory the run may take, else 1.25 x the sensitivity cap + 0.4 GB (the
+    potential-field plan's own peak rule at its cap)."""
     mesh, active, elec, _ = build_mesh(req)
     a, b, _, _ = _electrodes(req)
     n_data = len(a)
@@ -222,9 +224,14 @@ def plan(req, cap_bytes):
     reasons = []
     if j_bytes > cap_bytes:
         reasons.append(f"The sensitivity matrix would need {j_bytes / 1e9:.1f} GB; this computer allows {cap_bytes / 1e9:.1f} GB right now. Use a larger cell or every 2nd current position.")
+    # TASKS.csv #972 — the matrix alone was judged, while the run also holds its IP copy, one field per electrode and the
+    # factorization: Woodjam's six lines passed at J 0.94 GB with a 2.7 GB peak, the OOM case of #321 on an 8 GB laptop
+    budget = ram_budget_bytes if ram_budget_bytes else 1.25 * cap_bytes + 0.4e9
+    if not reasons and ram > budget:
+        reasons.append(f"The run would need about {ram / 1e9:.1f} GB of memory at its peak; this computer can spare about {budget / 1e9:.1f} GB right now. Use every 2nd current position or a larger cell, or close other programs.")
     return {"ok": not reasons, "reasons": reasons, "cells": int(mesh.n_cells), "active": n_act, "nodes": int(mesh.n_nodes), "readings": n_data, "sources": n_src,
             "electrodes": int(len(elec)), "sensitivityBytes": int(j_bytes), "peakRamBytes": int(ram), "secondsPerIteration": round(it, 1), "seconds": round(seconds),
-            "solver": solver, "maxIter": max_iter}
+            "solver": solver, "maxIter": max_iter, "ramBudgetBytes": int(budget)}
 
 
 def data_std(req, rho, charge, order):

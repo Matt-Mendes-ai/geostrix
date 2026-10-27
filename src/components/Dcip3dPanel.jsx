@@ -9,7 +9,7 @@ import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { lineIn3d, suggest3d, build3dRequest, cells3d, linesHaveIp } from "../lib/dcip3d.js";
 import { sidecarPlanDcip3d, ensureSidecarUp } from "../lib/desktop.js";
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
-import { logStops, sequentialStops } from "../lib/inversion.js";
+import { logStops, sequentialStops, ipFitOf } from "../lib/inversion.js";
 import { percentile } from "../lib/sectionMerge.js";
 import { version as APP_VERSION } from "../../package.json";
 import { t as tr } from "../lib/i18n.js";
@@ -92,7 +92,7 @@ export default function Dcip3dPanel({ pBtn, numInput }) {
       kind: "dcip3d", setTaskProgress,
       onDone: (result) => {
         const cut = Number(o.cutoff) || 0, maxCell = 2 * req.mesh.core;
-        const runParams = { ...params, fit: { phiD: result.phi_d, target: result.target, reachedTarget: result.reachedTarget, iterations: result.iterations, fitChoice: result.fitChoice, ...(result.ip ? { ip: { phiD: result.ip.phi_d, reachedTarget: result.ip.reachedTarget, iterations: result.ip.iterations } } : {}) },
+        const runParams = { ...params, fit: { phiD: result.phi_d, target: result.target, reachedTarget: result.reachedTarget, iterations: result.iterations, fitChoice: result.fitChoice, ...(result.ip ? { ip: { phiD: result.ip.phi_d, iterations: result.ip.iterations, ...ipFitOf(result) } } : {}) } /* #970 — the #682 rule */,
           solver: result.solver, versions: result.versions, runSeconds: Math.round(result.seconds), supportCutoff: cut, generatedAt: new Date().toISOString(), app: APP_VERSION };
         const added = [];
         for (const [field, method, property] of [["resistivity", "dc", "Resistivity (ohm·m)"], ["chargeability", "ip", "Chargeability (mV/V)"]]) {
@@ -104,7 +104,7 @@ export default function Dcip3dPanel({ pBtn, numInput }) {
           added.push(`${cells.length.toLocaleString()} ${method === "dc" ? tr("resistivity") : tr("chargeability")}`);
         }
         const fit = result.phi_d / result.target;
-        setMsg({ ok: true, text: tr("3D inversion done in {t}: resistivity misfit {fit}x the target{ip}; added {cells} blocks (support ≥ {cut}).", { t: minutes(result.seconds), fit: fit.toFixed(2), ip: result.ip ? tr(", chargeability {v}x", { v: (result.ip.phi_d / result.target).toFixed(2) }) : "", cells: added.join(" + "), cut }) });
+        setMsg({ ok: true, text: tr("3D inversion done in {t}: resistivity misfit {fit}x the target{ip}; added {cells} blocks (support ≥ {cut}).", { t: minutes(result.seconds), fit: fit.toFixed(2), ip: result.ip ? (ipFitOf(result).dcUnfitted ? tr(", chargeability {v}x but computed on a resistivity model that did not fit, so treat it as unfinished too", { v: (result.ip.phi_d / result.target).toFixed(2) }) : tr(", chargeability {v}x", { v: (result.ip.phi_d / result.target).toFixed(2) })) : "", cells: added.join(" + "), cut }) });
       },
     });
     if (!res.ok) setMsg({ ok: false, text: res.error });

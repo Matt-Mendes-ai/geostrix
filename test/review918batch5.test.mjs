@@ -20,3 +20,11 @@ test("#974: an NGSA limit of 100 ppm or more is below detection, not a no-data c
   assert.equal(a.As_ppm, "<0.01");
   assert.equal(b.Cu_ppm, ""); // -9999: no data
 });
+
+test("#970: the 3D panel's IP verdict uses the #682 rule: an unfitted resistivity model makes the IP fit unfinished", async () => {
+  const { ipFitOf } = await import("../src/lib/inversion.js");
+  const unfit = ipFitOf({ phi_d: 11.8 * 100, target: 100, reachedTarget: false, iterations: 12, ip: { phi_d: 99, reachedTarget: true, iterations: 3 } });
+  assert.equal(unfit.dcUnfitted, true); assert.equal(unfit.reachedTarget, false);
+  const fit = ipFitOf({ phi_d: 98, target: 100, reachedTarget: true, iterations: 6, ip: { phi_d: 99, reachedTarget: true, iterations: 3 } });
+  assert.equal(fit.dcUnfitted, undefined); assert.equal(fit.level, "ok");
+});

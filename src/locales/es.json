@@ -6083,5 +6083,6 @@
   "{unit} — intrusion body from the map (1 polygon)": "{unit} — cuerpo intrusivo del mapa (1 polígono)",
   "{unit} — intrusion body from the map ({n} polygons)": "{unit} — cuerpo intrusivo del mapa ({n} polígonos)",
   "{v} Mm³, {d} m below the outcrop, walls {dip}°": "{v} Mm³, {d} m bajo el afloramiento, paredes a {dip}°",
-  "Intrusion bodies could not be built: {v}": "No se pudieron construir los cuerpos intrusivos: {v}"
+  "Intrusion bodies could not be built: {v}": "No se pudieron construir los cuerpos intrusivos: {v}",
+  ", chargeability {v}x but computed on a resistivity model that did not fit, so treat it as unfinished too": ", cargabilidad {v}x, pero calculada sobre un modelo de resistividad que no se ajustó, así que trátela también como inconclusa"
 }

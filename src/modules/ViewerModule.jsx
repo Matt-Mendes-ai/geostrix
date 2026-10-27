@@ -3047,8 +3047,18 @@ ${describeTrend(t)}` };
       const halfW = halfH * aspect;
       orthoHalfH = halfH;
       orthoCamera = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, 0.1, camera.far); // #377 — ortho depth is linear; keep its own small near rather than the perspective one
-      orthoCamera.position.copy(camera.position);
-      orthoCamera.quaternion.copy(camera.quaternion);
+      if (cs.phi <= 0.0205) {
+        // TASKS.csv #981 — a plan capture looks exactly down: the live Top view sits at phi = 0.02 rad (1.15 deg) for the
+        // orbit controls' sake, and copying it shifted anything off the target's elevation by 2 m per 100 m of relief
+        // against the UTM grid and the overview. Screen-up stays where the live view had it (away from the camera's
+        // offset), so the azimuth, the north arrow and the grid's rotation are unchanged.
+        orthoCamera.position.set(cs.target.x, cs.target.y + cs.radius, cs.target.z);
+        orthoCamera.up.set(-Math.sin(cs.theta), 0, -Math.cos(cs.theta));
+        orthoCamera.lookAt(cs.target);
+      } else {
+        orthoCamera.position.copy(camera.position);
+        orthoCamera.quaternion.copy(camera.quaternion);
+      }
       orthoCamera.updateProjectionMatrix();
       renderCamera = orthoCamera;
     }

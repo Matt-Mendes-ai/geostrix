@@ -19,6 +19,11 @@ for (const f of files) {
   console.log(`${kb.toFixed(1).padStart(9)} kB  ${f}`);
 }
 console.log(`${total.toFixed(1).padStart(9)} kB  startup JavaScript (budget ${EAGER_BUDGET_KB} kB)`);
+// TASKS.csv #958 — a non-English start also loads its dictionary before the first render (src/lib/i18n.js); it is not
+// in the budget (it grows with every string), but the largest one is printed so its growth is visible
+const { readdirSync } = await import("node:fs");
+const locales = readdirSync(path.join(dist, "assets")).filter((f) => /^(es|pt|fr|ar)(\.json)?-[\w-]+\.js$/.test(f)).map((f) => [f, statSync(path.join(dist, "assets", f)).size / 1000]).sort((a, b) => b[1] - a[1]);
+if (locales.length) console.log(`${locales[0][1].toFixed(1).padStart(9)} kB  largest dictionary (${locales[0][0]}), loaded before the first render in that language: ${(total + locales[0][1]).toFixed(1)} kB with the startup JavaScript`);
 // TASKS.csv #693 — ViewerModule.jsx re-accreted (9,284 -> 10,215 lines in three weeks) after #445's extraction; the
 // modelling panes moved to modules/viewer/ModellingPanes.jsx (9,525 lines left). Fail above the budget; raising it is
 // fine when deliberate - change VIEWER_LINE_BUDGET with a TASKS.csv note, or move the next cohesive block out.

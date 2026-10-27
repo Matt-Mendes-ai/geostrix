@@ -159,6 +159,10 @@ def test_plan_is_cheap_and_honest():
     print(f"  plan: {p['cells']} cells, {p['active']} active, {p['readings']} readings, {p['electrodes']} electrodes, ~{p['seconds']} s, solver {p['solver']}")
     assert p["ok"] and p["readings"] == len(rows) and p["electrodes"] == 63
     assert not D.plan(_req(rows, chain), 1e5)["ok"], "a matrix over the cap is refused"
+    # TASKS.csv #972 — under the matrix cap but over the peak-memory budget: refused, with the cheaper options named
+    tight = D.plan(_req(rows, chain), 1.5e9, p["peakRamBytes"] * 0.9)
+    assert not tight["ok"] and "every 2nd current position" in tight["reasons"][0], tight["reasons"]
+    assert D.plan(_req(rows, chain), 1.5e9, p["peakRamBytes"] * 1.1)["ok"]
 
 
 def test_per_reading_floors():

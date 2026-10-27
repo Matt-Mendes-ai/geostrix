@@ -13,7 +13,7 @@ import { parseRes2dinv } from "../lib/res2dinv.js"; // TASKS.csv #826
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #322 — a saved line (and its inversion) is not in Undo
 import { stampLines, withStamp } from "../lib/provenance.js";
 import { version as APP_VERSION } from "../../package.json";
-import { logStops, sequentialStops, divergingStops, fitVerdict } from "../lib/inversion.js";
+import { logStops, sequentialStops, divergingStops, fitVerdict, ipFitOf } from "../lib/inversion.js"; // ipFitOf: #970, shared with the 3D panel
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
 import { pythonHealth, ensureSidecarUp, saveFile } from "../lib/desktop.js";
 import { colorForVoxelValue } from "../lib/layers.js";
@@ -33,15 +33,7 @@ const num = (v) => (v === "" || v == null ? NaN : Number(v));
 // TASKS.csv #682 — the IP inversion is linearised about the RECOVERED resistivity model, so when that model did not fit,
 // a "reached the target" on chargeability says nothing (115N with scrambled pairing: DC 11.8x unreached, IP 0.99x
 // "reached", chargeability peak 238.6 mV/V against 14.3 on the fitted model). Then the IP verdict is not "ok" either.
-const ipFitOf = (result) => {
-  const v = fitVerdict({ phi_d: result.ip.phi_d, target: result.target, reachedTarget: result.ip.reachedTarget, iterations: result.ip.iterations ?? result.ip.history?.length ?? 0, fitChoice: result.ip.fitChoice });
-  const dc = fitVerdict(result);
-  if (dc.level === "under" || dc.level === "close") { // not "over": an over-fitted resistivity model still explains the data
-    return { level: "dc-unfitted", chi: +v.chi.toFixed(3), reachedTarget: false, dcUnfitted: true,
-      verdict: `computed on a resistivity model that did not fit the data, so treat it as unfinished as well (its own misfit: ${v.chi.toFixed(2)}x the target).` };
-  }
-  return { level: v.level, chi: +v.chi.toFixed(3), reachedTarget: v.level === "ok", verdict: v.text };
-};
+// TASKS.csv #970 — ipFitOf now lives in lib/inversion.js, shared with the 3D panel.
 const FIELDS = [["a", "A (current)"], ["b", "B (current; blank = pole)"], ["m", "M (potential)"], ["n", "N (potential; blank = pole)"], ["rho", "Apparent resistivity (ohm·m)"], ["ip", "Chargeability (mV/V, optional)"], ["err", "Reading error (optional)"]];
 
 export default function DcipPanel({ pBtn, numInput }) {

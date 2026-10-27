@@ -390,8 +390,10 @@ def dcip3d_plan(req: dict = Body(...)):
     """TASKS.csv #643 — the mesh, matrix size, peak memory and a time estimate, before anything is started."""
     _validate_dcip3d(req)
     from app.geophys.dcip3d import plan  # numpy + discretize only: no SimPEG import in this process
-    from app.jobs import sensitivity_cap_bytes
-    return plan(req, sensitivity_cap_bytes())
+    from app.jobs import sensitivity_cap_bytes, available_ram_bytes
+    cap = sensitivity_cap_bytes()
+    # TASKS.csv #972 — the peak may use 60 % of the memory free now, and never less than the potential-field rule allows
+    return plan(req, cap, max(1.25 * cap + 0.4e9, 0.6 * available_ram_bytes()))
 
 
 @app.post("/v1/geophys/plan")

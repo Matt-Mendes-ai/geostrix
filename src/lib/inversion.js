@@ -141,6 +141,19 @@ export function fitVerdict(result) {
   return { chi, level: "ok", text: `Reached the target fit (misfit ${chi.toFixed(2)}x the target) in ${result.iterations} iteration${result.iterations === 1 ? "" : "s"}.${picked}` };
 }
 
+// TASKS.csv #682 — the IP verdict: chargeability is a linearization about the recovered conductivity, so when the
+// resistivity model did not fit (under or close to the target), the IP fit is marked unfinished whatever its own misfit.
+// TASKS.csv #970 — moved here from DcipPanel so the 3D panel applies the same rule.
+export function ipFitOf(result) {
+  const v = fitVerdict({ phi_d: result.ip.phi_d, target: result.target, reachedTarget: result.ip.reachedTarget, iterations: result.ip.iterations ?? result.ip.history?.length ?? 0, fitChoice: result.ip.fitChoice });
+  const dc = fitVerdict(result);
+  if (dc.level === "under" || dc.level === "close") { // not "over": an over-fitted resistivity model still explains the data
+    return { level: "dc-unfitted", chi: +v.chi.toFixed(3), reachedTarget: false, dcUnfitted: true,
+      verdict: `computed on a resistivity model that did not fit the data, so treat it as unfinished as well (its own misfit: ${v.chi.toFixed(2)}x the target).` };
+  }
+  return { level: v.level, chi: +v.chi.toFixed(3), reachedTarget: v.level === "ok", verdict: v.text };
+}
+
 // TASKS.csv #775 — SimPEG's magnetic tutorials: "a constant floor of 2 % of the maximum |TMI|, percent uncertainties
 // avoided". Shown as a HINT beside the field, never filled in (#564: nothing physical is defaulted). The anomaly is
 // measured about the mean, as the default base-level removal leaves it.
