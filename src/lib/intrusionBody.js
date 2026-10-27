@@ -52,21 +52,31 @@ export function selfIntersects(r) {
 
 // Ear clipping of a simple polygon (either winding): [[a, b, c] index triples], counter-clockwise. O(n^2) per ear
 // search, fine for the <= ~400-point outlines used here (cleanRing has already removed repeated points).
+// TASKS.csv #937 — the base ring is long straight runs (a few corners, dozens of points along each edge). With an exact
+// test, rounding made some of those points tiny convex ears (sliver triangles along the outline) and let ears whose
+// diagonal ran along an edge over its intermediate points; after the Float32 scene buffer those triangles crossed the
+// walls by ~1e-5 m and "Restrict to a modelled volume" refused about half the dipping-wall bodies. So, with a tolerance
+// scaled to the outline: a point is an ear tip only if truly convex (a straight-run point is clipped later, once a
+// neighbouring ear has made it a corner), and any other point inside the ear or ON its edges blocks it. Every triangle
+// then has real area and every outline point is a corner of the cap.
 export function earClip(pts) {
   const n = pts.length;
   if (n < 3) return [];
   const ccwRing = area2(pts) >= 0;
   let V = pts.map((_, i) => i);
   if (!ccwRing) V.reverse();
+  let span = 0;
+  for (const p of pts) span = Math.max(span, Math.abs(p[0] - pts[0][0]), Math.abs(p[1] - pts[0][1]));
+  const eps = 1e-9 * Math.max(1, span * span);
   const cr = (a, b, c) => (pts[b][0] - pts[a][0]) * (pts[c][1] - pts[a][1]) - (pts[b][1] - pts[a][1]) * (pts[c][0] - pts[a][0]);
-  const inside = (a, b, c, p) => cr(a, b, p) >= 0 && cr(b, c, p) >= 0 && cr(c, a, p) >= 0;
+  const inside = (a, b, c, p) => cr(a, b, p) >= -eps && cr(b, c, p) >= -eps && cr(c, a, p) >= -eps; // on an edge counts
   const out = [];
   let guard = 0;
   while (V.length > 3 && guard++ < 4 * n * n) {
     let clipped = false;
     for (let i = 0; i < V.length; i++) {
       const a = V[(i - 1 + V.length) % V.length], b = V[i], c = V[(i + 1) % V.length];
-      if (cr(a, b, c) <= 0) continue; // reflex, or a straight-run point: never an ear tip (a neighbouring ear takes it as a corner, so the cap shares every outline point with the walls)
+      if (cr(a, b, c) <= eps) continue; // reflex, or a straight-run point (within rounding): not an ear tip yet
       let blocked = false;
       for (const v of V) {
         if (v === a || v === b || v === c) continue;
@@ -80,7 +90,7 @@ export function earClip(pts) {
     }
     if (!clipped) break; // not simple: leave the rest (the caller's closed check would fail rather than hang)
   }
-  if (V.length === 3 && cr(V[0], V[1], V[2]) > 0) out.push([V[0], V[1], V[2]]);
+  if (V.length === 3 && cr(V[0], V[1], V[2]) > eps) out.push([V[0], V[1], V[2]]);
   if (out.length !== n - 2) throw new Error(tr("This outline could not be triangulated (it may cross itself)."));
   return out;
 }
