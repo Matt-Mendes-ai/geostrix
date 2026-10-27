@@ -902,7 +902,7 @@ ipcMain.handle("remote-sensing-fetch", async (_e, { url, range = null, json = nu
     if (body.length > 65536) return { ok: false, status: 0, message: "Search request too large." };
     init = { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body };
   }
-  const res = await guardedFetch(u.toString(), { timeoutMs: 60000, maxBytes: 64 * 1024 * 1024, init });
+  const res = await guardedFetch(u.toString(), { timeoutMs: 60000, maxBytes: 64 * 1024 * 1024, init, allowHost: (h) => h.protocol === "https:" && RS_HOSTS.has(h.hostname) }); // #960 — every redirect hop too
   if (res.message) return { ok: false, status: res.status, message: res.message };
   return { ok: res.ok, status: res.status, contentType: res.contentType, contentRange: res.contentRange, data: res.buffer };
 });
@@ -926,7 +926,7 @@ ipcMain.handle("geochem-fetch", async (_e, { url, form = null, binary = false } 
     if (body.length > 16384) return { ok: false, status: 0, message: "Request too large." };
     init = { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body };
   }
-  const res = await guardedFetch(u.toString(), { timeoutMs: 180000, maxBytes: 64 * 1024 * 1024, init });
+  const res = await guardedFetch(u.toString(), { timeoutMs: 180000, maxBytes: 64 * 1024 * 1024, init, allowHost: (h) => h.protocol === "https:" && GEOCHEM_HOSTS.has(h.hostname) }); // #960 — every redirect hop too
   if (res.message) return { ok: false, status: res.status, message: res.message };
   return { ok: res.ok, status: res.status, contentType: res.contentType, ...(binary ? { bytes: res.buffer } : { text: res.buffer.toString("utf8") }) }; // bytes: #922
 });

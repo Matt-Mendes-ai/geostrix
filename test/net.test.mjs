@@ -97,3 +97,18 @@ test("#469 writeFileAtomic keeps the complete temp copy when the fallback copy f
   assert.deepEqual(fsx.readdirSync(dir).filter((f) => f.startsWith("r.json.")), []);
   fsx.rmSync(dir, { recursive: true, force: true });
 });
+
+test("#960 a feature's server list is checked on every redirect hop, not only the first URL", async () => {
+  const lookup = async () => [{ address: "93.184.216.34" }]; // a public address: only the list can stop it
+  const listed = new Set(["openmaps.gov.bc.ca", "mrdata.usgs.gov"]);
+  const allowHost = (h) => h.protocol === "https:" && listed.has(h.hostname);
+  const hops = (to) => async (url) => (url.startsWith("https://openmaps.gov.bc.ca/") ? new Response(null, { status: 302, headers: { location: to } }) : new Response("data", { status: 200 }));
+  const off = await guardedFetch("https://openmaps.gov.bc.ca/geo/x", { fetchImpl: hops("https://tracker.example.net/collect"), lookup, allowHost });
+  assert.equal(off.ok, false); assert.match(off.message, /redirected to https:\/\/tracker\.example\.net, which is not one of the servers/);
+  const http = await guardedFetch("https://openmaps.gov.bc.ca/geo/x", { fetchImpl: hops("http://mrdata.usgs.gov/x"), lookup, allowHost });
+  assert.equal(http.ok, false, "a listed host over plain http is refused too");
+  const on = await guardedFetch("https://openmaps.gov.bc.ca/geo/x", { fetchImpl: hops("https://mrdata.usgs.gov/out.zip"), lookup, allowHost });
+  assert.equal(on.ok, true); assert.equal(on.buffer.toString(), "data");
+  const noList = await guardedFetch("https://openmaps.gov.bc.ca/geo/x", { fetchImpl: hops("https://tracker.example.net/collect"), lookup });
+  assert.equal(noList.ok, true, "callers without a list (web layers the user pasted) keep the address-only check");
+});

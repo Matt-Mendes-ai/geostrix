@@ -83,7 +83,8 @@
       "provider": "github",
       "owner": "Matt-Mendes-ai",
       "repo": "geostrix",
-      "releaseType": "release"
+      "releaseType": "release",
+      "publisherName": ["Open Source Developer Matheus Mendes de Albuquerque"]
     },
     "win": {
       "target": [

@@ -66,13 +66,19 @@ async function urlBlockReason(urlString, lookup = dns.lookup) {
 // { ok, status, contentType, buffer } or { ok: false, status, message }.
 // init (TASKS.csv #784): optional { method, headers, body } for the first request; a redirect is followed with GET and
 // the same headers (a Range keeps applying), never re-sending the body.
-async function guardedFetch(urlString, { timeoutMs = 60000, maxBytes = 64 * 1024 * 1024, maxRedirects = 5, fetchImpl = fetch, lookup, init = null } = {}) {
+// allowHost (TASKS.csv #960): optional (URL) => boolean, checked on EVERY hop — a feature limited to a list of servers
+// (public geochemistry, imagery) used to check only the first URL, and a redirect from a listed server went anywhere.
+async function guardedFetch(urlString, { timeoutMs = 60000, maxBytes = 64 * 1024 * 1024, maxRedirects = 5, fetchImpl = fetch, lookup, init = null, allowHost = null } = {}) {
   const signal = AbortSignal.timeout(timeoutMs);
   let url = urlString;
   try {
     for (let hop = 0; hop <= maxRedirects; hop++) {
       const reason = await urlBlockReason(url, lookup);
       if (reason) return { ok: false, status: 0, message: hop ? `Redirected to a blocked address: ${reason}` : reason };
+      if (hop && allowHost) {
+        const h = new URL(url);
+        if (!allowHost(h)) return { ok: false, status: 0, message: `The server redirected to ${h.protocol}//${h.hostname}, which is not one of the servers this feature may contact.` };
+      }
       const res = await fetchImpl(url, { redirect: "manual", signal, ...(init ? (hop ? { headers: init.headers } : init) : {}) });
       if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
         url = new URL(res.headers.get("location"), url).toString();
