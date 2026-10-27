@@ -16,6 +16,7 @@ import { codedRuns, topsForCode } from "../../lib/modellingCodes.js"; // TASKS.c
 import { pBtn, smallSel } from "../../lib/sidebarStyles.js";
 import { sceneVertsToWorldFlat } from "../../lib/meshFlat.js";
 import { t as tr } from "../../lib/i18n.js";
+import { errorNotice } from "../../lib/notices.js";
 import { tx } from "../../lib/i18nRich.js";
 
 export default function ModellingPanes(props) {
@@ -420,7 +421,7 @@ export default function ModellingPanes(props) {
         {paneHeader("Model from map", Mountain, "model")}
         <Suspense fallback={null}>
           <MapModelPanel mapLayers={mapLayers} surfaceStructures={surfaceStructures} terrain={terrain} busy={implicitBusy} onRun={runMapModel} pBtn={pBtn} smallSel={smallSel}
-            onBuildBodies={(p) => import("./intrusionRun.js").then((m) => m.buildIntrusionBodies(p, { implicitGroupRef, implicitMeshesRef, originRef, setImplicitSurfaces, setNotices, terrain }))} /* #821, loaded on use */ />
+            onBuildBodies={(p) => import("./intrusionRun.js").then((m) => m.buildIntrusionBodies(p, { implicitGroupRef, implicitMeshesRef, originRef, setImplicitSurfaces, setNotices, terrain })).catch((e) => setNotices((q) => [...q, errorNotice(tr("Intrusion bodies could not be built: {v}", { v: e?.message || String(e) }))]))} /* #992 — a failed load or throw is said, not swallowed */ /* #821, loaded on use */ />
         </Suspense>
         </>)}{/* TASKS.csv #817 */}
         {toolPane === "explicit" && (<>

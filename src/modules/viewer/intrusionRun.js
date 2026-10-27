@@ -47,7 +47,8 @@ export function buildIntrusionBodies(p, { implicitGroupRef, implicitMeshesRef, o
     const color = p.layer.categories?.find((c) => String(c.value) === String(unit))?.color || colorForLithology(unit);
     const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: new THREE.Color(color), side: THREE.DoubleSide, transparent: true, opacity: 0.6 }));
     const vol = meshVolume(world, indices);
-    mesh.userData = { tip: `${unit} — intrusion body from the map (${polys} polygon${polys === 1 ? "" : "s"})\n${(vol / 1e6).toFixed(2)} Mm³, ${p.depthM} m below the outcrop, walls ${p.wallDip}°` };
+    mesh.userData = { tip: `${polys === 1 ? tr("{unit} — intrusion body from the map (1 polygon)", { unit }) : tr("{unit} — intrusion body from the map ({n} polygons)", { unit, n: polys })}
+${tr("{v} Mm³, {d} m below the outcrop, walls {dip}°", { v: (vol / 1e6).toFixed(2), d: p.depthM, dip: p.wallDip })}` }; // #992 — UI text, translated
     implicitGroupRef.current?.add(mesh);
     const id = `impl_${stamp}_intrusion_${k}`;
     implicitMeshesRef.current[id] = mesh;

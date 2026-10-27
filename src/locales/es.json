@@ -6039,7 +6039,7 @@
   "GeoStrix v{v} is available. You have v{current}.": "GeoStrix v{v} está disponible. Usted tiene v{current}.",
   "What's new": "Novedades",
   "This is the portable (zip) copy: download the new zip and replace this folder with it. Your projects are separate files and are not touched.": "Esta es la copia portátil (zip): descargue el nuevo zip y reemplace esta carpeta con él. Sus proyectos son archivos aparte y no se tocan.",
-  "It downloads in the background while you keep working; GeoStrix then restarts to install it, asking about unsaved work first.": "Se descarga en segundo plano mientras sigue trabajando; luego GeoStrix se reinicia para instalarla, preguntando antes por el trabajo sin guardar.",
+  "It downloads in the background while you keep working; when it is ready, GeoStrix asks you to restart and install it (your unsaved work is checked first).": "Se descarga en segundo plano mientras sigue trabajando; cuando esté lista, GeoStrix le pedirá reiniciar para instalarla (antes revisa el trabajo sin guardar).",
   "Downloading… {p}%": "Descargando… {p}%",
   "Restart now to install it. Later keeps the install button in the status bar for this session.": "Reinicie ahora para instalarla. Más tarde mantiene el botón de instalar en la barra de estado durante esta sesión.",
   "Download the new zip": "Descargar el nuevo zip",
@@ -6079,5 +6079,9 @@
   "Each reading's floor is also at least its own error, from the error column of: {lines}.": "El piso de cada lectura es además al menos su propio error, tomado de la columna de error de: {lines}.",
   "{names} (resistivity, %)": "{names} (resistividad, %)",
   "{names} (chargeability, mV/V)": "{names} (cargabilidad, mV/V)",
-  "Chargeability is left out of this run: {names} have no chargeability for every reading. Leave them out to invert IP in 3D.": "La cargabilidad queda fuera de esta corrida: {names} no tienen cargabilidad en todas las lecturas. Déjelas fuera para invertir la PI en 3D."
+  "Chargeability is left out of this run: {names} have no chargeability for every reading. Leave them out to invert IP in 3D.": "La cargabilidad queda fuera de esta corrida: {names} no tienen cargabilidad en todas las lecturas. Déjelas fuera para invertir la PI en 3D.",
+  "{unit} — intrusion body from the map (1 polygon)": "{unit} — cuerpo intrusivo del mapa (1 polígono)",
+  "{unit} — intrusion body from the map ({n} polygons)": "{unit} — cuerpo intrusivo del mapa ({n} polígonos)",
+  "{v} Mm³, {d} m below the outcrop, walls {dip}°": "{v} Mm³, {d} m bajo el afloramiento, paredes a {dip}°",
+  "Intrusion bodies could not be built: {v}": "No se pudieron construir los cuerpos intrusivos: {v}"
 }

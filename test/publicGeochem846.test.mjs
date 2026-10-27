@@ -93,7 +93,7 @@ test("NGSA: oxides, arsenic, rare-earth sums skipped; one fraction / depth / dig
   assert.equal(t.rows[0].sample_id, "2007191138001_Coarse");
   assert.equal(t.rows[0].longitude, "140.01"); // LONG_GDA94, not the axis-swapped WKT
   assert.ok(!t.headers.includes("SiO2_pct")); // empty for aqua regia: not offered
-  assert.deepEqual(readAssayCell(t.rows[0].As_ppm), { value: 0.005, qualifier: "<", kind: "neg_bdl" });
+  assert.deepEqual(readAssayCell(t.rows[0].As_ppm), { value: 0.005, qualifier: "<", kind: null }); // #974: "<0.01" now, as the USGS / CDoGS values
   const w = parseNgsa(NGSA, { digestion: "whole rock" });
   assert.equal(w.rows.length, 1); assert.ok(w.headers.includes("SiO2_pct") && w.headers.includes("Fe2O3T_pct"));
   assert.equal(parseNgsa(NGSA, { depth: "bottom" }).rows[0].depth, "about 0.6-0.8 m");

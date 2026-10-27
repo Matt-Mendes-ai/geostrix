@@ -38,7 +38,7 @@ export default function UpdatePrompt({ updater, onLater }) {
             <div style={small}>{tr("This is the portable (zip) copy: download the new zip and replace this folder with it. Your projects are separate files and are not touched.")}</div>
           )}
           {event === "available" && !updater.portable && (
-            <div style={small}>{tr("It downloads in the background while you keep working; GeoStrix then restarts to install it, asking about unsaved work first.")}</div>
+            <div style={small}>{tr("It downloads in the background while you keep working; when it is ready, GeoStrix asks you to restart and install it (your unsaved work is checked first).")}</div>
           )}
           {event === "downloading" && (
             <div>

@@ -528,7 +528,7 @@ export default function LayoutModule() {
 
   // TASKS.csv #19 — freehand pen. Toggled on from the palette; the next mousedown-drag on the page
   // captures points (in page-relative px, same coordinate space as every other element's x/y — the
-  // page isn't CSS-scaled, so clientX/Y minus the page's own bounding-rect origin is exactly right)
+  // page is CSS-scaled by the zoom since #909, so clientX/Y minus the page's origin is divided by it)
   // until mouseup, then commits a single "freehand" element and turns the tool back off — a one-shot
   // draw, not a persistent mode, so it can't be left on by accident.
   const startFreehand = (e) => {
@@ -646,7 +646,9 @@ export default function LayoutModule() {
   const nudgeSelected = (dx, dy) => {
     const ids = new Set(selectionIds());
     if (!ids.size) return;
-    setElements((els) => els.map((e) => (ids.has(e.id) && !e.locked ? { ...e, x: Math.round(e.x + dx), y: Math.round(e.y + dy) } : e)));
+    // TASKS.csv #980 — to the nearest 0.1 mm, not the whole px: 1 mm is 3.78 px, and rounding to 4 px made ten 1 mm presses 10.58 mm
+    const r = (v) => (Math.round((v * 10) / PX_PER_MM) / 10) * PX_PER_MM;
+    setElements((els) => els.map((e) => (ids.has(e.id) && !e.locked ? { ...e, x: r(e.x + dx), y: r(e.y + dy) } : e)));
   };
   const boxOf = (id) => {
     const d = pageRef.current?.querySelector(`[data-el-id="${id}"]`);
@@ -789,7 +791,9 @@ export default function LayoutModule() {
     const files = Array.from(e.dataTransfer.files || []).filter((f) => f.type.startsWith("image/"));
     if (!files.length) return;
     const rect = pageRef.current.getBoundingClientRect();
-    const dropX = Math.max(0, e.clientX - rect.left), dropY = Math.max(0, e.clientY - rect.top);
+    // TASKS.csv #990 — the sheet is CSS-scaled by the zoom (#909): screen px / zoom = page px, kept on the page
+    const z = zoomRef.current || 1;
+    const dropX = Math.min(Math.max(0, (e.clientX - rect.left) / z), Math.max(0, rect.width / z - 40)), dropY = Math.min(Math.max(0, (e.clientY - rect.top) / z), Math.max(0, rect.height / z - 40));
     files.forEach((f, i) => {
       const reader = new FileReader();
       reader.onload = () => {

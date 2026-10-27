@@ -303,8 +303,8 @@ export function parseBcRgs(csvText) {
   return { ...table(out, map.map(([, n]) => n), ["material"], CATALOGUE[0], notes), fetched: rows.length }; // fetched: for paging
 }
 
-// NGSA: <EL>_PPM / _PPB, oxides <OXIDE>_WEIGHT_PERCENT, arsenic is ARS_PPM; negative = below detection (kept: the
-// surface import reads a small negative as below detection)
+// NGSA: <EL>_PPM / _PPB, oxides <OXIDE>_WEIGHT_PERCENT, arsenic is ARS_PPM; negative = below detection, written
+// as "<limit" like the USGS / CDoGS values (#974: left negative, a limit of 100 ppm or more read as a no-data code)
 const NGSA_OXIDES = { SIO2: "SiO2", TIO2: "TiO2", AL2O3: "Al2O3", FE2O3_TOTAL: "Fe2O3T", FE2O3: "Fe2O3", FEO: "FeO", MNO: "MnO", MGO: "MgO", CAO: "CaO", NA2O: "Na2O", K2O: "K2O", P2O5: "P2O5" };
 const NGSA_NOT = new Set(["LREE", "HREE", "REE", "REE_Y"]);
 export function ngsaColumn(h) {
@@ -332,7 +332,7 @@ export function parseNgsa(csvText, { fraction = "coarse", depth = "top", digesti
   const pick = rows.filter((r) => ngsaFraction(r) === fraction && ngsaDepth(r) === depth && ngsaDigestion(r) === digestion);
   const out = pick.map((r) => {
     const o = { sample_id: String(r.SAMPLE_ID || "").replace(/\s+/g, "_"), longitude: r.LONG_GDA94, latitude: r.LAT_GDA94, elevation: "", medium: "stream sediment", fraction, depth: depth === "top" ? "0-0.1 m" : "about 0.6-0.8 m", digestion };
-    for (const [h, n] of map) o[n] = String(r[h] ?? "").trim();
+    for (const [h, n] of map) o[n] = usgsValue(r[h]); // TASKS.csv #974 — "-100" is "<100", not the generic rule's ≤ -99 no-data code
     return o;
   }).filter((o) => Number.isFinite(parseFloat(o.longitude)) && Number.isFinite(parseFloat(o.latitude)));
   return table(out, map.map(([, n]) => n), ["fraction", "depth", "digestion"], CATALOGUE[1], []);

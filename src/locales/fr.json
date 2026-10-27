@@ -6039,7 +6039,7 @@
   "GeoStrix v{v} is available. You have v{current}.": "GeoStrix v{v} est disponible. Vous avez la v{current}.",
   "What's new": "Nouveautés",
   "This is the portable (zip) copy: download the new zip and replace this folder with it. Your projects are separate files and are not touched.": "Ceci est la copie portable (zip) : téléchargez le nouveau zip et remplacez ce dossier par celui-ci. Vos projets sont des fichiers séparés et ne sont pas touchés.",
-  "It downloads in the background while you keep working; GeoStrix then restarts to install it, asking about unsaved work first.": "Elle se télécharge en arrière-plan pendant que vous continuez à travailler ; GeoStrix redémarre ensuite pour l'installer, en demandant d'abord pour le travail non enregistré.",
+  "It downloads in the background while you keep working; when it is ready, GeoStrix asks you to restart and install it (your unsaved work is checked first).": "Elle se télécharge en arrière-plan pendant que vous travaillez ; une fois prête, GeoStrix vous demande de redémarrer pour l'installer (le travail non enregistré est vérifié d'abord).",
   "Downloading… {p}%": "Téléchargement… {p} %",
   "Restart now to install it. Later keeps the install button in the status bar for this session.": "Redémarrez maintenant pour l'installer. Plus tard garde le bouton d'installation dans la barre d'état pour cette session.",
   "Download the new zip": "Télécharger le nouveau zip",
@@ -6079,5 +6079,9 @@
   "Each reading's floor is also at least its own error, from the error column of: {lines}.": "Le plancher de chaque lecture vaut aussi au moins sa propre erreur, d'après la colonne d'erreur de : {lines}.",
   "{names} (resistivity, %)": "{names} (résistivité, %)",
   "{names} (chargeability, mV/V)": "{names} (chargeabilité, mV/V)",
-  "Chargeability is left out of this run: {names} have no chargeability for every reading. Leave them out to invert IP in 3D.": "La chargeabilité est exclue de ce calcul : {names} n'ont pas de chargeabilité pour chaque lecture. Excluez-les pour inverser la PP en 3D."
+  "Chargeability is left out of this run: {names} have no chargeability for every reading. Leave them out to invert IP in 3D.": "La chargeabilité est exclue de ce calcul : {names} n'ont pas de chargeabilité pour chaque lecture. Excluez-les pour inverser la PP en 3D.",
+  "{unit} — intrusion body from the map (1 polygon)": "{unit} — corps intrusif d'après la carte (1 polygone)",
+  "{unit} — intrusion body from the map ({n} polygons)": "{unit} — corps intrusif d'après la carte ({n} polygones)",
+  "{v} Mm³, {d} m below the outcrop, walls {dip}°": "{v} Mm³, {d} m sous l'affleurement, parois à {dip}°",
+  "Intrusion bodies could not be built: {v}": "Impossible de construire les corps intrusifs : {v}"
 }

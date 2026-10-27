@@ -54,8 +54,8 @@ identifier for you or your project is attached to any of these requests.
 
 GeoStrix's built-in spell checker is turned off, so no spelling dictionary is ever downloaded.
 
-If you never use basemaps, terrain, updates, the add-on download, databases or WMS layers, GeoStrix makes no network
-connections at all.
+If you never use basemaps, terrain, satellite imagery, public geochemistry, updates, the add-on download, databases or
+WMS layers, GeoStrix makes no network connections at all.
 
 ## The Python sidecar
 

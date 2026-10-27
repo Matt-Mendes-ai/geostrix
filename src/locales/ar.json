@@ -6039,7 +6039,7 @@
   "GeoStrix v{v} is available. You have v{current}.": "يتوفر GeoStrix v{v}. لديك v{current}.",
   "What's new": "ما الجديد",
   "This is the portable (zip) copy: download the new zip and replace this folder with it. Your projects are separate files and are not touched.": "هذه هي النسخة المحمولة (zip): نزّل ملف zip الجديد واستبدل به هذا المجلد. مشاريعك ملفات منفصلة ولا تُمس.",
-  "It downloads in the background while you keep working; GeoStrix then restarts to install it, asking about unsaved work first.": "يُنزَّل في الخلفية بينما تواصل العمل؛ ثم يُعاد تشغيل GeoStrix لتثبيته، مع السؤال أولًا عن العمل غير المحفوظ.",
+  "It downloads in the background while you keep working; when it is ready, GeoStrix asks you to restart and install it (your unsaved work is checked first).": "يُنزَّل في الخلفية بينما تواصل العمل؛ وعندما يجهز يطلب منك GeoStrix إعادة التشغيل لتثبيته (مع التحقق من العمل غير المحفوظ أولًا).",
   "Downloading… {p}%": "جارٍ التنزيل… {p}%",
   "Restart now to install it. Later keeps the install button in the status bar for this session.": "أعد التشغيل الآن لتثبيته. \"لاحقًا\" يبقي زر التثبيت في شريط الحالة خلال هذه الجلسة.",
   "Download the new zip": "نزّل ملف zip الجديد",
@@ -6079,5 +6079,9 @@
   "Each reading's floor is also at least its own error, from the error column of: {lines}.": "لا يقل الحد الأدنى لكل قراءة كذلك عن خطئها الخاص، من عمود الخطأ في: {lines}.",
   "{names} (resistivity, %)": "{names} (المقاومية، %)",
   "{names} (chargeability, mV/V)": "{names} (الشحنية، mV/V)",
-  "Chargeability is left out of this run: {names} have no chargeability for every reading. Leave them out to invert IP in 3D.": "استُبعدت الشحنية من هذا التشغيل: لا تحتوي {names} على قيمة شحنية لكل قراءة. استبعدها لعكس الاستقطاب المُحدَث ثلاثي الأبعاد."
+  "Chargeability is left out of this run: {names} have no chargeability for every reading. Leave them out to invert IP in 3D.": "استُبعدت الشحنية من هذا التشغيل: لا تحتوي {names} على قيمة شحنية لكل قراءة. استبعدها لعكس الاستقطاب المُحدَث ثلاثي الأبعاد.",
+  "{unit} — intrusion body from the map (1 polygon)": "{unit} — جسم متداخل من الخريطة (مضلع واحد)",
+  "{unit} — intrusion body from the map ({n} polygons)": "{unit} — جسم متداخل من الخريطة ({n} مضلعات)",
+  "{v} Mm³, {d} m below the outcrop, walls {dip}°": "{v} مليون م³، {d} م تحت المنكشف، الجدران {dip}°",
+  "Intrusion bodies could not be built: {v}": "تعذّر بناء الأجسام المتداخلة: {v}"
 }

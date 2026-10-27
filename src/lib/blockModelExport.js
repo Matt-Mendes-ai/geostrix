@@ -15,7 +15,7 @@ export function valueColumnName(model) {
 export function blockModelRows(model) {
   const valueName = valueColumnName(model);
   return (model.cells || []).map((c) => {
-    const row = { XC: +c.x.toFixed(3), YC: +c.y.toFixed(3), ZC: +c.z.toFixed(3), XINC: c.dx, YINC: c.dy, ZINC: c.dz, [valueName]: c.value };
+    const row = { XC: +c.x.toFixed(3), YC: +c.y.toFixed(3), ZC: +c.z.toFixed(3), XINC: +Number(c.dx).toFixed(4), YINC: +Number(c.dy).toFixed(4), ZINC: +Number(c.dz).toFixed(4), /* #978 — sizes saved as Float32 read back as 3.3329999446868896 */ [valueName]: c.value };
     if (c.nSamples != null) row.N_SAMPLES = c.nSamples;
     if (c.nHoles != null) row.N_HOLES = c.nHoles;
     if (c.support != null) row.SUPPORT = typeof c.support === "number" ? +c.support.toFixed(4) : c.support;
