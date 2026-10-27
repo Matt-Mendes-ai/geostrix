@@ -29,6 +29,9 @@ export function blockModelRows(model, names = "datamine") {
     // #529 — the support class as a number too (software that only reads numeric columns dropped it), and the index
     if (typeof c.support === "string" && SUPPORT_CODES[c.support] != null) row.SUPPORT_CODE = SUPPORT_CODES[c.support];
     if (Number.isFinite(c.supportIndex)) row.SUPPORT_INDEX = +c.supportIndex.toFixed(4);
+    // TASKS.csv #943 — a block merged on import (over the cell budget) is a full coarse cell; the share of it the source
+    // model's blocks filled, and that real volume, so tonnage is not taken from the block size
+    if (Number.isFinite(c.coverage)) { row.COVERAGE = +c.coverage.toFixed(4); row.VOLUME_M3 = +(c.coverage * c.dx * c.dy * c.dz).toFixed(3); }
     return row;
   });
 }
@@ -38,6 +41,7 @@ export function blockModelParamLines(model) {
   const p = model.params || {};
   const lines = [`Block model: ${model.name} (${(model.cells || []).length} blocks, source ${model.source || "import"})`];
   if (p.unit) lines.push(`Values: ${valueColumnName(model)} in ${p.unit}${p.capValue != null ? `; cap ${p.capValue} ${p.capUnit || p.unit}` : ""}`); // #529
+  if ((model.cells || []).some((c) => Number.isFinite(c.coverage))) lines.push("COVERAGE: the share of each block filled by the imported model's own blocks (blocks were merged on import to fit the cell budget); VOLUME_M3 = COVERAGE x the block size. Take volume and tonnage from VOLUME_M3, not from the block size."); // #943
   if ((model.cells || []).some((c) => typeof c.support === "string")) lines.push(`SUPPORT_CODE: ${Object.entries(SUPPORT_CODES).map(([k, v]) => `${v} = ${k}`).join(", ")}`);
   Object.entries(p).forEach(([k, v]) => {
     if (v == null || typeof v === "object") return;

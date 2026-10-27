@@ -6128,5 +6128,6 @@
   "Cross-section: {name}": "مقطع: {name}",
   "azimuth {v}°": "السمت {v}°",
   "Draw each saved section's line in the 3D view as a thick line, visible from above": "ارسم خط كل مقطع محفوظ في العرض ثلاثي الأبعاد خطًا سميكًا يُرى من الأعلى",
-  "lines in 3D": "الخطوط في ثلاثي الأبعاد"
+  "lines in 3D": "الخطوط في ثلاثي الأبعاد",
+  ". The merged blocks are full cells and cover {pct}% more volume than the model's own blocks ({src} m³): each keeps the share it really holds (COVERAGE and VOLUME_M3 in the CSV export). Take volume and tonnage from those, or import the model without merging (raise the 3D view cell budget)": ". الكتل المدمجة خلايا كاملة وتغطي حجمًا أكبر بنسبة {pct}% من كتل النموذج نفسه ({src} م³): تحتفظ كل كتلة بالحصة التي تحتويها فعلًا (COVERAGE و VOLUME_M3 في تصدير CSV). خذ الحجم والحمولة منهما، أو استورد النموذج دون دمج (ارفع حد خلايا العرض ثلاثي الأبعاد)"
 }

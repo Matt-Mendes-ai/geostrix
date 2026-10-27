@@ -926,11 +926,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     attrs.forEach((attr) => {
       const { cells: raw, badRows, inferred } = blockModelCellsFromRows(p.rows, mapping, attr);
       if (!raw.length) { msgs.push(tr("{attr}: no usable rows (x/y/z and {attr} all need numbers).", { attr })); return; }
-      const { cells, factors } = coarsenBlockCells(raw, effectiveMaxCells);
+      const { cells, factors, sourceM3, mergedM3 } = coarsenBlockCells(raw, effectiveMaxCells);
       const { min, max } = cellValueRange(cells);
       addVoxelModel({ name: `${base} (${attr})`, source: "csv", cells, min, max });
       let m = tr("{attr}: {n} block(s)", { attr, n: cells.length.toLocaleString() });
       if (factors) m += tr(" ({raw} merged {fx}×{fy}×{fz} to fit the {budget}-cell budget — volume-weighted means)", { raw: raw.length.toLocaleString(), fx: factors.fx, fy: factors.fy, fz: factors.fz, budget: effectiveMaxCells.toLocaleString() });
+      // TASKS.csv #943 — merged blocks are full cells: where the model did not fill them, they are larger than it
+      if (factors && mergedM3 > sourceM3 * 1.005) m += tr(". The merged blocks are full cells and cover {pct}% more volume than the model's own blocks ({src} m³): each keeps the share it really holds (COVERAGE and VOLUME_M3 in the CSV export). Take volume and tonnage from those, or import the model without merging (raise the 3D view cell budget)", { pct: (((mergedM3 - sourceM3) / sourceM3) * 100).toFixed(0), src: Math.round(sourceM3).toLocaleString() });
       if (badRows) m += tr(", {n} row(s) without numbers skipped", { n: badRows.toLocaleString() });
       msgs.push(m + ".");
       if (inferred && msgs.length === 1) msgs.push(tr("Block size inferred from centroid spacing: {v} — check it matches the model.", { v: ["dx", "dy", "dz"].map((k) => (inferred[k] != null ? `${k} ${+inferred[k].toFixed(3)}` : null)).filter(Boolean).join(", ") }));

@@ -77,6 +77,11 @@ export function blockModelCellsFromRows(rows, mapping, attr) {
 // it is meaningless — the caller warns. TASKS.csv #659 — a block larger than the lattice (a parent block of a
 // sub-blocked model) spreads its volume over every coarse cell it overlaps; it used to count, whole, in the one
 // cell holding its corner, so a sub-blocked model kept 30 % of its volume with a biased mean (0.489 vs 0.287).
+// TASKS.csv #943 — that holds for a model that fills its lattice. A merged cell is a FULL coarse cell whatever share of
+// it the source blocks covered, so a sparse model (sub-blocks only along the domain edge, the normal Micromine case)
+// came out larger (+22 % in the review's file). Each merged cell now carries `coverage` (covered volume / cell volume,
+// 0-1) and the result the source and merged volumes, so the import can say so and the CSV export can write the real
+// volume per block.
 export function coarsenBlockCells(cells, maxCells) {
   if (cells.length <= maxCells) return { cells, factors: null };
   let x0 = Infinity, y0 = Infinity, z0 = Infinity, ux = Infinity, uy = Infinity, uz = Infinity;
@@ -121,6 +126,11 @@ export function coarsenBlockCells(cells, maxCells) {
   }
   const [sx, sy, sz] = [ux * f[0], uy * f[1], uz * f[2]];
   const out = [];
-  for (const e of bins.values()) out.push({ x: x0 + (e.k[0] + 0.5) * sx, y: y0 + (e.k[1] + 0.5) * sy, z: z0 + (e.k[2] + 0.5) * sz, dx: sx, dy: sy, dz: sz, value: e.s / e.w });
-  return { cells: out, factors: { fx: f[0], fy: f[1], fz: f[2] } };
+  const full = sx * sy * sz;
+  let sourceM3 = 0;
+  for (const e of bins.values()) {
+    sourceM3 += e.w;
+    out.push({ x: x0 + (e.k[0] + 0.5) * sx, y: y0 + (e.k[1] + 0.5) * sy, z: z0 + (e.k[2] + 0.5) * sz, dx: sx, dy: sy, dz: sz, value: e.s / e.w, coverage: Math.min(1, e.w / full) });
+  }
+  return { cells: out, factors: { fx: f[0], fy: f[1], fz: f[2] }, sourceM3, mergedM3: out.length * full };
 }

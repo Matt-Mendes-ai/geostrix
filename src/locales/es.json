@@ -6128,5 +6128,6 @@
   "Cross-section: {name}": "Sección: {name}",
   "azimuth {v}°": "azimut {v}°",
   "Draw each saved section's line in the 3D view as a thick line, visible from above": "Dibujar la línea de cada sección guardada en la vista 3D como una línea gruesa, visible desde arriba",
-  "lines in 3D": "líneas en 3D"
+  "lines in 3D": "líneas en 3D",
+  ". The merged blocks are full cells and cover {pct}% more volume than the model's own blocks ({src} m³): each keeps the share it really holds (COVERAGE and VOLUME_M3 in the CSV export). Take volume and tonnage from those, or import the model without merging (raise the 3D view cell budget)": ". Los bloques fusionados son celdas completas y cubren un {pct}% más de volumen que los bloques del propio modelo ({src} m³): cada uno guarda la fracción que realmente contiene (COVERAGE y VOLUME_M3 en la exportación CSV). Toma el volumen y el tonelaje de esos campos, o importa el modelo sin fusionar (sube el límite de celdas de la vista 3D)"
 }
