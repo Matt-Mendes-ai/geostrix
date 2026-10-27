@@ -4331,30 +4331,32 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       };
     }
     try {
+      let res = null; // #1042 — "Exported" only when the file was written; Cancel says nothing
       const { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF, sceneVertsToWorld } = await import("../lib/meshExport.js"); // #600 startup budget
       if (format === "obj") {
         const content = exportSurfaceOBJ(surf.name, mesh.geometry, originRef.current, prov, extra);
-        await saveFile({ suggestedName: `${baseName}.obj`, filters: [{ name: "Wavefront OBJ", extensions: ["obj"] }], content, encoding: "text" });
+        res = await saveFile({ quiet: true, suggestedName: `${baseName}.obj`, filters: [{ name: "Wavefront OBJ", extensions: ["obj"] }], content, encoding: "text" });
       } else if (format === "dxf") {
         const content = exportSurfaceDXF(surf.name, mesh.geometry, originRef.current, prov, extra);
-        await saveFile({ suggestedName: `${baseName}.dxf`, filters: [{ name: "AutoCAD DXF", extensions: ["dxf"] }], content, encoding: "text" });
+        res = await saveFile({ quiet: true, suggestedName: `${baseName}.dxf`, filters: [{ name: "AutoCAD DXF", extensions: ["dxf"] }], content, encoding: "text" });
       } else if (format === "glb") {
         const buf = await exportSurfaceGLTF(surf.name, mesh.geometry, originRef.current, prov, extra);
-        await saveFile({ suggestedName: `${baseName}.glb`, filters: [{ name: "glTF Binary", extensions: ["glb"] }], content: uint8ToBase64(new Uint8Array(buf)), encoding: "base64" });
+        res = await saveFile({ quiet: true, suggestedName: `${baseName}.glb`, filters: [{ name: "glTF Binary", extensions: ["glb"] }], content: uint8ToBase64(new Uint8Array(buf)), encoding: "base64" });
       } else if (format === "vtk") {
         // TASKS.csv #798 — legacy VTK polydata for ParaView / PyVista (pv.read)
         const { surfaceToVtk } = await import("../lib/vtkExport.js");
         const { vertices, indices } = sceneVertsToWorld(mesh.geometry, originRef.current);
         const content = surfaceToVtk(surf.name, vertices, indices, `EPSG:${project?.epsg ?? "?"}${surf.editCount > 0 ? `, hand-edited ${surf.editCount} time(s)` : ""}`);
-        await saveFile({ suggestedName: `${baseName}.vtk`, filters: [{ name: "VTK (legacy)", extensions: ["vtk"] }], content, encoding: "text" });
+        res = await saveFile({ quiet: true, suggestedName: `${baseName}.vtk`, filters: [{ name: "VTK (legacy)", extensions: ["vtk"] }], content, encoding: "text" });
       } else if (format === "omf") {
         // TASKS.csv #411 — OMF v1 for Leapfrog / Datamine / Vulcan / Micromine (writer loaded on first use)
         const { writeOMF } = await import("../lib/omfWriter.js");
         const { vertices, indices } = sceneVertsToWorld(mesh.geometry, originRef.current);
         const desc = `GeoStrix surface, EPSG:${project?.epsg ?? "?"}${extra.volumeM3 != null ? `, enclosed volume ${Math.round(extra.volumeM3)} m3` : ""}${surf.editCount > 0 ? `, hand-edited ${surf.editCount} time(s)` : ""}`;
         const bytes = await writeOMF({ name: surf.name, description: desc, elements: [{ type: "surface", name: surf.name, description: desc, vertices: vertices.flat(), triangles: indices.flat() }] });
-        await saveFile({ suggestedName: `${baseName}.omf`, filters: [{ name: "Open Mining Format", extensions: ["omf"] }], content: uint8ToBase64(bytes), encoding: "base64" });
+        res = await saveFile({ quiet: true, suggestedName: `${baseName}.omf`, filters: [{ name: "Open Mining Format", extensions: ["omf"] }], content: uint8ToBase64(bytes), encoding: "base64" });
       }
+      if (!res?.ok) { if (res?.error) throw new Error(res.error); return; }
       setNotices((p) => [...p, notice("Exported \"{name}\" as {format} (real-world coordinates).", { name: surf.name, format: format.toUpperCase() })]);
     } catch (err) {
       setNotices((p) => [...p, errorNotice(tr("Export failed for \"{name}\": {message}", { name: surf.name, message: err.message }))]);
@@ -4387,7 +4389,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const rows = piercePointRows(plannedHoles.map((hole) => ({ hole, pierces: surfacePierces(plannedHoleTrace(hole), pierceSurfaces) })));
     if (!rows.length) { setNotices((p) => [...p, notice("The planned holes cross none of the visible modelled surfaces.")]); return; }
     const base = `${(project.name || "project").replace(/[^\w\- ]/g, "")}_pierce_points`;
-    const res = await saveFile({ suggestedName: `${base}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows), encoding: "text" });
+    const res = await saveFile({ quiet: "success", suggestedName: `${base}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows), encoding: "text" });
     if (res.ok) setNotices((p) => [...p, notice("Exported {n} pierce point(s) of the planned holes.", { n: rows.length })]);
   }, [plannedHoles, pierceSurfaces, project]);
 
@@ -4400,9 +4402,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const noLatLon = rows.filter((r) => r.lat === "").length;
     const noMag = rows.filter((r) => r.azimuth_magnetic === "").length;
     let res;
-    if (format === "kml") res = await saveFile({ suggestedName: `${base}.kml`, filters: [{ name: "KML", extensions: ["kml"] }], content: rigKML(rows, `${project.name || "GeoStrix"} planned holes`), encoding: "text" });
-    else if (format === "gpx") res = await saveFile({ suggestedName: `${base}.gpx`, filters: [{ name: "GPX", extensions: ["gpx"] }], content: rigGPX(rows), encoding: "text" });
-    else res = await saveFile({ suggestedName: `${base}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows), encoding: "text" });
+    if (format === "kml") res = await saveFile({ quiet: "success", suggestedName: `${base}.kml`, filters: [{ name: "KML", extensions: ["kml"] }], content: rigKML(rows, `${project.name || "GeoStrix"} planned holes`), encoding: "text" });
+    else if (format === "gpx") res = await saveFile({ quiet: "success", suggestedName: `${base}.gpx`, filters: [{ name: "GPX", extensions: ["gpx"] }], content: rigGPX(rows), encoding: "text" });
+    else res = await saveFile({ quiet: "success", suggestedName: `${base}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows), encoding: "text" });
     if (res.ok) setNotices((p) => [...p, notice("Exported {plannedHoles} planned hole(s) to {format}{v}.{v2}{v3}", { plannedHoles: plannedHoles.length, format: format.toUpperCase(), v: rows[0]?.declination_deg !== "" ? tr(" — magnetic azimuths use the IGRF-14 declination for {today} ({declination_deg}° at the first collar); recheck it if drilling is months away", { today, declination_deg: rows[0].declination_deg }) : "", v2: noLatLon ? tr(" {noLatLon} hole(s) have no latitude/longitude (project CRS not convertible) and are missing from KML/GPX.", { noLatLon }) : "", v3: noMag && !noLatLon ? tr(" {noMag} hole(s) have no magnetic azimuth.", { noMag }) : "" })]);
   }, [plannedHoles, project]);
 
@@ -5998,7 +6000,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     try {
       const { buildShapefileZip } = await import("../lib/shapefile.js"); // #552 — on demand
       const zipBytes = buildShapefileZip({ features, geomType, epsg: project?.epsg, baseName: label });
-      const res = await saveFile({ // TASKS.csv #576 — awaited: success only when it was written
+      const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.zip`,
         filters: [{ name: "Shapefile (zipped)", extensions: ["zip"] }],
         content: uint8ToBase64(zipBytes), encoding: "base64",
@@ -6018,7 +6020,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     try {
       const tableName = label.replace(/[^a-zA-Z0-9_]+/g, "_") || "layer";
       const gpkgBytes = await (await loadGpkg()).buildGeoPackage([{ name: tableName, features, geomType, epsg: project?.epsg }]); // #439 lazy
-      const res = await saveFile({ // TASKS.csv #576 — awaited: success only when it was written
+      const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.gpkg`,
         filters: [{ name: "GeoPackage", extensions: ["gpkg"] }],
         content: uint8ToBase64(gpkgBytes), encoding: "base64",
@@ -6039,7 +6041,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     try {
       const { buildDXF } = await import("../lib/dxf.js"); // #552 — on demand
       const dxfText = buildDXF({ features, geomType });
-      const res = await saveFile({ // TASKS.csv #576 — awaited: success only when it was written
+      const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.dxf`,
         filters: [{ name: "DXF", extensions: ["dxf"] }],
         content: dxfText,
@@ -7494,9 +7496,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 {sections.some((s) => (s.contacts || []).length) && (
                   <span style={{ display: "flex", gap: 8, textTransform: "none", letterSpacing: 0, fontSize: "var(--font-size-xs)" }}>
                     <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", color: "var(--color-info)" }} title={tr("Every drawn contact, fault, string and outline: one row per vertex with real x, y, z")}
-                      onClick={async () => { const { sectionStringsToRows } = await import("../lib/sectionExport.js"); /* #409; on demand #552 */ const rows = sectionStringsToRows(sections); const res = await saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows), encoding: "text" }); if (res.ok) setNotices((p) => [...p, notice("Exported {rows} vertices of section strings to CSV.", { rows: rows.length })]); }}>{tr("Strings CSV")}</span>
+                      onClick={async () => { const { sectionStringsToRows } = await import("../lib/sectionExport.js"); /* #409; on demand #552 */ const rows = sectionStringsToRows(sections); const res = await saveFile({ quiet: "success", suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows), encoding: "text" }); if (res.ok) setNotices((p) => [...p, notice("Exported {rows} vertices of section strings to CSV.", { rows: rows.length })]); }}>{tr("Strings CSV")}</span>
                     <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", color: "var(--color-info)" }} title={tr("Every drawn contact, fault, string and outline as a 3D polyline (layer = section_kind_name; outlines closed) — opens in Vulcan, Datamine, Leapfrog, Micromine, QGIS")}
-                      onClick={async () => { const { sectionStringsToDXF } = await import("../lib/sectionExport.js"); /* #552 */ const { dxf, count } = sectionStringsToDXF(sections); const res = await saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.dxf`, filters: [{ name: "DXF", extensions: ["dxf"] }], content: dxf, encoding: "text" }); if (res.ok) setNotices((p) => [...p, notice("Exported {count} section string(s) to 3D DXF.", { count })]); }}>{tr("DXF")}</span>
+                      onClick={async () => { const { sectionStringsToDXF } = await import("../lib/sectionExport.js"); /* #552 */ const { dxf, count } = sectionStringsToDXF(sections); const res = await saveFile({ quiet: "success", suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.dxf`, filters: [{ name: "DXF", extensions: ["dxf"] }], content: dxf, encoding: "text" }); if (res.ok) setNotices((p) => [...p, notice("Exported {count} section string(s) to 3D DXF.", { count })]); }}>{tr("DXF")}</span>
                   </span>
                 )}
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey}

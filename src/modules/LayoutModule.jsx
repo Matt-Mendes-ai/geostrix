@@ -166,7 +166,7 @@ export default function LayoutModule() {
           const canvas = await renderPdfPage(doc, pageNo, (Math.max(wmm, hmm) / 25.4) * dpi);
           const png = canvas.toDataURL("image/png").split(",")[1];
           const name = `${base}_p${pageNo}_${dpi}dpi.png`;
-          const res = await saveFile({ suggestedName: name, filters: [{ name: "PNG", extensions: ["png"] }], content: png, encoding: "base64" });
+          const res = await saveFile({ quiet: "success", suggestedName: name, filters: [{ name: "PNG", extensions: ["png"] }], content: png, encoding: "base64" });
           if (res?.ok) setExportNote({ text: tr("Exported page {n} as a {w} × {h} px PNG ({dpi} dpi) to {path}.", { n: pageNo, w: canvas.width, h: canvas.height, dpi, path: res.filePath || name }), error: false });
           return;
         }

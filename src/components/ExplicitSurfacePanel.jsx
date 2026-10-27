@@ -789,7 +789,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
     const q = (v) => { const t = String(v ?? ""); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
     const csv = [INPUT_COLUMNS.join(","), ...rows.map((r) => INPUT_COLUMNS.map((c) => q(r[c])).join(","))].join("\r\n");
     const name = all ? "explicit_surfaces_inputs" : `${(def.name || "surface").replace(/[^\w-]+/g, "_")}_inputs`;
-    const res = await saveFile({ suggestedName: `${name}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: `${csv}\r\n`, encoding: "text" });
+    const res = await saveFile({ quiet: "success", suggestedName: `${name}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: `${csv}\r\n`, encoding: "text" });
     if (res?.ok) setExportNote(tr("Exported {n} row(s): picks, section-line and image-line vertices (mapped contacts and dip guides are rebuilt from the map and are not listed).", { n: rows.length }));
   };
   const splitUnit = () => {

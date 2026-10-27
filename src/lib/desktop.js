@@ -21,8 +21,21 @@ export async function exportPDFData(opts = {}) {
   return { ok: false, message: "The image export needs the desktop app." };
 }
 
-export async function saveFile({ suggestedName, filters, content, encoding }) {
-  if (d) return d.saveFile({ suggestedName, filters, content, encoding });
+// TASKS.csv #1042 (review #1016) — #576 made the success notice wait for the write, but only 3 of 61 exports awaited it:
+// a file open in Excel or held by OneDrive failed with no message. saveFile now never throws: it resolves with
+// { ok, filePath, error } and announces the result ("geostrix-export-result"), which App's ExportToast shows for every
+// export ("Saved to ..." / "Not saved: ..."). A caller that reports the result itself passes quiet: true.
+export const EXPORT_RESULT_EVENT = "geostrix-export-result";
+const announce = (detail) => { try { if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(EXPORT_RESULT_EVENT, { detail })); } catch { /* no window */ } };
+export async function saveFile({ suggestedName, filters, content, encoding, quiet = false }) {
+  if (d) {
+    let res;
+    try { res = await d.saveFile({ suggestedName, filters, content, encoding }); } catch (err) { res = { ok: false, error: String(err?.message || err).replace(/^Error invoking remote method '[^']+': (?:Error: )?/, "") }; }
+    res = res || { ok: false };
+    // quiet: true = the caller reports the result; "success" = it reports success, the toast still shows a failure
+    if ((res.ok && !quiet) || (res.error && quiet !== true)) announce({ ok: !!res.ok, filePath: res.filePath || null, error: res.error || null, name: suggestedName });
+    return res;
+  }
   // browser fallback: anchor download
   const blob = encoding === "base64"
     ? b64toBlob(content)

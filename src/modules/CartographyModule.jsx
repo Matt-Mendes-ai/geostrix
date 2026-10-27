@@ -141,14 +141,14 @@ export default function CartographyModule({ embedded = false, forcePane = null }
   const saveReprojectedShp = () => run(async () => {
     const { bytes, report } = await reprojectShapefileZip(file.bytes, fileFrom || null, fileTo);
     const base = file.name.replace(/\.[^.]+$/, "");
-    const res = await saveFile({ suggestedName: `${base}_EPSG${fileTo}.zip`, filters: [{ name: "Shapefile (zipped)", extensions: ["zip"] }], content: uint8ToBase64(bytes), encoding: "base64" });
+    const res = await saveFile({ quiet: true, suggestedName: `${base}_EPSG${fileTo}.zip`, filters: [{ name: "Shapefile (zipped)", extensions: ["zip"] }], content: uint8ToBase64(bytes), encoding: "base64" });
     if (!res?.ok) { if (res?.error) throw new Error(res.error); setMsg(null); return; } // cancelled in the dialog
     setMsg({ ok: true, text: reportShapefileText(report, fileTo) });
   });
   const saveReprojectedTif = () => run(async () => {
     const { bytes, report } = await reprojectGeoTiff(file.bytes, fileFrom || null, fileTo);
     const base = file.name.replace(/\.[^.]+$/, "");
-    const res = await saveFile({ suggestedName: `${base}_EPSG${fileTo}.tif`, filters: [{ name: "GeoTIFF", extensions: ["tif", "tiff"] }], content: uint8ToBase64(bytes), encoding: "base64" });
+    const res = await saveFile({ quiet: true, suggestedName: `${base}_EPSG${fileTo}.tif`, filters: [{ name: "GeoTIFF", extensions: ["tif", "tiff"] }], content: uint8ToBase64(bytes), encoding: "base64" });
     if (!res?.ok) { if (res?.error) throw new Error(res.error); setMsg(null); return; } // cancelled in the dialog
     setMsg({ ok: true, text: reportGeoTiffText(report, fileTo) });
   });
@@ -166,7 +166,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
       return { ...r, [xName]: +nx.toFixed(geo ? 8 : 3), [yName]: +ny.toFixed(geo ? 8 : 3) };
     });
     const base = file.name.replace(/\.[^.]+$/, "");
-    const res = await saveFile({ suggestedName: `${base}_EPSG${fileTo}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows, { columns: [...file.headers, xName, yName] }) });
+    const res = await saveFile({ quiet: true, suggestedName: `${base}_EPSG${fileTo}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows, { columns: [...file.headers, xName, yName] }) });
     if (!res?.ok) { if (res?.error) throw new Error(res.error); setMsg(null); return; } // cancelled in the dialog
     setMsg({ ok: true, text: tr("Saved {rows} rows with two new columns, {xName} and {yName} ({v}); the original columns are kept.{v2}", { rows: rows.length.toLocaleString(), xName, yName, v: nameOf(fileTo), v2: bad ? tr(" {bad} row(s) had no usable X/Y and were left blank.", { bad }) : "" }) });
   });

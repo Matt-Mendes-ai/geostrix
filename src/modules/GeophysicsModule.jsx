@@ -111,7 +111,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     const { buildModelExportZip, uint8ToBase64 } = await import("../lib/modelExport.js");
     const r = await buildModelExportZip(model, project.epsg);
     if (r.error) { setVoxelError({ text: tr("Could not export \"{name}\": {error}", { name: model.name, error: r.error }) }); return; }
-    const res = await saveFile({ suggestedName: `${r.base}_export.zip`, filters: [{ name: "Zip", extensions: ["zip"] }], content: uint8ToBase64(r.zip), encoding: "base64" });
+    const res = await saveFile({ quiet: "success", suggestedName: `${r.base}_export.zip`, filters: [{ name: "Zip", extensions: ["zip"] }], content: uint8ToBase64(r.zip), encoding: "base64" });
     if (res?.ok) setVoxelError({ info: true, text: tr("Exported \"{name}\": {files} files ({n} depth slices).{v}", { name: model.name, files: r.files.length, n: r.files.filter((f) => f.endsWith(".tif")).length, v: r.warnings.length ? " " + r.warnings.join(" ") : "" }) });
   };
   const evaluateOnHoles = (model) => {

@@ -6168,5 +6168,9 @@
   "m each way; type": "m de chaque côté ; type",
   "any type": "tout type",
   "The variogram ordinary kriging weights the composites with. Leave nugget, sill and range blank to fit one to the composites at run time (with a trend, the range is along its major axis). The Variogram tool shows the experimental points if you want to choose them yourself.": "Le variogramme avec lequel le krigeage ordinaire pondère les composites. Laissez pépite, palier et portée vides pour l'ajuster aux composites à l'exécution (avec une tendance, la portée est le long de son axe majeur). L'outil Variogramme montre les points expérimentaux si vous voulez les choisir vous-même.",
-  "Blank = fitted to the composites when you run; with a trend, the range is along its major axis.": "Vide = ajusté aux composites à l'exécution ; avec une tendance, la portée est le long de son axe majeur."
+  "Blank = fitted to the composites when you run; with a trend, the range is along its major axis.": "Vide = ajusté aux composites à l'exécution ; avec une tendance, la portée est le long de son axe majeur.",
+  "Saved {file} to {folder}.": "{file} enregistré dans {folder}.",
+  "the chosen folder": "le dossier choisi",
+  "{file} was not saved: {error}": "{file} n'a pas été enregistré : {error}",
+  "The file": "Le fichier"
 }

@@ -1018,7 +1018,7 @@ export function StoreProvider({ children }) {
     const payload = snapshotCurrentPayload();
     const knownPath = !saveAs ? workspaceTabs.find((t) => t.id === activeTabId)?.filePath : null;
     if (knownPath) res = await saveFileTo({ filePath: knownPath, content: JSON.stringify(payload) });
-    if (!res || res.notAllowed) res = await saveFile({
+    if (!res || res.notAllowed) res = await saveFile({ quiet: true,
       // TASKS.csv #186 — project format renamed from .geox(.json) to .geostrix(.json). "json" stays
       // in the filter list so old .geox.json project files the user already has on disk still show up
       // and open fine (JSON.parse doesn't care about the filename, and both extensions end in "json").

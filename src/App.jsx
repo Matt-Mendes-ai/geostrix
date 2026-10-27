@@ -6,6 +6,7 @@ import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2
 import { crsName, getProj4DefSync, loadEpsgRegistry, onEpsgRegistry } from "./lib/reproject.js"; // TASKS.csv #485; #834 registry
 import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./lib/store.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
+import ExportToast from "./components/ExportToast.jsx"; // TASKS.csv #1042 — every export says whether it was saved, and where
 const UpdatePrompt = React.lazy(() => import("./components/UpdatePrompt.jsx")); // TASKS.csv #915 — loaded only when an update exists
 import { iconAction, activateOnKey } from "./lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 import { DESURVEY_METHODS } from "./lib/desurvey.js"; // TASKS.csv #135 — status-bar desurvey-method picker
@@ -547,6 +548,7 @@ export default function App() {
       </RibbonSlotContext.Provider>
 
       <StatusBar onEpsg={() => requestProjectCrs()} pyStatus={pyStatus} updater={updater} onHelp={() => setShortcutsTab("shortcuts")} onPython={() => setShortcutsTab("python")} />
+      <ExportToast />
       {crsRequest && <Suspense fallback={null}><ProjectCrsModal reason={crsRequest.reason} points={crsRequest.points} onDone={finishCrsRequest} /></Suspense>}
       {licensesOpen && <Suspense fallback={null}><LicensesModal onClose={() => setLicensesOpen(false)} /></Suspense>}
       {reportProblem && <Suspense fallback={null}><ReportProblemModal screenshot={reportProblem.screenshot} crashed={reportProblem.crashed} onClose={() => setReportProblem(null)} /></Suspense>}

@@ -703,8 +703,18 @@ ipcMain.handle("save-file", async (ev, { suggestedName, filters, content, encodi
   });
   if (canceled || !filePath) return { ok: false };
   userChosenPaths.add(pathKey(filePath)); // #553
-  const backup = await writeChosenFile(filePath, content, encoding);
-  return { ok: true, filePath, backup };
+  // TASKS.csv #1042 — a locked target (open in Excel, a viewer, OneDrive) answered with a rejected promise most callers
+  // never saw, and left the complete temp copy beside the user's file. Now a plain { ok: false, error }; for an export
+  // the temp copy is removed (a project keeps it, #469, and the message says where).
+  try {
+    const backup = await writeChosenFile(filePath, content, encoding);
+    return { ok: true, filePath, backup };
+  } catch (err) {
+    const isProject = /\.geostrix(\.json)?$/i.test(filePath);
+    if (err?.keptAt && !isProject) await fs.promises.unlink(err.keptAt).catch(() => {});
+    const locked = ["EBUSY", "EPERM", "EACCES"].includes(err?.code);
+    return { ok: false, filePath, error: locked ? `${path.basename(filePath)} is open or locked in another program (Excel, a viewer, OneDrive). Close it, or save under another name.${isProject && err?.keptAt ? ` The complete copy is at ${err.keptAt}.` : ""}` : (err?.message || String(err)) };
+  }
 });
 
 // ---------- open file (for importers that want a native dialog) ----------
