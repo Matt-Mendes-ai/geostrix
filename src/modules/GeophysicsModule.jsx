@@ -1,5 +1,5 @@
 import React, { Suspense, useMemo, useRef, useState } from "react";
-import { ensureProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615
+import { ensureProjectCrs, ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615; export: #1021
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; // TASKS.csv #410
@@ -108,8 +108,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   // models show as a bar track in the strip log beside the logs; discrete ones (a GemPy unit block) as units.
   // TASKS.csv #328 — the export package (module loaded on first use: it brings the GeoTIFF writer)
   const exportModelPackage = async (model) => {
+    const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021
     const { buildModelExportZip, uint8ToBase64 } = await import("../lib/modelExport.js");
-    const r = await buildModelExportZip(model, project.epsg);
+    const r = await buildModelExportZip(model, epsg);
     if (r.error) { setVoxelError({ text: tr("Could not export \"{name}\": {error}", { name: model.name, error: r.error }) }); return; }
     const res = await saveFile({ quiet: "success", suggestedName: `${r.base}_export.zip`, filters: [{ name: "Zip", extensions: ["zip"] }], content: uint8ToBase64(r.zip), encoding: "base64" });
     if (res?.ok) setVoxelError({ info: true, text: tr("Exported \"{name}\": {files} files ({n} depth slices).{v}", { name: model.name, files: r.files.length, n: r.files.filter((f) => f.endsWith(".tif")).length, v: r.warnings.length ? " " + r.warnings.join(" ") : "" }) });
@@ -406,10 +407,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   // processed terrain (whatever was actually used — imported DEM tiles, or a fetched SRTM area) had no
   // way back out for another tool or for archiving. See raster.js's terrainToGeoTIFFBase64 for the
   // actual writer (geotiff package's own writeArrayBuffer, not hand-rolled).
-  const exportTerrainGeoTIFF = () => {
+  const exportTerrainGeoTIFF = async () => {
     if (!terrain) return;
+    const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021
     try {
-      const base64 = terrainToGeoTIFFBase64(terrain, project?.epsg);
+      const base64 = terrainToGeoTIFFBase64(terrain, epsg);
       saveFile({ suggestedName: `${terrain.name.replace(/\.(tif|tiff)$/i, "")}.tif`, filters: [{ name: "GeoTIFF", extensions: ["tif"] }], content: base64, encoding: "base64" });
     } catch (err) {
       setTerrainError({ info: false, text: tr("Couldn't export terrain: {message}", { message: err.message }) });
@@ -1693,7 +1695,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
           </label>
         )}
         {voxelModels.map((v) => (
-          <VoxelModelRow key={v.id} model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} epsg={project?.epsg} csvNames={bmNames} />
+          <VoxelModelRow key={v.id} model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} getEpsg={() => ensureExportCrs(project)} /* #1021 */ csvNames={bmNames} />
         ))}
 
         <div style={{ marginTop: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6 }}>
@@ -1773,7 +1775,7 @@ async function exportBlockModelVTK(model, epsg) {
 }
 // TASKS.csv #711 — what an imported volume's values can be (the units the rest of the app uses)
 const VOXEL_PROPERTIES = ["Conductivity (S/m)", "Resistivity (ohm·m)", "Chargeability (mV/V)", "Susceptibility (SI)", "Density (g/cc)", "Density contrast (g/cc)"];
-function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage, epsg, csvNames = "datamine" }) {
+function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage, getEpsg, csvNames = "datamine" }) {
   const [displayThreshold, setDisplayThreshold] = useState(model.threshold);
   const [displayOpacity, setDisplayOpacity] = useState(model.opacity ?? 0.85);
   const [legendOpen, setLegendOpen] = useState(false);
@@ -1816,8 +1818,8 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage,
         {/* TASKS.csv #328 — UBC mesh/model, .obs data, GeoTIFF depth slices and provenance.txt in one zip */}
         {onExportPackage && <PackageOpen role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" for other software", { name: model.name })} title={tr("Export for other software (zip): UBC mesh + model, .obs observed/predicted data (SimPEG inversions), GeoTIFF depth slices, provenance.txt")} onClick={() => onExportPackage(model)} />}
         {/* TASKS.csv #411 — block model out for estimation/mine-planning software */}
-        <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as CSV", { name: model.name })} title={csvNames === "micromine" ? tr("Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)") : tr("Export as block-model CSV (XC, YC, ZC, XINC, YINC, ZINC, value)")} onClick={() => exportBlockModelCSV(model, epsg, csvNames)} />
-        <Box role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as VTK", { name: model.name })} title={tr("Export as VTK for ParaView / PyVista (empty blocks are NaN)")} onClick={() => exportBlockModelVTK(model, epsg)} />{/* TASKS.csv #798 */}
+        <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as CSV", { name: model.name })} title={csvNames === "micromine" ? tr("Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)") : tr("Export as block-model CSV (XC, YC, ZC, XINC, YINC, ZINC, value)")} onClick={async () => { const e = await getEpsg(); if (e) exportBlockModelCSV(model, e, csvNames); }} />
+        <Box role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as VTK", { name: model.name })} title={tr("Export as VTK for ParaView / PyVista (empty blocks are NaN)")} onClick={async () => { const e = await getEpsg(); if (e) exportBlockModelVTK(model, e); }} />{/* TASKS.csv #798 */}
         <Trash2 aria-label={tr("Remove block model \"{name}\"", { name: model.name })} title={tr("Remove block model \"{name}\"", { name: model.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: model.name }))) onRemove(model.id); }} />
       </div>
       {/* TASKS.csv #711 — an OMF / UBC volume names no property or unit, so the legend, inspector and exports could only

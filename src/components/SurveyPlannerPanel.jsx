@@ -8,6 +8,7 @@ import { useStore } from "../lib/store.jsx";
 import { soilGrid, streamSites, numberSamples, planGpx, planKml, planCsvRows, planFieldSheet } from "../lib/surveyPlan.js";
 import { routeTerrainAsync } from "../lib/hydrologyClient.js";
 import { pointTransform, crsName } from "../lib/reproject.js";
+import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
@@ -63,7 +64,6 @@ export default function SurveyPlannerPanel({ onClose }) {
   }, [mode, area, grid, route, terrain, streams]);
   const rows = useMemo(() => (plan ? numberSamples(plan.sites, { prefix: num.prefix, start: Number(num.start) || 1, digits: Number(num.digits) || 5, qc: qc.filter((q) => q.on) }) : []), [plan, num, qc]);
   const nQc = rows.filter((r) => r.kind !== "sample").length;
-  const toLonLat = (() => { const T = project?.epsg ? pointTransform(project.epsg, 4326) : null; return (x, y) => (T ? T(x, y) : [x, y]); })();
   const title = mode === "soil" ? `Soil grid: ${grid.lineSpacing} x ${grid.stationSpacing} m, lines at ${grid.azimuth}°` : `Stream sites: order ${streams.orders.join(", ")}, ${streams.minAreaKm2}-${streams.maxAreaKm2} km²`;
 
   const draw = () => {
@@ -74,7 +74,14 @@ export default function SurveyPlannerPanel({ onClose }) {
     }
     setMsg(tr("Added the plan to the map as lines ({n} sites).", { n: plan.sites.length }));
   };
-  const save = (ext, content, kind) => saveFile({ suggestedName: `survey_plan.${ext}`, filters: [{ name: kind, extensions: [ext] }], content });
+  // TASKS.csv #1021 — the coordinate system is asked for if it was never chosen (the GPS files and the CSV's lat / lon
+  // used the placeholder), and raw x / y are never written as latitude / longitude
+  const save = async (ext, build, kind) => {
+    const epsg = await ensureExportCrs(project); if (!epsg) return;
+    const T = pointTransform(epsg, 4326);
+    if (!T) { setMsg(tr("EPSG:{epsg} could not be converted to latitude / longitude, so no GPS file was written.", { epsg })); return; }
+    saveFile({ suggestedName: `survey_plan.${ext}`, filters: [{ name: kind, extensions: [ext] }], content: build((x, y) => T(x, y), epsg) });
+  };
 
   return (
     <div style={overlay} {...backdropProps(onClose)}>
@@ -145,10 +152,10 @@ export default function SurveyPlannerPanel({ onClose }) {
               </div>
               <div style={rowS}>
                 <button type="button" style={btn(true)} onClick={draw} disabled={!plan.sites.length}>{tr("Show on the map")}</button>
-                <button type="button" style={dl} onClick={() => save("gpx", planGpx(rows, plan.sites, toLonLat, title), "GPX")} disabled={!rows.length}><Download size={14} />GPX</button>
-                <button type="button" style={dl} onClick={() => save("kml", planKml(rows, plan.sites, toLonLat, title), "KML")} disabled={!rows.length}><Download size={14} />KML</button>
-                <button type="button" style={dl} onClick={() => save("csv", Papa.unparse(planCsvRows(rows, plan.sites, toLonLat)), "CSV")} disabled={!rows.length}><Download size={14} />CSV</button>
-                <button type="button" style={dl} onClick={() => save("html", planFieldSheet(rows, plan.sites, { title, crs: project?.epsg ? `${crsName(project.epsg) || ""} (EPSG:${project.epsg})` : "" }), "HTML")} disabled={!rows.length}><Download size={14} />{tr("Field sheet (print)")}</button>
+                <button type="button" style={dl} onClick={() => save("gpx", (ll) => planGpx(rows, plan.sites, ll, title), "GPX")} disabled={!rows.length}><Download size={14} />GPX</button>
+                <button type="button" style={dl} onClick={() => save("kml", (ll) => planKml(rows, plan.sites, ll, title), "KML")} disabled={!rows.length}><Download size={14} />KML</button>
+                <button type="button" style={dl} onClick={() => save("csv", (ll) => Papa.unparse(planCsvRows(rows, plan.sites, ll)), "CSV")} disabled={!rows.length}><Download size={14} />CSV</button>
+                <button type="button" style={dl} onClick={() => save("html", (_ll, epsg) => planFieldSheet(rows, plan.sites, { title, crs: `${crsName(epsg) || ""} (EPSG:${epsg})` }), "HTML")} disabled={!rows.length}><Download size={14} />{tr("Field sheet (print)")}</button>
               </div>
               {msg && <div style={note}>{msg}</div>}
               <div style={note}>{tr("GPX and KML are in WGS 84 for a handheld GPS or a phone. A soil grid's KML shows the lines (the numbered stations are in a folder that starts hidden); its GPX has the lines as tracks and the stations as waypoints. Stream sites are points. QC inserts are in the CSV and the field sheet, in the order they go into the sample stream. Duplicates are taken at the site of the sample they follow.")}</div>

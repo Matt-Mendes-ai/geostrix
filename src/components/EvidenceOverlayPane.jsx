@@ -12,6 +12,7 @@ import { valueIn } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js";
 import { f32ToB64 } from "../lib/inversion.js";
 import { gridToGeoTIFF, saveGeoTIFF } from "../lib/gridExport.js";
+import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
 import { fontSizes } from "../lib/theme.js";
 import { pBtn as sidebarBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #997
 import { t as tr } from "../lib/i18n.js";
@@ -172,7 +173,7 @@ export default function EvidenceOverlayPane({ onClose }) {
       params: { tool: which === "posterior" ? "weights of evidence (posterior probability)" : "fuzzy overlay", recipe, trainingPoints: trainingPoints.length, builtAt: new Date().toISOString() } }); // TASKS.csv #1003 — how it was made
     setMsg(tr("Added \"{name}\" to the map (its values export as GeoTIFF from the Raster module).", { name }));
   };
-  const toTif = (which) => { const score = which === "posterior" ? result.wofe.post.prob : result.fuzzy; saveGeoTIFF(`${which === "posterior" ? "wofe_posterior" : "fuzzy_overlay"}.tif`, gridToGeoTIFF({ ...grid, bands: [{ values: score }], epsg: project?.epsg })); };
+  const toTif = async (which) => { const epsg = await ensureExportCrs(project); if (!epsg) return; /* #1021 */ const score = which === "posterior" ? result.wofe.post.prob : result.fuzzy; saveGeoTIFF(`${which === "posterior" ? "wofe_posterior" : "fuzzy_overlay"}.tif`, gridToGeoTIFF({ ...grid, bands: [{ values: score }], epsg })); };
 
   return (
     <>

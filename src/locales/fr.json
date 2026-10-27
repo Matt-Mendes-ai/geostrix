@@ -6172,5 +6172,7 @@
   "Saved {file} to {folder}.": "{file} enregistré dans {folder}.",
   "the chosen folder": "le dossier choisi",
   "{file} was not saved: {error}": "{file} n'a pas été enregistré : {error}",
-  "The file": "Le fichier"
+  "The file": "Le fichier",
+  "This export places your data on Earth (latitude / longitude, a .prj, a GeoTIFF's coordinate system), but the project's coordinate system was never chosen — only a placeholder is set, and the file would put your data in the wrong place. Choose it first.": "Cet export place vos données sur la Terre (latitude / longitude, un .prj, le système de coordonnées d'un GeoTIFF), mais le système de coordonnées du projet n'a jamais été choisi : seul un système provisoire est défini, et le fichier placerait vos données au mauvais endroit. Choisissez-le d'abord.",
+  "EPSG:{epsg} could not be converted to latitude / longitude, so no GPS file was written.": "EPSG:{epsg} n'a pas pu être converti en latitude / longitude : aucun fichier GPS n'a été écrit."
 }

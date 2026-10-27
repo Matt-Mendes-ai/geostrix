@@ -29,6 +29,7 @@ const IMPORTED_SOLID_COLORS = [0x8fa3b8, 0xa89bbd, 0x8fb8aa, 0xbfae92, 0x93b3c4,
 const SurfaceGeologyProjection = lazyModal(() => import("../components/SurfaceGeologyProjection.jsx")); // TASKS.csv #476 // TASKS.csv #318
 import { spreadColor, SPREAD_NOT_REPRODUCED } from "../lib/surfaceSpread.js"; // TASKS.csv #52 (a)
 import { supportShadeFactors } from "../lib/explicitSupport.js"; // TASKS.csv #977
+import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
 import { pointInBoundary } from "../lib/pointInPolygon.js"; // TASKS.csv #903 — not geoprocessing.js, which loads d3-delaunay
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
 import { useMenuKeys } from "../lib/useMenuKeys.js"; // TASKS.csv #730
@@ -4312,11 +4313,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const mesh = implicitMeshesRef.current[id];
     const surf = implicitSurfaces.find((s) => s.id === id);
     if (!mesh?.geometry || !surf) return;
+    const epsg = await ensureExportCrs(project); if (!epsg) return; // TASKS.csv #1021 — not the placeholder
     const baseName = (surf.name || "surface").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase();
     // TASKS.csv #269 — every exported mesh carries its own parameter provenance + the "not a Mineral
     // Resource estimate" stamp, so it can't come back later stripped of the assumptions behind it.
     const prov = surf.params || null;
-    const extra = { epsg: project?.epsg, densityTPerM3: surf.density ?? null, volumeM3: computeMeshVolume(mesh.geometry).volumeM3 };
+    const extra = { epsg, densityTPerM3: surf.density ?? null, volumeM3: computeMeshVolume(mesh.geometry).volumeM3 };
     // TASKS.csv #145 — a hand-sculpted surface must not leave this app claiming to be a clean
     // interpolation of its stated parameters. The edit log travels with the mesh (see
     // meshExport.js's provenanceLines, where it is stamped ahead of every parameter line), including
@@ -4346,13 +4348,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         // TASKS.csv #798 — legacy VTK polydata for ParaView / PyVista (pv.read)
         const { surfaceToVtk } = await import("../lib/vtkExport.js");
         const { vertices, indices } = sceneVertsToWorld(mesh.geometry, originRef.current);
-        const content = surfaceToVtk(surf.name, vertices, indices, `EPSG:${project?.epsg ?? "?"}${surf.editCount > 0 ? `, hand-edited ${surf.editCount} time(s)` : ""}`);
+        const content = surfaceToVtk(surf.name, vertices, indices, `EPSG:${epsg}${surf.editCount > 0 ? `, hand-edited ${surf.editCount} time(s)` : ""}`);
         res = await saveFile({ quiet: true, suggestedName: `${baseName}.vtk`, filters: [{ name: "VTK (legacy)", extensions: ["vtk"] }], content, encoding: "text" });
       } else if (format === "omf") {
         // TASKS.csv #411 — OMF v1 for Leapfrog / Datamine / Vulcan / Micromine (writer loaded on first use)
         const { writeOMF } = await import("../lib/omfWriter.js");
         const { vertices, indices } = sceneVertsToWorld(mesh.geometry, originRef.current);
-        const desc = `GeoStrix surface, EPSG:${project?.epsg ?? "?"}${extra.volumeM3 != null ? `, enclosed volume ${Math.round(extra.volumeM3)} m3` : ""}${surf.editCount > 0 ? `, hand-edited ${surf.editCount} time(s)` : ""}`;
+        const desc = `GeoStrix surface, EPSG:${epsg}${extra.volumeM3 != null ? `, enclosed volume ${Math.round(extra.volumeM3)} m3` : ""}${surf.editCount > 0 ? `, hand-edited ${surf.editCount} time(s)` : ""}`;
         const bytes = await writeOMF({ name: surf.name, description: desc, elements: [{ type: "surface", name: surf.name, description: desc, vertices: vertices.flat(), triangles: indices.flat() }] });
         res = await saveFile({ quiet: true, suggestedName: `${baseName}.omf`, filters: [{ name: "Open Mining Format", extensions: ["omf"] }], content: uint8ToBase64(bytes), encoding: "base64" });
       }
@@ -4361,7 +4363,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     } catch (err) {
       setNotices((p) => [...p, errorNotice(tr("Export failed for \"{name}\": {message}", { name: surf.name, message: err.message }))]);
     }
-  }, [implicitSurfaces, project?.epsg]);
+  }, [implicitSurfaces, project]);
 
   // TASKS.csv #188 — "Our planned drill holes need the option to get exported to csv." One row per
   // planned hole, real-world collar (x/y/z — same east/north/elevation convention every other export
@@ -4397,7 +4399,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!plannedHoles.length) { setNotices((p) => [...p, notice("No planned drillholes to export yet.")]); return; }
     const { rigRows, rigKML, rigGPX } = await import("../lib/rigExport.js"); // TASKS.csv #397; loaded on first export (#476)
     const today = new Date().toISOString().slice(0, 10);
-    const rows = rigRows(plannedHoles, project.epsg, today, plannedHoleTrace);
+    const epsg = await ensureExportCrs(project); if (!epsg) return; // TASKS.csv #1021 — lat / lon and true / magnetic azimuths need the real CRS
+    const rows = rigRows(plannedHoles, epsg, today, plannedHoleTrace);
     const base = `${(project.name || "project").replace(/[^\w\- ]/g, "")}_planned_holes`;
     const noLatLon = rows.filter((r) => r.lat === "").length;
     const noMag = rows.filter((r) => r.azimuth_magnetic === "").length;
@@ -5999,7 +6002,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const { buildShapefileZip } = await import("../lib/shapefile.js"); // #552 — on demand
-      const zipBytes = buildShapefileZip({ features, geomType, epsg: project?.epsg, baseName: label });
+      const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021 — the .prj
+      const zipBytes = buildShapefileZip({ features, geomType, epsg, baseName: label });
       const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.zip`,
         filters: [{ name: "Shapefile (zipped)", extensions: ["zip"] }],
@@ -6019,7 +6023,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const tableName = label.replace(/[^a-zA-Z0-9_]+/g, "_") || "layer";
-      const gpkgBytes = await (await loadGpkg()).buildGeoPackage([{ name: tableName, features, geomType, epsg: project?.epsg }]); // #439 lazy
+      const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021 — the layer's SRS
+      const gpkgBytes = await (await loadGpkg()).buildGeoPackage([{ name: tableName, features, geomType, epsg }]); // #439 lazy
       const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.gpkg`,
         filters: [{ name: "GeoPackage", extensions: ["gpkg"] }],
