@@ -5935,6 +5935,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // the trace it produces does), interval-kind layers (litho/alt/vein/geotech) become 2-vertex
   // polylines from their from/to depths, point-kind layers (mnlgy/magsusc) and structure planes become
   // single points at their depth, and geophys_pts (already raw world x/y/z) pass through unchanged.
+  const COLLAR_CORE_KEYS = new Set(["hole_id", "x", "y", "z", "azimuth", "dip", "length"]);
   const buildVectorFeatures = (kind, key) => {
     if (kind === "collars") {
       return {
@@ -5954,7 +5955,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           // actually typed.
           // TASKS.csv #577 — stored azimuths are GRID bearings (project CRS); say so in the field name and give the
           // true-north bearing beside it (grid = true + convergence), so QGIS / a re-import can't take one for the other
-          attributes: { hole_id: c.hole_id, azim_grid: c.azimuth ?? null, azim_true: Number.isFinite(c.azimuth) && project?.epsg ? (() => { const cv = trueNorthBearingInGridDeg(c.x, c.y, project.epsg); return Number.isFinite(cv) ? +((((c.azimuth - cv) % 360) + 360) % 360).toFixed(2) : null; })() : null, dip: Number.isFinite(c.dip) ? -c.dip : null, length: c.length ?? null },
+          attributes: { hole_id: c.hole_id, azim_grid: c.azimuth ?? null, azim_true: Number.isFinite(c.azimuth) && project?.epsg ? (() => { const cv = trueNorthBearingInGridDeg(c.x, c.y, project.epsg); return Number.isFinite(cv) ? +((((c.azimuth - cv) % 360) + 360) % 360).toFixed(2) : null; })() : null, dip: Number.isFinite(c.dip) ? -c.dip : null, length: c.length ?? null,
+            ...Object.fromEntries(Object.entries(c).filter(([k, v]) => !k.startsWith("_") && !COLLAR_CORE_KEYS.has(k) && v !== undefined)) }, // #1034 — custom collar fields (year, target, status ...) were dropped
         })),
         geomType: "point",
       };
