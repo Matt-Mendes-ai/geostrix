@@ -272,16 +272,22 @@ const SOURCE_COLS = ["source", "licence"];
 // day the service was tested, which used to read "(2026-10-25)" on a 1977 NURE sample; that date is in the import notice.
 // A long survey name is cut to fit the 60-character attribute, never the years.
 export const yearOf = (v) => { const m = /(?:^|\D)((?:19|20)\d\d)(?!\d)/.exec(String(v ?? "")); return m ? m[1] : ""; };
+// TASKS.csv #987 — the rows are the parsers' own fresh objects, so year / source / licence are written into them in place:
+// copying each ~57-key row twice ({ ...r, year } then { ...r, ...tag }) was 1.6 s of the 4 s a 100,000-row NURE area took.
 function table(rows, elementCols, extra, entry, notes) {
   const used = elementCols.filter((h) => rows.some((r) => r[h] !== "" && r[h] != null));
-  const withYear = rows.map((r) => ({ ...r, year: yearOf(r.collected) || yearOf(r.survey) }));
-  const years = withYear.map((r) => r.year).filter(Boolean).map(Number);
-  const lo = years.reduce((m, y) => Math.min(m, y), Infinity), hi = years.reduce((m, y) => Math.max(m, y), -Infinity); // no spread: tens of thousands of rows
-  const span = years.length ? (lo === hi ? String(lo) : `${lo}-${hi}`) : entry.years || "";
+  let lo = Infinity, hi = -Infinity, nYears = 0;
+  for (const r of rows) {
+    const y = yearOf(r.collected) || yearOf(r.survey);
+    r.year = y;
+    if (y) { const n = Number(y); nYears++; if (n < lo) lo = n; if (n > hi) hi = n; }
+  }
+  const span = nYears ? (lo === hi ? String(lo) : `${lo}-${hi}`) : entry.years || "";
   const name = entry.name.replace(/ \(.*/, "");
-  const tag = { source: span ? `${name.slice(0, 57 - span.length).trim()} (${span})` : name.slice(0, 60), licence: entry.licence.slice(0, 60) };
-  const yearCol = years.length ? ["year"] : [];
-  return { headers: ["sample_id", "longitude", "latitude", "elevation", "medium", ...extra, ...yearCol, ...used, ...SOURCE_COLS], rows: withYear.map((r) => { const o = { ...r, ...tag }; if (!years.length) delete o.year; return o; }), notes }; // zeroReported (#931) is a row field, not a header
+  const source = span ? `${name.slice(0, 57 - span.length).trim()} (${span})` : name.slice(0, 60), licence = entry.licence.slice(0, 60);
+  for (const r of rows) { if (!nYears) delete r.year; r.source = source; r.licence = licence; }
+  const yearCol = nYears ? ["year"] : [];
+  return { headers: ["sample_id", "longitude", "latitude", "elevation", "medium", ...extra, ...yearCol, ...used, ...SOURCE_COLS], rows, notes };
 }
 
 export function parseBcRgs(csvText) {
