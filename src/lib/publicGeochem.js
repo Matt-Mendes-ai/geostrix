@@ -281,7 +281,7 @@ function table(rows, elementCols, extra, entry, notes) {
   const name = entry.name.replace(/ \(.*/, "");
   const tag = { source: span ? `${name.slice(0, 57 - span.length).trim()} (${span})` : name.slice(0, 60), licence: entry.licence.slice(0, 60) };
   const yearCol = years.length ? ["year"] : [];
-  return { headers: ["sample_id", "longitude", "latitude", "elevation", "medium", ...extra, ...yearCol, ...used, ...SOURCE_COLS], rows: withYear.map((r) => { const o = { ...r, ...tag }; if (!years.length) delete o.year; return o; }), notes };
+  return { headers: ["sample_id", "longitude", "latitude", "elevation", "medium", ...extra, ...yearCol, ...used, ...SOURCE_COLS], rows: withYear.map((r) => { const o = { ...r, ...tag }; if (!years.length) delete o.year; return o; }), notes }; // zeroReported (#931) is a row field, not a header
 }
 
 export function parseBcRgs(csvText) {
@@ -292,11 +292,14 @@ export function parseBcRgs(csvText) {
     const o = { sample_id: r.MASTER_ID || "", longitude: r.LONGITUDE, latitude: r.LATITUDE, elevation: r.ELEVATION || "", medium: /lake/i.test(r.MATERIAL || "") ? "other" : "stream sediment", material: r.MATERIAL || "" };
     for (const [h, n] of map) {
       const v = String(r[h] ?? "").trim();
-      if (v === "0" || v === "0.0") { zeros++; o[n] = ""; } else o[n] = v; // no below-detection marker in this layer: a 0 is not a grade
+      // no below-detection marker in this layer: a 0 is not a grade. TASKS.csv #931 — but it is not "not analysed" either
+      // (much of RGS gold sits at the FA limit), so the columns that read 0 are listed for the surface import, which
+      // keeps them on the sample (`nd`) for the censored shares and the threshold warnings
+      if (v === "0" || v === "0.0") { zeros++; o[n] = ""; (o.zeroReported ||= []).push(n); } else o[n] = v;
     }
     return o;
   }).filter((o) => Number.isFinite(parseFloat(o.longitude)) && Number.isFinite(parseFloat(o.latitude)));
-  const notes = zeros ? [{ key: "{n} zero value(s) left empty: this layer has no below-detection marker, so a 0 is not a grade.", n: zeros }] : [];
+  const notes = zeros ? [{ key: "{n} zero value(s) read as no value: this layer has no below-detection marker, so a 0 may be below detection or not analysed. Thresholds and Surface QA/QC count them separately.", n: zeros }] : [];
   return { ...table(out, map.map(([, n]) => n), ["material"], CATALOGUE[0], notes), fetched: rows.length }; // fetched: for paging
 }
 

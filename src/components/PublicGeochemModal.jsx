@@ -73,7 +73,7 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
         if (!rows.length) { setError(tr("No samples from this survey in the area.")); return; }
         const headers = [...new Set(parts.flatMap((t) => t.headers))];
         const zeros = parts.reduce((s, t) => s + (t.notes[0]?.n || 0), 0);
-        onLoaded({ checked: CATALOGUE_CHECKED, headers, rows, entry, notes: zeros ? [tr("{n} zero value(s) left empty: this layer has no below-detection marker, so a 0 is not a grade.", { n: zeros })] : [] });
+        onLoaded({ checked: CATALOGUE_CHECKED, headers, rows, entry, notes: zeros ? [tr("{n} zero value(s) read as no value: this layer has no below-detection marker, so a 0 may be below detection or not analysed. Thresholds and Surface QA/QC count them separately.", { n: zeros })] : [] });
       } else if (entry.cdogs) {
         // TASKS.csv #905 — the shipped index says which surveys overlap the area; the user picks one survey x package
         setBusy(tr("Looking up the surveys…"));

@@ -115,7 +115,7 @@ test("#842 QC rows of a sample file become records; regular rows do not", () => 
 
 test("#842 below-detection shares", () => {
   const sm = [{ values: { Au: 2.5 }, bdl: ["Au"] }, { values: { Au: 10 } }, { values: { Au: 2.5 }, bdl: ["Au"] }, { values: {} }];
-  assert.deepEqual(censoredShares(sm, [{ symbol: "Au", unit: "ppb" }]), [{ symbol: "Au", unit: "ppb", n: 3, bdl: 2, pct: (200 / 3) }]);
+  assert.deepEqual(censoredShares(sm, [{ symbol: "Au", unit: "ppb" }]), [{ symbol: "Au", unit: "ppb", n: 3, bdl: 2, pct: (200 / 3), zero: 0 }]); // zero: #931
 });
 
 test("#842 a certificate re-saved through Excel (every line padded with commas) is still recognised", async () => {

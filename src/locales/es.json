@@ -5932,7 +5932,7 @@
   "top (0-10 cm)": "superior (0-10 cm)",
   "{fraction}, {depth}, {digestion}: {n} sample(s)": "{fraction}, {depth}, {digestion}: {n} muestra(s)",
   "{n} NGSA site(s) in the area. Each was sampled at two depths, sieved to two fractions and analyzed by several digestions: choose one, so every sample is comparable.": "{n} sitio(s) NGSA en el área. Cada uno se muestreó a dos profundidades, se tamizó en dos fracciones y se analizó con varias digestiones: elija una, para que todas las muestras sean comparables.",
-  "{n} zero value(s) left empty: this layer has no below-detection marker, so a 0 is not a grade.": "{n} valor(es) cero quedaron vacíos: esta capa no marca los valores bajo el límite de detección, así que un 0 no es una ley.",
+  "{n} zero value(s) read as no value: this layer has no below-detection marker, so a 0 may be below detection or not analysed. Thresholds and Surface QA/QC count them separately.": "{n} valor(es) cero leídos como sin valor: esta capa no marca los valores bajo el límite de detección, así que un 0 puede estar bajo detección o no haberse analizado. Umbrales y QA/QC de muestras superficiales los cuentan aparte.",
   "Media: {media}. Size: {samples}.": "Medios: {media}. Tamaño: {samples}.",
   "The coordinates read as longitude / latitude and were reprojected from WGS 84 to the project's EPSG:{epsg}.": "Las coordenadas se leyeron como longitud / latitud y se reproyectaron de WGS 84 al EPSG:{epsg} del proyecto.",
   "Built \"{name}\" from {what}: a triangulated surface of {tri} triangles sampled on a {gridW}×{gridH} grid (nodes ~{cell} m apart).": "Se construyó \"{name}\" a partir de {what}: una superficie triangulada de {tri} triángulos muestreada en una malla de {gridW}×{gridH} (nodos a ~{cell} m).",
@@ -6066,5 +6066,10 @@
   "Oblique view: distances along the line of sight are foreshortened, so this is not a map scale. Set the 3D view to Top and refresh for one.": "Vista oblicua: las distancias a lo largo de la línea de visión aparecen acortadas, así que esta no es una escala de mapa. Ponga la vista 3D en «Arriba» y actualice para obtenerla.",
   "Captured at 1 : {fixedScale} in the view plane (oblique view, not a map scale). Set the 3D view to Top and refresh for a map at this scale.": "Capturada a 1 : {fixedScale} en el plano de la vista (vista oblicua, no es una escala de mapa). Ponga la vista 3D en «Arriba» y actualice para obtener un mapa a esta escala.",
   "{scale} in the view plane (oblique view)": "{scale} en el plano de la vista (vista oblicua)",
-  "in the view plane (oblique view)": "en el plano de la vista (vista oblicua)"
+  "in the view plane (oblique view)": "en el plano de la vista (vista oblicua)",
+  "{n} more reported as 0 by the source (below detection or not analysed: the layer does not say), not in n or these statistics": "{n} más reportados como 0 por la fuente (bajo detección o no analizados: la capa no lo indica), fuera de n y de estas estadísticas",
+  "{n} more reported as 0 by the source (below detection or not analysed: the layer does not say), not in n or %": "{n} más reportados como 0 por la fuente (bajo detección o no analizados: la capa no lo indica), fuera de n y del %",
+  "{pct} (+{n} at 0)": "{pct} (+{n} en 0)",
+  "{n} at 0": "{n} en 0",
+  "{zero} {symbol} result(s) in \"{pop}\" were reported as 0 by the source (below detection or not analysed: the layer does not say). They are left out of n and of every threshold here; if they are below detection, the thresholds read high.": "{zero} resultado(s) de {symbol} en \"{pop}\" vienen como 0 en la fuente (bajo detección o no analizados: la capa no lo indica). Quedan fuera de n y de todos los umbrales; si están bajo detección, los umbrales resultan altos."
 }

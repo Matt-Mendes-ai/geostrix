@@ -64,7 +64,7 @@ test("BC RGS: element names to symbols with method and unit, zeros left empty, l
   const t = parseBcRgs(BC);
   assert.equal(t.fetched, 2);
   assert.equal(t.rows.length, 2);
-  assert.deepEqual(t.notes, [{ key: "{n} zero value(s) left empty: this layer has no below-detection marker, so a 0 is not a grade.", n: 1 }]);
+  assert.deepEqual(t.notes, [{ key: "{n} zero value(s) read as no value: this layer has no below-detection marker, so a 0 may be below detection or not analysed. Thresholds and Surface QA/QC count them separately.", n: 1 }]);
   const [a, b] = t.rows;
   assert.equal(a.sample_id, "93L861788"); assert.equal(a.medium, "stream sediment"); assert.equal(a.Ag_AAS_ppm, "");
   assert.equal(b.medium, "other"); assert.equal(b.material, "Lake Sediment"); assert.equal(b.elevation, "850");

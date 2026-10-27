@@ -582,9 +582,11 @@ export default function GeochemModule() {
     const rows = allRows.map((r) => {
       const values = {};
       const bdl = []; // TASKS.csv #841 — elements reported below detection (stored at half the limit), for the censored share
+      const nd = []; // TASKS.csv #931 — elements a public layer reported as 0 (below detection or not analysed: it does not say), no value
       chosen.forEach((e) => {
         const c = readAssayCell(r[e.header]);
         if (c.qualifier === "<") bdl.push(e.symbol);
+        if (c.value == null && r.zeroReported?.includes(e.header)) nd.push(e.symbol);
         if (c.kind === "neg_bdl") negBdl++; else if (c.kind === "neg_missing") negMissing++;
         const ox = oxideOfHeader(e.header); // TASKS.csv #403
         let v = convertUnit(fromOxideHeader(c.value, e.header), ox ? "%" : e.unit, existingUnit[e.symbol] || (ox ? "%" : e.unit));
@@ -611,6 +613,7 @@ export default function GeochemModule() {
         medium: mediaSet.has(rawMedium) ? rawMedium : (mediumAlias(rawMedium) || defaultMedium), // #600: "rock" -> rock chip
         values,
         ...(bdl.length ? { bdl } : {}),
+        ...(nd.length ? { nd } : {}),
         ...surfaceAttrs(r, attrCols),
       };
     }).filter((r) => r && Number.isFinite(r.x) && Number.isFinite(r.y));

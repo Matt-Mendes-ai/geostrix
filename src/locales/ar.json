@@ -5932,7 +5932,7 @@
   "top (0-10 cm)": "علوي (0-10 سم)",
   "{fraction}, {depth}, {digestion}: {n} sample(s)": "{fraction}، {depth}، {digestion}: {n} عينة",
   "{n} NGSA site(s) in the area. Each was sampled at two depths, sieved to two fractions and analyzed by several digestions: choose one, so every sample is comparable.": "{n} موقع NGSA في المنطقة. أُخذت عينات كل موقع من عمقين ونُخلت إلى جزأين وحُللت بعدة طرق هضم: اختر واحدة لتكون كل العينات قابلة للمقارنة.",
-  "{n} zero value(s) left empty: this layer has no below-detection marker, so a 0 is not a grade.": "تُركت {n} قيمة صفرية فارغة: لا تميّز هذه الطبقة القيم دون حد الكشف، فالصفر ليس محتوى.",
+  "{n} zero value(s) read as no value: this layer has no below-detection marker, so a 0 may be below detection or not analysed. Thresholds and Surface QA/QC count them separately.": "قُرئت {n} قيمة صفرية على أنها بلا قيمة: لا تميّز هذه الطبقة النتائج دون حد الكشف، لذا قد يعني الصفر أنها دون حد الكشف أو لم تُحلَّل. تحسبها أداة العتبات وضبط جودة العينات السطحية على حدة.",
   "Media: {media}. Size: {samples}.": "الأوساط: {media}. الحجم: {samples}.",
   "The coordinates read as longitude / latitude and were reprojected from WGS 84 to the project's EPSG:{epsg}.": "قُرئت الإحداثيات كخطوط طول / عرض وأُعيد إسقاطها من WGS 84 إلى EPSG:{epsg} الخاص بالمشروع.",
   "Built \"{name}\" from {what}: a triangulated surface of {tri} triangles sampled on a {gridW}×{gridH} grid (nodes ~{cell} m apart).": "بُني \"{name}\" من {what}: سطح مثلثي من {tri} مثلث مأخوذ على شبكة {gridW}×{gridH} (العقد على بعد ~{cell} م).",
@@ -6066,5 +6066,10 @@
   "Oblique view: distances along the line of sight are foreshortened, so this is not a map scale. Set the 3D view to Top and refresh for one.": "عرض مائل: تبدو المسافات على امتداد خط النظر مختصرة، لذا فهذا ليس مقياس خريطة. اضبط العرض ثلاثي الأبعاد على «الأعلى» وحدّث للحصول عليه.",
   "Captured at 1 : {fixedScale} in the view plane (oblique view, not a map scale). Set the 3D view to Top and refresh for a map at this scale.": "التُقطت بمقياس 1 : {fixedScale} في مستوى العرض (عرض مائل، ليس مقياس خريطة). اضبط العرض ثلاثي الأبعاد على «الأعلى» وحدّث للحصول على خريطة بهذا المقياس.",
   "{scale} in the view plane (oblique view)": "{scale} في مستوى العرض (عرض مائل)",
-  "in the view plane (oblique view)": "في مستوى العرض (عرض مائل)"
+  "in the view plane (oblique view)": "في مستوى العرض (عرض مائل)",
+  "{n} more reported as 0 by the source (below detection or not analysed: the layer does not say), not in n or these statistics": "{n} أخرى أبلغ عنها المصدر بقيمة 0 (دون حد الكشف أو لم تُحلَّل: لا تذكر الطبقة ذلك)، خارج n وهذه الإحصاءات",
+  "{n} more reported as 0 by the source (below detection or not analysed: the layer does not say), not in n or %": "{n} أخرى أبلغ عنها المصدر بقيمة 0 (دون حد الكشف أو لم تُحلَّل: لا تذكر الطبقة ذلك)، خارج n والنسبة المئوية",
+  "{pct} (+{n} at 0)": "{pct} (+{n} عند 0)",
+  "{n} at 0": "{n} عند 0",
+  "{zero} {symbol} result(s) in \"{pop}\" were reported as 0 by the source (below detection or not analysed: the layer does not say). They are left out of n and of every threshold here; if they are below detection, the thresholds read high.": "{zero} نتيجة لـ {symbol} في \"{pop}\" أبلغ عنها المصدر بقيمة 0 (دون حد الكشف أو لم تُحلَّل: لا تذكر الطبقة ذلك). استُبعدت من n ومن كل العتبات هنا؛ وإن كانت دون حد الكشف فالعتبات مرتفعة أكثر مما ينبغي."
 }

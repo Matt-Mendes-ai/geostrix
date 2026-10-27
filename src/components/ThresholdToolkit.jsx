@@ -34,7 +34,7 @@ export default function ThresholdToolkit({ surfaceSamples, surfaceElements, mapL
   const unit = units[symbol] || "ppm";
   const pops = useMemo(() => {
     const keyOf = groupKeyFn(groupBy, mapLayers);
-    return populations(surfaceSamples, { valueOf: (s) => valueIn(s, symbol, unit, units), censoredOf: (s) => !!s.bdl?.includes(symbol), keyOf })
+    return populations(surfaceSamples, { valueOf: (s) => valueIn(s, symbol, unit, units), censoredOf: (s) => !!s.bdl?.includes(symbol), zeroOf: (s) => !!s.nd?.includes(symbol), keyOf }) // zeroOf: #931
       .map((p) => ({ ...p, cand: candidateThresholds(p.summary) }));
   }, [surfaceSamples, symbol, unit, units, groupBy, mapLayers]);
   const [viewKey, setViewKey] = useState(null);
@@ -49,6 +49,7 @@ export default function ThresholdToolkit({ surfaceSamples, surfaceElements, mapL
       values: Object.fromEntries(pops.map((p) => [p.key, p.cand.values[method] ?? null])),
       n: Object.fromEntries(pops.map((p) => [p.key, p.summary.n])),
       censoredPct: Object.fromEntries(pops.map((p) => [p.key, Math.round(p.summary.censoredPct * 10) / 10])),
+      ...(pops.some((p) => p.zero) ? { reportedZero: Object.fromEntries(pops.map((p) => [p.key, p.zero])) } : {}), // #931
       decided: new Date().toISOString().slice(0, 10),
     };
     setGeochemThresholds((prev) => [...(prev || []).filter((r) => r.symbol !== symbol), rec]);
@@ -118,7 +119,7 @@ export default function ThresholdToolkit({ surfaceSamples, surfaceElements, mapL
                       <tr key={p.key} onClick={() => setViewKey(p.key)} style={{ cursor: "pointer", background: view?.key === p.key ? "var(--color-bg-subtle)" : undefined }}>
                         <td style={{ ...td, textAlign: "left" }}>{groupLabel(p.key)}</td>
                         <td style={td}>{p.summary.n}</td>
-                        <td style={{ ...td, color: p.summary.censoredPct > 30 ? "var(--color-warn-text)" : undefined }}>{Math.round(p.summary.censoredPct)}</td>
+                        <td style={{ ...td, color: p.summary.censoredPct > 30 || p.zero ? "var(--color-warn-text)" : undefined }} title={p.zero ? tr("{n} more reported as 0 by the source (below detection or not analysed: the layer does not say), not in n or these statistics", { n: p.zero }) : undefined}>{p.zero ? tr("{pct} (+{n} at 0)", { pct: Math.round(p.summary.censoredPct), n: p.zero }) : Math.round(p.summary.censoredPct)}</td>
                         {THRESHOLD_METHODS.map((m) => <td key={m.id} style={{ ...td, fontWeight: method === m.id ? 600 : 400, background: method === m.id ? "var(--color-selected-bg)" : undefined }}>{fmt(p.cand.values[m.id])}</td>)}
                         <td style={td}>{p.cand.values[method] == null ? "—" : p.values.filter((v) => v >= p.cand.values[method]).length}</td>
                       </tr>
@@ -127,6 +128,7 @@ export default function ThresholdToolkit({ surfaceSamples, surfaceElements, mapL
                 </table>
               </div>
               <div style={note}>{tr("Values in {unit}. Click a column to choose its rule, a row to plot that population. Robust rules need at least {a} samples; the probability-plot break needs {b} and is suggested only where the plot really bends.", { unit, a: MIN_N_ROBUST, b: MIN_N_BREAKS })}</div>
+              {view && view.zero > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{zero} {symbol} result(s) in \"{pop}\" were reported as 0 by the source (below detection or not analysed: the layer does not say). They are left out of n and of every threshold here; if they are below detection, the thresholds read high.", { zero: view.zero, symbol, pop: groupLabel(view.key) })}</div>}
               {view && view.summary.censoredPct > 30 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{pct}% of {symbol} in \"{pop}\" is below detection: its statistics are mostly about the detection limit.", { pct: Math.round(view.summary.censoredPct), symbol, pop: groupLabel(view.key) })}</div>}
 
               {view && (

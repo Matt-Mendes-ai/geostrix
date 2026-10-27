@@ -5932,7 +5932,7 @@
   "top (0-10 cm)": "superficiel (0-10 cm)",
   "{fraction}, {depth}, {digestion}: {n} sample(s)": "{fraction}, {depth}, {digestion} : {n} échantillon(s)",
   "{n} NGSA site(s) in the area. Each was sampled at two depths, sieved to two fractions and analyzed by several digestions: choose one, so every sample is comparable.": "{n} site(s) NGSA dans la zone. Chacun a été échantillonné à deux profondeurs, tamisé en deux fractions et analysé par plusieurs digestions : choisissez-en une, pour que tous les échantillons soient comparables.",
-  "{n} zero value(s) left empty: this layer has no below-detection marker, so a 0 is not a grade.": "{n} valeur(s) nulle(s) laissée(s) vide(s) : cette couche ne marque pas les valeurs sous la limite de détection, donc un 0 n'est pas une teneur.",
+  "{n} zero value(s) read as no value: this layer has no below-detection marker, so a 0 may be below detection or not analysed. Thresholds and Surface QA/QC count them separately.": "{n} valeur(s) nulle(s) lue(s) comme sans valeur : cette couche ne marque pas les résultats sous la limite de détection, un 0 peut donc être sous la limite ou non analysé. Les seuils et le CQ/AQ des échantillons de surface les comptent à part.",
   "Media: {media}. Size: {samples}.": "Milieux : {media}. Taille : {samples}.",
   "The coordinates read as longitude / latitude and were reprojected from WGS 84 to the project's EPSG:{epsg}.": "Les coordonnées ont été lues comme longitude / latitude et reprojetées de WGS 84 vers l'EPSG:{epsg} du projet.",
   "Built \"{name}\" from {what}: a triangulated surface of {tri} triangles sampled on a {gridW}×{gridH} grid (nodes ~{cell} m apart).": "« {name} » construit à partir de {what} : une surface triangulée de {tri} triangles échantillonnée sur une grille de {gridW}×{gridH} (nœuds à ~{cell} m).",
@@ -6066,5 +6066,10 @@
   "Oblique view: distances along the line of sight are foreshortened, so this is not a map scale. Set the 3D view to Top and refresh for one.": "Vue oblique : les distances le long de la ligne de visée sont raccourcies, ce n'est donc pas une échelle de carte. Mettez la vue 3D sur « Haut » et actualisez pour en obtenir une.",
   "Captured at 1 : {fixedScale} in the view plane (oblique view, not a map scale). Set the 3D view to Top and refresh for a map at this scale.": "Capturée au 1 : {fixedScale} dans le plan de la vue (vue oblique, pas une échelle de carte). Mettez la vue 3D sur « Haut » et actualisez pour une carte à cette échelle.",
   "{scale} in the view plane (oblique view)": "{scale} dans le plan de la vue (vue oblique)",
-  "in the view plane (oblique view)": "dans le plan de la vue (vue oblique)"
+  "in the view plane (oblique view)": "dans le plan de la vue (vue oblique)",
+  "{n} more reported as 0 by the source (below detection or not analysed: the layer does not say), not in n or these statistics": "{n} de plus déclaré(s) à 0 par la source (sous la limite ou non analysé(s) : la couche ne le dit pas), hors de n et de ces statistiques",
+  "{n} more reported as 0 by the source (below detection or not analysed: the layer does not say), not in n or %": "{n} de plus déclaré(s) à 0 par la source (sous la limite ou non analysé(s) : la couche ne le dit pas), hors de n et du %",
+  "{pct} (+{n} at 0)": "{pct} (+{n} à 0)",
+  "{n} at 0": "{n} à 0",
+  "{zero} {symbol} result(s) in \"{pop}\" were reported as 0 by the source (below detection or not analysed: the layer does not say). They are left out of n and of every threshold here; if they are below detection, the thresholds read high.": "{zero} résultat(s) de {symbol} dans « {pop} » sont déclarés à 0 par la source (sous la limite ou non analysés : la couche ne le dit pas). Ils sont exclus de n et de tous les seuils ; s'ils sont sous la limite, les seuils sont trop élevés."
 }

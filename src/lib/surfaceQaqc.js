@@ -237,12 +237,15 @@ export function duplicateStats(pairs) {
   return { n: pairs.length, used: used.length, within: used.filter((p) => !p.fails).length, byType };
 }
 
-// Share of each element reported below detection in the samples, and the methods it was reported by
+// Share of each element reported below detection in the samples, and the methods it was reported by.
+// TASKS.csv #931 — zero: samples a public layer reported as 0 (`nd`: below detection or not analysed, the layer does not
+// say). They have no value, so they are outside n and pct, and counted beside them rather than silently left out.
 export function censoredShares(samples, elements) {
   return elements.map((e) => {
     const has = samples.filter((s) => s.values?.[e.symbol] != null);
     const bdl = has.filter((s) => s.bdl?.includes(e.symbol)).length;
-    return { symbol: e.symbol, unit: e.unit, n: has.length, bdl, pct: has.length ? (100 * bdl) / has.length : 0 };
+    const zero = samples.filter((s) => s.values?.[e.symbol] == null && s.nd?.includes(e.symbol)).length;
+    return { symbol: e.symbol, unit: e.unit, n: has.length, bdl, pct: has.length ? (100 * bdl) / has.length : 0, zero };
   });
 }
 export function methodsByElement(certificates) {

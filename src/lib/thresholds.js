@@ -174,14 +174,15 @@ export function groupKeyFn(groupBy, mapLayers = []) {
 
 // Samples of one element split into populations: [{ key, values, ids, summary }], largest first.
 // valueOf(sample) -> number | null; censoredOf(sample) -> boolean
-export function populations(samples, { valueOf, censoredOf = () => false, keyOf }) {
+// TASKS.csv #931 — zeroOf(sample) -> boolean: a sample with no value that its source reported as 0 (a public layer with
+// no below-detection marker). Counted per population as `zero`, never put in the values.
+export function populations(samples, { valueOf, censoredOf = () => false, zeroOf = () => false, keyOf }) {
   const by = new Map();
+  const group = (k) => { if (!by.has(k)) by.set(k, { key: k, values: [], idx: [], censored: 0, zero: 0 }); return by.get(k); };
   samples.forEach((s, i) => {
     const v = valueOf(s);
-    if (!(v > 0)) return;
-    const k = keyOf(s);
-    if (!by.has(k)) by.set(k, { key: k, values: [], idx: [], censored: 0 });
-    const g = by.get(k);
+    if (!(v > 0)) { if (v == null && zeroOf(s)) group(keyOf(s)).zero++; return; }
+    const g = group(keyOf(s));
     g.values.push(v); g.idx.push(i);
     if (censoredOf(s)) g.censored++;
   });
