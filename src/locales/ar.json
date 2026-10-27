@@ -6174,5 +6174,6 @@
   "{file} was not saved: {error}": "لم يُحفظ {file}: {error}",
   "The file": "الملف",
   "This export places your data on Earth (latitude / longitude, a .prj, a GeoTIFF's coordinate system), but the project's coordinate system was never chosen — only a placeholder is set, and the file would put your data in the wrong place. Choose it first.": "هذا التصدير يضع بياناتك على الأرض (خط عرض / خط طول، ملف .prj، نظام إحداثيات GeoTIFF)، لكن نظام إحداثيات المشروع لم يُختر قط: لا يوجد سوى نظام مؤقت، وسيضع الملف بياناتك في المكان الخطأ. اختره أولًا.",
-  "EPSG:{epsg} could not be converted to latitude / longitude, so no GPS file was written.": "تعذّر تحويل EPSG:{epsg} إلى خط عرض / خط طول، لذا لم يُكتب أي ملف GPS."
+  "EPSG:{epsg} could not be converted to latitude / longitude, so no GPS file was written.": "تعذّر تحويل EPSG:{epsg} إلى خط عرض / خط طول، لذا لم يُكتب أي ملف GPS.",
+  "{n} terrain nodes had no data (filled for display only) and are written as no-data (-9999).": "{n} من عُقد التضاريس بلا بيانات (مُلئت للعرض فقط) وتُكتب كقيمة بلا بيانات (-9999)."
 }

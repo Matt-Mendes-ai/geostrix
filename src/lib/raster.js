@@ -786,7 +786,18 @@ export function terrainToGeoTIFFArrayBuffer(terrain, projectEpsg) {
   // recognized tag (GDAL, QGIS, ArcGIS) for "this pixel has no data", so gaps in the merged terrain
   // (tile edges, missing coverage) round-trip as an explicit, tool-recognized no-data value instead.
   const NODATA = -9999;
-  const values = Float32Array.from(elevations, (v) => (Number.isFinite(v) ? v : NODATA));
+  // TASKS.csv #1020 (review #1016) — a filled node (demFill.js #421: a DEM void, or everything outside a TIN built from
+  // points / contours) holds the MEAN elevation; the app treats it as "no ground" (#927) but this wrote it as a real
+  // elevation, so QGIS / an inversion code read an invented plateau. Masked nodes are now NODATA too.
+  const m = terrain.noDataMask;
+  let bits = null;
+  if (m instanceof Uint8Array) bits = m;
+  else if (m) { const bin = atob(String(m)); bits = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) bits[k] = bin.charCodeAt(k); }
+  let masked = 0;
+  const values = Float32Array.from(elevations, (v, i) => {
+    if (bits && (bits[i >> 3] & (1 << (i & 7)))) { masked++; return NODATA; }
+    return Number.isFinite(v) ? v : NODATA;
+  });
   const metadata = {
     width: gridW, height: gridH,
     ModelPixelScale: [pixelW, pixelH, 0],
@@ -796,7 +807,9 @@ export function terrainToGeoTIFFArrayBuffer(terrain, projectEpsg) {
     ProjectedCSTypeGeoKey: Number(projectEpsg),
     GDAL_NODATA: String(NODATA),
   };
-  return writeArrayBuffer(values, metadata);
+  const buf = writeArrayBuffer(values, metadata);
+  terrainToGeoTIFFArrayBuffer.lastMasked = masked; // #1020 — for the export notice
+  return buf;
 }
 
 // Base64-encodes an ArrayBuffer in fixed-size chunks rather than one

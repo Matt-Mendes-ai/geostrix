@@ -6,7 +6,23 @@ import { capAuditText } from "./geochem.js"; // TASKS.csv #674
 
 // TASKS.csv #529 — the value column / array name carries the unit when the model recorded one: "Au_ppm", not "Au"
 // (ppm or ppb? the file couldn't say). g/t and % become "gpt" / "pct" so the name stays a plain identifier.
+// TASKS.csv #1026 (review #1016) — the Data Support Index and kriging-variance models copy the estimate's params, so
+// they went out as "Au_ppm ... in ppm" holding 0-1 indices or ppm-squared variances. Their value is named and unitized
+// from their source (which also covers models saved before this): SUPPORT_INDEX (no unit), KV_Au_ppm2 (ppm squared).
+export function derivedValue(model) {
+  const src = String(model?.source || ""), el = model?.params?.element, u = model?.params?.unit;
+  if (/^support-index-/.test(src)) return { property: "SUPPORT_INDEX", unit: null };
+  if (src === "kriging-variance") {
+    const tag = u ? String(u).replace(/^g\/t$/i, "gpt").replace(/^%$/, "pct") : "";
+    return { property: `KV${el ? `_${el}` : ""}${tag ? `_${tag}2` : ""}`, unit: u ? `${u} squared` : null };
+  }
+  return null;
+}
+export function valueUnit(model) { const d = derivedValue(model); return d ? d.unit : model?.params?.unit || null; }
+export const NOT_A_RESOURCE_SOURCE = /^(estimate|support-index)-|^geoml$|^kriging-variance$/; // #1026 — kriging variance too
 export function valueColumnName(model) {
+  const d = !model.property && derivedValue(model);
+  if (d) return d.property.replace(/[^\w]+/g, "_");
   const base = String(model.property || model.params?.element || "value");
   const u = model.params?.unit;
   const unit = u ? String(u).replace(/^g\/t$/i, "gpt").replace(/^%$/, "pct") : "";
@@ -40,7 +56,8 @@ export function blockModelRows(model, names = "datamine") {
 export function blockModelParamLines(model) {
   const p = model.params || {};
   const lines = [`Block model: ${model.name} (${(model.cells || []).length} blocks, source ${model.source || "import"})`];
-  if (p.unit) lines.push(`Values: ${valueColumnName(model)} in ${p.unit}${p.capValue != null ? `; cap ${p.capValue} ${p.capUnit || p.unit}` : ""}`); // #529
+  if (derivedValue(model)) lines.push(`Values: ${valueColumnName(model)}${valueUnit(model) ? ` in ${valueUnit(model)}` : " (no unit)"}`); // #1026
+  else if (p.unit) lines.push(`Values: ${valueColumnName(model)} in ${p.unit}${p.capValue != null ? `; cap ${p.capValue} ${p.capUnit || p.unit}` : ""}`); // #529
   if ((model.cells || []).some((c) => Number.isFinite(c.coverage))) lines.push("COVERAGE: the share of each block filled by the imported model's own blocks (blocks were merged on import to fit the cell budget); VOLUME_M3 = COVERAGE x the block size. Take volume and tonnage from VOLUME_M3, not from the block size."); // #943
   if ((model.cells || []).some((c) => typeof c.support === "string")) lines.push(`SUPPORT_CODE: ${Object.entries(SUPPORT_CODES).map(([k, v]) => `${v} = ${k}`).join(", ")}`);
   Object.entries(p).forEach(([k, v]) => {

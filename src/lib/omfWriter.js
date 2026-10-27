@@ -9,7 +9,7 @@
 // volume_to_vtk reads it and as omf.js's importer (verified on a real Geosoft file) reads it.
 // Empty cells are NaN (OMF has no no-data sentinel; Leapfrog shows NaN as blank).
 import { tensorFromCells } from "./modelExport.js";
-import { valueColumnName } from "./blockModelExport.js"; // TASKS.csv #529
+import { valueColumnName, valueUnit, NOT_A_RESOURCE_SOURCE } from "./blockModelExport.js"; // TASKS.csv #529, #1026
 import { SUPPORT_CODES } from "./estimation.js";
 import { NOT_A_RESOURCE } from "./provenance.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
@@ -109,11 +109,11 @@ export function volumeElementFromModel(model) {
     if (Number.isFinite(c.supportIndex)) { sIndex[idx] = c.supportIndex; hasIndex = true; }
   }
   const valueName = valueColumnName(model); // #529 — "Au_ppm"
-  const estimate = /^(estimate|support-index)-|^geoml$/.test(String(model.source || "")); // geoml: #677
+  const estimate = NOT_A_RESOURCE_SOURCE.test(String(model.source || "")); // geoml: #677; kriging-variance: #1026
   const codes = model.cells.some((c) => typeof c.support === "string") ? ` support = ${Object.entries(SUPPORT_CODES).map(([k, v]) => `${v} ${k}`).join(", ")}.` : "";
   return {
     element: {
-      type: "volume", name: model.name, description: `Exported from GeoStrix ${new Date().toISOString().slice(0, 10)}${model.source ? ` (source: ${model.source})` : ""}${model.params?.unit ? `; values in ${model.params.unit}` : ""}.${codes}${estimate ? ` ${NOT_A_RESOURCE}` : ""}`,
+      type: "volume", name: model.name, description: `Exported from GeoStrix ${new Date().toISOString().slice(0, 10)}${model.source ? ` (source: ${model.source})` : ""}${valueUnit(model) ? `; values in ${valueUnit(model)}` : ""}.${codes}${estimate ? ` ${NOT_A_RESOURCE}` : ""}`,
       origin: [t.x.min, t.y.min, t.z.min], tensor: { u: t.x.widths, v: t.y.widths, w: t.z.widths },
       data: [{ name: valueName, values: value }, ...(hasSupport ? [{ name: "support", values: support }] : []), ...(hasIndex ? [{ name: "support_index", values: sIndex }] : [])],
       color: [197, 176, 213],

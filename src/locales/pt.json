@@ -6174,5 +6174,6 @@
   "{file} was not saved: {error}": "{file} não foi salvo: {error}",
   "The file": "O arquivo",
   "This export places your data on Earth (latitude / longitude, a .prj, a GeoTIFF's coordinate system), but the project's coordinate system was never chosen — only a placeholder is set, and the file would put your data in the wrong place. Choose it first.": "Esta exportação coloca seus dados na Terra (latitude / longitude, um .prj, o sistema de coordenadas de um GeoTIFF), mas o sistema de coordenadas do projeto nunca foi escolhido: há só um provisório, e o arquivo poria seus dados no lugar errado. Escolha-o primeiro.",
-  "EPSG:{epsg} could not be converted to latitude / longitude, so no GPS file was written.": "EPSG:{epsg} não pôde ser convertido para latitude / longitude, então nenhum arquivo GPS foi gravado."
+  "EPSG:{epsg} could not be converted to latitude / longitude, so no GPS file was written.": "EPSG:{epsg} não pôde ser convertido para latitude / longitude, então nenhum arquivo GPS foi gravado.",
+  "{n} terrain nodes had no data (filled for display only) and are written as no-data (-9999).": "{n} nós do terreno não tinham dados (preenchidos só para exibição) e foram gravados como sem dados (-9999)."
 }

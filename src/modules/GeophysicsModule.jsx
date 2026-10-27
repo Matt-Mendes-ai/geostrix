@@ -16,7 +16,7 @@ import { terrainElevationAt } from "../lib/inversion.js";
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
 import { useStore } from "../lib/store.jsx";
 import { classifyBreaks, PALETTES, paletteColorsHex , colorForVoxelValue } from "../lib/layers.js";
-import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFBase64 } from "../lib/raster.js";
+import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFBase64, terrainToGeoTIFFArrayBuffer } from "../lib/raster.js";
 import { boundaryAreaHectares } from "../lib/geoprocessing.js";
 import { saveFile } from "../lib/desktop.js";
 import { blockModelRows, blockModelParamLines } from "../lib/blockModelExport.js"; // TASKS.csv #411
@@ -412,7 +412,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021
     try {
       const base64 = terrainToGeoTIFFBase64(terrain, epsg);
-      saveFile({ suggestedName: `${terrain.name.replace(/\.(tif|tiff)$/i, "")}.tif`, filters: [{ name: "GeoTIFF", extensions: ["tif"] }], content: base64, encoding: "base64" });
+      const masked = terrainToGeoTIFFArrayBuffer.lastMasked || 0; // #1020
+      const res = await saveFile({ suggestedName: `${terrain.name.replace(/\.(tif|tiff)$/i, "")}.tif`, filters: [{ name: "GeoTIFF", extensions: ["tif"] }], content: base64, encoding: "base64" });
+      if (res?.ok && masked) setTerrainError({ info: true, text: tr("{n} terrain nodes had no data (filled for display only) and are written as no-data (-9999).", { n: masked.toLocaleString() }) });
     } catch (err) {
       setTerrainError({ info: false, text: tr("Couldn't export terrain: {message}", { message: err.message }) });
     }
