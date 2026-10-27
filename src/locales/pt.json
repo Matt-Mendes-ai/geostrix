@@ -919,7 +919,6 @@
   ", {n3d} with real 3D elevations": ", {n3d} com elevações 3D reais",
   " Every string had elevation 0, so the file was read as a 2D plan (no elevation).": " Todas as linhas tinham elevação 0, então o arquivo foi lido como uma planta 2D (sem elevação).",
   "{name}: couldn't read DXF ({message}).": "{name}: não foi possível ler o DXF ({message}).",
-  "{sourceName} looks like assay data — import it from the Geochem module instead.": "{sourceName} parece dados de análise — importe pelo módulo Geoquímica.",
   "{fileName}: magnetic azimuths need the survey date to work out the declination — nothing was imported.": "{fileName}: azimutes magnéticos precisam da data do survey para calcular a declinação — nada foi importado.",
   "{fileName}: map required field(s) — {v}": "{fileName}: mapeie os campos obrigatórios — {v}",
   "no alpha/beta pick changed": "nenhum pick alfa/beta mudou",
@@ -6048,5 +6047,6 @@
   "Restart now to install it. Later keeps the install button in the status bar for this session.": "Reinicie agora para instalá-la. Mais tarde mantém o botão de instalar na barra de status nesta sessão.",
   "Download the new zip": "Baixar o novo zip",
   "Download and install": "Baixar e instalar",
-  "Restart and install": "Reiniciar e instalar"
+  "Restart and install": "Reiniciar e instalar",
+  "Import drillhole assays straight from a database (PostgreSQL or MySQL): a table or a query": "Importar análises de furos diretamente de um banco de dados (PostgreSQL ou MySQL): uma tabela ou uma consulta"
 }

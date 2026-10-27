@@ -5693,6 +5693,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     addBoundary,
     addRaster,
     collars,
+    goToModule, // TASKS.csv #917
     importModal,
     importSolidFile,
     importStateRef,

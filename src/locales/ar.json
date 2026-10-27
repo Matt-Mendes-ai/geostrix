@@ -919,7 +919,6 @@
   ", {n3d} with real 3D elevations": "، {n3d} بارتفاعات ثلاثية الأبعاد حقيقية",
   " Every string had elevation 0, so the file was read as a 2D plan (no elevation).": " كل الخطوط بارتفاع 0، فقُرئ الملف كمسقط ثنائي الأبعاد (بلا ارتفاع).",
   "{name}: couldn't read DXF ({message}).": "{name}: تعذّرت قراءة DXF ({message}).",
-  "{sourceName} looks like assay data — import it from the Geochem module instead.": "يبدو {sourceName} بيانات تحاليل — استورده من وحدة الجيوكيمياء بدلًا من ذلك.",
   "{fileName}: magnetic azimuths need the survey date to work out the declination — nothing was imported.": "{fileName}: تحتاج السموت المغناطيسية تاريخ المسح لحساب الانحراف — لم يُستورد شيء.",
   "{fileName}: map required field(s) — {v}": "{fileName}: اربط الحقل(الحقول) المطلوبة — {v}",
   "no alpha/beta pick changed": "لم يتغير أي قياس ألفا/بيتا",
@@ -6048,5 +6047,6 @@
   "Restart now to install it. Later keeps the install button in the status bar for this session.": "أعد التشغيل الآن لتثبيته. \"لاحقًا\" يبقي زر التثبيت في شريط الحالة خلال هذه الجلسة.",
   "Download the new zip": "نزّل ملف zip الجديد",
   "Download and install": "تنزيل وتثبيت",
-  "Restart and install": "إعادة التشغيل والتثبيت"
+  "Restart and install": "إعادة التشغيل والتثبيت",
+  "Import drillhole assays straight from a database (PostgreSQL or MySQL): a table or a query": "استيراد تحاليل ثقوب الحفر مباشرة من قاعدة بيانات (PostgreSQL أو MySQL): جدول أو استعلام"
 }

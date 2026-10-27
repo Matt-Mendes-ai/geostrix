@@ -22,12 +22,14 @@ import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping
 import { normInterval, applyCustomFields, normNumericInterval, normStructure, strikeStats, loadRaster, looksLikeAssay, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
+import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917
 
 export function useImportPipeline(ctx) {
   const {
     addBoundary,
     addRaster,
     collars,
+    goToModule,
     importModal,
     importSolidFile,
     importStateRef,
@@ -148,7 +150,15 @@ export function useImportPipeline(ctx) {
   // same pipeline as CSV import, just fed from a database query result instead of a parsed file
   const openImportFromRows = ({ headers, rows, sourceName }) => {
     if (!rows.length) return;
-    if (looksLikeAssay(headers)) { setNotices((p) => [...p, notice("{sourceName} looks like assay data — import it from the Geochem module instead.", { sourceName })]); return; }
+    // TASKS.csv #917 — Matt: "the geochem module doesn't give me an option to import assays straight from the database".
+    // An assay table (from the Browser panel or Connect to database) is handed to Geochem's assay dialog, which needs
+    // the element checklist, instead of a notice telling the user to go there.
+    if (looksLikeAssay(headers)) {
+      setDbModalOpen(false);
+      requestModuleAction("import-assay-rows", { headers, rows, sourceName });
+      goToModule("geochem");
+      return;
+    }
     const target = guessTargetFor(headers, sourceName); // #605
     const mapping = guessMapping(target, headers); // #426
     const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);

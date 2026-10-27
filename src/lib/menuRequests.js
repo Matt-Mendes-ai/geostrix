@@ -4,12 +4,13 @@
 // still gets it. (A file dialog needs a user gesture: Electron delivers these menu items with one, see main.js.)
 import { useEffect, useRef } from "react";
 
-let pending = null; // { action, at }
+// TASKS.csv #917 — `payload`: data the action carries (a database table handed from the 3D View to Geochem)
+let pending = null; // { action, payload, at }
 const EVENT = "geostrix-module-action";
 
-export function requestModuleAction(action) {
-  pending = { action, at: Date.now() };
-  window.dispatchEvent(new CustomEvent(EVENT, { detail: action }));
+export function requestModuleAction(action, payload = null) {
+  pending = { action, payload, at: Date.now() };
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: { action, payload } }));
 }
 
 export function useModuleAction(actions, handler) {
@@ -18,9 +19,9 @@ export function useModuleAction(actions, handler) {
   const key = actions.join("|");
   useEffect(() => {
     const list = key.split("|");
-    const run = (a) => { if (!list.includes(a)) return; pending = null; ref.current(a); };
-    if (pending && Date.now() - pending.at < 5000) run(pending.action);
-    const on = (e) => run(e.detail);
+    const run = (a, payload) => { if (!list.includes(a)) return; pending = null; ref.current(a, payload); };
+    if (pending && Date.now() - pending.at < 5000) run(pending.action, pending.payload);
+    const on = (e) => run(e.detail.action, e.detail.payload);
     window.addEventListener(EVENT, on);
     return () => window.removeEventListener(EVENT, on);
   }, [key]);

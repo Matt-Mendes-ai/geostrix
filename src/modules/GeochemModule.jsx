@@ -8,7 +8,7 @@ import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "../components/icons.js";
 import Papa from "papaparse";
-import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck, X, AlertTriangle, Globe } from "../components/icons.js";
+import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck, X, AlertTriangle, Globe, Database } from "../components/icons.js";
 import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #729
 import { addCalculatedElement, CALC_PRESETS } from "../lib/calcElement.js"; // TASKS.csv #401
 import { useStore } from "../lib/store.jsx";
@@ -38,6 +38,7 @@ import CompositingModal from "../components/CompositingModal.jsx";
 import GradeStatistics from "../components/GradeStatistics.jsx";
 const ThresholdToolkit = React.lazy(() => import("../components/ThresholdToolkit.jsx")); // TASKS.csv #841
 const SurfaceQaqcPanel = React.lazy(() => import("../components/SurfaceQaqcPanel.jsx")); // TASKS.csv #842
+const DatabaseConnectModal = React.lazy(() => import("../components/DatabaseConnectModal.jsx")); // TASKS.csv #917
 const CatchmentsPanel = React.lazy(() => import("../components/CatchmentsPanel.jsx")); // TASKS.csv #845
 const SurveyPlannerPanel = React.lazy(() => import("../components/SurveyPlannerPanel.jsx")); // TASKS.csv #844
 const DomainsPanel = React.lazy(() => import("../components/DomainsPanel.jsx")); // TASKS.csv #852
@@ -94,6 +95,10 @@ export default function GeochemModule() {
   const certRef = useRef(null); // TASKS.csv #601
   // TASKS.csv #565 — File > Import CSV / Import Assays / Import pXRF
   useModuleAction(["import-assays", "import-pxrf"], (a) => (a === "import-pxrf" ? pxrfRef : fileRef).current?.click());
+  // TASKS.csv #917 — assays straight from a database: this tab's Database button, or a table the 3D View's database
+  // Browser panel recognized as assays and handed over
+  const [dbOpen, setDbOpen] = useState(false);
+  useModuleAction(["import-assay-rows"], (_a, p) => { if (p?.rows?.length) openTable({ name: p.sourceName }, p.headers, p.rows, false); });
   const svgRef = useRef(null);
 
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
@@ -171,17 +176,20 @@ export default function GeochemModule() {
         const data = res.data, note = res.note ? ` ${res.note.trim()}` : "";
         if (!data.length) { setNotices((p) => [...p, errorNotice(tr("{name}: empty file.", { name: file.name }))]); return; }
         if (note) setNotices((p) => [...p, `${file.name}:${note}`]);
-        const headers = t.headers; // #611 — a columnar row has no own keys (was Object.keys(data[0]))
-        // TASKS.csv #623 — a long export (analyte + concentration / value + units + method + flag, one row per element)
-        // becomes one row per sample with an element column each, then goes through the normal wide import
-        const pv = detectLongAssay(headers) ? pivotLongAssays(data, headers, (sym) => inferUnit(sym, sym), (a) => isElementColumn(a)) : null;
-        if (pv && pv.rows.length) {
-          setNotices((p) => [...p, `${file.name}: ${longAssayNote(pv.report)}`]);
-          openAssayModal(file, pv.headers, pv.rows, isPxrf, preset);
-          return;
-        }
-        openAssayModal(file, headers, data, isPxrf, preset);
+        openTable(file, t.headers, data, isPxrf, preset); // #611 — a columnar row has no own keys (was Object.keys(data[0]))
     });
+  };
+  // a parsed table - a file, or rows from a database (#917, `file` is then just { name })
+  const openTable = (file, headers, data, isPxrf, preset = null) => {
+    // TASKS.csv #623 — a long export (analyte + concentration / value + units + method + flag, one row per element)
+    // becomes one row per sample with an element column each, then goes through the normal wide import
+    const pv = detectLongAssay(headers) ? pivotLongAssays(data, headers, (sym) => inferUnit(sym, sym), (a) => isElementColumn(a)) : null;
+    if (pv && pv.rows.length) {
+      setNotices((p) => [...p, `${file.name}: ${longAssayNote(pv.report)}`]);
+      openAssayModal(file, pv.headers, pv.rows, isPxrf, preset);
+      return;
+    }
+    openAssayModal(file, headers, data, isPxrf, preset);
   };
 
   const openAssayModal = (file, headers, data, isPxrf, preset = null) => {
@@ -735,6 +743,7 @@ export default function GeochemModule() {
         <Ribbon label="Geochem tools">
           <RibbonGroup label="Import">
             <RibbonButton icon={Upload} label="Assays" tone="data" title="Import drillhole assays (CSV)" onClick={() => fileRef.current.click()} />
+            <RibbonButton icon={Database} label="Database" tone="data" title="Import drillhole assays straight from a database (PostgreSQL or MySQL): a table or a query" onClick={() => setDbOpen(true)} />{/* TASKS.csv #917 */}
             <RibbonButton advanced icon={Beaker} label="pXRF" tone="data" title="Import pXRF readings (CSV)" onClick={() => pxrfRef.current.click()} />
             <RibbonButton advanced icon={FileCheck} label="Lab certificates" tone="data" disabled={!assays.length} disabledReason="Import the drill samples (hole, from, to, sample id) first" title={assays.length ? "Lab certificates (ALS CSV): join them to the drill samples by sample id, check the values, and review GeoStrix's QC-type suggestions for the samples only the lab has (blanks, standards, duplicates)" : "Import the drill samples (hole, from, to, sample id) first — certificates are joined to them by sample id"} onClick={() => certRef.current.click()} />
             <RibbonButton advanced icon={GMapPin} label="Surface samples" tone="data" title="Soil, rock-chip, stream-sediment or talus-fines samples (CSV) — no drillhole needed" onClick={() => surfaceFileRef.current.click()} />
@@ -1008,6 +1017,9 @@ export default function GeochemModule() {
         <React.Suspense fallback={null}><DomainsPanel onClose={() => setDomainsOpen(false)} /></React.Suspense>
       )}
 
+      {dbOpen && ( // TASKS.csv #917
+        <React.Suspense fallback={null}><DatabaseConnectModal wholeTables onCancel={() => setDbOpen(false)} onResults={({ headers, rows, sourceName }) => { setDbOpen(false); if (rows.length) openTable({ name: sourceName }, headers, rows, false); }} /></React.Suspense>
+      )}
       {publicOpen && ( // TASKS.csv #846
         <React.Suspense fallback={null}><PublicGeochemModal onLoaded={openPublicImport} onClose={() => setPublicOpen(false)} /></React.Suspense>
       )}

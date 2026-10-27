@@ -919,7 +919,6 @@
   ", {n3d} with real 3D elevations": ", {n3d} con elevaciones 3D reales",
   " Every string had elevation 0, so the file was read as a 2D plan (no elevation).": " Todas las líneas tenían elevación 0, así que el archivo se leyó como una planta 2D (sin elevación).",
   "{name}: couldn't read DXF ({message}).": "{name}: no se pudo leer el DXF ({message}).",
-  "{sourceName} looks like assay data — import it from the Geochem module instead.": "{sourceName} parece datos de ensaye — impórtelo desde el módulo Geoquímica.",
   "{fileName}: magnetic azimuths need the survey date to work out the declination — nothing was imported.": "{fileName}: los azimuts magnéticos necesitan la fecha del survey para calcular la declinación — no se importó nada.",
   "{fileName}: map required field(s) — {v}": "{fileName}: asigne los campos obligatorios — {v}",
   "no alpha/beta pick changed": "ningún pick alfa/beta cambió",
@@ -6048,5 +6047,6 @@
   "Restart now to install it. Later keeps the install button in the status bar for this session.": "Reinicie ahora para instalarla. Más tarde mantiene el botón de instalar en la barra de estado durante esta sesión.",
   "Download the new zip": "Descargar el nuevo zip",
   "Download and install": "Descargar e instalar",
-  "Restart and install": "Reiniciar e instalar"
+  "Restart and install": "Reiniciar e instalar",
+  "Import drillhole assays straight from a database (PostgreSQL or MySQL): a table or a query": "Importar ensayes de sondajes directamente desde una base de datos (PostgreSQL o MySQL): una tabla o una consulta"
 }

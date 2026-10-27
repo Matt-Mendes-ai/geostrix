@@ -10,7 +10,9 @@ import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
-export default function DatabaseConnectModal({ onCancel, onResults }) {
+// TASKS.csv #917 — `wholeTables`: clicking a table selects all of it (Geochem's assay import; a LIMIT 500 there would
+// silently drop most of a drill program's samples)
+export default function DatabaseConnectModal({ onCancel, onResults, wholeTables = false }) {
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const { dbConnections, setDbConnections, liveDbConnections, connectDb } = useStore();
@@ -22,7 +24,7 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
   const [config, setConfig] = useState({ name: "", engine: "postgres", host: "localhost", port: 5432, database: "", user: "", password: "", ssl: false });
   const [status, setStatus] = useState(null); // {ok, error, info}
   const [testing, setTesting] = useState(false);
-  const [sql, setSql] = useState("SELECT * FROM lithology LIMIT 500;");
+  const [sql, setSql] = useState(wholeTables ? "SELECT * FROM assays;" : "SELECT * FROM lithology LIMIT 500;");
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null); // {rows, fields}
   const [tables, setTables] = useState(null);
@@ -185,7 +187,7 @@ export default function DatabaseConnectModal({ onCancel, onResults }) {
                   base table, so views are marked distinctly rather than looking identical to tables. */}
               <div style={{ maxHeight: 100, overflowY: "auto", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)", borderRadius: 6, padding: 8 }}>
                 {tables.map((t, i) => (
-                  <div role="button" tabIndex={0} onKeyDown={activateOnKey} key={i} onClick={() => setSql(`SELECT * FROM ${t.table_schema}.${t.table_name} LIMIT 500;`)} style={{ cursor: "pointer", padding: "2px 0", display: "flex", alignItems: "center", gap: 6 }}>
+                  <div role="button" tabIndex={0} onKeyDown={activateOnKey} key={i} onClick={() => setSql(`SELECT * FROM ${t.table_schema}.${t.table_name}${wholeTables ? "" : " LIMIT 500"};`)} style={{ cursor: "pointer", padding: "2px 0", display: "flex", alignItems: "center", gap: 6 }}>
                     {t.table_type === "VIEW" && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-accent)", border: "1px solid var(--color-accent)", borderRadius: 3, padding: "0 4px", flexShrink: 0 }}>{tr("VIEW")}</span>}
                     <span>{t.table_schema}.{t.table_name}</span>
                   </div>
