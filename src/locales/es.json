@@ -6182,5 +6182,9 @@
   "Exported \"{label}\" as a CSV table that imports back with the defaults (dips negative = down, azimuths grid).": "Se exportó \"{label}\" como una tabla CSV que se importa de nuevo con los valores predeterminados (buzamientos negativos = hacia abajo, azimuts de cuadrícula).",
   "Table export failed: {message}": "Falló la exportación de la tabla: {message}",
   "Export CSV table (imports back)…": "Exportar tabla CSV (se reimporta)…",
-  "Export all drillhole tables (.zip of CSV)…": "Exportar todas las tablas de sondajes (.zip de CSV)…"
+  "Export all drillhole tables (.zip of CSV)…": "Exportar todas las tablas de sondajes (.zip de CSV)…",
+  "Survey date (declination)": "Fecha del levantamiento (declinación)",
+  "Line bearing: {g}° grid, {t}° true, {m}° magnetic (declination {d}° on {date}, IGRF-14). A crew on a compass walks the magnetic bearing.": "Rumbo de las líneas: {g}° de cuadrícula, {t}° verdadero, {m}° magnético (declinación {d}° el {date}, IGRF-14). Una cuadrilla con brújula camina el rumbo magnético.",
+  "Line bearing: {g}° grid, {t}° true (no magnetic bearing for this date).": "Rumbo de las líneas: {g}° de cuadrícula, {t}° verdadero (sin rumbo magnético para esta fecha).",
+  "The line azimuth is a grid bearing (project CRS). Choose an area to see it as true and magnetic bearings.": "El azimut de las líneas es un rumbo de cuadrícula (SRC del proyecto). Elija un área para verlo como rumbo verdadero y magnético."
 }

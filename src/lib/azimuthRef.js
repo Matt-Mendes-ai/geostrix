@@ -51,6 +51,23 @@ export function azimuthToGridOffset(ref, x, y, epsg, isoDate) {
 
 export const wrap360 = (a) => ((a % 360) + 360) % 360;
 
+// TASKS.csv #1024 (review #1016) — a GRID bearing at (x, y) as the true and magnetic bearings a crew walks with a
+// compass: { grid, true, magnetic, declination, convergence, date } (degrees, 0.1), magnetic null when IGRF cannot give
+// one (no date, outside 1900-2030). null when the location cannot be converted. Magnetic needs loadIgrf() first.
+export function gridBearingAsTrueMagnetic(gridAz, x, y, epsg, isoDate) {
+  const t = azimuthToGridOffset("true", x, y, epsg);
+  if (!t) return null;
+  let m = null;
+  try { m = azimuthToGridOffset("magnetic", x, y, epsg, isoDate); } catch { m = null; }
+  const r1 = (a) => Math.round(wrap360(a) * 10) / 10;
+  return { grid: r1(gridAz), true: r1(gridAz - t.offset), magnetic: m ? r1(gridAz - m.offset) : null, declination: m ? Math.round(m.declination * 100) / 100 : null, convergence: Math.round(t.convergence * 100) / 100, date: m ? isoDate : null };
+}
+// "lines at 0° grid (359.5° true, 342.2° magnetic on 2026-10-27, IGRF-14)" — English, for the exported files
+export function bearingPhrase(b, gridAz) {
+  if (!b) return `${gridAz}° grid`;
+  return `${b.grid}° grid (${b.true}° true${b.magnetic != null ? `, ${b.magnetic}° magnetic on ${b.date}, IGRF-14` : ""})`;
+}
+
 // TASKS.csv #547 — outcrop measurements (dip direction + strike, with their own project-CRS x / y) converted from
 // true or magnetic north to grid north, per location (100 m cells share an offset, < 0.01° apart). Mutates nothing:
 // returns { rows, converted, failed, example } where example = the first location's { offset, declination?, convergence }.

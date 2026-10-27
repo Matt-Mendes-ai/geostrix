@@ -6182,5 +6182,9 @@
   "Exported \"{label}\" as a CSV table that imports back with the defaults (dips negative = down, azimuths grid).": "صُدّر \"{label}\" كجدول CSV يُستورد مجددًا بالإعدادات الافتراضية (الميل سالب = للأسفل، السمت شبكي).",
   "Table export failed: {message}": "فشل تصدير الجدول: {message}",
   "Export CSV table (imports back)…": "تصدير جدول CSV (قابل لإعادة الاستيراد)…",
-  "Export all drillhole tables (.zip of CSV)…": "تصدير كل جداول الآبار (‎.zip من ملفات CSV)…"
+  "Export all drillhole tables (.zip of CSV)…": "تصدير كل جداول الآبار (‎.zip من ملفات CSV)…",
+  "Survey date (declination)": "تاريخ المسح (الانحراف المغناطيسي)",
+  "Line bearing: {g}° grid, {t}° true, {m}° magnetic (declination {d}° on {date}, IGRF-14). A crew on a compass walks the magnetic bearing.": "اتجاه الخطوط: {g}° شبكي، {t}° حقيقي، {m}° مغناطيسي (الانحراف {d}° في {date}، IGRF-14). يسير الفريق بالبوصلة على الاتجاه المغناطيسي.",
+  "Line bearing: {g}° grid, {t}° true (no magnetic bearing for this date).": "اتجاه الخطوط: {g}° شبكي، {t}° حقيقي (لا اتجاه مغناطيسي لهذا التاريخ).",
+  "The line azimuth is a grid bearing (project CRS). Choose an area to see it as true and magnetic bearings.": "سمت الخطوط اتجاه شبكي (نظام إحداثيات المشروع). اختر منطقة لرؤيته كاتجاه حقيقي ومغناطيسي."
 }

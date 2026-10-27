@@ -7,6 +7,7 @@ import { useStore } from "../lib/store.jsx";
 import { soilGrid, streamSites, numberSamples, planGpx, planKml, planCsvRows, planFieldSheet } from "../lib/surveyPlan.js";
 import { routeTerrainAsync } from "../lib/hydrologyClient.js";
 import { pointTransform, crsName } from "../lib/reproject.js";
+import { loadIgrf, gridBearingAsTrueMagnetic, bearingPhrase } from "../lib/azimuthRef.js"; // TASKS.csv #1024
 import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -35,6 +36,9 @@ export default function SurveyPlannerPanel({ onClose }) {
   const [route, setRoute] = useState(null);
   const [routeErr, setRouteErr] = useState(null);
   const [msg, setMsg] = useState(null);
+  const [surveyDate, setSurveyDate] = useState(() => new Date().toISOString().slice(0, 10)); // #1024 — the declination's date
+  const [igrfReady, setIgrfReady] = useState(false);
+  useEffect(() => { if (mode === "soil") loadIgrf().then(() => setIgrfReady(true)).catch(() => {}); }, [mode]);
   useEffect(() => { try { localStorage.setItem(LS, JSON.stringify({ mode, grid, streams, num, qc })); } catch { /* private window */ } }, [mode, grid, streams, num, qc]);
   useEffect(() => { if (mode !== "streams" || !terrain || route) return; routeTerrainAsync(terrain).then(setRoute).catch((e) => setRouteErr(e.message)); }, [mode, terrain, route]);
 
@@ -64,7 +68,14 @@ export default function SurveyPlannerPanel({ onClose }) {
   }, [mode, area, grid, route, terrain, streams]);
   const rows = useMemo(() => (plan ? numberSamples(plan.sites, { prefix: num.prefix, start: Number(num.start) || 1, digits: Number(num.digits) || 5, qc: qc.filter((q) => q.on) }) : []), [plan, num, qc]);
   const nQc = rows.filter((r) => r.kind !== "sample").length;
-  const title = mode === "soil" ? `Soil grid: ${grid.lineSpacing} x ${grid.stationSpacing} m, lines at ${grid.azimuth}°` : `Stream sites: order ${streams.orders.join(", ")}, ${streams.minAreaKm2}-${streams.maxAreaKm2} km²`;
+  // TASKS.csv #1024 — the line bearing as grid, true and magnetic at the area's centre (a crew on a compass walking the
+  // grid bearing drifted 250-300 m per km at Harry / Woodjam); in the title (KML / GPX name, field sheet heading) and CSV
+  const centre = area ? [area.ring.reduce((s, p) => s + p[0], 0) / area.ring.length, area.ring.reduce((s, p) => s + p[1], 0) / area.ring.length] : null;
+  const bearingFor = (epsg) => (mode === "soil" && centre && epsg && igrfReady ? gridBearingAsTrueMagnetic(grid.azimuth, centre[0], centre[1], epsg, surveyDate) : null);
+  const shownEpsg = project?.crsSet !== false && project?.epsg ? Number(project.epsg) : null;
+  const bearing = bearingFor(shownEpsg);
+  const titleFor = (b) => (mode === "soil" ? `Soil grid: ${grid.lineSpacing} x ${grid.stationSpacing} m, lines at ${bearingPhrase(b, grid.azimuth)}` : title);
+  const title = mode === "soil" ? `Soil grid: ${grid.lineSpacing} x ${grid.stationSpacing} m, lines at ${grid.azimuth}° grid` : `Stream sites: order ${streams.orders.join(", ")}, ${streams.minAreaKm2}-${streams.maxAreaKm2} km²`;
 
   const draw = () => {
     if (mode === "soil") addBoundary({ name: title, polylines: plan.lines.map((l) => l.map(([x, y]) => ({ x, y }))), closedFlags: plan.lines.map(() => false), color: "#8a6a45", drapeMode: terrain ? "terrain" : "flat", lift: 2 });
@@ -80,7 +91,8 @@ export default function SurveyPlannerPanel({ onClose }) {
     const epsg = await ensureExportCrs(project); if (!epsg) return;
     const T = pointTransform(epsg, 4326);
     if (!T) { setMsg(tr("EPSG:{epsg} could not be converted to latitude / longitude, so no GPS file was written.", { epsg })); return; }
-    saveFile({ suggestedName: `survey_plan.${ext}`, filters: [{ name: kind, extensions: [ext] }], content: build((x, y) => T(x, y), epsg) });
+    const b = bearingFor(epsg); // #1024 — with the CRS just chosen, if it was asked for
+    saveFile({ suggestedName: `survey_plan.${ext}`, filters: [{ name: kind, extensions: [ext] }], content: build((x, y) => T(x, y), epsg, titleFor(b), b) });
   };
 
   return (
@@ -109,7 +121,13 @@ export default function SurveyPlannerPanel({ onClose }) {
               <label style={ctl}>{tr("Line azimuth (°)")}<input type="number" min="0" max="359" value={grid.azimuth} onChange={(e) => setGrid((g) => ({ ...g, azimuth: ((Number(e.target.value) % 360) + 360) % 360 }))} style={inp} /></label>
               <label style={ctl}>{tr("Line spacing (m)")}<input type="number" min="5" value={grid.lineSpacing} onChange={(e) => setGrid((g) => ({ ...g, lineSpacing: Math.max(5, Number(e.target.value) || 100) }))} style={inp} /></label>
               <label style={ctl}>{tr("Station spacing (m)")}<input type="number" min="1" value={grid.stationSpacing} onChange={(e) => setGrid((g) => ({ ...g, stationSpacing: Math.max(1, Number(e.target.value) || 25) }))} style={inp} /></label>
+              <label style={ctl}>{tr("Survey date (declination)")}<input type="date" value={surveyDate} onChange={(e) => setSurveyDate(e.target.value)} style={{ ...inp, width: 130 }} /></label>
               <label style={{ ...ctl, display: "flex", alignItems: "center", gap: 5, marginTop: 16 }}><input type="checkbox" checked={grid.stagger} onChange={(e) => setGrid((g) => ({ ...g, stagger: e.target.checked }))} />{tr("Stagger alternate lines")}</label>
+              <div style={{ ...note, flexBasis: "100%", color: "var(--color-text)" }}>{bearing
+                ? (bearing.magnetic != null
+                  ? tr("Line bearing: {g}° grid, {t}° true, {m}° magnetic (declination {d}° on {date}, IGRF-14). A crew on a compass walks the magnetic bearing.", { g: bearing.grid, t: bearing.true, m: bearing.magnetic, d: bearing.declination, date: bearing.date })
+                  : tr("Line bearing: {g}° grid, {t}° true (no magnetic bearing for this date).", { g: bearing.grid, t: bearing.true }))
+                : tr("The line azimuth is a grid bearing (project CRS). Choose an area to see it as true and magnetic bearings.")}</div>
               <div style={{ ...note, flexBasis: "100%" }}>{tr("Lines usually run across the expected strike; a target should be crossed by at least two or three stations, so set the station spacing from the anomaly width you expect (Rose, Hawkes & Webb 1979).")}</div>
             </div>
           ) : (
@@ -152,10 +170,10 @@ export default function SurveyPlannerPanel({ onClose }) {
               </div>
               <div style={rowS}>
                 <button type="button" style={btn(true)} onClick={draw} disabled={!plan.sites.length}>{tr("Show on the map")}</button>
-                <button type="button" style={dl} onClick={() => save("gpx", (ll) => planGpx(rows, plan.sites, ll, title), "GPX")} disabled={!rows.length}><Download size={14} />GPX</button>
-                <button type="button" style={dl} onClick={() => save("kml", (ll) => planKml(rows, plan.sites, ll, title), "KML")} disabled={!rows.length}><Download size={14} />KML</button>
-                <button type="button" style={dl} onClick={() => save("csv", (ll) => toExportCsv(planCsvRows(rows, plan.sites, ll)), "CSV")} disabled={!rows.length}><Download size={14} />CSV</button>
-                <button type="button" style={dl} onClick={() => save("html", (_ll, epsg) => planFieldSheet(rows, plan.sites, { title, crs: `${crsName(epsg) || ""} (EPSG:${epsg})` }), "HTML")} disabled={!rows.length}><Download size={14} />{tr("Field sheet (print)")}</button>
+                <button type="button" style={dl} onClick={() => save("gpx", (ll, _e, t) => planGpx(rows, plan.sites, ll, t), "GPX")} disabled={!rows.length}><Download size={14} />GPX</button>
+                <button type="button" style={dl} onClick={() => save("kml", (ll, _e, t) => planKml(rows, plan.sites, ll, t), "KML")} disabled={!rows.length}><Download size={14} />KML</button>
+                <button type="button" style={dl} onClick={() => save("csv", (ll, _e, _t, b) => toExportCsv(planCsvRows(rows, plan.sites, ll).map((r) => (mode === "soil" ? { ...r, line_bearing_grid: grid.azimuth, line_bearing_true: b?.true ?? "", line_bearing_magnetic: b?.magnetic ?? "", declination_date: b?.date ?? "" } : r))), "CSV")} disabled={!rows.length}><Download size={14} />CSV</button>
+                <button type="button" style={dl} onClick={() => save("html", (_ll, epsg, t) => planFieldSheet(rows, plan.sites, { title: t, crs: `${crsName(epsg) || ""} (EPSG:${epsg})` }), "HTML")} disabled={!rows.length}><Download size={14} />{tr("Field sheet (print)")}</button>
               </div>
               {msg && <div style={note}>{msg}</div>}
               <div style={note}>{tr("GPX and KML are in WGS 84 for a handheld GPS or a phone. A soil grid's KML shows the lines (the numbered stations are in a folder that starts hidden); its GPX has the lines as tracks and the stations as waypoints. Stream sites are points. QC inserts are in the CSV and the field sheet, in the order they go into the sample stream. Duplicates are taken at the site of the sample they follow.")}</div>
