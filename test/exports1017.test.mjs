@@ -101,6 +101,13 @@ test("#1017 surface glTF (.glb): a valid binary glTF whose mesh has the 4 vertic
   const prim = json.meshes[0].primitives[0];
   assert.equal(json.accessors[prim.attributes.POSITION].count, 4);
   assert.equal(json.accessors[prim.indices].count, 6);
+  // #1031 — Y-up: the node translation is (E, elevation, -N) and the vertices' y span is the elevation range (0-20 m
+  // here), not the 100 m northing span
+  const node = json.nodes.find((n) => n.mesh === 0);
+  assert.deepEqual(node.translation, [E0, 1000, -N0]);
+  const acc = json.accessors[prim.attributes.POSITION];
+  assert.deepEqual([acc.min[1], acc.max[1]], [0, 20]);
+  assert.deepEqual([acc.min[2], acc.max[2]], [-100, 0]);
 });
 
 test("#1017 surface OMF: a surface element with its vertices and triangles, read back by the app's OMF importer", async () => {
@@ -156,4 +163,12 @@ test("#1017 catchment follow-up GPX: anomalous sites as waypoints, the reaches a
   assert.equal((gpx.match(/<wpt /g) || []).length, 1);
   assert.equal((gpx.match(/<trk>/g) || []).length, 1);
   assert.equal((gpx.match(/<trkpt /g) || []).length, 3);
+});
+
+test("#1028 an open surface's export says it encloses no volume, and states none; a closed one keeps its volume", async () => {
+  const { provenanceLines } = await import("../src/lib/meshExport.js");
+  const open = provenanceLines("Sheet", null, { epsg: 26910, volumeM3: null, openSurface: true }).join("\n");
+  assert.doesNotMatch(open, /Enclosed volume/);
+  assert.match(open, /Open surface: it encloses no volume/);
+  assert.match(provenanceLines("Body", null, { volumeM3: 12345.6 }).join("\n"), /Enclosed volume: 12345\.6 m3/);
 });

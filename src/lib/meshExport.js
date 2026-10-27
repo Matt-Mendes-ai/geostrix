@@ -84,6 +84,7 @@ export function provenanceLines(name, provenance, extra = {}) {
   if (extra.epsg) out.push(`Project CRS: EPSG:${extra.epsg}`);
   if (extra.densityTPerM3 != null) out.push(`Bulk density used for tonnage: ${extra.densityTPerM3} t/m3 (assumed, not measured)`);
   if (extra.volumeM3 != null) out.push(`Enclosed volume: ${extra.volumeM3.toFixed(1)} m3 (in-situ, dry, undiluted, no recovery applied)`);
+  if (extra.openSurface) out.push("Open surface: it encloses no volume (no tonnage can be taken from it)"); // TASKS.csv #1028
   // TASKS.csv #276 — this block was written for the numeric grade shell's params and assumed its fields
   // (element/cutoff/method/...). Every GemPy-generated surface and the #272 alteration halo now carry a
   // params block too, with a different shape, so the lines are emitted per available field instead of
@@ -292,19 +293,22 @@ export function localizeVertices(vertices) {
   const off = [0, 1, 2].map((k) => { let m = Infinity; for (const v of vertices) if (v[k] < m) m = v[k]; return Number.isFinite(m) ? Math.floor(m) : 0; });
   return { offset: off, local: vertices.map((v) => [v[0] - off[0], v[1] - off[1], v[2] - off[2]]) };
 }
+// TASKS.csv #1031 (review #1016: software design, implicit modeller) — glTF is Y-UP (spec 3.4: +Y up, right-handed): the
+// vertices went out as (E, N, Z), so every surface stood on its edge in Blender or a glTF viewer. Now x = easting,
+// y = elevation, z = -northing (a rotation: winding and normals are kept), and the extras say so.
 export function exportSurfaceGLTF(name, geometry, origin, provenance = null, extra = {}) {
   const { vertices, indices } = sceneVertsToWorld(geometry, origin);
   const { offset, local } = localizeVertices(vertices); // #413
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.Float32BufferAttribute(local.flat(), 3));
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(local.flatMap(([e, n, z]) => [e, z, -n]), 3)); // #1031 Y-up
   geo.setIndex(indices);
   geo.computeVertexNormals();
   const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ name: sanitizeName(name) }));
   mesh.name = sanitizeName(name);
   // TASKS.csv #269 — glTF has no comment syntax, but GLTFExporter copies a node's userData into that
   // node's `extras` object, which is exactly what extras is for and what every glTF inspector shows.
-  mesh.userData = { GeoStrix: provenanceLines(name, provenance, extra), localOrigin: offset }; // #413: also stated in extras
-  mesh.position.set(offset[0], offset[1], offset[2]); // written as node.translation (JSON doubles)
+  mesh.userData = { GeoStrix: provenanceLines(name, provenance, extra), localOrigin: offset, axes: "glTF Y-up: x = easting, y = elevation, z = -northing (metres)" }; // #413 / #1031
+  mesh.position.set(offset[0], offset[2], -offset[1]); // written as node.translation (JSON doubles); #1031 Y-up
   const exporter = new GLTFExporter();
   return new Promise((resolve, reject) => {
     exporter.parse(

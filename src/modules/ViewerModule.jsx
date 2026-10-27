@@ -4318,7 +4318,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // TASKS.csv #269 — every exported mesh carries its own parameter provenance + the "not a Mineral
     // Resource estimate" stamp, so it can't come back later stripped of the assumptions behind it.
     const prov = surf.params || null;
-    const extra = { epsg, densityTPerM3: surf.density ?? null, volumeM3: computeMeshVolume(mesh.geometry).volumeM3 };
+    // TASKS.csv #1028 (review #1016) — "Enclosed volume" only for a closed mesh: an open sheet has no inside, and the
+    // signed-tetrahedron sum it got depends on the scene origin (1.65 / 165 / 137 Mm3 for one sheet)
+    const vol = computeMeshVolume(mesh.geometry);
+    const extra = { epsg, densityTPerM3: surf.density ?? null, volumeM3: vol.watertight ? vol.volumeM3 : null, ...(vol.watertight ? {} : { openSurface: true }) };
     // TASKS.csv #145 — a hand-sculpted surface must not leave this app claiming to be a clean
     // interpolation of its stated parameters. The edit log travels with the mesh (see
     // meshExport.js's provenanceLines, where it is stamped ahead of every parameter line), including
