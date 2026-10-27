@@ -15,6 +15,7 @@ import { mapContactPairs, mapContactLines, dipGuideLines } from "../lib/explicit
 import { imagePlane, rayPlane, facingCamera, densify3, medianApparentDip, sectionSnapTargets, constrainOnImage, groundProfileOnImage, nearestOnPolyline, pointOnSegment, insertPoint, splitAt, joinLines, extendTo } from "../lib/sectionDigitize3d.js"; // TASKS.csv #824 / #825 / #828
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #828 — Undo / Redo
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #885
+import { faultNormalZ } from "../lib/explicitTrim.js"; // TASKS.csv #957
 import { unitOf, contactOf, layerLabel, unitSummary, splitByElevation, nextLayer, seedPicksFromTops } from "../lib/explicitUnits.js"; // TASKS.csv #830 / #831 / #832; seed: #871
 import { stackOrder, thicknessBetween } from "../lib/stackOrder.js"; // TASKS.csv #873; thicknessBetween: #896
 import { inputKey, shapeFrame, onlyOneSection, explicitInputRows, INPUT_COLUMNS } from "../lib/explicitBuild.js"; // TASKS.csv #901; rows: #880
@@ -36,15 +37,8 @@ function worldMesh(mesh, o) {
 }
 // +1 / -1: the side the fault's triangle normals point to / away from. For a dipping fault whose normals point up, the
 // + side is above it: the hanging wall. -> { plus, minus } labels
-function faultSideLabels(w) {
-  let nx = 0, ny = 0, nz = 0;
-  const P = w.positions, I = w.indices;
-  for (let t = 0; t < I.length; t += 3) {
-    const a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3;
-    const e1 = [P[b] - P[a], P[b + 1] - P[a + 1], P[b + 2] - P[a + 2]], e2 = [P[c] - P[a], P[c + 1] - P[a + 1], P[c + 2] - P[a + 2]];
-    nx += e1[1] * e2[2] - e1[2] * e2[1]; ny += e1[2] * e2[0] - e1[0] * e2[2]; nz += e1[0] * e2[1] - e1[1] * e2[0];
-  }
-  const L = Math.hypot(nx, ny, nz) || 1, z = nz / L;
+// z: the fault's mean normal, vertical component (lib/explicitTrim.js faultNormalZ, computed in the worker since #957)
+function faultSideLabels(z) {
   if (Math.abs(z) < 0.1 || Math.abs(z) > 0.995) return { plus: tr("Side A (+)"), minus: tr("Side B (−)") }; // vertical or flat: no hanging wall
   return z > 0 ? { plus: tr("Hanging-wall side"), minus: tr("Footwall side") } : { plus: tr("Footwall side"), minus: tr("Hanging-wall side") };
 }
@@ -146,7 +140,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   const faultChoices = useMemo(() => (surfaces || []).filter((x) => x.id !== def?.surfaceId && x.visible !== false).sort((a, b) => (b.type === "fault") - (a.type === "fault")), [surfaces, def?.surfaceId]);
   const sideLabels = useMemo(() => {
     const m = def?.boundedBy && sc.meshes.current[def.boundedBy.surfaceId];
-    return m ? faultSideLabels(worldMesh(m, sc.origin.current)) : { plus: tr("Side A (+)"), minus: tr("Side B (−)") };
+    return m ? faultSideLabels(faultNormalZ(worldMesh(m, sc.origin.current))) : { plus: tr("Side A (+)"), minus: tr("Side B (−)") };
   }, [def?.boundedBy, surfaces, sc]); // surfaces: the fault may have been rebuilt
   const otherBlock = () => askPrompt(tr("Name of the surface for the other block:"), `${def.name} — ${def.boundedBy.side > 0 ? sideLabels.minus : sideLabels.plus}`, (name) => {
     const n = (name || "").trim();
@@ -663,9 +657,11 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         const appDip = sectionLines.length ? medianApparentDip(sectionLines) : null;
         // a surface made before #824 has no shape: it keeps the best-fit-plane rule it was built with
         const frame = shapeFrame(def.shape, appDip); // #901: lib/explicitBuild.js
-        const res = await fitExplicitSurfaceAsync(ep.points, { margin: def.margin, resolution: def.resolution || 80, frame, trend }, def.cutAtTerrain && hasTerrain ? terrain : null); // trend: #881
+        // TASKS.csv #957 — the fault trim runs in the worker too, after the fit
+        const trimReq = def.boundedBy && faultMesh ? { key: `${faultMesh.geometry?.uuid || def.boundedBy.surfaceId}:${faultMesh.geometry?.attributes?.position?.version ?? 0}` /* a sculpted fault keeps its uuid */, side: def.boundedBy.side, mesh: () => worldMesh(faultMesh, sc.origin.current) } : null;
+        const res = await fitExplicitSurfaceAsync(ep.points, { margin: def.margin, resolution: def.resolution || 80, frame, trend }, def.cutAtTerrain && hasTerrain ? terrain : null, trimReq); // trend: #881
         clearTimeout(slow);
-        if (wantKey.current !== key) return; // the inputs changed while it was building: a newer build is on its way
+        if (!res || wantKey.current !== key) return; // the inputs changed while it was building: a newer build is on its way
         // TASKS.csv #861 — Matt: each fault block gets its own surface, trimmed at the fault (nothing invented: the picks of
         // the block carry the throw). The spline is fitted through this surface's inputs, then cut at the fault and only
         // the chosen side kept; where the fault ends inside the surface no cut point exists and those edges stay whole.
@@ -673,21 +669,11 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         if (def.boundedBy) {
           const fname = surfaces.find((x) => x.id === def.boundedBy.surfaceId)?.name || "?";
           if (!faultMesh) trimNote = tr("The fault \"{f}\" is no longer in the project, so the surface is not trimmed.", { f: fname });
+          else if (!res.trim?.changed) trimNote = tr("The fault \"{f}\" does not cross this surface, so nothing was trimmed.", { f: fname });
           else {
-            const { splitAcrossSurface } = await import("../lib/crosscut.js");
-            if (wantKey.current !== key) return;
-            const fw = worldMesh(faultMesh, sc.origin.current);
-            const sp = splitAcrossSurface({ positions: res.positions, indices: Array.from(res.indices) }, fw);
-            if (!sp.ok || !sp.changed) trimNote = tr("The fault \"{f}\" does not cross this surface, so nothing was trimmed.", { f: fname });
-            else {
-              const part = def.boundedBy.side > 0 ? sp.positive : sp.negative, lab = faultSideLabels(fw);
-              // the clipper keeps every input vertex: keep only the ones a triangle uses
-              const remap = new Int32Array(part.positions.length / 3).fill(-1), pos = [], idx = new Uint32Array(part.indices.length);
-              for (let k = 0; k < part.indices.length; k++) { const v = part.indices[k]; if (remap[v] < 0) { remap[v] = pos.length / 3; pos.push(part.positions[3 * v], part.positions[3 * v + 1], part.positions[3 * v + 2]); } idx[k] = remap[v]; }
-              res.positions = Float64Array.from(pos); res.indices = idx;
-              trimNote = tr("Trimmed at the fault \"{f}\"; kept: {side}.", { f: fname, side: def.boundedBy.side > 0 ? lab.plus : lab.minus })
-                + (sp.stats.unresolvedEdges ? ` ${tr("The fault ends inside the surface: {n} edge(s) near its tip were left whole (no cut point exists beyond the fault).", { n: sp.stats.unresolvedEdges })}` : "");
-            }
+            const lab = faultSideLabels(res.trim.normalZ);
+            trimNote = tr("Trimmed at the fault \"{f}\"; kept: {side}.", { f: fname, side: def.boundedBy.side > 0 ? lab.plus : lab.minus })
+              + (res.trim.unresolvedEdges ? ` ${tr("The fault ends inside the surface: {n} edge(s) near its tip were left whole (no cut point exists beyond the fault).", { n: res.trim.unresolvedEdges })}` : "");
           }
         }
         const ms = Math.round(performance.now() - t0);
