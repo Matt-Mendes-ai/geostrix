@@ -1255,7 +1255,7 @@ export default function LayoutModule() {
         {/* TASKS.csv #788 — the sheet is physical paper (rulers from the left, x in mm): it stays left-to-right in Arabic, or an RTL scroll would open on the page's right edge */}
         <div dir="ltr" ref={areaRef} style={{ overflow: "auto", padding: 30, flex: 1 }}>
         <div style={{ width: (18 + A4.w) * zoom, height: (18 + A4.h) * zoom, margin: "0 auto" }}>{/* TASKS.csv #909 — the scaled sheet's footprint, so the area scrolls to it */}
-        <div style={{ display: "inline-grid", gridTemplateColumns: "18px auto", gridTemplateRows: "18px auto", transform: `scale(${zoom})`, transformOrigin: "top left" }}>
+        <div style={{ display: "inline-grid", gridTemplateColumns: "18px auto", gridTemplateRows: "18px auto", transform: `scale(${zoom})`, transformOrigin: "top left", "--lz": zoom }}>{/* --lz: TASKS.csv #965 — the editing chrome divides by it to keep its screen size */}
           <div />
           <Ruler2D axis="x" length={A4.w} mmStep={gridMm} />
           <Ruler2D axis="y" length={A4.h} mmStep={gridMm} />
@@ -1292,12 +1292,12 @@ export default function LayoutModule() {
             <Lock key={`lock_${el.id}`} size={11} aria-hidden="true" style={{ position: "absolute", left: el.x - 13, top: el.y - 13, color: "var(--color-text-muted)", pointerEvents: "none", zIndex: 4 }} />
           ))}
           {withLiveScaleBars(elements).map((el) => (
-            <LayoutElement key={el.id} el={el} selected={selected === el.id} multiSelected={multiSelected.size > 1 && multiSelected.has(el.id)} onDown={(e) => { e.stopPropagation(); onDown(e, el); }} onResizeStart={onResizeStart} ctx={textCtx} />
+            <LayoutElement key={el.id} el={el} selected={selected === el.id} multiSelected={multiSelected.size > 1 && multiSelected.has(el.id)} onDown={(e) => { e.stopPropagation(); onDown(e, el); }} onSelect={(id) => { if (selected !== id) { setSelected(id); setMultiSelected(new Set()); } }} onResizeStart={onResizeStart} ctx={textCtx} />
           ))}
           {guides.map((g, i) => ( /* TASKS.csv #910 */
             <div key={`guide${i}`} style={g.axis === "x"
-              ? { position: "absolute", left: g.at, top: 0, width: 0, height: A4.h, borderLeft: "1px dashed var(--color-guide)", pointerEvents: "none", zIndex: 5 }
-              : { position: "absolute", top: g.at, left: 0, height: 0, width: A4.w, borderTop: "1px dashed var(--color-guide)", pointerEvents: "none", zIndex: 5 }} />
+              ? { position: "absolute", left: g.at, top: 0, width: 0, height: A4.h, borderLeft: "calc(1px / var(--lz, 1)) dashed var(--color-guide)", pointerEvents: "none", zIndex: 5 }
+              : { position: "absolute", top: g.at, left: 0, height: 0, width: A4.w, borderTop: "calc(1px / var(--lz, 1)) dashed var(--color-guide)", pointerEvents: "none", zIndex: 5 }} />
           ))}
           {freehandPoints.length > 1 && (
             <svg style={{ position: "absolute", inset: 0, pointerEvents: "none" }} width={A4.w} height={A4.h}>
@@ -1591,7 +1591,7 @@ const HANDLE_POS = { n: { left: "50%", top: 0 }, s: { left: "50%", top: "100%" }
 function Handles({ which, onStart, at = {} }) {
   return which.map((h) => (
     <div key={h} data-handle={h} role="presentation" title={h === "tip" ? tr("Drag the tip to aim and lengthen the arrow") : undefined}
-      style={{ position: "absolute", width: 9, height: 9, background: "#fff", border: "1.5px solid var(--color-info)", borderRadius: 2, boxSizing: "border-box", zIndex: 2, transform: "translate(-50%, -50%)", cursor: HANDLE_CURSOR[h], ...(HANDLE_POS[h] || at[h] || {}) }}
+      style={{ position: "absolute", width: "calc(11px / var(--lz, 1))", height: "calc(11px / var(--lz, 1))", background: "#fff", border: "calc(1.5px / var(--lz, 1)) solid var(--color-info)", borderRadius: 2, boxSizing: "border-box", zIndex: 2, transform: "translate(-50%, -50%)", cursor: HANDLE_CURSOR[h], ...(HANDLE_POS[h] || at[h] || {}) }}
       onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); onStart(e, h); }} />
   ));
 }
@@ -1610,12 +1610,16 @@ function textContextFor(els, project, page, index, count, collars = null, credit
 }
 const fillText = (text, ctx) => (ctx && typeof text === "string" && text.includes("{") ? text.replace(PLACEHOLDER, (m, k) => (ctx[k] != null ? ctx[k] : m)) : text);
 
-function LayoutElement({ el, selected, multiSelected, onDown, print = false, onResizeStart, ctx = null }) {
+function LayoutElement({ el, selected, multiSelected, onDown, print = false, onResizeStart, ctx = null, onSelect = null }) {
+  // TASKS.csv #965 — reachable from the keyboard: Tab focuses an element and selects it, so the mm fields, arrow nudges
+  // and Delete work without a mouse (the print copy gets none of this)
+  const kb = onSelect && !print ? { tabIndex: 0, onFocus: (e) => { if (e.target === e.currentTarget && e.currentTarget.matches?.(":focus-visible")) onSelect(el.id); }, /* keyboard focus only: a click also focuses, and must not undo a Ctrl+click multi-selection */ "aria-label": tr("{type} element", { type: el.type }) } : {};
   const handles = selected && !print && !multiSelected && !el.locked && onResizeStart && HANDLES_FOR[el.type] ? <Handles which={HANDLES_FOR[el.type]} onStart={(e, h) => onResizeStart(e, el, h)} /> : null; // #906; locked: #909
   // multiSelected (part of a Ctrl+click bulk selection, but not the single "active" element) gets a
   // dashed outline so a multi-selection reads visually distinct from the one element whose properties
   // are actually showing in the sidebar. print (#908): no selection marks, no "Rendering..." overlay.
-  const outline = !print && selected ? "1.5px solid var(--color-info)" : !print && multiSelected ? "1.5px dashed var(--color-info)" : "none";
+  // TASKS.csv #965 — handles, outline and guides keep their screen size at any sheet zoom (at Fit on a laptop they were 5 px / 0.9 px)
+  const outline = !print && selected ? "calc(1.5px / var(--lz, 1)) solid var(--color-info)" : !print && multiSelected ? "calc(1.5px / var(--lz, 1)) dashed var(--color-info)" : "none";
   const wrap = { position: "absolute", left: el.x, top: el.y, cursor: el.locked ? "default" : "move", outline, outlineOffset: 3 };
   // TASKS.csv #102 — font controls (size/color/bold/italic/align) + the same frame/border fields
   // ViewportControls already uses for viewport elements. frameBorder(el) below builds the CSS border
@@ -1625,7 +1629,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   if (el.type === "title") {
     const b = frameBorder(el);
     return (
-      <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id}>
+      <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         <div style={{ fontSize: el.fontSize ?? 26, fontWeight: (el.bold ?? true) ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || "var(--color-text)", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{fillText(el.text, ctx)}</div>
         {handles}
       </div>
@@ -1634,14 +1638,14 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   if (el.type === "text") {
     const b = frameBorder(el);
     return (
-      <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id}>
+      <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         <div style={{ fontSize: el.fontSize ?? 14, fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || "#222" }}>{fillText(el.text, ctx)}</div>
         {handles}
       </div>
     );
   }
   if (el.type === "logo") return (
-    <div style={{ ...wrap, width: el.w }} onMouseDown={onDown} data-el-id={el.id}>
+    <div style={{ ...wrap, width: el.w }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
       <img src={el.src} alt={tr("logo")} style={{ width: "100%", display: "block" }} draggable={false} />
       {handles}
     </div>
@@ -1649,7 +1653,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   if (el.type === "image") {
     if (!el.src) return null; // defensive: a malformed/partial snapshot shouldn't take the whole page down
     return (
-      <div style={{ ...wrap, width: el.w || 200, height: el.h || 120 }} onMouseDown={onDown} data-el-id={el.id}>
+      <div style={{ ...wrap, width: el.w || 200, height: el.h || 120 }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         <img src={el.src} alt={el.label || "snapshot"} style={{ width: "100%", height: "100%", objectFit: "contain", display: "block", background: "#fff" }} draggable={false} />
         {handles}
       </div>
@@ -1666,7 +1670,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     return (
       <div
         style={{ ...wrap, width: W, height: H, transform: `rotate(${el.rotation || 0}deg)`, transformOrigin: "center center" }}
-        onMouseDown={onDown} data-el-id={el.id}
+        onMouseDown={onDown} data-el-id={el.id} {...kb}
       >
         <div style={{ width: "100%", height: "100%", background: "#fff", position: "relative", overflow: "hidden" }}>
           {el.src && <img src={el.src} alt={tr("viewport")} style={{ position: "absolute", left: (W - imgW) / 2, top: (H - imgH) / 2, width: imgW, height: imgH, display: "block" }} draggable={false} />}
@@ -1698,7 +1702,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const ray = (deg, len) => { const r = (deg * Math.PI) / 180; return [60 + Math.sin(r) * len, 80 - Math.cos(r) * len]; };
     const [tx, ty] = ray(convergence, 58), [mx, my] = ray(mn, 52);
     return (
-      <div style={{ ...wrap, transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined, transformOrigin: "60px 80px" }} onMouseDown={onDown} data-el-id={el.id}>
+      <div style={{ ...wrap, transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined, transformOrigin: "60px 80px" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         <svg width="170" height="124" viewBox="0 0 170 124" style={{ fontFamily: "'Exo 2', system-ui, sans-serif" }}>{/* #585 — 170 wide: the 7 pt captions need up to 149 px */}
           <line x1="60" y1="80" x2="60" y2="14" stroke="#1a2028" strokeWidth="1.6" />
           <text x="60" y="10" fontSize={printPx(printPt.small)} fontWeight="700" textAnchor="middle" fill="#1a2028">GN</text>
@@ -1714,7 +1718,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     );
   }
   if (el.type === "north") return (
-    <div style={{ ...wrap, transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined, transformOrigin: "27px 35px" }} onMouseDown={onDown} data-el-id={el.id}>
+    <div style={{ ...wrap, transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined, transformOrigin: "27px 35px" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
       <svg width="54" height="70" viewBox="0 0 54 70">
         <polygon points="27,4 38,44 27,36 16,44" fill="#ffffff" stroke="#1a2028" strokeWidth="1.5" strokeLinejoin="round" />
         <polygon points="27,4 38,44 27,36" fill="#666" />
@@ -1730,7 +1734,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     // fixed 180px that only ever changed its printed label.
     const px = Math.max(2, Math.round((el.meters || 100) * (el.pxPerMeter || DEFAULT_PX_PER_METER))); // #920 — no 20 px floor: the bar is as long as its label says
     return (
-      <div style={wrap} onMouseDown={onDown} data-el-id={el.id}>
+      <div style={wrap} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         <svg width={px + 4} height={el.viewPlane ? 44 : 34} style={{ overflow: "visible" }}>
           <rect x="2" y="4" width={px / 2} height="10" fill="#1a2028" />
           <rect x={2 + px / 2} y="4" width={px / 2} height="10" fill="#fbfbf8" stroke="#1a2028" />
@@ -1743,7 +1747,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     );
   }
   if (el.type === "legend") return (
-    <div style={{ ...wrap, background: "#fff", border: frameBorder(el, "1px solid #ccc"), padding: "8px 12px", minWidth: 150, width: el.w || undefined, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id}>
+    <div style={{ ...wrap, background: "#fff", border: frameBorder(el, "1px solid #ccc"), padding: "8px 12px", minWidth: 150, width: el.w || undefined, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
       {handles}
       <div style={{ fontSize: "var(--font-size-base)", fontWeight: 700, color: "#222", marginBottom: 6, fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Legend")}</div>
       {el.items.map(([name, color, opt], i) => opt?.heading ? ( /* TASKS.csv #725 — a group heading */
@@ -1777,7 +1781,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const fs = printPx(el.fontPt || 7), cell = { padding: `${Math.round(fs * 0.25)}px ${Math.round(fs * 0.5)}px`, borderBottom: "1px solid #c9ced4" /* #999 — 0.26 mm on paper like the scale bar; 0.5 px vanished on screen at Fit zoom */, whiteSpace: "nowrap" };
     const numeric = columns.map((_, j) => rows.length > 0 && rows.every((r) => r[j] === "" || /^[-+≥<>]?[\d.,]+$/.test(String(r[j]))));
     return (
-      <div style={{ ...wrap, width: el.w || 520, background: "#fff", border: frameBorder(el), padding: 6, boxSizing: "border-box", fontFamily: "'Exo 2', system-ui, sans-serif", color: "#1a2028" }} onMouseDown={onDown} data-el-id={el.id}>
+      <div style={{ ...wrap, width: el.w || 520, background: "#fff", border: frameBorder(el), padding: 6, boxSizing: "border-box", fontFamily: "'Exo 2', system-ui, sans-serif", color: "#1a2028" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         {el.title && <div style={{ fontSize: printPx((el.fontPt || 7) + 2), fontWeight: 700, marginBottom: 4 }}>{fillText(el.title, ctx)}</div>}
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: fs, fontVariantNumeric: "tabular-nums", tableLayout: "auto" }}>
           <thead><tr>{columns.map((h, j) => <th key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left", fontWeight: 600, borderBottom: "1px solid #1a2028" }}>{h}</th>)}</tr></thead>
@@ -1794,7 +1798,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   }
   // TASKS.csv #19 — shapes/annotation tools
   if (el.type === "rect") return (
-    <div style={{ ...wrap, width: el.w, height: el.h }} onMouseDown={onDown} data-el-id={el.id}>
+    <div style={{ ...wrap, width: el.w, height: el.h }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
       <svg width={el.w} height={el.h} style={{ display: "block" }}>
         <rect x={(el.strokeWidth || 0) / 2} y={(el.strokeWidth || 0) / 2} width={Math.max(0, el.w - (el.strokeWidth || 0))} height={Math.max(0, el.h - (el.strokeWidth || 0))}
           fill={el.fillOpacity > 0 ? el.fill : "none"} stroke={el.stroke} strokeWidth={el.strokeWidth} />
@@ -1813,7 +1817,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const hx1 = x2 - headLen * Math.cos(rad - headAngle), hy1 = y2 - headLen * Math.sin(rad - headAngle);
     const hx2 = x2 - headLen * Math.cos(rad + headAngle), hy2 = y2 - headLen * Math.sin(rad + headAngle);
     return (
-      <div style={{ ...wrap, width: w, height: h }} onMouseDown={onDown} data-el-id={el.id}>
+      <div style={{ ...wrap, width: w, height: h }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         <svg width={w} height={h} style={{ display: "block", overflow: "visible" }}>
           <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={el.stroke} strokeWidth={el.strokeWidth} />
           <polyline points={`${hx1},${hy1} ${x2},${y2} ${hx2},${hy2}`} fill="none" stroke={el.stroke} strokeWidth={el.strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
@@ -1823,7 +1827,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     );
   }
   if (el.type === "callout") return (
-    <div style={{ ...wrap, width: el.w, background: el.fill, border: `1.5px solid ${el.stroke}`, borderRadius: 6, padding: "8px 12px", position: "absolute", boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id}>
+    <div style={{ ...wrap, width: el.w, background: el.fill, border: `1.5px solid ${el.stroke}`, borderRadius: 6, padding: "8px 12px", position: "absolute", boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
       <div style={{ fontSize: "var(--font-size-base)", color: "#222", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{el.text}</div>
       {handles}
       <svg width="16" height="10" style={{ position: "absolute", left: 14, bottom: -9 }}>
@@ -1838,7 +1842,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     // (see layers.js's minMax header comment).
     const w = minMax(el.points.map((p) => p[0])).max + 4, h = minMax(el.points.map((p) => p[1])).max + 4;
     return (
-      <div style={{ ...wrap, width: w, height: h }} onMouseDown={onDown} data-el-id={el.id}>
+      <div style={{ ...wrap, width: w, height: h }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         <svg width={w} height={h} style={{ display: "block" }}>
           <polyline points={el.points.map((p) => p.join(",")).join(" ")} fill="none" stroke={el.stroke} strokeWidth={el.strokeWidth} strokeLinejoin="round" strokeLinecap="round" />
         </svg>

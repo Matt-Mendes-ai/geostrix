@@ -6096,5 +6096,6 @@
   "Vector inversion: fixed 10 + 20 iterations, default smoothness lengths and an amplitude bound of 0 to 10; the iteration, smoothness and bounds settings do not apply to it.": "العكس المتجهي: 10 + 20 تكرارًا ثابتًا، وأطوال نعومة افتراضية، وحدّ للسعة من 0 إلى 10؛ ولا تنطبق عليه إعدادات التكرارات والنعومة والحدود.",
   "Compact runs at least 60 iterations whatever is entered above: the sparse re-weighting needs its own after the smooth stage.": "يُجري الوضع المضغوط 60 تكرارًا على الأقل مهما كانت القيمة أعلاه: تحتاج إعادة الترجيح المتناثرة إلى تكراراتها بعد المرحلة الملساء.",
   "Click an element to edit it, Ctrl+click for several (to align or spread them). Drag the handles to resize; Shift keeps the shape. Alt drags past the guides. Arrow keys nudge 1 mm, Shift+arrow 10 mm.": "انقر عنصرًا لتحريره، وCtrl+نقر لاختيار عدة عناصر (لمحاذاتها أو توزيعها). اسحب المقابض لتغيير الحجم؛ وShift يحفظ الشكل. وAlt يسحب متجاوزًا الأدلة. تحرك الأسهم 1 مم، وShift+سهم 10 مم.",
-  "The sheet is empty: add a view of the 3D scene (Current view), then a title, north arrow, scale bar and legend from Insert.": "اللوحة فارغة: أضف عرضًا للمشهد ثلاثي الأبعاد (العرض الحالي)، ثم عنوانًا وسهم الشمال ومقياس الرسم ومفتاح الرموز من إدراج."
+  "The sheet is empty: add a view of the 3D scene (Current view), then a title, north arrow, scale bar and legend from Insert.": "اللوحة فارغة: أضف عرضًا للمشهد ثلاثي الأبعاد (العرض الحالي)، ثم عنوانًا وسهم الشمال ومقياس الرسم ومفتاح الرموز من إدراج.",
+  "{type} element": "عنصر: {type}"
 }
