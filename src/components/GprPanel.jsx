@@ -13,6 +13,7 @@ import { reprojectXY, getProj4Def } from "../lib/reproject.js";
 import { saveFile } from "../lib/desktop.js";
 import { version as APP_VERSION } from "../../package.json";
 import { t as tr } from "../lib/i18n.js";
+import { colors } from "../lib/theme.js";
 
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 const MAX_COLUMNS_3D = 256; // curtain columns in the 3D view (the picture keeps its own resolution)
@@ -34,8 +35,8 @@ function figure(img, { timeNs, depthM, along, alongUnit, title, width, height, d
   g.fillStyle = "#fff"; g.fillRect(0, 0, W + L + R, H + T + B);
   g.imageSmoothingEnabled = true;
   g.drawImage(pic, L, T, W, H);
-  g.strokeStyle = "#333"; g.strokeRect(L, T, W, H);
-  g.fillStyle = "#222"; g.font = "11px sans-serif";
+  g.strokeStyle = colors.text; g.strokeRect(L, T, W, H); // #999 — theme constants, Exo 2 like every other chart
+  g.fillStyle = colors.text; g.font = "11px 'Exo 2', system-ui, sans-serif";
   let t = title;
   while (t.length > 8 && g.measureText(t).width > W + R) t = `${t.slice(0, -2)}`;
   g.fillText(t === title ? t : `${t}…`, L, 14);

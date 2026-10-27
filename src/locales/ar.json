@@ -6091,5 +6091,8 @@
   "Block-model CSV column names": "أسماء أعمدة CSV لنموذج الكتل",
   "XC, YC, ZC, XINC… (Datamine, Vulcan, Surpac, Leapfrog)": "XC, YC, ZC, XINC… (Datamine وVulcan وSurpac وLeapfrog)",
   "EAST, NORTH, RL, _EAST… (Micromine)": "EAST, NORTH, RL, _EAST… (Micromine)",
-  "Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)": "تصدير بصيغة CSV لنموذج الكتل (EAST وNORTH وRL و_EAST و_NORTH و_RL والقيمة: أسماء Micromine)"
+  "Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)": "تصدير بصيغة CSV لنموذج الكتل (EAST وNORTH وRL و_EAST و_NORTH و_RL والقيمة: أسماء Micromine)",
+  "Downhole structure measurements are not used: the surface's dip comes from the picks and lines alone (a trend only stretches it).": "لا تُستخدم القياسات البنيوية داخل الثقوب: ميل السطح مستمد من النقاط المنتقاة والخطوط وحدها (والاتجاه العام يمدّه فقط).",
+  "Vector inversion: fixed 10 + 20 iterations, default smoothness lengths and an amplitude bound of 0 to 10; the iteration, smoothness and bounds settings do not apply to it.": "العكس المتجهي: 10 + 20 تكرارًا ثابتًا، وأطوال نعومة افتراضية، وحدّ للسعة من 0 إلى 10؛ ولا تنطبق عليه إعدادات التكرارات والنعومة والحدود.",
+  "Compact runs at least 60 iterations whatever is entered above: the sparse re-weighting needs its own after the smooth stage.": "يُجري الوضع المضغوط 60 تكرارًا على الأقل مهما كانت القيمة أعلاه: تحتاج إعادة الترجيح المتناثرة إلى تكراراتها بعد المرحلة الملساء."
 }

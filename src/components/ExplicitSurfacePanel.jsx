@@ -813,7 +813,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   return (
     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-        {tr("A surface that passes exactly through your own picks: contacts clicked on holes (or anything else) in the 3D view, and lines drawn on sections with its name. Nothing is interpolated away; it rebuilds as you pick.")}{" "}{tr("Between the inputs it is the smoothest surface through them; beyond them it is extended with no data.") /* TASKS.csv #870 */}
+        {tr("A surface that passes exactly through your own picks: contacts clicked on holes (or anything else) in the 3D view, and lines drawn on sections with its name. Nothing is interpolated away; it rebuilds as you pick.")}{" "}{tr("Between the inputs it is the smoothest surface through them; beyond them it is extended with no data.") /* TASKS.csv #870 */}{" "}{tr("Downhole structure measurements are not used: the surface's dip comes from the picks and lines alone (a trend only stretches it).") /* TASKS.csv #982 */}
       </div>
       <div style={row}>
         <select value={def?.id || ""} onChange={(e) => { if (digDrawing) { finishLine(); setDigDrawing(false); showHover(null); } setSelId(e.target.value); setPickFor(null); }} disabled={!defs.length} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Explicit surface")}>
@@ -846,14 +846,14 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             {keptNote && <div role="status" style={{ marginTop: 3 }}>{keptNote}</div>}
           </details>
         )}
-        {seedNote && <div role="status" style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-secondary)" }}>{seedNote}</div>}
+        {seedNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-secondary)" }}>{seedNote}</div>}
         {dupHoles.size > 0 && ( // TASKS.csv #866 — a contact crosses a hole once unless folded or faulted
-          <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-warn-text)" }}>
+          <div style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-warn-text)" }}>
             {tr("More than one pick on the same hole: {list}. A contact crosses a hole once unless it is folded or faulted; a repeated unit belongs on another layer or surface.", { list: [...dupHoles].map(([h, n]) => `${h} (${n})`).join(", ") })}{" "}
             <button onClick={keepShallowest} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Keep the shallowest pick on each hole")}</button>
           </div>
         )}
-        {status && <div role="status" style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: status.ok ? "var(--color-text-secondary)" : "var(--color-warn-text)" }}>{status.text}</div>}
+        {status && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 6, color: status.ok ? "var(--color-text-secondary)" : "var(--color-warn-text)" }}>{status.text}</div>}
         {ep?.moved > 0 && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-secondary)" }}>{tr("{n} pick(s) on holes now sit up to {d} m from where they were picked: they follow the holes' current traces (a survey, collar or desurvey method changed).", { n: ep.moved, d: ep.maxMove.toFixed(1) })}</div>}{/* TASKS.csv #888 */}
         {/* TASKS.csv #883 — every pick says where it landed (a click on the terrain or another surface is not a contact) */}
         {def.picks.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-muted)" }}>{tr("Last pick: {what}", { what: pickLabel(def.picks[def.picks.length - 1]) })}</div>}
@@ -887,10 +887,10 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           <div style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, lineHeight: 1.4 }}>
             <div style={{ color: "var(--color-text-muted)" }}>{unitInfo.layers.map((l) => tr("{layer}: {u} upper, {d} lower", { layer: l.layer ? `${curUnit} ${l.layer}` : curUnit, u: l.upper.length, d: l.lower.length })).join(" · ")}</div>
             <button onClick={splitUnit} title={tr("Letter this unit's surfaces A, B, C… from the top down: each upper contact starts a new layer, and a lower contact closes the layer above it.")}
-              style={{ ...pBtn, marginTop: 4, marginBottom: 0, justifyContent: "center", padding: "3px 7px", fontSize: "var(--font-size-xs)" }}>{tr("Split {unit} into layers by elevation", { unit: curUnit })}</button>
+              style={{ ...pBtn, marginTop: 4, marginBottom: 0, justifyContent: "center", padding: "3px 7px" }}>{tr("Split {unit} into layers by elevation", { unit: curUnit })}</button>
             {unitNote && <div role="status" style={{ marginTop: 3, color: "var(--color-text-secondary)" }}>{unitNote}</div>}
             {thicknessPairs.length > 0 && <button onClick={measureThickness} title={tr("The vertical distance between this unit's upper and lower contact in every map column both cover: minimum, mean, maximum, and where the base rises above the top.")}
-              style={{ ...pBtn, marginTop: 4, marginBottom: 0, justifyContent: "center", padding: "3px 7px", fontSize: "var(--font-size-xs)" }}>{tr("Thickness between top and base")}</button>}{/* TASKS.csv #896 */}
+              style={{ ...pBtn, marginTop: 4, marginBottom: 0, justifyContent: "center", padding: "3px 7px" }}>{tr("Thickness between top and base")}</button>}{/* TASKS.csv #896 */}
             {thickNote && <div role="status" style={{ marginTop: 3, color: thickNote.crossing ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{thickNote.text}</div>}
           </div>
         )}
@@ -912,7 +912,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
                 <option value="-1">{sideLabels.minus}</option>
               </select>
             </div>
-            <button onClick={otherBlock} style={{ ...pBtn, marginBottom: 0, justifyContent: "center", padding: "3px 7px", fontSize: "var(--font-size-xs)" }}>{tr("New surface for the other block")}</button>
+            <button onClick={otherBlock} style={{ ...pBtn, marginBottom: 0, justifyContent: "center", padding: "3px 7px" }}>{tr("New surface for the other block")}</button>
           </>)}
         </details>
         <button onClick={() => { setPickFor(null); setEditing((v) => !v); setLineTool("move"); pendRef.current = null; setToolHint(null); }} aria-pressed={editing} disabled={!def.picks.length && !(def.lines || []).length}
@@ -921,7 +921,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           <Move size={14} />{" "}{editing ? tr("Editing — drag a pick or a line point (click to stop)") : tr("Edit picks and lines")}
         </button>
         {/* TASKS.csv #913 — say how to delete; the deletion's confirmation (the line-tools hint shows only with section-image lines) */}
-        {editing && !(def.lines || []).length && <div role="status" style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, margin: "-2px 0 6px", color: "var(--color-text-secondary)" }}>{toolHint || tr("Alt + click a pick to delete it, on a hole or anywhere else.")}</div>}
+        {editing && !(def.lines || []).length && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, margin: "-2px 0 6px", color: "var(--color-text-secondary)" }}>{toolHint || tr("Alt + click a pick to delete it, on a hole or anywhere else.")}</div>}
         <label style={{ ...row, cursor: "pointer" }} title={tr("A click on a hole snaps to its nearest logged contact (where the unit changes) within {m} m down-hole; untick to take the exact point clicked on the trace", { m: SNAP_REACH_M })}>
           <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />{tr("Snap to logged contacts")}
         </label>
@@ -935,7 +935,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           <input ref={dxfInputRef} type="file" accept=".dxf" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) importDxfStrings(f); e.target.value = ""; }} />{/* TASKS.csv #875 */}
           <button onClick={() => { if (!confirmDestructive(tr("Delete the explicit surface \"{name}\" with its picks and lines?", { name: def.name }), { undoable: true })) return; setPickFor(null); onRemove(def); setSelId(""); }} title={tr("Delete this explicit surface and its mesh")} aria-label={tr("Delete this explicit surface and its mesh")} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px" }}><Trash2 size={14} /></button>
         </div>
-        {exportNote && <div role="status" style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, color: "var(--color-text-secondary)" }}>{exportNote}</div>}{/* #880 */}
+        {exportNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", marginBottom: 6, color: "var(--color-text-secondary)" }}>{exportNote}</div>}{/* #880 */}
         <div style={{ fontSize: "var(--font-size-xs)", marginBottom: 6, lineHeight: 1.4 }}>
           {ep.lines ? tr("{lines} section line(s) on {sections} section(s) are hard lines of this surface (a point every {sp} m along them).", { lines: ep.lines, sections: ep.sections, sp: Math.round(ep.spacing || LINE_SPACING) }) : tr("No section lines yet.")}{" "}<span style={{ color: "var(--color-text-muted)" }}>{lineHint}</span>
         </div>
@@ -956,7 +956,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
               <Pencil size={14} />{" "}{digDrawing ? tr("Drawing — click to stop") : tr("Draw contact lines on it")}
             </button>
             {/* TASKS.csv #892 — the keys in one line; what a point snaps to is the tooltip */}
-            {digDrawing && <div role="status" title={`${tr("A point within 10 px of one already drawn on this image joins it.")} ${tr("Black dots: logged contacts of holes within 15 m of the section, and hole crossings — a point snaps to them too, and onto drawn lines and the dashed ground line. Hold Shift for level / vertical / 45° segments.")}`} style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 4, color: "var(--color-text-secondary)" }}>
+            {digDrawing && <div role="status" title={`${tr("A point within 10 px of one already drawn on this image joins it.")} ${tr("Black dots: logged contacts of holes within 15 m of the section, and hole crossings — a point snaps to them too, and onto drawn lines and the dashed ground line. Hold Shift for level / vertical / 45° segments.")}`} style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 4, color: "var(--color-text-secondary)" }}>
               {tr("Click along {name}'s contact on the image.", { name: def.name })} {tr("Enter or double-click: finish the line · Backspace: remove the last point · Esc: stop · Shift: level / vertical / 45°.")}
               {digPts.length ? ` ${tr("{n} point(s) in this line.", { n: digPts.length })}` : ""}
               {hoverLabel ? <b>{` ${tr("Snap: {v}", { v: hoverLabel })}`}</b> : null}
@@ -973,10 +973,10 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
                 {[["move", "Move points", "Drag a point to move it; Alt + click deletes it (a pick on a hole too)."], ["insert", "Insert point", "Click on a line to add a point there."], ["split", "Split", "Click a point in the middle of a line to cut it in two."], ["join", "Join", "Click the end of one line, then the end of another: they become one line."], ["extend", "Extend", "Click the end of a line, then the line it should reach (another line on the same image, or the ground): it is lengthened, or trimmed, to meet it."]].map(([k, label, hint]) => {
                   const on = editing && lineTool === k;
                   return <button key={k} title={tr(hint)} aria-pressed={on} onClick={() => { setLineTool(k); pendRef.current = null; setToolHint(tr(hint)); if (digDrawing) { finishLine(); setDigDrawing(false); showHover(null); } setPickFor(null); setEditing(true); }}
-                    style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px", fontSize: "var(--font-size-xs)", ...(on ? { background: "var(--color-accent)", color: "var(--color-text)" } : {}) }}>{tr(label)}</button>;
+                    style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 7px", ...(on ? { background: "var(--color-accent)", color: "var(--color-text)" } : {}) }}>{tr(label)}</button>;
                 })}
               </div>
-              {editing && toolHint && <div role="status" style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 4, color: "var(--color-text-secondary)" }}>{toolHint}</div>}
+              {editing && toolHint && <div role="status" style={{ fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 4, color: "var(--color-text-secondary)" }}>{toolHint}</div>}
             </>)}
           </>)}
         </details>

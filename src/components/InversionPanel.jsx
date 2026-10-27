@@ -248,7 +248,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
       regularization: vector
         ? { type: "Magnetic vector inversion (SimPEG, Fournier, Heagy & Oldenburg 2020): Cartesian sparse (norms 0) then spherical sparse — amplitude norms 0/1/1/1, angles 1/1/1 — with IRLS", sensitivityWeighting: true, beta0Ratio: 10, stages: "10 + 20 iterations" }
         : regStyle === "compact"
-        ? { type: "Sparse (compact): lp norms p = 0 on the model, 1 on its gradients, IRLS (Fournier & Oldenburg 2019)", lengthScales: [Number(adv.lx) || 1, Number(adv.ly) || 1, Number(adv.lz) || 1], sensitivityWeighting: true, beta0Ratio: 10, cooling: "x0.5 until the target, then IRLS re-weighting (up to 40 passes)", boundsRequested: p.request.bounds }
+        ? { type: "Sparse (compact): lp norms p = 0 on the model, 1 on its gradients, IRLS (Fournier & Oldenburg 2019)", lengthScales: [Number(adv.lx) || 1, Number(adv.ly) || 1, Number(adv.lz) || 1], sensitivityWeighting: true, beta0Ratio: 10, cooling: "x0.5 until the target, then IRLS re-weighting (up to 40 passes)", maxIterations: Math.max(Number(adv.maxIter) || 15, 60) /* #971 — the engine raises it to 60 */, boundsRequested: p.request.bounds }
         : { type: "WeightedLeastSquares (smooth L2)", lengthScales: [Number(adv.lx) || 1, Number(adv.ly) || 1, Number(adv.lz) || 1], sensitivityWeighting: true, beta0Ratio: 10, cooling: "x0.5 per iteration", maxIter: Number(adv.maxIter) || 15, boundsRequested: p.request.bounds },
       crs: `EPSG:${project.epsg}`,
       drillholeConstraints: p.meta.drillholeConstraints ? { ...p.meta.drillholeConstraints, how: "each cell a hole passes through: reference = mean of the log samples in it, bounds = that mean ± tolerance" } : null, // #323
@@ -512,11 +512,17 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAdv((p) => ({ ...p, open: !p.open }))} aria-expanded={adv.open} style={{ ...row, cursor: "pointer" }}>
                   {adv.open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}{" "}{tr("Advanced")}</div>
                 {adv.open && <>
-                  <div style={row}><span style={lbl}>{tr("Max iterations")}</span><input type="number" min={1} max={40} value={adv.maxIter} onChange={(e) => setAdv((p) => ({ ...p, maxIter: e.target.value }))} style={inp} /></div>
-                  <div style={row} title={tr("Relative smoothness length along x (east), y (north), z (up). Larger along one axis = smoother (more elongated) that way.")}><span style={lbl}>{tr("Smoothness x/y/z")}</span>
-                    {["lx", "ly", "lz"].map((k) => <input key={k} type="number" min={0.1} step={0.5} value={adv[k]} onChange={(e) => setAdv((p) => ({ ...p, [k]: e.target.value }))} style={{ ...inp, width: 44 }} aria-label={tr("Smoothness {v}", { v: k.slice(1) })} />)}
-                  </div>
-                  <div style={row}><span style={lbl}>{tr("Bounds (optional)")}</span><input type="number" placeholder={tr("lower")} value={adv.lower} onChange={(e) => setAdv((p) => ({ ...p, lower: e.target.value }))} style={{ ...inp, width: 60 }} aria-label={tr("Lower bound")} /><input type="number" placeholder={tr("upper")} value={adv.upper} onChange={(e) => setAdv((p) => ({ ...p, upper: e.target.value }))} style={{ ...inp, width: 60 }} aria-label={tr("Upper bound")} /></div>
+                  {/* TASKS.csv #971 — the vector inversion runs fixed stages and ignores these three; compact runs at least 60 */}
+                  {method === "mag" && magModel === "vector"
+                    ? <div style={{ ...small, marginBottom: 4 }}>{tr("Vector inversion: fixed 10 + 20 iterations, default smoothness lengths and an amplitude bound of 0 to 10; the iteration, smoothness and bounds settings do not apply to it.")}</div>
+                    : <>
+                    <div style={row}><span style={lbl}>{tr("Max iterations")}</span><input type="number" min={1} max={40} value={adv.maxIter} onChange={(e) => setAdv((p) => ({ ...p, maxIter: e.target.value }))} style={inp} /></div>
+                    <div style={row} title={tr("Relative smoothness length along x (east), y (north), z (up). Larger along one axis = smoother (more elongated) that way.")}><span style={lbl}>{tr("Smoothness x/y/z")}</span>
+                      {["lx", "ly", "lz"].map((k) => <input key={k} type="number" min={0.1} step={0.5} value={adv[k]} onChange={(e) => setAdv((p) => ({ ...p, [k]: e.target.value }))} style={{ ...inp, width: 44 }} aria-label={tr("Smoothness {v}", { v: k.slice(1) })} />)}
+                    </div>
+                    <div style={row}><span style={lbl}>{tr("Bounds (optional)")}</span><input type="number" placeholder={tr("lower")} value={adv.lower} onChange={(e) => setAdv((p) => ({ ...p, lower: e.target.value }))} style={{ ...inp, width: 60 }} aria-label={tr("Lower bound")} /><input type="number" placeholder={tr("upper")} value={adv.upper} onChange={(e) => setAdv((p) => ({ ...p, upper: e.target.value }))} style={{ ...inp, width: 60 }} aria-label={tr("Upper bound")} /></div>
+                      {regStyle === "compact" && <div style={{ ...small, marginBottom: 4 }}>{tr("Compact runs at least 60 iterations whatever is entered above: the sparse re-weighting needs its own after the smooth stage.")}</div>}
+                    </>}
                   <div style={row} title={tr("Cells whose normalized sensitivity is below this are hidden in the 3D view: the data can barely see them, so their value says more about the regularization than about the rock. Display only — it does not change the inversion.")}><span style={lbl}>{tr("Hide cells below support")}</span><input type="number" min={0} max={1} step={0.01} value={adv.supportCutoff} onChange={(e) => setAdv((p) => ({ ...p, supportCutoff: e.target.value }))} style={inp} /></div>
                 </>}
               </>)}

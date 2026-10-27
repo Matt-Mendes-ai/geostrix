@@ -1287,8 +1287,8 @@ export default function LayoutModule() {
           ))}
           {guides.map((g, i) => ( /* TASKS.csv #910 */
             <div key={`guide${i}`} style={g.axis === "x"
-              ? { position: "absolute", left: g.at, top: 0, width: 0, height: A4.h, borderLeft: "1px dashed #e0407b", pointerEvents: "none", zIndex: 5 }
-              : { position: "absolute", top: g.at, left: 0, height: 0, width: A4.w, borderTop: "1px dashed #e0407b", pointerEvents: "none", zIndex: 5 }} />
+              ? { position: "absolute", left: g.at, top: 0, width: 0, height: A4.h, borderLeft: "1px dashed var(--color-guide)", pointerEvents: "none", zIndex: 5 }
+              : { position: "absolute", top: g.at, left: 0, height: 0, width: A4.w, borderTop: "1px dashed var(--color-guide)", pointerEvents: "none", zIndex: 5 }} />
           ))}
           {freehandPoints.length > 1 && (
             <svg style={{ position: "absolute", inset: 0, pointerEvents: "none" }} width={A4.w} height={A4.h}>
@@ -1606,7 +1606,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   // multiSelected (part of a Ctrl+click bulk selection, but not the single "active" element) gets a
   // dashed outline so a multi-selection reads visually distinct from the one element whose properties
   // are actually showing in the sidebar. print (#908): no selection marks, no "Rendering..." overlay.
-  const outline = !print && selected ? "1.5px solid var(--color-info)" : !print && multiSelected ? "1.5px dashed #4a9be0" : "none";
+  const outline = !print && selected ? "1.5px solid var(--color-info)" : !print && multiSelected ? "1.5px dashed var(--color-info)" : "none";
   const wrap = { position: "absolute", left: el.x, top: el.y, cursor: el.locked ? "default" : "move", outline, outlineOffset: 3 };
   // TASKS.csv #102 — font controls (size/color/bold/italic/align) + the same frame/border fields
   // ViewportControls already uses for viewport elements. frameBorder(el) below builds the CSS border
@@ -1765,7 +1765,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
       rows = cs.slice(0, lim).map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), f(c.z, 1), f(c.azimuth, 0), f(c.dip, 0), f(c.length, 1)]);
       more = Math.max(0, cs.length - lim);
     }
-    const fs = printPx(el.fontPt || 7), cell = { padding: `${Math.round(fs * 0.25)}px ${Math.round(fs * 0.5)}px`, borderBottom: "0.5px solid #c9ced4", whiteSpace: "nowrap" };
+    const fs = printPx(el.fontPt || 7), cell = { padding: `${Math.round(fs * 0.25)}px ${Math.round(fs * 0.5)}px`, borderBottom: "1px solid #c9ced4" /* #999 — 0.26 mm on paper like the scale bar; 0.5 px vanished on screen at Fit zoom */, whiteSpace: "nowrap" };
     const numeric = columns.map((_, j) => rows.length > 0 && rows.every((r) => r[j] === "" || /^[-+≥<>]?[\d.,]+$/.test(String(r[j]))));
     return (
       <div style={{ ...wrap, width: el.w || 520, background: "#fff", border: frameBorder(el), padding: 6, boxSizing: "border-box", fontFamily: "'Exo 2', system-ui, sans-serif", color: "#1a2028" }} onMouseDown={onDown} data-el-id={el.id}>

@@ -427,9 +427,9 @@ function SectionResult({ last, cutoff, epsg, pBtn }) {
   return (
     <div style={{ marginTop: 10 }}>
       <div className="ge-section-label">{tr("Result — {name}", { name: last.name })}</div>
-      <div role="status" style={{ fontSize: "var(--font-size-xs)", color: verdict.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{tr("Resistivity: {text}", { text: verdict.text })}</div>
+      <div role="status" style={{ fontSize: "var(--font-size-sm)", color: verdict.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{tr("Resistivity: {text}", { text: verdict.text })}</div>
       {/* TASKS.csv #581 — chargeability judged on its own, in its own colour (a good DC fit used to paint a failed IP fit as fine) */}
-      {result.ip && (() => { const iv = ipFitOf(result); return <div role="status" style={{ fontSize: "var(--font-size-xs)", color: iv.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{tr("Chargeability: {verdict}", { verdict: iv.verdict })}</div>; })()}
+      {result.ip && (() => { const iv = ipFitOf(result); return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: iv.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{tr("Chargeability: {verdict}", { verdict: iv.verdict })}</div>; })()}
       {c.chargeability && (
         <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
           {["resistivity", "chargeability"].map((f) => <button key={f} onClick={() => setField(f)} style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", border: "1px solid var(--color-border)", borderRadius: 4, background: f === field ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{f === "resistivity" ? tr("Resistivity") : tr("Chargeability")}</button>)}
@@ -446,7 +446,7 @@ function SectionResult({ last, cutoff, epsg, pBtn }) {
         {result.electrodes.map((e, i) => <circle key={i} cx={5 + (e[0] - s0) * sx} cy={5 + (z1 - e[1]) * sz} r={1.6} fill="#1a2028" />)}
       </svg>
       {reach && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{tr("Dashed line = DOI index {doiT} (Oldenburg & Li; median over 5 columns): below it the resistivity follows the reference model, not the data. The data reach a median {median} m per column by the DOI index, {median2} m by the support cutoff ({cutoff}).{v}", { doiT, median: reach.doi.median.toFixed(0), median2: reach.sup.median.toFixed(0), cutoff, v: doiFits ? tr(" The two reference runs fit {v} the target{v2}.", { v: doiFits.map((v) => `${v.toFixed(2)}×`).join(" and "), v2: doiFits.some((v) => v < 0.5) ? tr(" — unequal fits inflate the index, so read the line as approximate") : "" }) : "" })}</div>}
-      {doiFailed && <div role="alert" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-fg)" }}>{tr("Depth-of-investigation check not shown: a reference run did not fit the data ({v} the target), so the index would measure that failure, not the depth the data reach.", { v: doiFits.map((v) => `${v.toFixed(2)}×`).join(" and ") })}</div>}
+      {doiFailed && <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-fg)" }}>{tr("Depth-of-investigation check not shown: a reference run did not fit the data ({v} the target), so the index would measure that failure, not the depth the data reach.", { v: doiFits.map((v) => `${v.toFixed(2)}×`).join(" and ") })}</div>}
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
         {tr("{v} · {v2} m × {v3} m, vertical exaggeration {v4}× ·", { v: field === "resistivity" ? tr("{v}–{v2} ohm·m (log colours: dark red conductive → light blue resistive)", { v: sig3(arrMin(vals)), v2: sig3(arrMax(vals)) }) : `0–${sig3(arrMax(vals))} mV/V`, v2: (s1 - s0).toFixed(0), v3: (z1 - z0).toFixed(0), v4: (sz / sx).toFixed(1) })}{" "}<svg width="14" height="9" style={{ verticalAlign: "middle" }} aria-hidden="true"><rect width="14" height="9" fill={`url(#${hatchId})`} stroke={HATCH.line} strokeWidth="0.5" /></svg>{" "}{tr("hatched = barely seen by the data. {v}", { v: last.restored ? tr("Inverted {v} (kept in the project).", { v: last.restored.slice(0, 10) }) : tr("Added to Block models (3D, along the line).") })}
       </div>
@@ -461,11 +461,11 @@ function SectionResult({ last, cutoff, epsg, pBtn }) {
             const ms = lineVoxelModels(result, last.geom, { name: last.name, thick: last.thick || c.ds[0] || 10, cut: cutoff, params: { tool: "2D DC resistivity / IP inversion (SimPEG)", line: last.name, versions: result.versions, inverted: last.restored || "this session" }, kinds: [k] });
             ms.forEach((m) => addVoxelModel(m));
             setNote(tr("Added {v} to Block models.", { v: ms.map((m) => `"${m.name}"`).join(" and ") }));
-          }} style={{ ...pBtn, width: "auto", flex: 1, fontSize: "var(--font-size-xs)" }}
+          }} style={{ ...pBtn, width: "auto", flex: 1 }}
             title={k === "observed" ? tr("The cells within the depth of investigation only") : tr("Every cell of the model; below the depth of investigation the values are the inversion's extrapolation, not data")}>{label}</button>
         ))}
       </div>
-      {note && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 4 }}>{note}</div>}
+      {note && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>{note}</div>}
       {last.obs && <DataFit obs={last.obs} result={result} />}
     </div>
   );

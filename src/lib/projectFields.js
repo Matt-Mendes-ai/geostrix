@@ -46,8 +46,8 @@ import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js"
 // v10 (TASKS.csv #555) stores assays and interval layers of 2,000+ rows as exact columns (compactTable.js).
 // v12 (TASKS.csv #650) adds structuralTrends (named trends + which trend each model uses).
 // v13 (TASKS.csv #660) compacts estimated / geoML / imported voxel models too (compactCells.keys names the columns).
-// v15 (TASKS.csv #811) adds explicitSurfaces (hand-picked surfaces: picks + settings; the mesh is a generated surface).
 // v14 (TASKS.csv #796) stores a terrain bigger than the Standard 200 x 200 as Float32 base64 (terrain.elevationsF32).
+// v15 (TASKS.csv #811) adds explicitSurfaces (hand-picked surfaces: picks + settings; the mesh is a generated surface).
 // v16 (TASKS.csv #841) adds geochemThresholds (the anomaly threshold rule chosen per surface element, with its values).
 // v17 (TASKS.csv #842) adds surfaceQc (QC records of surface programs: lab checks and program inserts, certificates,
 // and the program's QC settings).
@@ -121,6 +121,8 @@ export function compactVoxelModels(list) {
           return;
         }
         // Coordinates as offsets from the first cell: Float32 would lose ~0.5 m at UTM northings (~6.2e6).
+        // TASKS.csv #985 — every column but `value` is Float32: exact for sizes, counts and support up to 2^24 (16.7 M).
+        // A future integer column that can exceed that (a database block id) must be f64 like `value`, or it rounds silently.
         const base = k === "x" || k === "y" || k === "z" ? cells[0][k] : 0;
         cols[k] = k === "value"
           ? { base: 0, f64: true, b64: f64ToB64(cells.map((cell) => cell[k])) }

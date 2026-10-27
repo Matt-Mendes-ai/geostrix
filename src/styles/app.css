@@ -35,6 +35,7 @@
   --color-selected-bg: #eaf1fa;
   --color-selected-border: #a9c6e0;
   --color-info: #4a9be0;
+  --color-guide: #e0407b; /* TASKS.csv #999 — Layout smart guides (magenta, distinct from the blue selection) */
   --color-primary: #2f6fe0;
   --color-success-bg: #1e3629;
   --color-success-text: #8fd9ab; /* for text ON the dark success background only — see success-fg */

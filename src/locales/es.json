@@ -6091,5 +6091,8 @@
   "Block-model CSV column names": "Nombres de columna del CSV del modelo de bloques",
   "XC, YC, ZC, XINC… (Datamine, Vulcan, Surpac, Leapfrog)": "XC, YC, ZC, XINC… (Datamine, Vulcan, Surpac, Leapfrog)",
   "EAST, NORTH, RL, _EAST… (Micromine)": "EAST, NORTH, RL, _EAST… (Micromine)",
-  "Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)": "Exportar como CSV de modelo de bloques (EAST, NORTH, RL, _EAST, _NORTH, _RL, valor: nombres de Micromine)"
+  "Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)": "Exportar como CSV de modelo de bloques (EAST, NORTH, RL, _EAST, _NORTH, _RL, valor: nombres de Micromine)",
+  "Downhole structure measurements are not used: the surface's dip comes from the picks and lines alone (a trend only stretches it).": "No se usan las mediciones estructurales de sondaje: el manteo de la superficie sale solo de los picks y las líneas (una tendencia solo la estira).",
+  "Vector inversion: fixed 10 + 20 iterations, default smoothness lengths and an amplitude bound of 0 to 10; the iteration, smoothness and bounds settings do not apply to it.": "Inversión vectorial: 10 + 20 iteraciones fijas, longitudes de suavidad por defecto y un límite de amplitud de 0 a 10; los ajustes de iteraciones, suavidad y límites no se le aplican.",
+  "Compact runs at least 60 iterations whatever is entered above: the sparse re-weighting needs its own after the smooth stage.": "El modo compacto corre al menos 60 iteraciones, sea cual sea el valor de arriba: la reponderación dispersa necesita las suyas después de la etapa suave."
 }

@@ -123,6 +123,7 @@ export const colors = {
   selectedBg: "#eaf1fa",
   selectedBorder: "#a9c6e0",
   info: "#4a9be0",
+  guide: "#e0407b", // TASKS.csv #999 — Layout smart guides
   primary: "#2f6fe0", // the solid/active blue (an engaged tool button, a bbox highlight)
 
   // Success / positive / primary-action (green) — this app's "primary button" color pair

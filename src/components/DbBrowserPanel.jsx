@@ -6,6 +6,7 @@ import { fsListDir, fsListDrives, fsReadFile, readResultToFile, dbLiveListTables
 import { useStore } from "../lib/store.jsx";
 import { useBrowserPanelPrefs } from "../lib/useBrowserPanelPrefs.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { colors } from "../lib/theme.js"; // #999 — the success green (an SVG icon prop)
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 
 // TASKS.csv #206 — "#206 will live in the 3d view side panel like in QGIS... In the browser panel the
@@ -192,13 +193,13 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
     <div style={{ marginBottom: 2 }}>
       <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={toggle} style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: "3px 0" }}>
         {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        <Database size={12} color={live ? "#3d9a63" : "#94a1b0"} />
+        <Database size={12} color={live ? colors.successFg : "#94a1b0"} />
         <span style={{ flex: 1 }}>{profile.name}</span>
         {/* TASKS.csv #249 (colorblind-safety review) — state was previously color-only-at-a-glance
             (the dot's color), with the word only in a hover title; "live" is now always visible text
             when connected, so this row's state doesn't depend on distinguishing the dot's color. */}
-        {live && <span style={{ fontSize: "var(--font-size-xs)", color: "#3d9a63" }}>{tr("live")}</span>}
-        <span style={{ width: 6, height: 6, borderRadius: "50%", background: live ? "#3d9a63" : "var(--color-border-light)" }} title={live ? tr("Connected") : tr("Not connected")} />
+        {live && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-success-fg)" }}>{tr("live")}</span>}
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: live ? "var(--color-success-fg)" : "var(--color-border-light)" }} title={live ? tr("Connected") : tr("Not connected")} />
       </div>
       {open && (
         <div style={{ paddingLeft: 18 }}>
