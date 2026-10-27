@@ -302,8 +302,12 @@ export default function LayoutModule() {
   // ViewerModule's render effect (see its own long comment) does the rest: apply the theme, then
   // wait for the user to exit instead of auto-capturing after 400ms.
   const startInteractiveViewportEdit = (themeId, targetElementId, trueScale, opts = {}) => {
-    const theme = themes.find((t) => t.id === themeId);
-    if (!theme) return;
+    // TASKS.csv #1006 — Matt: "the enter and adjust view button doesn't work". It returned here for every viewport made
+    // from the current view (no theme), which is what Current view and the 3D View's Snapshot create; ViewerModule's
+    // session handles no theme (it adjusts the live view). Only a theme that no longer exists stops it, as in
+    // startViewportRender.
+    const theme = themeId ? themes.find((t) => t.id === themeId) : null;
+    if (themeId && !theme) return;
     setElements((els) => els.map((el) => el.id === targetElementId ? { ...el, themeId, refreshing: true } : el));
     requestViewportRender(themeId, targetElementId, trueScale, true, opts);
     setThemePickerFor(null);
@@ -1033,6 +1037,13 @@ export default function LayoutModule() {
                 onRebind={(themeId) => startViewportRender(themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
                 onEnter={() => startInteractiveViewportEdit(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
                 onFit={() => fitViewport(sel)}
+                // TASKS.csv #1007 — Matt: "when I select the scale, it won't change. it only changes when I click on fit all
+                // holes". Choosing a scale only stored it and waited for a Refresh; it now re-captures at once, centred where
+                // the last capture was (as Fit does), so the frame shows that scale straight away. 0 = free (as framed).
+                onRescale={(scale) => {
+                  updateSelected(scale > 0 ? { fixedScale: scale, trueScale: true } : { fixedScale: 0 });
+                  startViewportRender(sel.themeId, sel.id, scale > 0 ? true : sel.trueScale, { fixedScale: scale > 0 ? scale : 0, elementW: sel.w, elementH: sel.h, ...(sel.targetWorld ? { centreWorld: sel.targetWorld } : {}) });
+                }}
                 others={elements.filter((o) => o.type === "viewport" && o.id !== sel.id)}
                 onSyncScaleBar={() => syncScaleBarForElement(sel, sel.worldHeightAtTarget, capturedSize(sel).h)}
                 onSyncNorth={() => {
@@ -1408,7 +1419,7 @@ function UtmGridOverlay({ el, crs = "" }) {
   );
 }
 
-function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, onEnter, onFit, onSyncScaleBar, onSyncNorth, syncNotice, others = [] }) {
+function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, onEnter, onFit, onRescale, onSyncScaleBar, onSyncNorth, syncNotice, others = [] }) {
   // TASKS.csv #907 — the scale picker: a preset, "custom" (a typed 1:N), or free (whatever the 3D view frames)
   const [customScale, setCustomScale] = useState(false);
   const scaleChoice = customScale || (sel.fixedScale > 0 && !SCALE_PRESETS.includes(sel.fixedScale)) ? "custom" : sel.fixedScale > 0 ? String(sel.fixedScale) : "";
@@ -1458,9 +1469,9 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
         title={tr("Plot this viewport at an exact scale. The frame's size on the paper is the ground it shows: resize it for more or less ground, then refresh. Turns on true scale.")}>{tr("Scale 1 :")}
         <select value={scaleChoice} aria-label={tr("Plot scale")} onChange={(e) => {
           const v = e.target.value;
-          if (v === "") { setCustomScale(false); updateSelected({ fixedScale: 0 }); }
+          if (v === "") { setCustomScale(false); onRescale(0); } // #1007 — applied at once
           else if (v === "custom") { setCustomScale(true); if (!(sel.fixedScale > 0)) updateSelected({ fixedScale: 1000, trueScale: true }); }
-          else { setCustomScale(false); updateSelected({ fixedScale: Number(v), trueScale: true }); }
+          else { setCustomScale(false); onRescale(Number(v)); }
         }} style={{ ...inp, flex: 1, marginTop: 0, marginBottom: 0, padding: "4px 6px", fontSize: "var(--font-size-sm)" }}>
           <option value="">{tr("free (as framed)")}</option>
           {SCALE_PRESETS.map((n) => <option key={n} value={String(n)}>{n.toLocaleString()}</option>)}
@@ -1469,6 +1480,8 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
         {scaleChoice === "custom" && (
           <input type="number" min="1" step="any" value={sel.fixedScale || ""} aria-label={tr("Fixed plot scale denominator")}
             onChange={(e) => { const n = Number(e.target.value) || 0; updateSelected(n > 0 ? { fixedScale: n, trueScale: true } : { fixedScale: 0 }); }}
+            onBlur={() => { if (sel.fixedScale > 0 && sel.capturedFixedScale !== sel.fixedScale) onRescale(sel.fixedScale); }} // #1007 — a typed scale applies on leaving the box or Enter
+            onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
             style={{ width: 72, fontSize: "var(--font-size-sm)" }} />
         )}
       </label>

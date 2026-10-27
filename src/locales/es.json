@@ -6109,5 +6109,6 @@
   "Pixel values": "Valores de píxel",
   "How the file's pixel values become reflectance": "Cómo se convierten en reflectancia los valores de píxel del archivo",
   "Guess from the values": "Deducir de los valores",
-  "The contour lines were given a vertex every {m} m rather than every half node spacing ({h} m), to keep the triangulation to about four points per grid node.": "A las curvas de nivel se les dio un vértice cada {m} m en lugar de cada media separación de nodos ({h} m), para mantener la triangulación en unos cuatro puntos por nodo de la malla."
+  "The contour lines were given a vertex every {m} m rather than every half node spacing ({h} m), to keep the triangulation to about four points per grid node.": "A las curvas de nivel se les dio un vértice cada {m} m en lugar de cada media separación de nodos ({h} m), para mantener la triangulación en unos cuatro puntos por nodo de la malla.",
+  "Viewport added to the Layout page: pick its scale, theme or UTM grid there.": "Vista agregada a la lámina: elija allí su escala, tema o grilla UTM."
 }

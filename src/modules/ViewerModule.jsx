@@ -741,7 +741,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     customLayers: storeCustomLayers, setCustomLayers: setStoreCustomLayers,
     viewerUiState, setViewerUiState, viewerUiStateSeq,
     lastCamState, setLastCamState,
-    addLayoutImage, goToModule,
+    addLayoutImage, goToModule, requestViewportRender, // requestViewportRender: #1005
     themes, addTheme, renameTheme, deleteTheme,
     viewportRenderRequest, viewportPendingRequest, resolveViewportRender,
     rasters, addRaster, updateRaster, removeRaster,
@@ -2793,19 +2793,15 @@ ${describeTrend(t)}` };
   }, [trendPreview, sceneReady]);
 
   // ---------- TASKS.csv #16: snapshot the live 3D viewport into a Layout page image ----------
+  // TASKS.csv #1005 — Matt: "I get these options when I click on current view on layout. But when I snapshot to layout from
+  // 3d view I get the old options". The ribbon's Snapshot used to drop a flat picture (an image element: position, size
+  // and nothing else); it now makes the same live Viewport as Layout > Current view (the same capture request), so the
+  // frame gets its scale, theme, refresh, true scale, UTM grid, scale bar and north arrow controls.
   const snapshotToLayout = useCallback(() => {
-    const renderer = rendererRef.current, scene = sceneRef.current, camera = cameraRef.current;
-    if (!renderer || !scene || !camera) return;
-    // Force one fresh render right before capture (the compass overlay uses setScissor/setViewport
-    // tricks each frame, so grabbing the canvas mid-frame could catch it half-drawn).
-    let shot;
-    try {
-      shot = captureHiRes(renderer, mountRef.current.clientWidth, mountRef.current.clientHeight, () => { renderer.clippingPlanes = slicePlanesRef.current; renderer.render(scene, camera); renderer.clippingPlanes = []; }); // #380, #453
-    } catch (err) { setNotices((p) => [...p, errorNotice(tr("Snapshot failed: {message}", { message: err.message }))]); return; }
-    addLayoutImage({ label: "3D Viewport", src: shot.dataUrl, naturalW: shot.width, naturalH: shot.height });
-    goToModule("layout");
-    setNotices((p) => [...p, notice("Viewport snapshot added to the Layout page.")]);
-  }, [addLayoutImage, goToModule]);
+    if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return;
+    requestViewportRender(null, "new", false, false, {}); // the capture effect below answers it; the store opens Layout
+    setNotices((p) => [...p, notice("Viewport added to the Layout page: pick its scale, theme or UTM grid there.")]);
+  }, [requestViewportRender]);
 
   // ---------- TASKS.csv #45: saved "themes" (named view configurations) ----------
   // Bundles everything already tracked in viewerUiState (layer visibility/filters/legend/grid/etc.)

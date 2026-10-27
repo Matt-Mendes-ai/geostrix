@@ -6109,5 +6109,6 @@
   "Pixel values": "قيم البكسلات",
   "How the file's pixel values become reflectance": "كيف تتحول قيم بكسلات الملف إلى انعكاسية",
   "Guess from the values": "استنتاج من القيم",
-  "The contour lines were given a vertex every {m} m rather than every half node spacing ({h} m), to keep the triangulation to about four points per grid node.": "أُعطيت خطوط الكنتور رأسًا كل {m} م بدلًا من كل نصف مسافة بين العقد ({h} م)، لإبقاء التثليث في حدود أربع نقاط تقريبًا لكل عقدة في الشبكة."
+  "The contour lines were given a vertex every {m} m rather than every half node spacing ({h} m), to keep the triangulation to about four points per grid node.": "أُعطيت خطوط الكنتور رأسًا كل {m} م بدلًا من كل نصف مسافة بين العقد ({h} م)، لإبقاء التثليث في حدود أربع نقاط تقريبًا لكل عقدة في الشبكة.",
+  "Viewport added to the Layout page: pick its scale, theme or UTM grid there.": "أُضيف العرض إلى صفحة التخطيط: اختر هناك مقياسه أو نسقه أو شبكة UTM."
 }
