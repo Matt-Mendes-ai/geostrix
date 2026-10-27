@@ -653,7 +653,12 @@ export default function LayoutModule() {
   const boxOf = (id) => {
     const d = pageRef.current?.querySelector(`[data-el-id="${id}"]`);
     if (!d) return null;
-    const r = d.getBoundingClientRect(), pr = pageRef.current.getBoundingClientRect(), z = zoomRef.current;
+    const pr = pageRef.current.getBoundingClientRect(), z = zoomRef.current;
+    let r = d.getBoundingClientRect();
+    // TASKS.csv #998 — a viewport's frame is drawn outside its box (#906): guides, margins and alignment measure the
+    // drawn edge, so two framed views line up by their frames and a frame snapped to a margin sits on it
+    const f = d.querySelector(":scope > [data-frame]");
+    if (f) { const fr = f.getBoundingClientRect(); const L = Math.min(r.left, fr.left), T = Math.min(r.top, fr.top); r = { left: L, top: T, width: Math.max(r.right, fr.right) - L, height: Math.max(r.bottom, fr.bottom) - T }; }
     return { x: (r.left - pr.left) / z, y: (r.top - pr.top) / z, w: r.width / z, h: r.height / z };
   };
   const alignSelected = (how) => {
@@ -1669,7 +1674,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const W = el.w || 400, H = el.h || 260, imgW = el.capW || W, imgH = el.capH || H;
     return (
       <div
-        style={{ ...wrap, width: W, height: H, transform: `rotate(${el.rotation || 0}deg)`, transformOrigin: "center center" }}
+        style={{ ...wrap, width: W, height: H, transform: `rotate(${el.rotation || 0}deg)`, transformOrigin: "center center", outlineOffset: 3 + frameW /* #998 — outside the frame, or a double frame hid it */ }}
         onMouseDown={onDown} data-el-id={el.id} {...kb}
       >
         <div style={{ width: "100%", height: "100%", background: "#fff", position: "relative", overflow: "hidden" }}>
@@ -1687,7 +1692,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
             <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-base)", color: "#333", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Rendering…")}</div>
           )}
         </div>
-        {frameW > 0 && <div style={{ position: "absolute", inset: -frameW, border: `${frameW}px ${borderStyle} ${el.frameColor || "#1a1a1a"}`, pointerEvents: "none" }} />}
+        {frameW > 0 && <div data-frame="" style={{ position: "absolute", inset: -frameW, border: `${frameW}px ${borderStyle} ${el.frameColor || "#1a1a1a"}`, pointerEvents: "none" }} />}
         {handles}
       </div>
     );
