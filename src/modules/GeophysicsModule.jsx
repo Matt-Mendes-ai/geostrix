@@ -53,6 +53,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { vectorToBoundaryPolylines } from "../lib/boundaryImport.js"; // TASKS.csv #1035
 
 // TASKS.csv #309 — the format reference that USED to be this tab's entire empty state: a twelve-line
 // centre-aligned block of ~10px grey prose that the design review flagged as reference material
@@ -625,19 +626,20 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       const { features } = await readKmlFile(file);
       const { polylines, failed } = kmlToProjectPolylines(features, project?.epsg);
       if (!polylines.length) throw new Error(failed ? tr("KML coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this KML (points are imported through the 3D View importer)."));
-      return polylines;
+      return { polylines };
     }
+    // TASKS.csv #1035 — every part of every feature, reprojected from the file's own CRS (lib/boundaryImport.js)
     if (name.endsWith(".zip") || name.endsWith(".shp")) {
       const buf = await file.arrayBuffer();
       const parsed = name.endsWith(".zip") ? await parseShapefileZip(buf) : parseShapefileParts({ shp: new Uint8Array(buf) });
-      return parsed.features.map((f) => f.geometry.map(([x, y]) => ({ x, y })));
+      return vectorToBoundaryPolylines(parsed, project?.epsg);
     }
     if (name.endsWith(".gpkg")) {
       const buf = await file.arrayBuffer();
       const { layers } = await parseGeoPackage(buf);
       const layer = layers.find((l) => l.features.length);
       if (!layer) throw new Error(tr("No usable features found in this GeoPackage."));
-      return layer.features.map((f) => f.geometry.map(([x, y]) => ({ x, y })));
+      return vectorToBoundaryPolylines(layer, project?.epsg);
     }
     return null; // not a vector format this helper handles — caller falls back to .ply/.dxf
   }
@@ -658,14 +660,15 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
           if (sk || specs[0]?.dxfZerosDropped) dxfNotes.push(`${file.name}: ${[specs[0]?.dxfZerosDropped ? "every string had elevation 0, read as a 2D plan" : "", sk].filter(Boolean).join("; ")}`);
           continue;
         }
-        let polylines;
+        let polylines, closedFlags;
         if (shapePolylines) {
-          polylines = shapePolylines;
+          ({ polylines, closedFlags } = shapePolylines);
+          if (shapePolylines.note) dxfNotes.push(`${file.name}: ${shapePolylines.note}`); // #1035 — the CRS said
         } else {
           const text = await file.text();
           ({ polylines } = parsePLYBoundary(text));
         }
-        addBoundary({ name: file.name, polylines, elevation: defaultElevation });
+        addBoundary({ name: file.name, polylines, ...(closedFlags ? { closedFlags } : {}), elevation: defaultElevation });
         imported++;
       } catch (err) {
         failed.push(`${file.name}: ${err.message}`);
@@ -694,25 +697,27 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     if (!files.length) return;
     setBoundaryError(null);
     let imported = 0;
-    const failed = [];
+    const failed = [], notes = [];
     for (const file of files) {
       try {
         const shapePolylines = await shapeFileToPolylines(file);
-        let polylines;
+        let polylines, closedFlags;
         if (shapePolylines) {
-          polylines = shapePolylines;
+          ({ polylines, closedFlags } = shapePolylines);
+          if (shapePolylines.note) notes.push(`${file.name}: ${shapePolylines.note}`); // #1035
         } else {
           const text = await file.text();
           const isDxf = /\.dxf$/i.test(file.name);
           ({ polylines } = isDxf ? parseDXF(text) : parsePLYBoundary(text));
         }
-        addBoundary({ name: file.name.replace(/\.(ply|dxf|zip|shp|gpkg|kml|kmz)$/i, ""), polylines, elevation: defaultElevation, kind: "claim", status: "active", tenureNumber: "", expiryDate: "", color: claimStatusColor("active") });
+        addBoundary({ name: file.name.replace(/\.(ply|dxf|zip|shp|gpkg|kml|kmz)$/i, ""), polylines, ...(closedFlags ? { closedFlags } : {}), elevation: defaultElevation, kind: "claim", status: "active", tenureNumber: "", expiryDate: "", color: claimStatusColor("active") });
         imported++;
       } catch (err) {
         failed.push(`${file.name}: ${err.message}`);
       }
     }
     let msg = imported ? tr("Imported {imported} claim boundary file(s) ({v} total).", { imported, v: claims.length + imported }) : "";
+    if (notes.length) msg += ` ${notes.join(" ")}.`; // #1035
     if (failed.length) msg += tr("{v}Failed: {failed}", { v: msg ? " " : "", failed: failed.join("; ") });
     if (msg) setBoundaryError({ info: !!imported && !failed.length, text: msg });
   };
