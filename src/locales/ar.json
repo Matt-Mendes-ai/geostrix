@@ -6108,5 +6108,6 @@
   " (guessed from the values; choose it under \"Pixel values\" if that is wrong)": " (مستنتَج من القيم؛ اختره من \"قيم البكسلات\" إن كان خطأ)",
   "Pixel values": "قيم البكسلات",
   "How the file's pixel values become reflectance": "كيف تتحول قيم بكسلات الملف إلى انعكاسية",
-  "Guess from the values": "استنتاج من القيم"
+  "Guess from the values": "استنتاج من القيم",
+  "The contour lines were given a vertex every {m} m rather than every half node spacing ({h} m), to keep the triangulation to about four points per grid node.": "أُعطيت خطوط الكنتور رأسًا كل {m} م بدلًا من كل نصف مسافة بين العقد ({h} م)، لإبقاء التثليث في حدود أربع نقاط تقريبًا لكل عقدة في الشبكة."
 }

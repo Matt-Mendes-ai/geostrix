@@ -383,13 +383,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         const mv = (p) => { const q = reprojectXY(p.x, p.y, 4326, Number(project.epsg)); return q ? { x: q.x, y: q.y, z: p.z } : { x: NaN, y: NaN, z: p.z }; };
         points = points.map(mv); lines = lines.map((l) => l.map(mv)); reprojected = true;
       }
-      const { terrainFromPoints } = await import("../lib/terrainFromPoints.js");
-      const t = terrainFromPoints({ points, lines }, { gridMax: terrainDetail });
+      const { terrainFromPointsAsync } = await import("../lib/terrainFromPoints.js");
+      const t = await terrainFromPointsAsync({ points, lines }, { gridMax: terrainDetail }); // #986 — in a worker
       const name = file.name.replace(/\.[^.]+$/, "");
       if (terrain && !window.confirm(tr("Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.", { name: terrain.name, name2: name }))) return;
       addTerrain({ name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask || null, source: { kind: "tin from points", file: file.name, points: t.stats.points, nodeM: t.stats.cellM } });
       let msg = tr("Built \"{name}\" from {what}: a triangulated surface of {tri} triangles sampled on a {gridW}×{gridH} grid (nodes ~{cell} m apart).", { name, what, tri: t.stats.triangles.toLocaleString(), gridW: t.gridW, gridH: t.gridH, cell: t.stats.cellM.toFixed(1) });
       if (reprojected) msg += " " + tr("The coordinates read as longitude / latitude and were reprojected from WGS 84 to the project's EPSG:{epsg}.", { epsg: project.epsg });
+      if (t.stats.densifyCapped) msg += " " + tr("The contour lines were given a vertex every {m} m rather than every half node spacing ({h} m), to keep the triangulation to about four points per grid node.", { m: t.stats.densifyStepM.toFixed(1), h: t.stats.halfCellM.toFixed(1) }); // #986
       if (t.stats.longDropped) msg += " " + tr("{n} triangle(s) with an edge over {m} m were left out, so no ground is invented across gaps in the data.", { n: t.stats.longDropped, m: Math.round(t.stats.maxEdgeM) });
       if (lines.length && t.stats.flatPct >= 5) msg += " " + tr("{pct}% of the triangles are flat (all three corners on one contour): terraces on hilltops and valley floors, where contours alone do not say how the ground continues.", { pct: t.stats.flatPct.toFixed(0) });
       if (t.stats.filledCount) msg += " " + tr("{pct}% of the grid ({n} cells) lies outside the triangulated points and is left out of the 3D surface. The modelling tools, inversions and collar checks read no ground there (stations, collars or a flat ground stand in); only map layers draped on the terrain sit at the mean elevation {z} m.", { pct: t.stats.filledPct.toFixed(1), n: t.stats.filledCount.toLocaleString(), z: t.stats.fillValue.toFixed(0) });

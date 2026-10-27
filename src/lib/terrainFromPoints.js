@@ -45,7 +45,15 @@ export function terrainFromPoints({ points = [], lines = [] } = {}, { gridMax = 
   const seen = new Set(), P = [];
   const take = (p) => { const k = `${Math.round(p.x * 100)},${Math.round(p.y * 100)}`; if (!seen.has(k)) { seen.add(k); P.push(p); } };
   points.filter(ok).forEach(take);
-  densify(lines.map((l) => l.filter(ok)), Math.min(dx, dy) / 2).forEach(take);
+  // TASKS.csv #986 — the densified count grows with the grid (a vertex every half cell): 377,000 TIN points and 2 s at the
+  // finest detail on 10 m contours over 10 km, and no ceiling at all for long strings far apart. Past about 4 vertices
+  // per grid node the step widens to keep that many (the grid cannot show more), and the result says so.
+  const clean = lines.map((l) => l.filter(ok));
+  let lineLen = 0;
+  for (const l of clean) for (let i = 1; i < l.length; i++) lineLen += Math.hypot(l[i].x - l[i - 1].x, l[i].y - l[i - 1].y);
+  const nVerts = clean.reduce((a, l) => a + l.length, 0), halfCell = Math.min(dx, dy) / 2, budget = Math.max(1000, 4 * gridW * gridH - P.length - nVerts); // the strings' own vertices count too
+  const step = lineLen / halfCell > budget ? lineLen / budget : halfCell;
+  densify(clean, step).forEach(take);
   const del = Delaunay.from(P, (p) => p.x, (p) => p.y);
   const T = del.triangles;
   if (!T.length) throw new Error("The points lie on a line: a terrain needs them spread over an area.");
@@ -82,7 +90,7 @@ export function terrainFromPoints({ points = [], lines = [] } = {}, { gridMax = 
   return {
     // no noDataNote: demFill's sentence is about reprojection corners and failed tiles; the caller says "outside the points"
     bbox: [x0, y0, x1, y1], gridW, gridH, elevations: fill.elevations, noDataMask: fill.noDataMask,
-    stats: { points: P.length, given: raw.length, triangles: kept, longDropped: dropped, maxEdgeM: maxEdge, flatPct: kept ? (100 * flat) / kept : 0, cellM: Math.max(dx, dy), filledPct: fill.filledPct || 0, filledCount: fill.filledCount || 0, fillValue: fill.fillValue },
+    stats: { points: P.length, given: raw.length, densifyStepM: step, halfCellM: halfCell, densifyCapped: step > halfCell, triangles: kept, longDropped: dropped, maxEdgeM: maxEdge, flatPct: kept ? (100 * flat) / kept : 0, cellM: Math.max(dx, dy), filledPct: fill.filledPct || 0, filledCount: fill.filledCount || 0, fillValue: fill.fillValue }, // densify*: #986
   };
 }
 
@@ -96,4 +104,15 @@ export function guessXYZ(headers) {
     y: find(["y", "north", "northing", "n", "utmn", "northingm", "ym", "lat", "latitude"]),
     z: find(["z", "elev", "elevation", "elevationm", "rl", "height", "alt", "altitude", "zm", "h"]),
   };
+}
+
+// TASKS.csv #986 — the same in a worker (a fresh one per build: it runs once per file); here when no worker can start
+export function terrainFromPointsAsync(input, opts) {
+  return new Promise((resolve, reject) => {
+    let w;
+    try { w = new Worker(new URL("./terrainFromPoints.worker.js", import.meta.url), { type: "module" }); } catch { try { resolve(terrainFromPoints(input, opts)); } catch (e) { reject(e); } return; }
+    w.onmessage = (e) => { w.terminate(); if (e.data.failed) reject(new Error(e.data.failed)); else resolve(e.data.res); };
+    w.onerror = (e) => { e.preventDefault?.(); w.terminate(); try { resolve(terrainFromPoints(input, opts)); } catch (err) { reject(err); } };
+    w.postMessage({ input, opts });
+  });
 }

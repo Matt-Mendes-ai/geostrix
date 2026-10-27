@@ -6108,5 +6108,6 @@
   " (guessed from the values; choose it under \"Pixel values\" if that is wrong)": " (deviné d'après les valeurs ; choisissez-le sous « Valeurs des pixels » si c'est faux)",
   "Pixel values": "Valeurs des pixels",
   "How the file's pixel values become reflectance": "Comment les valeurs des pixels du fichier deviennent une réflectance",
-  "Guess from the values": "Deviner d'après les valeurs"
+  "Guess from the values": "Deviner d'après les valeurs",
+  "The contour lines were given a vertex every {m} m rather than every half node spacing ({h} m), to keep the triangulation to about four points per grid node.": "Les courbes de niveau ont reçu un sommet tous les {m} m au lieu de toutes les demi-mailles ({h} m), pour garder la triangulation à environ quatre points par nœud de la grille."
 }
