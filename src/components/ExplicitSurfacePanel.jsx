@@ -675,6 +675,12 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             trimNote = tr("Trimmed at the fault \"{f}\"; kept: {side}.", { f: fname, side: def.boundedBy.side > 0 ? lab.plus : lab.minus })
               + (res.trim.unresolvedEdges ? ` ${tr("The fault ends inside the surface: {n} edge(s) near its tip were left whole (no cut point exists beyond the fault).", { n: res.trim.unresolvedEdges })}` : "");
           }
+          // TASKS.csv #941 — inputs on the side cut away were left out of the fit; name them (the first few)
+          const off = res.trim?.offSide || [];
+          if (off.length) {
+            const names = [...new Set(off.map((p) => (p.hole ? tr("{hole} at {md} m", { hole: p.hole, md: Number(p.md).toFixed(1) }) : p.src === "pick" ? tr("a 3D point") : p.src === "section" ? tr("a line on section {s}", { s: p.ref }) : tr("a line point"))))];
+            trimNote += ` ${tr("{n} input(s) lie on the other side of the fault and were left out of this block's surface ({list}): move them to the other block's surface, or check the fault.", { n: off.length, list: names.slice(0, 5).join(", ") + (names.length > 5 ? ", …" : "") })}`;
+          }
         }
         const ms = Math.round(performance.now() - t0);
         const sculpted = (def.surfaceId && surfaces.find((s) => s.id === def.surfaceId)?.editCount) || 0; // TASKS.csv #879

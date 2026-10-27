@@ -37,10 +37,10 @@ export function fitExplicitSurfaceAsync(points, opts, terrain, trim = null) {
       w.postMessage({ id, points: plain, opts, cut: !!terrain, ...(trim ? { trim: { key: trim.key, side: trim.side } } : {}) });
     });
   } catch {
-    return Promise.all([import("./explicitSurface.js"), import("./viewer/geomath.js"), import("./explicitTrim.js")]).then(([{ fitExplicitSurface }, { terrainGroundAt }, { trimAtFault }]) => {
+    return Promise.all([import("./explicitSurface.js"), import("./viewer/geomath.js"), import("./explicitTrim.js")]).then(([{ fitExplicitSurface }, { terrainGroundAt }, { fitBoundedSurface }]) => {
       const groundAt = terrain ? (x, y) => terrainGroundAt(terrain, x, y) : null; // TASKS.csv #927
-      const res = fitExplicitSurface(points, { ...opts, groundAt });
-      return trim ? trimAtFault(res, trim.mesh(), trim.side) : res;
+      const fit = (pts) => fitExplicitSurface(pts, { ...opts, groundAt });
+      return trim ? fitBoundedSurface(points, fit, trim.mesh(), trim.side) : fit(points); // #941
     });
   }
 }

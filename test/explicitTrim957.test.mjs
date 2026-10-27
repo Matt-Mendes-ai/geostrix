@@ -37,13 +37,16 @@ test("#957: the worker answers superseded queued fits as stale and fits only the
   globalThis.self = { postMessage: (m) => sent.push(m) };
   await import("../src/lib/explicitSurface.worker.js");
   const pts = [];
-  for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) pts.push({ x: i * 25, y: j * 25, z: 10 + i * 2 });
+  // all on the kept (+x) side of the fault, the margin carrying the surface across it (#941: inputs on the cut-away side
+  // are left out of the fit, so they no longer stretch it over the fault)
+  for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) pts.push({ x: 55 + i * 10, y: j * 25, z: 10 + i * 2 });
   globalThis.self.onmessage({ data: { type: "fault", key: "f1", mesh: fault } });
-  for (const id of [1, 2, 3]) globalThis.self.onmessage({ data: { id, points: pts, opts: { margin: 0, resolution: 20 }, cut: false, ...(id === 3 ? { trim: { key: "f1", side: 1 } } : {}) } });
+  for (const id of [1, 2, 3]) globalThis.self.onmessage({ data: { id, points: pts, opts: { margin: 20, resolution: 20 }, cut: false, ...(id === 3 ? { trim: { key: "f1", side: 1 } } : {}) } });
   await new Promise((r) => setTimeout(r, 50));
   assert.deepEqual(sent.filter((m) => m.stale).map((m) => m.id), [1, 2]);
   const last = sent.find((m) => m.id === 3);
   assert.ok(last?.res?.positions?.length > 0, JSON.stringify(last).slice(0, 200));
   assert.equal(last.res.trim.changed, true);
+  assert.deepEqual(last.res.trim.offSide, []);
   delete globalThis.self;
 });

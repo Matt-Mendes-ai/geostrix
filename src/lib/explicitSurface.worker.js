@@ -5,7 +5,7 @@
 import { fitExplicitSurface } from "./explicitSurface.js";
 import { terrainGroundAt } from "./viewer/geomath.js";
 import { useDictionary as setDictionary } from "./i18n.js"; // not a React hook: it only sets the module's dictionary
-import { trimAtFault } from "./explicitTrim.js"; // TASKS.csv #957
+import { fitBoundedSurface } from "./explicitTrim.js"; // TASKS.csv #957 / #941
 
 let terrain = null, fault = null; // fault: { key, mesh } (world), sent when its geometry changes
 // TASKS.csv #957 — fits queued behind a long one are superseded by the newest: each older one is answered `stale` and
@@ -22,8 +22,8 @@ function drain() {
 function run({ id, points, opts, cut, trim }) {
   try {
     const groundAt = cut && terrain ? (x, y) => terrainGroundAt(terrain, x, y) : null; // TASKS.csv #927
-    let res = fitExplicitSurface(points, { ...opts, groundAt });
-    if (trim) res = fault && fault.key === trim.key ? trimAtFault(res, fault.mesh, trim.side) : { ...res, trim: { missing: true } };
+    const fit = (pts) => fitExplicitSurface(pts, { ...opts, groundAt });
+    const res = !trim ? fit(points) : fault && fault.key === trim.key ? fitBoundedSurface(points, fit, fault.mesh, trim.side) : { ...fit(points), trim: { missing: true } };
     self.postMessage({ id, res }, [res.positions.buffer, res.indices.buffer]);
   } catch (err) {
     self.postMessage({ id, failed: String(err?.message || err) });
