@@ -6071,5 +6071,6 @@
   "{n} more reported as 0 by the source (below detection or not analysed: the layer does not say), not in n or %": "{n} de plus déclaré(s) à 0 par la source (sous la limite ou non analysé(s) : la couche ne le dit pas), hors de n et du %",
   "{pct} (+{n} at 0)": "{pct} (+{n} à 0)",
   "{n} at 0": "{n} à 0",
-  "{zero} {symbol} result(s) in \"{pop}\" were reported as 0 by the source (below detection or not analysed: the layer does not say). They are left out of n and of every threshold here; if they are below detection, the thresholds read high.": "{zero} résultat(s) de {symbol} dans « {pop} » sont déclarés à 0 par la source (sous la limite ou non analysés : la couche ne le dit pas). Ils sont exclus de n et de tous les seuils ; s'ils sont sous la limite, les seuils sont trop élevés."
+  "{zero} {symbol} result(s) in \"{pop}\" were reported as 0 by the source (below detection or not analysed: the layer does not say). They are left out of n and of every threshold here; if they are below detection, the thresholds read high.": "{zero} résultat(s) de {symbol} dans « {pop} » sont déclarés à 0 par la source (sous la limite ou non analysés : la couche ne le dit pas). Ils sont exclus de n et de tous les seuils ; s'ils sont sous la limite, les seuils sont trop élevés.",
+  "{updated} of them matched samples already in the project by sample id and medium and updated them ({added} added).": "{updated} d'entre eux correspondaient à des échantillons déjà présents dans le projet (même identifiant et même milieu) et les ont mis à jour ({added} ajoutés)."
 }

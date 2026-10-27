@@ -17,7 +17,7 @@ import {
   DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS,
   isElementColumn, inferUnit, pickElementColumns, parseAssayValue, valueIn, readAssayCell, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile,
   oxideOfHeader, fromOxideHeader, // TASKS.csv #403
-  surfaceAttrColumns, surfaceAttrs, // TASKS.csv #841
+  surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, // TASKS.csv #841 / #954
 } from "../lib/geochem.js";
 import { qcRecordFromFileRow, emptySurfaceQc } from "../lib/surfaceQaqc.js"; // TASKS.csv #842
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
@@ -619,10 +619,14 @@ export default function GeochemModule() {
     }).filter((r) => r && Number.isFinite(r.x) && Number.isFinite(r.y));
     const noZ = rows.filter((r) => r.z == null).length;
     if (qcRecords.length) setSurfaceQc((prev) => ({ ...(prev || emptySurfaceQc()), records: [...(prev?.records || []), ...qcRecords] })); // TASKS.csv #842
-    setSurfaceSamples((prev) => [...prev, ...rows]);
+    // TASKS.csv #954 — merged by (sample_id, medium) onto the samples already loaded, not appended. Computed from the
+    // current samples (not inside the setter) so the notice can say how many were updated.
+    const merged = mergeSurfaceSamples(surfaceSamples, rows);
+    setSurfaceSamples(merged.samples);
     setSurfaceElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: "%" } : e); }); return Array.from(merged.values()); }); // #403
     const extra = [
       modal.publicNote || null, // TASKS.csv #846
+      merged.updated ? tr("{updated} of them matched samples already in the project by sample id and medium and updated them ({added} added).", { updated: merged.updated, added: merged.added }) : null, // #954
       converted.length ? `Converted ${converted.map((e) => `${e.symbol} ${e.unit} → ${existingUnit[e.symbol]}`).join(", ")} to match the unit already used in this project.` : null,
       negBdl ? `${negBdl} negative value(s) read as below detection.` : null,
       negMissing ? `${negMissing} value(s) ≤ -99 treated as not assayed (no-data codes).` : null,

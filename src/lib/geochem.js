@@ -1343,3 +1343,32 @@ export function surfaceAttrs(row, cols) {
   cols.forEach((h) => { const v = row[h]; if (v != null && String(v).trim() !== "") attrs[h] = String(v).trim().slice(0, 60); });
   return Object.keys(attrs).length ? { attrs } : {};
 }
+
+// TASKS.csv #954 — a surface import merges onto the samples already in the project by (sample_id, medium), as drillhole
+// assays merge on hole / from / to (#336): repeat public pulls (two overlapping BC RGS boxes, adjacent USGS quads, a
+// CDoGS survey's ICP-MS then INAA package) return the same sites, which used to be appended and counted twice in the
+// thresholds, catchments, evidence overlay and QC. The new row's values, flags, position and attributes win; an element
+// only the old row has is kept. Rows without an id are always added, and an import's own repeated ids are left as the
+// file has them (not merged with each other). -> { samples, updated, added }
+export function mergeSurfaceSamples(prev, rows) {
+  const keyOf = (s) => (s.sample_id ? `${s.sample_id}\u0000${s.medium}` : null);
+  const at = new Map();
+  prev.forEach((s, i) => { const k = keyOf(s); if (k && !at.has(k)) at.set(k, i); });
+  const samples = prev.slice();
+  let updated = 0, added = 0;
+  for (const b of rows) {
+    const i = at.get(keyOf(b));
+    if (i == null) { samples.push(b); added++; continue; }
+    const a = samples[i];
+    const values = { ...a.values, ...b.values };
+    const fresh = (sym) => b.values?.[sym] != null || b.nd?.includes(sym); // the new row reports this element
+    const bdl = [...(a.bdl || []).filter((s) => !fresh(s)), ...(b.bdl || [])];
+    const nd = [...new Set([...(a.nd || []).filter((s) => !fresh(s)), ...(b.nd || [])])].filter((s) => values[s] == null);
+    const attrs = { ...a.attrs, ...b.attrs };
+    const m = { ...a, ...b, z: b.z ?? a.z, values };
+    delete m.bdl; delete m.nd; delete m.attrs;
+    samples[i] = { ...m, ...(bdl.length ? { bdl } : {}), ...(nd.length ? { nd } : {}), ...(Object.keys(attrs).length ? { attrs } : {}) };
+    updated++;
+  }
+  return { samples, updated, added };
+}

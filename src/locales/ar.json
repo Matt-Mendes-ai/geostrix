@@ -6071,5 +6071,6 @@
   "{n} more reported as 0 by the source (below detection or not analysed: the layer does not say), not in n or %": "{n} أخرى أبلغ عنها المصدر بقيمة 0 (دون حد الكشف أو لم تُحلَّل: لا تذكر الطبقة ذلك)، خارج n والنسبة المئوية",
   "{pct} (+{n} at 0)": "{pct} (+{n} عند 0)",
   "{n} at 0": "{n} عند 0",
-  "{zero} {symbol} result(s) in \"{pop}\" were reported as 0 by the source (below detection or not analysed: the layer does not say). They are left out of n and of every threshold here; if they are below detection, the thresholds read high.": "{zero} نتيجة لـ {symbol} في \"{pop}\" أبلغ عنها المصدر بقيمة 0 (دون حد الكشف أو لم تُحلَّل: لا تذكر الطبقة ذلك). استُبعدت من n ومن كل العتبات هنا؛ وإن كانت دون حد الكشف فالعتبات مرتفعة أكثر مما ينبغي."
+  "{zero} {symbol} result(s) in \"{pop}\" were reported as 0 by the source (below detection or not analysed: the layer does not say). They are left out of n and of every threshold here; if they are below detection, the thresholds read high.": "{zero} نتيجة لـ {symbol} في \"{pop}\" أبلغ عنها المصدر بقيمة 0 (دون حد الكشف أو لم تُحلَّل: لا تذكر الطبقة ذلك). استُبعدت من n ومن كل العتبات هنا؛ وإن كانت دون حد الكشف فالعتبات مرتفعة أكثر مما ينبغي.",
+  "{updated} of them matched samples already in the project by sample id and medium and updated them ({added} added).": "طابقت {updated} منها عينات موجودة في المشروع بمعرّف العينة والوسط فحدّثتها (أُضيفت {added})."
 }
