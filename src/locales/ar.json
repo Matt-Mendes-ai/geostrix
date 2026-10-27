@@ -6147,5 +6147,6 @@
   "Select the .MIF together with its .MID file (the measurements are in the .MID).": "اختر ملف .MIF مع ملف .MID الخاص به (القياسات موجودة في .MID).",
   "This .MIF file has no Data section, so it is not a MapInfo interchange file.": "لا يحتوي ملف .MIF هذا على قسم Data، فهو ليس ملف تبادل MapInfo.",
   "No points, lines or polygons could be read from this MapInfo file.": "تعذّرت قراءة نقاط أو خطوط أو مضلعات من ملف MapInfo هذا.",
-  "the current view": "العرض الحالي"
+  "the current view": "العرض الحالي",
+  "Size (pt)": "الحجم (نقطة)"
 }

@@ -781,7 +781,7 @@ export function StoreProvider({ children }) {
         x: 90, y: 90, w, h, capW: w, capH: h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, // capW / capH: #906
         trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, // #399
         viewState: res.viewState || null, // #948 — a theme-less capture's own view settings, for its legend
-        rotation: 0, frameWidth: 1, frameColor: "#1a1a1a", frameStyle: "solid", refreshing: false,
+        rotation: 0, frameWidth: 1, frameColor: "#1a2028" /* #966: the page ink, colors.text */, frameStyle: "solid", refreshing: false,
       }]);
       setLayoutSelectRequest(id);
     } else {

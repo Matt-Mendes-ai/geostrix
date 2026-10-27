@@ -6147,5 +6147,6 @@
   "Select the .MIF together with its .MID file (the measurements are in the .MID).": "Selecciona el .MIF junto con su archivo .MID (las mediciones están en el .MID).",
   "This .MIF file has no Data section, so it is not a MapInfo interchange file.": "Este archivo .MIF no tiene sección Data, así que no es un archivo de intercambio de MapInfo.",
   "No points, lines or polygons could be read from this MapInfo file.": "No se pudieron leer puntos, líneas ni polígonos de este archivo de MapInfo.",
-  "the current view": "la vista actual"
+  "the current view": "la vista actual",
+  "Size (pt)": "Tamaño (pt)"
 }

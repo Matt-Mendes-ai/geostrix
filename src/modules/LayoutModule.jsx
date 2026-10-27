@@ -23,7 +23,13 @@ import { PAGE_FORMATS, pageFormatOf, pagePx, pageMm, pageCssName } from "../lib/
 import { azimuthToGridOffset, setIgrfModule } from "../lib/azimuthRef.js"; // TASKS.csv #399 — GN/TN/MN diagram
 import * as igrfModule from "../lib/igrf.js"; // #552 — Layout is a lazy chunk: it brings IGRF with it
 setIgrfModule(igrfModule);
-import { printPt, printPx } from "../lib/theme.js"; // TASKS.csv #585 — page text on the PRINT scale (was #385 screen sizes)
+import { printPt, printPx, colors } from "../lib/theme.js"; // TASKS.csv #585 — page text on the PRINT scale (was #385 screen sizes)
+// TASKS.csv #966 — one ink for page text and frames (was #222, #1a1a1a and #1a2028 side by side), and page text sizes in
+// points on the #585 print scale: legend items / headings / ramp labels and callouts 8 pt, the legend title and a new
+// text box 10 pt, a table 8 pt by default (was 7, the caption step). Title / text boxes store px (as before, so saved
+// pages keep their look) and the sidebar edits them in pt.
+const INK = colors.text;
+const PX_PER_PT = 96 / 72;
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { crsName } from "../lib/reproject.js"; // TASKS.csv #947
 import { projectCredits } from "../lib/credits.js"; // TASKS.csv #949
@@ -914,9 +920,9 @@ export default function LayoutModule() {
             {(sel.type === "text" || sel.type === "title") && (
               <div style={{ marginBottom: 8 }}>
                 <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Size")}<input type="number" min="6" value={sel.fontSize ?? (sel.type === "title" ? 26 : 14)} onChange={(e) => updateSelected({ fontSize: Math.max(6, Number(e.target.value) || 14) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Size (pt)")}<input type="number" min="5" step="0.5" value={Math.round(((sel.fontSize ?? (sel.type === "title" ? 26 : printPx(printPt.body))) / PX_PER_PT) * 2) / 2} onChange={(e) => updateSelected({ fontSize: printPx(Math.max(5, Number(e.target.value) || printPt.body)) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
                   </label>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Colour")}<input type="color" value={sel.color || (sel.type === "title" ? "#1a2028" : "#222222")} onChange={(e) => updateSelected({ color: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Colour")}<input type="color" value={sel.color || INK} onChange={(e) => updateSelected({ color: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
                   </label>
                 </div>
                 <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
@@ -939,7 +945,7 @@ export default function LayoutModule() {
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Table title")}<input value={sel.title || ""} onChange={(e) => updateSelected({ title: e.target.value })} style={inp} /></label>
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Note under the table")}<textarea rows={3} value={sel.note || ""} onChange={(e) => updateSelected({ note: e.target.value })} style={{ ...inp, resize: "vertical", fontFamily: "inherit" }} /></label>{/* TASKS.csv #936 */}
                 <div style={{ display: "flex", gap: 6 }}>
-                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Text size (pt)")}<input type="number" min="5" max="14" step="0.5" value={sel.fontPt || 7} onChange={(e) => updateSelected({ fontPt: Math.max(5, Math.min(14, Number(e.target.value) || 7)) })} style={inp} /></label>
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Text size (pt)")}<input type="number" min="5" max="14" step="0.5" value={sel.fontPt || printPt.small} onChange={(e) => updateSelected({ fontPt: Math.max(5, Math.min(14, Number(e.target.value) || printPt.small)) })} style={inp} /></label>
                   {sel.source === "collars" && <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Rows at most")}<input type="number" min="1" step="1" value={sel.maxRows || 40} onChange={(e) => updateSelected({ maxRows: Math.max(1, Math.round(Number(e.target.value) || 40)) })} style={inp} /></label>}
                 </div>
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }}>
@@ -1556,7 +1562,7 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
       <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
         <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Frame width")}<input type="number" min="0" value={sel.frameWidth ?? 1} onChange={(e) => updateSelected({ frameWidth: Math.max(0, Number(e.target.value) || 0) })} style={{ ...inp, marginTop: 4 }} />
         </label>
-        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Colour")}<input type="color" value={sel.frameColor || "#1a1a1a"} onChange={(e) => updateSelected({ frameColor: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
+        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Colour")}<input type="color" value={sel.frameColor || INK} onChange={(e) => updateSelected({ frameColor: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
         </label>
       </div>
       <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Frame style")}<select value={sel.frameStyle || "solid"} onChange={(e) => updateSelected({ frameStyle: e.target.value })} style={inp}>
@@ -1618,7 +1624,7 @@ function frameBorder(el, fallback = "none") {
   if (!el.frameWidth) return fallback;
   const style = el.frameStyle === "double" ? "double" : el.frameStyle === "dashed" ? "dashed" : "solid";
   const w = el.frameStyle === "double" ? Math.max(3, el.frameWidth * 3) : el.frameWidth;
-  return `${w}px ${style} ${el.frameColor || "#1a1a1a"}`;
+  return `${w}px ${style} ${el.frameColor || INK}`;
 }
 
 // TASKS.csv #908 — every page at its paper size, in mm, for printToPDF; shown only under @media print (app.css), its
@@ -1691,7 +1697,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const b = frameBorder(el);
     return (
       <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-        <div style={{ fontSize: el.fontSize ?? 26, fontWeight: (el.bold ?? true) ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || "var(--color-text)", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{fillText(el.text, ctx)}</div>
+        <div style={{ fontSize: el.fontSize ?? 26, fontWeight: (el.bold ?? true) ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || INK, fontFamily: "'Exo 2', system-ui, sans-serif" }}>{fillText(el.text, ctx)}</div>
         {handles}
       </div>
     );
@@ -1700,7 +1706,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const b = frameBorder(el);
     return (
       <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-        <div style={{ fontSize: el.fontSize ?? 14, fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || "#222" }}>{fillText(el.text, ctx)}</div>
+        <div style={{ fontSize: el.fontSize ?? printPx(printPt.body), fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || INK }}>{fillText(el.text, ctx)}</div>
         {handles}
       </div>
     );
@@ -1748,7 +1754,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
             <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-base)", color: "#333", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Rendering…")}</div>
           )}
         </div>
-        {frameW > 0 && <div data-frame="" style={{ position: "absolute", inset: -frameW, border: `${frameW}px ${borderStyle} ${el.frameColor || "#1a1a1a"}`, pointerEvents: "none" }} />}
+        {frameW > 0 && <div data-frame="" style={{ position: "absolute", inset: -frameW, border: `${frameW}px ${borderStyle} ${el.frameColor || INK}`, pointerEvents: "none" }} />}
         {handles}
       </div>
     );
@@ -1810,19 +1816,19 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   if (el.type === "legend") return (
     <div style={{ ...wrap, background: "#fff", border: frameBorder(el, "1px solid #ccc"), padding: "8px 12px", minWidth: 150, width: el.w || undefined, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
       {handles}
-      <div style={{ fontSize: "var(--font-size-base)", fontWeight: 700, color: "#222", marginBottom: 6, fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Legend")}</div>
+      <div style={{ fontSize: printPx(printPt.body), fontWeight: 700, color: INK, marginBottom: 6, fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Legend")}</div>
       {el.items.map(([name, color, opt], i) => opt?.heading ? ( /* TASKS.csv #725 — a group heading */
-        <div key={i} style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "#444", margin: i ? "6px 0 2px" : "0 0 2px" }}>{name}</div>
+        <div key={i} style={{ fontSize: printPx(printPt.small), fontWeight: 700, color: INK, margin: i ? "6px 0 2px" : "0 0 2px" }}>{name}</div>
       ) : opt?.ramp ? ( /* a block model's continuous scale */
         <div key={i} style={{ marginBottom: 4 }}>
-          <div style={{ fontSize: "var(--font-size-base)", fontWeight: 600, color: "#444", marginTop: i ? 6 : 0 }}>{name}{opt.ramp.log ? tr(" · log scale") : ""}</div>
+          <div style={{ fontSize: printPx(printPt.small), fontWeight: 700, color: INK, marginTop: i ? 6 : 0 }}>{name}{opt.ramp.log ? tr(" · log scale") : ""}</div>
           <div style={{ height: 10, width: 150, border: "1px solid #999", background: `linear-gradient(to right, ${opt.ramp.colors.join(", ")})` }} />
-          <div style={{ display: "flex", justifyContent: "space-between", width: 152, fontSize: "var(--font-size-sm)", color: "#222" }}><span>{opt.ramp.minLabel}</span><span>{opt.ramp.maxLabel}</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", width: 152, fontSize: printPx(printPt.small), color: INK }}><span>{opt.ramp.minLabel}</span><span>{opt.ramp.maxLabel}</span></div>
         </div>
       ) : (
         <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
           <span style={{ width: 20, display: "inline-flex", justifyContent: "center", flexShrink: 0 }}><span style={{ ...swatchShape(opt?.kind, 14), background: color, display: "inline-block", border: opt?.kind === "line" ? "none" : "1px solid #999" }} /></span>{/* #948 — square / line / dot */}
-          <span style={{ fontSize: "var(--font-size-base)", color: "#222" }}>{name}</span>
+          <span style={{ fontSize: printPx(printPt.small), color: INK }}>{name}</span>
         </div>
       ))}
     </div>
@@ -1839,11 +1845,11 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
       rows = cs.slice(0, lim).map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), f(c.z, 1), f(c.azimuth, 0), f(c.dip, 0), f(c.length, 1)]);
       more = Math.max(0, cs.length - lim);
     }
-    const fs = printPx(el.fontPt || 7), cell = { padding: `${Math.round(fs * 0.25)}px ${Math.round(fs * 0.5)}px`, borderBottom: "1px solid #c9ced4" /* #999 — 0.26 mm on paper like the scale bar; 0.5 px vanished on screen at Fit zoom */, whiteSpace: "nowrap" };
+    const fs = printPx(el.fontPt || printPt.small), cell = { padding: `${Math.round(fs * 0.25)}px ${Math.round(fs * 0.5)}px`, borderBottom: "1px solid #c9ced4" /* #999 — 0.26 mm on paper like the scale bar; 0.5 px vanished on screen at Fit zoom */, whiteSpace: "nowrap" };
     const numeric = columns.map((_, j) => rows.length > 0 && rows.every((r) => r[j] === "" || /^[-+≥<>]?[\d.,]+$/.test(String(r[j]))));
     return (
       <div style={{ ...wrap, width: el.w || 520, background: "#fff", border: frameBorder(el), padding: 6, boxSizing: "border-box", fontFamily: "'Exo 2', system-ui, sans-serif", color: "#1a2028" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-        {el.title && <div style={{ fontSize: printPx((el.fontPt || 7) + 2), fontWeight: 700, marginBottom: 4 }}>{fillText(el.title, ctx)}</div>}
+        {el.title && <div style={{ fontSize: printPx((el.fontPt || printPt.small) + 2), fontWeight: 700, marginBottom: 4 }}>{fillText(el.title, ctx)}</div>}
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: fs, fontVariantNumeric: "tabular-nums", tableLayout: "auto" }}>
           <thead><tr>{columns.map((h, j) => <th key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left", fontWeight: 600, borderBottom: "1px solid #1a2028" }}>{h}</th>)}</tr></thead>
           <tbody>
@@ -1852,7 +1858,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
             {more > 0 && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{tr("… and {n} more hole(s) (raise \"Rows at most\" or add a second table)", { n: more })}</td></tr>}
           </tbody>
         </table>
-        {el.note && <div style={{ fontSize: printPx(Math.max(5, (el.fontPt || 7) - 1)), fontStyle: "italic", color: "#3a424c", marginTop: 4, lineHeight: 1.35, whiteSpace: "normal" }}>{fillText(el.note, ctx)}</div>}{/* TASKS.csv #936 */}
+        {el.note && <div style={{ fontSize: printPx(Math.max(5, (el.fontPt || printPt.small) - 1)), fontStyle: "italic", color: "#3a424c", marginTop: 4, lineHeight: 1.35, whiteSpace: "normal" }}>{fillText(el.note, ctx)}</div>}{/* TASKS.csv #936 */}
         {handles}
       </div>
     );
@@ -1889,7 +1895,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   }
   if (el.type === "callout") return (
     <div style={{ ...wrap, width: el.w, background: el.fill, border: `1.5px solid ${el.stroke}`, borderRadius: 6, padding: "8px 12px", position: "absolute", boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-      <div style={{ fontSize: "var(--font-size-base)", color: "#222", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{el.text}</div>
+      <div style={{ fontSize: printPx(printPt.small), color: INK, fontFamily: "'Exo 2', system-ui, sans-serif" }}>{el.text}</div>
       {handles}
       <svg width="16" height="10" style={{ position: "absolute", left: 14, bottom: -9 }}>
         <polygon points="0,0 16,0 5,10" fill={el.fill} stroke={el.stroke} strokeWidth="1.5" />
@@ -1935,7 +1941,7 @@ function FrameControls({ sel, updateSelected }) {
       <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
         <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Frame width")}<input type="number" min="0" value={sel.frameWidth ?? 0} onChange={(e) => updateSelected({ frameWidth: Math.max(0, Number(e.target.value) || 0) })} style={{ ...inp, marginTop: 4, marginBottom: 0 }} />
         </label>
-        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Colour")}<input type="color" value={sel.frameColor || "#1a1a1a"} onChange={(e) => updateSelected({ frameColor: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
+        <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Colour")}<input type="color" value={sel.frameColor || INK} onChange={(e) => updateSelected({ frameColor: e.target.value })} style={{ display: "block", marginTop: 4, width: 34, height: 30, padding: 0, border: "1px solid var(--color-border)", borderRadius: 5, background: "none", cursor: "pointer" }} />
         </label>
       </div>
       <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Frame style")}<select value={sel.frameStyle || "solid"} onChange={(e) => updateSelected({ frameStyle: e.target.value })} style={inp}>
