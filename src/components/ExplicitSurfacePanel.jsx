@@ -9,7 +9,7 @@ import { t as tr } from "../lib/i18n.js";
 import { LOO_MAX_POINTS, explicitPoints } from "../lib/explicitSurface.js";
 import { fitExplicitSurfaceAsync } from "../lib/explicitSurfaceClient.js"; // TASKS.csv #865
 import { findOnTraceWorld, traceDirWorld } from "../lib/viewer/modelHelpers.js";
-import { sampleTerrainElevation } from "../lib/viewer/geomath.js";
+import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { dragTarget, holeContacts, nearestContact, SNAP_REACH_M } from "../lib/explicitDrag.js"; // TASKS.csv #813; contacts: #868
 import { mapContactPairs, mapContactLines, dipGuideLines } from "../lib/explicitMapLines.js"; // TASKS.csv #817
 import { imagePlane, rayPlane, facingCamera, densify3, medianApparentDip, sectionSnapTargets, constrainOnImage, groundProfileOnImage, nearestOnPolyline, pointOnSegment, insertPoint, splitAt, joinLines, extendTo } from "../lib/sectionDigitize3d.js"; // TASKS.csv #824 / #825 / #828
@@ -123,10 +123,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   // TASKS.csv #899 — a definition saved without picks / lines (hand-edited or from an older build) reads as empty, not a crash
   const defs = useMemo(() => (rawDefs || []).map((d) => (Array.isArray(d.picks) && (d.lines == null || Array.isArray(d.lines)) ? d : { ...d, picks: Array.isArray(d.picks) ? d.picks : [], lines: Array.isArray(d.lines) ? d.lines : [] })), [rawDefs]);
   const hasTerrain = !!terrain?.bbox;
-  const groundAt = (x, y) => {
-    const [x0, y0, x1, y1] = terrain.bbox;
-    return x < x0 || x > x1 || y < y0 || y > y1 ? NaN : sampleTerrainElevation(terrain, x, y);
-  };
+  const groundAt = (x, y) => terrainGroundAt(terrain, x, y); // TASKS.csv #927 — NaN outside the terrain or over its fill
   // 3D clicks reach this panel through the view's click ref while it is open; closing it stops picking
   useEffect(() => {
     sc.clickRef.current = (hits, raycaster) => {

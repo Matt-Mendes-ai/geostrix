@@ -251,3 +251,45 @@ export function sampleTerrainElevation(terrain, x, y) {
   const bot = at(x0, y1) * (1 - tx) + at(x1, y1) * tx;
   return top * (1 - ty) + bot * ty;
 }
+
+// TASKS.csv #927 — a terrain's filled nodes (demFill.js #421: a DEM's voids, or everything outside a TIN built from
+// points or contours, #894, often 90 % of the grid) hold the MEAN elevation. #421 masked them out of the drawn surface
+// but kept them for sampling, and every "where is the ground here" closure (ground caps, explicit-surface cuts,
+// intrusion tops, inversion meshes, draped samples) read that flat fill as real ground, up to 300 m off. The ground at
+// (x, y) is now NaN when any node of its bilinear cell was filled, as it already was outside the terrain, so every
+// caller's own "not covered" path (stations, collars, a flat ground) takes over.
+const noDataBitsCache = new WeakMap();
+function noDataBitsOf(terrain) {
+  const m = terrain?.noDataMask;
+  if (!m) return null;
+  if (m instanceof Uint8Array) return m;
+  const hit = noDataBitsCache.get(terrain);
+  if (hit && hit.src === m) return hit.bits;
+  const bin = atob(String(m)), bits = new Uint8Array(bin.length);
+  for (let k = 0; k < bin.length; k++) bits[k] = bin.charCodeAt(k);
+  noDataBitsCache.set(terrain, { src: m, bits });
+  return bits;
+}
+// true when (x, y) inside the terrain reads any filled node
+export function terrainFillAt(terrain, x, y) {
+  const bits = noDataBitsOf(terrain);
+  if (!bits) return false;
+  const [xmin, ymin, xmax, ymax] = terrain.bbox;
+  const { gridW, gridH } = terrain;
+  const fx = gridW <= 1 ? 0 : Math.min(gridW - 1, Math.max(0, ((x - xmin) / (xmax - xmin)) * (gridW - 1)));
+  const fy = gridH <= 1 ? 0 : Math.min(gridH - 1, Math.max(0, ((ymax - y) / (ymax - ymin)) * (gridH - 1)));
+  const x0 = Math.floor(fx), y0 = Math.floor(fy);
+  const x1 = fx > x0 ? Math.min(gridW - 1, x0 + 1) : x0, y1 = fy > y0 ? Math.min(gridH - 1, y0 + 1) : y0; // a node with no weight does not count
+  const off = (i) => (bits[i >> 3] & (1 << (i & 7))) !== 0;
+  return off(y0 * gridW + x0) || off(y0 * gridW + x1) || off(y1 * gridW + x0) || off(y1 * gridW + x1);
+}
+export function terrainNodeIsFill(terrain, i) {
+  const bits = noDataBitsOf(terrain);
+  return !!bits && (bits[i >> 3] & (1 << (i & 7))) !== 0;
+}
+// the ground at (x, y): NaN outside the terrain or over filled nodes
+export function terrainGroundAt(terrain, x, y) {
+  const b = terrain?.bbox;
+  if (!b || !(x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3])) return NaN;
+  return terrainFillAt(terrain, x, y) ? NaN : sampleTerrainElevation(terrain, x, y);
+}

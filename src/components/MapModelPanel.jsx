@@ -7,7 +7,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ChevronUp, ChevronDown } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
 import { suggestPileOrder } from "../lib/pileOrder.js";
-import { sampleTerrainElevation } from "../lib/viewer/geomath.js";
+import { terrainGroundAt } from "../lib/viewer/geomath.js";
 
 const ROLES = ["stratigraphic", "intrusion", "cross-cutting", "other"];
 const roleLabel = (r) => ({ stratigraphic: tr("stratigraphic"), intrusion: tr("intrusion"), "cross-cutting": tr("cross-cutting"), other: tr("other (left out)") }[r] || r);
@@ -53,8 +53,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   // the suggestion (recomputed when the inputs change), then the user's order and roles
   const groundAt = useMemo(() => {
     if (!terrain?.bbox) return null;
-    const [x0, y0, x1, y1] = terrain.bbox;
-    return (x, y) => (x < x0 || x > x1 || y < y0 || y > y1 ? NaN : sampleTerrainElevation(terrain, x, y));
+    return (x, y) => terrainGroundAt(terrain, x, y); // TASKS.csv #927
   }, [terrain]);
   const suggestion = useMemo(() => {
     if (!layer || !unitField) return null;

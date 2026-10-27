@@ -13,7 +13,7 @@
 import { pointInBoundary } from "./geoprocessing.js";
 import { arrMax } from "./arrayStats.js";
 import { isMarkedQcRow } from "./qaqc.js"; // TASKS.csv #601
-import { sampleTerrainElevation } from "./viewer/geomath.js"; // TASKS.csv #558
+import { terrainGroundAt } from "./viewer/geomath.js"; // TASKS.csv #558; #927 — never compared with the fill
 
 import { didYouMean } from "./holeIds.js"; // TASKS.csv #541 (own module: dataQC stays out of the startup bundle)
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
@@ -430,7 +430,7 @@ export function collarTerrainOffsets(collars, terrain) {
   for (const c of collars || []) {
     if (!Number.isFinite(c.x) || !Number.isFinite(c.y) || !Number.isFinite(c.z)) continue;
     if (c.x < x0 || c.x > x1 || c.y < y0 || c.y > y1) continue;
-    const dem = sampleTerrainElevation(terrain, c.x, c.y);
+    const dem = terrainGroundAt(terrain, c.x, c.y);
     if (!Number.isFinite(dem)) continue;
     out.push({ hole_id: c.hole_id, z: c.z, dem, dz: c.z - dem });
   }

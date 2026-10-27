@@ -4,6 +4,7 @@
 import { reprojectXY, isMetricProjectedEpsg } from "./reproject.js";
 import { hexToRgb, rgbToHex, rgbToLab, labToRgb } from "./colorRamp.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { terrainFillAt, terrainNodeIsFill } from "./viewer/geomath.js"; // TASKS.csv #927
 
 // ---------- grid convergence ----------
 // SimPEG's x/y axes are the project grid's easting/northing, so the inducing field's declination has to
@@ -27,10 +28,12 @@ export function gridDeclination(trueDeclinationDeg, x, y, epsg) {
 // ---------- terrain ----------
 // Bilinear terrain elevation, same convention as ViewerModule's sampleTerrainElevation (row 0 = north
 // edge). Returns NaN outside the terrain instead of clamping to the edge value: for deciding which cells
-// are underground an invented flat margin is worse than an explicit "not covered" (GIS review, #321).
+// are underground an invented flat margin is worse than an explicit "not covered" (GIS review, #321). TASKS.csv #927 —
+// and over filled nodes (the mean elevation of a DEM void or outside a TIN), which are no ground either.
 export function terrainElevationAt(terrain, x, y) {
   const [xmin, ymin, xmax, ymax] = terrain.bbox;
   if (x < xmin || x > xmax || y < ymin || y > ymax) return NaN;
+  if (terrainFillAt(terrain, x, y)) return NaN;
   const { gridW, gridH, elevations } = terrain;
   const fx = ((x - xmin) / (xmax - xmin)) * (gridW - 1);
   const fy = ((ymax - y) / (ymax - ymin)) * (gridH - 1);
@@ -43,7 +46,8 @@ export function terrainElevationAt(terrain, x, y) {
 }
 
 // Terrain grid nodes (x, y, z) inside a box, thinned to at most maxPoints — the sidecar's active-cell
-// test needs the ground surface over the whole mesh, padding included.
+// test needs the ground surface over the whole mesh, padding included. TASKS.csv #927 — filled nodes are left out
+// (`skipped` counts them): the stations' own elevations and the real nodes around them define the ground there.
 export function terrainPoints(terrain, box, maxPoints = 40000) {
   const [xmin, ymin, xmax, ymax] = terrain.bbox;
   const { gridW, gridH, elevations } = terrain;
@@ -54,12 +58,14 @@ export function terrainPoints(terrain, box, maxPoints = 40000) {
   const n = Math.max(1, (i1 - i0 + 1) * (j1 - j0 + 1));
   const step = Math.max(1, Math.ceil(Math.sqrt(n / maxPoints)));
   const out = [];
+  let skipped = 0;
   for (let j = j0; j <= j1; j += step) {
     for (let i = i0; i <= i1; i += step) {
+      if (terrainNodeIsFill(terrain, j * gridW + i)) { skipped++; continue; }
       out.push([xmin + (i / (gridW - 1)) * (xmax - xmin), ymax - (j / (gridH - 1)) * (ymax - ymin), elevations[j * gridW + i]]);
     }
   }
-  return { points: out, spacing: Math.max((xmax - xmin) / (gridW - 1), (ymax - ymin) / (gridH - 1)) * step, covers: box[0] >= xmin && box[2] <= xmax && box[1] >= ymin && box[3] <= ymax };
+  return { points: out, skipped, spacing: Math.max((xmax - xmin) / (gridW - 1), (ymax - ymin) / (gridH - 1)) * step, covers: box[0] >= xmin && box[2] <= xmax && box[1] >= ymin && box[3] <= ymax };
 }
 
 // ---------- stations ----------

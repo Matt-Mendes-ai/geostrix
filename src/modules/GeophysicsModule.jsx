@@ -389,7 +389,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       if (reprojected) msg += " " + tr("The coordinates read as longitude / latitude and were reprojected from WGS 84 to the project's EPSG:{epsg}.", { epsg: project.epsg });
       if (t.stats.longDropped) msg += " " + tr("{n} triangle(s) with an edge over {m} m were left out, so no ground is invented across gaps in the data.", { n: t.stats.longDropped, m: Math.round(t.stats.maxEdgeM) });
       if (lines.length && t.stats.flatPct >= 5) msg += " " + tr("{pct}% of the triangles are flat (all three corners on one contour): terraces on hilltops and valley floors, where contours alone do not say how the ground continues.", { pct: t.stats.flatPct.toFixed(0) });
-      if (t.stats.filledCount) msg += " " + tr("{pct}% of the grid ({n} cells) lies outside the triangulated points and is left out of the 3D surface; anything that samples elevation there (collars, sections, stations) gets the mean elevation {z} m, not a real height.", { pct: t.stats.filledPct.toFixed(1), n: t.stats.filledCount.toLocaleString(), z: t.stats.fillValue.toFixed(0) });
+      if (t.stats.filledCount) msg += " " + tr("{pct}% of the grid ({n} cells) lies outside the triangulated points and is left out of the 3D surface. The modelling tools, inversions and collar checks read no ground there (stations, collars or a flat ground stand in); only map layers draped on the terrain sit at the mean elevation {z} m.", { pct: t.stats.filledPct.toFixed(1), n: t.stats.filledCount.toLocaleString(), z: t.stats.fillValue.toFixed(0) });
       setTerrainError({ info: true, text: msg });
     } catch (err) {
       setTerrainError({ info: false, text: err.message });

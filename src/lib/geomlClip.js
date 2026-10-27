@@ -5,7 +5,7 @@
 // A block is dropped when its centre is above the ground, or when no sample lies within `maxDist` of it (the
 // model's range: beyond it the prediction is the prior). The ground is the project's terrain where it covers
 // the block, otherwise a surface through the collar elevations (inverse distance, nearest 8).
-import { sampleTerrainElevation } from "./viewer/geomath.js";
+import { terrainGroundAt } from "./viewer/geomath.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 export function makeGround({ terrain, collars }) {
@@ -28,7 +28,7 @@ export function makeGround({ terrain, collars }) {
     const k = `${Math.round(x)}|${Math.round(y)}`;
     let g = cache.get(k);
     if (g === undefined) {
-      g = inTerrain(x, y) ? sampleTerrainElevation(terrain, x, y) : NaN;
+      g = inTerrain(x, y) ? terrainGroundAt(terrain, x, y) : NaN; // TASKS.csv #927 — fill falls back to the collars
       if (!Number.isFinite(g)) g = fromCollars(x, y);
       cache.set(k, g);
     }

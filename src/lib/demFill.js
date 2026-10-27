@@ -39,7 +39,7 @@ export function isNoData(maskBytes, i) {
 // Human-readable line for the import message.
 export function noDataNote(fill) {
   if (!fill.filledCount) return "";
-  return tr(" {filledPct}% of the grid ({filledCount} cells) has no source data — usually the empty corners left by reprojection, or tiles that failed to download. Those cells are left out of the 3D surface; anything that samples elevation there (collars, sections, geophysics stations) gets the mean elevation {fillValue} m, not a real height.", { filledPct: fill.filledPct.toFixed(1), filledCount: fill.filledCount.toLocaleString(), fillValue: fill.fillValue.toFixed(0) });
+  return tr(" {filledPct}% of the grid ({filledCount} cells) has no source data — usually the empty corners left by reprojection, or tiles that failed to download. Those cells are left out of the 3D surface, and the modelling tools, inversions and collar checks read no ground there; only map layers draped on the terrain sit at the mean elevation {fillValue} m.", { filledPct: fill.filledPct.toFixed(1), filledCount: fill.filledCount.toLocaleString(), fillValue: fill.fillValue.toFixed(0) });
 }
 
 function bytesToB64(bytes) {

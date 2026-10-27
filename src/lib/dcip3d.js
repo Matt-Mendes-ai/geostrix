@@ -99,16 +99,17 @@ export function build3dRequest(lines, terrain, { core, depth, step = 1, pct, flo
   const topo = parts.flatMap((l) => l.stations);
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const r of readings) for (const k of [0, 3, 6, 9]) if (r[k] != null) { x0 = Math.min(x0, r[k]); x1 = Math.max(x1, r[k]); y0 = Math.min(y0, r[k + 1]); y1 = Math.max(y1, r[k + 1]); }
+  let topoSkipped = 0; // TASKS.csv #927 — samples over the terrain's fill (or off it): the stations stand in there
   if (terrain) {
     const pad = 500, n = 40;
     for (let i = 0; i <= n; i++) for (let j = 0; j <= n; j++) {
       const x = x0 - pad + ((x1 - x0 + 2 * pad) * i) / n, y = y0 - pad + ((y1 - y0 + 2 * pad) * j) / n;
       const z = terrainElevationAt(terrain, x, y);
-      if (Number.isFinite(z)) topo.push([+x.toFixed(1), +y.toFixed(1), +z.toFixed(2)]);
+      if (Number.isFinite(z)) topo.push([+x.toFixed(1), +y.toFixed(1), +z.toFixed(2)]); else topoSkipped++;
     }
   }
   return {
-    readings, chain, rho, ...(withIp ? { chargeability: parts.flatMap((l) => l.ip) } : {}), topo,
+    readings, chain, rho, ...(withIp ? { chargeability: parts.flatMap((l) => l.ip) } : {}), topo, ...(terrain ? { topoSkipped } : {}),
     mesh: { core: Number(core), depth: Number(depth) }, maxIter: Number(maxIter) || 12, geometricFactor,
     uncertainty: { percent: num(pct) || 0, floor: num(floor) || 0 },
     ...(withIp ? { ipUncertainty: { percent: num(ipPct) || 0, floor: num(ipFloor) || 0 } } : {}),

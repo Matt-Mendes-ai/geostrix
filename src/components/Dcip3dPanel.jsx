@@ -77,6 +77,7 @@ export default function Dcip3dPanel({ pBtn, numInput }) {
       tool: "3D DC resistivity / IP inversion of several lines (SimPEG, octree mesh, reciprocity)", lines: names.join(", "), lineCount: names.length, readings: req.rho.length,
       currentPositions: Number(o.step) > 1 ? `every ${o.step}nd current position of each line` : "all", mesh: { coreM: req.mesh.core, verticalCoreM: req.mesh.core / 2, coreDepthM: req.mesh.depth },
       uncertainty: { resistivityPercent: req.uncertainty.percent, resistivityFloor: req.uncertainty.floor, ...(req.ipUncertainty ? { chargeabilityPercent: req.ipUncertainty.percent, chargeabilityFloorMvV: req.ipUncertainty.floor } : {}), source: "entered by user" },
+      ...(req.topoSkipped ? { terrainSamplesSkipped: `${req.topoSkipped} (off the terrain or over its filled nodes; the station elevations define the ground there)` } : {}), // TASKS.csv #927
       geometricFactor: req.geometricFactor, interpretation: "One smooth 3D model fitting every line's readings to the stated uncertainty; cells the data barely see (low support) are left out of the block model.",
     };
     const res = await startInversionJob(req, { label: tr("3D DC/IP inversion ({n} lines)", { n: names.length }), dcip3d: true }, {
@@ -99,7 +100,7 @@ export default function Dcip3dPanel({ pBtn, numInput }) {
       },
     });
     if (!res.ok) setMsg({ ok: false, text: res.error });
-    else setMsg({ ok: true, text: tr("Inverting {n} readings from {k} lines in 3D…", { n: req.rho.length.toLocaleString(), k: names.length }) });
+    else setMsg({ ok: true, text: tr("Inverting {n} readings from {k} lines in 3D…", { n: req.rho.length.toLocaleString(), k: names.length }) + (req.topoSkipped ? " " + tr("{n} of the terrain samples were left out: they are off the terrain or over its filled (no-data) area, so the station elevations define the ground there.", { n: req.topoSkipped.toLocaleString() }) : "") });
   };
 
   const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };

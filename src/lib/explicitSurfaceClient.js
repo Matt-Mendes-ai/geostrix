@@ -33,8 +33,8 @@ export function fitExplicitSurfaceAsync(points, opts, terrain) {
       w.postMessage({ id, points: plain, opts, cut: !!terrain });
     });
   } catch {
-    return Promise.all([import("./explicitSurface.js"), import("./viewer/geomath.js")]).then(([{ fitExplicitSurface }, { sampleTerrainElevation }]) => {
-      const groundAt = terrain ? (x, y) => { const [x0, y0, x1, y1] = terrain.bbox; return x < x0 || x > x1 || y < y0 || y > y1 ? NaN : sampleTerrainElevation(terrain, x, y); } : null;
+    return Promise.all([import("./explicitSurface.js"), import("./viewer/geomath.js")]).then(([{ fitExplicitSurface }, { terrainGroundAt }]) => {
+      const groundAt = terrain ? (x, y) => terrainGroundAt(terrain, x, y) : null; // TASKS.csv #927
       return fitExplicitSurface(points, { ...opts, groundAt });
     });
   }

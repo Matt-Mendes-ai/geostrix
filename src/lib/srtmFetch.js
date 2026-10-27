@@ -19,7 +19,7 @@
 // process when available, direct fetch as a browser/dev fallback) — see that file's header comment.
 import { fetchSRTMTile } from "./desktop.js";
 import { pointTransform, neighbourUtmZones } from "./reproject.js";
-import { sampleTerrainElevation } from "./viewer/geomath.js"; // TASKS.csv #614
+import { terrainGroundAt } from "./viewer/geomath.js"; // TASKS.csv #614; #927 — never compared with the fill
 import { gridDims, finishTerrain } from "./terrainGrid.js"; // TASKS.csv #814 — shared with the Copernicus source
 import { copernicusRise, isArtifactCone } from "./copernicusDem.js"; // TASKS.csv #814
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
@@ -241,7 +241,7 @@ export function collarGroundMisfit(collars, terrain) {
   for (const c of collars || []) {
     if (!Number.isFinite(c.x) || !Number.isFinite(c.y) || !Number.isFinite(c.z)) continue;
     if (!(c.x >= x0 && c.x <= x1 && c.y >= y0 && c.y <= y1)) continue; // sampling clamps to the edge outside
-    const g = sampleTerrainElevation(terrain, c.x, c.y);
+    const g = terrainGroundAt(terrain, c.x, c.y);
     if (Number.isFinite(g)) d.push(Math.abs(c.z - g));
   }
   if (d.length < 3) return null;

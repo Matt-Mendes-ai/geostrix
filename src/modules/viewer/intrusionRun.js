@@ -6,7 +6,7 @@ import { intrusionBody } from "../../lib/intrusionBody.js";
 import { meshVolume } from "../../lib/unitVolumes.js";
 import { featureCategoryValue, pointInRings } from "../../lib/mapLayers.js";
 import { colorForLithology } from "../../lib/layers.js";
-import { sampleTerrainElevation } from "../../lib/viewer/geomath.js";
+import { terrainGroundAt } from "../../lib/viewer/geomath.js";
 import { notice, errorNotice, appendNotice } from "../../lib/notices.js";
 import { t as tr } from "../../lib/i18n.js";
 
@@ -14,8 +14,7 @@ import { t as tr } from "../../lib/i18n.js";
 // setImplicitSurfaces, setNotices, terrain }
 export function buildIntrusionBodies(p, { implicitGroupRef, implicitMeshesRef, originRef, setImplicitSurfaces, setNotices, terrain }) {
   if (!terrain?.bbox) { setNotices((q) => [...q, notice("Intrusion bodies need a terrain: their tops are the ground inside each mapped polygon. Fetch or import one first.")]); return; }
-  const [x0, y0, x1, y1] = terrain.bbox;
-  const groundAt = (x, y) => (x < x0 || x > x1 || y < y0 || y > y1 ? NaN : sampleTerrainElevation(terrain, x, y));
+  const groundAt = (x, y) => terrainGroundAt(terrain, x, y); // TASKS.csv #927
   const o = originRef.current, stamp = Date.now(), added = [], lines = [];
   let holes = 0;
   const failed = [], pinched = []; // depths reached by narrowing bodies that close before the chosen depth

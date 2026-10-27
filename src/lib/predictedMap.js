@@ -2,7 +2,7 @@
 // of the #356 check against the logs. A model can fit every hole and still contradict the outcrop; this shows it.
 // Pure (no DOM, no three.js): the run evaluates the grid's nodes in the same GemPy solve (#756) and draws the raster.
 import { pointInRings } from "./mapLayers.js";
-import { sampleTerrainElevation } from "./viewer/geomath.js";
+import { terrainGroundAt } from "./viewer/geomath.js"; // TASKS.csv #927 — no map nodes over the fill
 
 // Terrain nodes over `box` [xmin, ymin, xmax, ymax] (project CRS) at >= minSpacing metres, coarsened so there are at
 // most ~maxPts of them (each node is one more point in the solve). Nodes off the terrain are left out. Row 0 is the
@@ -20,7 +20,7 @@ export function terrainGrid(terrain, box, { maxPts = 20000, minSpacing = 25 } = 
     const y = y1 - (j + 0.5) * dy;
     for (let i = 0; i < nx; i++) {
       const x = x0 + (i + 0.5) * dx;
-      const z = sampleTerrainElevation(terrain, x, y);
+      const z = terrainGroundAt(terrain, x, y);
       if (Number.isFinite(z)) nodes.push({ i, j, x, y, z });
     }
   }

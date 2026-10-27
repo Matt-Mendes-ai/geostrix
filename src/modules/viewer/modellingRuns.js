@@ -13,7 +13,7 @@ import { MAX_BLOCKS, SUPPORT_COLORS, MAX_BLOCK_BUDGET, gridBlockCount, cellToFit
 import { compositeDownhole, rawSampleIntervals, capAudit, capAuditText } from "../../lib/geochem.js"; // capAudit: #533; rawSampleIntervals: #571
 import { excludeQAQC } from "../../lib/qaqc.js";
 import { errorNotice, notice, appendNotice } from "../../lib/notices.js";
-import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, splitIntervalForSampling, spatialClusters, sampleTerrainElevation } from "../../lib/viewer/geomath.js";
+import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, splitIntervalForSampling, spatialClusters, terrainGroundAt } from "../../lib/viewer/geomath.js";
 import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals } from "../../lib/viewer/intervals.js";
 import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit } from "../../lib/modellingCodes.js"; // TASKS.csv #599
 import { clipMesh } from "../../lib/clipMesh.js";
@@ -34,8 +34,7 @@ import { explicitInterfacePoints } from "../../lib/explicitUnits.js"; // TASKS.c
 // real (east, north, up) when the grid is anisotropy-warped. Returns { values, capped } (values unchanged when off).
 function groundCappedGrid(grid, iso, terrain, toReal = null) {
   if (!terrain) return { values: grid.values, capped: 0 };
-  const [tx0, ty0, tx1, ty1] = terrain.bbox;
-  const groundAt = (x, y) => (x >= tx0 && x <= tx1 && y >= ty0 && y <= ty1 ? sampleTerrainElevation(terrain, x, y) : NaN);
+  const groundAt = (x, y) => terrainGroundAt(terrain, x, y); // TASKS.csv #927
   return capFieldAtGround(grid.values, grid.nx, grid.ny, grid.nz, grid.origin, grid.cellSize, iso, groundAt, { toReal });
 }
 
@@ -290,10 +289,7 @@ export function createModellingRuns(ctx, mcRef) {
     // behind the holes
     const rzSec = minMax(extentApiPts.map((q) => q.z));
     const [sz0, sz1] = pad(rzSec.min, rzSec.max);
-    const groundAt = mapTerrain ? (x, y) => {
-      const [tx0, ty0, tx1, ty1] = mapTerrain.bbox;
-      return x >= tx0 && x <= tx1 && y >= ty0 && y <= ty1 ? sampleTerrainElevation(mapTerrain, x, y) : NaN;
-    } : null;
+    const groundAt = mapTerrain ? (x, y) => terrainGroundAt(mapTerrain, x, y) : null; // TASKS.csv #927
     const secPick = pickSections(sections);
     const tracePts = secPick.sections.length ? traces.flatMap((t) => t.wx.map((x, i) => ({ x, y: t.wy[i], z: t.wz[i] }))) : [];
     const secGrids = secPick.sections.map((sc) => {
@@ -378,7 +374,7 @@ export function createModellingRuns(ctx, mcRef) {
         const above = (v) => {
           const wx = v.x + o.x, wy = -v.z + o.y;
           if (wx < txmin || wx > txmax || wy < tymin || wy > tymax) return false;
-          const ground = sampleTerrainElevation(clipTerrain, wx, wy);
+          const ground = terrainGroundAt(clipTerrain, wx, wy); // TASKS.csv #927 — nothing clipped against the fill
           return Number.isFinite(ground) && v.y + o.z > ground;
         };
         const c = clipMesh(sceneVerts, faces, above);
@@ -1140,8 +1136,7 @@ export function createModellingRuns(ctx, mcRef) {
     const order = (p.order || []).filter(Boolean);
     if (order.length < 2) { setNotices((q) => [...q, notice("Put at least two stratigraphic units in the order to model.")]); return; }
     const o = originRef.current;
-    const [tx0, ty0, tx1, ty1] = terrain.bbox;
-    const ground = (x, y) => (x < tx0 || x > tx1 || y < ty0 || y > ty1 ? NaN : sampleTerrainElevation(terrain, x, y));
+    const ground = (x, y) => terrainGroundAt(terrain, x, y); // TASKS.csv #927
     const api = (x, y, z) => ({ x: x - o.x, y: y - o.y, z: z - o.z });
     const thin = (line, step) => {
       const out = [line[0]];

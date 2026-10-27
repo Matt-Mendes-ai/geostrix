@@ -112,7 +112,7 @@ import { extractMapContacts, orientationAt, projectContactRibbon, thinLine, dens
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #390
 import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
-import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellSupported, sampleTerrainElevation } from "../lib/viewer/geomath.js"; // TASKS.csv #445
+import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellSupported, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { findOnTraceWorld, findOnTrace, pointInDomain, SOLID_SURFACE_TYPES } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693
 import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
@@ -1157,8 +1157,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const b = terrain?.bbox;
     return surfaceSamples.map((r) => {
       if (Number.isFinite(r.z)) return r;
-      const inside = b && r.x >= b[0] && r.x <= b[2] && r.y >= b[1] && r.y <= b[3];
-      const z = inside ? sampleTerrainElevation(terrain, r.x, r.y) : NaN;
+      const z = b ? terrainGroundAt(terrain, r.x, r.y) : NaN; // TASKS.csv #927 — over the terrain's fill a sample stays unplaced
       return Number.isFinite(z) ? { ...r, z, zDraped: true } : null;
     }).filter(Boolean);
   }, [surfaceSamples, terrain]);
@@ -6300,10 +6299,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       source = `evaluated exactly every ${Math.round(g.dl)} m`;
     } else {
       const o = lb.origin, [, , , , bz0, bz1] = lb.block.extent, sp = blockSpacing(lb.block);
-      const groundAt = terrain && showTerrain ? (x, y) => {
-        const [tx0, ty0, tx1, ty1] = terrain.bbox;
-        return x >= tx0 && x <= tx1 && y >= ty0 && y <= ty1 ? sampleTerrainElevation(terrain, x, y) : NaN;
-      } : null;
+      const groundAt = terrain && showTerrain ? (x, y) => terrainGroundAt(terrain, x, y) : null; // TASKS.csv #927
       const tracePts = tracesRef.current.flatMap((t) => t.wx.map((x, i) => ({ x, y: t.wy[i], z: t.wz[i] })));
       const [zl, zh] = sectionZRange(tracePts, a, b, corridor, bz0 + o.z, bz1 + o.z);
       grid = sectionGrid(a, b, zl, zh, { maxPts: 40000, minSpacing: Math.max(1, Math.min(sp.horizontal, sp.vertical) / 2), groundAt });
@@ -6427,7 +6423,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t;
         // #573 — off the terrain the sampler returns the nearest edge value: leave a gap, not a flat fake ground
         if (x < txmin || x > txmax || y < tymin || y > tymax) continue;
-        const el = sampleTerrainElevation(terrain, x, y);
+        const el = terrainGroundAt(terrain, x, y); // TASKS.csv #927 — a gap over the fill too
         if (Number.isFinite(el)) pts.push({ d: dist * t, z: el });
       }
       elevationProfile = pts;
@@ -7525,7 +7521,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {surfaceSolidsOpen && (<Suspense fallback={null}>
           <SurfaceSolidsPanel
             surfaces={implicitSurfaces} explicitDefs={explicitSurfaces || []} /* #830 */ worldMesh={surfaceWorldMesh} origin={originRef.current}
-            terrain={terrain} sampleGround={(x, y) => { const [tx0, ty0, tx1, ty1] = terrain.bbox; return x >= tx0 && x <= tx1 && y >= ty0 && y <= ty1 ? sampleTerrainElevation(terrain, x, y) : NaN; }}
+            terrain={terrain} sampleGround={(x, y) => terrainGroundAt(terrain, x, y)}
             onBuilt={surfaceSolidsBuilt} onError={(e) => setNotices((p) => [...p, e])} onClose={() => setSurfaceSolidsOpen(false)}
             pBtn={pBtn} smallSel={smallSel} numInput={smallSel}
           />
@@ -8418,7 +8414,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           survey={survey}
           volumeShells={closedShellsForEstimation()}
           trend={trendFor("estimation")} // TASKS.csv #650
-          groundAt={terrain ? (x, y) => { const [tx0, ty0, tx1, ty1] = terrain.bbox; return x >= tx0 && x <= tx1 && y >= ty0 && y <= ty1 ? sampleTerrainElevation(terrain, x, y) : NaN; } : null} // TASKS.csv #803
+          groundAt={terrain ? (x, y) => terrainGroundAt(terrain, x, y) : null} // TASKS.csv #803, #927
           onAddModel={(model) => { const id = addVoxelModel(model); setNotices((p) => [...p, notice("Added block model \"{name}\" ({cells} cells).", { name: model.name, cells: model.cells.length.toLocaleString() })]); return id; }}
           onClose={() => setGradeEstOpen(false)}
         />
