@@ -3,6 +3,7 @@
 // value, plus the estimation's per-block support fields when present. Coordinates are the project CRS.
 import { SUPPORT_CODES } from "./estimation.js";
 import { capAuditText } from "./geochem.js"; // TASKS.csv #674
+import { FORMULA_LEAD } from "./tabular.js"; // TASKS.csv #1041
 
 // TASKS.csv #529 — the value column / array name carries the unit when the model recorded one: "Au_ppm", not "Au"
 // (ppm or ppb? the file couldn't say). g/t and % become "gpt" / "pct" so the name stays a plain identifier.
@@ -50,6 +51,63 @@ export function blockModelRows(model, names = "datamine") {
     if (Number.isFinite(c.coverage)) { row.COVERAGE = +c.coverage.toFixed(4); row.VOLUME_M3 = +(c.coverage * c.dx * c.dy * c.dz).toFixed(3); }
     return row;
   });
+}
+
+// TASKS.csv #1041 (review #1016, performance #4) — blockModelRows + Papa.unparse took 33 s and +0.8 GB of heap for 1M
+// blocks (49 s / +1.55 GB for 2M) on the UI thread: an object per block, then every value back to a string and regex-
+// checked. This writes the same text (same columns in the same first-seen order, the same number formatting, Papa's
+// quoting and CRLF line ends, no trailing newline: test/blockModelCsv1041.test.mjs compares the two) straight from the
+// cells, in chunks of `chunk` lines; blockModelCsvText awaits between chunks so the window repaints.
+const csvCell = (v) => {
+  if (v == null) return "";
+  if (typeof v === "number") return String(v);
+  let s = String(v), q = false;
+  if (typeof v === "string" && FORMULA_LEAD.test(s)) { s = "'" + s; q = true; }
+  const e = s.replace(/"/g, '""');
+  if (q || /[\r\n",\uFEFF]/.test(e) || e[0] === " " || e[e.length - 1] === " ") return `"${e}"`;
+  return e;
+};
+export function* blockModelCsvChunks(model, names = "datamine", chunk = 50000) {
+  const cells = model.cells || [];
+  if (!cells.length) return;
+  const valueName = valueColumnName(model);
+  const OPT = ["N_SAMPLES", "N_HOLES", "SUPPORT", "SUPPORT_CODE", "SUPPORT_INDEX", "COVERAGE", "VOLUME_M3"];
+  const has = (c) => [c.nSamples != null, c.nHoles != null, c.support != null, typeof c.support === "string" && SUPPORT_CODES[c.support] != null, Number.isFinite(c.supportIndex), Number.isFinite(c.coverage), Number.isFinite(c.coverage)];
+  // the columns in the order toExportCsv's union of row keys gives: the base seven, then each optional one where it first appears
+  const fields = [...(BLOCK_COLUMN_NAMES[names] || BLOCK_COLUMN_NAMES.datamine), valueName], seen = new Set();
+  for (let i = 0; i < cells.length && seen.size < OPT.length; i++) has(cells[i]).forEach((h, k) => { if (h && !seen.has(k)) { seen.add(k); fields.push(OPT[k]); } });
+  const col = Object.fromEntries(OPT.map((k) => [k, fields.indexOf(k)]));
+  const width = fields.length;
+  let lines = [fields.map(csvCell).join(",")];
+  const row = new Array(width);
+  for (let i = 0; i < cells.length; i++) {
+    const c = cells[i];
+    row.fill("");
+    row[0] = String(+c.x.toFixed(3)); row[1] = String(+c.y.toFixed(3)); row[2] = String(+c.z.toFixed(3));
+    row[3] = String(+Number(c.dx).toFixed(4)); row[4] = String(+Number(c.dy).toFixed(4)); row[5] = String(+Number(c.dz).toFixed(4));
+    row[6] = csvCell(c.value);
+    if (c.nSamples != null) row[col.N_SAMPLES] = csvCell(c.nSamples);
+    if (c.nHoles != null) row[col.N_HOLES] = csvCell(c.nHoles);
+    if (c.support != null) row[col.SUPPORT] = typeof c.support === "number" ? String(+c.support.toFixed(4)) : csvCell(c.support);
+    if (typeof c.support === "string" && SUPPORT_CODES[c.support] != null) row[col.SUPPORT_CODE] = csvCell(SUPPORT_CODES[c.support]);
+    if (Number.isFinite(c.supportIndex)) row[col.SUPPORT_INDEX] = String(+c.supportIndex.toFixed(4));
+    if (Number.isFinite(c.coverage)) { row[col.COVERAGE] = String(+c.coverage.toFixed(4)); row[col.VOLUME_M3] = String(+(c.coverage * c.dx * c.dy * c.dz).toFixed(3)); }
+    lines.push(row.join(","));
+    if (lines.length >= chunk) { yield lines.join("\r\n"); lines = []; }
+  }
+  if (lines.length) yield lines.join("\r\n");
+}
+export const blockModelCsvTextSync = (model, names) => [...blockModelCsvChunks(model, names)].join("\r\n");
+export async function blockModelCsvText(model, names = "datamine", onProgress = null) {
+  const out = [], n = (model.cells || []).length;
+  let done = 0;
+  for (const part of blockModelCsvChunks(model, names)) {
+    out.push(part);
+    done = Math.min(n, done + 50000);
+    if (onProgress) onProgress(done, n);
+    if (n > 200000) await new Promise((r) => setTimeout(r, 0)); // let the window repaint
+  }
+  return out.join("\r\n");
 }
 
 // Parameter lines for the file header (provenance stamp, #404): whatever the model recorded.
