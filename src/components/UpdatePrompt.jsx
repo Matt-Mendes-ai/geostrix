@@ -5,6 +5,8 @@
 import React from "react";
 import { X, Download, RefreshCw } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
+import { useFocusTrap } from "../lib/useFocusTrap.js"; // TASKS.csv #963
+import { activateOnKey } from "../lib/a11y.js";
 import { overlay, panel, header, btn } from "../lib/modalStyles.js";
 import { downloadUpdate, installUpdate } from "../lib/desktop.js";
 import { version as APP_VERSION } from "../../package.json";
@@ -14,6 +16,7 @@ const RELEASES = "https://github.com/Matt-Mendes-ai/geostrix/releases";
 
 export default function UpdatePrompt({ updater, onLater }) {
   useEscapeKey(onLater);
+  useFocusTrap(); // #963 — Tab stays in the dialog, as in every other modal (#238)
   const { event, version } = updater;
   const notes = version ? `${RELEASES}/tag/v${version}` : `${RELEASES}/latest`;
   const small = { fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", lineHeight: 1.5 };
@@ -24,7 +27,7 @@ export default function UpdatePrompt({ updater, onLater }) {
           <span style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--color-text)", fontSize: "var(--font-size-lg)", fontWeight: 600 }}>
             <RefreshCw size={16} />{" "}{event === "downloaded" ? tr("Update ready to install") : tr("Update available")}
           </span>
-          <X role="button" tabIndex={0} size={16} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onLater} aria-label={tr("Later")} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} size={16} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onLater} aria-label={tr("Later")} />
         </div>
         <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ ...small, color: "var(--color-text)" }}>

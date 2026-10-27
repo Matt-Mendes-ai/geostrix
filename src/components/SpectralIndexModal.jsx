@@ -8,6 +8,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { X, Upload, Rainbow, Search } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #963
 import { overlay, panel, header, label, sel, btn } from "../lib/modalStyles.js";
 import { SENSORS, INDEX_PRESETS, compileExpression, evaluateIndex, VEG_NDVI_MAX } from "../lib/spectralIndices.js";
 import { buildRasterImport } from "../lib/raster.js";
@@ -130,11 +131,11 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
   const tab = (m, text) => <button onClick={() => { setMode(m); setError(null); if (m === "file") pickSensor(sensor); else if (m === "fetch") pickSource(source); }} style={{ ...btn(mode === m), padding: "6px 12px", flex: 1 }} aria-pressed={mode === m}>{text}</button>;
   const canRun = !parsed.error && !busy && (fetchMode ? !!scene : !!file && !unmapped.length);
   return (
-    <div style={overlay} onClick={onClose}>
+    <div style={overlay}>{/* TASKS.csv #968 — no backdrop close (#387: it holds a file, a scene, band choices); Esc or Close */}
       <div style={panel({ width: 560, maxHeight: "90vh" })} role="dialog" aria-modal="true" aria-label={tr("Spectral index")} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <span style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--color-text)", fontSize: "var(--font-size-lg)" }}><Rainbow size={16} />{" "}{tr("Spectral index")}</span>
-          <X role="button" tabIndex={0} size={16} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} aria-label={tr("Close")} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} size={16} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} aria-label={tr("Close")} />
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 8 }}>{tab("fetch", tr("Fetch imagery"))}{tab("file", tr("Use a GeoTIFF file"))}{tab("hyper", tr("Hyperspectral (EMIT)"))}</div>

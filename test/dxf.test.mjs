@@ -223,3 +223,18 @@ test("#550 CIRCLE and ARC become polylines; TEXT / INSERT / MTEXT are counted, n
   assert.match(dxfSkippedText(r.skipped), /^skipped 2 TEXT, 1 INSERT, 1 MTEXT/);
   assert.equal(dxfSkippedText({}), "");
 });
+
+// TASKS.csv #942 — a section body outline (#570, stored without its first vertex repeated) leaves as a CLOSED polyline,
+// and comes back closed through GeoStrix's own DXF reader; contacts and faults stay open
+test("#942 section outlines export as closed polylines; other strings stay open", () => {
+  const sections = [{ name: "N1000", contacts: [
+    { id: "o1", kind: "outline", unit: "VeinA", points: [{ x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 0 }, { x: 10, y: 0, z: -10 }, { x: 0, y: 0, z: -10 }] },
+    { id: "f1", kind: "fault", unit: "F1", points: [{ x: 0, y: 0, z: 5 }, { x: 10, y: 0, z: -20 }] },
+  ] }];
+  const { dxf, count } = sectionStringsToDXF(sections);
+  assert.equal(count, 2);
+  const back = parseDXF409(dxf);
+  assert.deepEqual(back.closed, [true, false]);
+  assert.equal(back.polylines[0].length, 4, "the closing vertex is the closed flag, not a repeated point");
+  assert.equal(kindOf(sections[0].contacts[0]), "outline");
+});

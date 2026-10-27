@@ -7,6 +7,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { X, Globe } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
+import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #963
 import { overlay, panel, header, label, sel, btn } from "../lib/modalStyles.js";
 import { useStore } from "../lib/store.jsx";
 import { toLonLat, isMetricProjectedEpsg } from "../lib/reproject.js";
@@ -150,14 +151,14 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
   const small = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 };
 
   return (<>
-    <div style={overlay} onClick={onClose}>
+    <div style={overlay}>{/* TASKS.csv #968 — no backdrop close (#387: it holds a drawn area, a download, a choice); Esc or Close */}
       <div style={panel({ width: 720, maxHeight: "90vh" })} role="dialog" aria-modal="true" aria-label={tr("Public geochemistry")} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <span style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--color-text)", fontSize: "var(--font-size-lg)" }}><Globe size={16} />{" "}{tr("Public geochemistry")}</span>
-          <X role="button" tabIndex={0} size={16} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} aria-label={tr("Close")} />
+          <X role="button" tabIndex={0} onKeyDown={activateOnKey} size={16} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} aria-label={tr("Close")} />
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={small}>{tr("Government geochemical surveys, free to use under the licence shown. A download asks the agency's service for the samples in the area only, and they import as surface samples with the source and licence on every sample. Nothing of yours is sent.")}</div>
+          <div style={small}>{tr("Government geochemical surveys, free to use under the licence shown. A download asks the agency's service for the samples in the area only, and they import as surface samples with the source and licence on every sample. Only the area is sent (its bounding box, and for the USGS the map quadrangles it covers), never your project's data.")}</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Search: name, agency, country, medium")} aria-label={tr("Search the catalogue")} style={{ ...sel, flex: 1, minWidth: 200 }} />
             <label style={{ ...small, display: "flex", gap: 5, alignItems: "center" }}><input type="checkbox" checked={onlyHere} onChange={(e) => setOnlyHere(e.target.checked)} disabled={!area} />{tr("Only surveys covering the area")}</label>

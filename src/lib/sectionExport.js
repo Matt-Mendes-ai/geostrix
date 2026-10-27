@@ -7,7 +7,7 @@
 // "string" (free interpretation line); contacts drawn before kinds existed are contacts.
 import { buildDXF } from "./dxf.js";
 
-export const STRING_KINDS = { contact: "Upper contact", fault: "Fault", string: "String" };
+export const STRING_KINDS = { contact: "Upper contact", fault: "Fault", string: "String", outline: "Outline" }; // outline: #570 / #942
 export const kindOf = (c) => c.kind || (c.isUpperContact === false ? "string" : "contact");
 
 export function sectionStringsToRows(sections) {
@@ -23,6 +23,10 @@ export function sectionStringsToDXF(sections) {
   const features = [];
   (sections || []).forEach((s) => (s.contacts || []).forEach((c) => {
     const g = (c.points || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite)).map((p) => [p.x, p.y, p.z]);
+    // TASKS.csv #942 — a body outline (#570) is stored without its first vertex repeated; repeating it here makes
+    // buildDXF write a CLOSED polyline (flag 1). It left as an open string: Micromine got an outline missing its closing
+    // edge, and GeoStrix's own DXF import read it back as a hard line.
+    if (kindOf(c) === "outline" && g.length >= 3) g.push(g[0].slice());
     if (g.length >= 2) features.push({ geometry: g, attributes: { hole_id: `${s.name}_${kindOf(c)}_${c.unit || "unnamed"}` } });
   }));
   return { dxf: buildDXF({ features, geomType: "line" }), count: features.length };

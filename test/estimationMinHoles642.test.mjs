@@ -74,3 +74,19 @@ test("#676 blocks where one hole carries >= 95 % of the weight are counted as ef
   const mid = estimateBlockModel(pts, { bounds: { xmin: 29.5, xmax: 31.5, ymin: -1, ymax: 1, zmin: -61, zmax: -59 }, cellSize: { dx: 2, dy: 2, dz: 2 }, method: "idw2", searchRadius: 100, minSamples: 1, maxSamples: 16, minHoles: 2 });
   assert.equal(mid.dominatedCells, 0);
 });
+
+// TASKS.csv #934 — a kriged block reads its dominant hole from the kriging weights; it used Math.pow(d2, null / 2) = 1,
+// i.e. sample lengths, so a block next to one hole with a second hole 60 m away never counted as dominated
+test("#934 ordinary kriging counts a block one hole dominates, from its kriging weights", async () => {
+  const { estimateBlockModel } = await import("../src/lib/estimation.js");
+  const pts = [];
+  for (let i = 0; i < 8; i++) pts.push({ x: 1, y: 0, z: -i * 2 - 1, value: 2 + 0.1 * i, hole_id: "A", length: 2 });
+  for (let i = 0; i < 8; i++) pts.push({ x: 60, y: 0, z: -i * 2 - 1, value: 0.2, hole_id: "B", length: 2 });
+  const variogram = { model: "spherical", nugget: 0.05, sill: 1, range: 40 };
+  const res = estimateBlockModel(pts, { bounds: { xmin: -5, xmax: 5, ymin: -5, ymax: 5, zmin: -5, zmax: 5 }, cellSize: { dx: 10, dy: 10, dz: 10 }, method: "ok", searchRadius: 100, maxSamples: 16, minHoles: 2, variogram });
+  assert.equal(res.cells[0].nHoles, 2);
+  assert.equal(res.dominatedCells, 1);
+  // halfway between the holes neither dominates
+  const mid = estimateBlockModel(pts, { bounds: { xmin: 25.5, xmax: 35.5, ymin: -5, ymax: 5, zmin: -5, zmax: 5 }, cellSize: { dx: 10, dy: 10, dz: 10 }, method: "ok", searchRadius: 100, maxSamples: 16, minHoles: 2, variogram });
+  assert.equal(mid.dominatedCells, 0);
+});

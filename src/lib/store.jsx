@@ -1117,6 +1117,13 @@ export function StoreProvider({ children }) {
     // pre-rename .geox.json files a user already has saved are still selectable/openable here.
     const res = preRead?.content != null ? preRead : await openFile({ filters: [{ name: "GeoStrix Project", extensions: ["json"] }] });
     if (!res.ok) return res;
+    // TASKS.csv #955 — a file already open in a tab (double-clicked again in Explorer, or picked again in File > Open)
+    // switches to that tab: a second tab on the same file let two copies be saved over each other
+    if (res.filePath) {
+      const key = (p) => String(p || "").replace(/\//g, "\\").toLowerCase(); // Windows paths: case and slash insensitive
+      const open = workspaceTabs.find((t) => t.filePath && key(t.filePath) === key(res.filePath));
+      if (open) { if (open.id !== activeTabId) switchToTab(open.id); return { ok: true, alreadyOpen: true }; }
+    }
     try {
       const data = JSON.parse(res.content);
       const check = checkProjectFile(data); // TASKS.csv #342
@@ -1149,7 +1156,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     } catch (err) {
       return { ok: false, error: err.message };
     }
-  }, [loadProjectPayload, activeTabId, workspaceTabs, activeTabDirty]);
+  }, [loadProjectPayload, activeTabId, workspaceTabs, activeTabDirty, switchToTab]);
 
   // Closes a tab, confirming first if it (or its stashed copy) has unsaved changes. Closing the last
   // remaining tab is equivalent to New Project rather than leaving zero tabs, which the tab bar isn't

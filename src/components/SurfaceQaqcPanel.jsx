@@ -238,7 +238,7 @@ function ControlChart({ g, unit }) {
       <line x1={pl} x2={pl} y1={pt} y2={h - pb} style={{ stroke: "var(--color-border)" }} />
       {band(0, undefined, "#009E73")}{band(2, "4 3", "#E69F00")}{band(-2, "4 3", "#E69F00")}{band(3, "2 2", "#D55E00")}{band(-3, "2 2", "#D55E00")}
       {[-3, -2, 0, 2, 3].map((k) => <text key={k} x={pl - 4} y={Y(mean + k * sd) + 3} textAnchor="end" fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{fmt(mean + k * sd)}</text>)}
-      <polyline points={g.points.map((p, i) => `${X(i)},${Y(p.value)}`).join(" ")} style={{ fill: "none", stroke: "var(--color-border-strong, #b8bec8)" }} />
+      <polyline points={g.points.map((p, i) => `${X(i)},${Y(p.value)}`).join(" ")} style={{ fill: "none", stroke: "var(--color-border-light)" }} />
       {g.points.map((p, i) => <circle key={i} cx={X(i)} cy={Y(p.value)} r={3} style={{ fill: p.out3 ? "#D55E00" : p.out2 ? "#E69F00" : "var(--color-text-secondary)" }}><title>{`${p.sample_id} · ${p.batch || ""} · ${fmt(p.value)} ${unit} · z ${p.z.toFixed(1)}`}</title></circle>)}
       <text x={w - pr} y={h - 4} textAnchor="end" fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{tr("in order received ({n} results), {unit}", { n, unit })}</text>
     </svg>

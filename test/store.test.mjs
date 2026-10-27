@@ -116,10 +116,16 @@ test("save -> open round-trips the project and leaves it clean", { timeout: 1500
   await act(async () => { res = await m.s.saveProject(); await wait(20); });
   assert.equal(res.ok, true);
   assert.equal(m.s.activeTabDirty, false, "clean after save");
-  await step(() => m.s.newProject());
+  // #955 — reopening the file while its tab is open only switches to that tab
+  await act(async () => { res = await m.s.openProject(); await wait(20); });
+  assert.equal(res.alreadyOpen, true);
+  assert.equal(m.s.workspaceTabs.length, 1, "no second tab on the same file");
+  // closing the last tab leaves a fresh untitled one (as in the app), and the file is read back from disk
+  await step(() => m.s.closeWorkspaceTab(m.s.activeTabId));
   assert.equal(m.s.collars.length, 0);
   await act(async () => { res = await m.s.openProject(); await wait(20); });
   assert.equal(res.ok, true);
+  assert.equal(res.alreadyOpen, undefined);
   assert.equal(m.s.collars[0].x, 463000.5);
   assert.equal(m.s.layers.litho[0].value, "AND");
   assert.ok(JSON.parse(savedContent).layers.geophys_pts.__compactRows, "saved compact"); // #374

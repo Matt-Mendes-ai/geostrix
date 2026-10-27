@@ -476,10 +476,14 @@ function makeCellEstimator(samplePoints, opts = {}) {
       let share = 1;
       if (method !== "nn" && !used.some((u) => u.d2 < EXACT_D2)) {
         // at most maxSamples entries: per-hole sums in two small reused arrays, no Map per block
-        const pw = method === "mls1" ? 2 : power;
+        // TASKS.csv #934 — a kriged block weighs by its kriging weights (the positive ones: a negative weight is a
+        // screening artefact, not a hole's contribution); it used Math.pow(d2, null / 2) = 1, i.e. sample lengths only,
+        // so a block next to one hole never read as dominated. A kriging fallback is IDW2, as its value is.
+        const kw = method === "ok" && okRes && okRes.weights ? okRes.weights : null;
+        const pw = method === "mls1" || method === "ok" ? 2 : power;
         let tot = 0, nh = 0;
         for (let i = 0; i < used.length; i++) {
-          const w = used[i].len / Math.pow(used[i].d2, pw / 2), h = used[i].hole_id;
+          const w = kw ? Math.max(0, kw[i]) : used[i].len / Math.pow(used[i].d2, pw / 2), h = used[i].hole_id;
           tot += w;
           let k = 0; while (k < nh && shareIds[k] !== h) k++;
           if (k === nh) { shareIds[nh] = h; shareW[nh] = 0; nh++; }
@@ -687,7 +691,7 @@ export function isEstimationMethod(id) { return METHOD_IDS.has(id); }
 export function okEstimate(used, cx, cy, cz, vg) {
   const n = used.length;
   if (!n) return null;
-  if (n === 1) return { value: used[0].value, kv: Math.max(0, 2 * (vg.sill - covAt(Math.sqrt(used[0].d2), vg))), negative: false }; // w = 1, mu = c0 - sill
+  if (n === 1) return { value: used[0].value, kv: Math.max(0, 2 * (vg.sill - covAt(Math.sqrt(used[0].d2), vg))), negative: false, weights: [1] }; // w = 1, mu = c0 - sill
   const m = n + 1;
   const A = new Float64Array(m * m), b = new Float64Array(m);
   for (let i = 0; i < n; i++) {
@@ -727,7 +731,7 @@ export function okEstimate(used, cx, cy, cz, vg) {
   let value = 0, wc = 0, negative = false;
   for (let i = 0; i < n; i++) { value += x[i] * used[i].value; wc += x[i] * b[i]; if (x[i] < -1e-9) negative = true; }
   if (!Number.isFinite(value)) return null;
-  return { value, kv: Math.max(0, vg.sill - wc - x[n]), negative };
+  return { value, kv: Math.max(0, vg.sill - wc - x[n]), negative, weights: x }; // weights: #934 (x[0..n-1]; x[n] is the multiplier)
 }
 function covAt(h, vg) { return h <= 0 ? vg.sill : vg.sill - variogramModelValue(h, vg); }
 

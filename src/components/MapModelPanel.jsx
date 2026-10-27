@@ -121,7 +121,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
         </div>
       ))}
       <div style={{ margin: "8px 0 4px", color: "var(--color-text)" }}>{tr("Stratigraphic order (youngest at the top)")}</div>
-      {!groundAt && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warning, #b7791f)", marginBottom: 4 }}>{tr("No terrain: the contacts' dips cannot be fitted and the model cannot run. Fetch a terrain first.")}</div>}
+      {!groundAt && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4 }}>{tr("No terrain: the contacts' dips cannot be fitted and the model cannot run. Fetch a terrain first.")}</div>}
       {order.map((u, i) => (
         <div key={u} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, marginBottom: 3, fontSize: "var(--font-size-xs)" }}>
           <button onClick={() => move(i, -1)} disabled={!i} aria-label={tr("Move up")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, opacity: i ? 1 : 0.3 }}><ChevronUp size={13} /></button>

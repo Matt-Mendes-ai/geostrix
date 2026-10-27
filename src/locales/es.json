@@ -199,8 +199,6 @@
   "Edit": "Editar",
   "Elevation shift in metres": "Desplazamiento de elevación en metros",
   "Elevation shift": "Desplazamiento de elevación",
-  "Every drawn contact, fault and string as a 3D polyline (layer = section_kind_name) — opens in Vulcan, Datamine, Leapfrog, QGIS": "Cada contacto, falla y línea dibujados como polilínea 3D (capa = sección_tipo_nombre) — se abre en Vulcan, Datamine, Leapfrog, QGIS",
-  "Every drawn contact, fault and string: one row per vertex with real x, y, z": "Cada contacto, falla y línea dibujados: una fila por vértice con x, y, z reales",
   "Export DXF (.dxf)…": "Exportar DXF (.dxf)…",
   "Export GeoPackage (.gpkg)…": "Exportar GeoPackage (.gpkg)…",
   "Export Shapefile (.zip)…": "Exportar Shapefile (.zip)…",
@@ -5899,7 +5897,6 @@
   "{n} string(s) without elevations were left out.": "Se omitieron {n} cadena(s) sin elevaciones.",
   "{n} closed string(s) lie on no saved section (within 10 m) and were left out: draw or define that section first.": "{n} cadena(s) cerradas no están en ninguna sección guardada (a menos de 10 m) y se omitieron: dibuje o defina antes esa sección.",
   "Import interpretation strings from a DXF: open 3D strings become hard lines of this surface, points its picks, and closed strings lying on a saved section become outlines there (named after their DXF layer) for Link into a solid.": "Importar cadenas de interpretación desde un DXF: las cadenas 3D abiertas se vuelven líneas fijas de esta superficie, los puntos sus picks, y las cadenas cerradas que están en una sección guardada se vuelven contornos allí (con el nombre de su capa DXF) para Unir en un sólido.",
-  "Government geochemical surveys, free to use under the licence shown. A download asks the agency's service for the samples in the area only, and they import as surface samples with the source and licence on every sample. Nothing of yours is sent.": "Levantamientos geoquímicos gubernamentales, de uso libre bajo la licencia indicada. Una descarga pide al servicio de la agencia solo las muestras del área, y se importan como muestras superficiales con la fuente y la licencia en cada muestra. No se envía nada suyo.",
   "the project's data, with a margin": "los datos del proyecto, con un margen",
   "Agency page": "Página de la agencia",
   "Area: {w}° × {h}° around {lon}, {lat} ({from})": "Área: {w}° × {h}° alrededor de {lon}, {lat} ({from})",
@@ -6049,5 +6046,8 @@
   "Download and install": "Descargar e instalar",
   "Restart and install": "Reiniciar e instalar",
   "Import drillhole assays straight from a database (PostgreSQL or MySQL): a table or a query": "Importar ensayes de sondajes directamente desde una base de datos (PostgreSQL o MySQL): una tabla o una consulta",
-  "Click a table to import all of it: its row count is checked first, and a table over {n} rows asks before loading. The query box below is for your own SQL.": "Haga clic en una tabla para importarla completa: primero se comprueba su número de filas, y una tabla de más de {n} filas pregunta antes de cargarse. El cuadro de consulta de abajo es para su propio SQL."
+  "Click a table to import all of it: its row count is checked first, and a table over {n} rows asks before loading. The query box below is for your own SQL.": "Haga clic en una tabla para importarla completa: primero se comprueba su número de filas, y una tabla de más de {n} filas pregunta antes de cargarse. El cuadro de consulta de abajo es para su propio SQL.",
+  "Government geochemical surveys, free to use under the licence shown. A download asks the agency's service for the samples in the area only, and they import as surface samples with the source and licence on every sample. Only the area is sent (its bounding box, and for the USGS the map quadrangles it covers), never your project's data.": "Levantamientos geoquímicos gubernamentales, de uso libre bajo la licencia indicada. Una descarga pide al servicio de la agencia solo las muestras del área, que se importan como muestras de superficie con la fuente y la licencia en cada muestra. Solo se envía el área (su rectángulo envolvente y, para el USGS, las hojas cartográficas que cubre), nunca los datos de su proyecto.",
+  "Every drawn contact, fault, string and outline: one row per vertex with real x, y, z": "Cada contacto, falla, línea y contorno dibujado: una fila por vértice con x, y, z reales",
+  "Every drawn contact, fault, string and outline as a 3D polyline (layer = section_kind_name; outlines closed) — opens in Vulcan, Datamine, Leapfrog, Micromine, QGIS": "Cada contacto, falla, línea y contorno dibujado como polilínea 3D (capa = sección_tipo_nombre; contornos cerrados): se abre en Vulcan, Datamine, Leapfrog, Micromine, QGIS"
 }

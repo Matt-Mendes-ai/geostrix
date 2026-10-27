@@ -185,7 +185,7 @@ function LogHistogram({ summary, values, method, unit }) {
   const ticks = []; for (let d = Math.floor(x0); d <= Math.ceil(x1); d++) if (d >= x0 - 1e-9 && d <= x1) ticks.push(d);
   return (
     <svg viewBox={`0 0 ${w} ${h}`} width="100%" role="img" aria-label={tr("Histogram of log values with the candidate thresholds")} style={{ display: "block" }}>
-      {bins.map((c, i) => <rect key={i} x={X(x0 + (i * (x1 - x0)) / nb) + 0.5} y={Y(c)} width={Math.max(0.5, (w - pl - pr) / nb - 1)} height={h - pb - Y(c)} style={{ fill: "var(--color-border-strong, #b8bec8)" }} />)}
+      {bins.map((c, i) => <rect key={i} x={X(x0 + (i * (x1 - x0)) / nb) + 0.5} y={Y(c)} width={Math.max(0.5, (w - pl - pr) / nb - 1)} height={h - pb - Y(c)} style={{ fill: "var(--color-border-light)" }} />)}
       <line x1={pl} x2={w - pr} y1={h - pb} y2={h - pb} style={{ stroke: "var(--color-border)" }} />
       {ticks.map((d) => <text key={d} x={X(d)} y={h - pb + 13} textAnchor="middle" fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{fmt(10 ** d)}</text>)}
       <text x={w - pr} y={h - 3} textAnchor="end" fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{unit}</text>

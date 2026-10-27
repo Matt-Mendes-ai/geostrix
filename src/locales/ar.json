@@ -199,8 +199,6 @@
   "Edit": "تحرير",
   "Elevation shift in metres": "إزاحة الارتفاع بالأمتار",
   "Elevation shift": "إزاحة الارتفاع",
-  "Every drawn contact, fault and string as a 3D polyline (layer = section_kind_name) — opens in Vulcan, Datamine, Leapfrog, QGIS": "كل تماس وصدع وخط مرسوم كخط متعدد ثلاثي الأبعاد (الطبقة = مقطع_نوع_اسم) — يُفتح في Vulcan وDatamine وLeapfrog وQGIS",
-  "Every drawn contact, fault and string: one row per vertex with real x, y, z": "كل تماس وصدع وخط مرسوم: صف لكل رأس بإحداثيات x وy وz الحقيقية",
   "Export DXF (.dxf)…": "تصدير DXF (.dxf)…",
   "Export GeoPackage (.gpkg)…": "تصدير GeoPackage (.gpkg)…",
   "Export Shapefile (.zip)…": "تصدير Shapefile (.zip)…",
@@ -5899,7 +5897,6 @@
   "{n} string(s) without elevations were left out.": "استُبعدت {n} سلسلة بلا ارتفاعات.",
   "{n} closed string(s) lie on no saved section (within 10 m) and were left out: draw or define that section first.": "{n} سلسلة مغلقة لا تقع على أي مقطع محفوظ (ضمن 10 م) فاستُبعدت: ارسم ذلك المقطع أو عرّفه أولًا.",
   "Import interpretation strings from a DXF: open 3D strings become hard lines of this surface, points its picks, and closed strings lying on a saved section become outlines there (named after their DXF layer) for Link into a solid.": "استورد سلاسل التفسير من ملف DXF: تصبح السلاسل ثلاثية الأبعاد المفتوحة خطوطًا ثابتة لهذا السطح، والنقاط نقاطه الملتقطة، والسلاسل المغلقة الواقعة على مقطع محفوظ محيطات عليه (باسم طبقة DXF) للربط في مجسم.",
-  "Government geochemical surveys, free to use under the licence shown. A download asks the agency's service for the samples in the area only, and they import as surface samples with the source and licence on every sample. Nothing of yours is sent.": "مسوح جيوكيميائية حكومية، مجانية الاستخدام وفق الترخيص المبيّن. يطلب التنزيل من خدمة الجهة عينات المنطقة فقط، وتُستورد كعينات سطحية مع المصدر والترخيص على كل عينة. لا يُرسل شيء من بياناتك.",
   "the project's data, with a margin": "بيانات المشروع، مع هامش",
   "Agency page": "صفحة الجهة",
   "Area: {w}° × {h}° around {lon}, {lat} ({from})": "المنطقة: {w}° × {h}° حول {lon}، {lat} ({from})",
@@ -6049,5 +6046,8 @@
   "Download and install": "تنزيل وتثبيت",
   "Restart and install": "إعادة التشغيل والتثبيت",
   "Import drillhole assays straight from a database (PostgreSQL or MySQL): a table or a query": "استيراد تحاليل ثقوب الحفر مباشرة من قاعدة بيانات (PostgreSQL أو MySQL): جدول أو استعلام",
-  "Click a table to import all of it: its row count is checked first, and a table over {n} rows asks before loading. The query box below is for your own SQL.": "انقر على جدول لاستيراده كاملًا: يُتحقق من عدد صفوفه أولًا، والجدول الذي يزيد على {n} صف يسأل قبل التحميل. مربع الاستعلام أدناه لاستعلام SQL الخاص بك."
+  "Click a table to import all of it: its row count is checked first, and a table over {n} rows asks before loading. The query box below is for your own SQL.": "انقر على جدول لاستيراده كاملًا: يُتحقق من عدد صفوفه أولًا، والجدول الذي يزيد على {n} صف يسأل قبل التحميل. مربع الاستعلام أدناه لاستعلام SQL الخاص بك.",
+  "Government geochemical surveys, free to use under the licence shown. A download asks the agency's service for the samples in the area only, and they import as surface samples with the source and licence on every sample. Only the area is sent (its bounding box, and for the USGS the map quadrangles it covers), never your project's data.": "مسوح جيوكيميائية حكومية، حرة الاستخدام بموجب الترخيص المبين. يطلب التنزيل من خدمة الجهة عينات المنطقة فقط، وتُستورد كعينات سطحية مع المصدر والترخيص على كل عينة. لا يُرسل إلا المنطقة (مستطيلها المحيط، وللمسح الجيولوجي الأمريكي اللوحات الخرائطية التي تغطيها)، ولا تُرسل بيانات مشروعك أبدًا.",
+  "Every drawn contact, fault, string and outline: one row per vertex with real x, y, z": "كل تماس وصدع وخط ومحيط مرسوم: صف لكل رأس مع x و y و z الحقيقية",
+  "Every drawn contact, fault, string and outline as a 3D polyline (layer = section_kind_name; outlines closed) — opens in Vulcan, Datamine, Leapfrog, Micromine, QGIS": "كل تماس وصدع وخط ومحيط مرسوم كخط متعدد ثلاثي الأبعاد (الطبقة = المقطع_النوع_الاسم؛ المحيطات مغلقة): يُفتح في Vulcan و Datamine و Leapfrog و Micromine و QGIS"
 }
