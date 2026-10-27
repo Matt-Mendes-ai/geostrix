@@ -6192,5 +6192,8 @@
   "contacts and bedding (none logged: choose a type)": "contacts et stratification (aucun relevé : choisissez un type)",
   "any type (fractures and veins too)": "tout type (fractures et filons compris)",
   "Downhole dip guide: the structure log has no contact or bedding code, so no guide is applied. Choose the type that records the contact.": "Guide de pendage en forage : le journal structural n'a aucun code de contact ou de stratification, donc aucun guide n'est appliqué. Choisissez le type qui enregistre le contact.",
-  "Readings used: {types}.": "Mesures utilisées : {types}."
+  "Readings used: {types}.": "Mesures utilisées : {types}.",
+  "Draw the key under the section, in the window and in the PNG, SVG and PDF exports. Turn it off to build the figure in Layout with its own legend.": "Dessine la légende sous la coupe, dans la fenêtre et dans les exports PNG, SVG et PDF. Désactivez-la pour composer la figure dans Mise en page avec sa propre légende.",
+  "LEGEND": "LÉGENDE",
+  "+ {n} more not shown: build the figure in Layout for the full key": "+ {n} de plus non affichés : composez la figure dans Mise en page pour la légende complète"
 }

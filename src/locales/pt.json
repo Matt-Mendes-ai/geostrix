@@ -6192,5 +6192,8 @@
   "contacts and bedding (none logged: choose a type)": "contatos e acamamento (nenhum registrado: escolha um tipo)",
   "any type (fractures and veins too)": "qualquer tipo (fraturas e veios também)",
   "Downhole dip guide: the structure log has no contact or bedding code, so no guide is applied. Choose the type that records the contact.": "Guia de mergulho no furo: o registro estrutural não tem código de contato ou acamamento, então nenhuma guia é aplicada. Escolha o tipo que registra o contato.",
-  "Readings used: {types}.": "Leituras usadas: {types}."
+  "Readings used: {types}.": "Leituras usadas: {types}.",
+  "Draw the key under the section, in the window and in the PNG, SVG and PDF exports. Turn it off to build the figure in Layout with its own legend.": "Desenha a legenda sob a seção, na janela e nas exportações PNG, SVG e PDF. Desative para montar a figura na Prancha com a própria legenda.",
+  "LEGEND": "LEGENDA",
+  "+ {n} more not shown: build the figure in Layout for the full key": "+ {n} a mais não mostrados: monte a figura na Prancha para a legenda completa"
 }
