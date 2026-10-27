@@ -57,10 +57,36 @@ test("#844 exports: GPX and KML waypoints for the sites, CSV and field sheet wit
   const ll = (x, y) => [-121 + x / 1e5, 52 + y / 1e5];
   const gpx = planGpx(rows, g.stations, ll, "t");
   assert.equal((gpx.match(/<wpt /g) || []).length, g.stations.length, "QC inserts have no waypoint");
-  assert.match(planKml(rows, g.stations, ll, "t"), /<Placemark><name>S001<\/name><description>L\+0 S\+0<\/description><Point><coordinates>-121\.000000,52\.000000,0/);
+  // #1018 — a soil grid's KML: the lines as LineStrings, the stations (pins) in a folder that starts hidden
+  const kml = planKml(rows, g.stations, ll, "t");
+  assert.match(kml, /<Placemark><name>Line \+0<\/name>.*<LineString><tessellate>1<\/tessellate><coordinates>-121\.000000,52\.000000,0 -121\.000000,52\.002500,0 -121\.000000,52\.005000,0<\/coordinates>/);
+  assert.match(kml, /<Folder><name>Sample stations<\/name><visibility>0<\/visibility>/);
+  assert.match(kml, /<Placemark><visibility>0<\/visibility><name>S001<\/name><description>L\+0 S\+0<\/description><Point><coordinates>-121\.000000,52\.000000,0/);
+  assert.match(gpx, /<trk><name>Line \+0<\/name><trkseg><trkpt lat="52\.000000" lon="-121\.000000"\/>/);
   const csv = planCsvRows(rows, g.stations, ll);
   assert.equal(csv.find((r) => r.type === "blank").site, "");
   const html = planFieldSheet(rows, g.stations, { title: "Grid" });
   assert.match(html, /<h2>Line \+0<\/h2>/);
   assert.match(html, /class="qc"/);
+});
+
+test("#1018 soil lines: one per traverse in station order, split at a gap, read back by the KML importer as lines; stream sites stay points", async () => {
+  const { soilLines } = await import("../src/lib/surveyPlan.js");
+  const { parseKML } = await import("../src/lib/kml.js");
+  const ll = (x, y) => [-121 + x / 1e5, 52 + y / 1e5];
+  // line 0 with stations 0, 25, 50 then a gap (a concave area) and 150, 175; line 100 with 0..50
+  const st = (line, station) => ({ line, station, name: `L${line} S${station}`, x: line, y: station });
+  const sites = [st(0, 50), st(0, 0), st(0, 25), st(0, 175), st(0, 150), st(100, 0), st(100, 25), st(100, 50)];
+  const L = soilLines(sites);
+  assert.deepEqual(L.map((l) => [l.name, l.stations.map((s) => s.station)]), [["Line +0 (a)", [0, 25, 50]], ["Line +0 (b)", [150, 175]], ["Line +100", [0, 25, 50]]]);
+  const rows = numberSamples(sites);
+  const parsed = parseKML(planKml(rows, sites, ll, "grid"));
+  const feats = parsed.features || parsed;
+  assert.deepEqual(feats.filter((f) => f.geomType === "line").map((f) => [f.name, f.coords.length]), [["Line +0 (a)", 3], ["Line +0 (b)", 2], ["Line +100", 3]]);
+  assert.equal(feats.filter((f) => f.geomType === "point").length, sites.length); // the stations, in the hidden folder
+  // stream sites (no line): points, as before, no folders
+  const stream = [{ name: "A", x: 1, y: 2 }, { name: "B", x: 3, y: 4 }];
+  const sk = planKml(numberSamples(stream), stream, ll, "s");
+  assert.equal((sk.match(/<Point>/g) || []).length, 2);
+  assert.ok(!/LineString|<Folder>/.test(sk));
 });

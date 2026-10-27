@@ -5567,7 +5567,7 @@
   "Every N samples": "Cada N muestras",
   "Field sheet (print)": "Hoja de campo (imprimir)",
   "First number": "Primer número",
-  "GPX and KML carry the sample sites (WGS 84) for a handheld GPS or a phone; QC inserts are in the CSV and the field sheet, in the order they go into the sample stream. Duplicates are taken at the site of the sample they follow.": "GPX y KML llevan los sitios de muestreo (WGS 84) para un GPS de mano o un teléfono; las inserciones de QC están en el CSV y en la hoja de campo, en el orden en que entran en la secuencia. Los duplicados se toman en el sitio de la muestra a la que siguen.",
+  "GPX and KML are in WGS 84 for a handheld GPS or a phone. A soil grid's KML shows the lines (the numbered stations are in a folder that starts hidden); its GPX has the lines as tracks and the stations as waypoints. Stream sites are points. QC inserts are in the CSV and the field sheet, in the order they go into the sample stream. Duplicates are taken at the site of the sample they follow.": "GPX y KML están en WGS 84 para un GPS de mano o un teléfono. El KML de una malla de suelos muestra las líneas (las estaciones numeradas están en una carpeta que empieza oculta); su GPX tiene las líneas como tracks y las estaciones como waypoints. Los sitios de sedimentos de arroyo son puntos. Los controles QC están en el CSV y la hoja de campo, en el orden en que entran en la secuencia de muestras. Los duplicados se toman en el sitio de la muestra a la que siguen.",
   "Insert name": "Nombre de la inserción",
   "Line azimuth (°)": "Azimut de las líneas (°)",
   "Line spacing (m)": "Espaciado entre líneas (m)",

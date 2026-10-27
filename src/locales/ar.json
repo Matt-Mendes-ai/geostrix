@@ -5567,7 +5567,7 @@
   "Every N samples": "كل N عينة",
   "Field sheet (print)": "ورقة الميدان (طباعة)",
   "First number": "الرقم الأول",
-  "GPX and KML carry the sample sites (WGS 84) for a handheld GPS or a phone; QC inserts are in the CSV and the field sheet, in the order they go into the sample stream. Duplicates are taken at the site of the sample they follow.": "يحمل GPX وKML مواقع العينات (WGS 84) لجهاز GPS محمول أو هاتف؛ وإدراجات ضبط الجودة في CSV وورقة الميدان بترتيب دخولها في سلسلة العينات. تؤخذ المكررات في موقع العينة التي تليها.",
+  "GPX and KML are in WGS 84 for a handheld GPS or a phone. A soil grid's KML shows the lines (the numbered stations are in a folder that starts hidden); its GPX has the lines as tracks and the stations as waypoints. Stream sites are points. QC inserts are in the CSV and the field sheet, in the order they go into the sample stream. Duplicates are taken at the site of the sample they follow.": "ملفات GPX وKML بنظام WGS 84 لجهاز GPS محمول أو هاتف. يعرض KML لشبكة التربة الخطوط (المحطات المرقّمة في مجلد يبدأ مخفيًا)؛ ويحتوي GPX على الخطوط كمسارات والمحطات كنقاط طريق. مواقع رواسب الجداول نقاط. ضوابط الجودة في ملف CSV وورقة الميدان، بالترتيب الذي تدخل به تسلسل العينات. تؤخذ المكررات من موقع العينة التي تليها.",
   "Insert name": "اسم الإدراج",
   "Line azimuth (°)": "سمت الخطوط (°)",
   "Line spacing (m)": "المسافة بين الخطوط (م)",

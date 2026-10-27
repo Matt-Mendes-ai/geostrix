@@ -108,13 +108,45 @@ export function numberSamples(sites, { prefix = "", start = 1, digits = 5, qc = 
 
 // ---------- exports ----------
 const esc = (s) => String(s ?? "").replace(/[<>&"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]));
+// TASKS.csv #1018 — Matt: "for soil lines exported to kml, I want lines exported not pins". A soil grid's traverse lines,
+// each a run of stations in station order, split where a line leaves and re-enters a concave area (a gap of more than
+// 1.5 x the line's usual station spacing). Stream sites have no line: none.
+export function soilLines(sites) {
+  const by = new Map();
+  sites.forEach((s) => { if (s && s.line != null && Number.isFinite(s.station) && Number.isFinite(s.x) && Number.isFinite(s.y)) (by.get(s.line) || by.set(s.line, []).get(s.line)).push(s); });
+  const out = [];
+  for (const [line, list] of [...by.entries()].sort((a, b) => a[0] - b[0])) {
+    list.sort((a, b) => a.station - b.station);
+    const gaps = list.slice(1).map((s, i) => s.station - list[i].station).sort((a, b) => a - b);
+    const usual = gaps.length ? gaps[Math.floor(gaps.length / 2)] : 0;
+    let run = [list[0]], part = 0;
+    const flush = () => { if (run.length >= 2) out.push({ line, part: part++, name: `Line ${line >= 0 ? "+" : ""}${line}`, stations: run }); };
+    for (let i = 1; i < list.length; i++) {
+      if (usual > 0 && list[i].station - list[i - 1].station > 1.5 * usual) { flush(); run = []; }
+      run.push(list[i]);
+    }
+    flush();
+  }
+  // a line split in two keeps its name with a part letter
+  const count = new Map(); out.forEach((l) => count.set(l.line, (count.get(l.line) || 0) + 1));
+  out.forEach((l) => { if (count.get(l.line) > 1) l.name += ` (${String.fromCharCode(97 + l.part)})`; });
+  return out;
+}
+
 export function planGpx(rows, sites, toLonLat, name) {
   const w = rows.filter((r) => r.site != null && r.kind === "sample").map((r) => { const s = sites[r.site]; const [lon, lat] = toLonLat(s.x, s.y); return `  <wpt lat="${lat.toFixed(6)}" lon="${lon.toFixed(6)}"><name>${esc(r.sample_id)}</name>${s.name ? `<desc>${esc(s.name)}</desc>` : ""}</wpt>`; });
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="GeoStrix" xmlns="http://www.topografix.com/GPX/1/1">\n  <metadata><name>${esc(name)}</name></metadata>\n${w.join("\n")}\n</gpx>\n`;
+  // #1018 — a soil grid's lines as tracks (to walk), beside the stations as waypoints (to find)
+  const trk = soilLines(sites).map((l) => `  <trk><name>${esc(l.name)}</name><trkseg>${l.stations.map((s) => { const [lon, lat] = toLonLat(s.x, s.y); return `<trkpt lat="${lat.toFixed(6)}" lon="${lon.toFixed(6)}"/>`; }).join("")}</trkseg></trk>`);
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="GeoStrix" xmlns="http://www.topografix.com/GPX/1/1">\n  <metadata><name>${esc(name)}</name></metadata>\n${[...w, ...trk].join("\n")}\n</gpx>\n`;
 }
 export function planKml(rows, sites, toLonLat, name) {
-  const p = rows.filter((r) => r.site != null && r.kind === "sample").map((r) => { const s = sites[r.site]; const [lon, lat] = toLonLat(s.x, s.y); return `    <Placemark><name>${esc(r.sample_id)}</name>${s.name ? `<description>${esc(s.name)}</description>` : ""}<Point><coordinates>${lon.toFixed(6)},${lat.toFixed(6)},0</coordinates></Point></Placemark>`; });
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>${esc(name)}</name>\n${p.join("\n")}\n  </Document>\n</kml>\n`;
+  const p = rows.filter((r) => r.site != null && r.kind === "sample").map((r) => { const s = sites[r.site]; const [lon, lat] = toLonLat(s.x, s.y); return `      <Placemark><name>${esc(r.sample_id)}</name>${s.name ? `<description>${esc(s.name)}</description>` : ""}<Point><coordinates>${lon.toFixed(6)},${lat.toFixed(6)},0</coordinates></Point></Placemark>`; });
+  const lines = soilLines(sites);
+  if (!lines.length) return `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>${esc(name)}</name>\n${p.map((x) => x.slice(2)).join("\n")}\n  </Document>\n</kml>\n`;
+  // #1018 — a soil grid: the lines as LineStrings (shown), the sample stations in a folder that starts hidden, so Google
+  // Earth or a phone shows the lines to walk, not a field of pins; the numbered stations are one tick away
+  const ls = lines.map((l) => `      <Placemark><name>${esc(l.name)}</name><description>${esc(`${l.stations.length} stations, ${l.stations[0].name} to ${l.stations[l.stations.length - 1].name}`)}</description><styleUrl>#soilLine</styleUrl><LineString><tessellate>1</tessellate><coordinates>${l.stations.map((s) => { const [lon, lat] = toLonLat(s.x, s.y); return `${lon.toFixed(6)},${lat.toFixed(6)},0`; }).join(" ")}</coordinates></LineString></Placemark>`);
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2">\n  <Document>\n    <name>${esc(name)}</name>\n    <Style id="soilLine"><LineStyle><color>ff2f6bd8</color><width>3</width></LineStyle></Style>\n    <Folder><name>Soil lines</name>\n${ls.join("\n")}\n    </Folder>\n    <Folder><name>Sample stations</name><visibility>0</visibility>\n${p.map((x) => x.replace("<Placemark>", "<Placemark><visibility>0</visibility>")).join("\n")}\n    </Folder>\n  </Document>\n</kml>\n`;
 }
 export function planCsvRows(rows, sites, toLonLat) {
   return rows.map((r) => {

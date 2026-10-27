@@ -151,7 +151,7 @@ export default function SurveyPlannerPanel({ onClose }) {
                 <button type="button" style={dl} onClick={() => save("html", planFieldSheet(rows, plan.sites, { title, crs: project?.epsg ? `${crsName(project.epsg) || ""} (EPSG:${project.epsg})` : "" }), "HTML")} disabled={!rows.length}><Download size={14} />{tr("Field sheet (print)")}</button>
               </div>
               {msg && <div style={note}>{msg}</div>}
-              <div style={note}>{tr("GPX and KML carry the sample sites (WGS 84) for a handheld GPS or a phone; QC inserts are in the CSV and the field sheet, in the order they go into the sample stream. Duplicates are taken at the site of the sample they follow.")}</div>
+              <div style={note}>{tr("GPX and KML are in WGS 84 for a handheld GPS or a phone. A soil grid's KML shows the lines (the numbered stations are in a folder that starts hidden); its GPX has the lines as tracks and the stations as waypoints. Stream sites are points. QC inserts are in the CSV and the field sheet, in the order they go into the sample stream. Duplicates are taken at the site of the sample they follow.")}</div>
             </>
           )}
         </div>
