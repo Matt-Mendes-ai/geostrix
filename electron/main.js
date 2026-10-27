@@ -33,7 +33,10 @@ const { autoUpdater } = require("electron-updater");
 // effectively do by default on most setups.
 try { dns.setDefaultResultOrder("ipv4first"); } catch (_) { /* Node < 17 fallback: silently keep default order */ }
 
-const isDev = process.env.NODE_ENV === "development";
+// TASKS.csv #1016 (security review) — an INSTALLED (packaged) GeoStrix never runs in dev mode, whatever the environment
+// says: NODE_ENV=development in a user's environment used to load http://localhost:5173 with the full IPC bridge, skip
+// the app:// handler and the single-instance lock, and open DevTools
+const isDev = !app.isPackaged && process.env.NODE_ENV === "development";
 
 let mainWindow = null;
 const childWindows = new Map(); // id -> BrowserWindow (cross-section pop-outs)
