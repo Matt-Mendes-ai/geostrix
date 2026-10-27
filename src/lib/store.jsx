@@ -1141,7 +1141,8 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
       const openedFileName = res.filePath ? res.filePath.split(/[\\/]/).pop() : res.name;
       const displayName = fileNameToProjectName(openedFileName) || data.project?.name || "Untitled project";
       // #914 — the one empty, untouched tab a fresh start shows is replaced rather than left beside the project
-      const replaceEmpty = workspaceTabs.length === 1 && !activeTabDirty && !autosaveRef.current?.hasWork;
+      // #983 — and never a tab that is itself an opened file, even an empty one (a second launch file replaced the first)
+      const replaceEmpty = workspaceTabs.length === 1 && !activeTabDirty && !autosaveRef.current?.hasWork && !workspaceTabs.find((t) => t.id === activeTabId)?.filePath;
       setWorkspaceTabs([
         ...(replaceEmpty ? [] : workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, payload: current, dirty: activeTabDirty } : t))),
         { id, name: displayName, payload: null, dirty: false, filePath: res.filePath || null }, // #553

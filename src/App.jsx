@@ -247,12 +247,23 @@ export default function App() {
   const openProjectRef = useRef(openProject);
   openProjectRef.current = openProject;
   useEffect(() => {
+    // #983 — files are queued in the main process: take them one at a time, letting each opened tab render before the
+    // next (openProject reads the tab list of the render it came from)
+    let taking = false;
     const take = async () => {
-      const f = await takeLaunchFile();
-      if (!f?.ok) { if (f?.error) window.alert(tr("Couldn't open that file: {error}", { error: f.error })); return; }
-      const res = await openProjectRef.current(f);
-      if (res.ok) setActive("viewer");
-      else if (res.error) window.alert(tr("Couldn't open that file: {error}", { error: res.error }));
+      if (taking) return;
+      taking = true;
+      try {
+        for (;;) {
+          const f = await takeLaunchFile();
+          if (!f?.ok) { if (f?.error) window.alert(tr("Couldn't open that file: {error}", { error: f.error })); if (!f?.more) return; continue; }
+          const res = await openProjectRef.current(f);
+          if (res.ok) setActive("viewer");
+          else if (res.error) window.alert(tr("Couldn't open that file: {error}", { error: res.error }));
+          if (!f.more) return;
+          await new Promise((r) => setTimeout(r, 100));
+        }
+      } finally { taking = false; }
     };
     take();
     return onLaunchFile(take);

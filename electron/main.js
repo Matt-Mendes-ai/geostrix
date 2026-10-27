@@ -1327,7 +1327,9 @@ if (!gotSingleInstanceLock) app.quit();
 // Windows starts GeoStrix with the file's path on the command line - or, when GeoStrix is already running, hands that
 // command line to the running copy through second-instance - and both were ignored, so GeoStrix came up empty. The
 // first .json argument that is an existing file is kept here until the window takes it (take-launch-file below).
-let pendingLaunchFile = null;
+// TASKS.csv #983 — a queue, not one slot: two files opened together in Explorer (two processes within a second), or a file
+// handed over while the window is still starting, were dropped silently
+const pendingLaunchFiles = [];
 function launchFileFromArgv(argv) {
   for (const a of (argv || []).slice(1)) {
     if (!a || a.startsWith("-") || !/\.json$/i.test(a)) continue;
@@ -1335,28 +1337,29 @@ function launchFileFromArgv(argv) {
   }
   return null;
 }
-pendingLaunchFile = launchFileFromArgv(process.argv);
+{ const f = launchFileFromArgv(process.argv); if (f) pendingLaunchFiles.push(f); }
 app.on("second-instance", (_e, argv) => {
+  const file = launchFileFromArgv(argv); // #914; queued before the window check (#983): the window takes it when ready
+  if (file && !pendingLaunchFiles.includes(file)) pendingLaunchFiles.push(file);
   if (!mainWindow || mainWindow.isDestroyed()) return;
   if (mainWindow.isMinimized()) mainWindow.restore();
   mainWindow.show();
   mainWindow.focus();
-  const file = launchFileFromArgv(argv); // #914
-  if (file) { pendingLaunchFile = file; mainWindow.webContents.send("launch-file"); }
+  if (file) mainWindow.webContents.send("launch-file");
 });
 // #914 — the window asks once it is ready (and again on "launch-file"); the path counts as one the user chose, so
 // Save writes back to it, as after File > Open (#553)
 ipcMain.handle("take-launch-file", async () => {
-  const file = pendingLaunchFile;
-  pendingLaunchFile = null;
+  const file = pendingLaunchFiles.shift(); // #983 — one per call; `more` says another is waiting
   if (!file) return { ok: false };
+  const more = pendingLaunchFiles.length > 0;
   try {
     const { size } = await fs.promises.stat(file);
-    if (size > 512 * 1024 * 1024) return { ok: false, error: `That file is ${Math.round(size / 1048576)} MB — larger than GeoStrix opens (512 MB).` };
+    if (size > 512 * 1024 * 1024) return { ok: false, more, error: `That file is ${Math.round(size / 1048576)} MB — larger than GeoStrix opens (512 MB).` };
     const content = await fs.promises.readFile(file, "utf8");
     userChosenPaths.add(pathKey(file));
-    return { ok: true, filePath: file, content, name: path.basename(file) };
-  } catch (err) { return { ok: false, error: err.message }; }
+    return { ok: true, more, filePath: file, content, name: path.basename(file) };
+  } catch (err) { return { ok: false, more, error: err.message }; }
 });
 
 // TASKS.csv #591 — small app preferences that the main process needs before any window exists (userData/prefs.json)
