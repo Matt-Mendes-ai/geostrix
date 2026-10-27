@@ -125,6 +125,7 @@ import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // T
 import { isMarkedQcRow } from "../lib/qaqc.js"; // TASKS.csv #601
 import { loadGpkg, groupShapefileParts } from "../lib/viewer/importHelpers.js"; // TASKS.csv #445 step 3; groupShapefileParts #600
 import { useImportPipeline } from "./viewer/useImportPipeline.js"; // TASKS.csv #445 step 3
+import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1034 — the drillhole tables' stamp
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -6060,6 +6061,31 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       setNotices((p) => [...p, errorNotice(tr("DXF export failed: {message}", { message: err.message }))]);
     }
   };
+  // TASKS.csv #1034 (review #1016) — the drillhole database as tables the CSV importer reads back unaided (lib/drillholeTables.js):
+  // one layer as a CSV, or collars + survey + every log as a .zip of CSVs.
+  const exportDrillholeTables = async (kind, key, label) => {
+    try {
+      const T = await import("../lib/drillholeTables.js"); // on demand
+      const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021 — the stamp's CRS
+      if (kind === "all") {
+        const files = T.drillholeTableFiles({ collars, survey, layers, epsg, version: APP_VERSION });
+        if (!files.length) { setNotices((p) => [...p, notice("Nothing to export: no collars, survey or hole logs are loaded.")]); return; }
+        const { buildZip } = await import("../lib/shapefile.js");
+        const enc = new TextEncoder();
+        const zip = buildZip(files.map((f) => ({ name: f.name, data: enc.encode(`﻿${f.text}`) }))); // BOM: Excel reads accents (#1097)
+        const res = await saveFile({ quiet: true, suggestedName: `${(project?.name || "drillholes").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}_tables.zip`, filters: [{ name: "ZIP of CSV tables", extensions: ["zip"] }], content: uint8ToBase64(zip), encoding: "base64" });
+        if (!res?.ok) { if (res?.error) throw new Error(res.error); return; }
+        setNotices((p) => [...p, notice("Exported {n} drillhole tables ({files}) as CSV in a .zip. Dips are negative = down and azimuths grid, so they import back with the defaults.", { n: files.length, files: files.map((f) => f.name).join(", ") })]);
+        return;
+      }
+      const files = T.drillholeTableFiles({ collars: kind === "collars" ? collars : [], survey: kind === "survey" ? survey : [], layers: kind === "layer" ? { [key]: layers[key] || [] } : {}, epsg, version: APP_VERSION });
+      if (!files.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — it has no rows.", { label })]); return; }
+      const res = await saveFile({ quiet: "success", suggestedName: files[0].name, filters: [{ name: "CSV", extensions: ["csv"] }], content: files[0].text });
+      if (res?.ok) setNotices((p) => [...p, notice("Exported \"{label}\" as a CSV table that imports back with the defaults (dips negative = down, azimuths grid).", { label })]);
+    } catch (err) {
+      setNotices((p) => [...p, errorNotice(tr("Table export failed: {message}", { message: err.message }))]);
+    }
+  };
   // TASKS.csv #184 — a layer key "has data" once its rows array is non-empty (geophys_pts uses the
   // same `layers[key]` array as every other key, so this one check covers all ten ALL_LAYER_KEYS).
   // Used to hide empty layer rows from the sidebar (see the Layers section render below) so an
@@ -8364,6 +8390,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <ContextItem label={tr("Export Shapefile (.zip)…")} onClick={() => { exportVectorShapefile(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Export GeoPackage (.gpkg)…")} onClick={() => { exportVectorGeoPackage(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Export DXF (.dxf)…")} onClick={() => { exportVectorDXF(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
+            {layerContextMenu.key !== "geophys_pts" && <ContextItem label={tr("Export CSV table (imports back)…")} onClick={() => { exportDrillholeTables(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />}
+            <ContextItem label={tr("Export all drillhole tables (.zip of CSV)…")} onClick={() => { exportDrillholeTables("all"); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Inspect / edit table…")} onClick={() => { setAttrTableTarget({ kind: vectorKind, key: layerContextMenu.key, label: layerContextMenu.label }); setLayerContextMenu(null); }} />
             {!isVector && <>
               {/* TASKS.csv #76 — sort this layer into a named group (or back out of one). */}

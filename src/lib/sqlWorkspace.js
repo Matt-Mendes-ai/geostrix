@@ -51,7 +51,9 @@ function createCollarsTable(db, collars) {
   if (!collars.length) return;
   db.run(`CREATE TABLE collars (hole_id TEXT, x REAL, y REAL, z REAL, azimuth REAL, dip REAL, length REAL);`);
   const stmt = db.prepare("INSERT INTO collars VALUES (?,?,?,?,?,?,?)");
-  collars.forEach((c) => stmt.run([c.hole_id, c.x, c.y, c.z, c.azimuth ?? null, c.dip ?? null, c.length ?? null]));
+  // TASKS.csv #1034 — dip negative = down, as every user-facing file is (stored positive-down inside the app, #190); the
+  // table's CSV export put 60 for a -60 hole, which the default re-import turned upward
+  collars.forEach((c) => stmt.run([c.hole_id, c.x, c.y, c.z, c.azimuth ?? null, Number.isFinite(c.dip) ? -c.dip : null, c.length ?? null]));
   stmt.free();
 }
 
@@ -59,7 +61,7 @@ function createSurveyTable(db, survey) {
   if (!survey.length) return;
   db.run(`CREATE TABLE survey (hole_id TEXT, depth REAL, azimuth REAL, dip REAL);`);
   const stmt = db.prepare("INSERT INTO survey VALUES (?,?,?,?)");
-  survey.forEach((s) => stmt.run([s.hole_id, s.depth, s.azimuth, s.dip]));
+  survey.forEach((s) => stmt.run([s.hole_id, s.depth, s.azimuth, Number.isFinite(s.dip) ? -s.dip : null])); // #1034 — negative = down
   stmt.free();
 }
 

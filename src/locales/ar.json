@@ -6175,5 +6175,12 @@
   "The file": "الملف",
   "This export places your data on Earth (latitude / longitude, a .prj, a GeoTIFF's coordinate system), but the project's coordinate system was never chosen — only a placeholder is set, and the file would put your data in the wrong place. Choose it first.": "هذا التصدير يضع بياناتك على الأرض (خط عرض / خط طول، ملف .prj، نظام إحداثيات GeoTIFF)، لكن نظام إحداثيات المشروع لم يُختر قط: لا يوجد سوى نظام مؤقت، وسيضع الملف بياناتك في المكان الخطأ. اختره أولًا.",
   "EPSG:{epsg} could not be converted to latitude / longitude, so no GPS file was written.": "تعذّر تحويل EPSG:{epsg} إلى خط عرض / خط طول، لذا لم يُكتب أي ملف GPS.",
-  "{n} terrain nodes had no data (filled for display only) and are written as no-data (-9999).": "{n} من عُقد التضاريس بلا بيانات (مُلئت للعرض فقط) وتُكتب كقيمة بلا بيانات (-9999)."
+  "{n} terrain nodes had no data (filled for display only) and are written as no-data (-9999).": "{n} من عُقد التضاريس بلا بيانات (مُلئت للعرض فقط) وتُكتب كقيمة بلا بيانات (-9999).",
+  "Nothing to export: no collars, survey or hole logs are loaded.": "لا شيء للتصدير: لم تُحمَّل أطواق أو مسوحات أو سجلات آبار.",
+  "Exported {n} drillhole tables ({files}) as CSV in a .zip. Dips are negative = down and azimuths grid, so they import back with the defaults.": "صُدّرت {n} جداول آبار ({files}) بصيغة CSV داخل ملف ‎.zip. الميل سالب = للأسفل والسمت شبكي، لذا تُستورد مجددًا بالإعدادات الافتراضية.",
+  "Nothing to export for \"{label}\" — it has no rows.": "لا شيء للتصدير من \"{label}\": لا توجد صفوف.",
+  "Exported \"{label}\" as a CSV table that imports back with the defaults (dips negative = down, azimuths grid).": "صُدّر \"{label}\" كجدول CSV يُستورد مجددًا بالإعدادات الافتراضية (الميل سالب = للأسفل، السمت شبكي).",
+  "Table export failed: {message}": "فشل تصدير الجدول: {message}",
+  "Export CSV table (imports back)…": "تصدير جدول CSV (قابل لإعادة الاستيراد)…",
+  "Export all drillhole tables (.zip of CSV)…": "تصدير كل جداول الآبار (‎.zip من ملفات CSV)…"
 }

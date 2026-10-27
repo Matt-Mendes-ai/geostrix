@@ -6175,5 +6175,12 @@
   "The file": "O arquivo",
   "This export places your data on Earth (latitude / longitude, a .prj, a GeoTIFF's coordinate system), but the project's coordinate system was never chosen — only a placeholder is set, and the file would put your data in the wrong place. Choose it first.": "Esta exportação coloca seus dados na Terra (latitude / longitude, um .prj, o sistema de coordenadas de um GeoTIFF), mas o sistema de coordenadas do projeto nunca foi escolhido: há só um provisório, e o arquivo poria seus dados no lugar errado. Escolha-o primeiro.",
   "EPSG:{epsg} could not be converted to latitude / longitude, so no GPS file was written.": "EPSG:{epsg} não pôde ser convertido para latitude / longitude, então nenhum arquivo GPS foi gravado.",
-  "{n} terrain nodes had no data (filled for display only) and are written as no-data (-9999).": "{n} nós do terreno não tinham dados (preenchidos só para exibição) e foram gravados como sem dados (-9999)."
+  "{n} terrain nodes had no data (filled for display only) and are written as no-data (-9999).": "{n} nós do terreno não tinham dados (preenchidos só para exibição) e foram gravados como sem dados (-9999).",
+  "Nothing to export: no collars, survey or hole logs are loaded.": "Nada para exportar: não há colares, survey nem registros de furos carregados.",
+  "Exported {n} drillhole tables ({files}) as CSV in a .zip. Dips are negative = down and azimuths grid, so they import back with the defaults.": "{n} tabelas de furos ({files}) exportadas como CSV em um .zip. Os mergulhos são negativos = para baixo e os azimutes de quadrícula, então são importados de volta com os padrões.",
+  "Nothing to export for \"{label}\" — it has no rows.": "Nada para exportar de \"{label}\": não tem linhas.",
+  "Exported \"{label}\" as a CSV table that imports back with the defaults (dips negative = down, azimuths grid).": "\"{label}\" exportado como uma tabela CSV que é importada de volta com os padrões (mergulhos negativos = para baixo, azimutes de quadrícula).",
+  "Table export failed: {message}": "Falha ao exportar a tabela: {message}",
+  "Export CSV table (imports back)…": "Exportar tabela CSV (reimportável)…",
+  "Export all drillhole tables (.zip of CSV)…": "Exportar todas as tabelas de furos (.zip de CSV)…"
 }

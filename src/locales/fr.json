@@ -6175,5 +6175,12 @@
   "The file": "Le fichier",
   "This export places your data on Earth (latitude / longitude, a .prj, a GeoTIFF's coordinate system), but the project's coordinate system was never chosen — only a placeholder is set, and the file would put your data in the wrong place. Choose it first.": "Cet export place vos données sur la Terre (latitude / longitude, un .prj, le système de coordonnées d'un GeoTIFF), mais le système de coordonnées du projet n'a jamais été choisi : seul un système provisoire est défini, et le fichier placerait vos données au mauvais endroit. Choisissez-le d'abord.",
   "EPSG:{epsg} could not be converted to latitude / longitude, so no GPS file was written.": "EPSG:{epsg} n'a pas pu être converti en latitude / longitude : aucun fichier GPS n'a été écrit.",
-  "{n} terrain nodes had no data (filled for display only) and are written as no-data (-9999).": "{n} nœuds du terrain n'avaient pas de données (remplis pour l'affichage seulement) et sont écrits comme sans données (-9999)."
+  "{n} terrain nodes had no data (filled for display only) and are written as no-data (-9999).": "{n} nœuds du terrain n'avaient pas de données (remplis pour l'affichage seulement) et sont écrits comme sans données (-9999).",
+  "Nothing to export: no collars, survey or hole logs are loaded.": "Rien à exporter : aucun collet, levé ni journal de forage n'est chargé.",
+  "Exported {n} drillhole tables ({files}) as CSV in a .zip. Dips are negative = down and azimuths grid, so they import back with the defaults.": "{n} tables de forage ({files}) exportées en CSV dans un .zip. Les pendages sont négatifs = vers le bas et les azimuts en nord du quadrillage : elles se réimportent avec les réglages par défaut.",
+  "Nothing to export for \"{label}\" — it has no rows.": "Rien à exporter pour « {label} » : aucune ligne.",
+  "Exported \"{label}\" as a CSV table that imports back with the defaults (dips negative = down, azimuths grid).": "« {label} » exporté en table CSV qui se réimporte avec les réglages par défaut (pendages négatifs = vers le bas, azimuts du quadrillage).",
+  "Table export failed: {message}": "Échec de l'export de la table : {message}",
+  "Export CSV table (imports back)…": "Exporter la table CSV (réimportable)…",
+  "Export all drillhole tables (.zip of CSV)…": "Exporter toutes les tables de forage (.zip de CSV)…"
 }
