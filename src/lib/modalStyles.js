@@ -29,6 +29,11 @@ export const td = { padding: "4px 8px", color: colors.text, textAlign: "right" }
 export function btn(primary) {
   return { padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? `1px solid ${colors.successBorder}` : `1px solid ${colors.borderLight}`, background: primary ? colors.successBg : "transparent", color: primary ? colors.successText : colors.textSecondary };
 }
+// TASKS.csv #997 — the same button in a ROW of labelled buttons (btn's "8px 0" is for buttons that fill their cell): the
+// analysis tools (Catchments, Domains, Surface QA/QC, Survey planner, Thresholds) each carried this copy
+export function rowBtn(primary) {
+  return { ...btn(primary), padding: "7px 14px", fontFamily: "inherit" };
+}
 
 // TASKS.csv #387 — backdrop-click-to-close without the accidental case: pressing inside a dialog
 // (selecting text, dragging a slider or a control point) and releasing over the backdrop fires a click

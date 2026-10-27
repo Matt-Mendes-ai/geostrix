@@ -11,7 +11,7 @@ import { pointTransform, crsName } from "../lib/reproject.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
-import { overlay, backdropProps, sel } from "../lib/modalStyles.js";
+import { overlay, backdropProps, sel, panel, header, rowBtn as btn } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
 
@@ -78,7 +78,7 @@ export default function SurveyPlannerPanel({ onClose }) {
 
   return (
     <div style={overlay} {...backdropProps(onClose)}>
-      <div style={panel} role="dialog" aria-modal="true" aria-label={tr("Survey planner")} onClick={(e) => e.stopPropagation()}>
+      <div style={panelBox} role="dialog" aria-modal="true" aria-label={tr("Survey planner")} onClick={(e) => e.stopPropagation()}>
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Survey planner")}</div>
@@ -161,13 +161,11 @@ export default function SurveyPlannerPanel({ onClose }) {
   );
 }
 
-const panel = { width: "min(1000px, 96vw)", maxHeight: "92vh", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden" };
-const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
+const panelBox = panel({ width: "min(1000px, 96vw)", maxHeight: "92vh" }); // TASKS.csv #997 — the shared modal chrome
 const ctl = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45 };
 const rowS = { display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" };
 const inp = { ...sel, display: "block", marginTop: 4, width: 80 };
 const tabBtn = { background: "none", border: "none", padding: "6px 10px", cursor: "pointer", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
 const linkBtn = { background: "none", border: "none", padding: "0 2px", color: "var(--color-text-secondary)", cursor: "pointer", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
-const btn = (primary) => ({ padding: "7px 14px", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", fontFamily: "inherit", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });
 const dl = { ...btn(false), display: "flex", alignItems: "center", gap: 6 };

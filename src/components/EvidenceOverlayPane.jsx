@@ -13,6 +13,7 @@ import { excludeQAQC } from "../lib/qaqc.js";
 import { f32ToB64 } from "../lib/inversion.js";
 import { gridToGeoTIFF, saveGeoTIFF } from "../lib/gridExport.js";
 import { fontSizes } from "../lib/theme.js";
+import { pBtn as sidebarBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #997
 import { t as tr } from "../lib/i18n.js";
 
 const fmt = (v, d = 2) => (v == null || !Number.isFinite(v) ? "—" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 || v === 0 ? v.toFixed(d) : v.toPrecision(2)); // a small cutoff keeps its digits, not "-0.00"
@@ -247,8 +248,10 @@ function PAPlot({ fuzzy, post }) {
   );
 }
 
-const sel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit", maxWidth: "100%" };
+// TASKS.csv #997 — the sidebar's shared controls (sidebarStyles.js, #704), not a seventh button and select shape; the
+// buttons sit in rows here, so not full width
+const sel = { ...smallSel, fontFamily: "inherit", maxWidth: "100%" };
 const row = { display: "flex", alignItems: "center", gap: 4, color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
 const linkBtn = { background: "none", border: "none", padding: "0 2px", color: "var(--color-text-secondary)", cursor: "pointer", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
-const pBtn = { padding: "5px 9px", borderRadius: 5, fontSize: "var(--font-size-sm)", cursor: "pointer", fontFamily: "inherit", border: "1px solid var(--color-border)", background: "var(--color-bg-subtle)", color: "var(--color-text)" };
+const pBtn = { ...sidebarBtn, width: "auto", marginBottom: 0, fontFamily: "inherit" };
