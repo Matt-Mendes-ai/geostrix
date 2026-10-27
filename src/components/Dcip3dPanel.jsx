@@ -6,7 +6,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Play, Box } from "./icons.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
-import { lineIn3d, suggest3d, build3dRequest, cells3d } from "../lib/dcip3d.js";
+import { lineIn3d, suggest3d, build3dRequest, cells3d, linesHaveIp } from "../lib/dcip3d.js";
 import { sidecarPlanDcip3d, ensureSidecarUp } from "../lib/desktop.js";
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
 import { logStops, sequentialStops } from "../lib/inversion.js";
@@ -26,11 +26,18 @@ export default function Dcip3dPanel({ pBtn, numInput }) {
   const [off, setOff] = useState({}); // line id -> left out
   const chosen = usable.filter((p) => !off[p.e.id]);
   const sug = suggest3d(chosen.map((p) => p.l)); // cheap: a few numbers per line
-  const first = chosen[0]?.e.opts || {};
+  // TASKS.csv #929 — an option the chosen lines share (their 2D settings), else nothing: the first line's value used to stand
+  // in for all of them, the geometric-factor mode included
+  const common = (k) => { const v = chosen.map((p) => p.e.opts?.[k] ?? ""); return v.length && v.every((x) => String(x) === String(v[0])) && v[0] !== "" ? v[0] : undefined; };
+  const first = { pct: common("pct"), floor: common("floor"), ipPct: common("ipPct"), ipFloor: common("ipFloor") };
+  const gfModes = [...new Set(chosen.map((p) => p.e.opts?.geomFactor || "flat"))];
+  const errLines = (kind) => chosen.filter((p) => p.l.err && p.l.errKind === kind).map((p) => p.e.name);
   const [o, setO] = useState({ core: "", depth: "", step: 1, pct: "", floor: "", ipPct: "", ipFloor: "", maxIter: 12, cutoff: 0.005 });
   const set = (k, v) => { setO((p) => ({ ...p, [k]: v })); setPlan(null); };
   const val = (k, fallback) => (o[k] !== "" && o[k] != null ? o[k] : fallback);
-  const withIp = chosen.length > 0 && chosen.every((p) => Array.isArray(p.l.ip));
+  const withIp = linesHaveIp(chosen.map((p) => p.l)); // #929 — the request's own rule
+  const noIp = withIp ? [] : chosen.filter((p) => !(Array.isArray(p.l.ip) && p.l.ip.length === p.l.rho.length)).map((p) => p.e.name);
+  const ipLeftOut = !withIp && noIp.length < chosen.length; // some lines have chargeability, not all
   const [plan, setPlan] = useState(null);
   const [msg, setMsg] = useState(null);
   const [job, setJob] = useState(null);
@@ -49,13 +56,14 @@ export default function Dcip3dPanel({ pBtn, numInput }) {
   const request = () => build3dRequest(chosen.map((p) => p.l), terrain, {
     core: num(val("core", sug.core)), depth: num(val("depth", sug.depth)), step: Number(o.step) || 1, maxIter: Number(o.maxIter) || 12,
     pct: val("pct", first.pct), floor: val("floor", first.floor), ipPct: val("ipPct", first.ipPct), ipFloor: val("ipFloor", first.ipFloor),
-    geometricFactor: first.geomFactor || "flat", useIp: withIp,
+    geometricFactor: gfModes[0] || "flat", useIp: withIp,
   });
   const problems = () => {
     const p = [];
     if (!(num(val("pct", first.pct)) > 0) && !(num(val("floor", first.floor)) > 0)) p.push(tr("Enter the resistivity data uncertainty (% and / or a floor) — how far you trust each reading."));
     if (withIp && !(num(val("ipPct", first.ipPct)) > 0) && !(num(val("ipFloor", first.ipFloor)) > 0)) p.push(tr("Enter the chargeability uncertainty (% and / or a floor in mV/V)."));
     if (!(num(val("core", sug.core)) >= 5)) p.push(tr("The cell size must be at least 5 m."));
+    if (gfModes.length > 1) p.push(tr("The chosen lines differ in how their apparent resistivities were computed (flat-ground or draped geometric factor, in each line's options). Make them the same, or leave one kind out.")); // #929
     return p;
   };
   const estimate = async () => {
@@ -76,7 +84,7 @@ export default function Dcip3dPanel({ pBtn, numInput }) {
     const params = {
       tool: "3D DC resistivity / IP inversion of several lines (SimPEG, octree mesh, reciprocity)", lines: names.join(", "), lineCount: names.length, readings: req.rho.length,
       currentPositions: Number(o.step) > 1 ? `every ${o.step}nd current position of each line` : "all", mesh: { coreM: req.mesh.core, verticalCoreM: req.mesh.core / 2, coreDepthM: req.mesh.depth },
-      uncertainty: { resistivityPercent: req.uncertainty.percent, resistivityFloor: req.uncertainty.floor, ...(req.ipUncertainty ? { chargeabilityPercent: req.ipUncertainty.percent, chargeabilityFloorMvV: req.ipUncertainty.floor } : {}), source: "entered by user" },
+      uncertainty: { resistivityPercent: req.uncertainty.percent, resistivityFloor: req.uncertainty.floor, ...(req.ipUncertainty ? { chargeabilityPercent: req.ipUncertainty.percent, chargeabilityFloorMvV: req.ipUncertainty.floor } : {}), source: errLines("rhoPct").length || (req.ipUncertainty && errLines("ipMvV").length) ? `entered by user; per-reading floors from the error columns of ${[errLines("rhoPct").length ? `${errLines("rhoPct").join(", ")} (resistivity error, %)` : "", req.ipUncertainty && errLines("ipMvV").length ? `${errLines("ipMvV").join(", ")} (chargeability error, mV/V)` : ""].filter(Boolean).join("; ")}` : "entered by user" }, // #929
       ...(req.topoSkipped ? { terrainSamplesSkipped: `${req.topoSkipped} (off the terrain or over its filled nodes; the station elevations define the ground there)` } : {}), // TASKS.csv #927
       geometricFactor: req.geometricFactor, interpretation: "One smooth 3D model fitting every line's readings to the stated uncertainty; cells the data barely see (low support) are left out of the block model.",
     };
@@ -127,6 +135,8 @@ export default function Dcip3dPanel({ pBtn, numInput }) {
       </div>
       <div style={row}><span style={lbl}>{tr("Uncertainty")}</span><input type="number" min={0} value={o.pct} placeholder={first.pct ? String(first.pct) : "%"} onChange={(e) => set("pct", e.target.value)} style={inp} aria-label={tr("Resistivity uncertainty (%)")} /><span style={small}>%</span><input type="number" min={0} value={o.floor} placeholder={first.floor ? String(first.floor) : tr("floor")} onChange={(e) => set("floor", e.target.value)} style={inp} aria-label={tr("Resistivity uncertainty floor (ohm·m)")} /></div>
       {withIp && <div style={row}><span style={lbl}>{tr("IP uncertainty")}</span><input type="number" min={0} value={o.ipPct} placeholder={first.ipPct ? String(first.ipPct) : "%"} onChange={(e) => set("ipPct", e.target.value)} style={inp} aria-label={tr("Chargeability uncertainty (%)")} /><span style={small}>%</span><input type="number" min={0} value={o.ipFloor} placeholder={first.ipFloor ? String(first.ipFloor) : "mV/V"} onChange={(e) => set("ipFloor", e.target.value)} style={inp} aria-label={tr("Chargeability uncertainty floor (mV/V)")} /></div>}
+      {(errLines("rhoPct").length > 0 || (withIp && errLines("ipMvV").length > 0)) && <div style={{ ...small, marginTop: 4 }}>{tr("Each reading's floor is also at least its own error, from the error column of: {lines}.", { lines: [errLines("rhoPct").length ? tr("{names} (resistivity, %)", { names: errLines("rhoPct").join(", ") }) : "", withIp && errLines("ipMvV").length ? tr("{names} (chargeability, mV/V)", { names: errLines("ipMvV").join(", ") }) : ""].filter(Boolean).join("; ") })}</div>}
+      {ipLeftOut && <div style={{ ...small, marginTop: 4, color: "var(--color-warn-text)" }}>{tr("Chargeability is left out of this run: {names} have no chargeability for every reading. Leave them out to invert IP in 3D.", { names: noIp.join(", ") })}</div>}
       <div style={row} title={tr("Cells whose support (how much the data see them, 0-1) is below this are left out of the block models.")}><span style={lbl}>{tr("Support cutoff")}</span><input type="number" min={0} max={1} step={0.001} value={o.cutoff} onChange={(e) => setO((p) => ({ ...p, cutoff: e.target.value }))} style={inp} aria-label={tr("Support cutoff")} /></div>
       <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
         <button onClick={estimate} disabled={running} style={{ ...pBtn, flex: 1, opacity: running ? 0.5 : 1 }}><Box size={14} />{" "}{tr("Estimate")}</button>

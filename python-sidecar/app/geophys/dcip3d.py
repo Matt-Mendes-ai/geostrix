@@ -8,7 +8,9 @@ Input (built by the app from the saved lines, src/lib/dcip3d.js):
   readings  [[ax, ay, az, bx, by, bz, mx, my, mz, nx, ny, nz]] world metres; b* / n* null = a pole (at infinity)
   chain     [[a, b, m, n]] the same electrodes as distances along their line (null = pole), for the flat-ground
             geometric factor the file's apparent resistivities were computed with (#580)
-  rho, chargeability (mV/V, optional), uncertainty {percent, floor}, ipUncertainty {percent, floor}
+  rho, chargeability (mV/V, optional), uncertainty {percent, floor, floorPerReadingPercent?},
+            ipUncertainty {percent, floor, floorPerReadingMvV?} (per-reading floors from the files' error columns, null =
+            none for that reading, as the 2D inversion takes them: TASKS.csv #683 / #929)
   topo      [[x, y, z]] ground points (station elevations, terrain samples)
   mesh      {core (m), depth (m below the electrodes where core-sized cells stop)}, maxIter, geometricFactor "flat" | "draped"
 Method, as prototyped in #643 and as the 2D inversion does it:
@@ -225,6 +227,40 @@ def plan(req, cap_bytes):
             "solver": solver, "maxIter": max_iter}
 
 
+def data_std(req, rho, charge, order):
+    """TASKS.csv #929 — the standard deviations of the resistivity (ohm.m) and chargeability (V/V, or None) readings, both
+    already in the survey's order: percent x |datum| + floor, where each reading's floor is the larger of the typed floor
+    and its own error from the file's error column (floorPerReadingPercent / floorPerReadingMvV, in request order), as
+    dcip2d.py does it (#683)."""
+    # The per-reading floors of the files' own error columns (request order -> survey order):
+    # each reading's floor is the larger of the typed floor and its own error
+    def _per_reading(arr, name):
+        if arr is None:
+            return None
+        v = np.asarray([np.nan if x is None else x for x in arr], dtype=float)
+        if v.shape != (len(order),):
+            raise ValueError(f"{name}: one value per reading expected.")
+        v = v[order]
+        v[~np.isfinite(v)] = 0.0
+        return np.clip(v, 0.0, None)
+
+    unc = req["uncertainty"]
+    _fl_pct = _per_reading(unc.get("floorPerReadingPercent"), "uncertainty.floorPerReadingPercent")
+    _floor = float(unc.get("floor", 0))
+    _floor_dc = np.maximum(_floor, _fl_pct / 100.0 * np.abs(rho)) if _fl_pct is not None else _floor
+    std = float(unc.get("percent", 0)) / 100.0 * np.abs(rho) + _floor_dc
+    if np.any(~np.isfinite(std)) or np.any(std <= 0):
+        raise ValueError("Every reading needs a positive uncertainty.")
+    if charge is not None:
+        iu = req.get("ipUncertainty") or {}
+        _ip_fl = _per_reading(iu.get("floorPerReadingMvV"), "ipUncertainty.floorPerReadingMvV")
+        _ip_floor = np.maximum(float(iu.get("floor", 0)), _ip_fl) / 1000.0 if _ip_fl is not None else float(iu.get("floor", 0)) / 1000.0
+        ip_std = float(iu.get("percent", 0)) / 100.0 * np.abs(charge / 1000.0) + _ip_floor
+        if np.any(~np.isfinite(ip_std)) or np.any(ip_std <= 0):
+            raise ValueError("Every chargeability reading needs a positive uncertainty (a 0 mV/V reading needs a floor).")
+    return std, (ip_std if charge is not None else None)
+
+
 def run_job(req, progress, cap_bytes=None):
     t0 = time.time()
     progress({"stage": "loading", "message": "Loading SimPEG"})
@@ -280,15 +316,7 @@ def run_job(req, progress, cap_bytes=None):
             for rx in src.receiver_list:
                 rx._geometric_factor[src] = g[slices[src, rx]]
 
-    unc = req["uncertainty"]
-    std = float(unc.get("percent", 0)) / 100.0 * np.abs(rho) + float(unc.get("floor", 0))
-    if np.any(~np.isfinite(std)) or np.any(std <= 0):
-        raise ValueError("Every reading needs a positive uncertainty.")
-    if charge is not None:
-        iu = req.get("ipUncertainty") or {}
-        ip_std = float(iu.get("percent", 0)) / 100.0 * np.abs(charge / 1000.0) + float(iu.get("floor", 0)) / 1000.0
-        if np.any(~np.isfinite(ip_std)) or np.any(ip_std <= 0):
-            raise ValueError("Every chargeability reading needs a positive uncertainty (a 0 mV/V reading needs a floor).")
+    std, ip_std = data_std(req, rho, charge, order)
     n_src = len(survey.source_list)
     progress({"stage": "mesh", "message": f"Mesh {mesh.n_cells:,} cells ({n_act:,} below ground), {len(rho):,} readings from {n_src} current positions"})
 

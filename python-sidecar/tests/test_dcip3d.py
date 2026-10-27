@@ -4,6 +4,8 @@
 2. run_job on three pole-dipole lines over a conductive, chargeable block (10 ohm.m, 50 mV/V in 100 ohm.m, 0 mV/V)
    with 3 % noise: the DC fit reaches its target, the lowest resistivity and the highest chargeability lie in or next
    to the block, and the flat-ground geometric factor path gives the same answer as the draped one on flat ground.
+3. TASKS.csv #929: the per-reading floors of the files' error columns raise each reading's floor (request order ->
+   survey order), as the 2D inversion does (#683).
 """
 import os
 import sys
@@ -157,6 +159,26 @@ def test_plan_is_cheap_and_honest():
     print(f"  plan: {p['cells']} cells, {p['active']} active, {p['readings']} readings, {p['electrodes']} electrodes, ~{p['seconds']} s, solver {p['solver']}")
     assert p["ok"] and p["readings"] == len(rows) and p["electrodes"] == 63
     assert not D.plan(_req(rows, chain), 1e5)["ok"], "a matrix over the cap is refused"
+
+
+def test_per_reading_floors():
+    rho = np.array([100.0, 200.0, 50.0])
+    charge = np.array([10.0, 0.0, 30.0])  # mV/V
+    order = np.array([2, 0, 1])  # survey order = request readings 2, 0, 1
+    req = {"uncertainty": {"percent": 2, "floor": 1.0, "floorPerReadingPercent": [5.0, None, 0.1]},
+           "ipUncertainty": {"percent": 0, "floor": 0.5, "floorPerReadingMvV": [None, 2.0, 1.0]}}
+    std, ip_std = D.data_std(req, rho[order], charge[order], order)
+    # request reading 2 (50 ohm.m, 0.1 % -> 0.05 < floor 1): 1 + 1; reading 0 (100, 5 % -> 5): 2 + 5; reading 1 (200, none): 4 + 1
+    assert np.allclose(std, [2.0, 7.0, 5.0]), std
+    # IP floors in V/V: max(0.5, own) / 1000 -> reading 2: 1.0, reading 0: 0.5 (none), reading 1: 2.0
+    assert np.allclose(ip_std * 1000, [1.0, 0.5, 2.0]), ip_std
+    plain, none = D.data_std({"uncertainty": {"percent": 2, "floor": 1.0}}, rho[order], None, order)
+    assert np.allclose(plain, 0.02 * rho[order] + 1.0) and none is None
+    try:
+        D.data_std({"uncertainty": {"percent": 2, "floorPerReadingPercent": [1.0]}}, rho, None, order)
+        raise AssertionError("a wrong-length floor list is refused")
+    except ValueError:
+        pass
 
 
 if __name__ == "__main__":

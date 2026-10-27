@@ -373,6 +373,13 @@ def _validate_dcip3d(req):
         iu = req.get("ipUncertainty") or {}
         if not ((isinstance(iu.get("percent"), (int, float)) and iu["percent"] > 0) or (isinstance(iu.get("floor"), (int, float)) and iu["floor"] > 0)):
             raise HTTPException(400, "chargeability uncertainty needs a percent or a floor above zero — GeoStrix never assumes it.")
+    # TASKS.csv #929 — optional per-reading floors, as the 2D request takes them (#683)
+    for key, arr in (("uncertainty.floorPerReadingPercent", u.get("floorPerReadingPercent")),
+                     ("ipUncertainty.floorPerReadingMvV", (req.get("ipUncertainty") or {}).get("floorPerReadingMvV"))):
+        if arr is None:
+            continue
+        if not isinstance(arr, list) or len(arr) != len(r) or not all(v is None or (isinstance(v, (int, float)) and math.isfinite(v) and v >= 0) for v in arr):
+            raise HTTPException(400, f"{key} must hold one non-negative value (or null) per reading.")
     req["maxIter"] = int(min(30, max(1, int(req.get("maxIter", 12)))))
     if req.get("geometricFactor") not in (None, "flat", "draped"):
         raise HTTPException(400, 'geometricFactor must be "flat" or "draped".')

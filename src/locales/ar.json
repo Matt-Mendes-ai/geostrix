@@ -6074,5 +6074,10 @@
   "{zero} {symbol} result(s) in \"{pop}\" were reported as 0 by the source (below detection or not analysed: the layer does not say). They are left out of n and of every threshold here; if they are below detection, the thresholds read high.": "{zero} نتيجة لـ {symbol} في \"{pop}\" أبلغ عنها المصدر بقيمة 0 (دون حد الكشف أو لم تُحلَّل: لا تذكر الطبقة ذلك). استُبعدت من n ومن كل العتبات هنا؛ وإن كانت دون حد الكشف فالعتبات مرتفعة أكثر مما ينبغي.",
   "{updated} of them matched samples already in the project by sample id and medium and updated them ({added} added).": "طابقت {updated} منها عينات موجودة في المشروع بمعرّف العينة والوسط فحدّثتها (أُضيفت {added}).",
   "Sampling medium and source": "وسط أخذ العينات والمصدر",
-  "Public survey samples and your own are judged apart by default (medium and source): different labs, methods and decades. GeoStrix does not level one survey to another.": "تُقيَّم عينات المسوح العامة وعيناتك افتراضيًا كلٌّ على حدة (الوسط والمصدر): مختبرات وطرائق وعقود مختلفة. لا يقوم GeoStrix بمعايرة مسح على آخر."
+  "Public survey samples and your own are judged apart by default (medium and source): different labs, methods and decades. GeoStrix does not level one survey to another.": "تُقيَّم عينات المسوح العامة وعيناتك افتراضيًا كلٌّ على حدة (الوسط والمصدر): مختبرات وطرائق وعقود مختلفة. لا يقوم GeoStrix بمعايرة مسح على آخر.",
+  "The chosen lines differ in how their apparent resistivities were computed (flat-ground or draped geometric factor, in each line's options). Make them the same, or leave one kind out.": "تختلف الخطوط المختارة في طريقة حساب مقاوماتها الظاهرية (معامل هندسي لأرض مستوية أو متّبع للتضاريس، في خيارات كل خط). وحّدها أو استبعد أحد النوعين.",
+  "Each reading's floor is also at least its own error, from the error column of: {lines}.": "لا يقل الحد الأدنى لكل قراءة كذلك عن خطئها الخاص، من عمود الخطأ في: {lines}.",
+  "{names} (resistivity, %)": "{names} (المقاومية، %)",
+  "{names} (chargeability, mV/V)": "{names} (الشحنية، mV/V)",
+  "Chargeability is left out of this run: {names} have no chargeability for every reading. Leave them out to invert IP in 3D.": "استُبعدت الشحنية من هذا التشغيل: لا تحتوي {names} على قيمة شحنية لكل قراءة. استبعدها لعكس الاستقطاب المُحدَث ثلاثي الأبعاد."
 }

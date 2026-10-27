@@ -19,7 +19,8 @@ function interp(pts, x) { // pts [[x, y]] sorted by x; held at the ends
   return pts[lo][1] + t * (pts[hi][1] - pts[lo][1]);
 }
 
-// One saved line in 3D: { ok, reason?, readings (12 numbers per reading), chain, rho, ip, stations [[x, y, z]], spacing, depth }
+// One saved line in 3D: { ok, reason?, readings (12 numbers per reading), chain, rho, ip, err, errKind, stations [[x, y, z]], spacing, depth }
+// err / errKind: the file's error column and what the user said it measures in the 2D panel ("rhoPct" | "ipMvV", #683)
 export function lineIn3d(entry, terrain) {
   const L = entry.line || {};
   const x0 = num(L.x0), y0 = num(L.y0), x1 = num(L.x1), y1 = num(L.y1);
@@ -65,6 +66,7 @@ export function lineIn3d(entry, terrain) {
   for (let i = 1; i < pos.length; i++) if (pos[i] - pos[i - 1] > 1e-6) spacing = Math.min(spacing, pos[i] - pos[i - 1]);
   return {
     ok: true, readings: out, chain: readings, rho: entry.rho, ip: entry.ip || null,
+    err: Array.isArray(entry.err) && entry.err.length === entry.rho.length ? entry.err : null, errKind: entry.opts?.errKind || null, // #929
     stations: st.filter((p) => [p.x, p.y, p.z].every(Number.isFinite)).map((p) => [p.x, p.y, p.z]),
     spacing: Number.isFinite(spacing) ? spacing : null, depth: suggestModelDepth(readings, [s0, s1], null),
   };
@@ -88,13 +90,26 @@ function thin(line, step) {
   for (const r of line.readings) { const k = key(r); if (!order.includes(k)) order.push(k); }
   const keep = new Set(order.filter((_, i) => i % step === 0));
   const idx = line.readings.map((r, i) => (keep.has(key(r)) ? i : -1)).filter((i) => i >= 0);
-  return { ...line, readings: idx.map((i) => line.readings[i]), chain: idx.map((i) => line.chain[i]), rho: idx.map((i) => line.rho[i]), ip: line.ip ? idx.map((i) => line.ip[i]) : null };
+  return { ...line, readings: idx.map((i) => line.readings[i]), chain: idx.map((i) => line.chain[i]), rho: idx.map((i) => line.rho[i]), ip: line.ip ? idx.map((i) => line.ip[i]) : null, err: line.err ? idx.map((i) => line.err[i]) : null };
+}
+
+// TASKS.csv #929 — chargeability goes in only when every chosen line has one value per reading (the request used to drop
+// it for the whole run on a length mismatch while the panel still offered the IP uncertainty)
+export const linesHaveIp = (lines) => lines.length > 0 && lines.every((l) => Array.isArray(l.ip) && l.ip.length === l.rho.length);
+
+// TASKS.csv #929 — the per-reading floors of the lines whose error column measures `kind` ("rhoPct" | "ipMvV"), null
+// for every reading of the other lines, as the 2D request sends them (#683); null when no line has one
+const errValue = (v) => { if (v == null || v === "") return null; const x = Number(v); return Number.isFinite(x) && x >= 0 ? x : null; };
+export function perReadingFloors(lines, kind) {
+  if (!lines.some((l) => l.err && l.errKind === kind)) return null;
+  return lines.flatMap((l) => (l.err && l.errKind === kind ? l.err.map(errValue) : l.rho.map(() => null)));
 }
 
 // The request: lines from lineIn3d (ok ones), terrain (optional, sampled under the survey for the air / ground surface)
 export function build3dRequest(lines, terrain, { core, depth, step = 1, pct, floor, ipPct, ipFloor, maxIter = 12, geometricFactor = "flat", useIp = true }) {
   const parts = lines.map((l) => thin(l, step));
-  const withIp = useIp && parts.every((l) => Array.isArray(l.ip) && l.ip.length === l.rho.length);
+  const withIp = useIp && linesHaveIp(parts);
+  const flPct = perReadingFloors(parts, "rhoPct"), flIp = withIp ? perReadingFloors(parts, "ipMvV") : null; // #929
   const readings = parts.flatMap((l) => l.readings), chain = parts.flatMap((l) => l.chain), rho = parts.flatMap((l) => l.rho);
   const topo = parts.flatMap((l) => l.stations);
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -111,8 +126,8 @@ export function build3dRequest(lines, terrain, { core, depth, step = 1, pct, flo
   return {
     readings, chain, rho, ...(withIp ? { chargeability: parts.flatMap((l) => l.ip) } : {}), topo, ...(terrain ? { topoSkipped } : {}),
     mesh: { core: Number(core), depth: Number(depth) }, maxIter: Number(maxIter) || 12, geometricFactor,
-    uncertainty: { percent: num(pct) || 0, floor: num(floor) || 0 },
-    ...(withIp ? { ipUncertainty: { percent: num(ipPct) || 0, floor: num(ipFloor) || 0 } } : {}),
+    uncertainty: { percent: num(pct) || 0, floor: num(floor) || 0, ...(flPct ? { floorPerReadingPercent: flPct } : {}) },
+    ...(withIp ? { ipUncertainty: { percent: num(ipPct) || 0, floor: num(ipFloor) || 0, ...(flIp ? { floorPerReadingMvV: flIp } : {}) } } : {}),
   };
 }
 
