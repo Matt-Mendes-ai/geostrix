@@ -73,7 +73,7 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
         if (!rows.length) { setError(tr("No samples from this survey in the area.")); return; }
         const headers = [...new Set(parts.flatMap((t) => t.headers))];
         const zeros = parts.reduce((s, t) => s + (t.notes[0]?.n || 0), 0);
-        onLoaded({ headers, rows, entry, notes: zeros ? [tr("{n} zero value(s) left empty: this layer has no below-detection marker, so a 0 is not a grade.", { n: zeros })] : [] });
+        onLoaded({ checked: CATALOGUE_CHECKED, headers, rows, entry, notes: zeros ? [tr("{n} zero value(s) left empty: this layer has no below-detection marker, so a 0 is not a grade.", { n: zeros })] : [] });
       } else if (entry.cdogs) {
         // TASKS.csv #905 — the shipped index says which surveys overlap the area; the user picks one survey x package
         setBusy(tr("Looking up the surveys…"));
@@ -112,7 +112,7 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
           t = parseNure(f.text, area);
         }
         if (!t.rows.length) { setError(tr("No samples from this survey in the area.")); return; }
-        onLoaded({ headers: t.headers, rows: t.rows, entry, notes: t.notes.map((n) => tr(n.key, { n: n.n })) });
+        onLoaded({ checked: CATALOGUE_CHECKED, headers: t.headers, rows: t.rows, entry, notes: t.notes.map((n) => tr(n.key, { n: n.n })) });
       } else if (entry.id === "ga-ngsa") {
         setBusy(tr("Downloading from {host}…", { host: entry.host }));
         const r = await geochemFetch({ url: areaUrl(entry.id, area) });
@@ -137,12 +137,12 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
       const sheet = sheets.find((s) => !s.hidden && s.rows.length > 1) || sheets[0];
       const t = parseCdogsWorkbook(sheet?.rows || [], cdogs.index.packages[String(cand.pkg)][2], area, cand);
       if (!t.rows.length) { setError(tr("None of this survey's samples lie in the area (only its overall extent overlaps it).")); return; }
-      onLoaded({ headers: t.headers, rows: t.rows, entry, notes: [tr("Survey: {name} ({year}); {pkg}, {lab}.", { name: cand.name, year: cand.year || "?", pkg: cand.pkgName, lab: cand.lab }), ...t.notes.map((n) => tr(n.key, { n: n.n }))] });
+      onLoaded({ checked: CATALOGUE_CHECKED, headers: t.headers, rows: t.rows, entry, notes: [tr("Survey: {name} ({year}); {pkg}, {lab}.", { name: cand.name, year: cand.year || "?", pkg: cand.pkgName, lab: cand.lab }), ...t.notes.map((n) => tr(n.key, { n: n.n }))] });
     } catch (e) { setError(e.message || String(e)); } finally { setBusy(null); }
   };
   const importNgsa = () => {
     const t = parseNgsa(ngsa.text, ngsa.pick);
-    onLoaded({ headers: t.headers, rows: t.rows, entry, notes: [] });
+    onLoaded({ checked: CATALOGUE_CHECKED, headers: t.headers, rows: t.rows, entry, notes: [] });
   };
 
   const fractionLabel = (f) => (f === "coarse" ? tr("coarse (<2 mm)") : f === "fine" ? tr("fine (<75 µm)") : f);

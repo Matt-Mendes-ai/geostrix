@@ -9,6 +9,7 @@ import { useStore } from "../lib/store.jsx";
 import { evidenceGrid, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, bestCutoff, posterior, predictionArea, scoreImage, quantile } from "../lib/evidence.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";
 import { valueIn } from "../lib/geochem.js";
+import { excludeQAQC } from "../lib/qaqc.js";
 import { f32ToB64 } from "../lib/inversion.js";
 import { gridToGeoTIFF, saveGeoTIFF } from "../lib/gridExport.js";
 import { fontSizes } from "../lib/theme.js";
@@ -98,8 +99,10 @@ export default function EvidenceOverlayPane({ onClose }) {
     const t = training, min = t.min === "" ? NaN : Number(t.min);
     if (t.source === "layer") { const l = pointLayers.find((x) => String(x.id) === String(t.layerId)); return l ? l.features.map((f) => ({ x: f.parts[0][0][0], y: f.parts[0][0][1] })) : []; }
     if (t.source === "collars" && t.symbol && Number.isFinite(min)) {
+      // TASKS.csv #933 — standards, blanks and duplicates filed under a real hole id are not grades of that hole: a CRM in
+      // a barren hole's sample stream would make it a "known occurrence" (every other grade consumer filters them too)
       const maxBy = new Map();
-      assays.forEach((a) => { const v = valueIn(a, t.symbol, assayUnits[t.symbol] || "ppm", assayUnits); if (v != null && (!maxBy.has(a.hole_id) || v > maxBy.get(a.hole_id))) maxBy.set(a.hole_id, v); });
+      excludeQAQC(assays).forEach((a) => { const v = valueIn(a, t.symbol, assayUnits[t.symbol] || "ppm", assayUnits); if (v != null && (!maxBy.has(a.hole_id) || v > maxBy.get(a.hole_id))) maxBy.set(a.hole_id, v); });
       return collars.filter((c) => (maxBy.get(c.hole_id) ?? -Infinity) >= min).map((c) => ({ x: c.x, y: c.y }));
     }
     if (t.source === "samples" && t.symbol && Number.isFinite(min)) return surfaceSamples.filter((s) => { const v = valueIn(s, t.symbol, units[t.symbol] || "ppm", units); return v != null && v >= min; }).map((s) => ({ x: s.x, y: s.y }));

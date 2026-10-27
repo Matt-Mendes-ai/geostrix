@@ -46,6 +46,16 @@ const SCALE_PRESETS = [500, 1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000, 
 
 // TASKS.csv #923 — the seq of the last print request carried out; module scope, so it outlives a remount
 let handledPrintSeq = null;
+// TASKS.csv #956 — the collar table re-rendered on every mousemove of any drag and re-sorted every collar with
+// localeCompare(…, { numeric: true }), which builds a collator per comparison (5,000 collars: ~410 ms a render). One
+// shared collator, and the sorted copy is cached per collars array (a new array only when the collars change).
+const holeCollator = new Intl.Collator(undefined, { numeric: true });
+const sortedCollarsCache = new WeakMap();
+function sortedCollars(collars) {
+  let cs = sortedCollarsCache.get(collars);
+  if (!cs) { cs = [...collars].sort((a, b) => holeCollator.compare(String(a.hole_id), String(b.hole_id))); sortedCollarsCache.set(collars, cs); }
+  return cs;
+}
 
 export default function LayoutModule() {
   const {
@@ -1774,7 +1784,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   if (el.type === "table") {
     let columns = el.columns || [], rows = el.rows || [], more = 0;
     if (el.source === "collars") {
-      const cs = [...(ctx?.collars || [])].sort((a, b) => String(a.hole_id).localeCompare(String(b.hole_id), undefined, { numeric: true }));
+      const cs = sortedCollars(ctx?.collars || []);
       const f = (v, d) => (Number.isFinite(Number(v)) && v !== "" && v != null ? Number(v).toFixed(d) : "");
       columns = [tr("Hole"), tr("Easting"), tr("Northing"), tr("Elev. (m)"), tr("Azimuth"), tr("Dip"), tr("Depth (m)")];
       const lim = el.maxRows || 40;

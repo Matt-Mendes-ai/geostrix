@@ -265,10 +265,23 @@ export function bcColumn(h) {
 
 // common output: { headers, rows: [{ sample_id, longitude, latitude, elevation, medium, <elements>, source, licence }], notes: [] }
 const SOURCE_COLS = ["source", "licence"];
+// TASKS.csv #930 — the vintage is the first thing a geologist must see (fifty years of labs and methods), so each row
+// gets the year it was collected (USGS `collected`, CDoGS survey year) as a `year` column: a full date has a distinct
+// value per sample and was dropped by the surface import's 100-distinct cap, a year passes it and splits populations
+// usefully. `source` carries the survey's own year range (the data's, else the catalogue's checked `years`), never the
+// day the service was tested, which used to read "(2026-10-25)" on a 1977 NURE sample; that date is in the import notice.
+// A long survey name is cut to fit the 60-character attribute, never the years.
+export const yearOf = (v) => { const m = /(?:^|\D)((?:19|20)\d\d)(?!\d)/.exec(String(v ?? "")); return m ? m[1] : ""; };
 function table(rows, elementCols, extra, entry, notes) {
   const used = elementCols.filter((h) => rows.some((r) => r[h] !== "" && r[h] != null));
-  const tag = { source: `${entry.name.replace(/ \(.*/, "")} (${CATALOGUE_CHECKED})`.slice(0, 60), licence: entry.licence.slice(0, 60) };
-  return { headers: ["sample_id", "longitude", "latitude", "elevation", "medium", ...extra, ...used, ...SOURCE_COLS], rows: rows.map((r) => ({ ...r, ...tag })), notes };
+  const withYear = rows.map((r) => ({ ...r, year: yearOf(r.collected) || yearOf(r.survey) }));
+  const years = withYear.map((r) => r.year).filter(Boolean).map(Number);
+  const lo = years.reduce((m, y) => Math.min(m, y), Infinity), hi = years.reduce((m, y) => Math.max(m, y), -Infinity); // no spread: tens of thousands of rows
+  const span = years.length ? (lo === hi ? String(lo) : `${lo}-${hi}`) : entry.years || "";
+  const name = entry.name.replace(/ \(.*/, "");
+  const tag = { source: span ? `${name.slice(0, 57 - span.length).trim()} (${span})` : name.slice(0, 60), licence: entry.licence.slice(0, 60) };
+  const yearCol = years.length ? ["year"] : [];
+  return { headers: ["sample_id", "longitude", "latitude", "elevation", "medium", ...extra, ...yearCol, ...used, ...SOURCE_COLS], rows: withYear.map((r) => { const o = { ...r, ...tag }; if (!years.length) delete o.year; return o; }), notes };
 }
 
 export function parseBcRgs(csvText) {

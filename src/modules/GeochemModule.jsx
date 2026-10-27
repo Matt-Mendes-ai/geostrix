@@ -533,7 +533,7 @@ export default function GeochemModule() {
 
   // TASKS.csv #846 — a public survey's samples for the area (PublicGeochemModal), into the normal surface-sample import:
   // lon / lat (WGS 84; NAD83 / GDA94 differ by about a metre) with the columns already mapped
-  const openPublicImport = ({ headers, rows, entry, notes }) => {
+  const openPublicImport = ({ headers, rows, entry, notes, checked }) => {
     const mapping = { x: "longitude", y: "latitude", z: rows.some((r) => String(r.elevation ?? "").trim() !== "") ? "elevation" : null, sample_id: "sample_id", medium: "medium" };
     const mapped = new Set(["longitude", "latitude", "elevation", "sample_id", "medium"]);
     const elements = pickElementColumns(headers.filter((h) => !mapped.has(h)), rows).map((e) => ({ ...e, mainHeader: e.header, checked: true }));
@@ -543,7 +543,7 @@ export default function GeochemModule() {
     setSurfaceModal({
       file: null, fileName: entry.name, headers, allRows: rows, mapping, sourceEpsg: entry.sourceEpsg || "4326", sourceEpsgFrom: null, // NURE: NAD27 (#905)
       defaultMedium: "stream sediment", elements, attrExclude,
-      publicNote: [tr("Source: {agency}, {name}, under the {licence}. {attribution}", { agency: entry.agency, name: entry.name, licence: entry.licence, attribution: entry.attribution }), ...notes].join(" "),
+      publicNote: [tr("Source: {agency}, {name}, under the {licence}. {attribution}", { agency: entry.agency, name: entry.name, licence: entry.licence, attribution: entry.attribution }), ...(checked ? [tr("Catalogue entry last checked {date}.", { date: checked })] : []), ...notes].join(" "), // TASKS.csv #930
     });
   };
 
@@ -746,7 +746,7 @@ export default function GeochemModule() {
             <RibbonButton icon={Database} label="Database" tone="data" title="Import drillhole assays straight from a database (PostgreSQL or MySQL): a table or a query" onClick={() => setDbOpen(true)} />{/* TASKS.csv #917 */}
             <RibbonButton advanced icon={Beaker} label="pXRF" tone="data" title="Import pXRF readings (CSV)" onClick={() => pxrfRef.current.click()} />
             <RibbonButton advanced icon={FileCheck} label="Lab certificates" tone="data" disabled={!assays.length} disabledReason="Import the drill samples (hole, from, to, sample id) first" title={assays.length ? "Lab certificates (ALS CSV): join them to the drill samples by sample id, check the values, and review GeoStrix's QC-type suggestions for the samples only the lab has (blanks, standards, duplicates)" : "Import the drill samples (hole, from, to, sample id) first — certificates are joined to them by sample id"} onClick={() => certRef.current.click()} />
-            <RibbonButton advanced icon={GMapPin} label="Surface samples" tone="data" title="Soil, rock-chip, stream-sediment or talus-fines samples (CSV) — no drillhole needed" onClick={() => surfaceFileRef.current.click()} />
+            <RibbonButton icon={GMapPin} label="Surface samples" tone="data" title="Soil, rock-chip, stream-sediment or talus-fines samples (CSV) — no drillhole needed" onClick={() => surfaceFileRef.current.click()} />
             <RibbonButton icon={Globe} label="Public data" tone="data" title="Public geochemistry: government stream-sediment surveys (BC RGS, Australia's NGSA and others) for the project area, with their licences" onClick={() => setPublicOpen(true)} />{/* TASKS.csv #846 */}
           </RibbonGroup>
           <RibbonGroup advanced label="Classify">
