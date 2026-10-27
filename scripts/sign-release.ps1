@@ -59,6 +59,21 @@ if (-not $UnpackedDir) {
 # stalled twice for v0.1.53 (froze at 155 MB; then 0 bytes for minutes) while a browser download of the same
 # artifact worked, so after a time limit the script prints the artifact's page and waits for the zip in Downloads,
 # accepting it only at exactly the size GitHub reports.
+# TASKS.csv #988 — the zip is the app the private key will sign, so it is checked against the SHA-256 digest GitHub
+# records for the artifact (upload-artifact v4.6+; download-artifact checks the same field), not by its size alone:
+# a different file of the same size in Downloads, or a corrupted download, is refused. An artifact without a digest
+# (an older upload) is accepted by size, with a warning.
+function Assert-ArtifactDigest($path, $a) {
+  if ("$($a.digest)" -match '^sha256:([0-9a-fA-F]{64})$') {
+    $want = $Matches[1].ToLower()
+    $got = (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLower()
+    if ($got -ne $want) { Fail "$(Split-Path $path -Leaf) does not match the artifact GitHub built (SHA-256 $got, expected $want). It was not unpacked or signed. Delete it and run this again." }
+    Write-Host "  SHA-256 matches the artifact's digest"
+  } else {
+    Write-Host "  GitHub reports no digest for this artifact: accepted by size only" -ForegroundColor Yellow
+  }
+}
+
 function Get-UnpackedApp($runId, $dest, $repo, [int]$ghMinutes = 15, [int]$browserMinutes = 60) {
   $art = (Probe { gh api "repos/$repo/actions/runs/$runId/artifacts" }).out | Out-String | ConvertFrom-Json
   $a = $art.artifacts | Where-Object { $_.name -eq "unpacked-app" } | Select-Object -First 1
@@ -73,6 +88,9 @@ function Get-UnpackedApp($runId, $dest, $repo, [int]$ghMinutes = 15, [int]$brows
   $hdrFile = Join-Path (Split-Path $dest) "gh-auth-header.txt"
   $token = ((Probe { gh auth token }).out | Out-String).Trim()
   if ($token) {
+    # TASKS.csv #988 — the header file is readable by this user only (no inherited access), set before the token is in it
+    New-Item -ItemType File -Path $hdrFile -Force | Out-Null
+    & icacls.exe $hdrFile /inheritance:r /grant:r "$($env:USERNAME):(R,W)" | Out-Null
     Set-Content -Path $hdrFile -Value "Authorization: Bearer $token" -Encoding ascii -NoNewline
     $token = $null
     $deadline = (Get-Date).AddMinutes($ghMinutes * 3)
@@ -95,6 +113,7 @@ function Get-UnpackedApp($runId, $dest, $repo, [int]$ghMinutes = 15, [int]$brows
       }
     } finally { Remove-Item $hdrFile -Force -ErrorAction SilentlyContinue }
     if ((Test-Path $zipPath) -and (Get-Item $zipPath).Length -eq $a.size_in_bytes) {
+      Assert-ArtifactDigest $zipPath $a
       Add-Type -AssemblyName System.IO.Compression.FileSystem
       try { [IO.Compression.ZipFile]::ExtractToDirectory($zipPath, $dest) } catch { Write-Host "  the zip did not unpack: $($_.Exception.Message)" }
       if (Test-Path (Join-Path $dest "GeoStrix.exe")) { Remove-Item $zipPath -Force; Write-Host "  downloaded (resumable)"; return }
@@ -117,9 +136,10 @@ function Get-UnpackedApp($runId, $dest, $repo, [int]$ghMinutes = 15, [int]$brows
   }
   if (-not $zip) { Fail "No unpacked-app.zip of $('{0:N0}' -f $a.size_in_bytes) bytes appeared in $dl within $browserMinutes minutes." }
   Start-Sleep -Seconds 3  # let the browser finish closing the file
+  Assert-ArtifactDigest $zip.FullName $a
   Add-Type -AssemblyName System.IO.Compression.FileSystem
   [IO.Compression.ZipFile]::ExtractToDirectory($zip.FullName, $dest)
-  Write-Host "  unpacked $($zip.Name) from Downloads ($('{0:N0}' -f $zip.Length) bytes, the size GitHub reports)"
+  Write-Host "  unpacked $($zip.Name) from Downloads ($('{0:N0}' -f $zip.Length) bytes, the artifact GitHub built)"
 }
 
 # ---- the certificate (SimplySign Desktop must be connected for its private key to appear)
