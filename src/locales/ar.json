@@ -6092,7 +6092,7 @@
   "XC, YC, ZC, XINC… (Datamine, Vulcan, Surpac, Leapfrog)": "XC, YC, ZC, XINC… (Datamine وVulcan وSurpac وLeapfrog)",
   "EAST, NORTH, RL, _EAST… (Micromine)": "EAST, NORTH, RL, _EAST… (Micromine)",
   "Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)": "تصدير بصيغة CSV لنموذج الكتل (EAST وNORTH وRL و_EAST و_NORTH و_RL والقيمة: أسماء Micromine)",
-  "Downhole structure measurements are not used: the surface's dip comes from the picks and lines alone (a trend only stretches it).": "لا تُستخدم القياسات البنيوية داخل الثقوب: ميل السطح مستمد من النقاط المنتقاة والخطوط وحدها (والاتجاه العام يمدّه فقط).",
+  "Downhole structure measurements are used only with the downhole dip guide (below the picks); otherwise the surface's dip comes from the picks and lines alone (a trend only stretches it).": "لا تُستخدم القياسات البنيوية في الثقوب إلا مع دليل الميل من الثقب (أسفل النقاط)؛ وإلا فإن ميل السطح يأتي من النقاط والخطوط وحدها (الاتجاه يمدّه فقط).",
   "Vector inversion: fixed 10 + 20 iterations, default smoothness lengths and an amplitude bound of 0 to 10; the iteration, smoothness and bounds settings do not apply to it.": "العكس المتجهي: 10 + 20 تكرارًا ثابتًا، وأطوال نعومة افتراضية، وحدّ للسعة من 0 إلى 10؛ ولا تنطبق عليه إعدادات التكرارات والنعومة والحدود.",
   "Compact runs at least 60 iterations whatever is entered above: the sparse re-weighting needs its own after the smooth stage.": "يُجري الوضع المضغوط 60 تكرارًا على الأقل مهما كانت القيمة أعلاه: تحتاج إعادة الترجيح المتناثرة إلى تكراراتها بعد المرحلة الملساء.",
   "Click an element to edit it, Ctrl+click for several (to align or spread them). Drag the handles to resize; Shift keeps the shape. Alt drags past the guides. Arrow keys nudge 1 mm, Shift+arrow 10 mm.": "انقر عنصرًا لتحريره، وCtrl+نقر لاختيار عدة عناصر (لمحاذاتها أو توزيعها). اسحب المقابض لتغيير الحجم؛ وShift يحفظ الشكل. وAlt يسحب متجاوزًا الأدلة. تحرك الأسهم 1 مم، وShift+سهم 10 مم.",
@@ -6156,5 +6156,15 @@
   "contact {v}, at the hole {d} m off the section": "تماس {v}، عند الثقب على بعد {d} م من المقطع",
   "Drawing on a section image snaps to the logged contacts of holes within this distance of the image. The point is the contact where it was logged, on the hole, not moved onto the image.": "عند الرسم على صورة مقطع، يلتقط المؤشر التماسات المسجلة للثقوب ضمن هذه المسافة من الصورة. النقطة هي التماس حيث سُجّل، على الثقب، دون نقلها إلى الصورة.",
   "Section images: snap to contacts of holes within": "صور المقاطع: الالتقاط إلى تماسات الثقوب ضمن",
-  "Restored the saved overlay without {list}: not in this project any more.": "استُعيد التراكب المحفوظ دون {list}: لم يعد في هذا المشروع."
+  "Restored the saved overlay without {list}: not in this project any more.": "استُعيد التراكب المحفوظ دون {list}: لم يعد في هذا المشروع.",
+  "{n} pick(s) take the attitude measured on the core within {w} m of them: constructed lines {r} m along its dip and strike ({u} pick(s) on holes had no reading there).": "{n} من النقاط تأخذ الوضع المقيس على اللب ضمن {w} م منها: خطوط مُنشأة بطول {r} م على امتداد الميل والمضرب ({u} من النقاط على الثقوب بلا قراءة هناك).",
+  "Downhole dip guide: no structure reading of that type within {w} m of any pick on a hole.": "دليل الميل من الثقب: لا توجد قراءة بنيوية من هذا النوع ضمن {w} م من أي نقطة على ثقب.",
+  "At each pick on a hole, the structure measured on the core within the window (the nearest reading of the chosen type) adds two constructed lines through the pick, along its dip and its strike, so the surface leaves the hole at the measured attitude. Reported as constructed.": "عند كل نقطة على ثقب، تضيف البنية المقيسة على اللب ضمن النافذة (أقرب قراءة من النوع المختار) خطين مُنشأين عبر النقطة على امتداد ميلها ومضربها، ليخرج السطح من الثقب بالوضع المقيس. يُبلَّغ عنها كمُنشأة.",
+  "Downhole dip guide: shape the surface at each pick by the core measurement there": "دليل الميل من الثقب: شكّل السطح عند كل نقطة وفق قياس اللب هناك",
+  "Readings within": "القراءات ضمن",
+  "Readings within (m down-hole)": "القراءات ضمن (م على امتداد الثقب)",
+  "m down-hole; lines": "م على امتداد الثقب؛ خطوط بطول",
+  "Guide line length (m each way)": "طول الخط الدليل (م في كل اتجاه)",
+  "m each way; type": "م في كل اتجاه؛ النوع",
+  "any type": "أي نوع"
 }

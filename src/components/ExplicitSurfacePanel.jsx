@@ -17,6 +17,7 @@ import { useStore } from "../lib/store.jsx"; // TASKS.csv #828 — Undo / Redo
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #885
 import { faultNormalZ } from "../lib/explicitTrim.js"; // TASKS.csv #957
 import { supportShadeFactors, compactHull } from "../lib/explicitSupport.js"; // TASKS.csv #977
+import { downholeDipGuides } from "../lib/explicitDownhole.js"; // TASKS.csv #1002
 import { unitOf, contactOf, layerLabel, unitSummary, splitByElevation, nextLayer, seedPicksFromTops } from "../lib/explicitUnits.js"; // TASKS.csv #830 / #831 / #832; seed: #871
 import { stackOrder, thicknessBetween } from "../lib/stackOrder.js"; // TASKS.csv #873; thicknessBetween: #896
 import { inputKey, shapeFrame, onlyOneSection, explicitInputRows, INPUT_COLUMNS } from "../lib/explicitBuild.js"; // TASKS.csv #901; rows: #880
@@ -231,9 +232,11 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
       if (d > 0.5) { moved++; maxMove = Math.max(maxMove, d); }
       return dir ? { ...q, dir } : q;
     }) };
-    return { ...explicitPoints(withDir, sections, { spacing: LINE_SPACING, maxPoints: MAX_POINTS, extraLines: [...drawn, ...mapPart.lines, ...(mapPart.guides?.lines || [])] }), moved, maxMove };
+    // TASKS.csv #1002 — each pick on a hole takes the attitude measured on the core there (constructed lines through it)
+    const dg = def.downholeGuide?.on ? downholeDipGuides(withDir.picks, sc.structure || [], { types: def.downholeGuide.type ? [def.downholeGuide.type] : [], windowM: Number(def.downholeGuide.windowM) || 3, reachM: Number(def.downholeGuide.reachM) || 25 }) : null;
+    return { ...explicitPoints(withDir, sections, { spacing: LINE_SPACING, maxPoints: MAX_POINTS, extraLines: [...drawn, ...mapPart.lines, ...(mapPart.guides?.lines || []), ...(dg?.lines || [])] }), moved, maxMove, downhole: dg };
   } catch (e) { return { tooMany: tr("The surface's inputs could not be read: {e}", { e: e.message || String(e) }), points: [], picks: 0, lines: 0, sections: 0, mapLines: 0, guideLines: 0, drawnLines: 0, moved: 0, maxMove: 0 }; }
-  }, [def, sections, mapPart, drawn, sc, tracesSeq]);
+  }, [def, sections, mapPart, drawn, sc, tracesSeq]); // sc.structure: #1002
   const [mapLayerId, setMapLayerId] = useState("");
   const mapLayer = polys.find((l) => l.id === mapLayerId) || polys[0] || null;
   const fieldsOf = (l) => (l?.fields || []);
@@ -707,6 +710,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           cut: res.groundCut ? tr(" Cut at the terrain.") : "",
         }) + (ep.drawnLines ? ` ${tr("Includes {n} line(s) digitized on section images.", { n: ep.drawnLines })}` : "") + (ep.mapLines ? ` ${tr("Includes {m} mapped contact line(s){g}.", { m: ep.mapLines, g: ep.guideLines ? tr(" and {g} dip guide line(s) (constructed, {d} m down-dip)", { g: ep.guideLines, d: Number(def.dipGuide?.depth) || 100 }) : "" })}` : "")
           + (ep.lineTolM > 0 ? ` ${tr("To keep the build fast, the section lines were simplified to within {t} m ({k} of {n} vertices kept, corners and ends included).", { t: ep.lineTolM, k: ep.lineVerticesKept, n: ep.lineVerticesIn })}` : "")
+          + (ep.downhole?.used.length ? ` ${tr("{n} pick(s) take the attitude measured on the core within {w} m of them: constructed lines {r} m along its dip and strike ({u} pick(s) on holes had no reading there).", { n: ep.downhole.used.length, w: Number(def.downholeGuide?.windowM) || 3, r: Number(def.downholeGuide?.reachM) || 25, u: ep.downhole.unmatched })}` : ep.downhole ? ` ${tr("Downhole dip guide: no structure reading of that type within {w} m of any pick on a hole.", { w: Number(def.downholeGuide?.windowM) || 3 })}` : "") // #1002
           + (ep.extraTolM > 0 ? ` ${tr("To keep the build fast, the map lines were simplified to within {t} m (ends and corners kept).", { t: ep.extraTolM })}` : "") // TASKS.csv #869
           + (res.trend ? ` ${tr("Follows the trend {name}: {r} times smoother along {az}° than across.", { name: trend?.name || "", r: res.trend.ratio.toFixed(1), az: Math.round(res.trend.azimuthDeg) })}` : "") // #881
           + (sculpted ? ` ${tr("{n} manual sculpt(s) of the previous surface were discarded by this rebuild.", { n: sculpted })}` : "") // #879
@@ -813,7 +817,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   return (
     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
-        {tr("A surface that passes exactly through your own picks: contacts clicked on holes (or anything else) in the 3D view, and lines drawn on sections with its name. Nothing is interpolated away; it rebuilds as you pick.")}{" "}{tr("Between the inputs it is the smoothest surface through them; beyond them it is extended with no data.") /* TASKS.csv #870 */}{" "}{tr("Downhole structure measurements are not used: the surface's dip comes from the picks and lines alone (a trend only stretches it).") /* TASKS.csv #982 */}
+        {tr("A surface that passes exactly through your own picks: contacts clicked on holes (or anything else) in the 3D view, and lines drawn on sections with its name. Nothing is interpolated away; it rebuilds as you pick.")}{" "}{tr("Between the inputs it is the smoothest surface through them; beyond them it is extended with no data.") /* TASKS.csv #870 */}{" "}{tr("Downhole structure measurements are used only with the downhole dip guide (below the picks); otherwise the surface's dip comes from the picks and lines alone (a trend only stretches it).") /* TASKS.csv #982 / #1002 */}
       </div>
       <div style={row}>
         <select value={def?.id || ""} onChange={(e) => { if (digDrawing) { finishLine(); setDigDrawing(false); showHover(null); } setSelId(e.target.value); setPickFor(null); }} disabled={!defs.length} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Explicit surface")}>
@@ -925,6 +929,22 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         <label style={{ ...row, cursor: "pointer" }} title={tr("A click on a hole snaps to its nearest logged contact (where the unit changes) within {m} m down-hole; untick to take the exact point clicked on the trace", { m: SNAP_REACH_M })}>
           <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />{tr("Snap to logged contacts")}
         </label>
+        {(sc.structure || []).length > 0 && (<> {/* TASKS.csv #1002 */}
+          <label style={{ ...row, cursor: "pointer" }} title={tr("At each pick on a hole, the structure measured on the core within the window (the nearest reading of the chosen type) adds two constructed lines through the pick, along its dip and its strike, so the surface leaves the hole at the measured attitude. Reported as constructed.")}>
+            <input type="checkbox" checked={!!def.downholeGuide?.on} onChange={(e) => update({ downholeGuide: { windowM: 3, reachM: 25, type: "", ...(def.downholeGuide || {}), on: e.target.checked } })} />{tr("Downhole dip guide: shape the surface at each pick by the core measurement there")}
+          </label>
+          {def.downholeGuide?.on && (
+            <div style={{ ...row, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>
+              <span>{tr("Readings within")}</span>
+              <input type="number" min={0.5} step={0.5} value={def.downholeGuide.windowM ?? 3} onChange={(e) => update({ downholeGuide: { ...def.downholeGuide, windowM: Math.max(0.5, Number(e.target.value) || 3) } })} style={{ ...numInput, width: 52 }} aria-label={tr("Readings within (m down-hole)")} /><span>{tr("m down-hole; lines")}</span>
+              <input type="number" min={5} step={5} value={def.downholeGuide.reachM ?? 25} onChange={(e) => update({ downholeGuide: { ...def.downholeGuide, reachM: Math.max(5, Number(e.target.value) || 25) } })} style={{ ...numInput, width: 52 }} aria-label={tr("Guide line length (m each way)")} /><span>{tr("m each way; type")}</span>
+              <select value={def.downholeGuide.type || ""} onChange={(e) => update({ downholeGuide: { ...def.downholeGuide, type: e.target.value } })} style={smallSel} aria-label={tr("Structure type")}>
+                <option value="">{tr("any type")}</option>
+                {[...new Set((sc.structure || []).map((r) => String(r.value ?? "")).filter(Boolean))].sort().map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          )}
+        </>)}
         {sectionImages.length > 0 && ( /* TASKS.csv #950 */
           <label style={{ ...row, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Drawing on a section image snaps to the logged contacts of holes within this distance of the image. The point is the contact where it was logged, on the hole, not moved onto the image.")}>
             {tr("Section images: snap to contacts of holes within")}

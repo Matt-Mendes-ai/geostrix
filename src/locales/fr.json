@@ -6092,7 +6092,7 @@
   "XC, YC, ZC, XINC… (Datamine, Vulcan, Surpac, Leapfrog)": "XC, YC, ZC, XINC… (Datamine, Vulcan, Surpac, Leapfrog)",
   "EAST, NORTH, RL, _EAST… (Micromine)": "EAST, NORTH, RL, _EAST… (Micromine)",
   "Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)": "Exporter en CSV de modèle de blocs (EAST, NORTH, RL, _EAST, _NORTH, _RL, valeur : noms Micromine)",
-  "Downhole structure measurements are not used: the surface's dip comes from the picks and lines alone (a trend only stretches it).": "Les mesures structurales en forage ne sont pas utilisées : le pendage de la surface vient des seuls pointés et lignes (une tendance ne fait que l'étirer).",
+  "Downhole structure measurements are used only with the downhole dip guide (below the picks); otherwise the surface's dip comes from the picks and lines alone (a trend only stretches it).": "Les mesures structurales en sondage ne servent qu'avec le guide de pendage en sondage (sous les pointés) ; sinon le pendage de la surface vient des seuls pointés et lignes (une tendance ne fait que l'étirer).",
   "Vector inversion: fixed 10 + 20 iterations, default smoothness lengths and an amplitude bound of 0 to 10; the iteration, smoothness and bounds settings do not apply to it.": "Inversion vectorielle : 10 + 20 itérations fixes, longueurs de lissage par défaut et une borne d'amplitude de 0 à 10 ; les réglages d'itérations, de lissage et de bornes ne s'y appliquent pas.",
   "Compact runs at least 60 iterations whatever is entered above: the sparse re-weighting needs its own after the smooth stage.": "Le mode compact fait au moins 60 itérations quelle que soit la valeur ci-dessus : la repondération parcimonieuse a besoin des siennes après l'étape lisse.",
   "Click an element to edit it, Ctrl+click for several (to align or spread them). Drag the handles to resize; Shift keeps the shape. Alt drags past the guides. Arrow keys nudge 1 mm, Shift+arrow 10 mm.": "Cliquez sur un élément pour le modifier, Ctrl+clic pour en choisir plusieurs (pour les aligner ou les répartir). Faites glisser les poignées pour redimensionner ; Maj garde la forme. Alt fait glisser sans les repères. Les flèches déplacent de 1 mm, Maj+flèche de 10 mm.",
@@ -6156,5 +6156,15 @@
   "contact {v}, at the hole {d} m off the section": "contact {v}, sur le sondage à {d} m de la coupe",
   "Drawing on a section image snaps to the logged contacts of holes within this distance of the image. The point is the contact where it was logged, on the hole, not moved onto the image.": "En dessinant sur une image de coupe, le pointeur s'accroche aux contacts décrits des sondages à cette distance de l'image. Le point est le contact là où il a été décrit, sur le sondage, sans être déplacé sur l'image.",
   "Section images: snap to contacts of holes within": "Images de coupe : accrocher aux contacts des sondages à moins de",
-  "Restored the saved overlay without {list}: not in this project any more.": "La superposition enregistrée a été restaurée sans {list} : ne fait plus partie de ce projet."
+  "Restored the saved overlay without {list}: not in this project any more.": "La superposition enregistrée a été restaurée sans {list} : ne fait plus partie de ce projet.",
+  "{n} pick(s) take the attitude measured on the core within {w} m of them: constructed lines {r} m along its dip and strike ({u} pick(s) on holes had no reading there).": "{n} pointé(s) prennent l'attitude mesurée sur la carotte à moins de {w} m : lignes construites de {r} m le long de son pendage et de sa direction ({u} pointé(s) sur sondage sans mesure à cet endroit).",
+  "Downhole dip guide: no structure reading of that type within {w} m of any pick on a hole.": "Guide de pendage en sondage : aucune mesure structurale de ce type à moins de {w} m d'un pointé sur un sondage.",
+  "At each pick on a hole, the structure measured on the core within the window (the nearest reading of the chosen type) adds two constructed lines through the pick, along its dip and its strike, so the surface leaves the hole at the measured attitude. Reported as constructed.": "À chaque pointé sur un sondage, la structure mesurée sur la carotte dans la fenêtre (la mesure la plus proche du type choisi) ajoute deux lignes construites passant par le pointé, le long de son pendage et de sa direction, pour que la surface quitte le sondage selon l'attitude mesurée. Signalé comme construit.",
+  "Downhole dip guide: shape the surface at each pick by the core measurement there": "Guide de pendage en sondage : former la surface à chaque pointé selon la mesure de carotte à cet endroit",
+  "Readings within": "Mesures à moins de",
+  "Readings within (m down-hole)": "Mesures à moins de (m le long du sondage)",
+  "m down-hole; lines": "m le long du sondage ; lignes de",
+  "Guide line length (m each way)": "Longueur de la ligne guide (m de chaque côté)",
+  "m each way; type": "m de chaque côté ; type",
+  "any type": "tout type"
 }

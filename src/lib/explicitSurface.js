@@ -108,7 +108,7 @@ export function explicitPoints(def, sections, { spacing = 10, maxPoints = 1200, 
   out.push(...extraPts);
   const tooMany = out.length > hardMax ? tr("Too many points to build quickly: {n} ({picks} picks, {v} line points) against a limit of {max}. Remove some picks, or draw fewer or shorter lines.", { n: out.length, picks: picks.length, v: out.length - picks.length, max: hardMax }) : null;
   return { tooMany, points: out, picks: picks.length, lines: lines.length, sections: new Set(lines.map((l) => l.section)).size, spacing: Number.isFinite(step) ? step : null,
-    mapLines: extra.filter((l) => l.src === "map").length, guideLines: extra.filter((l) => l.src === "guide").length, drawnLines: extra.filter((l) => l.src === "drawn").length, extraPoints: extraPts.length, extraEvery: every,
+    mapLines: extra.filter((l) => l.src === "map").length, guideLines: extra.filter((l) => l.src === "guide").length, downholeLines: extra.filter((l) => l.src === "downhole").length, drawnLines: extra.filter((l) => l.src === "drawn").length, extraPoints: extraPts.length, extraEvery: every,
     lineTolM: sl.tol, lineVerticesIn: vertsIn, lineVerticesKept: verts, extraTolM: ex.tol };
 }
 

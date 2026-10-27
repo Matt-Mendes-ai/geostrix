@@ -6092,7 +6092,7 @@
   "XC, YC, ZC, XINC… (Datamine, Vulcan, Surpac, Leapfrog)": "XC, YC, ZC, XINC… (Datamine, Vulcan, Surpac, Leapfrog)",
   "EAST, NORTH, RL, _EAST… (Micromine)": "EAST, NORTH, RL, _EAST… (Micromine)",
   "Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)": "Exportar como CSV de modelo de blocos (EAST, NORTH, RL, _EAST, _NORTH, _RL, valor: nomes do Micromine)",
-  "Downhole structure measurements are not used: the surface's dip comes from the picks and lines alone (a trend only stretches it).": "As medições estruturais de furo não são usadas: o mergulho da superfície vem apenas dos picks e das linhas (uma tendência só a estica).",
+  "Downhole structure measurements are used only with the downhole dip guide (below the picks); otherwise the surface's dip comes from the picks and lines alone (a trend only stretches it).": "As medidas estruturais de furo só são usadas com o guia de mergulho de furo (abaixo dos picks); caso contrário, o mergulho da superfície vem só dos picks e das linhas (uma tendência apenas a estica).",
   "Vector inversion: fixed 10 + 20 iterations, default smoothness lengths and an amplitude bound of 0 to 10; the iteration, smoothness and bounds settings do not apply to it.": "Inversão vetorial: 10 + 20 iterações fixas, comprimentos de suavidade padrão e um limite de amplitude de 0 a 10; as configurações de iterações, suavidade e limites não se aplicam a ela.",
   "Compact runs at least 60 iterations whatever is entered above: the sparse re-weighting needs its own after the smooth stage.": "O modo compacto roda pelo menos 60 iterações, seja qual for o valor acima: a reponderação esparsa precisa das suas após a etapa suave.",
   "Click an element to edit it, Ctrl+click for several (to align or spread them). Drag the handles to resize; Shift keeps the shape. Alt drags past the guides. Arrow keys nudge 1 mm, Shift+arrow 10 mm.": "Clique em um elemento para editá-lo, Ctrl+clique para vários (para alinhá-los ou distribuí-los). Arraste as alças para redimensionar; Shift mantém a forma. Alt arrasta sem as guias. As setas movem 1 mm, Shift+seta 10 mm.",
@@ -6156,5 +6156,15 @@
   "contact {v}, at the hole {d} m off the section": "contato {v}, no furo a {d} m da seção",
   "Drawing on a section image snaps to the logged contacts of holes within this distance of the image. The point is the contact where it was logged, on the hole, not moved onto the image.": "Ao desenhar sobre uma imagem de seção, ajusta-se aos contatos registrados dos furos a esta distância da imagem. O ponto é o contato onde foi registrado, no furo, não movido para a imagem.",
   "Section images: snap to contacts of holes within": "Imagens de seção: ajustar a contatos de furos a até",
-  "Restored the saved overlay without {list}: not in this project any more.": "A sobreposição salva foi restaurada sem {list}: não está mais neste projeto."
+  "Restored the saved overlay without {list}: not in this project any more.": "A sobreposição salva foi restaurada sem {list}: não está mais neste projeto.",
+  "{n} pick(s) take the attitude measured on the core within {w} m of them: constructed lines {r} m along its dip and strike ({u} pick(s) on holes had no reading there).": "{n} pick(s) assumem a atitude medida no testemunho a até {w} m: linhas construídas de {r} m ao longo do mergulho e da direção ({u} pick(s) em furos sem leitura ali).",
+  "Downhole dip guide: no structure reading of that type within {w} m of any pick on a hole.": "Guia de mergulho de furo: nenhuma leitura estrutural desse tipo a até {w} m de um pick em um furo.",
+  "At each pick on a hole, the structure measured on the core within the window (the nearest reading of the chosen type) adds two constructed lines through the pick, along its dip and its strike, so the surface leaves the hole at the measured attitude. Reported as constructed.": "Em cada pick sobre um furo, a estrutura medida no testemunho dentro da janela (a leitura mais próxima do tipo escolhido) adiciona duas linhas construídas pelo pick, ao longo do mergulho e da direção, para que a superfície saia do furo com a atitude medida. Informado como construído.",
+  "Downhole dip guide: shape the surface at each pick by the core measurement there": "Guia de mergulho de furo: moldar a superfície em cada pick pela medida do testemunho ali",
+  "Readings within": "Leituras a até",
+  "Readings within (m down-hole)": "Leituras a até (m no furo)",
+  "m down-hole; lines": "m no furo; linhas de",
+  "Guide line length (m each way)": "Comprimento da linha guia (m para cada lado)",
+  "m each way; type": "m para cada lado; tipo",
+  "any type": "qualquer tipo"
 }
