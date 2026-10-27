@@ -136,8 +136,17 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
     const columns = [tr("Hole"), tr("From (m)"), tr("To (m)"), tr("Length (m)"), ...(twEnabled ? [tr("True width (m)")] : []), `${symbol} (${unit})`, ...(incOn ? [tr("Including")] : [])];
     const rows = results.slice(0, 60).map((r) => [String(r.hole_id), Number(r.from).toFixed(2), Number(r.to).toFixed(2), r.length.toFixed(2), ...(twEnabled ? [r.tw ? r.tw.trueWidth.toFixed(2) : ""] : []), `${r.overRange ? "≥" : ""}${r.avgGrade.toFixed(3)}`, ...(incOn ? [r.including ? incText(r.including[0]) : ""] : [])]);
     const from = tr("{symbol} ≥ {cutoff} {unit}, dilution ≤ {dil} m, min {min} m", { symbol, cutoff, unit, dil: maxInternalDilution, min: minLength });
+    // TASKS.csv #936 — a printed intercept table is what gets lifted into a report or a news release: it carries the
+    // caveats the dialog and the CSV stamp give (QC, over-range, below detection, true width, screening)
+    const note = [
+      includeQAQC ? tr("QC samples (standards, blanks, duplicates) are included.") : qaqcExcludedCount > 0 ? tr("{n} QC sample(s) (standards, blanks, duplicates) excluded.", { n: qaqcExcludedCount }) : "",
+      results.some((r) => r.overRange) ? tr("≥: contains an over-range result counted at its ceiling; the true grade is at least this.") : "",
+      tr("Below-detection results are taken at half the detection limit."),
+      twEnabled ? tr("True width to a structure dipping {dip}° towards {dipDir}°.", { dip: twDip, dipDir: twDipDir }) : tr("Lengths are downhole, not true widths."),
+      tr("Screening tool: verify any intercept against the raw assay certificates before reporting it."),
+    ].filter(Boolean).join(" ");
     setLayoutElements((els) => [...els, { id: `table_${Date.now()}`, type: "table", source: "static", x: 60, y: 60, w: 520, fontPt: 7, frameWidth: 1,
-      title: tr("Best intercepts: {from}", { from }), from, columns, rows: results.length > 60 ? [...rows, [tr("… {n} more intercept(s) in the CSV report", { n: results.length - 60 }), ...columns.slice(1).map(() => "")]] : rows }]);
+      title: tr("Best intercepts: {from}", { from }), from, note, columns, rows: results.length > 60 ? [...rows, [tr("… {n} more intercept(s) in the CSV report", { n: results.length - 60 }), ...columns.slice(1).map(() => "")]] : rows }]);
     goToModule("layout");
     onClose();
   };

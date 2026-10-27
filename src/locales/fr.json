@@ -5978,8 +5978,8 @@
   "Equal gaps top to bottom (3 or more elements)": "Espaces égaux de haut en bas (3 éléments ou plus)",
   "Spread across": "Répartir en largeur",
   "Spread down": "Répartir en hauteur",
-  "Placeholders: {project} {date} {page} {pages} {pagename} {scale}": "Champs : {project} {date} {page} {pages} {pagename} {scale}",
-  "Filled in when the page is shown and printed: the project's name, today's date, this page's number and name, the number of pages, the scale of the page's viewport.": "Remplis à l'affichage et à l'impression de la page : le nom du projet, la date du jour, le numéro et le nom de cette page, le nombre de pages, l'échelle de la vue de la page.",
+  "Placeholders: {project} {date} {page} {pages} {pagename} {scale} {crs} {credits}": "Champs : {project} {date} {page} {pages} {pagename} {scale} {crs} {credits}",
+  "Filled in when the page is shown and printed: the project's name, today's date, this page's number and name, the number of pages, the scale of the page's viewport, the project's coordinate system, the credit lines the licences of fetched terrain and imagery ask for.": "Remplis à l'affichage et à l'impression de la page : le nom du projet, la date du jour, le numéro et le nom de cette page, le nombre de pages, l'échelle de la vue de la page, le système de coordonnées du projet, les mentions de crédit qu’exigent les licences du terrain et des images téléchargés.",
   "Export the current page as a PNG image, at the resolution chosen in the page bar": "Exporter la page actuelle en image PNG, à la résolution choisie dans la barre des pages",
   "Zoom of the sheet on screen (the paper size does not change)": "Zoom de la feuille à l'écran (le format du papier ne change pas)",
   "Fit page ({pct} %)": "Page entière ({pct} %)",
@@ -6051,5 +6051,15 @@
   "Every drawn contact, fault, string and outline: one row per vertex with real x, y, z": "Chaque contact, faille, trait et contour dessiné : une ligne par sommet avec x, y, z réels",
   "Every drawn contact, fault, string and outline as a 3D polyline (layer = section_kind_name; outlines closed) — opens in Vulcan, Datamine, Leapfrog, Micromine, QGIS": "Chaque contact, faille, trait et contour dessiné en polyligne 3D (calque = coupe_type_nom ; contours fermés) : s'ouvre dans Vulcan, Datamine, Leapfrog, Micromine, QGIS",
   "Catalogue entry last checked {date}.": "Entrée du catalogue vérifiée pour la dernière fois le {date}.",
-  "{n} of the terrain samples were left out: they are off the terrain or over its filled (no-data) area, so the station elevations define the ground there.": "{n} des échantillons du terrain ont été écartés : ils sont hors du terrain ou sur sa zone comblée (sans données), donc les altitudes des stations y définissent le sol."
+  "{n} of the terrain samples were left out: they are off the terrain or over its filled (no-data) area, so the station elevations define the ground there.": "{n} des échantillons du terrain ont été écartés : ils sont hors du terrain ou sur sa zone comblée (sans données), donc les altitudes des stations y définissent le sol.",
+  "Grid: {crs}, {step} m": "Quadrillage : {crs}, {step} m",
+  "Grid: {step} m": "Quadrillage : {step} m",
+  "QC samples (standards, blanks, duplicates) are included.": "Les échantillons de contrôle (étalons, blancs, duplicata) sont inclus.",
+  "{n} QC sample(s) (standards, blanks, duplicates) excluded.": "{n} échantillon(s) de contrôle (étalons, blancs, duplicata) exclu(s).",
+  "≥: contains an over-range result counted at its ceiling; the true grade is at least this.": "≥ : contient un résultat hors plage compté à son plafond ; la teneur réelle est au moins celle-ci.",
+  "Below-detection results are taken at half the detection limit.": "Les résultats sous la limite de détection sont pris à la moitié de la limite.",
+  "True width to a structure dipping {dip}° towards {dipDir}°.": "Épaisseur vraie par rapport à une structure pendant de {dip}° vers {dipDir}°.",
+  "Lengths are downhole, not true widths.": "Les longueurs sont le long du sondage, pas des épaisseurs vraies.",
+  "Screening tool: verify any intercept against the raw assay certificates before reporting it.": "Outil de tri : vérifiez chaque intersection avec les certificats d’analyse bruts avant de la publier.",
+  "Note under the table": "Note sous le tableau"
 }

@@ -5978,8 +5978,8 @@
   "Equal gaps top to bottom (3 or more elements)": "Espaços iguais de cima para baixo (3 ou mais elementos)",
   "Spread across": "Distribuir na horizontal",
   "Spread down": "Distribuir na vertical",
-  "Placeholders: {project} {date} {page} {pages} {pagename} {scale}": "Marcadores: {project} {date} {page} {pages} {pagename} {scale}",
-  "Filled in when the page is shown and printed: the project's name, today's date, this page's number and name, the number of pages, the scale of the page's viewport.": "Preenchidos ao mostrar e imprimir a página: o nome do projeto, a data de hoje, o número e o nome desta página, o número de páginas, a escala da vista da página.",
+  "Placeholders: {project} {date} {page} {pages} {pagename} {scale} {crs} {credits}": "Marcadores: {project} {date} {page} {pages} {pagename} {scale} {crs} {credits}",
+  "Filled in when the page is shown and printed: the project's name, today's date, this page's number and name, the number of pages, the scale of the page's viewport, the project's coordinate system, the credit lines the licences of fetched terrain and imagery ask for.": "Preenchidos ao mostrar e imprimir a página: o nome do projeto, a data de hoje, o número e o nome desta página, o número de páginas, a escala da vista da página, o sistema de coordenadas do projeto, as linhas de crédito que as licenças do terreno e das imagens baixadas exigem.",
   "Export the current page as a PNG image, at the resolution chosen in the page bar": "Exportar a página atual como imagem PNG, na resolução escolhida na barra de páginas",
   "Zoom of the sheet on screen (the paper size does not change)": "Zoom da folha na tela (o tamanho do papel não muda)",
   "Fit page ({pct} %)": "Ajustar página ({pct} %)",
@@ -6051,5 +6051,15 @@
   "Every drawn contact, fault, string and outline: one row per vertex with real x, y, z": "Cada contato, falha, linha e contorno desenhado: uma linha por vértice com x, y, z reais",
   "Every drawn contact, fault, string and outline as a 3D polyline (layer = section_kind_name; outlines closed) — opens in Vulcan, Datamine, Leapfrog, Micromine, QGIS": "Cada contato, falha, linha e contorno desenhado como polilinha 3D (camada = seção_tipo_nome; contornos fechados): abre no Vulcan, Datamine, Leapfrog, Micromine, QGIS",
   "Catalogue entry last checked {date}.": "Entrada do catálogo verificada pela última vez em {date}.",
-  "{n} of the terrain samples were left out: they are off the terrain or over its filled (no-data) area, so the station elevations define the ground there.": "{n} das amostras do terreno foram deixadas de fora: estão fora do terreno ou sobre a sua área preenchida (sem dados), então as elevações das estações definem o terreno ali."
+  "{n} of the terrain samples were left out: they are off the terrain or over its filled (no-data) area, so the station elevations define the ground there.": "{n} das amostras do terreno foram deixadas de fora: estão fora do terreno ou sobre a sua área preenchida (sem dados), então as elevações das estações definem o terreno ali.",
+  "Grid: {crs}, {step} m": "Grade: {crs}, {step} m",
+  "Grid: {step} m": "Grade: {step} m",
+  "QC samples (standards, blanks, duplicates) are included.": "As amostras de controle (padrões, brancos, duplicatas) estão incluídas.",
+  "{n} QC sample(s) (standards, blanks, duplicates) excluded.": "{n} amostra(s) de controle (padrões, brancos, duplicatas) excluída(s).",
+  "≥: contains an over-range result counted at its ceiling; the true grade is at least this.": "≥: contém um resultado acima da faixa contado no seu teto; o teor real é pelo menos este.",
+  "Below-detection results are taken at half the detection limit.": "Os resultados abaixo do limite de detecção são tomados na metade do limite.",
+  "True width to a structure dipping {dip}° towards {dipDir}°.": "Espessura verdadeira em relação a uma estrutura com mergulho de {dip}° para {dipDir}°.",
+  "Lengths are downhole, not true widths.": "Os comprimentos são ao longo do furo, não espessuras verdadeiras.",
+  "Screening tool: verify any intercept against the raw assay certificates before reporting it.": "Ferramenta de triagem: verifique cada interseção com os certificados de análise originais antes de divulgá-la.",
+  "Note under the table": "Nota abaixo da tabela"
 }

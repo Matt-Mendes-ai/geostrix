@@ -24,6 +24,8 @@ import * as igrfModule from "../lib/igrf.js"; // #552 — Layout is a lazy chunk
 setIgrfModule(igrfModule);
 import { printPt, printPx } from "../lib/theme.js"; // TASKS.csv #585 — page text on the PRINT scale (was #385 screen sizes)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { crsName } from "../lib/reproject.js"; // TASKS.csv #947
+import { projectCredits } from "../lib/credits.js"; // TASKS.csv #949
 // (The page size used to be a fixed `const A4 = { w: 1123, h: 794 }` here; it is now per page — see
 // `A4` inside the component, kept under that name so every existing use follows the chosen format.)
 const SCALE_BAR_PX = 180; // default/initial bar length (px) for a freshly-added, never-synced scale bar
@@ -86,6 +88,7 @@ export default function LayoutModule() {
     // every time Enter/Refresh switches away to the 3D View tab and back.
     gridBoundViewportId, setGridBoundViewportId, gridMeters, setGridMeters,
     layoutPrintRequest, requestLayoutPrint, // TASKS.csv #908
+    terrain, rasters, // TASKS.csv #949 — {credits}
   } = useStore();
   const [selected, setSelected] = useState(null);
   // TASKS.csv #398 — the active page's paper size in screen px (96 dpi); named A4 for the existing uses.
@@ -695,7 +698,8 @@ export default function LayoutModule() {
   // expressions, the few a figure's title block needs); {scale} is the page's first fixed-scale viewport, else its
   // first true-scale one, else the approximate scale of the first viewport
   const activePageIndex = Math.max(0, layoutPages.findIndex((pg) => pg.id === activeLayoutPageId));
-  const textCtx = useMemo(() => textContextFor(elements, project, activePage, activePageIndex, layoutPages.length, collars), [elements, project, activePage, activePageIndex, layoutPages.length, collars]);
+  const credits = useMemo(() => projectCredits(terrain, rasters), [terrain, rasters]); // TASKS.csv #949
+  const textCtx = useMemo(() => textContextFor(elements, project, activePage, activePageIndex, layoutPages.length, collars, credits), [elements, project, activePage, activePageIndex, layoutPages.length, collars, credits]);
 
   // "Each viewport and cross section need an option to assign a scale bar to it" — previously there
   // was only ever ONE scale-bar element on a page (onSyncScaleBar found-or-created the single
@@ -807,7 +811,7 @@ export default function LayoutModule() {
 
   return (
     <div className="ge-body" style={{ width: "100%" }}>
-      {printing && <LayoutPrintRoot ref={printRootRef} pages={layoutPages} project={project} collars={collars} />}{/* TASKS.csv #908 */}
+      {printing && <LayoutPrintRoot ref={printRootRef} pages={layoutPages} project={project} collars={collars} credits={credits} />}{/* TASKS.csv #908 */}
       <div className="ge-panel" style={{ padding: "16px 14px", width: sidebarWidth }}>
         {/* TASKS.csv #458 — Layout ribbon (replaces the #65 icon palette and the Templates / Output buttons). */}
         <Ribbon label="Layout tools">
@@ -879,7 +883,7 @@ export default function LayoutModule() {
               <input value={sel.text} onChange={(e) => updateSelected({ text: e.target.value })} style={inp} />
             )}
             {(sel.type === "title" || sel.type === "text") && (
-              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }} title={tr("Filled in when the page is shown and printed: the project's name, today's date, this page's number and name, the number of pages, the scale of the page's viewport.")}>{tr("Placeholders: {project} {date} {page} {pages} {pagename} {scale}")}</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }} title={tr("Filled in when the page is shown and printed: the project's name, today's date, this page's number and name, the number of pages, the scale of the page's viewport, the project's coordinate system, the credit lines the licences of fetched terrain and imagery ask for.")}>{tr("Placeholders: {project} {date} {page} {pages} {pagename} {scale} {crs} {credits}")}</div>
             )}{/* TASKS.csv #909 */}
             {/* TASKS.csv #102 — font controls for text elements (title/text). Not callout, which
                 already has its own distinct sticky-note styling (fill/border) and fixed text look —
@@ -910,6 +914,7 @@ export default function LayoutModule() {
             {sel.type === "table" && ( /* TASKS.csv #911 */
               <>
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Table title")}<input value={sel.title || ""} onChange={(e) => updateSelected({ title: e.target.value })} style={inp} /></label>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Note under the table")}<textarea rows={3} value={sel.note || ""} onChange={(e) => updateSelected({ note: e.target.value })} style={{ ...inp, resize: "vertical", fontFamily: "inherit" }} /></label>{/* TASKS.csv #936 */}
                 <div style={{ display: "flex", gap: 6 }}>
                   <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Text size (pt)")}<input type="number" min="5" max="14" step="0.5" value={sel.fontPt || 7} onChange={(e) => updateSelected({ fontPt: Math.max(5, Math.min(14, Number(e.target.value) || 7)) })} style={inp} /></label>
                   {sel.source === "collars" && <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Rows at most")}<input type="number" min="1" step="1" value={sel.maxRows || 40} onChange={(e) => updateSelected({ maxRows: Math.max(1, Math.round(Number(e.target.value) || 40)) })} style={inp} /></label>}
@@ -1364,7 +1369,7 @@ function niceGridStep(span) {
   const raw = span / 5, mag = 10 ** Math.floor(Math.log10(raw));
   return [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) || 10 * mag;
 }
-function UtmGridOverlay({ el }) {
+function UtmGridOverlay({ el, crs = "" }) {
   const W = el.w, H = el.h, m = el.worldHeightAtTarget / H; // metres per page px
   // screen-up points at bearing beta = -azimuth (see ViewerModule's cameraAzimuthDeg comment)
   const beta = (-(el.cameraAzimuthDeg || 0) * Math.PI) / 180, cb = Math.cos(beta), sb = Math.sin(beta);
@@ -1404,6 +1409,9 @@ function UtmGridOverlay({ el }) {
           </g>
         );
       })}
+      {/* TASKS.csv #947 — which grid this is, once, in the corner */}
+      <text x={3} y={H - 3} fontSize={printPx(printPt.caption)} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif" style={{ paintOrder: "stroke", stroke: "#ffffff", strokeWidth: 2.5 }}>
+        {crs ? tr("Grid: {crs}, {step} m", { crs, step: step.toLocaleString() }) : tr("Grid: {step} m", { step: step.toLocaleString() })}</text>
     </svg>
   );
 }
@@ -1572,7 +1580,7 @@ function frameBorder(el, fallback = "none") {
 
 // TASKS.csv #908 — every page at its paper size, in mm, for printToPDF; shown only under @media print (app.css), its
 // siblings hidden. A named @page per distinct format lets one PDF hold A4 landscape and A3 portrait pages.
-const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, project, collars }, ref) {
+const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, project, collars, credits = "" }, ref) {
   const formats = [...new Map(pages.map((pg) => { const f = pageFormatOf(pg); return [pageCssName(f), f]; })).values()];
   const css = formats.map((f) => { const [w, h] = pageMm(f), n = pageCssName(f); return `@page ${n} { size: ${w}mm ${h}mm; margin: 0; }\n.ge-print-${n} { page: ${n}; }`; }).join("\n");
   return (
@@ -1582,7 +1590,7 @@ const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, proje
         const f = pageFormatOf(pg), [w, h] = pageMm(f);
         return (
           <div key={pg.id} className={`ge-print-page ge-print-${pageCssName(f)}`} style={{ width: `${w}mm`, height: `${h}mm` }}>
-            {withLiveScaleBars(pg.elements).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={textContextFor(pg.elements || [], project, pg, i, pages.length, collars)} />)}
+            {withLiveScaleBars(pg.elements).map((el) => <LayoutElement key={el.id} el={el} selected={false} multiSelected={false} print onDown={() => {}} ctx={textContextFor(pg.elements || [], project, pg, i, pages.length, collars, credits)} />)}
           </div>
         );
       })}
@@ -1615,7 +1623,13 @@ function Handles({ which, onStart, at = {} }) {
 
 
 // TASKS.csv #909 — the dynamic-text context of a page, and the fill
-const PLACEHOLDER = /\{(project|date|page|pages|pagename|scale)\}/g;
+const PLACEHOLDER = /\{(project|date|page|pages|pagename|scale|crs|credits)\}/g; // credits: TASKS.csv #949
+// TASKS.csv #947 — a map frame with a UTM grid never said which datum and zone: {crs} and the grid's caption print it
+function crsText(epsg) {
+  if (!epsg) return "";
+  const name = crsName(epsg);
+  return name ? `${name} (EPSG:${epsg})` : `EPSG:${epsg}`;
+}
 function pageScaleText(els) {
   const v = (els || []).find((e) => e.type === "viewport" && e.trueScale && e.capturedFixedScale > 0) || (els || []).find((e) => e.type === "viewport" && e.worldHeightAtTarget && (e.capH || e.h));
   if (!v) return "";
@@ -1623,8 +1637,8 @@ function pageScaleText(els) {
   const ratio = v.worldHeightAtTarget / (((v.capH || v.h) / 96) * 0.0254);
   return `${v.trueScale ? "" : "~"}1 : ${Math.round(ratio).toLocaleString()}`;
 }
-function textContextFor(els, project, page, index, count, collars = null) {
-  return { project: project?.name || "", date: new Date().toLocaleDateString(), page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), collars, els }; // collars: the #911 table; els: the #912 overview
+function textContextFor(els, project, page, index, count, collars = null, credits = "") {
+  return { project: project?.name || "", date: new Date().toLocaleDateString(), page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg), credits, collars, els }; // collars: the #911 table; els: the #912 overview
 }
 const fillText = (text, ctx) => (ctx && typeof text === "string" && text.includes("{") ? text.replace(PLACEHOLDER, (m, k) => (ctx[k] != null ? ctx[k] : m)) : text);
 
@@ -1688,7 +1702,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
       >
         <div style={{ width: "100%", height: "100%", background: "#fff", position: "relative", overflow: "hidden" }}>
           {el.src && <img src={el.src} alt={tr("viewport")} style={{ position: "absolute", left: (W - imgW) / 2, top: (H - imgH) / 2, width: imgW, height: imgH, display: "block" }} draggable={false} />}
-          {el.utmGrid && utmGridReady(el) && <div style={{ position: "absolute", left: (W - imgW) / 2, top: (H - imgH) / 2, width: imgW, height: imgH }}><UtmGridOverlay el={{ ...el, w: imgW, h: imgH }} /></div>}
+          {el.utmGrid && utmGridReady(el) && <div style={{ position: "absolute", left: (W - imgW) / 2, top: (H - imgH) / 2, width: imgW, height: imgH }}><UtmGridOverlay el={{ ...el, w: imgW, h: imgH }} crs={ctx?.crs || ""} /></div>}
           {el.overviewOf && (() => { /* TASKS.csv #912 — another viewport's ground footprint, as a rectangle */
             const poly = overviewPolygon(el, (ctx?.els || []).find((v) => v.id === el.overviewOf));
             return poly ? (
@@ -1804,6 +1818,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
             {more > 0 && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{tr("… and {n} more hole(s) (raise \"Rows at most\" or add a second table)", { n: more })}</td></tr>}
           </tbody>
         </table>
+        {el.note && <div style={{ fontSize: printPx(Math.max(5, (el.fontPt || 7) - 1)), fontStyle: "italic", color: "#3a424c", marginTop: 4, lineHeight: 1.35, whiteSpace: "normal" }}>{fillText(el.note, ctx)}</div>}{/* TASKS.csv #936 */}
         {handles}
       </div>
     );

@@ -5978,8 +5978,8 @@
   "Equal gaps top to bottom (3 or more elements)": "فجوات متساوية من الأعلى إلى الأسفل (3 عناصر أو أكثر)",
   "Spread across": "توزيع أفقي",
   "Spread down": "توزيع عمودي",
-  "Placeholders: {project} {date} {page} {pages} {pagename} {scale}": "العناصر النائبة: {project} {date} {page} {pages} {pagename} {scale}",
-  "Filled in when the page is shown and printed: the project's name, today's date, this page's number and name, the number of pages, the scale of the page's viewport.": "تُملأ عند عرض الصفحة وطباعتها: اسم المشروع، تاريخ اليوم، رقم هذه الصفحة واسمها، عدد الصفحات، مقياس منظر الصفحة.",
+  "Placeholders: {project} {date} {page} {pages} {pagename} {scale} {crs} {credits}": "العناصر النائبة: {project} {date} {page} {pages} {pagename} {scale} {crs} {credits}",
+  "Filled in when the page is shown and printed: the project's name, today's date, this page's number and name, the number of pages, the scale of the page's viewport, the project's coordinate system, the credit lines the licences of fetched terrain and imagery ask for.": "تُملأ عند عرض الصفحة وطباعتها: اسم المشروع، تاريخ اليوم، رقم هذه الصفحة واسمها، عدد الصفحات، مقياس منظر الصفحة، نظام إحداثيات المشروع، وأسطر الإسناد التي تطلبها تراخيص التضاريس والصور المنزّلة.",
   "Export the current page as a PNG image, at the resolution chosen in the page bar": "تصدير الصفحة الحالية كصورة PNG بالدقة المختارة في شريط الصفحات",
   "Zoom of the sheet on screen (the paper size does not change)": "تكبير الورقة على الشاشة (لا يتغير حجم الورق)",
   "Fit page ({pct} %)": "ملاءمة الصفحة ({pct} %)",
@@ -6051,5 +6051,15 @@
   "Every drawn contact, fault, string and outline: one row per vertex with real x, y, z": "كل تماس وصدع وخط ومحيط مرسوم: صف لكل رأس مع x و y و z الحقيقية",
   "Every drawn contact, fault, string and outline as a 3D polyline (layer = section_kind_name; outlines closed) — opens in Vulcan, Datamine, Leapfrog, Micromine, QGIS": "كل تماس وصدع وخط ومحيط مرسوم كخط متعدد ثلاثي الأبعاد (الطبقة = المقطع_النوع_الاسم؛ المحيطات مغلقة): يُفتح في Vulcan و Datamine و Leapfrog و Micromine و QGIS",
   "Catalogue entry last checked {date}.": "آخر تحقق من مدخل الفهرس: {date}.",
-  "{n} of the terrain samples were left out: they are off the terrain or over its filled (no-data) area, so the station elevations define the ground there.": "استُبعدت {n} من عينات التضاريس: فهي خارج التضاريس أو فوق منطقتها المملوءة (بلا بيانات)، لذا تحدد ارتفاعات المحطات سطح الأرض هناك."
+  "{n} of the terrain samples were left out: they are off the terrain or over its filled (no-data) area, so the station elevations define the ground there.": "استُبعدت {n} من عينات التضاريس: فهي خارج التضاريس أو فوق منطقتها المملوءة (بلا بيانات)، لذا تحدد ارتفاعات المحطات سطح الأرض هناك.",
+  "Grid: {crs}, {step} m": "الشبكة: {crs}، {step} م",
+  "Grid: {step} m": "الشبكة: {step} م",
+  "QC samples (standards, blanks, duplicates) are included.": "عينات ضبط الجودة (المعايير، الفوارغ، المكررات) مُدرجة.",
+  "{n} QC sample(s) (standards, blanks, duplicates) excluded.": "استُبعدت {n} من عينات ضبط الجودة (المعايير، الفوارغ، المكررات).",
+  "≥: contains an over-range result counted at its ceiling; the true grade is at least this.": "≥: يحتوي على نتيجة فوق النطاق محسوبة عند سقفها؛ المحتوى الحقيقي لا يقل عن هذا.",
+  "Below-detection results are taken at half the detection limit.": "تؤخذ النتائج دون حد الكشف عند نصف حد الكشف.",
+  "True width to a structure dipping {dip}° towards {dipDir}°.": "العرض الحقيقي بالنسبة إلى بنية تميل {dip}° نحو {dipDir}°.",
+  "Lengths are downhole, not true widths.": "الأطوال على امتداد الثقب، وليست عروضًا حقيقية.",
+  "Screening tool: verify any intercept against the raw assay certificates before reporting it.": "أداة فرز أولي: تحقق من أي تقاطع مقابل شهادات التحليل الأصلية قبل الإبلاغ عنه.",
+  "Note under the table": "ملاحظة أسفل الجدول"
 }

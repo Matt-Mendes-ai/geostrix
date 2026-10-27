@@ -5978,8 +5978,8 @@
   "Equal gaps top to bottom (3 or more elements)": "Espacios iguales de arriba abajo (3 o más elementos)",
   "Spread across": "Repartir en horizontal",
   "Spread down": "Repartir en vertical",
-  "Placeholders: {project} {date} {page} {pages} {pagename} {scale}": "Marcadores: {project} {date} {page} {pages} {pagename} {scale}",
-  "Filled in when the page is shown and printed: the project's name, today's date, this page's number and name, the number of pages, the scale of the page's viewport.": "Se rellenan al mostrar e imprimir la página: el nombre del proyecto, la fecha de hoy, el número y nombre de esta página, el número de páginas, la escala de la vista de la página.",
+  "Placeholders: {project} {date} {page} {pages} {pagename} {scale} {crs} {credits}": "Marcadores: {project} {date} {page} {pages} {pagename} {scale} {crs} {credits}",
+  "Filled in when the page is shown and printed: the project's name, today's date, this page's number and name, the number of pages, the scale of the page's viewport, the project's coordinate system, the credit lines the licences of fetched terrain and imagery ask for.": "Se rellenan al mostrar e imprimir la página: el nombre del proyecto, la fecha de hoy, el número y nombre de esta página, el número de páginas, la escala de la vista de la página, el sistema de coordenadas del proyecto, las líneas de crédito que piden las licencias del terreno y las imágenes descargadas.",
   "Export the current page as a PNG image, at the resolution chosen in the page bar": "Exportar la página actual como imagen PNG, a la resolución elegida en la barra de páginas",
   "Zoom of the sheet on screen (the paper size does not change)": "Zoom de la hoja en pantalla (el tamaño del papel no cambia)",
   "Fit page ({pct} %)": "Ajustar página ({pct} %)",
@@ -6051,5 +6051,15 @@
   "Every drawn contact, fault, string and outline: one row per vertex with real x, y, z": "Cada contacto, falla, línea y contorno dibujado: una fila por vértice con x, y, z reales",
   "Every drawn contact, fault, string and outline as a 3D polyline (layer = section_kind_name; outlines closed) — opens in Vulcan, Datamine, Leapfrog, Micromine, QGIS": "Cada contacto, falla, línea y contorno dibujado como polilínea 3D (capa = sección_tipo_nombre; contornos cerrados): se abre en Vulcan, Datamine, Leapfrog, Micromine, QGIS",
   "Catalogue entry last checked {date}.": "Entrada del catálogo verificada por última vez el {date}.",
-  "{n} of the terrain samples were left out: they are off the terrain or over its filled (no-data) area, so the station elevations define the ground there.": "Se dejaron fuera {n} de las muestras del terreno: están fuera del terreno o sobre su zona rellenada (sin datos), así que las elevaciones de las estaciones definen el terreno allí."
+  "{n} of the terrain samples were left out: they are off the terrain or over its filled (no-data) area, so the station elevations define the ground there.": "Se dejaron fuera {n} de las muestras del terreno: están fuera del terreno o sobre su zona rellenada (sin datos), así que las elevaciones de las estaciones definen el terreno allí.",
+  "Grid: {crs}, {step} m": "Grilla: {crs}, {step} m",
+  "Grid: {step} m": "Grilla: {step} m",
+  "QC samples (standards, blanks, duplicates) are included.": "Se incluyen las muestras de control (estándares, blancos, duplicados).",
+  "{n} QC sample(s) (standards, blanks, duplicates) excluded.": "{n} muestra(s) de control (estándares, blancos, duplicados) excluida(s).",
+  "≥: contains an over-range result counted at its ceiling; the true grade is at least this.": "≥: contiene un resultado sobre el rango contado en su techo; la ley real es al menos esta.",
+  "Below-detection results are taken at half the detection limit.": "Los resultados bajo el límite de detección se toman a la mitad del límite.",
+  "True width to a structure dipping {dip}° towards {dipDir}°.": "Ancho verdadero respecto a una estructura que mantea {dip}° hacia {dipDir}°.",
+  "Lengths are downhole, not true widths.": "Las longitudes son a lo largo del sondaje, no anchos verdaderos.",
+  "Screening tool: verify any intercept against the raw assay certificates before reporting it.": "Herramienta de evaluación preliminar: verifique cada intercepto con los certificados de ensaye originales antes de informarlo.",
+  "Note under the table": "Nota bajo la tabla"
 }
