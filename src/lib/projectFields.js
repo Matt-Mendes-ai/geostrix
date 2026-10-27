@@ -51,7 +51,9 @@ import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js"
 // v16 (TASKS.csv #841) adds geochemThresholds (the anomaly threshold rule chosen per surface element, with its values).
 // v17 (TASKS.csv #842) adds surfaceQc (QC records of surface programs: lab checks and program inserts, certificates,
 // and the program's QC settings).
-export const PROJECT_VERSION = 17; // #842: surfaceQc. Was 16 // #841: geochemThresholds. Was 15 // #811: explicitSurfaces. Was 14 // #796: big terrain grids as elevationsF32. Was 13 // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
+// v18 (TASKS.csv #1003) adds evidenceOverlay (the Evidence overlay pane's recipe: evidence sources and memberships, operator,
+// training points; values are recomputed from the sources), so a targeting score can be re-run and audited after reopening.
+export const PROJECT_VERSION = 18; // #1003: evidenceOverlay. Was 17 // #842: surfaceQc. Was 16 // #841: geochemThresholds. Was 15 // #811: explicitSurfaces. Was 14 // #796: big terrain grids as elevationsF32. Was 13 // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
 
 export const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], magsusc: [], structure: [], litho_gc: [], alt_gc: [], geophys_pts: [] };
 
@@ -239,6 +241,7 @@ export const FIELDS = [
   { key: "surfaceElements", track: "undo", empty: list },
   { key: "geochemThresholds", track: "undo", empty: list }, // TASKS.csv #841
   { key: "surfaceQc", track: "undo", empty: () => null }, // TASKS.csv #842 — { records, certificates, settings } or null
+  { key: "evidenceOverlay", track: "dirty", empty: () => null }, // TASKS.csv #1003 — { layers, operator, gamma, training } or null
   { key: "generatedSurfaces", track: "dirty", empty: list, // TASKS.csv #52
     save: compactSurfaces, load: (data) => expandSurfaces(data.generatedSurfaces || []) }, // #483 — large meshes stored compact
   { key: "modelDomains", track: "dirty", empty: list },

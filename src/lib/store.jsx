@@ -136,6 +136,7 @@ export function StoreProvider({ children }) {
   // a legend group: its style lives in the view, so it publishes the group here for Layout's legend. Session only.
   const [surfaceSampleLegend, setSurfaceSampleLegend] = useState(null);
   const [surfaceQc, setSurfaceQc] = useState(null); // TASKS.csv #842 — surface-program QC: { records, certificates, settings }
+  const [evidenceOverlay, setEvidenceOverlay] = useState(null); // TASKS.csv #1003 — the Evidence overlay pane's recipe
   const [customLayers, setCustomLayers] = useState([]); // plain {id,name,rows} mirror for save/load; ViewerModule owns the live three.js groups
   const [dbConnections, setDbConnections] = useState([]); // saved (non-secret) connection profiles
   // TASKS.csv #206 — "the database stays connected and accessible on a database side panel... so I
@@ -858,6 +859,7 @@ export function StoreProvider({ children }) {
     softIntercepts: [softIntercepts, setSoftIntercepts], interceptSets: [interceptSets, setInterceptSets],
     sections: [sections, setSections], sectionGroups: [sectionGroups, setSectionGroups], layoutTemplates: [layoutTemplates, setLayoutTemplates],
     plannedHoles: [plannedHoles, setPlannedHoles], surfaceSamples: [surfaceSamples, setSurfaceSamples], surfaceElements: [surfaceElements, setSurfaceElements], geochemThresholds: [geochemThresholds, setGeochemThresholds], surfaceQc: [surfaceQc, setSurfaceQc],
+    evidenceOverlay: [evidenceOverlay, setEvidenceOverlay], // TASKS.csv #1003
     generatedSurfaces: [generatedSurfaces, setGeneratedSurfaces], modelDomains: [modelDomains, setModelDomains],
   };
   const live = {};
@@ -1527,6 +1529,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     geochemThresholds, setGeochemThresholds, // TASKS.csv #841
     surfaceSampleLegend, setSurfaceSampleLegend, // TASKS.csv #948
     surfaceQc, setSurfaceQc, // TASKS.csv #842
+    evidenceOverlay, setEvidenceOverlay, // TASKS.csv #1003
     customLayers, setCustomLayers,
     dbConnections, setDbConnections,
     getProjectPayload: snapshotCurrentPayload, // TASKS.csv #598 — the project, as Save would write it, for an opt-in problem report

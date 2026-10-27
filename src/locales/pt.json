@@ -6155,5 +6155,6 @@
   "The structural trend is almost round within this surface's plane ({r} times along {az}°), so it was not applied: this trend does not describe continuity within this surface.": "A tendência estrutural é quase redonda no plano desta superfície ({r} vezes ao longo de {az}°), então não foi aplicada: esta tendência não descreve a continuidade dentro desta superfície.",
   "contact {v}, at the hole {d} m off the section": "contato {v}, no furo a {d} m da seção",
   "Drawing on a section image snaps to the logged contacts of holes within this distance of the image. The point is the contact where it was logged, on the hole, not moved onto the image.": "Ao desenhar sobre uma imagem de seção, ajusta-se aos contatos registrados dos furos a esta distância da imagem. O ponto é o contato onde foi registrado, no furo, não movido para a imagem.",
-  "Section images: snap to contacts of holes within": "Imagens de seção: ajustar a contatos de furos a até"
+  "Section images: snap to contacts of holes within": "Imagens de seção: ajustar a contatos de furos a até",
+  "Restored the saved overlay without {list}: not in this project any more.": "A sobreposição salva foi restaurada sem {list}: não está mais neste projeto."
 }

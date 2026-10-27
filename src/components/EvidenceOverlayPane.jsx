@@ -2,7 +2,7 @@
 // features, surface geochemistry) on one grid, fuzzy memberships and an operator, optional known occurrences for
 // weights of evidence and a prediction-area plot; the score goes on the map as a raster drape (with its values, so
 // the Raster module exports it as GeoTIFF, #854). Maths and the caveats in lib/evidence.js.
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Download, Layers } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
@@ -21,7 +21,7 @@ const numText = (v) => (Number.isFinite(v) ? String(+v.toPrecision(3)) : ""); //
 let nextId = 1;
 
 export default function EvidenceOverlayPane({ onClose }) {
-  const { rasters = [], mapLayers = [], surfaceSamples = [], surfaceElements = [], terrain, collars = [], assays = [], assayElements = [], project, addRaster } = useStore();
+  const { rasters = [], mapLayers = [], surfaceSamples = [], surfaceElements = [], terrain, collars = [], assays = [], assayElements = [], project, addRaster, evidenceOverlay, setEvidenceOverlay } = useStore();
   const units = useMemo(() => Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit])), [surfaceElements]);
   const assayUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const [layers, setLayers] = useState([]); // [{ id, kind, label, ref, shape, low, high, values }]
@@ -88,6 +88,37 @@ export default function EvidenceOverlayPane({ onClose }) {
     setLayers((L) => (L.some((l) => l.values.length !== n) ? L.map((l) => { const v = computeValues(l, l); return v ? { ...l, values: v } : l; }) : L));
     setResult((r) => (r && r.n !== n ? null : r));
   }, [n]); // the cell count is the signal; computeValues is rebuilt each render
+  // TASKS.csv #1003 — the recipe is saved with the project (evidenceOverlay, format v18): which sources, their memberships
+  // and filters, the operator and the training points; not the values, which are recomputed from the sources. Restored
+  // once when the pane opens on a project that has one (a source no longer in the project is left out, and said).
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current || !grid) return;
+    restored.current = true;
+    const R = evidenceOverlay;
+    if (!R) return;
+    if (R.operator) setOperator(R.operator);
+    if (Number.isFinite(R.gamma)) setGamma(R.gamma);
+    if (R.training) setTraining((t) => ({ ...t, ...R.training }));
+    const missing = [];
+    const back = (R.layers || []).flatMap((l) => {
+      const src = sources.find((x) => x.key === l.key);
+      if (!src) { missing.push(l.label || l.key); return []; }
+      const values = computeValues(src, { field: l.field, value: l.value, reach: l.reach });
+      return values ? [{ id: nextId++, ...src, shape: l.shape, low: l.low, high: l.high, lowText: numText(l.low), highText: numText(l.high), field: l.field || "", value: l.value || "", reach: l.reach || defaultReach, values }] : [];
+    });
+    setLayers(back);
+    if (missing.length) setMsg(tr("Restored the saved overlay without {list}: not in this project any more.", { list: missing.join(", ") }));
+  }, [grid, evidenceOverlay]); // once, when there is a grid; sources / computeValues are read at that moment
+  const recipe = useMemo(() => ({
+    layers: layers.map((l) => ({ key: l.key, kind: l.kind, ref: l.ref, label: l.label, shape: l.shape, low: l.low, high: l.high, field: l.field || "", value: l.value || "", reach: l.reach })),
+    operator, gamma, training,
+  }), [layers, operator, gamma, training]);
+  useEffect(() => {
+    if (!restored.current) return; // never write an empty recipe over the saved one before it has been read
+    const next = recipe.layers.length ? recipe : null;
+    if (JSON.stringify(next) !== JSON.stringify(evidenceOverlay ?? null)) setEvidenceOverlay(next);
+  }, [recipe]); // evidenceOverlay is compared, not a trigger
   const updateLayer = (id, patch, recompute = false) => setLayers((L) => L.map((l) => {
     if (l.id !== id) return l;
     const next = { ...l, ...patch };
@@ -137,7 +168,8 @@ export default function EvidenceOverlayPane({ onClose }) {
     const name = which === "posterior" ? tr("Weights-of-evidence posterior ({n} occurrences)", { n: result.wofe.nD }) : tr("Fuzzy overlay ({op}) of {n} evidence layers", { op: operator === "gamma" ? `gamma ${gamma}` : operator, n: layers.length });
     const valid = score.reduce((a, v) => a + (Number.isFinite(v) ? 1 : 0), 0);
     addRaster({ name, bbox: [grid.x0 - grid.dx / 2, grid.yTop + grid.dy / 2 - grid.ny * grid.dy, grid.x0 - grid.dx / 2 + grid.nx * grid.dx, grid.yTop + grid.dy / 2], dataUrl: c.toDataURL("image/png"), drapeMode: terrain ? "terrain" : "flat", opacity: 0.75,
-      grid: { nx: grid.nx, ny: grid.ny, x0: grid.x0, yTop: grid.yTop, dx: grid.dx, dy: grid.dy, values: f32ToB64(score), valid, averagedBy: 1, sourceSize: [grid.nx, grid.ny] } });
+      grid: { nx: grid.nx, ny: grid.ny, x0: grid.x0, yTop: grid.yTop, dx: grid.dx, dy: grid.dy, values: f32ToB64(score), valid, averagedBy: 1, sourceSize: [grid.nx, grid.ny] },
+      params: { tool: which === "posterior" ? "weights of evidence (posterior probability)" : "fuzzy overlay", recipe, trainingPoints: trainingPoints.length, builtAt: new Date().toISOString() } }); // TASKS.csv #1003 — how it was made
     setMsg(tr("Added \"{name}\" to the map (its values export as GeoTIFF from the Raster module).", { name }));
   };
   const toTif = (which) => { const score = which === "posterior" ? result.wofe.post.prob : result.fuzzy; saveGeoTIFF(`${which === "posterior" ? "wofe_posterior" : "fuzzy_overlay"}.tif`, gridToGeoTIFF({ ...grid, bands: [{ values: score }], epsg: project?.epsg })); };

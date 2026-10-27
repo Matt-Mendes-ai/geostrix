@@ -6155,5 +6155,6 @@
   "The structural trend is almost round within this surface's plane ({r} times along {az}°), so it was not applied: this trend does not describe continuity within this surface.": "الاتجاه البنيوي شبه دائري ضمن مستوى هذا السطح ({r} مرة على امتداد {az}°)، لذا لم يُطبَّق: هذا الاتجاه لا يصف الاستمرارية ضمن هذا السطح.",
   "contact {v}, at the hole {d} m off the section": "تماس {v}، عند الثقب على بعد {d} م من المقطع",
   "Drawing on a section image snaps to the logged contacts of holes within this distance of the image. The point is the contact where it was logged, on the hole, not moved onto the image.": "عند الرسم على صورة مقطع، يلتقط المؤشر التماسات المسجلة للثقوب ضمن هذه المسافة من الصورة. النقطة هي التماس حيث سُجّل، على الثقب، دون نقلها إلى الصورة.",
-  "Section images: snap to contacts of holes within": "صور المقاطع: الالتقاط إلى تماسات الثقوب ضمن"
+  "Section images: snap to contacts of holes within": "صور المقاطع: الالتقاط إلى تماسات الثقوب ضمن",
+  "Restored the saved overlay without {list}: not in this project any more.": "استُعيد التراكب المحفوظ دون {list}: لم يعد في هذا المشروع."
 }
