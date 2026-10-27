@@ -6097,5 +6097,6 @@
   "Compact runs at least 60 iterations whatever is entered above: the sparse re-weighting needs its own after the smooth stage.": "يُجري الوضع المضغوط 60 تكرارًا على الأقل مهما كانت القيمة أعلاه: تحتاج إعادة الترجيح المتناثرة إلى تكراراتها بعد المرحلة الملساء.",
   "Click an element to edit it, Ctrl+click for several (to align or spread them). Drag the handles to resize; Shift keeps the shape. Alt drags past the guides. Arrow keys nudge 1 mm, Shift+arrow 10 mm.": "انقر عنصرًا لتحريره، وCtrl+نقر لاختيار عدة عناصر (لمحاذاتها أو توزيعها). اسحب المقابض لتغيير الحجم؛ وShift يحفظ الشكل. وAlt يسحب متجاوزًا الأدلة. تحرك الأسهم 1 مم، وShift+سهم 10 مم.",
   "The sheet is empty: add a view of the 3D scene (Current view), then a title, north arrow, scale bar and legend from Insert.": "اللوحة فارغة: أضف عرضًا للمشهد ثلاثي الأبعاد (العرض الحالي)، ثم عنوانًا وسهم الشمال ومقياس الرسم ومفتاح الرموز من إدراج.",
-  "{type} element": "عنصر: {type}"
+  "{type} element": "عنصر: {type}",
+  "In each column, cells below the deepest one whose support (how much the data see it, 0-1) reaches this are left out of the block models: below that the values are the regularization's extrapolation, not data.": "في كل عمود تُستبعد من نماذج الكتل الخلايا الواقعة أسفل أعمق خلية يبلغ دعمها (مدى رؤية البيانات لها، 0-1) هذه القيمة: فالقيم أسفلها استكمال من التنظيم لا بيانات."
 }

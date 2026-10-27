@@ -134,14 +134,41 @@ export function build3dRequest(lines, terrain, { core, depth, step = 1, pct, flo
   };
 }
 
-// The result's cells as a block model: only cells the data see (normalised support >= cutoff) and no bigger than
-// maxCell across (the octree's padding cells are hundreds of metres)
-export function cells3d(result, field, { cutoff = 0.005, maxCell = Infinity } = {}) {
+// The result's cells as a block model: no bigger than maxCell across (the octree's padding cells are hundreds of metres),
+// and only down to the depth the data see. TASKS.csv #926 — the cutoff is applied as the 2D sections' depth-of-
+// investigation envelope (#641, supportEnvelope.js): in each column a cell is kept when it is at or above the deepest
+// cell there whose support reaches the cutoff, so nothing below what the data see is drawn, and the wobble of the
+// support between electrodes punches no holes into the shallow band. The octree's cells differ in size, so columns are
+// a grid at the smallest cell's width and a cell belongs to every column its footprint covers. The default cutoff is
+// 0.02 (the 2D default): on Woodjam's six lines 0.005 kept cells to 630 m below the electrodes against a 2D depth of
+// investigation of 150-240 m; 0.02 reached 390 m at most (review #918, measured on the half-space sensitivities).
+export function cells3d(result, field, { cutoff = 0.02, maxCell = Infinity } = {}) {
   const c = result.cells, v = c[field];
   if (!v) return [];
+  const n = v.length;
+  let step = Infinity;
+  for (let i = 0; i < n; i++) step = Math.min(step, c.dx[i], c.dy[i]);
+  if (!(step > 0) || !Number.isFinite(step)) step = 1;
+  const MAX_SPAN = 16; // columns per side a big cell is spread over; beyond that only its centre column
+  const colsOf = (i) => {
+    const out = [];
+    const span = Math.max(c.dx[i], c.dy[i]) / step;
+    if (span > MAX_SPAN) { out.push(`${Math.floor(c.x[i] / step)}|${Math.floor(c.y[i] / step)}`); return out; }
+    const x0 = Math.floor((c.x[i] - c.dx[i] / 2) / step + 1e-6), x1 = Math.ceil((c.x[i] + c.dx[i] / 2) / step - 1e-6);
+    const y0 = Math.floor((c.y[i] - c.dy[i] / 2) / step + 1e-6), y1 = Math.ceil((c.y[i] + c.dy[i] / 2) / step - 1e-6);
+    for (let gx = x0; gx < x1; gx++) for (let gy = y0; gy < y1; gy++) out.push(`${gx}|${gy}`);
+    return out;
+  };
+  const deepest = new Map(); // column -> the lowest bottom of a cell there that reaches the cutoff
+  for (let i = 0; i < n; i++) {
+    if (!(c.support[i] >= cutoff)) continue;
+    const bottom = c.z[i] - c.dz[i] / 2;
+    for (const k of colsOf(i)) { const d = deepest.get(k); if (d === undefined || bottom < d) deepest.set(k, bottom); }
+  }
   const out = [];
-  for (let i = 0; i < v.length; i++) {
-    if (c.support[i] < cutoff || Math.max(c.dx[i], c.dy[i]) > maxCell) continue;
+  for (let i = 0; i < n; i++) {
+    if (Math.max(c.dx[i], c.dy[i]) > maxCell) continue;
+    if (!(c.support[i] >= cutoff) && !colsOf(i).some((k) => deepest.has(k) && deepest.get(k) <= c.z[i])) continue;
     out.push({ x: c.x[i], y: c.y[i], z: c.z[i], dx: c.dx[i], dy: c.dy[i], dz: c.dz[i], value: v[i], support: c.support[i] });
   }
   return out;

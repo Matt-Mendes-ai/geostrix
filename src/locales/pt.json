@@ -6097,5 +6097,6 @@
   "Compact runs at least 60 iterations whatever is entered above: the sparse re-weighting needs its own after the smooth stage.": "O modo compacto roda pelo menos 60 iterações, seja qual for o valor acima: a reponderação esparsa precisa das suas após a etapa suave.",
   "Click an element to edit it, Ctrl+click for several (to align or spread them). Drag the handles to resize; Shift keeps the shape. Alt drags past the guides. Arrow keys nudge 1 mm, Shift+arrow 10 mm.": "Clique em um elemento para editá-lo, Ctrl+clique para vários (para alinhá-los ou distribuí-los). Arraste as alças para redimensionar; Shift mantém a forma. Alt arrasta sem as guias. As setas movem 1 mm, Shift+seta 10 mm.",
   "The sheet is empty: add a view of the 3D scene (Current view), then a title, north arrow, scale bar and legend from Insert.": "A prancha está vazia: adicione uma vista da cena 3D (Vista atual) e depois um título, seta norte, barra de escala e legenda em Inserir.",
-  "{type} element": "Elemento: {type}"
+  "{type} element": "Elemento: {type}",
+  "In each column, cells below the deepest one whose support (how much the data see it, 0-1) reaches this are left out of the block models: below that the values are the regularization's extrapolation, not data.": "Em cada coluna, as células abaixo da mais profunda cujo suporte (quanto os dados a enxergam, 0-1) atinge este valor ficam fora dos modelos de blocos: abaixo disso os valores são extrapolação da regularização, não dados."
 }

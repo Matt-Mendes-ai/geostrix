@@ -56,8 +56,21 @@ test("#643 terrain: the ground under a line without stations, and samples under 
 });
 
 test("#643 result cells: the support cutoff and the padding cells left out", () => {
-  const result = { cells: { x: [1, 2, 3], y: [1, 2, 3], z: [0, 0, 0], dx: [25, 25, 400], dy: [25, 25, 400], dz: [12.5, 12.5, 200], resistivity: [10, 20, 30], support: [0.5, 0.001, 0.5] } };
+  // three cells side by side (columns 25 m apart, #926: each column judged on its own), the third a padding cell
+  const result = { cells: { x: [12.5, 37.5, 500], y: [12.5, 12.5, 500], z: [0, 0, 0], dx: [25, 25, 400], dy: [25, 25, 400], dz: [12.5, 12.5, 200], resistivity: [10, 20, 30], support: [0.5, 0.001, 0.5] } };
   assert.deepEqual(cells3d(result, "resistivity", { cutoff: 0.005, maxCell: 50 }).map((c) => c.value), [10]);
   assert.equal(cells3d(result, "resistivity", { cutoff: 0 }).length, 3);
   assert.deepEqual(cells3d(result, "chargeability"), []);
+});
+
+test("#926 the 3D cutoff is a depth-of-investigation envelope per column, across octree cell sizes", () => {
+  // one column of 25 m cells over a 50 m cell: support wobbles (0.03, 0.01, 0.04) then fades (0.005 in the 50 m cell)
+  const result = { cells: {
+    x: [12.5, 12.5, 12.5, 25], y: [12.5, 12.5, 12.5, 25], z: [-6.25, -18.75, -31.25, -62.5], dx: [25, 25, 25, 50], dy: [25, 25, 25, 50], dz: [12.5, 12.5, 12.5, 50],
+    resistivity: [1, 2, 3, 4], support: [0.03, 0.01, 0.04, 0.005] } };
+  // at 0.02: the weak cell between two seen ones stays (no hole), the deep 50 m cell under the deepest seen one goes
+  assert.deepEqual(cells3d(result, "resistivity").map((c) => c.value), [1, 2, 3]);
+  assert.deepEqual(cells3d(result, "resistivity", { cutoff: 0.035 }).map((c) => c.value), [1, 2, 3]);
+  assert.deepEqual(cells3d(result, "resistivity", { cutoff: 0.05 }).map((c) => c.value), []);
+  assert.equal(cells3d(result, "resistivity", { cutoff: 0.001 }).length, 4);
 });
