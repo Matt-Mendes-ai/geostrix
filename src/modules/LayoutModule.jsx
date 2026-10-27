@@ -11,6 +11,7 @@ import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS } from "../lib/legendGroups.js"; // TASKS.csv #725
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
 import { withLiveScaleBars, relinkCopies } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924
+import { capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, snapToGuides } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
@@ -407,7 +408,7 @@ export default function LayoutModule() {
   // bound element was deleted, or that viewport hasn't been rendered yet (no worldHeightAtTarget/h
   // to compute a scale from).
   const boundViewportEl = gridBoundViewportId ? elements.find((el) => el.id === gridBoundViewportId && el.type === "viewport") : null;
-  const metersPerPx = boundViewportEl?.worldHeightAtTarget && (boundViewportEl?.capH || boundViewportEl?.h) ? boundViewportEl.worldHeightAtTarget / (boundViewportEl.capH || boundViewportEl.h) : null; // capH: #906
+  const metersPerPx = boundViewportEl ? metresPerPagePx(boundViewportEl) : null; // capH: #906
   const gridSnapPx = metersPerPx ? gridMeters / metersPerPx : gridMm * PX_PER_MM;
   // A bound viewport that gets deleted (or was never a viewport to begin with) shouldn't leave a
   // stale, silently-ignored id sitting in the picker — snap back to "None" so the UI stays truthful.
@@ -1019,7 +1020,7 @@ export default function LayoutModule() {
                 onEnter={() => startInteractiveViewportEdit(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
                 onFit={() => fitViewport(sel)}
                 others={elements.filter((o) => o.type === "viewport" && o.id !== sel.id)}
-                onSyncScaleBar={() => syncScaleBarForElement(sel, sel.worldHeightAtTarget, sel.capH || sel.h)}
+                onSyncScaleBar={() => syncScaleBarForElement(sel, sel.worldHeightAtTarget, capturedSize(sel).h)}
                 onSyncNorth={() => {
                   // TASKS.csv #67 — same pattern as onSyncScaleBar just above: apply this viewport's
                   // captured camera azimuth to the nearest existing north-arrow element, or add one if
@@ -1342,33 +1343,6 @@ function Ruler2D({ axis, length, mmStep }) {
 // can be placed exactly. A perspective or oblique capture has no single metres-per-pixel, and a grid on
 // it would be a confident-looking fiction. Lines follow the capture's camera azimuth (a rotated map gets
 // rotated grid lines); labels sit where each line meets the frame.
-// TASKS.csv #912 — page px of a viewport's image (from its centre: u right, v down) <-> world E / N, for a top-down,
-// true-scale capture (the UtmGridOverlay maths: screen-up points at bearing -azimuth). overviewPolygon: the corners of
-// `target`'s image in `overview`'s image px (from its top-left), or null when either is not such a capture.
-function vpToWorld(el, u, v) {
-  const m = el.worldHeightAtTarget / (el.capH || el.h), b = (-(el.cameraAzimuthDeg || 0) * Math.PI) / 180, cb = Math.cos(b), sb = Math.sin(b);
-  return [el.targetWorld.x + m * (u * cb - v * sb), el.targetWorld.y - m * (u * sb + v * cb)];
-}
-function worldToVp(el, E, N) {
-  const m = el.worldHeightAtTarget / (el.capH || el.h), b = (-(el.cameraAzimuthDeg || 0) * Math.PI) / 180, cb = Math.cos(b), sb = Math.sin(b);
-  const a = (E - el.targetWorld.x) / m, c = -(N - el.targetWorld.y) / m;
-  return [a * cb + c * sb, -a * sb + c * cb];
-}
-function overviewPolygon(overview, target) {
-  if (!target || !utmGridReady(overview) || !utmGridReady(target)) return null;
-  const tw = target.capW || target.w, th = target.capH || target.h, ow = overview.capW || overview.w, oh = overview.capH || overview.h;
-  return [[-tw / 2, -th / 2], [tw / 2, -th / 2], [tw / 2, th / 2], [-tw / 2, th / 2]].map(([u, v]) => {
-    const [E, N] = vpToWorld(target, u, v), [x, y] = worldToVp(overview, E, N);
-    return [Math.round((x + ow / 2) * 10) / 10, Math.round((y + oh / 2) * 10) / 10];
-  });
-}
-function utmGridReady(el) {
-  return !!(el.planView && el.trueScale && el.targetWorld && el.worldHeightAtTarget && el.h && el.w);
-}
-function niceGridStep(span) {
-  const raw = span / 5, mag = 10 ** Math.floor(Math.log10(raw));
-  return [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) || 10 * mag;
-}
 function UtmGridOverlay({ el, crs = "" }) {
   const W = el.w, H = el.h, m = el.worldHeightAtTarget / H; // metres per page px
   // screen-up points at bearing beta = -azimuth (see ViewerModule's cameraAzimuthDeg comment)
@@ -1424,16 +1398,8 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
   // ordinary, pre-#69 default) — sel.trueScale means the LAST capture was rendered with an
   // orthographic camera (see startViewportRender/ViewerModule's capture effect), which makes
   // worldHeightAtTarget an exact figure, not an estimate at one particular distance.
-  const scaleText = (() => {
-    // #906 — a fixed-scale capture IS that scale (the derived figure read 1 : 5,002 from the image's rounded pixel
-    // size); otherwise metres per page px of the image, which keeps its captured size when the frame is resized
-    if (sel.trueScale && sel.fixedScale > 0 && sel.capturedFixedScale === sel.fixedScale) return `1 : ${sel.fixedScale.toLocaleString()}`;
-    const imgH = sel.capH || sel.h;
-    if (!sel.worldHeightAtTarget || !imgH) return null;
-    const printedHeightM = (imgH / 96) * 0.0254;
-    const ratio = sel.worldHeightAtTarget / printedHeightM;
-    return `${sel.trueScale ? "" : "~"}1 : ${Math.round(ratio).toLocaleString()}`;
-  })();
+  const scaleText = viewportScaleText(sel); // #906 / #961
+  const oblique = obliqueCapture(sel); // TASKS.csv #946
   const frameChanged = !!(sel.capW && sel.capH && (Math.round(sel.w) !== Math.round(sel.capW) || Math.round(sel.h) !== Math.round(sel.capH))); // #906
   const gridOk = utmGridReady(sel); // TASKS.csv #399
   return (
@@ -1504,7 +1470,8 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
       {sel.fixedScale > 0 && (
         <div style={{ fontSize: "var(--font-size-xs)", color: sel.capturedFixedScale === sel.fixedScale ? "var(--color-success-fg)" : "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>
           {sel.capturedFixedScale === sel.fixedScale
-            ? tr("Captured at 1 : {fixedScale}: the frame shows {w} × {h} m. Resize it and refresh to show more or less ground at this scale.", { fixedScale: sel.fixedScale.toLocaleString(), w: Math.round(sel.fixedScale * ((sel.capW || sel.w) / 96) * 0.0254).toLocaleString(), h: Math.round(sel.fixedScale * ((sel.capH || sel.h) / 96) * 0.0254).toLocaleString() })
+            ? oblique ? tr("Captured at 1 : {fixedScale} in the view plane (oblique view, not a map scale). Set the 3D view to Top and refresh for a map at this scale.", { fixedScale: sel.fixedScale.toLocaleString() })
+            : tr("Captured at 1 : {fixedScale}: the frame shows {w} × {h} m. Resize it and refresh to show more or less ground at this scale.", { fixedScale: sel.fixedScale.toLocaleString(), w: Math.round(groundFrameSize(sel.fixedScale, sel).w).toLocaleString(), h: Math.round(groundFrameSize(sel.fixedScale, sel).h).toLocaleString() })
             : tr("Refresh to capture at this scale.")}</div>
       )}
       {frameChanged && (
@@ -1525,9 +1492,11 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
         </select>
       </label>
       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>
-        {sel.trueScale ? tr("Scale") : tr("Approx. scale")}: <span style={{ color: "var(--color-text)" }}>{scaleText || "—"}</span><br />
+        {oblique ? tr("Scale in the view plane") : sel.trueScale ? tr("Scale") : tr("Approx. scale")}: <span style={{ color: "var(--color-text)" }}>{scaleText || "—"}</span><br />
         <span style={{ color: "var(--color-text-muted)" }}>
-          {sel.trueScale
+          {oblique
+            ? tr("Oblique view: distances along the line of sight are foreshortened, so this is not a map scale. Set the 3D view to Top and refresh for one.")
+            : sel.trueScale
             ? tr("Orthographic capture — this ratio is exact across the whole image, not just at one distance.")
             : tr("Estimated at the theme's camera target distance — perspective view, so scale drifts slightly nearer/farther from that point. Check \"True scale\" above and refresh for an exact figure.")}
         </span>
@@ -1598,13 +1567,6 @@ const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, proje
   );
 });
 
-// TASKS.csv #910 — the nearest snap of any of `vals` to any of `lines` within thr: { delta, at } (at = the line, or null)
-function snapToGuides(vals, lines, thr) {
-  let best = null;
-  for (const v of vals) for (const l of lines) { const d = l - v; if (Math.abs(d) <= thr && (!best || Math.abs(d) < Math.abs(best.delta))) best = { delta: d, at: l }; }
-  return best || { delta: 0, at: null };
-}
-
 // TASKS.csv #906 — resize handles: 8 for a free box, the 4 corners where the aspect is locked, left / right for an
 // element that wraps text to its width, the tip of an arrow. Drawn on the single selected element only.
 const BOX_TYPES = new Set(["viewport", "image", "rect", "logo"]);
@@ -1629,13 +1591,6 @@ function crsText(epsg) {
   if (!epsg) return "";
   const name = crsName(epsg);
   return name ? `${name} (EPSG:${epsg})` : `EPSG:${epsg}`;
-}
-function pageScaleText(els) {
-  const v = (els || []).find((e) => e.type === "viewport" && e.trueScale && e.capturedFixedScale > 0) || (els || []).find((e) => e.type === "viewport" && e.worldHeightAtTarget && (e.capH || e.h));
-  if (!v) return "";
-  if (v.trueScale && v.capturedFixedScale > 0) return `1 : ${v.capturedFixedScale.toLocaleString()}`;
-  const ratio = v.worldHeightAtTarget / (((v.capH || v.h) / 96) * 0.0254);
-  return `${v.trueScale ? "" : "~"}1 : ${Math.round(ratio).toLocaleString()}`;
 }
 function textContextFor(els, project, page, index, count, collars = null, credits = "") {
   return { project: project?.name || "", date: new Date().toLocaleDateString(), page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg), credits, collars, els }; // collars: the #911 table; els: the #912 overview
@@ -1763,12 +1718,13 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const px = Math.max(2, Math.round((el.meters || 100) * (el.pxPerMeter || DEFAULT_PX_PER_METER))); // #920 — no 20 px floor: the bar is as long as its label says
     return (
       <div style={wrap} onMouseDown={onDown} data-el-id={el.id}>
-        <svg width={px + 4} height="34">
+        <svg width={px + 4} height={el.viewPlane ? 44 : 34} style={{ overflow: "visible" }}>
           <rect x="2" y="4" width={px / 2} height="10" fill="#1a2028" />
           <rect x={2 + px / 2} y="4" width={px / 2} height="10" fill="#fbfbf8" stroke="#1a2028" />
           <rect x="2" y="4" width={px} height="10" fill="none" stroke="#1a2028" />
           <text x="2" y="28" fontSize={printPx(printPt.small)} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">0</text>
           <text x={px + 2} y="28" fontSize={printPx(printPt.small)} textAnchor="end" fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">{el.meters} m</text>
+          {el.viewPlane && <text x="2" y="40" fontSize={printPx(printPt.small)} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif">{tr("in the view plane (oblique view)")}</text>}
         </svg>
       </div>
     );

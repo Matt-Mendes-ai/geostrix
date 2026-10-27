@@ -38,6 +38,7 @@ import { createCompassRose } from "../components/CompassRose.js";
 import { createAxisGizmo } from "../components/AxisGizmo.js";
 import ViewportFigureOverlay from "../components/ViewportFigureOverlay.jsx"; // TASKS.csv #311 — in-viewport title/legend/scale-bar figure furniture
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309 — the shared empty-state card, extracted from this file's own #294 card
+import { fixedScaleHalfHeight } from "../lib/layoutGeometry.js";
 import { worldHeightAtTargetM } from "../lib/figureScale.js"; // TASKS.csv #311 — the single shared metres-per-pixel derivation (Layout's scale bar uses it too)
 import { legibilityRadius, densestCentre } from "../lib/cameraFit.js"; // TASKS.csv #313 — opening-view framing (read cameraFit.js's header before touching fitBox)
 import HoverToolInfo from "../components/HoverToolInfo.jsx";
@@ -3042,7 +3043,7 @@ ${describeTrend(t)}` };
       // TASKS.csv #398 — fixed plot scale: the Layout frame (elementW page px at 96 dpi) must show
       // N x its printed width of world, centred where the camera looks. #906: drawn at the frame's own aspect, so
       // its height shows N x the printed height too - the frame's size on the paper IS the ground it shows.
-      if (req.fixedScale > 0 && req.elementW > 0) halfH = (req.fixedScale * (req.elementW / 96) * 0.0254) / 2 / aspect;
+      if (req.fixedScale > 0 && req.elementW > 0) halfH = fixedScaleHalfHeight(req.fixedScale, req.elementW, aspect); // #961 — tested in layoutGeometry
       const halfW = halfH * aspect;
       orthoHalfH = halfH;
       orthoCamera = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, 0.1, camera.far); // #377 — ortho depth is linear; keep its own small near rather than the perspective one

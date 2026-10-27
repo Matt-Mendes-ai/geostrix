@@ -6061,5 +6061,10 @@
   "True width to a structure dipping {dip}° towards {dipDir}°.": "العرض الحقيقي بالنسبة إلى بنية تميل {dip}° نحو {dipDir}°.",
   "Lengths are downhole, not true widths.": "الأطوال على امتداد الثقب، وليست عروضًا حقيقية.",
   "Screening tool: verify any intercept against the raw assay certificates before reporting it.": "أداة فرز أولي: تحقق من أي تقاطع مقابل شهادات التحليل الأصلية قبل الإبلاغ عنه.",
-  "Note under the table": "ملاحظة أسفل الجدول"
+  "Note under the table": "ملاحظة أسفل الجدول",
+  "Scale in the view plane": "المقياس في مستوى العرض",
+  "Oblique view: distances along the line of sight are foreshortened, so this is not a map scale. Set the 3D view to Top and refresh for one.": "عرض مائل: تبدو المسافات على امتداد خط النظر مختصرة، لذا فهذا ليس مقياس خريطة. اضبط العرض ثلاثي الأبعاد على «الأعلى» وحدّث للحصول عليه.",
+  "Captured at 1 : {fixedScale} in the view plane (oblique view, not a map scale). Set the 3D view to Top and refresh for a map at this scale.": "التُقطت بمقياس 1 : {fixedScale} في مستوى العرض (عرض مائل، ليس مقياس خريطة). اضبط العرض ثلاثي الأبعاد على «الأعلى» وحدّث للحصول على خريطة بهذا المقياس.",
+  "{scale} in the view plane (oblique view)": "{scale} في مستوى العرض (عرض مائل)",
+  "in the view plane (oblique view)": "في مستوى العرض (عرض مائل)"
 }

@@ -6061,5 +6061,10 @@
   "True width to a structure dipping {dip}° towards {dipDir}°.": "Épaisseur vraie par rapport à une structure pendant de {dip}° vers {dipDir}°.",
   "Lengths are downhole, not true widths.": "Les longueurs sont le long du sondage, pas des épaisseurs vraies.",
   "Screening tool: verify any intercept against the raw assay certificates before reporting it.": "Outil de tri : vérifiez chaque intersection avec les certificats d’analyse bruts avant de la publier.",
-  "Note under the table": "Note sous le tableau"
+  "Note under the table": "Note sous le tableau",
+  "Scale in the view plane": "Échelle dans le plan de la vue",
+  "Oblique view: distances along the line of sight are foreshortened, so this is not a map scale. Set the 3D view to Top and refresh for one.": "Vue oblique : les distances le long de la ligne de visée sont raccourcies, ce n'est donc pas une échelle de carte. Mettez la vue 3D sur « Haut » et actualisez pour en obtenir une.",
+  "Captured at 1 : {fixedScale} in the view plane (oblique view, not a map scale). Set the 3D view to Top and refresh for a map at this scale.": "Capturée au 1 : {fixedScale} dans le plan de la vue (vue oblique, pas une échelle de carte). Mettez la vue 3D sur « Haut » et actualisez pour une carte à cette échelle.",
+  "{scale} in the view plane (oblique view)": "{scale} dans le plan de la vue (vue oblique)",
+  "in the view plane (oblique view)": "dans le plan de la vue (vue oblique)"
 }

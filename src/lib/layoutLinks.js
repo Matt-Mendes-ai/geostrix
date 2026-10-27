@@ -1,6 +1,7 @@
 // Layout element links (TASKS.csv #909 / #920 / #924): a scale bar bound to a viewport or image, and an overview
 // viewport showing another's footprint. Pure functions, out of LayoutModule.jsx so they can be tested (review #918).
 import { niceScaleNumber } from "./figureScale.js";
+import { obliqueCapture, capturedSize } from "./layoutGeometry.js";
 
 const SCALE_BAR_PX = 180; // LayoutModule's default bar length (px) for a fresh bar
 
@@ -16,14 +17,17 @@ export function withLiveScaleBars(els) {
   return (els || []).map((el) => {
     if (el.type !== "scale" || !el.boundTo) return el;
     const vp = els.find((v) => v.id === el.boundTo);
-    const imgH = vp?.capH || vp?.h, imgW = vp?.capW || vp?.w;
     if (!vp) return el;
+    const { w: imgW, h: imgH } = capturedSize(vp);
     let ppm = null;
     if (vp.type === "viewport" && vp.worldHeightAtTarget && imgH) ppm = imgH / vp.worldHeightAtTarget;
     else if (vp.type === "image" && vp.worldWidthAtCaptureM && imgW) ppm = imgW / vp.worldWidthAtCaptureM;
     if (!(ppm > 0)) return el;
     const px = (el.meters || 100) * ppm;
-    return { ...el, pxPerMeter: ppm, ...(px < BAR_MIN_PX || px > BAR_MAX_PX ? { meters: niceScaleNumber(SCALE_BAR_PX / ppm) } : {}) };
+    // TASKS.csv #946 — an oblique (non-plan) orthographic capture is to scale in the view plane only: ground along the
+    // line of sight is foreshortened, so the bar says which plane it measures
+    const viewPlane = vp.type === "viewport" && obliqueCapture(vp);
+    return { ...el, pxPerMeter: ppm, viewPlane, ...(px < BAR_MIN_PX || px > BAR_MAX_PX ? { meters: niceScaleNumber(SCALE_BAR_PX / ppm) } : {}) };
   });
 }
 

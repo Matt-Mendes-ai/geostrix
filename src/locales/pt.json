@@ -6061,5 +6061,10 @@
   "True width to a structure dipping {dip}° towards {dipDir}°.": "Espessura verdadeira em relação a uma estrutura com mergulho de {dip}° para {dipDir}°.",
   "Lengths are downhole, not true widths.": "Os comprimentos são ao longo do furo, não espessuras verdadeiras.",
   "Screening tool: verify any intercept against the raw assay certificates before reporting it.": "Ferramenta de triagem: verifique cada interseção com os certificados de análise originais antes de divulgá-la.",
-  "Note under the table": "Nota abaixo da tabela"
+  "Note under the table": "Nota abaixo da tabela",
+  "Scale in the view plane": "Escala no plano da vista",
+  "Oblique view: distances along the line of sight are foreshortened, so this is not a map scale. Set the 3D view to Top and refresh for one.": "Vista oblíqua: as distâncias ao longo da linha de visada ficam encurtadas, então esta não é uma escala de mapa. Coloque a vista 3D em “Topo” e atualize para obtê-la.",
+  "Captured at 1 : {fixedScale} in the view plane (oblique view, not a map scale). Set the 3D view to Top and refresh for a map at this scale.": "Capturada a 1 : {fixedScale} no plano da vista (vista oblíqua, não é uma escala de mapa). Coloque a vista 3D em “Topo” e atualize para obter um mapa nesta escala.",
+  "{scale} in the view plane (oblique view)": "{scale} no plano da vista (vista oblíqua)",
+  "in the view plane (oblique view)": "no plano da vista (vista oblíqua)"
 }

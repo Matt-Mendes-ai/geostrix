@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { capturedFrameFields } from "./layoutGeometry.js"; // TASKS.csv #906 / #961
 import { setKnownHoleIds } from "./qaqc.js"; // TASKS.csv #400
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
 import { FIELD_KEYS, FIELDS, UNDO_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
@@ -787,7 +788,7 @@ export function StoreProvider({ children }) {
             // the image at ITS size until the next refresh, so the scale on the page never changes under the user's feet.
             // (Before: the frame's height was rewritten to the 3D canvas's aspect on every refresh - #398 kept it unrounded
             // so 1:1000 did not become 1:998.) A request without a height (none left) falls back to that.
-            ...(reqH ? { capW: reqW, capH: reqH } : { h: res.fixedScale ? (el.w || 700) / aspect : Math.round((el.w || 700) / aspect), capW: el.w || 700, capH: res.fixedScale ? (el.w || 700) / aspect : Math.round((el.w || 700) / aspect) }),
+            ...capturedFrameFields(el, reqW, reqH, aspect, res.fixedScale), // #961 — tested in layoutGeometry
             capturedFixedScale: res.fixedScale || null }
         : el));
       setLayoutSelectRequest(targetElementId);
