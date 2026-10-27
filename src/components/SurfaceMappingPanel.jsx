@@ -61,7 +61,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         res = await saveFile({ quiet: "success", suggestedName: `${base}.kml`, filters: [{ name: "KML", extensions: ["kml"] }], content: kml });
       } else {
         const bytes = await (await import("../lib/gpkg.js")).buildGeoPackage([{ name: base, ...ox.surfaceStructureFeatures(s, epsg), epsg }]);
-        res = await saveFile({ quiet: "success", suggestedName: `${base}.gpkg`, filters: [{ name: "GeoPackage", extensions: ["gpkg"] }], content: ox.bytesToBase64(bytes), encoding: "base64" });
+        res = await saveFile({ quiet: "success", suggestedName: `${base}.gpkg`, filters: [{ name: "GeoPackage", extensions: ["gpkg"] }], content: bytes });
       }
       if (res && !res.ok && res.error) throw new Error(res.error);
     } catch (err) { setStructMsg({ ok: false, text: tr("Export failed: {message}", { message: err.message }) }); }

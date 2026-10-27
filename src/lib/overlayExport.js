@@ -156,9 +156,3 @@ export function mapLayerColorOf(layer) {
 export function explodeParts({ features, geomType }) {
   return { geomType, features: features.flatMap((f) => (f.parts?.length > 1 ? f.parts.map((p) => ({ ...f, geometry: p, parts: [p] })) : [f])) };
 }
-
-export function bytesToBase64(bytes) {
-  let bin = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-  return btoa(bin);
-}

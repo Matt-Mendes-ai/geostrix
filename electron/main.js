@@ -685,7 +685,10 @@ async function writeChosenFile(filePath, content, encoding) {
   // #341 — atomic write (see fileSafety.js); a project file's previous version is kept as .bak
   let backup = null;
   try { backup = await backupBeforeOverwrite(filePath); } catch (_) { backup = null; }
-  if (encoding === "base64") await writeFileAtomic(filePath, Buffer.from(content, "base64"));
+  // TASKS.csv #1040 — binary exports arrive as bytes (a Uint8Array / ArrayBuffer, structured-cloned over IPC), not base64
+  if (ArrayBuffer.isView(content)) await writeFileAtomic(filePath, Buffer.from(content.buffer, content.byteOffset, content.byteLength));
+  else if (content instanceof ArrayBuffer) await writeFileAtomic(filePath, Buffer.from(content));
+  else if (encoding === "base64") await writeFileAtomic(filePath, Buffer.from(content, "base64"));
   else await writeFileAtomic(filePath, content, "utf8");
   return backup;
 }

@@ -147,13 +147,6 @@ export function provenanceText(model, t, files, epsg, notes) {
   ].join("\n");
 }
 
-// Chunked base64 (String.fromCharCode.apply overflows the stack on large arrays in one call).
-export function uint8ToBase64(bytes) {
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-  return btoa(binary);
-}
-
 // The whole package. Returns { zip: Uint8Array, files: [names], warnings } or { error }.
 // TASKS.csv #411 — async since it now also writes the model as OMF v1 (CompressionStream).
 export async function buildModelExportZip(model, epsg) {

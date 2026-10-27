@@ -813,24 +813,7 @@ export function terrainToGeoTIFFArrayBuffer(terrain, projectEpsg) {
   return buf;
 }
 
-// Base64-encodes an ArrayBuffer in fixed-size chunks rather than one
-// `String.fromCharCode(...bytes)` spread — the same "large-array spread blows the JS engine's
-// argument-count limit" gotcha already documented on voxel.js's coarsening fix, just for
-// String.fromCharCode.apply here instead of Math.min/max there. A merged terrain GeoTIFF (a real DEM
-// tile can easily be several MB) needs this to avoid "Maximum call stack size exceeded".
-export function arrayBufferToBase64(buf) { // exported for gridExport.js (#854)
-  const bytes = new Uint8Array(buf);
-  const chunkSize = 0x8000;
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
-  }
-  return btoa(binary);
-}
-
-export function terrainToGeoTIFFBase64(terrain, projectEpsg) {
-  return arrayBufferToBase64(terrainToGeoTIFFArrayBuffer(terrain, projectEpsg));
-}
+// (exports go to saveFile as bytes since TASKS.csv #1040: the chunked base64 encoder that was here is gone)
 
 // TASKS.csv #326 — a raster's kept values as survey points ({x, y, value, _src}) for the SimPEG panel.
 // Every `stride`-th node each way; stride chosen so the count stays within the sidecar's station cap.

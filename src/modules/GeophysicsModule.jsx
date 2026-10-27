@@ -16,7 +16,7 @@ import { terrainElevationAt } from "../lib/inversion.js";
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
 import { useStore } from "../lib/store.jsx";
 import { classifyBreaks, PALETTES, paletteColorsHex , colorForVoxelValue } from "../lib/layers.js";
-import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFBase64, terrainToGeoTIFFArrayBuffer } from "../lib/raster.js";
+import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFArrayBuffer } from "../lib/raster.js";
 import { boundaryAreaHectares } from "../lib/geoprocessing.js";
 import { saveFile } from "../lib/desktop.js";
 import { blockModelCsvText, blockModelParamLines } from "../lib/blockModelExport.js"; // TASKS.csv #411; #1041
@@ -110,10 +110,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   // TASKS.csv #328 — the export package (module loaded on first use: it brings the GeoTIFF writer)
   const exportModelPackage = async (model) => {
     const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021
-    const { buildModelExportZip, uint8ToBase64 } = await import("../lib/modelExport.js");
+    const { buildModelExportZip } = await import("../lib/modelExport.js");
     const r = await buildModelExportZip(model, epsg);
     if (r.error) { setVoxelError({ text: tr("Could not export \"{name}\": {error}", { name: model.name, error: r.error }) }); return; }
-    const res = await saveFile({ quiet: "success", suggestedName: `${r.base}_export.zip`, filters: [{ name: "Zip", extensions: ["zip"] }], content: uint8ToBase64(r.zip), encoding: "base64" });
+    const res = await saveFile({ quiet: "success", suggestedName: `${r.base}_export.zip`, filters: [{ name: "Zip", extensions: ["zip"] }], content: r.zip /* #1040 bytes */ });
     if (res?.ok) setVoxelError({ info: true, text: tr("Exported \"{name}\": {files} files ({n} depth slices).{v}", { name: model.name, files: r.files.length, n: r.files.filter((f) => f.endsWith(".tif")).length, v: r.warnings.length ? " " + r.warnings.join(" ") : "" }) });
   };
   const evaluateOnHoles = (model) => {
@@ -406,15 +406,15 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
 
   // TASKS.csv #203 — "We need options to export the generated SRTM, at least to geotiff." The merged/
   // processed terrain (whatever was actually used — imported DEM tiles, or a fetched SRTM area) had no
-  // way back out for another tool or for archiving. See raster.js's terrainToGeoTIFFBase64 for the
+  // way back out for another tool or for archiving. See raster.js's terrainToGeoTIFFArrayBuffer for the
   // actual writer (geotiff package's own writeArrayBuffer, not hand-rolled).
   const exportTerrainGeoTIFF = async () => {
     if (!terrain) return;
     const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021
     try {
-      const base64 = terrainToGeoTIFFBase64(terrain, epsg);
+      const bytes = new Uint8Array(terrainToGeoTIFFArrayBuffer(terrain, epsg)); // #1040 — bytes over IPC
       const masked = terrainToGeoTIFFArrayBuffer.lastMasked || 0; // #1020
-      const res = await saveFile({ suggestedName: `${terrain.name.replace(/\.(tif|tiff)$/i, "")}.tif`, filters: [{ name: "GeoTIFF", extensions: ["tif"] }], content: base64, encoding: "base64" });
+      const res = await saveFile({ suggestedName: `${terrain.name.replace(/\.(tif|tiff)$/i, "")}.tif`, filters: [{ name: "GeoTIFF", extensions: ["tif"] }], content: bytes });
       if (res?.ok && masked) setTerrainError({ info: true, text: tr("{n} terrain nodes had no data (filled for display only) and are written as no-data (-9999).", { n: masked.toLocaleString() }) });
     } catch (err) {
       setTerrainError({ info: false, text: tr("Couldn't export terrain: {message}", { message: err.message }) });
@@ -1776,9 +1776,9 @@ async function exportBlockModelCSV(model, epsg, names = "datamine") {
 }
 // TASKS.csv #798 — the block model as a VTK file for ParaView / PyVista (lib/vtkExport.js)
 async function exportBlockModelVTK(model, epsg) {
-  const [{ blockModelToVtk }, { uint8ToBase64 }] = await Promise.all([import("../lib/vtkExport.js"), import("../lib/modelExport.js")]);
+  const { blockModelToVtk } = await import("../lib/vtkExport.js");
   const { bytes } = blockModelToVtk(model, `EPSG:${epsg ?? "?"}${model.property ? `, ${model.property}` : ""}`);
-  saveFile({ suggestedName: `${String(model.name || "block_model").replace(/[^\w\- ]/g, "").slice(0, 80)}.vtk`, filters: [{ name: "VTK (legacy)", extensions: ["vtk"] }], content: uint8ToBase64(bytes), encoding: "base64" });
+  saveFile({ suggestedName: `${String(model.name || "block_model").replace(/[^\w\- ]/g, "").slice(0, 80)}.vtk`, filters: [{ name: "VTK (legacy)", extensions: ["vtk"] }], content: bytes /* #1040 bytes */ });
 }
 // TASKS.csv #711 — what an imported volume's values can be (the units the rest of the app uses)
 const VOXEL_PROPERTIES = ["Conductivity (S/m)", "Resistivity (ohm·m)", "Chargeability (mV/V)", "Susceptibility (SI)", "Density (g/cc)", "Density contrast (g/cc)"];

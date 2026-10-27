@@ -3,7 +3,7 @@ import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; //
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock } from "../components/icons.js";
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
-import { savePDF, saveFile, exportPDFData } from "../lib/desktop.js"; // saveFile / exportPDFData: TASKS.csv #909 Export PNG
+import { savePDF, saveFile, exportPDFData, canvasPngBytes } from "../lib/desktop.js"; // saveFile / exportPDFData: TASKS.csv #909 Export PNG; canvasPngBytes: #1040
 import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
 import { useStore } from "../lib/store.jsx";
 import PromptModal from "../components/PromptModal.jsx";
@@ -164,9 +164,9 @@ export default function LayoutModule() {
           const [wmm, hmm] = pageMm(layoutPages[pageNo - 1]?.format);
           const dpi = printing.dpi || 300;
           const canvas = await renderPdfPage(doc, pageNo, (Math.max(wmm, hmm) / 25.4) * dpi);
-          const png = canvas.toDataURL("image/png").split(",")[1];
+          const png = await canvasPngBytes(canvas); // #1040 — an A3 page at 300 dpi is ~17 Mpx
           const name = `${base}_p${pageNo}_${dpi}dpi.png`;
-          const res = await saveFile({ quiet: "success", suggestedName: name, filters: [{ name: "PNG", extensions: ["png"] }], content: png, encoding: "base64" });
+          const res = await saveFile({ quiet: "success", suggestedName: name, filters: [{ name: "PNG", extensions: ["png"] }], content: png });
           if (res?.ok) setExportNote({ text: tr("Exported page {n} as a {w} × {h} px PNG ({dpi} dpi) to {path}.", { n: pageNo, w: canvas.width, h: canvas.height, dpi, path: res.filePath || name }), error: false });
           return;
         }

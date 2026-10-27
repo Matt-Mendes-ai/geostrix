@@ -27,6 +27,8 @@ export async function exportPDFData(opts = {}) {
 // export ("Saved to ..." / "Not saved: ..."). A caller that reports the result itself passes quiet: true.
 export const EXPORT_RESULT_EVENT = "geostrix-export-result";
 const announce = (detail) => { try { if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(EXPORT_RESULT_EVENT, { detail })); } catch { /* no window */ } };
+// content: text, base64 text (encoding "base64"), or bytes (Uint8Array / ArrayBuffer: TASKS.csv #1040 — sent as they
+// are; base64 cost a binary string, a 1.33x string and an IPC copy of it, and over ~400 MB passed V8's string limit)
 export async function saveFile({ suggestedName, filters, content, encoding, quiet = false }) {
   // TASKS.csv #1097 — a UTF-8 byte-order mark on every exported CSV, so Excel on Windows reads accents, "°", "±" and "²"
   // as written instead of "Â°" (GeoStrix's own importer strips it, as do GDAL / QGIS)
@@ -40,7 +42,8 @@ export async function saveFile({ suggestedName, filters, content, encoding, quie
     return res;
   }
   // browser fallback: anchor download
-  const blob = encoding === "base64"
+  const blob = ArrayBuffer.isView(content) || content instanceof ArrayBuffer ? new Blob([content])
+    : encoding === "base64"
     ? b64toBlob(content)
     : new Blob([content], { type: "text/plain" });
   const url = URL.createObjectURL(blob);
@@ -724,4 +727,9 @@ function b64toBlob(b64) {
   const bytes = new Uint8Array(byteChars.length);
   for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
   return new Blob([bytes]);
+}
+
+// TASKS.csv #1040 — a canvas as PNG bytes for saveFile (toBlob, not a toDataURL string three times the size)
+export function canvasPngBytes(canvas) {
+  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? b.arrayBuffer().then((ab) => resolve(new Uint8Array(ab)), reject) : reject(new Error("The image could not be encoded."))), "image/png"));
 }

@@ -160,15 +160,7 @@ function plannedHoleTrace(hole) {
 }
 
 function stripInternalFields(r) { return Object.fromEntries(Object.entries(r).filter(([k]) => !k.startsWith("_"))); }
-// Chunked base64 encode — String.fromCharCode.apply blows the call stack on large arrays if done in
-// one shot, so this feeds it in 32K-byte slices. Used to hand shapefile.js's binary zip output to
-// desktop.js's saveFile({ encoding: "base64" }) path.
-function uint8ToBase64(bytes) {
-  let binary = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
-  return btoa(binary);
-}
+// (binary exports go to saveFile as bytes since TASKS.csv #1040; the base64 encoder that was here is gone)
 
 
 // TASKS.csv #227 (continuation) — the layer keys whose geometry is one plain THREE.Mesh per row
@@ -4347,7 +4339,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         res = await saveFile({ quiet: true, suggestedName: `${baseName}.dxf`, filters: [{ name: "AutoCAD DXF", extensions: ["dxf"] }], content, encoding: "text" });
       } else if (format === "glb") {
         const buf = await exportSurfaceGLTF(surf.name, mesh.geometry, originRef.current, prov, extra);
-        res = await saveFile({ quiet: true, suggestedName: `${baseName}.glb`, filters: [{ name: "glTF Binary", extensions: ["glb"] }], content: uint8ToBase64(new Uint8Array(buf)), encoding: "base64" });
+        res = await saveFile({ quiet: true, suggestedName: `${baseName}.glb`, filters: [{ name: "glTF Binary", extensions: ["glb"] }], content: new Uint8Array(buf) /* #1040 bytes */ });
       } else if (format === "vtk") {
         // TASKS.csv #798 — legacy VTK polydata for ParaView / PyVista (pv.read)
         const { surfaceToVtk } = await import("../lib/vtkExport.js");
@@ -4360,7 +4352,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const { vertices, indices } = sceneVertsToWorld(mesh.geometry, originRef.current);
         const desc = `GeoStrix surface, EPSG:${epsg}${extra.volumeM3 != null ? `, enclosed volume ${Math.round(extra.volumeM3)} m3` : ""}${surf.editCount > 0 ? `, hand-edited ${surf.editCount} time(s)` : ""}`;
         const bytes = await writeOMF({ name: surf.name, description: desc, elements: [{ type: "surface", name: surf.name, description: desc, vertices: vertices.flat(), triangles: indices.flat() }] });
-        res = await saveFile({ quiet: true, suggestedName: `${baseName}.omf`, filters: [{ name: "Open Mining Format", extensions: ["omf"] }], content: uint8ToBase64(bytes), encoding: "base64" });
+        res = await saveFile({ quiet: true, suggestedName: `${baseName}.omf`, filters: [{ name: "Open Mining Format", extensions: ["omf"] }], content: bytes /* #1040 bytes */ });
       }
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; }
       setNotices((p) => [...p, notice("Exported \"{name}\" as {format} (real-world coordinates).", { name: surf.name, format: format.toUpperCase() })]);
@@ -6018,7 +6010,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.zip`,
         filters: [{ name: "Shapefile (zipped)", extensions: ["zip"] }],
-        content: uint8ToBase64(zipBytes), encoding: "base64",
+        content: zipBytes /* #1040 bytes */,
       });
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; } // cancelled: say nothing
       setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as a shapefile (.zip — .shp/.shx/.dbf{v}).", { features: features.length, label, v: project?.epsg ? tr("/.prj") : "" })]);
@@ -6039,7 +6031,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.gpkg`,
         filters: [{ name: "GeoPackage", extensions: ["gpkg"] }],
-        content: uint8ToBase64(gpkgBytes), encoding: "base64",
+        content: gpkgBytes /* #1040 bytes */,
       });
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; } // cancelled: say nothing
       setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as a GeoPackage (.gpkg).", { features: features.length, label })]);
@@ -6106,7 +6098,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const { buildZip } = await import("../lib/shapefile.js");
         const enc = new TextEncoder();
         const zip = buildZip(files.map((f) => ({ name: f.name, data: enc.encode(`﻿${f.text}`) }))); // BOM: Excel reads accents (#1097)
-        const res = await saveFile({ quiet: true, suggestedName: `${(project?.name || "drillholes").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}_tables.zip`, filters: [{ name: "ZIP of CSV tables", extensions: ["zip"] }], content: uint8ToBase64(zip), encoding: "base64" });
+        const res = await saveFile({ quiet: true, suggestedName: `${(project?.name || "drillholes").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}_tables.zip`, filters: [{ name: "ZIP of CSV tables", extensions: ["zip"] }], content: zip /* #1040 bytes */ });
         if (!res?.ok) { if (res?.error) throw new Error(res.error); return; }
         setNotices((p) => [...p, notice("Exported {n} drillhole tables ({files}) as CSV in a .zip. Dips are negative = down and azimuths grid, so they import back with the defaults.", { n: files.length, files: files.map((f) => f.name).join(", ") })]);
         return;

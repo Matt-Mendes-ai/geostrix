@@ -26,7 +26,6 @@ import { guessGeophysColumns } from "../lib/geophysColumns.js";
 import { saveFile } from "../lib/desktop.js";
 import SourceCrsField from "../components/SourceCrsField.jsx";
 import { readShapefileLayers, reprojectShapefileZip, reportShapefileText, readGeoTiffInfo, reprojectGeoTiff, reportGeoTiffText } from "../lib/fileReproject.js"; // #487
-import { uint8ToBase64 } from "../lib/modelExport.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const btn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%", padding: "8px 10px", marginTop: 8, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer", fontFamily: "inherit" };
@@ -140,14 +139,14 @@ export default function CartographyModule({ embedded = false, forcePane = null }
   const saveReprojectedShp = () => run(async () => {
     const { bytes, report } = await reprojectShapefileZip(file.bytes, fileFrom || null, fileTo);
     const base = file.name.replace(/\.[^.]+$/, "");
-    const res = await saveFile({ quiet: true, suggestedName: `${base}_EPSG${fileTo}.zip`, filters: [{ name: "Shapefile (zipped)", extensions: ["zip"] }], content: uint8ToBase64(bytes), encoding: "base64" });
+    const res = await saveFile({ quiet: true, suggestedName: `${base}_EPSG${fileTo}.zip`, filters: [{ name: "Shapefile (zipped)", extensions: ["zip"] }], content: bytes /* #1040 bytes */ });
     if (!res?.ok) { if (res?.error) throw new Error(res.error); setMsg(null); return; } // cancelled in the dialog
     setMsg({ ok: true, text: reportShapefileText(report, fileTo) });
   });
   const saveReprojectedTif = () => run(async () => {
     const { bytes, report } = await reprojectGeoTiff(file.bytes, fileFrom || null, fileTo);
     const base = file.name.replace(/\.[^.]+$/, "");
-    const res = await saveFile({ quiet: true, suggestedName: `${base}_EPSG${fileTo}.tif`, filters: [{ name: "GeoTIFF", extensions: ["tif", "tiff"] }], content: uint8ToBase64(bytes), encoding: "base64" });
+    const res = await saveFile({ quiet: true, suggestedName: `${base}_EPSG${fileTo}.tif`, filters: [{ name: "GeoTIFF", extensions: ["tif", "tiff"] }], content: bytes /* #1040 bytes */ });
     if (!res?.ok) { if (res?.error) throw new Error(res.error); setMsg(null); return; } // cancelled in the dialog
     setMsg({ ok: true, text: reportGeoTiffText(report, fileTo) });
   });
