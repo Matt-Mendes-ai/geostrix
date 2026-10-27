@@ -16,7 +16,7 @@ test("#881 trendInPlane: the major axis of a horizontal north trend projected in
   assert.ok(an && Math.abs(an.ratio - 4) < 1e-9);
   assert.ok(an.azimuthDeg < 1 || an.azimuthDeg > 179, `azimuth ${an.azimuthDeg}`);
   assert.equal(trendInPlane(null, surfaceFrame(pts)), null);
-  assert.equal(trendInPlane({ ...trendNS, ratios: { max: 1, int: 1, min: 1 } }, surfaceFrame(pts)), null, "ratio 1: no anisotropy");
+  assert.equal(trendInPlane({ ...trendNS, ratios: { max: 1, int: 1, min: 1 } }, surfaceFrame(pts)).skip, true, "ratio 1: no anisotropy (#940: skipped, and said)");
 });
 
 test("#881 with the trend the surface stays exact at the inputs and carries the middle line's bump further along the trend", () => {

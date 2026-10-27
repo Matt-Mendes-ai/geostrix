@@ -6151,5 +6151,6 @@
   "Size (pt)": "الحجم (نقطة)",
   " With these walls the outcrop bodies of {list} grow into each other at depth, so each outcrop is its own closed body (numbered): one merged mesh would cross itself and could not restrict an estimate. Their volumes overlap where they meet, so do not add them up.": " بهذه الجدران تنمو أجسام مكاشف {list} داخل بعضها في العمق، لذا صار كل مكشف جسمًا مغلقًا مستقلًا (مرقّمًا): فالشبكة المدمجة تتقاطع مع نفسها ولا يمكنها تقييد تقدير. تتداخل أحجامها حيث تلتقي، فلا تجمعها.",
   " {k} narrow outcrop(s) would close before {d} m with these walls: they are cut off flat where the base would be a fifth of the outline ({a}–{b} m down).": " {k} من المكاشف الضيقة ستنغلق قبل {d} م بهذه الجدران: تُقطع أفقيًا حيث تكون القاعدة خُمس المحيط ({a}–{b} م عمقًا).",
-  " The walls as built dip {a}–{b}° (asked {dip}°): the base follows a simplified outline.": " تميل الجدران كما بُنيت {a}–{b}° (المطلوب {dip}°): تتبع القاعدة محيطًا مبسّطًا."
+  " The walls as built dip {a}–{b}° (asked {dip}°): the base follows a simplified outline.": " تميل الجدران كما بُنيت {a}–{b}° (المطلوب {dip}°): تتبع القاعدة محيطًا مبسّطًا.",
+  "The structural trend is almost round within this surface's plane ({r} times along {az}°), so it was not applied: this trend does not describe continuity within this surface.": "الاتجاه البنيوي شبه دائري ضمن مستوى هذا السطح ({r} مرة على امتداد {az}°)، لذا لم يُطبَّق: هذا الاتجاه لا يصف الاستمرارية ضمن هذا السطح."
 }

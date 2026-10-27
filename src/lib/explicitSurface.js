@@ -288,22 +288,37 @@ export function thinPlate(u, v, w) {
 }
 
 // TASKS.csv #881 — a structural trend (#650, { dip, dipAzimuth, pitch, ratios }) as anisotropy in the surface's own plane:
-// the trend's major axis projected into the frame (u, v) is the long direction, and distances along it count ratio =
-// max / int times less (an elongated body's contact stays smooth further along its trend). Its in-plane semi-major axis
-// is used when the major axis is nearly normal to the plane. -> { a(u, v), b(u, v), ratio, azimuthDeg } | null
+// the long axis of the trend ellipsoid's section by the frame's plane (u, v) is the long direction, and distances along
+// it count `ratio` (the section's axis ratio) times less: an elongated body's contact stays smooth further along its
+// trend. -> { a(u, v), b(u, v), ratio, azimuthDeg } | { skip, ratio, azimuthDeg } (under 1.1: nearly round) | null
 export function trendInPlane(trend, F) {
   if (!trend) return null;
   const rad = Math.PI / 180, dd = (Number(trend.dipAzimuth) || 0) * rad, dp = (Number(trend.dip) || 0) * rad, p = (Number(trend.pitch) || 0) * rad;
   const strike = [-Math.cos(dd), Math.sin(dd), 0], down = [Math.sin(dd) * Math.cos(dp), Math.cos(dd) * Math.cos(dp), -Math.sin(dp)];
   const major = strike.map((s, i) => Math.cos(p) * s + Math.sin(p) * down[i]), semi = strike.map((s, i) => -Math.sin(p) * s + Math.cos(p) * down[i]);
-  const r = trend.ratios || {}, ratio = Math.max(1, (Number(r.max) || 1) / (Number(r.int) || 1));
-  let mu = dot(major, F.e1), mv = dot(major, F.e2);
-  if (Math.hypot(mu, mv) < 0.3) { mu = dot(semi, F.e1); mv = dot(semi, F.e2); }
-  const l = Math.hypot(mu, mv);
-  if (!(l > 1e-6) || ratio <= 1.0001) return null;
-  mu /= l; mv /= l;
+  const minor = crossV(major, semi);
+  const r = trend.ratios || {}, rMax = Number(r.max) || 1, rInt = Number(r.int) || 1, rMin = Number(r.min) || 1;
+  // TASKS.csv #940 — the in-plane anisotropy is the SECTION of the trend ellipsoid by the surface's plane (what the implicit
+  // tool's 3D warp applies, #650 / #653), not the major axis projected with max / int: that ignored the other axes' share
+  // of the plane and was >30 deg off in about a fifth of trends (a steep vein-set trend on a flat contact: 1.5x along 090
+  // applied, 1.89x along 000 true). The section's 2 x 2 form M_ij = sum_k (e_i . a_k)(e_j . a_k) / r_k^2: its smallest-
+  // eigenvalue eigenvector is the long axis, and sqrt(l2 / l1) the ratio. This also replaces the old fallback to the
+  // intermediate axis (with the wrong ratio) for a trend nearly normal to the surface.
+  let m11 = 0, m12 = 0, m22 = 0;
+  for (const [ax, rk] of [[major, rMax], [semi, rInt], [minor, rMin]]) { const u = dot(ax, F.e1), v = dot(ax, F.e2), w = 1 / (rk * rk); m11 += u * u * w; m12 += u * v * w; m22 += v * v * w; }
+  const tr2 = m11 + m22, disc = Math.sqrt(Math.max(0, ((m11 - m22) / 2) ** 2 + m12 * m12));
+  const l1 = tr2 / 2 - disc, l2 = tr2 / 2 + disc;
+  if (!(l1 > 0)) return null;
+  const ratio = Math.sqrt(l2 / l1);
+  // the eigenvector of l1 (the long axis)
+  let mu = m12, mv = l1 - m11;
+  if (Math.hypot(mu, mv) < 1e-12) { mu = l1 - m22; mv = m12; }
+  if (Math.hypot(mu, mv) < 1e-12) { mu = 1; mv = 0; }
+  const l = Math.hypot(mu, mv); mu /= l; mv /= l;
   const world = [mu * F.e1[0] + mv * F.e2[0], mu * F.e1[1] + mv * F.e2[1]];
   let az = (Math.atan2(world[0], world[1]) * 180) / Math.PI; if (az < 0) az += 360; if (az >= 180) az -= 180;
+  // nearly round in this plane: not applied (the caller says so)
+  if (ratio < 1.1) return { skip: true, ratio, azimuthDeg: az };
   return { a: (u, v) => (u * mu + v * mv) / ratio, b: (u, v) => -u * mv + v * mu, ratio, azimuthDeg: az };
 }
 
@@ -343,7 +358,8 @@ export function fitExplicitSurface(points, { margin = null, marginBasis = "short
   const U = uvw.map((q) => q[0]), V = uvw.map((q) => q[1]), W = uvw.map((q) => q[2]);
   // #881 — with a trend the spline is fitted in the stretched coordinates (and evaluated through them): still exact at
   // every input, smoother along the trend
-  const an = trendInPlane(trend, F);
+  const an0 = trendInPlane(trend, F), an = an0 && !an0.skip ? an0 : null; // #940: a skipped (nearly round) trend is said
+  if (an0?.skip) warnings.push(tr("The structural trend is almost round within this surface's plane ({r} times along {az}°), so it was not applied: this trend does not describe continuity within this surface.", { r: an0.ratio.toFixed(2), az: Math.round(an0.azimuthDeg) }));
   const UA = an ? U.map((u, i) => an.a(u, V[i])) : U, VA = an ? U.map((u, i) => an.b(u, V[i])) : V;
   const fA = thinPlate(UA, VA, W);
   const f = fA && an ? (u, v) => fA(an.a(u, v), an.b(u, v)) : fA;
