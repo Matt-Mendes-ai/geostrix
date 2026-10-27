@@ -4769,7 +4769,7 @@
   "GeoPackage export: unsupported geometry type \"{type}\".": "Exportación GeoPackage: tipo de geometría no admitido «{type}».",
   "Structural zones": "Zonas estructurales",
   "Intensity (optional)": "Intensidad (opcional)",
-  "Nothing that view shows has a legend: its theme has no visible category layer, assay classes or block model.": "Nada de lo que muestra esa vista tiene leyenda: su tema no tiene capas de categorías visibles, clases de ensaye ni modelo de bloques.",
+  "Nothing that view shows has a legend: no visible category layer, assay classes, block model, surface samples, map layer or boundary.": "Nada de lo que muestra esa vista tiene leyenda: ninguna capa de categorías, clases de ensaye, modelo de bloques, muestras de superficie, capa de mapa ni límite visible.",
   "Loaded {n} legend group from \"{name}\".": "Se cargó {n} grupo de leyenda de «{name}».",
   "Loaded {n} legend groups from \"{name}\".": "Se cargaron {n} grupos de leyenda de «{name}».",
   "Colour scale": "Escala de colores",
@@ -6146,5 +6146,6 @@
   "{name}: no .MID selected — imported without attributes, so it can't be styled by unit": "{name}: no se seleccionó el .MID — importado sin atributos, así que no se puede simbolizar por unidad",
   "Select the .MIF together with its .MID file (the measurements are in the .MID).": "Selecciona el .MIF junto con su archivo .MID (las mediciones están en el .MID).",
   "This .MIF file has no Data section, so it is not a MapInfo interchange file.": "Este archivo .MIF no tiene sección Data, así que no es un archivo de intercambio de MapInfo.",
-  "No points, lines or polygons could be read from this MapInfo file.": "No se pudieron leer puntos, líneas ni polígonos de este archivo de MapInfo."
+  "No points, lines or polygons could be read from this MapInfo file.": "No se pudieron leer puntos, líneas ni polígonos de este archivo de MapInfo.",
+  "the current view": "la vista actual"
 }

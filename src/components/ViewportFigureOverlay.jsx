@@ -39,6 +39,7 @@ import { metresPerPixelAtTarget, chooseScaleBar } from "../lib/figureScale.js";
 // CSS-vs-JS boundary theme.js documents for colour.
 import { fontSizes } from "../lib/theme.js";
 import { rampTickLabels } from "../lib/legendScale.js"; // TASKS.csv #736
+import { swatchShape } from "../lib/legendGroups.js"; // TASKS.csv #948
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #736 — the legend's tick text measured in its real font (the xs step), one cached canvas, memoised per
@@ -137,7 +138,7 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
   // With more than one group, each group's first row carries its heading.
   const swatchGroups = (legendGroups || []).filter((g) => g.items.length).map((g, i) => ({ g, i })).sort((a, b) => (a.g.items.length - b.g.items.length) || (a.i - b.i)).map((x) => x.g);
   const multi = swatchGroups.length > 1;
-  swatchGroups.forEach((g) => g.items.forEach(([label, color], k) => items.push({ label, color, group: g.label, head: (multi || g.alwaysHead) && k === 0 }))); // #843 alwaysHead: the anomaly map's rule
+  swatchGroups.forEach((g) => g.items.forEach(([label, color, opt], k) => items.push({ label, color, kind: opt?.kind, group: g.label, head: (multi || g.alwaysHead) && k === 0 }))); // #843 alwaysHead: the anomaly map's rule; kind: #948
   const shown = items.slice(0, MAX_LEGEND_ITEMS);
   const hiddenCount = items.length - shown.length;
   // TASKS.csv #381 — continuous keys (block models, geophysics points): gradient bar + min/max.
@@ -163,7 +164,7 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
             <React.Fragment key={`${it.group}|${it.label}|${i}`}>
             {it.head && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 600, marginTop: i ? 4 : 0, marginBottom: 2 }}>{tr(it.group)}</div>}
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2.5 }}>
-              <span style={{ width: 12, height: 12, flexShrink: 0, background: it.color, border: "1px solid var(--color-border-light)", borderRadius: 2 }} />
+              <span style={{ width: 18, display: "inline-flex", justifyContent: "center", flexShrink: 0 }}><span style={{ borderRadius: 2, ...swatchShape(it.kind, 12), background: it.color, border: it.kind === "line" ? "none" : "1px solid var(--color-border-light)" }} /></span>{/* #948 — square / line / dot */}
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${tr(it.group)}: ${it.label}`}>{it.label}</span>
             </div>
             </React.Fragment>

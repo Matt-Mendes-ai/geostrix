@@ -132,6 +132,9 @@ export function StoreProvider({ children }) {
   const [surfaceSamples, setSurfaceSamples] = useState([]);
   const [surfaceElements, setSurfaceElements] = useState([]);
   const [geochemThresholds, setGeochemThresholds] = useState([]); // TASKS.csv #841 — the threshold rule saved per surface element
+  // TASKS.csv #948 — how the 3D view colours the surface samples right now (anomaly classes / one colour / by medium), as
+  // a legend group: its style lives in the view, so it publishes the group here for Layout's legend. Session only.
+  const [surfaceSampleLegend, setSurfaceSampleLegend] = useState(null);
   const [surfaceQc, setSurfaceQc] = useState(null); // TASKS.csv #842 — surface-program QC: { records, certificates, settings }
   const [customLayers, setCustomLayers] = useState([]); // plain {id,name,rows} mirror for save/load; ViewerModule owns the live three.js groups
   const [dbConnections, setDbConnections] = useState([]); // saved (non-secret) connection profiles
@@ -777,12 +780,13 @@ export function StoreProvider({ children }) {
         id, type: "viewport", themeId: viewportPendingRequest.themeId,
         x: 90, y: 90, w, h, capW: w, capH: h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, // capW / capH: #906
         trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, // #399
+        viewState: res.viewState || null, // #948 — a theme-less capture's own view settings, for its legend
         rotation: 0, frameWidth: 1, frameColor: "#1a1a1a", frameStyle: "solid", refreshing: false,
       }]);
       setLayoutSelectRequest(id);
     } else {
       setLayoutElements((els) => els.map((el) => el.id === targetElementId
-        ? { ...el, src: res.src, aspect, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, refreshing: false,
+        ? { ...el, src: res.src, aspect, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, refreshing: false, viewState: res.viewState || null, // viewState: #948
             // TASKS.csv #906 — the capture was rendered at the frame's own aspect (reqW x reqH page px), so the frame keeps
             // the size the user gave it and the image fills it; capW / capH remember that size, and a later resize shows
             // the image at ITS size until the next refresh, so the scale on the page never changes under the user's feet.
@@ -1521,6 +1525,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     surfaceSamples, setSurfaceSamples,
     surfaceElements, setSurfaceElements,
     geochemThresholds, setGeochemThresholds, // TASKS.csv #841
+    surfaceSampleLegend, setSurfaceSampleLegend, // TASKS.csv #948
     surfaceQc, setSurfaceQc, // TASKS.csv #842
     customLayers, setCustomLayers,
     dbConnections, setDbConnections,

@@ -3,7 +3,7 @@
 // categorical layers (minus hidden categories / holes, with the user's label and colour overrides), assay grade
 // classes, and block models (classes as swatches, continuous models as a ramp from lib/legendScale.js).
 // Pure: callers pass their state (live viewer state, or a saved theme).
-import { LAYER_META, CATEGORICAL_SAFE_COLORS } from "./layers.js";
+import { LAYER_META, CATEGORICAL_SAFE_COLORS, colorForMedium } from "./layers.js";
 import { legendScale } from "./legendScale.js";
 
 // the per-element identity hues of assay markers (moved from ViewerModule; TASKS.csv #306)
@@ -90,15 +90,56 @@ export function voxelLegendGroups(voxelModels) {
   return groups;
 }
 
+// TASKS.csv #948 — the Surface Geology map in a legend: its map layers (each unit of the layer's categorical style, or
+// its one colour), the surface samples (anomaly classes, else one colour, else by medium, as the 3D view colours them)
+// and the boundaries. Each row carries { kind: "fill" | "line" | "point" } so a legend draws a polygon unit as a square,
+// a contact or fault as a line stub and a structure point or sample as a dot (a colour square alone could not tell
+// them apart).
+const KIND_OF = { polygon: "fill", polyline: "line", point: "point" };
+export function mapLayerLegendGroups(mapLayers) {
+  const groups = [];
+  (mapLayers || []).forEach((l, i) => {
+    if (l.visible === false || !(l.features || []).length) return;
+    const kind = KIND_OF[l.geomType] || "fill";
+    const cats = l.styleField ? (l.categories || []).filter((c) => c.visible !== false) : [];
+    const items = cats.length
+      ? cats.map((c) => [c.label ?? (c.value == null ? "(no value)" : String(c.value)), c.color, { kind }])
+      : [[l.name || "map layer", l.color || "#e2a63c", { kind }]];
+    groups.push({ key: `map_${l.id ?? i}`, label: l.name || "Map layer", items });
+  });
+  return groups;
+}
+export function boundaryLegendGroups(boundaries) {
+  const items = (boundaries || []).filter((b) => b.visible !== false).map((b) => [b.name || "boundary", b.color || "#e2a63c", { kind: "line" }]);
+  return items.length ? [{ key: "boundaries", label: "Boundaries", items }] : [];
+}
+// samples: the drawn surface samples (with .medium); style: the layer's one-colour style, if any; anomalyGroup: the
+// anomaly map's group (anomalyLegendGroup) when it colours them
+export function surfaceSampleLegendGroup({ samples, visible = true, style = null, anomalyGroup = null }) {
+  if (!visible || !(samples || []).length) return null;
+  if (anomalyGroup) return { ...anomalyGroup, items: anomalyGroup.items.map(([l, c]) => [l, c, { kind: "point" }]) };
+  if (style?.color) return { key: "surface_samples", label: "Surface samples", items: [["all samples", style.color, { kind: "point" }]] };
+  const media = [...new Set(samples.map((r) => r.medium || ""))].sort((a, b) => a.localeCompare(b));
+  return { key: "surface_samples", label: "Surface samples", items: media.map((m) => [m || "(no medium)", colorForMedium(m), { kind: "point" }]) };
+}
+
 // TASKS.csv #725 — groups as Layout legend rows: [label, colour] swatches as before, plus a group heading row
-// [label, null, { heading: true }] when more than one group is shown, and a ramp row [label, null, { ramp }].
+// [label, null, { heading: true }] when more than one group is shown, and a ramp row [label, null, { ramp }]. A row's
+// own options ({ kind }, #948) are kept.
 export function legendGroupsToItems(groups) {
   const multi = groups.length > 1;
   const items = [];
   groups.forEach((g) => {
     if (g.ramp) { items.push([g.label, null, { ramp: { colors: g.ramp.colors, minLabel: g.ramp.minLabel, maxLabel: g.ramp.maxLabel, log: !!g.ramp.log } }]); return; }
     if (multi || g.alwaysHead) items.push([g.label, null, { heading: true }]); // TASKS.csv #843 — the anomaly map's rule is always printed
-    g.items.forEach(([label, color]) => items.push([label, color]));
+    g.items.forEach(([label, color, opt]) => items.push(opt ? [label, color, opt] : [label, color]));
   });
   return items;
+}
+
+// a legend swatch's shape for a row's kind (#948): { width, height, borderRadius, ... } for a square, a dot or a line stub
+export function swatchShape(kind, size) {
+  if (kind === "line") return { width: size + 6, height: 3, borderRadius: 1 };
+  if (kind === "point") return { width: size - 3, height: size - 3, borderRadius: "50%" };
+  return { width: size, height: size };
 }

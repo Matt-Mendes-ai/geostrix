@@ -79,7 +79,7 @@ import { buildLineages, candidatePredecessors } from "../lib/surfaceVersions.js"
 const FenceDiagramModal = lazyModal(() => import("../components/FenceDiagramModal.jsx")); // TASKS.csv #139  // TASKS.csv #301
 const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrientationCalculator.jsx"));  // TASKS.csv #301
 import { codesInUse, connectIntervals, effectiveCode, codeInfo } from "../lib/modellingCodes.js"; // TASKS.csv #599
-import { ASSAY_ELEMENT_COLORS, assayColorFor, categoryLegendGroups, assayLegendGroups, voxelLegendGroups, scaleLegendGroup, LEGEND_CATEGORY_KEYS } from "../lib/legendGroups.js"; // TASKS.csv #725
+import { ASSAY_ELEMENT_COLORS, assayColorFor, categoryLegendGroups, assayLegendGroups, voxelLegendGroups, scaleLegendGroup, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, surfaceSampleLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; map / boundary / samples: #948
 // TASKS.csv #843 — the anomaly map (lib/anomalyMap.js + lib/thresholds.js) and its controls load only when used: off the startup bundle
 const SurfaceAnomalyControls = React.lazy(() => import("../components/SurfaceAnomalyControls.jsx"));
 const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverlayPane.jsx")); // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
@@ -749,6 +749,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     rasters, addRaster, updateRaster, removeRaster,
     boundaries, addBoundary, updateBoundary, removeBoundary,
     mapLayers, surfaceStructures, // TASKS.csv #316/#317
+    setSurfaceSampleLegend, // TASKS.csv #948
     geochemThresholds, // TASKS.csv #843 — saved anomaly thresholds, for the anomaly map
     updateMapLayer, removeMapLayer, // TASKS.csv #628 — the Map layers list in this sidebar
     sectionImages, addSectionImage, updateSectionImage, removeSectionImage, // TASKS.csv #630
@@ -1809,6 +1810,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   //
   // Cost: O(rows) over the visible categorical layers, and only when one of those inputs actually
   // changes — never on a camera move and never per frame.
+  // TASKS.csv #948 — the surface samples' legend group as drawn, shared with Layout's legend through the store
+  const sampleLegendGroup = useMemo(() => surfaceSampleLegendGroup({ samples: placedSurfaceSamples, visible: !!layerVisible.surface_samples, style: layerStyles.surface_samples?.color ? layerStyles.surface_samples : null, anomalyGroup: surfaceAnomaly?.legendGroup || null }), [placedSurfaceSamples, layerVisible.surface_samples, layerStyles.surface_samples, surfaceAnomaly]);
+  useEffect(() => { setSurfaceSampleLegend(sampleLegendGroup); }, [sampleLegendGroup, setSurfaceSampleLegend]);
   const overlayLegendGroups = useMemo(() => {
     if (!figureOverlay.enabled || !figureOverlay.legend) return [];
     // TASKS.csv #725 — the same builders the Layout legend uses (lib/legendGroups.js), so the two keys cannot disagree
@@ -1818,9 +1822,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       ...assayLegendGroups({ assays, assayElements, assayVisible, assayDisplayElements, assayStyle }),
       ...voxelLegendGroups(voxelModels),
     ];
-    // TASKS.csv #843 — the anomaly map's rule and classes
-    const anomalyGroup = layerVisible.surface_samples ? surfaceAnomaly?.legendGroup : null;
-    if (anomalyGroup) groups.push({ ...anomalyGroup, items: anomalyGroup.items.map(([l, c]) => [tr(l), c]) });
+    // TASKS.csv #843 / #948 — the surface samples as the view colours them (the anomaly map's rule and classes, one colour,
+    // or by medium), then the Surface Geology map layers and the boundaries
+    if (sampleLegendGroup) groups.push({ ...sampleLegendGroup, items: sampleLegendGroup.items.map(([l, c, o]) => [tr(l), c, o]) });
+    groups.push(...mapLayerLegendGroups(mapLayers), ...boundaryLegendGroups(boundaries));
     const pushScale = (key, label, model, lo, hi) => groups.push(scaleLegendGroup(key, label, model, lo, hi));
     const gpts = layers?.geophys_pts || [];
     if (layerVisible.geophys_pts && gpts.length) {
@@ -1835,7 +1840,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       }
     }
     return groups;
-  }, [surfaceAnomaly, layerStyles, figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax]);
+  }, [sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax]);
 
   // TASKS.csv #453 — build the clipping planes from the slice settings over the drilled extent (hole
   // traces; the terrain bbox when there is no drilling). Vertical: across the azimuth line, position along
@@ -3111,6 +3116,9 @@ ${describeTrend(t)}` };
     resolveViewportRender({
       requestId: req.requestId, src: dataUrl, naturalW: shotW, naturalH: shotH,
       worldHeightAtTarget, themeName: theme?.name, cameraAzimuthDeg, trueScale: !!req.trueScale, targetWorld, planView, fixedScale: orthoHalfH != null && req.fixedScale > 0 ? req.fixedScale : null,
+      // TASKS.csv #948 — a "current view" capture has no theme to read its legend from: the view's own settings (the same
+      // bundle a theme saves), kept on the viewport so Layout's "Load from view" works for it
+      viewState: theme ? null : liveViewBeforeRender,
     });
     // Hopping back to "layout" now happens in store.jsx's own result-effect (right after it applies
     // this result to layoutElements), not here — that effect also covers the "Theme not found"/
@@ -8146,7 +8154,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             read pixels back from renderer.domElement.toDataURL(), which sees only the WebGL canvas,
             so a Layout page built from a snapshot gets the bare view and Layout's own legend/scale/
             north-arrow elements — no duplicated, half-scaled second legend baked into the image. */}
-        {(!!collars.length || !!surfaceSamples.length) && ( // #848 — a soil / stream program with no drilling gets its legend and scale too
+        {(!!collars.length || !!surfaceSamples.length || !!(mapLayers || []).length) && ( // #848 — a soil / stream program with no drilling gets its legend and scale too; #948 — and a map with no samples
           <ViewportFigureOverlay
             config={figureOverlay}
             title={overlayTitle}
