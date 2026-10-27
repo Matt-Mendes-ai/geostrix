@@ -250,6 +250,12 @@ export function getProj4DefSync(epsg) {
   return handDef(code) || fullEntry(code)?.[1] || null;
 }
 
+// TASKS.csv #1036 (review #1016) — geographic (degrees) from the definition, not the name: only the hand-verified
+// codes say "longitude", so the 595 registry datums (NAD83(2011), ED50, TWD97 ...) were rounded like metres
+export function isGeographicCrs(epsg) {
+  return /\+proj=longlat(\s|$)/.test(getProj4DefSync(epsg) || "");
+}
+
 // the hand-verified definitions (#223 / #299 / #419 / #489)
 function handDef(code) {
   if (GEOGRAPHIC[code]) return GEOGRAPHIC[code];

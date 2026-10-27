@@ -19,7 +19,7 @@ import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components
 import CrsPicker from "../components/CrsPicker.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
-import { crsName, isMetricProjectedEpsg, pointTransform, getProj4DefSync } from "../lib/reproject.js";
+import { crsName, isMetricProjectedEpsg, pointTransform, getProj4DefSync, isGeographicCrs } from "../lib/reproject.js";
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js";
 import { parseTableFile, toExportCsv } from "../lib/tabular.js";
 import { guessGeophysColumns } from "../lib/geophysColumns.js";
@@ -156,12 +156,12 @@ export default function CartographyModule({ embedded = false, forcePane = null }
     if (!T) throw new Error(tr("Pick both CRSs."));
     const xName = `${file.xCol}_EPSG${fileTo}`, yName = `${file.yCol}_EPSG${fileTo}`;
     let bad = 0;
+    const geo = isGeographicCrs(fileTo); // #1036 — from the definition: 8 decimals of a degree, 3 of a metre
     const rows = file.rows.map((r) => {
       const num = (v) => (v === "" || v == null ? NaN : Number(v)); // a blank cell is missing, not 0
       const x = num(r[file.xCol]), y = num(r[file.yCol]);
       if (!Number.isFinite(x) || !Number.isFinite(y)) { bad++; return { ...r, [xName]: "", [yName]: "" }; }
       const [nx, ny] = T(x, y);
-      const geo = /longitude/.test(crsName(fileTo) || "");
       return { ...r, [xName]: +nx.toFixed(geo ? 8 : 3), [yName]: +ny.toFixed(geo ? 8 : 3) };
     });
     const base = file.name.replace(/\.[^.]+$/, "");
