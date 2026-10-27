@@ -6166,5 +6166,7 @@
   "m down-hole; lines": "م على امتداد الثقب؛ خطوط بطول",
   "Guide line length (m each way)": "طول الخط الدليل (م في كل اتجاه)",
   "m each way; type": "م في كل اتجاه؛ النوع",
-  "any type": "أي نوع"
+  "any type": "أي نوع",
+  "The variogram ordinary kriging weights the composites with. Leave nugget, sill and range blank to fit one to the composites at run time (with a trend, the range is along its major axis). The Variogram tool shows the experimental points if you want to choose them yourself.": "مخطط التباين الذي يرجّح به الكريجنغ العادي المركّبات. اترك الأثر الكتلي والعتبة والمدى فارغة لمواءمته مع المركّبات عند التشغيل (مع اتجاه، يكون المدى على امتداد محوره الأكبر). تعرض أداة مخطط التباين النقاط التجريبية إن أردت اختيارها بنفسك.",
+  "Blank = fitted to the composites when you run; with a trend, the range is along its major axis.": "فارغ = يُوائم مع المركّبات عند التشغيل؛ مع اتجاه، يكون المدى على امتداد محوره الأكبر."
 }

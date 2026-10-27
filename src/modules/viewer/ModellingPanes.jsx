@@ -96,6 +96,7 @@ export default function ModellingPanes(props) {
     numericIncludeQAQC,
     numericMaxBlocks,
     numericMethod,
+    numericVariogram, setNumericVariogram, // TASKS.csv #1015
     numericMinCoverage,
     numericMinHoles,
     numericPadding,
@@ -862,6 +863,20 @@ export default function ModellingPanes(props) {
                   </select>
                 </label>
               </div>
+              {numericMethod === "ok" && ( /* TASKS.csv #1015 — the block model modal's variogram inputs, here too */
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 6 }} title={tr("The variogram ordinary kriging weights the composites with. Leave nugget, sill and range blank to fit one to the composites at run time (with a trend, the range is along its major axis). The Variogram tool shows the experimental points if you want to choose them yourself.")}>
+                  <label style={{ ...miniField }}>{tr("Variogram model")}<select value={numericVariogram.model} onChange={(e) => setNumericVariogram((v) => ({ ...v, model: e.target.value }))} style={{ ...smallSel, width: "100%" }} aria-label={tr("Variogram model")}>
+                      <option value="spherical">{tr("Spherical")}</option><option value="exponential">{tr("Exponential")}</option><option value="gaussian">{tr("Gaussian")}</option>
+                    </select>
+                  </label>
+                  {[["nugget", tr("Nugget")], ["sill", tr("Sill (total)")], ["range", tr("Range (m)")]].map(([k, l]) => (
+                    <label key={k} style={{ ...miniField, width: 64, flex: "0 0 auto" }}>{l}
+                      <input type="number" min="0" step="any" value={numericVariogram[k]} placeholder={tr("fit")} onChange={(e) => setNumericVariogram((v) => ({ ...v, [k]: e.target.value }))} style={{ ...smallSel, width: "100%" }} aria-label={tr("Variogram {l}", { l })} />
+                    </label>
+                  ))}
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flex: "1 1 100%" }}>{tr("Blank = fitted to the composites when you run; with a trend, the range is along its major axis.")}</div>
+                </div>
+              )}
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("Regularize raw assay intervals to a fixed length first (recommended — same compositing as Grade estimation)")}>
                 <input type="checkbox" checked={numericUseComposites} onChange={(e) => setNumericUseComposites(e.target.checked)} />{tr("Composite first")}{numericUseComposites && (
                   <input type="number" step="any" min="0.1" value={numericCompositeLength} onChange={(e) => setNumericCompositeLength(Math.max(0.1, Number(e.target.value) || 2))} style={{ ...smallSel, width: 50, marginLeft: 4 }} title={tr("Composite length (m)")} />

@@ -6166,5 +6166,7 @@
   "m down-hole; lines": "m le long du sondage ; lignes de",
   "Guide line length (m each way)": "Longueur de la ligne guide (m de chaque côté)",
   "m each way; type": "m de chaque côté ; type",
-  "any type": "tout type"
+  "any type": "tout type",
+  "The variogram ordinary kriging weights the composites with. Leave nugget, sill and range blank to fit one to the composites at run time (with a trend, the range is along its major axis). The Variogram tool shows the experimental points if you want to choose them yourself.": "Le variogramme avec lequel le krigeage ordinaire pondère les composites. Laissez pépite, palier et portée vides pour l'ajuster aux composites à l'exécution (avec une tendance, la portée est le long de son axe majeur). L'outil Variogramme montre les points expérimentaux si vous voulez les choisir vous-même.",
+  "Blank = fitted to the composites when you run; with a trend, the range is along its major axis.": "Vide = ajusté aux composites à l'exécution ; avec une tendance, la portée est le long de son axe majeur."
 }

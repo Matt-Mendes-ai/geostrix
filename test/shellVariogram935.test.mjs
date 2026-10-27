@@ -23,3 +23,14 @@ test("#935 the shell's fitted range / scales.major is the block model's range al
   assert.ok(Math.abs(dg.variogram.sill - bm.variogram.sill) < 1e-3 * bm.variogram.sill);
   assert.ok(Math.abs(dg.variogram.range - bm.variogram.range) > 0.3 * bm.variogram.range); // reported raw, it was ~40 % short
 });
+
+test("#1015 an entered variogram is used as given: the range in metres along the trend, scaled into the shell's frame", () => {
+  const trend = { ...DEFAULT_TREND, dip: 0, dipAzimuth: 90, pitch: 0, ratios: { max: 3, int: 2, min: 1 } };
+  const basis = trendBasis(trend), vol = trendScales(trend), c = { x: 500, y: 300, z: 940 };
+  const warped = pts.map((p) => ({ ...p, ...anisoWarpPoint(p, c, basis, vol) }));
+  const R = 120; // as the user enters it: metres along the trend's major axis
+  const dg = estimateDenseGrid(warped, { bounds: { xmin: -100, xmax: 100, ymin: -50, ymax: 50, zmin: -50, zmax: 50 }, cellSize: { dx: 25, dy: 25, dz: 25 }, method: "ok", searchRadius: 150 * vol.major, minSamples: 1, maxSamples: 16, minHoles: 1, variogram: { model: "spherical", nugget: 0.01, sill: 0.25, range: R * vol.major } });
+  assert.equal(dg.variogram.fitted, false);
+  assert.ok(Math.abs(dg.variogram.range / vol.major - R) < 1e-9); // what the shell reports (#935): the range as entered
+  assert.equal(dg.variogram.nugget, 0.01);
+});

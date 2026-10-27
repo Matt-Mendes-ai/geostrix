@@ -82,6 +82,7 @@ export function createModellingRuns(ctx, mcRef) {
     numericCutoff,
     numericIncludeQAQC,
     numericMethod,
+    numericVariogram, // TASKS.csv #1015
     numericMinCoverage,
     numericMinHoles,
     numericPadding,
@@ -1709,6 +1710,12 @@ export function createModellingRuns(ctx, mcRef) {
           minHoles: Math.max(1, numericMinHoles), // TASKS.csv #258
           support: true, // TASKS.csv #91/#92 — classify every grid node so the shell can be coloured by it
           maxBlocks: blockBudget, // TASKS.csv #625
+          // TASKS.csv #1015 — an entered variogram (all three numbers), else fitted at run time. The range is entered in metres
+          // along the trend's major axis, as reported (#935); the samples sit in the volume-keeping warp, where that is
+          // range x scales.major
+          ...(numericMethod === "ok" && numericVariogram && ["nugget", "sill", "range"].every((k) => numericVariogram[k] !== "" && Number.isFinite(Number(numericVariogram[k])))
+            ? { variogram: { model: numericVariogram.model || "spherical", nugget: Number(numericVariogram.nugget), sill: Number(numericVariogram.sill), range: Number(numericVariogram.range) * (anisotropy.enabled ? gsScl.major : 1) } }
+            : numericMethod === "ok" ? { variogram: { model: numericVariogram?.model || "spherical" } } : {}),
         }, { signal: ac.signal, onProgress: (f) => setTaskProgress?.({ label, pct: 20 + 60 * f, onCancel: () => ac.abort() }) });
         // TASKS.csv #935 — kriging with a trend runs in the volume-keeping warp, so the variogram is fitted (and its range
         // read) in units where 1 m along the major axis is scales.major m: a 115 m range along the trend printed as "70 m"
