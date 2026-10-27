@@ -82,7 +82,10 @@ test("#825 snap targets: logged contacts of a hole near the section (moved onto 
   const contacts = T.filter((t) => t.kind === "contact");
   assert.equal(contacts.length, 1, "AND|SED at 120 m only (SED|SED is no contact)");
   const c = imageCoords([contacts[0].p.x, contacts[0].p.y, contacts[0].p.z], P);
-  assert.ok(Math.abs(c.s - 300 / 800) < 1e-9 && Math.abs(contacts[0].p.z - 1030) < 1e-9, "on the plane, at the logged depth");
+  assert.ok(Math.abs(c.s - 300 / 800) < 1e-9 && Math.abs(contacts[0].p.z - 1030) < 1e-9, "over the logged depth, at its place along the section");
+  // #950 — the contact where it was logged: on the hole, 5 m off the plane (said), not moved onto it
+  assert.ok(Math.abs(contacts[0].offM - 5) < 1e-9, `off ${contacts[0].offM}`);
+  assert.ok(Math.abs(contacts[0].p.x - (e + 5 * P.n[0])) < 1e-9 && Math.abs(contacts[0].p.y - (n + 5 * P.n[1])) < 1e-9, "the hole's real position");
   assert.match(contacts[0].label, /H1 AND \| SED @ 120\.0 m/);
   const x = T.find((t) => t.kind === "crossing" && t.hole === "H2");
   assert.ok(x && Math.abs(imageCoords([x.p.x, x.p.y, x.p.z], P).s - 500 / 800) < 1e-9 && Math.abs(x.md - 100) < 1e-9);

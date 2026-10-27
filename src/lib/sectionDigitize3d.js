@@ -129,8 +129,12 @@ export function sectionSnapTargets(plane, traces, litho = [], { maxOffM = 15, ma
       if (!w) continue;
       const d = off(w);
       if (Math.abs(d) > maxOffM) continue;
+      // TASKS.csv #950 — the snapped point is the logged contact WHERE IT IS (the hole's real position, off the image by
+      // offM), as the section window's snap does (#876 / #897). It used to be moved onto the image along its normal, at
+      // the contact's elevation whatever its dip across the section (6.9 to 44.8 m wrong at 12 m off for 30 to 75 deg dips),
+      // so the two tools gave two 3D points for one contact. The image test uses the foot of the normal.
       const c = [w[0] - d * plane.n[0], w[1] - d * plane.n[1], w[2] - d * plane.n[2]];
-      if (onImage(c)) out.push({ p: { x: c[0], y: c[1], z: c[2] }, kind: "contact", hole: t.hole_id, md: Number(below.from), label: `${t.hole_id} ${above.value} | ${below.value} @ ${Number(below.from).toFixed(1)} m` });
+      if (onImage(c)) out.push({ p: { x: w[0], y: w[1], z: w[2] }, kind: "contact", hole: t.hole_id, md: Number(below.from), offM: Math.abs(d), label: `${t.hole_id} ${above.value} | ${below.value} @ ${Number(below.from).toFixed(1)} m` });
     }
   }
   return out;

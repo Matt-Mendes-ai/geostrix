@@ -451,7 +451,9 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   const allDefsRef = useRef(defs);
   allDefsRef.current = defs;
   const groundLine = useMemo(() => (plane && hasTerrain && digDrawing ? groundProfileOnImage(plane, groundAt, 200) : []), [plane, hasTerrain, terrain, digDrawing]); // groundAt reads terrain
-  const snapTargets = useMemo(() => { try { return digDrawing && plane ? sectionSnapTargets(plane, sc.traces.current, sc.litho || [], { maxOffM: 15 }) : []; } catch { return []; } }, [digDrawing, plane, sc.litho]); // try: #898
+  // TASKS.csv #950 — how far off a section image a hole's logged contact may be to snap to (was a fixed 15 m)
+  const [imageSnapM, setImageSnapM] = useState(15);
+  const snapTargets = useMemo(() => { try { return digDrawing && plane ? sectionSnapTargets(plane, sc.traces.current, sc.litho || [], { maxOffM: Math.max(0, Number(imageSnapM) || 0) }) : []; } catch { return []; } }, [digDrawing, plane, sc.litho, imageSnapM]); // try: #898
   const shiftRef = useRef(false);
   const planePoint = (ray) => {
     if (!plane) return null;
@@ -469,7 +471,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
       // nearest within 10 px, drawn vertices first (lines join exactly), then logged contacts, then hole crossings
       const tiers = [
         [...defs.flatMap((d) => (d.lines || []).filter((l) => l.imageId === digImage.id).flatMap((l) => l.pts)), ...digPts].map((q) => ({ p: q, label: tr("a drawn point") })),
-        snapTargets.filter((t) => t.kind === "contact").map((t) => ({ p: t.p, label: tr("contact {v}", { v: t.label }) })),
+        snapTargets.filter((t) => t.kind === "contact").map((t) => ({ p: t.p, label: t.offM >= 0.5 ? tr("contact {v}, at the hole {d} m off the section", { v: t.label, d: t.offM.toFixed(1) }) : tr("contact {v}", { v: t.label }) })), // #950
         snapTargets.filter((t) => t.kind === "crossing").map((t) => ({ p: t.p, label: tr("{hole} crossing the section at {md} m", { hole: t.hole, md: t.md.toFixed(1) }) })),
       ];
       for (const tier of tiers) {
@@ -923,6 +925,12 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         <label style={{ ...row, cursor: "pointer" }} title={tr("A click on a hole snaps to its nearest logged contact (where the unit changes) within {m} m down-hole; untick to take the exact point clicked on the trace", { m: SNAP_REACH_M })}>
           <input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />{tr("Snap to logged contacts")}
         </label>
+        {sectionImages.length > 0 && ( /* TASKS.csv #950 */
+          <label style={{ ...row, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Drawing on a section image snaps to the logged contacts of holes within this distance of the image. The point is the contact where it was logged, on the hole, not moved onto the image.")}>
+            {tr("Section images: snap to contacts of holes within")}
+            <input type="number" min="0" step="1" value={imageSnapM} onChange={(e) => setImageSnapM(Math.max(0, Number(e.target.value) || 0))} style={{ ...numInput, width: 52 }} />{" m"}
+          </label>
+        )}
         <div style={row}>
           <button onClick={() => update({ picks: def.picks.slice(0, -1) })} disabled={!def.picks.length} style={{ ...pBtn, flex: 1, marginBottom: 0, opacity: def.picks.length ? 1 : 0.5 }}><Undo2 size={14} />{" "}{tr("Undo last pick")}</button>
           {/* TASKS.csv #892 — Undo / Redo always here (they used to appear only once a line existed), Ctrl+Z named */}
