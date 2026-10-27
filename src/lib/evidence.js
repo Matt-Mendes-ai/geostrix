@@ -10,7 +10,7 @@
 // independent given the deposits (the omnibus check below reports when the posterior over-predicts), and the result
 // is only as good as the training points, which at property scale are usually the drilled targets - circular when
 // the evidence was what led to the drilling. All of that is printed with the result.
-import { populations, groupKeyFn, robustZ } from "./thresholds.js";
+import { populations, groupKeyFn, robustZ, defaultPopulations } from "./thresholds.js";
 import { PATHFINDER_PRESETS } from "./anomalyMap.js";
 import { valueIn } from "./geochem.js";
 import { gridValues } from "./gridExport.js";
@@ -120,9 +120,10 @@ export function pointEvidence(g, points, { power = 2, maxDistance = 500, maxPoin
   return out;
 }
 
-// per-sample values for point evidence: an element's robust z within its medium, or a pathfinder index (mean robust z)
+// per-sample values for point evidence: an element's robust z within its medium, or a pathfinder index (mean robust z).
+// TASKS.csv #932 — within medium x source when public and project samples are both loaded.
 export function sampleValues(samples, { kind, symbol, preset, elements }, units) {
-  const keyOf = groupKeyFn("medium");
+  const keyOf = groupKeyFn(defaultPopulations(samples));
   const z = (sym) => { const out = new Map(); populations(samples, { valueOf: (s) => valueIn(s, sym, units[sym] || "ppm", units), keyOf }).forEach((p) => p.idx.forEach((i, k) => { const v = robustZ(p.values[k], p.summary); if (v != null) out.set(i, v); })); return out; };
   if (kind === "element") { const m = z(symbol); return samples.map((s, i) => ({ x: s.x, y: s.y, value: m.has(i) ? m.get(i) : NaN })); }
   const pr = PATHFINDER_PRESETS.find((p) => p.id === preset) || PATHFINDER_PRESETS[0];

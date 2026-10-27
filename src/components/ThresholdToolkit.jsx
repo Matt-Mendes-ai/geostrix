@@ -7,7 +7,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import Papa from "papaparse";
 import { valueIn } from "../lib/geochem.js";
-import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, robustZ, normalQuantile } from "../lib/thresholds.js";
+import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, robustZ, normalQuantile, hasMixedSources } from "../lib/thresholds.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
@@ -27,7 +27,8 @@ export default function ThresholdToolkit({ surfaceSamples, surfaceElements, mapL
   const [symbol, setSymbol] = useState(surfaceElements[0]?.symbol || "");
   const saved = geochemThresholds.find((r) => r.symbol === symbol) || null;
   const gOpts = useMemo(() => groupOptions(surfaceSamples, mapLayers), [surfaceSamples, mapLayers]);
-  const [groupBy, setGroupBy] = useState(() => saved?.groupBy || (new Set(surfaceSamples.map((s) => s.medium)).size > 1 ? "medium" : "none"));
+  const mixedSources = useMemo(() => hasMixedSources(surfaceSamples), [surfaceSamples]); // TASKS.csv #932
+  const [groupBy, setGroupBy] = useState(() => saved?.groupBy || (mixedSources ? "medium_source" : new Set(surfaceSamples.map((s) => s.medium)).size > 1 ? "medium" : "none"));
   const [method, setMethod] = useState(saved?.method || "median2mad");
   useEffect(() => { if (saved) { setGroupBy(gOpts.some((o) => o.value === saved.groupBy) ? saved.groupBy : "none"); setMethod(saved.method); } }, [symbol]); // re-read the saved rule when the element changes
 
@@ -91,6 +92,7 @@ export default function ThresholdToolkit({ surfaceSamples, surfaceElements, mapL
             </select></label>
           </div>
           <div style={note}>{tr("A soil over basalt and one over granite, or a B and a C horizon, have different backgrounds: judge each against its own population. Group by medium, by any column of your sample file (horizon, landform, lab, year...), or by the map unit each sample falls in.")}</div>
+          {mixedSources && <div style={{ ...note, color: groupBy === "medium_source" || groupBy === "attr:source" ? undefined : "var(--color-warn-text)" }}>{tr("Public survey samples and your own are judged apart by default (medium and source): different labs, methods and decades. GeoStrix does not level one survey to another.")}</div>}
           {saved && (
             <div style={{ ...note, color: "var(--color-text)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px" }}>
               {tr("Saved for {symbol}: {rule}, populations by {groups}, decided {date}.", { symbol, rule: tr(saved.methodLabel), groups: saved.groupLabel, date: saved.decided })}

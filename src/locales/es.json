@@ -6072,5 +6072,7 @@
   "{pct} (+{n} at 0)": "{pct} (+{n} en 0)",
   "{n} at 0": "{n} en 0",
   "{zero} {symbol} result(s) in \"{pop}\" were reported as 0 by the source (below detection or not analysed: the layer does not say). They are left out of n and of every threshold here; if they are below detection, the thresholds read high.": "{zero} resultado(s) de {symbol} en \"{pop}\" vienen como 0 en la fuente (bajo detección o no analizados: la capa no lo indica). Quedan fuera de n y de todos los umbrales; si están bajo detección, los umbrales resultan altos.",
-  "{updated} of them matched samples already in the project by sample id and medium and updated them ({added} added).": "{updated} de ellas coincidían con muestras ya presentes en el proyecto por ID de muestra y medio, y las actualizaron ({added} agregadas)."
+  "{updated} of them matched samples already in the project by sample id and medium and updated them ({added} added).": "{updated} de ellas coincidían con muestras ya presentes en el proyecto por ID de muestra y medio, y las actualizaron ({added} agregadas).",
+  "Sampling medium and source": "Medio de muestreo y fuente",
+  "Public survey samples and your own are judged apart by default (medium and source): different labs, methods and decades. GeoStrix does not level one survey to another.": "Por defecto, las muestras de levantamientos públicos y las propias se evalúan por separado (medio y fuente): distintos laboratorios, métodos y décadas. GeoStrix no nivela un levantamiento con otro."
 }

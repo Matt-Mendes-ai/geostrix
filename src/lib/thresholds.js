@@ -139,9 +139,17 @@ export function robustZ(value, summary) {
 }
 
 // ---------- groups (populations) ----------
-// groupBy: "none" | "medium" | "attr:<column>" | "layer:<mapLayerId>:<field>" (the polygon the sample falls in)
+// groupBy: "none" | "medium" | "medium_source" | "attr:<column>" | "layer:<mapLayerId>:<field>" (the polygon the sample falls in)
+// TASKS.csv #932 — "medium_source": medium x the `source` attribute every public sample carries (#846; the project's own
+// samples have none). A public survey (decades old, another lab, digestion and sample density) and the property's own
+// samples of the same medium are different populations: the plan they were built from says never to mix them without
+// levelling, which GeoStrix does not do. It is the default wherever samples of more than one source are loaded.
+export const PROJECT_SOURCE = "project samples";
+export const hasMixedSources = (samples) => { let first; for (const s of samples) { const k = s.attrs?.source || PROJECT_SOURCE; if (first === undefined) first = k; else if (k !== first) return true; } return false; };
+export const defaultPopulations = (samples) => (hasMixedSources(samples) ? "medium_source" : "medium");
 export function groupOptions(surfaceSamples, mapLayers = []) {
   const opts = [{ value: "none", label: "All samples (one population)" }, { value: "medium", label: "Sampling medium" }];
+  if (hasMixedSources(surfaceSamples)) opts.push({ value: "medium_source", label: "Sampling medium and source" });
   const attrs = new Map();
   surfaceSamples.forEach((s) => Object.keys(s.attrs || {}).forEach((k) => attrs.set(k, (attrs.get(k) || 0) + 1)));
   [...attrs.keys()].sort().forEach((k) => opts.push({ value: `attr:${k}`, label: k, kind: "column" }));
@@ -151,6 +159,7 @@ export function groupOptions(surfaceSamples, mapLayers = []) {
 export function groupKeyFn(groupBy, mapLayers = []) {
   if (!groupBy || groupBy === "none") return () => "All";
   if (groupBy === "medium") return (s) => s.medium || "(none)";
+  if (groupBy === "medium_source") return (s) => `${s.medium || "(none)"} · ${s.attrs?.source || PROJECT_SOURCE}`; // #932
   if (groupBy.startsWith("attr:")) { const k = groupBy.slice(5); return (s) => { const v = s.attrs?.[k]; return v == null || v === "" ? "(blank)" : String(v); }; }
   if (groupBy.startsWith("layer:")) {
     const [, id, ...rest] = groupBy.split(":"), field = rest.join(":");

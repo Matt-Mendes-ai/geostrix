@@ -20,7 +20,7 @@
 // does not. Classes at the two-sided 95 % (1.96) and 99 % (2.576) levels, with NO correction for the many tests made
 // (one per sample): the usual practice, and a reason to read the 95 % class as a hint. On the logs because geochemical
 // values are skewed; the mean and SD are those of all the samples with the element.
-import { populations, groupKeyFn, candidateThresholds, robustZ, quantileSorted } from "./thresholds.js";
+import { populations, groupKeyFn, candidateThresholds, robustZ, quantileSorted, defaultPopulations } from "./thresholds.js";
 import { valueIn } from "./geochem.js";
 
 export const PATHFINDER_PRESETS = [
@@ -59,7 +59,7 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
     const saved = thresholds.find((t) => t.symbol === sym);
     const scheme = c.scheme === "threshold" && saved ? "threshold" : "percentile";
     if (c.scheme === "threshold" && !saved) notes.push({ text: "No threshold saved for {sym} (Geochem > Thresholds): percentile classes shown instead.", params: { sym } });
-    const groupBy = c.groupBy || (scheme === "threshold" ? saved.groupBy : "medium");
+    const groupBy = c.groupBy || (scheme === "threshold" ? saved.groupBy : defaultPopulations(samples)); // #932
     const pops = populations(samples, { valueOf: (s) => valueIn(s, sym, unit, units), keyOf: groupKeyFn(groupBy, mapLayers) });
     if (scheme === "threshold") {
       classes = [{ label: `below the 75th percentile` }, { label: `75th percentile to the threshold` }, { label: `at or above the threshold (anomalous)` }];
@@ -89,7 +89,7 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
     const els = wanted.filter((e) => have.has(e));
     const missing = wanted.filter((e) => !have.has(e));
     if (missing.length) notes.push({ text: "Not in the samples: {list}.", params: { list: missing.join(", ") } });
-    const groupBy = c.groupBy || "medium";
+    const groupBy = c.groupBy || defaultPopulations(samples); // #932 — public and project samples apart
     const keyOf = groupKeyFn(groupBy, mapLayers);
     const zs = samples.map(() => []);
     els.forEach((sym) => {
@@ -159,6 +159,7 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
 function groupLabelOf(groupBy) {
   if (!groupBy || groupBy === "none") return "all samples together";
   if (groupBy === "medium") return "each sampling medium";
+  if (groupBy === "medium_source") return "each sampling medium and source"; // #932
   if (groupBy.startsWith("attr:")) return `each value of ${groupBy.slice(5)}`;
   if (groupBy.startsWith("layer:")) return `each unit of the map layer (${groupBy.split(":").slice(2).join(":")})`;
   return groupBy;
