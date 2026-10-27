@@ -13,6 +13,9 @@ export async function savePDF(suggestedName, pdf = {}) {
 }
 
 // TASKS.csv #909 — the printed Layout as PDF bytes (base64), no dialog: the PNG export renders a page from it
+// TASKS.csv #922 — binary IPC answers arrive as a Uint8Array (the main process sends the Buffer, as fs-read-file does
+// since #346). They used to come as base64 and be decoded with Uint8Array.from(atob(s), mapper): 17-19 s and +1.9 GB
+// at the 64 MB download cap on the main thread (review #918).
 export async function exportPDFData(opts = {}) {
   if (d?.exportPDFData) return d.exportPDFData(opts);
   return { ok: false, message: "The image export needs the desktop app." };

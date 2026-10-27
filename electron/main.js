@@ -669,7 +669,7 @@ ipcMain.handle("export-pdf", async (ev, { suggestedName, pageSize, landscape, pr
 ipcMain.handle("export-pdf-data", async (ev, { preferCSSPageSize } = {}) => {
   const win = BrowserWindow.fromWebContents(ev.sender) || mainWindow;
   const data = await win.webContents.printToPDF({ printBackground: true, landscape: true, pageSize: "A4", margins: { marginType: "none" }, preferCSSPageSize: !!preferCSSPageSize });
-  return { ok: true, base64: data.toString("base64") };
+  return { ok: true, bytes: data }; // #922 — the Buffer itself (a Uint8Array in the renderer), as fs-read-file (#346): no base64 round trip
 });
 
 // ---------- generic file save (csv / png / svg) ----------
@@ -928,7 +928,7 @@ ipcMain.handle("geochem-fetch", async (_e, { url, form = null, binary = false } 
   }
   const res = await guardedFetch(u.toString(), { timeoutMs: 180000, maxBytes: 64 * 1024 * 1024, init });
   if (res.message) return { ok: false, status: res.status, message: res.message };
-  return { ok: res.ok, status: res.status, contentType: res.contentType, ...(binary ? { base64: res.buffer.toString("base64") } : { text: res.buffer.toString("utf8") }) };
+  return { ok: res.ok, status: res.status, contentType: res.contentType, ...(binary ? { bytes: res.buffer } : { text: res.buffer.toString("utf8") }) }; // bytes: #922
 });
 
 const { DB_STATEMENT_TIMEOUT_MS, pgConfig, mysqlConfig } = require("./dbConfig.js"); // TASKS.csv #348

@@ -101,7 +101,7 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
           const f = await geochemFetch({ url: link, binary: true });
           if (!f.ok) throw new Error(f.message || tr("The service answered HTTP {status}.", { status: f.status }));
           const { readZipEntries } = await import("../lib/shapefile.js");
-          const bytes = Uint8Array.from(atob(f.base64), (ch) => ch.charCodeAt(0));
+          const bytes = f.bytes; // #922
           const entries = await readZipEntries(bytes, /(main|bestvalue)\.txt$/i);
           const dec = (re) => { const k = Object.keys(entries).find((n) => re.test(n) && entries[n]); return k ? new TextDecoder().decode(entries[k]) : ""; };
           t = parseNgdbPackage({ main: dec(/main\.txt$/i), bestvalue: dec(/bestvalue\.txt$/i) }, area);
@@ -132,7 +132,7 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
       const f = await geochemFetch({ url: cdogsUrl(cand.key, cand.pkg), binary: true });
       if (!f.ok) throw new Error(f.message || tr("The service answered HTTP {status}.", { status: f.status }));
       const { readXlsxSheets } = await import("../lib/xlsx.js");
-      const sheets = await readXlsxSheets(Uint8Array.from(atob(f.base64), (ch) => ch.charCodeAt(0)));
+      const sheets = await readXlsxSheets(f.bytes); // #922
       const sheet = sheets.find((s) => !s.hidden && s.rows.length > 1) || sheets[0];
       const t = parseCdogsWorkbook(sheet?.rows || [], cdogs.index.packages[String(cand.pkg)][2], area, cand);
       if (!t.rows.length) { setError(tr("None of this survey's samples lie in the area (only its overall extent overlaps it).")); return; }

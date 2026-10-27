@@ -137,7 +137,7 @@ export default function LayoutModule() {
           const pageNo = Math.max(1, layoutPages.findIndex((pg) => pg.id === activeLayoutPageId) + 1);
           const r = await exportPDFData({ preferCSSPageSize: true });
           if (!r?.ok) throw new Error(r?.message || tr("The image export needs the desktop app."));
-          const bytes = Uint8Array.from(atob(r.base64), (ch) => ch.charCodeAt(0));
+          const bytes = r.bytes; // #922 — a Uint8Array from the main process, no base64
           const { openPdf, renderPdfPage } = await import("../lib/pdfPages.js");
           const doc = await openPdf(bytes);
           const [wmm, hmm] = pageMm(layoutPages[pageNo - 1]?.format);
