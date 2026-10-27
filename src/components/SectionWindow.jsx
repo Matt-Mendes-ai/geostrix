@@ -629,12 +629,32 @@ function SectionSVG({ showSectionImages = true, showModel = true, data, svgRef, 
           ))}
         </g>
       )}
-      {/* TASKS.csv #395 — planned holes, dashed. */}
+      {/* TASKS.csv #395 — planned holes, dashed. #1010 — with depth ticks (every 50 m, labelled every 100 m, as the drilled
+          holes), the planned end depth, and a labelled marker where the hole crosses each visible modelled surface. */}
       {plannedHoles.map((ph, i) => {
         const pts = ph.trace.map((p) => [sx(along(p.x, p.y)), sz(p.z)]);
+        const t = ph.trace, hasMd = t.length > 1 && t.every((p) => Number.isFinite(p.md));
+        const marks = [];
+        if (hasMd) {
+          const eoh = t[t.length - 1].md;
+          for (let md = 50; md < eoh - 5; md += 50) {
+            const p = interpTrace(t, md), q = interpTrace(t, Math.min(eoh, md + 1));
+            if (!p || !q) continue;
+            const x = sx(along(p.x, p.y)), y = sz(p.z);
+            const [nx, ny] = screenNormal(x, y, sx(along(q.x, q.y)), sz(q.z));
+            marks.push(<g key={`m${md}`}><line x1={x - nx * 3} y1={y - ny * 3} x2={x - nx * 7} y2={y - ny * 7} stroke="#b06a1f" strokeWidth="0.8" />{md % 100 === 0 && <text x={x - nx * 10} y={y - ny * 10 + 3} fill="#b06a1f" fontSize="8" textAnchor={nx >= 0 ? "end" : "start"}>{md}</text>}</g>);
+          }
+          const last = t[t.length - 1];
+          marks.push(<text key="eoh" x={sx(along(last.x, last.y))} y={sz(last.z) + 11} fill="#b06a1f" fontSize="9" textAnchor="middle">{tr("planned EOH {v} m", { v: Math.round(eoh) })}</text>);
+        }
+        (ph.pierces || []).forEach((q, k) => {
+          const x = sx(along(q.x, q.y)), y = sz(q.z);
+          marks.push(<g key={`p${k}`}><circle cx={x} cy={y} r="3.2" fill="#fff" stroke="#b06a1f" strokeWidth="1.4" /><text x={x + 6} y={y - 4} fill="#7a4512" fontSize="9" fontWeight="600">{tr("{md} m · {surface}", { md: q.md.toFixed(1), surface: q.name })}</text><title>{tr("{hole} crosses {surface} at {md} m downhole", { hole: ph.name, surface: q.name, md: q.md.toFixed(1) })}</title></g>);
+        });
         return (
           <g key={`ph${i}`}>
             <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#b06a1f" strokeWidth="1.6" strokeDasharray="6 4"><title>{tr("Planned hole: {name}", { name: ph.name })}</title></polyline>
+            {marks}
           </g>
         );
       })}

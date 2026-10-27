@@ -3,6 +3,7 @@ import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
 import * as THREE from "three";
 import Papa from "papaparse";
+import { piercePoints as surfacePierces, piercePointRows } from "../lib/piercePoints.js"; // TASKS.csv #1009
 import { Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare, Beaker, Compass, Activity, GitCompare, Check } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // GitCompare/Check: TASKS.csv #93
 const AssayStyleModal = lazyModal(() => import("../components/AssayStyleModal.jsx")); // TASKS.csv #476
 import { seedBreaks } from "../lib/colorRamp.js"; // TASKS.csv #476
@@ -1213,6 +1214,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // View or 3D Modelling too, not just the Targeting tab where it's edited.
   const plannedGroupRef = useRef(null);
   const sectionStringsGroupRef = useRef(null); // TASKS.csv #519
+  const sectionLinesGroupRef = useRef(null); // TASKS.csv #1011
   // TASKS.csv #575 — keyboard path to the view's right-click menu (Zoom to fit all, Zoom to selected area, Reset
   // orientation, background colour): the ContextMenu key or Shift+F10 on the focused 3D view opens it at the view's
   // centre with the first item focused; arrows move, Escape closes and gives focus back to the view.
@@ -1248,6 +1250,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const layerMenuKeys = useMenuKeys(layerContextMenu, () => setLayerContextMenu(null));
   const rowMenuKeys = useMenuKeys(rowMenu, () => setRowMenu(null));
   const [showSectionStrings, setShowSectionStrings] = useState(true); // TASKS.csv #519
+  const [showSectionLines, setShowSectionLines] = useState(true); // TASKS.csv #1011
   const plannedMeshesRef = useRef({}); // id -> THREE.Group (line + toe marker)
   const measureGroupRef = useRef(null); // TASKS.csv #121 — line/polygon + vertex markers for the active measurement
   const [implicitSurfaces, setImplicitSurfaces] = useState([]); // [{id, name, visible, vertexCount, faceCount}]
@@ -2145,6 +2148,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // TASKS.csv #519 — saved section strings as 3D lines
     const sectionStringsGroup = new THREE.Group(); sectionStringsGroup.name = "sectionStrings"; root.add(sectionStringsGroup);
     sectionStringsGroupRef.current = sectionStringsGroup;
+    const sectionLinesGroup = new THREE.Group(); sectionLinesGroup.name = "sectionLines"; root.add(sectionLinesGroup); // #1011
+    sectionLinesGroupRef.current = sectionLinesGroup;
     plannedMeshesRef.current = {};
 
     // TASKS.csv #121 — measurement tool's own group, same reasoning as plannedGroup/voxelGroup.
@@ -4353,6 +4358,29 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // without anyone having to hand-calculate the endpoint from azimuth/dip/length themselves.
   // TASKS.csv #397 — lat/lon, true and magnetic azimuths (declination at TODAY's date — the drilling is
   // about to happen) and KML / GPX for phones and handheld GPS; see rigExport.js.
+  // TASKS.csv #1009 — the visible modelled surfaces in world coordinates for the planned holes' pierce points; one object
+  // per geometry (and its version), so the mesh query surfacePierces builds for it is reused until the surface changes
+  const worldMeshCache = useRef(new WeakMap());
+  const pierceSurfaces = useMemo(() => implicitSurfaces.filter((sf) => sf.visible !== false).map((sf) => {
+    const g = implicitMeshesRef.current[sf.id]?.geometry;
+    if (!g?.attributes?.position) return null;
+    const ver = g.attributes.position.version;
+    let w = worldMeshCache.current.get(g);
+    if (!w || w.ver !== ver || w.name !== sf.name) {
+      const { vertices, indices } = sceneVertsToWorldFlat(g, originRef.current);
+      w = { id: sf.id, name: sf.name, positions: vertices, indices, ver };
+      worldMeshCache.current.set(g, w);
+    }
+    return w;
+  }).filter(Boolean), [implicitSurfaces]);
+  const exportPiercePoints = useCallback(async () => {
+    const rows = piercePointRows(plannedHoles.map((hole) => ({ hole, pierces: surfacePierces(plannedHoleTrace(hole), pierceSurfaces) })));
+    if (!rows.length) { setNotices((p) => [...p, notice("The planned holes cross none of the visible modelled surfaces.")]); return; }
+    const base = `${(project.name || "project").replace(/[^\w\- ]/g, "")}_pierce_points`;
+    const res = await saveFile({ suggestedName: `${base}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows), encoding: "text" });
+    if (res.ok) setNotices((p) => [...p, notice("Exported {n} pierce point(s) of the planned holes.", { n: rows.length })]);
+  }, [plannedHoles, pierceSurfaces, project]);
+
   const exportPlannedHoles = useCallback(async (format = "csv") => {
     if (!plannedHoles.length) { setNotices((p) => [...p, notice("No planned drillholes to export yet.")]); return; }
     const { rigRows, rigKML, rigGPX } = await import("../lib/rigExport.js"); // TASKS.csv #397; loaded on first export (#476)
@@ -5564,6 +5592,52 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     }));
   }, [sections, showSectionStrings]);
 
+  // TASKS.csv #1011 — Matt: "have the cross section display as on the 3d view so I can see it when looking from top. Have
+  // it display as a thick line". Each saved section's line A -> B as a flat ribbon (WebGL draws every line 1 px wide, so a
+  // thick line is a strip of triangles), laid on the terrain where there is one (2 m above it), else 2 m above the
+  // median collar elevation, drawn over everything so it stays visible from above and through the model. Its width follows the
+  // section's length (0.6 %, at least 4 m), so it reads at the scale the section is seen at. Labelled by its tooltip.
+  useEffect(() => {
+    const group = sectionLinesGroupRef.current;
+    if (!group) return;
+    group.children.slice().forEach((ch) => { group.remove(ch); ch.geometry?.dispose(); ch.material?.dispose(); });
+    if (!showSectionLines || !(sections || []).length) return;
+    const { x: ox, y: oy, z: oz } = originRef.current;
+    // without a terrain, flat at the median collar elevation: a median, because one outlying high collar (Harry's 1,468 m
+    // against 1,077-1,160 m) lifted a max-based line ~300 m above the holes and perspective pushed it off screen; flat,
+    // because following the nearest collars made it step up and down
+    const czs = (collars || []).map((c) => c.z).filter(Number.isFinite).sort((u, v) => u - v);
+    const flatZ = czs.length ? czs[czs.length >> 1] : oz;
+    (sections || []).forEach((sct) => {
+      const { ax, ay, bx, by } = sct;
+      if (![ax, ay, bx, by].every(Number.isFinite)) return;
+      const L = Math.hypot(bx - ax, by - ay);
+      if (!(L > 0)) return;
+      const width = Math.max(6, L * 0.02), ux = (bx - ax) / L, uy = (by - ay) / L, nx = -uy, ny = ux;
+      const n = Math.max(2, Math.min(200, Math.ceil(L / 10)));
+      const zs = [];
+      for (let k = 0; k <= n; k++) { const g = terrain ? terrainGroundAt(terrain, ax + (bx - ax) * (k / n), ay + (by - ay) * (k / n)) : NaN; zs.push(Number.isFinite(g) ? g + 2 : flatZ + 2); }
+      const tip = `${tr("Cross-section: {name}", { name: sct.name })}\n${Math.round(L).toLocaleString()} m, ${tr("azimuth {v}°", { v: Math.round(sct.azimuth ?? 0) })}`;
+      // a dark red band on a wider white one (the white also runs a little past both ends)
+      [[width * 1.7, "#ffffff", 10], [width, "#c2185b", 11]].forEach(([w, color, order]) => {
+        const half = w / 2, ext = (w - width) / 2, pos = [], idx = [];
+        for (let k = 0; k <= n; k++) {
+          const along = k === 0 ? -ext : k === n ? ext : 0;
+          const x = ax + (bx - ax) * (k / n) + ux * along, y = ay + (by - ay) * (k / n) + uy * along;
+          for (const sgn of [-1, 1]) { const px = x + sgn * half * nx, py = y + sgn * half * ny; pos.push(px - ox, zs[k] - oz, -(py - oy)); }
+          if (k) { const v = 2 * k; idx.push(v - 2, v - 1, v, v - 1, v + 1, v); }
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+        geo.setIndex(idx);
+        const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(color), side: THREE.DoubleSide, depthTest: false, transparent: true, opacity: 0.95 }));
+        mesh.renderOrder = order;
+        mesh.userData = { tip };
+        group.add(mesh);
+      });
+    });
+  }, [sections, showSectionLines, terrain, collars]);
+
   useEffect(() => {
     const group = plannedGroupRef.current;
     if (!group) return;
@@ -6501,7 +6575,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     (plannedHoles || []).forEach((h) => {
       const tr = plannedHoleTrace(h);
       if (!tr?.length || !tr.some((p) => distToSegment(p.x, p.y, a.x, a.y, b.x, b.y) <= corridor)) return;
-      plannedOnSection.push({ name: h.name || h.id, trace: tr.map((p) => ({ x: p.x, y: p.y, z: p.z })) });
+      // TASKS.csv #1010 — with the depths along the planned trace (ticks and the end depth on the section) and where it
+      // crosses the visible modelled surfaces (#1009), labelled with their depths
+      plannedOnSection.push({ name: h.name || h.id, trace: tr.map((p) => ({ x: p.x, y: p.y, z: p.z, md: p.md })), pierces: surfacePierces(tr, pierceSurfaces).map((q) => ({ x: q.x, y: q.y, z: q.z, md: q.md, name: q.surfaceName })) });
     });
 
     const modelBackdrop = modelBackdropFor(a, b, secId, showTerrain, corridor); // #759
@@ -6631,7 +6707,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const sectionImgs = await sectionImagesFor(a, b, s.corridor);
     openSectionWindow({ id: s.id, title: s.name, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, contacts: s.contacts || [], labels: s.labels || null, lithoUnits: litho_units, unitTags: sectionUnitTags, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, sectionImages: sectionImgs, modelBackdrop,
       ghostStrings: (await import("../lib/sectionDigitise.js")).ghostStrings(s, sections), /* on use: #903 */ outlineNames: outlineNamesOf(sections), ...(quiet ? { refreshOnly: true, ifOpen: true } : {}) }); // #519 — the neighbouring sections' strings; outlineNames: #874; quiet: #876
-  }, [layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, sectionUnitTags, terrain, voxelModels, implicitSurfaces, plannedHoles, sections, sectionImages, lastLithBlock]);
+  }, [layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, sectionUnitTags, terrain, voxelModels, implicitSurfaces, plannedHoles, sections, sectionImages, lastLithBlock, pierceSurfaces]); // pierceSurfaces: #1010
 
   // TASKS.csv #876 — the section window's ‹ › (previous / next parallel section) and Refresh
   const sectionStepRef = useRef(null);
@@ -7393,6 +7469,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <>
               <div className="ge-section-label" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span>{tr("Cross-sections ({n})", { n: sections.length })}</span>
+                {sections.length > 0 && ( /* TASKS.csv #1011 */
+                  <label style={{ display: "flex", alignItems: "center", gap: 3, textTransform: "none", letterSpacing: 0, fontSize: "var(--font-size-xs)", fontWeight: 400 }} title={tr("Draw each saved section's line in the 3D view as a thick line, visible from above")}>
+                    <input type="checkbox" checked={showSectionLines} onChange={(e) => setShowSectionLines(e.target.checked)} />{" "}{tr("lines in 3D")}</label>
+                )}
                 {sections.some((s) => (s.contacts || []).length) && (
                   <label style={{ display: "flex", alignItems: "center", gap: 3, textTransform: "none", letterSpacing: 0, fontSize: "var(--font-size-xs)", fontWeight: 400 }} title={tr("Draw the saved section strings (contacts, faults, strings) as 3D lines in the view")}>
                     <input type="checkbox" checked={showSectionStrings} onChange={(e) => setShowSectionStrings(e.target.checked)} />{" "}{tr("in 3D")}</label>
@@ -8002,7 +8082,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </div>
         </>)}
         {plannedHoles.length > 0 && (
-          <PlannedHoleChecks plannedHoles={plannedHoles} collars={collars} survey={survey} voxelModels={voxelModels} desurveyMethod={desurveyMethod} />
+          <PlannedHoleChecks plannedHoles={plannedHoles} collars={collars} survey={survey} voxelModels={voxelModels} desurveyMethod={desurveyMethod} surfaces={pierceSurfaces} onExportPierces={exportPiercePoints} />
         )}
         </>)}
         {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}
@@ -9343,8 +9423,10 @@ function planCollisionAndTargetChecks(plannedHoles, collars, survey, voxelModels
   });
 }
 
-function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, desurveyMethod }) { // #135
+function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, desurveyMethod, surfaces = [], onExportPierces }) { // #135; surfaces: #1009
   const [minSpacing, setMinSpacing] = useState(25);
+  // TASKS.csv #1009 — where each planned hole crosses the visible modelled surfaces (downhole depth, vertical depth, angle)
+  const pierces = useMemo(() => new Map(plannedHoles.map((h) => [h.id, surfacePierces(plannedHoleTrace(h), surfaces)])), [plannedHoles, surfaces]);
   const [costPerM, setCostPerM] = useState("");
   const results = useMemo(() => planCollisionAndTargetChecks(plannedHoles, collars, survey, voxelModels, desurveyMethod), [plannedHoles, collars, survey, voxelModels, desurveyMethod]);
   const totalM = plannedHoles.reduce((s, h) => s + (Number(h.length) || 0), 0);
@@ -9381,9 +9463,35 @@ function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, desurve
                 {targetHits.map((h) => `${h.metres.toFixed(0)} m in "${h.modelName}"'s target band`).join("; ")}
               </div>
             )}
+            {/* TASKS.csv #1009 — pierce points */}
+            {surfaces.length > 0 && (() => {
+              const ps = pierces.get(hole.id) || [];
+              if (!ps.length) return <div style={{ color: "var(--color-text-muted)", marginTop: 3 }}>{tr("Crosses none of the visible modelled surfaces.")}</div>;
+              return (
+                <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 4, fontSize: "var(--font-size-sm)" }}>
+                  <thead><tr style={{ color: "var(--color-text-muted)", textAlign: "right" }}>
+                    <th style={{ textAlign: "left", fontWeight: 500 }}>{tr("Surface")}</th>
+                    <th style={{ fontWeight: 500 }} title={tr("Downhole depth along the planned trace (lift and drift included)")}>{tr("Depth (m)")}</th>
+                    <th style={{ fontWeight: 500 }} title={tr("Vertical depth below the collar")}>{tr("Vert. (m)")}</th>
+                    <th style={{ fontWeight: 500 }} title={tr("Angle between the hole and the surface where they meet: 90° is square on; a low angle gives a long, oblique intercept")}>{tr("Angle (°)")}</th>
+                  </tr></thead>
+                  <tbody>{ps.map((p, i) => (
+                    <tr key={i} style={{ textAlign: "right", color: "var(--color-text)" }} title={`E ${p.x.toFixed(1)}  N ${p.y.toFixed(1)}  ${tr("elevation")} ${p.z.toFixed(1)}`}>
+                      <td style={{ textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 140 }}>{p.surfaceName}</td>
+                      <td>{p.md.toFixed(1)}</td><td>{p.verticalDepth.toFixed(1)}</td><td>{p.angle == null ? "—" : p.angle.toFixed(0)}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              );
+            })()}
           </div>
         );
       })}
+      {surfaces.length > 0 && onExportPierces && (
+        <button onClick={onExportPierces} style={{ width: "100%", marginTop: 4, padding: "5px 8px", fontSize: "var(--font-size-sm)", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, cursor: "pointer", color: "var(--color-text)" }}
+          title={tr("Every planned hole's crossings of the visible modelled surfaces: hole, surface, downhole and vertical depth, easting, northing, elevation and angle")}>{tr("Export pierce points (CSV)")}</button>
+      )}
+      {surfaces.length === 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Build or show a modelled surface (3D Modelling) to list where the planned holes cross it.")}</div>}
     </div>
   );
 }
