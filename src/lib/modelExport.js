@@ -9,7 +9,7 @@
 // y south->north, z top->bottom; model values z fastest from the TOP down, then x, then y; one value per
 // line. Cells outside the model (air above the terrain, cells hidden by nothing) are written as -99999.
 // Gravity .obs is positive over dense rock (UBC's sign; SimPEG flips it on read), as GeoStrix stores it.
-import { writeArrayBuffer } from "geotiff";
+import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
 import { buildZip } from "./shapefile.js";
 import { b64ToF32 } from "./inversion.js";
 import { arrMin, arrMax } from "./arrayStats.js";
@@ -110,7 +110,7 @@ export function depthSliceTiffs(cells, t, epsg, field = "value") {
     }
     if (!any) continue;
     const zc = t.z.centers[iz];
-    const buf = writeArrayBuffer(band, {
+    const buf = writeGeoTiff(band, {
       width: t.nx, height: t.ny, ModelPixelScale: [px, py, 0], ModelTiepoint: [0, 0, 0, t.x.min, t.y.max, 0],
       GTModelTypeGeoKey: 1, GTRasterTypeGeoKey: 1, ProjectedCSTypeGeoKey: Number(epsg), GDAL_NODATA: String(UBC_NODATA),
     });

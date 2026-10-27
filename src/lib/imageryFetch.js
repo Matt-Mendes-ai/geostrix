@@ -11,7 +11,8 @@
 //   * ASTER L1T (2000-2006, when its SWIR still worked) — Microsoft Planetary Computer, read with the anonymous token
 //     its own token service issues. Thermal bands 10-14 at 90 m as at-sensor RADIANCE (DN -> W/m2/sr/um with ASTER's
 //     fixed unit conversion coefficients), not emissivity: no atmospheric or temperature correction.
-import { BaseClient, BaseResponse, fromCustomClient, writeArrayBuffer } from "geotiff";
+import { BaseClient, BaseResponse, fromCustomClient } from "geotiff";
+import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
 import { remoteSensingFetch } from "./desktop.js";
 import { reprojectXY, reprojectGrid, getProj4DefSync } from "./reproject.js";
 import { pointInRings } from "./mapLayers.js";
@@ -244,7 +245,7 @@ export async function fetchSceneStack(scene, bboxLonLat, roles, { onProgress, ma
   // interleave into one Float32 multiband GeoTIFF (NaN = no data)
   const S = out.bands.length, m = out.width * out.height, data = new Float32Array(m * S);
   for (let i = 0; i < m; i++) for (let b = 0; b < S; b++) data[i * S + b] = out.bands[b][i];
-  const buf = writeArrayBuffer(data, {
+  const buf = writeGeoTiff(data, {
     width: out.width, height: out.height, SamplesPerPixel: S, PlanarConfiguration: 1, BitsPerSample: Array(S).fill(32), SampleFormat: Array(S).fill(3),
     ModelPixelScale: [out.scaleX, out.scaleY, 0], ModelTiepoint: [0, 0, 0, out.x0, out.y1, 0], GTModelTypeGeoKey: 1, GTRasterTypeGeoKey: 1, ProjectedCSTypeGeoKey: out.epsg,
   });

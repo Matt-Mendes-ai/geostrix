@@ -4,7 +4,8 @@
 // GeoStrix (no vertical datum model). Pure apart from the zip / DBF work in shapefile.js.
 import { parseShapefileZip, buildZip, readZipEntries, prjWktFor } from "./shapefile.js";
 import { guessEpsgFromPrjWkt, pointTransform, crsName, getProj4DefSync, reprojectGrid } from "./reproject.js";
-import { fromArrayBuffer, writeArrayBuffer } from "geotiff";
+import { fromArrayBuffer } from "geotiff";
+import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
 import { demNodeBbox, epsgFromGeoKeys } from "./raster.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
@@ -192,7 +193,7 @@ export async function reprojectGeoTiff(buf, fromEpsg, toEpsg) {
     ...(nb === 3 && !isFloat ? { PhotometricInterpretation: 2 } : {}),
     ...(info.noData !== null || isFloat ? { GDAL_NODATA: String(fill) } : {}),
   };
-  const bytes = new Uint8Array(writeArrayBuffer(out, meta));
+  const bytes = new Uint8Array(writeGeoTiff(out, meta));
   return { bytes, report: { from, width: w, height: h, bands: nb, outW, outH, pixel: pw, resampling: nearest ? "nearest" : "bilinear", emptyFraction: empty / (outW * outH), geographic } };
 }
 

@@ -1,7 +1,7 @@
 // TASKS.csv #854 — value grids out as GeoTIFF (Matt: "let's do A to D", D): single- or multi-band float32 in the project
 // CRS with GDAL's no-data tag, so QGIS, ArcGIS or the EIS QGIS plugin read GeoStrix's grids directly. Same writer and
 // geokeys as the terrain export (#203, raster.js) and the Sentinel-2 stack (#784, imageryFetch.js).
-import { writeArrayBuffer } from "geotiff";
+import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
 import { b64ToF32 } from "./inversion.js";
 import { arrayBufferToBase64 } from "./raster.js";
 import { saveFile } from "./desktop.js";
@@ -32,7 +32,7 @@ export function gridToGeoTIFF({ nx, ny, x0, yTop, dx, dy, bands, epsg, nodata = 
     GDAL_NODATA: String(nodata),
   };
   if (Number.isFinite(Number(epsg))) metadata.ProjectedCSTypeGeoKey = Number(epsg);
-  return writeArrayBuffer(data, metadata);
+  return writeGeoTiff(data, metadata);
 }
 
 // A node-based terrain-shaped grid ({ bbox, gridW, gridH }: nodes ON the bbox edges) -> the cell geometry above

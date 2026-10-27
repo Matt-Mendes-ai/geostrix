@@ -15,7 +15,8 @@
 // geographic (lon/lat) DEM source not lining up with a projected project EPSG isn't just "in the
 // wrong place", it silently builds a real terrain mesh many orders of magnitude away from the rest of
 // the scene, so that path DOES reproject automatically when it can.
-import { fromArrayBuffer, writeArrayBuffer } from "geotiff";
+import { fromArrayBuffer } from "geotiff";
+import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
 import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #326 — compact grid values
 import { getProj4Def, getProj4DefSync, reprojectGrid, reprojectImageRGBA, bilinearSample, reprojectXY, guessEpsgFromPrjWkt } from "./reproject.js";
 import { arrMin, arrMax, percentileSorted } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread); #740 percentileSorted
@@ -807,7 +808,7 @@ export function terrainToGeoTIFFArrayBuffer(terrain, projectEpsg) {
     ProjectedCSTypeGeoKey: Number(projectEpsg),
     GDAL_NODATA: String(NODATA),
   };
-  const buf = writeArrayBuffer(values, metadata);
+  const buf = writeGeoTiff(values, metadata);
   terrainToGeoTIFFArrayBuffer.lastMasked = masked; // #1020 — for the export notice
   return buf;
 }
