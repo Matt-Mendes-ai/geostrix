@@ -149,12 +149,39 @@ export function darkFloor(arrays, dnScale = 10000) {
   return s[s.length >> 1] > 2 ? DARK_FLOOR * dnScale : DARK_FLOOR;
 }
 
+// TASKS.csv #928 — how a file's pixel values become reflectance. Fetched scenes are converted on the way in (#784,
+// imageryFetch s2Offset); a file was only ever scaled, so a Sentinel-2 export from processing baseline 04.00 on (every
+// scene since January 2022: DN - 1000) or a Landsat Collection 2 Level-2 one (DN x 0.0000275 - 0.2) had every ratio
+// pulled towards 1 (a gossan's B4/B2 of 6.00 read 2.67 and 2.00) and the dark-pixel mask could not fire.
+export const DN_ENCODINGS = {
+  reflectance: { label: "Reflectance 0-1", f: (v) => v },
+  scaled: { label: "DN ÷ 10,000 (Sentinel-2 before processing baseline 04.00, most scaled products)", f: (v) => v / 10000 },
+  s2offset: { label: "Sentinel-2, processing baseline 04.00 or later (2022 on): (DN − 1000) ÷ 10,000", f: (v) => (v - 1000) / 10000 },
+  landsatC2: { label: "Landsat Collection 2 Level-2: DN × 0.0000275 − 0.2", f: (v) => v * 0.0000275 - 0.2 },
+  aster: { label: "ASTER AST_07XT: DN ÷ 1,000", f: (v) => v / 1000 },
+};
+// A guess from the values, said as a guess in the notice: values of 0-2 are reflectance; a Sentinel-2 file whose 1st
+// percentile is 1,000 or more carries the offset (without it dark water and shadow sit at tens to hundreds of DN); a
+// Landsat file whose 1st percentile is over 7,000 is Collection 2 Level-2 (zero reflectance is DN 7,273).
+export function detectEncoding(arrays, sensorKey) {
+  const s = [];
+  for (const a of arrays) { const step = Math.max(1, Math.floor(a.length / 5000)); for (let i = 0; i < a.length; i += step) if (a[i] > 0 && Number.isFinite(a[i])) s.push(a[i]); }
+  if (!s.length) return "reflectance";
+  s.sort((x, y) => x - y);
+  const med = s[s.length >> 1], p1 = s[Math.floor(s.length * 0.01)];
+  if (med <= 2) return "reflectance";
+  if (sensorKey === "aster_vnir_swir") return "aster";
+  if (sensorKey === "landsat" && p1 > 7000) return "landsatC2";
+  if (sensorKey === "sentinel2" && p1 >= 1000) return "s2offset";
+  return "scaled";
+}
+
 // The index for every pixel: `bands` = the file's bands (arrays, 0-based), `mapping` = {role: 1-based band number},
 // `isNoData(v)` for the file's nodata. A pixel is blank (NaN) when any band it uses is nodata, not finite or <= 0
 // (reflectance and emissivity are positive; 0 is the usual fill), or when the result is not finite. #789: `floor`
 // ("auto" = darkFloor of the bands used, or a number) also blanks a pixel with a used band below it, and `veg`
 // ({ nir, red } roles in `mapping`, `max` NDVI) blanks vegetated pixels. Returns { values: Float32Array, blank, dark, vegetated }.
-export function evaluateIndex(bands, mapping, expr, { isNoData = () => false, floor = 0, veg = null, dnScale = 10000 } = {}) { // dnScale: #806
+export function evaluateIndex(bands, mapping, expr, { isNoData = () => false, floor = 0, veg = null, dnScale = 10000, encoding = null } = {}) { // dnScale: #806; encoding: #928 (a DN_ENCODINGS key: values converted to reflectance first)
   const { fn, uses } = compileExpression(expr, Object.keys(mapping));
   const col = (r) => {
     const k = Number(mapping[r]) - 1;
@@ -162,15 +189,22 @@ export function evaluateIndex(bands, mapping, expr, { isNoData = () => false, fl
     return bands[k];
   };
   const cols = uses.map((r) => [r, col(r)]);
-  const lo = floor === "auto" ? darkFloor(cols.map(([, a]) => a), dnScale) : Number(floor) || 0;
+  const conv = encoding && DN_ENCODINGS[encoding] ? DN_ENCODINGS[encoding].f : null;
+  const lo = floor === "auto" ? (conv ? DARK_FLOOR : darkFloor(cols.map(([, a]) => a), dnScale)) : Number(floor) || 0;
   const nir = veg ? col(veg.nir) : null, red = veg ? col(veg.red) : null, vmax = veg?.max ?? VEG_NDVI_MAX;
   const n = bands[0].length, values = new Float32Array(n), env = {};
   let blank = 0, dark = 0, vegetated = 0;
   for (let i = 0; i < n; i++) {
     let ok = true, isDark = false;
-    for (const [r, arr] of cols) { const v = arr[i]; if (!(v > 0) || !Number.isFinite(v) || isNoData(v)) { ok = false; break; } if (v < lo) isDark = true; env[r] = v; }
+    for (const [r, arr] of cols) {
+      const raw = arr[i];
+      if (!(raw > 0) || !Number.isFinite(raw) || isNoData(raw)) { ok = false; break; } // 0 / nodata are judged on the file's own values
+      const v = conv ? conv(raw) : raw;
+      if (!(v > 0)) { ok = false; break; } // at or below zero reflectance
+      if (v < lo) isDark = true; env[r] = v;
+    }
     if (ok && isDark) { ok = false; dark++; }
-    if (ok && nir) { const a = nir[i], b = red[i]; if (a + b > 0 && (a - b) / (a + b) > vmax) { ok = false; vegetated++; } }
+    if (ok && nir) { const a = conv ? conv(nir[i]) : nir[i], b = conv ? conv(red[i]) : red[i]; if (a + b > 0 && (a - b) / (a + b) > vmax) { ok = false; vegetated++; } }
     const out = ok ? fn(env) : NaN;
     if (Number.isFinite(out)) values[i] = out; else { values[i] = NaN; blank++; }
   }

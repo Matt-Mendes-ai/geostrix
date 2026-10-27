@@ -6098,5 +6098,15 @@
   "Click an element to edit it, Ctrl+click for several (to align or spread them). Drag the handles to resize; Shift keeps the shape. Alt drags past the guides. Arrow keys nudge 1 mm, Shift+arrow 10 mm.": "Haga clic en un elemento para editarlo, Ctrl+clic para varios (para alinearlos o distribuirlos). Arrastre los tiradores para cambiar el tamaño; Mayús mantiene la forma. Alt arrastra sin ajustarse a las guías. Las flechas mueven 1 mm, Mayús+flecha 10 mm.",
   "The sheet is empty: add a view of the 3D scene (Current view), then a title, north arrow, scale bar and legend from Insert.": "La lámina está vacía: agregue una vista de la escena 3D (Vista actual) y luego un título, flecha norte, barra de escala y leyenda desde Insertar.",
   "{type} element": "Elemento: {type}",
-  "In each column, cells below the deepest one whose support (how much the data see it, 0-1) reaches this are left out of the block models: below that the values are the regularization's extrapolation, not data.": "En cada columna, las celdas por debajo de la más profunda cuyo soporte (cuánto la ven los datos, 0-1) alcanza este valor quedan fuera de los modelos de bloques: por debajo, los valores son extrapolación de la regularización, no datos."
+  "In each column, cells below the deepest one whose support (how much the data see it, 0-1) reaches this are left out of the block models: below that the values are the regularization's extrapolation, not data.": "En cada columna, las celdas por debajo de la más profunda cuyo soporte (cuánto la ven los datos, 0-1) alcanza este valor quedan fuera de los modelos de bloques: por debajo, los valores son extrapolación de la regularización, no datos.",
+  "Reflectance 0-1": "Reflectancia 0-1",
+  "DN ÷ 10,000 (Sentinel-2 before processing baseline 04.00, most scaled products)": "DN ÷ 10 000 (Sentinel-2 antes de la línea base de procesamiento 04.00, la mayoría de los productos escalados)",
+  "Sentinel-2, processing baseline 04.00 or later (2022 on): (DN − 1000) ÷ 10,000": "Sentinel-2, línea base de procesamiento 04.00 o posterior (desde 2022): (DN − 1000) ÷ 10 000",
+  "Landsat Collection 2 Level-2: DN × 0.0000275 − 0.2": "Landsat Colección 2 Nivel 2: DN × 0.0000275 − 0.2",
+  "ASTER AST_07XT: DN ÷ 1,000": "ASTER AST_07XT: DN ÷ 1000",
+  "Pixel values read as: {v}{d}.": "Valores de píxel leídos como: {v}{d}.",
+  " (guessed from the values; choose it under \"Pixel values\" if that is wrong)": " (deducido de los valores; elíjalo en \"Valores de píxel\" si no es correcto)",
+  "Pixel values": "Valores de píxel",
+  "How the file's pixel values become reflectance": "Cómo se convierten en reflectancia los valores de píxel del archivo",
+  "Guess from the values": "Deducir de los valores"
 }

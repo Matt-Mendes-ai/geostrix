@@ -10,7 +10,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #963
 import { overlay, panel, header, label, sel, btn } from "../lib/modalStyles.js";
-import { SENSORS, INDEX_PRESETS, compileExpression, evaluateIndex, VEG_NDVI_MAX } from "../lib/spectralIndices.js";
+import { SENSORS, INDEX_PRESETS, compileExpression, evaluateIndex, VEG_NDVI_MAX, DN_ENCODINGS, detectEncoding } from "../lib/spectralIndices.js";
 import { buildRasterImport } from "../lib/raster.js";
 import { IMAGERY_SOURCES, searchScenes, fetchSceneStack } from "../lib/imageryFetch.js";
 import BasemapView from "./BasemapView.jsx";
@@ -26,6 +26,7 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
   const fileInput = useRef(null);
   const [mode, setMode] = useState("fetch"); // "fetch" (#784) | "file" (#783)
   const [file, setFile] = useState(null); // { file, bands, width, height }
+  const [dnEnc, setDnEnc] = useState("auto"); // TASKS.csv #928 — how the file's pixel values become reflectance
   const [sensor, setSensor] = useState("sentinel2");
   const [presetId, setPresetId] = useState("s2_clay");
   const [custom, setCustom] = useState("b1/b2");
@@ -96,17 +97,22 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
 
   // the index on a multiband File with `map` (role -> 1-based band), then into the project
   const makeIndex = async (theFile, map, sensorKey, sourceNote, vegOn) => {
-    let blank = 0, total = 0, dark = 0, vegetated = 0;
+    let blank = 0, total = 0, dark = 0, vegetated = 0, encUsed = null, encGuessed = false;
     const title = isCustom ? `Index ${expr}` : `${preset.label}, ${(fetchMode ? IMAGERY_SOURCES[source].label : SENSORS[sensorKey].label).split(" (")[0]}`; // fetched ASTER is radiance, not emissivity
     const { raster, msg } = await buildRasterImport(theFile, {
       epsg, defaultElevation, sourceEpsg: fetchMode ? "" : sourceEpsg, name: `${title} — ${fetchMode ? `${scene.date} ${scene.id.split("_").slice(0, 2).join("_")}` : theFile.name}`,
-      bandFn: (bands, isNoData) => { const r = evaluateIndex(bands, map, expr, { isNoData, floor: reflective ? "auto" : 0, veg: vegOn ? { nir: sens.nir, red: sens.red } : null, dnScale: sens.dnScale || 10000 }); ({ blank, dark, vegetated } = r); total = r.values.length; return r.values; },
+      bandFn: (bands, isNoData) => {
+        // #928 — a reflective file is converted to reflectance first (fetched scenes already are)
+        if (!fetchMode && reflective) { encGuessed = dnEnc === "auto"; encUsed = encGuessed ? detectEncoding(Object.values(map).map((b) => bands[Number(b) - 1]).filter(Boolean), sensorKey) : dnEnc; }
+        const r = evaluateIndex(bands, map, expr, { isNoData, floor: reflective ? "auto" : 0, veg: vegOn ? { nir: sens.nir, red: sens.red } : null, dnScale: sens.dnScale || 10000, encoding: encUsed }); ({ blank, dark, vegetated } = r); total = r.values.length; return r.values;
+      },
     });
     const masks = (dark ? tr(" Of those, {dark} had a band under 1% reflectance (dark forest, shadow): a ratio there is noise and would take over the colour scale.", { dark: dark.toLocaleString() }) : "")
       + (vegetated ? tr(vegetated === 1 ? " {vegetated} vegetated pixel (NDVI above {max}) was left out." : " {vegetated} vegetated pixels (NDVI above {max}) were left out.", { vegetated: vegetated.toLocaleString(), max: VEG_NDVI_MAX }) : "")
       + (reflective && maskVeg && !vegOn ? tr(" Vegetation was not masked: {v} not mapped to a file band.", { v: vegRoles.join(" / ") }) : "");
     const note = tr(" Index {expr}{v}.{v2}{v3}{v4} An index is a ratio of surface signals, not a mineral map: vegetation, snow, water and shadow change it, and only exposed rock or soil means anything.", { expr, v: fetchMode ? "" : tr(" with {v}", { v: parsed.uses.map((r) => `${r} = band ${map[r]}`).join(", ") }), v2: sourceNote || "", v3: blank ? tr(blank === 1 ? " {blank} pixel is blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero)." : " {blank} pixels are blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero).", { blank: blank.toLocaleString(), v2: ((100 * blank) / Math.max(1, total)).toPrecision(2) }) + masks : masks, v4: isCustom ? "" : tr(" {what} Pixel size of the source: {pixel}.", { what: tr(preset.what), pixel: SENSORS[sensorKey].pixel }) });
-    onImport({ ...raster, spectralIndex: { expr, bands: map, sensor: isCustom ? null : sensorKey, preset: isCustom ? null : preset.id, ...(fetchMode ? { scene: scene.id, date: scene.date } : {}) } }, msg + note);
+    const encNote = encUsed ? " " + tr("Pixel values read as: {v}{d}.", { v: tr(DN_ENCODINGS[encUsed].label), d: encGuessed ? tr(" (guessed from the values; choose it under \"Pixel values\" if that is wrong)") : "" }) : ""; // #928
+    onImport({ ...raster, spectralIndex: { expr, bands: map, sensor: isCustom ? null : sensorKey, preset: isCustom ? null : preset.id, ...(encUsed ? { encoding: encUsed } : {}), ...(fetchMode ? { scene: scene.id, date: scene.date } : {}) } }, msg + note + encNote);
   };
 
   const run = async () => {
@@ -174,6 +180,14 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
               <button onClick={() => fileInput.current.click()} style={{ ...btn(false), padding: "7px 12px", display: "inline-flex", alignItems: "center", gap: 6 }}><Upload size={14} /> {file ? tr("Choose another file…") : tr("Choose a file…")}</button>
               <input ref={fileInput} type="file" accept=".tif,.tiff" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); e.target.value = ""; }} />
               {file && <div style={{ ...small, marginTop: 6 }}>{tr("{name}: {bands} bands, {width} × {height} px.", { name: file.file.name, bands: file.bands, width: file.width.toLocaleString(), height: file.height.toLocaleString() })}</div>}
+              {file && reflective && ( /* TASKS.csv #928 */
+                <label style={{ ...small, display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>{tr("Pixel values")}
+                  <select value={dnEnc} onChange={(e) => setDnEnc(e.target.value)} style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)" }} aria-label={tr("How the file's pixel values become reflectance")}>
+                    <option value="auto">{tr("Guess from the values")}</option>
+                    {Object.entries(DN_ENCODINGS).map(([k, e]) => <option key={k} value={k}>{tr(e.label)}</option>)}
+                  </select>
+                </label>
+              )}
               <div style={{ ...small, marginTop: 6 }}>{tr("ASTER thermal emissivity: NASA's AST_05 product (free with an Earthdata login), 5 bands in order 10-14. ASTER VNIR + SWIR: AST_07XT surface reflectance, the 3 VNIR and 6 SWIR bands stacked in order 1-9 at one pixel size (SWIR only exists for 2000-2008 scenes). Sentinel-2 or Landsat: a surface-reflectance GeoTIFF with the bands stacked, then say below which band is which.")}</div>
             </div>
           )}
