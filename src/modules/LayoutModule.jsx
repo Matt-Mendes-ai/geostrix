@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
-import { Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid } from "../components/icons.js";
+import { Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock } from "../components/icons.js";
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { savePDF, saveFile, exportPDFData } from "../lib/desktop.js"; // saveFile / exportPDFData: TASKS.csv #909 Export PNG
 import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
@@ -861,6 +861,11 @@ export default function LayoutModule() {
           </div>
         )}
 
+        {!sel && multiSelected.size <= 1 && ( /* TASKS.csv #993 — the page's interactions, said once where they are used */
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45, marginTop: 14 }}>
+            {elements.length ? tr("Click an element to edit it, Ctrl+click for several (to align or spread them). Drag the handles to resize; Shift keeps the shape. Alt drags past the guides. Arrow keys nudge 1 mm, Shift+arrow 10 mm.") : tr("The sheet is empty: add a view of the 3D scene (Current view), then a title, north arrow, scale bar and legend from Insert.")}
+          </div>
+        )}
         {multiSelected.size > 1 && ( /* TASKS.csv #909 — align / distribute the multi-selection */
           <div style={{ marginTop: 18 }}>
             <div className="ge-section-label">{tr("{n} selected", { n: multiSelected.size })}</div>
@@ -1282,6 +1287,10 @@ export default function LayoutModule() {
             onDragLeave={() => setDragOverPage(false)}
             onDrop={onPageDrop}
           >
+          {/* TASKS.csv #993 — a locked element is marked on the sheet (not in print): it ignored drags with no sign why */}
+          {elements.filter((el) => el.locked).map((el) => (
+            <Lock key={`lock_${el.id}`} size={11} aria-hidden="true" style={{ position: "absolute", left: el.x - 13, top: el.y - 13, color: "var(--color-text-muted)", pointerEvents: "none", zIndex: 4 }} />
+          ))}
           {withLiveScaleBars(elements).map((el) => (
             <LayoutElement key={el.id} el={el} selected={selected === el.id} multiSelected={multiSelected.size > 1 && multiSelected.has(el.id)} onDown={(e) => { e.stopPropagation(); onDown(e, el); }} onResizeStart={onResizeStart} ctx={textCtx} />
           ))}

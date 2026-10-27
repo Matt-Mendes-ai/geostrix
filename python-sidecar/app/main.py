@@ -296,6 +296,9 @@ def _validate_dcip2d(req):
     ch = req.get("chargeability")
     if ch is not None and (not isinstance(ch, list) or len(ch) != len(r) or not all(isinstance(v, (int, float)) and math.isfinite(v) for v in ch)):
         raise HTTPException(400, "chargeability must hold one value (mV/V) per reading, or be left out.")
+    c = req.get("chain")  # TASKS.csv #969 — the file's along-ground positions of a slope-chained line
+    if c is not None and (not isinstance(c, list) or len(c) != len(r) or not all(isinstance(row, list) and len(row) == 4 and all(v is None or (isinstance(v, (int, float)) and math.isfinite(v)) for v in row) for row in c)):
+        raise HTTPException(400, "chain must hold [a, b, m, n] along-line distances per reading, or be left out.")
     if req.get("topo") is not None:
         _finite_rows(req["topo"], 2, "topo", 20000)
     m = req.get("mesh") or {}

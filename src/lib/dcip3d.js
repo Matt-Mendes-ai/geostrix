@@ -65,7 +65,10 @@ export function lineIn3d(entry, terrain) {
   let spacing = Infinity;
   for (let i = 1; i < pos.length; i++) if (pos[i] - pos[i - 1] > 1e-6) spacing = Math.min(spacing, pos[i] - pos[i - 1]);
   return {
-    ok: true, readings: out, chain: readings, rho: entry.rho, ip: entry.ip || null,
+    // TASKS.csv #969 — chain is the FILE's positions (along the ground for a slope-chained line): the contractor's flat-ground
+    // K came from those nominal spacings; the horizontal ones made K 1/cos(slope) too large (13 % at 30 deg). Electrodes are
+    // still placed at the horizontal positions above.
+    ok: true, readings: out, chain: entry.readings, rho: entry.rho, ip: entry.ip || null,
     err: Array.isArray(entry.err) && entry.err.length === entry.rho.length ? entry.err : null, errKind: entry.opts?.errKind || null, // #929
     stations: st.filter((p) => [p.x, p.y, p.z].every(Number.isFinite)).map((p) => [p.x, p.y, p.z]),
     spacing: Number.isFinite(spacing) ? spacing : null, depth: suggestModelDepth(readings, [s0, s1], null),

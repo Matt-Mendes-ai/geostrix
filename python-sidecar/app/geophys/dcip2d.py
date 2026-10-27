@@ -128,7 +128,22 @@ def run_job(req, progress):
     # "draped": the data were already computed with the true 3D electrode positions (a topography-corrected file).
     gf_mode = req.get("geometricFactor") or "flat"
     survey.set_geometric_factor()
-    if gf_mode == "flat":
+    if gf_mode == "flat" and req.get("chain") is not None:
+        # TASKS.csv #969 — a slope-chained line: K from the file's own along-ground positions (the nominal spacings the
+        # contractor used), not the horizontal ones the electrodes are placed at, which made K 1/cos(slope) too large
+        ch = np.asarray([[np.nan if v is None else v for v in row] for row in req["chain"]], dtype=float)[order]
+
+        def inv_d(p, q):
+            d = np.abs(p - q)
+            return np.where(np.isnan(d), 0.0, 1.0 / np.where(d > 0, d, np.nan))
+        g_flat = np.nan_to_num((inv_d(ch[:, 0], ch[:, 2]) - inv_d(ch[:, 0], ch[:, 3]) - inv_d(ch[:, 1], ch[:, 2]) + inv_d(ch[:, 1], ch[:, 3])) / (2 * np.pi))
+        if np.any(np.abs(g_flat) <= 0):
+            raise ValueError("Some readings have coincident electrodes along the line: no geometric factor.")
+        slices = survey.get_all_slices()
+        for src in survey.source_list:
+            for rx in src.receiver_list:
+                rx._geometric_factor[src] = g_flat[slices[src, rx]]
+    elif gf_mode == "flat":
         from simpeg.electromagnetics.static.utils import static_utils
         g_flat = static_utils.geometric_factor(_survey(idx, np.c_[pos, np.zeros_like(pos)], "apparent_resistivity"))
         slices = survey.get_all_slices()

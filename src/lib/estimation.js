@@ -326,7 +326,9 @@ function makeNeighbourGatherer(samplePoints, opts = {}) {
   // TASKS.csv #262 — a composite's own length is its declared support; weighting by length/d^p is the
   // standard length-weighted IDW. Missing/unknown length falls back to 1 (i.e. old behaviour) rather
   // than dropping the sample.
-  const lenOf = (p) => (lengthWeight && p.length != null && p.length > 0 ? p.length : 1);
+  // TASKS.csv #976 — a composite weighs its ASSAYED length (window x coverage): a 2 m window with 5 cm assayed weighed 2 m.
+  // Raw intervals carry no coverage and weigh their length, as before.
+  const lenOf = (p) => (lengthWeight && p.length != null && p.length > 0 ? p.length * (p.coverage > 0 && p.coverage < 1 ? p.coverage : 1) : 1);
 
   return (cx, cy, cz) => {
     const dists = [];

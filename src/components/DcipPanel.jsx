@@ -211,6 +211,7 @@ export default function DcipPanel({ pBtn, numInput }) {
       readings: readingsH, rho: parsed.rho, ...(parsed.ip ? { chargeability: parsed.ip } : {}), topo, // #539 — horizontal positions
       mesh: { cell: num(opts.cell), depth: num(opts.depth) }, maxIter: Number(opts.maxIter) || 20,
       geometricFactor: opts.geomFactor || "flat", // TASKS.csv #580
+      ...(line.positions === "slope" ? { chain: parsed.readings } : {}), // #969 — the file's along-ground positions, for the flat-ground K
       ...(opts.doi ? { doi: true } : {}), // TASKS.csv #772
       // #683 — the file's own error column as a per-reading floor, once the user has said what it measures
       uncertainty: { percent: num(opts.pct) || 0, floor: num(opts.floor) || 0, ...(parsed.err && opts.errKind === "rhoPct" ? { floorPerReadingPercent: parsed.err } : {}) },

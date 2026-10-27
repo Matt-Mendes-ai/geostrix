@@ -41,3 +41,14 @@ test("#929: IP needs one value per reading on every line (the panel and the requ
   assert.equal(linesHaveIp([ok, short]), false);
   assert.equal(build3dRequest([ok, short], null, opts).chargeability, undefined);
 });
+
+test("#969: a slope-chained line keeps the file's along-ground positions as chain (for the flat-ground K); electrodes go horizontal", () => {
+  // stations every 25 m along the ground on a 30 degree slope: horizontal 21.65 m apart, dropping 12.5 m each
+  const c = Math.cos(Math.PI / 6), s = Math.sin(Math.PI / 6);
+  const st = [0, 25, 50, 75, 100].map((d) => ({ s: d, x: 1000 + d * c, y: 5100, z: 900 - d * s }));
+  const e = line("S", 5100, { line: { x0: "1000", y0: "5100", x1: String(1000 + 100 * c), y1: "5100", positions: "slope", stations: { file: "gps.txt", line: "S", list: st } } });
+  const l = lineIn3d(e, null);
+  assert.ok(l.ok, l.reason);
+  assert.deepEqual(l.chain, e.readings); // the file's positions
+  assert.ok(Math.abs(l.readings[0][6] - (1000 + 25 * c)) < 0.05, `M placed at the horizontal position: ${l.readings[0][6]}`);
+});

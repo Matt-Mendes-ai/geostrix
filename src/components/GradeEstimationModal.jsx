@@ -401,7 +401,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
                 </label>
                 {/* TASKS.csv #262 — was hardcoded at 0.5 with no way to tighten it. Same control and
                     wording CompositingModal already exposes. */}
-                <label style={fieldLabel} title={tr("Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be used in the estimate. At the 50% default, a half-missing-core composite still counts as a full sample.")}>{tr("Min coverage (%)")}<input type="number" step="1" min="0" max="100" value={Math.round(minCoverage * 100)} onChange={(e) => setMinCoverage(Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100)} style={inp} />
+                <label style={fieldLabel} title={tr("Minimum fraction of a composite interval that must actually be covered by real assay data (vs. missing/lost core) for it to be used in the estimate. A composite that is used weighs its assayed length, not its full window: at the 50% default, a half-missing-core composite counts as half a sample.")}>{tr("Min coverage (%)")}<input type="number" step="1" min="0" max="100" value={Math.round(minCoverage * 100)} onChange={(e) => setMinCoverage(Math.max(0, Math.min(100, Number(e.target.value) || 0)) / 100)} style={inp} />
                 </label>
                 {/* TASKS.csv #260 — renamed. "Honor domain" reads as "the estimate respects my geology";
                     it never did that. All it does on its own is break composites at domain edges. */}

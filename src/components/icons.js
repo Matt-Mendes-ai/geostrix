@@ -21,6 +21,7 @@ export const memoIcon = (Icon) => memo(Icon, sameProps);
 
 export const Activity = memoIcon(L.Activity);
 export const Rainbow = memoIcon(L.Rainbow); // TASKS.csv #783 — spectral indices
+export const Lock = memoIcon(L.Lock); // TASKS.csv #993 — a locked Layout element
 export const Search = memoIcon(L.Search); // TASKS.csv #784 — find scenes
 export const AlertTriangle = memoIcon(L.AlertTriangle);
 export const AlignCenter = memoIcon(L.AlignCenter);

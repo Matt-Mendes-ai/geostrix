@@ -40,3 +40,15 @@ test("#979: Micromine column names on export, and the block-model import maps th
   assert.deepEqual(Object.keys(blockModelRows(model)[0]).slice(0, 3), ["XC", "YC", "ZC"]); // the default is unchanged
 });
 
+
+test("#976: a thin composite weighs its assayed length, not its window", async () => {
+  const { estimateBlockModel } = await import("../src/lib/estimation.js");
+  // two composites the same distance from the one block: 2 m windows, one only 25 % assayed
+  const pts = [
+    { x: 0, y: 5, z: 0, value: 10, hole_id: "A", length: 2, coverage: 0.25 },
+    { x: 0, y: -5, z: 0, value: 0, hole_id: "B", length: 2, coverage: 1 },
+  ];
+  const est = estimateBlockModel(pts, { bounds: { xmin: -1, xmax: 1, ymin: -1, ymax: 1, zmin: -1, zmax: 1 }, cellSize: { dx: 2, dy: 2, dz: 2 }, method: "idw2", searchRadius: 100, minSamples: 1, minHoles: 1 });
+  assert.equal(est.cells.length, 1);
+  assert.ok(Math.abs(est.cells[0].value - 2) < 1e-9, `(0.5 x 10 + 2 x 0) / 2.5 = 2, got ${est.cells[0].value}`); // was 5 with equal weights
+});
