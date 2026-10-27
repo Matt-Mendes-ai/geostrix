@@ -5,7 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parseLabCertificate } from "../src/lib/labCertificate.js";
-import { qcFromCertificates, certValues, classifyLabQcName, batchSummary, standardsByCode, blankResults, duplicatePairsSurface, duplicateStats, detectionLimitOf, qcRecordFromFileRow, qcSettings, censoredShares, methodsByElement } from "../src/lib/surfaceQaqc.js";
+import { qcFromCertificates, standardCodeOf, certValues, classifyLabQcName, batchSummary, standardsByCode, blankResults, duplicatePairsSurface, duplicateStats, detectionLimitOf, qcRecordFromFileRow, qcSettings, censoredShares, methodsByElement } from "../src/lib/surfaceQaqc.js";
 
 const head = (id, status, n) => `${id} - ${status}\nCLIENT : "Test Co"\n# of SAMPLES : ${n}\nDATE RECEIVED : 2024-07-01  DATE FINALIZED : 2024-07-10\nPROJECT : "Creek"\n`;
 const FIN = head("VA24000001", "Finalized", 6) + `,Au-AA23,ME-ICP41,ME-ICP41,Cu-OG46
@@ -55,7 +55,7 @@ test("#842 certificates -> records, joined samples, the program's inserts by nam
   assert.deepEqual(r.joined, { S001: "VA24000001", S002: "VA24000001", S003: "VA24000001", S004: "VA24000001" });
   assert.deepEqual(r.counts, { standard: 4, blank: 2, duplicate: 3 });
   const ins = r.records.filter((x) => x.source === "inserted").map((x) => [x.sample_id, x.kind, x.code || x.parent_id || null]);
-  assert.deepEqual(ins, [["STD-OREAS45", "standard", "STD-OREAS"], ["BLANK #1", "blank", null], ["S004 DUP", "duplicate", "S004"]]);
+  assert.deepEqual(ins, [["STD-OREAS45", "standard", "STD-OREAS45"], ["BLANK #1", "blank", null], ["S004 DUP", "duplicate", "S004"]]);
   assert.deepEqual(r.unclassified, []);
   assert.equal(r.certificates[0].samples, 7);
   assert.deepEqual(methodsByElement(r.certificates).Cu.sort(), ["Cu-OG46", "ME-ICP41"]);
@@ -128,4 +128,32 @@ test("#842 a certificate re-saved through Excel (every line padded with commas) 
 test("#842 certificate batches use the certificate's own sample count when its samples are not in the project", () => {
   const s = batchSummary([], [{ kind: "standard", batch: "C1", source: "inserted" }, { kind: "blank", batch: "C1", source: "lab" }], qcSettings(null), [{ id: "C1", samples: 41 }]);
   assert.deepEqual([s[0].samples, s[0].fromCertificate, s[0].standard], [40, true, 1], "41 rows minus the 1 program insert");
+});
+
+test("#919 a standard named by its CRM keeps its number; a running number after a generic word is dropped", () => {
+  assert.equal(standardCodeOf("OREAS 501"), "OREAS 501");
+  assert.equal(standardCodeOf("OREAS 502"), "OREAS 502");
+  assert.equal(standardCodeOf("OREAS-60c"), "OREAS-60c");
+  assert.equal(standardCodeOf("CDN-GS-1P5"), "CDN-GS-1P5");
+  assert.equal(standardCodeOf("STD-01"), "STD");
+  assert.equal(standardCodeOf("std 2"), "STD");
+  assert.equal(standardCodeOf("CRM 12"), "CRM");
+  const fin = head("VA24000002", "Finalized", 4) + `,Au-AA23
+SAMPLE,Au
+DESCRIPTION,ppm
+S001, 0.012
+OREAS 501, 0.21
+OREAS 501, 0.20
+OREAS 502, 0.49
+`;
+  const r = qcFromCertificates([parseLabCertificate(fin, "VA24000002.csv")], samples, units);
+  const codes = r.records.filter((x) => x.kind === "standard").map((x) => x.code);
+  assert.deepEqual(codes, ["OREAS 501", "OREAS 501", "OREAS 502"]);
+  const groups = standardsByCode(r.records, "Au", units);
+  assert.equal(groups.length, 2, "two charts, not one pooled chart");
+});
+
+test("#919 records saved with the old pooled code chart apart", () => {
+  const old = [["OREAS 501", 0.21], ["OREAS 501", 0.2], ["OREAS 502", 0.49]].map(([id, au], i) => ({ id: `c|${id}|${i}`, sample_id: id, kind: "standard", source: "inserted", code: "OREAS", batch: "c", values: { Au: au * 1000 } }));
+  assert.deepEqual(standardsByCode(old, "Au", units).map((g) => g.code).sort(), ["OREAS 501", "OREAS 502"]);
 });

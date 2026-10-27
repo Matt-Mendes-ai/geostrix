@@ -78,6 +78,16 @@ export function certValues(row, columns, elementUnits) {
 
 // Parsed certificates (labCertificate.parseLabCertificate, one per file) + the project's surface samples ->
 // { records, certificates, joined: { sampleId: certificate }, unclassified: [ids], counts }
+// TASKS.csv #919 — the code a program insert is charted under. Only a running number after a GENERIC word is dropped
+// ("STD-01", "STD 2" -> STD); otherwise the number is the reference material's identity ("OREAS 501" and "OREAS 502"
+// are two CRMs with different certified values) and the full name is the code. Stripping every trailing number pooled
+// them into one chart with mixed limits and one certified value (review #918).
+export function standardCodeOf(id) {
+  const s = String(id || "").trim();
+  const m = /^(std|standard|crm|sr|ref)[\s_#-]*\d+$/i.exec(s);
+  return m ? m[1].toUpperCase() : s;
+}
+
 export function qcFromCertificates(parsed, surfaceSamples, elementUnits) {
   const fieldIds = new Set(surfaceSamples.map((s) => String(s.sample_id || "").trim()).filter(Boolean));
   const records = [], certificates = [], joined = {}, unclassified = [];
@@ -108,7 +118,7 @@ export function qcFromCertificates(parsed, surfaceSamples, elementUnits) {
       const kind = classifyInsertName(id);
       if (kind) {
         const rec = { id: `${cert}|${id}|${records.length}`, sample_id: id, kind, source: "inserted", batch: cert, ...v };
-        if (kind === "standard") rec.code = id.replace(/[\s_-]*\d+$/, "") || id;
+        if (kind === "standard") rec.code = standardCodeOf(id); // #919
         if (kind === "duplicate") {
           rec.dupType = "field"; rec.parent_id = DUP_SUFFIX.exec(id)?.[1]?.trim() || null;
           const o = rec.parent_id ? finalizedValues.get(rec.parent_id) : null; // the field original, when it is not a project sample
@@ -184,7 +194,9 @@ export function detectionLimitOf(rows, symbol) {
 // Standards grouped by code, each with its points (in record order), limits (certified when given) and flags
 export function standardsByCode(records, symbol, elementUnits, certificates = {}) {
   const by = new Map();
-  records.filter((r) => r.kind === "standard").forEach((r) => { const k = r.code || r.sample_id; (by.get(k) || by.set(k, []).get(k)).push(r); });
+  // #919 — a program insert's code is re-derived from its name, so a project saved with the old pooled codes ("OREAS")
+  // charts each CRM apart without re-importing; the lab's own standards keep the code the QC file gave them
+  records.filter((r) => r.kind === "standard").forEach((r) => { const k = r.source === "inserted" ? standardCodeOf(r.sample_id) : (r.code || r.sample_id); (by.get(k) || by.set(k, []).get(k)).push(r); });
   return [...by.entries()].map(([code, rows]) => {
     const points = rows.map((r, i) => ({ i, sample_id: r.sample_id, batch: r.batch, source: r.source, value: valueIn(r, symbol, elementUnits[symbol] || "ppm", elementUnits) })).filter((p) => p.value != null);
     const observed = controlLimits(points.map((p) => p.value));
