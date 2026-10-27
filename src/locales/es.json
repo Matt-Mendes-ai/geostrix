@@ -6133,5 +6133,13 @@
   "Only {k} of this surface's {n} inputs lie on the kept side of the fault: check the side chosen, or the fault.": "Solo {k} de las {n} entradas de esta superficie están del lado conservado de la falla: revisa el lado elegido o la falla.",
   "{n} input(s) lie on the other side of the fault and were left out of this block's surface ({list}): move them to the other block's surface, or check the fault.": "{n} entrada(s) están al otro lado de la falla y se dejaron fuera de la superficie de este bloque ({list}): muévelas a la superficie del otro bloque o revisa la falla.",
   "{name} looks like a table of surface samples (coordinates, no from / to), so it opened in Geochem's surface-sample import, where you choose the elements.": "{name} parece una tabla de muestras de superficie (coordenadas, sin desde / hasta), así que se abrió en la importación de muestras de superficie de Geochem, donde eliges los elementos.",
-  "The extrapolated part is drawn darker.": "La parte extrapolada se dibuja más oscura."
+  "The extrapolated part is drawn darker.": "La parte extrapolada se dibuja más oscura.",
+  "1 : {n} along the section, {ve}x vertical exaggeration": "1 : {n} a lo largo de la sección, exageración vertical {ve}x",
+  "1 : {n} along the section": "1 : {n} a lo largo de la sección",
+  "Plot this section at an exact horizontal scale: the snapshot is sized on the page so its length along the section is at 1 : N.": "Imprime esta sección a una escala horizontal exacta: la imagen se dimensiona en la página para que su longitud a lo largo de la sección quede a 1 : N.",
+  "Section plot scale": "Escala de impresión de la sección",
+  "as sized (1 : {n})": "según tamaño (1 : {n})",
+  "Section plot scale denominator": "Denominador de la escala de la sección",
+  "At this scale the section is larger than the page: choose a smaller scale (a larger number), a larger page, or the other orientation.": "A esta escala la sección es más grande que la página: elige una escala menor (un número mayor), una página más grande o la otra orientación.",
+  "A cross-section snapshot is a drawing of the section as it was when taken, so it has no theme, refresh or 3D camera to adjust. To change what it shows, take a new snapshot from the cross-section window. The scale is horizontal, along the section; resizing the snapshot changes it.": "Una instantánea de sección es un dibujo de la sección tal como estaba al tomarla, así que no tiene tema, actualización ni cámara 3D que ajustar. Para cambiar lo que muestra, toma una nueva instantánea desde la ventana de la sección. La escala es horizontal, a lo largo de la sección; cambiar el tamaño de la instantánea la cambia."
 }

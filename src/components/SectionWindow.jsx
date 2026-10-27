@@ -127,6 +127,7 @@ export default function SectionWindow() {
       // this snapshot represents at its native (naturalW) pixel width, so Layout can derive a scale
       // bar the same way it already does for viewport snapshots (worldHeightAtTarget).
       worldWidthAtCaptureM: hScale ? dims.w / hScale : null,
+      verticalExaggeration: vExag || 1, // TASKS.csv #944 — Layout states it beside the section's plot scale
       // User request ("the legend needs to update matching the cross section"): carry the exact
       // {label,color} pairs ViewerModule's buildSectionPayload already derived from this section's
       // own visible litho/alt/vein/structure data (see that function's `legendItems`) through to the

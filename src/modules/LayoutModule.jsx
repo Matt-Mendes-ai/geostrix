@@ -11,7 +11,7 @@ import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS } from "../lib/legendGroups.js"; // TASKS.csv #725
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
 import { withLiveScaleBars, relinkCopies } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924
-import { capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, snapToGuides } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946
+import { capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; section scale: #944
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
@@ -264,7 +264,7 @@ export default function LayoutModule() {
       // ViewerModule's buildSectionPayload): the exact {label,color} pairs actually drawn in this
       // section, so a legend bound to this image (see syncLegendFromView below) can match it
       // without needing a live theme, which a flattened snapshot doesn't have.
-      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.src, aspect, x: 90 + stagger, y: 90 + stagger, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null };
+      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.src, aspect, x: 90 + stagger, y: 90 + stagger, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null };
     });
     setElements((els) => [...els, ...additions]);
     setSelected(additions[additions.length - 1]?.id ?? null);
@@ -1067,6 +1067,7 @@ export default function LayoutModule() {
                 photo or logo has no known real-world scale, so this stays hidden for those. */}
             {sel.type === "image" && sel.worldWidthAtCaptureM != null && (
               <>
+                <SectionScaleControls sel={sel} pageW={A4.w} pageH={A4.h} updateSelected={updateSelected} />
                 <button onClick={() => syncScaleBarForElement(sel, sel.worldWidthAtCaptureM, sel.w)} style={{ ...pBtn, marginTop: 4 }}>
                   <Ruler size={12} />{" "}{tr("Assign scale bar to this section")}</button>
                 {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
@@ -1416,6 +1417,44 @@ function UtmGridOverlay({ el, crs = "" }) {
       <text x={3} y={H - 3} fontSize={printPx(printPt.caption)} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif" style={{ paintOrder: "stroke", stroke: "#ffffff", strokeWidth: 2.5 }}>
         {crs ? tr("Grid: {crs}, {step} m", { crs, step: step.toLocaleString() }) : tr("Grid: {step} m", { step: step.toLocaleString() })}</text>
     </svg>
+  );
+}
+
+// TASKS.csv #944 / Matt (2026-10-27): "still don't see the same viewport options as current view" on a cross-section
+// snapshot. A section snapshot is a drawing, not a 3D camera, so theme / refresh / enter / UTM grid do not apply; what a
+// printed section needs is its plot scale. Its full width shows worldWidthAtCaptureM metres, so the scale is known: shown
+// here, and the #907 preset picker sets the width that gives 1 : N (the height follows the snapshot's aspect).
+function SectionScaleControls({ sel, pageW, pageH, updateSelected }) {
+  const [custom, setCustom] = useState(false);
+  const d = sectionScaleDenom(sel), n = d ? Math.round(d) : 0;
+  const preset = SCALE_PRESETS.find((p) => Math.abs(d - p) < 0.5);
+  const choice = custom ? "custom" : preset ? String(preset) : "";
+  const setScale = (k) => { if (!(k > 0)) return; const w = sectionWidthForScale(sel, k); updateSelected({ w, h: w / (sel.aspect || (sel.naturalW && sel.naturalH ? sel.naturalW / sel.naturalH : 1)) }); };
+  const tooBig = sel.w > pageW || sel.h > pageH;
+  return (
+    <div style={{ marginTop: 4, marginBottom: 6 }}>
+      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 4 }}
+        title={tr("Plot this section at an exact horizontal scale: the snapshot is sized on the page so its length along the section is at 1 : N.")}>{tr("Scale 1 :")}
+        <select value={choice} aria-label={tr("Section plot scale")} onChange={(e) => {
+          const v = e.target.value;
+          if (v === "custom") { setCustom(true); return; }
+          setCustom(false);
+          if (v) setScale(Number(v));
+        }} style={{ ...inp, flex: 1, marginTop: 0, marginBottom: 0, padding: "4px 6px", fontSize: "var(--font-size-sm)" }}>
+          <option value="">{tr("as sized (1 : {n})", { n: n.toLocaleString() })}</option>
+          {SCALE_PRESETS.map((p) => <option key={p} value={String(p)}>{p.toLocaleString()}</option>)}
+          <option value="custom">{tr("custom…")}</option>
+        </select>
+        {choice === "custom" && (
+          <input type="number" min="1" step="any" defaultValue={n || ""} aria-label={tr("Section plot scale denominator")}
+            onBlur={(e) => setScale(Number(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+            style={{ width: 72, fontSize: "var(--font-size-sm)" }} />
+        )}
+      </label>
+      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{sectionScaleText(sel)}</div>
+      {tooBig && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4, lineHeight: 1.4 }}>{tr("At this scale the section is larger than the page: choose a smaller scale (a larger number), a larger page, or the other orientation.")}</div>}
+      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 }}>{tr("A cross-section snapshot is a drawing of the section as it was when taken, so it has no theme, refresh or 3D camera to adjust. To change what it shows, take a new snapshot from the cross-section window. The scale is horizontal, along the section; resizing the snapshot changes it.")}</div>
+    </div>
   );
 }
 

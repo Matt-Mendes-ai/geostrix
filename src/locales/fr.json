@@ -6133,5 +6133,13 @@
   "Only {k} of this surface's {n} inputs lie on the kept side of the fault: check the side chosen, or the fault.": "Seules {k} des {n} entrées de cette surface sont du côté conservé de la faille : vérifiez le côté choisi, ou la faille.",
   "{n} input(s) lie on the other side of the fault and were left out of this block's surface ({list}): move them to the other block's surface, or check the fault.": "{n} entrée(s) sont de l'autre côté de la faille et ont été laissées hors de la surface de ce bloc ({list}) : déplacez-les vers la surface de l'autre bloc, ou vérifiez la faille.",
   "{name} looks like a table of surface samples (coordinates, no from / to), so it opened in Geochem's surface-sample import, where you choose the elements.": "{name} ressemble à une table d'échantillons de surface (coordonnées, sans de / à), elle s'est donc ouverte dans l'import d'échantillons de surface de Geochem, où vous choisissez les éléments.",
-  "The extrapolated part is drawn darker.": "La partie extrapolée est dessinée plus sombre."
+  "The extrapolated part is drawn darker.": "La partie extrapolée est dessinée plus sombre.",
+  "1 : {n} along the section, {ve}x vertical exaggeration": "1 : {n} le long de la coupe, exagération verticale {ve}x",
+  "1 : {n} along the section": "1 : {n} le long de la coupe",
+  "Plot this section at an exact horizontal scale: the snapshot is sized on the page so its length along the section is at 1 : N.": "Imprimer cette coupe à une échelle horizontale exacte : l'image est dimensionnée sur la page pour que sa longueur le long de la coupe soit au 1 : N.",
+  "Section plot scale": "Échelle d'impression de la coupe",
+  "as sized (1 : {n})": "selon la taille (1 : {n})",
+  "Section plot scale denominator": "Dénominateur de l'échelle de la coupe",
+  "At this scale the section is larger than the page: choose a smaller scale (a larger number), a larger page, or the other orientation.": "À cette échelle la coupe est plus grande que la page : choisissez une échelle plus petite (un nombre plus grand), une page plus grande ou l'autre orientation.",
+  "A cross-section snapshot is a drawing of the section as it was when taken, so it has no theme, refresh or 3D camera to adjust. To change what it shows, take a new snapshot from the cross-section window. The scale is horizontal, along the section; resizing the snapshot changes it.": "Un instantané de coupe est un dessin de la coupe telle qu'elle était au moment de la prise : il n'a ni thème, ni rafraîchissement, ni caméra 3D à ajuster. Pour changer ce qu'il montre, prenez un nouvel instantané depuis la fenêtre de la coupe. L'échelle est horizontale, le long de la coupe ; redimensionner l'instantané la change."
 }

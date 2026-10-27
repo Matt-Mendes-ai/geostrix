@@ -44,12 +44,25 @@ export function viewportScaleText(el) {
   return `${el.trueScale ? "" : "~"}1 : ${Math.round(m / M_PER_PAGE_PX).toLocaleString()}`;
 }
 
+// TASKS.csv #944 — a cross-section snapshot (an image carrying worldWidthAtCaptureM: the metres its full width shows):
+// its horizontal plot scale at its size on the page, and the width that gives 1 : N (the height follows its aspect)
+export const isSectionImage = (el) => !!(el && el.type === "image" && el.worldWidthAtCaptureM > 0);
+export const sectionScaleDenom = (el) => (isSectionImage(el) && el.w > 0 ? el.worldWidthAtCaptureM / (el.w * M_PER_PAGE_PX) : null);
+export const sectionWidthForScale = (el, n) => el.worldWidthAtCaptureM / (n * M_PER_PAGE_PX);
+// "1 : 1,000 along the section" (+ the vertical exaggeration when it is not 1)
+export function sectionScaleText(el) {
+  const d = sectionScaleDenom(el);
+  if (!d) return null;
+  const n = Math.round(d), ve = el.verticalExaggeration || 1;
+  return ve !== 1 ? tr("1 : {n} along the section, {ve}x vertical exaggeration", { n: n.toLocaleString(), ve }) : tr("1 : {n} along the section", { n: n.toLocaleString() });
+}
+
 // the {scale} placeholder: the page's first fixed-scale viewport, else its first captured one; an oblique capture says
-// which plane the ratio holds in (#946)
+// which plane the ratio holds in (#946); a page with no viewport takes its first cross-section snapshot (#944)
 export function pageScaleText(els) {
   const list = els || [];
   const v = list.find((e) => e.type === "viewport" && e.trueScale && e.capturedFixedScale > 0) || list.find((e) => e.type === "viewport" && metresPerPagePx(e));
-  if (!v) return "";
+  if (!v) { const sec = list.find(isSectionImage); return sec ? sectionScaleText(sec) : ""; }
   const text = v.trueScale && v.capturedFixedScale > 0 ? `1 : ${v.capturedFixedScale.toLocaleString()}` : `${v.trueScale ? "" : "~"}1 : ${Math.round(metresPerPagePx(v) / M_PER_PAGE_PX).toLocaleString()}`;
   return obliqueCapture(v) ? tr("{scale} in the view plane (oblique view)", { scale: text }) : text;
 }
