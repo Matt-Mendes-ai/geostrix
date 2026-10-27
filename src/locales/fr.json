@@ -5025,8 +5025,8 @@
   "{name}: no .DAT selected — imported without attributes, so it can't be styled by unit": "{name} : aucun .DAT sélectionné — importé sans attributs, donc pas de symbologie par unité",
   "Select the .TAB together with its .MAP, .ID and .DAT files.": "Sélectionnez le .TAB avec ses fichiers .MAP, .ID et .DAT.",
   "{name} has no point features to read as measurements.": "{name} n'a pas d'entités ponctuelles à lire comme mesures.",
-  "Import map layer (.gpkg / .zip / .shp / MapInfo .tab)…": "Importer une couche cartographique (.gpkg / .zip / .shp / MapInfo .tab)…",
-  "Import structure measurements (.csv / MapInfo .tab)…": "Importer des mesures structurales (.csv / MapInfo .tab)…",
+  "Import map layer (.gpkg / .zip / .shp / MapInfo .tab / .mif)…": "Importer une couche cartographique (.gpkg / .zip / .shp / MapInfo .tab / .mif)…",
+  "Import structure measurements (.csv / MapInfo .tab / .mif)…": "Importer des mesures structurales (.csv / MapInfo .tab / .mif)…",
   "Predicted geological map added to Maps / rasters (draped on the terrain): the model's unit at the ground surface, every {cellM} m over {nodes} terrain nodes: {covered} in a modelled unit ({aboveN} of them in {unit}, the youngest, above the top of {meshName}){v}.{agreeTxt}": "Carte géologique prédite ajoutée à Cartes / rasters (drapée sur le terrain) : l'unité du modèle à la surface, tous les {cellM} m sur {nodes} nœuds du terrain : {covered} dans une unité modélisée ({aboveN} d'entre eux dans {unit}, la plus jeune, au-dessus du toit de {meshName}){v}.{agreeTxt}",
   " Scene {id}, {date}: {pct}% cloud or shadow over your area (scenes tried, newest first: {tried}). Natural colour (red / green / blue surface reflectance stretched together).": " Scène {id}, {date} : {pct} % de nuages ou d'ombre sur votre zone (scènes essayées, de la plus récente : {tried}). Couleurs naturelles (réflectance de surface rouge / vert / bleu étirée ensemble).",
   "Fetched and imported \"{name}\" ({gridW} × {gridH} px).": "« {name} » récupéré et importé ({gridW} × {gridH} px).",
@@ -6141,5 +6141,10 @@
   "as sized (1 : {n})": "selon la taille (1 : {n})",
   "Section plot scale denominator": "Dénominateur de l'échelle de la coupe",
   "At this scale the section is larger than the page: choose a smaller scale (a larger number), a larger page, or the other orientation.": "À cette échelle la coupe est plus grande que la page : choisissez une échelle plus petite (un nombre plus grand), une page plus grande ou l'autre orientation.",
-  "A cross-section snapshot is a drawing of the section as it was when taken, so it has no theme, refresh or 3D camera to adjust. To change what it shows, take a new snapshot from the cross-section window. The scale is horizontal, along the section; resizing the snapshot changes it.": "Un instantané de coupe est un dessin de la coupe telle qu'elle était au moment de la prise : il n'a ni thème, ni rafraîchissement, ni caméra 3D à ajuster. Pour changer ce qu'il montre, prenez un nouvel instantané depuis la fenêtre de la coupe. L'échelle est horizontale, le long de la coupe ; redimensionner l'instantané la change."
+  "A cross-section snapshot is a drawing of the section as it was when taken, so it has no theme, refresh or 3D camera to adjust. To change what it shows, take a new snapshot from the cross-section window. The scale is horizontal, along the section; resizing the snapshot changes it.": "Un instantané de coupe est un dessin de la coupe telle qu'elle était au moment de la prise : il n'a ni thème, ni rafraîchissement, ni caméra 3D à ajuster. Pour changer ce qu'il montre, prenez un nouvel instantané depuis la fenêtre de la coupe. L'échelle est horizontale, le long de la coupe ; redimensionner l'instantané la change.",
+  "{name}.MID has no .MIF beside it: select both files.": "{name}.MID n'a pas son .MIF à côté : sélectionnez les deux fichiers.",
+  "{name}: no .MID selected — imported without attributes, so it can't be styled by unit": "{name} : aucun .MID sélectionné — importé sans attributs, il ne peut donc pas être symbolisé par unité",
+  "Select the .MIF together with its .MID file (the measurements are in the .MID).": "Sélectionnez le .MIF avec son fichier .MID (les mesures sont dans le .MID).",
+  "This .MIF file has no Data section, so it is not a MapInfo interchange file.": "Ce fichier .MIF n'a pas de section Data : ce n'est pas un fichier d'échange MapInfo.",
+  "No points, lines or polygons could be read from this MapInfo file.": "Aucun point, ligne ou polygone n'a pu être lu dans ce fichier MapInfo."
 }

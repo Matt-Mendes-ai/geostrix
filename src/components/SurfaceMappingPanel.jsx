@@ -117,6 +117,21 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         failed.push(`${g.name}.TAB: ${err.message}`);
       }
     }
+    // TASKS.csv #945 — MapInfo interchange (.MIF [+ .MID]), grouped by base name ignoring case, as the TAB above
+    const mifGroups = {};
+    files.forEach((f) => { const m = lower(f).match(/\.(mif|mid)$/); if (m) (mifGroups[base(f).toLowerCase()] ||= { name: base(f) })[m[1]] = f; });
+    for (const g of Object.values(mifGroups)) {
+      if (!g.mif) { failed.push(tr("{name}.MID has no .MIF beside it: select both files.", { name: g.name })); continue; }
+      try {
+        const { parseMapInfoMif } = await import("../lib/mapinfoMif.js");
+        const bytes = async (f) => (f ? new Uint8Array(await f.arrayBuffer()) : null);
+        const { layers } = parseMapInfoMif({ mif: await bytes(g.mif), mid: await bytes(g.mid), name: g.name });
+        if (!g.mid) failed.push(tr("{name}: no .MID selected — imported without attributes, so it can't be styled by unit", { name: g.name }));
+        layers.forEach((l) => addParsed({ features: l.features, geomType: l.geomType, name: layers.length > 1 ? l.name : null, epsg: l.epsg, skippedCount: l.skippedCount }, g.name));
+      } catch (err) {
+        failed.push(`${g.name}.MIF: ${err.message}`);
+      }
+    }
     for (const [b, parts] of Object.entries(looseShp)) {
       if (!parts.shp) continue;
       try {
@@ -131,7 +146,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         failed.push(`${b}.shp: ${err.message}`);
       }
     }
-    if (qmlFiles.length && !files.some((f) => /\.(gpkg|zip|shp|tab)$/i.test(f.name))) failed.push("A .qml on its own doesn't import anything — use a layer's Style button to apply it to an existing layer.");
+    if (qmlFiles.length && !files.some((f) => /\.(gpkg|zip|shp|tab|mif)$/i.test(f.name))) failed.push("A .qml on its own doesn't import anything — use a layer's Style button to apply it to an existing layer.");
     setBusy(false);
     setMapMsg({ ok: !failed.length, text: [done.length ? tr("Imported {done}.", { done: done.join("; ") }) : "", failed.length ? tr("Problems: {failed}", { failed: failed.join("; ") }) : ""].filter(Boolean).join(" ") });
   };
@@ -157,16 +172,23 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const all = Array.from(fileList || []);
     // TASKS.csv #818 — a MapInfo point table (.TAB + .MAP + .ID + .DAT): its points' attributes become the rows, with
     // the point coordinates added as Easting / Northing, then the same column check as a CSV
-    const tabFile = all.find((f) => /\.tab$/i.test(f.name));
+    const tabFile = all.find((f) => /\.(tab|mif)$/i.test(f.name)), isMif = !!tabFile && /\.mif$/i.test(tabFile.name); // .mif: #945
     if (tabFile) {
       setStructMsg(null);
       const stem = tabFile.name.replace(/\.[^.]+$/, "").toLowerCase();
       const part = (ext) => all.find((f) => f.name.toLowerCase() === `${stem}.${ext}`);
       try {
-        if (!part("map") || !part("id")) throw new Error(tr("Select the .TAB together with its .MAP, .ID and .DAT files."));
-        const { parseMapInfoTab } = await import("../lib/mapinfoTab.js");
         const bytes = async (f) => (f ? new Uint8Array(await f.arrayBuffer()) : null);
-        const { layers } = parseMapInfoTab({ tab: await bytes(tabFile), map: await bytes(part("map")), id: await bytes(part("id")), dat: await bytes(part("dat")), name: tabFile.name.replace(/\.[^.]+$/, "") });
+        let layers;
+        if (isMif) {
+          if (!part("mid")) throw new Error(tr("Select the .MIF together with its .MID file (the measurements are in the .MID)."));
+          const { parseMapInfoMif } = await import("../lib/mapinfoMif.js");
+          ({ layers } = parseMapInfoMif({ mif: await bytes(tabFile), mid: await bytes(part("mid")), name: tabFile.name.replace(/\.[^.]+$/, "") }));
+        } else {
+          if (!part("map") || !part("id")) throw new Error(tr("Select the .TAB together with its .MAP, .ID and .DAT files."));
+          const { parseMapInfoTab } = await import("../lib/mapinfoTab.js");
+          ({ layers } = parseMapInfoTab({ tab: await bytes(tabFile), map: await bytes(part("map")), id: await bytes(part("id")), dat: await bytes(part("dat")), name: tabFile.name.replace(/\.[^.]+$/, "") }));
+        }
         const pts = layers.find((l) => l.geomType === "point" && !l.isText);
         if (!pts) throw new Error(tr("{name} has no point features to read as measurements.", { name: tabFile.name }));
         const rows = pts.features.map((f) => ({ ...f.attributes, Easting: f.geometry[0][0], Northing: f.geometry[0][1] }));
@@ -270,9 +292,9 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         title={tr("Leave it on the file's own CRS. Change it when a shapefile has no .prj or a wrong one.")}
       />
       <button onClick={() => mapInput.current.click()} style={pBtn} disabled={busy}>
-        <MapIcon size={14} /> {busy ? tr("Importing…") : tr("Import map layer (.gpkg / .zip / .shp / MapInfo .tab)…")}
+        <MapIcon size={14} /> {busy ? tr("Importing…") : tr("Import map layer (.gpkg / .zip / .shp / MapInfo .tab / .mif)…")}
       </button>
-      <input ref={mapInput} type="file" accept=".gpkg,.zip,.shp,.dbf,.prj,.shx,.cpg,.qml,.tab,.map,.id,.dat" multiple style={{ display: "none" }}
+      <input ref={mapInput} type="file" accept=".gpkg,.zip,.shp,.dbf,.prj,.shx,.cpg,.qml,.tab,.map,.id,.dat,.mif,.mid" multiple style={{ display: "none" }}
         onChange={(e) => { importMaps(e.target.files); e.target.value = ""; }} />
       <input ref={qmlInput} type="file" accept=".qml" style={{ display: "none" }}
         onChange={(e) => { applyQmlToLayer(e.target.files[0]); e.target.value = ""; }} />
@@ -360,8 +382,8 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Surface structures (outcrop measurements)")}<InfoButton title={tr("Surface structures")} text={tr("Import outcrop structural measurements from a CSV — easting, northing, optional elevation, dip, and dip direction and/or strike (right-hand rule), plus a structure type and comments if present. Each measurement is drawn in the 3D view as a disc lying in the measured plane, coloured by type (fault, bedding, foliation, vein, joint, contact…). Rows without an elevation sit on the terrain. These measurements are what the 3D Modelling tab uses to set the dip when projecting mapped contacts underground.")} />
       </div>
       <button onClick={() => structInput.current.click()} style={pBtn}>
-        <Compass size={14} />{" "}{tr("Import structure measurements (.csv / MapInfo .tab)…")}</button>
-      <input ref={structInput} type="file" accept=".csv,.txt,.tab,.map,.id,.dat" multiple style={{ display: "none" }}
+        <Compass size={14} />{" "}{tr("Import structure measurements (.csv / MapInfo .tab / .mif)…")}</button>
+      <input ref={structInput} type="file" accept=".csv,.txt,.tab,.map,.id,.dat,.mif,.mid" multiple style={{ display: "none" }}
         onChange={(e) => { readStructCsv(e.target.files); e.target.value = ""; }} />
       {pendingStruct && (
         <div style={card}>

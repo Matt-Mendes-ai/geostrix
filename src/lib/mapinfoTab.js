@@ -48,7 +48,7 @@ const CHARSETS = {
   codepage857: "windows-1254", codepage860: "windows-1252", codepage861: "windows-1252", codepage863: "windows-1252",
   codepage864: "windows-1256", codepage865: "windows-1252", codepage869: "windows-1253", "utf-8": "utf-8", utf8: "utf-8",
 };
-function makeDecoder(charset) {
+export function makeDecoder(charset) { // exported for the MIF reader (#945)
   const label = CHARSETS[String(charset || "neutral").toLowerCase()] || "windows-1252";
   try { return new TextDecoder(label); } catch { return new TextDecoder("windows-1252"); }
 }
@@ -220,14 +220,14 @@ const FAMILY = {};
 [0x10, 0x11].forEach((t) => (FAMILY[t] = "text"));
 
 // TABGenerateArc: numPoints evenly spaced angles from start to end (counter-clockwise), then the last point repeated.
-function generateArc(out, n, cx, cy, rx, ry, a0, a1) {
+export function generateArc(out, n, cx, cy, rx, ry, a0, a1) { // also the MIF reader's (#945)
   if (a1 < a0) a1 += 2 * Math.PI;
   const step = (a1 - a0) / (n - 1);
   let a = 0;
   for (let i = 0; i < n; i++) { a = a0 + i * step; out.push([cx + rx * Math.cos(a), cy + ry * Math.sin(a)]); }
   out.push([cx + rx * Math.cos(a), cy + ry * Math.sin(a)]);
 }
-const closeRing = (r) => { if (r.length && (r[0][0] !== r[r.length - 1][0] || r[0][1] !== r[r.length - 1][1])) r.push([r[0][0], r[0][1]]); };
+export const closeRing = (r) => { if (r.length && (r[0][0] !== r[r.length - 1][0] || r[0][1] !== r[r.length - 1][1])) r.push([r[0][0], r[0][1]]); };
 
 function makeMapReader(mapBytes, decoder) {
   const dv = new DataView(mapBytes.buffer, mapBytes.byteOffset, mapBytes.byteLength);
