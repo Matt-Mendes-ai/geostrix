@@ -1287,7 +1287,7 @@
   "One of the three grids has no values where the K grid is.": "L'une des trois grilles n'a pas de valeurs là où se trouve la grille K.",
   "The three grids do not overlap.": "Les trois grilles ne se chevauchent pas.",
   "Can't reproject rasters from EPSG:{fromEpsg} to EPSG:{toEpsg}.": "Impossible de reprojeter les rasters d'EPSG:{fromEpsg} vers EPSG:{toEpsg}.",
-  "NAD27: an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a 3-parameter fit for Alberta/BC — typically within ~10 m there). Outside western Canada it can be 30–200 m out. Not survey-grade; that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet.": "NAD27 : un décalage de datum NAD27→NAD83 approximatif est appliqué (EPSG:1179, ajustement à 3 paramètres pour l'Alberta/la C.-B. — généralement à ~10 m près là-bas). Hors de l'ouest du Canada, l'écart peut atteindre 30–200 m. Pas de qualité topographique ; il faudrait une transformation sur grille (NTv2), que GeoStrix ne fournit pas encore.",
+  "NAD27: an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a 3-parameter fit for Alberta/BC, typically within ~10 m there). EPSG's own fits for other regions differ from it by about 5 m (Canada as a whole), 12 m (the lower 48 states) and 31 m (Alaska), each good to about 10 m itself. Not survey-grade; that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet.": "NAD27 : un changement de datum NAD27→NAD83 approximatif est appliqué (EPSG:1179, un ajustement à 3 paramètres pour l'Alberta/la C.-B., généralement à ~10 m près là-bas). Les ajustements d'EPSG pour d'autres régions en diffèrent d'environ 5 m (Canada dans son ensemble), 12 m (les 48 États contigus) et 31 m (Alaska), chacun précis à environ 10 m. Pas de qualité topographique ; il faudrait une transformation par grille (NTv2), que GeoStrix n'inclut pas encore.",
   "SAD69: Brazil's IBGE datum shift is applied (EPSG:1877, about 5 m in Brazil). Elsewhere in South America the right shift differs by country and this can be 10–25 m out. Not survey-grade.": "SAD69 : le décalage de datum de l'IBGE du Brésil est appliqué (EPSG:1877, environ 5 m au Brésil). Ailleurs en Amérique du Sud, le bon décalage diffère selon le pays et l'écart peut atteindre 10–25 m. Pas de qualité topographique.",
   "{name}: not a recognized IP data file": "{name} : fichier de données PP non reconnu",
   "{name}: no readings": "{name} : aucune lecture",
@@ -6084,5 +6084,12 @@
   "{unit} — intrusion body from the map ({n} polygons)": "{unit} — corps intrusif d'après la carte ({n} polygones)",
   "{v} Mm³, {d} m below the outcrop, walls {dip}°": "{v} Mm³, {d} m sous l'affleurement, parois à {dip}°",
   "Intrusion bodies could not be built: {v}": "Impossible de construire les corps intrusifs : {v}",
-  ", chargeability {v}x but computed on a resistivity model that did not fit, so treat it as unfinished too": ", chargeabilité {v}x, mais calculée sur un modèle de résistivité qui ne s'ajustait pas : à considérer aussi comme inachevée"
+  ", chargeability {v}x but computed on a resistivity model that did not fit, so treat it as unfinished too": ", chargeabilité {v}x, mais calculée sur un modèle de résistivité qui ne s'ajustait pas : à considérer aussi comme inachevée",
+  "{name} looks like an assay table, so it opened in Geochem's assay import, where you choose the elements.": "{name} ressemble à une table d'analyses : elle s'est ouverte dans l'import d'analyses de Géochimie, où vous choisissez les éléments.",
+  "The column names the CSV export writes for the block centres and sizes": "Les noms de colonnes que l'export CSV écrit pour les centres et tailles des blocs",
+  "CSV column names": "Noms de colonnes CSV",
+  "Block-model CSV column names": "Noms de colonnes du CSV du modèle de blocs",
+  "XC, YC, ZC, XINC… (Datamine, Vulcan, Surpac, Leapfrog)": "XC, YC, ZC, XINC… (Datamine, Vulcan, Surpac, Leapfrog)",
+  "EAST, NORTH, RL, _EAST… (Micromine)": "EAST, NORTH, RL, _EAST… (Micromine)",
+  "Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)": "Exporter en CSV de modèle de blocs (EAST, NORTH, RL, _EAST, _NORTH, _RL, valeur : noms Micromine)"
 }

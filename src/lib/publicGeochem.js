@@ -49,7 +49,7 @@ export const CATALOGUE = [
     licence: "Public domain (U.S. Government work)", licenceUrl: "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits",
     attribution: "U.S. Geological Survey.",
     page: "https://mrdata.usgs.gov/nure/sediment/", host: "mrdata.usgs.gov", downloadable: true, usgs: "nure", sourceEpsg: "4267",
-    caveat: "Whole map quadrangles, clipped to the area. Coordinates are NAD27 given to 0.0001° and converted with a regional datum shift (good to some tens of metres in the US); negative values mean below detection. Lake sediments come in as \"other\"."
+    caveat: "Whole map quadrangles, clipped to the area. Coordinates are NAD27 given to 0.0001° and converted with GeoStrix's one NAD27 datum shift, fitted for Alberta / BC (#973: about 12 m from EPSG's own fit for the lower 48 states and 31 m for Alaska, each good to about 10 m itself); negative values mean below detection. Lake sediments come in as \"other\"."
   },
   {
     id: "gsc-cdogs", name: "Canadian Database of Geochemical Surveys (CDoGS) / National Geochemical Reconnaissance", agency: "Geological Survey of Canada", country: "Canada",

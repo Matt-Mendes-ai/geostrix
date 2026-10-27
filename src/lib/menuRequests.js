@@ -20,7 +20,9 @@ export function useModuleAction(actions, handler) {
   useEffect(() => {
     const list = key.split("|");
     const run = (a, payload) => { if (!list.includes(a)) return; pending = null; ref.current(a, payload); };
-    if (pending && Date.now() - pending.at < 5000) run(pending.action, pending.payload);
+    // TASKS.csv #995 — an action that carries data (a database table, #917) waits up to 2 minutes for its lazily loaded
+    // module, not 5 s: a cold Geochem chunk on a slow laptop could arrive after the window and the rows were lost
+    if (pending && Date.now() - pending.at < (pending.payload != null ? 120000 : 5000)) run(pending.action, pending.payload);
     const on = (e) => run(e.detail.action, e.detail.payload);
     window.addEventListener(EVENT, on);
     return () => window.removeEventListener(EVENT, on);

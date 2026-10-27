@@ -168,7 +168,7 @@ export function datumNote(epsg) {
   if (c === 4267 || (c >= 26701 && c <= 26722)) {
     // TASKS.csv #299 — the shift itself. #489 sweep against PROJ: within ~12 m of PROJ's local choice in zones 9-12N, ~31 m in 7-8N, up to ~200 m
     // in zones far from western Canada (the shift is a fit for Alberta/BC only).
-    return tr("NAD27: an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a 3-parameter fit for Alberta/BC — typically within ~10 m there). Outside western Canada it can be 30–200 m out. Not survey-grade; that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet.");
+    return tr("NAD27: an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a 3-parameter fit for Alberta/BC, typically within ~10 m there). EPSG's own fits for other regions differ from it by about 5 m (Canada as a whole), 12 m (the lower 48 states) and 31 m (Alaska), each good to about 10 m itself. Not survey-grade; that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet."); // #973 — figures from the EPSG parameter sets 1172 / 1173 / 1174 against 1179
   }
   // #834 — a code from the EPSG registry (not hand-verified): what EPSG says about its datum shift
   const f = !handDef(c) && fullEntry(c);

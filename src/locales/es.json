@@ -1287,7 +1287,7 @@
   "One of the three grids has no values where the K grid is.": "Una de las tres grillas no tiene valores donde está la grilla de K.",
   "The three grids do not overlap.": "Las tres grillas no se superponen.",
   "Can't reproject rasters from EPSG:{fromEpsg} to EPSG:{toEpsg}.": "No se pueden reproyectar rásteres de EPSG:{fromEpsg} a EPSG:{toEpsg}.",
-  "NAD27: an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a 3-parameter fit for Alberta/BC — typically within ~10 m there). Outside western Canada it can be 30–200 m out. Not survey-grade; that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet.": "NAD27: se aplica un cambio de datum aproximado NAD27→NAD83 (EPSG:1179, un ajuste de 3 parámetros para Alberta/BC — normalmente dentro de ~10 m allí). Fuera del oeste de Canadá puede errar 30–200 m. No sirve para topografía; eso necesita una transformación por grilla (NTv2), que GeoStrix todavía no incluye.",
+  "NAD27: an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a 3-parameter fit for Alberta/BC, typically within ~10 m there). EPSG's own fits for other regions differ from it by about 5 m (Canada as a whole), 12 m (the lower 48 states) and 31 m (Alaska), each good to about 10 m itself. Not survey-grade; that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet.": "NAD27: se aplica un cambio de datum NAD27→NAD83 aproximado (EPSG:1179, un ajuste de 3 parámetros para Alberta/BC, normalmente dentro de ~10 m allí). Los ajustes propios de EPSG para otras regiones difieren de él en unos 5 m (Canadá en conjunto), 12 m (los 48 estados contiguos) y 31 m (Alaska), cada uno con una exactitud de unos 10 m. No es de precisión topográfica; eso requiere una transformación por malla (NTv2), que GeoStrix aún no incluye.",
   "SAD69: Brazil's IBGE datum shift is applied (EPSG:1877, about 5 m in Brazil). Elsewhere in South America the right shift differs by country and this can be 10–25 m out. Not survey-grade.": "SAD69: se aplica el cambio de datum del IBGE de Brasil (EPSG:1877, unos 5 m en Brasil). En el resto de Sudamérica el cambio correcto difiere según el país y esto puede errar 10–25 m. No sirve para topografía.",
   "{name}: not a recognized IP data file": "{name}: no es un archivo de datos de IP reconocido",
   "{name}: no readings": "{name}: sin lecturas",
@@ -6084,5 +6084,12 @@
   "{unit} — intrusion body from the map ({n} polygons)": "{unit} — cuerpo intrusivo del mapa ({n} polígonos)",
   "{v} Mm³, {d} m below the outcrop, walls {dip}°": "{v} Mm³, {d} m bajo el afloramiento, paredes a {dip}°",
   "Intrusion bodies could not be built: {v}": "No se pudieron construir los cuerpos intrusivos: {v}",
-  ", chargeability {v}x but computed on a resistivity model that did not fit, so treat it as unfinished too": ", cargabilidad {v}x, pero calculada sobre un modelo de resistividad que no se ajustó, así que trátela también como inconclusa"
+  ", chargeability {v}x but computed on a resistivity model that did not fit, so treat it as unfinished too": ", cargabilidad {v}x, pero calculada sobre un modelo de resistividad que no se ajustó, así que trátela también como inconclusa",
+  "{name} looks like an assay table, so it opened in Geochem's assay import, where you choose the elements.": "{name} parece una tabla de ensayes, así que se abrió en la importación de ensayes de Geoquímica, donde se eligen los elementos.",
+  "The column names the CSV export writes for the block centres and sizes": "Los nombres de columna que la exportación CSV escribe para los centros y tamaños de bloque",
+  "CSV column names": "Nombres de columna CSV",
+  "Block-model CSV column names": "Nombres de columna del CSV del modelo de bloques",
+  "XC, YC, ZC, XINC… (Datamine, Vulcan, Surpac, Leapfrog)": "XC, YC, ZC, XINC… (Datamine, Vulcan, Surpac, Leapfrog)",
+  "EAST, NORTH, RL, _EAST… (Micromine)": "EAST, NORTH, RL, _EAST… (Micromine)",
+  "Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)": "Exportar como CSV de modelo de bloques (EAST, NORTH, RL, _EAST, _NORTH, _RL, valor: nombres de Micromine)"
 }

@@ -158,6 +158,7 @@ export function useImportPipeline(ctx) {
       setDbModalOpen(false);
       requestModuleAction("import-assay-rows", { headers, rows, sourceName });
       goToModule("geochem");
+      setNotices((p) => [...p, notice("{name} looks like an assay table, so it opened in Geochem's assay import, where you choose the elements.", { name: sourceName })]); // #995 — the tab switch is said
       return;
     }
     const target = guessTargetFor(headers, sourceName); // #605

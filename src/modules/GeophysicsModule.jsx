@@ -143,6 +143,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   // (localStorage), Standard by default so a modest laptop never gets a big grid it did not ask for
   const [terrainDetail, setTerrainDetailState] = useState(() => { try { return Number(localStorage.getItem("geostrix.terrainDetail")) || 200; } catch { return 200; } });
   const setTerrainDetail = (v) => { setTerrainDetailState(v); try { localStorage.setItem("geostrix.terrainDetail", String(v)); } catch { /* private window */ } };
+  // TASKS.csv #979 — the block-model CSV's column names, a per-computer preference like the one above
+  const [bmNames, setBmNamesState] = useState(() => { try { return localStorage.getItem("geostrix.blockCsvNames") === "micromine" ? "micromine" : "datamine"; } catch { return "datamine"; } });
+  const setBmNames = (v) => { setBmNamesState(v); try { localStorage.setItem("geostrix.blockCsvNames", v); } catch { /* private window */ } };
   // TASKS.csv #814 — which online elevation model the terrain fetch reads (a per-computer preference, like the detail)
   const [terrainSource, setTerrainSourceState] = useState(() => { try { return localStorage.getItem("geostrix.terrainSource") || "aws"; } catch { return "aws"; } });
   const setTerrainSource = (v) => { setTerrainSourceState(v); try { localStorage.setItem("geostrix.terrainSource", v); } catch { /* private window */ } };
@@ -1677,8 +1680,17 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             {voxelError.text}
           </div>
         )}
+        {voxelModels.length > 0 && (
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("The column names the CSV export writes for the block centres and sizes")}>
+            {tr("CSV column names")}
+            <select value={bmNames} onChange={(e) => setBmNames(e.target.value)} style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)" }} aria-label={tr("Block-model CSV column names")}>
+              <option value="datamine">{tr("XC, YC, ZC, XINC… (Datamine, Vulcan, Surpac, Leapfrog)")}</option>
+              <option value="micromine">{tr("EAST, NORTH, RL, _EAST… (Micromine)")}</option>
+            </select>
+          </label>
+        )}
         {voxelModels.map((v) => (
-          <VoxelModelRow key={v.id} model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} epsg={project?.epsg} />
+          <VoxelModelRow key={v.id} model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} epsg={project?.epsg} csvNames={bmNames} />
         ))}
 
         <div style={{ marginTop: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6 }}>
@@ -1745,8 +1757,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
 // fires continuously during a drag, which would otherwise rebuild the whole 3D mesh on every pixel of
 // movement.
 // TASKS.csv #411 — see blockModelExport.js
-function exportBlockModelCSV(model, epsg) {
-  const csv = Papa.unparse(blockModelRows(model));
+function exportBlockModelCSV(model, epsg, names = "datamine") {
+  const csv = Papa.unparse(blockModelRows(model, names)); // names: #979
   const stamp = stampLines({ tool: "Block model export", version: APP_VERSION, epsg, params: blockModelParamLines(model) }); // #529 — version + CRS
   saveFile({ suggestedName: `${String(model.name || "block_model").replace(/[^\w\- ]/g, "").slice(0, 80)}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(csv, stamp), encoding: "text" });
 }
@@ -1758,7 +1770,7 @@ async function exportBlockModelVTK(model, epsg) {
 }
 // TASKS.csv #711 — what an imported volume's values can be (the units the rest of the app uses)
 const VOXEL_PROPERTIES = ["Conductivity (S/m)", "Resistivity (ohm·m)", "Chargeability (mV/V)", "Susceptibility (SI)", "Density (g/cc)", "Density contrast (g/cc)"];
-function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage, epsg }) {
+function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage, epsg, csvNames = "datamine" }) {
   const [displayThreshold, setDisplayThreshold] = useState(model.threshold);
   const [displayOpacity, setDisplayOpacity] = useState(model.opacity ?? 0.85);
   const [legendOpen, setLegendOpen] = useState(false);
@@ -1801,7 +1813,7 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage,
         {/* TASKS.csv #328 — UBC mesh/model, .obs data, GeoTIFF depth slices and provenance.txt in one zip */}
         {onExportPackage && <PackageOpen role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" for other software", { name: model.name })} title={tr("Export for other software (zip): UBC mesh + model, .obs observed/predicted data (SimPEG inversions), GeoTIFF depth slices, provenance.txt")} onClick={() => onExportPackage(model)} />}
         {/* TASKS.csv #411 — block model out for estimation/mine-planning software */}
-        <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as CSV", { name: model.name })} title={tr("Export as block-model CSV (XC, YC, ZC, XINC, YINC, ZINC, value)")} onClick={() => exportBlockModelCSV(model, epsg)} />
+        <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as CSV", { name: model.name })} title={csvNames === "micromine" ? tr("Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)") : tr("Export as block-model CSV (XC, YC, ZC, XINC, YINC, ZINC, value)")} onClick={() => exportBlockModelCSV(model, epsg, csvNames)} />
         <Box role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as VTK", { name: model.name })} title={tr("Export as VTK for ParaView / PyVista (empty blocks are NaN)")} onClick={() => exportBlockModelVTK(model, epsg)} />{/* TASKS.csv #798 */}
         <Trash2 aria-label={tr("Remove block model \"{name}\"", { name: model.name })} title={tr("Remove block model \"{name}\"", { name: model.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: model.name }))) onRemove(model.id); }} />
       </div>

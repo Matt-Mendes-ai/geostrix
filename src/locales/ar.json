@@ -1287,7 +1287,7 @@
   "One of the three grids has no values where the K grid is.": "إحدى الشبكات الثلاث بلا قيم حيث توجد شبكة K.",
   "The three grids do not overlap.": "الشبكات الثلاث لا تتداخل.",
   "Can't reproject rasters from EPSG:{fromEpsg} to EPSG:{toEpsg}.": "تعذّرت إعادة إسقاط الراستر من EPSG:{fromEpsg} إلى EPSG:{toEpsg}.",
-  "NAD27: an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a 3-parameter fit for Alberta/BC — typically within ~10 m there). Outside western Canada it can be 30–200 m out. Not survey-grade; that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet.": "NAD27: تُطبَّق إزاحة مرجع تقريبية NAD27←NAD83 ‏(EPSG:1179، مطابقة بثلاثة معاملات لألبرتا/كولومبيا البريطانية — عادةً ضمن ~10 م هناك). خارج غرب كندا قد يصل الخطأ إلى 30–200 م. ليست بدقة مساحية؛ فذلك يحتاج تحويلًا شبكيًا (NTv2) لا يوفره GeoStrix بعد.",
+  "NAD27: an approximate NAD27→NAD83 datum shift is applied (EPSG:1179, a 3-parameter fit for Alberta/BC, typically within ~10 m there). EPSG's own fits for other regions differ from it by about 5 m (Canada as a whole), 12 m (the lower 48 states) and 31 m (Alaska), each good to about 10 m itself. Not survey-grade; that needs a grid-based (NTv2) transform, which GeoStrix doesn't ship yet.": "NAD27: يُطبَّق تحويل تقريبي للمرجع NAD27→NAD83 (EPSG:1179، ملاءمة بثلاث معاملات لألبرتا/كولومبيا البريطانية، بدقة نحو 10 م هناك عادةً). تختلف ملاءمات EPSG الخاصة بمناطق أخرى عنه بنحو 5 م (كندا ككل) و12 م (الولايات الـ48 المتجاورة) و31 م (ألاسكا)، ودقة كل منها نحو 10 م. ليس بدقة المساحة؛ فذلك يحتاج تحويلًا شبكيًا (NTv2) لا يتضمنه GeoStrix بعد.",
   "SAD69: Brazil's IBGE datum shift is applied (EPSG:1877, about 5 m in Brazil). Elsewhere in South America the right shift differs by country and this can be 10–25 m out. Not survey-grade.": "SAD69: تُطبَّق إزاحة المرجع من IBGE البرازيلية (EPSG:1877، نحو 5 م في البرازيل). في بقية أمريكا الجنوبية تختلف الإزاحة الصحيحة حسب البلد وقد يصل الخطأ إلى 10–25 م. ليست بدقة مساحية.",
   "{name}: not a recognized IP data file": "{name}: ملف بيانات استقطاب مستحث غير معروف",
   "{name}: no readings": "{name}: لا قراءات",
@@ -6084,5 +6084,12 @@
   "{unit} — intrusion body from the map ({n} polygons)": "{unit} — جسم متداخل من الخريطة ({n} مضلعات)",
   "{v} Mm³, {d} m below the outcrop, walls {dip}°": "{v} مليون م³، {d} م تحت المنكشف، الجدران {dip}°",
   "Intrusion bodies could not be built: {v}": "تعذّر بناء الأجسام المتداخلة: {v}",
-  ", chargeability {v}x but computed on a resistivity model that did not fit, so treat it as unfinished too": "، الشحنية {v}x لكنها حُسبت على نموذج مقاومية لم يطابق البيانات، فاعتبرها غير مكتملة أيضًا"
+  ", chargeability {v}x but computed on a resistivity model that did not fit, so treat it as unfinished too": "، الشحنية {v}x لكنها حُسبت على نموذج مقاومية لم يطابق البيانات، فاعتبرها غير مكتملة أيضًا",
+  "{name} looks like an assay table, so it opened in Geochem's assay import, where you choose the elements.": "يبدو أن {name} جدول تحاليل، لذا فُتح في استيراد التحاليل في وحدة الجيوكيمياء حيث تختار العناصر.",
+  "The column names the CSV export writes for the block centres and sizes": "أسماء الأعمدة التي يكتبها تصدير CSV لمراكز الكتل وأحجامها",
+  "CSV column names": "أسماء أعمدة CSV",
+  "Block-model CSV column names": "أسماء أعمدة CSV لنموذج الكتل",
+  "XC, YC, ZC, XINC… (Datamine, Vulcan, Surpac, Leapfrog)": "XC, YC, ZC, XINC… (Datamine وVulcan وSurpac وLeapfrog)",
+  "EAST, NORTH, RL, _EAST… (Micromine)": "EAST, NORTH, RL, _EAST… (Micromine)",
+  "Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)": "تصدير بصيغة CSV لنموذج الكتل (EAST وNORTH وRL و_EAST و_NORTH و_RL والقيمة: أسماء Micromine)"
 }

@@ -12,10 +12,17 @@ export function valueColumnName(model) {
   const unit = u ? String(u).replace(/^g\/t$/i, "gpt").replace(/^%$/, "pct") : "";
   return (unit && !model.property ? `${base}_${unit}` : base).replace(/[^\w]+/g, "_") || "value";
 }
-export function blockModelRows(model) {
+// TASKS.csv #979 — the centroid and size column names: Datamine's (also read by Vulcan, Surpac and Leapfrog) or
+// Micromine's, which the block-model import already recognizes (#659), so a Micromine user does not map six fields
+export const BLOCK_COLUMN_NAMES = {
+  datamine: ["XC", "YC", "ZC", "XINC", "YINC", "ZINC"],
+  micromine: ["EAST", "NORTH", "RL", "_EAST", "_NORTH", "_RL"],
+};
+export function blockModelRows(model, names = "datamine") {
   const valueName = valueColumnName(model);
+  const [X, Y, Z, DX, DY, DZ] = BLOCK_COLUMN_NAMES[names] || BLOCK_COLUMN_NAMES.datamine;
   return (model.cells || []).map((c) => {
-    const row = { XC: +c.x.toFixed(3), YC: +c.y.toFixed(3), ZC: +c.z.toFixed(3), XINC: +Number(c.dx).toFixed(4), YINC: +Number(c.dy).toFixed(4), ZINC: +Number(c.dz).toFixed(4), /* #978 — sizes saved as Float32 read back as 3.3329999446868896 */ [valueName]: c.value };
+    const row = { [X]: +c.x.toFixed(3), [Y]: +c.y.toFixed(3), [Z]: +c.z.toFixed(3), [DX]: +Number(c.dx).toFixed(4), [DY]: +Number(c.dy).toFixed(4), [DZ]: +Number(c.dz).toFixed(4), /* #978 — sizes saved as Float32 read back as 3.3329999446868896 */ [valueName]: c.value };
     if (c.nSamples != null) row.N_SAMPLES = c.nSamples;
     if (c.nHoles != null) row.N_HOLES = c.nHoles;
     if (c.support != null) row.SUPPORT = typeof c.support === "number" ? +c.support.toFixed(4) : c.support;

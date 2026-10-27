@@ -28,3 +28,15 @@ test("#970: the 3D panel's IP verdict uses the #682 rule: an unfitted resistivit
   const fit = ipFitOf({ phi_d: 98, target: 100, reachedTarget: true, iterations: 6, ip: { phi_d: 99, reachedTarget: true, iterations: 3 } });
   assert.equal(fit.dcUnfitted, undefined); assert.equal(fit.level, "ok");
 });
+
+test("#979: Micromine column names on export, and the block-model import maps them back without help", async () => {
+  const { guessBlockModelMapping } = await import("../src/lib/blockModelCsv.js");
+  const model = { property: "Au", cells: [{ x: 500000, y: 6000000, z: 900, dx: 10, dy: 10, dz: 5, value: 1.2 }, { x: 500010, y: 6000000, z: 900, dx: 10, dy: 10, dz: 5, value: 0.4 }] };
+  const rows = blockModelRows(model, "micromine");
+  assert.deepEqual(Object.keys(rows[0]).slice(0, 6), ["EAST", "NORTH", "RL", "_EAST", "_NORTH", "_RL"]);
+  const headers = Object.keys(rows[0]);
+  const { mapping } = guessBlockModelMapping(headers, rows); // numbers, as Papa's dynamic typing reads them
+  assert.deepEqual(mapping, { x: "EAST", y: "NORTH", z: "RL", dx: "_EAST", dy: "_NORTH", dz: "_RL" });
+  assert.deepEqual(Object.keys(blockModelRows(model)[0]).slice(0, 3), ["XC", "YC", "ZC"]); // the default is unchanged
+});
+
