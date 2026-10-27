@@ -32,7 +32,7 @@ export function holeAtlasValues(holeId, collars, layers) {
     hole_id: holeId,
     x: c ? fmt(c.x, 1) : "?", y: c ? fmt(c.y, 1) : "?", z: c ? fmt(c.z, 1) : "?",
     azimuth: c && c.azimuth != null ? fmt(c.azimuth, 0) : "?",
-    dip: c && c.dip != null ? fmt(c.dip, 0) : "?",
+    dip: c && Number.isFinite(c.dip) ? fmt(-c.dip, 0) : "?", // TASKS.csv #1033 — stored positive-down; shown negative = down, as imported
     length: c && c.length != null ? fmt(c.length, 0) : "?",
     lithology_summary,
   };

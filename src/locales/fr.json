@@ -6186,5 +6186,6 @@
   "Survey date (declination)": "Date du levé (déclinaison)",
   "Line bearing: {g}° grid, {t}° true, {m}° magnetic (declination {d}° on {date}, IGRF-14). A crew on a compass walks the magnetic bearing.": "Orientation des lignes : {g}° quadrillage, {t}° vrai, {m}° magnétique (déclinaison {d}° le {date}, IGRF-14). Une équipe à la boussole marche selon l'orientation magnétique.",
   "Line bearing: {g}° grid, {t}° true (no magnetic bearing for this date).": "Orientation des lignes : {g}° quadrillage, {t}° vrai (pas d'orientation magnétique pour cette date).",
-  "The line azimuth is a grid bearing (project CRS). Choose an area to see it as true and magnetic bearings.": "L'azimut des lignes est une orientation du quadrillage (SCR du projet). Choisissez une zone pour le voir en orientation vraie et magnétique."
+  "The line azimuth is a grid bearing (project CRS). Choose an area to see it as true and magnetic bearings.": "L'azimut des lignes est une orientation du quadrillage (SCR du projet). Choisissez une zone pour le voir en orientation vraie et magnétique.",
+  "{label} (dip negative = down)": "{label} (pendage négatif = vers le bas)"
 }

@@ -1842,7 +1842,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
       const f = (v, d) => (Number.isFinite(Number(v)) && v !== "" && v != null ? Number(v).toFixed(d) : "");
       columns = [tr("Hole"), tr("Easting"), tr("Northing"), tr("Elev. (m)"), tr("Azimuth"), tr("Dip"), tr("Depth (m)")];
       const lim = el.maxRows || 40;
-      rows = cs.slice(0, lim).map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), f(c.z, 1), f(c.azimuth, 0), f(c.dip, 0), f(c.length, 1)]);
+      rows = cs.slice(0, lim).map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), f(c.z, 1), f(c.azimuth, 0), f(Number.isFinite(c.dip) ? -c.dip : "", 0) /* #1033 — negative = down, as imported */, f(c.length, 1)]);
       more = Math.max(0, cs.length - lim);
     }
     const fs = printPx(el.fontPt || printPt.small), cell = { padding: `${Math.round(fs * 0.25)}px ${Math.round(fs * 0.5)}px`, borderBottom: "1px solid #c9ced4" /* #999 — 0.26 mm on paper like the scale bar; 0.5 px vanished on screen at Fit zoom */, whiteSpace: "nowrap" };

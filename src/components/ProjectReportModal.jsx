@@ -83,7 +83,7 @@ export default function ProjectReportModal({ store, onClose }) {
 
     rows.push(["=== DRILLHOLES ==="]);
     rows.push(["hole_id", "x", "y", "z", "azimuth", "dip", "length"]);
-    collars.forEach((c) => rows.push([c.hole_id, c.x, c.y, c.z, c.azimuth ?? "", c.dip ?? "", c.length ?? ""]));
+    collars.forEach((c) => rows.push([c.hole_id, c.x, c.y, c.z, c.azimuth ?? "", Number.isFinite(c.dip) ? -c.dip : "", c.length ?? ""])); // #1033 — dip negative = down, as imported
     rows.push([]);
 
     if (report.layerCounts.length) {

@@ -5935,6 +5935,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // the trace it produces does), interval-kind layers (litho/alt/vein/geotech) become 2-vertex
   // polylines from their from/to depths, point-kind layers (mnlgy/magsusc) and structure planes become
   // single points at their depth, and geophys_pts (already raw world x/y/z) pass through unchanged.
+  // TASKS.csv #1033 (review #1016) — collar / survey dips are stored positive-down (flipDip on import); the attribute
+  // table showed that raw, so a dip typed as the import file wrote it (-65) turned the hole upward. Shown and edited
+  // negative = down, stored back flipped.
+  const flipDipOf = (r) => { const d = typeof r.dip === "string" && r.dip.trim() !== "" ? Number(r.dip) : r.dip; return Number.isFinite(d) ? { ...r, dip: -d } : r; };
+  const dipShown = flipDipOf, dipStored = flipDipOf;
   const COLLAR_CORE_KEYS = new Set(["hole_id", "x", "y", "z", "azimuth", "dip", "length"]);
   const buildVectorFeatures = (kind, key) => {
     if (kind === "collars") {
@@ -8444,11 +8449,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       )}
       {attrTableTarget && (
         <AttributeTableModal
-          title={attrTableTarget.label}
-          rows={attrTableTarget.kind === "collars" ? collars : attrTableTarget.kind === "survey" ? survey : (layers[attrTableTarget.key] || [])}
+          title={attrTableTarget.kind === "collars" || attrTableTarget.kind === "survey" ? tr("{label} (dip negative = down)", { label: attrTableTarget.label }) : attrTableTarget.label}
+          rows={attrTableTarget.kind === "collars" ? collars.map(dipShown) : attrTableTarget.kind === "survey" ? survey.map(dipShown) : (layers[attrTableTarget.key] || [])}
           onSave={(newRows) => {
-            if (attrTableTarget.kind === "collars") setCollars(newRows);
-            else if (attrTableTarget.kind === "survey") setSurvey(newRows);
+            if (attrTableTarget.kind === "collars") setCollars(newRows.map(dipStored));
+            else if (attrTableTarget.kind === "survey") setSurvey(newRows.map(dipStored));
             else replaceLayer(attrTableTarget.key, newRows);
             setNotices((p) => [...p, notice("Saved edits to \"{label}\" ({newRows} row(s)).", { label: attrTableTarget.label, newRows: newRows.length })]);
           }}
