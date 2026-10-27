@@ -5712,7 +5712,7 @@
   "Built through {n} points ({picks} picks, {lines} section lines) in {ms} ms.": "Construída com {n} pontos ({picks} seleções, {lines} linhas de seção) em {ms} ms.",
   "{frame}{cut}": "{frame}{cut}",
   "Between the inputs it is the smoothest surface through them; beyond them it is extended with no data.": "Entre os dados é a superfície mais suave que passa por eles; além deles é estendida sem dados.",
-  "Auto: 15 % of the inputs' span. Everything beyond the inputs is extrapolated, not data.": "Auto: 15 % da extensão dos dados. Tudo além dos dados é extrapolado, não dado.",
+  "Auto: 15 % of the inputs' shorter span. Everything beyond the inputs is extrapolated, not data.": "Auto: 15 % da extensão mais curta das entradas. Tudo além das entradas é extrapolado, não são dados.",
   "Two outlines of this name are on section {s}. A body that branches is linked one branch at a time: give each branch its own name (for example VeinA-N and VeinA-S) and link each.": "Há dois contornos com este nome na seção {s}. Um corpo que se ramifica é ligado um ramo de cada vez: dê a cada ramo seu próprio nome (por exemplo VeioA-N e VeioA-S) e ligue cada um.",
   "Section {s} is not parallel to section {s0} ({deg}° apart). Outlines are linked between parallel sections only.": "A seção {s} não é paralela à seção {s0} ({deg}° de diferença). Os contornos só são ligados entre seções paralelas.",
   "The outline on section {s} crosses itself. Redraw it as one loop that does not cross.": "O contorno da seção {s} cruza a si mesmo. Redesenhe-o como um único laço que não se cruze.",

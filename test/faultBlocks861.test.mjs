@@ -15,7 +15,7 @@ const fault = { positions: [FAULT_X, -200, 600, FAULT_X, 500, 600, FAULT_X, 500,
 
 const block = (side) => {
   const own = picks.filter((p) => (side > 0 ? p.x > FAULT_X : p.x < FAULT_X));
-  const res = fitExplicitSurface(own, { resolution: 40 });
+  const res = fitExplicitSurface(own, { resolution: 40, marginBasis: "long" }); // #1013: as the panel builds a fault-block surface
   const sp = splitAcrossSurface({ positions: res.positions, indices: Array.from(res.indices) }, fault);
   assert.ok(sp.ok && sp.changed, "the fault crosses the extrapolated surface");
   return { own, part: side > 0 ? sp.positive : sp.negative };

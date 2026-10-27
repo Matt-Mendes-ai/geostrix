@@ -307,7 +307,7 @@ export function trendInPlane(trend, F) {
   return { a: (u, v) => (u * mu + v * mv) / ratio, b: (u, v) => -u * mv + v * mu, ratio, azimuthDeg: az };
 }
 
-export function fitExplicitSurface(points, { margin = null, resolution = 80, groundAt = null, mergeTol = 0.5, frame = "auto", trend = null } = {}) {
+export function fitExplicitSurface(points, { margin = null, marginBasis = "short", resolution = 80, groundAt = null, mergeTol = 0.5, frame = "auto", trend = null } = {}) {
   const warnings = [];
   const pts = [];
   for (const p of points) if (!pts.some((q) => dist3(p, q) < mergeTol)) pts.push(p); // a repeated pick is one constraint
@@ -353,7 +353,11 @@ export function fitExplicitSurface(points, { margin = null, resolution = 80, gro
   // grid over the points' extent + margin, then every point inserted as a vertex
   const umin = Math.min(...U), umax = Math.max(...U), vmin = Math.min(...V), vmax = Math.max(...V);
   const span = Math.max(umax - umin, vmax - vmin);
-  const m = margin == null ? 0.15 * span : Math.max(0, margin);
+  // TASKS.csv #1013 — the automatic margin is 15 % of the inputs' SHORTER span (at least a quarter of the longer one's
+  // 15 %, so a narrow strip still reaches past its ends). It was 15 % of the longest span on every side: a steep contact's
+  // long down-dip span made most of the mesh extrapolation (Matt: "do it", after #977 shaded it). marginBasis "long" keeps
+  // the old reach for a fault-block surface (#861): it is cut at the fault, so it must reach it, and the far side goes.
+  const m = margin != null ? Math.max(0, margin) : marginBasis === "long" ? 0.15 * span : 0.15 * Math.max(Math.min(umax - umin, vmax - vmin), span / 4);
   const u0 = umin - m, u1 = umax + m, v0 = vmin - m, v1 = vmax + m;
   const cell = Math.max(u1 - u0, v1 - v0) / Math.max(4, resolution);
   const nx = Math.max(2, Math.round((u1 - u0) / cell) + 1), ny = Math.max(2, Math.round((v1 - v0) / cell) + 1);

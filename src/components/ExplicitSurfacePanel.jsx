@@ -665,7 +665,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         const frame = shapeFrame(def.shape, appDip); // #901: lib/explicitBuild.js
         // TASKS.csv #957 — the fault trim runs in the worker too, after the fit
         const trimReq = def.boundedBy && faultMesh ? { key: `${faultMesh.geometry?.uuid || def.boundedBy.surfaceId}:${faultMesh.geometry?.attributes?.position?.version ?? 0}` /* a sculpted fault keeps its uuid */, side: def.boundedBy.side, mesh: () => worldMesh(faultMesh, sc.origin.current) } : null;
-        const res = await fitExplicitSurfaceAsync(ep.points, { margin: def.margin, resolution: def.resolution || 80, frame, trend }, def.cutAtTerrain && hasTerrain ? terrain : null, trimReq); // trend: #881
+        const res = await fitExplicitSurfaceAsync(ep.points, { margin: def.margin, marginBasis: def.boundedBy ? "long" : "short" /* #1013 */, resolution: def.resolution || 80, frame, trend }, def.cutAtTerrain && hasTerrain ? terrain : null, trimReq); // trend: #881
         clearTimeout(slow);
         if (!res || wantKey.current !== key) return; // the inputs changed while it was building: a newer build is on its way
         // TASKS.csv #861 — Matt: each fault block gets its own surface, trimmed at the fault (nothing invented: the picks of
@@ -1043,7 +1043,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         </details>
         <details open={settingsOpen} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginBottom: 6 }}>
           <summary style={{ fontWeight: 600, marginBottom: 4, cursor: "pointer" }}>{tr("Surface settings")}</summary>
-        <div style={row} title={tr("Auto: 15 % of the inputs' span. Everything beyond the inputs is extrapolated, not data.") /* TASKS.csv #870 */}>
+        <div style={row} title={tr("Auto: 15 % of the inputs' shorter span. Everything beyond the inputs is extrapolated, not data.") /* TASKS.csv #870 */}>
           <span style={{ width: 120, flexShrink: 0 }}>{tr("Extend beyond picks")}</span>
           <input type="number" min={0} step={10} value={def.margin ?? ""} placeholder={tr("auto")} onChange={(e) => update({ margin: e.target.value === "" ? null : Math.max(0, Number(e.target.value)) })} style={{ ...numInput, width: 64 }} aria-label={tr("Extend beyond picks")} /><span>m</span>
         </div>

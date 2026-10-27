@@ -5712,7 +5712,7 @@
   "Built through {n} points ({picks} picks, {lines} section lines) in {ms} ms.": "Construite par {n} points ({picks} pointés, {lines} lignes de section) en {ms} ms.",
   "{frame}{cut}": "{frame}{cut}",
   "Between the inputs it is the smoothest surface through them; beyond them it is extended with no data.": "Entre les données, c'est la surface la plus lisse qui passe par elles ; au-delà, elle est prolongée sans données.",
-  "Auto: 15 % of the inputs' span. Everything beyond the inputs is extrapolated, not data.": "Auto : 15 % de l'étendue des données. Tout ce qui est au-delà des données est extrapolé, ce ne sont pas des données.",
+  "Auto: 15 % of the inputs' shorter span. Everything beyond the inputs is extrapolated, not data.": "Auto : 15 % de la plus petite étendue des entrées. Tout ce qui est au-delà des entrées est extrapolé, pas des données.",
   "Two outlines of this name are on section {s}. A body that branches is linked one branch at a time: give each branch its own name (for example VeinA-N and VeinA-S) and link each.": "Deux contours de ce nom sont sur la section {s}. Un corps qui se ramifie se relie une branche à la fois : donnez à chaque branche son propre nom (par exemple FilonA-N et FilonA-S) et reliez chacune.",
   "Section {s} is not parallel to section {s0} ({deg}° apart). Outlines are linked between parallel sections only.": "La section {s} n'est pas parallèle à la section {s0} ({deg}° d'écart). Les contours ne se relient qu'entre sections parallèles.",
   "The outline on section {s} crosses itself. Redraw it as one loop that does not cross.": "Le contour de la section {s} se recoupe. Redessinez-le en une seule boucle qui ne se croise pas.",

@@ -5712,7 +5712,7 @@
   "Built through {n} points ({picks} picks, {lines} section lines) in {ms} ms.": "بُني عبر {n} نقطة ({picks} نقطة ملتقطة، {lines} خط مقطع) في {ms} مللي ثانية.",
   "{frame}{cut}": "{frame}{cut}",
   "Between the inputs it is the smoothest surface through them; beyond them it is extended with no data.": "بين المدخلات هو أنعم سطح يمر بها؛ وخارجها يُمدّ دون بيانات.",
-  "Auto: 15 % of the inputs' span. Everything beyond the inputs is extrapolated, not data.": "تلقائي: 15 % من امتداد المدخلات. كل ما يتجاوز المدخلات مستقرأ وليس بيانات.",
+  "Auto: 15 % of the inputs' shorter span. Everything beyond the inputs is extrapolated, not data.": "تلقائي: 15 % من الامتداد الأقصر للمدخلات. كل ما يتجاوز المدخلات مستقرأ وليس بيانات.",
   "Two outlines of this name are on section {s}. A body that branches is linked one branch at a time: give each branch its own name (for example VeinA-N and VeinA-S) and link each.": "يوجد محيطان بهذا الاسم على المقطع {s}. الجسم المتفرع يُربط فرعًا فرعًا: أعطِ كل فرع اسمه الخاص (مثل VeinA-N وVeinA-S) واربط كلًا منهما.",
   "Section {s} is not parallel to section {s0} ({deg}° apart). Outlines are linked between parallel sections only.": "المقطع {s} غير موازٍ للمقطع {s0} (بفارق {deg}°). تُربط المحيطات بين المقاطع المتوازية فقط.",
   "The outline on section {s} crosses itself. Redraw it as one loop that does not cross.": "محيط المقطع {s} يتقاطع مع نفسه. أعد رسمه كحلقة واحدة لا تتقاطع.",
