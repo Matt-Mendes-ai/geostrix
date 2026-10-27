@@ -3,6 +3,8 @@
 // GPS compass) and MAGNETIC north (a handheld compass), which differ from grid north by the grid
 // convergence and the magnetic declination (IGRF-14, already used by #396). KML (Google Earth, phones) and
 // GPX (handheld GPS) carry the collars, and KML also the collar-to-toe line.
+// TASKS.csv #1017 — the hole's whole planned trace in plan (lift and drift included, not a straight collar-to-toe chord),
+// in the KML and as a GPX track too.
 //
 // Pure: reprojection + IGRF, no UI. `trace(hole)` gives the hole's world polyline ({x, y, z}) for the toe.
 import { reprojectXY } from "./reproject.js";
@@ -34,6 +36,12 @@ export function rigRows(holes, epsg, isoDate, trace) {
       toe_lat: r7(tll?.y), toe_lon: r7(tll?.x),
       notes: h.notes || "",
     };
+  }).map((row, i) => {
+    // #1017 — the trace in lon / lat, kept off the CSV columns (non-enumerable: Papa.unparse and Object.keys skip it)
+    const pts = trace(holes[i]) || [], step = Math.max(1, Math.ceil(pts.length / 200));
+    const ll = pts.filter((_, k) => k % step === 0 || k === pts.length - 1).map((p) => reprojectXY(p.x, p.y, epsg, 4326)).filter(Boolean).map((q) => [r7(q.x), r7(q.y)]);
+    Object.defineProperty(row, "traceLonLat", { value: ll, enumerable: false });
+    return row;
   });
 }
 
@@ -43,7 +51,7 @@ export function rigKML(rows, docName) {
   const marks = rows.filter((r) => r.lat !== "" && r.lon !== "").map((r) => {
     const desc = `Azimuth: ${r.azimuth_true !== "" ? `${r.azimuth_true}° true, ` : ""}${r.azimuth_magnetic !== "" ? `${r.azimuth_magnetic}° magnetic (${r.declination_date}), ` : ""}${r.azimuth_grid}° grid. Dip ${r.dip}°. Length ${r.length} m.${r.notes ? ` ${r.notes}` : ""}`;
     const line = r.toe_lat !== "" ? `
-    <Placemark><name>${esc(r.name)} trace (plan)</name><styleUrl>#trace</styleUrl><LineString><tessellate>1</tessellate><coordinates>${r.lon},${r.lat},0 ${r.toe_lon},${r.toe_lat},0</coordinates></LineString></Placemark>` : "";
+    <Placemark><name>${esc(r.name)} trace (plan)</name><styleUrl>#trace</styleUrl><LineString><tessellate>1</tessellate><coordinates>${(r.traceLonLat?.length > 1 ? r.traceLonLat : [[r.lon, r.lat], [r.toe_lon, r.toe_lat]]).map(([lo, la]) => `${lo},${la},0`).join(" ")}</coordinates></LineString></Placemark>` : "";
     return `
     <Placemark><name>${esc(r.name)}</name><description>${esc(desc)}</description><styleUrl>#collar</styleUrl><Point><coordinates>${r.lon},${r.lat},0</coordinates></Point></Placemark>${line}`;
   }).join("");
@@ -61,9 +69,12 @@ export function rigKML(rows, docName) {
 export function rigGPX(rows) {
   const wpts = rows.filter((r) => r.lat !== "" && r.lon !== "").map((r) =>
     `  <wpt lat="${r.lat}" lon="${r.lon}"><ele>${r2(r.z)}</ele><name>${esc(r.name)}</name><desc>${esc(`Az ${r.azimuth_true !== "" ? `${r.azimuth_true} T / ` : ""}${r.azimuth_magnetic !== "" ? `${r.azimuth_magnetic} M / ` : ""}${r.azimuth_grid} G, dip ${r.dip}, ${r.length} m`)}</desc><sym>Flag</sym></wpt>`).join("\n");
+  // #1017 — each hole's planned trace in plan as a track, beside its collar waypoint
+  const trks = rows.filter((r) => r.traceLonLat?.length > 1).map((r) => `  <trk><name>${esc(`${r.name} trace (plan)`)}</name><trkseg>${r.traceLonLat.map(([lo, la]) => `<trkpt lat="${la}" lon="${lo}"/>`).join("")}</trkseg></trk>`).join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="GeoStrix" xmlns="http://www.topografix.com/GPX/1/1">
-${wpts}
+${wpts}${trks ? `
+${trks}` : ""}
 </gpx>
 `;
 }
