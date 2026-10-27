@@ -1372,3 +1372,22 @@ export function mergeSurfaceSamples(prev, rows) {
   }
   return { samples, updated, added };
 }
+
+// TASKS.csv #1016 (review: drillhole-db, Micromine user, exploration geologist) — the "Assays CSV" export, re-importable:
+// it wrote bare element headers (Au ppb read back as ppm, x1000), the stored half-limit number instead of "<0.005" (read
+// back as a measured 0.0025), and dropped sample_id / sample_type / parent_id / qc_code (standards and blanks came back
+// as ordinary intervals). Now each element column carries its unit (Au_ppb, Cu_pct, Au_ppm), a below-detection value
+// is written "<limit" and an over-range one ">limit" as labs write them, and the sample / QC columns are kept.
+const UNIT_TAG = { ppb: "ppb", ppm: "ppm", "%": "pct", "g/t": "gpt", gpt: "gpt" };
+export function assayExportRows(assays, assayElements) {
+  const els = (assayElements || []).map((e) => ({ symbol: e.symbol, header: `${e.symbol}_${UNIT_TAG[String(e.unit || "ppm").toLowerCase()] || String(e.unit || "ppm").replace(/[^\w]+/g, "")}` }));
+  const num = (v) => +Number(v).toPrecision(12);
+  return (assays || []).map((a) => {
+    const row = { hole_id: a.hole_id, from: a.from, to: a.to, sample_id: a.sample_id ?? "", sample_type: a.sample_type ?? "", parent_id: a.parent_id ?? "", qc_code: a.qc_code ?? "", source: a.source ?? "" };
+    for (const e of els) {
+      const v = a.values?.[e.symbol], q = a.qualifiers?.[e.symbol];
+      row[e.header] = v == null || !Number.isFinite(Number(v)) ? "" : q === "<" ? `<${num(v * 2)}` : q === ">" ? `>${num(v)}` : num(v);
+    }
+    return row;
+  });
+}

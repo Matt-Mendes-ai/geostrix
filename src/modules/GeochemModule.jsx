@@ -15,7 +15,7 @@ import { useStore } from "../lib/store.jsx";
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
 import {
   DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS,
-  isElementColumn, inferUnit, pickElementColumns, parseAssayValue, valueIn, readAssayCell, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile,
+  isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile,
   oxideOfHeader, fromOxideHeader, // TASKS.csv #403
   surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, // TASKS.csv #841 / #954
 } from "../lib/geochem.js";
@@ -743,9 +743,7 @@ export default function GeochemModule() {
     saveFile({ suggestedName: `${diagramId}_projected.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: csv });
   };
   const exportAssaysCSV = () => {
-    const symbols = assayElements.map((e) => e.symbol);
-    const rows = assays.map((a) => ({ hole_id: a.hole_id, from: a.from, to: a.to, source: a.source, ...Object.fromEntries(symbols.map((s) => [s, a.values[s] ?? ""])) }));
-    const csv = Papa.unparse(rows);
+    const csv = Papa.unparse(assayExportRows(assays, assayElements)); // TASKS.csv #1016 — units, < / > qualifiers and QC columns kept
     saveFile({ suggestedName: "assays.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: csv });
   };
 
