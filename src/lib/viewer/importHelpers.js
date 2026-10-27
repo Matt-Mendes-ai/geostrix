@@ -8,7 +8,7 @@ const loadKml = () => import("../kml.js");
 const loadLas = () => import("../las.js"); // TASKS.csv #492 — on demand
 const loadXlsx = () => import("../xlsx.js");
 const loadShapefile = () => import("../shapefile.js");
-import { num, isOverturnedValue, targetFromName, guessTargetFor } from "../layers.js";
+import { num, isOverturnedValue, targetFromName, guessTargetFor, guessColumn, TARGET_SCHEMAS } from "../layers.js";
 import { parseTableFile, parseTableText } from "../tabular.js";
 import { t as tr } from "../i18n.js"; // TASKS.csv #786 — messages in the interface language
 
@@ -122,6 +122,21 @@ export function looksLikeAssay(headers) {
   const syms = new Set();
   headers.forEach((h) => { if (NOT_GRADE.test(String(h).replace(/_/g, " "))) return; const s = isElementColumn(h); if (s) syms.add(s); });
   return syms.size >= 4;
+}
+
+// TASKS.csv #600 / #975 — the coordinate names surface-sample exports use (MX-style e_utm / n_utm included), shared by
+// Geochem's surface import and the check below
+export const SURFACE_XY_ALIASES = {
+  x: ["x", "easting", "east", "e_utm", "utm_e", "utme", "utm_east", "x_utm"],
+  y: ["y", "northing", "north", "n_utm", "utm_n", "utmn", "utm_north", "y_utm"],
+};
+// TASKS.csv #975 — a table of surface samples (soils, silts, rocks): coordinates and no from / to. A soil table from the
+// same database as the drilling was handed to the drillhole assay dialog, which then refused it ("Map hole ID, from,
+// and to columns").
+export function isSurfaceSampleTable(headers) {
+  const intervalAliases = (key) => TARGET_SCHEMAS.litho.fields.find((f) => f.key === key).aliases;
+  return !!guessColumn(headers, SURFACE_XY_ALIASES.x) && !!guessColumn(headers, SURFACE_XY_ALIASES.y)
+    && !guessColumn(headers, intervalAliases("from")) && !guessColumn(headers, intervalAliases("to"));
 }
 
 // TASKS.csv #190/#191 — user request: "let's do those 3" (shapefile import, GeoPackage export,

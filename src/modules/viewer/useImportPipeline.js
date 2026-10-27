@@ -19,7 +19,7 @@ import { buildLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
 import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
-import { normInterval, applyCustomFields, normNumericInterval, normStructure, strikeStats, loadRaster, looksLikeAssay, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
+import { normInterval, applyCustomFields, normNumericInterval, normStructure, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917
@@ -158,7 +158,9 @@ export function useImportPipeline(ctx) {
       setDbModalOpen(false);
       requestModuleAction("import-assay-rows", { headers, rows, sourceName });
       goToModule("geochem");
-      setNotices((p) => [...p, notice("{name} looks like an assay table, so it opened in Geochem's assay import, where you choose the elements.", { name: sourceName })]); // #995 — the tab switch is said
+      setNotices((p) => [...p, isSurfaceSampleTable(headers) // #975 — Geochem opens a surface-sample table in its surface import
+        ? notice("{name} looks like a table of surface samples (coordinates, no from / to), so it opened in Geochem's surface-sample import, where you choose the elements.", { name: sourceName })
+        : notice("{name} looks like an assay table, so it opened in Geochem's assay import, where you choose the elements.", { name: sourceName })]); // #995 — the tab switch is said
       return;
     }
     const target = guessTargetFor(headers, sourceName); // #605

@@ -22,6 +22,7 @@ import {
 import { qcRecordFromFileRow, emptySurfaceQc } from "../lib/surfaceQaqc.js"; // TASKS.csv #842
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
 import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
+import { isSurfaceSampleTable, SURFACE_XY_ALIASES } from "../lib/viewer/importHelpers.js"; // TASKS.csv #975
 import { assayFileSummary, removeAssayFile, removeAssayElement } from "../lib/geochem.js"; // TASKS.csv #624
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #624
 import GeochemPlot from "../components/GeochemPlot.jsx";
@@ -98,7 +99,17 @@ export default function GeochemModule() {
   // TASKS.csv #917 — assays straight from a database: this tab's Database button, or a table the 3D View's database
   // Browser panel recognized as assays and handed over
   const [dbOpen, setDbOpen] = useState(false);
-  useModuleAction(["import-assay-rows"], (_a, p) => { if (p?.rows?.length) openTable({ name: p.sourceName }, p.headers, p.rows, false); });
+  // TASKS.csv #975 — a surface-sample table (coordinates, no from / to) from a database opens in the surface import
+  useModuleAction(["import-assay-rows"], (_a, p) => {
+    if (!p?.rows?.length) return;
+    if (isSurfaceSampleTable(p.headers)) {
+      const pv = detectLongAssay(p.headers) ? pivotLongAssays(p.rows, p.headers, (sym) => inferUnit(sym, sym), (a) => isElementColumn(a)) : null;
+      if (pv?.rows.length) setNotices((q) => [...q, `${p.sourceName}: ${longAssayNote(pv.report)}`]);
+      openSurfaceRows({ name: p.sourceName }, pv?.rows.length ? pv.headers : p.headers, pv?.rows.length ? pv.rows : p.rows);
+      return;
+    }
+    openTable({ name: p.sourceName }, p.headers, p.rows, false);
+  });
   const svgRef = useRef(null);
 
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
@@ -494,16 +505,19 @@ export default function GeochemModule() {
   // sample lab exports have the same "more than one candidate column per element" problem.
   const handleSurfaceFile = (file) => {
     parseTableOrWorkbook(file, elementScore, { columnar: true }).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback; #611 big files held as columns
-        const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
-        const data = res.data, note = res.note ? ` ${res.note.trim()}` : ""; // TASKS.csv #284
-        if (!data.length) { setNotices((p) => [...p, errorNotice(tr("{name}: empty file.", { name: file.name }))]); return; }
+        const note = t.note ? ` ${t.note.trim()}` : ""; // TASKS.csv #284
+        if (!t.rows.length) { setNotices((p) => [...p, errorNotice(tr("{name}: empty file.", { name: file.name }))]); return; }
         if (note) setNotices((p) => [...p, `${file.name}:${note}`]);
-        const headers = t.headers; // #611 — a columnar row has no own keys (was Object.keys(data[0]))
+        openSurfaceRows(file, t.headers, t.rows); // #611 — a columnar row has no own keys: the headers come from the reader
+    });
+  };
+  // the surface-sample import dialog for a table already read: from a file, or rows from a database (#975)
+  const openSurfaceRows = (file, headers, data) => {
         // TASKS.csv #600 (40958Z) — the shared matcher + MX-style names: e_utm / n_utm, elev_m, samp_num, samp_type
         const guess = (aliases) => guessColumn(headers, aliases);
         const mapping = {
-          x: guess(["x", "easting", "east", "e_utm", "utm_e", "utme", "utm_east", "x_utm"]),
-          y: guess(["y", "northing", "north", "n_utm", "utm_n", "utmn", "utm_north", "y_utm"]),
+          x: guess(SURFACE_XY_ALIASES.x),
+          y: guess(SURFACE_XY_ALIASES.y),
           z: guess(["z", "elevation", "elev", "elev_m", "rl", "elev_dem_m"]),
           sample_id: guess(["sample_id", "sampleid", "samp_num", "sample_num", "sample_number", "samp_id", "sample", "sample_no"]),
           medium: guess(["medium", "sample_medium", "samp_type", "sample_type", "smpl_medium", "type"]),
@@ -528,7 +542,6 @@ export default function GeochemModule() {
           mapping, sourceEpsg, sourceEpsgFrom: sourceEpsg ? crsCol : null,
           defaultMedium: "soil", elements,
         });
-    });
   };
 
   // TASKS.csv #846 — a public survey's samples for the area (PublicGeochemModal), into the normal surface-sample import:
