@@ -6187,5 +6187,10 @@
   "Line bearing: {g}° grid, {t}° true, {m}° magnetic (declination {d}° on {date}, IGRF-14). A crew on a compass walks the magnetic bearing.": "Rumbo de las líneas: {g}° de cuadrícula, {t}° verdadero, {m}° magnético (declinación {d}° el {date}, IGRF-14). Una cuadrilla con brújula camina el rumbo magnético.",
   "Line bearing: {g}° grid, {t}° true (no magnetic bearing for this date).": "Rumbo de las líneas: {g}° de cuadrícula, {t}° verdadero (sin rumbo magnético para esta fecha).",
   "The line azimuth is a grid bearing (project CRS). Choose an area to see it as true and magnetic bearings.": "El azimut de las líneas es un rumbo de cuadrícula (SRC del proyecto). Elija un área para verlo como rumbo verdadero y magnético.",
-  "{label} (dip negative = down)": "{label} (buzamiento negativo = hacia abajo)"
+  "{label} (dip negative = down)": "{label} (buzamiento negativo = hacia abajo)",
+  "contacts and bedding ({codes})": "contactos y estratificación ({codes})",
+  "contacts and bedding (none logged: choose a type)": "contactos y estratificación (ninguno registrado: elija un tipo)",
+  "any type (fractures and veins too)": "cualquier tipo (también fracturas y vetas)",
+  "Downhole dip guide: the structure log has no contact or bedding code, so no guide is applied. Choose the type that records the contact.": "Guía de buzamiento en el sondaje: el registro estructural no tiene ningún código de contacto o estratificación, así que no se aplica ninguna guía. Elija el tipo que registra el contacto.",
+  "Readings used: {types}.": "Lecturas usadas: {types}."
 }

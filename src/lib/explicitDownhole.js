@@ -8,6 +8,22 @@
 // picks: [{ x, y, z, hole_id, md }] (already on the hole's current trace); rows: structure rows { hole_id, depth, dip,
 // azimuth (dip direction), value (type) }; types: the structure types to use ([] = any).
 // -> { lines: [{ ref, src: "downhole", pts }], used: [{ hole, md, depth, dip, dipDir, type }], unmatched }
+// TASKS.csv #1037 (review #1016, structural geologist) — the guide used "any type" by default and at Woodjam took its
+// attitude from a FRACTURE at 63 % of contacts (one reading bent the surface up to ~50 m). The default is now the
+// structure codes that record a contact or bedding: CON / CONT / CONTACT / CTC / BED / BEDDING / BD / S0, or anything
+// mapLayers.structureClass reads as contact or bedding. [] when the log has none (the user then picks a type).
+const CONTACT_CODE = /^(con|cont|contact|ctc|lc|lith_?cont\w*|bed|beds|bedding|bd|s0|so)$/i;
+const CONTACT_WORD = /contact|bed/i;
+export function contactLikeTypes(types) {
+  return [...new Set((types || []).map((t) => String(t ?? "").trim()).filter(Boolean))].filter((t) => CONTACT_CODE.test(t) || (CONTACT_WORD.test(t) && !/fault|shear|vein|fract|joint/i.test(t))).sort();
+}
+// "37 CONT, 9 BED" — how many guides each type gave (the status line)
+export function guideTypeCounts(used) {
+  const m = new Map();
+  for (const u of used || []) m.set(u.type || "?", (m.get(u.type || "?") || 0) + 1);
+  return [...m].sort((a, b) => b[1] - a[1]).map(([t, n]) => `${n} ${t}`).join(", ");
+}
+
 export function downholeDipGuides(picks, rows, { types = [], windowM = 3, reachM = 25, step = 10 } = {}) {
   const out = { lines: [], used: [], unmatched: 0 };
   if (!(reachM > 0)) return out;

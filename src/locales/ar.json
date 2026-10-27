@@ -6187,5 +6187,10 @@
   "Line bearing: {g}° grid, {t}° true, {m}° magnetic (declination {d}° on {date}, IGRF-14). A crew on a compass walks the magnetic bearing.": "اتجاه الخطوط: {g}° شبكي، {t}° حقيقي، {m}° مغناطيسي (الانحراف {d}° في {date}، IGRF-14). يسير الفريق بالبوصلة على الاتجاه المغناطيسي.",
   "Line bearing: {g}° grid, {t}° true (no magnetic bearing for this date).": "اتجاه الخطوط: {g}° شبكي، {t}° حقيقي (لا اتجاه مغناطيسي لهذا التاريخ).",
   "The line azimuth is a grid bearing (project CRS). Choose an area to see it as true and magnetic bearings.": "سمت الخطوط اتجاه شبكي (نظام إحداثيات المشروع). اختر منطقة لرؤيته كاتجاه حقيقي ومغناطيسي.",
-  "{label} (dip negative = down)": "{label} (الميل سالب = للأسفل)"
+  "{label} (dip negative = down)": "{label} (الميل سالب = للأسفل)",
+  "contacts and bedding ({codes})": "التماسات والتطبق ({codes})",
+  "contacts and bedding (none logged: choose a type)": "التماسات والتطبق (لا شيء مسجّل: اختر نوعًا)",
+  "any type (fractures and veins too)": "أي نوع (بما فيها الكسور والعروق)",
+  "Downhole dip guide: the structure log has no contact or bedding code, so no guide is applied. Choose the type that records the contact.": "دليل الميل داخل البئر: لا يحتوي سجل البنى على رمز تماس أو تطبق، لذا لم يُطبَّق أي دليل. اختر النوع الذي يسجل التماس.",
+  "Readings used: {types}.": "القراءات المستخدمة: {types}."
 }

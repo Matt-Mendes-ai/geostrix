@@ -6187,5 +6187,10 @@
   "Line bearing: {g}° grid, {t}° true, {m}° magnetic (declination {d}° on {date}, IGRF-14). A crew on a compass walks the magnetic bearing.": "Orientation des lignes : {g}° quadrillage, {t}° vrai, {m}° magnétique (déclinaison {d}° le {date}, IGRF-14). Une équipe à la boussole marche selon l'orientation magnétique.",
   "Line bearing: {g}° grid, {t}° true (no magnetic bearing for this date).": "Orientation des lignes : {g}° quadrillage, {t}° vrai (pas d'orientation magnétique pour cette date).",
   "The line azimuth is a grid bearing (project CRS). Choose an area to see it as true and magnetic bearings.": "L'azimut des lignes est une orientation du quadrillage (SCR du projet). Choisissez une zone pour le voir en orientation vraie et magnétique.",
-  "{label} (dip negative = down)": "{label} (pendage négatif = vers le bas)"
+  "{label} (dip negative = down)": "{label} (pendage négatif = vers le bas)",
+  "contacts and bedding ({codes})": "contacts et stratification ({codes})",
+  "contacts and bedding (none logged: choose a type)": "contacts et stratification (aucun relevé : choisissez un type)",
+  "any type (fractures and veins too)": "tout type (fractures et filons compris)",
+  "Downhole dip guide: the structure log has no contact or bedding code, so no guide is applied. Choose the type that records the contact.": "Guide de pendage en forage : le journal structural n'a aucun code de contact ou de stratification, donc aucun guide n'est appliqué. Choisissez le type qui enregistre le contact.",
+  "Readings used: {types}.": "Mesures utilisées : {types}."
 }
