@@ -10,6 +10,7 @@ import PromptModal from "../components/PromptModal.jsx";
 import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS } from "../lib/legendGroups.js"; // TASKS.csv #725
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
+import { withLiveScaleBars, relinkCopies } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
@@ -572,7 +573,8 @@ export default function LayoutModule() {
   };
   const loadTemplate = (tpl) => {
     if (elements.length && !window.confirm(tr("Replace the current page with \"{name}\"? This can't be undone.", { name: tpl.name }))) return;
-    setElements(tpl.elements.map((el) => ({ ...el, id: `${el.type}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}` })));
+    const idMap = new Map(tpl.elements.map((el) => [el.id, `${el.type}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`]));
+    setElements(relinkCopies(tpl.elements.map((el) => ({ ...el, id: idMap.get(el.id) })), idMap, true)); // #924
     setSelected(null);
     setTemplatesOpen(false);
   };
@@ -621,7 +623,8 @@ export default function LayoutModule() {
     const ids = selectionIds();
     if (!ids.length) return;
     const off = Math.round(5 * PX_PER_MM);
-    const copies = elements.filter((e) => ids.includes(e.id)).map((e) => ({ ...e, id: `${e.type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, x: e.x + off, y: e.y + off, locked: false }));
+    const idMap = new Map(ids.map((id) => [id, `${(elements.find((e) => e.id === id) || {}).type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`]));
+    const copies = relinkCopies(elements.filter((e) => ids.includes(e.id)).map((e) => ({ ...e, id: idMap.get(e.id), x: e.x + off, y: e.y + off, locked: false })), idMap, false); // #924
     setElements((els) => [...els, ...copies]);
     setSelected(copies[copies.length - 1].id);
     setMultiSelected(new Set(copies.length > 1 ? copies.map((c) => c.id) : []));
@@ -1600,21 +1603,6 @@ function Handles({ which, onStart, at = {} }) {
   ));
 }
 
-// TASKS.csv #909 — a scale bar assigned to a viewport follows that viewport's CURRENT scale (QGIS links its scale bar to
-// the map): the bar used to keep the px-per-metre of the moment it was assigned, so a viewport re-captured at 1:30,000
-// still showed the 1:5,000 bar beside it - the one thing on a plot nobody double-checks. A bar whose view is gone, or
-// not captured yet, keeps its own ratio.
-function withLiveScaleBars(els) {
-  return (els || []).map((el) => {
-    if (el.type !== "scale" || !el.boundTo) return el;
-    const vp = els.find((v) => v.id === el.boundTo);
-    const imgH = vp?.capH || vp?.h, imgW = vp?.capW || vp?.w;
-    if (!vp) return el;
-    if (vp.type === "viewport" && vp.worldHeightAtTarget && imgH) return { ...el, pxPerMeter: imgH / vp.worldHeightAtTarget };
-    if (vp.type === "image" && vp.worldWidthAtCaptureM && imgW) return { ...el, pxPerMeter: imgW / vp.worldWidthAtCaptureM };
-    return el;
-  });
-}
 
 // TASKS.csv #909 — the dynamic-text context of a page, and the fill
 const PLACEHOLDER = /\{(project|date|page|pages|pagename|scale)\}/g;
@@ -1748,7 +1736,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     // real pixel-per-metre ratio was last established (by syncing to a view, or the plain default for
     // a freeform bar that's never been synced) — see pxPerMeter's definition up top — instead of a
     // fixed 180px that only ever changed its printed label.
-    const px = Math.max(20, Math.round((el.meters || 100) * (el.pxPerMeter || DEFAULT_PX_PER_METER)));
+    const px = Math.max(2, Math.round((el.meters || 100) * (el.pxPerMeter || DEFAULT_PX_PER_METER))); // #920 — no 20 px floor: the bar is as long as its label says
     return (
       <div style={wrap} onMouseDown={onDown} data-el-id={el.id}>
         <svg width={px + 4} height="34">
