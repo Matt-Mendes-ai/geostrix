@@ -6148,5 +6148,8 @@
   "This .MIF file has no Data section, so it is not a MapInfo interchange file.": "Este archivo .MIF no tiene sección Data, así que no es un archivo de intercambio de MapInfo.",
   "No points, lines or polygons could be read from this MapInfo file.": "No se pudieron leer puntos, líneas ni polígonos de este archivo de MapInfo.",
   "the current view": "la vista actual",
-  "Size (pt)": "Tamaño (pt)"
+  "Size (pt)": "Tamaño (pt)",
+  " With these walls the outcrop bodies of {list} grow into each other at depth, so each outcrop is its own closed body (numbered): one merged mesh would cross itself and could not restrict an estimate. Their volumes overlap where they meet, so do not add them up.": " Con estas paredes los cuerpos de los afloramientos de {list} crecen unos dentro de otros en profundidad, así que cada afloramiento es su propio cuerpo cerrado (numerado): una malla unida se cruzaría consigo misma y no podría restringir una estimación. Sus volúmenes se solapan donde se juntan, así que no los sumes.",
+  " {k} narrow outcrop(s) would close before {d} m with these walls: they are cut off flat where the base would be a fifth of the outline ({a}–{b} m down).": " {k} afloramiento(s) estrecho(s) se cerrarían antes de {d} m con estas paredes: se cortan en plano donde la base sería un quinto del contorno ({a}–{b} m de profundidad).",
+  " The walls as built dip {a}–{b}° (asked {dip}°): the base follows a simplified outline.": " Las paredes construidas buzan {a}–{b}° (pedido {dip}°): la base sigue un contorno simplificado."
 }

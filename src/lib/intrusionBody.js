@@ -41,6 +41,8 @@ const segX = (a, b, c, d) => { // proper intersection of segments ab and cd
   const o = (p, q, r) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
   return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0;
 };
+// TASKS.csv #939 — is (x, y) inside the ring (even-odd)
+const inRing = (x, y, r) => { let inside = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) { const [xi, yi] = r[i], [xj, yj] = r[j]; if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside; } return inside; };
 export function selfIntersects(r) {
   const n = r.length;
   for (let i = 0; i < n; i++) for (let j = i + 2; j < n; j++) {
@@ -190,7 +192,9 @@ export function intrusionBody(ring, groundAt, { depthM = 500, wallDip = 90, flar
       }
       // an edge that turned round against its simplified edge (a shrinking outline passed through itself) is a crossing
       const flipped = b.some((q, i) => { const k = (i + 1) % n; return (b[k][0] - q[0]) * span[i][0] + (b[k][1] - q[1]) * span[i][1] < 0; });
-      if (area2(b) > 0 && !flipped && !selfIntersects(b)) { base = b; ok = true; simplifiedTo = ns; }
+      // #939 — narrowing walls must stay under the outcrop: a coarse simplification (an L outline taken as a triangle) put
+      // 321 of 512 base points outside it; such a try is skipped like a crossing one
+      if (area2(b) > 0 && !flipped && !selfIntersects(b) && (sign > 0 || b.every((q) => inRing(q[0], q[1], r)))) { base = b; ok = true; simplifiedTo = ns; }
     }
     if (!ok && sign < 0) {
       // narrowing walls, when the offset outline crosses itself: each point shrinks toward the outline's centroid so its
@@ -206,9 +210,12 @@ export function intrusionBody(ring, groundAt, { depthM = 500, wallDip = 90, flar
         if (z < Math.min(...topZ) - 1) { baseZ = z; pinchedAtM = Math.min(...topZ) - z; }
       }
       const k = r.map((_, i) => 1 - ((topZ[i] - baseZ) * cot) / R);
-      if (Math.min(...k) > 0.05) {
+      // TASKS.csv #939 — for a crescent, L or horseshoe outcrop the centroid lies outside the outline, so shrinking toward
+      // it slid the base into the empty embayment (352 of 352 base points outside a crescent's outline) with walls far
+      // flatter than asked: refused, with the same message as any other inward offset that cannot be built
+      if (Math.min(...k) > 0.05 && inRing(cx, cy, r)) {
         const b = r.map((p, i) => [cx + (p[0] - cx) * k[i], cy + (p[1] - cy) * k[i]]);
-        if (area2(b) > 0 && !selfIntersects(b)) { base = b; ok = true; simplifiedTo = 0; }
+        if (area2(b) > 0 && !selfIntersects(b) && b.every((q) => inRing(q[0], q[1], r))) { base = b; ok = true; simplifiedTo = 0; }
       }
     }
     if (!ok) {
@@ -265,5 +272,9 @@ export function intrusionBody(ring, groundAt, { depthM = 500, wallDip = 90, flar
   const btris = earClip(baseRing);
   for (const [a, b, c] of btris) { if (ccw(a, b, c, baseRing)) idx.push(nTop + a, nTop + c, nTop + b); else idx.push(nTop + a, nTop + b, nTop + c); } // base: clockwise from above = facing down
   const offs = base.map((q, i) => Math.hypot(q[0] - r[i][0], q[1] - r[i][1]) * sign);
-  return { positions, indices: Uint32Array.from(idx), topZ: [Math.min(...topZ), Math.max(...topZ)], baseZ, wallOffsetM: [Math.min(...offs), Math.max(...offs)], planAreaM2: area2(r), baseCorners: simplifiedTo, corners: nc, pinchedAtM };
+  // TASKS.csv #939 — the wall dip actually built at each outline point (atan(height / horizontal move)): the simplified
+  // or centroid-shrunk base can make it differ from the dip asked for, and the caller says so
+  let dMin = 90, dMax = 0;
+  r.forEach((p, i) => { const mv = Math.hypot(base[i][0] - p[0], base[i][1] - p[1]), h = topZ[i] - baseZ; const d = mv > 1e-6 ? (Math.atan(h / mv) * 180) / Math.PI : 90; dMin = Math.min(dMin, d); dMax = Math.max(dMax, d); });
+  return { positions, indices: Uint32Array.from(idx), topZ: [Math.min(...topZ), Math.max(...topZ)], baseZ, wallOffsetM: [Math.min(...offs), Math.max(...offs)], planAreaM2: area2(r), baseCorners: simplifiedTo, corners: nc, pinchedAtM, wallDipDeg: [dMin, dMax] };
 }
