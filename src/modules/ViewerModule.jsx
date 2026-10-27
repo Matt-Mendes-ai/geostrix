@@ -28,6 +28,7 @@ import { parseSolidInWorker } from "../lib/solidImportClient.js"; // TASKS.csv #
 const IMPORTED_SOLID_COLORS = [0x8fa3b8, 0xa89bbd, 0x8fb8aa, 0xbfae92, 0x93b3c4, 0xb89aa4];
 const SurfaceGeologyProjection = lazyModal(() => import("../components/SurfaceGeologyProjection.jsx")); // TASKS.csv #476 // TASKS.csv #318
 import { spreadColor, SPREAD_NOT_REPRODUCED } from "../lib/surfaceSpread.js"; // TASKS.csv #52 (a)
+import { supportShadeFactors } from "../lib/explicitSupport.js"; // TASKS.csv #977
 import { pointInBoundary } from "../lib/pointInPolygon.js"; // TASKS.csv #903 — not geoprocessing.js, which loads d3-delaunay
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
 import { useMenuKeys } from "../lib/useMenuKeys.js"; // TASKS.csv #730
@@ -5089,13 +5090,16 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         });
         geo.setAttribute("color", new THREE.BufferAttribute(cols, 3));
       }
+      // TASKS.csv #977 — an explicit surface's extrapolated part, shaded from the hull saved with its parameters
+      const shade = !hasSpread && s.params?.supportHull ? supportShadeFactors(verts, s.params.supportHull) : null;
+      if (shade) geo.setAttribute("color", new THREE.BufferAttribute(shade, 3));
       const mat = new THREE.MeshLambertMaterial({
-        color: hasSpread ? 0xffffff : (s.color ?? 0xc8a24a), vertexColors: hasSpread, side: THREE.DoubleSide,
+        color: hasSpread ? 0xffffff : (s.color ?? 0xc8a24a), vertexColors: hasSpread || !!shade, side: THREE.DoubleSide,
         transparent: true, opacity: s.opacity ?? 0.75,
       });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.visible = s.visible !== false;
-      mesh.userData = { tip: `${s.name}\n${(verts.length / 3) | 0} vertices (restored from the project file)`, ...(s.params?.builtKey ? { builtKey: s.params.builtKey } : {}) }; // builtKey: TASKS.csv #886
+      mesh.userData = { tip: `${s.name}\n${(verts.length / 3) | 0} vertices (restored from the project file)`, ...(s.params?.builtKey ? { builtKey: s.params.builtKey } : {}), ...(shade ? { shadeFactors: true } : {}) }; // builtKey: TASKS.csv #886
       group.add(mesh);
       implicitMeshesRef.current[s.id] = mesh;
       surfaceGeomCacheRef.current[s.id] = { uuid: geo.uuid, vertices: verts, indices: idx };

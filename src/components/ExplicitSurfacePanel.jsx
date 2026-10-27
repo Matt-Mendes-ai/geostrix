@@ -16,6 +16,7 @@ import { imagePlane, rayPlane, facingCamera, densify3, medianApparentDip, sectio
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #828 — Undo / Redo
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #885
 import { faultNormalZ } from "../lib/explicitTrim.js"; // TASKS.csv #957
+import { supportShadeFactors, compactHull } from "../lib/explicitSupport.js"; // TASKS.csv #977
 import { unitOf, contactOf, layerLabel, unitSummary, splitByElevation, nextLayer, seedPicksFromTops } from "../lib/explicitUnits.js"; // TASKS.csv #830 / #831 / #832; seed: #871
 import { stackOrder, thicknessBetween } from "../lib/stackOrder.js"; // TASKS.csv #873; thicknessBetween: #896
 import { inputKey, shapeFrame, onlyOneSection, explicitInputRows, INPUT_COLUMNS } from "../lib/explicitBuild.js"; // TASKS.csv #901; rows: #880
@@ -83,6 +84,9 @@ function upsertMesh(sc, def, res, info) {
   geo.setIndex(new THREE.BufferAttribute(res.indices, 1));
   geo.computeVertexNormals();
   geo.computeBoundingBox();
+  // TASKS.csv #977 — the part beyond the inputs' hull drawn darker (colour factors, so the surface's colour still shows)
+  const shade = supportShadeFactors(P, res.supportHull);
+  if (shade) geo.setAttribute("color", new THREE.BufferAttribute(shade, 3));
   const nVerts = P.length / 3, nTris = res.indices.length / 3;
   const tip = `${def.name} — explicit surface\n${res.n} points (${info.picks} picks, ${info.lines} section lines${info.mapLines ? `, ${info.mapLines} mapped contact lines` : ""}${info.guideLines ? `, ${info.guideLines} dip guide lines` : ""})`;
   const params = { tool: "explicit surface (thin-plate spline exactly through hand-picked contacts)", picks: info.picks, sectionLines: info.lines, sections: info.sections, lineSpacingM: info.spacing ? Math.round(info.spacing * 10) / 10 : null, points: res.n,
@@ -92,20 +96,22 @@ function upsertMesh(sc, def, res, info) {
     looRmsM: res.quality.looRmsM == null ? null : Number(res.quality.looRmsM.toFixed(2)), looMaxM: res.quality.looMaxM == null ? null : Number(res.quality.looMaxM.toFixed(2)),
     overshootM: Number(res.quality.overshootM.toFixed(1)), extrapolatedPct: Math.round(res.quality.beyondPct), furthestFromInputM: Math.round(res.quality.furthestM), cutAtTerrain: res.groundCut > 0, builtAt: new Date().toISOString(),
     ...(res.trend ? { trend: { name: info.trendName || null, ratio: Number(res.trend.ratio.toFixed(2)), alongAzimuthDeg: Math.round(res.trend.azimuthDeg) } } : {}), // TASKS.csv #881
-    builtKey: info.key }; // TASKS.csv #886 — saved with the surface, so a reopened project does not rebuild (and dirty) it
+    builtKey: info.key, // TASKS.csv #886 — saved with the surface, so a reopened project does not rebuild (and dirty) it
+    supportHull: compactHull(res.supportHull) }; // TASKS.csv #977 — a reopened project shades the extrapolated part from it
   sc.activity.current = Date.now();
   const old = def.surfaceId && sc.meshes.current[def.surfaceId];
   if (old) {
     old.geometry.dispose();
     old.geometry = geo;
     old.material.color?.set(def.color);
-    old.userData = { ...old.userData, tip, builtKey: info.key }; // builtKey: #828
+    if (!!old.material.vertexColors !== !!shade) { old.material.vertexColors = !!shade; old.material.needsUpdate = true; } // #977
+    old.userData = { ...old.userData, tip, builtKey: info.key, shadeFactors: !!shade }; // builtKey: #828
     // TASKS.csv #879 — a rebuild replaces the mesh, so any hand-edit record of the old one goes with it
     sc.setSurfaces((p) => p.map((s) => (s.id === def.surfaceId ? { ...s, name: def.name, vertexCount: nVerts, faceCount: nTris, params, edited: false, editCount: 0, edits: [] } : s)));
     return def.surfaceId;
   }
-  const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: def.color, side: THREE.DoubleSide, transparent: true, opacity: 0.75 }));
-  mesh.userData = { tip, builtKey: info.key }; // builtKey: #828
+  const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: def.color, vertexColors: !!shade, side: THREE.DoubleSide, transparent: true, opacity: 0.75 }));
+  mesh.userData = { tip, builtKey: info.key, shadeFactors: !!shade }; // builtKey: #828; shadeFactors: #977
   sc.group.current?.add(mesh);
   const id = def.surfaceId || `impl_${Date.now()}_explicit`; // #828: new surfaces carry their mesh id from the start
   sc.meshes.current[id] = mesh;
@@ -693,7 +699,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         const q = res.quality, w = q.looWorst;
         const at = !w ? "" : w.hole ? tr("{hole} at {md} m", { hole: w.hole, md: Number(w.md).toFixed(1) }) : w.src === "pick" ? tr("a 3D point") : w.src === "section" ? tr("a line on section {s}", { s: w.ref }) : tr("a line point");
         const loo = q.looRmsM != null ? ` ${tr("Leave-one-out: each input predicted from the others misses by {rms} m RMS, worst {max} m ({at}).", { rms: q.looRmsM.toFixed(1), max: q.looMaxM.toFixed(1), at })}` : q.looSkipped ? ` ${tr("Leave-one-out not computed above {n} points.", { n: LOO_MAX_POINTS })}` : "";
-        const beyond = ` ${tr("{p} % of the surface lies beyond the inputs and is extrapolated (up to {d} m from the nearest).", { p: Math.round(q.beyondPct), d: Math.round(q.furthestM) })}`;
+        const beyond = ` ${tr("{p} % of the surface lies beyond the inputs and is extrapolated (up to {d} m from the nearest).", { p: Math.round(q.beyondPct), d: Math.round(q.furthestM) })}${res.supportHull && q.beyondPct >= 0.5 ? ` ${tr("The extrapolated part is drawn darker.")}` : ""}`; // #977
         setStatus({ ok: true, built: true, text: tr("Built through {n} points ({picks} picks, {lines} section lines) in {ms} ms.", { n: res.n, picks: ep.picks, lines: ep.lines, ms }) + loo + beyond + " " + tr("{frame}{cut}", {
           frame: res.frame.steep ? tr("Modelled over its best-fit plane (dips {d}°).", { d: res.frame.dip.toFixed(0) }) : tr("Modelled as elevation over the map."),
           cut: res.groundCut ? tr(" Cut at the terrain.") : "",

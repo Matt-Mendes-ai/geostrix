@@ -34,7 +34,7 @@ export function applySurfaceStyle(mesh, surface) {
   }
   const o = u.styleOrig;
   if (!surface?.supportColored) { // the support view wins while it is on; the chosen colour comes back after
-    const vc = st?.color ? false : o.vertexColors;
+    const vc = st?.color ? !!u.shadeFactors : o.vertexColors; // #977: colour factors (an explicit surface's extrapolated part) multiply a chosen colour
     if (!!mat.vertexColors !== vc) { mat.vertexColors = vc; mat.needsUpdate = true; }
     if (st?.color) mat.color.set(st.color); else mat.color.setHex(o.color);
   }

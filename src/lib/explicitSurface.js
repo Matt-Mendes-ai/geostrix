@@ -377,8 +377,10 @@ export function fitExplicitSurface(points, { margin = null, resolution = 80, gro
   // how well each input is predicted by the others; (c) how much of the surface lies outside the inputs' hull
   // (extrapolated) and how far its furthest point is from any input.
   const quality = { overshootM: 0, overshootAt: null, beyondPct: 0, furthestM: 0, looRmsM: null, looMaxM: null, looWorst: null, looSkipped: U.length > LOO_MAX_POINTS };
+  let supportHull = null; // TASKS.csv #977 — the inputs' hull in the frame, for shading the extrapolated part (explicitSupport.js)
   {
     const hull = U.length >= 3 ? new Delaunay(Float64Array.from(uvw.flatMap((q) => [q[0], q[1]]))).hullPolygon() : null;
+    if (hull) supportHull = { origin: F.origin.slice(), e1: F.e1.slice(), e2: F.e2.slice(), uv: hull.flat() };
     const wmin = Math.min(...W), wmax = Math.max(...W);
     const nGrid = node2.length / 2 - U.length;
     let outside = 0;
@@ -435,5 +437,5 @@ export function fitExplicitSurface(points, { margin = null, resolution = 80, gro
     const flip = dot(nn, F.n) < 0;
     indices[3 * k] = a; indices[3 * k + 1] = flip ? c : b; indices[3 * k + 2] = flip ? b : c;
   });
-  return { positions, indices, n: used.length, frame: F, residualMax, warnings, groundCut, cell: Math.min(du, dv), margin: m, quality, trend: an ? { ratio: an.ratio, azimuthDeg: an.azimuthDeg } : null };
+  return { positions, indices, n: used.length, frame: F, residualMax, warnings, groundCut, cell: Math.min(du, dv), margin: m, quality, supportHull, trend: an ? { ratio: an.ratio, azimuthDeg: an.azimuthDeg } : null };
 }
