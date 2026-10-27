@@ -3853,9 +3853,7 @@ ${describeTrend(t)}` };
     stackUnits,
     structureRowsToOrientations,
     surfaceOrientationsNear,
-    surfaceStructures,
-    survey,
-    terrain,
+    survey, // TASKS.csv #991 — surfaceStructures and terrain were passed here but read by neither the hook nor the runs
     terrainForClipRef,
     tracesRef,
     veinCellSize,
