@@ -3,11 +3,11 @@
 // spatial-coherence check. The settings live in the view state (layerStyles.surface_anomaly), so they are saved with
 // the project and in themes. Maths in lib/anomalyMap.js; the legend and notes come from the same result.
 import React, { useState } from "react";
-import Papa from "papaparse";
 import { PATHFINDER_PRESETS, DEFAULT_ANOMALY } from "../lib/anomalyMap.js";
 import { saveFile } from "../lib/desktop.js";
 import { groupOptions } from "../lib/thresholds.js";
 import { t as tr } from "../lib/i18n.js";
+import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 
 export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSamples, surfaceElements, mapLayers, thresholds = [], result, drawn = [] }) {
   const cfg = { ...DEFAULT_ANOMALY, ...(cfg0 || {}) };
@@ -22,7 +22,7 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
   const exportCsv = () => {
     if (!result) return;
     const rows = drawn.map((s, i) => ({ sample_id: s.sample_id, x: s.x, y: s.y, medium: s.medium, class: result.classOf[i] >= 0 ? result.classes[result.classOf[i]].label : "no value", isolated: result.isolated[i] ? "yes" : "", gi_star_z: result.stat && Number.isFinite(result.stat[i]) ? result.stat[i].toFixed(2) : "" }));
-    saveFile({ suggestedName: `anomaly_classes.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: `# ${result.label}\n` + Papa.unparse(rows) });
+    saveFile({ suggestedName: `anomaly_classes.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: `# ${result.label}\n` + toExportCsv(rows) });
   };
   const savedFor = (sym) => thresholds.some((t) => t.symbol === sym);
   return (

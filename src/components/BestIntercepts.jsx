@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import { X, Download, Sheet } from "./icons.js";
-import Papa from "papaparse";
 import { computeBestIntercepts, makeRangeAverager, domainsForInterval, attachIncluding, metalEquivalent, metalEquivalentFormula, PRECIOUS_METALS } from "../lib/geochem.js"; // attachIncluding, metal equivalent: #402
 import { excludeQAQC } from "../lib/qaqc.js";
 import { desurveyHole } from "../lib/desurvey.js";
@@ -16,6 +15,7 @@ import { version as APP_VERSION } from "../../package.json";
 import { LAYER_META } from "../lib/layers.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 
 const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row-windowing pattern
 
@@ -197,7 +197,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
       extraSymbols.length ? `Also averaged over each intercept: ${extraSymbols.join(", ")}` : null,
       `Intercepts: ${results.length}`,
     ] });
-    saveFile({ suggestedName: `best_intercepts_${symbol}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(Papa.unparse(rows), stamp) });
+    saveFile({ suggestedName: `best_intercepts_${symbol}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(rows), stamp) });
   };
 
   return (

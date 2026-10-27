@@ -4,9 +4,8 @@
 // section view here, and block models (resistivity, chargeability) along the line in the 3D view.
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Upload, Play, Download, Trash2 } from "./icons.js";
-import Papa from "papaparse";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
-import { parseTableFile, decodeTableBytes } from "../lib/tabular.js";
+import { parseTableFile, decodeTableBytes, toExportCsv } from "../lib/tabular.js";
 import { guessDcipColumns, parseDcipRows, parseDcipWhitespaceText, lineGeometry, lineFromTwoPoints, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, pseudoPositions, dataFitRows, worstReadings, sectionCells, slimDcipResult, savedLineToFile, sectionTableRows, suggestModelDepth, deepestPseudoDepth, columnReach, smoothReachLine } from "../lib/dcip.js";
 import { renderDcipSectionPng, sig3 } from "../lib/dcipSectionImage.js"; // sig3: #322
 import { parseRes2dinv } from "../lib/res2dinv.js"; // TASKS.csv #826
@@ -569,5 +568,5 @@ function exportCsv(last, epsg, cutoff) {
     `envelope_support = the largest support at or below the cell in its column; shown = envelope_support >= the cutoff (${cutoff}): cells below the deepest well-seen cell of their column are hidden`,
     ...(r.cells.doi ? [`doi_index = Oldenburg & Li (1999) depth-of-investigation index from resistivity inversions with reference models ${(r.doiMethod?.referenceFactors || [0.1, 10]).join(" and ")}x the median: ~0 = data-controlled, ~1 = reference-controlled (threshold ${r.doiMethod?.threshold ?? 0.2}); single-cell values depend on how closely the two runs fit (${(r.doiMethod?.misfitOfEachRun || []).map((v) => `${v}x`).join(" / ")}) - read the depth per column, not one cell`] : []), // #772
   ] });
-  saveFile({ suggestedName: `dcip_${last.name}_section.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(Papa.unparse(sectionTableRows(r, last.geom, cutoff)), stamp) });
+  saveFile({ suggestedName: `dcip_${last.name}_section.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(sectionTableRows(r, last.geom, cutoff)), stamp) });
 }

@@ -13,7 +13,6 @@
 // onto the same picker.
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #528
 import React, { useMemo, useState } from "react";
-import Papa from "papaparse";
 import { Globe2, Layers, FileSpreadsheet, Loader2, CheckCircle2 } from "../components/icons.js";
 import { useStore } from "../lib/store.jsx";
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components/Ribbon.jsx";
@@ -22,7 +21,7 @@ import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import { crsName, isMetricProjectedEpsg, pointTransform, getProj4DefSync } from "../lib/reproject.js";
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js";
-import { parseTableFile } from "../lib/tabular.js";
+import { parseTableFile, toExportCsv } from "../lib/tabular.js";
 import { guessGeophysColumns } from "../lib/geophysColumns.js";
 import { saveFile } from "../lib/desktop.js";
 import SourceCrsField from "../components/SourceCrsField.jsx";
@@ -166,7 +165,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
       return { ...r, [xName]: +nx.toFixed(geo ? 8 : 3), [yName]: +ny.toFixed(geo ? 8 : 3) };
     });
     const base = file.name.replace(/\.[^.]+$/, "");
-    const res = await saveFile({ quiet: true, suggestedName: `${base}_EPSG${fileTo}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows, { columns: [...file.headers, xName, yName] }) });
+    const res = await saveFile({ quiet: true, suggestedName: `${base}_EPSG${fileTo}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows, { columns: [...file.headers, xName, yName] }) });
     if (!res?.ok) { if (res?.error) throw new Error(res.error); setMsg(null); return; } // cancelled in the dialog
     setMsg({ ok: true, text: tr("Saved {rows} rows with two new columns, {xName} and {yName} ({v}); the original columns are kept.{v2}", { rows: rows.length.toLocaleString(), xName, yName, v: nameOf(fileTo), v2: bad ? tr(" {bad} row(s) had no usable X/Y and were left blank.", { bad }) : "" }) });
   });

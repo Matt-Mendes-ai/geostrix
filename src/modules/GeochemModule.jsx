@@ -7,7 +7,6 @@ import { reprojectXY, crsName } from "../lib/reproject.js"; // TASKS.csv #600 �
 import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "../components/icons.js";
-import Papa from "papaparse";
 import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck, X, AlertTriangle, Globe, Database } from "../components/icons.js";
 import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #729
 import { addCalculatedElement, CALC_PRESETS } from "../lib/calcElement.js"; // TASKS.csv #401
@@ -56,6 +55,7 @@ import EmptyState, { emptyStateSecondaryBtn } from "../components/EmptyState.jsx
 const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 
 export default function GeochemModule() {
   const store = useStore();
@@ -739,11 +739,11 @@ export default function GeochemModule() {
         return { hole_id: a.hole_id, from: a.from, to: a.to, x: p?.x ?? "", y: p?.y ?? "" };
       });
     }
-    const csv = Papa.unparse(rows);
+    const csv = toExportCsv(rows);
     saveFile({ suggestedName: `${diagramId}_projected.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: csv });
   };
   const exportAssaysCSV = () => {
-    const csv = Papa.unparse(assayExportRows(assays, assayElements)); // TASKS.csv #1016 — units, < / > qualifiers and QC columns kept
+    const csv = toExportCsv(assayExportRows(assays, assayElements)); // TASKS.csv #1016 — units, < / > qualifiers and QC columns kept
     saveFile({ suggestedName: "assays.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: csv });
   };
 

@@ -5,7 +5,6 @@
 // Maths in lib/surfaceQaqc.js; certified values are shared with the drillhole QA/QC (store.crmCertificates).
 import React, { useMemo, useRef, useState } from "react";
 import { X, Download } from "./icons.js";
-import Papa from "papaparse";
 import { useStore } from "../lib/store.jsx";
 import { parseLabCertificate, isLabCertificateText } from "../lib/labCertificate.js";
 import { emptySurfaceQc, qcSettings, qcFromCertificates, batchSummary, standardsByCode, blankResults, duplicatePairsSurface, duplicateStats, detectionLimitOf, censoredShares, methodsByElement } from "../lib/surfaceQaqc.js";
@@ -16,6 +15,7 @@ import { overlay, backdropProps, sel, th, td, panel, header, rowBtn as btn } fro
 import { activateOnKey } from "../lib/a11y.js";
 import { fontSizes } from "../lib/theme.js";
 import { t as tr } from "../lib/i18n.js";
+import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 
 const TABS = [["batches", "Batches"], ["standards", "Standards"], ["blanks", "Blanks"], ["duplicates", "Duplicates"], ["limits", "Detection & methods"]];
 const fmt = (v) => (v == null || !Number.isFinite(v) ? "—" : Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : Math.abs(v) >= 10 ? v.toFixed(1) : v.toPrecision(3));
@@ -86,7 +86,7 @@ export default function SurfaceQaqcPanel({ onClose }) {
       ...blanks.filter((b) => b.fails).map((b) => ({ section: `blank ${symbol} (${unit})`, batch: b.batch, sample_id: b.sample_id, value: b.value, limit: blankLimit, result: "over limit" })),
       ...pairs.filter((p) => p.fails).map((p) => ({ section: `duplicate ${symbol} (${unit})`, batch: p.batch, sample_id: p.sample_id, parent: p.parent_id, original: p.v1, duplicate: p.v2, rpd_pct: p.rpd.toFixed(1), limit_pct: p.limit, type: p.type, result: "over RPD limit" })),
     ];
-    saveFile({ suggestedName: `surface_qaqc_${symbol}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rows) });
+    saveFile({ suggestedName: `surface_qaqc_${symbol}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows) });
   };
 
   const counts = { standard: 0, blank: 0, duplicate: 0 };

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { X, Milestone, CheckSquare, Square, Download, Circle, Layers, Plus, Trash2 } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
-import { toCsv } from "../lib/tabular.js"; // TASKS.csv #444
+import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #444
 import { saveFile } from "../lib/desktop.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
@@ -56,7 +56,7 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
   // every column after it. Now quoted properly (toCsv) and saved through the normal Save dialog.
   const exportCsv = () => {
     const rows = intercepts.map((i) => ({ layer: i.layerLabel, hole_id: i.hole_id, unit: i.unit, from_m: i.from, x: i.x.toFixed(2), y: i.y.toFixed(2), z: i.z.toFixed(2), excluded: excludedSet.has(i.id) ? "yes" : "no", soft: softSet.has(i.id) ? "yes" : "no" }));
-    saveFile({ suggestedName: "boundary_intercepts.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toCsv(rows) });
+    saveFile({ suggestedName: "boundary_intercepts.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows) });
   };
 
   return (

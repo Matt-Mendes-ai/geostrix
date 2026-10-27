@@ -4,7 +4,7 @@ import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; // TASKS.csv #410
 import { guessBlockModelMapping, numericColumns, blockModelCellsFromRows, coarsenBlockCells } from "../lib/blockModelCsv.js";
-import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
+import { parseTableFile, toExportCsv } from "../lib/tabular.js"; // TASKS.csv #444
 import { guessGeophysColumns, rowsToGeophysPoints } from "../lib/geophysColumns.js"; // TASKS.csv #484
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import Papa from "papaparse";
@@ -1763,7 +1763,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
 // movement.
 // TASKS.csv #411 — see blockModelExport.js
 function exportBlockModelCSV(model, epsg, names = "datamine") {
-  const csv = Papa.unparse(blockModelRows(model, names)); // names: #979
+  const csv = toExportCsv(blockModelRows(model, names)); // names: #979
   const stamp = stampLines({ tool: "Block model export", version: APP_VERSION, epsg, params: blockModelParamLines(model) }); // #529 — version + CRS
   saveFile({ suggestedName: `${String(model.name || "block_model").replace(/[^\w\- ]/g, "").slice(0, 80)}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(csv, stamp), encoding: "text" });
 }

@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
-import Papa from "papaparse";
 import { valueIn } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -19,6 +18,7 @@ const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "structzone", "geo
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
@@ -186,7 +186,7 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
       min: g.stats.min.toFixed(4), max: g.stats.max.toFixed(4), q1: g.stats.q1.toFixed(4), q3: g.stats.q3.toFixed(4),
     }));
     rowsOut.forEach((r) => { r.basis = weightingActive ? "length-weighted (assay interval length)" : "unweighted arithmetic"; });
-    saveFile({ suggestedName: `${symbol}_grade_statistics.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rowsOut) });
+    saveFile({ suggestedName: `${symbol}_grade_statistics.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rowsOut) });
   };
 
   return (

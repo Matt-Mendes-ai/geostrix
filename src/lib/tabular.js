@@ -204,3 +204,17 @@ export async function parseTableFile(file, opts) {
 
 // Rows (objects, or { fields, data }) -> CSV text with correct quoting (commas, quotes, newlines).
 export const toCsv = (rows, opts) => Papa.unparse(rows, opts);
+
+// TASKS.csv #1022 / #1016 (review: exploration geologist, security) — every CSV a user EXPORTS goes through this:
+// (1) the header is the union of all rows' keys, in first-seen order. Papa.unparse takes it from the first row only, so
+//     a report mixing row kinds (Surface QA/QC: batch rows, then the failed standards / blanks / duplicates) lost every
+//     column the first row lacked.
+// (2) a text cell that Excel would run as a formula (=, @, a tab / CR, or + / - not followed by a digit) is written with
+//     a leading apostrophe; numbers and negative numbers are untouched (CSV / formula injection).
+export const FORMULA_LEAD = /^[=@\t\r]|^[+-](?![\d.])/;
+export function toExportCsv(rows, opts = {}) {
+  if (!Array.isArray(rows)) return Papa.unparse(rows, { escapeFormulae: FORMULA_LEAD, ...opts });
+  const fields = [], seen = new Set();
+  for (const r of rows) for (const k of Object.keys(r || {})) if (!seen.has(k)) { seen.add(k); fields.push(k); }
+  return Papa.unparse({ fields, data: rows.map((r) => fields.map((k) => r?.[k] ?? "")) }, { escapeFormulae: FORMULA_LEAD, ...opts });
+}

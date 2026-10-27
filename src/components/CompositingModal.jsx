@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
-import Papa from "papaparse";
 import { compositeDownhole, countDuplicateAssayIntervals, capAudit, capAuditText } from "../lib/geochem.js";
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import { excludeQAQC } from "../lib/qaqc.js";
@@ -16,6 +15,7 @@ import { saveFile } from "../lib/desktop.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 
 const RESULT_ROW_H = 26; // TASKS.csv #222 — composited-interval count can genuinely reach the thousands (e.g. a 300m hole at 2m composites), unlike a toy dataset
 
@@ -102,7 +102,7 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
       ASSAY_READING_RULES,
       `Composites: ${results.length}`,
     ] });
-    saveFile({ suggestedName: `composites_${symbol}_${length}m.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(Papa.unparse(rows), stamp) });
+    saveFile({ suggestedName: `composites_${symbol}_${length}m.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(rows), stamp) });
   };
 
   return (

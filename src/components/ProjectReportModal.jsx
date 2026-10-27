@@ -9,7 +9,6 @@
 // real Excel sheets, but zero new dependencies and consistent with every other export in this app.
 import React, { useMemo } from "react";
 import { X, Download, FileBarChart2 } from "./icons.js";
-import Papa from "papaparse";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -20,6 +19,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #405
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 
 // TASKS.csv #405 — `weighted` (drillhole assays): the mean is length-weighted (interval to - from), the
 // same basis as Grade Statistics (#267); an unweighted mean over 0.3 m and 3 m intervals is biased toward
@@ -114,7 +114,7 @@ export default function ProjectReportModal({ store, onClose }) {
       report.surfaceStats.forEach((s) => rows.push([s.symbol, s.unit, s.n, s.mean, s.min, s.max]));
     }
 
-    const csv = Papa.unparse(rows);
+    const csv = toExportCsv(rows);
     saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_report.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: csv });
   };
 

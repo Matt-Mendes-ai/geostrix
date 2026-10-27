@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { X, Play, Download, Database } from "./icons.js";
-import Papa from "papaparse";
 import { saveFile } from "../lib/desktop.js";
 import { buildWorkspaceDatabase, runQuery } from "../lib/sqlWorkspace.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -8,6 +7,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 
 // TASKS.csv #50 — ad hoc SQL against whatever's currently loaded (collars/survey/assays/layers/
 // boundaries), no Postgres connection needed. sqlWorkspace.js builds the in-memory database and runs
@@ -60,7 +60,7 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
   const exportCSV = () => {
     if (!result || !result.rows.length) return;
     const rowsOut = result.rows.map((row) => Object.fromEntries(result.columns.map((c, i) => [c, row[i]])));
-    saveFile({ suggestedName: "sql_query_result.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(rowsOut) });
+    saveFile({ suggestedName: "sql_query_result.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rowsOut) });
   };
 
   const emptyLoaded = useMemo(() => !collars.length && !assays.length && !Object.values(layers || {}).some((r) => r?.length), [collars, survey, layers, assays]);

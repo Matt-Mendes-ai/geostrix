@@ -3,7 +3,6 @@
 // printable field sheet). Maths in lib/surveyPlan.js; stream routing shared with the Catchments panel (#845).
 import React, { useEffect, useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
-import Papa from "papaparse";
 import { useStore } from "../lib/store.jsx";
 import { soilGrid, streamSites, numberSamples, planGpx, planKml, planCsvRows, planFieldSheet } from "../lib/surveyPlan.js";
 import { routeTerrainAsync } from "../lib/hydrologyClient.js";
@@ -15,6 +14,7 @@ import { saveFile } from "../lib/desktop.js";
 import { overlay, backdropProps, sel, panel, header, rowBtn as btn } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
+import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 
 const DEFAULT_QC = [{ kind: "standard", every: 20, label: "standard", on: true }, { kind: "blank", every: 30, label: "blank", on: true }, { kind: "duplicate", every: 20, label: "field duplicate", on: true }];
 const LS = "geostrix.surveyPlanner";
@@ -154,7 +154,7 @@ export default function SurveyPlannerPanel({ onClose }) {
                 <button type="button" style={btn(true)} onClick={draw} disabled={!plan.sites.length}>{tr("Show on the map")}</button>
                 <button type="button" style={dl} onClick={() => save("gpx", (ll) => planGpx(rows, plan.sites, ll, title), "GPX")} disabled={!rows.length}><Download size={14} />GPX</button>
                 <button type="button" style={dl} onClick={() => save("kml", (ll) => planKml(rows, plan.sites, ll, title), "KML")} disabled={!rows.length}><Download size={14} />KML</button>
-                <button type="button" style={dl} onClick={() => save("csv", (ll) => Papa.unparse(planCsvRows(rows, plan.sites, ll)), "CSV")} disabled={!rows.length}><Download size={14} />CSV</button>
+                <button type="button" style={dl} onClick={() => save("csv", (ll) => toExportCsv(planCsvRows(rows, plan.sites, ll)), "CSV")} disabled={!rows.length}><Download size={14} />CSV</button>
                 <button type="button" style={dl} onClick={() => save("html", (_ll, epsg) => planFieldSheet(rows, plan.sites, { title, crs: `${crsName(epsg) || ""} (EPSG:${epsg})` }), "HTML")} disabled={!rows.length}><Download size={14} />{tr("Field sheet (print)")}</button>
               </div>
               {msg && <div style={note}>{msg}</div>}

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { X, Download, Info } from "./icons.js";
-import { toCsv } from "../lib/tabular.js"; // TASKS.csv #444
+import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #444
 import { saveFile } from "../lib/desktop.js";
 import { voronoiTessellation, paddedBounds, declusteredStats } from "../lib/geoprocessing.js";
 import { minMax } from "../lib/layers.js";
@@ -63,7 +63,7 @@ export default function SpatialAnalysis({ points, onClose }) {
       voronoi_area: c.area.toFixed(3), decluster_weight: c.weight.toFixed(6),
     }));
     // TASKS.csv #444 — through the normal Save dialog (was a blob download that bypassed it).
-    saveFile({ suggestedName: "voronoi_decluster.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toCsv(rows) });
+    saveFile({ suggestedName: "voronoi_decluster.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows) });
   };
 
   return (

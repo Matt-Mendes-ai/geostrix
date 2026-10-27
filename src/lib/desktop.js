@@ -28,6 +28,9 @@ export async function exportPDFData(opts = {}) {
 export const EXPORT_RESULT_EVENT = "geostrix-export-result";
 const announce = (detail) => { try { if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(EXPORT_RESULT_EVENT, { detail })); } catch { /* no window */ } };
 export async function saveFile({ suggestedName, filters, content, encoding, quiet = false }) {
+  // TASKS.csv #1097 — a UTF-8 byte-order mark on every exported CSV, so Excel on Windows reads accents, "°", "±" and "²"
+  // as written instead of "Â°" (GeoStrix's own importer strips it, as do GDAL / QGIS)
+  if (/\.csv$/i.test(suggestedName || "") && encoding !== "base64" && typeof content === "string" && !content.startsWith("﻿")) content = "﻿" + content;
   if (d) {
     let res;
     try { res = await d.saveFile({ suggestedName, filters, content, encoding }); } catch (err) { res = { ok: false, error: String(err?.message || err).replace(/^Error invoking remote method '[^']+': (?:Error: )?/, "") }; }

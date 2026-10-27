@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
-import Papa from "papaparse";
 import { valueIn } from "../lib/geochem.js";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -10,6 +9,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #405
 import { correlate } from "../lib/correlation.js"; // TASKS.csv #405
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 
 // TASKS.csv #21 — multi-element correlation matrix. Pearson r between every pair of selected
 // elements, pairwise deletion for missing data (a row missing one of the pair just doesn't count
@@ -81,7 +81,7 @@ export default function CorrelationMatrix({ assays: allAssays, assayElements, on
     const nRows = symbols.map((a) => { const row = { element: `n: ${a}` }; symbols.forEach((b) => { row[b] = matrix[a][b].n; }); return row; });
     // TASKS.csv #405 — the file says what it is: method, QAQC handling, pairwise n.
     const basis = `# ${METHOD_LABEL[method]}; pairwise deletion; QAQC inserts ${includeQAQC ? "INCLUDED" : `excluded (${qaqcCount} rows)`}; ${assays.length} intervals, not length-weighted.`;
-    saveFile({ suggestedName: "correlation_matrix.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: `${basis}\n${Papa.unparse(rows)}\n\n${Papa.unparse(nRows)}` });
+    saveFile({ suggestedName: "correlation_matrix.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: `${basis}\n${toExportCsv(rows)}\n\n${toExportCsv(nRows)}` });
   };
 
   return (

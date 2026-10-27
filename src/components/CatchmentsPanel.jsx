@@ -3,7 +3,6 @@
 // terrain is routed once per terrain in a worker (lib/hydrologyClient.js); everything else recomputes instantly.
 import React, { useEffect, useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
-import Papa from "papaparse";
 import { useStore } from "../lib/store.jsx";
 import { routeTerrainAsync } from "../lib/hydrologyClient.js";
 import { analyseCatchments, catchmentImage, streamNetwork, followUpGpx, STREAM_MEDIA, DEFAULT_CATCHMENT_OPTS } from "../lib/catchments.js";
@@ -18,6 +17,7 @@ import { saveFile } from "../lib/desktop.js";
 import { overlay, backdropProps, sel, th, td, panel, header, rowBtn as btn } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
+import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 
 const fmt = (v, d = 2) => (v == null || !Number.isFinite(v) ? "—" : Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : Math.abs(v) >= 1 || v === 0 ? v.toFixed(d) : v.toPrecision(Math.max(2, d))); // small values (Cu in %) keep their digits
 
@@ -99,7 +99,7 @@ export default function CatchmentsPanel({ onClose }) {
     saveGeoTIFF(`catchments_${opts.symbol}.tif`, gridToGeoTIFF({ ...g, bands: [{ values: cls }, { values: rank }, { values: prod }], epsg }));
     setMsg(tr("GeoTIFF: band 1 = class (1 background, 2 above background, 3 anomalous), band 2 = site rank, band 3 = productivity; no data −9999; {epsg}.", { epsg: `EPSG:${epsg}` }));
   };
-  const exportCsv = () => saveFile({ suggestedName: `catchments_${opts.symbol}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: Papa.unparse(a.results.map((r) => ({
+  const exportCsv = () => saveFile({ suggestedName: `catchments_${opts.symbol}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(a.results.map((r) => ({
     rank: r.rank ?? "", sample_id: r.sample_id, x: r.x, y: r.y, [`${opts.symbol}_${unit}`]: r.value ?? "", catchment_km2: r.placed ? r.areaKm2.toFixed(4) : "", own_km2: r.placed ? r.ownKm2.toFixed(4) : "",
     strahler: r.order ?? "", snapped_m: r.placed ? r.moved.toFixed(0) : "", productivity: r.productivity == null ? "" : r.productivity.toFixed(3), anomalous: r.anomalous ? "yes" : "no",
     follow_up_reach_m: r.reachM ? r.reachM.toFixed(0) : "", lithology: r.lith ? r.lith.slice(0, 3).map((l) => `${l.unit} ${l.pct.toFixed(0)}%`).join("; ") : "",

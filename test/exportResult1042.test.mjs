@@ -33,3 +33,13 @@ test("#1042 quiet: true announces nothing; quiet: 'success' still announces a fa
   next = { ok: false, error: "locked" }; await saveFile({ suggestedName: "s2", quiet: "success" });
   assert.deepEqual(events.map((e) => e.name), ["s2"]);
 });
+
+test("#1097 an exported CSV starts with a UTF-8 BOM (once); other files and binary content do not", async () => {
+  const sent = [];
+  globalThis.window.desktop.saveFile = async (o) => { sent.push(o.content); return { ok: true, filePath: o.suggestedName }; };
+  await saveFile({ suggestedName: "a.csv", content: "x,y" });
+  await saveFile({ suggestedName: "b.CSV", content: "﻿x,y" });
+  await saveFile({ suggestedName: "c.kml", content: "<kml/>" });
+  await saveFile({ suggestedName: "d.csv", content: "QUJD", encoding: "base64" });
+  assert.deepEqual(sent, ["﻿x,y", "﻿x,y", "<kml/>", "QUJD"]);
+});

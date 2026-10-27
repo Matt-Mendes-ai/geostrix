@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
-import Papa from "papaparse";
 import { saveFile } from "../lib/desktop.js";
 import { classifyQAQCRow, excludedQAQCIds, standardGroups, standardSeries, blankRows, duplicatePairs, duplicateSummary, DUP_RPD_LIMITS, DUP_KIND_LABELS, suggestDetectionLimit, orderForControlChart, DEFAULT_QAQC_PATTERNS } from "../lib/qaqc.js";
 import { stampLines, withStamp } from "../lib/provenance.js"; // TASKS.csv #534 — stamped exports
@@ -18,6 +17,7 @@ const TABS = ["standards", "blanks", "duplicates"];
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 
 export default function QAQCPanel({ assays, assayElements, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
@@ -82,7 +82,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
       tab === "duplicates" ? `RPD limits by duplicate type: field ${DUP_RPD_LIMITS.field}%, coarse reject ${DUP_RPD_LIMITS.coarse}%, pulp ${DUP_RPD_LIMITS.pulp}%, type not stated ${DUP_RPD_LIMITS.unknown}% | pairs with a mean below ${pairFloor} ${unit} not counted` : "",
       `QC recognized from a sample-type column when present, else hole_id patterns: ${Object.entries(DEFAULT_QAQC_PATTERNS || {}).map(([k, v]) => `${k} ${Array.isArray(v) ? v.join("/") : v}`).join("; ")}`,
     ] });
-    saveFile({ suggestedName: name, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(Papa.unparse(rows), stamp) });
+    saveFile({ suggestedName: name, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(rows), stamp) });
   };
 
   return (
