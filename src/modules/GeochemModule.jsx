@@ -1018,7 +1018,7 @@ export default function GeochemModule() {
       )}
 
       {dbOpen && ( // TASKS.csv #917
-        <React.Suspense fallback={null}><DatabaseConnectModal wholeTables onCancel={() => setDbOpen(false)} onResults={({ headers, rows, sourceName }) => { setDbOpen(false); if (rows.length) openTable({ name: sourceName }, headers, rows, false); }} /></React.Suspense>
+        <React.Suspense fallback={null}><DatabaseConnectModal initialSql="SELECT * FROM assays LIMIT 500;" onCancel={() => setDbOpen(false)} onResults={({ headers, rows, sourceName }) => { setDbOpen(false); if (rows.length) openTable({ name: sourceName }, headers, rows, false); }} /></React.Suspense>
       )}
       {publicOpen && ( // TASKS.csv #846
         <React.Suspense fallback={null}><PublicGeochemModal onLoaded={openPublicImport} onClose={() => setPublicOpen(false)} /></React.Suspense>

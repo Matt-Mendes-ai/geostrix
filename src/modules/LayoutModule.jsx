@@ -43,6 +43,9 @@ const SCALE_PRESETS = [500, 1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000, 
 // viewport bar and this page's bar now round and derive metres-per-pixel through the SAME module, so
 // the two can never quietly disagree about what a metre is.
 
+// TASKS.csv #923 — the seq of the last print request carried out; module scope, so it outlives a remount
+let handledPrintSeq = null;
+
 export default function LayoutModule() {
   const {
     pendingLayoutImages, consumeLayoutImage,
@@ -110,7 +113,13 @@ export default function LayoutModule() {
   const [exportNote, setExportNote] = useState(null); // { text, error } shown in the page bar (notices are per module, not in the store)
   const printRootRef = useRef(null);
   useEffect(() => { if (!exportNote) return undefined; const t = setTimeout(() => setExportNote(null), 12000); return () => clearTimeout(t); }, [exportNote]);
-  useEffect(() => { if (layoutPrintRequest) setPrinting(layoutPrintRequest); }, [layoutPrintRequest]);
+  // TASKS.csv #923 — one export per request: the store keeps the last request, and this module remounts on every visit
+  // to the Layout tab, so "if (layoutPrintRequest)" re-ran the last PDF / PNG export (save dialog and all) each time
+  useEffect(() => {
+    if (!layoutPrintRequest || layoutPrintRequest.seq === handledPrintSeq) return;
+    handledPrintSeq = layoutPrintRequest.seq;
+    setPrinting(layoutPrintRequest);
+  }, [layoutPrintRequest]);
   useEffect(() => {
     if (!printing) return;
     let cancelled = false;

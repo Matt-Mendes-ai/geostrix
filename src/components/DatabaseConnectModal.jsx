@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { useTablePull, ROW_WARN_THRESHOLD } from "../lib/useTablePull.js"; // TASKS.csv #921 / #925
+import TablePullConfirm from "./TablePullConfirm.jsx";
 import { X, Database, Play, Loader2, Save, Trash2 } from "./icons.js";
 import { dbLiveQuery, dbLiveListTables, dbPasswordStatus, dbForgetPassword } from "../lib/desktop.js";
 import { useStore } from "../lib/store.jsx";
@@ -10,9 +12,11 @@ import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
-// TASKS.csv #917 — `wholeTables`: clicking a table selects all of it (Geochem's assay import; a LIMIT 500 there would
-// silently drop most of a drill program's samples)
-export default function DatabaseConnectModal({ onCancel, onResults, wholeTables = false }) {
+// TASKS.csv #925 / #921 — clicking a table imports ALL of it through the Browser panel's guard rails (count first,
+// confirm when large, chunked cursor reads: lib/useTablePull.js). It used to write `SELECT * ... LIMIT 500` into the
+// query box, and since #917 hands assay tables to Geochem, those 500 rows reached the assay dialog unannounced (review
+// #918); Geochem's variant dropped the LIMIT and pulled everything in one query. `initialSql`: the query box's start.
+export default function DatabaseConnectModal({ onCancel, onResults, initialSql = "SELECT * FROM lithology LIMIT 500;" }) {
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const { dbConnections, setDbConnections, liveDbConnections, connectDb } = useStore();
@@ -24,7 +28,7 @@ export default function DatabaseConnectModal({ onCancel, onResults, wholeTables 
   const [config, setConfig] = useState({ name: "", engine: "postgres", host: "localhost", port: 5432, database: "", user: "", password: "", ssl: false });
   const [status, setStatus] = useState(null); // {ok, error, info}
   const [testing, setTesting] = useState(false);
-  const [sql, setSql] = useState(wholeTables ? "SELECT * FROM assays;" : "SELECT * FROM lithology LIMIT 500;");
+  const [sql, setSql] = useState(initialSql);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null); // {rows, fields}
   const [tables, setTables] = useState(null);
@@ -40,6 +44,8 @@ export default function DatabaseConnectModal({ onCancel, onResults, wholeTables 
   const liveEntry = config.name ? liveDbConnections[config.name] : null;
 
   const set = (k, v) => setConfig((p) => ({ ...p, [k]: v }));
+  const [pullError, setPullError] = useState(null);
+  const { pending, setPending, busyTable, pickTable, fetchTable } = useTablePull({ liveId: liveEntry?.id, profile: config, onRows: onResults, setError: setPullError });
   // TASKS.csv #621 — is a password remembered (OS-encrypted, this computer only) for exactly this login?
   const [pw, setPw] = useState({ saved: false, available: false });
   const loginKey = `${config.engine}|${config.host}|${config.port}|${config.database}|${config.user}`;
@@ -87,7 +93,7 @@ export default function DatabaseConnectModal({ onCancel, onResults, wholeTables 
 
   const useResults = () => {
     if (!result || !result.rows.length) return;
-    onResults({ headers: result.fields, rows: result.rows, sourceName: `db:${config.database}` });
+    onResults({ headers: result.fields, rows: result.rows, sourceName: `db:${config.database} (query)` }); // #953 — not a table's name
   };
 
   return (
@@ -182,16 +188,23 @@ export default function DatabaseConnectModal({ onCancel, onResults, wholeTables 
           {tables && (
             <div style={{ marginTop: 12 }}>
               <div style={label}>{tr("Tables & views ({tables})", { tables: tables.length })}</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.45 }}>{tr("Click a table to import all of it: its row count is checked first, and a table over {n} rows asks before loading. The query box below is for your own SQL.", { n: ROW_WARN_THRESHOLD.toLocaleString() })}</div>
+              {pullError && <div style={{ color: "var(--color-danger-text)", fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{pullError}</div>}
+              <TablePullConfirm pending={pending} onFirst={() => fetchTable(pending.t, pending.total, ROW_WARN_THRESHOLD)} onAll={() => fetchTable(pending.t, pending.total, null)} onCancel={() => setPending(null)} />
               {/* TASKS.csv #177 — a DBeaver-managed company database is exactly the case where the
                   useful thing to pull from is a pre-built VIEW (pre-joined/pre-cleaned), not a raw
                   base table, so views are marked distinctly rather than looking identical to tables. */}
               <div style={{ maxHeight: 100, overflowY: "auto", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)", borderRadius: 6, padding: 8 }}>
-                {tables.map((t, i) => (
-                  <div role="button" tabIndex={0} onKeyDown={activateOnKey} key={i} onClick={() => setSql(`SELECT * FROM ${t.table_schema}.${t.table_name}${wholeTables ? "" : " LIMIT 500"};`)} style={{ cursor: "pointer", padding: "2px 0", display: "flex", alignItems: "center", gap: 6 }}>
-                    {t.table_type === "VIEW" && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-accent)", border: "1px solid var(--color-accent)", borderRadius: 3, padding: "0 4px", flexShrink: 0 }}>{tr("VIEW")}</span>}
-                    <span>{t.table_schema}.{t.table_name}</span>
-                  </div>
-                ))}
+                {tables.map((t, i) => {
+                  const key = `${t.table_schema}.${t.table_name}`;
+                  return (
+                    <div role="button" tabIndex={0} onKeyDown={activateOnKey} key={i} onClick={() => { if (!busyTable) pickTable(t); }} title={tr("Import {key} (checks its row count first)", { key })} style={{ cursor: busyTable ? "default" : "pointer", padding: "2px 0", display: "flex", alignItems: "center", gap: 6, opacity: busyTable && busyTable !== key ? 0.5 : 1 }}>
+                      {busyTable === key && <Loader2 size={12} className="spin" style={{ flexShrink: 0 }} />}
+                      {t.table_type === "VIEW" && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-accent)", border: "1px solid var(--color-accent)", borderRadius: 3, padding: "0 4px", flexShrink: 0 }}>{tr("VIEW")}</span>}
+                      <span>{key}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

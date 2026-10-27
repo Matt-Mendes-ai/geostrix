@@ -1,9 +1,9 @@
-import React, { useCallback, useRef, useState, useEffect } from "react";
-import { selectSql, countSql, chunkedReadPlan } from "../lib/dbSql.js"; // TASKS.csv #349
-const IMPORT_STEP = { importStep: true }; // TASKS.csv #665 — the import's own transaction steps (the SQL box never sends this)
-import { ChevronRight, ChevronDown, Folder, FolderOpen, File, HardDrive, Star, Database, Loader2, Unplug, RefreshCw, AlertTriangle } from "./icons.js";
-import { fsListDir, fsListDrives, fsReadFile, readResultToFile, dbLiveListTables, dbLiveQuery, dbPasswordStatus } from "../lib/desktop.js";
-import { useStore, useSetTaskProgress } from "../lib/store.jsx";
+import React, { useCallback, useState, useEffect } from "react";
+import { useTablePull, ROW_WARN_THRESHOLD } from "../lib/useTablePull.js"; // TASKS.csv #921
+import TablePullConfirm from "./TablePullConfirm.jsx";
+import { ChevronRight, ChevronDown, Folder, FolderOpen, File, HardDrive, Star, Database, Loader2, Unplug, RefreshCw } from "./icons.js";
+import { fsListDir, fsListDrives, fsReadFile, readResultToFile, dbLiveListTables, dbPasswordStatus } from "../lib/desktop.js";
+import { useStore } from "../lib/store.jsx";
 import { useBrowserPanelPrefs } from "../lib/useBrowserPanelPrefs.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
@@ -21,24 +21,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // `onImportFile` prop), which dispatches to the handler each format already had.
 export const IMPORTABLE_EXT = [".csv", ".zip", ".shp", ".gpkg", ".tif", ".tiff", ".gxf", ".dxf", ".las", ".xlsx", ".kml", ".kmz"]; // .las: TASKS.csv #492; .xlsx / .kml / .kmz: #717
 
-// TASKS.csv #282 — bounds for the Postgres table import below. Found independently by BOTH the
-// security and Micromine specialist reviews: #255 correctly removed the old hard `LIMIT 500` (a real
-// drillhole program's litho/assay table is legitimately tens of thousands of rows and was being
-// silently truncated), but replaced it with nothing at all — an unqualified `SELECT *` fired straight
-// into renderer memory the instant a table row was clicked, with no row count shown first, no
-// confirmation, and no way to cancel. A live company Postgres holding a multi-property archive
-// routinely has single tables in the hundreds of thousands to millions of rows.
-//
-// Re-capping would just resurrect the original complaint, so this is warn-first instead:
-//   1. `SELECT COUNT(*)` runs first (cheap, and the standard thing every DB tool does) so the user
-//      sees the size BEFORE committing to the pull;
-//   2. above ROW_WARN_THRESHOLD an explicit confirm appears with the real number and a "first N rows"
-//      escape hatch — nothing is fetched until the user picks one;
-//   3. anything over CHUNK_ROWS is fetched through a server-side CURSOR in chunks (NOT LIMIT/OFFSET,
-//      which re-scans from the top on every page and can duplicate/skip rows if the table changes
-//      underneath us), driving the status bar's existing taskProgress bar with a working Cancel.
-const ROW_WARN_THRESHOLD = 50000;
-const CHUNK_ROWS = 20000;
+// TASKS.csv #282 — the table import's bounds and guard rails live in lib/useTablePull.js (#921).
 
 // Identifiers are quoted rather than interpolated bare: a table/schema whose name is mixed case, contains
 // a space, or collides with a reserved word broke the old bare-interpolated SQL, and quoting also means a
@@ -177,13 +160,6 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
   const [error, setError] = useState(null);
   const [tables, setTables] = useState(null);
   const [tablesLoading, setTablesLoading] = useState(false);
-  // TASKS.csv #282 — `pending` holds a counted-but-not-yet-fetched table awaiting the user's answer;
-  // `busyTable` is the "counting…/fetching…" spinner on the clicked row; cancelRef is read between
-  // cursor chunks (a ref, not state, so the running loop sees the change immediately).
-  const [pending, setPending] = useState(null);
-  const [busyTable, setBusyTable] = useState(null);
-  const cancelRef = useRef(false);
-  const setTaskProgress = useSetTaskProgress();
 
   const loadTables = useCallback(async (id) => {
     setTablesLoading(true);
@@ -208,91 +184,9 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
     loadTables(res.id);
   }, [connectDb, profile, password, loadTables]);
 
-  // User report: "there is a limit of 500 rows when I'm importing a layer" — the old LIMIT 500 was a
-  // leftover from the table-picker's original preview-only purpose; importing a layer as a genuine
-  // data source should pull the whole table, not silently truncate a real dataset (a full drillhole
-  // program's litho/assay table is routinely tens of thousands of rows). TASKS.csv #282 puts the
-  // guardrails back WITHOUT re-capping — see the constants at the top of this file.
-
-  // Actually pulls the rows. `limit` = null means "everything". Chunks through a server-side cursor
-  // once the pull is bigger than one chunk, so a genuinely huge table degrades into a progress bar
-  // instead of a frozen window, and stays cancellable the whole way.
-  const fetchTable = useCallback(async (t, total, limit) => {
-    const engine = profile.engine || "postgres"; // #349 — old saved profiles have no engine: Postgres
-    const label = `Importing ${t.table_schema}.${t.table_name}`;
-    const target = limit == null ? total : Math.min(limit, total);
-    setPending(null);
-    setError(null);
-    setBusyTable(`${t.table_schema}.${t.table_name}`);
-    cancelRef.current = false;
-
-    const finish = (rows, fields, truncated) => {
-      setBusyTable(null);
-      setTaskProgress?.(null);
-      if (!rows.length) { setError(tr("That table returned no rows.")); return; }
-      let sourceName = `db:${profile.database}.${t.table_name}`;
-      if (truncated) sourceName += ` (first ${rows.length.toLocaleString()} of ${total.toLocaleString()})`;
-      onImportRows({ headers: fields, rows, sourceName });
-    };
-
-    // Small enough to be one round trip — no cursor, no transaction, no progress bar needed.
-    if (target <= CHUNK_ROWS) {
-      const res = await dbLiveQuery(live.id, selectSql(engine, t.table_schema, t.table_name, limit));
-      setBusyTable(null);
-      if (!res.ok) { setError(res.error); return; }
-      finish(res.rows, res.fields, limit != null && total > limit);
-      return;
-    }
-
-    setTaskProgress?.({ label, pct: 1, onCancel: () => { cancelRef.current = true; } });
-    const rows = [];
-    let fields = null;
-    // A cursor needs a transaction. Everything below is read-only, so the transaction is opened
-    // explicitly and always rolled back (never committed) — nothing this panel does should ever be
-    // able to write to the user's database.
-    const plan = chunkedReadPlan(engine, t.table_schema, t.table_name); // #349
-    const begin = await dbLiveQuery(live.id, plan.begin, IMPORT_STEP); // TASKS.csv #348 (the session is read-only too)
-    if (!begin.ok) { setBusyTable(null); setTaskProgress?.(null); setError(begin.error); return; }
-    try {
-      if (plan.open) {
-        const decl = await dbLiveQuery(live.id, plan.open, IMPORT_STEP);
-        if (!decl.ok) { setError(decl.error); return; }
-      }
-      while (rows.length < target) {
-        if (cancelRef.current) { setError(tr("Import cancelled — {rows} row(s) fetched, nothing imported.", { rows: rows.length.toLocaleString() })); return; }
-        const want = Math.min(CHUNK_ROWS, target - rows.length);
-        const res = await dbLiveQuery(live.id, plan.page(want, rows.length), IMPORT_STEP);
-        if (!res.ok) { setError(res.error); return; }
-        if (!fields) fields = res.fields;
-        rows.push(...res.rows);
-        setTaskProgress?.({ label: `${label} — ${rows.length.toLocaleString()} / ${target.toLocaleString()} rows`, pct: Math.min(99, (rows.length / Math.max(1, target)) * 100), onCancel: () => { cancelRef.current = true; } });
-        if (res.rows.length < want) break; // cursor exhausted early (rows removed since the COUNT)
-      }
-      finish(rows, fields || [], limit != null && total > limit);
-    } finally {
-      if (plan.close) await dbLiveQuery(live.id, plan.close, IMPORT_STEP).catch(() => {});
-      await dbLiveQuery(live.id, plan.end, IMPORT_STEP).catch(() => {});
-      setBusyTable(null);
-      setTaskProgress?.(null);
-    }
-  }, [live, onImportRows, profile.database, profile.engine, setTaskProgress]);
-
-  // Clicking a table now COUNTS first and never pulls anything until the size is known.
-  const pickTable = useCallback(async (t) => {
-    setError(null);
-    setPending(null);
-    setBusyTable(`${t.table_schema}.${t.table_name}`);
-    const res = await dbLiveQuery(live.id, countSql(profile.engine || "postgres", t.table_schema, t.table_name)); // #349
-    setBusyTable(null);
-    if (!res.ok) { setError(res.error); return; }
-    // COUNT(*) comes back as a bigint, which node-postgres hands over as a STRING (bigints don't fit
-    // a JS number safely) — Number() it explicitly rather than relying on it already being numeric.
-    const total = Number(res.rows?.[0]?.n ?? 0);
-    if (!Number.isFinite(total)) { setError(tr("Couldn't read that table's row count.")); return; }
-    if (total === 0) { setError(tr("That table is empty — nothing to import.")); return; }
-    if (total > ROW_WARN_THRESHOLD) { setPending({ t, total }); return; }
-    fetchTable(t, total, null);
-  }, [live, fetchTable, profile.engine]);
+  // TASKS.csv #282 / #921 — count first, confirm when large, chunked cursor reads (lib/useTablePull.js, shared with the
+  // Connect to database dialog)
+  const { pending, setPending, busyTable, pickTable, fetchTable } = useTablePull({ liveId: live?.id, profile, onRows: onImportRows, setError });
 
   return (
     <div style={{ marginBottom: 2 }}>
@@ -325,22 +219,7 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
             </div>
           )}
           {error && <div style={{ color: "var(--color-danger-solid)", marginBottom: 6 }}>{error}</div>}
-          {/* TASKS.csv #282 — the warn-before-you-pull confirmation. Nothing has been fetched at this
-              point beyond the COUNT(*), so cancelling here costs the user nothing. */}
-          {pending && (
-            <div style={{ marginBottom: 6, padding: "7px 8px", background: "#fdf6e6", border: "1px solid #e2c98a", borderRadius: 5, color: "#6b5a2a", lineHeight: 1.45 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 5, fontWeight: 600, marginBottom: 3 }}>
-                <AlertTriangle size={12} /> {tr("{total} rows", { total: pending.total.toLocaleString() })}</div>
-              <div style={{ marginBottom: 6 }}>
-                {tr("{table_schema}.{table_name} is large. Loading all of it pulls every row into memory at once and can take a while on a modest machine.", { table_schema: pending.t.table_schema, table_name: pending.t.table_name })}</div>
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                <button onClick={() => fetchTable(pending.t, pending.total, ROW_WARN_THRESHOLD)} style={smallBtn}>{tr("First {ROW_WARN_THRESHOLD}", { ROW_WARN_THRESHOLD: ROW_WARN_THRESHOLD.toLocaleString() })}
-                </button>
-                <button onClick={() => fetchTable(pending.t, pending.total, null)} style={smallBtn}>{tr("Import all")}</button>
-                <button onClick={() => setPending(null)} style={{ ...smallBtn, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", color: "var(--color-text-secondary)" }}>{tr("Cancel")}</button>
-              </div>
-            </div>
-          )}
+          <TablePullConfirm pending={pending} onFirst={() => fetchTable(pending.t, pending.total, ROW_WARN_THRESHOLD)} onAll={() => fetchTable(pending.t, pending.total, null)} onCancel={() => setPending(null)} />
           {tablesLoading && <div style={{ color: "var(--color-text-muted)" }}><Loader2 size={12} className="spin" />{" "}{tr("Loading tables…")}</div>}
           {tables && tables.map((t, i) => {
             const key = `${t.table_schema}.${t.table_name}`;
@@ -363,4 +242,3 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
 const sectionLabel = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 6, fontWeight: 600 };
 const pwInp = { flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 7px", color: "var(--color-text)", fontSize: "var(--font-size-sm)", fontFamily: "inherit" };
 const connectBtn = { padding: "4px 9px", borderRadius: 5, fontSize: "var(--font-size-sm)", cursor: "pointer", border: "1px solid var(--color-success-border)", background: "var(--color-success-bg)", color: "var(--color-success-text)" };
-const smallBtn = { padding: "3px 8px", borderRadius: 5, fontSize: "var(--font-size-sm)", cursor: "pointer", border: "1px solid #c9a24a", background: "var(--color-bg)", color: "#6b5a2a", fontFamily: "inherit" };

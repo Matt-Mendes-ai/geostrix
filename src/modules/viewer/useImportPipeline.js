@@ -148,12 +148,13 @@ export function useImportPipeline(ctx) {
   };
 
   // same pipeline as CSV import, just fed from a database query result instead of a parsed file
-  const openImportFromRows = ({ headers, rows, sourceName }) => {
+  const openImportFromRows = async ({ headers, rows, sourceName }) => {
     if (!rows.length) return;
     // TASKS.csv #917 — Matt: "the geochem module doesn't give me an option to import assays straight from the database".
     // An assay table (from the Browser panel or Connect to database) is handed to Geochem's assay dialog, which needs
     // the element checklist, instead of a notice telling the user to go there.
-    if (looksLikeAssay(headers)) {
+    // #952 — a long table (analyte + value columns, one row per element) has no element columns to count
+    if (looksLikeAssay(headers) || (await import("../../lib/longAssays.js")).detectLongAssay(headers)) { // on demand: off the startup bundle
       setDbModalOpen(false);
       requestModuleAction("import-assay-rows", { headers, rows, sourceName });
       goToModule("geochem");

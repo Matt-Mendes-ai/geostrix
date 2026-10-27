@@ -6048,5 +6048,6 @@
   "Download the new zip": "Baixar o novo zip",
   "Download and install": "Baixar e instalar",
   "Restart and install": "Reiniciar e instalar",
-  "Import drillhole assays straight from a database (PostgreSQL or MySQL): a table or a query": "Importar análises de furos diretamente de um banco de dados (PostgreSQL ou MySQL): uma tabela ou uma consulta"
+  "Import drillhole assays straight from a database (PostgreSQL or MySQL): a table or a query": "Importar análises de furos diretamente de um banco de dados (PostgreSQL ou MySQL): uma tabela ou uma consulta",
+  "Click a table to import all of it: its row count is checked first, and a table over {n} rows asks before loading. The query box below is for your own SQL.": "Clique numa tabela para importá-la inteira: primeiro o número de linhas é verificado, e uma tabela com mais de {n} linhas pergunta antes de carregar. A caixa de consulta abaixo é para o seu próprio SQL."
 }

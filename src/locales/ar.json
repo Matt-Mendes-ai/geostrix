@@ -6048,5 +6048,6 @@
   "Download the new zip": "نزّل ملف zip الجديد",
   "Download and install": "تنزيل وتثبيت",
   "Restart and install": "إعادة التشغيل والتثبيت",
-  "Import drillhole assays straight from a database (PostgreSQL or MySQL): a table or a query": "استيراد تحاليل ثقوب الحفر مباشرة من قاعدة بيانات (PostgreSQL أو MySQL): جدول أو استعلام"
+  "Import drillhole assays straight from a database (PostgreSQL or MySQL): a table or a query": "استيراد تحاليل ثقوب الحفر مباشرة من قاعدة بيانات (PostgreSQL أو MySQL): جدول أو استعلام",
+  "Click a table to import all of it: its row count is checked first, and a table over {n} rows asks before loading. The query box below is for your own SQL.": "انقر على جدول لاستيراده كاملًا: يُتحقق من عدد صفوفه أولًا، والجدول الذي يزيد على {n} صف يسأل قبل التحميل. مربع الاستعلام أدناه لاستعلام SQL الخاص بك."
 }
