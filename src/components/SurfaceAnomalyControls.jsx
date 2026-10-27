@@ -21,7 +21,8 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
   // TASKS.csv #854 — the drawn samples with their class (and the hot-spot z, #853) as CSV
   const exportCsv = () => {
     if (!result) return;
-    const rows = drawn.map((s, i) => ({ sample_id: s.sample_id, x: s.x, y: s.y, medium: s.medium, class: result.classOf[i] >= 0 ? result.classes[result.classOf[i]].label : "no value", isolated: result.isolated[i] ? "yes" : "", gi_star_z: result.stat && Number.isFinite(result.stat[i]) ? result.stat[i].toFixed(2) : "" }));
+    // #1025 — with the value each sample was classified on (it was left out)
+    const rows = drawn.map((s, i) => ({ sample_id: s.sample_id, x: s.x, y: s.y, medium: s.medium, ...(result.valueName ? { [result.valueName]: Number.isFinite(result.values?.[i]) ? result.values[i] : "" } : {}), class: result.classOf[i] >= 0 ? result.classes[result.classOf[i]].label : "no value", isolated: result.isolated[i] ? "yes" : "", gi_star_z: result.stat && Number.isFinite(result.stat[i]) ? result.stat[i].toFixed(2) : "" }));
     saveFile({ suggestedName: `anomaly_classes.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: `# ${result.label}\n` + toExportCsv(rows) });
   };
   const savedFor = (sym) => thresholds.some((t) => t.symbol === sym);

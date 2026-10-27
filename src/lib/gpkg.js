@@ -28,6 +28,7 @@ import sqlWasmUrl from "sql.js/dist/sql-wasm.wasm?url";
 import { prjWktFor } from "./shapefile.js";
 import { crsName, guessEpsgFromPrjWkt } from "./reproject.js"; // TASKS.csv #415
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { polygonsFromRings, closeRing } from "./polygonRings.js"; // TASKS.csv #728 / #1025
 
 let sqlPromise = null;
 function loadSQL() {
@@ -58,32 +59,23 @@ function wkbLineStringZ(pts) {
   pts.forEach(([x, y, z]) => { dv.setFloat64(off, x, true); off += 8; dv.setFloat64(off, y, true); off += 8; dv.setFloat64(off, z ?? 0, true); off += 8; });
   return new Uint8Array(buf);
 }
+// TASKS.csv #1025 — a multi-part line (a map layer's contact in several pieces) as one MultiLineStringZ
+function wkbMultiLineStringZ(parts) {
+  const lines = parts.map(wkbLineStringZ);
+  const out = new Uint8Array(9 + lines.reduce((s, l) => s + l.length, 0));
+  const dv = new DataView(out.buffer);
+  dv.setUint8(0, 1); dv.setUint32(1, 1005, true); dv.setUint32(5, lines.length, true);
+  let off = 9;
+  lines.forEach((l) => { out.set(l, off); off += l.length; });
+  return out;
+}
 // TASKS.csv #728 — polygons: every ring of a feature (its `parts`, as the readers return them) is classified by
 // containment - a ring inside another ring is a hole of the smallest outer ring holding it - and written as one
 // MultiPolygonZ (what QGIS writes for polygon layers). Rings are closed (first vertex repeated) as WKB requires.
-function ringContains(ring, [px, py]) {
-  let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i], [xj, yj] = ring[j];
-    if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
-  }
-  return inside;
-}
-const ringArea = (r) => { let a = 0; for (let i = 0, j = r.length - 1; i < r.length; j = i++) a += (r[j][0] + r[i][0]) * (r[j][1] - r[i][1]); return Math.abs(a / 2); };
-export function polygonsFromRings(rings) {
-  const rs = rings.filter((r) => r?.length >= 3);
-  const depth = rs.map((r, i) => rs.filter((o, k) => k !== i && ringContains(o, r[0])).length);
-  const polys = [];
-  rs.forEach((r, i) => { if (depth[i] % 2 === 0) polys.push({ outer: r, holes: [], i }); });
-  rs.forEach((r, i) => {
-    if (depth[i] % 2 === 0) return;
-    const holder = polys.filter((p) => ringContains(p.outer, r[0])).sort((a, b) => ringArea(a.outer) - ringArea(b.outer))[0];
-    if (holder) holder.holes.push(r);
-  });
-  return polys.map((p) => [p.outer, ...p.holes]);
-}
+// (the ring helpers live in polygonRings.js since #1025, shared with the shapefile writer)
+export { polygonsFromRings };
 function wkbMultiPolygonZ(polygons) {
-  const closed = polygons.map((rings) => rings.map((r) => { const a = r[0], b = r[r.length - 1]; return a[0] === b[0] && a[1] === b[1] && (a[2] ?? 0) === (b[2] ?? 0) ? r : [...r, a]; }));
+  const closed = polygons.map((rings) => rings.map(closeRing));
   let size = 1 + 4 + 4;
   closed.forEach((rings) => { size += 1 + 4 + 4; rings.forEach((r) => { size += 4 + r.length * 24; }); });
   const dv = new DataView(new ArrayBuffer(size));
@@ -231,7 +223,8 @@ export async function buildGeoPackage(layers) {
       const safeName = col.replace(/[^a-zA-Z0-9_]+/g, "_").replace(/^(\d)/, "_$1") || "field";
       return { safeName, origName: col, sqlType: numeric ? "REAL" : "TEXT" };
     });
-    const geomTypeName = { point: "POINT", polyline: "LINESTRING", polygon: "MULTIPOLYGON" }[layer.geomType];
+    const multiLine = layer.geomType === "polyline" && layer.features.some((f) => f.parts?.filter((q) => q.length >= 2).length > 1); // #1025
+    const geomTypeName = { point: "POINT", polyline: multiLine ? "MULTILINESTRING" : "LINESTRING", polygon: "MULTIPOLYGON" }[layer.geomType];
     if (!geomTypeName) throw new Error(tr("GeoPackage export: unsupported geometry type \"{type}\".", { type: layer.geomType })); // #728: was written as a point
     db.run(`CREATE TABLE "${tableName}" (fid INTEGER PRIMARY KEY AUTOINCREMENT, geom BLOB${colDefs.length ? ", " + colDefs.map((c) => `"${c.safeName}" ${c.sqlType}`).join(", ") : ""});`);
     db.run("INSERT INTO gpkg_geometry_columns VALUES (?, 'geom', ?, ?, 1, 0);", [tableName, geomTypeName, srsId]);
@@ -240,9 +233,9 @@ export async function buildGeoPackage(layers) {
     const insertSQL = `INSERT INTO "${tableName}" (geom${colDefs.length ? ", " + colDefs.map((c) => `"${c.safeName}"`).join(", ") : ""}) VALUES (?${colDefs.length ? ", " + colDefs.map(() => "?").join(", ") : ""});`;
     const stmt = db.prepare(insertSQL);
     layer.features.forEach((f) => {
-      const wkb = layer.geomType === "polyline" ? wkbLineStringZ(f.geometry) : layer.geomType === "polygon" ? wkbMultiPolygonZ(polygonsFromRings(f.parts?.length ? f.parts : [f.geometry])) : wkbPointZ(...f.geometry[0]);
+      const wkb = layer.geomType === "polyline" ? (multiLine ? wkbMultiLineStringZ(f.parts?.length ? f.parts.filter((q) => q.length >= 2) : [f.geometry]) : wkbLineStringZ(f.geometry)) : layer.geomType === "polygon" ? wkbMultiPolygonZ(polygonsFromRings(f.parts?.length ? f.parts : [f.geometry])) : wkbPointZ(...f.geometry[0]);
       const blob = gpbBlob(wkb, srsId);
-      (layer.geomType === "polygon" && f.parts?.length ? f.parts.flat() : f.geometry).forEach(([x, y]) => { if (x < xmin) xmin = x; if (x > xmax) xmax = x; if (y < ymin) ymin = y; if (y > ymax) ymax = y; });
+      (layer.geomType !== "point" && f.parts?.length ? f.parts.flat() : f.geometry).forEach(([x, y]) => { if (x < xmin) xmin = x; if (x > xmax) xmax = x; if (y < ymin) ymin = y; if (y > ymax) ymax = y; });
       const values = [blob, ...colDefs.map((c) => { const v = f.attributes[c.origName]; return v == null || v === "" ? null : (c.sqlType === "REAL" ? Number(v) : String(v)); })];
       stmt.run(values);
     });

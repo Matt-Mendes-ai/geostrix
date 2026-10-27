@@ -6195,5 +6195,15 @@
   "Readings used: {types}.": "Lecturas usadas: {types}.",
   "Draw the key under the section, in the window and in the PNG, SVG and PDF exports. Turn it off to build the figure in Layout with its own legend.": "Dibuja la leyenda bajo la sección, en la ventana y en las exportaciones PNG, SVG y PDF. Desactívela para armar la figura en Lámina con su propia leyenda.",
   "LEGEND": "LEYENDA",
-  "+ {n} more not shown: build the figure in Layout for the full key": "+ {n} más sin mostrar: arme la figura en Lámina para la leyenda completa"
+  "+ {n} more not shown: build the figure in Layout for the full key": "+ {n} más sin mostrar: arme la figura en Lámina para la leyenda completa",
+  "EPSG:{epsg} cannot be converted to latitude / longitude.": "EPSG:{epsg} no se puede convertir a latitud / longitud.",
+  "Exported {features} feature(s) from \"{label}\" as KML (WGS84 latitude / longitude).": "Se exportaron {features} entidad(es) de \"{label}\" como KML (latitud / longitud WGS84).",
+  "KML export failed: {message}": "Falló la exportación KML: {message}",
+  "Export KML (Google Earth)…": "Exportar KML (Google Earth)…",
+  "Export CSV…": "Exportar CSV…",
+  "Export failed: {message}": "Falló la exportación: {message}",
+  "Export structure set \"{name}\"": "Exportar el conjunto de estructuras \"{name}\"",
+  "Export: dip, dip direction and strike (right-hand rule) in grid and true north": "Exportar: buzamiento, dirección de buzamiento y rumbo (regla de la mano derecha) en norte de cuadrícula y verdadero",
+  "Export…": "Exportar…",
+  "KML (Google Earth)": "KML (Google Earth)"
 }

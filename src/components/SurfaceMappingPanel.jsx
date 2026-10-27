@@ -23,6 +23,9 @@ import {
 } from "../lib/mapLayers.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { saveFile } from "../lib/desktop.js";
+import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
+import { toExportCsv } from "../lib/tabular.js";
 
 export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { // part: "maps" | "structures" | null = both (TASKS.csv #458)
   const {
@@ -40,6 +43,29 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
   const [openLegend, setOpenLegend] = useState({});
   const [pendingStruct, setPendingStruct] = useState(null); // { name, rows, headers, cols }
   const [mapSourceEpsg, setMapSourceEpsg] = useState(""); // #488 — "" = the file's own CRS
+
+  // TASKS.csv #1025 (review #1016, structural geologist) — an outcrop set back out: GeoPackage (POINT Z), KML (the icon
+  // turned to the true strike, the dip as its name) or CSV, with dip, dip direction and right-hand-rule strike in grid
+  // and true north (they are stored in grid north since #547)
+  const exportStructSet = async (s, fmt) => {
+    try {
+      const epsg = await ensureExportCrs(project); if (!epsg) return;
+      const ox = await import("../lib/overlayExport.js");
+      const base = (s.name || "structures").replace(/\.[^.]+$/, "").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase() || "structures";
+      let res;
+      if (fmt === "csv") res = await saveFile({ quiet: "success", suggestedName: `${base}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(ox.surfaceStructureRows(s, epsg)), encoding: "text" });
+      else if (fmt === "kml") {
+        const toLonLat = await ox.lonLatTransform(epsg);
+        if (!toLonLat) throw new Error(tr("EPSG:{epsg} cannot be converted to latitude / longitude.", { epsg }));
+        const kml = ox.featuresToKml(ox.surfaceStructureFeatures(s, epsg), { name: s.name, toLonLat, nameOf: (f) => (f.attributes.dip !== "" ? `${Math.round(f.attributes.dip)}°` : ""), colorOf: (f) => STRUCTURE_CLASS_COLORS[f.attributes.cls] || "#555555", headingOf: (f) => (f.attributes.strike_rhr_true !== "" ? f.attributes.strike_rhr_true : null) });
+        res = await saveFile({ quiet: "success", suggestedName: `${base}.kml`, filters: [{ name: "KML", extensions: ["kml"] }], content: kml });
+      } else {
+        const bytes = await (await import("../lib/gpkg.js")).buildGeoPackage([{ name: base, ...ox.surfaceStructureFeatures(s, epsg), epsg }]);
+        res = await saveFile({ quiet: "success", suggestedName: `${base}.gpkg`, filters: [{ name: "GeoPackage", extensions: ["gpkg"] }], content: ox.bytesToBase64(bytes), encoding: "base64" });
+      }
+      if (res && !res.ok && res.error) throw new Error(res.error);
+    } catch (err) { setStructMsg({ ok: false, text: tr("Export failed: {message}", { message: err.message }) }); }
+  };
 
   const importMaps = async (fileList) => {
     const files = Array.from(fileList || []);
@@ -421,6 +447,9 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }} title={s.azimuthRef && s.azimuthRef !== "grid" ? tr("Measured from {azimuthRef} north{v}; converted to grid north at import (#547)", { azimuthRef: s.azimuthRef, v: s.azimuthDate ? ` on ${s.azimuthDate}` : "" }) : tr("Dip directions in project grid north")}>{s.rows.length}{s.azimuthRef === "magnetic" ? " · MN" : s.azimuthRef === "true" ? " · TN" : ""}</span>
+              <select value="" onChange={(e) => { const f = e.target.value; e.target.value = ""; if (f) exportStructSet(s, f); }} aria-label={tr("Export structure set \"{name}\"", { name: s.name })} title={tr("Export: dip, dip direction and strike (right-hand rule) in grid and true north")} style={{ ...select, width: "auto", flexShrink: 0, padding: "1px 2px", fontSize: "var(--font-size-xs)" }}>
+                <option value="">{tr("Export…")}</option><option value="gpkg">GeoPackage</option><option value="kml">{tr("KML (Google Earth)")}</option><option value="csv">CSV</option>
+              </select>
               <Trash2 aria-label={tr("Remove structure set \"{name}\"", { name: s.name })} title={tr("Remove structure set \"{name}\"", { name: s.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: s.name }))) removeSurfaceStructureSet(s.id); }} />
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 10px", marginTop: 7 }}>

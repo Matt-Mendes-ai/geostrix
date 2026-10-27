@@ -6008,13 +6008,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     return { features: [], geomType: "point" };
   };
 
-  const exportVectorShapefile = async (kind, key, label) => {
-    const { features, geomType } = buildVectorFeatures(kind, key);
+  const exportVectorShapefile = async (kind, key, label, built = null) => { // built: #1025 — a map layer / boundary / sample set
+    const { features, geomType } = built || buildVectorFeatures(kind, key);
     if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const { buildShapefileZip } = await import("../lib/shapefile.js"); // #552 — on demand
       const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021 — the .prj
-      const zipBytes = buildShapefileZip({ features, geomType, epsg, baseName: label });
+      const zipBytes = buildShapefileZip({ features, geomType, epsg, baseName: label, keepFieldCase: !!built }); // #1025 — a map layer keeps its field names
       const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.zip`,
         filters: [{ name: "Shapefile (zipped)", extensions: ["zip"] }],
@@ -6029,8 +6029,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // TASKS.csv #191 — user request: "let's do those 3" (GeoPackage export was the previously-disabled
   // context menu item — "needs an in-browser SQLite writer" — now built on sql.js, see src/lib/gpkg.js).
-  const exportVectorGeoPackage = async (kind, key, label) => {
-    const { features, geomType } = buildVectorFeatures(kind, key);
+  const exportVectorGeoPackage = async (kind, key, label, built = null) => { // built: #1025 — a map layer / boundary / sample set
+    const { features, geomType } = built || buildVectorFeatures(kind, key);
     if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const tableName = label.replace(/[^a-zA-Z0-9_]+/g, "_") || "layer";
@@ -6048,11 +6048,37 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     }
   };
 
+  // TASKS.csv #1025 (review #1016) — map layers, boundaries / claims, surface samples: Shapefile / GeoPackage / DXF
+  // through the writers above, KML (WGS84) and CSV; the features come from lib/overlayExport.js (on demand)
+  const exportVectorKML = async (label, built, kmlOpts = {}) => {
+    if (!built.features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
+    try {
+      const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021
+      const ox = await import("../lib/overlayExport.js");
+      const toLonLat = await ox.lonLatTransform(epsg);
+      if (!toLonLat) throw new Error(tr("EPSG:{epsg} cannot be converted to latitude / longitude.", { epsg }));
+      const res = await saveFile({ quiet: true, suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.kml`, filters: [{ name: "KML", extensions: ["kml"] }], content: ox.featuresToKml(built, { name: label, toLonLat, ...kmlOpts }) });
+      if (!res?.ok) { if (res?.error) throw new Error(res.error); return; }
+      setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as KML (WGS84 latitude / longitude).", { features: built.features.length, label })]);
+    } catch (err) {
+      setNotices((p) => [...p, errorNotice(tr("KML export failed: {message}", { message: err.message }))]);
+    }
+  };
+  // the row-menu entries; build() -> Promise<{ features, geomType }>, csvRows() optional
+  const overlayExportItems = (label, build, { kml = {}, csvRows = null } = {}) => [
+    { label: tr("Export Shapefile (.zip)…"), onClick: async () => exportVectorShapefile(null, null, label, await build()) },
+    { label: tr("Export GeoPackage (.gpkg)…"), onClick: async () => exportVectorGeoPackage(null, null, label, await build()) },
+    { label: tr("Export DXF (.dxf)…"), onClick: async () => exportVectorDXF(null, null, label, (await import("../lib/overlayExport.js")).explodeParts(await build())) },
+    { label: tr("Export KML (Google Earth)…"), onClick: async () => exportVectorKML(label, await build(), typeof kml === "function" ? await kml() : kml) },
+    csvRows && { label: tr("Export CSV…"), onClick: async () => { const rows = await csvRows(); if (rows.length) saveFile({ quiet: "success", suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows), encoding: "text" }); } },
+  ].filter(Boolean);
+  const overlayLib = () => import("../lib/overlayExport.js");
+
   // TASKS.csv #128 — DXF export, the CAD/GIS interop format surveyors and mine planners actually work
   // in day to day, alongside Shapefile/GeoPackage above. Same buildVectorFeatures() data path, just a
   // third output format. Elevations are written (#408) and the file is consistent R12 (#578), per src/lib/dxf.js.
-  const exportVectorDXF = async (kind, key, label) => {
-    const { features, geomType } = buildVectorFeatures(kind, key);
+  const exportVectorDXF = async (kind, key, label, built = null) => { // built: #1025 — a map layer / boundary / sample set
+    const { features, geomType } = built || buildVectorFeatures(kind, key);
     if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const { buildDXF } = await import("../lib/dxf.js"); // #552 — on demand
@@ -7261,6 +7287,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               <div key={b.id} onContextMenu={(e) => openRowMenu(e, b.name, [
                   { label: b.visible === false ? "Show" : "Hide", onClick: () => updateBoundary(b.id, { visible: b.visible === false }) },
                   { label: tr("Zoom to"), onClick: () => zoomToObject(boundaryLinesRef.current[b.id]) },
+                  "-", ...overlayExportItems(b.name, async () => (await overlayLib()).boundaryFeatures(b), { kml: { colorOf: () => b.color, nameOf: () => b.name } }), // #1025
                   "-", { label: tr("Colour and style — Geophysics tab"), onClick: () => goToModule("geophysics") },
                   { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove boundary \"{name}\"?", { name: b.name }))) removeBoundary(b.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateBoundary(b.id, { visible: b.visible === false })} style={{ cursor: "pointer", color: b.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
@@ -7325,6 +7352,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               { label: layerVisible.surface_samples ? "Hide" : "Show", onClick: () => setLayerVisible((p) => ({ ...p, surface_samples: !p.surface_samples })) },
               { label: tr("Zoom to"), onClick: () => zoomToObject(layerGroupsRef.current.surface_samples) },
               { label: tr("Style (colour, size, shape)…"), onClick: () => openLayerStyle("surface_samples", "Surface samples") },
+              // #1025 — every element with its unit, the detection flags, the sample's own columns and its anomaly class
+              "-", ...overlayExportItems("surface_samples", async () => (await overlayLib()).surfaceSampleFeatures(surfaceSamples, surfaceElements, surfaceAnomaly ? { result: surfaceAnomaly, drawn: placedSurfaceSamples } : null), {
+                kml: { nameOf: (f) => f.attributes.sample_id, colorOf: (f) => (f.attributes.anomalous ? "#d7301f" : "#7a7a7a") },
+                csvRows: async () => (await overlayLib()).surfaceSampleRows(surfaceSamples, surfaceElements, surfaceAnomaly ? { result: surfaceAnomaly, drawn: placedSurfaceSamples } : null) }),
               "-", { label: tr("Import or edit samples — Geochem tab"), onClick: () => goToModule("geochem") }])} className="ge-section-label" style={{ marginTop: 16 }}>{tr("Surface samples")}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 4 }}>
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setLayerVisible((p) => ({ ...p, surface_samples: !p.surface_samples }))} style={{ cursor: "pointer", color: layerVisible.surface_samples ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
@@ -7451,6 +7482,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <div key={l.id} onContextMenu={(e) => openRowMenu(e, l.name, [
             { label: l.visible === false ? "Show" : "Hide", onClick: () => updateMapLayer(l.id, { visible: l.visible === false }) },
             { label: tr("Zoom to"), onClick: () => zoomToObject(mapLayerMeshesRef.current[l.id]) },
+            "-", ...overlayExportItems(l.name, async () => (await overlayLib()).mapLayerFeatures(l), { kml: async () => ({ colorOf: (await overlayLib()).mapLayerColorOf(l), nameOf: (f) => String(f.attributes?.[l.styleField] ?? l.name) }) }), // #1025
             "-", { label: tr("Colours, labels and draping — Geophysics tab"), onClick: () => goToModule("geophysics") },
             { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove the map layer \"{name}\" from the project?", { name: l.name }))) removeMapLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateMapLayer(l.id, { visible: l.visible === false })} title={`${l.visible === false ? tr("Show") : tr("Hide")} "${l.name}"${l.crsNote ? `\n${l.crsNote}` : ""}`} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: l.visible === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>

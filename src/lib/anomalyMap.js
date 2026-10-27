@@ -52,10 +52,15 @@ const fmt = (v) => (v == null || !Number.isFinite(v) ? "—" : v >= 100 ? Math.r
 export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thresholds = [] } = {}) {
   const n = samples.length, classOf = new Int8Array(n).fill(-1), notes = [];
   let stat = null; // #853 — the hot-spot z per sample
+  // TASKS.csv #1025 — the value each sample was classified on (element in its unit, or the index), for the class CSV
+  const values = new Float64Array(n).fill(NaN);
+  let valueName = null;
   const c = { ...DEFAULT_ANOMALY, ...cfg };
   let classes = [], label = "", anomalousFrom = Infinity;
   if (c.mode === "element" && c.symbol) {
     const sym = c.symbol, unit = units[sym] || "ppm";
+    samples.forEach((s, i) => { const v = valueIn(s, sym, unit, units); if (v != null) values[i] = v; });
+    valueName = `${sym}_${unit.replace("%", "pct")}`;
     const saved = thresholds.find((t) => t.symbol === sym);
     const scheme = c.scheme === "threshold" && saved ? "threshold" : "percentile";
     if (c.scheme === "threshold" && !saved) notes.push({ text: "No threshold saved for {sym} (Geochem > Thresholds): percentile classes shown instead.", params: { sym } });
@@ -100,13 +105,17 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
     zs.forEach((list, i) => {
       if (list.length < need) return;
       const m = list.reduce((a, v) => a + v, 0) / list.length;
+      values[i] = Math.round(m * 1000) / 1000;
       classOf[i] = m >= 3 ? 3 : m >= 2 ? 2 : m >= 1 ? 1 : 0;
     });
     classes = [{ label: "index below 1" }, { label: "index 1 to 2" }, { label: "index 2 to 3" }, { label: "index 3 and above" }].map((x, i) => ({ ...x, color: SCHEMES.index[i] }));
     anomalousFrom = 2;
+    valueName = `${preset.id}_index_z`;
     label = `${preset.label} index: mean robust z of ${els.join(", ") || "(none of its elements)"}${c.elements?.length ? " (edited)" : ""}; ${preset.ref}; within ${groupLabelOf(groupBy)}`;
   } else if (c.mode === "hotspot" && c.symbol) { // TASKS.csv #853
     const sym = c.symbol, unit = units[sym] || "ppm", R = Math.max(1, Number(c.hotRadius) || 250);
+    samples.forEach((s, i) => { const v = valueIn(s, sym, unit, units); if (v != null) values[i] = v; });
+    valueName = `${sym}_${unit.replace("%", "pct")}`;
     const idx = [], xs = [];
     samples.forEach((s, i) => { const v = valueIn(s, sym, unit, units); if (v > 0) { idx.push(i); xs.push(Math.log10(v)); } });
     const m = idx.length;
@@ -154,7 +163,7 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
       ? { text: "{n} of {m} anomalous samples are isolated (no other anomalous sample within {r} m): drawn small.", params: { n: isolatedCount, m: anomalousCount, r: R } }
       : { text: "{n} of {m} anomalous samples are isolated (fewer than {need} anomalous neighbours within {r} m): drawn small.", params: { n: isolatedCount, m: anomalousCount, need, r: R } });
   }
-  return { classOf, isolated, classes, label, notes, anomalousFrom, noDataColor: NODATA, coherence: !!c.coherence, radius: c.radius, minNeighbours: c.minNeighbours, stat, mode: c.mode };
+  return { classOf, isolated, classes, label, notes, anomalousFrom, noDataColor: NODATA, coherence: !!c.coherence, radius: c.radius, minNeighbours: c.minNeighbours, stat, mode: c.mode, values, valueName };
 }
 function groupLabelOf(groupBy) {
   if (!groupBy || groupBy === "none") return "all samples together";

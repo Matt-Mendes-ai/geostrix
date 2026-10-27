@@ -1,6 +1,7 @@
 import { inflateCapped, MB } from "./inflate.js"; // TASKS.csv #351
 import { getProj4DefSync, crsName } from "./reproject.js"; // TASKS.csv #415
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { shapefileRings } from "./polygonRings.js"; // TASKS.csv #1025
 // Minimal ESRI Shapefile (+ DBF attribute table, + PRJ projection file) writer, zipped, for the new
 // "Export Shapefile" right-click action on vector layers (collars, survey/drillhole traces, litho/alt/
 // vein/structure/geochem intervals, geophysics points). Hand-written rather than an npm dependency —
@@ -44,7 +45,8 @@ function f64le(v) { const b = new DataView(new ArrayBuffer(8)); b.setFloat64(0, 
 // otherwise `geometry` is the single part, as before.
 function buildShpShx(features, geomType) {
   const shapeType = geomType === "point" ? SHP_POINT_Z : geomType === "polygon" ? SHP_POLYGON_Z : SHP_POLYLINE_Z;
-  const partsOf = (f) => (geomType !== "point" && f.parts?.length ? f.parts.filter((p) => p.length) : [f.geometry]);
+  // #1025 — polygon rings reordered and rewound to the shapefile rule (outer clockwise, holes counter-clockwise, closed)
+  const partsOf = (f) => { const ps = geomType !== "point" && f.parts?.length ? f.parts.filter((p) => p.length) : [f.geometry]; if (geomType !== "polygon") return ps; const rs = shapefileRings(ps); return rs.length ? rs : ps; };
   const shp = new ByteWriter();
   const shx = new ByteWriter();
 

@@ -6195,5 +6195,15 @@
   "Readings used: {types}.": "Mesures utilisées : {types}.",
   "Draw the key under the section, in the window and in the PNG, SVG and PDF exports. Turn it off to build the figure in Layout with its own legend.": "Dessine la légende sous la coupe, dans la fenêtre et dans les exports PNG, SVG et PDF. Désactivez-la pour composer la figure dans Mise en page avec sa propre légende.",
   "LEGEND": "LÉGENDE",
-  "+ {n} more not shown: build the figure in Layout for the full key": "+ {n} de plus non affichés : composez la figure dans Mise en page pour la légende complète"
+  "+ {n} more not shown: build the figure in Layout for the full key": "+ {n} de plus non affichés : composez la figure dans Mise en page pour la légende complète",
+  "EPSG:{epsg} cannot be converted to latitude / longitude.": "EPSG:{epsg} ne peut pas être converti en latitude / longitude.",
+  "Exported {features} feature(s) from \"{label}\" as KML (WGS84 latitude / longitude).": "{features} entité(s) de « {label} » exportée(s) en KML (latitude / longitude WGS84).",
+  "KML export failed: {message}": "Échec de l'export KML : {message}",
+  "Export KML (Google Earth)…": "Exporter en KML (Google Earth)…",
+  "Export CSV…": "Exporter en CSV…",
+  "Export failed: {message}": "Échec de l'export : {message}",
+  "Export structure set \"{name}\"": "Exporter le jeu de structures « {name} »",
+  "Export: dip, dip direction and strike (right-hand rule) in grid and true north": "Exporter : pendage, direction de pendage et direction (règle de la main droite) en nord du quadrillage et nord vrai",
+  "Export…": "Exporter…",
+  "KML (Google Earth)": "KML (Google Earth)"
 }

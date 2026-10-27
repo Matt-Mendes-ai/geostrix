@@ -81,6 +81,7 @@ test("#415 MultiPoint (8/18) becomes one feature per point; PointM / PolyLineM /
 import { shapefileZipFiles, buildZip } from "../src/lib/shapefile.js";
 import { reprojectShapefileZip, readShapefileLayers } from "../src/lib/fileReproject.js";
 import { pointTransform } from "../src/lib/reproject.js";
+import { shapefileRings } from "../src/lib/polygonRings.js";
 
 test("#487 reproject a zipped shapefile: every layer, ring and part; attributes and z kept; new .prj", async () => {
   const outer = [[460000, 6260000, 5], [461000, 6260000, 5], [461000, 6261000, 5], [460000, 6261000, 5], [460000, 6260000, 5]];
@@ -98,14 +99,15 @@ test("#487 reproject a zipped shapefile: every layer, ring and part; attributes 
   const g = layers[0].features[0];
   assert.equal(g.parts.length, 2); // the hole survives
   assert.deepEqual(g.attributes, { Unit: "Hazelton", Au: 0.5 }); // original field-name case kept
-  [outer, hole].forEach((ring, k) => ring.forEach(([x, y, z], i) => {
+  const want = shapefileRings([outer, hole]); // #1025 — the writer turns the outer ring clockwise and the hole counter-clockwise
+  want.forEach((ring, k) => ring.forEach(([x, y, z], i) => {
     const [ex, ey] = T(x, y), [ax, ay, az] = g.parts[k][i];
     assert.ok(Math.hypot(ax - ex, ay - ey) < 1e-6 && az === z);
   }));
   assert.equal(layers[1].features[0].parts.length, 2);
   // and back again: within a millimetre of where it started
   const back = await readShapefileLayers((await reprojectShapefileZip(bytes, null, 3156)).bytes);
-  back.layers[0].features[0].parts[0].forEach(([x, y], i) => assert.ok(Math.hypot(x - outer[i][0], y - outer[i][1]) < 1e-3));
+  back.layers[0].features[0].parts[0].forEach(([x, y], i) => assert.ok(Math.hypot(x - want[0][i][0], y - want[0][i][1]) < 1e-3));
   // no .prj and no From: refused with a reason
   const noPrj = buildZip(shapefileZipFiles({ features: [{ geometry: [[1, 2, 0]], attributes: {} }], geomType: "point", epsg: 12345, baseName: "p" }));
   await assert.rejects(reprojectShapefileZip(noPrj, null, 4326), /no \.prj — choose its CRS/);

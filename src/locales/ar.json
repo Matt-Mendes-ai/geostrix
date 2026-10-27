@@ -6195,5 +6195,15 @@
   "Readings used: {types}.": "القراءات المستخدمة: {types}.",
   "Draw the key under the section, in the window and in the PNG, SVG and PDF exports. Turn it off to build the figure in Layout with its own legend.": "يرسم مفتاح الرموز أسفل المقطع، في النافذة وفي صادرات PNG وSVG وPDF. أوقفه لبناء الشكل في التخطيط بمفتاحه الخاص.",
   "LEGEND": "مفتاح الرموز",
-  "+ {n} more not shown: build the figure in Layout for the full key": "+ {n} أخرى غير معروضة: ابنِ الشكل في التخطيط للمفتاح الكامل"
+  "+ {n} more not shown: build the figure in Layout for the full key": "+ {n} أخرى غير معروضة: ابنِ الشكل في التخطيط للمفتاح الكامل",
+  "EPSG:{epsg} cannot be converted to latitude / longitude.": "لا يمكن تحويل EPSG:{epsg} إلى خط عرض / خط طول.",
+  "Exported {features} feature(s) from \"{label}\" as KML (WGS84 latitude / longitude).": "صُدّرت {features} معلم/معالم من \"{label}\" بصيغة KML (خط العرض / الطول WGS84).",
+  "KML export failed: {message}": "فشل تصدير KML: {message}",
+  "Export KML (Google Earth)…": "تصدير KML (Google Earth)…",
+  "Export CSV…": "تصدير CSV…",
+  "Export failed: {message}": "فشل التصدير: {message}",
+  "Export structure set \"{name}\"": "تصدير مجموعة البنى \"{name}\"",
+  "Export: dip, dip direction and strike (right-hand rule) in grid and true north": "تصدير: الميل واتجاه الميل والمضرب (قاعدة اليد اليمنى) بالشمال الشبكي والحقيقي",
+  "Export…": "تصدير…",
+  "KML (Google Earth)": "KML (Google Earth)"
 }
