@@ -11,7 +11,7 @@ $cn.Open()
 $queries = @{
   "surveys" = "SELECT Organisation_ID, Survey_ID, Survey_Description_Short_en, Minimum_Latitude_NAD83, Maximum_Latitude_NAD83, Minimum_Longitude_NAD83, Maximum_Longitude_NAD83, Survey_Year, Published FROM Surveys"
   "survey_packages" = "SELECT Organisation_FieldWork_ID, Survey_ID, Analytical_Package_ID, Sample_Type_Description_Short_en, Preparation_Method_Name_en, Analytical_Status_Description_en, MAX(Number_Of_Samples_Analysed) AS N FROM Survey_Analytical_Summaries_DERIVED GROUP BY Organisation_FieldWork_ID, Survey_ID, Analytical_Package_ID, Sample_Type_Description_Short_en, Preparation_Method_Name_en, Analytical_Status_Description_en"
-  "package_columns" = "SELECT Analytical_Package_ID, Package_Order_Of_Presentation, Spreadsheet_Column_Name, Analytical_Quantity_Abbreviation_en, Analytical_Quantity_Type_ID, Analytical_Unit_Name_en, Determination_Limit, Analytical_Technique_Abbreviation, Analytical_Decomposition_Abbreviation, Analytical_Package_Name_en, Laboratory_Name_en FROM Analytical_Package_Methods_DERIVED"
+  "package_columns" = "SELECT Analytical_Package_ID, Package_Order_Of_Presentation, Spreadsheet_Column_Name, Analytical_Quantity_Abbreviation_en, Analytical_Quantity_Type_ID, Analytical_Unit_Name_en, Determination_Limit, Analytical_Technique_Abbreviation, Analytical_Decomposition_Abbreviation, Analytical_Package_Name_en, Laboratory_Name_en FROM Analytical_Package_Methods_DERIVED ORDER BY Analytical_Package_ID, Package_Order_Of_Presentation" # ORDER BY: TASKS.csv #984
 }
 foreach ($k in $queries.Keys) {
   $c = $cn.CreateCommand(); $c.CommandText = $queries[$k]; $c.CommandTimeout = 600
