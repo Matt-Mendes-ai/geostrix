@@ -6223,5 +6223,7 @@
   "conformable (one shared field: units keep a thickness everywhere)": "متوافق (حقل مشترك واحد: تحتفظ الوحدات بسماكة في كل مكان)",
   "Not a valid workbook: a cell lies beyond Excel's limits (column XFD, row 1,048,576).": "ليس مصنفًا صالحًا: تقع خلية خارج حدود Excel (العمود XFD، الصف 1,048,576).",
   "This sheet is too large to read: over {n} million cells.": "هذه الورقة أكبر من أن تُقرأ: أكثر من {n} مليون خلية.",
-  "This MapInfo table is corrupt: its objects claim far more coordinates than the .MAP file holds.": "جدول MapInfo هذا تالف: تدّعي كائناته إحداثيات أكثر بكثير مما يحويه ملف .MAP."
+  "This MapInfo table is corrupt: its objects claim far more coordinates than the .MAP file holds.": "جدول MapInfo هذا تالف: تدّعي كائناته إحداثيات أكثر بكثير مما يحويه ملف .MAP.",
+  "Number the samples up one line and down the next, the way a crew walks the grid. Off: every line from the same end.": "ترقيم العينات صعودًا على خط ونزولًا على الذي يليه، كما يمشي الفريق على الشبكة. عند الإيقاف: كل الخطوط من الطرف نفسه.",
+  "Serpentine numbering": "ترقيم متعرج"
 }

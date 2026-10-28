@@ -90,3 +90,22 @@ test("#1018 soil lines: one per traverse in station order, split at a gap, read 
   assert.equal((sk.match(/<Point>/g) || []).length, 2);
   assert.ok(!/LineString|<Folder>/.test(sk));
 });
+
+// TASKS.csv #1046 (review #1016) — serpentine numbering: the next line starts where the last one ended
+import { soilGrid as soilGrid1046, numberSamples as numberSamples1046 } from "../src/lib/surveyPlan.js";
+test("#1046 soil grid numbering snakes: L+100's first number is at its north end; serpentine: false keeps one direction", () => {
+  const area = [[0, 0], [1000, 0], [1000, 500], [0, 500]];
+  const g = soilGrid1046(area, { azimuth: 0, lineSpacing: 100, stationSpacing: 25 });
+  const rows = numberSamples1046(g.stations, { prefix: "SL26-", start: 1, digits: 5, qc: [] });
+  const site = (r) => g.stations[r.site];
+  const firstOn = (line) => site(rows.find((r) => site(r)?.line === line));
+  const lastOn = (line) => site([...rows].reverse().find((r) => site(r)?.line === line));
+  assert.equal(lastOn(0).station, 500); // up L+0
+  assert.equal(firstOn(100).station, 500); // and down L+100 from the same (north) end
+  assert.equal(firstOn(200).station, 0); // up again
+  const k = rows.findIndex((r) => site(r)?.line === 100);
+  assert.ok(Math.hypot(site(rows[k]).x - site(rows[k - 1]).x, site(rows[k]).y - site(rows[k - 1]).y) <= 100 + 1e-6, "consecutive numbers one line apart");
+  const one = soilGrid1046(area, { azimuth: 0, lineSpacing: 100, stationSpacing: 25, serpentine: false });
+  assert.equal(one.stations.find((s) => s.line === 100).station, 0);
+  assert.equal(g.stations.length, one.stations.length);
+});

@@ -29,7 +29,7 @@ export default function SurveyPlannerPanel({ onClose }) {
   const [mode, setMode] = useState(prefs.mode || "soil");
   const [areaId, setAreaId] = useState("");
   const [rect, setRect] = useState({ x0: "", y0: "", x1: "", y1: "" });
-  const [grid, setGrid] = useState({ azimuth: 0, lineSpacing: 100, stationSpacing: 25, stagger: false, ...(prefs.grid || {}) });
+  const [grid, setGrid] = useState({ azimuth: 0, lineSpacing: 100, stationSpacing: 25, stagger: false, serpentine: true, ...(prefs.grid || {}) }); // serpentine: #1046
   const [streams, setStreams] = useState({ orders: [1, 2], minAreaKm2: 0.5, maxAreaKm2: 20, ...(prefs.streams || {}) });
   const [num, setNum] = useState({ prefix: "", start: 1, digits: 5, perDay: 40, ...(prefs.num || {}) });
   const [qc, setQc] = useState(prefs.qc || DEFAULT_QC);
@@ -123,6 +123,7 @@ export default function SurveyPlannerPanel({ onClose }) {
               <label style={ctl}>{tr("Station spacing (m)")}<input type="number" min="1" value={grid.stationSpacing} onChange={(e) => setGrid((g) => ({ ...g, stationSpacing: Math.max(1, Number(e.target.value) || 25) }))} style={inp} /></label>
               <label style={ctl}>{tr("Survey date (declination)")}<input type="date" value={surveyDate} onChange={(e) => setSurveyDate(e.target.value)} style={{ ...inp, width: 130 }} /></label>
               <label style={{ ...ctl, display: "flex", alignItems: "center", gap: 5, marginTop: 16 }}><input type="checkbox" checked={grid.stagger} onChange={(e) => setGrid((g) => ({ ...g, stagger: e.target.checked }))} />{tr("Stagger alternate lines")}</label>
+              <label style={{ ...ctl, display: "flex", alignItems: "center", gap: 5, marginTop: 16 }} title={tr("Number the samples up one line and down the next, the way a crew walks the grid. Off: every line from the same end.")}><input type="checkbox" checked={grid.serpentine !== false} onChange={(e) => setGrid((g) => ({ ...g, serpentine: e.target.checked }))} />{tr("Serpentine numbering")}</label>
               <div style={{ ...note, flexBasis: "100%", color: "var(--color-text)" }}>{bearing
                 ? (bearing.magnetic != null
                   ? tr("Line bearing: {g}° grid, {t}° true, {m}° magnetic (declination {d}° on {date}, IGRF-14). A crew on a compass walks the magnetic bearing.", { g: bearing.grid, t: bearing.true, m: bearing.magnetic, d: bearing.declination, date: bearing.date })

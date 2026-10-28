@@ -6223,5 +6223,7 @@
   "conformable (one shared field: units keep a thickness everywhere)": "concordante (um único campo compartilhado: as unidades mantêm uma espessura em toda parte)",
   "Not a valid workbook: a cell lies beyond Excel's limits (column XFD, row 1,048,576).": "Não é uma pasta de trabalho válida: uma célula está além dos limites do Excel (coluna XFD, linha 1.048.576).",
   "This sheet is too large to read: over {n} million cells.": "Esta planilha é grande demais para ler: mais de {n} milhões de células.",
-  "This MapInfo table is corrupt: its objects claim far more coordinates than the .MAP file holds.": "Esta tabela MapInfo está corrompida: seus objetos declaram muito mais coordenadas do que o arquivo .MAP contém."
+  "This MapInfo table is corrupt: its objects claim far more coordinates than the .MAP file holds.": "Esta tabela MapInfo está corrompida: seus objetos declaram muito mais coordenadas do que o arquivo .MAP contém.",
+  "Number the samples up one line and down the next, the way a crew walks the grid. Off: every line from the same end.": "Numera as amostras subindo uma linha e descendo a seguinte, como a equipe percorre a malha. Desligado: todas as linhas a partir da mesma ponta.",
+  "Serpentine numbering": "Numeração em serpentina"
 }

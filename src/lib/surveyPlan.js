@@ -17,7 +17,10 @@ import { gridGeometry, strahler, downstreamOf } from "./hydrology.js";
 const rad = (d) => (d * Math.PI) / 180;
 
 // polygon: [[x, y], ...] (project CRS). -> { stations: [{ line, station, name, x, y }], lines: [[[x,y],[x,y]], ...], lineKm }
-export function soilGrid(polygon, { azimuth = 0, lineSpacing = 100, stationSpacing = 25, stagger = false, origin = null, maxStations = 50000 } = {}) {
+// TASKS.csv #1046 (review #1016) — serpentine (default): every other line (counting the lines that have stations) runs
+// the other way, so the numbering follows a crew walking up one line and down the next. Every line ran the same way:
+// sample n at the north end of L+0, sample n+1 500 m away at the south end of L+100.
+export function soilGrid(polygon, { azimuth = 0, lineSpacing = 100, stationSpacing = 25, stagger = false, serpentine = true, origin = null, maxStations = 50000 } = {}) {
   const ring = polygon, xs = ring.map((p) => p[0]), ys = ring.map((p) => p[1]);
   const o = origin || [Math.min(...xs), Math.min(...ys)];
   const ux = Math.sin(rad(azimuth)), uy = Math.cos(rad(azimuth)); // along the lines
@@ -27,7 +30,7 @@ export function soilGrid(polygon, { azimuth = 0, lineSpacing = 100, stationSpaci
   const loc = ring.map(toLocal), as = loc.map((p) => p[0]);
   const a0 = Math.ceil(Math.min(...as) / lineSpacing) * lineSpacing, a1 = Math.max(...as);
   const stations = [], lines = [];
-  let lineM = 0;
+  let lineM = 0, walked = 0;
   for (let a = a0, li = Math.round(a0 / lineSpacing); a <= a1 + 1e-9; a += lineSpacing, li++) {
     // where this line crosses the polygon (in local coordinates), as along-line intervals
     const cuts = [];
@@ -37,16 +40,18 @@ export function soilGrid(polygon, { azimuth = 0, lineSpacing = 100, stationSpaci
     }
     cuts.sort((p, q) => p - q);
     const off = stagger && li % 2 ? stationSpacing / 2 : 0;
+    const onLine = []; // this line's stations, in along order
     for (let k = 0; k + 1 < cuts.length; k += 2) {
       const sA = cuts[k], sB = cuts[k + 1];
       lines.push([toWorld(a, sA), toWorld(a, sB)]);
       lineM += sB - sA;
       for (let s = Math.ceil((sA - off) / stationSpacing) * stationSpacing + off; s <= sB + 1e-9; s += stationSpacing) {
         const [x, y] = toWorld(a, s);
-        stations.push({ line: Math.round(a), station: Math.round(s), name: `L${a >= 0 ? "+" : ""}${Math.round(a)} S${s >= 0 ? "+" : ""}${Math.round(s)}`, x, y });
-        if (stations.length > maxStations) return { stations, lines, lineKm: lineM / 1000, truncated: true, origin: o };
+        onLine.push({ line: Math.round(a), station: Math.round(s), name: `L${a >= 0 ? "+" : ""}${Math.round(a)} S${s >= 0 ? "+" : ""}${Math.round(s)}`, x, y });
+        if (stations.length + onLine.length > maxStations) { stations.push(...onLine); return { stations, lines, lineKm: lineM / 1000, truncated: true, origin: o }; }
       }
     }
+    if (onLine.length) { if (serpentine && walked % 2) onLine.reverse(); stations.push(...onLine); walked++; } // #1046
   }
   return { stations, lines, lineKm: lineM / 1000, truncated: false, origin: o };
 }
