@@ -55,7 +55,7 @@ export default function AlterationBoxModal({ saved, lithoCodes, onCancel, onRun 
           {!provisional && <span style={{ cursor: "pointer", textTransform: "none", letterSpacing: 0 }} {...iconAction(() => setBoxes(PROVISIONAL_ALTERATION_BOXES), tr("Reset to provisional boxes"))}>{tr("Reset to provisional")}</span>}
         </div>
         <table style={{ marginTop: 4, borderCollapse: "collapse" }}>
-          <thead><tr style={small}><th style={{ textAlign: "left", paddingRight: 10 }}>{tr("Protolith")}</th><th>{tr("AI min")}</th><th>{tr("AI max")}</th><th>{tr("CCPI min")}</th><th>{tr("CCPI max")}</th></tr></thead>
+          <thead><tr style={small}><th style={{ textAlign: "start", paddingRight: 10 }}>{tr("Protolith")}</th><th>{tr("AI min")}</th><th>{tr("AI max")}</th><th>{tr("CCPI min")}</th><th>{tr("CCPI max")}</th></tr></thead>
           <tbody>
             {PROTOLITHS.map((p) => (
               <tr key={p}>

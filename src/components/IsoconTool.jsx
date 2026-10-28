@@ -144,7 +144,7 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
 
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                 <thead>
-                  <tr style={{ color: "var(--color-text-muted)", textAlign: "left" }}>
+                  <tr style={{ color: "var(--color-text-muted)", textAlign: "start" }}>
                     <th style={th}>{tr("Element")}</th><th style={th}>{tr("Precursor (ppm)")}</th><th style={th}>{tr("Altered (ppm)")}</th><th style={th}>{tr("Ratio")}</th><th style={th}>{tr("Mass change")}</th>
                   </tr>
                 </thead>

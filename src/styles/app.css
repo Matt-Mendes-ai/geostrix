@@ -181,8 +181,8 @@ input, select { font-family: inherit; }
 .ge-ui-mode button[aria-pressed="true"] { background: var(--color-bg-subtle); color: var(--color-text); font-weight: 600; }
 /* TASKS.csv #786 — interface language picker, at the end of the status bar */
 .ge-lang { align-self: center; flex: 0 0 auto; margin: 0 0 0 4px; padding: 1px 3px; font: inherit; font-size: var(--font-size-sm); color: var(--color-text-secondary); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer; }
-.ge-ribbon-group { display: flex; flex-direction: column; padding: 0 6px; border-right: 1px solid var(--color-border); }
-.ge-ribbon-group:last-child { border-right: none; }
+.ge-ribbon-group { display: flex; flex-direction: column; padding: 0 6px; border-inline-end: 1px solid var(--color-border); } /* inline-end: #1118 (the divider follows the reading direction) */
+.ge-ribbon-group:last-child { border-inline-end: none; }
 .ge-ribbon-items { display: flex; align-items: flex-start; gap: 1px; flex: 1; }
 .ge-ribbon-caption { font-size: var(--font-size-xs); color: var(--color-text-muted); text-align: center; padding: 1px 0 3px; white-space: nowrap; }
 .ge-ribbon-cell { position: relative; display: flex; align-items: flex-start; gap: 4px; }
@@ -290,7 +290,7 @@ input, select { font-family: inherit; }
 .ge-status .spacer { flex: 1; }
 
 /* generic panel */
-.ge-panel { width: 300px; flex-shrink: 0; background: var(--color-bg); border-right: 1px solid var(--color-border); overflow-y: auto; }
+.ge-panel { width: 300px; flex-shrink: 0; background: var(--color-bg); border-inline-end: 1px solid var(--color-border); overflow-y: auto; } /* inline-end: #1118 */
 .ge-section-label { font-size: var(--font-size-sm); letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 8px; }
 
 /* Export PDF (electron printToPDF, or window.print() in the browser dev fallback) captures the

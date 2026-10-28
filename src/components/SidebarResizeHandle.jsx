@@ -21,7 +21,9 @@ export default function SidebarResizeHandle({ width, onResize }) {
     document.body.style.cursor = "col-resize";
     const onMove = (ev) => {
       if (!dragRef.current) return;
-      onResize(dragRef.current.startWidth + (ev.clientX - dragRef.current.startX));
+      // TASKS.csv #1118 — in Arabic (dir="rtl") the sidebar sits on the right, so dragging LEFT (towards the view) widens it
+      const rtl = document.documentElement.dir === "rtl";
+      onResize(dragRef.current.startWidth + (rtl ? -1 : 1) * (ev.clientX - dragRef.current.startX));
     };
     const onUp = () => {
       dragRef.current = null;

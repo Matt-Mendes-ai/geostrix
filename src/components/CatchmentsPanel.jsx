@@ -141,18 +141,18 @@ export default function CatchmentsPanel({ onClose }) {
           {msg && <div style={{ ...note, color: "var(--color-text)" }}>{msg}</div>}
           <div style={{ overflow: "auto", maxHeight: 380 }}>
             <table style={tbl}>
-              <thead><tr><th style={th}>{tr("Rank")}</th><th style={{ ...th, textAlign: "left" }}>{tr("Site")}</th><th style={th}>{opts.symbol} ({unit})</th><th style={th}>{tr("Catchment km²")}</th><th style={th}>{tr("Own km²")}</th><th style={th}>{tr("Order")}</th><th style={th}>{tr("Productivity")}</th><th style={th}>{tr("Follow-up reach")}</th>{lithoLayer && opts.lithoField && <th style={{ ...th, textAlign: "left" }}>{tr("Catchment geology")}</th>}</tr></thead>
+              <thead><tr><th style={th}>{tr("Rank")}</th><th style={{ ...th, textAlign: "start" }}>{tr("Site")}</th><th style={th}>{opts.symbol} ({unit})</th><th style={th}>{tr("Catchment km²")}</th><th style={th}>{tr("Own km²")}</th><th style={th}>{tr("Order")}</th><th style={th}>{tr("Productivity")}</th><th style={th}>{tr("Follow-up reach")}</th>{lithoLayer && opts.lithoField && <th style={{ ...th, textAlign: "start" }}>{tr("Catchment geology")}</th>}</tr></thead>
               <tbody>{[...a.results].sort((x, y) => (x.rank ?? 1e9) - (y.rank ?? 1e9)).map((r) => (
                 <tr key={r.k} style={{ color: r.placed ? undefined : "var(--color-text-muted)" }}>
                   <td style={td}>{r.rank ?? "—"}</td>
-                  <td style={{ ...td, textAlign: "left" }}>{r.sample_id || `#${r.k + 1}`}</td>
+                  <td style={{ ...td, textAlign: "start" }}>{r.sample_id || `#${r.k + 1}`}</td>
                   <td style={{ ...td, color: r.anomalous ? "var(--color-danger-fg)" : undefined, fontWeight: r.anomalous ? 600 : 400 }}>{fmt(r.value, 3)}</td>
                   <td style={td}>{r.placed ? fmt(r.areaKm2) : tr("not placed")}</td>
                   <td style={td}>{r.placed ? fmt(r.ownKm2) : ""}</td>
                   <td style={td}>{r.order || "—"}</td>
                   <td style={td}>{fmt(r.productivity)}</td>
                   <td style={td}>{r.reachM ? `${Math.round(r.reachM).toLocaleString()} m` : r.anomalous ? tr("anomalous upstream") : ""}</td>
-                  {lithoLayer && opts.lithoField && <td style={{ ...td, textAlign: "left" }}>{r.lith ? r.lith.slice(0, 2).map((l) => `${l.unit} ${l.pct.toFixed(0)}%`).join(", ") : ""}</td>}
+                  {lithoLayer && opts.lithoField && <td style={{ ...td, textAlign: "start" }}>{r.lith ? r.lith.slice(0, 2).map((l) => `${l.unit} ${l.pct.toFixed(0)}%`).join(", ") : ""}</td>}
                 </tr>
               ))}</tbody>
             </table>

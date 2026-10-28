@@ -79,15 +79,15 @@ export default function DomainsPanel({ onClose }) {
                 <div style={{ flex: "1 1 320px", minWidth: 0, overflowX: "auto" }}>
                   <div style={label}>{tr("Loadings")}</div>
                   <table style={tbl}>
-                    <thead><tr><th style={{ ...th, textAlign: "left" }}>{tr("Element")}</th>{Array.from({ length: pcs }, (_, i) => <th key={i} style={th}>PC{i + 1}</th>)}</tr></thead>
-                    <tbody>{result.symbols.map((sym, j) => <tr key={sym}><td style={{ ...td, textAlign: "left" }}>{sym}</td>{Array.from({ length: pcs }, (_, i) => <td key={i} style={{ ...td, fontWeight: Math.abs(result.pca.loadings[i][j]) > 0.4 ? 600 : 400 }}>{result.pca.loadings[i][j].toFixed(2)}</td>)}</tr>)}</tbody>
+                    <thead><tr><th style={{ ...th, textAlign: "start" }}>{tr("Element")}</th>{Array.from({ length: pcs }, (_, i) => <th key={i} style={th}>PC{i + 1}</th>)}</tr></thead>
+                    <tbody>{result.symbols.map((sym, j) => <tr key={sym}><td style={{ ...td, textAlign: "start" }}>{sym}</td>{Array.from({ length: pcs }, (_, i) => <td key={i} style={{ ...td, fontWeight: Math.abs(result.pca.loadings[i][j]) > 0.4 ? 600 : 400 }}>{result.pca.loadings[i][j].toFixed(2)}</td>)}</tr>)}</tbody>
                   </table>
                 </div>
               </div>
               <div style={{ overflowX: "auto" }}>
                 <table style={tbl}>
-                  <thead><tr><th style={{ ...th, textAlign: "left" }}>{tr("Domain")}</th><th style={th}>n</th><th style={{ ...th, textAlign: "left" }}>{tr("Enriched (median clr above all samples)")}</th><th style={{ ...th, textAlign: "left" }}>{tr("Depleted")}</th></tr></thead>
-                  <tbody>{result.clusters.map((c, i) => <tr key={c.id}><td style={{ ...td, textAlign: "left" }}><span style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%", background: COLOURS[i % COLOURS.length], marginRight: 5 }} />{c.id}</td><td style={td}>{c.n}</td><td style={{ ...td, textAlign: "left" }}>{c.enriched.map((e) => `${e.sym} (+${e.d.toFixed(2)})`).join(", ") || "—"}</td><td style={{ ...td, textAlign: "left" }}>{c.depleted.map((e) => `${e.sym} (${e.d.toFixed(2)})`).join(", ") || "—"}</td></tr>)}</tbody>
+                  <thead><tr><th style={{ ...th, textAlign: "start" }}>{tr("Domain")}</th><th style={th}>n</th><th style={{ ...th, textAlign: "start" }}>{tr("Enriched (median clr above all samples)")}</th><th style={{ ...th, textAlign: "start" }}>{tr("Depleted")}</th></tr></thead>
+                  <tbody>{result.clusters.map((c, i) => <tr key={c.id}><td style={{ ...td, textAlign: "start" }}><span style={{ display: "inline-block", width: 9, height: 9, borderRadius: "50%", background: COLOURS[i % COLOURS.length], marginRight: 5 }} />{c.id}</td><td style={td}>{c.n}</td><td style={{ ...td, textAlign: "start" }}>{c.enriched.map((e) => `${e.sym} (+${e.d.toFixed(2)})`).join(", ") || "—"}</td><td style={{ ...td, textAlign: "start" }}>{c.depleted.map((e) => `${e.sym} (${e.d.toFixed(2)})`).join(", ") || "—"}</td></tr>)}</tbody>
                 </table>
               </div>
               <div style={note}>{tr("Within-cluster scatter by k:")} {result.elbow.map((e) => `${e.k}: ${e.withinSS.toFixed(0)}`).join(" · ")}</div>

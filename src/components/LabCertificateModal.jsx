@@ -73,7 +73,7 @@ export default function LabCertificateModal({ review, onChange, onCancel, onComm
           )}
           <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-sm)" }}>
             <thead>
-              <tr style={{ color: "var(--color-text-muted)", textAlign: "left" }}>
+              <tr style={{ color: "var(--color-text-muted)", textAlign: "start" }}>
                 <th style={th}>{tr("Sample")}</th><th style={th}>{tr("Type")}</th><th style={th}>{tr("Material / parent")}</th><th style={th}>{tr("Why")}</th>
               </tr>
             </thead>

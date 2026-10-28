@@ -404,7 +404,7 @@ export default function RasterModule({ embedded = false } = {}) {
 
         {gridRasters.length >= 3 && (
           <div style={{ marginTop: 10 }}>
-            <button type="button" onClick={() => setTern((p) => ({ ...p, open: !p.open }))} aria-expanded={tern.open} style={{ width: "100%", padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg-subtle)", color: "var(--color-text)", cursor: "pointer", fontSize: "var(--font-size-sm)", textAlign: "left" }}>{tr("Radiometric ternary image (K-eTh-eU)…")}</button>
+            <button type="button" onClick={() => setTern((p) => ({ ...p, open: !p.open }))} aria-expanded={tern.open} style={{ width: "100%", padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg-subtle)", color: "var(--color-text)", cursor: "pointer", fontSize: "var(--font-size-sm)", textAlign: "start" }}>{tr("Radiometric ternary image (K-eTh-eU)…")}</button>
             {tern.open && (
               <div style={{ marginTop: 6, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 5 }}>
                 {[["k", "K (red)"], ["th", tr("eTh (green)")], ["u", tr("eU (blue)")]].map(([key, label]) => (

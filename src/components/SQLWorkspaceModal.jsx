@@ -146,5 +146,5 @@ const panel = { width: "min(1000px, 96vw)", height: "min(720px, 92vh)", backgrou
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
 const label = { fontSize: "var(--font-size-sm)", letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--color-text-muted)", marginBottom: 8 };
 const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });
-const th = { padding: "4px 8px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "left", borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, background: "var(--color-bg)" };
-const td = { padding: "4px 8px", color: "var(--color-text)", textAlign: "left", fontFamily: "'Exo 2', system-ui, sans-serif", whiteSpace: "nowrap" };
+const th = { padding: "4px 8px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "start", borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, background: "var(--color-bg)" };
+const td = { padding: "4px 8px", color: "var(--color-text)", textAlign: "start", fontFamily: "'Exo 2', system-ui, sans-serif", whiteSpace: "nowrap" };

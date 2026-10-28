@@ -107,7 +107,7 @@ export default function ThresholdToolkit({ surfaceSamples, surfaceElements, mapL
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                   <thead>
                     <tr>
-                      <th style={{ ...th, textAlign: "left" }}>{tr("Population")}</th><th style={th}>n</th><th style={th} title={tr("Share of values reported below the detection limit (stored at half the limit)")}>{tr("<DL %")}</th>
+                      <th style={{ ...th, textAlign: "start" }}>{tr("Population")}</th><th style={th}>n</th><th style={th} title={tr("Share of values reported below the detection limit (stored at half the limit)")}>{tr("<DL %")}</th>
                       {THRESHOLD_METHODS.map((m) => (
                         <th key={m.id} style={{ ...th, cursor: "pointer", background: method === m.id ? "var(--color-selected-bg)" : undefined }} title={`${tr(m.label)}${m.ref ? ` (${m.ref})` : ""}: ${tr(m.assumption)}`} onClick={() => setMethod(m.id)}>
                           <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: METHOD_COLOURS[m.id], marginRight: 4 }} />{tr(m.label)}
@@ -119,7 +119,7 @@ export default function ThresholdToolkit({ surfaceSamples, surfaceElements, mapL
                   <tbody>
                     {pops.map((p) => (
                       <tr key={p.key} onClick={() => setViewKey(p.key)} style={{ cursor: "pointer", background: view?.key === p.key ? "var(--color-bg-subtle)" : undefined }}>
-                        <td style={{ ...td, textAlign: "left" }}>{groupLabel(p.key)}</td>
+                        <td style={{ ...td, textAlign: "start" }}>{groupLabel(p.key)}</td>
                         <td style={td}>{p.summary.n}</td>
                         <td style={{ ...td, color: p.summary.censoredPct > 30 || p.zero ? "var(--color-warn-text)" : undefined }} title={p.zero ? tr("{n} more reported as 0 by the source (below detection or not analysed: the layer does not say), not in n or these statistics", { n: p.zero }) : undefined}>{p.zero ? tr("{pct} (+{n} at 0)", { pct: Math.round(p.summary.censoredPct), n: p.zero }) : Math.round(p.summary.censoredPct)}</td>
                         {THRESHOLD_METHODS.map((m) => <td key={m.id} style={{ ...td, fontWeight: method === m.id ? 600 : 400, background: method === m.id ? "var(--color-selected-bg)" : undefined }}>{fmt(p.cand.values[m.id])}</td>)}

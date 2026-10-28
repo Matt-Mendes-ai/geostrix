@@ -205,14 +205,14 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
               return (
                 <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 4, fontSize: "var(--font-size-sm)" }}>
                   <thead><tr style={{ color: "var(--color-text-muted)", textAlign: "right" }}>
-                    <th style={{ textAlign: "left", fontWeight: 500 }}>{tr("Surface")}</th>
+                    <th style={{ textAlign: "start", fontWeight: 500 }}>{tr("Surface")}</th>
                     <th style={{ fontWeight: 500 }} title={tr("Downhole depth along the planned trace (lift and drift included)")}>{tr("Depth (m)")}</th>
                     <th style={{ fontWeight: 500 }} title={tr("Vertical depth below the collar")}>{tr("Vert. (m)")}</th>
                     <th style={{ fontWeight: 500 }} title={tr("Angle between the hole and the surface where they meet: 90° is square on; a low angle gives a long, oblique intercept")}>{tr("Angle (°)")}</th>
                   </tr></thead>
                   <tbody>{ps.map((p, i) => (
                     <tr key={i} style={{ textAlign: "right", color: "var(--color-text)" }} title={`E ${p.x.toFixed(1)}  N ${p.y.toFixed(1)}  ${tr("elevation")} ${p.z.toFixed(1)}`}>
-                      <td style={{ textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 140 }}>{p.surfaceName}</td>
+                      <td style={{ textAlign: "start", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 140 }}>{p.surfaceName}</td>
                       <td>{p.md.toFixed(1)}</td><td>{p.verticalDepth.toFixed(1)}</td><td>{p.angle == null ? "—" : p.angle.toFixed(0)}</td>
                     </tr>
                   ))}</tbody>

@@ -52,4 +52,4 @@ export default function LayerPickerModal({ fileName, options, onPick, onCancel }
 
 const panel = { background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif", width: 460, maxWidth: "92vw" };
 const header = { display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
-const row = { display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left", padding: "8px 10px", marginBottom: 6, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", fontFamily: "inherit" };
+const row = { display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "start", padding: "8px 10px", marginBottom: 6, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", fontFamily: "inherit" };

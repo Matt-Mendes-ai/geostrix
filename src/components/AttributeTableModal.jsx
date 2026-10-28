@@ -194,7 +194,7 @@ export default function AttributeTableModal({ title, rows, onSave, onClose }) {
 const overlay = { position: "fixed", inset: 0, background: "rgba(8,10,14,0.7)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center" };
 const panel = { width: "min(1000px, 94vw)", height: "min(680px, 88vh)", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 10, display: "flex", flexDirection: "column", overflow: "hidden", fontFamily: "'Exo 2', system-ui, sans-serif" };
 const header = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid var(--color-border)" };
-const th = { textAlign: "left", padding: "6px 8px", color: "var(--color-text-muted)", fontWeight: 500, borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, background: "var(--color-bg)", whiteSpace: "nowrap" };
+const th = { textAlign: "start", padding: "6px 8px", color: "var(--color-text-muted)", fontWeight: 500, borderBottom: "1px solid var(--color-border)", position: "sticky", top: 0, background: "var(--color-bg)", whiteSpace: "nowrap" };
 const td = { padding: "2px 4px", color: "var(--color-text-strong)" };
 const cellInput = { width: "100%", minWidth: 60, background: "transparent", border: "1px solid transparent", borderRadius: 3, padding: "4px 5px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" };
 const saveBtn = { display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 6, border: "1px solid var(--color-success-border)", background: "var(--color-success-bg)", color: "var(--color-success-text)", fontSize: "var(--font-size-base)", whiteSpace: "nowrap" };
