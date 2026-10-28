@@ -33,6 +33,7 @@ const PX_PER_PT = 96 / 72;
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { crsName } from "../lib/reproject.js"; // TASKS.csv #947
 import { projectCredits } from "../lib/credits.js"; // TASKS.csv #949
+import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1127 / #1128
 // (The page size used to be a fixed `const A4 = { w: 1123, h: 794 }` here; it is now per page — see
 // `A4` inside the component, kept under that name so every existing use follows the chosen format.)
 const SCALE_BAR_PX = 180; // default/initial bar length (px) for a freshly-added, never-synced scale bar
@@ -274,7 +275,13 @@ export default function LayoutModule() {
       // without needing a live theme, which a flattened snapshot doesn't have.
       return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.src, aspect, x: 90 + stagger, y: 90 + stagger, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null };
     });
-    setElements((els) => [...els, ...additions]);
+    // TASKS.csv #1128 — a cross-section snapshot comes with its legend as a Layout element (movable, editable, bound to
+    // the snapshot so "Sync" refreshes it), right of the image when it fits on the sheet, else below it
+    const legends = additions.filter((a) => a.legendItems?.length).map((a) => {
+      const right = a.x + a.w + 16, fits = right + 170 <= A4.w;
+      return { id: `legend_${a.id}`, type: "legend", x: fits ? right : a.x, y: fits ? a.y : a.y + a.h + 16, items: groupSectionLegend(a.legendItems), boundViewportId: a.id };
+    });
+    setElements((els) => [...els, ...additions, ...legends]);
     setSelected(additions[additions.length - 1]?.id ?? null);
     pendingLayoutImages.forEach((img) => consumeLayoutImage(img.id));
   }, [pendingLayoutImages, consumeLayoutImage]);
@@ -771,7 +778,7 @@ export default function LayoutModule() {
     // look up here (a flattened image has none), so this is a direct copy rather than a rebuild —
     // "sync" just means "refresh from whatever this snapshot was captured with".
     if (vp.type === "image") {
-      const items = vp.legendItems || [];
+      const items = groupSectionLegend(vp.legendItems); // #1127 — a snapshot taken before grouping is grouped here
       if (!items.length) { setSyncNotice(tr("This cross-section snapshot has no litho/alteration/vein/structure data to show — nothing to load.")); return; }
       setElements((els) => els.map((el) => el.id === legendId ? { ...el, items } : el));
       setSyncNotice(tr(items.length === 1 ? "Loaded {items} category from \"{v2}\"." : "Loaded {items} categories from \"{v2}\".", { items: items.length, v2: vp.label || vp.id }));

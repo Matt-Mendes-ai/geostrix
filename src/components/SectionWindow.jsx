@@ -6,7 +6,7 @@ import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearest
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { placeLabels, leaderEnd } from "../lib/sectionLabels.js"; // TASKS.csv #823
-import { sectionLegendLayout } from "../lib/sectionLegend.js"; // TASKS.csv #1043
+import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { colors } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned, the planned-hole colour of every view
 
@@ -63,7 +63,6 @@ export default function SectionWindow() {
   const [vExag, setVExag] = useState(1);
   const [showSectionImages, setShowSectionImages] = useState(true); // TASKS.csv #631
   const [showModel, setShowModel] = useState(true); // TASKS.csv #759
-  const [showLegend, setShowLegend] = useState(true); // TASKS.csv #1043 — the key drawn inside the section (and its exports)
   // TASKS.csv #1131 — Matt: "set thickness of drill holes on cross sections and the cross section buffer in the section
   // itself". The interval ribbons' width in px (a per-user preference, kept in localStorage), and the buffer typed here.
   const [holeWidth, setHoleWidthState] = useState(() => { try { const v = Number(localStorage.getItem("geostrix.sectionHoleWidth")); return v >= 1 && v <= 20 ? v : 5; } catch { return 5; } });
@@ -142,7 +141,7 @@ export default function SectionWindow() {
       // Layout image element this snapshot becomes, so a legend can be bound directly to THIS
       // snapshot and show exactly what's drawn in it — a flattened image has no live data of its own
       // to sync from otherwise.
-      legendItems: shownLegendItems, // #759
+      legendItems: groupSectionLegend(shownLegendItems), // #759; grouped under layer headings: #1127 / #1128
     });
     setSnapped(true);
     setTimeout(() => setSnapped(false), 1800);
@@ -339,10 +338,6 @@ export default function SectionWindow() {
             <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("{name}: the modelled units on this section, behind the logged holes, {source}. Grey: above the youngest modelled top (younger rock, or air where no terrain clips it).", { name: data.modelBackdrop.name, source: data.modelBackdrop.source })}>
               <input type="checkbox" checked={showModel} onChange={(e) => setShowModel(e.target.checked)} />{" "}{tr("Modelled units")}</label>
           )}
-          {data.legendItems?.length > 0 && ( // TASKS.csv #1043
-            <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Draw the key under the section, in the window and in the PNG, SVG and PDF exports. Turn it off to build the figure in Layout with its own legend.")}>
-              <input type="checkbox" checked={showLegend} onChange={(e) => setShowLegend(e.target.checked)} />{" "}{tr("Legend")}</label>
-          )}
           {data.sectionImages?.length > 0 && ( // TASKS.csv #631
             <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Georeferenced section image(s) on this line, drawn behind the holes and contacts: {v}", { v: data.sectionImages.map((i) => i.name).join(", ") })}>
               <input type="checkbox" checked={showSectionImages} onChange={(e) => setShowSectionImages(e.target.checked)} />{" "}{tr("Section image")}</label>
@@ -408,7 +403,7 @@ export default function SectionWindow() {
 
       <div className="ge-section-body" style={{ flex: 1, overflow: "auto", padding: 16 }}>
         {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{v2}. Click the pencil again to finish; Save contacts keeps the changes.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}{editing?.kind === "outline" ? ` ${tr("Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.")}` : ""}</div>}
-        <SectionSVG holeWidth={holeWidth} showSectionImages={showSectionImages} showModel={showModel} legendItems={showLegend ? shownLegendItems : null} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
+        <SectionSVG holeWidth={holeWidth} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
           snap={snapOn && !planning ? targets : null} editingId={editingId} onEditPoints={editPoints}
           labels={labels} onMoveLabel={(key, off) => changeLabels({ offsets: { ...labels.offsets, [key]: off } })} /* #823 */ />
       </div>
@@ -421,7 +416,7 @@ function btnStyle(active) {
 }
 const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11.5 };
 
-function SectionSVG({ holeWidth = 5, showSectionImages = true, showModel = true, legendItems = null, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onMoveLabel }) {
+function SectionSVG({ holeWidth = 5, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onMoveLabel }) {
   const dragRef = useRef(null); // #519 — the vertex being dragged (before the early return: a hook)
   const labelDragRef = useRef(null); // #823 — the label being dragged: { key, ax, ay, grabDx, grabDy }
   const [labelDrag, setLabelDrag] = useState(null); // its live offset while dragging: { key, dx, dy }
@@ -469,10 +464,7 @@ function SectionSVG({ holeWidth = 5, showSectionImages = true, showModel = true,
 
   const sx = (l) => PAD + l * hScale;
   const sz = (z) => H - PAD - (z - minZ) * vScale;
-  // TASKS.csv #1043 — the key, below the distance-axis title (H - 14); the page (viewBox) grows by its height, the plot does not move
-  const LEG_TOP = H - 2;
-  const legend = sectionLegendLayout(legendItems, W - 2 * PAD);
-  const totalH = legend.height ? LEG_TOP + legend.height : H;
+  const totalH = H; // TASKS.csv #1128 — no key inside the section any more (#1043 drew one): it goes to Layout
   // Inverse of sx/sz — converts a click back to (l, z), then to world (x, y) via the section line's
   // own origin/direction, so a drawn contact point is stored as real-world coordinates, not a
   // screen-relative fraction (see store.jsx's `sections` comment).
@@ -602,20 +594,6 @@ function SectionSVG({ holeWidth = 5, showSectionImages = true, showModel = true,
       ))}
       <text x={PAD} y={H - PAD + 30} fill="#55606e" fontSize="10" textAnchor="start">{`${Math.round(ax).toLocaleString()} E  ${Math.round(ay).toLocaleString()} N`}</text>
       <text x={W - PAD} y={H - PAD + 30} fill="#55606e" fontSize="10" textAnchor="end">{`${Math.round(bx).toLocaleString()} E  ${Math.round(by).toLocaleString()} N`}</text>
-      {legend.height > 0 && (
-        <g transform={`translate(${PAD} ${LEG_TOP})`}>
-          <text x={0} y={10} fill="#55606e" fontSize="10" fontWeight="700" letterSpacing="0.5">{tr("LEGEND")}</text>
-          {legend.entries.map((e, i) => (
-            <g key={i} transform={`translate(${e.x} ${e.y})`}>
-              {e.kind === "line" ? <rect x={0} y={4.5} width={16} height={3} rx={1} fill={e.color} />
-                : e.kind === "point" ? <circle cx={8} cy={6} r={4.5} fill={e.color} stroke="#b9bec6" strokeWidth="0.6" />
-                  : <rect x={3} y={1} width={10} height={10} rx={1.5} fill={e.color} stroke="#b9bec6" strokeWidth="0.6" />}
-              <text x={22} y={10} fill="#1a2028" fontSize="10">{e.label}<title>{e.full}</title></text>
-            </g>
-          ))}
-          {legend.more > 0 && <text x={0} y={legend.height - 12} fill="#65717e" fontSize="9.5">{tr("+ {n} more not shown: build the figure in Layout for the full key", { n: legend.more })}</text>}
-        </g>
-      )}
       <text x={PAD} y={PAD - 22} fill="#1a2028" fontSize="12" fontWeight="600">{title || tr("Cross-section")}</text>
       <text x={PAD} y={PAD - 8} fill="#55606e" fontSize="10">{tr("Azimuth {v}° · {v2}{v3} · elevation in m", { v: Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360).toFixed(0), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" })}</text>
 
