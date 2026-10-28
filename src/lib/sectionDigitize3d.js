@@ -142,7 +142,12 @@ export function sectionSnapTargets(plane, traces, litho = [], { maxOffM = 15, ma
 
 // Shift held: the new segment from `prev` is turned to the nearest multiple of `stepDeg` on the image (0 = along the
 // section, 90 = vertical), keeping its length along that direction.
+// TASKS.csv #1102 (review #1016, explicit modeller) — from `prev` PROJECTED onto the image: since #950 a snapped contact
+// keeps the hole's real position, up to the snap reach off the image, and `prev + in-plane move` carried that offset into
+// every Shift-drawn vertex after it (12 m off the section in the review's case). The result is always on the plane.
 export function constrainOnImage(prev, p, plane, stepDeg = 45) {
+  const off = dot(sub([prev.x, prev.y, prev.z], plane.o), plane.n);
+  prev = { x: prev.x - off * plane.n[0], y: prev.y - off * plane.n[1], z: prev.z - off * plane.n[2] };
   const d = [p.x - prev.x, p.y - prev.y, p.z - prev.z];
   const a = dot(d, plane.u), b = dot(d, plane.v);
   const ang = Math.atan2(b, a), step = (stepDeg * Math.PI) / 180, snapped = Math.round(ang / step) * step;
