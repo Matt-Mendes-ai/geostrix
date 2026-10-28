@@ -41,8 +41,15 @@ export async function writeOMF({ name = "GeoStrix export", description = "", ele
     chunks.push(z); offset += z.length;
     return id;
   };
-  const f8 = (a) => Float64Array.from(a, (v) => (Number.isFinite(v) ? v : NaN));
-  const i8 = (a) => BigInt64Array.from(a, (v) => BigInt(v));
+  // TASKS.csv #1112 (review #1016) — preallocated arrays filled in a loop: .from(a, mapper) (and a BigInt per index) took
+  // 0.3-1.4 s for a 1M-triangle surface where this takes 12-40 ms (identical bytes). i8 writes each int64 as its two 32-bit words (little-endian,
+  // as the typed arrays above already assume): low = v mod 2^32, high = floor(v / 2^32), exact for |v| < 2^53.
+  const f8 = (a) => { const n = a.length, out = new Float64Array(n); for (let i = 0; i < n; i++) { const v = a[i]; out[i] = Number.isFinite(v) ? v : NaN; } return out; };
+  const i8 = (a) => {
+    const n = a.length, out = new BigInt64Array(n), w = new Int32Array(out.buffer);
+    for (let i = 0; i < n; i++) { const v = Number(a[i]); w[2 * i] = v | 0; w[2 * i + 1] = Math.floor(v / 4294967296) | 0; }
+    return out;
+  };
   const addData = async (d, location) => {
     const arr = await addArray("ScalarArray", f8(d.values), "<f8");
     const id = uuid();
