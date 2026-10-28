@@ -91,6 +91,9 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
   // so switching Structure type recomputes for just that population (which is the useful thing: the
   // mean of "all faults + all bedding together" is meaningless, the mean of one set is not).
   const stats = useMemo(() => fisherStats(filtered, { terzaghi }), [filtered, terzaghi]);
+  // TASKS.csv #1108 (review #1016) — picks with no dip or dip direction (alpha only, no beta) are in the type list and
+  // filters but are not drawn and not in the statistics; the header said "1203/1203" while 849 were plotted
+  const plotted = useMemo(() => filtered.filter((p) => !(p.dip == null || p.azimuth == null || isNaN(p.dip) || isNaN(p.azimuth))).length, [filtered]);
 
   // TASKS.csv #141 follow-up — Kamb density grid over the SAME filtered subset the poles/circles/mean
   // use, and in the SAME projection, so a contour band sits exactly under the poles that produced it.
@@ -132,7 +135,9 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: "#1a2028" }}>
-            {tr("{v} — structure picks ({filtered}/{picks})", { v: view === "rose" ? tr("Rose diagram") : tr("Stereonet"), filtered: filtered.length, picks: picks.length })}{domainId && domains.length > 0 && (
+            {plotted === filtered.length
+              ? tr("{v} — structure picks ({filtered}/{picks})", { v: view === "rose" ? tr("Rose diagram") : tr("Stereonet"), filtered: filtered.length, picks: picks.length })
+              : tr("{v} — {plotted} of {filtered} structure picks plotted ({picks} in all); {missing} have no dip direction (alpha only, no beta)", { v: view === "rose" ? tr("Rose diagram") : tr("Stereonet"), plotted: plotted.toLocaleString(), filtered: filtered.length.toLocaleString(), picks: picks.length.toLocaleString(), missing: (filtered.length - plotted).toLocaleString() })}{domainId && domains.length > 0 && (
               <span style={{ fontWeight: 400, fontSize: 11, color: "#7d3c98", marginLeft: 6 }}>{tr("· domain: {v}", { v: (domains.find((d) => d.id === domainId) || {}).name || domainId })}
               </span>
             )}
