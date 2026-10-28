@@ -31,7 +31,10 @@ export function placeDxfStrings(parsed, sections, { tolM = 10 } = {}) {
     const { s, ux, uy } = best;
     // vertices projected onto the section plane (as a drawn outline is: l along the line, x / y on it)
     const ring = pts.length > 2 && pts[0].x === pts[pts.length - 1].x && pts[0].y === pts[pts.length - 1].y && pts[0].z === pts[pts.length - 1].z ? pts.slice(0, -1) : pts;
-    out.outlines.push({ sectionId: s.id, sectionName: s.name, layer, points: ring.map((p) => { const l = (p.x - s.ax) * ux + (p.y - s.ay) * uy; return { l, z: p.z, x: s.ax + l * ux, y: s.ay + l * uy }; }) });
+    // #1057 — a file GeoStrix exported before then has "<section>_outline_<body>" layers: the body name is what links
+    const pre = `${String(s.name || "").replace(/[^A-Za-z0-9_.$-]+/g, "_")}_outline_`; // as buildDXF wrote the section name
+    const body = s.name && layer.startsWith(pre) ? layer.slice(pre.length) || layer : layer;
+    out.outlines.push({ sectionId: s.id, sectionName: s.name, layer: body, points: ring.map((p) => { const l = (p.x - s.ax) * ux + (p.y - s.ay) * uy; return { l, z: p.z, x: s.ax + l * ux, y: s.ay + l * uy }; }) });
   });
   return out;
 }

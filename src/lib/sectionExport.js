@@ -1,8 +1,8 @@
 // TASKS.csv #409 — export digitised section strings. Contacts drawn on a section are already stored with
 // real-world x, y, z per vertex (SectionWindow converts on draw), but nothing read them back out, so
 // interpretation done in GeoStrix could not be handed to Vulcan/Datamine/Leapfrog. Two outputs:
-//   * CSV — one row per vertex: section, string_id, kind, name, vertex, x, y, z (+ along-section l)
-//   * DXF — one 3D POLYLINE per string, on layer "<section>_<kind>_<name>" (buildDXF, #408)
+//   * CSV — one row per vertex: section, string_id, kind, name, vertex, x, y, z (+ along-section l, tie: #1057)
+//   * DXF — one 3D POLYLINE per string, on layer "<name>" for an outline, "<name>_<kind>" otherwise (buildDXF, #408; #1057)
 // `kind` is "contact" (a unit's upper contact — the only kind that feeds litho modelling), "fault" or
 // "string" (free interpretation line); contacts drawn before kinds existed are contacts.
 import { buildDXF } from "./dxf.js";
@@ -23,7 +23,7 @@ export function sectionStringsToRows(sections) {
     const kind = kindOf(c), closed = kind === "outline" && pts.length >= 3;
     join++;
     (closed ? [...pts, pts[0]] : pts).forEach((p, i) => {
-      rows.push({ section: s.name, join, string_id: c.id, kind, name: c.unit || "", closed: closed ? "Y" : "N", vertex: i + 1, x: +p.x.toFixed(3), y: +p.y.toFixed(3), z: +p.z.toFixed(3), l: Number.isFinite(p.l) ? +p.l.toFixed(3) : "" });
+      rows.push({ section: s.name, join, string_id: c.id, kind, name: c.unit || "", closed: closed ? "Y" : "N", vertex: i + 1, x: +p.x.toFixed(3), y: +p.y.toFixed(3), z: +p.z.toFixed(3), l: Number.isFinite(p.l) ? +p.l.toFixed(3) : "", tie: p.tie && i < pts.length ? "Y" : "" }); // tie: the #874 tie vertex (#1057)
     });
   }));
   return rows;
@@ -37,7 +37,12 @@ export function sectionStringsToDXF(sections) {
     // buildDXF write a CLOSED polyline (flag 1). It left as an open string: Micromine got an outline missing its closing
     // edge, and GeoStrix's own DXF import read it back as a hard line.
     if (kindOf(c) === "outline" && g.length >= 3) g.push(g[0].slice());
-    if (g.length >= 2) features.push({ geometry: g, attributes: { hole_id: `${s.name}_${kindOf(c)}_${c.unit || "unnamed"}` } });
+    // TASKS.csv #1057 (review #1016, explicit modeller) — the layer is the body: an outline on "<name>", other strings on
+    // "<name>_<kind>". It was "<section>_<kind>_<name>", so each section of a body landed on its own CAD layer (a
+    // wireframer expects one per body) and GeoStrix's own DXF import read three outlines of VeinA as three bodies that
+    // could not be linked. The section stays in the CSV.
+    const name = c.unit || "unnamed";
+    if (g.length >= 2) features.push({ geometry: g, attributes: { hole_id: kindOf(c) === "outline" ? name : `${name}_${kindOf(c)}` } });
   }));
   return { dxf: buildDXF({ features, geomType: "line" }), count: features.length };
 }

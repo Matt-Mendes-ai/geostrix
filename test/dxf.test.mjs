@@ -67,7 +67,7 @@ test("#409 section contacts/faults/strings export as vertex CSV rows and 3D DXF 
   assert.equal(back.polylines.length, 2);
   assert.ok(back.has3D);
   assert.deepEqual(back.polylines[1].map((p) => p.z), [1150, 900]);
-  assert.match(back.layers.join(" "), /4200N_contact_DACT/);
+  assert.deepEqual(back.layers.slice().sort(), ["DACT_contact", "Main_Fault_fault"]); // #1057: per body, not per section
   assert.equal(kindOf({ isUpperContact: true }), "contact");
 });
 
