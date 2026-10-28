@@ -1834,10 +1834,13 @@ export function createModellingRuns(ctx, mcRef) {
         // the only grade a user has to pair with the tonnage is the CUTOFF, which is exactly how
         // "X tonnes at Y g/t" gets quoted wrong. Cells are equal volume, so a plain mean over the
         // at/above-cutoff cells IS the volume-weighted mean.
+        // TASKS.csv #1100 — with "cut at topography" the shell is drawn from the capped copy (#803): a node counts only when
+        // it is inside the shell after the cap too (nodes in the air left out), at its own interpolated grade
+        const capV = gsCap.values;
         let gradeSum = 0, gradeCells = 0;
         for (let i = 0; i < grid.values.length; i++) {
           const gv = grid.values[i];
-          if (Number.isFinite(gv) && gv >= numericCutoff) { gradeSum += gv; gradeCells++; }
+          if (Number.isFinite(gv) && gv >= numericCutoff && capV[i] >= numericCutoff) { gradeSum += gv; gradeCells++; }
         }
         const meanGradeInShell = gradeCells > 0 ? gradeSum / gradeCells : null;
         // TASKS.csv #270 (LOW-3) / #269 - the parameter block that produced this surface, kept ON the
