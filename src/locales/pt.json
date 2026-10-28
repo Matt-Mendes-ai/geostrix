@@ -6306,5 +6306,6 @@
   "Undone: {what}.": "Desfeito: {what}.",
   "Redone: {what}.": "Refeito: {what}.",
   "Undo (Ctrl/Cmd+Z): collars, surveys, logs, assays, surface samples, sections, planned holes, explicit surfaces, Layout pages ... Rasters, terrain, map layers, block models and generated surfaces are not undoable.": "Desfazer (Ctrl/Cmd+Z): bocas de furo, surveys, registros, análises, amostras de superfície, seções, furos planejados, superfícies explícitas, páginas do Layout... Rasters, terreno, camadas de mapa, modelos de blocos e superfícies geradas não podem ser desfeitos.",
-  "Save every issue (severity, category, hole, message) as a CSV, with the project, CRS, desurvey method and thresholds in its header": "Salvar todos os problemas (gravidade, categoria, furo, mensagem) como CSV, com o projeto, o CRS, o método de desurvey e os limites no cabeçalho"
+  "Save every issue (severity, category, hole, message) as a CSV, with the project, CRS, desurvey method and thresholds in its header": "Salvar todos os problemas (gravidade, categoria, furo, mensagem) como CSV, com o projeto, o CRS, o método de desurvey e os limites no cabeçalho",
+  "Export the points of \"{key}\" (CSV)": "Exportar os pontos de \"{key}\" (CSV)"
 }

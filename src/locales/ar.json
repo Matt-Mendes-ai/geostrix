@@ -6306,5 +6306,6 @@
   "Undone: {what}.": "تم التراجع: {what}.",
   "Redone: {what}.": "تمت الإعادة: {what}.",
   "Undo (Ctrl/Cmd+Z): collars, surveys, logs, assays, surface samples, sections, planned holes, explicit surfaces, Layout pages ... Rasters, terrain, map layers, block models and generated surfaces are not undoable.": "تراجع (Ctrl/Cmd+Z): الفوهات والمسوحات والسجلات والتحاليل والعينات السطحية والمقاطع والثقوب المخططة والأسطح الصريحة وصفحات التخطيط… لا يمكن التراجع عن الصور النقطية والتضاريس وطبقات الخرائط ونماذج الكتل والأسطح المولّدة.",
-  "Save every issue (severity, category, hole, message) as a CSV, with the project, CRS, desurvey method and thresholds in its header": "حفظ كل المشكلات (الخطورة والفئة والثقب والرسالة) بصيغة CSV، مع المشروع ونظام الإحداثيات وطريقة حساب المسار والعتبات في الترويسة"
+  "Save every issue (severity, category, hole, message) as a CSV, with the project, CRS, desurvey method and thresholds in its header": "حفظ كل المشكلات (الخطورة والفئة والثقب والرسالة) بصيغة CSV، مع المشروع ونظام الإحداثيات وطريقة حساب المسار والعتبات في الترويسة",
+  "Export the points of \"{key}\" (CSV)": "تصدير نقاط \"{key}\" (CSV)"
 }

@@ -97,3 +97,20 @@ export function aglToElevation(rows, key, terrainAt) {
   });
   return { rows: out, done, outside };
 }
+
+// TASKS.csv #1094 (review #1016, geophysicist) — one survey's points as table rows: a crew that levelled or diurnally
+// corrected its stations in GeoStrix could get them out only as a gridded GeoTIFF. Columns: x, y (project CRS), z, the
+// value under its method / unit name ("mag_nT"), then line, fiducial, label and the height above ground when present.
+// meta: the survey's geophysSurveys entry ({ method, units, zMeaning }). -> { rows, valueName }
+export function surveyExportRows(points, meta = {}) {
+  const unit = String(meta.units || "").replace(/[^A-Za-z0-9]+/g, "") || null;
+  const valueName = [meta.method || "value", unit].filter(Boolean).join("_");
+  const has = (k) => points.some((r) => r[k] != null && r[k] !== "");
+  const keep = { line: has("line"), fid: has("fid"), label: has("label"), zAgl: points.some((r) => Number.isFinite(r.zAgl)) };
+  const rows = points.map((r) => ({
+    x: r.x, y: r.y, z: Number.isFinite(r.z) ? r.z : "", [valueName]: Number.isFinite(r.value) ? r.value : "",
+    ...(keep.line ? { line: r.line ?? "" } : {}), ...(keep.fid ? { fiducial: r.fid ?? "" } : {}), ...(keep.label ? { label: r.label ?? "" } : {}),
+    ...(keep.zAgl ? { height_agl: Number.isFinite(r.zAgl) ? r.zAgl : "" } : {}),
+  }));
+  return { rows, valueName };
+}

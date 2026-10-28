@@ -4,14 +4,14 @@ import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; // TASKS.csv #410
 import { guessBlockModelMapping, numericColumns, blockModelCellsFromRows, coarsenBlockCells } from "../lib/blockModelCsv.js";
-import { parseTableFile } from "../lib/tabular.js"; // TASKS.csv #444
+import { parseTableFile, toExportCsv } from "../lib/tabular.js"; // TASKS.csv #444; toExportCsv: #1094
 import { guessGeophysColumns, rowsToGeophysPoints } from "../lib/geophysColumns.js"; // TASKS.csv #484
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import Papa from "papaparse";
 import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen } from "../components/icons.js";
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
 import { logStops, SEQUENTIAL_ANCHORS } from "../lib/inversion.js"; // TASKS.csv #481
-import { SURVEY_METHODS, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, replaceSurveyPoints } from "../lib/geophysSurveys.js"; // TASKS.csv #451; replaceSurveyPoints #600
+import { SURVEY_METHODS, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
 import { terrainElevationAt } from "../lib/inversion.js";
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
 import { useStore } from "../lib/store.jsx";
@@ -206,6 +206,16 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   const xyzInput = useRef(null);
   const rows = layers.geophys_pts || [];
   const surveyList = useMemo(() => surveyStats(rows), [rows]); // TASKS.csv #451
+  // TASKS.csv #1094 — one survey's points as CSV (x, y, z, the value as "<method>_<unit>", line / fiducial / label), stamped
+  const exportSurvey = (key) => {
+    const meta = geophysSurveys[key] || {}, pts = rows.filter((r) => surveyKey(r) === key);
+    const { rows: out, valueName } = surveyExportRows(pts, meta);
+    const stamp = stampLines({ tool: "Geophysics survey points", version: APP_VERSION, epsg: project?.epsg, params: [
+      `Survey: ${key} | ${pts.length} point(s) | method: ${meta.method ? SURVEY_METHODS[meta.method]?.label || meta.method : "not set"} | units: ${meta.units || "not set"}`,
+      `${valueName}: the value as stored in GeoStrix (after any diurnal correction or levelling applied at import) | z: ${Z_MEANINGS[meta.zMeaning] || "as imported"}${pts.some((r) => Number.isFinite(r.zAgl)) ? " | height_agl: the radar-altimeter height the elevation was computed from" : ""}`,
+    ] });
+    saveFile({ suggestedName: `${String(key).replace(/\.[^.]+$/, "").replace(/[^a-z0-9_-]+/gi, "_")}_points.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(out), stamp) });
+  };
   // TASKS.csv #538 — gridding used EVERY imported survey at once (a mag survey in nT blended with a gravity or
   // radiometric one) and filled the whole bounding box. Now one survey, blanked beyond a distance from the data.
   const idwKey = surveyList.some((s) => s.key === idwSurvey) ? idwSurvey : surveyList[0]?.key || "";
@@ -1083,6 +1093,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                 <div key={sv.key} style={{ marginBottom: 8, padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }} title={sv.key}>{sv.key}</span>
+                    <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} aria-label={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} title={tr("Export the points of \"{key}\" (CSV)", { key: sv.key })} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => exportSurvey(sv.key)} />{/* #1094 */}
                     <Trash2 role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} aria-label={tr("Remove survey \"{key}\"", { key: sv.key })} title={tr("Remove survey \"{key}\"", { key: sv.key })} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }}
                       onClick={() => { if (window.confirm(tr("Remove the {count} points of \"{key}\"?", { count: sv.count.toLocaleString(), key: sv.key }))) setLayers((l) => ({ ...l, geophys_pts: (l.geophys_pts || []).filter((r) => surveyKey(r) !== sv.key) })); }} />
                   </div>

@@ -6306,5 +6306,6 @@
   "Undone: {what}.": "Annulé : {what}.",
   "Redone: {what}.": "Rétabli : {what}.",
   "Undo (Ctrl/Cmd+Z): collars, surveys, logs, assays, surface samples, sections, planned holes, explicit surfaces, Layout pages ... Rasters, terrain, map layers, block models and generated surfaces are not undoable.": "Annuler (Ctrl/Cmd+Z) : collets, levés, journaux, teneurs, échantillons de surface, coupes, sondages planifiés, surfaces explicites, pages de mise en page… Les rasters, le terrain, les couches cartographiques, les modèles de blocs et les surfaces générées ne peuvent pas être annulés.",
-  "Save every issue (severity, category, hole, message) as a CSV, with the project, CRS, desurvey method and thresholds in its header": "Enregistrer tous les problèmes (gravité, catégorie, sondage, message) en CSV, avec le projet, le SCR, la méthode de calcul de trajectoire et les seuils dans l’en-tête"
+  "Save every issue (severity, category, hole, message) as a CSV, with the project, CRS, desurvey method and thresholds in its header": "Enregistrer tous les problèmes (gravité, catégorie, sondage, message) en CSV, avec le projet, le SCR, la méthode de calcul de trajectoire et les seuils dans l’en-tête",
+  "Export the points of \"{key}\" (CSV)": "Exporter les points de « {key} » (CSV)"
 }
