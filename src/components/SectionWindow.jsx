@@ -68,6 +68,9 @@ export default function SectionWindow() {
   const [holeWidth, setHoleWidthState] = useState(() => { try { const v = Number(localStorage.getItem("geostrix.sectionHoleWidth")); return v >= 1 && v <= 20 ? v : 5; } catch { return 5; } });
   const setHoleWidth = (v) => { const n = Math.max(1, Math.min(20, Number(v) || 5)); setHoleWidthState(n); try { localStorage.setItem("geostrix.sectionHoleWidth", String(n)); } catch { /* private window */ } };
   const [bufferDraft, setBufferDraft] = useState("");
+  // TASKS.csv #1130 — "User should be able to set opacity of structures" (kept per user, like the hole width)
+  const [structOpacity, setStructOpacityState] = useState(() => { try { const v = Number(localStorage.getItem("geostrix.sectionStructOpacity")); return v > 0 && v <= 1 ? v : 1; } catch { return 1; } });
+  const setStructOpacity = (v) => { const n = Math.max(0.05, Math.min(1, Number(v) || 1)); setStructOpacityState(n); try { localStorage.setItem("geostrix.sectionStructOpacity", String(n)); } catch { /* private window */ } };
   // TASKS.csv #823 — hole labels: where (collar / end of hole / both / off), leader lines (auto: when a label had to move;
   // always; off) and the labels the geologist dragged ({ "<hole>|collar": { dx, dy } }, SVG units from the anchor). Saved
   // with the section (relayed to the main window like contacts), so a re-opened section and its Layout snapshot keep them.
@@ -323,6 +326,12 @@ export default function SectionWindow() {
               onBlur={() => { if (Number(bufferDraft) > 0 && Number(bufferDraft) !== data.section?.corridor) sendSectionContacts({ id: data.id, corridor: Number(bufferDraft) }); setBufferDraft(""); }}
               style={{ width: 52, fontSize: 11 }} aria-label={tr("Buffer ±")} />{" m"}
           </label>
+          {data.planes?.length > 0 && (
+            <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Opacity of the structure symbols on the section")}>
+              {tr("Structures")}
+              <input type="range" min="0.05" max="1" step="0.05" value={structOpacity} onChange={(e) => setStructOpacity(e.target.value)} style={{ width: 70 }} aria-label={tr("Opacity of the structure symbols on the section")} />
+            </label>
+          )}
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Width of the drillhole interval ribbons on the section, in pixels")}>
             {tr("Hole width")}
             <input type="number" min="1" max="20" step="1" value={holeWidth} onChange={(e) => setHoleWidth(e.target.value)} style={{ width: 40, fontSize: 11 }} aria-label={tr("Hole width")} />
@@ -403,7 +412,7 @@ export default function SectionWindow() {
 
       <div className="ge-section-body" style={{ flex: 1, overflow: "auto", padding: 16 }}>
         {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{v2}. Click the pencil again to finish; Save contacts keeps the changes.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}{editing?.kind === "outline" ? ` ${tr("Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.")}` : ""}</div>}
-        <SectionSVG holeWidth={holeWidth} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
+        <SectionSVG holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
           snap={snapOn && !planning ? targets : null} editingId={editingId} onEditPoints={editPoints}
           labels={labels} onMoveLabel={(key, off) => changeLabels({ offsets: { ...labels.offsets, [key]: off } })} /* #823 */ />
       </div>
@@ -416,7 +425,7 @@ function btnStyle(active) {
 }
 const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11.5 };
 
-function SectionSVG({ holeWidth = 5, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onMoveLabel }) {
+function SectionSVG({ holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onMoveLabel }) {
   const dragRef = useRef(null); // #519 — the vertex being dragged (before the early return: a hook)
   const labelDragRef = useRef(null); // #823 — the label being dragged: { key, ax, ay, grabDx, grabDy }
   const [labelDrag, setLabelDrag] = useState(null); // its live offset while dragging: { key, dx, dy }
@@ -752,18 +761,35 @@ function SectionSVG({ holeWidth = 5, showSectionImages = true, showModel = true,
         const p = interpTrace(trace, row.depth);
         if (!p) return null;
         const cx = sx(along(p.x, p.y)), cy = sz(p.z);
-        // TASKS.csv #394 — no orientation recorded: an open ring, not an invented 45 deg line.
-        if (row.apparentDip == null || !Number.isFinite(row.apparentDip)) {
-          return <circle key={i} cx={cx} cy={cy} r="5" fill="none" stroke={row.color} strokeWidth="2"><title>{tr("{label} — orientation not recorded", { label: row.label })}</title></circle>;
-        }
         // TASKS.csv #394 — draw the apparent dip at its ON-SCREEN angle: with vertical exaggeration (or any
         // difference between the horizontal and vertical pixel scales) a 45 deg plane must display steeper
         // (63 deg at 2x). tan(screen) = tan(apparent) x (px per vertical metre / px per horizontal metre).
         const kx = Math.abs(sx(1) - sx(0)) || 1, kz = Math.abs(sz(1) - sz(0)) || 1;
-        const rad = Math.atan(Math.tan((row.apparentDip * Math.PI) / 180) * (kz / kx));
         const len2 = 12;
-        const ddx = Math.cos(rad) * len2, ddy = Math.sin(rad) * len2;
-        return <line key={i} x1={cx - ddx} y1={cy - ddy} x2={cx + ddx} y2={cy + ddy} stroke={row.color} strokeWidth="2.5"><title>{tr("{label} — apparent dip {v}°{v2}", { label: row.label, v: Math.abs(row.apparentDip).toFixed(0), v2: Math.abs(kz / kx - 1) > 0.01 ? tr(" (drawn at {v}° for the {v2}x vertical exaggeration)", { v: Math.abs((rad * 180) / Math.PI).toFixed(0), v2: (kz / kx).toFixed(1) }) : "" })}</title></line>;
+        // TASKS.csv #1130 — a line through the pick with an arrowhead on its DOWN-DIP end (the lower one on screen)
+        const dipLine = (ad, props, key) => {
+          const rad = Math.atan(Math.tan((ad * Math.PI) / 180) * (kz / kx));
+          const ddx = Math.cos(rad) * len2, ddy = Math.sin(rad) * len2;
+          const [tx, ty, bx2, by2] = ddy >= 0 ? [cx + ddx, cy + ddy, cx - ddx, cy - ddy] : [cx - ddx, cy - ddy, cx + ddx, cy + ddy];
+          const ux = (tx - bx2) / (2 * len2), uy = (ty - by2) / (2 * len2), ah = 4.5;
+          return <g key={key} {...props}><line x1={bx2} y1={by2} x2={tx} y2={ty} /><path d={`M${tx},${ty}L${tx - ux * ah - uy * ah * 0.6},${ty - uy * ah + ux * ah * 0.6}L${tx - ux * ah + uy * ah * 0.6},${ty - uy * ah - ux * ah * 0.6}Z`} fill={props.stroke} stroke="none" /></g>;
+        };
+        // TASKS.csv #1130 — alpha-only: every possible apparent dip as a faint "penumbra", the most likely one solid
+        if (row.fan) {
+          return (
+            <g key={i} opacity={structOpacity}>
+              {row.fan.map((ad, k) => { const r2 = Math.atan(Math.tan((ad * Math.PI) / 180) * (kz / kx)); return <line key={k} x1={cx - Math.cos(r2) * len2} y1={cy - Math.sin(r2) * len2} x2={cx + Math.cos(r2) * len2} y2={cy + Math.sin(r2) * len2} stroke={row.color} strokeWidth="1" opacity="0.18" />; })}
+              {dipLine(row.likely, { stroke: row.color, strokeWidth: 2, strokeDasharray: "3 1.5" }, "l")}
+              <title>{tr("{label} — alpha {alpha}° only (no beta): the faint fan is every orientation that alpha allows; the dashed line is the most likely one ({v})", { label: row.label, alpha: Number(row.alpha).toFixed(0), v: row.likelyFrom === "prior" ? tr("nearest the mean of the oriented picks") : tr("middle of the fan: no oriented picks of this type, or none with a preferred orientation") })}</title>
+            </g>
+          );
+        }
+        // TASKS.csv #394 — no orientation recorded and no alpha: an open ring, not an invented 45 deg line.
+        if (row.apparentDip == null || !Number.isFinite(row.apparentDip)) {
+          return <circle key={i} cx={cx} cy={cy} r="4" fill="none" stroke={row.color} strokeWidth="1.5" opacity={structOpacity}><title>{tr("{label} — orientation not recorded", { label: row.label })}</title></circle>;
+        }
+        const rad = Math.atan(Math.tan((row.apparentDip * Math.PI) / 180) * (kz / kx));
+        return <g key={i} opacity={structOpacity}>{dipLine(row.apparentDip, { stroke: row.color, strokeWidth: 2.5 }, "d")}<title>{tr("{label} — apparent dip {v}°{v2}", { label: row.label, v: Math.abs(row.apparentDip).toFixed(0), v2: Math.abs(kz / kx - 1) > 0.01 ? tr(" (drawn at {v}° for the {v2}x vertical exaggeration)", { v: Math.abs((rad * 180) / Math.PI).toFixed(0), v2: (kz / kx).toFixed(1) }) : "" })}</title></g>;
       })}
 
       {/* User-drawn interpreted contacts (TASKS.csv) — rendered on top of everything else so they're

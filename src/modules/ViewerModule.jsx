@@ -128,6 +128,7 @@ import { isMarkedQcRow } from "../lib/qaqc.js"; // TASKS.csv #601
 import { loadGpkg, groupShapefileParts } from "../lib/viewer/importHelpers.js"; // TASKS.csv #445 step 3; groupShapefileParts #600
 import { useImportPipeline } from "./viewer/useImportPipeline.js"; // TASKS.csv #445 step 3
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1034 — the drillhole tables' stamp
+import { alphaOnlyFan, meanPole } from "../lib/sectionStructures.js"; // TASKS.csv #1130 — alpha-only picks on sections
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -6580,15 +6581,24 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
     const planes = [];
     if (scope.layerKeys != null ? scope.layerKeys.includes("structure") : layerVisible.structure) {
-      (layers.structure || []).filter((s) => holeIds.has(s.hole_id) && isRowVisible("structure", s)).forEach((s) => {
+      // TASKS.csv #1130 — alpha-only picks (no beta): a fan of possible apparent dips and the most likely one, from the
+      // mean pole of the oriented picks of the same type (else of all oriented picks); hole attitude at the pick from
+      // structurePicksWithHoleAttitude (the stereonet's Terzaghi source)
+      const rows = structurePicksWithHoleAttitude || [];
+      const oriented = rows.filter((s) => Number.isFinite(s.dip) && Number.isFinite(s.azimuth));
+      const priorAll = meanPole(oriented), priorBy = new Map();
+      const priorFor = (v) => { if (!priorBy.has(v)) priorBy.set(v, meanPole(oriented.filter((s) => s.value === v))); return priorBy.get(v) || priorAll; };
+      rows.filter((s) => holeIds.has(s.hole_id) && isRowVisible("structure", s)).forEach((s) => {
         const color = effectiveColor("structure", s.value);
         const label = effectiveLabel("structure", s.value);
-        let apparentDip = null;
+        let apparentDip = null, fan = null;
         if (s.dip != null && !isNaN(s.dip) && s.azimuth != null && !isNaN(s.azimuth)) {
           const deltaAz = toRad(s.azimuth - azimuth);
           apparentDip = Math.atan(Math.tan(toRad(s.dip)) * Math.cos(deltaAz)) * (180 / Math.PI);
+        } else if (Number.isFinite(s.alpha) && Number.isFinite(s.holeAz) && Number.isFinite(s.holeDip)) {
+          fan = alphaOnlyFan(s.alpha, s.holeAz, s.holeDip, azimuth, priorFor(s.value)); // #1130
         }
-        planes.push({ hole_id: s.hole_id, depth: s.depth, color, label: `Structure: ${label}`, apparentDip });
+        planes.push({ hole_id: s.hole_id, depth: s.depth, color, label: `Structure: ${label}`, apparentDip, ...(fan ? { fan: fan.fan, likely: fan.likely, likelyFrom: fan.likelyFrom, alpha: s.alpha } : {}) });
       });
     }
 
@@ -6836,7 +6846,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const sectionImgs = await sectionImagesFor(a, b, s.corridor);
     openSectionWindow({ id: s.id, title: s.name, section: { ax: s.ax, ay: s.ay, bx: s.bx, by: s.by, azimuth: s.azimuth, corridor: s.corridor }, holes, intervals, points, planes, contacts: s.contacts || [], labels: s.labels || null, lithoUnits: litho_units, unitTags: sectionUnitTags, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, sectionImages: sectionImgs, modelBackdrop,
       ghostStrings: (await import("../lib/sectionDigitise.js")).ghostStrings(s, sections), /* on use: #903 */ outlineNames: outlineNamesOf(sections), ...(quiet ? { refreshOnly: true, ifOpen: true } : {}) }); // #519 — the neighbouring sections' strings; outlineNames: #874; quiet: #876
-  }, [layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, sectionUnitTags, terrain, voxelModels, implicitSurfaces, plannedHoles, sections, sectionImages, lastLithBlock, pierceSurfaces]); // pierceSurfaces: #1010
+  }, [structurePicksWithHoleAttitude, layers, layerVisible, customLayers, customVisible, assays, assayVisible, assayDisplayElements, assayStyle, isRowVisible, effectiveColor, effectiveLabel, numericLayerColor, litho_units, sectionUnitTags, terrain, voxelModels, implicitSurfaces, plannedHoles, sections, sectionImages, lastLithBlock, pierceSurfaces]); // pierceSurfaces: #1010
 
   // TASKS.csv #876 — the section window's ‹ › (previous / next parallel section) and Refresh
   const sectionStepRef = useRef(null);

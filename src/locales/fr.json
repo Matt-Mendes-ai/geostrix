@@ -6255,5 +6255,9 @@
   "How far either side of the section line holes and data are included. Press Enter to redraw the section with it; it is saved with the section.": "Jusqu'à quelle distance de part et d'autre de la ligne de coupe les sondages et données sont inclus. Appuyez sur Entrée pour redessiner la coupe ; enregistré avec la coupe.",
   "Buffer ±": "Bande ±",
   "Width of the drillhole interval ribbons on the section, in pixels": "Largeur des rubans d'intervalles des sondages sur la coupe, en pixels",
-  "Hole width": "Largeur des sondages"
+  "Hole width": "Largeur des sondages",
+  "Opacity of the structure symbols on the section": "Opacité des symboles de structures sur la coupe",
+  "{label} — alpha {alpha}° only (no beta): the faint fan is every orientation that alpha allows; the dashed line is the most likely one ({v})": "{label} — alpha {alpha}° seul (sans bêta) : l'éventail pâle montre toutes les orientations que cet alpha permet ; la ligne pointillée est la plus probable ({v})",
+  "nearest the mean of the oriented picks": "la plus proche de la moyenne des mesures orientées",
+  "middle of the fan: no oriented picks of this type, or none with a preferred orientation": "milieu de l'éventail : aucune mesure orientée de ce type, ou aucune avec une orientation préférentielle"
 }

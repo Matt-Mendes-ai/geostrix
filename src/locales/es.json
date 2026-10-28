@@ -6255,5 +6255,9 @@
   "How far either side of the section line holes and data are included. Press Enter to redraw the section with it; it is saved with the section.": "Hasta qué distancia a cada lado de la línea de sección se incluyen sondajes y datos. Pulse Intro para redibujar la sección; se guarda con la sección.",
   "Buffer ±": "Franja ±",
   "Width of the drillhole interval ribbons on the section, in pixels": "Ancho de las bandas de intervalos de los sondajes en la sección, en píxeles",
-  "Hole width": "Ancho de sondaje"
+  "Hole width": "Ancho de sondaje",
+  "Opacity of the structure symbols on the section": "Opacidad de los símbolos de estructuras en la sección",
+  "{label} — alpha {alpha}° only (no beta): the faint fan is every orientation that alpha allows; the dashed line is the most likely one ({v})": "{label} — solo alfa {alpha}° (sin beta): el abanico tenue son todas las orientaciones que permite ese alfa; la línea discontinua es la más probable ({v})",
+  "nearest the mean of the oriented picks": "la más cercana a la media de las medidas orientadas",
+  "middle of the fan: no oriented picks of this type, or none with a preferred orientation": "centro del abanico: no hay medidas orientadas de este tipo, o ninguna con orientación preferente"
 }

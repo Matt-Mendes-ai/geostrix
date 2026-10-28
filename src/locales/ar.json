@@ -6255,5 +6255,9 @@
   "How far either side of the section line holes and data are included. Press Enter to redraw the section with it; it is saved with the section.": "إلى أي مسافة على جانبي خط المقطع تُضمَّن الثقوب والبيانات. اضغط Enter لإعادة رسم المقطع؛ يُحفظ مع المقطع.",
   "Buffer ±": "النطاق ±",
   "Width of the drillhole interval ribbons on the section, in pixels": "عرض أشرطة فترات الثقوب في المقطع بالبكسل",
-  "Hole width": "عرض الثقب"
+  "Hole width": "عرض الثقب",
+  "Opacity of the structure symbols on the section": "شفافية رموز البنى في المقطع",
+  "{label} — alpha {alpha}° only (no beta): the faint fan is every orientation that alpha allows; the dashed line is the most likely one ({v})": "{label} — ألفا {alpha}° فقط (دون بيتا): المروحة الباهتة هي كل الاتجاهات التي يسمح بها هذا الألفا؛ والخط المتقطع هو الأرجح ({v})",
+  "nearest the mean of the oriented picks": "الأقرب إلى متوسط القياسات الموجّهة",
+  "middle of the fan: no oriented picks of this type, or none with a preferred orientation": "منتصف المروحة: لا قياسات موجّهة من هذا النوع، أو لا شيء منها باتجاه مفضل"
 }

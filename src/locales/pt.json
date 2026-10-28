@@ -6255,5 +6255,9 @@
   "How far either side of the section line holes and data are included. Press Enter to redraw the section with it; it is saved with the section.": "Até que distância de cada lado da linha da seção furos e dados são incluídos. Pressione Enter para redesenhar a seção; fica salvo com a seção.",
   "Buffer ±": "Faixa ±",
   "Width of the drillhole interval ribbons on the section, in pixels": "Largura das faixas de intervalos dos furos na seção, em pixels",
-  "Hole width": "Largura do furo"
+  "Hole width": "Largura do furo",
+  "Opacity of the structure symbols on the section": "Opacidade dos símbolos de estruturas na seção",
+  "{label} — alpha {alpha}° only (no beta): the faint fan is every orientation that alpha allows; the dashed line is the most likely one ({v})": "{label} — só alfa {alpha}° (sem beta): o leque claro são todas as orientações que esse alfa permite; a linha tracejada é a mais provável ({v})",
+  "nearest the mean of the oriented picks": "a mais próxima da média das medidas orientadas",
+  "middle of the fan: no oriented picks of this type, or none with a preferred orientation": "meio do leque: não há medidas orientadas deste tipo, ou nenhuma com orientação preferencial"
 }
