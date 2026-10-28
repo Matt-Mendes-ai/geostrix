@@ -98,7 +98,7 @@ import { sceneVertsToWorldFlat } from "../lib/meshFlat.js"; // TASKS.csv #600 �
 import { useSculpt } from "../lib/useSculpt.js"; // TASKS.csv #145 — manual surface editing
 const SculptPanel = lazyModal(() => import("../components/SculptPanel.jsx")); // TASKS.csv #476 // TASKS.csv #145
 // TASKS.csv #142 — numeric (grade-shell) implicit model: composites/assays -> dense IDW grid -> marching cubes
-import { SUPPORT_COLORS, MAX_BLOCKS } from "../lib/estimationMeta.js"; // SUPPORT_*: TASKS.csv #91/#92; budget: #625
+import { SUPPORT_COLORS, MAX_BLOCKS, clampCellBudget } from "../lib/estimationMeta.js"; // SUPPORT_*: TASKS.csv #91/#92; budget: #625
 import { rectilinearGrid, buildExposedFaces } from "../lib/voxelFaces.js"; // TASKS.csv #793
 const SurfaceSolidsPanel = React.lazy(() => import("../components/SurfaceSolidsPanel.jsx")); // TASKS.csv #802 — loads when opened (startup budget)
 const ExplicitSurfacePanel = React.lazy(() => import("../components/ExplicitSurfacePanel.jsx")); // TASKS.csv #811 — loads when opened
@@ -5831,7 +5831,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       const { loadWoodjamExtras, WOODJAM_EPSG } = await import("../lib/sampleWoodjam.js");
       const readFile = async (rel) => (await loadSampleFiles("woodjam", [rel]))[0];
       const notes = await loadWoodjamExtras(readFile, { setAssays, setAssayElements, addVoxelModel, addOmfObject, saveDcipLine },
-        { projectEpsg: importStateRef.current?.project?.epsg || WOODJAM_EPSG, maxCells: voxelCellBudget || undefined, existingElements: assayElements }); // existingElements: #722
+        { projectEpsg: importStateRef.current?.project?.epsg || WOODJAM_EPSG, maxCells: clampCellBudget(voxelCellBudget) || undefined, existingElements: assayElements }); // existingElements: #722
       setNotices((p) => [...p, ...notes]);
     } catch (e) { setNotices((p) => [...p, errorNotice(tr("The Woodjam sample's assays, IP and ZTEM could not be loaded: {message}", { message: e.message }))]); } // #739
   };

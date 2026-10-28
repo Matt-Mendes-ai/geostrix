@@ -54,6 +54,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { vectorToBoundaryPolylines } from "../lib/boundaryImport.js"; // TASKS.csv #1035
+import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
 
 // TASKS.csv #309 — the format reference that USED to be this tab's entire empty state: a twelve-line
 // centre-aligned block of ~10px grey prose that the design review flagged as reference material
@@ -132,7 +133,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   // everyone based on this sandbox's own software-rendered measurements (which may not reflect Matt's
   // actual hardware at all), this is now an adjustable per-session setting — see the "3D view cell
   // budget" control near the UBC/OMF import buttons below — defaulting to voxel.js's own MAX_CELLS.
-  const effectiveMaxCells = voxelCellBudget || MAX_CELLS;
+  const effectiveMaxCells = clampCellBudget(voxelCellBudget) || MAX_CELLS; // clamped on use too: #1074
   const [error, setError] = useState(null);
   const [rasterError, setRasterError] = useState(null);
   const [terrainError, setTerrainError] = useState(null);
@@ -1604,22 +1605,23 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         {/* User question: "do you think we can increase the 100,000 3d budget? Is it gonna make GeoStrix
             crash?" — this budget (voxel.js's MAX_CELLS) was picked from THIS DEV SANDBOX's own render
             timing (no real GPU here, so it's a conservative guess, not a hard technical ceiling on
-            Matt's actual machine) — see voxel.js's header comment. It's not going to crash the app
-            either way — a too-high budget just means a slower/less-responsive 3D view while that many
-            InstancedMesh instances render, not a hard failure. Made adjustable here so Matt can raise
+            Matt's actual machine) — see voxel.js's header comment. #1074: it CAN run out of memory
+            (~0.4 GB per million cells, #661), so it stops at MAX_BLOCK_MODEL_BUDGET (2 million).
+            Made adjustable here so Matt can raise
             it and see how his own hardware handles it, applies to both the OMF and UBC import sections
             below (both already accepted a maxCells parameter, just previously always the same
             hardcoded default). */}
         </>)}
         {geoPane === "budget" && (<>
         <TaskPaneHeader title="3D view cell budget" icon={RSettings2} tone="view" />
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>{tr("3D view cell budget")}<InfoButton title={tr("3D view cell budget")} text={tr("A large OMF/UBC block model gets block-averaged down to this many cells before it's rendered, to keep the 3D view responsive. Higher = more detail but slower to render (especially on older/integrated GPUs) — it won't crash GeoStrix either way, just gets laggier. Only affects new imports, not models already in the project.")} />
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>{tr("3D view cell budget")}<InfoButton title={tr("3D view cell budget")} text={tr("A large OMF/UBC block model gets block-averaged down to this many cells before it's rendered, to keep the 3D view responsive. Higher = more detail but slower to render (especially on older/integrated GPUs) and more memory: about 0.4 GB per million cells, so it stops at {max} cells, above which GeoStrix can run out of memory. Only affects new imports, not models already in the project.", { max: MAX_BLOCK_MODEL_BUDGET.toLocaleString() })} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
           <input
-            type="number" min={10000} max={2000000} step={10000}
-            value={effectiveMaxCells}
+            type="number" min={MIN_CELL_BUDGET} max={MAX_BLOCK_MODEL_BUDGET} step={10000}
+            value={voxelCellBudget ?? MAX_CELLS}
             onChange={(e) => { const v = Number(e.target.value); setVoxelCellBudget(Number.isFinite(v) && v > 0 ? v : null); }}
+            onBlur={() => setVoxelCellBudget(clampCellBudget(voxelCellBudget))} // #1074 — clamped once typing ends (and on use)
             style={{ ...numInput, width: 100 }}
           />
           <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>{tr("cells (default {MAX_CELLS})", { MAX_CELLS: MAX_CELLS.toLocaleString() })}</span>

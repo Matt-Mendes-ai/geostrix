@@ -16,6 +16,11 @@ export const MAX_BLOCK_BUDGET = 5000000;
 export const BLOCK_MODEL_BUDGETS = [200000, 1000000, 2000000];
 export const MAX_BLOCK_MODEL_BUDGET = 2000000;
 // what each block-model budget costs, for the menu (measured: ~330 B per block in the window + 72 MB per million drawn)
+// TASKS.csv #1074 (review #1016) — the "3D view cell budget" (imported OMF / UBC / block-model CSV voxels) stops at the
+// same 2 million: the number field's max was only a spinner hint, so one extra zero (10 million) was taken as typed,
+// ~3.3 GB in the window plus 0.7 GB of drawing buffers at the #661 figures. null / not a number -> null (the default).
+export const MIN_CELL_BUDGET = 10000;
+export const clampCellBudget = (v) => (Number.isFinite(v) && v > 0 ? Math.min(MAX_BLOCK_MODEL_BUDGET, Math.max(MIN_CELL_BUDGET, Math.round(v))) : null);
 export const blockModelBudgetNote = (b) => (b <= 200000 ? "fast, ~0.1 GB of memory" : b <= 1000000 ? "~40 s, ~0.4 GB of memory" : "~1.5 min, ~0.9 GB of memory");
 // the grid a box needs at a cell size (the same rounding as estimation.js's gridDims), and the smallest cell (to
 // 0.5 m) that keeps a box within a budget
