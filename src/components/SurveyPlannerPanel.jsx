@@ -173,7 +173,7 @@ export default function SurveyPlannerPanel({ onClose }) {
                 <button type="button" style={btn(true)} onClick={draw} disabled={!plan.sites.length}>{tr("Show on the map")}</button>
                 <button type="button" style={dl} onClick={() => save("gpx", (ll, _e, t) => planGpx(rows, plan.sites, ll, t), "GPX")} disabled={!rows.length}><Download size={14} />GPX</button>
                 <button type="button" style={dl} onClick={() => save("kml", (ll, _e, t) => planKml(rows, plan.sites, ll, t), "KML")} disabled={!rows.length}><Download size={14} />KML</button>
-                <button type="button" style={dl} onClick={() => save("csv", (ll, _e, _t, b) => toExportCsv(planCsvRows(rows, plan.sites, ll).map((r) => (mode === "soil" ? { ...r, line_bearing_grid: grid.azimuth, line_bearing_true: b?.true ?? "", line_bearing_magnetic: b?.magnetic ?? "", declination_date: b?.date ?? "" } : r))), "CSV")} disabled={!rows.length}><Download size={14} />CSV</button>
+                <button type="button" style={dl} onClick={() => save("csv", (ll, e, _t, b) => toExportCsv(planCsvRows(rows, plan.sites, ll).map((r) => ({ ...r, crs: `EPSG:${e}` /* #1064 — x / y */, ...(mode === "soil" ? { line_bearing_grid: grid.azimuth, line_bearing_true: b?.true ?? "", line_bearing_magnetic: b?.magnetic ?? "", declination_date: b?.date ?? "" } : {}) }))), "CSV")} disabled={!rows.length}><Download size={14} />CSV</button>
                 <button type="button" style={dl} onClick={() => save("html", (_ll, epsg, t) => planFieldSheet(rows, plan.sites, { title: t, crs: `${crsName(epsg) || ""} (EPSG:${epsg})` }), "HTML")} disabled={!rows.length}><Download size={14} />{tr("Field sheet (print)")}</button>
               </div>
               {msg && <div style={note}>{msg}</div>}

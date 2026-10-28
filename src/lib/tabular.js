@@ -234,3 +234,10 @@ export function toExportCsv(rows, opts = {}) {
   for (const r of rows) for (const k of Object.keys(r || {})) if (!seen.has(k)) { seen.add(k); fields.push(k); }
   return Papa.unparse({ fields, data: rows.map((r) => fields.map((k) => r?.[k] ?? "")) }, { escapeFormulae: FORMULA_LEAD, ...opts });
 }
+
+// TASKS.csv #1064 (review #1016, QGIS / GIS) — the CRS of a coordinate CSV's x / y, as a column value: "EPSG:26910", or
+// "not set" while the project's coordinate system is only a placeholder. (A leading "# ..." line made QGIS / GDAL read it
+// as the header: no points, columns lost.)
+export function crsCell(project) {
+  return project?.epsg && project?.crsSet !== false ? `EPSG:${project.epsg}` : "not set";
+}
