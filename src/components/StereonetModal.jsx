@@ -8,6 +8,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 
 // TASKS.csv #141 — stereonet QC for structure picks (Leapfrog-specialist audit finding: dip/azimuth
 // picks feed the anisotropy and structural-surface tools with no way to actually LOOK at the population
@@ -122,7 +123,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
   const exportSvg = () => {
     const svgEl = svgRef.current;
     if (!svgEl) return;
-    const content = new XMLSerializer().serializeToString(svgEl);
+    const content = exportSvgMarkup(svgEl).markup;
     saveFile({ suggestedName: view === "rose" ? "rose-diagram.svg" : "stereonet.svg", filters: [{ name: "SVG", extensions: ["svg"] }], content, encoding: "text" });
   };
 

@@ -17,6 +17,7 @@
 import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, colorForBreccia, colorForStructZone, rqdColor } from "./layers.js";
 import { arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { FIGURE_FONT } from "./svgExport.js"; // TASKS.csv #1089
 
 const TRACK_W = 90;
 const DEPTH_COL_W = 50;
@@ -101,7 +102,7 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers }) {
   });
 
   const title = `${esc(holeId)}${collar ? ` — ${maxDepth.toFixed(0)} m` : ""}`;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H + 20}" width="${W}" height="${H + 20}">`
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H + 20}" width="${W}" height="${H + 20}" font-family="${FIGURE_FONT.replace(/"/g, "&quot;")}">` // #1089
     + `<rect x="0" y="0" width="${W}" height="${H + 20}" fill="#ffffff"/>`
     + `<text x="4" y="20" font-size="12" font-weight="700" fill="#1a2028">${title}</text>`
     + `<g transform="translate(0,20)">${body}</g>`

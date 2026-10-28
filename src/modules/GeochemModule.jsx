@@ -56,6 +56,7 @@ const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
+import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 
 export default function GeochemModule() {
   const store = useStore();
@@ -701,13 +702,13 @@ export default function GeochemModule() {
   const exportPlotSVG = () => {
     const svg = svgRef.current;
     if (!svg) return;
-    const xml = new XMLSerializer().serializeToString(svg);
+    const xml = exportSvgMarkup(svg).markup;
     saveFile({ suggestedName: `${diagramId}.svg`, filters: [{ name: "SVG", extensions: ["svg"] }], content: xml });
   };
   const exportPlotPNG = () => {
     const svg = svgRef.current;
     if (!svg) return;
-    const xml = new XMLSerializer().serializeToString(svg);
+    const xml = exportSvgMarkup(svg).markup;
     const img = new Image();
     const svgBlob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(svgBlob);

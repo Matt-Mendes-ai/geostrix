@@ -9,6 +9,7 @@ import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 
 // TASKS.csv #277 — DOWNHOLE STRUCTURAL (TADPOLE) PLOT.
 //
@@ -156,7 +157,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
   const exportSvg = () => {
     const svgEl = svgRef.current;
     if (!svgEl) return;
-    const content = new XMLSerializer().serializeToString(svgEl);
+    const content = exportSvgMarkup(svgEl).markup;
     saveFile({ suggestedName: `tadpole_${activeHole || "hole"}.svg`, filters: [{ name: "SVG", extensions: ["svg"] }], content, encoding: "text" });
   };
 

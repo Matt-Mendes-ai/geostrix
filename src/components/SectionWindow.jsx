@@ -7,6 +7,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { placeLabels, leaderEnd } from "../lib/sectionLabels.js"; // TASKS.csv #823
 import { sectionLegendLayout } from "../lib/sectionLegend.js"; // TASKS.csv #1043
+import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 
 const SECTION_W = 1100, SECTION_H = 660;
 
@@ -118,11 +119,7 @@ export default function SectionWindow() {
     const svgEl = svgRef.current;
     const dims = svgDims();
     if (!svgEl || !dims) return;
-    const clone = svgEl.cloneNode(true);
-    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    clone.setAttribute("width", String(dims.w));
-    clone.setAttribute("height", String(dims.h));
-    const markup = new XMLSerializer().serializeToString(clone);
+    const { markup } = exportSvgMarkup(svgEl); // #1089 — the same figure as the SVG / PNG export (font, size, white ground)
     const src = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(markup)))}`;
     const hScale = geomRef.current.hScale;
     sendSectionSnapshot({
@@ -234,14 +231,14 @@ export default function SectionWindow() {
   const exportSVG = () => {
     const svg = svgRef.current;
     if (!svg) return;
-    const xml = new XMLSerializer().serializeToString(svg);
+    const xml = exportSvgMarkup(svg).markup;
     saveFile({ suggestedName: `${baseName}.svg`, filters: [{ name: "SVG", extensions: ["svg"] }], content: xml });
   };
   const exportPNG = () => {
     const svg = svgRef.current;
     const dims = svgDims();
     if (!svg || !dims) return;
-    const xml = new XMLSerializer().serializeToString(svg);
+    const xml = exportSvgMarkup(svg).markup;
     const img = new Image();
     const svgBlob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(svgBlob);

@@ -8,6 +8,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 
 // TASKS.csv #139 — FENCE / PANEL DIAGRAM (hole-to-hole lithology correlation along a drill line).
 //
@@ -130,7 +131,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
     saveFile({
       suggestedName: "fence_diagram.svg",
       filters: [{ name: "SVG", extensions: ["svg"] }],
-      content: new XMLSerializer().serializeToString(svgRef.current), encoding: "text",
+      content: exportSvgMarkup(svgRef.current).markup, encoding: "text",
     });
   };
 
