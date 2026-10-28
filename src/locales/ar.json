@@ -6225,5 +6225,10 @@
   "This sheet is too large to read: over {n} million cells.": "هذه الورقة أكبر من أن تُقرأ: أكثر من {n} مليون خلية.",
   "This MapInfo table is corrupt: its objects claim far more coordinates than the .MAP file holds.": "جدول MapInfo هذا تالف: تدّعي كائناته إحداثيات أكثر بكثير مما يحويه ملف .MAP.",
   "Number the samples up one line and down the next, the way a crew walks the grid. Off: every line from the same end.": "ترقيم العينات صعودًا على خط ونزولًا على الذي يليه، كما يمشي الفريق على الشبكة. عند الإيقاف: كل الخطوط من الطرف نفسه.",
-  "Serpentine numbering": "ترقيم متعرج"
+  "Serpentine numbering": "ترقيم متعرج",
+  "no hole id": "بلا معرّف ثقب",
+  "blank or non-numeric depth": "عمق فارغ أو غير رقمي",
+  "blank or non-numeric From": "قيمة «من» فارغة أو غير رقمية",
+  "value not a number": "القيمة ليست رقمًا",
+  "Skipped {n} of {m} row(s): {why}.": "تُخطّي {n} من {m} صف/صفوف: {why}."
 }

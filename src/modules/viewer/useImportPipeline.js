@@ -6,7 +6,7 @@
 // closure see exactly the same values as before. `ctx` = what the code reads from the component, listed by an
 // eslint-scope analysis; the return = what the rest of ViewerModule uses.
 import { useRef, useState, useCallback } from "react";
-import { errorNotice, notice } from "../../lib/notices.js"; // TASKS.csv #739 — caught errors show as errors whatever their wording
+import { errorNotice, notice, appendNotice } from "../../lib/notices.js"; // TASKS.csv #739 — caught errors show as errors whatever their wording
 import * as THREE from "three";
 import { reprojectXY, pointTransform, turnGridBearing, bearingTurn, crsName, guessEpsgFromPrjWkt } from "../../lib/reproject.js";
 import { surveyAzimuthDipAt } from "../../lib/desurvey.js";
@@ -19,7 +19,7 @@ import { buildLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
 import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
-import { normInterval, applyCustomFields, normNumericInterval, normStructure, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
+import { normInterval, applyCustomFields, normNumericInterval, normStructure, skippedRowsText, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917
@@ -374,7 +374,11 @@ export function useImportPipeline(ctx) {
       if (diff.duplicatesInFile.length) parts.push(tr("{duplicatesInFile} duplicate hole_id row(s) WITHIN the file itself (the last row of each hole won: {v})", { duplicatesInFile: diff.duplicatesInFile.length, v: [...new Set(diff.duplicatesInFile)].slice(0, 5).join(", ") }));
       setNotices((p) => [...p, notice("Loaded {size} collars from {fileName}{v}.{reprojectNote}{note}", { size: new Set(rows.map((r) => r.hole_id)).size, fileName, v: parts.length ? ` — ${parts.join("; ")}` : "", reprojectNote, note: azc.note })]);
     } else if (target === "survey") {
-      const all = allRows.map((r) => applyCustomFields({ hole_id: String(r[mapping.hole_id] ?? "").trim(), depth: num(r[mapping.depth]), azimuth: num(r[mapping.azimuth]), dip: flipDip(num(r[mapping.dip])), _src: fileName }, r, customFields)).filter((r) => r.hole_id && !isNaN(r.depth));
+      const svDropped = []; // #1070
+      const all = allRows.map((r) => applyCustomFields({ hole_id: String(r[mapping.hole_id] ?? "").trim(), depth: num(r[mapping.depth]), azimuth: num(r[mapping.azimuth]), dip: flipDip(num(r[mapping.dip])), _src: fileName }, r, customFields)).filter((r, k) => {
+        if (r.hole_id && !isNaN(r.depth)) return true;
+        svDropped.push({ reason: !r.hole_id ? "no hole id" : "no depth", example: allRows[k][mapping.depth] }); return false;
+      });
       // TASKS.csv #337/#339 — a station with a blank or non-numeric azimuth/dip used to be kept and turned
       // every coordinate below it into NaN (or, blank = 0, into a horizontal hole). Skip and report it.
       const bad = all.filter((r) => !Number.isFinite(r.azimuth) || !Number.isFinite(r.dip));
@@ -389,11 +393,15 @@ export function useImportPipeline(ctx) {
       setNotices((p) => [...p, tr("Loaded {rows} survey stations from {fileName}.", { rows: rows.length, fileName })
         + replaceNote(replaced, "survey")
         + (bad.length ? tr(" Skipped {bad} station(s) with a missing or non-numeric azimuth/dip ({v}).", { bad: bad.length, v: [...new Set(bad.map((r) => `${r.hole_id}@${r.depth}`))].slice(0, 5).join(", ") }) : "")
-        + azs.note]);
+        + skippedRowsText(svDropped, allRows.length) + azs.note]);
     } else if (target === "structure") {
       // TASKS.csv #719 — no sign convention for structure dips: the "negative = down" radio is shown only for collars and
       // survey, so a minus sign here is a logging error (unknown, counted below), not a 45 degree plane
-      let structRows = allRows.map((r) => ({ ...normStructure(r, mapping, customFields, null), _src: fileName })).filter((r) => r.hole_id && !isNaN(r.depth));
+      const stDropped = []; // #1070
+      let structRows = allRows.map((r) => ({ ...normStructure(r, mapping, customFields, null), _src: fileName })).filter((r, k) => {
+        if (r.hole_id && !isNaN(r.depth)) return true;
+        stDropped.push({ reason: !r.hole_id ? "no hole id" : "no depth", example: allRows[k][mapping.depth] }); return false;
+      });
       // TASKS.csv #427 — oriented-core alpha/beta -> true dip / dip direction, per pick, from the hole's
       // survey at that depth (desurvey.surveyAzimuthDipAt). Only for picks with no dip/dip direction of
       // their own; raw alpha/beta stay on the pick. Converted results are already grid-referenced (they
@@ -431,7 +439,7 @@ export function useImportPipeline(ctx) {
       setLayers((p) => ({ ...p, structure: replaceRowsByHole(p.structure, keepBatch(rows), keep).rows })); // TASKS.csv #336
       if (replaced.replacedHoles.length || replaced.appendedHoles.length) setNotices((p) => [...p, `${fileName}:${replaceNote(replaced, "structure picks")}`]); // #582
       setLayerVisible((p) => ({ ...p, structure: true }));
-      setNotices((p) => [...p, notice("Loaded {rows} structure points from {fileName}.", { rows: rows.length, fileName })]);
+      setNotices((p) => [...p, appendNotice(notice("Loaded {rows} structure points from {fileName}.", { rows: rows.length, fileName }), skippedRowsText(stDropped, allRows.length))]); // #1070
     } else if (target === "custom") {
       const rows = allRows.map((r) => applyCustomFields({
         hole_id: String(r[mapping.hole_id] ?? "").trim(),
@@ -451,8 +459,14 @@ export function useImportPipeline(ctx) {
       // build up one layer (e.g. lithology) from several CSVs (different holes, different field
       // seasons) and later want to pull just one of those back out without clearing the whole layer.
       const numeric = LAYER_META[target].numeric;
-      const rows = (numeric ? allRows.map((r) => normNumericInterval(r, mapping, customFields)).filter((r) => r.hole_id && !isNaN(r.from) && !isNaN(r.value))
-        : allRows.map((r) => normInterval(r, mapping, customFields)).filter((r) => r.hole_id && !isNaN(r.from))).map((r) => ({ ...r, _src: fileName }));
+      // #1070 — what is left out, and why, goes into the notice
+      const dropped = [];
+      const rows = allRows.map((raw) => {
+        const r = numeric ? normNumericInterval(raw, mapping, customFields) : normInterval(raw, mapping, customFields);
+        const why = !r.hole_id ? "no hole id" : isNaN(r.from) ? "no from" : numeric && isNaN(r.value) ? "no value" : null;
+        if (why) { dropped.push({ reason: why, example: why === "no from" ? raw[mapping.from] : why === "no value" ? raw[mapping.value] : null }); return null; }
+        return { ...r, _src: fileName };
+      }).filter(Boolean);
       // TASKS.csv #336 — rows for a hole already in this layer replace that hole's earlier rows.
       const keep = batchRowsRef.current;
       const replaced = replaceRowsByHole(importStateRef.current.layers?.[target], rows, keep); // #582: replaced / appended
@@ -466,7 +480,7 @@ export function useImportPipeline(ctx) {
         if (msg) setNotices((p) => [...p, msg]);
       }).catch(() => {});
       setNotices((p) => [...p, tr("Loaded {rows} rows into {label} from {fileName}.", { rows: rows.length, label: LAYER_META[target].label, fileName })
-        + replaceNote(replaced, "rows")]);
+        + replaceNote(replaced, "rows") + skippedRowsText(dropped, allRows.length)]);
     }
     return true;
   };

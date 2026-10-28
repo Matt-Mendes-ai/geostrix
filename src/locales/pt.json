@@ -6225,5 +6225,10 @@
   "This sheet is too large to read: over {n} million cells.": "Esta planilha é grande demais para ler: mais de {n} milhões de células.",
   "This MapInfo table is corrupt: its objects claim far more coordinates than the .MAP file holds.": "Esta tabela MapInfo está corrompida: seus objetos declaram muito mais coordenadas do que o arquivo .MAP contém.",
   "Number the samples up one line and down the next, the way a crew walks the grid. Off: every line from the same end.": "Numera as amostras subindo uma linha e descendo a seguinte, como a equipe percorre a malha. Desligado: todas as linhas a partir da mesma ponta.",
-  "Serpentine numbering": "Numeração em serpentina"
+  "Serpentine numbering": "Numeração em serpentina",
+  "no hole id": "sem id de furo",
+  "blank or non-numeric depth": "profundidade vazia ou não numérica",
+  "blank or non-numeric From": "De vazio ou não numérico",
+  "value not a number": "valor não numérico",
+  "Skipped {n} of {m} row(s): {why}.": "{n} de {m} linha(s) ignorada(s): {why}."
 }

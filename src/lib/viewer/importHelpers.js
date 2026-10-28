@@ -334,3 +334,21 @@ export function parseCSV(file, onDone) {
   // stamp skipping as before, plus the Windows-1252 fallback for Excel exports.
   parseTableFile(file).then((t) => onDone(t.rows, null, t.note ? ` ${t.note.trim()}` : ""), (err) => onDone(null, err.message));
 }
+
+// TASKS.csv #1070 (review #1016, drillhole-database admin) — rows an importer leaves out, counted and said. An RQD file with
+// "NR", "<10" and a blank kept 2 of 5 rows and the notice said only "Loaded 2 rows". dropped: [{ reason, example }]
+// (reason: a short English key below; example: the cell as written). -> " Skipped 3 of 5 row(s): value not a number
+// (NR, <10, (blank))." or "".
+const SKIP_REASONS = {
+  "no hole id": () => tr("no hole id"),
+  "no depth": () => tr("blank or non-numeric depth"),
+  "no from": () => tr("blank or non-numeric From"),
+  "no value": () => tr("value not a number"),
+};
+export function skippedRowsText(dropped, total) {
+  if (!dropped?.length) return "";
+  const by = new Map();
+  for (const d of dropped) { const e = by.get(d.reason) || by.set(d.reason, { n: 0, ex: [] }).get(d.reason); e.n++; const x = d.example == null || String(d.example).trim() === "" ? "(blank)" : String(d.example).trim(); if (e.ex.length < 3 && !e.ex.includes(x)) e.ex.push(x); }
+  const parts = [...by].map(([r, e]) => `${e.n} ${(SKIP_REASONS[r] || (() => r))()}${e.ex.length && r !== "no hole id" ? ` (${e.ex.join(", ")})` : ""}`);
+  return ` ${tr("Skipped {n} of {m} row(s): {why}.", { n: dropped.length, m: total, why: parts.join("; ") })}`;
+}
