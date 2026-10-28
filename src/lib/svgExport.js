@@ -24,6 +24,12 @@ export function exportSvgMarkup(svg, { background = "#ffffff", furniture = null 
     const doc = clone.ownerDocument, g = doc.createElementNS(SVG_NS, "g");
     g.setAttribute("class", "ge-figure-caption");
     const atTop = furniture.placement === "top", top = atTop ? y0 - band.height : y0 + h;
+    // an opaque ground for the band: a figure whose content runs past its own frame (the level plan's block slice)
+    // would otherwise show through the caption
+    const ground = doc.createElementNS(SVG_NS, "rect");
+    ground.setAttribute("x", String(x0)); ground.setAttribute("y", String(top)); ground.setAttribute("width", String(w)); ground.setAttribute("height", String(band.height));
+    ground.setAttribute("fill", background || "#ffffff");
+    g.appendChild(ground);
     for (const it of band.items) {
       if (it.type === "text") {
         const t = doc.createElementNS(SVG_NS, "text");

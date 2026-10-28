@@ -131,7 +131,12 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
     saveFile({
       suggestedName: "fence_diagram.svg",
       filters: [{ name: "SVG", extensions: ["svg"] }],
-      content: exportSvgMarkup(svgRef.current).markup, encoding: "text",
+      // TASKS.csv #1048 — the title, the holes, the section line and the lithology key, drawn into the file
+      content: exportSvgMarkup(svgRef.current, { furniture: panel ? {
+        title: `Fence diagram: ${panel.holes.map((h) => h.hole_id).join(", ")}`,
+        caption: [`Section bearing ${panel.line.azimuth.toFixed(1)}° (${azMode === "fit" ? "best fit through the collars" : "fixed"}) · vertical exaggeration ${ve}x · holes more than ${offsetLimit} m off the section flagged amber${showBands ? " · shaded bands join the shallowest shared code between adjacent holes: an interpretation, not a measurement" : ""}`, `GeoStrix · ${new Date().toISOString().slice(0, 10)}`],
+        keys: codes.length ? [{ title: "Lithology", items: codes.map((c) => ({ label: c, color: colorForLithology(c) })) }] : [],
+      } : null }).markup, encoding: "text",
     });
   };
 

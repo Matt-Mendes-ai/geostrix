@@ -5,6 +5,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { strikeDipSymbol } from "../lib/levelPlan.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { colors } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned
+import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1048 — the legend drawn into the PNG
 
 // TASKS.csv #525 — the LEVEL PLAN window: a horizontal section at an RL, at true scale with E / N axes, a scale bar
 // and a north arrow. What the plane z = RL cuts — and what lies in the slab RL ± half-width — comes from
@@ -129,12 +130,13 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
   const inSlab = data.holes.filter((h) => h.runs.length).length;
 
   const exportPng = async (toLayout) => {
-    const svg = svgRef.current.cloneNode(true);
-    svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], { type: "image/svg+xml" }));
+    // TASKS.csv #1048 — the legend (HTML under the plan) drawn into the PNG; exportSvgMarkup as every other figure (#1089)
+    const legend = data.legendItems || [];
+    const { markup, width: fw, height: fh } = exportSvgMarkup(svgRef.current, { furniture: legend.length ? { keys: [{ title: "Legend", items: legend.slice(0, 60).map(([label, color]) => ({ label, color })).concat(legend.length > 60 ? [{ label: `+${legend.length - 60} more`, color: "#ffffff" }] : []) }] } : null });
+    const url = URL.createObjectURL(new Blob([markup], { type: "image/svg+xml" }));
     const img = new Image();
     await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
-    const c = document.createElement("canvas"); c.width = W * 2; c.height = H * 2;
+    const c = document.createElement("canvas"); c.width = Math.round(fw * 2); c.height = Math.round(fh * 2);
     const g = c.getContext("2d"); g.fillStyle = "#ffffff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
     URL.revokeObjectURL(url);
     const dataUrl = c.toDataURL("image/png");

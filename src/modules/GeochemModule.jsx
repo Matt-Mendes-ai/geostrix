@@ -699,22 +699,34 @@ export default function GeochemModule() {
   };
 
   // ---------- exports ----------
+  // TASKS.csv #1048 — what the page shows around the diagram goes into the file: the diagram, the sample count, the
+  // half-detection-limit rule and a key for the colouring (export text in English)
+  const plotFurniture = () => {
+    const n = diagram.spider ? plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length : plotted.filter((a) => diagram.project(a, elementUnits)).length;
+    const keyItems = colorMode === "hole" ? [...new Set(plotted.map((a) => a.hole_id))].map((h) => ({ label: String(h), color: holeColors[h] || "#55606e", shape: "dot" }))
+      : colorMode === "lithology" ? lithCounts.filter(([k]) => !lithFilter || lithFilter.has(k)).map(([k]) => ({ label: k === NOT_LOGGED ? "not logged" : String(k), color: lithColors[k] || "#b8bec7", shape: "dot" }))
+      : colorMode === "element" && colorRange ? [0, 0.25, 0.5, 0.75, 1].map((t) => { const lo = [70, 110, 190], hi = [220, 70, 60], v = colorRange.min + (colorRange.max - colorRange.min) * t; return { label: `${+v.toPrecision(3)} ppm`, color: `rgb(${lo.map((x, i) => Math.round(x + (hi[i] - x) * t)).join(",")})`, shape: "dot" }; })
+      : [];
+    const keyTitle = colorMode === "hole" ? "Hole" : colorMode === "lithology" ? "Lithology" : colorMode === "element" ? `${colorElement} (linear, min to max)` : "";
+    return { title: diagram.label, caption: [diagram.caption, `${n} of ${assays.length} samples ${diagram.spider ? "have at least one plottable element" : "plotted"}${lithFilter ? `; ${assays.length - plotted.length} hidden by the lithology filter` : ""}. Below-detection values substituted at half the detection limit.`, `GeoStrix · ${new Date().toISOString().slice(0, 10)}`],
+      keys: keyItems.length ? [{ title: keyTitle, items: keyItems.length > 40 ? [...keyItems.slice(0, 39), { label: `+${keyItems.length - 39} more`, color: "#ffffff" }] : keyItems }] : [] };
+  };
   const exportPlotSVG = () => {
     const svg = svgRef.current;
     if (!svg) return;
-    const xml = exportSvgMarkup(svg).markup;
+    const xml = exportSvgMarkup(svg, { furniture: plotFurniture() }).markup;
     saveFile({ suggestedName: `${diagramId}.svg`, filters: [{ name: "SVG", extensions: ["svg"] }], content: xml });
   };
   const exportPlotPNG = () => {
     const svg = svgRef.current;
     if (!svg) return;
-    const xml = exportSvgMarkup(svg).markup;
+    const { markup: xml, width: fw, height: fh } = exportSvgMarkup(svg, { furniture: plotFurniture() }); // #1048
     const img = new Image();
     const svgBlob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(svgBlob);
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      canvas.width = 1240; canvas.height = 1120;
+      canvas.width = 1240; canvas.height = Math.round((1240 * fh) / fw); // the figure's own aspect, caption band included
       const ctx = canvas.getContext("2d");
       ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
