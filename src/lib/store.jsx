@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { capturedFrameFields } from "./layoutGeometry.js"; // TASKS.csv #906 / #961
 import { setKnownHoleIds } from "./qaqc.js"; // TASKS.csv #400
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
+import { readDbProfiles, writeDbProfiles, mergeDbProfiles } from "./dbProfiles.js"; // TASKS.csv #1081
 import { FIELD_KEYS, FIELDS, UNDO_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod } from "./desurvey.js";
@@ -138,7 +139,9 @@ export function StoreProvider({ children }) {
   const [surfaceQc, setSurfaceQc] = useState(null); // TASKS.csv #842 — surface-program QC: { records, certificates, settings }
   const [evidenceOverlay, setEvidenceOverlay] = useState(null); // TASKS.csv #1003 — the Evidence overlay pane's recipe
   const [customLayers, setCustomLayers] = useState([]); // plain {id,name,rows} mirror for save/load; ViewerModule owns the live three.js groups
-  const [dbConnections, setDbConnections] = useState([]); // saved (non-secret) connection profiles
+  // saved (non-secret) connection profiles — TASKS.csv #1081: kept on this computer (lib/dbProfiles.js), not in the project
+  const [dbConnections, setDbConnectionsState] = useState(() => readDbProfiles());
+  const setDbConnections = useCallback((upd) => setDbConnectionsState((prev) => { const next = typeof upd === "function" ? upd(prev) : upd; writeDbProfiles(next); return next; }), []);
   // TASKS.csv #206 — "the database stays connected and accessible on a database side panel... so I
   // don't have [to] enter the password everytime." keyed by connection NAME (matches dbConnections'
   // profile.name — the same thing the "— saved connections —" dropdown already keys on) so both the
@@ -855,7 +858,7 @@ export function StoreProvider({ children }) {
     geophysPtsMin: [geophysPtsMin, setGeophysPtsMin], geophysPtsMax: [geophysPtsMax, setGeophysPtsMax],
     voxelModels: [voxelModels, setVoxelModels], layerGroups: [layerGroups, setLayerGroups],
     layoutPages: [layoutPages, setLayoutPages], activeLayoutPageId: [activeLayoutPageId, setActiveLayoutPageId],
-    dbConnections: [dbConnections, setDbConnections], excludedIntercepts: [excludedIntercepts, setExcludedIntercepts],
+    excludedIntercepts: [excludedIntercepts, setExcludedIntercepts],
     softIntercepts: [softIntercepts, setSoftIntercepts], interceptSets: [interceptSets, setInterceptSets],
     sections: [sections, setSections], sectionGroups: [sectionGroups, setSectionGroups], layoutTemplates: [layoutTemplates, setLayoutTemplates],
     plannedHoles: [plannedHoles, setPlannedHoles], surfaceSamples: [surfaceSamples, setSurfaceSamples], surfaceElements: [surfaceElements, setSurfaceElements], geochemThresholds: [geochemThresholds, setGeochemThresholds], surfaceQc: [surfaceQc, setSurfaceQc],
@@ -971,11 +974,8 @@ export function StoreProvider({ children }) {
     setActiveTabDirty(false);
   }, []);
 
-  // Bug-hunt pass: dbConnections (saved, password-stripped database connection profiles — see
-  // DatabaseConnectModal, which already omits the password before storing here) was plain useState with
-  // no persistence path at all — a "saved" connection silently vanished on save/reopen or app restart.
-  // Included below without bumping PROJECT_VERSION since it's purely additive and backward-compatible
-  // (older files just lack the key, same `|| []` fallback pattern as every other field here).
+  // dbConnections (saved, password-stripped connection profiles) were in the project file from a bug-hunt pass until
+  // TASKS.csv #1081: they persist on this computer now (lib/dbProfiles.js), so a shared project carries no host / login.
   // Shared field list for save / tab-stash / dirty-comparison, so these can't drift apart the way
   // three separate hand-written object literals eventually would.
   const snapshotCurrentPayload = () => payloadFromFields(liveRef.current); // TASKS.csv #448
@@ -1066,6 +1066,8 @@ export function StoreProvider({ children }) {
     // Every field from the table (projectFields.js): older files just lack newer keys and get that field's empty
     // value; layers / voxel models are expanded from their compact form; pre-#69 flat layouts become "Page 1".
     setFields(fieldsFromPayload(data, fallbackName));
+    // TASKS.csv #1081 — a file from before version 20 may carry connection profiles: moved to this computer's list
+    if (Array.isArray(data?.dbConnections) && data.dbConnections.length) setDbConnections((prev) => mergeDbProfiles(prev, data.dbConnections));
     setViewerUiStateSeq((s) => s + 1);
     setLastCamState(null); // a different project's saved camera has no meaning here — fall back to the default view
     setPendingLayoutImages([]);

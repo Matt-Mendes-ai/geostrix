@@ -53,7 +53,7 @@ import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js"
 // and the program's QC settings).
 // v18 (TASKS.csv #1003) adds evidenceOverlay (the Evidence overlay pane's recipe: evidence sources and memberships, operator,
 // training points; values are recomputed from the sources), so a targeting score can be re-run and audited after reopening.
-export const PROJECT_VERSION = 19; // #1073: surface samples may be stored as exact columns. Was 18 // #1003: evidenceOverlay. Was 17 // #842: surfaceQc. Was 16 // #841: geochemThresholds. Was 15 // #811: explicitSurfaces. Was 14 // #796: big terrain grids as elevationsF32. Was 13 // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
+export const PROJECT_VERSION = 20; // #1081: no dbConnections (per computer now). Was 19 // #1073: surface samples may be stored as exact columns. Was 18 // #1003: evidenceOverlay. Was 17 // #842: surfaceQc. Was 16 // #841: geochemThresholds. Was 15 // #811: explicitSurfaces. Was 14 // #796: big terrain grids as elevationsF32. Was 13 // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
 
 export const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], magsusc: [], structure: [], litho_gc: [], alt_gc: [], geophys_pts: [] };
 
@@ -228,7 +228,7 @@ export const FIELDS = [
   // Which page is showing: navigation, not an edit. Resolved against the pages actually loaded (see below).
   { key: "activeLayoutPageId", track: "view", empty: () => null },
   // Saved connection profiles — host/db/user only; DatabaseConnectModal strips the password before storing.
-  { key: "dbConnections", track: "view", empty: list },
+  // (dbConnections left the project file in TASKS.csv #1081: connection profiles are per computer, lib/dbProfiles.js)
   { key: "excludedIntercepts", track: "undo", empty: list },
   { key: "softIntercepts", track: "undo", empty: list },
   { key: "interceptSets", track: "undo", empty: list }, // TASKS.csv #52 (c)
