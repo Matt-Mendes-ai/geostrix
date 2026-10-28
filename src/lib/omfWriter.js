@@ -9,7 +9,7 @@
 // volume_to_vtk reads it and as omf.js's importer (verified on a real Geosoft file) reads it.
 // Empty cells are NaN (OMF has no no-data sentinel; Leapfrog shows NaN as blank).
 import { tensorFromCells } from "./modelExport.js";
-import { valueColumnName, valueUnit, NOT_A_RESOURCE_SOURCE } from "./blockModelExport.js"; // TASKS.csv #529, #1026
+import { valueColumnName, valueUnit, NOT_A_RESOURCE_SOURCE, numericCellFields } from "./blockModelExport.js"; // TASKS.csv #529, #1026; numericCellFields: #1050
 import { SUPPORT_CODES } from "./estimation.js";
 import { NOT_A_RESOURCE } from "./provenance.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
@@ -115,6 +115,12 @@ export function volumeElementFromModel(model) {
     else if (typeof c.support === "string" && SUPPORT_CODES[c.support] != null) { support[idx] = SUPPORT_CODES[c.support]; hasSupport = true; } // #529 — the class as its code
     if (Number.isFinite(c.supportIndex)) { sIndex[idx] = c.supportIndex; hasIndex = true; }
   }
+  // TASKS.csv #1050 — the other per-block fields (support and its index are written above, under their existing names)
+  const extra = numericCellFields(model.cells).filter((f) => !/^SUPPORT/.test(f.name)).map(({ name, get }) => {
+    const a = new Float64Array(n).fill(NaN);
+    for (const c of model.cells) { const iu = t.x.index.get(k(c.x)), iv = t.y.index.get(k(c.y)), iw = t.z.index.get(k(c.z)); const v = get(c); if (iu != null && iv != null && iw != null && v != null) a[(iu * t.ny + iv) * t.nz + iw] = v; }
+    return { name: name.toLowerCase(), values: a };
+  });
   const valueName = valueColumnName(model); // #529 — "Au_ppm"
   const estimate = NOT_A_RESOURCE_SOURCE.test(String(model.source || "")); // geoml: #677; kriging-variance: #1026
   const codes = model.cells.some((c) => typeof c.support === "string") ? ` support = ${Object.entries(SUPPORT_CODES).map(([k, v]) => `${v} ${k}`).join(", ")}.` : "";
@@ -122,7 +128,7 @@ export function volumeElementFromModel(model) {
     element: {
       type: "volume", name: model.name, description: `Exported from GeoStrix ${new Date().toISOString().slice(0, 10)}${model.source ? ` (source: ${model.source})` : ""}${valueUnit(model) ? `; values in ${valueUnit(model)}` : ""}.${codes}${estimate ? ` ${NOT_A_RESOURCE}` : ""}`,
       origin: [t.x.min, t.y.min, t.z.min], tensor: { u: t.x.widths, v: t.y.widths, w: t.z.widths },
-      data: [{ name: valueName, values: value }, ...(hasSupport ? [{ name: "support", values: support }] : []), ...(hasIndex ? [{ name: "support_index", values: sIndex }] : [])],
+      data: [{ name: valueName, values: value }, ...(hasSupport ? [{ name: "support", values: support }] : []), ...(hasIndex ? [{ name: "support_index", values: sIndex }] : []), ...extra],
       color: [197, 176, 213],
     },
     shape: [t.nx, t.ny, t.nz],

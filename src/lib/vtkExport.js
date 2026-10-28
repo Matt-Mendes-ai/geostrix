@@ -6,6 +6,7 @@
 //    value as CELL_DATA and NaN where the lattice has no block; otherwise (merged / octree models) UNSTRUCTURED_GRID of
 //    VOXEL cells. BINARY (big-endian, as the format requires), so NaN is exact and the file stays compact.
 import { blockModelLattice } from "./estimationMeta.js";
+import { valueColumnName, numericCellFields } from "./blockModelExport.js"; // TASKS.csv #1050
 
 const title = (s) => String(s).replace(/[\r\n]+/g, " ").slice(0, 250); // the format's title line: one line, <= 256 chars
 
@@ -37,7 +38,9 @@ const scalarName = (s) => String(s || "value").replace(/[^A-Za-z0-9_]+/g, "_").s
 // model: { name, cells: [{x, y, z, dx, dy, dz, value}], property? }. Returns { bytes, kind: "image" | "voxels" }.
 export function blockModelToVtk(model, note = "") {
   const cells = model.cells || [];
-  const field = scalarName(model.property || "value");
+  const field = scalarName(valueColumnName(model)); // #1050 — "Au_ppm", as the CSV and OMF name it (was "value")
+  const extra = numericCellFields(cells); // #1050 — COVERAGE, KV, N_SAMPLES ... as further CELL_DATA arrays
+  const scalars = (n, at) => extra.flatMap(({ name, get }) => { const a = new Float32Array(n).fill(NaN); at((c, i) => { const v = get(c); if (v != null) a[i] = v; }); return [`SCALARS ${scalarName(name)} float 1\nLOOKUP_TABLE default\n`, f32be(a), "\n"]; });
   const head = (dataset) => `# vtk DataFile Version 3.0\n${title(`${model.name} - GeoStrix${note ? ` - ${note}` : ""}`)}\nBINARY\nDATASET ${dataset}\n`;
   const L = blockModelLattice(model);
   if (L && cells.length) {
@@ -51,6 +54,7 @@ export function blockModelToVtk(model, note = "") {
       head("STRUCTURED_POINTS"),
       `DIMENSIONS ${nx + 1} ${ny + 1} ${nz + 1}\nORIGIN ${L.ox + i0 * L.dx} ${L.oy + j0 * L.dy} ${L.oz + k0 * L.dz}\nSPACING ${L.dx} ${L.dy} ${L.dz}\n`,
       `CELL_DATA ${vals.length}\nSCALARS ${field} float 1\nLOOKUP_TABLE default\n`, f32be(vals), "\n",
+      ...scalars(vals.length, (put) => { for (const c of cells) put(c, (iz(c) - k0) * nx * ny + (iy(c) - j0) * nx + (ix(c) - i0)); }),
     ]);
     return { bytes, kind: "image", dims: [nx, ny, nz] };
   }
@@ -67,6 +71,7 @@ export function blockModelToVtk(model, note = "") {
     head("UNSTRUCTURED_GRID"), `POINTS ${cells.length * 8} double\n`, f64be(pts), "\n",
     `CELLS ${cells.length} ${cells.length * 9}\n`, i32be(conn), "\n", `CELL_TYPES ${cells.length}\n`, i32be(types), "\n",
     `CELL_DATA ${cells.length}\nSCALARS ${field} float 1\nLOOKUP_TABLE default\n`, f32be(vals), "\n",
+    ...scalars(cells.length, (put) => cells.forEach((c, i) => put(c, i))),
   ]);
   return { bytes, kind: "voxels" };
 }
