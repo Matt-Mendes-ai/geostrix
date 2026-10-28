@@ -103,8 +103,12 @@ function Get-UnpackedApp($runId, $dest, $repo, [int]$ghMinutes = 15, [int]$brows
         if ($have -gt $a.size_in_bytes) { Remove-Item $zipPath -Force; $have = 0 }
         $old = $ErrorActionPreference; $ErrorActionPreference = "Continue"
         $head = & curl.exe -s -o NUL -D - --connect-timeout 30 -H "@$hdrFile" -H "Accept: application/vnd.github+json" $api 2>$null
-        $loc = ($head | Select-String -Pattern '(?i)^location:\s*(\S+)' | Select-Object -First 1).Matches.Groups[1].Value
+        # TASKS.csv #1133 — an empty or redirect-less reply (a dropped connection) is one failed try, not a crash: indexing
+        # .Matches.Groups of no match threw "Cannot index into a null array" and ended the resume loop at 121 of 325 MB
+        $m = $head | Select-String -Pattern '(?i)^location:\s*(\S+)' | Select-Object -First 1
+        $loc = if ($m) { $m.Matches[0].Groups[1].Value } else { $null }
         if ($loc) { & curl.exe -s -f -C - --connect-timeout 30 --speed-limit 20000 --speed-time 45 -o $zipPath $loc 2>$null }
+        else { Write-Host "  no download link from GitHub this time (connection dropped?) - retrying" }
         $ErrorActionPreference = $old
         $now = 0
         if (Test-Path $zipPath) { $now = (Get-Item $zipPath).Length }
