@@ -6262,5 +6262,6 @@
   "middle of the fan: no oriented picks of this type, or none with a preferred orientation": "منتصف المروحة: لا قياسات موجّهة من هذا النوع، أو لا شيء منها باتجاه مفضل",
   "Font and size of the text on the section (and in its exports)": "خط النص في المقطع وحجمه (وفي ملفات تصديره)",
   "Section font": "خط المقطع",
-  "Section text size": "حجم نص المقطع"
+  "Section text size": "حجم نص المقطع",
+  "in progress": "قيد التنفيذ"
 }

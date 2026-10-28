@@ -8,7 +8,7 @@ import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./l
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
 import ExportToast from "./components/ExportToast.jsx"; // TASKS.csv #1042 — every export says whether it was saved, and where
 const UpdatePrompt = React.lazy(() => import("./components/UpdatePrompt.jsx")); // TASKS.csv #915 — loaded only when an update exists
-import { iconAction, activateOnKey } from "./lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
+import { activateOnKey } from "./lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 import { DESURVEY_METHODS } from "./lib/desurvey.js"; // TASKS.csv #135 — status-bar desurvey-method picker
 import { onMenu, onSectionSnapshot, onSectionContacts, takeLaunchFile, onLaunchFile, pythonHealth, isSidecarRunning, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState, captureWindow, problemReportInfo } from "./lib/desktop.js";
 import ViewerModule from "./modules/ViewerModule.jsx";
@@ -652,7 +652,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
           {/* TASKS.csv #321 — `indeterminate` stages (loading, building sensitivities) have no real fraction
               to show, so they get a moving stripe and no number rather than an invented percentage. */}
           <span role="progressbar" aria-label={taskProgress.label} aria-valuemin={0} aria-valuemax={100}
-            aria-valuenow={taskProgress.indeterminate ? undefined : pct} aria-valuetext={taskProgress.indeterminate ? "in progress" : `${pct}%`}
+            aria-valuenow={taskProgress.indeterminate ? undefined : pct} aria-valuetext={taskProgress.indeterminate ? tr("in progress") : `${pct}%`} /* tr: #1117 */
             style={{ width: 80, height: 5, borderRadius: 3, background: "var(--color-bg-subtle)", overflow: "hidden", display: "inline-block", position: "relative" }}>
             {taskProgress.indeterminate
               ? <span className="ge-progress-indeterminate" style={{ position: "absolute", top: 0, bottom: 0, width: "35%", background: "var(--color-accent)" }} />
@@ -663,8 +663,12 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
           {/* TASKS.csv #231 — a real GemPy run can take 80s+ with no way to back out short of force-
               quitting the app; onCancel is only set by callers that actually support cancellation
               (currently the implicit-modelling tools), so this button only appears where it works. */}
+          {/* TASKS.csv #1117 (review #1016) — a worded button with a 24 px target (#386's minimum), not a 12 px icon */}
           {taskProgress.onCancel && (
-            <X size={12} style={{ cursor: "pointer", color: "var(--color-danger-fg)" }} {...iconAction(taskProgress.onCancel, tr("Cancel this task"))} />
+            <button onClick={taskProgress.onCancel} title={tr("Cancel this task")} aria-label={tr("Cancel this task")}
+              style={{ display: "inline-flex", alignItems: "center", gap: 3, minHeight: 24, padding: "0 8px", border: "1px solid var(--color-danger-fg)", borderRadius: 4, background: "transparent", color: "var(--color-danger-fg)", font: "inherit", cursor: "pointer" }}>
+              <X size={12} aria-hidden="true" />{tr("Cancel")}
+            </button>
           )}
         </span>
       )}

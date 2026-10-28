@@ -6262,5 +6262,6 @@
   "middle of the fan: no oriented picks of this type, or none with a preferred orientation": "milieu de l'éventail : aucune mesure orientée de ce type, ou aucune avec une orientation préférentielle",
   "Font and size of the text on the section (and in its exports)": "Police et taille du texte de la coupe (et de ses exports)",
   "Section font": "Police de la coupe",
-  "Section text size": "Taille du texte de la coupe"
+  "Section text size": "Taille du texte de la coupe",
+  "in progress": "en cours"
 }
