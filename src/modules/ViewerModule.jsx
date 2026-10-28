@@ -20,7 +20,7 @@ import { sectionGrid, sameLine, unpackUnits, sectionPixels, blockSpacing, sectio
 import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/desktop.js"; // copyText: TASKS.csv #589
 import { sectionFromCentre, sectionThroughHole, fenceLines } from "../lib/sectionDefs.js";
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, RIBBON_TONES } from "../components/Ribbon.jsx"; // TASKS.csv #458
-import { Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate, Sparkles } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
+import { Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate, Sparkles, Download } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
 import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImportMeta.js"; // TASKS.csv #148; #552 split
 import { parseSolidInWorker } from "../lib/solidImportClient.js"; // TASKS.csv #414
 // TASKS.csv #414 — imported solids, one tone per layer (grey-blue family: never the generated-surface gold).
@@ -7015,6 +7015,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           onBoundaryIntercepts={() => setInterceptsModalOpen(true)} boundaryDisabled={!collars.length}
           onSqlWorkspace={() => setSqlModalOpen(true)} sqlDisabled={!collars.length && !assays.length}
           onSnapshot={snapshotToLayout} snapshotDisabled={!dataLoaded}
+          onExportHoles={(e) => { const r = e.currentTarget.getBoundingClientRect(); setLayerContextMenu({ key: "__drillholes__", label: tr("Export drillholes"), x: Math.max(8, Math.min(r.left, window.innerWidth - 320)), y: r.bottom + 4 }); }} /* #1085 */
           sectionMode={sectionMode}
           onToggleSection={() => { setRectZoomMode(false); setMeasureMode(null); setMeasurePts([]); setSectionMode((s) => !s); sectionPts.current = []; setSectionPreview(null); }}
           sectionCorridor={sectionCorridor} setSectionCorridor={setSectionCorridor}
@@ -8478,6 +8479,25 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         // store fields, collars[]/survey[]), so they arrive here via sentinel keys — everything about
         // group management (which only makes sense for the real layer list) is skipped for them, but
         // the new vector actions below apply to all three cases identically.
+        // TASKS.csv #1085 — the ribbon's Export menu: collars and traces side by side, each saying what it contains; traces
+        // come from tracesRef, so a project traced from collar azimuth / dip / length alone (no survey file) exports them too
+        if (layerContextMenu.key === "__drillholes__") {
+          const nTr = tracesRef.current.filter((t) => t.pts.length > 1).length, close = () => setLayerContextMenu(null);
+          const head = (t) => <div style={{ padding: "6px 10px 2px", color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>{t}</div>;
+          const three = (kind, key, label, none) => [["Export Shapefile (.zip)…", exportVectorShapefile], ["Export GeoPackage (.gpkg)…", exportVectorGeoPackage], ["Export DXF (.dxf)…", exportVectorDXF]].map(([l, fn]) => <ContextItem key={kind + l} label={tr(l)} disabled={none} title={none ? tr("Nothing to export yet.") : undefined} onClick={() => { fn(kind, key, label); close(); }} />);
+          return (
+            <div style={{ position: "fixed", inset: 0, zIndex: 55 }} onClick={close} onContextMenu={(e) => { e.preventDefault(); close(); }}>
+              <div ref={layerMenuKeys.menuRef} role="menu" aria-label={layerContextMenu.label} onKeyDown={layerMenuKeys.onKeyDown} onClick={(e) => e.stopPropagation()} style={{ position: "fixed", left: layerContextMenu.x, top: layerContextMenu.y, width: 310, background: "var(--color-divider)", border: "1px solid var(--color-border-light)", borderRadius: 8, padding: 6, fontSize: "var(--font-size-base)", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+                {head(tr("Collars: {n} points with hole id, azimuth, dip, length and your own collar fields", { n: collars.length }))}
+                {three("collars", "__collars__", "Collars", !collars.length)}
+                {head(tr("Traces: {n} desurveyed 3D lines, from the survey or, without one, from the collar azimuth, dip and length", { n: nTr }))}
+                {three("survey", "__survey__", "Traces", !nTr)}
+                <div style={{ borderTop: "1px solid var(--color-border)", margin: "4px 0" }} />
+                <ContextItem label={tr("Export all drillhole tables (.zip of CSV)…")} onClick={() => { exportDrillholeTables("all"); close(); }} />
+              </div>
+            </div>
+          );
+        }
         const isVector = layerContextMenu.key === "__collars__" || layerContextMenu.key === "__survey__";
         const vectorKind = layerContextMenu.key === "__collars__" ? "collars" : layerContextMenu.key === "__survey__" ? "survey" : "layer";
         return (
@@ -8831,7 +8851,7 @@ function ViewToolbar({
   themes, themeNameDraft, setThemeNameDraft, captureCurrentTheme, applyTheme,
   renamingThemeId, setRenamingThemeId, renameDraft, setRenameDraft, renameTheme, deleteTheme,
   onDbConnect, onQc, qcDisabled, onBoundaryIntercepts, boundaryDisabled, onSqlWorkspace, sqlDisabled,
-  onSnapshot, snapshotDisabled, sectionMode, onToggleSection, sectionCorridor, setSectionCorridor,
+  onSnapshot, snapshotDisabled, onExportHoles, sectionMode, onToggleSection, sectionCorridor, setSectionCorridor,
   measureMode, onToggleMeasure, onSwitchMeasureMode, measurePts, clearMeasure,
   show, paneProps, // TASKS.csv #458
   onLevelPlan, // TASKS.csv #525
@@ -9007,6 +9027,12 @@ function ViewToolbar({
         <div className="ge-ribbon-cell">
           <HoverToolInfo title={tr("Snapshot to Layout")} text={snapshotDisabled ? tr("Load some data first. Captures the current 3D view exactly as it's framed right now and drops it onto the Layout page as a fixed image — good for a report figure that shouldn't change if you keep exploring the model afterward. For a figure that stays live and re-frames itself, use a Theme + Viewport instead.") : tr("Captures the current 3D view exactly as it's framed right now and drops it onto the Layout page as a fixed image — good for a report figure that shouldn't change if you keep exploring the model afterward. For a figure that stays live and re-frames itself, use a Theme + Viewport instead.")}>
             <button className={`ge-ribbon-btn${snapshotDisabled ? " is-disabled" : ""}`} onClick={snapshotDisabled ? undefined : onSnapshot} aria-disabled={snapshotDisabled || undefined}><Camera size={22} strokeWidth={1.7} color={RIBBON_TONES.output} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Snapshot")}</span></button>
+          </HoverToolInfo>
+        </div>
+        {/* TASKS.csv #1085 — the drillhole exports, which lived only on right-click of the import buttons */}
+        <div className="ge-ribbon-cell">
+          <HoverToolInfo title={tr("Export drillholes")} text={snapshotDisabled ? tr("Load some data first.") : tr("Collars as points and hole traces as 3D lines (Shapefile, GeoPackage, DXF), or every drillhole table as CSV. Traces are exported whether they come from a survey file or from the collar azimuth, dip and length.")}>
+            <button className={`ge-ribbon-btn${snapshotDisabled ? " is-disabled" : ""}`} onClick={snapshotDisabled ? undefined : onExportHoles} aria-disabled={snapshotDisabled || undefined} aria-haspopup="menu"><Download size={22} strokeWidth={1.7} color={RIBBON_TONES.output} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Export")}</span></button>
           </HoverToolInfo>
         </div>
       </RibbonGroup>
