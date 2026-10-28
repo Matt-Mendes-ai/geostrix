@@ -3,7 +3,7 @@
 // trace, lift and drift included), the point, its vertical depth below the collar, and the angle between the hole and the
 // surface at that point (90 deg = the hole meets it square on; a low angle means a long, oblique intercept).
 // Pure: traces and meshes in world coordinates (E, N, elevation).
-import { buildMeshQuery, segmentIntersections } from "./meshQuery.js";
+import { buildMeshQuery, segmentHits } from "./meshQuery.js";
 
 const queries = new WeakMap(); // surface object -> its mesh query, built once per surface geometry
 
@@ -13,21 +13,14 @@ function queryOf(s) {
   return q;
 }
 
-// the angle (deg) between direction d and the plane of the triangle nearest the hit p (by its centroid; surfaces here are
-// fine meshes, so the triangle the segment passes through is the nearest one in practice)
-function angleToSurface(s, p, d) {
+// the angle (deg) between direction d and the plane of triangle `tri`, the one the segment crossed. TASKS.csv #1039 — it
+// was the triangle with the nearest centroid, found by scanning every triangle (~14 ms per hit on a 1M-triangle surface).
+function angleToSurface(s, tri, d) {
   const P = s.positions, I = s.indices;
-  let best = Infinity, n = null;
-  for (let t = 0; t < I.length; t += 3) {
-    const a = I[t] * 3, b = I[t + 1] * 3, c = I[t + 2] * 3;
-    const cx = (P[a] + P[b] + P[c]) / 3 - p.x, cy = (P[a + 1] + P[b + 1] + P[c + 1]) / 3 - p.y, cz = (P[a + 2] + P[b + 2] + P[c + 2]) / 3 - p.z;
-    const d2 = cx * cx + cy * cy + cz * cz;
-    if (d2 >= best) continue;
-    best = d2;
-    const e1 = [P[b] - P[a], P[b + 1] - P[a + 1], P[b + 2] - P[a + 2]], e2 = [P[c] - P[a], P[c + 1] - P[a + 1], P[c + 2] - P[a + 2]];
-    n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
-  }
-  if (!n) return null;
+  if (!(tri >= 0) || tri * 3 + 2 >= I.length) return null;
+  const a = I[tri * 3] * 3, b = I[tri * 3 + 1] * 3, c = I[tri * 3 + 2] * 3;
+  const e1 = [P[b] - P[a], P[b + 1] - P[a + 1], P[b + 2] - P[a + 2]], e2 = [P[c] - P[a], P[c + 1] - P[a + 1], P[c + 2] - P[a + 2]];
+  const n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
   const nl = Math.hypot(...n), dl = Math.hypot(d.x, d.y, d.z);
   if (!(nl > 0) || !(dl > 0)) return null;
   const cos = Math.abs((n[0] * d.x + n[1] * d.y + n[2] * d.z) / (nl * dl)); // |cos| of the angle to the normal
@@ -45,12 +38,12 @@ export function piercePoints(trace, surfaces) {
     if (!q) continue;
     for (let i = 1; i < trace.length; i++) {
       const a = trace[i - 1], b = trace[i];
-      for (const t of segmentIntersections(q, a, b)) {
+      for (const { t, tri } of segmentHits(q, a, b)) {
         const p = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t };
         const md = a.md + (b.md - a.md) * t;
         // a crossing exactly on a trace vertex is found by both segments that meet there: keep one
         if (out.some((o) => o.surfaceId === s.id && Math.abs(o.md - md) < 1e-6)) continue;
-        out.push({ surfaceId: s.id, surfaceName: s.name, md, ...p, verticalDepth: collarZ - p.z, angle: angleToSurface(s, p, { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z }) });
+        out.push({ surfaceId: s.id, surfaceName: s.name, md, ...p, verticalDepth: collarZ - p.z, angle: angleToSurface(s, tri, { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z }) });
       }
     }
   }

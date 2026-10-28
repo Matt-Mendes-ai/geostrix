@@ -233,7 +233,7 @@ function rayHitsBox(node, ox, oy, oz, idx, idy, idz) {
 }
 
 // Every ray parameter t > tMin at which the ray from `p` in direction `d` crosses the mesh.
-function rayHits(q, p, d, out, tMin, state) {
+function rayHits(q, p, d, out, tMin, state, tris = null) { // tris: #1039 — the triangle of each hit, in step with out
   const { positions, indices, triIndices } = q;
   const idx = 1 / (d.x || 1e-30), idy = 1 / (d.y || 1e-30), idz = 1 / (d.z || 1e-30);
   const lo = tMin != null ? tMin : RAY_EPS;
@@ -247,7 +247,7 @@ function rayHits(q, p, d, out, tMin, state) {
           positions[ia], positions[ia + 1], positions[ia + 2],
           positions[ib], positions[ib + 1], positions[ib + 2],
           positions[ic], positions[ic + 1], positions[ic + 2], lo, state);
-        if (hit !== -1) out.push(hit);
+        if (hit !== -1) { out.push(hit); if (tris) tris.push(t); }
       }
       return;
     }
@@ -386,6 +386,16 @@ export function segmentIntersections(q, a, b) {
   // crossing exactly AT the segment start (t === 0) is kept.
   const hits = rayHits(q, a, d, [], -T_EPS, null);
   return hits.filter((t) => t >= -T_EPS && t < 1 - T_EPS).sort((x, y) => x - y);
+}
+
+// TASKS.csv #1039 — segmentIntersections with the triangle each crossing is on: [{ t, tri }] sorted by t
+export function segmentHits(q, a, b) {
+  if (!q || !q.root) return [];
+  const d = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z };
+  if (d.x * d.x + d.y * d.y + d.z * d.z <= 0) return [];
+  const ts = [], tris = [];
+  rayHits(q, a, d, ts, -T_EPS, null, tris);
+  return ts.map((t, i) => ({ t, tri: tris[i] })).filter((h) => h.t >= -T_EPS && h.t < 1 - T_EPS).sort((x, y) => x.t - y.t);
 }
 
 /**

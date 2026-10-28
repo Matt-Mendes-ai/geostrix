@@ -112,6 +112,7 @@ const voxelGridOf = (model) => { let G = voxelGridCache.get(model.cells); if (G 
 import { PRECIOUS_METALS } from "../lib/geochem.js";
 const PlannedHoleTargeting = lazyModal(() => import("../components/PlannedHoleTargeting.jsx")); // TASKS.csv #476 // TASKS.csv #119 - target solver + planned-vs-as-drilled
 import { solveOrientationToTarget, plannedTrace } from "../lib/holePlanning.js"; // TASKS.csv #119 - shared, Node-verified target math; plannedTrace: #524
+import { planGeometryKey, drilledTraceIndex, isTargetModel, targetBandIndex, planChecks } from "../lib/plannedHoleChecks.js"; // TASKS.csv #1039
 import { extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #390
@@ -9458,63 +9459,31 @@ function NumField({ label, value, onChange, placeholder }) {
 // land here as one "Planned hole checks" panel, computed fresh from React state (collars/survey/
 // voxelModels) rather than read from the three.js scene refs, so it can't be stale relative to the
 // last render and always agrees with what's actually drawn.
-function planCollisionAndTargetChecks(plannedHoles, collars, survey, voxelModels, desurveyMethod) {
-  // TASKS.csv #135 — the real-hole traces a planned hole is checked for collisions against must be
-  // built with the SAME method the 3D view draws them with, or the reported clearance is measured
-  // against a trace the user can't see.
-  const realTraces = collars
-    .map((c) => ({ hole_id: c.hole_id, pts: desurveyHole(c, survey.filter((s) => s.hole_id === c.hole_id && !isNaN(s.depth)), desurveyMethod) }))
-    .filter((t) => t.pts.length);
-
-  // Only voxel models the user has actually narrowed (threshold/rangeMax set inside the model's own
-  // min/max, via the "Geophysical voxel ranges" sliders above) count as a defined "target band" — an
-  // un-narrowed model spans its whole value range, and scoring a hole against literally every cell in
-  // the model wouldn't tell a geologist anything useful, so those are skipped rather than silently
-  // reported as a match.
-  const targetModels = voxelModels.filter((m) => Number.isFinite(m.threshold) && Number.isFinite(m.rangeMax) && (m.threshold > m.min || m.rangeMax < m.max));
-
-  return plannedHoles.map((hole) => {
-    const pts = plannedHoleTrace(hole); // dense (~3m spacing) desurveyed world-coord points — see desurveyHole
-    if (!pts.length) return { hole, nearestReal: null, targetHits: [] };
-
-    // Nearest existing hole: minimum 3D distance between this planned trace and every real trace,
-    // sampled at desurveyHole's own point spacing — dense enough for a spacing/collision check
-    // without a true continuous-segment (point-to-line) distance calculation.
-    let nearestReal = null;
-    realTraces.forEach((rt) => {
-      let best = Infinity;
-      pts.forEach((p) => { rt.pts.forEach((q) => { const d = Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z); if (d < best) best = d; }); });
-      if (best < Infinity && (!nearestReal || best < nearestReal.distance)) nearestReal = { hole_id: rt.hole_id, distance: best };
-    });
-
-    // Target-band intersection: metres of trace whose midpoints fall inside any cell (of any
-    // currently-narrowed voxel model) within that model's own active threshold/rangeMax band —
-    // straightforward axis-aligned box containment against the block model's own cell extents.
-    const targetHits = targetModels.map((model) => {
-      const cells = model.cells.filter((c) => c.value >= model.threshold && c.value <= model.rangeMax && voxelCellSupported(model, c));
-      let metres = 0;
-      for (let i = 1; i < pts.length; i++) {
-        const mid = { x: (pts[i].x + pts[i - 1].x) / 2, y: (pts[i].y + pts[i - 1].y) / 2, z: (pts[i].z + pts[i - 1].z) / 2 };
-        const inside = cells.some((c) => Math.abs(mid.x - c.x) <= c.dx / 2 && Math.abs(mid.y - c.y) <= c.dy / 2 && Math.abs(mid.z - c.z) <= c.dz / 2);
-        if (inside) metres += pts[i].md - pts[i - 1].md;
-      }
-      return { modelId: model.id, modelName: model.name, metres };
-    }).filter((h) => h.metres > 0);
-
-    return { hole, nearestReal, targetHits };
-  });
-}
-
+// (the sums live in lib/plannedHoleChecks.js since TASKS.csv #1039)
+const cellsVersions = new WeakMap();
+let cellsVersionSeq = 0;
+function cellsVersion(cells) { if (!cells) return 0; let v = cellsVersions.get(cells); if (!v) { v = ++cellsVersionSeq; cellsVersions.set(cells, v); } return v; }
 function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, desurveyMethod, surfaces = [], onExportPierces }) { // #135; surfaces: #1009
   const [minSpacing, setMinSpacing] = useState(25);
   // TASKS.csv #1009 — where each planned hole crosses the visible modelled surfaces (downhole depth, vertical depth, angle)
-  const pierces = useMemo(() => new Map(plannedHoles.map((h) => [h.id, surfacePierces(plannedHoleTrace(h), surfaces)])), [plannedHoles, surfaces]);
+  // TASKS.csv #1039 — keyed on the holes' geometry, not the array: typing a name or a note re-ran every check (1-8 s per
+  // character on a large project). The drilled traces and each narrowed model's in-band blocks are indexed once.
+  const geomKey = planGeometryKey(plannedHoles);
+  const holesRef = useRef(plannedHoles);
+  holesRef.current = plannedHoles;
+  const pierces = useMemo(() => new Map(holesRef.current.map((h) => [h.id, surfacePierces(plannedHoleTrace(h), surfaces)])), [geomKey, surfaces]);
   const [costPerM, setCostPerM] = useState("");
-  const results = useMemo(() => planCollisionAndTargetChecks(plannedHoles, collars, survey, voxelModels, desurveyMethod), [plannedHoles, collars, survey, voxelModels, desurveyMethod]);
+  const drilled = useMemo(() => drilledTraceIndex(collars, survey, desurveyMethod), [collars, survey, desurveyMethod]);
+  const targetKey = voxelModels.filter(isTargetModel).map((m) => `${m.id}|${m.threshold}|${m.rangeMax}|${m.min}|${m.max}|${m.supportCutoff ?? ""}|${cellsVersion(m.cells)}`).join(";"); // not opacity / colour
+  const modelsRef = useRef(voxelModels);
+  modelsRef.current = voxelModels;
+  const targets = useMemo(() => modelsRef.current.filter(isTargetModel).map(targetBandIndex), [targetKey]);
+  const checked = useMemo(() => planChecks(holesRef.current, drilled, targets, plannedHoleTrace), [geomKey, drilled, targets]);
+  const results = checked.map((r) => ({ ...r, hole: plannedHoles.find((h) => h.id === r.hole.id) || r.hole })); // the current name
   const totalM = plannedHoles.reduce((s, h) => s + (Number(h.length) || 0), 0);
   const rate = Number(costPerM);
   const totalCost = costPerM !== "" && Number.isFinite(rate) && rate > 0 ? totalM * rate : null;
-  const anyTargetModel = voxelModels.some((m) => Number.isFinite(m.threshold) && Number.isFinite(m.rangeMax) && (m.threshold > m.min || m.rangeMax < m.max));
+  const anyTargetModel = voxelModels.some(isTargetModel);
 
   return (
     <div style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
