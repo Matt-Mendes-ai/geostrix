@@ -3,7 +3,7 @@
 GeoStrix is a desktop application that runs on your own machine. It has no accounts, no sign-in, and
 no analytics or telemetry of any kind.
 
-This policy describes the application's behaviour as of version 0.1.75. It is published here so that
+This policy describes the application's behaviour as of version 0.1.76. It is published here so that
 anyone can check what the application does with their data before installing it.
 
 ## What is collected
