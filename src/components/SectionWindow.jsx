@@ -8,6 +8,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { placeLabels, leaderEnd } from "../lib/sectionLabels.js"; // TASKS.csv #823
 import { sectionLegendLayout } from "../lib/sectionLegend.js"; // TASKS.csv #1043
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
+import { colors } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned, the planned-hole colour of every view
 
 const SECTION_W = 1100, SECTION_H = 660;
 
@@ -342,7 +343,7 @@ export default function SectionWindow() {
           <button onClick={startPlanning} style={btnStyle(false)} title={tr("Click the collar (snapped to the ground profile when there is one), then the target — gives azimuth, dip and length for a new planned hole")}><Crosshair size={14} />{" "}{tr("Plan a hole")}</button>
         ) : (
           <>
-            <span style={{ color: "#b06a1f" }}>
+            <span style={{ color: colors.planned }}>
               {planPts.length === 0 ? tr("Click the collar position{v}…", { v: data.elevationProfile?.length > 1 ? tr(" (snaps to the ground surface)") : tr(" (no terrain on this section: the click's elevation is used)") }) : planPts.length === 1 ? tr("Click the target…") : null}
             </span>
             {planSolution && (
@@ -666,18 +667,18 @@ function SectionSVG({ showSectionImages = true, showModel = true, legendItems = 
             if (!p || !q) continue;
             const x = sx(along(p.x, p.y)), y = sz(p.z);
             const [nx, ny] = screenNormal(x, y, sx(along(q.x, q.y)), sz(q.z));
-            marks.push(<g key={`m${md}`}><line x1={x - nx * 3} y1={y - ny * 3} x2={x - nx * 7} y2={y - ny * 7} stroke="#b06a1f" strokeWidth="0.8" />{md % 100 === 0 && <text x={x - nx * 10} y={y - ny * 10 + 3} fill="#b06a1f" fontSize="8" textAnchor={nx >= 0 ? "end" : "start"}>{md}</text>}</g>);
+            marks.push(<g key={`m${md}`}><line x1={x - nx * 3} y1={y - ny * 3} x2={x - nx * 7} y2={y - ny * 7} stroke={colors.planned} strokeWidth="0.8" />{md % 100 === 0 && <text x={x - nx * 10} y={y - ny * 10 + 3} fill={colors.planned} fontSize="8" textAnchor={nx >= 0 ? "end" : "start"}>{md}</text>}</g>);
           }
           const last = t[t.length - 1];
-          marks.push(<text key="eoh" x={sx(along(last.x, last.y))} y={sz(last.z) + 11} fill="#b06a1f" fontSize="9" textAnchor="middle">{tr("planned EOH {v} m", { v: Math.round(eoh) })}</text>);
+          marks.push(<text key="eoh" x={sx(along(last.x, last.y))} y={sz(last.z) + 11} fill={colors.planned} fontSize="9" textAnchor="middle">{tr("planned EOH {v} m", { v: Math.round(eoh) })}</text>);
         }
         (ph.pierces || []).forEach((q, k) => {
           const x = sx(along(q.x, q.y)), y = sz(q.z);
-          marks.push(<g key={`p${k}`}><circle cx={x} cy={y} r="3.2" fill="#fff" stroke="#b06a1f" strokeWidth="1.4" /><text x={x + 6} y={y - 4} fill="#7a4512" fontSize="9" fontWeight="600">{tr("{md} m · {surface}", { md: q.md.toFixed(1), surface: q.name })}</text><title>{tr("{hole} crosses {surface} at {md} m downhole", { hole: ph.name, surface: q.name, md: q.md.toFixed(1) })}</title></g>);
+          marks.push(<g key={`p${k}`}><circle cx={x} cy={y} r="3.2" fill="#fff" stroke={colors.planned} strokeWidth="1.4" /><text x={x + 6} y={y - 4} fill="#7a4512" fontSize="9" fontWeight="600">{tr("{md} m · {surface}", { md: q.md.toFixed(1), surface: q.name })}</text><title>{tr("{hole} crosses {surface} at {md} m downhole", { hole: ph.name, surface: q.name, md: q.md.toFixed(1) })}</title></g>);
         });
         return (
           <g key={`ph${i}`}>
-            <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#b06a1f" strokeWidth="1.6" strokeDasharray="6 4"><title>{tr("Planned hole: {name}", { name: ph.name })}</title></polyline>
+            <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke={colors.planned} strokeWidth="1.6" strokeDasharray="6 4"><title>{tr("Planned hole: {name}", { name: ph.name })}</title></polyline>
             {marks}
           </g>
         );
@@ -804,9 +805,9 @@ function SectionSVG({ showSectionImages = true, showModel = true, legendItems = 
       {/* TASKS.csv #395 — the hole being designed */}
       {planPts.length > 0 && (
         <g>
-          {planPts.length === 2 && <line x1={sx(planPts[0].l)} y1={sz(planPts[0].z)} x2={sx(planPts[1].l)} y2={sz(planPts[1].z)} stroke="#b06a1f" strokeWidth="2" strokeDasharray="6 4" />}
-          <circle cx={sx(planPts[0].l)} cy={sz(planPts[0].z)} r="4" fill="#b06a1f" stroke="#ffffff" strokeWidth="1.2"><title>{tr("Collar")}</title></circle>
-          {planPts[1] && <g><circle cx={sx(planPts[1].l)} cy={sz(planPts[1].z)} r="6" fill="none" stroke="#b06a1f" strokeWidth="1.6" /><circle cx={sx(planPts[1].l)} cy={sz(planPts[1].z)} r="1.8" fill="#b06a1f" /><title>{tr("Target")}</title></g>}
+          {planPts.length === 2 && <line x1={sx(planPts[0].l)} y1={sz(planPts[0].z)} x2={sx(planPts[1].l)} y2={sz(planPts[1].z)} stroke={colors.planned} strokeWidth="2" strokeDasharray="6 4" />}
+          <circle cx={sx(planPts[0].l)} cy={sz(planPts[0].z)} r="4" fill={colors.planned} stroke="#ffffff" strokeWidth="1.2"><title>{tr("Collar")}</title></circle>
+          {planPts[1] && <g><circle cx={sx(planPts[1].l)} cy={sz(planPts[1].z)} r="6" fill="none" stroke={colors.planned} strokeWidth="1.6" /><circle cx={sx(planPts[1].l)} cy={sz(planPts[1].z)} r="1.8" fill={colors.planned} /><title>{tr("Target")}</title></g>}
         </g>
       )}
       {drawing && drawPoints.length > 0 && (
@@ -833,7 +834,7 @@ function SectionSVG({ showSectionImages = true, showModel = true, legendItems = 
           if (!t?.length) return;
           const atEnd = labels.mode === "end";
           const p = atEnd ? t[t.length - 1] : t[0];
-          items.push({ key: `plan:${ph.name}|${atEnd ? "end" : "collar"}`, text: tr("{name} (planned)", { name: ph.name }), ax: sx(along(p.x, p.y)), ay: sz(p.z), dir: atEnd ? 1 : -1, color: "#b06a1f" });
+          items.push({ key: `plan:${ph.name}|${atEnd ? "end" : "collar"}`, text: tr("{name} (planned)", { name: ph.name }), ax: sx(along(p.x, p.y)), ay: sz(p.z), dir: atEnd ? 1 : -1, color: colors.planned });
         });
         const fixed = { ...labels.offsets, ...(labelDrag ? { [labelDrag.key]: { dx: labelDrag.dx, dy: labelDrag.dy } } : {}) };
         const color = Object.fromEntries(items.map((it) => [it.key, it.color]));

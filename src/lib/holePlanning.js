@@ -1,6 +1,6 @@
 import { desurveyHole } from "./desurvey.js"; // TASKS.csv #524 — the deviated planned trace
 // TASKS.csv #119 — drillhole planning / target design. #188 already built the planned-hole ENTITY
-// (store.jsx `plannedHoles`, the Targeting sidebar's CRUD + dashed-cyan 3D rendering + CSV export)
+// (store.jsx `plannedHoles`, the Targeting sidebar's CRUD + dashed 3D rendering (colors.planned, #1121) + CSV export)
 // and the "does this plan collide with an existing hole / how many metres of a narrowed voxel band
 // does it cut" checks. #119's remaining, distinct asks — both quoted from the Micromine- and
 // Leapfrog-specialist audits in its own TASKS.csv row — are the two things in this file:

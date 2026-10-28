@@ -43,6 +43,7 @@
      tokens (1.66:1 and 2.16:1 on white) that ~50 lines used as plain text on white. */
   --color-success-fg: #2e7d4f;
   --color-danger-fg: #b23a2e;
+  --color-planned: #e27f1a; /* #1121 — planned holes, every view */
   --color-danger-bg-soft: #fdeceb; /* #579 — a flagged row / card on white (danger-bg is the DARK one) */
   --color-success-border: #3d6b52;
   --color-success-border-soft: #4a6b4a;

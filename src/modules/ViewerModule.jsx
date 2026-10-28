@@ -5587,8 +5587,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // own comment: "no survey stations -> straight line from collar.azimuth/dip/length"), so this reuses
   // that shared math verbatim rather than re-deriving a straight-line trajectory here. Rendered
   // distinctly from real (drilled) holes — dashed line (LineDashedMaterial, matches the common
-  // industry convention of drawing planned/proposed holes dashed on a section) in a bright cyan that
-  // doesn't collide with any lithology/alteration/vein color already in use, plus a small diamond-
+  // industry convention of drawing planned/proposed holes dashed on a section) in colors.planned (#1121: orange, the
+  // same in the section, level plan and rig KML; it was cyan here), plus a small diamond-
   // shaped toe marker so the hole's endpoint (not just its direction) is visible at a glance.
   // TASKS.csv #519 — the strings digitised on sections (contacts, faults, free strings) as thin 3D lines at their real
   // x / y / z: before, they were only visible in their own section window (and in the CSV / DXF exports).
@@ -5667,7 +5667,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       }
     });
     const { x: ox, y: oy, z: oz } = originRef.current;
-    const PLANNED_COLOR = 0x22c9e0;
+    const PLANNED_COLOR = colors.planned; // TASKS.csv #1121 — one planned-hole colour in every view (was cyan 0x22c9e0)
     plannedHoles.forEach((hole) => {
       const prev = plannedMeshesRef.current[hole.id];
       if (prev) { group.remove(prev); prev.traverse((child) => { child.geometry?.dispose(); child.material?.dispose(); }); delete plannedMeshesRef.current[hole.id]; }
@@ -8160,7 +8160,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </div>
         <PlannedHoleAddForm onAdd={addPlannedHole} pickMode={pickHoleMode} onStartPick={() => setPickHoleMode((v) => !v)} pickedPoint={pickedHolePoint} collars={collars} />
         {plannedHoles.length === 0 ? (
-          <div style={{ padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", marginTop: 8 }}>{tr("No planned holes yet — add a collar position and design orientation above. A planned hole renders as a dashed cyan line (distinct from real, drilled holes) in the 3D view, in every module tab.")}</div>
+          <div style={{ padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", marginTop: 8 }}>{tr("No planned holes yet — add a collar position and design orientation above. A planned hole renders as a dashed orange line (distinct from real, drilled holes) in the 3D view, in every module tab, and in the same orange on sections, level plans and the rig KML.")}</div>
         ) : (
           <div style={{ marginTop: 8 }}>
             {plannedHoles.map((hole) => (
@@ -9572,7 +9572,7 @@ function PlannedHoleRow({ hole, onUpdate, onRemove, collars, survey }) { // #119
   return (
     <div style={{ marginBottom: 6, padding: "7px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onUpdate(hole.id, { visible: hole.visible === false })} style={{ cursor: "pointer", color: hole.visible !== false ? "#22c9e0" : "var(--color-text-disabled)", flexShrink: 0 }} title={hole.visible !== false ? tr("Hide") : tr("Show")}>
+        <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onUpdate(hole.id, { visible: hole.visible === false })} style={{ cursor: "pointer", color: hole.visible !== false ? colors.planned : "var(--color-text-disabled)", flexShrink: 0 }} title={hole.visible !== false ? tr("Hide") : tr("Show")}>
           {hole.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
         </div>
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setExpanded((v) => !v)} style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }}>{hole.name || tr("Planned hole")}</div>

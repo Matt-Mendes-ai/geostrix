@@ -138,6 +138,9 @@ export const colors = {
   dangerText: "#e0a0a0", // on the dark danger background only
   dangerBgSoft: "#fdeceb", // TASKS.csv #579 — light flagged-row background (dangerBg is dark)
   dangerFg: "#b23a2e", // TASKS.csv #384 — danger text on light backgrounds (5.94:1 on white)
+  // TASKS.csv #1121 — a planned hole, the same colour in the 3D view, the section, the level plan and the rig KML (it was
+  // cyan, brown, purple and orange): an orange that reads on the dark 3D background, on white paper and on imagery
+  planned: "#e27f1a",
   dangerBorder: "#4a2f2f",
   dangerBorderStrong: "#5a2a2a", // an unmapped/invalid field's own border
   dangerIcon: "#8a5555",

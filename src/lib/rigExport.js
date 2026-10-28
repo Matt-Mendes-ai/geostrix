@@ -10,6 +10,7 @@
 import { reprojectXY } from "./reproject.js";
 import { azimuthToGridOffset, wrap360, setIgrfModule } from "./azimuthRef.js";
 import * as igrf from "./igrf.js"; // #552 — this module is loaded on demand, so it brings IGRF with it
+import { colors } from "./theme.js"; // TASKS.csv #1121
 setIgrfModule(igrf);
 
 const r7 = (v) => (Number.isFinite(v) ? Number(v.toFixed(7)) : "");
@@ -47,6 +48,10 @@ export function rigRows(holes, epsg, isoDate, trace) {
 
 const esc = (s) => String(s ?? "").replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&apos;" }[c]));
 
+// TASKS.csv #1121 — colors.planned as KML aabbggrr, for the trace and a tinted collar circle (Google Earth's default
+// was a yellow pushpin). The placemark_circle href is one of Google Earth's built-in icons, resolved by the viewer;
+// GeoStrix fetches nothing.
+const KML_PLANNED = `ff${colors.planned.slice(5, 7)}${colors.planned.slice(3, 5)}${colors.planned.slice(1, 3)}`;
 export function rigKML(rows, docName) {
   const marks = rows.filter((r) => r.lat !== "" && r.lon !== "").map((r) => {
     const desc = `Azimuth: ${r.azimuth_true !== "" ? `${r.azimuth_true}° true, ` : ""}${r.azimuth_magnetic !== "" ? `${r.azimuth_magnetic}° magnetic (${r.declination_date}), ` : ""}${r.azimuth_grid}° grid. Dip ${r.dip}°. Length ${r.length} m.${r.notes ? ` ${r.notes}` : ""}`;
@@ -59,8 +64,8 @@ export function rigKML(rows, docName) {
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
     <name>${esc(docName)}</name>
-    <Style id="collar"><IconStyle><scale>0.9</scale></IconStyle></Style>
-    <Style id="trace"><LineStyle><color>ff1a7fe2</color><width>3</width></LineStyle></Style>${marks}
+    <Style id="collar"><IconStyle><color>${KML_PLANNED}</color><scale>0.9</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon></IconStyle></Style>
+    <Style id="trace"><LineStyle><color>${KML_PLANNED}</color><width>3</width></LineStyle></Style>${marks}
   </Document>
 </kml>
 `;

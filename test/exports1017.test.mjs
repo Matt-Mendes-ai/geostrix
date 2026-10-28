@@ -185,3 +185,13 @@ test("#1060 DXF layers per logged value, and dip/dip-direction labels on picks",
   assert.match(s, /\n0\nTEXT\n8\nSTRUCTURE_BED\n/); assert.match(s, /\n1\n45\/090\n/);
   assert.match(buildDXF({ geomType: "polyline", features: ivs }), /\n8\nDH1\n/);
 });
+
+test("#1121 rig KML: the trace and a tinted collar circle in colors.planned (aabbggrr)", async () => {
+  const { rigKML } = await import("../src/lib/rigExport.js");
+  const { colors } = await import("../src/lib/theme.js");
+  const kml = rigKML([{ name: "P1", lat: 52, lon: -121, toe_lat: "", azimuth_true: "", azimuth_magnetic: "", azimuth_grid: 90, dip: -60, length: 300 }], "plan");
+  const bgr = `ff${colors.planned.slice(5, 7)}${colors.planned.slice(3, 5)}${colors.planned.slice(1, 3)}`;
+  assert.equal(bgr, "ff1a7fe2");
+  assert.equal((kml.match(new RegExp(`<color>${bgr}</color>`, "g")) || []).length, 2);
+  assert.match(kml, /placemark_circle\.png/);
+});

@@ -4,6 +4,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { strikeDipSymbol } from "../lib/levelPlan.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { colors } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned
 
 // TASKS.csv #525 — the LEVEL PLAN window: a horizontal section at an RL, at true scale with E / N axes, a scale bar
 // and a north arrow. What the plane z = RL cuts — and what lies in the slab RL ± half-width — comes from
@@ -187,7 +188,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
             return <g key={`s${i}`} stroke={st.color} strokeWidth={1.6}><line x1={X(sym.strike[0])} y1={Y(sym.strike[1])} x2={X(sym.strike[2])} y2={Y(sym.strike[3])} /><line x1={X(sym.tick[0])} y1={Y(sym.tick[1])} x2={X(sym.tick[2])} y2={Y(sym.tick[3])} /><title>{`${st.hole_id} @ ${st.depth} m — ${st.label}, ${Math.round(st.dip)}° → ${Math.round(st.dipDir)}°`}</title></g>;
           })}
           {/* planned holes */}
-          {data.planned.map((p) => <g key={`pl${p.name}`}><path d={path(p.context)} stroke="#7a52c7" strokeWidth={1} strokeDasharray="4 3" fill="none" opacity={0.6} />{p.lines.map((l, i) => <path key={i} d={path(l)} stroke="#7a52c7" strokeWidth={2.4} strokeDasharray="5 3" fill="none" />)}{p.pierce.map((pc, i) => <g key={`pp${i}`}><rect x={X(pc.x) - 4} y={Y(pc.y) - 4} width={8} height={8} fill="#ffffff" stroke="#7a52c7" strokeWidth={1.6} /><title>{tr("Planned {name}: pierces {rl} m at {md} m", { name: p.name, rl, md: pc.md.toFixed(1) })}</title></g>)}{labels && p.pierce[0] && <text x={X(p.pierce[0].x) + 6} y={Y(p.pierce[0].y) + 3} fontSize="10" fill="#7a52c7">{p.name}</text>}</g>)}
+          {data.planned.map((p) => <g key={`pl${p.name}`}><path d={path(p.context)} stroke={colors.planned} strokeWidth={1} strokeDasharray="4 3" fill="none" opacity={0.6} />{p.lines.map((l, i) => <path key={i} d={path(l)} stroke={colors.planned} strokeWidth={2.4} strokeDasharray="5 3" fill="none" />)}{p.pierce.map((pc, i) => <g key={`pp${i}`}><rect x={X(pc.x) - 4} y={Y(pc.y) - 4} width={8} height={8} fill="#ffffff" stroke={colors.planned} strokeWidth={1.6} /><title>{tr("Planned {name}: pierces {rl} m at {md} m", { name: p.name, rl, md: pc.md.toFixed(1) })}</title></g>)}{labels && p.pierce[0] && <text x={X(p.pierce[0].x) + 6} y={Y(p.pierce[0].y) + 3} fontSize="10" fill={colors.planned}>{p.name}</text>}</g>)}
           {/* pierce points */}
           {data.holes.map((h) => h.pierce.map((pc, i) => (
             <g key={`pc${h.hole_id}_${i}`}>

@@ -712,7 +712,6 @@
   "No voxel/block models loaded yet — import one from the Geophysics tab first, then come back here to isolate a value range (e.g. just a mag high, or an IP high band).": "لا نماذج فوكسل/كتل محمّلة بعد — استورد واحدًا من تبويب الجيوفيزياء ثم عد هنا لعزل نطاق قيم (مثل ارتفاع مغناطيسي فقط أو نطاق استقطاب مستحث مرتفع).",
   "Planned drillholes ({n})": "ثقوب الحفر المخططة ({n})",
   "Export all planned holes to CSV": "تصدير كل الثقوب المخططة إلى CSV",
-  "No planned holes yet — add a collar position and design orientation above. A planned hole renders as a dashed cyan line (distinct from real, drilled holes) in the 3D view, in every module tab.": "لا ثقوب مخططة بعد — أضف موضع فوهة واتجاه تصميم أعلاه. يظهر الثقب المخطط كخط سماوي متقطع (مميز عن الثقوب المحفورة فعلًا) في العرض ثلاثي الأبعاد في كل تبويب.",
   "Collar and toe in project coordinates and lat/lon, azimuth against grid, true and magnetic north (today's declination)": "الفوهة والقاع بإحداثيات المشروع وخط العرض/الطول، والسمت بالنسبة للشبكة والشمال الحقيقي والمغناطيسي (انحراف اليوم)",
   "Google Earth / phone maps: collars and collar-to-toe lines": "Google Earth / خرائط الهاتف: الفوهات وخطوط الفوهة إلى القاع",
   "Handheld GPS: collar waypoints": "GPS محمول: نقاط الفوهات",
@@ -6249,5 +6248,6 @@
   "Loading the Harry property sample project — 37 real drillholes from BC's public ARIS database (report #37584), with the interval layers synthesized around the real assay anomalies. See sample_data/harry_property/README.md for exactly what's real vs. synthetic. Their assays (assay_wide.csv) are loaded into the Geochem tab too.": "جارٍ تحميل مشروع Harry التجريبي — 37 ثقبًا حقيقيًا من قاعدة بيانات ARIS العامة في كولومبيا البريطانية (التقرير رقم 37584)، مع طبقات فترات مُصطنَعة حول شذوذات التحاليل الحقيقية. انظر sample_data/harry_property/README.md لمعرفة الحقيقي من المُصطنَع بدقة. وتُحمَّل تحاليلها (assay_wide.csv) أيضًا في تبويب الجيوكيمياء.",
   "Harry assays: {rows} samples, {elements} elements — in the Geochem tab. {bdl} blank results read as below detection (half the column's detection limit), as the sample's README says they are.{v}": "تحاليل Harry: {rows} عينة و{elements} عنصرًا، في تبويب الجيوكيمياء. قُرئت {bdl} نتيجة فارغة على أنها دون حد الكشف (نصف حد الكشف للعمود)، كما يذكر ملف README للمثال.{v}",
   "Harry assays could not be loaded: {message}": "تعذّر تحميل تحاليل Harry: {message}",
-  "Converted to this project's units: {v}.": "حُوِّلت إلى وحدات هذا المشروع: {v}."
+  "Converted to this project's units: {v}.": "حُوِّلت إلى وحدات هذا المشروع: {v}.",
+  "No planned holes yet — add a collar position and design orientation above. A planned hole renders as a dashed orange line (distinct from real, drilled holes) in the 3D view, in every module tab, and in the same orange on sections, level plans and the rig KML.": "لا ثقوب مخططة بعد — أضف موضع فوهة واتجاه تصميم أعلاه. يظهر الثقب المخطط كخط برتقالي متقطع (مميز عن الثقوب المحفورة فعلًا) في العرض ثلاثي الأبعاد في كل تبويب، وبنفس البرتقالي في المقاطع ومخططات المستويات وملف KML للحفّارة."
 }
