@@ -66,8 +66,12 @@ export function parseQmlStyle(text) {
     while ((m = re.exec(symbolsBody))) starts.push({ index: m.index, tag: m[0] });
     starts.forEach((s, i) => {
       const body = symbolsBody.slice(s.index, i + 1 < starts.length ? starts[i + 1].index : symbolsBody.length);
+      // TASKS.csv #1065 (review #1016) — QGIS up to ~3.16 wrote symbol-layer properties as <prop k="color" v="r,g,b,a"/>
+      // (3.18-3.24 wrote both forms): read either, in either attribute order. Only the <Option> form was read, so an
+      // older .qml gave every category #999999 grey and replaced the good automatic colours without a word.
       const opt = (name) => {
-        const om = body.match(new RegExp(`<Option[^>]*name="${name}"[^>]*value="([^"]*)"`)) || body.match(new RegExp(`<Option[^>]*value="([^"]*)"[^>]*name="${name}"`));
+        const om = body.match(new RegExp(`<Option[^>]*name="${name}"[^>]*value="([^"]*)"`)) || body.match(new RegExp(`<Option[^>]*value="([^"]*)"[^>]*name="${name}"`))
+          || body.match(new RegExp(`<prop[^>]*k="${name}"[^>]*v="([^"]*)"`)) || body.match(new RegExp(`<prop[^>]*v="([^"]*)"[^>]*k="${name}"`));
         return om ? qmlColor(om[1]) : null;
       };
       const fill = opt("color") || opt("line_color");
@@ -89,7 +93,7 @@ export function parseQmlStyle(text) {
     categories.push({
       value,
       label: label || (value == null ? "(no value)" : value),
-      color: sym.fill?.hex || "#999999",
+      color: sym.fill?.hex || null, // #1065 — null: the category keeps its automatic colour (was a silent #999999)
       outline: sym.outline?.hex || null,
       visible: xmlAttr(tag, "render") !== "false",
     });
@@ -125,7 +129,7 @@ export function applyQmlToCategories(categories, qml) {
   const byValue = new Map(qml.categories.map((c) => [c.value == null ? null : String(c.value), c]));
   return categories.map((c) => {
     const s = byValue.get(c.value);
-    return s ? { ...c, color: s.color, outline: s.outline, label: s.label || c.label, visible: s.visible } : c;
+    return s ? { ...c, color: s.color || c.color, outline: s.outline, label: s.label || c.label, visible: s.visible } : c; // || c.color: #1065
   });
 }
 
