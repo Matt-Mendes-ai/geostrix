@@ -6259,5 +6259,8 @@
   "Opacity of the structure symbols on the section": "Opacidade dos símbolos de estruturas na seção",
   "{label} — alpha {alpha}° only (no beta): the faint fan is every orientation that alpha allows; the dashed line is the most likely one ({v})": "{label} — só alfa {alpha}° (sem beta): o leque claro são todas as orientações que esse alfa permite; a linha tracejada é a mais provável ({v})",
   "nearest the mean of the oriented picks": "a mais próxima da média das medidas orientadas",
-  "middle of the fan: no oriented picks of this type, or none with a preferred orientation": "meio do leque: não há medidas orientadas deste tipo, ou nenhuma com orientação preferencial"
+  "middle of the fan: no oriented picks of this type, or none with a preferred orientation": "meio do leque: não há medidas orientadas deste tipo, ou nenhuma com orientação preferencial",
+  "Font and size of the text on the section (and in its exports)": "Fonte e tamanho do texto na seção (e nas exportações)",
+  "Section font": "Fonte da seção",
+  "Section text size": "Tamanho do texto da seção"
 }

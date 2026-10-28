@@ -7,7 +7,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { placeLabels, leaderEnd } from "../lib/sectionLabels.js"; // TASKS.csv #823
 import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped
-import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
+import { exportSvgMarkup, FIGURE_FONT } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { colors } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned, the planned-hole colour of every view
 
 const SECTION_W = 1100, SECTION_H = 660;
@@ -26,6 +26,16 @@ function hashColor(str) {
   for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
   return CONTACT_PALETTE[Math.abs(h) % CONTACT_PALETTE.length];
 }
+
+// TASKS.csv #1129 — the section's text fonts: the app's figure font first, then fonts every Windows / macOS machine has
+const SECTION_FONTS = [
+  { label: "Exo 2", stack: FIGURE_FONT },
+  { label: "Arial", stack: "Arial, Helvetica, sans-serif" },
+  { label: "Calibri", stack: "Calibri, Carlito, sans-serif" },
+  { label: "Verdana", stack: "Verdana, Geneva, sans-serif" },
+  { label: "Times New Roman", stack: "'Times New Roman', Times, serif" },
+  { label: "Courier New", stack: "'Courier New', Courier, monospace" },
+];
 
 export default function SectionWindow() {
   const [data, setData] = useState(null);
@@ -68,6 +78,12 @@ export default function SectionWindow() {
   const [holeWidth, setHoleWidthState] = useState(() => { try { const v = Number(localStorage.getItem("geostrix.sectionHoleWidth")); return v >= 1 && v <= 20 ? v : 5; } catch { return 5; } });
   const setHoleWidth = (v) => { const n = Math.max(1, Math.min(20, Number(v) || 5)); setHoleWidthState(n); try { localStorage.setItem("geostrix.sectionHoleWidth", String(n)); } catch { /* private window */ } };
   const [bufferDraft, setBufferDraft] = useState("");
+  // TASKS.csv #1129 — "text font should also be editable": the section's font and text size (per user; the SVG / PNG /
+  // PDF exports and the Layout snapshot carry them)
+  const [textFont, setTextFontState] = useState(() => { try { const v = localStorage.getItem("geostrix.sectionFont"); return SECTION_FONTS.some((f) => f.stack === v) ? v : SECTION_FONTS[0].stack; } catch { return SECTION_FONTS[0].stack; } });
+  const setTextFont = (v) => { setTextFontState(v); try { localStorage.setItem("geostrix.sectionFont", v); } catch { /* private window */ } };
+  const [textScale, setTextScaleState] = useState(() => { try { const v = Number(localStorage.getItem("geostrix.sectionTextScale")); return v >= 0.7 && v <= 2 ? v : 1; } catch { return 1; } });
+  const setTextScale = (v) => { const n = Math.max(0.7, Math.min(2, Number(v) || 1)); setTextScaleState(n); try { localStorage.setItem("geostrix.sectionTextScale", String(n)); } catch { /* private window */ } };
   // TASKS.csv #1130 — "User should be able to set opacity of structures" (kept per user, like the hole width)
   const [structOpacity, setStructOpacityState] = useState(() => { try { const v = Number(localStorage.getItem("geostrix.sectionStructOpacity")); return v > 0 && v <= 1 ? v : 1; } catch { return 1; } });
   const setStructOpacity = (v) => { const n = Math.max(0.05, Math.min(1, Number(v) || 1)); setStructOpacityState(n); try { localStorage.setItem("geostrix.sectionStructOpacity", String(n)); } catch { /* private window */ } };
@@ -326,6 +342,15 @@ export default function SectionWindow() {
               onBlur={() => { if (Number(bufferDraft) > 0 && Number(bufferDraft) !== data.section?.corridor) sendSectionContacts({ id: data.id, corridor: Number(bufferDraft) }); setBufferDraft(""); }}
               style={{ width: 52, fontSize: 11 }} aria-label={tr("Buffer ±")} />{" m"}
           </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Font and size of the text on the section (and in its exports)")}>
+            {tr("Text")}
+            <select value={textFont} onChange={(e) => setTextFont(e.target.value)} style={{ fontSize: 11 }} aria-label={tr("Section font")}>
+              {SECTION_FONTS.map((f) => <option key={f.stack} value={f.stack}>{f.label}</option>)}
+            </select>
+            <select value={String(textScale)} onChange={(e) => setTextScale(e.target.value)} style={{ fontSize: 11 }} aria-label={tr("Section text size")}>
+              {[0.8, 1, 1.2, 1.4, 1.6, 2].map((v) => <option key={v} value={String(v)}>{Math.round(v * 100)}%</option>)}
+            </select>
+          </label>
           {data.planes?.length > 0 && (
             <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Opacity of the structure symbols on the section")}>
               {tr("Structures")}
@@ -412,7 +437,7 @@ export default function SectionWindow() {
 
       <div className="ge-section-body" style={{ flex: 1, overflow: "auto", padding: 16 }}>
         {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{v2}. Click the pencil again to finish; Save contacts keeps the changes.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}{editing?.kind === "outline" ? ` ${tr("Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.")}` : ""}</div>}
-        <SectionSVG holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
+        <SectionSVG textFont={textFont} textScale={textScale} holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
           snap={snapOn && !planning ? targets : null} editingId={editingId} onEditPoints={editPoints}
           labels={labels} onMoveLabel={(key, off) => changeLabels({ offsets: { ...labels.offsets, [key]: off } })} /* #823 */ />
       </div>
@@ -425,7 +450,8 @@ function btnStyle(active) {
 }
 const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11.5 };
 
-function SectionSVG({ holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onMoveLabel }) {
+function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onMoveLabel }) {
+  const fs = (n) => +(n * textScale).toFixed(2); // TASKS.csv #1129 — every label at the chosen text size
   const dragRef = useRef(null); // #519 — the vertex being dragged (before the early return: a hook)
   const labelDragRef = useRef(null); // #823 — the label being dragged: { key, ax, ay, grabDx, grabDy }
   const [labelDrag, setLabelDrag] = useState(null); // its live offset while dragging: { key, dx, dy }
@@ -540,7 +566,9 @@ function SectionSVG({ holeWidth = 5, structOpacity = 1, showSectionImages = true
   };
 
   return (
-    <svg ref={svgRef} viewBox={`0 0 ${W} ${totalH}`} width="100%" style={{ background: "#ffffff", borderRadius: 8, cursor: drawing ? "crosshair" : "default" }} onClick={handleClick} onMouseMove={handleMove} onMouseUp={handleUp} onMouseLeave={handleUp}>
+    <svg ref={svgRef} fontFamily={textFont} viewBox={`0 0 ${W} ${totalH}`} width="100%" style={{ background: "#ffffff", borderRadius: 8, cursor: drawing ? "crosshair" : "default" }} onClick={handleClick} onMouseMove={handleMove} onMouseUp={handleUp} onMouseLeave={handleUp}>
+      {/* TASKS.csv #1129 — "texts on the cross section are getting written on top or behind features": every label has a white halo, so it reads over ribbons, structures and contacts */}
+      <style>{`text { paint-order: stroke; stroke: #ffffff; stroke-width: ${(2.6 * textScale).toFixed(1)}px; stroke-linejoin: round; }`}</style>
       <defs>
         <clipPath id="sectionPlotArea"><rect x={PAD} y={PAD} width={W - 2 * PAD} height={H - 2 * PAD} /></clipPath>
       </defs>
@@ -592,19 +620,19 @@ function SectionSVG({ holeWidth = 5, structOpacity = 1, showSectionImages = true
       {niceTicks(minZ, maxZ, 8).map((z, i) => (
         <g key={i}>
           <line x1={PAD} y1={sz(z)} x2={W - PAD} y2={sz(z)} stroke="#eceef1" strokeWidth="0.5" />
-          <text x={PAD - 8} y={sz(z) + 3} fill="#65717e" fontSize="10" textAnchor="end">{z.toFixed(0)}</text>
+          <text x={PAD - 8} y={sz(z) + 3} fill="#65717e" fontSize={fs(10)} textAnchor="end">{z.toFixed(0)}</text>
         </g>
       ))}
       {niceTicks(0, maxL, 8).filter((l) => l >= 0 && l <= maxL).map((l, i) => (
         <g key={`d${i}`}>
           <line x1={sx(l)} y1={H - PAD} x2={sx(l)} y2={H - PAD + 4} stroke="#65717e" strokeWidth="0.8" />
-          <text x={sx(l)} y={H - PAD + 14} fill="#65717e" fontSize="10" textAnchor="middle">{l.toFixed(0)}</text>
+          <text x={sx(l)} y={H - PAD + 14} fill="#65717e" fontSize={fs(10)} textAnchor="middle">{l.toFixed(0)}</text>
         </g>
       ))}
-      <text x={PAD} y={H - PAD + 30} fill="#55606e" fontSize="10" textAnchor="start">{`${Math.round(ax).toLocaleString()} E  ${Math.round(ay).toLocaleString()} N`}</text>
-      <text x={W - PAD} y={H - PAD + 30} fill="#55606e" fontSize="10" textAnchor="end">{`${Math.round(bx).toLocaleString()} E  ${Math.round(by).toLocaleString()} N`}</text>
-      <text x={PAD} y={PAD - 22} fill="#1a2028" fontSize="12" fontWeight="600">{title || tr("Cross-section")}</text>
-      <text x={PAD} y={PAD - 8} fill="#55606e" fontSize="10">{tr("Azimuth {v}° · {v2}{v3} · elevation in m", { v: Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360).toFixed(0), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" })}</text>
+      <text x={PAD} y={H - PAD + 30} fill="#55606e" fontSize={fs(10)} textAnchor="start">{`${Math.round(ax).toLocaleString()} E  ${Math.round(ay).toLocaleString()} N`}</text>
+      <text x={W - PAD} y={H - PAD + 30} fill="#55606e" fontSize={fs(10)} textAnchor="end">{`${Math.round(bx).toLocaleString()} E  ${Math.round(by).toLocaleString()} N`}</text>
+      <text x={PAD} y={PAD - 22} fill="#1a2028" fontSize={fs(12)} fontWeight="600">{title || tr("Cross-section")}</text>
+      <text x={PAD} y={PAD - 8} fill="#55606e" fontSize={fs(10)}>{tr("Azimuth {v}° · {v2}{v3} · elevation in m", { v: Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360).toFixed(0), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" })}</text>
 
       {/* TASKS.csv #112 — topographic ground-surface profile sampled from the loaded SRTM/DEM terrain
           along this section line (see ViewerModule.jsx's buildSectionPayload). Drawn as a filled
@@ -622,7 +650,7 @@ function SectionSVG({ holeWidth = 5, structOpacity = 1, showSectionImages = true
             points={elevationProfile.map((p) => `${sx(p.d)},${sz(p.z)}`).join(" ")}
             fill="none" stroke="#a9873f" strokeWidth="1.6"
           />
-          <text x={W - PAD - 4} y={sz(elevationProfile[elevationProfile.length - 1].z) - 6} fill="#8a6a1f" fontSize="9.5" textAnchor="end">{tr("Ground surface (SRTM)")}</text>
+          <text x={W - PAD - 4} y={sz(elevationProfile[elevationProfile.length - 1].z) - 6} fill="#8a6a1f" fontSize={fs(9.5)} textAnchor="end">{tr("Ground surface (SRTM)")}</text>
         </g>
       )}
 
@@ -645,7 +673,7 @@ function SectionSVG({ holeWidth = 5, structOpacity = 1, showSectionImages = true
             {runs && <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#9aa5b3" strokeWidth="1" strokeDasharray="4 3"><title>{tr("{hole_id}: outside the ±{corridor} m buffer — projected onto the section, no data drawn here", { hole_id: h.hole_id, corridor: section.corridor })}</title></polyline>}
             {solid.map((seg, si) => <polyline key={si} points={seg.map((p) => p.join(",")).join(" ")} fill="none" stroke="#445064" strokeWidth="1.2"><title>{`${h.hole_id}${off ? tr(": {off} from the section line", { off }) : ""}`}</title></polyline>)}
             {/* TASKS.csv #897 — the offset in view, not only in the tooltip, when the hole is more than 5 m off the section */}
-            {off && Math.max(Math.abs(h.minOffset), Math.abs(h.maxOffset)) > 5 && (() => { const end = solid.length ? solid[solid.length - 1].at(-1) : pts.at(-1); return end ? <text x={end[0] + 4} y={end[1] + 10} fill="#7a8494" fontSize="9" pointerEvents="none">{off}</text> : null; })()}
+            {off && Math.max(Math.abs(h.minOffset), Math.abs(h.maxOffset)) > 5 && (() => { const end = solid.length ? solid[solid.length - 1].at(-1) : pts.at(-1); return end ? <text x={end[0] + 4} y={end[1] + 10} fill="#7a8494" fontSize={fs(9)} pointerEvents="none">{off}</text> : null; })()}
           </g>
         );
       })}
@@ -673,14 +701,14 @@ function SectionSVG({ holeWidth = 5, structOpacity = 1, showSectionImages = true
             if (!p || !q) continue;
             const x = sx(along(p.x, p.y)), y = sz(p.z);
             const [nx, ny] = screenNormal(x, y, sx(along(q.x, q.y)), sz(q.z));
-            marks.push(<g key={`m${md}`}><line x1={x - nx * 3} y1={y - ny * 3} x2={x - nx * 7} y2={y - ny * 7} stroke={colors.planned} strokeWidth="0.8" />{md % 100 === 0 && <text x={x - nx * 10} y={y - ny * 10 + 3} fill={colors.planned} fontSize="8" textAnchor={nx >= 0 ? "end" : "start"}>{md}</text>}</g>);
+            marks.push(<g key={`m${md}`}><line x1={x - nx * 3} y1={y - ny * 3} x2={x - nx * 7} y2={y - ny * 7} stroke={colors.planned} strokeWidth="0.8" />{md % 100 === 0 && <text x={x - nx * 10} y={y - ny * 10 + 3} fill={colors.planned} fontSize={fs(8)} textAnchor={nx >= 0 ? "end" : "start"}>{md}</text>}</g>);
           }
           const last = t[t.length - 1];
-          marks.push(<text key="eoh" x={sx(along(last.x, last.y))} y={sz(last.z) + 11} fill={colors.planned} fontSize="9" textAnchor="middle">{tr("planned EOH {v} m", { v: Math.round(eoh) })}</text>);
+          marks.push(<text key="eoh" x={sx(along(last.x, last.y))} y={sz(last.z) + 11} fill={colors.planned} fontSize={fs(9)} textAnchor="middle">{tr("planned EOH {v} m", { v: Math.round(eoh) })}</text>);
         }
         (ph.pierces || []).forEach((q, k) => {
           const x = sx(along(q.x, q.y)), y = sz(q.z);
-          marks.push(<g key={`p${k}`}><circle cx={x} cy={y} r="3.2" fill="#fff" stroke={colors.planned} strokeWidth="1.4" /><text x={x + 6} y={y - 4} fill="#7a4512" fontSize="9" fontWeight="600">{tr("{md} m · {surface}", { md: q.md.toFixed(1), surface: q.name })}</text><title>{tr("{hole} crosses {surface} at {md} m downhole", { hole: ph.name, surface: q.name, md: q.md.toFixed(1) })}</title></g>);
+          marks.push(<g key={`p${k}`}><circle cx={x} cy={y} r="3.2" fill="#fff" stroke={colors.planned} strokeWidth="1.4" /><text x={x + 6} y={y - 4} fill="#7a4512" fontSize={fs(9)} fontWeight="600">{tr("{md} m · {surface}", { md: q.md.toFixed(1), surface: q.name })}</text><title>{tr("{hole} crosses {surface} at {md} m downhole", { hole: ph.name, surface: q.name, md: q.md.toFixed(1) })}</title></g>);
         });
         return (
           <g key={`ph${i}`}>
@@ -724,35 +752,13 @@ function SectionSVG({ holeWidth = 5, structOpacity = 1, showSectionImages = true
           return (
             <g key={i}>
               <line x1={bx0} y1={by0} x2={bx1} y2={by1} stroke={row.color} strokeWidth={Math.min(thick, 6)} strokeLinecap="butt"><title>{`${row.label} (${a.from}–${a.to} m)`}</title></line>
-              {labelledAssays.has(row) && <text x={bx1 + nx * 3} y={by1 + ny * 3 + 3} fill="#1a2028" fontSize="9" textAnchor={nx >= 0 ? "start" : "end"}>{a.value}</text>}
+              {labelledAssays.has(row) && <text x={bx1 + nx * 3} y={by1 + ny * 3 + 3} fill="#1a2028" fontSize={fs(9)} textAnchor={nx >= 0 ? "start" : "end"}>{a.value}</text>}
             </g>
           );
         }
         const p = interpTrace(trace, row.md);
         if (!p) return null;
         return <circle key={i} cx={sx(along(p.x, p.y))} cy={sz(p.z)} r="3.5" fill={row.color} stroke="#ffffff" strokeWidth="0.5"><title>{row.label}</title></circle>;
-      })}
-
-      {/* TASKS.csv #392 — downhole depth ticks (every 50 m, labelled every 100 m) and the end-of-hole depth. */}
-      {holes.map((h, hi) => {
-        const trace = h.trace;
-        if (!trace?.length) return null;
-        const eoh = trace[trace.length - 1].md;
-        const marks = [];
-        for (let md = 50; md < eoh - 5; md += 50) {
-          const p = interpTrace(trace, md), q = interpTrace(trace, Math.min(eoh, md + 1));
-          if (!p || !q) continue;
-          const x = sx(along(p.x, p.y)), y = sz(p.z);
-          const [nx, ny] = screenNormal(x, y, sx(along(q.x, q.y)), sz(q.z));
-          marks.push(<g key={md}><line x1={x - nx * 3} y1={y - ny * 3} x2={x - nx * 7} y2={y - ny * 7} stroke="#445064" strokeWidth="0.8" />{md % 100 === 0 && <text x={x - nx * 10} y={y - ny * 10 + 3} fill="#65717e" fontSize="8" textAnchor={nx >= 0 ? "end" : "start"}>{md}</text>}</g>);
-        }
-        const last = trace[trace.length - 1];
-        return (
-          <g key={`dt${hi}`}>
-            {marks}
-            {labels.mode !== "end" && labels.mode !== "both" && <text x={sx(along(last.x, last.y))} y={sz(last.z) + 11} fill="#1a2028" fontSize="9" textAnchor="middle">{tr("EOH {v} m", { v: Math.round(eoh) })}</text>}{/* #823: in the end-of-hole label otherwise */}
-          </g>
-        );
       })}
 
       {planes.map((row, i) => {
@@ -798,7 +804,7 @@ function SectionSVG({ holeWidth = 5, structOpacity = 1, showSectionImages = true
       {(data.ghostStrings || []).map((g) => g.strings.filter((st) => st.points.length > 1).map((st, i) => (
         <g key={`${g.sectionId}_${i}`} opacity="0.4">
           <polyline points={st.points.map((p) => `${sx(p.l)},${sz(p.z)}`).join(" ")} fill="none" stroke={st.color || "#7a8494"} strokeWidth="1.6" strokeDasharray="2 3" />
-          <text x={sx(st.points[st.points.length - 1].l) + 4} y={sz(st.points[st.points.length - 1].z)} fill={st.color || "#7a8494"} fontSize="9">{`${st.unit} — ${g.sectionName} (${g.offset > 0 ? "+" : ""}${Math.round(g.offset)} m)`}</text>
+          <text x={sx(st.points[st.points.length - 1].l) + 4} y={sz(st.points[st.points.length - 1].z)} fill={st.color || "#7a8494"} fontSize={fs(9)}>{`${st.unit} — ${g.sectionName} (${g.offset > 0 ? "+" : ""}${Math.round(g.offset)} m)`}</text>
         </g>
       )))}
       {contacts.map((c) => (
@@ -822,9 +828,31 @@ function SectionSVG({ holeWidth = 5, structOpacity = 1, showSectionImages = true
               ? <rect key={i} x={sx(p.l) - r} y={sz(p.z) - r} width={2 * r} height={2 * r} {...common} {...handlers}><title>{tip}</title></rect>
               : <circle key={i} cx={sx(p.l)} cy={sz(p.z)} r={r} {...common} {...handlers}><title>{tip}</title></circle>;
           })}
-          <text x={sx(c.points[0].l)} y={sz(c.points[0].z) - 8} fill={c.color} fontSize="10" fontWeight="600">{c.unit}</text>
+          <text x={sx(c.points[0].l)} y={sz(c.points[0].z) - 8} fill={c.color} fontSize={fs(10)} fontWeight="600">{c.unit}</text>
         </g>
       ))}
+      {/* TASKS.csv #392 — downhole depth ticks (every 50 m, labelled every 100 m) and the end-of-hole depth. #1129: drawn after the structures and contacts, so they are not hidden under them */}
+      {holes.map((h, hi) => {
+        const trace = h.trace;
+        if (!trace?.length) return null;
+        const eoh = trace[trace.length - 1].md;
+        const marks = [];
+        for (let md = 50; md < eoh - 5; md += 50) {
+          const p = interpTrace(trace, md), q = interpTrace(trace, Math.min(eoh, md + 1));
+          if (!p || !q) continue;
+          const x = sx(along(p.x, p.y)), y = sz(p.z);
+          const [nx, ny] = screenNormal(x, y, sx(along(q.x, q.y)), sz(q.z));
+          marks.push(<g key={md}><line x1={x - nx * 3} y1={y - ny * 3} x2={x - nx * 7} y2={y - ny * 7} stroke="#445064" strokeWidth="0.8" />{md % 100 === 0 && <text x={x - nx * 10} y={y - ny * 10 + 3} fill="#65717e" fontSize={fs(8)} textAnchor={nx >= 0 ? "end" : "start"}>{md}</text>}</g>);
+        }
+        const last = trace[trace.length - 1];
+        return (
+          <g key={`dt${hi}`}>
+            {marks}
+            {labels.mode !== "end" && labels.mode !== "both" && <text x={sx(along(last.x, last.y))} y={sz(last.z) + 11} fill="#1a2028" fontSize={fs(9)} textAnchor="middle">{tr("EOH {v} m", { v: Math.round(eoh) })}</text>}{/* #823: in the end-of-hole label otherwise */}
+          </g>
+        );
+      })}
+
       {/* TASKS.csv #395 — the hole being designed */}
       {planPts.length > 0 && (
         <g>
@@ -861,7 +889,7 @@ function SectionSVG({ holeWidth = 5, structOpacity = 1, showSectionImages = true
         });
         const fixed = { ...labels.offsets, ...(labelDrag ? { [labelDrag.key]: { dx: labelDrag.dx, dy: labelDrag.dy } } : {}) };
         const color = Object.fromEntries(items.map((it) => [it.key, it.color]));
-        const placed = placeLabels(items, { fontSize: 9, bounds: [4, W - 4], fixed }); // the whole drawing: holes run past the plot frame
+        const placed = placeLabels(items, { fontSize: fs(9), bounds: [4, W - 4], fixed }); // the whole drawing: holes run past the plot frame
         return (
           <g>
             {placed.map((b) => {
@@ -878,15 +906,15 @@ function SectionSVG({ holeWidth = 5, structOpacity = 1, showSectionImages = true
                   }}>
                   {lead && <><line x1={b.ax} y1={b.ay} x2={lx} y2={ly} stroke="#7a8494" strokeWidth="0.7" /><circle cx={b.ax} cy={b.ay} r="1.6" fill="#7a8494" /></>}
                   <rect x={b.x - b.w / 2} y={b.y - b.h + 1} width={b.w} height={b.h + 1} fill="#ffffff" fillOpacity={lead || b.moved ? 0.85 : 0} />
-                  <text x={b.x} y={b.y - 1} fill={color[b.key]} fontSize="9" textAnchor="middle">{b.text}<title>{tr("Drag to move this label")}</title></text>
+                  <text x={b.x} y={b.y - 1} fill={color[b.key]} fontSize={fs(9)} textAnchor="middle">{b.text}<title>{tr("Drag to move this label")}</title></text>
                 </g>
               );
             })}
           </g>
         );
       })()}
-      <text x={W / 2} y={H - 14} fill="#55606e" fontSize="11" textAnchor="middle">{tr("Distance along section (m)")}</text>
-      <text x={16} y={H / 2} fill="#55606e" fontSize="11" textAnchor="middle" transform={`rotate(-90 16 ${H / 2})`}>{tr("Elevation (m)")}</text>
+      <text x={W / 2} y={H - 14} fill="#55606e" fontSize={fs(11)} textAnchor="middle">{tr("Distance along section (m)")}</text>
+      <text x={16} y={H / 2} fill="#55606e" fontSize={fs(11)} textAnchor="middle" transform={`rotate(-90 16 ${H / 2})`}>{tr("Elevation (m)")}</text>
     </svg>
   );
 }

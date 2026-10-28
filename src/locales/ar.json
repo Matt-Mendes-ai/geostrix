@@ -6259,5 +6259,8 @@
   "Opacity of the structure symbols on the section": "شفافية رموز البنى في المقطع",
   "{label} — alpha {alpha}° only (no beta): the faint fan is every orientation that alpha allows; the dashed line is the most likely one ({v})": "{label} — ألفا {alpha}° فقط (دون بيتا): المروحة الباهتة هي كل الاتجاهات التي يسمح بها هذا الألفا؛ والخط المتقطع هو الأرجح ({v})",
   "nearest the mean of the oriented picks": "الأقرب إلى متوسط القياسات الموجّهة",
-  "middle of the fan: no oriented picks of this type, or none with a preferred orientation": "منتصف المروحة: لا قياسات موجّهة من هذا النوع، أو لا شيء منها باتجاه مفضل"
+  "middle of the fan: no oriented picks of this type, or none with a preferred orientation": "منتصف المروحة: لا قياسات موجّهة من هذا النوع، أو لا شيء منها باتجاه مفضل",
+  "Font and size of the text on the section (and in its exports)": "خط النص في المقطع وحجمه (وفي ملفات تصديره)",
+  "Section font": "خط المقطع",
+  "Section text size": "حجم نص المقطع"
 }
