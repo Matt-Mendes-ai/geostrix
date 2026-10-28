@@ -4,16 +4,47 @@
 // resolves) and width="100%" with no height. #525 fixed this for the level plan only. Every SVG / PNG figure export
 // goes through exportSvgMarkup: the font named on the root, explicit width / height from the viewBox, the chrome
 // dropped, a white background rect painted first. The page's own <svg> is not changed.
+import { furnitureLayout } from "./figureFurniture.js"; // TASKS.csv #1048 / #1068
 export const FIGURE_FONT = "'Exo 2', 'Segoe UI', system-ui, sans-serif";
 const SVG_NS = "http://www.w3.org/2000/svg";
 
-// svg: an SVGSVGElement. -> { markup, width, height }
-export function exportSvgMarkup(svg, { background = "#ffffff" } = {}) {
+// svg: an SVGSVGElement. furniture (#1048 / #1068): a caption and colour keys drawn in a band under the figure
+// (lib/figureFurniture.js), in the exported copy only; furniture.placement "top" puts it above (a strip log's title
+// belongs at the head of a long page). -> { markup, width, height }
+export function exportSvgMarkup(svg, { background = "#ffffff", furniture = null } = {}) {
   const clone = svg.cloneNode(true);
   clone.setAttribute("xmlns", SVG_NS);
   const vb = svg.viewBox?.baseVal;
   const w = vb && vb.width ? vb.width : Number(svg.getAttribute("width")) || svg.clientWidth || 800;
-  const h = vb && vb.height ? vb.height : Number(svg.getAttribute("height")) || svg.clientHeight || 600;
+  let h = vb && vb.height ? vb.height : Number(svg.getAttribute("height")) || svg.clientHeight || 600;
+  const x0 = vb && vb.width ? vb.x : 0;
+  let y0 = vb && vb.height ? vb.y : 0;
+  const band = furniture ? furnitureLayout(furniture, w) : { height: 0, items: [] };
+  if (band.height) {
+    const doc = clone.ownerDocument, g = doc.createElementNS(SVG_NS, "g");
+    g.setAttribute("class", "ge-figure-caption");
+    const atTop = furniture.placement === "top", top = atTop ? y0 - band.height : y0 + h;
+    for (const it of band.items) {
+      if (it.type === "text") {
+        const t = doc.createElementNS(SVG_NS, "text");
+        t.setAttribute("x", String(x0 + it.x)); t.setAttribute("y", String(top + it.y)); t.setAttribute("font-size", String(+it.size.toFixed(2)));
+        t.setAttribute("fill", it.fill); if (it.weight !== 400) t.setAttribute("font-weight", String(it.weight));
+        t.textContent = it.text;
+        g.appendChild(t);
+      } else {
+        const r = doc.createElementNS(SVG_NS, it.shape === "dot" ? "circle" : "rect");
+        if (it.shape === "dot") { r.setAttribute("cx", String(x0 + it.x + it.w / 2)); r.setAttribute("cy", String(top + it.y + it.h / 2)); r.setAttribute("r", String(it.w / 2)); }
+        else if (it.shape === "line") { r.setAttribute("x", String(x0 + it.x)); r.setAttribute("y", String(top + it.y + it.h / 2 - 1)); r.setAttribute("width", String(it.w)); r.setAttribute("height", "2"); }
+        else { r.setAttribute("x", String(x0 + it.x)); r.setAttribute("y", String(top + it.y)); r.setAttribute("width", String(it.w)); r.setAttribute("height", String(it.h)); }
+        r.setAttribute("fill", it.fill);
+        g.appendChild(r);
+      }
+    }
+    clone.appendChild(g);
+    h += band.height;
+    if (atTop) y0 -= band.height;
+    clone.setAttribute("viewBox", `${x0} ${y0} ${w} ${h}`);
+  }
   clone.setAttribute("width", String(w));
   clone.setAttribute("height", String(h));
   if (!clone.getAttribute("font-family")) clone.setAttribute("font-family", FIGURE_FONT);
@@ -21,7 +52,7 @@ export function exportSvgMarkup(svg, { background = "#ffffff" } = {}) {
   clone.querySelectorAll?.("[data-ui-only]").forEach((n) => n.remove()); // TASKS.csv #1059 — on-screen controls (e.g. "Copy here") stay out of the figure
   if (background) {
     const r = clone.ownerDocument.createElementNS(SVG_NS, "rect");
-    r.setAttribute("x", vb ? String(vb.x) : "0"); r.setAttribute("y", vb ? String(vb.y) : "0");
+    r.setAttribute("x", String(x0)); r.setAttribute("y", String(y0));
     r.setAttribute("width", String(w)); r.setAttribute("height", String(h)); r.setAttribute("fill", background);
     clone.insertBefore(r, clone.firstChild);
   }

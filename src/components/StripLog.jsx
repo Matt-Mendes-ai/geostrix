@@ -19,6 +19,7 @@ const TRACK_W = 90;
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
+import { stripLogFurniture, pngScaleFor } from "../lib/figureFurniture.js"; // TASKS.csv #1048
 const DEPTH_COL_W = 50;
 const PAD_TOP = 40;
 
@@ -96,24 +97,32 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     const vb = svg.viewBox?.baseVal;
     return vb && vb.width ? { w: vb.width, h: vb.height } : { w: DEPTH_COL_W + tracks.length * TRACK_W + 40, h: H };
   };
+  // TASKS.csv #1048 — hole, collar, attitude, depth, scale and a key of the codes in each colour track, drawn into the file
+  const [pngNote, setPngNote] = useState("");
+  const furniture = () => stripLogFurniture({ holeId, collar, maxDepth, pxPerMeter, date: new Date().toISOString().slice(0, 10),
+    tracks: tracks.filter((t) => t.kind === "fill").map((t) => {
+      const seen = [...new Set(t.rows.map((r) => r.value).filter((v) => v != null && v !== ""))];
+      return { title: t.title || t.label, items: seen.map((v) => ({ label: t.nameFn ? `${v} ${t.nameFn(v) !== v ? `(${t.nameFn(v)})` : ""}`.trim() : String(v), color: t.colorFn(v) })) };
+    }) });
   const exportSVG = () => {
     const svg = svgRef.current;
     if (!svg) return;
-    const xml = exportSvgMarkup(svg).markup;
+    const xml = exportSvgMarkup(svg, { furniture: furniture() }).markup;
     saveFile({ suggestedName: `${baseName}.svg`, filters: [{ name: "SVG", extensions: ["svg"] }], content: xml });
   };
   const exportPNG = () => {
     const svg = svgRef.current;
     const dims = svgDims();
     if (!svg || !dims) return;
-    const xml = exportSvgMarkup(svg).markup;
+    const { markup: xml, width: fw, height: fh } = exportSvgMarkup(svg, { furniture: furniture() });
+    const { scale, reduced } = pngScaleFor(fw, fh); // #1048 — under the canvas size limit
+    setPngNote(reduced ? tr("This log is too tall for a full-resolution PNG: it was saved at {s}× instead of 2× (use SVG for full detail, or lower the vertical scale).", { s: scale.toFixed(2) }) : "");
     const img = new Image();
     const blob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     img.onload = () => {
-      const scale = 2;
       const canvas = document.createElement("canvas");
-      canvas.width = dims.w * scale; canvas.height = dims.h * scale;
+      canvas.width = Math.round(fw * scale); canvas.height = Math.round(fh * scale);
       const ctx = canvas.getContext("2d");
       ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -155,6 +164,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
           <button onClick={exportSVG} style={{ ...btn(false), padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("SVG")}</button>
           <button onClick={exportPNG} style={{ ...btn(true), padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("PNG")}</button>
         </div>
+        {pngNote && <div role="status" style={{ padding: "6px 16px", fontSize: 11, color: "#7a4a1f", background: "#fdf4e6", borderBottom: "1px solid #edd9b7" }}>{pngNote}</div>}
 
         <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
           <svg ref={svgRef} viewBox={`0 0 ${DEPTH_COL_W + tracks.length * TRACK_W + 40} ${H}`} width={DEPTH_COL_W + tracks.length * TRACK_W + 40} height={H} style={{ background: "#ffffff" }}>

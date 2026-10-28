@@ -157,7 +157,14 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
   const exportSvg = () => {
     const svgEl = svgRef.current;
     if (!svgEl) return;
-    const content = exportSvgMarkup(svgEl).markup;
+    // TASKS.csv #1048 / #1068 — the hole, how to read the tails (north up) and the keys, drawn into the file
+    const lithoCodes = [...new Set(holeLitho.map((r) => r.value).filter(Boolean))];
+    const furniture = { title: `Tadpole plot: ${activeHole || "hole"}`,
+      caption: [`Each dot sits at its ${effectiveMode === "alpha" ? "alpha (angle to the core axis)" : "true dip"} and its depth; the tail points in the structure's dip direction, north up the page. A hollow dot is an alpha-only pick (core not oriented): no tail.`,
+        `${holePicks.length} pick(s) · GeoStrix · ${new Date().toISOString().slice(0, 10)}`],
+      keys: [...(types.length > 1 ? [{ title: "Structure type", items: types.map((t) => ({ label: t, color: colorForStructure(t), shape: "dot" })) }] : []),
+        ...(lithoCodes.length ? [{ title: "Lithology", items: lithoCodes.map((v) => ({ label: v, color: colorForLithology(v) })) }] : [])] };
+    const content = exportSvgMarkup(svgEl, { furniture }).markup;
     saveFile({ suggestedName: `tadpole_${activeHole || "hole"}.svg`, filters: [{ name: "SVG", extensions: ["svg"] }], content, encoding: "text" });
   };
 

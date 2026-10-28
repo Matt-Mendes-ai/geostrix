@@ -9,6 +9,7 @@ import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
+import { stereonetFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1068
 
 // TASKS.csv #141 — stereonet QC for structure picks (Leapfrog-specialist audit finding: dip/azimuth
 // picks feed the anisotropy and structural-surface tools with no way to actually LOOK at the population
@@ -126,7 +127,12 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
   const exportSvg = () => {
     const svgEl = svgRef.current;
     if (!svgEl) return;
-    const content = exportSvgMarkup(svgEl).markup;
+    // TASKS.csv #1068 — the caption and keys the dialog shows beside the net, drawn under it in the file
+    const furniture = stereonetFurniture({ view, projection, roseMode, roseBin, plotted, filtered: filtered.length, total: picks.length, source, typeFilter,
+      domainName: domainId ? (domains.find((d) => d.id === domainId) || {}).name || domainId : "", stats, shape: fabric?.shape, showMean, roseN: rose?.n,
+      contour: showContours && view === "stereonet" ? contour : null, contourLevels: CONTOUR_LEVELS, contourColors: CONTOUR_COLORS,
+      types: (typeFilter === "all" ? types : [typeFilter]).map((t) => ({ label: t, color: colorForStructure(t) })), date: new Date().toISOString().slice(0, 10) });
+    const content = exportSvgMarkup(svgEl, { furniture }).markup;
     saveFile({ suggestedName: view === "rose" ? "rose-diagram.svg" : "stereonet.svg", filters: [{ name: "SVG", extensions: ["svg"] }], content, encoding: "text" });
   };
 
