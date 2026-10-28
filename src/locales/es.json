@@ -4428,7 +4428,6 @@
   "Compare this version against another run of the same surface: volume delta, how far the surface moved, and which parameters changed": "Comparar esta versión con otra corrida de la misma superficie: diferencia de volumen, cuánto se movió la superficie y qué parámetros cambiaron",
   "— side {v}": "— lado {v}",
   "Drag to resize the Browser panel": "Arrastre para cambiar el tamaño del panel Explorador",
-  "Load drillholes first — modelling works from collars, lithology and structure": "Cargue primero sondajes — el modelado trabaja a partir de collares, litología y estructura",
   "Load drillholes first — targeting plans holes against your drilling and models": "Cargue primero sondajes — los objetivos planifican sondajes contra su perforación y modelos",
   "Nothing loaded yet": "Aún no hay nada cargado",
   "Loading sample project…": "Cargando el proyecto de ejemplo…",
@@ -6307,5 +6306,6 @@
   "Redone: {what}.": "Rehecho: {what}.",
   "Undo (Ctrl/Cmd+Z): collars, surveys, logs, assays, surface samples, sections, planned holes, explicit surfaces, Layout pages ... Rasters, terrain, map layers, block models and generated surfaces are not undoable.": "Deshacer (Ctrl/Cmd+Z): collares, surveys, registros, ensayes, muestras de superficie, secciones, sondajes planificados, superficies explícitas, páginas de Layout... Los ráster, el terreno, las capas de mapa, los modelos de bloques y las superficies generadas no se pueden deshacer.",
   "Save every issue (severity, category, hole, message) as a CSV, with the project, CRS, desurvey method and thresholds in its header": "Guardar todos los problemas (gravedad, categoría, sondaje, mensaje) como CSV, con el proyecto, el CRS, el método de desurvey y los umbrales en su encabezado",
-  "Export the points of \"{key}\" (CSV)": "Exportar los puntos de \"{key}\" (CSV)"
+  "Export the points of \"{key}\" (CSV)": "Exportar los puntos de \"{key}\" (CSV)",
+  "Load drillholes, or a geological map with outcrop measurements — modelling works from either": "Cargue sondajes, o un mapa geológico con mediciones de afloramiento — el modelado funciona con cualquiera de los dos"
 }

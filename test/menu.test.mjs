@@ -12,6 +12,7 @@ test("#565 every menu action is handled in App.jsx", () => {
   assert.ok(actions.size >= 10);
   for (const a of actions) {
     if (a.startsWith("module-")) continue; // handled generically
+    if (a.startsWith("sample:")) { assert.ok(app.includes('action.startsWith("sample:")'), "no handler for sample: actions"); continue; } // #1120
     assert.ok(app.includes(`action === "${a}"`), `no handler for menu action "${a}"`);
   }
   assert.ok(main.includes("module-${id}") && app.includes('action.startsWith("module-")'));

@@ -5862,6 +5862,22 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   });
   // TASKS.csv #637 — Harry or Woodjam. Woodjam's assays, ZTEM block model and IP lines are not drillhole tables, so they
   // are loaded here (lib/sampleWoodjam.js, lazily) once its tables are queued.
+  // TASKS.csv #1120 — the three bundled samples, the one that suits this tab first (the empty card's filled button)
+  const sampleCards = (() => {
+    const cards = [
+      { id: "harry", label: tr("Sample: Harry property (37 holes)"), title: tr("Load the bundled Harry property sample project — 37 real drillholes from BC's public ARIS database, with synthesized interval layers") },
+      { id: "woodjam", label: tr("Sample: Woodjam (19 holes, IP, ZTEM)"), title: tr("Load the bundled Woodjam sample project — 19 diamond drillholes (2023) with real logs, surveys, oriented structures and assays, six IP lines and the ZTEM 3D inversion, from BC's public assessment report 41597") },
+      { id: "perk", label: tr("Sample: Perk-Rocky (mapping, no holes)"), title: tr("Load the bundled Perk-Rocky sample — a 2024 surface-mapping project (geological map, structure lines and 147 outcrop measurements as MapInfo files, with a Copernicus terrain), no drillholes: try 3D Modelling > Model from map") },
+    ];
+    return mode === "surface" ? [cards[2], cards[0], cards[1]] : cards;
+  })();
+  // TASKS.csv #1120 — File > Open sample project: the store opened a new tab (or kept an empty one) and left the request
+  useEffect(() => {
+    const req = store.sampleRequest;
+    if (!req) return;
+    store.clearSampleRequest();
+    loadSample(req.which);
+  }, [store.sampleRequest]);
   const loadSample = async (which) => {
     // TASKS.csv #819 — Perk-Rocky is a surface-mapping project with no drillhole tables: its own loader only
     if (which === "perk") {
@@ -8331,12 +8347,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {/* TASKS.csv #848 — nor is a soil / stream-sediment program with no drilling (the card covered the samples) */}
         {!collars.length && !terrain && !rasters.length && !mapLayers.length && !surfaceStructures.length && !surfaceSamples.length && (
           <EmptyState
-            headline={mode === "surface" ? tr("Import a geological map and outcrop measurements — or load the Perk-Rocky mapping sample") : mode === "modelling" ? tr("Load drillholes first — modelling works from collars, lithology and structure") : mode === "targeting" ? tr("Load drillholes first — targeting plans holes against your drilling and models") : tr("Nothing loaded yet")} /* #567 */
-            actionLabel={sampleLoading ? tr("Loading sample project…") : tr("Sample: Harry property (37 holes)")}
-            onAction={() => loadSample("harry")}
+            headline={mode === "surface" ? tr("Import a geological map and outcrop measurements — or load the Perk-Rocky mapping sample") : mode === "modelling" ? tr("Load drillholes, or a geological map with outcrop measurements — modelling works from either") : mode === "targeting" ? tr("Load drillholes first — targeting plans holes against your drilling and models") : tr("Nothing loaded yet")} /* #567 */
+            // TASKS.csv #1120 — the filled button is the sample that suits the tab (Perk-Rocky on Surface Geology, whose headline
+            // offers it; Harry elsewhere); the other two are the outline buttons
+            actionLabel={sampleLoading ? tr("Loading sample project…") : sampleCards[0].label}
+            onAction={() => loadSample(sampleCards[0].id)}
             actionDisabled={sampleLoading}
-            actionTitle={tr("Load the bundled Harry property sample project — 37 real drillholes from BC's public ARIS database, with synthesized interval layers")}
-            secondary={<><button type="button" onClick={() => loadSample("woodjam")} disabled={sampleLoading} title={tr("Load the bundled Woodjam sample project — 19 diamond drillholes (2023) with real logs, surveys, oriented structures and assays, six IP lines and the ZTEM 3D inversion, from BC's public assessment report 41597")} style={{ padding: "8px 14px", borderRadius: 6, border: "1px solid var(--color-accent)", background: "var(--color-bg)", color: "var(--color-accent-dark)", fontSize: "var(--font-size-base)", fontWeight: 600, cursor: sampleLoading ? "default" : "pointer", opacity: sampleLoading ? 0.6 : 1 }}>{tr("Sample: Woodjam (19 holes, IP, ZTEM)")}</button><button type="button" onClick={() => loadSample("perk")} disabled={sampleLoading} title={tr("Load the bundled Perk-Rocky sample — a 2024 surface-mapping project (geological map, structure lines and 147 outcrop measurements as MapInfo files, with a Copernicus terrain), no drillholes: try 3D Modelling > Model from map")} style={{ marginLeft: 8, padding: "8px 14px", borderRadius: 6, border: "1px solid var(--color-accent)", background: "var(--color-bg)", color: "var(--color-accent-dark)", fontSize: "var(--font-size-base)", fontWeight: 600, cursor: sampleLoading ? "default" : "pointer", opacity: sampleLoading ? 0.6 : 1 }}>{tr("Sample: Perk-Rocky (mapping, no holes)")}</button>{/* TASKS.csv #819 */}</>}
+            actionTitle={sampleCards[0].title}
+            secondary={<>{sampleCards.slice(1).map((c, i) => <button key={c.id} type="button" onClick={() => loadSample(c.id)} disabled={sampleLoading} title={c.title} style={{ marginLeft: i ? 8 : 0, padding: "8px 14px", borderRadius: 6, border: "1px solid var(--color-accent)", background: "var(--color-bg)", color: "var(--color-accent-dark)", fontSize: "var(--font-size-base)", fontWeight: 600, cursor: sampleLoading ? "default" : "pointer", opacity: sampleLoading ? 0.6 : 1 }}>{c.label}</button>)}</>}
             footnote={tr("No data of your own yet? Three real projects from BC's public assessment reports are bundled. Harry (report #37584): 37 holes with assays; some interval layers are synthesized — its README says which. Woodjam (report #41597): 19 holes from 2023 with their real logs, gyro surveys, oriented structures and assays, six IP lines and the ZTEM 3D inversion — nothing synthesized. Perk-Rocky (report #42317): 2024 surface mapping only — the geological map, structures and outcrop measurements as delivered, on a Copernicus terrain — to model from the map.")}
           >
             <>

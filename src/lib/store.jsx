@@ -1118,6 +1118,16 @@ export function StoreProvider({ children }) {
     newProject();
   }, [activeTabId, workspaceTabs, activeTabDirty, newProject]);
 
+  // TASKS.csv #1120 (review #1016, onboarding) — File > Open sample project: a new tab unless this one is still empty, then
+  // the 3D View (the one ViewerModule instance) picks the request up and loads the sample once the fresh project renders
+  const [sampleRequest, setSampleRequest] = useState(null);
+  const hasWorkRef = useRef(false); // set below, where hasWork is computed
+  const requestSampleProject = useCallback((which) => {
+    if (hasWorkRef.current) newWorkspaceTab();
+    setSampleRequest({ which, seq: Date.now() });
+  }, [newWorkspaceTab]);
+  const clearSampleRequest = useCallback(() => setSampleRequest(null), []);
+
   // Opens a project file into a brand-new tab (never disturbs whatever's already open in other tabs —
   // this replaces the old single-project openProject, which used to overwrite the only project in
   // place; File > Open / Ctrl+O now always means "open into a new tab").
@@ -1201,7 +1211,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
   // "Save", not a replacement for it — real saves and explicit discards both clear it (see
   // saveProject, openProject, newProject, discardAutosave above/below) so a stale snapshot never
   // outlives its usefulness or gets offered up after the user has already moved on.
-  const hasWork = projectHasContent(live); // #513 — every project field, not a hand-kept list (#316/#317 had to add map layers by hand)
+  const hasWork = projectHasContent(live); hasWorkRef.current = hasWork; // hasWorkRef: #1120 // #513 — every project field, not a hand-kept list (#316/#317 had to add map layers by hand)
   const autosaveRef = useRef({ ...live, hasWork });
   autosaveRef.current = { ...live, hasWork };
   // TASKS.csv #340 — the tabs themselves ride along so the autosave can include every DIRTY background
@@ -1522,6 +1532,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
 
   const value = {
     project, setEpsg, setProjectName, reprojectProjectTo, reprojectObjectTo, // #485 / #486
+    sampleRequest, requestSampleProject, clearSampleRequest, // TASKS.csv #1120
     projectIsEmpty: !hasWork, // TASKS.csv #607 — nothing loaded yet (same test as autosave): an import may adopt its CRS
     desurveyMethod, setDesurveyMethod, // TASKS.csv #135
     collars, setCollars,

@@ -81,7 +81,7 @@ export default function App() {
     saveProject, openProject, addLayoutImage, requestedModule, moduleRequestSeq, setSectionContacts, setSectionLabels, addPlannedHole,
     workspaceTabs, activeTabId, activeTabDirty, switchToTab, newWorkspaceTab, closeWorkspaceTab, project,
     checkAutosave, restoreAutosave, discardAutosave, recoveryStashed, // #465
-    undo, redo, canUndo, canRedo,
+    undo, redo, canUndo, canRedo, requestSampleProject, // requestSampleProject: #1120
     requestLayoutPrint, // TASKS.csv #908 — Export PDF prints from Layout's print root
   } = store;
   // TASKS.csv #1087 — undo / redo say what they changed (or that there was nothing to undo), in the bottom-right toast
@@ -346,11 +346,12 @@ export default function App() {
       else if (action === "about") setShortcutsTab("about");
       else if (action === "report-problem") openReportProblem(); // #598
       else if (action === "licenses") setLicensesOpen(true); // #639
+      else if (typeof action === "string" && action.startsWith("sample:")) { const which = action.slice(7); requestSampleProject(which); setActive(which === "perk" ? "surface" : "viewer"); } // #1120
       else if (action === "undo") undoSay();
       else if (action === "redo") redoSay();
     });
     return off;
-  }, [doNew, doOpen, doSave, doExportPdf, undoSay, redoSay]);
+  }, [doNew, doOpen, doSave, doExportPdf, undoSay, redoSay, requestSampleProject]);
 
   // TASKS.csv #31 — Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z (also Ctrl+Y for redo, a common Windows habit).
   // Deliberately a plain window keydown listener rather than an Electron menu accelerator (see the

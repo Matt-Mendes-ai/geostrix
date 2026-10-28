@@ -4428,7 +4428,6 @@
   "Compare this version against another run of the same surface: volume delta, how far the surface moved, and which parameters changed": "Comparar esta versão com outra rodada da mesma superfície: diferença de volume, quanto a superfície se moveu e quais parâmetros mudaram",
   "— side {v}": "— lado {v}",
   "Drag to resize the Browser panel": "Arraste para redimensionar o painel Navegador",
-  "Load drillholes first — modelling works from collars, lithology and structure": "Carregue antes furos — a modelagem trabalha a partir de bocas, litologia e estrutura",
   "Load drillholes first — targeting plans holes against your drilling and models": "Carregue antes furos — os alvos planejam furos contra sua sondagem e seus modelos",
   "Nothing loaded yet": "Ainda não há nada carregado",
   "Loading sample project…": "Carregando o projeto de exemplo…",
@@ -6307,5 +6306,6 @@
   "Redone: {what}.": "Refeito: {what}.",
   "Undo (Ctrl/Cmd+Z): collars, surveys, logs, assays, surface samples, sections, planned holes, explicit surfaces, Layout pages ... Rasters, terrain, map layers, block models and generated surfaces are not undoable.": "Desfazer (Ctrl/Cmd+Z): bocas de furo, surveys, registros, análises, amostras de superfície, seções, furos planejados, superfícies explícitas, páginas do Layout... Rasters, terreno, camadas de mapa, modelos de blocos e superfícies geradas não podem ser desfeitos.",
   "Save every issue (severity, category, hole, message) as a CSV, with the project, CRS, desurvey method and thresholds in its header": "Salvar todos os problemas (gravidade, categoria, furo, mensagem) como CSV, com o projeto, o CRS, o método de desurvey e os limites no cabeçalho",
-  "Export the points of \"{key}\" (CSV)": "Exportar os pontos de \"{key}\" (CSV)"
+  "Export the points of \"{key}\" (CSV)": "Exportar os pontos de \"{key}\" (CSV)",
+  "Load drillholes, or a geological map with outcrop measurements — modelling works from either": "Carregue furos, ou um mapa geológico com medidas de afloramento — a modelagem funciona com qualquer um dos dois"
 }
