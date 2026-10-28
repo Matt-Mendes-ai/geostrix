@@ -44,13 +44,15 @@ GeoStrix only makes network requests as a direct result of features you use:
 | You download public geochemistry (Geochem → Public data) | `openmaps.gov.bc.ca`, `services.ga.gov.au`, `mrdata.usgs.gov`, `geochem.nrcan.gc.ca` | Ask the BC Regional Geochemical Survey, the National Geochemical Survey of Australia or the USGS NGDB / NURE service for the samples inside your area (the area's bounding box, and for the USGS the map quadrangles it covers, are sent), or download the GSC CDoGS data package you chose (only its file name is sent) |
 | On startup (can be turned off in the Help menu), and via *Help → Check for Updates* | `github.com`, then `release-assets.githubusercontent.com` (GitHub's download server, which github.com redirects to) | Check whether a newer release exists, and download it if you choose to update |
 | You click *Install predictive modelling…* (3D Modelling tab → geoML models) | `github.com`, then `release-assets.githubusercontent.com` | Download the optional predictive-modelling add-on (its checksum is verified before it is installed) |
-| You connect to a database | The host **you** enter | Query your own PostgreSQL database |
+| You connect to a database | The host **you** enter | Query your own PostgreSQL or MySQL / MariaDB database |
 | You add a WMS / WMTS / WFS layer | The server **you** enter | Fetch the layer you requested |
 
 These requests necessarily reveal your IP address to the operator of the service being contacted
 (OpenStreetMap, Amazon S3, GitHub, or a server you chose), in the same way that visiting any website
 does. Those third parties have their own privacy policies, which this project does not control. No
-identifier for you or your project is attached to any of these requests.
+identifier for you or your project is attached to any of these requests, with one exception: if you use the Tracestrack
+topographic basemap, the Tracestrack API key you entered is sent to Tracestrack with every tile request, and that key
+is tied to your Tracestrack account. (Database and WMS / WFS servers receive the login you give them, as any client.)
 
 GeoStrix's built-in spell checker is turned off, so no spelling dictionary is ever downloaded.
 
@@ -59,7 +61,7 @@ WMS layers, GeoStrix makes no network connections at all.
 
 ## The Python sidecar
 
-The optional Python sidecar used for implicit modelling runs locally and binds to `127.0.0.1` only. It
+The optional Python sidecar used for implicit modelling and the geophysical inversions runs locally and binds to `127.0.0.1` only. It
 is not reachable from other machines and does not make outbound connections. The same holds for the optional
 predictive-modelling add-on once installed: it runs on your computer, listens only on `127.0.0.1`, and makes no
 outbound connections.
