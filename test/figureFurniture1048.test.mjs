@@ -1,7 +1,6 @@
 // TASKS.csv #1048 / #1068 — exported figures carry their caption and key
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import { wrapText, furnitureLayout, stereonetFurniture, stripLogFurniture, pngScaleFor } from "../src/lib/figureFurniture.js";
 import { exportSvgMarkup } from "../src/lib/svgExport.js";
 
@@ -56,7 +55,10 @@ test("#1048 the PNG scale stays under the canvas side limit", () => {
   assert.ok(r.reduced && 20000 * r.scale <= 32000);
 });
 
-test("#1048 exportSvgMarkup draws the furniture under (or above) the figure in the copy only", () => {
+// @xmldom/xmldom arrives with electron-builder (plist), not as a dependency of its own: skipped if it is ever missing
+const xmldom = await import("@xmldom/xmldom").catch(() => null);
+test("#1048 exportSvgMarkup draws the furniture under (or above) the figure in the copy only", { skip: !xmldom && "no @xmldom/xmldom" }, () => {
+  const { DOMParser, XMLSerializer } = xmldom;
   globalThis.XMLSerializer = XMLSerializer;
   const doc = new DOMParser().parseFromString('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><circle cx="1" cy="1" r="1"/></svg>', "image/svg+xml");
   const svg = doc.documentElement;
