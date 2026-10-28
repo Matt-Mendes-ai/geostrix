@@ -61,3 +61,28 @@ export function leaderEnd(b) {
   if (b.ay >= bottom) return [b.x, bottom];
   return [b.ax < b.x ? b.x - b.w / 2 : b.x + b.w / 2, (top + bottom) / 2];
 }
+
+// TASKS.csv #1134 — Matt (a section screenshot): "some text still on top of others and behind the drill holes". Depth
+// ticks, end-of-hole depths, offsets ("+49…+50 m") and planned-hole labels were drawn wherever they fell, some before
+// the interval ribbons (so under them) and none checking the others. They now go through one pass, drawn last:
+// specs [{ key, text, size, prio, cands: [{ x, y, anchor }] }] (x / baseline y in SVG units, anchor start / middle /
+// end), highest prio first, each at its first candidate spot that clears everything already placed (obstacles: the
+// hole-name boxes from placeLabels, centre-x / baseline-y form). A label with prio <= 1 (a depth number) is left out
+// when no spot is free; others take their first spot anyway. -> [{ key, x, y, anchor, ... }]
+export function resolveLabels(specs, obstacles = [], { gap = 1.5 } = {}) {
+  const placed = obstacles.map((b) => ({ x0: b.x - b.w / 2, x1: b.x + b.w / 2, y0: b.y - b.h, y1: b.y + 2 }));
+  const boxOf = (c, text, size) => {
+    const w = labelWidth(text, size), x0 = c.anchor === "end" ? c.x - w : c.anchor === "middle" ? c.x - w / 2 : c.x;
+    return { x0, x1: x0 + w, y0: c.y - size, y1: c.y + 2 };
+  };
+  const hit = (a) => placed.some((b) => a.x0 < b.x1 + gap && b.x0 < a.x1 + gap && a.y0 < b.y1 + gap && b.y0 < a.y1 + gap);
+  const out = [];
+  specs.map((s, i) => ({ s, i })).sort((a, b) => b.s.prio - a.s.prio || a.i - b.i).forEach(({ s }) => {
+    let pick = null;
+    for (const c of s.cands) { const box = boxOf(c, s.text, s.size); if (!hit(box)) { pick = { c, box }; break; } }
+    if (!pick) { if (s.prio <= 1) return; pick = { c: s.cands[0], box: boxOf(s.cands[0], s.text, s.size) }; }
+    placed.push(pick.box);
+    out.push({ ...s, x: pick.c.x, y: pick.c.y, anchor: pick.c.anchor || "start" });
+  });
+  return out;
+}

@@ -5,7 +5,7 @@ import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv 
 import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearestSegment, setTieVertex } from "../lib/sectionDigitise.js"; // TASKS.csv #519
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
-import { placeLabels, leaderEnd } from "../lib/sectionLabels.js"; // TASKS.csv #823
+import { placeLabels, leaderEnd, resolveLabels } from "../lib/sectionLabels.js"; // TASKS.csv #823
 import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped
 import { exportSvgMarkup, FIGURE_FONT } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { colors } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned, the planned-hole colour of every view
@@ -452,6 +452,10 @@ const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px so
 
 function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onMoveLabel }) {
   const fs = (n) => +(n * textScale).toFixed(2); // TASKS.csv #1129 — every label at the chosen text size
+  // TASKS.csv #1134 — depth / EOH / offset / planned-hole labels are collected while the holes are drawn and placed in one
+  // collision pass at the very end (resolveLabels), on top of the ribbons; holeLabelBoxes: the hole names, placed first
+  const floatLabels = [];
+  let holeLabelBoxes = [];
   const dragRef = useRef(null); // #519 — the vertex being dragged (before the early return: a hook)
   const labelDragRef = useRef(null); // #823 — the label being dragged: { key, ax, ay, grabDx, grabDy }
   const [labelDrag, setLabelDrag] = useState(null); // its live offset while dragging: { key, dx, dy }
@@ -673,7 +677,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
             {runs && <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#9aa5b3" strokeWidth="1" strokeDasharray="4 3"><title>{tr("{hole_id}: outside the ±{corridor} m buffer — projected onto the section, no data drawn here", { hole_id: h.hole_id, corridor: section.corridor })}</title></polyline>}
             {solid.map((seg, si) => <polyline key={si} points={seg.map((p) => p.join(",")).join(" ")} fill="none" stroke="#445064" strokeWidth="1.2"><title>{`${h.hole_id}${off ? tr(": {off} from the section line", { off }) : ""}`}</title></polyline>)}
             {/* TASKS.csv #897 — the offset in view, not only in the tooltip, when the hole is more than 5 m off the section */}
-            {off && Math.max(Math.abs(h.minOffset), Math.abs(h.maxOffset)) > 5 && (() => { const end = solid.length ? solid[solid.length - 1].at(-1) : pts.at(-1); return end ? <text x={end[0] + 4} y={end[1] + 10} fill="#7a8494" fontSize={fs(9)} pointerEvents="none">{off}</text> : null; })()}
+            {off && Math.max(Math.abs(h.minOffset), Math.abs(h.maxOffset)) > 5 && (() => { const end = solid.length ? solid[solid.length - 1].at(-1) : pts.at(-1); if (end) floatLabels.push({ key: `off${hi}`, text: off, size: fs(9), fill: "#7a8494", prio: 2, cands: [{ x: end[0] + 4, y: end[1] + fs(10), anchor: "start" }, { x: end[0] - 4, y: end[1] + fs(10), anchor: "end" }, { x: end[0] + 4, y: end[1] + fs(21), anchor: "start" }, { x: end[0] - 4, y: end[1] + fs(21), anchor: "end" }, { x: end[0] + 6, y: end[1] - 4, anchor: "start" }] }); return null; })() /* #1134 */}
           </g>
         );
       })}
@@ -688,36 +692,6 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
           ))}
         </g>
       )}
-      {/* TASKS.csv #395 — planned holes, dashed. #1010 — with depth ticks (every 50 m, labelled every 100 m, as the drilled
-          holes), the planned end depth, and a labelled marker where the hole crosses each visible modelled surface. */}
-      {plannedHoles.map((ph, i) => {
-        const pts = ph.trace.map((p) => [sx(along(p.x, p.y)), sz(p.z)]);
-        const t = ph.trace, hasMd = t.length > 1 && t.every((p) => Number.isFinite(p.md));
-        const marks = [];
-        if (hasMd) {
-          const eoh = t[t.length - 1].md;
-          for (let md = 50; md < eoh - 5; md += 50) {
-            const p = interpTrace(t, md), q = interpTrace(t, Math.min(eoh, md + 1));
-            if (!p || !q) continue;
-            const x = sx(along(p.x, p.y)), y = sz(p.z);
-            const [nx, ny] = screenNormal(x, y, sx(along(q.x, q.y)), sz(q.z));
-            marks.push(<g key={`m${md}`}><line x1={x - nx * 3} y1={y - ny * 3} x2={x - nx * 7} y2={y - ny * 7} stroke={colors.planned} strokeWidth="0.8" />{md % 100 === 0 && <text x={x - nx * 10} y={y - ny * 10 + 3} fill={colors.planned} fontSize={fs(8)} textAnchor={nx >= 0 ? "end" : "start"}>{md}</text>}</g>);
-          }
-          const last = t[t.length - 1];
-          marks.push(<text key="eoh" x={sx(along(last.x, last.y))} y={sz(last.z) + 11} fill={colors.planned} fontSize={fs(9)} textAnchor="middle">{tr("planned EOH {v} m", { v: Math.round(eoh) })}</text>);
-        }
-        (ph.pierces || []).forEach((q, k) => {
-          const x = sx(along(q.x, q.y)), y = sz(q.z);
-          marks.push(<g key={`p${k}`}><circle cx={x} cy={y} r="3.2" fill="#fff" stroke={colors.planned} strokeWidth="1.4" /><text x={x + 6} y={y - 4} fill="#7a4512" fontSize={fs(9)} fontWeight="600">{tr("{md} m · {surface}", { md: q.md.toFixed(1), surface: q.name })}</text><title>{tr("{hole} crosses {surface} at {md} m downhole", { hole: ph.name, surface: q.name, md: q.md.toFixed(1) })}</title></g>);
-        });
-        return (
-          <g key={`ph${i}`}>
-            <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke={colors.planned} strokeWidth="1.6" strokeDasharray="6 4"><title>{tr("Planned hole: {name}", { name: ph.name })}</title></polyline>
-            {marks}
-          </g>
-        );
-      })}
-
       {/* TASKS.csv #392 — one ribbon per interval layer, offset to alternate sides of the trace (the first
           layer on the trace itself), instead of every layer as the same 4 px stroke on top of each other,
           where whichever layer drew last (usually alteration) hid lithology. */}
@@ -842,13 +816,14 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
           if (!p || !q) continue;
           const x = sx(along(p.x, p.y)), y = sz(p.z);
           const [nx, ny] = screenNormal(x, y, sx(along(q.x, q.y)), sz(q.z));
-          marks.push(<g key={md}><line x1={x - nx * 3} y1={y - ny * 3} x2={x - nx * 7} y2={y - ny * 7} stroke="#445064" strokeWidth="0.8" />{md % 100 === 0 && <text x={x - nx * 10} y={y - ny * 10 + 3} fill="#65717e" fontSize={fs(8)} textAnchor={nx >= 0 ? "end" : "start"}>{md}</text>}</g>);
+          marks.push(<line key={md} x1={x - nx * 3} y1={y - ny * 3} x2={x - nx * 7} y2={y - ny * 7} stroke="#445064" strokeWidth="0.8" />);
+          if (md % 100 === 0) floatLabels.push({ key: `dm${hi}_${md}`, text: String(md), size: fs(8), fill: "#65717e", prio: 1, cands: [{ x: x - nx * 10, y: y - ny * 10 + 3, anchor: nx >= 0 ? "end" : "start" }, { x: x + nx * (10 + ribbonReach), y: y + ny * (10 + ribbonReach) + 3, anchor: nx >= 0 ? "start" : "end" }] }); // #1134
         }
         const last = trace[trace.length - 1];
         return (
           <g key={`dt${hi}`}>
             {marks}
-            {labels.mode !== "end" && labels.mode !== "both" && <text x={sx(along(last.x, last.y))} y={sz(last.z) + 11} fill="#1a2028" fontSize={fs(9)} textAnchor="middle">{tr("EOH {v} m", { v: Math.round(eoh) })}</text>}{/* #823: in the end-of-hole label otherwise */}
+            {labels.mode !== "end" && labels.mode !== "both" && (() => { const ex = sx(along(last.x, last.y)), ey = sz(last.z); floatLabels.push({ key: `eoh${hi}`, text: tr("EOH {v} m", { v: Math.round(eoh) }), size: fs(9), fill: "#1a2028", prio: 2, cands: [{ x: ex, y: ey + fs(11), anchor: "middle" }, { x: ex + 6, y: ey + 3, anchor: "start" }, { x: ex - 6, y: ey + 3, anchor: "end" }, { x: ex, y: ey + fs(22), anchor: "middle" }] }); return null; })()}{/* #823: in the end-of-hole label otherwise; #1134: placed in the final pass */}
           </g>
         );
       })}
@@ -870,6 +845,39 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
         </g>
       )}
 
+      {/* TASKS.csv #1134 — Matt: "the planned holes should be on top of everything else": drawn after the ribbons,
+          structures and contacts. TASKS.csv #395 — planned holes, dashed. #1010 — with depth ticks (every 50 m, labelled every 100 m, as the drilled
+          holes), the planned end depth, and a labelled marker where the hole crosses each visible modelled surface. */}
+      {plannedHoles.map((ph, i) => {
+        const pts = ph.trace.map((p) => [sx(along(p.x, p.y)), sz(p.z)]);
+        const t = ph.trace, hasMd = t.length > 1 && t.every((p) => Number.isFinite(p.md));
+        const marks = [];
+        if (hasMd) {
+          const eoh = t[t.length - 1].md;
+          for (let md = 50; md < eoh - 5; md += 50) {
+            const p = interpTrace(t, md), q = interpTrace(t, Math.min(eoh, md + 1));
+            if (!p || !q) continue;
+            const x = sx(along(p.x, p.y)), y = sz(p.z);
+            const [nx, ny] = screenNormal(x, y, sx(along(q.x, q.y)), sz(q.z));
+            marks.push(<line key={`m${md}`} x1={x - nx * 3} y1={y - ny * 3} x2={x - nx * 7} y2={y - ny * 7} stroke={colors.planned} strokeWidth="0.8" />);
+            if (md % 100 === 0) floatLabels.push({ key: `pm${i}_${md}`, text: String(md), size: fs(8), fill: colors.planned, prio: 1, cands: [{ x: x - nx * 10, y: y - ny * 10 + 3, anchor: nx >= 0 ? "end" : "start" }, { x: x + nx * 10, y: y + ny * 10 + 3, anchor: nx >= 0 ? "start" : "end" }] }); // #1134
+          }
+          const last = t[t.length - 1];
+          { const ex = sx(along(last.x, last.y)), ey = sz(last.z); floatLabels.push({ key: `peoh${i}`, text: tr("planned EOH {v} m", { v: Math.round(eoh) }), size: fs(9), fill: colors.planned, prio: 2, cands: [{ x: ex, y: ey + fs(11), anchor: "middle" }, { x: ex + 6, y: ey + 3, anchor: "start" }, { x: ex - 6, y: ey + 3, anchor: "end" }, { x: ex, y: ey + fs(22), anchor: "middle" }] }); } // #1134
+        }
+        (ph.pierces || []).forEach((q, k) => {
+          const x = sx(along(q.x, q.y)), y = sz(q.z);
+          marks.push(<g key={`p${k}`}><circle cx={x} cy={y} r="3.2" fill="#fff" stroke={colors.planned} strokeWidth="1.4" /><title>{tr("{hole} crosses {surface} at {md} m downhole", { hole: ph.name, surface: q.name, md: q.md.toFixed(1) })}</title></g>);
+          floatLabels.push({ key: `pp${i}_${k}`, text: tr("{md} m · {surface}", { md: q.md.toFixed(1), surface: q.name }), size: fs(9), fill: "#7a4512", weight: 600, prio: 3, cands: [{ x: x + 6, y: y - 4, anchor: "start" }, { x: x - 6, y: y - 4, anchor: "end" }, { x: x + 6, y: y + fs(12), anchor: "start" }, { x: x - 6, y: y + fs(12), anchor: "end" }] }); // #1134
+        });
+        return (
+          <g key={`ph${i}`}>
+            <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke={colors.planned} strokeWidth="1.6" strokeDasharray="6 4"><title>{tr("Planned hole: {name}", { name: ph.name })}</title></polyline>
+            {marks}
+          </g>
+        );
+      })}
+
       {/* TASKS.csv #823 — hole labels, placed so none overlap (lib/sectionLabels.js), with leader lines; drag one to move it */}
       {labels.mode !== "off" && (() => {
         const items = [];
@@ -890,6 +898,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
         const fixed = { ...labels.offsets, ...(labelDrag ? { [labelDrag.key]: { dx: labelDrag.dx, dy: labelDrag.dy } } : {}) };
         const color = Object.fromEntries(items.map((it) => [it.key, it.color]));
         const placed = placeLabels(items, { fontSize: fs(9), bounds: [4, W - 4], fixed }); // the whole drawing: holes run past the plot frame
+        holeLabelBoxes = placed; // #1134 — obstacles for the other labels
         return (
           <g>
             {placed.map((b) => {
@@ -913,6 +922,10 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
           </g>
         );
       })()}
+      {/* TASKS.csv #1134 — depth / EOH / offset / planned-hole labels: one collision pass, drawn last (over the ribbons) */}
+      <g pointerEvents="none">
+        {resolveLabels(floatLabels, holeLabelBoxes).map((l) => <text key={l.key} x={l.x} y={l.y} fill={l.fill} fontSize={l.size} fontWeight={l.weight} textAnchor={l.anchor}>{l.text}</text>)}
+      </g>
       <text x={W / 2} y={H - 14} fill="#55606e" fontSize={fs(11)} textAnchor="middle">{tr("Distance along section (m)")}</text>
       <text x={16} y={H / 2} fill="#55606e" fontSize={fs(11)} textAnchor="middle" transform={`rotate(-90 16 ${H / 2})`}>{tr("Elevation (m)")}</text>
     </svg>
