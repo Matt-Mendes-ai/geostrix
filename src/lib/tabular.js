@@ -24,11 +24,24 @@ export function decodeTableBytes(bytes) {
 // table, which keeps "0045"), and distinct holes ("01" / "001") merged. A header counts as an identifier when
 // it names a hole / sample / collar (the same words the importers' hole-id guess uses), unless it is
 // plainly a measurement of one (hole_depth, sample_weight, sample_from...).
-const ID_WORD = /(hole|bhid|dhid|sample|samp_?id|collar_?id|drill_?id)/;
+const ID_WORD = /(hole|bhid|dhid|ddh|sample|samp_?id|samp_?no|collar_?id|drill_?id)/; // ddh / samp_no: #1071
 const MEASURE_WORD = /(depth|length|len$|dip|azi|^az|_az|dia(m|meter)?$|size|from|to$|_to_|elev|east|north|recov|rqd|weight|wt|mass|count|interval|eoh|_m$|_ft$|grade|value)/;
 export function isIdentifierHeader(h) {
   const k = String(h ?? "").trim().toLowerCase().replace(/[\s.\-/]+/g, "_");
   return ID_WORD.test(k) && !MEASURE_WORD.test(k);
+}
+
+// TASKS.csv #1071 (review #1016, drillhole-database admin) — the header words above miss many id columns ("DDH_No",
+// "Collar", "Name", "Site_ID", "Lab_ID"...), and picking one as Hole ID in the mapping dialog could not bring "0045" back:
+// it was 45 before the dialog opened, so collars ("DDH") and assays ("Hole_ID") no longer joined. So a column is also
+// kept as text when its first rows hold a zero-padded integer ("0045"): no measurement is written that way. (Not "1E3":
+// a lab can write a grade that way; an id column named by its header still keeps it.)
+const ID_LIKE_VALUE = /^0\d+$/;
+export function idLikeColumns(text, preview = 2000) {
+  const out = new Set();
+  const res = Papa.parse(text, { header: true, dynamicTyping: false, skipEmptyLines: true, comments: false, preview });
+  for (const f of res.meta.fields || []) if (!isIdentifierHeader(f) && res.data.some((r) => ID_LIKE_VALUE.test(String(r[f] ?? "").trim()))) out.add(f);
+  return out;
 }
 
 // TASKS.csv #720 — comment lines are skipped only at the TOP of the file, before the header: that is where GeoStrix's
@@ -64,13 +77,15 @@ export function stripLeadingComments(text, prefix = "#") {
 // blank lines skipped, "#" lines before the header skipped (#404 / #720), comma decimals converted where provable
 // (#284).
 const QUOTED_COMMA_NUMBER = /"\s*[+-]?\d+(?:\.\d{3})*,\d+\s*"/;
+const ID_LIKE_VALUE_IN = /(^|[,;\t"\n])\s*0\d+\s*("|[,;\t\r\n]|$)/; // #1071 — a cheap test of the whole text
 export function parseTableText(text, { comments = "#", columnar = false } = {}) {
   ({ text } = stripLeadingComments(text, comments)); // #720
   // TASKS.csv #611 — a big table can be held as COLUMNS (see parseTableColumns); null = not eligible, read as rows
   if (columnar && text.length >= COLUMNAR_MIN_CHARS) { const c = parseTableColumns(text, { comments: false }); if (c) return c; }
   // #600 (performance) — Papa asks once per CELL; the answer depends only on the header, so cache it per header.
   const typed = new Map();
-  const dynamicTyping = (field) => { let v = typed.get(field); if (v === undefined) { v = !isIdentifierHeader(field); typed.set(field, v); } return v; };
+  const idLike = ID_LIKE_VALUE_IN.test(text) ? idLikeColumns(text) : null; // #1071 — only scanned when such a value exists
+  const dynamicTyping = (field) => { let v = typed.get(field); if (v === undefined) { v = !isIdentifierHeader(field) && !idLike?.has(field); typed.set(field, v); } return v; };
   const res = Papa.parse(text, { header: true, dynamicTyping, skipEmptyLines: true, comments: false });
   // TASKS.csv #600 (40958Z, performance) — in a COMMA-delimited file a comma-decimal value can only exist quoted
   // ("1,5"), so when the raw text has no quoted comma number the column-by-column scan (every row x column:
@@ -109,6 +124,7 @@ export function parseTableColumns(text, opts) {
 export function parseColumnsRaw(text, { comments = "#" } = {}) {
   ({ text } = stripLeadingComments(text, comments)); // #720 — only before the header
   if (QUOTED_COMMA_NUMBER.test(text)) return null;
+  const idLike = ID_LIKE_VALUE_IN.test(text) ? idLikeColumns(text) : null; // #1071
   let headers = null, typed = null, cols = null, n = 0, cap = 4096, bad = false, delimiter = null;
   const errors = [];
   const grow = () => {
@@ -129,7 +145,7 @@ export function parseColumnsRaw(text, { comments = "#" } = {}) {
       if (!headers) {
         headers = a;
         if (delimiter !== "," || new Set(headers).size !== headers.length) { bad = true; p.abort(); return; }
-        typed = headers.map((h) => !isIdentifierHeader(h));
+        typed = headers.map((h) => !isIdentifierHeader(h) && !idLike?.has(h));
         cols = typed.map((t) => (t ? { num: new Float64Array(cap), kind: new Uint8Array(cap), other: [], pool: new Map() } : { txt: [], pool: new Map() }));
         return;
       }
