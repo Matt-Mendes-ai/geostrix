@@ -4,9 +4,21 @@
 import { splitAcrossSurface } from "./crosscut.js";
 import { buildMeshQuery, closestPointOnMesh } from "./meshQuery.js";
 import { t as tr } from "./i18n.js";
+import { orientMesh } from "./meshValidate.js"; // TASKS.csv #1058
+
+// TASKS.csv #1058 — every side test below reads the nearest fault triangle's normal, so the fault is turned to face one
+// way first (a CAD 3DFACE soup keeps mixed winding). Cached per mesh object: the panel's labels and the fit ask often.
+const oriented = new WeakMap();
+export function orientedFault(w) {
+  if (!w?.indices || typeof w !== "object") return w;
+  let o = oriented.get(w);
+  if (!o) { const r = orientMesh(w.positions, w.indices); o = { positions: w.positions, indices: r.indices, flipped: r.flipped, conflicts: r.conflicts }; oriented.set(w, o); }
+  return o;
+}
 
 // The fault's mean normal, vertical component (world coordinates): which side is the hanging wall (the panel labels it).
 export function faultNormalZ(w) {
+  w = orientedFault(w); // #1058 — a mixed mesh's mean normal is near zero, which made the hanging-wall label arbitrary
   let nx = 0, ny = 0, nz = 0;
   const P = w.positions, I = w.indices;
   for (let t = 0; t < I.length; t += 3) {
@@ -24,6 +36,7 @@ export function faultNormalZ(w) {
 // nearest fault point is on the fault's edge, not straight across) has no side and is kept, as the trim keeps it.
 // -> { keep, off } (input points, in order)
 export function inputsBySide(points, fault, side, onTolM = 0.5) {
+  fault = orientedFault(fault); // #1058
   const q = buildMeshQuery(fault.positions, fault.indices);
   if (!q) return { keep: points, off: [] };
   const P = fault.positions, I = fault.indices, keep = [], off = [];
@@ -43,6 +56,10 @@ export function inputsBySide(points, fault, side, onTolM = 0.5) {
 // The fit of a fault-bounded surface: inputs on the cut-away side left out (#941), then the fit, then the trim (#957).
 // fit(points) -> fitExplicitSurface's result. res.trim.offSide: the inputs left out.
 export function fitBoundedSurface(points, fit, fault, side) {
+  const of = orientedFault(fault);
+  // #1058 — a fault that cannot be made to face one way (a twisted or folded-over sheet) has no consistent sides to keep
+  if (of.conflicts > 0) throw new Error(tr("The fault surface cannot be turned to face one way ({n} edges disagree), so it has no consistent sides: fix or rebuild the fault mesh, or fit this surface without the fault.", { n: of.conflicts }));
+  fault = of;
   const { keep, off } = inputsBySide(points, fault, side);
   if (off.length && keep.length < 3) throw new Error(tr("Only {k} of this surface's {n} inputs lie on the kept side of the fault: check the side chosen, or the fault.", { k: keep.length, n: points.length }));
   const res = trimAtFault(fit(off.length ? keep : points), fault, side);
@@ -52,6 +69,7 @@ export function fitBoundedSurface(points, fit, fault, side) {
 // res: fitExplicitSurface's { positions, indices, ... } (world); fault: { positions, indices } (world); side: +1 / -1.
 // Returns res with the kept part (only the vertices a triangle uses) and res.trim = { changed, unresolvedEdges, normalZ }.
 export function trimAtFault(res, fault, side) {
+  fault = orientedFault(fault); // #1058
   const sp = splitAcrossSurface({ positions: res.positions, indices: Array.from(res.indices) }, fault);
   const normalZ = faultNormalZ(fault);
   if (!sp.ok || !sp.changed) return { ...res, trim: { changed: false, unresolvedEdges: 0, normalZ } };

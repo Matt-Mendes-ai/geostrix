@@ -96,3 +96,62 @@ export function validateSolid(positions, indices, { maxTriangles = 200000 } = {}
 
 // a valid solid: closed, manifold, consistently wound, not self-intersecting (when checked)
 export const isValidSolid = (v) => v.openEdges === 0 && v.nonManifoldEdges === 0 && v.windingConflicts === 0 && v.selfIntersectingPairs === 0;
+
+// TASKS.csv #1058 (review #1016, explicit modeller) — turn an OPEN mesh's triangles to face one way. The fault-side tests
+// (explicitTrim inputsBySide, crosscut splitAcrossSurface) read the side from the nearest triangle's own normal, so a
+// fault with mixed winding (a 3DFACE soup from CAD keeps whatever order each face was drawn in) put picks on both sides
+// at random: 30 picks west of a fault, 12 kept and 18 called "on the other side". A breadth-first walk over shared edges
+// flips each neighbour that runs a shared edge the same way; vertices are matched by position (to 1 mm), since a 3DFACE
+// soup repeats them per face. Each further connected piece is turned to agree with the first piece's mean normal; the
+// first triangle keeps its winding, so an already consistent mesh comes back unchanged.
+// -> { indices (new Uint32Array), flipped (triangles turned), conflicts (edges still run the same way: non-orientable) }
+export function orientMesh(positions, indices) {
+  const nT = (indices.length / 3) | 0, out = Uint32Array.from(indices);
+  const ids = new Map(), weld = new Int32Array(positions.length / 3);
+  for (let v = 0; v < weld.length; v++) {
+    const key = `${Math.round(positions[3 * v] * 1000)},${Math.round(positions[3 * v + 1] * 1000)},${Math.round(positions[3 * v + 2] * 1000)}`;
+    let id = ids.get(key); if (id === undefined) { id = ids.size; ids.set(key, id); } weld[v] = id;
+  }
+  const W = (t, k) => weld[out[3 * t + k]];
+  const edges = new Map(); // undirected welded edge -> triangles using it
+  for (let t = 0; t < nT; t++) for (let k = 0; k < 3; k++) {
+    const a = W(t, k), b = W(t, (k + 1) % 3); if (a === b) continue;
+    const key = Math.min(a, b) * 4294967296 + Math.max(a, b);
+    const l = edges.get(key); if (l) l.push(t); else edges.set(key, [t]);
+  }
+  const runs = (t, a, b) => { for (let k = 0; k < 3; k++) if (W(t, k) === a && W(t, (k + 1) % 3) === b) return true; return false; };
+  const flip = (t) => { const x = out[3 * t + 1]; out[3 * t + 1] = out[3 * t + 2]; out[3 * t + 2] = x; };
+  const comp = new Int32Array(nT).fill(-1), normals = [];
+  let flipped = 0;
+  for (let s = 0; s < nT; s++) {
+    if (comp[s] >= 0) continue;
+    const c = normals.length, queue = [s], members = [];
+    comp[s] = c;
+    while (queue.length) {
+      const t = queue.pop(); members.push(t);
+      for (let k = 0; k < 3; k++) {
+        const a = W(t, k), b = W(t, (k + 1) % 3); if (a === b) continue;
+        const list = edges.get(Math.min(a, b) * 4294967296 + Math.max(a, b));
+        if (!list || list.length !== 2) continue; // open or non-manifold edge: no neighbour to agree with
+        const u = list[0] === t ? list[1] : list[0];
+        if (comp[u] >= 0) continue;
+        if (runs(u, a, b)) { flip(u); flipped++; } // a neighbour runs the shared edge the opposite way when consistent
+        comp[u] = c; queue.push(u);
+      }
+    }
+    const n = [0, 0, 0];
+    for (const t of members) {
+      const p = (k) => { const i = 3 * out[3 * t + k]; return [positions[i], positions[i + 1], positions[i + 2]]; };
+      const m = cross(sub(p(1), p(0)), sub(p(2), p(0))); n[0] += m[0]; n[1] += m[1]; n[2] += m[2];
+    }
+    if (c > 0 && dot(n, normals[0]) < 0) { for (const t of members) flip(t); flipped += members.length; n[0] = -n[0]; n[1] = -n[1]; n[2] = -n[2]; }
+    normals.push(n);
+  }
+  let conflicts = 0;
+  for (const [key, list] of edges) {
+    if (list.length !== 2) continue;
+    const a = Math.floor(key / 4294967296), b = key % 4294967296;
+    if (runs(list[0], a, b) === runs(list[1], a, b)) conflicts++;
+  }
+  return { indices: out, flipped, conflicts };
+}

@@ -6264,5 +6264,6 @@
   "Section font": "خط المقطع",
   "Section text size": "حجم نص المقطع",
   "in progress": "قيد التنفيذ",
-  "Woodjam survey: assessment report 41597 does not state the gyro azimuths' north reference, so they are taken as grid north (UTM zone 10N). If they are true north, every hole trace and oriented-core plane is rotated by about 1.3° (the grid convergence there).": "مسح Woodjam: لا يذكر تقرير التقييم 41597 مرجع الشمال لسموت الجيروسكوب، لذا تُعتبر شمال الشبكة (UTM المنطقة 10N). وإذا كانت بالنسبة للشمال الحقيقي، فإن كل مسار ثقب وكل مستوى لب موجّه يدور بنحو 1.3° (تقارب الشبكة هناك)."
+  "Woodjam survey: assessment report 41597 does not state the gyro azimuths' north reference, so they are taken as grid north (UTM zone 10N). If they are true north, every hole trace and oriented-core plane is rotated by about 1.3° (the grid convergence there).": "مسح Woodjam: لا يذكر تقرير التقييم 41597 مرجع الشمال لسموت الجيروسكوب، لذا تُعتبر شمال الشبكة (UTM المنطقة 10N). وإذا كانت بالنسبة للشمال الحقيقي، فإن كل مسار ثقب وكل مستوى لب موجّه يدور بنحو 1.3° (تقارب الشبكة هناك).",
+  "The fault surface cannot be turned to face one way ({n} edges disagree), so it has no consistent sides: fix or rebuild the fault mesh, or fit this surface without the fault.": "لا يمكن توجيه سطح الصدع نحو جهة واحدة ({n} من الحواف غير متوافقة)، لذا ليس له جانبان متسقان: أصلح شبكة الصدع أو أعد بناءها، أو لائم هذا السطح دون الصدع."
 }
