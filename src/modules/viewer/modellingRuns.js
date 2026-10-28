@@ -4,7 +4,7 @@
 import * as THREE from "three";
 import { desurveyHole } from "../../lib/desurvey.js";
 import { sanitizeMesh } from "../../lib/meshSanitize.js";
-import { checkAgainstLogs, unitVolumes, resampleWarpedBlock } from "../../lib/modelCheck.js";
+import { checkAgainstLogs, unitVolumes, resampleWarpedBlock, capBlockAtGround } from "../../lib/modelCheck.js";
 import { pythonImplicitModel } from "../../lib/desktop.js";
 import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, spreadSummary, spreadColor, SPREAD_NOT_REPRODUCED } from "../../lib/surfaceSpread.js";
 import { colorForLithology, colorForAlteration, colorForStructure, minMax, roleForLithology } from "../../lib/layers.js";
@@ -471,6 +471,19 @@ export function createModellingRuns(ctx, mcRef) {
         const realExtent = [...pad(rx.min, rx.max), ...pad(ry.min, ry.max), ...pad(rz.min, rz.max)];
         lbBlock = resampleWarpedBlock(res.block, realExtent, (q) => anisoWarpPoint(q, anisoCenter, anisoBasis, anisoScl));
       }
+      // TASKS.csv #1029 — no rock above the ground: the block model / unit volumes block, and the block the unit volumes
+      // are counted on (the solved one: through the unwarp when a trend stretched it), are cut at the terrain, as the
+      // surfaces are (#358, the same "clip to topography" choice)
+      let volBlock = res.block, airCut = 0;
+      if (clipTerrain) {
+        const o = originRef.current;
+        const groundOf = (wx, wy) => terrainGroundAt(clipTerrain, wx, wy);
+        const real = (q) => ({ x: q.x + o.x, y: q.y + o.y, z: q.z + o.z });
+        const unwarp = anisotropy.enabled ? ((u) => (q) => real(anisoWarpPoint(q, anisoCenter, anisoBasis, u)))(invScales(anisoScl)) : real;
+        lbBlock = capBlockAtGround(lbBlock, groundOf, real).block;
+        const vc = capBlockAtGround(res.block, groundOf, unwarp);
+        volBlock = vc.block; airCut = vc.cut;
+      }
       // TASKS.csv #817 — the ground above the youngest modelled top. It was labelled after specs[0], which is a FAULT whenever
       // faults are solved with the stack (they come first): "above the top of Fault Thrust Fault 1". Now the first
       // non-fault surface; and a model from the map names it as the youngest map unit itself (stackOpts.aboveUnit), so the
@@ -497,16 +510,16 @@ export function createModellingRuns(ctx, mcRef) {
         });
         setNotices((p) => [...p, notice(secGrids.length > 1 ? "Modelled units evaluated exactly on {secGrids} saved cross-sections ({v2}; {secApi} points in the same solve): open a section to see them behind the logged holes. Other sections show the model read from its block (coarser)." : "Modelled units evaluated exactly on {secGrids} saved cross-section ({v2}; {secApi} points in the same solve): open a section to see them behind the logged holes. Other sections show the model read from its block (coarser).", { secGrids: secGrids.length, v2: secGrids.map(({ sc, grid }) => `${sc.name} every ${Math.round(grid.dl)} m`).join(", "), secApi: secApi.length.toLocaleString() })]);
       }
-      setLastLithBlock({ ...(Object.keys(secResults).length ? { sections: secResults, aboveLabel: aboveText } : {}), ...(exact ? { intervals: evalRows.filter((q) => "modelled" in q).map((q) => ({ hole_id: q.hole_id, from: q.row.from, to: q.row.to, logged: q.row.value, modelled: q.modelled })) } : {}), block: lbBlock, units: specs.map((sp) => ({ name: sp.meshName, label: sp.meshName, color: sp.color })), origin: { ...originRef.current }, when: new Date().toLocaleTimeString(), title: `stack ${unitSpecs.map((sp) => sp.meshName).join(" over ")}${unitSpecs.length < specs.length ? `, ${specs.length - unitSpecs.length} fault(s)` : ""}`, matchedPct: chk.total ? Math.round((100 * chk.matched) / chk.total) : null });
+      setLastLithBlock({ ...(Object.keys(secResults).length ? { sections: secResults, aboveLabel: aboveText } : {}), ...(exact ? { intervals: evalRows.filter((q) => "modelled" in q).map((q) => ({ hole_id: q.hole_id, from: q.row.from, to: q.row.to, logged: q.row.value, modelled: q.modelled })) } : {}), block: lbBlock, ...(clipTerrain ? { cutAtTerrain: clipTerrain.name || "terrain" } : {}), units: specs.map((sp) => ({ name: sp.meshName, label: sp.meshName, color: sp.color })), origin: { ...originRef.current }, when: new Date().toLocaleTimeString(), title: `stack ${unitSpecs.map((sp) => sp.meshName).join(" over ")}${unitSpecs.length < specs.length ? `, ${specs.length - unitSpecs.length} fault(s)` : ""}`, matchedPct: chk.total ? Math.round((100 * chk.matched) / chk.total) : null });
       // TASKS.csv #679 — the trend's scales multiply to 1 (trendScales: iso / max * iso / int * iso / min), so a warped
       // cell has the volume of its real-space parallelepiped; dividing by the product keeps that true if it ever isn't
       const warpDet = anisotropy.enabled ? anisoScl.major * anisoScl.semiMajor * anisoScl.minor : 1;
-      const vols = unitVolumes(res.block).filter((v) => v.name).map((v) => ({ ...v, volume: v.volume / warpDet }));
+      const vols = unitVolumes(volBlock).filter((v) => v.name).map((v) => ({ ...v, volume: v.volume / warpDet })); // #1029 — below the ground
       const pct = (a, b) => (b > 0 ? `${Math.round((100 * a) / b)}%` : "—");
       const fmtVol = (v) => (v >= 1e9 ? `${(v / 1e9).toFixed(2)} km³` : `${(v / 1e6).toFixed(1)} Mm³`);
       const perUnit = chk.units.map((u) => `${u.unit} ${pct(u.matched, u.logged)} of ${Math.round(u.logged)} m${u.mostOftenModelledAs !== undefined && u.matched < u.logged ? ` (otherwise mostly modelled as ${u.mostOftenModelledAs ?? "above the modelled tops"})` : ""}`).join("; ");
       const worst = chk.holes.filter((h) => h.logged >= 5).slice(0, 3).map((h) => `${h.hole_id} ${pct(h.matched, h.logged)}`).join(", ");
-      if (chk.total > 0) setNotices((p) => [...p, notice("Model check{v}: the model puts {v2} of {v3} logged metres of the modelled units in the unit they were logged as. By unit: {perUnit}.{v4}{v5} Unit volumes inside the model box ({v6}) are bounded by that box and are not resource figures.{v7}", { v: exact ? tr(" (each interval's midpoint evaluated exactly)") : tr(" (read from the {modelResolution}³ block)", { modelResolution }), v2: pct(chk.matched, chk.total), v3: Math.round(chk.total), perUnit, v4: worst ? tr(" Least reproduced holes: {worst}.", { worst }) : "", v5: chk.outside ? tr(" {v} m fell outside the model extent.", { v: Math.round(chk.outside) }) : "", v6: vols.length ? vols.map((v) => `${v.name} ${fmtVol(v.volume)}`).join(", ") : tr("none"), v7: anisotropy.enabled ? tr(" With the {trendWord} \"{v}\" the model is solved in a stretched frame: the check and volumes account for it, and \"Add as block model\" gets the model resampled onto a real-space grid.", { trendWord, v: anisotropy.params?.trend || tr("unnamed") }) : "" })]);
+      if (chk.total > 0) setNotices((p) => [...p, notice("Model check{v}: the model puts {v2} of {v3} logged metres of the modelled units in the unit they were logged as. By unit: {perUnit}.{v4}{v5} Unit volumes inside the model box ({v6}) are bounded by that box and are not resource figures.{v8}{v7}", { v8: clipTerrain ? tr(" They and the lithology block are cut at the terrain ({cells} cells above the ground left out).", { cells: airCut.toLocaleString() }) : "", v: exact ? tr(" (each interval's midpoint evaluated exactly)") : tr(" (read from the {modelResolution}³ block)", { modelResolution }), v2: pct(chk.matched, chk.total), v3: Math.round(chk.total), perUnit, v4: worst ? tr(" Least reproduced holes: {worst}.", { worst }) : "", v5: chk.outside ? tr(" {v} m fell outside the model extent.", { v: Math.round(chk.outside) }) : "", v6: vols.length ? vols.map((v) => `${v.name} ${fmtVol(v.volume)}`).join(", ") : tr("none"), v7: anisotropy.enabled ? tr(" With the {trendWord} \"{v}\" the model is solved in a stretched frame: the check and volumes account for it, and \"Add as block model\" gets the model resampled onto a real-space grid.", { trendWord, v: anisotropy.params?.trend || tr("unnamed") }) : "" })]);
       // TASKS.csv #758 — the predicted geological map, and how it compares with the mapped geology
       if (mapGrid && exact && addRaster) {
         const [bx0, bx1, by0, by1, bz0, bz1] = res.block.extent;
@@ -604,7 +617,7 @@ export function createModellingRuns(ctx, mcRef) {
       const maxDist = Math.hypot(ext[1] - ext[0], ext[3] - ext[2], ext[5] - ext[4]) * 0.25;
       const distances = [];
       let failed = 0;
-      let counter = null, blockMeta = null; // TASKS.csv #757 — each realisation's lithology block, counted per cell
+      let counter = null, blockMeta = null, airCells = null; // TASKS.csv #757 (airCells: #1029) — each realisation's lithology block, counted per cell
       const tStart = performance.now();
       let budgetStopped = false;
       for (let i = 0; i < n; i++) {
@@ -626,8 +639,20 @@ export function createModellingRuns(ctx, mcRef) {
         );
         if (!r.ok) { if (r.cancelled) break; failed++; continue; }
         if (r.block?.ids?.length) { // #757
-          if (!counter) { counter = makeEnsembleCounter(r.block.ids.length, r.block.labels.length); blockMeta = r.block; }
-          counter.add(r.block.ids);
+          if (!counter) {
+            counter = makeEnsembleCounter(r.block.ids.length, r.block.labels.length); blockMeta = r.block;
+            // TASKS.csv #1029 — the cells above the ground (same box every realisation), left out of P(), entropy and the volumes
+            if (clipTerrain) {
+              const o = originRef.current, real = (q) => ({ x: q.x + o.x, y: q.y + o.y, z: q.z + o.z });
+              const toWorld = anisotropy.enabled ? ((u) => (q) => real(anisoWarpPoint(q, anisoCenter, anisoBasis, u)))(invScales(anisoScl)) : real;
+              const cap = capBlockAtGround({ ...r.block, ids: new Int32Array(r.block.ids.length).fill(1) }, (wx, wy) => terrainGroundAt(clipTerrain, wx, wy), toWorld);
+              airCells = [];
+              cap.block.ids.forEach((id, i) => { if (id === 0) airCells.push(i); });
+            }
+          }
+          let ids = r.block.ids;
+          if (airCells?.length) { ids = Int32Array.from(ids); for (const i of airCells) ids[i] = 0; }
+          counter.add(ids);
         }
         const out = (r.surfaces || []).find((x) => x.name === bSpec.meshName);
         if (!out?.vertices?.length) { distances.push(basePts.map(() => Infinity)); continue; }

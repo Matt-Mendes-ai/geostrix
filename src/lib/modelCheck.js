@@ -30,6 +30,32 @@ export function unitAt(block, x, y, z) {
   return block.labels[block.ids[i] - 1] ?? null; // null = above every modelled top
 }
 
+// TASKS.csv #1029 (review #1016, implicit modeller) — the model box reaches up to the highest control point plus padding,
+// and GemPy fills it to the top, so wherever a unit's modelled top stands above the ground (every outcrop, every valley)
+// the air between the ground and that top was coded as the unit: in the unit volumes, "Add as block model" and the
+// closed unit volumes (and through them the estimation domains). The surfaces were already cut at the terrain (#358).
+// Every cell whose centre is above the ground becomes id 0 ("outside the model"). groundAt(wx, wy) -> elevation or
+// NaN (no terrain there: the cell is kept); toWorld(api point) -> its world position (through the unwarp for a block
+// solved in a trend's stretched frame). -> { block (a copy; the same object when nothing was cut), cut (cells) }
+export function capBlockAtGround(block, groundAt, toWorld) {
+  const [xmin, xmax, ymin, ymax, zmin, zmax] = block.extent;
+  const [nx, ny, nz] = block.resolution;
+  const cx = (xmax - xmin) / nx, cy = (ymax - ymin) / ny, cz = (zmax - zmin) / nz;
+  let ids = null, cut = 0;
+  const p = { x: 0, y: 0, z: 0 };
+  for (let ix = 0; ix < nx; ix++) for (let iy = 0; iy < ny; iy++) for (let iz = 0; iz < nz; iz++) {
+    const i = ix * ny * nz + iy * nz + iz;
+    if (block.ids[i] === 0) continue;
+    p.x = xmin + (ix + 0.5) * cx; p.y = ymin + (iy + 0.5) * cy; p.z = zmin + (iz + 0.5) * cz;
+    const w = toWorld(p);
+    const g = groundAt(w.x, w.y);
+    if (!(Number.isFinite(g) && w.z > g)) continue;
+    if (!ids) ids = Int32Array.from(block.ids);
+    ids[i] = 0; cut++;
+  }
+  return { block: ids ? { ...block, ids, cutAtTerrain: cut } : block, cut };
+}
+
 // TASKS.csv #679 — a model solved with a geology trend lives in a stretched frame: its cells are tilted boxes in real
 // space, which a block model (axis-aligned cells) and the modelled-unit layer can't hold. This resamples it onto an
 // axis-aligned grid over `realExtent` (API frame, metres): each real cell centre goes through `warp` (real -> the
