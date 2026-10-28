@@ -1,7 +1,7 @@
 // TASKS.csv #411 — block model as CSV for estimation / mine-planning software (Datamine, Vulcan, Surpac
 // and Leapfrog all import "centroid + block size + attributes" CSV): XC, YC, ZC, XINC, YINC, ZINC and the
 // value, plus the estimation's per-block support fields when present. Coordinates are the project CRS.
-import { SUPPORT_CODES } from "./estimation.js";
+import { SUPPORT_CODES, perHoleCap } from "./estimation.js"; // perHoleCap: #1049
 import { capAuditText } from "./geochem.js"; // TASKS.csv #674
 import { FORMULA_LEAD } from "./tabular.js"; // TASKS.csv #1041
 
@@ -29,6 +29,21 @@ export function valueColumnName(model) {
   const unit = u ? String(u).replace(/^g\/t$/i, "gpt").replace(/^%$/, "pct") : "";
   return (unit && !model.property ? `${base}_${unit}` : base).replace(/[^\w]+/g, "_") || "value";
 }
+// TASKS.csv #1050 (review #1016, resource geologist) — the numeric per-block fields beside the value, for the writers that
+// carry arrays rather than CSV columns (VTK CELL_DATA, OMF data). VTK wrote only the value (named "value", with no
+// element or unit) and OMF value + support, so COVERAGE (#943: a merged block's real share), KV and the sample counts
+// never left the app except in the CSV. Names as the CSV's columns. -> [{ name, get }] for the fields some cell carries
+const num = (v) => (Number.isFinite(v) ? v : null);
+const CELL_FIELDS = [
+  ["N_SAMPLES", (c) => num(c.nSamples)], ["N_HOLES", (c) => num(c.nHoles)],
+  ["SUPPORT", (c) => (typeof c.support === "number" ? num(c.support) : null)],
+  ["SUPPORT_CODE", (c) => (typeof c.support === "string" && SUPPORT_CODES[c.support] != null ? SUPPORT_CODES[c.support] : null)],
+  ["SUPPORT_INDEX", (c) => num(c.supportIndex)], ["COVERAGE", (c) => num(c.coverage)], ["KV", (c) => num(c.kv)], ["NEAREST_M", (c) => num(c.nearestSampleM)],
+];
+export function numericCellFields(cells) {
+  return CELL_FIELDS.filter(([, get]) => (cells || []).some((c) => get(c) != null)).map(([name, get]) => ({ name, get }));
+}
+
 // TASKS.csv #979 — the centroid and size column names: Datamine's (also read by Vulcan, Surpac and Leapfrog) or
 // Micromine's, which the block-model import already recognizes (#659), so a Micromine user does not map six fields
 export const BLOCK_COLUMN_NAMES = {
@@ -49,6 +64,10 @@ export function blockModelRows(model, names = "datamine") {
     // TASKS.csv #943 — a block merged on import (over the cell budget) is a full coarse cell; the share of it the source
     // model's blocks filled, and that real volume, so tonnage is not taken from the block size
     if (Number.isFinite(c.coverage)) { row.COVERAGE = +c.coverage.toFixed(4); row.VOLUME_M3 = +(c.coverage * c.dx * c.dy * c.dz).toFixed(3); }
+    // TASKS.csv #1049 (review #1016, resource geologist) — every kriged block carries its kriging variance and every
+    // estimated one its nearest-sample distance; neither reached the CSV
+    if (Number.isFinite(c.kv)) row.KV = +c.kv.toPrecision(6);
+    if (Number.isFinite(c.nearestSampleM)) row.NEAREST_M = +c.nearestSampleM.toFixed(2);
     return row;
   });
 }
@@ -71,8 +90,8 @@ export function* blockModelCsvChunks(model, names = "datamine", chunk = 50000) {
   const cells = model.cells || [];
   if (!cells.length) return;
   const valueName = valueColumnName(model);
-  const OPT = ["N_SAMPLES", "N_HOLES", "SUPPORT", "SUPPORT_CODE", "SUPPORT_INDEX", "COVERAGE", "VOLUME_M3"];
-  const has = (c) => [c.nSamples != null, c.nHoles != null, c.support != null, typeof c.support === "string" && SUPPORT_CODES[c.support] != null, Number.isFinite(c.supportIndex), Number.isFinite(c.coverage), Number.isFinite(c.coverage)];
+  const OPT = ["N_SAMPLES", "N_HOLES", "SUPPORT", "SUPPORT_CODE", "SUPPORT_INDEX", "COVERAGE", "VOLUME_M3", "KV", "NEAREST_M"]; // KV / NEAREST_M: #1049
+  const has = (c) => [c.nSamples != null, c.nHoles != null, c.support != null, typeof c.support === "string" && SUPPORT_CODES[c.support] != null, Number.isFinite(c.supportIndex), Number.isFinite(c.coverage), Number.isFinite(c.coverage), Number.isFinite(c.kv), Number.isFinite(c.nearestSampleM)];
   // the columns in the order toExportCsv's union of row keys gives: the base seven, then each optional one where it first appears
   const fields = [...(BLOCK_COLUMN_NAMES[names] || BLOCK_COLUMN_NAMES.datamine), valueName], seen = new Set();
   for (let i = 0; i < cells.length && seen.size < OPT.length; i++) has(cells[i]).forEach((h, k) => { if (h && !seen.has(k)) { seen.add(k); fields.push(OPT[k]); } });
@@ -92,6 +111,8 @@ export function* blockModelCsvChunks(model, names = "datamine", chunk = 50000) {
     if (typeof c.support === "string" && SUPPORT_CODES[c.support] != null) row[col.SUPPORT_CODE] = csvCell(SUPPORT_CODES[c.support]);
     if (Number.isFinite(c.supportIndex)) row[col.SUPPORT_INDEX] = String(+c.supportIndex.toFixed(4));
     if (Number.isFinite(c.coverage)) { row[col.COVERAGE] = String(+c.coverage.toFixed(4)); row[col.VOLUME_M3] = String(+(c.coverage * c.dx * c.dy * c.dz).toFixed(3)); }
+    if (Number.isFinite(c.kv)) row[col.KV] = String(+c.kv.toPrecision(6));
+    if (Number.isFinite(c.nearestSampleM)) row[col.NEAREST_M] = String(+c.nearestSampleM.toFixed(2));
     lines.push(row.join(","));
     if (lines.length >= chunk) { yield lines.join("\r\n"); lines = []; }
   }
@@ -119,12 +140,24 @@ export function blockModelParamLines(model) {
   if ((model.cells || []).some((c) => Number.isFinite(c.coverage))) lines.push("COVERAGE: the share of each block filled by the imported model's own blocks (blocks were merged on import to fit the cell budget); VOLUME_M3 = COVERAGE x the block size. Take volume and tonnage from VOLUME_M3, not from the block size."); // #943
   if ((model.cells || []).some((c) => typeof c.support === "string")) lines.push(`SUPPORT_CODE: ${Object.entries(SUPPORT_CODES).map(([k, v]) => `${v} = ${k}`).join(", ")}`);
   Object.entries(p).forEach(([k, v]) => {
-    if (v == null || typeof v === "object") return;
+    if (v == null || typeof v === "object" || k === "maxSamplesPerHole") return; // the per-hole cap: once, as applied (below)
     lines.push(`${k}: ${v}`);
   });
   // TASKS.csv #674 — the object-valued params were dropped, so a trended estimate's header gave a 150 m sphere and
   // 16 samples with no ellipsoid, no per-hole limit and no cap audit: not reproducible elsewhere.
-  if (p.minHoles > 1 && p.maxSamples > 0) lines.push(`maxSamplesPerHole: ${Math.max(1, Math.ceil(p.maxSamples / p.minHoles))} (max samples / min holes, #642)`);
+  // #1049 — the cap the estimator applied (perHoleCap: the smaller of an entered max per hole and max / min holes); the
+  // entered value and the implicit one were printed as two disagreeing "maxSamplesPerHole" lines (3, then 8)
+  if (p.maxSamples > 0 && (p.minHoles > 1 || p.maxSamplesPerHole > 0)) {
+    const cap = perHoleCap(p.maxSamples, p.minHoles || 1, p.maxSamplesPerHole || 0), implicit = p.minHoles > 1 ? Math.max(1, Math.ceil(p.maxSamples / p.minHoles)) : null;
+    lines.push(`maxSamplesPerHole: ${cap} applied (${[p.maxSamplesPerHole > 0 ? `entered ${p.maxSamplesPerHole}` : null, implicit != null ? `max samples / min holes = ${implicit}` : null].filter(Boolean).join("; the smaller of: ")})`);
+  }
+  // #1049 — the variogram ordinary kriging used, and how the blocks were kriged: without them the estimate cannot be redone
+  const vg = p.variogram;
+  if (vg) lines.push(`variogram: ${vg.model}, nugget ${vg.nugget}, sill ${vg.sill}, range ${vg.range} m, ${vg.fitted ? `fitted to the composites at run time${vg.lagM ? ` (lag ${vg.lagM} m)` : ""}` : "entered"}${vg.frame ? `, ${vg.frame}` : ""}`);
+  const kb = p.krigingBlocks;
+  if (kb) lines.push(`krigingBlocks: ${Object.entries(kb).map(([k, v]) => `${k} ${v}`).join(", ")}`);
+  if ((model.cells || []).some((c) => Number.isFinite(c.kv))) lines.push(`KV: the block's ordinary-kriging variance${p.unit ? ` (${p.unit} squared)` : ""}, from the data layout under the variogram: not a grade error`);
+  if ((model.cells || []).some((c) => Number.isFinite(c.nearestSampleM))) lines.push("NEAREST_M: distance from the block centre to the nearest composite used, metres");
   const t = p.searchTrend;
   if (t) lines.push(`searchTrend: "${t.name}" dip ${t.dip} towards ${t.dipAzimuth}, pitch ${t.pitch}, ratios ${t.ratios?.max} : ${t.ratios?.int} : ${t.ratios?.min}${t.ellipsoidM ? `; search ellipsoid ${t.ellipsoidM.join(" x ")} m` : ""}`);
   if (p.capAudit) lines.push(`capAudit: ${capAuditText(p.capAudit, p.unit || "")}`);
