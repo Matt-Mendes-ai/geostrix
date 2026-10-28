@@ -497,3 +497,12 @@ export function runDataQC({ project, collars, survey, layers, boundaries, assays
 }
 
 export { clampSeverityIcon as severityIcon };
+
+// TASKS.csv #1111 (review #1016, drillhole-database admin) — the issue list as table rows, the database validation record a QP
+// or the database manager asks for; it existed only on screen until the dialog closed. Errors first, then warnings, then
+// information, each in the order found.
+const SEVERITY_ORDER = { error: 0, warning: 1, info: 2 };
+export function qcIssueRows(issues) {
+  return (issues || []).map((i, n) => ({ i, n })).sort((a, b) => (SEVERITY_ORDER[a.i.severity] ?? 3) - (SEVERITY_ORDER[b.i.severity] ?? 3) || a.n - b.n)
+    .map(({ i }) => ({ severity: i.severity, category: i.category, hole_id: i.holeId || "", message: i.message }));
+}

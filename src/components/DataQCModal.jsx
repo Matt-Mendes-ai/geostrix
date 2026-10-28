@@ -1,7 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { X, ShieldAlert, AlertTriangle, Info, RefreshCw } from "./icons.js";
+import { X, ShieldAlert, AlertTriangle, Info, RefreshCw, Download } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
-import { runDataQC, collarTerrainOffsets } from "../lib/dataQC.js";
+import { runDataQC, collarTerrainOffsets, qcIssueRows } from "../lib/dataQC.js"; // qcIssueRows: #1111
+import { saveFile } from "../lib/desktop.js";
+import { toExportCsv } from "../lib/tabular.js";
+import { stampLines, withStamp } from "../lib/provenance.js";
+import { normalizeDesurveyMethod } from "../lib/desurvey.js";
+import { version as APP_VERSION } from "../../package.json";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -56,6 +61,17 @@ export default function DataQCModal({ onCancel }) {
   const categories = useMemo(() => Array.from(result.byCategory.keys()).sort(), [result]);
   const shown = useMemo(() => result.issues.filter((i) => filter.has(i.severity) && (categoryFilter === "all" || i.category === categoryFilter)), [result, filter, categoryFilter]);
 
+  // TASKS.csv #1111 — every issue (not just the filtered view) as a CSV, stamped with the project, CRS, desurvey method,
+  // the thresholds used and the counts
+  const exportIssues = () => {
+    const stamp = stampLines({ tool: "Drillhole data QA/QC", version: APP_VERSION, epsg: project?.epsg, params: [
+      `Project: ${project?.name || "untitled"} | desurvey: ${normalizeDesurveyMethod(project?.desurveyMethod)}`,
+      `Holes: ${collars.length} collars, ${survey.length} survey stations | dogleg warning ${warnDeg} deg / 30 m, error ${Math.max(10, warnDeg)}${terrain ? ` | collar vs terrain threshold ${Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15} m` : ""}`,
+      `Issues: ${result.summary.error || 0} error(s), ${result.summary.warning || 0} warning(s), ${result.summary.info || 0} information`,
+    ] });
+    const name = String(project?.name || "project").replace(/[^a-z0-9_-]+/gi, "_");
+    saveFile({ suggestedName: `${name}_data_qc.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(qcIssueRows(result.issues)), stamp) });
+  };
   const toggleSeverity = (sev) => setFilter((p) => { const n = new Set(p); if (n.has(sev)) n.delete(sev); else n.add(sev); return n; });
   const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(shown.length, ISSUE_ROW_H);
 
@@ -129,6 +145,8 @@ export default function DataQCModal({ onCancel }) {
               {terrainOff.length > 0 && <button onClick={snapToTerrain} style={rerunBtn} title={tr("Set those collars' elevation to the terrain (undoable; the old value is kept)")}>{tr("Snap {n} to terrain", { n: terrainOff.length })}</button>}
             </span>
           )}
+          <button onClick={exportIssues} disabled={!result.issues.length} style={{ ...rerunBtn, marginRight: 8, opacity: result.issues.length ? 1 : 0.5 }} title={tr("Save every issue (severity, category, hole, message) as a CSV, with the project, CRS, desurvey method and thresholds in its header")}>
+            <Download size={14} />{" "}{tr("Export CSV")}</button>
           <button onClick={() => setResult(runDataQC(qcArgs()))} style={rerunBtn}>
             <RefreshCw size={14} />{" "}{tr("Re-run")}</button>
         </div>
