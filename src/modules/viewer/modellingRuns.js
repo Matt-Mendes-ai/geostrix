@@ -637,7 +637,7 @@ export function createModellingRuns(ctx, mcRef) {
         const r = await pythonImplicitModel(
           ext,
           [{ name: bSpec.meshName, points: w.points, orientations: w.orientations }],
-          { resolution: [modelResolution, modelResolution, modelResolution], relation, rangeMultiplier: rangeMultiplier || 0, signal: ac.signal, returnBlock: true }, // returnBlock: #757
+          { resolution: [modelResolution, modelResolution, modelResolution], relation, rangeMultiplier: rangeMultiplier || 0, signal: ac.signal, returnBlock: true, surfaceDetail }, // returnBlock: #757; surfaceDetail: #1055 — the base mesh's triangulation, or the spread mixes in mesh-level difference
         );
         if (!r.ok) { if (r.cancelled) break; failed++; continue; }
         if (r.block?.ids?.length) { // #757
