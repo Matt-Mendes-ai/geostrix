@@ -101,10 +101,14 @@ export function mapLayerLegendGroups(mapLayers) {
   (mapLayers || []).forEach((l, i) => {
     if (l.visible === false || !(l.features || []).length) return;
     const kind = KIND_OF[l.geomType] || "fill";
+    // TASKS.csv #1122 (review #1016) — the opacity the layer is draped at (sceneBuilders: l.opacity ?? 0.6), so a swatch
+    // is not stronger than the unit it describes on a geology map over imagery; 1 is left out (rows unchanged)
+    const op = Number.isFinite(l.opacity) ? l.opacity : kind === "fill" ? 0.6 : 1;
+    const o = op < 1 ? { kind, opacity: op } : { kind };
     const cats = l.styleField ? (l.categories || []).filter((c) => c.visible !== false) : [];
     const items = cats.length
-      ? cats.map((c) => [c.label ?? (c.value == null ? "(no value)" : String(c.value)), c.color, { kind }])
-      : [[l.name || "map layer", l.color || "#e2a63c", { kind }]];
+      ? cats.map((c) => [c.label ?? (c.value == null ? "(no value)" : String(c.value)), c.color, o])
+      : [[l.name || "map layer", l.color || "#e2a63c", o]];
     groups.push({ key: `map_${l.id ?? i}`, label: l.name || "Map layer", items });
   });
   return groups;

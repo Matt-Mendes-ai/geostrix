@@ -13,7 +13,7 @@ test("#948 map layers: visible units of the categorical style, one colour otherw
   ];
   const g = mapLayerLegendGroups(layers);
   assert.deepEqual(g.map((x) => x.label), ["Geology", "Faults", "Structures"]);
-  assert.deepEqual(g[0].items, [["Kgd granodiorite", "#f4a", { kind: "fill" }]]);
+  assert.deepEqual(g[0].items, [["Kgd granodiorite", "#f4a", { kind: "fill", opacity: 0.6 }]]); // opacity: #1122
   assert.deepEqual(g[1].items, [["Faults", "#d00", { kind: "line" }]]);
   assert.equal(g[2].items[0][2].kind, "point");
 });
@@ -35,4 +35,14 @@ test("#948 boundaries as lines; samples by anomaly class, one colour, or medium;
   assert.deepEqual(legendGroupsToItems([{ label: "Lithology", items: [["Andesite", "#0a0"]] }]), [["Andesite", "#0a0"]]); // old rows unchanged
   assert.equal(swatchShape("point", 14).borderRadius, "50%");
   assert.equal(swatchShape("line", 14).height, 3);
+});
+
+test("#1122 map-layer legend rows carry the drape opacity (default 0.6 for polygons; none at full strength)", async () => {
+  const { mapLayerLegendGroups } = await import("../src/lib/legendGroups.js");
+  const g = mapLayerLegendGroups([
+    { id: 1, name: "Geology", geomType: "polygon", features: [{}], color: "#aa0000" },
+    { id: 2, name: "Faults", geomType: "polyline", features: [{}], color: "#000000" },
+    { id: 3, name: "Claims", geomType: "polygon", features: [{}], color: "#00aa00", opacity: 0.35 },
+  ]);
+  assert.deepEqual(g.map((x) => x.items[0][2]), [{ kind: "fill", opacity: 0.6 }, { kind: "line" }, { kind: "fill", opacity: 0.35 }]);
 });
