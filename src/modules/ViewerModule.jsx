@@ -2048,10 +2048,21 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // Converts an already-computed hit list to world coords, falling back to a flat plane at local y=0
   // (the origin's own elevation) when nothing real was hit. Split out of raycastWorldPoint so the
   // hover handler can reuse a hit list it already has.
+  // TASKS.csv #1125 — the nearest hit that is actually DRAWN. three.js raycasting ignores .visible, so a hidden voxel
+  // model, a toggled-off layer, a hidden hole or a filtered category was still hit: Matt's measure points landed on a
+  // model he had switched off (Woodjam with the ZTEM hidden: two clicks on empty space read 1.9 km, +141.5 m).
+  // Visible = the object and every ancestor visible, and a material that is shown and not fully transparent.
   const worldPointFromHits = useCallback((raycaster, hits) => {
     const o = originRef.current;
-    if (hits.length) {
-      const p = hits[0].point;
+    const drawn = (h) => {
+      const m = h.object.material;
+      if (m && (m.visible === false || (m.transparent && m.opacity < 0.02))) return false;
+      for (let n = h.object; n; n = n.parent) if (n.visible === false) return false;
+      return true;
+    };
+    const near = hits.find(drawn);
+    if (near) {
+      const p = near.point;
       return { x: p.x + o.x, y: -p.z + o.y, z: p.y + o.z };
     }
     const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
