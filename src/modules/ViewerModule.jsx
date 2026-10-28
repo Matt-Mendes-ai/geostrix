@@ -5826,6 +5826,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       return;
     }
     const ok = await loadSampleProject(which);
+    if (ok && which !== "woodjam") { // TASKS.csv #1124 — Harry's assays into Geochem with the drillhole tables
+      try {
+        const { loadHarryAssays } = await import("../lib/sampleHarry.js");
+        const notes = await loadHarryAssays(async (rel) => (await loadSampleFiles("harry_property", [rel]))[0], { setAssays, setAssayElements }, { existingElements: assayElements });
+        setNotices((p) => [...p, ...notes]);
+      } catch (e) { setNotices((p) => [...p, errorNotice(tr("Harry assays could not be loaded: {message}", { message: e.message }))]); }
+    }
     if (!ok || which !== "woodjam") return;
     try {
       const { loadWoodjamExtras, WOODJAM_EPSG } = await import("../lib/sampleWoodjam.js");

@@ -661,7 +661,7 @@ export function useImportPipeline(ctx) {
   // by loadSampleFiles(), so every confidence check, column guess and notice behaves exactly as if
   // the user had dragged these same CSVs onto the viewport. assay_wide.csv is intentionally NOT in
   // this list: assays belong to the Geochem module's own import path (looksLikeAssay would just
-  // reject it here with a notice), and the user is pointed there by the closing notice instead.
+  // reject it here with a notice). Since TASKS.csv #1124 the caller loads them (lib/sampleHarry.js).
   const [sampleLoading, setSampleLoading] = useState(false);
   // TASKS.csv #637 — two bundled sample projects; Woodjam's assays / ZTEM model / IP lines are loaded by the caller
   // (lib/sampleWoodjam.js) — only the drillhole tables go through this queue.
@@ -669,7 +669,7 @@ export function useImportPipeline(ctx) {
     harry: {
       dir: "harry_property", epsg: 3156, crs: "NAD83(CSRS) / UTM zone 9N",
       files: ["collars.csv", "litho.csv", "alt.csv", "vein.csv", "mnlgy.csv", "geotech.csv", "magsusc.csv", "structure.csv"],
-      notice: "Loading the Harry property sample project — 37 real drillholes from BC's public ARIS database (report #37584), with the interval layers synthesized around the real assay anomalies. See sample_data/harry_property/README.md for exactly what's real vs. synthetic. Assays for these holes can be imported from the Geochem tab (sample_data/harry_property/assay_wide.csv).",
+      notice: "Loading the Harry property sample project — 37 real drillholes from BC's public ARIS database (report #37584), with the interval layers synthesized around the real assay anomalies. See sample_data/harry_property/README.md for exactly what's real vs. synthetic. Their assays (assay_wide.csv) are loaded into the Geochem tab too.",
     },
     woodjam: {
       dir: "woodjam", epsg: 26910, crs: "NAD83 / UTM zone 10N",
