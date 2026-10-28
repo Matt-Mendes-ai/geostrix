@@ -172,3 +172,16 @@ test("#1028 an open surface's export says it encloses no volume, and states none
   assert.match(open, /Open surface: it encloses no volume/);
   assert.match(provenanceLines("Body", null, { volumeM3: 12345.6 }).join("\n"), /Enclosed volume: 12345\.6 m3/);
 });
+
+// TASKS.csv #1060 — a DXF of a drillhole layer names each entity's layer after its logged value; structure picks get a
+// "dip/dip direction" TEXT; with no layerOf, the layer is still the hole id
+test("#1060 DXF layers per logged value, and dip/dip-direction labels on picks", async () => {
+  const { buildDXF } = await import("../src/lib/dxf.js");
+  const ivs = [{ geometry: [[1, 2, 900], [1, 2, 890]], attributes: { hole_id: "DH1", value: "IMMOQ" } }, { geometry: [[1, 2, 890], [1, 2, 880]], attributes: { hole_id: "DH1", value: "VANSS" } }];
+  const d = buildDXF({ geomType: "polyline", features: ivs, layerOf: (f) => `LITHO_${f.attributes.value}` });
+  assert.match(d, /\n8\nLITHO_IMMOQ\n/); assert.match(d, /\n8\nLITHO_VANSS\n/); assert.ok(!/\n8\nDH1\n/.test(d));
+  const picks = [{ geometry: [[5, 6, 850]], attributes: { hole_id: "DH1", type: "BED", dip: 45, dipdir_grid: 90 } }];
+  const s = buildDXF({ geomType: "point", features: picks, layerOf: (f) => `STRUCTURE_${f.attributes.type}`, labelOf: (f) => `${f.attributes.dip}/${String(f.attributes.dipdir_grid).padStart(3, "0")}` });
+  assert.match(s, /\n0\nTEXT\n8\nSTRUCTURE_BED\n/); assert.match(s, /\n1\n45\/090\n/);
+  assert.match(buildDXF({ geomType: "polyline", features: ivs }), /\n8\nDH1\n/);
+});

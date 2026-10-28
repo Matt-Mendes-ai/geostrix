@@ -6230,5 +6230,8 @@
   "blank or non-numeric depth": "profondeur vide ou non numérique",
   "blank or non-numeric From": "De vide ou non numérique",
   "value not a number": "valeur non numérique",
-  "Skipped {n} of {m} row(s): {why}.": "{n} ligne(s) sur {m} ignorée(s) : {why}."
+  "Skipped {n} of {m} row(s): {why}.": "{n} ligne(s) sur {m} ignorée(s) : {why}.",
+  "Exported {features} feature(s) from \"{label}\" as a DXF (.dxf, R12, elevations kept). A DXF carries only layer names{v}: use Shapefile or GeoPackage for every attribute.": "{features} entité(s) de « {label} » exportée(s) en DXF (.dxf, R12, altitudes conservées). Un DXF ne porte que des noms de calque{v} : utilisez Shapefile ou GeoPackage pour tous les attributs.",
+  " (one per logged value{v2})": " (un par valeur relevée{v2})",
+  ", picks labelled dip/dip direction": ", mesures étiquetées pendage/direction de pendage"
 }

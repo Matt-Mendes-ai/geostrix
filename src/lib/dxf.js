@@ -449,7 +449,11 @@ function sanitizeLayerName(name) {
   return (String(name || "GEOSTRIX").replace(/[^A-Za-z0-9_.$-]+/g, "_") || "GEOSTRIX").slice(0, 255);
 }
 
-export function buildDXF({ features, geomType }) {
+// TASKS.csv #1060 (review #1016: Micromine user, structural geologist) — opts.layerOf(feature) names each entity's
+// layer (default: its hole id, as before) and opts.labelOf(feature) adds an R12 TEXT beside a point (a structure pick's
+// "dip/dip direction"). A DXF has no attribute table: 679 Woodjam lithology intervals went out on 19 per-hole layers
+// with none of the 25 rock codes in the file. Callers now name the layer after the logged value ("LITHO_IMMOQ").
+export function buildDXF({ features, geomType, layerOf = null, labelOf = null, textHeight = 1 }) {
   const lines = [];
   const put = (code, value) => { lines.push(String(code), String(value)); };
 
@@ -464,12 +468,14 @@ export function buildDXF({ features, geomType }) {
   // multi-vertex geometry with elevations becomes a 3D POLYLINE (flag 8) + VERTEX 10/20/30 entities,
   // which every package reading R12 DXF understands. A flat drill trace was useless to Vulcan/Datamine.
   features.forEach((f) => {
-    const layer = sanitizeLayerName(f.attributes?.hole_id);
+    const layer = sanitizeLayerName(layerOf ? layerOf(f) : f.attributes?.hole_id);
     const z = (p) => (Number.isFinite(p[2]) ? p[2] : 0);
     if (geomType === "point" || f.geometry.length === 1) {
       f.geometry.forEach((p) => {
         put(0, "POINT"); put(8, layer); put(10, p[0].toFixed(4)); put(20, p[1].toFixed(4)); put(30, z(p).toFixed(4));
       });
+      const label = labelOf ? labelOf(f) : null; // #1060
+      if (label) { const p = f.geometry[0]; put(0, "TEXT"); put(8, layer); put(10, (p[0] + textHeight * 0.6).toFixed(4)); put(20, p[1].toFixed(4)); put(30, z(p).toFixed(4)); put(40, textHeight); put(1, String(label).replace(/[\r\n]+/g, " ")); }
       return;
     }
     // a ring (polygon, or a string that ends where it starts): closed bit, without repeating the first vertex

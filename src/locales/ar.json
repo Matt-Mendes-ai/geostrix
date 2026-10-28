@@ -6230,5 +6230,8 @@
   "blank or non-numeric depth": "عمق فارغ أو غير رقمي",
   "blank or non-numeric From": "قيمة «من» فارغة أو غير رقمية",
   "value not a number": "القيمة ليست رقمًا",
-  "Skipped {n} of {m} row(s): {why}.": "تُخطّي {n} من {m} صف/صفوف: {why}."
+  "Skipped {n} of {m} row(s): {why}.": "تُخطّي {n} من {m} صف/صفوف: {why}.",
+  "Exported {features} feature(s) from \"{label}\" as a DXF (.dxf, R12, elevations kept). A DXF carries only layer names{v}: use Shapefile or GeoPackage for every attribute.": "صُدّرت {features} معلم/معالم من \"{label}\" بصيغة DXF (‏.dxf، R12، مع الارتفاعات). لا يحمل DXF إلا أسماء الطبقات{v}: استخدم Shapefile أو GeoPackage لكل السمات.",
+  " (one per logged value{v2})": " (واحدة لكل قيمة مسجلة{v2})",
+  ", picks labelled dip/dip direction": "، القراءات موسومة بالميل/اتجاه الميل"
 }

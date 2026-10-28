@@ -6230,5 +6230,8 @@
   "blank or non-numeric depth": "profundidad vacía o no numérica",
   "blank or non-numeric From": "Desde vacío o no numérico",
   "value not a number": "valor no numérico",
-  "Skipped {n} of {m} row(s): {why}.": "Se omitieron {n} de {m} fila(s): {why}."
+  "Skipped {n} of {m} row(s): {why}.": "Se omitieron {n} de {m} fila(s): {why}.",
+  "Exported {features} feature(s) from \"{label}\" as a DXF (.dxf, R12, elevations kept). A DXF carries only layer names{v}: use Shapefile or GeoPackage for every attribute.": "Se exportaron {features} entidad(es) de \"{label}\" como DXF (.dxf, R12, con elevaciones). Un DXF solo lleva nombres de capa{v}: use Shapefile o GeoPackage para todos los atributos.",
+  " (one per logged value{v2})": " (una por valor registrado{v2})",
+  ", picks labelled dip/dip direction": ", mediciones rotuladas buzamiento/dirección de buzamiento"
 }

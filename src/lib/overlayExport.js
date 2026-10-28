@@ -25,7 +25,9 @@ export function mapLayerFeatures(layer) {
     if (geomType === "point") parts.forEach((p) => features.push({ geometry: [p[0]], attributes }));
     else features.push({ geometry: parts[0], parts, attributes });
   });
-  return { features, geomType };
+  // #1060 — the DXF layer: the feature's category (its style field), else the map layer's name
+  const dxfLayerOf = (f) => (layer.styleField && f.attributes?.[layer.styleField] != null ? `${layer.styleField}_${f.attributes[layer.styleField]}` : layer.name || "MAP");
+  return { features, geomType, dxfLayerOf };
 }
 
 // ---------- boundaries / claims ----------
@@ -36,8 +38,9 @@ export function boundaryFeatures(b) {
   if (!lines.length) return { features: [], geomType: "polygon" };
   const closed = (b.closedFlags || []).length ? lines.every((_, i) => b.closedFlags[i] !== false) : true;
   const attributes = { name: b.name || "", kind: b.kind || "boundary" };
-  if (closed && lines.every((l) => l.length >= 3)) return { features: [{ geometry: lines[0], parts: lines, attributes }], geomType: "polygon" };
-  return { features: [{ geometry: lines[0], parts: lines, attributes }], geomType: "polyline" };
+  const dxfLayerOf = () => b.name || "BOUNDARY"; // #1060
+  if (closed && lines.every((l) => l.length >= 3)) return { features: [{ geometry: lines[0], parts: lines, attributes }], geomType: "polygon", dxfLayerOf };
+  return { features: [{ geometry: lines[0], parts: lines, attributes }], geomType: "polyline", dxfLayerOf };
 }
 
 // ---------- surface samples ----------
@@ -153,6 +156,6 @@ export function mapLayerColorOf(layer) {
 }
 
 // DXF takes one vertex list per feature: every part (ring or line piece) becomes its own entity
-export function explodeParts({ features, geomType }) {
-  return { geomType, features: features.flatMap((f) => (f.parts?.length > 1 ? f.parts.map((p) => ({ ...f, geometry: p, parts: [p] })) : [f])) };
+export function explodeParts({ features, geomType, ...rest }) {
+  return { ...rest, geomType, features: features.flatMap((f) => (f.parts?.length > 1 ? f.parts.map((p) => ({ ...f, geometry: p, parts: [p] })) : [f])) };
 }

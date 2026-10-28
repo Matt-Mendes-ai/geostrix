@@ -6077,14 +6077,19 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!features.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — no rows with usable/desurveyed coordinates.", { label })]); return; }
     try {
       const { buildDXF } = await import("../lib/dxf.js"); // #552 — on demand
-      const dxfText = buildDXF({ features, geomType });
+      // #1060 — a drillhole interval / point / structure layer: one DXF layer per logged value, structure picks labelled
+      // "dip/dip direction"; collars and traces keep one layer per hole; a map layer or boundary one per category / name
+      const valueLayer = !built && kind === "layer" && key ? (f) => `${String(key).toUpperCase()}_${f.attributes?.value ?? f.attributes?.type ?? "NONE"}` : null;
+      const pickLabel = !built && key === "structure" ? (f) => { const a = f.attributes || {}; return Number.isFinite(a.dip) ? `${Math.round(a.dip)}/${Number.isFinite(a.dipdir_grid) ? String(Math.round(a.dipdir_grid)).padStart(3, "0") : "?"}` : null; } : null;
+      const builtLayer = built?.dxfLayerOf || null;
+      const dxfText = buildDXF({ features, geomType, layerOf: valueLayer || builtLayer, labelOf: pickLabel });
       const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.dxf`,
         filters: [{ name: "DXF", extensions: ["dxf"] }],
         content: dxfText,
       });
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; } // cancelled: say nothing
-      setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as a DXF (.dxf, R12, elevations kept).", { features: features.length, label })]);
+      setNotices((p) => [...p, notice("Exported {features} feature(s) from \"{label}\" as a DXF (.dxf, R12, elevations kept). A DXF carries only layer names{v}: use Shapefile or GeoPackage for every attribute.", { features: features.length, label, v: valueLayer ? tr(" (one per logged value{v2})", { v2: pickLabel ? tr(", picks labelled dip/dip direction") : "" }) : "" })]); // #1060
     } catch (err) {
       setNotices((p) => [...p, errorNotice(tr("DXF export failed: {message}", { message: err.message }))]);
     }
