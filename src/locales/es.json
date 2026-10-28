@@ -1751,7 +1751,6 @@
   "No assays loaded": "No hay ensayes cargados",
   "{surfaceSamples} samples · {surfaceElements} elements": "{surfaceSamples} muestras · {surfaceElements} elementos",
   "No surface samples loaded": "No hay muestras superficiales cargadas",
-  "Or drag a CSV or Excel workbook (.xlsx — the sheet with the most element columns is read) anywhere on this page — filenames with \"pxrf\"/\"xrf\" go to the pXRF path, everything else imports as assays.": "O arrastre un CSV o libro de Excel (.xlsx — se lee la hoja con más columnas de elementos) a cualquier parte de esta página — los archivos con \"pxrf\"/\"xrf\" en el nombre van por la ruta pXRF; todo lo demás se importa como ensayes.",
   "Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.": "Clasificaciones de nivel de cribado — una primera pasada, no un sustituto de un gráfico adecuado y una revisión petrológica.",
   "Calculated element": "Elemento calculado",
   "Preset": "Predefinido",
@@ -1787,7 +1786,6 @@
   "The Harry property sample: assays of 37 real drillholes from BC's public ARIS database (report #37584)": "La muestra de la propiedad Harry: ensayes de 37 sondajes reales de la base pública ARIS de BC (informe #37584)",
   "Loading sample…": "Cargando muestra…",
   "Load sample assays": "Cargar ensayes de muestra",
-  "An assay CSV needs a hole ID, from/to depths and one column per element; a surface-sample CSV needs x/y instead. Both are picked up automatically.": "Un CSV de ensayes necesita un ID de sondaje, profundidades desde/hasta y una columna por elemento; un CSV de muestras superficiales necesita x/y en su lugar. Ambos se detectan automáticamente.",
   "Ternary, bivariate and REE-spider diagrams over your assay or pXRF data, plus alteration indices, correlation matrices, QAQC and downhole compositing. Import a file to start plotting.": "Diagramas ternarios, bivariados y spider de REE sobre sus datos de ensayes o pXRF, más índices de alteración, matrices de correlación, QAQC y compositación en profundidad. Importe un archivo para empezar a graficar.",
   "{n} of {assays} samples have at least one plottable element.": "{n} de {assays} muestras tienen al menos un elemento graficable.",
   "{n} of {assays} samples plotted.": "{n} de {assays} muestras graficadas.",
@@ -6279,5 +6277,10 @@
   "Linear scale": "Escala lineal",
   "ppm ({v})": "ppm ({v})",
   "log": "log",
-  "linear": "lineal"
+  "linear": "lineal",
+  "{name}: coordinates and no from / to depths, so it was opened as surface samples (soils, silts, rocks). Drillhole assays need a hole ID and from / to.": "{name}: tiene coordenadas y no profundidades desde / hasta, así que se abrió como muestras de superficie (suelos, sedimentos, rocas). Los ensayes de sondaje necesitan un ID de sondaje y desde / hasta.",
+  "{n} surface samples loaded; the diagrams here plot drillhole assays": "{n} muestras de superficie cargadas; los diagramas de aquí grafican ensayes de sondaje",
+  "Your surface samples are used by Thresholds, Domains, Catchments and Surface QAQC in the ribbon above, and are drawn on the Maps tab.": "Sus muestras de superficie se usan en Umbrales, Dominios, Cuencas y QAQC de superficie en la cinta de arriba, y se dibujan en la pestaña Mapas.",
+  "An assay CSV needs a hole ID, from/to depths and one column per element. A table with x/y (easting / northing) and no from/to opens as surface samples instead.": "Un CSV de ensayes necesita un ID de sondaje, profundidades desde/hasta y una columna por elemento. Una tabla con x/y (este / norte) y sin desde/hasta se abre como muestras de superficie.",
+  "Or drag a CSV or Excel workbook (.xlsx — the sheet with the most element columns is read) anywhere on this page — filenames with \"pxrf\"/\"xrf\" go to the pXRF path, a table with x/y and no from / to opens as surface samples, everything else imports as assays.": "O arrastre un CSV o libro de Excel (.xlsx — se lee la hoja con más columnas de elementos) a cualquier parte de esta página — los archivos con \"pxrf\"/\"xrf\" en el nombre van por la ruta pXRF; una tabla con x/y y sin desde / hasta se abre como muestras de superficie, todo lo demás se importa como ensayes."
 }

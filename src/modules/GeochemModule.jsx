@@ -214,6 +214,14 @@ export default function GeochemModule() {
       openAssayModal(file, pv.headers, pv.rows, isPxrf, preset);
       return;
     }
+    // TASKS.csv #1086 (review #1016, onboarding) — a table with coordinates and no from / to is surface samples (soils,
+    // silts, rocks): it went down the drill-assay path and ended as "{n} row(s) skipped: no hole id, or a blank from or to"
+    // with no pointer to the Surface samples import. It now opens that dialog, with a notice saying why.
+    if (!preset && isSurfaceSampleTable(headers)) { // the #975 test the database path already uses
+      setNotices((p) => [...p, tr("{name}: coordinates and no from / to depths, so it was opened as surface samples (soils, silts, rocks). Drillhole assays need a hole ID and from / to.", { name: file.name })]);
+      openSurfaceRows(file, headers, data);
+      return;
+    }
     openAssayModal(file, headers, data, isPxrf, preset);
   };
 
@@ -845,7 +853,7 @@ export default function GeochemModule() {
         <div style={{ fontSize: 11, color: "#65717e", margin: "10px 0 4px" }}>
           {surfaceSamples.length ? tr("{surfaceSamples} samples · {surfaceElements} elements", { surfaceSamples: surfaceSamples.length, surfaceElements: surfaceElements.length }) : tr("No surface samples loaded")}
         </div>
-        <div style={{ fontSize: 10, color: "#65717e", marginTop: 2, lineHeight: 1.4 }}>{tr("Or drag a CSV or Excel workbook (.xlsx — the sheet with the most element columns is read) anywhere on this page — filenames with \"pxrf\"/\"xrf\" go to the pXRF path, everything else imports as assays.")}</div>
+        <div style={{ fontSize: 10, color: "#65717e", marginTop: 2, lineHeight: 1.4 }}>{tr("Or drag a CSV or Excel workbook (.xlsx — the sheet with the most element columns is read) anywhere on this page — filenames with \"pxrf\"/\"xrf\" go to the pXRF path, a table with x/y and no from / to opens as surface samples, everything else imports as assays.")}</div>
         {assayElements.length > 0 && <div style={{ fontSize: 10, color: "#65717e", marginTop: 8, lineHeight: 1.5 }}>{tr("Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.")}</div>}
 
         {/* TASKS.csv #401 — calculated element form, opened from the ribbon */}
@@ -973,7 +981,7 @@ export default function GeochemModule() {
           <div style={{ flex: 1, position: "relative", minHeight: 260 }}>
             <EmptyState
               icon={<FlaskConical size={18} />}
-              headline={tr("No assay data yet")}
+              headline={surfaceSamples.length ? tr("{n} surface samples loaded; the diagrams here plot drillhole assays", { n: surfaceSamples.length.toLocaleString() }) : tr("No assay data yet")} /* #1086 */
               actionLabel={tr("Import assays…")}
               onAction={() => fileRef.current.click()}
               actionTitle={tr("Pick an assay CSV — a hole ID, from/to depths, and one column per element")}
@@ -986,9 +994,10 @@ export default function GeochemModule() {
                   </button>
                 </>
               }
-              footnote={tr("An assay CSV needs a hole ID, from/to depths and one column per element; a surface-sample CSV needs x/y instead. Both are picked up automatically.")}
+              footnote={tr("An assay CSV needs a hole ID, from/to depths and one column per element. A table with x/y (easting / northing) and no from/to opens as surface samples instead.")}
             >
               <div style={{ marginBottom: 12 }}>{tr("Ternary, bivariate and REE-spider diagrams over your assay or pXRF data, plus alteration indices, correlation matrices, QAQC and downhole compositing. Import a file to start plotting.")}</div>
+              {surfaceSamples.length > 0 && <div style={{ marginBottom: 12 }}>{tr("Your surface samples are used by Thresholds, Domains, Catchments and Surface QAQC in the ribbon above, and are drawn on the Maps tab.")}</div>}{/* #1086 */}
             </EmptyState>
           </div>
         ) : (

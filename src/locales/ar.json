@@ -1751,7 +1751,6 @@
   "No assays loaded": "لا تحاليل محمّلة",
   "{surfaceSamples} samples · {surfaceElements} elements": "{surfaceSamples} عينة · {surfaceElements} عنصر",
   "No surface samples loaded": "لا عينات سطحية محمّلة",
-  "Or drag a CSV or Excel workbook (.xlsx — the sheet with the most element columns is read) anywhere on this page — filenames with \"pxrf\"/\"xrf\" go to the pXRF path, everything else imports as assays.": "أو اسحب ملف CSV أو مصنف Excel (.xlsx — تُقرأ الورقة ذات أكثر أعمدة العناصر) إلى أي مكان في هذه الصفحة — الملفات التي تحوي أسماؤها «pxrf»/«xrf» تذهب إلى مسار pXRF، وكل ما عداها يُستورد كتحاليل.",
   "Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.": "تصنيفات بمستوى الفرز الأولي — تمريرة أولى، لا بديل عن مخطط مناسب ومراجعة صخرية.",
   "Calculated element": "عنصر محسوب",
   "Preset": "إعداد مسبق",
@@ -1787,7 +1786,6 @@
   "The Harry property sample: assays of 37 real drillholes from BC's public ARIS database (report #37584)": "عينة ملكية Harry: تحاليل 37 ثقبًا حقيقيًا من قاعدة بيانات ARIS العامة في كولومبيا البريطانية (التقرير رقم 37584)",
   "Loading sample…": "جارٍ تحميل العينة…",
   "Load sample assays": "تحميل تحاليل العينة",
-  "An assay CSV needs a hole ID, from/to depths and one column per element; a surface-sample CSV needs x/y instead. Both are picked up automatically.": "يحتاج ملف CSV للتحاليل معرّف ثقب وأعماق من/إلى وعمودًا لكل عنصر؛ ويحتاج ملف CSV للعينات السطحية x/y بدلًا من ذلك. يُكتشف كلاهما تلقائيًا.",
   "Ternary, bivariate and REE-spider diagrams over your assay or pXRF data, plus alteration indices, correlation matrices, QAQC and downhole compositing. Import a file to start plotting.": "مخططات ثلاثية وثنائية ومخططات العناصر الأرضية النادرة لبيانات تحاليلك أو pXRF، مع مؤشرات التحول ومصفوفات الارتباط وQAQC والتركيب على طول الثقب. استورد ملفًا للبدء.",
   "{n} of {assays} samples have at least one plottable element.": "{n} من {assays} عينة فيها عنصر واحد قابل للرسم على الأقل.",
   "{n} of {assays} samples plotted.": "رُسمت {n} من {assays} عينة.",
@@ -6279,5 +6277,10 @@
   "Linear scale": "مقياس خطي",
   "ppm ({v})": "ppm ({v})",
   "log": "لوغاريتمي",
-  "linear": "خطي"
+  "linear": "خطي",
+  "{name}: coordinates and no from / to depths, so it was opened as surface samples (soils, silts, rocks). Drillhole assays need a hole ID and from / to.": "{name}: يحتوي على إحداثيات دون أعماق من / إلى، لذا فُتح كعينات سطحية (تربة، رواسب، صخور). تحتاج تحاليل ثقوب الحفر إلى معرّف الثقب ومن / إلى.",
+  "{n} surface samples loaded; the diagrams here plot drillhole assays": "تم تحميل {n} عينة سطحية؛ المخططات هنا ترسم تحاليل ثقوب الحفر",
+  "Your surface samples are used by Thresholds, Domains, Catchments and Surface QAQC in the ribbon above, and are drawn on the Maps tab.": "تُستخدم عيناتك السطحية في العتبات والنطاقات ومستجمعات المياه وضبط جودة العينات السطحية في الشريط أعلاه، وتُرسم في تبويب الخرائط.",
+  "An assay CSV needs a hole ID, from/to depths and one column per element. A table with x/y (easting / northing) and no from/to opens as surface samples instead.": "يحتاج ملف CSV للتحاليل إلى معرّف الثقب وأعماق من/إلى وعمود لكل عنصر. الجدول الذي يحتوي x/y (الشرقيات / الشماليات) دون من/إلى يُفتح كعينات سطحية.",
+  "Or drag a CSV or Excel workbook (.xlsx — the sheet with the most element columns is read) anywhere on this page — filenames with \"pxrf\"/\"xrf\" go to the pXRF path, a table with x/y and no from / to opens as surface samples, everything else imports as assays.": "أو اسحب ملف CSV أو مصنف Excel (.xlsx — تُقرأ الورقة ذات أكثر أعمدة العناصر) إلى أي مكان في هذه الصفحة — الملفات التي تحوي أسماؤها «pxrf»/«xrf» تذهب إلى مسار pXRF، والجدول الذي يحتوي x/y دون من / إلى يُفتح كعينات سطحية، وكل ما عداها يُستورد كتحاليل."
 }

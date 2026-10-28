@@ -1751,7 +1751,6 @@
   "No assays loaded": "Nenhuma análise carregada",
   "{surfaceSamples} samples · {surfaceElements} elements": "{surfaceSamples} amostras · {surfaceElements} elementos",
   "No surface samples loaded": "Nenhuma amostra de superfície carregada",
-  "Or drag a CSV or Excel workbook (.xlsx — the sheet with the most element columns is read) anywhere on this page — filenames with \"pxrf\"/\"xrf\" go to the pXRF path, everything else imports as assays.": "Ou arraste um CSV ou pasta de trabalho do Excel (.xlsx — é lida a planilha com mais colunas de elementos) para qualquer parte desta página — arquivos com \"pxrf\"/\"xrf\" no nome vão pelo caminho pXRF; todo o resto é importado como análises.",
   "Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.": "Classificações de nível de triagem — uma primeira passada, não um substituto para um gráfico adequado e uma revisão petrológica.",
   "Calculated element": "Elemento calculado",
   "Preset": "Predefinido",
@@ -1787,7 +1786,6 @@
   "The Harry property sample: assays of 37 real drillholes from BC's public ARIS database (report #37584)": "A amostra da propriedade Harry: análises de 37 furos reais do banco público ARIS da BC (relatório #37584)",
   "Loading sample…": "Carregando amostra…",
   "Load sample assays": "Carregar análises de exemplo",
-  "An assay CSV needs a hole ID, from/to depths and one column per element; a surface-sample CSV needs x/y instead. Both are picked up automatically.": "Um CSV de análises precisa de um ID de furo, profundidades de/até e uma coluna por elemento; um CSV de amostras de superfície precisa de x/y no lugar. Ambos são detectados automaticamente.",
   "Ternary, bivariate and REE-spider diagrams over your assay or pXRF data, plus alteration indices, correlation matrices, QAQC and downhole compositing. Import a file to start plotting.": "Diagramas ternários, bivariados e spider de ETR sobre seus dados de análises ou pXRF, além de índices de alteração, matrizes de correlação, QAQC e compositagem ao longo do furo. Importe um arquivo para começar a plotar.",
   "{n} of {assays} samples have at least one plottable element.": "{n} de {assays} amostras têm pelo menos um elemento plotável.",
   "{n} of {assays} samples plotted.": "{n} de {assays} amostras plotadas.",
@@ -6279,5 +6277,10 @@
   "Linear scale": "Escala linear",
   "ppm ({v})": "ppm ({v})",
   "log": "log",
-  "linear": "linear"
+  "linear": "linear",
+  "{name}: coordinates and no from / to depths, so it was opened as surface samples (soils, silts, rocks). Drillhole assays need a hole ID and from / to.": "{name}: tem coordenadas e não tem profundidades de / até, então foi aberto como amostras de superfície (solos, sedimentos, rochas). Análises de furo precisam de um ID de furo e de / até.",
+  "{n} surface samples loaded; the diagrams here plot drillhole assays": "{n} amostras de superfície carregadas; os diagramas daqui plotam análises de furos",
+  "Your surface samples are used by Thresholds, Domains, Catchments and Surface QAQC in the ribbon above, and are drawn on the Maps tab.": "Suas amostras de superfície são usadas por Limiares, Domínios, Bacias e QAQC de superfície na faixa acima, e aparecem na aba Mapas.",
+  "An assay CSV needs a hole ID, from/to depths and one column per element. A table with x/y (easting / northing) and no from/to opens as surface samples instead.": "Um CSV de análises precisa de um ID de furo, profundidades de/até e uma coluna por elemento. Uma tabela com x/y (leste / norte) e sem de/até abre como amostras de superfície.",
+  "Or drag a CSV or Excel workbook (.xlsx — the sheet with the most element columns is read) anywhere on this page — filenames with \"pxrf\"/\"xrf\" go to the pXRF path, a table with x/y and no from / to opens as surface samples, everything else imports as assays.": "Ou arraste um CSV ou pasta de trabalho do Excel (.xlsx — é lida a planilha com mais colunas de elementos) para qualquer parte desta página — arquivos com \"pxrf\"/\"xrf\" no nome vão pelo caminho pXRF; uma tabela com x/y e sem de / até abre como amostras de superfície, todo o resto é importado como análises."
 }

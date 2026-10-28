@@ -1751,7 +1751,6 @@
   "No assays loaded": "Aucune analyse chargée",
   "{surfaceSamples} samples · {surfaceElements} elements": "{surfaceSamples} échantillons · {surfaceElements} éléments",
   "No surface samples loaded": "Aucun échantillon de surface chargé",
-  "Or drag a CSV or Excel workbook (.xlsx — the sheet with the most element columns is read) anywhere on this page — filenames with \"pxrf\"/\"xrf\" go to the pXRF path, everything else imports as assays.": "Ou glissez un CSV ou un classeur Excel (.xlsx — la feuille avec le plus de colonnes d'éléments est lue) n'importe où sur cette page — les noms de fichiers contenant « pxrf »/« xrf » vont vers le chemin pXRF, tout le reste est importé comme analyses.",
   "Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.": "Classifications de niveau de criblage — une première passe, pas un substitut à un vrai diagramme et à une revue pétrologique.",
   "Calculated element": "Élément calculé",
   "Preset": "Préréglage",
@@ -1787,7 +1786,6 @@
   "The Harry property sample: assays of 37 real drillholes from BC's public ARIS database (report #37584)": "L'échantillon de la propriété Harry : analyses de 37 vrais sondages de la base publique ARIS de la C.-B. (rapport n° 37584)",
   "Loading sample…": "Chargement de l'échantillon…",
   "Load sample assays": "Charger les analyses d'exemple",
-  "An assay CSV needs a hole ID, from/to depths and one column per element; a surface-sample CSV needs x/y instead. Both are picked up automatically.": "Un CSV d'analyses nécessite un ID de sondage, les profondeurs de/à et une colonne par élément ; un CSV d'échantillons de surface nécessite plutôt x/y. Les deux sont détectés automatiquement.",
   "Ternary, bivariate and REE-spider diagrams over your assay or pXRF data, plus alteration indices, correlation matrices, QAQC and downhole compositing. Import a file to start plotting.": "Diagrammes ternaires, bivariés et araignées de terres rares sur vos données d'analyses ou pXRF, plus indices d'altération, matrices de corrélation, QAQC et compositage le long du sondage. Importez un fichier pour commencer.",
   "{n} of {assays} samples have at least one plottable element.": "{n} sur {assays} échantillons ont au moins un élément traçable.",
   "{n} of {assays} samples plotted.": "{n} sur {assays} échantillons tracés.",
@@ -6279,5 +6277,10 @@
   "Linear scale": "Échelle linéaire",
   "ppm ({v})": "ppm ({v})",
   "log": "log",
-  "linear": "linéaire"
+  "linear": "linéaire",
+  "{name}: coordinates and no from / to depths, so it was opened as surface samples (soils, silts, rocks). Drillhole assays need a hole ID and from / to.": "{name} : des coordonnées et pas de profondeurs de / à, donc ouvert comme échantillons de surface (sols, sédiments, roches). Les teneurs de sondage demandent un identifiant de sondage et de / à.",
+  "{n} surface samples loaded; the diagrams here plot drillhole assays": "{n} échantillons de surface chargés ; les diagrammes d’ici tracent les teneurs de sondage",
+  "Your surface samples are used by Thresholds, Domains, Catchments and Surface QAQC in the ribbon above, and are drawn on the Maps tab.": "Vos échantillons de surface servent aux Seuils, Domaines, Bassins versants et QAQC de surface dans le ruban ci-dessus, et sont dessinés dans l’onglet Cartes.",
+  "An assay CSV needs a hole ID, from/to depths and one column per element. A table with x/y (easting / northing) and no from/to opens as surface samples instead.": "Un CSV de teneurs demande un identifiant de sondage, des profondeurs de/à et une colonne par élément. Une table avec x/y (est / nord) sans de/à s’ouvre comme échantillons de surface.",
+  "Or drag a CSV or Excel workbook (.xlsx — the sheet with the most element columns is read) anywhere on this page — filenames with \"pxrf\"/\"xrf\" go to the pXRF path, a table with x/y and no from / to opens as surface samples, everything else imports as assays.": "Ou glissez un CSV ou un classeur Excel (.xlsx — la feuille avec le plus de colonnes d'éléments est lue) n'importe où sur cette page — les noms de fichiers contenant « pxrf »/« xrf » vont vers le chemin pXRF, une table avec x/y sans de / à s’ouvre comme échantillons de surface, tout le reste est importé comme analyses."
 }
