@@ -4,6 +4,7 @@ import { validateSolid } from "../lib/meshValidate.js"; // TASKS.csv #860
 import { X, Play } from "./icons.js";
 import { compositeDownhole, rawSampleIntervals, PRECIOUS_METALS, capAudit } from "../lib/geochem.js"; // rawSampleIntervals: #571
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
+import EstimateCheck from "./EstimateCheck.jsx"; // TASKS.csv #1051
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #266
 import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport } from "../lib/estimation.js";
 import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
@@ -30,7 +31,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 export default function GradeEstimationModal({ assays, assayElements, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend = null, groundAt = null }) { // groundAt: TASKS.csv #803
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
-  const { desurveyMethod, voxelModels } = useStore(); // TASKS.csv #135 — estimation samples must sit on the same trace the 3D view draws
+  const { desurveyMethod, voxelModels, project } = useStore(); // TASKS.csv #135 — estimation samples must sit on the same trace the 3D view draws
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   const [symbol, setSymbol] = useState(symbols[0] || "Au");
@@ -238,7 +239,14 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           support: classifySupport,                              // TASKS.csv #91/#92
           ...(method === "ok" ? { variogram: { model: vgModel, ...(vgNugget !== "" && vgSill !== "" && vgRange !== "" ? { nugget: Number(vgNugget), sill: Number(vgSill), range: Number(vgRange) } : {}) } } : {}), // #709
           ...(trend ? { trend: { basis: trendBasis(trend), scales: trendSearchScales(trend) } } : {}), // TASKS.csv #650 — ellipsoidal search
-        }, { onProgress: setProgress, signal: ac.signal });
+        }, { onProgress: (f) => setProgress(method === "nn" ? f : 0.8 * f), signal: ac.signal });
+        // TASKS.csv #1051 — a nearest-neighbour model over the same grid, search, domains and trend (one sample per block,
+        // so it is cheap): its mean over the same blocks is the declustered mean the estimate is checked against
+        const nnEst = method === "nn" ? est : await runEstimation("block", points, {
+          bounds, cellSize: cell3, maxBlocks: blockBudget, method: "nn", searchRadius: searchRadius > 0 ? searchRadius : gridDiagonal,
+          minSamples: 1, maxSamples: 1, minHoles: 1, restrictToDomain: restrictToDomain && !!domainKey,
+          ...(trend ? { trend: { basis: trendBasis(trend), scales: trendSearchScales(trend) } } : {}),
+        }, { onProgress: (f) => setProgress(0.8 + 0.2 * f), signal: ac.signal });
         // TASKS.csv #404 — the parameters are captured AT RUN TIME (the form can be edited before
         // "Add to project"), and travel with the block model into the project file.
         const params = {
@@ -275,7 +283,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           params.cutAtTerrain = `${cut} block(s) whose centre is above the terrain dropped`;
           est.cutAboveGround = cut;
         }
-        setResult({ ...est, params, samplePointCount: points.length, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
+        setResult({ ...est, params, nnCells: method === "nn" ? est.cells : nnEst.cells, checkPoints: points, samplePointCount: points.length, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
         setAdded(false); setAddedSupport(false); setAddedKv(false); // a fresh run invalidates every "Added ✓" state
       } catch (e) {
         setError(e.cancelled ? tr("Estimation cancelled.") : (e.message || tr("Estimation failed.")));
@@ -575,6 +583,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
                   <div style={{ marginTop: 5, color: "var(--color-text-muted)" }}>{tr("Only blocks whose informing composites bracket them on all three axes, from at least two holes, count as interpolated. Everything else with a value is being carried outward from the data rather than between it — a real number, but not an interpolation.")}</div>
                 </div>
               )}
+              {result.blocksEstimated > 0 && result.nnCells && <EstimateCheck cells={result.cells} nnCells={result.nnCells} points={result.checkPoints} unit={unit} symbol={symbol} method={result.params.method} epsg={project?.epsg ?? null} />}
               {result.blocksEstimated > 0 && (
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
                   <input placeholder={tr("{symbol} estimate ({method}, {cellSize}m)", { symbol, method, cellSize: cellLabel })} value={modelName} onChange={(e) => { setModelName(e.target.value); setAdded(false); setAddedSupport(false); }} style={{ ...inp, flex: 1, width: "auto" }} />
