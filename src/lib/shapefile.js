@@ -64,9 +64,10 @@ function buildShpShx(features, geomType) {
     const body = new ByteWriter();
     body.push(i32le(shapeType));
     if (geomType === "point") {
-      // PointZ record: ShapeType, X, Y, Z, M (M unused)
+      // PointZ record: ShapeType, X, Y, Z. TASKS.csv #1107 (review #1016) — no M: it is optional in Z records (the record
+      // length says it is absent) and writing 0 made GDAL / QGIS read "3D Measured Point" (PointZM) with measure 0
       const [x, y, z] = f.geometry[0];
-      body.push(f64le(x)); body.push(f64le(y)); body.push(f64le(z ?? 0)); body.push(f64le(0));
+      body.push(f64le(x)); body.push(f64le(y)); body.push(f64le(z ?? 0));
     } else {
       const parts = partsOf(f);
       const pts = parts.flat();
@@ -84,8 +85,7 @@ function buildShpShx(features, geomType) {
       pts.forEach(([x, y]) => { body.push(f64le(x)); body.push(f64le(y)); });
       body.push(f64le(fzmin)); body.push(f64le(fzmax));
       pts.forEach(([, , z]) => body.push(f64le(z ?? 0)));
-      body.push(f64le(0)); body.push(f64le(0)); // Mmin, Mmax (unused)
-      pts.forEach(() => body.push(f64le(0))); // M array (unused, still required to be present)
+      // #1107 — no M range / M array (optional; their presence made the layer LineStringZM / PolygonZM with measure 0)
     }
     shpRecords.push({ idx, body });
   });
@@ -144,7 +144,12 @@ function buildDbf(features, columns, { keepCase = false } = {}) {
       if (typeof v !== "number") { numeric = false; break; }
     }
     const name = (keepCase ? col.slice(0, 10) : col.slice(0, 10).toUpperCase()).replace(/[^A-Za-z0-9_]/g, "_") || "FIELD";
-    if (numeric) return { name, type: "N", len: 19, dec: 6 };
+    // TASKS.csv #1107 — whole-number columns as N(9,0) (GDAL / QGIS: Integer) or N(18,0) (Integer64), not Real (19.6)
+    if (numeric) {
+      let whole = true, big = false;
+      for (const f of features) { const v = f.attributes[col]; if (typeof v !== "number" || !Number.isFinite(v)) continue; if (!Number.isInteger(v) || Math.abs(v) > 99999999999999999) { whole = false; break; } if (Math.abs(v) > 99999999) big = true; }
+      return whole ? { name, type: "N", len: big ? 18 : 9, dec: 0 } : { name, type: "N", len: 19, dec: 6 };
+    }
     // #487 — as wide as the longest value (UTF-8 bytes), 1..254; was always 60, which cut longer text
     let len = 1;
     for (const f of features) { const v = f.attributes[col]; if (v != null) len = Math.max(len, UTF8.encode(String(v)).length); }
