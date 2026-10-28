@@ -6238,5 +6238,6 @@
   "Provenance notes": "Notas de procedência",
   "automatic (beside the CSV for Micromine names)": "automático (ao lado do CSV com nomes do Micromine)",
   "in the CSV (# lines above the header)": "no CSV (linhas # acima do cabeçalho)",
-  "beside the CSV (.zip with a _provenance.txt)": "ao lado do CSV (.zip com um _provenance.txt)"
+  "beside the CSV (.zip with a _provenance.txt)": "ao lado do CSV (.zip com um _provenance.txt)",
+  "no declustering and no classification. Domain control applies only if you both select a domain layer and tick \"restrict the interpolation search\"; high-grade capping applies only if you enter a cap. Every one of those is an assumption you are making, not a property of the data.": "sem desagrupamento e sem classificação. O controle por domínio só se aplica se você escolher uma camada de domínio e também marcar \"restringir a busca de interpolação\"; o corte de teores altos só se aplica se você informar um corte. Cada um deles é uma suposição sua, não uma propriedade dos dados."
 }

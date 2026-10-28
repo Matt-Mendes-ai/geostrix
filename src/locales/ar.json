@@ -6238,5 +6238,6 @@
   "Provenance notes": "ملاحظات المصدر",
   "automatic (beside the CSV for Micromine names)": "تلقائي (بجانب CSV مع أسماء Micromine)",
   "in the CSV (# lines above the header)": "داخل CSV (أسطر # فوق الترويسة)",
-  "beside the CSV (.zip with a _provenance.txt)": "بجانب CSV (‎.zip مع ملف ‎_provenance.txt)"
+  "beside the CSV (.zip with a _provenance.txt)": "بجانب CSV (‎.zip مع ملف ‎_provenance.txt)",
+  "no declustering and no classification. Domain control applies only if you both select a domain layer and tick \"restrict the interpolation search\"; high-grade capping applies only if you enter a cap. Every one of those is an assumption you are making, not a property of the data.": "إزالة تجمع ولا تصنيف. يُطبق التحكم بالنطاق فقط إذا حددت طبقة نطاق وحددت «تقييد بحث الاستكمال» معًا؛ ويُطبق سقف المحتوى العالي فقط إذا أدخلت سقفًا. كل واحد من هذه افتراض تضعه أنت، لا خاصية للبيانات."
 }
