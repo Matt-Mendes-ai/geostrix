@@ -147,7 +147,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
       ))}
       <div style={row}><span style={{ width: 70, flexShrink: 0 }}>{tr("Contacts")}</span>
         <select value={relation} onChange={(e) => setRelation(e.target.value)} style={sel} aria-label={tr("Contact relation")}>
-          <option value="onlap">{tr("Conformable (units onlap)")}</option><option value="erode">{tr("Erosional (each unit truncates those below)")}</option>
+          <option value="onlap">{tr("Conformable (one shared field: units cannot pinch out)")}</option><option value="erode">{tr("Erosional (each unit truncates those below)")}</option>
         </select></div>
       <button onClick={() => onRun({ layer, field: unitField, order, bedding, planes, faults: faults.filter((f) => f.on).map((f) => ({ name: f.name, line: f.line, dip: f.dip, dipDir: f.dipDir })), relation, leftOut })}
         disabled={busy || !groundAt || order.length < 2} style={{ ...pBtn, justifyContent: "center", opacity: busy || !groundAt || order.length < 2 ? 0.5 : 1 }}>

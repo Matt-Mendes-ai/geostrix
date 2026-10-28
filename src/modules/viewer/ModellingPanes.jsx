@@ -675,15 +675,15 @@ export default function ModellingPanes(props) {
           </div>
         ))}
         {/* TASKS.csv #271 — GemPy's own StructuralGroup semantics, exposed instead of hardcoded. */}
-        <label style={{ display: "block", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title={tr("Erode: each younger unit truncates everything below it — an erosional unconformity. Onlap: units drape onto and terminate against the surface below rather than cutting it — a conformable pile, which is the usual case for a volcanic stratigraphy (and so for VMS-hosting sequences).")}>{tr("Unit relationship")}<select value={stackRelation} onChange={(e) => setStackRelation(e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }}>
+        <label style={{ display: "block", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title={tr("Erode: each younger unit truncates everything below it (an erosional unconformity), and a unit missing between its neighbours in a hole pinches out there. Conformable: every unit is a level of one shared field, so the surfaces stay parallel, never cross and never meet: a unit keeps a thickness everywhere and cannot pinch out.")}>{tr("Unit relationship")}<select value={stackRelation} onChange={(e) => setStackRelation(e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }}>
             <option value="erode">{tr("Erode — younger units truncate older (unconformity)")}</option>
-            <option value="onlap">{tr("Onlap — units drape/terminate against those below (conformable pile)")}</option>
+            <option value="onlap">{tr("Conformable — one shared field (units keep a thickness everywhere, cannot pinch out)")}</option>
           </select>
         </label>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "4px 0 6px", lineHeight: 1.45 }}>
           {stackRelation === "erode"
             ? tr("Erosional: each unit is fitted in its own structural group and truncates the ones beneath it. Right for an unconformity; wrong for a conformable volcanic pile, where it will cut contacts that should simply drape.")
-            : tr("Conformable: every unit shares one interpolated field, so the surfaces stay parallel and can never cross. Usually the right choice for a layered volcanic/sedimentary sequence — including the VMS-hosting stratigraphy this app is built around — and the default.")}
+            : tr("Conformable: every unit shares one interpolated field, so the surfaces stay parallel and can never cross. Right for a continuous layered sequence. A unit that is missing between its neighbours in some holes cannot pinch out in this mode (it keeps a thickness there): use Erode for discontinuous units.")}
         </div>
         <button
           onClick={() => runStackModel(stackUnits)}

@@ -28,6 +28,7 @@ import { findOnTraceWorld, findOnTrace, interceptId, SOFT_NUGGET, MODEL_EXTENT_P
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { capFieldAtGround } from "../../lib/groundCap.js"; // TASKS.csv #803
 import { explicitInterfacePoints } from "../../lib/explicitUnits.js"; // TASKS.csv #867
+import { pinchOutPoints } from "../../lib/pinchOut.js"; // TASKS.csv #1030
 
 // TASKS.csv #803 — the interpolated grid intersected with "below the terrain" (lib/groundCap.js), so a grade shell or
 // alteration envelope that reaches the surface closes ON the ground instead of in the air. toReal: grid frame ->
@@ -565,7 +566,7 @@ export function createModellingRuns(ctx, mcRef) {
       // TASKS.csv #274 — the effective potential-field range is now part of what a run reports. Without
       // it, two runs of the same job that came back looking different had no visible reason why.
       const rangeNote = res.rangeUsed != null
-        ? tr(" Interpolation: {v}, potential-field range {rangeUsed}{v2}.", { v: specs.length > 1 ? (relation === "erode" ? tr("erosional (each unit truncates those below)") : tr("conformable (units onlap)")) : tr("single surface"), rangeUsed: res.rangeUsed.toFixed(3), v2: res.rangeDefault != null && Math.abs(res.rangeUsed - res.rangeDefault) > 1e-9 ? tr(" (GemPy's own default {rangeDefault} x {rangeMultiplier})", { rangeDefault: res.rangeDefault.toFixed(3), rangeMultiplier }) : tr(" (GemPy's own default)") })
+        ? tr(" Interpolation: {v}, potential-field range {rangeUsed}{v2}.", { v: specs.length > 1 ? (relation === "erode" ? tr("erosional (each unit truncates those below)") : tr("conformable (one shared field: units keep a thickness everywhere)")) : tr("single surface"), rangeUsed: res.rangeUsed.toFixed(3), v2: res.rangeDefault != null && Math.abs(res.rangeUsed - res.rangeDefault) > 1e-9 ? tr(" (GemPy's own default {rangeDefault} x {rangeMultiplier})", { rangeDefault: res.rangeDefault.toFixed(3), rangeMultiplier }) : tr(" (GemPy's own default)") })
         : "";
       setNotices((p) => [...p, notice(newMeshes.length > 1 ? "Added {newMeshes} surfaces: {v2}.{rangeNote}" : "Added {newMeshes} surface: {v2}.{rangeNote}", { newMeshes: newMeshes.length, v2: specs.filter((s) => byName[s.meshName]?.vertices?.length).map((s) => `"${s.label}"`).join(", "), rangeNote })]);
       // Fit the camera to all newly-created meshes together (not just one) — without this, a
@@ -871,6 +872,7 @@ export function createModellingRuns(ctx, mcRef) {
           // way #88's nugget does; the sidecar's pydantic models ignore fields they don't declare.
           api.srcCode = r.value;
           api.hole_id = t.hole_id; // #762 — named in the pick check
+          if (!top.upHole) api.contactMd = top.md; // #1030 — for the pinch-out rule (the sidecar ignores it)
           // TASKS.csv #52 (a) — a per-pick uncertainty the geologist recorded (an `uncertainty_m` column
           // mapped as an extra number field on import) overrides the run's global sigma for this pick in
           // a sensitivity run. Rides along like srcCode; the sidecar ignores fields it doesn't declare.
@@ -1134,6 +1136,18 @@ export function createModellingRuns(ctx, mcRef) {
     if (skipped.length) setNotices((p) => [...p, notice("Skipping from the stack (no lithology intervals found): {skipped}.", { skipped: skipped.join(", ") })]);
     if (specs.length < 2) { setNotices((p) => [...p, notice("Need at least 2 units with data to model a stack — add more units or check your lithology import.")]); return; }
     noteUnmatchedDrawnContacts(specs);
+    // TASKS.csv #1030 — a unit absent between its neighbours in a hole: in an erosional stack the contact between them is
+    // also the missing unit's top, so it pinches out there; a conformable stack (one shared field) cannot do that
+    if (specs.length >= 3) {
+      const po = pinchOutPoints(specs, layers.litho || []);
+      if (po.absent.length) {
+        const list = po.absent.map((a) => tr("{unit} absent in {n} hole(s)", { unit: a.unit, n: a.holes })).join(", ");
+        if (stackRelation === "erode") {
+          po.add.forEach((pts, k) => { if (pts.length) specs[k].points.push(...pts); });
+          setNotices((p) => [...p, notice("Pinch-outs: {list}. Where a younger unit lies directly on an older one with these missing, that contact was also given to their tops, so they thin to nothing there.", { list })]);
+        } else setNotices((p) => [...p, notice("{list}, between their neighbours. A conformable stack is one shared field: every unit keeps a thickness everywhere, so these cannot pinch out and are modelled where the logs have none. Choose Erode to let them pinch out.", { list })]);
+      }
+    }
     // TASKS.csv #360 — faults that offset the stack, solved in the same GemPy run (FAULT groups)
     const faultSpecs = [];
     stackFaults.forEach((key) => {
@@ -1152,8 +1166,10 @@ export function createModellingRuns(ctx, mcRef) {
   //   ({ x, y, dip, dipDir } - outcrop measurements and contact dips fitted from the draped traces); faults: [{ name,
   //   line: [[x, y]], dip, dipDir }]; relation: "onlap" | "erode".
   // Every contact between two units of the order is draped on the terrain (a point every 25 m) and becomes interface
-  // points of the BASE of the younger unit = the top of the unit directly below it in the order (a unit missing in
-  // between pinches out there). The youngest unit's top is the ground: no surface. Units not in the order (intrusions,
+  // points of the top of the OLDER unit. TASKS.csv #1030 — with units of the order missing between the two (A on C, no
+  // B): in an erosional stack the points also go to the tops of the missing units, which then pinch out there; in a
+  // conformable one (one shared field) they cannot, and only the older unit's top gets them. (It used to give them to
+  // the unit directly below the younger one only - B, which is not there - and say that B pinched out.) The youngest unit's top is the ground: no surface. Units not in the order (intrusions,
   // breccias, hornfels...) are left out of the stack and named. Then the ordinary stack run: same solve, model check,
   // predicted geological map scored against the loaded map (#758).
   const runMapModel = async (p) => {
@@ -1179,16 +1195,19 @@ export function createModellingRuns(ctx, mcRef) {
     const { contacts } = extractMapContacts(p.layer, p.field);
     const rank = new Map(order.map((u, i) => [u, i]));
     const pointsOf = new Map(order.map((u) => [u, []]));
+    const mapRelation = p.relation || stackRelation, pinched = new Set(), unpinched = new Set(); // #1030
     let offTerrain = 0, unused = 0;
     for (const c of contacts) {
       const [a, b] = c.units;
       if (!rank.has(a) || !rank.has(b)) { unused++; continue; }
-      const younger = rank.get(a) < rank.get(b) ? a : b;
-      const surface = order[rank.get(younger) + 1]; // the top of the unit directly below the younger one
+      const ry = Math.min(rank.get(a), rank.get(b)), ro = Math.max(rank.get(a), rank.get(b));
+      const tops = mapRelation === "erode" ? order.slice(ry + 1, ro + 1) : [order[ro]]; // #1030
+      if (ro > ry + 1) tops.slice(0, -1).forEach((u) => pinched.add(u));
+      if (ro > ry + 1 && mapRelation !== "erode") order.slice(ry + 1, ro).forEach((u) => unpinched.add(u));
       for (const line of c.lines) for (const [x, y] of thin(line, 25)) {
         const z = ground(x, y);
         if (!Number.isFinite(z)) { offTerrain++; continue; }
-        pointsOf.get(surface).push({ ...api(x, y, z), srcCode: `${a}|${b}` });
+        for (const surface of tops) pointsOf.get(surface).push({ ...api(x, y, z), srcCode: `${a}|${b}` });
       }
     }
     const orientations = [...(p.bedding || []), ...(p.planes || [])].map((m) => ({ m, z: ground(m.x, m.y) })).filter(({ m, z }) => Number.isFinite(z) && [m.dip, m.dipDir].every(Number.isFinite))
@@ -1213,7 +1232,9 @@ export function createModellingRuns(ctx, mcRef) {
       f: faultSpecs.length ? tr(", with {k} fault(s)", { k: faultSpecs.length }) : "",
       e: empty.length ? tr(" No map contact reaches the top of: {u} (they are not modelled).", { u: empty.join(", ") }) : "",
       l: left.length ? tr(" Left out of the stack (not stratigraphic): {u}.", { u: left.join(", ") }) : "",
-    }), (offTerrain ? tr(" {k} contact point(s) beyond the terrain were skipped.", { k: offTerrain }) : "") + (unused ? tr(" {k} contact(s) involve units outside the order.", { k: unused }) : ""))]); // appendNotice: #821
+    }), (pinched.size ? tr(" Pinched out where the map shows them missing between their neighbours: {u}.", { u: [...pinched].join(", ") }) : "")
+      + (unpinched.size ? tr(" Missing between their neighbours in places, but a conformable stack cannot pinch them out (choose Erosional for that): {u}.", { u: [...unpinched].join(", ") }) : "")
+      + (offTerrain ? tr(" {k} contact point(s) beyond the terrain were skipped.", { k: offTerrain }) : "") + (unused ? tr(" {k} contact(s) involve units outside the order.", { k: unused }) : ""))]); // appendNotice: #821
     await runSurfaceStack([...faultSpecs, ...specs], { relation: p.relation || stackRelation, aboveUnit: order[0] });
   };
 
