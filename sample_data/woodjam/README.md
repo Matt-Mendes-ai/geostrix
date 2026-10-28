@@ -19,7 +19,7 @@ UTM zone 10 and is reprojected by GeoStrix when the lines are placed.
 | File | From (report appendix) | What was taken |
 |---|---|---|
 | `collars.csv` | F — DHDB, *Diamond Drilling_Headers.csv* | 19 holes (2023 diamond drilling): DGPS easting / northing / elevation, planned azimuth and dip, final depth |
-| `survey.csv` | F — *Downhole Survey.csv* | Gyro survey stations (depth, azimuth, dip) |
+| `survey.csv` | F — *Downhole Survey.csv* | Gyro survey stations (depth, azimuth, dip). The report does not state the azimuths' north reference; GeoStrix takes them as **grid north** (UTM zone 10N). If they are true north, as gyro azimuths often are, every trace and every oriented-core plane is rotated by about 1.3° (the grid convergence at Woodjam) |
 | `litho.csv` | F — *Lithology Log.csv* | Logged unit code (Lith1_GF_Code) and the geologist's description |
 | `alt.csv` | F — *Alteration Log.csv* | Dominant (first) alteration code |
 | `vein.csv` | F — *Vein Log.csv* | First vein composition per logged vein interval |

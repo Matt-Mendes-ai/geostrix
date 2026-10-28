@@ -6263,5 +6263,6 @@
   "Font and size of the text on the section (and in its exports)": "Police et taille du texte de la coupe (et de ses exports)",
   "Section font": "Police de la coupe",
   "Section text size": "Taille du texte de la coupe",
-  "in progress": "en cours"
+  "in progress": "en cours",
+  "Woodjam survey: assessment report 41597 does not state the gyro azimuths' north reference, so they are taken as grid north (UTM zone 10N). If they are true north, every hole trace and oriented-core plane is rotated by about 1.3° (the grid convergence there).": "Levé de Woodjam : le rapport d'évaluation 41597 n'indique pas la référence nord des azimuts du gyroscope ; ils sont donc pris comme nord du quadrillage (UTM zone 10N). S'ils sont au nord géographique, chaque tracé de sondage et chaque plan de carotte orientée est tourné d'environ 1,3° (la convergence du quadrillage à cet endroit)."
 }

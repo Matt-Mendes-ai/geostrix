@@ -74,7 +74,8 @@ export function woodjamIpLine(name, datText, stationFile, projectEpsg) {
 // Loads the three extras into the store. readFile(relPath) → File; store: { setAssays, setAssayElements, addVoxelModel,
 // addOmfObject, saveDcipLine }. Returns notices (strings) describing what was loaded or what failed.
 export async function loadWoodjamExtras(readFile, store, { projectEpsg = WOODJAM_EPSG, maxCells, existingElements = [] } = {}) {
-  const notes = [];
+  // TASKS.csv #1110 (review #1016) — the gyro azimuths' reference is not in the report: said, not silently assumed
+  const notes = [tr("Woodjam survey: assessment report 41597 does not state the gyro azimuths' north reference, so they are taken as grid north (UTM zone 10N). If they are true north, every hole trace and oriented-core plane is rotated by about 1.3° (the grid convergence there).")];
   try {
     const raw = woodjamAssays(await (await readFile("assays.csv")).text());
     const { rows, elements, converted } = alignAssayUnits(raw.rows, raw.elements, existingElements); // #722

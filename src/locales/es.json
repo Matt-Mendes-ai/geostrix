@@ -6263,5 +6263,6 @@
   "Font and size of the text on the section (and in its exports)": "Fuente y tamaño del texto de la sección (y de sus exportaciones)",
   "Section font": "Fuente de la sección",
   "Section text size": "Tamaño del texto de la sección",
-  "in progress": "en curso"
+  "in progress": "en curso",
+  "Woodjam survey: assessment report 41597 does not state the gyro azimuths' north reference, so they are taken as grid north (UTM zone 10N). If they are true north, every hole trace and oriented-core plane is rotated by about 1.3° (the grid convergence there).": "Levantamiento de Woodjam: el informe de evaluación 41597 no indica la referencia norte de los azimuts del giroscopio, así que se toman como norte de cuadrícula (UTM zona 10N). Si son norte verdadero, cada traza de sondaje y cada plano de testigo orientado queda girado unos 1,3° (la convergencia de cuadrícula allí)."
 }
