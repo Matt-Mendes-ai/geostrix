@@ -5306,7 +5306,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const res = truncateAgainstSolid(h, c);
         if (!res.ok && res.reason === "cutter-not-closed") {
           // Not an error — it is the fault case, and the fault case is a SPLIT, not a truncation.
-          const sp = splitAcrossSurface(h, c);
+          const { orientMesh } = await import("../lib/meshValidate.js"); // #1058 — the side test reads each fault triangle's normal
+          const sp = splitAcrossSurface(h, { positions: c.positions, indices: orientMesh(c.positions, c.indices).indices });
           if (!sp.ok || !sp.changed) {
             setNotices((p) => [...p, notice("\"{name}\" does not divide \"{name2}\": {v}. Nothing was changed.", { name: cutter.name, name2: host.name, v: sp.reason === "no-overlap" ? tr("the two surfaces are nowhere near each other") : tr("the whole surface falls on one side of it") })]);
             return;
