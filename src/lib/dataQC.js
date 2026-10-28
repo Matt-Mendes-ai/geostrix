@@ -17,6 +17,7 @@ import { terrainGroundAt } from "./viewer/geomath.js"; // TASKS.csv #558; #927 �
 
 import { didYouMean } from "./holeIds.js"; // TASKS.csv #541 (own module: dataQC stays out of the startup bundle)
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { surveyAzimuthDipAt } from "./desurvey.js"; // TASKS.csv #1109
 export { didYouMean };
 
 const clampSeverityIcon = { error: "🔴", warning: "🟡", info: "🔵" };
@@ -484,6 +485,9 @@ export function runDataQC({ project, collars, survey, layers, boundaries, assays
     ...validatePointLayer(layers.magsusc || [], "Mag. susceptibility", collarIds, holeLengths),
     ...validatePointLayer(layers.structure || [], "Structure", collarIds, holeLengths),
     ...validateBoundaryTopology(boundaries || []),
+    // #1109 — calculator picks solved with a hole direction the survey no longer gives
+    ...staleCalculatorPicks(collars, survey, layers.structure).map(({ pick, angle, now }) => ({ severity: "warning", category: tr("Core orientation calculator"), holeId: pick.hole_id,
+      message: tr("The structure pick at {depth} m was calibrated with the hole at azimuth {az0}°, dip {dip0}°; the survey now gives {az1}°, {dip1}° ({angle}° apart), so its dip / dip direction is stale: re-enter it in the core orientation calculator.", { depth: Number(pick.depth).toFixed(1), az0: pick.hole_az_used.toFixed(1), dip0: pick.hole_dip_used.toFixed(1), az1: now.azimuth.toFixed(1), dip1: now.dip.toFixed(1), angle: angle.toFixed(1) }) })),
   ];
 
   const summary = { error: 0, warning: 0, info: 0 };
@@ -505,4 +509,28 @@ const SEVERITY_ORDER = { error: 0, warning: 1, info: 2 };
 export function qcIssueRows(issues) {
   return (issues || []).map((i, n) => ({ i, n })).sort((a, b) => (SEVERITY_ORDER[a.i.severity] ?? 3) - (SEVERITY_ORDER[b.i.severity] ?? 3) || a.n - b.n)
     .map(({ i }) => ({ severity: i.severity, category: i.category, hole_id: i.holeId || "", message: i.message }));
+}
+
+// TASKS.csv #1109 (review #1016, structural geologist) — calculator picks (#429: they carry beta_scribed and the hole
+// attitude the calibration was solved with, hole_az_used / hole_dip_used) are never re-derived when the survey or collar
+// changes, though the solved pole depends on the hole direction: a +14.8 deg azimuth change (a survey re-imported as
+// magnetic) moved the calibrated pole a median 5.7 deg, max 87 deg in the review's test. These are the picks whose hole
+// now points more than tolDeg away from the direction they were solved with. -> [{ pick, angle, now: { azimuth, dip } }]
+const dirOf = (az, dip) => { const a = (az * Math.PI) / 180, d = (dip * Math.PI) / 180; return [Math.sin(a) * Math.cos(d), Math.cos(a) * Math.cos(d), -Math.sin(d)]; };
+export function staleCalculatorPicks(collars, survey, structure, tolDeg = 0.5) {
+  const collarBy = new Map((collars || []).map((c) => [c.hole_id, c]));
+  const surveyBy = new Map();
+  for (const s of survey || []) { const l = surveyBy.get(s.hole_id); if (l) l.push(s); else surveyBy.set(s.hole_id, [s]); }
+  const out = [];
+  for (const p of structure || []) {
+    if (!Number.isFinite(p.hole_az_used) || !Number.isFinite(p.hole_dip_used) || !Number.isFinite(Number(p.depth))) continue;
+    const c = collarBy.get(p.hole_id);
+    if (!c) continue;
+    const now = surveyAzimuthDipAt(c, surveyBy.get(p.hole_id) || [], Number(p.depth));
+    if (!now || !Number.isFinite(now.azimuth) || !Number.isFinite(now.dip)) continue;
+    const a = dirOf(p.hole_az_used, p.hole_dip_used), b = dirOf(now.azimuth, now.dip);
+    const angle = (Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]))) * 180) / Math.PI;
+    if (angle > tolDeg) out.push({ pick: p, angle, now });
+  }
+  return out;
 }
