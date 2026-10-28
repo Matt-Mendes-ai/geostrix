@@ -6220,5 +6220,8 @@
   "Conformable — one shared field (units keep a thickness everywhere, cannot pinch out)": "متوافق — حقل مشترك واحد (تحتفظ الوحدات بسماكة في كل مكان، ولا يمكن أن تتلاشى)",
   "Conformable: every unit shares one interpolated field, so the surfaces stay parallel and can never cross. Right for a continuous layered sequence. A unit that is missing between its neighbours in some holes cannot pinch out in this mode (it keeps a thickness there): use Erode for discontinuous units.": "المتوافق: تشترك كل الوحدات في حقل مستكمَل واحد، فتبقى الأسطح متوازية ولا تتقاطع أبدًا. مناسب لتتابع طبقي مستمر. الوحدة الغائبة بين جاراتها في بعض الثقوب لا يمكن أن تتلاشى في هذا الوضع (تحتفظ بسماكة هناك): استخدم التعرية للوحدات المتقطعة.",
   "Conformable (one shared field: units cannot pinch out)": "متوافق (حقل مشترك واحد: لا يمكن للوحدات أن تتلاشى)",
-  "conformable (one shared field: units keep a thickness everywhere)": "متوافق (حقل مشترك واحد: تحتفظ الوحدات بسماكة في كل مكان)"
+  "conformable (one shared field: units keep a thickness everywhere)": "متوافق (حقل مشترك واحد: تحتفظ الوحدات بسماكة في كل مكان)",
+  "Not a valid workbook: a cell lies beyond Excel's limits (column XFD, row 1,048,576).": "ليس مصنفًا صالحًا: تقع خلية خارج حدود Excel (العمود XFD، الصف 1,048,576).",
+  "This sheet is too large to read: over {n} million cells.": "هذه الورقة أكبر من أن تُقرأ: أكثر من {n} مليون خلية.",
+  "This MapInfo table is corrupt: its objects claim far more coordinates than the .MAP file holds.": "جدول MapInfo هذا تالف: تدّعي كائناته إحداثيات أكثر بكثير مما يحويه ملف .MAP."
 }

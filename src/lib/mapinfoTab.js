@@ -244,14 +244,23 @@ function makeMapReader(mapBytes, decoder) {
 
   // A cursor over chained coordinate blocks (TABMAPCoordBlock::ReadBytes): data in each block ends at 8 + bytesUsed;
   // reading past it continues at the next block's data, even mid-value (text strings may straddle blocks).
+  // TASKS.csv #1078 (review #1016, security) — every object could claim up to len / 4 vertices and every chain could link
+  // back to itself, so a crafted 37 KB table decoded into 9.6 million vertices (869 MB). A chain may not revisit a block,
+  // and all the coordinate bytes read for the whole table may not exceed the file's own size (plus slack): each byte of
+  // real coordinate data belongs to one object. Past that the import stops (TAB_TOO_BIG), it does not just skip one object.
+  let coordBytesRead = 0;
+  const coordBudget = len + 65536;
   function coordCursor(ptr) {
     let base = ptr - (ptr % bs), pos = ptr, end = 0, next = 0;
-    const load = () => { need(base, 8); if (dv.getUint8(base) !== 3) throw new Error("not a coordinate block"); end = base + 8 + dv.getInt16(base + 2, true); next = dv.getInt32(base + 4, true); };
+    const seen = new Set();
+    const load = () => { need(base, 8); if (seen.has(base)) throw new Error("coordinate blocks loop"); seen.add(base); if (dv.getUint8(base) !== 3) throw new Error("not a coordinate block"); end = base + 8 + dv.getInt16(base + 2, true); next = dv.getInt32(base + 4, true); };
     load();
     if (ptr % bs === 0) pos = base + 8;
     const tmp = new DataView(new ArrayBuffer(8));
     const advance = () => { base = next; load(); pos = base + 8; };
     function bytesAt(n) { // returns [dataview, offset] holding n contiguous bytes
+      coordBytesRead += n;
+      if (coordBytesRead > coordBudget) { const e = new Error("too much coordinate data"); e.tooBig = true; throw e; }
       if (pos >= end && next > 0) advance();
       if (pos + n <= end || next <= 0) { need(pos, n); const o = pos; pos += n; return [dv, o]; }
       for (let k = 0; k < n; k++) { if (pos >= end && next > 0) advance(); need(pos, 1); tmp.setUint8(k, dv.getUint8(pos++)); }
@@ -523,7 +532,10 @@ export function parseMapInfoTab({ tab, map, id, dat = null, name = "MapInfo laye
     const off = r <= numIds ? idDv.getInt32((r - 1) * 4, true) : 0;
     if (off <= 0) { skipped.noGeometry++; continue; }
     let obj;
-    try { obj = reader.readObject(off, r); } catch { obj = { skip: "corrupt" }; }
+    try { obj = reader.readObject(off, r); } catch (e) {
+      if (e?.tooBig) throw new Error(tr("This MapInfo table is corrupt: its objects claim far more coordinates than the .MAP file holds.")); // #1078
+      obj = { skip: "corrupt" };
+    }
     if (obj.skip) { skipped[obj.skip]++; continue; }
     if (obj.family === "multipoint") { for (const part of obj.parts) buckets.point.push({ geometry: part, parts: [part], attributes }); continue; }
     if (obj.family === "text") { const g = obj.parts[0]; buckets.text.push({ geometry: g, parts: [g], attributes: { ...attributes, _text: obj.text } }); continue; }

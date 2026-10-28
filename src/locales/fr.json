@@ -6220,5 +6220,8 @@
   "Conformable — one shared field (units keep a thickness everywhere, cannot pinch out)": "Concordant — un seul champ partagé (les unités gardent une épaisseur partout, ne peuvent pas se biseauter)",
   "Conformable: every unit shares one interpolated field, so the surfaces stay parallel and can never cross. Right for a continuous layered sequence. A unit that is missing between its neighbours in some holes cannot pinch out in this mode (it keeps a thickness there): use Erode for discontinuous units.": "Concordant : toutes les unités partagent un champ interpolé, donc les surfaces restent parallèles et ne se croisent jamais. Adapté à une séquence litée continue. Une unité absente entre ses voisines dans certains sondages ne peut pas se biseauter dans ce mode (elle y garde une épaisseur) : utilisez Érosion pour les unités discontinues.",
   "Conformable (one shared field: units cannot pinch out)": "Concordant (un seul champ partagé : les unités ne peuvent pas se biseauter)",
-  "conformable (one shared field: units keep a thickness everywhere)": "concordant (un seul champ partagé : les unités gardent une épaisseur partout)"
+  "conformable (one shared field: units keep a thickness everywhere)": "concordant (un seul champ partagé : les unités gardent une épaisseur partout)",
+  "Not a valid workbook: a cell lies beyond Excel's limits (column XFD, row 1,048,576).": "Classeur non valide : une cellule dépasse les limites d'Excel (colonne XFD, ligne 1 048 576).",
+  "This sheet is too large to read: over {n} million cells.": "Cette feuille est trop grande pour être lue : plus de {n} millions de cellules.",
+  "This MapInfo table is corrupt: its objects claim far more coordinates than the .MAP file holds.": "Cette table MapInfo est corrompue : ses objets déclarent bien plus de coordonnées que le fichier .MAP n'en contient."
 }

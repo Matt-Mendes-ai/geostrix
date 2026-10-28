@@ -19,6 +19,12 @@ const colIndex = (ref) => { const letters = /^[A-Z]+/i.exec(ref || "")?.[0].toUp
 
 export const isXlsxName = (name) => /\.xlsx$/i.test(String(name || ""));
 
+// TASKS.csv #1079 (review #1016, security) — cell addresses were trusted: one cell at AAAAAA2 in a 736-byte workbook took
+// 30 s and 2.7 GB (every hole up to column 12 million filled and padded). Excel's own limits are column XFD and row
+// 1,048,576; a sheet is also capped at XLSX_MAX_CELLS cells after padding.
+export const XLSX_MAX_COL = 16384, XLSX_MAX_ROW = 1048576, XLSX_MAX_CELLS = 20_000_000;
+const EMPTY_ROW = Object.freeze([]);
+
 // bytes -> [{ name, rows: string[][] }] in workbook order (hidden sheets included, flagged).
 export async function readXlsxSheets(bytes) {
   const want = /^(xl\/workbook\.xml|xl\/_rels\/workbook\.xml\.rels|xl\/sharedStrings\.xml|xl\/worksheets\/[^/]+\.xml)$/;
@@ -38,12 +44,15 @@ export async function readXlsxSheets(bytes) {
     if (!target.startsWith("xl/")) target = `xl/${target}`;
     const xml = dec(target) || "";
     const rows = [];
+    let cells = 0;
     xml.replace(/<row\b([^>]*)>([\s\S]*?)<\/row>/g, (_, ra, body) => {
       const r = Number(attrs(ra).r) - 1;
+      if (r >= XLSX_MAX_ROW) throw new Error(tr("Not a valid workbook: a cell lies beyond Excel's limits (column XFD, row 1,048,576)."));
       const row = [];
       body.replace(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g, (__, ca, inner = "") => {
         const c = attrs(ca);
         const ci = c.r ? colIndex(c.r) : row.length;
+        if (ci >= XLSX_MAX_COL) throw new Error(tr("Not a valid workbook: a cell lies beyond Excel's limits (column XFD, row 1,048,576)."));
         const v = /<v>([\s\S]*?)<\/v>/.exec(inner)?.[1];
         let val = "";
         if (c.t === "s") val = shared[Number(v)] ?? "";
@@ -55,10 +64,12 @@ export async function readXlsxSheets(bytes) {
         return "";
       });
       for (let i = 0; i < row.length; i++) if (row[i] == null) row[i] = "";
+      cells += row.length;
+      if (cells > XLSX_MAX_CELLS) throw new Error(tr("This sheet is too large to read: over {n} million cells.", { n: XLSX_MAX_CELLS / 1e6 }));
       rows[Number.isFinite(r) && r >= 0 ? r : rows.length] = row;
       return "";
     });
-    return { name: s.name, hidden: !!s.hidden, rows: Array.from(rows, (x) => x || []) };
+    return { name: s.name, hidden: !!s.hidden, rows: Array.from(rows, (x) => x || EMPTY_ROW) }; // #1079 — one shared empty row for the gaps
   });
 }
 
@@ -70,7 +81,7 @@ export async function xlsxToCsvFiles(bytes, workbookName) {
   for (const s of sheets) {
     const rows = s.rows.filter((r) => r.some((v) => String(v).trim() !== ""));
     if (rows.length < 2) continue;
-    const width = Math.max(...rows.map((r) => r.length));
+    const width = rows.reduce((m, r) => Math.max(m, r.length), 0); // #1079 — a spread of a million rows overflows the stack
     const headers = rows[0].map((h, i) => String(h).trim() || `Column ${i + 1}`);
     while (headers.length < width) headers.push(`Column ${headers.length + 1}`);
     out.push({ name: `${base} - ${s.name}.csv`, sheet: s.name, rows: rows.length - 1, text: toCsv({ fields: headers, data: rows.slice(1).map((r) => headers.map((_, i) => r[i] ?? "")) }) });
