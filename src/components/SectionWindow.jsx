@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 import { Camera, Pencil, Check, Undo2, X, Save, Download, FileText, Crosshair } from "./icons.js";
 import { onSectionData, getSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF, canvasPngBytes } from "../lib/desktop.js";
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #395
-import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearestSegment, setTieVertex } from "../lib/sectionDigitise.js"; // TASKS.csv #519
+import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearestSegment, setTieVertex, copyGhostString } from "../lib/sectionDigitise.js"; // TASKS.csv #519; copyGhostString: #1059
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { placeLabels, leaderEnd, resolveLabels } from "../lib/sectionLabels.js"; // TASKS.csv #823
@@ -192,6 +192,8 @@ export default function SectionWindow() {
   };
   const removeContact = (id) => { setContacts((p) => p.filter((c) => c.id !== id)); if (editingId === id) setEditingId(null); };
   const editPoints = (id, fn) => setContacts((p) => p.map((c) => (c.id === id ? { ...c, points: fn(c.points) } : c)));
+  // TASKS.csv #1059 — a neighbouring section's string copied onto this one, opened for vertex editing
+  const copyGhost = (ghost) => { const c = copyGhostString(ghost, data.section); setContacts((p) => [...p, c]); setEditingId(c.id); };
   // what a click snaps to: the drawn / edited string's unit tops (contacts) or every logged boundary (faults, strings)
   const editing = contacts.find((c) => c.id === editingId) || null;
   const offHoles = (data?.holes || []).filter((h) => h.minOffset != null && Math.max(Math.abs(h.minOffset), Math.abs(h.maxOffset)) > 5).length; // TASKS.csv #897
@@ -438,7 +440,7 @@ export default function SectionWindow() {
       <div className="ge-section-body" style={{ flex: 1, overflow: "auto", padding: 16 }}>
         {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{v2}. Click the pencil again to finish; Save contacts keeps the changes.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}{editing?.kind === "outline" ? ` ${tr("Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.")}` : ""}</div>}
         <SectionSVG textFont={textFont} textScale={textScale} holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
-          snap={snapOn && !planning ? targets : null} editingId={editingId} onEditPoints={editPoints}
+          snap={snapOn && !planning ? targets : null} editingId={editingId} onEditPoints={editPoints} onCopyGhost={drawing || planning ? null : copyGhost}
           labels={labels} onMoveLabel={(key, off) => changeLabels({ offsets: { ...labels.offsets, [key]: off } })} /* #823 */ />
       </div>
     </div>
@@ -450,7 +452,7 @@ function btnStyle(active) {
 }
 const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11.5 };
 
-function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onMoveLabel }) {
+function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onMoveLabel, onCopyGhost = null }) {
   const fs = (n) => +(n * textScale).toFixed(2); // TASKS.csv #1129 — every label at the chosen text size
   // TASKS.csv #1134 — depth / EOH / offset / planned-hole labels are collected while the holes are drawn and placed in one
   // collision pass at the very end (resolveLabels), on top of the ribbons; holeLabelBoxes: the hole names, placed first
@@ -779,6 +781,9 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
         <g key={`${g.sectionId}_${i}`} opacity="0.4">
           <polyline points={st.points.map((p) => `${sx(p.l)},${sz(p.z)}`).join(" ")} fill="none" stroke={st.color || "#7a8494"} strokeWidth="1.6" strokeDasharray="2 3" />
           <text x={sx(st.points[st.points.length - 1].l) + 4} y={sz(st.points[st.points.length - 1].z)} fill={st.color || "#7a8494"} fontSize={fs(9)}>{`${st.unit} — ${g.sectionName} (${g.offset > 0 ? "+" : ""}${Math.round(g.offset)} m)`}</text>
+          {onCopyGhost && <text data-ui-only="1" role="button" tabIndex={0} x={sx(st.points[st.points.length - 1].l) + 4} y={sz(st.points[st.points.length - 1].z) + fs(11)} fill="#1a2028" fontSize={fs(9)} fontWeight="600" textDecoration="underline" style={{ cursor: "pointer" }}
+            onClick={(e) => { e.stopPropagation(); onCopyGhost(st); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onCopyGhost(st); } }}>
+            {tr("Copy here")}<title>{tr("Copy this string onto this section (same name, kind and vertex order) and edit its vertices")}</title></text>}{/* #1059 */}
         </g>
       )))}
       {contacts.map((c) => (

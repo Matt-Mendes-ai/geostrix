@@ -175,8 +175,21 @@ export function ghostStrings(current, sections, { tolDeg = 5, maxOffset = Infini
   const pick = (sign) => cand.filter((c) => Math.sign(c.offset) === sign).sort((a, b) => Math.abs(a.offset) - Math.abs(b.offset))[0];
   return [pick(1), pick(-1)].filter(Boolean).map(({ s, offset }) => ({
     sectionId: s.id, sectionName: s.name, offset,
-    strings: s.contacts.map((c) => ({ unit: c.unit, color: c.color, points: (c.points || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite)).map((p) => ({ l: (p.x - current.ax) * ux + (p.y - current.ay) * uy, z: p.z })) })),
+    strings: s.contacts.map((c) => ({ id: c.id, unit: c.unit, color: c.color, kind: c.kind || (c.isUpperContact === false ? "string" : "contact"), // id / kind / tie: #1059
+      points: (c.points || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite)).map((p) => ({ l: (p.x - current.ax) * ux + (p.y - current.ay) * uy, z: p.z, ...(p.tie ? { tie: true } : {}) })) })),
   }));
+}
+
+// TASKS.csv #1059 (review #1016, explicit modeller) — "copy string to section": a ghost string from the neighbouring
+// section (ghostStrings: already projected, l along this line and z kept) placed on this section as a new string of
+// the same name, kind and tie vertex, x / y on this line. The copy keeps the vertex count and order, so linked outlines
+// pair up (no #874 folded strips); hole snaps are not carried (they belong to the other section's holes).
+// line: { ax, ay, bx, by } of this section. -> a contact, ready for setContacts
+export function copyGhostString(ghost, line, id = `contact_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`) {
+  const dx = line.bx - line.ax, dy = line.by - line.ay, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+  const kind = ghost.kind || "contact";
+  return { id, unit: ghost.unit, kind, isUpperContact: kind === "contact", color: ghost.color,
+    points: (ghost.points || []).map((p) => ({ l: p.l, z: p.z, x: line.ax + p.l * ux, y: line.ay + p.l * uy, ...(p.tie ? { tie: true } : {}) })) };
 }
 
 // TASKS.csv #1131 — a stepped section is named by its total offset from the first one ("Section 39° +110 m"), not with

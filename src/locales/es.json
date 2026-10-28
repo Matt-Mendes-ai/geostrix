@@ -6265,5 +6265,7 @@
   "Section text size": "Tamaño del texto de la sección",
   "in progress": "en curso",
   "Woodjam survey: assessment report 41597 does not state the gyro azimuths' north reference, so they are taken as grid north (UTM zone 10N). If they are true north, every hole trace and oriented-core plane is rotated by about 1.3° (the grid convergence there).": "Levantamiento de Woodjam: el informe de evaluación 41597 no indica la referencia norte de los azimuts del giroscopio, así que se toman como norte de cuadrícula (UTM zona 10N). Si son norte verdadero, cada traza de sondaje y cada plano de testigo orientado queda girado unos 1,3° (la convergencia de cuadrícula allí).",
-  "The fault surface cannot be turned to face one way ({n} edges disagree), so it has no consistent sides: fix or rebuild the fault mesh, or fit this surface without the fault.": "La superficie de la falla no se puede orientar hacia un solo lado ({n} aristas no concuerdan), así que no tiene lados coherentes: corrija o reconstruya la malla de la falla, o ajuste esta superficie sin la falla."
+  "The fault surface cannot be turned to face one way ({n} edges disagree), so it has no consistent sides: fix or rebuild the fault mesh, or fit this surface without the fault.": "La superficie de la falla no se puede orientar hacia un solo lado ({n} aristas no concuerdan), así que no tiene lados coherentes: corrija o reconstruya la malla de la falla, o ajuste esta superficie sin la falla.",
+  "Copy here": "Copiar aquí",
+  "Copy this string onto this section (same name, kind and vertex order) and edit its vertices": "Copiar esta línea a esta sección (mismo nombre, tipo y orden de vértices) y editar sus vértices"
 }

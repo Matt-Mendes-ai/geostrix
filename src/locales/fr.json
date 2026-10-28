@@ -6265,5 +6265,7 @@
   "Section text size": "Taille du texte de la coupe",
   "in progress": "en cours",
   "Woodjam survey: assessment report 41597 does not state the gyro azimuths' north reference, so they are taken as grid north (UTM zone 10N). If they are true north, every hole trace and oriented-core plane is rotated by about 1.3° (the grid convergence there).": "Levé de Woodjam : le rapport d'évaluation 41597 n'indique pas la référence nord des azimuts du gyroscope ; ils sont donc pris comme nord du quadrillage (UTM zone 10N). S'ils sont au nord géographique, chaque tracé de sondage et chaque plan de carotte orientée est tourné d'environ 1,3° (la convergence du quadrillage à cet endroit).",
-  "The fault surface cannot be turned to face one way ({n} edges disagree), so it has no consistent sides: fix or rebuild the fault mesh, or fit this surface without the fault.": "La surface de la faille ne peut pas être orientée d’un seul côté ({n} arêtes en désaccord) : elle n’a donc pas de côtés cohérents. Corrigez ou reconstruisez le maillage de la faille, ou ajustez cette surface sans la faille."
+  "The fault surface cannot be turned to face one way ({n} edges disagree), so it has no consistent sides: fix or rebuild the fault mesh, or fit this surface without the fault.": "La surface de la faille ne peut pas être orientée d’un seul côté ({n} arêtes en désaccord) : elle n’a donc pas de côtés cohérents. Corrigez ou reconstruisez le maillage de la faille, ou ajustez cette surface sans la faille.",
+  "Copy here": "Copier ici",
+  "Copy this string onto this section (same name, kind and vertex order) and edit its vertices": "Copier cette ligne sur cette coupe (même nom, type et ordre des sommets) et modifier ses sommets"
 }

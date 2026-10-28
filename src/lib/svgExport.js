@@ -18,6 +18,7 @@ export function exportSvgMarkup(svg, { background = "#ffffff" } = {}) {
   clone.setAttribute("height", String(h));
   if (!clone.getAttribute("font-family")) clone.setAttribute("font-family", FIGURE_FONT);
   for (const k of ["border", "border-radius", "background", "background-color", "box-shadow", "cursor"]) clone.style?.removeProperty?.(k);
+  clone.querySelectorAll?.("[data-ui-only]").forEach((n) => n.remove()); // TASKS.csv #1059 — on-screen controls (e.g. "Copy here") stay out of the figure
   if (background) {
     const r = clone.ownerDocument.createElementNS(SVG_NS, "rect");
     r.setAttribute("x", vb ? String(vb.x) : "0"); r.setAttribute("y", vb ? String(vb.y) : "0");
