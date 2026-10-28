@@ -9,12 +9,14 @@ import { blockModelLattice } from "./estimationMeta.js";
 
 const title = (s) => String(s).replace(/[\r\n]+/g, " ").slice(0, 250); // the format's title line: one line, <= 256 chars
 
-export function surfaceToVtk(name, vertices, indices, note = "") {
+// supported (#1103): per-triangle 1 / 0, written as CELL_DATA "supported" (0 = extrapolated beyond the inputs)
+export function surfaceToVtk(name, vertices, indices, note = "", supported = null) {
   const lines = ["# vtk DataFile Version 3.0", title(`${name} - GeoStrix${note ? ` - ${note}` : ""}`), "ASCII", "DATASET POLYDATA", `POINTS ${vertices.length} double`];
   for (const [x, y, z] of vertices) lines.push(`${x.toFixed(4)} ${y.toFixed(4)} ${z.toFixed(4)}`);
   const nt = Math.floor(indices.length / 3);
   lines.push(`POLYGONS ${nt} ${nt * 4}`);
   for (let t = 0; t < nt; t++) lines.push(`3 ${indices[3 * t]} ${indices[3 * t + 1]} ${indices[3 * t + 2]}`);
+  if (supported && supported.length === nt) { lines.push(`CELL_DATA ${nt}`, "SCALARS supported int 1", "LOOKUP_TABLE default"); for (let t = 0; t < nt; t++) lines.push(String(supported[t])); }
   return lines.join("\n") + "\n";
 }
 

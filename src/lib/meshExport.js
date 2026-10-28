@@ -279,7 +279,8 @@ export function exportSurfaceOBJ(name, geometry, origin, provenance = null, extr
 // $ACADVER-gated features, which a bare triangle mesh does not. A 3DFACE always carries 4 vertex codes
 // (10/20/30 .. 13/23/33) even for a triangular face — the 4th vertex is conventionally a repeat of the
 // 3rd, per the DXF spec, not a degenerate/invalid entity.
-export function exportSurfaceDXF(name, geometry, origin, provenance = null, extra = {}, { bytes = false } = {}) {
+// supported (#1103): per-triangle 1 / 0 (explicitSupport.supportedFaces); 0 = extrapolated, written on "<layer>_EXTRAPOLATED"
+export function exportSurfaceDXF(name, geometry, origin, provenance = null, extra = {}, { bytes = false, supported = null } = {}) {
   const { vertices: V, indices: I } = sceneVertsToWorldFlat(geometry, origin);
   const layer = sanitizeName(name).slice(0, 255) || "SURFACE";
   const head = [];
@@ -290,13 +291,13 @@ export function exportSurfaceDXF(name, geometry, origin, provenance = null, extr
   // #1072 — each vertex's three coordinates, formatted once, as the text after each group code
   const nv = V.length / 3, X = new Array(nv), Y = new Array(nv), Z = new Array(nv);
   for (let i = 0; i < nv; i++) { X[i] = V[3 * i].toFixed(4); Y[i] = V[3 * i + 1].toFixed(4); Z[i] = V[3 * i + 2].toFixed(4); }
-  const pre = `0\n3DFACE\n8\n${layer}\n`;
+  const pre = `0\n3DFACE\n8\n${layer}\n`, preX = `0\n3DFACE\n8\n${`${layer}_EXTRAPOLATED`.slice(0, 255)}\n`; // #1103
   const out = [head.join("\n")];
   let buf = [];
   for (let t = 0; t + 2 < I.length; t += 3) {
     const a = I[t], b = I[t + 1], c = I[t + 2];
     // the repeated 3rd vertex (13/23/33) is standard for a triangular 3DFACE
-    buf.push(`${pre}10\n${X[a]}\n20\n${Y[a]}\n30\n${Z[a]}\n11\n${X[b]}\n21\n${Y[b]}\n31\n${Z[b]}\n12\n${X[c]}\n22\n${Y[c]}\n32\n${Z[c]}\n13\n${X[c]}\n23\n${Y[c]}\n33\n${Z[c]}`);
+    buf.push(`${supported && !supported[t / 3] ? preX : pre}10\n${X[a]}\n20\n${Y[a]}\n30\n${Z[a]}\n11\n${X[b]}\n21\n${Y[b]}\n31\n${Z[b]}\n12\n${X[c]}\n22\n${Y[c]}\n32\n${Z[c]}\n13\n${X[c]}\n23\n${Y[c]}\n33\n${Z[c]}`);
     if (buf.length >= CHUNK) { out.push(buf.join("\n")); buf = []; }
   }
   if (buf.length) out.push(buf.join("\n"));

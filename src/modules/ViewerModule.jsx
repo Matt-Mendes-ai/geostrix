@@ -27,7 +27,7 @@ import { parseSolidInWorker } from "../lib/solidImportClient.js"; // TASKS.csv #
 const IMPORTED_SOLID_COLORS = [0x8fa3b8, 0xa89bbd, 0x8fb8aa, 0xbfae92, 0x93b3c4, 0xb89aa4];
 const SurfaceGeologyProjection = lazyModal(() => import("../components/SurfaceGeologyProjection.jsx")); // TASKS.csv #476 // TASKS.csv #318
 import { spreadColor, SPREAD_NOT_REPRODUCED } from "../lib/surfaceSpread.js"; // TASKS.csv #52 (a)
-import { supportShadeFactors } from "../lib/explicitSupport.js"; // TASKS.csv #977
+import { supportShadeFactors, supportedFaces } from "../lib/explicitSupport.js"; // TASKS.csv #977; supportedFaces: #1103
 import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
 import { pointInBoundary } from "../lib/pointInPolygon.js"; // TASKS.csv #903 — not geoprocessing.js, which loads d3-delaunay
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
@@ -4347,11 +4347,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     try {
       let res = null; // #1042 — "Exported" only when the file was written; Cancel says nothing
       const { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF, sceneVertsToWorld } = await import("../lib/meshExport.js"); // #600 startup budget
+      // TASKS.csv #1103 — an explicit surface's extrapolated margin is marked in DXF (own layer), VTK and OMF (per-face "supported")
+      const hull = surf.type === "explicit_surface" ? surf.params?.supportHull : null;
+      const supportedOf = (vertices, indices) => (hull ? supportedFaces(Float64Array.from(vertices.flat()), Array.from(indices.flat ? indices.flat() : indices), hull) : null);
       if (format === "obj") {
         const content = exportSurfaceOBJ(surf.name, mesh.geometry, originRef.current, prov, extra, { bytes: true }); // #1072 — UTF-8 bytes, not one huge string
         res = await saveFile({ quiet: true, suggestedName: `${baseName}.obj`, filters: [{ name: "Wavefront OBJ", extensions: ["obj"] }], content });
       } else if (format === "dxf") {
-        const content = exportSurfaceDXF(surf.name, mesh.geometry, originRef.current, prov, extra, { bytes: true }); // #1072
+        const w = hull ? sceneVertsToWorld(mesh.geometry, originRef.current) : null;
+        const content = exportSurfaceDXF(surf.name, mesh.geometry, originRef.current, prov, extra, { bytes: true, supported: w ? supportedOf(w.vertices, w.indices) : null }); // #1072; supported: #1103
         res = await saveFile({ quiet: true, suggestedName: `${baseName}.dxf`, filters: [{ name: "AutoCAD DXF", extensions: ["dxf"] }], content });
       } else if (format === "glb") {
         const buf = await exportSurfaceGLTF(surf.name, mesh.geometry, originRef.current, prov, extra);
@@ -4360,14 +4364,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         // TASKS.csv #798 — legacy VTK polydata for ParaView / PyVista (pv.read)
         const { surfaceToVtk } = await import("../lib/vtkExport.js");
         const { vertices, indices } = sceneVertsToWorld(mesh.geometry, originRef.current);
-        const content = surfaceToVtk(surf.name, vertices, indices, `EPSG:${epsg}${surf.editCount > 0 ? `, hand-edited ${surf.editCount} time(s)` : ""}`);
+        const content = surfaceToVtk(surf.name, vertices, indices, `EPSG:${epsg}${surf.editCount > 0 ? `, hand-edited ${surf.editCount} time(s)` : ""}`, supportedOf(vertices, indices)); // #1103
         res = await saveFile({ quiet: true, suggestedName: `${baseName}.vtk`, filters: [{ name: "VTK (legacy)", extensions: ["vtk"] }], content, encoding: "text" });
       } else if (format === "omf") {
         // TASKS.csv #411 — OMF v1 for Leapfrog / Datamine / Vulcan / Micromine (writer loaded on first use)
         const { writeOMF } = await import("../lib/omfWriter.js");
         const { vertices, indices } = sceneVertsToWorld(mesh.geometry, originRef.current);
         const desc = `GeoStrix surface, EPSG:${epsg}${extra.volumeM3 != null ? `, enclosed volume ${Math.round(extra.volumeM3)} m3` : ""}${surf.editCount > 0 ? `, hand-edited ${surf.editCount} time(s)` : ""}`;
-        const bytes = await writeOMF({ name: surf.name, description: desc, elements: [{ type: "surface", name: surf.name, description: desc, vertices: vertices.flat(), triangles: indices.flat() }] });
+        const bytes = await writeOMF({ name: surf.name, description: desc, elements: [{ type: "surface", name: surf.name, description: desc, vertices: vertices.flat(), triangles: indices.flat(), ...(() => { const sp = supportedOf(vertices, indices); return sp ? { data: [{ name: "supported", description: "1 = within the inputs, 0 = extrapolated beyond them", values: Array.from(sp), location: "faces" }] } : {}; })() }] });
         res = await saveFile({ quiet: true, suggestedName: `${baseName}.omf`, filters: [{ name: "Open Mining Format", extensions: ["omf"] }], content: bytes /* #1040 bytes */ });
       }
       if (!res?.ok) { if (res?.error) throw new Error(res.error); return; }

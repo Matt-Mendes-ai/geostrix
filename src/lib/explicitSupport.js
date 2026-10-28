@@ -35,3 +35,15 @@ export function compactHull(hull) {
   const r = (v) => Math.round(v * 100) / 100, r9 = (v) => Math.round(v * 1e9) / 1e9;
   return { origin: hull.origin.map(r), e1: hull.e1.map(r9), e2: hull.e2.map(r9), uv: Array.from(hull.uv, r) };
 }
+
+// TASKS.csv #1103 (review #1016, explicit modeller) — the same test per TRIANGLE for the exports: 1 when all three
+// vertices are inside the inputs' hull, 0 for the extrapolated margin. The margin was shaded in the view (#977) but went
+// out in DXF / OBJ / VTK / OMF as ordinary surface, indistinguishable from interpretation in Micromine or Leapfrog.
+// positions: world (E, N, Z) flat; indices: flat triangle list. -> Uint8Array (one per triangle) or null
+export function supportedFaces(positions, indices, hull) {
+  const f = supportShadeFactors(positions, hull);
+  if (!f) return null;
+  const nt = Math.floor(indices.length / 3), out = new Uint8Array(nt);
+  for (let t = 0; t < nt; t++) out[t] = f[3 * indices[3 * t]] === 1 && f[3 * indices[3 * t + 1]] === 1 && f[3 * indices[3 * t + 2]] === 1 ? 1 : 0;
+  return out;
+}
