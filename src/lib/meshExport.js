@@ -23,6 +23,7 @@
 // TASKS.csv entries) rather than one silently trusting the other's assumption.
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 import * as THREE from "three";
+import { sceneVertsToWorldFlat } from "./meshFlat.js"; // #1072
 
 // Reads a mesh's position/index buffers and returns plain arrays of world-space vertices + 0-based
 // triangle indices. `origin` is ViewerModule's originRef.current ({x,y,z} world coords of the scene
@@ -233,17 +234,41 @@ export function anisotropyLine(a) {
   return `Anisotropy trend: ${a.azimuth}/${a.dip} deg, ranges ${a.major}/${a.semiMajor}/${a.minor} m`;
 }
 
+// TASKS.csv #1072 (review #1016, performance #5) — the OBJ and DXF text is built in chunks of CHUNK entities from the flat
+// world arrays, each vertex's coordinates formatted ONCE (a vertex is shared by ~6 triangles), one string per entity.
+// The DXF built 29 strings per triangle and formatted every vertex for every face: 24 s and +1.8 GB at 1M triangles.
+// The text is unchanged (test/meshText1072.test.mjs). The app saves the chunks as UTF-8 bytes (surfaceTextBytes) rather
+// than one string of hundreds of MB.
+const CHUNK = 50000;
+function objChunks(name, geometry, origin, provenance, extra) {
+  const { vertices: V, indices: I } = sceneVertsToWorldFlat(geometry, origin);
+  const head = [`# ${name} — exported from GeoStrix`]; // TASKS.csv #143
+  provenanceLines(name, provenance, extra).forEach((l) => head.push(`# ${l}`)); // TASKS.csv #269
+  head.push(`o ${sanitizeName(name)}`);
+  const out = [head.join("\n")];
+  let buf = [];
+  const flush = () => { if (buf.length) { out.push(buf.join("\n")); buf = []; } };
+  for (let i = 0; i < V.length; i += 3) { buf.push(`v ${V[i].toFixed(4)} ${V[i + 1].toFixed(4)} ${V[i + 2].toFixed(4)}`); if (buf.length >= CHUNK) flush(); }
+  flush();
+  for (let t = 0; t + 2 < I.length; t += 3) { buf.push(`f ${I[t] + 1} ${I[t + 1] + 1} ${I[t + 2] + 1}`); if (buf.length >= CHUNK) flush(); }
+  flush();
+  return { chunks: out, sep: "\n" };
+}
+// the chunks as one UTF-8 file (the separator between chunks, a newline at the end)
+export function surfaceTextBytes({ chunks, sep }) {
+  const enc = new TextEncoder(), parts = chunks.map((c, i) => enc.encode(i ? sep + c : c)), end = enc.encode("\n");
+  const out = new Uint8Array(parts.reduce((s, p) => s + p.length, 0) + end.length);
+  let o = 0;
+  for (const p of parts) { out.set(p, o); o += p.length; }
+  out.set(end, o);
+  return out;
+}
+const joinChunks = ({ chunks, sep }) => chunks.join(sep) + "\n";
+
 // OBJ — plain text, universally supported. 1-indexed faces per the OBJ spec.
-export function exportSurfaceOBJ(name, geometry, origin, provenance = null, extra = {}) {
-  const { vertices, indices } = sceneVertsToWorld(geometry, origin);
-  const lines = [`# ${name} — exported from GeoStrix`]; // TASKS.csv #143
-  provenanceLines(name, provenance, extra).forEach((l) => lines.push(`# ${l}`)); // TASKS.csv #269
-  lines.push(`o ${sanitizeName(name)}`);
-  for (const [x, y, z] of vertices) lines.push(`v ${x.toFixed(4)} ${y.toFixed(4)} ${z.toFixed(4)}`);
-  for (let t = 0; t + 2 < indices.length; t += 3) {
-    lines.push(`f ${indices[t] + 1} ${indices[t + 1] + 1} ${indices[t + 2] + 1}`);
-  }
-  return lines.join("\n") + "\n";
+export function exportSurfaceOBJ(name, geometry, origin, provenance = null, extra = {}, { bytes = false } = {}) {
+  const c = objChunks(name, geometry, origin, provenance, extra);
+  return bytes ? surfaceTextBytes(c) : joinChunks(c);
 }
 
 // DXF (ASCII, R12-compatible subset) — one 3DFACE entity per triangle, the standard way to hand a
@@ -254,28 +279,30 @@ export function exportSurfaceOBJ(name, geometry, origin, provenance = null, extr
 // $ACADVER-gated features, which a bare triangle mesh does not. A 3DFACE always carries 4 vertex codes
 // (10/20/30 .. 13/23/33) even for a triangular face — the 4th vertex is conventionally a repeat of the
 // 3rd, per the DXF spec, not a degenerate/invalid entity.
-export function exportSurfaceDXF(name, geometry, origin, provenance = null, extra = {}) {
-  const { vertices, indices } = sceneVertsToWorld(geometry, origin);
+export function exportSurfaceDXF(name, geometry, origin, provenance = null, extra = {}, { bytes = false } = {}) {
+  const { vertices: V, indices: I } = sceneVertsToWorldFlat(geometry, origin);
   const layer = sanitizeName(name).slice(0, 255) || "SURFACE";
-  const lines = [];
+  const head = [];
   // TASKS.csv #269 — group code 999 is the DXF spec's own comment record; readers ignore it, humans
   // and grep don't. Written before the ENTITIES section so it sits at the top of the file.
-  provenanceLines(name, provenance, extra).forEach((l) => lines.push("999", l));
-  lines.push("0", "SECTION", "2", "ENTITIES");
-  const fmt = (n) => n.toFixed(4);
-  for (let t = 0; t + 2 < indices.length; t += 3) {
-    const a = vertices[indices[t]], b = vertices[indices[t + 1]], c = vertices[indices[t + 2]];
-    lines.push(
-      "0", "3DFACE",
-      "8", layer,
-      "10", fmt(a[0]), "20", fmt(a[1]), "30", fmt(a[2]),
-      "11", fmt(b[0]), "21", fmt(b[1]), "31", fmt(b[2]),
-      "12", fmt(c[0]), "22", fmt(c[1]), "32", fmt(c[2]),
-      "13", fmt(c[0]), "23", fmt(c[1]), "33", fmt(c[2]), // repeated 3rd vertex — standard for a triangular 3DFACE
-    );
+  provenanceLines(name, provenance, extra).forEach((l) => head.push("999", l));
+  head.push("0", "SECTION", "2", "ENTITIES");
+  // #1072 — each vertex's three coordinates, formatted once, as the text after each group code
+  const nv = V.length / 3, X = new Array(nv), Y = new Array(nv), Z = new Array(nv);
+  for (let i = 0; i < nv; i++) { X[i] = V[3 * i].toFixed(4); Y[i] = V[3 * i + 1].toFixed(4); Z[i] = V[3 * i + 2].toFixed(4); }
+  const pre = `0\n3DFACE\n8\n${layer}\n`;
+  const out = [head.join("\n")];
+  let buf = [];
+  for (let t = 0; t + 2 < I.length; t += 3) {
+    const a = I[t], b = I[t + 1], c = I[t + 2];
+    // the repeated 3rd vertex (13/23/33) is standard for a triangular 3DFACE
+    buf.push(`${pre}10\n${X[a]}\n20\n${Y[a]}\n30\n${Z[a]}\n11\n${X[b]}\n21\n${Y[b]}\n31\n${Z[b]}\n12\n${X[c]}\n22\n${Y[c]}\n32\n${Z[c]}\n13\n${X[c]}\n23\n${Y[c]}\n33\n${Z[c]}`);
+    if (buf.length >= CHUNK) { out.push(buf.join("\n")); buf = []; }
   }
-  lines.push("0", "ENDSEC", "0", "EOF");
-  return lines.join("\n") + "\n";
+  if (buf.length) out.push(buf.join("\n"));
+  out.push("0\nENDSEC\n0\nEOF");
+  const c = { chunks: out, sep: "\n" };
+  return bytes ? surfaceTextBytes(c) : joinChunks(c);
 }
 
 // glTF (binary .glb) — via three.js's own GLTFExporter, which handles the format's chunk/JSON/buffer
