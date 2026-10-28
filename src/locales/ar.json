@@ -6233,5 +6233,10 @@
   "Skipped {n} of {m} row(s): {why}.": "تُخطّي {n} من {m} صف/صفوف: {why}.",
   "Exported {features} feature(s) from \"{label}\" as a DXF (.dxf, R12, elevations kept). A DXF carries only layer names{v}: use Shapefile or GeoPackage for every attribute.": "صُدّرت {features} معلم/معالم من \"{label}\" بصيغة DXF (‏.dxf، R12، مع الارتفاعات). لا يحمل DXF إلا أسماء الطبقات{v}: استخدم Shapefile أو GeoPackage لكل السمات.",
   " (one per logged value{v2})": " (واحدة لكل قيمة مسجلة{v2})",
-  ", picks labelled dip/dip direction": "، القراءات موسومة بالميل/اتجاه الميل"
+  ", picks labelled dip/dip direction": "، القراءات موسومة بالميل/اتجاه الميل",
+  "The export's parameters and its not-a-resource statement: as # lines above the CSV header, or in a separate text file saved with it in a .zip (Micromine, Datamine and Vulcan do not skip # lines).": "معاملات التصدير وبيان أنه ليس موردًا: كأسطر # فوق ترويسة CSV، أو في ملف نصي منفصل يُحفظ معه في ملف ‎.zip (لا تتخطى Micromine وDatamine وVulcan أسطر #).",
+  "Provenance notes": "ملاحظات المصدر",
+  "automatic (beside the CSV for Micromine names)": "تلقائي (بجانب CSV مع أسماء Micromine)",
+  "in the CSV (# lines above the header)": "داخل CSV (أسطر # فوق الترويسة)",
+  "beside the CSV (.zip with a _provenance.txt)": "بجانب CSV (‎.zip مع ملف ‎_provenance.txt)"
 }

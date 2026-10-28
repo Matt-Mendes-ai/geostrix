@@ -6233,5 +6233,10 @@
   "Skipped {n} of {m} row(s): {why}.": "{n} de {m} linha(s) ignorada(s): {why}.",
   "Exported {features} feature(s) from \"{label}\" as a DXF (.dxf, R12, elevations kept). A DXF carries only layer names{v}: use Shapefile or GeoPackage for every attribute.": "{features} feição(ões) de \"{label}\" exportada(s) como DXF (.dxf, R12, com elevações). Um DXF leva apenas nomes de camada{v}: use Shapefile ou GeoPackage para todos os atributos.",
   " (one per logged value{v2})": " (uma por valor registrado{v2})",
-  ", picks labelled dip/dip direction": ", medidas rotuladas mergulho/direção de mergulho"
+  ", picks labelled dip/dip direction": ", medidas rotuladas mergulho/direção de mergulho",
+  "The export's parameters and its not-a-resource statement: as # lines above the CSV header, or in a separate text file saved with it in a .zip (Micromine, Datamine and Vulcan do not skip # lines).": "Os parâmetros da exportação e o aviso de que não é um recurso: como linhas # acima do cabeçalho do CSV, ou num arquivo de texto separado salvo com ele num .zip (Micromine, Datamine e Vulcan não ignoram linhas #).",
+  "Provenance notes": "Notas de procedência",
+  "automatic (beside the CSV for Micromine names)": "automático (ao lado do CSV com nomes do Micromine)",
+  "in the CSV (# lines above the header)": "no CSV (linhas # acima do cabeçalho)",
+  "beside the CSV (.zip with a _provenance.txt)": "ao lado do CSV (.zip com um _provenance.txt)"
 }

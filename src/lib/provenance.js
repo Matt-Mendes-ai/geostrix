@@ -24,3 +24,13 @@ export function stampLines({ tool, version, epsg, params = [] }) {
 export function withStamp(csvText, lines) {
   return `${lines.map((l) => `# ${String(l).replace(/\r?\n/g, " ")}`).join("\n")}\n${csvText}`;
 }
+
+// TASKS.csv #1061 (review #1016, Micromine user) — the stamp BESIDE the table instead of above it: Micromine, Datamine and
+// Vulcan do not skip "#" lines, and their number changed with the parameters (15 for one block model), so the "start at
+// line N" import setting had to be worked out again for every file. -> [{ name, text }] for buildZip: the clean CSV and
+// <base>_provenance.txt with the same lines.
+export function stampBeside(csvText, lines, base) {
+  return [{ name: `${base}.csv`, text: csvText }, { name: `${base}_provenance.txt`, text: `${lines.map((l) => String(l).replace(/\r?\n/g, " ")).join("\r\n")}\r\n` }];
+}
+// "auto" -> beside for Micromine column names, in the file otherwise
+export const stampPlacement = (choice, names) => (choice === "inline" || choice === "beside" ? choice : names === "micromine" ? "beside" : "inline");
