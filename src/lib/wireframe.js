@@ -24,6 +24,7 @@
 //   6. wound outward (signed volume positive) - every edge in exactly two triangles, so volumetrics accepts it.
 // Pure: no three.js.
 import { t as tr } from "./i18n.js"; // TASKS.csv #786
+import { earClip as capEarClip } from "./intrusionBody.js"; // TASKS.csv #1032 — the #937 ear clipper for the flat caps
 
 function centroid(pts) {
   let x = 0, y = 0, z = 0;
@@ -49,38 +50,7 @@ export function resampleLoop(pts, n) {
   return out;
 }
 
-// ear clipping of a simple polygon given in 2D ([u, v], counter-clockwise); returns index triples. Resampled outlines
-// have runs of collinear points (16 along each side of a rectangle at n = 64): a flat vertex is clipped as a zero-area
-// triangle - it must still be emitted, or its two edges (shared with the side strips) would be left open - and a point
-// lying ON a candidate ear's edge does not block it (only points strictly inside do).
-function earClip(pts2) {
-  const idx = pts2.map((_, i) => i), tris = [];
-  let span = 0;
-  for (const p of pts2) for (const q of [pts2[0]]) span = Math.max(span, Math.abs(p[0] - q[0]), Math.abs(p[1] - q[1]));
-  const eps = 1e-9 * Math.max(1, span * span);
-  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-  const strictlyInside = (p, a, b, c) => cross(a, b, p) > eps && cross(b, c, p) > eps && cross(c, a, p) > eps;
-  let guard = 0;
-  while (idx.length > 3 && guard++ < 100000) {
-    let clipped = false;
-    // prefer real (convex) ears; take a flat one only when no convex ear is free
-    for (const wantFlat of [false, true]) {
-      for (let k = 0; k < idx.length; k++) {
-        const i0 = idx[(k + idx.length - 1) % idx.length], i1 = idx[k], i2 = idx[(k + 1) % idx.length];
-        const a = pts2[i0], b = pts2[i1], c = pts2[i2], cr = cross(a, b, c);
-        if (wantFlat ? Math.abs(cr) > eps : cr <= eps) continue;
-        let ear = true;
-        if (!wantFlat) for (const j of idx) { if (j === i0 || j === i1 || j === i2) continue; if (strictlyInside(pts2[j], a, b, c)) { ear = false; break; } }
-        if (!ear) continue;
-        tris.push([i0, i1, i2]); idx.splice(k, 1); clipped = true; break;
-      }
-      if (clipped) break;
-    }
-    if (!clipped) return null; // TASKS.csv #860 — no ear left: the outline crosses itself (it used to be fanned silently)
-  }
-  if (idx.length === 3) tris.push([idx[0], idx[1], idx[2]]);
-  return tris;
-}
+// (the flat caps use intrusionBody.js's ear clipper since TASKS.csv #1032: see cap() below)
 
 // TASKS.csv #860 — does a closed 2D loop cross itself? (non-adjacent segments that properly intersect; O(n^2), n small)
 export function loopSelfIntersects(q) {
@@ -175,7 +145,12 @@ export function linkOutlines(outlines, { n = 128, ends = "flat" } = {}) {
   }
   // end caps: counter-clockwise loops in (u, up) -> one cap reversed so both face outward once the whole is oriented
   const cap = (s, flip) => {
-    const tris = earClip(loops[s].map(to2));
+    // TASKS.csv #1032 (review #1016) — the #937 ear clipper: no flat ear tips, and a point ON an ear's edge blocks it, so
+    // every outline point is a cap corner and no cap triangle has zero area. The old clipper here cut zero-area triangles
+    // across a side's resampled points (T-junctions with the wall strips): validateSolid counted them as self-crossings
+    // and refused 40 of 40 random 5-10-corner outlines (a triangle prism: 317 crossing pairs).
+    let tris = null;
+    try { tris = capEarClip(loops[s].map(to2)); } catch { tris = null; }
     if (!tris) throw new Error(tr("The outline on section {s} could not be closed with a flat cap (it crosses itself after resampling). Simplify it and link again.", { s: loops[s].section }));
     for (const [i, j, k] of tris) flip ? indices.push(V(s, i), V(s, k), V(s, j)) : indices.push(V(s, i), V(s, j), V(s, k));
   };
