@@ -21,12 +21,31 @@ export function niceStep(lo, hi, n = 6) {
   return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
 }
 
-export function renderDcipSectionPng({ result, name, field = "resistivity", cutoff = 0, width = 1600 }) {
+// TASKS.csv #1096 (review #1016, geophysicist) — the colour range from the cells the data see (support envelope at or
+// above the cutoff), 2nd-98th percentile: the deep cells pinned at the inversion's bounds (0.01-100,000 ohm.m) set the
+// log bar before and squeezed the part of the section that means anything. Values beyond it take the end colours.
+export function rampRange(vals, env, cutoff, isRho) {
+  const seen = [];
+  for (let i = 0; i < vals.length; i++) if (Number.isFinite(vals[i]) && (!(cutoff > 0) || !(env[i] < cutoff)) && (!isRho || vals[i] > 0)) seen.push(vals[i]);
+  const use = seen.length ? seen : Array.from(vals).filter((v) => Number.isFinite(v) && (!isRho || v > 0));
+  if (!use.length) return { lo: 0, hi: 1 };
+  use.sort((a, b) => a - b);
+  const q = (p) => use[Math.min(use.length - 1, Math.max(0, Math.round(p * (use.length - 1))))];
+  let lo = isRho ? q(0.02) : 0, hi = q(0.98);
+  if (!(hi > lo)) { lo = use[0]; hi = use[use.length - 1] > lo ? use[use.length - 1] : lo + 1; }
+  return { lo, hi };
+}
+// 8-point compass name of an azimuth (deg from grid north)
+export const compass8 = (az) => ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round((((az % 360) + 360) % 360) / 45) % 8];
+
+export function renderDcipSectionPng({ result, name, field = "resistivity", cutoff = 0, width = 1600, azimuth = null }) {
   const c = result.cells, vals = c[field];
   const s0 = arrMin(c.s.map((s, i) => s - c.ds[i] / 2)), s1 = arrMax(c.s.map((s, i) => s + c.ds[i] / 2));
   const z0 = arrMin(c.z.map((z, i) => z - c.dz[i] / 2)), z1 = arrMax(c.z.map((z, i) => z + c.dz[i] / 2));
   const isRho = field === "resistivity";
-  const model = { stops: isRho ? logStops(arrMin(vals), arrMax(vals)) : sequentialStops(0, arrMax(vals)), colorMode: "continuous" };
+  const env = supportEnvelope(c.s, c.z, c.support);
+  const { lo, hi } = rampRange(vals, env, cutoff, isRho); // #1096
+  const model = { stops: isRho ? logStops(lo, hi) : sequentialStops(0, hi), colorMode: "continuous" };
   // TASKS.csv #585 — text sized for where the image is used: Layout places an image at up to PLACED_W page px, so a
   // 1600 px PNG prints at ~0.44x and its 14 px labels came out at 4.6 pt. Each size is a print-scale point size
   // (theme printPt) at that placement; the margins grow with them.
@@ -46,7 +65,6 @@ export function renderDcipSectionPng({ result, name, field = "resistivity", cuto
   g.fillStyle = colors.bg; g.fillRect(0, 0, width, height);
   const X = (s) => L + (s - s0) * sx, Y = (z) => T + (z1 - z) * sz;
   // cells (a hair of overlap hides anti-aliasing seams between neighbours)
-  const env = supportEnvelope(c.s, c.z, c.support);
   const hatch = canvasHatch(g, 8); // #535 — low support hatched, never a ramp-like flat grey
   for (let i = 0; i < vals.length; i++) {
     g.fillStyle = env[i] < cutoff ? hatch : colorForVoxelValue(model, vals[i]);
@@ -82,21 +100,27 @@ export function renderDcipSectionPng({ result, name, field = "resistivity", cuto
   // title + fit
   g.textAlign = "left"; g.textBaseline = "alphabetic"; g.fillStyle = colors.text; g.font = font(fpx(printPt.label), 600);
   g.fillText(`${isRho ? "Resistivity" : "Chargeability"} — DC/IP line ${name}`, L, fpx(printPt.label) * 1.15);
+  // #1096 — which way the section runs: the compass direction at each end, over the plot corners
+  if (Number.isFinite(azimuth)) {
+    g.save(); g.font = font(fpx(printPt.small), 700); g.fillStyle = colors.text; g.textBaseline = "bottom";
+    g.textAlign = "left"; g.fillText(compass8(azimuth + 180), L + 4, T - 4);
+    g.textAlign = "right"; g.fillText(compass8(azimuth), L + plotW - 4, T - 4);
+    g.restore();
+  }
   g.font = font(fpx(printPt.caption)); g.fillStyle = colors.textSecondary;
   const chi = isRho ? fitVerdict(result).chi : result.ip ? result.ip.phi_d / result.target : NaN;
-  g.fillText(`2.5D SimPEG inversion · misfit ${Number.isFinite(chi) ? chi.toFixed(2) : "?"}× the target · vertical exaggeration ${ve.toFixed(1)}× · hatched = below the depth the data see (no cell at or beneath it reaches support ${cutoff})${doiOk ? ` · dashed = DOI index ${doiT} (Oldenburg & Li, median over 5 columns)` : ""}`, L, fpx(printPt.label) * 1.15 + fpx(printPt.caption) * 1.5);
+  g.fillText(`2.5D SimPEG inversion${Number.isFinite(azimuth) ? ` · azimuth ${azimuth.toFixed(0)}° (grid)` : ""} · misfit ${Number.isFinite(chi) ? chi.toFixed(2) : "?"}× the target · vertical exaggeration ${ve.toFixed(1)}× · hatched = below the depth the data see (no cell at or beneath it reaches support ${cutoff})${doiOk ? ` · dashed = DOI index ${doiT} (Oldenburg & Li, median over 5 columns)` : ""}`, L, fpx(printPt.label) * 1.15 + fpx(printPt.caption) * 1.5);
   // colour bar
   const by = T + plotH + 16 + fpx(printPt.small) * 3, bw = Math.min(Math.round(width * 0.325), plotW), bh = Math.round(fpx(printPt.caption) * 0.8);
-  const lo = isRho ? arrMin(vals) : 0, hi = arrMax(vals);
-  for (let k = 0; k < bw; k++) {
+  for (let k = 0; k < bw; k++) { // lo / hi: the seen cells' 2-98 % range (#1096)
     const t = k / (bw - 1);
     const v = isRho ? 10 ** (Math.log10(lo) + t * (Math.log10(hi) - Math.log10(lo))) : lo + t * (hi - lo);
     g.fillStyle = colorForVoxelValue(model, v); g.fillRect(L + k, by, 1.5, bh);
   }
   g.strokeStyle = colors.textSecondary; g.strokeRect(L, by, bw, bh);
   g.fillStyle = colors.textSecondary; g.font = font(fpx(printPt.caption)); g.textBaseline = "top";
-  g.textAlign = "left"; g.fillText(sig3(lo), L, by + bh + 5);
-  g.textAlign = "right"; g.fillText(sig3(hi), L + bw, by + bh + 5);
+  g.textAlign = "left"; g.fillText(`≤ ${sig3(lo)}`, L, by + bh + 5); // ≤ / ≥: values past the range take the end colours (#1096)
+  g.textAlign = "right"; g.fillText(`≥ ${sig3(hi)}`, L + bw, by + bh + 5);
   // #585 — the caption on its own line under the end values (at print size the three no longer fit on one)
   g.textAlign = "center"; g.fillText(isRho ? "Resistivity (ohm·m, log scale) — dark = conductive" : "Chargeability (mV/V)", L + bw / 2, by + bh + 5 + fpx(printPt.caption) * 1.3);
   // #535 — the hatch in the legend, next to the colour bar

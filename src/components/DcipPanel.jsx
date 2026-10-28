@@ -556,7 +556,7 @@ function lineVoxelModels(result, geom, { name, thick, cut, params, kinds }) {
 
 async function sectionImage(last, field, cutoff) {
   try { await document.fonts?.load("15px 'Exo 2'"); } catch { /* the fallback font is fine */ }
-  return renderDcipSectionPng({ result: last.result, name: last.name, field, cutoff });
+  return renderDcipSectionPng({ result: last.result, name: last.name, field, cutoff, azimuth: last.geom?.azimuth }); // azimuth: #1096
 }
 
 function exportCsv(last, epsg, cutoff) {
