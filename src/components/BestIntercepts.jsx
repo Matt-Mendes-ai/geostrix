@@ -3,6 +3,7 @@ import { X, Download, Sheet } from "./icons.js";
 import { computeBestIntercepts, makeRangeAverager, domainsForInterval, attachIncluding, metalEquivalent, metalEquivalentFormula, PRECIOUS_METALS } from "../lib/geochem.js"; // attachIncluding, metal equivalent: #402
 import { excludeQAQC } from "../lib/qaqc.js";
 import { desurveyHole } from "../lib/desurvey.js";
+import { interceptLocations } from "../lib/interceptLocation.js"; // TASKS.csv #1047
 import { trueWidthForIntercept } from "../lib/trueWidth.js";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -152,8 +153,13 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
   };
   const sig6 = (v) => (Number.isFinite(v) ? +v.toPrecision(6) : ""); // TASKS.csv #1069 — grades to 6 significant figures
   const exportCSV = () => {
+    // TASKS.csv #1047 (review #1016) — where each intercept is: the collar (E, N, RL, grid azimuth, dip negative = down,
+    // EOH) and the intercept's midpoint on the desurveyed trace (project desurvey method), for a press-release table or a
+    // grade-thickness long section without a join in Excel
+    const loc = interceptLocations(results, collars, survey, desurveyMethod, tracesByHole);
     const rows = results.map((r) => ({
       hole_id: r.hole_id, from: r.from, to: r.to, length_m: r.length.toFixed(2),
+      ...loc(r),
       ...(twEnabled ? {
         true_width_m: r.tw ? r.tw.trueWidth.toFixed(2) : "",
         true_width_factor: r.tw ? r.tw.factor.toFixed(3) : "",
