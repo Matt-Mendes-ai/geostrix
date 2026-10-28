@@ -97,6 +97,7 @@ export default function LayoutModule() {
     gridBoundViewportId, setGridBoundViewportId, gridMeters, setGridMeters,
     layoutPrintRequest, requestLayoutPrint, // TASKS.csv #908
     terrain, rasters, // TASKS.csv #949 — {credits}
+    viewerUiState, // TASKS.csv #1092 — legendOverride for the Atlas strip logs
   } = useStore();
   const [selected, setSelected] = useState(null);
   // TASKS.csv #398 — the active page's paper size in screen px (96 dpi); named A4 for the existing uses.
@@ -1275,6 +1276,7 @@ export default function LayoutModule() {
             templateElements={elements}
             collars={collars}
             layers={layers}
+            legendOverride={viewerUiState?.legendOverride} // TASKS.csv #1092 — the 3D legend's colours / names
             sections={sections}
             addLayoutPages={addLayoutPages}
           />

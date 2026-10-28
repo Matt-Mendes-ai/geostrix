@@ -22,3 +22,12 @@ test("#1080 a strip log that cannot be drawn leaves its page in the atlas, flagg
   const pages = await generateAtlasPages({ mode: "hole", items: ["H1", "H2"], templateElements: [{ type: "text", text: "{{hole_id}}" }], collars, layers: { litho }, includeStripLog: true });
   assert.deepEqual(pages.map((pg) => [pg.name, pg.stripLogFailed, pg.elements.length]), [["H1", true, 1], ["H2", false, 1]]); // H2 has no log: no strip log, nothing failed
 });
+
+test("#1092 Atlas strip logs use the legend's colour and name overrides", () => {
+  const plain = buildStripLogSvgMarkup({ holeId: "H1", collars, layers: { litho } }).svg;
+  const { svg } = buildStripLogSvgMarkup({ holeId: "H1", collars, layers: { litho }, legendOverride: { litho: { "Quartz vein & alteration": { color: "#123456", label: "QV" } } } });
+  assert.match(svg, /fill="#123456"/);
+  assert.match(svg, />QV</);
+  assert.doesNotMatch(plain, /#123456/);
+  assert.match(svg, /Sulphide &lt;5% d/); // a value with no override keeps its default name
+});

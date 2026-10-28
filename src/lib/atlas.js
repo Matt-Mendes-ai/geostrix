@@ -68,7 +68,7 @@ function substituteElement(el, values) {
 // positioned just below the lowest existing element (a reasonable default the user can drag afterward,
 // same "land it somewhere sensible, let the user adjust" approach the rest of Layout's own element-add
 // tools already use, e.g. addLogo/addImage's staggered placement).
-async function buildOneHolePage(holeId, templateElements, { collars, layers, includeStripLog }) {
+async function buildOneHolePage(holeId, templateElements, { collars, layers, includeStripLog, legendOverride }) {
   const values = holeAtlasValues(holeId, collars, layers);
   let elements = templateElements.map((el) => substituteElement(el, values));
   let stripLogFailed = false;
@@ -76,7 +76,7 @@ async function buildOneHolePage(holeId, templateElements, { collars, layers, inc
     // TASKS.csv #1080 — one hole's strip log failing (a rasterize error) no longer aborts the whole atlas: its page is
     // added without the image and counted in the result notice
     let built = null;
-    try { built = await buildStripLogDataUrl({ holeId, collars, layers }); } catch { stripLogFailed = true; }
+    try { built = await buildStripLogDataUrl({ holeId, collars, layers, legendOverride }); } catch { stripLogFailed = true; } // legendOverride: #1092
     if (built) {
       const maxY = elements.reduce((m, el) => Math.max(m, (el.y || 0) + (el.h || 40)), 60);
       const w = 260, h = w / built.aspect;
@@ -94,10 +94,10 @@ function buildOneSectionPage(section, templateElements) {
 
 // The main entry point — `mode` is "hole" or "section", `items` is the list of hole_ids or section
 // objects to generate one page each for. Returns [{name, elements}], ready for store.addLayoutPages().
-export async function generateAtlasPages({ mode, items, templateElements, collars, layers, includeStripLog }) {
+export async function generateAtlasPages({ mode, items, templateElements, collars, layers, includeStripLog, legendOverride = null }) {
   if (mode === "hole") {
     const pages = [];
-    for (const holeId of items) pages.push(await buildOneHolePage(holeId, templateElements, { collars, layers, includeStripLog }));
+    for (const holeId of items) pages.push(await buildOneHolePage(holeId, templateElements, { collars, layers, includeStripLog, legendOverride }));
     return pages;
   }
   return items.map((section) => buildOneSectionPage(section, templateElements));

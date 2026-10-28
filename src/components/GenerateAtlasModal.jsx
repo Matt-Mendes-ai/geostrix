@@ -11,7 +11,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 // template: every text/title element's {{token}} placeholders get filled in per hole/section, and one
 // new Layout page is created per item. See src/lib/atlas.js's own header comment for the deliberate
 // scope boundary (no per-item 3D viewport re-render — text + an optional per-hole strip-log image).
-export default function GenerateAtlasModal({ onClose, templateElements, collars, layers, sections, addLayoutPages }) {
+export default function GenerateAtlasModal({ onClose, templateElements, collars, layers, legendOverride = null, sections, addLayoutPages }) { // legendOverride: #1092
   useEscapeKey(onClose);
   useFocusTrap(); // TASKS.csv #238
   const [mode, setMode] = useState("hole"); // "hole" | "section"
@@ -56,13 +56,13 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
         ? await (async () => {
             const out = [];
             for (let i = 0; i < chosen.length; i++) {
-              const [page] = await generateAtlasPages({ mode, items: [chosen[i]], templateElements, collars, layers, includeStripLog });
+              const [page] = await generateAtlasPages({ mode, items: [chosen[i]], templateElements, collars, layers, includeStripLog, legendOverride });
               out.push(page);
               setProgress({ done: i + 1, total: chosen.length });
             }
             return out;
           })()
-        : await generateAtlasPages({ mode, items: chosen, templateElements, collars, layers, includeStripLog });
+        : await generateAtlasPages({ mode, items: chosen, templateElements, collars, layers, includeStripLog, legendOverride });
       addLayoutPages(pages);
       const failed = pages.filter((pg) => pg.stripLogFailed).map((pg) => pg.name); // #1080
       setResult({ ok: !failed.length, text: tr("Generated {n} page(s).", { n: pages.length }) + (failed.length ? ` ${tr("The strip log could not be drawn for {n} hole(s), added without it: {holes}.", { n: failed.length, holes: failed.slice(0, 8).join(", ") + (failed.length > 8 ? "…" : "") })}` : "") });

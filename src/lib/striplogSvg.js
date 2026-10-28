@@ -58,7 +58,13 @@ function barTrack(rows, x, sy, max) {
 // Builds the strip-log SVG markup (a string, not a DOM element) for one hole. Returns null if the hole
 // has no collar or no depth to show — same "nothing to draw" case StripLog.jsx's own maxDepth guard
 // handles, just returned instead of rendered as an empty page.
-export function buildStripLogSvgMarkup({ holeId, collars, layers }) {
+// TASKS.csv #1092 (review #1016) — legendOverride: the viewer's legend edits ({ layerKey: { value: { color, label } } },
+// the store's viewerUiState.legendOverride), so an Atlas strip log draws the colours and names the 3D legend and the
+// map viewport on the same page use. #402 did this for the strip-log modal only.
+export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride = null }) {
+  const ov = (key, v) => legendOverride?.[key]?.[v];
+  const colorOf = (key, fallback) => (v) => ov(key, v)?.color || fallback(v);
+  const nameOf = (key, fallback) => (v) => ov(key, v)?.label || (fallback ? fallback(v) : v);
   const collar = collars.find((c) => c.hole_id === holeId);
   const litho = (layers.litho || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from);
   const alt = (layers.alt || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from);
@@ -74,12 +80,12 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers }) {
   const sy = (d) => PAD_TOP + d * pxPerMeter;
   const H = sy(maxDepth) + PAD_BOTTOM;
   const tracks = [
-    { label: "Litho", rows: litho, kind: "fill", colorFn: LAYER_META.litho.colorFn, nameFn: (v) => UNIT_NAMES[v] || v },
-    { label: "Alt.", rows: alt, kind: "fill", colorFn: colorForAlteration },
-    { label: "Vein", rows: vein, kind: "tick", colorFn: colorForVein },
-    { label: "Bx", rows: breccia, kind: "fill", colorFn: colorForBreccia }, // #608
-    ...(structzone.length ? [{ label: "SZ", rows: structzone, kind: "fill", colorFn: colorForStructZone }] : []), // #604
-    { label: "Min.", rows: mnlgy, kind: "fill", colorFn: LAYER_META.mnlgy.colorFn }, // #684 — intervals as blocks, from = to as a line
+    { label: "Litho", rows: litho, kind: "fill", colorFn: colorOf("litho", LAYER_META.litho.colorFn), nameFn: nameOf("litho", (v) => UNIT_NAMES[v] || v) },
+    { label: "Alt.", rows: alt, kind: "fill", colorFn: colorOf("alt", colorForAlteration), nameFn: nameOf("alt") },
+    { label: "Vein", rows: vein, kind: "tick", colorFn: colorOf("vein", colorForVein) },
+    { label: "Bx", rows: breccia, kind: "fill", colorFn: colorOf("breccia", colorForBreccia), nameFn: nameOf("breccia") }, // #608
+    ...(structzone.length ? [{ label: "SZ", rows: structzone, kind: "fill", colorFn: colorOf("structzone", colorForStructZone), nameFn: nameOf("structzone") }] : []), // #604
+    { label: "Min.", rows: mnlgy, kind: "fill", colorFn: colorOf("mnlgy", LAYER_META.mnlgy.colorFn), nameFn: nameOf("mnlgy") }, // #684 — intervals as blocks, from = to as a line
     { label: "RQD%", rows: geotech, kind: "bar", max: 100 },
   ].filter((t) => t.rows.length);
   if (!tracks.length) return null;
@@ -114,8 +120,8 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers }) {
 
 // Rasterizes buildStripLogSvgMarkup's output into a PNG data URL, the same SVG->canvas->PNG technique
 // StripLog.jsx's own exportPNG button already uses. Returns null if the hole had nothing to draw.
-export async function buildStripLogDataUrl({ holeId, collars, layers }) {
-  const built = buildStripLogSvgMarkup({ holeId, collars, layers });
+export async function buildStripLogDataUrl({ holeId, collars, layers, legendOverride = null }) {
+  const built = buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride }); // legendOverride: #1092
   if (!built) return null;
   const { svg, width, height } = built;
   const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
