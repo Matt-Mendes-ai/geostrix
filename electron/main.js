@@ -1270,8 +1270,10 @@ function buildMenu() {
       // a Menu accelerator has no way to do. These items exist for menu discoverability/mouse use only.
       label: L("Edit"),
       submenu: [
-        { label: L("Undo"), click: () => mainWindow?.webContents.send("menu", "undo") },
-        { label: L("Redo"), click: () => mainWindow?.webContents.send("menu", "redo") },
+        // TASKS.csv #1087 — the shortcut shown in the menu, but not registered (registerAccelerator: false), so a text
+        // field keeps its own Ctrl+Z (#31)
+        { label: L("Undo"), accelerator: "CmdOrCtrl+Z", registerAccelerator: false, click: () => mainWindow?.webContents.send("menu", "undo") },
+        { label: L("Redo"), accelerator: "CmdOrCtrl+Shift+Z", registerAccelerator: false, click: () => mainWindow?.webContents.send("menu", "redo") },
       ],
     },
     {

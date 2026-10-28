@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { changedKeys } from "./undoLabels.js"; // TASKS.csv #1087
 import { capturedFrameFields } from "./layoutGeometry.js"; // TASKS.csv #906 / #961
 import { setKnownHoleIds } from "./qaqc.js"; // TASKS.csv #400
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
@@ -1444,21 +1445,23 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     // A burst still "in flight" (mid-drag, say) counts as the thing to undo first — commit it as a
     // step rather than silently discarding it.
     if (undoBeforeBurst.current) { undoPast.current.push(undoBeforeBurst.current); undoBeforeBurst.current = null; }
-    if (!undoPast.current.length) return;
-    const prev = undoPast.current.pop();
-    undoFuture.current.push(undoSnapshotRef.current());
+    if (!undoPast.current.length) return null;
+    const prev = undoPast.current.pop(), cur = undoSnapshotRef.current();
+    undoFuture.current.push(cur);
     applySnapshot(prev);
     setUndoCount(undoPast.current.length);
     setRedoCount(undoFuture.current.length);
+    return changedKeys(cur, prev); // TASKS.csv #1087 — what changed, for the window to say (null: nothing to undo)
   }, [applySnapshot]);
 
   const redo = useCallback(() => {
-    if (!undoFuture.current.length) return;
-    const next = undoFuture.current.pop();
-    undoPast.current.push(undoSnapshotRef.current());
+    if (!undoFuture.current.length) return null;
+    const next = undoFuture.current.pop(), cur = undoSnapshotRef.current();
+    undoPast.current.push(cur);
     applySnapshot(next);
     setUndoCount(undoPast.current.length);
     setRedoCount(undoFuture.current.length);
+    return changedKeys(cur, next); // #1087
   }, [applySnapshot]);
 
   const clearUndoHistory = useCallback(() => {

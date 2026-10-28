@@ -10,11 +10,12 @@ import ExportToast from "./components/ExportToast.jsx"; // TASKS.csv #1042 — e
 const UpdatePrompt = React.lazy(() => import("./components/UpdatePrompt.jsx")); // TASKS.csv #915 — loaded only when an update exists
 import { activateOnKey } from "./lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 import { DESURVEY_METHODS } from "./lib/desurvey.js"; // TASKS.csv #135 — status-bar desurvey-method picker
-import { onMenu, onSectionSnapshot, onSectionContacts, takeLaunchFile, onLaunchFile, pythonHealth, isSidecarRunning, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState, captureWindow, problemReportInfo } from "./lib/desktop.js";
+import { EXPORT_RESULT_EVENT, onMenu, onSectionSnapshot, onSectionContacts, takeLaunchFile, onLaunchFile, pythonHealth, isSidecarRunning, onUpdaterEvent, downloadUpdate, installUpdate, isDesktop, setDirtyState, captureWindow, problemReportInfo } from "./lib/desktop.js";
 import ViewerModule from "./modules/ViewerModule.jsx";
 // TASKS.csv #438 — memoised so a store write while the viewer is hidden (FreezeStore below) skips it entirely
 const MemoViewerModule = React.memo(ViewerModule);
 import { RibbonSlotContext } from "./components/Ribbon.jsx"; // TASKS.csv #458
+import { undoMessage } from "./lib/undoLabels.js"; // TASKS.csv #1087
 import { UiModeContext, initialUiMode, saveUiMode } from "./lib/uiMode.js"; // TASKS.csv #748 — Simple / Advanced
 // TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
 // returns one hit -- a comment. A fresh launch eagerly fetches ~100 modules including three, geotiff,
@@ -83,6 +84,10 @@ export default function App() {
     undo, redo, canUndo, canRedo,
     requestLayoutPrint, // TASKS.csv #908 — Export PDF prints from Layout's print root
   } = store;
+  // TASKS.csv #1087 — undo / redo say what they changed (or that there was nothing to undo), in the bottom-right toast
+  const say = (message) => { try { window.dispatchEvent(new CustomEvent(EXPORT_RESULT_EVENT, { detail: { ok: true, message } })); } catch { /* no window */ } };
+  const undoSay = useCallback(() => say(undoMessage("undo", undo())), [undo]);
+  const redoSay = useCallback(() => say(undoMessage("redo", redo())), [redo]);
   const [active, setActive] = useState("viewer");
   const activeRef = useRef(active); activeRef.current = active; // #565 — the menu bridge is subscribed once
   const [ribbonEl, setRibbonEl] = useState(null); // TASKS.csv #458
@@ -341,11 +346,11 @@ export default function App() {
       else if (action === "about") setShortcutsTab("about");
       else if (action === "report-problem") openReportProblem(); // #598
       else if (action === "licenses") setLicensesOpen(true); // #639
-      else if (action === "undo") undo();
-      else if (action === "redo") redo();
+      else if (action === "undo") undoSay();
+      else if (action === "redo") redoSay();
     });
     return off;
-  }, [doNew, doOpen, doSave, doExportPdf, undo, redo]);
+  }, [doNew, doOpen, doSave, doExportPdf, undoSay, redoSay]);
 
   // TASKS.csv #31 — Ctrl/Cmd+Z / Ctrl/Cmd+Shift+Z (also Ctrl+Y for redo, a common Windows habit).
   // Deliberately a plain window keydown listener rather than an Electron menu accelerator (see the
@@ -364,12 +369,12 @@ export default function App() {
       const key = e.key.toLowerCase();
       if (!mod || (key !== "z" && key !== "y")) return;
       if (isEditable(document.activeElement)) return; // let the browser handle text-field undo/redo natively
-      if (key === "y") { e.preventDefault(); redo(); return; }
-      if (e.shiftKey) { e.preventDefault(); redo(); } else { e.preventDefault(); undo(); }
+      if (key === "y") { e.preventDefault(); redoSay(); return; }
+      if (e.shiftKey) { e.preventDefault(); redoSay(); } else { e.preventDefault(); undoSay(); }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [undo, redo]);
+  }, [undoSay, redoSay]);
 
   // TASKS.csv #34 — warn on quit if any workspace tab (the active one, or a stashed background one)
   // has unsaved changes. Autosave (#33) is the real safety net against a hard crash, but a deliberate
@@ -487,8 +492,8 @@ export default function App() {
         <button className="ge-tool-btn" onClick={doOpen} title={tr("Open project")} aria-label={tr("Open project")}><FolderOpen size={14} /> <span className="ge-tool-label-opt">{tr("Open")}</span></button>
         <button className="ge-tool-btn" onClick={() => doSave()} title={tr("Save project (Ctrl+S — to its own file; Ctrl+Shift+S: Save As)")} aria-label={tr("Save project")}><Save size={14} /> <span className="ge-tool-label-opt">{savedFlash ? tr("Saved ✓") : tr("Save")}</span></button>
         <div className="ge-tool-sep" />
-        <button className="ge-tool-btn" onClick={undo} disabled={!canUndo} title={tr("Undo (Ctrl/Cmd+Z)")} aria-label={tr("Undo")} style={{ opacity: canUndo ? 1 : 0.4 }}><Undo2 size={14} /></button>
-        <button className="ge-tool-btn" onClick={redo} disabled={!canRedo} title={tr("Redo (Ctrl/Cmd+Shift+Z)")} aria-label={tr("Redo")} style={{ opacity: canRedo ? 1 : 0.4 }}><Redo2 size={14} /></button>
+        <button className="ge-tool-btn" onClick={undoSay} disabled={!canUndo} title={tr("Undo (Ctrl/Cmd+Z): collars, surveys, logs, assays, surface samples, sections, planned holes, explicit surfaces, Layout pages ... Rasters, terrain, map layers, block models and generated surfaces are not undoable.")} aria-label={tr("Undo")} style={{ opacity: canUndo ? 1 : 0.4 }}><Undo2 size={14} /></button>
+        <button className="ge-tool-btn" onClick={redoSay} disabled={!canRedo} title={tr("Redo (Ctrl/Cmd+Shift+Z)")} aria-label={tr("Redo")} style={{ opacity: canRedo ? 1 : 0.4 }}><Redo2 size={14} /></button>
         <div className="ge-tool-sep" />
         <button className="ge-tool-btn" onClick={doExportPdf} title={tr("Exports the Layout page (switches to it first if needed)")} aria-label={tr("Export PDF")}><FileDown size={14} /> <span className="ge-tool-label-opt">{tr("Export PDF")}</span></button>
         <button className="ge-tool-btn" onClick={() => setReportOpen(true)} title={tr("Consolidated drillhole/assay project summary (CSV)")} aria-label={tr("Project report")}><FileBarChart2 size={14} /> <span className="ge-tool-label-opt">{tr("Report")}</span></button>
