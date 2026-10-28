@@ -64,7 +64,8 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
           })()
         : await generateAtlasPages({ mode, items: chosen, templateElements, collars, layers, includeStripLog });
       addLayoutPages(pages);
-      setResult({ ok: true, text: `Generated ${pages.length} page${pages.length === 1 ? "" : "s"}.` });
+      const failed = pages.filter((pg) => pg.stripLogFailed).map((pg) => pg.name); // #1080
+      setResult({ ok: !failed.length, text: tr("Generated {n} page(s).", { n: pages.length }) + (failed.length ? ` ${tr("The strip log could not be drawn for {n} hole(s), added without it: {holes}.", { n: failed.length, holes: failed.slice(0, 8).join(", ") + (failed.length > 8 ? "…" : "") })}` : "") });
     } catch (err) {
       setResult({ ok: false, text: err.message });
     } finally {

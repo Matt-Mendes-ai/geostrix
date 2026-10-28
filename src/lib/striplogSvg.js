@@ -26,6 +26,8 @@ const PAD_BOTTOM = 20;
 
 function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
+// TASKS.csv #1080 — the in-block label is cut to 14 characters BEFORE escaping: cutting after it left "&a" of "&amp;",
+// malformed XML the <img> rasterizer rejects ("Quartz vein & alteration")
 function fillTrack(rows, x, sy, colorFn, nameFn) {
   return rows.map((r) => {
     const y0 = sy(r.from), y1 = sy(r.to);
@@ -33,7 +35,7 @@ function fillTrack(rows, x, sy, colorFn, nameFn) {
     const color = colorFn ? colorFn(r.value) : "#8a94a3";
     const label = nameFn ? nameFn(r.value) : r.value;
     return `<rect x="${x}" y="${y0}" width="${TRACK_W - 6}" height="${h}" fill="${color}" stroke="#ffffff" stroke-width="0.5"><title>${esc(label)} (${r.from}-${r.to} m)</title></rect>`
-      + (h > 11 ? `<text x="${x + 4}" y="${y0 + h / 2 + 3}" font-size="8" fill="#1a2028">${esc(String(label)).slice(0, 14)}</text>` : "");
+      + (h > 11 ? `<text x="${x + 4}" y="${y0 + h / 2 + 3}" font-size="8" fill="#1a2028">${esc(String(label).slice(0, 14))}</text>` : "");
   }).join("");
 }
 function tickTrack(rows, x, sy, colorFn) {

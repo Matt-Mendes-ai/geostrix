@@ -71,15 +71,19 @@ function substituteElement(el, values) {
 async function buildOneHolePage(holeId, templateElements, { collars, layers, includeStripLog }) {
   const values = holeAtlasValues(holeId, collars, layers);
   let elements = templateElements.map((el) => substituteElement(el, values));
+  let stripLogFailed = false;
   if (includeStripLog) {
-    const built = await buildStripLogDataUrl({ holeId, collars, layers });
+    // TASKS.csv #1080 — one hole's strip log failing (a rasterize error) no longer aborts the whole atlas: its page is
+    // added without the image and counted in the result notice
+    let built = null;
+    try { built = await buildStripLogDataUrl({ holeId, collars, layers }); } catch { stripLogFailed = true; }
     if (built) {
       const maxY = elements.reduce((m, el) => Math.max(m, (el.y || 0) + (el.h || 40)), 60);
       const w = 260, h = w / built.aspect;
       elements = [...elements, { id: `striplog_${holeId}_${Date.now()}`, type: "image", label: `Strip log — ${holeId}`, src: built.dataUrl, aspect: built.aspect, x: 40, y: maxY + 20, w, h }];
     }
   }
-  return { name: substituteTokens("{{hole_id}}", values), elements };
+  return { name: substituteTokens("{{hole_id}}", values), elements, stripLogFailed };
 }
 
 function buildOneSectionPage(section, templateElements) {

@@ -6239,5 +6239,7 @@
   "automatic (beside the CSV for Micromine names)": "automático (aparte del CSV con nombres de Micromine)",
   "in the CSV (# lines above the header)": "en el CSV (líneas # sobre el encabezado)",
   "beside the CSV (.zip with a _provenance.txt)": "aparte del CSV (.zip con un _provenance.txt)",
-  "no declustering and no classification. Domain control applies only if you both select a domain layer and tick \"restrict the interpolation search\"; high-grade capping applies only if you enter a cap. Every one of those is an assumption you are making, not a property of the data.": "sin desagrupamiento y sin clasificación. El control por dominio solo se aplica si elige una capa de dominio y además marca \"restringir la búsqueda de interpolación\"; el recorte de altas leyes solo se aplica si ingresa un recorte. Cada uno de ellos es un supuesto que usted hace, no una propiedad de los datos."
+  "no declustering and no classification. Domain control applies only if you both select a domain layer and tick \"restrict the interpolation search\"; high-grade capping applies only if you enter a cap. Every one of those is an assumption you are making, not a property of the data.": "sin desagrupamiento y sin clasificación. El control por dominio solo se aplica si elige una capa de dominio y además marca \"restringir la búsqueda de interpolación\"; el recorte de altas leyes solo se aplica si ingresa un recorte. Cada uno de ellos es un supuesto que usted hace, no una propiedad de los datos.",
+  "Generated {n} page(s).": "Se generaron {n} página(s).",
+  "The strip log could not be drawn for {n} hole(s), added without it: {holes}.": "No se pudo dibujar el registro de columna de {n} sondaje(s), añadidos sin él: {holes}."
 }
