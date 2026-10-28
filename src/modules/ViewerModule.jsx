@@ -2546,6 +2546,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       if (now - lastFrameAtRef.current >= interval) {
         resortTransparentVoxels(now);
         { const hl = layerGroupsRef.current?.hole_labels; if (hl?.visible && hl.children.length) fitScreenLabels(hl, camera, mount.clientHeight); } // #379
+        if (sectionLinesGroupRef.current?.children.length) fitScreenLabels(sectionLinesGroupRef.current, camera, mount.clientHeight); // #1126 — section end labels
         renderer.setViewport(0, 0, mount.clientWidth, mount.clientHeight);
         renderer.setScissorTest(false);
         renderer.clippingPlanes = slicePlanesRef.current; // #453 — main scene only
@@ -3084,6 +3085,7 @@ ${describeTrend(t)}` };
     try {
       const shot = captureHiRes(renderer, mountW, mountH, () => { // #380 — print resolution
         fitScreenLabels(layerGroupsRef.current?.hole_labels, renderCamera, outH); // #379
+        fitScreenLabels(sectionLinesGroupRef.current, renderCamera, outH); // #1126
         renderer.clippingPlanes = slicePlanesRef.current; // #453 — the figure shows the slice you see
         renderer.render(scene, renderCamera);
         renderer.clippingPlanes = [];
@@ -5624,10 +5626,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // thick line is a strip of triangles), laid on the terrain where there is one (2 m above it), else 2 m above the
   // median collar elevation, drawn over everything so it stays visible from above and through the model. Its width follows the
   // section's length (0.6 %, at least 4 m), so it reads at the scale the section is seen at. Labelled by its tooltip.
+  // TASKS.csv #1126 — Matt: "add the label to the 3d line for the cross section", "make that line thinner and make it a
+  // standard cross section line like the ones used in geology maps". Now a thin dark line on a white halo with a tick at
+  // each end pointing the way the section is viewed (A on the left, B on the right in the section window, so the viewer
+  // faces the line's left-hand normal), and the section's name at A and name′ at B as fixed-size screen labels.
   useEffect(() => {
     const group = sectionLinesGroupRef.current;
     if (!group) return;
-    group.children.slice().forEach((ch) => { group.remove(ch); ch.geometry?.dispose(); ch.material?.dispose(); });
+    group.children.slice().forEach((ch) => { group.remove(ch); ch.geometry?.dispose(); ch.material?.map?.dispose(); ch.material?.dispose(); }); // map: #1126 label textures
     if (!showSectionLines || !(sections || []).length) return;
     const { x: ox, y: oy, z: oz } = originRef.current;
     // without a terrain, flat at the median collar elevation: a median, because one outlying high collar (Harry's 1,468 m
@@ -5640,13 +5646,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       if (![ax, ay, bx, by].every(Number.isFinite)) return;
       const L = Math.hypot(bx - ax, by - ay);
       if (!(L > 0)) return;
-      const width = Math.max(6, L * 0.02), ux = (bx - ax) / L, uy = (by - ay) / L, nx = -uy, ny = ux;
+      const width = Math.max(1.5, L * 0.003), ux = (bx - ax) / L, uy = (by - ay) / L, nx = -uy, ny = ux; // #1126: thin
       const n = Math.max(2, Math.min(200, Math.ceil(L / 10)));
       const zs = [];
       for (let k = 0; k <= n; k++) { const g = terrain ? terrainGroundAt(terrain, ax + (bx - ax) * (k / n), ay + (by - ay) * (k / n)) : NaN; zs.push(Number.isFinite(g) ? g + 2 : flatZ + 2); }
       const tip = `${tr("Cross-section: {name}", { name: sct.name })}\n${Math.round(L).toLocaleString()} m, ${tr("azimuth {v}°", { v: Math.round(sct.azimuth ?? 0) })}`;
-      // a dark red band on a wider white one (the white also runs a little past both ends)
-      [[width * 1.7, "#ffffff", 10], [width, "#c2185b", 11]].forEach(([w, color, order]) => {
+      // #1126 — a dark line on a white halo (the halo runs a little past both ends)
+      const ink = "#1a2028";
+      [[width * 2.6, "#ffffff", 10], [width, ink, 11]].forEach(([w, color, order]) => {
         const half = w / 2, ext = (w - width) / 2, pos = [], idx = [];
         for (let k = 0; k <= n; k++) {
           const along = k === 0 ? -ext : k === n ? ext : 0;
@@ -5662,7 +5669,29 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         mesh.userData = { tip };
         group.add(mesh);
       });
+      // #1126 — end ticks toward the viewing side (n), and the labels at their tips
+      const tickLen = Math.max(12, L * 0.05);
+      const endB = `${sct.name}${/[\p{L}\p{N}]$/u.test(sct.name || "") ? "" : "\u2009"}′`; // a thin space before ′ after "39°"
+      [[ax, ay, zs[0], sct.name], [bx, by, zs[n], endB]].forEach(([ex, ey, ez, label]) => {
+        [[width * 2.6, "#ffffff", 10], [width, ink, 11]].forEach(([w, color, order]) => {
+          const h = w / 2, tx = ex + nx * tickLen, ty = ey + ny * tickLen;
+          const quad = [[ex - ux * h, ey - uy * h], [ex + ux * h, ey + uy * h], [tx + ux * h, ty + uy * h], [tx - ux * h, ty - uy * h]];
+          const geo = new THREE.BufferGeometry();
+          geo.setAttribute("position", new THREE.Float32BufferAttribute(quad.flatMap(([px, py]) => [px - ox, ez - oz, -(py - oy)]), 3));
+          geo.setIndex([0, 1, 2, 0, 2, 3]);
+          const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(color), side: THREE.DoubleSide, depthTest: false, transparent: true, opacity: 0.95 }));
+          mesh.renderOrder = order;
+          mesh.userData = { tip };
+          group.add(mesh);
+        });
+        const sp = makeTextSprite(label, { color: ink, bg: "rgba(255,255,255,0.9)" });
+        sp.position.set(ex + nx * tickLen * 1.15 - ox, ez - oz, -(ey + ny * tickLen * 1.15 - oy));
+        sp.center.set(0.5, 0.5);
+        sp.renderOrder = 12;
+        group.add(sp);
+      });
     });
+    lastActivityRef.current = Date.now();
   }, [sections, showSectionLines, terrain, collars]);
 
   useEffect(() => {
