@@ -39,6 +39,9 @@ const CELL_FIELDS = [
   ["SUPPORT", (c) => (typeof c.support === "number" ? num(c.support) : null)],
   ["SUPPORT_CODE", (c) => (typeof c.support === "string" && SUPPORT_CODES[c.support] != null ? SUPPORT_CODES[c.support] : null)],
   ["SUPPORT_INDEX", (c) => num(c.supportIndex)], ["COVERAGE", (c) => num(c.coverage)], ["KV", (c) => num(c.kv)], ["NEAREST_M", (c) => num(c.nearestSampleM)],
+  // TASKS.csv #1044 — a vector (MVI) inversion's magnetization direction per cell: inclination positive down, declination
+  // clockwise from GRID north (potential.py _inc_dec); the direction is the point of choosing MVI, and no writer kept it
+  ["INC_DEG", (c) => num(c.inc)], ["DEC_GRID_DEG", (c) => num(c.dec)],
 ];
 export function numericCellFields(cells) {
   return CELL_FIELDS.filter(([, get]) => (cells || []).some((c) => get(c) != null)).map(([name, get]) => ({ name, get }));
@@ -68,6 +71,8 @@ export function blockModelRows(model, names = "datamine") {
     // estimated one its nearest-sample distance; neither reached the CSV
     if (Number.isFinite(c.kv)) row.KV = +c.kv.toPrecision(6);
     if (Number.isFinite(c.nearestSampleM)) row.NEAREST_M = +c.nearestSampleM.toFixed(2);
+    if (Number.isFinite(c.inc)) row.INC_DEG = +c.inc.toFixed(1); // #1044
+    if (Number.isFinite(c.dec)) row.DEC_GRID_DEG = +c.dec.toFixed(1);
     return row;
   });
 }
@@ -90,8 +95,8 @@ export function* blockModelCsvChunks(model, names = "datamine", chunk = 50000) {
   const cells = model.cells || [];
   if (!cells.length) return;
   const valueName = valueColumnName(model);
-  const OPT = ["N_SAMPLES", "N_HOLES", "SUPPORT", "SUPPORT_CODE", "SUPPORT_INDEX", "COVERAGE", "VOLUME_M3", "KV", "NEAREST_M"]; // KV / NEAREST_M: #1049
-  const has = (c) => [c.nSamples != null, c.nHoles != null, c.support != null, typeof c.support === "string" && SUPPORT_CODES[c.support] != null, Number.isFinite(c.supportIndex), Number.isFinite(c.coverage), Number.isFinite(c.coverage), Number.isFinite(c.kv), Number.isFinite(c.nearestSampleM)];
+  const OPT = ["N_SAMPLES", "N_HOLES", "SUPPORT", "SUPPORT_CODE", "SUPPORT_INDEX", "COVERAGE", "VOLUME_M3", "KV", "NEAREST_M", "INC_DEG", "DEC_GRID_DEG"]; // KV / NEAREST_M: #1049; INC / DEC: #1044
+  const has = (c) => [c.nSamples != null, c.nHoles != null, c.support != null, typeof c.support === "string" && SUPPORT_CODES[c.support] != null, Number.isFinite(c.supportIndex), Number.isFinite(c.coverage), Number.isFinite(c.coverage), Number.isFinite(c.kv), Number.isFinite(c.nearestSampleM), Number.isFinite(c.inc), Number.isFinite(c.dec)];
   // the columns in the order toExportCsv's union of row keys gives: the base seven, then each optional one where it first appears
   const fields = [...(BLOCK_COLUMN_NAMES[names] || BLOCK_COLUMN_NAMES.datamine), valueName], seen = new Set();
   for (let i = 0; i < cells.length && seen.size < OPT.length; i++) has(cells[i]).forEach((h, k) => { if (h && !seen.has(k)) { seen.add(k); fields.push(OPT[k]); } });
@@ -113,6 +118,8 @@ export function* blockModelCsvChunks(model, names = "datamine", chunk = 50000) {
     if (Number.isFinite(c.coverage)) { row[col.COVERAGE] = String(+c.coverage.toFixed(4)); row[col.VOLUME_M3] = String(+(c.coverage * c.dx * c.dy * c.dz).toFixed(3)); }
     if (Number.isFinite(c.kv)) row[col.KV] = String(+c.kv.toPrecision(6));
     if (Number.isFinite(c.nearestSampleM)) row[col.NEAREST_M] = String(+c.nearestSampleM.toFixed(2));
+    if (Number.isFinite(c.inc)) row[col.INC_DEG] = String(+c.inc.toFixed(1));
+    if (Number.isFinite(c.dec)) row[col.DEC_GRID_DEG] = String(+c.dec.toFixed(1));
     lines.push(row.join(","));
     if (lines.length >= chunk) { yield lines.join("\r\n"); lines = []; }
   }
@@ -158,6 +165,7 @@ export function blockModelParamLines(model) {
   if (kb) lines.push(`krigingBlocks: ${Object.entries(kb).map(([k, v]) => `${k} ${v}`).join(", ")}`);
   if ((model.cells || []).some((c) => Number.isFinite(c.kv))) lines.push(`KV: the block's ordinary-kriging variance${p.unit ? ` (${p.unit} squared)` : ""}, from the data layout under the variogram: not a grade error`);
   if ((model.cells || []).some((c) => Number.isFinite(c.nearestSampleM))) lines.push("NEAREST_M: distance from the block centre to the nearest composite used, metres");
+  if ((model.cells || []).some((c) => Number.isFinite(c.inc))) lines.push("INC_DEG / DEC_GRID_DEG: the cell's magnetization direction from the vector inversion: inclination in degrees, positive down; declination in degrees clockwise from GRID north (add the grid convergence's opposite for true north). An estimate, not a palaeomagnetic measurement."); // #1044
   const t = p.searchTrend;
   if (t) lines.push(`searchTrend: "${t.name}" dip ${t.dip} towards ${t.dipAzimuth}, pitch ${t.pitch}, ratios ${t.ratios?.max} : ${t.ratios?.int} : ${t.ratios?.min}${t.ellipsoidM ? `; search ellipsoid ${t.ellipsoidM.join(" x ")} m` : ""}`);
   if (p.capAudit) lines.push(`capAudit: ${capAuditText(p.capAudit, p.unit || "")}`);

@@ -140,7 +140,7 @@ export function provenanceText(model, t, files, epsg, notes) {
     "How the model was made (as recorded when it was created):",
     JSON.stringify(p, null, 2),
     "",
-    model.source === "simpeg" && model.style === "vector" ? "A vector (MVI) inversion is ONE model that fits the data to the stated uncertainty, not the only one: the value is the magnetization amplitude (SI-equivalent), with a direction per cell; depth is weakly resolved and amplitudes are approximate. Not a geological boundary, not a volume, not a resource." : "", // #770
+    model.source === "simpeg" && model.style === "vector" ? "A vector (MVI) inversion is ONE model that fits the data to the stated uncertainty, not the only one: the value is the magnetization amplitude (SI-equivalent); the direction per cell (inclination positive down, declination from grid north) is in _inc.mod / _dec.mod, or the inc_deg / dec_grid_deg columns of _cells.csv for an octree mesh (#1044); depth is weakly resolved and amplitudes are approximate. Not a geological boundary, not a volume, not a resource." : "", // #770
     model.source === "simpeg" && model.style === "compact" ? "A compact (sparse-norm) inversion is ONE model that fits the data to the stated uncertainty, not the only one: it assumes a few compact bodies with sharp edges, so it draws them tighter than the smooth model, and peak values can overshoot. Not a geological boundary, not a volume, not a resource." : "", // #769
     model.source === "simpeg" && model.style !== "compact" && model.style !== "vector" ? "A smooth inversion is ONE model that fits the data to the stated uncertainty, not the only one: amplitudes are underestimated and bodies smeared with depth. Not a geological boundary, not a volume, not a resource." : "",
     NOT_A_RESOURCE_SOURCE.test(String(model.source || "")) ? NOT_A_RESOURCE : "" /* geoml: #677; kriging-variance: #1026 */, // #529 — an estimate package said nothing
@@ -165,9 +165,9 @@ export async function buildModelExportZip(model, epsg) {
   if (adaptive) {
     const ext = (k, w) => ({ min: arrMin(cells.map((c) => c[k] - c[w] / 2)), max: arrMax(cells.map((c) => c[k] + c[w] / 2)) }); // #371: no spread over 10^5 cells
     t = { adaptive: true, n: cells.length, sizes: [...new Set(cells.map((c) => c.dx))].sort((a, b) => a - b), x: ext("x", "dx"), y: ext("y", "dy"), z: ext("z", "dz") };
-    const hasSupport = cells.some((c) => Number.isFinite(c.support));
-    const rows = cells.map((c) => [c.x, c.y, c.z, c.dx, c.dy, c.dz, Number.isFinite(c.value) ? c.value : "", ...(hasSupport ? [Number.isFinite(c.support) ? c.support : ""] : [])].join(","));
-    files.push({ name: `${base}_cells.csv`, data: enc([`x,y,z,dx,dy,dz,value${hasSupport ? ",support" : ""}`, ...rows].join("\n") + "\n") });
+    const hasSupport = cells.some((c) => Number.isFinite(c.support)), hasDir = cells.some((c) => Number.isFinite(c.inc)); // hasDir: #1044
+    const rows = cells.map((c) => [c.x, c.y, c.z, c.dx, c.dy, c.dz, Number.isFinite(c.value) ? c.value : "", ...(hasSupport ? [Number.isFinite(c.support) ? c.support : ""] : []), ...(hasDir ? [Number.isFinite(c.inc) ? c.inc : "", Number.isFinite(c.dec) ? c.dec : ""] : [])].join(","));
+    files.push({ name: `${base}_cells.csv`, data: enc([`x,y,z,dx,dy,dz,value${hasSupport ? ",support" : ""}${hasDir ? ",inc_deg,dec_grid_deg" : ""}`, ...rows].join("\n") + "\n") });
     notes.push(`Cells (.csv): one row per cell — centre x, y, z (elevation) and size dx, dy, dz in metres, value${hasSupport ? " and data support" : ""}.`);
     // #324 follow-up — the same model as UBC-GIF OcTree files (GIFtools, Geoscience ANALYST, the UBC-GIF codes)
     const oct = ubcOctreeFromCells(cells, UBC_NODATA);
@@ -183,6 +183,11 @@ export async function buildModelExportZip(model, epsg) {
     files.push({ name: `${base}.msh`, data: enc(ubcMeshText(t)) });
     files.push({ name: `${base}.mod`, data: enc(ubcModelText(cells, t, "value")) });
     if (cells.some((c) => Number.isFinite(c.support))) files.push({ name: `${base}_support.mod`, data: enc(ubcModelText(cells, t, "support")) });
+    // TASKS.csv #1044 — a vector inversion's direction, as companion models on the same mesh (the way _support.mod is)
+    if (cells.some((c) => Number.isFinite(c.inc))) {
+      files.push({ name: `${base}_inc.mod`, data: enc(ubcModelText(cells, t, "inc")) }, { name: `${base}_dec.mod`, data: enc(ubcModelText(cells, t, "dec")) });
+      notes.push("Direction (_inc.mod / _dec.mod): each cell's magnetization inclination (degrees, positive down) and declination (degrees clockwise from grid north), on the same mesh as the amplitude.");
+    }
   }
   const d = decodeStationData(model.stationData);
   const f = model.params?.inducingField;
