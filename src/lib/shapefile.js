@@ -140,8 +140,8 @@ function buildDbf(features, columns, { keepCase = false } = {}) {
     let numeric = true;
     for (const f of features) {
       const v = f.attributes[col];
-      if (v == null || v === "") continue;
-      if (typeof v !== "number" || !Number.isFinite(v)) { numeric = false; break; }
+      if (v == null || v === "" || (typeof v === "number" && !Number.isFinite(v))) continue; // #1067 — NaN is a blank, not text
+      if (typeof v !== "number") { numeric = false; break; }
     }
     const name = (keepCase ? col.slice(0, 10) : col.slice(0, 10).toUpperCase()).replace(/[^A-Za-z0-9_]/g, "_") || "FIELD";
     if (numeric) return { name, type: "N", len: 19, dec: 6 };
@@ -197,7 +197,7 @@ function buildDbf(features, columns, { keepCase = false } = {}) {
         text = raw == null || raw === "" || !Number.isFinite(raw) ? "" : Number(raw).toFixed(fd.dec);
         text = text.slice(0, fd.len);
       } else {
-        text = raw == null ? "" : String(raw);
+        text = raw == null || (typeof raw === "number" && !Number.isFinite(raw)) ? "" : String(raw); // #1067
       }
       // TASKS.csv #415 — UTF-8 (declared by the .cpg written alongside), cut to the field's BYTE length at a
       // character boundary. This used to write each UTF-16 code unit's low byte, so anything outside Latin-1

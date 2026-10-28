@@ -218,15 +218,24 @@ export async function buildGeoPackage(layers) {
 
     const tableName = (layer.name || "layer").replace(/[^a-zA-Z0-9_]+/g, "_").replace(/^(\d)/, "_$1").slice(0, 60) || "layer";
     const columns = Array.from(layer.features.reduce((set, f) => { Object.keys(f.attributes || {}).forEach((k) => set.add(k)); return set; }, new Set()));
+    // TASKS.csv #1067 — a NaN / Infinity (a blank or rejected dip) is NULL, not a reason to make the column TEXT of "NaN"
+    const isNull = (v) => v == null || v === "" || (typeof v === "number" && !Number.isFinite(v));
+    // TASKS.csv #1063 — sanitized names de-duplicated case-insensitively ("Mag (nT)" / "Mag_nT_", "Au" / "AU") and kept
+    // off the table's own fid / geom columns: each of those aborted the export with "duplicate column name"
+    const taken = new Set(["fid", "geom"]);
     const colDefs = columns.map((col) => {
-      const numeric = layer.features.every((f) => { const v = f.attributes[col]; return v == null || v === "" || (typeof v === "number" && Number.isFinite(v)); });
-      const safeName = col.replace(/[^a-zA-Z0-9_]+/g, "_").replace(/^(\d)/, "_$1") || "field";
+      const numeric = layer.features.every((f) => { const v = f.attributes[col]; return isNull(v) || typeof v === "number"; });
+      const base = col.replace(/[^a-zA-Z0-9_]+/g, "_").replace(/^(\d)/, "_$1") || "field";
+      let safeName = base;
+      for (let k = 1; taken.has(safeName.toLowerCase()); k++) safeName = `${base}_${k}`;
+      taken.add(safeName.toLowerCase());
       return { safeName, origName: col, sqlType: numeric ? "REAL" : "TEXT" };
     });
     const multiLine = layer.geomType === "polyline" && layer.features.some((f) => f.parts?.filter((q) => q.length >= 2).length > 1); // #1025
     const geomTypeName = { point: "POINT", polyline: multiLine ? "MULTILINESTRING" : "LINESTRING", polygon: "MULTIPOLYGON" }[layer.geomType];
     if (!geomTypeName) throw new Error(tr("GeoPackage export: unsupported geometry type \"{type}\".", { type: layer.geomType })); // #728: was written as a point
-    db.run(`CREATE TABLE "${tableName}" (fid INTEGER PRIMARY KEY AUTOINCREMENT, geom BLOB${colDefs.length ? ", " + colDefs.map((c) => `"${c.safeName}" ${c.sqlType}`).join(", ") : ""});`);
+    // #1063 — the geometry column declared with its geometry type (GeoPackage Req 25 / 31), not BLOB
+    db.run(`CREATE TABLE "${tableName}" (fid INTEGER PRIMARY KEY AUTOINCREMENT, geom ${geomTypeName}${colDefs.length ? ", " + colDefs.map((c) => `"${c.safeName}" ${c.sqlType}`).join(", ") : ""});`);
     db.run("INSERT INTO gpkg_geometry_columns VALUES (?, 'geom', ?, ?, 1, 0);", [tableName, geomTypeName, srsId]);
 
     let xmin = Infinity, ymin = Infinity, xmax = -Infinity, ymax = -Infinity;
@@ -236,7 +245,7 @@ export async function buildGeoPackage(layers) {
       const wkb = layer.geomType === "polyline" ? (multiLine ? wkbMultiLineStringZ(f.parts?.length ? f.parts.filter((q) => q.length >= 2) : [f.geometry]) : wkbLineStringZ(f.geometry)) : layer.geomType === "polygon" ? wkbMultiPolygonZ(polygonsFromRings(f.parts?.length ? f.parts : [f.geometry])) : wkbPointZ(...f.geometry[0]);
       const blob = gpbBlob(wkb, srsId);
       (layer.geomType !== "point" && f.parts?.length ? f.parts.flat() : f.geometry).forEach(([x, y]) => { if (x < xmin) xmin = x; if (x > xmax) xmax = x; if (y < ymin) ymin = y; if (y > ymax) ymax = y; });
-      const values = [blob, ...colDefs.map((c) => { const v = f.attributes[c.origName]; return v == null || v === "" ? null : (c.sqlType === "REAL" ? Number(v) : String(v)); })];
+      const values = [blob, ...colDefs.map((c) => { const v = f.attributes[c.origName]; return isNull(v) ? null : (c.sqlType === "REAL" ? Number(v) : String(v)); })];
       stmt.run(values);
     });
     stmt.free();

@@ -86,6 +86,7 @@ const SurfaceAnomalyControls = React.lazy(() => import("../components/SurfaceAno
 const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverlayPane.jsx")); // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
 import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut } from "../lib/levelPlan.js"; // TASKS.csv #525
+import { structureGisAttributes } from "../lib/structureAttrs.js"; // TASKS.csv #1067
 import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #577 (already in the startup chunk via compactRows)
 import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 import { unitShell, meshVolume, blockUnitStats } from "../lib/unitVolumes.js"; // TASKS.csv #517; blockUnitStats: #877
@@ -5994,7 +5995,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const md = meta.kind === "plane" ? r.depth : (r.from + r.to) / 2;
         const p = findOnTraceWorld(t, md);
         if (!p) return;
-        features.push({ geometry: [p], attributes: stripInternalFields(r) });
+        // #1067 — a structure plane: type, dip, dipdir_grid / dipdir_true, strike_rhr (was a bare "azimuth")
+        features.push({ geometry: [p], attributes: key === "structure" ? structureGisAttributes(r, project?.epsg ? trueNorthBearingInGridDeg(p[0], p[1], project.epsg) : null) : stripInternalFields(r) });
       });
       return { features, geomType: "point" };
     }
