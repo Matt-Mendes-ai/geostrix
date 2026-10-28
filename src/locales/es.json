@@ -6205,5 +6205,9 @@
   "Export structure set \"{name}\"": "Exportar el conjunto de estructuras \"{name}\"",
   "Export: dip, dip direction and strike (right-hand rule) in grid and true north": "Exportar: buzamiento, dirección de buzamiento y rumbo (regla de la mano derecha) en norte de cuadrícula y verdadero",
   "Export…": "Exportar…",
-  "KML (Google Earth)": "KML (Google Earth)"
+  "KML (Google Earth)": "KML (Google Earth)",
+  "The variogram cannot see between your holes: the range ({r} m) is shorter than the typical spacing between holes ({s} m){v}, so kriging is close to a plain average of the neighbours here.": "El variograma no ve entre sus sondajes: el alcance ({r} m) es menor que el espaciamiento típico entre sondajes ({s} m){v}, así que aquí el kriging es casi un promedio simple de los vecinos.",
+  " and {n} of {m} kriged blocks have their nearest composite beyond it": " y {n} de {m} bloques krigeados tienen su compósito más cercano más allá",
+  "Bin width. Leave 0 for a quarter of the median spacing between holes (the distance from a composite to the nearest composite in another hole), as ordinary kriging's automatic fit uses, or, with downhole-only pairs, the downhole spacing.": "Ancho de clase. Deje 0 para un cuarto del espaciamiento mediano entre sondajes (la distancia de un compósito al compósito más cercano de otro sondaje), como usa el ajuste automático del kriging ordinario, o, con pares solo a lo largo del sondaje, el espaciamiento en el sondaje.",
+  "{n} of {m} kriged blocks have their nearest composite beyond the range ({r} m): there, kriging is close to a plain average of the neighbours. A smaller search radius leaves them un-estimated instead.": "{n} de {m} bloques krigeados tienen su compósito más cercano más allá del alcance ({r} m): allí el kriging es casi un promedio simple de los vecinos. Un radio de búsqueda menor los deja sin estimar."
 }

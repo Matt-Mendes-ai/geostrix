@@ -6,7 +6,7 @@ import { samplePointsFromIntervals } from "../lib/estimation.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import {
   experimentalVariogram, fitVariogramModel, variogramModelValue, VARIOGRAM_MODELS,
-  VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, suggestLagDistance,
+  VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, suggestLagDistance, suggestBetweenHoleLag,
 } from "../lib/variogram.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -115,7 +115,9 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
         }
 
         const { points: tPoints, capValue } = applyValueTransform(points, transform, capPercentile);
-        const suggested = suggestLagDistance(tPoints);
+        // TASKS.csv #1027 — downhole pairs: the downhole spacing; all / between-hole pairs: the spacing between holes
+        const between = holeMode === "downhole" ? null : suggestBetweenHoleLag(tPoints);
+        const suggested = between != null ? between / 4 : suggestLagDistance(tPoints); // a quarter of it, as ordinary kriging's fit
         const lag = lagDistance > 0 ? lagDistance : Math.max(1, Math.round(suggested || 10));
 
         const direction = directional
@@ -213,7 +215,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
               <label style={fieldLabel}>{tr("Cap percentile")}<input type="number" min="50" max="100" step="0.5" value={capPercentile} onChange={(e) => setCapPercentile(Math.min(100, Math.max(50, Number(e.target.value) || 98)))} style={inp} />
               </label>
             )}
-            <label style={fieldLabel} title={tr("Bin width. Leave 0 to use the median nearest-neighbour spacing — the finest structure the data can actually resolve.")}>{tr("Lag distance (m, 0 = auto)")}<input type="number" min="0" step="any" value={lagDistance} onChange={(e) => setLagDistance(Math.max(0, Number(e.target.value) || 0))} style={inp} />
+            <label style={fieldLabel} title={tr("Bin width. Leave 0 for a quarter of the median spacing between holes (the distance from a composite to the nearest composite in another hole), as ordinary kriging's automatic fit uses, or, with downhole-only pairs, the downhole spacing.")}>{tr("Lag distance (m, 0 = auto)")}<input type="number" min="0" step="any" value={lagDistance} onChange={(e) => setLagDistance(Math.max(0, Number(e.target.value) || 0))} style={inp} />
             </label>
             <label style={fieldLabel} title={tr("Number of lag bins. lags x lag distance should be about half the field's extent — beyond that, pair counts collapse and the plot is noise.")}>{tr("Number of lags")}<input type="number" min="3" max="60" step="1" value={nLags} onChange={(e) => setNLags(Math.min(60, Math.max(3, Math.round(Number(e.target.value) || 12))))} style={inp} />
             </label>

@@ -327,6 +327,42 @@ export function groupPointsByDomain(points) {
   return m;
 }
 
+// TASKS.csv #1027 (review #1016, resource geologist) — a seeded random subsample (the same points every run). A stride
+// through composites stored hole by hole, down the hole, picks every k-th composite of the same hole (k = n / max), so a
+// "nearest neighbour" measured on it was the downhole spacing times k: the lag grew with the number of holes loaded.
+function randomSubsample(points, maxPoints, seed = 1) {
+  if (points.length <= maxPoints) return points;
+  const idx = Uint32Array.from(points, (_, i) => i);
+  let s = seed >>> 0 || 1;
+  for (let i = 0; i < maxPoints; i++) { // partial Fisher-Yates
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    const j = i + (s % (idx.length - i));
+    const t = idx[i]; idx[i] = idx[j]; idx[j] = t;
+  }
+  return Array.from(idx.subarray(0, maxPoints), (i) => points[i]);
+}
+
+// TASKS.csv #1027 — the spacing BETWEEN holes: for a random 600 of the composites, the distance to the nearest composite
+// in another hole (searched over all of them), median. This is the scale a block estimate interpolates across, so it
+// is the lag an automatic fit needs; the downhole spacing only resolves the nugget. null without hole ids or with one hole.
+export function suggestBetweenHoleLag(points) {
+  const pts = (points || []).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z) && p.hole_id != null);
+  if (new Set(pts.map((p) => p.hole_id)).size < 2) return null;
+  const nn = [];
+  for (const a of randomSubsample(pts, 600)) {
+    let best = Infinity;
+    for (const b of pts) {
+      if (b.hole_id === a.hole_id) continue;
+      const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 < best) best = d2;
+    }
+    if (best < Infinity) nn.push(Math.sqrt(best));
+  }
+  if (!nn.length) return null;
+  nn.sort((a, b) => a - b);
+  return nn[Math.floor(nn.length / 2)];
+}
+
 // A sane default lag distance for a point set: the median nearest-neighbour distance, which is the
 // finest structure the data can actually resolve. Guessing this badly is the most common way to get a
 // meaningless-looking variogram (too small = empty bins and noise, too large = every structure
@@ -334,13 +370,14 @@ export function groupPointsByDomain(points) {
 export function suggestLagDistance(points) {
   const pts = (points || []).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z));
   if (pts.length < 2) return null;
-  const { pts: sub } = subsample(pts, 600); // O(n^2) again — 600 is plenty for a median
+  // #1027 — a random 600 of the points, each one's nearest neighbour among ALL the points (600 x n): the median of a
+  // stride subsample's own neighbours was a multiple of the real spacing that grew with n
+  const sub = randomSubsample(pts, 600);
   const nn = [];
   for (let i = 0; i < sub.length; i++) {
     let best = Infinity;
-    for (let j = 0; j < sub.length; j++) {
-      if (i === j) continue;
-      const dx = sub[j].x - sub[i].x, dy = sub[j].y - sub[i].y, dz = sub[j].z - sub[i].z;
+    for (let j = 0; j < pts.length; j++) {
+      const dx = pts[j].x - sub[i].x, dy = pts[j].y - sub[i].y, dz = pts[j].z - sub[i].z;
       const d2 = dx * dx + dy * dy + dz * dz;
       if (d2 > 0 && d2 < best) best = d2;
     }

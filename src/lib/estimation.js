@@ -18,7 +18,7 @@ import { MAX_BLOCKS, MAX_BLOCK_BUDGET, SUPPORT_COLORS, ESTIMATION_METHODS } from
 export { MAX_BLOCKS, SUPPORT_COLORS, ESTIMATION_METHODS };
 import { pointOnTrace } from "./desurvey.js";
 import { valueIn } from "./geochem.js";
-import { experimentalVariogram, fitVariogramModel, suggestLagDistance, variogramModelValue } from "./variogram.js"; // #709
+import { experimentalVariogram, fitVariogramModel, suggestLagDistance, suggestBetweenHoleLag, variogramModelValue } from "./variogram.js"; // #709; #1027
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 // Squared distance below which a query point counts as sitting ON a sample: every non-nearest-neighbour
@@ -110,17 +110,23 @@ function trendFrame(trend, center) {
   };
 }
 // TASKS.csv #709 — the variogram ordinary kriging uses: the one given (nugget, sill, range), or one fitted to these
-// composites (omnidirectional, lag = median nearest-sample distance, 12 lags). `pts` are already in the search frame
-// (after a trend's warp), so a fitted range is the range along the trend's major axis.
+// composites (omnidirectional). `pts` are already in the search frame (after a trend's warp), so a fitted range is the
+// range along the trend's major axis. TASKS.csv #1027 — the lag is a quarter of the median spacing BETWEEN holes, 24 lags
+// (out to 6x that spacing). It was the nearest composite on a stride subsample, a multiple of the downhole spacing: 2 m
+// with 6 Harry holes and 12 m with 37, fitted ranges of 19 m and 78 m for the same element. On Harry's 24 and 37 holes
+// this rule fits Au 61 / 72 m and Cu 142 / 73 m (a fixed 25 m lag: 59 / 77 and 189 / 80); a full-spacing lag put the
+// whole sill in the first bin (pure nugget). betweenHoleM is returned for the run summary's warning.
 function resolveVariogram(pts, given, cellSize) {
   const v = given || {};
   const model = v.model || "spherical";
-  if ([v.nugget, v.sill, v.range].every((x) => Number.isFinite(x)) && v.sill > 0 && v.range > 0) return { model, nugget: Math.min(Math.max(0, v.nugget), v.sill), sill: v.sill, range: v.range, fitted: false };
-  const lag = suggestLagDistance(pts) || cellSize?.dx || 10;
-  const ev = experimentalVariogram(pts, { lagDistance: lag, nLags: 12 });
+  const between = suggestBetweenHoleLag(pts);
+  const betweenHoleM = between != null ? +between.toFixed(1) : null;
+  if ([v.nugget, v.sill, v.range].every((x) => Number.isFinite(x)) && v.sill > 0 && v.range > 0) return { model, nugget: Math.min(Math.max(0, v.nugget), v.sill), sill: v.sill, range: v.range, fitted: false, betweenHoleM };
+  const lag = (between ? between / 4 : suggestLagDistance(pts)) || cellSize?.dx || 10;
+  const ev = experimentalVariogram(pts, { lagDistance: lag, nLags: between ? 24 : 12 });
   const fit = fitVariogramModel(ev.bins, { model });
   if (!fit || !(fit.sill > 0) || !(fit.range > 0)) throw new Error(tr("A variogram could not be fitted to these composites (too few pairs at most lags). Enter the nugget, sill and range, or use the Variogram tool to choose them."));
-  return { model, nugget: Math.min(Math.max(0, fit.nugget), fit.sill), sill: fit.sill, range: fit.range, fitted: true, lagM: +lag.toFixed(2) };
+  return { model, nugget: Math.min(Math.max(0, fit.nugget), fit.sill), sill: fit.sill, range: fit.range, fitted: true, lagM: +lag.toFixed(2), betweenHoleM };
 }
 
 function withTrend(samplePoints, opts) {
@@ -168,7 +174,7 @@ export function estimateBlockModel(samplePoints, opts) {
   let singleHoleCells = 0; // TASKS.csv #258 — surfaced in the run summary
   let dominatedCells = 0; // TASKS.csv #676 — 2+ holes, but one carries >= 95 % of the weight
   const mlsCounts = { full: 0, reduced: 0, idw: 0 }; // TASKS.csv #516
-  const okCounts = { kriged: 0, exact: 0, negativeWeights: 0, fallbackIdw: 0 }; // TASKS.csv #709
+  const okCounts = { kriged: 0, exact: 0, negativeWeights: 0, fallbackIdw: 0, beyondRange: 0 }; // TASKS.csv #709; beyondRange: #1027
   const supportCounts = { interpolated: 0, extrapolated: 0, unsupported: 0, searchLimited: 0 };
 
   for (let iz = 0; iz < nz; iz++) {
@@ -182,7 +188,7 @@ export function estimateBlockModel(samplePoints, opts) {
         if (r.nHoles === 1) singleHoleCells++;
         else if (r.domShare >= DOMINANT_SHARE) dominatedCells++; // #676
         if (r.mlsMode) mlsCounts[r.mlsMode]++; // #516
-        if (r.okMode) { okCounts[r.okMode]++; if (r.okNeg) okCounts.negativeWeights++; } // #709
+        if (r.okMode) { okCounts[r.okMode]++; if (r.okNeg) okCounts.negativeWeights++; if (r.okFar) okCounts.beyondRange++; } // #709; #1027
         if (r.support) {
           supportCounts[r.support.cls]++;
           if (r.support.cls === SUPPORT_EXTRAPOLATED && r.support.dataBracketed) supportCounts.searchLimited++;
@@ -500,7 +506,13 @@ function makeCellEstimator(samplePoints, opts = {}) {
     if (method === "ok") { // #709 — an exact hit has no kriging error at that point
       if (!okRes) { out.okMode = "exact"; out.kv = 0; }
       else if (okRes.fallback) out.okMode = "fallbackIdw";
-      else { out.okMode = "kriged"; out.kv = okRes.kv; if (okRes.negative) out.okNeg = true; }
+      else {
+        out.okMode = "kriged"; out.kv = okRes.kv; if (okRes.negative) out.okNeg = true;
+        // #1027 — the nearest composite beyond the range: every covariance to the block is 0, so the "kriged" value is a
+        // redundancy-weighted mean of the neighbours
+        let m2 = Infinity; for (const u of used) if (u.d2 < m2) m2 = u.d2;
+        if (Math.sqrt(m2) > opts.variogram.range) out.okFar = true;
+      }
     }
     if (wantSupport) out.support = supportFrom(candidates, used, holes, cx, cy, cz, bracketTol, bracketMax, opts.searchRadius);
     return out;
@@ -695,23 +707,27 @@ export function okEstimate(used, cx, cy, cz, vg) {
   if (!n) return null;
   if (n === 1) return { value: used[0].value, kv: Math.max(0, 2 * (vg.sill - covAt(Math.sqrt(used[0].d2), vg))), negative: false, weights: [1] }; // w = 1, mu = c0 - sill
   const m = n + 1;
+  // TASKS.csv #1027 — covariances divided by the sill (the weights are unchanged). Unscaled, the unbiasedness row's pivot
+  // is ~n / sill while the singularity test was 1e-12 x sill: with a grade variance in the millions (Cu in ppm2, Woodjam
+  // sill 3.55M) every system was declared singular and fell back to IDW2.
+  const s = vg.sill;
   const A = new Float64Array(m * m), b = new Float64Array(m);
   for (let i = 0; i < n; i++) {
     const pi = used[i].p;
     for (let j = i; j < n; j++) {
       const pj = used[j].p;
-      const c = i === j ? vg.sill : covAt(Math.hypot(pi.x - pj.x, pi.y - pj.y, pi.z - pj.z), vg);
+      const c = (i === j ? s : covAt(Math.hypot(pi.x - pj.x, pi.y - pj.y, pi.z - pj.z), vg)) / s;
       A[i * m + j] = c; A[j * m + i] = c;
     }
     A[i * m + n] = 1; A[n * m + i] = 1;
-    b[i] = covAt(Math.sqrt(used[i].d2), vg);
+    b[i] = covAt(Math.sqrt(used[i].d2), vg) / s;
   }
   A[n * m + n] = 0; b[n] = 1;
   const rhs = Float64Array.from(b);
   for (let col = 0; col < m; col++) {
     let piv = col, best = Math.abs(A[col * m + col]);
     for (let r = col + 1; r < m; r++) { const v = Math.abs(A[r * m + col]); if (v > best) { best = v; piv = r; } }
-    if (best < 1e-12 * vg.sill) return null;
+    if (best < 1e-12) return null; // scaled system: covariances in units of the sill
     if (piv !== col) {
       for (let k = 0; k < m; k++) { const t = A[col * m + k]; A[col * m + k] = A[piv * m + k]; A[piv * m + k] = t; }
       const t = rhs[col]; rhs[col] = rhs[piv]; rhs[piv] = t;
@@ -733,7 +749,7 @@ export function okEstimate(used, cx, cy, cz, vg) {
   let value = 0, wc = 0, negative = false;
   for (let i = 0; i < n; i++) { value += x[i] * used[i].value; wc += x[i] * b[i]; if (x[i] < -1e-9) negative = true; }
   if (!Number.isFinite(value)) return null;
-  return { value, kv: Math.max(0, vg.sill - wc - x[n]), negative, weights: x }; // weights: #934 (x[0..n-1]; x[n] is the multiplier)
+  return { value, kv: Math.max(0, s * (1 - wc - x[n])), negative, weights: x }; // weights: #934 (x[0..n-1]; x[n] is the multiplier, in sill units)
 }
 function covAt(h, vg) { return h <= 0 ? vg.sill : vg.sill - variogramModelValue(h, vg); }
 
