@@ -90,9 +90,10 @@ function upsertMesh(sc, def, res, info) {
   const shade = supportShadeFactors(P, res.supportHull);
   if (shade) geo.setAttribute("color", new THREE.BufferAttribute(shade, 3));
   const nVerts = P.length / 3, nTris = res.indices.length / 3;
-  const tip = `${def.name} — explicit surface\n${res.n} points (${info.picks} picks, ${info.lines} section lines${info.mapLines ? `, ${info.mapLines} mapped contact lines` : ""}${info.guideLines ? `, ${info.guideLines} dip guide lines` : ""})`;
+  const tip = `${def.name} — explicit surface\n${res.n} points (${info.picks} picks, ${info.lines} section lines${info.mapLines ? `, ${info.mapLines} mapped contact lines` : ""}${info.guideLines ? `, ${info.guideLines} dip guide lines` : ""}${info.drawnLines ? `, ${info.drawnLines} lines on section images` : ""}${info.importedLines ? `, ${info.importedLines} imported DXF lines` : ""}${info.downholeGuide ? `, ${info.downholeGuide.lines} downhole dip guide lines (constructed)` : ""})`; // #1056
   const params = { tool: "explicit surface (thin-plate spline exactly through hand-picked contacts)", picks: info.picks, sectionLines: info.lines, sections: info.sections, lineSpacingM: info.spacing ? Math.round(info.spacing * 10) / 10 : null, points: res.n,
     mapContacts: (def.mapContacts || []).map((c) => c.units.join(" | ")), mapLines: info.mapLines || 0, dipGuide: info.guideLines ? { depthM: def.dipGuide?.depth, lines: info.guideLines, constructed: true } : null, // #817
+    drawnLines: info.drawnLines || 0, importedLines: info.importedLines || 0, downholeGuide: info.downholeGuide || null, // #1056
     frame: res.frame.steep ? `over its best-fit plane (dip ${res.frame.dip.toFixed(1)}°)` : "elevation over the map", maxMisfitM: Number(res.residualMax.toExponential(2)), marginM: Math.round(res.margin),
     // TASKS.csv #857 / #870 — the quality figures (maxMisfitM is only solver health: the fit at the inputs is exact by construction)
     looRmsM: res.quality.looRmsM == null ? null : Number(res.quality.looRmsM.toFixed(2)), looMaxM: res.quality.looMaxM == null ? null : Number(res.quality.looMaxM.toFixed(2)),
@@ -700,7 +701,11 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         }
         const ms = Math.round(performance.now() - t0);
         const sculpted = (def.surfaceId && surfaces.find((s) => s.id === def.surfaceId)?.editCount) || 0; // TASKS.csv #879
-        const surfaceId = upsertMesh(sc, def, res, { trendName: trend?.name, picks: ep.picks, lines: ep.lines, sections: ep.sections, spacing: ep.spacing, mapLines: ep.mapLines, guideLines: ep.guideLines, key });
+        const surfaceId = upsertMesh(sc, def, res, { trendName: trend?.name, picks: ep.picks, lines: ep.lines, sections: ep.sections, spacing: ep.spacing, mapLines: ep.mapLines, guideLines: ep.guideLines, key,
+          // TASKS.csv #1056 — every input the fit used goes into the surface's record (and so its export header): image and DXF
+          // lines were counted only in the build notice, and the #1002 downhole guide lines nowhere
+          importedLines: (def.lines || []).filter((l) => l.pts?.length >= 2 && l.imageId === "dxf").length, drawnLines: (def.lines || []).filter((l) => l.pts?.length >= 2 && l.imageId !== "dxf").length,
+          downholeGuide: ep.downhole?.lines?.length ? { lines: ep.downhole.lines.length, picksMatched: ep.downhole.used.length, windowM: Number(def.downholeGuide.windowM) || 3, reachM: Number(def.downholeGuide.reachM) || 25, type: def.downholeGuide.type ?? "contact", constructed: true } : null });
         // #828 — the mesh remembers its key (userData.builtKey); the def is only written when it had no mesh id yet (a
         // surface from before #828), so building is never an Undo step of its own that would hide the real edit
         if (surfaceId !== def.surfaceId) setDefs((p) => p.map((d) => (d.id === def.id ? { ...d, surfaceId } : d)));
@@ -795,7 +800,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
     const csv = toCsv({ fields: INPUT_COLUMNS, data: rows.map((r) => INPUT_COLUMNS.map((c) => r[c] ?? "")) }, { escapeFormulae: FORMULA_LEAD }); // #1082 — Papa, not a private quoter
     const name = all ? "explicit_surfaces_inputs" : `${(def.name || "surface").replace(/[^\w-]+/g, "_")}_inputs`;
     const res = await saveFile({ quiet: "success", suggestedName: `${name}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: `${csv}\r\n`, encoding: "text" });
-    if (res?.ok) setExportNote(tr("Exported {n} row(s): picks, section-line and image-line vertices (mapped contacts and dip guides are rebuilt from the map and are not listed).", { n: rows.length }));
+    if (res?.ok) setExportNote(tr("Exported {n} row(s): picks, section-line and image-line vertices (mapped contacts, dip guides and downhole dip guides are rebuilt from the map or the core at each build and are not listed).", { n: rows.length }));
   };
   const splitUnit = () => {
     const mine = defs.filter((d) => unitOf(d) === curUnit);

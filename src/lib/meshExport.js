@@ -178,7 +178,7 @@ function constructionKind(q) {
   return null;
 }
 const CONSTRUCTION_KEYS = {
-  explicit: ["trend", "picks", "sectionLines", "sections", "lineSpacingM", "points", "mapContacts", "mapLines", "dipGuide", "frame", "maxMisfitM", "marginM", "looRmsM", "looMaxM", "overshootM", "extrapolatedPct", "furthestFromInputM", "cutAtTerrain", "builtAt"],
+  explicit: ["trend", "picks", "sectionLines", "sections", "lineSpacingM", "points", "mapContacts", "mapLines", "dipGuide", "drawnLines", "importedLines", "downholeGuide", "frame", "maxMisfitM", "marginM", "looRmsM", "looMaxM", "overshootM", "extrapolatedPct", "furthestFromInputM", "cutAtTerrain", "builtAt"],
   wireframe: ["body", "sections", "pointsPerOutline", "volumeM3", "ends", "builtAt", "tiedOutlines", "foldedStrips"],
   veinSolid: ["hangingwall", "footwall", "volumeM3", "trueThicknessM", "attitude", "gridCellM", "nodesWhereWallsMeet", "ends", "builtAt"],
   unitVolume: ["unit", "model", "builtAt", "cells", "cellVolumeM3", "cellsVolumeM3", "shellVolumeM3", "note", "volumeBandM3", "blockSizeM", "cutByBox"],
@@ -193,6 +193,10 @@ function constructionLines(q) {
     const inputs = [`${q.picks} pick(s) on drillhole traces`, `${q.sectionLines} section line(s)${secs.length ? ` on ${secs.join(", ")}` : ""}${q.sectionLines && q.lineSpacingM ? ` (resampled every ${q.lineSpacingM} m)` : ""}`];
     if (q.mapLines) inputs.push(`${q.mapLines} mapped contact line(s)${q.mapContacts?.length ? ` (${q.mapContacts.join("; ")})` : ""}`);
     if (q.dipGuide) inputs.push(`${q.dipGuide.lines} dip guide line(s) projected ${q.dipGuide.depthM} m down dip (CONSTRUCTED, not observed)`);
+    // TASKS.csv #1056 — image lines, imported DXF strings and the downhole dip guide were used but not named
+    if (q.drawnLines) inputs.push(`${q.drawnLines} line(s) digitized on section images`);
+    if (q.importedLines) inputs.push(`${q.importedLines} string(s) imported from DXF`);
+    if (q.downholeGuide) { const g = q.downholeGuide; inputs.push(`${g.lines} downhole dip guide line(s) through ${g.picksMatched} pick(s), from ${g.type === "contact" ? "contact / bedding" : g.type ? `"${g.type}"` : "any"} measurements within ${g.windowM} m, ${g.reachM} m along dip and strike (CONSTRUCTED, not observed)`); }
     out.push(`Inputs: ${inputs.join(", ")} — ${q.points} distinct points used`);
     out.push(`Method: thin-plate spline passing exactly through every input point, fitted ${/^over /.test(q.frame || "") ? q.frame : `as ${q.frame || "elevation over the map"}`}; solver misfit at the inputs ${q.maxMisfitM} m (exact by construction, so it says nothing about accuracy away from them)`);
     out.push(q.looRmsM != null ? `Leave-one-out at the inputs: ${q.looRmsM} m RMS, worst ${q.looMaxM} m (each point predicted from all the others)` : `Leave-one-out at the inputs: not computed (over 300 points)`);

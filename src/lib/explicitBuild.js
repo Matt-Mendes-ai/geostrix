@@ -29,8 +29,8 @@ export function onlyOneSection(ep, drawnImageCount) {
 
 // TASKS.csv #880 — the raw inputs of explicit surfaces as table rows, for a CSV an auditor or another package can read
 // (Matt: "Yes, build it"): every pick, every vertex of a section line drawn for the surface, every vertex of a line drawn
-// on a section image. Mapped contacts and dip guides are derived from the map at build time and are not listed (their
-// source is the map layer). Coordinates are the project CRS; md is metres down the hole for picks on holes.
+// on a section image. Mapped contacts, dip guides and downhole dip guides (#1056) are derived from the map or the core at
+// build time and are not listed (their source is the map layer / the structure table). Coordinates are the project CRS; md is metres down the hole for picks on holes.
 export const INPUT_COLUMNS = ["surface", "unit", "contact", "layer", "source", "ref", "vertex", "hole_id", "md", "above", "below", "easting", "northing", "elevation", "seeded_from_logs", "pick_id"];
 export function explicitInputRows(defs, sections) {
   const rows = [];

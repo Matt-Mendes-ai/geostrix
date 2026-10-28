@@ -5886,7 +5886,6 @@
   "{name} (wireframe, {n} level plans)": "{name} (مجسم، {n} مساقط مستوى)",
   "{name} ({n} level plans)": "{name} ({n} مساقط مستوى)",
   "Nothing to export: no picks or drawn lines yet.": "لا شيء للتصدير: لا توجد نقاط ملتقطة أو خطوط مرسومة بعد.",
-  "Exported {n} row(s): picks, section-line and image-line vertices (mapped contacts and dip guides are rebuilt from the map and are not listed).": "صُدّر {n} صفًا: النقاط الملتقطة ورؤوس خطوط المقاطع والصور (التماسات المرسومة وأدلة الميل يُعاد بناؤها من الخريطة ولا تُدرج).",
   "Save this surface's picks and drawn line vertices as CSV (coordinates, hole and depth, the units either side). Shift-click: all explicit surfaces.": "احفظ النقاط الملتقطة ورؤوس الخطوط المرسومة لهذا السطح بصيغة CSV (الإحداثيات والثقب والعمق والوحدتان على جانبيها). Shift+نقر: كل الأسطح الصريحة.",
   "From {file}: {l} string(s) added as hard lines of {name}, {p} point(s) as picks, {o} closed string(s) placed as outlines on sections{list}.": "من {file}: أُضيفت {l} سلسلة كخطوط ثابتة لـ {name}، و{p} نقطة كنقاط ملتقطة، ووُضعت {o} سلسلة مغلقة كمحيطات على المقاطع{list}.",
   "{n} string(s) without elevations were left out.": "استُبعدت {n} سلسلة بلا ارتفاعات.",
@@ -6267,5 +6266,6 @@
   "Woodjam survey: assessment report 41597 does not state the gyro azimuths' north reference, so they are taken as grid north (UTM zone 10N). If they are true north, every hole trace and oriented-core plane is rotated by about 1.3° (the grid convergence there).": "مسح Woodjam: لا يذكر تقرير التقييم 41597 مرجع الشمال لسموت الجيروسكوب، لذا تُعتبر شمال الشبكة (UTM المنطقة 10N). وإذا كانت بالنسبة للشمال الحقيقي، فإن كل مسار ثقب وكل مستوى لب موجّه يدور بنحو 1.3° (تقارب الشبكة هناك).",
   "The fault surface cannot be turned to face one way ({n} edges disagree), so it has no consistent sides: fix or rebuild the fault mesh, or fit this surface without the fault.": "لا يمكن توجيه سطح الصدع نحو جهة واحدة ({n} من الحواف غير متوافقة)، لذا ليس له جانبان متسقان: أصلح شبكة الصدع أو أعد بناءها، أو لائم هذا السطح دون الصدع.",
   "Copy here": "انسخ هنا",
-  "Copy this string onto this section (same name, kind and vertex order) and edit its vertices": "انسخ هذا الخط إلى هذا المقطع (بنفس الاسم والنوع وترتيب الرؤوس) وحرّر رؤوسه"
+  "Copy this string onto this section (same name, kind and vertex order) and edit its vertices": "انسخ هذا الخط إلى هذا المقطع (بنفس الاسم والنوع وترتيب الرؤوس) وحرّر رؤوسه",
+  "Exported {n} row(s): picks, section-line and image-line vertices (mapped contacts, dip guides and downhole dip guides are rebuilt from the map or the core at each build and are not listed).": "تم تصدير {n} صف(وف): النقاط المختارة ورؤوس خطوط المقاطع والخطوط المرسومة على الصور (التماسات المخططة وأدلة الميل وأدلة الميل من الثقوب يُعاد بناؤها من الخريطة أو اللباب عند كل بناء ولا تُدرج)."
 }
