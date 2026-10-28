@@ -566,7 +566,7 @@ export const TARGET_SCHEMAS = {
   ], dipConvention: true },
   survey: { label: "Survey", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no"] },
-    { key: "depth", label: "Depth", required: true, aliases: ["depth", "at", "md", "station"] },
+    { key: "depth", label: "Depth", required: true, aliases: ["depth", "at", "md", "station", "dist", "distance"] }, // dist: #1105 (Micromine HOLEID, DIST, AZIMUTH, DIP)
     { key: "azimuth", label: "Azimuth", required: true, aliases: ["azimuth", "azi", "az", "azim", "brg", "bearing"] }, // brg / bearing: Datamine (#546)
     { key: "dip", label: "Dip", required: true, aliases: ["dip", "inclination", "incl"] },
   ], dipConvention: true },
@@ -780,12 +780,12 @@ export function guessTarget(headers) {
   const structy = has("struct") || hasCol("type") || has("dipdir") || has("dip_dir") || has("dipdirection") || has("dip_direction") || hasCol("dd") || has("strike") || has("alpha");
   if (!has("from") && has("depth") && has("dip") && structy) return "structure";
   if (!has("from") && has("depth") && has("alpha")) return "structure"; // #427 — oriented-core alpha/beta logging
-  if (has("azimuth") && has("depth") && !has("from")) return "survey";
+  if (has("azimuth") && (has("depth") || hasCol("dist") || hasCol("distance")) && !has("from")) return "survey"; // dist: #1105
   // TASKS.csv #546 — Micromine (HOLE, DEPTH, AZI, DIP) and Datamine (BHID, AT, BRG, DIP) survey files: a short
   // azimuth column and a depth / AT column, a dip, no from/to and nothing only a structure table has. They used to
   // open as "Structure planes" and "Custom".
   const shortAz = hasCol("azi") || hasCol("az") || hasCol("azim") || hasCol("brg") || hasCol("bearing");
-  if (!has("from") && shortAz && (has("depth") || hasCol("at") || hasCol("md")) && has("dip") && !structy) return "survey";
+  if (!has("from") && shortAz && (has("depth") || hasCol("at") || hasCol("md") || hasCol("dist") || hasCol("distance")) && has("dip") && !structy) return "survey"; // dist / distance: #1105 (Micromine HOLEID, DIST, AZIMUTH, DIP)
   // TASKS.csv #600 — interval logs from logging software, recognised by their PRIMARY column's name (the
   // header after any "Table." prefix): Alt1_Code / Alt_Assemblage, Min1_Code / Min_Code1, Vein1_Comp /
   // Vein_Type1, Ave_Reading / MagSus1, BulkDens_Calc / SG_D. They used to fall through to "litho" (a UnitCode

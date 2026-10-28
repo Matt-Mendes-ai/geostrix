@@ -118,10 +118,17 @@ export const loadRaster = () => import("../raster.js");
 // not recognised as assays and were offered as vein / alteration layers instead. Words that start with a
 // symbol but are descriptive ("Ag status", "Au certificate") are not element columns.
 const NOT_GRADE = /\b(status|certificate|cert|laboratory|lab|method|date|completed|analys(is|ed)|comment|flag|qc|batch|job|error|err|lod|dl)\b/i;
-export function looksLikeAssay(headers) {
+// TASKS.csv #1105 (review #1016, Micromine user) — fewer than four elements is the normal case for a gold project's
+// DHASSAY (HOLE, FROM, TO, SAMPLE, AU [, AG]): such a file was guessed as a lithology layer with an empty value field.
+// It is assays too when it has from / to, at least one element column, and a sample-id column or "assay" in its name.
+const FROM_COL = /^(from|from_m|mfrom|depth_?from|from_?depth)$/i, TO_COL = /^(to|to_m|mto|depth_?to|to_?depth)$/i;
+const SAMPLE_COL = /^(sample|samp|sample_?(id|no|num|number)|samp_?(id|no)|sampleid|sampno)$/i;
+export function looksLikeAssay(headers, fileName = "") {
   const syms = new Set();
   headers.forEach((h) => { if (NOT_GRADE.test(String(h).replace(/_/g, " "))) return; const s = isElementColumn(h); if (s) syms.add(s); });
-  return syms.size >= 4;
+  if (syms.size >= 4) return true;
+  const hs = headers.map((h) => String(h).trim());
+  return syms.size >= 1 && hs.some((h) => FROM_COL.test(h)) && hs.some((h) => TO_COL.test(h)) && (hs.some((h) => SAMPLE_COL.test(h)) || /assay/i.test(String(fileName)));
 }
 
 // TASKS.csv #600 / #975 — the coordinate names surface-sample exports use (MX-style e_utm / n_utm included), shared by

@@ -93,7 +93,7 @@ export function useImportPipeline(ctx) {
       if (err || !data || !data.length) { setNotices((p) => [...p, notice("{name}: couldn't read {v}.", { name: file.name, v: err ? "file (" + err + ")" : tr("— no rows found") })]); return; }
       if (isMapGeometry(meta) && forceTarget !== "custom") { sendToMapLayers(file, meta.vector); return; } // #609
       const headers = meta?.headers || Object.keys(data[0]);
-      if (!forceTarget && looksLikeAssay(headers)) {
+      if (!forceTarget && looksLikeAssay(headers, file.name)) { // file.name: #1105
         setNotices((p) => [...p, notice("{name} looks like assay data — import it from the Geochem module instead (it needs the element checklist).", { name: file.name })]);
         return;
       }
@@ -154,7 +154,7 @@ export function useImportPipeline(ctx) {
     // An assay table (from the Browser panel or Connect to database) is handed to Geochem's assay dialog, which needs
     // the element checklist, instead of a notice telling the user to go there.
     // #952 — a long table (analyte + value columns, one row per element) has no element columns to count
-    if (looksLikeAssay(headers) || (await import("../../lib/longAssays.js")).detectLongAssay(headers)) { // on demand: off the startup bundle
+    if (looksLikeAssay(headers, sourceName) || (await import("../../lib/longAssays.js")).detectLongAssay(headers)) { // on demand: off the startup bundle
       setDbModalOpen(false);
       requestModuleAction("import-assay-rows", { headers, rows, sourceName });
       goToModule("geochem");
@@ -568,7 +568,7 @@ export function useImportPipeline(ctx) {
       if (isMapGeometry(meta)) { sendToMapLayers(file, meta.vector); processImportQueue(); return; } // #609
       const headers = meta?.headers || Object.keys(data[0]);
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
-      if (looksLikeAssay(headers)) {
+      if (looksLikeAssay(headers, file.name)) { // file.name: #1105
         setNotices((p) => [...p, notice("{name} looks like assay data — import it from the Geochem module instead (it needs the element checklist).", { name: file.name })]);
         processImportQueue();
         return;
