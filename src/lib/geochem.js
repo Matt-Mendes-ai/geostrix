@@ -850,7 +850,9 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
 // metal (grade x length) it removed. Both are measured on the RAW samples the cap is applied to (compositeDownhole caps
 // each raw sample before averaging), as resolved segments (#331: overlapping rows counted once, negative lab codes not
 // assayed, exact duplicate rows dropped), so the figures match what compositing / estimation actually used.
-function rawSegments(assays, symbol, unit, elementUnits) {
+// TASKS.csv #1099 — exported for Grade Statistics, so the panel where cap values are chosen counts the same samples as
+// the cap audit, compositing and estimation (Harry: 3,740 raw Au rows, 3,648 resolved samples). -> [{ hole_id, from, to, value }]
+export function resolvedSegments(assays, symbol, unit, elementUnits) {
   const byHole = new Map(), seen = new Set();
   (assays || []).forEach((a) => {
     if (a.from == null || a.to == null || a.to <= a.from || a.hole_id == null) return;
@@ -862,9 +864,10 @@ function rawSegments(assays, symbol, unit, elementUnits) {
     arr.push(a);
   });
   const out = [];
-  byHole.forEach((rows) => resolveAssaySegments(rows, symbol, unit, elementUnits, null).forEach((s) => { if (s.value != null && s.to > s.from) out.push({ value: s.value, len: s.to - s.from }); }));
+  byHole.forEach((rows, hole_id) => resolveAssaySegments(rows, symbol, unit, elementUnits, null).forEach((s) => { if (s.value != null && s.to > s.from) out.push({ hole_id, from: s.from, to: s.to, value: s.value }); }));
   return out;
 }
+const rawSegments = (assays, symbol, unit, elementUnits) => resolvedSegments(assays, symbol, unit, elementUnits).map((s) => ({ value: s.value, len: s.to - s.from }));
 export function capAudit(assays, symbol, unit, elementUnits, capValue) {
   const segs = rawSegments(assays, symbol, unit, elementUnits);
   let metalBefore = 0, metalAfter = 0, nCapped = 0, lenCapped = 0;

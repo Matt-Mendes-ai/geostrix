@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
-import { valueIn } from "../lib/geochem.js";
+import { valueIn, resolvedSegments } from "../lib/geochem.js"; // resolvedSegments: #1099
+import { useStore } from "../lib/store.jsx";
+import { stampLines, withStamp, ASSAY_READING_RULES } from "../lib/provenance.js"; // TASKS.csv #1099
+import { version as APP_VERSION } from "../../package.json";
 import { excludeQAQC } from "../lib/qaqc.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -95,6 +98,7 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
+  const { project } = useStore(); // #1099 — the CRS line of the export stamp
   // TASKS.csv #228 — surface geochemistry has no downhole domain (litho/alt/etc are interval layers
   // tied to hole_id/from/to, which surface samples don't have) but DOES have its own natural grouping
   // dimension, sampling medium (soil/rock chip/stream sediment/...), so "source" picks which dataset
@@ -132,13 +136,13 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
         return { value: v, weight: 1, domain: s.medium || "(unclassified)" }; // surface samples have no interval length
       }).filter(Boolean);
     }
-    return statsAssays.map((a) => {
-      const v = valueIn(a, symbol, elementUnits[symbol] || "ppm", elementUnits);
-      if (v == null) return null;
-      const domain = domainRows ? domainForInterval(domainRows, a.hole_id, a.from, a.to) : "All";
-      const len = Number(a.to) - Number(a.from); // TASKS.csv #267
-      return { value: v, weight: Number.isFinite(len) && len > 0 ? len : 0, domain };
-    }).filter(Boolean);
+    // TASKS.csv #1099 (review #1016) — resolved segments, as the cap audit / compositing / estimation use them: a metre
+    // logged twice (overlapping or repeated rows) counts once, negative lab codes are not assays. Raw rows counted the
+    // repeats twice, so this panel's percentiles disagreed with the cap audit's.
+    return resolvedSegments(statsAssays, symbol, elementUnits[symbol] || "ppm", elementUnits).map((s) => {
+      const domain = domainRows ? domainForInterval(domainRows, s.hole_id, s.from, s.to) : "All";
+      return { value: s.value, weight: s.to - s.from, domain }; // weight: #267
+    });
   }, [source, surfaceSamples, statsAssays, symbol, elementUnits, surfaceElementUnits, domainRows]);
 
   // TASKS.csv #267 — weighting only applies to drillhole assays (surface samples have no interval
@@ -179,14 +183,27 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
   }, [allValues, logScale, overallStats]);
 
   const exportCSV = () => {
+    // TASKS.csv #1099 — the unit in the column names and a provenance stamp, as every other estimation-adjacent CSV (#404)
+    const unit = (source === "surface" ? surfaceElementUnits[symbol] : elementUnits[symbol]) || "ppm";
+    const u = String(unit).replace(/[^\w]+/g, "_");
     const rowsOut = groups.map((g) => ({
       domain: domainKey === "litho" ? domainLabel(g.key) : g.key,
-      n: g.stats.n, mean: g.stats.mean.toFixed(4), median: g.stats.median.toFixed(4),
-      stdev: g.stats.stdev.toFixed(4), cv_pct: g.stats.cv == null ? "" : g.stats.cv.toFixed(1),
-      min: g.stats.min.toFixed(4), max: g.stats.max.toFixed(4), q1: g.stats.q1.toFixed(4), q3: g.stats.q3.toFixed(4),
+      n: g.stats.n, [`mean_${u}`]: g.stats.mean.toFixed(4), [`median_${u}`]: g.stats.median.toFixed(4),
+      [`stdev_${u}`]: g.stats.stdev.toFixed(4), cv_pct: g.stats.cv == null ? "" : g.stats.cv.toFixed(1),
+      [`min_${u}`]: g.stats.min.toFixed(4), [`max_${u}`]: g.stats.max.toFixed(4), [`q1_${u}`]: g.stats.q1.toFixed(4), [`q3_${u}`]: g.stats.q3.toFixed(4),
     }));
     rowsOut.forEach((r) => { r.basis = weightingActive ? "length-weighted (assay interval length)" : "unweighted arithmetic"; });
-    saveFile({ suggestedName: `${symbol}_grade_statistics.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rowsOut) });
+    const stamp = stampLines({ tool: "Grade statistics", version: APP_VERSION, epsg: project?.epsg, params: [
+      `Element: ${symbol} (${unit}) | source: ${source === "surface" ? "surface samples (one sample = weight 1)" : "drillhole assays"} | domains: ${domainKey ? (LAYER_META[domainKey]?.label || domainKey) : "none (all samples)"}`,
+      `Basis: ${weightingActive ? "length-weighted (interval length)" : "unweighted arithmetic"}; sample (n-1) variance`,
+      ...(source === "surface" ? [] : [
+        `QAQC inserts: ${includeQAQC ? "INCLUDED" : `excluded (${qaqcExcludedCount} rows)`}`,
+        "Samples: resolved assay segments as compositing uses them (overlapping or repeated intervals counted once, exact duplicates dropped, negative lab codes not assayed)",
+        ASSAY_READING_RULES,
+      ]),
+      "No high-grade cap applied",
+    ] });
+    saveFile({ suggestedName: `${symbol}_grade_statistics.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(rowsOut), stamp) });
   };
 
   return (
@@ -253,7 +270,7 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
             {source === "surface"
               ? tr("Statistics on surface samples — point samples with no interval length, so no weighting applies.")
               : weightingActive
-                ? tr("Length-weighted statistics on raw assay intervals ({v} of sampled core). Compositing to a regular length first is still the more standard basis for a capping decision.", { v: overallStats ? `${overallStats.totalLength.toFixed(1)} m` : "—" })
+                ? tr("Length-weighted statistics on the assay intervals as compositing reads them, a repeated or overlapping interval counted once ({v} of sampled core). Compositing to a regular length first is still the more standard basis for a capping decision.", { v: overallStats ? `${overallStats.totalLength.toFixed(1)} m` : "—" })
                 : tr("Statistics on raw assay intervals — NOT length-weighted{v}. A 0.3 m interval counts exactly as much as a 3 m one. Composite first, or tick \"Length-weight\", for a weighted distribution.", { v: lengthWeighted ? tr(" (some intervals have no usable from/to length, so weighting was skipped)") : "" })}
           </div>
 
