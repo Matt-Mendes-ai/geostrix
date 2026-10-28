@@ -91,7 +91,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("QAQC — lab quality control")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Detected (a sample-type column if the assays have one, else the ID; never a hole that is in the collars):")}{" "}{counts.standard}{" "}{tr(counts.standard === 1 ? "standard" : "standards")}, {counts.blank}{" "}{tr(counts.blank === 1 ? "blank" : "blanks")}, {counts.duplicate}{" "}{tr(counts.duplicate === 1 ? "duplicate" : "duplicates")}{" "}{tr("(of")}{" "}{assays.length}{" "}{tr("total intervals).")}{/* TASKS.csv #400 — exactly which ids are left out of the reports, and why */}
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Detected (a sample-type column if the assays have one, else the ID; never a hole that is in the collars): {s} standard(s), {b} blank(s), {d} duplicate(s), of {n} intervals in all.", { s: counts.standard, b: counts.blank, d: counts.duplicate, n: assays.length })}{/* #1119 — one sentence (it was glued from fragments, wrong word order in French / Arabic) */}{/* TASKS.csv #400 — exactly which ids are left out of the reports, and why */}
               {(counts.standard + counts.blank + counts.duplicate) > 0 && (
                 <details style={{ marginTop: 4 }}>
                   <summary style={{ cursor: "pointer" }}>{tr("Excluded from intercepts, compositing, estimation and statistics — list the ids")}</summary>

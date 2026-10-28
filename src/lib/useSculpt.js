@@ -31,6 +31,8 @@
 // meshExport.js's sceneVertsToWorld and the #52 hydration effect both use). No new transform is
 // invented here.
 import { useCallback, useEffect, useRef, useState } from "react";
+import { notice, appendNotice } from "./notices.js"; // TASKS.csv #1119 — the sculpt messages in the interface language
+import { t as tr } from "./i18n.js";
 import * as THREE from "three";
 import {
   computeVertexNormals, buildBrush, brushNormal, applyBrush, trianglesUnderBrush,
@@ -194,7 +196,7 @@ export function useSculpt({ surfaces, meshesRef, groupRef, mountRef, cameraRef, 
   const placeAnchor = useCallback((surfaceId, center, r) => {
     const mesh = meshesRef.current[surfaceId];
     const geo = mesh?.geometry;
-    if (!geo?.index) { notify("This surface has no indexed geometry, so it can't be sculpted."); return; }
+    if (!geo?.index) { notify(notice("This surface has no indexed geometry, so it can't be sculpted.")); return; }
     const t0 = performance.now();
     const pos = geo.attributes.position.array;
     const idx = geo.index.array;
@@ -203,7 +205,7 @@ export function useSculpt({ surfaces, meshesRef, groupRef, mountRef, cameraRef, 
     const base = Float32Array.from(pos);
     const brush = buildBrush(base, center, r);
     if (!brush.count) {
-      notify(`No vertices within ${r} m of that point — increase the brush radius and click again. (A coarse marching-cubes surface can have several metres between vertices.)`);
+      notify(notice("No vertices within {r} m of that point — increase the brush radius and click again. (A coarse marching-cubes surface can have several metres between vertices.)", { r }));
       return;
     }
     const normals = computeVertexNormals(base, idx);
@@ -237,7 +239,7 @@ export function useSculpt({ surfaces, meshesRef, groupRef, mountRef, cameraRef, 
     const mount = mountRef.current;
     const camera = cameraRef.current;
     if (!mesh || !mount || !camera) return;
-    if (!mesh.visible) { notify("That surface is hidden — show it before sculpting."); return; }
+    if (!mesh.visible) { notify(notice("That surface is hidden — show it before sculpting.")); return; }
     const rect = mount.getBoundingClientRect();
     const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     const my = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -246,7 +248,7 @@ export function useSculpt({ surfaces, meshesRef, groupRef, mountRef, cameraRef, 
     // terrain drape that happens to sit in front of the patch you are aiming at should still land on
     // the surface being edited, not silently do nothing.
     const hits = raycasterRef.current.intersectObject(mesh, false);
-    if (!hits.length) { notify("That click didn't land on the surface being sculpted. Aim at the surface itself (it is drawn translucent — the nearest point on it under the cursor is what gets picked)."); return; }
+    if (!hits.length) { notify(notice("That click didn't land on the surface being sculpted. Aim at the surface itself (it is drawn translucent — the nearest point on it under the cursor is what gets picked).")); return; }
     if (anchorRef.current) revertPreview();
     clearMarker();
     placeAnchor(targetId, { x: hits[0].point.x, y: hits[0].point.y, z: hits[0].point.z }, radius);
@@ -297,7 +299,7 @@ export function useSculpt({ surfaces, meshesRef, groupRef, mountRef, cameraRef, 
   const apply = useCallback(() => {
     const a = anchorRef.current;
     if (!a) return;
-    if (!offset) { notify("Offset is 0 — nothing to apply."); return; }
+    if (!offset) { notify(notice("Offset is 0 — nothing to apply.")); return; }
     const mesh = meshesRef.current[a.surfaceId];
     const geo = mesh?.geometry;
     if (!geo) return;
@@ -350,17 +352,10 @@ export function useSculpt({ surfaces, meshesRef, groupRef, mountRef, cameraRef, 
     clearMarker();
     const dV = volAfter - a.baseVolume;
     const ms = performance.now() - t0;
-    notify(
-      `Sculpted "${(mesh.userData?.tip || "surface").split("\n")[0]}": moved ${a.brush.count.toLocaleString()} vertices by up to ${offset.toFixed(2)} m ` +
-      `${axis === "vertical" ? "vertically" : "along the surface normal"} within a ${a.brush.radius} m brush at ` +
-      `${edit.anchorEasting.toFixed(1)} E / ${edit.anchorNorthing.toFixed(1)} N / ${edit.anchorElevation.toFixed(1)} m. ` +
-      `Enclosed volume ${a.baseVolume.toLocaleString(undefined, { maximumFractionDigits: 0 })} → ${volAfter.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³ ` +
-      `(${dV >= 0 ? "+" : ""}${dV.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³) — any tonnage shown for this surface has been recomputed from the new volume. ` +
-      `The surface is now flagged as hand-edited and its mesh exports say so. ` +
-      `Connectivity is untouched, so it is exactly as watertight as it was before.` +
-      (flip.flipped ? ` WARNING: ${flip.flipped} triangle(s) are now inside out — the patch has been pushed through the surface. Undo and use a smaller offset or a larger radius; the volume above cannot be trusted while that is true.` : "") +
-      ` (${ms.toFixed(0)} ms)`,
-    );
+    const fmt0 = (v) => v.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    const done = notice("Sculpted \"{name}\": moved {count} vertices by up to {offset} m {how} within a {radius} m brush at {e} E / {n} N / {z} m. Enclosed volume {v0} → {v1} m³ ({dv} m³) — any tonnage shown for this surface has been recomputed from the new volume. The surface is now flagged as hand-edited and its mesh exports say so. Connectivity is untouched, so it is exactly as watertight as it was before.", { name: (mesh.userData?.tip || "surface").split("\n")[0], count: a.brush.count.toLocaleString(), offset: offset.toFixed(2), how: axis === "vertical" ? tr("vertically") : tr("along the surface normal"), radius: a.brush.radius,
+      e: edit.anchorEasting.toFixed(1), n: edit.anchorNorthing.toFixed(1), z: edit.anchorElevation.toFixed(1), v0: fmt0(a.baseVolume), v1: fmt0(volAfter), dv: `${dV >= 0 ? "+" : ""}${fmt0(dV)}` });
+    notify(appendNotice(done, (flip.flipped ? tr(" WARNING: {n} triangle(s) are now inside out — the patch has been pushed through the surface. Undo and use a smaller offset or a larger radius; the volume above cannot be trusted while that is true.", { n: flip.flipped }) : "") + ` (${ms.toFixed(0)} ms)`)); // #1119
   }, [offset, axis, meshesRef, setImplicitSurfaces, onGeometryEdited, clearMarker, notify, sceneToWorld]);
 
   const cancelAnchor = useCallback(() => {
@@ -414,18 +409,18 @@ export function useSculpt({ surfaces, meshesRef, groupRef, mountRef, cameraRef, 
       };
     }));
     onGeometryEdited?.(surfaceId);
-    notify(`Undid the last sculpt on this surface (${record.indices.length.toLocaleString()} vertices restored exactly). Enclosed volume is now ${vol.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³.`);
+    notify(notice("Undid the last sculpt on this surface ({count} vertices restored exactly). Enclosed volume is now {vol} m³.", { count: record.indices.length.toLocaleString(), vol: vol.toLocaleString(undefined, { maximumFractionDigits: 0 }) }));
   }, [meshesRef, setImplicitSurfaces, onGeometryEdited, notify, cancelAnchor]);
 
   const begin = useCallback((id) => {
     if (anchorRef.current) cancelAnchor();
     setTargetId(id);
     setHistoryDepth((historyRef.current[id] || []).length);
-    notify("Sculpt mode: click on the surface in the 3D view to place the brush, then set the radius and offset. Nothing changes until you press Apply.");
+    notify(notice("Sculpt mode: click on the surface in the 3D view to place the brush, then set the radius and offset. Nothing changes until you press Apply."));
   }, [cancelAnchor, notify]);
 
   const end = useCallback(() => {
-    if (anchorRef.current) { cancelAnchor(); notify("Sculpt mode off — the un-applied preview was discarded."); }
+    if (anchorRef.current) { cancelAnchor(); notify(notice("Sculpt mode off — the un-applied preview was discarded.")); }
     setTargetId(null);
   }, [cancelAnchor, notify]);
 
