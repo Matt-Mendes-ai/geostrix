@@ -8,7 +8,8 @@ import { parseTableFile, toExportCsv } from "../lib/tabular.js"; // TASKS.csv #4
 import { guessGeophysColumns, rowsToGeophysPoints } from "../lib/geophysColumns.js"; // TASKS.csv #484
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import Papa from "papaparse";
-import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen } from "../components/icons.js";
+import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen, Scale } from "../components/icons.js"; // Scale: #1052
+import { lazyModal } from "../lib/lazyModal.jsx";
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
 import { logStops, SEQUENTIAL_ANCHORS } from "../lib/inversion.js"; // TASKS.csv #481
 import { SURVEY_METHODS, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
@@ -55,6 +56,7 @@ import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.c
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { vectorToBoundaryPolylines } from "../lib/boundaryImport.js"; // TASKS.csv #1035
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
+const GradeTonnageModal = lazyModal(() => import("../components/GradeTonnageModal.jsx")); // TASKS.csv #1052 — loaded when opened
 
 // TASKS.csv #309 — the format reference that USED to be this tab's entire empty state: a twelve-line
 // centre-aligned block of ~10px grey prose that the design review flagged as reference material
@@ -1728,7 +1730,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
           </label>
         )}
         {voxelModels.map((v) => (
-          <VoxelModelRow key={v.id} model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} getEpsg={() => ensureExportCrs(project)} /* #1021 */ csvNames={bmNames} stampChoice={bmStamp} />
+          <VoxelModelRow key={v.id} epsg={project?.epsg} /* #1052 */ model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} getEpsg={() => ensureExportCrs(project)} /* #1021 */ csvNames={bmNames} stampChoice={bmStamp} />
         ))}
 
         <div style={{ marginTop: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6 }}>
@@ -1816,7 +1818,8 @@ async function exportBlockModelVTK(model, epsg) {
 }
 // TASKS.csv #711 — what an imported volume's values can be (the units the rest of the app uses)
 const VOXEL_PROPERTIES = ["Conductivity (S/m)", "Resistivity (ohm·m)", "Chargeability (mV/V)", "Susceptibility (SI)", "Density (g/cc)", "Density contrast (g/cc)"];
-function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage, getEpsg, csvNames = "datamine", stampChoice = "auto" }) {
+function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage, getEpsg, csvNames = "datamine", stampChoice = "auto", epsg = null }) {
+  const [gtOpen, setGtOpen] = useState(false); // TASKS.csv #1052
   const [displayThreshold, setDisplayThreshold] = useState(model.threshold);
   const [displayOpacity, setDisplayOpacity] = useState(model.opacity ?? 0.85);
   const [legendOpen, setLegendOpen] = useState(false);
@@ -1858,6 +1861,8 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage,
         {onEvaluate && <ArrowDownToLine role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Evaluate block model \"{name}\" onto the drillholes", { name: model.name })} title={tr("Evaluate onto drillholes — the model's value in every cell each hole passes through, as a downhole layer to compare with the logs in the strip log")} onClick={() => onEvaluate(model)} />}
         {/* TASKS.csv #328 — UBC mesh/model, .obs data, GeoTIFF depth slices and provenance.txt in one zip */}
         {onExportPackage && <PackageOpen role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" for other software", { name: model.name })} title={tr("Export for other software (zip): UBC mesh + model, .obs observed/predicted data (SimPEG inversions), GeoTIFF depth slices, provenance.txt")} onClick={() => onExportPackage(model)} />}
+        {/* TASKS.csv #1052 — grade-tonnage table / curve at cutoffs and an entered density */}
+        <Scale role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Grade-tonnage table for \"{name}\"", { name: model.name })} title={tr("Grade-tonnage table for \"{name}\"", { name: model.name })} onClick={() => setGtOpen(true)} />
         {/* TASKS.csv #411 — block model out for estimation/mine-planning software */}
         <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as CSV", { name: model.name })} title={csvNames === "micromine" ? tr("Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)") : tr("Export as block-model CSV (XC, YC, ZC, XINC, YINC, ZINC, value)")} onClick={async () => { const e = await getEpsg(); if (e) exportBlockModelCSV(model, e, csvNames, stampChoice); }} />
         <Box role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as VTK", { name: model.name })} title={tr("Export as VTK for ParaView / PyVista (empty blocks are NaN)")} onClick={async () => { const e = await getEpsg(); if (e) exportBlockModelVTK(model, e); }} />{/* TASKS.csv #798 */}
@@ -1889,6 +1894,7 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage,
         <input type="range" min={0.1} max={1} step={0.05} value={displayOpacity} onChange={(e) => onOpacityInput(Number(e.target.value))} style={{ flex: 1 }} />
       </div>
       {legendOpen && <VoxelLegendEditor model={model} onUpdate={onUpdate} />}
+      {gtOpen && <GradeTonnageModal model={model} epsg={epsg} onClose={() => setGtOpen(false)} />}
     </div>
   );
 }
