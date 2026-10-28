@@ -6840,15 +6840,19 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // TASKS.csv #876 — the section window's ‹ › (previous / next parallel section) and Refresh
   const sectionStepRef = useRef(null);
-  sectionStepRef.current = async ({ id, step, refresh }) => {
+  sectionStepRef.current = async ({ id, step, refresh, by, corridor }) => {
     const s = (sections || []).find((x) => x.id === id);
     if (!s) return;
+    // TASKS.csv #1131 — the buffer changed in the section window: saved with the section and the window redrawn
+    if (corridor != null) { const c = Math.max(1, Math.min(5000, Number(corridor) || 0)); const next = { ...s, corridor: c }; upsertSection(next); reopenSection(next); return; }
     if (refresh) { reopenSection(s); return; }
     const { stepSection } = await import("../lib/sectionDigitise.js"); // on use: #903
-    const r = stepSection(s, sections, step, { fallback: Math.max(25, 2 * (s.corridor || sectionCorridor || 25)) });
+    const buf = s.corridor || sectionCorridor || 25;
+    const r = by === "buffer" ? stepSection(s, sections, step, { fallback: buf, exact: true }) // #1131 — ± exactly the buffer
+      : stepSection(s, sections, step, { fallback: Math.max(25, 2 * buf) });
     if (r.existing) { reopenSection(r.existing); return; }
-    const off = Math.round(r.offset);
-    openDefinedSection(r.create, `${s.name} ${off > 0 ? "+" : ""}${off} m`);
+    const { steppedSectionName } = await import("../lib/sectionDigitise.js"); // #1131 — one total offset in the name
+    openDefinedSection({ ...r.create, corridor: s.corridor }, steppedSectionName(s.name, r.offset));
   };
   useEffect(() => {
     const on = (e) => sectionStepRef.current?.(e.detail || {});
@@ -6869,7 +6873,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #393 — sections defined by numbers rather than two clicks: saved to the Cross-sections list
   // (same shape as a drawn one) and opened at once.
   const openDefinedSection = (geom, name) => {
-    const s = { id: `sect_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, name, ax: geom.ax, ay: geom.ay, bx: geom.bx, by: geom.by, azimuth: geom.azimuth, corridor: sectionCorridor, contacts: [] };
+    const s = { id: `sect_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, name, ax: geom.ax, ay: geom.ay, bx: geom.bx, by: geom.by, azimuth: geom.azimuth, corridor: geom.corridor || sectionCorridor, contacts: [] }; // geom.corridor: #1131 — a stepped section keeps its parent's buffer
     upsertSection(s);
     reopenSection(s);
     return s;

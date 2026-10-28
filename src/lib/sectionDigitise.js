@@ -135,7 +135,9 @@ export function nearestSegment(points, sxsz, click, radius = 6) {
 // tolDeg) on that side (dir +1 = to the left of a -> b, -1 = to the right); when there is none, a new one at the spacing
 // to the nearest parallel neighbour (or `fallback` m) beyond this one. -> { existing } | { create: { ax, ay, bx, by,
 // azimuth }, offset }
-export function stepSection(current, sections, dir, { tolDeg = 5, fallback = 50 } = {}) {
+// TASKS.csv #1131 — exact: step by exactly `fallback` m (the section's buffer), reusing a saved parallel section only
+// when one sits at that offset (within 1 m); otherwise the nearest saved parallel section ahead, as before (#876).
+export function stepSection(current, sections, dir, { tolDeg = 5, fallback = 50, exact = false } = {}) {
   const dx = current.bx - current.ax, dy = current.by - current.ay, len = Math.hypot(dx, dy) || 1;
   const ux = dx / len, uy = dy / len, nx = -uy, ny = ux;
   const azOf = (s) => (Math.atan2(s.bx - s.ax, s.by - s.ay) * 180) / Math.PI;
@@ -145,6 +147,11 @@ export function stepSection(current, sections, dir, { tolDeg = 5, fallback = 50 
     const mx = (s.ax + s.bx) / 2, my = (s.ay + s.by) / 2;
     return { s, dAz: d, offset: (mx - current.ax) * nx + (my - current.ay) * ny };
   }).filter((c) => c.dAz <= tolDeg && Math.abs(c.offset) > 0.5);
+  if (exact) {
+    const o = Math.sign(dir) * fallback, at = par.find((c) => Math.abs(c.offset - o) <= 1);
+    if (at) return { existing: at.s, offset: at.offset };
+    return { create: { ax: current.ax + nx * o, ay: current.ay + ny * o, bx: current.bx + nx * o, by: current.by + ny * o, azimuth: current.azimuth }, offset: o };
+  }
   const ahead = par.filter((c) => Math.sign(c.offset) === Math.sign(dir)).sort((a, b) => Math.abs(a.offset) - Math.abs(b.offset))[0];
   if (ahead) return { existing: ahead.s, offset: ahead.offset };
   const near = par.sort((a, b) => Math.abs(a.offset) - Math.abs(b.offset))[0];
@@ -170,4 +177,13 @@ export function ghostStrings(current, sections, { tolDeg = 5, maxOffset = Infini
     sectionId: s.id, sectionName: s.name, offset,
     strings: s.contacts.map((c) => ({ unit: c.unit, color: c.color, points: (c.points || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite)).map((p) => ({ l: (p.x - current.ax) * ux + (p.y - current.ay) * uy, z: p.z })) })),
   }));
+}
+
+// TASKS.csv #1131 — a stepped section is named by its total offset from the first one ("Section 39° +110 m"), not with
+// one suffix per step ("+50 m +100 m -40 m"); back at 0 it takes the base name.
+export function steppedSectionName(name, offset) {
+  const m = /^(.*?)((?: [+-]?\d+ m)+)$/.exec(name || "");
+  const prior = m ? m[2].trim().split(/\s+m\s*/).filter(Boolean).reduce((a, v) => a + Number(v), 0) : 0;
+  const off = Math.round(offset) + prior, base = m ? m[1] : (name || "");
+  return off ? `${base} ${off > 0 ? "+" : ""}${off} m` : base;
 }

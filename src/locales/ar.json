@@ -6249,5 +6249,11 @@
   "Harry assays: {rows} samples, {elements} elements — in the Geochem tab. {bdl} blank results read as below detection (half the column's detection limit), as the sample's README says they are.{v}": "تحاليل Harry: {rows} عينة و{elements} عنصرًا، في تبويب الجيوكيمياء. قُرئت {bdl} نتيجة فارغة على أنها دون حد الكشف (نصف حد الكشف للعمود)، كما يذكر ملف README للمثال.{v}",
   "Harry assays could not be loaded: {message}": "تعذّر تحميل تحاليل Harry: {message}",
   "Converted to this project's units: {v}.": "حُوِّلت إلى وحدات هذا المشروع: {v}.",
-  "No planned holes yet — add a collar position and design orientation above. A planned hole renders as a dashed orange line (distinct from real, drilled holes) in the 3D view, in every module tab, and in the same orange on sections, level plans and the rig KML.": "لا ثقوب مخططة بعد — أضف موضع فوهة واتجاه تصميم أعلاه. يظهر الثقب المخطط كخط برتقالي متقطع (مميز عن الثقوب المحفورة فعلًا) في العرض ثلاثي الأبعاد في كل تبويب، وبنفس البرتقالي في المقاطع ومخططات المستويات وملف KML للحفّارة."
+  "No planned holes yet — add a collar position and design orientation above. A planned hole renders as a dashed orange line (distinct from real, drilled holes) in the 3D view, in every module tab, and in the same orange on sections, level plans and the rig KML.": "لا ثقوب مخططة بعد — أضف موضع فوهة واتجاه تصميم أعلاه. يظهر الثقب المخطط كخط برتقالي متقطع (مميز عن الثقوب المحفورة فعلًا) في العرض ثلاثي الأبعاد في كل تبويب، وبنفس البرتقالي في المقاطع ومخططات المستويات وملف KML للحفّارة.",
+  "Move the section {v} m to the right (one buffer width), as a new parallel section. Save your contacts first.": "تحريك المقطع {v} م إلى اليمين (عرض نطاق واحد) كمقطع موازٍ جديد. احفظ حدودك أولًا.",
+  "Move the section {v} m to the left (one buffer width), as a new parallel section. Save your contacts first.": "تحريك المقطع {v} م إلى اليسار (عرض نطاق واحد) كمقطع موازٍ جديد. احفظ حدودك أولًا.",
+  "How far either side of the section line holes and data are included. Press Enter to redraw the section with it; it is saved with the section.": "إلى أي مسافة على جانبي خط المقطع تُضمَّن الثقوب والبيانات. اضغط Enter لإعادة رسم المقطع؛ يُحفظ مع المقطع.",
+  "Buffer ±": "النطاق ±",
+  "Width of the drillhole interval ribbons on the section, in pixels": "عرض أشرطة فترات الثقوب في المقطع بالبكسل",
+  "Hole width": "عرض الثقب"
 }

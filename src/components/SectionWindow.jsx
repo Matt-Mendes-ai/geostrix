@@ -64,6 +64,11 @@ export default function SectionWindow() {
   const [showSectionImages, setShowSectionImages] = useState(true); // TASKS.csv #631
   const [showModel, setShowModel] = useState(true); // TASKS.csv #759
   const [showLegend, setShowLegend] = useState(true); // TASKS.csv #1043 — the key drawn inside the section (and its exports)
+  // TASKS.csv #1131 — Matt: "set thickness of drill holes on cross sections and the cross section buffer in the section
+  // itself". The interval ribbons' width in px (a per-user preference, kept in localStorage), and the buffer typed here.
+  const [holeWidth, setHoleWidthState] = useState(() => { try { const v = Number(localStorage.getItem("geostrix.sectionHoleWidth")); return v >= 1 && v <= 20 ? v : 5; } catch { return 5; } });
+  const setHoleWidth = (v) => { const n = Math.max(1, Math.min(20, Number(v) || 5)); setHoleWidthState(n); try { localStorage.setItem("geostrix.sectionHoleWidth", String(n)); } catch { /* private window */ } };
+  const [bufferDraft, setBufferDraft] = useState("");
   // TASKS.csv #823 — hole labels: where (collar / end of hole / both / off), leader lines (auto: when a label had to move;
   // always; off) and the labels the geologist dragged ({ "<hole>|collar": { dx, dy } }, SVG units from the anchor). Saved
   // with the section (relayed to the main window like contacts), so a re-opened section and its Layout snapshot keep them.
@@ -309,6 +314,20 @@ export default function SectionWindow() {
           {/* TASKS.csv #876 — step to the parallel section beside this one, and refresh what the main window draws on it */}
           <button onClick={() => sendSectionContacts({ id: data.id, step: -1 })} title={tr("Open the parallel section on the right of this one (looking along it from its start); a new one is made at the section spacing when there is none. Save your contacts first.")} style={btnStyle(false)}>‹</button>
           <button onClick={() => sendSectionContacts({ id: data.id, step: 1 })} title={tr("Open the parallel section on the left of this one (looking along it from its start); a new one is made at the section spacing when there is none. Save your contacts first.")} style={btnStyle(false)}>›</button>
+          {/* TASKS.csv #1131 — move the section by exactly ± its buffer (a new parallel section, or the saved one there) */}
+          <button onClick={() => sendSectionContacts({ id: data.id, step: -1, by: "buffer" })} title={tr("Move the section {v} m to the right (one buffer width), as a new parallel section. Save your contacts first.", { v: data.section?.corridor })} style={btnStyle(false)}>−{data.section?.corridor} m</button>
+          <button onClick={() => sendSectionContacts({ id: data.id, step: 1, by: "buffer" })} title={tr("Move the section {v} m to the left (one buffer width), as a new parallel section. Save your contacts first.", { v: data.section?.corridor })} style={btnStyle(false)}>+{data.section?.corridor} m</button>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("How far either side of the section line holes and data are included. Press Enter to redraw the section with it; it is saved with the section.")}>
+            {tr("Buffer ±")}
+            <input type="number" min="1" step="5" value={bufferDraft === "" ? (data.section?.corridor ?? "") : bufferDraft} onChange={(e) => setBufferDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && Number(bufferDraft) > 0) { sendSectionContacts({ id: data.id, corridor: Number(bufferDraft) }); setBufferDraft(""); } }}
+              onBlur={() => { if (Number(bufferDraft) > 0 && Number(bufferDraft) !== data.section?.corridor) sendSectionContacts({ id: data.id, corridor: Number(bufferDraft) }); setBufferDraft(""); }}
+              style={{ width: 52, fontSize: 11 }} aria-label={tr("Buffer ±")} />{" m"}
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Width of the drillhole interval ribbons on the section, in pixels")}>
+            {tr("Hole width")}
+            <input type="number" min="1" max="20" step="1" value={holeWidth} onChange={(e) => setHoleWidth(e.target.value)} style={{ width: 40, fontSize: 11 }} aria-label={tr("Hole width")} />
+          </label>
           <button onClick={() => sendSectionContacts({ id: data.id, refresh: true })} title={tr("Redraw the surface traces, models and neighbouring sections' strings on this section from the main window (what you are drawing is kept).")} style={btnStyle(false)}>{tr("Refresh")}</button>
           <button onClick={saveContacts} disabled={!contacts.length && !drawing} style={{ ...btnStyle(saved), opacity: contacts.length || drawing ? 1 : 0.5 }}>
             <Save size={14} /> {saved ? tr("Saved ✓") : tr("Save contacts")}
@@ -389,7 +408,7 @@ export default function SectionWindow() {
 
       <div className="ge-section-body" style={{ flex: 1, overflow: "auto", padding: 16 }}>
         {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{v2}. Click the pencil again to finish; Save contacts keeps the changes.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}{editing?.kind === "outline" ? ` ${tr("Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.")}` : ""}</div>}
-        <SectionSVG showSectionImages={showSectionImages} showModel={showModel} legendItems={showLegend ? shownLegendItems : null} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
+        <SectionSVG holeWidth={holeWidth} showSectionImages={showSectionImages} showModel={showModel} legendItems={showLegend ? shownLegendItems : null} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
           snap={snapOn && !planning ? targets : null} editingId={editingId} onEditPoints={editPoints}
           labels={labels} onMoveLabel={(key, off) => changeLabels({ offsets: { ...labels.offsets, [key]: off } })} /* #823 */ />
       </div>
@@ -402,7 +421,7 @@ function btnStyle(active) {
 }
 const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11.5 };
 
-function SectionSVG({ showSectionImages = true, showModel = true, legendItems = null, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onMoveLabel }) {
+function SectionSVG({ holeWidth = 5, showSectionImages = true, showModel = true, legendItems = null, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onMoveLabel }) {
   const dragRef = useRef(null); // #519 — the vertex being dragged (before the early return: a hook)
   const labelDragRef = useRef(null); // #823 — the label being dragged: { key, ax, ay, grabDx, grabDy }
   const [labelDrag, setLabelDrag] = useState(null); // its live offset while dragging: { key, dx, dy }
@@ -463,7 +482,7 @@ function SectionSVG({ showSectionImages = true, showModel = true, legendItems = 
   const traceByHole = Object.fromEntries(holes.map((h) => [h.hole_id, h.trace]));
   // TASKS.csv #392 — ribbon offsets per interval layer (px): 0, +7, -7, +14, -14 ... in first-seen order.
   const ribbonOffset = {};
-  intervals.forEach((r) => { const k = r.layer || "_"; if (!(k in ribbonOffset)) { const n = Object.keys(ribbonOffset).length; ribbonOffset[k] = n === 0 ? 0 : (n % 2 ? 1 : -1) * 7 * Math.ceil(n / 2); } });
+  intervals.forEach((r) => { const k = r.layer || "_"; if (!(k in ribbonOffset)) { const n = Object.keys(ribbonOffset).length; ribbonOffset[k] = n === 0 ? 0 : (n % 2 ? 1 : -1) * (holeWidth + 2) * Math.ceil(n / 2); } }); // spacing follows the width: #1131
   const ribbonReach = Math.max(3, ...Object.values(ribbonOffset).map((o) => Math.abs(o) + 3));
   const BAR_MAX = 36;
   const assayMax = {};
@@ -695,7 +714,7 @@ function SectionSVG({ showSectionImages = true, showModel = true, legendItems = 
         const x1 = sx(along(p1.x, p1.y)), y1 = sz(p1.z), x2 = sx(along(p2.x, p2.y)), y2 = sz(p2.z);
         const off = ribbonOffset[row.layer || "_"] || 0;
         const [nx, ny] = screenNormal(x1, y1, x2, y2);
-        return <line key={i} x1={x1 + nx * off} y1={y1 + ny * off} x2={x2 + nx * off} y2={y2 + ny * off} stroke={row.color} strokeWidth="5" strokeLinecap="butt"><title>{row.label}</title></line>;
+        return <line key={i} x1={x1 + nx * off} y1={y1 + ny * off} x2={x2 + nx * off} y2={y2 + ny * off} stroke={row.color} strokeWidth={holeWidth} strokeLinecap="butt"><title>{row.label}</title></line>; /* holeWidth: #1131 */
       })}
 
       {/* TASKS.csv #392 — assays as grade bars perpendicular to the trace, beyond the ribbons, length
