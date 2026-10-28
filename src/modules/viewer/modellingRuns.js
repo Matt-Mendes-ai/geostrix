@@ -29,6 +29,7 @@ import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { capFieldAtGround } from "../../lib/groundCap.js"; // TASKS.csv #803
 import { explicitInterfacePoints } from "../../lib/explicitUnits.js"; // TASKS.csv #867
 import { pinchOutPoints } from "../../lib/pinchOut.js"; // TASKS.csv #1030
+import { fisherStats } from "../../lib/stereonet.js"; // TASKS.csv #1066
 
 // TASKS.csv #803 — the interpolated grid intersected with "below the terrain" (lib/groundCap.js), so a grade shell or
 // alteration envelope that reaches the surface closes ON the ground instead of in the air. toReal: grid frame ->
@@ -1302,6 +1303,10 @@ export function createModellingRuns(ctx, mcRef) {
       });
       const orientations = structureRowsToOrientations(group, traces);
       if (!points.length || !orientations.length) { setNotices((p) => [...p, notice("Couldn't locate \"{name}\" picks along the hole traces.", { name })]); continue; }
+      // TASKS.csv #1066 — the same orientation check as the Stereonet: picks no more aligned than random planes still
+      // run (the user asked for them), but the result is not presented as a structure the picks define
+      const fs = group.length >= 4 ? fisherStats(group) : null;
+      if (fs?.noPreferred) setNotices((p) => [...p, notice("Warning: the {n} \"{name}\" picks show no preferred orientation (k = {k}, at the level of random planes), so their dips do not define one surface. Check them on the Stereonet, or give each structure its own name/ID.", { n: group.length, name, k: fs.k.toFixed(1) })]);
       await runSurfaceModel({ label: `Structure: ${name}`, meshName: name, points, orientations, color: colorForStructure(structType), type: guessSurfaceType(`Structure: ${structType}`, structType) }, { trendTool: "structural" }); // #679 — its own trend slot
     }
   };

@@ -300,6 +300,10 @@ function poleVectorsAndWeights(picks, terzaghi) {
 // poleVectorsAndWeights above.
 // Returns null when there aren't at least 2 usable picks (statistics on 0 or 1 orientation are
 // meaningless, and a caller showing "k = ∞, α95 = 0°" off a single pick would be actively misleading).
+// TASKS.csv #1066 — random planes give k ≈ 2 with the hemisphere-aligned Fisher estimate below (2.56 at n = 20, 2.03 at
+// n = 3,000); below 3 the population is not told apart from no fabric. 11.07 = χ²₅ at 95 %.
+export const K_RANDOM_FLOOR = 3;
+const CHI2_5_95 = 11.0705;
 export function fisherStats(picks, { terzaghi = null } = {}) {
   const { vecs, weights, terzaghi: tzInfo } = poleVectorsAndWeights(picks, terzaghi);
   const n = vecs.length;
@@ -383,12 +387,21 @@ export function fisherStats(picks, { terzaghi = null } = {}) {
   const meanDipDir = (mean.trend + 180) % 360;
   const meanDip = 90 - mean.plunge;
 
+  // TASKS.csv #1066 (review #1016) — "no preferred orientation". The hemisphere flip above makes the resultant of
+  // uniformly random planes ~0.5 n, not 0, so k sits near 2 (not 1) and α95 shrinks with √n (5° at n = 729) for data
+  // with no fabric at all. Two tests, either one: k below K_RANDOM_FLOOR, or Bingham's test for uniformity on axial
+  // data (Mardia & Jupp 2000, §10.7: 15n/2 · Σ(Sᵢ − 1/3)² ~ χ²₅ under uniformity) not rejected at 5 %. Evaluated at
+  // nEff so a Terzaghi weighting does not manufacture evidence. When it is true the UI gives no k / α95 cone.
+  const bingham = (15 * nS / 2) * ((s1 - 1 / 3) ** 2 + (s2 - 1 / 3) ** 2 + (s3 - 1 / 3) ** 2);
+  const noPreferred = k < K_RANDOM_FLOOR || (n >= 4 && bingham < CHI2_5_95); // under 4 picks the test cannot reject anything: "too few" says so
+
   return {
     n,
     meanTrend: mean.trend, meanPlunge: mean.plunge,
     meanDipDir, meanDip,
     R, Rbar, k, alpha95,
     s1, s2, s3,
+    bingham, noPreferred, // #1066
     // TASKS.csv #279 — fold/beta axis as a line, and the best-fit girdle (π-)plane it is the pole to.
     betaTrend: beta.trend, betaPlunge: beta.plunge,
     girdleDipDir: (beta.trend + 180) % 360, girdleDip: 90 - beta.plunge,

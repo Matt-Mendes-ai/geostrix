@@ -109,8 +109,10 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
         setNote({ id: t.id, text: tr("Not set: the {picks} {key} picks form a girdle (spread along a great circle — a fold), so a single mean plane is not a real orientation. Filter to one fold limb in the Stereonet first, or use the fold axis.", { picks: picks.length, key }) });
         return;
       }
-      const quality = st ? ` (S1 ${st.s1.toFixed(2)}, α95 ${st.alpha95.toFixed(1)}°, ${picks.length < 4 ? "too few picks to judge the shape" : fab.shape})` : "";
-      const warn = fab && picks.length >= 4 && fab.shape === "weak" ? " The picks barely share an orientation (weak fabric) — check them on the Stereonet before relying on this plane." : "";
+      // #1066 — no α95 for a population random planes would match (k ≈ 2 with the stereonet's hemisphere-aligned estimate)
+      const quality = st ? ` (S1 ${st.s1.toFixed(2)}, ${st.noPreferred ? `k ${st.k.toFixed(1)}, no preferred orientation` : `α95 ${st.alpha95.toFixed(1)}°`}, ${picks.length < 4 ? "too few picks to judge the shape" : fab.shape})` : "";
+      const warn = st?.noPreferred && picks.length >= 4 ? " The picks are no more aligned than random planes — this plane is not a real orientation; check them on the Stereonet before relying on it."
+        : fab && picks.length >= 4 && fab.shape === "weak" ? " The picks barely share an orientation (weak fabric) — check them on the Stereonet before relying on this plane." : "";
       what = `the mean of ${picks.length} ${key} measurement${picks.length === 1 ? "" : "s"}${quality}${unoriented ? `; ${unoriented} ${key} row${unoriented === 1 ? " has" : "s have"} no dip / dip direction and ${unoriented === 1 ? "was" : "were"} left out` : ""}.${warn} Not corrected for drillhole sampling bias (Terzaghi) — the Stereonet can`;
     } else if (kind === "surface") {
       const s = (surfaces || []).find((x) => x.id === key);

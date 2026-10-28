@@ -386,8 +386,12 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 <div>{tr("Plane:")}{" "}<b>{stats.meanDip.toFixed(1)}° / {stats.meanDipDir.toFixed(1)}°</b> <span style={{ color: "#65717e" }}>{tr("(dip/dipdir)")}</span></div>
                 <div>{tr("Pole: {meanPlunge}° → {meanTrend}°", { meanPlunge: stats.meanPlunge.toFixed(1), meanTrend: stats.meanTrend.toFixed(1) })}{" "}<span style={{ color: "#65717e" }}>{tr("(plunge/trend)")}</span></div>
                 <div style={{ marginTop: 4, borderTop: "1px solid #e3e6ea", paddingTop: 4 }}>
+                  {stats.noPreferred ? ( /* TASKS.csv #1066 — no k / α95 cone for a population random planes would match */
+                    <div style={{ color: "#a95a3a", fontWeight: 600 }} title={tr("Random planes give k ≈ 2 with this method (each pole is flipped towards the mean), and their α95 shrinks as more picks are added, so a small cone here would not mean a well-known trend. Flagged when k is below 3 or Bingham's test cannot reject a uniform spread (5 %).")}>{tr("No preferred orientation (k = {k}, at the level of random planes) — no confidence cone given.", { k: stats.k.toFixed(1) })}</div>
+                  ) : (<>
                   <div title={tr("Fisher concentration parameter — higher means a tighter cluster. Rule of thumb: >100 very tight, 20-100 well defined, <10 poorly defined.")}>k = {stats.k === Infinity ? "∞" : stats.k.toFixed(1)}</div>
                   <div title={tr("95% confidence cone half-angle about the mean direction. Smaller is better — this is the real 'how well do I know this trend' number.")}>α95 = {stats.alpha95.toFixed(1)}°</div>
+                  </>)}
                   <div title={tr("Normalized eigenvalues of the orientation tensor. S1 near 1 = tight point cluster (one dominant orientation). S1≈S2 >> S3 = girdle (picks spread along a great circle, typical of a folded surface). All three near 0.33 = no preferred orientation.")}>S = {stats.s1.toFixed(2)} / {stats.s2.toFixed(2)} / {stats.s3.toFixed(2)}</div>
                 </div>
                 <div style={{ marginTop: 4, color: "#55606e" }}>
@@ -417,7 +421,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 )}
                 {onUseAsTrend && (
                   <button
-                    onClick={() => onUseAsTrend({ azimuth: stats.meanDipDir, dip: stats.meanDip })}
+                    onClick={() => { if (stats.noPreferred && !window.confirm(tr("These picks show no preferred orientation (k = {k}, at the level of random planes). Add their mean plane as a structural trend anyway?", { k: stats.k.toFixed(1) }))) return; onUseAsTrend({ azimuth: stats.meanDipDir, dip: stats.meanDip }); }} // #1066
                     disabled={isGirdle}
                     style={{ ...exportBtn, width: "100%", marginTop: 7, padding: "5px 8px", fontSize: 10.5, borderColor: "#a9c6e0", color: "#2f6fe0", opacity: isGirdle ? 0.5 : 1, cursor: isGirdle ? "not-allowed" : "pointer" }}
                     title={isGirdle ? tr("Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation — pushing it to anisotropy would model a plane that exists nowhere. Filter to one fold limb first.") : tr("Add this mean plane as a new structural trend (Modelling tab > Trends): the plane only — pitch 90° (down dip) and ratios 3 : 2 : 1, to edit there (#671)")}
