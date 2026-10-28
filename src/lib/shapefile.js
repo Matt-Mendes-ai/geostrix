@@ -237,6 +237,61 @@ const WKT_DATUMS = [
 ];
 const wktNum = (v) => { const n = Number(v); return Number.isInteger(n) ? `${n}.0` : String(n); };
 const wktParam = (name, v) => `PARAMETER["${name}",${wktNum(v)}]`;
+// TASKS.csv #1062 (review #1016, QGIS / GIS) — the ESRI templates below cover 447 of the registry's codes; 3,806 metric
+// projected codes got no .prj at all (QGIS: unknown CRS), and six US-foot codes got a template that said metres (3.28x
+// off). Any other registry code now gets an OGC WKT1 built from its proj4 definition: the ellipsoid (+a / +rf), TOWGS84,
+// prime meridian, projection parameters and the real linear unit (false easting / northing converted into it), ending
+// in AUTHORITY["EPSG", code] so GDAL / QGIS identify it. Projections it cannot describe (somerc, krovak, eqearth, nzmg)
+// keep the READ_ME.
+const PRIME_MERIDIANS = { greenwich: 0, paris: 2.33722917, ferro: -17.66666666666667, rome: 12.45233333333333, madrid: -3.687938888888889, bern: 7.439583333333333, lisbon: -9.131906111111112, bogota: -74.08091666666667, brussels: 4.367975, stockholm: 18.05827777777778, athens: 23.7163375, jakarta: 106.8077194444444, oslo: 10.72291666666667 };
+const LINEAR_UNITS = { m: ["metre", 1], "us-ft": ["US survey foot", 0.3048006096012192], ft: ["foot", 0.3048], link: ["link", 0.201168] };
+function genericWkt(code, def, name) {
+  const arg = (k, dflt = null) => { const m = def.match(new RegExp(`\\+${k}=(\\S+)`)); return m ? m[1] : dflt; };
+  const num = (k, dflt = 0) => { const v = arg(k); return v == null ? dflt : Number(v); };
+  const has = (k) => new RegExp(`\\+${k}(\\s|$)`).test(def);
+  const w = (v) => String(+Number(v).toPrecision(15));
+  const P = (k, v) => `PARAMETER["${k}",${w(v)}]`;
+  // ellipsoid
+  let a, rf;
+  if (arg("a") != null) { a = num("a"); rf = arg("rf") != null ? num("rf") : arg("b") != null ? (num("b") === a ? 0 : a / (a - num("b"))) : 0; }
+  else if (arg("datum") === "WGS84" || arg("ellps") === "WGS84") { a = 6378137; rf = 298.257223563; }
+  else if (arg("ellps") === "GRS80") { a = 6378137; rf = 298.257222101; }
+  else return null;
+  const pmRaw = arg("pm", "greenwich"), pm = Number.isFinite(Number(pmRaw)) ? Number(pmRaw) : PRIME_MERIDIANS[pmRaw];
+  if (pm == null) return null;
+  const tw = arg("towgs84");
+  const towgs = tw ? `,TOWGS84[${tw.split(",").map(w).concat(Array(7).fill("0")).slice(0, 7).join(",")}]` : arg("datum") === "WGS84" ? ",TOWGS84[0,0,0,0,0,0,0]" : "";
+  const geogName = (name.split(" / ")[0] || "unknown").replace(/"/g, "");
+  const geogcs = `GEOGCS["${geogName}",DATUM["${geogName.replace(/[^A-Za-z0-9]+/g, "_")}",SPHEROID["ellipsoid",${w(a)},${w(rf)}]${towgs}],PRIMEM["${pmRaw}",${w(pm)}],UNIT["degree",0.0174532925199433]]`;
+  // linear unit: proj4's x_0 / y_0 are metres; WKT wants them in the CRS unit
+  const toM = arg("to_meter") != null ? num("to_meter") : null;
+  const unit = toM ? ["unit", toM] : LINEAR_UNITS[arg("units", "m")];
+  if (!unit || !(unit[1] > 0)) return null;
+  const fe = P("false_easting", num("x_0") / unit[1]), fn = P("false_northing", num("y_0") / unit[1]);
+  const proj = arg("proj");
+  // cases WKT1 cannot carry exactly (checked against GDAL's own definitions): a sphere (EASE grids use the spherical
+  // formulas), the Guam azimuthal, a polar stereographic (WKT1's Polar_Stereographic is read as the other EPSG variant:
+  // UPS came out 9,700 km off), a 2-parallel Lambert with a scale factor
+  if (rf === 0 || has("guam") || proj === "stere" || (proj === "lcc" && arg("lat_2") != null && num("lat_2") !== num("lat_1") && num("k_0", num("k", 1)) !== 1)) return null;
+  let body;
+  if (proj === "utm") body = `PROJECTION["Transverse_Mercator"],${P("latitude_of_origin", 0)},${P("central_meridian", -183 + 6 * num("zone"))},${P("scale_factor", 0.9996)},${P("false_easting", 500000 / unit[1])},${P("false_northing", (has("south") ? 10000000 : 0) / unit[1])}`;
+  else if (proj === "tmerc") body = `PROJECTION["Transverse_Mercator"],${P("latitude_of_origin", num("lat_0"))},${P("central_meridian", num("lon_0"))},${P("scale_factor", num("k", num("k_0", 1)))},${fe},${fn}`;
+  else if (proj === "lcc") {
+    const one = arg("lat_2") == null || num("lat_2") === num("lat_1");
+    body = one ? `PROJECTION["Lambert_Conformal_Conic_1SP"],${P("latitude_of_origin", num("lat_1", num("lat_0")))},${P("central_meridian", num("lon_0"))},${P("scale_factor", num("k_0", num("k", 1)))},${fe},${fn}`
+      : `PROJECTION["Lambert_Conformal_Conic_2SP"],${P("standard_parallel_1", num("lat_1"))},${P("standard_parallel_2", num("lat_2"))},${P("latitude_of_origin", num("lat_0"))},${P("central_meridian", num("lon_0"))},${fe},${fn}`;
+  } else if (proj === "aea") body = `PROJECTION["Albers_Conic_Equal_Area"],${P("standard_parallel_1", num("lat_1"))},${P("standard_parallel_2", num("lat_2"))},${P("latitude_of_center", num("lat_0"))},${P("longitude_of_center", num("lon_0"))},${fe},${fn}`;
+  else if (proj === "cass") body = `PROJECTION["Cassini_Soldner"],${P("latitude_of_origin", num("lat_0"))},${P("central_meridian", num("lon_0"))},${fe},${fn}`;
+  else if (proj === "sterea") body = `PROJECTION["Oblique_Stereographic"],${P("latitude_of_origin", num("lat_0"))},${P("central_meridian", num("lon_0"))},${P("scale_factor", num("k", num("k_0", 1)))},${fe},${fn}`;
+  else if (proj === "merc") body = arg("lat_ts") != null ? `PROJECTION["Mercator_2SP"],${P("standard_parallel_1", num("lat_ts"))},${P("central_meridian", num("lon_0"))},${fe},${fn}` : `PROJECTION["Mercator_1SP"],${P("central_meridian", num("lon_0"))},${P("scale_factor", num("k", num("k_0", 1)))},${fe},${fn}`;
+  else if (proj === "laea") body = `PROJECTION["Lambert_Azimuthal_Equal_Area"],${P("latitude_of_center", num("lat_0"))},${P("longitude_of_center", num("lon_0"))},${fe},${fn}`;
+  else if (proj === "aeqd") body = `PROJECTION["Azimuthal_Equidistant"],${P("latitude_of_center", num("lat_0"))},${P("longitude_of_center", num("lon_0"))},${fe},${fn}`;
+  else if (proj === "poly") body = `PROJECTION["Polyconic"],${P("latitude_of_origin", num("lat_0"))},${P("central_meridian", num("lon_0"))},${fe},${fn}`;
+  else if (proj === "cea") body = `PROJECTION["Cylindrical_Equal_Area"],${P("standard_parallel_1", num("lat_ts"))},${P("central_meridian", num("lon_0"))},${fe},${fn}`;
+  else return null;
+  return `PROJCS["${name.replace(/"/g, "")}",${geogcs},${body},UNIT["${unit[0]}",${w(unit[1])}],AUTHORITY["EPSG","${code}"]]`;
+}
+
 export function prjWktFor(epsg) {
   const code = Number(epsg);
   const def = Number.isFinite(code) ? getProj4DefSync(code) : null;
@@ -244,10 +299,11 @@ export function prjWktFor(epsg) {
   if (!def || !name) return null;
   const arg = (k, dflt = 0) => { const m = def.match(new RegExp(`\\+${k}=(\\S+)`)); return m ? m[1] : dflt; };
   const has = (k) => new RegExp(`\\+${k}(\\s|$)`).test(def);
-  const d = WKT_DATUMS.find(([prefix]) => name.startsWith(prefix));
-  if (!d) return null;
+  const metric = !/\+to_meter=/.test(def) && ["0", "m"].includes(String(arg("units"))); // #1062 — the ESRI templates below write metres
+  const d = metric ? WKT_DATUMS.find(([prefix]) => name.startsWith(prefix)) : null;
+  if (!d) return /\+proj=longlat/.test(def) ? null : genericWkt(code, def, name);
   const ell = WKT_ELLIPSOIDS[arg("datum") === "WGS84" || code === 3857 ? "WGS84" : arg("ellps")];
-  if (!ell) return null;
+  if (!ell) return genericWkt(code, def, name); // #1062
   const geogcs = `GEOGCS["GCS_${d[1]}",DATUM["D_${d[1]}",SPHEROID["${ell[0]}",${ell[1]},${ell[2]}]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]]`;
   const proj = arg("proj");
   if (proj === "longlat") return geogcs;
@@ -267,7 +323,7 @@ export function prjWktFor(epsg) {
   } else if (proj === "aea" || proj === "lcc") {
     body = `PROJECTION["${proj === "aea" ? "Albers" : "Lambert_Conformal_Conic"}"],${wktParam("False_Easting", arg("x_0"))},${wktParam("False_Northing", arg("y_0"))},${wktParam("Central_Meridian", arg("lon_0"))},${wktParam("Standard_Parallel_1", arg("lat_1"))},${wktParam("Standard_Parallel_2", arg("lat_2"))}${proj === "lcc" ? `,${wktParam("Scale_Factor", 1)}` : ""},${wktParam("Latitude_Of_Origin", arg("lat_0"))}`;
   } else {
-    return null;
+    return genericWkt(code, def, name); // #1062
   }
   return `PROJCS["${d[2]}_${tail}",${geogcs},${body},UNIT["Meter",1.0]]`;
 }
