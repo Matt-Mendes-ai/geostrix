@@ -6274,5 +6274,10 @@
   "Collars as points and hole traces as 3D lines (Shapefile, GeoPackage, DXF), or every drillhole table as CSV. Traces are exported whether they come from a survey file or from the collar azimuth, dip and length.": "Les collets en points et les tracés des sondages en lignes 3D (Shapefile, GeoPackage, DXF), ou toutes les tables de sondage en CSV. Les tracés sont exportés qu’ils proviennent d’un fichier de levé ou de l’azimut, du pendage et de la longueur au collet.",
   "Nothing to export yet.": "Rien à exporter pour l’instant.",
   "Collars: {n} points with hole id, azimuth, dip, length and your own collar fields": "Collets : {n} points avec l’identifiant du sondage, l’azimut, le pendage, la longueur et vos propres champs",
-  "Traces: {n} desurveyed 3D lines, from the survey or, without one, from the collar azimuth, dip and length": "Tracés : {n} lignes 3D calculées à partir du levé ou, sans levé, de l’azimut, du pendage et de la longueur au collet"
+  "Traces: {n} desurveyed 3D lines, from the survey or, without one, from the collar azimuth, dip and length": "Tracés : {n} lignes 3D calculées à partir du levé ou, sans levé, de l’azimut, du pendage et de la longueur au collet",
+  "Log scale: the values span two decades or more": "Échelle logarithmique : les valeurs couvrent deux ordres de grandeur ou plus",
+  "Linear scale": "Échelle linéaire",
+  "ppm ({v})": "ppm ({v})",
+  "log": "log",
+  "linear": "linéaire"
 }

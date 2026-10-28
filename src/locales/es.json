@@ -6274,5 +6274,10 @@
   "Collars as points and hole traces as 3D lines (Shapefile, GeoPackage, DXF), or every drillhole table as CSV. Traces are exported whether they come from a survey file or from the collar azimuth, dip and length.": "Collares como puntos y trazas de sondaje como líneas 3D (Shapefile, GeoPackage, DXF), o todas las tablas de sondajes como CSV. Las trazas se exportan tanto si vienen de un archivo de survey como del azimut, la inclinación y la longitud del collar.",
   "Nothing to export yet.": "Todavía no hay nada que exportar.",
   "Collars: {n} points with hole id, azimuth, dip, length and your own collar fields": "Collares: {n} puntos con id de sondaje, azimut, inclinación, longitud y sus propios campos de collar",
-  "Traces: {n} desurveyed 3D lines, from the survey or, without one, from the collar azimuth, dip and length": "Trazas: {n} líneas 3D desurveyadas, desde el survey o, sin él, desde el azimut, la inclinación y la longitud del collar"
+  "Traces: {n} desurveyed 3D lines, from the survey or, without one, from the collar azimuth, dip and length": "Trazas: {n} líneas 3D desurveyadas, desde el survey o, sin él, desde el azimut, la inclinación y la longitud del collar",
+  "Log scale: the values span two decades or more": "Escala logarítmica: los valores abarcan dos órdenes de magnitud o más",
+  "Linear scale": "Escala lineal",
+  "ppm ({v})": "ppm ({v})",
+  "log": "log",
+  "linear": "lineal"
 }

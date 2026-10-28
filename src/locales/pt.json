@@ -6274,5 +6274,10 @@
   "Collars as points and hole traces as 3D lines (Shapefile, GeoPackage, DXF), or every drillhole table as CSV. Traces are exported whether they come from a survey file or from the collar azimuth, dip and length.": "Bocas de furo como pontos e traços dos furos como linhas 3D (Shapefile, GeoPackage, DXF), ou todas as tabelas de furos como CSV. Os traços são exportados venham eles de um arquivo de survey ou do azimute, mergulho e comprimento da boca do furo.",
   "Nothing to export yet.": "Ainda não há nada para exportar.",
   "Collars: {n} points with hole id, azimuth, dip, length and your own collar fields": "Bocas de furo: {n} pontos com id do furo, azimute, mergulho, comprimento e seus próprios campos",
-  "Traces: {n} desurveyed 3D lines, from the survey or, without one, from the collar azimuth, dip and length": "Traços: {n} linhas 3D calculadas a partir do survey ou, sem ele, do azimute, mergulho e comprimento da boca do furo"
+  "Traces: {n} desurveyed 3D lines, from the survey or, without one, from the collar azimuth, dip and length": "Traços: {n} linhas 3D calculadas a partir do survey ou, sem ele, do azimute, mergulho e comprimento da boca do furo",
+  "Log scale: the values span two decades or more": "Escala logarítmica: os valores abrangem duas ordens de grandeza ou mais",
+  "Linear scale": "Escala linear",
+  "ppm ({v})": "ppm ({v})",
+  "log": "log",
+  "linear": "linear"
 }

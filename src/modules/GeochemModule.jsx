@@ -1,7 +1,8 @@
 import React, { useState, useRef, useMemo, Suspense } from "react";
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { parseTableOrWorkbook, isXlsxName } from "../lib/xlsx.js"; // TASKS.csv #444 shared reader; #605 .xlsx
-import { num, guessColumn, TARGET_SCHEMAS } from "../lib/layers.js"; // TASKS.csv #508; guessColumn #600 — blank / "NA" -> NaN, never 0
+import { num, guessColumn, TARGET_SCHEMAS, colorForLithology, CATEGORICAL_SAFE_COLORS, hashColor, colorForVoxelValue } from "../lib/layers.js"; // colours: #1091
+import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #1091 — the grade ramp block models use (#702) // TASKS.csv #508; guessColumn #600 — blank / "NA" -> NaN, never 0
 import { didYouMean } from "../lib/holeIds.js"; // TASKS.csv #541
 import { reprojectXY, crsName } from "../lib/reproject.js"; // TASKS.csv #600 — surface samples into the project CRS
 import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
@@ -60,7 +61,7 @@ import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — fo
 
 export default function GeochemModule() {
   const store = useStore();
-  const { assays, setAssays, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, geochemThresholds, setGeochemThresholds, surfaceQc, setSurfaceQc, mapLayers, replaceLayer, layers, collars, survey, boundaries, alterationBoxes, setAlterationBoxes, project, projectIsEmpty, setEpsg } = store;
+  const { assays, setAssays, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, geochemThresholds, setGeochemThresholds, surfaceQc, setSurfaceQc, mapLayers, replaceLayer, layers, collars, survey, boundaries, alterationBoxes, setAlterationBoxes, project, projectIsEmpty, setEpsg, viewerUiState } = store; // viewerUiState: #1091 (the 3D legend's colour edits)
   const [altBoxOpen, setAltBoxOpen] = useState(false); // TASKS.csv #503
   const assayHoleIds = useMemo(() => new Set(assays.map((a) => a.hole_id)), [assays]);
 
@@ -70,6 +71,10 @@ export default function GeochemModule() {
   const [lithFilter, setLithFilter] = useState(null); // null | Set of codes (NOT_LOGGED = samples with no log)
   const [lithMenuOpen, setLithMenuOpen] = useState(false);
   const [colorElement, setColorElement] = useState(null);
+  // TASKS.csv #1091 — the element to colour by: the one chosen, else Au, else the first. colorElement is set only when an
+  // assay file is imported here, so an opened project or a sample showed "by element" with every point the uniform blue
+  // while the drop-down displayed its first option.
+  const colorEl = colorElement && assayElements.some((e) => e.symbol === colorElement) ? colorElement : (assayElements.find((e) => e.symbol === "Au") || assayElements[0])?.symbol || null;
   const [assayModal, setAssayModal] = useState(null);
   const [certReview, setCertReview] = useState(null); // TASKS.csv #601
   const [surfaceModal, setSurfaceModal] = useState(null);
@@ -114,10 +119,12 @@ export default function GeochemModule() {
   const svgRef = useRef(null);
 
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
+  // TASKS.csv #1091 (review #1016, software artist) — holes from the colour-blind-safe categorical palette, in name order
+  // (golden-angle HSL at one lightness put neighbouring hues at the same lightness, not dichromat-safe)
   const holeColors = useMemo(() => {
-    const holes = Array.from(new Set(assays.map((a) => a.hole_id)));
+    const holes = Array.from(new Set(assays.map((a) => a.hole_id))).sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
     const map = {};
-    holes.forEach((h, i) => { map[h] = `hsl(${(i * 67) % 360}, 55%, 58%)`; });
+    holes.forEach((h, i) => { map[h] = i < CATEGORICAL_SAFE_COLORS.length ? CATEGORICAL_SAFE_COLORS[i] : hashColor(String(h)); });
     return map;
   }, [assays]);
 
@@ -125,7 +132,11 @@ export default function GeochemModule() {
   const sampleLith = useMemo(() => lithologyBySample(assays, layers?.litho), [assays, layers?.litho]);
   const lithCounts = useMemo(() => lithologyCounts(sampleLith), [sampleLith]);
   const hasLithLog = (layers?.litho || []).length > 0;
-  const lithColors = useMemo(() => Object.fromEntries(lithCounts.map(([k], i) => [k, k === NOT_LOGGED ? "#b8bec7" : `hsl(${(i * 137) % 360}, 60%, 50%)`])), [lithCounts]);
+  // TASKS.csv #1091 — a code is the colour it is everywhere else (3D view, strip log, section, Layout legend): the
+  // lithology palette plus the user's legend edits. It was hsl by rank in this plot's counts, so it differed from the
+  // 3D view and moved whenever the lithology filter changed the ranks.
+  const lithOverride = viewerUiState?.legendOverride?.litho;
+  const lithColors = useMemo(() => Object.fromEntries(lithCounts.map(([k]) => [k, k === NOT_LOGGED ? "#b8bec7" : lithOverride?.[k]?.color || colorForLithology(k)])), [lithCounts, lithOverride]);
   const plotted = useMemo(() => (lithFilter ? assays.filter((a) => lithFilter.has(sampleLith.get(a) ?? NOT_LOGGED)) : assays), [assays, lithFilter, sampleLith]);
   const describeSample = (sm) => {
     const num = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(2).replace(/\.?0+$/, "") : "?");
@@ -137,22 +148,24 @@ export default function GeochemModule() {
   };
   // TASKS.csv #619 (#618 click review) — the element colour range was recomputed over ALL assays for EVERY point
   // (6,297 samples: ~40 million value lookups per redraw, enough to freeze the tab); now once per change
+  // TASKS.csv #1091 — the grade ramp (viridis, log-spaced when the values span two decades or more: gradeStops, #702);
+  // it was a linear blue-red RGB blend over min-max, so a skewed Au or Cu put nearly every sample at the blue end
   const colorRange = useMemo(() => {
-    if (colorMode !== "element" || !colorElement) return null;
-    const vals = assays.map((a) => valueIn(a, colorElement, "ppm", elementUnits)).filter((x) => x != null);
-    return vals.length ? { min: arrMin(vals), max: arrMax(vals) } : null;
-  }, [colorMode, colorElement, assays, elementUnits]);
+    if (colorMode !== "element" || !colorEl) return null;
+    const vals = assays.map((a) => valueIn(a, colorEl, "ppm", elementUnits)).filter((x) => x != null);
+    if (!vals.length) return null;
+    const pos = vals.filter((v) => v > 0), min = pos.length ? arrMin(pos) : arrMin(vals), max = arrMax(vals);
+    const stops = gradeStops(min, max);
+    return { min, max, stops, log: min > 0 && max / min >= 100 };
+  }, [colorMode, colorEl, assays, elementUnits]);
   const colorBy = (sample) => {
     if (colorMode === "uniform") return "#4a9be0";
     if (colorMode === "hole") return holeColors[sample.hole_id] || "#55606e";
     if (colorMode === "lithology") return lithColors[sampleLith.get(sample) ?? NOT_LOGGED] || "#b8bec7";
-    if (colorMode === "element" && colorElement) {
-      const v = valueIn(sample, colorElement, "ppm", elementUnits);
+    if (colorMode === "element" && colorEl) {
+      const v = valueIn(sample, colorEl, "ppm", elementUnits);
       if (v == null || !colorRange) return "#eef1f4";
-      const { min, max } = colorRange;
-      const t = max > min ? (v - min) / (max - min) : 0.5;
-      const lo = [70, 110, 190], hi = [220, 70, 60];
-      return `rgb(${lo.map((x, i) => Math.round(x + (hi[i] - x) * t)).join(",")})`;
+      return colorForVoxelValue({ stops: colorRange.stops, colorMode: "continuous" }, Math.max(colorRange.min, v)); // #1091
     }
     return "#4a9be0";
   };
@@ -701,13 +714,19 @@ export default function GeochemModule() {
   // ---------- exports ----------
   // TASKS.csv #1048 — what the page shows around the diagram goes into the file: the diagram, the sample count, the
   // half-detection-limit rule and a key for the colouring (export text in English)
+  // TASKS.csv #1091 — five values along the element ramp (log-spaced when the ramp is), for the on-screen and exported keys
+  const elementKey = () => {
+    if (!colorRange) return [];
+    const { min, max, log } = colorRange;
+    return [0, 0.25, 0.5, 0.75, 1].map((t) => { const v = log ? 10 ** (Math.log10(min) + (Math.log10(max) - Math.log10(min)) * t) : min + (max - min) * t; return { v, color: colorForVoxelValue({ stops: colorRange.stops, colorMode: "continuous" }, v) }; });
+  };
   const plotFurniture = () => {
     const n = diagram.spider ? plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length : plotted.filter((a) => diagram.project(a, elementUnits)).length;
     const keyItems = colorMode === "hole" ? [...new Set(plotted.map((a) => a.hole_id))].map((h) => ({ label: String(h), color: holeColors[h] || "#55606e", shape: "dot" }))
       : colorMode === "lithology" ? lithCounts.filter(([k]) => !lithFilter || lithFilter.has(k)).map(([k]) => ({ label: k === NOT_LOGGED ? "not logged" : String(k), color: lithColors[k] || "#b8bec7", shape: "dot" }))
-      : colorMode === "element" && colorRange ? [0, 0.25, 0.5, 0.75, 1].map((t) => { const lo = [70, 110, 190], hi = [220, 70, 60], v = colorRange.min + (colorRange.max - colorRange.min) * t; return { label: `${+v.toPrecision(3)} ppm`, color: `rgb(${lo.map((x, i) => Math.round(x + (hi[i] - x) * t)).join(",")})`, shape: "dot" }; })
+      : colorMode === "element" && colorRange ? elementKey().map(({ v, color }) => ({ label: `${+v.toPrecision(3)} ppm`, color, shape: "dot" }))
       : [];
-    const keyTitle = colorMode === "hole" ? "Hole" : colorMode === "lithology" ? "Lithology" : colorMode === "element" ? `${colorElement} (linear, min to max)` : "";
+    const keyTitle = colorMode === "hole" ? "Hole" : colorMode === "lithology" ? "Lithology" : colorMode === "element" ? `${colorEl} (${colorRange?.log ? "log" : "linear"} scale)` : "";
     return { title: diagram.label, caption: [diagram.caption, `${n} of ${assays.length} samples ${diagram.spider ? "have at least one plottable element" : "plotted"}${lithFilter ? `; ${assays.length - plotted.length} hidden by the lithology filter` : ""}. Below-detection values substituted at half the detection limit.`, `GeoStrix · ${new Date().toISOString().slice(0, 10)}`],
       keys: keyItems.length ? [{ title: keyTitle, items: keyItems.length > 40 ? [...keyItems.slice(0, 39), { label: `+${keyItems.length - 39} more`, color: "#ffffff" }] : keyItems }] : [] };
   };
@@ -896,9 +915,16 @@ export default function GeochemModule() {
               <option value="uniform">{tr("uniform")}</option>
             </select>
             {colorMode === "element" && (
-              <select value={colorElement || ""} onChange={(e) => setColorElement(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
+              <select value={colorEl || ""} onChange={(e) => setColorElement(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
                 {assayElements.map((el) => <option key={el.symbol} value={el.symbol}>{el.symbol}</option>)}
               </select>
+            )}
+            {/* TASKS.csv #1091 — the ramp's key: five values, log-spaced when the ramp is */}
+            {colorMode === "element" && colorRange && (
+              <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "#55606e" }} title={colorRange.log ? tr("Log scale: the values span two decades or more") : tr("Linear scale")}>
+                {elementKey().map(({ v, color }, i) => <span key={i} style={{ display: "flex", alignItems: "center", gap: 2 }}><span style={{ width: 9, height: 9, borderRadius: 5, background: color, border: "1px solid rgba(0,0,0,0.15)" }} />{+v.toPrecision(2)}</span>)}
+                <span>{tr("ppm ({v})", { v: colorRange.log ? tr("log") : tr("linear") })}</span>
+              </span>
             )}
           </div>
           {/* TASKS.csv #619 — filter by logged lithology (the 3D View's lithology log, matched by largest overlap) */}
