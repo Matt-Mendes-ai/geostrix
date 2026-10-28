@@ -238,3 +238,17 @@ test("#942 section outlines export as closed polylines; other strings stay open"
   assert.equal(back.polylines[0].length, 4, "the closing vertex is the closed flag, not a repeated point");
   assert.equal(kindOf(sections[0].contacts[0]), "outline");
 });
+
+test("#1104 section-strings CSV: outlines closed (first vertex repeated, closed = Y) and a numeric join per string", () => {
+  const sections = [{ name: "4200N", contacts: [
+    { id: "c_1730000000000", unit: "Pit A", kind: "outline", points: [{ x: 0, y: 0, z: 10 }, { x: 10, y: 0, z: 10 }, { x: 10, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }] },
+    { id: "f1", unit: "Fault", kind: "fault", points: [{ x: 1, y: 0, z: 5 }, { x: 2, y: 0, z: 1 }] },
+  ] }];
+  const rows = sectionStringsToRows(sections);
+  const outline = rows.filter((r) => r.join === 1), fault = rows.filter((r) => r.join === 2);
+  assert.equal(outline.length, 5);
+  assert.deepEqual([outline[4].x, outline[4].z, outline[4].vertex], [outline[0].x, outline[0].z, 5]);
+  assert.ok(outline.every((r) => r.closed === "Y") && fault.every((r) => r.closed === "N"));
+  assert.equal(fault.length, 2);
+  assert.deepEqual(Object.keys(rows[0]).slice(0, 7), ["section", "join", "string_id", "kind", "name", "closed", "vertex"]);
+});

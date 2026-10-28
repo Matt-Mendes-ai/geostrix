@@ -10,12 +10,22 @@ import { buildDXF } from "./dxf.js";
 export const STRING_KINDS = { contact: "Upper contact", fault: "Fault", string: "String", outline: "Outline" }; // outline: #570 / #942
 export const kindOf = (c) => c.kind || (c.isUpperContact === false ? "string" : "contact");
 
+// TASKS.csv #1104 (review #1016, Micromine user) — the CSV half of #942: an outline goes out closed (its first vertex
+// repeated at the end) with closed = Y, and each string gets a numeric join (1..n) beside its text id, the field a
+// Micromine / Datamine string file JOINs on. Before, an outline loaded from the CSV was an open string that would
+// not wireframe until closed by hand, and the only key was a 15-character id like "c_1730000000000".
 export function sectionStringsToRows(sections) {
   const rows = [];
-  (sections || []).forEach((s) => (s.contacts || []).forEach((c) => (c.points || []).forEach((p, i) => {
-    if (![p.x, p.y, p.z].every(Number.isFinite)) return;
-    rows.push({ section: s.name, string_id: c.id, kind: kindOf(c), name: c.unit || "", vertex: i + 1, x: +p.x.toFixed(3), y: +p.y.toFixed(3), z: +p.z.toFixed(3), l: Number.isFinite(p.l) ? +p.l.toFixed(3) : "" });
-  })));
+  let join = 0;
+  (sections || []).forEach((s) => (s.contacts || []).forEach((c) => {
+    const pts = (c.points || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite));
+    if (!pts.length) return;
+    const kind = kindOf(c), closed = kind === "outline" && pts.length >= 3;
+    join++;
+    (closed ? [...pts, pts[0]] : pts).forEach((p, i) => {
+      rows.push({ section: s.name, join, string_id: c.id, kind, name: c.unit || "", closed: closed ? "Y" : "N", vertex: i + 1, x: +p.x.toFixed(3), y: +p.y.toFixed(3), z: +p.z.toFixed(3), l: Number.isFinite(p.l) ? +p.l.toFixed(3) : "" });
+    });
+  }));
   return rows;
 }
 
