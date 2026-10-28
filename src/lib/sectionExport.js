@@ -7,7 +7,6 @@
 // "string" (free interpretation line); contacts drawn before kinds existed are contacts.
 import { buildDXF } from "./dxf.js";
 
-export const STRING_KINDS = { contact: "Upper contact", fault: "Fault", string: "String", outline: "Outline" }; // outline: #570 / #942
 export const kindOf = (c) => c.kind || (c.isUpperContact === false ? "string" : "contact");
 
 // TASKS.csv #1104 (review #1016, Micromine user) — the CSV half of #942: an outline goes out closed (its first vertex

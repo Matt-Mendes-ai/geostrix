@@ -247,13 +247,6 @@ function lerpColorHex(hexA, hexB, t) {
   return rgbToHex(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t);
 }
 
-// TASKS.csv #249 (colorblind-safety review) — falls back to the colorblind-safe viridis ramp rather
-// than the plain "default" blue-red one for any caller that doesn't ask for a specific named palette,
-// so an unopinionated caller gets the safe choice without needing to know to ask for it. "default"
-// itself is untouched and still selectable by name for anyone who explicitly wants it.
-export function rampColorsHex(n) {
-  return paletteColorsHex("viridis", n);
-}
 
 // User request: "Can we have some gradient colour pallets options for the voxels legends? Get some
 // that are typically used in geophysics and name them with the suggested geophysical survey type use."

@@ -89,13 +89,6 @@ export function perturbOrientation(o, sigmaDeg, rng) {
   return { ...o, dip, azimuth: az };
 }
 
-// Angle between two orientations' poles, degrees (plane-to-plane, so 0..90).
-export function orientationAngleDeg(o1, o2) {
-  const pole = (o) => { const d = (o.dip * Math.PI) / 180, a = (o.azimuth * Math.PI) / 180; return [Math.sin(d) * Math.sin(a), Math.sin(d) * Math.cos(a), Math.cos(d)]; };
-  const p = pole(o1), q = pole(o2);
-  const c = Math.abs(p[0] * q[0] + p[1] * q[1] + p[2] * q[2]);
-  return (Math.acos(Math.min(1, c)) * 180) / Math.PI;
-}
 
 // ---------- point-to-mesh distance ----------
 

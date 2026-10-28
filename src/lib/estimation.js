@@ -17,7 +17,6 @@
 import { MAX_BLOCKS, MAX_BLOCK_BUDGET, SUPPORT_COLORS, ESTIMATION_METHODS } from "./estimationMeta.js"; // #552; budget: #625
 export { MAX_BLOCKS, SUPPORT_COLORS, ESTIMATION_METHODS };
 import { pointOnTrace } from "./desurvey.js";
-import { valueIn } from "./geochem.js";
 import { experimentalVariogram, fitVariogramModel, suggestLagDistance, suggestBetweenHoleLag, variogramModelValue } from "./variogram.js"; // #709; #1027
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
@@ -79,16 +78,6 @@ export function samplePointsFromIntervals(intervals, collars, survey, desurveyHo
   return { points, dropped, clamped, beyondTrace };
 }
 
-// Alternative entry point: sample directly from raw assay rows (no compositing) — useful for a quick
-// look before setting up a composite length, or for sparse datasets where compositing would throw
-// most of the data away. `assays` rows are {hole_id, from, to, values:{symbol:...}}.
-export function samplePointsFromAssays(assays, symbol, unit, elementUnits, collars, survey, desurveyHole, method) {
-  const intervals = assays
-    .filter((a) => a.hole_id != null && a.from != null && a.to != null)
-    .map((a) => ({ hole_id: a.hole_id, from: a.from, to: a.to, avgGrade: valueIn(a, symbol, unit, elementUnits) }))
-    .filter((iv) => iv.avgGrade != null);
-  return samplePointsFromIntervals(intervals, collars, survey, desurveyHole, method);
-}
 
 // Estimate grade into a regular block grid from `samplePoints`. Returns { cells, blocksEstimated,
 // blocksSkipped } where cells are {x,y,z (center), dx,dy,dz, value, nSamples} ready to hand straight
@@ -696,8 +685,6 @@ export function summarizeSupport(counts) {
 // TASKS.csv #87 — method table. Kept in one place so the estimator, the modal's dropdown and the
 // parameter-provenance stamp can never disagree about what a stored `method` string means.
 // Ordinary kriging ("ok") is here since TASKS.csv #709, with its variogram resolved up front (resolveVariogram).
-const METHOD_IDS = new Set(ESTIMATION_METHODS.map((m) => m.id));
-export function isEstimationMethod(id) { return METHOD_IDS.has(id); }
 // TASKS.csv #709 — ordinary kriging at one point. Covariance C(h) = sill - gamma(h) (C(0) = sill: the nugget is a
 // jump at h > 0). Solves the (n+1) x (n+1) system [C 1; 1' 0] [w; mu] = [c0; 1] by Gaussian elimination with
 // partial pivoting (n <= maxSamples, so at most a few dozen unknowns). Returns { value, kv, negative } or null when

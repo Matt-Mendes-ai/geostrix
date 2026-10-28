@@ -1268,26 +1268,6 @@ function afmDivider() {
   return raw.map(([a, f, m]) => ternaryXY(a, f, m));
 }
 
-// TASKS.csv #307 — the fifteen VOLCANIC-CLASSIFICATION entries below are a parallel copy of the
-// same-named codes in layers.js's LITHO_COLORS, so that a unit classified here (Winchester-Floyd /
-// AFM) plots in the colour its interval already has in the 3D log. That copy had silently gone stale
-// against #307's lightness/dichromacy re-fit of LITHO_COLORS, which would have given e.g. CA-BASALT
-// one colour in the drillhole log and a different one in the classification plot — re-synced here.
-// KEEP THESE IN STEP WITH LITHO_COLORS, including its deliberate synonym sets (BAS/CA-BASALT share
-// V6's hex; CA-AND/AND share V5's; CA-DAC/RHY-DAC share V1's — they are alternative nomenclatures
-// for the same rock, so all three members must always move together).
-// NOT touched here: SER/CHL/EPI/FRESH, which mirror ALT_COLORS and are stale against #249's
-// alteration nudges (SER is #c79a4a and CHL #5a8f52 in layers.js). That is #249's loose end, not
-// #307's, and is deliberately left for its own row rather than folded in silently.
-export const CLASS_COLORS = {
-  SER: "#d4b06a", CHL: "#4a6b4a", EPI: "#7a9e6a", FRESH: "#5a6472",
-  KOM: "#52c58e", "THOL-FE": "#7d2e22", "THOL-MAFIC": "#3c604f", "CA-BASALT": "#2e4433",
-  "CA-AND": "#769961", "CA-DAC": "#dc7f4c", "CA-RHY": "#f6d48b",
-  BAS: "#2e4433", "AND-BAS": "#567c42", AND: "#769961", "RHY-DAC": "#dc7f4c",
-  "ALK-BAS": "#743e65", TRACHY: "#d884c5", "SUB-ALK": "#327378", FONO: "#5d78df",
-};
-export function classColor(code) { return CLASS_COLORS[code] || "#8a95a5"; }
-
 // TASKS.csv #402 — metal equivalent grade, ONLY from prices and recoveries the user enters (never
 // defaults: an equivalent grade is only as meaningful as its assumptions, and they must be stated).
 // Precious metals (Au, Ag, Pt, Pd) are priced per troy ounce, everything else per pound. Grades are read

@@ -101,18 +101,6 @@ export function buildLineages(surfaces = []) {
   return { lineages, byId };
 }
 
-/**
- * Convenience: the ordered lineage a given surface belongs to (always length >= 1).
- */
-export function lineageOf(surfaces, id) {
-  const { byId } = buildLineages(surfaces);
-  const hit = byId.get(id);
-  if (!hit) {
-    const self = (surfaces || []).find((s) => s.id === id);
-    return self ? [self] : [];
-  }
-  return hit.lineage;
-}
 
 /**
  * Which surfaces may legally be offered as "this is a new version of ___" for `id`:
@@ -360,11 +348,3 @@ export function editDisclosure(surfA, surfB) {
   return { anyEdited, a, b, message };
 }
 
-/** Rough persisted size of one surface in the project file — positions + indices dominate. */
-export function estimateSurfaceBytes(surface) {
-  if (!surface) return 0;
-  const v = surface.vertexCount || 0, f = surface.faceCount || 0;
-  // Measured against real saves: a 2-dp rounded world coordinate serialises to ~9 chars + separator,
-  // an index to ~5. Used only for an order-of-magnitude hint in the UI, never for a decision.
-  return v * 3 * 10 + f * 3 * 6;
-}

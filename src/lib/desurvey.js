@@ -36,7 +36,6 @@ export const DESURVEY_METHODS = [
 ];
 export const DEFAULT_DESURVEY_METHOD = "minimumCurvature";
 export const normalizeDesurveyMethod = (m) => (DESURVEY_METHODS.some((x) => x.id === m) ? m : DEFAULT_DESURVEY_METHOD);
-export const desurveyMethodLabel = (m) => (DESURVEY_METHODS.find((x) => x.id === normalizeDesurveyMethod(m))?.label || "Minimum curvature");
 
 // Unit tangent vector for a station attitude, in the same (N, E, TVD-down) frame the step functions
 // accumulate in.

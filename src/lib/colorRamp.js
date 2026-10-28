@@ -126,16 +126,6 @@ export function lightnessRamp(baseHex, lightnesses = RAMP_LIGHTNESS, chromaScale
   });
 }
 
-// Contrast ratio against a background, for verifying that salience rises with grade.
-export function contrastRatio(hexA, hexB) {
-  const lum = (hex) => {
-    const [r, g, b] = hexToRgb(hex);
-    const [rl, gl, bl] = [r, g, b].map((c) => srgbToLinear(c / 255));
-    return 0.2126 * rl + 0.7152 * gl + 0.0722 * bl;
-  };
-  const a = lum(hexA), b = lum(hexB);
-  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-}
 
 // TASKS.csv #476 — moved here from AssayStyleModal.jsx (unchanged).
 // User request: "I wanna be able to change the assay legend. Change colour, size, recategorize,

@@ -11,9 +11,7 @@ import { reprojectXY, getProj4DefSync } from "./reproject.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 export const WOODJAM_EPSG = 26910; // NAD83 / UTM zone 10N — the drillhole database's grid
-export const WOODJAM_TABLES = ["collars.csv", "survey.csv", "litho.csv", "alt.csv", "vein.csv", "mnlgy.csv", "geotech.csv", "magsusc.csv", "sg.csv", "structure.csv"];
 export const WOODJAM_IP_LINES = ["109N", "112N", "115N", "118N", "6200E", "6400E"];
-export const WOODJAM_EXTRA_FILES = ["assays.csv", "ztem_inversion_2023.omf", "ip/2357GPS_All.txt", ...WOODJAM_IP_LINES.map((l) => `ip/${l}.dat`)];
 
 // assays.csv (hole_id, from, to, sample_id, <El>_ppm | <El>_pct …) → Geochem rows + element list
 export function woodjamAssays(text, srcFile = "assays.csv") {

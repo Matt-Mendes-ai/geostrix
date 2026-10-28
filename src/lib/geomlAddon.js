@@ -8,7 +8,6 @@ const d = typeof window !== "undefined" ? window.desktop : null;
 const ID = "geoml";
 const DEFAULT_PORT = 8766;
 
-export const addonDesktop = !!d?.addonStatus;
 export async function addonStatus() {
   if (d?.addonStatus) return d.addonStatus(ID);
   try { const r = await fetch(`http://127.0.0.1:${DEFAULT_PORT}/health`, { signal: AbortSignal.timeout(1500) }); return { id: ID, available: true, installed: r.ok, running: r.ok, dev: true }; }

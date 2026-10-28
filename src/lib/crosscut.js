@@ -422,21 +422,3 @@ export function boundaryLength(positions, indices) {
   });
   return len;
 }
-
-/**
- * Sweep: truncate one host against SEVERAL cutters in turn (a dyke swarm, or a vein plus a later
- * dyke). Applied in order, each cut operating on the result of the last, which is how a real
- * cross-cutting sequence composes. Cutters that miss cost one box test each and leave the host
- * untouched, so passing "every cross-cutting body in the project" is a reasonable thing to do.
- */
-export function truncateAgainstSolids(host, cutters, opts = {}) {
-  let cur = { positions: host.positions, indices: host.indices };
-  const applied = [];
-  let changed = false;
-  for (const c of cutters || []) {
-    const r = truncateAgainstSolid(cur, c, opts);
-    applied.push({ id: c.id ?? null, name: c.name ?? null, ok: r.ok, changed: r.changed, reason: r.reason, stats: r.stats });
-    if (r.ok && r.changed) { cur = { positions: r.positions, indices: r.indices }; changed = true; }
-  }
-  return { ...cur, changed, applied };
-}
