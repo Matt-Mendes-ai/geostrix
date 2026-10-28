@@ -153,6 +153,7 @@ test("#514 the file format is pinned to PROJECT_VERSION: change FIELDS -> bump t
     16: "project+load,collars,survey,layers+save+load,assays+save+load,assayElements,customLayers,viewerUiState,themes,rasters,boundaries,mapLayers,sectionImages,surfaceStructures,fieldStructuralRefs,lithoGroups,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,structuralTrends+load,explicitSurfaces,omfObjects,terrain+save+load,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+load,activeLayoutPageId,dbConnections,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates,plannedHoles,surfaceSamples,surfaceElements,geochemThresholds,generatedSurfaces+save+load,modelDomains", // #841 — geochemThresholds
     17: "project+load,collars,survey,layers+save+load,assays+save+load,assayElements,customLayers,viewerUiState,themes,rasters,boundaries,mapLayers,sectionImages,surfaceStructures,fieldStructuralRefs,lithoGroups,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,structuralTrends+load,explicitSurfaces,omfObjects,terrain+save+load,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+load,activeLayoutPageId,dbConnections,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates,plannedHoles,surfaceSamples,surfaceElements,geochemThresholds,surfaceQc,generatedSurfaces+save+load,modelDomains", // #842 — surfaceQc
     18: "project+load,collars,survey,layers+save+load,assays+save+load,assayElements,customLayers,viewerUiState,themes,rasters,boundaries,mapLayers,sectionImages,surfaceStructures,fieldStructuralRefs,lithoGroups,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,structuralTrends+load,explicitSurfaces,omfObjects,terrain+save+load,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+load,activeLayoutPageId,dbConnections,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates,plannedHoles,surfaceSamples,surfaceElements,geochemThresholds,surfaceQc,evidenceOverlay,generatedSurfaces+save+load,modelDomains", // #1003 — evidenceOverlay
+    19: "project+load,collars,survey,layers+save+load,assays+save+load,assayElements,customLayers,viewerUiState,themes,rasters,boundaries,mapLayers,sectionImages,surfaceStructures,fieldStructuralRefs,lithoGroups,geophysSurveys,crmCertificates,dcipLines,alterationBoxes+load,modellingCodes+load,structuralTrends+load,explicitSurfaces,omfObjects,terrain+save+load,geophysPtsStops,geophysPtsColorMode,geophysPtsMin+load,geophysPtsMax+load,voxelModels+save+load,layerGroups,layoutPages+load,activeLayoutPageId,dbConnections,excludedIntercepts,softIntercepts,interceptSets,sections,sectionGroups,layoutTemplates,plannedHoles,surfaceSamples+save+load,surfaceElements,geochemThresholds,surfaceQc,evidenceOverlay,generatedSurfaces+save+load,modelDomains", // #1073 — surface samples as exact columns
   };
   assert.ok(PINNED[PROJECT_VERSION], `PROJECT_VERSION ${PROJECT_VERSION} has no pinned fingerprint — add it`);
   assert.equal(formatFingerprint(), PINNED[PROJECT_VERSION], "the project format changed: bump PROJECT_VERSION and pin the new fingerprint");
@@ -174,6 +175,7 @@ function goldenLive() {
   for (let j = 0; j < side; j++) for (let i = 0; i < side; i++) vertices.push(500000 + i * 10, 6200000 + j * 10, 1000 + ((i * j) % 17) * 0.5);
   for (let j = 0; j < side - 1; j++) for (let i = 0; i < side - 1; i++) { const k = j * side + i; indices.push(k, k + 1, k + side, k + 1, k + side + 1, k + side); }
   live.generatedSurfaces = [{ id: "s1", name: "Contact", vertices, indices }];
+  live.surfaceSamples = Array.from({ length: n }, (_, i) => ({ sample_id: `SS${i}`, x: 500000 + (i % 50) * 25, y: 6200000 + Math.floor(i / 50) * 25, z: i % 9 ? 1000 : null, medium: i % 3 ? "soil" : "rock chip", values: { Cu: (i % 89) * 1.5, Au: i % 4 ? (i % 11) * 0.7 : undefined }, ...(i % 5 ? {} : { bdl: ["Au"] }) })); // #1073
   live.voxelModels = [{ id: "v1", name: "inv", source: "simpeg", cells: Array.from({ length: 300 }, (_, i) => ({ x: 500000 + (i % 10) * 25, y: 6200000 + Math.floor(i / 10) * 25, z: 1000, dx: 25, dy: 25, dz: 12.5, value: 0.01 * (i % 37), support: i % 2 })) }];
   return live;
 }
@@ -190,6 +192,7 @@ test("#742 the saved and re-loaded bytes of a golden project are pinned to PROJE
     16: { saved: "669dbe6ad2d3ab55", loaded: "b536e8f471611636" }, // #841 — version, and an empty geochemThresholds list
     17: { saved: "4d334b35ad16089d", loaded: "713c9796d793d9bf" }, // #842 — version, and surfaceQc null
     18: { saved: "4353909a440f197d", loaded: "98b7041cd17b4331" }, // #1003 — version, and evidenceOverlay null
+    19: { saved: "52e3be618958dbae", loaded: "8351488eaff7972d" }, // #1073 — 2,400 surface samples added to the golden project, saved as columns
   };
   const p = JSON.parse(saved); // every encoder must actually have run, or the pin guards nothing
   assert.ok(p.assays?.__compactTable, "assays not compacted - make the golden project bigger");
@@ -197,6 +200,7 @@ test("#742 the saved and re-loaded bytes of a golden project are pinned to PROJE
   assert.ok(p.layers?.geophys_pts?.__compactRows, "point survey not compacted");
   assert.ok(p.generatedSurfaces?.[0]?.compactMesh, "mesh not compacted");
   assert.ok(p.voxelModels?.[0]?.compactCells, "voxel model not compacted");
+  if (PROJECT_VERSION >= 19) assert.ok(p.surfaceSamples?.__compactTable, "surface samples not compacted"); // #1073
   assert.deepEqual({ saved: sha(saved), loaded: sha(loaded) }, PINNED[PROJECT_VERSION], "the project file's encoding changed: bump PROJECT_VERSION and pin the new hashes");
 });
 
