@@ -119,7 +119,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
   const meqMetals = meqOn ? [symbol, ...extraSymbols].map((s) => ({ symbol: s, unit: elementUnits[s] || "ppm", price: Number(meqInputs[s]?.price), recovery: Number(meqInputs[s]?.recovery) / 100 })) : [];
   const meqReady = meqOn && meqMetals.length > 1 && meqMetals.every((m) => m.price > 0 && m.recovery > 0 && m.recovery <= 1);
   const meqFor = (r) => (meqReady ? metalEquivalent({ [symbol]: r.avgGrade, ...r.extras }, meqMetals) : null);
-  const incText = (h) => `${h.length.toFixed(2)} m @ ${h.overRange ? ">=" : ""}${h.avgGrade.toFixed(3)} (${h.from.toFixed(2)}-${h.to.toFixed(2)})`;
+  const incText = (h) => `${h.length.toFixed(2)} m @ ${h.overRange ? ">=" : ""}${+h.avgGrade.toPrecision(6)} (${h.from.toFixed(2)}-${h.to.toFixed(2)})`;
 
   // "V1 (62%)" for a dominated intercept, "V1 62% · S5 38%" when it genuinely straddles — a report
   // that collapsed a contact-straddling intercept to just its dominant unit would hide exactly the
@@ -134,7 +134,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
   // TASKS.csv #911 — the results as a table on the active Layout page (a copy: send again after changing the settings)
   const toLayout = () => {
     const columns = [tr("Hole"), tr("From (m)"), tr("To (m)"), tr("Length (m)"), ...(twEnabled ? [tr("True width (m)")] : []), `${symbol} (${unit})`, ...(incOn ? [tr("Including")] : [])];
-    const rows = results.slice(0, 60).map((r) => [String(r.hole_id), Number(r.from).toFixed(2), Number(r.to).toFixed(2), r.length.toFixed(2), ...(twEnabled ? [r.tw ? r.tw.trueWidth.toFixed(2) : ""] : []), `${r.overRange ? "≥" : ""}${r.avgGrade.toFixed(3)}`, ...(incOn ? [r.including ? incText(r.including[0]) : ""] : [])]);
+    const rows = results.slice(0, 60).map((r) => [String(r.hole_id), Number(r.from).toFixed(2), Number(r.to).toFixed(2), r.length.toFixed(2), ...(twEnabled ? [r.tw ? r.tw.trueWidth.toFixed(2) : ""] : []), `${r.overRange ? "≥" : ""}${+r.avgGrade.toPrecision(4)}`, ...(incOn ? [r.including ? incText(r.including[0]) : ""] : [])]);
     const from = tr("{symbol} ≥ {cutoff} {unit}, dilution ≤ {dil} m, min {min} m", { symbol, cutoff, unit, dil: maxInternalDilution, min: minLength });
     // TASKS.csv #936 — a printed intercept table is what gets lifted into a report or a news release: it carries the
     // caveats the dialog and the CSV stamp give (QC, over-range, below detection, true width, screening)
@@ -150,6 +150,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
     goToModule("layout");
     onClose();
   };
+  const sig6 = (v) => (Number.isFinite(v) ? +v.toPrecision(6) : ""); // TASKS.csv #1069 — grades to 6 significant figures
   const exportCSV = () => {
     const rows = results.map((r) => ({
       hole_id: r.hole_id, from: r.from, to: r.to, length_m: r.length.toFixed(2),
@@ -165,23 +166,23 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
         host_domain_logged_pct: r.dom ? Math.round(r.dom.covered * 100) : "",
         host_domain_log_overlaps: r.dom?.overlapping ? "yes" : "",
       } : {}),
-      [`avg_${symbol}_${unit}`]: r.avgGrade.toFixed(3),
+      [`avg_${symbol}_${unit}`]: sig6(r.avgGrade), // #1069 — 6 significant figures, whatever the unit
       // TASKS.csv #331/#332/#402 — what the grade figure is built from, carried into the report itself.
       grade_is_minimum: r.overRange ? "yes (contains an over-range '>' result read at its ceiling)" : "",
       unsampled_or_unassayed_m: r.unsampledM ? r.unsampledM.toFixed(2) : "0",
       overlapping_assays_averaged_m: r.overlapM ? r.overlapM.toFixed(2) : "0",
-      grade_x_length: (r.avgGrade * r.length).toFixed(2),
-      ...Object.fromEntries(extraSymbols.map((s) => [`avg_${s}_${elementUnits[s] || "ppm"}`, r.extras[s] == null ? "" : r.extras[s].toFixed(3)])),
+      grade_x_length: sig6(r.avgGrade * r.length),
+      ...Object.fromEntries(extraSymbols.map((s) => [`avg_${s}_${elementUnits[s] || "ppm"}`, r.extras[s] == null ? "" : sig6(r.extras[s])])),
       assay_intervals: r.intervals,
       // TASKS.csv #402 — including sub-intercepts: the best one in columns, all of them as text.
       ...(incOn ? {
         including_cutoff: includeCutoff,
         including_from: r.including ? r.including[0].from : "", including_to: r.including ? r.including[0].to : "",
         including_length_m: r.including ? r.including[0].length.toFixed(2) : "",
-        [`including_avg_${symbol}_${unit}`]: r.including ? r.including[0].avgGrade.toFixed(3) : "",
+        [`including_avg_${symbol}_${unit}`]: r.including ? sig6(r.including[0].avgGrade) : "",
         including_all: r.including ? r.including.map(incText).join("; ") : "",
       } : {}),
-      ...(meqReady ? { [`${symbol}Eq_${unit}`]: (() => { const v = meqFor(r); return v == null ? "" : v.toFixed(3); })() } : {}),
+      ...(meqReady ? { [`${symbol}Eq_${unit}`]: (() => { const v = meqFor(r); return v == null ? "" : sig6(v); })() } : {}),
     }));
     // TASKS.csv #404 — the parameters behind these intercepts, at the top of the file.
     const stamp = stampLines({ tool: "Best intercepts", version: APP_VERSION, epsg: project?.epsg, params: [
@@ -352,12 +353,12 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
                           r.unsampledM > 1e-6 ? tr("{unsampledM} m inside this intercept has no {symbol} result (unsampled or not assayed): it is left out of the grade, which is over the assayed metres only (#502).", { unsampledM: r.unsampledM.toFixed(2), symbol }) : null,
                           r.overlapM > 1e-6 ? tr("{overlapM} m is covered by overlapping assay rows with different results; their average is used.", { overlapM: r.overlapM.toFixed(2) }) : null,
                         ].filter(Boolean).join(" ") || undefined}>
-                        {r.overRange ? "≥ " : ""}{r.avgGrade.toFixed(3)}{r.overlapM > 1e-6 ? " ⚠" : ""}
+                        {r.overRange ? "≥ " : ""}{+r.avgGrade.toPrecision(4)}{r.overlapM > 1e-6 ? " ⚠" : ""}
                       </td>
                       <td style={td}>{(r.avgGrade * r.length).toFixed(2)}</td>
-                      {meqReady && <td style={td}>{(() => { const v = meqFor(r); return v == null ? "—" : `${r.overRange ? "≥ " : ""}${v.toFixed(3)}`; })()}</td>}
+                      {meqReady && <td style={td}>{(() => { const v = meqFor(r); return v == null ? "—" : `${r.overRange ? "≥ " : ""}${+v.toPrecision(4)}`; })()}</td>}
                       {incOn && <td style={{ ...td, whiteSpace: "nowrap" }} title={r.including ? r.including.map(incText).join("; ") : undefined}>{r.including ? `${incText(r.including[0])}${r.including.length > 1 ? ` +${r.including.length - 1}` : ""}` : "—"}</td>}
-                      {extraSymbols.map((s) => <td key={s} style={td}>{r.extras[s] == null ? "—" : r.extras[s].toFixed(3)}</td>)}
+                      {extraSymbols.map((s) => <td key={s} style={td}>{r.extras[s] == null ? "—" : +r.extras[s].toPrecision(4)}</td>)}
                       <td style={td}>{r.intervals}</td>
                     </tr>
                   ))}

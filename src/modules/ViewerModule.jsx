@@ -7259,7 +7259,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                     for the two quick controls every layer type gets (visibility + opacity), same as
                     the Geophysics section's own ArrowUpRight pattern right below this one. */}
                 <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("maps"), tr("Edit drape mode / elevation for this raster in the Raster tab"))} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeRaster(r.id), tr("Remove raster \"{name}\"", { name: r.name }))} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove raster \"{name}\"?", { name: r.name }))) removeRaster(r.id); }, tr("Remove raster \"{name}\"", { name: r.name }))} />{/* #1088 — confirmed like its menu's Remove… (rasters are not undoable) */}
               </div>
             ))}
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10 }}>{tr("Imported via the Raster module")}</div>
@@ -7292,7 +7292,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</span>
                 <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{tr("boundary")}</span>
                 <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), tr("Edit boundary \"{name}\" in the Geophysics tab", { name: b.name }))} />
-                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeBoundary(b.id), tr("Remove boundary \"{name}\"", { name: b.name }))} />
+                <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove boundary \"{name}\"?", { name: b.name }))) removeBoundary(b.id); }, tr("Remove boundary \"{name}\"", { name: b.name }))} />
               </div>
             ))}
             {omfObjects.map((o) => (

@@ -77,10 +77,11 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
 
   const domainLabel = (v) => (domainKey === "litho" ? (UNIT_NAMES[v] || v) : v);
 
+  const sig6 = (v) => (Number.isFinite(v) ? +v.toPrecision(6) : ""); // TASKS.csv #1069
   const exportCSV = () => {
     const rows = results.map((r) => ({
       hole_id: r.hole_id, from: r.from.toFixed(2), to: r.to.toFixed(2), length_m: r.length.toFixed(2),
-      [`avg_${symbol}_${unit}`]: r.avgGrade.toFixed(3),
+      [`avg_${symbol}_${unit}`]: sig6(r.avgGrade), // #1069 — 6 significant figures (toFixed(3) wrote 0.000 for 1,913 Woodjam Mo % composites)
       coverage_pct: (r.coverage * 100).toFixed(0),
       conflict_m: (r.conflictLength || 0).toFixed(2), // #532 — metres where overlapping assays disagreed (averaged)
       ...(() => { // #411 — XYZ; blank when the hole has no collar/trace
@@ -179,7 +180,7 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
                       <td style={td}>{r.from.toFixed(2)}</td>
                       <td style={td}>{r.to.toFixed(2)}</td>
                       <td style={td}>{r.length.toFixed(2)}</td>
-                      <td style={{ ...td, fontWeight: 600, color: "var(--color-text)" }}>{r.avgGrade.toFixed(3)}</td>
+                      <td style={{ ...td, fontWeight: 600, color: "var(--color-text)" }}>{+r.avgGrade.toPrecision(4)}</td>
                       <td style={{ ...td, color: r.coverage < 0.99 ? "#c9863d" : "var(--color-text-strong)" }}>{(r.coverage * 100).toFixed(0)}%</td>
                       {domainKey && <td style={td}>{r.domain != null ? domainLabel(r.domain) : "—"}</td>}
                     </tr>
