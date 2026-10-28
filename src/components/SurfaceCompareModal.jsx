@@ -4,6 +4,7 @@ import { buildMeshQuery, closestPointOnMesh } from "../lib/meshQuery.js";
 import { computeMeshVolume } from "../lib/volumetrics.js";
 import { buildLineages, compareSurfaceGeometry, diffParams, editDisclosure } from "../lib/surfaceVersions.js";
 import { saveFile } from "../lib/desktop.js";
+import { toCsv, FORMULA_LEAD } from "../lib/tabular.js"; // TASKS.csv #1082
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
@@ -96,44 +97,47 @@ export default function SurfaceCompareModal({
   const fmt = (v, d = 2) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d }));
   const fmt0 = (v) => (v == null || !Number.isFinite(v) ? "—" : Math.round(v).toLocaleString());
 
+  // TASKS.csv #1082 (review #1016) — rows of cells written by Papa (tabular.toCsv): the hand-built lines did not double
+  // the quotes inside a parameter value (mapModel.order ["Andesite","Tuff"] split into 6 fields)
   const exportCsv = () => {
     if (!surfA || !surfB) return;
-    const lines = [
-      "GeoStrix surface version comparison — a record of two runs, NOT evidence that either is correct.",
-      `Exported,${new Date().toISOString()}`,
-      `Version A (older),"${(surfA.name || "").replace(/"/g, '""')}"`,
-      `Version B (newer),"${(surfB.name || "").replace(/"/g, '""')}"`,
-      "",
+    const rows = [
+      ["GeoStrix surface version comparison — a record of two runs, NOT evidence that either is correct."],
+      ["Exported", new Date().toISOString()],
+      ["Version A (older)", surfA.name || ""],
+      ["Version B (newer)", surfB.name || ""],
+      [],
     ];
-    if (edits?.message) lines.push(`HAND-EDIT WARNING,"${edits.message.replace(/"/g, '""')}"`, ""); // a CSV row: stays English (TASKS.csv #786)
-    lines.push("section,item,version A,version B");
+    if (edits?.message) rows.push(["HAND-EDIT WARNING", edits.message], []); // a CSV row: stays English (TASKS.csv #786)
+    rows.push(["section", "item", "version A", "version B"]);
+    const f = (v, d) => (v == null || !Number.isFinite(v) ? "" : v.toFixed(d));
     if (result) {
-      lines.push(`geometry,vertices,${result.a.vertexCount},${result.b.vertexCount}`);
-      lines.push(`geometry,triangles,${result.a.triangleCount},${result.b.triangleCount}`);
-      lines.push(`geometry,watertight,${result.a.watertight ? "yes" : "no"},${result.b.watertight ? "yes" : "no"}`);
-      lines.push(`geometry,open edges,${result.a.openEdgeCount},${result.b.openEdgeCount}`);
-      lines.push(`geometry,connected bodies,${result.a.componentCount ?? ""},${result.b.componentCount ?? ""}`);
+      rows.push(["geometry", "vertices", result.a.vertexCount, result.b.vertexCount]);
+      rows.push(["geometry", "triangles", result.a.triangleCount, result.b.triangleCount]);
+      rows.push(["geometry", "watertight", result.a.watertight ? "yes" : "no", result.b.watertight ? "yes" : "no"]);
+      rows.push(["geometry", "open edges", result.a.openEdgeCount, result.b.openEdgeCount]);
+      rows.push(["geometry", "connected bodies", result.a.componentCount ?? "", result.b.componentCount ?? ""]);
       if (result.bothClosed) {
-        lines.push(`volume,enclosed m3,${result.a.volumeM3.toFixed(1)},${result.b.volumeM3.toFixed(1)}`);
-        lines.push(`volume,delta m3,,${result.volumeDeltaM3.toFixed(1)}`);
-        lines.push(`volume,delta %,,${result.volumeDeltaPct == null ? "" : result.volumeDeltaPct.toFixed(2)}`);
+        rows.push(["volume", "enclosed m3", f(result.a.volumeM3, 1), f(result.b.volumeM3, 1)]);
+        rows.push(["volume", "delta m3", "", f(result.volumeDeltaM3, 1)]);
+        rows.push(["volume", "delta %", "", f(result.volumeDeltaPct, 2)]);
       } else {
-        lines.push("volume,enclosed m3,not applicable — at least one version is an open surface,");
+        rows.push(["volume", "enclosed m3", "not applicable — at least one version is an open surface", ""]);
       }
-      const sep = (label, s) => s && lines.push(`separation,${label} mean m,${s.meanM.toFixed(3)},`, `separation,${label} median m,${s.medianM.toFixed(3)},`, `separation,${label} p95 m,${s.p95M.toFixed(3)},`, `separation,${label} max m,${s.maxM.toFixed(3)},`, `separation,${label} vertices sampled,${s.sampled} of ${s.totalVertices},`);
+      const sep = (label, sv) => sv && rows.push(["separation", `${label} mean m`, f(sv.meanM, 3), ""], ["separation", `${label} median m`, f(sv.medianM, 3), ""], ["separation", `${label} p95 m`, f(sv.p95M, 3), ""], ["separation", `${label} max m`, f(sv.maxM, 3), ""], ["separation", `${label} vertices sampled`, `${sv.sampled} of ${sv.totalVertices}`, ""]);
       sep("B vertices -> A surface", result.bToA);
       sep("A vertices -> B surface", result.aToB);
-      lines.push(`separation,symmetric mean m,${result.meanSeparationM == null ? "" : result.meanSeparationM.toFixed(3)},`);
-      lines.push(`separation,sampled two-sided Hausdorff (lower bound) m,${result.maxSeparationM == null ? "" : result.maxSeparationM.toFixed(3)},`);
+      rows.push(["separation", "symmetric mean m", f(result.meanSeparationM, 3), ""]);
+      rows.push(["separation", "sampled two-sided Hausdorff (lower bound) m", f(result.maxSeparationM, 3), ""]);
     }
-    (paramDiff?.changed || []).forEach((c) => lines.push(`parameter changed,${c.key},"${c.fromText}","${c.toText}"`));
-    (paramDiff?.outcomes || []).forEach((c) => lines.push(`outcome changed,${c.key},"${c.fromText}","${c.toText}"`));
-    (paramDiff?.onlyA || []).forEach((k) => lines.push(`parameter only in A,${k},,`));
-    (paramDiff?.onlyB || []).forEach((k) => lines.push(`parameter only in B,${k},,`));
+    (paramDiff?.changed || []).forEach((c) => rows.push(["parameter changed", c.key, c.fromText, c.toText]));
+    (paramDiff?.outcomes || []).forEach((c) => rows.push(["outcome changed", c.key, c.fromText, c.toText]));
+    (paramDiff?.onlyA || []).forEach((k) => rows.push(["parameter only in A", k, "", ""]));
+    (paramDiff?.onlyB || []).forEach((k) => rows.push(["parameter only in B", k, "", ""]));
     saveFile({
       suggestedName: `version_compare_${(surfB.name || "surface").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.csv`,
       filters: [{ name: "CSV", extensions: ["csv"] }],
-      content: lines.join("\n"), encoding: "text",
+      content: toCsv(rows, { escapeFormulae: FORMULA_LEAD }), encoding: "text",
     });
   };
 
