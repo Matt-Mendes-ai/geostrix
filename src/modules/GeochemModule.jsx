@@ -15,7 +15,7 @@ import { useStore } from "../lib/store.jsx";
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
 import {
   DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS,
-  isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile,
+  isElementColumn, inferUnit, pickElementColumns, assayExportRows, diagramExportRows, parseAssayValue, valueIn, readAssayCell, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile,
   oxideOfHeader, fromOxideHeader, // TASKS.csv #403
   surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, // TASKS.csv #841 / #954
 } from "../lib/geochem.js";
@@ -764,21 +764,7 @@ export default function GeochemModule() {
     img.src = url;
   };
   const exportProjectedCSV = () => {
-    let rows;
-    if (diagram.spider) {
-      // spider diagrams don't reduce to a single {x,y} per sample — export the full normalized
-      // profile instead, one column per element, so the export still means something.
-      rows = assays.map((a) => {
-        const profile = reeProfile(a, elementUnits, diagram.order, diagram.norm);
-        const cols = Object.fromEntries(profile.map((p) => [p.symbol, p.value ?? ""]));
-        return { hole_id: a.hole_id, from: a.from, to: a.to, ...cols };
-      });
-    } else {
-      rows = assays.map((a) => {
-        const p = diagram.project(a, elementUnits);
-        return { hole_id: a.hole_id, from: a.from, to: a.to, x: p?.x ?? "", y: p?.y ?? "" };
-      });
-    }
+    const rows = diagramExportRows(assays, diagram, elementUnits); // #1083 — in lib, tested
     const csv = toExportCsv(rows);
     saveFile({ suggestedName: `${diagramId}_projected.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: csv });
   };

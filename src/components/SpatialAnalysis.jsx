@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { X, Download, Info } from "./icons.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js"; // TASKS.csv #444; crsCell: #1053
+import { voronoiRows } from "../lib/tableExports.js"; // TASKS.csv #1083
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1053 — the project CRS for the CSV
 import { saveFile } from "../lib/desktop.js";
 import { voronoiTessellation, paddedBounds, declusteredStats } from "../lib/geoprocessing.js";
@@ -60,10 +61,7 @@ export default function SpatialAnalysis({ points, onClose }) {
 
   const exportCSV = () => {
     if (!stats) return;
-    const rows = stats.cells.map((c) => ({
-      x: c.point.x, y: c.point.y, z: c.point.z ?? "", crs: crsCell(project) /* #1053 — the CRS of x / y, as a column (#1064) */, value: c.point.value, label: c.point.label ?? "",
-      voronoi_area: c.area.toFixed(3), decluster_weight: c.weight.toFixed(6),
-    }));
+    const rows = voronoiRows(stats.cells, { crs: crsCell(project) /* #1053 — the CRS of x / y, as a column (#1064) */ }); // #1083 — rows in lib, tested
     // TASKS.csv #444 — through the normal Save dialog (was a blob download that bypassed it).
     saveFile({ suggestedName: "voronoi_decluster.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows) });
   };

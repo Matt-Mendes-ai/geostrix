@@ -18,6 +18,7 @@ import { overlay, backdropProps, sel, th, td, panel, header, rowBtn as btn } fro
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped; crsCell: #1064
+import { catchmentRows } from "../lib/tableExports.js"; // TASKS.csv #1083
 
 const fmt = (v, d = 2) => (v == null || !Number.isFinite(v) ? "—" : Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : Math.abs(v) >= 1 || v === 0 ? v.toFixed(d) : v.toPrecision(Math.max(2, d))); // small values (Cu in %) keep their digits
 
@@ -99,12 +100,7 @@ export default function CatchmentsPanel({ onClose }) {
     saveGeoTIFF(`catchments_${opts.symbol}.tif`, gridToGeoTIFF({ ...g, bands: [{ values: cls }, { values: rank }, { values: prod }], epsg }));
     setMsg(tr("GeoTIFF: band 1 = class (1 background, 2 above background, 3 anomalous), band 2 = site rank, band 3 = productivity; no data −9999; {epsg}.", { epsg: `EPSG:${epsg}` }));
   };
-  const exportCsv = () => saveFile({ suggestedName: `catchments_${opts.symbol}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(a.results.map((r) => ({
-    rank: r.rank ?? "", sample_id: r.sample_id, x: r.x, y: r.y, crs: crsCell(project) /* #1064 */, [`${opts.symbol}_${unit}`]: r.value ?? "", catchment_km2: r.placed ? r.areaKm2.toFixed(4) : "", own_km2: r.placed ? r.ownKm2.toFixed(4) : "",
-    strahler: r.order ?? "", snapped_m: r.placed ? r.moved.toFixed(0) : "", productivity: r.productivity == null ? "" : r.productivity.toFixed(3), anomalous: r.anomalous ? "yes" : "no",
-    follow_up_reach_m: r.reachM ? r.reachM.toFixed(0) : "", lithology: r.lith ? r.lith.slice(0, 3).map((l) => `${l.unit} ${l.pct.toFixed(0)}%`).join("; ") : "",
-    background: a.background, threshold: a.threshold, rule: a.thresholdLabel, note: r.placed ? "" : "outside the terrain / not placed",
-  }))) });
+  const exportCsv = () => saveFile({ suggestedName: `catchments_${opts.symbol}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(catchmentRows(a, { symbol: opts.symbol, unit, crs: crsCell(project) })) }); // #1083 — rows in lib, tested
 
   if (!terrain) return (
     <Shell onClose={onClose}><div style={note}>{tr("Catchments are computed from the project terrain: load a DEM or fetch SRTM / Copernicus terrain (Maps tab) over your sample area first. A finer terrain (High or Very high detail) resolves small first-order catchments.")}</div></Shell>

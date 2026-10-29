@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import { X, Eye, EyeOff, Trash2, Download, Upload } from "./icons.js";
 import { distinctValues } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
+import { layerStylePayload, layerStyleEntries } from "../lib/tableExports.js"; // TASKS.csv #1083
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
@@ -20,12 +21,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 // saved from one project's Lithology legend applies to any other project's Lithology legend (or any
 // other categorical layer, if the codes happen to line up) without requiring an exact layer match.
 function exportLayerStyle(layerKey, meta, categories, legendOverride) {
-  const entries = {};
-  categories.forEach(([value]) => {
-    const ov = legendOverride[value] || {};
-    entries[value] = { color: ov.color || meta.colorFn(value), label: ov.label || (meta.nameFn ? meta.nameFn(value) : String(value)) };
-  });
-  const payload = { geostrixStyle: 1, layerKind: layerKey, layerLabel: meta.label, entries };
+  const payload = layerStylePayload(layerKey, meta, categories, legendOverride); // #1083 — in lib, round-trip tested
   saveFile({ suggestedName: `${meta.label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}_style.json`, filters: [{ name: "GeoStrix style", extensions: ["json"] }], content: JSON.stringify(payload, null, 2) });
 }
 
@@ -42,15 +38,10 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
     try {
       const text = await file.text();
       const payload = JSON.parse(text);
-      if (!payload || typeof payload.entries !== "object") throw new Error(tr("Not a GeoStrix style file (missing 'entries')."));
-      let applied = 0;
-      const knownValues = new Set(categories.map(([v]) => String(v)));
-      Object.entries(payload.entries).forEach(([value, entry]) => {
-        if (!knownValues.has(value)) return; // this project's layer doesn't have that value — nothing to style
-        if (entry.color) onSetColor(value, entry.color);
-        if (entry.label) onSetLabel(value, entry.label);
-        applied++;
-      });
+      let found;
+      try { found = layerStyleEntries(payload, categories.map(([v]) => v)); } catch { throw new Error(tr("Not a GeoStrix style file (missing 'entries').")); } // #1083 — reader in lib
+      found.apply.forEach(({ value, color, label }) => { if (color) onSetColor(value, color); if (label) onSetLabel(value, label); });
+      const applied = found.apply.length;
       setStyleNotice({ ok: true, text: tr("Applied style to {applied} of {n} value(s) from \"{v}\"{v2}", { applied, n: Object.keys(payload.entries).length, v: payload.layerLabel || payload.layerKind || file.name, v2: applied < Object.keys(payload.entries).length ? tr(" — the rest don't appear in this layer's current data.") : "." }) });
     } catch (err) {
       setStyleNotice({ ok: false, text: tr("Couldn't load style file: {message}", { message: err.message }) });

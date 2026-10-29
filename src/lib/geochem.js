@@ -1374,3 +1374,19 @@ export function assayExportRows(assays, assayElements) {
     return row;
   });
 }
+
+// TASKS.csv #1083 — the "projected" CSV of a classification diagram (was inline in GeochemModule): each sample's
+// diagram x / y, or for a spider diagram its whole normalized profile, one column per element (a spider plot has no
+// single x / y per sample). diagram: a DIAGRAMS / SPIDER_DIAGRAMS entry.
+export function diagramExportRows(assays, diagram, elementUnits) {
+  if (diagram.spider) {
+    return assays.map((a) => {
+      const profile = reeProfile(a, elementUnits, diagram.order, diagram.norm);
+      return { hole_id: a.hole_id, from: a.from, to: a.to, ...Object.fromEntries(profile.map((p) => [p.symbol, p.value ?? ""])) };
+    });
+  }
+  return assays.map((a) => {
+    const p = diagram.project(a, elementUnits);
+    return { hole_id: a.hole_id, from: a.from, to: a.to, x: p?.x ?? "", y: p?.y ?? "" };
+  });
+}

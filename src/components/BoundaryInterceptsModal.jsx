@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { X, Milestone, CheckSquare, Square, Download, Circle, Layers, Plus, Trash2 } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js"; // TASKS.csv #444; crsCell: #1053
+import { boundaryInterceptRows } from "../lib/tableExports.js"; // TASKS.csv #1083
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1053 — the project CRS for the CSV
 import { saveFile } from "../lib/desktop.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -57,7 +58,7 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
   // TASKS.csv #444 — was a hand-built join(","): a unit or hole name containing a comma or quote shifted
   // every column after it. Now quoted properly (toCsv) and saved through the normal Save dialog.
   const exportCsv = () => {
-    const rows = intercepts.map((i) => ({ layer: i.layerLabel, hole_id: i.hole_id, unit: i.unit, from_m: i.from, x: i.x.toFixed(2), y: i.y.toFixed(2), z: i.z.toFixed(2), crs: crsCell(project) /* #1053 — the CRS of x / y, as a column (#1064) */, excluded: excludedSet.has(i.id) ? "yes" : "no", soft: softSet.has(i.id) ? "yes" : "no" }));
+    const rows = boundaryInterceptRows(intercepts, { crs: crsCell(project) /* #1053 — the CRS of x / y, as a column (#1064) */, excluded: excludedSet, soft: softSet }); // #1083 — rows in lib, tested
     saveFile({ suggestedName: "boundary_intercepts.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows) });
   };
 
