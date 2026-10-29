@@ -170,7 +170,8 @@ const PRINTED = new Set(["tool", "surface", "sourcePoints", "orientations", "tar
   "searchRadiusM", "searchRadiusAuto", "gridCoarsened", "informedNodes", "minSeparationM", "pinchOut", "contactResidualRmsM", "contactResidualMaxM",
   "midplaneLooRmsM", "midplaneLooMaxM", "incoherentSheet", "nominalHwFwLabels", "relation", "resolution", "gempyRange", "gempyRangeDefault",
   "gempyRangeMultiplier", "gempyCO", "method", "cellSizeCoarsened", "holeSpacingM", "anisotropy", "searchEllipsoid", "domain", "clippedToDomain", "extent",
-  "samplePoints", "alteredSamplePoints", "cellsEstimated", "closure", "generatedAt", "builtKey", "manuallyEdited", "edits", "editCount"]);
+  "samplePoints", "alteredSamplePoints", "cellsEstimated", "closure", "generatedAt", "builtKey", "manuallyEdited", "edits", "editCount",
+  "inputs", "runId"]); // #1101 — the run's points / orientations go to "Model inputs", not into the stamp
 
 // one value as text, short enough for a header line
 function fieldText(v) {

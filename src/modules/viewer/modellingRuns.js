@@ -30,6 +30,7 @@ import { capFieldAtGround } from "../../lib/groundCap.js"; // TASKS.csv #803
 import { explicitInterfacePoints } from "../../lib/explicitUnits.js"; // TASKS.csv #867
 import { pinchOutPoints } from "../../lib/pinchOut.js"; // TASKS.csv #1030
 import { fisherStats } from "../../lib/stereonet.js"; // TASKS.csv #1066
+import { captureInputs } from "../../lib/gempyInputs.js"; // TASKS.csv #1101
 
 // TASKS.csv #803 — the interpolated grid intersected with "below the terrain" (lib/groundCap.js), so a grade shell or
 // alteration envelope that reaches the surface closes ON the ground instead of in the air. toReal: grid frame ->
@@ -343,7 +344,8 @@ export function createModellingRuns(ctx, mcRef) {
       : verts);
     let ensembleBase = null; // TASKS.csv #52 (a)
     const nonFinite = []; // TASKS.csv #314
-    specs.forEach((spec) => {
+    const runId = `gempy_${Date.now()}`; // TASKS.csv #1101 — the surfaces of one run (a stack) share it, for "Model inputs"
+    specs.forEach((spec, specIndex) => {
       let surf = byName[spec.meshName];
       if (!surf || !surf.vertices?.length) { missing.push(spec.label); return; }
       // TASKS.csv #314 — NaN from GemPy arrives as null with HTTP 200: drop what touches it, and say so.
@@ -427,6 +429,8 @@ export function createModellingRuns(ctx, mcRef) {
         ...(spec.params?.orientationsAveraged ? { orientationsAveraged: spec.params.orientationsAveraged } : {}), // #765
         ...(smoothReports.find((r) => r.meshName === spec.meshName) ? { clusteredContactsSmoothed: (({ smoothed, total, skipped }) => ({ smoothed, of: total, ...(skipped ? { skipped } : {}), method: "KDE (Scott, in the contacts' plane), nugget on points >= 2x even density and >= 0.5 of the max (von Harten et al. 2021)" }))(smoothReports.find((r) => r.meshName === spec.meshName)) } : {}), // #761
         generatedAt: new Date().toISOString(),
+        // TASKS.csv #1101 — the points and orientations this run sent for this surface (world, unwarped, with nuggets)
+        runId, inputs: captureInputs(spec, sidecarSpecs[specIndex], originRef.current),
       };
       setImplicitSurfaces((p) => [...p, { id, name: spec.label, visible: true, vertexCount: surf.vertices.length, faceCount: faces.length, type: spec.type || "other", relationships: [], params }]);
     });

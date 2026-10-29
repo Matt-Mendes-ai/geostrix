@@ -6376,5 +6376,8 @@
   " Contacts were extended past their own edges until they meet ({list} as drawn).": " Les contacts ont été prolongés au-delà de leurs bords jusqu’à se rencontrer ({list} tels que dessinés).",
   "GeoTIFF of \"{name}\": {nx} × {ny} values at {dx} m, float32, no data {nodata}.": "GeoTIFF de « {name} » : {nx} × {ny} valeurs à {dx} m, float32, sans donnée {nodata}.",
   "These are the values kept on import, block-averaged {f} × {f} from the {sx} × {sy} source grid: re-import the source file into QGIS for full resolution.": "Ce sont les valeurs gardées à l’import, moyennées par blocs de {f} × {f} depuis la grille source de {sx} × {sy} : réimportez le fichier source dans QGIS pour la pleine résolution.",
-  "Made by {label} from \"{source}\"{params}.": "Obtenu par {label} à partir de « {source} »{params}."
+  "Made by {label} from \"{source}\"{params}.": "Obtenu par {label} à partir de « {source} »{params}.",
+  "This surface was made before GeoStrix kept a run's inputs: run it again to export them.": "Cette surface a été faite avant que GeoStrix ne garde les entrées d’un calcul : relancez-le pour les exporter.",
+  "The interface points and orientations this GemPy run used, for every surface of the run, as GemPy's surface_points.csv and orientations.csv (world coordinates, with nuggets), to check or rebuild the model in GemPy or Leapfrog": "Les points d’interface et orientations utilisés par ce calcul GemPy, pour chaque surface du calcul, en surface_points.csv et orientations.csv de GemPy (coordonnées réelles, avec nuggets), pour vérifier ou reconstruire le modèle dans GemPy ou Leapfrog",
+  "Model inputs (GemPy CSV)": "Entrées du modèle (CSV GemPy)"
 }

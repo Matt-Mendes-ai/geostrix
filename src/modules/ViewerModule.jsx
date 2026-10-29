@@ -4356,7 +4356,16 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       // TASKS.csv #1103 — an explicit surface's extrapolated margin is marked in DXF (own layer), VTK and OMF (per-face "supported")
       const hull = surf.type === "explicit_surface" ? surf.params?.supportHull : null;
       const supportedOf = (vertices, indices) => (hull ? supportedFaces(Float64Array.from(vertices.flat()), Array.from(indices.flat ? indices.flat() : indices), hull) : null);
-      if (format === "obj") {
+      if (format === "inputs") {
+        // TASKS.csv #1101 — the points and orientations the run sent, for every surface of that run, as GemPy tables
+        const { runSurfaces, gempyInputFiles } = await import("../lib/gempyInputs.js");
+        const { buildZip } = await import("../lib/shapefile.js");
+        const run = runSurfaces(implicitSurfaces, surf);
+        if (!run.length) { setNotices((p) => [...p, notice("This surface was made before GeoStrix kept a run's inputs: run it again to export them.")]); return; }
+        const enc = new TextEncoder();
+        const files = gempyInputFiles(run, provenanceLines(surf.name, prov, extra)).map((f) => ({ name: f.name, data: enc.encode(f.text) }));
+        res = await saveFile({ quiet: true, suggestedName: `${baseName}_model_inputs.zip`, filters: [{ name: "ZIP", extensions: ["zip"] }], content: buildZip(files) });
+      } else if (format === "obj") {
         const content = exportSurfaceOBJ(surf.name, mesh.geometry, originRef.current, prov, extra, { bytes: true }); // #1072 — UTF-8 bytes, not one huge string
         res = await saveFile({ quiet: true, suggestedName: `${baseName}.obj`, filters: [{ name: "Wavefront OBJ", extensions: ["obj"] }], content });
       } else if (format === "dxf") {
@@ -8140,6 +8149,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                     <button onClick={() => exportImplicitSurface(s.id, "vtk")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("VTK (legacy) — opens in ParaView and PyVista")}>{tr("VTK")}</button>
                     <button onClick={() => exportImplicitSurface(s.id, "omf")} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("Open Mining Format v1 — Leapfrog, Datamine, Vulcan, Micromine and Geosoft read it")}>{tr("OMF")}</button>
                   </div>
+                  {s.params?.inputs && ( /* TASKS.csv #1101 */
+                    <button onClick={() => exportImplicitSurface(s.id, "inputs")} style={{ ...pBtn, marginTop: 4, marginBottom: 0, padding: "5px 6px", fontSize: "var(--font-size-sm)" }} title={tr("The interface points and orientations this GemPy run used, for every surface of the run, as GemPy's surface_points.csv and orientations.csv (world coordinates, with nuggets), to check or rebuild the model in GemPy or Leapfrog")}>{tr("Model inputs (GemPy CSV)")}</button>
+                  )}
                 </div>
               )}
             </div>
