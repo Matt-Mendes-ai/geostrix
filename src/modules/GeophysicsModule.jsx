@@ -19,7 +19,7 @@ import { useStore } from "../lib/store.jsx";
 import { classifyBreaks, PALETTES, paletteColorsHex , colorForVoxelValue } from "../lib/layers.js";
 import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFArrayBuffer } from "../lib/raster.js";
 import { boundaryAreaHectares } from "../lib/geoprocessing.js";
-import { saveFile } from "../lib/desktop.js";
+import { saveFile, safeFileName } from "../lib/desktop.js"; // safeFileName: #1114
 import { blockModelCsvText, blockModelParamLines } from "../lib/blockModelExport.js"; // TASKS.csv #411; #1041
 import { stampLines, withStamp, stampBeside, stampPlacement } from "../lib/provenance.js"; // TASKS.csv #404/#411
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #529
@@ -430,7 +430,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     try {
       const bytes = new Uint8Array(terrainToGeoTIFFArrayBuffer(terrain, epsg)); // #1040 — bytes over IPC
       const masked = terrainToGeoTIFFArrayBuffer.lastMasked || 0; // #1020
-      const res = await saveFile({ suggestedName: `${terrain.name.replace(/\.(tif|tiff)$/i, "")}.tif`, filters: [{ name: "GeoTIFF", extensions: ["tif"] }], content: bytes });
+      const res = await saveFile({ suggestedName: `${safeFileName(terrain.name.replace(/\.(tif|tiff)$/i, ""), "terrain")}.tif`, filters: [{ name: "GeoTIFF", extensions: ["tif"] }], content: bytes });
       if (res?.ok && masked) setTerrainError({ info: true, text: tr("{n} terrain nodes had no data (filled for display only) and are written as no-data (-9999).", { n: masked.toLocaleString() }) });
     } catch (err) {
       setTerrainError({ info: false, text: tr("Couldn't export terrain: {message}", { message: err.message }) });

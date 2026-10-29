@@ -12,6 +12,7 @@
 //   save(v)        optional: compact form written to the file / autosave
 //   load(data)     optional: read the value from a payload (default: data[key] || empty())
 import { f32ToB64, b64ToF32 } from "./inversion.js";
+import { bytesToB64, b64ToBytes } from "./base64.js"; // TASKS.csv #1114
 
 // TASKS.csv #796 — a High / Very high detail terrain (up to 1025 x 1025 nodes) as JSON numbers is ~10 MB of text;
 // as Float32 base64 it is 5.6 MB and exact to Float32 (~0.1 mm at 1,000 m). Grids up to the Standard 200 x 200 keep
@@ -79,18 +80,8 @@ export const DEFAULT_LAYOUT_ELEMENTS = [
 const COMPACT_KEYS = ["x", "y", "z", "dx", "dy", "dz", "value", "support"];
 // #660 — the modelled value itself is kept exact (Float64): Float32 brought a 0.7 g/t block back as 0.699999988 and
 // every later export would print that. Geometry and the support figures stay Float32.
-const f64ToB64 = (arr) => {
-  const bytes = new Uint8Array(new Float64Array(arr).buffer);
-  let s = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-  return typeof btoa === "function" ? btoa(s) : globalThis.Buffer.from(s, "binary").toString("base64");
-};
-const b64ToF64 = (b64) => {
-  const s = typeof atob === "function" ? atob(b64) : globalThis.Buffer.from(b64, "base64").toString("binary");
-  const bytes = new Uint8Array(s.length);
-  for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
-  return new Float64Array(bytes.buffer);
-};
+const f64ToB64 = (arr) => bytesToB64(new Uint8Array(new Float64Array(arr).buffer));
+const b64ToF64 = (b64) => new Float64Array(b64ToBytes(b64).buffer); // base64.js: #1114
 const compactCache = new WeakMap();
 function cellColumns(cells) {
   const keys = cells.length ? Object.keys(cells[0]) : null;

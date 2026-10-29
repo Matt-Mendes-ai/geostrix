@@ -19,6 +19,7 @@ import { pointTransform, getProj4DefSync, reprojectGrid, turnGridBearing, bearin
 import { f32ToB64, b64ToF32 } from "./inversion.js";
 import { fillNoData } from "./demFill.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { b64ToBytes } from "./base64.js"; // TASKS.csv #1114
 
 const DEG = 180 / Math.PI;
 const fin = Number.isFinite;
@@ -312,8 +313,8 @@ export function reprojectValueGrid(g, fromDef, toDef) {
 }
 
 function maskBits(b64, n) {
-  const bin = typeof atob === "function" ? atob(b64) : globalThis.Buffer.from(b64, "base64").toString("binary");
+  const by = b64ToBytes(b64); // base64.js: #1114
   const out = new Uint8Array(n);
-  for (let i = 0; i < n; i++) out[i] = (bin.charCodeAt(i >> 3) >> (i & 7)) & 1;
+  for (let i = 0; i < n; i++) out[i] = (by[i >> 3] >> (i & 7)) & 1;
   return out;
 }

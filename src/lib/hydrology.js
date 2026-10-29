@@ -21,6 +21,7 @@
 //   6. follow-up reaches: where a site is anomalous and no site upstream of it is, the channel from the site up to
 //      the next sites (or to the stream head) is the one to walk.
 // Pure, typed arrays; the heavy part (fill, D8, accumulation) runs in hydrology.worker.js for a big grid.
+import { b64ToBytes } from "./base64.js"; // TASKS.csv #1114
 
 const DX = [1, 1, 0, -1, -1, -1, 0, 1], DY = [0, 1, 1, 1, 0, -1, -1, -1]; // E, SE, S, SW, W, NW, N, NE (row down = south)
 
@@ -228,9 +229,7 @@ export function streamPolylines(dir, acc, so, w, h, minCells, toXY) {
 export function noDataBits(mask) {
   if (!mask) return null;
   if (mask instanceof Uint8Array) return mask;
-  const bin = atob(String(mask)), out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
+  return b64ToBytes(String(mask));
 }
 export function routeTerrain(terrain) {
   const g = gridGeometry(terrain), bits = noDataBits(terrain.noDataMask);

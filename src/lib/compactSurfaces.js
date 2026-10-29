@@ -12,19 +12,10 @@
 // The encoded form is cached per vertices/indices array (the sync-out reuses those arrays across metadata
 // edits), so the repeated snapshot / dirty-check / autosave calls re-encode nothing.
 
+import { bytesToB64, b64ToBytes } from "./base64.js"; // TASKS.csv #1114
+
 export const COMPACT_MIN_VERTICES = 2000;
 
-function bytesToB64(bytes) {
-  let s = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-  return typeof btoa === "function" ? btoa(s) : globalThis.Buffer.from(s, "binary").toString("base64");
-}
-function b64ToBytes(b64) {
-  const s = typeof atob === "function" ? atob(b64) : globalThis.Buffer.from(b64, "base64").toString("binary");
-  const bytes = new Uint8Array(s.length);
-  for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
-  return bytes;
-}
 
 // zigzag varints of successive differences (plain arithmetic, not bit ops: values can pass 2^31)
 function packDeltas(values, count, get) {

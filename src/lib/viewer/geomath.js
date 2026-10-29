@@ -1,4 +1,5 @@
 import { cellSupportEnvelope } from "../supportEnvelope.js"; // TASKS.csv #641
+import { b64ToBytes } from "../base64.js"; // TASKS.csv #1114
 // TASKS.csv #445 step 1 — moved out of ViewerModule.jsx unchanged (pure maths, no three.js / DOM), so it
 // can be tested on its own (test/core.test.mjs #445). The comments are the originals.
 const toRad = (d) => (d * Math.PI) / 180;
@@ -265,8 +266,7 @@ function noDataBitsOf(terrain) {
   if (m instanceof Uint8Array) return m;
   const hit = noDataBitsCache.get(terrain);
   if (hit && hit.src === m) return hit.bits;
-  const bin = atob(String(m)), bits = new Uint8Array(bin.length);
-  for (let k = 0; k < bin.length; k++) bits[k] = bin.charCodeAt(k);
+  const bits = b64ToBytes(String(m)); // base64.js: #1114
   noDataBitsCache.set(terrain, { src: m, bits });
   return bits;
 }

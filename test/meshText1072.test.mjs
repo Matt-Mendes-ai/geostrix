@@ -20,6 +20,7 @@ function oldDXF(name, geometry, origin, provenance = null, extra = {}) {
   const layer = sanitizeName(name).slice(0, 255) || "SURFACE";
   const lines = [];
   provenanceLines(name, provenance, extra).forEach((l) => lines.push("999", l));
+  lines.push("0", "SECTION", "2", "HEADER", "9", "$ACADVER", "1", "AC1009", "0", "ENDSEC"); // #1114 — the R12 header both DXF writers now share
   lines.push("0", "SECTION", "2", "ENTITIES");
   const fmt = (n) => n.toFixed(4);
   for (let t = 0; t + 2 < indices.length; t += 3) {

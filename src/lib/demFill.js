@@ -1,3 +1,4 @@
+import { bytesToB64, b64ToBytes } from "./base64.js"; // TASKS.csv #1114
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #421 — DEM cells with no data. After reprojection a DEM's footprint is a rotated/curved
 // quadrilateral inside an axis-aligned grid, so its corners are empty wedges (measured 2.5-11.6% of cells
@@ -27,10 +28,7 @@ export function fillNoData(values) {
 
 export function decodeNoDataMask(b64) {
   if (!b64) return null;
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
+  return b64ToBytes(b64);
 }
 export function isNoData(maskBytes, i) {
   return !!maskBytes && (maskBytes[i >> 3] & (1 << (i & 7))) !== 0;
@@ -42,8 +40,3 @@ export function noDataNote(fill) {
   return tr(" {filledPct}% of the grid ({filledCount} cells) has no source data — usually the empty corners left by reprojection, or tiles that failed to download. Those cells are left out of the 3D surface, and the modelling tools, inversions and collar checks read no ground there; only map layers draped on the terrain sit at the mean elevation {fillValue} m.", { filledPct: fill.filledPct.toFixed(1), filledCount: fill.filledCount.toLocaleString(), fillValue: fill.fillValue.toFixed(0) });
 }
 
-function bytesToB64(bytes) {
-  let s = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-  return btoa(s);
-}

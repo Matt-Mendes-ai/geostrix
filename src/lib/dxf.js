@@ -445,7 +445,9 @@ export function parseDXFMesh(text, opts = {}) {
 // (3D when the geometry has elevations, #408; 2D otherwise; closed for rings, #578). Each entity's DXF layer is set to its attributes'
 // hole_id when present (so a surveyor opening the file gets one CAD layer per drillhole, the way
 // they'd expect), falling back to a shared "GEOSTRIX" layer otherwise.
-function sanitizeLayerName(name) {
+// TASKS.csv #1114 — exported with the R12 header for the surface writer (meshExport.js), which had its own of each
+export const DXF_R12_HEADER = ["0", "SECTION", "2", "HEADER", "9", "$ACADVER", "1", "AC1009", "0", "ENDSEC"];
+export function sanitizeLayerName(name) {
   return (String(name || "GEOSTRIX").replace(/[^A-Za-z0-9_.$-]+/g, "_") || "GEOSTRIX").slice(0, 255);
 }
 
@@ -461,7 +463,7 @@ export function buildDXF({ features, geomType, layerOf = null, labelOf = null, t
   // as LWPOLYLINE, an R14 / R2000 entity, without the AcDbEntity / AcDbPolyline subclass markers and handles R2000
   // readers expect, in a file with no header (so read as R12): lenient readers (GDAL / QGIS) coped, strict ones
   // (AutoCAD, some Micromine / Surpac versions) could drop them. Closed rings set the closed bit.
-  put(0, "SECTION"); put(2, "HEADER"); put(9, "$ACADVER"); put(1, "AC1009"); put(0, "ENDSEC");
+  lines.push(...DXF_R12_HEADER);
   put(0, "SECTION"); put(2, "ENTITIES");
 
   // TASKS.csv #408 — Z is written. Points carry their real elevation (they were all written at 0), and a

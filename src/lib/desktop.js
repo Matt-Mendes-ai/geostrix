@@ -1,4 +1,5 @@
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { b64ToBytes } from "./base64.js"; // TASKS.csv #1114
 // Bridges to Electron when available; degrades gracefully in a plain browser (dev in Vite).
 const d = typeof window !== "undefined" ? window.desktop : null;
 
@@ -273,10 +274,7 @@ export async function fsReadFile(filePath) {
 // clicked in the Browser panel can be handed to the exact same parseVectorFile()/openImportModal()
 // path the existing "Import" toolbar buttons already use.
 export function base64ToFile(base64, name) {
-  const bin = atob(base64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return new File([bytes], name);
+  return new File([b64ToBytes(base64)], name);
 }
 // TASKS.csv #346 — fs-read-file now returns raw bytes (`data`, a Uint8Array over IPC) instead of base64;
 // accepts either so nothing breaks mid-upgrade.
@@ -329,10 +327,7 @@ export async function fetchSRTMTile(z, x, y) {
   if (d && d.fetchSRTMTile) {
     const res = await d.fetchSRTMTile(z, x, y);
     if (!res.ok) throw new Error(res.message || tr("Tile fetch failed (z{z}/{x}/{y}).", { z, x, y }));
-    const bin = atob(res.base64);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return bytes.buffer;
+    return b64ToBytes(res.base64).buffer;
   }
   const url = `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
   const res = await fetch(url);
@@ -372,10 +367,7 @@ export async function fetchWebLayerUrl(url) {
   if (d && d.fetchWebLayerUrl) {
     const res = await d.fetchWebLayerUrl(url);
     if (!res.ok) throw new Error(res.message || tr("Request failed for {url}", { url }));
-    const bin = atob(res.base64);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return { contentType: res.contentType || "", arrayBuffer: bytes.buffer };
+    return { contentType: res.contentType || "", arrayBuffer: b64ToBytes(res.base64).buffer };
   }
   const res = await fetch(url);
   if (!res.ok) throw new Error(tr("Request failed (HTTP {status}) for {url}", { status: res.status, url }));
@@ -525,9 +517,7 @@ export function decodeBinaryCells(data) {
   const out = {};
   for (const [k, v] of Object.entries(cells)) {
     if (v && typeof v === "object" && typeof v.b64 === "string" && (v.dtype === "f4" || v.dtype === "f8")) {
-      const s = typeof atob === "function" ? atob(v.b64) : globalThis.Buffer.from(v.b64, "base64").toString("binary");
-      const bytes = new Uint8Array(s.length);
-      for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
+      const bytes = b64ToBytes(v.b64);
       if (v.dtype === "f8") { out[k] = Array.from(new Float64Array(bytes.buffer)); continue; }
       // float32 offsets from `base`, rounded back to the column's decimals (exact: the sidecar checked it)
       const f = new Float32Array(bytes.buffer), base = Number(v.base) || 0, arr = new Array(f.length);
@@ -726,12 +716,7 @@ async function pythonImplicitModelSync(extent, surfaces, opts = {}) {
   }
 }
 
-function b64toBlob(b64) {
-  const byteChars = atob(b64);
-  const bytes = new Uint8Array(byteChars.length);
-  for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
-  return new Blob([bytes]);
-}
+const b64toBlob = (b64) => new Blob([b64ToBytes(b64)]); // base64.js: #1114
 
 // TASKS.csv #1040 — a canvas as PNG bytes for saveFile (toBlob, not a toDataURL string three times the size)
 export function canvasPngBytes(canvas) {

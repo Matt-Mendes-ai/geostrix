@@ -24,6 +24,7 @@ import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
 import { VIRIDIS_ANCHORS } from "./layers.js"; // TASKS.csv #740
 import { makeStretch } from "./idw.js"; // TASKS.csv #708 — the same 2-98 % stretch as IDW grids
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { b64ToBytes } from "./base64.js"; // TASKS.csv #1114
 
 // TASKS.csv #707 — a GeoTIFF's CRS as an EPSG code. 32767 means "user-defined" (what ArcGIS and Oasis montaj write for a
 // CRS they have no code for, the BC NAD83(CSRS) UTM zones being the usual case); the CRS is then named in a citation
@@ -793,7 +794,7 @@ export function terrainToGeoTIFFArrayBuffer(terrain, projectEpsg) {
   const m = terrain.noDataMask;
   let bits = null;
   if (m instanceof Uint8Array) bits = m;
-  else if (m) { const bin = atob(String(m)); bits = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) bits[k] = bin.charCodeAt(k); }
+  else if (m) bits = b64ToBytes(String(m)); // base64.js: #1114
   let masked = 0;
   const values = Float32Array.from(elevations, (v, i) => {
     if (bits && (bits[i >> 3] & (1 << (i & 7)))) { masked++; return NODATA; }

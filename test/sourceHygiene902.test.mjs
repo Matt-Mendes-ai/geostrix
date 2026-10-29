@@ -19,3 +19,9 @@ test("#1114 no local median / quantile outside arrayStats.js", () => {
   // GradeStatistics.jsx's quantile is length-weighted, a different statistic (#740)
   assert.deepEqual(bad.filter((p) => !p.endsWith("GradeStatistics.jsx")), []);
 });
+
+// TASKS.csv #1114 — one base64 decoder (lib/base64.js b64ToBytes); comments may still mention atob
+test("#1114 no atob() decoding outside base64.js", () => {
+  const bad = walk("src").filter((p) => /\.(jsx?|mjs)$/.test(p) && !p.endsWith("base64.js") && readFileSync(p, "utf8").split("\n").some((l) => !/^\s*\/\//.test(l) && /\batob\(/.test(l)));
+  assert.deepEqual(bad, []);
+});

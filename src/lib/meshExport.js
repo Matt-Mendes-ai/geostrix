@@ -24,6 +24,7 @@
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 import * as THREE from "three";
 import { sceneVertsToWorldFlat } from "./meshFlat.js"; // #1072
+import { DXF_R12_HEADER, sanitizeLayerName } from "./dxf.js"; // TASKS.csv #1114 — one header and one layer-name rule for both DXF writers
 
 // Reads a mesh's position/index buffers and returns plain arrays of world-space vertices + 0-based
 // triangle indices. `origin` is ViewerModule's originRef.current ({x,y,z} world coords of the scene
@@ -277,21 +278,19 @@ export function exportSurfaceOBJ(name, geometry, origin, provenance = null, extr
 
 // DXF (ASCII, R12-compatible subset) — one 3DFACE entity per triangle, the standard way to hand a
 // triangulated surface to AutoCAD-family and most mining packages (Vulcan/Surpac both read 3DFACE
-// meshes). Deliberately minimal: just a SECTION/ENTITIES block + EOF, skipping HEADER/TABLES/BLOCKS —
-// every DXF reader tested against (a hand round-trip through a DXF-capable viewer, see this task's
-// TASKS.csv verification note) accepts this; a full HEADER section only matters if the consumer needs
-// $ACADVER-gated features, which a bare triangle mesh does not. A 3DFACE always carries 4 vertex codes
+// meshes). Minimal: the R12 HEADER ($ACADVER AC1009, as dxf.js's string writer: TASKS.csv #1114 — the file said
+// nothing about its version before) and the ENTITIES section, no TABLES / BLOCKS. A 3DFACE always carries 4 vertex codes
 // (10/20/30 .. 13/23/33) even for a triangular face — the 4th vertex is conventionally a repeat of the
 // 3rd, per the DXF spec, not a degenerate/invalid entity.
 // supported (#1103): per-triangle 1 / 0 (explicitSupport.supportedFaces); 0 = extrapolated, written on "<layer>_EXTRAPOLATED"
 export function exportSurfaceDXF(name, geometry, origin, provenance = null, extra = {}, { bytes = false, supported = null } = {}) {
   const { vertices: V, indices: I } = sceneVertsToWorldFlat(geometry, origin);
-  const layer = sanitizeName(name).slice(0, 255) || "SURFACE";
+  const layer = sanitizeLayerName(name || "SURFACE"); // #1114 — dxf.js's rule
   const head = [];
   // TASKS.csv #269 — group code 999 is the DXF spec's own comment record; readers ignore it, humans
   // and grep don't. Written before the ENTITIES section so it sits at the top of the file.
   provenanceLines(name, provenance, extra).forEach((l) => head.push("999", l));
-  head.push("0", "SECTION", "2", "ENTITIES");
+  head.push(...DXF_R12_HEADER, "0", "SECTION", "2", "ENTITIES");
   // #1072 — each vertex's three coordinates, formatted once, as the text after each group code
   const nv = V.length / 3, X = new Array(nv), Y = new Array(nv), Z = new Array(nv);
   for (let i = 0; i < nv; i++) { X[i] = V[3 * i].toFixed(4); Y[i] = V[3 * i + 1].toFixed(4); Z[i] = V[3 * i + 2].toFixed(4); }

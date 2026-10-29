@@ -3,6 +3,7 @@
 // this file prepares honest inputs for it and turns its output into a GeoStrix voxel model.
 import { reprojectXY, isMetricProjectedEpsg } from "./reproject.js";
 import { hexToRgb, rgbToHex, rgbToLab, labToRgb } from "./colorRamp.js";
+import { bytesToB64, b64ToBytes } from "./base64.js"; // TASKS.csv #1114
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { terrainNodeIsFill, terrainGroundAt } from "./viewer/geomath.js"; // TASKS.csv #927; terrainGroundAt: #1114
 
@@ -199,18 +200,8 @@ export function resultToVoxelModel(result, meta) {
 
 // Base64 <-> Float32Array for compact project-file storage of model values (database review, #321):
 // ~4 bytes per cell instead of a ~70-byte JSON object per cell.
-export function f32ToB64(arr) {
-  const bytes = new Uint8Array(new Float32Array(arr).buffer);
-  let s = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-  return typeof btoa === "function" ? btoa(s) : globalThis.Buffer.from(s, "binary").toString("base64"); // Node fallback (tests)
-}
-export function b64ToF32(b64) {
-  const s = typeof atob === "function" ? atob(b64) : globalThis.Buffer.from(b64, "base64").toString("binary"); // Node fallback (tests)
-  const bytes = new Uint8Array(s.length);
-  for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i);
-  return new Float32Array(bytes.buffer);
-}
+export const f32ToB64 = (arr) => bytesToB64(new Uint8Array(new Float32Array(arr).buffer));
+export const b64ToF32 = (b64) => new Float32Array(b64ToBytes(b64).buffer); // base64.js: #1114
 
 // ---------- colour ramps for recovered models (visual-design review, #321) ----------
 // Interpolated in CIE Lab, 17 stops, because the voxel renderer lerps between stops in sRGB: dense stops
