@@ -8,6 +8,7 @@ import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
+import { isoconRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
 
 // TASKS.csv #23 — Isocon / mass-balance calculator (Grant 1986; MacLean & Barrett 1993).
 //
@@ -81,10 +82,7 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
 
   const exportCSV = () => {
     if (!result || result.error) return;
-    const csv = toExportCsv(result.table.map((r) => ({
-      element: r.symbol, precursor_ppm: r.precursor.toFixed(3), altered_ppm: r.altered.toFixed(3),
-      ratio_altered_precursor: r.ratio.toFixed(4), mass_change_pct: r.pct.toFixed(1), used_as_immobile: r.isImmobile ? "yes" : "no",
-    })));
+    const csv = toExportCsv(isoconRows(result.table)); // #1083 — rows in lib, tested
     const header = `# Isocon mass-balance — precursor n=${precursor.n}, altered n=${altered.n}, slope(Mo/M)=${result.slope.toFixed(4)}, bulk mass change=${result.bulkMassChangePct.toFixed(1)}%\n`;
     saveFile({ suggestedName: "isocon_mass_balance.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: header + csv });
   };

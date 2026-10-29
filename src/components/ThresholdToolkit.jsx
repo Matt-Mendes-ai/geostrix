@@ -6,7 +6,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { valueIn } from "../lib/geochem.js";
-import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, robustZ, normalQuantile, hasMixedSources } from "../lib/thresholds.js";
+import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, normalQuantile, hasMixedSources } from "../lib/thresholds.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
@@ -15,6 +15,7 @@ import { activateOnKey } from "../lib/a11y.js";
 import { fontSizes } from "../lib/theme.js";
 import { t as tr } from "../lib/i18n.js";
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
+import { thresholdRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
 
 // Okabe & Ito (2008) colour-blind-safe palette, one colour per method (SVG presentation, so plain hex)
 const METHOD_COLOURS = { p90: "#999999", p95: "#56B4E9", p98: "#0072B2", mean2sd: "#E69F00", median2mad: "#009E73", tukey: "#CC79A7", probbreak: "#D55E00" };
@@ -59,15 +60,7 @@ export default function ThresholdToolkit({ surfaceSamples, surfaceElements, mapL
 
   const exportCsv = () => {
     const keyOf = groupKeyFn(groupBy, mapLayers);
-    const byKey = new Map(pops.map((p) => [p.key, p]));
-    const rows = surfaceSamples.map((s) => {
-      const v = valueIn(s, symbol, unit, units);
-      if (!(v > 0)) return null;
-      const p = byKey.get(keyOf(s));
-      const t = p?.cand.values[method] ?? null, z = p ? robustZ(v, p.summary) : null;
-      return { sample_id: s.sample_id, x: s.x, y: s.y, medium: s.medium, population: p ? p.key : "", [`${symbol}_${unit}`]: v, below_detection: s.bdl?.includes(symbol) ? "yes" : "",
-        robust_z: z == null ? "" : z.toFixed(2), threshold: t == null ? "" : t, rule: THRESHOLD_METHODS.find((x) => x.id === method).label, anomalous: t == null ? "" : v >= t ? "yes" : "no" };
-    }).filter(Boolean);
+    const rows = thresholdRows(surfaceSamples, { symbol, unit, units, pops, keyOf, method, methodLabel: THRESHOLD_METHODS.find((x) => x.id === method).label }); // #1083 — rows in lib, tested
     saveFile({ suggestedName: `${symbol}_thresholds.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows) });
   };
 

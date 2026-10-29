@@ -18,6 +18,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
+import { qaqcStandardRows, qaqcBlankRows, qaqcDuplicateRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
 
 export default function QAQCPanel({ assays, assayElements, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
@@ -64,13 +65,13 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   const exportCSV = () => {
     let rows, name;
     if (tab === "standards" && activeGroup) {
-      rows = series.points.map((p) => ({ standard: activeGroup.id, hole_id: p.hole_id, from: p.from, to: p.to, [symbol]: p.value, outside_2sd: p.outside2sd, outside_3sd: p.outside3sd }));
+      rows = qaqcStandardRows(series.points, activeGroup.id, symbol); // #1083 — rows in lib, tested
       name = `qaqc_standard_${activeGroup.id}_${symbol}.csv`;
     } else if (tab === "blanks") {
-      rows = blanks.map((b) => ({ hole_id: b.hole_id, from: b.from, to: b.to, [symbol]: b.value, threshold: blankLimit, flagged: b.flagged }));
+      rows = qaqcBlankRows(blanks, symbol, blankLimit);
       name = `qaqc_blanks_${symbol}.csv`;
     } else {
-      rows = dups.map((d) => ({ original_hole: d.original_hole, duplicate_hole: d.duplicate_hole, from: d.from, to: d.to, original_value: d.v1, duplicate_value: d.v2, rpd_pct: d.rpd.toFixed(2), duplicate_type: DUP_KIND_LABELS[d.kind], rpd_limit_pct: dupLimit(d), counted: !d.belowLimit, within_limit: !d.belowLimit && d.rpd <= dupLimit(d) }));
+      rows = qaqcDuplicateRows(dups, DUP_KIND_LABELS, dupLimit);
       name = `qaqc_duplicates_${symbol}.csv`;
     }
     if (!rows || !rows.length) return;

@@ -10,6 +10,7 @@ import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #405
 import { correlate } from "../lib/correlation.js"; // TASKS.csv #405
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
+import { correlationRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
 
 // TASKS.csv #21 — multi-element correlation matrix. Pearson r between every pair of selected
 // elements, pairwise deletion for missing data (a row missing one of the pair just doesn't count
@@ -73,12 +74,7 @@ export default function CorrelationMatrix({ assays: allAssays, assayElements, on
   }, [symbols, columns, assays.length, method]);
 
   const exportCSV = () => {
-    const rows = symbols.map((a) => {
-      const row = { element: a };
-      symbols.forEach((b) => { row[b] = matrix[a][b].r == null ? "" : matrix[a][b].r.toFixed(3); });
-      return row;
-    });
-    const nRows = symbols.map((a) => { const row = { element: `n: ${a}` }; symbols.forEach((b) => { row[b] = matrix[a][b].n; }); return row; });
+    const { rows, nRows } = correlationRows(symbols, matrix); // #1083 — rows in lib, tested
     // TASKS.csv #405 — the file says what it is: method, QAQC handling, pairwise n.
     const basis = `# ${METHOD_LABEL[method]}; pairwise deletion; QAQC inserts ${includeQAQC ? "INCLUDED" : `excluded (${qaqcCount} rows)`}; ${assays.length} intervals, not length-weighted.`;
     saveFile({ suggestedName: "correlation_matrix.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: `${basis}\n${toExportCsv(rows)}\n\n${toExportCsv(nRows)}` });

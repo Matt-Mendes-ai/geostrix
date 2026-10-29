@@ -22,6 +22,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
+import { gradeStatsRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
@@ -185,14 +186,7 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
   const exportCSV = () => {
     // TASKS.csv #1099 — the unit in the column names and a provenance stamp, as every other estimation-adjacent CSV (#404)
     const unit = (source === "surface" ? surfaceElementUnits[symbol] : elementUnits[symbol]) || "ppm";
-    const u = String(unit).replace(/[^\w]+/g, "_");
-    const rowsOut = groups.map((g) => ({
-      domain: domainKey === "litho" ? domainLabel(g.key) : g.key,
-      n: g.stats.n, [`mean_${u}`]: g.stats.mean.toFixed(4), [`median_${u}`]: g.stats.median.toFixed(4),
-      [`stdev_${u}`]: g.stats.stdev.toFixed(4), cv_pct: g.stats.cv == null ? "" : g.stats.cv.toFixed(1),
-      [`min_${u}`]: g.stats.min.toFixed(4), [`max_${u}`]: g.stats.max.toFixed(4), [`q1_${u}`]: g.stats.q1.toFixed(4), [`q3_${u}`]: g.stats.q3.toFixed(4),
-    }));
-    rowsOut.forEach((r) => { r.basis = weightingActive ? "length-weighted (assay interval length)" : "unweighted arithmetic"; });
+    const rowsOut = gradeStatsRows(groups, { unit, label: (k) => (domainKey === "litho" ? domainLabel(k) : k), weighted: weightingActive }); // #1083 — rows in lib, tested
     const stamp = stampLines({ tool: "Grade statistics", version: APP_VERSION, epsg: project?.epsg, params: [
       `Element: ${symbol} (${unit}) | source: ${source === "surface" ? "surface samples (one sample = weight 1)" : "drillhole assays"} | domains: ${domainKey ? (LAYER_META[domainKey]?.label || domainKey) : "none (all samples)"}`,
       `Basis: ${weightingActive ? "length-weighted (interval length)" : "unweighted arithmetic"}; sample (n-1) variance`,

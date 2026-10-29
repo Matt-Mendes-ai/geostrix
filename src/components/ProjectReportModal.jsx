@@ -20,6 +20,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #405
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
+import { projectReportRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
 
 // TASKS.csv #405 — `weighted` (drillhole assays): the mean is length-weighted (interval to - from), the
 // same basis as Grade Statistics (#267); an unweighted mean over 0.3 m and 3 m intervals is biased toward
@@ -71,48 +72,7 @@ export default function ProjectReportModal({ store, onClose }) {
   }, [collars, survey, layers, assays, assayElements, surfaceSamples, surfaceElements]);
 
   const exportCSV = () => {
-    const rows = [];
-    rows.push(["=== PROJECT ==="]);
-    rows.push(["Name", project.name || "Untitled project"]);
-    rows.push(["EPSG", project.epsg ?? ""]);
-    rows.push(["Generated", new Date().toISOString().slice(0, 19).replace("T", " ")]);
-    rows.push(["Drillholes", collars.length]);
-    rows.push(["Total metres drilled", report.totalMetres.toFixed(1)]);
-    rows.push(["Surface samples", surfaceSamples.length]);
-    rows.push([]);
-
-    rows.push(["=== DRILLHOLES ==="]);
-    rows.push(["hole_id", "x", "y", "z", "azimuth", "dip", "length"]);
-    collars.forEach((c) => rows.push([c.hole_id, c.x, c.y, c.z, c.azimuth ?? "", Number.isFinite(c.dip) ? -c.dip : "", c.length ?? ""])); // #1033 — dip negative = down, as imported
-    rows.push([]);
-
-    if (report.layerCounts.length) {
-      rows.push(["=== LAYER ROW COUNTS ==="]);
-      rows.push(["Layer", "Rows"]);
-      report.layerCounts.forEach((l) => rows.push([l.label, l.count]));
-      rows.push([]);
-    }
-
-    if (report.assayStats.length) {
-      rows.push(["=== ASSAY STATISTICS (length-weighted mean; QAQC inserts excluded; all domains combined; not composited or capped) ==="]);
-      rows.push(["QAQC rows excluded", report.qaqcExcluded]);
-      rows.push(["Element", "Unit", "n", "Metres", "Length-weighted mean", "Min", "Max", "Intervals without a usable length (not in the mean)"]);
-      report.assayStats.forEach((s) => rows.push([s.symbol, s.unit, s.n, s.metres, s.mean, s.min, s.max, s.noLength]));
-      rows.push([]);
-    }
-
-    if (Object.keys(report.mediumCounts).length) {
-      rows.push(["=== SURFACE SAMPLES BY MEDIUM ==="]);
-      rows.push(["Medium", "Count"]);
-      Object.entries(report.mediumCounts).forEach(([m, n]) => rows.push([m, n]));
-      rows.push([]);
-    }
-
-    if (report.surfaceStats.length) {
-      rows.push(["=== SURFACE SAMPLE STATISTICS (unweighted mean; all media combined) ==="]);
-      rows.push(["Element", "Unit", "n", "Mean", "Min", "Max"]);
-      report.surfaceStats.forEach((s) => rows.push([s.symbol, s.unit, s.n, s.mean, s.min, s.max]));
-    }
+    const rows = projectReportRows({ project, collars, surfaceSampleCount: surfaceSamples.length, report, generated: new Date().toISOString().slice(0, 19).replace("T", " ") }); // #1083 — in lib, tested
 
     const csv = toExportCsv(rows);
     saveFile({ suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_report.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: csv });
