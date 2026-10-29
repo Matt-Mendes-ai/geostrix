@@ -17,6 +17,7 @@ import { LAYER_META } from "../lib/layers.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
+import { interceptRows } from "../lib/drillReportExport.js"; // TASKS.csv #1083
 
 const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row-windowing pattern
 
@@ -151,45 +152,13 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
     goToModule("layout");
     onClose();
   };
-  const sig6 = (v) => (Number.isFinite(v) ? +v.toPrecision(6) : ""); // TASKS.csv #1069 — grades to 6 significant figures
   const exportCSV = () => {
     // TASKS.csv #1047 (review #1016) — where each intercept is: the collar (E, N, RL, grid azimuth, dip negative = down,
     // EOH) and the intercept's midpoint on the desurveyed trace (project desurvey method), for a press-release table or a
     // grade-thickness long section without a join in Excel
     const loc = interceptLocations(results, collars, survey, desurveyMethod, tracesByHole);
-    const rows = results.map((r) => ({
-      hole_id: r.hole_id, from: r.from, to: r.to, length_m: r.length.toFixed(2),
-      ...loc(r),
-      ...(twEnabled ? {
-        true_width_m: r.tw ? r.tw.trueWidth.toFixed(2) : "",
-        true_width_factor: r.tw ? r.tw.factor.toFixed(3) : "",
-        structure_dipdir: twDipDir, structure_dip: twDip,
-      } : {}),
-      ...(domainLayer ? {
-        host_domain: r.dom?.dominant?.value ?? "",
-        host_domain_pct: r.dom?.dominant ? Math.round(r.dom.dominant.fraction * 100) : "",
-        host_domain_all: r.dom ? r.dom.parts.map((p) => `${p.value}:${Math.round(p.fraction * 100)}%`).join(" | ") : "",
-        host_domain_logged_pct: r.dom ? Math.round(r.dom.covered * 100) : "",
-        host_domain_log_overlaps: r.dom?.overlapping ? "yes" : "",
-      } : {}),
-      [`avg_${symbol}_${unit}`]: sig6(r.avgGrade), // #1069 — 6 significant figures, whatever the unit
-      // TASKS.csv #331/#332/#402 — what the grade figure is built from, carried into the report itself.
-      grade_is_minimum: r.overRange ? "yes (contains an over-range '>' result read at its ceiling)" : "",
-      unsampled_or_unassayed_m: r.unsampledM ? r.unsampledM.toFixed(2) : "0",
-      overlapping_assays_averaged_m: r.overlapM ? r.overlapM.toFixed(2) : "0",
-      grade_x_length: sig6(r.avgGrade * r.length),
-      ...Object.fromEntries(extraSymbols.map((s) => [`avg_${s}_${elementUnits[s] || "ppm"}`, r.extras[s] == null ? "" : sig6(r.extras[s])])),
-      assay_intervals: r.intervals,
-      // TASKS.csv #402 — including sub-intercepts: the best one in columns, all of them as text.
-      ...(incOn ? {
-        including_cutoff: includeCutoff,
-        including_from: r.including ? r.including[0].from : "", including_to: r.including ? r.including[0].to : "",
-        including_length_m: r.including ? r.including[0].length.toFixed(2) : "",
-        [`including_avg_${symbol}_${unit}`]: r.including ? sig6(r.including[0].avgGrade) : "",
-        including_all: r.including ? r.including.map(incText).join("; ") : "",
-      } : {}),
-      ...(meqReady ? { [`${symbol}Eq_${unit}`]: (() => { const v = meqFor(r); return v == null ? "" : sig6(v); })() } : {}),
-    }));
+    const rows = interceptRows(results, { symbol, unit, loc, trueWidth: twEnabled ? { dipDir: twDipDir, dip: twDip } : null, domain: !!domainLayer, // #1083 — in lib, tested
+      extraSymbols, elementUnits, including: incOn ? { cutoff: includeCutoff, text: incText } : null, meq: meqReady ? meqFor : null });
     // TASKS.csv #404 — the parameters behind these intercepts, at the top of the file.
     const stamp = stampLines({ tool: "Best intercepts", version: APP_VERSION, epsg: project?.epsg, params: [
       `Element: ${symbol} (${unit}) | cutoff: ${cutoff} | max consecutive internal dilution: ${maxInternalDilution} m | min intercept length: ${minLength} m | min grade x length: ${minGradeLen}`,

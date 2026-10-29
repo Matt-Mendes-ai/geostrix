@@ -4,7 +4,8 @@ import { compositeDownhole, countDuplicateAssayIntervals, capAudit, capAuditText
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import { excludeQAQC } from "../lib/qaqc.js";
 import { stampLines, withStamp, ASSAY_READING_RULES } from "../lib/provenance.js"; // TASKS.csv #404
-import { desurveyHole, intervalXYZ } from "../lib/desurvey.js"; // TASKS.csv #411
+import { desurveyHole } from "../lib/desurvey.js"; // TASKS.csv #411
+import { compositeRows } from "../lib/drillReportExport.js"; // TASKS.csv #1083
 import { useStore } from "../lib/store.jsx";
 import { version as APP_VERSION } from "../../package.json";
 import { useVirtualRows } from "../lib/useVirtualRows.js";
@@ -77,20 +78,8 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
 
   const domainLabel = (v) => (domainKey === "litho" ? (UNIT_NAMES[v] || v) : v);
 
-  const sig6 = (v) => (Number.isFinite(v) ? +v.toPrecision(6) : ""); // TASKS.csv #1069
   const exportCSV = () => {
-    const rows = results.map((r) => ({
-      hole_id: r.hole_id, from: r.from.toFixed(2), to: r.to.toFixed(2), length_m: r.length.toFixed(2),
-      [`avg_${symbol}_${unit}`]: sig6(r.avgGrade), // #1069 — 6 significant figures (toFixed(3) wrote 0.000 for 1,913 Woodjam Mo % composites)
-      coverage_pct: (r.coverage * 100).toFixed(0),
-      conflict_m: (r.conflictLength || 0).toFixed(2), // #532 — metres where overlapping assays disagreed (averaged)
-      ...(() => { // #411 — XYZ; blank when the hole has no collar/trace
-        const p = intervalXYZ(tracesByHole.get(r.hole_id), r.from, r.to);
-        const f = (v) => (p ? v.toFixed(2) : "");
-        return { x_mid: p ? f(p.mid.x) : "", y_mid: p ? f(p.mid.y) : "", z_mid: p ? f(p.mid.z) : "", x_from: p ? f(p.from.x) : "", y_from: p ? f(p.from.y) : "", z_from: p ? f(p.from.z) : "", x_to: p ? f(p.to.x) : "", y_to: p ? f(p.to.y) : "", z_to: p ? f(p.to.z) : "" };
-      })(),
-      ...(domainKey ? { [domainMeta.label]: r.domain != null ? domainLabel(r.domain) : "" } : {}),
-    }));
+    const rows = compositeRows(results, { symbol, unit, traces: tracesByHole, domainColumn: domainKey ? domainMeta.label : null, domainLabel }); // #1083 — in lib, tested
     // TASKS.csv #404 — the parameters behind these composites, at the top of the file.
     const stamp = stampLines({ tool: "Downhole compositing", version: APP_VERSION, epsg: project?.epsg, params: [
       `Coordinates: from/to/mid of each composite on traces desurveyed by ${desurveyMethod || "minimum curvature"} (blank = hole has no collar)`,
