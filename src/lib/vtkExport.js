@@ -6,7 +6,7 @@
 //    value as CELL_DATA and NaN where the lattice has no block; otherwise (merged / octree models) UNSTRUCTURED_GRID of
 //    VOXEL cells. BINARY (big-endian, as the format requires), so NaN is exact and the file stays compact.
 import { blockModelLattice } from "./estimationMeta.js";
-import { valueColumnName, numericCellFields } from "./blockModelExport.js"; // TASKS.csv #1050
+import { valueColumnName, numericCellFields, sectionTrueSize } from "./blockModelExport.js"; // TASKS.csv #1050; sectionTrueSize: #1093
 
 const title = (s) => String(s).replace(/[\r\n]+/g, " ").slice(0, 250); // the format's title line: one line, <= 256 chars
 // TASKS.csv #1053 (review #1016) — the title is all the provenance a legacy VTK file can carry, and it said only
@@ -46,6 +46,28 @@ export function blockModelToVtk(model, note = "") {
   const extra = numericCellFields(cells); // #1050 — COVERAGE, KV, N_SAMPLES ... as further CELL_DATA arrays
   const scalars = (n, at) => extra.flatMap(({ name, get }) => { const a = new Float32Array(n).fill(NaN); at((c, i) => { const v = get(c); if (v != null) a[i] = v; }); return [`SCALARS ${scalarName(name)} float 1\nLOOKUP_TABLE default\n`, f32be(a), "\n"]; });
   const head = (dataset) => `# vtk DataFile Version 3.0\n${stampTitle(model.name, note)}\nBINARY\nDATASET ${dataset}\n`;
+  // TASKS.csv #1093 — a DC/IP line's cells as the true rotated cells: one HEXAHEDRON (VTK type 12) each, ds along the line,
+  // the section width across it, dz down (the axis-aligned boxes overlapped and held 1.87x the volume on an oblique line)
+  if (model.section && cells.length && cells.every((c) => sectionTrueSize(model, c))) {
+    const [ux, uy] = model.section.u, n0 = Math.hypot(ux, uy) || 1, u = [ux / n0, uy / n0], v = [-u[1], u[0]];
+    const pts = new Float64Array(cells.length * 24), conn = new Int32Array(cells.length * 9), types = new Int32Array(cells.length).fill(12), vals = new Float32Array(cells.length);
+    cells.forEach((c, n) => {
+      const { ds, T, dz } = sectionTrueSize(model, c), a = ds / 2, b = T / 2;
+      // VTK hexahedron order: the bottom face 0-3 counter-clockwise seen from above, then the top face 4-7 over it
+      const corners = [[-a, -b], [a, -b], [a, b], [-a, b]];
+      let p = 0;
+      for (const sz of [-1, 1]) for (const [sa, sb] of corners) { pts.set([c.x + sa * u[0] + sb * v[0], c.y + sa * u[1] + sb * v[1], c.z + sz * dz / 2], n * 24 + p * 3); p++; }
+      conn[n * 9] = 8; for (let k = 0; k < 8; k++) conn[n * 9 + 1 + k] = n * 8 + k;
+      vals[n] = c.value;
+    });
+    const bytes = assemble([
+      head("UNSTRUCTURED_GRID"), `POINTS ${cells.length * 8} double\n`, f64be(pts), "\n",
+      `CELLS ${cells.length} ${cells.length * 9}\n`, i32be(conn), "\n", `CELL_TYPES ${cells.length}\n`, i32be(types), "\n",
+      `CELL_DATA ${cells.length}\nSCALARS ${field} float 1\nLOOKUP_TABLE default\n`, f32be(vals), "\n",
+      ...scalars(cells.length, (put) => cells.forEach((c, i) => put(c, i))),
+    ]);
+    return { bytes, kind: "section" };
+  }
   const L = blockModelLattice(model);
   if (L && cells.length) {
     const ix = (c) => Math.round((c.x - L.ox) / L.dx - 0.5), iy = (c) => Math.round((c.y - L.oy) / L.dy - 0.5), iz = (c) => Math.round((c.z - L.oz) / L.dz - 0.5);

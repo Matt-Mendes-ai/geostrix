@@ -544,6 +544,9 @@ function lineVoxelModels(result, geom, { name, thick, cut, params, kinds }) {
       const ipFit = method === "ip" && result.ip ? { ip: { phiD: result.ip.phi_d, target: result.target, ...ipFitOf(result) } } : {};
       out.push({
         source: "simpeg", colorMode: "continuous", method, property, cells, min: lo, max: hi, stops,
+        // TASKS.csv #1093 — the cells are axis-aligned boxes around rotated section cells: the line's direction and the
+        // width across it let the exports recover each cell's true size (blockModelExport.sectionTrueSize)
+        section: { line: name, azimuthDeg: +Number(geom.azimuth).toFixed(3), u: [geom.u[0], geom.u[1]], widthM: thick },
         supportCutoff: kind === "observed" ? cut : 0,
         ...(kind === "extrapolated" ? { opacity: 0.6 } : {}), // see-through: less reliable, and the observed voxel stays readable inside it
         name: kind === "observed" ? `${property} — ${lineLabel}` : `${property} — ${lineLabel}, extrapolated to the model depth`,
