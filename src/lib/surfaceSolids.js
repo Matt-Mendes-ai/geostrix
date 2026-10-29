@@ -23,7 +23,14 @@
 //    is exactly the rule above.
 // Pure: no three.js. Coordinates: any frame shared by the meshes and the extent (east, north, up).
 //
-// surfacesToBlock({ tops, solids, extent: [xmin, xmax, ymin, ymax, zmin, zmax], cell, ground, maxCells })
+//  * TASKS.csv #1138 — extend (default true): Matt, "we are getting the block cut off at a perpendicular angle to the
+//    surface instead of at the intersection of the surface". A top that stopped at its own edge left its unit ending in
+//    a vertical, stair-stepped wall there (the columns beyond the edge took the unit above). Each top is now continued
+//    past its edge to the box, along the plane of its own edge (fitted to the covered columns near the nearest edge
+//    column), so a unit ends where its surfaces MEET - the stack rule above truncates the continuation - as an implicit
+//    modeller extends contacts to the model boundary. extend: false keeps each surface to its own footprint.
+//
+// surfacesToBlock({ tops, solids, extent: [xmin, xmax, ymin, ymax, zmin, zmax], cell, ground, maxCells, extend })
 //   tops / solids: [{ name, positions (flat E, N, Z), indices }]; a top may also carry { unit, role: "top" | "base" } (#830)
 //   -> { block: { extent, resolution: [nx, ny, nz], ids (x-major, z fastest - modelCheck.js), labels }, counts, coverage }
 //   labels = [null, ...top units (each once, in stack order), ...solid names]; id k -> labels[k - 1]; id 0 = outside.
@@ -56,7 +63,58 @@ function columnHits(mesh, x0, y0, dx, dy, nx, ny, cb) {
   }
 }
 
-export function surfacesToBlock({ tops = [], solids = [], extent, cell, ground = null, maxCells = 2_000_000 }) {
+// TASKS.csv #1138 — a top's column heights continued past its footprint. Every empty column takes the nearest covered
+// column (multi-source flood with Euclidean distance to the source) and is set on that source's edge plane: the least-
+// squares plane z = a + b·i + c·j through the covered columns within `r` columns of it (its own height if they are
+// fewer than three or in a line). -> a new array; the covered columns are unchanged.
+export function extendColumns(z, nx, ny, r = 5) {
+  const n = nx * ny, src = new Int32Array(n).fill(-1), d2 = new Float64Array(n).fill(Infinity);
+  let queue = [];
+  for (let c = 0; c < n; c++) if (z[c] === z[c]) { src[c] = c; d2[c] = 0; queue.push(c); }
+  if (!queue.length || queue.length === n) return z;
+  while (queue.length) {
+    const next = [];
+    for (const c of queue) {
+      const ci = Math.floor(c / ny), cj = c % ny, s = src[c], si = Math.floor(s / ny), sj = s % ny;
+      for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+        const i = ci + di, j = cj + dj;
+        if ((!di && !dj) || i < 0 || j < 0 || i >= nx || j >= ny) continue;
+        const q = i * ny + j, dd = (i - si) ** 2 + (j - sj) ** 2;
+        if (dd < d2[q]) { d2[q] = dd; src[q] = s; next.push(q); }
+      }
+    }
+    queue = next;
+  }
+  const planes = new Map(), out = Float64Array.from(z);
+  const planeOf = (s) => {
+    let p = planes.get(s);
+    if (p) return p;
+    const si = Math.floor(s / ny), sj = s % ny;
+    let m = 0, Si = 0, Sj = 0, Sz = 0, Sii = 0, Sjj = 0, Sij = 0, Siz = 0, Sjz = 0;
+    for (let i = Math.max(0, si - r); i <= Math.min(nx - 1, si + r); i++) for (let j = Math.max(0, sj - r); j <= Math.min(ny - 1, sj + r); j++) {
+      const h = z[i * ny + j];
+      if (h !== h || (i - si) ** 2 + (j - sj) ** 2 > r * r) continue;
+      const a = i - si, b = j - sj;
+      m++; Si += a; Sj += b; Sz += h; Sii += a * a; Sjj += b * b; Sij += a * b; Siz += a * h; Sjz += b * h;
+    }
+    // normal equations for z = c0 + c1·a + c2·b (a, b relative to the source column)
+    const M = [[m, Si, Sj], [Si, Sii, Sij], [Sj, Sij, Sjj]], v = [Sz, Siz, Sjz];
+    const det = (A) => A[0][0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1]) - A[0][1] * (A[1][0] * A[2][2] - A[1][2] * A[2][0]) + A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0]);
+    const D = det(M);
+    if (m < 3 || !(Math.abs(D) > 1e-9 * Math.max(1, m ** 3))) p = [z[s], 0, 0];
+    else p = [0, 1, 2].map((k) => det(M.map((row, ri) => row.map((x, ci) => (ci === k ? v[ri] : x)))) / D);
+    planes.set(s, p);
+    return p;
+  };
+  for (let c = 0; c < n; c++) {
+    if (z[c] === z[c]) continue;
+    const s = src[c], p = planeOf(s);
+    out[c] = p[0] + p[1] * (Math.floor(c / ny) - Math.floor(s / ny)) + p[2] * ((c % ny) - (s % ny));
+  }
+  return out;
+}
+
+export function surfacesToBlock({ tops = [], solids = [], extent, cell, ground = null, maxCells = 2_000_000, extend = true }) {
   const [xmin, xmax, ymin, ymax, zmin, zmax] = extent;
   if (!(cell > 0) || !(xmax > xmin && ymax > ymin && zmax > zmin)) throw new Error(tr("The model box is empty or the block size is zero.")); // tr: TASKS.csv #898
   const nx = Math.max(1, Math.round((xmax - xmin) / cell)), ny = Math.max(1, Math.round((ymax - ymin) / cell)), nz = Math.max(1, Math.round((zmax - zmin) / cell));
@@ -71,6 +129,9 @@ export function surfacesToBlock({ tops = [], solids = [], extent, cell, ground =
   });
   const coverage = {};
   tops.forEach((m, s) => { let n = 0; for (let c = 0; c < ncol; c++) if (topZ[s][c] === topZ[s][c]) n++; coverage[m.name] = n / ncol; });
+  // #1138 — the surfaces as drawn (for the contradiction counts below) and continued to the box (for the coding)
+  const drawnZ = topZ.slice(); // the per-surface arrays themselves are replaced, not changed
+  if (extend) for (let s = 0; s < topZ.length; s++) topZ[s] = extendColumns(topZ[s], nx, ny);
   // every crossing per column of each solid, sorted
   const solidHits = solids.map((m) => {
     const lists = new Map();
@@ -130,14 +191,14 @@ export function surfacesToBlock({ tops = [], solids = [], extent, cell, ground =
     let bad = false, cross = false;
     for (let s = 0; s < tops.length && !bad; s++) {
       if (!isBase[s]) continue;
-      const hb = topZ[s][col];
+      const hb = drawnZ[s][col];
       if (hb !== hb) continue;
-      for (let t = 0; t < tops.length; t++) { const ht = topZ[t][col]; if (t !== s && !isBase[t] && unitOf[t] === unitOf[s] && ht === ht && hb > ht + tol) { bad = true; break; } }
+      for (let t = 0; t < tops.length; t++) { const ht = drawnZ[t][col]; if (t !== s && !isBase[t] && unitOf[t] === unitOf[s] && ht === ht && hb > ht + tol) { bad = true; break; } }
     }
     let higher = Infinity;
     for (let s = 0; s < tops.length && !cross; s++) {
       if (isBase[s]) continue;
-      const h = topZ[s][col];
+      const h = drawnZ[s][col];
       if (h !== h) continue;
       if (h > higher + tol) cross = true;
       higher = Math.min(higher, h);

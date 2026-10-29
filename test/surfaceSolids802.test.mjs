@@ -40,12 +40,32 @@ test("#802 two stacked tops: the unit between them, the unit below the last, not
 });
 
 test("#802 a tilted top and one that covers only half the area", () => {
-  const r = surfacesToBlock({ tops: [sheet("A", -10, 110, -10, 110, (x) => 50 + x), sheet("B", -10, 50, -10, 110, () => 20)], extent: box, cell: 10 });
+  // #1138 — extend: false keeps each surface to its footprint (the #802 rule)
+  const r = surfacesToBlock({ tops: [sheet("A", -10, 110, -10, 110, (x) => 50 + x), sheet("B", -10, 50, -10, 110, () => 20)], extent: box, cell: 10, extend: false });
   assert.equal(unitAt(r.block, 5, 50, 60), null, "x=5: A sits at 55, the cell at 60 is above it");
   assert.equal(unitAt(r.block, 5, 50, 45), "A");
   assert.equal(unitAt(r.block, 25, 50, 15), "B", "B below 20 where it exists");
   assert.equal(unitAt(r.block, 75, 50, 15), "A", "beyond B's footprint, A continues down");
   assert.ok(Math.abs(r.coverage.B - 0.5) < 1e-9);
+  // by default B is continued past its edge: B below 20 across the box
+  const e = surfacesToBlock({ tops: [sheet("A", -10, 110, -10, 110, (x) => 50 + x), sheet("B", -10, 50, -10, 110, () => 20)], extent: box, cell: 10 });
+  assert.equal(unitAt(e.block, 75, 50, 15), "B");
+  assert.ok(Math.abs(e.coverage.B - 0.5) < 1e-9, "coverage still reports the surface as drawn");
+});
+
+test("#1138 a dipping contact that stops short of the one below: its unit ends where the two meet, not in a vertical wall", () => {
+  // UPPER: z = 100 - x (dips east), drawn only for x < 40. LOWER: flat at z = 30 everywhere. Continued along its dip,
+  // UPPER meets LOWER at x = 70: the UPPER unit (between them) thins to nothing there instead of stopping at x = 40
+  const tops = [sheet("UPPER", -10, 40, -10, 110, (x) => 100 - x, 10), sheet("LOWER", -10, 110, -10, 110, () => 30)];
+  const r = surfacesToBlock({ tops, extent: box, cell: 2 });
+  assert.equal(unitAt(r.block, 51, 51, 41), "UPPER", "x=51: UPPER continued to z=49, so the cell at 41 (above LOWER at 30) is UPPER");
+  assert.equal(unitAt(r.block, 51, 51, 55), null, "above the continued contact: not modelled");
+  assert.equal(unitAt(r.block, 65, 51, 33), "UPPER", "a thin wedge just before the intersection");
+  assert.equal(unitAt(r.block, 81, 51, 25), "LOWER", "beyond the intersection only the lower unit is left");
+  assert.equal(unitAt(r.block, 81, 51, 31), null);
+  const old = surfacesToBlock({ tops, extent: box, cell: 2, extend: false });
+  assert.equal(unitAt(old.block, 51, 51, 41), null, "extend: false — the unit ended in a wall at x = 40");
+  assert.equal(r.inverted.crossingTops, 0, "the continuation crossing LOWER is the truncation, not a contradiction");
 });
 
 test("#802 a closed solid overrides the stack inside it; the terrain cuts the top", () => {

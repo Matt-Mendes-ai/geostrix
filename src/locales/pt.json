@@ -6370,5 +6370,8 @@
   "No lines or polygons found in this file (GPX waypoints and GeoJSON points are imported as a map layer in Surface Geology).": "Nenhuma linha ou polígono encontrado neste arquivo (waypoints GPX e pontos GeoJSON são importados como camada de mapa em Geologia de superfície).",
   "This file is not GPX (no <gpx> element).": "Este arquivo não é GPX (sem elemento <gpx>).",
   "This file is not valid GeoJSON (it does not parse as JSON).": "Este arquivo não é GeoJSON válido (não pode ser lido como JSON).",
-  "This file is not GeoJSON.": "Este arquivo não é GeoJSON."
+  "This file is not GeoJSON.": "Este arquivo não é GeoJSON.",
+  "Each contact is carried past its own edge along its dip to the edge of the box, so a unit ends where its contacts meet. Untick to stop every contact at its own edge (the unit then ends in a vertical wall there).": "Cada contato é prolongado além da própria borda, ao longo do mergulho, até a borda da caixa, para que uma unidade termine onde seus contatos se encontram. Desmarque para parar cada contato na própria borda (a unidade termina então em uma parede vertical).",
+  "Extend contacts until they meet": "Prolongar os contatos até se encontrarem",
+  " Contacts were extended past their own edges until they meet ({list} as drawn).": " Os contatos foram prolongados além das próprias bordas até se encontrarem ({list} como desenhado)."
 }

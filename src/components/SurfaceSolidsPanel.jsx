@@ -73,6 +73,7 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
   const [cellIn, setCellIn] = useState("");
   const [baseIn, setBaseIn] = useState("");
   const [cutGround, setCutGround] = useState(!!terrain);
+  const [extend, setExtend] = useState(true); // TASKS.csv #1138 — continue each contact to the box, so units end where contacts meet
   const cell = Number(cellIn) > 0 ? Number(cellIn) : auto?.cell;
   const base = baseIn !== "" && Number.isFinite(Number(baseIn)) ? Number(baseIn) : auto?.extent[4];
   const box = auto && [auto.extent[0], auto.extent[1], auto.extent[2], auto.extent[3], Math.min(base, auto.extent[5] - (cell || 1)), auto.extent[5] + (cell || 0)];
@@ -84,7 +85,7 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
       const toApi = (it) => { const p = it.mesh.positions, q = new Float64Array(p.length); for (let i = 0; i < p.length; i += 3) { q[i] = p[i] - o.x; q[i + 1] = p[i + 1] - o.y; q[i + 2] = p[i + 2] - o.z; } return { name: it.name, unit: it.unit, role: roleOf(it) === "base" ? "base" : "top", positions: q, indices: it.mesh.indices }; };
       const extent = [box[0] - o.x, box[1] - o.x, box[2] - o.y, box[3] - o.y, box[4] - o.z, box[5] - o.z];
       const ground = cutGround && terrain ? (x, y) => { const g = sampleGround(x + o.x, y + o.y); return Number.isFinite(g) ? g - o.z : NaN; } : null;
-      const r = surfacesToBlock({ tops: tops.map(toApi), solids: solids.map(toApi), extent, cell, ground });
+      const r = surfacesToBlock({ tops: tops.map(toApi), solids: solids.map(toApi), extent, cell, ground, extend });
       // a surface's own colour, unless an earlier unit already has it (imported solids all share one default): then
       // null, and the pane colours the unit by its name like a logged code. #830 / #832: one entry per unit (several
       // contacts can bound one), and the layers of one unit (Basalt A, Basalt B) may share a colour
@@ -98,11 +99,11 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
       }
       const title = tr("solids from {n} surface(s)", { n: tops.length + solids.length });
       // TASKS.csv #878 — an ISO time for the record, and what it was built from (to flag its volumes when a source changes)
-      const recipe = { roles: Object.fromEntries(used.map((it) => [it.id, roleOf(it)])), cell, base, cutGround: !!(cutGround && terrain) };
+      const recipe = { roles: Object.fromEntries(used.map((it) => [it.id, roleOf(it)])), cell, base, cutGround: !!(cutGround && terrain), extend };
       const sourceIds = used.map((it) => it.id);
       onBuilt({ block: r.block, units, origin: { ...o }, when: new Date().toLocaleTimeString(), builtAtIso: new Date().toISOString(), title, matchedPct: null, fromSurfaces: true,
         source: { recipe, ids: sourceIds, key: blockSourceKey(recipe, sourceIds, surfaces) } },
-        { counts: r.counts, coverage: r.coverage, cellVolume: r.cellVolume, resolution: r.block.resolution, inverted: r.inverted }); // inverted: #860
+        { counts: r.counts, coverage: r.coverage, cellVolume: r.cellVolume, resolution: r.block.resolution, inverted: r.inverted, extended: extend }); // inverted: #860; extended: #1138
     } catch (e) { onError(e); }
   };
 
@@ -137,6 +138,7 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
           <span style={{ width: 90, flexShrink: 0, color: "var(--color-text-secondary)" }}>{tr("Base (m)")}</span>
           <input type="number" value={baseIn} placeholder={String(Math.round(auto.extent[4]))} onChange={(e) => setBaseIn(e.target.value)} style={{ ...numInput, width: 80, flex: "none" }} aria-label={tr("Base elevation (m)")} />
         </div>
+        <label style={{ ...row, cursor: "pointer", color: "var(--color-text-secondary)" }} title={tr("Each contact is carried past its own edge along its dip to the edge of the box, so a unit ends where its contacts meet. Untick to stop every contact at its own edge (the unit then ends in a vertical wall there).")}><input type="checkbox" checked={extend} onChange={(e) => setExtend(e.target.checked)} />{tr("Extend contacts until they meet")}</label>
         {terrain && <label style={{ ...row, cursor: "pointer", color: "var(--color-text-secondary)" }}><input type="checkbox" checked={cutGround} onChange={(e) => setCutGround(e.target.checked)} />{tr("Cut at the terrain (nothing above the ground)")}</label>}
         <div style={{ fontSize: "var(--font-size-xs)", color: nCells > 300_000 ? "var(--color-warn-text)" : "var(--color-text-muted)", marginBottom: 6 }}>{nCells > 2_000_000 ? tr("{n} blocks: over the 2,000,000 limit — use a larger block size.", { n: nCells.toLocaleString() }) : nCells > 300_000 ? tr("{n} blocks in the box: building them is quick, but adding them afterwards as a block model or as unit volumes is slow and memory-hungry at this size. A larger block size keeps it light.", { n: nCells.toLocaleString() }) /* #891 */ : tr("{n} blocks in the box.", { n: nCells.toLocaleString() })}</div>
       </>)}
