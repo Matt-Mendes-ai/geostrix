@@ -13,7 +13,7 @@ import { reprojectXY, getProj4Def } from "../lib/reproject.js";
 import { saveFile, safeFileName } from "../lib/desktop.js"; // safeFileName: #1114
 import { version as APP_VERSION } from "../../package.json";
 import { t as tr } from "../lib/i18n.js";
-import { colors } from "../lib/theme.js";
+import { colors, exportScale } from "../lib/theme.js"; // exportScale: #1090
 
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 const MAX_COLUMNS_3D = 256; // curtain columns in the 3D view (the picture keeps its own resolution)
@@ -25,8 +25,10 @@ function pictureOf(img) {
   pic.getContext("2d").putImageData(new ImageData(img.pixels, img.width, img.height), 0, 0);
   return pic;
 }
-function figure(img, { timeNs, depthM, along, alongUnit, title, width, height, dpr = 1, pic = pictureOf(img) }) {
-  const L = 52, R = 48, T = 22, B = 32, W = Math.max(40, width - L - R), H = Math.max(40, height - T - B);
+// s (TASKS.csv #1090): every text size, margin and tick scaled by s. 1 on screen; the exported PNG passes the factor
+// that prints its labels at printPt.small where Layout places it (exportScale), as the DC/IP section does (#585)
+function figure(img, { timeNs, depthM, along, alongUnit, title, width, height, dpr = 1, pic = pictureOf(img), s = 1 }) {
+  const L = 52 * s, R = 48 * s, T = 22 * s, B = 32 * s, W = Math.max(40, width - L - R), H = Math.max(40, height - T - B);
   const c = document.createElement("canvas");
   c.width = Math.round((W + L + R) * dpr); c.height = Math.round((H + T + B) * dpr);
   c.style.width = `${W + L + R}px`; c.style.height = `${H + T + B}px`;
@@ -36,24 +38,24 @@ function figure(img, { timeNs, depthM, along, alongUnit, title, width, height, d
   g.imageSmoothingEnabled = true;
   g.drawImage(pic, L, T, W, H);
   g.strokeStyle = colors.text; g.strokeRect(L, T, W, H); // #999 — theme constants, Exo 2 like every other chart
-  g.fillStyle = colors.text; g.font = "11px 'Exo 2', system-ui, sans-serif";
+  g.fillStyle = colors.text; g.font = `${11 * s}px 'Exo 2', system-ui, sans-serif`; g.lineWidth = Math.max(1, s * 0.8);
   let t = title;
   while (t.length > 8 && g.measureText(t).width > W + R) t = `${t.slice(0, -2)}`;
-  g.fillText(t === title ? t : `${t}…`, L, 14);
+  g.fillText(t === title ? t : `${t}…`, L, 14 * s);
   const tick = (x0, y0, x1, y1) => { g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); };
   const nice = (span, n) => { const r = span / n, p = 10 ** Math.floor(Math.log10(r)); return [1, 2, 2.5, 5, 10].map((m) => m * p).find((v) => v >= r) || 10 * p; };
-  const nY = Math.max(2, Math.floor(H / 45));
+  const nY = Math.max(2, Math.floor(H / (45 * s)));
   g.textAlign = "right";
-  for (let q = 0, st = nice(timeNs, nY); q <= timeNs + 1e-9; q += st) { const y = T + (q / timeNs) * H; tick(L - 4, y, L, y); g.fillText(String(+q.toFixed(1)), L - 6, y + 4); }
-  g.save(); g.translate(12, T + H / 2); g.rotate(-Math.PI / 2); g.textAlign = "center"; g.fillText(tr("Two-way time (ns)"), 0, 0); g.restore();
+  for (let q = 0, st = nice(timeNs, nY); q <= timeNs + 1e-9; q += st) { const y = T + (q / timeNs) * H; tick(L - 4 * s, y, L, y); g.fillText(String(+q.toFixed(1)), L - 6 * s, y + 4 * s); }
+  g.save(); g.translate(12 * s, T + H / 2); g.rotate(-Math.PI / 2); g.textAlign = "center"; g.fillText(tr("Two-way time (ns)"), 0, 0); g.restore();
   if (depthM > 0) {
     g.textAlign = "left";
-    for (let q = 0, sd = nice(depthM, nY); q <= depthM + 1e-9; q += sd) { const y = T + (q / depthM) * H; tick(L + W, y, L + W + 4, y); g.fillText(String(+q.toFixed(2)), L + W + 6, y + 4); }
-    g.save(); g.translate(L + W + R - 8, T + H / 2); g.rotate(Math.PI / 2); g.textAlign = "center"; g.fillText(tr("Depth (m)"), 0, 0); g.restore();
+    for (let q = 0, sd = nice(depthM, nY); q <= depthM + 1e-9; q += sd) { const y = T + (q / depthM) * H; tick(L + W, y, L + W + 4 * s, y); g.fillText(String(+q.toFixed(2)), L + W + 6 * s, y + 4 * s); }
+    g.save(); g.translate(L + W + R - 8 * s, T + H / 2); g.rotate(Math.PI / 2); g.textAlign = "center"; g.fillText(tr("Depth (m)"), 0, 0); g.restore();
   }
   g.textAlign = "center";
-  for (let q = 0, sa = nice(along, Math.max(2, Math.floor(W / 90))); q <= along + 1e-9; q += sa) { const x = L + (q / along) * W; tick(x, T + H, x, T + H + 4); g.fillText(String(+q.toFixed(1)), x, T + H + 15); }
-  g.fillText(alongUnit, L + W / 2, T + H + 28);
+  for (let q = 0, sa = nice(along, Math.max(2, Math.floor(W / (90 * s)))); q <= along + 1e-9; q += sa) { const x = L + (q / along) * W; tick(x, T + H, x, T + H + 4 * s); g.fillText(String(+q.toFixed(1)), x, T + H + 15 * s); }
+  g.fillText(alongUnit, L + W / 2, T + H + 28 * s);
   return c;
 }
 
@@ -223,7 +225,10 @@ export default function GprPanel({ pBtn, numInput, mainRef }) {
   };
   const exportPng = () => {
     if (!img) return;
-    const c = figure(img, { ...figOpts, width: img.width + 100, height: Math.min(img.height, 1600) + 54, pic }); // the full-resolution picture
+    // #1090 — the labels were 11 px on a canvas as wide as the line (4,100 px for 4,000 traces: 1.3 pt at 170 mm); now
+    // scaled so they print at printPt.small where Layout places the image (exportScale)
+    const s = exportScale(img.width + 100);
+    const c = figure(img, { ...figOpts, width: img.width + 100 * s, height: Math.min(img.height, 1600) + 54 * s, pic, s }); // the full-resolution picture
     saveFile({ suggestedName: `${safeFileName(gpr.name.replace(/\.dzt$/i, ""), "gpr")}_radargram.png`, filters: [{ name: "PNG", extensions: ["png"] }], content: c.toDataURL("image/png").split(",")[1], encoding: "base64" });
   };
 

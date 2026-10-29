@@ -2,9 +2,7 @@
 // distance / elevation with a vertical exaggeration chosen to fit the frame (stated on the image), poorly
 // supported cells grey, electrodes, axes, a colour bar and the fit. Drawn on a canvas rather than
 // rasterising the panel's SVG, so it has the resolution and the labels a figure needs.
-import { colors, printPt, printPx } from "./theme.js";
-// Layout places an imported image at up to 700 page px wide (LayoutModule addImportedImages)
-const PLACED_W = 700;
+import { colors, printPt, printPx, PLACED_W } from "./theme.js"; // PLACED_W: theme.js since #1090
 import { colorForVoxelValue } from "./layers.js";
 import { logStops, sequentialStops, fitVerdict } from "./inversion.js";
 import { arrMin, arrMax } from "./arrayStats.js";

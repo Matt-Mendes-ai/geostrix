@@ -40,6 +40,9 @@
 // need a token there, inline the resolved value (form 2) — never a `var()` reference.
 // Electron's printToPDF / window.print() paths (LayoutModule, the cross-section pop-out) are NOT
 // affected: those print the live document, where :root is present.
+// TASKS.csv #1090 — the exclusion is about var() ONLY. It is not a reason to keep screen-sized text in an exported
+// figure: an image placed on a Layout page is scaled to fit, so 8-11 px labels on a wide figure printed at 1-5 pt. A
+// figure drawn to be exported sizes its text on the print scale (printPt below) times exportScale(its width).
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // ADOPTION STATUS (TASKS.csv #310) — read this before assuming "it's all var() now"
@@ -173,6 +176,12 @@ export const colors = {
 // smallest under the legibility floor of a plotted A4 / A3. Points, as the page renders them: 1 pt = 96/72 px.
 export const printPt = { caption: 7, small: 8, body: 10, label: 12, heading: 16 };
 export const printPx = (pt) => Math.round(((pt * 96) / 72) * 100) / 100;
+// TASKS.csv #1090 — the widest a Layout page places an image (page px; #585 measured it for the DC/IP section). A
+// figure `width` px wide is scaled by PLACED_W / width there, so its text must be drawn at printPx(pt) * width /
+// PLACED_W to print at pt. exportScale(width, basePx, pt) is the factor that takes a figure's screen text size basePx
+// to that (never below 1: a narrow figure keeps its screen sizes).
+export const PLACED_W = 700;
+export const exportScale = (width, basePx = 11, pt = printPt.small) => Math.max(1, (printPx(pt) * (width / PLACED_W)) / basePx);
 
 export const fontSizes = {
   xs: 10, // captions, counts, units, badges

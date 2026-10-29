@@ -8,7 +8,8 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { placeLabels, leaderEnd, resolveLabels } from "../lib/sectionLabels.js"; // TASKS.csv #823
 import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped
 import { exportSvgMarkup, FIGURE_FONT } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
-import { colors } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned, the planned-hole colour of every view
+import { colors, printPt, printPx, PLACED_W } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned, the planned-hole colour of every view; print scale: #1090
+import { flushSync } from "react-dom"; // TASKS.csv #1090 — render at print size for an export, synchronously
 
 const SECTION_W = 1100, SECTION_H = 660;
 
@@ -139,7 +140,17 @@ export default function SectionWindow() {
   // the legend rows for what is on screen: the model's units only while the model is shown (#759, #1043)
   const shownLegendItems = data?.legendItems ? data.legendItems.filter(([label]) => showModel || !data.modelBackdrop || !label.startsWith("Model: ")) : null;
 
-  const snapshotToLayout = () => {
+  // TASKS.csv #1090 (review #1016, software artist) — an export is drawn at the text size that prints at printPt.caption
+  // (7 pt) where Layout places it (PLACED_W page px for the 1,100 px figure); the smallest section label is fs(9). The
+  // on-screen size, when larger, is kept. The figure is re-laid out at that size (labels placed for it, margins grown),
+  // exported, and the screen size restored, all before the next paint.
+  const [printScale, setPrintScale] = useState(null);
+  const atPrintSize = (fn) => {
+    const need = Math.max(Number(textScale) || 1, (printPx(printPt.caption) * (SECTION_W / PLACED_W)) / 9);
+    flushSync(() => setPrintScale(+need.toFixed(3)));
+    try { return fn(); } finally { setPrintScale(null); }
+  };
+  const snapshotToLayout = () => atPrintSize(() => {
     const svgEl = svgRef.current;
     const dims = svgDims();
     if (!svgEl || !dims) return;
@@ -164,7 +175,7 @@ export default function SectionWindow() {
     });
     setSnapped(true);
     setTimeout(() => setSnapped(false), 1800);
-  };
+  });
 
   // A drawn contact is always the UPPER contact of a specific litho unit — not a freeform-named line —
   // so the unit is picked BEFORE drawing starts, from the real litho vocabulary this property actually
@@ -255,16 +266,14 @@ export default function SectionWindow() {
   // changes needed.
   const baseName = (data?.title || "section").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase();
   const exportSVG = () => {
-    const svg = svgRef.current;
-    if (!svg) return;
-    const xml = exportSvgMarkup(svg).markup;
+    const xml = atPrintSize(() => (svgRef.current ? exportSvgMarkup(svgRef.current).markup : null)); // #1090
+    if (!xml) return;
     saveFile({ suggestedName: `${baseName}.svg`, filters: [{ name: "SVG", extensions: ["svg"] }], content: xml });
   };
   const exportPNG = () => {
-    const svg = svgRef.current;
-    const dims = svgDims();
-    if (!svg || !dims) return;
-    const xml = exportSvgMarkup(svg).markup;
+    const out = atPrintSize(() => { const svg = svgRef.current, d = svgDims(); return svg && d ? { xml: exportSvgMarkup(svg).markup, dims: d } : null; }); // #1090
+    if (!out) return;
+    const { xml, dims } = out;
     const img = new Image();
     const svgBlob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(svgBlob);
@@ -439,7 +448,7 @@ export default function SectionWindow() {
 
       <div className="ge-section-body" style={{ flex: 1, overflow: "auto", padding: 16 }}>
         {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{v2}. Click the pencil again to finish; Save contacts keeps the changes.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}{editing?.kind === "outline" ? ` ${tr("Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.")}` : ""}</div>}
-        <SectionSVG textFont={textFont} textScale={textScale} holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
+        <SectionSVG textFont={textFont} textScale={printScale ?? textScale} /* #1090 — the print size while an export is drawn */ holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
           snap={snapOn && !planning ? targets : null} editingId={editingId} onEditPoints={editPoints} onCopyGhost={drawing || planning ? null : copyGhost}
           labels={labels} onMoveLabel={(key, off) => changeLabels({ offsets: { ...labels.offsets, [key]: off } })} /* #823 */ />
       </div>
@@ -462,7 +471,10 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
   const labelDragRef = useRef(null); // #823 — the label being dragged: { key, ax, ay, grabDx, grabDy }
   const [labelDrag, setLabelDrag] = useState(null); // its live offset while dragging: { key, dx, dy }
   const { holes = [], section, intervals = [], points = [], planes = [], elevationProfile = null, voxelSlices = [], surfaceTraces = [], plannedHoles = [], title = "", sectionImages = [] } = data;
-  const W = SECTION_W, PAD = 60;
+  // TASKS.csv #1090 — the margin and the title / axis text positions follow the text size: at 2x (or the print size the
+  // exports use) the title and subtitle, and the tick labels and coordinates under the frame, overlapped
+  const ts = Math.max(1, textScale);
+  const W = SECTION_W, PAD = Math.round(60 * ts);
   if (!section) return null;
 
   const { ax, ay, bx, by } = section;
@@ -626,19 +638,19 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
       {niceTicks(minZ, maxZ, 8).map((z, i) => (
         <g key={i}>
           <line x1={PAD} y1={sz(z)} x2={W - PAD} y2={sz(z)} stroke="#eceef1" strokeWidth="0.5" />
-          <text x={PAD - 8} y={sz(z) + 3} fill="#65717e" fontSize={fs(10)} textAnchor="end">{z.toFixed(0)}</text>
+          <text x={PAD - 8} y={sz(z) + fs(3)} fill="#65717e" fontSize={fs(10)} textAnchor="end">{z.toFixed(0)}</text>
         </g>
       ))}
       {niceTicks(0, maxL, 8).filter((l) => l >= 0 && l <= maxL).map((l, i) => (
         <g key={`d${i}`}>
           <line x1={sx(l)} y1={H - PAD} x2={sx(l)} y2={H - PAD + 4} stroke="#65717e" strokeWidth="0.8" />
-          <text x={sx(l)} y={H - PAD + 14} fill="#65717e" fontSize={fs(10)} textAnchor="middle">{l.toFixed(0)}</text>
+          <text x={sx(l)} y={H - PAD + 4 + fs(10)} fill="#65717e" fontSize={fs(10)} textAnchor="middle">{l.toFixed(0)}</text>
         </g>
       ))}
-      <text x={PAD} y={H - PAD + 30} fill="#55606e" fontSize={fs(10)} textAnchor="start">{`${Math.round(ax).toLocaleString()} E  ${Math.round(ay).toLocaleString()} N`}</text>
-      <text x={W - PAD} y={H - PAD + 30} fill="#55606e" fontSize={fs(10)} textAnchor="end">{`${Math.round(bx).toLocaleString()} E  ${Math.round(by).toLocaleString()} N`}</text>
-      <text x={PAD} y={PAD - 22} fill="#1a2028" fontSize={fs(12)} fontWeight="600">{title || tr("Cross-section")}</text>
-      <text x={PAD} y={PAD - 8} fill="#55606e" fontSize={fs(10)}>{tr("Azimuth {v}° · {v2}{v3} · elevation in m", { v: Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360).toFixed(0), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" })}</text>
+      <text x={PAD} y={H - PAD + 4 + fs(26)} fill="#55606e" fontSize={fs(10)} textAnchor="start">{`${Math.round(ax).toLocaleString()} E  ${Math.round(ay).toLocaleString()} N`}</text>
+      <text x={W - PAD} y={H - PAD + 4 + fs(26)} fill="#55606e" fontSize={fs(10)} textAnchor="end">{`${Math.round(bx).toLocaleString()} E  ${Math.round(by).toLocaleString()} N`}</text>
+      <text x={PAD} y={PAD - fs(22)} fill="#1a2028" fontSize={fs(12)} fontWeight="600">{title || tr("Cross-section")}</text>
+      <text x={PAD} y={PAD - fs(8)} fill="#55606e" fontSize={fs(10)}>{tr("Azimuth {v}° · {v2}{v3} · elevation in m", { v: Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360).toFixed(0), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" })}</text>
 
       {/* TASKS.csv #112 — topographic ground-surface profile sampled from the loaded SRTM/DEM terrain
           along this section line (see ViewerModule.jsx's buildSectionPayload). Drawn as a filled
@@ -931,8 +943,8 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
       <g pointerEvents="none">
         {resolveLabels(floatLabels, holeLabelBoxes).map((l) => <text key={l.key} x={l.x} y={l.y} fill={l.fill} fontSize={l.size} fontWeight={l.weight} textAnchor={l.anchor}>{l.text}</text>)}
       </g>
-      <text x={W / 2} y={H - 14} fill="#55606e" fontSize={fs(11)} textAnchor="middle">{tr("Distance along section (m)")}</text>
-      <text x={16} y={H / 2} fill="#55606e" fontSize={fs(11)} textAnchor="middle" transform={`rotate(-90 16 ${H / 2})`}>{tr("Elevation (m)")}</text>
+      <text x={W / 2} y={H - fs(14)} fill="#55606e" fontSize={fs(11)} textAnchor="middle">{tr("Distance along section (m)")}</text>
+      <text x={fs(16)} y={H / 2} fill="#55606e" fontSize={fs(11)} textAnchor="middle" transform={`rotate(-90 ${fs(16)} ${H / 2})`}>{tr("Elevation (m)")}</text>
     </svg>
   );
 }
