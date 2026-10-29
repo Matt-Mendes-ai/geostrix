@@ -22,7 +22,7 @@ import { unitOf, contactOf, layerLabel, unitSummary, splitByElevation, nextLayer
 import { stackOrder, thicknessBetween } from "../lib/stackOrder.js"; // TASKS.csv #873; thicknessBetween: #896
 import { inputKey, shapeFrame, onlyOneSection, explicitInputRows, INPUT_COLUMNS } from "../lib/explicitBuild.js"; // TASKS.csv #901; rows: #880
 import { saveFile } from "../lib/desktop.js"; // TASKS.csv #880
-import { toCsv, FORMULA_LEAD } from "../lib/tabular.js"; // TASKS.csv #1082
+import { toCsv, FORMULA_LEAD, crsCell } from "../lib/tabular.js"; // TASKS.csv #1082; crsCell: #1053
 
 const MAX_POINTS = 800; // ~0.4 s to solve on a laptop (1,200 took 1.2 s); section lines are thinned to fit
 // TASKS.csv #902 — the Unit select's "New unit..." value: a private-use character, not the NUL it used to be (a NUL byte made
@@ -771,7 +771,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   // TASKS.csv #875 — interpretation strings from a DXF (Micromine / Vulcan / a contractor): open 3D strings become hard
   // lines of this surface, points its picks, closed strings on a saved section outlines there (named by DXF layer)
   const dxfInputRef = useRef(null);
-  const { setSectionContacts } = useStore();
+  const { setSectionContacts, project } = useStore(); // project: #1053 (the CRS column)
   const importDxfStrings = async (file) => {
     if (!file || !def) return;
     try {
@@ -797,7 +797,8 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
     const list = all ? defs : def ? [def] : [];
     const rows = explicitInputRows(list, sections);
     if (!rows.length) { setExportNote(tr("Nothing to export: no picks or drawn lines yet.")); return; }
-    const csv = toCsv({ fields: INPUT_COLUMNS, data: rows.map((r) => INPUT_COLUMNS.map((c) => r[c] ?? "")) }, { escapeFormulae: FORMULA_LEAD }); // #1082 — Papa, not a private quoter
+    const crs = crsCell(project); /* #1053 — the CRS of x / y, as a column (#1064) */
+    const csv = toCsv({ fields: [...INPUT_COLUMNS, "crs"], data: rows.map((r) => [...INPUT_COLUMNS.map((c) => r[c] ?? ""), crs]) }, { escapeFormulae: FORMULA_LEAD }); // #1082 — Papa, not a private quoter
     const name = all ? "explicit_surfaces_inputs" : `${(def.name || "surface").replace(/[^\w-]+/g, "_")}_inputs`;
     const res = await saveFile({ quiet: "success", suggestedName: `${name}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: `${csv}\r\n`, encoding: "text" });
     if (res?.ok) setExportNote(tr("Exported {n} row(s): picks, section-line and image-line vertices (mapped contacts, dip guides and downhole dip guides are rebuilt from the map or the core at each build and are not listed).", { n: rows.length }));

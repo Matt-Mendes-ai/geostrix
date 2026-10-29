@@ -1813,7 +1813,7 @@ async function exportBlockModelCSV(model, epsg, names = "datamine", stampChoice 
 // TASKS.csv #798 — the block model as a VTK file for ParaView / PyVista (lib/vtkExport.js)
 async function exportBlockModelVTK(model, epsg) {
   const { blockModelToVtk } = await import("../lib/vtkExport.js");
-  const { bytes } = blockModelToVtk(model, `EPSG:${epsg ?? "?"}${model.property ? `, ${model.property}` : ""}`);
+  const { bytes } = blockModelToVtk(model, `v${APP_VERSION} | EPSG:${epsg ?? "?"}${model.property ? `, ${model.property}` : ""}`);
   saveFile({ suggestedName: `${String(model.name || "block_model").replace(/[^\w\- ]/g, "").slice(0, 80)}.vtk`, filters: [{ name: "VTK (legacy)", extensions: ["vtk"] }], content: bytes /* #1040 bytes */ });
 }
 // TASKS.csv #711 — what an imported volume's values can be (the units the rest of the app uses)

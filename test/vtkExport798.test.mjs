@@ -10,7 +10,10 @@ test("#798 surface: ASCII polydata with the points and triangles", () => {
   const v = surfaceToVtk("Shell\nA", [[1, 2, 3], [4, 5, 6], [7, 8, 9], [1, 5, 9]], [0, 1, 2, 0, 2, 3], "EPSG:3156");
   const L = v.trim().split("\n");
   assert.equal(L[0], "# vtk DataFile Version 3.0");
-  assert.ok(!L[1].includes("\n") && L[1].startsWith("Shell A - GeoStrix"));
+  assert.equal(L[1], "GeoStrix | not a Mineral Resource estimate | EPSG:3156 | Shell A"); // #1053 — statement first, the name last
+  // the 256-character title limit cuts a long name, never the statement or the CRS
+  const t = surfaceToVtk("x".repeat(400), [[0, 0, 0]], [], "EPSG:3156").split("\n")[1];
+  assert.ok(t.length <= 256 && t.startsWith("GeoStrix | not a Mineral Resource estimate | EPSG:3156 | xxx"));
   assert.deepEqual(L.slice(2, 5), ["ASCII", "DATASET POLYDATA", "POINTS 4 double"]);
   assert.equal(L[5], "1.0000 2.0000 3.0000");
   assert.equal(L[9], "POLYGONS 2 8");

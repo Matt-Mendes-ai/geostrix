@@ -9,10 +9,14 @@ import { blockModelLattice } from "./estimationMeta.js";
 import { valueColumnName, numericCellFields } from "./blockModelExport.js"; // TASKS.csv #1050
 
 const title = (s) => String(s).replace(/[\r\n]+/g, " ").slice(0, 250); // the format's title line: one line, <= 256 chars
+// TASKS.csv #1053 (review #1016) — the title is all the provenance a legacy VTK file can carry, and it said only
+// "<name> - GeoStrix - EPSG:x": it now leads with the not-a-resource statement and the note (the caller's version, CRS,
+// edits), with the name last, so the 256-character limit cuts the name and never the statement
+const stampTitle = (name, note) => title(`GeoStrix | not a Mineral Resource estimate${note ? ` | ${note}` : ""} | ${name}`);
 
 // supported (#1103): per-triangle 1 / 0, written as CELL_DATA "supported" (0 = extrapolated beyond the inputs)
 export function surfaceToVtk(name, vertices, indices, note = "", supported = null) {
-  const lines = ["# vtk DataFile Version 3.0", title(`${name} - GeoStrix${note ? ` - ${note}` : ""}`), "ASCII", "DATASET POLYDATA", `POINTS ${vertices.length} double`];
+  const lines = ["# vtk DataFile Version 3.0", stampTitle(name, note), "ASCII", "DATASET POLYDATA", `POINTS ${vertices.length} double`];
   for (const [x, y, z] of vertices) lines.push(`${x.toFixed(4)} ${y.toFixed(4)} ${z.toFixed(4)}`);
   const nt = Math.floor(indices.length / 3);
   lines.push(`POLYGONS ${nt} ${nt * 4}`);
@@ -41,7 +45,7 @@ export function blockModelToVtk(model, note = "") {
   const field = scalarName(valueColumnName(model)); // #1050 — "Au_ppm", as the CSV and OMF name it (was "value")
   const extra = numericCellFields(cells); // #1050 — COVERAGE, KV, N_SAMPLES ... as further CELL_DATA arrays
   const scalars = (n, at) => extra.flatMap(({ name, get }) => { const a = new Float32Array(n).fill(NaN); at((c, i) => { const v = get(c); if (v != null) a[i] = v; }); return [`SCALARS ${scalarName(name)} float 1\nLOOKUP_TABLE default\n`, f32be(a), "\n"]; });
-  const head = (dataset) => `# vtk DataFile Version 3.0\n${title(`${model.name} - GeoStrix${note ? ` - ${note}` : ""}`)}\nBINARY\nDATASET ${dataset}\n`;
+  const head = (dataset) => `# vtk DataFile Version 3.0\n${stampTitle(model.name, note)}\nBINARY\nDATASET ${dataset}\n`;
   const L = blockModelLattice(model);
   if (L && cells.length) {
     const ix = (c) => Math.round((c.x - L.ox) / L.dx - 0.5), iy = (c) => Math.round((c.y - L.oy) / L.dy - 0.5), iz = (c) => Math.round((c.z - L.oz) / L.dz - 0.5);

@@ -76,7 +76,7 @@ const LevelPlanWindow = lazyModal(() => import("../components/LevelPlanWindow.js
 const SurfaceQueryModal = lazyModal(() => import("../components/SurfaceQueryModal.jsx")); // TASKS.csv #146  // TASKS.csv #301
 const SurfaceCompareModal = lazyModal(() => import("../components/SurfaceCompareModal.jsx")); // TASKS.csv #93  // TASKS.csv #301
 import { buildLineages, candidatePredecessors } from "../lib/surfaceVersions.js"; // TASKS.csv #93
-import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
+import { toExportCsv, crsCell } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped; crsCell: #1053
 const FenceDiagramModal = lazyModal(() => import("../components/FenceDiagramModal.jsx")); // TASKS.csv #139  // TASKS.csv #301
 const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrientationCalculator.jsx"));  // TASKS.csv #301
 import { codesInUse, connectIntervals, effectiveCode, codeInfo } from "../lib/modellingCodes.js"; // TASKS.csv #599
@@ -4350,7 +4350,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     }
     try {
       let res = null; // #1042 — "Exported" only when the file was written; Cancel says nothing
-      const { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF, sceneVertsToWorld } = await import("../lib/meshExport.js"); // #600 startup budget
+      const { exportSurfaceOBJ, exportSurfaceDXF, exportSurfaceGLTF, sceneVertsToWorld, sceneVertsToWorldFlat, worldBoxOf, provenanceLines } = await import("../lib/meshExport.js"); // #600 startup budget
+      extra.appVersion = APP_VERSION; // #1053
+      extra.worldBox = worldBoxOf(sceneVertsToWorldFlat(mesh.geometry, originRef.current).vertices); // #1053 — in the file's own coordinates
       // TASKS.csv #1103 — an explicit surface's extrapolated margin is marked in DXF (own layer), VTK and OMF (per-face "supported")
       const hull = surf.type === "explicit_surface" ? surf.params?.supportHull : null;
       const supportedOf = (vertices, indices) => (hull ? supportedFaces(Float64Array.from(vertices.flat()), Array.from(indices.flat ? indices.flat() : indices), hull) : null);
@@ -4368,13 +4370,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         // TASKS.csv #798 — legacy VTK polydata for ParaView / PyVista (pv.read)
         const { surfaceToVtk } = await import("../lib/vtkExport.js");
         const { vertices, indices } = sceneVertsToWorld(mesh.geometry, originRef.current);
-        const content = surfaceToVtk(surf.name, vertices, indices, `EPSG:${epsg}${surf.editCount > 0 ? `, hand-edited ${surf.editCount} time(s)` : ""}`, supportedOf(vertices, indices)); // #1103
+        const content = surfaceToVtk(surf.name, vertices, indices, `v${APP_VERSION} | EPSG:${epsg}${surf.editCount > 0 ? `, hand-edited ${surf.editCount} time(s)` : ""}`, supportedOf(vertices, indices)); // #1103
         res = await saveFile({ quiet: true, suggestedName: `${baseName}.vtk`, filters: [{ name: "VTK (legacy)", extensions: ["vtk"] }], content, encoding: "text" });
       } else if (format === "omf") {
         // TASKS.csv #411 — OMF v1 for Leapfrog / Datamine / Vulcan / Micromine (writer loaded on first use)
         const { writeOMF } = await import("../lib/omfWriter.js");
         const { vertices, indices } = sceneVertsToWorld(mesh.geometry, originRef.current);
-        const desc = `GeoStrix surface, EPSG:${epsg}${extra.volumeM3 != null ? `, enclosed volume ${Math.round(extra.volumeM3)} m3` : ""}${surf.editCount > 0 ? `, hand-edited ${surf.editCount} time(s)` : ""}`;
+        // TASKS.csv #1053 — the whole stamp (not-a-resource, parameters, edit log, CRS), as OBJ / DXF / glTF carry it: OMF
+        // is the Leapfrog / Datamine / Vulcan hand-off, and its description was one line
+        const desc = provenanceLines(surf.name, prov, extra).join("\n");
         const bytes = await writeOMF({ name: surf.name, description: desc, elements: [{ type: "surface", name: surf.name, description: desc, vertices: vertices.flat(), triangles: indices.flat(), ...(() => { const sp = supportedOf(vertices, indices); return sp ? { data: [{ name: "supported", description: "1 = within the inputs, 0 = extrapolated beyond them", values: Array.from(sp), location: "faces" }] } : {}; })() }] });
         res = await saveFile({ quiet: true, suggestedName: `${baseName}.omf`, filters: [{ name: "Open Mining Format", extensions: ["omf"] }], content: bytes /* #1040 bytes */ });
       }
@@ -4408,7 +4412,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     return w;
   }).filter(Boolean), [implicitSurfaces]);
   const exportPiercePoints = useCallback(async () => {
-    const rows = piercePointRows(plannedHoles.map((hole) => ({ hole, pierces: surfacePierces(plannedHoleTrace(hole), pierceSurfaces) })));
+    const rows = piercePointRows(plannedHoles.map((hole) => ({ hole, pierces: surfacePierces(plannedHoleTrace(hole), pierceSurfaces) }))).map((r) => ({ ...r, crs: crsCell(project) })); /* #1053 — the CRS of x / y, as a column (#1064) */
     if (!rows.length) { setNotices((p) => [...p, notice("The planned holes cross none of the visible modelled surfaces.")]); return; }
     const base = `${(project.name || "project").replace(/[^\w\- ]/g, "")}_pierce_points`;
     const res = await saveFile({ quiet: "success", suggestedName: `${base}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows), encoding: "text" });
@@ -4427,7 +4431,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     let res;
     if (format === "kml") res = await saveFile({ quiet: "success", suggestedName: `${base}.kml`, filters: [{ name: "KML", extensions: ["kml"] }], content: rigKML(rows, `${project.name || "GeoStrix"} planned holes`), encoding: "text" });
     else if (format === "gpx") res = await saveFile({ quiet: "success", suggestedName: `${base}.gpx`, filters: [{ name: "GPX", extensions: ["gpx"] }], content: rigGPX(rows), encoding: "text" });
-    else res = await saveFile({ quiet: "success", suggestedName: `${base}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows), encoding: "text" });
+    else res = await saveFile({ quiet: "success", suggestedName: `${base}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows.map((r) => ({ ...r, crs: `EPSG:${epsg}` }))) /* #1053 — x / y CRS (lat / lon were already WGS84) */, encoding: "text" });
     if (res.ok) setNotices((p) => [...p, notice("Exported {plannedHoles} planned hole(s) to {format}{v}.{v2}{v3}", { plannedHoles: plannedHoles.length, format: format.toUpperCase(), v: rows[0]?.declination_deg !== "" ? tr(" — magnetic azimuths use the IGRF-14 declination for {today} ({declination_deg}° at the first collar); recheck it if drilling is months away", { today, declination_deg: rows[0].declination_deg }) : "", v2: noLatLon ? tr(" {noLatLon} hole(s) have no latitude/longitude (project CRS not convertible) and are missing from KML/GPX.", { noLatLon }) : "", v3: noMag && !noLatLon ? tr(" {noMag} hole(s) have no magnetic azimuth.", { noMag }) : "" })]);
   }, [plannedHoles, project]);
 
@@ -6155,7 +6159,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       const valueLayer = !built && kind === "layer" && key ? (f) => `${String(key).toUpperCase()}_${f.attributes?.value ?? f.attributes?.type ?? "NONE"}` : null;
       const pickLabel = !built && key === "structure" ? (f) => { const a = f.attributes || {}; return Number.isFinite(a.dip) ? `${Math.round(a.dip)}/${Number.isFinite(a.dipdir_grid) ? String(Math.round(a.dipdir_grid)).padStart(3, "0") : "?"}` : null; } : null;
       const builtLayer = built?.dxfLayerOf || null;
-      const dxfText = buildDXF({ features, geomType, layerOf: valueLayer || builtLayer, labelOf: pickLabel });
+      const dxfText = `999\nGeoStrix ${label} | Project CRS: ${crsCell(project)}\n` /* #1053 — DXF comment record */ + buildDXF({ features, geomType, layerOf: valueLayer || builtLayer, labelOf: pickLabel });
       const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.dxf`,
         filters: [{ name: "DXF", extensions: ["dxf"] }],
@@ -7656,9 +7660,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 {sections.some((s) => (s.contacts || []).length) && (
                   <span style={{ display: "flex", gap: 8, textTransform: "none", letterSpacing: 0, fontSize: "var(--font-size-xs)" }}>
                     <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", color: "var(--color-info)" }} title={tr("Every drawn contact, fault, string and outline: one row per vertex with real x, y, z")}
-                      onClick={async () => { const { sectionStringsToRows } = await import("../lib/sectionExport.js"); /* #409; on demand #552 */ const rows = sectionStringsToRows(sections); const res = await saveFile({ quiet: "success", suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows), encoding: "text" }); if (res.ok) setNotices((p) => [...p, notice("Exported {rows} vertices of section strings to CSV.", { rows: rows.length })]); }}>{tr("Strings CSV")}</span>
+                      onClick={async () => { const { sectionStringsToRows } = await import("../lib/sectionExport.js"); /* #409; on demand #552 */ const rows = sectionStringsToRows(sections).map((r) => ({ ...r, crs: crsCell(project) })) /* #1053 — the CRS of x / y, as a column (#1064) */; const res = await saveFile({ quiet: "success", suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows), encoding: "text" }); if (res.ok) setNotices((p) => [...p, notice("Exported {rows} vertices of section strings to CSV.", { rows: rows.length })]); }}>{tr("Strings CSV")}</span>
                     <span role="button" tabIndex={0} onKeyDown={activateOnKey} style={{ cursor: "pointer", color: "var(--color-info)" }} title={tr("Every drawn contact, fault, string and outline as a 3D polyline (layer = section_kind_name; outlines closed) — opens in Vulcan, Datamine, Leapfrog, Micromine, QGIS")}
-                      onClick={async () => { const { sectionStringsToDXF } = await import("../lib/sectionExport.js"); /* #552 */ const { dxf, count } = sectionStringsToDXF(sections); const res = await saveFile({ quiet: "success", suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.dxf`, filters: [{ name: "DXF", extensions: ["dxf"] }], content: dxf, encoding: "text" }); if (res.ok) setNotices((p) => [...p, notice("Exported {count} section string(s) to 3D DXF.", { count })]); }}>{tr("DXF")}</span>
+                      onClick={async () => { const { sectionStringsToDXF } = await import("../lib/sectionExport.js"); /* #552 */ const { dxf, count } = sectionStringsToDXF(sections); const res = await saveFile({ quiet: "success", suggestedName: `${(project.name || "project").replace(/[^\w\- ]/g, "")}_section_strings.dxf`, filters: [{ name: "DXF", extensions: ["dxf"] }], content: `999\nGeoStrix section strings | Project CRS: ${crsCell(project)}\n${dxf}` /* #1053 — DXF comment record */, encoding: "text" }); if (res.ok) setNotices((p) => [...p, notice("Exported {count} section string(s) to 3D DXF.", { count })]); }}>{tr("DXF")}</span>
                   </span>
                 )}
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey}

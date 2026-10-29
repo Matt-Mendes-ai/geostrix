@@ -24,6 +24,7 @@
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 import * as THREE from "three";
 import { sceneVertsToWorldFlat } from "./meshFlat.js"; // #1072
+import { NOT_A_RESOURCE } from "./provenance.js"; // TASKS.csv #1053 — one wording for every stamp
 import { DXF_R12_HEADER, sanitizeLayerName } from "./dxf.js"; // TASKS.csv #1114 — one header and one layer-name rule for both DXF writers
 
 // Reads a mesh's position/index buffers and returns plain arrays of world-space vertices + 0-based
@@ -59,10 +60,16 @@ export { sceneVertsToWorldFlat } from "./meshFlat.js";
 // gets re-imported six months later as gospel. `provenance` is the surface's own params block (see
 // runNumericModel); this renders it as plain comment lines the format allows, always leading with the
 // "not a Mineral Resource estimate" line so it survives being read by a human or grepped by a script.
+// TASKS.csv #1053 — [xmin, ymin, zmin, xmax, ymax, zmax] of world vertices (flat x, y, z), for extra.worldBox
+export function worldBoxOf(V) {
+  const b = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+  for (let i = 0; i + 2 < V.length; i += 3) for (let k = 0; k < 3; k++) { const v = V[i + k]; if (v < b[k]) b[k] = v; if (v > b[k + 3]) b[k + 3] = v; }
+  return b[0] <= b[3] ? b : null;
+}
 export function provenanceLines(name, provenance, extra = {}) {
   const out = [
-    `GeoStrix exploration model — not a Mineral Resource estimate.`,
-    `Surface: ${name}`,
+    NOT_A_RESOURCE, // TASKS.csv #1053 — was its own sentence, without the NI 43-101 / JORC clause
+    `Surface: ${name}${extra.appVersion ? ` | GeoStrix ${extra.appVersion}` : ""}`, // #1053 — the caller passes the version
     `Exported: ${new Date().toISOString()}`,
   ];
   // TASKS.csv #145 — HAND-EDIT DISCLOSURE, and it goes SECOND, immediately under the "not a Mineral
@@ -84,6 +91,8 @@ export function provenanceLines(name, provenance, extra = {}) {
     out.push(`Manual edits move vertices only; triangle connectivity is unchanged, so the mesh is exactly as watertight (or not) as it was when generated.`);
   }
   if (extra.epsg) out.push(`Project CRS: EPSG:${extra.epsg}`);
+  // #1053 — the mesh's own box, in the coordinates written to the file (the params extent below is not)
+  if (extra.worldBox) out.push(`Mesh extent (exported coordinates): E ${extra.worldBox[0].toFixed(1)} to ${extra.worldBox[3].toFixed(1)}, N ${extra.worldBox[1].toFixed(1)} to ${extra.worldBox[4].toFixed(1)}, elevation ${extra.worldBox[2].toFixed(1)} to ${extra.worldBox[5].toFixed(1)} m`);
   if (extra.densityTPerM3 != null) out.push(`Bulk density used for tonnage: ${extra.densityTPerM3} t/m3 (assumed, not measured)`);
   if (extra.volumeM3 != null) out.push(`Enclosed volume: ${extra.volumeM3.toFixed(1)} m3 (in-situ, dry, undiluted, no recovery applied)`);
   if (extra.openSurface) out.push("Open surface: it encloses no volume (no tonnage can be taken from it)"); // TASKS.csv #1028
@@ -120,7 +129,9 @@ export function provenanceLines(name, provenance, extra = {}) {
     if (q.anisotropy) out.push(anisotropyLine(q.anisotropy)); // #674 — the #650 trend shape printed "undefined"
     if (q.searchEllipsoid) out.push(`Search ellipsoid: ${q.searchEllipsoid.azimuth}/${q.searchEllipsoid.dip} deg, ranges ${q.searchEllipsoid.major}/${q.searchEllipsoid.semiMajor}/${q.searchEllipsoid.minor} m, min neighbours ${q.searchEllipsoid.minSamples}`);
     if (q.domain) out.push(`Model domain: ${q.domain}${q.clippedToDomain ? " (output mesh clipped to it)" : " (input points restricted to it)"}`);
-    if (q.extent) out.push(`Modelled extent (project coords, origin-relative): ${q.extent.join(", ")}`);
+    // #1053 — this is the solve grid's box relative to the scene origin (and, under a trend, in the warped frame): it
+    // cannot be compared with the exported coordinates, so it says so; the mesh's own box is the "Mesh extent" line
+    if (q.extent) out.push(`Solve-grid extent (internal frame: relative to the scene origin${q.anisotropy ? ", in the trend's warped frame" : ""}; not the exported coordinates): ${q.extent.join(", ")}`);
     if (q.samplePoints != null) out.push(`Sample points: ${q.samplePoints}${q.alteredSamplePoints != null ? ` (${q.alteredSamplePoints} inside the assemblage)` : ""}${q.cellsEstimated != null ? ` | cells estimated: ${q.cellsEstimated}` : ""}`);
     if (q.closure) out.push(`Closure mode: ${q.closure}${q.closure === "artificial" ? " (part of the boundary is the search-radius wall, NOT a logged boundary)" : ""}`);
     if (q.generatedAt) out.push(`Generated: ${q.generatedAt}`);
