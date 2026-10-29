@@ -114,6 +114,7 @@ export function createModellingRuns(ctx, mcRef) {
     setVeinBusy,
     softIntercepts,
     stackFaults,
+    stackFaultOffsets, // TASKS.csv #1054
     stackRelation,
     structureRowsToOrientations,
     surfaceOrientationsNear,
@@ -312,7 +313,7 @@ export function createModellingRuns(ctx, mcRef) {
       // TASKS.csv #356 — ask for the lithology block (model check + volumes) unless anisotropy warps the
       // model space, where block coordinates no longer match hole positions directly.
       { resolution: [modelResolution, modelResolution, modelResolution], relation, rangeMultiplier: rangeMultiplier || 0, signal: abortController.signal, returnBlock: true, // #679 — with a trend too: the check and volumes work in the warped frame (below)
-        faults: sidecarSpecs.filter((s) => s.fault).map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations })), // #360
+        faults: sidecarSpecs.filter((s) => s.fault).map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations, ...(s.offsets ? { offsets: s.offsets } : {}) })), // #360; offsets: #1054
         ...(evalPts ? { evaluateAt: evalPts } : {}), surfaceDetail }, // #756; surfaceDetail: #766
     );
     clearInterval(rampTimer);
@@ -431,10 +432,13 @@ export function createModellingRuns(ctx, mcRef) {
         generatedAt: new Date().toISOString(),
         // TASKS.csv #1101 — the points and orientations this run sent for this surface (world, unwarped, with nuggets)
         runId, inputs: captureInputs(spec, sidecarSpecs[specIndex], originRef.current),
+        ...(res.faultOffsets ? { faultOffsets: res.faultOffsets } : {}), // #1054 — which units each fault offset in this run
       };
       setImplicitSurfaces((p) => [...p, { id, name: spec.label, visible: true, vertexCount: surf.vertices.length, faceCount: faces.length, type: spec.type || "other", relationships: [], params }]);
     });
     // TASKS.csv #512 — onlap stacks share one scalar field, so the sidecar sends each repeated pick once
+    // TASKS.csv #1054 — what each fault offset, as GemPy applied it, and the limit no choice here can lift
+    if (res.faultOffsets && Object.keys(res.faultOffsets).length) setNotices((p) => [...p, notice("Faults as solved: {list}. Each fault runs through the whole model box (GemPy here cannot end a fault).", { list: Object.entries(res.faultOffsets).map(([f, u]) => tr("{fault} offsets {units}", { fault: f, units: u.length ? u.join(", ") : tr("nothing") })).join("; ") })]);
     if (res.orientationsDeduplicated > 0) setNotices((p) => [...p, notice("{orientationsDeduplicated} repeated orientation(s) were given to GemPy once rather than once per unit: in an onlap stack every unit shares one field, so the copies added solve time but no information.", { orientationsDeduplicated: res.orientationsDeduplicated })]);
     if (missing.length) setNotices((p) => [...p, notice("GemPy returned no mesh for: {missing} (try adding more points or a wider spread of orientations for those).", { missing: missing.join(", ") })]);
     if (nonFinite.length) setNotices((p) => [...p, notice("GemPy returned some invalid (NaN) vertices — the surface is shown without the triangles that used them, so it may have holes: {nonFinite}. Usually too few points / orientations for the extent or resolution.", { nonFinite: nonFinite.join("; ") })]); // #314
@@ -1131,12 +1135,13 @@ export function createModellingRuns(ctx, mcRef) {
     const skipped = [];
     // TASKS.csv #599 — the stack's own top-to-bottom order is the pile order for its modelling codes
     const pileOrder = unitNames.filter((u) => typeof u === "string" && u.startsWith("mcode:")).map((u) => u.slice(6));
+    const specKey = new Map(); // TASKS.csv #1054 — stack unit key -> its spec, for a fault's "offsets units from ... down"
     unitNames.forEach((u) => {
       // TASKS.csv #176 — stackUnits carries `group:<id>` keys verbatim; resolve to the group object
       // only here, at the point the spec is actually gathered.
       const target = resolveLithoTarget(u);
       const spec = target ? gatherLithoSurfaceSpec(target, traces, { silent: true, pileOrder }) : null;
-      if (spec) specs.push(spec); else skipped.push(target && typeof target === "object" ? target.name : target || "(deleted group)");
+      if (spec) { specs.push(spec); specKey.set(u, spec); } else skipped.push(target && typeof target === "object" ? target.name : target || "(deleted group)");
     });
     if (skipped.length) setNotices((p) => [...p, notice("Skipping from the stack (no lithology intervals found): {skipped}.", { skipped: skipped.join(", ") })]);
     if (specs.length < 2) { setNotices((p) => [...p, notice("Need at least 2 units with data to model a stack — add more units or check your lithology import.")]); return; }
@@ -1154,13 +1159,22 @@ export function createModellingRuns(ctx, mcRef) {
       }
     }
     // TASKS.csv #360 — faults that offset the stack, solved in the same GemPy run (FAULT groups)
-    const faultSpecs = [];
+    const faultSpecs = [], faultKey = new Map();
     stackFaults.forEach((key) => {
       const f = gatherFaultSpec(key, traces);
-      if (f.spec) faultSpecs.push(f.spec); else setNotices((p) => [...p, notice("Fault \"{v}\" left out: {why}", { v: key.replace("|", " — "), why: f.why })]);
+      if (f.spec) { faultSpecs.push(f.spec); faultKey.set(key, f.spec); } else setNotices((p) => [...p, notice("Fault \"{v}\" left out: {why}", { v: key.replace("|", " — "), why: f.why })]);
     });
     if (faultSpecs.length) setNotices((p) => [...p, notice("The stack is offset by {faultSpecs} fault(s) solved in the same model: {v}.", { faultSpecs: faultSpecs.length, v: faultSpecs.map((f) => f.meshName).join(", ") })]);
 
+    // TASKS.csv #1054 — what each fault offsets: every unit (GemPy's default) or the units from a chosen one down, and the
+    // faults listed after it that it also displaces. Sent as names; the sidecar maps them to GemPy's fault relations.
+    stackFaults.forEach((key, i) => {
+      const cfg = (stackFaultOffsets || {})[key], spec = faultKey.get(key);
+      if (!spec || !cfg || (!cfg.from && !(cfg.faults || []).length)) return;
+      const from = cfg.from && specKey.has(cfg.from) ? specs.indexOf(specKey.get(cfg.from)) : 0;
+      const later = stackFaults.slice(i + 1);
+      spec.offsets = [...specs.slice(Math.max(0, from)).map((s) => s.meshName), ...(cfg.faults || []).filter((k) => later.includes(k) && faultKey.has(k)).map((k) => faultKey.get(k).meshName)];
+    });
     await runSurfaceStack([...faultSpecs, ...specs], { relation: stackRelation }); // TASKS.csv #271
   };
 

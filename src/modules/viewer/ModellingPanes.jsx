@@ -176,6 +176,7 @@ export default function ModellingPanes(props) {
     setSmoothClusters,
     setStackAdd,
     setStackFaults,
+    stackFaultOffsets, setStackFaultOffsets, // TASKS.csv #1054
     setStackRelation,
     setStereonetOpen,
     setStructuralTarget,
@@ -668,12 +669,34 @@ export default function ModellingPanes(props) {
           <option value="">{faultCandidates.length ? tr("Add a fault…") : tr("No structure picks with dip / dip direction")}</option>
           {faultCandidates.filter((c) => !stackFaults.includes(c.key)).map((c) => <option key={c.key} value={c.key}>{c.id ? `${c.type} — ${c.id}` : tr("{type} (all picks)", { type: c.type })} · {tr(c.n === 1 ? "{n} pick" : "{n} picks", { n: c.n })}{c.faultLike ? "" : tr(" (not named as a fault)")}</option>)}
         </select>
-        {stackFaults.map((k) => (
-          <div key={k} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 8px", marginTop: 4, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)" }}>
-            <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{k.replace(/\|$/, " (all picks)").replace("|", " — ")}</span>
-            <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => setStackFaults((p) => p.filter((x) => x !== k)), tr("Remove fault \"{k}\" from the stack", { k }))} />
+        {stackFaults.map((k, fi) => {
+          // TASKS.csv #1054 — what this fault offsets: every unit (GemPy's default) or the units from one down (an erosional
+          // stack: a cover laid down after the fault stays whole), and the faults listed after it that it also displaces
+          const cfg = (stackFaultOffsets || {})[k] || {}, later = stackFaults.slice(fi + 1);
+          const setCfg = (patch) => setStackFaultOffsets?.((p) => ({ ...p, [k]: { ...(p[k] || {}), ...patch } }));
+          const label = (x) => x.replace(/\|$/, " (all picks)").replace("|", " — ");
+          return (
+          <div key={k} style={{ padding: "4px 8px", marginTop: 4, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label(k)}</span>
+              <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => setStackFaults((p) => p.filter((x) => x !== k)), tr("Remove fault \"{k}\" from the stack", { k }))} />
+            </div>
+            {stackRelation === "erode" && stackUnits.length > 1 && (
+              <select value={cfg.from || ""} onChange={(e) => setCfg({ from: e.target.value })} style={{ ...smallSel, width: "100%", marginTop: 3 }} aria-label={tr("Units this fault offsets")} title={tr("Units younger than the chosen one were laid down after the fault and are not offset by it")}>
+                <option value="">{tr("Offsets every unit")}</option>
+                {stackUnits.slice(1).map((u) => <option key={u} value={u}>{tr("Offsets {unit} and the units below it", { unit: resolveLithoTarget(u)?.name || u })}</option>)}
+              </select>
+            )}
+            {later.map((g) => (
+              <label key={g} style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
+                <input type="checkbox" checked={(cfg.faults || []).includes(g)} onChange={(e) => setCfg({ faults: e.target.checked ? [...(cfg.faults || []), g] : (cfg.faults || []).filter((x) => x !== g) })} />
+                {tr("Also offsets the fault {fault}", { fault: label(g) })}
+              </label>
+            ))}
           </div>
-        ))}
+          );
+        })}
+        {stackFaults.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{tr("Each fault runs through the whole model box: GemPy here cannot end a fault where its picks stop. By default a fault offsets every unit and no other fault.")}</div>}
         {/* TASKS.csv #271 — GemPy's own StructuralGroup semantics, exposed instead of hardcoded. */}
         <label style={{ display: "block", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title={tr("Erode: each younger unit truncates everything below it (an erosional unconformity), and a unit missing between its neighbours in a hole pinches out there. Conformable: every unit is a level of one shared field, so the surfaces stay parallel, never cross and never meet: a unit keeps a thickness everywhere and cannot pinch out.")}>{tr("Unit relationship")}<select value={stackRelation} onChange={(e) => setStackRelation(e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }}>
             <option value="erode">{tr("Erode — younger units truncate older (unconformity)")}</option>

@@ -10,7 +10,7 @@ Run standalone for testing (see python-sidecar/README.md):
     uvicorn app.main:app --host 127.0.0.1 --port 8765 --reload
 """
 
-from typing import List, Literal
+from typing import Dict, List, Literal, Optional  # Dict, Optional: TASKS.csv #1054
 import base64  # TASKS.csv #325
 import hashlib
 import hmac
@@ -578,6 +578,10 @@ class SurfaceInput(BaseModel):
         description="GemPy needs at least one orientation to constrain each surface's dip — "
                     "without it the interpolator has no way to know which way the surface tilts.",
     )
+    # TASKS.csv #1054 — on a FAULT only: the names of the surfaces (stack units, and faults listed after this one) it
+    # offsets. None = GemPy's default OFFSET_FORMATIONS (every unit, no fault). Sent to GemPy as its list form of
+    # fault_relations, so a cover laid down after the fault is left whole and one fault can displace another.
+    offsets: Optional[List[str]] = None
 
 
 class ImplicitModelRequest(BaseModel):
@@ -644,6 +648,8 @@ class ImplicitModelResponse(BaseModel):
     surface_detail: int | None = None  # TASKS.csv #766 — the surface octree level actually used
     # TASKS.csv #756 — unit id at each evaluate_at point, numbered like block["ids"] (id 1 = above every modelled top)
     evaluated: List[int] | None = None
+    # TASKS.csv #1054 — for each fault, the surfaces it offsets as GemPy applied them (from its fault-relations matrix)
+    fault_offsets: Dict[str, List[str]] | None = None
 
 
 MAX_RESOLUTION_CELLS = 64 * 64 * 64  # keeps a single request from blocking the sidecar for too long
@@ -709,6 +715,7 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
         import gempy as gp
         from gempy.core.data import SurfacePointsTable, OrientationsTable, StructuralFrame, StructuralGroup, StructuralElement
         from gempy_engine.core.data.stack_relation_type import StackRelationType
+        from gempy.core.data.structural_group import FaultsRelationSpecialCase  # TASKS.csv #1054
     except ImportError as err:
         raise HTTPException(
             status_code=503,
@@ -785,6 +792,15 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
         model = gp.create_geomodel(project_name="geostrix_implicit", extent=req.extent, resolution=res, structural_frame=frame)
         if fault_group_names:
             gp.set_is_fault(model, fault_group_names)  # #360
+            # TASKS.csv #1054 — a fault that names what it offsets: GemPy's list form of fault_relations (groups AFTER it
+            # in the frame only: the stack, and faults listed after it). An empty selection offsets nothing.
+            sg = model.structural_frame.structural_groups
+            for gname, f in zip(fault_group_names, req.faults):
+                if f.offsets is None:
+                    continue
+                i = next(k for k, g in enumerate(sg) if g.name == gname)
+                targets = [g for g in sg[i + 1:] if any(e.name in f.offsets for e in g.elements)]
+                sg[i].fault_relations = targets if targets else FaultsRelationSpecialCase.OFFSET_NONE
         # TASKS.csv #655 — GemPy's input rescale is NOT isotropic as built: transforms.py computes its per-axis
         # ratios once and rewrites them with a stale list, so whenever the vertical span lies between the two
         # horizontal spans the shorter horizontal axis is stretched (control points 500 x 1000 x 700 m -> scale
@@ -852,5 +868,14 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
     evaluated = None
     if req.evaluate_at:  # #756 — same id shift as the block (fault elements take the first ids)
         evaluated = (np.rint(np.asarray(sol.raw_arrays.custom)).astype(int) - len(fault_elements)).tolist()
-    return ImplicitModelResponse(evaluated=evaluated, surfaces=out, range_used=range_used, range_default=range_default, c_o=c_o, block=block, orientations_deduplicated=deduped,
+    # TASKS.csv #1054 — what each fault offsets, read back from GemPy's own matrix (rows: offsetting group)
+    fault_offsets = None
+    if fault_group_names:
+        sg = model.structural_frame.structural_groups
+        fr = model.structural_frame.fault_relations
+        fault_offsets = {}
+        for gname in fault_group_names:
+            i = next(k for k, g in enumerate(sg) if g.name == gname)
+            fault_offsets[sg[i].elements[0].name] = [e.name for j, g in enumerate(sg) if fr[i, j] for e in g.elements]
+    return ImplicitModelResponse(fault_offsets=fault_offsets, evaluated=evaluated, surfaces=out, range_used=range_used, range_default=range_default, c_o=c_o, block=block, orientations_deduplicated=deduped,
                                  input_scale_ratios=input_scale_ratios, precision=req.precision, surface_detail=surface_level_used)

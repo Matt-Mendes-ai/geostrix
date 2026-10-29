@@ -6379,5 +6379,14 @@
   "Made by {label} from \"{source}\"{params}.": "Feito com {label} a partir de \"{source}\"{params}.",
   "This surface was made before GeoStrix kept a run's inputs: run it again to export them.": "Esta superfície foi feita antes de o GeoStrix guardar as entradas de uma execução: execute-a de novo para exportá-las.",
   "The interface points and orientations this GemPy run used, for every surface of the run, as GemPy's surface_points.csv and orientations.csv (world coordinates, with nuggets), to check or rebuild the model in GemPy or Leapfrog": "Os pontos de interface e orientações que esta execução do GemPy usou, para cada superfície da execução, como surface_points.csv e orientations.csv do GemPy (coordenadas reais, com nuggets), para verificar ou reconstruir o modelo no GemPy ou Leapfrog",
-  "Model inputs (GemPy CSV)": "Entradas do modelo (CSV do GemPy)"
+  "Model inputs (GemPy CSV)": "Entradas do modelo (CSV do GemPy)",
+  "Faults as solved: {list}. Each fault runs through the whole model box (GemPy here cannot end a fault).": "Falhas como resolvidas: {list}. Cada falha atravessa toda a caixa do modelo (aqui o GemPy não consegue terminar uma falha).",
+  "{fault} offsets {units}": "{fault} desloca {units}",
+  "nothing": "nada",
+  "Units this fault offsets": "Unidades que esta falha desloca",
+  "Units younger than the chosen one were laid down after the fault and are not offset by it": "As unidades mais jovens que a escolhida foram depositadas depois da falha e não são deslocadas por ela",
+  "Offsets every unit": "Desloca todas as unidades",
+  "Offsets {unit} and the units below it": "Desloca {unit} e as unidades abaixo",
+  "Also offsets the fault {fault}": "Também desloca a falha {fault}",
+  "Each fault runs through the whole model box: GemPy here cannot end a fault where its picks stop. By default a fault offsets every unit and no other fault.": "Cada falha atravessa toda a caixa do modelo: aqui o GemPy não consegue terminar uma falha onde suas medidas param. Por padrão uma falha desloca todas as unidades e nenhuma outra falha."
 }

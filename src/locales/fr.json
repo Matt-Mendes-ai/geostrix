@@ -6379,5 +6379,14 @@
   "Made by {label} from \"{source}\"{params}.": "Obtenu par {label} à partir de « {source} »{params}.",
   "This surface was made before GeoStrix kept a run's inputs: run it again to export them.": "Cette surface a été faite avant que GeoStrix ne garde les entrées d’un calcul : relancez-le pour les exporter.",
   "The interface points and orientations this GemPy run used, for every surface of the run, as GemPy's surface_points.csv and orientations.csv (world coordinates, with nuggets), to check or rebuild the model in GemPy or Leapfrog": "Les points d’interface et orientations utilisés par ce calcul GemPy, pour chaque surface du calcul, en surface_points.csv et orientations.csv de GemPy (coordonnées réelles, avec nuggets), pour vérifier ou reconstruire le modèle dans GemPy ou Leapfrog",
-  "Model inputs (GemPy CSV)": "Entrées du modèle (CSV GemPy)"
+  "Model inputs (GemPy CSV)": "Entrées du modèle (CSV GemPy)",
+  "Faults as solved: {list}. Each fault runs through the whole model box (GemPy here cannot end a fault).": "Failles telles que résolues : {list}. Chaque faille traverse toute la boîte du modèle (GemPy ici ne peut pas terminer une faille).",
+  "{fault} offsets {units}": "{fault} décale {units}",
+  "nothing": "rien",
+  "Units this fault offsets": "Unités que décale cette faille",
+  "Units younger than the chosen one were laid down after the fault and are not offset by it": "Les unités plus jeunes que celle choisie se sont déposées après la faille et ne sont pas décalées par elle",
+  "Offsets every unit": "Décale toutes les unités",
+  "Offsets {unit} and the units below it": "Décale {unit} et les unités en dessous",
+  "Also offsets the fault {fault}": "Décale aussi la faille {fault}",
+  "Each fault runs through the whole model box: GemPy here cannot end a fault where its picks stop. By default a fault offsets every unit and no other fault.": "Chaque faille traverse toute la boîte du modèle : GemPy ici ne peut pas terminer une faille là où ses mesures s’arrêtent. Par défaut une faille décale toutes les unités et aucune autre faille."
 }

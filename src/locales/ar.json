@@ -6379,5 +6379,14 @@
   "Made by {label} from \"{source}\"{params}.": "نتج عن {label} من \"{source}\"{params}.",
   "This surface was made before GeoStrix kept a run's inputs: run it again to export them.": "صُنع هذا السطح قبل أن يحفظ GeoStrix مدخلات التشغيل: شغّله مجددًا لتصديرها.",
   "The interface points and orientations this GemPy run used, for every surface of the run, as GemPy's surface_points.csv and orientations.csv (world coordinates, with nuggets), to check or rebuild the model in GemPy or Leapfrog": "نقاط التماس والاتجاهات التي استخدمها تشغيل GemPy هذا، لكل سطح في التشغيل، كملفي surface_points.csv وorientations.csv الخاصين بـ GemPy (إحداثيات حقيقية، مع قيم nugget)، للتحقق من النموذج أو إعادة بنائه في GemPy أو Leapfrog",
-  "Model inputs (GemPy CSV)": "مدخلات النموذج (CSV لـ GemPy)"
+  "Model inputs (GemPy CSV)": "مدخلات النموذج (CSV لـ GemPy)",
+  "Faults as solved: {list}. Each fault runs through the whole model box (GemPy here cannot end a fault).": "الصدوع كما حُلّت: {list}. يمتد كل صدع عبر صندوق النموذج كله (لا يستطيع GemPy هنا إنهاء صدع).",
+  "{fault} offsets {units}": "{fault} يزيح {units}",
+  "nothing": "لا شيء",
+  "Units this fault offsets": "الوحدات التي يزيحها هذا الصدع",
+  "Units younger than the chosen one were laid down after the fault and are not offset by it": "الوحدات الأحدث من المختارة ترسّبت بعد الصدع ولا يزيحها",
+  "Offsets every unit": "يزيح كل الوحدات",
+  "Offsets {unit} and the units below it": "يزيح {unit} والوحدات التي تحتها",
+  "Also offsets the fault {fault}": "يزيح أيضًا الصدع {fault}",
+  "Each fault runs through the whole model box: GemPy here cannot end a fault where its picks stop. By default a fault offsets every unit and no other fault.": "يمتد كل صدع عبر صندوق النموذج كله: لا يستطيع GemPy هنا إنهاء صدع حيث تتوقف قياساته. افتراضيًا يزيح الصدع كل الوحدات ولا يزيح صدعًا آخر."
 }

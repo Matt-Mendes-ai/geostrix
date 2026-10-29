@@ -6379,5 +6379,14 @@
   "Made by {label} from \"{source}\"{params}.": "Hecho con {label} a partir de \"{source}\"{params}.",
   "This surface was made before GeoStrix kept a run's inputs: run it again to export them.": "Esta superficie se hizo antes de que GeoStrix guardara las entradas de una corrida: vuelva a correrla para exportarlas.",
   "The interface points and orientations this GemPy run used, for every surface of the run, as GemPy's surface_points.csv and orientations.csv (world coordinates, with nuggets), to check or rebuild the model in GemPy or Leapfrog": "Los puntos de interfaz y orientaciones que usó esta corrida de GemPy, para cada superficie de la corrida, como surface_points.csv y orientations.csv de GemPy (coordenadas reales, con nuggets), para verificar o reconstruir el modelo en GemPy o Leapfrog",
-  "Model inputs (GemPy CSV)": "Entradas del modelo (CSV de GemPy)"
+  "Model inputs (GemPy CSV)": "Entradas del modelo (CSV de GemPy)",
+  "Faults as solved: {list}. Each fault runs through the whole model box (GemPy here cannot end a fault).": "Fallas como se resolvieron: {list}. Cada falla atraviesa toda la caja del modelo (GemPy aquí no puede terminar una falla).",
+  "{fault} offsets {units}": "{fault} desplaza {units}",
+  "nothing": "nada",
+  "Units this fault offsets": "Unidades que desplaza esta falla",
+  "Units younger than the chosen one were laid down after the fault and are not offset by it": "Las unidades más jóvenes que la elegida se depositaron después de la falla y no son desplazadas por ella",
+  "Offsets every unit": "Desplaza todas las unidades",
+  "Offsets {unit} and the units below it": "Desplaza {unit} y las unidades debajo",
+  "Also offsets the fault {fault}": "También desplaza la falla {fault}",
+  "Each fault runs through the whole model box: GemPy here cannot end a fault where its picks stop. By default a fault offsets every unit and no other fault.": "Cada falla atraviesa toda la caja del modelo: GemPy aquí no puede terminar una falla donde terminan sus mediciones. Por defecto una falla desplaza todas las unidades y ninguna otra falla."
 }
