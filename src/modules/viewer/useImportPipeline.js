@@ -5,6 +5,7 @@
 // its body as the code used to run, so React's hook order (the useState / useRef / useCallback inside) and every
 // closure see exactly the same values as before. `ctx` = what the code reads from the component, listed by an
 // eslint-scope analysis; the return = what the rest of ViewerModule uses.
+import { featureCountText } from "../../lib/featureCount.js"; // TASKS.csv #1116
 import { useRef, useState, useCallback } from "react";
 import { errorNotice, notice, appendNotice } from "../../lib/notices.js"; // TASKS.csv #739 — caught errors show as errors whatever their wording
 import * as THREE from "three";
@@ -81,7 +82,7 @@ export function useImportPipeline(ctx) {
     const layer = buildLayer({ ...parsed, epsg: guessEpsgFromPrjWkt(parsed.prjWkt) }, { sourceName, projectEpsg: live.project?.epsg, qml: null, sourceOverride: null });
     if (!layer) { setNotices((p) => [...p, notice("{name}: no usable line / polygon features.", { name: file.name })]); return; }
     live.addMapLayer({ ...layer, drapeMode: live.terrain ? "terrain" : "flat" });
-    setNotices((p) => [...p, notice("{name}: {features} {geomType}{v} added to Map layers (left panel; remove or hide it there), {crsNote}{v2}. Lines and polygons are map data, not drillhole tables.", { name: file.name, features: layer.features.length, geomType: layer.geomType, v: layer.features.length === 1 ? "" : "s", crsNote: layer.crsNote, v2: live.terrain ? tr(", draped on the terrain") : "" })]);
+    setNotices((p) => [...p, notice("{name}: {features} added to Map layers (left panel; remove or hide it there), {crsNote}{v2}. Lines and polygons are map data, not drillhole tables.", { name: file.name, features: featureCountText(layer.features.length, layer.geomType) /* #1116 */, crsNote: layer.crsNote, v2: live.terrain ? tr(", draped on the terrain") : "" })]);
   };
   const isMapGeometry = (meta) => meta?.vector && meta.vector.geomType && meta.vector.geomType !== "point";
 

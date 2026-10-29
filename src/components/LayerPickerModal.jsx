@@ -16,6 +16,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { featureCountText } from "../lib/featureCount.js"; // TASKS.csv #1116
 
 export default function LayerPickerModal({ fileName, options, onPick, onCancel }) {
   useEscapeKey(onCancel);
@@ -37,7 +38,8 @@ export default function LayerPickerModal({ fileName, options, onPick, onCancel }
             <button key={o.name} onClick={() => onPick(o.name)} style={row} title={tr("Import \"{name}\"", { name: o.name })}>
               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }}>{o.name}</span>
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)", flexShrink: 0 }}>
-                {o.count != null ? `${o.count.toLocaleString()} ${o.unit || "feature"}${o.count === 1 ? "" : "s"}` : ""}{o.geomType ? ` · ${o.geomType}` : ""}
+                {/* TASKS.csv #1116 — whole counted phrases */}
+                {o.count != null ? (o.unit === "row" ? tr(o.count === 1 ? "{c} row" : "{c} rows", { c: o.count.toLocaleString() }) : featureCountText(o.count, o.geomType)) : ""}
               </span>
             </button>
           ))}

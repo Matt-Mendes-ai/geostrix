@@ -1975,7 +1975,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
       </div>
 
       <div style={{ marginTop: 8 }}>
-        <div style={{ color: "var(--color-text-faint)", marginBottom: 4 }}>{tr("Colour legend {v}", { v: stops.length ? `(${stops.length} stop${stops.length === 1 ? "" : "s"})` : tr("(default gradient — no custom stops yet)") })}
+        <div style={{ color: "var(--color-text-faint)", marginBottom: 4 }}>{tr("Colour legend {v}", { v: stops.length ? tr(stops.length === 1 ? "({n} stop)" : "({n} stops)", { n: stops.length }) /* #1116 */ : tr("(default gradient — no custom stops yet)") })}
         </div>
         {stops.map((s, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>

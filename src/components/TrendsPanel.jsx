@@ -110,10 +110,14 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
         return;
       }
       // #1066 — no α95 for a population random planes would match (k ≈ 2 with the stereonet's hemisphere-aligned estimate)
-      const quality = st ? ` (S1 ${st.s1.toFixed(2)}, ${st.noPreferred ? `k ${st.k.toFixed(1)}, no preferred orientation` : `α95 ${st.alpha95.toFixed(1)}°`}, ${picks.length < 4 ? "too few picks to judge the shape" : fab.shape})` : "";
-      const warn = st?.noPreferred && picks.length >= 4 ? " The picks are no more aligned than random planes — this plane is not a real orientation; check them on the Stereonet before relying on it."
-        : fab && picks.length >= 4 && fab.shape === "weak" ? " The picks barely share an orientation (weak fabric) — check them on the Stereonet before relying on this plane." : "";
-      what = `the mean of ${picks.length} ${key} measurement${picks.length === 1 ? "" : "s"}${quality}${unoriented ? `; ${unoriented} ${key} row${unoriented === 1 ? " has" : "s have"} no dip / dip direction and ${unoriented === 1 ? "was" : "were"} left out` : ""}.${warn} Not corrected for drillhole sampling bias (Terzaghi) — the Stereonet can`;
+      // TASKS.csv #1116 — whole phrases with their own plurals, in the interface language
+      const SHAPE = { cluster: tr("cluster"), girdle: tr("girdle"), weak: tr("weak"), moderate: tr("moderate"), few: tr("few") };
+      const quality = st ? ` (S1 ${st.s1.toFixed(2)}, ${st.noPreferred ? tr("k {k}, no preferred orientation", { k: st.k.toFixed(1) }) : `α95 ${st.alpha95.toFixed(1)}°`}, ${picks.length < 4 ? tr("too few picks to judge the shape") : SHAPE[fab.shape] || fab.shape})` : "";
+      const warn = st?.noPreferred && picks.length >= 4 ? " " + tr("The picks are no more aligned than random planes — this plane is not a real orientation; check them on the Stereonet before relying on it.")
+        : fab && picks.length >= 4 && fab.shape === "weak" ? " " + tr("The picks barely share an orientation (weak fabric) — check them on the Stereonet before relying on this plane.") : "";
+      what = tr(picks.length === 1 ? "the mean of {n} {key} measurement" : "the mean of {n} {key} measurements", { n: picks.length, key }) + quality
+        + (unoriented ? "; " + tr(unoriented === 1 ? "{n} {key} row has no dip / dip direction and was left out" : "{n} {key} rows have no dip / dip direction and were left out", { n: unoriented, key }) : "")
+        + "." + warn + " " + tr("Not corrected for drillhole sampling bias (Terzaghi) — the Stereonet can");
     } else if (kind === "surface") {
       const s = (surfaces || []).find((x) => x.id === key);
       const pts = surfacePoints?.(key) || [];
@@ -125,7 +129,9 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
       if (fit && fit.collinearity < 0.02) { setNote({ id: t.id, text: tr("Not set: the points of {v} lie along a single line, so no plane is fixed by them.", { v: s?.name || tr("this surface") }) }); return; }
       const closed = /shell|envelope|halo|solid/i.test(`${s?.type || ""} ${s?.name || ""}`);
       const rough = fit && Number.isFinite(fit.planarity) ? fit.planarity : null;
-      what = `the best-fit plane of ${s?.name || "the surface"}${rough != null ? ` (RMS off the plane ${(rough * 100).toFixed(0)}% of its extent${rough > 0.25 ? " — far from planar: this surface is not well described by one plane" : ""})` : ""}${closed ? " — a closed shell: this is its flattening plane, not a contact" : ""}`;
+      what = tr("the best-fit plane of {name}", { name: s?.name || tr("the surface") })
+        + (rough != null ? ` (${tr("RMS off the plane {pct}% of its extent", { pct: (rough * 100).toFixed(0) })}${rough > 0.25 ? " — " + tr("far from planar: this surface is not well described by one plane") : ""})` : "")
+        + (closed ? " — " + tr("a closed shell: this is its flattening plane, not a contact") : "");
     }
     if (!plane) { setNote({ id: t.id, text: tr("Not enough data to fit a plane.") }); return; }
     update(t.id, { dip: Math.round(plane.dip * 10) / 10, dipAzimuth: Math.round(plane.dipAzimuth * 10) / 10 });

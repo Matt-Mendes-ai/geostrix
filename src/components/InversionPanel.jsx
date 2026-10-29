@@ -642,7 +642,7 @@ function FitView({ last, method }) {
   return (
     <div style={{ marginTop: 10 }}>
       <div style={{ color: "var(--color-text)", fontSize: "var(--font-size-sm)" }}>{tr("Did it fit?")}</div>
-      <div role="status" style={{ ...small, color: verdict.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{verdict.text}</div>
+      <div role="status" style={{ ...small, color: verdict.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{verdict.shown ?? verdict.text}</div>
       <MisfitChart history={result.history} target={result.target} />
       {result.baseLevelRemoved && result.baseLevelRemoved.mode !== "none" && (
         <div style={small}>{tr("Removed before inverting: {v}. The maps below show the data after that removal. Bounds applied: {v2}.", { v: result.baseLevelRemoved.mode === "mean" ? tr("the data mean, {constant} {unit}", { constant: result.baseLevelRemoved.constant.toFixed(2), unit }) : tr("a best-fit plane ({constant} {unit} at the survey centre, {v} / {v2} {unit} per km east / north)", { constant: result.baseLevelRemoved.constant.toFixed(2), unit, v: (result.baseLevelRemoved.perMetreX * 1000).toFixed(2), v2: (result.baseLevelRemoved.perMetreY * 1000).toFixed(2) }), v2: result.boundsApplied ? `${result.boundsApplied.lower ?? tr("none")} to ${result.boundsApplied.upper ?? tr("none")}` : "—" })}</div>

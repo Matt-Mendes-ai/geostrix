@@ -12,7 +12,7 @@ import { parseRes2dinv } from "../lib/res2dinv.js"; // TASKS.csv #826
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #322 — a saved line (and its inversion) is not in Undo
 import { stampLines, withStamp } from "../lib/provenance.js";
 import { version as APP_VERSION } from "../../package.json";
-import { logStops, sequentialStops, divergingStops, fitVerdict, ipFitOf } from "../lib/inversion.js"; // ipFitOf: #970, shared with the 3D panel
+import { logStops, sequentialStops, divergingStops, fitVerdict, ipFitOf, ipFitStored } from "../lib/inversion.js"; // ipFitOf: #970, shared with the 3D panel
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
 import { pythonHealth, ensureSidecarUp, saveFile, safeFileName } from "../lib/desktop.js"; // safeFileName: #1114
 import { colorForVoxelValue } from "../lib/layers.js";
@@ -427,9 +427,9 @@ function SectionResult({ last, cutoff, epsg, pBtn }) {
   return (
     <div style={{ marginTop: 10 }}>
       <div className="ge-section-label">{tr("Result — {name}", { name: last.name })}</div>
-      <div role="status" style={{ fontSize: "var(--font-size-sm)", color: verdict.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{tr("Resistivity: {text}", { text: verdict.text })}</div>
+      <div role="status" style={{ fontSize: "var(--font-size-sm)", color: verdict.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{tr("Resistivity: {text}", { text: verdict.shown })}</div>
       {/* TASKS.csv #581 — chargeability judged on its own, in its own colour (a good DC fit used to paint a failed IP fit as fine) */}
-      {result.ip && (() => { const iv = ipFitOf(result); return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: iv.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{tr("Chargeability: {verdict}", { verdict: iv.verdict })}</div>; })()}
+      {result.ip && (() => { const iv = ipFitOf(result); return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: iv.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{tr("Chargeability: {verdict}", { verdict: iv.shown })}</div>; })()}
       {c.chargeability && (
         <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
           {["resistivity", "chargeability"].map((f) => <button key={f} onClick={() => setField(f)} style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", border: "1px solid var(--color-border)", borderRadius: 4, background: f === field ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{f === "resistivity" ? tr("Resistivity") : tr("Chargeability")}</button>)}
@@ -541,7 +541,7 @@ function lineVoxelModels(result, geom, { name, thick, cut, params, kinds }) {
       let lo = arrMin(vals), hi = arrMax(vals);
       if (kind === "extrapolated") { lo = percentile(vals, 0.02); hi = percentile(vals, 0.98); }
       const stops = method === "dc" ? logStops(lo, hi) : sequentialStops(0, kind === "observed" ? percentile(vals, 0.98) : hi); // p98: a few spikes do not wash the line out
-      const ipFit = method === "ip" && result.ip ? { ip: { phiD: result.ip.phi_d, target: result.target, ...ipFitOf(result) } } : {};
+      const ipFit = method === "ip" && result.ip ? { ip: { phiD: result.ip.phi_d, target: result.target, ...ipFitStored(result) } } : {};
       out.push({
         source: "simpeg", colorMode: "continuous", method, property, cells, min: lo, max: hi, stops,
         // TASKS.csv #1093 — the cells are axis-aligned boxes around rotated section cells: the line's direction and the

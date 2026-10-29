@@ -23,6 +23,7 @@ import {
 } from "../lib/mapLayers.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { featureCountText } from "../lib/featureCount.js"; // TASKS.csv #1116
 import { saveFile } from "../lib/desktop.js";
 import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
 import { toExportCsv } from "../lib/tabular.js";
@@ -88,12 +89,13 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       const qml = qmlByBase[sourceName.toLowerCase()] || soleQml || null;
       // #1106 — a GPX / GeoJSON file is in longitude / latitude: never offered as the project CRS (not metric)
       const adopted = wgs84 ? null : askAdoptCrs({ isEmpty: empty, currentEpsg: projectEpsg, declaredEpsg: mapSourceEpsg || parsed.epsg, fileName: sourceName });
-      if (adopted) { setEpsg(adopted); projectEpsg = adopted; done.push(`project CRS set to EPSG:${adopted}`); }
+      if (adopted) { setEpsg(adopted); projectEpsg = adopted; done.push(tr("project CRS set to EPSG:{epsg}", { epsg: adopted })); }
       empty = false;
       const layer = buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride: mapSourceEpsg });
-      if (!layer) { failed.push(`${sourceName}${parsed.name ? ` (${parsed.name})` : ""}: no usable features`); return; }
+      if (!layer) { failed.push(tr("{name}: no usable features", { name: `${sourceName}${parsed.name ? ` (${parsed.name})` : ""}` })); return; }
       addMapLayer({ ...layer, drapeMode: terrain ? "terrain" : "flat" });
-      done.push(`${layer.name}: ${layer.features.length} ${layer.geomType}${layer.features.length === 1 ? "" : "s"}${layer.skipped ? ` (${layer.skipped} empty/unsupported skipped)` : ""}, ${layer.crsNote}${qml ? ", styled from .qml" : ""}`);
+      // TASKS.csv #1116 — whole phrases (the geometry name used to take an English "s")
+      done.push(`${layer.name}: ${featureCountText(layer.features.length, layer.geomType)}${layer.skipped ? ` (${tr("{n} empty/unsupported skipped", { n: layer.skipped })})` : ""}, ${layer.crsNote}${qml ? `, ${tr("styled from .qml")}` : ""}`);
     };
     for (const f of files) {
       const n = lower(f);
@@ -174,13 +176,13 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
           dbf: parts.dbf ? new Uint8Array(await parts.dbf.arrayBuffer()) : null,
           cpg: parts.cpg ? await parts.cpg.text() : null,
         }, 0, parts.prj ? await parts.prj.text() : null);
-        if (!parts.dbf) failed.push(`${b}.shp: no matching .dbf selected — imported without attributes, so it can't be styled by unit`);
+        if (!parts.dbf) failed.push(tr("{name}.shp: no matching .dbf selected — imported without attributes, so it can't be styled by unit", { name: b }));
         addParsed({ ...p, name: null, epsg: guessEpsgFromPrjWkt(p.prjWkt) }, b);
       } catch (err) {
         failed.push(`${b}.shp: ${err.message}`);
       }
     }
-    if (qmlFiles.length && !files.some((f) => /\.(gpkg|zip|shp|tab|mif)$/i.test(f.name))) failed.push("A .qml on its own doesn't import anything — use a layer's Style button to apply it to an existing layer.");
+    if (qmlFiles.length && !files.some((f) => /\.(gpkg|zip|shp|tab|mif)$/i.test(f.name))) failed.push(tr("A .qml on its own doesn't import anything — use a layer's Style button to apply it to an existing layer."));
     setBusy(false);
     setMapMsg({ ok: !failed.length, text: [done.length ? tr("Imported {done}.", { done: done.join("; ") }) : "", failed.length ? tr("Problems: {failed}", { failed: failed.join("; ") }) : ""].filter(Boolean).join(" ") });
   };

@@ -114,21 +114,28 @@ export const formatBytes = (b) => (b >= 1e9 ? `${(b / 1e9).toFixed(2)} GB` : b >
 // Fit verdict in plain words. chi = phi_d / N (N = number of data): ~1 means the model fits the data to
 // the stated uncertainty; well above 1 is under-fit (the model misses real signal, or the uncertainties
 // are too small); well below 1 is over-fit (the model is chasing noise, or the uncertainties are too large).
+// TASKS.csv #1116 — each verdict is whole sentences: `text` stays English (it is stored in the model's params and
+// exported), `shown` is the same sentence in the interface language.
+const fill = (s, v) => s.replace(/\{(\w+)\}/g, (m, k) => (k in v ? String(v[k]) : m));
+const say = (key, vars = {}) => ({ text: fill(key, vars), shown: tr(key, vars) });
+const join = (a, b) => (b ? { text: `${a.text} ${b.text}`, shown: `${a.shown} ${b.shown}` } : a);
 export function fitVerdict(result) {
-  const chi = result.phi_d / result.target;
-  if (chi > 1.5) return { chi, level: "under", text: `Did not reach the target fit (misfit ${chi.toFixed(2)}x the target) — the model does not explain the data to the uncertainty you entered. Treat it as unfinished.` };
+  const chi = result.phi_d / result.target, x = chi.toFixed(2), n = result.iterations;
+  if (chi > 1.5) return { chi, level: "under", ...say("Did not reach the target fit (misfit {x}x the target) — the model does not explain the data to the uncertainty you entered. Treat it as unfinished.", { x }) };
   // TASKS.csv #536 — an overshoot by the solver's last step (beta halved past the target) is not the user's
   // uncertainty: the engine now returns an in-band iterate when it has one and says so in fitChoice.
   const fc = result.fitChoice;
-  const picked = fc && (fc.how === "earlier" || fc.how === "refined") ? ` The final solver step overshot to ${(fc.lastPhi / result.target).toFixed(2)}x, so the ${fc.how === "refined" ? "step was redone with a smaller one" : `model from iteration ${fc.iteration} is used`} instead.` : "";
-  if (chi < 0.5 && fc?.overshot) return { chi, level: "over", text: `Fits more closely than the stated uncertainty (misfit ${chi.toFixed(2)}x the target) because the solver's last step overshot the target — not necessarily a sign that the uncertainty is too large. The model is rougher than the data need; treat fine detail with caution.` };
-  if (chi < 0.5) return { chi, level: "over", text: `Fits more closely than the stated uncertainty (misfit ${chi.toFixed(2)}x the target) — likely fitting noise; the uncertainty may be set too large.` };
+  const over = fc ? (fc.lastPhi / result.target).toFixed(2) : "";
+  const picked = fc?.how === "refined" ? say("The final solver step overshot to {over}x, so the step was redone with a smaller one instead.", { over })
+    : fc?.how === "earlier" ? say("The final solver step overshot to {over}x, so the model from iteration {iteration} is used instead.", { over, iteration: fc.iteration }) : null;
+  if (chi < 0.5 && fc?.overshot) return { chi, level: "over", ...say("Fits more closely than the stated uncertainty (misfit {x}x the target) because the solver's last step overshot the target — not necessarily a sign that the uncertainty is too large. The model is rougher than the data need; treat fine detail with caution.", { x }) };
+  if (chi < 0.5) return { chi, level: "over", ...say("Fits more closely than the stated uncertainty (misfit {x}x the target) — likely fitting noise; the uncertainty may be set too large.", { x }) };
   // TASKS.csv #507 — "Reached" only when the run did reach it: the sidecar's reachedTarget (phi_d <= 1.05 N);
   // results without the flag (older saved sections) use the same test. A run that stopped at its iteration
   // limit at 1.05-1.5x used to be reported — and stored in provenance — as converged.
   const reached = result.reachedTarget ?? chi <= 1.05;
-  if (!reached) return { chi, level: "close", text: `Stopped after ${result.iterations} iteration${result.iterations === 1 ? "" : "s"} before reaching the target fit (misfit ${chi.toFixed(2)}x the target) — close, but not converged: run more iterations, or check the uncertainty you entered.` };
-  return { chi, level: "ok", text: `Reached the target fit (misfit ${chi.toFixed(2)}x the target) in ${result.iterations} iteration${result.iterations === 1 ? "" : "s"}.${picked}` };
+  if (!reached) return { chi, level: "close", ...say(n === 1 ? "Stopped after {n} iteration before reaching the target fit (misfit {x}x the target) — close, but not converged: run more iterations, or check the uncertainty you entered." : "Stopped after {n} iterations before reaching the target fit (misfit {x}x the target) — close, but not converged: run more iterations, or check the uncertainty you entered.", { n, x }) };
+  return { chi, level: "ok", ...join(say(n === 1 ? "Reached the target fit (misfit {x}x the target) in {n} iteration." : "Reached the target fit (misfit {x}x the target) in {n} iterations.", { n, x }), picked) };
 }
 
 // TASKS.csv #682 — the IP verdict: chargeability is a linearization about the recovered conductivity, so when the
@@ -138,11 +145,14 @@ export function ipFitOf(result) {
   const v = fitVerdict({ phi_d: result.ip.phi_d, target: result.target, reachedTarget: result.ip.reachedTarget, iterations: result.ip.iterations ?? result.ip.history?.length ?? 0, fitChoice: result.ip.fitChoice });
   const dc = fitVerdict(result);
   if (dc.level === "under" || dc.level === "close") { // not "over": an over-fitted resistivity model still explains the data
-    return { level: "dc-unfitted", chi: +v.chi.toFixed(3), reachedTarget: false, dcUnfitted: true,
-      verdict: `computed on a resistivity model that did not fit the data, so treat it as unfinished as well (its own misfit: ${v.chi.toFixed(2)}x the target).` };
+    const m = say("computed on a resistivity model that did not fit the data, so treat it as unfinished as well (its own misfit: {x}x the target).", { x: v.chi.toFixed(2) });
+    return { level: "dc-unfitted", chi: +v.chi.toFixed(3), reachedTarget: false, dcUnfitted: true, verdict: m.text, shown: m.shown };
   }
-  return { level: v.level, chi: +v.chi.toFixed(3), reachedTarget: v.level === "ok", verdict: v.text };
+  return { level: v.level, chi: +v.chi.toFixed(3), reachedTarget: v.level === "ok", verdict: v.text, shown: v.shown };
 }
+
+// TASKS.csv #1116 — the IP fit as stored in a model's params: English only (no interface-language copy)
+export function ipFitStored(result) { const f = ipFitOf(result); delete f.shown; return f; }
 
 // TASKS.csv #775 — SimPEG's magnetic tutorials: "a constant floor of 2 % of the maximum |TMI|, percent uncertainties
 // avoided". Shown as a HINT beside the field, never filled in (#564: nothing physical is defaulted). The anomaly is
