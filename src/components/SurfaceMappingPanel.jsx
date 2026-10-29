@@ -84,9 +84,10 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const looseShp = {};
     files.forEach((f) => { const m = lower(f).match(/\.(shp|dbf|prj|cpg)$/); if (m) (looseShp[base(f)] ||= {})[m[1]] = f; }); // #415 .cpg
     let projectEpsg = project?.epsg, empty = projectIsEmpty; // #607 — the first layer of an empty project may set its CRS
-    const addParsed = (parsed, sourceName) => {
+    const addParsed = (parsed, sourceName, { wgs84 = false } = {}) => {
       const qml = qmlByBase[sourceName.toLowerCase()] || soleQml || null;
-      const adopted = askAdoptCrs({ isEmpty: empty, currentEpsg: projectEpsg, declaredEpsg: mapSourceEpsg || parsed.epsg, fileName: sourceName });
+      // #1106 — a GPX / GeoJSON file is in longitude / latitude: never offered as the project CRS (not metric)
+      const adopted = wgs84 ? null : askAdoptCrs({ isEmpty: empty, currentEpsg: projectEpsg, declaredEpsg: mapSourceEpsg || parsed.epsg, fileName: sourceName });
       if (adopted) { setEpsg(adopted); projectEpsg = adopted; done.push(`project CRS set to EPSG:${adopted}`); }
       empty = false;
       const layer = buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride: mapSourceEpsg });
@@ -97,7 +98,14 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     for (const f of files) {
       const n = lower(f);
       try {
-        if (n.endsWith(".gpkg")) {
+        if (n.endsWith(".gpx") || n.endsWith(".geojson") || n.endsWith(".json")) {
+          // TASKS.csv #1106 — GPX (waypoints, tracks, routes) and GeoJSON, one layer per geometry kind, reprojected from WGS 84
+          const { parseGPX, gpxToLayers, parseGeoJSON } = await import("../lib/gpxGeojson.js");
+          const text = await f.text();
+          const layers = n.endsWith(".gpx") ? gpxToLayers(parseGPX(text)) : parseGeoJSON(text).layers;
+          if (!layers.length) throw new Error(tr("no points, lines or polygons in this file"));
+          layers.forEach((l) => addParsed({ ...l, name: layers.length > 1 ? l.name : null }, base(f), { wgs84: l.epsg === 4326 }));
+        } else if (n.endsWith(".gpkg")) {
           const { layers } = await parseGeoPackage(await f.arrayBuffer());
           const usable = layers.filter((l) => l.features.length);
           if (!usable.length) throw new Error(tr("no feature tables with geometry"));
@@ -318,9 +326,9 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         title={tr("Leave it on the file's own CRS. Change it when a shapefile has no .prj or a wrong one.")}
       />
       <button onClick={() => mapInput.current.click()} style={pBtn} disabled={busy}>
-        <MapIcon size={14} /> {busy ? tr("Importing…") : tr("Import map layer (.gpkg / .zip / .shp / MapInfo .tab / .mif)…")}
+        <MapIcon size={14} /> {busy ? tr("Importing…") : tr("Import map layer (.gpkg / .zip / .shp / MapInfo .tab / .mif / .gpx / .geojson)…")}
       </button>
-      <input ref={mapInput} type="file" accept=".gpkg,.zip,.shp,.dbf,.prj,.shx,.cpg,.qml,.tab,.map,.id,.dat,.mif,.mid" multiple style={{ display: "none" }}
+      <input ref={mapInput} type="file" accept=".gpkg,.zip,.shp,.dbf,.prj,.shx,.cpg,.qml,.tab,.map,.id,.dat,.mif,.mid,.gpx,.geojson,.json" multiple style={{ display: "none" }}
         onChange={(e) => { importMaps(e.target.files); e.target.value = ""; }} />
       <input ref={qmlInput} type="file" accept=".qml" style={{ display: "none" }}
         onChange={(e) => { applyQmlToLayer(e.target.files[0]); e.target.value = ""; }} />

@@ -644,6 +644,15 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       if (!polylines.length) throw new Error(failed ? tr("KML coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this KML (points are imported through the 3D View importer)."));
       return { polylines };
     }
+    // TASKS.csv #1106 — GPX tracks / routes and GeoJSON lines / polygons, WGS 84 (or a GeoJSON "crs" EPSG) to the project CRS
+    if (name.endsWith(".gpx") || name.endsWith(".geojson") || name.endsWith(".json")) {
+      const { parseGPX, gpxToLayers, parseGeoJSON, layersToBoundaryPolylines } = await import("../lib/gpxGeojson.js");
+      const text = await file.text();
+      const layers = name.endsWith(".gpx") ? gpxToLayers(parseGPX(text)) : parseGeoJSON(text).layers;
+      const { polylines, failed } = layersToBoundaryPolylines(layers, project?.epsg, reprojectXY);
+      if (!polylines.length) throw new Error(failed ? tr("Coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this file (GPX waypoints and GeoJSON points are imported as a map layer in Surface Geology)."));
+      return { polylines };
+    }
     // TASKS.csv #1035 — every part of every feature, reprojected from the file's own CRS (lib/boundaryImport.js)
     if (name.endsWith(".zip") || name.endsWith(".shp")) {
       const buf = await file.arrayBuffer();
@@ -726,7 +735,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
           const isDxf = /\.dxf$/i.test(file.name);
           ({ polylines } = isDxf ? parseDXF(text) : parsePLYBoundary(text));
         }
-        addBoundary({ name: file.name.replace(/\.(ply|dxf|zip|shp|gpkg|kml|kmz)$/i, ""), polylines, ...(closedFlags ? { closedFlags } : {}), elevation: defaultElevation, kind: "claim", status: "active", tenureNumber: "", expiryDate: "", color: claimStatusColor("active") });
+        addBoundary({ name: file.name.replace(/\.(ply|dxf|zip|shp|gpkg|kml|kmz|gpx|geojson|json)$/i, ""), polylines, ...(closedFlags ? { closedFlags } : {}), elevation: defaultElevation, kind: "claim", status: "active", tenureNumber: "", expiryDate: "", color: claimStatusColor("active") });
         imported++;
       } catch (err) {
         failed.push(`${file.name}: ${err.message}`);
@@ -1475,11 +1484,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Boundaries (.ply / DXF / shapefile / GeoPackage)")}<InfoButton title={tr("Boundaries")} text={tr("Import a Geosoft .ply boundary/polygon export, a DXF file, a shapefile (.zip/.shp), a GeoPackage (.gpkg), or KML/KMZ (Google Earth, MTO — reprojected from WGS84 automatically) — property lines, claim blocks, survey/blind-grid extents, section templates from a surveyor or CAD/GIS package — as a polyline in the 3D view. Select multiple files at once, mixed formats if you like. DXF: only LINE/LWPOLYLINE/POLYLINE/POINT entities are read (2D plan-view CAD data, not 3D solids/text/blocks). Shapefile/GeoPackage: every feature in the file becomes its own part of the same boundary. Assumes the file's own coordinates already match the project's EPSG ({v}) — there's no on-import reprojection yet for any of these formats.", { v: project?.epsg ?? "?" })} />
         </div>
         <button onClick={() => boundaryInput.current.click()} style={pBtn}>
-          <Waypoints size={14} />{" "}{tr("Import boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml)…")}</button>
+          <Waypoints size={14} />{" "}{tr("Import boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml / .gpx / .geojson)…")}</button>
         <input
           ref={boundaryInput}
           type="file"
-          accept=".ply,.dxf,.zip,.shp,.gpkg,.kml,.kmz"
+          accept=".ply,.dxf,.zip,.shp,.gpkg,.kml,.kmz,.gpx,.geojson,.json"
           multiple
           style={{ display: "none" }}
           onChange={(e) => { importBoundaries(e.target.files); e.target.value = ""; }}
@@ -1551,11 +1560,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Mineral claims / tenure")}<InfoButton title={tr("Mineral claims / tenure")} text={tr("Import a claim/tenure boundary — .ply, DXF, shapefile (.zip/.shp), GeoPackage (.gpkg) or KML/KMZ, same formats as Boundaries above (BC's Mineral Titles Online distributes claims as shapefiles, not .ply) — tracked with its own tenure number, status, and expiry date, and its area computed automatically (hectares). Status sets a default colour (active = green, pending = amber, expired = red) so standing is visible at a glance in the 3D view — still overridable per claim. Assumes the file's own coordinates already match the project's EPSG.")} />
         </div>
         <button onClick={() => claimInput.current.click()} style={pBtn}>
-          <Flag size={14} />{" "}{tr("Import claim boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml)…")}</button>
+          <Flag size={14} />{" "}{tr("Import claim boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml / .gpx / .geojson)…")}</button>
         <input
           ref={claimInput}
           type="file"
-          accept=".ply,.dxf,.zip,.shp,.gpkg,.kml,.kmz"
+          accept=".ply,.dxf,.zip,.shp,.gpkg,.kml,.kmz,.gpx,.geojson,.json"
           multiple
           style={{ display: "none" }}
           onChange={(e) => { importClaims(e.target.files); e.target.value = ""; }}
