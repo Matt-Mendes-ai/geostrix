@@ -83,7 +83,8 @@ import { codesInUse, connectIntervals, effectiveCode, codeInfo } from "../lib/mo
 import { ASSAY_ELEMENT_COLORS, assayColorFor, categoryLegendGroups, assayLegendGroups, voxelLegendGroups, scaleLegendGroup, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, surfaceSampleLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; map / boundary / samples: #948
 // TASKS.csv #843 — the anomaly map (lib/anomalyMap.js + lib/thresholds.js) and its controls load only when used: off the startup bundle
 const SurfaceAnomalyControls = React.lazy(() => import("../components/SurfaceAnomalyControls.jsx"));
-const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverlayPane.jsx")); // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
+const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverlayPane.jsx"));
+const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
 import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut } from "../lib/levelPlan.js"; // TASKS.csv #525
 import { structureGisAttributes } from "../lib/structureAttrs.js"; // TASKS.csv #1067
@@ -3745,6 +3746,21 @@ ${describeTrend(t)}` };
     setImplicitSurfaces((p) => [...p, ...added]);
     setNotices((p) => [...p, notice("Added {added} closed unit volume(s) from {title}: {lines} (inside the model box — a unit that continues beyond it is closed at the box). They are listed with the model surfaces: export, sections, the volume readout and \"Restrict to a modelled volume\" in Grade estimation work on them.", { added: added.length, title: lb.title, lines: lines.join(", ") })]);
   };
+  // TASKS.csv #1139 — the undrilled zones of a unit as a closed solid (world E, N, Z from UndrilledZonesPane)
+  const addUndrilledSolid = ({ name, positions: w, indices, volumeM3, params, tip }) => {
+    const o = originRef.current, scene = new Float32Array(w.length);
+    for (let i = 0; i < w.length; i += 3) { scene[i] = w[i] - o.x; scene[i + 1] = w[i + 2] - o.z; scene[i + 2] = o.y - w[i + 1]; }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(scene, 3));
+    geo.setIndex(new THREE.BufferAttribute(indices, 1));
+    geo.computeVertexNormals();
+    const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: new THREE.Color("#e8590c"), side: THREE.DoubleSide, transparent: true, opacity: 0.55 }));
+    mesh.userData = { tip };
+    implicitGroupRef.current?.add(mesh);
+    const id = `impl_${Date.now()}_undrilled`;
+    implicitMeshesRef.current[id] = mesh;
+    setImplicitSurfaces((p) => [...p, { id, name, visible: true, vertexCount: w.length / 3, faceCount: indices.length / 3, type: "unit_volume", relationships: [], closure: "closed", params: { ...params, volumeM3: Math.round(volumeM3) } }]);
+  };
   const addModelledLayer = () => {
     const lb = lastLithBlock; if (!lb) return;
     // TASKS.csv #756 — the units GemPy evaluated exactly at each interval's midpoint, when the run asked for them
@@ -7122,6 +7138,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <RibbonGroup label="Targets">
             <RibbonButton advanced icon={Box} label="Voxel ranges" tone="view" title="Isolate a value band of a geophysical / block model" {...paneProps("ranges")} />
             <RibbonButton icon={Layers} label="Evidence overlay" tone="model" title="Where the evidence agrees: fuzzy overlay of rasters, map-layer distances and geochemistry; weights of evidence against known occurrences" {...paneProps("overlay")} />{/* TASKS.csv #851 */}
+            <RibbonButton icon={Crosshair} label="Undrilled zones" tone="model" title="The parts of a modelled unit farther than a chosen distance from every drillhole" {...paneProps("undrilled")} />
             <RibbonButton icon={Target} label="Planned holes" tone="model" title="Design planned drillholes and check them" {...paneProps("plan")} />
             <RibbonButton icon={MapPin} label="Pick collar" tone="model" active={pickHoleMode} title="Click the 3D view to place a planned hole's collar" onClick={() => { setToolPane("plan"); setPickHoleMode((v) => !v); }} />
           </RibbonGroup>
@@ -8247,6 +8264,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </>)}
         {toolPane === "overlay" && ( // TASKS.csv #851
           <Suspense fallback={null}><EvidenceOverlayPane onClose={() => setToolPane(null)} /></Suspense>
+        )}
+        {toolPane === "undrilled" && ( // TASKS.csv #1139
+          <Suspense fallback={null}><UndrilledZonesPane solids={closedShellsForEstimation()} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>
         )}
         {toolPane === "plan" && (<>
         {paneHeader("Planned drillholes", Target, "model")}
