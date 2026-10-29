@@ -6,8 +6,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const MAX_BYTES = 780000;
-const MAX_LINES = 9400;
+const MAX_BYTES = 775000; // lowered from 780,000 when buildVectorFeatures moved to lib (#1083)
+const MAX_LINES = 9350;
 
 test("#1084 ViewerModule.jsx stays under its size ceiling", () => {
   const buf = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url));

@@ -87,8 +87,7 @@ const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverl
 const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
 import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut } from "../lib/levelPlan.js"; // TASKS.csv #525
-import { structureGisAttributes } from "../lib/structureAttrs.js"; // TASKS.csv #1067
-import { trueNorthBearingInGridDeg } from "../lib/inversion.js"; // TASKS.csv #577 (already in the startup chunk via compactRows)
+import { buildVectorFeatures as buildVectorFeaturesOf } from "../lib/viewer/vectorFeatures.js"; // TASKS.csv #1083
 import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 import { unitShell, meshVolume, blockUnitStats } from "../lib/unitVolumes.js"; // TASKS.csv #517; blockUnitStats: #877
 const ModellingCodesPane = React.lazy(() => import("../components/ModellingCodesPane.jsx")); // TASKS.csv #599 — modelling view only, so loaded on demand (#476 budget)
@@ -167,7 +166,6 @@ function plannedHoleTrace(hole) {
   return plannedTrace(hole);
 }
 
-function stripInternalFields(r) { return Object.fromEntries(Object.entries(r).filter(([k]) => !k.startsWith("_"))); }
 // (binary exports go to saveFile as bytes since TASKS.csv #1040; the base64 encoder that was here is gone)
 
 
@@ -6038,74 +6036,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // negative = down, stored back flipped.
   const flipDipOf = (r) => { const d = typeof r.dip === "string" && r.dip.trim() !== "" ? Number(r.dip) : r.dip; return Number.isFinite(d) ? { ...r, dip: -d } : r; };
   const dipShown = flipDipOf, dipStored = flipDipOf;
-  const COLLAR_CORE_KEYS = new Set(["hole_id", "x", "y", "z", "azimuth", "dip", "length"]);
-  const buildVectorFeatures = (kind, key) => {
-    if (kind === "collars") {
-      return {
-        features: collars.filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y)).map((c) => ({
-          geometry: [[c.x, c.y, c.z ?? 0]],
-          // BUG FOUND & FIXED (TASKS.csv #190/#191, shapefile/GeoPackage export+reimport round-trip
-          // testing) — c.dip is stored in this app's INTERNAL positive-below-horizontal convention
-          // (see commitImportData's flipDip, and the same dip-sign gotcha already documented/fixed for
-          // planned holes: desurveyHole needs positive-down, but every user-facing CSV in this app —
-          // sample_data/collars.csv included — uses negative-down, and commitImportData's default
-          // "neg_down" dip-convention flips one to the other on the way IN). Writing c.dip straight out
-          // here put the INTERNAL value in front of the user/GIS software, and reimporting that file
-          // through the same default "neg_down" assumption flipped it AGAIN — silently reversing the
-          // sign a second time. Negating on the way out (like flipDip does on the way in) keeps the
-          // exported attribute in the same negative-down convention every other file in this app uses,
-          // so the round-trip is lossless and an opened-in-QGIS attribute table matches what the user
-          // actually typed.
-          // TASKS.csv #577 — stored azimuths are GRID bearings (project CRS); say so in the field name and give the
-          // true-north bearing beside it (grid = true + convergence), so QGIS / a re-import can't take one for the other
-          attributes: { hole_id: c.hole_id, azim_grid: c.azimuth ?? null, azim_true: Number.isFinite(c.azimuth) && project?.epsg ? (() => { const cv = trueNorthBearingInGridDeg(c.x, c.y, project.epsg); return Number.isFinite(cv) ? +((((c.azimuth - cv) % 360) + 360) % 360).toFixed(2) : null; })() : null, dip: Number.isFinite(c.dip) ? -c.dip : null, length: c.length ?? null,
-            ...Object.fromEntries(Object.entries(c).filter(([k, v]) => !k.startsWith("_") && !COLLAR_CORE_KEYS.has(k) && v !== undefined)) }, // #1034 — custom collar fields (year, target, status ...) were dropped
-        })),
-        geomType: "point",
-      };
-    }
-    if (kind === "survey") {
-      return {
-        features: tracesRef.current.filter((t) => t.pts.length > 1).map((t) => ({
-          geometry: t.pts.map((p, i) => [t.wx[i], t.wy[i], t.wz[i]]),
-          attributes: { hole_id: t.hole_id },
-        })),
-        geomType: "polyline",
-      };
-    }
-    const meta = LAYER_META[key];
-    const rows = layers[key] || [];
-    if (meta.kind === "point3d") {
-      return {
-        features: rows.filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y)).map((r) => ({ geometry: [[r.x, r.y, r.z ?? 0]], attributes: stripInternalFields(r) })),
-        geomType: "point",
-      };
-    }
-    const traceByHole = Object.fromEntries(tracesRef.current.map((t) => [t.hole_id, t]));
-    if (meta.kind === "interval") {
-      const features = [];
-      rows.forEach((r) => {
-        const t = traceByHole[r.hole_id]; if (!t) return;
-        const p1 = findOnTraceWorld(t, r.from), p2 = findOnTraceWorld(t, r.to);
-        if (!p1 || !p2) return;
-        features.push({ geometry: [p1, p2], attributes: stripInternalFields(r) });
-      });
-      return { features, geomType: "polyline" };
-    }
-    if (meta.kind === "point" || meta.kind === "plane") {
-      const features = [];
-      rows.forEach((r) => {
-        const t = traceByHole[r.hole_id]; if (!t) return;
-        const md = meta.kind === "plane" ? r.depth : (r.from + r.to) / 2;
-        const p = findOnTraceWorld(t, md);
-        if (!p) return;
-        // #1067 — a structure plane: type, dip, dipdir_grid / dipdir_true, strike_rhr (was a bare "azimuth")
-        features.push({ geometry: [p], attributes: key === "structure" ? structureGisAttributes(r, project?.epsg ? trueNorthBearingInGridDeg(p[0], p[1], project.epsg) : null) : stripInternalFields(r) });
-      });
-      return { features, geomType: "point" };
-    }
-    return { features: [], geomType: "point" };
-  };
+  // TASKS.csv #1083 — the features themselves are built in lib/viewer/vectorFeatures.js (tested there)
+  const buildVectorFeatures = (kind, key) => buildVectorFeaturesOf(kind, key, { collars, traces: tracesRef.current, layers, epsg: project?.epsg });
 
   const exportVectorShapefile = async (kind, key, label, built = null) => { // built: #1025 — a map layer / boundary / sample set
     const { features, geomType } = built || buildVectorFeatures(kind, key);
