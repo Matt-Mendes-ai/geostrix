@@ -6373,5 +6373,8 @@
   "This file is not GeoJSON.": "Este arquivo não é GeoJSON.",
   "Each contact is carried past its own edge along its dip to the edge of the box, so a unit ends where its contacts meet. Untick to stop every contact at its own edge (the unit then ends in a vertical wall there).": "Cada contato é prolongado além da própria borda, ao longo do mergulho, até a borda da caixa, para que uma unidade termine onde seus contatos se encontram. Desmarque para parar cada contato na própria borda (a unidade termina então em uma parede vertical).",
   "Extend contacts until they meet": "Prolongar os contatos até se encontrarem",
-  " Contacts were extended past their own edges until they meet ({list} as drawn).": " Os contatos foram prolongados além das próprias bordas até se encontrarem ({list} como desenhado)."
+  " Contacts were extended past their own edges until they meet ({list} as drawn).": " Os contatos foram prolongados além das próprias bordas até se encontrarem ({list} como desenhado).",
+  "GeoTIFF of \"{name}\": {nx} × {ny} values at {dx} m, float32, no data {nodata}.": "GeoTIFF de \"{name}\": {nx} × {ny} valores a {dx} m, float32, sem dado {nodata}.",
+  "These are the values kept on import, block-averaged {f} × {f} from the {sx} × {sy} source grid: re-import the source file into QGIS for full resolution.": "São os valores guardados na importação, médias em blocos de {f} × {f} da grade de origem de {sx} × {sy}: importe o arquivo de origem no QGIS para a resolução completa.",
+  "Made by {label} from \"{source}\"{params}.": "Feito com {label} a partir de \"{source}\"{params}."
 }

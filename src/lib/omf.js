@@ -33,7 +33,7 @@
 // cell shape the existing UBC-mesh/block-model-CSV importers already produce (see voxel.js), so it
 // reuses that renderer rather than inventing a new one.
 
-import { MAX_CELLS, planCoarsenFactors, maskAirCells } from "./voxel.js";
+import { MAX_CELLS, planCoarsenFactors, maskAirCells, coarsenRecord } from "./voxel.js"; // coarsenRecord: #1095
 import { inflateCapped, MB } from "./inflate.js"; // TASKS.csv #351
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
@@ -367,13 +367,15 @@ export function omfVolumeToCells(vol, attributeName = null, maxCells = MAX_CELLS
   // copy: the parsed attribute stays as read, so choosing it again starts from the file's own values.
   let values = Float64Array.from(attrObj.values);
   const air = maskAirCells(values);
-  let coarsenNote = null;
+  let coarsenNote = null, coarsenedFrom = null;
   const rawTotal = tensor_u.length * tensor_v.length * tensor_w.length;
   if (rawTotal > maxCells) {
+    const shape = [tensor_u.length, tensor_v.length, tensor_w.length], fine = values; // #1095 — before averaging
     const { fx: fu, fy: fv, fz: fw } = planCoarsenFactors(tensor_u.length, tensor_v.length, tensor_w.length, maxCells);
     const coarse = coarsenOmfTensorGrid(tensor_u, tensor_v, tensor_w, values, fu, fv, fw);
     tensor_u = coarse.tensor_u; tensor_v = coarse.tensor_v; tensor_w = coarse.tensor_w; values = coarse.values;
     const newTotal = tensor_u.length * tensor_v.length * tensor_w.length;
+    coarsenedFrom = coarsenRecord({ shape, factors: [fu, fv, fw], cellsTo: newTotal, values: fine, valid: (v) => Number.isFinite(v) && v > NODATA_MAX });
     coarsenNote = `Coarsened from ${rawTotal.toLocaleString()} to ${newTotal.toLocaleString()} cells (merged ${fu}×${fv}×${fw} blocks) to stay within GeoStrix's ${maxCells.toLocaleString()}-cell 3D view budget — values are block-averaged, total volume is unchanged.`;
   }
 
@@ -399,7 +401,7 @@ export function omfVolumeToCells(vol, attributeName = null, maxCells = MAX_CELLS
       }
     }
   }
-  return { cells, attrName: attrObj.name, availableAttrs: numericAttrs.map((a) => a.name), coarsenNote, colormap: attrObj.colormap || null, air };
+  return { cells, attrName: attrObj.name, availableAttrs: numericAttrs.map((a) => a.name), coarsenNote, coarsenedFrom, colormap: attrObj.colormap || null, air };
 }
 
 export async function parseOMF(arrayBuffer) {

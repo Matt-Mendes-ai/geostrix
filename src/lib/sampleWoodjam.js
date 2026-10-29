@@ -89,7 +89,7 @@ export async function loadWoodjamExtras(readFile, store, { projectEpsg = WOODJAM
     // load the sample data"): the whole inversion volume reads as one block model at first sight. Until then it opened
     // on its most conductive 15% (#740), which looked like scattered targets rather than a geophysical model.
     res.voxelModels.forEach((v) => {
-      // TASKS.csv #711 — the OMF names no unit; 1.8e-4 to 0.196 can only be conductivity in S/m (as resistivity in ohm.m it
+      // TASKS.csv #711 — the OMF names no unit; 9.1e-5 to 1.0 (1.8e-4 to 0.196 once averaged, #1095) can only be S/m (as ohm.m it
       // would be 0.0002 ohm.m rock), so the property is set and the README says it is inferred from the values
       store.addVoxelModel({ ...v, name: `ZTEM 2023 inversion — ${v.name}`, threshold: v.min, opacity: 0.55, property: "Conductivity (S/m)", propertyChosen: true });
     });

@@ -4,8 +4,22 @@
 import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
 import { b64ToF32 } from "./inversion.js";
 import { saveFile, safeFileName } from "./desktop.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #1095
 
 export const GEOTIFF_NODATA = -9999;
+
+// TASKS.csv #1095 (review #1016, geophysicist) — the raster value GeoTIFF wrote the grid GeoStrix keeps (block-averaged
+// to GRID_MAX nodes on import, raster.js makeValueGrid) and dropped a filter's record, with no word of either. The
+// export now says what the file holds. (GeoTIFF metadata tags are not written: the header writer has no room for them.)
+export function rasterExportNote(r) {
+  const g = r.grid || {};
+  const f = r.filter, p = f?.params && Object.entries(f.params).filter(([, v]) => v != null && typeof v !== "object").map(([k, v]) => `${k} ${v}`).join(", ");
+  return [
+    tr("GeoTIFF of \"{name}\": {nx} × {ny} values at {dx} m, float32, no data {nodata}.", { name: r.name, nx: g.nx, ny: g.ny, dx: +Number(g.dx).toFixed(2), nodata: GEOTIFF_NODATA }),
+    g.averagedBy > 1 && g.sourceSize ? tr("These are the values kept on import, block-averaged {f} × {f} from the {sx} × {sy} source grid: re-import the source file into QGIS for full resolution.", { f: g.averagedBy, sx: g.sourceSize[0], sy: g.sourceSize[1] }) : null,
+    f ? tr("Made by {label} from \"{source}\"{params}.", { label: f.label || f.kind, source: f.sourceRaster || "?", params: p ? ` (${p})` : "" }) : null,
+  ].filter(Boolean).join(" ");
+}
 
 // a grid's values as Float32Array, whether kept as base64 (#326 rasters), a typed array or a plain array
 export function gridValues(v) {

@@ -15,7 +15,7 @@ import { b64ToF32 } from "./inversion.js";
 import { arrMin, arrMax } from "./arrayStats.js";
 import { ubcOctreeFromCells } from "./ubcOctree.js"; // TASKS.csv #324 follow-up
 import { NOT_A_RESOURCE } from "./provenance.js"; // TASKS.csv #529
-import { NOT_A_RESOURCE_SOURCE } from "./blockModelExport.js"; // TASKS.csv #1026
+import { NOT_A_RESOURCE_SOURCE, coarsenedText } from "./blockModelExport.js"; // TASKS.csv #1026; coarsenedText: #1095
 
 export const UBC_NODATA = -99999;
 const key = (v) => Math.round(v * 1000); // mm keys: cell centres from float32 storage are not bit-identical
@@ -95,10 +95,14 @@ export function obsText(method, d, values, field) {
 // One float32 GeoTIFF per model level; row 0 = north. Pixel = cell (PixelIsArea), so the grid needs
 // equal widths in x and in y (true for SimPEG's core cells; refused otherwise, not resampled).
 export function depthSliceTiffs(cells, t, epsg, field = "value") {
-  const uniform = (ws) => ws.every((w) => Math.abs(w - ws[0]) < 1e-6 * ws[0]);
+  // TASKS.csv #1095 — a block-averaged model (#159) ends in a narrower last column / row (Woodjam's ZTEM: 375 m after
+  // 525 m ones), and the slices were refused. Equal widths except a narrower LAST one are accepted: the pixel is the
+  // regular width, so the last pixel overhangs the model edge by the difference (east / north), stated in `overhang`.
+  const uniform = (ws) => ws.slice(0, -1).every((w) => Math.abs(w - ws[0]) < 1e-6 * ws[0]) && ws[ws.length - 1] <= ws[0] * (1 + 1e-6);
   if (!uniform(t.x.widths) || !uniform(t.y.widths)) return { error: "Depth slices need equal cell widths in x and in y." };
   const g = gridValues(cells, t, field);
   const px = t.x.widths[0], py = t.y.widths[0];
+  const overhang = [+(px * t.nx - (t.x.max - t.x.min)).toFixed(3), +(py * t.ny - (t.y.max - t.y.min)).toFixed(3)];
   const files = [];
   for (let iz = t.nz - 1; iz >= 0; iz--) {
     const band = new Float32Array(t.nx * t.ny);
@@ -111,12 +115,12 @@ export function depthSliceTiffs(cells, t, epsg, field = "value") {
     if (!any) continue;
     const zc = t.z.centers[iz];
     const buf = writeGeoTiff(band, {
-      width: t.nx, height: t.ny, ModelPixelScale: [px, py, 0], ModelTiepoint: [0, 0, 0, t.x.min, t.y.max, 0],
+      width: t.nx, height: t.ny, ModelPixelScale: [px, py, 0], ModelTiepoint: [0, 0, 0, t.x.min, t.y.min + py * t.ny, 0], // #1095 — the top edge of the regular pixel grid
       GTModelTypeGeoKey: 1, GTRasterTypeGeoKey: 1, ProjectedCSTypeGeoKey: Number(epsg), GDAL_NODATA: String(UBC_NODATA),
     });
     files.push({ name: `z${zc < 0 ? "m" : ""}${String(Math.abs(Math.round(zc))).padStart(5, "0")}.tif`, data: new Uint8Array(buf), elevation: zc });
   }
-  return { files, pixel: [px, py] };
+  return { files, pixel: [px, py], overhang };
 }
 
 export function provenanceText(model, t, files, epsg, notes) {
@@ -127,6 +131,7 @@ export function provenanceText(model, t, files, epsg, notes) {
     `Source: ${model.source || "import"}${model.property ? ` | property: ${model.property}` : ""}`,
     ...(p.unit ? [`Values: ${p.element || "value"} in ${p.unit}${p.capValue != null ? `; capped at ${p.capValue} ${p.capUnit || p.unit}` : ""}`] : []), // #529
     `CRS: EPSG:${epsg} (all coordinates, all files)`,
+    ...(p.coarsenedFrom ? [coarsenedText(p.coarsenedFrom)] : []), // #1095
     t.adaptive // TASKS.csv #324 — an octree model has no single grid
       ? `Mesh: adaptive (octree), ${t.n} cells of ${t.sizes.join(" / ")} m, x ${t.x.min.toFixed(2)}-${t.x.max.toFixed(2)}, y ${t.y.min.toFixed(2)}-${t.y.max.toFixed(2)}, z ${t.z.min.toFixed(2)}-${t.z.max.toFixed(2)} m`
       : `Grid: ${t.nx} x ${t.ny} x ${t.nz} cells, x ${t.x.min.toFixed(2)}-${t.x.max.toFixed(2)}, y ${t.y.min.toFixed(2)}-${t.y.max.toFixed(2)}, z ${t.z.min.toFixed(2)}-${t.z.max.toFixed(2)} m`,
@@ -138,19 +143,19 @@ export function provenanceText(model, t, files, epsg, notes) {
     ...(notes || []),
     "",
     "How the model was made (as recorded when it was created):",
-    JSON.stringify(p, null, 2),
+    Object.keys(p).length ? JSON.stringify(p, null, 2) : "Nothing recorded: the model was imported from a file (see Source above).", // #1095 — was "{}"
     "",
     model.source === "simpeg" && model.style === "vector" ? "A vector (MVI) inversion is ONE model that fits the data to the stated uncertainty, not the only one: the value is the magnetization amplitude (SI-equivalent); the direction per cell (inclination positive down, declination from grid north) is in _inc.mod / _dec.mod, or the inc_deg / dec_grid_deg columns of _cells.csv for an octree mesh (#1044); depth is weakly resolved and amplitudes are approximate. Not a geological boundary, not a volume, not a resource." : "", // #770
     model.source === "simpeg" && model.style === "compact" ? "A compact (sparse-norm) inversion is ONE model that fits the data to the stated uncertainty, not the only one: it assumes a few compact bodies with sharp edges, so it draws them tighter than the smooth model, and peak values can overshoot. Not a geological boundary, not a volume, not a resource." : "", // #769
     model.source === "simpeg" && model.style !== "compact" && model.style !== "vector" ? "A smooth inversion is ONE model that fits the data to the stated uncertainty, not the only one: amplitudes are underestimated and bodies smeared with depth. Not a geological boundary, not a volume, not a resource." : "",
     NOT_A_RESOURCE_SOURCE.test(String(model.source || "")) ? NOT_A_RESOURCE : "" /* geoml: #677; kriging-variance: #1026 */, // #529 — an estimate package said nothing
-  ].join("\n");
+  ].join("\n").replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "\n"); // #1095 — the empty source-specific lines left runs of blank lines
 }
 
 // The whole package. Returns { zip: Uint8Array, files: [names], warnings } or { error }.
 // TASKS.csv #411 — async since it now also writes the model as OMF v1 (CompressionStream).
 export async function buildModelExportZip(model, epsg) {
-  const cells = model.cells || [];
+  const cells = model.cells || [], p0 = model.params || {};
   let t = tensorFromCells(cells);
   // TASKS.csv #324 — an adaptive (octree) inversion has cells of several sizes, so no single grid: UBC tensor,
   // OMF v1 volume and depth slices can't hold it. It still exports — as a cell list plus the data and the
@@ -203,14 +208,14 @@ export async function buildModelExportZip(model, epsg) {
   const { writeOMF, volumeElementFromModel } = await import("./omfWriter.js");
   const ve = adaptive ? { error: "adaptive mesh" } : volumeElementFromModel(model);
   if (!ve.error) {
-    files.push({ name: `${base}.omf`, data: await writeOMF({ name: model.name, description: `GeoStrix block model, EPSG:${epsg}`, elements: [ve.element] }) });
+    files.push({ name: `${base}.omf`, data: await writeOMF({ name: model.name, description: `GeoStrix block model, EPSG:${epsg}${p0.coarsenedFrom ? `. ${coarsenedText(p0.coarsenedFrom)}` : ""}`, /* #1095 */ elements: [ve.element] }) });
     notes.push("OMF (.omf): the same grid as one OMF v1 VolumeElement (value" + (ve.element.data.length > 1 ? " and support" : "") + " per cell; empty cells NaN) — opens in Leapfrog, Datamine, Vulcan, Micromine and Geosoft.");
   }
   const slices = adaptive ? null : depthSliceTiffs(cells, t, epsg);
   if (!slices) { /* #324: explained in the cells note */ } else if (slices.error) warnings.push(`No depth slices: ${slices.error}`);
   else {
     slices.files.forEach((s) => files.push({ name: `depth_slices/${base}_${s.name}`, data: s.data }));
-    notes.push(`Depth slices: one float32 GeoTIFF per model level (${slices.files.length}), named by the level's centre elevation (m; "m" prefix = below 0); pixel ${slices.pixel[0]} x ${slices.pixel[1]} m, same values as the .mod file.`);
+    notes.push(`Depth slices: one float32 GeoTIFF per model level (${slices.files.length}), named by the level's centre elevation (m; "m" prefix = below 0); pixel ${slices.pixel[0]} x ${slices.pixel[1]} m, same values as the .mod file.${slices.overhang[0] > 0 || slices.overhang[1] > 0 ? ` The model's last column / row is narrower than the others, so the slices' last pixels reach ${slices.overhang[0]} m past its east edge and ${slices.overhang[1]} m past its north edge (#1095).` : ""}`);
   }
   const names = files.map((x) => x.name);
   files.push({ name: "provenance.txt", data: enc(provenanceText(model, t, [...names, "provenance.txt"], epsg, [...notes, ...warnings.map((w) => `Note: ${w}`)])) });

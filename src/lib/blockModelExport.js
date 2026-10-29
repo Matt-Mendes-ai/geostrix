@@ -138,10 +138,21 @@ export async function blockModelCsvText(model, names = "datamine", onProgress = 
   return out.join("\r\n");
 }
 
+// TASKS.csv #1095 (review #1016, geophysicist) — a model block-averaged on import (#159: OMF / UBC over the cell budget)
+// was exported coarse with no word of it: Woodjam's ZTEM 330 x 348 x 63 (7.2 M cells) became 55 x 50 x 32, its peak
+// 1.0 S/m read 0.196. voxel.js coarsenRecord is stored on the model (params.coarsenedFrom); coarsenedText is its
+// sentence for every export header.
+export function coarsenedText(c) {
+  if (!c) return null;
+  const f = (v) => (v == null ? "?" : Number(v.toPrecision(3)));
+  return `Block-averaged on import: ${c.shape.join(" x ")} cells (${c.cellsFrom.toLocaleString()}) merged ${c.factors.join(" x ")} into ${c.cellsTo.toLocaleString()} (${c.rule}), to stay within the 3D cell budget. These are the averaged values: the source file's values ran ${f(c.fineMin)} to ${f(c.fineMax)}, and peaks are lower here. Re-import with a larger cell budget for finer detail.`;
+}
+
 // Parameter lines for the file header (provenance stamp, #404): whatever the model recorded.
 export function blockModelParamLines(model) {
   const p = model.params || {};
   const lines = [`Block model: ${model.name} (${(model.cells || []).length} blocks, source ${model.source || "import"})`];
+  if (p.coarsenedFrom) lines.push(coarsenedText(p.coarsenedFrom)); // #1095
   if (derivedValue(model)) lines.push(`Values: ${valueColumnName(model)}${valueUnit(model) ? ` in ${valueUnit(model)}` : " (no unit)"}`); // #1026
   else if (p.unit) lines.push(`Values: ${valueColumnName(model)} in ${p.unit}${p.capValue != null ? `; cap ${p.capValue} ${p.capUnit || p.unit}` : ""}`); // #529
   if ((model.cells || []).some((c) => Number.isFinite(c.coverage))) lines.push("COVERAGE: the share of each block filled by the imported model's own blocks (blocks were merged on import to fit the cell budget); VOLUME_M3 = COVERAGE x the block size. Take volume and tonnage from VOLUME_M3, not from the block size."); // #943

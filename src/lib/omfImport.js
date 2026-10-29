@@ -19,7 +19,7 @@ export async function omfToProjectObjects(arrayBuffer, maxCells, { attribute = n
     } else if (el.kind === "volume") {
       // #159 — a large real block model is coarsened (block-averaged) to the cell budget so it can't hang the 3D view
       const pick = attribute && (el.attributes || []).some((a) => a.name === attribute) ? attribute : null;
-      const { cells, attrName, availableAttrs, coarsenNote, colormap, air } = omfVolumeToCells(el, pick, maxCells);
+      const { cells, attrName, availableAttrs, coarsenNote, coarsenedFrom, colormap, air } = omfVolumeToCells(el, pick, maxCells);
       if (!cells.length) {
         skipped.push(`${el.name} (volume has no numeric cell attribute to render${availableAttrs?.length ? ` — found: ${availableAttrs.join(", ")}, none usable` : ""})`);
         continue;
@@ -35,7 +35,7 @@ export async function omfToProjectObjects(arrayBuffer, maxCells, { attribute = n
         colorInit = { colorMode: "continuous", stops: logStops(min, max, SEQUENTIAL_ANCHORS) }; // #482, as #481
       }
       if (air?.count) notes.push(tr("{name}: {count} cells at {v} (the tiny value this model uses for air above the ground) treated as air (no data).", { name: el.name, count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }));
-      voxelModels.push({ name: `${el.name} (${attrName})`, source: "omf", cells, min, max, ...colorInit });
+      voxelModels.push({ name: `${el.name} (${attrName})`, source: "omf", cells, min, max, ...colorInit, ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}) }); // #1095
       if (coarsenNote) notes.push(`${el.name}: ${coarsenNote}`);
     }
   }

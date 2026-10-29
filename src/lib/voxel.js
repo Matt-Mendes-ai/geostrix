@@ -382,3 +382,11 @@ export function maskAirCells(values, minShare = 0.05) {
   for (let i = 0; i < values.length; i++) if (values[i] === min) values[i] = COARSEN_NODATA_SENTINEL;
   return { count, value: min };
 }
+
+// TASKS.csv #1095 — what block-averaging did, kept on the model as params.coarsenedFrom (blockModelExport.coarsenedText
+// prints it). values: the fine values before averaging; `valid` excludes no-data.
+export function coarsenRecord({ shape, factors, cellsTo, values, valid = Number.isFinite }) {
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i < values.length; i++) { const v = values[i]; if (valid(v)) { if (v < lo) lo = v; if (v > hi) hi = v; } }
+  return { shape, factors, cellsFrom: shape[0] * shape[1] * shape[2], cellsTo, rule: "arithmetic mean of the fine cells with data in each block", fineMin: lo <= hi ? lo : null, fineMax: lo <= hi ? hi : null };
+}

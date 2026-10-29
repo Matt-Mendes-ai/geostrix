@@ -28,7 +28,7 @@ import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone } from "../lib/
 import { fetchCopernicusTerrain } from "../lib/copernicusDem.js"; // TASKS.csv #814
 import { toLonLat, reprojectXY, crsName, pointTransform } from "../lib/reproject.js";
 import { omfToProjectObjects } from "../lib/omfImport.js"; // TASKS.csv #637
-import { parseUBCMesh, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel } from "../lib/voxel.js";
+import { parseUBCMesh, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel, coarsenRecord } from "../lib/voxel.js"; // coarsenRecord: #1095
 import { parsePLYBoundary, parseXYZ, guessXyzChannels } from "../lib/geosoft.js";
 import { gemHeaderInfo } from "../lib/diurnal.js";
 import DiurnalCorrectionBox from "../components/DiurnalCorrectionBox.jsx";
@@ -896,10 +896,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       // voxel.js's coarsenUBCModel) — the mesh still imports and renders, just at reduced resolution,
       // with the reduction reported below rather than silently applied.
       const rawTotal = mesh.nx * mesh.ny * mesh.nz;
-      let coarsenNote = "";
+      let coarsenNote = "", coarsenedFrom = null;
       if (rawTotal > effectiveMaxCells) {
         const { fx, fy, fz } = planCoarsenFactors(mesh.nx, mesh.ny, mesh.nz, effectiveMaxCells);
+        const shape = [mesh.nx, mesh.ny, mesh.nz], fine = values; // #1095 — before averaging
         const coarsened = coarsenUBCModel(mesh, values, fx, fy, fz);
+        coarsenedFrom = coarsenRecord({ shape, factors: [fx, fy, fz], cellsTo: coarsened.mesh.nx * coarsened.mesh.ny * coarsened.mesh.nz, values: fine, valid: (v) => Number.isFinite(v) && v > -99999 });
         mesh = coarsened.mesh; values = coarsened.values;
         const coarseTotal = mesh.nx * mesh.ny * mesh.nz;
         coarsenNote = tr(" Original mesh had {rawTotal} cells — over GeoStrix's {effectiveMaxCells}-cell budget for staying responsive in the 3D view, so it was block-averaged down (merging {fx}×{fy}×{fz} fine cells into each coarse cell) to {coarseTotal} cells. Raise the \"3D view cell budget\" setting above and re-import if you want finer detail.", { rawTotal: rawTotal.toLocaleString(), effectiveMaxCells: effectiveMaxCells.toLocaleString(), fx, fy, fz, coarseTotal: coarseTotal.toLocaleString() });
@@ -910,7 +912,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       // #481 — a positive model spanning 2+ decades (conductivity, resistivity) gets log-spaced colours;
       // on a linear ramp almost every cell of a ZTEM conductivity model (1e-5 .. 0.1 S/m) was one colour.
       const logColours = min > 0 && max / min >= 100;
-      addVoxelModel({ name: meshFile.name.replace(/\.msh$/i, ""), source: "ubc", cells, min, max, ...(logColours ? { stops: logStops(min, max, SEQUENTIAL_ANCHORS), colorMode: "continuous" } : {}) });
+      addVoxelModel({ name: meshFile.name.replace(/\.msh$/i, ""), source: "ubc", cells, min, max, ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}) /* #1095 */, ...(logColours ? { stops: logStops(min, max, SEQUENTIAL_ANCHORS), colorMode: "continuous" } : {}) });
       setVoxelError({
         info: true,
         text: tr("Imported \"{name}\" — {nx}×{ny}×{nz} mesh, {cells} cell(s) with data.{v}{v2}{coarsenNote}", { name: meshFile.name, nx: mesh.nx, ny: mesh.ny, nz: mesh.nz, cells: cells.length.toLocaleString(), v: air.count ? tr(" {count} cells at {v} (the tiny value this model uses for air above the ground) were treated as air (no data).", { count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }) : "", v2: logColours ? tr(" Values span {min} to {max} ({v} decades), so colours are log-spaced.", { min: min.toPrecision(2), max: max.toPrecision(2), v: Math.round(Math.log10(max / min)) }) : "", coarsenNote }),
@@ -1822,7 +1824,7 @@ async function exportBlockModelCSV(model, epsg, names = "datamine", stampChoice 
 // TASKS.csv #798 — the block model as a VTK file for ParaView / PyVista (lib/vtkExport.js)
 async function exportBlockModelVTK(model, epsg) {
   const { blockModelToVtk } = await import("../lib/vtkExport.js");
-  const { bytes } = blockModelToVtk(model, `v${APP_VERSION} | EPSG:${epsg ?? "?"}${model.property ? `, ${model.property}` : ""}`);
+  const { bytes } = blockModelToVtk(model, `v${APP_VERSION} | EPSG:${epsg ?? "?"}${model.property ? `, ${model.property}` : ""}${model.params?.coarsenedFrom ? ` | block-averaged ${model.params.coarsenedFrom.factors.join("x")} on import` : ""}`); // #1095
   saveFile({ suggestedName: `${String(model.name || "block_model").replace(/[^\w\- ]/g, "").slice(0, 80)}.vtk`, filters: [{ name: "VTK (legacy)", extensions: ["vtk"] }], content: bytes /* #1040 bytes */ });
 }
 // TASKS.csv #711 — what an imported volume's values can be (the units the rest of the app uses)

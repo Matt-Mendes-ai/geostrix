@@ -836,7 +836,8 @@ export function gridToSurveyRows(raster, maxPoints = 20000) {
 // TASKS.csv #373 — a filtered grid (values north-first, NaN = no data) as a new raster: a drape image
 // coloured between the 2nd and 98th percentiles (derivatives have long tails that would otherwise wash
 // the ramp out) plus the grid itself, so it can be filtered again or used as survey points.
-export function rasterFromGrid({ name, values, nx, ny, x0, yTop, dx, dy, elevation, extra = {} }) {
+// averagedBy / sourceSize (#1095): carried from the grid a filter read, so a filtered raster still says it was averaged
+export function rasterFromGrid({ name, values, nx, ny, x0, yTop, dx, dy, elevation, extra = {}, averagedBy = 1, sourceSize = null }) {
   const finite = [];
   for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i])) finite.push(values[i]);
   if (!finite.length) throw new Error(tr("The filter produced no values."));
@@ -857,7 +858,7 @@ export function rasterFromGrid({ name, values, nx, ny, x0, yTop, dx, dy, elevati
   const bbox = [x0 - dx / 2, yTop - dy * (ny - 1) - dy / 2, x0 + dx * (nx - 1) + dx / 2, yTop + dy / 2];
   return {
     name, bbox, dataUrl: canvas.toDataURL("image/png"), elevation,
-    grid: { nx, ny, x0, yTop, dx, dy, values: f32ToB64(Float32Array.from(values)), valid: finite.length, averagedBy: 1, sourceSize: [nx, ny] },
+    grid: { nx, ny, x0, yTop, dx, dy, values: f32ToB64(Float32Array.from(values)), valid: finite.length, averagedBy, sourceSize: sourceSize || [nx, ny] },
     colourRange: [lo, hi], ...extra,
   };
 }
