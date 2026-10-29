@@ -7,11 +7,12 @@ import { readFileSync } from "node:fs";
 const src = (p) => readFileSync(new URL(`../src/${p}`, import.meta.url), "utf8");
 
 test("#1069 no grade is written with toFixed(3) in the composite / intercept exports", () => {
-  for (const f of ["components/CompositingModal.jsx", "components/BestIntercepts.jsx"]) {
+  // #1083 — the rows moved into lib/drillReportExport.js; the dialogs only call it
+  for (const f of ["components/CompositingModal.jsx", "components/BestIntercepts.jsx", "lib/drillReportExport.js"]) {
     const s = src(f);
     assert.ok(!/avgGrade\.toFixed\(|extras\[s\]\.toFixed\(|v\.toFixed\(3\)/.test(s), f);
-    assert.match(s, /const sig6 = \(v\) => \(Number\.isFinite\(v\) \? \+v\.toPrecision\(6\) : ""\)/);
   }
+  assert.match(src("lib/drillReportExport.js"), /export const sig6 = \(v\) => \(Number\.isFinite\(v\) \? \+v\.toPrecision\(6\) : ""\)/);
   const sig6 = (v) => (Number.isFinite(v) ? +v.toPrecision(6) : "");
   assert.equal(sig6(0.000437), 0.000437); // a Mo % grade: was "0.000"
   assert.equal(sig6(12345.678), 12345.7);
