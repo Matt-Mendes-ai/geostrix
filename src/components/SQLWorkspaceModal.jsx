@@ -8,6 +8,7 @@ import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
+import { sqlResultRows } from "../lib/tableExports.js"; // TASKS.csv #1083
 
 // TASKS.csv #50 — ad hoc SQL against whatever's currently loaded (collars/survey/assays/layers/
 // boundaries), no Postgres connection needed. sqlWorkspace.js builds the in-memory database and runs
@@ -59,8 +60,8 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
 
   const exportCSV = () => {
     if (!result || !result.rows.length) return;
-    const rowsOut = result.rows.map((row) => Object.fromEntries(result.columns.map((c, i) => [c, row[i]])));
-    saveFile({ suggestedName: "sql_query_result.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rowsOut) });
+    // #1083 — positional: keyed by name, two columns of the same name (a.hole_id, b.hole_id) kept only one
+    saveFile({ suggestedName: "sql_query_result.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(sqlResultRows(result.columns, result.rows)) });
   };
 
   const emptyLoaded = useMemo(() => !collars.length && !assays.length && !Object.values(layers || {}).some((r) => r?.length), [collars, survey, layers, assays]);

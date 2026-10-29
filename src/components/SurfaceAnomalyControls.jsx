@@ -8,6 +8,7 @@ import { saveFile } from "../lib/desktop.js";
 import { groupOptions } from "../lib/thresholds.js";
 import { t as tr } from "../lib/i18n.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped; crsCell: #1064
+import { anomalyClassRows } from "../lib/tableExports.js"; // TASKS.csv #1083
 import { useStore } from "../lib/store.jsx";
 
 export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSamples, surfaceElements, mapLayers, thresholds = [], result, drawn = [] }) {
@@ -24,7 +25,7 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
   const exportCsv = () => {
     if (!result) return;
     // #1025 — with the value each sample was classified on (it was left out)
-    const rows = drawn.map((s, i) => ({ sample_id: s.sample_id, x: s.x, y: s.y, medium: s.medium, ...(result.valueName ? { [result.valueName]: Number.isFinite(result.values?.[i]) ? result.values[i] : "" } : {}), class: result.classOf[i] >= 0 ? result.classes[result.classOf[i]].label : "no value", isolated: result.isolated[i] ? "yes" : "", gi_star_z: result.stat && Number.isFinite(result.stat[i]) ? result.stat[i].toFixed(2) : "", class_rule: result.label, crs: crsCell(project) }));
+    const rows = anomalyClassRows(drawn, result, { crs: crsCell(project) }); // #1083 — rows in lib, tested
     // #1064 — the rule and the CRS as columns: the leading "# rule" line was read by QGIS as the header (no points)
     saveFile({ suggestedName: `anomaly_classes.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows) });
   };

@@ -3,6 +3,7 @@ import { X, Download, Ruler } from "./icons.js";
 import { buildMeshQuery, isMeshClosed, signedDistanceToMesh, intervalsInsideMesh, holeDistanceToMesh } from "../lib/meshQuery.js";
 import { saveFile } from "../lib/desktop.js";
 import { toCsv, FORMULA_LEAD } from "../lib/tabular.js"; // TASKS.csv #1082
+import { surfaceQueryRows } from "../lib/tableExports.js"; // TASKS.csv #1083
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
@@ -119,20 +120,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
   }, [mesh, tab, ptX, ptY, ptZ, worldToScene, sceneToWorld]);
 
   const exportCsv = () => {
-    const head = ["hole_id", "surface", "closest_approach_m", "closest_approach_md_m", "n_pierce_points", "pierce_mds_m", "metres_inside", "hole_length_m", "surface_watertight"];
-    // TASKS.csv #1082 — through Papa: a hole id with a comma shifted every column
-    const lines = [head];
-    rows.forEach((r) => lines.push([
-      r.hole_id,
-      surface?.name || "",
-      r.minDistance != null ? r.minDistance.toFixed(3) : "",
-      r.atMd != null ? r.atMd.toFixed(2) : "",
-      r.intercepts.length,
-      r.intercepts.map((i) => i.md.toFixed(2)).join(" "),
-      r.insideLength != null ? r.insideLength.toFixed(2) : "",
-      r.totalLength != null ? r.totalLength.toFixed(2) : "",
-      mesh?.closed ? "yes" : "no",
-    ]));
+    const lines = surfaceQueryRows(rows, { surfaceName: surface?.name, closed: !!mesh?.closed }); // #1083 — rows in lib, tested; TASKS.csv #1082 — written by Papa
     saveFile({
       suggestedName: `surface_query_${(surface?.name || "surface").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.csv`,
       filters: [{ name: "CSV", extensions: ["csv"] }],

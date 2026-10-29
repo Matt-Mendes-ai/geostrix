@@ -5,6 +5,7 @@ import { computeMeshVolume } from "../lib/volumetrics.js";
 import { buildLineages, compareSurfaceGeometry, diffParams, editDisclosure } from "../lib/surfaceVersions.js";
 import { saveFile } from "../lib/desktop.js";
 import { toCsv, FORMULA_LEAD } from "../lib/tabular.js"; // TASKS.csv #1082
+import { surfaceCompareRows } from "../lib/tableExports.js"; // TASKS.csv #1083
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
@@ -101,39 +102,7 @@ export default function SurfaceCompareModal({
   // the quotes inside a parameter value (mapModel.order ["Andesite","Tuff"] split into 6 fields)
   const exportCsv = () => {
     if (!surfA || !surfB) return;
-    const rows = [
-      ["GeoStrix surface version comparison — a record of two runs, NOT evidence that either is correct."],
-      ["Exported", new Date().toISOString()],
-      ["Version A (older)", surfA.name || ""],
-      ["Version B (newer)", surfB.name || ""],
-      [],
-    ];
-    if (edits?.message) rows.push(["HAND-EDIT WARNING", edits.message], []); // a CSV row: stays English (TASKS.csv #786)
-    rows.push(["section", "item", "version A", "version B"]);
-    const f = (v, d) => (v == null || !Number.isFinite(v) ? "" : v.toFixed(d));
-    if (result) {
-      rows.push(["geometry", "vertices", result.a.vertexCount, result.b.vertexCount]);
-      rows.push(["geometry", "triangles", result.a.triangleCount, result.b.triangleCount]);
-      rows.push(["geometry", "watertight", result.a.watertight ? "yes" : "no", result.b.watertight ? "yes" : "no"]);
-      rows.push(["geometry", "open edges", result.a.openEdgeCount, result.b.openEdgeCount]);
-      rows.push(["geometry", "connected bodies", result.a.componentCount ?? "", result.b.componentCount ?? ""]);
-      if (result.bothClosed) {
-        rows.push(["volume", "enclosed m3", f(result.a.volumeM3, 1), f(result.b.volumeM3, 1)]);
-        rows.push(["volume", "delta m3", "", f(result.volumeDeltaM3, 1)]);
-        rows.push(["volume", "delta %", "", f(result.volumeDeltaPct, 2)]);
-      } else {
-        rows.push(["volume", "enclosed m3", "not applicable — at least one version is an open surface", ""]);
-      }
-      const sep = (label, sv) => sv && rows.push(["separation", `${label} mean m`, f(sv.meanM, 3), ""], ["separation", `${label} median m`, f(sv.medianM, 3), ""], ["separation", `${label} p95 m`, f(sv.p95M, 3), ""], ["separation", `${label} max m`, f(sv.maxM, 3), ""], ["separation", `${label} vertices sampled`, `${sv.sampled} of ${sv.totalVertices}`, ""]);
-      sep("B vertices -> A surface", result.bToA);
-      sep("A vertices -> B surface", result.aToB);
-      rows.push(["separation", "symmetric mean m", f(result.meanSeparationM, 3), ""]);
-      rows.push(["separation", "sampled two-sided Hausdorff (lower bound) m", f(result.maxSeparationM, 3), ""]);
-    }
-    (paramDiff?.changed || []).forEach((c) => rows.push(["parameter changed", c.key, c.fromText, c.toText]));
-    (paramDiff?.outcomes || []).forEach((c) => rows.push(["outcome changed", c.key, c.fromText, c.toText]));
-    (paramDiff?.onlyA || []).forEach((k) => rows.push(["parameter only in A", k, "", ""]));
-    (paramDiff?.onlyB || []).forEach((k) => rows.push(["parameter only in B", k, "", ""]));
+    const rows = surfaceCompareRows({ nameA: surfA.name, nameB: surfB.name, exported: new Date().toISOString(), editsMessage: edits?.message, result, paramDiff }); // #1083 — rows in lib, tested
     saveFile({
       suggestedName: `version_compare_${(surfB.name || "surface").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.csv`,
       filters: [{ name: "CSV", extensions: ["csv"] }],

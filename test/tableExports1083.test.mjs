@@ -65,3 +65,44 @@ test("#1083 a diagram's projected CSV: x / y as the plot draws them; a spider di
   assert.ok(ree[0].La > 30); // chondrite-normalized (La / 0.237 or so)
   assert.equal(ree[1].La, "");
 });
+
+test("#1083 SQL results keep two columns of the same name (they used to collapse into one)", async () => {
+  const { sqlResultRows } = await import("../src/lib/tableExports.js");
+  const out = sqlResultRows(["hole_id", "hole_id", "au"], [["H1", "H1-B", 1.5], ["H2", null, 2]]);
+  assert.deepEqual(out, [["hole_id", "hole_id", "au"], ["H1", "H1-B", 1.5], ["H2", "", 2]]);
+  assert.deepEqual(toExportCsv(out).split(/\r?\n/), ["hole_id,hole_id,au", "H1,H1-B,1.5", "H2,,2"]);
+});
+
+test("#1083 surface anomaly classes, surface QAQC failures, version comparison and hole-to-surface query rows", async () => {
+  const { anomalyClassRows, surfaceQaqcRows, surfaceCompareRows, surfaceQueryRows } = await import("../src/lib/tableExports.js");
+  const drawn = [{ sample_id: "S1", x: 1, y: 2, medium: "soil" }, { sample_id: "S2", x: 3, y: 4, medium: "soil" }];
+  const res = { valueName: "Cu_ppm", values: [120, NaN], classOf: [1, -1], classes: [{ label: "background" }, { label: "anomalous" }], isolated: [true, false], stat: [2.345, NaN], label: "P95 by medium" };
+  const ac = anomalyClassRows(drawn, res, { crs: "EPSG:26909" });
+  assert.deepEqual(ac[0], { sample_id: "S1", x: 1, y: 2, medium: "soil", Cu_ppm: 120, class: "anomalous", isolated: "yes", gi_star_z: "2.35", class_rule: "P95 by medium", crs: "EPSG:26909" });
+  assert.deepEqual([ac[1].Cu_ppm, ac[1].class, ac[1].gi_star_z], ["", "no value", ""]);
+
+  const qc = surfaceQaqcRows({ symbol: "Au", unit: "ppb", blankLimit: 5,
+    batches: [{ batch: "B1", samples: 40, standard: 1, blank: 1, duplicate: 0, lab: { standard: 2, blank: 1, duplicate: 1 }, short: { duplicate: true } }],
+    stds: [{ code: "CRM1", limits: { mean: 100, sd: 5, certified: true }, points: [{ batch: "B1", sample_id: "Q1", value: 116, z: 3.2, out2: true, out3: true }, { batch: "B1", sample_id: "Q2", value: 101, z: 0.2, out2: false }] }],
+    blanks: [{ batch: "B1", sample_id: "BL1", value: 9, fails: true }, { batch: "B1", sample_id: "BL2", value: 1, fails: false }],
+    pairs: [{ batch: "B1", sample_id: "D1", parent_id: "S1", v1: 10, v2: 20, rpd: 66.666, limit: 30, type: "field", fails: true }] });
+  assert.equal(qc.length, 4); // the batch + one failure of each kind (passes left out)
+  assert.equal(qc[0].below_target, "duplicate");
+  assert.deepEqual([qc[1].section, qc[1].z, qc[1].result, qc[1].basis], ["standard Au (ppb)", "3.20", "outside 3 SD", "certified"]);
+  assert.deepEqual([qc[2].sample_id, qc[2].limit], ["BL1", 5]);
+  assert.equal(qc[3].rpd_pct, "66.7");
+
+  const cmp = surfaceCompareRows({ nameA: "Top A", nameB: 'Top "B", rev 2', exported: "2026-10-29T00:00:00Z", editsMessage: null,
+    result: { a: { vertexCount: 10, triangleCount: 16, watertight: true, openEdgeCount: 0, componentCount: 1, volumeM3: 1000 }, b: { vertexCount: 12, triangleCount: 20, watertight: true, openEdgeCount: 0, componentCount: 1, volumeM3: 1100 },
+      bothClosed: true, volumeDeltaM3: 100, volumeDeltaPct: 10, bToA: null, aToB: null, meanSeparationM: 1.23456, maxSeparationM: 4 },
+    paramDiff: { changed: [{ key: "order", fromText: '["Andesite","Tuff"]', toText: '["Tuff"]' }] } });
+  assert.deepEqual(cmp.find((r) => r[1] === "delta %"), ["volume", "delta %", "", "10.00"]);
+  assert.deepEqual(cmp.find((r) => r[1] === "symmetric mean m"), ["separation", "symmetric mean m", "1.235", ""]);
+  const { toCsv, FORMULA_LEAD } = await import("../src/lib/tabular.js");
+  const line = toCsv(cmp, { escapeFormulae: FORMULA_LEAD }).split(/\r?\n/).find((l) => l.startsWith("parameter changed"));
+  assert.equal(line, 'parameter changed,order,"[""Andesite"",""Tuff""]","[""Tuff""]"'); // #1082: quotes doubled, 4 fields
+
+  const q = surfaceQueryRows([{ hole_id: "H,1", minDistance: 0, atMd: 120.456, intercepts: [{ md: 120.4 }, { md: 180 }], insideLength: 59.6, totalLength: 300 }, { hole_id: "H2", minDistance: 55.5, atMd: null, intercepts: [], insideLength: null, totalLength: 200 }], { surfaceName: "Vein", closed: true });
+  assert.deepEqual(q[1], ["H,1", "Vein", "0.000", "120.46", 2, "120.40 180.00", "59.60", "300.00", "yes"]);
+  assert.deepEqual(q[2].slice(2, 7), ["55.500", "", 0, "", ""]);
+});

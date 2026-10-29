@@ -16,6 +16,7 @@ import { activateOnKey } from "../lib/a11y.js";
 import { fontSizes } from "../lib/theme.js";
 import { t as tr } from "../lib/i18n.js";
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
+import { surfaceQaqcRows } from "../lib/tableExports.js"; // TASKS.csv #1083
 
 const TABS = [["batches", "Batches"], ["standards", "Standards"], ["blanks", "Blanks"], ["duplicates", "Duplicates"], ["limits", "Detection & methods"]];
 const fmt = (v) => (v == null || !Number.isFinite(v) ? "—" : Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : Math.abs(v) >= 10 ? v.toFixed(1) : v.toPrecision(3));
@@ -80,12 +81,7 @@ export default function SurfaceQaqcPanel({ onClose }) {
   const cert = std ? crmCertificates[std.code]?.[symbol] : null;
 
   const exportReport = () => {
-    const rows = [
-      ...batches.map((b) => ({ section: "batch", batch: b.batch, samples: b.samples, standards: b.standard, blanks: b.blank, duplicates: b.duplicate, lab_standards: b.lab.standard, lab_blanks: b.lab.blank, lab_duplicates: b.lab.duplicate, below_target: ["standard", "blank", "duplicate"].filter((k) => b.short[k]).join(" ") })),
-      ...stds.flatMap((g) => g.points.filter((p) => p.out2).map((p) => ({ section: `standard ${symbol} (${unit})`, batch: p.batch, sample_id: p.sample_id, code: g.code, value: p.value, expected: g.limits.mean, sd: g.limits.sd, basis: g.limits.certified ? "certified" : "own repeats", z: p.z.toFixed(2), result: p.out3 ? "outside 3 SD" : "outside 2 SD" }))),
-      ...blanks.filter((b) => b.fails).map((b) => ({ section: `blank ${symbol} (${unit})`, batch: b.batch, sample_id: b.sample_id, value: b.value, limit: blankLimit, result: "over limit" })),
-      ...pairs.filter((p) => p.fails).map((p) => ({ section: `duplicate ${symbol} (${unit})`, batch: p.batch, sample_id: p.sample_id, parent: p.parent_id, original: p.v1, duplicate: p.v2, rpd_pct: p.rpd.toFixed(1), limit_pct: p.limit, type: p.type, result: "over RPD limit" })),
-    ];
+    const rows = surfaceQaqcRows({ batches, stds, blanks, pairs, symbol, unit, blankLimit }); // #1083 — rows in lib, tested
     saveFile({ suggestedName: `surface_qaqc_${symbol}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows) });
   };
 

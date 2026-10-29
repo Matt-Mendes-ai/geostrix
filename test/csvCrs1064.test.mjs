@@ -14,7 +14,7 @@ test("#1064 crsCell names the EPSG, or says it is not set", () => {
 test("#1064 the anomaly CSV starts with its header; a rule with commas stays one cell", () => {
   const src = readFileSync(new URL("../src/components/SurfaceAnomalyControls.jsx", import.meta.url), "utf8");
   assert.ok(!src.includes("content: `# ${result.label}"), "no leading # line");
-  assert.match(src, /class_rule: result\.label, crs: crsCell\(project\)/);
+  assert.match(src, /anomalyClassRows\(drawn, result, \{ crs: crsCell\(project\) \}\)/); // #1083 — the rows are built in lib/tableExports.js
   const text = toExportCsv([{ sample_id: "S1", x: 500000, y: 6000000, class: "anomalous", class_rule: "Porphyry Cu (± Au, Mo) index", crs: "EPSG:26910" }]);
   const { rows, headers } = parseTableText(text);
   assert.equal(headers[0], "sample_id");
