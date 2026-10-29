@@ -394,6 +394,11 @@ def run_job(req, progress, cap_bytes=None):
     phi_d = float(np.sum(((rho - pred) / std) ** 2))
     J = sim.getJ(m_dc)
     sens = np.sqrt(np.einsum("ij,ij->j", J / std[:, None], J / std[:, None]))
+    # TASKS.csv #1045 (review #1016, geophysicist) — per unit VOLUME, as potential.py does since #506: a column of J scales
+    # with its cell's volume, and this octree mixes 25, 50 and 100 m cells (8x per step), so the deep coarse cells read as
+    # better seen than the fine ones above them (median raw support 0.0027 at 300-400 m vs 0.0016 at 200-300 m on the test
+    # survey) and the 0.02 cutoff kept 50 m cells to 125 m on an array that reaches ~70 m of pseudo-depth.
+    sens = sens / mesh.cell_volumes[active]
     sens = sens / sens.max() if sens.max() > 0 else sens
 
     out_ip = None

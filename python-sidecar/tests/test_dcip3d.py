@@ -185,6 +185,32 @@ def test_per_reading_floors():
         pass
 
 
+def test_support_per_volume():
+    """TASKS.csv #1045 — support per unit volume: it falls with depth (the raw column norm rose again in the deep coarse
+    cells), and at one depth a coarse cell does not read as better seen than the fine cells beside it."""
+    rows, chain = _readings(False)
+    req, rho, _ = _synthetic_data(rows, chain)
+    req.update(rho=rho.tolist())
+    c = D.run_job(req, lambda e: None)["cells"]
+    z, dx, sup = np.asarray(c["z"]), np.asarray(c["dx"]), np.asarray(c["support"])
+    depth = GROUND - z
+    bands = [(0, 50), (50, 100), (100, 200), (200, 300), (300, 400)]
+    med = [float(np.median(sup[(depth > a) & (depth <= b)])) if np.any((depth > a) & (depth <= b)) else None for a, b in bands]
+    print("  median support by depth", dict(zip([f"{a}-{b} m" for a, b in bands], med)))
+    seq = [m for m in med if m is not None]
+    assert all(b <= a for a, b in zip(seq, seq[1:])), seq
+    band = (depth > 25) & (depth <= 75)
+    fine, coarse = band & (dx <= 25), band & (dx >= 50)
+    if fine.any() and coarse.any():
+        mf, mc = float(np.median(sup[fine])), float(np.median(sup[coarse]))
+        print(f"  25-75 m deep: median support {mf:.4f} in 25 m cells, {mc:.4f} in 50 m+ cells")
+        assert mc <= mf, (mf, mc)
+    # the default 0.02 cutoff now stops near the array's reach (n = 1-5, a = 25 m: ~70 m of pseudo-depth), not at 125 m
+    kept = depth[sup >= 0.02]
+    print(f"  deepest cell at support >= 0.02: {kept.max():.0f} m")
+    assert kept.max() <= 110, kept.max()
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_") and callable(fn):
