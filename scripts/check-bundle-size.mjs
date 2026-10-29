@@ -27,7 +27,7 @@ if (locales.length) console.log(`${locales[0][1].toFixed(1).padStart(9)} kB  lar
 // TASKS.csv #693 — ViewerModule.jsx re-accreted (9,284 -> 10,215 lines in three weeks) after #445's extraction; the
 // modelling panes moved to modules/viewer/ModellingPanes.jsx (9,525 lines left). Fail above the budget; raising it is
 // fine when deliberate - change VIEWER_LINE_BUDGET with a TASKS.csv note, or move the next cohesive block out.
-const VIEWER_LINE_BUDGET = 10000;
+const VIEWER_LINE_BUDGET = 9400; // #1084: lowered from 10,000 (the file was 9,287); test/viewerModuleSize1084 also caps the bytes
 const viewerLines = readFileSync(path.resolve("src/modules/ViewerModule.jsx"), "utf8").split(/\r?\n/).length;
 console.log(`${String(viewerLines).padStart(9)} lines src/modules/ViewerModule.jsx (budget ${VIEWER_LINE_BUDGET})`);
 if (viewerLines > VIEWER_LINE_BUDGET) {
