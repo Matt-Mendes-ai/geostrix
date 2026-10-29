@@ -7,6 +7,7 @@
 // Apparent resistivity in ohm.m; chargeability (optional) in mV/V. The line itself is placed by its start
 // and end coordinates in the project CRS (distance 0 = start).
 import { terrainElevationAt } from "./inversion.js";
+import { median } from "./arrayStats.js"; // TASKS.csv #1114
 import { supportEnvelope } from "./supportEnvelope.js"; // TASKS.csv #681 — the shown / hidden rule in the CSV
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
@@ -246,9 +247,7 @@ export function columnReach(cells, pass) {
     out.push({ s, zBottom: Number.isFinite(bottom) ? bottom : null, depth: Number.isFinite(bottom) ? top - bottom : 0 });
   }
   out.sort((a, b) => a.s - b.s);
-  const d = out.map((o) => o.depth).sort((a, b) => a - b);
-  const median = d.length ? (d.length % 2 ? d[(d.length - 1) / 2] : (d[d.length / 2 - 1] + d[d.length / 2]) / 2) : 0;
-  return { cols: out, median };
+  return { cols: out, median: out.length ? median(out.map((o) => o.depth)) : 0 }; // median: arrayStats.js (#1114)
 }
 
 // #772 — the DOI line as drawn: a running median over `w` columns. Per column, "the deepest passing cell" spikes

@@ -9,6 +9,7 @@
 // sum of squares for k = 2..8 is shown as a guide, there is no right answer); and the clusters mostly reproduce
 // lithology or regolith, which is the useful result here - populations to threshold within - not a mineral map.
 import { valueIn } from "./geochem.js";
+import { median } from "./arrayStats.js"; // TASKS.csv #1114 — the true median (mean of the middle two)
 
 // elements with a positive value in at least `minCoverage` of the samples, in the project's order
 export function usableElements(samples, elements, units, minCoverage = 0.9) {
@@ -119,7 +120,6 @@ export function geochemDomains(samples, symbols, units, { k = 3, elbowMax = 8 } 
   for (let kk = 2; kk <= Math.min(elbowMax, Math.floor(rows.length / 2)); kk++) elbow.push({ k: kk, withinSS: kk === k ? km.withinSS : kmeans(rows, kk, { restarts: 4 }).withinSS });
   return { symbols, index, pca: p, k, labels: km.labels, clusters, elbow, skipped: samples.length - rows.length };
 }
-function median(a) { const s = a.slice().sort((x, y) => x - y); return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : NaN; }
 
 export const DOMAIN_ATTR = "Geochemical domain";
 // the samples with the domain written into attrs[DOMAIN_ATTR] (those left out keep no value)

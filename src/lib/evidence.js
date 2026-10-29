@@ -11,6 +11,7 @@
 // is only as good as the training points, which at property scale are usually the drilled targets - circular when
 // the evidence was what led to the drilling. All of that is printed with the result.
 import { populations, groupKeyFn, robustZ, defaultPopulations } from "./thresholds.js";
+import { quantileLinear } from "./arrayStats.js"; // TASKS.csv #1114
 import { PATHFINDER_PRESETS } from "./anomalyMap.js";
 import { valueIn } from "./geochem.js";
 import { gridValues } from "./gridExport.js";
@@ -133,7 +134,7 @@ export function sampleValues(samples, { kind, symbol, preset, elements }, units)
 }
 
 // ---------- fuzzy overlay ----------
-export const quantile = (arr, p) => { const s = Array.from(arr).filter(Number.isFinite).sort((a, b) => a - b); if (!s.length) return NaN; const h = (s.length - 1) * p, lo = Math.floor(h), hi = Math.ceil(h); return s[lo] + (h - lo) * (s[hi] - s[lo]); };
+export const quantile = quantileLinear; // TASKS.csv #1114 — arrayStats.js
 // membership: linear ramp from `low` (0) to `high` (1), or the reverse when decreasing
 export function membership(values, { shape = "increasing", low, high }) {
   const out = new Float32Array(values.length);

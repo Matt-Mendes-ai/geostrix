@@ -1,6 +1,7 @@
 // TASKS.csv #760 — the geophysical check of a geology model: a categorical block model (the units of a GemPy model added
 // as a block model, or any classified block model), a density or susceptibility per unit entered by the user, forward
 // modelled at the survey stations and compared with the data. Pure (no DOM): the panel builds the request from these.
+import { median } from "./arrayStats.js"; // TASKS.csv #1114 — the true median (mean of the middle two)
 
 // Block models whose cells carry a unit (discrete colour mode with value labels), the ones a property can be given per unit
 export function categoricalModels(voxelModels) {
@@ -43,7 +44,6 @@ export function cellLocator(cells) {
   };
 }
 
-const median = (a) => { const s = [...a].sort((p, q) => p - q), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 
 // The median of downhole measurements ([x, y, z, value], model units) inside each unit's cells (Guduk et al. 2021 took
 // per-unit susceptibilities from downhole logs the same way): {value: {median, n}}; units with no sample are absent

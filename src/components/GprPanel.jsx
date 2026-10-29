@@ -10,7 +10,7 @@ import { firstBreak } from "../lib/gprProcess.js";
 import { processInWorker } from "../lib/gprClient.js";
 import { terrainElevationAt } from "../lib/inversion.js";
 import { reprojectXY, getProj4Def } from "../lib/reproject.js";
-import { saveFile } from "../lib/desktop.js";
+import { saveFile, safeFileName } from "../lib/desktop.js"; // safeFileName: #1114
 import { version as APP_VERSION } from "../../package.json";
 import { t as tr } from "../lib/i18n.js";
 import { colors } from "../lib/theme.js";
@@ -224,7 +224,7 @@ export default function GprPanel({ pBtn, numInput, mainRef }) {
   const exportPng = () => {
     if (!img) return;
     const c = figure(img, { ...figOpts, width: img.width + 100, height: Math.min(img.height, 1600) + 54, pic }); // the full-resolution picture
-    saveFile({ suggestedName: `${gpr.name.replace(/\.dzt$/i, "")}_radargram.png`, filters: [{ name: "PNG", extensions: ["png"] }], content: c.toDataURL("image/png").split(",")[1], encoding: "base64" });
+    saveFile({ suggestedName: `${safeFileName(gpr.name.replace(/\.dzt$/i, ""), "gpr")}_radargram.png`, filters: [{ name: "PNG", extensions: ["png"] }], content: c.toDataURL("image/png").split(",")[1], encoding: "base64" });
   };
 
   const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 };

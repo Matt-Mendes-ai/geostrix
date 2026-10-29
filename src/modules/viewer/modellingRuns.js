@@ -755,7 +755,7 @@ export function createModellingRuns(ctx, mcRef) {
           if (cells.length) addVoxelModel({ name: `P(${label}): share of ${er.runs} realizations`, source: "gempy-ensemble", cells, min: 0, max: 1, colorMode: "continuous", stops: sequentialStops(0, 1), params: { ...common, value: `share of realizations in which the cell is ${label} (0-1)` } });
           const vols = er.volumesCells.map((per) => (per[k] * cellVol) / warpDetE);
           const q = (x) => quantile(vols, x);
-          const fmtV = (v) => (v == null ? "n/a" : v >= 1e9 ? `${(v / 1e9).toFixed(2)} km³` : `${(v / 1e6).toFixed(1)} Mm³`);
+          const fmtV = (v) => (!Number.isFinite(v) ? "n/a" /* #1114 — the quantile is NaN when empty */ : v >= 1e9 ? `${(v / 1e9).toFixed(2)} km³` : `${(v / 1e6).toFixed(1)} Mm³`);
           volLines.push(`${label} P10 ${fmtV(q(0.1))}, P50 ${fmtV(q(0.5))}, P90 ${fmtV(q(0.9))}`);
         });
         const hCells = gridValuesToCells(outExtent, outRes, er.entropy, o, (v) => v > 0, map);

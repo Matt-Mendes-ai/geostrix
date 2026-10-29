@@ -5,8 +5,8 @@
 // one, a grade estimate next to the assays) and exportable like any other interval table. Steps outside
 // every cell leave a gap — nothing is extrapolated.
 import { desurveyHole, pointOnTrace } from "./desurvey.js";
+import { median } from "./arrayStats.js"; // TASKS.csv #1114 — the true median (mean of the middle two)
 
-const median = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : NaN; };
 
 // Uniform bucket grid over the cells; a cell is registered in every bucket its box overlaps.
 export function buildVoxelLookup(cells) {

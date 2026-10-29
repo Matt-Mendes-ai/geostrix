@@ -10,3 +10,12 @@ test("#902 no source file contains a NUL byte", () => {
   const bad = walk("src").filter((p) => /\.(jsx?|mjs|json|css)$/.test(p) && readFileSync(p).includes(0));
   assert.deepEqual(bad, []);
 });
+
+// TASKS.csv #1114 — one median and one interpolating quantile, in arrayStats.js: two local medians had taken the
+// upper-middle value of an even count. A new local definition fails here; import median / quantileLinear instead.
+test("#1114 no local median / quantile outside arrayStats.js", () => {
+  const re = /(?:function\s+|const\s+)(median|quantile|quantileSorted|quantileLinear)\s*(?:\(|=\s*(?:\(|function))/;
+  const bad = walk("src").filter((p) => /\.(jsx?|mjs)$/.test(p) && !p.endsWith(path.join("lib", "arrayStats.js")) && re.test(readFileSync(p, "utf8")));
+  // GradeStatistics.jsx's quantile is length-weighted, a different statistic (#740)
+  assert.deepEqual(bad.filter((p) => !p.endsWith("GradeStatistics.jsx")), []);
+});

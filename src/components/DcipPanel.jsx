@@ -14,7 +14,7 @@ import { stampLines, withStamp } from "../lib/provenance.js";
 import { version as APP_VERSION } from "../../package.json";
 import { logStops, sequentialStops, divergingStops, fitVerdict, ipFitOf } from "../lib/inversion.js"; // ipFitOf: #970, shared with the 3D panel
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
-import { pythonHealth, ensureSidecarUp, saveFile } from "../lib/desktop.js";
+import { pythonHealth, ensureSidecarUp, saveFile, safeFileName } from "../lib/desktop.js"; // safeFileName: #1114
 import { colorForVoxelValue } from "../lib/layers.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js";
 import { HATCH } from "../lib/supportHatch.js"; // TASKS.csv #535
@@ -452,7 +452,7 @@ function SectionResult({ last, cutoff, epsg, pBtn }) {
       </div>
       <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
         <button onClick={() => exportCsv(last, epsg, cutoff)} style={{ ...pBtn, width: "auto", flex: 1 }} title={tr("Every section cell: distance, x / y (project CRS), elevation, size, values, support")}><Download size={14} />{" "}{tr("CSV")}</button>
-        <button onClick={async () => { const img = await sectionImage(last, field, cutoff); saveFile({ suggestedName: `dcip_${last.name}_${field}.png`, filters: [{ name: "PNG", extensions: ["png"] }], content: img.dataUrl.split(",")[1], encoding: "base64" }); }} style={{ ...pBtn, width: "auto", flex: 1 }}><Download size={14} />{" "}{tr("PNG")}</button>
+        <button onClick={async () => { const img = await sectionImage(last, field, cutoff); saveFile({ suggestedName: `dcip_${safeFileName(last.name, "line")}_${field}.png`, filters: [{ name: "PNG", extensions: ["png"] }], content: img.dataUrl.split(",")[1], encoding: "base64" }); }} style={{ ...pBtn, width: "auto", flex: 1 }}><Download size={14} />{" "}{tr("PNG")}</button>
         <button onClick={async () => { const img = await sectionImage(last, field, cutoff); addLayoutImage({ label: `DC/IP ${last.name} — ${field}`, src: img.dataUrl, naturalW: img.width, naturalH: img.height }); goToModule("layout"); setNote(tr("Section added to the Layout page.")); }} style={{ ...pBtn, width: "auto", flex: 1 }}>{tr("Add to Layout")}</button>
       </div>
       <div style={{ display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap" }}>
@@ -568,5 +568,5 @@ function exportCsv(last, epsg, cutoff) {
     `envelope_support = the largest support at or below the cell in its column; shown = envelope_support >= the cutoff (${cutoff}): cells below the deepest well-seen cell of their column are hidden`,
     ...(r.cells.doi ? [`doi_index = Oldenburg & Li (1999) depth-of-investigation index from resistivity inversions with reference models ${(r.doiMethod?.referenceFactors || [0.1, 10]).join(" and ")}x the median: ~0 = data-controlled, ~1 = reference-controlled (threshold ${r.doiMethod?.threshold ?? 0.2}); single-cell values depend on how closely the two runs fit (${(r.doiMethod?.misfitOfEachRun || []).map((v) => `${v}x`).join(" / ")}) - read the depth per column, not one cell`] : []), // #772
   ] });
-  saveFile({ suggestedName: `dcip_${last.name}_section.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(sectionTableRows(r, last.geom, cutoff)), stamp) });
+  saveFile({ suggestedName: `dcip_${safeFileName(last.name, "line")}_section.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(sectionTableRows(r, last.geom, cutoff)), stamp) });
 }

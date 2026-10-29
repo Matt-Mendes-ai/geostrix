@@ -6,6 +6,7 @@
 //
 // It is a SENSITIVITY ensemble under the sigmas the geologist entered (#52's vocabulary): the probabilities are shares
 // of realisations, not a posterior. Pure; no React / three.js.
+import { quantileLinear } from "./arrayStats.js"; // TASKS.csv #1114
 
 // block: { resolution: [nx, ny, nz], ids (1-based unit ids, length nx*ny*nz), labels } — the engine's block (#356)
 export function makeEnsembleCounter(nCells, nLabels) {
@@ -46,13 +47,8 @@ export function makeEnsembleCounter(nCells, nLabels) {
   };
 }
 
-// q-th quantile (0..1) of a numeric array, linear interpolation
-export function quantile(values, q) {
-  const v = [...values].filter(Number.isFinite).sort((a, b) => a - b);
-  if (!v.length) return null;
-  const i = (v.length - 1) * q, lo = Math.floor(i), hi = Math.ceil(i);
-  return v[lo] + (v[hi] - v[lo]) * (i - lo);
-}
+// q-th quantile (0..1) of a numeric array, linear interpolation: arrayStats.js since TASKS.csv #1114 (NaN when empty)
+export { quantileLinear as quantile };
 
 // Regular-grid values -> voxel cells in world coordinates (same layout as modelCheck.blockToCells: ids ordered z
 // fastest, then y, then x). `keep(value, index)` decides which cells become cells (e.g. only uncertain ones).

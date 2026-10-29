@@ -1,3 +1,4 @@
+import { median } from "./arrayStats.js"; // TASKS.csv #1114
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 // TASKS.csv #610 — diurnal correction of ground magnetics from base-station recordings.
 //
@@ -75,10 +76,7 @@ export function parseBaseStation(text, { minQuality = 50, name = "" } = {}) {
   }
   if (samples.length < 2) throw new Error(tr("{v} has no base-station readings GeoStrix can read (expected rows of \"time  nT\" such as \"07:55:05.0  57117.85 99\").", { v: name || tr("This file") }));
   samples.sort((a, b) => a.t - b.t);
-  const sorted = samples.map((s) => s.nT).sort((a, b) => a - b);
-  const mid = sorted.length >> 1;
-  const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-  return { name, ...info, samples, median, start: samples[0].t, end: samples[samples.length - 1].t, lowQuality, unreadable };
+  return { name, ...info, samples, median: median(samples.map((s) => s.nT)), start: samples[0].t, end: samples[samples.length - 1].t, lowQuality, unreadable };
 }
 
 // Base value at time t by linear interpolation; null outside coverage or inside a gap longer than maxGapSec.

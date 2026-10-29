@@ -6,6 +6,7 @@ import { strikeDipSymbol } from "../lib/levelPlan.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { colors } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1048 — the legend drawn into the PNG
+import { saveFile } from "../lib/desktop.js"; // TASKS.csv #1114 — the native save dialog, as every other export (#444)
 
 // TASKS.csv #525 — the LEVEL PLAN window: a horizontal section at an RL, at true scale with E / N axes, a scale bar
 // and a north arrow. What the plane z = RL cuts — and what lies in the slab RL ± half-width — comes from
@@ -141,7 +142,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
     URL.revokeObjectURL(url);
     const dataUrl = c.toDataURL("image/png");
     if (toLayout) { onAddToLayout({ label: `Level plan RL ${rl} m ±${half} m`, src: dataUrl, naturalW: c.width, naturalH: c.height }); return; }
-    const a = document.createElement("a"); a.href = dataUrl; a.download = `level_plan_RL${rl}.png`; a.click();
+    saveFile({ suggestedName: `level_plan_RL${rl}.png`, filters: [{ name: "PNG", extensions: ["png"] }], content: dataUrl.split(",")[1], encoding: "base64" });
   };
 
   const ctrl = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 5 };

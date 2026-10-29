@@ -3,7 +3,7 @@
 // geokeys as the terrain export (#203, raster.js) and the Sentinel-2 stack (#784, imageryFetch.js).
 import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
 import { b64ToF32 } from "./inversion.js";
-import { saveFile } from "./desktop.js";
+import { saveFile, safeFileName } from "./desktop.js";
 
 export const GEOTIFF_NODATA = -9999;
 
@@ -43,4 +43,4 @@ export function nodeGridGeometry({ bbox, gridW, gridH }) {
 export function saveGeoTIFF(suggestedName, buf) {
   return saveFile({ suggestedName, filters: [{ name: "GeoTIFF", extensions: ["tif"] }], content: new Uint8Array(buf) /* #1040 bytes */ });
 }
-export const safeFileName = (s) => String(s || "grid").replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "grid";
+export { safeFileName }; // desktop.js since TASKS.csv #1114, beside saveFile

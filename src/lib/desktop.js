@@ -29,6 +29,10 @@ export const EXPORT_RESULT_EVENT = "geostrix-export-result";
 const announce = (detail) => { try { if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent(EXPORT_RESULT_EVENT, { detail })); } catch { /* no window */ } };
 // content: text, base64 text (encoding "base64"), or bytes (Uint8Array / ArrayBuffer: TASKS.csv #1040 — sent as they
 // are; base64 cost a binary string, a 1.33x string and an IPC copy of it, and over ~400 MB passed V8's string limit)
+// TASKS.csv #1114 — a suggested file name from user text (a line, survey or model name): letters, digits, ".", "_" and
+// "-" only, at most 60 characters. Several names went to the save dialog unsanitized (a DC/IP line, a GPR file).
+export const safeFileName = (s, fallback = "grid") => String(s || fallback).replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || fallback;
+
 export async function saveFile({ suggestedName, filters, content, encoding, quiet = false }) {
   // TASKS.csv #1097 — a UTF-8 byte-order mark on every exported CSV, so Excel on Windows reads accents, "°", "±" and "²"
   // as written instead of "Â°" (GeoStrix's own importer strips it, as do GDAL / QGIS)

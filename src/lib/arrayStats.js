@@ -37,3 +37,20 @@ export function percentile(values, p) {
   for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i])) s.push(+values[i]);
   return percentileSorted(s.sort((a, b) => a - b), p);
 }
+
+// TASKS.csv #1114 — one interpolating quantile and one median. Three identical linear-interpolation quantiles had grown
+// up beside percentile() (thresholds.js, ensembleProbability.js, evidence.js) and seven medians, two of which took the
+// upper-middle value of an even count (stackOrder.js, voxelSample.js). Hyndman & Fan type 7 (the spreadsheet / R
+// default); p in 0..1. quantileSorted() takes an ascending array; the others keep the finite values of a copy.
+export function quantileSorted(s, p) {
+  if (!s.length) return NaN;
+  const h = (s.length - 1) * p, lo = Math.floor(h), hi = Math.ceil(h);
+  return s[lo] + (h - lo) * (s[hi] - s[lo]);
+}
+const finiteSorted = (values) => {
+  const s = [];
+  for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i])) s.push(+values[i]);
+  return s.sort((a, b) => a - b);
+};
+export const quantileLinear = (values, p) => quantileSorted(finiteSorted(values), p);
+export const median = (values) => quantileSorted(finiteSorted(values), 0.5); // the mean of the two middle values for an even count; NaN when empty

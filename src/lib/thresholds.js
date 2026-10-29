@@ -25,17 +25,13 @@
 //
 // Robust z-score of a sample within its group: (log10 x - median) / (1.4826 MAD), both of the group's log10 values.
 import { pointInRings } from "./mapLayers.js";
+import { quantileSorted, median } from "./arrayStats.js"; // TASKS.csv #1114
 
 const LN10 = Math.log(10);
 const log10 = (v) => Math.log(v) / LN10;
 const sortNum = (a) => a.slice().sort((x, y) => x - y);
-// Hyndman & Fan type 7 (the spreadsheet / R default), on a sorted array
-export function quantileSorted(s, p) {
-  if (!s.length) return NaN;
-  const h = (s.length - 1) * p, lo = Math.floor(h), hi = Math.ceil(h);
-  return s[lo] + (h - lo) * (s[hi] - s[lo]);
-}
-export function median(values) { return quantileSorted(sortNum(values), 0.5); }
+// Hyndman & Fan type 7 quantile and the median: arrayStats.js since TASKS.csv #1114, re-exported for this file's importers
+export { quantileSorted, median };
 // Median absolute deviation, scaled by 1.4826 to estimate the SD of a normal distribution
 export function madScaled(values, med = median(values)) { return 1.4826 * median(values.map((v) => Math.abs(v - med))); }
 

@@ -20,7 +20,7 @@ test("probability and entropy per cell", () => {
 test("quantiles", () => {
   assert.equal(quantile([3, 1, 2], 0.5), 2);
   assert.equal(quantile([0, 10], 0.9), 9);
-  assert.equal(quantile([], 0.5), null);
+  assert.ok(Number.isNaN(quantile([], 0.5))); // #1114 — arrayStats.js quantileLinear: NaN when empty
 });
 
 test("grid values to world cells, with a keep rule and a trend index map", () => {

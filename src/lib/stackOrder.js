@@ -4,6 +4,7 @@
 // Instead each pair is compared where both exist: the sign of the median of zA - zB over the map columns both cover;
 // medians only for a pair that shares no column. The stack is then ordered by how many others each lies above (ties: by
 // median), which is the geological order whenever the pairwise relations agree. Pure: no three.js.
+import { median } from "./arrayStats.js"; // TASKS.csv #1114 — the true median (mean of the middle two)
 
 // heights of a surface on an n x n grid of column centres over box [xmin, xmax, ymin, ymax]: the highest crossing in
 // each column (NaN where the surface is absent). positions: x, y (map), z (elevation) triples.
@@ -31,7 +32,7 @@ export function heightGrid(positions, indices, box, n) {
   return H;
 }
 
-const median = (v) => { if (!v.length) return NaN; const s = [...v].sort((p, q) => p - q); return s[s.length >> 1]; };
+// median: arrayStats.js (#1114) — this copy took the upper-middle value of an even count, so a tie read as a win
 
 // items [{ id, positions, indices }] -> { order: [ids, top first], rank: { id: 0.. }, pairs: number compared on shared columns }
 export function stackOrder(items, { n = 48, minShared = 3 } = {}) {

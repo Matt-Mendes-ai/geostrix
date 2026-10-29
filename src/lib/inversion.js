@@ -4,7 +4,7 @@
 import { reprojectXY, isMetricProjectedEpsg } from "./reproject.js";
 import { hexToRgb, rgbToHex, rgbToLab, labToRgb } from "./colorRamp.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
-import { terrainFillAt, terrainNodeIsFill } from "./viewer/geomath.js"; // TASKS.csv #927
+import { terrainNodeIsFill, terrainGroundAt } from "./viewer/geomath.js"; // TASKS.csv #927; terrainGroundAt: #1114
 
 // ---------- grid convergence ----------
 // SimPEG's x/y axes are the project grid's easting/northing, so the inducing field's declination has to
@@ -30,20 +30,9 @@ export function gridDeclination(trueDeclinationDeg, x, y, epsg) {
 // edge). Returns NaN outside the terrain instead of clamping to the edge value: for deciding which cells
 // are underground an invented flat margin is worse than an explicit "not covered" (GIS review, #321). TASKS.csv #927 —
 // and over filled nodes (the mean elevation of a DEM void or outside a TIN), which are no ground either.
-export function terrainElevationAt(terrain, x, y) {
-  const [xmin, ymin, xmax, ymax] = terrain.bbox;
-  if (x < xmin || x > xmax || y < ymin || y > ymax) return NaN;
-  if (terrainFillAt(terrain, x, y)) return NaN;
-  const { gridW, gridH, elevations } = terrain;
-  const fx = ((x - xmin) / (xmax - xmin)) * (gridW - 1);
-  const fy = ((ymax - y) / (ymax - ymin)) * (gridH - 1);
-  const x0 = Math.min(gridW - 2, Math.floor(fx)), y0 = Math.min(gridH - 2, Math.floor(fy));
-  const tx = fx - x0, ty = fy - y0;
-  const at = (i, j) => elevations[j * gridW + i];
-  const top = at(x0, y0) * (1 - tx) + at(x0 + 1, y0) * tx;
-  const bot = at(x0, y0 + 1) * (1 - tx) + at(x0 + 1, y0 + 1) * tx;
-  return top * (1 - ty) + bot * ty;
-}
+// TASKS.csv #1114 — one bilinear sampler: this was a second copy of geomath.js terrainGroundAt (same #927 fill rule) that
+// read index -1 on a terrain one node wide or tall
+export const terrainElevationAt = terrainGroundAt;
 
 // Terrain grid nodes (x, y, z) inside a box, thinned to at most maxPoints — the sidecar's active-cell
 // test needs the ground surface over the whole mesh, padding included. TASKS.csv #927 — filled nodes are left out
