@@ -4,6 +4,7 @@ import { onSectionData, getSectionData, sendSectionSnapshot, sendSectionContacts
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #395
 import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearestSegment, setTieVertex, copyGhostString } from "../lib/sectionDigitise.js"; // TASKS.csv #519; copyGhostString: #1059
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { sectionPaper } from "../lib/pageFormats.js"; // TASKS.csv #1143
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { placeLabels, leaderEnd, resolveLabels } from "../lib/sectionLabels.js"; // TASKS.csv #823
 import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped
@@ -289,7 +290,10 @@ export default function SectionWindow() {
     };
     img.src = url;
   };
-  const exportPDF = () => savePDF(`${baseName}.pdf`);
+  const exportPDF = () => { // #1143 — the whole figure on one page, on the paper that suits its shape
+    const d = svgDims();
+    return savePDF(`${baseName}.pdf`, sectionPaper(d?.w || 1, d?.h || 0));
+  };
 
   if (!data) return <div style={{ padding: 20, color: "#55606e", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Waiting for section data…")}</div>;
 

@@ -307,6 +307,10 @@ input, select { font-family: inherit; }
      LayoutModule.jsx), its siblings (the sidebar, the rulers, the on-screen sheet) hidden */
   .ge-print-root { display: block !important; }
   .ge-print-root ~ * { display: none !important; }
+  /* TASKS.csv #1141 — an allow-list while a Layout export runs: anything that is neither the print root, inside it, nor
+     an ancestor of it is hidden. Naming the chrome missed the startup banners ("Recovered unsaved work", "didn't close
+     normally"), which printed as extra pages; a banner, toast or dialog added later cannot do that now. */
+  body:has(.ge-print-root) *:not(:has(.ge-print-root)):not(.ge-print-root):not(.ge-print-root *):not(style):not(script) { display: none !important; }
 }
 /* TASKS.csv #908 — the print root exists only while exporting and is never shown on screen */
 .ge-print-root { display: none; }
@@ -319,7 +323,13 @@ input, select { font-family: inherit; }
    separate window from the main app and doesn't share .ge-toolbar/.ge-panel/.ge-status. */
 @media print {
   .ge-section-toolbar, .ge-section-chips { display: none !important; }
-  .ge-section-body { padding: 0 !important; height: auto !important; overflow: visible !important; }
+  .ge-section-body { padding: 0 !important; height: auto !important; overflow: visible !important; flex: none !important; }
+  /* TASKS.csv #1143 — one figure on one page. The SVG is width: 100% with a viewBox, so a section taller than the paper
+     ran on to a second page: it now takes the page's height too and the viewBox fits it inside, proportions kept. vh is
+     the paper while printing, whatever its size or orientation; a fixed 205 mm came out 10 % too tall under print scaling. */
+  div:has(> .ge-section-body) { height: auto !important; display: block !important; }
+  .ge-section-body > :not(svg) { display: none !important; }
+  .ge-section-body > svg { display: block; width: 100% !important; height: 98vh !important; break-inside: avoid; border-radius: 0 !important; }
 }
 
 /* AttributeTableModal.jsx — editable cell focus ring, so it's clear a cell is being typed into */

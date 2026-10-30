@@ -39,3 +39,7 @@ export function pdfOptions(format) {
   const f = pageFormatOf({ format });
   return { pageSize: PAGE_FORMATS[f.size].electron, landscape: f.orientation === "landscape" };
 }
+
+// TASKS.csv #1143 — the paper for a one-page section PDF: portrait only for a figure taller than it is wide (landscape would
+// shrink it down the middle of the sheet). -> { landscape }
+export function sectionPaper(w, h) { return { landscape: !(h > w) }; }
