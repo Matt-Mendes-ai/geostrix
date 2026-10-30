@@ -6,7 +6,7 @@ import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearest
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { sectionPaper } from "../lib/pageFormats.js"; // TASKS.csv #1143
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
-import { placeLabels, leaderEnd, resolveLabels } from "../lib/sectionLabels.js"; // TASKS.csv #823
+import { placeLabels, leaderEnd, resolveLabels, labelWidth } from "../lib/sectionLabels.js"; // TASKS.csv #823
 import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped
 import { exportSvgMarkup, FIGURE_FONT } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { colors, printPt, printPx, PLACED_W } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned, the planned-hole colour of every view; print scale: #1090
@@ -587,6 +587,13 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
     if (seg >= 0) { const pt = pointAt(local); onEditPoints(c.id, (pts) => insertVertex(pts, seg, pt)); }
   };
 
+  // #1144 — what the hole names and other labels stay off (centre-x / baseline-y, as placeLabels): the elevation numbers, the
+  // title band above the frame and the distance axis band below it
+  const axisLabelBoxes = [
+    ...niceTicks(minZ, maxZ, 8).map((z) => { const w = labelWidth(z.toFixed(0), fs(10)); return { x: PAD - 8 - w / 2, y: sz(z) + fs(3), w, h: fs(10) + 2 }; }),
+    { x: W / 2, y: PAD - fs(3), w: W, h: PAD - fs(3) },
+    { x: W / 2, y: H, w: W, h: PAD - 3 },
+  ];
   return (
     <svg ref={svgRef} fontFamily={textFont} viewBox={`0 0 ${W} ${totalH}`} width="100%" style={{ background: "#ffffff", borderRadius: 8, cursor: drawing ? "crosshair" : "default" }} onClick={handleClick} onMouseMove={handleMove} onMouseUp={handleUp} onMouseLeave={handleUp}>
       {/* TASKS.csv #1129 — "texts on the cross section are getting written on top or behind features": every label has a white halo, so it reads over ribbons, structures and contacts */}
@@ -918,7 +925,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
         });
         const fixed = { ...labels.offsets, ...(labelDrag ? { [labelDrag.key]: { dx: labelDrag.dx, dy: labelDrag.dy } } : {}) };
         const color = Object.fromEntries(items.map((it) => [it.key, it.color]));
-        const placed = placeLabels(items, { fontSize: fs(9), bounds: [4, W - 4], fixed }); // the whole drawing: holes run past the plot frame
+        const placed = placeLabels(items, { fontSize: fs(9), bounds: [4, W - 4], yBounds: [2, totalH - 2], fixed, avoid: axisLabelBoxes }); // the whole drawing: holes run past the plot frame
         holeLabelBoxes = placed; // #1134 — obstacles for the other labels
         return (
           <g>
@@ -945,7 +952,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
       })()}
       {/* TASKS.csv #1134 — depth / EOH / offset / planned-hole labels: one collision pass, drawn last (over the ribbons) */}
       <g pointerEvents="none">
-        {resolveLabels(floatLabels, holeLabelBoxes).map((l) => <text key={l.key} x={l.x} y={l.y} fill={l.fill} fontSize={l.size} fontWeight={l.weight} textAnchor={l.anchor}>{l.text}</text>)}
+        {resolveLabels(floatLabels, [...holeLabelBoxes, ...axisLabelBoxes], { bounds: [4, W - 4], yBounds: [2, totalH - 2] }).map((l) => <React.Fragment key={l.key}>{l.leaderFrom && <line x1={l.leaderFrom.x} y1={l.leaderFrom.y} x2={l.x} y2={l.y - l.size / 2} stroke="#7a8494" strokeWidth="0.5" /> /* #1144 — moved off its spot */}<text x={l.x} y={l.y} fill={l.fill} fontSize={l.size} fontWeight={l.weight} textAnchor={l.anchor}>{l.text}</text></React.Fragment>)}
       </g>
       <text x={W / 2} y={H - fs(14)} fill="#55606e" fontSize={fs(11)} textAnchor="middle">{tr("Distance along section (m)")}</text>
       <text x={fs(16)} y={H / 2} fill="#55606e" fontSize={fs(11)} textAnchor="middle" transform={`rotate(-90 ${fs(16)} ${H / 2})`}>{tr("Elevation (m)")}</text>
