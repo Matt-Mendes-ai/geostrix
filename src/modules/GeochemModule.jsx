@@ -43,6 +43,7 @@ const DatabaseConnectModal = React.lazy(() => import("../components/DatabaseConn
 const CatchmentsPanel = React.lazy(() => import("../components/CatchmentsPanel.jsx")); // TASKS.csv #845
 const SurveyPlannerPanel = React.lazy(() => import("../components/SurveyPlannerPanel.jsx")); // TASKS.csv #844
 const DomainsPanel = React.lazy(() => import("../components/DomainsPanel.jsx")); // TASKS.csv #852
+const LevellingPanel = React.lazy(() => import("../components/LevellingPanel.jsx")); // TASKS.csv #1001
 const PublicGeochemModal = React.lazy(() => import("../components/PublicGeochemModal.jsx")); // TASKS.csv #846
 import QAQCPanel from "../components/QAQCPanel.jsx";
 // TASKS.csv #224 — see ViewerModule.jsx's own comment on this same lazy import (sql.js's 658KB wasm
@@ -92,6 +93,7 @@ export default function GeochemModule() {
   const [plannerOpen, setPlannerOpen] = useState(false); // TASKS.csv #844
   const [publicOpen, setPublicOpen] = useState(false); // TASKS.csv #846
   const [domainsOpen, setDomainsOpen] = useState(false); // TASKS.csv #852
+  const [levellingOpen, setLevellingOpen] = useState(false); // TASKS.csv #1001
   const [qaqcOpen, setQaqcOpen] = useState(false);
   const [sqlOpen, setSqlOpen] = useState(false);
   const [notices, setNotices] = useState([]);
@@ -806,6 +808,7 @@ export default function GeochemModule() {
             <RibbonButton advanced icon={Grid3x3} label="Correlation" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Correlation matrix" onClick={() => setCorrOpen(true)} />
             <RibbonButton icon={GBarChart} label="Grade stats" tone="analyse" disabled={!(assayElements.length || surfaceElements.length)} disabledReason="Import assays or surface samples first" title="Grade statistics (assays or surface samples)" onClick={() => setGradeStatsOpen(true)} />
             <RibbonButton icon={GBarChart} label="Thresholds" tone="analyse" disabled={!surfaceElements.length} disabledReason="Import surface samples first" title="Anomaly thresholds for soil and stream-sediment samples, judged within populations" onClick={() => setThresholdsOpen(true)} />{/* TASKS.csv #841 */}
+            <RibbonButton advanced icon={GBarChart} label="Level surveys" tone="analyse" disabled={!surfaceElements.length} disabledReason="Import surface samples first" title="Bring one survey's values to another's level (tie samples first), as a new column" onClick={() => setLevellingOpen(true)} />{/* TASKS.csv #1001 */}
             <RibbonButton icon={GBarChart} label="Domains" tone="analyse" disabled={surfaceElements.length < 2} disabledReason="Import surface samples with several elements first" title="Geochemical domains: log-ratio principal components and k-means on the surface samples, written back as a column for the Thresholds populations" onClick={() => setDomainsOpen(true)} />{/* TASKS.csv #852 */}
             <RibbonButton icon={GMapPin} label="Catchments" tone="analyse" disabled={!surfaceSamples.length} disabledReason="Import surface samples first" title="Stream-sediment catchments from the terrain: dilution correction (Hawkes), drainage ranking, follow-up reaches" onClick={() => setCatchmentsOpen(true)} />{/* TASKS.csv #845 */}
             <RibbonButton icon={GMapPin} label="Plan survey" tone="data" title="Plan a soil grid or stream-sediment sites, numbered with your QC inserts: GPX, KML, CSV and a printable field sheet" onClick={() => setPlannerOpen(true)} />{/* TASKS.csv #844 */}
@@ -1065,6 +1068,9 @@ export default function GeochemModule() {
         />
       )}
 
+      {levellingOpen && ( // TASKS.csv #1001
+        <React.Suspense fallback={null}><LevellingPanel onClose={() => setLevellingOpen(false)} /></React.Suspense>
+      )}
       {domainsOpen && ( // TASKS.csv #852
         <React.Suspense fallback={null}><DomainsPanel onClose={() => setDomainsOpen(false)} /></React.Suspense>
       )}

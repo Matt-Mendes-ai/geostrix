@@ -147,7 +147,7 @@ export function groupOptions(surfaceSamples, mapLayers = []) {
   const opts = [{ value: "none", label: "All samples (one population)" }, { value: "medium", label: "Sampling medium" }];
   if (hasMixedSources(surfaceSamples)) opts.push({ value: "medium_source", label: "Sampling medium and source" });
   const attrs = new Map();
-  surfaceSamples.forEach((s) => Object.keys(s.attrs || {}).forEach((k) => attrs.set(k, (attrs.get(k) || 0) + 1)));
+  surfaceSamples.forEach((s) => Object.keys(s.attrs || {}).forEach((k) => { if (!k.endsWith("_lev_basis")) attrs.set(k, (attrs.get(k) || 0) + 1); })); // #1001: an audit column; grouping by it would undo the levelling
   [...attrs.keys()].sort().forEach((k) => opts.push({ value: `attr:${k}`, label: k, kind: "column" }));
   mapLayers.filter((l) => l.geomType === "polygon" && l.features?.length).forEach((l) => (l.fields || []).forEach((f) => opts.push({ value: `layer:${l.id}:${f}`, label: `${l.name} › ${f}`, kind: "map" })));
   return opts;
