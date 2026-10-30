@@ -1,4 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { subscribeRun, getRun, getRunHistory, beginRun, updateRun, endRun, cancelRun, quietFor, formatElapsed, LARGE_PROJECT_HOLES } from "../lib/geomlRun.js"; // TASKS.csv #1142
+import { useSetTaskProgress } from "../lib/store.jsx";
 import { addonStatus, addonCpuCheck, addonInstall, addonCancelInstall, addonUninstall, onAddonEvent, addonReady, runJob, cancelJob, addonHas } from "../lib/geomlAddon.js";
 import { gradeStops, labStopsAt, sequentialStops } from "../lib/inversion.js";
 import { trendToGeoml } from "../lib/trend.js"; // TASKS.csv #650
@@ -27,9 +29,10 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
   const [busyJob, setBusyJob] = useState(null);
   const [confirmInstall, setConfirmInstall] = useState(false); // #688 — one confirm step before a 553 MB download // TASKS.csv #691 — an orphaned job's id (from a 409)
   const [inst, setInst] = useState(null); // install progress { phase, got, total } | { error }
-  const [job, setJob] = useState(null); // running job { label, progress, message, elapsed }
-  const [runs, setRuns] = useState([]);
-  const abortRef = useRef(null);
+  // TASKS.csv #1142 — the run and its history live in lib/geomlRun.js: they outlive this panel when another pane is opened
+  const job = useSyncExternalStore(subscribeRun, getRun);
+  const runs = useSyncExternalStore(subscribeRun, getRunHistory);
+  const setTaskProgress = useSetTaskProgress();
   const [cpu, setCpu] = useState(null); // TASKS.csv #689 — { avx: true | false | null }, asked once the add-on is known to be missing
   useEffect(() => { if (st && st.available !== false && !st.installed && !cpu) addonCpuCheck().then(setCpu); }, [st, cpu]);
   const refresh = () => addonStatus().then(setSt).catch(() => setSt({ available: false }));
@@ -74,23 +77,27 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
   const clipNote = (r, range, learnt) => (r.air || r.far ? `; left out ${[r.air ? `${r.air.toLocaleString()} above the ground${terrain ? "" : " (a surface through the collars — load a terrain for the real one)"}` : "", r.far ? `${r.far.toLocaleString()} more than ${range} m (${learnt ? "the range the model learnt" : "the model's starting range"}) from any sample` : ""].filter(Boolean).join(" and ")}` : "");
 
   const run = async (label, kind, params, onResult) => {
-    const ctrl = new AbortController(); abortRef.current = ctrl;
-    setJob({ label, progress: 0, message: tr("Starting the add-on") });
+    const ctrl = new AbortController();
+    beginRun(label, ctrl, tr("Starting the add-on"));
+    // #1142 — in the status bar with its Cancel, so a long run stays visible and stoppable from any pane
+    const statusLabel = tr("geoML: {label}", { label }), toBar = (progress) => setTaskProgress({ label: statusLabel, pct: (progress || 0) * 100, onCancel: () => cancelRun(tr("Cancelling…")) });
+    toBar(0);
+    let record = null;
     const t0 = Date.now();
     try {
-      const health = await addonReady((s) => setJob((j) => j && { ...j, message: tr("Starting the add-on ({s} s — the first start is slower)", { s }) }));
+      const health = await addonReady((s) => updateRun({ message: tr("Starting the add-on ({s} s — the first start is slower)", { s }) }));
       // TASKS.csv #650 — the structural trend chosen for geoML (Model settings → Structural trends); add-on 0.1.0 ignores it
       const oldAddon = !addonHas(health, "trend"); // #692 — asked, not guessed from the version string
       if (trend) params = { ...params, trend: trendToGeoml(trend) };
-      const res = await runJob(kind, params, (s) => setJob((j) => j && { ...j, progress: s.progress, message: s.message, elapsed: s.elapsed }), ctrl.signal);
+      const res = await runJob(kind, params, (s) => { if (!getRun()?.cancelling) updateRun({ progress: s.progress, message: s.message, elapsed: s.elapsed }); toBar(s.progress); }, ctrl.signal);
       const note = `${await onResult(res)}${trend ? (oldAddon ? tr(" — the trend \"{name}\" was NOT applied: this add-on version ({v}) predates trends; update it (Remove the add-on, then install again)", { name: trend.name, v: health?.version || "?" }) : tr("; following the trend \"{name}\"", { name: trend.name })) : ""}`;
       const secs = Math.round((Date.now() - t0) / 1000);
-      setRuns((r) => [{ label, note, secs, at: new Date().toLocaleTimeString() }, ...r]);
+      record = { label, note, secs, at: new Date().toLocaleTimeString() };
       setNotices((p) => [...p, notice("geoML — {label}: {note} ({secs} s).", { label, note, secs })]);
     } catch (e) {
       if (e.busyJobId) setBusyJob(e.busyJobId); // #691 — a model left running earlier: offer to cancel it
       setNotices((p) => [...p, errorNotice(tr("geoML — {label}: {message}", { label, message: e.message }))]); // #739
-    } finally { setJob(null); abortRef.current = null; refresh(); }
+    } finally { endRun(record); setTaskProgress(null); refresh(); }
   };
 
   const runUnit = () => {
@@ -185,7 +192,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
           <div style={h}>{tr("Install the add-on")}</div>
           {/* TASKS.csv #688 — what you get, what it costs and what the licence means, then ONE confirm step: the button
               used to start a 553 MB download on the click (wrong on a metered camp connection) */}
-          <div><strong>{tr("What you get:")}</strong>{" "}{tr("rock-unit and grade models with their uncertainty (a Fast model takes about a minute).")}</div>
+          <div><strong>{tr("What you get:")}</strong>{" "}{tr("rock-unit and grade models with their uncertainty.")}</div>
           <div style={{ marginTop: 4 }}><strong>{tr("What it costs:")}</strong>{" "}{tr("a download{v} from GitHub, {v2} (it carries TensorFlow), about 2 GB of free memory while a model runs, and a processor with AVX (most made since 2012; some budget Celeron / Pentium chips lack it).", { v: st.downloadBytes ? tr(" of about {v}", { v: fmtMB(st.downloadBytes) }) : "", v2: st.installedBytes ? tr("{v} on disk", { v: fmtMB(st.installedBytes) }) : tr("a few GB on disk") })}</div>
           <div style={{ marginTop: 4 }}><strong>{tr("Licence:")}</strong>{" "}{tr("free to use; it is GPL-3.0, which only matters if you redistribute it (")}<a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noreferrer">{tr("licence text")}</a>{tr("). GeoStrix itself stays MIT. You can remove it here (3D Modelling › geoML models) at any time.")}</div>
           {cpu?.avx === false && (
@@ -219,7 +226,8 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
               <select value={quality} onChange={(e) => setQuality(e.target.value)} aria-label={tr("Model quality")} style={{ ...smallSel, flex: 2 }}>
                 {Object.entries(QUALITY).map(([k, q]) => <option key={k} value={k}>{q.label}</option>)}
               </select>
-            </div>{tr("Fast takes about a minute, Detailed several. {v}", { v: st.dev ? tr("(Using a development copy of the add-on.)") : "" })}
+            </div>{tr("On a project of 20 to 40 holes, Fast and Standard take a few minutes. Time grows with the holes and the quality: start with Fast. {v}", { v: st.dev ? tr("(Using a development copy of the add-on.)") : "" })}
+            {collars.length > LARGE_PROJECT_HOLES && <div style={{ marginTop: 4, color: "var(--color-warn-text)" }}>{tr("This project has {n} holes: a model can take over an hour. It keeps running if you open another pane, and the status bar has its Cancel.", { n: collars.length.toLocaleString() })}</div>}
           </div>
 
           <div style={box}>
@@ -286,8 +294,10 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
               <div style={{ height: 6, background: "var(--color-border)", borderRadius: 3, overflow: "hidden", margin: "4px 0 6px" }}>
                 <div style={{ width: `${Math.round((job.progress || 0) * 100)}%`, height: "100%", background: "var(--color-accent)" }} />
               </div>
-              <div>{job.message}{job.elapsed ? ` · ${Math.round(job.elapsed)} s` : ""}</div>
-              <button type="button" style={{ ...btn(false), marginTop: 6 }} onClick={() => abortRef.current?.abort()}>{tr("Cancel")}</button>
+              <div>{job.message}{job.elapsed ? ` · ${formatElapsed(job.elapsed)}` : ""}</div>
+              {/* #1142 — the add-on's block prediction says nothing until it ends: a still bar is not a frozen app */}
+              {!job.cancelling && quietFor(job) >= 60 && <div style={{ marginTop: 4, color: "var(--color-text-muted)" }}>{tr("No progress reported for {t}. This step can run a long time on a large project. Cancel stops it safely and gives the memory back.", { t: formatElapsed(quietFor(job)) })}</div>}
+              <button type="button" disabled={!!job.cancelling} style={{ ...btn(false), marginTop: 6 }} onClick={() => cancelRun(tr("Cancelling…"))}>{tr("Cancel")}</button>
             </div>
           )}
 

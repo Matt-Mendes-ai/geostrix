@@ -6492,5 +6492,11 @@
   "Survey after": "المسح بعد",
   "Statistical level: every adjusted sample records this in its basis column.": "مستوى إحصائي: تسجل كل عينة مضبوطة ذلك في عمود الأساس الخاص بها.",
   "Write {col}": "كتابة {col}",
-  "\"{col}\" written: {levelled} levelled and {reference} reference samples in {medium}. {symbol} itself is unchanged. It is now an element choice in Thresholds and the anomaly maps.": "كُتب «{col}»: {levelled} عينة معايرة و{reference} مرجعية في {medium}. لا يتغير {symbol}. وهو الآن خيار عنصر في العتبات وخرائط الشذوذ."
+  "\"{col}\" written: {levelled} levelled and {reference} reference samples in {medium}. {symbol} itself is unchanged. It is now an element choice in Thresholds and the anomaly maps.": "كُتب «{col}»: {levelled} عينة معايرة و{reference} مرجعية في {medium}. لا يتغير {symbol}. وهو الآن خيار عنصر في العتبات وخرائط الشذوذ.",
+  "geoML: {label}": "geoML: {label}",
+  "Cancelling…": "جارٍ الإلغاء…",
+  "No progress reported for {t}. This step can run a long time on a large project. Cancel stops it safely and gives the memory back.": "لم يُبلَّغ عن تقدم منذ {t}. قد تطول هذه الخطوة في مشروع كبير. يوقفها الإلغاء بأمان ويحرر الذاكرة.",
+  "rock-unit and grade models with their uncertainty.": "نماذج وحدات صخرية ومحتوى مع عدم اليقين فيها.",
+  "On a project of 20 to 40 holes, Fast and Standard take a few minutes. Time grows with the holes and the quality: start with Fast. {v}": "في مشروع من 20 إلى 40 ثقبًا يستغرق السريع والقياسي بضع دقائق. يزداد الوقت مع الثقوب والجودة: ابدأ بالسريع. {v}",
+  "This project has {n} holes: a model can take over an hour. It keeps running if you open another pane, and the status bar has its Cancel.": "يضم هذا المشروع {n} ثقبًا: قد يستغرق النموذج أكثر من ساعة. يستمر إذا فتحت لوحة أخرى، وفي شريط الحالة زر الإلغاء الخاص به."
 }

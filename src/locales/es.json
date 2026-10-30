@@ -6492,5 +6492,11 @@
   "Survey after": "Campaña después",
   "Statistical level: every adjusted sample records this in its basis column.": "Nivel estadístico: cada muestra ajustada lo registra en su columna de base.",
   "Write {col}": "Escribir {col}",
-  "\"{col}\" written: {levelled} levelled and {reference} reference samples in {medium}. {symbol} itself is unchanged. It is now an element choice in Thresholds and the anomaly maps.": "«{col}» escrita: {levelled} muestras niveladas y {reference} de referencia en {medium}. {symbol} no cambia. Ahora es una opción de elemento en Umbrales y en los mapas de anomalías."
+  "\"{col}\" written: {levelled} levelled and {reference} reference samples in {medium}. {symbol} itself is unchanged. It is now an element choice in Thresholds and the anomaly maps.": "«{col}» escrita: {levelled} muestras niveladas y {reference} de referencia en {medium}. {symbol} no cambia. Ahora es una opción de elemento en Umbrales y en los mapas de anomalías.",
+  "geoML: {label}": "geoML: {label}",
+  "Cancelling…": "Cancelando…",
+  "No progress reported for {t}. This step can run a long time on a large project. Cancel stops it safely and gives the memory back.": "Sin avance informado desde hace {t}. Este paso puede tardar mucho en un proyecto grande. Cancelar lo detiene de forma segura y libera la memoria.",
+  "rock-unit and grade models with their uncertainty.": "modelos de unidades de roca y de ley con su incertidumbre.",
+  "On a project of 20 to 40 holes, Fast and Standard take a few minutes. Time grows with the holes and the quality: start with Fast. {v}": "En un proyecto de 20 a 40 sondajes, Rápido y Estándar tardan unos minutos. El tiempo crece con los sondajes y la calidad: comience con Rápido. {v}",
+  "This project has {n} holes: a model can take over an hour. It keeps running if you open another pane, and the status bar has its Cancel.": "Este proyecto tiene {n} sondajes: un modelo puede tardar más de una hora. Sigue en marcha si abre otro panel, y la barra de estado tiene su botón Cancelar."
 }

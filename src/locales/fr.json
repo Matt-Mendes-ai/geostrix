@@ -6492,5 +6492,11 @@
   "Survey after": "Campagne après",
   "Statistical level: every adjusted sample records this in its basis column.": "Niveau statistique : chaque échantillon ajusté l'indique dans sa colonne de base.",
   "Write {col}": "Écrire {col}",
-  "\"{col}\" written: {levelled} levelled and {reference} reference samples in {medium}. {symbol} itself is unchanged. It is now an element choice in Thresholds and the anomaly maps.": "« {col} » écrite : {levelled} échantillons nivelés et {reference} de référence dans {medium}. {symbol} ne change pas. C'est maintenant un choix d'élément dans Seuils et les cartes d'anomalies."
+  "\"{col}\" written: {levelled} levelled and {reference} reference samples in {medium}. {symbol} itself is unchanged. It is now an element choice in Thresholds and the anomaly maps.": "« {col} » écrite : {levelled} échantillons nivelés et {reference} de référence dans {medium}. {symbol} ne change pas. C'est maintenant un choix d'élément dans Seuils et les cartes d'anomalies.",
+  "geoML: {label}": "geoML : {label}",
+  "Cancelling…": "Annulation…",
+  "No progress reported for {t}. This step can run a long time on a large project. Cancel stops it safely and gives the memory back.": "Aucune progression signalée depuis {t}. Cette étape peut être longue sur un grand projet. Annuler l'arrête sans risque et libère la mémoire.",
+  "rock-unit and grade models with their uncertainty.": "modèles d'unités rocheuses et de teneur avec leur incertitude.",
+  "On a project of 20 to 40 holes, Fast and Standard take a few minutes. Time grows with the holes and the quality: start with Fast. {v}": "Sur un projet de 20 à 40 sondages, Rapide et Standard prennent quelques minutes. Le temps augmente avec les sondages et la qualité : commencez par Rapide. {v}",
+  "This project has {n} holes: a model can take over an hour. It keeps running if you open another pane, and the status bar has its Cancel.": "Ce projet compte {n} sondages : un modèle peut prendre plus d'une heure. Il continue si vous ouvrez un autre panneau, et la barre d'état a son bouton Annuler."
 }
