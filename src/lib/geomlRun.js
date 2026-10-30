@@ -47,7 +47,3 @@ export function formatElapsed(seconds) {
   if (s < 3600) return `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, "0")} s`;
   return `${Math.floor(s / 3600)} h ${String(Math.floor((s % 3600) / 60)).padStart(2, "0")} min`;
 }
-
-// Above this many holes the panel warns before a run. A judgement, not a measurement: 19 holes took ~2 min (Fast), 37 holes
-// ~4 min (Standard), 398 holes more than an hour (quality not recorded).
-export const LARGE_PROJECT_HOLES = 100;

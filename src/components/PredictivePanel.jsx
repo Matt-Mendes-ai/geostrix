@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { subscribeRun, getRun, getRunHistory, beginRun, updateRun, endRun, cancelRun, quietFor, formatElapsed, LARGE_PROJECT_HOLES } from "../lib/geomlRun.js"; // TASKS.csv #1142
+import { subscribeRun, getRun, getRunHistory, beginRun, updateRun, endRun, cancelRun, quietFor, formatElapsed } from "../lib/geomlRun.js"; // TASKS.csv #1142
+import { planDomain, planGrade, roughTime } from "../lib/geomlPlan.js"; // TASKS.csv #1146
 import { useSetTaskProgress } from "../lib/store.jsx";
 import { addonStatus, addonCpuCheck, addonInstall, addonCancelInstall, addonUninstall, onAddonEvent, addonReady, runJob, cancelJob, addonHas } from "../lib/geomlAddon.js";
 import { gradeStops, labStopsAt, sequentialStops } from "../lib/inversion.js";
@@ -54,14 +55,30 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
   const [element, setElement] = useState("");
   useEffect(() => { if (!element && elements.length) setElement(elements.includes("Cu") ? "Cu" : elements.includes("Au") ? "Au" : elements[0]); }, [elements.join(",")]);
 
+  // TASKS.csv #1146 — what a run would be, before it is sent
+  const unitPlan = useMemo(() => {
+    if (!unit.size) return null;
+    const q = QUALITY[quality].domain;
+    const iv = (litho || []).filter((r) => r.value != null && r.value !== "" && Number.isFinite(r.from) && Number.isFinite(r.to)).map((r) => ({ hole_id: String(r.hole_id), from: r.from, to: r.to, value: r.value }));
+    return planDomain({ collars, intervals: iv, targets: new Set([...unit].map(String)), exclude: new Set([...leaveOut].filter((v) => !unit.has(v)).map(String)), trainSpacing: q.train_spacing, inducingSpacing: q.inducing_spacing, iterations: q.iterations });
+  }, [collars, litho, unit, leaveOut, quality]);
+  const gradePlan = useMemo(() => {
+    if (!element) return null;
+    const units = Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit]));
+    const { intervals } = rawSampleIntervals(excludeQAQC(assays || []), element, units[element] || "ppm", units);
+    const samples = intervals.filter((iv) => Number.isFinite(iv.avgGrade));
+    const q = QUALITY[quality].grade;
+    return samples.length ? planGrade({ samples, composite: q.composite, inducing: q.inducing, iterations: q.iterations }) : null;
+  }, [assays, assayElements, element, quality]);
+
   // TASKS.csv #644 — GeoStrix stores dips as degrees BELOW horizontal (positive down: importHelpers turns a
   // "-70" into 70); the add-on's API takes them negative-down (dip_positive_down=False). Sent as stored, every
   // hole was traced upward and the models came out mirrored above the collars (Woodjam MT23-118: toe at
   // 1,395 m instead of 536 m).
   const downDip = (d) => (Number.isFinite(d) ? -d : -90);
-  const holes = () => ({
-    collars: collars.map((c) => ({ hole_id: String(c.hole_id), x: c.x, y: c.y, z: c.z, azimuth: c.azimuth ?? 0, dip: downDip(c.dip), length: c.length ?? null })),
-    survey: (survey || []).filter((s) => Number.isFinite(s.depth) && Number.isFinite(s.dip)).map((s) => ({ hole_id: String(s.hole_id), depth: s.depth, azimuth: s.azimuth, dip: -s.dip })),
+  const holes = (only = null) => ({ // only: a Set of hole ids (#1146), or every hole
+    collars: collars.filter((c) => !only || only.has(String(c.hole_id))).map((c) => ({ hole_id: String(c.hole_id), x: c.x, y: c.y, z: c.z, azimuth: c.azimuth ?? 0, dip: downDip(c.dip), length: c.length ?? null })),
+    survey: (survey || []).filter((s) => Number.isFinite(s.depth) && Number.isFinite(s.dip) && (!only || only.has(String(s.hole_id)))).map((s) => ({ hole_id: String(s.hole_id), depth: s.depth, azimuth: s.azimuth, dip: -s.dip })),
   });
 
   // TASKS.csv #646 — which returned blocks to keep: below the ground (terrain, else a surface through the collars)
@@ -103,12 +120,16 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
   const runUnit = () => {
     const name = unitName.trim() || [...unit].join(" + ");
     const intervals = (litho || []).filter((r) => r.value != null && r.value !== "" && Number.isFinite(r.from) && Number.isFinite(r.to)).map((r) => ({ hole_id: String(r.hole_id), from: r.from, to: r.to, value: String(r.value) }));
-    const params = { ...holes(), intervals, target_values: [...unit], exclude_values: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep" : "stationary", ...QUALITY[quality].domain };
+    // #1146 — sized before it is sent: holes near the unit only, then a coarser spacing, when the whole project will not fit
+    const plan = unitPlan;
+    const sent = plan?.holeIds ? intervals.filter((r) => plan.holeIds.has(r.hole_id)) : intervals;
+    const params = { ...holes(plan?.holeIds), intervals: sent, target_values: [...unit], exclude_values: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep" : "stationary", ...QUALITY[quality].domain, ...(plan ? { train_spacing: plan.trainSpacing, inducing_spacing: plan.inducingSpacing } : {}) };
+    const sizing = plan && (plan.focused || plan.factor > 1) ? { holesSent: plan.nHoles, holesInProject: plan.totalHoles, focusM: plan.focused ? plan.focusM : null, trainSpacingM: plan.trainSpacing, inducingSpacingM: plan.inducingSpacing, pointsWithoutSizing: plan.wanted.points } : null;
     run(`${name} (${deep ? "fold-following" : "stationary"}, ${QUALITY[quality].label.toLowerCase()})`, "domain", params, async (res) => {
       const parts = [];
       // #673 — clip to the range the model LEARNT when the add-on reports it (0.1.2+); 400 m is only training's start
       const range = Math.round(res.range?.trained || 400);
-      const clip = await clipper(intervals, range);
+      const clip = await clipper(sent, range);
       if (res.surface?.triangles?.length) {
         // #646 — triangles above the ground or beyond the range are left out (vertices kept; unused ones are harmless)
         const v = res.surface.vertices;
@@ -122,11 +143,12 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
       const r = clip(blockPoints(b));
       const cells = blockCells(b, r.keep, (i) => b.probability[i]), ucells = blockCells(b, r.keep, (i) => b.uncertainty[i]);
       // TASKS.csv #677 — what produced the model travels with it (panel, exports)
-      const dparams = { tool: "geoML domain model", unitCodes: [...unit], leftOut: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep (fold-following)" : "stationary", quality: QUALITY[quality].label, ...QUALITY[quality].domain, startingRangeM: res.range?.start ?? range, trainedRangeM: res.range?.trained ?? null, trend: trend?.name || null, addonVersion: st?.version || null, trainingPoints: res.training_points, contacts: res.contacts, generatedAt: new Date().toISOString() };
+      const dparams = { tool: "geoML domain model", ...(sizing ? { sizing } : {}) /* #1146 */, unitCodes: [...unit], leftOut: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep (fold-following)" : "stationary", quality: QUALITY[quality].label, ...QUALITY[quality].domain, startingRangeM: res.range?.start ?? range, trainedRangeM: res.range?.trained ?? null, trend: trend?.name || null, addonVersion: st?.version || null, trainingPoints: res.training_points, contacts: res.contacts, generatedAt: new Date().toISOString() };
       addVoxelModel({ name: `geoML — P(${name})`, source: "geoml", cells, min: 0, max: 1, colorMode: "continuous", stops: PROB_STOPS, threshold: 0.5, opacity: 0.6, params: { ...dparams, value: "probability of the unit (0-1)" } });
       const um = ucells.reduce((m, c) => Math.max(m, c.value), 0);
       addVoxelModel({ name: `geoML — uncertainty (${name})`, source: "geoml", cells: ucells, min: 0, max: um, colorMode: "continuous", stops: sequentialStops(0, um), visible: false, params: { ...dparams, value: "uncertainty of the indicator" } });
       parts.push(tr("{cells} blocks of {cell} m with the probability of {name} (showing ≥ 50%) and its uncertainty (hidden){v}", { cells: cells.length.toLocaleString(), cell: b.cell, name, v: clipNote(r, range, !!res.range?.trained) }));
+      if (sizing) parts.push(sizing.focusM ? tr("only the {n} of {total} holes within {d} m of the unit were modelled", { n: sizing.holesSent, total: sizing.holesInProject, d: sizing.focusM.toLocaleString() }) : tr("spacing widened to {s} m to fit in memory", { s: sizing.trainSpacingM }));
       return `${parts.join("; ")} — ${res.training_points.toLocaleString()} points, ${res.contacts} contacts`;
     });
   };
@@ -152,7 +174,8 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
     ].filter(Boolean).join(", ");
     if (!samples.length) { setNotices((q) => [...q, notice("geoML grade model: no {element} samples to model after QA/QC rows were left out.", { element })]); return; }
     const unitTxt = el?.unit ? ` ${el.unit}` : "";
-    run(`${element} grade (${QUALITY[quality].label.toLowerCase()})`, "grade", { ...holes(), samples, element, ...QUALITY[quality].grade }, async (res) => {
+    const gq = planGrade({ samples, composite: QUALITY[quality].grade.composite, inducing: QUALITY[quality].grade.inducing, iterations: QUALITY[quality].grade.iterations }); // #1146
+    run(`${element} grade (${QUALITY[quality].label.toLowerCase()})`, "grade", { ...holes(), samples, element, ...QUALITY[quality].grade, composite: gq.composite }, async (res) => {
       const b = res.blocks;
       checkBlocks(b, ["prediction"]); // #741 (p10 / p90 are optional)
       const range = Math.round(res.range?.trained || 150); // #673 — the learnt range (0.1.2+), else training's start
@@ -167,7 +190,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
       // "not a resource" statement go with it (exporters treat source "geoml" like estimate-*). #678 — the number of
       // simulations behind P10 / P90 is stated (20 draws gave P10 a 47 % relative error at a grade CV of 131 %).
       const nsim = QUALITY[quality].grade.simulations;
-      const gparams = { tool: "geoML grade model", element, unit: el?.unit || null, quality: QUALITY[quality].label, compositeLengthM: QUALITY[quality].grade.composite, iterations: QUALITY[quality].grade.iterations, inducingPoints: QUALITY[quality].grade.inducing, blockSizeM: b.cell, simulations: nsim, startingRangeM: res.range?.start ?? range, trainedRangeM: res.range?.trained ?? null, trend: trend?.name || null, sampleIntervals: samples.length, composites: res.composites, qaqcExcluded: all.length - regular.length, addonVersion: st?.version || null, generatedAt: new Date().toISOString() };
+      const gparams = { tool: "geoML grade model", element, unit: el?.unit || null, quality: QUALITY[quality].label, compositeLengthM: gq.composite, iterations: QUALITY[quality].grade.iterations, inducingPoints: QUALITY[quality].grade.inducing, blockSizeM: b.cell, simulations: nsim, startingRangeM: res.range?.start ?? range, trainedRangeM: res.range?.trained ?? null, trend: trend?.name || null, sampleIntervals: samples.length, composites: res.composites, qaqcExcluded: all.length - regular.length, addonVersion: st?.version || null, generatedAt: new Date().toISOString() };
       addVoxelModel({ name: `geoML — ${element}${unitTxt}`, source: "geoml", cells, min, max, colorMode: "continuous", stops: gradeStops(min, max) /* #702 — the same ramp an IDW estimate gets */, threshold: p75, opacity: 0.6, params: { ...gparams, value: "predicted grade (back-transformed mean)" } });
       if (spread.length) {
         const sv = spread.map((c) => c.value), smax = Math.max(...sv);
@@ -227,7 +250,6 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
                 {Object.entries(QUALITY).map(([k, q]) => <option key={k} value={k}>{q.label}</option>)}
               </select>
             </div>{tr("On a project of 20 to 40 holes, Fast and Standard take a few minutes. Time grows with the holes and the quality: start with Fast. {v}", { v: st.dev ? tr("(Using a development copy of the add-on.)") : "" })}
-            {collars.length > LARGE_PROJECT_HOLES && <div style={{ marginTop: 4, color: "var(--color-warn-text)" }}>{tr("This project has {n} holes: a model can take over an hour. It keeps running if you open another pane, and the status bar has its Cancel.", { n: collars.length.toLocaleString() })}</div>}
           </div>
 
           <div style={box}>
@@ -268,6 +290,16 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
                 <input value={unitName} onChange={(e) => setUnitName(e.target.value)} placeholder={tr("Name (optional)")} aria-label={tr("Unit name")} style={{ ...smallSel, width: "100%", boxSizing: "border-box", marginTop: 6 }} />
                 <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 6 }} title={tr("geoML's deep model (GPWalk): a vector field bends the space so the contact can follow folds. Slower.")}>
                   <input type="checkbox" checked={deep} onChange={(e) => setDeep(e.target.checked)} />{" "}{tr("Follow folds (deep model, slower)")}</label>
+                {unitPlan && (
+                  <div style={{ marginTop: 6, fontSize: "var(--font-size-xs)", lineHeight: 1.4 }}>
+                    {(unitPlan.focused || unitPlan.factor > 1) && <div style={{ color: "var(--color-warn-text)" }}>
+                      {tr("The whole project would be {p} points, {t} of training, more than a computer can hold.", { p: unitPlan.wanted.points.toLocaleString(), t: roughTime(unitPlan.wanted.seconds) })}
+                      {unitPlan.focused && <>{" "}{tr("So only the {n} of {total} holes within {d} m of this unit go in, and the model covers that area.", { n: unitPlan.nHoles, total: unitPlan.totalHoles, d: unitPlan.focusM.toLocaleString() })}</>}
+                      {unitPlan.factor > 1 && <>{" "}{tr("The spacing is widened to {s} m to fit.", { s: unitPlan.trainSpacing })}</>}
+                    </div>}
+                    <div style={{ color: "var(--color-text-muted)" }}>{tr("This run: {p} points, {t} of training on a recent laptop{v}. A rough guide; predicting the blocks comes after.", { p: unitPlan.points.toLocaleString(), t: roughTime(unitPlan.seconds), v: deep ? tr(", longer with folds") : "" })}</div>
+                  </div>
+                )}
                 <button type="button" style={{ ...btn(true, !ready || !unit.size), marginTop: 8, width: "100%" }} disabled={!ready || !unit.size} onClick={runUnit}>{tr("Model {v}", { v: unit.size ? (unitName.trim() || [...unit].join(" + ")) : tr("the unit") })}</button>
               </>
             )}
@@ -283,6 +315,12 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
                 <select value={element} onChange={(e) => setElement(e.target.value)} aria-label={tr("Element")} style={{ ...smallSel, width: "100%" }}>
                   {elements.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
+                {gradePlan && (
+                  <div style={{ marginTop: 6, fontSize: "var(--font-size-xs)", lineHeight: 1.4 }}>
+                    {gradePlan.factor > 1 && <div style={{ color: "var(--color-warn-text)" }}>{tr("{n} composites would be {t} of training, more than a computer can hold, so composites are {c} m here instead of {base} m.", { n: gradePlan.wanted.composites.toLocaleString(), t: roughTime(gradePlan.wanted.seconds), c: gradePlan.composite, base: QUALITY[quality].grade.composite })}</div>}
+                    <div style={{ color: "var(--color-text-muted)" }}>{tr("This run: {n} composites, {t} of training on a recent laptop. A rough guide; predicting the blocks comes after.", { n: gradePlan.composites.toLocaleString(), t: roughTime(gradePlan.seconds) })}</div>
+                  </div>
+                )}
                 <button type="button" style={{ ...btn(true, !ready || !element), marginTop: 8, width: "100%" }} disabled={!ready || !element} onClick={runGrade}>{tr("Model {v}", { v: element || tr("a grade") })}</button>
               </>
             )}

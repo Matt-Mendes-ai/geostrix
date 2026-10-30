@@ -6498,5 +6498,17 @@
   "No progress reported for {t}. This step can run a long time on a large project. Cancel stops it safely and gives the memory back.": "Sem progresso informado há {t}. Esta etapa pode demorar muito em um projeto grande. Cancelar interrompe com segurança e libera a memória.",
   "rock-unit and grade models with their uncertainty.": "modelos de unidades de rocha e de teor com sua incerteza.",
   "On a project of 20 to 40 holes, Fast and Standard take a few minutes. Time grows with the holes and the quality: start with Fast. {v}": "Em um projeto de 20 a 40 furos, Rápido e Padrão levam alguns minutos. O tempo cresce com os furos e a qualidade: comece com Rápido. {v}",
-  "This project has {n} holes: a model can take over an hour. It keeps running if you open another pane, and the status bar has its Cancel.": "Este projeto tem {n} furos: um modelo pode levar mais de uma hora. Ele continua se você abrir outro painel, e a barra de status tem seu botão Cancelar."
+  "This project has {n} holes: a model can take over an hour. It keeps running if you open another pane, and the status bar has its Cancel.": "Este projeto tem {n} furos: um modelo pode levar mais de uma hora. Ele continua se você abrir outro painel, e a barra de status tem seu botão Cancelar.",
+  "about a minute": "cerca de um minuto",
+  "about {n} min": "cerca de {n} min",
+  "about {n} h": "cerca de {n} h",
+  "only the {n} of {total} holes within {d} m of the unit were modelled": "apenas os {n} de {total} furos a até {d} m da unidade foram modelados",
+  "spacing widened to {s} m to fit in memory": "espaçamento ampliado para {s} m para caber na memória",
+  "The whole project would be {p} points, {t} of training, more than a computer can hold.": "O projeto inteiro seriam {p} pontos, {t} de treinamento, mais do que um computador comporta.",
+  "So only the {n} of {total} holes within {d} m of this unit go in, and the model covers that area.": "Por isso entram apenas os {n} de {total} furos a até {d} m desta unidade, e o modelo cobre essa área.",
+  "The spacing is widened to {s} m to fit.": "O espaçamento é ampliado para {s} m para caber.",
+  "This run: {p} points, {t} of training on a recent laptop{v}. A rough guide; predicting the blocks comes after.": "Esta execução: {p} pontos, {t} de treinamento em um notebook recente{v}. É um guia aproximado; a predição dos blocos vem depois.",
+  ", longer with folds": ", mais com dobras",
+  "{n} composites would be {t} of training, more than a computer can hold, so composites are {c} m here instead of {base} m.": "{n} compostos seriam {t} de treinamento, mais do que um computador comporta, então aqui os compostos têm {c} m em vez de {base} m.",
+  "This run: {n} composites, {t} of training on a recent laptop. A rough guide; predicting the blocks comes after.": "Esta execução: {n} compostos, {t} de treinamento em um notebook recente. É um guia aproximado; a predição dos blocos vem depois."
 }

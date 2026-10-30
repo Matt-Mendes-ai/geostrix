@@ -6498,5 +6498,17 @@
   "No progress reported for {t}. This step can run a long time on a large project. Cancel stops it safely and gives the memory back.": "لم يُبلَّغ عن تقدم منذ {t}. قد تطول هذه الخطوة في مشروع كبير. يوقفها الإلغاء بأمان ويحرر الذاكرة.",
   "rock-unit and grade models with their uncertainty.": "نماذج وحدات صخرية ومحتوى مع عدم اليقين فيها.",
   "On a project of 20 to 40 holes, Fast and Standard take a few minutes. Time grows with the holes and the quality: start with Fast. {v}": "في مشروع من 20 إلى 40 ثقبًا يستغرق السريع والقياسي بضع دقائق. يزداد الوقت مع الثقوب والجودة: ابدأ بالسريع. {v}",
-  "This project has {n} holes: a model can take over an hour. It keeps running if you open another pane, and the status bar has its Cancel.": "يضم هذا المشروع {n} ثقبًا: قد يستغرق النموذج أكثر من ساعة. يستمر إذا فتحت لوحة أخرى، وفي شريط الحالة زر الإلغاء الخاص به."
+  "This project has {n} holes: a model can take over an hour. It keeps running if you open another pane, and the status bar has its Cancel.": "يضم هذا المشروع {n} ثقبًا: قد يستغرق النموذج أكثر من ساعة. يستمر إذا فتحت لوحة أخرى، وفي شريط الحالة زر الإلغاء الخاص به.",
+  "about a minute": "نحو دقيقة",
+  "about {n} min": "نحو {n} دقيقة",
+  "about {n} h": "نحو {n} ساعة",
+  "only the {n} of {total} holes within {d} m of the unit were modelled": "نُمذجت فقط {n} من {total} ثقبًا ضمن {d} م من الوحدة",
+  "spacing widened to {s} m to fit in memory": "وُسّع التباعد إلى {s} م ليتسع في الذاكرة",
+  "The whole project would be {p} points, {t} of training, more than a computer can hold.": "سيكون المشروع كله {p} نقطة و{t} من التدريب، أكثر مما يتسع له الحاسوب.",
+  "So only the {n} of {total} holes within {d} m of this unit go in, and the model covers that area.": "لذا تدخل فقط {n} من {total} ثقبًا ضمن {d} م من هذه الوحدة، ويغطي النموذج تلك المنطقة.",
+  "The spacing is widened to {s} m to fit.": "يوسَّع التباعد إلى {s} م ليتسع.",
+  "This run: {p} points, {t} of training on a recent laptop{v}. A rough guide; predicting the blocks comes after.": "هذا التشغيل: {p} نقطة و{t} من التدريب على حاسوب محمول حديث{v}. دليل تقريبي؛ يأتي توقع الكتل بعد ذلك.",
+  ", longer with folds": "، وأطول مع الطيات",
+  "{n} composites would be {t} of training, more than a computer can hold, so composites are {c} m here instead of {base} m.": "سيكون {n} مركّبًا {t} من التدريب، أكثر مما يتسع له الحاسوب، لذا طول المركبات هنا {c} م بدلًا من {base} م.",
+  "This run: {n} composites, {t} of training on a recent laptop. A rough guide; predicting the blocks comes after.": "هذا التشغيل: {n} مركّبًا و{t} من التدريب على حاسوب محمول حديث. دليل تقريبي؛ يأتي توقع الكتل بعد ذلك."
 }
