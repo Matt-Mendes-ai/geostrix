@@ -58,6 +58,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
+import { geochemFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1017
 
 export default function GeochemModule() {
   const store = useStore();
@@ -735,8 +736,7 @@ export default function GeochemModule() {
       : colorMode === "element" && colorRange ? elementKey().map(({ v, color }) => ({ label: `${+v.toPrecision(3)} ppm`, color, shape: "dot" }))
       : [];
     const keyTitle = colorMode === "hole" ? "Hole" : colorMode === "lithology" ? "Lithology" : colorMode === "element" ? `${colorEl} (${colorRange?.log ? "log" : "linear"} scale)` : "";
-    return { title: diagram.label, caption: [diagram.caption, `${n} of ${assays.length} samples ${diagram.spider ? "have at least one plottable element" : "plotted"}${lithFilter ? `; ${assays.length - plotted.length} hidden by the lithology filter` : ""}. Below-detection values substituted at half the detection limit.`, `GeoStrix · ${new Date().toISOString().slice(0, 10)}`],
-      keys: keyItems.length ? [{ title: keyTitle, items: keyItems.length > 40 ? [...keyItems.slice(0, 39), { label: `+${keyItems.length - 39} more`, color: "#ffffff" }] : keyItems }] : [] };
+    return geochemFurniture({ title: diagram.label, caption: diagram.caption, plotted: n, total: assays.length, spider: !!diagram.spider, hidden: lithFilter ? assays.length - plotted.length : null, keyTitle, keyItems, date: new Date().toISOString().slice(0, 10) }); // #1017 — in lib, tested
   };
   const exportPlotSVG = () => {
     const svg = svgRef.current;

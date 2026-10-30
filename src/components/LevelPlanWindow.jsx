@@ -6,6 +6,7 @@ import { strikeDipSymbol } from "../lib/levelPlan.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { colors } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1048 — the legend drawn into the PNG
+import { levelPlanFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1017
 import { saveFile } from "../lib/desktop.js"; // TASKS.csv #1114 — the native save dialog, as every other export (#444)
 
 // TASKS.csv #525 — the LEVEL PLAN window: a horizontal section at an RL, at true scale with E / N axes, a scale bar
@@ -133,7 +134,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
   const exportPng = async (toLayout) => {
     // TASKS.csv #1048 — the legend (HTML under the plan) drawn into the PNG; exportSvgMarkup as every other figure (#1089)
     const legend = data.legendItems || [];
-    const { markup, width: fw, height: fh } = exportSvgMarkup(svgRef.current, { furniture: legend.length ? { keys: [{ title: "Legend", items: legend.slice(0, 60).map(([label, color]) => ({ label, color })).concat(legend.length > 60 ? [{ label: `+${legend.length - 60} more`, color: "#ffffff" }] : []) }] } : null });
+    const { markup, width: fw, height: fh } = exportSvgMarkup(svgRef.current, { furniture: levelPlanFurniture(legend) }); // #1017 — in lib, tested
     const url = URL.createObjectURL(new Blob([markup], { type: "image/svg+xml" }));
     const img = new Image();
     await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });

@@ -10,6 +10,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
+import { tadpoleFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1017
 
 // TASKS.csv #277 — DOWNHOLE STRUCTURAL (TADPOLE) PLOT.
 //
@@ -159,11 +160,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
     if (!svgEl) return;
     // TASKS.csv #1048 / #1068 — the hole, how to read the tails (north up) and the keys, drawn into the file
     const lithoCodes = [...new Set(holeLitho.map((r) => r.value).filter(Boolean))];
-    const furniture = { title: `Tadpole plot: ${activeHole || "hole"}`,
-      caption: [`Each dot sits at its ${effectiveMode === "alpha" ? "alpha (angle to the core axis)" : "true dip"} and its depth; the tail points in the structure's dip direction, north up the page. A hollow dot is an alpha-only pick (core not oriented): no tail.`,
-        `${holePicks.length} pick(s) · GeoStrix · ${new Date().toISOString().slice(0, 10)}`],
-      keys: [...(types.length > 1 ? [{ title: "Structure type", items: types.map((t) => ({ label: t, color: colorForStructure(t), shape: "dot" })) }] : []),
-        ...(lithoCodes.length ? [{ title: "Lithology", items: lithoCodes.map((v) => ({ label: v, color: colorForLithology(v) })) }] : [])] };
+    const furniture = tadpoleFurniture({ hole: activeHole, alpha: effectiveMode === "alpha", picks: holePicks.length, types, typeColor: colorForStructure, lithoCodes, lithColor: colorForLithology, date: new Date().toISOString().slice(0, 10) }); // #1017 — in lib, tested
     const content = exportSvgMarkup(svgEl, { furniture }).markup;
     saveFile({ suggestedName: `tadpole_${activeHole || "hole"}.svg`, filters: [{ name: "SVG", extensions: ["svg"] }], content, encoding: "text" });
   };

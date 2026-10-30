@@ -9,6 +9,7 @@ import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
+import { fenceFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1017
 
 // TASKS.csv #139 — FENCE / PANEL DIAGRAM (hole-to-hole lithology correlation along a drill line).
 //
@@ -132,11 +133,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
       suggestedName: "fence_diagram.svg",
       filters: [{ name: "SVG", extensions: ["svg"] }],
       // TASKS.csv #1048 — the title, the holes, the section line and the lithology key, drawn into the file
-      content: exportSvgMarkup(svgRef.current, { furniture: panel ? {
-        title: `Fence diagram: ${panel.holes.map((h) => h.hole_id).join(", ")}`,
-        caption: [`Section bearing ${panel.line.azimuth.toFixed(1)}° (${azMode === "fit" ? "best fit through the collars" : "fixed"}) · vertical exaggeration ${ve}x · holes more than ${offsetLimit} m off the section flagged amber${showBands ? " · shaded bands join the shallowest shared code between adjacent holes: an interpretation, not a measurement" : ""}`, `GeoStrix · ${new Date().toISOString().slice(0, 10)}`],
-        keys: codes.length ? [{ title: "Lithology", items: codes.map((c) => ({ label: c, color: colorForLithology(c) })) }] : [],
-      } : null }).markup, encoding: "text",
+      content: exportSvgMarkup(svgRef.current, { furniture: panel ? fenceFurniture({ holeIds: panel.holes.map((h) => h.hole_id), azimuth: panel.line.azimuth, fitted: azMode === "fit", ve, offsetLimit, bands: showBands, codes, colorOf: colorForLithology, date: new Date().toISOString().slice(0, 10) }) : null }).markup, encoding: "text", // #1017 — in lib, tested
     });
   };
 

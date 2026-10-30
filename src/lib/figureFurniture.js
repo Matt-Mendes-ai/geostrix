@@ -106,3 +106,45 @@ export function pngScaleFor(w, h, want = 2, maxSide = 32000) {
   const scale = Math.min(want, maxSide / Math.max(1, w), maxSide / Math.max(1, h));
   return { scale, reduced: scale < want };
 }
+
+// TASKS.csv #1017 — the furniture of four more figure exports, moved out of their dialogs so a test can read them
+// (stereonet and strip log above). Export text stays English. date: "YYYY-MM-DD".
+
+// Fence diagram: the holes, the section bearing and how it was chosen, the exaggeration, the off-section flag, the
+// correlation-band caveat, the lithology key. colorOf(code) -> colour.
+export function fenceFurniture({ holeIds, azimuth, fitted, ve, offsetLimit, bands, codes = [], colorOf, date }) {
+  return {
+    title: `Fence diagram: ${holeIds.join(", ")}`,
+    caption: [`Section bearing ${azimuth.toFixed(1)}° (${fitted ? "best fit through the collars" : "fixed"}) · vertical exaggeration ${ve}x · holes more than ${offsetLimit} m off the section flagged amber${bands ? " · shaded bands join the shallowest shared code between adjacent holes: an interpretation, not a measurement" : ""}`, `GeoStrix · ${date}`],
+    keys: codes.length ? [{ title: "Lithology", items: codes.map((c) => ({ label: c, color: colorOf(c) })) }] : [],
+  };
+}
+
+// Tadpole plot: the hole, how to read the tails, alpha or true dip, the type and lithology keys (a type key only when
+// there is more than one type)
+export function tadpoleFurniture({ hole, alpha, picks, types = [], typeColor, lithoCodes = [], lithColor, date }) {
+  return {
+    title: `Tadpole plot: ${hole || "hole"}`,
+    caption: [`Each dot sits at its ${alpha ? "alpha (angle to the core axis)" : "true dip"} and its depth; the tail points in the structure's dip direction, north up the page. A hollow dot is an alpha-only pick (core not oriented): no tail.`,
+      `${picks} pick(s) · GeoStrix · ${date}`],
+    keys: [...(types.length > 1 ? [{ title: "Structure type", items: types.map((t) => ({ label: t, color: typeColor(t), shape: "dot" })) }] : []),
+      ...(lithoCodes.length ? [{ title: "Lithology", items: lithoCodes.map((v) => ({ label: v, color: lithColor(v) })) }] : [])],
+  };
+}
+
+// Geochemical diagram: the diagram's own caption, how many samples were plotted of how many (and how many the lithology
+// filter hid), the below-detection rule, the colour key (more than 40 entries: 39 and a "+n more" line).
+// hidden: samples hidden by the lithology filter, or null when no filter is on
+export function geochemFurniture({ title, caption, plotted, total, spider, hidden = null, keyTitle = "", keyItems = [], date }) {
+  return {
+    title,
+    caption: [caption, `${plotted} of ${total} samples ${spider ? "have at least one plottable element" : "plotted"}${hidden != null ? `; ${hidden} hidden by the lithology filter` : ""}. Below-detection values substituted at half the detection limit.`, `GeoStrix · ${date}`],
+    keys: keyItems.length ? [{ title: keyTitle, items: keyItems.length > 40 ? [...keyItems.slice(0, 39), { label: `+${keyItems.length - 39} more`, color: "#ffffff" }] : keyItems }] : [],
+  };
+}
+
+// Level plan: the legend under the plan, drawn into the PNG (the first 60 entries and a "+n more" line). legend: [[label,
+// colour], ...]. null when there is nothing to key.
+export function levelPlanFurniture(legend = []) {
+  return legend.length ? { keys: [{ title: "Legend", items: legend.slice(0, 60).map(([label, color]) => ({ label, color })).concat(legend.length > 60 ? [{ label: `+${legend.length - 60} more`, color: "#ffffff" }] : []) }] } : null;
+}
