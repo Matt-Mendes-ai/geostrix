@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { routeTerrainAsync } from "../lib/hydrologyClient.js";
-import { analyseCatchments, catchmentImage, streamNetwork, followUpGpx, STREAM_MEDIA, DEFAULT_CATCHMENT_OPTS } from "../lib/catchments.js";
+import { analyseCatchments, catchmentImage, streamNetwork, followUpGpx, catchmentBands, STREAM_MEDIA, DEFAULT_CATCHMENT_OPTS } from "../lib/catchments.js";
 import { pointTransform } from "../lib/reproject.js";
 import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
 import { gridToGeoTIFF, nodeGridGeometry, saveGeoTIFF } from "../lib/gridExport.js"; // TASKS.csv #854
@@ -61,18 +61,8 @@ export default function CatchmentsPanel({ onClose }) {
   };
   // class / site rank / productivity per terrain node: the GeoTIFF bands (#854) and the map raster's values (#851)
   const cellBands = () => {
-    const g = nodeGridGeometry(terrain), n = g.nx * g.ny;
-    const cls = new Float32Array(n).fill(NaN), rank = new Float32Array(n).fill(NaN), prod = new Float32Array(n).fill(NaN);
-    for (let k = 0; k < n; k++) {
-      const s = a.label[k];
-      if (s < 0) continue;
-      const r = a.results[s];
-      if (!r?.placed) continue;
-      cls[k] = r.anomalous ? 3 : r.value != null && a.background != null && r.value > a.background ? 2 : 1;
-      if (r.rank) rank[k] = r.rank;
-      if (r.productivity != null) prod[k] = r.productivity;
-    }
-    return { g, cls, rank, prod };
+    const g = nodeGridGeometry(terrain);
+    return { g, ...catchmentBands(a, g.nx * g.ny) }; // #1017 — bands in lib, tested
   };
   const showStreams = () => {
     const lines = streamNetwork(route, terrain, a.minCells);

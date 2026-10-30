@@ -60,3 +60,11 @@ export function swath(cells, nnCells, points, axis, { width = null, slices = 12 
   return bins.map((b) => ({ from: b.from, to: b.to, mid: b.mid, composite: b.sw > 0 ? b.swv / b.sw : null, compositeN: b.compositeN,
     nn: b.blocks ? b.sn / b.blocks : null, estimate: b.blocks ? b.se / b.blocks : null, blocks: b.blocks }));
 }
+
+// TASKS.csv #1017 — the swath CSV (was inline in EstimateCheck.jsx): one row per bin, means to 5 significant figures,
+// blank where a bin has no composites / blocks; the columns named after the element
+export function swathRows(bins, { axis, symbol }) {
+  const sig5 = (v) => (v == null ? "" : +v.toPrecision(5));
+  return bins.map((b) => ({ axis, from_m: +b.from.toFixed(2), to_m: +b.to.toFixed(2), composites: b.compositeN, [`composite_mean_${symbol}`]: sig5(b.composite),
+    blocks: b.blocks, [`nn_mean_${symbol}`]: sig5(b.nn), [`estimate_mean_${symbol}`]: sig5(b.estimate) }));
+}

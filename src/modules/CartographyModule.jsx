@@ -25,7 +25,7 @@ import { parseTableFile, toExportCsv } from "../lib/tabular.js";
 import { guessGeophysColumns } from "../lib/geophysColumns.js";
 import { saveFile } from "../lib/desktop.js";
 import SourceCrsField from "../components/SourceCrsField.jsx";
-import { readShapefileLayers, reprojectShapefileZip, reportShapefileText, readGeoTiffInfo, reprojectGeoTiff, reportGeoTiffText } from "../lib/fileReproject.js"; // #487
+import { readShapefileLayers, reprojectShapefileZip, reportShapefileText, readGeoTiffInfo, reprojectGeoTiff, reportGeoTiffText, reprojectTableRows } from "../lib/fileReproject.js"; // #487
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const btn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 7, width: "100%", padding: "8px 10px", marginTop: 8, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer", fontFamily: "inherit" };
@@ -154,15 +154,8 @@ export default function CartographyModule({ embedded = false, forcePane = null }
     const T = pointTransform(fileFrom, fileTo);
     if (!T) throw new Error(tr("Pick both CRSs."));
     const xName = `${file.xCol}_EPSG${fileTo}`, yName = `${file.yCol}_EPSG${fileTo}`;
-    let bad = 0;
-    const geo = isGeographicCrs(fileTo); // #1036 — from the definition: 8 decimals of a degree, 3 of a metre
-    const rows = file.rows.map((r) => {
-      const num = (v) => (v === "" || v == null ? NaN : Number(v)); // a blank cell is missing, not 0
-      const x = num(r[file.xCol]), y = num(r[file.yCol]);
-      if (!Number.isFinite(x) || !Number.isFinite(y)) { bad++; return { ...r, [xName]: "", [yName]: "" }; }
-      const [nx, ny] = T(x, y);
-      return { ...r, [xName]: +nx.toFixed(geo ? 8 : 3), [yName]: +ny.toFixed(geo ? 8 : 3) };
-    });
+    // #1036 — from the definition: 8 decimals of a degree, 3 of a metre; #1017 — rows in lib, tested
+    const { rows, bad } = reprojectTableRows(file.rows, { xCol: file.xCol, yCol: file.yCol, xName, yName, T, geographic: isGeographicCrs(fileTo) });
     const base = file.name.replace(/\.[^.]+$/, "");
     const res = await saveFile({ quiet: true, suggestedName: `${base}_EPSG${fileTo}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows, { columns: [...file.headers, xName, yName] }) });
     if (!res?.ok) { if (res?.error) throw new Error(res.error); setMsg(null); return; } // cancelled in the dialog

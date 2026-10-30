@@ -118,3 +118,20 @@ export function followUpGpx(a, toLonLat, name = "Follow-up reaches") {
   const trks = a.results.filter((r) => r.reach?.length > 1).map((r) => `  <trk><name>${esc(`Reach above ${r.sample_id || `site ${r.k + 1}`}`)}</name><trkseg>${r.reach.map(([x, y]) => `<trkpt ${pt(x, y)}/>`).join("")}</trkseg></trk>`);
   return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="GeoStrix" xmlns="http://www.topografix.com/GPX/1/1">\n  <metadata><name>${esc(name)}</name></metadata>\n${[...wpts, ...trks].join("\n")}\n</gpx>\n`;
 }
+
+// TASKS.csv #1017 — the three GeoTIFF bands of a catchment analysis (was inline in CatchmentsPanel.jsx), one value per
+// terrain node: band 1 class (1 background, 2 above background, 3 anomalous), band 2 the site's rank, band 3 its
+// productivity; NaN (written as no data) outside every placed sample's catchment. a: analyseCatchments; n: node count
+export function catchmentBands(a, n) {
+  const cls = new Float32Array(n).fill(NaN), rank = new Float32Array(n).fill(NaN), prod = new Float32Array(n).fill(NaN);
+  for (let k = 0; k < n; k++) {
+    const s = a.label[k];
+    if (s < 0) continue;
+    const r = a.results[s];
+    if (!r?.placed) continue;
+    cls[k] = r.anomalous ? 3 : r.value != null && a.background != null && r.value > a.background ? 2 : 1;
+    if (r.rank) rank[k] = r.rank;
+    if (r.productivity != null) prod[k] = r.productivity;
+  }
+  return { cls, rank, prod };
+}

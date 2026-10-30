@@ -42,3 +42,10 @@ export function gradeTonnageTable(cells, { cutoffs, density = null, unit = null 
 
 // the cautionary statement NI 43-101 2.3(2) asks to accompany an exploration target (in substance), shown beside the table
 export const EXPLORATION_TARGET_CAUTION = "Any tonnage and grade from this table are conceptual: they describe an exploration target, not a Mineral Resource. There has been insufficient exploration to define a Mineral Resource, and it is uncertain whether further exploration will result in the target being delineated as one. State them as ranges, with the basis (this model, its method and the density used).";
+
+// TASKS.csv #1017 — the grade-tonnage CSV rows (was inline in GradeTonnageModal.jsx). vname: the value column's name;
+// density: t/m3 or null (then no tonnes / metal columns); metal: { unit } when a metal column is wanted
+export function gradeTonnageRows(rows, { vname, density = null, metal = null }) {
+  return rows.map((r) => ({ cutoff: r.cutoff, blocks: r.blocks, volume_m3: Math.round(r.volumeM3), [`mean_${vname}`]: r.meanGrade == null ? "" : Number(r.meanGrade.toPrecision(5)),
+    ...(density ? { tonnes: Math.round(r.tonnes || 0) } : {}), ...(density && metal ? { [`metal_${metal.unit}`]: r.metal == null ? "" : Math.round(r.metal) } : {}) }));
+}

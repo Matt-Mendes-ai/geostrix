@@ -202,3 +202,18 @@ export function reportGeoTiffText(r, toEpsg) {
   return tr("Saved a {outW} × {outH} GeoTIFF ({bands} band(s), {size} pixels, {resampling} resampling) in {v2}, from {v3} ({width} × {height}).", { outW: r.outW.toLocaleString(), outH: r.outH.toLocaleString(), bands: r.bands, size, resampling: r.resampling, v2: crsName(toEpsg) || tr("EPSG:{toEpsg}", { toEpsg }), v3: crsName(r.from) || tr("EPSG:{from}", { from: r.from }), width: r.width.toLocaleString(), height: r.height.toLocaleString() })
     + (r.emptyFraction > 0.001 ? tr(" {v}% of it lies outside the original footprint (the corners of the new rectangle) and is nodata.", { v: (r.emptyFraction * 100).toFixed(1) }) : "");
 }
+
+// TASKS.csv #1017 — a table's x / y columns reprojected (was inline in CartographyModule.jsx): every row kept with two new
+// columns; a blank or non-numeric coordinate gives blanks (a blank cell is missing, not 0) and is counted in `bad`;
+// 8 decimals of a degree for a geographic target, 3 of a metre otherwise (#1036). T: (x, y) -> [x, y].
+export function reprojectTableRows(rows, { xCol, yCol, xName, yName, T, geographic }) {
+  let bad = 0;
+  const num = (v) => (v === "" || v == null ? NaN : Number(v));
+  const out = rows.map((r) => {
+    const x = num(r[xCol]), y = num(r[yCol]);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) { bad++; return { ...r, [xName]: "", [yName]: "" }; }
+    const [nx, ny] = T(x, y);
+    return { ...r, [xName]: +nx.toFixed(geographic ? 8 : 3), [yName]: +ny.toFixed(geographic ? 8 : 3) };
+  });
+  return { rows: out, bad };
+}

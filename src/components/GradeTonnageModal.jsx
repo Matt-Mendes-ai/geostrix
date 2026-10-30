@@ -12,7 +12,7 @@ import { saveFile } from "../lib/desktop.js";
 import { toExportCsv } from "../lib/tabular.js";
 import { stampLines, withStamp, NOT_A_RESOURCE } from "../lib/provenance.js";
 import { valueUnit, valueColumnName } from "../lib/blockModelExport.js";
-import { gradeTonnageTable, autoCutoffs, metalOf, EXPLORATION_TARGET_CAUTION } from "../lib/gradeTonnage.js";
+import { gradeTonnageTable, gradeTonnageRows, autoCutoffs, metalOf, EXPLORATION_TARGET_CAUTION } from "../lib/gradeTonnage.js";
 import { version as APP_VERSION } from "../../package.json";
 
 const fmt = (v, d = 0) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: d }));
@@ -38,8 +38,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
 
   const exportCsv = () => {
     const vname = valueColumnName(model);
-    const out = rows.map((r) => ({ cutoff: r.cutoff, blocks: r.blocks, volume_m3: Math.round(r.volumeM3), [`mean_${vname}`]: r.meanGrade == null ? "" : Number(r.meanGrade.toPrecision(5)),
-      ...(rho ? { tonnes: Math.round(r.tonnes || 0) } : {}), ...(rho && metal ? { [`metal_${metal.unit}`]: r.metal == null ? "" : Math.round(r.metal) } : {}) }));
+    const out = gradeTonnageRows(rows, { vname, density: rho, metal }); // #1017 — rows in lib, tested
     const stamp = stampLines({ tool: "Grade-tonnage table", version: APP_VERSION, epsg, params: [
       `Block model: ${model.name} (${model.cells.length} blocks, source ${model.source || "import"}) | value ${vname}${unit ? ` in ${unit}` : " (no unit stated)"}`,
       `Density: ${rho ? `${rho} t/m3, entered by the user (one value for every block)` : "not entered: volumes only"}${merged ? " | merged blocks counted at their COVERAGE share" : ""}`,

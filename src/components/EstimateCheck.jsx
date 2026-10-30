@@ -7,7 +7,7 @@ import { t as tr } from "../lib/i18n.js";
 import { saveFile } from "../lib/desktop.js";
 import { toExportCsv } from "../lib/tabular.js";
 import { stampLines, withStamp } from "../lib/provenance.js";
-import { estimateCheck, swath } from "../lib/estimateCheck.js";
+import { estimateCheck, swath, swathRows } from "../lib/estimateCheck.js";
 import { version as APP_VERSION } from "../../package.json";
 
 const sig = (v) => (v == null || !Number.isFinite(v) ? "—" : Number(v.toPrecision(3)).toLocaleString());
@@ -34,8 +34,7 @@ export default function EstimateCheck({ cells, nnCells, points, unit, symbol, me
   const SERIES = [["composite", "#55606e", "", tr("composites (length-weighted)")], ["nn", "#2f6fe0", "5 3", tr("nearest neighbour")], ["estimate", "#c0392b", "", tr("estimate ({method})", { method })]];
 
   const exportCsv = () => {
-    const rows = bins.map((b) => ({ axis, from_m: +b.from.toFixed(2), to_m: +b.to.toFixed(2), composites: b.compositeN, [`composite_mean_${symbol}`]: b.composite == null ? "" : +b.composite.toPrecision(5),
-      blocks: b.blocks, [`nn_mean_${symbol}`]: b.nn == null ? "" : +b.nn.toPrecision(5), [`estimate_mean_${symbol}`]: b.estimate == null ? "" : +b.estimate.toPrecision(5) }));
+    const rows = swathRows(bins, { axis, symbol }); // #1017 — rows in lib, tested
     const stamp = stampLines({ tool: "Estimate check (swath)", version: APP_VERSION, epsg, params: [
       `Element: ${symbol} (${unit}) | method ${method} | swath along ${axis === "x" ? "easting" : axis === "y" ? "northing" : "elevation"}`,
       `Over ${chk.estimate.n} blocks filled by both the estimate and the nearest-neighbour model (same grid and search)`,
