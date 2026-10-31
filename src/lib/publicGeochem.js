@@ -152,7 +152,7 @@ export const CATALOGUE = [
       { typeName: "p3m:vw_cprm_geoq_solo", label: "Soil" },
       { typeName: "p3m:vw_cprm_geoq_rocha", label: "Rock" },
     ],
-    caveat: "Check the terms before commercial use: SGB offers this service free and with no access constraint, but states no licence for the data itself; its GeoSGB site is under CC BY-NC 4.0 (non-commercial), which may or may not extend to these data. Fifty years of projects: labs, digestions and methods differ, and each sample keeps its project, digestion, method and lab. The year is the year of analysis, the only date here. SGB's separate low-density layer is not offered: in the area tested its values did not match their columns.",
+    caveat: "Check the terms before commercial use: SGB offers this service free and with no access constraint, but states no licence for the data itself; its GeoSGB site is under CC BY-NC 4.0 (non-commercial), which may or may not extend to these data. Fifty years of projects: labs, digestions and methods differ, and each sample keeps its project, digestion, method and lab. The year is the year of analysis, the only date here. Older surveys report \"not detected\" with no limit: those read as no value and are counted separately. SGB's separate low-density layer is not offered: in the area tested its values did not match their columns.",
   },
 ];
 

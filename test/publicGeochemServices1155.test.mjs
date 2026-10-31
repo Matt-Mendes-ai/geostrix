@@ -188,6 +188,18 @@ test("#1155 Brazil: each result's own unit and qualifier", () => {
   assert.ok(!t.headers.some((h) => /^Xx/.test(h)));
 });
 
+test("#1155 Brazil: a 0 is not a grade, and it is kept as reported", () => {
+  const lab = JSON.stringify({ au: { valor: 0, unidade: "ppm", qualificador: null }, ag: { valor: 0.5, unidade: "ppm", qualificador: null } }).replace(/"/g, '""');
+  const t = parseSgb(`objectid,classe,numero_de_campo,latitude,longitude,data_de_analise,analitos
+1,Rocha,R1,-24.8,-48.7,1978-11-01,"${lab}"
+`, entry("br-sgb"));
+  assert.equal(t.rows[0].Ag_ppm, "0.5");
+  assert.equal(t.rows[0].Au_ppm, "");
+  assert.deepEqual(t.rows[0].zeroReported, ["Au_ppm"]);
+  assert.equal(t.rows[0].medium, "rock chip");
+  assert.equal(t.notes.at(-1).n, 1);
+});
+
 test("#1155 Ireland: below-limit values marked, clipped to the area, Irish Grid converted", () => {
   // EPSG:29902. Check point: the Spire of Dublin, Irish Grid about 315904, 234671, is 53.3498 N, 6.2603 W
   const def = "+proj=tmerc +lat_0=53.5 +lon_0=-8 +k=1.000035 +x_0=200000 +y_0=250000 +ellps=mod_airy +towgs84=482.5,-130.6,564.6,-1.042,-0.214,-0.631,8.15 +units=m +no_defs";

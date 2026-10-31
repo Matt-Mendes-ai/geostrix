@@ -5,7 +5,8 @@
 //   NL -9 = no result (whole columns of it where a survey did not run a method); a 0 is kept as reported-zero
 //   SK / Yukon negative = below that limit; 0, " " and "*" = no result (Yukon's 1977 rows read 0 in every method not run)
 //   WA -9999 = no result, other negative = below that limit; VIC -999 and -0.999 = no result, other negative = below it
-//   Brazil: each result carries its own "<" / ">"; Ireland: below the limit was replaced with half the limit
+//   Brazil: each result carries its own "<" / ">"; "N" (not detected, no limit, valor 0: 623 of 1,416 results in a 1978 rock box at
+//   Adrianopolis) is kept as reported-zero, not a 0 ppm grade; Ireland: below the limit was replaced with half
 // fetchServiceSamples takes the fetcher, so the paging is tested without a network. Output as publicGeochem.table().
 import { table, parseCsv, usgsValue, serviceError } from "./publicGeochem.js";
 import { isElementColumn } from "./geochem.js";
@@ -221,7 +222,7 @@ const SGB_MEDIUM = { "sedimento de corrente": "stream sediment", solo: "soil", r
 export function parseSgb(csvText, entry) {
   const { rows } = parseCsv(csvText);
   const cols = new Set(), out = [];
-  let above = 0;
+  let above = 0, zeros = 0;
   for (const r of rows) {
     let lab;
     try { lab = JSON.parse(r.analitos || "{}"); } catch { lab = {}; }
@@ -233,12 +234,14 @@ export function parseSgb(csvText, entry) {
       if (!sym || !/^(ppm|ppb|pct)$/.test(unit) || !Number.isFinite(Number(a.valor))) continue;
       const col = `${sym}_${unit}`;
       cols.add(col);
+      if (Number(a.valor) <= 0) { o[col] = ""; (o.zeroReported ||= []).push(col); zeros++; continue; } // not a grade, and not "not analysed" either
       if (a.qualificador === ">") above++; // kept at the limit: there is no way to mark "above" in a value
       o[col] = a.qualificador === "<" ? `<${a.valor}` : String(a.valor);
     }
     out.push(o);
   }
   const notes = above ? [{ key: "{n} result(s) above the lab's upper limit are kept at that limit.", n: above }] : [];
+  if (zeros) notes.push({ key: "{n} zero value(s) read as no value: this layer has no below-detection marker, so a 0 may be below detection or not analysed. Thresholds and Surface QA/QC count them separately.", n: zeros });
   return table(mergeSamples(out), [...cols].sort(), ["source_type", "project", "digestion", "method", "lab"], entry, notes);
 }
 
