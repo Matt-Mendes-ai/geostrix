@@ -7,6 +7,8 @@ import { Download, Layers } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
 import { evidenceGrid, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, bestCutoff, posterior, predictionArea, scoreImage, quantile } from "../lib/evidence.js";
+import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, voxelColumnEvidence, holeTraces, holeGradePoints, structureCodes, structureParts } from "../lib/evidenceSources.js"; // TASKS.csv #1154
+import { categoricalModels } from "../lib/geologyForward.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";
 import { valueIn } from "../lib/geochem.js";
 import { excludeQAQC } from "../lib/qaqc.js";
@@ -22,7 +24,7 @@ const numText = (v) => (Number.isFinite(v) ? String(+v.toPrecision(3)) : ""); //
 let nextId = 1;
 
 export default function EvidenceOverlayPane({ onClose }) {
-  const { rasters = [], mapLayers = [], surfaceSamples = [], surfaceElements = [], terrain, collars = [], assays = [], assayElements = [], project, addRaster, evidenceOverlay, setEvidenceOverlay } = useStore();
+  const { rasters = [], mapLayers = [], surfaceSamples = [], surfaceElements = [], terrain, collars = [], survey = [], assays = [], assayElements = [], layers: projectLayers, voxelModels = [], project, addRaster, evidenceOverlay, setEvidenceOverlay } = useStore();
   const units = useMemo(() => Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit])), [surfaceElements]);
   const assayUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const [layers, setLayers] = useState([]); // [{ id, kind, label, ref, shape, low, high, values }]
@@ -31,9 +33,12 @@ export default function EvidenceOverlayPane({ onClose }) {
   const [training, setTraining] = useState({ source: "none", layerId: "", symbol: assayElements[0]?.symbol || surfaceElements[0]?.symbol || "", min: "" });
   const [result, setResult] = useState(null);
   const [msg, setMsg] = useState(null);
+  const cleanAssays = useMemo(() => excludeQAQC(assays), [assays]); // TASKS.csv #933: standards and blanks are not grades
   const valueRasters = useMemo(() => rasters.filter((r) => r.grid), [rasters]);
   const pointLayers = useMemo(() => mapLayers.filter((l) => l.geomType === "point" && l.features?.length), [mapLayers]);
 
+  const geophysPts = projectLayers?.geophys_pts, structurePicks = projectLayers?.structure;
+  const traces = useMemo(() => holeTraces(collars, survey, project?.desurveyMethod), [collars, survey, project?.desurveyMethod]);
   // the grid: the terrain, else the union of the sources' extents
   const grid = useMemo(() => {
     if (terrain) return evidenceGrid({ terrain });
@@ -42,8 +47,12 @@ export default function EvidenceOverlayPane({ onClose }) {
     valueRasters.forEach((r) => { const g = r.grid; grow(g.x0 - g.dx / 2, g.yTop - g.ny * g.dy + g.dy / 2, g.x0 + g.nx * g.dx - g.dx / 2, g.yTop + g.dy / 2); });
     mapLayers.forEach((l) => { if (l.bbox) grow(...l.bbox); });
     surfaceSamples.forEach((s) => { if (Number.isFinite(s.x) && Number.isFinite(s.y)) grow(s.x - 200, s.y - 200, s.x + 200, s.y + 200); });
+    // TASKS.csv #1154 — a project of holes, surveys or block models has an extent too
+    for (const t of traces.values()) for (const p of t) grow(p.x - DRILL_REACH_M, p.y - DRILL_REACH_M, p.x + DRILL_REACH_M, p.y + DRILL_REACH_M);
+    (geophysPts || []).forEach((r) => { if (Number.isFinite(r.x) && Number.isFinite(r.y)) grow(r.x, r.y, r.x, r.y); });
+    voxelModels.forEach((m) => (m.cells || []).forEach((c) => { if (Number.isFinite(c.x) && Number.isFinite(c.y)) grow(c.x - c.dx / 2, c.y - c.dy / 2, c.x + c.dx / 2, c.y + c.dy / 2); }));
     return x1 > x0 && y1 > y0 ? evidenceGrid({ extent: [x0, y0, x1, y1] }) : null;
-  }, [terrain, valueRasters, mapLayers, surfaceSamples]);
+  }, [terrain, valueRasters, mapLayers, surfaceSamples, traces, geophysPts, voxelModels]);
 
   // evidence sources the project offers
   const sources = useMemo(() => {
@@ -52,8 +61,17 @@ export default function EvidenceOverlayPane({ onClose }) {
     mapLayers.forEach((l) => out.push({ key: `dist:${l.id}`, label: tr("Distance to: {name}", { name: l.name }), kind: "distance", ref: l.id }));
     surfaceElements.forEach((e) => out.push({ key: `el:${e.symbol}`, label: tr("Samples: {sym} (robust z)", { sym: e.symbol }), kind: "element", ref: e.symbol }));
     if (surfaceElements.length) PATHFINDER_PRESETS.forEach((p) => out.push({ key: `ix:${p.id}`, label: tr("Samples: {name} index", { name: tr(p.label) }), kind: "index", ref: p.id }));
+    // TASKS.csv #1154 — what a drilling project holds: surveys, block models, grades along the holes, logged structures
+    surveyNames(geophysPts).forEach((k) => out.push({ key: `geo:${k}`, label: tr("Geophysics: {name}", { name: k }), kind: "survey", ref: k }));
+    const categorical = new Set(categoricalModels(voxelModels));
+    voxelModels.filter((m) => m.cells?.length && !categorical.has(m)).forEach((m) => {
+      out.push({ key: `vox:max:${m.id ?? m.name}`, label: tr("Block model: {name} (highest in each column)", { name: m.name }), kind: "voxel", ref: m.id ?? m.name, how: "max" });
+      out.push({ key: `vox:min:${m.id ?? m.name}`, label: tr("Block model: {name} (lowest in each column)", { name: m.name }), kind: "voxel", ref: m.id ?? m.name, how: "min" });
+    });
+    if (traces.size) assayElements.forEach((e) => out.push({ key: `grade:${e.symbol}`, label: tr("Drillholes: {sym} grade along the holes", { sym: e.symbol }), kind: "grade", ref: e.symbol }));
+    structureCodes(structurePicks, traces).forEach((code) => out.push({ key: `pick:${code}`, label: tr("Distance to logged structure: {code}", { code }), kind: "pick", ref: code }));
     return out;
-  }, [valueRasters, mapLayers, surfaceElements]);
+  }, [valueRasters, mapLayers, surfaceElements, geophysPts, voxelModels, traces, assayElements, structurePicks]);
 
   const computeValues = (src, opts = {}) => {
     if (!grid) return null;
@@ -63,24 +81,24 @@ export default function EvidenceOverlayPane({ onClose }) {
       const feats = opts.field ? l.features.filter((f) => String(f.attributes?.[opts.field] ?? "") === String(opts.value)) : l.features;
       return distanceEvidence(grid, feats.flatMap((f) => f.parts));
     }
+    if (src.kind === "voxel") { const m = voxelModels.find((x) => (x.id ?? x.name) === src.ref); return m ? voxelColumnEvidence(grid, m, src.how) : null; }
+    if (src.kind === "pick") return distanceEvidence(grid, structureParts(structurePicks, src.ref, traces));
+    if (src.kind === "survey") { const pts = surveyPoints(geophysPts, src.ref); return pointEvidence(grid, pts, { maxDistance: opts.reach || reachFromSpacing(pts, 4) }); }
+    if (src.kind === "grade") return pointEvidence(grid, holeGradePoints(cleanAssays, src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces), { maxDistance: opts.reach || DRILL_REACH_M });
     const pts = sampleValues(surfaceSamples, src.kind === "element" ? { kind: "element", symbol: src.ref } : { kind: "index", preset: src.ref }, units);
     return pointEvidence(grid, pts, { maxDistance: opts.reach || defaultReach });
   };
   // samples reach about one and a half spacings: a regional stream program gets kilometres, a soil grid tens of metres
-  const defaultReach = useMemo(() => {
-    const pts = surfaceSamples.filter((s) => Number.isFinite(s.x) && Number.isFinite(s.y));
-    if (pts.length < 2) return 500;
-    const xs = pts.map((s) => s.x), ys = pts.map((s) => s.y), area = (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys));
-    return Math.min(5000, Math.max(50, Math.round(1.5 * Math.sqrt(area / pts.length) / 10) * 10));
-  }, [surfaceSamples]);
+  const defaultReach = useMemo(() => reachFromSpacing(surfaceSamples), [surfaceSamples]);
+  const reachOf = (src) => (src.kind === "grade" ? DRILL_REACH_M : src.kind === "survey" ? reachFromSpacing(surveyPoints(geophysPts, src.ref), 4) : defaultReach);
   const addLayer = (key) => {
     const src = sources.find((s) => s.key === key); if (!src) return;
     const values = computeValues(src, {});
     if (!values) { setMsg(tr("No grid yet: load terrain, a raster, a map layer or samples first.")); return; }
     const finite = values.filter(Number.isFinite);
     if (!finite.length) { setMsg(tr("\"{name}\" has no values over the grid.", { name: src.label })); return; }
-    const dec = src.kind === "distance", low = dec ? 0 : quantile(finite, 0.1), high = dec ? quantile(finite, 0.5) : quantile(finite, 0.9);
-    setLayers((L) => [...L, { id: nextId++, ...src, shape: dec ? "decreasing" : "increasing", low, high, lowText: numText(low), highText: numText(high), field: "", value: "", reach: defaultReach, values }]);
+    const dec = src.kind === "distance" || src.kind === "pick", low = dec ? 0 : quantile(finite, 0.1), high = dec ? quantile(finite, 0.5) : quantile(finite, 0.9);
+    setLayers((L) => [...L, { id: nextId++, ...src, shape: dec ? "decreasing" : "increasing", low, high, lowText: numText(low), highText: numText(high), field: "", value: "", reach: reachOf(src), values }]);
     setResult(null); setMsg(null);
   };
   // the grid changed under the layers (terrain loaded, a source removed): re-sample every evidence on the new grid
@@ -106,7 +124,7 @@ export default function EvidenceOverlayPane({ onClose }) {
       const src = sources.find((x) => x.key === l.key);
       if (!src) { missing.push(l.label || l.key); return []; }
       const values = computeValues(src, { field: l.field, value: l.value, reach: l.reach });
-      return values ? [{ id: nextId++, ...src, shape: l.shape, low: l.low, high: l.high, lowText: numText(l.low), highText: numText(l.high), field: l.field || "", value: l.value || "", reach: l.reach || defaultReach, values }] : [];
+      return values ? [{ id: nextId++, ...src, shape: l.shape, low: l.low, high: l.high, lowText: numText(l.low), highText: numText(l.high), field: l.field || "", value: l.value || "", reach: l.reach || reachOf(src), values }] : [];
     });
     setLayers(back);
     if (missing.length) setMsg(tr("Restored the saved overlay without {list}: not in this project any more.", { list: missing.join(", ") }));
@@ -135,13 +153,14 @@ export default function EvidenceOverlayPane({ onClose }) {
       // TASKS.csv #933 — standards, blanks and duplicates filed under a real hole id are not grades of that hole: a CRM in
       // a barren hole's sample stream would make it a "known occurrence" (every other grade consumer filters them too)
       const maxBy = new Map();
-      excludeQAQC(assays).forEach((a) => { const v = valueIn(a, t.symbol, assayUnits[t.symbol] || "ppm", assayUnits); if (v != null && (!maxBy.has(a.hole_id) || v > maxBy.get(a.hole_id))) maxBy.set(a.hole_id, v); });
+      cleanAssays.forEach((a) => { const v = valueIn(a, t.symbol, assayUnits[t.symbol] || "ppm", assayUnits); if (v != null && (!maxBy.has(a.hole_id) || v > maxBy.get(a.hole_id))) maxBy.set(a.hole_id, v); });
       return collars.filter((c) => (maxBy.get(c.hole_id) ?? -Infinity) >= min).map((c) => ({ x: c.x, y: c.y }));
     }
     if (t.source === "samples" && t.symbol && Number.isFinite(min)) return surfaceSamples.filter((s) => { const v = valueIn(s, t.symbol, units[t.symbol] || "ppm", units); return v != null && v >= min; }).map((s) => ({ x: s.x, y: s.y }));
     return [];
-  }, [training, pointLayers, assays, collars, surfaceSamples, assayUnits, units]);
-  const circular = training.source === "samples" && layers.some((l) => (l.kind === "element" && l.ref === training.symbol) || l.kind === "index");
+  }, [training, pointLayers, cleanAssays, collars, surfaceSamples, assayUnits, units]);
+  const circular = (training.source === "samples" && layers.some((l) => (l.kind === "element" && l.ref === training.symbol) || l.kind === "index"))
+    || (training.source === "collars" && layers.some((l) => l.kind === "grade" && l.ref === training.symbol));
 
   const compute = () => {
     if (!grid || !layers.length) return;
@@ -180,10 +199,11 @@ export default function EvidenceOverlayPane({ onClose }) {
       <TaskPaneHeader title={tr("Evidence overlay")} icon={Layers} tone="model" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: "var(--font-size-sm)" }}>
         <div style={note}>{grid ? tr("Grid: {nx} × {ny} cells of {dx} × {dy} m{src}.", { nx: grid.nx, ny: grid.ny, dx: Math.round(grid.dx), dy: Math.round(grid.dy), src: grid.from === "terrain" ? tr(" (the terrain)") : tr(" (the data's extent)") }) : tr("No grid yet: load terrain, a raster, a map layer or samples first.")}</div>
-        <select value="" onChange={(e) => addLayer(e.target.value)} style={sel} aria-label={tr("Add evidence")} disabled={!grid}>
+        <select value="" onChange={(e) => addLayer(e.target.value)} style={sel} aria-label={tr("Add evidence")} disabled={!grid || !sources.length}>
           <option value="">{tr("+ add evidence…")}</option>
           {sources.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
         </select>
+        {grid && !sources.length && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Nothing in this project can be used as evidence yet. Evidence comes from a raster with values, a map layer, surface samples, a geophysics survey, a block model, assays or logged structures.")}</div>}
         {layers.map((l) => (
           <div key={l.id} style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: 6, display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }} title={l.label}>{l.label}</span><button type="button" style={linkBtn} onClick={() => { setLayers((L) => L.filter((x) => x.id !== l.id)); setResult(null); }} aria-label={tr("Remove this evidence")}>×</button></div>
@@ -192,11 +212,11 @@ export default function EvidenceOverlayPane({ onClose }) {
                 <select value={l.field} onChange={(e) => updateLayer(l.id, { field: e.target.value, value: "" }, false)} style={sel} aria-label={tr("Only features where")}><option value="">{tr("every feature")}</option>{(ml?.fields || []).map((f) => <option key={f} value={f}>{f}</option>)}</select>
                 {l.field && <select value={l.value} onChange={(e) => updateLayer(l.id, { value: e.target.value }, true)} style={sel} aria-label={tr("equals")}><option value="">{tr("— value —")}</option>{vals.map((v) => <option key={v} value={v}>{v || "(blank)"}</option>)}</select>}
               </div>); })()}
-            {(l.kind === "element" || l.kind === "index") && <label style={row}>{tr("Reach (m)")}<input type="number" min="10" step="50" value={l.reach} onChange={(e) => updateLayer(l.id, { reach: Math.max(10, Number(e.target.value) || defaultReach) }, true)} style={{ ...sel, width: 70 }} /></label>}
+            {(l.kind === "element" || l.kind === "index" || l.kind === "survey" || l.kind === "grade") && <label style={row}>{tr("Reach (m)")}<input type="number" min="10" step="50" value={l.reach} onChange={(e) => updateLayer(l.id, { reach: Math.max(10, Number(e.target.value) || reachOf(l)) }, true)} style={{ ...sel, width: 70 }} /></label>}
             <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
               <select value={l.shape} onChange={(e) => updateLayer(l.id, { shape: e.target.value })} style={sel} aria-label={tr("Membership")}><option value="increasing">{tr("favourable when high")}</option><option value="decreasing">{tr("favourable when low")}</option></select>
-              <label style={row}>0 ={" "}<input type="number" step="any" value={l.lowText} onChange={(e) => updateLayer(l.id, { lowText: e.target.value, low: e.target.value === "" ? NaN : Number(e.target.value) })} style={{ ...sel, width: 76 }} aria-label={tr("Membership 0 at")} /></label>
-              <label style={row}>1 ={" "}<input type="number" step="any" value={l.highText} onChange={(e) => updateLayer(l.id, { highText: e.target.value, high: e.target.value === "" ? NaN : Number(e.target.value) })} style={{ ...sel, width: 76 }} aria-label={tr("Membership 1 at")} /></label>
+              <label style={row}>{l.shape === "decreasing" ? "1" : "0"} ={" "}<input type="number" step="any" value={l.lowText} onChange={(e) => updateLayer(l.id, { lowText: e.target.value, low: e.target.value === "" ? NaN : Number(e.target.value) })} style={{ ...sel, width: 76 }} aria-label={l.shape === "decreasing" ? tr("Membership 1 at") : tr("Membership 0 at")} /></label>
+              <label style={row}>{l.shape === "decreasing" ? "0" : "1"} ={" "}<input type="number" step="any" value={l.highText} onChange={(e) => updateLayer(l.id, { highText: e.target.value, high: e.target.value === "" ? NaN : Number(e.target.value) })} style={{ ...sel, width: 76 }} aria-label={l.shape === "decreasing" ? tr("Membership 0 at") : tr("Membership 1 at")} /></label>
             </div>
           </div>
         ))}
@@ -223,7 +243,8 @@ export default function EvidenceOverlayPane({ onClose }) {
           )}
           {training.source !== "none" && <div style={note}>{tr("{n} occurrence points.", { n: trainingPoints.length })}{circular ? " " + tr("Circular: the same samples are evidence and occurrences, so the weights will flatter the evidence.") : ""}</div>}
         </div>
-        <button type="button" style={pBtn} onClick={compute} disabled={!grid || !layers.length}>{tr("Compute")}</button>
+        <button type="button" style={{ ...pBtn, ...(grid && layers.length ? null : { opacity: 0.5, cursor: "default" }) }} onClick={compute} disabled={!grid || !layers.length}>{tr("Compute")}</button>
+        {grid && !layers.length && sources.length > 0 && <div style={note}>{tr("Add at least one evidence from the list above, then Compute.")}</div>}
         {msg && <div style={note}>{msg}</div>}
         {result && (
           <>

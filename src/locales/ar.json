@@ -6518,5 +6518,12 @@
   "Added \"{name}\" to \"{layer}\" ({m} m).": "أُضيف «{name}» إلى «{layer}» ({m} م).",
   "Lines in \"{layer}\"": "الخطوط في «{layer}»",
   "Remove line \"{name}\"": "إزالة الخط «{name}»",
-  "Show, hide, export or remove the whole layer under Map layers; colours under Geophysics → Map layers.": "أظهر الطبقة كلها أو أخفها أو صدّرها أو أزلها من طبقات الخريطة؛ والألوان من الجيوفيزياء → طبقات الخريطة."
+  "Show, hide, export or remove the whole layer under Map layers; colours under Geophysics → Map layers.": "أظهر الطبقة كلها أو أخفها أو صدّرها أو أزلها من طبقات الخريطة؛ والألوان من الجيوفيزياء → طبقات الخريطة.",
+  "Geophysics: {name}": "الجيوفيزياء: {name}",
+  "Block model: {name} (highest in each column)": "نموذج الكتل: {name} (الأعلى في كل عمود)",
+  "Block model: {name} (lowest in each column)": "نموذج الكتل: {name} (الأدنى في كل عمود)",
+  "Drillholes: {sym} grade along the holes": "ثقوب الحفر: محتوى {sym} على طول الثقوب",
+  "Distance to logged structure: {code}": "المسافة إلى البنية المسجلة: {code}",
+  "Nothing in this project can be used as evidence yet. Evidence comes from a raster with values, a map layer, surface samples, a geophysics survey, a block model, assays or logged structures.": "لا يوجد في هذا المشروع بعد ما يمكن استخدامه كدليل. تأتي الأدلة من نقطية ذات قيم أو طبقة خريطة أو عينات سطحية أو مسح جيوفيزيائي أو نموذج كتل أو تحاليل أو بنى مسجلة.",
+  "Add at least one evidence from the list above, then Compute.": "أضف دليلاً واحداً على الأقل من القائمة أعلاه، ثم نفّذ الحساب."
 }

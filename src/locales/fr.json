@@ -6518,5 +6518,12 @@
   "Added \"{name}\" to \"{layer}\" ({m} m).": "« {name} » ajoutée à « {layer} » ({m} m).",
   "Lines in \"{layer}\"": "Lignes dans « {layer} »",
   "Remove line \"{name}\"": "Supprimer la ligne « {name} »",
-  "Show, hide, export or remove the whole layer under Map layers; colours under Geophysics → Map layers.": "Affichez, masquez, exportez ou supprimez toute la couche sous Couches cartographiques ; les couleurs sous Géophysique → Couches cartographiques."
+  "Show, hide, export or remove the whole layer under Map layers; colours under Geophysics → Map layers.": "Affichez, masquez, exportez ou supprimez toute la couche sous Couches cartographiques ; les couleurs sous Géophysique → Couches cartographiques.",
+  "Geophysics: {name}": "Géophysique : {name}",
+  "Block model: {name} (highest in each column)": "Modèle de blocs : {name} (le plus élevé de chaque colonne)",
+  "Block model: {name} (lowest in each column)": "Modèle de blocs : {name} (le plus faible de chaque colonne)",
+  "Drillholes: {sym} grade along the holes": "Sondages : teneur en {sym} le long des sondages",
+  "Distance to logged structure: {code}": "Distance à la structure décrite : {code}",
+  "Nothing in this project can be used as evidence yet. Evidence comes from a raster with values, a map layer, surface samples, a geophysics survey, a block model, assays or logged structures.": "Rien dans ce projet ne peut encore servir d'indice. Les indices proviennent d'un raster avec des valeurs, d'une couche cartographique, d'échantillons de surface, d'un levé géophysique, d'un modèle de blocs, d'analyses ou de structures décrites.",
+  "Add at least one evidence from the list above, then Compute.": "Ajoutez au moins un indice depuis la liste ci-dessus, puis lancez le calcul."
 }

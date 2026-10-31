@@ -6518,5 +6518,12 @@
   "Added \"{name}\" to \"{layer}\" ({m} m).": "“{name}” adicionada a “{layer}” ({m} m).",
   "Lines in \"{layer}\"": "Linhas em “{layer}”",
   "Remove line \"{name}\"": "Remover a linha “{name}”",
-  "Show, hide, export or remove the whole layer under Map layers; colours under Geophysics → Map layers.": "Mostre, oculte, exporte ou remova a camada inteira em Camadas de mapa; as cores em Geofísica → Camadas de mapa."
+  "Show, hide, export or remove the whole layer under Map layers; colours under Geophysics → Map layers.": "Mostre, oculte, exporte ou remova a camada inteira em Camadas de mapa; as cores em Geofísica → Camadas de mapa.",
+  "Geophysics: {name}": "Geofísica: {name}",
+  "Block model: {name} (highest in each column)": "Modelo de blocos: {name} (o mais alto de cada coluna)",
+  "Block model: {name} (lowest in each column)": "Modelo de blocos: {name} (o mais baixo de cada coluna)",
+  "Drillholes: {sym} grade along the holes": "Furos: teor de {sym} ao longo dos furos",
+  "Distance to logged structure: {code}": "Distância à estrutura descrita: {code}",
+  "Nothing in this project can be used as evidence yet. Evidence comes from a raster with values, a map layer, surface samples, a geophysics survey, a block model, assays or logged structures.": "Ainda não há nada neste projeto que possa servir de evidência. A evidência vem de um raster com valores, uma camada de mapa, amostras de superfície, um levantamento geofísico, um modelo de blocos, análises ou estruturas descritas.",
+  "Add at least one evidence from the list above, then Compute.": "Adicione pelo menos uma evidência da lista acima e depois clique em Calcular."
 }
