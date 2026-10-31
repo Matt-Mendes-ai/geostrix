@@ -331,8 +331,9 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
                         {r.overRange ? "≥ " : ""}{+r.avgGrade.toPrecision(4)}{r.overlapM > 1e-6 ? " ⚠" : ""}
                       </td>
                       <td style={td}>{(r.avgGrade * r.length).toFixed(2)}</td>
-                      {meqReady && <td style={td}>{(() => { const v = meqFor(r); return v == null ? "—" : `${r.overRange ? "≥ " : ""}${+v.toPrecision(4)}`; })()}</td>}
+                      {/* TASKS.csv #1164 — the same order as the header: Including, then the equivalent */}
                       {incOn && <td style={{ ...td, whiteSpace: "nowrap" }} title={r.including ? r.including.map(incText).join("; ") : undefined}>{r.including ? `${incText(r.including[0])}${r.including.length > 1 ? ` +${r.including.length - 1}` : ""}` : "—"}</td>}
+                      {meqReady && <td style={td}>{(() => { const v = meqFor(r); return v == null ? "—" : `${r.overRange ? "≥ " : ""}${+v.toPrecision(4)}`; })()}</td>}
                       {extraSymbols.map((s) => <td key={s} style={td}>{r.extras[s] == null ? "—" : +r.extras[s].toPrecision(4)}</td>)}
                       <td style={td}>{r.intervals}</td>
                     </tr>
