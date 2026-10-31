@@ -254,7 +254,8 @@ export function syncSectionImages(group, cache, sectionImages, { origin, rendere
   const wanted = new Set((sectionImages || []).map((im) => im.id));
   Object.keys(meshes).forEach((id) => { if (!wanted.has(id)) { dispose(meshes[id]); delete meshes[id]; } });
   (sectionImages || []).forEach((im) => {
-    // TASKS.csv #616 — or a curtain hung along a track (a GPR radargram): strip.top / strip.bottom, one [x, y, z] per column
+    // TASKS.csv #616 — or a curtain hung along a track: strip.top / strip.bottom, one [x, y, z] per column. The GPR tool that made
+    // them is gone (#1150); kept so a project saved with one still opens and shows it
     const strip = im.strip?.top?.length >= 2 && im.strip.bottom?.length === im.strip.top.length ? im.strip : null;
     if ((!strip && (!im.corners || im.corners.length !== 4)) || !im.dataUrl) return;
     const geoKey = `${ox},${oy},${oz}|${strip ? [...strip.top, ...strip.bottom].flat().join(",") : im.corners.flat().join(",")}|${im.dataUrl.length}`;

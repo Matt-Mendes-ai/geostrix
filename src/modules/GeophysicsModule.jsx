@@ -1,4 +1,4 @@
-import React, { Suspense, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { ensureProjectCrs, ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615; export: #1021
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
@@ -47,9 +47,8 @@ import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
 import SurfaceMappingPanel from "../components/SurfaceMappingPanel.jsx"; // TASKS.csv #316/#317
 import InversionPanel from "../components/InversionPanel.jsx"; // TASKS.csv #321 — SimPEG
 import DcipPanel from "../components/DcipPanel.jsx"; // TASKS.csv #322 — 2D DC resistivity / IP
-const GprPanel = React.lazy(() => import("../components/GprPanel.jsx")); // TASKS.csv #616 — loads when opened
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components/Ribbon.jsx"; // TASKS.csv #458
-import { Zap as RZap, Waves as RWaves, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Map as RMapIcon, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "../components/icons.js";
+import { Zap as RZap, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Map as RMapIcon, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "../components/icons.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #603
@@ -198,7 +197,6 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   const [spatialOpen, setSpatialOpen] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
   const fileInput = useRef(null);
-  const gprMainRef = useRef(null); // TASKS.csv #616
   useModuleAction(["import-points"], () => fileInput.current?.click()); // TASKS.csv #565 — File > Import CSV here
   const terrainInput = useRef(null);
   const ubcInput = useRef(null);
@@ -1042,7 +1040,6 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             <RibbonButton icon={RRadar} label="Point survey" tone="data" title="Import a mag / gravity / IP / radiometric point survey (CSV or Geosoft .xyz)" {...geoBtn("points")} />
             <RibbonButton advanced icon={RMagnet} label="Inversion" tone="model" title="Magnetics / gravity inversion and forward modelling (SimPEG)" {...geoBtn("inversion")} />
             <RibbonButton advanced icon={RZap} label="DC / IP" tone="model" title="2D DC resistivity / IP line inversion (SimPEG)" {...geoBtn("dcip")} />
-            <RibbonButton advanced icon={RWaves} label="GPR" tone="data" title="Ground-penetrating radar: open a GSSI .DZT radargram" {...geoBtn("gpr")} />
           </RibbonGroup>
           {/* #749 — Terrain, map layers, web layers, boundaries and claims moved to the Maps tab */}
           <RibbonGroup label="Models">
@@ -1289,10 +1286,6 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         {geoPane === "dcip" && (<>
         <TaskPaneHeader title="DC resistivity / IP line (2D, SimPEG)" icon={RZap} tone="model" />
         <DcipPanel pBtn={pBtn} numInput={numInput} />
-        </>)}
-        {geoPane === "gpr" && (<>
-        <TaskPaneHeader title="Ground-penetrating radar (.DZT)" icon={RWaves} tone="data" />
-        <Suspense fallback={null}><GprPanel pBtn={pBtn} numInput={numInput} mainRef={gprMainRef} /></Suspense>
         </>)}
         {geoPane === "terrain" && (<>
         <TaskPaneHeader title="Terrain (SRTM / DEM)" icon={RMountain} tone="data" />
@@ -1758,9 +1751,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       )}
       <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
 
-      {/* TASKS.csv #616 — the GPR tool draws its radargram here, at full width; its controls stay in the sidebar */}
-      {!embedded && geoPane === "gpr" && <div className="ge-main" ref={gprMainRef} style={{ overflow: "auto", padding: 12, minWidth: 0, minHeight: 0 }} aria-label={tr("Radargram")} />}
-      {!embedded && geoPane !== "gpr" && (<div
+      {!embedded && (<div
         className="ge-main"
         style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14, color: "var(--color-text-muted)", border: dragOver ? "2px dashed var(--color-info)" : "2px dashed transparent", borderRadius: 8 }}
       >
