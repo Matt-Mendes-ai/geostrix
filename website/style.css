@@ -34,6 +34,7 @@ header.site { background: var(--slate-deep); color: #fff; }
 header.site .wrap { display: flex; align-items: center; gap: 12px; height: 64px; }
 header.site .brand { flex: none; display: flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; font-weight: 700; font-size: 20px; letter-spacing: 0.02em; }
 header.site .brand img { width: 34px; height: 34px; }
+header.site .brand .strix { color: var(--orange); } /* Geo in white, Strix in orange, as in the brand block below */
 header.site nav { margin-inline-start: auto; display: flex; gap: 20px; }
 header.site nav a { color: #d7dee5; text-decoration: none; font-size: 15px; white-space: nowrap; }
 header.site nav a:hover { color: #fff; }
@@ -54,7 +55,7 @@ header.site .lang .flag { width: 20px; height: 15px; border-radius: 2px; box-sha
    (it would break the joined letters). */
 .brandmark { text-align: center; padding: 0 16px; margin: 0 auto 52px; }
 .brandmark img { display: block; width: 120px; height: auto; margin: 0 auto 20px; }
-.wordmark { margin: 0; font-family: "Exo 2", system-ui, sans-serif; font-size: 64px; font-weight: 600; line-height: 1; letter-spacing: 0.22em; padding-inline-start: 0.22em; color: #f5f7f9; }
+.wordmark { margin: 0; font-family: "Exo 2", system-ui, sans-serif; font-size: 72px; font-weight: 700; line-height: 1; letter-spacing: 0.02em; color: #fff; } /* the header brand's lettering, scaled up (Matt, 2026-10-31) */
 .wordmark span + span { color: var(--orange); }
 .tagline { margin: 18px 0 0; font-size: 17px; font-weight: 600; letter-spacing: 0.3em; color: #d7dee5; }
 .tagline .dot { color: var(--orange); letter-spacing: 0; margin: 0 0.6em; }
@@ -160,7 +161,7 @@ footer.site .right { margin-inline-start: auto; }
   .hero h1 { font-size: 32px; }
   .brandmark { margin-bottom: 36px; }
   .brandmark img { width: 84px; margin-bottom: 14px; }
-  .wordmark { font-size: 40px; letter-spacing: 0.16em; padding-inline-start: 0.16em; }
+  .wordmark { font-size: 48px; }
   .tagline { font-size: 13px; letter-spacing: 0.2em; }
   .tagline .dot { margin: 0 0.35em; }
   .pillars, .features { grid-template-columns: 1fr; }
