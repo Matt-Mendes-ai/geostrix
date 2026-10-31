@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { t as tr, LANGUAGES, currentLanguage, setLanguage } from "./lib/i18n.js"; // TASKS.csv #786 — "tr": t is a common local name here
+import { oncePerWindow } from "./lib/oncePerWindow.js"; // TASKS.csv #1163
 import { requestModuleAction } from "./lib/menuRequests.js"; // TASKS.csv #565
 import { onProjectCrsRequest, requestProjectCrs } from "./lib/projectCrsRequest.js"; // TASKS.csv #615
 import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Layers3, Target, FileBarChart2, Map as MapIcon, Compass } from "./components/icons.js"; // Compass: #820
@@ -75,6 +76,9 @@ const MODULES = [
 // expressions each occupying their own position in the render tree (which is what forced the
 // unmount/remount in the first place).
 const VIEWER_MODES = { viewer: "view", surface: "surface", modelling: "modelling", targeting: "targeting" }; // surface: #820 // #750 — Predictive is a Modelling tool now
+
+// TASKS.csv #1163 — one crash-recovery check per window (the store's checkAutosave is bound at mount)
+const recoveryCheck = oncePerWindow(() => recoveryCheck.fn());
 
 export default function App() {
   const store = useStore();
@@ -185,9 +189,12 @@ export default function App() {
   // exists from a session that never reached a real Save (crash, force-quit, power loss). Only a
   // check — restoring is the user's call, made from the banner below, never automatic, since
   // silently swapping in different project data on launch would be its own kind of surprise.
+  // TASKS.csv #1163 — once per WINDOW: <App> re-mounts on a language change, and running the check again held the autosave
+  // and stashed it into another "Recovered: …" tab each time. A re-mount shows the same banner from the same answer.
   useEffect(() => {
     let cancelled = false;
-    checkAutosave().then((r) => { if (!cancelled && r) setRecovery(r); });
+    recoveryCheck.fn = checkAutosave;
+    recoveryCheck().then((r) => { if (!cancelled && r) setRecovery(r); });
     return () => { cancelled = true; };
   }, [checkAutosave]);
 
@@ -404,14 +411,14 @@ export default function App() {
   const doRestore = useCallback(() => {
     const r = restoreAutosave(recovery.data);
     if (r?.intoNewTab) setRecoveryNote(tr("\"{projectName}\" was restored into a new tab (marked unsaved), next to what you have open.", { projectName: recovery.projectName }));
-    setRecovery(null);
+    setRecovery(null); recoveryCheck.settle(null);
     setActive("viewer");
   }, [recovery, restoreAutosave]);
   // TASKS.csv #465 — the store moved the recovered work into tab(s) because new work started while the
   // banner was unanswered; replace the banner with a note saying where it is.
   useEffect(() => {
     if (!recoveryStashed) return;
-    setRecovery((r) => (r && !r.unreadable ? null : r));
+    setRecovery((r) => (r && !r.unreadable ? null : r)); recoveryCheck.settle(null);
     setRecoveryNote(tr("Your recovered work (\"{recoveryStashed}\") was moved into its own tab, marked unsaved, so autosave could protect your new work too.", { recoveryStashed }));
   }, [recoveryStashed]);
   // TASKS.csv #340 — Discard permanently deletes the only copy of the recovered work, so it confirms
@@ -421,7 +428,7 @@ export default function App() {
     const others = recovery?.otherTabs?.length ? ` and ${recovery.otherTabs.length} other unsaved tab(s)` : "";
     if (!window.confirm(tr("Permanently delete the recovered work for \"{v}\"{others}{when}? This can't be undone.", { v: recovery?.projectName, others, when }))) return;
     discardAutosave();
-    setRecovery(null);
+    setRecovery(null); recoveryCheck.settle(null);
   }, [discardAutosave, recovery]);
 
   return (
@@ -432,7 +439,7 @@ export default function App() {
         <div role="alert" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", background: "#2a1616", borderBottom: "1px solid #5a2a2a", fontSize: "var(--font-size-base)", color: "#e8b4b4" }}>
           <RotateCcw size={14} style={{ flexShrink: 0 }} />
           <span style={{ flex: 1 }}>{tr("The autosave from a previous session could not be read (damaged file). It was kept, not deleted, at:")}{" "}{recovery.unreadable}</span>
-          <button onClick={() => setRecovery(null)} style={recoveryBtn}>{tr("Dismiss")}</button>
+          <button onClick={() => { setRecovery(null); recoveryCheck.settle(null); }} style={recoveryBtn}>{tr("Dismiss")}</button>
         </div>
       )}
       {recovery && !recovery.unreadable && (
