@@ -8024,7 +8024,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                               cells: s.params.cellsEstimated.toLocaleString(), single: s.params.singleHoleCells ? tr(" ({n} from a single hole)", { n: s.params.singleHoleCells.toLocaleString() }) : "" })}</>
                           ) : (
                             <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "1px 8px" }}>
-                              {Object.entries(s.params).filter(([k, v]) => k !== "generatedAt" && v !== null && v !== undefined).map(([k, v]) => (
+                              {Object.entries(s.params).filter(([k, v]) => k !== "generatedAt" && k !== "builtAt" && k !== "importedAt" && v !== null && v !== undefined).map(([k, v]) => (
                                 <React.Fragment key={k}>
                                   <div style={{ color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>{k.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase())}</div>
                                   {/* Objects (the #52 (c) intercept-set stamp, the #52 (d) truncation log) are
@@ -8035,7 +8035,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                               ))}
                             </div>
                           )}
-                          <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Generated {when}. Saved with the project, so this record — and the surface it describes — survives a restart; the mesh export carries the same stamp.", { when: new Date(s.params.generatedAt).toLocaleString() })}</div>
+                          <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Generated {when}. Saved with the project, so this record — and the surface it describes — survives a restart; the mesh export carries the same stamp.", { when: (() => { const at = s.params.generatedAt || s.params.builtAt || s.params.importedAt; const d = at ? new Date(at) : null; return d && !Number.isNaN(d.getTime()) ? d.toLocaleString() : tr("at an unrecorded time"); })() })}</div>
                         </div>
                       )}
                     </>

@@ -6534,5 +6534,6 @@
   "{c} contacts would need {n} inducing points; {cap} are placed where the data are, and every contact stays in the training.": "يتطلب {c} تماسًا {n} نقطة استقراء؛ تُوضع {cap} منها حيث توجد البيانات، ويبقى كل تماس ضمن التدريب.",
   "feed the estimator by itself: the Estimation tool's ordinary kriging takes its own nugget, sill and range (type the ones you read here, or leave them blank to fit at run time), and nearest-neighbour / inverse-distance use none. Fitting a model here does not change any estimate you have run.": "لا يغذّي المقدّر بذاته: يأخذ الكريجينغ العادي في أداة التقدير قيم النَغِت والسقف والمدى الخاصة به (اكتب ما تقرؤه هنا، أو اتركها فارغة لضبطها عند التشغيل)، ولا يستخدم أقرب جار / معكوس المسافة أيًا منها. ضبط نموذج هنا لا يغيّر أي تقدير نفّذته.",
   "Dip azimuth°": "سمت الميل°",
-  "Pitch°": "الانحدار°"
+  "Pitch°": "الانحدار°",
+  "at an unrecorded time": "في وقت غير مسجَّل"
 }
