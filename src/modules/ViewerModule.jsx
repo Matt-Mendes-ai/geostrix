@@ -6183,7 +6183,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         expanded={!!expandedLayers[key]} onToggleExpand={() => setExpandedLayers((p) => ({ ...p, [key]: !p[key] }))}
         input={isGeophys ? null : <input ref={setInputRef(key)} type="file" multiple accept=".csv,.xlsx,.zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx,.kml,.kmz,.las" style={{ display: "none" }} onChange={(e) => { const f = groupShapefileParts(Array.from(e.target.files)).files[0]; if (f) openImportModal(f, key); e.target.value = ""; }} />}
       >
-        <LayerQuickPanel rows={layers[key] || []} meta={meta} layerKey={key} categoryFilter={categoryFilter[key] || new Set()}
+        <LayerQuickPanel rows={layers[key] || []} meta={meta} layerKey={key} categoryFilter={categoryFilter[key] || new Set()} colorOf={effectiveColor} labelOf={effectiveLabel}
           onToggleCategory={(v) => toggleCategory(key, v)} onIsolate={(v) => isolateCategory(key, v)} onRemoveSource={(src) => removeLayerSource(key, src)}
           numericSym={numericSymbology[key]}
           onNumericSymChange={(next) => setNumericSymbology((p) => { const n = { ...p }; if (next) n[key] = next; else delete n[key]; return n; })} />
@@ -9162,7 +9162,7 @@ function LayerRow({ label, count, visible, onToggle, onUpload, onInspect, onZoom
 // Deliberately terser than that modal (chips instead of rows with color pickers/labels/counts) since
 // the point of this view is a quick glance + quick toggle, not the full editing surface.
 
-function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggleCategory, onIsolate, onRemoveSource, numericSym, onNumericSymChange }) {
+function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggleCategory, onIsolate, onRemoveSource, numericSym, onNumericSymChange, colorOf, labelOf }) {
   const categories = meta.numeric ? [] : distinctValues(rows);
   const sources = (() => {
     const counts = new Map();
@@ -9178,8 +9178,9 @@ function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggleCategor
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: sources.length > 1 ? 8 : 0 }}>
           {categories.map(([value, count]) => {
             const hidden = categoryFilter.has(value);
-            const color = meta.colorFn ? meta.colorFn(value) : "#55606e";
-            const lbl = meta.nameFn ? (meta.nameFn(value) || value) : value;
+            // TASKS.csv #1252 — the legend editor's colour and label, as the 3D view and the sections draw them
+            const color = colorOf ? colorOf(layerKey, value) : meta.colorFn ? meta.colorFn(value) : "#55606e";
+            const lbl = labelOf ? labelOf(layerKey, value) : meta.nameFn ? (meta.nameFn(value) || value) : value;
             return (
               <span role="button" tabIndex={0} onKeyDown={activateOnKey}
                 key={value}
