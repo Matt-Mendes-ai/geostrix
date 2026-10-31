@@ -251,9 +251,12 @@ export default function App() {
     // TASKS.csv #467 — say so when the file could not be written; the project stays open and unchanged.
     else if (res.error) window.alert(tr("The project could not be saved:\n\n{error}\n\nYour work is still open. Try saving to a different folder (a full disk, a read-only or synced folder, or antivirus can block the write).", { error: res.error }));
   }, [saveProject]);
+  // TASKS.csv #1262 — a file whose fields had the wrong shape opened with those fields empty: say which, before the user
+  // saves it back over the original
+  const warnDropped = (res) => { if (res?.dropped?.length) window.alert(tr("This file's {list} had the wrong form and were left empty. Everything else was read. Save it under another name if you want to keep the original.", { list: res.dropped.join(", ") })); };
   const doOpen = useCallback(async () => {
     const res = await openProject();
-    if (res.ok) setActive("viewer");
+    if (res.ok) { setActive("viewer"); warnDropped(res); }
     else if (res.error) window.alert(tr("Couldn't open that file: {error}", { error: res.error })); // TASKS.csv #342 — used to fail silently
   }, [openProject]);
   // TASKS.csv #914 — a project file double-clicked in Explorer: taken once on start, and again whenever a running
@@ -272,7 +275,7 @@ export default function App() {
           const f = await takeLaunchFile();
           if (!f?.ok) { if (f?.error) window.alert(tr("Couldn't open that file: {error}", { error: f.error })); if (!f?.more) return; continue; }
           const res = await openProjectRef.current(f);
-          if (res.ok) setActive("viewer");
+          if (res.ok) { setActive("viewer"); warnDropped(res); }
           else if (res.error) window.alert(tr("Couldn't open that file: {error}", { error: res.error }));
           if (!f.more) return;
           await new Promise((r) => setTimeout(r, 100));

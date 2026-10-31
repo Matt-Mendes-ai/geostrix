@@ -1057,6 +1057,7 @@ export function StoreProvider({ children }) {
   // Shared by openProject (loading a user-picked file), restoreAutosave (loading the silent
   // crash-recovery snapshot), and workspace-tab switching (TASKS.csv #34) — same payload shape, same
   // fallbacks for older-version fields.
+  const lastDroppedFieldsRef = useRef([]); // TASKS.csv #1262 — fields of the wrong shape the last load replaced
   const loadProjectPayload = useCallback((data, fallbackName) => {
     // TASKS.csv #199 — `fallbackName` (when given) is the real on-disk/tab display name, and takes
     // priority over whatever project.name happens to be saved INSIDE the file's own JSON payload —
@@ -1066,7 +1067,9 @@ export function StoreProvider({ children }) {
     // (e.g. restoring the silent crash-recovery autosave, which isn't a named file on disk).
     // Every field from the table (projectFields.js): older files just lack newer keys and get that field's empty
     // value; layers / voxel models are expanded from their compact form; pre-#69 flat layouts become "Page 1".
-    setFields(fieldsFromPayload(data, fallbackName));
+    const dropped = [];
+    setFields(fieldsFromPayload(data, fallbackName, dropped));
+    lastDroppedFieldsRef.current = dropped; // #1262 — openProject reports them
     // TASKS.csv #1081 — a file from before version 20 may carry connection profiles: moved to this computer's list
     if (Array.isArray(data?.dbConnections) && data.dbConnections.length) setDbConnections((prev) => mergeDbProfiles(prev, data.dbConnections));
     setViewerUiStateSeq((s) => s + 1);
@@ -1173,7 +1176,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
       // the tab it was opened beside may hold hours of unsaved work (Ctrl+O to glance at an old project,
       // then a crash, used to lose it). The autosave tick rewrites it from the current tabs.
       clearUndoHistory();
-      return { ok: true };
+      return { ok: true, dropped: lastDroppedFieldsRef.current }; // #1262
     } catch (err) {
       return { ok: false, error: err.message };
     }

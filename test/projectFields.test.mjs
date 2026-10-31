@@ -5,7 +5,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { FIELDS, FIELD_KEYS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, emptyFields, fieldsFromPayload, payloadFromFields, extraDirtyValues } from "../src/lib/projectFields.js";
+import { FIELDS, FIELD_KEYS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, emptyFields, fieldsFromPayload, fieldShapeOk, payloadFromFields, extraDirtyValues } from "../src/lib/projectFields.js";
 
 const src = readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8");
 
@@ -37,7 +37,7 @@ test("#448 store.jsx wires exactly the table's fields to their own state", () =>
     assert.match(src, new RegExp(`const \\[${k}, ${setter}\\] = useState\\(`), `${k}: no useState`);
   }
   // the generated paths really are used (not a table beside the old hand-written lists)
-  for (const use of ["payloadFromFields(liveRef.current)", "setFields(fieldsFromPayload(data, fallbackName))", "setFields(emptyFields())", "extraDirtyValues(live)", "UNDO_KEYS.map((k) => live[k])", "autosaveRef.current = { ...live, hasWork }"]) assert.ok(src.includes(use), use);
+  for (const use of ["payloadFromFields(liveRef.current)", "setFields(fieldsFromPayload(data, fallbackName, dropped))", "setFields(emptyFields())", "extraDirtyValues(live)", "UNDO_KEYS.map((k) => live[k])", "autosaveRef.current = { ...live, hasWork }"]) assert.ok(src.includes(use), use);
 });
 
 // A project with a non-empty value in every field.
@@ -234,4 +234,21 @@ test("#660 every voxel model is compacted and round-trips (numbers and text supp
   const old = compactVoxelModels([{ id: "s", source: "simpeg", cells: [{ x: 1, y: 2, z: 3, dx: 1, dy: 1, dz: 1, value: 5, support: 0.5 }] }])[0];
   const legacy = { ...old, compactCells: { n: old.compactCells.n, cols: old.compactCells.cols } };
   assert.deepEqual(expandVoxelModels([legacy])[0].cells[0], { x: 1, y: 2, z: 3, dx: 1, dy: 1, dz: 1, value: 5, support: 0.5 });
+});
+
+// TASKS.csv #1262 — wrong-shaped fields are dropped, named, and never crash the view
+test("#1262 a field of the wrong type is replaced by its empty value and named", () => {
+  const dropped = [];
+  const f = fieldsFromPayload({ version: 20, collars: {}, layers: 5, layoutPages: "x", assayElements: "Au", rasters: [], terrain: "no", project: { epsg: 26910, crsSet: true } }, null, dropped);
+  assert.deepEqual(dropped.sort(), ["assayElements", "collars", "layers", "layoutPages"]);
+  assert.deepEqual(f.collars, []);
+  assert.deepEqual(f.layers, EMPTY_LAYERS);
+  assert.equal(f.layoutPages.length, 1);
+  assert.equal(f.project.epsg, 26910);
+  assert.ok(fieldShapeOk({ __compactTable: 1, n: 0, cols: {} }, []), "a compact table stands for a list");
+  assert.ok(fieldShapeOk(undefined, []) && fieldShapeOk(null, {}));
+  assert.ok(!fieldShapeOk([], {}) && !fieldShapeOk("x", []) && !fieldShapeOk(3, "continuous"));
+  const ok = [];
+  fieldsFromPayload({ version: 20, collars: [{ hole_id: "A" }] }, null, ok);
+  assert.deepEqual(ok, []);
 });

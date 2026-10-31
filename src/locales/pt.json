@@ -6535,5 +6535,6 @@
   "feed the estimator by itself: the Estimation tool's ordinary kriging takes its own nugget, sill and range (type the ones you read here, or leave them blank to fit at run time), and nearest-neighbour / inverse-distance use none. Fitting a model here does not change any estimate you have run.": "alimenta o estimador por si só: a krigagem ordinária da ferramenta de Estimativa usa seu próprio efeito pepita, patamar e alcance (digite os que você ler aqui, ou deixe em branco para ajustar na execução), e o vizinho mais próximo / inverso da distância não usam nenhum. Ajustar um modelo aqui não muda nenhuma estimativa que você já executou.",
   "Dip azimuth°": "Azimute do mergulho°",
   "Pitch°": "Rake°",
-  "at an unrecorded time": "em um momento não registrado"
+  "at an unrecorded time": "em um momento não registrado",
+  "This file's {list} had the wrong form and were left empty. Everything else was read. Save it under another name if you want to keep the original.": "Os campos {list} deste arquivo tinham uma forma incorreta e foram deixados vazios. Todo o resto foi lido. Salve-o com outro nome se quiser manter o original."
 }

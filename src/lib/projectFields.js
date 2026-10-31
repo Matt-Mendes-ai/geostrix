@@ -256,9 +256,23 @@ export function emptyFields() {
 }
 
 // Live values from a saved / autosaved / stashed-tab payload. `name` (optional) is the real file or tab name.
-export function fieldsFromPayload(data, name) {
+// TASKS.csv #1262 — a stored value of the wrong shape (collars: {}, assayElements: 5, a string where a list belongs) is dropped
+// for the field's empty value, and its key is pushed to `dropped`, instead of reaching every consumer as "x.find is not a
+// function" on first render. checkProjectFile (#342) only looks at which keys exist. A compact table (#555) stands for a list.
+export function fieldShapeOk(value, empty) {
+  if (value == null) return true; // absent: the empty value is used anyway
+  if (Array.isArray(empty)) return Array.isArray(value) || (typeof value === "object" && !!value.__compactTable);
+  if (empty && typeof empty === "object") return typeof value === "object" && !Array.isArray(value);
+  if (empty == null) return true; // an optional field (terrain, a number range...): its own load() guards it
+  return typeof empty === typeof value;
+}
+export function fieldsFromPayload(data, name, dropped = []) {
   const out = {};
-  for (const f of FIELDS) out[f.key] = f.load ? f.load(data, name) : data[f.key] || f.empty();
+  for (const f of FIELDS) {
+    const raw = data[f.key];
+    if (!fieldShapeOk(raw, f.empty())) { dropped.push(f.key); out[f.key] = f.empty(); continue; }
+    out[f.key] = f.load ? f.load(data, name) : raw || f.empty();
+  }
   out.activeLayoutPageId = resolveActivePage(out.layoutPages, data.activeLayoutPageId);
   return out;
 }
