@@ -3900,9 +3900,6 @@
   "Hide": "Ocultar",
   "Delete trend \"{name}\"? Models using it will no longer follow a trend.": "¿Eliminar la tendencia \"{name}\"? Los modelos que la usan dejarán de seguir una tendencia.",
   "Trend name": "Nombre de la tendencia",
-  "Dip°{v}": "Manteo°{v}",
-  "Dip azimuth°{v}": "Azimut de manteo°{v}",
-  "Pitch°{v}": "Cabeceo°{v}",
   "Set the plane from": "Fijar el plano desde",
   "Set the plane from…": "Fijar el plano desde…",
   "Structure measurements (mean)": "Mediciones estructurales (media)",
@@ -6535,5 +6532,7 @@
   "The service answered with an error page.": "El servicio respondió con una página de error.",
   "This unit has {c} contacts, which needs {n} inducing points: more than this version of the add-on ({v}) can hold in memory. Merge thin codes into the unit, or choose fewer holes, or update the add-on when a newer version is available.": "Esta unidad tiene {c} contactos, lo que requiere {n} puntos inductores: más de lo que esta versión del complemento ({v}) puede mantener en memoria. Fusiona los códigos delgados en la unidad, elige menos sondajes o actualiza el complemento cuando haya una versión nueva.",
   "{c} contacts would need {n} inducing points; {cap} are placed where the data are, and every contact stays in the training.": "{c} contactos necesitarían {n} puntos inductores; se colocan {cap} donde están los datos, y cada contacto se mantiene en el entrenamiento.",
-  "feed the estimator by itself: the Estimation tool's ordinary kriging takes its own nugget, sill and range (type the ones you read here, or leave them blank to fit at run time), and nearest-neighbour / inverse-distance use none. Fitting a model here does not change any estimate you have run.": "alimenta el estimador por sí solo: el krigeado ordinario de la herramienta de Estimación toma su propio efecto pepita, meseta y alcance (escribe los que leas aquí, o déjalos en blanco para ajustarlos al ejecutar), y el vecino más cercano / inverso de la distancia no usan ninguno. Ajustar un modelo aquí no cambia ninguna estimación que ya hayas ejecutado."
+  "feed the estimator by itself: the Estimation tool's ordinary kriging takes its own nugget, sill and range (type the ones you read here, or leave them blank to fit at run time), and nearest-neighbour / inverse-distance use none. Fitting a model here does not change any estimate you have run.": "alimenta el estimador por sí solo: el krigeado ordinario de la herramienta de Estimación toma su propio efecto pepita, meseta y alcance (escribe los que leas aquí, o déjalos en blanco para ajustarlos al ejecutar), y el vecino más cercano / inverso de la distancia no usan ninguno. Ajustar un modelo aquí no cambia ninguna estimación que ya hayas ejecutado.",
+  "Dip azimuth°": "Azimut de manteo°",
+  "Pitch°": "Cabeceo°"
 }

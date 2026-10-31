@@ -163,9 +163,10 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
               <div style={{ marginTop: 6 }}>
                 <input value={t.name} onChange={(e) => update(t.id, { name: e.target.value })} aria-label={tr("Trend name")} style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: 6 }} />
                 <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                  <label style={field}>{tr("Dip°{v}", { v: num(t, "dip", { min: 0, max: 90 }) })}</label>
-                  <label style={field}>{tr("Dip azimuth°{v}", { v: num(t, "dipAzimuth", { min: 0, max: 360 }) })}</label>
-                  <label style={field}>{tr("Pitch°{v}", { v: num(t, "pitch", { min: 0, max: 180 }) })}</label>
+                  {/* TASKS.csv #1168 — the input is an element, not a value: tr() stringified it to "[object Object]" (#786 codemod) */}
+                  <label style={field}>{tr("Dip°")}{num(t, "dip", { min: 0, max: 90 })}</label>
+                  <label style={field}>{tr("Dip azimuth°")}{num(t, "dipAzimuth", { min: 0, max: 360 })}</label>
+                  <label style={field}>{tr("Pitch°")}{num(t, "pitch", { min: 0, max: 180 })}</label>
                 </div>
                 <RatiosEditor key={t.id} trend={t} onApply={(r) => update(t.id, { ratios: r })} field={field} inputStyle={inputStyle} small={small} />
                 <select value="" onChange={(e) => setFrom(t, e.target.value)} aria-label={tr("Set the plane from")} style={{ ...inputStyle, width: "100%" }}>
