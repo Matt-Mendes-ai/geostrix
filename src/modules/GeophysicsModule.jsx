@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from "react";
 import { ensureProjectCrs, ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615; export: #1021
-import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
+import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1152
 import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; // TASKS.csv #410
 import { guessBlockModelMapping, numericColumns, blockModelCellsFromRows, coarsenBlockCells } from "../lib/blockModelCsv.js";
@@ -12,7 +12,7 @@ import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Tria
 import { lazyModal } from "../lib/lazyModal.jsx";
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
 import { logStops, SEQUENTIAL_ANCHORS } from "../lib/inversion.js"; // TASKS.csv #481
-import { SURVEY_METHODS, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
+import { SURVEY_METHODS, SURVEY_METHOD_GROUPS, guessSurveyMethod, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
 import { terrainElevationAt } from "../lib/inversion.js";
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
 import { useStore } from "../lib/store.jsx";
@@ -284,6 +284,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         }
         const replacedN = replaceSurveyPoints(rows, good).replaced; // #600 — for the notice; the update below does the same
         setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, good).rows }));
+        { const g = guessSurveyMethod(cols.value); if (g && !geophysSurveys[file.name]?.method) updateGeophysSurvey(file.name, { method: g, units: SURVEY_METHODS[g].units }); } // #1151 — from the value column's name
         if (replacedN) reprojectNote += tr(" Replaced the {replacedN} point(s) of the earlier import of this file.", { replacedN: replacedN.toLocaleString() });
         const zNote = noZ ? tr(" {noZ} point(s) have no elevation: they are kept for modelling with \"sensor at a fixed height above terrain\", and are not drawn in 3D.", { noZ }) : ""; // #365
         const readNote = res.note ? ` ${res.note.trim()}` : ""; // #444 — comma decimals / encoding, said out loud
@@ -854,6 +855,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     }
     const replacedN = replaceSurveyPoints(rows, mapped).replaced; // #600 — re-import replaces, does not double
     setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, mapped).rows }));
+    { const g = guessSurveyMethod(valueCol); if (g && !geophysSurveys[fileName]?.method) updateGeophysSurvey(fileName, { method: g, units: SURVEY_METHODS[g].units }); } // #1151
     if (replacedN) reprojectNote += tr(" Replaced the {replacedN} point(s) of the earlier import of this file.", { replacedN: replacedN.toLocaleString() });
     const skipped = parsedRows.length - mapped.length - noFix; // #538 — the no-fix readings are reported separately
     if (noFix) reprojectNote += tr(" Left out {noFix} reading(s) at X = 0, Y = 0 (no GPS fix).", { noFix });
@@ -1114,7 +1116,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                     <select value={meta.method || ""} aria-label={tr("Method of \"{key}\"", { key: sv.key })} style={{ ...numInput, width: "auto", flex: 1, minWidth: 0 }}
                       onChange={(e) => updateGeophysSurvey(sv.key, { method: e.target.value, ...(e.target.value && !meta.units ? { units: SURVEY_METHODS[e.target.value].units } : {}) })}>
                       <option value="">{tr("Method…")}</option>
-                      {Object.entries(SURVEY_METHODS).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}
+                      {Object.entries(SURVEY_METHOD_GROUPS).map(([g, gl]) => <optgroup key={g} label={tr(gl)}>{Object.entries(SURVEY_METHODS).filter(([, m]) => m.group === g).map(([k, m]) => <option key={k} value={k}>{tr(m.label)}</option>)}</optgroup>)}{/* #1151 */}
                     </select>
                     <input value={meta.units || ""} placeholder={tr("units")} aria-label={tr("Units of \"{key}\"", { key: sv.key })} onChange={(e) => updateGeophysSurvey(sv.key, { units: e.target.value })} style={{ ...numInput, width: 58, flex: "none" }} />
                   </div>
@@ -1122,6 +1124,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                     onChange={(e) => updateGeophysSurvey(sv.key, { zMeaning: e.target.value })}>
                     {Object.entries(Z_MEANINGS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
                   </select>
+                  {/* TASKS.csv #1152 — interpretation lines over this survey, drawn in the 3D view */}
+                  <button type="button" onClick={() => { goToModule("viewer"); requestModuleAction("interpret-lines", { survey: sv.key }); }} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Draw faults, contacts and lineaments over this survey in the 3D view; they become a map layer")}>{tr("Draw interpretation lines…")}</button>
                   {(meta.zMeaning === "agl") && (
                     <button type="button" disabled={!terrain} onClick={() => convertAgl(sv.key)} style={{ ...pBtn, marginTop: 5, opacity: terrain ? 1 : 0.5 }}
                       title={terrain ? tr("elevation = terrain + the height in z (the heights are kept, so this can be redone after loading a better terrain)") : tr("Load a terrain first")}>

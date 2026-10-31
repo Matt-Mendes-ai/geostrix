@@ -29,6 +29,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 import { constraintSamples, SUSC_UNITS } from "../lib/drillholeConstraints.js"; // TASKS.csv #323
 import { categoricalModels, modelUnits, unitMedians, modelBody } from "../lib/geologyForward.js"; // TASKS.csv #760
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { SURVEY_METHODS, methodIsInvertible } from "../lib/geophysSurveys.js"; // TASKS.csv #1151
 
 const METHODS = {
   mag: { label: "Magnetics (TMI)", unit: "nT", confirm: "These values are the total-field ANOMALY in nT — the IGRF/regional field has already been removed (not RTP, not a derivative, not the raw total field).", property: "susceptibility (SI)", contrastLabel: "Susceptibility (SI)" },
@@ -384,6 +385,10 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
                 {surveys.map((sv) => <option key={sv} value={sv}>{tr("{sv} ({n} stations)", { sv, n: allRows.filter((r) => (r._src || tr("(unnamed import)")) === sv).length.toLocaleString() })}</option>)}
               </select>
             </label>
+          )}
+          {/* TASKS.csv #1151 — a derivative, a filtered product or another method is not the field this tool inverts */}
+          {engine?.available && activeSurvey && geophysSurveys?.[activeSurvey]?.method && !methodIsInvertible(geophysSurveys[activeSurvey].method) && (
+            <div style={{ ...small, color: "var(--color-warn-text)", marginBottom: 8 }}>{tr("\"{survey}\" is labelled {label}. This tool inverts the measured total magnetic field and Bouguer gravity only; a derivative, a filtered product or another method must not be inverted as if it were the field.", { survey: activeSurvey, label: tr(SURVEY_METHODS[geophysSurveys[activeSurvey].method].label) })}</div>
           )}
           {engine?.available && rows.length > 0 && (
             <>

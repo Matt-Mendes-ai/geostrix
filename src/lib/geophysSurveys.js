@@ -6,17 +6,68 @@
 // gravity survey in mGal on one ramp said nothing about either).
 import { colorForVoxelValue } from "./layers.js";
 
+// TASKS.csv #1151 — the survey types a mineral-exploration crew brings in, grouped for the Method select. The keys of the
+// first nine are what saved projects already hold: unchanged. Derived magnetic products (RTP, derivatives) are their own
+// types so they are never inverted as if they were the measured field (InversionPanel: methodIsInvertible).
+export const SURVEY_METHOD_GROUPS = { mag: "Magnetics", grav: "Gravity", rad: "Radiometrics", em: "Electromagnetics", el: "Electrical", other: "Other" };
 export const SURVEY_METHODS = {
-  mag: { label: "Magnetics (TMI)", units: "nT" },
-  grav: { label: "Gravity", units: "mGal" },
-  rad_k: { label: "Radiometrics: K", units: "%" },
-  rad_th: { label: "Radiometrics: eTh", units: "ppm" },
-  rad_u: { label: "Radiometrics: eU", units: "ppm" },
-  rad_tc: { label: "Radiometrics: total count", units: "cps" },
-  ip: { label: "IP chargeability", units: "mV/V" },
-  res: { label: "Resistivity", units: "Ω·m" },
-  other: { label: "Other", units: "" },
+  mag: { label: "Magnetics (TMI)", units: "nT", group: "mag" },
+  mag_rtp: { label: "Magnetics: reduced to pole", units: "nT", group: "mag" },
+  mag_1vd: { label: "Magnetics: first vertical derivative", units: "nT/m", group: "mag" },
+  mag_as: { label: "Magnetics: analytic signal", units: "nT/m", group: "mag" },
+  mag_vg: { label: "Magnetics: measured vertical gradient", units: "nT/m", group: "mag" },
+  grav: { label: "Gravity (Bouguer)", units: "mGal", group: "grav" },
+  grav_fa: { label: "Gravity: free air", units: "mGal", group: "grav" },
+  grav_gzz: { label: "Gravity gradient (Gzz)", units: "Eö", group: "grav" },
+  rad_k: { label: "Radiometrics: K", units: "%", group: "rad" },
+  rad_th: { label: "Radiometrics: eTh", units: "ppm", group: "rad" },
+  rad_u: { label: "Radiometrics: eU", units: "ppm", group: "rad" },
+  rad_tc: { label: "Radiometrics: total count", units: "cps", group: "rad" },
+  rad_uth: { label: "Radiometrics: eU / eTh", units: "ratio", group: "rad" },
+  rad_kth: { label: "Radiometrics: K / eTh", units: "ratio", group: "rad" },
+  em_cond: { label: "EM: apparent conductivity", units: "mS/m", group: "em" },
+  em_inphase: { label: "EM: in-phase", units: "ppm", group: "em" },
+  em_quad: { label: "EM: quadrature", units: "ppm", group: "em" },
+  em_dbdt: { label: "TEM: dB/dt (one channel)", units: "pV/(A·m⁴)", group: "em" },
+  em_bfield: { label: "TEM: B-field (one channel)", units: "pT", group: "em" },
+  em_tau: { label: "TEM: decay constant", units: "ms", group: "em" },
+  vlf_tilt: { label: "VLF-EM: tilt angle", units: "%", group: "em" },
+  ztem_tipper: { label: "ZTEM: tipper (in-phase)", units: "ratio", group: "em" },
+  mt_rho: { label: "MT / AMT: apparent resistivity", units: "Ω·m", group: "em" },
+  mt_phase: { label: "MT / AMT: phase", units: "°", group: "em" },
+  ip: { label: "IP chargeability", units: "mV/V", group: "el" },
+  res: { label: "Resistivity", units: "Ω·m", group: "el" },
+  sp: { label: "Self-potential", units: "mV", group: "el" },
+  other: { label: "Other", units: "", group: "other" },
 };
+// What the SimPEG inversion models: the measured total field and Bouguer gravity. A derivative or a filtered product is
+// not the field; a radiometric or EM channel is another physics.
+export const methodIsInvertible = (m) => m === "mag" || m === "grav";
+
+// A method read from the value column's header at import ("TMI_nT", "Bouguer", "eTh_ppm", "Cond_mSm"...). Words are
+// matched whole, so "ip" never fires on "dip" and "k" never on "kelvin"; null when nothing fits (the select stays
+// "Method…"). The order matters: a specific product before its family.
+const WORD_RULES = [
+  [/^(rtp|rtp_nt)$/, "mag_rtp"], [/^(1vd|fvd|dz|vd1)$/, "mag_1vd"], [/^(as|asig|analytic)$/, "mag_as"], [/^(vg|vgrad|vmg)$/, "mag_vg"],
+  [/^(tmi|mag|magnetics|magnetic|nt|tf|rmi|igrf)$/, "mag"],
+  [/^(boug|bouguer|cba|sba)$/, "grav"], [/^(fa|freeair)$/, "grav_fa"], [/^(gzz|ftg|eotvos)$/, "grav_gzz"], [/^(grav|gravity|mgal|gz)$/, "grav"],
+  [/^(uth|u_th)$/, "rad_uth"], [/^(kth|k_th)$/, "rad_kth"], [/^(k|k40|potassium|kpct)$/, "rad_k"], [/^(eth|th|thorium)$/, "rad_th"], [/^(eu|u|uranium)$/, "rad_u"], [/^(tc|totalcount|total|cps|dose)$/, "rad_tc"],
+  [/^(vlf|tilt|tiltangle)$/, "vlf_tilt"], [/^(tipper|ztem|tzx|tzy|tzr)$/, "ztem_tipper"], // before the EM channels: a VLF or ZTEM in-phase is still VLF / ZTEM
+  [/^(cond|conductivity|sigma|msm|appcond)$/, "em_cond"], [/^(inphase|inph|ip_ppm|real)$/, "em_inphase"], [/^(quad|quadrature|imag)$/, "em_quad"], [/^(dbdt|dbdtz|emz)$/, "em_dbdt"], [/^(bfield|bz|pt)$/, "em_bfield"], [/^(tau|decay)$/, "em_tau"],
+  [/^(rhoa|apprho|mt|amt)$/, "mt_rho"], [/^(phase|phs)$/, "mt_phase"],
+  [/^(chargeability|charge|ip|mvv|mv_v)$/, "ip"], [/^(res|resistivity|rho|ohmm|appres)$/, "res"], [/^(sp|selfpotential)$/, "sp"],
+];
+export function guessSurveyMethod(header) {
+  if (!header) return null;
+  const words = String(header).toLowerCase().replace(/[()[\]]/g, " ").split(/[^a-z0-9]+/).filter(Boolean);
+  const joined = words.join("");
+  for (const [re, m] of WORD_RULES) { if (re.test(joined)) return m; } // "U_Th" is the ratio, not thorium
+  for (const [re, m] of WORD_RULES) { if (words.some((w) => re.test(w))) return m; }
+  // a header written as one word: "inphase", "freeair", "totalcount", "bouguer", "apparentconductivity"
+  if (/^(apparent)?cond/.test(joined)) return "em_cond";
+  if (/^(apparent)?res/.test(joined) || /ohm/.test(joined)) return "res";
+  return null;
+}
 // What a survey's z column means. "agl" = height above ground (a helicopter survey's radar altimeter):
 // converted to elevation = terrain + height, with the original kept on each row as zAgl.
 export const Z_MEANINGS = { elevation: "z is elevation", agl: "z is height above ground (radar altimeter)", none: "no z (grid nodes / unknown)" };

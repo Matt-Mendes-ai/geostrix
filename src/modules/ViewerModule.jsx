@@ -84,10 +84,13 @@ import { ASSAY_ELEMENT_COLORS, assayColorFor, categoryLegendGroups, assayLegendG
 // TASKS.csv #843 — the anomaly map (lib/anomalyMap.js + lib/thresholds.js) and its controls load only when used: off the startup bundle
 const SurfaceAnomalyControls = React.lazy(() => import("../components/SurfaceAnomalyControls.jsx"));
 const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverlayPane.jsx"));
+const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")); // TASKS.csv #1152
 const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
 import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut } from "../lib/levelPlan.js"; // TASKS.csv #525
 import { buildVectorFeatures as buildVectorFeaturesOf } from "../lib/viewer/vectorFeatures.js"; // TASKS.csv #1083
+import { isRepeatClick } from "../lib/interpretation.js"; // TASKS.csv #1152
+import { syncInterpretPreview } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #1152
 import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 import { unitShell, meshVolume, blockUnitStats } from "../lib/unitVolumes.js"; // TASKS.csv #517; blockUnitStats: #877
 const ModellingCodesPane = React.lazy(() => import("../components/ModellingCodesPane.jsx")); // TASKS.csv #599 — modelling view only, so loaded on demand (#476 budget)
@@ -1001,6 +1004,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // reusing onMeasureClick's exact raycast pattern (raycastWorldPoint — terrain/voxel/drillhole-aware,
   // not just a flat plane) so a picked point reflects whatever's actually under the cursor.
   const [pickHoleMode, setPickHoleMode] = useState(false);
+  // TASKS.csv #1152 — interpretation lines: the pane, the drawing (on, the clicks, a counter a double-click bumps to end the
+  // line, the survey a Geophysics button named); a ref for the mount-once handlers, the preview group made on first use
+  const [interpretOpen, setInterpretOpen] = useState(false);
+  const [interpret, setInterpret] = useState({ on: false, points: [], finishSeq: 0, survey: null });
+  const interpretRef = useRef(interpret); useEffect(() => { interpretRef.current = interpret; }, [interpret]);
+  const interpretGroupRef = useRef(null);
+  const stopInterpret = () => setInterpret((s) => ({ ...s, on: false, points: [] }));
   const pickHoleModeRef = useRef(false); // mirrors pickHoleMode for the mount-once pointer-event effect below, same reason rectZoomRef mirrors rectZoomMode
   useEffect(() => { pickHoleModeRef.current = pickHoleMode; }, [pickHoleMode]);
   // TASKS.csv #599 — modelling codes: pick an interval in the 3D view (Modelling tab), connect it to another hole
@@ -1558,6 +1568,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       if (rectZoomMode) { setRectZoomMode(false); setRectVisual(null); rectDragRef.current = null; return; }
       if (sectionMode) { setSectionMode(false); sectionPts.current = []; setSectionPreview(null); return; }
       if (pickHoleMode) { setPickHoleMode(false); return; }
+      if (interpretRef.current.on) { stopInterpret(); return; } // #1152
       if (mcConnectFrom) { setMcConnectFrom(null); return; }
       if (measureMode) { setMeasureMode(null); setMeasurePts([]); }
     };
@@ -6265,6 +6276,24 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     setPickedHolePoint(world);
     setPickHoleMode(false);
   }, [pickHoleMode, raycastWorldPoint]);
+  // TASKS.csv #1152 — a click adds a vertex to the interpretation line (on whatever is under the cursor: terrain, survey,
+  // else the ground plane); a second click on the same spot ends it (the pane writes the line)
+  const onInterpretClick = useCallback((e) => {
+    if (!interpretRef.current.on) return;
+    const rect = mountRef.current.getBoundingClientRect();
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1), cameraRef.current);
+    const world = raycastWorldPoint(raycaster);
+    if (!world) return;
+    const at = Date.now();
+    setInterpret((s) => (isRepeatClick(s.points[s.points.length - 1], { ...world, at }) ? { ...s, finishSeq: s.finishSeq + 1 } : { ...s, points: [...s.points, { ...world, at }] }));
+  }, [raycastWorldPoint]);
+  useEffect(() => { // the line being drawn, in the scene
+    const scene = sceneRef.current; if (!scene) return;
+    if (!interpretGroupRef.current) { interpretGroupRef.current = new THREE.Group(); scene.add(interpretGroupRef.current); }
+    syncInterpretPreview(interpretGroupRef.current, interpret.on ? interpret.points : [], originRef.current);
+  }, [interpret]);
+  useModuleAction(["interpret-lines"], (a, payload) => { setInterpretOpen(true); setInterpret((s) => ({ ...s, survey: payload?.survey || null })); });
   // TASKS.csv #599 — a click (not a drag) on a lithology interval in the Modelling tab: select it, or — when
   // "connect" is armed — give it the first interval's code and draw the tie. Uses the same pick index as the
   // hover tooltip; the lithology layer must be visible to be picked.
@@ -6999,6 +7028,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           onToggleSection={() => { setRectZoomMode(false); setMeasureMode(null); setMeasurePts([]); setSectionMode((s) => !s); sectionPts.current = []; setSectionPreview(null); }}
           sectionCorridor={sectionCorridor} setSectionCorridor={setSectionCorridor}
           measureMode={measureMode} onToggleMeasure={toggleMeasureOnOff} onSwitchMeasureMode={switchMeasureMode} measurePts={measurePts} clearMeasure={clearMeasure}
+          interpretOpen={interpretOpen} onInterpret={() => { if (interpretOpen) stopInterpret(); setInterpretOpen((v) => !v); }} /* TASKS.csv #1152 */
           show={visible} paneProps={paneProps}
         />
       )}
@@ -7082,6 +7112,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       <div className="ge-panel" style={{ padding: "16px 14px", border: "none", width: "100%", flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
         {sidebarTab === "home" && (<>
         {/* TASKS.csv #458 — tool panes opened from the ribbon, above the data */}
+        {interpretOpen && (<Suspense fallback={null}><InterpretPane drawing={interpret} presetSurvey={interpret.survey} /* TASKS.csv #1152 */
+          onStart={() => { setRectZoomMode(false); setSectionMode(false); setMeasureMode(null); setMeasurePts([]); setPickHoleMode(false); setInterpret((s) => ({ ...s, on: true, points: [] })); }}
+          onUndo={() => setInterpret((s) => ({ ...s, points: s.points.slice(0, -1) }))} onCancel={stopInterpret} onDone={stopInterpret}
+          onClose={() => { setInterpretOpen(false); stopInterpret(); }} /></Suspense>)}
         {toolPane === "sectionCoords" && (<>
         {paneHeader("Section by coordinates", Crosshair, "section")}
         {/* TASKS.csv #393 — a section typed as numbers (blank centre = centre of the drilling) */}
@@ -8272,7 +8306,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {/* TASKS.csv #389 — was role=button + activateOnKey, so Enter/Space fired a synthetic click with no
           pointer position and placed a bogus section/measure/pick point. The 3D view is a pointer surface,
           not a button: a labelled, focusable application region with no keyboard click. */}
-      <div ref={viewFocusRef} role="application" aria-label={tr("3D view")} tabIndex={0} className="ge-main" onKeyDown={onViewKeyDown} onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { if (!isViewClick(e)) return; onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onMcodeClick(e); onExplicitClick(e); sculpt.handleViewClick(e); }} style={{ cursor: sectionMode || rectZoomMode || measureMode || pickHoleMode || ((mcPickMode || explicitPickFor) && mode === "modelling") || sculpt.targetId ? "crosshair" : "default" }}>
+      <div ref={viewFocusRef} role="application" aria-label={tr("3D view")} tabIndex={0} className="ge-main" onKeyDown={onViewKeyDown} onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { if (!isViewClick(e)) return; onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onInterpretClick(e); onMcodeClick(e); onExplicitClick(e); sculpt.handleViewClick(e); }} style={{ cursor: interpret.on || sectionMode || rectZoomMode || measureMode || pickHoleMode || ((mcPickMode || explicitPickFor) && mode === "modelling") || sculpt.targetId ? "crosshair" : "default" }}>
         <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
         {/* TASKS.csv #311 — figure furniture (title / legend / scale bar) for the screenshot people
             actually take. Rendered only once there is data to annotate, so the #294 empty state is
@@ -8841,6 +8875,7 @@ function ViewToolbar({
   onDbConnect, onQc, qcDisabled, onBoundaryIntercepts, boundaryDisabled, onSqlWorkspace, sqlDisabled,
   onSnapshot, snapshotDisabled, onExportHoles, sectionMode, onToggleSection, sectionCorridor, setSectionCorridor,
   measureMode, onToggleMeasure, onSwitchMeasureMode, measurePts, clearMeasure,
+  interpretOpen, onInterpret, // TASKS.csv #1152
   show, paneProps, // TASKS.csv #458
   onLevelPlan, // TASKS.csv #525
 }) {
@@ -8988,6 +9023,11 @@ function ViewToolbar({
           </HoverToolInfo>
         </div>
         {measureMode && <MeasureResults mode={measureMode} pts={measurePts} onClear={clearMeasure} onSwitchMode={onSwitchMeasureMode} />}
+        <div className="ge-ribbon-cell">{/* TASKS.csv #1152 */}
+          <HoverToolInfo title={tr("Interpretation lines")} text={tr("Draw faults, contacts and lineaments over a geophysics survey. Each set of lines is a map layer: it drapes on the terrain, exports as Shapefile, GeoPackage, KML or DXF, and prints in the Layout legend.")}>
+            <button className={`ge-ribbon-btn ${interpretOpen ? "active" : ""}`} aria-pressed={!!interpretOpen} onClick={onInterpret}><PenTool size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Interpret")}</span></button>
+          </HoverToolInfo>
+        </div>
         <div className="ge-ribbon-cell">
           <HoverToolInfo title={tr("Run data QC")} text={qcDisabled ? tr("Load some collars/survey data first. Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling.") : tr("Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling.")}>
             <button className={`ge-ribbon-btn${qcDisabled ? " is-disabled" : ""}`} onClick={qcDisabled ? undefined : onQc} aria-disabled={qcDisabled || undefined}><ShieldAlert size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Data QC")}</span></button>

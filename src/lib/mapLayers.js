@@ -239,7 +239,9 @@ export function drawMapLayer(ctx, layer, bbox, width, height) {
 // A signature of everything that changes the rasterized image (not opacity/visibility/drape, which are
 // material/mesh properties) — lets the renderer skip re-rasterizing on unrelated edits.
 export function mapStyleSignature(layer) {
-  return JSON.stringify([layer.styleField, layer.showOutlines, layer.color, layer.lineWidthM, (layer.categories || []).map((c) => [c.value, c.color, c.outline, c.visible])]);
+  // TASKS.csv #1152 — the vertex count too: an interpretation layer gains and loses lines after it is first drawn
+  const vertices = (layer.features || []).reduce((n, f) => n + (f.parts || []).reduce((m, p) => m + p.length, 0), 0);
+  return JSON.stringify([layer.styleField, layer.showOutlines, layer.color, layer.lineWidthM, vertices, (layer.categories || []).map((c) => [c.value, c.color, c.outline, c.visible])]);
 }
 
 // ---------- contacts between mapped units ----------
