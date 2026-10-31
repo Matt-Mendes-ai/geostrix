@@ -3,7 +3,7 @@ import { t as tr, LANGUAGES, currentLanguage, setLanguage } from "./lib/i18n.js"
 import { requestModuleAction } from "./lib/menuRequests.js"; // TASKS.csv #565
 import { onProjectCrsRequest, requestProjectCrs } from "./lib/projectCrsRequest.js"; // TASKS.csv #615
 import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Layers3, Target, FileBarChart2, Map as MapIcon, Compass } from "./components/icons.js"; // Compass: #820
-import { crsName, getProj4DefSync, loadEpsgRegistry, onEpsgRegistry } from "./lib/reproject.js"; // TASKS.csv #485; #834 registry
+import { crsName, getProj4DefSync, loadEpsgRegistry, onEpsgRegistry, isMetricProjectedEpsg } from "./lib/reproject.js"; // TASKS.csv #485; #834 registry; #1148
 import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./lib/store.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
 import ExportToast from "./components/ExportToast.jsx"; // TASKS.csv #1042 — every export says whether it was saved, and where
@@ -34,6 +34,7 @@ const ShortcutsModal = React.lazy(() => import("./components/ShortcutsModal.jsx"
 const ReportProblemModal = React.lazy(() => import("./components/ReportProblemModal.jsx")); // TASKS.csv #598
 const LicensesModal = React.lazy(() => import("./components/LicensesModal.jsx")); // TASKS.csv #639
 const ProjectCrsModal = React.lazy(() => import("./components/ProjectCrsModal.jsx")); // TASKS.csv #615
+const DegreesProjectBanner = React.lazy(() => import("./components/DegreesProjectBanner.jsx")); // TASKS.csv #1148
 const ProjectReportModal = React.lazy(() => import("./components/ProjectReportModal.jsx"));
 
 // TASKS.csv — Raster split out as its own tab (user request), between Geophysics and Layout so it
@@ -454,6 +455,7 @@ export default function App() {
           <button onClick={() => setLastExitUnclean(false)} style={recoveryBtn} aria-label={tr("Dismiss")}>{tr("Dismiss")}</button>
         </div>
       )}
+      {project.crsSet && isMetricProjectedEpsg(project.epsg) === false && <Suspense fallback={null}><DegreesProjectBanner btnStyle={recoveryBtn} /></Suspense>}{/* #1148 */}
       {recoveryNote && (
         <div role="status" style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 14px", background: "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>
           <RotateCcw size={14} style={{ flexShrink: 0 }} />

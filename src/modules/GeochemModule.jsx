@@ -608,7 +608,9 @@ export default function GeochemModule() {
     // (they used to be stored as-is, so an MX soil file in UTM 10 sat ~400 km from collars reprojected to UTM 9).
     const fromEpsg = modal.sourceEpsg ? Number(modal.sourceEpsg) : null;
     let toEpsg = project?.epsg ? Number(project.epsg) : null;
-    const adopted = askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: toEpsg, declaredEpsg: fromEpsg, fileName: modal.fileName }); // #607
+    // #1148 — where the rows are, in case they are in latitude / longitude: the metric CRS for that place is offered, not degrees
+    const rowAt = allRows.map((r) => ({ lon: num(r[mapping.x]), lat: num(r[mapping.y]) })).find((q) => Number.isFinite(q.lon) && Number.isFinite(q.lat) && Math.abs(q.lon) <= 180 && Math.abs(q.lat) <= 90) || null;
+    const adopted = askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: toEpsg, declaredEpsg: fromEpsg, fileName: modal.fileName, at: rowAt }); // #607
     if (adopted) { setEpsg(adopted); toEpsg = adopted; setNotices((p) => [...p, notice("Project CRS set to {v} (EPSG:{adopted}) from {fileName}.", { v: crsName(adopted), adopted, fileName: modal.fileName })]); }
     const doReproject = fromEpsg && toEpsg && fromEpsg !== toEpsg;
     let reprojectFailed = 0;

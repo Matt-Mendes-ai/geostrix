@@ -69,6 +69,20 @@ export function localCrsAt(lon, lat, { exclude = [] } = {}) {
   return out.map(({ code, name, noShift }) => ({ code, name, noShift }));
 }
 
+// TASKS.csv #1148 — the middle of a project whose x and y ARE longitude and latitude: the collars, else the samples, else the
+// terrain's box, else the map layers. { lon, lat } or null.
+export function degreesCentre({ collars = [], surfaceSamples = [], terrain = null, mapLayers = [] } = {}) {
+  const mid = (pts) => {
+    const ok = pts.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Math.abs(p.x) <= 360 && Math.abs(p.y) <= 90);
+    if (!ok.length) return null;
+    const m = (k) => ok.map((p) => p[k]).sort((a, b) => a - b)[ok.length >> 1];
+    return { lon: m("x"), lat: m("y") };
+  };
+  const box = Array.isArray(terrain?.bbox) ? [{ x: (terrain.bbox[0] + terrain.bbox[2]) / 2, y: (terrain.bbox[1] + terrain.bbox[3]) / 2 }] : [];
+  const layer = (mapLayers || []).flatMap((l) => (l.features || []).flatMap((f) => (f.parts || [f.geometry || []]).flat().map((p) => ({ x: p?.[0], y: p?.[1] }))));
+  return mid(collars) || mid(surfaceSamples) || mid(box) || mid(layer);
+}
+
 // Where the collars' centre would be on Earth if they were in `epsg`: { lon, lat } or null.
 export function collarCentreLonLat(collars, epsg) {
   const pts = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));

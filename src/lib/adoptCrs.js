@@ -3,16 +3,26 @@
 // landed at ~1,020,000 E). When nothing is loaded yet and the file DECLARES a different CRS GeoStrix can use
 // (.prj, GeoPackage, a srid column with one value), the user is asked whether to make it the project CRS.
 // Returns the EPSG code to adopt, or null to keep the current one. `confirm` is injectable for tests.
-import { crsName } from "./reproject.js";
+import { crsName, isGeographicCrs } from "./reproject.js";
+import { crsCandidatesAt } from "./projectCrs.js";
+import { t as tr } from "./i18n.js";
 
 export function shouldOfferCrs({ isEmpty, currentEpsg, declaredEpsg }) {
   const cur = Number(currentEpsg), d = Number(declaredEpsg);
   return !!isEmpty && Number.isInteger(d) && d > 0 && d !== cur && !!crsName(d);
 }
 
-export function askAdoptCrs({ isEmpty, currentEpsg, declaredEpsg, fileName }, confirm = (m) => window.confirm(m)) {
+// TASKS.csv #1148 — at: { lon, lat } of the data, when it is known. A file in latitude / longitude must not become the project's
+// CRS: x and y in degrees against elevations in metres draws terrain as spikes (Matt: public samples in Australia, then SRTM).
+// With a place, the metric CRS for it is offered instead, and the data is reprojected into that.
+export function askAdoptCrs({ isEmpty, currentEpsg, declaredEpsg, fileName, at = null }, confirm = (m) => window.confirm(m)) {
   if (!shouldOfferCrs({ isEmpty, currentEpsg, declaredEpsg })) return null;
   const cur = Number(currentEpsg), d = Number(declaredEpsg);
+  if (at && isGeographicCrs(d)) {
+    const m = crsCandidatesAt(at.lon, at.lat)[0];
+    if (!m || m.code === cur) return null;
+    return confirm(tr("This project is empty and its CRS is {cur} (EPSG:{code}).\n{file} is in latitude and longitude, which cannot be a project CRS: elevations are in metres.\n\nOK: use {name} (EPSG:{m}) for this area and reproject the data into it.\nCancel: keep EPSG:{code}.", { cur: crsName(cur) || "?", code: cur, file: fileName, name: m.name, m: m.code })) ? m.code : null;
+  }
   const ok = confirm(
     `This project is empty and its CRS is ${crsName(cur) || "?"} (EPSG:${cur}).\n` +
     `${fileName} is in ${crsName(d)} (EPSG:${d}).\n\n` +

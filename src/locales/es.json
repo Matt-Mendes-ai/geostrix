@@ -6510,5 +6510,13 @@
   "This run: {p} points, {t} of training on a recent laptop{v}. A rough guide; predicting the blocks comes after.": "Esta corrida: {p} puntos, {t} de entrenamiento en un portátil reciente{v}. Es una guía aproximada; la predicción de bloques viene después.",
   ", longer with folds": ", más con pliegues",
   "{n} composites would be {t} of training, more than a computer can hold, so composites are {c} m here instead of {base} m.": "{n} compósitos serían {t} de entrenamiento, más de lo que cabe en un computador, así que aquí los compósitos son de {c} m en lugar de {base} m.",
-  "This run: {n} composites, {t} of training on a recent laptop. A rough guide; predicting the blocks comes after.": "Esta corrida: {n} compósitos, {t} de entrenamiento en un portátil reciente. Es una guía aproximada; la predicción de bloques viene después."
+  "This run: {n} composites, {t} of training on a recent laptop. A rough guide; predicting the blocks comes after.": "Esta corrida: {n} compósitos, {t} de entrenamiento en un portátil reciente. Es una guía aproximada; la predicción de bloques viene después.",
+  "This project is empty and its CRS is {cur} (EPSG:{code}).\n{file} is in latitude and longitude, which cannot be a project CRS: elevations are in metres.\n\nOK: use {name} (EPSG:{m}) for this area and reproject the data into it.\nCancel: keep EPSG:{code}.": "Este proyecto está vacío y su SRC es {cur} (EPSG:{code}).\n{file} está en latitud y longitud, que no puede ser el SRC del proyecto: las elevaciones están en metros.\n\nAceptar: usar {name} (EPSG:{m}) para esta zona y reproyectar los datos.\nCancelar: mantener EPSG:{code}.",
+  "This project is in latitude and longitude ({name}), but elevations are in metres, so terrain draws as spikes and distances and volumes come out wrong. Use a coordinate system in metres.": "Este proyecto está en latitud y longitud ({name}), pero las elevaciones están en metros, así que el terreno se dibuja en picos y las distancias y volúmenes salen mal. Use un sistema de coordenadas en metros.",
+  "Undo history is cleared.": "El historial de deshacer se borra.",
+  "The move failed: {message}": "El movimiento falló: {message}",
+  "Moving…": "Moviendo…",
+  "Move to {name}": "Mover a {name}",
+  "Choose another…": "Elegir otro…",
+  "Choose a coordinate system in metres. This only relabels the project: to move loaded data, use Maps > Reproject.": "Elija un sistema de coordenadas en metros. Esto solo cambia la etiqueta del proyecto: para mover los datos cargados, use Mapas > Reproyectar."
 }

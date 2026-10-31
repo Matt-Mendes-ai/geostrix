@@ -6510,5 +6510,13 @@
   "This run: {p} points, {t} of training on a recent laptop{v}. A rough guide; predicting the blocks comes after.": "Esta execução: {p} pontos, {t} de treinamento em um notebook recente{v}. É um guia aproximado; a predição dos blocos vem depois.",
   ", longer with folds": ", mais com dobras",
   "{n} composites would be {t} of training, more than a computer can hold, so composites are {c} m here instead of {base} m.": "{n} compostos seriam {t} de treinamento, mais do que um computador comporta, então aqui os compostos têm {c} m em vez de {base} m.",
-  "This run: {n} composites, {t} of training on a recent laptop. A rough guide; predicting the blocks comes after.": "Esta execução: {n} compostos, {t} de treinamento em um notebook recente. É um guia aproximado; a predição dos blocos vem depois."
+  "This run: {n} composites, {t} of training on a recent laptop. A rough guide; predicting the blocks comes after.": "Esta execução: {n} compostos, {t} de treinamento em um notebook recente. É um guia aproximado; a predição dos blocos vem depois.",
+  "This project is empty and its CRS is {cur} (EPSG:{code}).\n{file} is in latitude and longitude, which cannot be a project CRS: elevations are in metres.\n\nOK: use {name} (EPSG:{m}) for this area and reproject the data into it.\nCancel: keep EPSG:{code}.": "Este projeto está vazio e seu SRC é {cur} (EPSG:{code}).\n{file} está em latitude e longitude, que não pode ser o SRC do projeto: as elevações estão em metros.\n\nOK: usar {name} (EPSG:{m}) para esta área e reprojetar os dados.\nCancelar: manter EPSG:{code}.",
+  "This project is in latitude and longitude ({name}), but elevations are in metres, so terrain draws as spikes and distances and volumes come out wrong. Use a coordinate system in metres.": "Este projeto está em latitude e longitude ({name}), mas as elevações estão em metros, então o terreno aparece em picos e distâncias e volumes saem errados. Use um sistema de coordenadas em metros.",
+  "Undo history is cleared.": "O histórico de desfazer é apagado.",
+  "The move failed: {message}": "A movimentação falhou: {message}",
+  "Moving…": "Movendo…",
+  "Move to {name}": "Mover para {name}",
+  "Choose another…": "Escolher outro…",
+  "Choose a coordinate system in metres. This only relabels the project: to move loaded data, use Maps > Reproject.": "Escolha um sistema de coordenadas em metros. Isso apenas renomeia o projeto: para mover os dados carregados, use Mapas > Reprojetar."
 }

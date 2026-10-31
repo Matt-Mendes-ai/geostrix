@@ -6510,5 +6510,13 @@
   "This run: {p} points, {t} of training on a recent laptop{v}. A rough guide; predicting the blocks comes after.": "هذا التشغيل: {p} نقطة و{t} من التدريب على حاسوب محمول حديث{v}. دليل تقريبي؛ يأتي توقع الكتل بعد ذلك.",
   ", longer with folds": "، وأطول مع الطيات",
   "{n} composites would be {t} of training, more than a computer can hold, so composites are {c} m here instead of {base} m.": "سيكون {n} مركّبًا {t} من التدريب، أكثر مما يتسع له الحاسوب، لذا طول المركبات هنا {c} م بدلًا من {base} م.",
-  "This run: {n} composites, {t} of training on a recent laptop. A rough guide; predicting the blocks comes after.": "هذا التشغيل: {n} مركّبًا و{t} من التدريب على حاسوب محمول حديث. دليل تقريبي؛ يأتي توقع الكتل بعد ذلك."
+  "This run: {n} composites, {t} of training on a recent laptop. A rough guide; predicting the blocks comes after.": "هذا التشغيل: {n} مركّبًا و{t} من التدريب على حاسوب محمول حديث. دليل تقريبي؛ يأتي توقع الكتل بعد ذلك.",
+  "This project is empty and its CRS is {cur} (EPSG:{code}).\n{file} is in latitude and longitude, which cannot be a project CRS: elevations are in metres.\n\nOK: use {name} (EPSG:{m}) for this area and reproject the data into it.\nCancel: keep EPSG:{code}.": "هذا المشروع فارغ ونظام إحداثياته {cur} (EPSG:{code}).\n{file} بخطوط الطول والعرض، ولا يصلح نظامًا للمشروع: الارتفاعات بالأمتار.\n\nموافق: استخدام {name} (EPSG:{m}) لهذه المنطقة وإعادة إسقاط البيانات.\nإلغاء: إبقاء EPSG:{code}.",
+  "This project is in latitude and longitude ({name}), but elevations are in metres, so terrain draws as spikes and distances and volumes come out wrong. Use a coordinate system in metres.": "هذا المشروع بخطوط الطول والعرض ({name})، لكن الارتفاعات بالأمتار، فتظهر التضاريس كقمم حادة وتخطئ المسافات والأحجام. استخدم نظام إحداثيات بالأمتار.",
+  "Undo history is cleared.": "يُمسح سجل التراجع.",
+  "The move failed: {message}": "فشل النقل: {message}",
+  "Moving…": "جارٍ النقل…",
+  "Move to {name}": "النقل إلى {name}",
+  "Choose another…": "اختيار غيره…",
+  "Choose a coordinate system in metres. This only relabels the project: to move loaded data, use Maps > Reproject.": "اختر نظام إحداثيات بالأمتار. هذا يغيّر تسمية المشروع فقط: لنقل البيانات المحمّلة استخدم الخرائط > إعادة الإسقاط."
 }
