@@ -51,3 +51,15 @@ test("#1148 moving the project out of degrees turns a terrain grid into metres, 
   assert.ok(fields.surfaceSamples[0].x > 100000 && fields.surfaceSamples[0].z === 600);
   assert.equal(report.counts.terrain, 1);
 });
+
+test("#1149 longitude and latitude columns are recognized only when they hold degrees", async () => {
+  const { lonLatColumns } = await import("../src/lib/projectCrs.js");
+  const rows = [{ Longitude: "133.80", LAT: "-23.70" }, { Longitude: "133.83", LAT: "" }];
+  assert.deepEqual(lonLatColumns(["id", "Longitude", "LAT"], rows), { x: "Longitude", y: "LAT" });
+  assert.deepEqual(lonLatColumns(["long_wgs84", "lat wgs84"], [{ long_wgs84: 1.5, "lat wgs84": 2.5 }]), { x: "long_wgs84", y: "lat wgs84" });
+  assert.equal(lonLatColumns(["lon", "lat"], [{ lon: 500000.5, lat: 6200000.5 }]), null); // metres under a lat / lon name
+  assert.equal(lonLatColumns(["lon", "lat"], [{ lon: 1, lat: 2 }, { lon: 3, lat: 4 }]), null); // a local grid: whole numbers
+  assert.equal(lonLatColumns(["lon"], [{ lon: 1.5 }]), null);
+  assert.equal(lonLatColumns(["colony", "flat"], [{ colony: 1.5, flat: 2.5 }]), null); // whole names only
+  assert.equal(lonLatColumns(["lon", "lat"], [{ lon: "abc", lat: 2.5 }]), null);
+});

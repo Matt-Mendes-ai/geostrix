@@ -6,6 +6,7 @@ import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #1091 — the gra
 import { didYouMean } from "../lib/holeIds.js"; // TASKS.csv #541
 import { reprojectXY, crsName } from "../lib/reproject.js"; // TASKS.csv #600 — surface samples into the project CRS
 import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
+import { lonLatColumns } from "../lib/projectCrs.js"; // TASKS.csv #1149
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { MapPin as GMapPin, Triangle as GTriangle, Shapes as GShapes, BarChart3 as GBarChart, Award as GAward, Rows3 as GRows, Sheet as GSheet, Image as GImage } from "../components/icons.js";
 import { Upload, Download, FlaskConical, Beaker, Scale, Grid3x3, ShieldCheck, TerminalSquare, Sigma, FileCheck, X, AlertTriangle, Globe, Database } from "../components/icons.js";
@@ -552,7 +553,8 @@ export default function GeochemModule() {
         // correctly handles "Ag_XRF_..." also matches a coordinate column that just happens to BE an
         // element symbol. x/y/z/sample_id/medium are excluded from element detection since whichever
         // columns they resolved to are already spoken for by the mapping above, never a real analyte.
-        const mappedCols = new Set(Object.values(mapping).filter(Boolean));
+        const llCols = !mapping.x && !mapping.y ? lonLatColumns(headers, data) : null; // #1149 — not elements either
+        const mappedCols = new Set([...Object.values(mapping).filter(Boolean), ...(llCols ? [llCols.x, llCols.y] : [])]);
         // TASKS.csv #600 — the same column choice as drillhole assays (pickElementColumns): the most complete
         // numeric column per element, over-limit column paired, descriptive columns skipped. The old
         // first-match dedupe took "au_cert_num" (a certificate number) as Au and "v_datum" as vanadium in an
@@ -561,10 +563,14 @@ export default function GeochemModule() {
         // TASKS.csv #600 — a CRS tag column (srid_source / epsg...) with one recognised code pre-fills the Source CRS.
         const crsCol = headers.find((h) => /^(srid(_source)?|source_srid|epsg(_srid)?|source_epsg|crs_epsg)$/i.test(h.trim()));
         const codes = crsCol ? [...new Set(data.map((r) => Number(r[crsCol])).filter((v) => Number.isInteger(v) && v > 0))] : [];
-        const sourceEpsg = codes.length === 1 && crsName(codes[0]) ? String(codes[0]) : "";
+        let sourceEpsg = codes.length === 1 && crsName(codes[0]) ? String(codes[0]) : "";
+        let sourceEpsgFrom = sourceEpsg ? crsCol : null;
+        // TASKS.csv #1149 — no easting / northing, but longitude / latitude columns: mapped, and in WGS 84 unless a CRS column says otherwise
+        const ll = !mapping.x && !mapping.y ? lonLatColumns(headers, data) : null;
+        if (ll) { mapping.x = ll.x; mapping.y = ll.y; if (!sourceEpsg) { sourceEpsg = "4326"; sourceEpsgFrom = `${ll.x} / ${ll.y}`; } }
         setSurfaceModal({
           file, fileName: file.name, headers, allRows: data,
-          mapping, sourceEpsg, sourceEpsgFrom: sourceEpsg ? crsCol : null,
+          mapping, sourceEpsg, sourceEpsgFrom,
           defaultMedium: "soil", elements,
         });
   };

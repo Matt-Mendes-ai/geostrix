@@ -69,6 +69,21 @@ export function localCrsAt(lon, lat, { exclude = [] } = {}) {
   return out.map(({ code, name, noShift }) => ({ code, name, noShift }));
 }
 
+// TASKS.csv #1149 — a table of samples with longitude and latitude columns (and no easting / northing, which the caller tries
+// first): those two columns, when their values really are degrees. -> { x, y } column names, or null. Decimal values are
+// required: a local grid numbered 1, 2, 3 under a column called "lat" is not latitude.
+const LON_NAMES = ["longitude", "long", "lon", "lng", "longitude_dd", "long_dd", "lon_dd", "long_wgs84", "longitude_wgs84", "lon_wgs84", "x_lon", "dec_long", "decimal_longitude"];
+const LAT_NAMES = ["latitude", "lat", "latitude_dd", "lat_dd", "lat_wgs84", "latitude_wgs84", "y_lat", "dec_lat", "decimal_latitude"];
+export function lonLatColumns(headers, rows) {
+  const norm = (h) => String(h).trim().toLowerCase().replace(/[\s-]+/g, "_").replace(/[^a-z0-9_]/g, "");
+  const pick = (names) => names.map((n) => headers.find((h) => norm(h) === n)).find(Boolean);
+  const x = pick(LON_NAMES), y = pick(LAT_NAMES);
+  if (!x || !y) return null;
+  const vals = (c, max) => { const v = (rows || []).map((r) => r[c]).filter((q) => q !== "" && q != null).map(Number); return v.length && v.every((q) => Number.isFinite(q) && Math.abs(q) <= max) ? v : null; };
+  const lon = vals(x, 180), lat = vals(y, 90);
+  return lon && lat && (lon.some((v) => !Number.isInteger(v)) || lat.some((v) => !Number.isInteger(v))) ? { x, y } : null;
+}
+
 // TASKS.csv #1148 — the middle of a project whose x and y ARE longitude and latitude: the collars, else the samples, else the
 // terrain's box, else the map layers. { lon, lat } or null.
 export function degreesCentre({ collars = [], surfaceSamples = [], terrain = null, mapLayers = [] } = {}) {
