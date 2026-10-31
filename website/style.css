@@ -49,6 +49,16 @@ header.site .lang .flag { width: 20px; height: 15px; border-radius: 2px; box-sha
 
 /* hero */
 .hero { background: linear-gradient(180deg, var(--slate-deep), var(--slate)); color: #fff; padding: 64px 0 72px; }
+/* brand block at the top of the home page: the owl, the two-colour GEOSTRIX wordmark and the tagline (Matt's mock-up,
+   2026-10-31). The wordmark is Latin in every language; the tagline is translated, and Arabic must not be letter-spaced
+   (it would break the joined letters). */
+.brandmark { text-align: center; padding: 0 16px; margin: 0 auto 52px; }
+.brandmark img { display: block; width: 120px; height: auto; margin: 0 auto 20px; }
+.wordmark { margin: 0; font-family: "Exo 2", system-ui, sans-serif; font-size: 64px; font-weight: 600; line-height: 1; letter-spacing: 0.22em; padding-inline-start: 0.22em; color: #f5f7f9; }
+.wordmark span + span { color: var(--orange); }
+.tagline { margin: 18px 0 0; font-size: 17px; font-weight: 600; letter-spacing: 0.3em; color: #d7dee5; }
+.tagline .dot { color: var(--orange); letter-spacing: 0; margin: 0 0.6em; }
+:lang(ar) .tagline { letter-spacing: 0; font-size: 20px; }
 .hero .wrap { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: center; }
 /* download-count badge above the headline: its space is reserved so the hero doesn't jump when the count arrives,
    and it stays invisible (but keeps its height) if GitHub can't be reached */
@@ -148,6 +158,11 @@ footer.site .right { margin-inline-start: auto; }
   .hero .wrap, .two { grid-template-columns: 1fr; }
   .slide .pair { flex-direction: column; align-items: center; }
   .hero h1 { font-size: 32px; }
+  .brandmark { margin-bottom: 36px; }
+  .brandmark img { width: 84px; margin-bottom: 14px; }
+  .wordmark { font-size: 40px; letter-spacing: 0.16em; padding-inline-start: 0.16em; }
+  .tagline { font-size: 13px; letter-spacing: 0.2em; }
+  .tagline .dot { margin: 0 0.35em; }
   .pillars, .features { grid-template-columns: 1fr; }
   header.site nav { gap: 14px; }
   header.site .lang { margin-inline-start: 4px; padding-inline-start: 8px; }
