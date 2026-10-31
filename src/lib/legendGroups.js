@@ -105,7 +105,8 @@ export function mapLayerLegendGroups(mapLayers) {
     // is not stronger than the unit it describes on a geology map over imagery; 1 is left out (rows unchanged)
     const op = Number.isFinite(l.opacity) ? l.opacity : kind === "fill" ? 0.6 : 1;
     const o = op < 1 ? { kind, opacity: op } : { kind };
-    const cats = l.styleField ? (l.categories || []).filter((c) => c.visible !== false) : [];
+    // TASKS.csv #1157 — an interpretation layer carries every line type as a category: only the ones drawn are in the legend
+    const cats = l.styleField ? (l.categories || []).filter((c) => c.visible !== false && !(l.interpretation && !c.count)) : [];
     const items = cats.length
       ? cats.map((c) => [c.label ?? (c.value == null ? "(no value)" : String(c.value)), c.color, o])
       : [[l.name || "map layer", l.color || "#e2a63c", o]];

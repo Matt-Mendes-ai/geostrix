@@ -6,14 +6,13 @@ import { TaskPaneHeader } from "./Ribbon.jsx";
 import { PenTool, Trash2 } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { surveyKey } from "../lib/geophysSurveys.js";
-import { INTERPRETATION_TYPES, CONFIDENCE, typeLabel, isInterpretationLayer, interpretationLayer, addInterpretationLine, removeInterpretationLine, lineLengthM } from "../lib/interpretation.js";
+import { INTERPRETATION_TYPES, CONFIDENCE, NEW_LAYER, chooseLayerId, uniqueLayerName, typeLabel, isInterpretationLayer, interpretationLayer, addInterpretationLine, removeInterpretationLine, lineLengthM } from "../lib/interpretation.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
 
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", fontSize: "var(--font-size-sm)" };
-const NEW = "__new__";
 
 // drawing: the 3D view's state { on, points: [{ x, y, z }], finishSeq }; onStart / onUndo / onCancel / onDone drive it.
 // presetSurvey: the survey a Geophysics-tab button named (TASKS.csv #1152), or null.
@@ -28,7 +27,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
   const [survey, setSurvey] = useState(presetSurvey || "");
   useEffect(() => { if (presetSurvey) setSurvey(presetSurvey); }, [presetSurvey]);
   const [layerPick, setLayerPick] = useState("");
-  const layerId = mine.some((l) => l.id === layerPick) ? layerPick : mine.find((l) => l.survey === survey)?.id || (mine.length && !survey ? mine[0].id : NEW);
+  const layerId = chooseLayerId(layerPick, mine, survey);
   const layer = mine.find((l) => l.id === layerId) || null;
   const [newName, setNewName] = useState("");
   const [type, setType] = useState("fault");
@@ -42,7 +41,11 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
     if (n < 2) { setMsg(tr("A line needs at least two points.")); return; }
     const attrs = { name: name.trim(), type, survey, confidence, note: noteText.trim() };
     let target = layer, id = layerId;
-    if (!target) { target = interpretationLayer(newName.trim(), survey); id = addMapLayer(target); setLayerPick(id); }
+    if (!target) {
+      const fresh = interpretationLayer(newName.trim(), survey);
+      target = { ...fresh, name: uniqueLayerName(fresh.name, mine) }; // TASKS.csv #1157
+      id = addMapLayer(target); setLayerPick(id); setNewName("");
+    }
     const next = addInterpretationLine(target, pts, attrs);
     updateMapLayer(id, () => ({ ...next, id }));
     setName(""); setNoteText(""); setMsg(tr("Added \"{name}\" to \"{layer}\" ({m} m).", { name: next.features[next.features.length - 1].attributes.name, layer: next.name, m: Math.round(lineLengthM(pts)).toLocaleString() }));
@@ -67,9 +70,9 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
         <label style={row}>{tr("Layer")}
           <select value={layerId} onChange={(e) => setLayerPick(e.target.value)} style={{ ...smallSel, maxWidth: 170 }} aria-label={tr("Interpretation layer")}>
             {mine.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.features.length})</option>)}
-            <option value={NEW}>{tr("New layer…")}</option>
+            <option value={NEW_LAYER}>{tr("New layer…")}</option>
           </select></label>
-        {layerId === NEW && <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={survey ? tr("Interpretation — {survey}", { survey }) : tr("Interpretation")} aria-label={tr("New layer name")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />}
+        {layerId === NEW_LAYER && <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={survey ? tr("Interpretation — {survey}", { survey }) : tr("Interpretation")} aria-label={tr("New layer name")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />}
         <label style={row}>{tr("Line type")}
           <select value={type} onChange={(e) => setType(e.target.value)} style={{ ...smallSel, maxWidth: 170 }} aria-label={tr("Line type")}>
             {INTERPRETATION_TYPES.map((t) => <option key={t.value} value={t.value}>{tr(t.label)}</option>)}

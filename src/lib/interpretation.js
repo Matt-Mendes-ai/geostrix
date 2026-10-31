@@ -22,6 +22,23 @@ export const typeLabel = (v) => INTERPRETATION_TYPES.find((t) => t.value === v)?
 
 export const isInterpretationLayer = (l) => !!l?.interpretation;
 
+// TASKS.csv #1157 — which layer the pane draws into. pick: what the select was set to ("" = nothing chosen, NEW_LAYER = a new
+// one). Choosing New layer has to hold while the survey already has a layer: it used to fall through to that layer.
+export const NEW_LAYER = "__new__";
+export function chooseLayerId(pick, layers, survey) {
+  if (pick === NEW_LAYER) return NEW_LAYER;
+  if (layers.some((l) => l.id === pick)) return pick;
+  return layers.find((l) => l.survey === survey)?.id || (layers.length && !survey ? layers[0].id : NEW_LAYER);
+}
+// a second new layer on one survey must not read the same as the first in the select, the legend and the Map layers list
+export function uniqueLayerName(name, layers) {
+  const taken = new Set(layers.map((l) => l.name));
+  if (!taken.has(name)) return name;
+  let n = 2;
+  while (taken.has(`${name} ${n}`)) n++;
+  return `${name} ${n}`;
+}
+
 // A new, empty interpretation layer. survey: the survey's name (a geophysics import's file name, a raster's name) or "".
 export function interpretationLayer(name, survey = "") {
   return {

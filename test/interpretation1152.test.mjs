@@ -1,5 +1,6 @@
 // TASKS.csv #1152 — interpretation lines as a map layer: adding, removing, the attributes, the bbox and the elevation.
 import test from "node:test";
+import { NEW_LAYER, chooseLayerId, uniqueLayerName } from "../src/lib/interpretation.js";
 import assert from "node:assert/strict";
 import { interpretationLayer, addInterpretationLine, removeInterpretationLine, updateInterpretationLine, lineLengthM, isInterpretationLayer, isRepeatClick, INTERPRETATION_TYPES } from "../src/lib/interpretation.js";
 import { drawMapLayer, mapStyleSignature } from "../src/lib/mapLayers.js";
@@ -59,4 +60,24 @@ test("#1152 lengths, the double-click rule and the type table", () => {
   assert.equal(isRepeatClick({ x: 0, y: 0, at: 1000 }, { x: 5, y: 0, at: 1100 }), false);
   assert.equal(isRepeatClick(null, { x: 0, y: 0, at: 1 }), false);
   assert.equal(new Set(INTERPRETATION_TYPES.map((t) => t.value)).size, INTERPRETATION_TYPES.length);
+});
+
+test("#1157 the legend lists only the line types drawn", () => {
+  let l = addInterpretationLine(interpretationLayer("x"), [{ x: 0, y: 0 }, { x: 10, y: 0 }], { type: "fault" });
+  assert.deepEqual(mapLayerLegendGroups([{ ...l, id: 1 }])[0].items.map((i) => i[0]), ["Fault"]);
+  l = addInterpretationLine(l, [{ x: 0, y: 5 }, { x: 10, y: 5 }], { type: "dyke" });
+  assert.deepEqual(mapLayerLegendGroups([{ ...l, id: 1 }])[0].items.map((i) => i[0]), ["Fault", "Dyke"]);
+});
+
+test("#1157 New layer holds while the survey already has a layer; names stay distinct", () => {
+  const layers = [{ id: "a", name: "mag1", survey: "mag.csv" }, { id: "b", name: "other", survey: "grav.csv" }];
+  assert.equal(chooseLayerId(NEW_LAYER, layers, "mag.csv"), NEW_LAYER, "the reported bug");
+  assert.equal(chooseLayerId("b", layers, "mag.csv"), "b");
+  assert.equal(chooseLayerId("", layers, "mag.csv"), "a", "nothing chosen: the survey's own layer");
+  assert.equal(chooseLayerId("", layers, ""), "a");
+  assert.equal(chooseLayerId("", layers, "new.csv"), NEW_LAYER);
+  assert.equal(chooseLayerId("gone", [], ""), NEW_LAYER);
+  assert.equal(uniqueLayerName("fresh", layers), "fresh");
+  assert.equal(uniqueLayerName("mag1", layers), "mag1 2");
+  assert.equal(uniqueLayerName("mag1", [...layers, { id: "c", name: "mag1 2" }]), "mag1 3");
 });
