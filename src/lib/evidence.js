@@ -148,13 +148,15 @@ export function membership(values, { shape = "increasing", low, high }) {
   return out;
 }
 export const FUZZY_OPERATORS = ["and", "or", "product", "sum", "gamma"];
-// members: [Float32Array]; a cell with any NaN member -> NaN
+// members: [Float32Array]. AND / product / gamma: a cell with any NaN member -> NaN (every evidence must speak). TASKS.csv #1162 —
+// OR / algebraic sum: an evidence with no value there is absent, not a veto (a geologist uses OR to reach past the drilling with the
+// survey), so only a cell with NO evidence at all is NaN.
 export function fuzzyCombine(members, operator = "gamma", gamma = 0.9) {
-  const n = members[0]?.length || 0, out = new Float32Array(n);
+  const n = members[0]?.length || 0, out = new Float32Array(n), lenient = operator === "or" || operator === "sum";
   for (let i = 0; i < n; i++) {
-    let mn = 1, mx = 0, prod = 1, sum1 = 1, bad = false;
-    for (const m of members) { const v = m[i]; if (!Number.isFinite(v)) { bad = true; break; } mn = Math.min(mn, v); mx = Math.max(mx, v); prod *= v; sum1 *= 1 - v; }
-    if (bad) { out[i] = NaN; continue; }
+    let mn = 1, mx = 0, prod = 1, sum1 = 1, bad = false, seen = 0;
+    for (const m of members) { const v = m[i]; if (!Number.isFinite(v)) { if (lenient) continue; bad = true; break; } seen++; mn = Math.min(mn, v); mx = Math.max(mx, v); prod *= v; sum1 *= 1 - v; }
+    if (bad || !seen) { out[i] = NaN; continue; }
     const sum = 1 - sum1;
     out[i] = operator === "and" ? mn : operator === "or" ? mx : operator === "product" ? prod : operator === "sum" ? sum : Math.pow(sum, gamma) * Math.pow(prod, 1 - gamma);
   }

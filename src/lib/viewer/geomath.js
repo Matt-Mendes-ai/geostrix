@@ -231,6 +231,12 @@ export function spatialClusters(points, threshold) {
 // models have no `support` and are unaffected.
 // TASKS.csv #641 — a 2D DC/IP line (method "dc" / "ip") uses the column envelope: hidden only below its depth of
 // investigation, never as holes through the shallow band.
+// TASKS.csv #1161 — a cell the user sees: supported (#321) AND inside the model's cutoff band (threshold / rangeMax, #181 / #188).
+// The 3D view, the sections and the level plan all draw exactly these; the sections used to draw every supported cell.
+export function voxelCellShown(model, c) {
+  const lo = Number.isFinite(model.threshold) ? model.threshold : -Infinity, hi = Number.isFinite(model.rangeMax) ? model.rangeMax : Infinity;
+  return c.value >= lo && c.value <= hi && voxelCellSupported(model, c);
+}
 export function voxelCellSupported(model, c) {
   if (!(model.supportCutoff > 0 && c.support != null)) return true;
   const s = model.method === "dc" || model.method === "ip" ? cellSupportEnvelope(model.cells).get(c) ?? c.support : c.support;

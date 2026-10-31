@@ -90,3 +90,11 @@ test("#851 sample values: an element's robust z within its medium, a pathfinder 
   assert.ok(ix.every((p) => Number.isFinite(p.value)), "Au is constant (MAD 0, no z) but Cu and Mo give the mean");
   assert.ok(Math.abs(quantile([1, 2, 3, 4, 5], 0.5) - 3) < 1e-12);
 });
+
+// TASKS.csv #1162 — OR and algebraic sum reach past an evidence that has no value there
+test("#1162 fuzzy OR / sum skip a missing evidence; AND / product / gamma still need every one", () => {
+  const A = Float32Array.from([0.7, NaN, NaN]), B = Float32Array.from([0.2, 0.4, NaN]);
+  assert.deepEqual([...fuzzyCombine([A, B], "or")].map((v) => (Number.isNaN(v) ? "nan" : +v.toFixed(2))), [0.7, 0.4, "nan"]);
+  assert.deepEqual([...fuzzyCombine([A, B], "sum")].map((v) => (Number.isNaN(v) ? "nan" : +v.toFixed(2))), [0.76, 0.4, "nan"]);
+  for (const op of ["and", "product", "gamma"]) assert.ok(Number.isNaN(fuzzyCombine([A, B], op)[1]), op);
+});

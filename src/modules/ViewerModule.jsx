@@ -125,7 +125,7 @@ import { extractMapContacts, orientationAt, projectContactRibbon, thinLine, dens
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #390
 import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
-import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellSupported, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
+import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellSupported, voxelCellShown, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { findOnTraceWorld, findOnTrace, pointInDomain, SOLID_SURFACE_TYPES } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693
 import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
@@ -5528,7 +5528,6 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       // visibility toggle (all rebuild this effect) leaked ~7.6 MB per 100k-cell model on the shared-RAM iGPU.
       if (prev) { group.remove(prev); prev.geometry.dispose(); prev.material.dispose(); prev.dispose?.(); delete voxelMeshesRef.current[model.id]; }
 
-      const threshold = Number.isFinite(model.threshold) ? model.threshold : -Infinity;
       // TASKS.csv #188 — drillhole targeting module: "an option in the voxels that will turn off
       // the specified geophysical survey ranges — if I just wanna see my mag high, or my mag low or
       // IP high". The existing `threshold` field (GeophysicsModule's "Cutoff" slider) was always a
@@ -5541,8 +5540,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       // Targeting module's sidebar (below) is what exposes rangeMax in the UI; GeophysicsModule's
       // own Cutoff slider is untouched and keeps working exactly as before (rangeMax simply stays at
       // its unbounded default unless the Targeting tab's controls are used).
-      const rangeMax = Number.isFinite(model.rangeMax) ? model.rangeMax : Infinity;
-      const cells = model.cells.filter((c) => c.value >= threshold && c.value <= rangeMax && voxelCellSupported(model, c));
+      const cells = model.cells.filter((c) => voxelCellShown(model, c)); // #1161 — the same cells the sections and level plan draw
       if (!cells.length) return;
 
       const opacity = model.opacity ?? 0.85;
@@ -6580,7 +6578,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       else if (model.visible === false) return;
       const rects = [];
       model.cells.forEach((c) => {
-        if (!voxelCellSupported(model, c)) return; // TASKS.csv #321
+        if (!voxelCellShown(model, c)) return; // TASKS.csv #321, #1161
         if (distToSegment(c.x, c.y, a.x, a.y, b.x, b.y) > corridor) return;
         const l = along(c.x, c.y);
         const halfWidthL = Math.abs(secUx * (c.dx || 0)) / 2 + Math.abs(secUy * (c.dy || 0)) / 2;
@@ -6790,7 +6788,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const voxelSlices = [];
     (voxelModels || []).forEach((model) => {
       if (!model.cells?.length || model.visible === false) return;
-      const rects = voxelPlanRects(model.cells.filter((c) => voxelCellSupported(model, c)), rl).map((r) => ({ x0: r.x0, y0: r.y0, x1: r.x1, y1: r.y1, color: colorForVoxelValue(model, r.value) }));
+      const rects = voxelPlanRects(model.cells.filter((c) => voxelCellShown(model, c)), rl).map((r) => ({ x0: r.x0, y0: r.y0, x1: r.x1, y1: r.y1, color: colorForVoxelValue(model, r.value) }));
       if (rects.length) voxelSlices.push({ id: model.id, name: model.name, rects });
     });
     const surfaceCuts = [];
