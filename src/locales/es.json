@@ -6525,5 +6525,13 @@
   "Drillholes: {sym} grade along the holes": "Sondajes: ley de {sym} a lo largo de los sondajes",
   "Distance to logged structure: {code}": "Distancia a la estructura registrada: {code}",
   "Nothing in this project can be used as evidence yet. Evidence comes from a raster with values, a map layer, surface samples, a geophysics survey, a block model, assays or logged structures.": "Todavía no hay nada en este proyecto que sirva como evidencia. La evidencia proviene de un ráster con valores, una capa de mapa, muestras de superficie, un levantamiento geofísico, un modelo de bloques, ensayes o estructuras registradas.",
-  "Add at least one evidence from the list above, then Compute.": "Agrega al menos una evidencia de la lista de arriba y luego pulsa Calcular."
+  "Add at least one evidence from the list above, then Compute.": "Agrega al menos una evidencia de la lista de arriba y luego pulsa Calcular.",
+  "{n} drill core sample(s) left out: they come from depth, not from the surface.": "Se omitieron {n} muestra(s) de testigo de sondaje: provienen de profundidad, no de la superficie.",
+  "{n} gold result(s) reported in another unit were converted to ppb.": "{n} resultado(s) de oro informados en otra unidad se convirtieron a ppb.",
+  "{n} result(s) above the lab's upper limit are kept at that limit.": "{n} resultado(s) por encima del límite superior del laboratorio se conservan en ese límite.",
+  "{n} result(s) below the lab's limit, which the file gives as half the limit, are marked as below detection.": "{n} resultado(s) por debajo del límite del laboratorio, que el archivo da como la mitad del límite, se marcan como bajo detección.",
+  "This file does not have the expected table of samples.": "Este archivo no tiene la tabla de muestras esperada.",
+  "The Irish Grid (EPSG:29902) could not be loaded.": "No se pudo cargar la Irish Grid (EPSG:29902).",
+  "The area holds {n} samples of this layer (over {max}): draw a smaller one.": "El área contiene {n} muestras de esta capa (más de {max}): dibuja una más pequeña.",
+  "The service answered with an error page.": "El servicio respondió con una página de error."
 }

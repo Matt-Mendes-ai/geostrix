@@ -6525,5 +6525,13 @@
   "Drillholes: {sym} grade along the holes": "ثقوب الحفر: محتوى {sym} على طول الثقوب",
   "Distance to logged structure: {code}": "المسافة إلى البنية المسجلة: {code}",
   "Nothing in this project can be used as evidence yet. Evidence comes from a raster with values, a map layer, surface samples, a geophysics survey, a block model, assays or logged structures.": "لا يوجد في هذا المشروع بعد ما يمكن استخدامه كدليل. تأتي الأدلة من نقطية ذات قيم أو طبقة خريطة أو عينات سطحية أو مسح جيوفيزيائي أو نموذج كتل أو تحاليل أو بنى مسجلة.",
-  "Add at least one evidence from the list above, then Compute.": "أضف دليلاً واحداً على الأقل من القائمة أعلاه، ثم نفّذ الحساب."
+  "Add at least one evidence from the list above, then Compute.": "أضف دليلاً واحداً على الأقل من القائمة أعلاه، ثم نفّذ الحساب.",
+  "{n} drill core sample(s) left out: they come from depth, not from the surface.": "استُبعدت {n} عينة من لباب الحفر: فهي مأخوذة من العمق لا من السطح.",
+  "{n} gold result(s) reported in another unit were converted to ppb.": "حُوّلت {n} نتيجة للذهب مُبلَّغ عنها بوحدة أخرى إلى ppb.",
+  "{n} result(s) above the lab's upper limit are kept at that limit.": "أُبقيت {n} نتيجة تتجاوز الحد الأعلى للمختبر عند ذلك الحد.",
+  "{n} result(s) below the lab's limit, which the file gives as half the limit, are marked as below detection.": "وُسمت {n} نتيجة دون حد المختبر، يعطيها الملف بنصف الحد، بأنها دون حد الكشف.",
+  "This file does not have the expected table of samples.": "لا يحتوي هذا الملف على جدول العينات المتوقع.",
+  "The Irish Grid (EPSG:29902) could not be loaded.": "تعذّر تحميل الشبكة الأيرلندية (EPSG:29902).",
+  "The area holds {n} samples of this layer (over {max}): draw a smaller one.": "تحتوي المنطقة على {n} عينة من هذه الطبقة (أكثر من {max}): ارسم منطقة أصغر.",
+  "The service answered with an error page.": "ردّت الخدمة بصفحة خطأ."
 }

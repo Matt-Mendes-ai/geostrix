@@ -23,11 +23,11 @@ const NGSA = [NGSA_HEAD,
 test("catalogue: every entry has its licence, page and date; downloadable ones a tested host and request", () => {
   for (const e of CATALOGUE) {
     assert.ok(e.licence && /^https:\/\//.test(e.licenceUrl) && /^https:\/\//.test(e.page) && e.attribution && e.caveat, e.id);
-    if (e.downloadable) { assert.ok(e.host, e.id); assert.equal(new URL(e.usgs ? usgsQuadUrl(e.usgs, [-106.5, 39.2, -106.2, 39.4]) : e.cdogs ? cdogsUrl("210299", 87) : areaUrl(e.id, [-127.4, 54.6, -127, 54.9])).hostname, e.host); }
+    if (e.downloadable) { assert.ok(e.host, e.id); assert.equal(new URL(e.service ? e.service.url : e.usgs ? usgsQuadUrl(e.usgs, [-106.5, 39.2, -106.2, 39.4]) : e.cdogs ? cdogsUrl("210299", 87) : areaUrl(e.id, [-127.4, 54.6, -127, 54.9])).hostname, e.host); }
     else assert.equal(areaUrl(e.id, [0, 0, 1, 1]), null);
   }
-  assert.deepEqual(searchCatalogue("australia stream").map((e) => e.id), []); // NGSA is "catchment outlet sediment"
-  assert.deepEqual(searchCatalogue("australia sediment").map((e) => e.id), ["ga-ngsa"]);
+  assert.deepEqual(searchCatalogue("australia stream").map((e) => e.id), ["vic-gchem"]); // NGSA is "catchment outlet sediment"; #1155 Victoria's company samples are stream sediment
+  assert.deepEqual(searchCatalogue("australia sediment").map((e) => e.id), ["ga-ngsa", "vic-gchem"]);
   assert.deepEqual(searchCatalogue("USGS").map((e) => e.id), ["usgs-ngdb", "usgs-nure"]);
   assert.equal(searchCatalogue("").length, CATALOGUE.length);
   const bc = CATALOGUE.find((e) => e.id === "bc-rgs"), ga = CATALOGUE.find((e) => e.id === "ga-ngsa");

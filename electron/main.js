@@ -930,7 +930,8 @@ ipcMain.handle("remote-sensing-fetch", async (_e, { url, range = null, json = nu
 // a page linking the output file, which may be a zip (binary: base64 back to the renderer, read with the capped zip
 // reader there). A form is small text fields only (16 KB at most).
 // and (#905) the GSC's CDoGS data packages on geochem.nrcan.gc.ca (one Excel workbook per survey and analytical package)
-const GEOCHEM_HOSTS = new Set(["openmaps.gov.bc.ca", "services.ga.gov.au", "mrdata.usgs.gov", "geochem.nrcan.gc.ca"]);
+// and (#1155) Newfoundland & Labrador, Saskatchewan, Yukon, Western Australia, Victoria, Brazil, and Ireland's Tellus file
+const GEOCHEM_HOSTS = new Set(["openmaps.gov.bc.ca", "services.ga.gov.au", "mrdata.usgs.gov", "geochem.nrcan.gc.ca", "dnrmaps.gov.nl.ca", "gis.saskatchewan.ca", "mapservices.gov.yk.ca", "public-services.slip.wa.gov.au", "opendata.maps.vic.gov.au", "opendata.sgb.gov.br", "gsi.geodata.gov.ie"]);
 ipcMain.handle("geochem-fetch", async (_e, { url, form = null, binary = false } = {}) => {
   let u;
   try { u = new URL(String(url || "")); } catch { return { ok: false, status: 0, message: "Not a valid URL." }; }

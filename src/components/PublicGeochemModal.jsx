@@ -13,6 +13,7 @@ import { useStore } from "../lib/store.jsx";
 import { toLonLat, isMetricProjectedEpsg } from "../lib/reproject.js";
 import { geochemFetch } from "../lib/desktop.js";
 import { CATALOGUE_CHECKED, projectBoxXY, searchCatalogue, coversArea, areaUrl, BC_PAGE, serviceError, parseBcRgs, parseNgsa, ngsaChoices, usgsQuadUrl, parseQuadCodes, USGS_MAX_QUADS, usgsPackageRequest, usgsPackageLink, parseNgdbPackage, parseNure, cdogsCandidates, cdogsUrl, parseCdogsWorkbook } from "../lib/publicGeochem.js"; // usgs, cdogs: TASKS.csv #905
+import { fetchServiceSamples } from "../lib/publicGeochemServices.js"; // TASKS.csv #1155
 import BasemapView from "./BasemapView.jsx";
 import { t as tr } from "../lib/i18n.js";
 
@@ -33,6 +34,7 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
   const [error, setError] = useState(null);
   const [ngsa, setNgsa] = useState(null); // { text, sites, combos, pick }
   const [cdogs, setCdogs] = useState(null); // #905 — { index, cands, pick }
+  const [layerIx, setLayerIx] = useState(0); // #1155 — which of the entry's layers
 
   // the project area in lon / lat: collars, else surface samples, boundaries, map layers (with a margin)
   useEffect(() => {
@@ -58,7 +60,13 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
     if (!entry || !area) return;
     setError(null); setNgsa(null); setCdogs(null);
     try {
-      if (entry.id === "bc-rgs") {
+      if (entry.service) {
+        // TASKS.csv #1155 — one path for the second batch of surveys; the layers and parsers are in the catalogue entry
+        setBusy(tr("Downloading from {host}…", { host: entry.host }));
+        const t = await fetchServiceSamples(entry, entry.layers?.[layerIx], area, geochemFetch, (page) => setBusy(tr("Downloading from {host}… (page {n})", { host: entry.host, n: page })));
+        if (!t.rows.length) { setError(tr("No samples from this survey in the area.")); return; }
+        onLoaded({ checked: entry.checked, headers: t.headers, rows: t.rows, entry, notes: t.notes.map((n) => tr(n.key, { n: n.n })) });
+      } else if (entry.id === "bc-rgs") {
         const parts = [];
         for (let page = 0; page < BC_MAX_PAGES; page++) {
           setBusy(tr("Downloading from {host}… (page {n})", { host: entry.host, n: page + 1 }));
@@ -170,7 +178,7 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
           {tooBig && <div role="alert" style={{ ...small, color: "var(--color-warn-text)" }}>{tr("The area is larger than {n}° in one direction. Draw a smaller one: this is for a project, not a province.", { n: MAX_DEG })}</div>}
           <div role="listbox" aria-label={tr("Surveys")} style={{ border: "1px solid var(--color-border)", borderRadius: 6, maxHeight: 190, overflowY: "auto" }}>
             {list.length ? list.map((e) => (
-              <div key={e.id} role="option" aria-selected={e.id === selId} tabIndex={0} onClick={() => { setSelId(e.id); setNgsa(null); setError(null); }} onKeyDown={(ev) => { if (ev.key === "Enter") setSelId(e.id); }}
+              <div key={e.id} role="option" aria-selected={e.id === selId} tabIndex={0} onClick={() => { setSelId(e.id); setNgsa(null); setError(null); setLayerIx(0); }} onKeyDown={(ev) => { if (ev.key === "Enter") setSelId(e.id); }}
                 style={{ padding: "6px 10px", cursor: "pointer", borderBottom: "1px solid var(--color-border)", background: e.id === selId ? "var(--color-hover-bg)" : "transparent" }}>
                 <div style={{ color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>{e.name}{" "}<span style={{ ...small, marginLeft: 6 }}>{e.downloadable ? tr("download by area") : tr("link to the agency")}</span></div>
                 <div style={small}>{e.agency} · {e.country} · {e.media}</div>
@@ -183,7 +191,14 @@ export default function PublicGeochemModal({ onLoaded, onClose }) {
               <div style={small}>{entry.years ? tr("Media: {media}. Size: {samples}. Years: {years}.", { media: entry.media, samples: entry.samples, years: entry.years }) : tr("Media: {media}. Size: {samples}.", { media: entry.media, samples: entry.samples })}</div>
               <div style={small}>{tr("Licence:")}{" "}<a href={entry.licenceUrl} target="_blank" rel="noreferrer">{entry.licence}</a>{". "}{tr("Attribution: {text}", { text: entry.attribution })}</div>
               <div style={small}>{entry.caveat}</div>
-              <div style={small}>{tr("Last checked {date}.", { date: CATALOGUE_CHECKED })}{" "}<a href={entry.page} target="_blank" rel="noreferrer">{tr("Agency page")}</a></div>
+              <div style={small}>{tr("Last checked {date}.", { date: entry.checked || CATALOGUE_CHECKED })}{" "}<a href={entry.page} target="_blank" rel="noreferrer">{tr("Agency page")}</a></div>
+              {entry.layers?.length > 1 && (
+                <label style={{ ...small, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>{tr("Layer")}
+                  <select value={layerIx} onChange={(e) => setLayerIx(Number(e.target.value))} aria-label={tr("Layer")} style={sel}>
+                    {entry.layers.map((l, i) => <option key={i} value={i}>{l.label}</option>)}
+                  </select>
+                </label>
+              )}
               {entry.downloadable && !ngsa && !cdogs && (
                 <button onClick={download} disabled={!!busy || !area || tooBig || !coversArea(entry, area)} style={{ ...btn(true), padding: "7px 12px", alignSelf: "flex-start", opacity: busy || !area || tooBig ? 0.6 : 1 }}>
                   {busy || (area && !coversArea(entry, area) ? tr("This survey does not cover the area") : tr("Download the samples in the area"))}

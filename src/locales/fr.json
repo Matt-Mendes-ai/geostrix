@@ -6525,5 +6525,13 @@
   "Drillholes: {sym} grade along the holes": "Sondages : teneur en {sym} le long des sondages",
   "Distance to logged structure: {code}": "Distance à la structure décrite : {code}",
   "Nothing in this project can be used as evidence yet. Evidence comes from a raster with values, a map layer, surface samples, a geophysics survey, a block model, assays or logged structures.": "Rien dans ce projet ne peut encore servir d'indice. Les indices proviennent d'un raster avec des valeurs, d'une couche cartographique, d'échantillons de surface, d'un levé géophysique, d'un modèle de blocs, d'analyses ou de structures décrites.",
-  "Add at least one evidence from the list above, then Compute.": "Ajoutez au moins un indice depuis la liste ci-dessus, puis lancez le calcul."
+  "Add at least one evidence from the list above, then Compute.": "Ajoutez au moins un indice depuis la liste ci-dessus, puis lancez le calcul.",
+  "{n} drill core sample(s) left out: they come from depth, not from the surface.": "{n} échantillon(s) de carotte de sondage écarté(s) : ils proviennent de la profondeur, pas de la surface.",
+  "{n} gold result(s) reported in another unit were converted to ppb.": "{n} résultat(s) d'or rapportés dans une autre unité ont été convertis en ppb.",
+  "{n} result(s) above the lab's upper limit are kept at that limit.": "{n} résultat(s) au-dessus de la limite supérieure du laboratoire sont conservés à cette limite.",
+  "{n} result(s) below the lab's limit, which the file gives as half the limit, are marked as below detection.": "{n} résultat(s) sous la limite du laboratoire, que le fichier donne à la moitié de la limite, sont marqués sous le seuil de détection.",
+  "This file does not have the expected table of samples.": "Ce fichier ne contient pas le tableau d'échantillons attendu.",
+  "The Irish Grid (EPSG:29902) could not be loaded.": "Impossible de charger l'Irish Grid (EPSG:29902).",
+  "The area holds {n} samples of this layer (over {max}): draw a smaller one.": "La zone contient {n} échantillons de cette couche (plus de {max}) : dessinez-en une plus petite.",
+  "The service answered with an error page.": "Le service a répondu par une page d'erreur."
 }
