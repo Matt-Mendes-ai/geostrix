@@ -487,7 +487,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
             </select>
           </label>
           {gridPreview && (
-            <div style={{ fontSize: "var(--font-size-sm)", color: overLimit ? "var(--color-danger-icon-strong)" : "var(--color-text-muted)" }}>{tr("Grid: {nx} × {ny} × {nz} = {totalBlocksPreview} blocks{v}", { nx: gridPreview.nx, ny: gridPreview.ny, nz: gridPreview.nz, totalBlocksPreview: totalBlocksPreview.toLocaleString(), v: overLimit && tr(" — over the {blockBudget}-block budget.", { blockBudget: blockBudget.toLocaleString() }) })}
+            <div style={{ fontSize: "var(--font-size-sm)", color: overLimit ? "var(--color-danger-icon-strong)" : "var(--color-text-muted)" }}>{tr("Grid: {nx} × {ny} × {nz} = {totalBlocksPreview} blocks{v}", { nx: gridPreview.nx, ny: gridPreview.ny, nz: gridPreview.nz, totalBlocksPreview: totalBlocksPreview.toLocaleString(), v: overLimit ? tr(" — over the {blockBudget}-block budget.", { blockBudget: blockBudget.toLocaleString() }) : "" })}
               {overLimit && (
                 <span style={{ display: "inline-flex", gap: 6, marginLeft: 6, flexWrap: "wrap" }}>
                   <button type="button" onClick={() => setCellSize(fitCell)} style={{ ...btn(false), padding: "2px 8px" }}>{tr("Use {fitCell} m blocks", { fitCell })}</button>

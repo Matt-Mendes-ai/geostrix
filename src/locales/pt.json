@@ -405,7 +405,7 @@
   "CRS:": "SRC:",
   "not set": "não definido",
   "EPSG:": "EPSG:",
-  "Desurvey:": "Desurvey:",
+  "Desurvey:": "Desvio:",
   "more not shown — filter categories, or build the figure in Layout": "mais não mostradas — filtre categorias ou monte a figura na Prancha",
   "at view centre": "no centro da vista",
   "Centre E": "Centro E",
@@ -2857,7 +2857,6 @@
   "Experimental variogram + fitted nugget / sill / range, from composited assays. {collars} holes, {assays} raw intervals loaded.": "Variograma experimental + pepita / patamar / alcance ajustados, a partir de análises compostas. {collars} furos, {assays} intervalos brutos carregados.",
   "This is a diagnostic, not an estimator.": "Isto é um diagnóstico, não um estimador.",
   "GeoStrix computes and fits a variogram here so you can see and measure a domain's grade continuity. It does": "O GeoStrix calcula e ajusta aqui um variograma para você ver e medir a continuidade de teor de um domínio. Esta tela",
-  "perform ordinary kriging: nothing on this screen is fed into the grade estimator, which remains nearest-neighbour / inverse-distance. Fitting a model here does not change any estimate you have run or will run.": "faz krigagem ordinária: nada desta tela alimenta o estimador de teores, que continua sendo vizinho mais próximo / inverso da distância. Ajustar um modelo aqui não muda nenhuma estimativa que você rodou ou vai rodar.",
   "What the numbers are genuinely good for: the": "Para que os números servem de verdade: o",
   "range": "alcance",
   "is a defensible search radius (past it, a sample tells you nothing about a block); the": "é um raio de busca defensável (além dele, uma amostra não diz nada sobre um bloco); a",
@@ -6533,5 +6532,8 @@
   "This file does not have the expected table of samples.": "Este arquivo não tem a tabela de amostras esperada.",
   "The Irish Grid (EPSG:29902) could not be loaded.": "Não foi possível carregar a Irish Grid (EPSG:29902).",
   "The area holds {n} samples of this layer (over {max}): draw a smaller one.": "A área contém {n} amostras desta camada (mais de {max}): desenhe uma menor.",
-  "The service answered with an error page.": "O serviço respondeu com uma página de erro."
+  "The service answered with an error page.": "O serviço respondeu com uma página de erro.",
+  "This unit has {c} contacts, which needs {n} inducing points: more than this version of the add-on ({v}) can hold in memory. Merge thin codes into the unit, or choose fewer holes, or update the add-on when a newer version is available.": "Esta unidade tem {c} contatos, o que exige {n} pontos indutores: mais do que esta versão do complemento ({v}) consegue manter na memória. Mescle os códigos finos na unidade, escolha menos furos ou atualize o complemento quando houver uma versão nova.",
+  "{c} contacts would need {n} inducing points; {cap} are placed where the data are, and every contact stays in the training.": "{c} contatos exigiriam {n} pontos indutores; {cap} são colocados onde estão os dados, e cada contato permanece no treinamento.",
+  "feed the estimator by itself: the Estimation tool's ordinary kriging takes its own nugget, sill and range (type the ones you read here, or leave them blank to fit at run time), and nearest-neighbour / inverse-distance use none. Fitting a model here does not change any estimate you have run.": "alimenta o estimador por si só: a krigagem ordinária da ferramenta de Estimativa usa seu próprio efeito pepita, patamar e alcance (digite os que você ler aqui, ou deixe em branco para ajustar na execução), e o vizinho mais próximo / inverso da distância não usam nenhum. Ajustar um modelo aqui não muda nenhuma estimativa que você já executou."
 }

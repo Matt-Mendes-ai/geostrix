@@ -2857,7 +2857,6 @@
   "Experimental variogram + fitted nugget / sill / range, from composited assays. {collars} holes, {assays} raw intervals loaded.": "فاريوغرام تجريبي + أثر كتلي / عتبة / مدى مطابقة، من تحاليل مركّبة. {collars} ثقب، {assays} فترة خام محمّلة.",
   "This is a diagnostic, not an estimator.": "هذا تشخيص لا مقدّر.",
   "GeoStrix computes and fits a variogram here so you can see and measure a domain's grade continuity. It does": "يحسب GeoStrix هنا فاريوغرامًا ويطابقه لترى وتقيس استمرارية المحتوى في نطاق. وهو",
-  "perform ordinary kriging: nothing on this screen is fed into the grade estimator, which remains nearest-neighbour / inverse-distance. Fitting a model here does not change any estimate you have run or will run.": "يُجري كريغينغ عاديًا: لا شيء في هذه الشاشة يُمرر إلى مقدّر المحتوى، الذي يبقى أقرب جار / مقلوب المسافة. مطابقة نموذج هنا لا تغير أي تقدير شغّلته أو ستشغّله.",
   "What the numbers are genuinely good for: the": "ما تصلح له الأرقام فعلًا:",
   "range": "المدى",
   "is a defensible search radius (past it, a sample tells you nothing about a block); the": "نصف قطر بحث مبرر (بعده لا تخبرك العينة شيئًا عن الكتلة)؛ و",
@@ -6533,5 +6532,8 @@
   "This file does not have the expected table of samples.": "لا يحتوي هذا الملف على جدول العينات المتوقع.",
   "The Irish Grid (EPSG:29902) could not be loaded.": "تعذّر تحميل الشبكة الأيرلندية (EPSG:29902).",
   "The area holds {n} samples of this layer (over {max}): draw a smaller one.": "تحتوي المنطقة على {n} عينة من هذه الطبقة (أكثر من {max}): ارسم منطقة أصغر.",
-  "The service answered with an error page.": "ردّت الخدمة بصفحة خطأ."
+  "The service answered with an error page.": "ردّت الخدمة بصفحة خطأ.",
+  "This unit has {c} contacts, which needs {n} inducing points: more than this version of the add-on ({v}) can hold in memory. Merge thin codes into the unit, or choose fewer holes, or update the add-on when a newer version is available.": "تحتوي هذه الوحدة على {c} تماسًا، ما يتطلب {n} نقطة استقراء: أكثر مما يمكن لهذا الإصدار من الإضافة ({v}) الاحتفاظ به في الذاكرة. ادمج الرموز الرقيقة في الوحدة، أو اختر ثقوبًا أقل، أو حدّث الإضافة عند توفر إصدار أحدث.",
+  "{c} contacts would need {n} inducing points; {cap} are placed where the data are, and every contact stays in the training.": "يتطلب {c} تماسًا {n} نقطة استقراء؛ تُوضع {cap} منها حيث توجد البيانات، ويبقى كل تماس ضمن التدريب.",
+  "feed the estimator by itself: the Estimation tool's ordinary kriging takes its own nugget, sill and range (type the ones you read here, or leave them blank to fit at run time), and nearest-neighbour / inverse-distance use none. Fitting a model here does not change any estimate you have run.": "لا يغذّي المقدّر بذاته: يأخذ الكريجينغ العادي في أداة التقدير قيم النَغِت والسقف والمدى الخاصة به (اكتب ما تقرؤه هنا، أو اتركها فارغة لضبطها عند التشغيل)، ولا يستخدم أقرب جار / معكوس المسافة أيًا منها. ضبط نموذج هنا لا يغيّر أي تقدير نفّذته."
 }

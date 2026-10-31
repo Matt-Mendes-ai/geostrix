@@ -2857,7 +2857,6 @@
   "Experimental variogram + fitted nugget / sill / range, from composited assays. {collars} holes, {assays} raw intervals loaded.": "Variogramme expérimental + pépite / palier / portée ajustés, à partir d'analyses compositées. {collars} sondages, {assays} intervalles bruts chargés.",
   "This is a diagnostic, not an estimator.": "Ceci est un diagnostic, pas un estimateur.",
   "GeoStrix computes and fits a variogram here so you can see and measure a domain's grade continuity. It does": "GeoStrix calcule et ajuste ici un variogramme pour que vous puissiez voir et mesurer la continuité des teneurs d'un domaine. Il ne réalise",
-  "perform ordinary kriging: nothing on this screen is fed into the grade estimator, which remains nearest-neighbour / inverse-distance. Fitting a model here does not change any estimate you have run or will run.": "de krigeage ordinaire : rien sur cet écran n'est transmis à l'estimateur de teneurs, qui reste au plus proche voisin / inverse de la distance. Ajuster un modèle ici ne change aucune estimation lancée ou à venir.",
   "What the numbers are genuinely good for: the": "Ce à quoi les chiffres servent vraiment : la",
   "range": "portée",
   "is a defensible search radius (past it, a sample tells you nothing about a block); the": "est un rayon de recherche défendable (au-delà, un échantillon ne vous dit rien sur un bloc) ; le",
@@ -6533,5 +6532,8 @@
   "This file does not have the expected table of samples.": "Ce fichier ne contient pas le tableau d'échantillons attendu.",
   "The Irish Grid (EPSG:29902) could not be loaded.": "Impossible de charger l'Irish Grid (EPSG:29902).",
   "The area holds {n} samples of this layer (over {max}): draw a smaller one.": "La zone contient {n} échantillons de cette couche (plus de {max}) : dessinez-en une plus petite.",
-  "The service answered with an error page.": "Le service a répondu par une page d'erreur."
+  "The service answered with an error page.": "Le service a répondu par une page d'erreur.",
+  "This unit has {c} contacts, which needs {n} inducing points: more than this version of the add-on ({v}) can hold in memory. Merge thin codes into the unit, or choose fewer holes, or update the add-on when a newer version is available.": "Cette unité a {c} contacts, ce qui demande {n} points inducteurs : plus que cette version du module ({v}) ne peut garder en mémoire. Fusionnez les codes minces dans l'unité, choisissez moins de sondages, ou mettez le module à jour quand une version plus récente sera disponible.",
+  "{c} contacts would need {n} inducing points; {cap} are placed where the data are, and every contact stays in the training.": "{c} contacts demanderaient {n} points inducteurs ; {cap} sont placés là où sont les données, et chaque contact reste dans l'entraînement.",
+  "feed the estimator by itself: the Estimation tool's ordinary kriging takes its own nugget, sill and range (type the ones you read here, or leave them blank to fit at run time), and nearest-neighbour / inverse-distance use none. Fitting a model here does not change any estimate you have run.": "n'alimente pas l'estimateur à lui seul : le krigeage ordinaire de l'outil d'estimation prend ses propres effet de pépite, palier et portée (saisissez ceux que vous lisez ici, ou laissez-les vides pour les ajuster à l'exécution), et le plus proche voisin / l'inverse de la distance n'en utilisent aucun. Ajuster un modèle ici ne change aucune estimation déjà exécutée."
 }
