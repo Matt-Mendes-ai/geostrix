@@ -49,12 +49,39 @@ export function holeRuns(intervals, targets) {
   }
   return { lengths, contacts };
 }
+// TASKS.csv #1312 — dense sampling near the unit: every 2.5 m in it and at its contacts, the other rock thinned to FOCUS_OTHER. Scored on holes
+// left out of training (Fast; inside / outside): PS_POR 0 / 100 -> 24 / 95, PS_DK 0 / 100 -> 17 / 97, Harry SED 23 / 94 -> 37 / 93 (mean of
+// 4 folds), Woodjam VANSS 26 / 93 -> 49 / 95 (4 folds), OB unchanged; but Woodjam IMMOQ 49 / 67 -> 7 / 95. Run length does not predict that
+// loss (IMMOQ 10.5 m, VANSS 12.6 m), so only units with thin runs, which none of it harmed, get it by default; any other may try it.
+export const FOCUS_SPACING = 2.5, FOCUS_OTHER = 3000, THIN_RUN_M = 5;
+const medianOf = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[s.length >> 1] : 0; };
+// holeRuns' lengths with only the unit's own runs
+export function unitRuns(intervals, targets) {
+  const by = new Map();
+  for (const r of intervals) { const k = String(r.hole_id); (by.get(k) || by.set(k, []).get(k)).push(r); }
+  const lengths = [];
+  for (const list of by.values()) {
+    list.sort((a, b) => a.from - b.from);
+    let cur = 0;
+    for (const r of list) { if (targets.has(String(r.value))) cur += r.to - r.from; else { if (cur) lengths.push(cur); cur = 0; } }
+    if (cur) lengths.push(cur);
+  }
+  return lengths;
+}
+// -> { medianRunM, thin, available, points } for a plan's intervals; available: it would fit the budget and be finer than the spacing in use
+export function focusPlan(intervals, targets, trainSpacing, otherPoints, contacts, deep = false) {
+  const lengths = unitRuns(intervals, targets);
+  const medianRunM = +medianOf(lengths).toFixed(1);
+  const nearPoints = lengths.reduce((n, m) => n + Math.max(1, Math.round(m / FOCUS_SPACING)), contacts);
+  const points = nearPoints + Math.min(FOCUS_OTHER, otherPoints);
+  return { medianRunM, thin: medianRunM > 0 && medianRunM < THIN_RUN_M, points, available: !deep && trainSpacing > FOCUS_SPACING && lengths.length > 0 && points <= POINT_BUDGET * 1.25 };
+}
 export const pointsAtSpacing = ({ lengths, contacts }, spacing) => lengths.reduce((n, m) => n + Math.max(1, Math.round(m / spacing)), contacts);
 
 // intervals: [{ hole_id, from, to, value }]; targets / exclude: code sets; trainSpacing, inducingSpacing, iterations from the
 // quality setting. -> { holeIds (Set, or null = every hole), nHoles, totalHoles, focused, factor, trainSpacing, inducingSpacing,
 // points, inducing, seconds, wanted: { points, inducing, seconds } }
-export function planDomain({ collars, intervals, targets, exclude = new Set(), trainSpacing, inducingSpacing, iterations, focusM = FOCUS_M }) {
+export function planDomain({ collars, intervals, targets, exclude = new Set(), trainSpacing, inducingSpacing, iterations, focusM = FOCUS_M, dense = null, deep = false }) {
   const used = intervals.filter((r) => !exclude.has(String(r.value)));
   const size = (list) => { const m = metresOf(list); return { points: m / trainSpacing, inducing: m / inducingSpacing }; };
   const over = (s) => s.points > POINT_BUDGET || s.inducing > INDUCING_BUDGET;
@@ -74,8 +101,14 @@ export function planDomain({ collars, intervals, targets, exclude = new Set(), t
   // hole's intervals are dropped by the add-on, so they are not counted.
   const known = new Set(collars.map((c) => String(c.hole_id)));
   const runs = holeRuns(list.filter((r) => known.has(String(r.hole_id))), targets);
-  const points = pointsAtSpacing(runs, trainSpacing * factor), built = pointsAtSpacing(runs, inducingSpacing * factor), inducing = Math.min(built, INDUCING_CAP);
+  const built = pointsAtSpacing(runs, inducingSpacing * factor), inducing = Math.min(built, INDUCING_CAP);
+  const knownList = list.filter((r) => known.has(String(r.hole_id)));
+  const plain = pointsAtSpacing(runs, trainSpacing * factor);
+  const focus = focusPlan(knownList, targets, trainSpacing * factor, Math.round((metresOf(knownList.filter((r) => !targets.has(String(r.value))))) / FOCUS_SPACING), runs.contacts, deep);
+  const denseOn = focus.available && (dense === null ? focus.thin : dense); // #1312 — null: by the rule; the geologist's tick overrides it
+  const points = denseOn ? focus.points : plain;
   return {
+    focus, denseOn,
     holeIds, focused: !!holeIds, nHoles: holeIds ? holeIds.size : collars.length, totalHoles: collars.length, focusM, factor,
     trainSpacing: +(trainSpacing * factor).toFixed(1), inducingSpacing: +(inducingSpacing * factor).toFixed(1),
     contacts: runs.contacts, inducingBuilt: built, capped: built > INDUCING_CAP,

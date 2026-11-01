@@ -117,12 +117,19 @@ def _train(model, iterations, progress, lo, hi, label):
         progress(lo + (hi - lo) * done / iterations, f"{label}: {done} / {iterations} iterations")
 
 
-def run_domain(p, progress):
-    import geoml
-    t0 = time.time()
-    geoml.set_seed(int(p.get("seed", 1234)))
-    progress(0.02, "Reading the drillholes")
-    holes = _holes(geoml, p)
+def _focused_points(dense, n_other):
+    """Every point in the unit and at its contacts, and every k-th of the others up to n_other."""
+    v = dense.variables["UNIT"]
+    a, b = np.asarray(v.measurements_a.to_numpy()), np.asarray(v.measurements_b.to_numpy())
+    near = (a == "Target") | (b == "Target")
+    other = np.flatnonzero(~near)
+    if len(other) > n_other:
+        other = other[np.unique(np.linspace(0, len(other) - 1, n_other).round().astype(int))]
+    return dense[np.sort(np.concatenate([np.flatnonzero(near), other]))]
+
+
+def _domain_train(geoml, p, holes, progress):
+    """The intervals to a trained model. Also used for the held-out check, on fewer holes."""
     target = set(map(str, p["target_values"]))
     exclude = set(map(str, p.get("exclude_values") or []))
     iv = pd.DataFrame(p["intervals"])
@@ -132,7 +139,12 @@ def run_domain(p, progress):
     iv["UNIT"] = np.where(iv["value"].isin(target), "Target", "Other")
     holes.add_intervals("lito", iv[["hole_id", "from", "to", "UNIT"]], hole="hole_id", fr="from", to="to", categorical=["UNIT"])
     holes.add_intervals("lito", holes.merge_domains(("lito", "UNIT")))
-    dense = holes.as_classification_input(("lito", "UNIT"), length=float(p.get("train_spacing", 5.0)))
+    # TASKS.csv #1312 — a thin unit: dense along it and at its contacts, the other rock thinned to a budget. Sent by the app only when the
+    # unit's runs are thin; on a thick unit it shortens the learnt range and the unit vanishes from holes it has not seen (IMMOQ).
+    focus_other = int(p.get("focus_other") or 0)
+    dense = holes.as_classification_input(("lito", "UNIT"), length=float(p.get("focus_spacing") if focus_other and p.get("focus_spacing") else p.get("train_spacing", 5.0)))
+    if focus_other:
+        dense = _focused_points(dense, focus_other)
     sparse = holes.as_classification_input(("lito", "UNIT"), length=float(p.get("inducing_spacing", 40.0)))
     # TASKS.csv #1158 — every contact and every short run adds a point at ANY spacing, so a unit with thousands of contacts built
     # thousands of inducing points however coarse the spacing was: Treaty Creek V4, about 5,970, past 5 GB and still on its first
@@ -167,6 +179,58 @@ def run_domain(p, progress):
         model.set_learning_rate(2e-2)
         _train(model, iterations, progress, 0.08, 0.58, "Training")
 
+    return {"model": model, "dense": dense, "sparse": sparse, "n_contacts": n_contacts, "tr": tr, "rng": rng, "deep": deep}
+
+
+def _only_holes(p, keep):
+    q = dict(p)
+    q["collars"] = [c for c in p["collars"] if keep(str(c["hole_id"]))]
+    q["survey"] = [r for r in (p.get("survey") or []) if keep(str(r["hole_id"]))]
+    q["intervals"] = [r for r in p["intervals"] if keep(str(r["hole_id"]))]
+    return q
+
+
+def _held_out_check(geoml, p, progress, lo, hi):
+    """TASKS.csv #1312 — the model against holes it never saw. The fit on the training points flatters: Treaty Creek PS_POR read 66 % there
+    and 24 % on unseen holes. Every 4th hole, taken separately among holes with and without the unit, is left out; the same settings train
+    again on the rest; the left-out holes are scored at 2.5 m. About doubles the run. None if there are too few holes, or if it fails: it
+    must never cost the result."""
+    try:
+        target = set(map(str, p["target_values"]))
+        with_unit = sorted({str(r["hole_id"]) for r in p["intervals"] if str(r["value"]) in target})
+        without = sorted({str(c["hole_id"]) for c in p["collars"]} - set(with_unit))
+        held = set(with_unit[3::4]) | set(without[3::4])
+        if len(with_unit) < 4 or not held:
+            return None
+        trained = _domain_train(geoml, _only_holes(p, lambda h: h not in held), _holes(geoml, _only_holes(p, lambda h: h not in held)),
+                                lambda f, text: progress(lo + (hi - lo) * 0.95 * f / 0.58, f"Testing on {len(held)} unseen holes. {text}"))
+        test = _only_holes(p, lambda h: h in held)
+        holes = _holes(geoml, test)
+        iv = pd.DataFrame(test["intervals"])
+        iv["hole_id"] = iv["hole_id"].astype(str)
+        iv["value"] = iv["value"].astype(str)
+        iv = iv[~iv["value"].isin(set(map(str, p.get("exclude_values") or [])))].copy()
+        iv["UNIT"] = np.where(iv["value"].isin(target), "Target", "Other")
+        holes.add_intervals("lito", iv[["hole_id", "from", "to", "UNIT"]], hole="hole_id", fr="from", to="to", categorical=["UNIT"])
+        holes.add_intervals("lito", holes.merge_domains(("lito", "UNIT")))
+        d = holes.as_classification_input(("lito", "UNIT"), length=2.5)
+        fit = _fit_check(geoml, trained["model"], d)
+        return {**fit, "holes_left_out": len(held), "holes": len(held) + len(_only_holes(p, lambda h: h not in held)["collars"])} if fit else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def run_domain(p, progress):
+    import geoml
+    t0 = time.time()
+    outer = progress
+    if p.get("held_out"):  # the second training takes as long as the first: half the bar each
+        progress = lambda f, text: outer(f * 0.5, text)
+    geoml.set_seed(int(p.get("seed", 1234)))
+    progress(0.02, "Reading the drillholes")
+    holes = _holes(geoml, p)
+    t = _domain_train(geoml, p, holes, progress)
+    model, dense, sparse, n_contacts, tr, rng, deep = t["model"], t["dense"], t["sparse"], t["n_contacts"], t["tr"], t["rng"], t["deep"]
     fit = _fit_check(geoml, model, dense)
     c = np.asarray(dense.coordinates)
     pad = np.array([float(p.get("pad", 100.0))] * 2 + [float(p.get("pad_z", 50.0))])
@@ -200,8 +264,7 @@ def run_domain(p, progress):
     xyz = np.asarray(grid.coordinates)
     prob = np.asarray(grid.values("UNIT/Target/probability"))
     unc = np.asarray(grid.values("UNIT/uncertainty"))
-    progress(1.0, "Done")
-    return {
+    result = {
         "kind": "domain", "model": "deep" if deep else "stationary", "seconds": round(time.time() - t0, 1),
         "range": _range_report(tr, rng), "trend_applied": bool(p.get("trend")),  # #673 / #692
         "training_points": int(dense.n_data), "inducing_points": int(sparse.n_data), "contacts": n_contacts, "fit": fit,
@@ -210,6 +273,11 @@ def run_domain(p, progress):
                    "probability": prob.round(4).tolist(), "uncertainty": unc.round(4).tolist()},
         "elbo": [float(v) for v in list(getattr(model, "training_log", []))[-50:]],
     }
+    if p.get("held_out"):  # TASKS.csv #1312 — the blocks are safe in `result`: free the model before training another
+        del model, bs, grid, t
+        result["held_out"] = _held_out_check(geoml, p, outer, 0.5, 1.0)
+    outer(1.0, "Done")
+    return result
 
 
 def run_grade(p, progress):

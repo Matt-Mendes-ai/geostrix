@@ -6541,7 +6541,6 @@
   "Enter the database name.": "Saisissez le nom de la base de données.",
   "Enter the user name.": "Saisissez le nom d'utilisateur.",
   "{c} contacts would need {n} inducing points. An up-to-date add-on keeps {cap} of them along the holes, and every contact stays in the training, so the model will be coarse; check its fit to the logs when it finishes.": "{c} contacts demanderaient {n} points inducteurs. Un module à jour en garde {cap} le long des sondages, et chaque contact reste dans l'entraînement : le modèle sera grossier ; vérifiez son ajustement aux journaux à la fin.",
-  "Fit to the logs: {a}% of the points logged in the unit come out inside it, {b}% of the others outside.": "Ajustement aux journaux : {a} % des points décrits dans l'unité se retrouvent à l'intérieur, {b} % des autres à l'extérieur.",
   "That is weak: the surface and blocks do not reproduce this unit where it was logged. A higher quality, a narrower set of holes or a merged code may do better.": "C'est faible : la surface et les blocs ne reproduisent pas cette unité là où elle a été décrite. Une qualité supérieure, moins de sondages ou un code fusionné peuvent faire mieux.",
   "{max} section windows are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.": "{max} fenêtres de coupe sont ouvertes, le maximum que cet ordinateur supporte confortablement. Fermez-en une pour ouvrir cette coupe : elle reste dans la liste des coupes.",
   "\"{unitName}\": {kept} of {total} structure pick(s) lie within {reachM} m of its contacts and steer this surface (Model settings > Contact orientations from picks).": "« {unitName} » : {kept} mesures structurales sur {total} sont à moins de {reachM} m de ses contacts et orientent cette surface (Réglages du modèle > Orientations de contact d'après les mesures).",
@@ -6567,5 +6566,14 @@
   "{n} block model(s)": "{n} modèle(s) de blocs",
   "{n} DC/IP line(s)": "{n} ligne(s) DC/IP",
   "{saved} pick(s) from the Core orientation calculator were kept in these holes.": "{saved} mesure(s) du Calculateur d'orientation de carotte ont été conservées dans ces sondages.",
-  "assay rows": "lignes d'analyses"
+  "assay rows": "lignes d'analyses",
+  "On {k} of {n} holes left out of training: {a}% of the points in the unit come out inside it, {b}% of the others outside. This is the better guide to holes not yet drilled.": "Sur {k} de {n} sondages laissés hors de l'entraînement : {a} % des points dans l'unité restent dedans, {b} % des autres dehors. C'est le meilleur guide pour les sondages à venir.",
+  "The test on unseen holes did not run: it needs at least 4 holes with the unit and an up-to-date add-on.": "Le test sur sondages non vus n'a pas été exécuté : il faut au moins 4 sondages avec l'unité et un module à jour.",
+  "Unseen holes usually score lower: tick the test on unseen holes to measure it.": "Les sondages non vus obtiennent en général moins : cochez le test sur sondages non vus pour le mesurer.",
+  "On the points it trained on: {a}% of those in the unit come out inside it, {b}% of the others outside.": "Sur les points d'entraînement : {a} % de ceux dans l'unité restent dedans, {b} % des autres dehors.",
+  "Trains on a point every {s} m in the unit and at its contacts, and a thinned sample of the other rock. It helped thin units on the projects tested, but one thick unit got worse: compare with the test on unseen holes.": "S'entraîne avec un point tous les {s} m dans l'unité et à ses contacts, et un échantillon réduit de l'autre roche. Cela a aidé les unités minces dans les projets testés, mais une unité épaisse a empiré : comparez avec le test sur sondages non vus.",
+  "Sample densely near the unit": "Échantillonner densément près de l'unité",
+  "(on by default: its runs are thin, median {m} m)": "(activé par défaut : ses passes sont minces, médiane {m} m)",
+  "Trains again without every 4th hole and scores the model on those holes. About twice the time.": "S'entraîne à nouveau sans un sondage sur 4 et évalue le modèle sur ceux-ci. Environ deux fois plus long.",
+  "Also test on unseen holes (about twice the time)": "Tester aussi sur sondages non vus (environ deux fois plus long)"
 }

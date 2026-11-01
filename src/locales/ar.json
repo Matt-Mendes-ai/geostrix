@@ -6541,7 +6541,6 @@
   "Enter the database name.": "أدخل اسم قاعدة البيانات.",
   "Enter the user name.": "أدخل اسم المستخدم.",
   "{c} contacts would need {n} inducing points. An up-to-date add-on keeps {cap} of them along the holes, and every contact stays in the training, so the model will be coarse; check its fit to the logs when it finishes.": "يتطلب {c} تماسًا {n} نقطة استقراء. تحتفظ الإضافة المحدَّثة بـ {cap} منها على طول الثقوب، ويبقى كل تماس ضمن التدريب، لذا سيكون النموذج خشنًا؛ تحقق من مطابقته للسجلات عند الانتهاء.",
-  "Fit to the logs: {a}% of the points logged in the unit come out inside it, {b}% of the others outside.": "المطابقة مع السجلات: {a}% من النقاط المسجلة في الوحدة تقع داخلها، و{b}% من غيرها تقع خارجها.",
   "That is weak: the surface and blocks do not reproduce this unit where it was logged. A higher quality, a narrower set of holes or a merged code may do better.": "هذا ضعيف: لا يعيد السطح والكتل إنتاج هذه الوحدة حيث سُجلت. قد تكون جودة أعلى أو ثقوب أقل أو رمز مدمج أفضل.",
   "{max} section windows are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.": "توجد {max} نافذة مقطع مفتوحة، وهو أقصى ما يتحمله هذا الحاسوب براحة. أغلق واحدة لفتح هذا المقطع: يبقى في قائمة المقاطع.",
   "\"{unitName}\": {kept} of {total} structure pick(s) lie within {reachM} m of its contacts and steer this surface (Model settings > Contact orientations from picks).": "«{unitName}»: تقع {kept} من أصل {total} قياسًا بنيويًا ضمن {reachM} م من تماساتها وتوجّه هذا السطح (إعدادات النموذج > توجيهات التماس من القياسات).",
@@ -6567,5 +6566,14 @@
   "{n} block model(s)": "{n} نموذج كتل",
   "{n} DC/IP line(s)": "{n} خط DC/IP",
   "{saved} pick(s) from the Core orientation calculator were kept in these holes.": "حُفظ {saved} قياس من حاسبة توجيه اللب في هذه الثقوب.",
-  "assay rows": "صفوف التحاليل"
+  "assay rows": "صفوف التحاليل",
+  "On {k} of {n} holes left out of training: {a}% of the points in the unit come out inside it, {b}% of the others outside. This is the better guide to holes not yet drilled.": "في {k} من {n} ثقبًا مستبعدًا من التدريب: {a}% من نقاط الوحدة داخلها و{b}% من غيرها خارجها. هذا أفضل دليل للثقوب التي لم تُحفر بعد.",
+  "The test on unseen holes did not run: it needs at least 4 holes with the unit and an up-to-date add-on.": "لم يُجرَ الاختبار على الثقوب غير المرئية: يلزم 4 ثقوب على الأقل بها الوحدة وإضافة محدّثة.",
+  "Unseen holes usually score lower: tick the test on unseen holes to measure it.": "عادةً ما تكون نتيجة الثقوب غير المرئية أقل: فعّل الاختبار عليها لقياس ذلك.",
+  "On the points it trained on: {a}% of those in the unit come out inside it, {b}% of the others outside.": "في نقاط التدريب: {a}% مما في الوحدة داخلها و{b}% من غيرها خارجها.",
+  "Trains on a point every {s} m in the unit and at its contacts, and a thinned sample of the other rock. It helped thin units on the projects tested, but one thick unit got worse: compare with the test on unseen holes.": "يتدرب بنقطة كل {s} م في الوحدة وعند تماساتها وعينة مخففة من الصخر الآخر. ساعد الوحدات الرقيقة في المشاريع المختبرة لكن وحدة سميكة ساءت: قارن باختبار الثقوب غير المرئية.",
+  "Sample densely near the unit": "أخذ عينات كثيفة قرب الوحدة",
+  "(on by default: its runs are thin, median {m} m)": "(مفعّل افتراضيًا: مقاطعها رقيقة، الوسيط {m} م)",
+  "Trains again without every 4th hole and scores the model on those holes. About twice the time.": "يتدرب مجددًا دون كل ثقب رابع ويقيّم النموذج عليها. نحو ضعف الوقت.",
+  "Also test on unseen holes (about twice the time)": "اختبر أيضًا على ثقوب غير مرئية (نحو ضعف الوقت)"
 }
