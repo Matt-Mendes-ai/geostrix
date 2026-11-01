@@ -18,7 +18,7 @@ import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingInte
 import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit } from "../../lib/modellingCodes.js"; // TASKS.csv #599
 import { clipMesh } from "../../lib/clipMesh.js";
 import { thinStructurePicks } from "../../lib/viewer/orientationThin.js"; // TASKS.csv #765
-import { autoReachM, orientationsNearContacts, contactFit } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1170, #1171
+import { autoReachM, orientationsNearContacts, contactFit, tooFewContacts } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1170, #1171
 import { surfacePackages, unitPackage, contactSurface, contactPackage, movePointsToUnconformities } from "../../lib/viewer/stackPackages.js"; // TASKS.csv #1309
 import { makeEnsembleCounter, quantile, gridValuesToCells } from "../../lib/ensembleProbability.js"; // TASKS.csv #757
 import { sequentialStops } from "../../lib/inversion.js"; // TASKS.csv #757
@@ -249,6 +249,9 @@ export function createModellingRuns(ctx, mcRef) {
       setNotices((p) => [...p, notice("Smooth clustered contacts (Model settings): {v}. A smoothed point is fitted loosely, so a tight cluster of picks no longer bends the surface; it also loses detail if the cluster was accurate (a drill fan).", { v: smoothReports.map((r) => (r.skipped ? tr("{label}: not applied ({skipped})", { label: r.label, skipped: r.skipped }) : tr("{label}: {smoothed} of {total} contact points smoothed", { label: r.label, smoothed: r.smoothed, total: r.total }))).join("; ") })]);
     }
 
+    // TASKS.csv #1189 — it still runs: the geologist may want the plane; it just must not pass for a modelled contact
+    const thinSpecs = specs.filter((s) => !s.fault && tooFewContacts(s.points));
+    if (thinSpecs.length) setNotices((p) => [...p, notice("Too few contacts to shape a surface: {list}. Fewer than three, or all in a line, so its shape comes from the structure picks alone.", { list: thinSpecs.map((s) => tr("{label} ({n})", { label: s.label, n: s.points.length })).join(", ") })]);
     const label = specs.length === 1 ? specs[0].label : `Stratigraphic stack (${specs.map((s) => s.meshName).join(", ")})`;
     const totalPoints = specs.reduce((s, x) => s + x.points.length, 0);
     const totalOrientations = specs.reduce((s, x) => s + x.orientations.length, 0);
@@ -535,7 +538,8 @@ export function createModellingRuns(ctx, mcRef) {
       // TASKS.csv #679 — the trend's scales multiply to 1 (trendScales: iso / max * iso / int * iso / min), so a warped
       // cell has the volume of its real-space parallelepiped; dividing by the product keeps that true if it ever isn't
       const warpDet = anisotropy.enabled ? anisoScl.major * anisoScl.semiMajor * anisoScl.minor : 1;
-      const vols = unitVolumes(volBlock).filter((v) => v.name).map((v) => ({ ...v, volume: v.volume / warpDet })); // #1029 — below the ground
+      const loggedMetres = new Map(chk.units.map((u) => [u.unit, u.logged])); // #1189 — no logged metres: no volume to quote
+      const vols = unitVolumes(volBlock).filter((v) => v.name && !(Math.round(loggedMetres.get(v.name) ?? 1) === 0)).map((v) => ({ ...v, volume: v.volume / warpDet })); // #1029 — below the ground
       const pct = (a, b) => (b > 0 ? `${Math.round((100 * a) / b)}%` : "—");
       const fmtVol = (v) => (v >= 1e9 ? `${(v / 1e9).toFixed(2)} km³` : `${(v / 1e6).toFixed(1)} Mm³`);
       const perUnit = chk.units.map((u) => `${u.unit} ${pct(u.matched, u.logged)} of ${Math.round(u.logged)} m${u.mostOftenModelledAs !== undefined && u.matched < u.logged ? ` (otherwise mostly modelled as ${u.mostOftenModelledAs ?? "above the modelled tops"})` : ""}`).join("; ");

@@ -679,6 +679,10 @@ export function replaceRowsByHole(prev, incoming, keepRows = null) {
   });
   return { rows: [...kept, ...incoming], replacedHoles: [...replacedHoles], appendedHoles: [...appendedHoles] };
 }
+// TASKS.csv #1234 — a structure pick worked out in the app (with its calibration provenance, #429) is not "the earlier file" a new file
+// replaces. Wraps the keep set replaceRowsByHole takes.
+export const isDerivedPick = (r) => r?._src === "Core orientation calculator";
+export const keepDerivedPicks = (keep) => ({ has: (r) => !!keep?.has(r) || isDerivedPick(r) });
 const holeList = (hs) => `${hs.length} hole(s) (${hs.slice(0, 6).join(", ")}${hs.length > 6 ? ", …" : ""})`;
 // the import notice's sentence about what happened to holes that were already loaded
 export function replaceNote(res, what) {

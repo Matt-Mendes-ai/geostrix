@@ -25,6 +25,20 @@ export function orientationsNearContacts(orientations, points, reachM) {
   return { kept, total: (orientations || []).length };
 }
 
+// TASKS.csv #1189 — fewer than three contacts, or all of them in a line: they do not fix a surface, its shape is only the dips.
+export function tooFewContacts(points, toleranceM = 1) {
+  if (!points || points.length < 3) return true;
+  const a = points[0];
+  let b = null, far = 0;
+  for (const p of points) { const d = Math.hypot(p.x - a.x, p.y - a.y, p.z - a.z); if (d > far) { far = d; b = p; } }
+  if (far <= toleranceM) return true;
+  const u = [(b.x - a.x) / far, (b.y - a.y) / far, (b.z - a.z) / far];
+  return points.every((p) => {
+    const v = [p.x - a.x, p.y - a.y, p.z - a.z], t = v[0] * u[0] + v[1] * u[1] + v[2] * u[2];
+    return Math.hypot(v[0] - t * u[0], v[1] - t * u[1], v[2] - t * u[2]) <= toleranceM;
+  });
+}
+
 // The typical length of a mesh edge: the mesh's cell size, in the mesh's units
 export function meshCellSize(verts, faces) {
   if (!faces?.length) return NaN;

@@ -6560,5 +6560,12 @@
   "Units above and below an unconformity are fitted as separate conformable packages. The top of the unit below it follows the upper package.": "As unidades acima e abaixo de uma discordância são ajustadas como pacotes concordantes separados. O topo da unidade inferior segue o pacote superior.",
   "Unconformity here (click to remove)": "Discordância aqui (clique para remover)",
   "Mark an unconformity here": "Marcar uma discordância aqui",
-  "Packages: units between unconformities share one field and stay parallel, and each package truncates the ones below. Units missing inside a package cannot pinch out. A surface flattens beyond its own contacts, so compare the predicted map with your map.": "Pacotes: as unidades entre discordâncias compartilham um campo e permanecem paralelas, e cada pacote trunca os inferiores. Unidades ausentes dentro de um pacote não podem se acunhar. Uma superfície se achata além dos seus contatos, então compare o mapa previsto com o seu mapa."
+  "Packages: units between unconformities share one field and stay parallel, and each package truncates the ones below. Units missing inside a package cannot pinch out. A surface flattens beyond its own contacts, so compare the predicted map with your map.": "Pacotes: as unidades entre discordâncias compartilham um campo e permanecem paralelas, e cada pacote trunca os inferiores. Unidades ausentes dentro de um pacote não podem se acunhar. Uma superfície se achata além dos seus contatos, então compare o mapa previsto com o seu mapa.",
+  "between its neighbours": "entre suas vizinhas",
+  "Too few contacts to shape a surface: {list}. Fewer than three, or all in a line, so its shape comes from the structure picks alone.": "Poucos contatos para definir uma superfície: {list}. Menos de três, ou todos em linha, então sua forma vem apenas das medidas estruturais.",
+  "{label} ({n})": "{label} ({n})",
+  "{n} block model(s)": "{n} modelo(s) de blocos",
+  "{n} DC/IP line(s)": "{n} linha(s) DC/IP",
+  "{saved} pick(s) from the Core orientation calculator were kept in these holes.": "{saved} medida(s) da Calculadora de orientação de testemunho foram mantidas nestes furos.",
+  "assay rows": "linhas de análises"
 }

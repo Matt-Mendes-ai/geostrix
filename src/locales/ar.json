@@ -6560,5 +6560,12 @@
   "Units above and below an unconformity are fitted as separate conformable packages. The top of the unit below it follows the upper package.": "تُلاءَم الوحدات فوق عدم التوافق وتحته كحزم متوافقة منفصلة. يتبع أعلى الوحدة السفلى الحزمة العليا.",
   "Unconformity here (click to remove)": "عدم توافق هنا (انقر للإزالة)",
   "Mark an unconformity here": "حدّد عدم توافق هنا",
-  "Packages: units between unconformities share one field and stay parallel, and each package truncates the ones below. Units missing inside a package cannot pinch out. A surface flattens beyond its own contacts, so compare the predicted map with your map.": "الحزم: تشترك الوحدات بين حالات عدم التوافق في حقل واحد وتبقى متوازية، وتقطع كل حزمة ما تحتها. لا يمكن للوحدات الغائبة داخل حزمة أن تتلاشى. يتسطح السطح خارج تماساته، لذا قارن الخريطة المتوقعة بخريطتك."
+  "Packages: units between unconformities share one field and stay parallel, and each package truncates the ones below. Units missing inside a package cannot pinch out. A surface flattens beyond its own contacts, so compare the predicted map with your map.": "الحزم: تشترك الوحدات بين حالات عدم التوافق في حقل واحد وتبقى متوازية، وتقطع كل حزمة ما تحتها. لا يمكن للوحدات الغائبة داخل حزمة أن تتلاشى. يتسطح السطح خارج تماساته، لذا قارن الخريطة المتوقعة بخريطتك.",
+  "between its neighbours": "بين جيرانها",
+  "Too few contacts to shape a surface: {list}. Fewer than three, or all in a line, so its shape comes from the structure picks alone.": "التماسات أقل من أن تحدد سطحًا: {list}. أقل من ثلاثة أو كلها على خط واحد، فشكله مأخوذ من القياسات البنيوية وحدها.",
+  "{label} ({n})": "{label} ({n})",
+  "{n} block model(s)": "{n} نموذج كتل",
+  "{n} DC/IP line(s)": "{n} خط DC/IP",
+  "{saved} pick(s) from the Core orientation calculator were kept in these holes.": "حُفظ {saved} قياس من حاسبة توجيه اللب في هذه الثقوب.",
+  "assay rows": "صفوف التحاليل"
 }

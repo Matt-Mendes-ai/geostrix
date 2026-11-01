@@ -19,7 +19,7 @@ const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #
 import { buildLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
-import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
+import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, keepDerivedPicks, isDerivedPick, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
 import { normInterval, applyCustomFields, normNumericInterval, normStructure, skippedRowsText, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
@@ -391,6 +391,11 @@ export function useImportPipeline(ctx) {
       const replaced = replaceRowsByHole(importStateRef.current.survey, rows, keep); // for the notice only (#582: replaced / appended)
       setSurvey((prev) => replaceRowsByHole(prev, keepBatch(rows), keep).rows);
       reorientAfter(new Set(rows.map((r) => r.hole_id)), replaceRowsByHole(importStateRef.current.survey, rows, keep).rows, null, fileName); // #548
+      // TASKS.csv #1268 — the same row check the interval layers get; a station has one depth
+      import("../../lib/dataQC.js").then(({ importCheckSummary }) => {
+        const msg = importCheckSummary(rows.map((r) => ({ hole_id: r.hole_id, from: r.depth, to: r.depth })), importStateRef.current.collars, null, `survey stations from ${fileName}`);
+        if (msg) setNotices((p) => [...p, msg]);
+      }).catch(() => {});
       setNotices((p) => [...p, tr("Loaded {rows} survey stations from {fileName}.", { rows: rows.length, fileName })
         + replaceNote(replaced, "survey")
         + (bad.length ? tr(" Skipped {bad} station(s) with a missing or non-numeric azimuth/dip ({v}).", { bad: bad.length, v: [...new Set(bad.map((r) => `${r.hole_id}@${r.depth}`))].slice(0, 5).join(", ") }) : "")
@@ -435,10 +440,11 @@ export function useImportPipeline(ctx) {
         const ss = strikeStats(allRows, mapping);
         if (ss.derived || ss.mismatches) setNotices((p) => [...p, `${fileName}:${ss.derived ? tr(" {derived} dip direction(s) derived from strike by the right-hand rule (dip direction = strike + 90°).", { derived: ss.derived }) : ""}${ss.mismatches ? tr(" {mismatches} row(s) have a strike and a dip direction that are not 90° apart (right-hand rule) — the dip direction was used; check whether those strikes follow another convention.", { mismatches: ss.mismatches }) : ""}`]);
       }
-      const keep = batchRowsRef.current;
+      const keep = keepDerivedPicks(batchRowsRef.current); // #1234 — a pick worked out in the app is not the earlier file's data
       const replaced = replaceRowsByHole(importStateRef.current.layers?.structure, rows, keep);
       setLayers((p) => ({ ...p, structure: replaceRowsByHole(p.structure, keepBatch(rows), keep).rows })); // TASKS.csv #336
       if (replaced.replacedHoles.length || replaced.appendedHoles.length) setNotices((p) => [...p, `${fileName}:${replaceNote(replaced, "structure picks")}`]); // #582
+      { const holes = new Set(rows.map((r) => r.hole_id)), saved = (importStateRef.current.layers?.structure || []).filter((r) => isDerivedPick(r) && holes.has(r.hole_id)).length; if (saved) setNotices((p) => [...p, tr("{saved} pick(s) from the Core orientation calculator were kept in these holes.", { saved })]); } // #1234
       setLayerVisible((p) => ({ ...p, structure: true }));
       setNotices((p) => [...p, appendNotice(notice("Loaded {rows} structure points from {fileName}.", { rows: rows.length, fileName }), skippedRowsText(stDropped, allRows.length))]); // #1070
     } else if (target === "custom") {

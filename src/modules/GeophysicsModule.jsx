@@ -97,7 +97,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     terrain, addTerrain, updateTerrain, removeTerrain,
     geophysPtsStops, setGeophysPtsStops, geophysPtsColorMode, setGeophysPtsColorMode,
     geophysPtsMin, setGeophysPtsMin, geophysPtsMax, setGeophysPtsMax,
-    voxelModels, addVoxelModel, updateVoxelModel, removeVoxelModel,
+    voxelModels, addVoxelModel, updateVoxelModel, removeVoxelModel, dcipLines, // dcipLines: #1176
     voxelCellBudget, setVoxelCellBudget,
     survey, desurveyMethod, setCustomLayers, // TASKS.csv #323 — evaluate a model onto the drillholes
     geophysSurveys, updateGeophysSurvey, setLayers, // TASKS.csv #451
@@ -1777,6 +1777,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             if (rasters.length) parts.push(tr("{rasters} raster drape(s)", { rasters: rasters.length }));
             if (terrain) parts.push(tr("a terrain surface"));
             if (boundaries.length) parts.push(tr("{boundaries} boundary(ies)", { boundaries: boundaries.length }));
+            if (voxelModels.length) parts.push(tr("{n} block model(s)", { n: voxelModels.length })); // TASKS.csv #1176
+            if (dcipLines.length) parts.push(tr("{n} DC/IP line(s)", { n: dcipLines.length }));
             if (!parts.length) return tr("No geophysics data yet");
             const joined = parts.length > 1 ? tr("{list} and {last}", { list: parts.slice(0, -1).join(", "), last: parts[parts.length - 1] }) : parts[0];
             return tr("{items} loaded", { items: joined });

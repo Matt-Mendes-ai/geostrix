@@ -1,7 +1,7 @@
 // TASKS.csv #817 — the suggested stratigraphic order of a geological map's units
 import test from "node:test";
 import assert from "node:assert/strict";
-import { classifyUnitRole, suggestPileOrder, fitTracePlane } from "../src/lib/pileOrder.js";
+import { classifyUnitRole, suggestPileOrder, fitTracePlane, orderFromPairs } from "../src/lib/pileOrder.js";
 
 test("#817 roles from the code and description", () => {
   assert.equal(classifyUnitRole("QzDio", "Quartz Diorite"), "intrusion");
@@ -61,4 +61,25 @@ test("#817 a contact's own dip from its trace draped on terrain (rule of V's), a
   assert.ok(p.trace.planes > 0, "planes fitted");
   assert.equal(p.younger, "Upper", JSON.stringify({ trace: p.trace, planes: p.fittedPlanes.slice(0, 2) }));
   for (const q of p.fittedPlanes) assert.ok(Math.abs(q.dip - 30) < 2 && (q.dipDir < 3 || q.dipDir > 357), JSON.stringify(q)); // each stretch recovers 30° north
+});
+
+const P = (younger, older, weight, agreement = 1) => ({ younger, older, weight, agreement });
+
+test("#1311 the order follows the pairs, whatever evidence each carries (Z > M > N > O, N's contact with O the strongest)", () => {
+  const r = orderFromPairs(["Z", "N", "M", "O"], [P("Z", "M", 12, 0.94), P("N", "O", 26), P("M", "N", 9), P("Z", "N", 1)]);
+  assert.deepEqual(r.order, ["Z", "M", "N", "O"]);
+  assert.equal(r.above.get("N"), 1, "N is over O");
+  assert.equal(r.below.get("N"), 2, "and under M and Z");
+});
+
+test("#1311 a contradiction loses to the stronger evidence, and nothing is lost", () => {
+  const r = orderFromPairs(["A", "B", "C"], [P("A", "B", 10), P("B", "C", 10), P("C", "A", 1)]);
+  assert.deepEqual(r.order, ["A", "B", "C"]);
+});
+
+test("#1311 undecided pairs and units with no pairs keep the suggested place", () => {
+  assert.deepEqual(orderFromPairs(["A", "B", "C"], [P("C", "A", 5, 0.55)]).order, ["A", "B", "C"], "55% agreement decides nothing");
+  assert.deepEqual(orderFromPairs(["A", "B", "C"], []).order, ["A", "B", "C"]);
+  assert.deepEqual(orderFromPairs(["A", "B", "C"], [P("C", "B", 5)]).order, ["A", "C", "B"]);
+  assert.deepEqual(orderFromPairs(["A", "B"], [{ younger: null, older: null, weight: 0, agreement: 0 }, P("X", "A", 5)]).order, ["A", "B"], "a unit outside the stack");
 });

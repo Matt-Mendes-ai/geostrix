@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, Suspense } from "react";
+import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1284
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { parseTableOrWorkbook, isXlsxName } from "../lib/xlsx.js"; // TASKS.csv #444 shared reader; #605 .xlsx
 import { num, guessColumn, TARGET_SCHEMAS, colorForLithology, CATEGORICAL_SAFE_COLORS, hashColor, colorForVoxelValue } from "../lib/layers.js"; // colours: #1091
@@ -64,16 +65,17 @@ import { geochemFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1017
 
 export default function GeochemModule() {
   const store = useStore();
+  const keptScope = scopeOf(store.getProjectToken()); // TASKS.csv #1284 — survives a tab switch
   const { assays, setAssays, assayElements, setAssayElements, surfaceSamples, setSurfaceSamples, surfaceElements, setSurfaceElements, geochemThresholds, setGeochemThresholds, surfaceQc, setSurfaceQc, mapLayers, replaceLayer, layers, collars, survey, boundaries, alterationBoxes, setAlterationBoxes, project, projectIsEmpty, setEpsg, viewerUiState } = store; // viewerUiState: #1091 (the 3D legend's colour edits)
   const [altBoxOpen, setAltBoxOpen] = useState(false); // TASKS.csv #503
   const assayHoleIds = useMemo(() => new Set(assays.map((a) => a.hole_id)), [assays]);
 
-  const [diagramId, setDiagramId] = useState("boxplot");
-  const [colorMode, setColorMode] = useState("hole"); // hole | element | lithology (#619) | uniform
+  const [diagramId, setDiagramId] = useKeptState(keptScope, "geochem.diagramId", "boxplot");
+  const [colorMode, setColorMode] = useKeptState(keptScope, "geochem.colorMode", "hole"); // hole | element | lithology (#619) | uniform
   // TASKS.csv #619 — plot only samples from chosen logged lithologies (null = every sample)
-  const [lithFilter, setLithFilter] = useState(null); // null | Set of codes (NOT_LOGGED = samples with no log)
+  const [lithFilter, setLithFilter] = useKeptState(keptScope, "geochem.lithFilter", null); // null | Set of codes (NOT_LOGGED = samples with no log)
   const [lithMenuOpen, setLithMenuOpen] = useState(false);
-  const [colorElement, setColorElement] = useState(null);
+  const [colorElement, setColorElement] = useKeptState(keptScope, "geochem.colorElement", null);
   // TASKS.csv #1091 — the element to colour by: the one chosen, else Au, else the first. colorElement is set only when an
   // assay file is imported here, so an opened project or a sample showed "by element" with every point the uniform blue
   // while the drop-down displayed its first option.
@@ -521,6 +523,7 @@ export default function GeochemModule() {
       repeatedInFile ? tr("{n} interval(s) appear more than once in this file (often field or lab duplicates) — all kept as separate rows; Data QC and Best Intercepts flag them as overlaps.", { n: repeatedInFile }) : null,
       oxideNotes.size ? tr("Whole-rock oxide columns stored as element wt% ({list}); diagrams convert back to oxides.", { list: [...oxideNotes].join(", ") }) : null,
     ].filter(Boolean).join(" ");
+    import("../lib/dataQC.js").then(({ importCheckSummary }) => { const msg = importCheckSummary(rows, collars, store.survey, tr("assay rows")); if (msg) setNotices((p) => [...p, msg]); }).catch(() => {}); // TASKS.csv #1268
     setNotices((p) => [...p, notice("Loaded {rows} {v} intervals ({chosen} elements).{v2}", { rows: rows.length, v: modal.isPxrf ? tr("pXRF") : tr("assay"), chosen: chosen.length, v2: extra ? " " + extra : "" })]);
     setAssayModal(null);
   };

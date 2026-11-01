@@ -81,6 +81,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const why = (u) => {
     const i = unitInfo.get(u);
     if (!i) return "";
+    if (i.evidence === "bedding" && i.overOthers && i.underOthers) return tr("between its neighbours"); // TASKS.csv #1311
     if (i.evidence === "bedding") return i.score > 0.15 ? tr("younger than its neighbours") : i.score < -0.15 ? tr("older than its neighbours") : tr("weak evidence");
     if (i.evidence === "elevation") return tr("by elevation only");
     return tr("no evidence (by area)");

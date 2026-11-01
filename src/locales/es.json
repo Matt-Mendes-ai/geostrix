@@ -6560,5 +6560,12 @@
   "Units above and below an unconformity are fitted as separate conformable packages. The top of the unit below it follows the upper package.": "Las unidades sobre y bajo una discordancia se ajustan como paquetes concordantes separados. El techo de la unidad inferior sigue al paquete superior.",
   "Unconformity here (click to remove)": "Discordancia aquí (clic para quitar)",
   "Mark an unconformity here": "Marcar una discordancia aquí",
-  "Packages: units between unconformities share one field and stay parallel, and each package truncates the ones below. Units missing inside a package cannot pinch out. A surface flattens beyond its own contacts, so compare the predicted map with your map.": "Paquetes: las unidades entre discordancias comparten un campo y se mantienen paralelas, y cada paquete trunca los inferiores. Las unidades ausentes dentro de un paquete no pueden acuñarse. Una superficie se aplana más allá de sus contactos, así que compare el mapa predicho con su mapa."
+  "Packages: units between unconformities share one field and stay parallel, and each package truncates the ones below. Units missing inside a package cannot pinch out. A surface flattens beyond its own contacts, so compare the predicted map with your map.": "Paquetes: las unidades entre discordancias comparten un campo y se mantienen paralelas, y cada paquete trunca los inferiores. Las unidades ausentes dentro de un paquete no pueden acuñarse. Una superficie se aplana más allá de sus contactos, así que compare el mapa predicho con su mapa.",
+  "between its neighbours": "entre sus vecinas",
+  "Too few contacts to shape a surface: {list}. Fewer than three, or all in a line, so its shape comes from the structure picks alone.": "Muy pocos contactos para definir una superficie: {list}. Menos de tres, o todos en línea, así que su forma proviene solo de las medidas estructurales.",
+  "{label} ({n})": "{label} ({n})",
+  "{n} block model(s)": "{n} modelo(s) de bloques",
+  "{n} DC/IP line(s)": "{n} línea(s) DC/IP",
+  "{saved} pick(s) from the Core orientation calculator were kept in these holes.": "Se conservaron {saved} medida(s) de la Calculadora de orientación de testigos en estos sondajes.",
+  "assay rows": "filas de ensayes"
 }

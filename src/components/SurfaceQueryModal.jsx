@@ -1,3 +1,4 @@
+import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js"; // TASKS.csv #1192
 import React, { useMemo, useState } from "react";
 import { X, Download, Ruler } from "./icons.js";
 import { buildMeshQuery, isMeshClosed, signedDistanceToMesh, intervalsInsideMesh, holeDistanceToMesh } from "../lib/meshQuery.js";
@@ -145,7 +146,7 @@ export default function SurfaceQueryModal({ surfaces = [], traces = [], sceneToW
           <>
             <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 10, flexWrap: "wrap" }}>
               <label style={rowLabel}>{tr("Surface")}<select value={surface?.id || ""} onChange={(e) => setSurfaceId(e.target.value)} style={{ ...sel, minWidth: 210 }}>
-                  {surfaces.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {surfaces.map((s) => <option key={s.id} value={s.id}>{surfaceOptionLabels(surfaces).get(s.id) ?? s.name}</option>)}
                 </select>
               </label>
               <div style={{ display: "flex", gap: 0, border: "1px solid var(--color-border)", borderRadius: 6, overflow: "hidden" }}>

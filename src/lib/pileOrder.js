@@ -48,6 +48,38 @@ export function fitTracePlane(pts, { minPlanarity = 0.01, maxRmsM = 15, minRelie
   return { dip: (Math.atan2(h, nz) * 180) / Math.PI, dipDir: ((Math.atan2(nx, ny) * 180) / Math.PI + 360) % 360, dx: nx / h, dy: ny / h, rmsM };
 }
 
+// TASKS.csv #1311 — an order from the pairs themselves. A score per unit cannot express "between": on a test map whose pairs all agreed
+// (Z > M, M > N, N > O), N outscored M because its contact with O carried more evidence, and the order came out Z, N, M, O.
+// Decisive pairs (agreement >= minAgreement), strongest first, each kept unless it contradicts a stronger one (repeated units and
+// folds can give cycles); then a topological order, with `base` (youngest first) deciding whenever the pairs leave a choice.
+// Returns { order, above, below }: how many kept pairs put each unit over or under another.
+export function orderFromPairs(base, pairs, { minAgreement = 0.6 } = {}) {
+  const inBase = new Set(base);
+  const edges = pairs
+    .filter((p) => p.weight && p.agreement >= minAgreement && inBase.has(p.younger) && inBase.has(p.older) && p.younger !== p.older)
+    .map((p) => ({ y: p.younger, o: p.older, net: p.weight * (2 * p.agreement - 1) }))
+    .sort((a, b) => b.net - a.net);
+  const under = new Map(base.map((u) => [u, new Set()]));
+  const reaches = (from, to) => { const seen = new Set(), todo = [from]; while (todo.length) { const u = todo.pop(); if (u === to) return true; if (!seen.has(u)) { seen.add(u); todo.push(...under.get(u)); } } return false; };
+  const above = new Map(base.map((u) => [u, 0])), below = new Map(base.map((u) => [u, 0]));
+  for (const e of edges) {
+    if (under.get(e.y).has(e.o) || reaches(e.o, e.y)) continue;
+    under.get(e.y).add(e.o);
+    above.set(e.y, above.get(e.y) + 1);
+    below.set(e.o, below.get(e.o) + 1);
+  }
+  const waiting = new Map(base.map((u) => [u, 0]));
+  for (const s of under.values()) for (const o of s) waiting.set(o, waiting.get(o) + 1);
+  const order = [], left = [...base];
+  while (left.length) {
+    const i = left.findIndex((u) => waiting.get(u) === 0);
+    const [u] = left.splice(i, 1);
+    order.push(u);
+    for (const o of under.get(u)) waiting.set(o, waiting.get(o) - 1);
+  }
+  return { order, above, below };
+}
+
 const INTRUSIVE = /\b(qz|q|mic|f)?(dio|diorite|grd|granodiorite|gra|granite|ton|tonalite|mon|monzonite|syn|syenite|gab|gabbro|porph|porphyry|fp|qfp|dyke|dike|sill|intrusi\w*|plug|stock|aplite|pegmatite|diabase|dolerite|lamprophyre)\b/i;
 const CROSS = /(breccia|\bbx\b|hbx|vein|\bqv\b|fault|gouge|mylonite)/i;
 const OTHER = /(hornfels|\bhfs\b|skarn|\bsk\b|till|overburden|alluvium|colluvium|glacial|\bobn\b|\bovb\b|gossan)/i;
@@ -192,10 +224,10 @@ export function suggestPileOrder({ layer, field, descField = null, bedding = [],
     if (x.elev != null && y.elev != null) return y.elev - x.elev;
     return y.area - x.area;
   });
-  const order = info.map((i) => i.unit);
+  const { order, above, below } = orderFromPairs(info.map((i) => i.unit), pairs); // TASKS.csv #1311
   const unitsOut = [...units.entries()].map(([u, e]) => {
     const i = info.find((x) => x.unit === u);
-    return { unit: u, description: e.desc, role: roles[u], areaKm2: e.area / 1e6, score: i?.norm ?? null, meanElevation: meanElev(u), evidence: i?.norm != null ? "bedding" : meanElev(u) != null ? "elevation" : roles[u] === "stratigraphic" ? "area" : "role" };
+    return { unit: u, description: e.desc, role: roles[u], areaKm2: e.area / 1e6, score: i?.norm ?? null, overOthers: above.get(u) || 0, underOthers: below.get(u) || 0, meanElevation: meanElev(u), evidence: i?.norm != null ? "bedding" : meanElev(u) != null ? "elevation" : roles[u] === "stratigraphic" ? "area" : "role" };
   });
   return { order, roles, pairs, units: unitsOut };
 }

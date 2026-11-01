@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useVirtualRows } from "../lib/useVirtualRows.js"; // TASKS.csv #1186, #1278
 import { X, Download } from "./icons.js";
 import { valueIn } from "../lib/geochem.js";
 import { saveFile } from "../lib/desktop.js";
@@ -173,17 +174,22 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
   );
 }
 
+// TASKS.csv #1186, #1278 — every interval twice as a real checkbox was 7,582 of them on Woodjam: 554 ms to open, 100 ms per tick
+const INTERVAL_ROW_H = 24;
 function IntervalList({ title, color, rows, idSet, onToggle, n }) {
+  const { scrollRef, onScroll, startIndex, endIndex, topPad, bottomPad } = useVirtualRows(rows.length, INTERVAL_ROW_H, { containerHeight: 180 });
   return (
     <div>
       <div style={{ ...label, color, marginBottom: 4 }}>{title} {n ? tr("({n} intervals, avg)", { n }) : ""}</div>
-      <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid var(--color-border)", borderRadius: 6, padding: 4 }}>
-        {rows.map(({ a, id }) => (
-          <label key={id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 6px", fontSize: "var(--font-size-sm)", color: idSet.has(id) ? "var(--color-text)" : "var(--color-text-secondary)", cursor: "pointer" }}>
+      <div ref={scrollRef} onScroll={onScroll} style={{ height: rows.length ? Math.min(180, rows.length * INTERVAL_ROW_H + 8) : undefined, overflowY: "auto", border: "1px solid var(--color-border)", borderRadius: 6, padding: 4, boxSizing: "border-box" }}>
+        {topPad > 0 && <div style={{ height: topPad }} />}
+        {rows.slice(startIndex, endIndex).map(({ a, id }) => (
+          <label key={id} style={{ display: "flex", alignItems: "center", gap: 6, height: INTERVAL_ROW_H, boxSizing: "border-box", padding: "0 6px", fontSize: "var(--font-size-sm)", color: idSet.has(id) ? "var(--color-text)" : "var(--color-text-secondary)", cursor: "pointer" }}>
             <input type="checkbox" checked={idSet.has(id)} onChange={() => onToggle(id)} />
             {a.hole_id} {a.from}–{a.to}m
           </label>
         ))}
+        {bottomPad > 0 && <div style={{ height: bottomPad }} />}
         {rows.length === 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", padding: 4 }}>{tr("No intervals match.")}</div>}
       </div>
     </div>

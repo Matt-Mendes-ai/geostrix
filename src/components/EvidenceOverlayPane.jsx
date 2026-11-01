@@ -6,6 +6,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Download, Layers } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
+import { pickDefaultReachM } from "../lib/evidenceSources.js"; // TASKS.csv #1179
+import { medianCollarSpacing } from "../lib/viewer/geomath.js";
 import { evidenceGrid, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, bestCutoff, posterior, predictionArea, scoreImage, quantile } from "../lib/evidence.js";
 import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, voxelColumnEvidence, holeTraces, holeGradePoints, structureCodes, structureParts } from "../lib/evidenceSources.js"; // TASKS.csv #1154
 import { categoricalModels } from "../lib/geologyForward.js";
@@ -97,7 +99,7 @@ export default function EvidenceOverlayPane({ onClose }) {
     if (!values) { setMsg(tr("No grid yet: load terrain, a raster, a map layer or samples first.")); return; }
     const finite = values.filter(Number.isFinite);
     if (!finite.length) { setMsg(tr("\"{name}\" has no values over the grid.", { name: src.label })); return; }
-    const dec = src.kind === "distance" || src.kind === "pick", low = dec ? 0 : quantile(finite, 0.1), high = dec ? quantile(finite, 0.5) : quantile(finite, 0.9);
+    const dec = src.kind === "distance" || src.kind === "pick", low = dec ? 0 : quantile(finite, 0.1), high = src.kind === "pick" ? pickDefaultReachM(quantile(finite, 0.5), medianCollarSpacing(collars)) : dec ? quantile(finite, 0.5) : quantile(finite, 0.9); // #1179
     setLayers((L) => [...L, { id: nextId++, ...src, shape: dec ? "decreasing" : "increasing", low, high, lowText: numText(low), highText: numText(high), field: "", value: "", reach: reachOf(src), values }]);
     setResult(null); setMsg(null);
   };

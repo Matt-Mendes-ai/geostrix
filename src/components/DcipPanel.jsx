@@ -3,6 +3,7 @@
 // line by its start / end coordinates, state the data uncertainty (never assumed), invert. Results: a
 // section view here, and block models (resistivity, chargeability) along the line in the 3D view.
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1174
 import { Upload, Play, Download, Trash2 } from "./icons.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { parseTableFile, decodeTableBytes, toExportCsv } from "../lib/tabular.js";
@@ -37,20 +38,21 @@ const FIELDS = [["a", "A (current)"], ["b", "B (current; blank = pole)"], ["m", 
 
 export default function DcipPanel({ pBtn, numInput }) {
   const { terrain, project, addVoxelModelToTab, getProjectToken, dcipLines, saveDcipLine, removeDcipLine } = useStore();
+  const keptScope = scopeOf(getProjectToken()); // TASKS.csv #1284 — survives a tab switch
   const setTaskProgress = useSetTaskProgress();
   const fileRef = useRef(null);
   const stationRef = useRef(null);
   const [stationFile, setStationFile] = useState(null); // #602 — { name, lines, epsg, crsNote, other } awaiting a line choice
   const [engine, setEngine] = useState(null);
-  const [file, setFile] = useState(null); // { name, headers, rows }
-  const [mapping, setMapping] = useState({});
+  const [file, setFile] = useKeptState(keptScope, "dcip.file", null); // { name, headers, rows }
+  const [mapping, setMapping] = useKeptState(keptScope, "dcip.mapping", {});
   // #602 — scale: chaining scale ("" = 1); stations: { file, line, list: [{s, x, y, z}] } from a station / GPS file
-  const [line, setLine] = useState({ x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null });
-  const [opts, setOpts] = useState({ cell: "", depth: "", pct: "", floor: "", ipPct: "", ipFloor: "", maxIter: 20, supportCutoff: 0.02, voxObserved: true, voxExtrapolated: false, doi: false }); // vox*: #683 follow-up; doi: #772
+  const [line, setLine] = useKeptState(keptScope, "dcip.line", { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null });
+  const [opts, setOpts] = useKeptState(keptScope, "dcip.opts", { cell: "", depth: "", pct: "", floor: "", ipPct: "", ipFloor: "", maxIter: 20, supportCutoff: 0.02, voxObserved: true, voxExtrapolated: false, doi: false }); // vox*: #683 follow-up; doi: #772
   const [msg, setMsg] = useState(null);
   const [job, setJob] = useState(null);
-  const [last, setLast] = useState(null); // { result, geom, name, restored? }
-  const [pick, setPick] = useState("");
+  const [last, setLast] = useKeptState(keptScope, "dcip.last", null); // { result, geom, name, restored? }
+  const [pick, setPick] = useKeptState(keptScope, "dcip.pick", "");
 
   useEffect(() => subscribeInversionJob((j) => setJob(j ? { ...j } : null)), []);
   useEffect(() => {

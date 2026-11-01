@@ -11,6 +11,7 @@
 //     observed / predicted / residual maps, provenance on the model, and no volume or tonnage anywhere.
 // The job itself lives in lib/inversionJobs.js so it survives tab switches.
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1174
 import { ChevronDown, ChevronRight, Activity, Square, Compass, Play, Gauge } from "./icons.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import InfoButton from "./InfoButton.jsx";
@@ -40,30 +41,31 @@ const num = (v) => (v === "" || v == null ? NaN : Number(v));
 
 export default function InversionPanel({ pBtn, numInput, inPane = false }) { // inPane: TASKS.csv #458
   const { layers, terrain, project, surfaceStructures, getProjectToken, addVoxelModelToTab, collars, survey: drillSurvey, desurveyMethod, geophysSurveys, voxelModels } = useStore();
+  const keptScope = scopeOf(getProjectToken()); // TASKS.csv #1284 — survives a tab switch
   const setTaskProgress = useSetTaskProgress();
   // TASKS.csv #364 — every imported point file lands in the one geophys_pts layer, so a mag survey and a
   // gravity or radiometric survey used to be inverted TOGETHER as "TMI in nT". The inversion now uses
   // exactly one imported survey (by source file); with more than one loaded, the user must pick.
   const allRows = useMemo(() => (layers.geophys_pts || []).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value)), [layers.geophys_pts]);
   const surveys = useMemo(() => Array.from(new Set(allRows.map((r) => r._src || "(unnamed import)"))), [allRows]);
-  const [survey, setSurvey] = useState("");
+  const [survey, setSurvey] = useKeptState(keptScope, "inversion.survey", "");
   const activeSurvey = surveys.length === 1 ? surveys[0] : survey;
   const rows = useMemo(() => (activeSurvey ? allRows.filter((r) => (r._src || "(unnamed import)") === activeSurvey) : []), [allRows, activeSurvey]);
 
   const [open, setOpen] = useState(inPane);
   const [engine, setEngine] = useState(null); // null = checking, {ok, available, simpeg} otherwise
-  const [method, setMethod] = useState("");
-  const [confirmed, setConfirmed] = useState(false);
-  const [zMode, setZMode] = useState(""); // "sensor" | "drape"
-  const [sensorHeight, setSensorHeight] = useState("");
-  const [zDatum, setZDatum] = useState("same"); // TASKS.csv #369 — "same" (as the terrain) | "ellipsoidal" | "unknown"
-  const [baseLevel, setBaseLevel] = useState("mean"); // TASKS.csv #368 — "none" | "mean" | "plane"
-  const [regStyle, setRegStyle] = useState("smooth"); // TASKS.csv #769 — "smooth" | "compact"
-  const [magModel, setMagModel] = useState("scalar"); // TASKS.csv #770 — "scalar" (induced) | "vector" (remanence possible)
-  const [thin, setThin] = useState("");
-  const [field, setField] = useState({ strength: "", inclination: "", declination: "", date: "", source: "" });
-  const [unc, setUnc] = useState({ floor: "", percent: "" });
-  const [mesh, setMesh] = useState({ coreCell: "", depth: "", type: "tensor", octree: { fine: "4", fine2: "4", maxFactor: "4" } }); // type, octree: TASKS.csv #324 (inversions)
+  const [method, setMethod] = useKeptState(keptScope, "inversion.method", "");
+  const [confirmed, setConfirmed] = useKeptState(keptScope, "inversion.confirmed", false);
+  const [zMode, setZMode] = useKeptState(keptScope, "inversion.zMode", ""); // "sensor" | "drape"
+  const [sensorHeight, setSensorHeight] = useKeptState(keptScope, "inversion.sensorHeight", "");
+  const [zDatum, setZDatum] = useKeptState(keptScope, "inversion.zDatum", "same"); // TASKS.csv #369 — "same" (as the terrain) | "ellipsoidal" | "unknown"
+  const [baseLevel, setBaseLevel] = useKeptState(keptScope, "inversion.baseLevel", "mean"); // TASKS.csv #368 — "none" | "mean" | "plane"
+  const [regStyle, setRegStyle] = useKeptState(keptScope, "inversion.regStyle", "smooth"); // TASKS.csv #769 — "smooth" | "compact"
+  const [magModel, setMagModel] = useKeptState(keptScope, "inversion.magModel", "scalar"); // TASKS.csv #770 — "scalar" (induced) | "vector" (remanence possible)
+  const [thin, setThin] = useKeptState(keptScope, "inversion.thin", "");
+  const [field, setField] = useKeptState(keptScope, "inversion.field", { strength: "", inclination: "", declination: "", date: "", source: "" });
+  const [unc, setUnc] = useKeptState(keptScope, "inversion.unc", { floor: "", percent: "" });
+  const [mesh, setMesh] = useKeptState(keptScope, "inversion.mesh", { coreCell: "", depth: "", type: "tensor", octree: { fine: "4", fine2: "4", maxFactor: "4" } }); // type, octree: TASKS.csv #324 (inversions)
   const octreeSettings = { fine: Math.round(Number(mesh.octree.fine)), fine2: Math.round(Number(mesh.octree.fine2)), maxFactor: Number(mesh.octree.maxFactor) }; // #324 follow-up
   // TASKS.csv #451 — a survey already labelled magnetics / gravity pre-selects the method (still confirmed below)
   useEffect(() => {
@@ -71,15 +73,15 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
     if (!method && (m === "mag" || m === "grav")) setMethod(m);
   }, [activeSurvey, geophysSurveys]);
   // TASKS.csv #323 — drillhole logs as constraints: mag susceptibility (units stated) or SG (background stated)
-  const [dh, setDh] = useState({ on: false, units: "", background: "", tolerance: "" });
-  const [adv, setAdv] = useState({ open: false, maxIter: 15, lx: 1, ly: 1, lz: 1, lower: "", upper: "", supportCutoff: 0.005 });
+  const [dh, setDh] = useKeptState(keptScope, "inversion.dh", { on: false, units: "", background: "", tolerance: "" });
+  const [adv, setAdv] = useKeptState(keptScope, "inversion.adv", { open: false, maxIter: 15, lx: 1, ly: 1, lz: 1, lower: "", upper: "", supportCutoff: 0.005 });
   // supportCutoff default 0.005, MEASURED not guessed (TASKS.csv #321): normalised sensitivity falls off
   // steeply with depth (0.97 beside the stations, ~0.017 at 200 m, ~0.005 at 400 m on the synthetic plate
   // test). The first default, 0.02, hid 41% of the strongest recovered cells — the anomaly itself; 0.005
   // hides none of them and still drops the deep, far-edge cells the data genuinely cannot see.
-  const [plate, setPlate] = useState({ open: false, cx: "", cy: "", cz: "", dipDirection: "", dip: "", strikeLength: "", dipExtent: "", thickness: "", contrast: "", sweep: false });
+  const [plate, setPlate] = useKeptState(keptScope, "inversion.plate", { open: false, cx: "", cy: "", cz: "", dipDirection: "", dip: "", strikeLength: "", dipExtent: "", thickness: "", contrast: "", sweep: false });
   // TASKS.csv #760 — test a geology model against the survey: a categorical block model, a property per unit, a background
-  const [geo, setGeo] = useState({ open: false, modelId: "", props: {}, background: "" });
+  const [geo, setGeo] = useKeptState(keptScope, "inversion.geo", { open: false, modelId: "", props: {}, background: "" });
   const [plan, setPlan] = useState(null);
   const [planBusy, setPlanBusy] = useState(false);
   const [msg, setMsg] = useState(null);

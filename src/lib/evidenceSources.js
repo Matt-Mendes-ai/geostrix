@@ -103,3 +103,7 @@ export function structureParts(rows, code, traces) {
   }
   return out;
 }
+
+// TASKS.csv #1179 — the default "no influence" distance of a structure logged in core. The median over every grid cell only says how big the
+// grid is: 8.3 km on Woodjam, whose grid follows a 25 km block model. A fault in a hole reaches a few hole spacings at most.
+export const pickDefaultReachM = (medianOverGrid, collarSpacingM) => (collarSpacingM > 0 ? Math.min(medianOverGrid, Math.round(3 * collarSpacingM)) : medianOverGrid);
