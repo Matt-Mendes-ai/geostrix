@@ -950,7 +950,6 @@
   "Couldn't load the sample project: {message}": "تعذّر تحميل المشروع التجريبي: {message}",
   "The modelling tools could not be loaded: {v}": "تعذّر تحميل أدوات النمذجة: {v}",
   "Stacks are capped at 12 units (matches the sidecar's own limit) — remove one before adding another.": "الأعمدة محدودة بـ12 وحدة (حد المحرك نفسه) — أزل واحدة قبل إضافة أخرى.",
-  "Opening view is zoomed to the main drilling so intervals are legible — some holes are outside it. Use Fit (top right of the view) or right-click › Zoom to fit all to frame the whole property.": "العرض الافتتاحي مكبّر على منطقة الحفر الرئيسية لتكون الفترات مقروءة — بعض الثقوب خارجه. استخدم «ملاءمة» (أعلى العرض) أو النقر الأيمن › ملاءمة الكل لإظهار الملكية كاملة.",
   "{v}: nothing rendered to zoom to.": "{v}: لا شيء معروض للتكبير إليه.",
   "Snapshot failed: {message}": "فشلت اللقطة: {message}",
   "Viewport snapshot added to the Layout page.": "أُضيفت لقطة نافذة العرض إلى صفحة التخطيط.",

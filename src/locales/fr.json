@@ -950,7 +950,6 @@
   "Couldn't load the sample project: {message}": "Impossible de charger le projet exemple : {message}",
   "The modelling tools could not be loaded: {v}": "Les outils de modélisation n'ont pas pu être chargés : {v}",
   "Stacks are capped at 12 units (matches the sidecar's own limit) — remove one before adding another.": "Les piles sont limitées à 12 unités (comme la limite du moteur) — retirez-en une avant d'en ajouter une autre.",
-  "Opening view is zoomed to the main drilling so intervals are legible — some holes are outside it. Use Fit (top right of the view) or right-click › Zoom to fit all to frame the whole property.": "La vue d'ouverture est zoomée sur le forage principal pour que les intervalles soient lisibles — certains sondages sont en dehors. Utilisez Ajuster (en haut à droite de la vue) ou clic droit › Ajuster tout à la vue pour cadrer toute la propriété.",
   "{v}: nothing rendered to zoom to.": "{v} : rien d'affiché sur quoi zoomer.",
   "Snapshot failed: {message}": "Échec de la capture : {message}",
   "Viewport snapshot added to the Layout page.": "Capture de la fenêtre ajoutée à la page de mise en page.",

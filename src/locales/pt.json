@@ -950,7 +950,6 @@
   "Couldn't load the sample project: {message}": "Não foi possível carregar o projeto de exemplo: {message}",
   "The modelling tools could not be loaded: {v}": "Não foi possível carregar as ferramentas de modelagem: {v}",
   "Stacks are capped at 12 units (matches the sidecar's own limit) — remove one before adding another.": "As pilhas têm no máximo 12 unidades (o mesmo limite do motor) — remova uma antes de adicionar outra.",
-  "Opening view is zoomed to the main drilling so intervals are legible — some holes are outside it. Use Fit (top right of the view) or right-click › Zoom to fit all to frame the whole property.": "A vista inicial está aproximada na sondagem principal para os intervalos ficarem legíveis — alguns furos ficam de fora. Use Ajustar (no canto superior direito da vista) ou clique direito › Enquadrar tudo para ver a propriedade inteira.",
   "{v}: nothing rendered to zoom to.": "{v}: nada desenhado para enquadrar.",
   "Snapshot failed: {message}": "A captura falhou: {message}",
   "Viewport snapshot added to the Layout page.": "Captura da vista adicionada à página da prancha.",
