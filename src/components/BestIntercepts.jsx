@@ -277,7 +277,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
           ) : results.length === 0 ? (
             <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No intervals meet these criteria — try a lower cutoff or shorter minimum length.")}</div>
           ) : (
-            <div ref={scrollRef} onScroll={onScroll} style={{ overflow: "auto", maxHeight: 380 }}>
+            <div ref={scrollRef} onScroll={onScroll} style={{ overflow: "auto", maxHeight: 380, minHeight: 180, flexShrink: 0 }}>{/* #1183: the controls above scroll away; the table keeps its rows */}
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
                 <thead>
                   <tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>

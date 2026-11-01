@@ -31,6 +31,7 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
   const [search, setSearch] = useState("");
   const [styleNotice, setStyleNotice] = useState(null);
   const styleFileInput = useRef(null);
+  const isStructure = layerKey === "structure"; // TASKS.csv #1233 — a pick is checked by its hole and orientation, not by "to" and "extra"
   const categories = meta.numeric ? [] : distinctValues(rows);
 
   const importLayerStyle = async (file) => {
@@ -136,14 +137,15 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: "0 14px" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
-                <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}><th style={th}>{tr("from/depth")}</th><th style={th}>{tr("to")}</th><th style={th}>{tr("value")}</th><th style={th}>{tr("extra")}</th></tr></thead>
+                <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>{isStructure ? <th style={th}>{tr("Hole")}</th> : null}<th style={th}>{tr("from/depth")}</th>{isStructure ? null : <th style={th}>{tr("to")}</th>}<th style={th}>{tr("value")}</th>{isStructure ? <><th style={th}>{tr("Dip")}</th><th style={th}>{tr("Dip dir.")}</th><th style={th}>α</th><th style={th}>β</th></> : <th style={th}>{tr("extra")}</th>}</tr></thead>
                 <tbody>
                   {searched.slice(0, 400).map((r, i) => (
                     <tr key={i} style={{ borderBottom: "1px solid var(--color-hover-bg)", opacity: !meta.numeric && categoryFilter.has(String(r.value)) ? 0.35 : 1 }}>
+                      {isStructure ? <td style={td}>{r.hole_id}</td> : null}
                       <td style={td}>{(r.from ?? r.depth)?.toFixed?.(2) ?? r.from ?? r.depth}</td>
-                      <td style={td}>{r.to != null ? r.to.toFixed(2) : "—"}</td>
+                      {isStructure ? null : <td style={td}>{r.to != null ? r.to.toFixed(2) : "—"}</td>}
                       <td style={td}>{String(r.value)}</td>
-                      <td style={td}>{r.extra != null ? r.extra : "—"}</td>
+                      {isStructure ? <>{[r.dip, r.azimuth, r.alpha, r.beta].map((v, k) => <td key={k} style={td}>{v != null && v !== "" ? v : "—"}</td>)}</> : <td style={td}>{r.extra != null ? r.extra : "—"}</td>}
                     </tr>
                   ))}
                 </tbody>

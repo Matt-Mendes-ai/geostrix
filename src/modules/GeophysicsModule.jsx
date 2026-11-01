@@ -1828,6 +1828,8 @@ async function exportBlockModelVTK(model, epsg) {
 }
 // TASKS.csv #711 — what an imported volume's values can be (the units the rest of the app uses)
 const VOXEL_PROPERTIES = ["Conductivity (S/m)", "Resistivity (ohm·m)", "Chargeability (mV/V)", "Susceptibility (SI)", "Density (g/cc)", "Density contrast (g/cc)"];
+// TASKS.csv #1178 — a conductivity cutoff read "0" with 5,765 cells hidden: three significant figures, whatever the size
+export const sigFigs = (v) => (Number.isFinite(v) ? (v === 0 ? "0" : Number(v.toPrecision(3)).toLocaleString(undefined, { maximumSignificantDigits: 3 })) : "—");
 function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage, getEpsg, csvNames = "datamine", stampChoice = "auto", epsg = null }) {
   const [gtOpen, setGtOpen] = useState(false); // TASKS.csv #1052
   const [displayThreshold, setDisplayThreshold] = useState(model.threshold);
@@ -1895,9 +1897,9 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage,
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
         <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Cutoff")}</span>
         <input type="range" min={model.min} max={model.max} step={(model.max - model.min) / 100 || 0.01} value={displayThreshold} onChange={(e) => onThresholdInput(Number(e.target.value))} style={{ flex: 1 }} />
-        <span style={{ color: "var(--color-text-secondary)", width: 60, textAlign: "right", flexShrink: 0 }}>{displayThreshold.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+        <span style={{ color: "var(--color-text-secondary)", width: 60, textAlign: "right", flexShrink: 0 }}>{sigFigs(displayThreshold)}</span>
       </div>
-      <div style={{ marginTop: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Showing {visibleCount} of {cells} cell(s) (value ≥ cutoff) — range {min} to {max}", { visibleCount: visibleCount.toLocaleString(), cells: model.cells.length.toLocaleString(), min: model.min.toLocaleString(undefined, { maximumFractionDigits: 2 }), max: model.max.toLocaleString(undefined, { maximumFractionDigits: 2 }) })}
+      <div style={{ marginTop: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Showing {visibleCount} of {cells} cell(s) (value ≥ cutoff) — range {min} to {max}", { visibleCount: visibleCount.toLocaleString(), cells: model.cells.length.toLocaleString(), min: sigFigs(model.min), max: sigFigs(model.max) })}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
         <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Opacity")}</span>

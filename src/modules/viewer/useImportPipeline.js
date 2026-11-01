@@ -5,6 +5,7 @@
 // its body as the code used to run, so React's hook order (the useState / useRef / useCallback inside) and every
 // closure see exactly the same values as before. `ctx` = what the code reads from the component, listed by an
 // eslint-scope analysis; the return = what the rest of ViewerModule uses.
+import { lonLatForCollars } from "../../lib/projectCrs.js"; // TASKS.csv #1235
 import { featureCountText } from "../../lib/featureCount.js"; // TASKS.csv #1116
 import { useRef, useState, useCallback } from "react";
 import { errorNotice, notice, appendNotice } from "../../lib/notices.js"; // TASKS.csv #739 — caught errors show as errors whatever their wording
@@ -99,9 +100,10 @@ export function useImportPipeline(ctx) {
         return;
       }
       const target = forceTarget || guessTargetFor(headers, file.name); // #605: the file name as a hint
-      const mapping = guessMapping(target, headers); // #426
+      const ll = lonLatForCollars(target, guessMapping(target, headers), headers, data); // #1235
+      const mapping = ll ? ll.mapping : guessMapping(target, headers); // #426
       const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
-      setImportModal({ file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down", perRowEpsgCol, sourceEpsg: meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
+      setImportModal({ file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down", perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
     }, chosenLayer);
   };
@@ -165,9 +167,10 @@ export function useImportPipeline(ctx) {
       return;
     }
     const target = guessTargetFor(headers, sourceName); // #605
-    const mapping = guessMapping(target, headers); // #426
+    const ll = lonLatForCollars(target, guessMapping(target, headers), headers, rows); // #1235
+    const mapping = ll ? ll.mapping : guessMapping(target, headers); // #426
     const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
-    setImportModal({ fileName: sourceName, headers, rowCount: rows.length, sampleRows: rows.slice(0, 5), allRows: rows, target, mapping, dipConvention: "neg_down", perRowEpsgCol });
+    setImportModal({ fileName: sourceName, headers, rowCount: rows.length, sampleRows: rows.slice(0, 5), allRows: rows, target, mapping, dipConvention: "neg_down", perRowEpsgCol, ...(ll ? { sourceEpsg: ll.sourceEpsg } : {}) });
     setDbModalOpen(false);
   };
 
@@ -582,7 +585,8 @@ export function useImportPipeline(ctx) {
       }
       const target = guessTargetFor(headers, file.name); // #605
       const schema = TARGET_SCHEMAS[target];
-      const mapping = guessMapping(target, headers); // #426
+      const queueLl = lonLatForCollars(target, guessMapping(target, headers), headers, data); // #1235
+      const mapping = queueLl ? queueLl.mapping : guessMapping(target, headers); // #426
       const missingRequired = schema.fields.filter((f) => f.required && !mapping[f.key]).concat(schemaSatisfied(target, mapping) || !schema.oneOf ? [] : [{ key: "oneOf", label: "From / To or Depth" }]); // #605
       // TASKS.csv #335 — only commit unseen when every REQUIRED column matched a header exactly (not
       // just by substring), and — for tables with a dip — when every dip in the file is <= 0, i.e.
@@ -596,7 +600,7 @@ export function useImportPipeline(ctx) {
       // them: a queued shapefile used to be committed with no Source CRS, so its collars stayed in their own UTM
       // zone's numbers inside a project in another zone (~400 km from the same drop's reprojected map layers).
       const modalData = { file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down",
-        sourceEpsg: meta?.detectedEpsg ? String(meta.detectedEpsg) : "", perRowEpsgCol: guessColumn(headers, EPSG_COL_ALIASES) };
+        sourceEpsg: queueLl ? queueLl.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "", perRowEpsgCol: guessColumn(headers, EPSG_COL_ALIASES) };
       if (confident) {
         askCrsForCollars(modalData).then(() => { commitImportData({ ...modalData, unseen: true }); processImportQueue(); }); // #615; unseen: #715 — no dialog, so its defaults are assumptions
       } else {

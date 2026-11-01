@@ -80,6 +80,14 @@ function createLayerTables(db, layers) {
     if (hasFromTo) cols.push('"from" REAL', '"to" REAL');
     if (hasDepth) cols.push("depth REAL");
     cols.push("value TEXT", "extra REAL", "description TEXT");
+    // TASKS.csv #1270 — every other stored field as its own column, so "faults dipping over 60" can be asked. A column is numeric when all its values are.
+    const base = new Set(["hole_id", "from", "to", "depth", "value", "extra", "description"]), more = new Map();
+    for (const r of rows) for (const [k, v] of Object.entries(r)) {
+      if (base.has(k) || k.startsWith("_") || v == null || v === "" || typeof v === "object") continue;
+      more.set(k, more.get(k) === false || typeof v !== "number" ? false : true);
+    }
+    const extraCols = [...more.keys()].filter((k) => !base.has(k.toLowerCase()));
+    extraCols.forEach((k) => cols.push(`"${k.replace(/"/g, '""')}" ${more.get(k) ? "REAL" : "TEXT"}`));
     db.run(`CREATE TABLE "${tableName}" (${cols.join(", ")});`);
     const colCount = cols.length;
     const stmt = db.prepare(`INSERT INTO "${tableName}" VALUES (${Array(colCount).fill("?").join(",")})`);
@@ -88,6 +96,7 @@ function createLayerTables(db, layers) {
       if (hasFromTo) vals.push(r.from, r.to);
       if (hasDepth) vals.push(r.depth);
       vals.push(r.value != null ? String(r.value) : null, r.extra ?? null, r.description ?? null);
+      extraCols.forEach((k) => { const v = r[k]; vals.push(v == null || typeof v === "object" ? null : more.get(k) ? v : String(v)); });
       stmt.run(vals);
     });
     stmt.free();

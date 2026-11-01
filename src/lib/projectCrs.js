@@ -121,3 +121,11 @@ export function parseLatLon(text) {
   if (m[4] === "W") lon = -Math.abs(lon);
   return Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null;
 }
+
+// TASKS.csv #1235 — a collar file in longitude / latitude: X and Y stayed unmapped, and the Import button did nothing visible. As #1149 does for
+// surface samples: the columns mapped, the Source CRS WGS 84, and the usual reprojection into the project CRS. Nothing changes when X or Y matched.
+export function lonLatForCollars(target, mapping, headers, rows) {
+  if (target !== "collars" || mapping.x || mapping.y) return null;
+  const ll = lonLatColumns(headers, rows);
+  return ll ? { mapping: { ...mapping, x: ll.x, y: ll.y }, sourceEpsg: "4326" } : null;
+}
