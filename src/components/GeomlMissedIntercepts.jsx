@@ -4,14 +4,14 @@ import { saveFile, safeFileName } from "../lib/desktop.js";
 import { t as tr } from "../lib/i18n.js";
 
 // TASKS.csv #1318 — the logged intercepts a finished geoML model does not reach, by hole and depth
-const cell = { padding: "1px 6px", textAlign: "right", whiteSpace: "nowrap" };
+const cell = { padding: "1px 3px", textAlign: "right" }; // the sidebar is narrow: headers wrap, no sideways scroll
 export default function GeomlMissedIntercepts({ result, label }) {
   if (!result?.missed?.length) return null;
   return (
     <details style={{ marginTop: 4 }}>
       <summary style={{ cursor: "pointer" }}>{tr("Missed intercepts: {m} of {n}", { m: result.missed.length, n: result.logged })}</summary>
       <div style={{ maxHeight: 220, overflow: "auto", marginTop: 4 }}>
-        <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-xs)" }}>
+        <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-xs)" }}>
           <thead><tr>
             <th style={{ ...cell, textAlign: "left" }}>{tr("Hole")}</th><th style={cell}>{tr("From (m)")}</th><th style={cell}>{tr("To (m)")}</th><th style={cell}>{tr("Length (m)")}</th><th style={cell} title={tr("The highest probability of the unit anywhere in the intercept. The model shows the unit from 50%.")}>{tr("Highest %")}</th>
           </tr></thead>
