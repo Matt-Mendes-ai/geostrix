@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1f2a33">
   <title>GeoStrix — software 3D gratuito para exploração mineral</title>
   <meta name="description" content="GeoStrix é um software 3D gratuito e de código aberto para exploração mineral: furos de sondagem, geoquímica, geofísica, modelagem e planejamento de sondagem em um notebook comum, offline e sem licença para comprar.">
   <link rel="icon" type="image/png" href="/favicon.png">
@@ -21,10 +22,14 @@
   <meta property="og:image:height" content="628">
   <meta property="og:image:alt" content="Visualização 3D do GeoStrix do modelo de condutividade ZTEM de Woodjam, Colúmbia Britânica">
   <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://geostrix.com/pt-br/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="GeoStrix">
   <meta property="og:url" content="https://geostrix.com/pt-br/">
   <meta property="og:locale" content="pt_BR">
 </head>
 <body>
+  <a class="skip" href="#main">Pular para o conteúdo</a>
   <header class="site">
     <div class="wrap">
       <a class="brand" href="/pt-br/"><img src="/img/icon-128.png" alt="" width="34" height="34"><span>Geo<span class="strix">Strix</span></span></a>
@@ -46,7 +51,7 @@
     </div>
   </header>
 
-  <main>
+  <main id="main">
     <section class="hero">
       <div class="brandmark">
         <img src="/img/owl-240.webp" width="240" height="236" alt="">
@@ -60,9 +65,9 @@
           <p class="lead">Furos de sondagem, geoquímica, geofísica, modelagem e planejamento de sondagem em um só lugar — em um notebook comum, offline, sem conta e sem licença para comprar.</p>
           <a class="btn primary" data-download href="https://github.com/Matt-Mendes-ai/geostrix/releases/latest">Baixar para Windows</a>
           <a class="btn ghost" href="https://github.com/Matt-Mendes-ai/geostrix">Ver o código-fonte</a>
-          <div class="dl-note" data-version>Windows 10 / 11 (64 bits) · gratuito e de código aberto (MIT)</div>
+          <div class="dl-note" data-version>Windows 10 / 11 (64 bits) · cerca de 240 MB · gratuito e de código aberto (MIT)</div>
         </div>
-        <img class="shot" src="/img/hero-woodjam-ztem.webp" width="1268" height="758" alt="Visualização 3D do GeoStrix do projeto de exemplo Woodjam, Colúmbia Britânica: o modelo 3D de condutividade ZTEM em voxels, terreno condutor em vermelho e resistivo em azul">
+        <img class="shot" fetchpriority="high" src="/img/hero-woodjam-ztem.webp" width="1268" height="758" alt="Visualização 3D do GeoStrix do projeto de exemplo Woodjam, Colúmbia Britânica: o modelo 3D de condutividade ZTEM em voxels, terreno condutor em vermelho e resistivo em azul">
       </div>
     </section>
 
@@ -83,7 +88,7 @@
         <h2>O que ele faz</h2>
         <p class="sub">Importe arquivos CSV e Excel, shapefiles, GeoPackages, GeoTIFFs, DXF e OMF, conecte-se diretamente a um banco de dados PostgreSQL ou MySQL, ou abra um dos dois projetos de exemplo reais da Colúmbia Britânica.</p>
         <div class="features">
-          <div><h3>Furos em 3D</h3><p>Bocas de furo, medidas de desvio e todo tipo de descrição, corrigidos pelo desvio e com topografia: seções por qualquer linha ou furo, séries de seções, plantas de nível, diagramas em painel, perfis de furo e verificação de dados.</p></div>
+          <div><h3>Furos em 3D</h3><p>Bocas de furo, medidas de desvio e todo tipo de descrição, corrigidos pelo desvio e com topografia: seções por qualquer linha ou furo, séries de seções, plantas de nível, diagramas em cerca, perfis de furo e verificação de dados.</p></div>
           <div><h3>Geoquímica</h3><p>Análises, pXRF e importação de bancos de dados; diagramas de classificação e de alteração, elementos calculados, isocon, estatística, compositagem, melhores interceptos e QA/QC.</p></div>
           <div><h3>Solos e sedimentos de corrente</h3><p>Planeje malhas e pontos de amostragem com suas inserções de controle (GPX, KML, fichas de campo); limiares por populações, nivelamento de campanhas e domínios; bacias a partir da topografia com correção de diluição e ranking de drenagens; levantamentos públicos do governo para a sua área.</p></div>
           <div><h3>Geofísica</h3><p>Levantamentos pontuais, grids, modelos de voxels e OMF; inversão magnética (inclusive vetorial), gravimétrica e de resistividade DC / IP em 2D.</p></div>
@@ -148,7 +153,7 @@
     <section class="alt">
       <div class="wrap">
         <div class="notice">
-          <h3>Uma ferramenta de exploração, não um software de estimativa de recursos</h3>
+          <h2>Uma ferramenta de exploração, não um software de estimativa de recursos</h2>
           <p>As ferramentas de teor do GeoStrix usam interpolação por vizinho mais próximo, inverso da distância ou mínimos quadrados móveis, sem krigagem, classificação, diluição ou recuperação. Nada do que ele produz é um Recurso Mineral segundo o NI 43-101, o JORC ou qualquer código equivalente; a divulgação pública de tonelagem ou teor exige uma estimativa feita por uma Pessoa Qualificada.</p>
         </div>
       </div>
@@ -160,15 +165,18 @@
           <h2>Baixar</h2>
           <p>O GeoStrix é gratuito e de código aberto sob a licença MIT. O instalador inclui tudo, inclusive o motor Python usado na modelagem implícita e nas inversões. Ele se atualiza sozinho quando sai uma nova versão.</p>
           <a class="btn primary" data-download href="https://github.com/Matt-Mendes-ai/geostrix/releases/latest">Baixar para Windows</a>
-          <p class="dl-note muted" data-version>Windows 10 / 11 (64 bits)</p>
+          <p class="dl-note muted" data-version>Windows 10 / 11 (64 bits) · cerca de 240 MB</p>
           <p class="muted small" data-downloads hidden></p>
+          <p class="muted small phone-only">O GeoStrix é um aplicativo para desktop Windows: abra esta página no seu computador para instalá-lo.</p>
+          <p class="muted small">Requer Windows 10 ou 11 (64 bits) e cerca de 800 MB de espaço em disco. Roda em um notebook comum com placa de vídeo integrada e funciona offline depois de instalado.</p>
+          <p class="muted small">Sem permissão de administrador? Cada versão também tem um zip portátil (cerca de 310 MB) que roda sem instalar: baixe <code>GeoStrix-…-win.zip</code> da <a href="https://github.com/Matt-Mendes-ai/geostrix/releases/latest">versão mais recente</a>, desbloqueie (botão direito → Propriedades → Desbloquear), extraia e execute <code>GeoStrix.exe</code>. Ele avisa quando sai uma nova versão; você substitui a pasta pelo novo zip.</p>
           <p class="muted small">O aplicativo está em português do Brasil, inglês, espanhol, francês e árabe. Ele abre no idioma do seu computador, e você pode trocá-lo quando quiser na barra de status, na parte de baixo da janela.</p>
-          <p class="muted small">Todas as versões, suas somas de verificação e o código-fonte completo estão no <a href="https://github.com/Matt-Mendes-ai/geostrix/releases">GitHub</a>.</p>
+          <p class="muted small">Todas as versões, suas somas de verificação (SHA256SUMS.txt) e o código-fonte completo estão no <a href="https://github.com/Matt-Mendes-ai/geostrix/releases">GitHub</a>.</p>
           <p class="muted small"><a href="https://github.com/Matt-Mendes-ai/geostrix/blob/master/CODE_SIGNING.md">Política de assinatura de código</a> (em inglês) · <a href="/pt-br/privacy.html">Política de privacidade</a> · Para desinstalar: Configurações do Windows → Aplicativos → Aplicativos instalados → GeoStrix → Desinstalar (seus arquivos de projeto são mantidos).</p>
         </div>
         <div>
           <h3>Se o Windows mostrar um aviso</h3>
-          <p class="muted mid">O GeoStrix tem assinatura de código: o Windows mostra como editor <strong>Open Source Developer Matheus Mendes de Albuquerque</strong>. Como o certificado é novo, o Windows SmartScreen ou o seu antivírus ainda podem bloquear um instalador novo na primeira vez:</p>
+          <p class="muted mid">O GeoStrix tem assinatura de código: o Windows mostra como editor <strong>Open Source Developer Matheus Mendes de Albuquerque</strong>, o nome legal de Matt Mendes, que desenvolve o GeoStrix. Como o certificado é novo, o Windows SmartScreen ou o seu antivírus ainda podem bloquear um instalador novo na primeira vez:</p>
           <ol class="steps">
             <li>Em “O Windows protegeu o computador”, clique em <strong>Mais informações</strong> e depois em <strong>Executar assim mesmo</strong>.</li>
             <li>Se nada acontecer, o antivírus pode ter colocado o arquivo em quarentena: restaure-o da quarentena, ou clique com o botão direito nele → <strong>Propriedades</strong> → marque <strong>Desbloquear</strong>.</li>
@@ -189,6 +197,13 @@
           <p>O código está no <a href="https://github.com/Matt-Mendes-ai/geostrix">GitHub</a> sob a licença MIT: use, estude, modifique. Contribuições são bem-vindas — comece com uma issue.</p>
           <p>Os tutoriais em vídeo estão no <a href="https://www.youtube.com/@GeoStrix-AI">canal do GeoStrix no YouTube</a>, e as novidades no <a href="https://www.linkedin.com/company/geostrix/">LinkedIn</a>.</p>
         </div>
+      </div>
+    </section>
+
+    <section id="about">
+      <div class="wrap">
+        <h2>Quem faz o GeoStrix</h2>
+        <p>Matt Mendes, geólogo, fundador e desenvolvedor do GeoStrix. Matheus Mendes de Albuquerque, o nome de editor que o Windows mostra no instalador, é o seu nome legal.</p>
       </div>
     </section>
   </main>

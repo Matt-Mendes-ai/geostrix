@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1f2a33">
   <title>GeoStrix — free 3D software for mineral exploration</title>
   <meta name="description" content="GeoStrix is free, open-source 3D software for mineral exploration: drillholes, geochemistry, geophysics, modelling and drill planning on an ordinary laptop, offline, with no licence to buy.">
   <link rel="icon" type="image/png" href="favicon.png">
@@ -21,10 +22,14 @@
   <meta property="og:image:height" content="628">
   <meta property="og:image:alt" content="GeoStrix 3D view of the Woodjam ZTEM conductivity model, British Columbia">
   <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://geostrix.com/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="GeoStrix">
   <meta property="og:url" content="https://geostrix.com/">
   <meta property="og:locale" content="en_CA">
 </head>
 <body>
+  <a class="skip" href="#main">Skip to content</a>
   <header class="site">
     <div class="wrap">
       <a class="brand" href="/"><img src="img/icon-128.png" alt="" width="34" height="34"><span>Geo<span class="strix">Strix</span></span></a>
@@ -46,7 +51,7 @@
     </div>
   </header>
 
-  <main>
+  <main id="main">
     <section class="hero">
       <div class="brandmark">
         <img src="img/owl-240.webp" width="240" height="236" alt="">
@@ -60,9 +65,9 @@
           <p class="lead">Drillholes, geochemistry, geophysics, modelling and drill planning in one place — on an ordinary laptop, offline, with no account and no licence to buy.</p>
           <a class="btn primary" data-download href="https://github.com/Matt-Mendes-ai/geostrix/releases/latest">Download for Windows</a>
           <a class="btn ghost" href="https://github.com/Matt-Mendes-ai/geostrix">View the source</a>
-          <div class="dl-note" data-version>Windows 10 / 11 (64-bit) · free and open source (MIT)</div>
+          <div class="dl-note" data-version>Windows 10 / 11 (64-bit) · about 240 MB · free and open source (MIT)</div>
         </div>
-        <img class="shot" src="img/hero-woodjam-ztem.webp" width="1268" height="758" alt="GeoStrix 3D view of the Woodjam sample project, British Columbia: the 3D ZTEM conductivity model as voxels, conductive ground in red and resistive ground in blue">
+        <img class="shot" fetchpriority="high" src="img/hero-woodjam-ztem.webp" width="1268" height="758" alt="GeoStrix 3D view of the Woodjam sample project, British Columbia: the 3D ZTEM conductivity model as voxels, conductive ground in red and resistive ground in blue">
       </div>
     </section>
 
@@ -148,7 +153,7 @@
     <section class="alt">
       <div class="wrap">
         <div class="notice">
-          <h3>An exploration tool, not resource-estimation software</h3>
+          <h2>An exploration tool, not resource-estimation software</h2>
           <p>GeoStrix's grade tools use nearest-neighbour, inverse-distance or moving-least-squares interpolation, with no kriging, classification, dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101, JORC or any comparable code; public disclosure of tonnage or grade needs an estimate by a Qualified Person.</p>
         </div>
       </div>
@@ -160,15 +165,18 @@
           <h2>Download</h2>
           <p>GeoStrix is free and open source under the MIT licence. The installer includes everything, including the Python engine used for implicit modelling and inversions. It updates itself when a new version is out.</p>
           <a class="btn primary" data-download href="https://github.com/Matt-Mendes-ai/geostrix/releases/latest">Download for Windows</a>
-          <p class="dl-note muted" data-version>Windows 10 / 11 (64-bit)</p>
+          <p class="dl-note muted" data-version>Windows 10 / 11 (64-bit) · about 240 MB</p>
           <p class="muted small" data-downloads hidden></p>
+          <p class="muted small phone-only">GeoStrix is a Windows desktop app: open this page on your computer to install it.</p>
+          <p class="muted small">Needs Windows 10 or 11 (64-bit) and about 800 MB of disk space. It runs on an ordinary laptop with integrated graphics and works offline once installed.</p>
+          <p class="muted small">No administrator rights? Every release also has a portable zip (about 310 MB) that runs without installing: download <code>GeoStrix-…-win.zip</code> from the <a href="https://github.com/Matt-Mendes-ai/geostrix/releases/latest">latest release</a>, unblock it (right-click → Properties → Unblock), extract it and run <code>GeoStrix.exe</code>. It tells you when a new version is out; you replace the folder with the new zip.</p>
           <p class="muted small">The app is in English, Spanish, Brazilian Portuguese, French and Arabic. It starts in your computer's language, and you can change it at any time in the status bar at the bottom of the window.</p>
-          <p class="muted small">Every release, its checksums and the full source are on <a href="https://github.com/Matt-Mendes-ai/geostrix/releases">GitHub</a>.</p>
+          <p class="muted small">Every release, its checksums (SHA256SUMS.txt) and the full source are on <a href="https://github.com/Matt-Mendes-ai/geostrix/releases">GitHub</a>.</p>
           <p class="muted small"><a href="https://github.com/Matt-Mendes-ai/geostrix/blob/master/CODE_SIGNING.md">Code signing policy</a> · <a href="privacy.html">Privacy policy</a> · To uninstall: Windows Settings → Apps → Installed apps → GeoStrix → Uninstall (your project files are kept).</p>
         </div>
         <div>
           <h3>If Windows warns you</h3>
-          <p class="muted mid">GeoStrix is code-signed: Windows names the publisher as <strong>Open Source Developer Matheus Mendes de Albuquerque</strong>. Because the certificate is new, Windows SmartScreen or your antivirus may still hold a brand-new installer the first time:</p>
+          <p class="muted mid">GeoStrix is code-signed: Windows names the publisher as <strong>Open Source Developer Matheus Mendes de Albuquerque</strong>, the legal name of Matt Mendes, who makes GeoStrix. Because the certificate is new, Windows SmartScreen or your antivirus may still hold a brand-new installer the first time:</p>
           <ol class="steps">
             <li>On “Windows protected your PC”, click <strong>More info</strong>, then <strong>Run anyway</strong>.</li>
             <li>If nothing happens at all, your antivirus may have quarantined it: restore the file from its quarantine, or right-click it → <strong>Properties</strong> → tick <strong>Unblock</strong>.</li>
@@ -189,6 +197,13 @@
           <p>The code is on <a href="https://github.com/Matt-Mendes-ai/geostrix">GitHub</a> under the MIT licence: use it, study it, change it. Contributions are welcome — start with an issue.</p>
           <p>Video tutorials are on the <a href="https://www.youtube.com/@GeoStrix-AI">GeoStrix YouTube channel</a>, and news on <a href="https://www.linkedin.com/company/geostrix/">LinkedIn</a>.</p>
         </div>
+      </div>
+    </section>
+
+    <section id="about">
+      <div class="wrap">
+        <h2>Who makes GeoStrix</h2>
+        <p>Matt Mendes, geologist, founder and developer of GeoStrix. Matheus Mendes de Albuquerque, the publisher name Windows shows for the installer, is his legal name.</p>
       </div>
     </section>
   </main>
