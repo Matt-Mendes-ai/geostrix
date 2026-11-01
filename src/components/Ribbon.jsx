@@ -73,7 +73,7 @@ export function Ribbon({ children, show = true, label = "Tools" }) {
           <div className="ge-ribbon-items">
             <button type="button" className="ge-ribbon-btn" onClick={() => setMode("advanced")} title={t("Show every tool on this tab (Advanced mode — switch back any time from the top bar)")}>
               <span className="ge-ribbon-more-count">+{hidden}</span>
-              <span className="ge-ribbon-label">{t("more tools")}</span>
+              <span className="ge-ribbon-label">{t("Show all")}</span>{/* #1221 — it switches the mode; "more tools" read as a menu */}
             </button>
           </div>
           <div className="ge-ribbon-caption">{t("Advanced")}</div>

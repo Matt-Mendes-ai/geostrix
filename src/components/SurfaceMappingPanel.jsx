@@ -111,6 +111,11 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
           const layers = n.endsWith(".gpx") ? gpxToLayers(parseGPX(text)) : parseGeoJSON(text).layers;
           if (!layers.length) throw new Error(tr("no points, lines or polygons in this file"));
           layers.forEach((l) => addParsed({ ...l, name: layers.length > 1 ? l.name : null }, base(f), { wgs84: l.epsg === 4326 }));
+        } else if (n.endsWith(".kml") || n.endsWith(".kmz")) { // #1247
+          const { readKmlFile, kmlToMapLayers } = await import("../lib/kml.js");
+          const layers = kmlToMapLayers((await readKmlFile(f)).features);
+          if (!layers.length) throw new Error(tr("no points, lines or polygons in this file"));
+          layers.forEach((l) => addParsed({ ...l, name: layers.length > 1 ? l.name : null }, base(f), { wgs84: true }));
         } else if (n.endsWith(".gpkg")) {
           const { layers } = await parseGeoPackage(await f.arrayBuffer());
           const usable = layers.filter((l) => l.features.length);
@@ -187,7 +192,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       }
     }
     // TASKS.csv #1248 — a file no branch above takes vanished without a word
-    for (const f of files) if (!/\.(gpkg|zip|shp|shx|dbf|prj|cpg|sbn|sbx|qix|tab|map|id|dat|ind|mif|mid|gpx|geojson|json|qml)$/i.test(f.name)) failed.push(tr("{name}: not a format this importer reads (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson).", { name: f.name }));
+    for (const f of files) if (!/\.(gpkg|zip|shp|shx|dbf|prj|cpg|sbn|sbx|qix|tab|map|id|dat|ind|mif|mid|gpx|geojson|json|kml|kmz|qml)$/i.test(f.name)) failed.push(tr("{name}: not a format this importer reads (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson, .kml, .kmz).", { name: f.name }));
     if (qmlFiles.length && !files.some((f) => /\.(gpkg|zip|shp|tab|mif)$/i.test(f.name))) failed.push(tr("A .qml on its own doesn't import anything — use a layer's Style button to apply it to an existing layer."));
     setBusy(false);
     setMapMsg({ ok: !failed.length, text: [done.length ? tr("Imported {done}.", { done: done.join("; ") }) : "", failed.length ? tr("Problems: {failed}", { failed: failed.join("; ") }) : ""].filter(Boolean).join(" ") });
@@ -336,7 +341,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       <button onClick={() => mapInput.current.click()} style={pBtn} disabled={busy}>
         <MapIcon size={14} /> {busy ? tr("Importing…") : tr("Import map layer (.gpkg / .zip / .shp / MapInfo .tab / .mif / .gpx / .geojson)…")}
       </button>
-      <input ref={mapInput} type="file" accept=".gpkg,.zip,.shp,.dbf,.prj,.shx,.cpg,.qml,.tab,.map,.id,.dat,.mif,.mid,.gpx,.geojson,.json" multiple style={{ display: "none" }}
+      <input ref={mapInput} type="file" accept=".gpkg,.zip,.shp,.dbf,.prj,.shx,.cpg,.qml,.tab,.map,.id,.dat,.mif,.mid,.gpx,.geojson,.json,.kml,.kmz" multiple style={{ display: "none" }}
         onChange={(e) => { importMaps(e.target.files); e.target.value = ""; }} />
       <input ref={qmlInput} type="file" accept=".qml" style={{ display: "none" }}
         onChange={(e) => { applyQmlToLayer(e.target.files[0]); e.target.value = ""; }} />

@@ -6632,7 +6632,6 @@
   "{n} minutes ago": "قبل {n} دقيقة",
   "1 hour ago": "قبل ساعة واحدة",
   "{n} hours ago": "قبل {n} ساعة",
-  "{name}: not a format this importer reads (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson).": "{name}: لا يقرأ هذا المستورد هذه الصيغة (.gpkg و.zip و.shp و.tab و.mif و.gpx و.geojson).",
   "These values average {v} nT: that looks like the raw total field, not an anomaly. Removing the mean leaves the regional gradient in the data. Consider the best-fit plane, or remove the regional field first.": "متوسط هذه القيم {v} نانوتسلا: يبدو أنها المجال الكلي الخام لا شذوذًا. إزالة المتوسط تُبقي التدرج الإقليمي في البيانات. فكّر في المستوى الأفضل ملاءمة أو أزل المجال الإقليمي أولًا.",
   "Mixed types: this pools {n} structure types, so the figures below do not describe one population. Pick one structure type for a meaningful mean.": "أنواع مختلطة: يجمع هذا {n} أنواع من البنى، فلا تصف الأرقام أدناه مجموعة واحدة. اختر نوع بنية واحدًا للحصول على متوسط ذي معنى.",
   "The length-weighted mean of the Specific gravity layer: {n} rows, {min} to {max}. One value for every block.": "المتوسط المرجّح بالطول لطبقة الكثافة النوعية: {n} صفًا، من {min} إلى {max}. قيمة واحدة لكل الكتل.",
@@ -6652,5 +6651,6 @@
   "Managed under Maps: colours, drape and elevation.": "تُدار من الخرائط: الألوان والإسقاط والارتفاع.",
   "Lowest value shown of \"{name}\"": "أدنى قيمة معروضة لـ«{name}»",
   "Highest value shown of \"{name}\"": "أعلى قيمة معروضة لـ«{name}»",
-  "\"{col}\" has no numbers in the preview rows: {field} needs a number.": "لا يحتوي «{col}» على أرقام في صفوف المعاينة: يحتاج {field} إلى رقم."
+  "\"{col}\" has no numbers in the preview rows: {field} needs a number.": "لا يحتوي «{col}» على أرقام في صفوف المعاينة: يحتاج {field} إلى رقم.",
+  "{name}: not a format this importer reads (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson, .kml, .kmz).": "{name}: لا يقرأ هذا المستورد هذه الصيغة (.gpkg و.zip و.shp و.tab و.mif و.gpx و.geojson و.kml و.kmz)."
 }

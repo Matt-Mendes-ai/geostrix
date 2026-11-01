@@ -1,7 +1,7 @@
 // TASKS.csv #609 — builds a store-ready map layer (Map layers, #316) from a parsed vector layer. Moved out of
 // SurfaceMappingPanel.jsx so the 3D view's drop can send a line / polygon shapefile to Map layers too.
 import { CATEGORICAL_SAFE_COLORS } from "./layers.js";
-import { reprojectXY, getProj4DefSync, prjRefusal } from "./reproject.js";
+import { reprojectXY, getProj4DefSync, prjRefusal, datumNote } from "./reproject.js";
 import { autoCategories, applyQmlToCategories, guessStyleField, normalizeMapLayer } from "./mapLayers.js";
 
 // A .qml names its attribute as QGIS saw it ("lith"); the same layer exported as a shapefile comes back
@@ -28,7 +28,8 @@ export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverrid
   let crsNote;
   if (src && dst && src !== dst && getProj4DefSync(src) && getProj4DefSync(dst)) {
     transform = (x, y) => { const r = reprojectXY(x, y, src, dst); return r ? [r.x, r.y] : [x, y]; };
-    crsNote = `reprojected EPSG:${src} → EPSG:${dst}`;
+    const datum = datumNote(src); // #1244 — NAD27 and the like: how good the shift is
+    crsNote = `reprojected EPSG:${src} → EPSG:${dst}${datum ? ` ⚠ ${datum}` : ""}`;
   } else if (src && dst && src !== dst) {
     crsNote = `source EPSG:${src} could not be reprojected — assumed to already match EPSG:${dst}`;
   } else if (!src) {

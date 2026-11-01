@@ -8,7 +8,9 @@
 //      positive thickness; where the walls meet or cross a node is left out (counted), so the solid ends there, within a
 //      cell - collapsing it to zero thickness would leave top and bottom faces touching, not a valid solid;
 //   4. side walls along the boundary of those cells -> closed by construction; wound outward (signed volume > 0).
-// The volume is the mesh's own; thickness is TRUE thickness (along the pole), with min / mean / max over the nodes.
+// The volume is the mesh's own. Thickness is TRUE thickness: the separation along the pole, foreshortened by the midplane's local slope in the frame, with
+// min / mean / max over the nodes. TASKS.csv #1228 — along the one mean pole a uniform 20 m pair read 16.9-116.1 m where the sheet steepens (the volume was
+// right: a column's volume does not depend on its lean).
 // Honest limits, returned with the result: the solid ends where either wall ends (no extrapolation), and its edges are
 // stepped at the grid cell (cell size returned). Pure: no three.js.
 import { buildMeshQuery, segmentIntersections } from "./meshQuery.js";
@@ -63,7 +65,24 @@ export function veinSolidFromSurfaces(hw, fw, { cells = 100 } = {}) {
     if (!(wh[k] === wh[k] && wf[k] === wf[k])) continue;
     const t = (wh[k] - wf[k]) * up;
     if (!(t > 1e-6)) { pinched++; continue; }
-    use[k] = 1; tMin = Math.min(tMin, t); tMax = Math.max(tMax, t); tSum += t; tN++;
+    use[k] = 1;
+  }
+  // the midplane's slope at a node, from whichever neighbours it has along each axis
+  const mid = (k) => (wh[k] + wf[k]) / 2;
+  const slope = (i, j, di, dj, step) => {
+    const at = (a, b) => (a >= 0 && b >= 0 && a < nu && b < nv && use[b * nu + a] ? b * nu + a : -1);
+    const p = at(i + di, j + dj), q = at(i - di, j - dj), k = j * nu + i;
+    if (p >= 0 && q >= 0) return (mid(p) - mid(q)) / (2 * step);
+    if (p >= 0) return (mid(p) - mid(k)) / step;
+    if (q >= 0) return (mid(k) - mid(q)) / step;
+    return 0;
+  };
+  for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) {
+    const k = j * nu + i;
+    if (!use[k]) continue;
+    const gu = slope(i, j, 1, 0, du), gv = slope(i, j, 0, 1, dv);
+    const t = ((wh[k] - wf[k]) * up) / Math.sqrt(1 + gu * gu + gv * gv);
+    tMin = Math.min(tMin, t); tMax = Math.max(tMax, t); tSum += t; tN++;
   }
   const ok = (i, j) => use[j * nu + i] === 1;
   const cellIn = (i, j) => i >= 0 && j >= 0 && i < nu - 1 && j < nv - 1 && ok(i, j) && ok(i + 1, j) && ok(i, j + 1) && ok(i + 1, j + 1);

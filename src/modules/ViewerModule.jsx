@@ -7035,12 +7035,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {toolPane === "fence" && (<>
         {paneHeader("Slice series (fence sections)", Rows3, "section")}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Cuts the visible voxel model(s)/drilling into equal-width parallel sections at a fixed azimuth — each one added to the list below, ready to open individually. Includes the geophysics voxel slice automatically, same as any other section.")}</div>
-        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>{/* #1258 */}
           <label style={{ ...miniField, flex: 1 }}>{tr("Azimuth (°)")}<input type="number" min="0" max="359" step="1" value={sliceSeriesAzimuth} onChange={(e) => setSliceSeriesAzimuth(((Number(e.target.value) || 0) % 360 + 360) % 360)} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
           </label>
           <label style={{ ...miniField, flex: 1 }}>{tr("Width (m)")}<input type="number" min="1" step="10" value={sliceSeriesWidth} onChange={(e) => setSliceSeriesWidth(Math.max(1, Number(e.target.value) || 50))} style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} />
           </label>
-          <button onClick={generateSliceSeries} style={{ ...pBtn, width: "auto", flexShrink: 0, marginBottom: 0, alignSelf: "flex-end", padding: "6px 10px" }} title={tr("Generate the slice series")}><Scissors size={14} />{" "}{tr("Generate")}</button>
+          <button onClick={generateSliceSeries} style={{ ...pBtn, width: "auto", flex: "1 0 auto", marginBottom: 0, alignSelf: "flex-end", padding: "6px 10px" }} title={tr("Generate the slice series")}><Scissors size={14} />{" "}{tr("Generate")}</button>
         </div>
 
         <FenceOptions {...{ voxelModels, tracesRef, tracesSeq }} azimuth={sliceSeriesAzimuth} width={sliceSeriesWidth} cover={fenceCoverModels} setCover={setFenceCoverModels} labelStyle={miniField} />
@@ -7628,8 +7628,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           title={implicitSurfaces.length ? tr("Fill a grid of blocks with the units these surfaces bound (open surfaces are unit tops, closed ones are solids), then add the units as closed solids or as a block model") : tr("Build or import a surface first: an explicit surface, an implicit model or an imported solid.") /* TASKS.csv #863 */}
         ><Box size={14} />{" "}{tr("Solid blocks from surfaces…")}</button>
         {/* TASKS.csv #570 — explicit wireframe from outlines drawn on sections */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center" }} title={tr("Draw an \"Outline (closed, for a solid)\" with the same name on two or more cross-sections; this links them into a closed solid.")}>
-          <select value={outlineNames.some((o) => o.name === wireframeName) ? wireframeName : ""} onChange={(e) => setWireframeName(e.target.value)} disabled={!outlineNames.length} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Section outlines to link")}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8, alignItems: "center" }} title={tr("Draw an \"Outline (closed, for a solid)\" with the same name on two or more cross-sections; this links them into a closed solid.")}>
+          <select value={outlineNames.some((o) => o.name === wireframeName) ? wireframeName : ""} onChange={(e) => setWireframeName(e.target.value)} disabled={!outlineNames.length} style={{ ...smallSel, flex: "1 0 100%", minWidth: 0 }} aria-label={tr("Section outlines to link")}>
             <option value="">{outlineNames.length ? tr("Section outlines…") : tr("No section outlines yet")}</option>
             {outlineNames.map((o) => <option key={o.name} value={o.name}>{o.plans ? tr("{name} ({n} level plans)", { name: o.name, n: o.sections }) : tr("{name} ({n} sections)", { name: o.name, n: o.sections })}</option>)}
           </select>
@@ -7642,7 +7642,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <div style={{ display: "flex", gap: 6, marginBottom: 8, alignItems: "center", flexWrap: "wrap" }} title={tr("A vein or dyke as a closed solid between its hangingwall and footwall surfaces (any dip, vertical included), with its true thickness")}>
           <span style={{ fontSize: "var(--font-size-xs)", width: "100%" }}>{tr("Vein solid from two surfaces")}</span>
           {[[veinHw, setVeinHw, "Hangingwall…"], [veinFw, setVeinFw, "Footwall…"]].map(([v, set, ph]) => (
-            <select key={ph} value={implicitSurfaces.some((x) => x.id === v) ? v : ""} onChange={(e) => set(e.target.value)} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr(ph)}>
+            <select key={ph} value={implicitSurfaces.some((x) => x.id === v) ? v : ""} onChange={(e) => set(e.target.value)} style={{ ...smallSel, flex: "1 0 40%", minWidth: 0 }} aria-label={tr(ph)}>
               <option value="">{tr(ph)}</option>
               {implicitSurfaces.filter((x) => !SOLID_SURFACE_TYPES.has(x.type) || x.type === "imported").map((x) => <option key={x.id} value={x.id}>{surfaceLabels.get(x.id) ?? x.name}</option>)}{/* imported: a wall from another package */}
             </select>
@@ -8261,7 +8261,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           />
         )}
         <div style={{ position: "absolute", top: 178, right: 12, display: "flex", flexDirection: "column", gap: 6 }}>{/* #1300 — 8 px below the compass card */}
-          <button onClick={() => { camState.current.phi = 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Top")}</button>
+          <button onClick={() => { camState.current.theta = 0; camState.current.phi = 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Top")}</button>{/* #1200 — north up, as a map */}
           <button onClick={() => { camState.current.phi = Math.PI - 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Bottom")}</button>
           <button onClick={() => zoomToFitAll()} style={miniBtn} title={tr("Zoom to fit all (also: right-click the view)")} aria-label={tr("Zoom to fit all")}>{tr("Fit")}</button>{/* #567 — the keyboard / visible path the notices pointed to */}
         </div>

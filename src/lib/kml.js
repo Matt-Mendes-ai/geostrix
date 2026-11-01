@@ -45,7 +45,9 @@ export function parseKML(text) {
   let skipped = 0, badTuples = 0; // #705
   const pmRe = new RegExp(`<${tag("Placemark")}\\b[^>]*>([\\s\\S]*?)</${tag("Placemark")}>`, "gi");
   let m;
+  let nPlacemark = 0;
   while ((m = pmRe.exec(src))) {
+    nPlacemark++;
     const body = m[1];
     const name = firstText(body, "name");
     const description = firstText(body, "description").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
@@ -63,7 +65,7 @@ export function parseKML(text) {
       badTuples += bad;
       if (!coords.length) continue;
       found++;
-      features.push({ name, description, attrs, geomType: kind === "Point" ? "point" : kind === "LinearRing" ? "polygon" : "line", coords });
+      features.push({ name, description, attrs, placemark: nPlacemark, geomType: kind === "Point" ? "point" : kind === "LinearRing" ? "polygon" : "line", coords });
     }
     if (!found) skipped++;
   }
@@ -83,6 +85,22 @@ export async function readKmlFile(file) {
   const name = file.name.toLowerCase();
   if (name.endsWith(".kmz")) return parseKMZ(new Uint8Array(await file.arrayBuffer()));
   return parseKML(await file.text());
+}
+
+// TASKS.csv #1247 — a drawn map or a showings list from Google Earth as map layers, one per geometry kind, in longitude / latitude like GPX and GeoJSON (#1106).
+// A placemark's rings stay one feature: its inner boundaries are holes, not polygons of their own. MultiGeometry lines and points of one placemark stay separate features.
+export function kmlToMapLayers(features) {
+  const attributes = (f) => ({ ...(f.name ? { name: f.name } : {}), ...(f.description ? { description: f.description } : {}), ...f.attrs });
+  const xy = (c) => c.map(([lon, lat]) => [lon, lat]);
+  const by = { point: [], polyline: [], polygon: [] }, rings = new Map();
+  for (const f of features) {
+    if (f.geomType === "point") by.point.push({ parts: [xy(f.coords)], attributes: attributes(f) });
+    else if (f.geomType === "line") by.polyline.push({ parts: [xy(f.coords)], attributes: attributes(f) });
+    else if (rings.has(f.placemark)) rings.get(f.placemark).parts.push(xy(f.coords));
+    else { const p = { parts: [xy(f.coords)], attributes: attributes(f) }; rings.set(f.placemark, p); by.polygon.push(p); }
+  }
+  const names = { point: "points", polyline: "lines", polygon: "polygons" };
+  return Object.keys(by).filter((k) => by[k].length).map((k) => ({ name: names[k], geomType: k, epsg: 4326, features: by[k] }));
 }
 
 // Lines/rings as {x, y, z?} polylines in the project CRS (for boundaries and claims). Returns null

@@ -6632,7 +6632,6 @@
   "{n} minutes ago": "il y a {n} minutes",
   "1 hour ago": "il y a 1 heure",
   "{n} hours ago": "il y a {n} heures",
-  "{name}: not a format this importer reads (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson).": "{name} : cet importateur ne lit pas ce format (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson).",
   "These values average {v} nT: that looks like the raw total field, not an anomaly. Removing the mean leaves the regional gradient in the data. Consider the best-fit plane, or remove the regional field first.": "Ces valeurs ont une moyenne de {v} nT : cela ressemble au champ total brut, pas à une anomalie. Retirer la moyenne laisse le gradient régional dans les données. Envisagez le plan le mieux ajusté, ou retirez d'abord le champ régional.",
   "Mixed types: this pools {n} structure types, so the figures below do not describe one population. Pick one structure type for a meaningful mean.": "Types mélangés : ceci regroupe {n} types de structure, les chiffres ci-dessous ne décrivent donc pas une seule population. Choisissez un type de structure pour une moyenne qui ait un sens.",
   "The length-weighted mean of the Specific gravity layer: {n} rows, {min} to {max}. One value for every block.": "La moyenne pondérée par la longueur de la couche de densité : {n} lignes, de {min} à {max}. Une seule valeur pour tous les blocs.",
@@ -6652,5 +6651,6 @@
   "Managed under Maps: colours, drape and elevation.": "Géré sous Cartes : couleurs, drapé et élévation.",
   "Lowest value shown of \"{name}\"": "Valeur la plus basse affichée de « {name} »",
   "Highest value shown of \"{name}\"": "Valeur la plus haute affichée de « {name} »",
-  "\"{col}\" has no numbers in the preview rows: {field} needs a number.": "« {col} » n'a aucun nombre dans les lignes d'aperçu : {field} exige un nombre."
+  "\"{col}\" has no numbers in the preview rows: {field} needs a number.": "« {col} » n'a aucun nombre dans les lignes d'aperçu : {field} exige un nombre.",
+  "{name}: not a format this importer reads (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson, .kml, .kmz).": "{name} : cet importateur ne lit pas ce format (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson, .kml, .kmz)."
 }
