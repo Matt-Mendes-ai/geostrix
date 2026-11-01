@@ -6636,5 +6636,14 @@
   "These values average {v} nT: that looks like the raw total field, not an anomaly. Removing the mean leaves the regional gradient in the data. Consider the best-fit plane, or remove the regional field first.": "متوسط هذه القيم {v} نانوتسلا: يبدو أنها المجال الكلي الخام لا شذوذًا. إزالة المتوسط تُبقي التدرج الإقليمي في البيانات. فكّر في المستوى الأفضل ملاءمة أو أزل المجال الإقليمي أولًا.",
   "Mixed types: this pools {n} structure types, so the figures below do not describe one population. Pick one structure type for a meaningful mean.": "أنواع مختلطة: يجمع هذا {n} أنواع من البنى، فلا تصف الأرقام أدناه مجموعة واحدة. اختر نوع بنية واحدًا للحصول على متوسط ذي معنى.",
   "The length-weighted mean of the Specific gravity layer: {n} rows, {min} to {max}. One value for every block.": "المتوسط المرجّح بالطول لطبقة الكثافة النوعية: {n} صفًا، من {min} إلى {max}. قيمة واحدة لكل الكتل.",
-  "Use the SG layer's mean ({v})": "استخدام متوسط طبقة الكثافة النوعية ({v})"
+  "Use the SG layer's mean ({v})": "استخدام متوسط طبقة الكثافة النوعية ({v})",
+  "Ramp": "التدرج",
+  "Colour ramp of \"{name}\"": "تدرج ألوان «{name}»",
+  "Stretch": "التمديد",
+  "Colour stretch of \"{name}\"": "تمديد ألوان «{name}»",
+  "Typed range": "نطاق مكتوب",
+  "Lowest value of the ramp": "أدنى قيمة في التدرج",
+  "Highest value of the ramp": "أعلى قيمة في التدرج",
+  "equalized: colour does not scale with value": "مُعادَل: لا يتناسب اللون مع القيمة",
+  "Drawn from the kept values, where every {n} × {n} pixels were averaged, so this image is coarser than the imported one.": "رُسمت من القيم المحفوظة، حيث جرى حساب متوسط كل {n} × {n} بكسل، لذا فهذه الصورة أخشن من المستوردة."
 }

@@ -77,6 +77,10 @@ export function scaleLegendGroup(key, label, model, lo, hi) {
   const L = legendScale(model, lo, hi, fmtLegendValue);
   return L.kind === "classes" ? { key, label, items: L.items } : { key, label, items: [], ramp: L };
 }
+// TASKS.csv #1236 — a raster whose value range is known, as its ramp
+export function rasterLegendGroups(rasters) {
+  return (rasters || []).filter((r) => r.visible !== false && r.colourStops?.length > 1 && r.colourRange).map((r) => scaleLegendGroup(`raster_${r.id}`, r.colourStyle?.stretch === "equalise" ? `${r.name} (equalized)` : r.name, { colorMode: "continuous", stops: r.colourStops }, r.colourRange[0], r.colourRange[1]));
+}
 export function voxelLegendGroups(voxelModels) {
   const groups = [];
   (voxelModels || []).forEach((m) => {

@@ -8,7 +8,7 @@ import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
 import { useStore } from "../lib/store.jsx";
 import PromptModal from "../components/PromptModal.jsx";
 import { minMax, LAYER_META } from "../lib/layers.js";
-import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape } from "../lib/legendGroups.js"; // TASKS.csv #725; #948
+import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape } from "../lib/legendGroups.js"; // TASKS.csv #725; #948
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
 import { withLiveScaleBars, relinkCopies } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924
 import { capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; section scale: #944
@@ -798,7 +798,7 @@ export default function LayoutModule() {
     const groups = [
       ...categoryLegendGroups({ keys: LEGEND_CATEGORY_KEYS, layers, layerVisible, hidden: theme.categoryFilter || {}, visibleHoles: theme.visibleHoles || {}, labelFor, colorFor }),
       ...assayLegendGroups({ assays, assayElements, assayVisible: theme.assayVisible !== false, assayDisplayElements: theme.assayDisplayElements || (theme.assayDisplayElement ? [theme.assayDisplayElement] : []), assayStyle: theme.assayStyle || {} }),
-      ...voxelLegendGroups(voxelModels),
+      ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), // #1236
       // TASKS.csv #948 — the Surface Geology map: surface samples as the 3D view colours them, map layers, boundaries
       ...(surfaceSampleLegend ? [surfaceSampleLegend] : []), ...mapLayerLegendGroups(mapLayers), ...boundaryLegendGroups(boundaries),
     ];

@@ -23,6 +23,7 @@ import { arrMin, arrMax, percentileSorted } from "./arrayStats.js"; // TASKS.csv
 import { fillNoData, noDataNote } from "./demFill.js"; // TASKS.csv #421
 import { VIRIDIS_ANCHORS } from "./layers.js"; // TASKS.csv #740
 import { makeStretch } from "./idw.js"; // TASKS.csv #708 — the same 2-98 % stretch as IDW grids
+import { rasterStops, DEFAULT_RASTER_STYLE } from "./rasterColour.js"; // TASKS.csv #1236
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { b64ToBytes } from "./base64.js"; // TASKS.csv #1114
 
@@ -722,7 +723,10 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
   msg += crsNote;
   if (parsed.note) msg += parsed.note;
   msg += gridNote;
-  return { raster: { name: parsed.name, bbox, dataUrl, elevation: defaultElevation, ...(grid ? { grid } : {}) }, msg };
+  // #1236 — what the import above drew: 2-98 % of the values, viridis
+  let colour = {};
+  if (grid && parsed.grid) { const st = makeStretch(parsed.grid.values, "p2-98"); if (st.lo != null) colour = { colourRange: [st.lo, st.hi], colourStops: rasterStops(DEFAULT_RASTER_STYLE, st.lo, st.hi) }; }
+  return { raster: { name: parsed.name, bbox, dataUrl, elevation: defaultElevation, ...(grid ? { grid } : {}), ...colour }, msg };
 }
 
 // TASKS.csv #203 — "We need options to export the generated SRTM, at least to geotiff." Once a
@@ -859,7 +863,7 @@ export function rasterFromGrid({ name, values, nx, ny, x0, yTop, dx, dy, elevati
   return {
     name, bbox, dataUrl: canvas.toDataURL("image/png"), elevation,
     grid: { nx, ny, x0, yTop, dx, dy, values: f32ToB64(Float32Array.from(values)), valid: finite.length, averagedBy, sourceSize: sourceSize || [nx, ny] },
-    colourRange: [lo, hi], ...extra,
+    colourRange: [lo, hi], colourStops: rasterStops(DEFAULT_RASTER_STYLE, lo, hi), ...extra,
   };
 }
 

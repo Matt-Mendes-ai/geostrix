@@ -85,7 +85,7 @@ import { toExportCsv, crsCell } from "../lib/tabular.js"; // TASKS.csv #1022 —
 const FenceDiagramModal = lazyModal(() => import("../components/FenceDiagramModal.jsx")); // TASKS.csv #139  // TASKS.csv #301
 const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrientationCalculator.jsx"));  // TASKS.csv #301
 import { codesInUse, connectIntervals, effectiveCode, codeInfo } from "../lib/modellingCodes.js"; // TASKS.csv #599
-import { ASSAY_ELEMENT_COLORS, assayColorFor, categoryLegendGroups, assayLegendGroups, voxelLegendGroups, scaleLegendGroup, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, surfaceSampleLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; map / boundary / samples: #948
+import { ASSAY_ELEMENT_COLORS, assayColorFor, categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, scaleLegendGroup, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, surfaceSampleLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; map / boundary / samples: #948
 // TASKS.csv #843 — the anomaly map (lib/anomalyMap.js + lib/thresholds.js) and its controls load only when used: off the startup bundle
 const SurfaceAnomalyControls = React.lazy(() => import("../components/SurfaceAnomalyControls.jsx"));
 const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverlayPane.jsx"));
@@ -1834,7 +1834,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const groups = [
       ...categoryLegendGroups({ keys: CATEGORY_LAYER_KEYS, layers, layerVisible, hidden: categoryFilter, visibleHoles, singleColor, labelFor: effectiveLabel, colorFor: effectiveColor }),
       ...assayLegendGroups({ assays, assayElements, assayVisible, assayDisplayElements, assayStyle }),
-      ...voxelLegendGroups(voxelModels),
+      ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), // #1236
     ];
     // TASKS.csv #843 / #948 — the surface samples as the view colours them (the anomaly map's rule and classes, one colour,
     // or by medium), then the Surface Geology map layers and the boundaries
@@ -1854,7 +1854,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       }
     }
     return groups;
-  }, [sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax]);
+  }, [rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax]);
 
   // TASKS.csv #453 — build the clipping planes from the slice settings over the drilled extent (hole
   // traces; the terrain bbox when there is no drilling). Vertical: across the azimuth line, position along

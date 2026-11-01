@@ -41,7 +41,7 @@ export function syncRasterDrapes(group, cache, rasters, { origin, terrain, rende
     // Rebuild geometry when the drape MODE changes (flat <-> terrain) or the terrain surface itself
     // changes (a re-imported/updated terrain would otherwise leave a stale drape shape) — everything
     // else (opacity, elevation for flat mode) is a cheap in-place update on the existing mesh.
-    const geoKey = drapeOnTerrain ? `terrain:${terrain.id}` : "flat";
+    const geoKey = `${drapeOnTerrain ? `terrain:${terrain.id}` : "flat"}${r.colourStyle ? JSON.stringify(r.colourStyle) : ""}`; // #1236 — a new style is a new texture
     let mesh = cache[r.id];
     if (mesh && mesh.userData.geoKey !== geoKey) {
       // Dispose geometry AND material/texture here — the `!mesh` branch below always builds a fresh

@@ -6636,5 +6636,14 @@
   "These values average {v} nT: that looks like the raw total field, not an anomaly. Removing the mean leaves the regional gradient in the data. Consider the best-fit plane, or remove the regional field first.": "Ces valeurs ont une moyenne de {v} nT : cela ressemble au champ total brut, pas à une anomalie. Retirer la moyenne laisse le gradient régional dans les données. Envisagez le plan le mieux ajusté, ou retirez d'abord le champ régional.",
   "Mixed types: this pools {n} structure types, so the figures below do not describe one population. Pick one structure type for a meaningful mean.": "Types mélangés : ceci regroupe {n} types de structure, les chiffres ci-dessous ne décrivent donc pas une seule population. Choisissez un type de structure pour une moyenne qui ait un sens.",
   "The length-weighted mean of the Specific gravity layer: {n} rows, {min} to {max}. One value for every block.": "La moyenne pondérée par la longueur de la couche de densité : {n} lignes, de {min} à {max}. Une seule valeur pour tous les blocs.",
-  "Use the SG layer's mean ({v})": "Utiliser la moyenne de la couche de densité ({v})"
+  "Use the SG layer's mean ({v})": "Utiliser la moyenne de la couche de densité ({v})",
+  "Ramp": "Rampe",
+  "Colour ramp of \"{name}\"": "Rampe de couleurs de « {name} »",
+  "Stretch": "Étirement",
+  "Colour stretch of \"{name}\"": "Étirement des couleurs de « {name} »",
+  "Typed range": "Plage saisie",
+  "Lowest value of the ramp": "Valeur la plus basse de la rampe",
+  "Highest value of the ramp": "Valeur la plus haute de la rampe",
+  "equalized: colour does not scale with value": "égalisé : la couleur ne suit pas la valeur",
+  "Drawn from the kept values, where every {n} × {n} pixels were averaged, so this image is coarser than the imported one.": "Dessiné à partir des valeurs conservées, où chaque {n} × {n} pixels ont été moyennés : cette image est donc plus grossière que celle importée."
 }
