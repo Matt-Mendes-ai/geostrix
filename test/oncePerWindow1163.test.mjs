@@ -23,4 +23,6 @@ test("#1163 App.jsx runs its recovery check through oncePerWindow, and settles i
   assert.match(src, /const recoveryCheck = oncePerWindow\(/);
   assert.ok(!/useEffect\(\(\) => \{\s*let cancelled = false;\s*checkAutosave\(\)/.test(src), "no direct checkAutosave() in a mount effect");
   assert.ok((src.match(/recoveryCheck\.settle\(null\)/g) || []).length >= 3, "restore, discard and dismiss");
+  assert.match(src, /const uncleanExitCheck = oncePerWindow\(/, "the unclean-exit banner too: dismissed stays dismissed across a language change");
+  assert.ok((src.match(/uncleanExitCheck\.settle\(null\)/g) || []).length >= 1);
 });

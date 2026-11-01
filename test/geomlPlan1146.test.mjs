@@ -1,7 +1,7 @@
 // TASKS.csv #1146 — a geoML run sized before it is sent: small projects untouched, large ones focused on the unit, then coarsened.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { planDomain, planGrade, trainSeconds, roughTime, POINT_BUDGET, INDUCING_BUDGET, COMPOSITE_BUDGET } from "../src/lib/geomlPlan.js";
+import { planDomain, planGrade, trainSeconds, roughTime, holeRuns, pointsAtSpacing, INDUCING_CAP, POINT_BUDGET, INDUCING_BUDGET, COMPOSITE_BUDGET } from "../src/lib/geomlPlan.js";
 
 const FAST = { trainSpacing: 10, inducingSpacing: 80, iterations: 150 };
 
@@ -78,4 +78,36 @@ test("#1146 grade: composites lengthen only when over budget", () => {
   assert.equal(many.wanted.composites, 40000);
   assert.equal(many.composite, 25);
   assert.ok(many.composites <= COMPOSITE_BUDGET);
+});
+
+// TASKS.csv #1158 — every contact and short run adds a point at any spacing: what the plan used to miss
+test("#1158 runs and contacts: adjacent other rock merges, thin runs still count, a run of unit in other rock is two contacts", () => {
+  const iv = [
+    { hole_id: "A", from: 0, to: 100, value: "R1" }, { hole_id: "A", from: 100, to: 200, value: "R2" }, { hole_id: "A", from: 200, to: 201, value: "U" }, { hole_id: "A", from: 201, to: 400, value: "R1" },
+    { hole_id: "B", from: 0, to: 50, value: "R1" },
+  ];
+  const r = holeRuns(iv, new Set(["U"]));
+  assert.equal(r.contacts, 2);
+  assert.deepEqual(r.lengths.sort((a, b) => a - b), [1, 50, 199, 200]);
+  assert.equal(pointsAtSpacing(r, 100), 2 + 1 + 1 + 2 + 2, "two contacts, a point for each short run");
+  assert.equal(holeRuns([{ hole_id: "A", from: 9, to: 10, value: "U" }, { hole_id: "A", from: 0, to: 9, value: "R" }], new Set(["U"])).contacts, 1, "sorted by depth first");
+});
+
+test("#1158 a unit of many thin runs is seen for what it builds, and capped; a clean unit is not", () => {
+  const collars = [], intervals = [];
+  for (let i = 0; i < 300; i++) {
+    collars.push({ hole_id: `H${i}`, x: i * 50, y: 0 });
+    for (let d = 0; d < 800; d += 40) intervals.push({ hole_id: `H${i}`, from: d, to: d + 40, value: d % 80 ? "U" : "R" });
+  }
+  const p = planDomain({ collars, intervals, targets: new Set(["U"]), ...FAST });
+  assert.ok(p.factor > 1, "the metres alone are over budget");
+  assert.ok(p.contacts > 5000, String(p.contacts));
+  assert.ok(p.inducingBuilt > 5000, "the spacing cannot bring this down: the old plan called it 500");
+  assert.equal(p.capped, true);
+  assert.equal(p.inducing, INDUCING_CAP);
+  assert.ok(p.points > POINT_BUDGET, "the real count, not the budget");
+  assert.ok(p.secondsNoCap > 20 * p.seconds);
+  const clean = planDomain({ ...project(20, { withUnit: 3 }), targets: new Set(["U"]), ...FAST });
+  assert.equal(clean.capped, false);
+  assert.equal(clean.contacts, 0);
 });

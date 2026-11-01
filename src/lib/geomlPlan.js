@@ -12,6 +12,13 @@ export const POINT_BUDGET = 4000;     // training points: 2.7 x Harry
 export const INDUCING_BUDGET = 500;   // inducing points: 1.2 x Harry; together ~1 s per iteration
 export const COMPOSITE_BUDGET = 8000; // composites at the 200-500 inducing points of the quality settings
 export const FOCUS_M = 1000;          // 2.5 x the 400 m range training starts from
+// TASKS.csv #1158 — the add-on (0.1.3+) keeps this many of the inducing points geoML built along the holes when the unit's contacts
+// would build more. Measured on Treaty Creek (Fast): PS_DK 1,779 uncapped 30 min, 4.25 GB, 39 % of logged in-unit points inside;
+// thinned to 800: 5 min, 2.4 GB, 21 %; k-means instead predicted the unit nowhere. V4 thinned to 800: 7.8 min, 3.4 GB, 0 % (a poor
+// model, which the run's fit check now says); V4 uncapped (about 5,970) past 5 GB on its first iterations.
+export const INDUCING_CAP = 800;
+// Above this an add-on with no cap is refused: it would fill the memory of the computer it runs on
+export const INDUCING_LIMIT_NO_CAP = 2500;
 
 // A rough guide to training only, on the i7 the measurements came from
 export const trainSeconds = (points, inducing, iterations) => iterations * 0.27 * (points / 1461) * (inducing / 407) ** 2;
@@ -20,6 +27,29 @@ export const gradeSeconds = (composites, inducing, iterations) => (100 * (compos
 
 const metresOf = (intervals) => { let m = 0; for (const r of intervals) m += Math.max(0, r.to - r.from); return m; };
 const near = (a, b, d) => Number.isFinite(a.x) && Number.isFinite(b.x) && Math.hypot(a.x - b.x, a.y - b.y) <= d;
+
+// TASKS.csv #1158 — what the add-on really builds: geoML merges each hole into runs of unit / not unit, drops points along each
+// run at the spacing (at least one per run) and adds one point per contact, so a unit with many thin runs has many points at
+// any spacing. Metres / spacing said 500 inducing points for Treaty Creek V4; it builds about 5,970. Checked against measured
+// runs: PS_POR 3,215 and 530 points (this gives 3,263 and 560), V4 7,976 (8,391).
+export function holeRuns(intervals, targets) {
+  const by = new Map();
+  for (const r of intervals) { const k = String(r.hole_id); (by.get(k) || by.set(k, []).get(k)).push(r); }
+  const lengths = [];
+  let contacts = 0;
+  for (const list of by.values()) {
+    list.sort((a, b) => a.from - b.from);
+    let cls = null, start = 0, end = 0;
+    for (const r of list) {
+      const c = targets.has(String(r.value));
+      if (c !== cls) { if (cls !== null) { lengths.push(end - start); contacts++; } cls = c; start = r.from; }
+      end = r.to;
+    }
+    if (cls !== null) lengths.push(end - start);
+  }
+  return { lengths, contacts };
+}
+export const pointsAtSpacing = ({ lengths, contacts }, spacing) => lengths.reduce((n, m) => n + Math.max(1, Math.round(m / spacing)), contacts);
 
 // intervals: [{ hole_id, from, to, value }]; targets / exclude: code sets; trainSpacing, inducingSpacing, iterations from the
 // quality setting. -> { holeIds (Set, or null = every hole), nHoles, totalHoles, focused, factor, trainSpacing, inducingSpacing,
@@ -40,11 +70,16 @@ export function planDomain({ collars, intervals, targets, exclude = new Set(), t
     }
   }
   const factor = over(s) ? Math.max(s.points / POINT_BUDGET, s.inducing / INDUCING_BUDGET) : 1;
-  const points = s.points / factor, inducing = s.inducing / factor;
+  // TASKS.csv #1158 — the spacing is sized on the metres (as #1146), the estimate counts what will really be built. A collar-less
+  // hole's intervals are dropped by the add-on, so they are not counted.
+  const known = new Set(collars.map((c) => String(c.hole_id)));
+  const runs = holeRuns(list.filter((r) => known.has(String(r.hole_id))), targets);
+  const points = pointsAtSpacing(runs, trainSpacing * factor), built = pointsAtSpacing(runs, inducingSpacing * factor), inducing = Math.min(built, INDUCING_CAP);
   return {
     holeIds, focused: !!holeIds, nHoles: holeIds ? holeIds.size : collars.length, totalHoles: collars.length, focusM, factor,
     trainSpacing: +(trainSpacing * factor).toFixed(1), inducingSpacing: +(inducingSpacing * factor).toFixed(1),
-    points: Math.round(points), inducing: Math.round(inducing), seconds: trainSeconds(points, inducing, iterations), wanted,
+    contacts: runs.contacts, inducingBuilt: built, capped: built > INDUCING_CAP,
+    points, inducing, seconds: trainSeconds(points, inducing, iterations), secondsNoCap: trainSeconds(points, built, iterations), wanted,
   };
 }
 

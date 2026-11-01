@@ -6531,7 +6531,6 @@
   "The area holds {n} samples of this layer (over {max}): draw a smaller one.": "تحتوي المنطقة على {n} عينة من هذه الطبقة (أكثر من {max}): ارسم منطقة أصغر.",
   "The service answered with an error page.": "ردّت الخدمة بصفحة خطأ.",
   "This unit has {c} contacts, which needs {n} inducing points: more than this version of the add-on ({v}) can hold in memory. Merge thin codes into the unit, or choose fewer holes, or update the add-on when a newer version is available.": "تحتوي هذه الوحدة على {c} تماسًا، ما يتطلب {n} نقطة استقراء: أكثر مما يمكن لهذا الإصدار من الإضافة ({v}) الاحتفاظ به في الذاكرة. ادمج الرموز الرقيقة في الوحدة، أو اختر ثقوبًا أقل، أو حدّث الإضافة عند توفر إصدار أحدث.",
-  "{c} contacts would need {n} inducing points; {cap} are placed where the data are, and every contact stays in the training.": "يتطلب {c} تماسًا {n} نقطة استقراء؛ تُوضع {cap} منها حيث توجد البيانات، ويبقى كل تماس ضمن التدريب.",
   "feed the estimator by itself: the Estimation tool's ordinary kriging takes its own nugget, sill and range (type the ones you read here, or leave them blank to fit at run time), and nearest-neighbour / inverse-distance use none. Fitting a model here does not change any estimate you have run.": "لا يغذّي المقدّر بذاته: يأخذ الكريجينغ العادي في أداة التقدير قيم النَغِت والسقف والمدى الخاصة به (اكتب ما تقرؤه هنا، أو اتركها فارغة لضبطها عند التشغيل)، ولا يستخدم أقرب جار / معكوس المسافة أيًا منها. ضبط نموذج هنا لا يغيّر أي تقدير نفّذته.",
   "Dip azimuth°": "سمت الميل°",
   "Pitch°": "الانحدار°",
@@ -6540,5 +6539,8 @@
   "Enter the host (the server's name or address).": "أدخل المضيف (اسم الخادم أو عنوانه).",
   "Enter the port (1-65535).": "أدخل المنفذ (1-65535).",
   "Enter the database name.": "أدخل اسم قاعدة البيانات.",
-  "Enter the user name.": "أدخل اسم المستخدم."
+  "Enter the user name.": "أدخل اسم المستخدم.",
+  "{c} contacts would need {n} inducing points. An up-to-date add-on keeps {cap} of them along the holes, and every contact stays in the training, so the model will be coarse; check its fit to the logs when it finishes.": "يتطلب {c} تماسًا {n} نقطة استقراء. تحتفظ الإضافة المحدَّثة بـ {cap} منها على طول الثقوب، ويبقى كل تماس ضمن التدريب، لذا سيكون النموذج خشنًا؛ تحقق من مطابقته للسجلات عند الانتهاء.",
+  "Fit to the logs: {a}% of the points logged in the unit come out inside it, {b}% of the others outside.": "المطابقة مع السجلات: {a}% من النقاط المسجلة في الوحدة تقع داخلها، و{b}% من غيرها تقع خارجها.",
+  "That is weak: the surface and blocks do not reproduce this unit where it was logged. A higher quality, a narrower set of holes or a merged code may do better.": "هذا ضعيف: لا يعيد السطح والكتل إنتاج هذه الوحدة حيث سُجلت. قد تكون جودة أعلى أو ثقوب أقل أو رمز مدمج أفضل."
 }

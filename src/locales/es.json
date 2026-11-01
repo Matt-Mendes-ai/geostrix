@@ -6531,7 +6531,6 @@
   "The area holds {n} samples of this layer (over {max}): draw a smaller one.": "El área contiene {n} muestras de esta capa (más de {max}): dibuja una más pequeña.",
   "The service answered with an error page.": "El servicio respondió con una página de error.",
   "This unit has {c} contacts, which needs {n} inducing points: more than this version of the add-on ({v}) can hold in memory. Merge thin codes into the unit, or choose fewer holes, or update the add-on when a newer version is available.": "Esta unidad tiene {c} contactos, lo que requiere {n} puntos inductores: más de lo que esta versión del complemento ({v}) puede mantener en memoria. Fusiona los códigos delgados en la unidad, elige menos sondajes o actualiza el complemento cuando haya una versión nueva.",
-  "{c} contacts would need {n} inducing points; {cap} are placed where the data are, and every contact stays in the training.": "{c} contactos necesitarían {n} puntos inductores; se colocan {cap} donde están los datos, y cada contacto se mantiene en el entrenamiento.",
   "feed the estimator by itself: the Estimation tool's ordinary kriging takes its own nugget, sill and range (type the ones you read here, or leave them blank to fit at run time), and nearest-neighbour / inverse-distance use none. Fitting a model here does not change any estimate you have run.": "alimenta el estimador por sí solo: el krigeado ordinario de la herramienta de Estimación toma su propio efecto pepita, meseta y alcance (escribe los que leas aquí, o déjalos en blanco para ajustarlos al ejecutar), y el vecino más cercano / inverso de la distancia no usan ninguno. Ajustar un modelo aquí no cambia ninguna estimación que ya hayas ejecutado.",
   "Dip azimuth°": "Azimut de manteo°",
   "Pitch°": "Cabeceo°",
@@ -6540,5 +6539,8 @@
   "Enter the host (the server's name or address).": "Escribe el host (el nombre o la dirección del servidor).",
   "Enter the port (1-65535).": "Escribe el puerto (1-65535).",
   "Enter the database name.": "Escribe el nombre de la base de datos.",
-  "Enter the user name.": "Escribe el nombre de usuario."
+  "Enter the user name.": "Escribe el nombre de usuario.",
+  "{c} contacts would need {n} inducing points. An up-to-date add-on keeps {cap} of them along the holes, and every contact stays in the training, so the model will be coarse; check its fit to the logs when it finishes.": "{c} contactos necesitarían {n} puntos inductores. Un complemento actualizado conserva {cap} a lo largo de los sondajes, y cada contacto se mantiene en el entrenamiento, así que el modelo será grueso; revisa su ajuste a los registros al terminar.",
+  "Fit to the logs: {a}% of the points logged in the unit come out inside it, {b}% of the others outside.": "Ajuste a los registros: {a}% de los puntos registrados en la unidad quedan dentro de ella, {b}% de los demás quedan fuera.",
+  "That is weak: the surface and blocks do not reproduce this unit where it was logged. A higher quality, a narrower set of holes or a merged code may do better.": "Es débil: la superficie y los bloques no reproducen esta unidad donde fue registrada. Una calidad mayor, menos sondajes o un código fusionado pueden mejorarlo."
 }

@@ -69,6 +69,44 @@ def _grid(lo, hi, cell, max_cells):
         cell *= 1.25
 
 
+def _capped_inducing(geoml, dense, sparse, n, seed, mode="thin"):
+    """TASKS.csv #1158 — at most n inducing points. "thin": every k-th of the points geoML itself dropped along the holes and at
+    the contacts, so they stay on the holes (k-means centroids sat between holes: on Treaty Creek PS_DK the model then learnt a
+    2-3 km range and predicted the unit nowhere). "kmeans": two thirds on the unit and its contacts, kept for comparison."""
+    if mode == "thin":
+        xyz = np.asarray(sparse.coordinates)
+        idx = np.unique(np.linspace(0, len(xyz) - 1, n).round().astype(int))
+        return geoml.data.PointData(pd.DataFrame(xyz[idx], columns=["X", "Y", "Z"]), ["X", "Y", "Z"])
+    v = dense.variables["UNIT"]
+    a, b = np.asarray(v.measurements_a.to_numpy()), np.asarray(v.measurements_b.to_numpy())
+    near = (a == "Target") | (b == "Target")
+    xyz = np.asarray(dense.coordinates)
+    picked = []
+    n_near = min(int(np.sum(near)), max(1, (2 * n) // 3))
+    for mask, count in ((near, n_near), (~near, min(int(np.sum(~near)), n - n_near))):
+        if count > 0:
+            picked.append(np.asarray(geoml.data.inducing.from_kmeans(xyz[mask], count, seed=seed).coordinates))
+    return geoml.data.PointData(pd.DataFrame(np.vstack(picked), columns=["X", "Y", "Z"]), ["X", "Y", "Z"])
+
+
+def _fit_check(geoml, model, dense):
+    """TASKS.csv #1158 — the model against what is logged: the share of training points inside the unit it puts inside (probability
+    over 0.5), and of those in other rock it puts outside. Treaty Creek V4 at Fast finished with 0 % of its in-unit points inside, and
+    nothing said so: a finished run is not a good model. None if the check itself fails: it must never cost the result."""
+    try:
+        v = dense.variables["UNIT"]
+        a, b = np.asarray(v.measurements_a.to_numpy()), np.asarray(v.measurements_b.to_numpy())
+        pts = geoml.data.PointData(pd.DataFrame(np.asarray(dense.coordinates), columns=["X", "Y", "Z"]), ["X", "Y", "Z"])
+        model.predict(pts)
+        prob = np.asarray(pts.values("UNIT/Target/probability")).ravel()
+        inside, other = (a == "Target") & (b == "Target"), (a != "Target") & (b != "Target")
+        if not inside.any() or not other.any():
+            return None
+        return {"in_unit": round(float(np.mean(prob[inside] > 0.5)), 3), "other": round(float(np.mean(prob[other] < 0.5)), 3), "n_in_unit": int(inside.sum()), "n_other": int(other.sum())}
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _train(model, iterations, progress, lo, hi, label):
     """train_full in chunks so progress can be reported (and a cancel lands between chunks)."""
     done, chunk = 0, max(10, iterations // 20)
@@ -96,6 +134,12 @@ def run_domain(p, progress):
     holes.add_intervals("lito", holes.merge_domains(("lito", "UNIT")))
     dense = holes.as_classification_input(("lito", "UNIT"), length=float(p.get("train_spacing", 5.0)))
     sparse = holes.as_classification_input(("lito", "UNIT"), length=float(p.get("inducing_spacing", 40.0)))
+    # TASKS.csv #1158 — every contact and every short run adds a point at ANY spacing, so a unit with thousands of contacts built
+    # thousands of inducing points however coarse the spacing was: Treaty Creek V4, about 5,970, past 5 GB and still on its first
+    # iterations. Every contact stays in the training data the model must honour; only the inducing points are capped.
+    max_inducing = int(p.get("max_inducing") or 0)
+    if max_inducing and sparse.n_data > max_inducing:
+        sparse = _capped_inducing(geoml, dense, sparse, max_inducing, int(p.get("seed", 1234)), str(p.get("inducing_mode", "thin")))
     n_contacts = int(np.sum(dense.values("UNIT/boundary")))
     if n_contacts == 0:
         raise ValueError("The chosen unit has no contact with the other rock in these holes — nothing to model.")
@@ -123,6 +167,7 @@ def run_domain(p, progress):
         model.set_learning_rate(2e-2)
         _train(model, iterations, progress, 0.08, 0.58, "Training")
 
+    fit = _fit_check(geoml, model, dense)
     c = np.asarray(dense.coordinates)
     pad = np.array([float(p.get("pad", 100.0))] * 2 + [float(p.get("pad_z", 50.0))])
     lo, hi = c.min(0) - pad, c.max(0) + pad
@@ -135,9 +180,14 @@ def run_domain(p, progress):
     n, sblock = _grid(lo, hi, sblock, 60_000)
     bs = geoml.data.BlockSet3D(start=list(lo + sblock / 2), n=list(n), step=[sblock] * 3, discretization=(2, 2, 2), max_levels=int(p.get("refine_levels", 2)))
     bs = geoml.models.refine(model, bs)
-    surf = bs.get_contour("UNIT/Target/indicator_predicted", 0.0)
+    # TASKS.csv #1158 — geoML raises when the unit's indicator never reaches 0: the model predicts the unit nowhere. That is a result
+    # (blocks with their low probabilities), not a failure with a message about an indicator nobody asked about.
+    try:
+        surf = bs.get_contour("UNIT/Target/indicator_predicted", 0.0)
+    except ValueError:
+        surf = None
     surface = None
-    if len(surf.triangles):
+    if surf is not None and len(surf.triangles):
         model.predict(surf)
         surface = {"vertices": np.asarray(surf.coordinates).round(2).tolist(), "triangles": np.asarray(surf.triangles).astype(int).tolist(),
                    "uncertainty": np.asarray(surf.values("UNIT/uncertainty")).round(3).tolist(), "area": float(surf.area)}
@@ -154,7 +204,7 @@ def run_domain(p, progress):
     return {
         "kind": "domain", "model": "deep" if deep else "stationary", "seconds": round(time.time() - t0, 1),
         "range": _range_report(tr, rng), "trend_applied": bool(p.get("trend")),  # #673 / #692
-        "training_points": int(dense.n_data), "inducing_points": int(sparse.n_data), "contacts": n_contacts,
+        "training_points": int(dense.n_data), "inducing_points": int(sparse.n_data), "contacts": n_contacts, "fit": fit,
         "surface": surface,
         "blocks": {"cell": cell, "n": [int(v) for v in n], "x": xyz[:, 0].round(2).tolist(), "y": xyz[:, 1].round(2).tolist(), "z": xyz[:, 2].round(2).tolist(),
                    "probability": prob.round(4).tolist(), "uncertainty": unc.round(4).tolist()},

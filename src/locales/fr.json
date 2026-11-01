@@ -6531,7 +6531,6 @@
   "The area holds {n} samples of this layer (over {max}): draw a smaller one.": "La zone contient {n} échantillons de cette couche (plus de {max}) : dessinez-en une plus petite.",
   "The service answered with an error page.": "Le service a répondu par une page d'erreur.",
   "This unit has {c} contacts, which needs {n} inducing points: more than this version of the add-on ({v}) can hold in memory. Merge thin codes into the unit, or choose fewer holes, or update the add-on when a newer version is available.": "Cette unité a {c} contacts, ce qui demande {n} points inducteurs : plus que cette version du module ({v}) ne peut garder en mémoire. Fusionnez les codes minces dans l'unité, choisissez moins de sondages, ou mettez le module à jour quand une version plus récente sera disponible.",
-  "{c} contacts would need {n} inducing points; {cap} are placed where the data are, and every contact stays in the training.": "{c} contacts demanderaient {n} points inducteurs ; {cap} sont placés là où sont les données, et chaque contact reste dans l'entraînement.",
   "feed the estimator by itself: the Estimation tool's ordinary kriging takes its own nugget, sill and range (type the ones you read here, or leave them blank to fit at run time), and nearest-neighbour / inverse-distance use none. Fitting a model here does not change any estimate you have run.": "n'alimente pas l'estimateur à lui seul : le krigeage ordinaire de l'outil d'estimation prend ses propres effet de pépite, palier et portée (saisissez ceux que vous lisez ici, ou laissez-les vides pour les ajuster à l'exécution), et le plus proche voisin / l'inverse de la distance n'en utilisent aucun. Ajuster un modèle ici ne change aucune estimation déjà exécutée.",
   "Dip azimuth°": "Azimut de pendage°",
   "Pitch°": "Pitch°",
@@ -6540,5 +6539,8 @@
   "Enter the host (the server's name or address).": "Saisissez l'hôte (le nom ou l'adresse du serveur).",
   "Enter the port (1-65535).": "Saisissez le port (1-65535).",
   "Enter the database name.": "Saisissez le nom de la base de données.",
-  "Enter the user name.": "Saisissez le nom d'utilisateur."
+  "Enter the user name.": "Saisissez le nom d'utilisateur.",
+  "{c} contacts would need {n} inducing points. An up-to-date add-on keeps {cap} of them along the holes, and every contact stays in the training, so the model will be coarse; check its fit to the logs when it finishes.": "{c} contacts demanderaient {n} points inducteurs. Un module à jour en garde {cap} le long des sondages, et chaque contact reste dans l'entraînement : le modèle sera grossier ; vérifiez son ajustement aux journaux à la fin.",
+  "Fit to the logs: {a}% of the points logged in the unit come out inside it, {b}% of the others outside.": "Ajustement aux journaux : {a} % des points décrits dans l'unité se retrouvent à l'intérieur, {b} % des autres à l'extérieur.",
+  "That is weak: the surface and blocks do not reproduce this unit where it was logged. A higher quality, a narrower set of holes or a merged code may do better.": "C'est faible : la surface et les blocs ne reproduisent pas cette unité là où elle a été décrite. Une qualité supérieure, moins de sondages ou un code fusionné peuvent faire mieux."
 }

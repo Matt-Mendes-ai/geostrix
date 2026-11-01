@@ -79,6 +79,7 @@ const VIEWER_MODES = { viewer: "view", surface: "surface", modelling: "modelling
 
 // TASKS.csv #1163 — one crash-recovery check per window (the store's checkAutosave is bound at mount)
 const recoveryCheck = oncePerWindow(() => recoveryCheck.fn());
+const uncleanExitCheck = oncePerWindow(() => problemReportInfo());
 
 export default function App() {
   const store = useStore();
@@ -148,7 +149,8 @@ export default function App() {
     try { screenshot = await captureWindow(); } catch { /* no capture */ }
     setReportProblem({ screenshot, crashed });
   };
-  useEffect(() => { problemReportInfo().then((i) => { if (i?.lastExitUnclean) setLastExitUnclean(true); }).catch(() => {}); }, []);
+  // #1163 — also once per window: a re-mount (language change) must not bring back a banner the user dismissed
+  useEffect(() => { uncleanExitCheck().then((i) => { if (i?.lastExitUnclean) setLastExitUnclean(true); }).catch(() => {}); }, []);
   const [reportOpen, setReportOpen] = useState(false); // TASKS.csv #138
   // TASKS.csv #37 — auto-update status. Only the states worth surfacing to the user get shown in the
   // status bar (below) — "checking"/"not-available" stay silent, since a routine background check
@@ -461,8 +463,8 @@ export default function App() {
       {lastExitUnclean && (
         <div role="status" style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 14px", background: "var(--color-bg-subtle)", borderBottom: "1px solid var(--color-border)", fontSize: "var(--font-size-base)" }}>
           <span style={{ flex: 1 }}>{tr("GeoStrix didn't close normally last time. If it crashed or froze, a short report helps fix it.")}</span>
-          <button onClick={() => { setLastExitUnclean(false); openReportProblem(true); }} style={recoveryBtn}>{tr("Report it…")}</button>
-          <button onClick={() => setLastExitUnclean(false)} style={recoveryBtn} aria-label={tr("Dismiss")}>{tr("Dismiss")}</button>
+          <button onClick={() => { (uncleanExitCheck.settle(null), setLastExitUnclean(false)); openReportProblem(true); }} style={recoveryBtn}>{tr("Report it…")}</button>
+          <button onClick={() => (uncleanExitCheck.settle(null), setLastExitUnclean(false))} style={recoveryBtn} aria-label={tr("Dismiss")}>{tr("Dismiss")}</button>
         </div>
       )}
       {project.crsSet && isMetricProjectedEpsg(project.epsg) === false && <Suspense fallback={null}><DegreesProjectBanner btnStyle={recoveryBtn} /></Suspense>}{/* #1148 */}
