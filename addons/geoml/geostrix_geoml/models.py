@@ -107,6 +107,19 @@ def _fit_check(geoml, model, dense):
         return None
 
 
+def _probabilities_at(geoml, model, points):
+    """TASKS.csv #1318 — the unit's probability at points the app chose: its logged intercepts, along the traces it draws. None if there are none, or
+    if it fails: it must never cost the result."""
+    try:
+        if not points:
+            return None
+        pts = geoml.data.PointData(pd.DataFrame(np.asarray(points, float), columns=["X", "Y", "Z"]), ["X", "Y", "Z"])
+        model.predict(pts)
+        return np.asarray(pts.values("UNIT/Target/probability")).ravel().round(3).tolist()
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _train(model, iterations, progress, lo, hi, label):
     """train_full in chunks so progress can be reported (and a cancel lands between chunks)."""
     done, chunk = 0, max(10, iterations // 20)
@@ -232,6 +245,7 @@ def run_domain(p, progress):
     t = _domain_train(geoml, p, holes, progress)
     model, dense, sparse, n_contacts, tr, rng, deep = t["model"], t["dense"], t["sparse"], t["n_contacts"], t["tr"], t["rng"], t["deep"]
     fit = _fit_check(geoml, model, dense)
+    check_probability = _probabilities_at(geoml, model, p.get("check_points"))
     c = np.asarray(dense.coordinates)
     pad = np.array([float(p.get("pad", 100.0))] * 2 + [float(p.get("pad_z", 50.0))])
     lo, hi = c.min(0) - pad, c.max(0) + pad
@@ -267,7 +281,7 @@ def run_domain(p, progress):
     result = {
         "kind": "domain", "model": "deep" if deep else "stationary", "seconds": round(time.time() - t0, 1),
         "range": _range_report(tr, rng), "trend_applied": bool(p.get("trend")),  # #673 / #692
-        "training_points": int(dense.n_data), "inducing_points": int(sparse.n_data), "contacts": n_contacts, "fit": fit,
+        "training_points": int(dense.n_data), "inducing_points": int(sparse.n_data), "contacts": n_contacts, "fit": fit, "check_probability": check_probability,
         "surface": surface,
         "blocks": {"cell": cell, "n": [int(v) for v in n], "x": xyz[:, 0].round(2).tolist(), "y": xyz[:, 1].round(2).tolist(), "z": xyz[:, 2].round(2).tolist(),
                    "probability": prob.round(4).tolist(), "uncertainty": unc.round(4).tolist()},
