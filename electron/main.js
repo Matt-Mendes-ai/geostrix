@@ -40,6 +40,7 @@ const isDev = !app.isPackaged && process.env.NODE_ENV === "development";
 
 let mainWindow = null;
 const childWindows = new Map(); // id -> BrowserWindow (cross-section pop-outs)
+const { maxSectionWindows } = require("./sectionCap.js"); // TASKS.csv #1276
 let pySidecar = null; // Python FastAPI sidecar process (optional — see startPythonSidecar below)
 const PY_SIDECAR_PORT = 8765;
 
@@ -586,6 +587,9 @@ ipcMain.handle("open-section-window", (_e, payload) => {
     existing.focus();
     return { id };
   }
+  // TASKS.csv #1276 — each section is a whole renderer process; past what this computer can hold, say so instead of swapping
+  const maxSections = maxSectionWindows(require("os").totalmem());
+  if ([...childWindows.values()].filter((w) => !w.isDestroyed()).length >= maxSections) return { id, refused: true, max: maxSections };
 
   const win = new BrowserWindow({
     width: 1100,

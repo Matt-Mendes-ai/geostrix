@@ -212,6 +212,10 @@ input, select { font-family: inherit; }
 .ge-ribbon-group[data-compact] .ge-ribbon-btn { min-width: 34px; padding: 5px 2px 2px; justify-content: center; }
 .ge-ribbon-group[data-compact] .ge-ribbon-label { display: none; }
 .ge-ribbon-group[data-compact] .ge-ribbon-caption { width: 0; min-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+/* TASKS.csv #1292 — when every group is icon-only and the band still does not fit: tighter, then a second row. */
+.ge-ribbon-inner[data-tight] .ge-ribbon-btn { min-width: 28px; padding: 5px 1px 2px; }
+.ge-ribbon-inner[data-tight] .ge-ribbon-group { padding: 0 1px; }
+.ge-ribbon-inner[data-wrap] { flex-wrap: wrap; }
 /* A tool shown in the sidebar ("task pane"): its header, and the break before the tab's data. */
 .ge-pane-end { height: 0; border-top: 2px solid var(--color-border); margin: 14px -14px 14px; }
 .ge-pane-header {

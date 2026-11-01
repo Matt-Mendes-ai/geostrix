@@ -6542,5 +6542,6 @@
   "Enter the user name.": "أدخل اسم المستخدم.",
   "{c} contacts would need {n} inducing points. An up-to-date add-on keeps {cap} of them along the holes, and every contact stays in the training, so the model will be coarse; check its fit to the logs when it finishes.": "يتطلب {c} تماسًا {n} نقطة استقراء. تحتفظ الإضافة المحدَّثة بـ {cap} منها على طول الثقوب، ويبقى كل تماس ضمن التدريب، لذا سيكون النموذج خشنًا؛ تحقق من مطابقته للسجلات عند الانتهاء.",
   "Fit to the logs: {a}% of the points logged in the unit come out inside it, {b}% of the others outside.": "المطابقة مع السجلات: {a}% من النقاط المسجلة في الوحدة تقع داخلها، و{b}% من غيرها تقع خارجها.",
-  "That is weak: the surface and blocks do not reproduce this unit where it was logged. A higher quality, a narrower set of holes or a merged code may do better.": "هذا ضعيف: لا يعيد السطح والكتل إنتاج هذه الوحدة حيث سُجلت. قد تكون جودة أعلى أو ثقوب أقل أو رمز مدمج أفضل."
+  "That is weak: the surface and blocks do not reproduce this unit where it was logged. A higher quality, a narrower set of holes or a merged code may do better.": "هذا ضعيف: لا يعيد السطح والكتل إنتاج هذه الوحدة حيث سُجلت. قد تكون جودة أعلى أو ثقوب أقل أو رمز مدمج أفضل.",
+  "{max} section windows are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.": "توجد {max} نافذة مقطع مفتوحة، وهو أقصى ما يتحمله هذا الحاسوب براحة. أغلق واحدة لفتح هذا المقطع: يبقى في قائمة المقاطع."
 }

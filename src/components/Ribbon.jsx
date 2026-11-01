@@ -39,10 +39,15 @@ export function Ribbon({ children, show = true, label = "Tools" }) {
     if (!el) return;
     const groups = [...el.querySelectorAll(":scope > .ge-ribbon-group")];
     groups.forEach((g) => g.removeAttribute("data-compact"));
+    el.removeAttribute("data-tight"); el.removeAttribute("data-wrap");
     for (let i = groups.length - 1; i >= 0 && el.scrollWidth > el.clientWidth + 1; i--) {
       if (getComputedStyle(groups[i]).display === "none") continue; // hidden in Simple mode
       groups[i].setAttribute("data-compact", "");
     }
+    // TASKS.csv #1292 — Geochem has 27 tools: icon-only was still 114 px too wide at 1,024 px and ran under the mode toggle.
+    // Tighter buttons, then as a last resort a second row (taller, never hidden: every tool stays clickable).
+    if (el.scrollWidth > el.clientWidth + 1) el.setAttribute("data-tight", "");
+    if (el.scrollWidth > el.clientWidth + 1) el.setAttribute("data-wrap", "");
   };
   useLayoutEffect(() => {
     const el = innerRef.current;
