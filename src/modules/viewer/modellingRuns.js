@@ -19,6 +19,7 @@ import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTarge
 import { clipMesh } from "../../lib/clipMesh.js";
 import { thinStructurePicks } from "../../lib/viewer/orientationThin.js"; // TASKS.csv #765
 import { autoReachM, orientationsNearContacts, contactFit } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1170, #1171
+import { surfacePackages, unitPackage, contactSurface, contactPackage, movePointsToUnconformities } from "../../lib/viewer/stackPackages.js"; // TASKS.csv #1309
 import { makeEnsembleCounter, quantile, gridValuesToCells } from "../../lib/ensembleProbability.js"; // TASKS.csv #757
 import { sequentialStops } from "../../lib/inversion.js"; // TASKS.csv #757
 import { terrainGrid, unitRaster, mapAgreement } from "../../lib/predictedMap.js"; // TASKS.csv #758 // TASKS.csv #568
@@ -118,6 +119,7 @@ export function createModellingRuns(ctx, mcRef) {
     stackFaults,
     stackFaultOffsets, // TASKS.csv #1054
     stackRelation,
+    stackBreaks, // TASKS.csv #1309
     structureRowsToOrientations,
     surfaceOrientationsNear,
     survey,
@@ -310,7 +312,7 @@ export function createModellingRuns(ctx, mcRef) {
     const evalPts = evalAll.length && evalAll.length <= 200000 ? evalAll : null;
     const res = await pythonImplicitModel(
       extent,
-      sidecarSpecs.filter((s) => !s.fault).map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations })),
+      sidecarSpecs.filter((s) => !s.fault).map((s) => ({ name: s.meshName, points: s.points, orientations: s.orientations, ...(s.package != null ? { package: s.package } : {}) })),
       // TASKS.csv #271 (relation) / #274 (rangeMultiplier — omitted when 0/Auto, see desktop.js)
       // TASKS.csv #356 — ask for the lithology block (model check + volumes) unless anisotropy warps the
       // model space, where block coordinates no longer match hole positions directly.
@@ -435,6 +437,7 @@ export function createModellingRuns(ctx, mcRef) {
         ...(spec.params?.surfaceMapContact ? { surfaceMapContact: spec.params.surfaceMapContact } : {}),
         ...(spec.params?.orientationsAveraged ? { orientationsAveraged: spec.params.orientationsAveraged } : {}), // #765
         ...(spec.params?.picksNearContacts ? { picksNearContacts: spec.params.picksNearContacts } : {}), // #1170
+        ...(spec.package != null ? { package: spec.package } : {}), // #1309
         ...(fit ? { contactFit: { points: fit.n, typicalMissM: +fit.typical.toFixed(2), worstMissM: +fit.worst.toFixed(2), meshCellM: Math.round(fit.cell) } } : {}), // #1171
         ...(smoothReports.find((r) => r.meshName === spec.meshName) ? { clusteredContactsSmoothed: (({ smoothed, total, skipped }) => ({ smoothed, of: total, ...(skipped ? { skipped } : {}), method: "KDE (Scott, in the contacts' plane), nugget on points >= 2x even density and >= 0.5 of the max (von Harten et al. 2021)" }))(smoothReports.find((r) => r.meshName === spec.meshName)) } : {}), // #761
         generatedAt: new Date().toISOString(),
@@ -583,7 +586,7 @@ export function createModellingRuns(ctx, mcRef) {
       // TASKS.csv #274 — the effective potential-field range is now part of what a run reports. Without
       // it, two runs of the same job that came back looking different had no visible reason why.
       const rangeNote = res.rangeUsed != null
-        ? tr(" Interpolation: {v}, potential-field range {rangeUsed}{v2}.", { v: specs.length > 1 ? (relation === "erode" ? tr("erosional (each unit truncates those below)") : tr("conformable (one shared field: units keep a thickness everywhere)")) : tr("single surface"), rangeUsed: res.rangeUsed.toFixed(3), v2: res.rangeDefault != null && Math.abs(res.rangeUsed - res.rangeDefault) > 1e-9 ? tr(" (GemPy's own default {rangeDefault} x {rangeMultiplier})", { rangeDefault: res.rangeDefault.toFixed(3), rangeMultiplier }) : tr(" (GemPy's own default)") })
+        ? tr(" Interpolation: {v}, potential-field range {rangeUsed}{v2}.", { v: specs.length > 1 ? (stackOpts.packages > 1 ? tr("{n} conformable packages, each truncating the ones below", { n: stackOpts.packages }) : relation === "erode" ? tr("erosional (each unit truncates those below)") : tr("conformable (one shared field: units keep a thickness everywhere)")) : tr("single surface"), rangeUsed: res.rangeUsed.toFixed(3), v2: res.rangeDefault != null && Math.abs(res.rangeUsed - res.rangeDefault) > 1e-9 ? tr(" (GemPy's own default {rangeDefault} x {rangeMultiplier})", { rangeDefault: res.rangeDefault.toFixed(3), rangeMultiplier }) : tr(" (GemPy's own default)") })
         : "";
       setNotices((p) => [...p, notice(newMeshes.length > 1 ? "Added {newMeshes} surfaces: {v2}.{rangeNote}" : "Added {newMeshes} surface: {v2}.{rangeNote}", { newMeshes: newMeshes.length, v2: specs.filter((s) => byName[s.meshName]?.vertices?.length).map((s) => `"${s.label}"`).join(", "), rangeNote })]);
       // Fit the camera to all newly-created meshes together (not just one) — without this, a
@@ -1151,19 +1154,31 @@ export function createModellingRuns(ctx, mcRef) {
     // TASKS.csv #599 — the stack's own top-to-bottom order is the pile order for its modelling codes
     const pileOrder = unitNames.filter((u) => typeof u === "string" && u.startsWith("mcode:")).map((u) => u.slice(6));
     const specKey = new Map(); // TASKS.csv #1054 — stack unit key -> its spec, for a fault's "offsets units from ... down"
+    const breakAt = new Set(); // TASKS.csv #1309 — index of the last gathered spec above each marked unconformity
     unitNames.forEach((u) => {
       // TASKS.csv #176 — stackUnits carries `group:<id>` keys verbatim; resolve to the group object
       // only here, at the point the spec is actually gathered.
       const target = resolveLithoTarget(u);
       const spec = target ? gatherLithoSurfaceSpec(target, traces, { silent: true, pileOrder }) : null;
       if (spec) { specs.push(spec); specKey.set(u, spec); } else skipped.push(target && typeof target === "object" ? target.name : target || "(deleted group)");
+      if (stackBreaks?.includes(u) && specs.length) breakAt.add(specs.length - 1);
     });
+    breakAt.delete(specs.length - 1); // nothing below it
     if (skipped.length) setNotices((p) => [...p, notice("Skipping from the stack (no lithology intervals found): {skipped}.", { skipped: skipped.join(", ") })]);
     if (specs.length < 2) { setNotices((p) => [...p, notice("Need at least 2 units with data to model a stack — add more units or check your lithology import.")]); return; }
     noteUnmatchedDrawnContacts(specs);
+    let packages = 0; // TASKS.csv #1309
+    if (breakAt.size) {
+      const moved = movePointsToUnconformities(specs, layers.litho || [], breakAt);
+      const pk = surfacePackages(specs.length, breakAt);
+      specs.forEach((s, k) => { s.package = pk[k]; });
+      packages = new Set(pk).size;
+      const list = moved.flatMap((n, k) => (n ? [tr("{n} to the top of {unit}", { n, unit: specs[k].meshName })] : [])).join(", ");
+      setNotices((p) => [...p, notice("{packages} conformable package(s): {list}. Each is one field and truncates those below; the top of the unit under each unconformity is the unconformity. {moved}", { packages, list: pk.map((_, k) => k).filter((k) => k === 0 || pk[k] !== pk[k - 1]).map((k) => pk.flatMap((q, j) => (q === pk[k] ? [specs[j].meshName] : [])).join(" + ")).join(" | "), moved: list ? tr("Contacts moved onto it, where a younger unit lies directly on an older one: {list}.", { list }) : "" })]);
+    }
     // TASKS.csv #1030 — a unit absent between its neighbours in a hole: in an erosional stack the contact between them is
     // also the missing unit's top, so it pinches out there; a conformable stack (one shared field) cannot do that
-    if (specs.length >= 3) {
+    if (!breakAt.size && specs.length >= 3) {
       const po = pinchOutPoints(specs, layers.litho || []);
       if (po.absent.length) {
         const list = po.absent.map((a) => tr("{unit} absent in {n} hole(s)", { unit: a.unit, n: a.holes })).join(", ");
@@ -1190,7 +1205,7 @@ export function createModellingRuns(ctx, mcRef) {
       const later = stackFaults.slice(i + 1);
       spec.offsets = [...specs.slice(Math.max(0, from)).map((s) => s.meshName), ...(cfg.faults || []).filter((k) => later.includes(k) && faultKey.has(k)).map((k) => faultKey.get(k).meshName)];
     });
-    await runSurfaceStack([...faultSpecs, ...specs], { relation: stackRelation }); // TASKS.csv #271
+    await runSurfaceStack([...faultSpecs, ...specs], { relation: breakAt.size ? "erode" : stackRelation, packages }); // TASKS.csv #271; #1309
   };
 
   // TASKS.csv #817 — a stratigraphic model from the surface geology ALONE (no drillholes needed). Matt: "I wanna have a
@@ -1225,33 +1240,50 @@ export function createModellingRuns(ctx, mcRef) {
       }
       return out;
     };
-    const { extractMapContacts } = await import("../../lib/mapLayers.js");
+    const { extractMapContacts, pointInRings, featureCategoryValue } = await import("../../lib/mapLayers.js");
     const { contacts } = extractMapContacts(p.layer, p.field);
     const rank = new Map(order.map((u, i) => [u, i]));
     const pointsOf = new Map(order.map((u) => [u, []]));
     const mapRelation = p.relation || stackRelation, pinched = new Set(), unpinched = new Set(); // #1030
+    // TASKS.csv #1309 — unconformities the geologist marked, as indices into the order; the last unit has nothing below it
+    const breaks = new Set((p.breaks || []).map((u) => rank.get(u)).filter((i) => i !== undefined && i < order.length - 1));
     let offTerrain = 0, unused = 0;
     for (const c of contacts) {
       const [a, b] = c.units;
       if (!rank.has(a) || !rank.has(b)) { unused++; continue; }
       const ry = Math.min(rank.get(a), rank.get(b)), ro = Math.max(rank.get(a), rank.get(b));
-      const tops = mapRelation === "erode" ? order.slice(ry + 1, ro + 1) : [order[ro]]; // #1030
-      if (ro > ry + 1) tops.slice(0, -1).forEach((u) => pinched.add(u));
-      if (ro > ry + 1 && mapRelation !== "erode") order.slice(ry + 1, ro).forEach((u) => unpinched.add(u));
+      const tops = breaks.size ? [order[contactSurface(ry, ro, breaks)]] : mapRelation === "erode" ? order.slice(ry + 1, ro + 1) : [order[ro]]; // #1030; #1309
+      if (!breaks.size && ro > ry + 1) tops.slice(0, -1).forEach((u) => pinched.add(u));
+      if (!breaks.size && ro > ry + 1 && mapRelation !== "erode") order.slice(ry + 1, ro).forEach((u) => unpinched.add(u));
       for (const line of c.lines) for (const [x, y] of thin(line, 25)) {
         const z = ground(x, y);
         if (!Number.isFinite(z)) { offTerrain++; continue; }
         for (const surface of tops) pointsOf.get(surface).push({ ...api(x, y, z), srcCode: `${a}|${b}` });
       }
     }
+    // TASKS.csv #1309 — a measurement steers the package its rock is in: a fitted contact dip by its contact, bedding by the map unit under it
+    const mapOrientationPackage = (m) => {
+      if (m.younger != null && rank.has(m.younger) && rank.has(m.older)) return contactPackage(Math.min(rank.get(m.younger), rank.get(m.older)), Math.max(rank.get(m.younger), rank.get(m.older)), breaks); // the order may have been changed since the dip was fitted
+      const f = (p.layer.features || []).find((q) => pointInRings([m.x, m.y], q.parts || [q.geometry]));
+      const u = f ? featureCategoryValue(f, p.field) : null;
+      return rank.has(u) ? unitPackage(rank.get(u), breaks) : -1;
+    };
     const orientations = [...(p.bedding || []), ...(p.planes || [])].map((m) => ({ m, z: ground(m.x, m.y) })).filter(({ m, z }) => Number.isFinite(z) && [m.dip, m.dipDir].every(Number.isFinite))
-      .map(({ m, z }) => ({ ...api(m.x, m.y, z), dip: m.dip, azimuth: m.dipDir }));
+      .map(({ m, z }) => ({ ...api(m.x, m.y, z), dip: m.dip, azimuth: m.dipDir, ...(breaks.size ? { pkg: mapOrientationPackage(m) } : {}) }));
     if (!orientations.length) { setNotices((q) => [...q, notice("No orientations on the terrain: import outcrop measurements (bedding) or fetch a terrain that covers the map so contact dips can be fitted.")]); return; }
     const specs = [], empty = [];
+    const surfPkg = new Map(surfacePackages(order.length, breaks).map((k, i) => [order[i], k])), estimatedIn = new Set(); // #1309
+    const oriFor = (u, pts) => { // #1309 — this package's measurements; none: a dip from its own contact points, and the run says so
+      if (!breaks.size) return orientations;
+      const k = surfPkg.get(u), own = orientations.filter((q) => q.pkg === k);
+      if (own.length) return own;
+      estimatedIn.add(u);
+      return [estimateOrientationFromPoints(pts)];
+    };
     order.slice(1).forEach((u) => {
       const pts = pointsOf.get(u);
       if (!pts.length) { empty.push(u); return; }
-      specs.push({ label: `Top of ${u}`, meshName: u, points: pts, orientations, color: colorForLithology(u), type: "stratigraphic_contact", codes: [u], params: { mapModel: { layer: p.layer.name, field: p.field, order, contactPoints: pts.length } } });
+      specs.push({ label: `Top of ${u}`, meshName: u, points: pts, orientations: oriFor(u, pts), ...(breaks.size ? { package: surfPkg.get(u) } : {}), color: colorForLithology(u), type: "stratigraphic_contact", codes: [u], params: { mapModel: { layer: p.layer.name, field: p.field, order, contactPoints: pts.length } } });
     });
     if (specs.length < 1) { setNotices((q) => [...q, notice("None of the units below the youngest one shares a contact with a unit above it on the map, so there is nothing to model. Check the order.")]); return; }
     const faultSpecs = (p.faults || []).map((f) => {
@@ -1268,8 +1300,9 @@ export function createModellingRuns(ctx, mcRef) {
       l: left.length ? tr(" Left out of the stack (not stratigraphic): {u}.", { u: left.join(", ") }) : "",
     }), (pinched.size ? tr(" Pinched out where the map shows them missing between their neighbours: {u}.", { u: [...pinched].join(", ") }) : "")
       + (unpinched.size ? tr(" Missing between their neighbours in places, but a conformable stack cannot pinch them out (choose Erosional for that): {u}.", { u: [...unpinched].join(", ") }) : "")
+      + (estimatedIn.size ? tr(" No measurement in the package of: {u}. Their dip was estimated from their contact points.", { u: [...estimatedIn].join(", ") }) : "") // #1309
       + (offTerrain ? tr(" {k} contact point(s) beyond the terrain were skipped.", { k: offTerrain }) : "") + (unused ? tr(" {k} contact(s) involve units outside the order.", { k: unused }) : ""))]); // appendNotice: #821
-    await runSurfaceStack([...faultSpecs, ...specs], { relation: p.relation || stackRelation, aboveUnit: order[0] });
+    await runSurfaceStack([...faultSpecs, ...specs], { relation: breaks.size ? "erode" : p.relation || stackRelation, aboveUnit: order[0], packages: new Set(specs.map((s) => s.package)).size }); // #1309
   };
 
   const gatherFaultSpec = (key, traces) => {

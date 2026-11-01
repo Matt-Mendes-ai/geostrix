@@ -8,7 +8,7 @@ import { Activity, Calculator, ChevronDown, ChevronRight, ChevronUp, Compass, Dr
 import { BLOCK_BUDGETS, ESTIMATION_METHODS, MAX_BLOCKS } from "../../lib/estimationMeta.js";
 import InfoButton from "../../components/InfoButton.jsx";
 import { PRECIOUS_METALS } from "../../lib/geochem.js";
-import { Suspense, useCallback, useMemo } from "react";
+import { Fragment, Suspense, useCallback, useMemo } from "react";
 import { withChangeLog } from "../../lib/explicitLog.js"; // TASKS.csv #878
 import { activateOnKey, iconAction } from "../../lib/a11y.js";
 import { colorForLithology, isCrossCuttingRole, roleForLithology } from "../../lib/layers.js";
@@ -187,6 +187,7 @@ export default function ModellingPanes(props) {
     setThinPicks,
     setThinWindowM,
     orientationReachM, setOrientationReachM, // TASKS.csv #1170
+    stackBreaks, setStackBreaks, // TASKS.csv #1309
     setTrendPreviewId,
     setVariogramOpen,
     setVeinCellSize,
@@ -660,8 +661,10 @@ export default function ModellingPanes(props) {
           const grp = isLithoGroupKey(u) ? resolveLithoTarget(u) : null;
           const role = isLithoGroupKey(u) ? (grp ? lithoGroupRole(grp) : null) : isMcodeKey(u) ? (modellingCodeList.find((c) => c.name === u.slice(6))?.role ?? null) : roleForLithology(u);
           const display = isLithoGroupKey(u) ? (grp ? grp.name : "(deleted group)") : isMcodeKey(u) ? `${u.slice(6)} (code)` : u; // #599
+          const hasBreak = stackBreaks.includes(u); // TASKS.csv #1309
           return (
-          <div key={u} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+          <Fragment key={u}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", width: 14, flexShrink: 0 }}>{i + 1}</span>
             {grp && <span style={{ width: 8, height: 8, borderRadius: 2, background: grp.color || "#8a7fbf", flexShrink: 0 }} title={tr("Group: {v}", { v: (grp.codes || []).join(" + ") })} />}
             <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: grp || !isLithoGroupKey(u) ? "var(--color-text)" : "var(--color-danger-icon)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={grp ? tr("Group: {v}", { v: (grp.codes || []).join(" + ") }) : undefined}>{display}</div>
@@ -670,6 +673,14 @@ export default function ModellingPanes(props) {
             <ChevronDown size={14} style={{ cursor: i === stackUnits.length - 1 ? "default" : "pointer", color: i === stackUnits.length - 1 ? "var(--color-border-light)" : "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => moveStackUnit(u, 1), tr("Move \"{u}\" down in the stratigraphic stack", { u }))} />
             <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => removeStackUnit(u), tr("Remove \"{u}\" from the stratigraphic stack", { u }))} />
           </div>
+          {i < stackUnits.length - 1 && (
+            <button type="button" aria-pressed={hasBreak} onClick={() => setStackBreaks((p) => (p.includes(u) ? p.filter((x) => x !== u) : [...p, u]))}
+              title={tr("Units above and below an unconformity are fitted as separate conformable packages. The top of the unit below it follows the upper package.")}
+              style={{ display: "block", width: "100%", background: "none", border: "none", borderTop: hasBreak ? "2px dashed var(--color-accent)" : "none", padding: "1px 0 3px", marginBottom: 4, cursor: "pointer", textAlign: "center", fontSize: "var(--font-size-xs)", color: hasBreak ? "var(--color-accent-dark)" : "var(--color-text-muted)" }}>
+              {hasBreak ? tr("Unconformity here (click to remove)") : tr("Mark an unconformity here")}
+            </button>
+          )}
+          </Fragment>
           );
         })}
         {/* TASKS.csv #360 — faults solved WITH the stack: contacts either side become offset blocks */}
@@ -690,7 +701,7 @@ export default function ModellingPanes(props) {
               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label(k)}</span>
               <X size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => setStackFaults((p) => p.filter((x) => x !== k)), tr("Remove fault \"{k}\" from the stack", { k }))} />
             </div>
-            {stackRelation === "erode" && stackUnits.length > 1 && (
+            {(stackRelation === "erode" || stackBreaks.some((b) => stackUnits.includes(b))) && stackUnits.length > 1 && (
               <select value={cfg.from || ""} onChange={(e) => setCfg({ from: e.target.value })} style={{ ...smallSel, width: "100%", marginTop: 3 }} aria-label={tr("Units this fault offsets")} title={tr("Units younger than the chosen one were laid down after the fault and are not offset by it")}>
                 <option value="">{tr("Offsets every unit")}</option>
                 {stackUnits.slice(1).map((u) => <option key={u} value={u}>{tr("Offsets {unit} and the units below it", { unit: resolveLithoTarget(u)?.name || u })}</option>)}
@@ -707,6 +718,9 @@ export default function ModellingPanes(props) {
         })}
         {stackFaults.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{tr("Each fault runs through the whole model box: GemPy here cannot end a fault where its picks stop. By default a fault offsets every unit and no other fault.")}</div>}
         {/* TASKS.csv #271 — GemPy's own StructuralGroup semantics, exposed instead of hardcoded. */}
+        {stackBreaks.some((b) => stackUnits.slice(0, -1).includes(b)) ? (
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "6px 0", lineHeight: 1.45 }}>{tr("Packages: units between unconformities share one field and stay parallel, and each package truncates the ones below. Units missing inside a package cannot pinch out. A surface flattens beyond its own contacts, so compare the predicted map with your map.")}</div>
+        ) : (<>
         <label style={{ display: "block", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title={tr("Erode: each younger unit truncates everything below it (an erosional unconformity), and a unit missing between its neighbours in a hole pinches out there. Conformable: every unit is a level of one shared field, so the surfaces stay parallel, never cross and never meet: a unit keeps a thickness everywhere and cannot pinch out.")}>{tr("Unit relationship")}<select value={stackRelation} onChange={(e) => setStackRelation(e.target.value)} style={{ ...smallSel, width: "100%", marginTop: 3 }}>
             <option value="erode">{tr("Erode — younger units truncate older (unconformity)")}</option>
             <option value="onlap">{tr("Conformable — one shared field (units keep a thickness everywhere, cannot pinch out)")}</option>
@@ -717,6 +731,7 @@ export default function ModellingPanes(props) {
             ? tr("Erosional: each unit is fitted in its own structural group and truncates the ones beneath it. Right for an unconformity; wrong for a conformable volcanic pile, where it will cut contacts that should simply drape.")
             : tr("Conformable: every unit shares one interpolated field, so the surfaces stay parallel and can never cross. Right for a continuous layered sequence. A unit that is missing between its neighbours in some holes cannot pinch out in this mode (it keeps a thickness there): use Erode for discontinuous units.")}
         </div>
+        </>)}
         <button
           onClick={() => runStackModel(stackUnits)}
           disabled={stackUnits.length < 2 || implicitBusy}

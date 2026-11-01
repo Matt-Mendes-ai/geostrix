@@ -6551,5 +6551,14 @@
   "Only picks within": "فقط القياسات ضمن",
   "m of the unit's contacts": "م من تماسات الوحدة",
   "Only picks within this distance of the unit's contacts (m)": "فقط القياسات ضمن هذه المسافة من تماسات الوحدة (م)",
-  "On the last model box the mesh cells are about {a} m (Standard), {b} m (Fine) and {c} m (Very fine). Each run reports how far the mesh misses its contact points.": "في آخر صندوق للنموذج تبلغ خلايا الشبكة نحو {a} م (قياسي) و{b} م (دقيق) و{c} م (دقيق جدًا). يبيّن كل تشغيل مقدار ابتعاد الشبكة عن نقاط التماس."
+  "On the last model box the mesh cells are about {a} m (Standard), {b} m (Fine) and {c} m (Very fine). Each run reports how far the mesh misses its contact points.": "في آخر صندوق للنموذج تبلغ خلايا الشبكة نحو {a} م (قياسي) و{b} م (دقيق) و{c} م (دقيق جدًا). يبيّن كل تشغيل مقدار ابتعاد الشبكة عن نقاط التماس.",
+  "{n} conformable packages, each truncating the ones below": "{n} حزم متوافقة، تقطع كل منها ما تحتها",
+  "{n} to the top of {unit}": "{n} إلى أعلى {unit}",
+  "{packages} conformable package(s): {list}. Each is one field and truncates those below; the top of the unit under each unconformity is the unconformity. {moved}": "{packages} حزمة متوافقة: {list}. كل منها حقل واحد وتقطع ما تحتها؛ أعلى الوحدة تحت كل عدم توافق هو عدم التوافق. {moved}",
+  "Contacts moved onto it, where a younger unit lies directly on an older one: {list}.": "نُقلت التماسات إليه حيث تقع وحدة أحدث مباشرة فوق أقدم: {list}.",
+  " No measurement in the package of: {u}. Their dip was estimated from their contact points.": " لا قياسات في حزمة: {u}. قُدّر ميلها من نقاط تماسها.",
+  "Units above and below an unconformity are fitted as separate conformable packages. The top of the unit below it follows the upper package.": "تُلاءَم الوحدات فوق عدم التوافق وتحته كحزم متوافقة منفصلة. يتبع أعلى الوحدة السفلى الحزمة العليا.",
+  "Unconformity here (click to remove)": "عدم توافق هنا (انقر للإزالة)",
+  "Mark an unconformity here": "حدّد عدم توافق هنا",
+  "Packages: units between unconformities share one field and stay parallel, and each package truncates the ones below. Units missing inside a package cannot pinch out. A surface flattens beyond its own contacts, so compare the predicted map with your map.": "الحزم: تشترك الوحدات بين حالات عدم التوافق في حقل واحد وتبقى متوازية، وتقطع كل حزمة ما تحتها. لا يمكن للوحدات الغائبة داخل حزمة أن تتلاشى. يتسطح السطح خارج تماساته، لذا قارن الخريطة المتوقعة بخريطتك."
 }

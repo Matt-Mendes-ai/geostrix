@@ -582,6 +582,9 @@ class SurfaceInput(BaseModel):
     # offsets. None = GemPy's default OFFSET_FORMATIONS (every unit, no fault). Sent to GemPy as its list form of
     # fault_relations, so a cover laid down after the fault is left whole and one fault can displace another.
     offsets: Optional[List[str]] = None
+    # TASKS.csv #1309 — conformable packages: surfaces with one number share a field, and each package truncates the ones after it.
+    # None on every surface: the whole stack follows `relation`, as it always has.
+    package: Optional[int] = None
 
 
 class ImplicitModelRequest(BaseModel):
@@ -726,7 +729,22 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
     elements = []
     fault_elements = []  # TASKS.csv #360
     deduped = None
-    if req.relation != "erode":  # #512 — one shared field: send each shared orientation once
+    # TASKS.csv #1309 — runs of surfaces with one package number, in request order
+    packaged = []
+    for surf in req.surfaces:
+        if surf.package is None:
+            continue
+        if not packaged or packaged[-1][0] != surf.package:
+            packaged.append((surf.package, []))
+        packaged[-1][1].append(surf)
+    if packaged:  # #512 inside each package: it is one field, and the client may send a pick on all its surfaces
+        by_id, deduped = {}, 0
+        for _, members in packaged:
+            kept, dropped = _dedupe_onlap_orientations(members)
+            deduped += dropped
+            by_id.update({id(s): k for s, k in zip(members, kept)})
+        strat_orients = [by_id.get(id(s), s.orientations) for s in req.surfaces]
+    elif req.relation != "erode":  # #512 — one shared field: send each shared orientation once
         strat_orients, deduped = _dedupe_onlap_orientations(req.surfaces)
     for i, surf in enumerate(list(req.faults) + list(req.surfaces)):
         orients = surf.orientations if (deduped is None or i < len(req.faults)) else strat_orients[i - len(req.faults)]
@@ -773,7 +791,13 @@ def implicit_model(req: ImplicitModelRequest) -> ImplicitModelResponse:
     #   erode  = one group PER surface, ordered youngest-first, each ERODE. Each younger surface then
     #            genuinely truncates the ones below it (same experiment: the lower surface came back with
     #            267 vertices instead of 370, cut by the one above) — a real erosional unconformity.
-    if req.relation == "erode":
+    if packaged:  # TASKS.csv #1309 — one field per package; a younger package truncates the older ones
+        el_of = {el.name: el for el in elements}
+        groups = [
+            StructuralGroup(name=f"package_{i}", elements=[el_of[s.name] for s in members], structural_relation=StackRelationType.ERODE)
+            for i, (_, members) in enumerate(packaged)
+        ]
+    elif req.relation == "erode":
         groups = [
             StructuralGroup(name=f"group_{i}_{el.name}", elements=[el], structural_relation=StackRelationType.ERODE)
             for i, el in enumerate(elements)

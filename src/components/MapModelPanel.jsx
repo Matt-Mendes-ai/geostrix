@@ -85,7 +85,9 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
     if (i.evidence === "elevation") return tr("by elevation only");
     return tr("no evidence (by area)");
   };
-  const planes = useMemo(() => (suggestion?.pairs || []).flatMap((p) => p.fittedPlanes || []).map((q) => ({ x: q.x, y: q.y, dip: q.dip, dipDir: q.dipDir })), [suggestion]);
+  const planes = useMemo(() => (suggestion?.pairs || []).flatMap((p) => (p.fittedPlanes || []).map((q) => ({ x: q.x, y: q.y, dip: q.dip, dipDir: q.dipDir, younger: p.younger, older: p.older }))), [suggestion]); // younger, older: #1309
+  const [breaks, setBreaks] = useState([]); // TASKS.csv #1309 — units with an unconformity below them
+  const hasBreaks = breaks.some((b) => order.slice(0, -1).includes(b));
   const row = { display: "flex", alignItems: "center", gap: 6, marginBottom: 6 };
   const sel = { ...smallSel, flex: 1, minWidth: 0 };
 
@@ -122,13 +124,22 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
       <div style={{ margin: "8px 0 4px", color: "var(--color-text)" }}>{tr("Stratigraphic order (youngest at the top)")}</div>
       {!groundAt && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4 }}>{tr("No terrain: the contacts' dips cannot be fitted and the model cannot run. Fetch a terrain first.")}</div>}
       {order.map((u, i) => (
-        <div key={u} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, marginBottom: 3, fontSize: "var(--font-size-xs)" }}>
+        <React.Fragment key={u}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, marginBottom: 3, fontSize: "var(--font-size-xs)" }}>
           <button onClick={() => move(i, -1)} disabled={!i} aria-label={tr("Move up")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, opacity: i ? 1 : 0.3 }}><ChevronUp size={13} /></button>
           <button onClick={() => move(i, 1)} disabled={i === order.length - 1} aria-label={tr("Move down")} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, opacity: i < order.length - 1 ? 1 : 0.3 }}><ChevronDown size={13} /></button>
           <span style={{ fontWeight: 600 }}>{u}</span>
           <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text-muted)" }} title={unitInfo.get(u)?.description || ""}>{unitInfo.get(u)?.description || ""} · {why(u)}</span>
           <select value={roles[u] || "stratigraphic"} onChange={(e) => setRole(u, e.target.value)} style={{ ...smallSel, width: 96 }} aria-label={tr("Role of {u}", { u })}>{ROLES.map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}</select>
         </div>
+        {i < order.length - 1 && (
+          <button type="button" aria-pressed={breaks.includes(u)} onClick={() => setBreaks((p) => (p.includes(u) ? p.filter((x) => x !== u) : [...p, u]))}
+            title={tr("Units above and below an unconformity are fitted as separate conformable packages. The top of the unit below it follows the upper package.")}
+            style={{ display: "block", width: "100%", background: "none", border: "none", borderTop: breaks.includes(u) ? "2px dashed var(--color-accent)" : "none", padding: "0 0 2px", marginBottom: 3, cursor: "pointer", textAlign: "center", fontSize: "var(--font-size-xs)", color: breaks.includes(u) ? "var(--color-accent-dark)" : "var(--color-text-muted)" }}>
+            {breaks.includes(u) ? tr("Unconformity here (click to remove)") : tr("Mark an unconformity here")}
+          </button>
+        )}
+        </React.Fragment>
       ))}
       {leftOut.length > 0 && (
         <div style={{ fontSize: "var(--font-size-xs)", marginTop: 4, marginBottom: 6 }}>
@@ -145,11 +156,11 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
             : tr("{y} over {o}: {pct}% agreement ({beds} bedding, {planes} contact dips)", { y: p.younger, o: p.older, pct: Math.round(100 * p.agreement), beds: p.measurements, planes: p.trace?.planes || 0 })}
         </div>
       ))}
-      <div style={row}><span style={{ width: 70, flexShrink: 0 }}>{tr("Contacts")}</span>
+      {hasBreaks ? <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.45 }}>{tr("Packages: units between unconformities share one field and stay parallel, and each package truncates the ones below. Units missing inside a package cannot pinch out. A surface flattens beyond its own contacts, so compare the predicted map with your map.")}</div> : <div style={row}><span style={{ width: 70, flexShrink: 0 }}>{tr("Contacts")}</span>
         <select value={relation} onChange={(e) => setRelation(e.target.value)} style={sel} aria-label={tr("Contact relation")}>
           <option value="onlap">{tr("Conformable (one shared field: units cannot pinch out)")}</option><option value="erode">{tr("Erosional (each unit truncates those below)")}</option>
-        </select></div>
-      <button onClick={() => onRun({ layer, field: unitField, order, bedding, planes, faults: faults.filter((f) => f.on).map((f) => ({ name: f.name, line: f.line, dip: f.dip, dipDir: f.dipDir })), relation, leftOut })}
+        </select></div>}
+      <button onClick={() => onRun({ layer, field: unitField, order, breaks, bedding, planes, faults: faults.filter((f) => f.on).map((f) => ({ name: f.name, line: f.line, dip: f.dip, dipDir: f.dipDir })), relation, leftOut })}
         disabled={busy || !groundAt || order.length < 2} style={{ ...pBtn, justifyContent: "center", opacity: busy || !groundAt || order.length < 2 ? 0.5 : 1 }}>
         {busy ? tr("Running…") : tr("Build the model (GemPy)")}
       </button>

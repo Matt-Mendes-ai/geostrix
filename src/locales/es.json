@@ -6551,5 +6551,14 @@
   "Only picks within": "Solo medidas a menos de",
   "m of the unit's contacts": "m de los contactos de la unidad",
   "Only picks within this distance of the unit's contacts (m)": "Solo medidas a esta distancia de los contactos de la unidad (m)",
-  "On the last model box the mesh cells are about {a} m (Standard), {b} m (Fine) and {c} m (Very fine). Each run reports how far the mesh misses its contact points.": "En la última caja del modelo las celdas de malla miden unos {a} m (Estándar), {b} m (Fino) y {c} m (Muy fino). Cada corrida informa cuánto se aparta la malla de sus puntos de contacto."
+  "On the last model box the mesh cells are about {a} m (Standard), {b} m (Fine) and {c} m (Very fine). Each run reports how far the mesh misses its contact points.": "En la última caja del modelo las celdas de malla miden unos {a} m (Estándar), {b} m (Fino) y {c} m (Muy fino). Cada corrida informa cuánto se aparta la malla de sus puntos de contacto.",
+  "{n} conformable packages, each truncating the ones below": "{n} paquetes concordantes, cada uno trunca los inferiores",
+  "{n} to the top of {unit}": "{n} al techo de {unit}",
+  "{packages} conformable package(s): {list}. Each is one field and truncates those below; the top of the unit under each unconformity is the unconformity. {moved}": "{packages} paquete(s) concordante(s): {list}. Cada uno es un campo y trunca los inferiores; el techo de la unidad bajo cada discordancia es la discordancia. {moved}",
+  "Contacts moved onto it, where a younger unit lies directly on an older one: {list}.": "Contactos movidos a ella, donde una unidad más joven yace directamente sobre una más antigua: {list}.",
+  " No measurement in the package of: {u}. Their dip was estimated from their contact points.": " Sin medidas en el paquete de: {u}. Su manteo se estimó a partir de sus puntos de contacto.",
+  "Units above and below an unconformity are fitted as separate conformable packages. The top of the unit below it follows the upper package.": "Las unidades sobre y bajo una discordancia se ajustan como paquetes concordantes separados. El techo de la unidad inferior sigue al paquete superior.",
+  "Unconformity here (click to remove)": "Discordancia aquí (clic para quitar)",
+  "Mark an unconformity here": "Marcar una discordancia aquí",
+  "Packages: units between unconformities share one field and stay parallel, and each package truncates the ones below. Units missing inside a package cannot pinch out. A surface flattens beyond its own contacts, so compare the predicted map with your map.": "Paquetes: las unidades entre discordancias comparten un campo y se mantienen paralelas, y cada paquete trunca los inferiores. Las unidades ausentes dentro de un paquete no pueden acuñarse. Una superficie se aplana más allá de sus contactos, así que compare el mapa predicho con su mapa."
 }
