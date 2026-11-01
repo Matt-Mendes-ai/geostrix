@@ -1,3 +1,4 @@
+import { tickedHoles } from "../lib/holeFilter.js"; // TASKS.csv #1315
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { subscribeRun, getRun, getRunHistory, beginRun, updateRun, endRun, cancelRun, quietFor, formatElapsed } from "../lib/geomlRun.js"; // TASKS.csv #1142
 import { planDomain, planGrade, roughTime, INDUCING_CAP, INDUCING_LIMIT_NO_CAP, FOCUS_SPACING, FOCUS_OTHER } from "../lib/geomlPlan.js"; // TASKS.csv #1146; #1312
@@ -25,7 +26,15 @@ const QUALITY = {
 const fmtMB = (b) => (b ? `${Math.round(b / 1e6).toLocaleString()} MB` : "—");
 const PROB_STOPS = labStopsAt([{ value: 0, color: "#f4f1de" }, { value: 0.5, color: "#f2b134" }, { value: 0.8, color: "#d9601a" }, { value: 1, color: "#8f1f3d" }]); // #702 — Lab, like the other ramps
 
-export default function PredictivePanel({ collars, survey, litho, assays, assayElements, terrain, desurveyMethod, trend, addVoxelModel, addSurface, setNotices }) {
+export default function PredictivePanel({ visibleHoles, collars: allCollars, survey: allSurvey, litho: allLitho, assays: allAssays, assayElements, terrain, desurveyMethod, trend, addVoxelModel, addSurface, setNotices }) {
+  // TASKS.csv #1315 — Matt: "geoML is modelling unseen holes". Every hole in the project was sent, whatever the hole list said. Now only the ticked ones, unless asked.
+  const [useHidden, setUseHidden] = useState(false);
+  const hiddenCount = useMemo(() => allCollars.length - tickedHoles(allCollars, visibleHoles).length, [allCollars, visibleHoles]);
+  const follow = hiddenCount > 0 && !useHidden;
+  const collars = useMemo(() => (follow ? tickedHoles(allCollars, visibleHoles) : allCollars), [follow, allCollars, visibleHoles]);
+  const survey = useMemo(() => (follow ? tickedHoles(allSurvey || [], visibleHoles) : allSurvey), [follow, allSurvey, visibleHoles]);
+  const litho = useMemo(() => (follow ? tickedHoles(allLitho || [], visibleHoles) : allLitho), [follow, allLitho, visibleHoles]);
+  const assays = useMemo(() => (follow ? tickedHoles(allAssays || [], visibleHoles) : allAssays), [follow, allAssays, visibleHoles]);
   const [st, setSt] = useState(null);
   const [busyJob, setBusyJob] = useState(null);
   const [denseNear, setDenseNear] = useState(null); // TASKS.csv #1312 — null: by the rule (thin runs)
@@ -150,7 +159,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
       const r = clip(blockPoints(b));
       const cells = blockCells(b, r.keep, (i) => b.probability[i]), ucells = blockCells(b, r.keep, (i) => b.uncertainty[i]);
       // TASKS.csv #677 — what produced the model travels with it (panel, exports)
-      const dparams = { tool: "geoML domain model", ...(sizing ? { sizing } : {}) /* #1146 */, ...(plan?.denseOn ? { denseNearUnit: { spacingM: FOCUS_SPACING, otherPoints: FOCUS_OTHER } } : {}), ...(res.held_out ? { heldOutCheck: res.held_out } : {}) /* #1312 */, unitCodes: [...unit], leftOut: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep (fold-following)" : "stationary", quality: QUALITY[quality].label, ...QUALITY[quality].domain, startingRangeM: res.range?.start ?? range, trainedRangeM: res.range?.trained ?? null, trend: trend?.name || null, addonVersion: st?.version || null, trainingPoints: res.training_points, contacts: res.contacts, generatedAt: new Date().toISOString() };
+      const dparams = { tool: "geoML domain model", ...(follow ? { holesLeftOutByHoleList: hiddenCount } : {}) /* #1315 */, ...(sizing ? { sizing } : {}) /* #1146 */, ...(plan?.denseOn ? { denseNearUnit: { spacingM: FOCUS_SPACING, otherPoints: FOCUS_OTHER } } : {}), ...(res.held_out ? { heldOutCheck: res.held_out } : {}) /* #1312 */, unitCodes: [...unit], leftOut: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep (fold-following)" : "stationary", quality: QUALITY[quality].label, ...QUALITY[quality].domain, startingRangeM: res.range?.start ?? range, trainedRangeM: res.range?.trained ?? null, trend: trend?.name || null, addonVersion: st?.version || null, trainingPoints: res.training_points, contacts: res.contacts, generatedAt: new Date().toISOString() };
       addVoxelModel({ name: `geoML — P(${name})`, source: "geoml", cells, min: 0, max: 1, colorMode: "continuous", stops: PROB_STOPS, threshold: 0.5, opacity: 0.6, params: { ...dparams, value: "probability of the unit (0-1)" } });
       const um = ucells.reduce((m, c) => Math.max(m, c.value), 0);
       addVoxelModel({ name: `geoML — uncertainty (${name})`, source: "geoml", cells: ucells, min: 0, max: um, colorMode: "continuous", stops: sequentialStops(0, um), visible: false, params: { ...dparams, value: "uncertainty of the indicator" } });
@@ -158,7 +167,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
       if (sizing) parts.push(sizing.focusM ? tr("only the {n} of {total} holes within {d} m of the unit were modelled", { n: sizing.holesSent, total: sizing.holesInProject, d: sizing.focusM.toLocaleString() }) : tr("spacing widened to {s} m to fit in memory", { s: sizing.trainSpacingM }));
       // #1158 — a finished run is not a good model: the fit to the logs, plainly (add-on 0.1.3+)
       // #1312 — that is on the points it trained on, which flatters it (PS_POR 66% there, 24% on unseen holes): said, and tested if asked
-      const unseen = res.held_out ? ` ${tr("On {k} of {n} holes left out of training: {a}% of the points in the unit come out inside it, {b}% of the others outside. This is the better guide to holes not yet drilled.", { k: res.held_out.holes_left_out, n: res.held_out.holes, a: Math.round(res.held_out.in_unit * 100), b: Math.round(res.held_out.other * 100) })}` : heldOut ? ` ${tr("The test on unseen holes did not run: it needs at least 4 holes with the unit and an up-to-date add-on.")}` : ` ${tr("Unseen holes usually score lower: tick the test on unseen holes to measure it.")}`;
+      const unseen = res.held_out ? ` ${tr("On {k} of {n} holes held back from training: {a}% of the points in the unit come out inside it, {b}% of the others outside. This is the better guide to holes not yet drilled.", { k: res.held_out.holes_left_out, n: res.held_out.holes, a: Math.round(res.held_out.in_unit * 100), b: Math.round(res.held_out.other * 100) })}` : heldOut ? ` ${tr("The score on held-back holes did not run: it needs at least 4 holes with the unit and an up-to-date add-on.")}` : ` ${tr("Holes it has not trained on usually score lower: tick the score on held-back holes to measure it.")}`;
       const fit = res.fit ? ` ${tr("On the points it trained on: {a}% of those in the unit come out inside it, {b}% of the others outside.", { a: Math.round(res.fit.in_unit * 100), b: Math.round(res.fit.other * 100) })}${res.fit.in_unit < 0.3 ? ` ${tr("That is weak: the surface and blocks do not reproduce this unit where it was logged. A higher quality, a narrower set of holes or a merged code may do better.")}` : ""}` : "";
       return `${parts.join("; ")} — ${res.training_points.toLocaleString()} points, ${res.contacts} contacts.${fit}${unseen}`;
     });
@@ -301,12 +310,16 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
                 <input value={unitName} onChange={(e) => setUnitName(e.target.value)} placeholder={tr("Name (optional)")} aria-label={tr("Unit name")} style={{ ...smallSel, width: "100%", boxSizing: "border-box", marginTop: 6 }} />
                 <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 6 }} title={tr("geoML's deep model (GPWalk): a vector field bends the space so the contact can follow folds. Slower.")}>
                   <input type="checkbox" checked={deep} onChange={(e) => setDeep(e.target.checked)} />{" "}{tr("Follow folds (deep model, slower)")}</label>
+                {hiddenCount > 0 && (
+                  <label style={{ display: "flex", gap: 6, alignItems: "flex-start", marginTop: 6 }} title={tr("Holes unchecked in the hole list are left out of the model. Tick this to use them anyway.")}>
+                    <input type="checkbox" checked={useHidden} onChange={(e) => setUseHidden(e.target.checked)} />{" "}<span>{useHidden ? tr("Also using the {n} holes unchecked in the hole list", { n: hiddenCount }) : tr("Leaving out the {n} holes unchecked in the hole list (tick to use them)", { n: hiddenCount })}</span></label>
+                )}
                 {unitPlan?.focus?.available && (
                   <label style={{ display: "flex", gap: 6, alignItems: "flex-start", marginTop: 6 }} title={tr("Trains on a point every {s} m in the unit and at its contacts, and a thinned sample of the other rock. It helped thin units on the projects tested, but one thick unit got worse: compare with the test on unseen holes.", { s: FOCUS_SPACING })}>
                     <input type="checkbox" checked={!!unitPlan.denseOn} onChange={(e) => setDenseNear(e.target.checked)} />{" "}<span>{tr("Sample densely near the unit")}{unitPlan.focus.thin ? ` ${tr("(on by default: its runs are thin, median {m} m)", { m: unitPlan.focus.medianRunM })}` : ""}</span></label>
                 )}
                 <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 6 }} title={tr("Trains again without every 4th hole and scores the model on those holes. About twice the time.")}>
-                  <input type="checkbox" checked={heldOut} onChange={(e) => setHeldOut(e.target.checked)} />{" "}{tr("Also test on unseen holes (about twice the time)")}</label>
+                  <input type="checkbox" checked={heldOut} onChange={(e) => setHeldOut(e.target.checked)} />{" "}{tr("Also score the model on holes held back from training (about twice the time)")}</label>
                 {unitPlan && (
                   <div style={{ marginTop: 6, fontSize: "var(--font-size-xs)", lineHeight: 1.4 }}>
                     {(unitPlan.focused || unitPlan.factor > 1) && <div style={{ color: "var(--color-warn-text)" }}>

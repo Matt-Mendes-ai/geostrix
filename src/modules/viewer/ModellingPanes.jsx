@@ -188,6 +188,7 @@ export default function ModellingPanes(props) {
     setThinWindowM,
     orientationReachM, setOrientationReachM, // TASKS.csv #1170
     stackBreaks, setStackBreaks, // TASKS.csv #1309
+    visibleHoles, // TASKS.csv #1315
     setTrendPreviewId,
     setVariogramOpen,
     setVeinCellSize,
@@ -529,7 +530,7 @@ export default function ModellingPanes(props) {
         {/* TASKS.csv #750 — the former Predictive tab, as a 3D Modelling tool */}
         {paneHeader("geoML models", Sparkles, "model")}
         <Suspense fallback={null}>
-          <PredictivePanel collars={collars} survey={survey} litho={layers.litho || []} assays={assays} assayElements={assayElements} terrain={terrain} desurveyMethod={desurveyMethod} trend={trendFor("geoml")}
+          <PredictivePanel visibleHoles={visibleHoles} collars={collars} survey={survey} litho={layers.litho || []} assays={assays} assayElements={assayElements} terrain={terrain} desurveyMethod={desurveyMethod} trend={trendFor("geoml")}
             addVoxelModel={addVoxelModel} addSurface={addWorldMeshSurface} setNotices={setNotices} />
         </Suspense>
         </>)}
