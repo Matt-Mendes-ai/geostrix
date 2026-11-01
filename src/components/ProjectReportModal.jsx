@@ -7,6 +7,7 @@
 // plain CSV. Sections are stacked in one file with a blank row + a "=== NAME ===" header row between
 // them, the same lightweight technique any CSV-based multi-table export uses — not as polished as
 // real Excel sheets, but zero new dependencies and consistent with every other export in this app.
+const gradeText = (v) => (Number.isFinite(v) ? (v !== 0 && Math.abs(v) < 0.01 ? String(Number(v.toPrecision(3))) : v.toFixed(3)) : "—"); // TASKS.csv #1213, as Grade statistics
 import React, { useMemo } from "react";
 import { X, Download, FileBarChart2 } from "./icons.js";
 import { saveFile } from "../lib/desktop.js";
@@ -36,7 +37,7 @@ function elementStats(rows, elements, weighted = false) {
     const W = usable.reduce((s, p) => s + p.w, 0);
     const mean = W > 0 ? usable.reduce((s, p) => s + p.w * p.v, 0) / W : null;
     const vals = pairs.map((p) => p.v);
-    return { symbol: e.symbol, unit, n: pairs.length, metres: weighted ? W.toFixed(1) : "", mean: mean == null ? "" : mean.toFixed(3), min: arrMin(vals).toFixed(3), max: arrMax(vals).toFixed(3), noLength: pairs.length - usable.length };
+    return { symbol: e.symbol, unit, n: pairs.length, metres: weighted ? W.toFixed(1) : "", mean: mean == null ? "" : gradeText(mean), min: gradeText(arrMin(vals)), max: gradeText(arrMax(vals)), noLength: pairs.length - usable.length };
   });
 }
 

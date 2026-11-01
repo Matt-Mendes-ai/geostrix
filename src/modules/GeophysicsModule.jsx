@@ -1810,7 +1810,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
 async function exportBlockModelCSV(model, epsg, names = "datamine", stampChoice = "auto") {
   const csv = await blockModelCsvText(model, names); // names: #979; #1041 — written straight from the cells, in chunks
   const stamp = stampLines({ tool: "Block model export", version: APP_VERSION, epsg, params: blockModelParamLines(model) }); // #529 — version + CRS
-  const base = String(model.name || "block_model").replace(/[^\w\- ]/g, "").slice(0, 80) || "block_model";
+  const base = safeFileName(model.name || "block_model", "block_model").slice(0, 80); // TASKS.csv #1214 — "45.5m" read 455m
   if (stampPlacement(stampChoice, names) === "beside") { // #1061 — a clean CSV and its notes, in one .zip
     const { buildZip } = await import("../lib/shapefile.js");
     const enc = new TextEncoder();

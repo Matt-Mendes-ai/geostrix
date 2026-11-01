@@ -34,6 +34,12 @@ export function readDbProfiles(storage = globalThis.localStorage) {
 export function writeDbProfiles(list, storage = globalThis.localStorage) {
   try { storage?.setItem(KEY, JSON.stringify((list || []).map(cleanProfile))); } catch (_) { /* storage full or blocked: kept for this session */ }
 }
+// TASKS.csv #1263 — what an opened file may add. Profiles belong to a computer (#1081): GeoStrix has written none into a project since format 20, so a newer file
+// that carries some was not written by it. An older file's are migrated, without the insecure-TLS tick or the remembered-password flag a planted profile could set.
+export function profilesFromFile(data) {
+  if (!Array.isArray(data?.dbConnections) || !data.dbConnections.length || !(Number(data.version) < 20)) return [];
+  return data.dbConnections.map((p) => { const q = { ...p }; delete q.sslInsecure; delete q.rememberPassword; return q; });
+}
 // profiles from an opened project file, added where this computer has none of that name (this computer's win)
 export function mergeDbProfiles(mine, fromFile) {
   const names = new Set((mine || []).map((p) => p.name));

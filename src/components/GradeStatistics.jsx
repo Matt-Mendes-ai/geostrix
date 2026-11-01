@@ -295,14 +295,14 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
                       <tr key={g.key}>
                         <td style={td}>{domainLabel(g.key)}</td>
                         <td style={td}>{g.stats.n}</td>
-                        <td style={td}>{g.stats.mean.toFixed(3)}</td>
-                        <td style={td}>{g.stats.median.toFixed(3)}</td>
-                        <td style={td}>{g.stats.stdev.toFixed(3)}</td>
+                        <td style={td}>{gradeText(g.stats.mean)}</td>
+                        <td style={td}>{gradeText(g.stats.median)}</td>
+                        <td style={td}>{gradeText(g.stats.stdev)}</td>
                         <td style={td}>{g.stats.cv == null ? "—" : g.stats.cv.toFixed(0)}</td>
-                        <td style={td}>{g.stats.min.toFixed(3)}</td>
-                        <td style={td}>{g.stats.q1.toFixed(3)}</td>
-                        <td style={td}>{g.stats.q3.toFixed(3)}</td>
-                        <td style={td}>{g.stats.max.toFixed(3)}</td>
+                        <td style={td}>{gradeText(g.stats.min)}</td>
+                        <td style={td}>{gradeText(g.stats.q1)}</td>
+                        <td style={td}>{gradeText(g.stats.q3)}</td>
+                        <td style={td}>{gradeText(g.stats.max)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -347,6 +347,8 @@ function Histogram({ data, unit, logScale }) {
 // Simple box-and-whisker per domain group: whiskers to actual min/max (not a Tukey 1.5*IQR fence with
 // separate outlier points — a lighter first pass; worth revisiting if capping/outlier work needs the
 // distinction later).
+// TASKS.csv #1213 — half a detection limit of 0.0005 g/t printed as 0.001. Small values keep their significant figures.
+export const gradeText = (v) => (Number.isFinite(v) ? (v !== 0 && Math.abs(v) < 0.01 ? String(Number(v.toPrecision(3))) : v.toFixed(3)) : "—");
 // TASKS.csv #1185 — the same log axis as the histogram: on a linear axis a four-decade Cu distribution left every median in a corner. A value
 // of zero or below sits at the smallest positive one.
 export function boxPlotScale(stats, logScale, x0, x1) {

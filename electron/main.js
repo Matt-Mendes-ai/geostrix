@@ -37,6 +37,10 @@ try { dns.setDefaultResultOrder("ipv4first"); } catch (_) { /* Node < 17 fallbac
 // says: NODE_ENV=development in a user's environment used to load http://localhost:5173 with the full IPC bridge, skip
 // the app:// handler and the single-instance lock, and open DevTools
 const isDev = !app.isPackaged && process.env.NODE_ENV === "development";
+{ // TASKS.csv #1265
+  const refused = app.isPackaged ? require("./launchGuard").refusedSwitches(process.argv) : [];
+  if (refused.length) { dialog.showErrorBox("GeoStrix", `GeoStrix was started with options it does not accept: ${refused.join(" ")}\n\nStart it from its normal shortcut.`); app.exit(1); }
+}
 
 let mainWindow = null;
 const childWindows = new Map(); // id -> BrowserWindow (cross-section pop-outs)
@@ -1118,12 +1122,15 @@ const isNamespacedPath = (p) => /^[\\/]{2}[?.][\\/]/.test(String(p || "")); // #
 function protectedRoots() {
   const out = [];
   for (const k of ["userData", "appData"]) { try { out.push(dirKey(app.getPath(k))); } catch (_) { /* not available */ } }
+  if (process.env.LOCALAPPDATA) out.push(dirKey(process.env.LOCALAPPDATA)); // TASKS.csv #1266 — browser profiles, WebCache: never project data
   return out;
 }
 // #1076 — true when the path (or what it really points to) is inside a protected folder
 async function inProtectedFolder(p) {
   const roots = protectedRoots();
-  const hit = (q) => roots.some((r) => q === r || q.startsWith(r + path.sep));
+  let tmp = ""; try { tmp = dirKey(app.getPath("temp")); } catch (_) { /* not available */ } // inside LOCALAPPDATA, and where an unzipped download lands
+  const hit = (q) => !(tmp && (q === tmp || q.startsWith(tmp + path.sep))) && roots.some((r) => q === r || q.startsWith(r + path.sep));
+  if (/^ntuser/i.test(path.basename(p))) return true; // #1266 — the user's registry hive
   if (hit(dirKey(p))) return true;
   try { return hit(dirKey(await fs.promises.realpath(p))); } catch (_) { return false; }
 }

@@ -5,7 +5,7 @@ import { changedKeys } from "./undoLabels.js"; // TASKS.csv #1087
 import { capturedFrameFields } from "./layoutGeometry.js"; // TASKS.csv #906 / #961
 import { setKnownHoleIds } from "./qaqc.js"; // TASKS.csv #400
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
-import { readDbProfiles, writeDbProfiles, mergeDbProfiles } from "./dbProfiles.js"; // TASKS.csv #1081
+import { readDbProfiles, writeDbProfiles, mergeDbProfiles, profilesFromFile } from "./dbProfiles.js"; // TASKS.csv #1081
 import { FIELD_KEYS, FIELDS, UNDO_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod } from "./desurvey.js";
@@ -1073,7 +1073,7 @@ export function StoreProvider({ children }) {
     setFields(fieldsFromPayload(data, fallbackName, dropped));
     lastDroppedFieldsRef.current = dropped; // #1262 — openProject reports them
     // TASKS.csv #1081 — a file from before version 20 may carry connection profiles: moved to this computer's list
-    if (Array.isArray(data?.dbConnections) && data.dbConnections.length) setDbConnections((prev) => mergeDbProfiles(prev, data.dbConnections));
+    { const fromFile = profilesFromFile(data); if (fromFile.length) setDbConnections((prev) => mergeDbProfiles(prev, fromFile)); } // #1263
     setViewerUiStateSeq((s) => s + 1);
     setLastCamState(null); // a different project's saved camera has no meaning here — fall back to the default view
     setPendingLayoutImages([]);

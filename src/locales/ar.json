@@ -4415,7 +4415,6 @@
   "Version {v} of {lineage} — marked as the version you are working from (a record of your choice, not a validation of the run)": "الإصدار {v} من {lineage} — معلّم كالإصدار الذي تعمل منه (سجل لاختيارك، لا تحقق من التشغيل)",
   "Version {v} of {lineage} of this surface": "الإصدار {v} من {lineage} لهذا السطح",
   "{v} Volume and tonnage assume the coordinates are in metres, so nothing here can be reported in m³ or tonnes until a projected, metre-based CRS is set (Project settings). The mesh itself is unaffected.": "{v} يفترض الحجم والحمولة أن الإحداثيات بالأمتار، لذا لا شيء هنا يمكن الإبلاغ عنه بـ م³ أو أطنان حتى يُضبط نظام مسقط بالأمتار (إعدادات المشروع). الشبكة نفسها لا تتأثر.",
-  "{v} That can mean several things: it's a single draped contact or fault sheet rather than a solid; it was clipped against a modelling domain; or the shell reaches the edge of the estimated region (the shell is only closed there when \"Close shell artificially\" is ticked). The volume above is computed anyway but doesn't represent a real enclosed shape — treat it as informational only.": "{v} قد يعني ذلك عدة أمور: إنه تماس منسدل واحد أو صفيحة صدع لا مجسم؛ أو قُص بنطاق نمذجة؛ أو يبلغ الغلاف حافة المنطقة المقدرة (لا يُغلق هناك إلا إذا حُدد «إغلاق الغلاف اصطناعيًا»). يُحسب الحجم أعلاه على أي حال لكنه لا يمثل شكلًا مغلقًا حقيقيًا — اعتبره للمعلومات فقط.",
   "Link this surface to an earlier run first": "اربط هذا السطح بتشغيل سابق أولًا",
   "Compare this version against another run of the same surface: volume delta, how far the surface moved, and which parameters changed": "مقارنة هذا الإصدار بتشغيل آخر للسطح نفسه: فرق الحجم، ومدى تحرك السطح، وأي المعاملات تغيرت",
   "— side {v}": "— الجانب {v}",
@@ -6606,5 +6605,6 @@
   "Diagram": "مخطط",
   "Planned hole collar": "فوهة الثقب المخطط",
   "Desurvey method": "طريقة حساب المسار",
-  "No terrain is loaded, so a picked Elev is whatever the click hit, or a flat plane through the data. Check it before using it, or load a terrain.": "لا توجد تضاريس محمّلة، فالارتفاع المختار هو ما أصابته النقرة أو مستوى أفقي عبر البيانات. تحقق منه قبل استخدامه أو حمّل التضاريس."
+  "No terrain is loaded, so a picked Elev is whatever the click hit, or a flat plane through the data. Check it before using it, or load a terrain.": "لا توجد تضاريس محمّلة، فالارتفاع المختار هو ما أصابته النقرة أو مستوى أفقي عبر البيانات. تحقق منه قبل استخدامه أو حمّل التضاريس.",
+  "{v} That can mean several things: it's a single draped contact or fault sheet rather than a solid; it was clipped against a modelling domain; or the shell reaches the edge of the estimated region (the shell is only closed there when \"Close shell artificially\" is ticked). So no enclosed volume is given.": "{v} قد يعني ذلك عدة أمور: إنه تماس منسدل واحد أو صفيحة صدع لا مجسم؛ أو قُص بنطاق نمذجة؛ أو يبلغ الغلاف حافة المنطقة المقدرة (لا يُغلق هناك إلا إذا حُدد «إغلاق الغلاف اصطناعيًا»). لذلك لا يُعطى حجم مغلق."
 }
