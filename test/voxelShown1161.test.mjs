@@ -19,3 +19,11 @@ test("#1161 the sections and the level plan filter with the same function as the
   assert.equal((src.match(/voxelCellShown\(model, c\)/g) || []).length, 3, "3D view, section, level plan");
   assert.ok(!/cells\.forEach\(\(c\) => \{\s*if \(!voxelCellSupported\(model, c\)\) return;/.test(src), "no bare support-only filter is left in a drawing path");
 });
+
+// TASKS.csv #1283 — the Targeting pane's sliders follow the store's band (a source pin: the component is not importable alone)
+test("#1283 VoxelRangeRow re-reads threshold / rangeMax from the model", () => {
+  const src = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const body = src.slice(src.indexOf("function VoxelRangeRow("), src.indexOf("function VoxelRangeRow(") + 2500);
+  assert.match(body, /useEffect\(\(\) => \{\s*if \(debounceRef\.current\) return;[\s\S]*\}, \[model\.threshold, model\.rangeMax, model\.min, model\.max\]\);/);
+  assert.match(body, /debounceRef\.current = null; onUpdate\(model\.id, patch\);/, "the pending push clears itself so the next store change is taken");
+});

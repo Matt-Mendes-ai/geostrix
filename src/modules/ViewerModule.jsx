@@ -9234,8 +9234,16 @@ function VoxelRangeRow({ model, onUpdate }) {
   const debounceRef = useRef(null);
   const push = (patch) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => onUpdate(model.id, patch), 150);
+    debounceRef.current = setTimeout(() => { debounceRef.current = null; onUpdate(model.id, patch); }, 150);
   };
+  // TASKS.csv #1283 — the sliders follow the store when the band is changed elsewhere (the Geophysics Cutoff slider, a
+  // project load, Undo): ViewerModule never unmounts, so the mount-time copy went stale and the pane counted cells the 3D
+  // view was not drawing. Not while this row's own 150 ms push is pending, or the thumb would jump back under the mouse.
+  useEffect(() => {
+    if (debounceRef.current) return;
+    setDispMin(Number.isFinite(model.threshold) ? model.threshold : model.min);
+    setDispMax(Number.isFinite(model.rangeMax) ? model.rangeMax : model.max);
+  }, [model.threshold, model.rangeMax, model.min, model.max]);
   const onMinInput = (v) => { setDispMin(v); push({ threshold: v }); };
   const onMaxInput = (v) => { setDispMax(v); push({ rangeMax: v }); };
   const reset = () => { setDispMin(model.min); setDispMax(model.max); onUpdate(model.id, { threshold: model.min, rangeMax: model.max }); };
