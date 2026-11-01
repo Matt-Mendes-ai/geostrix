@@ -48,6 +48,7 @@ export default function PredictivePanel({ collars, survey, litho, assays, assayE
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   }, [litho]);
   const [unit, setUnit] = useState(new Set());
+  useEffect(() => setDenseNear(null), [unit]); // a tick is for one unit: another goes back to the rule
   const [leaveOut, setLeaveOut] = useState(new Set(["OB", "OVB", "CAS", "CASING"]));
   const [unitName, setUnitName] = useState("");
   const [deep, setDeep] = useState(false);
