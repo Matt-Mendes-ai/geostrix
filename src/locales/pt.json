@@ -6627,5 +6627,12 @@
   "The highest probability of the unit anywhere in the intercept. The model shows the unit from 50%.": "A maior probabilidade da unidade em qualquer ponto da interseção. O modelo mostra a unidade a partir de 50%.",
   "Save the list as CSV": "Salvar a lista como CSV",
   "It reaches {a} of the {n} logged intercepts; the geoML panel lists the ones it misses, by hole and depth.": "Alcança {a} das {n} interseções registradas; o painel do geoML lista as que não alcança, por furo e profundidade.",
-  "It reaches all {n} logged intercepts.": "Alcança todas as {n} interseções registradas."
+  "It reaches all {n} logged intercepts.": "Alcança todas as {n} interseções registradas.",
+  "less than a minute ago": "há menos de um minuto",
+  "1 minute ago": "há 1 minuto",
+  "{n} minutes ago": "há {n} minutos",
+  "1 hour ago": "há 1 hora",
+  "{n} hours ago": "há {n} horas",
+  "{name}: not a format this importer reads (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson).": "{name}: este importador não lê esse formato (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson).",
+  "These values average {v} nT: that looks like the raw total field, not an anomaly. Removing the mean leaves the regional gradient in the data. Consider the best-fit plane, or remove the regional field first.": "Estes valores têm média de {v} nT: parece o campo total bruto, não uma anomalia. Remover a média deixa o gradiente regional nos dados. Considere o plano de melhor ajuste, ou remova antes o campo regional."
 }

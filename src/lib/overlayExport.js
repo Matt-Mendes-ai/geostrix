@@ -9,7 +9,7 @@ import { getProj4Def, pointTransform } from "./reproject.js";
 import { azimuthToGridOffset, wrap360 } from "./azimuthRef.js";
 
 const num = (v) => (typeof v === "number" ? v : v == null || v === "" ? NaN : Number(v));
-const r6 = (v) => Math.round(v * 1e6) / 1e6;
+const r8 = (v) => Math.round(v * 1e8) / 1e8; // TASKS.csv #1251 — about a millimetre; 6 decimals put a surveyor's pin up to 11 cm off at 52 N
 
 // ---------- map layers ----------
 // a multi-point feature becomes one point per part (the writers take one point per feature)
@@ -76,13 +76,15 @@ export function surfaceSampleFeatures(samples, elements, anomaly = null) {
 // ---------- outcrop structures ----------
 // set.rows: { x, y, z|null, dip, dipDir (grid, #547), strike, type, cls, comment }. dipdir_true / strike_true use the
 // grid convergence at each point (null when the project CRS cannot give it).
-export function surfaceStructureRows(set, epsg) {
+// zAt(x, y) -> the terrain's elevation: TASKS.csv #1206 — a set sitting on the terrain exports the z it is drawn at, not its file's z (often none)
+export function surfaceStructureRows(set, epsg, zAt = null) {
   return (set.rows || []).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y)).map((r) => {
     const dd = num(r.dipDir), dip = num(r.dip);
     const off = Number.isFinite(dd) && epsg ? azimuthToGridOffset("true", r.x, r.y, epsg) : null;
     const ddTrue = off ? wrap360(dd - off.offset) : null;
+    const zT = zAt && set.snapToTerrain !== false ? zAt(r.x, r.y) : null;
     return {
-      x: r.x, y: r.y, z: Number.isFinite(r.z) ? r.z : "",
+      x: r.x, y: r.y, z: Number.isFinite(zT) ? Math.round(zT * 100) / 100 : Number.isFinite(r.z) ? r.z : "",
       cls: r.cls ?? "", type: r.type ?? "",
       dip: Number.isFinite(dip) ? dip : "",
       dipdir_grid: Number.isFinite(dd) ? dd : "",
@@ -93,8 +95,8 @@ export function surfaceStructureRows(set, epsg) {
     };
   });
 }
-export function surfaceStructureFeatures(set, epsg) {
-  return { features: surfaceStructureRows(set, epsg).map(({ x, y, z, ...attributes }) => ({ geometry: [[x, y, z === "" ? 0 : z]], attributes })), geomType: "point" };
+export function surfaceStructureFeatures(set, epsg, zAt = null) {
+  return { features: surfaceStructureRows(set, epsg, zAt).map(({ x, y, z, ...attributes }) => ({ geometry: [[x, y, z === "" ? 0 : z]], attributes })), geomType: "point" };
 }
 
 // ---------- KML (WGS84) ----------
@@ -117,7 +119,7 @@ export async function lonLatTransform(epsg) {
 // headingOf(f) (point icon rotation: a strike symbol), lineColor, fillAlpha }
 export function featuresToKml({ features, geomType }, { name = "GeoStrix export", toLonLat, colorOf = () => "#e2a63c", nameOf = () => "", headingOf = null, fillAlpha = 0.35 } = {}) {
   if (!toLonLat) throw new Error("featuresToKml needs a coordinate transform to WGS84");
-  const ll = ([x, y, z]) => { const [lon, lat] = toLonLat(x, y); return `${r6(lon)},${r6(lat)},${Number.isFinite(z) ? Math.round(z * 100) / 100 : 0}`; };
+  const ll = ([x, y, z]) => { const [lon, lat] = toLonLat(x, y); return `${r8(lon)},${r8(lat)},${Number.isFinite(z) ? Math.round(z * 100) / 100 : 0}`; };
   const coords = (ring) => ring.map(ll).join(" ");
   const styles = new Map();
   const styleFor = (hex) => {

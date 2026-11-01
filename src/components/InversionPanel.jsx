@@ -188,6 +188,8 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
       request.observed = observed;
     }
     const notes = [];
+    // TASKS.csv #1196 — the confirm box says "anomaly"; a mean of 53,959 nT says raw total field. A warning, not a block: the field may be removed by the base level
+    if (method === "mag" && observed.length) { const mean = observed.reduce((a, b) => a + b, 0) / observed.length; if (Math.abs(mean) > 10000) notes.push(tr("These values average {v} nT: that looks like the raw total field, not an anomaly. Removing the mean leaves the regional gradient in the data. Consider the best-fit plane, or remove the regional field first.", { v: Math.round(mean).toLocaleString() })); }
     if (dhMeta && (dhMeta.skipped.noTrace || dhMeta.skipped.badValue || dhMeta.skipped.beyondTrace)) notes.push(tr("Drillhole constraints: {samples} samples from {holes} hole(s); left out {noTrace} log row(s) with no collar/trace, {badValue} with no value, {beyondTrace} sample(s) beyond the surveyed hole length.", { samples: dhMeta.samples, holes: dhMeta.holes, noTrace: dhMeta.skipped.noTrace, badValue: dhMeta.skipped.badValue, beyondTrace: dhMeta.skipped.beyondTrace }));
     if (dropped) notes.push(tr("{dropped} station(s) fell outside the terrain and were left out.", { dropped }));
     if (topo && !topo.covers) notes.push(tr("The terrain does not cover the whole model mesh (padding included); cells beyond it follow the nearest terrain edge — load a larger terrain for an honest result near the edges."));

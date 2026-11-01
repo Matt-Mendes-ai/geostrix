@@ -23,6 +23,7 @@ import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv 
 import { blockToCells, modelledIntervals, ABOVE_TOPS, unitAt } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { sectionGrid, sameLine, unpackUnits, sectionPixels, blockSpacing, sectionZRange } from "../lib/modelSection.js"; // TASKS.csv #759
 import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/desktop.js"; // copyText: TASKS.csv #589
+import { sampleProjectName } from "../lib/sampleProjectName.js"; // TASKS.csv #1218
 import { sectionFromCentre, sectionThroughHole, fenceLines, fenceExtentPoints } from "../lib/sectionDefs.js";
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, RIBBON_TONES } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate, Sparkles, Download } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
@@ -5930,6 +5931,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     loadSample(req.which);
   }, [store.sampleRequest]);
   const loadSample = async (which) => {
+    store.setProjectName(sampleProjectName(which, store.project?.name));
     // TASKS.csv #819 — Perk-Rocky is a surface-mapping project with no drillhole tables: its own loader only
     if (which === "perk") {
       try {

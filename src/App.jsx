@@ -18,6 +18,7 @@ const MemoViewerModule = React.memo(ViewerModule);
 import { RibbonSlotContext } from "./components/Ribbon.jsx"; // TASKS.csv #458
 import { undoMessage } from "./lib/undoLabels.js"; // TASKS.csv #1087
 import { UiModeContext, initialUiMode, saveUiMode } from "./lib/uiMode.js"; // TASKS.csv #748 — Simple / Advanced
+import { timeAgo } from "./lib/timeAgo.js"; // TASKS.csv #1274
 // TASKS.csv #224 (software-design-specialist audit finding: "grep for import()/React.lazy across src/
 // returns one hit -- a comment. A fresh launch eagerly fetches ~100 modules including three, geotiff,
 // proj4, d3-delaunay, sql.js") — ViewerModule stays a static import (it's the default landing tab and
@@ -429,7 +430,7 @@ export default function App() {
   // TASKS.csv #340 — Discard permanently deletes the only copy of the recovered work, so it confirms
   // first (the button also no longer carries an X icon, which read as "close this banner").
   const doDiscardRecovery = useCallback(() => {
-    const when = recovery?.autosavedAt ? ` autosaved ${new Date(recovery.autosavedAt).toLocaleString()}` : "";
+    const when = recovery?.autosavedAt ? ` autosaved ${timeAgo(recovery.autosavedAt)}` : "";
     const others = recovery?.otherTabs?.length ? ` and ${recovery.otherTabs.length} other unsaved tab(s)` : "";
     if (!window.confirm(tr("Permanently delete the recovered work for \"{v}\"{others}{when}? This can't be undone.", { v: recovery?.projectName, others, when }))) return;
     discardAutosave();
@@ -452,7 +453,7 @@ export default function App() {
           <RotateCcw size={14} style={{ flexShrink: 0 }} />
           <span style={{ flex: 1 }}>{tr("Recovered unsaved work from a previous session — \"{name}\"", { name: recovery.projectName })}
             {recovery.otherTabs?.length ? tr(" plus {n} other tab(s) ({names})", { n: recovery.otherTabs.length, names: recovery.otherTabs.join(", ") }) : ""}
-            {recovery.autosavedAt ? tr(" (autosaved {when})", { when: new Date(recovery.autosavedAt).toLocaleString() }) : ""}.
+            {recovery.autosavedAt ? tr(" (autosaved {when})", { when: timeAgo(recovery.autosavedAt) }) : ""}.
             {recovery.newer ? ` It was written by a newer GeoStrix (project format ${recovery.newer}); this version will ask before saving over anything that version added.` : ""}{/* #686 */}
           </span>
           <button onClick={doRestore} style={{ ...recoveryBtn, background: "#3d3423", color: "#e2c68c", border: "1px solid #5a4a2a" }}>{tr("Restore")}</button>

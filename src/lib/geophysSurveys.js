@@ -68,6 +68,13 @@ export function guessSurveyMethod(header) {
   if (/^(apparent)?res/.test(joined) || /ohm/.test(joined)) return "res";
   return null;
 }
+// TASKS.csv #1197 — the value column's name, else a label column holding one value on every row ("TMI_nT" on all 3,528 rows of the Harry survey)
+export function guessSurveyMethodFrom(header, labels = []) {
+  const g = guessSurveyMethod(header);
+  if (g) return g;
+  const one = new Set(labels.filter((v) => v != null && v !== ""));
+  return one.size === 1 ? guessSurveyMethod([...one][0]) : null;
+}
 // What a survey's z column means. "agl" = height above ground (a helicopter survey's radar altimeter):
 // converted to elevation = terrain + height, with the original kept on each row as zAgl.
 export const Z_MEANINGS = { elevation: "z is elevation", agl: "z is height above ground (radar altimeter)", none: "no z (grid nodes / unknown)" };
