@@ -261,8 +261,13 @@ function buildSampleIndex(samplePoints, searchRadius) {
   if (searchRadius > 0 && Number.isFinite(searchRadius) && searchRadius < size) {
     size = Math.max(searchRadius, spread / 256);
   }
+  const nbx = Math.floor((xmax - xmin) / size) + 1;
+  const nby = Math.floor((ymax - ymin) / size) + 1;
+  const nbz = Math.floor((zmax - zmin) / size) + 1;
+  // TASKS.csv #1210 — a number, not "x,y,z": a string built and hashed per lookup, up to 125 lookups per block, dominated a run that was mostly empty blocks.
+  // Callers only ask inside the populated box (the ring walk's lo / hi), so the key cannot wrap.
+  const key = (bx, by, bz) => bx + nbx * (by + nby * bz);
   const buckets = new Map();
-  const key = (bx, by, bz) => `${bx},${by},${bz}`;
   for (let i = 0; i < n; i++) {
     const p = samplePoints[i];
     const k = key(Math.floor((p.x - xmin) / size), Math.floor((p.y - ymin) / size), Math.floor((p.z - zmin) / size));
@@ -270,9 +275,6 @@ function buildSampleIndex(samplePoints, searchRadius) {
     if (!arr) { arr = []; buckets.set(k, arr); }
     arr.push(p);
   }
-  const nbx = Math.floor((xmax - xmin) / size) + 1;
-  const nby = Math.floor((ymax - ymin) / size) + 1;
-  const nbz = Math.floor((zmax - zmin) / size) + 1;
   return { size, xmin, ymin, zmin, xmax, ymax, zmax, nbx, nby, nbz, buckets, key };
 }
 
@@ -337,6 +339,13 @@ function makeNeighbourGatherer(samplePoints, opts = {}) {
     };
 
     if (index) {
+      // TASKS.csv #1210 — a block farther than the search from the box around all the samples has no candidates: Woodjam, 194,616 blocks at a 50 m search, 32 estimated
+      if (r2 != null) {
+        const ex = cx < index.xmin ? index.xmin - cx : cx > index.xmax ? cx - index.xmax : 0;
+        const ey = cy < index.ymin ? index.ymin - cy : cy > index.ymax ? cy - index.ymax : 0;
+        const ez = cz < index.zmin ? index.zmin - cz : cz > index.zmax ? cz - index.zmax : 0;
+        if (ex * ex + ey * ey + ez * ez > r2) return dists;
+      }
       const b = index.size;
       const bx = Math.floor((cx - index.xmin) / b);
       const by = Math.floor((cy - index.ymin) / b);
