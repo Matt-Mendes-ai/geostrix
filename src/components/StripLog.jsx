@@ -140,7 +140,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
         <div style={header}>
           <div>
             <div style={{ fontSize: 15, color: "#8a6a1f", fontWeight: 600 }}>{tr("Strip log — {holeId}", { holeId })}</div>
-            <div style={{ fontSize: 11, color: "#65717e", marginTop: 2 }}>{tr("{maxDepth} m total depth", { maxDepth: maxDepth.toFixed(0) })}</div>
+            <div style={{ fontSize: 11, color: "#65717e", marginTop: 2 }}>{tr("{maxDepth} m total depth", { maxDepth: +maxDepth.toFixed(1) })}</div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "#55606e" }} onClick={onClose} />
         </div>

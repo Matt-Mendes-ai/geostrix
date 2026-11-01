@@ -10,6 +10,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { stereonetFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1068
+const deg1 = (v) => (Number.isFinite(Number(v)) ? +Number(v).toFixed(1) : v); // TASKS.csv #1238 — alpha/beta picks carry full double precision
 
 // TASKS.csv #141 — stereonet QC for structure picks (Leapfrog-specialist audit finding: dip/azimuth
 // picks feed the anisotropy and structural-surface tools with no way to actually LOOK at the population
@@ -210,7 +211,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 const pt = toSvg(projectPole(p.azimuth, p.dip, projection));
                 const color = colorForStructure(p.value);
                 return <circle key={`pole_${i}`} cx={pt.x} cy={pt.y} r={3.2} fill={color} stroke="#1a2028" strokeWidth={0.5} opacity={0.9}>
-                  <title>{tr("{v} — dip {dip}° / dipdir {azimuth}°{v2}", { v: p.value || tr("(unlabeled)"), dip: p.dip, azimuth: p.azimuth, v2: p.hole_id ? ` (${p.hole_id} @ ${p.depth}m)` : "" })}</title>
+                  <title>{tr("{v} — dip {dip}° / dipdir {azimuth}°{v2}", { v: p.value || tr("(unlabeled)"), dip: deg1(p.dip), azimuth: deg1(p.azimuth), v2: p.hole_id ? ` (${p.hole_id} @ ${p.depth}m)` : "" })}</title>
                 </circle>;
               })}
 

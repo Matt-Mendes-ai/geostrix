@@ -232,7 +232,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
     const p = await doPlan("inversion");
     if (!p) return;
     const vector = method === "mag" && magModel === "vector"; // #770
-    const meta = { label: `${M.label} inversion${vector ? " (vector)" : regStyle === "compact" ? " (compact)" : ""}`, surveyName: `${activeSurvey}: ${rows.length} ${M.unit} stations`, ...p.meta }; // #364
+    const meta = { label: `${M.label} inversion${vector ? " (vector)" : regStyle === "compact" ? " (compact)" : ""}`, surveyName: `${activeSurvey}: ${p.meta?.stationsUsed != null && p.meta.stationsUsed !== rows.length ? `${p.meta.stationsUsed} of ${rows.length}` : rows.length} ${M.unit} stations`, ...p.meta }; // #364; #1195
     const params = {
       tool: `${method === "mag" ? "magnetic" : "gravity"} inversion (SimPEG)`,
       interpretation: vector

@@ -421,7 +421,9 @@ export function classifyBreaks(values, n, method = "equal") {
     // irregularly clustered data assay and geophysics values actually are (a background population
     // plus a long anomalous tail). Equal-interval puts nearly every sample in class 1 there, and
     // quantile splits the background into meaningless slices while lumping the whole anomaly together.
-    breaks.push(...jenksBreaks(nums, count));
+    // TASKS.csv #1198 — readable breaks, and no last "class" that starts at the maximum: 16-digit stops, and a fifth class holding one value
+    const sig3 = (v) => (v === 0 ? 0 : Number(v.toPrecision(3)));
+    return jenksBreaks(nums, count).filter((b, i) => i === 0 || b < nums[nums.length - 1]).map((b, i) => (i === 0 ? b : sig3(b)));
   } else {
     for (let i = 0; i < count; i++) breaks.push(min + (i / count) * (max - min));
   }

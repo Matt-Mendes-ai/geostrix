@@ -11,6 +11,7 @@ import { arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { tadpoleFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1017
+const deg1 = (v) => (Number.isFinite(Number(v)) ? +Number(v).toFixed(1) : v); // TASKS.csv #1238 — alpha/beta picks carry full double precision
 
 // TASKS.csv #277 — DOWNHOLE STRUCTURAL (TADPOLE) PLOT.
 //
@@ -251,7 +252,7 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                   <g key={`tp_${i}`}>
                     <line x1={cx} y1={cy} x2={tx} y2={ty} stroke={color} strokeWidth={1.4} opacity={0.95} />
                     <circle cx={cx} cy={cy} r={3.1} fill={color} stroke="#1a2028" strokeWidth={0.5}>
-                      <title>{tr("{v} @ {depth} m — dip {dip}° / dipdir {azimuth}°{v2}", { v: p.value || tr("(unlabeled)"), depth: p.depth, dip: p.dip, azimuth: p.azimuth, v2: p.alpha != null ? ` · alpha ${p.alpha.toFixed(1)}°${p.alphaMeasured ? tr(" (measured)") : ""}` : "" })}</title>
+                      <title>{tr("{v} @ {depth} m — dip {dip}° / dipdir {azimuth}°{v2}", { v: p.value || tr("(unlabeled)"), depth: p.depth, dip: deg1(p.dip), azimuth: deg1(p.azimuth), v2: p.alpha != null ? ` · alpha ${p.alpha.toFixed(1)}°${p.alphaMeasured ? tr(" (measured)") : ""}` : "" })}</title>
                     </circle>
                   </g>
                 );

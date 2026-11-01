@@ -86,6 +86,8 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     files.forEach((f) => { const m = lower(f).match(/\.(shp|dbf|prj|cpg)$/); if (m) (looseShp[base(f)] ||= {})[m[1]] = f; }); // #415 .cpg
     let projectEpsg = project?.epsg, empty = projectIsEmpty; // #607 — the first layer of an empty project may set its CRS
     const addParsed = (parsed, sourceName, { wgs84 = false } = {}) => {
+      // TASKS.csv #1250 — "wj — wj (points)": a family name that repeats the file name reads "wj — points", as the other importers' do
+      if (parsed.name && String(parsed.name).startsWith(`${sourceName} (`)) parsed = { ...parsed, name: parsed.name.slice(sourceName.length + 2).replace(/\)$/, "") };
       const qml = qmlByBase[sourceName.toLowerCase()] || soleQml || null;
       // #1106 — a GPX / GeoJSON file is in longitude / latitude: never offered as the project CRS (not metric)
       const adopted = wgs84 ? null : askAdoptCrs({ isEmpty: empty, currentEpsg: projectEpsg, declaredEpsg: mapSourceEpsg || parsed.epsg, fileName: sourceName });

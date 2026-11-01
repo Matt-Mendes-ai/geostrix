@@ -76,12 +76,14 @@ function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegEr
     if (!byHole.has(s.hole_id)) byHole.set(s.hole_id, []);
     byHole.get(s.hole_id).push(s);
   });
+  const orphanStations = new Map(); // TASKS.csv #1275 — one error per hole: 40 gyro stations gave 40 identical lines that buried the rest
   survey.forEach((s) => {
-    if (!collarIds.has(s.hole_id)) pushIssue(issues, "error", "Survey", s.hole_id, tr("Survey row references hole \"{hole_id}\", which has no matching collar — this hole cannot be desurveyed and won't render.{v}", { hole_id: s.hole_id, v: didYouMean(collarIds, s.hole_id) }));
+    if (!collarIds.has(s.hole_id)) orphanStations.set(s.hole_id, (orphanStations.get(s.hole_id) || 0) + 1);
     if (!Number.isFinite(s.depth) || s.depth < 0) pushIssue(issues, "error", "Survey", s.hole_id, tr("Survey station has an invalid depth ({depth}).", { depth: s.depth }));
     if (Number.isFinite(s.azimuth) && (s.azimuth < 0 || s.azimuth >= 360)) pushIssue(issues, "warning", "Survey", s.hole_id, tr("Survey azimuth {azimuth}° is outside 0–360° @ {depth}m.", { azimuth: s.azimuth, depth: s.depth }));
     if (Number.isFinite(s.dip) && (s.dip < -90 || s.dip > 90)) pushIssue(issues, "warning", "Survey", s.hole_id, tr("Survey dip {dip}° is outside -90–90° @ {depth}m.", { dip: s.dip, depth: s.depth }));
   });
+  orphanStations.forEach((n, id) => pushIssue(issues, "error", "Survey", id, tr("{n} survey stations for hole \"{hole_id}\", which has no matching collar: this hole cannot be desurveyed and won't render.{v}", { n, hole_id: id, v: didYouMean(collarIds, id) })));
   const lengthOf = new Map(collars.map((c) => [c.hole_id, Number(c.length)]));
   byHole.forEach((stations, holeId) => {
     const sorted = [...stations].sort((a, b) => a.depth - b.depth);

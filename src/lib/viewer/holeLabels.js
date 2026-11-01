@@ -4,7 +4,7 @@
 // labels from them; a mode change redraws only the labels. anchors: [{ id, x, y, z (scene), zWorld, depth }].
 export function holeLabelText(a, mode) {
   if (mode === "hole_id_z") return `${a.id} (${a.zWorld.toFixed(0)}m)`;
-  if (mode === "hole_id_depth") return `${a.id} (${a.depth.toFixed(0)}m)`;
+  if (mode === "hole_id_depth") return `${a.id} (${+a.depth.toFixed(1)}m)`; // #1259 — a driller's EOH: 438.5, not 439
   return a.id;
 }
 

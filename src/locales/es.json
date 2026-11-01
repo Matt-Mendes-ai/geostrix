@@ -6618,5 +6618,8 @@
   "Also score the model on holes held back from training (about twice the time)": "Evaluar también en sondajes reservados del entrenamiento (cerca del doble de tiempo)",
   "Holes it has not trained on usually score lower: tick the score on held-back holes to measure it.": "Los sondajes no usados en el entrenamiento suelen puntuar menos: marque la evaluación en sondajes reservados para medirlo.",
   "The score on held-back holes did not run: it needs at least 4 holes with the unit and an up-to-date add-on.": "La evaluación en sondajes reservados no se ejecutó: requiere al menos 4 sondajes con la unidad y un complemento actualizado.",
-  "On {k} of {n} holes held back from training: {a}% of the points in the unit come out inside it, {b}% of the others outside. This is the better guide to holes not yet drilled.": "En {k} de {n} sondajes dejados fuera del entrenamiento: {a}% de los puntos en la unidad quedan dentro y {b}% de los demás fuera. Esta es la mejor guía para sondajes aún no perforados."
+  "On {k} of {n} holes held back from training: {a}% of the points in the unit come out inside it, {b}% of the others outside. This is the better guide to holes not yet drilled.": "En {k} de {n} sondajes dejados fuera del entrenamiento: {a}% de los puntos en la unidad quedan dentro y {b}% de los demás fuera. Esta es la mejor guía para sondajes aún no perforados.",
+  "Databases": "Bases de datos",
+  "No saved connections yet: use the Database button in the ribbon to add one.": "Aún no hay conexiones guardadas: use el botón Base de datos de la cinta para agregar una.",
+  "{n} survey stations for hole \"{hole_id}\", which has no matching collar: this hole cannot be desurveyed and won't render.{v}": "{n} estaciones de levantamiento del sondaje «{hole_id}», sin collar correspondiente: no se puede calcular su trayectoria ni dibujar.{v}"
 }

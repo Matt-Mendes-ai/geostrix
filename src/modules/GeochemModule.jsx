@@ -956,7 +956,7 @@ export default function GeochemModule() {
 
         <div style={{ fontSize: 11, color: "#65717e", marginBottom: 10 }}>{tr(diagram.caption)}</div>
 
-        {missingForDiagram.length > 0 && (
+        {assays.length > 0 && missingForDiagram.length > 0 && (
           <div style={{ padding: "10px 12px", background: "#241f14", border: "1px solid #4a3d1e", borderRadius: 8, fontSize: 12, color: "#d8c080", marginBottom: 12 }}>{tr("This diagram needs {requires} — missing {missingForDiagram}. Points that can't be projected are dropped.", { requires: diagram.requires.join(", "), missingForDiagram: missingForDiagram.join(", ") })}</div>
         )}
 

@@ -11,7 +11,7 @@ test("#1277 label text per mode", () => {
   const a = { id: "H1", x: 0, y: 0, z: 0, zWorld: 1234.6, depth: 250.4 };
   assert.equal(holeLabelText(a, "hole_id"), "H1");
   assert.equal(holeLabelText(a, "hole_id_z"), "H1 (1235m)");
-  assert.equal(holeLabelText(a, "hole_id_depth"), "H1 (250m)");
+  assert.equal(holeLabelText(a, "hole_id_depth"), "H1 (250.4m)");
 });
 
 test("#1277 sync clears the old sprites (textures disposed) and draws the mode's labels above the collar", () => {

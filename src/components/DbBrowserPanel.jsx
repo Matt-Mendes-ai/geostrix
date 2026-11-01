@@ -83,9 +83,9 @@ export default function DbBrowserPanel({ onImportFile, onImportRows, onError }) 
         ))}
       </TreeSection>
 
-      <div style={{ ...sectionLabel, marginTop: 14 }}>{tr("PostgreSQL")}</div>
+      <div style={{ ...sectionLabel, marginTop: 14 }}>{tr("Databases")}</div>
       {dbConnections.length === 0 && (
-        <div style={{ color: "var(--color-text-muted)", padding: "2px 0 6px" }}>{tr("No saved connections yet — use \"Connect database\" above to add one.")}</div>
+        <div style={{ color: "var(--color-text-muted)", padding: "2px 0 6px" }}>{tr("No saved connections yet: use the Database button in the ribbon to add one.")}</div>
       )}
       {dbConnections.map((profile) => (
         <PgTreeNode key={profile.name} profile={profile} live={liveDbConnections[profile.name]}

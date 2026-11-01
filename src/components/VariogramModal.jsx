@@ -1,3 +1,4 @@
+import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #1215
 import React, { useMemo, useState } from "react";
 import { X, Play } from "./icons.js";
 import { compositeDownhole } from "../lib/geochem.js";
@@ -193,7 +194,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
             </label>
             <label style={fieldLabel}>{tr("Domain layer")}<select value={domainKey} onChange={(e) => { setDomainKey(e.target.value); setDomainValue("__all__"); }} style={inp}>
                 <option value="">{tr("(none)")}</option>
-                {domainOptions.map((k) => <option key={k} value={k}>{k}</option>)}
+                {domainOptions.map((k) => <option key={k} value={k}>{tr(LAYER_META[k]?.label || k)}</option>)}
               </select>
             </label>
             {domainKey && (
