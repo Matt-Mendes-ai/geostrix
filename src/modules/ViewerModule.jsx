@@ -142,6 +142,7 @@ import { loadGpkg, groupShapefileParts } from "../lib/viewer/importHelpers.js"; 
 import { useImportPipeline } from "./viewer/useImportPipeline.js"; // TASKS.csv #445 step 3
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1034 — the drillhole tables' stamp
 import { alphaOnlyFan, meanPole } from "../lib/sectionStructures.js"; // TASKS.csv #1130 — alpha-only picks on sections
+import VoxelRangeNumber from "../components/VoxelRangeNumber.jsx"; // TASKS.csv #1208
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -5945,7 +5946,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     try {
       const { buildShapefileZip } = await import("../lib/shapefile.js"); // #552 — on demand
       const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021 — the .prj
-      const zipBytes = buildShapefileZip({ features, geomType, epsg, baseName: label, keepFieldCase: !!built }); // #1025 — a map layer keeps its field names
+      const zipBytes = buildShapefileZip({ features, geomType, epsg, baseName: label, keepFieldCase: !!built, flat: !!built?.flat }); // #1025; #1246 — a map layer keeps its field names
       const res = await saveFile({ quiet: true, // TASKS.csv #576 — awaited: success only when it was written
         suggestedName: `${label.replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}.zip`,
         filters: [{ name: "Shapefile (zipped)", extensions: ["zip"] }],
@@ -7222,7 +7223,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove raster \"{name}\"?", { name: r.name }))) removeRaster(r.id); }, tr("Remove raster \"{name}\"", { name: r.name }))} />{/* #1088 — confirmed like its menu's Remove… (rasters are not undoable) */}
               </div>
             ))}
-            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10 }}>{tr("Imported via the Raster module")}</div>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10 }}>{tr("Managed under Maps: colours, drape and elevation.")}</div>
           </>
         )}
 
@@ -8259,7 +8260,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             onClose={() => setShowBasemap(false)}
           />
         )}
-        <div style={{ position: "absolute", top: 160, right: 12, display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ position: "absolute", top: 178, right: 12, display: "flex", flexDirection: "column", gap: 6 }}>{/* #1300 — 8 px below the compass card */}
           <button onClick={() => { camState.current.phi = 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Top")}</button>
           <button onClick={() => { camState.current.phi = Math.PI - 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Bottom")}</button>
           <button onClick={() => zoomToFitAll()} style={miniBtn} title={tr("Zoom to fit all (also: right-click the view)")} aria-label={tr("Zoom to fit all")}>{tr("Fit")}</button>{/* #567 — the keyboard / visible path the notices pointed to */}
@@ -8452,7 +8453,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       )}
       {styleTarget && (
         <Suspense fallback={null}>
-          <LayerStyleModal target={{ ...styleTarget, onEditColours: styleTarget.colourKey ? () => setInspectLayer(styleTarget.colourKey) : null }}
+          <LayerStyleModal target={{ ...styleTarget, onEditColours: styleTarget.colourKey ? () => { setStyleTarget(null); setInspectLayer(styleTarget.colourKey); } : null /* #1260 */ }}
             style={styleTarget.surfaceId ? implicitSurfaces.find((x) => x.id === styleTarget.surfaceId)?.style : layerStyles[styleTarget.key]}
             onChange={(patch) => (styleTarget.surfaceId ? setSurfaceStyle(styleTarget.surfaceId, patch) : setLayerStyle(styleTarget.key, styleTarget.kind, patch))}
             onReset={() => (styleTarget.surfaceId ? setSurfaceStyle(styleTarget.surfaceId, null) : setLayerStyle(styleTarget.key, styleTarget.kind, null))}
@@ -9135,12 +9136,12 @@ function VoxelRangeRow({ model, onUpdate }) {
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6 }}>
         <span style={{ color: "var(--color-text-faint)", width: 30, flexShrink: 0 }}>{tr("Min")}</span>
         <input type="range" min={model.min} max={model.max} step={(model.max - model.min) / 200 || 0.01} value={dispMin} onChange={(e) => onMinInput(Math.min(Number(e.target.value), dispMax))} style={{ flex: 1 }} />
-        <span style={{ color: "var(--color-text-secondary)", width: 58, textAlign: "right", flexShrink: 0 }}>{dispMin.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+        <VoxelRangeNumber value={dispMin} label={tr("Lowest value shown of \"{name}\"", { name: model.name })} onCommit={(v) => { const x = Math.min(Math.max(v, model.min), dispMax); setDispMin(x); onUpdate(model.id, { threshold: x }); }} />
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4 }}>
         <span style={{ color: "var(--color-text-faint)", width: 30, flexShrink: 0 }}>{tr("Max")}</span>
         <input type="range" min={model.min} max={model.max} step={(model.max - model.min) / 200 || 0.01} value={dispMax} onChange={(e) => onMaxInput(Math.max(Number(e.target.value), dispMin))} style={{ flex: 1 }} />
-        <span style={{ color: "var(--color-text-secondary)", width: 58, textAlign: "right", flexShrink: 0 }}>{dispMax.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+        <VoxelRangeNumber value={dispMax} label={tr("Highest value shown of \"{name}\"", { name: model.name })} onCommit={(v) => { const x = Math.max(Math.min(v, model.max), dispMin); setDispMax(x); onUpdate(model.id, { rangeMax: x }); }} />
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
         <span>{tr("Showing {visibleCount} of {cells} cell(s)", { visibleCount: visibleCount.toLocaleString(), cells: model.cells.length.toLocaleString() })}</span>

@@ -11,6 +11,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { fieldNeedsNumber, columnHasNoNumbers } from "../lib/importChecks.js"; // TASKS.csv #1257
 
 
 export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg }) {
@@ -69,7 +70,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
 
           <div style={label}>{tr("Column mapping")}</div>
           {schema.fields.map((f) => (
-            <div key={f.key} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <div key={f.key} style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 8 }}>
               <div style={{ width: 220, fontSize: "var(--font-size-base)", color: f.required ? "var(--color-text)" : "var(--color-text-secondary)", flexShrink: 0 }}>
                 {tr(f.label)}{f.required && <span style={{ color: "var(--color-danger-solid)" }}> *</span>}
               </div>
@@ -77,6 +78,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 <option value="">{tr("— none —")}</option>
                 {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
+              {fieldNeedsNumber(f) && modal.mapping[f.key] && columnHasNoNumbers(modal.sampleRows, modal.mapping[f.key]) && <div role="alert" style={{ flexBasis: "100%", marginInlineStart: 220, fontSize: "var(--font-size-sm)", color: "var(--color-danger-icon)" }}>{tr("\"{col}\" has no numbers in the preview rows: {field} needs a number.", { col: modal.mapping[f.key], field: tr(f.label) })}</div>}
             </div>
           ))}
 

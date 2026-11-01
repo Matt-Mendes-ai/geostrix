@@ -354,6 +354,13 @@ export function guessEpsgFromPrjWkt(wkt) {
   if (auth && code === guessEpsgFromAuthority(wkt)) return code; // #419: the file says its code
   return prjParamsMismatch(wkt, code) ? null : code;
 }
+// TASKS.csv #1243 — a .prj that was read and refused is not "no CRS in file". -> "NAD_1983_UTM_Zone_10N: Central_Meridian -129 vs -123", or null with no .prj or an accepted one
+export function prjRefusal(wkt) {
+  if (!wkt || guessEpsgFromPrjWkt(wkt)) return null;
+  const name = /(?:PROJCS|GEOGCS|PROJCRS|GEOGCRS)\[\s*"([^"]+)"/i.exec(wkt)?.[1] || "unnamed";
+  const code = guessEpsgFromPrjName(wkt), why = code ? prjParamsMismatch(wkt, code) : null;
+  return why ? `${name}: ${why}` : name;
+}
 function guessEpsgFromAuthority(wkt) {
   const auth = [...String(wkt).toUpperCase().matchAll(/(?:AUTHORITY|ID)\[\s*"EPSG"\s*,\s*"?(\d{4,5})"?\s*\]/g)].map((m) => Number(m[1]));
   return auth.length && getProj4DefSync(auth[auth.length - 1]) ? auth[auth.length - 1] : null;

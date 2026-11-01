@@ -1326,7 +1326,7 @@ export function createModellingRuns(ctx, mcRef) {
     rows.forEach((s) => {
       const t = traces.find((tc) => tc.hole_id === s.hole_id);
       const p = t ? findOnTrace(t.pts, s.depth) : null;
-      if (p) points.push(sceneToApi(p));
+      if (p) points.push({ ...sceneToApi(p), hole_id: s.hole_id, depth: s.depth }); // #1225 — so the pick check names them; the sidecar ignores fields it doesn't declare
     });
     const orientations = structureRowsToOrientations(rows, traces);
     if (!points.length || !orientations.length) return { why: "its picks could not be placed on the hole traces." };

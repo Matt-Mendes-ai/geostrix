@@ -80,7 +80,7 @@ export function pickReport(spec, opts = {}) {
   const pts = spec.points || [], ors = spec.orientations || [];
   if (pts.length > (opts.maxPoints ?? 5000)) return null; // a halo or grade shell's cloud, not picks
   const o = opts.origin || { x: 0, y: 0 }; // points are origin-relative in a model run: name real coordinates
-  const where = (p) => p.hole_id || `${p.srcCode === "surface map" ? "map contact" : "drawn contact"} at ${Math.round(p.x + o.x)} E ${Math.round(p.y + o.y)} N`;
+  const where = (p) => (p.hole_id ? (Number.isFinite(p.depth) ? `${p.hole_id} at ${p.depth} m` : p.hole_id) : null) || `${p.srcCode === "surface map" ? "map contact" : "drawn contact"} at ${Math.round(p.x + o.x)} E ${Math.round(p.y + o.y)} N`;
   const dup = duplicatePicks(pts), con = conflictingPicks(pts), ori = orientationConflicts(pts, ors);
   if (!dup.length && !con.length && !ori.length) return null;
   return {

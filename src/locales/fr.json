@@ -6645,5 +6645,12 @@
   "Lowest value of the ramp": "Valeur la plus basse de la rampe",
   "Highest value of the ramp": "Valeur la plus haute de la rampe",
   "equalized: colour does not scale with value": "égalisé : la couleur ne suit pas la valeur",
-  "Drawn from the kept values, where every {n} × {n} pixels were averaged, so this image is coarser than the imported one.": "Dessiné à partir des valeurs conservées, où chaque {n} × {n} pixels ont été moyennés : cette image est donc plus grossière que celle importée."
+  "Drawn from the kept values, where every {n} × {n} pixels were averaged, so this image is coarser than the imported one.": "Dessiné à partir des valeurs conservées, où chaque {n} × {n} pixels ont été moyennés : cette image est donc plus grossière que celle importée.",
+  "Use as survey points ({nx}×{ny} grid values, {v}) — for the Geophysics inversion": "Utiliser comme points de levé ({nx}×{ny} valeurs de grille, {v}) : pour l'inversion de Géophysique",
+  " Cropped to the drillholes + {v} m: read {readPixels} of {fullPixels} source pixels. Source cell ~{src} m, mesh spacing ~{v2} m{finer}.": " Recadré sur les sondages + {v} m : {readPixels} pixels source lus sur {fullPixels}. Cellule source ~{src} m, pas du maillage ~{v2} m{finer}.",
+  " (finer than the source: it interpolates, it adds no detail)": " (plus fin que la source : il interpole, sans ajouter de détail)",
+  "Managed under Maps: colours, drape and elevation.": "Géré sous Cartes : couleurs, drapé et élévation.",
+  "Lowest value shown of \"{name}\"": "Valeur la plus basse affichée de « {name} »",
+  "Highest value shown of \"{name}\"": "Valeur la plus haute affichée de « {name} »",
+  "\"{col}\" has no numbers in the preview rows: {field} needs a number.": "« {col} » n'a aucun nombre dans les lignes d'aperçu : {field} exige un nombre."
 }

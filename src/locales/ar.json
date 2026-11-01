@@ -6645,5 +6645,12 @@
   "Lowest value of the ramp": "أدنى قيمة في التدرج",
   "Highest value of the ramp": "أعلى قيمة في التدرج",
   "equalized: colour does not scale with value": "مُعادَل: لا يتناسب اللون مع القيمة",
-  "Drawn from the kept values, where every {n} × {n} pixels were averaged, so this image is coarser than the imported one.": "رُسمت من القيم المحفوظة، حيث جرى حساب متوسط كل {n} × {n} بكسل، لذا فهذه الصورة أخشن من المستوردة."
+  "Drawn from the kept values, where every {n} × {n} pixels were averaged, so this image is coarser than the imported one.": "رُسمت من القيم المحفوظة، حيث جرى حساب متوسط كل {n} × {n} بكسل، لذا فهذه الصورة أخشن من المستوردة.",
+  "Use as survey points ({nx}×{ny} grid values, {v}) — for the Geophysics inversion": "استخدامها نقاط مسح ({nx}×{ny} قيمة شبكية، {v}): لانعكاس الجيوفيزياء",
+  " Cropped to the drillholes + {v} m: read {readPixels} of {fullPixels} source pixels. Source cell ~{src} m, mesh spacing ~{v2} m{finer}.": " قُصّ إلى الثقوب + {v} م: قُرئ {readPixels} من {fullPixels} بكسل مصدر. خلية المصدر ~{src} م، تباعد الشبكة ~{v2} م{finer}.",
+  " (finer than the source: it interpolates, it adds no detail)": " (أدق من المصدر: يستكمل القيم ولا يضيف تفاصيل)",
+  "Managed under Maps: colours, drape and elevation.": "تُدار من الخرائط: الألوان والإسقاط والارتفاع.",
+  "Lowest value shown of \"{name}\"": "أدنى قيمة معروضة لـ«{name}»",
+  "Highest value shown of \"{name}\"": "أعلى قيمة معروضة لـ«{name}»",
+  "\"{col}\" has no numbers in the preview rows: {field} needs a number.": "لا يحتوي «{col}» على أرقام في صفوف المعاينة: يحتاج {field} إلى رقم."
 }

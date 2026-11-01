@@ -6645,5 +6645,12 @@
   "Lowest value of the ramp": "Valor más bajo de la rampa",
   "Highest value of the ramp": "Valor más alto de la rampa",
   "equalized: colour does not scale with value": "ecualizado: el color no escala con el valor",
-  "Drawn from the kept values, where every {n} × {n} pixels were averaged, so this image is coarser than the imported one.": "Dibujado con los valores conservados, donde se promedió cada {n} × {n} píxeles, así que esta imagen es más gruesa que la importada."
+  "Drawn from the kept values, where every {n} × {n} pixels were averaged, so this image is coarser than the imported one.": "Dibujado con los valores conservados, donde se promedió cada {n} × {n} píxeles, así que esta imagen es más gruesa que la importada.",
+  "Use as survey points ({nx}×{ny} grid values, {v}) — for the Geophysics inversion": "Usar como puntos de levantamiento ({nx}×{ny} valores de malla, {v}): para la inversión de Geofísica",
+  " Cropped to the drillholes + {v} m: read {readPixels} of {fullPixels} source pixels. Source cell ~{src} m, mesh spacing ~{v2} m{finer}.": " Recortado a los sondajes + {v} m: se leyeron {readPixels} de {fullPixels} píxeles de origen. Celda de origen ~{src} m, espaciado de la malla ~{v2} m{finer}.",
+  " (finer than the source: it interpolates, it adds no detail)": " (más fino que el origen: interpola, no agrega detalle)",
+  "Managed under Maps: colours, drape and elevation.": "Se administra en Mapas: colores, drapeado y elevación.",
+  "Lowest value shown of \"{name}\"": "Valor más bajo mostrado de «{name}»",
+  "Highest value shown of \"{name}\"": "Valor más alto mostrado de «{name}»",
+  "\"{col}\" has no numbers in the preview rows: {field} needs a number.": "«{col}» no tiene números en las filas de vista previa: {field} necesita un número."
 }

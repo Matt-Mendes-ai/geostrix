@@ -1,7 +1,7 @@
 // TASKS.csv #609 — builds a store-ready map layer (Map layers, #316) from a parsed vector layer. Moved out of
 // SurfaceMappingPanel.jsx so the 3D view's drop can send a line / polygon shapefile to Map layers too.
 import { CATEGORICAL_SAFE_COLORS } from "./layers.js";
-import { reprojectXY, getProj4DefSync } from "./reproject.js";
+import { reprojectXY, getProj4DefSync, prjRefusal } from "./reproject.js";
 import { autoCategories, applyQmlToCategories, guessStyleField, normalizeMapLayer } from "./mapLayers.js";
 
 // A .qml names its attribute as QGIS saw it ("lith"); the same layer exported as a shapefile comes back
@@ -32,7 +32,8 @@ export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverrid
   } else if (src && dst && src !== dst) {
     crsNote = `source EPSG:${src} could not be reprojected — assumed to already match EPSG:${dst}`;
   } else if (!src) {
-    crsNote = `no CRS in file — assumed EPSG:${dst ?? "?"}`;
+    const refused = prjRefusal(parsed.prjWkt); // #1243
+    crsNote = refused ? `its .prj (${refused}) matches no CRS GeoStrix knows — assumed EPSG:${dst ?? "?"}; set the Source CRS if that is wrong` : `no CRS in file — assumed EPSG:${dst ?? "?"}`;
   } else {
     crsNote = `EPSG:${src}`;
   }

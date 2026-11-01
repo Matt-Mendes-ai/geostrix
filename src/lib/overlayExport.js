@@ -27,7 +27,7 @@ export function mapLayerFeatures(layer) {
   });
   // #1060 — the DXF layer: the feature's category (its style field), else the map layer's name
   const dxfLayerOf = (f) => (layer.styleField && f.attributes?.[layer.styleField] != null ? `${layer.styleField}_${f.attributes[layer.styleField]}` : layer.name || "MAP");
-  return { features, geomType, dxfLayerOf };
+  return { features, geomType, dxfLayerOf, flat: z === 0 }; // #1246
 }
 
 // ---------- boundaries / claims ----------

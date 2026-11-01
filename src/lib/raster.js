@@ -57,6 +57,8 @@ const MAX_TEXTURE_SIZE = 2048;
 // longest side (every autosave writes the project file; a full-resolution airborne grid would add tens of
 // MB to each one). No-data nodes are NaN.
 export const GRID_MAX = 512;
+// TASKS.csv #1242 — "10.7 m" for a grid whose cells are 10.7 x 18.3 m
+export const gridCellText = (g) => (Math.abs(g.dx - g.dy) <= 0.005 * Math.max(g.dx, g.dy) ? `${+g.dx.toFixed(2)} m` : `${+g.dx.toFixed(2)} × ${+g.dy.toFixed(2)} m`);
 export function makeValueGrid(values, nx, ny, x0, yTop, dx, dy, isNoData) {
   const f = Math.max(1, Math.ceil(Math.max(nx, ny) / GRID_MAX));
   const gx = Math.ceil(nx / f), gy = Math.ceil(ny / f);
@@ -714,7 +716,7 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
       const g = parsed.grid;
       let n = 0; for (let i = 0; i < g.values.length; i++) if (Number.isFinite(g.values[i])) n++;
       grid = { nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, values: f32ToB64(g.values), valid: n, averagedBy: g.averagedBy, sourceSize: g.sourceSize };
-      gridNote = ` Values kept for analysis (${g.nx}×${g.ny} nodes at ${+g.dx.toFixed(2)} m${g.averagedBy > 1 ? `, block-averaged ${g.averagedBy}×${g.averagedBy} from ${g.sourceSize[0]}×${g.sourceSize[1]}` : ""}) — the raster's menu can turn them into survey points for an inversion.`;
+      gridNote = ` Values kept for analysis (${g.nx}×${g.ny} nodes at ${gridCellText(g)}${g.averagedBy > 1 ? `, block-averaged ${g.averagedBy}×${g.averagedBy} from ${g.sourceSize[0]}×${g.sourceSize[1]}` : ""}) — the raster's menu can turn them into survey points for an inversion.`;
     } else gridNote = " The grid's values were NOT kept (it was reprojected, and values need re-gridding, not a picture resample) — re-grid it in the project CRS elsewhere to use it as data.";
   }
 

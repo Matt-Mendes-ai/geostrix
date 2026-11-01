@@ -119,7 +119,7 @@ export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
           return [rx, ry, ...rest];
         })),
       }));
-      return { ...l, features, ...(x0 <= x1 ? { bbox: [x0, y0, x1, y1] } : {}), crsNote: `${l.crsNote ? `${l.crsNote} ` : ""}Reprojected EPSG:${fromEpsg} → EPSG:${toEpsg} with the project.` };
+      return { ...l, features, ...(x0 <= x1 ? { bbox: [x0, y0, x1, y1] } : {}), crsNote: `${l.crsNote ? `Imported as ${l.crsNote}; ` : ""}reprojected EPSG:${fromEpsg} → EPSG:${toEpsg} with the project.` };
     });
     count("map layers", f.mapLayers.length);
   }

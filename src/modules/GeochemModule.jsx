@@ -886,7 +886,7 @@ export default function GeochemModule() {
             // TASKS.csv #729 — #390's severity and #384's contrast here too: a failure gets an icon and the danger
             // colour, the rest the caption grey (4.98:1, was #7b8794 at 3.66:1); the newest message is bold.
             <div style={{ marginTop: 16, padding: "8px 10px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.5, maxHeight: 160, overflowY: "auto" }}>
-              {notices.slice(-6).map((n, i, shown) => {
+              {notices.filter((n, i, a) => i === 0 || noticeText(n) !== noticeText(a[i - 1])).slice(-6).map((n, i, shown) => { /* #1223 — one repeated message, once */
                 const last = i === shown.length - 1 ? { fontWeight: 600 } : null;
                 return noticeLevel(n) === "error"
                   ? <div key={i} style={{ marginBottom: 4, color: "var(--color-danger-fg)", display: "flex", gap: 5, alignItems: "flex-start", ...last }}><AlertTriangle size={12} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} /><span><span style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)", whiteSpace: "nowrap" }}>{tr("Error:")}{" "}</span>{noticeText(n)}</span></div>

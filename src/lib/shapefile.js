@@ -43,8 +43,9 @@ function f64le(v) { const b = new DataView(new ArrayBuffer(8)); b.setFloat64(0, 
 // TASKS.csv #487 — geomType "polygon" too, and multi-part features: a feature's `parts` (every line of a
 // multi-part polyline, every ring of a polygon, as the reader returns them) are written when present;
 // otherwise `geometry` is the single part, as before.
-function buildShpShx(features, geomType) {
-  const shapeType = geomType === "point" ? SHP_POINT_Z : geomType === "polygon" ? SHP_POLYGON_Z : SHP_POLYLINE_Z;
+// TASKS.csv #1246 — flat: a 2D layer, no z (types 1 / 3 / 5). A flat map layer written as PolygonZ with every z 0 read in QGIS as 3D at sea level.
+function buildShpShx(features, geomType, flat = false) {
+  const shapeType = flat ? (geomType === "point" ? 1 : geomType === "polygon" ? 5 : 3) : geomType === "point" ? SHP_POINT_Z : geomType === "polygon" ? SHP_POLYGON_Z : SHP_POLYLINE_Z;
   // #1025 — polygon rings reordered and rewound to the shapefile rule (outer clockwise, holes counter-clockwise, closed)
   const partsOf = (f) => { const ps = geomType !== "point" && f.parts?.length ? f.parts.filter((p) => p.length) : [f.geometry]; if (geomType !== "polygon") return ps; const rs = shapefileRings(ps); return rs.length ? rs : ps; };
   const shp = new ByteWriter();
@@ -67,7 +68,7 @@ function buildShpShx(features, geomType) {
       // PointZ record: ShapeType, X, Y, Z. TASKS.csv #1107 (review #1016) — no M: it is optional in Z records (the record
       // length says it is absent) and writing 0 made GDAL / QGIS read "3D Measured Point" (PointZM) with measure 0
       const [x, y, z] = f.geometry[0];
-      body.push(f64le(x)); body.push(f64le(y)); body.push(f64le(z ?? 0));
+      body.push(f64le(x)); body.push(f64le(y)); if (!flat) body.push(f64le(z ?? 0));
     } else {
       const parts = partsOf(f);
       const pts = parts.flat();
@@ -83,8 +84,10 @@ function buildShpShx(features, geomType) {
       let start = 0;
       parts.forEach((part) => { body.push(i32le(start)); start += part.length; }); // Parts[i] = first vertex of part i
       pts.forEach(([x, y]) => { body.push(f64le(x)); body.push(f64le(y)); });
-      body.push(f64le(fzmin)); body.push(f64le(fzmax));
-      pts.forEach(([, , z]) => body.push(f64le(z ?? 0)));
+      if (!flat) {
+        body.push(f64le(fzmin)); body.push(f64le(fzmax));
+        pts.forEach(([, , z]) => body.push(f64le(z ?? 0)));
+      }
       // #1107 — no M range / M array (optional; their presence made the layer LineStringZM / PolygonZM with measure 0)
     }
     shpRecords.push({ idx, body });
@@ -398,10 +401,10 @@ export function buildShapefileZip(layer) {
   return buildZip(shapefileZipFiles(layer));
 }
 // TASKS.csv #487 — the zip entries of one layer (several layers can share a zip: Cartography's file tool)
-export function shapefileZipFiles({ features, geomType, epsg, baseName = "export", keepFieldCase = false }) {
+export function shapefileZipFiles({ features, geomType, epsg, baseName = "export", keepFieldCase = false, flat = false }) {
   if (!features || !features.length) throw new Error(tr("Nothing to export — this layer has no rows with usable coordinates."));
   const columns = Array.from(features.reduce((set, f) => { Object.keys(f.attributes || {}).forEach((k) => set.add(k)); return set; }, new Set()));
-  const { shp, shx } = buildShpShx(features, geomType);
+  const { shp, shx } = buildShpShx(features, geomType, flat);
   const dbf = buildDbf(features, columns, { keepCase: keepFieldCase });
   const name = (baseName || "export").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase() || "export";
   const zipFiles = [
