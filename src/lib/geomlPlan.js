@@ -53,7 +53,10 @@ export function holeRuns(intervals, targets) {
 // left out of training (Fast; inside / outside): PS_POR 0 / 100 -> 24 / 95, PS_DK 0 / 100 -> 17 / 97, Harry SED 23 / 94 -> 37 / 93 (mean of
 // 4 folds), Woodjam VANSS 26 / 93 -> 49 / 95 (4 folds), OB unchanged; but Woodjam IMMOQ 49 / 67 -> 7 / 95. Run length does not predict that
 // loss (IMMOQ 10.5 m, VANSS 12.6 m), so only units with thin runs, which none of it harmed, get it by default; any other may try it.
-export const FOCUS_SPACING = 2.5, FOCUS_OTHER = 3000, THIN_RUN_M = 5;
+// TASKS.csv #1317 — logged intercepts the model reaches, 3000 -> 1500 other points (Fast, training holes, every 4th hole held back): I4+PS_POR 77 -> 85%,
+// PS_POR 66 -> 70, PS_DK 87 -> 98, SED 42 -> 64, VANSS 69 -> 78, IMMOQ 57 -> 63; held-back outside 92 -> 90, 99.5 -> 99.3, 93 -> 91, 98 -> 98, 98 -> 87, 100 -> 100.
+// 750 reaches more still (I4+PS_POR 91, held-back outside 85) and inflates the shell. Keeping the unit's points as inducing and doubling iterations did not help.
+export const FOCUS_SPACING = 2.5, FOCUS_OTHER = 1500, THIN_RUN_M = 5;
 const medianOf = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[s.length >> 1] : 0; };
 // holeRuns' lengths with only the unit's own runs
 export function unitRuns(intervals, targets) {
