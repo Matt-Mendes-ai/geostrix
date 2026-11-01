@@ -35,7 +35,7 @@ function fillTrack(rows, x, sy, colorFn, nameFn) {
     const color = colorFn ? colorFn(r.value) : "#8a94a3";
     const label = nameFn ? nameFn(r.value) : r.value;
     return `<rect x="${x}" y="${y0}" width="${TRACK_W - 6}" height="${h}" fill="${color}" stroke="#ffffff" stroke-width="0.5"><title>${esc(label)} (${r.from}-${r.to} m)</title></rect>`
-      + (h > 11 ? `<text x="${x + 4}" y="${y0 + h / 2 + 3}" font-size="8" fill="#1a2028">${esc(String(label).slice(0, 14))}</text>` : "");
+      + (h > 12 ? `<text x="${x + 4}" y="${y0 + h / 2 + 3.5}" font-size="10" fill="#1a2028" stroke="#ffffff" stroke-width="2.5" paint-order="stroke" stroke-linejoin="round">${esc(String(label).slice(0, 14))}</text>` : "");
   }).join("");
 }
 function tickTrack(rows, x, sy, colorFn) {

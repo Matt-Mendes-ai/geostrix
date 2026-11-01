@@ -688,7 +688,11 @@ export default function ModellingPanes(props) {
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", marginTop: 6 }} title={tr("Each fault is its own GemPy group ahead of the stack (a FAULT relation): the contacts either side are fitted as offset blocks in one run, instead of one surface ramped across the fault. Faults come from the Structure planes layer (picks with dip and dip direction), one per structure type and name.")}>{tr("Faults that offset the stack")}</div>
         <select value="" onChange={(e) => { const k = e.target.value; if (k && !stackFaults.includes(k) && stackFaults.length < 6) setStackFaults((p) => [...p, k]); }} style={{ ...smallSel, width: "100%", marginTop: 3 }} aria-label={tr("Add a fault that offsets the stack")}>
           <option value="">{faultCandidates.length ? tr("Add a fault…") : tr("No structure picks with dip / dip direction")}</option>
-          {faultCandidates.filter((c) => !stackFaults.includes(c.key)).map((c) => <option key={c.key} value={c.key}>{c.id ? `${c.type} — ${c.id}` : tr("{type} (all picks)", { type: c.type })} · {tr(c.n === 1 ? "{n} pick" : "{n} picks", { n: c.n })}{c.faultLike ? "" : tr(" (not named as a fault)")}</option>)}
+          {/* TASKS.csv #1225 — bedding and fractures are not faults: apart, for a geologist who knows a code the name does not show */}
+          {[[true, tr("Named as faults")], [false, tr("Other structure types")]].map(([like, label]) => {
+            const list = faultCandidates.filter((c) => !stackFaults.includes(c.key) && !!c.faultLike === like);
+            return list.length ? <optgroup key={label} label={label}>{list.map((c) => <option key={c.key} value={c.key}>{c.id ? `${c.type} — ${c.id}` : tr("{type} (all picks)", { type: c.type })} · {tr(c.n === 1 ? "{n} pick" : "{n} picks", { n: c.n })}</option>)}</optgroup> : null;
+          })}
         </select>
         {stackFaults.map((k, fi) => {
           // TASKS.csv #1054 — what this fault offsets: every unit (GemPy's default) or the units from one down (an erosional

@@ -6653,5 +6653,9 @@
   "Highest value shown of \"{name}\"": "Maior valor mostrado de “{name}”",
   "\"{col}\" has no numbers in the preview rows: {field} needs a number.": "“{col}” não tem números nas linhas de pré-visualização: {field} precisa de um número.",
   "{name}: not a format this importer reads (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson, .kml, .kmz).": "{name}: este importador não lê esse formato (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson, .kml, .kmz).",
-  "Leave-one-out over the {n} observed inputs: each predicted from everything else, the {m} constructed guide points included, misses by {rms} m RMS, worst {max} m ({at}).": "Validação deixando um de fora sobre as {n} entradas observadas: cada uma, prevista com todo o resto, incluindo os {m} pontos-guia construídos, erra por {rms} m RMS, pior {max} m ({at})."
+  "Leave-one-out over the {n} observed inputs: each predicted from everything else, the {m} constructed guide points included, misses by {rms} m RMS, worst {max} m ({at}).": "Validação deixando um de fora sobre as {n} entradas observadas: cada uma, prevista com todo o resto, incluindo os {m} pontos-guia construídos, erra por {rms} m RMS, pior {max} m ({at}).",
+  "Named as faults": "Com nome de falha",
+  "Other structure types": "Outros tipos de estrutura",
+  "\"{name}\" holds {n} blocks, about {gb} GB of memory while it is open. A modest laptop can slow down or run out. Import it? (Lowering the cell budget above coarsens it.)": "“{name}” contém {n} blocos, cerca de {gb} GB de memória enquanto estiver aberto. Um notebook modesto pode ficar lento ou sem memória. Importar? (Reduzir o orçamento de células acima o torna mais grosseiro.)",
+  "\"{name}\" was not imported.": "“{name}” não foi importado."
 }

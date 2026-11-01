@@ -65,7 +65,7 @@ export const DEFAULT_LAYOUT_ELEMENTS = [
   { id: "title", type: "title", x: 40, y: 30, text: "Untitled Section", w: 400 },
   { id: "north", type: "north", x: 1000, y: 40 },
   { id: "scale", type: "scale", x: 40, y: 720, meters: 100 },
-  { id: "legend", type: "legend", x: 900, y: 500, items: [["Lithology", "#c98a5a"], ["Alteration", "#4a6b4a"], ["Fault", "#c0392b"]] },
+  // TASKS.csv #1224 — no stock legend here: "Lithology / Alteration / Fault" in made-up colours printed on figures of projects that have other units
 ];
 
 // TASKS.csv #321 (database review) — a SimPEG model can hold tens of thousands of cells, and voxel models

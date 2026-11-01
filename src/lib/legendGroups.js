@@ -152,3 +152,16 @@ export function swatchShape(kind, size) {
   if (kind === "point") return { width: size - 3, height: size - 3, borderRadius: "50%" };
   return { width: size, height: size };
 }
+
+// TASKS.csv #1224 — whole groups, up to a legend that fits on a page, and always the first. items: legendGroupsToItems' rows, a group starting at its { heading } row.
+export function firstLegendGroups(items, maxRows = 32) {
+  const starts = items.map((it, i) => (it[2]?.heading ? i : -1)).filter((i) => i >= 0);
+  if (items.length <= maxRows || !starts.length) return items;
+  let end = starts[1] ?? items.length;
+  for (let k = 1; k < starts.length; k++) {
+    const next = starts[k + 1] ?? items.length;
+    if (next > maxRows) break;
+    end = next;
+  }
+  return items.slice(0, end);
+}

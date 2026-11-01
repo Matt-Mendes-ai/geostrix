@@ -34,6 +34,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the 
 import { crsName } from "../lib/reproject.js"; // TASKS.csv #947
 import { projectCredits } from "../lib/credits.js"; // TASKS.csv #949
 import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1127 / #1128
+import { firstLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #1224
 // (The page size used to be a fixed `const A4 = { w: 1123, h: 794 }` here; it is now per page — see
 // `A4` inside the component, kept under that name so every existing use follows the chosen format.)
 const SCALE_BAR_PX = 180; // default/initial bar length (px) for a freshly-added, never-synced scale bar
@@ -534,7 +535,13 @@ export default function LayoutModule() {
     if (type === "text") base.text = "Text", base.w = 200;
     if (type === "logo") logoInput.current.click();
     if (type === "scale") { base.meters = 100; base.pxPerMeter = DEFAULT_PX_PER_METER; }
-    if (type === "legend") base.items = [["Item", "#55606e"]];
+    if (type === "legend") {
+      // TASKS.csv #1224 — what the 3D view shows now, bound to the page's viewport if there is just one: a stock row on a printed figure says nothing true
+      const { items } = legendFromView(viewerUiState || {});
+      base.items = items.length ? firstLegendGroups(items) : [["Item", "#55606e"]]; // the whole view can run off the page: Load from view brings the rest
+      const viewports = elements.filter((el) => el.type === "viewport");
+      if (viewports.length === 1) base.boundViewportId = viewports[0].id;
+    }
     // TASKS.csv #19 — shapes/annotation
     if (type === "rect") { base.w = 180; base.h = 110; base.stroke = "#1a2028"; base.strokeWidth = 2; base.fill = "#ffffff"; base.fillOpacity = 0; }
     if (type === "arrow") { base.length = 140; base.angle = 0; base.stroke = "#1a2028"; base.strokeWidth = 2.5; }
@@ -765,6 +772,24 @@ export default function LayoutModule() {
   // ViewerModule itself uses to decide what's on screen — see captureCurrentTheme there) against the
   // ACTUAL litho vocabulary in `layers.litho` (a theme only stores which units are hidden, not the
   // full unit list, since that list can grow after the theme was saved) to build the item list.
+  const legendFromView = (theme) => {
+    // TASKS.csv #725 — everything the bound view draws, not only lithology: every categorical layer the theme shows
+    // (minus its hidden categories and holes, with its label / colour overrides), its assay grade classes, and the
+    // visible block models (classes, or a ramp) — the same builders as the 3D view's figure overlay.
+    const ov = theme.legendOverride || {};
+    const labelFor = (k, v) => ov[k]?.[v]?.label || (LAYER_META[k].nameFn ? LAYER_META[k].nameFn(v) || v : v);
+    const colorFor = (k, v) => ov[k]?.[v]?.color || LAYER_META[k].colorFn(v);
+    const layerVisible = { litho: true, ...(theme.layerVisible || {}) }; // a theme saved before a layer existed: lithology on, the rest off
+    const groups = [
+      ...categoryLegendGroups({ keys: LEGEND_CATEGORY_KEYS, layers, layerVisible, hidden: theme.categoryFilter || {}, visibleHoles: theme.visibleHoles || {}, labelFor, colorFor }),
+      ...assayLegendGroups({ assays, assayElements, assayVisible: theme.assayVisible !== false, assayDisplayElements: theme.assayDisplayElements || (theme.assayDisplayElement ? [theme.assayDisplayElement] : []), assayStyle: theme.assayStyle || {} }),
+      ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), // #1236
+      // TASKS.csv #948 — the Surface Geology map: surface samples as the 3D view colours them, map layers, boundaries
+      ...(surfaceSampleLegend ? [surfaceSampleLegend] : []), ...mapLayerLegendGroups(mapLayers), ...boundaryLegendGroups(boundaries),
+    ];
+    const items = legendGroupsToItems(groups);
+    return { groups, items };
+  };
   const syncLegendFromView = (legendId) => {
     const legend = elements.find((el) => el.id === legendId);
     if (!legend) return;
@@ -788,21 +813,7 @@ export default function LayoutModule() {
     // TASKS.csv #948 — a viewport captured from the current view (no theme) carries that view's own settings
     const theme = themes.find((t) => t.id === vp.themeId) || (!vp.themeId && vp.viewState ? { ...vp.viewState, name: tr("the current view") } : null);
     if (!theme) { setSyncNotice(tr("This viewport's saved theme could no longer be found (it may have been renamed or deleted) — rebind the viewport to a theme in its own panel, or resave that theme, then sync again.")); return; }
-    // TASKS.csv #725 — everything the bound view draws, not only lithology: every categorical layer the theme shows
-    // (minus its hidden categories and holes, with its label / colour overrides), its assay grade classes, and the
-    // visible block models (classes, or a ramp) — the same builders as the 3D view's figure overlay.
-    const ov = theme.legendOverride || {};
-    const labelFor = (k, v) => ov[k]?.[v]?.label || (LAYER_META[k].nameFn ? LAYER_META[k].nameFn(v) || v : v);
-    const colorFor = (k, v) => ov[k]?.[v]?.color || LAYER_META[k].colorFn(v);
-    const layerVisible = { litho: true, ...(theme.layerVisible || {}) }; // a theme saved before a layer existed: lithology on, the rest off
-    const groups = [
-      ...categoryLegendGroups({ keys: LEGEND_CATEGORY_KEYS, layers, layerVisible, hidden: theme.categoryFilter || {}, visibleHoles: theme.visibleHoles || {}, labelFor, colorFor }),
-      ...assayLegendGroups({ assays, assayElements, assayVisible: theme.assayVisible !== false, assayDisplayElements: theme.assayDisplayElements || (theme.assayDisplayElement ? [theme.assayDisplayElement] : []), assayStyle: theme.assayStyle || {} }),
-      ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), // #1236
-      // TASKS.csv #948 — the Surface Geology map: surface samples as the 3D view colours them, map layers, boundaries
-      ...(surfaceSampleLegend ? [surfaceSampleLegend] : []), ...mapLayerLegendGroups(mapLayers), ...boundaryLegendGroups(boundaries),
-    ];
-    const items = legendGroupsToItems(groups);
+    const { groups, items } = legendFromView(theme);
     if (!items.length) { setElements((els) => els.map((el) => el.id === legendId ? { ...el, items: [] } : el)); setSyncNotice(tr("Nothing that view shows has a legend: no visible category layer, assay classes, block model, surface samples, map layer or boundary.")); return; }
     setElements((els) => els.map((el) => el.id === legendId ? { ...el, items } : el));
     setSyncNotice(tr(groups.length === 1 ? "Loaded {n} legend group from \"{name}\"." : "Loaded {n} legend groups from \"{name}\".", { n: groups.length, name: theme.name }));

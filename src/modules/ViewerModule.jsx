@@ -1573,11 +1573,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       if (pickHoleMode) { setPickHoleMode(false); return; }
       if (interpretRef.current.on) { stopInterpret(); return; } // #1152
       if (mcConnectFrom) { setMcConnectFrom(null); return; }
-      if (measureMode) { setMeasureMode(null); setMeasurePts([]); }
+      if (measureMode) { setMeasureMode(null); setMeasurePts([]); return; }
+      if (interpretOpen) { setInterpretOpen(false); return; } // #1217 — nothing armed: the open task pane
+      setToolPane(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [contextMenu, layerContextMenu, openPopover, rectZoomMode, sectionMode, pickHoleMode, mcConnectFrom, measureMode]);
+  }, [contextMenu, layerContextMenu, openPopover, rectZoomMode, sectionMode, pickHoleMode, mcConnectFrom, measureMode, interpretOpen]);
 
   const fileInputs = useRef({});
   const setInputRef = (key) => (el) => { fileInputs.current[key] = el; };

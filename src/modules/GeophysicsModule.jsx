@@ -762,6 +762,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       const buf = await file.arrayBuffer();
       // TASKS.csv #637 — the element conversion lives in lib/omfImport.js (shared with the Woodjam sample project)
       const res = await omfToProjectObjectsAsync(buf, effectiveMaxCells);
+      // TASKS.csv #1202 — pillar 3: a budget the geologist raised once should not fill a modest laptop unasked (about 0.4 GB per million blocks, as the budget's own tooltip says)
+      const blocks = res.voxelModels.reduce((n, m) => n + (m.cells?.length || 0), 0);
+      if (blocks > 500000 && !window.confirm(tr("\"{name}\" holds {n} blocks, about {gb} GB of memory while it is open. A modest laptop can slow down or run out. Import it? (Lowering the cell budget above coarsens it.)", { name: file.name, n: blocks.toLocaleString(), gb: (blocks * 0.4e-6).toFixed(1) }))) { setOmfError({ info: true, text: tr("\"{name}\" was not imported.", { name: file.name }) }); return; }
       const pointsCount = res.omfObjects.filter((o) => o.kind === "points").length, linesCount = res.omfObjects.filter((o) => o.kind === "lines").length;
       const surfacesCount = res.omfObjects.filter((o) => o.kind === "surface").length, volumesCount = res.voxelModels.length;
       res.omfObjects.forEach((o) => addOmfObject(o));

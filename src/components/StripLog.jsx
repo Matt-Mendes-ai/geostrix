@@ -163,7 +163,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
           </label>
           <div style={{ flex: 1 }} />
           <button onClick={exportSVG} style={{ ...btn(false), padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("SVG")}</button>
-          <button onClick={exportPNG} style={{ ...btn(true), padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("PNG")}</button>
+          <button onClick={exportPNG} style={{ ...btn(false), padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("PNG")}</button>
         </div>
         {pngNote && <div role="status" style={{ padding: "6px 16px", fontSize: 11, color: "#7a4a1f", background: "#fdf4e6", borderBottom: "1px solid #edd9b7" }}>{pngNote}</div>}
 
@@ -192,9 +192,9 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                         <rect x={x0 + (r.lane || 0) * w} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={t.colorFn(r.value)} stroke={lanes > 1 ? "#fff" : undefined} strokeWidth={lanes > 1 ? 0.5 : undefined}>
                           {lanes > 1 && <title>{`${r.value}${Number.isFinite(r.extra) ? ` ${r.extra} %` : ""}, ${r.from}–${r.to} m`}</title>}
                         </rect>
-                        {(sy(r.to) - sy(r.from)) > 11 && (
-                          <text x={x0 + (r.lane || 0) * w + w / 2} y={(sy(r.from) + sy(r.to)) / 2 + 3} fontSize="8" textAnchor="middle" fill="#1a2028" style={{ pointerEvents: "none" }}>
-                            {String(t.nameFn ? t.nameFn(r.value) : r.value).slice(0, lanes > 1 ? 4 : 12)}
+                        {(sy(r.to) - sy(r.from)) > 12 && (
+                          <text x={x0 + (r.lane || 0) * w + w / 2} y={(sy(r.from) + sy(r.to)) / 2 + 3.5} fontSize="10" textAnchor="middle" fill="#1a2028" stroke="#ffffff" strokeWidth="2.5" paintOrder="stroke" strokeLinejoin="round" style={{ pointerEvents: "none" }}>{/* #1298 — 8 px on saturated fills */}
+                            {String(t.nameFn ? t.nameFn(r.value) : r.value).slice(0, lanes > 1 ? 3 : 10)}
                           </text>
                         )}
                       </g>
