@@ -3705,6 +3705,7 @@ ${describeTrend(t)}` };
       return tr("{unit} {v} ± {b} Mm³", { unit: u, v: ((n * sum.cellVolume) / 1e6).toFixed(2), b: ((q?.bandM3 || 0) / 1e6).toFixed(2) })
         + (q?.box.includes("base") ? ` ${tr("(to the box base at {z} m)", { z: zb })}` : "") + (q?.box.includes("sides") ? ` ${tr("(cut at the box sides)")}` : "");
     }).join(", ") + (Object.keys(sum.counts).length ? ` — ${tr("± is the most a count of {b} m blocks can be off by (half a block at every contact)", { b: bs.blockM.map((v) => +v.toFixed(1)).join(" × ") })}` : "");
+    if (sum.notExtended?.length) setNotices((p) => [...p, notice("Not extended: {names}. A contact under 5% of the box stays as drawn; others reach at most three times their own radius.", { names: sum.notExtended.join(", ") })]); // #1194
     const partial = Object.entries(sum.coverage).filter(([, f]) => f < 0.999).map(([u, f]) => tr("{unit} covers {pct}% of the box", { unit: u, pct: Math.round(100 * f) }));
     setNotices((p) => [...p, notice("Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Last model box above the surface list.{v}", { n: sum.resolution.reduce((a, b) => a * b, 1).toLocaleString(), nx: sum.resolution[0], ny: sum.resolution[1], nz: sum.resolution[2], units: units || tr("no unit cells"), v: (partial.length ? (sum.extended /* #1138 */ ? tr(" Contacts were extended past their own edges until they meet ({list} as drawn).", { list: partial.join("; ") }) : tr(" Beyond a top's footprint the unit above it continues down: {list}.", { list: partial.join("; ") })) : "")
       + (sum.inverted?.baseAboveTop ? tr(" In {n} of {m} columns a unit's base lies above its own top (negative thickness): the blocks there follow the rules but not the geology.", { n: sum.inverted.baseAboveTop, m: sum.inverted.columns }) : "") // #860
@@ -6969,9 +6970,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       sMin = Math.min(sMin, s); sMax = Math.max(sMax, s);
       tMin = Math.min(tMin, t); tMax = Math.max(tMax, t);
     });
-    // Small along-direction pad so a slice line's endpoints clear the extent's own edge (matches the
-    // spirit of MODEL_EXTENT_PAD_M elsewhere in this file — a line ending exactly ON the last cell's
-    // edge would clip that cell's rendered slice to a sliver).
+    // A small pad: a line ending exactly on the last cell's edge clips its slice to a sliver.
     const alongPad = Math.max(5, (sMax - sMin) * 0.02);
     sMin -= alongPad; sMax += alongPad;
 

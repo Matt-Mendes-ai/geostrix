@@ -6586,5 +6586,7 @@
   "This makes {n} section(s).": "ينتج هذا {n} مقطعًا.",
   "QC columns (optional)": "أعمدة ضبط الجودة (اختياري)",
   "Parent sample": "العينة الأصلية",
-  "CRM / standard name": "اسم المادة المرجعية / المعيار"
+  "CRM / standard name": "اسم المادة المرجعية / المعيار",
+  "The top of overburden is the ground at the collars. For its base, run a Strat. stack with the unit below it: that unit's top is the base of overburden.": "أعلى الغطاء هو سطح الأرض عند الفوهات. لقاعدته شغّل عمودًا طبقيًا مع الوحدة تحته: أعلى تلك الوحدة هو قاعدة الغطاء.",
+  "Not extended: {names}. A contact under 5% of the box stays as drawn; others reach at most three times their own radius.": "لم تُمدَّد: {names}. يبقى التماس الأقل من 5% من الصندوق كما رُسم؛ وتصل البقية إلى ثلاثة أضعاف نصف قطرها كحد أقصى."
 }

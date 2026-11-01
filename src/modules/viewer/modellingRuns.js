@@ -1134,6 +1134,11 @@ export function createModellingRuns(ctx, mcRef) {
     if (!spec) return;
     noteUnmatchedDrawnContacts([spec]);
     if (mapConstraint) spec.params = { ...(spec.params || {}), surfaceMapContact: { units: mapConstraint.units, classes: mapConstraint.classes, radiusM: mapConstraint.radius } };
+    // TASKS.csv #1191 — one overburden unit's "top" is its collars, the ground. It is named so, and is not its base: that comes from the stack, as the top of the unit below.
+    if (spec.type === "overburden_base") {
+      spec.label = `${spec.label} (ground)`; spec.type = "stratigraphic_contact";
+      setNotices((p) => [...p, notice("The top of overburden is the ground at the collars. For its base, run a Strat. stack with the unit below it: that unit's top is the base of overburden.")]);
+    }
     await runSurfaceModel(spec, runOpts.ensemble ? { ensemble: runOpts.ensemble } : undefined);
   };
 

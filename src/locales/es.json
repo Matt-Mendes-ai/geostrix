@@ -6586,5 +6586,7 @@
   "This makes {n} section(s).": "Esto genera {n} sección(es).",
   "QC columns (optional)": "Columnas de QC (opcional)",
   "Parent sample": "Muestra original",
-  "CRM / standard name": "Nombre de CRM / estándar"
+  "CRM / standard name": "Nombre de CRM / estándar",
+  "The top of overburden is the ground at the collars. For its base, run a Strat. stack with the unit below it: that unit's top is the base of overburden.": "El techo de la sobrecarga es el terreno en los collares. Para su base, ejecute una pila estratigráfica con la unidad inferior: el techo de esa unidad es la base de la sobrecarga.",
+  "Not extended: {names}. A contact under 5% of the box stays as drawn; others reach at most three times their own radius.": "No extendidos: {names}. Un contacto bajo el 5 % de la caja queda como está dibujado; los demás llegan como máximo a tres veces su radio."
 }

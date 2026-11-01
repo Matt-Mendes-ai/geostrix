@@ -67,7 +67,9 @@ function columnHits(mesh, x0, y0, dx, dy, nx, ny, cb) {
 // column (multi-source flood with Euclidean distance to the source) and is set on that source's edge plane: the least-
 // squares plane z = a + b·i + c·j through the covered columns within `r` columns of it (its own height if they are
 // fewer than three or in a line). -> a new array; the covered columns are unchanged.
-export function extendColumns(z, nx, ny, r = 5) {
+// TASKS.csv #1194 — maxCols: past this many columns from its edge a contact stops (Infinity = the box, as before).
+export const EXTEND_MIN_COVER = 0.05;
+export function extendColumns(z, nx, ny, r = 5, maxCols = Infinity) {
   const n = nx * ny, src = new Int32Array(n).fill(-1), d2 = new Float64Array(n).fill(Infinity);
   let queue = [];
   for (let c = 0; c < n; c++) if (z[c] === z[c]) { src[c] = c; d2[c] = 0; queue.push(c); }
@@ -107,7 +109,7 @@ export function extendColumns(z, nx, ny, r = 5) {
     return p;
   };
   for (let c = 0; c < n; c++) {
-    if (z[c] === z[c]) continue;
+    if (z[c] === z[c] || d2[c] > maxCols * maxCols) continue;
     const s = src[c], p = planeOf(s);
     out[c] = p[0] + p[1] * (Math.floor(c / ny) - Math.floor(s / ny)) + p[2] * ((c % ny) - (s % ny));
   }
@@ -131,7 +133,14 @@ export function surfacesToBlock({ tops = [], solids = [], extent, cell, ground =
   tops.forEach((m, s) => { let n = 0; for (let c = 0; c < ncol; c++) if (topZ[s][c] === topZ[s][c]) n++; coverage[m.name] = n / ncol; });
   // #1138 — the surfaces as drawn (for the contradiction counts below) and continued to the box (for the coding)
   const drawnZ = topZ.slice(); // the per-surface arrays themselves are replaced, not changed
-  if (extend) for (let s = 0; s < topZ.length; s++) topZ[s] = extendColumns(topZ[s], nx, ny);
+  // TASKS.csv #1194 — extending a contact is a guess that grows with the gap: the flat top of a 100 m cube was carried 1-2 km across a box and made 454 Mm3 of a
+  // 0.53 Mm3 unit. A contact under 5 % of the box stays as drawn; others reach at most three times their own radius.
+  const notExtended = [];
+  if (extend) for (let s = 0; s < topZ.length; s++) {
+    const f = coverage[tops[s].name];
+    if (f < EXTEND_MIN_COVER) { notExtended.push(tops[s].name); continue; }
+    topZ[s] = extendColumns(topZ[s], nx, ny, 5, 3 * Math.sqrt((f * ncol) / Math.PI));
+  }
   // every crossing per column of each solid, sorted
   const solidHits = solids.map((m) => {
     const lists = new Map();
@@ -208,7 +217,7 @@ export function surfacesToBlock({ tops = [], solids = [], extent, cell, ground =
   }
   const counts = {};
   for (let at = 0; at < ids.length; at++) { const l = ids[at] ? labels[ids[at] - 1] : undefined; if (l) counts[l] = (counts[l] || 0) + 1; }
-  return { block: { extent: [xmin, xmax, ymin, ymax, zmin, zmax], resolution: [nx, ny, nz], ids, labels }, counts, coverage, cellVolume: dx * dy * dz, inverted };
+  return { block: { extent: [xmin, xmax, ymin, ymax, zmin, zmax], resolution: [nx, ny, nz], ids, labels }, counts, notExtended, coverage, cellVolume: dx * dy * dz, inverted };
 }
 
 // A cell size giving about `target` cells in the box, rounded to 1 / 2 / 2.5 / 5 x 10^n metres

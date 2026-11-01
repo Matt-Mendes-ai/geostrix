@@ -103,7 +103,7 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
       const sourceIds = used.map((it) => it.id);
       onBuilt({ block: r.block, units, origin: { ...o }, when: new Date().toLocaleTimeString(), builtAtIso: new Date().toISOString(), title, matchedPct: null, fromSurfaces: true,
         source: { recipe, ids: sourceIds, key: blockSourceKey(recipe, sourceIds, surfaces) } },
-        { counts: r.counts, coverage: r.coverage, cellVolume: r.cellVolume, resolution: r.block.resolution, inverted: r.inverted, extended: extend }); // inverted: #860; extended: #1138
+        { counts: r.counts, notExtended: r.notExtended, coverage: r.coverage, cellVolume: r.cellVolume, resolution: r.block.resolution, inverted: r.inverted, extended: extend }); // inverted: #860; extended: #1138
     } catch (e) { onError(e); }
   };
 

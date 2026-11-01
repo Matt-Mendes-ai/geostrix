@@ -6586,5 +6586,7 @@
   "This makes {n} section(s).": "Cela génère {n} coupe(s).",
   "QC columns (optional)": "Colonnes CQ (facultatif)",
   "Parent sample": "Échantillon parent",
-  "CRM / standard name": "Nom du MRC / standard"
+  "CRM / standard name": "Nom du MRC / standard",
+  "The top of overburden is the ground at the collars. For its base, run a Strat. stack with the unit below it: that unit's top is the base of overburden.": "Le toit des morts-terrains est le sol aux collets. Pour leur base, lancez une pile stratigraphique avec l'unité sous-jacente : son toit est la base des morts-terrains.",
+  "Not extended: {names}. A contact under 5% of the box stays as drawn; others reach at most three times their own radius.": "Non prolongés : {names}. Un contact sous 5 % de la boîte reste tel que dessiné ; les autres vont au plus à trois fois leur rayon."
 }

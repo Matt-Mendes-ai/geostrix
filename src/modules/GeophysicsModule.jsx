@@ -1862,11 +1862,12 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage,
     : undefined;
   return (
     <div style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
+      <div style={{ color: "var(--color-text)", overflowWrap: "anywhere", lineHeight: 1.3, marginBottom: 3 }}>{model.name}</div>{/* #1178: seven icons squeezed it to one letter */}
       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onUpdate(model.id, { visible: model.visible === false })} style={{ cursor: "pointer", color: model.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
           {model.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
         </div>
-        <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</div>
+        <div style={{ flex: 1 }} />
         <span title={paramsTitle} style={{ color: "var(--color-text-muted)", flexShrink: 0, cursor: paramsTitle ? "help" : undefined }}>{sourceLabel} · {model.cells.length.toLocaleString()}</span>
         <Palette role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: legendOpen ? "var(--color-info)" : "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => setLegendOpen((v) => !v)} title={tr("Edit colour legend / range / classification")} />
         {/* TASKS.csv #323 — the model's value along every drillhole, as a downhole layer (strip log, 3D, CSV) */}

@@ -1,3 +1,4 @@
+import { fillLanes } from "../lib/stripLanes.js"; // TASKS.csv #1254
 import React, { useMemo, useRef, useState } from "react";
 import { X, Download } from "./icons.js";
 import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, colorForBreccia, colorForStructZone } from "../lib/layers.js";
@@ -183,16 +184,22 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                 <g key={t.key}>
                   <text x={x0 + TRACK_W / 2} y={PAD_TOP - 14} fontSize="10.5" fontWeight="600" textAnchor="middle" fill="#1a2028">{t.label}{t.title ? <title>{t.title}</title> : null}</text>
                   <rect x={x0} y={sy(0)} width={TRACK_W - 6} height={sy(maxDepth) - sy(0)} fill="none" stroke="#dde1e6" />
-                  {t.kind === "fill" && t.rows.map((r, i) => (
-                    <g key={i}>
-                      <rect x={x0} y={sy(r.from)} width={TRACK_W - 6} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={t.colorFn(r.value)} />
-                      {(sy(r.to) - sy(r.from)) > 11 && (
-                        <text x={x0 + (TRACK_W - 6) / 2} y={(sy(r.from) + sy(r.to)) / 2 + 3} fontSize="8" textAnchor="middle" fill="#1a2028" style={{ pointerEvents: "none" }}>
-                          {String(t.nameFn ? t.nameFn(r.value) : r.value).slice(0, 12)}
-                        </text>
-                      )}
-                    </g>
-                  ))}
+                  {t.kind === "fill" && (() => { // #1254 — rows on the same depths side by side, with their percent where the log gives one
+                    const { rows, lanes } = t.key === "mnlgy" ? fillLanes(t.rows) : { rows: t.rows, lanes: 1 };
+                    const w = (TRACK_W - 6) / lanes;
+                    return rows.map((r, i) => (
+                      <g key={i}>
+                        <rect x={x0 + (r.lane || 0) * w} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={t.colorFn(r.value)} stroke={lanes > 1 ? "#fff" : undefined} strokeWidth={lanes > 1 ? 0.5 : undefined}>
+                          {lanes > 1 && <title>{`${r.value}${Number.isFinite(r.extra) ? ` ${r.extra} %` : ""}, ${r.from}–${r.to} m`}</title>}
+                        </rect>
+                        {(sy(r.to) - sy(r.from)) > 11 && (
+                          <text x={x0 + (r.lane || 0) * w + w / 2} y={(sy(r.from) + sy(r.to)) / 2 + 3} fontSize="8" textAnchor="middle" fill="#1a2028" style={{ pointerEvents: "none" }}>
+                            {String(t.nameFn ? t.nameFn(r.value) : r.value).slice(0, lanes > 1 ? 4 : 12)}
+                          </text>
+                        )}
+                      </g>
+                    ));
+                  })()}
                   {t.kind === "tick" && t.rows.map((r, i) => (
                     <rect key={i} x={x0} y={sy(r.from)} width={TRACK_W - 6} height={Math.max(1.5, sy(r.to) - sy(r.from))} fill={t.colorFn(r.value)} opacity="0.85" />
                   ))}
