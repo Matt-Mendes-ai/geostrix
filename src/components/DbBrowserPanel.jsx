@@ -1,5 +1,6 @@
 import React, { useCallback, useState, useEffect } from "react";
 import { useTablePull, ROW_WARN_THRESHOLD } from "../lib/useTablePull.js"; // TASKS.csv #921
+import { profileProblem } from "../lib/dbProfiles.js"; // TASKS.csv #1267
 import TablePullConfirm from "./TablePullConfirm.jsx";
 import { ChevronRight, ChevronDown, Folder, FolderOpen, File, HardDrive, Star, Database, Loader2, Unplug, RefreshCw } from "./icons.js";
 import { fsListDir, fsListDrives, fsReadFile, readResultToFile, dbLiveListTables, dbPasswordStatus } from "../lib/desktop.js";
@@ -176,6 +177,8 @@ function PgTreeNode({ profile, live, connectDb, disconnectDb, onImportRows }) {
   }, [open, live, tables, loadTables]);
 
   const doConnect = useCallback(async () => {
+    const problem = profileProblem(profile); // #1267
+    if (problem) { setError(tr(problem)); return; }
     setConnecting(true); setError(null);
     const res = await connectDb({ ...profile, password });
     setConnecting(false);

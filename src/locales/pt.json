@@ -6536,5 +6536,9 @@
   "Dip azimuth°": "Azimute do mergulho°",
   "Pitch°": "Rake°",
   "at an unrecorded time": "em um momento não registrado",
-  "This file's {list} had the wrong form and were left empty. Everything else was read. Save it under another name if you want to keep the original.": "Os campos {list} deste arquivo tinham uma forma incorreta e foram deixados vazios. Todo o resto foi lido. Salve-o com outro nome se quiser manter o original."
+  "This file's {list} had the wrong form and were left empty. Everything else was read. Save it under another name if you want to keep the original.": "Os campos {list} deste arquivo tinham uma forma incorreta e foram deixados vazios. Todo o resto foi lido. Salve-o com outro nome se quiser manter o original.",
+  "Enter the host (the server's name or address).": "Digite o host (o nome ou o endereço do servidor).",
+  "Enter the port (1-65535).": "Digite a porta (1-65535).",
+  "Enter the database name.": "Digite o nome do banco de dados.",
+  "Enter the user name.": "Digite o nome de usuário."
 }

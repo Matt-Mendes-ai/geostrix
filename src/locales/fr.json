@@ -6536,5 +6536,9 @@
   "Dip azimuth°": "Azimut de pendage°",
   "Pitch°": "Pitch°",
   "at an unrecorded time": "à un moment non enregistré",
-  "This file's {list} had the wrong form and were left empty. Everything else was read. Save it under another name if you want to keep the original.": "Les champs {list} de ce fichier avaient une forme incorrecte et ont été laissés vides. Tout le reste a été lu. Enregistrez-le sous un autre nom si vous voulez garder l'original."
+  "This file's {list} had the wrong form and were left empty. Everything else was read. Save it under another name if you want to keep the original.": "Les champs {list} de ce fichier avaient une forme incorrecte et ont été laissés vides. Tout le reste a été lu. Enregistrez-le sous un autre nom si vous voulez garder l'original.",
+  "Enter the host (the server's name or address).": "Saisissez l'hôte (le nom ou l'adresse du serveur).",
+  "Enter the port (1-65535).": "Saisissez le port (1-65535).",
+  "Enter the database name.": "Saisissez le nom de la base de données.",
+  "Enter the user name.": "Saisissez le nom d'utilisateur."
 }

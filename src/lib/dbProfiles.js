@@ -7,6 +7,19 @@
 const KEY = "geostrix-db-connection-profiles";
 const KEEP = ["name", "engine", "host", "port", "database", "user", "ssl", "sslInsecure", "rememberPassword"];
 
+// TASKS.csv #1267 — what a connection needs before a socket is opened: a blank form used to reach the driver as the Windows
+// user on localhost:5432 and come back as "SASL: SCRAM-SERVER-FIRST-MESSAGE: client password must be a string". The message
+// names the field, in the words the form uses. null when the profile can be tried.
+export function profileProblem(p) {
+  const blank = (k) => !String(p?.[k] ?? "").trim();
+  if (blank("host")) return "Enter the host (the server's name or address).";
+  const port = Number(p?.port);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return "Enter the port (1-65535).";
+  if (blank("database")) return "Enter the database name.";
+  if (blank("user")) return "Enter the user name.";
+  return null;
+}
+
 export function cleanProfile(p) {
   const out = {};
   for (const k of KEEP) if (p && p[k] !== undefined) out[k] = p[k];

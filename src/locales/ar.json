@@ -6536,5 +6536,9 @@
   "Dip azimuth°": "سمت الميل°",
   "Pitch°": "الانحدار°",
   "at an unrecorded time": "في وقت غير مسجَّل",
-  "This file's {list} had the wrong form and were left empty. Everything else was read. Save it under another name if you want to keep the original.": "كانت حقول {list} في هذا الملف بصيغة خاطئة فتُركت فارغة. قُرئ كل شيء آخر. احفظه باسم آخر إن أردت الاحتفاظ بالأصل."
+  "This file's {list} had the wrong form and were left empty. Everything else was read. Save it under another name if you want to keep the original.": "كانت حقول {list} في هذا الملف بصيغة خاطئة فتُركت فارغة. قُرئ كل شيء آخر. احفظه باسم آخر إن أردت الاحتفاظ بالأصل.",
+  "Enter the host (the server's name or address).": "أدخل المضيف (اسم الخادم أو عنوانه).",
+  "Enter the port (1-65535).": "أدخل المنفذ (1-65535).",
+  "Enter the database name.": "أدخل اسم قاعدة البيانات.",
+  "Enter the user name.": "أدخل اسم المستخدم."
 }

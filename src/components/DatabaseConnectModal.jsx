@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTablePull, ROW_WARN_THRESHOLD } from "../lib/useTablePull.js"; // TASKS.csv #921 / #925
+import { profileProblem } from "../lib/dbProfiles.js"; // TASKS.csv #1267
 import TablePullConfirm from "./TablePullConfirm.jsx";
 import { X, Database, Play, Loader2, Save, Trash2 } from "./icons.js";
 import { dbLiveQuery, dbLiveListTables, dbPasswordStatus, dbForgetPassword } from "../lib/desktop.js";
@@ -63,6 +64,8 @@ export default function DatabaseConnectModal({ onCancel, onResults, initialSql =
   const setEngine = (engine) => setConfig((p) => ({ ...p, engine, port: p.port === DEFAULT_PORT[p.engine] ? DEFAULT_PORT[engine] : p.port }));
 
   const test = async () => {
+    const problem = profileProblem(config); // #1267
+    if (problem) { setStatus({ ok: false, error: tr(problem) }); return; }
     setTesting(true); setStatus(null);
     const res = await connectDb(config);
     setStatus(res);
