@@ -926,14 +926,14 @@ export function createModellingRuns(ctx, mcRef) {
     let sectionContactCount = 0;
     // TASKS.csv #810 — drawn contacts left out because the option is off are counted and said, not dropped silently
     if (!includeSectionContacts) {
-      const n = (sections || []).reduce((k, s) => k + (s.contacts || []).filter((c) => c.isUpperContact && sectionTags.has(c.unit)).length, 0);
+      const n = (sections || []).reduce((k, s) => k + (s.contacts || []).filter((c) => c.isUpperContact && c.target !== "explicit" && sectionTags.has(c.unit)).length, 0);
       if (n) setNotices((p) => [...p, notice("{unitName}: {n} drawn cross-section contact(s) were NOT used — tick \"Include drawn cross-section contacts\" to add them.", { unitName, n })]);
     }
     if (includeSectionContacts) {
       const o = originRef.current;
       (sections || []).forEach((s) => {
         (s.contacts || []).forEach((c) => {
-          if (!sectionTags.has(c.unit) || !c.isUpperContact) return; // #176 — any member code's contact feeds the group (#810: or the group's name)
+          if (!sectionTags.has(c.unit) || !c.isUpperContact || c.target === "explicit") return; // target: #1193;  #176 — any member code's contact feeds the group (#810: or the group's name)
           (c.points || []).forEach((cp) => {
             const api = { x: cp.x - o.x, y: cp.y - o.y, z: cp.z - o.z, srcCode: c.unit }; // srcCode: TASKS.csv #275
             const scenePt = { x: api.x, y: api.z, z: -api.y }; // inverse of sceneToApi, for the domain check

@@ -63,7 +63,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
 
         <div style={{ padding: 16, overflowY: "auto" }}>
           <div style={label}>{tr("What kind of data is this?")}</div>
-          <select value={modal.target} onChange={(e) => setTarget(e.target.value)} style={{ ...sel, width: "100%", marginBottom: 16 }}>
+          <select aria-label={tr("Import as")} value={modal.target} onChange={(e) => setTarget(e.target.value)} style={{ ...sel, width: "100%", marginBottom: 16 }}>
             {Object.entries(TARGET_SCHEMAS).map(([k, v]) => <option key={k} value={k}>{tr(v.label)}</option>)}
           </select>
 
@@ -73,7 +73,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
               <div style={{ width: 220, fontSize: "var(--font-size-base)", color: f.required ? "var(--color-text)" : "var(--color-text-secondary)", flexShrink: 0 }}>
                 {tr(f.label)}{f.required && <span style={{ color: "var(--color-danger-solid)" }}> *</span>}
               </div>
-              <select value={modal.mapping[f.key] || ""} onChange={(e) => setMapping(f.key, e.target.value)} style={{ ...sel, flex: 1, borderColor: f.required && !modal.mapping[f.key] ? "var(--color-danger-border-strong)" : "var(--color-border)" }}>
+              <select aria-label={tr(f.label)} value={modal.mapping[f.key] || ""} onChange={(e) => setMapping(f.key, e.target.value)} style={{ ...sel, flex: 1, borderColor: f.required && !modal.mapping[f.key] ? "var(--color-danger-border-strong)" : "var(--color-border)" }}>
                 <option value="">{tr("— none —")}</option>
                 {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>

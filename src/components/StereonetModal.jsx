@@ -300,7 +300,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 domains and a filter (i.e. from the 3D viewer, where a domain has a meaning); the same
                 domains the Modelling tab's tools use, so "Fault block A" means one thing app-wide. */}
             {domainFilter && domains.length > 0 && (
-              <label style={rowLabel} title={tr("Restrict this plot to structure picks whose downhole position falls inside one structural domain — the same domains the Modelling tab's tools use. Blending two genuinely different structural domains into one mean or contour is one of the easiest ways to produce a confident-looking but meaningless trend.")}>{tr("Structural domain")}<select value={domainId} onChange={(e) => setDomainId(e.target.value)} style={sel}>
+              <label style={rowLabel} title={tr("Restrict this plot to structure picks whose downhole position falls inside one structural domain — the same domains the Modelling tab's tools use. Blending two genuinely different structural domains into one mean or contour is one of the easiest ways to produce a confident-looking but meaningless trend.")}>{tr("Structural domain")}<select aria-label={tr("Model domain")} value={domainId} onChange={(e) => setDomainId(e.target.value)} style={sel}>
                   <option value="">{tr("Whole property")}</option>
                   {domains.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>

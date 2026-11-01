@@ -6589,5 +6589,22 @@
   "CRM / standard name": "Nome do CRM / padrão",
   "The top of overburden is the ground at the collars. For its base, run a Strat. stack with the unit below it: that unit's top is the base of overburden.": "O topo do capeamento é o terreno nos colares. Para sua base, execute uma pilha estratigráfica com a unidade abaixo: o topo dessa unidade é a base do capeamento.",
   "Not extended: {names}. A contact under 5% of the box stays as drawn; others reach at most three times their own radius.": "Não estendidos: {names}. Um contato abaixo de 5 % da caixa fica como desenhado; os demais alcançam no máximo três vezes seu raio.",
-  "With a trend the model box is about {a} km³, against {b} km³ around the same data without one, so a unit's volume cannot be compared between the two runs.": "Com uma tendência a caixa do modelo tem cerca de {a} km³, contra {b} km³ em torno dos mesmos dados sem ela, então o volume de uma unidade não é comparável entre as duas execuções."
+  "With a trend the model box is about {a} km³, against {b} km³ around the same data without one, so a unit's volume cannot be compared between the two runs.": "Com uma tendência a caixa do modelo tem cerca de {a} km³, contra {b} km³ em torno dos mesmos dados sem ela, então o volume de uma unidade não é comparável entre as duas execuções.",
+  "Add layer": "Adicionar camada",
+  "Filter by layer": "Filtrar por camada",
+  "Filter by unit": "Filtrar por unidade",
+  "Filter by category": "Filtrar por categoria",
+  "Intercept set being edited": "Conjunto de interceptos em edição",
+  "Database type": "Tipo de banco de dados",
+  "Unit to model": "Unidade a modelar",
+  "Model domain": "Domínio do modelo",
+  "Add a unit to the stack": "Adicionar uma unidade à pilha",
+  "Hole for the core orientation": "Furo para a orientação de testemunho",
+  "Calibration set": "Conjunto de calibração",
+  "Assemblage": "Assembleia",
+  "Vein or dyke": "Veio ou dique",
+  "Diagram": "Diagrama",
+  "Planned hole collar": "Colar do furo planejado",
+  "Desurvey method": "Método de desvio",
+  "No terrain is loaded, so a picked Elev is whatever the click hit, or a flat plane through the data. Check it before using it, or load a terrain.": "Não há terreno carregado, então a Elev. escolhida é o que o clique atingiu ou um plano horizontal pelos dados. Verifique antes de usar ou carregue um terreno."
 }

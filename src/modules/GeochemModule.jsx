@@ -900,10 +900,10 @@ export default function GeochemModule() {
       {/* main plot area */}
       <div className="ge-main" style={{ display: "flex", flexDirection: "column", padding: 20, overflow: "auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
-          <select value={diagramId} onChange={(e) => setDiagramId(e.target.value)} style={selectStyle}>
+          <select aria-label={tr("Diagram")} value={diagramId} onChange={(e) => setDiagramId(e.target.value)} style={selectStyle}>
             {Object.values(ALL_DIAGRAMS).map((d) => <option key={d.id} value={d.id}>{tr(d.label)}</option>)}
           </select>
-          <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("Colour:")}<select value={colorMode} onChange={(e) => setColorMode(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("Colour:")}<select aria-label={tr("Colour by")} value={colorMode} onChange={(e) => setColorMode(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
               <option value="hole">{tr("by hole")}</option>
               <option value="element">{tr("by element")}</option>
               <option value="lithology" disabled={!hasLithLog}>{tr("by logged lithology")}</option>

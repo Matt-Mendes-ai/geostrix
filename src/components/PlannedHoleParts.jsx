@@ -47,7 +47,7 @@ function solveAzDipToTarget(from, to) {
   const s = solveOrientationToTarget(from, to) || { azimuth: 0, dip: 0, length: 0 };
   return { azimuth: s.azimuth, dip: s.dip, distance: s.length };
 }
-export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars }) {
+export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars, noTerrain }) {
   const [draft, setDraft] = useState({ name: "", x: "", y: "", z: "", azimuth: 0, dip: -60, length: 100 });
   const [fromCollarId, setFromCollarId] = useState("");
   const [target, setTarget] = useState({ x: "", y: "", z: "" });
@@ -84,7 +84,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
     <div style={{ padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
       <input placeholder={tr("Hole name (optional)")} value={draft.name} onChange={(e) => set("name", e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: "var(--font-size-base)", color: "var(--color-text)", marginBottom: 5 }} />
       {collars.length > 0 && (
-        <select
+        <select aria-label={tr("Planned hole collar")}
           value={fromCollarId}
           onChange={(e) => applyFromCollar(e.target.value)}
           style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 5 }}
@@ -114,6 +114,8 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
         </button>
         <button onClick={submit} disabled={!canAdd} style={{ ...miniBtn, flex: 1, background: canAdd ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", borderColor: canAdd ? "var(--color-selected-border)" : "var(--color-border-light)", opacity: canAdd ? 1 : 0.5 }}>{tr("+ Add hole")}</button>
       </div>
+      {/* TASKS.csv #1182 — with no terrain a click on empty space gets its Elev from a flat plane at the data's origin, and that value reached the rig sheet's CSV and GPX unmarked */}
+      {noTerrain && pickedPoint && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{tr("No terrain is loaded, so a picked Elev is whatever the click hit, or a flat plane through the data. Check it before using it, or load a terrain.")}</div>}
       <div style={{ borderTop: "1px solid var(--color-border)", marginTop: 7, paddingTop: 7 }}>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Solve azimuth/dip/length to hit a target from the E/N/Elev above")}</div>
         <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>

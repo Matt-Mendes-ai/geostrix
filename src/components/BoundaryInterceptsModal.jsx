@@ -77,13 +77,13 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 12, lineHeight: 1.5 }}>{tr("Every lithology/alteration interval's top — the same control points the implicit-modelling tools already read on the Modelling tab — resolved to a real 3D position along each hole's desurveyed trace. Uncheck one to exclude it from feeding a surface without touching the imported data itself; re-check to bring it back. Click the circle to mark a point \"soft\" — it still feeds the run, but only approximately honoured (a real GemPy nugget tolerance, not just a label) rather than forced through exactly. {intercepts} total{v}{v2}.", { intercepts: intercepts.length, v: excludedCount > 0 ? `, ${excludedCount} excluded` : "", v2: softCount > 0 ? `, ${softCount} soft` : "" })}</div>
 
           <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-            <select value={layerFilter} onChange={(e) => { setLayerFilter(e.target.value); setUnitFilter("all"); }} style={{ ...sel, flex: 1 }}>
+            <select aria-label={tr("Filter by layer")} value={layerFilter} onChange={(e) => { setLayerFilter(e.target.value); setUnitFilter("all"); }} style={{ ...sel, flex: 1 }}>
               <option value="all">{tr("All layers")}</option>
               <option value="litho">{tr("Lithology")}</option>
               <option value="alt">{tr("Alteration")}</option>
               <option value="vein">{tr("Vein / dyke")}</option>
             </select>
-            <select value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)} style={{ ...sel, flex: 1 }}>
+            <select aria-label={tr("Filter by unit")} value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)} style={{ ...sel, flex: 1 }}>
               <option value="all">{tr("All units")}</option>
               {units.map((u) => <option key={u} value={u}>{u}</option>)}
             </select>
@@ -98,7 +98,7 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
             </div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45, marginBottom: 7 }}>{tr("A named subset of these picks, so a unit that repeats in the pile can be modelled as the separate surfaces it actually is instead of every pick of that code feeding one surface. Build a set here, then choose it on the Modelling tab to restrict a run to it. Sets are saved with the project, and they exclude nothing: a pick left out of the active set is simply not used by that run.")}</div>
             <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-              <select value={editingSetId} onChange={(e) => setEditingSetId(e.target.value)} style={{ ...sel, flex: 1 }}>
+              <select aria-label={tr("Intercept set being edited")} value={editingSetId} onChange={(e) => setEditingSetId(e.target.value)} style={{ ...sel, flex: 1 }}>
                 <option value="">{tr("— no set being edited —")}</option>
                 {interceptSets.map((x) => <option key={x.id} value={x.id}>{x.name} ({(x.ids || []).length})</option>)}
               </select>

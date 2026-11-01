@@ -156,7 +156,7 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
           <div>
             <div className="ge-section-label">{tr("Hole & reference line")}</div>
             <div style={row}>
-              <select value={holeId} onChange={(e) => { setHoleId(e.target.value); autoFillFromHole(e.target.value, depth); }} style={sel}>
+              <select aria-label={tr("Hole for the core orientation")} value={holeId} onChange={(e) => { setHoleId(e.target.value); autoFillFromHole(e.target.value, depth); }} style={sel}>
                 <option value="">{tr("Manual entry (no hole)")}</option>
                 {collars.map((c) => <option key={c.hole_id} value={c.hole_id}>{c.hole_id}</option>)}
               </select>
@@ -171,7 +171,7 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
 
             <div className="ge-section-label" style={{ marginTop: 14 }}>{tr("Reference structure (known true attitude)")}</div>
             <div style={row}>
-              <select value={selectedRefId} onChange={(e) => pickRef(e.target.value)} style={sel}>
+              <select aria-label={tr("Calibration set")} value={selectedRefId} onChange={(e) => pickRef(e.target.value)} style={sel}>
                 <option value="">{tr("Ad hoc (enter below)")}</option>
                 {fieldStructuralRefs.length > 0 && <optgroup label={tr("Saved field references")}>{fieldStructuralRefs.map((r) => <option key={r.id} value={r.id}>{r.label || tr("(unlabeled)")} — {r.dipDirDeg}°/{r.dipDeg}°</option>)}</optgroup>}
                 {nearbyOutcrop.length > 0 && <optgroup label={tr("Outcrop measurements near {holeId}", { holeId })}>{nearbyOutcrop.map((m, i) => <option key={i} value={`oc:${i}`}>{tr("{v} — {v2}°/{v3}° ({v4} m away)", { v: m.cls || tr("structure"), v2: Math.round(m.dipDir), v3: Math.round(m.dip), v4: Math.round(m.dist) })}</option>)}</optgroup>}

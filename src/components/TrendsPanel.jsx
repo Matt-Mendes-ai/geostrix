@@ -1,4 +1,5 @@
 // TASKS.csv #650 — "we need to find a way to introduce structural trends in geology models and grade models"
+import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js"; // TASKS.csv #1192
 import { iconAction } from "../lib/a11y.js"; // TASKS.csv #687 — Enter / Space on the icon actions
 // (Matt, with Leapfrog's Trend tab). Named trends saved with the project (structuralTrends), each a plane (dip, dip
 // azimuth), the direction of greatest continuity in it (pitch) and the ellipsoid ratios; every model type picks
@@ -172,7 +173,7 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
                 <select value="" onChange={(e) => setFrom(t, e.target.value)} aria-label={tr("Set the plane from")} style={{ ...inputStyle, width: "100%" }}>
                   <option value="">{tr("Set the plane from…")}</option>
                   {codes.length > 0 && <optgroup label={tr("Structure measurements (mean)")}>{codes.map(([c, n]) => <option key={c} value={`code:${c}`}>{c} ({n})</option>)}</optgroup>}
-                  {(surfaces || []).length > 0 && <optgroup label={tr("Generated surface (best-fit plane)")}>{surfaces.map((s) => <option key={s.id} value={`surface:${s.id}`}>{s.name}</option>)}</optgroup>}
+                  {(surfaces || []).length > 0 && <optgroup label={tr("Generated surface (best-fit plane)")}>{surfaces.map((s) => <option key={s.id} value={`surface:${s.id}`}>{surfaceOptionLabels(surfaces).get(s.id) ?? s.name}</option>)}</optgroup>}
                 </select>
                 {note?.id === t.id && <div style={{ ...small, marginTop: 4 }}>{note.text}</div>}
               </div>

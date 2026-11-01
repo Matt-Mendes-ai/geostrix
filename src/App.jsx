@@ -746,9 +746,9 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
       {/* TASKS.csv #135 — desurvey method. Sits next to EPSG because it's the same kind of thing: a
           project-wide interpretation setting that silently changes every computed coordinate, so it
           belongs somewhere always-visible rather than buried in one module's sidebar. Rendered as a
-          plain always-on <select> (not the click-to-edit pattern EPSG uses) precisely because a hidden
+          plain always-on <select aria-label={tr("Desurvey method")}> (not the click-to-edit pattern EPSG uses) precisely because a hidden
           control for something this consequential is worse than a slightly busier status bar. */}
-      <span title={tr(DESURVEY_METHODS.find((m) => m.id === desurveyMethod)?.hint || "")} style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Desurvey:")}<select
+      <span title={tr(DESURVEY_METHODS.find((m) => m.id === desurveyMethod)?.hint || "")} style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Desurvey:")}<select aria-label={tr("Desurvey method")}
           value={desurveyMethod}
           onChange={(e) => setDesurveyMethod(e.target.value)}
           style={{ background: "var(--color-bg)", border: "1px solid var(--color-selected-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "1px 3px", cursor: "pointer" }}

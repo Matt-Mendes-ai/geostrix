@@ -108,7 +108,7 @@ export default function DataQCModal({ onCancel }) {
           </div>
 
           {categories.length > 0 && (
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ ...sel, width: "100%", marginBottom: 10 }}>
+            <select aria-label={tr("Filter by category")} value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ ...sel, width: "100%", marginBottom: 10 }}>
               <option value="all">{tr("All categories ({n})", { n: result.issues.length })}</option>
               {categories.map((c) => <option key={c} value={c}>{tr(c)} ({result.byCategory.get(c).length})</option>)}
             </select>

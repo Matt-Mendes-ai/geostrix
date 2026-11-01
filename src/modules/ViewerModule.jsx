@@ -6974,16 +6974,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const alongPad = Math.max(5, (sMax - sMin) * 0.02);
     sMin -= alongPad; sMax += alongPad;
 
-    // TASKS.csv #393 — lines sit on ROUND multiples of the spacing (and are named by that grid line,
-    // e.g. "412500E"), as sections on a paper plan are, instead of wherever the data happened to start.
+    // TASKS.csv #393 — lines on round multiples of the spacing, as on a paper plan.
     const lines = fenceLines(tMin, tMax, width, sliceSeriesAzimuth);
     const n = lines.length;
     if (n > 50 && !window.confirm(tr("This will create {n} sections. Continue?", { n }))) return; // #1180
 
-    // TASKS.csv #240 — user report: a single run against a large voxel model produced 3144
-    // individual sections with no group to manage them as a unit. Every section this run creates is
-    // tagged with ONE shared groupId so the sidebar can collapse them into a single row and
-    // deleteSectionGroup can clear the whole run in one action.
+    // TASKS.csv #240 — one groupId for the run, so the sidebar collapses it and it is removed in one action.
     const groupId = addSectionGroup(`Fence series (az ${sliceSeriesAzimuth.toFixed(0)}°, ${width}m)`);
     let created = 0;
     for (let i = 0; i < n; i++) {
@@ -7188,7 +7184,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {collars.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
             <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", flexShrink: 0 }}>{tr("Hole labels")}</span>
-            <select
+            <select aria-label={tr("Hole labels")}
               value={holeLabelMode}
               onChange={(e) => setHoleLabelMode(e.target.value)}
               style={{ flex: 1, minWidth: 0, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }}
@@ -7279,7 +7275,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             doesn't exist yet — see that block's comment for why a SEPARATE persistent input is needed
             here rather than reusing renderLayerRow's). */}
         {emptyLayerKeys.length > 0 && (
-          <select
+          <select aria-label={tr("Add layer")}
             value=""
             onChange={(e) => { const key = e.target.value; if (!key) return; if (key === "geophys_pts") goToModule("geophysics"); else fileInputs.current[key]?.click(); }}
             style={{ width: "100%", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, padding: "7px 8px", color: "var(--color-text-secondary)", fontSize: "var(--font-size-base)", marginBottom: 4 }}
@@ -8235,7 +8231,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <FileBarChart2 size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => exportPlannedHoles("csv"), tr("Export all planned holes to CSV"))} />
           )}
         </div>
-        <PlannedHoleAddForm onAdd={addPlannedHole} pickMode={pickHoleMode} onStartPick={() => setPickHoleMode((v) => !v)} pickedPoint={pickedHolePoint} collars={collars} />
+        <PlannedHoleAddForm noTerrain={!terrain} onAdd={addPlannedHole} pickMode={pickHoleMode} onStartPick={() => setPickHoleMode((v) => !v)} pickedPoint={pickedHolePoint} collars={collars} />
         {plannedHoles.length === 0 ? (
           <div style={{ padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", marginTop: 8 }}>{tr("No planned holes yet — add a collar position and design orientation above. A planned hole renders as a dashed orange line (distinct from real, drilled holes) in the 3D view, in every module tab, and in the same orange on sections, level plans and the rig KML.")}</div>
         ) : (

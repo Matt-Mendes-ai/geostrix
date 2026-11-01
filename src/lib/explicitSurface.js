@@ -70,7 +70,7 @@ export function explicitPoints(def, sections, { spacing = 10, maxPoints = 1200, 
   const picks = (def?.picks || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite)).map((p) => ({ x: p.x, y: p.y, z: p.z, src: "pick", ref: p.id, ...(p.dir ? { dir: p.dir } : {}), ...(p.hole_id ? { hole: p.hole_id, md: p.md } : {}) })); // dir: #856; hole / md: #857 (named in the quality report)
   const lines = [];
   for (const s of sections || []) for (const c of s.contacts || []) {
-    if (c.unit !== def?.name || c.isUpperContact === false || (c.kind && c.kind !== "contact")) continue;
+    if (c.unit !== def?.name || c.target === "unit" || c.isUpperContact === false || (c.kind && c.kind !== "contact")) continue; // target: #1193
     const pts = (c.points || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite));
     if (pts.length) lines.push({ section: s.name, pts });
   }

@@ -193,13 +193,15 @@ export default function SectionWindow() {
   // TASKS.csv #810 — modelling codes and lithology groups as tags too (a stack unit "X (code)" or a group matches them)
   const tagCodes = (data?.unitTags?.codes || []).filter((c) => !lithoUnits.includes(c)), tagGroups = data?.unitTags?.groups || [];
   const tagExplicit = data?.unitTags?.explicit || []; // TASKS.csv #811 — a line drawn for an explicit surface is one of its hard lines
+  // TASKS.csv #1193 — a surface and a logged unit can share a name: "VCL" was listed twice and both fed the explicit surface. A line now says which it is for.
+  const pickName = unitPick.replace(/^e:/, ""), pickExplicit = unitPick.startsWith("e:") || (tagExplicit.includes(unitPick) && !lithoUnits.includes(unitPick));
   const startDrawing = () => { if (!unitPick) return; setDrawing(true); setDrawPoints([]); };
   const cancelDrawing = () => { setDrawing(false); setDrawPoints([]); };
   const undoPoint = () => setDrawPoints((p) => p.slice(0, -1));
   const finishContact = () => {
     if (drawPoints.length < (kindPick === "outline" ? 3 : 2) || !unitPick) { cancelDrawing(); return; } // #570: an outline is a closed loop
     const id = `contact_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    setContacts((p) => [...p, { id, unit: unitPick, kind: kindPick, isUpperContact: kindPick === "contact", color: kindPick === "fault" ? "#d9534f" : hashColor(unitPick), points: drawPoints }]);
+    setContacts((p) => [...p, { id, unit: pickName, ...(tagExplicit.includes(pickName) ? { target: pickExplicit ? "explicit" : "unit" } : {}), kind: kindPick, isUpperContact: kindPick === "contact", color: kindPick === "fault" ? "#d9534f" : hashColor(pickName), points: drawPoints }]);
     setDrawing(false); setDrawPoints([]);
   };
   const removeContact = (id) => { setContacts((p) => p.filter((c) => c.id !== id)); if (editingId === id) setEditingId(null); };
@@ -324,18 +326,18 @@ export default function SectionWindow() {
                   {lithoUnits.map((u) => <option key={u} value={u}>{u}</option>)}
                   {tagCodes.length > 0 && <optgroup label={tr("Modelling codes")}>{tagCodes.map((u) => <option key={`c:${u}`} value={u}>{u}</option>)}</optgroup>}
                   {tagGroups.length > 0 && <optgroup label={tr("Groups")}>{tagGroups.map((u) => <option key={`g:${u}`} value={u}>{u}</option>)}</optgroup>}
-                  {tagExplicit.length > 0 && <optgroup label={tr("Explicit surfaces")}>{tagExplicit.map((u) => <option key={`e:${u}`} value={u}>{u}</option>)}</optgroup>}
+                  {tagExplicit.length > 0 && <optgroup label={tr("Explicit surfaces")}>{tagExplicit.map((u) => <option key={`e:${u}`} value={`e:${u}`}>{u}</option>)}</optgroup>}
                 </select>
               ) : (
                 <input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} placeholder={tr("Unit name (no litho data loaded)")} style={{ ...selectStyle, width: 170 }} />
               )}
-              <button onClick={startDrawing} disabled={!unitPick} style={{ ...btnStyle(false), opacity: unitPick ? 1 : 0.5 }} title={unitPick ? tr("Draw {unitPick}'s upper contact", { unitPick }) : tr("Pick a unit first")}>
-                <Pencil size={14} /> {kindPick === "contact" && tagExplicit.includes(unitPick) ? tr("Draw a line of {name}", { name: unitPick }) /* TASKS.csv #884 */ : kindPick === "contact" ? tr("Draw upper contact") : kindPick === "fault" ? tr("Draw fault") : kindPick === "outline" ? tr("Draw outline") : tr("Draw string")}
+              <button onClick={startDrawing} disabled={!unitPick} style={{ ...btnStyle(false), opacity: unitPick ? 1 : 0.5 }} title={unitPick ? tr("Draw {unitPick}'s upper contact", { unitPick: pickName }) : tr("Pick a unit first")}>
+                <Pencil size={14} /> {kindPick === "contact" && pickExplicit ? tr("Draw a line of {name}", { name: pickName }) /* TASKS.csv #884 */ : kindPick === "contact" ? tr("Draw upper contact") : kindPick === "fault" ? tr("Draw fault") : kindPick === "outline" ? tr("Draw outline") : tr("Draw string")}
               </button>
             </>
           ) : (
             <>
-              <span style={{ color: "#e2a63c", fontSize: 11 }}>{kindPick === "contact" && tagExplicit.includes(unitPick) ? tr("Click points along the line of {name}… ({drawPoints} so far). Finish, then Save contacts to send it to the surface.", { name: unitPick, drawPoints: drawPoints.length }) : kindPick === "contact" ? tr("Click points along {unitPick}'s upper contact… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length }) : kindPick === "outline" ? tr("Click points around the {unitPick} outline; it closes itself on Finish… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length }) : tr("Click points along {unitPick}… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length })}</span>
+              <span style={{ color: "#e2a63c", fontSize: 11 }}>{kindPick === "contact" && pickExplicit ? tr("Click points along the line of {name}… ({drawPoints} so far). Finish, then Save contacts to send it to the surface.", { name: pickName, drawPoints: drawPoints.length }) : kindPick === "contact" ? tr("Click points along {unitPick}'s upper contact… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length }) : kindPick === "outline" ? tr("Click points around the {unitPick} outline; it closes itself on Finish… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length }) : tr("Click points along {unitPick}… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length })}</span>
               {offHoles > 0 && <span style={{ color: "#65717e", fontSize: 11 }} title={tr("A point snapped to a hole takes the hole's real position, off the section; a free point lies on the section plane. A line mixing the two kinks between them.")}>{tr("{n} hole(s) lie more than 5 m off the section (offset printed at the end of the trace); points not snapped to a hole sit on the section plane.", { n: offHoles })}</span>}{/* TASKS.csv #897 */}
               <button onClick={undoPoint} disabled={!drawPoints.length} style={{ ...btnStyle(false), opacity: drawPoints.length ? 1 : 0.5 }}><Undo2 size={14} />{" "}{tr("Undo point")}</button>
               <button onClick={finishContact} disabled={drawPoints.length < (kindPick === "outline" ? 3 : 2)} style={{ ...btnStyle(true), opacity: drawPoints.length >= (kindPick === "outline" ? 3 : 2) ? 1 : 0.5 }}><Check size={14} />{" "}{tr("Finish")}</button>

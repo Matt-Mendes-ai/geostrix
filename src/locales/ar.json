@@ -6589,5 +6589,22 @@
   "CRM / standard name": "اسم المادة المرجعية / المعيار",
   "The top of overburden is the ground at the collars. For its base, run a Strat. stack with the unit below it: that unit's top is the base of overburden.": "أعلى الغطاء هو سطح الأرض عند الفوهات. لقاعدته شغّل عمودًا طبقيًا مع الوحدة تحته: أعلى تلك الوحدة هو قاعدة الغطاء.",
   "Not extended: {names}. A contact under 5% of the box stays as drawn; others reach at most three times their own radius.": "لم تُمدَّد: {names}. يبقى التماس الأقل من 5% من الصندوق كما رُسم؛ وتصل البقية إلى ثلاثة أضعاف نصف قطرها كحد أقصى.",
-  "With a trend the model box is about {a} km³, against {b} km³ around the same data without one, so a unit's volume cannot be compared between the two runs.": "مع الاتجاه يبلغ صندوق النموذج نحو {a} كم³، مقابل {b} كم³ حول البيانات نفسها دونه، لذا لا يمكن مقارنة حجم الوحدة بين التشغيلين."
+  "With a trend the model box is about {a} km³, against {b} km³ around the same data without one, so a unit's volume cannot be compared between the two runs.": "مع الاتجاه يبلغ صندوق النموذج نحو {a} كم³، مقابل {b} كم³ حول البيانات نفسها دونه، لذا لا يمكن مقارنة حجم الوحدة بين التشغيلين.",
+  "Add layer": "إضافة طبقة",
+  "Filter by layer": "تصفية حسب الطبقة",
+  "Filter by unit": "تصفية حسب الوحدة",
+  "Filter by category": "تصفية حسب الفئة",
+  "Intercept set being edited": "مجموعة التقاطعات قيد التحرير",
+  "Database type": "نوع قاعدة البيانات",
+  "Unit to model": "الوحدة المراد نمذجتها",
+  "Model domain": "نطاق النموذج",
+  "Add a unit to the stack": "إضافة وحدة إلى العمود",
+  "Hole for the core orientation": "الثقب لتوجيه اللب",
+  "Calibration set": "مجموعة المعايرة",
+  "Assemblage": "المجموعة المعدنية",
+  "Vein or dyke": "عرق أو قاطع",
+  "Diagram": "مخطط",
+  "Planned hole collar": "فوهة الثقب المخطط",
+  "Desurvey method": "طريقة حساب المسار",
+  "No terrain is loaded, so a picked Elev is whatever the click hit, or a flat plane through the data. Check it before using it, or load a terrain.": "لا توجد تضاريس محمّلة، فالارتفاع المختار هو ما أصابته النقرة أو مستوى أفقي عبر البيانات. تحقق منه قبل استخدامه أو حمّل التضاريس."
 }

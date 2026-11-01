@@ -251,7 +251,7 @@ export default function ModellingPanes(props) {
           <span>{tr("Domain")}</span>
           <InfoButton title={tr("Domain")} width={280} text={tr("Restricts every tool below to one side of one or more faults — build domains in \"Domains\" further down first, then pick one here. Applies to all four tools; \"Whole property\" is the original, undomained behaviour.")} />
         </div>
-        <select value={modelDomainId} onChange={(e) => setModelDomainId(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", marginBottom: 4 }}>
+        <select aria-label={tr("Model domain")} value={modelDomainId} onChange={(e) => setModelDomainId(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", marginBottom: 4 }}>
           <option value="">{tr("Whole property")}</option>
           {domains.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
@@ -262,7 +262,7 @@ export default function ModellingPanes(props) {
           <span>{tr("Intercept set")}</span>
           <InfoButton title={tr("Intercept set")} width={280} text={tr("Restricts every tool below to a hand-picked set of intercepts — the way to model a unit that repeats in the pile as the separate surfaces it really is, instead of every pick of that code feeding one surface. Build sets in \"Boundary intercepts\" on the Home tab. \"All intercepts\" is the original behaviour. Structural orientation picks are not covered: the tools read those directly from the structure layer, not through this table.")} />
         </div>
-        <select value={activeInterceptSetId} onChange={(e) => setActiveInterceptSetId(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", marginBottom: 4 }}>
+        <select aria-label={tr("Intercept set")} value={activeInterceptSetId} onChange={(e) => setActiveInterceptSetId(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", marginBottom: 4 }}>
           <option value="">{tr("All intercepts")}</option>
           {(interceptSets || []).map((x) => <option key={x.id} value={x.id}>{x.name} ({(x.ids || []).length})</option>)}
         </select>
@@ -337,7 +337,7 @@ export default function ModellingPanes(props) {
           <span>{tr("Surface stiffness (advanced)")}</span>
           <InfoButton title={tr("Surface stiffness")} width={280} text={tr("Scales GemPy's potential-field range — the interpolator's own smoothness lever. Lower follows your control points more tightly (more curvature, more risk of over-fitting sparse data); higher gives stiffer, smoother surfaces. Leave on Auto unless a surface is visibly too wobbly or too flat for the data.")} />
         </div>
-        <select value={rangeMultiplier} onChange={(e) => setRangeMultiplier(Number(e.target.value))} style={{ ...smallSel, width: "100%", marginBottom: 10 }}>
+        <select aria-label={tr("Surface stiffness")} value={rangeMultiplier} onChange={(e) => setRangeMultiplier(Number(e.target.value))} style={{ ...smallSel, width: "100%", marginBottom: 10 }}>
           <option value={0}>{tr("Auto — GemPy's own default")}</option>
           <option value={0.5}>{tr("0.5x — tighter, follows the points more closely")}</option>
           <option value={0.75}>{tr("0.75x — slightly tighter")}</option>
@@ -541,7 +541,7 @@ export default function ModellingPanes(props) {
           <input type="checkbox" checked={includeSectionContacts} onChange={(e) => setIncludeSectionContacts(e.target.checked)} />{tr("Include drawn cross-section contacts{v}", { v: sections?.some((s) => s.contacts?.length) ? ` (${sections.reduce((n, s) => n + (s.contacts?.length || 0), 0)} drawn)` : "" })}
         </label>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <select value={implicitTarget} onChange={(e) => setImplicitTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
+          <select aria-label={tr("Unit to model")} value={implicitTarget} onChange={(e) => setImplicitTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Choose a unit…")}</option>
             {litho_units.map((u) => {
               const role = roleForLithology(u);
@@ -625,7 +625,7 @@ export default function ModellingPanes(props) {
           <input type="checkbox" checked={includeSectionContacts} onChange={(e) => setIncludeSectionContacts(e.target.checked)} />{tr("Include drawn cross-section contacts{v}", { v: sections?.some((s) => s.contacts?.length) ? ` (${sections.reduce((n, s) => n + (s.contacts?.length || 0), 0)} drawn)` : "" })}
         </label>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <select value={stackAdd} onChange={(e) => { addStackUnit(e.target.value); setStackAdd(""); }} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
+          <select aria-label={tr("Add a unit to the stack")} value={stackAdd} onChange={(e) => { addStackUnit(e.target.value); setStackAdd(""); }} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Add a unit…")}</option>
             {/* TASKS.csv #241 — cross-cutting units (fault/dyke/breccia) are hidden here, not just
                 warned about in the paragraph above: they break the tool's own non-crossing guarantee,
@@ -773,7 +773,7 @@ export default function ModellingPanes(props) {
         ><Milestone size={14} />{" "}{tr("Downhole structure (tadpole)")}</button>
         {!struct_types.length && emptyPaneHint(tr("No structure picks loaded — import downhole structure planes on the 3D View tab (Add layer › Structure planes), or load the sample project."))}
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <select value={structuralTarget} onChange={(e) => setStructuralTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
+          <select aria-label={tr("Structure type")} value={structuralTarget} onChange={(e) => setStructuralTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Choose a structure type…")}</option>
             {struct_types.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
@@ -794,7 +794,7 @@ export default function ModellingPanes(props) {
             closed envelope with no assumed up-direction. Runs in-app, no sidecar. */}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Builds a closed halo envelope for one assemblage: every logged alteration interval becomes a 0/1 \"altered?\" sample down its hole, interpolated onto a grid, iso-surfaced at 0.5. Unlike the lithology/structural tools this makes no assumption about which way is \"up\" — a halo wraps its conduit rather than draping like a contact. Runs in-app, no Python engine needed.")}</div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <select value={alterationTarget} onChange={(e) => setAlterationTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
+          <select aria-label={tr("Assemblage")} value={alterationTarget} onChange={(e) => setAlterationTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Choose an assemblage…")}</option>
             {alt_units.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
@@ -822,7 +822,7 @@ export default function ModellingPanes(props) {
         {paneHeader("Vein / dyke modelling", Waves, "model")}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models a vein or dyke as a PAIR of contacts: each logged interval's from-depth and to-depth are the two walls of one structure. A midplane is fitted through the intercept midpoints and a TRUE-thickness field (downhole length corrected for how obliquely each hole cuts the vein) is interpolated over it; the hangingwall and footwall are that midplane offset by half the thickness each way, so they stay a consistent thickness apart and cannot cross. Runs in-app, no Python engine needed.")}</div>
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <select value={veinTarget} onChange={(e) => setVeinTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
+          <select aria-label={tr("Vein or dyke")} value={veinTarget} onChange={(e) => setVeinTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Choose a vein / dyke…")}</option>
             {vein_units.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>

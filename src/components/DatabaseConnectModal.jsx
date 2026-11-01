@@ -125,7 +125,7 @@ export default function DatabaseConnectModal({ onCancel, onResults, initialSql =
               <input value={config.name} onChange={(e) => set("name", e.target.value)} placeholder={tr("My Database")} style={inp} />
             </Field>
             <Field label={tr("Engine")}>
-              <select value={config.engine} onChange={(e) => setEngine(e.target.value)} style={sel}>
+              <select aria-label={tr("Database type")} value={config.engine} onChange={(e) => setEngine(e.target.value)} style={sel}>
                 <option value="postgres">{tr("PostgreSQL")}</option>
                 <option value="mysql">{tr("MySQL / MariaDB")}</option>
               </select>
