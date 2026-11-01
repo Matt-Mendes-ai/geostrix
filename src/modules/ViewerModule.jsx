@@ -531,6 +531,7 @@ const PROTO_CUBE = sharedProto(new THREE.BoxGeometry(1.6, 1.6, 1.6), "cube"); //
 const PROTO_DISC_FLAT = sharedProto(new THREE.CircleGeometry(1.2, 24).rotateX(-Math.PI / 2), "discflat"); // horizontal
 const PROTO_PILLAR = sharedProto(new THREE.CylinderGeometry(0.8, 0.8, 2, 12, 1, false), "pillar"); // vertical, centred
 const PROTO_SQUARE = sharedProto(new THREE.PlaneGeometry(1.8, 1.8), "square"); // ~ the disc's area
+const PIN_AXIS = new THREE.Vector3(0, 1, 0), dipPinDir = new THREE.Vector3(); // #1241 — PROTO_PRISM_4 runs up +Y from its base
 const INTERVAL_PROTO = { cylinder: PROTO_CYLINDER, smooth: PROTO_CYLINDER_16, square: PROTO_PRISM_4 };
 const POINT_PROTO = { sphere: PROTO_SPHERE_10, cube: PROTO_CUBE, disc: PROTO_DISC_FLAT, pillar: PROTO_PILLAR };
 
@@ -829,6 +830,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const compassRef = useRef(null);
   const axisGizmoRef = useRef(null); // TASKS.csv #189 — small camera-synced N/E/Z axis-triad widget, bottom-left of the 3D view
   const lastTracesRef = useRef([]);
+  const lastHoleTraceCountRef = useRef(0); // #1181 — lastTracesRef starts with this many hole traces
   // TASKS.csv — user report: "we have to make it stop resetting the zoom every time user loads a new
   // layer." Same class of bug as the earlier voxel-visibility camera-reset fix a few lines below (see
   // voxelGeomSignature's own comment) — the geometry-rebuild effect calls fitView() unconditionally
@@ -2647,6 +2649,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   }, [fitBox]);
   const zoomToCustom = useCallback((id) => { const g = layerGroupsRef.current[id]; if (g && g.children.length) fitBox(new THREE.Box3().setFromObject(g)); }, [fitBox]);
   const zoomToFitAll = () => fitView(lastTracesRef.current);
+  // TASKS.csv #1181 — the Fit button frames the drilling, as the opening view does: a 25 km mesh over 5 km of holes left them a few pixels. All of it stays on the right-click menu.
+  const zoomToHoles = () => autoFitInitial(lastTracesRef.current, lastHoleTraceCountRef.current);
   // TASKS.csv #393 — zoom to one hole from the Holes list (its desurveyed trace, scene coords).
   const zoomToHole = useCallback((holeId) => { const t = tracesRef.current.find((x) => x.hole_id === holeId); if (t?.pts?.length) fitView([t.pts]); }, [fitView]);
   const zoomToPoint = (point) => fitBox(new THREE.Box3().setFromCenterAndSize(point, new THREE.Vector3(80, 80, 80)));
@@ -2773,10 +2777,11 @@ ${describeTrend(t)}` };
       layerVisible, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle,
       categoryFilter: Object.fromEntries(Object.entries(categoryFilter).map(([k, v]) => [k, Array.from(v)])),
       gridConfig,
+      bgColor, holeLabelMode, figureOverlay, layerStyles, // TASKS.csv #1288 — these used to stay whatever was live, so one theme rendered differently from one refresh to the next
       ...surfaceVisibilityBundle(),
       camState: { theta: cs.theta, phi: cs.phi, radius: cs.radius, target: { x: cs.target.x, y: cs.target.y, z: cs.target.z } },
     };
-  }, [layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, gridConfig, surfaceVisibilityBundle]);
+  }, [layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, gridConfig, bgColor, holeLabelMode, figureOverlay, layerStyles, surfaceVisibilityBundle]);
 
   // TASKS.csv #202 — root-cause fix. currentViewBundle() above reads local component state
   // (layerVisible, etc), which is fine for a NORMAL user action (Save theme) but turned out to be
@@ -2808,6 +2813,7 @@ ${describeTrend(t)}` };
       assayDisplayElements: s?.assayDisplayElements || (s?.assayDisplayElement ? [s.assayDisplayElement] : []),
       assayStyle: s?.assayStyle || {},
       gridConfig: { ...DEFAULT_GRID, ...(s?.gridConfig || {}) },
+      bgColor: s?.bgColor || DEFAULT_BG_COLOR, holeLabelMode: s?.holeLabelMode || "none", figureOverlay: { ...DEFAULT_FIGURE_OVERLAY, ...(s?.figureOverlay || {}) }, layerStyles: s?.layerStyles || {}, // #1288
       // #52 (b) — read from the live scene, not from viewerUiState (surfaces aren't mirrored there), so
       // a Layout-viewport render that applies a theme hiding a surface puts it back afterwards.
       ...surfaceVisibilityBundle(),
@@ -2855,6 +2861,11 @@ ${describeTrend(t)}` };
     setAssayDisplayElements(theme.assayDisplayElements || (theme.assayDisplayElement ? [theme.assayDisplayElement] : []));
     setAssayStyle(theme.assayStyle || {});
     setGridConfig({ ...DEFAULT_GRID, ...(theme.gridConfig || {}) });
+    // TASKS.csv #1288 — a theme saved before these existed leaves them as they are. layerStyles rebuilds every drillhole, so an equal value keeps its identity.
+    if (theme.bgColor) setBgColor(theme.bgColor);
+    if (theme.holeLabelMode) setHoleLabelMode(theme.holeLabelMode);
+    if (theme.figureOverlay) setFigureOverlay({ ...DEFAULT_FIGURE_OVERLAY, ...theme.figureOverlay });
+    if (theme.layerStyles) setLayerStyles((p) => (JSON.stringify(p) === JSON.stringify(theme.layerStyles) ? p : theme.layerStyles));
     // TASKS.csv #52 (b) — generated surfaces the theme knows about. Only ids the theme actually lists
     // are touched: a surface modelled AFTER the theme was saved is left exactly as it is, rather than
     // being hidden by a theme that never knew about it. Missing ids are reported once, by name, because
@@ -2882,39 +2893,12 @@ ${describeTrend(t)}` };
     }
   }, []);
 
-  // TASKS.csv #202 fix, continued — restoring the user's live view via applyTheme() alone (which only
-  // sets LOCAL component state) turned out not to be enough: goToModule("layout") fires from store.jsx
-  // right after resolveViewportRender, and when that lands in the same React batch as this restore,
-  // ViewerModule can unmount before its own "push local state up to store.viewerUiState" effect (the
-  // one a few lines below, keyed on [layerVisible, ...]) gets a chance to actually run for the RESTORED
-  // values — so the store was left holding the THEME's values even though local state looked right for
-  // an instant. Confirmed via Playwright: applyTheme(liveViewBeforeRender) alone did NOT fix the repro.
-  // Writing straight to setViewerUiState here removes the dependency on that effect ordering entirely —
-  // the store is corrected directly, synchronously, regardless of whether ViewerModule sticks around
-  // long enough to run its own effects again.
-  const restoreLiveView = useCallback((bundle) => {
-    applyTheme(bundle);
-    setViewerUiState({
-      layerVisible: bundle.layerVisible,
-      categoryFilter: bundle.categoryFilter, // already array-serialized by currentViewBundle()
-      numericRange: bundle.numericRange,
-      legendOverride: bundle.legendOverride,
-      numericSymbology: bundle.numericSymbology,
-      visibleHoles: bundle.visibleHoles,
-      customVisible: bundle.customVisible,
-      assayVisible: bundle.assayVisible,
-      assayDisplayElements: bundle.assayDisplayElements,
-      assayStyle: bundle.assayStyle,
-      gridConfig: bundle.gridConfig,
-      bgColor,
-    });
-  }, [applyTheme, setViewerUiState, bgColor]);
+  // TASKS.csv #1287 — a live view is put back with applyTheme alone. This module stays mounted behind Layout (#225), so the one push effect writes the restored values to the store.
 
   // Layout's Viewport element (#46) asks for a re-render of a theme via store.requestViewportRender()
-  // — see the long comment on that in store.jsx. This module isn't guaranteed to be mounted when the
-  // request is made (Layout and Viewer are never both mounted), so goToModule("viewer") on the caller
-  // side handles getting us mounted; from here it's just "apply the theme, wait for it to actually be
-  // on screen, capture, resolve". The state changes above are async (React state + a full geometry/
+  // — see the long comment on that in store.jsx. This module stays mounted behind Layout (#225), and
+  // goToModule("viewer") on the caller side brings it forward; from here it's just "apply the theme,
+  // wait for it to actually be on screen, capture, resolve". The state changes above are async (React state + a full geometry/
   // visibility re-render), but there's already a continuous requestAnimationFrame render loop running
   // (see `animate` in the mount effect) redrawing every frame regardless — so a short fixed delay
   // after applying is enough for the state to have committed and painted at least a few frames before
@@ -2927,13 +2911,13 @@ ${describeTrend(t)}` };
   const doCaptureViewportRender = useCallback((req, liveViewBeforeRender) => {
     const theme = themes.find((t) => t.id === req.themeId);
     const renderer = rendererRef.current, scene = sceneRef.current, camera = cameraRef.current;
-    if (!renderer || !scene || !camera) { restoreLiveView(liveViewBeforeRender); resolveViewportRender({ requestId: req.requestId, error: "Viewport not ready." }); return; }
+    if (!renderer || !scene || !camera) { applyTheme(liveViewBeforeRender); resolveViewportRender({ requestId: req.requestId, error: "Viewport not ready." }); return; }
     renderer.setViewport(0, 0, mountRef.current.clientWidth, mountRef.current.clientHeight);
     renderer.setScissorTest(false);
 
     const cs = camState.current;
     // TASKS.csv #907 — a requested centre (Layout's "Fit the holes"): the orbit target moves to that world E / N, same
-    // elevation, for this capture only - restoreLiveView below puts the user's own camera back
+    // elevation, for this capture only - applyTheme below puts the user's own camera back
     if (req.centreWorld) {
       const o = originRef.current;
       cs.target.set(req.centreWorld.x - o.x, cs.target.y, o.y - req.centreWorld.y);
@@ -3003,7 +2987,7 @@ ${describeTrend(t)}` };
         renderer.clippingPlanes = [];
       }, outW, outH); // #906 — at the frame's aspect
       encoded = shot.encoded; shotW = shot.width; shotH = shot.height;
-    } catch (err) { restoreLiveView(liveViewBeforeRender); resolveViewportRender({ requestId: req.requestId, error: err.message }); return; }
+    } catch (err) { applyTheme(liveViewBeforeRender); resolveViewportRender({ requestId: req.requestId, error: err.message }); return; }
     // TASKS.csv #311 — this used to be the inline `2 * cs.radius * Math.tan(fovRad / 2)`. Same figure,
     // now imported from src/lib/figureScale.js so the Layout scale bar (which this feeds) and the new
     // in-viewport scale bar cannot possibly derive different metres-per-pixel from the same camera.
@@ -3024,7 +3008,7 @@ ${describeTrend(t)}` };
     const cameraAzimuthDeg = ((cs.theta * 180) / Math.PI) % 360;
     // TASKS.csv #399 — where the view is centred (world E/N) and whether it looks straight down, so Layout
     // can draw a labelled UTM grid over a top-down, true-scale capture. Scene -> world: E = x + ox, N = oy - z.
-    // TASKS.csv #907 — read BEFORE restoreLiveView below: it used to be read after, i.e. from the user's own live
+    // TASKS.csv #907 — read BEFORE the live view is put back below: it used to be read after, i.e. from the user's own live
     // camera, not the capture's - wrong for a themed viewport whose theme looks elsewhere than the live view, and
     // for a capture centred on the holes (Fit), whose grid would then have been offset by that difference.
     const o = originRef.current;
@@ -3035,7 +3019,7 @@ ${describeTrend(t)}` };
     // above — this is what actually fixes #202 (see this effect's top comment): without it, the theme
     // applied for this capture was left in place, silently showing up as "my toggled-off layers
     // are back on" whenever the user next looked at the 3D View tab.
-    restoreLiveView(liveViewBeforeRender);
+    applyTheme(liveViewBeforeRender);
     encoded.then((dataUrl) => resolveViewportRender({
       requestId: req.requestId, src: dataUrl, naturalW: shotW, naturalH: shotH,
       worldHeightAtTarget, themeName: theme?.name, cameraAzimuthDeg, trueScale: !!req.trueScale, targetWorld, planView, fixedScale: orthoHalfH != null && req.fixedScale > 0 ? req.fixedScale : null,
@@ -3047,7 +3031,7 @@ ${describeTrend(t)}` };
     // this result to layoutElements), not here — that effect also covers the "Theme not found"/
     // "Viewport not ready" error returns above, which never used to hop back at all, leaving the
     // user stranded on the Viewer tab with no visible error.
-  }, [themes, restoreLiveView, resolveViewportRender]);
+  }, [themes, applyTheme, resolveViewportRender]);
 
   useEffect(() => {
     const req = viewportRenderRequest;
@@ -3121,9 +3105,9 @@ ${describeTrend(t)}` };
     if (!interactiveViewportSession) return;
     const { req, liveViewBeforeRender } = interactiveViewportSession;
     setInteractiveViewportSession(null);
-    restoreLiveView(liveViewBeforeRender);
+    applyTheme(liveViewBeforeRender);
     resolveViewportRender({ requestId: req.requestId, error: "Cancelled — viewport left unchanged." });
-  }, [interactiveViewportSession, restoreLiveView, resolveViewportRender]);
+  }, [interactiveViewportSession, applyTheme, resolveViewportRender]);
 
   // ---------- TASKS.csv #29: implicit surface modelling (GemPy), first pass ----------
   // Scope of this first pass, deliberately kept narrow: model ONE contact surface at a time (the
@@ -4898,6 +4882,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const lbl = effectiveLabel("structure", s.value);
         disc.userData = { tip: `${c.hole_id}\nStructure: ${lbl}\ndip ${dip.toFixed(0)}° / az ${az.toFixed(0)}°\n@ ${s.depth.toFixed(0)} m`, catValue: s.value };
         groups.structure.add(disc);
+        // TASKS.csv #1241 — a disc looks the same dipping 60/045 and 60/225: a pin from its centre down the dip, past the rim so it shows on an opaque disc.
+        // A shared prototype, so the pins batch into one draw call and follow the category and hole filters and the colour overrides like the discs.
+        const pin = new THREE.Mesh(PROTO_PRISM_4, new THREE.MeshBasicMaterial({ color }));
+        pin.quaternion.setFromUnitVectors(PIN_AXIS, dipPinDir.set(Math.sin(toRad(az)) * Math.cos(toRad(dip)), -Math.sin(toRad(dip)), -Math.cos(toRad(az)) * Math.cos(toRad(dip))));
+        pin.scale.set(0.35 * stStruct.size, 8 * stStruct.size, 0.35 * stStruct.size);
+        pin.position.set(p.x, p.y, p.z);
+        pin.userData = disc.userData;
+        groups.structure.add(pin);
       });
 
       customLayers.forEach((layer) => {
@@ -4960,6 +4952,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     buildAssaySpheresRef.current(); buildGeophysPtsRef.current(); buildSurfaceSamplesRef.current();
 
     lastTracesRef.current = allTraces;
+    lastHoleTraceCountRef.current = nHoleTraces;
     if (buildErrors.length) setNotices((p) => [...p, errorNotice(tr("{buildErrors} row(s) failed to render (skipped, rest of the model is unaffected): {v}{v2}", { buildErrors: buildErrors.length, v: buildErrors.slice(0, 3).join(" · "), v2: buildErrors.length > 3 ? "…" : "" }))]);
     if (allTraces.length) {
       if (!hasAutoFitRef.current) { autoFitInitial(allTraces, nHoleTraces); hasAutoFitRef.current = true; }
@@ -8268,7 +8261,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <div style={{ position: "absolute", top: 178, right: 12, display: "flex", flexDirection: "column", gap: 6 }}>{/* #1300 — 8 px below the compass card */}
           <button onClick={() => { camState.current.theta = 0; camState.current.phi = 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Top")}</button>{/* #1200 — north up, as a map */}
           <button onClick={() => { camState.current.phi = Math.PI - 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Bottom")}</button>
-          <button onClick={() => zoomToFitAll()} style={miniBtn} title={tr("Zoom to fit all (also: right-click the view)")} aria-label={tr("Zoom to fit all")}>{tr("Fit")}</button>{/* #567 — the keyboard / visible path the notices pointed to */}
+          <button onClick={() => zoomToHoles()} style={miniBtn} title={tr("Zoom to the holes (to include the models too: right-click the view, Zoom to fit all)")} aria-label={tr("Zoom to the holes")}>{tr("Fit")}</button>{/* #567 — the keyboard / visible path the notices pointed to */}
         </div>
         {/* TASKS.csv #189 — the old "■ East ■ Elevation ■ North" text legend used to render here;
             replaced by axisGizmo (created above, rendered every frame via the same viewport/scissor
@@ -8339,12 +8332,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <ContextItem label={tr("Hide {holeId}", { holeId: contextMenu.hit.holeId })} onClick={() => { toggleHole(contextMenu.hit.holeId); setContextMenu(null); }} />
                 <ContextItem label={tr("Copy details")} onClick={() => { copyText(contextMenu.hit.tip); setContextMenu(null); }} />
                 <ContextItem label={tr("Zoom to selected area…")} onClick={() => { setSectionMode(false); setMeasureMode(null); setRectZoomMode(true); setContextMenu(null); }} />
+                <ContextItem label={tr("Zoom to the holes")} onClick={() => { zoomToHoles(); setContextMenu(null); }} />
                 <ContextItem label={tr("Zoom to fit all")} onClick={() => { zoomToFitAll(); setContextMenu(null); }} />
                 <ContextItem label={tr("Reset orientation")} onClick={() => { resetView(); setContextMenu(null); }} />
               </>
             ) : (
               <>
                 <ContextItem label={tr("Zoom to selected area…")} onClick={() => { setSectionMode(false); setMeasureMode(null); setRectZoomMode(true); setContextMenu(null); }} />
+                <ContextItem label={tr("Zoom to the holes")} onClick={() => { zoomToHoles(); setContextMenu(null); }} />
                 <ContextItem label={tr("Zoom to fit all")} onClick={() => { zoomToFitAll(); setContextMenu(null); }} />
                 <ContextItem label={tr("Reset orientation")} onClick={() => { resetView(); setContextMenu(null); }} />
               </>

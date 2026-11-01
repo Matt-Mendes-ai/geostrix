@@ -919,7 +919,7 @@ export default function GeochemModule() {
             )}
             {/* TASKS.csv #1091 — the ramp's key: five values, log-spaced when the ramp is */}
             {colorMode === "element" && colorRange && (
-              <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, color: "#55606e" }} title={colorRange.log ? tr("Log scale: the values span two decades or more") : tr("Linear scale")}>
+              <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", color: "#55606e" }} title={colorRange.log ? tr("Log scale: the values span two decades or more") : tr("Linear scale")}>
                 {elementKey().map(({ v, color }, i) => <span key={i} style={{ display: "flex", alignItems: "center", gap: 2 }}><span style={{ width: 9, height: 9, borderRadius: 5, background: color, border: "1px solid rgba(0,0,0,0.15)" }} />{+v.toPrecision(2)}</span>)}
                 <span>{tr("ppm ({v})", { v: colorRange.log ? tr("log") : tr("linear") })}</span>
               </span>
@@ -993,7 +993,7 @@ export default function GeochemModule() {
         ) : (
           <div style={{ maxWidth: 680 }}>
             <GeochemPlot diagramId={diagramId} samples={plotted} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} altBoxes={alterationBoxes?.boxes || PROVISIONAL_ALTERATION_BOXES} describe={describeSample} /> {/* plotted / describe: #619 */}
-            <div style={{ fontSize: 10.5, color: "#65717e", marginTop: 8 }}>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 8 }}>
               {tr("{v}{v2} Below-detection values substituted at half the detection limit.", { v: diagram.spider
                 ? tr("{n} of {assays} samples have at least one plottable element.", { n: plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length, assays: assays.length })
                 : tr("{n} of {assays} samples plotted.", { n: plotted.filter((a) => diagram.project(a, elementUnits)).length, assays: assays.length }), v2: lithFilter ? tr(" {v} hidden by the lithology filter.", { v: assays.length - plotted.length }) : "" })}</div>

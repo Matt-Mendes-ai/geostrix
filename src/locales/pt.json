@@ -6657,5 +6657,7 @@
   "Named as faults": "Com nome de falha",
   "Other structure types": "Outros tipos de estrutura",
   "\"{name}\" holds {n} blocks, about {gb} GB of memory while it is open. A modest laptop can slow down or run out. Import it? (Lowering the cell budget above coarsens it.)": "“{name}” contém {n} blocos, cerca de {gb} GB de memória enquanto estiver aberto. Um notebook modesto pode ficar lento ou sem memória. Importar? (Reduzir o orçamento de células acima o torna mais grosseiro.)",
-  "\"{name}\" was not imported.": "“{name}” não foi importado."
+  "\"{name}\" was not imported.": "“{name}” não foi importado.",
+  "Zoom to the holes": "Zoom nos furos",
+  "Zoom to the holes (to include the models too: right-click the view, Zoom to fit all)": "Zoom nos furos (para incluir também os modelos: clique com o botão direito na vista, Enquadrar tudo)"
 }

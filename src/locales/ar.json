@@ -6657,5 +6657,7 @@
   "Named as faults": "مسماة صدوعًا",
   "Other structure types": "أنواع بنى أخرى",
   "\"{name}\" holds {n} blocks, about {gb} GB of memory while it is open. A modest laptop can slow down or run out. Import it? (Lowering the cell budget above coarsens it.)": "يحتوي «{name}» على {n} كتلة، أي نحو {gb} غيغابايت من الذاكرة ما دام مفتوحًا. قد يتباطأ حاسوب محمول متواضع أو تنفد ذاكرته. هل تستورده؟ (خفض ميزانية الخلايا أعلاه يجعله أخشن.)",
-  "\"{name}\" was not imported.": "لم يُستورد «{name}»."
+  "\"{name}\" was not imported.": "لم يُستورد «{name}».",
+  "Zoom to the holes": "تكبير إلى الآبار",
+  "Zoom to the holes (to include the models too: right-click the view, Zoom to fit all)": "تكبير إلى الآبار (لتضمين النماذج أيضًا: انقر بزر الماوس الأيمن على العرض، ثم ملاءمة الكل في العرض)"
 }

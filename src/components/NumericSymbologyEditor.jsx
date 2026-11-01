@@ -32,7 +32,7 @@ export default function NumericSymbologyEditor({ layerKey, rows, sym, onChange }
   };
   const stops = sym?.stops || [];
   return (
-    <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid #e3e6ea" }}>
+    <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid var(--color-border-subtle)" }}>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 5 }}>{tr("Symbology — {values} {v}{v2}", { values: values.length.toLocaleString(), v: tr(values.length === 1 ? "value" : "values"), v2: values.length > 0 && ` (${min.toLocaleString(undefined, { maximumFractionDigits: 2 })} – ${max.toLocaleString(undefined, { maximumFractionDigits: 2 })})` })}
       </div>
       <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 5, flexWrap: "wrap" }}>

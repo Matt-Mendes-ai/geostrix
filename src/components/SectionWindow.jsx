@@ -9,6 +9,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { placeLabels, leaderEnd, resolveLabels, labelWidth } from "../lib/sectionLabels.js"; // TASKS.csv #823
 import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped
 import { exportSvgMarkup, FIGURE_FONT } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
+import { wrapText } from "../lib/figureFurniture.js";
 import { colors, printPt, printPx, PLACED_W } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned, the planned-hole colour of every view; print scale: #1090
 import { flushSync } from "react-dom"; // TASKS.csv #1090 — render at print size for an export, synchronously
 
@@ -485,6 +486,8 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
 
   const { ax, ay, bx, by } = section;
   const dx = bx - ax, dy = by - ay;
+  // TASKS.csv #1256 — at a large text size the subtitle ran past the frame and the PNG cut the sentence
+  const subtitleLines = wrapText(tr("Azimuth {v}° · {v2}{v3} · elevation in m", { v: Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360).toFixed(0), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))));
   const len = Math.hypot(dx, dy) || 1;
   const ux = dx / len, uy = dy / len;
   const along = (x, y) => (x - ax) * ux + (y - ay) * uy;
@@ -662,8 +665,8 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
       ))}
       <text x={PAD} y={H - PAD + 4 + fs(26)} fill="#55606e" fontSize={fs(10)} textAnchor="start">{`${Math.round(ax).toLocaleString()} E  ${Math.round(ay).toLocaleString()} N`}</text>
       <text x={W - PAD} y={H - PAD + 4 + fs(26)} fill="#55606e" fontSize={fs(10)} textAnchor="end">{`${Math.round(bx).toLocaleString()} E  ${Math.round(by).toLocaleString()} N`}</text>
-      <text x={PAD} y={PAD - fs(22)} fill="#1a2028" fontSize={fs(12)} fontWeight="600">{title || tr("Cross-section")}</text>
-      <text x={PAD} y={PAD - fs(8)} fill="#55606e" fontSize={fs(10)}>{tr("Azimuth {v}° · {v2}{v3} · elevation in m", { v: Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360).toFixed(0), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" })}</text>
+      <text x={PAD} y={PAD - fs(22) - (subtitleLines.length - 1) * fs(12)} fill="#1a2028" fontSize={fs(12)} fontWeight="600">{title || tr("Cross-section")}</text>
+      <text x={PAD} y={PAD - fs(8) - (subtitleLines.length - 1) * fs(12)} fill="#55606e" fontSize={fs(10)}>{subtitleLines.map((l, i) => <tspan key={i} x={PAD} dy={i ? fs(12) : 0}>{l}</tspan>)}</text>
 
       {/* TASKS.csv #112 — topographic ground-surface profile sampled from the loaded SRTM/DEM terrain
           along this section line (see ViewerModule.jsx's buildSectionPayload). Drawn as a filled
@@ -804,8 +807,8 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
       {/* TASKS.csv #519 — the nearest parallel sections' strings, ghosted (projected onto this section) */}
       {(data.ghostStrings || []).map((g) => g.strings.filter((st) => st.points.length > 1).map((st, i) => (
         <g key={`${g.sectionId}_${i}`} opacity="0.4">
-          <polyline points={st.points.map((p) => `${sx(p.l)},${sz(p.z)}`).join(" ")} fill="none" stroke={st.color || "#7a8494"} strokeWidth="1.6" strokeDasharray="2 3" />
-          <text x={sx(st.points[st.points.length - 1].l) + 4} y={sz(st.points[st.points.length - 1].z)} fill={st.color || "#7a8494"} fontSize={fs(9)}>{`${st.unit} — ${g.sectionName} (${g.offset > 0 ? "+" : ""}${Math.round(g.offset)} m)`}</text>
+          <polyline points={st.points.map((p) => `${sx(p.l)},${sz(p.z)}`).join(" ")} fill="none" stroke={st.color || colors.textMuted} strokeWidth="1.6" strokeDasharray="2 3" />
+          <text x={sx(st.points[st.points.length - 1].l) + 4} y={sz(st.points[st.points.length - 1].z)} fill={st.color || colors.textMuted} fontSize={fs(9)}>{`${st.unit} — ${g.sectionName} (${g.offset > 0 ? "+" : ""}${Math.round(g.offset)} m)`}</text>
           {onCopyGhost && <text data-ui-only="1" role="button" tabIndex={0} x={sx(st.points[st.points.length - 1].l) + 4} y={sz(st.points[st.points.length - 1].z) + fs(11)} fill="#1a2028" fontSize={fs(9)} fontWeight="600" textDecoration="underline" style={{ cursor: "pointer" }}
             onClick={(e) => { e.stopPropagation(); onCopyGhost(st); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onCopyGhost(st); } }}>
             {tr("Copy here")}<title>{tr("Copy this string onto this section (same name, kind and vertex order) and edit its vertices")}</title></text>}{/* #1059 */}
@@ -846,7 +849,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
           if (!p || !q) continue;
           const x = sx(along(p.x, p.y)), y = sz(p.z);
           const [nx, ny] = screenNormal(x, y, sx(along(q.x, q.y)), sz(q.z));
-          marks.push(<line key={md} x1={x - nx * 3} y1={y - ny * 3} x2={x - nx * 7} y2={y - ny * 7} stroke="#445064" strokeWidth="0.8" />);
+          marks.push(<line key={md} x1={x - nx * 3} y1={y - ny * 3} x2={x - nx * 7} y2={y - ny * 7} stroke={colors.textSecondary} strokeWidth="0.8" />);
           if (md % 100 === 0) floatLabels.push({ key: `dm${hi}_${md}`, text: String(md), size: fs(8), fill: "#65717e", prio: 1, cands: [{ x: x - nx * 10, y: y - ny * 10 + 3, anchor: nx >= 0 ? "end" : "start" }, { x: x + nx * (10 + ribbonReach), y: y + ny * (10 + ribbonReach) + 3, anchor: nx >= 0 ? "start" : "end" }] }); // #1134
         }
         const last = trace[trace.length - 1];
@@ -898,7 +901,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
         (ph.pierces || []).forEach((q, k) => {
           const x = sx(along(q.x, q.y)), y = sz(q.z);
           marks.push(<g key={`p${k}`}><circle cx={x} cy={y} r="3.2" fill="#fff" stroke={colors.planned} strokeWidth="1.4" /><title>{tr("{hole} crosses {surface} at {md} m downhole", { hole: ph.name, surface: q.name, md: q.md.toFixed(1) })}</title></g>);
-          floatLabels.push({ key: `pp${i}_${k}`, text: tr("{md} m · {surface}", { md: q.md.toFixed(1), surface: q.name }), size: fs(9), fill: "#7a4512", weight: 600, prio: 3, cands: [{ x: x + 6, y: y - 4, anchor: "start" }, { x: x - 6, y: y - 4, anchor: "end" }, { x: x + 6, y: y + fs(12), anchor: "start" }, { x: x - 6, y: y + fs(12), anchor: "end" }] }); // #1134
+          floatLabels.push({ key: `pp${i}_${k}`, text: tr("{md} m · {surface}", { md: q.md.toFixed(1), surface: q.name }), size: fs(9), fill: colors.warnText, weight: 600, prio: 3, cands: [{ x: x + 6, y: y - 4, anchor: "start" }, { x: x - 6, y: y - 4, anchor: "end" }, { x: x + 6, y: y + fs(12), anchor: "start" }, { x: x - 6, y: y + fs(12), anchor: "end" }] }); // #1134
         });
         return (
           <g key={`ph${i}`}>
