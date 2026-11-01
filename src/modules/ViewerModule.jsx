@@ -126,6 +126,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #390
 import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellSupported, voxelCellShown, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
+import { syncHoleLabels } from "../lib/viewer/holeLabels.js"; // TASKS.csv #1277
 import { findOnTraceWorld, findOnTrace, pointInDomain, SOLID_SURFACE_TYPES } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693
 import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
@@ -1091,6 +1092,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // which hole is which without opening the sidebar or hovering every collar one at a time) with a
   // small fixed set of label contents rather than an arbitrary expression language.
   const [holeLabelMode, setHoleLabelMode] = useState("none"); // "none" | "hole_id" | "hole_id_z" | "hole_id_depth"
+  // TASKS.csv #1277 — the rebuild reads the mode through a ref and records one anchor per hole; a mode change redraws
+  // the labels alone (effect after the rebuild), not every drillhole
+  const holeLabelModeRef = useRef(holeLabelMode); holeLabelModeRef.current = holeLabelMode;
+  const holeLabelAnchorsRef = useRef([]);
 
   // Manual "Refresh view" trigger — the user asked for this after seeing collars render a few meters
   // off from a DEM following a delete + re-import. The geometry-rebuild effects below are all correct
@@ -4636,6 +4641,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // InstancedMesh batch needs its own .dispose() to release its instance buffers (disposing the
     // geometry/material alone would not, and the geometry is a shared prototype anyway).
     Object.values(groups).forEach((g) => { while (g.children.length) { const c = g.children.pop(); if (!c.geometry?.userData?.sharedProto) c.geometry?.dispose?.(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.dispose?.(); } });
+    const labelAnchors = []; // #1277 — one per hole, drawn after the loop and again on a label-mode change
     if (!collars.length) {
       setDataLoaded(false);
       hasAutoFitRef.current = false;
@@ -4832,18 +4838,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       const traceLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((p) => new THREE.Vector3(p.x, p.y, p.z))), new THREE.LineBasicMaterial({ color: 0x445064, transparent: true, opacity: 0.5 }));
       groups.litho.add(traceLine);
 
-      // TASKS.csv #131 — collar (hole) labels, opt-in via holeLabelMode (defaults to "none" so this
-      // is a pure addition, no behavior change for anyone who hasn't turned it on).
-      if (holeLabelMode !== "none") {
-        const totalDepth = pts.length ? pts[pts.length - 1].md : 0;
-        const text = holeLabelMode === "hole_id_z" ? `${c.hole_id} (${c.z.toFixed(0)}m)`
-          : holeLabelMode === "hole_id_depth" ? `${c.hole_id} (${totalDepth.toFixed(0)}m)`
-          : c.hole_id;
-        const sprite = makeTextSprite(text);
-        sprite.position.set(pts[0].x, pts[0].y + 6, pts[0].z); // offset above the collar marker so it doesn't overlap it
-        sprite.userData = { tip: `${c.hole_id}\nLabel` };
-        groups.hole_labels.add(sprite);
-      }
+      // TASKS.csv #131 — collar (hole) labels, opt-in via holeLabelMode; #1277 — drawn from these anchors by syncHoleLabels
+      labelAnchors.push({ id: c.hole_id, x: pts[0].x, y: pts[0].y, z: pts[0].z, zWorld: c.z, depth: pts.length ? pts[pts.length - 1].md : 0 });
 
       // TASKS.csv #137 — geotech/recovery are both known 0-100 percentages, so rqdColor's fixed
       // ramp fits both; specific gravity has no such fixed domain (real values run ~2-5), so it
@@ -5080,6 +5076,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // reapplied here, or a category a user had already hidden would incorrectly reappear until they
     // touched the filter again. The companion effect below (keyed on [categoryFilter] alone) handles
     // the common case — toggling a chip with no rebuild involved.
+    holeLabelAnchorsRef.current = labelAnchors; // #1277
+    syncHoleLabels(groups.hole_labels, labelAnchors, holeLabelModeRef.current, makeTextSprite);
     applyCategoryVisibility();
     // Same reasoning for legendOverride: build-time color now comes from baseColorForBuild (plain
     // default, no override), so a real rebuild's fresh meshes need any currently-active legend color
@@ -5092,7 +5090,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // applyCategoryVisibility/applyLegendOverrideColors are deliberately NOT listed either, for the
     // same reason categoryFilter/legendOverride were removed from this array — both are called
     // directly above using whatever this render closed over, not as re-trigger conditions.
-  }, [collars, survey, desurveyMethod /* #135 — switching method must rebuild every trace */, layers, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStyles /* #635 */, anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, voxelGeomSignature, fitBox, rebuildSeq, placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */, holeLabelMode]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
+  }, [collars, survey, desurveyMethod /* #135 — switching method must rebuild every trace */, layers, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStyles /* #635 */, anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, voxelGeomSignature, fitBox, rebuildSeq, placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
+  // TASKS.csv #1277 — the Hole labels dropdown redraws the labels only
+  useEffect(() => { syncHoleLabels(layerGroupsRef.current?.hole_labels, holeLabelAnchorsRef.current, holeLabelMode, makeTextSprite); }, [holeLabelMode]);
   // #551 — declared AFTER the big effect: when both fire, the big one builds first and these then see unchanged inputs
   useEffect(() => { if (!sameInputs(assayBuiltRef.current, assayInputs)) buildAssaySpheresRef.current(); }, assayInputs);
   useEffect(() => { if (!sameInputs(geophysBuiltRef.current, geophysInputs)) buildGeophysPtsRef.current(); }, geophysInputs);
