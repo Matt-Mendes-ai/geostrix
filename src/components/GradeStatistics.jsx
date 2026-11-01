@@ -279,7 +279,7 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
 
               <div>
                 <div style={label}>{tr("By domain — {groups} {v}", { groups: groups.length, v: tr(groups.length === 1 ? "group" : "groups") })}</div>
-                <BoxPlots groups={groups} domainLabel={domainLabel} />
+                <BoxPlots groups={groups} domainLabel={domainLabel} logScale={logScale} unit={elementUnits[symbol] || "ppm"} />
               </div>
 
               <div style={{ overflowX: "auto" }}>
@@ -347,14 +347,23 @@ function Histogram({ data, unit, logScale }) {
 // Simple box-and-whisker per domain group: whiskers to actual min/max (not a Tukey 1.5*IQR fence with
 // separate outlier points — a lighter first pass; worth revisiting if capping/outlier work needs the
 // distinction later).
-function BoxPlots({ groups, domainLabel }) {
+// TASKS.csv #1185 — the same log axis as the histogram: on a linear axis a four-decade Cu distribution left every median in a corner. A value
+// of zero or below sits at the smallest positive one.
+export function boxPlotScale(stats, logScale, x0, x1) {
+  const all = stats.flatMap((s) => [s.min, s.q1, s.median, s.q3, s.max]);
+  const pos = all.filter((v) => v > 0);
+  const log = logScale && pos.length > 0;
+  const low = log ? Math.min(...pos) : Math.min(...all), high = Math.max(...all);
+  const f = log ? (v) => Math.log10(Math.max(v, low)) : (v) => v;
+  const span = f(high) - f(low) || 1;
+  return { x: (v) => x0 + ((f(v) - f(low)) / span) * (x1 - x0), low, high };
+}
+
+function BoxPlots({ groups, domainLabel, logScale, unit }) {
   if (!groups.length) return null;
   const w = 640, rowH = 34, padL = 90, padR = 20;
-  const h = groups.length * rowH + 20;
-  const globalMin = arrMin(groups.map((g) => g.stats.min));
-  const globalMax = arrMax(groups.map((g) => g.stats.max));
-  const range = (globalMax - globalMin) || 1;
-  const x = (v) => padL + ((v - globalMin) / range) * (w - padL - padR);
+  const h = groups.length * rowH + 34;
+  const { x, low, high } = boxPlotScale(groups.map((g) => g.stats), logScale, padL, w - padR); // TASKS.csv #1185
   return (
     <svg width={w} height={h} style={{ maxWidth: "100%" }}>
       {groups.map((g, i) => {
@@ -371,6 +380,8 @@ function BoxPlots({ groups, domainLabel }) {
           </g>
         );
       })}
+      <text x={padL} y={h - 6} fontSize={fontSizes.xs} fill="#55606e">{low.toPrecision(3)}</text>
+      <text x={w - padR} y={h - 6} fontSize={fontSizes.xs} fill="#55606e" textAnchor="end">{high.toPrecision(3)} {unit}{logScale ? ` (${tr("log scale")})` : ""}</text>
     </svg>
   );
 }

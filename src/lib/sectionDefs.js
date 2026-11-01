@@ -48,3 +48,28 @@ export function fenceLines(tMin, tMax, spacing, azimuth) {
   }
   return out;
 }
+
+// TASKS.csv #1180 — what a fence series covers: the drilling, unless asked for the block models too. A 25 km ZTEM mesh over 5 km of drilling made
+// 27 sections at 1 km and would have made about 540 at the default width. With no holes there is only the models to cover.
+export function fenceExtentPoints(models, traces, coverModels) {
+  const pts = [];
+  (traces || []).forEach((t) => t.wx.forEach((wx, i) => pts.push({ x: wx, y: t.wy[i] })));
+  if (coverModels || !pts.length) {
+    (models || []).forEach((m) => {
+      if (m.visible === false) return;
+      (m.cells || []).forEach((c) => {
+        const hx = (c.dx || 0) / 2, hy = (c.dy || 0) / 2;
+        pts.push({ x: c.x - hx, y: c.y - hy }, { x: c.x + hx, y: c.y + hy }, { x: c.x - hx, y: c.y + hy }, { x: c.x + hx, y: c.y - hy });
+      });
+    });
+  }
+  return pts;
+}
+// How many sections those points make at this azimuth and width, before any is created
+export function fenceSectionCount(pts, azimuth, width) {
+  if (!pts.length) return 0;
+  const a = toRad(norm360(azimuth)), px = Math.cos(a), py = -Math.sin(a);
+  let lo = Infinity, hi = -Infinity;
+  for (const p of pts) { const t = p.x * px + p.y * py; if (t < lo) lo = t; if (t > hi) hi = t; }
+  return fenceLines(lo, hi, width, azimuth).length;
+}

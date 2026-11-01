@@ -1,3 +1,4 @@
+import { t as tr } from "./i18n.js"; // TASKS.csv #1285
 import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { changedKeys } from "./undoLabels.js"; // TASKS.csv #1087
 import { capturedFrameFields } from "./layoutGeometry.js"; // TASKS.csv #906 / #961
@@ -1010,7 +1011,7 @@ export function StoreProvider({ children }) {
   // to, kept per workspace tab); only a new project, Save As, or a path the main process won't allow asks where.
   const saveProject = useCallback(async ({ saveAs = false } = {}) => {
     // TASKS.csv #342 — last chance before an older build overwrites fields it can't see.
-    if (newerFormatTabsRef.current.has(activeTabId) && !window.confirm("This project came from a newer version of GeoStrix. Saving it with this version will permanently drop anything that version added. Save anyway?")) return { ok: false, cancelled: true };
+    if (newerFormatTabsRef.current.has(activeTabId) && !window.confirm(tr("This project came from a newer version of GeoStrix. Saving it with this version will permanently drop anything that version added. Save anyway?"))) return { ok: false, cancelled: true };
     // TASKS.csv #467 — a failed save (disk full, no permission, OneDrive lock, a project too big to
     // serialise) used to be an unhandled rejection whose only sign was a missing "Saved". It now returns
     // {ok:false, error} for the caller to show; nothing about the open project changes.
@@ -1151,9 +1152,7 @@ export function StoreProvider({ children }) {
       const data = JSON.parse(res.content);
       const check = checkProjectFile(data); // TASKS.csv #342
       if (!check.ok) return { ok: false, error: check.error };
-      if (check.newer && !window.confirm(`This project was saved by a newer version of GeoStrix (file format ${check.newer}; this version reads up to ${PROJECT_VERSION}). Anything that newer version added will not be shown, and saving it here would remove it from the file for good.
-
-Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, cancelled: true };
+      if (check.newer && !window.confirm(tr("This project was saved by a newer version of GeoStrix (file format {newer}; this version reads up to {reads}). Anything that newer version added will not be shown, and saving it here would remove it from the file for good.\n\nOpen it anyway? (Update GeoStrix to keep everything.)", { newer: check.newer, reads: PROJECT_VERSION }))) return { ok: false, cancelled: true };
       const current = snapshotCurrentPayload();
       const id = `tab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       // TASKS.csv #199 — the tab/title should show the actual opened file's name, not whatever
@@ -1189,7 +1188,7 @@ Open it anyway? (Update GeoStrix to keep everything.)`)) return { ok: false, can
     const tab = workspaceTabs.find((t) => t.id === tabId);
     if (!tab) return;
     const dirty = tabId === activeTabId ? activeTabDirty : tab.dirty;
-    if (dirty && !window.confirm(`Close "${tabId === activeTabId ? project.name : tab.name}" without saving? Unsaved changes will be lost.`)) return;
+    if (dirty && !window.confirm(tr("Close \"{name}\" without saving? Unsaved changes will be lost.", { name: tabId === activeTabId ? project.name : tab.name }))) return;
     const remaining = workspaceTabs.filter((t) => t.id !== tabId);
     if (tabId !== activeTabId) { setWorkspaceTabs(remaining); return; }
     if (!remaining.length) {

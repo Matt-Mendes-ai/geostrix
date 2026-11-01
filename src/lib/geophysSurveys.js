@@ -165,3 +165,11 @@ export function surveyExportRows(points, meta = {}) {
   }));
   return { rows, valueName };
 }
+
+// TASKS.csv #1172 — a method's units follow the method, unless the geologist typed their own: "nT" stayed on a survey changed to Gravity, and
+// the export's column name and the inversion's data statement inherited it.
+export function unitsForMethod(meta, method) {
+  if (!method) return {};
+  const own = meta?.units && !Object.values(SURVEY_METHODS).some((m) => m.units === meta.units);
+  return own ? {} : { units: SURVEY_METHODS[method].units };
+}

@@ -1227,7 +1227,7 @@ export function createModellingRuns(ctx, mcRef) {
   // predicted geological map scored against the loaded map (#758).
   const runMapModel = async (p) => {
     const terrain = terrainForClipRef.current;
-    if (!terrain) { setNotices((q) => [...q, notice("A model from the map needs a terrain: the contacts and measurements are placed on the ground surface. Fetch or import one first (Geophysics > Terrain).")]); return; }
+    if (!terrain) { setNotices((q) => [...q, notice("A model from the map needs a terrain: the contacts and measurements are placed on the ground surface. Fetch or import one first (Maps > Terrain).")]); return; }
     const order = (p.order || []).filter(Boolean);
     if (order.length < 2) { setNotices((q) => [...q, notice("Put at least two stratigraphic units in the order to model.")]); return; }
     const o = originRef.current;

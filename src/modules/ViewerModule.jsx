@@ -1,3 +1,4 @@
+import FenceOptions from "./viewer/FenceOptions.jsx";
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js";
 import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } from "react";
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
@@ -19,7 +20,7 @@ import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv 
 import { blockToCells, modelledIntervals, ABOVE_TOPS, unitAt } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { sectionGrid, sameLine, unpackUnits, sectionPixels, blockSpacing, sectionZRange } from "../lib/modelSection.js"; // TASKS.csv #759
 import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/desktop.js"; // copyText: TASKS.csv #589
-import { sectionFromCentre, sectionThroughHole, fenceLines } from "../lib/sectionDefs.js";
+import { sectionFromCentre, sectionThroughHole, fenceLines, fenceExtentPoints } from "../lib/sectionDefs.js";
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, RIBBON_TONES } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate, Sparkles, Download } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
 import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImportMeta.js"; // TASKS.csv #148; #552 split
@@ -1049,6 +1050,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // voxel in equal parts on a specified azi and width"). See generateSliceSeries below.
   const [sliceSeriesAzimuth, setSliceSeriesAzimuth] = useState(0);
   const [sliceSeriesWidth, setSliceSeriesWidth] = useState(50);
+  const [fenceCoverModels, setFenceCoverModels] = useState(false); // #1180
 
   const [gridConfig, setGridConfig] = useState({ ...DEFAULT_GRID });
   const gridGroupRef = useRef(null);
@@ -6953,19 +6955,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const dirX = Math.sin(az), dirY = Math.cos(az);
     const perpX = Math.cos(az), perpY = -Math.sin(az);
 
-    // Gather every point that should be "covered" by the fence: visible voxel model cell centers
-    // (±half-extent, so the fence reaches each model's true edge, not just cell centers) and every
-    // drillhole collar/trace point — a fence is only useful if it actually spans the data being
-    // sliced, whether that's a block model, the drilling, or (typically) both together.
-    const pts = [];
-    (voxelModels || []).forEach((m) => {
-      if (m.visible === false) return;
-      (m.cells || []).forEach((c) => {
-        const hx = (c.dx || 0) / 2, hy = (c.dy || 0) / 2;
-        pts.push({ x: c.x - hx, y: c.y - hy }, { x: c.x + hx, y: c.y + hy }, { x: c.x - hx, y: c.y + hy }, { x: c.x + hx, y: c.y - hy });
-      });
-    });
-    tracesRef.current.forEach((t) => t.wx.forEach((wx, i) => pts.push({ x: wx, y: t.wy[i] })));
+    const pts = fenceExtentPoints(voxelModels, tracesRef.current, fenceCoverModels); // #1180
 
     if (!pts.length) {
       setNotices((p) => [...p, notice("Slice series needs a visible voxel/block model or at least one drillhole to know what extent to cover — nothing found.")]);
@@ -6988,6 +6978,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // e.g. "412500E"), as sections on a paper plan are, instead of wherever the data happened to start.
     const lines = fenceLines(tMin, tMax, width, sliceSeriesAzimuth);
     const n = lines.length;
+    if (n > 50 && !window.confirm(tr("This will create {n} sections. Continue?", { n }))) return; // #1180
 
     // TASKS.csv #240 — user report: a single run against a large voxel model produced 3144
     // individual sections with no group to manage them as a unit. Every section this run creates is
@@ -7005,7 +6996,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       created++;
     }
     setNotices((p) => [...p, notice(created === 1 ? "Generated {created} section at azimuth {sliceSeriesAzimuth}° — in the Cross-sections list." : "Generated {created} sections spaced {width}m apart at azimuth {sliceSeriesAzimuth}° — grouped together in the Cross-sections list.", { created, width, sliceSeriesAzimuth: sliceSeriesAzimuth.toFixed(0) })]);
-  }, [sliceSeriesAzimuth, sliceSeriesWidth, voxelModels, upsertSection, addSectionGroup]);
+  }, [fenceCoverModels, sliceSeriesAzimuth, sliceSeriesWidth, voxelModels, upsertSection, addSectionGroup]);
 
   // TASKS.csv #441 — any commit of this component may have changed the scene (its effects just ran), so
   // wake the render loop from deep idle. Deliberately no dependency array.
@@ -7174,7 +7165,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <button onClick={generateSliceSeries} style={{ ...pBtn, width: "auto", flexShrink: 0, marginBottom: 0, alignSelf: "flex-end", padding: "6px 10px" }} title={tr("Generate the slice series")}><Scissors size={14} />{" "}{tr("Generate")}</button>
         </div>
 
-        <div style={{ marginBottom: 12 }} />
+        <FenceOptions {...{ voxelModels, tracesRef, tracesSeq }} azimuth={sliceSeriesAzimuth} width={sliceSeriesWidth} cover={fenceCoverModels} setCover={setFenceCoverModels} labelStyle={miniField} />
         </>)}
         {toolPane && <div className="ge-pane-end" role="separator" />}{/* #458 */}
         <div className="ge-section-label">{tr("Geometry")}</div>
@@ -7581,7 +7572,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         ))}
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => fileInputs.current.mapLayer.click()} style={{ cursor: "pointer", padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", textAlign: "center" }}>{tr("+ Add map layer (.shp / .zip / .gpkg)")}</div>
         <input ref={setInputRef("mapLayer")} type="file" multiple accept=".zip,.gpkg,.shp,.dbf,.prj,.cpg,.shx" style={{ display: "none" }} onChange={(e) => { groupShapefileParts(Array.from(e.target.files)).files.forEach((f) => openImportModal(f)); e.target.value = ""; }} />
-        {mapLayers.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "2px 2px 0" }}>{tr("Colours, labels and draping: Geophysics → Map layers.")}</div>}
+        {mapLayers.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "2px 2px 0" }}>{tr("Colours, labels and draping: Maps → Map layers.")}</div>}
 
         {/* TASKS.csv #630 — georeferenced cross-section images standing in the 3D view */}
         <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Section images{v}", { v: sectionImages.length ? ` (${sectionImages.length})` : "" })}</div>

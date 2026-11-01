@@ -12,7 +12,7 @@ import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Tria
 import { lazyModal } from "../lib/lazyModal.jsx";
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
 import { logStops, SEQUENTIAL_ANCHORS } from "../lib/inversion.js"; // TASKS.csv #481
-import { SURVEY_METHODS, SURVEY_METHOD_GROUPS, guessSurveyMethod, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
+import { SURVEY_METHODS, unitsForMethod, robustRange, SURVEY_METHOD_GROUPS, guessSurveyMethod, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
 import { terrainElevationAt } from "../lib/inversion.js";
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
 import { useStore } from "../lib/store.jsx";
@@ -205,6 +205,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   const claimInput = useRef(null);
   const xyzInput = useRef(null);
   const rows = layers.geophys_pts || [];
+  const drawnRange = useMemo(() => robustRange(rows.map((r) => r.value)), [rows]); // TASKS.csv #1177 — the range the 3D colours use
   const surveyList = useMemo(() => surveyStats(rows), [rows]); // TASKS.csv #451
   // TASKS.csv #1094 — one survey's points as CSV (x, y, z, the value as "<method>_<unit>", line / fiducial / label), stamped
   const exportSurvey = (key) => {
@@ -1114,7 +1115,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                   </div>
                   <div style={{ display: "flex", gap: 6, marginTop: 5 }}>
                     <select value={meta.method || ""} aria-label={tr("Method of \"{key}\"", { key: sv.key })} style={{ ...numInput, width: "auto", flex: 1, minWidth: 0 }}
-                      onChange={(e) => updateGeophysSurvey(sv.key, { method: e.target.value, ...(e.target.value && !meta.units ? { units: SURVEY_METHODS[e.target.value].units } : {}) })}>
+                      onChange={(e) => updateGeophysSurvey(sv.key, { method: e.target.value, ...unitsForMethod(meta, e.target.value) })}>
                       <option value="">{tr("Method…")}</option>
                       {Object.entries(SURVEY_METHOD_GROUPS).map(([g, gl]) => <optgroup key={g} label={tr(gl)}>{Object.entries(SURVEY_METHODS).filter(([, m]) => m.group === g).map(([k, m]) => <option key={k} value={k}>{tr(m.label)}</option>)}</optgroup>)}{/* #1151 */}
                     </select>
@@ -1185,6 +1186,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             {min !== null && (
               <div style={{ color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{tr("Value range: {min} – {max}", { min: min.toLocaleString(), max: max.toLocaleString() })}</div>
             )}
+            {min !== null && geophysPtsMin == null && geophysPtsMax == null && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", marginTop: 2, lineHeight: 1.4 }}>{tr("Colours use the 2–98 percentile of the values, so a few extreme readings do not wash out the map. Edit a limit to change it.")}</div>/* #1177 */}
             {/* TASKS.csv #122 — same graduated/classed symbology (user-defined class breaks, adjustable
                 palette) voxel models already have, reused directly: geophysPtsModel below is shaped
                 exactly like a real voxel model ({min,max,colorMode,stops,cells}) so VoxelLegendEditor
@@ -1193,7 +1195,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                 instead of a per-model update, since geophys_pts is one flat layer, not a list. */}
             {min !== null && (
               <VoxelLegendEditor
-                model={{ id: "geophys_pts", min: geophysPtsMin ?? min, max: geophysPtsMax ?? max, colorMode: geophysPtsColorMode, stops: geophysPtsStops, cells: rows }}
+                model={{ id: "geophys_pts", min: geophysPtsMin ?? drawnRange.min, max: geophysPtsMax ?? drawnRange.max, colorMode: geophysPtsColorMode, stops: geophysPtsStops, cells: rows }}
                 onUpdate={(_id, patch) => {
                   if ("min" in patch) setGeophysPtsMin(patch.min);
                   if ("max" in patch) setGeophysPtsMax(patch.max);

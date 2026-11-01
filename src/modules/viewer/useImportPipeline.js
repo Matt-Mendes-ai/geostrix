@@ -435,7 +435,7 @@ export function useImportPipeline(ctx) {
       // TASKS.csv #426 — say how many orientations were out of range (dropped to unknown, not guessed).
       const negDip = mapping.dip ? allRows.filter((r) => { const d = num(r[mapping.dip]); return Number.isFinite(d) && d < 0; }).length : 0; // #719
       const badDip = mapping.dip ? allRows.filter((r) => { const d = num(r[mapping.dip]); return Number.isFinite(d) && (d < 0 || d > 90); }).length : 0;
-      if (badDip) setNotices((p) => [...p, notice("{fileName}: {badDip} structure dip(s) outside 0-90° were set to unknown{v}.", { fileName, badDip, v: negDip ? tr(" ({negDip} negative: a structure's dip is 0-90° below horizontal, so a minus sign is read as an error, not as \"down\")", { negDip }) : "" })]);
+      if (badDip) setNotices((p) => [...p, { ...notice("{fileName}: {badDip} structure dip(s) outside 0-90° were set to unknown{v}.", { fileName, badDip, v: negDip ? tr(" ({negDip} negative: a structure's dip is 0-90° below horizontal, so a minus sign is read as an error, not as \"down\")", { negDip }) : "" }), level: "error" }]); // #1232 — data was dropped: it stays until read
       { // TASKS.csv #584 — say what the strike column did
         const ss = strikeStats(allRows, mapping);
         if (ss.derived || ss.mismatches) setNotices((p) => [...p, `${fileName}:${ss.derived ? tr(" {derived} dip direction(s) derived from strike by the right-hand rule (dip direction = strike + 90°).", { derived: ss.derived }) : ""}${ss.mismatches ? tr(" {mismatches} row(s) have a strike and a dip direction that are not 90° apart (right-hand rule) — the dip direction was used; check whether those strikes follow another convention.", { mismatches: ss.mismatches }) : ""}`]);

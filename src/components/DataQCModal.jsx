@@ -44,7 +44,9 @@ export default function DataQCModal({ onCancel }) {
   useEffect(() => { try { if (Number(doglegWarn) > 0) localStorage.setItem("geostrix.qc.doglegWarn", String(doglegWarn)); } catch { /* storage unavailable */ } }, [doglegWarn]);
   const warnDeg = Number(doglegWarn) > 0 ? Number(doglegWarn) : 3;
   const qcArgs = () => ({ project, collars, survey, layers, boundaries, assays, terrain, terrainThreshold: Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15, doglegWarn: warnDeg, doglegError: Math.max(10, warnDeg) });
-  const [result, setResult] = useState(() => runDataQC(qcArgs()));
+  const ranWith = useRef(null); // TASKS.csv #1269 — the thresholds of the run on screen: the export's stamp must describe its issues, not the boxes
+  const runQC = () => { ranWith.current = { warnDeg, terrainThreshold: Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15 }; return runDataQC(qcArgs()); };
+  const [result, setResult] = useState(runQC);
   const terrainOff = useMemo(() => (terrain ? collarTerrainOffsets(collars, terrain).filter((o) => Math.abs(o.dz) > (Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15)) : []), [collars, terrain, terrainThreshold]);
   const snapToTerrain = () => {
     if (!terrainOff.length) return;
@@ -54,7 +56,7 @@ export default function DataQCModal({ onCancel }) {
     rerunAfterSnap.current = true; // re-run once the new collars are in (an immediate re-run saw the old ones)
   };
   const rerunAfterSnap = useRef(false);
-  useEffect(() => { if (rerunAfterSnap.current) { rerunAfterSnap.current = false; setResult(runDataQC(qcArgs())); } }, [collars]);
+  useEffect(() => { if (rerunAfterSnap.current) { rerunAfterSnap.current = false; setResult(runQC()); } }, [collars]);
   const [filter, setFilter] = useState(new Set(["error", "warning", "info"]));
   const [categoryFilter, setCategoryFilter] = useState("all");
 
@@ -66,7 +68,7 @@ export default function DataQCModal({ onCancel }) {
   const exportIssues = () => {
     const stamp = stampLines({ tool: "Drillhole data QA/QC", version: APP_VERSION, epsg: project?.epsg, params: [
       `Project: ${project?.name || "untitled"} | desurvey: ${normalizeDesurveyMethod(project?.desurveyMethod)}`,
-      `Holes: ${collars.length} collars, ${survey.length} survey stations | dogleg warning ${warnDeg} deg / 30 m, error ${Math.max(10, warnDeg)}${terrain ? ` | collar vs terrain threshold ${Number(terrainThreshold) > 0 ? Number(terrainThreshold) : 15} m` : ""}`,
+      `Holes: ${collars.length} collars, ${survey.length} survey stations | dogleg warning ${ranWith.current.warnDeg} deg / 30 m, error ${Math.max(10, ranWith.current.warnDeg)}${terrain ? ` | collar vs terrain threshold ${ranWith.current.terrainThreshold} m` : ""}`,
       `Issues: ${result.summary.error || 0} error(s), ${result.summary.warning || 0} warning(s), ${result.summary.info || 0} information`,
     ] });
     const name = String(project?.name || "project").replace(/[^a-z0-9_-]+/gi, "_");
@@ -147,7 +149,7 @@ export default function DataQCModal({ onCancel }) {
           )}
           <button onClick={exportIssues} disabled={!result.issues.length} style={{ ...rerunBtn, marginRight: 8, opacity: result.issues.length ? 1 : 0.5 }} title={tr("Save every issue (severity, category, hole, message) as a CSV, with the project, CRS, desurvey method and thresholds in its header")}>
             <Download size={14} />{" "}{tr("Export CSV")}</button>
-          <button onClick={() => setResult(runDataQC(qcArgs()))} style={rerunBtn}>
+          <button onClick={() => setResult(runQC())} style={rerunBtn}>
             <RefreshCw size={14} />{" "}{tr("Re-run")}</button>
         </div>
       </div>

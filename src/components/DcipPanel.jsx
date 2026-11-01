@@ -204,7 +204,7 @@ export default function DcipPanel({ pBtn, numInput }) {
       } else if (Number.isFinite(num(line.ground))) {
         topo = [[spanH[0] - pad, num(line.ground)], [spanH[1] + pad, num(line.ground)]];
         groundNote = tr("flat ground at {v} m (entered)", { v: num(line.ground) });
-      } else problems.push(terrain ? tr("The line leaves the terrain surface — enter a flat ground elevation instead.") : tr("Load a terrain (Geophysics > Terrain), the line stations, or enter a flat ground elevation for the line."));
+      } else problems.push(terrain ? tr("The line leaves the terrain surface — enter a flat ground elevation instead.") : tr("Load a terrain (Maps > Terrain), the line stations, or enter a flat ground elevation for the line."));
       if (posNote) groundNote += `; ${posNote}`;
     }
     if (problems.length) { setMsg({ ok: false, text: problems.join(" ") }); return; }

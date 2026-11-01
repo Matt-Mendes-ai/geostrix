@@ -125,7 +125,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
     if (!zMode) problems.push(tr("Say what the station z values mean."));
     if (zMode === "drape" && !(num(sensorHeight) > 0)) problems.push(tr("Enter the sensor height above the terrain."));
     if (zMode === "drape" && !terrain) problems.push(tr("A terrain surface is needed to drape the stations on."));
-    if (kind === "inversion" && !terrain) problems.push(tr("An inversion needs a terrain surface (Terrain section above) to know which cells are underground."));
+    if (kind === "inversion" && !terrain) problems.push(tr("An inversion needs a terrain surface (Maps > Terrain) to know which cells are underground."));
     if (crsIssue) problems.push(crsIssue);
     if (method === "mag") {
       if (!(num(field.strength) > 20000 && num(field.strength) < 70000)) problems.push(tr("Enter the field strength (nT, e.g. from IGRF for the survey date)."));
