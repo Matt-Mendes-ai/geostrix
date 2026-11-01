@@ -1,3 +1,4 @@
+import { canvasPngDataUrl } from "../lib/canvasEncode.js";
 import FenceOptions from "./viewer/FenceOptions.jsx";
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js";
 import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } from "react";
@@ -300,7 +301,7 @@ function captureHiRes(renderer, cssW, cssH, draw, outW = cssW, outH = cssH) {
     renderer.setScissorTest(false);
     draw();
     const c = renderer.domElement;
-    return { dataUrl: c.toDataURL("image/png"), width: c.width, height: c.height };
+    return { encoded: canvasPngDataUrl(c), width: c.width, height: c.height }; // #1279
   } finally {
     if (resize) { renderer.setPixelRatio(oldPr); renderer.setSize(cssW, cssH, false); }
   }
@@ -3108,7 +3109,7 @@ ${describeTrend(t)}` };
     }
     // No disposal needed for orthoCamera even though it's discarded right after this — a THREE
     // camera holds no GPU resources (no geometry/material/texture), just plain JS-side matrices.
-    let dataUrl, shotW = 0, shotH = 0;
+    let encoded, shotW = 0, shotH = 0;
     try {
       const shot = captureHiRes(renderer, mountW, mountH, () => { // #380 — print resolution
         fitScreenLabels(layerGroupsRef.current?.hole_labels, renderCamera, outH); // #379
@@ -3117,7 +3118,7 @@ ${describeTrend(t)}` };
         renderer.render(scene, renderCamera);
         renderer.clippingPlanes = [];
       }, outW, outH); // #906 — at the frame's aspect
-      dataUrl = shot.dataUrl; shotW = shot.width; shotH = shot.height;
+      encoded = shot.encoded; shotW = shot.width; shotH = shot.height;
     } catch (err) { restoreLiveView(liveViewBeforeRender); resolveViewportRender({ requestId: req.requestId, error: err.message }); return; }
     // TASKS.csv #311 — this used to be the inline `2 * cs.radius * Math.tan(fovRad / 2)`. Same figure,
     // now imported from src/lib/figureScale.js so the Layout scale bar (which this feeds) and the new
@@ -3151,13 +3152,13 @@ ${describeTrend(t)}` };
     // applied for this capture was left in place, silently showing up as "my toggled-off layers
     // are back on" whenever the user next looked at the 3D View tab.
     restoreLiveView(liveViewBeforeRender);
-    resolveViewportRender({
+    encoded.then((dataUrl) => resolveViewportRender({
       requestId: req.requestId, src: dataUrl, naturalW: shotW, naturalH: shotH,
       worldHeightAtTarget, themeName: theme?.name, cameraAzimuthDeg, trueScale: !!req.trueScale, targetWorld, planView, fixedScale: orthoHalfH != null && req.fixedScale > 0 ? req.fixedScale : null,
       // TASKS.csv #948 — a "current view" capture has no theme to read its legend from: the view's own settings (the same
       // bundle a theme saves), kept on the viewport so Layout's "Load from view" works for it
       viewState: theme ? null : liveViewBeforeRender,
-    });
+    }), (err) => resolveViewportRender({ requestId: req.requestId, error: err.message }));
     // Hopping back to "layout" now happens in store.jsx's own result-effect (right after it applies
     // this result to layoutElements), not here — that effect also covers the "Theme not found"/
     // "Viewport not ready" error returns above, which never used to hop back at all, leaving the

@@ -27,7 +27,7 @@ import InfoButton from "../components/InfoButton.jsx";
 import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone } from "../lib/srtmFetch.js";
 import { fetchCopernicusTerrain } from "../lib/copernicusDem.js"; // TASKS.csv #814
 import { toLonLat, reprojectXY, crsName, pointTransform } from "../lib/reproject.js";
-import { omfToProjectObjects } from "../lib/omfImport.js"; // TASKS.csv #637
+import { omfToProjectObjectsAsync } from "../lib/omfImport.js"; // TASKS.csv #637; #1280
 import { parseUBCMesh, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel, coarsenRecord } from "../lib/voxel.js"; // coarsenRecord: #1095
 import { parsePLYBoundary, parseXYZ, guessXyzChannels } from "../lib/geosoft.js";
 import { gemHeaderInfo } from "../lib/diurnal.js";
@@ -761,7 +761,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     try {
       const buf = await file.arrayBuffer();
       // TASKS.csv #637 — the element conversion lives in lib/omfImport.js (shared with the Woodjam sample project)
-      const res = await omfToProjectObjects(buf, effectiveMaxCells);
+      const res = await omfToProjectObjectsAsync(buf, effectiveMaxCells);
       const pointsCount = res.omfObjects.filter((o) => o.kind === "points").length, linesCount = res.omfObjects.filter((o) => o.kind === "lines").length;
       const surfacesCount = res.omfObjects.filter((o) => o.kind === "surface").length, volumesCount = res.voxelModels.length;
       res.omfObjects.forEach((o) => addOmfObject(o));

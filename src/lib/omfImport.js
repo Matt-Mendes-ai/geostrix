@@ -5,7 +5,18 @@
 import { parseOMF, omfVolumeToCells } from "./omf.js";
 import { cellValueRange } from "./voxel.js";
 import { logStops, SEQUENTIAL_ANCHORS } from "./inversion.js";
-import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { t as tr, currentLanguage, currentDictionary } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+
+// TASKS.csv #1280 — the same in a worker (a fresh one per file); here when no worker can start. The buffer is copied, so this fallback still has it.
+export function omfToProjectObjectsAsync(arrayBuffer, maxCells, opts = {}) {
+  return new Promise((resolve, reject) => {
+    let w;
+    try { w = new Worker(new URL("./omfImport.worker.js", import.meta.url), { type: "module" }); } catch { omfToProjectObjects(arrayBuffer, maxCells, opts).then(resolve, reject); return; }
+    w.onmessage = (e) => { w.terminate(); if (e.data.failed) reject(new Error(e.data.failed)); else resolve(e.data.res); };
+    w.onerror = (e) => { e.preventDefault?.(); w.terminate(); omfToProjectObjects(arrayBuffer, maxCells, opts).then(resolve, reject); };
+    w.postMessage({ buffer: arrayBuffer, maxCells, opts, language: currentLanguage(), dictionary: currentDictionary() });
+  });
+}
 
 // attribute: the cell attribute to show when a volume carries several (e.g. two inversion iterations); null = the first.
 export async function omfToProjectObjects(arrayBuffer, maxCells, { attribute = null } = {}) {

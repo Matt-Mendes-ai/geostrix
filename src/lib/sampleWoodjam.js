@@ -4,7 +4,7 @@
 // normal import queue like the Harry sample's. Each part is independent: one failing doesn't stop the others.
 import Papa from "papaparse";
 import { inferUnit, mergeAssayRows, convertUnit } from "./geochem.js";
-import { omfToProjectObjects } from "./omfImport.js";
+import { omfToProjectObjectsAsync } from "./omfImport.js"; // TASKS.csv #1280
 import { parseDcipWhitespaceText, guessDcipColumns, parseDcipRows, suggestModelDepth } from "./dcip.js"; // suggestModelDepth: #680
 import { parseStationFile, matchStationLine, fitStationLine } from "./dcipStations.js";
 import { reprojectXY, getProj4DefSync } from "./reproject.js";
@@ -83,7 +83,7 @@ export async function loadWoodjamExtras(readFile, store, { projectEpsg = WOODJAM
   } catch (e) { notes.push(tr("Woodjam assays could not be loaded: {message}", { message: e.message })); }
   try {
     // the OMF holds two inversion iterations (m_03_01, m_05_03); m_05_03 is the final model (Matt, 2026-10-17)
-    const res = await omfToProjectObjects(await (await readFile("ztem_inversion_2023.omf")).arrayBuffer(), maxCells, { attribute: "Woodjam_ZTEM_m_05_03" });
+    const res = await omfToProjectObjectsAsync(await (await readFile("ztem_inversion_2023.omf")).arrayBuffer(), maxCells, { attribute: "Woodjam_ZTEM_m_05_03" });
     res.omfObjects.forEach((o) => store.addOmfObject?.(o));
     // TASKS.csv #801 — shown at its full range, no cutoff (Matt: "so users will understand it's a ... voxel when they
     // load the sample data"): the whole inversion volume reads as one block model at first sight. Until then it opened
