@@ -21,7 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-ADDON_VERSION = "0.1.2"
+ADDON_VERSION = "0.1.3"
 # TASKS.csv #692 — what this add-on can do, so GeoStrix asks instead of guessing from the version string
 API_VERSION = 2
 FEATURES = ["trend", "trained_range", "identity_proof", "data_warnings", "idle_exit", "max_inducing"]
