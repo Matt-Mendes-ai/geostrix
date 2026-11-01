@@ -15,6 +15,7 @@ import { colorForLithology, isCrossCuttingRole, roleForLithology } from "../../l
 import { codedRuns, topsForCode } from "../../lib/modellingCodes.js"; // TASKS.csv #871
 import { pBtn, smallSel } from "../../lib/sidebarStyles.js";
 import { sceneVertsToWorldFlat } from "../../lib/meshFlat.js";
+import { octreeCellM } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1171
 import { t as tr } from "../../lib/i18n.js";
 import { errorNotice } from "../../lib/notices.js";
 import { tx } from "../../lib/i18nRich.js";
@@ -185,6 +186,7 @@ export default function ModellingPanes(props) {
     setTadpoleOpen,
     setThinPicks,
     setThinWindowM,
+    orientationReachM, setOrientationReachM, // TASKS.csv #1170
     setTrendPreviewId,
     setVariogramOpen,
     setVeinCellSize,
@@ -322,6 +324,8 @@ export default function ModellingPanes(props) {
           <option value={5}>{tr("Fine — 4x the triangles, ~2x the time")}</option>
           <option value={6}>{tr("Very fine — 16x the triangles, ~7x the time")}</option>
         </select>
+        {/* TASKS.csv #1171 — the options in metres for the box the last run used: a large box means large cells */}
+        {(() => { const ext = implicitSurfaces[implicitSurfaces.length - 1]?.params?.extent; return ext?.length === 6 ? <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -6, marginBottom: 10, lineHeight: 1.4 }}>{tr("On the last model box the mesh cells are about {a} m (Standard), {b} m (Fine) and {c} m (Very fine). Each run reports how far the mesh misses its contact points.", { a: Math.round(octreeCellM(ext, 4)), b: Math.round(octreeCellM(ext, 5)), c: Math.round(octreeCellM(ext, 6)) })}</div> : null; })()}
 
         {/* TASKS.csv #274 — GemPy's potential-field range: the parameter that actually controls how
             tight or smooth a fitted surface is. It was never set and never reported, so the same job
@@ -347,6 +351,11 @@ export default function ModellingPanes(props) {
         </div>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4 }}>
           <input type="checkbox" checked={thinPicks} onChange={(e) => setThinPicks(e.target.checked)} />{tr("Average picks per hole, in windows of")}<input type="number" min={5} max={500} step={5} value={thinWindowM} disabled={!thinPicks} onChange={(e) => setThinWindowM(Math.max(5, Math.min(500, Number(e.target.value) || 50)))} style={{ ...smallSel, width: 56 }} aria-label={tr("Averaging window along the hole (m)")} /> m
+        </label>
+
+        {/* TASKS.csv #1170 — blank = automatic (twice the contacts' spacing in plan); the run notice says which distance it used */}
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4 }}>
+          {tr("Only picks within")}<input type="number" min={10} max={20000} step={50} value={orientationReachM || ""} placeholder={tr("auto")} onChange={(e) => setOrientationReachM(Math.max(0, Math.min(20000, Number(e.target.value) || 0)))} aria-label={tr("Only picks within this distance of the unit's contacts (m)")} style={{ ...smallSel, width: 64 }} />{tr("m of the unit's contacts")}
         </label>
 
         {/* TASKS.csv #761 — automatic local smoothing of clustered contacts (off by default) */}

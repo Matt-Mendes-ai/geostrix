@@ -18,6 +18,7 @@ import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingInte
 import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit } from "../../lib/modellingCodes.js"; // TASKS.csv #599
 import { clipMesh } from "../../lib/clipMesh.js";
 import { thinStructurePicks } from "../../lib/viewer/orientationThin.js"; // TASKS.csv #765
+import { autoReachM, orientationsNearContacts, contactFit } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1170, #1171
 import { makeEnsembleCounter, quantile, gridValuesToCells } from "../../lib/ensembleProbability.js"; // TASKS.csv #757
 import { sequentialStops } from "../../lib/inversion.js"; // TASKS.csv #757
 import { terrainGrid, unitRaster, mapAgreement } from "../../lib/predictedMap.js"; // TASKS.csv #758 // TASKS.csv #568
@@ -96,6 +97,7 @@ export function createModellingRuns(ctx, mcRef) {
     originRef,
     rangeMultiplier,
     thinPicks, thinWindowM, // TASKS.csv #765
+    orientationReachM, // TASKS.csv #1170 — 0 = automatic
     smoothClusters, // TASKS.csv #761
     surfaceDetail, // TASKS.csv #766
     addVoxelModel, // TASKS.csv #757
@@ -388,6 +390,10 @@ export function createModellingRuns(ctx, mcRef) {
         topoClipped = c.removed + c.split;
         if (!faces.length) { missing.push(`${spec.label} (lies entirely above the terrain surface)`); return; }
       }
+      // TASKS.csv #1171 — how far the mesh as drawn passes from the contact points it was fitted through. Not when it was clipped to a
+      // domain, whose outside contacts it no longer reaches on purpose.
+      const fit = clipDomain ? null : contactFit(spec.points.map((p) => apiToScene([p.x, p.y, p.z])).map((q) => [q.x, q.y, q.z]), sceneVerts.map((v) => [v.x, v.y, v.z]), faces);
+      if (fit) setNotices((p) => [...p, notice(fit.worst > 10 ? "\"{label}\" misses its {n} contact point(s) by {typical} m typically and {worst} m at worst, with mesh cells of about {cell} m. A finer Surface detail shrinks the cells; Surface query shows it hole by hole." : "\"{label}\" passes within {worst} m of its {n} contact point(s), with mesh cells of about {cell} m.", { label: spec.label, n: fit.n, typical: Math.round(fit.typical * 10) / 10, worst: Math.round(fit.worst * 10) / 10, cell: Math.round(fit.cell) })]);
       const geo = new THREE.BufferGeometry();
       geo.setAttribute("position", new THREE.Float32BufferAttribute(sceneVerts.flatMap((v) => [v.x, v.y, v.z]), 3));
       geo.setIndex(faces.flat());
@@ -428,6 +434,8 @@ export function createModellingRuns(ctx, mcRef) {
         // TASKS.csv #318 — a mapped surface contact that fed this run, if any (set by runImplicitModel).
         ...(spec.params?.surfaceMapContact ? { surfaceMapContact: spec.params.surfaceMapContact } : {}),
         ...(spec.params?.orientationsAveraged ? { orientationsAveraged: spec.params.orientationsAveraged } : {}), // #765
+        ...(spec.params?.picksNearContacts ? { picksNearContacts: spec.params.picksNearContacts } : {}), // #1170
+        ...(fit ? { contactFit: { points: fit.n, typicalMissM: +fit.typical.toFixed(2), worstMissM: +fit.worst.toFixed(2), meshCellM: Math.round(fit.cell) } } : {}), // #1171
         ...(smoothReports.find((r) => r.meshName === spec.meshName) ? { clusteredContactsSmoothed: (({ smoothed, total, skipped }) => ({ smoothed, of: total, ...(skipped ? { skipped } : {}), method: "KDE (Scott, in the contacts' plane), nugget on points >= 2x even density and >= 0.5 of the max (von Harten et al. 2021)" }))(smoothReports.find((r) => r.meshName === spec.meshName)) } : {}), // #761
         generatedAt: new Date().toISOString(),
         // TASKS.csv #1101 — the points and orientations this run sent for this surface (world, unwarped, with nuggets)
@@ -1041,7 +1049,8 @@ export function createModellingRuns(ctx, mcRef) {
     // TASKS.csv #361 — only the chosen structure types (see orientTypes), never a silent fall-back to all.
     const useTypes = new Set(orientTypes);
     let structRows = (layers.structure || []).filter((s) => useTypes.has(String(s.value)) && s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth));
-    if (!silent && structRows.length) setNotices((p) => [...p, notice("Orientations for \"{unitName}\" from structure type(s) {v} ({structRows} pick(s) before spatial filtering). Change which types count as contacts under Contact orientations.", { unitName, v: [...useTypes].join(", "), structRows: structRows.length })]);
+    const picksAtStart = structRows.length; // captured: the updater below can run after the thinning replaces structRows
+    if (!silent && structRows.length) setNotices((p) => [...p, notice("Orientations for \"{unitName}\" from structure type(s) {v} ({structRows} pick(s) before spatial filtering). Change which types count as contacts under Contact orientations.", { unitName, v: [...useTypes].join(", "), structRows: picksAtStart })]);
     structRows = filterRowsByDomain(structRows, traces, (s) => s.depth);
     const preSearchCount = structRows.length;
     structRows = filterRowsBySearchEllipsoid(structRows, traces, (s) => s.depth);
@@ -1057,6 +1066,11 @@ export function createModellingRuns(ctx, mcRef) {
     }
     if (thinNote && !silent) setNotices((p) => [...p, notice("\"{unitName}\": {picks} structure picks averaged into {orientations} orientations (per hole, {windowM} m windows; Model settings > Contact orientations from picks).", { unitName, picks: thinNote.picks, orientations: thinNote.orientations, windowM: thinNote.windowM })]);
     let orientations = structureRowsToOrientations(structRows, traces);
+    // TASKS.csv #1170 — only the picks near this unit's own contacts steer its surface
+    const reachM = orientationReachM > 0 ? orientationReachM : autoReachM(medianCollarSpacing(collars));
+    const nearPicks = orientationsNearContacts(orientations, points, reachM);
+    orientations = nearPicks.kept;
+    if (nearPicks.total && !silent) setNotices((p) => [...p, notice("\"{unitName}\": {kept} of {total} structure pick(s) lie within {reachM} m of its contacts and steer this surface (Model settings > Contact orientations from picks).", { unitName, kept: nearPicks.kept.length, total: nearPicks.total, reachM })]);
     // TASKS.csv #318 — outcrop measurements of the chosen types within the search radius of the mapped
     // contact, as orientations at their own (terrain) position. Only when a map contact is in play: a
     // bedding reading 3 km from anything being modelled has no business steering this surface.
@@ -1072,7 +1086,8 @@ export function createModellingRuns(ctx, mcRef) {
       // pick, but lets the tool interpolate a surface from contacts alone, which is the point.
       const est = estimateOrientationFromPoints(points);
       orientations = [est];
-      if (!silent) setNotices((p) => [...p, notice("No structure picks found — estimated a single dip/azimuth (~{dip}°/~{azimuth}°) from the shape of the \"{unitName}\" contact points. Import a structure CSV for a more accurate result.", { dip: est.dip.toFixed(0), azimuth: est.azimuth.toFixed(0), unitName })]);
+      if (!silent && nearPicks.total) setNotices((p) => [...p, notice("No structure pick within {reachM} m of the \"{unitName}\" contacts: its dip was estimated from the contact points (~{dip}°/~{azimuth}°).", { reachM, unitName, dip: Math.round(est.dip), azimuth: Math.round(est.azimuth) })]);
+      else if (!silent) setNotices((p) => [...p, notice("No structure picks found — estimated a single dip/azimuth (~{dip}°/~{azimuth}°) from the shape of the \"{unitName}\" contact points. Import a structure CSV for a more accurate result.", { dip: est.dip.toFixed(0), azimuth: est.azimuth.toFixed(0), unitName })]);
     }
     // TASKS.csv #241 — the surface's type now comes from the source litho unit's own role
     // (roleForLithology, src/lib/layers.js) instead of always being hardcoded "stratigraphic_contact",
@@ -1089,7 +1104,7 @@ export function createModellingRuns(ctx, mcRef) {
     // A group's own assignable color drives its surface/legend; falls back to the first member's
     // per-code color if none set. Raw intervals in the 3D log keep their individual code colors.
     const color = isMcode ? (mcodeInfo.color || colorForLithology([...(mcodeLogged || [])][0] || unitName)) : isGroup ? (target.color || colorForLithology([...codes][0])) : colorForLithology(unitName);
-    return { label: `Top of ${unitName}`, meshName: unitName, points, orientations, color, type, codes: isMcode ? [...mcodeLogged] : [...codes], sectionTags: [...sectionTags] /* #810 */, ...(isMcode ? { mcode: true } : {}), ...(thinNote ? { params: { orientationsAveraged: thinNote } } : {}) }; // codes: #356 model check (logged codes); mcode: #599
+    return { label: `Top of ${unitName}`, meshName: unitName, points, orientations, color, type, codes: isMcode ? [...mcodeLogged] : [...codes], sectionTags: [...sectionTags] /* #810 */, ...(isMcode ? { mcode: true } : {}), params: { ...(thinNote ? { orientationsAveraged: thinNote } : {}), ...(nearPicks.total ? { picksNearContacts: { kept: nearPicks.kept.length, of: nearPicks.total, withinM: reachM, automatic: !(orientationReachM > 0) } } : {}) } }; // codes: #356 model check (logged codes); mcode: #599
   };
 
   // TASKS.csv #810 — drawn upper contacts whose unit tag matches no unit of this run: name them, so a contact tagged
