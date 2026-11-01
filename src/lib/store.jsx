@@ -1099,7 +1099,7 @@ export function StoreProvider({ children }) {
     const target = workspaceTabs.find((t) => t.id === tabId);
     if (!target) return;
     const current = snapshotCurrentPayload();
-    setWorkspaceTabs(workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, payload: current, dirty: activeTabDirty } : t)));
+    setWorkspaceTabs(workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, name: project?.name || t.name, payload: current, dirty: activeTabDirty } : t)));
     loadProjectPayload(target.payload, target.name);
     // TASKS.csv #479 — loadProjectPayload marks a project clean (right for Open), but a tab you switch to keeps
     // ITS OWN unsaved state: switching used to clear it, so an unsaved tab could be closed with no prompt and
@@ -1110,18 +1110,18 @@ export function StoreProvider({ children }) {
     // of the tab being left (its unsaved work now lives only in memory, as a stashed payload). The
     // autosave now carries every dirty background tab, so nothing is cleared on a switch.
     clearUndoHistory();
-  }, [activeTabId, workspaceTabs, activeTabDirty, loadProjectPayload]);
+  }, [activeTabId, workspaceTabs, activeTabDirty, loadProjectPayload, project?.name]); // project name: #1218 — a tab left behind keeps the name it has now
 
   const newWorkspaceTab = useCallback(() => {
     const current = snapshotCurrentPayload();
     const id = `tab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     setWorkspaceTabs([
-      ...workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, payload: current, dirty: activeTabDirty } : t)),
+      ...workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, name: project?.name || t.name, payload: current, dirty: activeTabDirty } : t)),
       { id, name: "Untitled project", payload: null, dirty: false },
     ]);
     setActiveTabId(id);
     newProject();
-  }, [activeTabId, workspaceTabs, activeTabDirty, newProject]);
+  }, [activeTabId, workspaceTabs, activeTabDirty, newProject, project?.name]);
 
   // TASKS.csv #1120 (review #1016, onboarding) — File > Open sample project: a new tab unless this one is still empty, then
   // the 3D View (the one ViewerModule instance) picks the request up and loads the sample once the fresh project renders
@@ -1166,7 +1166,7 @@ export function StoreProvider({ children }) {
       // #983 — and never a tab that is itself an opened file, even an empty one (a second launch file replaced the first)
       const replaceEmpty = workspaceTabs.length === 1 && !activeTabDirty && !autosaveRef.current?.hasWork && !workspaceTabs.find((t) => t.id === activeTabId)?.filePath;
       setWorkspaceTabs([
-        ...(replaceEmpty ? [] : workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, payload: current, dirty: activeTabDirty } : t))),
+        ...(replaceEmpty ? [] : workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, name: project?.name || t.name, payload: current, dirty: activeTabDirty } : t))),
         { id, name: displayName, payload: null, dirty: false, filePath: res.filePath || null }, // #553
       ]);
       loadProjectPayload(data, displayName);
@@ -1180,7 +1180,7 @@ export function StoreProvider({ children }) {
     } catch (err) {
       return { ok: false, error: err.message };
     }
-  }, [loadProjectPayload, activeTabId, workspaceTabs, activeTabDirty, switchToTab]);
+  }, [loadProjectPayload, activeTabId, workspaceTabs, activeTabDirty, switchToTab, project?.name]);
 
   // Closes a tab, confirming first if it (or its stashed copy) has unsaved changes. Closing the last
   // remaining tab is equivalent to New Project rather than leaving zero tabs, which the tab bar isn't

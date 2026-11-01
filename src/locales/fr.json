@@ -6652,5 +6652,6 @@
   "Lowest value shown of \"{name}\"": "Valeur la plus basse affichée de « {name} »",
   "Highest value shown of \"{name}\"": "Valeur la plus haute affichée de « {name} »",
   "\"{col}\" has no numbers in the preview rows: {field} needs a number.": "« {col} » n'a aucun nombre dans les lignes d'aperçu : {field} exige un nombre.",
-  "{name}: not a format this importer reads (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson, .kml, .kmz).": "{name} : cet importateur ne lit pas ce format (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson, .kml, .kmz)."
+  "{name}: not a format this importer reads (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson, .kml, .kmz).": "{name} : cet importateur ne lit pas ce format (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson, .kml, .kmz).",
+  "Leave-one-out over the {n} observed inputs: each predicted from everything else, the {m} constructed guide points included, misses by {rms} m RMS, worst {max} m ({at}).": "Validation par exclusion sur les {n} entrées observées : chacune, prédite à partir de tout le reste, y compris les {m} points guides construits, s'écarte de {rms} m RMS, au pire {max} m ({at})."
 }

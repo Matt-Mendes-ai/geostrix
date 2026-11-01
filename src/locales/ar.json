@@ -6652,5 +6652,6 @@
   "Lowest value shown of \"{name}\"": "أدنى قيمة معروضة لـ«{name}»",
   "Highest value shown of \"{name}\"": "أعلى قيمة معروضة لـ«{name}»",
   "\"{col}\" has no numbers in the preview rows: {field} needs a number.": "لا يحتوي «{col}» على أرقام في صفوف المعاينة: يحتاج {field} إلى رقم.",
-  "{name}: not a format this importer reads (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson, .kml, .kmz).": "{name}: لا يقرأ هذا المستورد هذه الصيغة (.gpkg و.zip و.shp و.tab و.mif و.gpx و.geojson و.kml و.kmz)."
+  "{name}: not a format this importer reads (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson, .kml, .kmz).": "{name}: لا يقرأ هذا المستورد هذه الصيغة (.gpkg و.zip و.shp و.tab و.mif و.gpx و.geojson و.kml و.kmz).",
+  "Leave-one-out over the {n} observed inputs: each predicted from everything else, the {m} constructed guide points included, misses by {rms} m RMS, worst {max} m ({at}).": "استبعاد واحد على {n} مدخلًا مرصودًا: يُتنبأ بكل منها من كل ما عداها، بما في ذلك {m} نقطة دليل مُنشأة، والخطأ {rms} م RMS، وأسوأه {max} م ({at})."
 }

@@ -143,6 +143,7 @@ import { useImportPipeline } from "./viewer/useImportPipeline.js"; // TASKS.csv 
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1034 — the drillhole tables' stamp
 import { alphaOnlyFan, meanPole } from "../lib/sectionStructures.js"; // TASKS.csv #1130 — alpha-only picks on sections
 import VoxelRangeNumber from "../components/VoxelRangeNumber.jsx"; // TASKS.csv #1208
+import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -962,7 +963,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     el.style.left = `${t.x + 14}px`; el.style.top = `${t.y + 14}px`;
     el.style.display = "block";
   }, []);
-  const [notices, setNotices] = useState([]);
+  const [notices, setNotices] = useTabNotices(store.activeTabId, () => { setCursor({ x: null, y: null, z: null }); setToast(null); tabSwitchedRef.current = true; }); // #1203
+  const tabSwitchedRef = useRef(false); // a tab's own notices coming back are not news: no toast for them
   const [toast, setToast] = useState(null); // { text, key } — most recent notice, shown briefly over the viewport
   const toastTimerRef = useRef(null); // #690
   const [inspectLayer, setInspectLayer] = useState(null);
@@ -3173,6 +3175,7 @@ ${describeTrend(t)}` };
   // failed (or succeeded) and said so. Mirror the latest notice as a floating toast over the
   // viewport itself, which is always visible regardless of sidebar scroll position.
   useEffect(() => {
+    if (tabSwitchedRef.current) { tabSwitchedRef.current = false; return; }
     if (!notices.length) return;
     const last = notices[notices.length - 1];
     const key = notices.length;

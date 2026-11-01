@@ -162,6 +162,7 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef, altBoxes, describe })
       {/* points */}
       {dots}
       {hp && <circle cx={hp.cx} cy={hp.cy} r="6" fill="none" stroke="#1f2933" strokeWidth="1.5" pointerEvents="none" />}
+      {diagram.boxplotOverlay && <BoxplotLabels sx={sx} sy={sy} boxes={altBoxes} />}{/* #1296 — above the points, with a halo */}
 
       {/* axis labels */}
       <text x={W / 2} y={H - 12} fill="#55606e" fontSize="11" textAnchor="middle">{diagram.xLabel}</text>
@@ -184,10 +185,18 @@ function BoxplotGuides({ sx, sy, boxes }) {
         return (
           <g key={p}>
             <polygon points={pts.map(([x, y]) => `${sx(x)},${sy(y)}`).join(" ")} fill={BOX_COLORS[p] || "#3a5068"} fillOpacity="0.07" stroke={BOX_COLORS[p] || "#3a5068"} strokeDasharray="3 2"><title>{tr("Least-altered {p}: AI {v}–{v2}, CCPI {v3}–{v4}", { p, v: b.ai[0], v2: b.ai[1], v3: b.ccpi[0], v4: b.ccpi[1] })}</title></polygon>
-            <text x={sx(b.ccpi[0]) + 3} y={sy(b.ai[1]) + 10} fill={BOX_COLORS[p] || "#3a5068"} fontSize={fontSizes.xs}>{tr(p)}</text>
           </g>
         );
       })}
+    </g>
+  );
+}
+
+function BoxplotLabels({ sx, sy, boxes }) {
+  const halo = { paintOrder: "stroke", stroke: "#ffffff", strokeWidth: 2.5, strokeLinejoin: "round", pointerEvents: "none" };
+  return (
+    <g style={halo}>
+      {Object.entries(boxes || {}).map(([p, b]) => <text key={p} x={sx(b.ccpi[0]) + 3} y={sy(b.ai[1]) + 10} fill={BOX_COLORS[p] || "#3a5068"} fontSize={fontSizes.xs}>{tr(p)}</text>)}
       {/* corner labels */}
       <text x={sx(8)} y={sy(92)} fill="#8290a0" fontSize={fontSizes.xs}>{tr("sericite / K-feldspar")}</text>
       <text x={sx(70)} y={sy(92)} fill="#8290a0" fontSize={fontSizes.xs}>{tr("chlorite-pyrite")}</text>

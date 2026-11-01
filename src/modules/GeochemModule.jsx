@@ -61,6 +61,7 @@ import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — fo
 import { geochemFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1017
 import { stampLines, withStamp } from "../lib/provenance.js"; // TASKS.csv #1212
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1212
+import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
 
 export default function GeochemModule() {
   const store = useStore();
@@ -98,7 +99,7 @@ export default function GeochemModule() {
   const [levellingOpen, setLevellingOpen] = useState(false); // TASKS.csv #1001
   const [qaqcOpen, setQaqcOpen] = useState(false);
   const [sqlOpen, setSqlOpen] = useState(false);
-  const [notices, setNotices] = useState([]);
+  const [notices, setNotices] = useTabNotices(useStore().activeTabId); // #1203
   const [dragOver, setDragOver] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
   const fileRef = useRef(null);

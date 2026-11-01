@@ -232,6 +232,7 @@ function invertDense(A, M) {
 // s = A^-1 b, the error at point k when k is left out is c_k / (A^-1)_kk (Rippa 1999, Advances in Computational
 // Mathematics 11, 193-210; it holds for the system augmented with the linear part). One inverse: O(N^3).
 export const LOO_MAX_POINTS = 300;
+const CONSTRUCTED_SRC = new Set(["downhole", "guide"]);
 export function thinPlateLoo(u, v, w) {
   const N = u.length, M = N + 3;
   if (N < 4) return null;
@@ -422,10 +423,13 @@ export function fitExplicitSurface(points, { margin = null, marginBasis = "short
     if (!quality.looSkipped) {
       const e = thinPlateLoo(UA, VA, W); // #881: in the trend's coordinates
       if (e) {
-        let s2 = 0, worst = 0, wi = 0;
-        for (let k = 0; k < e.length; k++) { s2 += e[k] * e[k]; if (Math.abs(e[k]) > worst) { worst = Math.abs(e[k]); wi = k; } }
+        // TASKS.csv #1227 — over what was observed. Guide lines are built from the picks and predict each other, so counting them took one surface from 100.8 m to 12.4 m RMS.
+        const counted = (k) => !CONSTRUCTED_SRC.has(used[k].src);
+        let s2 = 0, worst = 0, wi = -1, nObs = 0;
+        for (let k = 0; k < e.length; k++) { if (!counted(k)) continue; nObs++; s2 += e[k] * e[k]; if (wi < 0 || Math.abs(e[k]) > worst) { worst = Math.abs(e[k]); wi = k; } }
+        if (wi < 0) { for (let k = 0; k < e.length; k++) { s2 += e[k] * e[k]; if (wi < 0 || Math.abs(e[k]) > worst) { worst = Math.abs(e[k]); wi = k; } } nObs = e.length; }
         const p = used[wi];
-        quality.looRmsM = Math.sqrt(s2 / e.length); quality.looMaxM = worst;
+        quality.looRmsM = Math.sqrt(s2 / nObs); quality.looMaxM = worst; quality.looObserved = nObs; quality.looConstructed = e.length - nObs;
         quality.looWorst = { src: p.src, ref: p.ref ?? null, hole: p.hole ?? null, md: p.md ?? null, x: p.x, y: p.y, z: p.z };
       }
     }
