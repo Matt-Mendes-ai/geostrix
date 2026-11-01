@@ -1,3 +1,4 @@
+import { qcColumns, qcFields } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
 import React, { useState, useRef, useMemo, Suspense } from "react";
 import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1284
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
@@ -15,12 +16,8 @@ import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"
 import { addCalculatedElement, CALC_PRESETS } from "../lib/calcElement.js"; // TASKS.csv #401
 import { useStore } from "../lib/store.jsx";
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
-import {
-  DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS,
-  isElementColumn, inferUnit, pickElementColumns, assayExportRows, diagramExportRows, parseAssayValue, valueIn, readAssayCell, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile,
-  oxideOfHeader, fromOxideHeader, // TASKS.csv #403
-  surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples, // TASKS.csv #841 / #954
-} from "../lib/geochem.js";
+import { isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples } from "../lib/geochem.js";
+import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile } from "../lib/geochemDiagrams.js";
 import { qcRecordFromFileRow, emptySurfaceQc } from "../lib/surfaceQaqc.js"; // TASKS.csv #842
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
 import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
@@ -248,7 +245,7 @@ export default function GeochemModule() {
       const methods = methodCol ? Array.from(new Set(data.map((r) => r[methodCol]).filter(Boolean))) : [];
       const analytes = Array.from(new Set(data.map((r) => r[analyteCol]).filter(Boolean)));
       const elements = analytes.filter(isElementColumn).map((sym) => ({ symbol: sym, header: sym, unit: inferUnit(sym, sym), checked: true }));
-      setAssayModal({ file, fileName: file.name, format: "long", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol, analyte: analyteCol, value: valueCol, method: methodCol }, methods, selectedMethod: methods[0] || null, elements, ...preset });
+      setAssayModal({ file, fileName: file.name, format: "long", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol, analyte: analyteCol, value: valueCol, method: methodCol }, qc: qcColumns(headers), methods, selectedMethod: methods[0] || null, elements, ...preset });
     } else {
       // TASKS.csv #210 — a single lab export can carry more than one column for the same element
       // (e.g. this session's real pXRF sample data has "Ag_XRF_Corrected_ppm_D", "Ag_pXRF_ppm", AND
@@ -262,7 +259,7 @@ export default function GeochemModule() {
       // TASKS.csv #600 / #542 — the most complete column per element, an over-limit (ore-grade) column when one
       // exists, descriptive / error columns skipped, implausible default-% units corrected (pickElementColumns).
       const elements = pickElementColumns(headers, data).map((e) => ({ ...e, mainHeader: e.header, checked: true }));
-      setAssayModal({ file, fileName: file.name, format: "wide", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol }, methods: [], selectedMethod: null, elements, ...preset });
+      setAssayModal({ file, fileName: file.name, format: "wide", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol }, qc: qcColumns(headers), methods: [], selectedMethod: null, elements, ...preset });
     }
   };
 
@@ -385,19 +382,9 @@ export default function GeochemModule() {
     };
     // TASKS.csv #400 — keep a QC-type and a sample-id column when the file has them (acQuire / MX exports
     // mark standards / blanks / duplicates there, under the real hole_id). Auto-detected by header name.
-    const findCol = (names) => (modal.headers || []).find((h) => names.includes(String(h).trim().toLowerCase().replace(/[\s-]+/g, "_"))) || null;
-    const typeCol = findCol(["sample_type", "samp_type", "sampletype", "qc_type", "qctype", "qaqc_type", "qaqc", "sample_class", "sample_category", "type"]);
-    const idCol = findCol(["sample_id", "sampleid", "sample_no", "sample_number", "sample"]);
-    // #400 — the original a duplicate was split from, and which CRM a standard is
-    const parentCol = findCol(["parent_id", "parent", "parent_sample", "parent_sample_id", "original_id", "orig_sample_id", "primary_id", "original_sample"]);
-    const codeCol = findCol(["standard_id", "std_id", "crm", "crm_id", "crm_name", "standard_name", "qc_code", "qc_id", "qc_name", "reference_material"]);
-    const tagQC = (out, r) => {
-      if (typeCol && r[typeCol] != null && r[typeCol] !== "") out.sample_type = String(r[typeCol]).trim();
-      if (idCol && r[idCol] != null && r[idCol] !== "") out.sample_id = String(r[idCol]).trim();
-      if (parentCol && r[parentCol] != null && r[parentCol] !== "") out.parent_id = String(r[parentCol]).trim();
-      if (codeCol && r[codeCol] != null && r[codeCol] !== "") out.qc_code = String(r[codeCol]).trim();
-      return out;
-    };
+    // #400 — the original a duplicate was split from, and which CRM a standard is. #1184: as mapped in the dialog
+    const qcCols = modal.qc || qcColumns(modal.headers);
+    const tagQC = (out, r) => Object.assign(out, qcFields(r, qcCols));
     let rows = [];
     // TASKS.csv #508 — Number("") / Number(null) is 0, so a blank from or to used to become a phantom 0 m
     // interval (a real 2-3 m @ 10 g/t read as 5.5 g/t once averaged with it). Such rows are skipped and counted.

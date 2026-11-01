@@ -6583,5 +6583,8 @@
   "log scale": "escala logarítmica",
   "This will create {n} sections. Continue?": "Se crearán {n} secciones. ¿Continuar?",
   "Also cover the visible block models": "Cubrir también los modelos de bloques visibles",
-  "This makes {n} section(s).": "Esto genera {n} sección(es)."
+  "This makes {n} section(s).": "Esto genera {n} sección(es).",
+  "QC columns (optional)": "Columnas de QC (opcional)",
+  "Parent sample": "Muestra original",
+  "CRM / standard name": "Nombre de CRM / estándar"
 }

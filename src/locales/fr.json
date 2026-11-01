@@ -6583,5 +6583,8 @@
   "log scale": "échelle log",
   "This will create {n} sections. Continue?": "Cela créera {n} coupes. Continuer ?",
   "Also cover the visible block models": "Couvrir aussi les modèles de blocs visibles",
-  "This makes {n} section(s).": "Cela génère {n} coupe(s)."
+  "This makes {n} section(s).": "Cela génère {n} coupe(s).",
+  "QC columns (optional)": "Colonnes CQ (facultatif)",
+  "Parent sample": "Échantillon parent",
+  "CRM / standard name": "Nom du MRC / standard"
 }

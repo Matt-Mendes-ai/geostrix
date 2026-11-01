@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-import { DIAGRAMS, SPIDER_DIAGRAMS, reeProfile } from "../lib/geochem.js";
+import { DIAGRAMS, SPIDER_DIAGRAMS, reeProfile } from "../lib/geochemDiagrams.js";
 import { minMax } from "../lib/layers.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale

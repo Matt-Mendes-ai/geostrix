@@ -1,3 +1,4 @@
+import { stylingTracker } from "./viewerDirty.js"; // TASKS.csv #1286
 import { t as tr } from "./i18n.js"; // TASKS.csv #1285
 import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { changedKeys } from "./undoLabels.js"; // TASKS.csv #1087
@@ -1407,6 +1408,9 @@ export function StoreProvider({ children }) {
   // not undoable (still true) but they ARE changes: reference-compared here, cheaply (setters replace them
   // immutably). View-only state (camera / viewerUiState) is deliberately left out so orbiting never prompts.
   const extraDirtyFields = extraDirtyValues(live); // #448: fields with track "dirty", plus EPSG / desurvey method
+  // TASKS.csv #1286 — a recoloured legend or layer style is work: unsaved, autosaved, asked about on quit. Orbiting still is not.
+  const stylingChanged = useRef(stylingTracker());
+  useEffect(() => { if (stylingChanged.current(viewerUiState, viewerUiStateSeq)) setActiveTabDirty(true); }, [viewerUiState, viewerUiStateSeq]);
   useEffect(() => {
     const prev = extraDirtyBaseline.current;
     extraDirtyBaseline.current = extraDirtyFields;

@@ -209,7 +209,7 @@ test("#504 makeRangeAverager gives avgGradeInRange's numbers for many windows (o
 test("#503 protolith-aware box plot: Harry basalt is mostly least altered, not 'epidote-albite'", async () => {
   const { readFileSync } = await import("node:fs");
   const Papa = (await import("papaparse")).default;
-  const G = await import("../src/lib/geochem.js");
+  const G = { ...(await import("../src/lib/geochem.js")), ...(await import("../src/lib/geochemDiagrams.js")) };
   const read = (f) => Papa.parse(readFileSync(new URL(`../sample_data/harry_property/${f}`, import.meta.url), "utf8"), { header: true, skipEmptyLines: true }).data;
   const rows = read("assay_wide.csv");
   const els = Object.keys(rows[0]).filter((h) => !["hole_id", "from", "to"].includes(h));
@@ -259,7 +259,7 @@ test("#600/#542 element columns: the complete column wins, over-limit re-assays 
 });
 
 test("#531 PER feldspar diagram: albite and anorthite both on slope 1; muscovite 1 and K-feldspar 3 on the K diagram", async () => {
-  const { DIAGRAMS } = await import("../src/lib/geochem.js");
+  const { DIAGRAMS } = await import("../src/lib/geochemDiagrams.js");
   const u = { Al: "%", Ca: "%", Na: "%", K: "%" };
   // stoichiometric oxide wt% -> element wt% (Na2O/1.348, CaO/1.399, K2O/1.205, Al2O3/1.889)
   const el = (ox) => ({ values: { Al: ox.Al2O3 / 1.889, Ca: (ox.CaO || 0) / 1.399, Na: (ox.Na2O || 0) / 1.348, K: (ox.K2O || 0) / 1.205 } });

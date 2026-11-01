@@ -5,7 +5,7 @@ import { iconAction } from "../lib/a11y.js"; // TASKS.csv #687
 // fig. 6) and are edited here; they are saved with the project. The classification itself is
 // lib/geochem.js classifyAlterationBox (tested).
 import React, { useMemo, useState } from "react";
-import { PROTOLITHS, PROVISIONAL_ALTERATION_BOXES, guessProtolith } from "../lib/geochem.js";
+import { PROTOLITHS, PROVISIONAL_ALTERATION_BOXES, guessProtolith } from "../lib/geochemDiagrams.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 

@@ -6583,5 +6583,8 @@
   "log scale": "مقياس لوغاريتمي",
   "This will create {n} sections. Continue?": "سيُنشئ هذا {n} مقطعًا. هل تتابع؟",
   "Also cover the visible block models": "تغطية نماذج الكتل المرئية أيضًا",
-  "This makes {n} section(s).": "ينتج هذا {n} مقطعًا."
+  "This makes {n} section(s).": "ينتج هذا {n} مقطعًا.",
+  "QC columns (optional)": "أعمدة ضبط الجودة (اختياري)",
+  "Parent sample": "العينة الأصلية",
+  "CRM / standard name": "اسم المادة المرجعية / المعيار"
 }

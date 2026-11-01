@@ -52,7 +52,7 @@ test("#1083 the layer style file round-trips: overrides win, unknown values are 
 });
 
 test("#1083 a diagram's projected CSV: x / y as the plot draws them; a spider diagram writes one column per element", async () => {
-  const { diagramExportRows, DIAGRAMS, SPIDER_DIAGRAMS } = await import("../src/lib/geochem.js");
+  const { diagramExportRows, DIAGRAMS, SPIDER_DIAGRAMS } = await import("../src/lib/geochemDiagrams.js");
   const units = { K: "%", Mg: "%", Na: "%", Ca: "%", Fe: "%", La: "ppm", Ce: "ppm" };
   const assays = [{ hole_id: "H1", from: 0, to: 2, values: { K: 3, Mg: 2, Na: 1, Ca: 1, Fe: 5, La: 30, Ce: 60 } }, { hole_id: "H1", from: 2, to: 4, values: {} }];
   const box = diagramExportRows(assays, DIAGRAMS.boxplot, units);
