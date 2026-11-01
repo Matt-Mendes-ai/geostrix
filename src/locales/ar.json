@@ -6621,5 +6621,11 @@
   "On {k} of {n} holes held back from training: {a}% of the points in the unit come out inside it, {b}% of the others outside. This is the better guide to holes not yet drilled.": "في {k} من {n} ثقبًا مستبعدًا من التدريب: {a}% من نقاط الوحدة داخلها و{b}% من غيرها خارجها. هذا أفضل دليل للثقوب التي لم تُحفر بعد.",
   "Databases": "قواعد البيانات",
   "No saved connections yet: use the Database button in the ribbon to add one.": "لا توجد اتصالات محفوظة: استخدم زر قاعدة البيانات في الشريط لإضافة اتصال.",
-  "{n} survey stations for hole \"{hole_id}\", which has no matching collar: this hole cannot be desurveyed and won't render.{v}": "{n} محطة مسح للثقب «{hole_id}» دون فوهة مطابقة: لا يمكن حساب مساره ولا عرضه.{v}"
+  "{n} survey stations for hole \"{hole_id}\", which has no matching collar: this hole cannot be desurveyed and won't render.{v}": "{n} محطة مسح للثقب «{hole_id}» دون فوهة مطابقة: لا يمكن حساب مساره ولا عرضه.{v}",
+  "Missed intercepts: {m} of {n}": "التقاطعات غير المُصابة: {m} من {n}",
+  "Highest %": "أعلى نسبة %",
+  "The highest probability of the unit anywhere in the intercept. The model shows the unit from 50%.": "أعلى احتمال للوحدة في أي موضع من التقاطع. يعرض النموذج الوحدة ابتداءً من 50%.",
+  "Save the list as CSV": "حفظ القائمة بصيغة CSV",
+  "It reaches {a} of the {n} logged intercepts; the geoML panel lists the ones it misses, by hole and depth.": "يصيب {a} من {n} تقاطعًا مسجلًا؛ تعرض لوحة geoML التقاطعات التي لا يصيبها حسب الثقب والعمق.",
+  "It reaches all {n} logged intercepts.": "يصيب جميع التقاطعات المسجلة وعددها {n}."
 }

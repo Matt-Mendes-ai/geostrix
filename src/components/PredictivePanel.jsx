@@ -1,4 +1,6 @@
 import { tickedHoles } from "../lib/holeFilter.js"; // TASKS.csv #1315
+import { unitIntercepts, interceptCheckPoints, scoreIntercepts } from "../lib/geomlIntercepts.js"; // TASKS.csv #1318
+import GeomlMissedIntercepts from "./GeomlMissedIntercepts.jsx"; // TASKS.csv #1318
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { subscribeRun, getRun, getRunHistory, beginRun, updateRun, endRun, cancelRun, quietFor, formatElapsed } from "../lib/geomlRun.js"; // TASKS.csv #1142
 import { planDomain, planGrade, roughTime, INDUCING_CAP, INDUCING_LIMIT_NO_CAP, FOCUS_SPACING, FOCUS_OTHER } from "../lib/geomlPlan.js"; // TASKS.csv #1146; #1312
@@ -125,7 +127,7 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
       const res = await runJob(kind, params, (s) => { if (!getRun()?.cancelling) updateRun({ progress: s.progress, message: s.message, elapsed: s.elapsed }); toBar(s.progress); }, ctrl.signal);
       const note = `${await onResult(res)}${trend ? (oldAddon ? tr(" — the trend \"{name}\" was NOT applied: this add-on version ({v}) predates trends; update it (Remove the add-on, then install again)", { name: trend.name, v: health?.version || "?" }) : tr("; following the trend \"{name}\"", { name: trend.name })) : ""}`;
       const secs = Math.round((Date.now() - t0) / 1000);
-      record = { label, note, secs, at: new Date().toLocaleTimeString() };
+      record = { label, note, secs, at: new Date().toLocaleTimeString(), intercepts: res.intercepts || null };
       setNotices((p) => [...p, notice("geoML — {label}: {note} ({secs} s).", { label, note, secs })]);
     } catch (e) {
       if (e.busyJobId) setBusyJob(e.busyJobId); // #691 — a model left running earlier: offer to cancel it
@@ -133,16 +135,20 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
     } finally { endRun(record); setTaskProgress(null); refresh(); }
   };
 
-  const runUnit = () => {
+  const runUnit = async () => {
     const name = unitName.trim() || [...unit].join(" + ");
     const intervals = (litho || []).filter((r) => r.value != null && r.value !== "" && Number.isFinite(r.from) && Number.isFinite(r.to)).map((r) => ({ hole_id: String(r.hole_id), from: r.from, to: r.to, value: String(r.value) }));
     // #1146 — sized before it is sent: holes near the unit only, then a coarser spacing, when the whole project will not fit
     const plan = unitPlan;
     const sent = plan?.holeIds ? intervals.filter((r) => plan.holeIds.has(r.hole_id)) : intervals;
     const params = { ...holes(plan?.holeIds), intervals: sent, target_values: [...unit], exclude_values: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep" : "stationary", ...QUALITY[quality].domain, ...(plan ? { train_spacing: plan.trainSpacing, inducing_spacing: plan.inducingSpacing } : {}), max_inducing: INDUCING_CAP, ...(plan?.denseOn ? { focus_spacing: FOCUS_SPACING, focus_other: FOCUS_OTHER } : {}), ...(heldOut ? { held_out: true } : {}) }; // #1312: an older add-on ignores these
+    const { desurveyHole, pointOnTrace } = await import("../lib/desurvey.js");
+    const check = interceptCheckPoints(unitIntercepts(sent, unit), collars, survey || [], desurveyHole, pointOnTrace, desurveyMethod); // #1318
+    params.check_points = check.points;
     const sizing = plan && (plan.focused || plan.factor > 1) ? { holesSent: plan.nHoles, holesInProject: plan.totalHoles, focusM: plan.focused ? plan.focusM : null, trainSpacingM: plan.trainSpacing, inducingSpacingM: plan.inducingSpacing, pointsWithoutSizing: plan.wanted.points } : null;
     run(`${name} (${deep ? "fold-following" : "stationary"}, ${QUALITY[quality].label.toLowerCase()})`, "domain", params, async (res) => {
       const parts = [];
+      const intercepts = res.intercepts = scoreIntercepts(check.spans, res.check_probability); // #1318
       // #673 — clip to the range the model LEARNT when the add-on reports it (0.1.2+); 400 m is only training's start
       const range = Math.round(res.range?.trained || 400);
       const clip = await clipper(sent, range);
@@ -159,7 +165,7 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
       const r = clip(blockPoints(b));
       const cells = blockCells(b, r.keep, (i) => b.probability[i]), ucells = blockCells(b, r.keep, (i) => b.uncertainty[i]);
       // TASKS.csv #677 — what produced the model travels with it (panel, exports)
-      const dparams = { tool: "geoML domain model", ...(follow ? { holesLeftOutByHoleList: hiddenCount } : {}) /* #1315 */, ...(sizing ? { sizing } : {}) /* #1146 */, ...(plan?.denseOn ? { denseNearUnit: { spacingM: FOCUS_SPACING, otherPoints: FOCUS_OTHER } } : {}), ...(res.held_out ? { heldOutCheck: res.held_out } : {}) /* #1312 */, unitCodes: [...unit], leftOut: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep (fold-following)" : "stationary", quality: QUALITY[quality].label, ...QUALITY[quality].domain, startingRangeM: res.range?.start ?? range, trainedRangeM: res.range?.trained ?? null, trend: trend?.name || null, addonVersion: st?.version || null, trainingPoints: res.training_points, contacts: res.contacts, generatedAt: new Date().toISOString() };
+      const dparams = { tool: "geoML domain model", ...(follow ? { holesLeftOutByHoleList: hiddenCount } : {}) /* #1315 */, ...(sizing ? { sizing } : {}) /* #1146 */, ...(plan?.denseOn ? { denseNearUnit: { spacingM: FOCUS_SPACING, otherPoints: FOCUS_OTHER } } : {}), ...(res.held_out ? { heldOutCheck: res.held_out } : {}) /* #1312 */, ...(intercepts ? { interceptsLogged: intercepts.logged, interceptsReached: intercepts.reached, interceptsMissed: intercepts.missed.slice(0, 500).map((m) => `${m.hole_id} ${+m.from.toFixed(2)}-${+m.to.toFixed(2)} m`) } : {}) /* #1318 */, unitCodes: [...unit], leftOut: [...leaveOut].filter((v) => !unit.has(v)), model: deep ? "deep (fold-following)" : "stationary", quality: QUALITY[quality].label, ...QUALITY[quality].domain, startingRangeM: res.range?.start ?? range, trainedRangeM: res.range?.trained ?? null, trend: trend?.name || null, addonVersion: st?.version || null, trainingPoints: res.training_points, contacts: res.contacts, generatedAt: new Date().toISOString() };
       addVoxelModel({ name: `geoML — P(${name})`, source: "geoml", cells, min: 0, max: 1, colorMode: "continuous", stops: PROB_STOPS, threshold: 0.5, opacity: 0.6, params: { ...dparams, value: "probability of the unit (0-1)" } });
       const um = ucells.reduce((m, c) => Math.max(m, c.value), 0);
       addVoxelModel({ name: `geoML — uncertainty (${name})`, source: "geoml", cells: ucells, min: 0, max: um, colorMode: "continuous", stops: sequentialStops(0, um), visible: false, params: { ...dparams, value: "uncertainty of the indicator" } });
@@ -169,7 +175,8 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
       // #1312 — that is on the points it trained on, which flatters it (PS_POR 66% there, 24% on unseen holes): said, and tested if asked
       const unseen = res.held_out ? ` ${tr("On {k} of {n} holes held back from training: {a}% of the points in the unit come out inside it, {b}% of the others outside. This is the better guide to holes not yet drilled.", { k: res.held_out.holes_left_out, n: res.held_out.holes, a: Math.round(res.held_out.in_unit * 100), b: Math.round(res.held_out.other * 100) })}` : heldOut ? ` ${tr("The score on held-back holes did not run: it needs at least 4 holes with the unit and an up-to-date add-on.")}` : ` ${tr("Holes it has not trained on usually score lower: tick the score on held-back holes to measure it.")}`;
       const fit = res.fit ? ` ${tr("On the points it trained on: {a}% of those in the unit come out inside it, {b}% of the others outside.", { a: Math.round(res.fit.in_unit * 100), b: Math.round(res.fit.other * 100) })}${res.fit.in_unit < 0.3 ? ` ${tr("That is weak: the surface and blocks do not reproduce this unit where it was logged. A higher quality, a narrower set of holes or a merged code may do better.")}` : ""}` : "";
-      return `${parts.join("; ")} — ${res.training_points.toLocaleString()} points, ${res.contacts} contacts.${fit}${unseen}`;
+      const reach = intercepts ? ` ${intercepts.missed.length ? tr("It reaches {a} of the {n} logged intercepts; the geoML panel lists the ones it misses, by hole and depth.", { a: intercepts.reached, n: intercepts.logged }) : tr("It reaches all {n} logged intercepts.", { n: intercepts.logged })}` : "";
+      return `${parts.join("; ")} — ${res.training_points.toLocaleString()} points, ${res.contacts} contacts.${reach}${fit}${unseen}`;
     });
   };
 
@@ -373,7 +380,7 @@ export default function PredictivePanel({ visibleHoles, collars: allCollars, sur
           {runs.length > 0 && (
             <div style={box}>
               <div style={h}>{tr("This session")}</div>
-              {runs.map((r, i) => <div key={i} style={{ marginBottom: 4 }}><strong>{r.label}</strong> · {r.secs} s · {r.at}<br />{r.note}</div>)}
+              {runs.map((r, i) => <div key={i} style={{ marginBottom: 4 }}><strong>{r.label}</strong> · {r.secs} s · {r.at}<br />{r.note}<GeomlMissedIntercepts result={r.intercepts} label={r.label} /></div>)}
             </div>
           )}
 

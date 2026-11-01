@@ -6621,5 +6621,11 @@
   "On {k} of {n} holes held back from training: {a}% of the points in the unit come out inside it, {b}% of the others outside. This is the better guide to holes not yet drilled.": "Sur {k} de {n} sondages laissés hors de l'entraînement : {a} % des points dans l'unité restent dedans, {b} % des autres dehors. C'est le meilleur guide pour les sondages à venir.",
   "Databases": "Bases de données",
   "No saved connections yet: use the Database button in the ribbon to add one.": "Aucune connexion enregistrée : utilisez le bouton Base de données du ruban pour en ajouter une.",
-  "{n} survey stations for hole \"{hole_id}\", which has no matching collar: this hole cannot be desurveyed and won't render.{v}": "{n} stations de levé du sondage « {hole_id} », sans collet correspondant : sa trajectoire ne peut être calculée ni dessinée.{v}"
+  "{n} survey stations for hole \"{hole_id}\", which has no matching collar: this hole cannot be desurveyed and won't render.{v}": "{n} stations de levé du sondage « {hole_id} », sans collet correspondant : sa trajectoire ne peut être calculée ni dessinée.{v}",
+  "Missed intercepts: {m} of {n}": "Intersections manquées : {m} sur {n}",
+  "Highest %": "% maximal",
+  "The highest probability of the unit anywhere in the intercept. The model shows the unit from 50%.": "La probabilité la plus élevée de l'unité dans l'intersection. Le modèle montre l'unité à partir de 50 %.",
+  "Save the list as CSV": "Enregistrer la liste en CSV",
+  "It reaches {a} of the {n} logged intercepts; the geoML panel lists the ones it misses, by hole and depth.": "Il atteint {a} des {n} intersections consignées ; le panneau geoML liste celles qu'il manque, par sondage et profondeur.",
+  "It reaches all {n} logged intercepts.": "Il atteint les {n} intersections consignées."
 }
