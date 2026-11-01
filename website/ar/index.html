@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1f2a33">
   <title>GeoStrix — برنامج ثلاثي الأبعاد مجاني للاستكشاف المعدني</title>
   <meta name="description" content="GeoStrix برنامج ثلاثي الأبعاد مجاني ومفتوح المصدر للاستكشاف المعدني: ثقوب الحفر والجيوكيمياء والجيوفيزياء والنمذجة وتخطيط الحفر على حاسوب محمول عادي، دون اتصال بالإنترنت ودون ترخيص للشراء.">
   <link rel="icon" type="image/png" href="/favicon.png">
@@ -21,13 +22,17 @@
   <meta property="og:image:height" content="628">
   <meta property="og:image:alt" content="العرض ثلاثي الأبعاد في GeoStrix لنموذج الموصلية ZTEM في Woodjam، كولومبيا البريطانية">
   <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://geostrix.com/ar/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="GeoStrix">
   <meta property="og:url" content="https://geostrix.com/ar/">
   <meta property="og:locale" content="ar_AR">
 </head>
 <body>
+  <a class="skip" href="#main">انتقل إلى المحتوى</a>
   <header class="site">
     <div class="wrap">
-      <a class="brand" href="/ar/"><img src="/img/icon-128.png" alt="" width="34" height="34"><span lang="en">GeoStrix</span></a>
+      <a class="brand" href="/ar/"><img src="/img/icon-128.png" alt="" width="34" height="34"><span lang="en">Geo<span class="strix">Strix</span></span></a>
       <nav>
         <a class="hide-xs" href="#features">الميزات</a>
         <a href="#download">التنزيل</a>
@@ -46,8 +51,13 @@
     </div>
   </header>
 
-  <main>
+  <main id="main">
     <section class="hero">
+      <div class="brandmark">
+        <img src="/img/owl-240.webp" width="240" height="236" alt="">
+        <p class="wordmark" lang="en" dir="ltr" role="img" aria-label="GeoStrix"><span>Geo</span><span>Strix</span></p>
+        <p class="tagline">استكشف <span class="dot" aria-hidden="true">•</span> نمذج <span class="dot" aria-hidden="true">•</span> اكتشف</p>
+      </div>
       <div class="wrap">
         <div>
           <a class="dl-badge" data-downloads-badge href="https://github.com/Matt-Mendes-ai/geostrix/releases"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14"/></svg><span data-n></span></a>
@@ -55,9 +65,9 @@
           <p class="lead">ثقوب الحفر والجيوكيمياء والجيوفيزياء والنمذجة وتخطيط الحفر في مكان واحد — على حاسوب محمول عادي، دون اتصال بالإنترنت، ودون حساب أو ترخيص للشراء.</p>
           <a class="btn primary" data-download href="https://github.com/Matt-Mendes-ai/geostrix/releases/latest">التنزيل لنظام Windows</a>
           <a class="btn ghost" href="https://github.com/Matt-Mendes-ai/geostrix">عرض الشيفرة المصدرية</a>
-          <div class="dl-note" data-version>Windows 10 / 11 (64 بت) · مجاني ومفتوح المصدر (MIT)</div>
+          <div class="dl-note" data-version>Windows 10 / 11 (64 بت) · نحو 240 ميغابايت · مجاني ومفتوح المصدر (MIT)</div>
         </div>
-        <img class="shot" src="/img/hero-woodjam-ztem.webp" width="1268" height="758" alt="العرض ثلاثي الأبعاد في GeoStrix لمشروع المثال Woodjam في كولومبيا البريطانية: نموذج الموصلية ZTEM ثلاثي الأبعاد على شكل فوكسلات، الأرض الموصلة بالأحمر والمقاومة بالأزرق">
+        <img class="shot" fetchpriority="high" src="/img/hero-woodjam-ztem.webp" width="1268" height="758" alt="العرض ثلاثي الأبعاد في GeoStrix لمشروع المثال Woodjam في كولومبيا البريطانية: نموذج الموصلية ZTEM ثلاثي الأبعاد على شكل فوكسلات، الأرض الموصلة بالأحمر والمقاومة بالأزرق">
       </div>
     </section>
 
@@ -76,13 +86,17 @@
     <section class="alt" id="features">
       <div class="wrap">
         <h2>ماذا يفعل</h2>
-        <p class="sub">استورد ملفات CSV وExcel وshapefile وGeoPackage وGeoTIFF وDXF، أو اتصل مباشرة بقاعدة بيانات PostgreSQL أو MySQL.</p>
+        <p class="sub">استورد ملفات CSV وExcel وshapefile وGeoPackage وGeoTIFF وDXF وOMF، أو اتصل مباشرة بقاعدة بيانات PostgreSQL أو MySQL، أو افتح أحد مشروعَي المثال الحقيقيين من كولومبيا البريطانية.</p>
         <div class="features">
-          <div><h3>ثقوب الحفر بثلاثة أبعاد</h3><p>رؤوس الثقوب وقياسات الانحراف وجميع أنواع سجلات الوصف؛ مسارات مصحّحة الانحراف مع التضاريس، ومقاطع عرضية، ومساقط أفقية، ومخططات سياجية، وسجلات عمودية للثقوب، وفحص للبيانات.</p></div>
-          <div><h3>الجيوكيمياء</h3><p>مخططات التصنيف والتحوّل، والإحصاءات، وتجميع العينات، وأفضل التقاطعات، وضبط الجودة وضمانها (QA/QC) للعينات المرجعية والفارغة والمكرّرة.</p></div>
-          <div><h3>الجيوفيزياء</h3><p>مسوحات نقطية وشبكات ونماذج فوكسل، إضافة إلى القلب المغناطيسي والجاذبي وقلب المقاومة الكهربائية والاستقطاب المستحث (DC / IP) ثنائي الأبعاد.</p></div>
-          <div><h3>النمذجة وتحديد الأهداف</h3><p>أسطح جيولوجية وصدوع ضمنية، وأغلفة المحتوى المعدني، ونماذج الكتل، والتحليل البنيوي، وتخطيط الحفر نحو الهدف.</p></div>
-          <div><h3>الخرائط والتقارير</h3><p>أي نظام إحداثيات في العالم، وطبقات خرائط وطبقات ويب، ورخص التعدين، وتخطيطات جاهزة للطباعة تُصدَّر بصيغة PDF.</p></div>
+          <div><h3>ثقوب الحفر بثلاثة أبعاد</h3><p>فوهات الثقوب وقياسات الانحراف وجميع سجلات الوصف، مصحّحة الانحراف مع التضاريس: مقاطع على أي خط أو ثقب، وسلاسل مقاطع، ومساقط أفقية، ومخططات سياجية، وسجلات عمودية، وفحص للبيانات.</p></div>
+          <div><h3>الجيوكيمياء</h3><p>التحاليل وقراءات pXRF والاستيراد من قواعد البيانات؛ مخططات التصنيف والتحوّل، والعناصر المحسوبة، وطريقة isocon، والإحصاءات، وتجميع العينات، وأفضل التقاطعات، وضبط الجودة وضمانها.</p></div>
+          <div><h3>التربة ورواسب المجاري</h3><p>خطّط الشبكات ومواقع الاعتيان مع عينات الضبط الخاصة بك (GPX وKML وأوراق ميدانية)؛ عتبات الشذوذ ضمن المجموعات، ومعايرة المسوحات، والنطاقات الجيوكيميائية؛ أحواض التصريف من التضاريس مع تصحيح التخفيف وترتيب المجاري؛ والمسوحات الحكومية العامة لمنطقتك.</p></div>
+          <div><h3>الجيوفيزياء</h3><p>المسوحات النقطية والشبكات ونماذج الفوكسل وملفات OMF؛ النمذجة العكسية المغناطيسية (بما فيها المتجهية) والجاذبية، والنمذجة العكسية ثنائية الأبعاد للمقاومة الكهربائية والاستقطاب المستحث (DC / IP).</p></div>
+          <div><h3>صور الأقمار الصناعية والخرائط</h3><p>صور Sentinel-2 مجانية، ومؤشرات أكاسيد الحديد والطين ومؤشرات ASTER للسيليكا والكربونات والصخور المافية، والتضاريس، والخرائط الممسوحة المرجعة جغرافيًا، والخرائط الجيولوجية، وطبقات الويب، ورخص التعدين، بأي نظام إحداثيات.</p></div>
+          <div><h3>النمذجة</h3><p>الأسطح الضمنية والتتابعات الطبقية (GemPy)، ونماذج من الخريطة الجيولوجية وحدها، وأسطح تمر بنقاطك أنت، والتحوّل والعروق وأغلفة المحتوى المعدني والبنى والإسقاط المجسامي، وتقديرات نماذج الكتل، ونماذج geoML مع عدم اليقين.</p></div>
+          <div><h3>تحديد الأهداف وتخطيط الحفر</h3><p>تراكب الأدلة وأوزان الأدلة، والأجزاء غير المحفورة من وحدة مُنمذجة، وثقوب مخطط لها تُفحص وتُصدَّر إلى CSV وKML وأجهزة GPS.</p></div>
+          <div><h3>التخطيطات والتقارير</h3><p>صفحات جاهزة للطباعة مع مفاتيح الألوان ومقاييس الرسم وجداول الثقوب والمناظر ثلاثية الأبعاد، تُحفظ كقوالب وتُصدَّر بصيغة PDF أو PNG.</p></div>
+          <div><h3>خمس لغات</h3><p>العربية بواجهة كاملة من اليمين إلى اليسار، والإنجليزية والإسبانية والبرتغالية والفرنسية. يفتح GeoStrix بلغة حاسوبك.</p></div>
           <div><h3>بياناتك تبقى لك</h3><p>لا حساب، ولا قياس عن بُعد، ولا سحابة. المشاريع ملفات على حاسوبك. <a href="/ar/privacy.html">الخصوصية</a></p></div>
         </div>
       </div>
@@ -139,7 +153,7 @@
     <section class="alt">
       <div class="wrap">
         <div class="notice">
-          <h3>أداة استكشاف، وليست برنامجًا لتقدير الموارد</h3>
+          <h2>أداة استكشاف، وليست برنامجًا لتقدير الموارد</h2>
           <p>تستخدم أدوات المحتوى المعدني في GeoStrix الاستيفاء بطريقة أقرب جار أو مقلوب المسافة أو المربعات الصغرى المتحركة، دون كريغينغ أو تصنيف أو تخفيف أو استخلاص. لا شيء مما ينتجه يُعدّ موردًا معدنيًا وفق معيار NI 43-101 أو JORC أو أي معيار مماثل؛ والإفصاح العلني عن الحمولة أو المحتوى المعدني يتطلب تقديرًا يُعدّه شخص مؤهل.</p>
         </div>
       </div>
@@ -149,17 +163,20 @@
       <div class="wrap two">
         <div>
           <h2>التنزيل</h2>
-          <p>GeoStrix مجاني ومفتوح المصدر بموجب ترخيص MIT. يتضمن برنامج التثبيت كل شيء، بما في ذلك محرّك Python المستخدم في النمذجة الضمنية وعمليات القلب. ويُحدِّث نفسه تلقائيًا عند صدور نسخة جديدة.</p>
+          <p>GeoStrix مجاني ومفتوح المصدر بموجب ترخيص MIT. يتضمن برنامج التثبيت كل شيء، بما في ذلك محرّك Python المستخدم في النمذجة الضمنية والنمذجة العكسية. ويُحدِّث نفسه تلقائيًا عند صدور نسخة جديدة.</p>
           <a class="btn primary" data-download href="https://github.com/Matt-Mendes-ai/geostrix/releases/latest">التنزيل لنظام Windows</a>
-          <p class="dl-note muted" data-version>Windows 10 / 11 (64 بت)</p>
+          <p class="dl-note muted" data-version>Windows 10 / 11 (64 بت) · نحو 240 ميغابايت</p>
           <p class="muted small" data-downloads hidden></p>
+          <p class="muted small phone-only">GeoStrix تطبيق مكتبي لنظام Windows: افتح هذه الصفحة على حاسوبك لتثبيته.</p>
+          <p class="muted small">يتطلب Windows 10 أو 11 (64 بت) ونحو 800 ميغابايت من مساحة القرص. يعمل على حاسوب محمول عادي ببطاقة رسوميات مدمجة، ودون اتصال بالإنترنت بعد تثبيته.</p>
+          <p class="muted small">لا تملك صلاحيات المسؤول؟ يتضمن كل إصدار أيضًا ملف zip محمولًا (نحو 310 ميغابايت) يعمل دون تثبيت: نزّل <code dir="ltr">GeoStrix-…-win.zip</code> من <a href="https://github.com/Matt-Mendes-ai/geostrix/releases/latest">أحدث إصدار</a>، وألغِ حظره (زر الماوس الأيمن ← خصائص ← إلغاء الحظر)، ثم فك ضغطه وشغّل <code dir="ltr">GeoStrix.exe</code>. ينبهك عند صدور إصدار جديد، فتستبدل المجلد بملف zip الجديد.</p>
           <p class="muted small">التطبيق متوفر بالعربية، بواجهة كاملة من اليمين إلى اليسار، وكذلك بالإنجليزية والإسبانية والبرتغالية البرازيلية والفرنسية. يفتح بلغة حاسوبك، ويمكنك تغيير اللغة في أي وقت من شريط الحالة أسفل النافذة.</p>
-          <p class="muted small">جميع الإصدارات ومجاميعها الاختبارية والشيفرة المصدرية الكاملة متاحة على <a href="https://github.com/Matt-Mendes-ai/geostrix/releases">GitHub</a>.</p>
+          <p class="muted small">جميع الإصدارات ومجاميعها الاختبارية (<bdi dir="ltr">SHA256SUMS.txt</bdi>) والشيفرة المصدرية الكاملة متاحة على <a href="https://github.com/Matt-Mendes-ai/geostrix/releases">GitHub</a>.</p>
           <p class="muted small"><a href="https://github.com/Matt-Mendes-ai/geostrix/blob/master/CODE_SIGNING.md">سياسة توقيع الشيفرة</a> (بالإنجليزية) · <a href="/ar/privacy.html">سياسة الخصوصية</a> · لإلغاء التثبيت: إعدادات Windows ← التطبيقات ← التطبيقات المثبتة ← GeoStrix ← إلغاء التثبيت (تبقى ملفات مشاريعك محفوظة).</p>
         </div>
         <div>
           <h3>إذا ظهر تحذير من Windows</h3>
-          <p class="muted mid">يحمل GeoStrix توقيعًا رقميًا: يعرض Windows اسم الناشر <strong dir="ltr">Open Source Developer Matheus Mendes de Albuquerque</strong>. ولأن الشهادة جديدة، قد يوقف Windows SmartScreen أو برنامج مكافحة الفيروسات برنامجَ تثبيت جديدًا في المرة الأولى:</p>
+          <p class="muted mid">يحمل GeoStrix توقيعًا رقميًا: يعرض Windows اسم الناشر <strong dir="ltr">Open Source Developer Matheus Mendes de Albuquerque</strong>، الذي يطوّر GeoStrix. ولأن الشهادة جديدة، قد يوقف Windows SmartScreen أو برنامج مكافحة الفيروسات برنامجَ تثبيت جديدًا في المرة الأولى:</p>
           <ol class="steps">
             <li>في نافذة «قام Windows بحماية الكمبيوتر»، انقر على <strong>مزيد من المعلومات</strong>، ثم على <strong>التشغيل على أي حال</strong>.</li>
             <li>إذا لم يحدث شيء على الإطلاق، فربما وضع برنامج مكافحة الفيروسات الملف في الحجر: استعِد الملف من الحجر، أو انقر عليه بزر الماوس الأيمن ← <strong>خصائص</strong> ← حدّد <strong>إلغاء الحظر</strong>.</li>
@@ -180,6 +197,13 @@
           <p>الشيفرة متاحة على <a href="https://github.com/Matt-Mendes-ai/geostrix">GitHub</a> بموجب ترخيص MIT: استخدمها وادرسها وعدّلها. المساهمات مرحّب بها — ابدأ ببلاغ (issue).</p>
           <p>دروس الفيديو على <a href="https://www.youtube.com/@GeoStrix-AI">قناة GeoStrix على YouTube</a>، والأخبار على <a href="https://www.linkedin.com/company/geostrix/">LinkedIn</a>.</p>
         </div>
+      </div>
+    </section>
+
+    <section id="about">
+      <div class="wrap">
+        <h2>من يصنع GeoStrix</h2>
+        <p><a href="https://www.linkedin.com/in/matt-mendes-83639737/">Matt Mendes</a>، جيولوجي ومؤسس GeoStrix ومطوّره.</p>
       </div>
     </section>
   </main>

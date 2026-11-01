@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1f2a33">
   <title>GeoStrix — logiciel 3D gratuit pour l'exploration minière</title>
   <meta name="description" content="GeoStrix est un logiciel 3D gratuit et open source pour l'exploration minière : sondages, géochimie, géophysique, modélisation et planification des sondages sur un ordinateur portable ordinaire, hors ligne, sans licence à acheter.">
   <link rel="icon" type="image/png" href="/favicon.png">
@@ -21,13 +22,17 @@
   <meta property="og:image:height" content="628">
   <meta property="og:image:alt" content="Vue 3D de GeoStrix du modèle de conductivité ZTEM de Woodjam, Colombie-Britannique">
   <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://geostrix.com/fr/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="GeoStrix">
   <meta property="og:url" content="https://geostrix.com/fr/">
   <meta property="og:locale" content="fr_FR">
 </head>
 <body>
+  <a class="skip" href="#main">Aller au contenu</a>
   <header class="site">
     <div class="wrap">
-      <a class="brand" href="/fr/"><img src="/img/icon-128.png" alt="" width="34" height="34">GeoStrix</a>
+      <a class="brand" href="/fr/"><img src="/img/icon-128.png" alt="" width="34" height="34"><span>Geo<span class="strix">Strix</span></span></a>
       <nav>
         <a class="hide-xs" href="#features">Fonctions</a>
         <a href="#download">Télécharger</a>
@@ -46,8 +51,13 @@
     </div>
   </header>
 
-  <main>
+  <main id="main">
     <section class="hero">
+      <div class="brandmark">
+        <img src="/img/owl-240.webp" width="240" height="236" alt="">
+        <p class="wordmark" lang="en" dir="ltr" role="img" aria-label="GeoStrix"><span>Geo</span><span>Strix</span></p>
+        <p class="tagline">EXPLORER <span class="dot" aria-hidden="true">•</span> MODÉLISER <span class="dot" aria-hidden="true">•</span> DÉCOUVRIR</p>
+      </div>
       <div class="wrap">
         <div>
           <a class="dl-badge" data-downloads-badge href="https://github.com/Matt-Mendes-ai/geostrix/releases"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M5 21h14"/></svg><span data-n></span></a>
@@ -55,9 +65,9 @@
           <p class="lead">Sondages, géochimie, géophysique, modélisation et planification des sondages au même endroit — sur un ordinateur portable ordinaire, hors ligne, sans compte et sans licence à acheter.</p>
           <a class="btn primary" data-download href="https://github.com/Matt-Mendes-ai/geostrix/releases/latest">Télécharger pour Windows</a>
           <a class="btn ghost" href="https://github.com/Matt-Mendes-ai/geostrix">Voir le code source</a>
-          <div class="dl-note" data-version>Windows 10 / 11 (64 bits) · gratuit et open source (MIT)</div>
+          <div class="dl-note" data-version>Windows 10 / 11 (64 bits) · environ 240 Mo · gratuit et open source (MIT)</div>
         </div>
-        <img class="shot" src="/img/hero-woodjam-ztem.webp" width="1268" height="758" alt="Vue 3D de GeoStrix du projet d'exemple Woodjam, Colombie-Britannique : le modèle 3D de conductivité ZTEM en voxels, terrain conducteur en rouge et résistant en bleu">
+        <img class="shot" fetchpriority="high" src="/img/hero-woodjam-ztem.webp" width="1268" height="758" alt="Vue 3D de GeoStrix du projet d'exemple Woodjam, Colombie-Britannique : le modèle 3D de conductivité ZTEM en voxels, terrain conducteur en rouge et résistant en bleu">
       </div>
     </section>
 
@@ -76,13 +86,17 @@
     <section class="alt" id="features">
       <div class="wrap">
         <h2>Ce qu'il fait</h2>
-        <p class="sub">Importez des fichiers CSV et Excel, des shapefiles, des GeoPackages, des GeoTIFF et des DXF, ou connectez-vous directement à une base de données PostgreSQL ou MySQL.</p>
+        <p class="sub">Importez des fichiers CSV et Excel, des shapefiles, des GeoPackages, des GeoTIFF, des DXF et des OMF, connectez-vous directement à une base de données PostgreSQL ou MySQL, ou ouvrez l'un des deux vrais projets d'exemple de Colombie-Britannique.</p>
         <div class="features">
-          <div><h3>Sondages en 3D</h3><p>Têtes de sondage (collars), mesures de déviation et tous les types de descriptions ; tracés corrigés de la déviation avec la topographie, coupes, plans de niveau, diagrammes en barrière, logs de sondage et contrôle des données.</p></div>
-          <div><h3>Géochimie</h3><p>Diagrammes de classification et d'altération, statistiques, composites, meilleures intersections, et QA/QC des étalons, blancs et doublons.</p></div>
-          <div><h3>Géophysique</h3><p>Levés ponctuels, grilles et modèles voxels, ainsi que l'inversion magnétique, gravimétrique et de résistivité DC / PP en 2D.</p></div>
-          <div><h3>Modélisation et ciblage</h3><p>Surfaces géologiques et failles implicites, enveloppes de teneur, modèles de blocs, analyse structurale et planification de sondages vers une cible.</p></div>
-          <div><h3>Cartes et rapports</h3><p>N'importe quel système de coordonnées dans le monde, couches cartographiques et web, titres miniers, et mises en page prêtes à imprimer exportées en PDF.</p></div>
+          <div><h3>Sondages en 3D</h3><p>Collets, mesures de déviation et tous les types de descriptions, corrigés de la déviation et avec la topographie : coupes selon n'importe quelle ligne ou sondage, séries de coupes, plans de niveau, diagrammes en clôture, logs de sondage et contrôle des données.</p></div>
+          <div><h3>Géochimie</h3><p>Analyses, pXRF et import depuis une base de données ; diagrammes de classification et d'altération, éléments calculés, isocon, statistiques, composites, meilleures intersections et QA/QC.</p></div>
+          <div><h3>Sols et sédiments de ruisseau</h3><p>Planifiez des grilles et des sites de prélèvement avec vos insertions de contrôle (GPX, KML, fiches de terrain) ; seuils par populations, nivellement des campagnes et domaines ; bassins versants depuis la topographie avec correction de la dilution et classement des drainages ; levés publics des gouvernements pour votre zone.</p></div>
+          <div><h3>Géophysique</h3><p>Levés ponctuels, grilles, modèles voxels et OMF ; inversion magnétique (y compris vectorielle), gravimétrique et de résistivité DC / PP en 2D.</p></div>
+          <div><h3>Images satellite et cartes</h3><p>Images Sentinel-2 gratuites, indices d'oxydes de fer, d'argiles et ASTER silice / carbonate / mafique, topographie, cartes scannées géoréférencées, cartes géologiques, couches web et titres miniers, dans n'importe quel système de coordonnées.</p></div>
+          <div><h3>Modélisation</h3><p>Surfaces implicites et piles stratigraphiques (GemPy), modèles à partir de la seule carte géologique, surfaces passant par vos propres points, altération, veines, enveloppes de teneur, structures et stéréogrammes, estimations en modèles de blocs et modèles geoML avec incertitude.</p></div>
+          <div><h3>Ciblage et planification des sondages</h3><p>Superposition des indices et poids de la preuve, parties non forées d'une unité modélisée, et sondages planifiés vérifiés et exportés en CSV, KML et GPS.</p></div>
+          <div><h3>Mises en page et rapports</h3><p>Planches prêtes à imprimer avec légendes, barres d'échelle, tableaux des sondages et vues 3D, enregistrées comme modèles et exportées en PDF ou PNG.</p></div>
+          <div><h3>Cinq langues</h3><p>Français, anglais, espagnol, portugais et arabe, avec une mise en page entièrement de droite à gauche pour l'arabe. GeoStrix s'ouvre dans la langue de votre ordinateur.</p></div>
           <div><h3>Vos données restent les vôtres</h3><p>Pas de compte, pas de télémétrie, pas de cloud. Les projets sont des fichiers sur votre ordinateur. <a href="/fr/privacy.html">Confidentialité</a></p></div>
         </div>
       </div>
@@ -139,7 +153,7 @@
     <section class="alt">
       <div class="wrap">
         <div class="notice">
-          <h3>Un outil d'exploration, pas un logiciel d'estimation des ressources</h3>
+          <h2>Un outil d'exploration, pas un logiciel d'estimation des ressources</h2>
           <p>Les outils de teneur de GeoStrix utilisent l'interpolation par plus proche voisin, inverse de la distance ou moindres carrés mobiles, sans krigeage, classification, dilution ni récupération. Rien de ce qu'il produit n'est une ressource minérale au sens du Règlement 43-101, du code JORC ou de tout code comparable ; la publication d'un tonnage ou d'une teneur exige une estimation faite par une personne qualifiée.</p>
         </div>
       </div>
@@ -151,15 +165,18 @@
           <h2>Télécharger</h2>
           <p>GeoStrix est gratuit et open source sous licence MIT. Le programme d'installation contient tout, y compris le moteur Python utilisé pour la modélisation implicite et les inversions. Il se met à jour tout seul quand une nouvelle version sort.</p>
           <a class="btn primary" data-download href="https://github.com/Matt-Mendes-ai/geostrix/releases/latest">Télécharger pour Windows</a>
-          <p class="dl-note muted" data-version>Windows 10 / 11 (64 bits)</p>
+          <p class="dl-note muted" data-version>Windows 10 / 11 (64 bits) · environ 240 Mo</p>
           <p class="muted small" data-downloads hidden></p>
+          <p class="muted small phone-only">GeoStrix est une application de bureau pour Windows : ouvrez cette page sur votre ordinateur pour l'installer.</p>
+          <p class="muted small">Nécessite Windows 10 ou 11 (64 bits) et environ 800 Mo d'espace disque. Fonctionne sur un ordinateur portable ordinaire avec une carte graphique intégrée, et hors ligne une fois installé.</p>
+          <p class="muted small">Pas de droits d'administrateur ? Chaque version a aussi un zip portable (environ 310 Mo) qui fonctionne sans installation : téléchargez <code>GeoStrix-…-win.zip</code> depuis la <a href="https://github.com/Matt-Mendes-ai/geostrix/releases/latest">dernière version</a>, débloquez-le (clic droit → Propriétés → Débloquer), extrayez-le et lancez <code>GeoStrix.exe</code>. Il vous prévient quand une nouvelle version sort ; vous remplacez le dossier par le nouveau zip.</p>
           <p class="muted small">L'application est en français, anglais, espagnol, portugais du Brésil et arabe. Elle s'ouvre dans la langue de votre ordinateur, et vous pouvez la changer à tout moment dans la barre d'état, en bas de la fenêtre.</p>
-          <p class="muted small">Chaque version, ses sommes de contrôle et le code source complet sont sur <a href="https://github.com/Matt-Mendes-ai/geostrix/releases">GitHub</a>.</p>
+          <p class="muted small">Chaque version, ses sommes de contrôle (SHA256SUMS.txt) et le code source complet sont sur <a href="https://github.com/Matt-Mendes-ai/geostrix/releases">GitHub</a>.</p>
           <p class="muted small"><a href="https://github.com/Matt-Mendes-ai/geostrix/blob/master/CODE_SIGNING.md">Politique de signature du code</a> (en anglais) · <a href="/fr/privacy.html">Politique de confidentialité</a> · Pour désinstaller : Paramètres Windows → Applications → Applications installées → GeoStrix → Désinstaller (vos fichiers de projet sont conservés).</p>
         </div>
         <div>
           <h3>Si Windows affiche un avertissement</h3>
-          <p class="muted mid">GeoStrix est signé numériquement : Windows indique comme éditeur <strong>Open Source Developer Matheus Mendes de Albuquerque</strong>. Comme le certificat est récent, Windows SmartScreen ou votre antivirus peuvent encore bloquer un nouveau programme d'installation la première fois :</p>
+          <p class="muted mid">GeoStrix est signé numériquement : Windows indique comme éditeur <strong>Open Source Developer Matheus Mendes de Albuquerque</strong>, qui développe GeoStrix. Comme le certificat est récent, Windows SmartScreen ou votre antivirus peuvent encore bloquer un nouveau programme d'installation la première fois :</p>
           <ol class="steps">
             <li>Sur « Windows a protégé votre ordinateur », cliquez sur <strong>Informations complémentaires</strong>, puis sur <strong>Exécuter quand même</strong>.</li>
             <li>S'il ne se passe rien, votre antivirus l'a peut-être mis en quarantaine : restaurez le fichier depuis la quarantaine, ou faites un clic droit dessus → <strong>Propriétés</strong> → cochez <strong>Débloquer</strong>.</li>
@@ -180,6 +197,13 @@
           <p>Le code est sur <a href="https://github.com/Matt-Mendes-ai/geostrix">GitHub</a> sous licence MIT : utilisez-le, étudiez-le, modifiez-le. Les contributions sont les bienvenues — commencez par une issue.</p>
           <p>Les tutoriels vidéo sont sur la <a href="https://www.youtube.com/@GeoStrix-AI">chaîne YouTube de GeoStrix</a>, et les actualités sur <a href="https://www.linkedin.com/company/geostrix/">LinkedIn</a>.</p>
         </div>
+      </div>
+    </section>
+
+    <section id="about">
+      <div class="wrap">
+        <h2>Qui fait GeoStrix</h2>
+        <p><a href="https://www.linkedin.com/in/matt-mendes-83639737/">Matt Mendes</a>, géologue, fondateur et développeur de GeoStrix.</p>
       </div>
     </section>
   </main>

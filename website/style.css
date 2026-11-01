@@ -8,6 +8,7 @@
   --slate-deep: #1f2a33;
   --orange: #e8901a;
   --orange-deep: #b86c08;
+  --link: #975a07; /* links on light backgrounds: 5.5:1 on white, 5.2:1 on --bg-soft (#b86c08 was 4.05 / 3.77, below WCAG AA) */
   --ink: #1a2028;
   --muted: #55606e;
   --line: #e1e5ea;
@@ -24,8 +25,13 @@ html { scroll-behavior: smooth; }
 [dir="rtl"] .controls { direction: ltr; }
 body { margin: 0; font-family: "Exo 2", system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); line-height: 1.6; font-size: 17px; }
 img { max-width: 100%; height: auto; display: block; }
-a { color: var(--orange-deep); }
-a:hover { color: var(--orange); }
+a { color: var(--link); }
+a:hover { text-decoration-thickness: 2px; } /* hover by a thicker underline: the lighter orange was 2.5:1 */
+a:focus-visible, button:focus-visible, summary:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; border-radius: 2px; }
+/* skip link: hidden until focused with the keyboard */
+.skip { position: absolute; inset-inline-start: 8px; top: -60px; z-index: 10; background: #fff; color: var(--ink); padding: 8px 14px; border-radius: 6px; font-weight: 600; }
+.skip:focus { top: 8px; }
+.phone-only { display: none; }
 .wrap { max-width: var(--max); margin: 0 auto; padding: 0 20px; }
 .wrap.wide { max-width: 1440px; } /* the screenshots get room to be read */
 
@@ -34,6 +40,7 @@ header.site { background: var(--slate-deep); color: #fff; }
 header.site .wrap { display: flex; align-items: center; gap: 12px; height: 64px; }
 header.site .brand { flex: none; display: flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; font-weight: 700; font-size: 20px; letter-spacing: 0.02em; }
 header.site .brand img { width: 34px; height: 34px; }
+header.site .brand .strix { color: var(--orange); } /* Geo in white, Strix in orange, as in the brand block below */
 header.site nav { margin-inline-start: auto; display: flex; gap: 20px; }
 header.site nav a { color: #d7dee5; text-decoration: none; font-size: 15px; white-space: nowrap; }
 header.site nav a:hover { color: #fff; }
@@ -48,7 +55,17 @@ header.site .lang a { display: inline-flex; align-items: center; gap: 5px; }
 header.site .lang .flag { width: 20px; height: 15px; border-radius: 2px; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18); flex: none; }
 
 /* hero */
-.hero { background: linear-gradient(180deg, var(--slate-deep), var(--slate)); color: #fff; padding: 64px 0 72px; }
+.hero { background: linear-gradient(180deg, var(--slate-deep), var(--slate)); color: #fff; padding: 40px 0 64px; }
+/* brand block at the top of the home page: the owl, the two-colour GEOSTRIX wordmark and the tagline (Matt's mock-up,
+   2026-10-31). The wordmark is Latin in every language; the tagline is translated, and Arabic must not be letter-spaced
+   (it would break the joined letters). */
+.brandmark { text-align: center; padding: 0 16px; margin: 0 auto 32px; } /* compact (Matt, 2026-11-01): the Download button must show on a 1366x768 laptop */
+.brandmark img { display: block; width: 84px; height: auto; margin: 0 auto 12px; }
+.wordmark { margin: 0; font-family: "Exo 2", system-ui, sans-serif; font-size: 52px; font-weight: 700; line-height: 1; letter-spacing: 0.02em; color: #fff; } /* the header brand's lettering, scaled up (Matt, 2026-10-31) */
+.wordmark span + span { color: var(--orange); }
+.tagline { margin: 12px 0 0; font-size: 15px; font-weight: 600; letter-spacing: 0.3em; color: #d7dee5; }
+.tagline .dot { color: var(--orange); letter-spacing: 0; margin: 0 0.6em; }
+:lang(ar) .tagline { letter-spacing: 0; font-size: 20px; }
 .hero .wrap { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: center; }
 /* download-count badge above the headline: its space is reserved so the hero doesn't jump when the count arrives,
    and it stays invisible (but keeps its height) if GitHub can't be reached */
@@ -101,15 +118,17 @@ p.sub { color: var(--muted); margin: 0 0 32px; max-width: 720px; }
 .controls { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; }
 .controls button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 999px; }
 .controls .nav { width: 46px; height: 46px; font-size: 28px; line-height: 1; display: grid; place-items: center; padding-bottom: 4px; }
-.controls .nav:hover, .controls .pause:hover { border-color: var(--orange); color: var(--orange-deep); }
+.controls .nav:hover, .controls .pause:hover { border-color: var(--orange); color: var(--link); }
 .controls .pause { padding: 6px 14px; font-size: 14px; }
 .controls button:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
-.dots { display: flex; gap: 8px; }
-.dots button { width: 12px; height: 12px; padding: 0; background: var(--line); border: 0; }
-.dots button[aria-current="true"] { background: var(--orange); }
+/* 24 px tap targets (WCAG 2.5.8) drawing a 12 px dot; the inactive grey is 3.6:1 and the current dot has a dark ring (1.4.11) */
+.dots { display: flex; gap: 0; }
+.dots button { width: 24px; height: 24px; padding: 0; background: none; border: 0; display: grid; place-items: center; }
+.dots button::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: #7d8996; }
+.dots button[aria-current="true"]::before { background: var(--orange); box-shadow: 0 0 0 1px var(--link); }
 @media (prefers-reduced-motion: reduce) { .carousel.js .slide, .carousel.js .slide.active { transition: none; } }
 .notice { border-inline-start: 4px solid var(--orange); background: #fff8ee; padding: 18px 22px; border-radius: 6px; }
-.notice h3 { margin: 0 0 6px; }
+.notice h2 { margin: 0 0 6px; font-size: 20px; }
 .notice p { margin: 0; color: #4a3a22; }
 .steps { counter-reset: s; list-style: none; padding: 0; margin: 0; }
 .steps li { counter-increment: s; position: relative; padding: 0 0 14px; padding-inline-start: 40px; }
@@ -130,6 +149,16 @@ footer.site .wrap { display: flex; flex-wrap: wrap; gap: 18px; align-items: cent
 footer.site a { color: #d7dee5; }
 footer.site .right { margin-inline-start: auto; }
 
+/* short laptop screens (1366x768, 1280x720): the brand block shrinks again so the Download button stays on the first screen */
+@media (max-height: 820px) and (min-width: 821px) {
+  .hero { padding-top: 28px; }
+  .brandmark { margin-bottom: 20px; }
+  .brandmark img { width: 60px; margin-bottom: 8px; }
+  .wordmark { font-size: 42px; }
+  .tagline { font-size: 13px; margin-top: 8px; }
+  .hero h1 { font-size: 38px; }
+}
+
 /* phones */
 /* below 1080px the full menu plus five flags-with-codes no longer fits: show the flags only (the code stays for
    screen readers, and each link's title names the language) */
@@ -148,12 +177,28 @@ footer.site .right { margin-inline-start: auto; }
   .hero .wrap, .two { grid-template-columns: 1fr; }
   .slide .pair { flex-direction: column; align-items: center; }
   .hero h1 { font-size: 32px; }
+  .brandmark { margin-bottom: 24px; }
+  .brandmark img { width: 60px; margin-bottom: 10px; }
+  .wordmark { font-size: 38px; }
+  .tagline { font-size: 12px; letter-spacing: 0.2em; }
+  .phone-only { display: block; }
+  .tagline .dot { margin: 0 0.35em; }
   .pillars, .features { grid-template-columns: 1fr; }
   header.site nav { gap: 14px; }
   header.site .lang { margin-inline-start: 4px; padding-inline-start: 8px; }
   header.site nav a.hide-sm { display: none; }
   .btn.ghost { margin: 10px 0 0; }
   footer.site .right { margin-inline-start: 0; }
+}
+/* short phones (360x640 and the like): a smaller brand block keeps the Download button on the first screen */
+@media (max-width: 820px) and (max-height: 700px) {
+  .hero { padding-top: 24px; }
+  .brandmark { margin-bottom: 16px; }
+  .brandmark img { width: 44px; margin-bottom: 6px; }
+  .wordmark { font-size: 30px; }
+  .tagline { margin-top: 6px; font-size: 11px; }
+  .hero h1 { font-size: 28px; margin-bottom: 10px; }
+  .hero p.lead { font-size: 16px; margin-bottom: 18px; }
 }
 /* small phones: the brand, two nav links and EN · ES · PT must fit in 360px in every language */
 @media (max-width: 420px) {

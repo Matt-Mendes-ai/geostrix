@@ -4,8 +4,8 @@
 // under the pointer: the slideshow fills most of the screen, so a resting mouse sat over it and it never moved (Matt,
 // 2026-10-25); the Pause button is the way to stop it. Clicking an arrow or a dot leaves that button focused, so only
 // keyboard focus (:focus-visible) counts as "reading".
-// A visitor whose system asks for reduced motion gets an instant switch instead of the fade (style.css). Left / right
-// arrow keys work too.
+// A visitor whose system asks for reduced motion gets an instant switch instead of the fade (style.css) and starts
+// paused. Left / right arrow keys work too.
 (() => {
   const DELAY = 5000;
   // the page's language (<html lang>) picks the button text: en, es, pt-BR, fr or ar
@@ -23,7 +23,8 @@
     const controls = root.querySelector(".controls");
     const dotsBox = root.querySelector(".dots");
     const pauseBtn = root.querySelector(".pause");
-    let index = 0, timer = null, userPaused = false, focus = false;
+    // A visitor whose system asks for reduced motion starts with the slideshow paused (WCAG 2.2.2); Play starts it.
+    let index = 0, timer = null, userPaused = !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches, focus = false;
 
     root.classList.add("js");
     controls.hidden = false;
@@ -70,6 +71,14 @@
       if (e.key === "ArrowRight") { show(index + 1); restart(); }
     });
     document.addEventListener("visibilitychange", restart);
+
+    // Load every picture a little before the slideshow scrolls into view. Lazy images in hidden slides never loaded,
+    // so each one sized the slideshow only when its turn came and the page below jumped (CLS +0.17 on a phone).
+    const loadAll = () => root.querySelectorAll("img[loading=lazy]").forEach((img) => { img.loading = "eager"; });
+    if ("IntersectionObserver" in window) {
+      const io = new IntersectionObserver((entries) => { if (entries.some((e) => e.isIntersecting)) { loadAll(); io.disconnect(); } }, { rootMargin: "600px" });
+      io.observe(root);
+    } else loadAll();
 
     show(0);
     setPaused(userPaused);
