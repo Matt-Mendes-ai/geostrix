@@ -42,3 +42,19 @@ The repo root has `wrangler.jsonc`, which tells Cloudflare to serve `website/` a
 3. Settings → Domains & Routes → Add → Custom domain → `geostrix.com` (and `www.geostrix.com`).
 
 Every push to `master` redeploys. Preview locally with any static server, e.g. `python -m http.server -d website 8080`.
+
+## Conventions from the web-design review (2026-11-01)
+
+- Links on light backgrounds use `--link` (#975a07, 5.5:1); hover is a thicker underline, not a lighter colour.
+  Keyboard focus shows a 3 px orange outline everywhere; every page starts with a "Skip to content" link.
+- The brand block is compact so the Download button is on the first screen at 1366×768, 1280×720 and 360×640
+  (media queries for short laptops and short phones); re-measure the button's position after any hero change.
+- The size in `[data-version]` is static text ("about 240 MB") so it shows without JavaScript or when GitHub's API
+  rate-limits a shared IP; `download.js` replaces it with the exact figure. Update it if the installer grows a lot.
+- The installed size (~790 MB, written as "about 800 MB") was measured from the v0.1.84 portable zip's file list.
+- `.assetsignore` keeps this README from being served at geostrix.com/README.md.
+- Home pages carry `rel=canonical`; the privacy pages don't yet, because Cloudflare may redirect `/privacy.html`
+  to `/privacy` — check with `curl -sI https://geostrix.com/privacy.html` and point hreflang, the sitemap and a
+  canonical at whichever URL answers 200.
+- Translated terms follow the app's glossary in `src/locales/*.json` (FR collets, AR فوهات / النمذجة العكسية, ES ensayes).
+
