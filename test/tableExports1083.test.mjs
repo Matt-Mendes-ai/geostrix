@@ -58,8 +58,8 @@ test("#1083 a diagram's projected CSV: x / y as the plot draws them; a spider di
   const box = diagramExportRows(assays, DIAGRAMS.boxplot, units);
   const p = DIAGRAMS.boxplot.project(assays[0], units);
   assert.ok(p && Number.isFinite(p.x), "the box plot projects the first sample");
-  assert.deepEqual(box[0], { hole_id: "H1", from: 0, to: 2, x: p.x, y: p.y });
-  assert.deepEqual([box[1].x, box[1].y], ["", ""]); // nothing to plot
+  assert.deepEqual(box[0], { hole_id: "H1", from: 0, to: 2, CCPI: p.x, AI: p.y }); // #1212
+  assert.deepEqual([box[1].CCPI, box[1].AI], ["", ""]); // nothing to plot
   const ree = diagramExportRows(assays, SPIDER_DIAGRAMS.ree_chondrite, units);
   assert.deepEqual(Object.keys(ree[0]).slice(0, 5), ["hole_id", "from", "to", ...SPIDER_DIAGRAMS.ree_chondrite.order.slice(0, 2)]);
   assert.ok(ree[0].La > 30); // chondrite-normalized (La / 0.237 or so)

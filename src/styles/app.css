@@ -207,6 +207,9 @@ input, select { font-family: inherit; }
   .ge-ribbon-btn { min-width: 44px; padding: 5px 3px 2px; }
   .ge-ribbon-group { padding: 0 3px; }
 }
+/* TASKS.csv #1187, #1293 — the first step when the band does not fit (Ribbon.jsx fit): every label kept, in narrower buttons. */
+.ge-ribbon-inner[data-snug] .ge-ribbon-btn { min-width: 40px; max-width: 62px; padding: 5px 1px 2px; }
+.ge-ribbon-inner[data-snug] .ge-ribbon-group { padding: 0 2px; }
 /* TASKS.csv #787 — a group the band could not fit (Ribbon.jsx fit): icon-only buttons, same height (no layout jump),
    and a caption that no longer sets the group's width (ellipsis, full text in its tooltip). */
 .ge-ribbon-group[data-compact] .ge-ribbon-btn { min-width: 34px; padding: 5px 2px 2px; justify-content: center; }

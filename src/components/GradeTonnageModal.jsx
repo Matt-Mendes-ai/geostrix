@@ -12,7 +12,8 @@ import { saveFile } from "../lib/desktop.js";
 import { toExportCsv } from "../lib/tabular.js";
 import { stampLines, withStamp, NOT_A_RESOURCE } from "../lib/provenance.js";
 import { valueUnit, valueColumnName } from "../lib/blockModelExport.js";
-import { gradeTonnageTable, gradeTonnageRows, autoCutoffs, metalOf, EXPLORATION_TARGET_CAUTION } from "../lib/gradeTonnage.js";
+import { gradeTonnageTable, gradeTonnageRows, autoCutoffs, metalOf, sgSummary, EXPLORATION_TARGET_CAUTION } from "../lib/gradeTonnage.js";
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #1216
 import { version as APP_VERSION } from "../../package.json";
 
 const fmt = (v, d = 0) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: d }));
@@ -25,6 +26,9 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
   const unit = valueUnit(model), metal = metalOf(unit);
   const [cutoffText, setCutoffText] = useState(() => autoCutoffs(model.cells).join(", "));
   const [density, setDensity] = useState("");
+  const { layers } = useStore();
+  const sgLayer = useMemo(() => sgSummary(layers?.sg), [layers?.sg]); // #1216
+  const [fromSg, setFromSg] = useState(false); // the density is the SG layer's until it is typed over
   const cutoffs = useMemo(() => [...new Set(cutoffText.split(/[,;\s]+/).map(Number).filter(Number.isFinite))], [cutoffText]);
   const rho = Number(density) > 0 ? Number(density) : null;
   const rows = useMemo(() => gradeTonnageTable(model.cells, { cutoffs, density: rho, unit }), [model.cells, cutoffs, rho, unit]);
@@ -41,7 +45,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
     const out = gradeTonnageRows(rows, { vname, density: rho, metal }); // #1017 — rows in lib, tested
     const stamp = stampLines({ tool: "Grade-tonnage table", version: APP_VERSION, epsg, params: [
       `Block model: ${model.name} (${model.cells.length} blocks, source ${model.source || "import"}) | value ${vname}${unit ? ` in ${unit}` : " (no unit stated)"}`,
-      `Density: ${rho ? `${rho} t/m3, entered by the user (one value for every block)` : "not entered: volumes only"}${merged ? " | merged blocks counted at their COVERAGE share" : ""}`,
+      `Density: ${rho ? (fromSg ? `${rho} t/m3, length-weighted mean of ${sgLayer.n} Specific gravity rows, ${sgLayer.min}-${sgLayer.max}${sgLayer.left ? `, ${sgLayer.left} outside 1-8 left out` : ""} (one value for every block)` : `${rho} t/m3, entered by the user (one value for every block)`) : "not entered: volumes only"}${merged ? " | merged blocks counted at their COVERAGE share" : ""}`,
       "Mean grade: volume-weighted over the blocks at or above the cutoff",
       EXPLORATION_TARGET_CAUTION,
     ] });
@@ -62,7 +66,8 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
           <label style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, minWidth: 260 }}>{tr("Cutoffs ({unit})", { unit: unit || tr("no unit stated") })}
             <input value={cutoffText} onChange={(e) => setCutoffText(e.target.value)} style={{ ...inp, flex: 1 }} aria-label={tr("Cutoffs, separated by commas")} /></label>
           <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Density (t/m³)")}
-            <input type="number" min={0} step={0.01} value={density} placeholder={tr("required for tonnes")} onChange={(e) => setDensity(e.target.value)} style={{ ...inp, width: 120 }} /></label>
+            <input type="number" min={0} step={0.01} value={density} placeholder={tr("required for tonnes")} onChange={(e) => { setDensity(e.target.value); setFromSg(false); }} style={{ ...inp, width: 120 }} /></label>
+          {sgLayer && <button type="button" style={{ ...inp, cursor: "pointer" }} title={tr("The length-weighted mean of the Specific gravity layer: {n} rows, {min} to {max}. One value for every block.", { n: sgLayer.n, min: sgLayer.min, max: sgLayer.max })} onClick={() => { setDensity(String(sgLayer.mean)); setFromSg(true); }}>{tr("Use the SG layer's mean ({v})", { v: sgLayer.mean })}</button>}
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10 }}>
           <thead><tr>

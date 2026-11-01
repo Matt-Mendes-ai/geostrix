@@ -59,6 +59,8 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { geochemFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1017
+import { stampLines, withStamp } from "../lib/provenance.js"; // TASKS.csv #1212
+import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1212
 
 export default function GeochemModule() {
   const store = useStore();
@@ -765,7 +767,7 @@ export default function GeochemModule() {
   };
   const exportProjectedCSV = () => {
     const rows = diagramExportRows(assays, diagram, elementUnits); // #1083 — in lib, tested
-    const csv = toExportCsv(rows);
+    const csv = withStamp(toExportCsv(rows), stampLines({ tool: `Plot data: ${diagram.label || diagramId}`, version: APP_VERSION, params: [diagram.xLabel ? `x: ${diagram.xLabel}` : "", diagram.yLabel ? `y: ${diagram.yLabel}` : "", `Element units: ${Object.entries(elementUnits || {}).map(([k, v]) => `${k} ${v}`).join(", ")}`] })); // #1212
     saveFile({ suggestedName: `${diagramId}_projected.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: csv });
   };
   const exportAssaysCSV = () => {

@@ -6633,5 +6633,8 @@
   "1 hour ago": "há 1 hora",
   "{n} hours ago": "há {n} horas",
   "{name}: not a format this importer reads (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson).": "{name}: este importador não lê esse formato (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson).",
-  "These values average {v} nT: that looks like the raw total field, not an anomaly. Removing the mean leaves the regional gradient in the data. Consider the best-fit plane, or remove the regional field first.": "Estes valores têm média de {v} nT: parece o campo total bruto, não uma anomalia. Remover a média deixa o gradiente regional nos dados. Considere o plano de melhor ajuste, ou remova antes o campo regional."
+  "These values average {v} nT: that looks like the raw total field, not an anomaly. Removing the mean leaves the regional gradient in the data. Consider the best-fit plane, or remove the regional field first.": "Estes valores têm média de {v} nT: parece o campo total bruto, não uma anomalia. Remover a média deixa o gradiente regional nos dados. Considere o plano de melhor ajuste, ou remova antes o campo regional.",
+  "Mixed types: this pools {n} structure types, so the figures below do not describe one population. Pick one structure type for a meaningful mean.": "Tipos misturados: isto agrupa {n} tipos de estrutura, portanto os números abaixo não descrevem uma única população. Escolha um tipo de estrutura para uma média com sentido.",
+  "The length-weighted mean of the Specific gravity layer: {n} rows, {min} to {max}. One value for every block.": "A média ponderada pelo comprimento da camada de densidade relativa: {n} linhas, de {min} a {max}. Um único valor para todos os blocos.",
+  "Use the SG layer's mean ({v})": "Usar a média da camada de DR ({v})"
 }

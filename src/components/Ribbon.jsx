@@ -39,7 +39,9 @@ export function Ribbon({ children, show = true, label = "Tools" }) {
     if (!el) return;
     const groups = [...el.querySelectorAll(":scope > .ge-ribbon-group")];
     groups.forEach((g) => g.removeAttribute("data-compact"));
-    el.removeAttribute("data-tight"); el.removeAttribute("data-wrap");
+    el.removeAttribute("data-snug"); el.removeAttribute("data-tight"); el.removeAttribute("data-wrap");
+    // TASKS.csv #1187, #1293 — narrower labelled buttons before any label is given up: 16 of Geochem's 27 tools were bare icons at 1,424 px
+    if (el.scrollWidth > el.clientWidth + 1) el.setAttribute("data-snug", "");
     for (let i = groups.length - 1; i >= 0 && el.scrollWidth > el.clientWidth + 1; i--) {
       if (getComputedStyle(groups[i]).display === "none") continue; // hidden in Simple mode
       groups[i].setAttribute("data-compact", "");

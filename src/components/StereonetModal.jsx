@@ -390,6 +390,8 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
             {stats ? (
               <div style={{ background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, padding: "7px 8px", fontSize: 10.5, color: "#1a2028", lineHeight: 1.55 }}>
                 <div style={{ fontWeight: 600, marginBottom: 3, color: "#c0392b" }}>{tr("Mean orientation (n={n})", { n: stats.n })}</div>
+                {/* TASKS.csv #1207 — bedding, veins and faults are not one population */}
+                {typeFilter === "all" && types.length > 1 && <div style={{ marginBottom: 3, color: "#8a5a00" }}>{tr("Mixed types: this pools {n} structure types, so the figures below do not describe one population. Pick one structure type for a meaningful mean.", { n: types.length })}</div>}
                 <div>{tr("Plane:")}{" "}<b>{stats.meanDip.toFixed(1)}° / {stats.meanDipDir.toFixed(1)}°</b> <span style={{ color: "#65717e" }}>{tr("(dip/dipdir)")}</span></div>
                 <div>{tr("Pole: {meanPlunge}° → {meanTrend}°", { meanPlunge: stats.meanPlunge.toFixed(1), meanTrend: stats.meanTrend.toFixed(1) })}{" "}<span style={{ color: "#65717e" }}>{tr("(plunge/trend)")}</span></div>
                 <div style={{ marginTop: 4, borderTop: "1px solid #e3e6ea", paddingTop: 4 }}>

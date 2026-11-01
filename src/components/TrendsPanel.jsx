@@ -135,7 +135,10 @@ export default function TrendsPanel({ structuralTrends, setStructuralTrends, str
         + (closed ? " — " + tr("a closed shell: this is its flattening plane, not a contact") : "");
     }
     if (!plane) { setNote({ id: t.id, text: tr("Not enough data to fit a plane.") }); return; }
-    update(t.id, { dip: Math.round(plane.dip * 10) / 10, dipAzimuth: Math.round(plane.dipAzimuth * 10) / 10 });
+    // TASKS.csv #1237 — a name that states the plane follows it; a name the geologist typed stays
+    const autoName = /^(Stereonet mean|Mean of .+|Plane of .+) \(\d+° → \d+°\)$/.test(t.name || "");
+    const plan = ` (${plane.dip.toFixed(0)}° → ${plane.dipAzimuth.toFixed(0)}°)`;
+    update(t.id, { dip: Math.round(plane.dip * 10) / 10, dipAzimuth: Math.round(plane.dipAzimuth * 10) / 10, ...(autoName ? { name: (kind === "code" ? `Mean of ${key}` : `Plane of ${(surfaces || []).find((x) => x.id === key)?.name || "surface"}`) + plan } : {}) });
     setNote({ id: t.id, text: tr("Dip {dip}° → {dipAzimuth}° from {what}. Pitch and ratios unchanged.", { dip: plane.dip.toFixed(1), dipAzimuth: plane.dipAzimuth.toFixed(1), what }) });
   };
 

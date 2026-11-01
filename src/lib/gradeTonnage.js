@@ -49,3 +49,16 @@ export function gradeTonnageRows(rows, { vname, density = null, metal = null }) 
   return rows.map((r) => ({ cutoff: r.cutoff, blocks: r.blocks, volume_m3: Math.round(r.volumeM3), [`mean_${vname}`]: r.meanGrade == null ? "" : Number(r.meanGrade.toPrecision(5)),
     ...(density ? { tonnes: Math.round(r.tonnes || 0) } : {}), ...(density && metal ? { [`metal_${metal.unit}`]: r.metal == null ? "" : Math.round(r.metal) } : {}) }));
 }
+
+// TASKS.csv #1216 — the project's measured specific gravity as one density: the length-weighted mean, with what it rests on. A value outside 1-8 t/m3 is
+// left out and counted (a percent, or a missing-data code). One figure for every block: it says nothing of density varying with the rock. -> null with no usable row.
+export function sgSummary(rows) {
+  let sum = 0, len = 0, n = 0, left = 0, min = Infinity, max = -Infinity;
+  for (const r of rows || []) {
+    const v = Number(r.value), l = Number(r.to) - Number(r.from);
+    if (!(l > 0) || r.value == null || r.value === "" || !Number.isFinite(v)) continue;
+    if (v < 1 || v > 8) { left++; continue; }
+    sum += v * l; len += l; n++; min = Math.min(min, v); max = Math.max(max, v);
+  }
+  return n ? { mean: +(sum / len).toFixed(3), n, left, min, max } : null;
+}

@@ -380,6 +380,8 @@ export function diagramExportRows(assays, diagram, elementUnits) {
   }
   return assays.map((a) => {
     const p = diagram.project(a, elementUnits);
-    return { hole_id: a.hole_id, from: a.from, to: a.to, x: p?.x ?? "", y: p?.y ?? "" };
+    // TASKS.csv #1212 — columns named after the axes: "CCPI", "AI", "SiO₂ (wt%)", not x and y
+    const axis = (label, fallback) => String(label || fallback).split(" = ")[0];
+    return { hole_id: a.hole_id, from: a.from, to: a.to, [axis(diagram.xLabel, "x")]: p?.x ?? "", [axis(diagram.yLabel, "y")]: p?.y ?? "" };
   });
 }

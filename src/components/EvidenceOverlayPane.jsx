@@ -20,13 +20,14 @@ import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #102
 import { fontSizes } from "../lib/theme.js";
 import { pBtn as sidebarBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #997
 import { t as tr } from "../lib/i18n.js";
+import { SURVEY_METHODS } from "../lib/geophysSurveys.js"; // TASKS.csv #1209
 
 const fmt = (v, d = 2) => (v == null || !Number.isFinite(v) ? "—" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 || v === 0 ? v.toFixed(d) : v.toPrecision(2)); // a small cutoff keeps its digits, not "-0.00"
 const numText = (v) => (Number.isFinite(v) ? String(+v.toPrecision(3)) : ""); // what a number input can hold
 let nextId = 1;
 
 export default function EvidenceOverlayPane({ onClose }) {
-  const { rasters = [], mapLayers = [], surfaceSamples = [], surfaceElements = [], terrain, collars = [], survey = [], assays = [], assayElements = [], layers: projectLayers, voxelModels = [], project, addRaster, evidenceOverlay, setEvidenceOverlay } = useStore();
+  const { rasters = [], mapLayers = [], surfaceSamples = [], surfaceElements = [], terrain, collars = [], survey = [], assays = [], assayElements = [], layers: projectLayers, voxelModels = [], project, addRaster, evidenceOverlay, setEvidenceOverlay, geophysSurveys = {} } = useStore();
   const units = useMemo(() => Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit])), [surfaceElements]);
   const assayUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const [layers, setLayers] = useState([]); // [{ id, kind, label, ref, shape, low, high, values }]
@@ -64,7 +65,7 @@ export default function EvidenceOverlayPane({ onClose }) {
     surfaceElements.forEach((e) => out.push({ key: `el:${e.symbol}`, label: tr("Samples: {sym} (robust z)", { sym: e.symbol }), kind: "element", ref: e.symbol }));
     if (surfaceElements.length) PATHFINDER_PRESETS.forEach((p) => out.push({ key: `ix:${p.id}`, label: tr("Samples: {name} index", { name: tr(p.label) }), kind: "index", ref: p.id }));
     // TASKS.csv #1154 — what a drilling project holds: surveys, block models, grades along the holes, logged structures
-    surveyNames(geophysPts).forEach((k) => out.push({ key: `geo:${k}`, label: tr("Geophysics: {name}", { name: k }), kind: "survey", ref: k }));
+    surveyNames(geophysPts).forEach((k) => out.push({ key: `geo:${k}`, label: tr("Geophysics: {name}", { name: SURVEY_METHODS[geophysSurveys[k]?.method] ? `${tr(SURVEY_METHODS[geophysSurveys[k].method].label)} — ${k}` : k }), kind: "survey", ref: k } /* #1209 */));
     const categorical = new Set(categoricalModels(voxelModels));
     voxelModels.filter((m) => m.cells?.length && !categorical.has(m)).forEach((m) => {
       out.push({ key: `vox:max:${m.id ?? m.name}`, label: tr("Block model: {name} (highest in each column)", { name: m.name }), kind: "voxel", ref: m.id ?? m.name, how: "max" });

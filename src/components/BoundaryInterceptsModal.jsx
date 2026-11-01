@@ -42,7 +42,12 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
   const editingSet = interceptSets.find((x) => x.id === editingSetId) || null;
   const memberSet = useMemo(() => new Set(editingSet ? editingSet.ids || [] : []), [editingSet]);
 
-  const units = useMemo(() => Array.from(new Set(intercepts.map((i) => i.unit))).sort(), [intercepts]);
+  // TASKS.csv #1271 — the codes of the chosen layer, with their counts: an alteration code under Vein / dyke gave an empty table
+  const units = useMemo(() => {
+    const n = new Map();
+    for (const i of intercepts) if (layerFilter === "all" || i.layerKey === layerFilter) n.set(i.unit, (n.get(i.unit) || 0) + 1);
+    return [...n.entries()].sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+  }, [intercepts, layerFilter]);
   const excludedSet = useMemo(() => new Set(excludedIntercepts), [excludedIntercepts]);
   const softSet = useMemo(() => new Set(softIntercepts), [softIntercepts]);
 
@@ -85,7 +90,7 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
             </select>
             <select aria-label={tr("Filter by unit")} value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)} style={{ ...sel, flex: 1 }}>
               <option value="all">{tr("All units")}</option>
-              {units.map((u) => <option key={u} value={u}>{u}</option>)}
+              {units.map(([u, n]) => <option key={u} value={u}>{`${u} (${n})`}</option>)}
             </select>
             <input value={holeFilter} onChange={(e) => setHoleFilter(e.target.value)} placeholder={tr("Hole ID…")} style={{ ...sel, flex: 1 }} />
           </div>
