@@ -36,6 +36,8 @@ export function fenceLines(tMin, tMax, spacing, azimuth) {
   const k0 = Math.floor(tMin / w + 0.5), k1 = Math.ceil(tMax / w - 0.5);
   const az = norm360(azimuth), a = toRad(az);
   const perpX = Math.cos(a), perpY = -Math.sin(a);
+  // TASKS.csv #1255 — an oblique line is named by its offset from the middle of the data: "Line -4710600 m" measured from the UTM origin meant nothing
+  const mid = Math.round(((tMin + tMax) / 2) / w) * w;
   const out = [];
   for (let k = k0; k <= Math.max(k0, k1); k++) {
     const t = k * w;
@@ -43,7 +45,7 @@ export function fenceLines(tMin, tMax, spacing, azimuth) {
     let name;
     if (Math.abs(Math.sin(a)) < 1e-9) name = `${Math.round(px)}E`;
     else if (Math.abs(Math.cos(a)) < 1e-9) name = `${Math.round(py)}N`;
-    else name = `Line ${t > 0 ? "+" : ""}${Math.round(t)} m`;
+    else name = `Line ${t - mid > 0 ? "+" : ""}${Math.round(t - mid)} m`;
     out.push({ t, name });
   }
   return out;

@@ -6588,5 +6588,6 @@
   "Parent sample": "Échantillon parent",
   "CRM / standard name": "Nom du MRC / standard",
   "The top of overburden is the ground at the collars. For its base, run a Strat. stack with the unit below it: that unit's top is the base of overburden.": "Le toit des morts-terrains est le sol aux collets. Pour leur base, lancez une pile stratigraphique avec l'unité sous-jacente : son toit est la base des morts-terrains.",
-  "Not extended: {names}. A contact under 5% of the box stays as drawn; others reach at most three times their own radius.": "Non prolongés : {names}. Un contact sous 5 % de la boîte reste tel que dessiné ; les autres vont au plus à trois fois leur rayon."
+  "Not extended: {names}. A contact under 5% of the box stays as drawn; others reach at most three times their own radius.": "Non prolongés : {names}. Un contact sous 5 % de la boîte reste tel que dessiné ; les autres vont au plus à trois fois leur rayon.",
+  "With a trend the model box is about {a} km³, against {b} km³ around the same data without one, so a unit's volume cannot be compared between the two runs.": "Avec une tendance, la boîte du modèle fait environ {a} km³, contre {b} km³ autour des mêmes données sans elle : le volume d'une unité n'est pas comparable entre les deux calculs."
 }

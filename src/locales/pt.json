@@ -6588,5 +6588,6 @@
   "Parent sample": "Amostra original",
   "CRM / standard name": "Nome do CRM / padrão",
   "The top of overburden is the ground at the collars. For its base, run a Strat. stack with the unit below it: that unit's top is the base of overburden.": "O topo do capeamento é o terreno nos colares. Para sua base, execute uma pilha estratigráfica com a unidade abaixo: o topo dessa unidade é a base do capeamento.",
-  "Not extended: {names}. A contact under 5% of the box stays as drawn; others reach at most three times their own radius.": "Não estendidos: {names}. Um contato abaixo de 5 % da caixa fica como desenhado; os demais alcançam no máximo três vezes seu raio."
+  "Not extended: {names}. A contact under 5% of the box stays as drawn; others reach at most three times their own radius.": "Não estendidos: {names}. Um contato abaixo de 5 % da caixa fica como desenhado; os demais alcançam no máximo três vezes seu raio.",
+  "With a trend the model box is about {a} km³, against {b} km³ around the same data without one, so a unit's volume cannot be compared between the two runs.": "Com uma tendência a caixa do modelo tem cerca de {a} km³, contra {b} km³ em torno dos mesmos dados sem ela, então o volume de uma unidade não é comparável entre as duas execuções."
 }

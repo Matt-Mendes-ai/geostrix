@@ -6588,5 +6588,6 @@
   "Parent sample": "العينة الأصلية",
   "CRM / standard name": "اسم المادة المرجعية / المعيار",
   "The top of overburden is the ground at the collars. For its base, run a Strat. stack with the unit below it: that unit's top is the base of overburden.": "أعلى الغطاء هو سطح الأرض عند الفوهات. لقاعدته شغّل عمودًا طبقيًا مع الوحدة تحته: أعلى تلك الوحدة هو قاعدة الغطاء.",
-  "Not extended: {names}. A contact under 5% of the box stays as drawn; others reach at most three times their own radius.": "لم تُمدَّد: {names}. يبقى التماس الأقل من 5% من الصندوق كما رُسم؛ وتصل البقية إلى ثلاثة أضعاف نصف قطرها كحد أقصى."
+  "Not extended: {names}. A contact under 5% of the box stays as drawn; others reach at most three times their own radius.": "لم تُمدَّد: {names}. يبقى التماس الأقل من 5% من الصندوق كما رُسم؛ وتصل البقية إلى ثلاثة أضعاف نصف قطرها كحد أقصى.",
+  "With a trend the model box is about {a} km³, against {b} km³ around the same data without one, so a unit's volume cannot be compared between the two runs.": "مع الاتجاه يبلغ صندوق النموذج نحو {a} كم³، مقابل {b} كم³ حول البيانات نفسها دونه، لذا لا يمكن مقارنة حجم الوحدة بين التشغيلين."
 }

@@ -216,7 +216,9 @@ def plan(req, ram_cap_bytes):
         tz = griddata(topo[:, :2], topo[:, 2], st[:, :2], method="linear")
         near = np.isfinite(tz)
         clearance = st[near, 2] - tz[near]
-        low = int(np.sum(clearance < 1.0))
+        # TASKS.csv #1173 — stations draped at a chosen height were compared with a coarser sample of the same terrain: on an 18 m TIN a 2 m drape read 0.9 m and was
+        # refused. A draped station's height is what the geologist set; it is refused only if it comes out below the ground.
+        low = int(np.sum(clearance < (0.0 if req.get("stationsDraped") else 1.0)))
         outside = int(np.sum(~near))
         # TASKS.csv #369 — what the sensor clearance actually is, so it can be compared with the contractor's
         # nominal survey height. A datum mismatch (GPS ellipsoidal heights vs an EGM96 DEM: ~17 m in the
@@ -225,7 +227,7 @@ def plan(req, ram_cap_bytes):
             clearance_stats = {"median": float(np.median(clearance)), "p5": float(np.percentile(clearance, 5)),
                                "p95": float(np.percentile(clearance, 95)), "min": float(clearance.min()), "n": int(near.sum())}
         if low:
-            reasons.append(f"{low} station(s) are less than 1 m above the terrain (or below it). The sensor elevation "
+            reasons.append((f"{low} draped station(s) come out below the terrain sample. Use a larger height. " if req.get("stationsDraped") else f"{low} station(s) are less than 1 m above the terrain (or below it). ") + "The sensor elevation "
                            "must be above ground — check the height setting, or the station and terrain datums.")
         if outside:
             reasons.append(f"{outside} station(s) lie outside the terrain surface. Load terrain that covers the whole survey.")

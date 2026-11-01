@@ -129,7 +129,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #390
 import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellSupported, voxelCellShown, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
-import { syncHoleLabels } from "../lib/viewer/holeLabels.js"; // TASKS.csv #1277
+import { syncHoleLabels, declutterHoleLabels } from "../lib/viewer/holeLabels.js";
 import { findOnTraceWorld, findOnTrace, pointInDomain, SOLID_SURFACE_TYPES } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693
 import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
@@ -2573,7 +2573,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const interval = quietFor > DEEP_IDLE_AFTER_MS ? DEEP_IDLE_FRAME_INTERVAL_MS : quietFor > IDLE_AFTER_MS ? IDLE_FRAME_INTERVAL_MS : 0;
       if (now - lastFrameAtRef.current >= interval) {
         resortTransparentVoxels(now);
-        { const hl = layerGroupsRef.current?.hole_labels; if (hl?.visible && hl.children.length) fitScreenLabels(hl, camera, mount.clientHeight); } // #379
+        { const hl = layerGroupsRef.current?.hole_labels; if (hl?.visible && hl.children.length) { fitScreenLabels(hl, camera, mount.clientHeight); declutterHoleLabels(hl, camera, mount.clientWidth, mount.clientHeight); } }
         if (sectionLinesGroupRef.current?.children.length) fitScreenLabels(sectionLinesGroupRef.current, camera, mount.clientHeight); // #1126 — section end labels
         renderer.setViewport(0, 0, mount.clientWidth, mount.clientHeight);
         renderer.setScissorTest(false);
