@@ -6678,5 +6678,7 @@
   "Plunge": "الغطس",
   "Plunge direction": "اتجاه الغطس",
   "Dip direction": "اتجاه الميل",
-  "Formats: .csv, MapInfo .tab / .mif": "الصيغ: .csv وMapInfo ‏.tab / .mif"
+  "Formats: .csv, MapInfo .tab / .mif": "الصيغ: .csv وMapInfo ‏.tab / .mif",
+  "A point snapped to a hole off the section normally keeps the hole's real position, so the surface passes through the logged contact and its cut here can sit away from the point. On: the point stays on this section's plane, so the cut follows what you draw, and the surface no longer passes through the hole there.": "تحتفظ النقطة الملتقطة على ثقب خارج المقطع عادةً بموقع الثقب الحقيقي، فيمر السطح بالتماس المسجل وقد يبتعد قطعه هنا عن النقطة. عند التفعيل: تبقى النقطة على مستوى هذا المقطع، فيتبع القطع ما ترسمه ولا يعود السطح يمر بالثقب في ذلك الموضع.",
+  "Keep snaps on the section": "إبقاء الالتقاط على المقطع"
 }

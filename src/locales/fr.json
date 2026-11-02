@@ -6678,5 +6678,7 @@
   "Plunge": "Plongée",
   "Plunge direction": "Direction de plongée",
   "Dip direction": "Direction de pendage",
-  "Formats: .csv, MapInfo .tab / .mif": "Formats : .csv, MapInfo .tab / .mif"
+  "Formats: .csv, MapInfo .tab / .mif": "Formats : .csv, MapInfo .tab / .mif",
+  "A point snapped to a hole off the section normally keeps the hole's real position, so the surface passes through the logged contact and its cut here can sit away from the point. On: the point stays on this section's plane, so the cut follows what you draw, and the surface no longer passes through the hole there.": "Un point accroché à un sondage hors de la coupe garde normalement la position réelle du sondage : la surface passe par le contact consigné et sa trace ici peut s'écarter du point. Activé : le point reste dans le plan de cette coupe, la trace suit votre dessin et la surface ne passe plus par le sondage à cet endroit.",
+  "Keep snaps on the section": "Garder les accrochages sur la coupe"
 }

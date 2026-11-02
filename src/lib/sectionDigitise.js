@@ -200,3 +200,10 @@ export function steppedSectionName(name, offset) {
   const off = Math.round(offset) + prior, base = m ? m[1] : (name || "");
   return off ? `${base} ${off > 0 ? "+" : ""}${off} m` : base;
 }
+
+// TASKS.csv #1231 — a vertex snapped to a hole off the section keeps the hole's real position, so the surface passes there and its cut on this section can sit
+// metres from the drawn vertex. For a thin-section workflow: the same vertex on the section plane, still naming the hole. Only a snap to a hole moves.
+export function onSectionPlane(p, { ax, ay, ux, uy }) {
+  if (!p?.hole_id) return p;
+  return { ...p, x: ax + p.l * ux, y: ay + p.l * uy, projected: true };
+}

@@ -6678,5 +6678,7 @@
   "Plunge": "Inmersión",
   "Plunge direction": "Dirección de inmersión",
   "Dip direction": "Dirección de buzamiento",
-  "Formats: .csv, MapInfo .tab / .mif": "Formatos: .csv, MapInfo .tab / .mif"
+  "Formats: .csv, MapInfo .tab / .mif": "Formatos: .csv, MapInfo .tab / .mif",
+  "A point snapped to a hole off the section normally keeps the hole's real position, so the surface passes through the logged contact and its cut here can sit away from the point. On: the point stays on this section's plane, so the cut follows what you draw, and the surface no longer passes through the hole there.": "Un punto ajustado a un sondaje fuera de la sección normalmente conserva la posición real del sondaje, de modo que la superficie pasa por el contacto registrado y su corte aquí puede quedar lejos del punto. Activado: el punto permanece en el plano de esta sección, el corte sigue lo que dibuja y la superficie ya no pasa por el sondaje en ese lugar.",
+  "Keep snaps on the section": "Mantener ajustes en la sección"
 }

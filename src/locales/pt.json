@@ -6678,5 +6678,7 @@
   "Plunge": "Caimento",
   "Plunge direction": "Direção do caimento",
   "Dip direction": "Direção do mergulho",
-  "Formats: .csv, MapInfo .tab / .mif": "Formatos: .csv, MapInfo .tab / .mif"
+  "Formats: .csv, MapInfo .tab / .mif": "Formatos: .csv, MapInfo .tab / .mif",
+  "A point snapped to a hole off the section normally keeps the hole's real position, so the surface passes through the logged contact and its cut here can sit away from the point. On: the point stays on this section's plane, so the cut follows what you draw, and the surface no longer passes through the hole there.": "Um ponto ajustado a um furo fora da seção normalmente mantém a posição real do furo, então a superfície passa pelo contato registrado e seu corte aqui pode ficar longe do ponto. Ativado: o ponto fica no plano desta seção, o corte segue o que você desenha e a superfície deixa de passar pelo furo nesse local.",
+  "Keep snaps on the section": "Manter ajustes na seção"
 }

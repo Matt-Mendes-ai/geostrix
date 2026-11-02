@@ -105,13 +105,20 @@ export function pointEvidence(g, points, { power = 2, maxDistance = 500, maxPoin
   const out = new Float32Array(g.nx * g.ny).fill(NaN);
   const pts = points.filter((p) => Number.isFinite(p.value) && Number.isFinite(p.x) && Number.isFinite(p.y));
   if (!pts.length) return out;
-  const R = Math.max(1, maxDistance), key = (x, y) => `${Math.floor(x / R)},${Math.floor(y / R)}`, buckets = new Map();
-  pts.forEach((p, i) => { const k = key(p.x, p.y); (buckets.get(k) || buckets.set(k, []).get(k)).push(i); });
+  // TASKS.csv #1281 — one string key per neighbour of every cell was most of a 200 ms stall when an evidence was picked: number keys, and cells beyond reach of every point skip at once
+  const R = Math.max(1, maxDistance), BUCKET = 2 ** 26, key = (cx, cy) => cx * BUCKET + cy, buckets = new Map();
+  let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity;
+  pts.forEach((p, i) => {
+    const k = key(Math.floor(p.x / R), Math.floor(p.y / R)); (buckets.get(k) || buckets.set(k, []).get(k)).push(i);
+    if (p.x < xMin) xMin = p.x; if (p.x > xMax) xMax = p.x; if (p.y < yMin) yMin = p.y; if (p.y > yMax) yMax = p.y;
+  });
   const cand = [];
   for (let k = 0; k < out.length; k++) {
-    const [x, y] = cellXY(g, k), cx = Math.floor(x / R), cy = Math.floor(y / R);
+    const x = g.x0 + (k % g.nx) * g.dx, y = g.yTop - Math.floor(k / g.nx) * g.dy;
+    if (x < xMin - R || x > xMax + R || y < yMin - R || y > yMax + R) continue;
+    const cx = Math.floor(x / R), cy = Math.floor(y / R);
     cand.length = 0;
-    for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) for (const i of buckets.get(`${cx + ox},${cy + oy}`) || []) { const d = Math.hypot(pts[i].x - x, pts[i].y - y); if (d <= R) cand.push([d, i]); }
+    for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) for (const i of buckets.get(key(cx + ox, cy + oy)) || []) { const d = Math.hypot(pts[i].x - x, pts[i].y - y); if (d <= R) cand.push([d, i]); }
     if (!cand.length) continue;
     cand.sort((a, b) => a[0] - b[0]);
     let num = 0, den = 0, exact = null;

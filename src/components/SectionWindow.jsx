@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, useLayoutEffect } from "re
 import { Camera, Pencil, Check, Undo2, X, Save, Download, FileText, Crosshair } from "./icons.js";
 import { onSectionData, getSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF, canvasPngBytes } from "../lib/desktop.js";
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #395
-import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearestSegment, setTieVertex, copyGhostString } from "../lib/sectionDigitise.js"; // TASKS.csv #519; copyGhostString: #1059
+import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearestSegment, setTieVertex, copyGhostString, onSectionPlane } from "../lib/sectionDigitise.js"; // TASKS.csv #519; copyGhostString: #1059
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { sectionPaper } from "../lib/pageFormats.js"; // TASKS.csv #1143
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -10,6 +10,7 @@ import { placeLabels, leaderEnd, resolveLabels, labelWidth } from "../lib/sectio
 import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped
 import { exportSvgMarkup, FIGURE_FONT } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { wrapText } from "../lib/figureFurniture.js";
+import { signedOffset } from "../lib/sectionCorridor.js"; // TASKS.csv #1231
 import { colors, printPt, printPx, PLACED_W } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned, the planned-hole colour of every view; print scale: #1090
 import { flushSync } from "react-dom"; // TASKS.csv #1090 — render at print size for an export, synchronously
 
@@ -54,6 +55,7 @@ export default function SectionWindow() {
   const [drawing, setDrawing] = useState(false);
   // TASKS.csv #519 — snap clicks to the logged contacts / traces, and edit a finished string's vertices
   const [snapOn, setSnapOn] = useState(true);
+  const [projectSnaps, setProjectSnaps] = useState(false); // #1231
   const [editingId, setEditingId] = useState(null);
   const [drawPoints, setDrawPoints] = useState([]);
   // TASKS.csv #395 — design a planned hole on the section: click the collar (snapped to the ground
@@ -348,6 +350,8 @@ export default function SectionWindow() {
           )}
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Clicks within ~12 px of a hole snap to the chosen unit's logged top (any logged boundary for faults / strings), else to the trace; the snapped vertex keeps the hole's exact position and depth (square marker)")}>
             <input type="checkbox" checked={snapOn} onChange={(e) => setSnapOn(e.target.checked)} />{" "}{tr("Snap to holes")}</label>
+          {snapOn && <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("A point snapped to a hole off the section normally keeps the hole's real position, so the surface passes through the logged contact and its cut here can sit away from the point. On: the point stays on this section's plane, so the cut follows what you draw, and the surface no longer passes through the hole there.")}>
+            <input type="checkbox" checked={projectSnaps} onChange={(e) => setProjectSnaps(e.target.checked)} />{" "}{tr("Keep snaps on the section")}</label>}
           {/* TASKS.csv #876 — step to the parallel section beside this one, and refresh what the main window draws on it */}
           <button onClick={() => sendSectionContacts({ id: data.id, step: -1 })} title={tr("Open the parallel section on the right of this one (looking along it from its start); a new one is made at the section spacing when there is none. Save your contacts first.")} style={btnStyle(false)}>‹</button>
           <button onClick={() => sendSectionContacts({ id: data.id, step: 1 })} title={tr("Open the parallel section on the left of this one (looking along it from its start); a new one is made at the section spacing when there is none. Save your contacts first.")} style={btnStyle(false)}>›</button>
@@ -466,7 +470,7 @@ export default function SectionWindow() {
         )}
         {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{v2}. Click the pencil again to finish; Save contacts keeps the changes.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}{editing?.kind === "outline" ? ` ${tr("Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.")}` : ""}</div>}
         <SectionSVG textFont={textFont} textScale={printScale ?? textScale} /* #1090 — the print size while an export is drawn */ holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
-          snap={snapOn && !planning ? targets : null} editingId={editingId} onEditPoints={editPoints} onCopyGhost={drawing || planning ? null : copyGhost}
+          snap={snapOn && !planning ? targets : null} projectSnaps={projectSnaps} editingId={editingId} onEditPoints={editPoints} onCopyGhost={drawing || planning ? null : copyGhost}
           labels={labels} onMoveLabel={(key, off) => changeLabels({ offsets: { ...labels.offsets, [key]: off } })} /* #823 */ />
       </div>
     </div>
@@ -478,7 +482,7 @@ function btnStyle(active) {
 }
 const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11.5 };
 
-function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onMoveLabel, onCopyGhost = null }) {
+function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onMoveLabel, onCopyGhost = null, projectSnaps = false }) {
   const fs = (n) => +(n * textScale).toFixed(2); // TASKS.csv #1129 — every label at the chosen text size
   // TASKS.csv #1134 — depth / EOH / offset / planned-hole labels are collected while the holes are drawn and placed in one
   // collision pass at the very end (resolveLabels), on top of the ribbons; holeLabelBoxes: the hole names, placed first
@@ -562,11 +566,19 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
     const ctm = svg.getScreenCTM();
     return ctm ? pt.matrixTransform(ctm.inverse()) : null;
   };
+  // TASKS.csv #1231 — the offset beside a snapped vertex, as the hole's own trace prints it: "+67 m" says why the surface's cut is not at this point
+  const pushSnapOffset = (p, key) => {
+    if (!p?.hole_id || !Number.isFinite(p.x) || !Number.isFinite(p.y)) return;
+    const o = signedOffset(p.x, p.y, { x: ax, y: ay }, { x: bx, y: by });
+    if (Math.abs(o) <= 5) return;
+    const x = sx(p.l), y = sz(p.z);
+    floatLabels.push({ key: `snap${key}`, text: `${o >= 0 ? "+" : ""}${o.toFixed(0)} m`, size: fs(9), fill: colors.warnText, weight: 600, prio: 3, cands: [{ x: x + 7, y: y - 5, anchor: "start" }, { x: x - 7, y: y - 5, anchor: "end" }, { x: x + 7, y: y + fs(11), anchor: "start" }, { x: x - 7, y: y + fs(11), anchor: "end" }] });
+  };
   const pointAt = (local) => {
     if (snap) {
       const s = snapClick({ sx: local.x, sy: local.y }, { holes, targets: snap, toScreen: (x, y, z) => [sx(along(x, y)), sz(z)], along, radius: 12,
         strings: contacts.map((c) => ({ id: c.id, points: c.points, closed: c.kind === "outline" })), skip: dragRef.current ? { id: dragRef.current.id, i: dragRef.current.i } : null }); // strings: #876
-      if (s) return s;
+      if (s) return projectSnaps ? onSectionPlane(s, { ax, ay, ux, uy }) : s;
     }
     const l = Math.max(0, Math.min(maxL, invSx(local.x)));
     const z = invSz(local.y);
@@ -841,6 +853,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
             const r = c.id === editingId ? 4.5 : 2.5;
             if (p.tie) return <g key={i}><circle cx={sx(p.l)} cy={sz(p.z)} r={r + 3.5} fill="none" stroke={c.color} strokeWidth="2" pointerEvents="none" /><circle cx={sx(p.l)} cy={sz(p.z)} r={r} {...common} {...handlers}><title>{tr("Tie point: linked to the tie point of this body's outline on the next section")}</title></circle></g>; /* #874 */
             const tip = p.snap ? `${p.hole_id} @ ${Number(p.md).toFixed(2)} m (snapped to ${p.snap === "boundary" ? "the logged contact" : "the trace"})` : "free point";
+            pushSnapOffset(p, `c${c.id}_${i}`); // #1231
             return p.snap
               ? <rect key={i} x={sx(p.l) - r} y={sz(p.z) - r} width={2 * r} height={2 * r} {...common} {...handlers}><title>{tip}</title></rect>
               : <circle key={i} cx={sx(p.l)} cy={sz(p.z)} r={r} {...common} {...handlers}><title>{tip}</title></circle>;
@@ -882,7 +895,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
       {drawing && drawPoints.length > 0 && (
         <g>
           <polyline points={drawPoints.map((p) => `${sx(p.l)},${sz(p.z)}`).join(" ")} fill="none" stroke="#e2a63c" strokeWidth="2" strokeDasharray="4 3" />
-          {drawPoints.map((p, i) => (p.snap
+          {drawPoints.map((p, i) => (pushSnapOffset(p, `d${i}`), p.snap
             ? <rect key={i} x={sx(p.l) - 3.5} y={sz(p.z) - 3.5} width="7" height="7" fill="#e2a63c" stroke="#1a2028" strokeWidth="1"><title>{`${p.hole_id} @ ${Number(p.md).toFixed(2)} m (snapped)`}</title></rect>
             : <circle key={i} cx={sx(p.l)} cy={sz(p.z)} r="3" fill="#e2a63c" stroke="#ffffff" strokeWidth="1" />))}
         </g>
