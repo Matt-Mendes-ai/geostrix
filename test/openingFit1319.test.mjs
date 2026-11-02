@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 // TASKS.csv #1319 — the opening view frames every hole, not the densest drilling, and not a block model 25 km across
-const src = readFileSync("src/modules/ViewerModule.jsx", "utf8");
+const src = readFileSync("src/modules/ViewerModule.jsx", "utf8").replace(/\r\n/g, "\n"); // a Windows checkout has CRLF
 test("the opening fit takes the hole traces, counted before the block models are added", () => {
   assert.match(src, /autoFitInitial = useCallback\(\(traces, nHoles\) => \{ fitView\(nHoles \? traces\.slice\(0, nHoles\) : traces\); \}/);
   const count = src.indexOf("const nHoleTraces = allTraces.length;"), voxels = src.indexOf("(voxelModels || []).forEach((model) => {\n      if (!model.cells?.length) return;\n      const xs = minMax");
