@@ -11,6 +11,7 @@
 //     observed / predicted / residual maps, provenance on the model, and no volume or tonnage anywhere.
 // The job itself lives in lib/inversionJobs.js so it survives tab switches.
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import InResultArea from "./InResultArea.jsx"; // TASKS.csv #1199
 import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1174
 import { ChevronDown, ChevronRight, Activity, Square, Compass, Play, Gauge } from "./icons.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
@@ -39,7 +40,7 @@ const METHODS = {
 
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 
-export default function InversionPanel({ pBtn, numInput, inPane = false }) { // inPane: TASKS.csv #458
+export default function InversionPanel({ pBtn, numInput, inPane = false, resultSlot = null }) { // inPane: TASKS.csv #458
   const { layers, terrain, project, surfaceStructures, getProjectToken, addVoxelModelToTab, collars, survey: drillSurvey, desurveyMethod, geophysSurveys, voxelModels } = useStore();
   const keptScope = scopeOf(getProjectToken()); // TASKS.csv #1284 — survives a tab switch
   const setTaskProgress = useSetTaskProgress();
@@ -616,7 +617,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
               {job && !running && job.error && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)", marginTop: 6 }}>{job.error}</div>}
               {job && !running && job.status?.state === "cancelled" && <div style={{ ...small, marginTop: 6 }}>{tr("Cancelled — the worker process was stopped and its memory released.")}</div>}
               {msg && <div role={msg.ok ? "status" : "alert"} style={{ ...small, marginTop: 6, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{msg.text}</div>}
-              {lastResult && !running && <FitView last={lastResult} method={method} />}
+              {lastResult && !running && <InResultArea slot={resultSlot}><FitView last={lastResult} method={method} mapSize={resultSlot ? 260 : 78} /></InResultArea>}
             </>
           )}
         </div>
@@ -626,7 +627,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false }) { // 
 }
 
 // ---------- "did it fit?" view ----------
-function FitView({ last, method }) {
+function FitView({ last, method, mapSize = 78 }) {
   const { result, prepared, verdict, geo } = last;
   const unit = METHODS[result.method]?.unit || "";
   const st = prepared.stations, obs = result.observedUsed || prepared.observed; // #368 — after base-level removal
@@ -642,7 +643,7 @@ function FitView({ last, method }) {
         {/* TASKS.csv #367 — say how faithfully the mesh holds the plate (fractional cells keep its volume). */}
         {runs[0]?.thinnerThanCell && <div style={small}>{tr("The plate is thinner than a mesh cell, so it is represented by partly filled cells (modelled volume {v}% of the plate's true volume{v2}).", { v: Math.round((runs[0].volumeRatio || 0) * 100), v2: runs.length > 1 ? ` at ${runs[0].dip}°` : "" })}</div>}
         {result.body !== "model" && runs.some((r) => r.volumeRatio != null && r.volumeRatio < 0.9) && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)" }}>{tr("Part of the plate lies above the ground surface or outside the mesh at some dips (modelled volume as low as {v}%) — those responses are for a smaller body than the one entered.", { v: Math.round(arrMin(runs.map((r) => r.volumeRatio ?? 1)) * 100) })}</div>}
-        {runs.length === 1 && <PointMaps stations={st} observed={obs} predicted={forwardMapValues(obs, runs[0]).predicted} unit={unit} />}
+        {runs.length === 1 && <PointMaps stations={st} observed={obs} predicted={forwardMapValues(obs, runs[0]).predicted} unit={unit} size={mapSize} />}
         {runs.length === 1 && Number.isFinite(runs[0].baseLevel) && <div style={small}>{tr("Predicted map shown with the base level ({baseLevel} {unit}) added, so it is on the data's level and the residual map is what the RMS above measures.", { baseLevel: runs[0].baseLevel.toFixed(2), unit })}</div>}
       </div>
     );
@@ -656,7 +657,7 @@ function FitView({ last, method }) {
       {result.baseLevelRemoved && result.baseLevelRemoved.mode !== "none" && (
         <div style={small}>{tr("Removed before inverting: {v}. The maps below show the data after that removal. Bounds applied: {v2}.", { v: result.baseLevelRemoved.mode === "mean" ? tr("the data mean, {constant} {unit}", { constant: result.baseLevelRemoved.constant.toFixed(2), unit }) : tr("a best-fit plane ({constant} {unit} at the survey centre, {v} / {v2} {unit} per km east / north)", { constant: result.baseLevelRemoved.constant.toFixed(2), unit, v: (result.baseLevelRemoved.perMetreX * 1000).toFixed(2), v2: (result.baseLevelRemoved.perMetreY * 1000).toFixed(2) }), v2: result.boundsApplied ? `${result.boundsApplied.lower ?? tr("none")} to ${result.boundsApplied.upper ?? tr("none")}` : "—" })}</div>
       )}
-      <PointMaps stations={st} observed={obs} predicted={result.predicted} std={std} unit={unit} />
+      <PointMaps stations={st} observed={obs} predicted={result.predicted} std={std} unit={unit} size={mapSize} />
       {result.constraintsApplied && (
         <div style={small}>{tr("Drillhole constraints: {cells} cell(s) held within ±{tolerance} of the logs ({pointsUsed} of {points} samples used{v}{v2}{v3}).", { cells: result.constraintsApplied.cells, tolerance: result.constraintsApplied.tolerance, pointsUsed: result.constraintsApplied.pointsUsed, points: result.constraintsApplied.points, v: result.constraintsApplied.inAirOrInactive ? tr(", {inAirOrInactive} above the terrain", { inAirOrInactive: result.constraintsApplied.inAirOrInactive }) : "", v2: result.constraintsApplied.outsideMesh ? tr(", {outsideMesh} outside the model", { outsideMesh: result.constraintsApplied.outsideMesh }) : "", v3: result.constraintsApplied.clippedToBounds ? tr(", {clippedToBounds} cell(s) with a logged value outside the bounds held at the bound", { clippedToBounds: result.constraintsApplied.clippedToBounds }) : "" })}</div>
       )}
@@ -721,14 +722,14 @@ function DipSweep({ runs, unit }) {
 
 // Observed / predicted share one colour scale; residual is normalised by the uncertainty and diverging,
 // fixed at +-3 (visual-design review). Stations are drawn as dots, never gridded, so gaps stay visible.
-function PointMaps({ stations, observed, predicted, std, unit }) {
+function PointMaps({ stations, observed, predicted, std, unit, size = 78 }) {
   const refs = [useRef(null), useRef(null), useRef(null)];
   const resid = useMemo(() => observed.map((o, i) => (std ? (o - predicted[i]) / std[i] : o - predicted[i])), [observed, predicted, std]);
   const rScale = useMemo(() => residualScale(resid, !!std), [resid, std]); // #537 — ±3σ, or ±P98 |residual| in data units
   useEffect(() => {
     const xs = stations.map((p) => p[0]), ys = stations.map((p) => p[1]);
     const x0 = arrMin(xs), x1 = arrMax(xs), y0 = arrMin(ys), y1 = arrMax(ys);
-    const S = 78, pad = 4;
+    const S = size, pad = 4;
     const sc = Math.min((S - 2 * pad) / (x1 - x0 || 1), (S - 2 * pad) / (y1 - y0 || 1));
     const lo = Math.min(arrMin(observed), arrMin(predicted)), hi = Math.max(arrMax(observed), arrMax(predicted));
     const seq = sequentialStops(lo, hi, 9).map((s) => s.color);
@@ -740,17 +741,17 @@ function PointMaps({ stations, observed, predicted, std, unit }) {
       if (!c) return;
       const ctx = c.getContext("2d");
       ctx.clearRect(0, 0, S, S);
-      const r = Math.max(1, Math.min(3, 200 / Math.sqrt(stations.length)));
+      const r = Math.max(1, Math.min(3, 200 / Math.sqrt(stations.length))) * Math.sqrt(S / 78);
       stations.forEach((p, i) => { ctx.fillStyle = col(vals[i]); ctx.beginPath(); ctx.arc(pad + (p[0] - x0) * sc, S - pad - (p[1] - y0) * sc, r, 0, Math.PI * 2); ctx.fill(); });
     });
-  }, [stations, observed, predicted, resid, rScale]); // #537 — std (via resid) was missing
+  }, [stations, observed, predicted, resid, rScale, size]); // #537 — std (via resid) was missing
   const rms = (a) => Math.sqrt(a.reduce((s, v) => s + v * v, 0) / a.length);
   const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" };
   return (
-    <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
       {[[tr("Observed"), `${arrMin(observed).toFixed(1)}–${arrMax(observed).toFixed(1)} ${unit}`], [tr("Predicted"), `${arrMin(predicted).toFixed(1)}–${arrMax(predicted).toFixed(1)} ${unit}`], [std ? tr("Residual / σ") : tr("Residual"), std ? tr("RMS {v}, ±3 scale", { v: rms(resid).toFixed(2) }) : tr("RMS {v} {unit}, ±{rScale} scale", { v: rms(resid).toFixed(2), unit, rScale: rScale.toPrecision(2) })]].map(([t, cap], k) => (
         <figure key={t} style={{ margin: 0, textAlign: "center" }}>
-          <canvas ref={refs[k]} width={78} height={78} role="img" aria-label={tr("{t} map: {cap}", { t, cap })} style={{ border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)" }} />
+          <canvas ref={refs[k]} width={size} height={size} role="img" aria-label={tr("{t} map: {cap}", { t, cap })} style={{ border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)" }} />
           <figcaption style={small}>{t}<br />{cap}</figcaption>
         </figure>
       ))}

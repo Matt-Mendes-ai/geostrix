@@ -155,6 +155,11 @@ input, select { font-family: inherit; }
 .ge-toolbar-compact .ge-tool-sep { margin: 0 3px; }
 .ge-toolbar-compact .ge-tool-label-opt { display: none; }
 .ge-toolbar-snug .ge-tool-label-first { display: none; } /* #1293 — the first to go, then all of them */
+/* TASKS.csv #1199 — a geophysics result takes the main area from the empty-state card */
+.ge-geo-results { display: contents; color: var(--color-text); }
+.ge-geo-empty { display: contents; }
+.ge-main:has(> .ge-geo-results > *) { align-items: stretch !important; justify-content: flex-start !important; overflow: auto; padding-top: 12px; }
+.ge-main:has(> .ge-geo-results > *) > .ge-geo-empty { display: none; }
 .ge-toolbar.ge-toolbar-snug { gap: 2px; padding: 0 6px; }
 .ge-toolbar-snug .ge-tool-btn { padding: 0 8px; gap: 5px; }
 .ge-toolbar-snug .ge-tool-sep { margin: 0 3px; }

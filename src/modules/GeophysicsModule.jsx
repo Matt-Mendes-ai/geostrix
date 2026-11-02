@@ -89,6 +89,7 @@ const FORMAT_REFERENCE = "CSV: x/y/z (or easting/northing/elevation, lon/lat) pl
 // TASKS.csv #749 — embedded: shown inside the Maps tab for one of its map panes (terrain, map layers, web layers,
 // boundaries, claims): no ribbon of its own (the Maps tab's ribbon picks the pane) and no main area.
 export default function GeophysicsModule({ embedded = false, forcePane = null } = {}) {
+  const [resultSlot, setResultSlot] = useState(null); // #1199
   const [geoPaneState, setGeoPane] = useState("points"); // TASKS.csv #458 — the sidebar shows the tool picked on the ribbon
   const geoPane = forcePane || geoPaneState; // #749 — the Maps tab chooses the pane
   const geoBtn = (id) => ({ active: geoPane === id, onClick: () => setGeoPane(id) });
@@ -1289,12 +1290,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         </>)}
         {geoPane === "inversion" && (<>
         <TaskPaneHeader title="Mag / gravity inversion (SimPEG)" icon={RMagnet} tone="model" />
-        <InversionPanel pBtn={pBtn} numInput={numInput} inPane />
+        <InversionPanel pBtn={pBtn} numInput={numInput} inPane resultSlot={resultSlot} />
 
         </>)}
         {geoPane === "dcip" && (<>
         <TaskPaneHeader title="DC resistivity / IP line (2D, SimPEG)" icon={RZap} tone="model" />
-        <DcipPanel pBtn={pBtn} numInput={numInput} />
+        <DcipPanel pBtn={pBtn} numInput={numInput} resultSlot={resultSlot} />
         </>)}
         {geoPane === "terrain" && (<>
         <TaskPaneHeader title="Terrain (SRTM / DEM)" icon={RMountain} tone="data" />
@@ -1771,6 +1772,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             behind the InfoButton progressive-disclosure component this module already uses eight
             times elsewhere, so it is one click away instead of being the whole screen. What's left
             is the shared EmptyState card the other three data tabs now use. */}
+        <div className="ge-geo-results" ref={setResultSlot} />{/* #1199 */}
+        <div className="ge-geo-empty">
         <EmptyState
           icon={<Radio size={18} />}
           headline={(() => {
@@ -1796,6 +1799,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         >
           <div style={{ marginBottom: 12 }}>{tr("Point-cloud surveys (mag, IP, gravity, radiometrics), gridded geophysics, terrain and boundary geometry. Drag a CSV, GeoTIFF, Geosoft")}{" "}<code>.gxf</code>, <code>.ply</code>/<code>.dxf</code>{" "}{tr("or")}{" "}<code>.xyz</code>{" "}{tr("here, or use the buttons on the left — the")}{" "}<b>i</b>{" "}{tr("beside the button lists exactly what each format does on import.")}</div>
         </EmptyState>
+        </div>
       </div>)}
 
       {spatialOpen && <SpatialAnalysis points={rows} onClose={() => setSpatialOpen(false)} />}

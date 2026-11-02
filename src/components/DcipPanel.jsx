@@ -3,6 +3,7 @@
 // line by its start / end coordinates, state the data uncertainty (never assumed), invert. Results: a
 // section view here, and block models (resistivity, chargeability) along the line in the 3D view.
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
+import InResultArea from "./InResultArea.jsx"; // TASKS.csv #1199
 import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1174
 import { Upload, Play, Download, Trash2 } from "./icons.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
@@ -36,7 +37,7 @@ const num = (v) => (v === "" || v == null ? NaN : Number(v));
 // TASKS.csv #970 — ipFitOf now lives in lib/inversion.js, shared with the 3D panel.
 const FIELDS = [["a", "A (current)"], ["b", "B (current; blank = pole)"], ["m", "M (potential)"], ["n", "N (potential; blank = pole)"], ["rho", "Apparent resistivity (ohm·m)"], ["ip", "Chargeability (mV/V, optional)"], ["err", "Reading error (optional)"]];
 
-export default function DcipPanel({ pBtn, numInput }) {
+export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
   const { terrain, project, addVoxelModelToTab, getProjectToken, dcipLines, saveDcipLine, removeDcipLine } = useStore();
   const keptScope = scopeOf(getProjectToken()); // TASKS.csv #1284 — survives a tab switch
   const setTaskProgress = useSetTaskProgress();
@@ -291,7 +292,7 @@ export default function DcipPanel({ pBtn, numInput }) {
               </select>
             </div>
           )}
-          {parsed?.readings.length > 0 && <Pseudosection parsed={parsed} />}
+          {parsed?.readings.length > 0 && <InResultArea slot={resultSlot}><Pseudosection parsed={parsed} large={!!resultSlot} /></InResultArea>}
           {parsed?.readings.length > 0 && (
             <button onClick={() => { keepLine(); setMsg({ ok: true, text: tr("{lineName} kept in the project (saved with it; also kept automatically when you invert).", { lineName }) }); }} style={{ ...pBtn, marginTop: 6 }}
               title={tr("Store the readings, line position and settings in the project file, so the line can be reloaded and re-inverted without the CSV.")}>{tr("Keep line in project")}</button>
@@ -381,7 +382,7 @@ export default function DcipPanel({ pBtn, numInput }) {
       )}
       {msg && <div role="status" style={{ ...small, marginTop: 6, color: msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{msg.text}</div>}
       {job?.error && <div style={{ ...small, marginTop: 6, color: "var(--color-danger-fg)" }}>{job.error}</div>}
-      {last && <SectionResult last={last} cutoff={Number(opts.supportCutoff) || 0} epsg={project?.epsg} pBtn={pBtn} />}
+      {last && <InResultArea slot={resultSlot}><SectionResult last={last} cutoff={Number(opts.supportCutoff) || 0} epsg={project?.epsg} pBtn={pBtn} large={!!resultSlot} /></InResultArea>}
       <DcipMergePanel pBtn={pBtn} numInput={numInput} />
       <Dcip3dPanel pBtn={pBtn} numInput={numInput} />
     </div>
@@ -389,7 +390,7 @@ export default function DcipPanel({ pBtn, numInput }) {
 }
 
 // the data as a pseudosection: each reading at its mid-point / pseudo-depth, coloured by log resistivity
-function Pseudosection({ parsed }) {
+function Pseudosection({ parsed, large = false }) {
   const pts = pseudoPositions(parsed.readings);
   const W = 300, H = 110;
   const smin = arrMin(pts.map((p) => p.s)), smax = arrMax(pts.map((p) => p.s)), dmax = arrMax(pts.map((p) => p.depth)) || 1;
@@ -398,7 +399,7 @@ function Pseudosection({ parsed }) {
   return (
     <div style={{ marginTop: 8 }}>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Data (pseudosection): apparent resistivity {v}–{v2} ohm·m", { v: sig3(arrMin(parsed.rho)), v2: sig3(arrMax(parsed.rho)) })}</div>
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={tr("Apparent resistivity pseudosection")} style={{ display: "block", width: "100%", maxWidth: W, height: "auto", background: "var(--color-bg-subtle)", borderRadius: 4 }}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={tr("Apparent resistivity pseudosection")} style={{ display: "block", width: "100%", maxWidth: large ? "none" : W, height: "auto", background: "var(--color-bg-subtle)", borderRadius: 4 }}>
         {pts.map((p, i) => <circle key={i} cx={x(p.s)} cy={y(p.depth)} r={2.6} fill={colorForVoxelValue(model, parsed.rho[i])} />)}
       </svg>
     </div>
@@ -406,7 +407,7 @@ function Pseudosection({ parsed }) {
 }
 
 // the inverted section: cells coloured by resistivity (log) and chargeability, poorly supported cells greyed
-function SectionResult({ last, cutoff, epsg, pBtn }) {
+function SectionResult({ last, cutoff, epsg, pBtn, large = false }) {
   const { result } = last;
   const { addLayoutImage, goToModule, addVoxelModel } = useStore();
   const [note, setNote] = useState(null);
@@ -437,7 +438,7 @@ function SectionResult({ last, cutoff, epsg, pBtn }) {
           {["resistivity", "chargeability"].map((f) => <button key={f} onClick={() => setField(f)} style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", border: "1px solid var(--color-border)", borderRadius: 4, background: f === field ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{f === "resistivity" ? tr("Resistivity") : tr("Chargeability")}</button>)}
         </div>
       )}
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={tr("Inverted {field} section", { field })} style={{ display: "block", marginTop: 4, width: "100%", maxWidth: W, height: "auto" }}>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={tr("Inverted {field} section", { field })} style={{ display: "block", marginTop: 4, width: "100%", maxWidth: large ? "none" : W, height: "auto" }}>
         {/* TASKS.csv #535 — low-support cells hatched (a flat grey matched mid-range resistivity) */}
         <defs><pattern id={hatchId} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" fill={HATCH.bg} /><line x1="0" y1="0" x2="0" y2="5" stroke={HATCH.line} strokeWidth="1.2" /></pattern></defs>
         {vals.map((v, i) => {
