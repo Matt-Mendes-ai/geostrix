@@ -6739,5 +6739,16 @@
   "Copy": "Copiar",
   "Rasters": "Rasters",
   "Strip log": "Log em coluna",
-  "Under this click ({n})": "Sob este clique ({n})"
+  "Under this click ({n})": "Sob este clique ({n})",
+  "this is a table of plot points with no electrode positions. Import the .IPG file of the same line instead.": "esta é uma tabela de pontos de plotagem sem posições de eletrodos. Importe o arquivo .IPG da mesma linha.",
+  "This file has no apparent resistivity: it was computed from Vp (mV), I (A) and the electrode positions.": "Este arquivo não tem resistividade aparente: foi calculada a partir de Vp (mV), I (A) e das posições dos eletrodos.",
+  "these are base-station readings: times and field values with no positions, so there is nothing to place on the map.": "são leituras de estação base: horários e valores de campo sem posições, então não há nada para colocar no mapa.",
+  "{name} has no stations named by grid position, like \"9000N 4650E\".": "{name} não tem estações nomeadas por posição na grade, como \"9000N 4650E\".",
+  " Placed from {name}.": " Posicionado a partir de {name}.",
+  "These look like local grid coordinates, not map coordinates: without placing them they land far from your other data. The survey's GPS file, with stations named like \"9000N 4650E\", can place them.": "Parecem coordenadas de grade local, não de mapa: sem posicioná-las, ficarão longe dos seus outros dados. O arquivo GPS do levantamento, com estações como \"9000N 4650E\", pode posicioná-las.",
+  "Load the GPS file…": "Carregar o arquivo GPS…",
+  "{fileName} will be placed from {name}: {stations} stations on {lines} lines. Readings follow their own line between stations.": "{fileName} será posicionado a partir de {name}: {stations} estações em {lines} linhas. As leituras seguem a própria linha entre as estações.",
+  " {n} reading(s) have no GPS stations on their line: placed by a fit across the grid, good to about {rms} m.": " {n} leitura(s) não têm estações GPS na linha: posicionadas por um ajuste de toda a grade, com precisão de cerca de {rms} m.",
+  " Left out {n} reading(s) that could not be placed.": " {n} leitura(s) que não puderam ser posicionadas foram deixadas de fora.",
+  " Project CRS set to EPSG:{epsg}.": " CRS do projeto definido como EPSG:{epsg}."
 }

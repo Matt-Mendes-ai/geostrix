@@ -33,10 +33,11 @@ const trText = (x) => (typeof x === "string" ? tr(x) : x);
 // LAYOUT NOTE: the wrapper is pointerEvents:none and only the card re-enables them, because on 3D
 // View this card floats over a live WebGL canvas and must never swallow an orbit drag aimed at the
 // scene behind it. Harmless on the tabs whose background is inert.
-export default function EmptyState({ icon, headline, children, actionLabel, onAction, actionDisabled, actionTitle, footnote, secondary }) {
+export default function EmptyState({ icon, headline, children, actionLabel, onAction, actionDisabled, actionTitle, onClose, footnote, secondary }) {
   return (
     <div style={wrap}>
-      <div style={card}>
+      <div style={{ ...card, position: "relative" }}>
+        {onClose && <button type="button" onClick={onClose} aria-label={tr("Close")} title={tr("Close")} style={{ position: "absolute", top: 8, right: 8, border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 18, lineHeight: 1, padding: 2 }}>×</button>}{/* TASKS.csv #1327 */}
         <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
           {icon ? <span style={{ display: "flex", color: "var(--color-text-muted)", flexShrink: 0 }}>{icon}</span> : null}
           <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-text)", fontWeight: 600 }}>{trText(headline)}</div>

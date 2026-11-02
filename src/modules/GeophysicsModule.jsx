@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { ensureProjectCrs, ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615; export: #1021
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1152
-import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
+import { askAdoptCrs, projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; // TASKS.csv #410
 import { guessBlockModelMapping, numericColumns, blockModelCellsFromRows, coarsenBlockCells } from "../lib/blockModelCsv.js";
 import { parseTableFile, toExportCsv } from "../lib/tabular.js"; // TASKS.csv #444; toExportCsv: #1094
@@ -30,6 +30,8 @@ import { toLonLat, reprojectXY, crsName, pointTransform } from "../lib/reproject
 import { omfToProjectObjectsAsync } from "../lib/omfImport.js"; // TASKS.csv #637; #1280
 import { parseUBCMesh, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel, coarsenRecord } from "../lib/voxel.js"; // coarsenRecord: #1095
 import { parsePLYBoundary, parseXYZ, guessXyzChannels } from "../lib/geosoft.js";
+import { gridPairs, stationPlacer, nearestStationZ, looksLikeLocalGrid } from "../lib/gridFromStations.js"; // TASKS.csv #1326
+import { parseStationFile } from "../lib/dcipStations.js";
 import { gemHeaderInfo } from "../lib/diurnal.js";
 import DiurnalCorrectionBox from "../components/DiurnalCorrectionBox.jsx";
 import { parseDXF, dxfToBoundaries, dxfSkippedText } from "../lib/dxf.js";
@@ -205,6 +207,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   const boundaryInput = useRef(null);
   const claimInput = useRef(null);
   const xyzInput = useRef(null);
+  const gridGpsInput = useRef(null); // #1326
   const rows = layers.geophys_pts || [];
   const drawnRange = useMemo(() => robustRange(rows.map((r) => r.value)), [rows]); // TASKS.csv #1177 — the range the 3D colours use
   const surveyList = useMemo(() => surveyStats(rows), [rows]); // TASKS.csv #451
@@ -817,6 +820,20 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       setXyzError({ info: false, text: tr("Could not parse {name}: {message}", { name: file.name, message: err.message }) });
     }
   };
+  // TASKS.csv #1326 — a survey in its own grid, placed from the GPS file naming the same stations
+  const placeLocalGrid = async (file) => {
+    if (!file || !xyzPending) return;
+    try {
+      const sf = parseStationFile(await file.text(), file.name);
+      const pairs = gridPairs(sf.lines), placer = stationPlacer(pairs);
+      if (!placer.lines) throw new Error(tr("{name} has no stations named by grid position, like \"9000N 4650E\".", { name: file.name }));
+      const { fileName } = xyzPending;
+      setXyzPending((p) => ({ ...p, grid: { name: file.name, placer, pairs, epsg: sf.epsg } }));
+      setXyzError({ info: true, text: tr("{fileName} will be placed from {name}: {stations} stations on {lines} lines. Readings follow their own line between stations.", { fileName, name: file.name, stations: placer.stations, lines: placer.lines }) });
+    } catch (err) {
+      setXyzError({ info: false, text: tr("Could not read {name}: {message}", { name: file.name, message: err.message }) });
+    }
+  };
   const confirmImportXYZ = () => {
     if (!xyzPending) return;
     const { fileName, rows: parsedRows, xCol, yCol, zCol, valueCol } = xyzPending;
@@ -847,16 +864,36 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       return;
     }
     let reprojectNote = "";
-    if (geophysSourceEpsg && project?.epsg && Number(geophysSourceEpsg) !== Number(project.epsg)) {
+    // #1326 — the local grid first: its GPS file says what CRS the result is in
+    const placed = xyzPending.grid;
+    if (placed) {
+      let off = 0, none = 0;
+      mapped = mapped.map((r) => {
+        const p = placed.placer.place(r.x, r.y);
+        if (!p) { none++; return null; }
+        if (!p.onLine) off++;
+        return { ...r, x: p.x, y: p.y, z: r.z ?? nearestStationZ(placed.pairs, r.x, r.y) };
+      }).filter(Boolean);
+      reprojectNote += tr(" Placed from {name}.", { name: placed.name });
+      if (off) reprojectNote += tr(" {n} reading(s) have no GPS stations on their line: placed by a fit across the grid, good to about {rms} m.", { n: off.toLocaleString(), rms: Math.round(placed.placer.fit?.rms ?? 0) });
+      if (none) reprojectNote += tr(" Left out {n} reading(s) that could not be placed.", { n: none.toLocaleString() });
+    }
+    // an empty project is offered the GPS file's CRS, as every other import offers its own (#607): its placeholder zone can be the wrong one
+    const adopted = placed?.epsg ? askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: project?.epsg, declaredEpsg: placed.epsg, fileName }) : null;
+    if (adopted) { setEpsg(adopted); reprojectNote += tr(" Project CRS set to EPSG:{epsg}.", { epsg: adopted }); }
+    const targetEpsg = adopted || project?.epsg;
+    const sourceEpsgNow = placed?.epsg || geophysSourceEpsg;
+    if (sourceEpsgNow && targetEpsg && Number(sourceEpsgNow) !== Number(targetEpsg)) {
+      const geophysSourceEpsg = sourceEpsgNow;
       let failed = 0;
       mapped = mapped.map((r) => {
-        const p = reprojectXY(r.x, r.y, geophysSourceEpsg, project.epsg);
+        const p = reprojectXY(r.x, r.y, geophysSourceEpsg, targetEpsg);
         if (!p) { failed++; return r; }
         return { ...r, x: p.x, y: p.y };
       });
       reprojectNote = failed
-        ? tr(" Couldn't resolve a proj4 definition for EPSG:{geophysSourceEpsg} or EPSG:{epsg} — no reprojection happened.", { geophysSourceEpsg, epsg: project.epsg })
-        : tr(" Reprojected from EPSG:{geophysSourceEpsg} to the project's EPSG:{epsg}.", { geophysSourceEpsg, epsg: project.epsg });
+        ? tr(" Couldn't resolve a proj4 definition for EPSG:{geophysSourceEpsg} or EPSG:{epsg} — no reprojection happened.", { geophysSourceEpsg, epsg: targetEpsg })
+        : tr(" Reprojected from EPSG:{geophysSourceEpsg} to the project's EPSG:{epsg}.", { geophysSourceEpsg, epsg: targetEpsg });
     }
     const replacedN = replaceSurveyPoints(rows, mapped).replaced; // #600 — re-import replaces, does not double
     setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, mapped).rows }));
@@ -1096,7 +1133,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         <input
           ref={xyzInput}
           type="file"
-          accept=".xyz"
+          accept=".xyz,.fld,.bse"
           style={{ display: "none" }}
           onChange={(e) => { const f = e.target.files[0]; importXYZFile(f); e.target.value = ""; }}
         />
@@ -1160,6 +1197,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                 </select>
               </div>
             ))}
+            {!xyzPending.grid && looksLikeLocalGrid(xyzPending.rows, xyzPending.xCol, xyzPending.yCol) && (
+              <div style={{ marginTop: 8, padding: "6px 8px", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, color: "var(--color-warn-text)", fontSize: "var(--font-size-sm)" }}>
+                {tr("These look like local grid coordinates, not map coordinates: without placing them they land far from your other data. The survey's GPS file, with stations named like \"9000N 4650E\", can place them.")}
+                <button type="button" onClick={() => gridGpsInput.current?.click()} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Load the GPS file…")}</button>
+                <input ref={gridGpsInput} type="file" accept=".txt,.csv,.dat,.gpx,.wpt" style={{ display: "none" }} onChange={(e) => { placeLocalGrid(e.target.files[0]); e.target.value = ""; }} />
+              </div>
+            )}
             {xyzPending.source !== "csv" && <DiurnalCorrectionBox key={xyzPending.fileName} pending={xyzPending} setPending={setXyzPending} numInput={numInput} pBtn={pBtn} />}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <button onClick={confirmImportXYZ} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>

@@ -84,7 +84,73 @@ export function guessXyzChannels(columns, rows) {
   return { z, value };
 }
 
+// TASKS.csv #1326 — "$$DATA$$" tables, the .xyz of 28944Z (Teck, Scott Geophysics, 2006): titles, then the columns' names in 4-character fields, their types, a Fortran
+// format saying where each sits in a line, then the rows. Nothing to do with Geosoft's .xyz but the extension.
+function parseFortranFields(fmt) {
+  const out = [];
+  let pos = 0;
+  for (const raw of fmt.replace(/^\s*\(|\)\s*$/g, "").split(",")) {
+    const t = raw.trim();
+    const tab = /^T(\d+)$/i.exec(t);
+    if (tab) { pos = Number(tab[1]) - 1; continue; }
+    const m = /^(\d*)([AFIE])(\d+)(?:\.\d+)?$/i.exec(t);
+    if (!m) return null;
+    for (let k = 0; k < Number(m[1] || 1); k++) { out.push({ start: pos, end: pos + Number(m[3]), text: m[2].toUpperCase() === "A" }); pos += Number(m[3]); }
+  }
+  return out;
+}
+export function parseDollarData(text) {
+  const lines = text.split(/\r\n|\r|\n/);
+  const fi = lines.findIndex((l) => /^\s*\(.*[AFIE]\d+.*\)\s*$/i.test(l));
+  const nCols = Number(/^\s*\$\$DATA\$\$\s+(\d+)/.exec(lines[0])?.[1]);
+  if (fi < 0 || !(nCols > 0)) return null;
+  const fields = parseFortranFields(lines[fi].trim());
+  if (!fields || fields.length !== nCols) return null;
+  let i = fi - 1, types = 0;
+  while (i > 0 && types < nCols && /^[\s\d]+$/.test(lines[i])) { types += lines[i].trim().split(/\s+/).length; i--; }
+  let nameText = "";
+  while (i > 0 && nameText.length < nCols * 4 - 3) { nameText = lines[i].padEnd(lines[i].length) + nameText; i--; }
+  const names = Array.from({ length: nCols }, (_, k) => nameText.slice(k * 4, k * 4 + 4).trim() || `C${k + 1}`);
+  // the fields are in the format's order and it reads the names in the same order
+  const lineCol = names.findIndex((n) => /^line$/i.test(n));
+  const rows = [];
+  for (const l of lines.slice(fi + 1)) {
+    if (!l.trim()) continue;
+    const row = { _line: lineCol >= 0 ? l.slice(fields[lineCol].start, fields[lineCol].end).trim() : null };
+    fields.forEach((f, k) => {
+      const tok = l.slice(f.start, f.end).trim();
+      if (f.text) row[names[k]] = tok || null;
+      else { const v = tok === "" || tok === "*" ? NaN : Number(tok); row[names[k]] = Number.isFinite(v) ? v : null; }
+    });
+    rows.push(row);
+  }
+  return rows.length ? { columns: names, rows } : null;
+}
+
+// Scintrex ENVI dumps (.FLD, .BSE): "/!" header lines, one naming the columns "X/Y/TotFld/Noise/Hours/0=Uncor"
+function parseScintrex(text) {
+  const lines = text.split(/\r\n|\r|\n/);
+  const names = lines.map((l) => /^\/!\s*Mag_Data:\s*(\S+)/.exec(l.trim())).find(Boolean)?.[1].split("/");
+  if (!names) return null;
+  if (!names.some((n) => /^x$/i.test(n))) throw new Error(tr("these are base-station readings: times and field values with no positions, so there is nothing to place on the map."));
+  const line = lines.map((l) => /^\/!\s*Line_+:\s*(.+)$/.exec(l.trim())).find(Boolean)?.[1].replace(/\.0+\s*/, "").replace(/\s+/g, "") || null;
+  const columns = names.map((n) => (/=/.test(n) ? n.split("=")[1] : n));
+  const rows = [];
+  for (const l of lines) {
+    const t = l.trim();
+    if (!t || t.startsWith("/") || !/^-?\d/.test(t)) continue;
+    const toks = t.split(/\s+/);
+    if (toks.length !== columns.length) continue;
+    const row = { _line: line };
+    columns.forEach((c, k) => { const v = Number(toks[k]); row[c] = Number.isFinite(v) ? v : null; });
+    rows.push(row);
+  }
+  return rows.length ? { columns, rows } : null;
+}
+
 export function parseXYZ(text) {
+  if (/^\s*\$\$DATA\$\$/.test(text)) { const d = parseDollarData(text); if (d) return d; } // #1326
+  if (/^\/!\s*Mag_Data:/m.test(text)) { const d = parseScintrex(text); if (d) return d; }
   const lines = text.split(/\r\n|\r|\n/);
   let columns = null;
   let currentLine = null;

@@ -6739,5 +6739,16 @@
   "Copy": "Copier",
   "Rasters": "Rasters",
   "Strip log": "Log en colonne",
-  "Under this click ({n})": "Sous ce clic ({n})"
+  "Under this click ({n})": "Sous ce clic ({n})",
+  "this is a table of plot points with no electrode positions. Import the .IPG file of the same line instead.": "ceci est une table de points de tracé sans positions d'électrodes. Importez plutôt le fichier .IPG de la même ligne.",
+  "This file has no apparent resistivity: it was computed from Vp (mV), I (A) and the electrode positions.": "Ce fichier n'a pas de résistivité apparente : elle a été calculée à partir de Vp (mV), I (A) et des positions des électrodes.",
+  "these are base-station readings: times and field values with no positions, so there is nothing to place on the map.": "ce sont des lectures de station de base : heures et valeurs de champ sans positions, donc rien à placer sur la carte.",
+  "{name} has no stations named by grid position, like \"9000N 4650E\".": "{name} n'a pas de stations nommées par position de grille, comme « 9000N 4650E ».",
+  " Placed from {name}.": " Placé à partir de {name}.",
+  "These look like local grid coordinates, not map coordinates: without placing them they land far from your other data. The survey's GPS file, with stations named like \"9000N 4650E\", can place them.": "Ce sont apparemment des coordonnées de grille locale, pas de carte : sans les placer, elles tomberont loin de vos autres données. Le fichier GPS du levé, avec des stations comme « 9000N 4650E », peut les placer.",
+  "Load the GPS file…": "Charger le fichier GPS…",
+  "{fileName} will be placed from {name}: {stations} stations on {lines} lines. Readings follow their own line between stations.": "{fileName} sera placé à partir de {name} : {stations} stations sur {lines} lignes. Les lectures suivent leur propre ligne entre les stations.",
+  " {n} reading(s) have no GPS stations on their line: placed by a fit across the grid, good to about {rms} m.": " {n} lecture(s) n'ont pas de stations GPS sur leur ligne : placées par un ajustement de toute la grille, à environ {rms} m près.",
+  " Left out {n} reading(s) that could not be placed.": " {n} lecture(s) impossibles à placer écartée(s).",
+  " Project CRS set to EPSG:{epsg}.": " SCR du projet défini sur EPSG:{epsg}."
 }

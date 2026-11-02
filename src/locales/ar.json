@@ -6739,5 +6739,16 @@
   "Copy": "نسخ",
   "Rasters": "النقطية",
   "Strip log": "السجل العمودي",
-  "Under this click ({n})": "تحت هذه النقرة ({n})"
+  "Under this click ({n})": "تحت هذه النقرة ({n})",
+  "this is a table of plot points with no electrode positions. Import the .IPG file of the same line instead.": "هذا جدول نقاط رسم بلا مواضع أقطاب. استورد ملف .IPG للخط نفسه بدلًا منه.",
+  "This file has no apparent resistivity: it was computed from Vp (mV), I (A) and the electrode positions.": "لا يحتوي هذا الملف على مقاومة ظاهرية: حُسبت من Vp (مللي فولت) وI (أمبير) ومواضع الأقطاب.",
+  "these are base-station readings: times and field values with no positions, so there is nothing to place on the map.": "هذه قراءات محطة قاعدية: أوقات وقيم مجال بلا مواضع، فلا يوجد ما يوضع على الخريطة.",
+  "{name} has no stations named by grid position, like \"9000N 4650E\".": "لا يحتوي {name} على محطات مسماة بموضع الشبكة، مثل \"9000N 4650E\".",
+  " Placed from {name}.": " وُضع استنادًا إلى {name}.",
+  "These look like local grid coordinates, not map coordinates: without placing them they land far from your other data. The survey's GPS file, with stations named like \"9000N 4650E\", can place them.": "تبدو هذه إحداثيات شبكة محلية لا إحداثيات خريطة: بدون وضعها ستقع بعيدًا عن بياناتك الأخرى. يمكن لملف GPS الخاص بالمسح، بمحطات مثل \"9000N 4650E\"، وضعها.",
+  "Load the GPS file…": "تحميل ملف GPS…",
+  "{fileName} will be placed from {name}: {stations} stations on {lines} lines. Readings follow their own line between stations.": "سيوضع {fileName} استنادًا إلى {name}: {stations} محطة على {lines} خطًا. تتبع القراءات خطها بين المحطات.",
+  " {n} reading(s) have no GPS stations on their line: placed by a fit across the grid, good to about {rms} m.": " لا توجد محطات GPS على خط {n} قراءة: وُضعت بمطابقة عبر الشبكة، بدقة نحو {rms} م.",
+  " Left out {n} reading(s) that could not be placed.": " استُبعدت {n} قراءة تعذر وضعها.",
+  " Project CRS set to EPSG:{epsg}.": " عُيّن نظام إحداثيات المشروع إلى EPSG:{epsg}."
 }

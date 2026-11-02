@@ -28,10 +28,11 @@ function stationNumber(tok) {
 
 function parseGpsUtility(lines) {
   const stations = [], other = [];
-  let wgs84 = false, zone = null, south = false;
+  let wgs84 = false, nad83 = false, zone = null, south = false; // nad83: #1326, 28944Z's BoundaryGPS.txt
   for (const raw of lines) {
     const l = raw.trim();
     if (/^M\s/.test(l) && /WGS\s*-?\s*84/i.test(l)) wgs84 = true;
+    if (/^M\s/.test(l) && /NAD\s*-?\s*83/i.test(l)) nad83 = true;
     if (!/^W\s/.test(l)) continue;
     const t = l.split(/\s+/);
     const k = t.findIndex((x, i) => i >= 2 && ZONE.test(x) && isNum(t[i + 1]) && isNum(t[i + 2]));
@@ -47,7 +48,7 @@ function parseGpsUtility(lines) {
     if (s == null) { other.push({ name, x, y, z }); continue; }
     stations.push({ line: parts.slice(0, -1).join(" "), s, x, y, z });
   }
-  return { stations, other, epsg: wgs84 && zone ? (south ? 32700 : 32600) + zone : null, crsNote: zone ? `UTM zone ${zone}${wgs84 ? ", WGS 84" : ""}` : "" };
+  return { stations, other, epsg: wgs84 && zone ? (south ? 32700 : 32600) + zone : nad83 && zone && !south ? 26900 + zone : null, crsNote: zone ? `UTM zone ${zone}${wgs84 ? ", WGS 84" : nad83 ? ", NAD83" : ""}` : "" };
 }
 
 function parseTable(lines) {

@@ -46,7 +46,29 @@ export function parseDcipWhitespaceText(text) {
     rows.push(Object.fromEntries(headers.map((h, i) => [h, t[i]])));
   }
   const meta = lines.slice(0, hi).map((l) => l.trim()).filter(Boolean).join(" · ");
+  // TASKS.csv #1326 — a Geosoft IP file can hold Vp and I but no apparent resistivity: nothing could be imported from it
+  const made = addRhoFromVpI(headers, rows);
+  if (made) return { headers: [...headers, "RHO"], rows, note: `${tr("Whitespace-separated line file{v}; {rows} readings{v2}.", { v: meta ? ` (${meta.slice(0, 160)})` : "", rows: rows.length, v2: skipped ? "" : "" })} ${tr("This file has no apparent resistivity: it was computed from Vp (mV), I (A) and the electrode positions.")}` };
   return { headers, rows, note: tr("Whitespace-separated line file{v}; {rows} readings{v2}.", { v: meta ? ` (${meta.slice(0, 160)})` : "", rows: rows.length, v2: skipped ? tr(", {skipped} line(s) with a different column count skipped", { skipped }) : "" }) };
+}
+// Apparent resistivity = K x V / I, K = 2 pi / (1/AM - 1/BM - 1/AN + 1/BN), an electrode at infinity leaving its terms out. Vp in mV and I in A, as these files state them:
+// 28944Z's 10050N.IPG gives 5,427 ohm.m on its first reading, and the contractor's own 10050N.ARW lists 5,424 for it.
+export function apparentResistivity(a, b, m, n, vpMv, iA) {
+  if (a == null || m == null || !(iA > 0)) return null;
+  const inv = (p, q) => (p == null || q == null ? 0 : Math.abs(p - q) > 1e-9 ? 1 / Math.abs(p - q) : NaN);
+  const g = inv(a, m) - inv(b, m) - inv(a, n) + inv(b, n);
+  if (!Number.isFinite(g) || g === 0) return null;
+  return ((2 * Math.PI) / Math.abs(g)) * ((vpMv / 1000) / iA);
+}
+function addRhoFromVpI(headers, rows) {
+  const g = guessDcipColumns(headers);
+  const vp = headers.find((h) => norm(h) === "vp"), cur = headers.find((h) => norm(h) === "i" || norm(h) === "current");
+  if (g.rho || !vp || !cur || !g.a || !g.m) return false;
+  for (const r of rows) {
+    const v = apparentResistivity(num(r[g.a]), g.b ? num(r[g.b]) : null, num(r[g.m]), g.n ? num(r[g.n]) : null, num(r[vp]), num(r[cur]));
+    r.RHO = v == null ? "" : String(v);
+  }
+  return true;
 }
 // Two passes: the full header (units included: "M (mV/V)" -> m_mv_v, a chargeability) first, then the header
 // without a bracketed unit ("Rho_a (ohm.m)" -> rho_a). A header is used for one field only.

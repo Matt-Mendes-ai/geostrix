@@ -981,6 +981,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // querying collars/survey/layers/boundaries too, not just assays — discoverability gap flagged by the
   // QGIS-specialist audit. Same modal, same store data, just also reachable from here.
   const [sqlModalOpen, setSqlModalOpen] = useState(false);
+  const [emptyCardClosed, setEmptyCardClosed] = useState(false); // #1327
   const identifyStopRef = useRef(null); // #1324 — the Escape chain runs before the hook below is declared
   const [stripLogHoleId, setStripLogHoleId] = useState(null); // TASKS.csv #133 — downhole strip log modal, holds the hole_id or null
   const [interceptsModalOpen, setInterceptsModalOpen] = useState(false); // TASKS.csv #84 — boundary intercepts
@@ -8227,8 +8228,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {/* TASKS.csv #316 — a mapping-stage project (terrain, a geology map, outcrop structures, rasters,
             no drillholes yet) is not "nothing loaded"; the card sat on top of exactly what was imported. */}
         {/* TASKS.csv #848 — nor is a soil / stream-sediment program with no drilling (the card covered the samples) */}
-        {!collars.length && !terrain && !rasters.length && !mapLayers.length && !surfaceStructures.length && !surfaceSamples.length && (
+        {/* TASKS.csv #1327 — nor is a survey or block model with no drilling; and it can always be closed */}
+        {!emptyCardClosed && !collars.length && !terrain && !rasters.length && !mapLayers.length && !surfaceStructures.length && !surfaceSamples.length && !voxelModels.length && !Object.values(layers).some((a) => a?.length) && (
           <EmptyState
+            onClose={() => setEmptyCardClosed(true)}
             headline={mode === "surface" ? tr("Import a geological map and outcrop measurements — or load the Perk-Rocky mapping sample") : mode === "modelling" ? tr("Load drillholes, or a geological map with outcrop measurements — modelling works from either") : mode === "targeting" ? tr("Load drillholes first — targeting plans holes against your drilling and models") : tr("Nothing loaded yet")} /* #567 */
             // TASKS.csv #1120 — the filled button is the sample that suits the tab (Perk-Rocky on Surface Geology, whose headline
             // offers it; Harry elsewhere); the other two are the outline buttons

@@ -94,6 +94,8 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
       // #826 — a Res2DInv .dat (positional header, electrodes from the array type) is tried first
       if (!guessDcipColumns(t.headers).a || !guessDcipColumns(t.headers).m) {
         const text = decodeTableBytes(await f.arrayBuffer()).text;
+        // TASKS.csv #1326 — plot points, not electrodes: the survey's .IPG files are the readings
+        if (/^\s*\$\$DATA\$\$/.test(text)) throw new Error(tr("this is a table of plot points with no electrode positions. Import the .IPG file of the same line instead."));
         const r = parseRes2dinv(text) || parseDcipWhitespaceText(text);
         if (r) t = { headers: r.headers, rows: r.rows, note: r.note };
       }
@@ -268,7 +270,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
           {pick && <button onClick={() => { const e = dcipLines.find((l) => l.id === pick); if (!confirmDestructive(tr("Remove the saved line \"{name}\"{inv} from the project?", { name: e?.name || "", inv: e?.section ? tr(" and its inversion result") : "" }), { recover: e?.section ? tr("re-import the line file and run the inversion again.") : tr("re-import the line file.") })) return; removeDcipLine(pick); setPick(""); }} /* confirm: #322 */ title={tr("Remove this line from the project")} aria-label={tr("Remove saved line")} style={{ ...pBtn, width: "auto", padding: "3px 6px" }}><Trash2 size={14} /></button>}
         </div>
       )}
-      <input ref={fileRef} type="file" accept=".csv,.txt,.dat,.ipg" style={{ display: "none" }} onChange={(e) => { onFile(e.target.files[0]); e.target.value = ""; }} />
+      <input ref={fileRef} type="file" accept=".csv,.txt,.dat,.ipg,.arw" style={{ display: "none" }} onChange={(e) => { onFile(e.target.files[0]); e.target.value = ""; }} />
       {file && (
         <div style={{ marginTop: 8 }}>
           {FIELDS.map(([k, label]) => (
