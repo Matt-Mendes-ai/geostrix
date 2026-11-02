@@ -24,6 +24,9 @@ import {
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { featureCountText } from "../lib/featureCount.js"; // TASKS.csv #1116
+import MapImportReview from "./MapImportReview.jsx"; // TASKS.csv #1325
+import { classifyTables, needsImportReview, isCoveringPolygon } from "../lib/mapImportReview.js";
+import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
 import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
 import { toExportCsv } from "../lib/tabular.js";
@@ -33,7 +36,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     project, terrain, projectIsEmpty, setEpsg, // #607
     mapLayers, addMapLayer, updateMapLayer, removeMapLayer,
     surfaceStructures, addSurfaceStructureSet, updateSurfaceStructureSet, removeSurfaceStructureSet,
-  } = useStore();
+  collars = [], /* #1325 */ } = useStore();
   const mapInput = useRef(null);
   const qmlInput = useRef(null);
   const qmlTargetRef = useRef(null);
@@ -70,6 +73,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     } catch (err) { setStructMsg({ ok: false, text: tr("Export failed: {message}", { message: err.message }) }); }
   };
 
+  const [importReview, setImportReview] = useState(null); // #1325 — { rows, resolve }
   const importMaps = async (fileList) => {
     const files = Array.from(fileList || []);
     if (!files.length) return;
@@ -87,7 +91,12 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     const looseShp = {};
     files.forEach((f) => { const m = lower(f).match(/\.(shp|dbf|prj|cpg)$/); if (m) (looseShp[base(f)] ||= {})[m[1]] = f; }); // #415 .cpg
     let projectEpsg = project?.epsg, empty = projectIsEmpty; // #607 — the first layer of an empty project may set its CRS
-    const addParsed = (parsed, sourceName, { wgs84 = false } = {}) => {
+    // TASKS.csv #1325 — everything is read first, then sorted, and only then added: see reviewTables below
+    const queued = [];
+    const addParsed = (parsed, sourceName, opts = {}) => { queued.push({ parsed, sourceName, opts }); };
+    let colourAt = mapLayers.length, layersAdded = 0;
+    const tableOnly = []; // #1325 — attribute tables: nothing wrong with them, but nothing to draw
+    const addNow = (parsed, sourceName, { wgs84 = false } = {}) => {
       // TASKS.csv #1250 — "wj — wj (points)": a family name that repeats the file name reads "wj — points", as the other importers' do
       if (parsed.name && String(parsed.name).startsWith(`${sourceName} (`)) parsed = { ...parsed, name: parsed.name.slice(sourceName.length + 2).replace(/\)$/, "") };
       const qml = qmlByBase[sourceName.toLowerCase()] || soleQml || null;
@@ -95,8 +104,13 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       const adopted = wgs84 ? null : askAdoptCrs({ isEmpty: empty, currentEpsg: projectEpsg, declaredEpsg: mapSourceEpsg || parsed.epsg, fileName: sourceName });
       if (adopted) { setEpsg(adopted); projectEpsg = adopted; done.push(tr("project CRS set to EPSG:{epsg}", { epsg: adopted })); }
       empty = false;
-      const layer = buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride: mapSourceEpsg });
+      let layer = buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride: mapSourceEpsg });
       if (!layer) { failed.push(tr("{name}: no usable features", { name: `${sourceName}${parsed.name ? ` (${parsed.name})` : ""}` })); return; }
+      // #1325 — a layer with no units to tell apart gets a colour of its own: a batch used to be one amber
+      if (!qml && layer.categories.length <= 1) { const color = CATEGORICAL_SAFE_COLORS[colourAt % CATEGORICAL_SAFE_COLORS.length]; layer = { ...layer, color, categories: layer.categories.map((c) => ({ ...c, color })) }; }
+      colourAt++;
+      if (!qml && isCoveringPolygon(layer.name, layer.geomType)) layer = { ...layer, opacity: 0.08, showOutlines: true }; // #1325
+      layersAdded++;
       addMapLayer({ ...layer, drapeMode: terrain ? "terrain" : "flat" });
       // TASKS.csv #1116 — whole phrases (the geometry name used to take an English "s")
       done.push(`${layer.name}: ${featureCountText(layer.features.length, layer.geomType)}${layer.skipped ? ` (${tr("{n} empty/unsupported skipped", { n: layer.skipped })})` : ""}, ${layer.crsNote}${qml ? `, ${tr("styled from .qml")}` : ""}`);
@@ -152,7 +166,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     for (const g of Object.values(tabGroups)) {
       if (!g.tab) continue;
       try {
-        if (!g.map || !g.id) throw new Error(tr("{name}.TAB has no .MAP / .ID beside it: it is an attribute table without geometry - import it as a table instead.", { name: g.name }));
+        if (!g.map || !g.id) { tableOnly.push(g.name); continue; }
         const { parseMapInfoTab } = await import("../lib/mapinfoTab.js");
         const bytes = async (f) => (f ? new Uint8Array(await f.arrayBuffer()) : null);
         const { layers } = parseMapInfoTab({ tab: await bytes(g.tab), map: await bytes(g.map), id: await bytes(g.id), dat: await bytes(g.dat), name: g.name });
@@ -191,11 +205,43 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         failed.push(`${b}.shp: ${err.message}`);
       }
     }
+    // TASKS.csv #1325 — sort what was read; ask only when some of it does not belong on this map
+    let leftOut = 0;
+    {
+      const byTable = new Map();
+      for (const q of queued) (byTable.get(q.sourceName) || byTable.set(q.sourceName, { name: q.sourceName, epsg: mapSourceEpsg ? Number(mapSourceEpsg) : q.opts.wgs84 ? 4326 : Number(q.parsed.epsg) || null, layers: [], items: [] }).get(q.sourceName));
+      for (const q of queued) { const t = byTable.get(q.sourceName); t.layers.push(q.parsed); t.items.push(q); if (!t.epsg && q.parsed.epsg) t.epsg = Number(q.parsed.epsg); }
+      const tables = [...byTable.values()];
+      const counts = new Map();
+      tables.forEach((t) => { if (t.epsg) counts.set(t.epsg, (counts.get(t.epsg) || 0) + 1); });
+      const common = Number(projectEpsg) || [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+      const toCommon = (b, epsg) => {
+        if (Number(epsg) === common) return b;
+        if (!common || !getProj4DefSync(epsg) || !getProj4DefSync(common)) return null;
+        const c = [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]].map(([x, y]) => reprojectXY(x, y, epsg, common));
+        return c.every(Boolean) ? [Math.min(...c.map((p) => p.x)), Math.min(...c.map((p) => p.y)), Math.max(...c.map((p) => p.x)), Math.max(...c.map((p) => p.y))] : null;
+      };
+      const held = [...mapLayers.map((l) => l.bbox).filter(Boolean), ...collars.filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y)).map((c) => [c.x, c.y, c.x, c.y])];
+      const refBox = held.length ? [Math.min(...held.map((b) => b[0])), Math.min(...held.map((b) => b[1])), Math.max(...held.map((b) => b[2])), Math.max(...held.map((b) => b[3]))] : null;
+      const rows = classifyTables(tables, { toCommon, refBox });
+      let keep = new Set(tables.map((t) => t.name));
+      if (needsImportReview(rows)) {
+        const chosen = await new Promise((resolve) => setImportReview({ rows, resolve }));
+        setImportReview(null);
+        keep = chosen || new Set();
+        if (!chosen) { setBusy(false); setMapMsg(null); return; } // Cancel: nothing changes
+        leftOut = tables.length - keep.size;
+      }
+      for (const t of tables) if (keep.has(t.name)) for (const q of t.items) addNow(q.parsed, q.sourceName, q.opts);
+    }
     // TASKS.csv #1248 — a file no branch above takes vanished without a word
     for (const f of files) if (!/\.(gpkg|zip|shp|shx|dbf|prj|cpg|sbn|sbx|qix|tab|map|id|dat|ind|mif|mid|gpx|geojson|json|kml|kmz|qml)$/i.test(f.name)) failed.push(tr("{name}: not a format this importer reads (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson, .kml, .kmz).", { name: f.name }));
     if (qmlFiles.length && !files.some((f) => /\.(gpkg|zip|shp|tab|mif)$/i.test(f.name))) failed.push(tr("A .qml on its own doesn't import anything — use a layer's Style button to apply it to an existing layer."));
     setBusy(false);
-    setMapMsg({ ok: !failed.length, text: [done.length ? tr("Imported {done}.", { done: done.join("; ") }) : "", failed.length ? tr("Problems: {failed}", { failed: failed.join("; ") }) : ""].filter(Boolean).join(" ") });
+    // #1325 — past a few layers the list is a wall of text: each layer's own note is under Map layers
+    const summary = done.length > 6 ? tr("Imported {n} layers.", { n: layersAdded }) + (leftOut ? ` ${tr("Left out {n} tables.", { n: leftOut })}` : "") : done.length ? tr("Imported {done}.", { done: done.join("; ") }) + (leftOut ? ` ${tr("Left out {n} tables.", { n: leftOut })}` : "") : "";
+    const tablesNote = tableOnly.length ? tr("{n} attribute table(s) have no map objects, so they were not added: {names}. Import them from the tab their data belongs to.", { n: tableOnly.length, names: tableOnly.join(", ") }) : "";
+    setMapMsg({ ok: !failed.length, text: [summary, tablesNote, failed.length ? tr("Problems: {failed}", { failed: failed.join("; ") }) : ""].filter(Boolean).join(" ") });
   };
 
   const applyQmlToLayer = async (file) => {
@@ -330,6 +376,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
 
   return (
     <>
+      {importReview && <MapImportReview rows={importReview.rows} onCancel={() => importReview.resolve(null)} onConfirm={(on) => importReview.resolve(on)} />}
       {part !== "structures" && (<>
       <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Map layers")}<InfoButton title={tr("Map layers")} text={tr("Import surface mapping — a geology map, alteration or outcrop polygons, fault traces, sample points — from a GeoPackage (.gpkg) or shapefile (.zip, or .shp with its .dbf/.prj) and drape it on the terrain in the 3D view, coloured by an attribute. Select a QGIS style (.qml) in the same dialog to reuse your map's colours; otherwise each unit gets its own colour, editable below. Every feature table in a GeoPackage becomes its own layer. Polygons keep their holes and multipart pieces. A layer with a known CRS is reprojected into the project's EPSG ({v}). Mapped contacts between units can be projected underground from the 3D Modelling tab.", { v: project?.epsg ?? "?" })} />
       </div>
