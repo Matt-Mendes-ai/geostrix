@@ -945,7 +945,7 @@ export default function ModellingPanes(props) {
                 {/* TASKS.csv #259 — high-grade capping was implemented in compositeDownhole and wired
                     only into CompositingModal; the grade shell composited uncapped, so a single bonanza
                     assay drove IDW² across its whole search neighbourhood. */}
-                <label style={{ ...miniField }} title={tr("Cap every RAW assay at this grade before compositing (commonly the 97.5th-99th percentile of the element's distribution). Blank = no cap. For a nuggety, log-normal element like Au in an epithermal system, estimating without a cap overstates grade.")}>{tr("High-grade cap ({unit})", { unit: PRECIOUS_METALS.has(sym) && unit === "ppm" ? "g/t" : unit })}
+                <label style={{ ...miniField }} title={tr("Cap every RAW assay at this grade before compositing (commonly the 97.5th-99th percentile of the element's distribution). Blank = no cap. For a nuggety, log-normal element like Au, estimating without a cap overstates grade.")}>{tr("High-grade cap ({unit})", { unit: PRECIOUS_METALS.has(sym) && unit === "ppm" ? "g/t" : unit })}
                   <input type="number" min="0" step="any" placeholder={tr("none")} value={Number.isFinite(numericCapValue) ? numericCapValue : ""} onChange={(e) => setNumericCapValue(e.target.value === "" ? NaN : Number(e.target.value))} style={{ ...smallSel, width: "100%" }} />
                 </label>
                 {/* TASKS.csv #258 — minSamples counts sample POINTS: one hole composited at 2 m supplies

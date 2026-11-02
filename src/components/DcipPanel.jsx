@@ -18,13 +18,14 @@ import { logStops, sequentialStops, divergingStops, fitVerdict, ipFitOf, ipFitSt
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
 import { pythonHealth, ensureSidecarUp, saveFile, safeFileName } from "../lib/desktop.js"; // safeFileName: #1114
 import { colorForVoxelValue } from "../lib/layers.js";
+import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #1328
 import { arrMin, arrMax } from "../lib/arrayStats.js";
 import { HATCH } from "../lib/supportHatch.js"; // TASKS.csv #535
 import { supportEnvelope } from "../lib/supportEnvelope.js"; // TASKS.csv #641
 import DcipMergePanel from "./DcipMergePanel.jsx"; // TASKS.csv #640
 import Dcip3dPanel from "./Dcip3dPanel.jsx"; // TASKS.csv #643
 import { percentile } from "../lib/sectionMerge.js";
-import { parseStationFile, matchStationLine, fitStationLine, stationGroundProfile } from "../lib/dcipStations.js";
+import { parseStationFile, matchStationLine, fitStationLine, stationGroundProfile, linePlacement } from "../lib/dcipStations.js";
 import { reprojectXY, getProj4DefSync } from "../lib/reproject.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
@@ -38,7 +39,7 @@ const num = (v) => (v === "" || v == null ? NaN : Number(v));
 const FIELDS = [["a", "A (current)"], ["b", "B (current; blank = pole)"], ["m", "M (potential)"], ["n", "N (potential; blank = pole)"], ["rho", "Apparent resistivity (ohm·m)"], ["ip", "Chargeability (mV/V, optional)"], ["err", "Reading error (optional)"]];
 
 export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
-  const { terrain, project, addVoxelModelToTab, getProjectToken, dcipLines, saveDcipLine, removeDcipLine } = useStore();
+  const { terrain, project, addVoxelModelToTab, getProjectToken, dcipLines, saveDcipLine, removeDcipLine, projectIsEmpty, setEpsg } = useStore();
   const keptScope = scopeOf(getProjectToken()); // TASKS.csv #1284 — survives a tab switch
   const setTaskProgress = useSetTaskProgress();
   const fileRef = useRef(null);
@@ -112,6 +113,57 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
     } catch (e) { setMsg({ ok: false, text: tr("Could not read {name}: {message}", { name: f.name, message: e.message }) }); }
   };
 
+  // TASKS.csv #1328 — several lines at once: each read, placed from any GPS file selected with them (a line finds its stations by name), and kept in the project, ready to load or invert
+  const readLineFile = async (f) => {
+    const text = decodeTableBytes(await f.arrayBuffer()).text;
+    if (/^\s*\$\$DATA\$\$/.test(text)) throw new Error(tr("this is a table of plot points with no electrode positions. Import the .IPG file of the same line instead."));
+    let t = await parseTableFile(f).catch(() => ({ headers: [], rows: [] }));
+    if (!guessDcipColumns(t.headers).a || !guessDcipColumns(t.headers).m) { const r = parseRes2dinv(text) || parseDcipWhitespaceText(text); if (r) t = r; }
+    const m = guessDcipColumns(t.headers);
+    if (!m.a || !m.m || !m.rho) throw new Error(tr("no electrode and apparent-resistivity columns found."));
+    return parseDcipRows(t.rows, m);
+  };
+  const onFiles = async (fileList) => {
+    const all = Array.from(fileList || []);
+    if (all.length === 1) { onFile(all[0]); return; }
+    // a table of stations or a line? A GPS Utility file has "W " waypoints; only a .txt / .gpx / .wpt can be one
+    const stationFiles = [], lineFiles = [];
+    for (const f of all) {
+      if (/\.(gpx|wpt)$/i.test(f.name)) { stationFiles.push(f); continue; }
+      if (/\.txt$/i.test(f.name) && !guessDcipColumns((await parseTableFile(f).catch(() => ({ headers: [] }))).headers).a) { stationFiles.push(f); continue; }
+      lineFiles.push(f);
+    }
+    const problems = [], files = [];
+    for (const f of stationFiles) {
+      try { files.push({ name: f.name, ...parseStationFile(decodeTableBytes(await f.arrayBuffer()).text, f.name) }); } catch (e) { problems.push(`${f.name}: ${e.message}`); }
+    }
+    const stated = files.find((x) => x.epsg)?.epsg;
+    const adopted = stated ? askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: project?.epsg, declaredEpsg: stated, fileName: files.find((x) => x.epsg).name }) : null;
+    if (adopted) setEpsg(adopted);
+    const dst = Number(adopted || project?.epsg);
+    const to = (x, y, from) => { if (!from || !dst || from === dst) return [x, y]; const q = reprojectXY(x, y, from, dst); return q ? [q.x, q.y] : [x, y]; };
+    let kept = 0, readings = 0; const unplaced = [];
+    for (let i = 0; i < lineFiles.length; i++) {
+      const f = lineFiles[i];
+      setMsg({ ok: true, text: tr("Importing {name} ({i} of {n})…", { name: f.name, i: i + 1, n: lineFiles.length }) });
+      await new Promise((r) => setTimeout(r, 0));
+      try {
+        const p = await readLineFile(f);
+        if (!p.readings.length) throw new Error(tr("no usable readings."));
+        const name = f.name.replace(/\.(csv|txt|dat|ipg)$/i, "");
+        const placed = linePlacement(name, files, to);
+        if (!placed) unplaced.push(name);
+        const cell = p.spacing ? String(+(p.spacing / 2).toFixed(2)) : "";
+        saveDcipLine({ name, readings: p.readings, rho: p.rho, ip: p.ip, ...(p.err ? { err: p.err } : {}), line: placed || { x0: "", y0: "", x1: "", y1: "", ground: "", scale: "", stations: null }, opts: { ...opts, cell: opts.cell || cell, depth: opts.depth || (p.spacing ? String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) : "") }, savedAt: new Date().toISOString() });
+        kept++; readings += p.readings.length;
+      } catch (e) { problems.push(`${f.name}: ${e.message}`); }
+    }
+    setMsg({ ok: !problems.length, text: [
+      tr("Kept {kept} lines in the project ({readings} readings). Choose one from the list above to invert it.", { kept, readings: readings.toLocaleString() }),
+      unplaced.length ? tr("No stations found for: {names}. Place those lines before inverting.", { names: unplaced.join(", ") }) : "",
+      problems.length ? tr("Problems: {failed}", { failed: problems.join("; ") }) : "",
+    ].filter(Boolean).join(" ") });
+  };
   // TASKS.csv #322 — keep the line (normalised readings + placement + settings) in the project file
   const lineName = file ? file.name.replace(/\.(csv|txt|dat|ipg)$/i, "") : "";
   const keepLine = (extra = {}) => saveDcipLine({ name: lineName, readings: parsed.readings, rho: parsed.rho, ip: parsed.ip, ...(parsed.err ? { err: parsed.err } : {}), line: { ...line }, opts: { ...opts }, savedAt: new Date().toISOString(), ...extra });
@@ -270,7 +322,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
           {pick && <button onClick={() => { const e = dcipLines.find((l) => l.id === pick); if (!confirmDestructive(tr("Remove the saved line \"{name}\"{inv} from the project?", { name: e?.name || "", inv: e?.section ? tr(" and its inversion result") : "" }), { recover: e?.section ? tr("re-import the line file and run the inversion again.") : tr("re-import the line file.") })) return; removeDcipLine(pick); setPick(""); }} /* confirm: #322 */ title={tr("Remove this line from the project")} aria-label={tr("Remove saved line")} style={{ ...pBtn, width: "auto", padding: "3px 6px" }}><Trash2 size={14} /></button>}
         </div>
       )}
-      <input ref={fileRef} type="file" accept=".csv,.txt,.dat,.ipg,.arw" style={{ display: "none" }} onChange={(e) => { onFile(e.target.files[0]); e.target.value = ""; }} />
+      <input ref={fileRef} type="file" multiple accept=".csv,.txt,.dat,.ipg,.arw,.gpx,.wpt" style={{ display: "none" }} onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
       {file && (
         <div style={{ marginTop: 8 }}>
           {FIELDS.map(([k, label]) => (

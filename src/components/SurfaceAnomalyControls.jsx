@@ -16,9 +16,9 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
   const { project } = useStore();
   const [open, setOpen] = useState(false);
   const set = (patch) => setCfg({ ...cfg, ...patch });
-  const preset = PATHFINDER_PRESETS.find((p) => p.id === cfg.preset) || PATHFINDER_PRESETS[0];
+  const preset = PATHFINDER_PRESETS.find((p) => p.id === cfg.preset) || null; // #1322
   const have = new Set(surfaceElements.map((e) => e.symbol));
-  const els = cfg.elements?.length ? cfg.elements : preset.elements;
+  const els = cfg.elements?.length ? cfg.elements : preset?.elements || [];
   const gOpts = groupOptions(surfaceSamples, mapLayers);
   const modeValue = cfg.mode === "element" ? `el:${cfg.symbol || ""}` : cfg.mode;
   // TASKS.csv #854 — the drawn samples with their class (and the hot-spot z, #853) as CSV
@@ -66,18 +66,19 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
           {cfg.mode === "index" && (
             <>
               <label style={row}>{tr("Deposit type")}
-                <select value={cfg.preset} onChange={(e) => set({ preset: e.target.value, elements: null })} style={{ ...selStyle, maxWidth: 190 }}>
+                <select value={cfg.preset || ""} onChange={(e) => set({ preset: e.target.value || null, elements: null })} style={{ ...selStyle, maxWidth: 190 }} aria-label={tr("Deposit type")}>
+                  <option value="">{tr("Choose a deposit type…")}</option>
                   {PATHFINDER_PRESETS.map((p) => <option key={p.id} value={p.id}>{tr(p.label)}</option>)}
                 </select>
               </label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 8px" }} title={tr("Edit the suite after an orientation survey: pathfinders vary with cover, climate and weathering.")}>
-                {[...new Set([...preset.elements, ...els])].map((sym) => (
+                {[...new Set([...(preset?.elements || []), ...els])].map((sym) => (
                   <label key={sym} style={{ display: "flex", alignItems: "center", gap: 3, color: have.has(sym) ? "var(--color-text)" : "var(--color-text-disabled)" }}>
                     <input type="checkbox" checked={els.includes(sym)} disabled={!have.has(sym)} onChange={(e) => { const next = e.target.checked ? [...els, sym] : els.filter((x) => x !== sym); set({ elements: next.length ? next : null }); }} />{sym}
                   </label>
                 ))}
               </div>
-              <div style={{ color: "var(--color-text-muted)" }}>{preset.ref}</div>
+              {preset && <div style={{ color: "var(--color-text-muted)" }}>{preset.ref}</div>}
             </>
           )}
           {cfg.mode !== "hotspot" && <label style={row}>{tr("Populations")}

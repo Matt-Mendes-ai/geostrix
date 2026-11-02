@@ -37,7 +37,7 @@ export const PATHFINDER_PRESETS = [
   { id: "iocg", label: "Iron oxide copper–gold (IOCG)", elements: ["Cu", "Au", "U", "La", "Ce", "Co"], ref: "Williams et al. 2005" },
 ];
 
-export const DEFAULT_ANOMALY = { mode: "medium", symbol: null, scheme: "threshold", preset: "porphyry", elements: null, groupBy: null, coherence: false, radius: 100, minNeighbours: 1, hotRadius: 250 };
+export const DEFAULT_ANOMALY = { mode: "medium", symbol: null, scheme: "threshold", preset: null /* #1322 — no deposit type assumed: GeoStrix is used for all of them */, elements: null, groupBy: null, coherence: false, radius: 100, minNeighbours: 1, hotRadius: 250 };
 export const HOTSPOT_MIN_SAMPLES = 8;
 const NODATA = "#e6e6e6";
 const SCHEMES = {
@@ -88,8 +88,9 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
     }
     classes = classes.map((x, i) => ({ ...x, color: SCHEMES[scheme][i] }));
   } else if (c.mode === "index") {
-    const preset = PATHFINDER_PRESETS.find((p) => p.id === c.preset) || PATHFINDER_PRESETS[0];
-    const wanted = (c.elements?.length ? c.elements : preset.elements);
+    const preset = PATHFINDER_PRESETS.find((p) => p.id === c.preset) || null;
+    if (!preset && !c.elements?.length) notes.push({ text: "Choose a deposit type for this index." });
+    const wanted = (c.elements?.length ? c.elements : preset?.elements || []);
     const have = new Set(Object.keys(units));
     const els = wanted.filter((e) => have.has(e));
     const missing = wanted.filter((e) => !have.has(e));
@@ -110,8 +111,8 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
     });
     classes = [{ label: "index below 1" }, { label: "index 1 to 2" }, { label: "index 2 to 3" }, { label: "index 3 and above" }].map((x, i) => ({ ...x, color: SCHEMES.index[i] }));
     anomalousFrom = 2;
-    valueName = `${preset.id}_index_z`;
-    label = `${preset.label} index: mean robust z of ${els.join(", ") || "(none of its elements)"}${c.elements?.length ? " (edited)" : ""}; ${preset.ref}; within ${groupLabelOf(groupBy)}`;
+    valueName = `${preset?.id || "custom"}_index_z`;
+    label = `${preset?.label || "Custom"} index: mean robust z of ${els.join(", ") || "(none of its elements)"}${c.elements?.length ? " (edited)" : ""}${preset ? `; ${preset.ref}` : ""}; within ${groupLabelOf(groupBy)}`;
   } else if (c.mode === "hotspot" && c.symbol) { // TASKS.csv #853
     const sym = c.symbol, unit = units[sym] || "ppm", R = Math.max(1, Number(c.hotRadius) || 250);
     samples.forEach((s, i) => { const v = valueIn(s, sym, unit, units); if (v != null) values[i] = v; });

@@ -132,3 +132,18 @@ export function stationGroundProfile(stations, s0, s1) {
   if (s1 > pts[pts.length - 1][0]) out.push([s1, pts[pts.length - 1][1]]);
   return out;
 }
+
+// TASKS.csv #1328 — one line's placement from station files, for importing many lines at once. files: [{ name, lines, epsg }] (parseStationFile). to(x, y, fromEpsg) -> [x, y] in the
+// project CRS. The line form DcipPanel stores: { x0, y0, x1, y1, scale, ground, pts, stations }; null when no file has this line or it has too few stations to place.
+export function linePlacement(lineName, files, to) {
+  for (const f of files) {
+    const k = matchStationLine(Object.keys(f.lines).filter((n) => n && f.lines[n].length >= 2), lineName);
+    if (k == null || !String(lineName).toLowerCase().includes(String(k).toLowerCase())) continue;
+    const list = f.lines[k].map((p) => { const [x, y] = to(p.x, p.y, f.epsg); return { s: p.s, x, y, z: p.z }; });
+    const fit = fitStationLine(list);
+    if (!fit) continue;
+    const r1 = (v) => String(+v.toFixed(1));
+    return { x0: r1(fit.start[0]), y0: r1(fit.start[1]), x1: r1(fit.end[0]), y1: r1(fit.end[1]), ground: "", scale: Math.abs(fit.scale - 1) > 0.002 ? String(+fit.scale.toFixed(4)) : "", pts: null, stations: { file: f.name, line: k, list } };
+  }
+  return null;
+}
