@@ -203,6 +203,7 @@ export async function getSectionData() {
 // TASKS.csv #1303 — the sections a window holds as tabs
 export async function closeSectionTab(id) { return d?.closeSectionTab ? d.closeSectionTab(id) : null; }
 export async function popOutSectionTab(payload) { return d?.popOutSectionTab ? d.popOutSectionTab(payload) : null; }
+export function setSectionTabUnsaved(id, unsaved, text) { d?.setSectionTabUnsaved?.(id, unsaved, text); } // #1323
 export function onSectionData(cb) {
   if (d) return d.onSectionData(cb);
   return () => {};

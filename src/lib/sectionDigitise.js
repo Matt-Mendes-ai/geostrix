@@ -207,3 +207,8 @@ export function onSectionPlane(p, { ax, ay, ux, uy }) {
   if (!p?.hole_id) return p;
   return { ...p, x: ax + p.l * ux, y: ay + p.l * uy, projected: true };
 }
+
+// TASKS.csv #1323 — does a section hold lines that closing it would lose? A line being drawn, or finished lines that differ from the last ones saved
+// (savedKey: contactsKey of what was loaded or last saved).
+export const contactsKey = (contacts) => JSON.stringify(contacts || []);
+export const sectionHasUnsaved = (contacts, savedKey, drawPoints) => (drawPoints?.length || 0) > 0 || contactsKey(contacts) !== savedKey;

@@ -2,7 +2,7 @@ import React, { useEffect, useId, useMemo, useState, useRef, useLayoutEffect } f
 import { Camera, Pencil, Check, Undo2, X, Save, Download, FileText, Crosshair } from "./icons.js";
 import { onSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF, canvasPngBytes } from "../lib/desktop.js";
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #395
-import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearestSegment, setTieVertex, copyGhostString, onSectionPlane } from "../lib/sectionDigitise.js"; // TASKS.csv #519; copyGhostString: #1059
+import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearestSegment, setTieVertex, copyGhostString, onSectionPlane, contactsKey, sectionHasUnsaved } from "../lib/sectionDigitise.js"; // TASKS.csv #519; copyGhostString: #1059
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { sectionPaper } from "../lib/pageFormats.js"; // TASKS.csv #1143
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -41,7 +41,7 @@ const SECTION_FONTS = [
   { label: "Courier New", stack: "'Courier New', Courier, monospace" },
 ];
 
-export default function SectionWindow({ tabId = null, initial = null, onPopOut = null }) {
+export default function SectionWindow({ tabId = null, initial = null, onPopOut = null, onUnsaved = null }) {
   const [data, setData] = useState(null);
   const [snapped, setSnapped] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -52,6 +52,8 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // store.jsx's `sections` comment for why, in short: real-world units survive a later reopen with a
   // different visible-hole set intact, unlike screen-relative fractions would.
   const [contacts, setContacts] = useState([]);
+  const [savedKey, setSavedKey] = useState(contactsKey([])); // #1323 — the lines as last loaded or saved
+  const unsavedRef = useRef(false);
   const [drawing, setDrawing] = useState(false);
   // TASKS.csv #519 — snap clicks to the logged contacts / traces, and edit a finished string's vertices
   const outlineListId = `ge-outline-names${useId().replace(/:/g, "")}`; // #1303 — one per tab
@@ -111,17 +113,21 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // component when it changes) so snapshotToLayout below can convert the captured pixel width into a
   // real-world width in meters.
   const geomRef = useRef({ hScale: 1 });
+  // TASKS.csv #1323 — tell the tab host, which asks before closing
+  const unsaved = useMemo(() => sectionHasUnsaved(contacts, savedKey, drawPoints), [contacts, savedKey, drawPoints]);
+  unsavedRef.current = unsaved;
+  useEffect(() => { if (tabId) onUnsaved?.(tabId, unsaved); }, [tabId, unsaved]);
 
   useEffect(() => {
     const takeLabels = (d) => { if (!d) return; setLabels(d.labels ? { mode: "collar", leaders: "auto", ...d.labels, offsets: d.labels.offsets || {} } : { mode: "collar", leaders: "auto", offsets: {} }); }; // #823 — a section without saved labels starts from the defaults
     // TASKS.csv #876 — a quiet refresh (an explicit surface was rebuilt) updates the drawing but keeps what is being drawn
-    const off = onSectionData((d) => { if (!tabId || d.id !== tabId) return; /* #1303 — other tabs share this window */ if (d.refreshOnly) { setData((prev) => ({ ...d, contacts: prev?.contacts })); const r = document.documentElement.dataset; r.sectionRefreshes = String((Number(r.sectionRefreshes) || 0) + 1); return; } setData(d); setContacts(d.contacts || []); takeLabels(d); });
-    if (initial) { setData(initial); setContacts(initial.contacts || []); takeLabels(initial); } // #1303 — from the tab host
+    const off = onSectionData((d) => { if (!tabId || d.id !== tabId) return; /* #1303 — other tabs share this window */ if (d.refreshOnly) { setData((prev) => ({ ...d, contacts: prev?.contacts })); const r = document.documentElement.dataset; r.sectionRefreshes = String((Number(r.sectionRefreshes) || 0) + 1); return; } setData(d); if (!unsavedRef.current) { setContacts(d.contacts || []); setSavedKey(contactsKey(d.contacts)); } /* #1323 — reopening the section must not wipe lines not saved yet */ takeLabels(d); });
+    if (initial) { setData(initial); setContacts(initial.contacts || []); setSavedKey(initial.savedContactsKey ?? contactsKey(initial.contacts)); takeLabels(initial); } // #1303 — from the tab host; savedContactsKey: #1323, a popped-out section keeps its unsaved state
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
     const id = params.get("id");
     if (id) {
       const raw = sessionStorage.getItem(id);
-      if (raw) { const d = JSON.parse(raw); setData(d); setContacts(d.contacts || []); takeLabels(d); }
+      if (raw) { const d = JSON.parse(raw); setData(d); setContacts(d.contacts || []); setSavedKey(contactsKey(d.contacts)); takeLabels(d); }
     }
     return off;
   }, []);
@@ -260,6 +266,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   const saveContacts = () => {
     if (!data?.id) return;
     sendSectionContacts({ id: data.id, contacts });
+    setSavedKey(contactsKey(contacts)); // #1323
     setSaved(true);
     setTimeout(() => setSaved(false), 1800);
   };
@@ -402,7 +409,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Vertical exaggeration — 1x is true scale (vertical and horizontal axes at the same real-world-units-per-pixel)")}>{tr("VE")}<input type="number" min="0.1" max="20" step="0.5" value={vExag} onChange={(e) => setVExag(Math.max(0.1, Number(e.target.value) || 1))} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 5px" }} />
             ×
           </label>
-          {onPopOut && !drawing && <button onClick={() => onPopOut({ ...data, contacts, labels })} style={btnStyle(false)} title={tr("Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.")}>{tr("Own window")}</button>}{/* #1303 */}
+          {onPopOut && !drawing && <button onClick={() => onPopOut({ ...data, contacts, labels, savedContactsKey: savedKey })} style={btnStyle(false)} title={tr("Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.")}>{tr("Own window")}</button>}{/* #1303 */}
           <button onClick={exportPNG} style={btnStyle(false)} title={tr("Export section → PNG")}><Download size={14} />{" "}{tr("PNG")}</button>
           <button onClick={exportSVG} style={btnStyle(false)} title={tr("Export section → SVG")}><Download size={14} />{" "}{tr("SVG")}</button>
           <button onClick={exportPDF} style={btnStyle(false)} title={tr("Export section → PDF")}><FileText size={14} />{" "}{tr("PDF")}</button>

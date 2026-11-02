@@ -6698,5 +6698,10 @@
   "For a drone or contractor orthophoto: keeps up to 4096 px on the long side instead of 2048, so a 2 km image shows about 0.5 m rather than 1 m. Uses about four times the graphics memory and a larger project file. Import the image again after changing this.": "Pour une orthophoto de drone ou de prestataire : garde jusqu'à 4096 px sur le grand côté au lieu de 2048, si bien qu'une image de 2 km montre environ 0,5 m au lieu de 1 m. Utilise environ quatre fois la mémoire graphique et un fichier de projet plus gros. Importez de nouveau l'image après ce changement.",
   "Keep full detail (up to 4096 px)": "Garder tout le détail (jusqu'à 4096 px)",
   " Reduced from {w} × {h} px to 4096 px on its long side, the most GeoStrix keeps.": " Réduite de {w} × {h} px à 4096 px sur son grand côté, le maximum gardé par GeoStrix.",
-  " Reduced from {w} × {h} px to 2048 px on its long side. Tick Keep full detail and import it again to keep up to 4096 px.": " Réduite de {w} × {h} px à 2048 px sur son grand côté. Cochez Garder tout le détail et importez-la de nouveau pour garder jusqu'à 4096 px."
+  " Reduced from {w} × {h} px to 2048 px on its long side. Tick Keep full detail and import it again to keep up to 4096 px.": " Réduite de {w} × {h} px à 2048 px sur son grand côté. Cochez Garder tout le détail et importez-la de nouveau pour garder jusqu'à 4096 px.",
+  "Unsaved lines": "Lignes non enregistrées",
+  "Some lines on this section have not been saved.": "Certaines lignes de cette coupe n'ont pas été enregistrées.",
+  "Save contacts keeps them. If you close now, they are lost.": "Enregistrer les contacts les conserve. Si vous fermez maintenant, elles seront perdues.",
+  "Close without saving": "Fermer sans enregistrer",
+  "Some lines on this section have not been saved. Close it and lose them?": "Certaines lignes de cette coupe n'ont pas été enregistrées. La fermer et les perdre ?"
 }

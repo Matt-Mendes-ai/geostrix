@@ -434,7 +434,7 @@ function createMainWindow() {
   // anything else trying to quit at the same time. Clicking "Quit Without Saving" clears the flag and
   // re-issues close() — the listener sees rendererDirty is now false and lets the close proceed normally.
   mainWindow.on("close", (e) => {
-    if (!rendererDirty) return;
+    if (!rendererDirty) { if (!mayCloseSections(mainWindow, [...sectionTabs.keys()])) e.preventDefault(); return; } // #1323 — section windows close with this one
     e.preventDefault();
     const choice = dialog.showMessageBoxSync(mainWindow, {
       type: "warning",
@@ -561,6 +561,23 @@ ipcMain.on("refocus-after-dialog", (e) => {
 const sectionPayloads = new Map(); // section id -> latest payload
 const sectionTabs = new Map(); // section id -> the BrowserWindow holding it
 const sectionHosts = new Set(); // every section window, oldest first: new sections go to the first
+// TASKS.csv #1323 — sections with lines not saved yet, and the question in the interface's language (the main process has no translations of its own)
+const sectionUnsaved = new Set();
+let sectionUnsavedText = { title: "Unsaved lines", message: "Some lines on this section have not been saved.", detail: "Save contacts keeps them. If you close now, they are lost.", close: "Close without saving", cancel: "Cancel" };
+ipcMain.on("section-tab-unsaved", (_e, id, unsaved, text) => {
+  if (unsaved) sectionUnsaved.add(id); else sectionUnsaved.delete(id);
+  if (text && Object.keys(sectionUnsavedText).every((k) => typeof text[k] === "string")) sectionUnsavedText = { title: text.title, message: text.message, detail: text.detail, close: text.close, cancel: text.cancel };
+});
+// true when these sections may close: none has unsaved lines, or the person said to lose them
+function mayCloseSections(win, ids) {
+  const at = ids.filter((id) => sectionUnsaved.has(id));
+  if (!at.length) return true;
+  const t = sectionUnsavedText;
+  const keep = dialog.showMessageBoxSync(win, { type: "warning", buttons: [t.close, t.cancel], defaultId: 1, cancelId: 1, title: t.title, message: at.length > 1 ? `${t.message} (${at.length})` : t.message, detail: t.detail });
+  if (keep !== 0) return false;
+  at.forEach((id) => sectionUnsaved.delete(id));
+  return true;
+}
 ipcMain.handle("get-section-data", (ev) => {
   const win = BrowserWindow.fromWebContents(ev.sender);
   return [...sectionTabs].filter(([, w]) => w === win).map(([id]) => sectionPayloads.get(id));
@@ -589,16 +606,17 @@ function createSectionHost(title) {
   });
   sectionHosts.add(win);
   win.loadURL(resolveUrl("/section"));
+  win.on("close", (e) => { if (!mayCloseSections(win, [...sectionTabs].filter(([, w]) => w === win).map(([id]) => id))) e.preventDefault(); }); // #1323
   win.on("closed", () => {
     sectionHosts.delete(win);
-    for (const [id, w] of sectionTabs) if (w === win) { sectionTabs.delete(id); sectionPayloads.delete(id); }
+    for (const [id, w] of sectionTabs) if (w === win) { sectionTabs.delete(id); sectionPayloads.delete(id); sectionUnsaved.delete(id); }
   });
   return win;
 }
 ipcMain.handle("section-tab-closed", (ev, id) => {
   const win = BrowserWindow.fromWebContents(ev.sender);
   if (sectionTabs.get(id) !== win) return { ok: false };
-  sectionTabs.delete(id); sectionPayloads.delete(id);
+  sectionTabs.delete(id); sectionPayloads.delete(id); sectionUnsaved.delete(id); // the tab already asked
   if (![...sectionTabs.values()].includes(win)) win.close(); // its last section
   return { ok: true };
 });
