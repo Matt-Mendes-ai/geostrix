@@ -7,7 +7,7 @@
 import { readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 
-import { BUNDLED_FROM_DEV as SHIPPED_DEV, isNotShipped } from "./shipped-roots.mjs"; // #668 — shared with third-party-licenses.mjs
+import { BUNDLED_FROM_DEV as SHIPPED_DEV, isNotShipped, advisoryHitsShipped } from "./shipped-roots.mjs"; // #668 — shared with third-party-licenses.mjs
 // The `electron` npm package is an installer: its own dependencies (@electron/get, got, undici...) download the
 // Electron binary during `npm install`; electron-builder ships that binary, not this package's node_modules. So
 // electron's advisories count (they are the runtime's), its dependency tree does not.
@@ -53,8 +53,8 @@ try {
 if (report.error) { console.warn(`::warning::npm audit failed: ${report.error.summary || report.error.code} — skipped.`); process.exit(0); }
 
 const vulns = Object.entries(report.vulnerabilities || {});
-const hit = vulns.filter(([name]) => shipped.has(name));
-const devOnly = vulns.filter(([name]) => !shipped.has(name));
+const hit = vulns.filter(([name, v]) => advisoryHitsShipped(name, v, shipped, seen));
+const devOnly = vulns.filter(([name, v]) => !advisoryHitsShipped(name, v, shipped, seen));
 console.log(`Shipped packages audited: ${shipped.size} (dependencies + ${SHIPPED_DEV.join(", ")}).`);
 if (devOnly.length) console.log(`Dev / build tooling only (not shipped), ${devOnly.length}: ${devOnly.map(([n, v]) => `${n} (${v.severity})`).join(", ")}`);
 if (hit.length) {

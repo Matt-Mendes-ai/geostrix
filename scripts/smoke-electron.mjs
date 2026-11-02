@@ -3,17 +3,25 @@
 // on the splash (a CRLF-changed inline script no longer matched its CSP hash). This starts the built exe with
 // a DevTools port, waits for the main page, then asserts over the DevTools protocol that React mounted, the
 // splash is gone and no script error was thrown. Usage: node scripts/smoke-electron.mjs <path-to-exe> [port]
+// #1332 — a packaged exe refuses a DevTools port and another profile (#1265), which left this check red and blind from v0.1.87 to v0.1.89. So the PACKAGED app.asar, the files a user
+// receives, is rendered by the plain Electron binary, which still takes those switches; the guard stays as it is. The packaged exe itself cannot be given a throwaway profile, so on CI
+// only it is then started as it ships and has to stay running.
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createRequire } from "node:module";
 
 const exe = process.argv[2];
 const port = Number(process.argv[3] || 9339);
 if (!exe) { console.error("usage: node scripts/smoke-electron.mjs <exe> [port]"); process.exit(2); }
 // A throwaway profile: the smoke run must never read or overwrite a real user's autosave / settings.
 const profile = mkdtempSync(path.join(os.tmpdir(), "geostrix-smoke-"));
-const child = spawn(exe, [`--remote-debugging-port=${port}`, `--user-data-dir=${profile}`], { stdio: ["ignore", "pipe", "pipe"] });
+const appAsar = path.join(path.dirname(exe), "resources", "app.asar");
+const electronBin = createRequire(import.meta.url)("electron"); // the npm package exports the path of its binary
+const childEnv = { ...process.env };
+delete childEnv.NODE_ENV; delete childEnv.ELECTRON_RUN_AS_NODE; // "development" would load the Vite server instead of the packaged files
+let child = spawn(electronBin, [appAsar, `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`], { stdio: ["ignore", "pipe", "pipe"], env: childEnv });
 let log = "";
 child.stdout.on("data", (d) => { log += d; });
 child.stderr.on("data", (d) => { log += d; });
@@ -68,5 +76,16 @@ else {
   else if (!state.desktop) fail("window.desktop (the preload bridge) is missing");
   else if (state.crashed) fail(`the app shows an error screen: ${state.text}`);
   else if (!/3D View/.test(state.text)) fail(`unexpected first screen: ${state.text}`);
-  else { console.log("SMOKE OK: the packaged app renders."); finish(0); }
+  else {
+    console.log("SMOKE OK: the packaged app renders.");
+    if (!process.env.CI) finish(0);
+    else {
+      // never outside CI: with no profile switch allowed, this would open the real profile of whoever ran it
+      done = true; child.kill(); await wait(1500); done = false;
+      child = spawn(exe, [], { stdio: "ignore" });
+      child.on("exit", (c) => { if (!done) fail(`the packaged exe exited early (code ${c})`); });
+      await wait(20000);
+      if (!done) { console.log("SMOKE OK: the packaged exe starts and stays running."); finish(0); }
+    }
+  }
 }
