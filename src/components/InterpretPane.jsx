@@ -6,7 +6,7 @@ import { TaskPaneHeader } from "./Ribbon.jsx";
 import { PenTool, Trash2 } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { surveyKey } from "../lib/geophysSurveys.js";
-import { INTERPRETATION_TYPES, CONFIDENCE, NEW_LAYER, chooseLayerId, uniqueLayerName, typeLabel, isInterpretationLayer, interpretationLayer, addInterpretationLine, removeInterpretationLine, lineLengthM } from "../lib/interpretation.js";
+import { attitudeOf, attitudeAttrs, INTERPRETATION_TYPES, CONFIDENCE, NEW_LAYER, chooseLayerId, uniqueLayerName, typeLabel, isInterpretationLayer, interpretationLayer, addInterpretationLine, removeInterpretationLine, lineLengthM } from "../lib/interpretation.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
@@ -34,12 +34,16 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
   const [name, setName] = useState("");
   const [confidence, setConfidence] = useState("probable");
   const [noteText, setNoteText] = useState("");
+  const [angle, setAngle] = useState(""), [direction, setDirection] = useState(""); // #1239
+  const attitude = attitudeOf(type);
   const [msg, setMsg] = useState(null);
   const pts = drawing.points, n = pts.length;
 
   const finish = () => {
     if (n < 2) { setMsg(tr("A line needs at least two points.")); return; }
-    const attrs = { name: name.trim(), type, survey, confidence, note: noteText.trim() };
+    const att = attitudeAttrs(type, angle, direction);
+    if (att.error) { setMsg(tr("{angle} is 0 to 90 degrees and {direction} is 0 to 360.", { angle: tr(attitude[2]), direction: tr(attitude[3]) })); return; }
+    const attrs = { name: name.trim(), type, survey, confidence, note: noteText.trim(), attitude: att };
     let target = layer, id = layerId;
     if (!target) {
       const fresh = interpretationLayer(newName.trim(), survey);
@@ -48,7 +52,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
     }
     const next = addInterpretationLine(target, pts, attrs);
     updateMapLayer(id, () => ({ ...next, id }));
-    setName(""); setNoteText(""); setMsg(tr("Added \"{name}\" to \"{layer}\" ({m} m).", { name: next.features[next.features.length - 1].attributes.name, layer: next.name, m: Math.round(lineLengthM(pts)).toLocaleString() }));
+    setName(""); setNoteText(""); setAngle(""); setDirection(""); setMsg(tr("Added \"{name}\" to \"{layer}\" ({m} m).", { name: next.features[next.features.length - 1].attributes.name, layer: next.name, m: Math.round(lineLengthM(pts)).toLocaleString() }));
     onDone();
   };
   // a double-click in the 3D view ends the line (ViewerModule bumps finishSeq)
@@ -81,6 +85,12 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
           <select value={confidence} onChange={(e) => setConfidence(e.target.value)} style={{ ...smallSel, maxWidth: 170 }} aria-label={tr("Confidence")}>
             {CONFIDENCE.map((c) => <option key={c} value={c}>{tr(c)}</option>)}
           </select></label>
+        {attitude && (
+          <div style={{ display: "flex", gap: 6 }}>
+            <input value={angle} onChange={(e) => setAngle(e.target.value)} inputMode="decimal" placeholder={tr("{v} (optional)", { v: tr(attitude[2]) })} aria-label={tr(attitude[2])} title={tr(attitude[2])} style={{ ...smallSel, flex: 1, minWidth: 0, boxSizing: "border-box" }} />
+            <input value={direction} onChange={(e) => setDirection(e.target.value)} inputMode="decimal" placeholder={tr("{v} (optional)", { v: tr(attitude[3]) })} aria-label={tr(attitude[3])} title={tr(attitude[3])} style={{ ...smallSel, flex: 1, minWidth: 0, boxSizing: "border-box" }} />
+          </div>
+        )}
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr("Name (optional)")} aria-label={tr("Line name")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />
         <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder={tr("Note (optional)")} aria-label={tr("Line note")} style={{ ...smallSel, width: "100%", boxSizing: "border-box" }} />
         {!drawing.on ? (

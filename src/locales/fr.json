@@ -6671,5 +6671,12 @@
   "Added \"{name}\" to the map, flat at {z} m below the holes because the project has no terrain. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.": "« {name} » ajouté à la carte, à plat à {z} m sous les sondages car le projet n'a pas de terrain. Modifiez son élévation sous Cartes ; ses valeurs s'exportent en GeoTIFF depuis le module Raster.",
   "Formats: GeoPackage, shapefile (.zip / .shp), MapInfo .tab / .mif, .gpx, .geojson, .kml": "Formats : GeoPackage, shapefile (.zip / .shp), MapInfo .tab / .mif, .gpx, .geojson, .kml",
   "Import map layer…": "Importer une couche de carte…",
-  "Import structure measurements…": "Importer des mesures structurales…"
+  "Import structure measurements…": "Importer des mesures structurales…",
+  "Loads into Postgres with COPY and into MySQL with LOAD DATA": "Se charge dans Postgres avec COPY et dans MySQL avec LOAD DATA",
+  "{angle} is 0 to 90 degrees and {direction} is 0 to 360.": "{angle} va de 0 à 90 degrés et {direction} de 0 à 360.",
+  "{v} (optional)": "{v} (facultatif)",
+  "Plunge": "Plongée",
+  "Plunge direction": "Direction de plongée",
+  "Dip direction": "Direction de pendage",
+  "Formats: .csv, MapInfo .tab / .mif": "Formats : .csv, MapInfo .tab / .mif"
 }

@@ -113,7 +113,8 @@ export default function App() {
   const fitToolbar = useCallback(() => {
     const el = toolbarRef.current;
     if (!el) return;
-    el.classList.remove("ge-toolbar-compact");
+    el.classList.remove("ge-toolbar-compact", "ge-toolbar-snug");
+    if (el.scrollWidth > el.clientWidth + 1) el.classList.add("ge-toolbar-snug"); // #1293 — New, Open and Save keep their names longest
     if (el.scrollWidth > el.clientWidth + 1) el.classList.add("ge-toolbar-compact");
   }, []);
   useEffect(() => {
@@ -511,8 +512,8 @@ export default function App() {
         <button className="ge-tool-btn" onClick={undoSay} disabled={!canUndo} title={tr("Undo (Ctrl/Cmd+Z): collars, surveys, logs, assays, surface samples, sections, planned holes, explicit surfaces, Layout pages ... Rasters, terrain, map layers, block models and generated surfaces are not undoable.")} aria-label={tr("Undo")} style={{ opacity: canUndo ? 1 : 0.4 }}><Undo2 size={14} /></button>
         <button className="ge-tool-btn" onClick={redoSay} disabled={!canRedo} title={tr("Redo (Ctrl/Cmd+Shift+Z)")} aria-label={tr("Redo")} style={{ opacity: canRedo ? 1 : 0.4 }}><Redo2 size={14} /></button>
         <div className="ge-tool-sep" />
-        <button className="ge-tool-btn" onClick={doExportPdf} title={tr("Exports the Layout page (switches to it first if needed)")} aria-label={tr("Export PDF")}><FileDown size={14} /> <span className="ge-tool-label-opt">{tr("Export PDF")}</span></button>
-        <button className="ge-tool-btn" onClick={() => setReportOpen(true)} title={tr("Consolidated drillhole/assay project summary (CSV)")} aria-label={tr("Project report")}><FileBarChart2 size={14} /> <span className="ge-tool-label-opt">{tr("Report")}</span></button>
+        <button className="ge-tool-btn" onClick={doExportPdf} title={tr("Exports the Layout page (switches to it first if needed)")} aria-label={tr("Export PDF")}><FileDown size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("Export PDF")}</span></button>
+        <button className="ge-tool-btn" onClick={() => setReportOpen(true)} title={tr("Consolidated drillhole/assay project summary (CSV)")} aria-label={tr("Project report")}><FileBarChart2 size={14} /> <span className="ge-tool-label-opt ge-tool-label-first">{tr("Report")}</span></button>
       </div>
 
       {/* TASKS.csv #309 — .ge-subtoolbar (the QGIS-style 38px icon row from #155) is rendered by

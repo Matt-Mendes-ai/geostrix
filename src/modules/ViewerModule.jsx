@@ -24,7 +24,7 @@ import { blockToCells, modelledIntervals, ABOVE_TOPS, unitAt } from "../lib/mode
 import { sectionGrid, sameLine, unpackUnits, sectionPixels, blockSpacing, sectionZRange } from "../lib/modelSection.js"; // TASKS.csv #759
 import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/desktop.js"; // copyText: TASKS.csv #589
 import { sampleProjectName } from "../lib/sampleProjectName.js"; // TASKS.csv #1218
-import { sectionFromCentre, sectionThroughHole, fenceLines, fenceExtentPoints } from "../lib/sectionDefs.js";
+import { sectionFromCentre, sectionThroughHole, fenceLines, fenceExtentPoints, fenceLabels } from "../lib/sectionDefs.js";
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, RIBBON_TONES } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate, Sparkles, Download } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
 import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImportMeta.js"; // TASKS.csv #148; #552 split
@@ -5574,6 +5574,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // because following the nearest collars made it step up and down
     const czs = (collars || []).map((c) => c.z).filter(Number.isFinite).sort((u, v) => u - v);
     const flatZ = czs.length ? czs[czs.length >> 1] : oz;
+    const fences = fenceLabels(sections); // #1255
     (sections || []).forEach((sct) => {
       const { ax, ay, bx, by } = sct;
       if (![ax, ay, bx, by].every(Number.isFinite)) return;
@@ -5586,7 +5587,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       const tip = `${tr("Cross-section: {name}", { name: sct.name })}\n${Math.round(L).toLocaleString()} m, ${tr("azimuth {v}°", { v: Math.round(sct.azimuth ?? 0) })}`;
       // #1126 — a dark line on a white halo (the halo runs a little past both ends)
       const ink = "#1a2028";
-      [[width * 2.6, "#ffffff", 10], [width, ink, 11]].forEach(([w, color, order]) => {
+      const fence = fences.get(sct); // #1255 — at 15 m with a halo, lines 50 m apart were a solid block over the holes
+      (fence ? [[Math.max(1, L * 0.0006), ink, 11]] : [[width * 2.6, "#ffffff", 10], [width, ink, 11]]).forEach(([w, color, order]) => {
         const half = w / 2, ext = (w - width) / 2, pos = [], idx = [];
         for (let k = 0; k <= n; k++) {
           const along = k === 0 ? -ext : k === n ? ext : 0;
@@ -5605,8 +5607,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       // #1126 — end ticks toward the viewing side (n), and the labels at their tips
       const tickLen = Math.max(12, L * 0.05);
       const endB = `${sct.name}${/[\p{L}\p{N}]$/u.test(sct.name || "") ? "" : "\u2009"}′`; // a thin space before ′ after "39°"
-      [[ax, ay, zs[0], sct.name], [bx, by, zs[n], endB]].forEach(([ex, ey, ez, label]) => {
-        [[width * 2.6, "#ffffff", 10], [width, ink, 11]].forEach(([w, color, order]) => {
+      (fence ? (fence.label ? [[ax, ay, zs[0], fence.label]] : []) : [[ax, ay, zs[0], sct.name], [bx, by, zs[n], endB]]).forEach(([ex, ey, ez, label]) => {
+        (fence ? [[Math.max(1, L * 0.0006), ink, 11]] : [[width * 2.6, "#ffffff", 10], [width, ink, 11]]).forEach(([w, color, order]) => {
           const h = w / 2, tx = ex + nx * tickLen, ty = ey + ny * tickLen;
           const quad = [[ex - ux * h, ey - uy * h], [ex + ux * h, ey + uy * h], [tx + ux * h, ty + uy * h], [tx - ux * h, ty - uy * h]];
           const geo = new THREE.BufferGeometry();
@@ -8384,7 +8386,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 {head(tr("Traces: {n} desurveyed 3D lines, from the survey or, without one, from the collar azimuth, dip and length", { n: nTr }))}
                 {three("survey", "__survey__", "Traces", !nTr)}
                 <div style={{ borderTop: "1px solid var(--color-border)", margin: "4px 0" }} />
-                <ContextItem label={tr("Export all drillhole tables (.zip of CSV)…")} onClick={() => { exportDrillholeTables("all"); close(); }} />
+                <ContextItem label={tr("Export all drillhole tables (.zip of CSV)…")} title={tr("Loads into Postgres with COPY and into MySQL with LOAD DATA")} onClick={() => { exportDrillholeTables("all"); close(); }} />
               </div>
             </div>
           );
@@ -8407,7 +8409,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <ContextItem label={tr("Export GeoPackage (.gpkg)…")} onClick={() => { exportVectorGeoPackage(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Export DXF (.dxf)…")} onClick={() => { exportVectorDXF(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />
             {layerContextMenu.key !== "geophys_pts" && <ContextItem label={tr("Export CSV table (imports back)…")} onClick={() => { exportDrillholeTables(vectorKind, layerContextMenu.key, layerContextMenu.label); setLayerContextMenu(null); }} />}
-            <ContextItem label={tr("Export all drillhole tables (.zip of CSV)…")} onClick={() => { exportDrillholeTables("all"); setLayerContextMenu(null); }} />
+            <ContextItem label={tr("Export all drillhole tables (.zip of CSV)…")} title={tr("Loads into Postgres with COPY and into MySQL with LOAD DATA")} onClick={() => { exportDrillholeTables("all"); setLayerContextMenu(null); }} />
             <ContextItem label={tr("Inspect / edit table…")} onClick={() => { setAttrTableTarget({ kind: vectorKind, key: layerContextMenu.key, label: layerContextMenu.label }); setLayerContextMenu(null); }} />
             {!isVector && <>
               {/* TASKS.csv #76 — sort this layer into a named group (or back out of one). */}

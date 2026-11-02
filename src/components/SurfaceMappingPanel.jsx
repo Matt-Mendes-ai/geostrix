@@ -428,7 +428,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       {part !== "maps" && (<>
       <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Surface structures")}<InfoButton title={tr("Surface structures")} text={tr("Import outcrop structural measurements from a CSV — easting, northing, optional elevation, dip, and dip direction and/or strike (right-hand rule), plus a structure type and comments if present. Each measurement is drawn in the 3D view as a disc lying in the measured plane, coloured by type (fault, bedding, foliation, vein, joint, contact…). Rows without an elevation sit on the terrain. These measurements are what the 3D Modelling tab uses to set the dip when projecting mapped contacts underground.")} />
       </div>
-      <button onClick={() => structInput.current.click()} style={pBtn}>
+      <button onClick={() => structInput.current.click()} style={pBtn} title={tr("Formats: .csv, MapInfo .tab / .mif")}>
         <Compass size={14} />{" "}{tr("Import structure measurements…")}</button>
       <input ref={structInput} type="file" accept=".csv,.txt,.tab,.map,.id,.dat,.mif,.mid" multiple style={{ display: "none" }}
         onChange={(e) => { readStructCsv(e.target.files); e.target.value = ""; }} />

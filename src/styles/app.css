@@ -145,7 +145,6 @@ input, select { font-family: inherit; }
   .ge-toolbar { gap: 2px; padding: 0 6px; }
   .ge-tool-btn { padding: 0 8px; gap: 5px; }
   .ge-tool-sep { margin: 0 3px; }
-  .ge-tool-label-opt { display: none; }
 }
 /* TASKS.csv #790 — the width alone did not decide it: at 1,280-1,300 px in Portuguese (or with large Windows text
    scaling) the labels wrapped to two lines and Report was cut at the window's edge. Labels never wrap now, and
@@ -155,6 +154,10 @@ input, select { font-family: inherit; }
 .ge-toolbar-compact .ge-tool-btn { padding: 0 8px; gap: 5px; }
 .ge-toolbar-compact .ge-tool-sep { margin: 0 3px; }
 .ge-toolbar-compact .ge-tool-label-opt { display: none; }
+.ge-toolbar-snug .ge-tool-label-first { display: none; } /* #1293 — the first to go, then all of them */
+.ge-toolbar.ge-toolbar-snug { gap: 2px; padding: 0 6px; }
+.ge-toolbar-snug .ge-tool-btn { padding: 0 8px; gap: 5px; }
+.ge-toolbar-snug .ge-tool-sep { margin: 0 3px; }
 
 /* TASKS.csv #155 — QGIS-style icon toolbar, a second row directly below the module bar, for a
    module's TOOLS (as opposed to its data — collars/survey/layers stay in the sidebar as a data
@@ -196,7 +199,9 @@ input, select { font-family: inherit; }
 .ge-ribbon-btn.active { background: var(--color-selected-bg); border-color: var(--color-selected-border); box-shadow: inset 0 -2px 0 var(--color-accent-dark); }
 .ge-ribbon-btn:disabled, .ge-ribbon-btn.is-disabled { opacity: 0.4; cursor: default; } /* .is-disabled: #566, focusable */
 .ge-ribbon-btn:disabled:hover, .ge-ribbon-btn.is-disabled:hover { background: transparent; border-color: transparent; }
-.ge-ribbon-btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+/* TASKS.csv #1297 — one focus ring for every control (ribbon buttons, tabs, sidebar selects and inputs had three), one disabled look where no style sets its own */
+button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible, [role="button"]:focus-visible, [role="menuitem"]:focus-visible, [role="tab"]:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+button:disabled, select:disabled, input:disabled, textarea:disabled { opacity: 0.55; cursor: default; }
 .ge-ribbon-label { display: block; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 /* Small inline setting next to a ribbon button (e.g. the section buffer while drawing). */
 .ge-ribbon-inline { display: flex; flex-direction: column; justify-content: center; gap: 2px; height: 54px; font-size: var(--font-size-xs); color: var(--color-text-secondary); }
@@ -214,7 +219,7 @@ input, select { font-family: inherit; }
    and a caption that no longer sets the group's width (ellipsis, full text in its tooltip). */
 .ge-ribbon-group[data-compact] .ge-ribbon-btn { min-width: 34px; padding: 5px 2px 2px; justify-content: center; }
 .ge-ribbon-group[data-compact] .ge-ribbon-label { display: none; }
-.ge-ribbon-group[data-compact] .ge-ribbon-caption { width: 0; min-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.ge-ribbon-group[data-compact] .ge-ribbon-caption { width: 0; min-width: 100%; overflow: hidden; white-space: normal; height: 1.5em; } /* #1293 — whole words only: "Expli..." named nothing */
 /* TASKS.csv #1292 — when every group is icon-only and the band still does not fit: tighter, then a second row. */
 .ge-ribbon-inner[data-tight] .ge-ribbon-btn { min-width: 28px; padding: 5px 1px 2px; }
 .ge-ribbon-inner[data-tight] .ge-ribbon-group { padding: 0 1px; }
@@ -271,7 +276,7 @@ input, select { font-family: inherit; }
 .ge-tab-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); flex-shrink: 0; }
 /* #596 — the tab's two sibling buttons, unstyled so the pill (.ge-tab) still looks the same */
 .ge-tab-switch { all: unset; display: flex; align-items: center; gap: 6px; min-width: 0; height: 100%; cursor: pointer; }
-.ge-tab-switch:focus-visible, .ge-tab-close:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; border-radius: 3px; }
+.ge-tab-switch:focus-visible, .ge-tab-close:focus-visible { border-radius: 3px; }
 .ge-tab-close { all: unset; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; color: var(--color-text-muted); border-radius: 3px; }
 .ge-tab-close:hover { color: var(--color-danger-fg); background: #fdeceb; } /* #384 */
 .ge-tab-add {

@@ -51,6 +51,19 @@ export function fenceLines(tMin, tMax, spacing, azimuth) {
   return out;
 }
 
+// TASKS.csv #1255 — in the 3D view a series labels every nth line, by its short name and at one end: 51 full names at both ends covered every hole. Lines are thin, with no halo.
+// Maps a section of a series to { label } (null when this line goes unlabelled); sections outside a series are not in the map. Reads the name fenceSeries gives.
+export function fenceLabels(sections, maxLabels = 8) {
+  const out = new Map();
+  for (const s of sections || []) {
+    const m = /^Fence (\d+)\/(\d+) (.+?) \(az /.exec(s.name || "");
+    if (!m) continue;
+    const k = Number(m[1]), n = Number(m[2]), step = Math.max(1, Math.ceil(n / maxLabels));
+    out.set(s, { label: (k - 1) % step === 0 ? m[3] : null });
+  }
+  return out;
+}
+
 // TASKS.csv #1180 — what a fence series covers: the drilling, unless asked for the block models too. A 25 km ZTEM mesh over 5 km of drilling made
 // 27 sections at 1 km and would have made about 540 at the default width. With no holes there is only the models to cover.
 export function fenceExtentPoints(models, traces, coverModels) {

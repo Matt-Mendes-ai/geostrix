@@ -18,6 +18,23 @@ export const INTERPRETATION_TYPES = [
   { value: "other", label: "Other", color: "#b8bec7" },
 ];
 export const CONFIDENCE = ["certain", "probable", "possible"];
+// TASKS.csv #1239 — a fold axis is a line with a plunge; a fault trace has a dip. Optional, per line type: [the angle field, the direction field, their labels].
+const PLUNGE = ["plunge", "plunge_dir", "Plunge", "Plunge direction"], DIP = ["dip", "dip_dir", "Dip", "Dip direction"];
+const ATTITUDE = { fold_axis: PLUNGE, anomaly_axis: PLUNGE, lineament: PLUNGE, trend: PLUNGE, fault: DIP, dyke: DIP, contact: DIP, boundary: DIP };
+export const attitudeOf = (type) => ATTITUDE[type] || null;
+// The attributes for what was typed: blanks are left out. { error: true } when a value is not an angle in range (0-90, direction 0-360).
+export function attitudeAttrs(type, angle, direction) {
+  const f = attitudeOf(type), out = {};
+  if (!f) return out;
+  for (const [key, text, max] of [[f[0], angle, 90], [f[1], direction, 360]]) {
+    const t = String(text ?? "").trim();
+    if (!t) continue;
+    const v = Number(t);
+    if (!Number.isFinite(v) || v < 0 || v > max) return { error: true };
+    out[key] = v;
+  }
+  return out;
+}
 export const typeLabel = (v) => INTERPRETATION_TYPES.find((t) => t.value === v)?.label || v;
 
 export const isInterpretationLayer = (l) => !!l?.interpretation;
@@ -80,7 +97,10 @@ export function addInterpretationLine(layer, points, attrs = {}) {
   };
   const z = median(pts.map((p) => p.z)); // NaN with no elevations
   const elevation = layer.features.length === 0 && Number.isFinite(z) ? r2(z) : layer.elevation;
-  return withBbox({ ...layer, elevation, features: [...layer.features, feature] });
+  const attitude = attrs.attitude || {};
+  Object.assign(feature.attributes, attitude);
+  const fields = [...layer.fields, ...Object.keys(attitude).filter((k) => !layer.fields.includes(k))]; // #1239 — a field appears with its first value
+  return withBbox({ ...layer, elevation, fields, features: [...layer.features, feature] });
 }
 
 export function removeInterpretationLine(layer, index) {
