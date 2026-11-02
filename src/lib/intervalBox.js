@@ -1,7 +1,7 @@
 // TASKS.csv #1333 — selecting many drillhole intervals with a box dragged in the 3D view, and giving them one modelling
 // code. Matt: "drag and create a new selection instead of picking one by one. each hole will have multiple selected
 // intervals and I want to model that as one unit". Pure; the drag and the scene are in ModellingCodesPane.
-import { codedRuns, rowKey, EMPTY_MODELLING_CODES } from "./modellingCodes.js";
+import { codedRuns, effectiveCode, rowKey, EMPTY_MODELLING_CODES } from "./modellingCodes.js";
 
 // Does a screen segment touch a box { x0, y0, x1, y1 }? Clipped against each side in turn (Liang-Barsky).
 export function segmentTouchesBox(a, b, box) {
@@ -64,4 +64,28 @@ export function holesWithRepeats(lithoRows, mc, code, groupOf) {
   const n = new Map();
   codedRuns(lithoRows, mc, groupOf).forEach((run) => { if (run.code === code) n.set(run.hole_id, (n.get(run.hole_id) || 0) + 1); });
   return [...n.values()].filter((c) => c > 1).length;
+}
+
+// TASKS.csv #1337 — coding a selection only ever added to a code, and a code's intervals could not be seen, so a box from an
+// earlier try (or one that caught holes behind the ones in view) stayed in the unit: Matt, "it's picking up contacts that I
+// didn't select". These let the pane show what a code holds, replace it, and hand intervals back.
+export function rowsOfCode(lithoRows, mc, code, groupOf) {
+  return (lithoRows || []).filter((r) => effectiveCode(r, mc, groupOf) === code);
+}
+// the code's own overrides outside `rows` are dropped first. An interval LOGGED as the code keeps it: it has no override to drop
+export function replaceCodeWith(mc, rows, code) {
+  const base = mc || EMPTY_MODELLING_CODES, keep = new Set(rows.map(rowKey));
+  const assign = Object.fromEntries(Object.entries(base.assign || {}).filter(([k, v]) => v !== code || keep.has(k)));
+  return codeRowsAs({ ...base, assign }, rows, code);
+}
+export function uncodeRows(mc, rows) {
+  const base = mc || EMPTY_MODELLING_CODES, assign = { ...(base.assign || {}) };
+  rows.forEach((r) => { delete assign[rowKey(r)]; });
+  return { ...base, assign };
+}
+// [[hole_id, intervals]], the most intervals first
+export function holeCounts(rows) {
+  const m = new Map();
+  rows.forEach((r) => m.set(r.hole_id, (m.get(r.hole_id) || 0) + 1));
+  return [...m].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
 }

@@ -6794,5 +6794,14 @@
   "Extend past them by": "Estender além deles",
   "How far a surface runs past its own contacts (m)": "Até onde uma superfície vai além dos seus contatos (m)",
   "{label}: {m} m past its {n} contact point(s)": "{label}: {m} m além dos seus {n} ponto(s) de contato",
-  "Surfaces stop near their own contacts: {list}. The model box was sized to these contacts, not to every hole in the project. Model settings changes the distance or fills the box.": "As superfícies param perto dos próprios contatos: {list}. A caixa do modelo foi ajustada a esses contatos, não a todos os furos do projeto. Nas Configurações do modelo é possível mudar a distância ou preencher a caixa."
+  "Surfaces stop near their own contacts: {list}. The model box was sized to these contacts, not to every hole in the project. Model settings changes the distance or fills the box.": "As superfícies param perto dos próprios contatos: {list}. A caixa do modelo foi ajustada a esses contatos, não a todos os furos do projeto. Nas Configurações do modelo é possível mudar a distância ou preencher a caixa.",
+  "Leave hole {h} out of the selection": "Deixar o furo {h} fora da seleção",
+  "{code} already holds {others} other interval(s) in {holes} hole(s).": "{code} já contém outros {others} intervalo(s) em {holes} furo(s).",
+  "Replace them": "Substituí-los",
+  "Add to them": "Adicionar a eles",
+  "{n} interval(s) in {holes} hole(s) are back to their logged code.": "{n} intervalo(s) em {holes} furo(s) voltaram ao código registrado.",
+  "{code} now holds {total} interval(s) in {totalHoles} hole(s) in all.": "{code} agora contém {total} intervalo(s) em {totalHoles} furo(s) no total.",
+  "Show the intervals of {name}": "Mostrar os intervalos de {name}",
+  "{unitName}: contacts come from these holes: {list}.": "{unitName}: os contatos vêm destes furos: {list}.",
+  "+{n} more": "+{n} mais"
 }

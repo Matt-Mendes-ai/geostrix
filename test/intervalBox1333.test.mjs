@@ -1,7 +1,8 @@
 // TASKS.csv #1333 — selecting intervals with a box and giving them one modelling code.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { segmentTouchesBox, intervalTouchesBox, combineSelection, holesOf, rowsBetween, codeRowsAs, holesWithRepeats } from "../src/lib/intervalBox.js";
+import { segmentTouchesBox, intervalTouchesBox, combineSelection, holesOf, rowsBetween, codeRowsAs, holesWithRepeats, rowsOfCode, replaceCodeWith, uncodeRows, holeCounts } from "../src/lib/intervalBox.js";
+const effectiveCodeOf = (r, mc) => effectiveCode(r, mc);
 import { effectiveCode, topsForCode, codedRuns } from "../src/lib/modellingCodes.js";
 
 const box = { x0: 10, y0: 10, x1: 20, y1: 20 };
@@ -55,4 +56,24 @@ test("repeated runs are counted, and bridging them leaves one top per hole", () 
   const whole = codeRowsAs(null, [litho[1], litho[2], litho[3], litho[5]], "Q1");
   assert.equal(holesWithRepeats(litho, whole, "Q1"), 0);
   assert.equal(topsForCode(codedRuns(litho, whole), "Q1", whole).tops.length, 1);
+});
+
+test("#1337: a code's intervals can be listed, replaced and handed back", () => {
+  const litho = [
+    { hole_id: "A", from: 0, to: 10, value: "QSP" }, { hole_id: "A", from: 10, to: 20, value: "AND" },
+    { hole_id: "B", from: 0, to: 10, value: "QSP" }, { hole_id: "C", from: 0, to: 10, value: "NEW" },
+  ];
+  const first = codeRowsAs(null, [litho[0], litho[2]], "NEW");
+  assert.equal(rowsOfCode(litho, first, "NEW").length, 3); // two overrides, one logged as NEW
+  const added = codeRowsAs(first, [litho[1]], "NEW");
+  assert.equal(rowsOfCode(litho, added, "NEW").length, 4); // adding is what caught earlier tries
+  const replaced = replaceCodeWith(added, [litho[1]], "NEW");
+  assert.deepEqual(rowsOfCode(litho, replaced, "NEW").map((r) => r.hole_id).sort(), ["A", "C"]); // C is logged as NEW and stays
+  assert.equal(effectiveCodeOf(litho[0], replaced), "QSP");
+  const other = codeRowsAs(first, [litho[1]], "OTHER");
+  assert.equal(rowsOfCode(litho, replaceCodeWith(other, [litho[0]], "NEW"), "OTHER").length, 1); // another code's overrides stay
+  const back = uncodeRows(first, [litho[0]]);
+  assert.equal(effectiveCodeOf(litho[0], back), "QSP");
+  assert.equal(effectiveCodeOf(litho[2], back), "NEW");
+  assert.deepEqual(holeCounts([litho[0], litho[1], litho[2]]), [["A", 2], ["B", 1]]);
 });

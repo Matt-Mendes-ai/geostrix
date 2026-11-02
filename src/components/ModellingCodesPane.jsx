@@ -10,7 +10,7 @@ import { Crosshair, Waypoints, X, RotateCcw, Layers3, Square } from "./icons.js"
 import { CODE_ROLES, codesInUse, autoNumber, effectiveCode, rowKey, codedRuns } from "../lib/modellingCodes.js";
 import { colorForLithology, LAYER_META } from "../lib/layers.js";
 import { findOnTrace } from "../lib/viewer/modelHelpers.js";
-import { combineSelection, intervalTouchesBox, holesOf, rowsBetween, codeRowsAs, holesWithRepeats } from "../lib/intervalBox.js"; // TASKS.csv #1333
+import { combineSelection, intervalTouchesBox, holesOf, rowsBetween, codeRowsAs, holesWithRepeats, rowsOfCode, replaceCodeWith, uncodeRows, holeCounts } from "../lib/intervalBox.js"; // TASKS.csv #1333, #1337
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const ROLE_HELP = {
@@ -86,6 +86,7 @@ export default function ModellingCodesPane({ litho, modellingCodes, setModelling
   const [boxRows, setBoxRows] = useState([]);
   const [fillBetween, setFillBetween] = useState(false);
   const [boxResult, setBoxResult] = useState(null);
+  const [boxConflict, setBoxConflict] = useState(null); // #1337 — the chosen code already holds other intervals: replace or add
   const between = useMemo(() => (boxRows.length ? rowsBetween(litho, boxRows) : []), [litho, boxRows]);
   const boxRowsRef = useRef(boxRows);
   boxRowsRef.current = boxRows;
@@ -112,6 +113,7 @@ export default function ModellingCodesPane({ litho, modellingCodes, setModelling
         if (ev.type === "pointercancel" || (b.x1 - b.x0 < 4 && b.y1 - b.y0 < 4)) return;
         setBoxRows(combineSelection(boxRowsRef.current, intervalsInBox(view, b, rect), mode));
         setBoxResult(null);
+        setBoxConflict(null);
       };
       dom.setPointerCapture(e.pointerId);
       dom.addEventListener("pointermove", onMove);
@@ -137,13 +139,29 @@ export default function ModellingCodesPane({ litho, modellingCodes, setModelling
     view.activity.current = Date.now();
     return () => { scene.remove(overlay); overlay.children.forEach((o) => { o.geometry.dispose(); o.material.dispose(); o.dispose?.(); }); view.activity.current = Date.now(); };
   }, [boxRows, view]);
-  const codeBoxRows = (code) => {
-    const rows = fillBetween ? [...boxRows, ...between] : boxRows;
-    const next = codeRowsAs(mc, rows, code);
-    setModellingCodes((p) => codeRowsAs(p || mc, rows, code));
-    setBoxResult({ code, n: rows.length, holes: holesOf(rows), repeats: holesWithRepeats(litho, next, code, groupOf) });
+  const boxSelection = () => (fillBetween ? [...boxRows, ...between] : boxRows);
+  const codeBoxRows = (code, replace = false) => {
+    const rows = boxSelection(), apply = (m) => (replace ? replaceCodeWith(m, rows, code) : codeRowsAs(m, rows, code));
+    const next = apply(mc), all = rowsOfCode(litho, next, code, groupOf);
+    setModellingCodes((p) => apply(p || mc));
+    setBoxResult({ code, n: rows.length, holes: holesOf(rows), repeats: holesWithRepeats(litho, next, code, groupOf), total: all.length, totalHoles: holesOf(all) });
     setBoxRows([]);
+    setBoxConflict(null);
   };
+  // #1337 — coding into a code that holds other intervals is a choice, not a silent merge
+  const chooseBoxCode = (code) => {
+    const keys = new Set(boxSelection().map(rowKey)), others = rowsOfCode(litho, mc, code, groupOf).filter((r) => !keys.has(rowKey(r)));
+    if (others.length) setBoxConflict({ code, others: others.length, holes: holesOf(others) });
+    else codeBoxRows(code);
+  };
+  const uncodeBoxRows = () => {
+    const rows = boxSelection();
+    setModellingCodes((p) => uncodeRows(p || mc, rows));
+    setBoxResult({ cleared: true, n: rows.length, holes: holesOf(rows) });
+    setBoxRows([]);
+    setBoxConflict(null);
+  };
+  const showCode = (code) => { setBoxRows(rowsOfCode(litho, mc, code, groupOf)); setBoxResult(null); setBoxConflict(null); };
   const boxBreakdown = useMemo(() => {
     const m = new Map();
     boxRows.forEach((r) => m.set(r.value, (m.get(r.value) || 0) + 1));
@@ -199,17 +217,39 @@ export default function ModellingCodesPane({ litho, modellingCodes, setModelling
             <X size={14} style={{ cursor: "pointer" }} {...iconAction(() => setBoxRows([]), tr("Clear selection"))} />
           </div>
           <div style={small}>{boxBreakdown}</div>
+          {/* #1337 — a box selects through the whole depth of the view: every hole is named, and can be left out */}
+          <div style={{ ...small, display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4, maxHeight: 96, overflowY: "auto" }}>
+            {holeCounts(boxRows).map(([h, n]) => (
+              <span key={h} style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "0 4px", border: "1px solid var(--color-border)", borderRadius: 4 }}>{h} ({n})<X size={10} style={{ cursor: "pointer" }} {...iconAction(() => { setBoxRows((p) => p.filter((r) => r.hole_id !== h)); setBoxConflict(null); }, tr("Leave hole {h} out of the selection", { h }))} /></span>
+            ))}
+          </div>
           {between.length > 0 && <label style={{ ...small, display: "flex", gap: 4, alignItems: "center", marginTop: 4, cursor: "pointer" }}><input type="checkbox" checked={fillBetween} onChange={(e) => setFillBetween(e.target.checked)} />{tr("Also include the {n} interval(s) between them in each hole", { n: between.length })}</label>}
-          <select value="" onChange={(e) => { if (e.target.value === "__new") askPrompt("New modelling code:", String(boxRows[0].value), (n) => { if (n && n.trim()) codeBoxRows(n.trim()); }); else if (e.target.value) codeBoxRows(e.target.value); }} style={{ ...inputStyle, width: "100%", marginTop: 5 }} aria-label={tr("Modelling code of the selected intervals")}>
+          <select value="" onChange={(e) => { if (e.target.value === "__new") askPrompt("New modelling code:", String(boxRows[0].value), (n) => { if (n && n.trim()) chooseBoxCode(n.trim()); }); else if (e.target.value === "__logged") uncodeBoxRows(); else if (e.target.value) chooseBoxCode(e.target.value); }} style={{ ...inputStyle, width: "100%", marginTop: 5 }} aria-label={tr("Modelling code of the selected intervals")}>
             <option value="">{tr("Give them a code…")}</option>
             <option value="__new">{tr("New code…")}</option>
+            <option value="__logged">{tr("Back to the logged code (or its group)")}</option>
             {codes.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
           </select>
+          {boxConflict && (
+            <div style={{ ...small, marginTop: 5 }}>
+              {tr("{code} already holds {others} other interval(s) in {holes} hole(s).", boxConflict)}
+              <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+                <button onClick={() => codeBoxRows(boxConflict.code, true)} style={{ ...pBtn, marginBottom: 0 }}>{tr("Replace them")}</button>
+                <button onClick={() => codeBoxRows(boxConflict.code)} style={{ ...pBtn, marginBottom: 0 }}>{tr("Add to them")}</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
-      {boxResult && (
+      {boxResult?.cleared && (
+        <div style={{ marginTop: 6, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
+          <b>{tr("{n} interval(s) in {holes} hole(s) are back to their logged code.", boxResult)}</b>
+        </div>
+      )}
+      {boxResult && !boxResult.cleared && (
         <div style={{ marginTop: 6, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
           <b>{tr("{n} interval(s) in {holes} hole(s) are now {code}.", boxResult)}</b>
+          {boxResult.total > boxResult.n && <div style={{ ...small, marginTop: 3 }}>{tr("{code} now holds {total} interval(s) in {totalHoles} hole(s) in all.", boxResult)}</div>}
           {boxResult.repeats > 0 && <div style={{ ...small, marginTop: 3 }}>{tr("{repeats} hole(s) have {code} in more than one separate run. A closed body treats them as one unit; an implicit surface would use the top of every run.", boxResult)}</div>}
           {onBuildBody && <button onClick={() => onBuildBody(boxResult.code)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }}><Layers3 size={14} /> {tr("Build a closed body from {code}", boxResult)}</button>}
         </div>
@@ -240,6 +280,7 @@ export default function ModellingCodesPane({ litho, modellingCodes, setModelling
         <div key={c.name} style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
           <input type="color" value={c.color || colorForLithology(c.name)} onChange={(e) => setCode(c.name, { color: e.target.value })} aria-label={tr("Colour of {name}", { name: c.name })} style={{ width: 22, height: 20, padding: 0, border: "none", background: "none" }} />
           <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }} title={tr("{v} interval run(s)", { v: counts.get(c.name) || 0 })}>{c.name} <span style={small}>({counts.get(c.name) || 0})</span></span>
+          <button onClick={() => showCode(c.name)} title={tr("Show the intervals of {name}", { name: c.name })} aria-label={tr("Show the intervals of {name}", { name: c.name })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 4px" }}><Square size={11} /></button>
           <select value={c.role} onChange={(e) => setCode(c.name, { role: e.target.value })} title={tr(ROLE_HELP[c.role])} aria-label={tr("Role of {name}", { name: c.name })} style={{ ...inputStyle, width: 104, flex: "none" }}>
             {CODE_ROLES.map((r) => <option key={r} value={r}>{tr(r)}</option>)}
           </select>

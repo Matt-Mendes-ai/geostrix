@@ -17,6 +17,7 @@ import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, m
 import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals } from "../../lib/viewer/intervals.js";
 import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit } from "../../lib/modellingCodes.js"; // TASKS.csv #599
 import { clipMesh } from "../../lib/clipMesh.js";
+import { holeCounts } from "../../lib/intervalBox.js"; // TASKS.csv #1337
 import { thinStructurePicks } from "../../lib/viewer/orientationThin.js"; // TASKS.csv #765
 import { autoReachM, orientationsNearContacts, contactFit, tooFewContacts } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1170, #1171
 import { surfacePackages, unitPackage, contactSurface, contactPackage, movePointsToUnconformities } from "../../lib/viewer/stackPackages.js"; // TASKS.csv #1309
@@ -618,6 +619,9 @@ export function createModellingRuns(ctx, mcRef) {
       const rangeNote = res.rangeUsed != null
         ? tr(" Interpolation: {v}, potential-field range {rangeUsed}{v2}.", { v: specs.length > 1 ? (stackOpts.packages > 1 ? tr("{n} conformable packages, each truncating the ones below", { n: stackOpts.packages }) : relation === "erode" ? tr("erosional (each unit truncates those below)") : tr("conformable (one shared field: units keep a thickness everywhere)")) : tr("single surface"), rangeUsed: res.rangeUsed.toFixed(3), v2: res.rangeDefault != null && Math.abs(res.rangeUsed - res.rangeDefault) > 1e-9 ? tr(" (GemPy's own default {rangeDefault} x {rangeMultiplier})", { rangeDefault: res.rangeDefault.toFixed(3), rangeMultiplier }) : tr(" (GemPy's own default)") })
         : "";
+      // TASKS.csv #1337 — which holes a code's contacts come from, so a hole nobody meant to include is seen. Here, not where the
+      // points are gathered: only the last few notices are on screen once a run ends.
+      specs.filter((s) => s.contactHoles?.length).forEach((s) => setNotices((p) => [...p, notice("{unitName}: contacts come from these holes: {list}.", { unitName: s.meshName, list: [...s.contactHoles.slice(0, 30).map(([h, n]) => `${h} (${n})`), ...(s.contactHoles.length > 30 ? [tr("+{n} more", { n: s.contactHoles.length - 30 })] : [])].join(", ") })]));
       setNotices((p) => [...p, notice(newMeshes.length > 1 ? "Added {newMeshes} surfaces: {v2}.{rangeNote}" : "Added {newMeshes} surface: {v2}.{rangeNote}", { newMeshes: newMeshes.length, v2: specs.filter((s) => byName[s.meshName]?.vertices?.length).map((s) => `"${s.label}"`).join(", "), rangeNote })]);
       // Fit the camera to all newly-created meshes together (not just one) — without this, a
       // successful run can be visually indistinguishable from a silent failure: the mesh is added to
@@ -1137,7 +1141,7 @@ export function createModellingRuns(ctx, mcRef) {
     // A group's own assignable color drives its surface/legend; falls back to the first member's
     // per-code color if none set. Raw intervals in the 3D log keep their individual code colors.
     const color = isMcode ? (mcodeInfo.color || colorForLithology([...(mcodeLogged || [])][0] || unitName)) : isGroup ? (target.color || colorForLithology([...codes][0])) : colorForLithology(unitName);
-    return { label: `Top of ${unitName}`, meshName: unitName, points, orientations, color, type, codes: isMcode ? [...mcodeLogged] : [...codes], sectionTags: [...sectionTags] /* #810 */, ...(isMcode ? { mcode: true } : {}), params: { ...(thinNote ? { orientationsAveraged: thinNote } : {}), ...(nearPicks.total ? { picksNearContacts: { kept: nearPicks.kept.length, of: nearPicks.total, withinM: reachM, automatic: !(orientationReachM > 0) } } : {}) } }; // codes: #356 model check (logged codes); mcode: #599
+    return { label: `Top of ${unitName}`, meshName: unitName, ...(isMcode ? { contactHoles: holeCounts(points) } : {}), /* #1337 */ points, orientations, color, type, codes: isMcode ? [...mcodeLogged] : [...codes], sectionTags: [...sectionTags] /* #810 */, ...(isMcode ? { mcode: true } : {}), params: { ...(thinNote ? { orientationsAveraged: thinNote } : {}), ...(nearPicks.total ? { picksNearContacts: { kept: nearPicks.kept.length, of: nearPicks.total, withinM: reachM, automatic: !(orientationReachM > 0) } } : {}) } }; // codes: #356 model check (logged codes); mcode: #599
   };
 
   // TASKS.csv #810 — drawn upper contacts whose unit tag matches no unit of this run: name them, so a contact tagged
