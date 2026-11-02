@@ -8,7 +8,7 @@ import { Activity, Calculator, ChevronDown, ChevronRight, ChevronUp, Compass, Dr
 import { BLOCK_BUDGETS, ESTIMATION_METHODS, MAX_BLOCKS } from "../../lib/estimationMeta.js";
 import InfoButton from "../../components/InfoButton.jsx";
 import { PRECIOUS_METALS } from "../../lib/geochem.js";
-import { Fragment, Suspense, useCallback, useMemo } from "react";
+import { Fragment, Suspense, useCallback, useMemo, useState } from "react";
 import { withChangeLog } from "../../lib/explicitLog.js"; // TASKS.csv #878
 import { activateOnKey, iconAction } from "../../lib/a11y.js";
 import { colorForLithology, isCrossCuttingRole, roleForLithology } from "../../lib/layers.js";
@@ -43,7 +43,6 @@ export default function ModellingPanes(props) {
     alterationBusy,
     alterationCellSize,
     alterationSearchRadius,
-    alterationIso, setAlterationIso, alterationKeepLargest, setAlterationKeepLargest, // TASKS.csv #1339
     alterationTarget,
     askPrompt,
     assayElements,
@@ -236,6 +235,7 @@ export default function ModellingPanes(props) {
   // object every render, so the pane's effects that list it re-ran on every render)
   const explicitScene = useMemo(() => ({origin: originRef, meshes: implicitMeshesRef, group: implicitGroupRef, traces: tracesRef, activity: lastActivityRef, setSurfaces: setImplicitSurfaces, worldPointFromHits, clickRef: explicitClickRef,
               dragHookRef: viewDragHookRef, camera: cameraRef, renderer: rendererRef, overlay: explicitOverlayRef, litho: layers.litho /* #813 */, structure: layers.structure /* #1002 */, camState /* #824 */ }), [originRef, implicitMeshesRef, implicitGroupRef, tracesRef, lastActivityRef, setImplicitSurfaces, worldPointFromHits, explicitClickRef, viewDragHookRef, cameraRef, rendererRef, explicitOverlayRef, layers.litho, layers.structure, camState]); // TASKS.csv #878 — every edit of a surface goes in its history
+  const [unitBody, setUnitBody] = useState({ iso: 0.5, largest: false, search: 0, cell: 0 }); // TASKS.csv #1340 — its own settings: a rock unit is not an alteration halo
   const mcodesView = useMemo(() => ({ scene: sceneRef, groups: layerGroupsRef, camera: cameraRef, renderer: rendererRef, traces: tracesRef, activity: lastActivityRef, dragHook: viewDragHookRef }), [sceneRef, layerGroupsRef, cameraRef, rendererRef, tracesRef, lastActivityRef, viewDragHookRef]);
   const topsOfUnit = useCallback((unit) => {
     const runs = codedRuns(layers.litho || [], modellingCodes, mcGroupOf), { tops, skipped } = topsForCode(runs, unit, modellingCodes, mcodeDefaultRole);
@@ -462,7 +462,7 @@ export default function ModellingPanes(props) {
         {paneHeader("Modelling codes", Waypoints, "model")}
         <Suspense fallback={null}>        <ModellingCodesPane litho={layers.litho || []} modellingCodes={modellingCodes} setModellingCodes={setModellingCodes} groupOf={mcGroupOf} defaultRole={mcodeDefaultRole}
           pickMode={mcPickMode} setPickMode={setMcPickMode} selected={mcSelected} setSelected={setMcSelected} connectFrom={mcConnectFrom} setConnectFrom={setMcConnectFrom}
-          view={mcodesView} onBuildBody={(code) => runAlterationModel(`mcode:${code}`)}
+          view={mcodesView} unitBody={unitBody} setUnitBody={setUnitBody} onBuildBody={(code) => runAlterationModel(`mcode:${code}`, unitBody)}
           askPrompt={askPrompt} pBtn={pBtn} inputStyle={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} /></Suspense>
         </>)}
         {toolPane === "groups" && (<>
@@ -815,8 +815,6 @@ export default function ModellingPanes(props) {
           <select aria-label={tr("Assemblage")} value={alterationTarget} onChange={(e) => setAlterationTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Choose an assemblage…")}</option>
             {alt_units.map((u) => <option key={u} value={u}>{u}</option>)}
-            {/* TASKS.csv #1333 — a code with several intervals per hole, as one closed body */}
-            {modellingCodeList.length > 0 && <optgroup label={tr("Modelling codes")}>{modellingCodeList.map((c) => <option key={c.name} value={`mcode:${c.name}`}>{c.name}</option>)}</optgroup>}
           </select>
           <button
             onClick={() => runAlterationModel(alterationTarget)}
@@ -829,17 +827,6 @@ export default function ModellingPanes(props) {
           <label style={{ ...miniField }} title={tr("Grid cell size for the indicator interpolation. 0 = auto (about 1/8 of the search radius).")}>{tr("Cell size (m)")}<input type="number" min={0} value={alterationCellSize} onChange={(e) => setAlterationCellSize(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
           </label>
           <label style={{ ...miniField }} title={tr("Search radius for the indicator interpolation, and the padding the envelope is given to close outside the outermost altered sample. 0 = auto (about 1.2x the median hole spacing).")}>{tr("Search (m)")}<input type="number" min={0} value={alterationSearchRadius} onChange={(e) => setAlterationSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
-          </label>
-        </div>
-        {/* TASKS.csv #1339 — the threshold, not the search radius, is what joins separate bodies (measured in the row's notes) */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-          <label style={{ ...miniField }} title={tr("How much of the nearby samples' weight must be inside the unit for a point to count as inside it. 0.5 stops about halfway to the nearest other interval. Lower values join separate bodies and grow the volume past what was logged.")}>{tr("Inside at")}
-            <select value={alterationIso} onChange={(e) => setAlterationIso(Number(e.target.value))} aria-label={tr("Indicator threshold of the envelope")} style={{ ...smallSel }}>
-              {[0.5, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1].map((v) => <option key={v} value={v}>{v}</option>)}
-            </select>
-          </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
-            <input type="checkbox" checked={alterationKeepLargest} onChange={(e) => setAlterationKeepLargest(e.target.checked)} />{tr("Keep only the largest body")}
           </label>
         </div>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("0 = auto (derived from your own hole spacing). The model domain and the structural trend chosen for alteration halos (Model settings → Structural trends) are honoured; the search ellipsoid's minimum-neighbour filter is not — it exists to drop under-supported contact picks, which a closed envelope has none of.")}</div>

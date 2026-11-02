@@ -6806,9 +6806,20 @@
   "+{n} more": "+{n} mais",
   "How much of the nearby samples' weight must be inside the unit for a point to count as inside it. 0.5 stops about halfway to the nearest other interval. Lower values join separate bodies and grow the volume past what was logged.": "Quanto do peso das amostras próximas deve estar dentro da unidade para um ponto contar como dentro. 0,5 para mais ou menos na metade do caminho até o intervalo diferente mais próximo. Valores menores unem corpos separados e aumentam o volume além do registrado.",
   "Inside at": "Dentro a partir de",
-  "Indicator threshold of the envelope": "Limiar do indicador do envelope",
   "Keep only the largest body": "Manter apenas o maior corpo",
-  "Its threshold, search and cell size are set in the Alteration pane.": "O limiar, a busca e o tamanho de célula são definidos no painel Alteração.",
   "\"{label}\": threshold {iso}. Kept the largest of {n} separate bodies, {p} % of the triangles; the other {m} were left out.": "\"{label}\": limiar {iso}. Mantido o maior de {n} corpos separados, {p} % dos triângulos; os outros {m} ficaram de fora.",
-  "\"{label}\": threshold {iso} gives {n} separate bodies; the largest has {p} % of the triangles. A lower \"Inside at\" or a structural trend can join them, but a lower threshold can also add small separate bodies around isolated holes (Alteration pane).": "\"{label}\": o limiar {iso} dá {n} corpos separados; o maior tem {p} % dos triângulos. Um \"Dentro a partir de\" menor ou uma tendência estrutural pode uni-los, mas um limiar menor também pode acrescentar pequenos corpos em torno de furos isolados (painel Alteração)."
+  "\"{label}\": threshold {iso} gives {n} separate bodies; the largest has {p} % of the triangles. A lower \"Inside at\" or a geology trend can join them, but a lower threshold can also add small separate bodies around isolated holes (Modelling codes).": "\"{label}\": o limiar {iso} dá {n} corpos separados; o maior tem {p} % dos triângulos. Um \"Dentro a partir de\" menor ou uma tendência geológica pode uni-los, mas um limiar menor também pode acrescentar pequenos corpos em torno de furos isolados (Códigos de modelagem).",
+  "Closed body of a unit": "Corpo fechado de uma unidade",
+  "Modelling code of the closed body": "Código de modelagem do corpo fechado",
+  "Choose a code…": "Escolher um código…",
+  "Threshold of the closed body": "Limiar do corpo fechado",
+  "Build a closed body": "Construir um corpo fechado",
+  "Inside: the code's intervals. Outside: every other logged lithology interval. It follows the geology trend in Model settings. A lower Inside at joins separate bodies; a larger search rarely does.": "Dentro: os intervalos do código. Fora: todos os outros intervalos de litologia registrados. Segue a tendência geológica das Configurações do modelo. Um \"Dentro a partir de\" menor une corpos separados; uma busca maior raramente o faz.",
+  "No sample points could be placed in 3D — check that the logged holes have collars.": "Nenhum ponto de amostra pôde ser posicionado em 3D: verifique se os furos registrados têm colar.",
+  "Domain \"{name}\": excluded {v} of {before} sample point(s) outside the domain.": "Domínio \"{name}\": excluídos {v} de {before} ponto(s) de amostra fora do domínio.",
+  "No grid cell had a sample within the search radius — increase the search radius.": "Nenhuma célula teve amostra dentro do raio de busca: aumente o raio.",
+  "The interpolated \"{altValue}\" indicator never reaches {iso} — no body to extract (try a lower Inside at or a smaller cell size).": "O indicador interpolado de \"{altValue}\" nunca chega a {iso}: não há corpo a extrair (tente um \"Dentro a partir de\" menor ou uma célula menor).",
+  "Unit body cancelled.": "Corpo da unidade cancelado.",
+  "Unit body failed: {v}": "O corpo da unidade falhou: {v}",
+  "Unit body (closed)": "Corpo da unidade (fechado)"
 }

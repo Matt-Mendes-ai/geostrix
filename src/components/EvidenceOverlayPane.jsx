@@ -9,7 +9,7 @@ import { useStore } from "../lib/store.jsx";
 import { pickDefaultReachM } from "../lib/evidenceSources.js"; // TASKS.csv #1179
 import { medianCollarSpacing } from "../lib/viewer/geomath.js";
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
-import { evidenceGrid, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, bestCutoff, posterior, predictionArea, scoreImage, quantile } from "../lib/evidence.js";
+import { evidenceGrid, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, bestCutoff, posterior, predictionArea, scoreImage } from "../lib/evidence.js";
 import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, voxelColumnEvidence, holeTraces, holeGradePoints, structureCodes, structureParts, rasterFloorZ } from "../lib/evidenceSources.js"; // TASKS.csv #1154
 import { categoricalModels } from "../lib/geologyForward.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";

@@ -68,7 +68,7 @@ function selectionOverlay(rows, traces) {
   return group;
 }
 
-export default function ModellingCodesPane({ litho, modellingCodes, setModellingCodes, groupOf, defaultRole, pickMode, setPickMode, selected, setSelected, connectFrom, setConnectFrom, askPrompt, pBtn, inputStyle, view, onBuildBody }) {
+export default function ModellingCodesPane({ litho, modellingCodes, setModellingCodes, groupOf, defaultRole, pickMode, setPickMode, selected, setSelected, connectFrom, setConnectFrom, askPrompt, pBtn, unitBody, setUnitBody, inputStyle, view, onBuildBody }) {
   const mc = modellingCodes || { codes: [], assign: {}, ties: [] };
   const codes = useMemo(() => codesInUse(litho, mc, groupOf, defaultRole), [litho, mc, groupOf, defaultRole]);
   const counts = useMemo(() => {
@@ -87,6 +87,7 @@ export default function ModellingCodesPane({ litho, modellingCodes, setModelling
   const [fillBetween, setFillBetween] = useState(false);
   const [boxResult, setBoxResult] = useState(null);
   const [boxConflict, setBoxConflict] = useState(null); // #1337 — the chosen code already holds other intervals: replace or add
+  const [bodyCode, setBodyCode] = useState(""); // TASKS.csv #1340
   const between = useMemo(() => (boxRows.length ? rowsBetween(litho, boxRows) : []), [litho, boxRows]);
   const boxRowsRef = useRef(boxRows);
   boxRowsRef.current = boxRows;
@@ -252,7 +253,6 @@ export default function ModellingCodesPane({ litho, modellingCodes, setModelling
           {boxResult.total > boxResult.n && <div style={{ ...small, marginTop: 3 }}>{tr("{code} now holds {total} interval(s) in {totalHoles} hole(s) in all.", boxResult)}</div>}
           {boxResult.repeats > 0 && <div style={{ ...small, marginTop: 3 }}>{tr("{repeats} hole(s) have {code} in more than one separate run. A closed body treats them as one unit; an implicit surface would use the top of every run.", boxResult)}</div>}
           {onBuildBody && <button onClick={() => onBuildBody(boxResult.code)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }}><Layers3 size={14} /> {tr("Build a closed body from {code}", boxResult)}</button>}
-          {onBuildBody && <div style={{ ...small, marginTop: 3 }}>{tr("Its threshold, search and cell size are set in the Alteration pane.")}</div>}
         </div>
       )}
       {selected && (
@@ -274,6 +274,29 @@ export default function ModellingCodesPane({ litho, modellingCodes, setModelling
           </button>
         </div>
       )}
+
+      {/* TASKS.csv #1340 — a rock unit's body is built here, with its own settings, not from the Alteration pane. #1339 — the threshold, not the search, joins bodies. */}
+      {onBuildBody && unitBody && (<>
+        <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Closed body of a unit")}</div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
+          <select value={bodyCode} onChange={(e) => setBodyCode(e.target.value)} style={{ ...inputStyle, flex: 1, minWidth: 0 }} aria-label={tr("Modelling code of the closed body")}>
+            <option value="">{tr("Choose a code…")}</option>
+            {codes.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
+          </select>
+          <label style={{ display: "flex", alignItems: "center", gap: 4 }} title={tr("How much of the nearby samples' weight must be inside the unit for a point to count as inside it. 0.5 stops about halfway to the nearest other interval. Lower values join separate bodies and grow the volume past what was logged.")}>{tr("Inside at")}
+            <select value={unitBody.iso} onChange={(e) => setUnitBody((b) => ({ ...b, iso: Number(e.target.value) }))} style={inputStyle} aria-label={tr("Threshold of the closed body")}>
+              {[0.5, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1].map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </label>
+        </div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Search (m)")}<input type="number" min={0} step={50} value={unitBody.search || ""} placeholder={tr("auto")} onChange={(e) => setUnitBody((b) => ({ ...b, search: Math.max(0, Number(e.target.value) || 0) }))} style={{ ...inputStyle, width: 64 }} /></label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4 }}>{tr("Cell size (m)")}<input type="number" min={0} step={5} value={unitBody.cell || ""} placeholder={tr("auto")} onChange={(e) => setUnitBody((b) => ({ ...b, cell: Math.max(0, Number(e.target.value) || 0) }))} style={{ ...inputStyle, width: 64 }} /></label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}><input type="checkbox" checked={unitBody.largest} onChange={(e) => setUnitBody((b) => ({ ...b, largest: e.target.checked }))} />{tr("Keep only the largest body")}</label>
+        </div>
+        <div style={{ ...small, marginTop: 3 }}>{tr("Inside: the code's intervals. Outside: every other logged lithology interval. It follows the geology trend in Model settings. A lower Inside at joins separate bodies; a larger search rarely does.")}</div>
+        <button onClick={() => onBuildBody(bodyCode)} disabled={!bodyCode} style={{ ...pBtn, marginTop: 5, marginBottom: 0, opacity: bodyCode ? 1 : 0.5 }}><Layers3 size={14} /> {bodyCode ? tr("Build a closed body from {code}", { code: bodyCode }) : tr("Build a closed body")}</button>
+      </>)}
 
       <div className="ge-section-label" style={{ marginTop: 12 }}>{tr("Codes (youngest at the top)")}</div>
       <div style={small}>{tr("Order sets which unit is younger where two meet; a code you haven't placed keeps the order of the stack you run.")}</div>

@@ -49,8 +49,6 @@ export function createModellingRuns(ctx, mcRef) {
     activeInterceptSetRef,
     alterationCellSize,
     alterationSearchRadius,
-    alterationIso, // TASKS.csv #1339
-    alterationKeepLargest,
     trendWarp, // TASKS.csv #650 — (tool) => { enabled, basis, scales, params } from the trend that model uses
     apiToScene,
     assayElements,
@@ -1445,10 +1443,13 @@ export function createModellingRuns(ctx, mcRef) {
   // (c) the model domain still restricts which sample points are used.
   // TASKS.csv #1333 — the same envelope for a modelling code ("mcode:NAME"): 1 inside the intervals with that code, 0 in every
   // other logged lithology interval, so several intervals per hole make one closed unit, which a surface through tops cannot.
-  const runAlterationModel = (target) => {
-    const anisotropy = trendWarp("alteration"); // TASKS.csv #650
+  // bodyOpts: a modelling code's own settings, TASKS.csv #1340 — { iso, largest, search, cell }; a code is a rock unit, so it follows the geology trend
+  const runAlterationModel = (target, bodyOpts = {}) => {
     if (!target) return;
-    const isCode = String(target).startsWith("mcode:"), altValue = isCode ? String(target).slice(6) : target, sourceKey = isCode ? "litho" : "alt";
+    const isCode = String(target).startsWith("mcode:");
+    const anisotropy = trendWarp(isCode ? "implicit" : "alteration"); // TASKS.csv #650
+    const searchSetting = isCode ? bodyOpts.search || 0 : alterationSearchRadius, cellSetting = isCode ? bodyOpts.cell || 0 : alterationCellSize;
+    const altValue = isCode ? String(target).slice(6) : target, sourceKey = isCode ? "litho" : "alt";
     const isTargetRow = (r) => (isCode ? effectiveCode(r, modellingCodes, mcodeGroupOf) === altValue : r.value === altValue);
     const traces = tracesRef.current;
     if (!traces.length) { setNotices((p) => [...p, notice("Load collars/survey data before running the alteration model.")]); return; }
@@ -1476,8 +1477,8 @@ export function createModellingRuns(ctx, mcRef) {
         // not every collar in the project — a regional hole 5 km away shouldn't set the halo's scale.
         const loggedHoles = new Set(altRows.map((r) => r.hole_id));
         const auto = autoHaloParams(collars.filter((c) => loggedHoles.has(c.hole_id)));
-        const radius = alterationSearchRadius > 0 ? alterationSearchRadius : auto.radius;
-        const cs = alterationCellSize > 0 ? alterationCellSize : auto.cell;
+        const radius = searchSetting > 0 ? searchSetting : auto.radius;
+        const cs = cellSetting > 0 ? cellSetting : auto.cell;
 
         // Indicator intervals: 1 inside the target assemblage, 0 inside any other logged alteration.
         // The zeros are what CLOSE the envelope — without a "definitely not altered" sample between two
@@ -1493,7 +1494,7 @@ export function createModellingRuns(ctx, mcRef) {
           });
         });
         const { points: worldPts, dropped } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
-        if (!worldPts.length) throw new Error(tr("No alteration sample points could be placed in 3D — check that the logged holes have collars."));
+        if (!worldPts.length) throw new Error(isCode ? tr("No sample points could be placed in 3D — check that the logged holes have collars.") : tr("No alteration sample points could be placed in 3D — check that the logged holes have collars."));
 
         // World -> api (east, north, up, origin-relative) — the space every spatial control in this
         // module (domain test, anisotropy warp) already speaks.
@@ -1501,7 +1502,7 @@ export function createModellingRuns(ctx, mcRef) {
         if (domain) {
           const before = pts.length;
           pts = pts.filter((p) => pointInDomain(apiToScene([p.x, p.y, p.z]), domain, implicitMeshesRef.current));
-          if (pts.length < before) setNotices((q) => [...q, notice("Domain \"{name}\": excluded {v} of {before} alteration sample point(s) outside the domain.", { name: domain.name, v: before - pts.length, before })]);
+          if (pts.length < before) setNotices((q) => [...q, notice(isCode ? "Domain \"{name}\": excluded {v} of {before} sample point(s) outside the domain." : "Domain \"{name}\": excluded {v} of {before} alteration sample point(s) outside the domain.", { name: domain.name, v: before - pts.length, before })]);
         }
         const insideCount = pts.filter((p) => p.value >= 0.5).length;
         if (!insideCount) throw new Error(domain
@@ -1539,21 +1540,21 @@ export function createModellingRuns(ctx, mcRef) {
           bounds, cellSize: { dx: cell, dy: cell, dz: cell }, method: "idw2",
           searchRadius: anisotropy.enabled ? radius * scl.major : radius, minSamples: 1, maxSamples: 16, minHoles: 1, // #656 — major semi-axis = radius
         }, { signal: ac.signal, onProgress: (f) => setTaskProgress?.({ label, pct: 20 + 60 * f, onCancel: () => ac.abort() }) });
-        if (!grid.estimated) throw new Error(tr("No grid cell had an alteration sample within the search radius — increase the search radius."));
+        if (!grid.estimated) throw new Error(isCode ? tr("No grid cell had a sample within the search radius — increase the search radius.") : tr("No grid cell had an alteration sample within the search radius — increase the search radius."));
         // noData: "outside" — a no-data cell reads as "not altered", which is what lets the envelope
         // close against the edge of the informed region instead of leaving an open shell.
         // TASKS.csv #803 — closed at the terrain surface when "Cut at topography" is on
         const altUnwarp = anisotropy.enabled ? invScales(scl) : null;
-        const iso = alterationIso > 0 && alterationIso < 1 ? alterationIso : 0.5; // #1339
+        const iso = isCode && bodyOpts.iso > 0 && bodyOpts.iso < 1 ? bodyOpts.iso : 0.5; // #1339
         const altCap = groundCappedGrid(grid, iso, clipToTopo ? terrainForClipRef.current : null, anisotropy.enabled ? (q) => anisoWarpPoint(q, center, basis, altUnwarp) : null);
         const mc = marchingCubes(altCap.values, grid.nx, grid.ny, grid.nz, iso, {
           origin: grid.origin, spacing: grid.cellSize, noData: "outside",
         });
-        if (!mc.faces.length) throw new Error(tr("The interpolated \"{altValue}\" indicator never crosses 0.5 — no envelope to extract (try a larger search radius or a smaller cell size).", { altValue }));
+        if (!mc.faces.length) throw new Error(isCode ? tr("The interpolated \"{altValue}\" indicator never reaches {iso} — no body to extract (try a lower Inside at or a smaller cell size).", { altValue, iso }) : tr("The interpolated \"{altValue}\" indicator never crosses 0.5 — no envelope to extract (try a larger search radius or a smaller cell size).", { altValue }));
         // #1339 — said on every run: separate bodies from one unit are a finding, and a dropped body is data left out
         const { meshBodies, keepLargestBody } = await import("../../lib/meshBodies.js"); // on demand: the startup budget
-        const bodies = meshBodies(mc.faces);
-        if (alterationKeepLargest && bodies.count > 1) { const k = keepLargestBody(mc.vertices, mc.faces); mc.vertices = k.vertices; mc.faces = k.faces; }
+        const bodies = isCode ? meshBodies(mc.faces) : { count: 1 };
+        if (bodyOpts.largest && bodies.count > 1) { const k = keepLargestBody(mc.vertices, mc.faces); mc.vertices = k.vertices; mc.faces = k.faces; }
 
         // api (un-warp if needed) -> scene, the same apiToScene every other surface in this module uses.
         const unwarp = anisotropy.enabled ? invScales(scl) : null;
@@ -1574,10 +1575,10 @@ export function createModellingRuns(ctx, mcRef) {
         const closure = mc.closingVertices > 0 ? "artificial" : "natural";
         // TASKS.csv #276 — provenance for this surface, so the panel and every export can stamp it.
         const params = {
-          tool: isCode ? "unit body (indicator envelope)" : "alteration halo (indicator envelope)", target: altValue, isoLevel: iso, ...(bodies.count > 1 ? { bodies: bodies.count, keptLargestOnly: !!alterationKeepLargest } : {}), // #1339
-          method: "idw2", searchRadiusM: radius, searchRadiusAuto: !(alterationSearchRadius > 0),
+          tool: isCode ? "unit body (indicator envelope)" : "alteration halo (indicator envelope)", target: altValue, isoLevel: iso, ...(bodies.count > 1 ? { bodies: bodies.count, keptLargestOnly: !!bodyOpts.largest } : {}), // #1339
+          method: "idw2", searchRadiusM: radius, searchRadiusAuto: !(searchSetting > 0),
           ...(anisotropy.enabled ? { searchEllipsoidM: [1, scl.major / scl.semiMajor, scl.major / scl.minor].map((f) => Math.round(radius * f * 10) / 10) } : {}), // #656
-          cellSizeM: cell, cellSizeAuto: !(alterationCellSize > 0), cellSizeCoarsened: coarsened,
+          cellSizeM: cell, cellSizeAuto: !(cellSetting > 0), cellSizeCoarsened: coarsened,
           paddingM: pad, closure, holeSpacingM: auto.spacing, cutAtTopography: altCap.capped ? `${(terrainForClipRef.current?.name) || "terrain"}: ${altCap.capped} grid node(s) capped (#803)` : false,
           anisotropy: anisotropy.enabled ? anisotropy.params : null,
           domain: domain ? domain.name : null,
@@ -1589,15 +1590,15 @@ export function createModellingRuns(ctx, mcRef) {
         implicitGroupRef.current?.add(mesh);
         const id = `impl_${Date.now()}_alt_${altValue}`;
         implicitMeshesRef.current[id] = mesh;
-        setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "alteration_envelope", relationships: [], closure, params }]);
+        setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: isCode ? "unit_body" : "alteration_envelope", /* #1340 */ relationships: [], closure, params }]);
         setNotices((p) => [...p, notice(isCode ? "Added \"{label}\": {insideCount} of {pts} sample point(s) inside the code{v} → {nx}×{ny}×{nz} grid ({cell} m cells{v2}, {v3} m search{v4}) → {vertices} vertices / {faces} faces{v5}. Closed indicator envelope, not a draped contact." : "Added \"{label}\": {insideCount} altered of {pts} indicator sample point(s){v} → {nx}×{ny}×{nz} grid ({cell} m cells{v2}, {v3} m search{v4}) → {vertices} vertices / {faces} faces{v5}. Closed indicator envelope, not a draped contact.", { label, insideCount, pts: pts.length, v: dropped ? tr(", {dropped} unplaceable", { dropped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, cell: cell.toFixed(1), v2: coarsened ? tr(", coarsened to stay under the grid limit") : "", v3: Math.round(radius), v4: anisotropy.enabled ? tr(", anisotropy applied") : "", vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v5: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr(", open") })]);
-        if (bodies.count > 1) setNotices((p) => [...p, alterationKeepLargest
+        if (bodies.count > 1) setNotices((p) => [...p, bodyOpts.largest
           ? notice("\"{label}\": threshold {iso}. Kept the largest of {n} separate bodies, {p} % of the triangles; the other {m} were left out.", { label, iso, n: bodies.count, p: Math.round(bodies.largestShare * 100), m: bodies.count - 1 })
-          : notice("\"{label}\": threshold {iso} gives {n} separate bodies; the largest has {p} % of the triangles. A lower \"Inside at\" or a structural trend can join them, but a lower threshold can also add small separate bodies around isolated holes (Alteration pane).", { label, iso, n: bodies.count, p: Math.round(bodies.largestShare * 100) })]);
+          : notice("\"{label}\": threshold {iso} gives {n} separate bodies; the largest has {p} % of the triangles. A lower \"Inside at\" or a geology trend can join them, but a lower threshold can also add small separate bodies around isolated holes (Modelling codes).", { label, iso, n: bodies.count, p: Math.round(bodies.largestShare * 100) })]);
         if (closure === "artificial") setNotices((p) => [...p, notice(isCode ? "\"{label}\" closes partly against the search-radius boundary rather than a logged interval of another code, so its extent there reflects the {v} m search radius, not the data." : "\"{label}\" closes partly against the search-radius boundary rather than a logged alteration boundary, so its extent there reflects the {v} m search radius, not the data.", { label, v: Math.round(radius) })]);
         fitBox(new THREE.Box3().setFromObject(mesh));
       } catch (e) {
-        setNotices((p) => [...p, e?.cancelled ? notice("Alteration halo cancelled.") : errorNotice(tr("Alteration halo failed: {v}", { v: e.message || e }))]);
+        setNotices((p) => [...p, e?.cancelled ? notice(isCode ? "Unit body cancelled." : "Alteration halo cancelled.") : errorNotice(isCode ? tr("Unit body failed: {v}", { v: e.message || e }) : tr("Alteration halo failed: {v}", { v: e.message || e }))]);
       }
       setTaskProgress?.(null);
       setAlterationBusy(false);
