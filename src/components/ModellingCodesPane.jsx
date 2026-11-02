@@ -252,6 +252,7 @@ export default function ModellingCodesPane({ litho, modellingCodes, setModelling
           {boxResult.total > boxResult.n && <div style={{ ...small, marginTop: 3 }}>{tr("{code} now holds {total} interval(s) in {totalHoles} hole(s) in all.", boxResult)}</div>}
           {boxResult.repeats > 0 && <div style={{ ...small, marginTop: 3 }}>{tr("{repeats} hole(s) have {code} in more than one separate run. A closed body treats them as one unit; an implicit surface would use the top of every run.", boxResult)}</div>}
           {onBuildBody && <button onClick={() => onBuildBody(boxResult.code)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }}><Layers3 size={14} /> {tr("Build a closed body from {code}", boxResult)}</button>}
+          {onBuildBody && <div style={{ ...small, marginTop: 3 }}>{tr("Its threshold, search and cell size are set in the Alteration pane.")}</div>}
         </div>
       )}
       {selected && (

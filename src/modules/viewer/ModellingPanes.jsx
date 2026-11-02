@@ -43,6 +43,7 @@ export default function ModellingPanes(props) {
     alterationBusy,
     alterationCellSize,
     alterationSearchRadius,
+    alterationIso, setAlterationIso, alterationKeepLargest, setAlterationKeepLargest, // TASKS.csv #1339
     alterationTarget,
     askPrompt,
     assayElements,
@@ -828,6 +829,17 @@ export default function ModellingPanes(props) {
           <label style={{ ...miniField }} title={tr("Grid cell size for the indicator interpolation. 0 = auto (about 1/8 of the search radius).")}>{tr("Cell size (m)")}<input type="number" min={0} value={alterationCellSize} onChange={(e) => setAlterationCellSize(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
           </label>
           <label style={{ ...miniField }} title={tr("Search radius for the indicator interpolation, and the padding the envelope is given to close outside the outermost altered sample. 0 = auto (about 1.2x the median hole spacing).")}>{tr("Search (m)")}<input type="number" min={0} value={alterationSearchRadius} onChange={(e) => setAlterationSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: "100%" }} />
+          </label>
+        </div>
+        {/* TASKS.csv #1339 — the threshold, not the search radius, is what joins separate bodies (measured in the row's notes) */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+          <label style={{ ...miniField }} title={tr("How much of the nearby samples' weight must be inside the unit for a point to count as inside it. 0.5 stops about halfway to the nearest other interval. Lower values join separate bodies and grow the volume past what was logged.")}>{tr("Inside at")}
+            <select value={alterationIso} onChange={(e) => setAlterationIso(Number(e.target.value))} aria-label={tr("Indicator threshold of the envelope")} style={{ ...smallSel }}>
+              {[0.5, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1].map((v) => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+            <input type="checkbox" checked={alterationKeepLargest} onChange={(e) => setAlterationKeepLargest(e.target.checked)} />{tr("Keep only the largest body")}
           </label>
         </div>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("0 = auto (derived from your own hole spacing). The model domain and the structural trend chosen for alteration halos (Model settings → Structural trends) are honoured; the search ellipsoid's minimum-neighbour filter is not — it exists to drop under-supported contact picks, which a closed envelope has none of.")}</div>

@@ -6803,5 +6803,12 @@
   "{code} now holds {total} interval(s) in {totalHoles} hole(s) in all.": "يضم {code} الآن {total} فاصلًا في {totalHoles} ثقب حفر إجمالًا.",
   "Show the intervals of {name}": "إظهار فواصل {name}",
   "{unitName}: contacts come from these holes: {list}.": "{unitName}: تأتي التماسات من ثقوب الحفر هذه: {list}.",
-  "+{n} more": "+{n} أخرى"
+  "+{n} more": "+{n} أخرى",
+  "How much of the nearby samples' weight must be inside the unit for a point to count as inside it. 0.5 stops about halfway to the nearest other interval. Lower values join separate bodies and grow the volume past what was logged.": "مقدار وزن العينات القريبة الذي يجب أن يقع داخل الوحدة كي تُعد النقطة داخلها. عند 0.5 يتوقف الجسم في منتصف الطريق تقريبًا إلى أقرب فاصل مختلف. القيم الأدنى تصل الأجسام المنفصلة وتزيد الحجم إلى ما بعد المسجل.",
+  "Inside at": "داخل عند",
+  "Indicator threshold of the envelope": "عتبة مؤشر الغلاف",
+  "Keep only the largest body": "الإبقاء على أكبر جسم فقط",
+  "Its threshold, search and cell size are set in the Alteration pane.": "تُضبط عتبته وبحثه وحجم خليته في لوحة التغيّر.",
+  "\"{label}\": threshold {iso}. Kept the largest of {n} separate bodies, {p} % of the triangles; the other {m} were left out.": "\"{label}\": العتبة {iso}. أُبقي على أكبر {n} جسم منفصل، {p} % من المثلثات؛ واستُبعد الباقي وعدده {m}.",
+  "\"{label}\": threshold {iso} gives {n} separate bodies; the largest has {p} % of the triangles. A lower \"Inside at\" or a structural trend can join them, but a lower threshold can also add small separate bodies around isolated holes (Alteration pane).": "\"{label}\": تعطي العتبة {iso} عدد {n} من الأجسام المنفصلة؛ لأكبرها {p} % من المثلثات. قد تصلها قيمة \"داخل عند\" أدنى أو اتجاه بنيوي، لكن العتبة الأدنى قد تضيف أيضًا أجسامًا صغيرة حول ثقوب الحفر المعزولة (لوحة التغيّر)."
 }

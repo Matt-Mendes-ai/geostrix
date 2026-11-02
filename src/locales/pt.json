@@ -6803,5 +6803,12 @@
   "{code} now holds {total} interval(s) in {totalHoles} hole(s) in all.": "{code} agora contém {total} intervalo(s) em {totalHoles} furo(s) no total.",
   "Show the intervals of {name}": "Mostrar os intervalos de {name}",
   "{unitName}: contacts come from these holes: {list}.": "{unitName}: os contatos vêm destes furos: {list}.",
-  "+{n} more": "+{n} mais"
+  "+{n} more": "+{n} mais",
+  "How much of the nearby samples' weight must be inside the unit for a point to count as inside it. 0.5 stops about halfway to the nearest other interval. Lower values join separate bodies and grow the volume past what was logged.": "Quanto do peso das amostras próximas deve estar dentro da unidade para um ponto contar como dentro. 0,5 para mais ou menos na metade do caminho até o intervalo diferente mais próximo. Valores menores unem corpos separados e aumentam o volume além do registrado.",
+  "Inside at": "Dentro a partir de",
+  "Indicator threshold of the envelope": "Limiar do indicador do envelope",
+  "Keep only the largest body": "Manter apenas o maior corpo",
+  "Its threshold, search and cell size are set in the Alteration pane.": "O limiar, a busca e o tamanho de célula são definidos no painel Alteração.",
+  "\"{label}\": threshold {iso}. Kept the largest of {n} separate bodies, {p} % of the triangles; the other {m} were left out.": "\"{label}\": limiar {iso}. Mantido o maior de {n} corpos separados, {p} % dos triângulos; os outros {m} ficaram de fora.",
+  "\"{label}\": threshold {iso} gives {n} separate bodies; the largest has {p} % of the triangles. A lower \"Inside at\" or a structural trend can join them, but a lower threshold can also add small separate bodies around isolated holes (Alteration pane).": "\"{label}\": o limiar {iso} dá {n} corpos separados; o maior tem {p} % dos triângulos. Um \"Dentro a partir de\" menor ou uma tendência estrutural pode uni-los, mas um limiar menor também pode acrescentar pequenos corpos em torno de furos isolados (painel Alteração)."
 }
