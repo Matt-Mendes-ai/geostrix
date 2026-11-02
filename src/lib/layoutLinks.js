@@ -31,6 +31,22 @@ export function withLiveScaleBars(els) {
   });
 }
 
+// TASKS.csv #1320 — the default page's scale bar and north arrow start tied to nothing: beside a view 10 km across the bar
+// still printed "100 m", wrong by 100 times. The first view placed on the page takes them. A bar from Add scale bar has its
+// own pxPerMeter, and a retyped length differs from the starter's 100 m: those were the user's choice and stay free.
+export function tieStarterFurniture(els, view) {
+  const { w: imgW, h: imgH } = capturedSize(view);
+  const ppm = view.type === "viewport" ? (view.worldHeightAtTarget && imgH ? imgH / view.worldHeightAtTarget : 0) : (view.worldWidthAtCaptureM && imgW ? imgW / view.worldWidthAtCaptureM : 0);
+  const bar = ppm > 0 ? els.find((el) => el.type === "scale" && !el.boundTo && !el.pxPerMeter && el.meters === 100) : null;
+  const north = view.cameraAzimuthDeg != null ? els.find((el) => el.type === "north" && el.rotation == null) : null;
+  if (!bar && !north) return els;
+  return els.map((el) => {
+    if (el === bar) return { ...el, boundTo: view.id, pxPerMeter: ppm, meters: niceScaleNumber(SCALE_BAR_PX / ppm) };
+    if (el === north) return { ...el, rotation: view.cameraAzimuthDeg };
+    return el;
+  });
+}
+
 // TASKS.csv #924 — copied elements get new ids, so a copied scale bar / overview must follow its copied viewport
 // (idMap: old id -> new id). A link to an element that was not copied stays on the original when duplicating (a bar
 // copied alone still measures the same view), and is dropped when loading a template (that element is not on the page).

@@ -10,7 +10,7 @@ import PromptModal from "../components/PromptModal.jsx";
 import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape } from "../lib/legendGroups.js"; // TASKS.csv #725; #948
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
-import { withLiveScaleBars, relinkCopies } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924
+import { withLiveScaleBars, relinkCopies, tieStarterFurniture } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924
 import { capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; section scale: #944
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
@@ -282,7 +282,7 @@ export default function LayoutModule() {
       const right = a.x + a.w + 16, fits = right + 170 <= A4.w;
       return { id: `legend_${a.id}`, type: "legend", x: fits ? right : a.x, y: fits ? a.y : a.y + a.h + 16, items: groupSectionLegend(a.legendItems), boundViewportId: a.id };
     });
-    setElements((els) => [...els, ...additions, ...legends]);
+    setElements((els) => additions.reduce((page, a) => tieStarterFurniture(page, a), [...els, ...additions, ...legends])); // #1320
     setSelected(additions[additions.length - 1]?.id ?? null);
     pendingLayoutImages.forEach((img) => consumeLayoutImage(img.id));
   }, [pendingLayoutImages, consumeLayoutImage]);

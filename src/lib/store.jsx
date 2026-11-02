@@ -3,6 +3,7 @@ import { t as tr } from "./i18n.js"; // TASKS.csv #1285
 import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { changedKeys } from "./undoLabels.js"; // TASKS.csv #1087
 import { capturedFrameFields } from "./layoutGeometry.js"; // TASKS.csv #906 / #961
+import { tieStarterFurniture } from "./layoutLinks.js"; // TASKS.csv #1320
 import { setKnownHoleIds } from "./qaqc.js"; // TASKS.csv #400
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
 import { readDbProfiles, writeDbProfiles, mergeDbProfiles, profilesFromFile } from "./dbProfiles.js"; // TASKS.csv #1081
@@ -761,6 +762,7 @@ export function StoreProvider({ children }) {
   const [layoutPrintRequest, setLayoutPrintRequest] = useState(null);
   const requestLayoutPrint = useCallback((opts = {}) => setLayoutPrintRequest({ seq: Date.now() + Math.random(), ...opts }), []);
 
+  const addViewportToPage = (els, view) => tieStarterFurniture([...els, view], view);
   // Applies a viewport render result to layoutElements as soon as it matches the outstanding pending
   // request, regardless of whether LayoutModule happens to be mounted right now, then hops back to
   // the Layout tab. Runs in StoreProvider, which is mounted for the whole app lifetime.
@@ -783,13 +785,13 @@ export function StoreProvider({ children }) {
       const w = Math.min(1123 - 160, 700); // 1123 = A4-landscape page width in px @ ~96dpi (LayoutModule's A4.w)
       const h = Math.round(w / aspect);
       const id = `viewport_${Date.now()}`;
-      setLayoutElements((els) => [...els, {
+      setLayoutElements((els) => addViewportToPage(els, {
         id, type: "viewport", themeId: viewportPendingRequest.themeId,
         x: 90, y: 90, w, h, capW: w, capH: h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, // capW / capH: #906
         trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, // #399
         viewState: res.viewState || null, // #948 — a theme-less capture's own view settings, for its legend
         rotation: 0, frameWidth: 1, frameColor: "#1a2028" /* #966: the page ink, colors.text */, frameStyle: "solid", refreshing: false,
-      }]);
+      }));
       setLayoutSelectRequest(id);
     } else {
       setLayoutElements((els) => els.map((el) => el.id === targetElementId
