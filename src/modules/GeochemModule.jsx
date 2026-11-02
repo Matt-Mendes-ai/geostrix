@@ -28,7 +28,7 @@ import GeochemPlot from "../components/GeochemPlot.jsx";
 import { lithologyBySample, lithologyCounts, NOT_LOGGED } from "../lib/sampleLithology.js"; // TASKS.csv #619
 import AssayImportModal from "../components/AssayImportModal.jsx";
 import LabCertificateModal from "../components/LabCertificateModal.jsx"; // TASKS.csv #601
-import { isLabCertificateText, parseLabCertificate, combineCertificates, joinCertificatesToAssays, suggestQcTypes, qcPlacement, indexAssaysForPlacement } from "../lib/labCertificate.js"; // TASKS.csv #601
+import { isLabCertificateText, parseLabCertificate, combineCertificates, joinCertificatesToAssays, suggestQcTypes, qcRowPlacement, indexAssaysForPlacement } from "../lib/labCertificate.js"; // TASKS.csv #601
 import AlterationBoxModal from "../components/AlterationBoxModal.jsx"; // TASKS.csv #503
 import SurfaceImportModal, { SURFACE_MEDIA } from "../components/SurfaceImportModal.jsx";
 import IsoconTool from "../components/IsoconTool.jsx";
@@ -323,8 +323,9 @@ export default function GeochemModule() {
     for (const s of suggestions) {
       if (!counts.hasOwnProperty(s.type)) continue; // "unclassified" = not imported
       const cert = certById.get(String(s.sample_id).trim().toUpperCase());
-      const place = qcPlacement(s.sample_id, s.type === "duplicate" ? s.parent_id : null, byId, byPrefix);
-      if (!cert || !place) { unplaced++; continue; }
+      const placed = qcRowPlacement(s, { byId, byPrefix });
+      if (!cert || !placed) { unplaced++; continue; }
+      const { own, ...place } = placed;
       const row = { ...place, sample_type: s.type, sample_id: s.sample_id, parent_id: s.type === "duplicate" ? (s.parent_id || "") : "", qc_code: s.type === "standard" ? (s.qc_code || "") : "" };
       certHeaders.forEach((h) => { row[h] = cert[h]; });
       rows.push(row); counts[s.type]++;
@@ -1020,7 +1021,7 @@ export default function GeochemModule() {
       )}
 
       {certReview && (
-        <LabCertificateModal review={certReview} onChange={setCertReview} onCancel={() => setCertReview(null)} onCommit={() => commitCertificates(certReview)} />
+        <LabCertificateModal review={certReview} assays={assays} onChange={setCertReview} onCancel={() => setCertReview(null)} onCommit={() => commitCertificates(certReview)} />
       )}
 
       {surfaceModal && (

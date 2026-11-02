@@ -21,6 +21,7 @@ import Papa from "papaparse";
 import { parseAssayValue, isElementColumn } from "./geochem.js";
 import { percentileSorted } from "./arrayStats.js"; // TASKS.csv #740
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { classifyQAQCRow } from "./qaqc.js"; // TASKS.csv #1211
 
 // TASKS.csv #842 — a certificate re-saved through Excel pads every line to the full width ("VA04079223 - Finalized,,,,,",
 // 7 of the 44 ARIS 28151Z certificates): the trailing empty cells are ignored.
@@ -255,6 +256,20 @@ export function suggestQcTypes(unmatched, drillRows, columns, { blankRank = 0.1,
       }
     }
   }
+  // TASKS.csv #1211 — the name, by the same patterns the QAQC panel reads: "OREAS 252-1" was "no clear match" here and a standard there. A lab's own label
+  // outranks a guess from the values. A name sharing its prefix with drill samples ("BLK22-0041", a Block 22 hole) is not read this way, unless it ends in a duplicate mark.
+  const drillIds = new Map(drill.map((d) => [String(d.id).trim().toUpperCase(), d.id]));
+  const drillPrefixes = new Set(drill.map((d) => d.p?.prefix).filter(Boolean));
+  for (const c of cand) {
+    const name = String(c.id).trim(), base = /^(.+?)[-_ ]?(?:F?DUP(?:LICATE)?|D2)\d*$/i.exec(name)?.[1];
+    const original = base ? drillIds.get(base.trim().toUpperCase()) : null;
+    if (!original && c.p && drillPrefixes.has(c.p.prefix)) continue;
+    const type = original ? "duplicate" : classifyQAQCRow({ hole_id: name }, undefined, null);
+    if (type === "regular" || out.get(c.id)?.type === type) continue;
+    if (type === "duplicate") out.set(c.id, { sample_id: c.id, type, ...(original ? { parent_id: original } : {}), reason: original ? tr("The name marks it as a duplicate of {parent}.", { parent: original }) : tr("The name marks it as a duplicate; enter its original sample.") });
+    else if (type === "standard") out.set(c.id, { sample_id: c.id, type, qc_code: name.replace(/[-_ ]\d+$/, ""), reason: tr("The name marks it as a standard.") });
+    else out.set(c.id, { sample_id: c.id, type, reason: tr("The name marks it as a blank.") });
+  }
   return cand.map((c) => (out.get(c.id) ? (({ strong, ...r }) => r)(out.get(c.id)) : null) || { sample_id: c.id, type: "unclassified", reason: tr("No clear match: not low enough for a blank, no repeated signature, no close neighbour — decide from the lab's QC list") });
 }
 
@@ -272,6 +287,13 @@ export function qcPlacement(sampleId, parentId, assaysById, assaysSortedByNumber
     return { hole_id: a.hole_id, from: a.to, to: a.to };
   }
   return null;
+}
+// TASKS.csv #1211 — a standard or blank with no neighbouring number still imports: the QAQC panel reads it by name and it needs no interval. It
+// stays under its own name, with no depth in a real hole. A duplicate means nothing without its original.
+export function qcRowPlacement(s, { byId, byPrefix }) {
+  const place = qcPlacement(s.sample_id, s.type === "duplicate" ? s.parent_id : null, byId, byPrefix);
+  if (place || s.type === "duplicate") return place;
+  return { hole_id: String(s.sample_id).trim(), from: 0, to: 0, own: true };
 }
 export function indexAssaysForPlacement(assays) {
   const byId = new Map(), byPrefix = new Map();

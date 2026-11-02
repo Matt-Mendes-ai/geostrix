@@ -144,6 +144,7 @@ import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1034 
 import { alphaOnlyFan, meanPole } from "../lib/sectionStructures.js"; // TASKS.csv #1130 — alpha-only picks on sections
 import VoxelRangeNumber from "../components/VoxelRangeNumber.jsx"; // TASKS.csv #1208
 import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
+import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -1612,9 +1613,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   }, [numericSymbology]);
 
   const effectiveColor = useCallback((layerKey, value) => {
-    const ov = legendOverride[layerKey]?.[value];
-    if (ov?.color) return ov.color;
-    return LAYER_META[layerKey].colorFn(value);
+    return categoryColor(legendOverride[layerKey]?.[value], LAYER_META[layerKey], value); // #1289
   }, [legendOverride]);
   // TASKS.csv #227 (continuation) — used ONLY inside the big geometry-rebuild effect's build loops,
   // instead of effectiveColor, for the same reason isRowVisibleForBuild exists: a mesh's baked-at-build
@@ -1629,10 +1628,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const labelOverrideSig = useMemo(() => JSON.stringify(Object.entries(legendOverride || {}).map(([k, m]) => [k, Object.entries(m || {}).filter(([, o]) => o?.label).map(([v, o]) => [v, o.label])]).filter(([, e]) => e.length)), [legendOverride]);
   const labelOverrides = useMemo(() => Object.fromEntries(JSON.parse(labelOverrideSig).map(([k, e]) => [k, Object.fromEntries(e)])), [labelOverrideSig]);
   const effectiveLabel = useCallback((layerKey, value) => {
-    const lbl = labelOverrides[layerKey]?.[value];
-    if (lbl) return lbl;
-    const meta = LAYER_META[layerKey];
-    return meta.nameFn ? (meta.nameFn(value) || value) : value;
+    return categoryLabel({ label: labelOverrides[layerKey]?.[value] }, LAYER_META[layerKey], value); // #1289
   }, [labelOverrides]);
   const isRowVisible = useCallback((layerKey, row) => {
     const meta = LAYER_META[layerKey];

@@ -961,3 +961,7 @@ const OVERTURNED_VALUES = new Set(["y", "yes", "true", "overturned", "ot", "o/t"
 export function isOverturnedValue(v) {
   return v != null && OVERTURNED_VALUES.has(String(v).trim().toLowerCase());
 }
+
+// TASKS.csv #1289 — what a category is drawn and called, given its override { color, label } and its layer's LAYER_META entry. One copy, for the view, the legend, the inspector and the style export.
+export function categoryColor(override, meta, value) { return override?.color || meta.colorFn(value); }
+export function categoryLabel(override, meta, value) { return override?.label || (meta.nameFn ? meta.nameFn(value) || value : value); }

@@ -2,6 +2,7 @@
 // catchment samples (CatchmentsPanel), boundary intercepts (BoundaryInterceptsModal), Voronoi declustering
 // (SpatialAnalysis), and the layer style file with its reader (LayerInspector). Pure: data in, rows / payload out.
 // `crs` is the CRS column text (tabular.js crsCell(project)).
+import { categoryColor, categoryLabel } from "./layers.js"; // TASKS.csv #1289
 
 // Catchments: a = the analysis (results, background, threshold, thresholdLabel); column `${symbol}_${unit}` is the value
 export function catchmentRows(a, { symbol, unit, crs }) {
@@ -31,8 +32,8 @@ export function voronoiRows(cells, { crs }) {
 export function layerStylePayload(layerKey, meta, categories, legendOverride = {}) {
   const entries = {};
   categories.forEach(([value]) => {
-    const ov = legendOverride[value] || {};
-    entries[value] = { color: ov.color || meta.colorFn(value), label: ov.label || (meta.nameFn ? meta.nameFn(value) : String(value)) };
+    const ov = legendOverride[value];
+    entries[value] = { color: categoryColor(ov, meta, value), label: String(categoryLabel(ov, meta, value)) }; // #1289
   });
   return { geostrixStyle: 1, layerKind: layerKey, layerLabel: meta.label, entries };
 }

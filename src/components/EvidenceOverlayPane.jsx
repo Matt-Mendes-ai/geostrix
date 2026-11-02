@@ -9,7 +9,7 @@ import { useStore } from "../lib/store.jsx";
 import { pickDefaultReachM } from "../lib/evidenceSources.js"; // TASKS.csv #1179
 import { medianCollarSpacing } from "../lib/viewer/geomath.js";
 import { evidenceGrid, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, bestCutoff, posterior, predictionArea, scoreImage, quantile } from "../lib/evidence.js";
-import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, voxelColumnEvidence, holeTraces, holeGradePoints, structureCodes, structureParts } from "../lib/evidenceSources.js"; // TASKS.csv #1154
+import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, voxelColumnEvidence, holeTraces, holeGradePoints, structureCodes, structureParts, rasterFloorZ } from "../lib/evidenceSources.js"; // TASKS.csv #1154
 import { categoricalModels } from "../lib/geologyForward.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";
 import { valueIn } from "../lib/geochem.js";
@@ -190,10 +190,11 @@ export default function EvidenceOverlayPane({ onClose }) {
     c.width = img.width; c.height = img.height; c.getContext("2d").putImageData(new ImageData(img.data, img.width, img.height), 0, 0);
     const name = which === "posterior" ? tr("Weights-of-evidence posterior ({n} occurrences)", { n: result.wofe.nD }) : tr("Fuzzy overlay ({op}) of {n} evidence layers", { op: operator === "gamma" ? `gamma ${gamma}` : operator, n: layers.length });
     const valid = score.reduce((a, v) => a + (Number.isFinite(v) ? 1 : 0), 0);
-    addRaster({ name, bbox: [grid.x0 - grid.dx / 2, grid.yTop + grid.dy / 2 - grid.ny * grid.dy, grid.x0 - grid.dx / 2 + grid.nx * grid.dx, grid.yTop + grid.dy / 2], dataUrl: c.toDataURL("image/png"), drapeMode: terrain ? "terrain" : "flat", opacity: 0.75,
+    const floorZ = terrain ? null : rasterFloorZ(traces); // TASKS.csv #1204 — a sheet at the origin elevation cut through the holes and hid them from above
+    addRaster({ name, bbox: [grid.x0 - grid.dx / 2, grid.yTop + grid.dy / 2 - grid.ny * grid.dy, grid.x0 - grid.dx / 2 + grid.nx * grid.dx, grid.yTop + grid.dy / 2], dataUrl: c.toDataURL("image/png"), drapeMode: terrain ? "terrain" : "flat", opacity: 0.75, ...(floorZ != null ? { elevation: floorZ } : {}),
       grid: { nx: grid.nx, ny: grid.ny, x0: grid.x0, yTop: grid.yTop, dx: grid.dx, dy: grid.dy, values: f32ToB64(score), valid, averagedBy: 1, sourceSize: [grid.nx, grid.ny] },
       params: { tool: which === "posterior" ? "weights of evidence (posterior probability)" : "fuzzy overlay", recipe, trainingPoints: trainingPoints.length, builtAt: new Date().toISOString() } }); // TASKS.csv #1003 — how it was made
-    setMsg(tr("Added \"{name}\" to the map (its values export as GeoTIFF from the Raster module).", { name }));
+    setMsg(floorZ != null ? tr("Added \"{name}\" to the map, flat at {z} m below the holes because the project has no terrain. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.", { name, z: floorZ }) : tr("Added \"{name}\" to the map (its values export as GeoTIFF from the Raster module).", { name }));
   };
   const toTif = async (which) => { const epsg = await ensureExportCrs(project); if (!epsg) return; /* #1021 */ const score = which === "posterior" ? result.wofe.post.prob : result.fuzzy; saveGeoTIFF(`${which === "posterior" ? "wofe_posterior" : "fuzzy_overlay"}.tif`, gridToGeoTIFF({ ...grid, bands: [{ values: score }], epsg })); };
 

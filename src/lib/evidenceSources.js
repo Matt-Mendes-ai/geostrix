@@ -56,6 +56,13 @@ export function voxelColumnEvidence(g, model, how = "max") {
 }
 
 // hole_id -> desurveyed trace
+// TASKS.csv #1204 — the round elevation just under the deepest point of the drilling, for a raster with no terrain to drape on: the holes stay in view from above. traces: holeTraces' Map.
+export function rasterFloorZ(traces) {
+  let low = Infinity;
+  for (const t of traces.values()) for (const p of t) if (p.z < low) low = p.z;
+  return Number.isFinite(low) ? Math.floor(low / 10) * 10 - 10 : null;
+}
+
 export function holeTraces(collars, survey, method) {
   const by = new Map(), out = new Map();
   (survey || []).forEach((s) => { (by.get(s.hole_id) || by.set(s.hole_id, []).get(s.hole_id)).push(s); });

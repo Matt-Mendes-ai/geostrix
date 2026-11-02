@@ -167,7 +167,7 @@ export function importCheckSummary(rows, collars, survey, label = "rows") {
   let noTo = 0, swapped = 0, negative = 0, pastEoh = 0;
   const orphans = new Set();
   for (const r of rows || []) {
-    if (collarIds.size && !collarIds.has(r.hole_id)) orphans.add(r.hole_id);
+    if (collarIds.size && !collarIds.has(r.hole_id) && !isMarkedQcRow(r)) orphans.add(r.hole_id); // #1211 — a standard kept under its own name belongs to no hole
     if (!Number.isFinite(r.from) || !Number.isFinite(r.to)) { noTo++; continue; }
     if (r.from > r.to) swapped++;
     if (r.from < 0 || r.to < 0) negative++;

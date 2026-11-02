@@ -35,6 +35,7 @@ import { crsName } from "../lib/reproject.js"; // TASKS.csv #947
 import { projectCredits } from "../lib/credits.js"; // TASKS.csv #949
 import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1127 / #1128
 import { firstLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #1224
+import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 // (The page size used to be a fixed `const A4 = { w: 1123, h: 794 }` here; it is now per page — see
 // `A4` inside the component, kept under that name so every existing use follows the chosen format.)
 const SCALE_BAR_PX = 180; // default/initial bar length (px) for a freshly-added, never-synced scale bar
@@ -777,8 +778,8 @@ export default function LayoutModule() {
     // (minus its hidden categories and holes, with its label / colour overrides), its assay grade classes, and the
     // visible block models (classes, or a ramp) — the same builders as the 3D view's figure overlay.
     const ov = theme.legendOverride || {};
-    const labelFor = (k, v) => ov[k]?.[v]?.label || (LAYER_META[k].nameFn ? LAYER_META[k].nameFn(v) || v : v);
-    const colorFor = (k, v) => ov[k]?.[v]?.color || LAYER_META[k].colorFn(v);
+    const labelFor = (k, v) => categoryLabel(ov[k]?.[v], LAYER_META[k], v); // #1289
+    const colorFor = (k, v) => categoryColor(ov[k]?.[v], LAYER_META[k], v);
     const layerVisible = { litho: true, ...(theme.layerVisible || {}) }; // a theme saved before a layer existed: lithology on, the rest off
     const groups = [
       ...categoryLegendGroups({ keys: LEGEND_CATEGORY_KEYS, layers, layerVisible, hidden: theme.categoryFilter || {}, visibleHoles: theme.visibleHoles || {}, singleColor: Object.fromEntries(LEGEND_CATEGORY_KEYS.filter((k) => theme.layerStyles?.[k]?.color).map((k) => [k, theme.layerStyles[k].color])), labelFor, colorFor }), // #1288

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef, useLayoutEffect } from "react";
 import { Camera, Pencil, Check, Undo2, X, Save, Download, FileText, Crosshair } from "./icons.js";
 import { onSectionData, getSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF, canvasPngBytes } from "../lib/desktop.js";
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #395
@@ -298,11 +298,14 @@ export default function SectionWindow() {
     return savePDF(`${baseName}.pdf`, sectionPaper(d?.w || 1, d?.h || 0));
   };
 
+  // TASKS.csv #1230 — the toolbar keeps its height while drawing: fewer controls would otherwise move the section the other way
+  const toolbarRef = useRef(null), toolbarHeight = useRef(0);
+  useLayoutEffect(() => { if (!drawing && toolbarRef.current) toolbarHeight.current = toolbarRef.current.offsetHeight; });
   if (!data) return <div style={{ padding: 20, color: "#55606e", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Waiting for section data…")}</div>;
 
   return (
     <div style={{ height: "100vh", background: "#ffffff", color: "#1a2028", fontFamily: "'Exo 2', system-ui, sans-serif", display: "flex", flexDirection: "column" }}>
-      <div className="ge-section-toolbar" style={{ padding: "10px 16px", borderBottom: "1px solid #d9dce1", fontSize: 14, color: "#8a6a1f", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+      <div ref={toolbarRef} className="ge-section-toolbar" style={{ padding: "10px 16px", borderBottom: "1px solid #d9dce1", fontSize: 14, color: "#8a6a1f", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, boxSizing: "border-box", ...(drawing && toolbarHeight.current ? { height: toolbarHeight.current } : null) }}>
         <span>{data.title || tr("Cross-section")} <span style={{ color: "#65717e", fontSize: 11, marginLeft: 8 }}>{tr("azimuth {v}° · buffer ±{v2}m", { v: data.section?.azimuth?.toFixed(0), v2: data.section?.corridor })}</span></span>
         <span style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <span style={{ color: "#65717e", fontSize: 11 }}>{tr("{v} holes · {v2} intervals · {v3} points · {v4} structures{v5}{v6}", { v: data.holes?.length || 0, v2: data.intervals?.length || 0, v3: data.points?.length || 0, v4: data.planes?.length || 0, v5: data.elevationProfile?.length > 1 ? tr(" · terrain profile") : "", v6: data.voxelSlices?.length ? ` · ${data.voxelSlices.map((v) => v.name).join(", ")}` : "" })}</span>
@@ -338,8 +341,6 @@ export default function SectionWindow() {
             </>
           ) : (
             <>
-              <span style={{ color: "#e2a63c", fontSize: 11 }}>{kindPick === "contact" && pickExplicit ? tr("Click points along the line of {name}… ({drawPoints} so far). Finish, then Save contacts to send it to the surface.", { name: pickName, drawPoints: drawPoints.length }) : kindPick === "contact" ? tr("Click points along {unitPick}'s upper contact… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length }) : kindPick === "outline" ? tr("Click points around the {unitPick} outline; it closes itself on Finish… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length }) : tr("Click points along {unitPick}… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length })}</span>
-              {offHoles > 0 && <span style={{ color: "#65717e", fontSize: 11 }} title={tr("A point snapped to a hole takes the hole's real position, off the section; a free point lies on the section plane. A line mixing the two kinks between them.")}>{tr("{n} hole(s) lie more than 5 m off the section (offset printed at the end of the trace); points not snapped to a hole sit on the section plane.", { n: offHoles })}</span>}{/* TASKS.csv #897 */}
               <button onClick={undoPoint} disabled={!drawPoints.length} style={{ ...btnStyle(false), opacity: drawPoints.length ? 1 : 0.5 }}><Undo2 size={14} />{" "}{tr("Undo point")}</button>
               <button onClick={finishContact} disabled={drawPoints.length < (kindPick === "outline" ? 3 : 2)} style={{ ...btnStyle(true), opacity: drawPoints.length >= (kindPick === "outline" ? 3 : 2) ? 1 : 0.5 }}><Check size={14} />{" "}{tr("Finish")}</button>
               <button onClick={cancelDrawing} style={btnStyle(false)}><X size={14} />{" "}{tr("Cancel")}</button>
@@ -454,6 +455,15 @@ export default function SectionWindow() {
       )}
 
       <div className="ge-section-body" style={{ flex: 1, overflow: "auto", padding: 16 }}>
+        {/* TASKS.csv #1230 — over the section's title margin, not in the toolbar: wrapping there moved the section ~23 px under the cursor as the first click was aimed */}
+        {drawing && (
+          <div style={{ position: "sticky", top: 0, height: 0, zIndex: 5 }}>
+            <div style={{ display: "inline-block", maxWidth: "100%", boxSizing: "border-box", padding: "3px 8px", background: "rgba(255,255,255,0.94)", border: "1px solid #edd9b7", borderRadius: 4, color: "#8a6a1f", fontSize: 11 }}>
+              <div>{kindPick === "contact" && pickExplicit ? tr("Click points along the line of {name}… ({drawPoints} so far). Finish, then Save contacts to send it to the surface.", { name: pickName, drawPoints: drawPoints.length }) : kindPick === "contact" ? tr("Click points along {unitPick}'s upper contact… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length }) : kindPick === "outline" ? tr("Click points around the {unitPick} outline; it closes itself on Finish… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length }) : tr("Click points along {unitPick}… ({drawPoints} so far)", { unitPick, drawPoints: drawPoints.length })}</div>
+              {offHoles > 0 && <div style={{ color: "#65717e" }} title={tr("A point snapped to a hole takes the hole's real position, off the section; a free point lies on the section plane. A line mixing the two kinks between them.")}>{tr("{n} hole(s) lie more than 5 m off the section (offset printed at the end of the trace); points not snapped to a hole sit on the section plane.", { n: offHoles })}</div>}{/* TASKS.csv #897 */}
+            </div>
+          </div>
+        )}
         {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{v2}. Click the pencil again to finish; Save contacts keeps the changes.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}{editing?.kind === "outline" ? ` ${tr("Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.")}` : ""}</div>}
         <SectionSVG textFont={textFont} textScale={printScale ?? textScale} /* #1090 — the print size while an export is drawn */ holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
           snap={snapOn && !planning ? targets : null} editingId={editingId} onEditPoints={editPoints} onCopyGhost={drawing || planning ? null : copyGhost}

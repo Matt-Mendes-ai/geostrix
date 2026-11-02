@@ -6659,5 +6659,17 @@
   "\"{name}\" holds {n} blocks, about {gb} GB of memory while it is open. A modest laptop can slow down or run out. Import it? (Lowering the cell budget above coarsens it.)": "يحتوي «{name}» على {n} كتلة، أي نحو {gb} غيغابايت من الذاكرة ما دام مفتوحًا. قد يتباطأ حاسوب محمول متواضع أو تنفد ذاكرته. هل تستورده؟ (خفض ميزانية الخلايا أعلاه يجعله أخشن.)",
   "\"{name}\" was not imported.": "لم يُستورد «{name}».",
   "Zoom to the holes": "تكبير إلى الآبار",
-  "Zoom to the holes (to include the models too: right-click the view, Zoom to fit all)": "تكبير إلى الآبار (لتضمين النماذج أيضًا: انقر بزر الماوس الأيمن على العرض، ثم ملاءمة الكل في العرض)"
+  "Zoom to the holes (to include the models too: right-click the view, Zoom to fit all)": "تكبير إلى الآبار (لتضمين النماذج أيضًا: انقر بزر الماوس الأيمن على العرض، ثم ملاءمة الكل في العرض)",
+  "The name marks it as a duplicate of {parent}.": "يدل الاسم على أنها مكررة من {parent}.",
+  "The name marks it as a duplicate; enter its original sample.": "يدل الاسم على أنها مكررة؛ أدخل العينة الأصلية.",
+  "The name marks it as a standard.": "يدل الاسم على أنها عينة معيارية.",
+  "The name marks it as a blank.": "يدل الاسم على أنها عينة فارغة.",
+  "Placement": "الموضع",
+  "Cannot be placed: give its original sample": "يتعذر تحديد موضعها: أدخل العينة الأصلية",
+  "Under its own name: no drill sample with a nearby number": "باسمها الخاص: لا توجد عينة حفر برقم قريب",
+  "{hole} at {m} m": "{hole} عند {m} م",
+  "Added \"{name}\" to the map, flat at {z} m below the holes because the project has no terrain. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.": "أُضيف \"{name}\" إلى الخريطة، مسطحًا عند {z} م أسفل الآبار لأن المشروع بلا تضاريس. غيّر ارتفاعه من الخرائط؛ تُصدَّر قيمه بصيغة GeoTIFF من وحدة النقطية.",
+  "Formats: GeoPackage, shapefile (.zip / .shp), MapInfo .tab / .mif, .gpx, .geojson, .kml": "الصيغ: GeoPackage وshapefile ‏(.zip / .shp) وMapInfo ‏.tab / .mif و.gpx و.geojson و.kml",
+  "Import map layer…": "استيراد طبقة خريطة…",
+  "Import structure measurements…": "استيراد القياسات البنيوية…"
 }

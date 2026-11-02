@@ -18,7 +18,7 @@ export default function SourceCrsField({ value, onChange, defaultText, label = "
     <div style={{ marginBottom: 10 }} title={title}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: "var(--font-size-sm)" }}>
         <span style={{ color: "var(--color-text-faint)", flexShrink: 0 }}>{tr(label)}</span>
-        <span style={{ flex: 1, minWidth: 0, color: set ? "var(--color-text)" : "var(--color-text-secondary)" }}>
+        <span style={{ flex: 1, minWidth: 0, color: set ? "var(--color-text)" : "var(--color-text-secondary)", ...(set ? null : { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }) }} title={set ? undefined : defaultText /* #1301 — one line; the whole sentence on hover */}>
           {set ? <>{name || tr("Unrecognized CRS")} <span style={{ color: "var(--color-text-muted)" }}>{tr("· EPSG:{value}", { value })}</span></> : defaultText}
         </span>
         {set && <button type="button" style={linkBtn} onClick={() => { onChange(""); setOpen(false); }} title={tr("Back to the default")}>{tr("Reset")}</button>}

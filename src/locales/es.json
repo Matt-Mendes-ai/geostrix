@@ -6659,5 +6659,17 @@
   "\"{name}\" holds {n} blocks, about {gb} GB of memory while it is open. A modest laptop can slow down or run out. Import it? (Lowering the cell budget above coarsens it.)": "«{name}» contiene {n} bloques, unos {gb} GB de memoria mientras esté abierto. Una laptop modesta puede volverse lenta o quedarse sin memoria. ¿Importarlo? (Bajar el presupuesto de celdas de arriba lo hace más grueso.)",
   "\"{name}\" was not imported.": "«{name}» no se importó.",
   "Zoom to the holes": "Zoom a los sondajes",
-  "Zoom to the holes (to include the models too: right-click the view, Zoom to fit all)": "Zoom a los sondajes (para incluir también los modelos: clic derecho en la vista, Encuadrar todo)"
+  "Zoom to the holes (to include the models too: right-click the view, Zoom to fit all)": "Zoom a los sondajes (para incluir también los modelos: clic derecho en la vista, Encuadrar todo)",
+  "The name marks it as a duplicate of {parent}.": "El nombre lo identifica como duplicado de {parent}.",
+  "The name marks it as a duplicate; enter its original sample.": "El nombre lo identifica como duplicado; indique su muestra original.",
+  "The name marks it as a standard.": "El nombre lo identifica como estándar.",
+  "The name marks it as a blank.": "El nombre lo identifica como blanco.",
+  "Placement": "Ubicación",
+  "Cannot be placed: give its original sample": "No se puede ubicar: indique su muestra original",
+  "Under its own name: no drill sample with a nearby number": "Con su propio nombre: ninguna muestra de sondaje con número cercano",
+  "{hole} at {m} m": "{hole} a {m} m",
+  "Added \"{name}\" to the map, flat at {z} m below the holes because the project has no terrain. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.": "Se agregó \"{name}\" al mapa, plano a {z} m debajo de los sondajes porque el proyecto no tiene terreno. Cambie su elevación en Mapas; sus valores se exportan como GeoTIFF desde el módulo Ráster.",
+  "Formats: GeoPackage, shapefile (.zip / .shp), MapInfo .tab / .mif, .gpx, .geojson, .kml": "Formatos: GeoPackage, shapefile (.zip / .shp), MapInfo .tab / .mif, .gpx, .geojson, .kml",
+  "Import map layer…": "Importar capa de mapa…",
+  "Import structure measurements…": "Importar mediciones estructurales…"
 }

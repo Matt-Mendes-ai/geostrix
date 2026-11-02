@@ -10,13 +10,15 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { qcRowPlacement, indexAssaysForPlacement } from "../lib/labCertificate.js"; // TASKS.csv #1211
 
 export const QC_TYPES = [
   ["standard", "Standard"], ["blank", "Blank"], ["duplicate", "Duplicate"], ["unclassified", "Not imported"],
 ];
 const TYPE_COLOR = { standard: "#c9a03c", blank: "#7fa7c9", duplicate: "#8fbf7f", unclassified: "var(--color-text-muted)" };
 
-export default function LabCertificateModal({ review, onChange, onCancel, onCommit }) {
+export default function LabCertificateModal({ review, assays, onChange, onCancel, onCommit }) {
+  const placeIndex = useMemo(() => indexAssaysForPlacement(assays), [assays]);
   useEscapeKey(onCancel);
   useFocusTrap();
   const [filter, setFilter] = useState("all");
@@ -74,7 +76,7 @@ export default function LabCertificateModal({ review, onChange, onCancel, onComm
           <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-sm)" }}>
             <thead>
               <tr style={{ color: "var(--color-text-muted)", textAlign: "start" }}>
-                <th style={th}>{tr("Sample")}</th><th style={th}>{tr("Type")}</th><th style={th}>{tr("Material / parent")}</th><th style={th}>{tr("Why")}</th>
+                <th style={th}>{tr("Sample")}</th><th style={th}>{tr("Type")}</th><th style={th}>{tr("Material / parent")}</th><th style={th}>{tr("Why")}</th><th style={th}>{tr("Placement")}</th>
               </tr>
             </thead>
             <tbody>
@@ -91,6 +93,12 @@ export default function LabCertificateModal({ review, onChange, onCancel, onComm
                     {r.type === "duplicate" && <input value={r.parent_id || ""} onChange={(e) => setRow(r.sample_id, { parent_id: e.target.value })} style={{ ...inp, width: 110 }} placeholder={tr("original sample")} aria-label={tr("Original sample of {sample_id}", { sample_id: r.sample_id })} />}
                   </td>
                   <td style={{ ...td, color: "var(--color-text-muted)" }}>{r.reason}</td>
+                  <td style={td}>{(() => { // TASKS.csv #1211 — said here, not only in the notice after Import
+                    if (r.type === "unclassified") return "—";
+                    const p = qcRowPlacement(r, placeIndex);
+                    if (!p) return <span style={{ color: "var(--color-danger-text, #a33)" }}>{tr("Cannot be placed: give its original sample")}</span>;
+                    return p.own ? tr("Under its own name: no drill sample with a nearby number") : tr("{hole} at {m} m", { hole: p.hole_id, m: p.to });
+                  })()}</td>
                 </tr>
               ))}
             </tbody>

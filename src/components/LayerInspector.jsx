@@ -8,6 +8,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 
 // TASKS.csv #123 — QGIS-specialist audit finding: "Themes save whole-view state per-project; there's
 // no reusable style definition (color ramp + classification + symbol) that travels between projects
@@ -102,8 +103,8 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
                 {categories.map(([value, count]) => {
                   const hidden = categoryFilter.has(value);
                   const ov = legendOverride[value] || {};
-                  const color = ov.color || meta.colorFn(value);
-                  const lbl = ov.label || (meta.nameFn ? meta.nameFn(value) : value);
+                  const color = categoryColor(ov, meta, value); // #1289
+                  const lbl = categoryLabel(ov, meta, value);
                   return (
                     <div key={value} style={{ marginBottom: 8, opacity: hidden ? 0.4 : 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
