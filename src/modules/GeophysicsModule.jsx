@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { ensureProjectCrs, ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615; export: #1021
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1152
 import { askAdoptCrs, projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
+import { gemHeaderEpsg, KEEP_CHOICES, suggestKeepEvery, everyNth, batchSurveyName, pairGpsFile } from "../lib/xyzBatch.js"; // TASKS.csv #1329
 import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; // TASKS.csv #410
 import { guessBlockModelMapping, numericColumns, blockModelCellsFromRows, coarsenBlockCells } from "../lib/blockModelCsv.js";
 import { parseTableFile, toExportCsv } from "../lib/tabular.js"; // TASKS.csv #444; toExportCsv: #1094
@@ -815,10 +816,79 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         zCol: g.z,
         valueCol: g.value,
         header: gemHeaderInfo(text), // #610 — survey date / UTC offset, for matching base-station files
+        headerEpsg: gemHeaderEpsg(text), // #1329
       });
     } catch (err) {
       setXyzError({ info: false, text: tr("Could not parse {name}: {message}", { name: file.name, message: err.message }) });
     }
+  };
+  // TASKS.csv #1329 — several files: one set of columns for all, read one at a time so nothing holds every raw row at once. GPS files in the selection go with the surveys named like them.
+  const importXYZFiles = async (fileList) => {
+    const all = Array.from(fileList || []);
+    const gpsFiles = all.filter((f) => /\.(txt|gpx|wpt)$/i.test(f.name)), files = all.filter((f) => !gpsFiles.includes(f));
+    if (!files.length) { setXyzError({ info: false, text: tr("Select at least one survey file with the GPS file.") }); return; }
+    if (files.length === 1 && !gpsFiles.length) { importXYZFile(files[0]); return; }
+    setXyzError(null);
+    try {
+      const text = await files[0].text();
+      const { columns, rows: parsedRows } = parseXYZ(text);
+      const g = guessXyzChannels(columns, parsedRows);
+      const bytes = files.reduce((a, f) => a + f.size, 0), estimate = Math.round((parsedRows.length / Math.max(1, files[0].size)) * bytes);
+      setXyzPending({ fileName: files[0].name, columns, rows: parsedRows, xCol: guessColumn(columns, XY_NAME_HINTS.x), yCol: guessColumn(columns, XY_NAME_HINTS.y), zCol: g.z, valueCol: g.value, header: gemHeaderInfo(text), headerEpsg: gemHeaderEpsg(text),
+        batch: { files, gpsFiles, estimate, keepEvery: suggestKeepEvery(estimate) } });
+    } catch (err) {
+      setXyzError({ info: false, text: tr("Could not parse {name}: {message}", { name: files[0].name, message: err.message }) });
+    }
+  };
+  const confirmBatchXYZ = async () => {
+    const { xCol, yCol, zCol, valueCol, batch } = xyzPending;
+    if (!xCol || !yCol || !valueCol) { setXyzError({ info: false, text: tr("Pick an X, Y, and Value column before importing.") }); return; }
+    const { files, gpsFiles, keepEvery } = batch;
+    const merged = files.length > 5; // each file its own survey and colour scale when few; a day's walking files are one survey
+    const surveyName = merged ? batchSurveyName(files.map((f) => f.name)) : null;
+    const placers = new Map(), failed = [], collected = [];
+    let target = project?.epsg, asked = false, read = 0, kept = 0;
+    setXyzPending(null);
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      setXyzError({ info: true, text: tr("Importing {name} ({i} of {n})…", { name: f.name, i: i + 1, n: files.length }) });
+      await new Promise((r) => setTimeout(r, 0));
+      try {
+        const text = await f.text();
+        const { columns, rows: raw } = parseXYZ(text);
+        if (!columns.includes(xCol) || !columns.includes(yCol) || !columns.includes(valueCol)) throw new Error(tr("it has no {x}, {y} or {v} column.", { x: xCol, y: yCol, v: valueCol }));
+        read += raw.length;
+        const base = f.name.replace(/\.[^.]+$/, "");
+        let mapped = raw.map((r) => ({ x: r[xCol], y: r[yCol], z: zCol && Number.isFinite(r[zCol]) ? r[zCol] : null, value: r[valueCol], ...(r._line != null ? { line: merged ? `${base} ${r._line}` : String(r._line), label: `Line ${r._line}` } : {}), _src: surveyName || f.name }))
+          .filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value) && !(r.x === 0 && r.y === 0)); // #538 — no GPS fix
+        mapped = everyNth(mapped, keepEvery);
+        const gpsName = pairGpsFile(f.name, gpsFiles.map((g) => g.name));
+        let srcEpsg = geophysSourceEpsg || gemHeaderEpsg(text) || null;
+        if (gpsName) {
+          if (!placers.has(gpsName)) { const sf = parseStationFile(await gpsFiles.find((g) => g.name === gpsName).text(), gpsName), pairs = gridPairs(sf.lines); placers.set(gpsName, { placer: stationPlacer(pairs), pairs, epsg: sf.epsg }); }
+          const pl = placers.get(gpsName);
+          mapped = mapped.map((r) => { const p = pl.placer.place(r.x, r.y); return p ? { ...r, x: p.x, y: p.y, z: r.z ?? nearestStationZ(pl.pairs, r.x, r.y) } : null; }).filter(Boolean);
+          srcEpsg = pl.epsg || srcEpsg;
+        }
+        if (srcEpsg && !asked) { asked = true; const adopted = askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: project?.epsg, declaredEpsg: srcEpsg, fileName: f.name }); if (adopted) { setEpsg(adopted); target = adopted; } }
+        if (srcEpsg && target && Number(srcEpsg) !== Number(target)) mapped = mapped.map((r) => { const p = reprojectXY(r.x, r.y, srcEpsg, target); return p ? { ...r, x: p.x, y: p.y } : r; });
+        kept += mapped.length;
+        collected.push(mapped);
+      } catch (err) {
+        failed.push(`${f.name}: ${err.message}`);
+      }
+    }
+    const points = collected.flat();
+    if (points.length) {
+      setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, points).rows }));
+      const g = guessSurveyMethodFrom(valueCol, []);
+      if (g) for (const src of new Set(points.map((r) => r._src))) if (!geophysSurveys[src]?.method) updateGeophysSurvey(src, { method: g, units: SURVEY_METHODS[g].units });
+    }
+    setXyzError({ info: !failed.length, text: [
+      tr("Imported {kept} point(s) from {n} of {total} files ({read} readings in them).", { kept: kept.toLocaleString(), n: files.length - failed.length, total: files.length, read: read.toLocaleString() }),
+      keepEvery > 1 ? tr("Kept 1 reading in {n}: a short anomaly between kept readings is not shown.", { n: keepEvery }) : "",
+      failed.length ? tr("Problems: {failed}", { failed: failed.join("; ") }) : "",
+    ].filter(Boolean).join(" ") });
   };
   // TASKS.csv #1326 — a survey in its own grid, placed from the GPS file naming the same stations
   const placeLocalGrid = async (file) => {
@@ -836,6 +906,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   };
   const confirmImportXYZ = () => {
     if (!xyzPending) return;
+    if (xyzPending.batch) { confirmBatchXYZ(); return; } // #1329
     const { fileName, rows: parsedRows, xCol, yCol, zCol, valueCol } = xyzPending;
     if (!xCol || !yCol || !valueCol) {
       setXyzError({ info: false, text: tr("Pick an X, Y, and Value column before importing.") });
@@ -879,10 +950,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       if (none) reprojectNote += tr(" Left out {n} reading(s) that could not be placed.", { n: none.toLocaleString() });
     }
     // an empty project is offered the GPS file's CRS, as every other import offers its own (#607): its placeholder zone can be the wrong one
-    const adopted = placed?.epsg ? askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: project?.epsg, declaredEpsg: placed.epsg, fileName }) : null;
+    const statedEpsg = placed?.epsg || geophysSourceEpsg || xyzPending.headerEpsg || null; // headerEpsg: #1329 — a GEM file says, a Source CRS set by hand still wins
+    const adopted = statedEpsg ? askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: project?.epsg, declaredEpsg: statedEpsg, fileName }) : null;
     if (adopted) { setEpsg(adopted); reprojectNote += tr(" Project CRS set to EPSG:{epsg}.", { epsg: adopted }); }
     const targetEpsg = adopted || project?.epsg;
-    const sourceEpsgNow = placed?.epsg || geophysSourceEpsg;
+    const sourceEpsgNow = statedEpsg;
     if (sourceEpsgNow && targetEpsg && Number(sourceEpsgNow) !== Number(targetEpsg)) {
       const geophysSourceEpsg = sourceEpsgNow;
       let failed = 0;
@@ -1071,7 +1143,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         // .xyz needs a column-picker (its layout isn't fixed — see importXYZFile) which can only show
         // one file at a time; a multi-.xyz drop opens the picker for the first and leaves the rest for
         // a follow-up drop/click rather than silently skipping them with no explanation.
-        if (xyzs.length) {
+        if (xyzs.length > 1) importXYZFiles(xyzs); // #1329
+        else if (xyzs.length) {
           importXYZFile(xyzs[0]);
           if (xyzs.length > 1) setXyzError({ info: true, text: tr("Opened the column picker for \"{name}\". Import it, then drop the other {v} file(s) one at a time — .xyz files need their columns picked individually.", { name: xyzs[0].name, v: xyzs.length - 1 }) });
         }
@@ -1129,13 +1202,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             above (a real airborne survey export carries a dozen+ geophysics channels), so this is a
             picker rather than a name-guessed single button — see importXYZFile/confirmImportXYZ. */}
         <button onClick={() => xyzInput.current.click()} style={{ ...pBtn, marginTop: 6 }}>
-          <MapPin size={14} />{" "}{tr("Import Geosoft .xyz…")}</button>
+          <MapPin size={14} />{" "}{tr("Import survey .xyz (one or many)…")}</button>
         <input
           ref={xyzInput}
           type="file"
-          accept=".xyz,.fld,.bse"
+          accept=".xyz,.fld,.bse,.txt,.gpx,.wpt"
+          multiple
           style={{ display: "none" }}
-          onChange={(e) => { const f = e.target.files[0]; importXYZFile(f); e.target.value = ""; }}
+          onChange={(e) => { importXYZFiles(e.target.files); e.target.value = ""; }}
         />
         {/* TASKS.csv #451 / #327 — the loaded surveys, each with what it is */}
         {surveyList.length > 0 && (
@@ -1197,14 +1271,25 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                 </select>
               </div>
             ))}
-            {!xyzPending.grid && looksLikeLocalGrid(xyzPending.rows, xyzPending.xCol, xyzPending.yCol) && (
+            {xyzPending.batch && (
+              <div style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+                <div>{tr("{n} files, about {rows} readings. These columns apply to all of them; the first file is shown.", { n: xyzPending.batch.files.length, rows: xyzPending.batch.estimate.toLocaleString() })}{xyzPending.batch.gpsFiles.length ? ` ${tr("{n} GPS file(s) are used for the surveys named like them.", { n: xyzPending.batch.gpsFiles.length })}` : ""}</div>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }} title={tr("Every reading is one point in the 3D view, and hundreds of thousands make it slow and the project file large. Thinning keeps the map of the survey, but a short anomaly between kept readings is lost.")}>
+                  <span style={{ color: "var(--color-text-faint)", width: 140, flexShrink: 0 }}>{tr("Keep")}</span>
+                  <select value={xyzPending.batch.keepEvery} aria-label={tr("How many readings to keep")} onChange={(e) => setXyzPending((p) => ({ ...p, batch: { ...p.batch, keepEvery: Number(e.target.value) } }))} style={{ flex: 1, minWidth: 0 }}>
+                    {KEEP_CHOICES.map((n) => <option key={n} value={n}>{n === 1 ? tr("Every reading (about {rows} points)", { rows: xyzPending.batch.estimate.toLocaleString() }) : tr("1 in {n} (about {rows} points)", { n, rows: Math.round(xyzPending.batch.estimate / n).toLocaleString() })}</option>)}
+                  </select>
+                </label>
+              </div>
+            )}
+            {!xyzPending.batch?.gpsFiles.length && !xyzPending.grid && looksLikeLocalGrid(xyzPending.rows, xyzPending.xCol, xyzPending.yCol) && (
               <div style={{ marginTop: 8, padding: "6px 8px", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, color: "var(--color-warn-text)", fontSize: "var(--font-size-sm)" }}>
                 {tr("These look like local grid coordinates, not map coordinates: without placing them they land far from your other data. The survey's GPS file, with stations named like \"9000N 4650E\", can place them.")}
                 <button type="button" onClick={() => gridGpsInput.current?.click()} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{tr("Load the GPS file…")}</button>
                 <input ref={gridGpsInput} type="file" accept=".txt,.csv,.dat,.gpx,.wpt" style={{ display: "none" }} onChange={(e) => { placeLocalGrid(e.target.files[0]); e.target.value = ""; }} />
               </div>
             )}
-            {xyzPending.source !== "csv" && <DiurnalCorrectionBox key={xyzPending.fileName} pending={xyzPending} setPending={setXyzPending} numInput={numInput} pBtn={pBtn} />}
+            {xyzPending.source !== "csv" && !xyzPending.batch && <DiurnalCorrectionBox key={xyzPending.fileName} pending={xyzPending} setPending={setXyzPending} numInput={numInput} pBtn={pBtn} />}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <button onClick={confirmImportXYZ} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>
                 <Upload size={14} />{" "}{tr("Import")}</button>

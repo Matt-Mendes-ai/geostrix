@@ -2,7 +2,7 @@
 // UTM / national grids for that spot (regional datum first), or search every CRS GeoStrix can build. With collars
 // loaded, the choice is checked by showing where on Earth they would land: a wrong UTM zone puts them hundreds of
 // kilometres away, which the user sees at once (Matt's zone 10 data sat in zone 9, #614).
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { X } from "./icons.js";
 import CrsPicker from "./CrsPicker.jsx";
 import { useStore } from "../lib/store.jsx";
@@ -13,6 +13,8 @@ import { activateOnKey } from "../lib/a11y.js";
 import { crsName, datumNote, loadEpsgRegistry, onEpsgRegistry } from "../lib/reproject.js";
 import { crsCandidatesAt, localCrsAt, parseLatLon, collarCentreLonLat, formatLonLat } from "../lib/projectCrs.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+
+const CrsWorldMap = React.lazy(() => import("./CrsWorldMap.jsx")); // #1330
 
 export default function ProjectCrsModal({ reason, points, onDone }) {
   const { project, collars: storeCollars, setEpsg, projectIsEmpty } = useStore();
@@ -81,11 +83,13 @@ export default function ProjectCrsModal({ reason, points, onDone }) {
 
           <div>
             <button type="button" onClick={() => setSearchAll((s) => !s)} style={linkBtn} aria-expanded={searchAll}>{searchAll ? tr("Hide the full list") : tr("Or search every CRS (name, zone or EPSG code)")}</button>
-            {searchAll && <div style={{ marginTop: 6 }}><CrsPicker value={choice} onChange={setChoice} height={170} /></div>}
+            {searchAll && <div style={{ marginTop: 6 }}><CrsPicker value={choice} onChange={setChoice} height={170} hideMap /></div>}
           </div>
 
           {choice && (
-            <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "8px 10px", fontSize: "var(--font-size-sm)", lineHeight: 1.45 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, border: "1px solid var(--color-border)", borderRadius: 6, padding: "8px 10px", fontSize: "var(--font-size-sm)", lineHeight: 1.45 }}>
+              <Suspense fallback={null}><CrsWorldMap epsg={choice} point={landing || at} width={180} /></Suspense>
+              <div style={{ flex: "1 1 240px", minWidth: 0 }}>
               <div><b>{crsName(choice) || tr("EPSG:{choice}", { choice })}</b> <span style={{ color: "var(--color-text-muted)" }}>{tr("· EPSG:{choice}", { choice })}</span></div>
               {collars.length > 0 && (landing
                 ? <div>{tr("Your {collars} {v} would be at", { collars: collars.length, v: tr(collars.length === 1 ? "collar" : "collars") })}{" "}<b>{formatLonLat(landing)}</b>{kmFromStated != null && kmFromStated <= 50 ? tr(" — {kmFromStated} km from where you said", { kmFromStated: kmFromStated.toLocaleString() }) : ""}.{kmFromStated > 50
@@ -94,6 +98,7 @@ export default function ProjectCrsModal({ reason, points, onDone }) {
                 : <div style={{ color: "var(--color-danger-fg)" }}>{tr("The collar coordinates don't fit this CRS (they land off the globe), so it is the wrong one.")}</div>)}
               {datumNote(choice) && <div style={{ color: "var(--color-warn-text)" }}>⚠ {datumNote(choice)}</div>}
               {relabel && <div style={{ color: "var(--color-text-secondary)" }}>{tr("This relabels the project: no coordinates change. To convert data into another CRS, use \"Reproject all data\" in the Maps tab (Project CRS).")}</div>}
+              </div>
             </div>
           )}
         </div>

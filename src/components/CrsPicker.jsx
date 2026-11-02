@@ -1,13 +1,14 @@
 // TASKS.csv #485 — pick a coordinate reference system by name or code (QGIS-style), from the CRSs GeoStrix can
 // actually build (reproject.js listSupportedCrs). Type "9N", "albers", "wgs 84 utm 22S" or "3156"; the list
 // filters on every word. Reused by the Cartography tab's project CRS, layer and file tools.
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { listSupportedCrs, crsName, loadEpsgRegistry } from "../lib/reproject.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const MAX_SHOWN = 60;
+const CrsWorldMap = React.lazy(() => import("./CrsWorldMap.jsx")); // #1330
 
-export default function CrsPicker({ value, onChange, label, height = 190 }) {
+export default function CrsPicker({ value, onChange, label, height = 190, hideMap = false }) {
   const [q, setQ] = useState("");
   // TASKS.csv #834 — the verified list at once, the whole EPSG registry as soon as it has loaded
   const [all, setAll] = useState(listSupportedCrs);
@@ -29,6 +30,7 @@ export default function CrsPicker({ value, onChange, label, height = 190 }) {
         aria-label={tr("Search coordinate reference systems")}
         style={{ width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 7px", color: "var(--color-text)", fontSize: "var(--font-size-base)", fontFamily: "inherit" }}
       />
+      {value && !hideMap && <div style={{ marginTop: 6 }}><Suspense fallback={null}><CrsWorldMap epsg={value} /></Suspense></div>}
       <div role="listbox" aria-label={tr("Coordinate reference systems")} style={{ marginTop: 4, maxHeight: height, overflowY: "auto", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)" }}>
         {shown.map((c) => {
           const sel = Number(value) === c.code;
