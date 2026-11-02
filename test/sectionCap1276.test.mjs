@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { createRequire } from "node:module";
 
-const { maxSectionWindows } = createRequire(import.meta.url)("../electron/sectionCap.js");
+const { maxSectionWindows, maxSectionTabs } = createRequire(import.meta.url)("../electron/sectionCap.js");
 const GB = 1024 ** 3;
 
 test("#1276 the cap follows the computer's memory", () => {
@@ -16,11 +16,17 @@ test("#1276 the cap follows the computer's memory", () => {
   assert.equal(maxSectionWindows(undefined), 6, "unknown memory: the 8 GB answer");
 });
 
+test("#1303 tabs: more than windows on every computer", () => {
+  for (const gb of [2, 4, 8, 16, 32, 64]) assert.ok(maxSectionTabs(gb * GB) > maxSectionWindows(gb * GB), `${gb} GB`);
+  assert.equal(maxSectionTabs(8 * GB), 40);
+  assert.equal(maxSectionTabs(undefined), 40);
+});
+
 test("#1276 the handler refuses past the cap only for a NEW window, after the refresh and focus paths", () => {
   const main = fs.readFileSync(new URL("../electron/main.js", import.meta.url), "utf8");
-  const i = main.indexOf('ipcMain.handle("open-section-window"'), body = main.slice(i, main.indexOf("new BrowserWindow(", i));
+  const i = main.indexOf('ipcMain.handle("open-section-window"'), body = main.slice(i, main.indexOf("createSectionHost(", i));
   assert.match(body, /refused: true/);
-  assert.ok(body.indexOf("refused: true") > body.indexOf("existing.focus()"), "an open section is still focused at the cap");
+  assert.ok(body.indexOf("refused: true") > body.indexOf("front(existing)"), "an open section is still focused at the cap");
   assert.ok(body.indexOf("refused: true") > body.indexOf("payload?.ifOpen"), "a refresh never counts");
 });
 

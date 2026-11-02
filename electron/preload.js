@@ -59,6 +59,8 @@ contextBridge.exposeInMainWorld("desktop", {
   autosaveClear: () => ipcRenderer.invoke("autosave-clear"),
   setDirtyState: (dirty) => ipcRenderer.send("set-dirty-state", dirty),
   getSectionData: () => ipcRenderer.invoke("get-section-data"), // TASKS.csv #617
+  closeSectionTab: (id) => ipcRenderer.invoke("section-tab-closed", id), // TASKS.csv #1303
+  popOutSectionTab: (payload) => ipcRenderer.invoke("section-tab-popout", payload),
   copyText: (text) => ipcRenderer.invoke("copy-text", text), // TASKS.csv #589 — no web clipboard permission needed
   onSectionData: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on("section-data", h); return () => ipcRenderer.removeListener("section-data", h); },
   onMenu: (cb) => { const h = (_e, action) => cb(action); ipcRenderer.on("menu", h); return () => ipcRenderer.removeListener("menu", h); },

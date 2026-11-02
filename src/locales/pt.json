@@ -6540,7 +6540,6 @@
   "Enter the user name.": "Digite o nome de usuário.",
   "{c} contacts would need {n} inducing points. An up-to-date add-on keeps {cap} of them along the holes, and every contact stays in the training, so the model will be coarse; check its fit to the logs when it finishes.": "{c} contatos exigiriam {n} pontos indutores. Um complemento atualizado mantém {cap} ao longo dos furos, e cada contato permanece no treinamento, então o modelo será grosseiro; confira o ajuste aos registros ao terminar.",
   "That is weak: the surface and blocks do not reproduce this unit where it was logged. A higher quality, a narrower set of holes or a merged code may do better.": "É fraco: a superfície e os blocos não reproduzem esta unidade onde ela foi descrita. Uma qualidade maior, menos furos ou um código mesclado podem melhorar.",
-  "{max} section windows are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.": "Há {max} janelas de seção abertas, o máximo que este computador suporta com folga. Feche uma para abrir esta seção: ela continua na lista de Seções.",
   "\"{unitName}\": {kept} of {total} structure pick(s) lie within {reachM} m of its contacts and steer this surface (Model settings > Contact orientations from picks).": "“{unitName}”: {kept} de {total} medidas estruturais estão a menos de {reachM} m dos seus contatos e orientam esta superfície (Ajustes do modelo > Orientações de contato a partir de medidas).",
   "No structure pick within {reachM} m of the \"{unitName}\" contacts: its dip was estimated from the contact points (~{dip}°/~{azimuth}°).": "Nenhuma medida estrutural a menos de {reachM} m dos contatos de “{unitName}”: seu mergulho foi estimado a partir dos pontos de contato (~{dip}°/~{azimuth}°).",
   "\"{label}\" misses its {n} contact point(s) by {typical} m typically and {worst} m at worst, with mesh cells of about {cell} m. A finer Surface detail shrinks the cells; Surface query shows it hole by hole.": "“{label}” se afasta dos seus {n} pontos de contato {typical} m em geral e {worst} m no máximo, com células de malha de cerca de {cell} m. Um Detalhe de superfície mais fino reduz as células; a Consulta de superfície mostra furo a furo.",
@@ -6680,5 +6679,11 @@
   "Dip direction": "Direção do mergulho",
   "Formats: .csv, MapInfo .tab / .mif": "Formatos: .csv, MapInfo .tab / .mif",
   "A point snapped to a hole off the section normally keeps the hole's real position, so the surface passes through the logged contact and its cut here can sit away from the point. On: the point stays on this section's plane, so the cut follows what you draw, and the surface no longer passes through the hole there.": "Um ponto ajustado a um furo fora da seção normalmente mantém a posição real do furo, então a superfície passa pelo contato registrado e seu corte aqui pode ficar longe do ponto. Ativado: o ponto fica no plano desta seção, o corte segue o que você desenha e a superfície deixa de passar pelo furo nesse local.",
-  "Keep snaps on the section": "Manter ajustes na seção"
+  "Keep snaps on the section": "Manter ajustes na seção",
+  "{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.": "Há {max} seções abertas, o máximo que este computador comporta com folga. Feche uma para abrir esta seção: ela continua na lista de seções.",
+  "{max} section windows are open, the most this computer can hold comfortably. Close one first.": "Há {max} janelas de seção abertas, o máximo que este computador comporta com folga. Feche uma primeiro.",
+  "Open sections": "Seções abertas",
+  "Close this section": "Fechar esta seção",
+  "Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.": "Abre esta seção em uma janela própria, para compará-la com outra. Usa mais memória que uma aba.",
+  "Own window": "Janela própria"
 }

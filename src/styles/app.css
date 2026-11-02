@@ -339,7 +339,9 @@ button:disabled, select:disabled, input:disabled, textarea:disabled { opacity: 0
    the content" treatment — scoped to the pop-out's own toolbar/chip-bar classes since it's a
    separate window from the main app and doesn't share .ge-toolbar/.ge-panel/.ge-status. */
 @media print {
-  .ge-section-toolbar, .ge-section-chips { display: none !important; }
+  .ge-section-toolbar, .ge-section-chips, .ge-section-tabbar { display: none !important; }
+  .ge-section-host { height: auto !important; display: block !important; } /* #1303 — only the shown tab prints: the others are display: none */
+  .ge-section-panes, .ge-section-pane { height: auto !important; }
   .ge-section-body { padding: 0 !important; height: auto !important; overflow: visible !important; flex: none !important; }
   /* TASKS.csv #1143 — one figure on one page. The SVG is width: 100% with a viewBox, so a section taller than the paper
      ran on to a second page: it now takes the page's height too and the viewBox fits it inside, proportions kept. vh is

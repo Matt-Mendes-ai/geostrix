@@ -200,6 +200,9 @@ export async function copyText(text) {
 export async function getSectionData() {
   return d?.getSectionData ? d.getSectionData() : null;
 }
+// TASKS.csv #1303 — the sections a window holds as tabs
+export async function closeSectionTab(id) { return d?.closeSectionTab ? d.closeSectionTab(id) : null; }
+export async function popOutSectionTab(payload) { return d?.popOutSectionTab ? d.popOutSectionTab(payload) : null; }
 export function onSectionData(cb) {
   if (d) return d.onSectionData(cb);
   return () => {};

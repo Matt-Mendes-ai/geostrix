@@ -6540,7 +6540,6 @@
   "Enter the user name.": "Escribe el nombre de usuario.",
   "{c} contacts would need {n} inducing points. An up-to-date add-on keeps {cap} of them along the holes, and every contact stays in the training, so the model will be coarse; check its fit to the logs when it finishes.": "{c} contactos necesitarían {n} puntos inductores. Un complemento actualizado conserva {cap} a lo largo de los sondajes, y cada contacto se mantiene en el entrenamiento, así que el modelo será grueso; revisa su ajuste a los registros al terminar.",
   "That is weak: the surface and blocks do not reproduce this unit where it was logged. A higher quality, a narrower set of holes or a merged code may do better.": "Es débil: la superficie y los bloques no reproducen esta unidad donde fue registrada. Una calidad mayor, menos sondajes o un código fusionado pueden mejorarlo.",
-  "{max} section windows are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.": "Hay {max} ventanas de sección abiertas, lo máximo que esta computadora admite con comodidad. Cierra una para abrir esta sección: sigue en la lista de Secciones.",
   "\"{unitName}\": {kept} of {total} structure pick(s) lie within {reachM} m of its contacts and steer this surface (Model settings > Contact orientations from picks).": "«{unitName}»: {kept} de {total} medidas estructurales están a menos de {reachM} m de sus contactos y orientan esta superficie (Ajustes del modelo > Orientaciones de contacto desde medidas).",
   "No structure pick within {reachM} m of the \"{unitName}\" contacts: its dip was estimated from the contact points (~{dip}°/~{azimuth}°).": "Ninguna medida estructural a menos de {reachM} m de los contactos de «{unitName}»: su manteo se estimó a partir de los puntos de contacto (~{dip}°/~{azimuth}°).",
   "\"{label}\" misses its {n} contact point(s) by {typical} m typically and {worst} m at worst, with mesh cells of about {cell} m. A finer Surface detail shrinks the cells; Surface query shows it hole by hole.": "«{label}» se aparta de sus {n} puntos de contacto {typical} m en general y {worst} m como máximo, con celdas de malla de unos {cell} m. Un Detalle de superficie más fino reduce las celdas; Consulta de superficie lo muestra sondaje por sondaje.",
@@ -6680,5 +6679,11 @@
   "Dip direction": "Dirección de buzamiento",
   "Formats: .csv, MapInfo .tab / .mif": "Formatos: .csv, MapInfo .tab / .mif",
   "A point snapped to a hole off the section normally keeps the hole's real position, so the surface passes through the logged contact and its cut here can sit away from the point. On: the point stays on this section's plane, so the cut follows what you draw, and the surface no longer passes through the hole there.": "Un punto ajustado a un sondaje fuera de la sección normalmente conserva la posición real del sondaje, de modo que la superficie pasa por el contacto registrado y su corte aquí puede quedar lejos del punto. Activado: el punto permanece en el plano de esta sección, el corte sigue lo que dibuja y la superficie ya no pasa por el sondaje en ese lugar.",
-  "Keep snaps on the section": "Mantener ajustes en la sección"
+  "Keep snaps on the section": "Mantener ajustes en la sección",
+  "{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.": "Hay {max} secciones abiertas, el máximo que este equipo admite con holgura. Cierre una para abrir esta sección: sigue en la lista de secciones.",
+  "{max} section windows are open, the most this computer can hold comfortably. Close one first.": "Hay {max} ventanas de sección abiertas, el máximo que este equipo admite con holgura. Cierre una primero.",
+  "Open sections": "Secciones abiertas",
+  "Close this section": "Cerrar esta sección",
+  "Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.": "Abre esta sección en su propia ventana, para compararla con otra. Usa más memoria que una pestaña.",
+  "Own window": "Ventana propia"
 }

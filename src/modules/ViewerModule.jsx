@@ -6427,7 +6427,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   };
 
   // TASKS.csv #1276 — the main process refuses a new section window past what this computer can hold
-  const openSectionOrSay = (payload) => openSectionWindow(payload).then((r) => { if (r?.refused) setNotices((p) => [...p, notice("{max} section windows are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.", { max: r.max })]); return r; });
+  const openSectionOrSay = (payload) => openSectionWindow(payload).then((r) => { if (r?.refused) setNotices((p) => [...p, notice("{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.", { max: r.max })]); return r; });
   const buildSectionPayload = (a, b, corridor, scope = {}, secId = null) => {
     const azimuth = (Math.atan2(b.x - a.x, b.y - a.y) * 180 / Math.PI + 360) % 360;
     const holesInBand = tracesRef.current.filter((t) => t.wx.some((wx, i) => distToSegment(wx, t.wy[i], a.x, a.y, b.x, b.y) <= corridor));
@@ -6784,6 +6784,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #393 — sections defined by numbers rather than two clicks: saved to the Cross-sections list
   // (same shape as a drawn one) and opened at once.
   const openDefinedSection = (geom, name) => {
+    // TASKS.csv #1303 — the same line again is the same section: its tab comes forward, with no second row in the list
+    const same = (sections || []).find((x) => x.name === name && Math.hypot(x.ax - geom.ax, x.ay - geom.ay) < 0.5 && Math.hypot(x.bx - geom.bx, x.by - geom.by) < 0.5);
+    if (same) { reopenSection(same); return same; }
     const s = { id: `sect_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, name, ax: geom.ax, ay: geom.ay, bx: geom.bx, by: geom.by, azimuth: geom.azimuth, corridor: geom.corridor || sectionCorridor, contacts: [] }; // geom.corridor: #1131 — a stepped section keeps its parent's buffer
     upsertSection(s);
     reopenSection(s);
@@ -6806,7 +6809,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!g) { setNotices((p) => [...p, notice("{holeId} has no desurveyed trace to cut a section through.", { holeId })]); return; }
     openDefinedSection(g, `Section through ${holeId} (az ${g.azimuth.toFixed(0)}°)`);
     if (g.vertical) setNotices((p) => [...p, notice("{holeId} is vertical, so it has no bearing of its own — the section runs at the typed azimuth, {azimuth}°.", { holeId, azimuth: g.azimuth.toFixed(0) })]);
-  }, [typedSection.azimuth, sectionCorridor, reopenSection, upsertSection]);
+  }, [typedSection.azimuth, sectionCorridor, reopenSection, upsertSection, sections]);
 
   // TASKS.csv — "slice series" / fence-section generator. User request, verbatim: "I wanna be able to
   // slice the voxel in equal parts on a specified azi and width." Generates a whole series of parallel

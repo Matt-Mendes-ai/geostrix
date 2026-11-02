@@ -2,7 +2,7 @@ import React, { Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 // TASKS.csv #476 — the pop-out section window is its own chunk: the main window never renders it.
-const SectionWindow = React.lazy(() => import("./components/SectionWindow.jsx"));
+const SectionTabs = React.lazy(() => import("./components/SectionTabs.jsx")); // TASKS.csv #1303
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import { initLanguage, currentLanguage, onLanguageChange } from "./lib/i18n.js"; // TASKS.csv #786
 import { StoreProvider, CursorProvider, TaskProgressProvider } from "./lib/store.jsx";
@@ -62,7 +62,7 @@ if (route === "/section") {
   // pop-out cross-section window: standalone, receives data via IPC
   root.render(
     <ErrorBoundary>
-      <Suspense fallback={null}><SectionWindow /></Suspense>
+      <Suspense fallback={null}><SectionTabs /></Suspense>
     </ErrorBoundary>
   );
 } else {

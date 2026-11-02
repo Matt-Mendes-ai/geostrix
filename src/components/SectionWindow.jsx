@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState, useRef, useLayoutEffect } from "react";
+import React, { useEffect, useId, useMemo, useState, useRef, useLayoutEffect } from "react";
 import { Camera, Pencil, Check, Undo2, X, Save, Download, FileText, Crosshair } from "./icons.js";
-import { onSectionData, getSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF, canvasPngBytes } from "../lib/desktop.js";
+import { onSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF, canvasPngBytes } from "../lib/desktop.js";
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #395
 import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearestSegment, setTieVertex, copyGhostString, onSectionPlane } from "../lib/sectionDigitise.js"; // TASKS.csv #519; copyGhostString: #1059
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
@@ -41,7 +41,7 @@ const SECTION_FONTS = [
   { label: "Courier New", stack: "'Courier New', Courier, monospace" },
 ];
 
-export default function SectionWindow() {
+export default function SectionWindow({ tabId = null, initial = null, onPopOut = null }) {
   const [data, setData] = useState(null);
   const [snapped, setSnapped] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -54,6 +54,7 @@ export default function SectionWindow() {
   const [contacts, setContacts] = useState([]);
   const [drawing, setDrawing] = useState(false);
   // TASKS.csv #519 — snap clicks to the logged contacts / traces, and edit a finished string's vertices
+  const outlineListId = `ge-outline-names${useId().replace(/:/g, "")}`; // #1303 — one per tab
   const [snapOn, setSnapOn] = useState(true);
   const [projectSnaps, setProjectSnaps] = useState(false); // #1231
   const [editingId, setEditingId] = useState(null);
@@ -114,9 +115,8 @@ export default function SectionWindow() {
   useEffect(() => {
     const takeLabels = (d) => { if (!d) return; setLabels(d.labels ? { mode: "collar", leaders: "auto", ...d.labels, offsets: d.labels.offsets || {} } : { mode: "collar", leaders: "auto", offsets: {} }); }; // #823 — a section without saved labels starts from the defaults
     // TASKS.csv #876 — a quiet refresh (an explicit surface was rebuilt) updates the drawing but keeps what is being drawn
-    const off = onSectionData((d) => { if (d.refreshOnly) { setData((prev) => ({ ...d, contacts: prev?.contacts })); const r = document.documentElement.dataset; r.sectionRefreshes = String((Number(r.sectionRefreshes) || 0) + 1); return; } setData(d); setContacts(d.contacts || []); takeLabels(d); });
-    // TASKS.csv #617 — ask for the data too: the push from main can arrive before this lazy component listens
-    getSectionData().then((d) => { if (d) { setData((prev) => prev || d); setContacts((prev) => (prev.length ? prev : d.contacts || [])); takeLabels(d); } }).catch(() => {});
+    const off = onSectionData((d) => { if (!tabId || d.id !== tabId) return; /* #1303 — other tabs share this window */ if (d.refreshOnly) { setData((prev) => ({ ...d, contacts: prev?.contacts })); const r = document.documentElement.dataset; r.sectionRefreshes = String((Number(r.sectionRefreshes) || 0) + 1); return; } setData(d); setContacts(d.contacts || []); takeLabels(d); });
+    if (initial) { setData(initial); setContacts(initial.contacts || []); takeLabels(initial); } // #1303 — from the tab host
     const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
     const id = params.get("id");
     if (id) {
@@ -306,7 +306,7 @@ export default function SectionWindow() {
   if (!data) return <div style={{ padding: 20, color: "#55606e", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Waiting for section data…")}</div>;
 
   return (
-    <div style={{ height: "100vh", background: "#ffffff", color: "#1a2028", fontFamily: "'Exo 2', system-ui, sans-serif", display: "flex", flexDirection: "column" }}>
+    <div style={{ height: tabId ? "100%" : "100vh", background: "#ffffff", color: "#1a2028", fontFamily: "'Exo 2', system-ui, sans-serif", display: "flex", flexDirection: "column" }}>
       <div ref={toolbarRef} className="ge-section-toolbar" style={{ padding: "10px 16px", borderBottom: "1px solid #d9dce1", fontSize: 14, color: "#8a6a1f", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, boxSizing: "border-box", ...(drawing && toolbarHeight.current ? { height: toolbarHeight.current } : null) }}>
         <span>{data.title || tr("Cross-section")} <span style={{ color: "#65717e", fontSize: 11, marginLeft: 8 }}>{tr("azimuth {v}° · buffer ±{v2}m", { v: data.section?.azimuth?.toFixed(0), v2: data.section?.corridor })}</span></span>
         <span style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -324,8 +324,8 @@ export default function SectionWindow() {
                 <option value="outline">{tr("Outline (closed, for a solid)")}</option>{/* TASKS.csv #570 */}
               </select>
               {kindPick !== "contact" ? (
-                <><input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} list={kindPick === "outline" ? "ge-outline-names" : undefined} placeholder={kindPick === "fault" ? tr("Fault name") : kindPick === "outline" ? tr("Body name (same on every section)") : tr("String name")} style={{ ...selectStyle, width: 140 }} />
-                {kindPick === "outline" && <datalist id="ge-outline-names">{(data.outlineNames || []).map((n) => <option key={n} value={n} />)}</datalist>}{/* TASKS.csv #874 — names used on other sections */}</>
+                <><input value={unitPick} onChange={(e) => setUnitPick(e.target.value)} list={kindPick === "outline" ? outlineListId : undefined} placeholder={kindPick === "fault" ? tr("Fault name") : kindPick === "outline" ? tr("Body name (same on every section)") : tr("String name")} style={{ ...selectStyle, width: 140 }} />
+                {kindPick === "outline" && <datalist id={outlineListId}>{(data.outlineNames || []).map((n) => <option key={n} value={n} />)}</datalist>}{/* TASKS.csv #874 — names used on other sections */}</>
               ) : lithoUnits.length > 0 ? (
                 <select value={unitPick} onChange={(e) => setUnitPick(e.target.value)} style={selectStyle} aria-label={tr("Unit")}>{/* aria-label: TASKS.csv #893 */}
                   <option value="">{tr("Unit…")}</option>
@@ -402,6 +402,7 @@ export default function SectionWindow() {
           <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "#55606e" }} title={tr("Vertical exaggeration — 1x is true scale (vertical and horizontal axes at the same real-world-units-per-pixel)")}>{tr("VE")}<input type="number" min="0.1" max="20" step="0.5" value={vExag} onChange={(e) => setVExag(Math.max(0.1, Number(e.target.value) || 1))} style={{ width: 46, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 4, color: "#1a2028", fontSize: 11, padding: "3px 5px" }} />
             ×
           </label>
+          {onPopOut && !drawing && <button onClick={() => onPopOut({ ...data, contacts, labels })} style={btnStyle(false)} title={tr("Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.")}>{tr("Own window")}</button>}{/* #1303 */}
           <button onClick={exportPNG} style={btnStyle(false)} title={tr("Export section → PNG")}><Download size={14} />{" "}{tr("PNG")}</button>
           <button onClick={exportSVG} style={btnStyle(false)} title={tr("Export section → SVG")}><Download size={14} />{" "}{tr("SVG")}</button>
           <button onClick={exportPDF} style={btnStyle(false)} title={tr("Export section → PDF")}><FileText size={14} />{" "}{tr("PDF")}</button>
@@ -483,6 +484,7 @@ function btnStyle(active) {
 const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11.5 };
 
 function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onMoveLabel, onCopyGhost = null, projectSnaps = false }) {
+  const plotClipId = `sectionPlotArea${useId().replace(/:/g, "")}`; // #1303 — a hidden tab's clip path would hide this one's drawing
   const fs = (n) => +(n * textScale).toFixed(2); // TASKS.csv #1129 — every label at the chosen text size
   // TASKS.csv #1134 — depth / EOH / offset / planned-hole labels are collected while the holes are drawn and placed in one
   // collision pass at the very end (resolveLabels), on top of the ribbons; holeLabelBoxes: the hole names, placed first
@@ -626,7 +628,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
       {/* TASKS.csv #1129 — "texts on the cross section are getting written on top or behind features": every label has a white halo, so it reads over ribbons, structures and contacts */}
       <style>{`text { paint-order: stroke; stroke: #ffffff; stroke-width: ${(2.6 * textScale).toFixed(1)}px; stroke-linejoin: round; }`}</style>
       <defs>
-        <clipPath id="sectionPlotArea"><rect x={PAD} y={PAD} width={W - 2 * PAD} height={H - 2 * PAD} /></clipPath>
+        <clipPath id={plotClipId}><rect x={PAD} y={PAD} width={W - 2 * PAD} height={H - 2 * PAD} /></clipPath>
       </defs>
       <rect x={PAD} y={PAD} width={W - 2 * PAD} height={H - 2 * PAD} fill="#ffffff" stroke="#d9dce1" />
 
@@ -637,7 +639,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
           rather than a smooth gradient — this IS a discrete block model, not a continuous raster, so
           showing its actual cell boundaries is honest about the underlying data's resolution. */}
       {voxelSlices.length > 0 && (
-        <g clipPath="url(#sectionPlotArea)">
+        <g clipPath={`url(#${plotClipId})`}>
           {voxelSlices.map((vs) => (
             <g key={vs.id}>
               {vs.rects.map((r, i) => (
@@ -652,7 +654,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
       {/* TASKS.csv #759 — the last model's units on this section, one pixel per evaluated node, stretched over its
           (distance, elevation) box so it follows the vertical exaggeration; pixelated, not smoothed, so its spacing shows. */}
       {showModel && data.modelBackdrop && (
-        <g clipPath="url(#sectionPlotArea)">
+        <g clipPath={`url(#${plotClipId})`}>
           <image href={data.modelBackdrop.dataUrl} x={sx(0)} y={sz(data.modelBackdrop.z1)} width={Math.max(1, sx(data.modelBackdrop.len) - sx(0))} height={Math.max(1, sz(data.modelBackdrop.z0) - sz(data.modelBackdrop.z1))} preserveAspectRatio="none" opacity={0.5} style={{ imageRendering: "pixelated" }}>
             <title>{`${data.modelBackdrop.name}, ${data.modelBackdrop.source}`}</title>
           </image>
@@ -661,7 +663,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
       {/* TASKS.csv #631 — a georeferenced section image on this line (an old interpretation, a report figure), stretched
           onto its corners in (distance, elevation) — so it follows the vertical exaggeration — behind holes and contacts. */}
       {showSectionImages && sectionImages.length > 0 && (
-        <g clipPath="url(#sectionPlotArea)">
+        <g clipPath={`url(#${plotClipId})`}>
           {sectionImages.map((im) => {
             const tl = [sx(im.tl[0]), sz(im.tl[1])], trc = [sx(im.tr[0]), sz(im.tr[1])], bl = [sx(im.bl[0]), sz(im.bl[1])];
             const m = [(trc[0] - tl[0]) / im.width, (trc[1] - tl[1]) / im.width, (bl[0] - tl[0]) / im.height, (bl[1] - tl[1]) / im.height, tl[0], tl[1]];
@@ -725,7 +727,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
         const solid = runs ? runs.map(([m0, m1]) => [at(m0), ...h.trace.filter((p) => p.md > m0 && p.md < m1).map((p) => [sx(along(p.x, p.y)), sz(p.z)]), at(m1)]) : [pts];
         const off = h.minOffset != null ? (Math.abs(h.maxOffset - h.minOffset) < 0.5 ? `${h.minOffset >= 0 ? "+" : ""}${h.minOffset.toFixed(0)} m` : `${h.minOffset >= 0 ? "+" : ""}${h.minOffset.toFixed(0)}…${h.maxOffset >= 0 ? "+" : ""}${h.maxOffset.toFixed(0)} m`) : null;
         return (
-          <g key={hi} clipPath="url(#sectionPlotArea)">{/* #1205 — a hole at the start of the line ran over the elevation axis */}
+          <g key={hi} clipPath={`url(#${plotClipId})`}>{/* #1205 — a hole at the start of the line ran over the elevation axis */}
             {runs && <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#9aa5b3" strokeWidth="1" strokeDasharray="4 3"><title>{tr("{hole_id}: outside the ±{corridor} m buffer — projected onto the section, no data drawn here", { hole_id: h.hole_id, corridor: section.corridor })}</title></polyline>}
             {solid.map((seg, si) => <polyline key={si} points={seg.map((p) => p.join(",")).join(" ")} fill="none" stroke="#445064" strokeWidth="1.2"><title>{`${h.hole_id}${off ? tr(": {off} from the section line", { off }) : ""}`}</title></polyline>)}
             {/* TASKS.csv #897 — the offset in view, not only in the tooltip, when the hole is more than 5 m off the section */}
@@ -736,7 +738,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
 
       {/* TASKS.csv #357 — model surfaces / imported solids cut by the section plane. */}
       {surfaceTraces.length > 0 && (
-        <g clipPath="url(#sectionPlotArea)">
+        <g clipPath={`url(#${plotClipId})`}>
           {surfaceTraces.map((st) => (
             <g key={st.id}>
               <path d={st.segs.map((sg) => `M${sx(sg[0]).toFixed(1)},${sz(sg[1]).toFixed(1)}L${sx(sg[2]).toFixed(1)},${sz(sg[3]).toFixed(1)}`).join("")} stroke={st.color} strokeWidth="2" fill="none" strokeLinecap="round"><title>{tr("Model surface: {name}", { name: st.name })}</title></path>
@@ -755,7 +757,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
         const x1 = sx(along(p1.x, p1.y)), y1 = sz(p1.z), x2 = sx(along(p2.x, p2.y)), y2 = sz(p2.z);
         const off = ribbonOffset[row.layer || "_"] || 0;
         const [nx, ny] = screenNormal(x1, y1, x2, y2);
-        return <line key={i} clipPath="url(#sectionPlotArea)" x1={x1 + nx * off} y1={y1 + ny * off} x2={x2 + nx * off} y2={y2 + ny * off} stroke={row.color} strokeWidth={holeWidth} strokeLinecap="butt"><title>{row.label}</title></line>; /* holeWidth: #1131 */
+        return <line key={i} clipPath={`url(#${plotClipId})`} x1={x1 + nx * off} y1={y1 + ny * off} x2={x2 + nx * off} y2={y2 + ny * off} stroke={row.color} strokeWidth={holeWidth} strokeLinecap="butt"><title>{row.label}</title></line>; /* holeWidth: #1131 */
       })}
 
       {/* TASKS.csv #392 — assays as grade bars perpendicular to the trace, beyond the ribbons, length

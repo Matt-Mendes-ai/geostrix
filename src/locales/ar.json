@@ -6540,7 +6540,6 @@
   "Enter the user name.": "أدخل اسم المستخدم.",
   "{c} contacts would need {n} inducing points. An up-to-date add-on keeps {cap} of them along the holes, and every contact stays in the training, so the model will be coarse; check its fit to the logs when it finishes.": "يتطلب {c} تماسًا {n} نقطة استقراء. تحتفظ الإضافة المحدَّثة بـ {cap} منها على طول الثقوب، ويبقى كل تماس ضمن التدريب، لذا سيكون النموذج خشنًا؛ تحقق من مطابقته للسجلات عند الانتهاء.",
   "That is weak: the surface and blocks do not reproduce this unit where it was logged. A higher quality, a narrower set of holes or a merged code may do better.": "هذا ضعيف: لا يعيد السطح والكتل إنتاج هذه الوحدة حيث سُجلت. قد تكون جودة أعلى أو ثقوب أقل أو رمز مدمج أفضل.",
-  "{max} section windows are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.": "توجد {max} نافذة مقطع مفتوحة، وهو أقصى ما يتحمله هذا الحاسوب براحة. أغلق واحدة لفتح هذا المقطع: يبقى في قائمة المقاطع.",
   "\"{unitName}\": {kept} of {total} structure pick(s) lie within {reachM} m of its contacts and steer this surface (Model settings > Contact orientations from picks).": "«{unitName}»: تقع {kept} من أصل {total} قياسًا بنيويًا ضمن {reachM} م من تماساتها وتوجّه هذا السطح (إعدادات النموذج > توجيهات التماس من القياسات).",
   "No structure pick within {reachM} m of the \"{unitName}\" contacts: its dip was estimated from the contact points (~{dip}°/~{azimuth}°).": "لا يوجد قياس بنيوي ضمن {reachM} م من تماسات «{unitName}»: قُدّر ميلها من نقاط التماس (~{dip}°/~{azimuth}°).",
   "\"{label}\" misses its {n} contact point(s) by {typical} m typically and {worst} m at worst, with mesh cells of about {cell} m. A finer Surface detail shrinks the cells; Surface query shows it hole by hole.": "يبتعد «{label}» عن نقاط التماس الـ {n} بمقدار {typical} م عادةً و{worst} م في الأسوأ، بخلايا شبكة نحو {cell} م. يقلّص تفصيل السطح الأدق الخلايا؛ ويعرضه استعلام السطح ثقبًا بثقب.",
@@ -6680,5 +6679,11 @@
   "Dip direction": "اتجاه الميل",
   "Formats: .csv, MapInfo .tab / .mif": "الصيغ: .csv وMapInfo ‏.tab / .mif",
   "A point snapped to a hole off the section normally keeps the hole's real position, so the surface passes through the logged contact and its cut here can sit away from the point. On: the point stays on this section's plane, so the cut follows what you draw, and the surface no longer passes through the hole there.": "تحتفظ النقطة الملتقطة على ثقب خارج المقطع عادةً بموقع الثقب الحقيقي، فيمر السطح بالتماس المسجل وقد يبتعد قطعه هنا عن النقطة. عند التفعيل: تبقى النقطة على مستوى هذا المقطع، فيتبع القطع ما ترسمه ولا يعود السطح يمر بالثقب في ذلك الموضع.",
-  "Keep snaps on the section": "إبقاء الالتقاط على المقطع"
+  "Keep snaps on the section": "إبقاء الالتقاط على المقطع",
+  "{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.": "{max} مقطعًا مفتوحًا، وهو أقصى ما يتحمله هذا الحاسوب بسهولة. أغلق أحدها لفتح هذا المقطع: يبقى في قائمة المقاطع.",
+  "{max} section windows are open, the most this computer can hold comfortably. Close one first.": "{max} نافذة مقطع مفتوحة، وهو أقصى ما يتحمله هذا الحاسوب بسهولة. أغلق إحداها أولًا.",
+  "Open sections": "المقاطع المفتوحة",
+  "Close this section": "إغلاق هذا المقطع",
+  "Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.": "يفتح هذا المقطع في نافذة خاصة به لمقارنته بمقطع آخر. يستخدم ذاكرة أكثر من علامة التبويب.",
+  "Own window": "نافذة خاصة"
 }

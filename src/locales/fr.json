@@ -6540,7 +6540,6 @@
   "Enter the user name.": "Saisissez le nom d'utilisateur.",
   "{c} contacts would need {n} inducing points. An up-to-date add-on keeps {cap} of them along the holes, and every contact stays in the training, so the model will be coarse; check its fit to the logs when it finishes.": "{c} contacts demanderaient {n} points inducteurs. Un module à jour en garde {cap} le long des sondages, et chaque contact reste dans l'entraînement : le modèle sera grossier ; vérifiez son ajustement aux journaux à la fin.",
   "That is weak: the surface and blocks do not reproduce this unit where it was logged. A higher quality, a narrower set of holes or a merged code may do better.": "C'est faible : la surface et les blocs ne reproduisent pas cette unité là où elle a été décrite. Une qualité supérieure, moins de sondages ou un code fusionné peuvent faire mieux.",
-  "{max} section windows are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.": "{max} fenêtres de coupe sont ouvertes, le maximum que cet ordinateur supporte confortablement. Fermez-en une pour ouvrir cette coupe : elle reste dans la liste des coupes.",
   "\"{unitName}\": {kept} of {total} structure pick(s) lie within {reachM} m of its contacts and steer this surface (Model settings > Contact orientations from picks).": "« {unitName} » : {kept} mesures structurales sur {total} sont à moins de {reachM} m de ses contacts et orientent cette surface (Réglages du modèle > Orientations de contact d'après les mesures).",
   "No structure pick within {reachM} m of the \"{unitName}\" contacts: its dip was estimated from the contact points (~{dip}°/~{azimuth}°).": "Aucune mesure structurale à moins de {reachM} m des contacts de « {unitName} » : son pendage a été estimé à partir des points de contact (~{dip}°/~{azimuth}°).",
   "\"{label}\" misses its {n} contact point(s) by {typical} m typically and {worst} m at worst, with mesh cells of about {cell} m. A finer Surface detail shrinks the cells; Surface query shows it hole by hole.": "« {label} » s'écarte de ses {n} points de contact de {typical} m en général et {worst} m au pire, avec des mailles d'environ {cell} m. Un Détail de surface plus fin réduit les mailles ; la Requête de surface le montre sondage par sondage.",
@@ -6680,5 +6679,11 @@
   "Dip direction": "Direction de pendage",
   "Formats: .csv, MapInfo .tab / .mif": "Formats : .csv, MapInfo .tab / .mif",
   "A point snapped to a hole off the section normally keeps the hole's real position, so the surface passes through the logged contact and its cut here can sit away from the point. On: the point stays on this section's plane, so the cut follows what you draw, and the surface no longer passes through the hole there.": "Un point accroché à un sondage hors de la coupe garde normalement la position réelle du sondage : la surface passe par le contact consigné et sa trace ici peut s'écarter du point. Activé : le point reste dans le plan de cette coupe, la trace suit votre dessin et la surface ne passe plus par le sondage à cet endroit.",
-  "Keep snaps on the section": "Garder les accrochages sur la coupe"
+  "Keep snaps on the section": "Garder les accrochages sur la coupe",
+  "{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.": "{max} coupes sont ouvertes, le maximum que cet ordinateur supporte confortablement. Fermez-en une pour ouvrir celle-ci : elle reste dans la liste des coupes.",
+  "{max} section windows are open, the most this computer can hold comfortably. Close one first.": "{max} fenêtres de coupe sont ouvertes, le maximum que cet ordinateur supporte confortablement. Fermez-en une d'abord.",
+  "Open sections": "Coupes ouvertes",
+  "Close this section": "Fermer cette coupe",
+  "Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.": "Ouvre cette coupe dans sa propre fenêtre, pour la comparer à une autre. Utilise plus de mémoire qu'un onglet.",
+  "Own window": "Fenêtre séparée"
 }

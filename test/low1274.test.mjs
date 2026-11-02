@@ -49,5 +49,5 @@ test("#1248, #1196, #1201, #1205 in place", () => {
   assert.match(panel, /not a format this importer reads/);
   assert.match(inv, /Math\.abs\(mean\) > 10000/);
   assert.match(geo, /!\(VOXEL_PROPERTIES\.includes\(model\.property\) \|\| model\.source === "simpeg"\) && <Scale/);
-  assert.match(sec, /<g key=\{hi\} clipPath="url\(#sectionPlotArea\)">/);
+  assert.match(sec, /<g key=\{hi\} clipPath=\{`url\(#\$\{plotClipId\}\)`\}>/);
 });

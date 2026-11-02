@@ -43,8 +43,7 @@ const isDev = !app.isPackaged && process.env.NODE_ENV === "development";
 }
 
 let mainWindow = null;
-const childWindows = new Map(); // id -> BrowserWindow (cross-section pop-outs)
-const { maxSectionWindows } = require("./sectionCap.js"); // TASKS.csv #1276
+const { maxSectionWindows, maxSectionTabs } = require("./sectionCap.js"); // TASKS.csv #1276, #1303
 let pySidecar = null; // Python FastAPI sidecar process (optional — see startPythonSidecar below)
 const PY_SIDECAR_PORT = 8765;
 
@@ -453,8 +452,7 @@ function createMainWindow() {
   });
   mainWindow.on("closed", () => {
     mainWindow = null;
-    for (const w of childWindows.values()) if (!w.isDestroyed()) w.close();
-    childWindows.clear();
+    for (const w of sectionHosts) if (!w.isDestroyed()) w.close();
   });
 }
 
@@ -559,47 +557,20 @@ ipcMain.on("refocus-after-dialog", (e) => {
 // "Waiting for section data..." forever (every time in dev; a race in packaged builds). Each window's latest
 // payload is kept here and the window ASKS for it once it is listening ("get-section-data"); pushes still
 // deliver later updates.
-const sectionPayloads = new Map(); // webContents.id -> latest payload
-ipcMain.handle("get-section-data", (ev) => sectionPayloads.get(ev.sender.id) || null);
-ipcMain.handle("open-section-window", (_e, payload) => {
-  // TASKS.csv — cross-section contact drawing: the caller (ViewerModule) now supplies a stable id
-  // (matching the section's entry in store.sections) so contacts drawn in this pop-out can be relayed
-  // back and matched to the right saved section — only fall back to generating one if the caller
-  // didn't supply one (shouldn't happen anymore, but keeps this handler safe standalone).
-  const id = payload?.id || `section_${Date.now()}`;
-
-  // TASKS.csv #13 — multiple simultaneous sections already works (every id gets its own BrowserWindow
-  // below, nothing closes an existing one when another section is drawn or reopened) — verified this
-  // is real, not aspirational, before marking #13 done. The one real gap found while checking: REOPENING
-  // the SAME section id that's already open used to always create a second window rather than reusing
-  // it, silently orphaning the first — childWindows.set(id, win) just overwrote the map entry, so
-  // update-section-window/section-contacts sends after that point only ever reached the newer window,
-  // and the user was left looking at two windows for the same section with no way to tell they'd
-  // drifted apart. Now it just focuses the existing window and re-sends fresh data instead.
-  const existing = childWindows.get(id);
-  // TASKS.csv #876 — a refresh of whatever section windows are open: never opens a closed one, never takes the focus
-  if (payload?.ifOpen && !(existing && !existing.isDestroyed())) return { id, skipped: true };
-  if (existing && !existing.isDestroyed() && payload?.refreshOnly) {
-    sectionPayloads.set(existing.webContents.id, { id, ...payload });
-    existing.webContents.send("section-data", { id, ...payload });
-    return { id };
-  }
-  if (existing && !existing.isDestroyed()) {
-    sectionPayloads.set(existing.webContents.id, { id, ...payload });
-    existing.webContents.send("section-data", { id, ...payload });
-    if (existing.isMinimized()) existing.restore();
-    existing.focus();
-    return { id };
-  }
-  // TASKS.csv #1276 — each section is a whole renderer process; past what this computer can hold, say so instead of swapping
-  const maxSections = maxSectionWindows(require("os").totalmem());
-  if ([...childWindows.values()].filter((w) => !w.isDestroyed()).length >= maxSections) return { id, refused: true, max: maxSections };
-
+// TASKS.csv #1303 — sections are tabs in one window (src/components/SectionTabs.jsx); a tab popped out has a window of its own.
+const sectionPayloads = new Map(); // section id -> latest payload
+const sectionTabs = new Map(); // section id -> the BrowserWindow holding it
+const sectionHosts = new Set(); // every section window, oldest first: new sections go to the first
+ipcMain.handle("get-section-data", (ev) => {
+  const win = BrowserWindow.fromWebContents(ev.sender);
+  return [...sectionTabs].filter(([, w]) => w === win).map(([id]) => sectionPayloads.get(id));
+});
+function createSectionHost(title) {
   const win = new BrowserWindow({
     width: 1100,
     height: 720,
     backgroundColor: "#0c0f14",
-    title: payload?.title || "Cross-section",
+    title: title || "Cross-section",
     icon: path.join(__dirname, "../build/icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -616,14 +587,69 @@ ipcMain.handle("open-section-window", (_e, payload) => {
       spellcheck: false,
     },
   });
-  const wcId = win.webContents.id;
-  sectionPayloads.set(wcId, { id, ...payload });
+  sectionHosts.add(win);
   win.loadURL(resolveUrl("/section"));
-  win.webContents.once("did-finish-load", () => {
-    win.webContents.send("section-data", { id, ...payload });
+  win.on("closed", () => {
+    sectionHosts.delete(win);
+    for (const [id, w] of sectionTabs) if (w === win) { sectionTabs.delete(id); sectionPayloads.delete(id); }
   });
-  win.on("closed", () => { childWindows.delete(id); sectionPayloads.delete(wcId); });
-  childWindows.set(id, win);
+  return win;
+}
+ipcMain.handle("section-tab-closed", (ev, id) => {
+  const win = BrowserWindow.fromWebContents(ev.sender);
+  if (sectionTabs.get(id) !== win) return { ok: false };
+  sectionTabs.delete(id); sectionPayloads.delete(id);
+  if (![...sectionTabs.values()].includes(win)) win.close(); // its last section
+  return { ok: true };
+});
+ipcMain.handle("section-tab-popout", (_e, payload) => {
+  const id = payload?.id;
+  if (!sectionTabs.has(id)) return { ok: false };
+  const max = maxSectionWindows(require("os").totalmem());
+  if (sectionHosts.size >= max) return { refused: true, max };
+  sectionPayloads.set(id, payload);
+  sectionTabs.set(id, createSectionHost(payload.title)); // the new window asks for its sections once it is listening
+  return { ok: true };
+});
+ipcMain.handle("open-section-window", (_e, payload) => {
+  // TASKS.csv — cross-section contact drawing: the caller (ViewerModule) now supplies a stable id
+  // (matching the section's entry in store.sections) so contacts drawn in this pop-out can be relayed
+  // back and matched to the right saved section — only fall back to generating one if the caller
+  // didn't supply one (shouldn't happen anymore, but keeps this handler safe standalone).
+  const id = payload?.id || `section_${Date.now()}`;
+
+  // TASKS.csv #13 — multiple simultaneous sections already works (every id gets its own BrowserWindow
+  // below, nothing closes an existing one when another section is drawn or reopened) — verified this
+  // is real, not aspirational, before marking #13 done. The one real gap found while checking: REOPENING
+  // the SAME section id that's already open used to always create a second window rather than reusing
+  // it, silently orphaning the first — childWindows.set(id, win) just overwrote the map entry, so
+  // update-section-window/section-contacts sends after that point only ever reached the newer window,
+  // and the user was left looking at two windows for the same section with no way to tell they'd
+  // drifted apart. Now it just focuses the existing window and re-sends fresh data instead.
+  const existing = sectionTabs.get(id);
+  // TASKS.csv #876 — a refresh of whatever sections are open: never opens a closed one, never takes the focus
+  if (payload?.ifOpen && !existing) return { id, skipped: true };
+  if (existing && payload?.refreshOnly) {
+    sectionPayloads.set(id, { id, ...payload });
+    existing.webContents.send("section-data", { id, ...payload });
+    return { id };
+  }
+  const front = (w) => { if (w.isMinimized()) w.restore(); w.focus(); };
+  if (existing) {
+    sectionPayloads.set(id, { id, ...payload });
+    existing.webContents.send("section-data", { id, ...payload });
+    front(existing);
+    return { id };
+  }
+  // TASKS.csv #1303 — a tab costs far less than the window it replaced, but its drawing and data still add up
+  const maxTabs = maxSectionTabs(require("os").totalmem());
+  if (sectionTabs.size >= maxTabs) return { id, refused: true, max: maxTabs };
+
+  const host = [...sectionHosts].find((w) => !w.isDestroyed()) || createSectionHost(payload?.title);
+  sectionPayloads.set(id, { id, ...payload });
+  sectionTabs.set(id, host);
+  if (!host.webContents.isLoading()) host.webContents.send("section-data", { id, ...payload }); // still loading: it asks when it is listening
+  front(host);
   return { id };
 });
 
