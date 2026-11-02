@@ -160,3 +160,16 @@ export function pointInDomain(point, domain, meshesRef) {
     return side === c.side;
   });
 }
+
+// TASKS.csv #1169, #1290 — when a surface was made: each tool names the time differently, and a surface may have none. -> a Date or null
+export function surfaceMadeAt(params) {
+  const at = params?.generatedAt || params?.builtAt || params?.importedAt, d = at ? new Date(at) : null;
+  return d && !Number.isNaN(d.getTime()) ? d : null;
+}
+// TASKS.csv #1252, #1290 — a layer chip: the legend editor's colour and label when the caller has them, as the 3D view and the sections draw them
+export function chipLook(value, meta, layerKey, colorOf, labelOf) {
+  return {
+    color: colorOf ? colorOf(layerKey, value) : meta.colorFn ? meta.colorFn(value) : "#55606e",
+    label: labelOf ? labelOf(layerKey, value) : meta.nameFn ? (meta.nameFn(value) || value) : value,
+  };
+}

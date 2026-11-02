@@ -32,7 +32,7 @@ import { parseSolidInWorker } from "../lib/solidImportClient.js"; // TASKS.csv #
 // TASKS.csv #414 — imported solids, one tone per layer (grey-blue family: never the generated-surface gold).
 const IMPORTED_SOLID_COLORS = [0x8fa3b8, 0xa89bbd, 0x8fb8aa, 0xbfae92, 0x93b3c4, 0xb89aa4];
 const SurfaceGeologyProjection = lazyModal(() => import("../components/SurfaceGeologyProjection.jsx")); // TASKS.csv #476 // TASKS.csv #318
-import { spreadColor, SPREAD_NOT_REPRODUCED } from "../lib/surfaceSpread.js"; // TASKS.csv #52 (a)
+import { spreadColor, SPREAD_NOT_REPRODUCED } from "../lib/spreadColor.js"; // TASKS.csv #52 (a), #1290
 import { supportShadeFactors, supportedFaces } from "../lib/explicitSupport.js"; // TASKS.csv #977; supportedFaces: #1103
 import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
 import { pointInBoundary } from "../lib/pointInPolygon.js"; // TASKS.csv #903 — not geoprocessing.js, which loads d3-delaunay
@@ -132,7 +132,7 @@ import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"
 import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellSupported, voxelCellShown, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { syncHoleLabels, declutterHoleLabels } from "../lib/viewer/holeLabels.js";
-import { findOnTraceWorld, findOnTrace, pointInDomain, SOLID_SURFACE_TYPES } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
+import { findOnTraceWorld, findOnTrace, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt, chipLook } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693
 import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
 import { useModelling } from "./viewer/useModelling.js";
@@ -7927,7 +7927,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                               ))}
                             </div>
                           )}
-                          <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Generated {when}. Saved with the project, so this record — and the surface it describes — survives a restart; the mesh export carries the same stamp.", { when: (() => { const at = s.params.generatedAt || s.params.builtAt || s.params.importedAt; const d = at ? new Date(at) : null; return d && !Number.isNaN(d.getTime()) ? d.toLocaleString() : tr("at an unrecorded time"); })() })}</div>
+                          <div style={{ color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Generated {when}. Saved with the project, so this record — and the surface it describes — survives a restart; the mesh export carries the same stamp.", { when: surfaceMadeAt(s.params)?.toLocaleString() ?? tr("at an unrecorded time") })}</div>
                         </div>
                       )}
                     </>
@@ -9079,8 +9079,7 @@ function LayerQuickPanel({ rows, meta, layerKey, categoryFilter, onToggleCategor
           {categories.map(([value, count]) => {
             const hidden = categoryFilter.has(value);
             // TASKS.csv #1252 — the legend editor's colour and label, as the 3D view and the sections draw them
-            const color = colorOf ? colorOf(layerKey, value) : meta.colorFn ? meta.colorFn(value) : "#55606e";
-            const lbl = labelOf ? labelOf(layerKey, value) : meta.nameFn ? (meta.nameFn(value) || value) : value;
+            const { color, label: lbl } = chipLook(value, meta, layerKey, colorOf, labelOf);
             return (
               <span role="button" tabIndex={0} onKeyDown={activateOnKey}
                 key={value}

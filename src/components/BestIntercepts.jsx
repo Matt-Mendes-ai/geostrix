@@ -17,7 +17,7 @@ import { LAYER_META } from "../lib/layers.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
-import { interceptRows } from "../lib/drillReportExport.js"; // TASKS.csv #1083
+import { interceptRows, optionalInterceptColumns } from "../lib/drillReportExport.js"; // TASKS.csv #1083, #1290
 
 const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row-windowing pattern
 
@@ -290,8 +290,9 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
                     {domainLayer && <th style={th} title={tr("Logged unit(s) hosting this intercept. Percentages shown when it straddles a contact.")}>{tr("Host")}</th>}
                     <th style={th}>{tr("Avg {symbol} ({unit})", { symbol, unit })}</th>
                     <th style={th}>{tr("Grade × length")}</th>
-                    {incOn && <th style={th}>{tr("Including (≥ {includeCutoff})", { includeCutoff })}</th>}
-                    {meqReady && <th style={th} title={metalEquivalentFormula(meqMetals)}>{tr("{symbol}Eq ({unit})", { symbol, unit })}</th>}
+                    {optionalInterceptColumns({ including: incOn, metalEquivalent: meqReady }).map((c) => (c === "including"
+                      ? <th key={c} style={th}>{tr("Including (≥ {includeCutoff})", { includeCutoff })}</th>
+                      : <th key={c} style={th} title={metalEquivalentFormula(meqMetals)}>{tr("{symbol}Eq ({unit})", { symbol, unit })}</th>))}
                     {extraSymbols.map((s) => <th key={s} style={th}>{tr("Avg {s} ({v})", { s, v: elementUnits[s] || tr("ppm") })}</th>)}
                     <th style={th}>{tr("Assay intervals")}</th>
                   </tr>
@@ -332,8 +333,9 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
                       </td>
                       <td style={td}>{(r.avgGrade * r.length).toFixed(2)}</td>
                       {/* TASKS.csv #1164 — the same order as the header: Including, then the equivalent */}
-                      {incOn && <td style={{ ...td, whiteSpace: "nowrap" }} title={r.including ? r.including.map(incText).join("; ") : undefined}>{r.including ? `${incText(r.including[0])}${r.including.length > 1 ? ` +${r.including.length - 1}` : ""}` : "—"}</td>}
-                      {meqReady && <td style={td}>{(() => { const v = meqFor(r); return v == null ? "—" : `${r.overRange ? "≥ " : ""}${+v.toPrecision(4)}`; })()}</td>}
+                      {optionalInterceptColumns({ including: incOn, metalEquivalent: meqReady }).map((c) => (c === "including"
+                        ? <td key={c} style={{ ...td, whiteSpace: "nowrap" }} title={r.including ? r.including.map(incText).join("; ") : undefined}>{r.including ? `${incText(r.including[0])}${r.including.length > 1 ? ` +${r.including.length - 1}` : ""}` : "—"}</td>
+                        : <td key={c} style={td}>{(() => { const v = meqFor(r); return v == null ? "—" : `${r.overRange ? "≥ " : ""}${+v.toPrecision(4)}`; })()}</td>))}
                       {extraSymbols.map((s) => <td key={s} style={td}>{r.extras[s] == null ? "—" : +r.extras[s].toPrecision(4)}</td>)}
                       <td style={td}>{r.intervals}</td>
                     </tr>

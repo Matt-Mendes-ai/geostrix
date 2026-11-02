@@ -63,3 +63,6 @@ export function interceptRows(results, { symbol, unit, loc = () => ({}), trueWid
     ...(meq ? { [`${symbol}Eq_${unit}`]: (() => { const v = meq(r); return v == null ? "" : sig6(v); })() } : {}),
   }));
 }
+
+// TASKS.csv #1164, #1290 — the optional columns of the Best intercepts table, one order for its header and its rows
+export const optionalInterceptColumns = ({ including, metalEquivalent }) => [...(including ? ["including"] : []), ...(metalEquivalent ? ["meq"] : [])];

@@ -29,7 +29,7 @@ import { smoothClusteredSpec } from "../../lib/contactSmoothing.js"; // TASKS.cs
 import { pickReport } from "../../lib/pickDiagnostics.js"; // TASKS.csv #762
 import { findOnTraceWorld, findOnTrace, interceptId, SOFT_NUGGET, MODEL_EXTENT_PAD_M, guessSurfaceType, pointInDomain } from "../../lib/viewer/modelHelpers.js";
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
-import { capFieldAtGround } from "../../lib/groundCap.js"; // TASKS.csv #803
+import { capFieldAtGround, meanInsideShell } from "../../lib/groundCap.js"; // TASKS.csv #803
 import { explicitInterfacePoints } from "../../lib/explicitUnits.js"; // TASKS.csv #867
 import { pinchOutPoints } from "../../lib/pinchOut.js"; // TASKS.csv #1030
 import { fisherStats } from "../../lib/stereonet.js"; // TASKS.csv #1066
@@ -1962,12 +1962,7 @@ export function createModellingRuns(ctx, mcRef) {
         // TASKS.csv #1100 — with "cut at topography" the shell is drawn from the capped copy (#803): a node counts only when
         // it is inside the shell after the cap too (nodes in the air left out), at its own interpolated grade
         const capV = gsCap.values;
-        let gradeSum = 0, gradeCells = 0;
-        for (let i = 0; i < grid.values.length; i++) {
-          const gv = grid.values[i];
-          if (Number.isFinite(gv) && gv >= numericCutoff && capV[i] >= numericCutoff) { gradeSum += gv; gradeCells++; }
-        }
-        const meanGradeInShell = gradeCells > 0 ? gradeSum / gradeCells : null;
+        const meanGradeInShell = meanInsideShell(grid.values, capV, numericCutoff);
         // TASKS.csv #270 (LOW-3) / #269 - the parameter block that produced this surface, kept ON the
         // surface so the panel can show it and every export can stamp it. A tonnage with no record of
         // the cutoff/method/radius/cell size/closure mode behind it can't be reproduced or audited.

@@ -51,7 +51,7 @@ const missing = typeof window !== "undefined" && import.meta.env?.DEV ? (window.
 export function t(text, vars) {
   let out = text;
   if (dict && typeof text === "string") { const tr = dict[text]; if (tr) out = tr; else if (missing && /[A-Za-z]{2}/.test(text)) missing.add(text); }
-  if (vars && typeof out === "string") out = out.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
+  if (vars && typeof out === "string") out = out.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? (vars[k] === false ? "" : String(vars[k])) : m) /* TASKS.csv #1290 — a `cond && text` placeholder printed "false" (#1165) */);
   return out;
 }
 

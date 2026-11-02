@@ -35,3 +35,13 @@ export function capFieldAtGround(values, nx, ny, nz, origin, spacing, iso, groun
   }
   return { values: out, capped };
 }
+
+// TASKS.csv #1100, #1290 — a grade shell's mean grade: the nodes inside the shell after the cap, so rock in the air is not averaged in.
+export function meanInsideShell(values, capped, cutoff) {
+  let sum = 0, n = 0;
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (Number.isFinite(v) && v >= cutoff && capped[i] >= cutoff) { sum += v; n++; }
+  }
+  return n > 0 ? sum / n : null;
+}

@@ -1,12 +1,11 @@
-// TASKS.csv #1164 — the optional columns of the Best intercepts table appear in the same order in the header and the rows
+// TASKS.csv #1164, #1290 — the optional columns of the Best intercepts table appear in one order, header and rows
 import test from "node:test";
 import assert from "node:assert/strict";
-import fs from "node:fs";
+import { optionalInterceptColumns } from "../src/lib/drillReportExport.js";
 
-test("#1164 header and row cells: Including before the metal equivalent, in both", () => {
-  const src = fs.readFileSync(new URL("../src/components/BestIntercepts.jsx", import.meta.url), "utf8");
-  const order = (tag) => ["incOn", "meqReady"].map((k) => src.indexOf(`{${k} && <${tag}`)).map((i, _, a) => (assert.ok(i > 0), i));
-  const [hInc, hMeq] = order("th"), [rInc, rMeq] = order("td");
-  assert.ok(hInc < hMeq, "header: Including first");
-  assert.ok(rInc < rMeq, "rows: Including first");
+test("#1164 Including comes before the metal equivalent, and a column that is off is not there", () => {
+  assert.deepEqual(optionalInterceptColumns({ including: true, metalEquivalent: true }), ["including", "meq"]);
+  assert.deepEqual(optionalInterceptColumns({ including: true, metalEquivalent: false }), ["including"]);
+  assert.deepEqual(optionalInterceptColumns({ including: false, metalEquivalent: true }), ["meq"]);
+  assert.deepEqual(optionalInterceptColumns({ including: false, metalEquivalent: false }), []);
 });
