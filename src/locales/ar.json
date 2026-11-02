@@ -6722,5 +6722,22 @@
   "Import {n} tables": "استيراد {n} جدولًا",
   "Imported {n} layers.": "استُوردت {n} طبقة.",
   "Left out {n} tables.": "استُبعد {n} جدولًا.",
-  "{n} attribute table(s) have no map objects, so they were not added: {names}. Import them from the tab their data belongs to.": "لا تحتوي {n} من جداول السمات على عناصر خريطة، فلم تُضف: {names}. استوردها من علامة التبويب التي تنتمي إليها بياناتها."
+  "{n} attribute table(s) have no map objects, so they were not added: {names}. Import them from the tab their data belongs to.": "لا تحتوي {n} من جداول السمات على عناصر خريطة، فلم تُضف: {names}. استوردها من علامة التبويب التي تنتمي إليها بياناتها.",
+  "Identify": "تعريف",
+  "Click anything in the 3D view to see which layer it belongs to and its details, including what lies behind it. Esc stops.": "انقر على أي عنصر في العرض ثلاثي الأبعاد لمعرفة طبقته وتفاصيله، بما في ذلك ما خلفه. Esc للإيقاف.",
+  "Click anything in the 3D view to see which layer it belongs to and its details. Dragging still moves the view.": "انقر على أي عنصر في العرض ثلاثي الأبعاد لمعرفة طبقته وتفاصيله. يظل السحب يحرك العرض.",
+  "Nothing here. Only what is showing can be identified.": "لا شيء هنا. لا يمكن تعريف إلا ما هو ظاهر.",
+  "Close (Esc)": "إغلاق (Esc)",
+  "At this point: {e} E, {n} N, elevation {z} m": "عند هذه النقطة: {e} شرقًا، {n} شمالًا، الارتفاع {z} م",
+  "Depth at this point": "العمق عند هذه النقطة",
+  "Block size": "حجم الكتلة",
+  "Block centre": "مركز الكتلة",
+  "Made with": "أُنشئ باستخدام",
+  "Drape": "التغطية",
+  "On the terrain": "على التضاريس",
+  "Flat at {z} m": "مسطح عند {z} م",
+  "Copy": "نسخ",
+  "Rasters": "النقطية",
+  "Strip log": "السجل العمودي",
+  "Under this click ({n})": "تحت هذه النقرة ({n})"
 }

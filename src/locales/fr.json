@@ -6722,5 +6722,22 @@
   "Import {n} tables": "Importer {n} tables",
   "Imported {n} layers.": "{n} couches importées.",
   "Left out {n} tables.": "{n} tables écartées.",
-  "{n} attribute table(s) have no map objects, so they were not added: {names}. Import them from the tab their data belongs to.": "{n} table(s) d'attributs n'ont pas d'objets cartographiques : elles n'ont pas été ajoutées : {names}. Importez-les depuis l'onglet auquel appartiennent leurs données."
+  "{n} attribute table(s) have no map objects, so they were not added: {names}. Import them from the tab their data belongs to.": "{n} table(s) d'attributs n'ont pas d'objets cartographiques : elles n'ont pas été ajoutées : {names}. Importez-les depuis l'onglet auquel appartiennent leurs données.",
+  "Identify": "Identifier",
+  "Click anything in the 3D view to see which layer it belongs to and its details, including what lies behind it. Esc stops.": "Cliquez sur n'importe quel élément de la vue 3D pour voir sa couche et ses détails, y compris ce qui se trouve derrière. Échap arrête.",
+  "Click anything in the 3D view to see which layer it belongs to and its details. Dragging still moves the view.": "Cliquez sur n'importe quel élément de la vue 3D pour voir sa couche et ses détails. Faire glisser déplace toujours la vue.",
+  "Nothing here. Only what is showing can be identified.": "Rien ici. Seul ce qui est affiché peut être identifié.",
+  "Close (Esc)": "Fermer (Échap)",
+  "At this point: {e} E, {n} N, elevation {z} m": "À ce point : {e} E, {n} N, élévation {z} m",
+  "Depth at this point": "Profondeur à ce point",
+  "Block size": "Taille du bloc",
+  "Block centre": "Centre du bloc",
+  "Made with": "Fait avec",
+  "Drape": "Drapé",
+  "On the terrain": "Sur le terrain",
+  "Flat at {z} m": "À plat à {z} m",
+  "Copy": "Copier",
+  "Rasters": "Rasters",
+  "Strip log": "Log en colonne",
+  "Under this click ({n})": "Sous ce clic ({n})"
 }

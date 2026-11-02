@@ -6722,5 +6722,22 @@
   "Import {n} tables": "Importar {n} tabelas",
   "Imported {n} layers.": "{n} camadas importadas.",
   "Left out {n} tables.": "{n} tabelas deixadas de fora.",
-  "{n} attribute table(s) have no map objects, so they were not added: {names}. Import them from the tab their data belongs to.": "{n} tabela(s) de atributos não têm objetos de mapa, então não foram adicionadas: {names}. Importe-as pela aba a que seus dados pertencem."
+  "{n} attribute table(s) have no map objects, so they were not added: {names}. Import them from the tab their data belongs to.": "{n} tabela(s) de atributos não têm objetos de mapa, então não foram adicionadas: {names}. Importe-as pela aba a que seus dados pertencem.",
+  "Identify": "Identificar",
+  "Click anything in the 3D view to see which layer it belongs to and its details, including what lies behind it. Esc stops.": "Clique em qualquer item da vista 3D para ver a que camada pertence e seus detalhes, incluindo o que há atrás. Esc encerra.",
+  "Click anything in the 3D view to see which layer it belongs to and its details. Dragging still moves the view.": "Clique em qualquer item da vista 3D para ver a que camada pertence e seus detalhes. Arrastar continua movendo a vista.",
+  "Nothing here. Only what is showing can be identified.": "Nada aqui. Só é possível identificar o que está visível.",
+  "Close (Esc)": "Fechar (Esc)",
+  "At this point: {e} E, {n} N, elevation {z} m": "Neste ponto: {e} E, {n} N, elevação {z} m",
+  "Depth at this point": "Profundidade neste ponto",
+  "Block size": "Tamanho do bloco",
+  "Block centre": "Centro do bloco",
+  "Made with": "Feito com",
+  "Drape": "Drapeado",
+  "On the terrain": "Sobre o terreno",
+  "Flat at {z} m": "Plano a {z} m",
+  "Copy": "Copiar",
+  "Rasters": "Rasters",
+  "Strip log": "Log em coluna",
+  "Under this click ({n})": "Sob este clique ({n})"
 }

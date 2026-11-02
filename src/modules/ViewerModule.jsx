@@ -8,7 +8,7 @@ import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
 import * as THREE from "three";
 import { piercePoints as surfacePierces, piercePointRows } from "../lib/piercePoints.js"; // TASKS.csv #1009
-import { Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare, Beaker, Compass, Activity, GitCompare, Check } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // GitCompare/Check: TASKS.csv #93
+import { Info, Upload, Scissors, AlertTriangle, RotateCcw, RefreshCw, Eye, EyeOff, Trash2, ListFilter, Maximize2, Database, Camera, Grid3x3, Bookmark, BookmarkPlus, Pencil, X, Layers3, ChevronUp, ChevronDown, ShieldAlert, GitFork, Milestone, Map as MapIcon, Mountain, Image, FileBarChart2, Settings2, Box, Waypoints, Triangle, MapPin, ArrowUpRight, Shapes, Ruler, TerminalSquare, Beaker, Compass, Activity, GitCompare, Check } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // GitCompare/Check: TASKS.csv #93
 const AssayStyleModal = lazyModal(() => import("../components/AssayStyleModal.jsx")); // TASKS.csv #476
 import { seedBreaks } from "../lib/colorRamp.js"; // TASKS.csv #476
 const GradeEstimationModal = lazyModal(() => import("../components/GradeEstimationModal.jsx"));  // TASKS.csv #301
@@ -145,6 +145,8 @@ import { alphaOnlyFan, meanPole } from "../lib/sectionStructures.js"; // TASKS.c
 import VoxelRangeNumber from "../components/VoxelRangeNumber.jsx"; // TASKS.csv #1208
 import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
+import { useIdentify } from "./viewer/useIdentify.js"; // TASKS.csv #1324
+const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -979,6 +981,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // querying collars/survey/layers/boundaries too, not just assays — discoverability gap flagged by the
   // QGIS-specialist audit. Same modal, same store data, just also reachable from here.
   const [sqlModalOpen, setSqlModalOpen] = useState(false);
+  const identifyStopRef = useRef(null); // #1324 — the Escape chain runs before the hook below is declared
   const [stripLogHoleId, setStripLogHoleId] = useState(null); // TASKS.csv #133 — downhole strip log modal, holds the hole_id or null
   const [interceptsModalOpen, setInterceptsModalOpen] = useState(false); // TASKS.csv #84 — boundary intercepts
   const [contextMenu, setContextMenu] = useState(null);
@@ -1577,6 +1580,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       if (interpretRef.current.on) { stopInterpret(); return; } // #1152
       if (mcConnectFrom) { setMcConnectFrom(null); return; }
       if (measureMode) { setMeasureMode(null); setMeasurePts([]); return; }
+      if (identifyStopRef.current?.()) return; // #1324
       if (interpretOpen) { setInterpretOpen(false); return; } // #1217 — nothing armed: the open task pane
       setToolPane(null);
     };
@@ -4422,7 +4426,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             const mesh = new THREE.Mesh(POINT_PROTO[shape] || PROTO_SPHERE_10, new THREE.MeshLambertMaterial({ color: assayColorFor(v, idx, style), transparent: op < 1, opacity: op, side: shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }));
             mesh.scale.setScalar(assaySizeFor(v, ranges[sym], style)); // #306
             mesh.position.set(pt.x + offX, pt.y, pt.z + offZ);
-            mesh.userData = { tip: `${c.hole_id}\n${sym}: ${v} ${elementUnits[sym] || ""}\n${a.from.toFixed(0)}–${a.to.toFixed(0)} m` };
+            mesh.userData = { tip: `${c.hole_id}\n${sym}: ${v} ${elementUnits[sym] || ""}\n${a.from.toFixed(0)}–${a.to.toFixed(0)} m`, row: a };
             g.add(mesh);
           });
         });
@@ -4456,7 +4460,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const mesh = new THREE.Mesh(proto, new THREE.MeshLambertMaterial({ color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide })); // #312
         mesh.scale.setScalar((1.4 + 2.8 * t) * st.size);
         mesh.position.set(row.x - ox, row.z - oz, -(row.y - oy));
-        mesh.userData = { tip: `${row._src || "Geophysics point"}${row.line != null ? ` · line ${row.line}` : ""}${row.fid != null ? ` · fid ${row.fid}` : ""}\n${row.label || "value"}: ${row.value}${geophysSurveys?.[row._src]?.units ? ` ${geophysSurveys[row._src].units}` : ""}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z` };
+        mesh.userData = { row, tip: `${row._src || "Geophysics point"}${row.line != null ? ` · line ${row.line}` : ""}${row.fid != null ? ` · fid ${row.fid}` : ""}\n${row.label || "value"}: ${row.value}${geophysSurveys?.[row._src]?.units ? ` ${geophysSurveys[row._src].units}` : ""}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z` };
         g.add(mesh);
       } catch (err) { errors.push(err.message); }
     });
@@ -4492,7 +4496,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const mesh = new THREE.Mesh(proto, new THREE.MeshLambertMaterial({ color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide })); // #312
         mesh.scale.setScalar(baseR * st.size * (an?.isolated[i] ? 0.55 : 1)); // #843 — an isolated anomaly is drawn small; #849 size
         mesh.position.set(row.x - ox, row.z - oz, -(row.y - oy));
-        mesh.userData = { tip: surfaceSampleTip(row) + (an ? `\n${cl >= 0 ? tr(an.classes[cl].label) : tr("no value")}${an.isolated[i] ? ` · ${tr("isolated anomaly")}` : ""}` : "") };
+        mesh.userData = { row, tip: surfaceSampleTip(row) + (an ? `\n${cl >= 0 ? tr(an.classes[cl].label) : tr("no value")}${an.isolated[i] ? ` · ${tr("isolated anomaly")}` : ""}` : "") };
         g.add(mesh);
       } catch (err) { errors.push(err.message); }
     });
@@ -4803,7 +4807,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           // that share this same tube-building path — harmless no-op for rows that don't have one.
           // TASKS.csv #227 (continuation) — catValue lets the post-hoc applyCategoryVisibility pass
           // (below) decide this mesh's .visible without needing the original row data.
-          mesh.userData = { tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra}${meta.extraSuffix || ""})` : ""}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m${row.intensity ? ` · intensity ${row.intensity}` : ""}${Number.isFinite(row.alpha) ? ` · alpha ${row.alpha}°` : ""}${row.description ? `\n${row.description}` : ""}`, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }; // lithoRow: TASKS.csv #599 picking
+          mesh.userData = { row, tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra}${meta.extraSuffix || ""})` : ""}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m${row.intensity ? ` · intensity ${row.intensity}` : ""}${Number.isFinite(row.alpha) ? ` · alpha ${row.alpha}°` : ""}${row.description ? `\n${row.description}` : ""}`, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }; // lithoRow: TASKS.csv #599 picking
           groups[groupKey].add(mesh);
          } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id} ${row.from}-${row.to}: ${err.message}`); }
         });
@@ -4835,7 +4839,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           mesh.scale.setScalar(size * st.size);
           mesh.position.set(p.x, p.y, p.z);
           const lbl = meta.numeric ? row.value : effectiveLabel(groupKey, row.value);
-          mesh.userData = { tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra}%)` : ""}\n@ ${mid.toFixed(0)} m`, catValue: row.value };
+          mesh.userData = { row, tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra}%)` : ""}\n@ ${mid.toFixed(0)} m`, catValue: row.value };
           groups[groupKey].add(mesh);
          } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id}: ${err.message}`); }
         });
@@ -4861,7 +4865,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           const mark = new THREE.Mesh(PROTO_SPHERE_8, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: stStruct.opacity }));
           mark.scale.setScalar(2.2 * stStruct.size);
           mark.position.set(p.x, p.y, p.z);
-          mark.userData = { tip: `${c.hole_id}\nStructure: ${effectiveLabel("structure", s.value)}\norientation not recorded (dip —)\n@ ${s.depth.toFixed(0)} m`, catValue: s.value };
+          mark.userData = { row: s, tip: `${c.hole_id}\nStructure: ${effectiveLabel("structure", s.value)}\norientation not recorded (dip —)\n@ ${s.depth.toFixed(0)} m`, catValue: s.value };
           groups.structure.add(mark);
           return;
         }
@@ -4876,7 +4880,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         disc.rotation.y = -toRad(az);
         disc.position.set(p.x, p.y, p.z);
         const lbl = effectiveLabel("structure", s.value);
-        disc.userData = { tip: `${c.hole_id}\nStructure: ${lbl}\ndip ${dip.toFixed(0)}° / az ${az.toFixed(0)}°\n@ ${s.depth.toFixed(0)} m`, catValue: s.value };
+        disc.userData = { row: s, tip: `${c.hole_id}\nStructure: ${lbl}\ndip ${dip.toFixed(0)}° / az ${az.toFixed(0)}°\n@ ${s.depth.toFixed(0)} m`, catValue: s.value };
         groups.structure.add(disc);
         // TASKS.csv #1241 — a disc looks the same dipping 60/045 and 60/225: a pin from its centre down the dip, past the rim so it shows on an opaque disc.
         // A shared prototype, so the pins batch into one draw call and follow the category and hole filters and the colour overrides like the discs.
@@ -4899,14 +4903,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             const p1 = findOnTrace(pts, row.from), p2 = findOnTrace(pts, row.to);
             const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(p1.x, p1.y, p1.z), new THREE.Vector3(p2.x, p2.y, p2.z)]);
             const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 2, 1.6 * stI.size, TUBE_SEGMENTS[stI.shape], false), new THREE.MeshLambertMaterial({ color: stI.color || row.modelColor || hashColor(row.value), transparent: stI.opacity < 1, opacity: stI.opacity })); // #323: a model's own colour; #635 style
-            mesh.userData = { tip: `${c.hole_id}\n${layer.name}: ${row.value}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m` };
+            mesh.userData = { row, tip: `${c.hole_id}\n${layer.name}: ${row.value}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m` };
             layer.group.add(mesh);
           } else if (row.depth != null && !isNaN(row.depth)) {
             const p = findOnTrace(pts, row.depth);
             const mesh = new THREE.Mesh(POINT_PROTO[stP.shape], new THREE.MeshLambertMaterial({ color: stP.color || hashColor(row.value), transparent: stP.opacity < 1, opacity: stP.opacity, side: stP.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide })); // TASKS.csv #312 — shared prototype + scale; #635 style
             mesh.scale.setScalar(2.4 * stP.size);
             mesh.position.set(p.x, p.y, p.z);
-            mesh.userData = { tip: `${c.hole_id}\n${layer.name}: ${row.value}\n@ ${row.depth.toFixed(0)} m` };
+            mesh.userData = { row, tip: `${c.hole_id}\n${layer.name}: ${row.value}\n@ ${row.depth.toFixed(0)} m` };
             layer.group.add(mesh);
           }
         });
@@ -5143,6 +5147,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // Everything else (the maths, the picking, the undo stack, the marker) is in src/lib/sculpt.js and
   // src/lib/useSculpt.js, hand-verified in bare Node against analytic ground truth before any of this
   // was wired up — see the TASKS.csv #145 notes for the numbers.
+  // TASKS.csv #1324 — what is under a click
+  const identify = useIdentify({ mountRef, cameraRef, sceneRef, pickHits, lastActivityRef, originRef, tracesRef, layerGroupsRef, rasterMeshesRef, mapLayerMeshesRef, surfStructObjsRef, mapLayerGroupRef, surfStructGroupRef, terrainMeshRef, rasters, mapLayers, surfaceStructures, units: Object.fromEntries((assayElements || []).map((e) => [e.symbol, e.unit])),
+    layerLabel: (k) => tr(LAYER_META[k]?.label || customLayers.find((l) => l.id === k)?.name || { assay: "Assays", geophys_pts: "Geophysics points", surface_samples: "Surface samples" }[k] || k),
+    kinds: [[implicitGroupRef, tr("Generated surfaces")], [omfGroupRef, tr("OMF objects")], [plannedGroupRef, tr("Planned holes")], [boundaryGroupRef, tr("Boundaries")]] });
+  identifyStopRef.current = () => { if (!identify.on) return false; identify.stop(); return true; };
   const sculpt = useSculpt({
     surfaces: implicitSurfaces, // so sculpt mode can't be left pointing at a surface that no longer exists
     meshesRef: implicitMeshesRef,
@@ -6901,6 +6910,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           sectionMode={sectionMode}
           onToggleSection={() => { setRectZoomMode(false); setMeasureMode(null); setMeasurePts([]); setSectionMode((s) => !s); sectionPts.current = []; setSectionPreview(null); }}
           sectionCorridor={sectionCorridor} setSectionCorridor={setSectionCorridor}
+          identifyOn={identify.on} onToggleIdentify={() => { if (identify.on) { identify.stop(); return; } setRectZoomMode(false); setSectionMode(false); sectionPts.current = []; setSectionPreview(null); setMeasureMode(null); setMeasurePts([]); identify.setOn(true); }}
           measureMode={measureMode} onToggleMeasure={toggleMeasureOnOff} onSwitchMeasureMode={switchMeasureMode} measurePts={measurePts} clearMeasure={clearMeasure}
           interpretOpen={interpretOpen} onInterpret={() => { if (interpretOpen) stopInterpret(); setInterpretOpen((v) => !v); }} /* TASKS.csv #1152 */
           show={visible} paneProps={paneProps}
@@ -8178,7 +8188,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {/* TASKS.csv #389 — was role=button + activateOnKey, so Enter/Space fired a synthetic click with no
           pointer position and placed a bogus section/measure/pick point. The 3D view is a pointer surface,
           not a button: a labelled, focusable application region with no keyboard click. */}
-      <div ref={viewFocusRef} role="application" aria-label={tr("3D view")} tabIndex={0} className="ge-main" onKeyDown={onViewKeyDown} onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { if (!isViewClick(e)) return; onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onInterpretClick(e); onMcodeClick(e); onExplicitClick(e); sculpt.handleViewClick(e); }} style={{ cursor: interpret.on || sectionMode || rectZoomMode || measureMode || pickHoleMode || ((mcPickMode || explicitPickFor) && mode === "modelling") || sculpt.targetId ? "crosshair" : "default" }}>
+      <div ref={viewFocusRef} role="application" aria-label={tr("3D view")} tabIndex={0} className="ge-main" onKeyDown={onViewKeyDown} onPointerDownCapture={(e) => { mcDownRef.current = { x: e.clientX, y: e.clientY }; }} onClick={(e) => { if (!isViewClick(e)) return; onSectionClick(e); onMeasureClick(e); onPickHoleClick(e); onInterpretClick(e); onMcodeClick(e); onExplicitClick(e); sculpt.handleViewClick(e); identify.handleViewClick(e); }} style={{ cursor: interpret.on || sectionMode || rectZoomMode || measureMode || pickHoleMode || ((mcPickMode || explicitPickFor) && mode === "modelling") || sculpt.targetId ? "crosshair" : "default" }}>
         <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
         {/* TASKS.csv #311 — figure furniture (title / legend / scale bar) for the screenshot people
             actually take. Rendered only once there is data to annotate, so the #294 empty state is
@@ -8259,6 +8269,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             onClose={() => setShowBasemap(false)}
           />
         )}
+        {identify.on && <Suspense fallback={null}><IdentifyPanel result={identify.result} onShow={identify.show} onClose={identify.stop} onZoom={(pt) => zoomToPoint(pt)} onStripLog={setStripLogHoleId} /></Suspense>}
         <div style={{ position: "absolute", top: 178, right: 12, display: "flex", flexDirection: "column", gap: 6 }}>{/* #1300 — 8 px below the compass card */}
           <button onClick={() => { camState.current.theta = 0; camState.current.phi = 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Top")}</button>{/* #1200 — north up, as a map */}
           <button onClick={() => { camState.current.phi = Math.PI - 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Bottom")}</button>
@@ -8748,7 +8759,7 @@ function ViewToolbar({
   renamingThemeId, setRenamingThemeId, renameDraft, setRenameDraft, renameTheme, deleteTheme,
   onDbConnect, onQc, qcDisabled, onBoundaryIntercepts, boundaryDisabled, onSqlWorkspace, sqlDisabled,
   onSnapshot, snapshotDisabled, onExportHoles, sectionMode, onToggleSection, sectionCorridor, setSectionCorridor,
-  measureMode, onToggleMeasure, onSwitchMeasureMode, measurePts, clearMeasure,
+  identifyOn, onToggleIdentify, measureMode, onToggleMeasure, onSwitchMeasureMode, measurePts, clearMeasure,
   interpretOpen, onInterpret, // TASKS.csv #1152
   show, paneProps, // TASKS.csv #458
   onLevelPlan, // TASKS.csv #525
@@ -8891,6 +8902,11 @@ function ViewToolbar({
         <RibbonButton advanced icon={Layers3} label="Level plan" tone="section" title="Horizontal section (level plan) at an RL: pierce points, logs and assays in a slab, block-model cells and surfaces cut at that elevation" onClick={onLevelPlan} />
       </RibbonGroup>
       <RibbonGroup label="Measure & check">
+        <div className="ge-ribbon-cell">
+          <HoverToolInfo title={tr("Identify")} text={tr("Click anything in the 3D view to see which layer it belongs to and its details, including what lies behind it. Esc stops.")}>
+            <button className={`ge-ribbon-btn ${identifyOn ? "active" : ""}`} aria-pressed={identifyOn} onClick={onToggleIdentify}><Info size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Identify")}</span></button>
+          </HoverToolInfo>
+        </div>
         <div className="ge-ribbon-cell">
           <HoverToolInfo title={tr("Measure")} text={measureMode ? tr("Active — click points on the model to measure, or click the button again to stop. Distance mode chains a running line — each click extends it, showing the total path length, the straight-line start-to-end distance, and the last segment's own length/bearing/elevation change. Area mode builds a polygon — the closing edge back to your first point is drawn dashed automatically, and the readout shows the plan-view (horizontal) area and perimeter. Switch between the two with the Distance/Area pills in the readout.") : tr("Click points on the model (plan or 3D) to measure. Distance mode chains a running line — each click extends it, showing the total path length, the straight-line start-to-end distance, and the last segment's own length/bearing/elevation change. Area mode builds a polygon — the closing edge back to your first point is drawn dashed automatically, and the readout shows the plan-view (horizontal) area and perimeter. Switch between the two with the Distance/Area pills that appear once measuring is on.")}>
             <button className={`ge-ribbon-btn ${measureMode ? "active" : ""}`} aria-pressed={!!(measureMode)} onClick={onToggleMeasure}><Ruler size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Measure")}</span></button>
