@@ -49,6 +49,7 @@ export default function ModellingPanes(props) {
     assays,
     clipToDomainBoundary,
     clipToTopo,
+    limitToContacts, setLimitToContacts, contactReachM, setContactReachM, // TASKS.csv #1335
     collars,
     desurveyMethod,
     domains,
@@ -282,6 +283,14 @@ export default function ModellingPanes(props) {
         {/* TASKS.csv #358 */}
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: terrain ? "var(--color-text-secondary)" : "#4a5262", marginBottom: 4, cursor: terrain ? "pointer" : "default" }} title={terrain ? tr("Removes the parts of modelled surfaces that lie above the terrain surface.") : tr("Load a terrain surface (Maps > Terrain) to cut surfaces at the ground.")}>
           <input type="checkbox" checked={clipToTopo && !!terrain} disabled={!terrain} onChange={(e) => setClipToTopo(e.target.checked)} />{tr("Cut surfaces at topography")}</label>
+        {/* TASKS.csv #1335 */}
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, cursor: "pointer" }} title={tr("Sizes the model box to the contacts of the units being modelled and cuts each surface a short way past them, instead of filling a box around every hole in the project. Faults still run through the box.")}>
+          <input type="checkbox" checked={limitToContacts} onChange={(e) => setLimitToContacts(e.target.checked)} />{tr("Stop surfaces near their own contacts")}</label>
+        {limitToContacts && (
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 4, marginLeft: 22 }}>
+            {tr("Extend past them by")}<input type="number" min={10} max={20000} step={50} value={contactReachM || ""} placeholder={tr("auto")} onChange={(e) => setContactReachM(Math.max(0, Math.min(20000, Number(e.target.value) || 0)))} aria-label={tr("How far a surface runs past its own contacts (m)")} style={{ ...smallSel, width: 64 }} />m
+          </label>
+        )}
 
         {/* TASKS.csv #361 — which structure types are contact orientations (litho + alteration tools). */}
         {structureTypes.length > 0 && (<>

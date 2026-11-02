@@ -54,6 +54,8 @@ export function createModellingRuns(ctx, mcRef) {
     assays,
     clipToDomainBoundary,
     clipToTopo,
+    limitToContacts, // TASKS.csv #1335
+    contactReachM,
     collars,
     desurveyMethod,
     domains,
@@ -183,9 +185,14 @@ export function createModellingRuns(ctx, mcRef) {
     }
     const clipDomain = clipToDomainBoundary ? domains.find((d) => d.id === modelDomainId) : null;
     const clipTerrain = clipToTopo ? terrainForClipRef.current : null; // #358
+    // TASKS.csv #1335 — each surface's contacts, how far past them it may run, and (below) a model box sized to them
+    const reachLib = limitToContacts ? await import("../../lib/contactReach.js") : null;
+    const reachOf = new Map();
+    if (reachLib) specs.forEach((s) => { if (!s.fault) reachOf.set(s.meshName, reachLib.contactFootprint(s.points, contactReachM)); });
     // Extent spans every hole trace (not just these surfaces' own points) so the modelled surface(s)
     // cover the whole property, with ~15% padding on each side. Computed in API (east/north/up)
-    // space to match the points/orientations above.
+    // space to match the points/orientations above. #1335 — unless the surfaces stop near their own contacts: then only
+    // their own points count, and the same grid gives cells that much finer.
     const allApiPts = traces.flatMap((t) => t.pts).map(sceneToApi);
 
     // TASKS.csv #86 — when anisotropy is enabled, EVERY api-space coordinate that crosses the sidecar
@@ -205,7 +212,7 @@ export function createModellingRuns(ctx, mcRef) {
     // drilling: measured on the Orion map, 129 contact points reached 2.4 km south of a 4-hole extent
     // and every one of the 12 outcrop orientations sat outside it. The anisotropy centre above stays
     // anchored on the traces, as its comment requires.
-    const extentApiPts = [...allApiPts, ...specs.flatMap((s) => [...s.points, ...s.orientations])];
+    const extentApiPts = [...(reachLib ? [] : allApiPts), ...specs.flatMap((s) => [...s.points, ...s.orientations])];
     const warpedApiPts = anisotropy.enabled ? extentApiPts.map((p) => anisoWarpPoint(p, anisoCenter, anisoBasis, anisoScl)) : extentApiPts;
 
     const xs = warpedApiPts.map((p) => p.x), ys = warpedApiPts.map((p) => p.y), zs = warpedApiPts.map((p) => p.z);
@@ -213,8 +220,11 @@ export function createModellingRuns(ctx, mcRef) {
     // property's own span is — was previously an uncapped 15% of span, which is what let the modelled
     // extent balloon far past real drillhole data on a widely-spread property (see MODEL_EXTENT_PAD_M's
     // own comment for why that produced self-wrapping surfaces).
-    const pad = (lo, hi) => { const span = Math.max(1, hi - lo); const p = Math.min(span * 0.15, MODEL_EXTENT_PAD_M); return [lo - p, hi + p]; };
     const xr = minMax(xs), yr = minMax(ys), zr = minMax(zs); // not Math.min/max(...) — see layers.js's minMax comment
+    // #1335 — the box holds the margin too, in the solve's frame when a trend warps it
+    const reachBoxM = reachOf.size ? Math.max(...[...reachOf.values()].map((f) => f.margin)) * (anisotropy.enabled ? Math.max(anisoScl.major, anisoScl.semiMajor, anisoScl.minor) : 1) : 0;
+    const longestSpan = Math.max(xr.max - xr.min, yr.max - yr.min, zr.max - zr.min);
+    const pad = (lo, hi) => { const span = Math.max(1, hi - lo); const p = reachLib ? reachLib.reachPad(span, longestSpan, reachBoxM, MODEL_EXTENT_PAD_M) : Math.min(span * 0.15, MODEL_EXTENT_PAD_M); return [lo - p, hi + p]; };
     const [xmin, xmax] = pad(xr.min, xr.max);
     const [ymin, ymax] = pad(yr.min, yr.max);
     const [zmin, zmax] = pad(zr.min, zr.max);
@@ -352,6 +362,7 @@ export function createModellingRuns(ctx, mcRef) {
       : verts);
     let ensembleBase = null; // TASKS.csv #52 (a)
     const nonFinite = []; // TASKS.csv #314
+    const reachNotes = []; // TASKS.csv #1335
     const runId = `gempy_${Date.now()}`; // TASKS.csv #1101 — the surfaces of one run (a stack) share it, for "Model inputs"
     specs.forEach((spec, specIndex) => {
       let surf = byName[spec.meshName];
@@ -374,6 +385,14 @@ export function createModellingRuns(ctx, mcRef) {
         const c = clipMesh(sceneVerts, faces, (v) => !pointInDomain(v, clipDomain, implicitMeshesRef.current));
         sceneVerts = c.verts; faces = c.faces;
         if (!faces.length) { missing.push(`${spec.label} (entirely clipped by domain "${clipDomain.name}")`); return; }
+      }
+      // TASKS.csv #1335 — a level set runs to the walls of the box wherever the field crosses it, data or not
+      const reach = reachOf.get(spec.meshName);
+      if (reach) {
+        const c = clipMesh(sceneVerts, faces, (v) => reach.isOutside(sceneToApi(v)));
+        sceneVerts = c.verts; faces = c.faces;
+        if (!faces.length) { missing.push(`${spec.label} (no part of it lies near its own contacts)`); return; }
+        reachNotes.push(tr("{label}: {m} m past its {n} contact point(s)", { label: spec.label, m: Math.round(reach.margin), n: spec.points.length }));
       }
       // TASKS.csv #358 — the model extent's top is the highest control point plus padding, and GemPy
       // extrapolates up to it, so dipping contacts used to stand up into the air above the ground (in 3D,
@@ -430,6 +449,7 @@ export function createModellingRuns(ctx, mcRef) {
         searchEllipsoid: searchEllipsoid.enabled ? { ...searchEllipsoid } : null,
         domain: clipDomain ? clipDomain.name : (domains.find((d) => d.id === modelDomainId)?.name || null),
         clippedToDomain: !!clipDomain,
+        ...(reach ? { limitedToContacts: { marginM: Math.round(reach.margin), automatic: !(contactReachM > 0) } } : {}), // #1335
         clippedToTopography: clipTerrain ? { terrain: clipTerrain.name || "terrain", trianglesRemoved: topoClipped } : false, // #358
         // TASKS.csv #52 (c) — WHICH picks fed this surface, by name. Without it two surfaces modelled
         // from the same logged code (upper vs lower basalt) would carry identical provenance and be
@@ -454,6 +474,7 @@ export function createModellingRuns(ctx, mcRef) {
     // TASKS.csv #1054 — what each fault offset, as GemPy applied it, and the limit no choice here can lift
     if (res.faultOffsets && Object.keys(res.faultOffsets).length) setNotices((p) => [...p, notice("Faults as solved: {list}. Each fault runs through the whole model box (GemPy here cannot end a fault).", { list: Object.entries(res.faultOffsets).map(([f, u]) => tr("{fault} offsets {units}", { fault: f, units: u.length ? u.join(", ") : tr("nothing") })).join("; ") })]);
     if (res.orientationsDeduplicated > 0) setNotices((p) => [...p, notice("{orientationsDeduplicated} repeated orientation(s) were given to GemPy once rather than once per unit: in an onlap stack every unit shares one field, so the copies added solve time but no information.", { orientationsDeduplicated: res.orientationsDeduplicated })]);
+    if (reachNotes.length) setNotices((p) => [...p, notice("Surfaces stop near their own contacts: {list}. The model box was sized to these contacts, not to every hole in the project. Model settings changes the distance or fills the box.", { list: reachNotes.join("; ") })]);
     if (missing.length) setNotices((p) => [...p, notice("GemPy returned no mesh for: {missing} (try adding more points or a wider spread of orientations for those).", { missing: missing.join(", ") })]);
     if (nonFinite.length) setNotices((p) => [...p, notice("GemPy returned some invalid (NaN) vertices — the surface is shown without the triangles that used them, so it may have holes: {nonFinite}. Usually too few points / orientations for the extent or resolution.", { nonFinite: nonFinite.join("; ") })]); // #314
     // TASKS.csv #356 — model vs logs, and unit volumes, from the lithology block. Every logged interval of a

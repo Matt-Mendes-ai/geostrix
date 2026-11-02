@@ -6788,5 +6788,11 @@
   "Build a closed body from {code}": "بناء جسم مغلق من {code}",
   "No intervals have the code \"{altValue}\" — nothing to model.": "لا توجد فواصل بالرمز \"{altValue}\"، فلا شيء لنمذجته.",
   "Added \"{label}\": {insideCount} of {pts} sample point(s) inside the code{v} → {nx}×{ny}×{nz} grid ({cell} m cells{v2}, {v3} m search{v4}) → {vertices} vertices / {faces} faces{v5}. Closed indicator envelope, not a draped contact.": "أُضيف \"{label}\": {insideCount} من {pts} نقطة عينة داخل الرمز{v} ← شبكة {nx}×{ny}×{nz} (خلايا {cell} م{v2}، بحث {v3} م{v4}) ← {vertices} رأس / {faces} وجه{v5}. غلاف مغلق بالمؤشر، وليس تماسًا مغطِّيًا.",
-  "\"{label}\" closes partly against the search-radius boundary rather than a logged interval of another code, so its extent there reflects the {v} m search radius, not the data.": "يُغلق \"{label}\" جزئيًا عند حد نصف قطر البحث لا عند فاصل مسجل لرمز آخر، لذا يعكس امتداده هناك نصف قطر البحث البالغ {v} م لا البيانات."
+  "\"{label}\" closes partly against the search-radius boundary rather than a logged interval of another code, so its extent there reflects the {v} m search radius, not the data.": "يُغلق \"{label}\" جزئيًا عند حد نصف قطر البحث لا عند فاصل مسجل لرمز آخر، لذا يعكس امتداده هناك نصف قطر البحث البالغ {v} م لا البيانات.",
+  "Sizes the model box to the contacts of the units being modelled and cuts each surface a short way past them, instead of filling a box around every hole in the project. Faults still run through the box.": "يضبط صندوق النموذج على تماسات الوحدات المنمذجة ويقص كل سطح بعد تجاوزها بقليل، بدلًا من ملء صندوق حول كل ثقوب الحفر في المشروع. تبقى الصدوع مارة عبر الصندوق.",
+  "Stop surfaces near their own contacts": "إيقاف الأسطح قرب تماساتها",
+  "Extend past them by": "التمديد بعدها بمقدار",
+  "How far a surface runs past its own contacts (m)": "مدى امتداد السطح بعد تماساته (م)",
+  "{label}: {m} m past its {n} contact point(s)": "{label}: {m} م بعد نقاط تماسه البالغة {n}",
+  "Surfaces stop near their own contacts: {list}. The model box was sized to these contacts, not to every hole in the project. Model settings changes the distance or fills the box.": "تتوقف الأسطح قرب تماساتها: {list}. ضُبط صندوق النموذج على هذه التماسات لا على كل ثقوب الحفر في المشروع. تتيح إعدادات النموذج تغيير المسافة أو ملء الصندوق."
 }
