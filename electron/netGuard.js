@@ -9,10 +9,9 @@
 // read under a byte cap with an overall timeout.
 //
 // Policy is unchanged from #249: loopback, link-local (incl. cloud metadata), private (RFC 1918 / ULA),
-// CGNAT, multicast and unspecified addresses are refused. Remaining gap, stated honestly: the address is
-// checked by our own lookup and then fetch() resolves again, so a DNS-rebinding server could still
-// answer differently between the two. Closing that needs a custom socket lookup; the direct cases are
-// what a user-pasted URL can realistically hit.
+// CGNAT, multicast and unspecified addresses are refused.
+// TASKS.csv #1264 — the socket connects to the address that was checked: fetch() used to resolve the name a second time, so a
+// DNS-rebinding server could answer a public address to the check and a private one to the connection. undici, loaded on first use.
 const dns = require("node:dns").promises;
 const net = require("node:net");
 
@@ -46,20 +45,28 @@ function addressBlocked(ip) {
   return true;
 }
 
-// Returns null when the URL may be fetched, or a user-facing reason when it may not.
-async function urlBlockReason(urlString, lookup = dns.lookup) {
+// { reason } when the URL may not be fetched (user-facing), { addrs } the checked addresses when it may.
+async function checkUrl(urlString, lookup = dns.lookup, blocked = addressBlocked) {
   let u;
-  try { u = new URL(urlString); } catch { return "Not a valid URL."; }
-  if (u.protocol !== "http:" && u.protocol !== "https:") return `Unsupported URL scheme "${u.protocol}" — only http/https are allowed.`;
+  try { u = new URL(urlString); } catch { return { reason: "Not a valid URL." }; }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return { reason: `Unsupported URL scheme "${u.protocol}" — only http/https are allowed.` };
   const host = u.hostname.replace(/^\[|\]$/g, "").replace(/\.$/, "").toLowerCase();
-  if (!host || host === "localhost" || host.endsWith(".localhost")) return "This URL points at a local/private address, which isn't allowed here.";
+  if (!host || host === "localhost" || host.endsWith(".localhost")) return { reason: "This URL points at a local/private address, which isn't allowed here." };
   let addrs;
   if (net.isIP(host)) addrs = [host];
   else {
-    try { addrs = (await lookup(host, { all: true })).map((a) => a.address); } catch (e) { return `Could not resolve ${host} (${e.code || e.message}).`; }
+    try { addrs = (await lookup(host, { all: true })).map((a) => a.address); } catch (e) { return { reason: `Could not resolve ${host} (${e.code || e.message}).` }; }
   }
-  if (!addrs.length || addrs.some(addressBlocked)) return "This URL points at a local/private address, which isn't allowed here.";
-  return null;
+  if (!addrs.length || addrs.some(blocked)) return { reason: "This URL points at a local/private address, which isn't allowed here." };
+  return { addrs };
+}
+// Returns null when the URL may be fetched, or a user-facing reason when it may not.
+async function urlBlockReason(urlString, lookup = dns.lookup) { return (await checkUrl(urlString, lookup)).reason || null; }
+
+// TASKS.csv #1264 — a socket lookup that answers only the addresses already checked (Node asks for all of them, or one)
+function pinnedLookup(addrs) {
+  const list = addrs.map((address) => ({ address, family: net.isIP(address) }));
+  return (_host, opts, cb) => { if (opts?.all) cb(null, list); else cb(null, list[0].address, list[0].family); };
 }
 
 // fetch with per-hop checks, manual redirects, timeout and a byte cap. Resolves to
@@ -68,18 +75,27 @@ async function urlBlockReason(urlString, lookup = dns.lookup) {
 // the same headers (a Range keeps applying), never re-sending the body.
 // allowHost (TASKS.csv #960): optional (URL) => boolean, checked on EVERY hop — a feature limited to a list of servers
 // (public geochemistry, imagery) used to check only the first URL, and a redirect from a listed server went anywhere.
-async function guardedFetch(urlString, { timeoutMs = 60000, maxBytes = 64 * 1024 * 1024, maxRedirects = 5, fetchImpl = fetch, lookup, init = null, allowHost = null } = {}) {
+async function guardedFetch(urlString, { timeoutMs = 60000, maxBytes = 64 * 1024 * 1024, maxRedirects = 5, fetchImpl = null, lookup, init = null, allowHost = null, blocked = addressBlocked } = {}) {
   const signal = AbortSignal.timeout(timeoutMs);
   let url = urlString;
+  const agents = []; // #1264 — one per hop: each is pinned to that hop's checked addresses
   try {
     for (let hop = 0; hop <= maxRedirects; hop++) {
-      const reason = await urlBlockReason(url, lookup);
+      const { reason, addrs } = await checkUrl(url, lookup, blocked);
       if (reason) return { ok: false, status: 0, message: hop ? `Redirected to a blocked address: ${reason}` : reason };
       if (hop && allowHost) {
         const h = new URL(url);
         if (!allowHost(h)) return { ok: false, status: 0, message: `The server redirected to ${h.protocol}//${h.hostname}, which is not one of the servers this feature may contact.` };
       }
-      const res = await fetchImpl(url, { redirect: "manual", signal, ...(init ? (hop ? { headers: init.headers } : init) : {}) });
+      const options = { redirect: "manual", signal, ...(init ? (hop ? { headers: init.headers } : init) : {}) };
+      let res;
+      if (fetchImpl) res = await fetchImpl(url, options);
+      else {
+        const { Agent, fetch: pinnedFetch } = require("undici");
+        const dispatcher = new Agent({ connect: { lookup: pinnedLookup(addrs) } });
+        agents.push(dispatcher);
+        res = await pinnedFetch(url, { ...options, dispatcher });
+      }
       if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
         url = new URL(res.headers.get("location"), url).toString();
         continue;
@@ -104,6 +120,8 @@ async function guardedFetch(urlString, { timeoutMs = 60000, maxBytes = 64 * 1024
   } catch (err) {
     if (err.name === "TimeoutError" || err.name === "AbortError") return { ok: false, status: 0, message: `Timed out after ${Math.round(timeoutMs / 1000)} s.` };
     return { ok: false, status: 0, message: `Network error: ${err.message}` };
+  } finally {
+    agents.forEach((a) => a.destroy().catch(() => {}));
   }
 }
 
