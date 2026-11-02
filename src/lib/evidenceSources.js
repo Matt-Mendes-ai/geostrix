@@ -38,7 +38,8 @@ export function reachFromSpacing(points, factor = 1.5) {
 // A block model seen from above: in each grid cell, the highest (or lowest) value of the blocks over it, whatever their
 // depth. A block smaller than the grid cell still marks the cell it falls in. Blocks the data cannot see are left out.
 export function voxelColumnEvidence(g, model, how = "max") {
-  const out = new Float32Array(g.nx * g.ny).fill(NaN), high = how !== "min";
+  // TASKS.csv #1281 — a sentinel, not a finite test per write: 100,000 blocks over 64 grid cells each is millions of writes
+  const high = how !== "min", empty = high ? -Infinity : Infinity, out = new Float32Array(g.nx * g.ny).fill(empty);
   for (const c of model?.cells || []) {
     if (!Number.isFinite(c.value) || !voxelCellSupported(model, c)) continue;
     let i0 = Math.ceil((c.x - c.dx / 2 - g.x0) / g.dx), i1 = Math.floor((c.x + c.dx / 2 - g.x0) / g.dx);
@@ -47,11 +48,12 @@ export function voxelColumnEvidence(g, model, how = "max") {
     if (j1 < j0) j0 = j1 = Math.round((g.yTop - c.y) / g.dy);
     for (let j = Math.max(0, j0); j <= Math.min(g.ny - 1, j1); j++) {
       for (let i = Math.max(0, i0); i <= Math.min(g.nx - 1, i1); i++) {
-        const k = j * g.nx + i, v = out[k];
-        if (!Number.isFinite(v) || (high ? c.value > v : c.value < v)) out[k] = c.value;
+        const k = j * g.nx + i;
+        if (high ? c.value > out[k] : c.value < out[k]) out[k] = c.value;
       }
     }
   }
+  for (let k = 0; k < out.length; k++) if (out[k] === empty) out[k] = NaN;
   return out;
 }
 

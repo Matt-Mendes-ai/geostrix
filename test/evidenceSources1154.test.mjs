@@ -68,3 +68,26 @@ test("#1154 distance to logged structures: one source per type, measured from th
   assert.ok(d[cellAt(700, 500)] <= 150, String(d[cellAt(700, 500)]));
   assert.ok(d[cellAt(50, 950)] > 400);
 });
+
+test("#1281: a column's highest and lowest match a plain reading, with Infinity-free empty cells", () => {
+  const g = { nx: 12, ny: 10, x0: 0, yTop: 100, dx: 10, dy: 10 };
+  const cells = [];
+  let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let n = 0; n < 60; n++) cells.push({ x: rnd() * 90, y: 10 + rnd() * 70, z: -n, dx: 20, dy: 20, dz: 5, value: n === 5 ? NaN : (rnd() - 0.5) * 100 });
+  for (const how of ["max", "min"]) {
+    const v = voxelColumnEvidence(g, { cells }, how);
+    const plain = new Float32Array(g.nx * g.ny).fill(NaN);
+    for (const c of cells) {
+      if (!Number.isFinite(c.value)) continue;
+      for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
+        const x = g.x0 + i * g.dx, y = g.yTop - j * g.dy;
+        if (Math.abs(x - c.x) > c.dx / 2 || Math.abs(y - c.y) > c.dy / 2) continue;
+        const k = j * g.nx + i, w = plain[k];
+        if (!Number.isFinite(w) || (how === "max" ? c.value > w : c.value < w)) plain[k] = c.value;
+      }
+    }
+    assert.deepEqual(Array.from(v).map(String), Array.from(plain).map(String), how);
+    assert.ok(v.every((x) => Number.isNaN(x) || Number.isFinite(x)));
+    assert.ok(v.some(Number.isNaN));
+  }
+});
