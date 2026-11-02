@@ -9,6 +9,7 @@ import { useStore } from "../lib/store.jsx";
 import { buildRasterImport, gridToSurveyRows, rasterFromGrid, ternaryRaster } from "../lib/raster.js";
 import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373
 import { SAT_LEVELS, planLatestFetch } from "../lib/imageryLevels.js"; // TASKS.csv #781 / #837
+const NAIP_FINEST_M = 0.6; // lib/naipFetch.js, which stays out of this module until NAIP is fetched
 import { gridToGeoTIFF, saveGeoTIFF, safeFileName, rasterExportNote } from "../lib/gridExport.js"; // TASKS.csv #854; rasterExportNote: #1095
 import { toLonLat, crsName } from "../lib/reproject.js";
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
@@ -188,6 +189,12 @@ export default function RasterModule({ embedded = false } = {}) {
   // TASKS.csv #781 — resolution level, remembered per computer (a preference, not project data)
   const [satLevel, setSatLevelState] = useState(() => { try { const v = localStorage.getItem("geostrix_sat_level"); return SAT_LEVELS[v] ? v : "standard"; } catch { return "standard"; } });
   const setSatLevel = (v) => { setSatLevelState(v); try { localStorage.setItem("geostrix_sat_level", v); } catch { /* private window: session only */ } };
+  // TASKS.csv #838 — where the image comes from: Sentinel-2 everywhere, NAIP's much finer aerial imagery in the USA
+  const [satSource, setSatSourceState] = useState(() => { try { return localStorage.getItem("geostrix_sat_source") === "naip" ? "naip" : "sentinel2"; } catch { return "sentinel2"; } });
+  const setSatSource = (v) => { setSatSourceState(v); try { localStorage.setItem("geostrix_sat_source", v); } catch { /* private window: session only */ } };
+  // TASKS.csv #838 — a drone or contractor orthophoto can keep more than the usual 2048 px, at the cost of memory and project size
+  const [keepDetail, setKeepDetailState] = useState(() => { try { return localStorage.getItem("geostrix_raster_keep_detail") === "1"; } catch { return false; } });
+  const setKeepDetail = (v) => { setKeepDetailState(v); try { localStorage.setItem("geostrix_raster_keep_detail", v ? "1" : "0"); } catch { /* private window: session only */ } };
   // TASKS.csv #129 — manual tie-point georeferencer for a scanned map/claim sketch with no embedded
   // geo tags at all (a GeoTIFF/gxf still trusts its own tags, per buildRasterImport above — this is
   // specifically for when there ARE none). GeoreferencerModal.jsx does the actual UI/math; this is
@@ -275,10 +282,10 @@ export default function RasterModule({ embedded = false } = {}) {
     setSatBusy(true);
     setSatProgress({ done: 0, total: 1 });
     try { // TASKS.csv #816 / #837 — the latest clear Sentinel-2 scene (Copernicus: free and open, any use with attribution)
-      const { fetchLatestTrueColour } = await import("../lib/imageryFetch.js");
-      const r = await fetchLatestTrueColour(bboxLonLat, { targetEpsg: project.epsg, maxPx: SAT_LEVELS[satLevel]?.gridMax || 2048, onProgress: (done, total) => setSatProgress({ done, total }) });
+      const opts = { targetEpsg: project.epsg, maxPx: SAT_LEVELS[satLevel]?.gridMax || 2048, onProgress: (done, total) => setSatProgress({ done, total }) };
+      const r = satSource === "naip" ? await (await import("../lib/naipFetch.js")).fetchNaip(bboxLonLat, opts) : await (await import("../lib/imageryFetch.js")).fetchLatestTrueColour(bboxLonLat, opts);
       addRaster({ name: r.name, bbox: r.bbox, dataUrl: r.dataUrl, elevation: defaultElevation });
-      setError({ info: r.areaCloud <= 0.1, text: tr("Fetched and imported \"{name}\" ({gridW} × {gridH} px).", { name: r.name, gridW: r.gridW, gridH: r.gridH }) + r.note });
+      setError({ info: satSource === "naip" ? !r.partial : r.areaCloud <= 0.1, text: tr("Fetched and imported \"{name}\" ({gridW} × {gridH} px).", { name: r.name, gridW: r.gridW, gridH: r.gridH }) + r.note });
     } catch (err) {
       setError({ info: false, text: err.message });
     } finally {
@@ -306,7 +313,7 @@ export default function RasterModule({ embedded = false } = {}) {
     setBusy(true);
     try {
       const chooseProjectEpsg = projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }); // #607
-      const { raster, msg } = await buildRasterImport(file, { epsg: project?.epsg, defaultElevation, sourceEpsg, chooseProjectEpsg });
+      const { raster, msg } = await buildRasterImport(file, { epsg: project?.epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, keepDetail });
       addRaster(raster);
       setError({ info: true, text: msg });
     } catch (err) {
@@ -347,6 +354,9 @@ export default function RasterModule({ embedded = false } = {}) {
           defaultText={tr("From the file's own tag, else the project CRS ({crs})", { crs: crsName(project?.epsg) || `EPSG:${project?.epsg ?? "?"}` })}
           title={tr("The CRS the file's own coordinates are in. Leave it on the file's tag for a GeoTIFF; set it for a .gxf (that format has no CRS tag) or when a file's tag is wrong — the raster is then reprojected into the project CRS on import.")}
         />
+        <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("For a drone or contractor orthophoto: keeps up to 4096 px on the long side instead of 2048, so a 2 km image shows about 0.5 m rather than 1 m. Uses about four times the graphics memory and a larger project file. Import the image again after changing this.")}>
+          <input type="checkbox" checked={keepDetail} onChange={(e) => setKeepDetail(e.target.checked)} />{tr("Keep full detail (up to 4096 px)")}
+        </label>
         <input
           ref={fileInput}
           type="file"
@@ -367,15 +377,20 @@ export default function RasterModule({ embedded = false } = {}) {
             onClose={() => setSatPickerOpen(false)}
             onConfirm={runSatFetch}
             extraControls={(bbox) => { // TASKS.csv #781 — resolution, and what it would fetch for this area
-              const p = bbox ? planLatestFetch(bbox, satLevel) : null; // #837
+              const naip = satSource === "naip";
+              const p = bbox ? planLatestFetch(bbox, satLevel, naip ? NAIP_FINEST_M : undefined) : null; // #837
               return (
                 <span style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 10, fontSize: "var(--font-size-sm)", color: "#5a6472" }}>
-                  <span>{tr("Latest clear Sentinel-2 scene — Copernicus data, free for any use with attribution")}</span>{/* TASKS.csv #816 / #837 */}
+                  <select value={satSource} onChange={(e) => setSatSource(e.target.value)} aria-label={tr("Imagery source")} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid var(--color-border)", maxWidth: 300 }}
+                    title={naip ? tr("USDA NAIP aerial imagery: public domain, the USA only, usually 0.6 m, flown every few years, so it can be older than Sentinel-2.") : tr("Latest clear Sentinel-2 scene — Copernicus data, free for any use with attribution")}>{/* TASKS.csv #816 / #837 / #838 */}
+                    <option value="sentinel2">{tr("Sentinel-2, worldwide (10 m, latest clear scene)")}</option>
+                    <option value="naip">{tr("NAIP aerial, USA only (about 0.6 m)")}</option>
+                  </select>
                   <select value={satLevel} onChange={(e) => setSatLevel(e.target.value)} aria-label={tr("Image resolution")} style={{ padding: "6px 8px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)" }}
-                    title={tr("Higher levels keep more of the 10 m detail over a large area. Sentinel-2 imagery has 10 m pixels: past that, a higher level adds nothing.")}>
+                    title={naip ? tr("Higher levels keep more of the aerial detail over a large area. A very high level over a small area reaches the imagery's own pixels.") : tr("Higher levels keep more of the 10 m detail over a large area. Sentinel-2 imagery has 10 m pixels: past that, a higher level adds nothing.")}>
                     {Object.entries(SAT_LEVELS).map(([k, l]) => <option key={k} value={k}>{tr("{label} resolution", { label: l.label })}</option>)}
                   </select>
-                  {p && <span>{tr("~{v} m pixels · image {gridW} × {gridH} px{v3}", { v: Math.round(p.pixelM), gridW: p.gridW, gridH: p.gridH, v3: p.nativeLimited ? tr(" · imagery's finest (10 m)") : "" })}</span>}
+                  {p && <span>{tr("~{v} m pixels · image {gridW} × {gridH} px{v3}", { gridW: p.gridW, gridH: p.gridH, v: naip ? (p.pixelM < 10 ? p.pixelM.toFixed(1) : Math.round(p.pixelM)) : Math.round(p.pixelM), v3: p.nativeLimited ? (naip ? tr(" · imagery's finest") : tr(" · imagery's finest (10 m)")) : "" })}</span>}
                 </span>
               );
             }}

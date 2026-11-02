@@ -13,11 +13,11 @@ export const SAT_LEVELS = {
 // Shown before fetching: { pixelM, gridW, gridH, nativeLimited } for a lon / lat box at a level. Metres from degrees
 // at the box's middle latitude (good to ~1 % here); the real grid is laid out in the scene's own UTM by windowGrid
 // with the same rule (native cell, or the longest side / gridMax when that is coarser).
-export function planLatestFetch([lonMin, latMin, lonMax, latMax], level = "standard") {
+export function planLatestFetch([lonMin, latMin, lonMax, latMax], level = "standard", nativeM = NATIVE_M) { // nativeM: #838 — NAIP's finer pixels
   if (!SAT_LEVELS[level]) level = "standard";
   const l = SAT_LEVELS[level];
   const midLat = ((latMin + latMax) / 2) * Math.PI / 180;
   const w = Math.max(1, (lonMax - lonMin) * Math.cos(midLat) * 111320), h = Math.max(1, (latMax - latMin) * 110574);
-  const pixelM = Math.max(NATIVE_M, Math.max(w, h) / l.gridMax);
-  return { pixelM, gridW: Math.max(1, Math.ceil(w / pixelM)), gridH: Math.max(1, Math.ceil(h / pixelM)), nativeLimited: pixelM === NATIVE_M, level };
+  const pixelM = Math.max(nativeM, Math.max(w, h) / l.gridMax);
+  return { pixelM, gridW: Math.max(1, Math.ceil(w / pixelM)), gridH: Math.max(1, Math.ceil(h / pixelM)), nativeLimited: pixelM === nativeM, level };
 }

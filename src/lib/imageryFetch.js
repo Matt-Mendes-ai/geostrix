@@ -19,7 +19,7 @@ import { pointInRings } from "./mapLayers.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 const EARTH_SEARCH = "https://earth-search.aws.element84.com/v1/search";
-const PC_SEARCH = "https://planetarycomputer.microsoft.com/api/stac/v1/search";
+export const PC_SEARCH = "https://planetarycomputer.microsoft.com/api/stac/v1/search";
 const PC_TOKEN = "https://planetarycomputer.microsoft.com/api/sas/v1/token/astersa/aster";
 
 // Sentinel-2 band roles (spectralIndices.js SENSORS.sentinel2) -> Earth Search asset keys
@@ -111,13 +111,15 @@ export function s2Offset(properties, listedOffset) {
 
 // Planetary Computer's blob store needs a short-lived read token, which its token service issues anonymously; kept until
 // five minutes before it expires
-let pcToken = null;
-async function signPc(href) {
+const pcTokens = new Map(); // one per storage account: ASTER, NAIP (#838)
+export async function signPc(href, tokenUrl = PC_TOKEN) {
+  let pcToken = pcTokens.get(tokenUrl);
   if (!pcToken || Date.parse(pcToken.expiry) - Date.now() < 5 * 60 * 1000) {
-    const r = await remoteSensingFetch({ url: PC_TOKEN });
+    const r = await remoteSensingFetch({ url: tokenUrl });
     if (!r.ok) throw new Error(tr("Could not get a read token from the Planetary Computer ({v}).", { v: r.message || tr("HTTP {status}", { status: r.status }) }));
     const t = JSON.parse(new TextDecoder().decode(r.data));
     pcToken = { token: t.token, expiry: t["msft:expiry"] };
+    pcTokens.set(tokenUrl, pcToken);
   }
   return `${href}${href.includes("?") ? "&" : "?"}${pcToken.token}`;
 }

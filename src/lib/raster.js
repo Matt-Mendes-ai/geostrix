@@ -50,6 +50,12 @@ export function epsgFromGeoKeys(k) {
 // grid (e.g. a hand-digitized or low-station-density survey) will still look blocky at any cap, since
 // there's no more real data to show — that's the source data's resolution, not this constant.
 const MAX_TEXTURE_SIZE = 2048;
+// TASKS.csv #838 — the opt-in for a drone or contractor orthophoto: 64 MB of graphics memory at most, against 16 MB, and small enough for any GPU
+const FULL_DETAIL_SIZE = 4096;
+export const reducedImportNote = (w, h, keepDetail) => (Math.max(w, h) <= (keepDetail ? FULL_DETAIL_SIZE : MAX_TEXTURE_SIZE) ? "" : keepDetail
+  ? tr(" Reduced from {w} × {h} px to 4096 px on its long side, the most GeoStrix keeps.", { w, h })
+  : tr(" Reduced from {w} × {h} px to 2048 px on its long side. Tick Keep full detail and import it again to keep up to 4096 px.", { w, h }));
+const imageDataUrl = (canvas) => { const u = canvas.toDataURL("image/webp", 0.92); return u.startsWith("data:image/webp") ? u : canvas.toDataURL("image/png"); };
 
 // TASKS.csv #326 — single-band grids keep their VALUES (not just the colour-mapped picture), so they can
 // feed an inversion as survey points and the potential-field filters (#373). Stored node-based, row 0 =
@@ -134,7 +140,7 @@ export async function readRastersCapped(tiff, image, opts = {}, label = "This Ge
 // TASKS.csv #783 — `bandFn(bands, isNoData)` turns a multiband file into ONE band (a spectral index) before the
 // single-band path below: the same stretch, ramp, kept values and reprojection as any value grid.
 // TASKS.csv #807 — `samples` (0-based band indices): decode only those bands (a 285-band hyperspectral cube needs ~18)
-export async function parseGeoTIFF(file, { bandFn = null, samples = null } = {}) {
+export async function parseGeoTIFF(file, { bandFn = null, samples = null, maxSide = MAX_TEXTURE_SIZE } = {}) { // maxSide: #838
   const buf = await file.arrayBuffer();
   let tiff, image;
   try {
@@ -159,7 +165,7 @@ export async function parseGeoTIFF(file, { bandFn = null, samples = null } = {})
   }
 
   const srcW = image.getWidth(), srcH = image.getHeight();
-  const scale = Math.min(1, MAX_TEXTURE_SIZE / Math.max(srcW, srcH));
+  const scale = Math.min(1, maxSide / Math.max(srcW, srcH));
   const outW = Math.max(1, Math.round(srcW * scale));
   const outH = Math.max(1, Math.round(srcH * scale));
 
@@ -245,7 +251,7 @@ export async function parseGeoTIFF(file, { bandFn = null, samples = null } = {})
     bbox, // [xmin, ymin, xmax, ymax]
     width: srcW,
     height: srcH,
-    dataUrl: canvas.toDataURL("image/png"),
+    dataUrl: maxSide > MAX_TEXTURE_SIZE ? imageDataUrl(canvas) : canvas.toDataURL("image/png"), // #838 — a 16 megapixel PNG would bloat the project file
     bandCount,
     sourceBands, // #783
     epsgTag,
@@ -663,9 +669,10 @@ export async function parseGXF(file) {
 // ones reproject.js recognizes, the drape is ACTUALLY reprojected (reprojectImageRGBA) instead of
 // merely warned about. Every other case still imports as before, but now says explicitly which
 // assumption it fell back on rather than only mentioning it on a tag mismatch.
-export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, samples = null, name = null } = {}) { // samples: #807
+export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, samples = null, name = null, keepDetail = false } = {}) { // samples: #807; keepDetail: #838
   const isGxf = /\.gxf$/i.test(file.name);
-  const parsed = isGxf ? await parseGXF(file) : await parseGeoTIFF(file, { bandFn, samples }); // bandFn: #783; samples: #807
+  const maxSide = keepDetail ? FULL_DETAIL_SIZE : MAX_TEXTURE_SIZE;
+  const parsed = isGxf ? await parseGXF(file) : await parseGeoTIFF(file, { bandFn, samples, maxSide }); // bandFn: #783; samples: #807
   if (name) parsed.name = name;
   let bbox = parsed.bbox;
   let dataUrl = parsed.dataUrl;
@@ -691,7 +698,7 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
       const ctx = canvas.getContext("2d");
       ctx.putImageData(new ImageData(rp.data, rp.width, rp.height), 0, 0);
       bbox = rp.bbox;
-      dataUrl = canvas.toDataURL("image/png");
+      dataUrl = keepDetail ? imageDataUrl(canvas) : canvas.toDataURL("image/png");
       crsNote = ` Reprojected from EPSG:${srcEpsg} (${srcLabel}) into the project's EPSG:${projEpsg} on import — the drape's footprint moved ${Math.hypot(rp.bbox[0] - xmin, rp.bbox[1] - ymin).toFixed(0)} world units as a result.`;
     } else {
       crsNote = ` Warning: ${srcLabel} says EPSG:${srcEpsg}, which doesn't match the project's EPSG:${projEpsg}, but ${!parsed.pixels ? "this raster's pixels couldn't be re-sampled" : `EPSG:${!fromDef ? srcEpsg : projEpsg} isn't one GeoStrix can reproject`} — it was imported at its own raw coordinates, so it will NOT line up with your drillholes.`;
@@ -728,7 +735,7 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
   // #1236 — what the import above drew: 2-98 % of the values, viridis
   let colour = {};
   if (grid && parsed.grid) { const st = makeStretch(parsed.grid.values, "p2-98"); if (st.lo != null) colour = { colourRange: [st.lo, st.hi], colourStops: rasterStops(DEFAULT_RASTER_STYLE, st.lo, st.hi) }; }
-  return { raster: { name: parsed.name, bbox, dataUrl, elevation: defaultElevation, ...(grid ? { grid } : {}), ...colour }, msg };
+  return { raster: { name: parsed.name, bbox, dataUrl, elevation: defaultElevation, ...(grid ? { grid } : {}), ...colour }, msg: msg + (isGxf ? "" : reducedImportNote(parsed.width, parsed.height, keepDetail)) };
 }
 
 // TASKS.csv #203 — "We need options to export the generated SRTM, at least to geotiff." Once a

@@ -6685,5 +6685,18 @@
   "Open sections": "المقاطع المفتوحة",
   "Close this section": "إغلاق هذا المقطع",
   "Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.": "يفتح هذا المقطع في نافذة خاصة به لمقارنته بمقطع آخر. يستخدم ذاكرة أكثر من علامة التبويب.",
-  "Own window": "نافذة خاصة"
+  "Own window": "نافذة خاصة",
+  "No NAIP imagery here. NAIP covers the USA only; elsewhere use the Sentinel-2 source.": "لا توجد صور NAIP هنا. يغطي NAIP الولايات المتحدة فقط؛ في الأماكن الأخرى استخدم مصدر Sentinel-2.",
+  "This area spans {n} NAIP images, over the {max} read at once. Draw a smaller area.": "تمتد هذه المنطقة على {n} صورة NAIP، وهو أكثر من {max} تُقرأ دفعة واحدة. ارسم منطقة أصغر.",
+  " USDA NAIP aerial imagery, public domain, from the Microsoft Planetary Computer: {n} image(s) from {years}.": " صور NAIP الجوية من وزارة الزراعة الأمريكية، ملك عام، من Microsoft Planetary Computer: {n} صورة من {years}.",
+  " It covers about {pct}% of your area: the rest stays empty.": " تغطي نحو {pct}% من منطقتك: ويبقى الباقي فارغًا.",
+  "USDA NAIP aerial imagery: public domain, the USA only, usually 0.6 m, flown every few years, so it can be older than Sentinel-2.": "صور NAIP الجوية من وزارة الزراعة الأمريكية: ملك عام، للولايات المتحدة فقط، عادةً 0.6 م، تُلتقط كل بضع سنوات، لذا قد تكون أقدم من Sentinel-2.",
+  "Sentinel-2, worldwide (10 m, latest clear scene)": "Sentinel-2، عالميًا (10 م، أحدث مشهد صافٍ)",
+  "NAIP aerial, USA only (about 0.6 m)": "NAIP الجوي، للولايات المتحدة فقط (نحو 0.6 م)",
+  "Higher levels keep more of the aerial detail over a large area. A very high level over a small area reaches the imagery's own pixels.": "تحتفظ المستويات الأعلى بمزيد من التفاصيل الجوية في منطقة كبيرة. يبلغ المستوى العالي جدًا في منطقة صغيرة بكسلات الصورة نفسها.",
+  " · imagery's finest": " · أدق ما في الصورة",
+  "For a drone or contractor orthophoto: keeps up to 4096 px on the long side instead of 2048, so a 2 km image shows about 0.5 m rather than 1 m. Uses about four times the graphics memory and a larger project file. Import the image again after changing this.": "لصورة جوية مصححة من طائرة مسيّرة أو متعاقد: يحتفظ بما يصل إلى 4096 بكسل في الضلع الأطول بدلًا من 2048، فتُظهر صورة بطول 2 كم نحو 0.5 م بدلًا من 1 م. يستخدم نحو أربعة أضعاف ذاكرة الرسوميات وملف مشروع أكبر. أعد استيراد الصورة بعد تغيير هذا.",
+  "Keep full detail (up to 4096 px)": "الاحتفاظ بكامل التفاصيل (حتى 4096 بكسل)",
+  " Reduced from {w} × {h} px to 4096 px on its long side, the most GeoStrix keeps.": " صُغّرت من {w} × {h} بكسل إلى 4096 بكسل في ضلعها الأطول، وهو أقصى ما يحتفظ به GeoStrix.",
+  " Reduced from {w} × {h} px to 2048 px on its long side. Tick Keep full detail and import it again to keep up to 4096 px.": " صُغّرت من {w} × {h} بكسل إلى 2048 بكسل في ضلعها الأطول. حدّد الاحتفاظ بكامل التفاصيل وأعد الاستيراد للاحتفاظ بما يصل إلى 4096 بكسل."
 }

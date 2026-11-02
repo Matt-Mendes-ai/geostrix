@@ -6685,5 +6685,18 @@
   "Open sections": "Coupes ouvertes",
   "Close this section": "Fermer cette coupe",
   "Open this section in a window of its own, to compare it beside another. It uses more memory than a tab.": "Ouvre cette coupe dans sa propre fenêtre, pour la comparer à une autre. Utilise plus de mémoire qu'un onglet.",
-  "Own window": "Fenêtre séparée"
+  "Own window": "Fenêtre séparée",
+  "No NAIP imagery here. NAIP covers the USA only; elsewhere use the Sentinel-2 source.": "Aucune image NAIP ici. NAIP ne couvre que les États-Unis ; ailleurs, utilisez la source Sentinel-2.",
+  "This area spans {n} NAIP images, over the {max} read at once. Draw a smaller area.": "Cette zone couvre {n} images NAIP, au-delà des {max} lues à la fois. Dessinez une zone plus petite.",
+  " USDA NAIP aerial imagery, public domain, from the Microsoft Planetary Computer: {n} image(s) from {years}.": " Images aériennes NAIP de l'USDA, domaine public, depuis Microsoft Planetary Computer : {n} image(s) de {years}.",
+  " It covers about {pct}% of your area: the rest stays empty.": " Elle couvre environ {pct} % de votre zone : le reste reste vide.",
+  "USDA NAIP aerial imagery: public domain, the USA only, usually 0.6 m, flown every few years, so it can be older than Sentinel-2.": "Images aériennes NAIP de l'USDA : domaine public, États-Unis seulement, en général 0,6 m, acquises tous les quelques ans, donc parfois plus anciennes que Sentinel-2.",
+  "Sentinel-2, worldwide (10 m, latest clear scene)": "Sentinel-2, mondial (10 m, dernière scène dégagée)",
+  "NAIP aerial, USA only (about 0.6 m)": "NAIP aérien, États-Unis seulement (environ 0,6 m)",
+  "Higher levels keep more of the aerial detail over a large area. A very high level over a small area reaches the imagery's own pixels.": "Les niveaux élevés gardent plus de détail aérien sur une grande zone. Un niveau très élevé sur une petite zone atteint les pixels de l'image.",
+  " · imagery's finest": " · le plus fin de l'image",
+  "For a drone or contractor orthophoto: keeps up to 4096 px on the long side instead of 2048, so a 2 km image shows about 0.5 m rather than 1 m. Uses about four times the graphics memory and a larger project file. Import the image again after changing this.": "Pour une orthophoto de drone ou de prestataire : garde jusqu'à 4096 px sur le grand côté au lieu de 2048, si bien qu'une image de 2 km montre environ 0,5 m au lieu de 1 m. Utilise environ quatre fois la mémoire graphique et un fichier de projet plus gros. Importez de nouveau l'image après ce changement.",
+  "Keep full detail (up to 4096 px)": "Garder tout le détail (jusqu'à 4096 px)",
+  " Reduced from {w} × {h} px to 4096 px on its long side, the most GeoStrix keeps.": " Réduite de {w} × {h} px à 4096 px sur son grand côté, le maximum gardé par GeoStrix.",
+  " Reduced from {w} × {h} px to 2048 px on its long side. Tick Keep full detail and import it again to keep up to 4096 px.": " Réduite de {w} × {h} px à 2048 px sur son grand côté. Cochez Garder tout le détail et importez-la de nouveau pour garder jusqu'à 4096 px."
 }
