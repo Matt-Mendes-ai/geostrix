@@ -6775,5 +6775,18 @@
   "no electrode and apparent-resistivity columns found.": "aucune colonne d'électrodes et de résistivité apparente trouvée.",
   "no usable readings.": "aucune lecture utilisable.",
   "Kept {kept} lines in the project ({readings} readings). Choose one from the list above to invert it.": "{kept} lignes gardées dans le projet ({readings} lectures). Choisissez-en une dans la liste ci-dessus pour l'inverser.",
-  "No stations found for: {names}. Place those lines before inverting.": "Aucune station trouvée pour : {names}. Placez ces lignes avant d'inverser."
+  "No stations found for: {names}. Place those lines before inverting.": "Aucune station trouvée pour : {names}. Placez ces lignes avant d'inverser.",
+  "Select intervals with a box": "Sélectionner des intervalles avec un cadre",
+  "Drag a box in the 3D view. Shift adds, Ctrl removes (click here to stop)": "Tracez un cadre dans la vue 3D. Maj ajoute, Ctrl retire (cliquez ici pour arrêter)",
+  "Every drawn interval the box touches is selected, at any depth. Hide units in the legend first to leave them out. Right-drag still moves the view.": "Tout intervalle affiché touché par le cadre est sélectionné, à toute profondeur. Masquez des unités dans la légende pour les exclure. Le glisser avec le bouton droit déplace toujours la vue.",
+  "{n} interval(s) in {holes} hole(s)": "{n} intervalle(s) dans {holes} sondage(s)",
+  "Also include the {n} interval(s) between them in each hole": "Inclure aussi les {n} intervalle(s) entre eux dans chaque sondage",
+  "Modelling code of the selected intervals": "Code de modélisation des intervalles sélectionnés",
+  "Give them a code…": "Leur donner un code…",
+  "{n} interval(s) in {holes} hole(s) are now {code}.": "{n} intervalle(s) dans {holes} sondage(s) sont maintenant {code}.",
+  "{repeats} hole(s) have {code} in more than one separate run. A closed body treats them as one unit; an implicit surface would use the top of every run.": "{repeats} sondage(s) ont {code} en plusieurs passes séparées. Un corps fermé les traite comme une seule unité; une surface implicite utiliserait le toit de chaque passe.",
+  "Build a closed body from {code}": "Construire un corps fermé à partir de {code}",
+  "No intervals have the code \"{altValue}\" — nothing to model.": "Aucun intervalle n'a le code « {altValue} » : rien à modéliser.",
+  "Added \"{label}\": {insideCount} of {pts} sample point(s) inside the code{v} → {nx}×{ny}×{nz} grid ({cell} m cells{v2}, {v3} m search{v4}) → {vertices} vertices / {faces} faces{v5}. Closed indicator envelope, not a draped contact.": "« {label} » ajouté : {insideCount} de {pts} point(s) d'échantillon dans le code{v} → grille {nx}×{ny}×{nz} (cellules de {cell} m{v2}, recherche de {v3} m{v4}) → {vertices} sommets / {faces} faces{v5}. Enveloppe fermée par indicateur, pas un contact drapé.",
+  "\"{label}\" closes partly against the search-radius boundary rather than a logged interval of another code, so its extent there reflects the {v} m search radius, not the data.": "« {label} » se ferme en partie contre la limite du rayon de recherche et non contre un intervalle consigné d'un autre code; son étendue y reflète donc le rayon de recherche de {v} m, pas les données."
 }

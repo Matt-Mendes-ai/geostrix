@@ -23,6 +23,7 @@ import { tx } from "../../lib/i18nRich.js";
 export default function ModellingPanes(props) {
   const {
     viewDragHookRef, cameraRef, rendererRef, explicitOverlayRef, // TASKS.csv #813 — dragging explicit-surface picks
+    sceneRef, layerGroupsRef, // TASKS.csv #1333 — the box selection of intervals
     tracesSeq, // TASKS.csv #888
     explicitTrend, // TASKS.csv #881
     camState, sectionImages, setDigitizeImageId, // TASKS.csv #824 — digitizing section images in the 3D view
@@ -233,6 +234,7 @@ export default function ModellingPanes(props) {
   // object every render, so the pane's effects that list it re-ran on every render)
   const explicitScene = useMemo(() => ({origin: originRef, meshes: implicitMeshesRef, group: implicitGroupRef, traces: tracesRef, activity: lastActivityRef, setSurfaces: setImplicitSurfaces, worldPointFromHits, clickRef: explicitClickRef,
               dragHookRef: viewDragHookRef, camera: cameraRef, renderer: rendererRef, overlay: explicitOverlayRef, litho: layers.litho /* #813 */, structure: layers.structure /* #1002 */, camState /* #824 */ }), [originRef, implicitMeshesRef, implicitGroupRef, tracesRef, lastActivityRef, setImplicitSurfaces, worldPointFromHits, explicitClickRef, viewDragHookRef, cameraRef, rendererRef, explicitOverlayRef, layers.litho, layers.structure, camState]); // TASKS.csv #878 — every edit of a surface goes in its history
+  const mcodesView = useMemo(() => ({ scene: sceneRef, groups: layerGroupsRef, camera: cameraRef, renderer: rendererRef, traces: tracesRef, activity: lastActivityRef, dragHook: viewDragHookRef }), [sceneRef, layerGroupsRef, cameraRef, rendererRef, tracesRef, lastActivityRef, viewDragHookRef]);
   const topsOfUnit = useCallback((unit) => {
     const runs = codedRuns(layers.litho || [], modellingCodes, mcGroupOf), { tops, skipped } = topsForCode(runs, unit, modellingCodes, mcodeDefaultRole);
     return { tops: tops.map((r) => ({ hole_id: r.hole_id, md: r.from, above: r.above?.code ?? null, below: r.code })), skipped, holes: [...new Set(runs.filter((r) => r.code === unit).map((r) => r.hole_id))] };
@@ -450,6 +452,7 @@ export default function ModellingPanes(props) {
         {paneHeader("Modelling codes", Waypoints, "model")}
         <Suspense fallback={null}>        <ModellingCodesPane litho={layers.litho || []} modellingCodes={modellingCodes} setModellingCodes={setModellingCodes} groupOf={mcGroupOf} defaultRole={mcodeDefaultRole}
           pickMode={mcPickMode} setPickMode={setMcPickMode} selected={mcSelected} setSelected={setMcSelected} connectFrom={mcConnectFrom} setConnectFrom={setMcConnectFrom}
+          view={mcodesView} onBuildBody={(code) => runAlterationModel(`mcode:${code}`)}
           askPrompt={askPrompt} pBtn={pBtn} inputStyle={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 5px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }} /></Suspense>
         </>)}
         {toolPane === "groups" && (<>
@@ -802,6 +805,8 @@ export default function ModellingPanes(props) {
           <select aria-label={tr("Assemblage")} value={alterationTarget} onChange={(e) => setAlterationTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Choose an assemblage…")}</option>
             {alt_units.map((u) => <option key={u} value={u}>{u}</option>)}
+            {/* TASKS.csv #1333 — a code with several intervals per hole, as one closed body */}
+            {modellingCodeList.length > 0 && <optgroup label={tr("Modelling codes")}>{modellingCodeList.map((c) => <option key={c.name} value={`mcode:${c.name}`}>{c.name}</option>)}</optgroup>}
           </select>
           <button
             onClick={() => runAlterationModel(alterationTarget)}

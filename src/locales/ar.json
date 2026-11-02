@@ -6775,5 +6775,18 @@
   "no electrode and apparent-resistivity columns found.": "لم يُعثر على أعمدة الأقطاب والمقاومة الظاهرية.",
   "no usable readings.": "لا توجد قراءات صالحة.",
   "Kept {kept} lines in the project ({readings} readings). Choose one from the list above to invert it.": "حُفظ {kept} خطًا في المشروع ({readings} قراءة). اختر واحدًا من القائمة أعلاه لعكسه.",
-  "No stations found for: {names}. Place those lines before inverting.": "لم يُعثر على محطات لـ: {names}. ضع هذه الخطوط قبل العكس."
+  "No stations found for: {names}. Place those lines before inverting.": "لم يُعثر على محطات لـ: {names}. ضع هذه الخطوط قبل العكس.",
+  "Select intervals with a box": "تحديد الفواصل بمربع",
+  "Drag a box in the 3D view. Shift adds, Ctrl removes (click here to stop)": "اسحب مربعًا في العرض ثلاثي الأبعاد. Shift للإضافة وCtrl للإزالة (انقر هنا للإيقاف)",
+  "Every drawn interval the box touches is selected, at any depth. Hide units in the legend first to leave them out. Right-drag still moves the view.": "يُحدَّد كل فاصل مرسوم يلمسه المربع، على أي عمق. أخفِ الوحدات في وسيلة الإيضاح لاستبعادها. السحب بالزر الأيمن يظل يحرك العرض.",
+  "{n} interval(s) in {holes} hole(s)": "{n} فاصل في {holes} ثقب حفر",
+  "Also include the {n} interval(s) between them in each hole": "تضمين {n} فاصل بينها في كل ثقب حفر أيضًا",
+  "Modelling code of the selected intervals": "رمز النمذجة للفواصل المحددة",
+  "Give them a code…": "إعطاؤها رمزًا…",
+  "{n} interval(s) in {holes} hole(s) are now {code}.": "أصبح {n} فاصل في {holes} ثقب حفر بالرمز {code}.",
+  "{repeats} hole(s) have {code} in more than one separate run. A closed body treats them as one unit; an implicit surface would use the top of every run.": "يحتوي {repeats} ثقب حفر على {code} في أكثر من مقطع منفصل. يعامل الجسم المغلق هذه المقاطع كوحدة واحدة، بينما يستخدم السطح الضمني قمة كل مقطع.",
+  "Build a closed body from {code}": "بناء جسم مغلق من {code}",
+  "No intervals have the code \"{altValue}\" — nothing to model.": "لا توجد فواصل بالرمز \"{altValue}\"، فلا شيء لنمذجته.",
+  "Added \"{label}\": {insideCount} of {pts} sample point(s) inside the code{v} → {nx}×{ny}×{nz} grid ({cell} m cells{v2}, {v3} m search{v4}) → {vertices} vertices / {faces} faces{v5}. Closed indicator envelope, not a draped contact.": "أُضيف \"{label}\": {insideCount} من {pts} نقطة عينة داخل الرمز{v} ← شبكة {nx}×{ny}×{nz} (خلايا {cell} م{v2}، بحث {v3} م{v4}) ← {vertices} رأس / {faces} وجه{v5}. غلاف مغلق بالمؤشر، وليس تماسًا مغطِّيًا.",
+  "\"{label}\" closes partly against the search-radius boundary rather than a logged interval of another code, so its extent there reflects the {v} m search radius, not the data.": "يُغلق \"{label}\" جزئيًا عند حد نصف قطر البحث لا عند فاصل مسجل لرمز آخر، لذا يعكس امتداده هناك نصف قطر البحث البالغ {v} م لا البيانات."
 }

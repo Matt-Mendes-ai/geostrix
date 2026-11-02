@@ -1416,15 +1416,19 @@ export function createModellingRuns(ctx, mcRef) {
   // minimum-neighbour filter no longer applies (it exists to drop under-supported CONTACT picks), but
   // the anisotropy trend IS honoured, by warping into the same normalized space runSurfaceStack uses;
   // (c) the model domain still restricts which sample points are used.
-  const runAlterationModel = (altValue) => {
+  // TASKS.csv #1333 — the same envelope for a modelling code ("mcode:NAME"): 1 inside the intervals with that code, 0 in every
+  // other logged lithology interval, so several intervals per hole make one closed unit, which a surface through tops cannot.
+  const runAlterationModel = (target) => {
     const anisotropy = trendWarp("alteration"); // TASKS.csv #650
-    if (!altValue) return;
+    if (!target) return;
+    const isCode = String(target).startsWith("mcode:"), altValue = isCode ? String(target).slice(6) : target, sourceKey = isCode ? "litho" : "alt";
+    const isTargetRow = (r) => (isCode ? effectiveCode(r, modellingCodes, mcodeGroupOf) === altValue : r.value === altValue);
     const traces = tracesRef.current;
     if (!traces.length) { setNotices((p) => [...p, notice("Load collars/survey data before running the alteration model.")]); return; }
 
     const domain = domains.find((d) => d.id === modelDomainId);
     const o = originRef.current;
-    const label = `Alteration halo: ${altValue}`;
+    const label = isCode ? `Unit body: ${altValue}` : `Alteration halo: ${altValue}`;
     setAlterationBusy(true);
     setTaskProgress?.({ label, pct: 20 });
     // Deferred exactly like runNumericModel (see its comment) so the busy state paints before the
@@ -1434,12 +1438,12 @@ export function createModellingRuns(ctx, mcRef) {
         const { marchingCubes } = await import("../../lib/marchingCubes.js"); // #476 — loaded on first use
         const { samplePointsFromIntervals } = await import("../../lib/estimation.js"); // #552 — on demand
         const { runEstimation } = await import("../../lib/estimationClient.js"); // #520 — the grid runs in a worker
-        const altRows = (layers.alt || []).filter((r) => r.hole_id != null && r.from != null && r.to != null && !isNaN(r.from) && !isNaN(r.to) && Number(r.to) > Number(r.from));
+        const altRows = (layers[sourceKey] || []).filter((r) => r.hole_id != null && r.from != null && r.to != null && !isNaN(r.from) && !isNaN(r.to) && Number(r.to) > Number(r.from));
         // TASKS.csv #52 (c) — an active intercept set restricts the TARGET picks only. The zeros (every
         // other logged alteration interval) are what close the envelope (#272), so filtering those by a
         // set the user built to describe the target would open the halo up instead of narrowing it.
-        const targetRows = altRows.filter((r) => r.value === altValue && !excludedIntercepts.includes(interceptId("alt", r)) && interceptInActiveSet(interceptId("alt", r)));
-        if (!targetRows.length) throw new Error(tr("No alteration intervals found for \"{altValue}\" — nothing to model.", { altValue }));
+        const targetRows = altRows.filter((r) => isTargetRow(r) && !excludedIntercepts.includes(interceptId(sourceKey, r)) && interceptInActiveSet(interceptId(sourceKey, r)));
+        if (!targetRows.length) throw new Error(isCode ? tr("No intervals have the code \"{altValue}\" — nothing to model.", { altValue }) : tr("No alteration intervals found for \"{altValue}\" — nothing to model.", { altValue }));
 
         // Auto parameters come from the spacing of the holes that actually carry alteration logging,
         // not every collar in the project — a regional hole 5 km away shouldn't set the halo's scale.
@@ -1454,9 +1458,9 @@ export function createModellingRuns(ctx, mcRef) {
         const subLen = Math.max(0.5, cs / 2);
         const intervals = [];
         altRows.forEach((r) => {
-          const isTarget = r.value === altValue;
-          if (isTarget && excludedIntercepts.includes(interceptId("alt", r))) return; // #84 — reviewed-out intercepts never model
-          if (isTarget && !interceptInActiveSet(interceptId("alt", r))) return; // #52 (c) — target picks outside the active set
+          const isTarget = isTargetRow(r);
+          if (isTarget && excludedIntercepts.includes(interceptId(sourceKey, r))) return; // #84 — reviewed-out intercepts never model
+          if (isTarget && !interceptInActiveSet(interceptId(sourceKey, r))) return; // #52 (c) — target picks outside the active set
           splitIntervalForSampling(Number(r.from), Number(r.to), subLen).forEach((seg) => {
             intervals.push({ hole_id: r.hole_id, from: seg.from, to: seg.to, avgGrade: isTarget ? 1 : 0 });
           });
@@ -1531,14 +1535,14 @@ export function createModellingRuns(ctx, mcRef) {
         geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
         geo.setIndex(mc.faces.flat());
         geo.computeVertexNormals();
-        const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: colorForAlteration(altValue), side: THREE.DoubleSide, transparent: true, opacity: 0.6 }));
+        const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: isCode ? (codeInfo(modellingCodes, altValue).color || colorForLithology(altValue)) : colorForAlteration(altValue), side: THREE.DoubleSide, transparent: true, opacity: 0.6 }));
         const vol = computeMeshVolume(geo);
         // Same honesty rule as the grade shell (#257): if part of the boundary is the search-radius
         // wall rather than a real 0/1 alteration boundary, the enclosed volume is a parameter choice.
         const closure = mc.closingVertices > 0 ? "artificial" : "natural";
         // TASKS.csv #276 — provenance for this surface, so the panel and every export can stamp it.
         const params = {
-          tool: "alteration halo (indicator envelope)", target: altValue, isoLevel: 0.5,
+          tool: isCode ? "unit body (indicator envelope)" : "alteration halo (indicator envelope)", target: altValue, isoLevel: 0.5,
           method: "idw2", searchRadiusM: radius, searchRadiusAuto: !(alterationSearchRadius > 0),
           ...(anisotropy.enabled ? { searchEllipsoidM: [1, scl.major / scl.semiMajor, scl.major / scl.minor].map((f) => Math.round(radius * f * 10) / 10) } : {}), // #656
           cellSizeM: cell, cellSizeAuto: !(alterationCellSize > 0), cellSizeCoarsened: coarsened,
@@ -1554,8 +1558,8 @@ export function createModellingRuns(ctx, mcRef) {
         const id = `impl_${Date.now()}_alt_${altValue}`;
         implicitMeshesRef.current[id] = mesh;
         setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "alteration_envelope", relationships: [], closure, params }]);
-        setNotices((p) => [...p, notice("Added \"{label}\": {insideCount} altered of {pts} indicator sample point(s){v} → {nx}×{ny}×{nz} grid ({cell} m cells{v2}, {v3} m search{v4}) → {vertices} vertices / {faces} faces{v5}. Closed indicator envelope, not a draped contact.", { label, insideCount, pts: pts.length, v: dropped ? tr(", {dropped} unplaceable", { dropped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, cell: cell.toFixed(1), v2: coarsened ? tr(", coarsened to stay under the grid limit") : "", v3: Math.round(radius), v4: anisotropy.enabled ? tr(", anisotropy applied") : "", vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v5: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr(", open") })]);
-        if (closure === "artificial") setNotices((p) => [...p, notice("\"{label}\" closes partly against the search-radius boundary rather than a logged alteration boundary, so its extent there reflects the {v} m search radius, not the data.", { label, v: Math.round(radius) })]);
+        setNotices((p) => [...p, notice(isCode ? "Added \"{label}\": {insideCount} of {pts} sample point(s) inside the code{v} → {nx}×{ny}×{nz} grid ({cell} m cells{v2}, {v3} m search{v4}) → {vertices} vertices / {faces} faces{v5}. Closed indicator envelope, not a draped contact." : "Added \"{label}\": {insideCount} altered of {pts} indicator sample point(s){v} → {nx}×{ny}×{nz} grid ({cell} m cells{v2}, {v3} m search{v4}) → {vertices} vertices / {faces} faces{v5}. Closed indicator envelope, not a draped contact.", { label, insideCount, pts: pts.length, v: dropped ? tr(", {dropped} unplaceable", { dropped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, cell: cell.toFixed(1), v2: coarsened ? tr(", coarsened to stay under the grid limit") : "", v3: Math.round(radius), v4: anisotropy.enabled ? tr(", anisotropy applied") : "", vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v5: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr(", open") })]);
+        if (closure === "artificial") setNotices((p) => [...p, notice(isCode ? "\"{label}\" closes partly against the search-radius boundary rather than a logged interval of another code, so its extent there reflects the {v} m search radius, not the data." : "\"{label}\" closes partly against the search-radius boundary rather than a logged alteration boundary, so its extent there reflects the {v} m search radius, not the data.", { label, v: Math.round(radius) })]);
         fitBox(new THREE.Box3().setFromObject(mesh));
       } catch (e) {
         setNotices((p) => [...p, e?.cancelled ? notice("Alteration halo cancelled.") : errorNotice(tr("Alteration halo failed: {v}", { v: e.message || e }))]);
