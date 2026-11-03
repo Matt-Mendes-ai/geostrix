@@ -28,7 +28,7 @@ test("a long group keeps its most frequent entries and a note row says how many 
 
 test("holesInFrame: a top-down true-scale frame keeps the holes it shows; other frames give null", () => {
   // 1,000 m tall frame centred at (1000, 1000), 600 x 600 page px, image 600 x 600: 1 px = 1.667 m
-  const vp = { type: "viewport", src: "x", planView: true, trueScale: true, targetWorld: { x: 1000, y: 1000 }, worldHeightAtTarget: 1000, w: 600, h: 600, imgW: 600, imgH: 600, cameraAzimuthDeg: 0 };
+  const vp = { type: "viewport", src: "x", planView: true, trueScale: true, targetWorld: { x: 1000, y: 1000 }, worldHeightAtTarget: 1000, w: 600, h: 600, cameraAzimuthDeg: 0 };
   const collars = [
     { hole_id: "in", x: 1100, y: 900, azimuth: 0, dip: -90, length: 100 },
     { hole_id: "out", x: 3000, y: 3000, azimuth: 0, dip: -90, length: 100 },

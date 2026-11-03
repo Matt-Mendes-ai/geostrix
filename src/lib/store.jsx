@@ -3,7 +3,7 @@ import { t as tr } from "./i18n.js"; // TASKS.csv #1285
 import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { changedKeys } from "./undoLabels.js"; // TASKS.csv #1087
 import { capturedFrameFields } from "./layoutGeometry.js"; // TASKS.csv #906 / #961
-import { tieStarterFurniture } from "./layoutLinks.js"; // TASKS.csv #1320
+import { tieStarterFurniture, sendElementWithFurniture } from "./layoutLinks.js"; // TASKS.csv #1320, #1634
 import { setKnownHoleIds } from "./qaqcCore.js"; // TASKS.csv #400; qaqcCore: #1345
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
 import { readDbProfiles, writeDbProfiles, mergeDbProfiles, profilesFromFile } from "./dbProfiles.js"; // TASKS.csv #1081
@@ -1515,11 +1515,13 @@ export function StoreProvider({ children }) {
   const renameLayoutPage = useCallback((id, name) => setLayoutPages((p) => p.map((pg) => (pg.id === id ? { ...pg, name } : pg))), []);
   // TASKS.csv #1484 (review #1352) — an element copied or moved from the active page to another (a section snapshot landed on the
   // plan's page with nowhere else to go); a copy gets a new id, a move keeps its own
+  // #1634 — with what is bound to it (scale bar, legend, overview, north arrow); the destination's starter bar / arrow tie to it
   const sendLayoutElement = useCallback((elementId, toPageId, move = false) => setLayoutPages((pages) => {
-    const el = pages.find((p) => p.id === activeLayoutPageId)?.elements?.find((e) => e.id === elementId);
-    if (!el || toPageId === activeLayoutPageId || !pages.some((p) => p.id === toPageId)) return pages;
-    const put = move ? el : { ...el, id: `${el.type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}` };
-    return pages.map((p) => (p.id === toPageId ? { ...p, elements: [...(p.elements || []), put] } : move && p.id === activeLayoutPageId ? { ...p, elements: p.elements.filter((e) => e.id !== elementId) } : p));
+    const src = pages.find((p) => p.id === activeLayoutPageId), dst = pages.find((p) => p.id === toPageId);
+    if (!src || !dst || toPageId === activeLayoutPageId) return pages;
+    const r = sendElementWithFurniture(src.elements || [], dst.elements || [], elementId, move);
+    if (!r) return pages;
+    return pages.map((p) => (p.id === toPageId ? { ...p, elements: r.to } : p.id === activeLayoutPageId ? { ...p, elements: r.from } : p));
   }), [activeLayoutPageId]);
   // TASKS.csv #398 — per-page paper size / orientation ({size, orientation}, see lib/pageFormats.js). Saved
   // with the page; a page without one is A4 landscape, exactly as before.

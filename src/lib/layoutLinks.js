@@ -45,17 +45,38 @@ function liveNorth(el, els) {
 // TASKS.csv #1320 — the default page's scale bar and north arrow start tied to nothing: beside a view 10 km across the bar
 // still printed "100 m", wrong by 100 times. The first view placed on the page takes them. A bar from Add scale bar has its
 // own pxPerMeter, and a retyped length differs from the starter's 100 m: those were the user's choice and stay free.
-export function tieStarterFurniture(els, view) {
+export function tieStarterFurniture(els, view, { bar: wantBar = true, north: wantNorth = true } = {}) {
   const { w: imgW, h: imgH } = capturedSize(view);
   const ppm = view.type === "viewport" ? (view.worldHeightAtTarget && imgH ? imgH / view.worldHeightAtTarget : 0) : (view.worldWidthAtCaptureM && imgW ? imgW / view.worldWidthAtCaptureM : 0);
-  const bar = ppm > 0 ? els.find((el) => el.type === "scale" && !el.boundTo && !el.pxPerMeter && el.meters === 100) : null;
-  const north = view.cameraAzimuthDeg != null ? els.find((el) => el.type === "north" && el.rotation == null) : null;
+  const bar = wantBar && ppm > 0 ? els.find((el) => el.type === "scale" && !el.boundTo && !el.pxPerMeter && el.meters === 100) : null;
+  const north = wantNorth && view.cameraAzimuthDeg != null ? els.find((el) => el.type === "north" && el.rotation == null) : null;
   if (!bar && !north) return els;
   return els.map((el) => {
     if (el === bar) return { ...el, boundTo: view.id, pxPerMeter: ppm, meters: niceScaleNumber(SCALE_BAR_PX / ppm) };
     if (el === north) return { ...el, rotation: northRotationOf(view), boundTo: view.id }; // #1632 — and follows it
     return el;
   });
+}
+
+// TASKS.csv #1634 (review #1497, Lawyers) — an element sent to another page takes what is bound to it (its scale bar, legend, overview
+// frame, north arrow), relinked for a copy, and the destination's untouched starter bar / arrow then bind to it as for a fresh
+// snapshot. A moved section used to leave its 200 m bar and legend beside the plan, while its new page printed a starter "100 m"
+// bar that measured 238 m at 1:5,000. -> { from, to } element lists, or null when the element is not on `from`.
+const boundToId = (el, id) => el.boundTo === id || el.boundViewportId === id || el.overviewOf === id;
+export function sendElementWithFurniture(from, to, elementId, move, newId = (el) => `${el.type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`) {
+  const el = (from || []).find((e) => e.id === elementId);
+  if (!el) return null;
+  const deps = from.filter((e) => e.id !== elementId && boundToId(e, elementId));
+  let sent = [el, ...deps];
+  if (!move) {
+    const idMap = new Map(sent.map((e) => [e.id, newId(e)]));
+    sent = relinkCopies(sent.map((e) => ({ ...e, id: idMap.get(e.id) })), idMap, false).map((e) => ("boundViewportId" in e && idMap.has(e.boundViewportId) ? { ...e, boundViewportId: idMap.get(e.boundViewportId) } : e));
+  }
+  const view = sent[0];
+  let dest = [...(to || []), ...sent];
+  if (view.type === "viewport" || view.type === "image") dest = tieStarterFurniture(dest, view, { bar: !deps.some((e) => e.type === "scale"), north: !deps.some((e) => e.type === "north") });
+  const sentIds = new Set([el.id, ...deps.map((e) => e.id)]);
+  return { from: move ? from.filter((e) => !sentIds.has(e.id)) : from, to: dest };
 }
 
 // TASKS.csv #924 — copied elements get new ids, so a copied scale bar / overview must follow its copied viewport
