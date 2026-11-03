@@ -6,8 +6,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Download, Layers } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
-import { pickDefaultReachM } from "../lib/evidenceSources.js"; // TASKS.csv #1179
-import { medianCollarSpacing } from "../lib/viewer/geomath.js";
+import { pickDefaultReachM, medianSiteSpacing } from "../lib/evidenceSources.js"; // TASKS.csv #1179; #1451
+import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1449 / #1450
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
 import { evidenceGrid, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, bestCutoff, posterior, predictionArea, scoreImage } from "../lib/evidence.js";
 import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, voxelColumnEvidence, holeTraces, holeGradePoints, structureCodes, structureParts, rasterFloorZ } from "../lib/evidenceSources.js"; // TASKS.csv #1154
@@ -43,6 +43,9 @@ export default function EvidenceOverlayPane({ onClose }) {
 
   const geophysPts = projectLayers?.geophys_pts, structurePicks = projectLayers?.structure;
   const traces = useMemo(() => holeTraces(collars, survey, project?.desurveyMethod), [collars, survey, project?.desurveyMethod]);
+  // TASKS.csv #1450 — surface samples far from the rest (Silvertip's 5 rocks 45 km south) do not size the grid or a reach
+  const sampleCore = useMemo(() => { const { keep, dropped } = mainClusters(surfaceSamples); return { samples: surfaceSamples.filter((_, i) => keep[i]), dropped }; }, [surfaceSamples]);
+  const media = useMemo(() => { const m = new Map(); sampleCore.samples.forEach((s) => m.set(s.medium || "", (m.get(s.medium || "") || 0) + 1)); return [...m].sort((a, b) => b[1] - a[1]).map(([k]) => k); }, [sampleCore]);
   // the grid: the terrain, else the union of the sources' extents
   const grid = useMemo(() => {
     if (terrain) return evidenceGrid({ terrain });
@@ -50,13 +53,13 @@ export default function EvidenceOverlayPane({ onClose }) {
     const grow = (a, b, c, d) => { x0 = Math.min(x0, a); y0 = Math.min(y0, b); x1 = Math.max(x1, c); y1 = Math.max(y1, d); };
     valueRasters.forEach((r) => { const g = r.grid; grow(g.x0 - g.dx / 2, g.yTop - g.ny * g.dy + g.dy / 2, g.x0 + g.nx * g.dx - g.dx / 2, g.yTop + g.dy / 2); });
     mapLayers.forEach((l) => { if (l.bbox) grow(...l.bbox); });
-    surfaceSamples.forEach((s) => { if (Number.isFinite(s.x) && Number.isFinite(s.y)) grow(s.x - 200, s.y - 200, s.x + 200, s.y + 200); });
+    sampleCore.samples.forEach((s) => { if (Number.isFinite(s.x) && Number.isFinite(s.y)) grow(s.x - 200, s.y - 200, s.x + 200, s.y + 200); });
     // TASKS.csv #1154 — a project of holes, surveys or block models has an extent too
     for (const t of traces.values()) for (const p of t) grow(p.x - DRILL_REACH_M, p.y - DRILL_REACH_M, p.x + DRILL_REACH_M, p.y + DRILL_REACH_M);
     (geophysPts || []).forEach((r) => { if (Number.isFinite(r.x) && Number.isFinite(r.y)) grow(r.x, r.y, r.x, r.y); });
     voxelModels.forEach((m) => (m.cells || []).forEach((c) => { if (Number.isFinite(c.x) && Number.isFinite(c.y)) grow(c.x - c.dx / 2, c.y - c.dy / 2, c.x + c.dx / 2, c.y + c.dy / 2); }));
     return x1 > x0 && y1 > y0 ? evidenceGrid({ extent: [x0, y0, x1, y1] }) : null;
-  }, [terrain, valueRasters, mapLayers, surfaceSamples, traces, geophysPts, voxelModels]);
+  }, [terrain, valueRasters, mapLayers, sampleCore, traces, geophysPts, voxelModels]);
 
   // evidence sources the project offers
   const sources = useMemo(() => {
@@ -89,21 +92,27 @@ export default function EvidenceOverlayPane({ onClose }) {
     if (src.kind === "pick") return distanceEvidence(grid, structureParts(structurePicks, src.ref, traces));
     if (src.kind === "survey") { const pts = surveyPoints(geophysPts, src.ref); return pointEvidence(grid, pts, { maxDistance: opts.reach || reachFromSpacing(pts, 4) }); }
     if (src.kind === "grade") return pointEvidence(grid, holeGradePoints(cleanAssays, src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces), { maxDistance: opts.reach || DRILL_REACH_M });
-    const pts = sampleValues(surfaceSamples, src.kind === "element" ? { kind: "element", symbol: src.ref } : { kind: "index", preset: src.ref }, units);
-    return pointEvidence(grid, pts, { maxDistance: opts.reach || defaultReach });
+    const all = sampleValues(surfaceSamples, src.kind === "element" ? { kind: "element", symbol: src.ref } : { kind: "index", preset: src.ref }, units);
+    // #1449 — one medium at a time when the layer names one (value = medium): soils and streams are not one surface
+    const pts = opts.field === "medium" ? all.filter((_, i) => (surfaceSamples[i].medium || "") === opts.value) : all;
+    return pointEvidence(grid, pts, { maxDistance: opts.reach || reachOfMedium(opts.field === "medium" ? opts.value : null) });
   };
-  // samples reach about one and a half spacings: a regional stream program gets kilometres, a soil grid tens of metres
-  const defaultReach = useMemo(() => reachFromSpacing(surfaceSamples), [surfaceSamples]);
-  const reachOf = (src) => (src.kind === "grade" ? DRILL_REACH_M : src.kind === "survey" ? reachFromSpacing(surveyPoints(geophysPts, src.ref), 4) : defaultReach);
+  // samples reach about one and a half spacings of their own medium: a regional stream program gets kilometres, a soil grid tens
+  // of metres (#1449 — one reach for all media gave Silvertip's soils 2.5 km); far outliers do not count (#1450)
+  const reachOfMedium = (medium) => reachFromSpacing(medium == null ? sampleCore.samples : sampleCore.samples.filter((s) => (s.medium || "") === medium));
+  const reachOf = (src, medium = null) => (src.kind === "grade" ? DRILL_REACH_M : src.kind === "survey" ? reachFromSpacing(surveyPoints(geophysPts, src.ref), 4) : reachOfMedium(medium));
   const addLayer = (key) => {
     const src = sources.find((s) => s.key === key); if (!src) return;
-    const values = computeValues(src, {});
+    // #1449 — sample evidence starts on the medium with the most samples when there are several (changeable on the card)
+    const medium = (src.kind === "element" || src.kind === "index") && media.length > 1 ? media[0] : null;
+    const pick = medium != null ? { field: "medium", value: medium, reach: reachOf(src, medium) } : {};
+    const values = computeValues(src, pick);
     if (!values) { setMsg(tr("No grid yet: load terrain, a raster, a map layer or samples first.")); return; }
     const finite = values.filter(Number.isFinite);
     if (!finite.length) { setMsg(tr("\"{name}\" has no values over the grid.", { name: src.label })); return; }
     finite.sort(); // TASKS.csv #1281 — one numeric sort of the typed copy, not a comparator sort per quantile (a third of the stall)
-    const dec = src.kind === "distance" || src.kind === "pick", low = dec ? 0 : quantileSorted(finite, 0.1), high = src.kind === "pick" ? pickDefaultReachM(quantileSorted(finite, 0.5), medianCollarSpacing(collars)) : dec ? quantileSorted(finite, 0.5) : quantileSorted(finite, 0.9); // #1179
-    setLayers((L) => [...L, { id: nextId++, ...src, shape: dec ? "decreasing" : "increasing", low, high, lowText: numText(low), highText: numText(high), field: "", value: "", reach: reachOf(src), values }]);
+    const dec = src.kind === "distance" || src.kind === "pick", low = dec ? 0 : quantileSorted(finite, 0.1), high = src.kind === "pick" ? Math.max(3 * Math.max(grid.dx, grid.dy), pickDefaultReachM(quantileSorted(finite, 0.5), (medianSiteSpacing(collars) || 0) / 3)) /* #1451: one site spacing, at least 3 cells */ : dec ? quantileSorted(finite, 0.5) : quantileSorted(finite, 0.9); // #1179
+    setLayers((L) => [...L, { id: nextId++, ...src, shape: dec ? "decreasing" : "increasing", low, high, lowText: numText(low), highText: numText(high), field: pick.field || "", value: pick.value ?? "", reach: pick.reach || reachOf(src), values }]);
     setResult(null); setMsg(null);
   };
   // the grid changed under the layers (terrain loaded, a source removed): re-sample every evidence on the new grid
@@ -204,7 +213,7 @@ export default function EvidenceOverlayPane({ onClose }) {
     <>
       <TaskPaneHeader title={tr("Evidence overlay")} icon={Layers} tone="model" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: "var(--font-size-sm)" }}>
-        <div style={note}>{grid ? tr("Grid: {nx} × {ny} cells of {dx} × {dy} m{src}.", { nx: grid.nx, ny: grid.ny, dx: Math.round(grid.dx), dy: Math.round(grid.dy), src: grid.from === "terrain" ? tr(" (the terrain)") : tr(" (the data's extent)") }) : tr("No grid yet: load terrain, a raster, a map layer or samples first.")}</div>
+        <div style={note}>{grid ? tr("Grid: {nx} × {ny} cells of {dx} × {dy} m{src}.", { nx: grid.nx, ny: grid.ny, dx: Math.round(grid.dx), dy: Math.round(grid.dy), src: grid.from === "terrain" ? tr(" (the terrain)") : tr(" (the data's extent)") }) : tr("No grid yet: load terrain, a raster, a map layer or samples first.")}{grid && grid.from !== "terrain" && sampleCore.dropped > 0 ? tr(" {n} surface sample(s) far from the rest are outside it.", { n: sampleCore.dropped }) : ""}</div>
         <select value="" onChange={(e) => addLayer(e.target.value)} style={sel} aria-label={tr("Add evidence")} disabled={!grid || !sources.length}>
           <option value="">{tr("+ add evidence…")}</option>
           {sources.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
@@ -218,7 +227,8 @@ export default function EvidenceOverlayPane({ onClose }) {
                 <select value={l.field} onChange={(e) => updateLayer(l.id, { field: e.target.value, value: "" }, false)} style={sel} aria-label={tr("Only features where")}><option value="">{tr("every feature")}</option>{(ml?.fields || []).map((f) => <option key={f} value={f}>{f}</option>)}</select>
                 {l.field && <select value={l.value} onChange={(e) => updateLayer(l.id, { value: e.target.value }, true)} style={sel} aria-label={tr("equals")}><option value="">{tr("— value —")}</option>{vals.map((v) => <option key={v} value={v}>{v || "(blank)"}</option>)}</select>}
               </div>); })()}
-            {(l.kind === "element" || l.kind === "index" || l.kind === "survey" || l.kind === "grade") && <label style={row}>{tr("Reach (m)")}<input type="number" min="10" step="50" value={l.reach} onChange={(e) => updateLayer(l.id, { reach: Math.max(10, Number(e.target.value) || reachOf(l)) }, true)} style={{ ...sel, width: 70 }} /></label>}
+            {(l.kind === "element" || l.kind === "index") && media.length > 1 && <label style={row}>{tr("Samples")}<select value={l.field === "medium" ? l.value : "\u0000all"} onChange={(e) => { const m = e.target.value === "\u0000all" ? null : e.target.value; updateLayer(l.id, m == null ? { field: "", value: "", reach: reachOf(l) } : { field: "medium", value: m, reach: reachOf(l, m) }, true); }} style={sel} aria-label={tr("Samples of one medium")}>{media.map((m) => <option key={m} value={m}>{m || tr("(no medium)")}</option>)}<option value={"\u0000all"}>{tr("all media together")}</option></select></label>}
+            {(l.kind === "element" || l.kind === "index" || l.kind === "survey" || l.kind === "grade") && <label style={row}>{tr("Reach (m)")}<input type="number" min="10" step="50" value={l.reach} onChange={(e) => updateLayer(l.id, { reach: Math.max(10, Number(e.target.value) || reachOf(l, l.field === "medium" ? l.value : null)) }, true)} style={{ ...sel, width: 70 }} /></label>}
             <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
               <select value={l.shape} onChange={(e) => updateLayer(l.id, { shape: e.target.value })} style={sel} aria-label={tr("Membership")}><option value="increasing">{tr("favourable when high")}</option><option value="decreasing">{tr("favourable when low")}</option></select>
               <label style={row}>{l.shape === "decreasing" ? "1" : "0"} ={" "}<input type="number" step="any" value={l.lowText} onChange={(e) => updateLayer(l.id, { lowText: e.target.value, low: e.target.value === "" ? NaN : Number(e.target.value) })} style={{ ...sel, width: 76 }} aria-label={l.shape === "decreasing" ? tr("Membership 1 at") : tr("Membership 0 at")} /></label>

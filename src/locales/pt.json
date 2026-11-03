@@ -6960,5 +6960,9 @@
   "Replace the {n} intervals already in the {v} layer?": "Substituir os {n} intervalos que já estão na camada {v}?",
   " {n} sample(s) in logged sedimentary or carbonate codes ({codes}) were not classified: this classifier is for volcanic rocks.": " {n} amostra(s) em códigos registrados como sedimentares ou carbonáticos ({codes}) não foram classificadas: este classificador é para rochas vulcânicas.",
   " The classes are a simplified threshold split of the cation ternary, not the published Jensen fields.": " As classes são uma divisão simplificada por limiares do ternário catiônico, não os campos publicados de Jensen.",
-  "No fields drawn: compare with the published diagram": "Sem campos desenhados: compare com o diagrama publicado"
+  "No fields drawn: compare with the published diagram": "Sem campos desenhados: compare com o diagrama publicado",
+  " {n} surface sample(s) far from the rest are outside it.": " {n} amostra(s) de superfície longe das demais ficam de fora.",
+  "Samples of one medium": "Amostras de um meio",
+  "(no medium)": "(sem meio)",
+  "all media together": "todos os meios juntos"
 }

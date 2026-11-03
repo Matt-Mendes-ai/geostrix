@@ -116,3 +116,18 @@ export function structureParts(rows, code, traces) {
 // TASKS.csv #1179 — the default "no influence" distance of a structure logged in core. The median over every grid cell only says how big the
 // grid is: 8.3 km on Woodjam, whose grid follows a 25 km block model. A fault in a hole reaches a few hole spacings at most.
 export const pickDefaultReachM = (medianOverGrid, collarSpacingM) => (collarSpacingM > 0 ? Math.min(medianOverGrid, Math.round(3 * collarSpacingM)) : medianOverGrid);
+
+// TASKS.csv #1451 — collars on one pad are one drill site: on Silvertip's three pads neighbouring collars are 1-3 m apart, so the
+// collar spacing (1.3 m) made "distance to a logged structure" favourable only within 4 m. Collars within `padM` of a site join it;
+// the median distance from each site to the next is the spacing. collars: [{ x, y }] -> metres, or null with fewer than 2 sites.
+export function medianSiteSpacing(collars, padM = 25) {
+  const sites = [];
+  for (const c of collars || []) {
+    if (!Number.isFinite(c?.x) || !Number.isFinite(c?.y)) continue;
+    const s = sites.find((q) => Math.hypot(q.x - c.x, q.y - c.y) <= padM);
+    if (s) { s.n++; s.x += (c.x - s.x) / s.n; s.y += (c.y - s.y) / s.n; } else sites.push({ x: c.x, y: c.y, n: 1 });
+  }
+  if (sites.length < 2) return null;
+  const nn = sites.map((a) => Math.min(...sites.filter((b) => b !== a).map((b) => Math.hypot(a.x - b.x, a.y - b.y)))).sort((a, b) => a - b);
+  return nn[nn.length >> 1];
+}

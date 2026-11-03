@@ -6960,5 +6960,9 @@
   "Replace the {n} intervals already in the {v} layer?": "استبدال الفترات الـ{n} الموجودة في طبقة {v}؟",
   " {n} sample(s) in logged sedimentary or carbonate codes ({codes}) were not classified: this classifier is for volcanic rocks.": " لم تُصنَّف {n} من العينات في رموز مسجلة رسوبية أو كربوناتية ({codes}): هذا المصنِّف للصخور البركانية.",
   " The classes are a simplified threshold split of the cation ternary, not the published Jensen fields.": " الفئات تقسيم مبسط بالعتبات للمثلث الكاتيوني، وليست حقول جنسن المنشورة.",
-  "No fields drawn: compare with the published diagram": "لا حقول مرسومة: قارن بالمخطط المنشور"
+  "No fields drawn: compare with the published diagram": "لا حقول مرسومة: قارن بالمخطط المنشور",
+  " {n} surface sample(s) far from the rest are outside it.": " تقع {n} من العينات السطحية البعيدة عن البقية خارجها.",
+  "Samples of one medium": "عينات وسط واحد",
+  "(no medium)": "(بلا وسط)",
+  "all media together": "كل الأوساط معًا"
 }
