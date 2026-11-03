@@ -6985,5 +6985,11 @@
   ", at {md} m down this hole": ", à {md} m de profondeur dans ce forage",
   "It lies {km} km from the drillholes: check its coordinate system (a neighbouring UTM zone?).": "Il se trouve à {km} km des forages : vérifiez son système de coordonnées (une zone UTM voisine ?).",
   "\"{survey}\" is labelled {label}: invert it as {label}, or change its label under Point survey first.": "« {survey} » est étiqueté {label} : inversez-le en tant que {label}, ou changez d'abord son étiquette dans Levé ponctuel.",
-  "{unitName}: {n} hole(s) give more than one top of this one surface ({list}), so it is forced through all of them. A repeated unit is several surfaces: split it with Modelling codes (Auto-number or Connect) or an intercept set.": "{unitName} : {n} forage(s) donnent plus d'un toit de cette seule surface ({list}), qui est donc forcée à passer par tous. Une unité répétée forme plusieurs surfaces : séparez-la avec Codes de modélisation (Numérotation auto ou Relier) ou un jeu d'intersections."
+  "{unitName}: {n} hole(s) give more than one top of this one surface ({list}), so it is forced through all of them. A repeated unit is several surfaces: split it with Modelling codes (Auto-number or Connect) or an intercept set.": "{unitName} : {n} forage(s) donnent plus d'un toit de cette seule surface ({list}), qui est donc forcée à passer par tous. Une unité répétée forme plusieurs surfaces : séparez-la avec Codes de modélisation (Numérotation auto ou Relier) ou un jeu d'intersections.",
+  "Colour, drape and remove — Maps tab": "Couleur, drapage et retrait — onglet Cartes",
+  "Edit or remove the terrain in the Maps tab": "Modifier ou retirer le terrain dans l'onglet Cartes",
+  "Colour and style — Maps tab": "Couleur et style — onglet Cartes",
+  "Edit boundary \"{name}\" in the Maps tab": "Modifier la limite « {name} » dans l'onglet Cartes",
+  "Colours, labels and draping — Surface Geology tab": "Couleurs, étiquettes et drapage — onglet Géologie de surface",
+  "Boundaries and models": "Limites et modèles"
 }

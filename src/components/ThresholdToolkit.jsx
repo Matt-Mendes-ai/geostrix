@@ -96,7 +96,7 @@ export default function ThresholdToolkit({ surfaceSamples, surfaceElements, mapL
             <div style={note}>{tr("No positive {symbol} values in the surface samples.", { symbol })}</div>
           ) : (
             <>
-              <div style={{ overflowX: "auto" }}>
+              <div style={{ overflowX: "auto", flexShrink: 0 }}>{/* #1384: in the column body an overflow box shrank to a 25 px header strip */}
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                   <thead>
                     <tr>

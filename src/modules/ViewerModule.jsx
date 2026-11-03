@@ -6211,11 +6211,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const mx = ((e.clientX - rect.left) / rect.width) * 2 - 1, my = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(new THREE.Vector2(mx, my), cameraRef.current);
-    const world = raycastWorldPoint(raycaster);
+    const world = worldPointFromHits(raycaster, pickHits(raycaster).filter((h) => !h.object.userData.flatRaster)); // #1453
     if (!world) return;
     setPickedHolePoint(world);
     setPickHoleMode(false);
-  }, [pickHoleMode, raycastWorldPoint]);
+  }, [pickHoleMode, pickHits, worldPointFromHits]);
   // TASKS.csv #1152 — a click adds a vertex to the interpretation line (on whatever is under the cursor: terrain, survey,
   // else the ground plane); a second click on the same spot ends it (the pane writes the line)
   const onInterpretClick = useCallback((e) => {
@@ -7247,7 +7247,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               <div onContextMenu={(e) => openRowMenu(e, terrain.name, [
                   { label: terrain.visible === false ? "Show" : "Hide", onClick: () => updateTerrain?.({ visible: terrain.visible === false }) },
                   { label: tr("Zoom to"), onClick: () => zoomToObject(terrainMeshRef.current) },
-                  "-", { label: tr("Colour, drape and remove — Geophysics tab"), onClick: () => goToModule("geophysics") }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
+                  "-", { label: tr("Colour, drape and remove — Maps tab"), onClick: () => goToModule("maps") }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateTerrain?.({ visible: terrain.visible === false })} style={{ cursor: "pointer", color: terrain.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {terrain.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
@@ -7262,7 +7262,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                     settings the way rasters' drape-mode/elevation do), but the jump still goes to
                     Geophysics — that's where SRTM/DEM was imported from and where "Remove terrain"
                     lives — for consistency with every other row's edit-jump icon. */}
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), tr("Edit or remove this geophysics layer in the Geophysics tab"))} />
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("maps"), tr("Edit or remove the terrain in the Maps tab"))} />
               </div>
             )}
             {rasters.map((r) => (
@@ -7304,13 +7304,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             visibility + a quick opacity nudge + delete, exactly like the raster rows above it. */}
         {(boundaries.length > 0 || omfObjects.length > 0 || voxelModels.length > 0) && (
           <>
-            <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Geophysics")}</div>
+            <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Boundaries and models")}</div>
             {boundaries.map((b) => (
               <div key={b.id} onContextMenu={(e) => openRowMenu(e, b.name, [
                   { label: b.visible === false ? "Show" : "Hide", onClick: () => updateBoundary(b.id, { visible: b.visible === false }) },
                   { label: tr("Zoom to"), onClick: () => zoomToObject(boundaryLinesRef.current[b.id]) },
                   "-", ...overlayExportItems(b.name, async () => (await overlayLib()).boundaryFeatures(b), { kml: { colorOf: () => b.color, nameOf: () => b.name } }), // #1025
-                  "-", { label: tr("Colour and style — Geophysics tab"), onClick: () => goToModule("geophysics") },
+                  "-", { label: tr("Colour and style — Maps tab"), onClick: () => goToModule("maps") },
                   { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove boundary \"{name}\"?", { name: b.name }))) removeBoundary(b.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateBoundary(b.id, { visible: b.visible === false })} style={{ cursor: "pointer", color: b.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {b.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
@@ -7318,7 +7318,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <Shapes size={14} style={{ color: b.color || "var(--color-text-secondary)", flexShrink: 0 }} />
                 <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.name}</span>
                 <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{tr("boundary")}</span>
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), tr("Edit boundary \"{name}\" in the Geophysics tab", { name: b.name }))} />
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("maps"), tr("Edit boundary \"{name}\" in the Maps tab", { name: b.name }))} />
                 <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove boundary \"{name}\"?", { name: b.name }))) removeBoundary(b.id); }, tr("Remove boundary \"{name}\"", { name: b.name }))} />
               </div>
             ))}
@@ -7505,7 +7505,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             { label: l.visible === false ? "Show" : "Hide", onClick: () => updateMapLayer(l.id, { visible: l.visible === false }) },
             { label: tr("Zoom to"), onClick: () => zoomToObject(mapLayerMeshesRef.current[l.id]) },
             "-", ...overlayExportItems(l.name, async () => (await overlayLib()).mapLayerFeatures(l), { kml: async () => ({ colorOf: (await overlayLib()).mapLayerColorOf(l), nameOf: (f) => String(f.attributes?.[l.styleField] ?? l.name) }) }), // #1025
-            "-", { label: tr("Colours, labels and draping — Geophysics tab"), onClick: () => goToModule("geophysics") },
+            "-", { label: tr("Colours, labels and draping — Surface Geology tab"), onClick: () => goToModule("surface") },
             { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove the map layer \"{name}\" from the project?", { name: l.name }))) removeMapLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateMapLayer(l.id, { visible: l.visible === false })} title={`${l.visible === false ? tr("Show") : tr("Hide")} "${l.name}"${l.crsNote ? `\n${l.crsNote}` : ""}`} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: l.visible === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
               {l.visible === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({l.features.length} {l.geomType})</span>

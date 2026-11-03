@@ -282,7 +282,7 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
                 <BoxPlots groups={groups} domainLabel={domainLabel} logScale={logScale} unit={elementUnits[symbol] || "ppm"} />
               </div>
 
-              <div style={{ overflowX: "auto" }}>
+              <div style={{ overflowX: "auto", flexShrink: 0 }}>{/* #1384: in the column body an overflow box shrank to a 25 px header strip */}
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                   <thead>
                     <tr>

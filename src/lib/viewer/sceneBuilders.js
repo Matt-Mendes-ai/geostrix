@@ -100,6 +100,9 @@ export function syncRasterDrapes(group, cache, rasters, { origin, terrain, rende
       mesh = new THREE.Mesh(geometry, material);
       mesh.rotation.x = -Math.PI / 2; // lie flat: plane's local Y (image "up"/north, per texture V) becomes -scene.z, matching the app's north = -z convention
       mesh.userData.geoKey = geoKey;
+      // TASKS.csv #1453 — a raster not draped on a terrain floats at a chosen level (a fuzzy score sat at 170 m on Silvertip): a
+      // collar picked on it took that elevation, ~1,230 m under the pads. Collar picks pass through it (ViewerModule onPickHoleClick).
+      mesh.userData.flatRaster = !drapeOnTerrain;
       group.add(mesh);
       cache[r.id] = mesh;
     } else {

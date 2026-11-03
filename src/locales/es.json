@@ -6985,5 +6985,11 @@
   ", at {md} m down this hole": ", a {md} m de profundidad en este sondaje",
   "It lies {km} km from the drillholes: check its coordinate system (a neighbouring UTM zone?).": "Está a {km} km de los sondajes: revise su sistema de coordenadas (¿una zona UTM vecina?).",
   "\"{survey}\" is labelled {label}: invert it as {label}, or change its label under Point survey first.": "\"{survey}\" está etiquetado como {label}: inviértalo como {label}, o cambie primero su etiqueta en Levantamiento puntual.",
-  "{unitName}: {n} hole(s) give more than one top of this one surface ({list}), so it is forced through all of them. A repeated unit is several surfaces: split it with Modelling codes (Auto-number or Connect) or an intercept set.": "{unitName}: {n} sondaje(s) dan más de un techo de esta única superficie ({list}), así que se la fuerza a pasar por todos. Una unidad repetida son varias superficies: divídala con Códigos de modelado (Autonumerar o Conectar) o un conjunto de intersecciones."
+  "{unitName}: {n} hole(s) give more than one top of this one surface ({list}), so it is forced through all of them. A repeated unit is several surfaces: split it with Modelling codes (Auto-number or Connect) or an intercept set.": "{unitName}: {n} sondaje(s) dan más de un techo de esta única superficie ({list}), así que se la fuerza a pasar por todos. Una unidad repetida son varias superficies: divídala con Códigos de modelado (Autonumerar o Conectar) o un conjunto de intersecciones.",
+  "Colour, drape and remove — Maps tab": "Color, drapeado y quitar — pestaña Mapas",
+  "Edit or remove the terrain in the Maps tab": "Editar o quitar el terreno en la pestaña Mapas",
+  "Colour and style — Maps tab": "Color y estilo — pestaña Mapas",
+  "Edit boundary \"{name}\" in the Maps tab": "Editar el límite \"{name}\" en la pestaña Mapas",
+  "Colours, labels and draping — Surface Geology tab": "Colores, etiquetas y drapeado — pestaña Geología de superficie",
+  "Boundaries and models": "Límites y modelos"
 }

@@ -1,6 +1,6 @@
 import { stylingTracker } from "./viewerDirty.js"; // TASKS.csv #1286
 import { t as tr } from "./i18n.js"; // TASKS.csv #1285
-import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import { changedKeys } from "./undoLabels.js"; // TASKS.csv #1087
 import { capturedFrameFields } from "./layoutGeometry.js"; // TASKS.csv #906 / #961
 import { tieStarterFurniture } from "./layoutLinks.js"; // TASKS.csv #1320
@@ -400,9 +400,16 @@ export function StoreProvider({ children }) {
   // Same persistence treatment as rasters: saved/autosaved, NOT in the undo snapshot (a 100-polygon map
   // is thousands of vertices, and undo JSON-compares its tracked fields on every edit).
   const [mapLayers, setMapLayers] = useState([]);
+  // TASKS.csv #1438 (review #1352) — with no terrain a map is drawn flat at its elevation, which was 0 m: on Silvertip 1,400 m
+  // under the collars. A new map starts at the median collar elevation (else the surface samples'); the card's Elev. changes it.
+  const groundRef = useRef(0);
+  groundRef.current = useMemo(() => {
+    const med = (rows) => { const z = rows.map((r) => r.z).filter(Number.isFinite).sort((x, y) => x - y); return z.length ? z[z.length >> 1] : null; };
+    return med(collars) ?? med(surfaceSamples) ?? 0;
+  }, [collars, surfaceSamples]);
   const addMapLayer = useCallback((layer) => {
     const id = `maplayer_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    setMapLayers((p) => [...p, { opacity: 0.6, visible: true, drapeMode: "terrain", elevation: 0, showOutlines: true, ...layer, id }]);
+    setMapLayers((p) => [...p, { opacity: 0.6, visible: true, drapeMode: "terrain", elevation: Math.round(groundRef.current), showOutlines: true, ...layer, id }]);
     return id;
   }, []);
   const updateMapLayer = useCallback((id, patch) => setMapLayers((p) => p.map((l) => l.id === id ? { ...l, ...(typeof patch === "function" ? patch(l) : patch) } : l)), []);

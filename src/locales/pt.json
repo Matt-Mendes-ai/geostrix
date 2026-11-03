@@ -6985,5 +6985,11 @@
   ", at {md} m down this hole": ", a {md} m de profundidade neste furo",
   "It lies {km} km from the drillholes: check its coordinate system (a neighbouring UTM zone?).": "Está a {km} km dos furos: verifique seu sistema de coordenadas (uma zona UTM vizinha?).",
   "\"{survey}\" is labelled {label}: invert it as {label}, or change its label under Point survey first.": "\"{survey}\" está rotulado como {label}: inverta-o como {label}, ou mude primeiro seu rótulo em Levantamento pontual.",
-  "{unitName}: {n} hole(s) give more than one top of this one surface ({list}), so it is forced through all of them. A repeated unit is several surfaces: split it with Modelling codes (Auto-number or Connect) or an intercept set.": "{unitName}: {n} furo(s) dão mais de um topo desta única superfície ({list}), então ela é forçada a passar por todos. Uma unidade repetida são várias superfícies: divida-a com Códigos de modelagem (Autonumerar ou Conectar) ou um conjunto de interseções."
+  "{unitName}: {n} hole(s) give more than one top of this one surface ({list}), so it is forced through all of them. A repeated unit is several surfaces: split it with Modelling codes (Auto-number or Connect) or an intercept set.": "{unitName}: {n} furo(s) dão mais de um topo desta única superfície ({list}), então ela é forçada a passar por todos. Uma unidade repetida são várias superfícies: divida-a com Códigos de modelagem (Autonumerar ou Conectar) ou um conjunto de interseções.",
+  "Colour, drape and remove — Maps tab": "Cor, drapeado e remover — aba Mapas",
+  "Edit or remove the terrain in the Maps tab": "Editar ou remover o terreno na aba Mapas",
+  "Colour and style — Maps tab": "Cor e estilo — aba Mapas",
+  "Edit boundary \"{name}\" in the Maps tab": "Editar o limite \"{name}\" na aba Mapas",
+  "Colours, labels and draping — Surface Geology tab": "Cores, rótulos e drapeado — aba Geologia de superfície",
+  "Boundaries and models": "Limites e modelos"
 }
