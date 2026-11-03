@@ -7025,5 +7025,15 @@
   "{type}: {core} core + {outcrop} outcrop": "{type} : {core} sur carotte + {outcrop} à l'affleurement",
   "{type} (outcrop)": "{type} (affleurement)",
   "Filled poles: core; open poles: outcrop": "Pôles pleins : carotte ; pôles vides : affleurement",
-  "The interval layers shown in the 3D View are offered here: turn a layer on there (Recovery %, for example) to colour the plan by it": "Les couches d'intervalles affichées dans la vue 3D sont proposées ici : activez-en une là-bas (Récupération %, par exemple) pour colorer le plan selon elle"
+  "The interval layers shown in the 3D View are offered here: turn a layer on there (Recovery %, for example) to colour the plan by it": "Les couches d'intervalles affichées dans la vue 3D sont proposées ici : activez-en une là-bas (Récupération %, par exemple) pour colorer le plan selon elle",
+  "Log-probability plot — {symbol} ({v}){v2}": "Diagramme de probabilité logarithmique — {symbol} ({v}){v2}",
+  ", length-weighted": ", pondéré par la longueur",
+  "P97.5 = {a}, P99 = {b} {unit} (the caps Compositing suggests)": "P97.5 = {a}, P99 = {b} {unit} (les plafonds que propose Composites)",
+  "Cap to test": "Plafond à tester",
+  "{above} of {n} samples above it; {pct}% of the metal (grade × length) removed": "{above} échantillons sur {n} au-dessus ; {pct} % du métal (teneur × longueur) retiré",
+  "{above} of {n} samples above it": "{above} échantillons sur {n} au-dessus",
+  "Each population plots as a straight line on these axes (log-normal); a bend or a step in the high tail is where a second population starts, the usual place to cap (Sinclair 1976). Values of 0 count in the cumulative % but cannot be drawn on a log axis.": "Chaque population trace une droite sur ces axes (lognormale) ; une cassure ou une marche dans la queue haute marque le début d'une seconde population, l'endroit habituel du plafond (Sinclair 1976). Les valeurs 0 comptent dans le % cumulé mais ne peuvent pas être tracées sur un axe logarithmique.",
+  "Too few values above zero for a probability plot.": "Trop peu de valeurs supérieures à zéro pour un diagramme de probabilité.",
+  "cap": "plafond",
+  "Log-probability plot": "Diagramme de probabilité logarithmique"
 }

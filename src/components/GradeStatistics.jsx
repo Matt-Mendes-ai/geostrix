@@ -23,6 +23,8 @@ import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { gradeStatsRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
+import { weightedProbPoints, weightedPercentile, capEffect } from "../lib/probPlot.js"; // TASKS.csv #1388
+import { normalQuantile } from "../lib/thresholds.js";
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
@@ -162,6 +164,18 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
       .sort((a, b) => b.stats.n - a.stats.n);
   }, [rows, weightingActive]);
 
+  // TASKS.csv #1388 — the log-probability plot: each domain's points, and the cap candidates Compositing offers (the
+  // length-weighted P97.5 and P99 of all the intervals) plus a cap to test, with what it would remove
+  const [capTest, setCapTest] = useState("");
+  const prob = useMemo(() => {
+    const byDomain = new Map();
+    rows.forEach((r) => { const k = r.domain == null ? "(unclassified)" : r.domain; if (!byDomain.has(k)) byDomain.set(k, []); byDomain.get(k).push(r); });
+    const series = groups.map((g) => { const rs = byDomain.get(g.key) || []; return { key: g.key, ...weightedProbPoints(rs.map((r) => r.value), weightingActive ? rs.map((r) => r.weight) : null) }; });
+    const vs = rows.map((r) => r.value), ws = weightingActive ? rows.map((r) => r.weight) : null;
+    return { series, vs, ws, p975: weightedPercentile(vs, ws, 97.5), p99: weightedPercentile(vs, ws, 99) };
+  }, [rows, groups, weightingActive]);
+  const capValue = capTest === "" ? null : Number(capTest);
+  const capFx = Number.isFinite(capValue) && capValue > 0 ? capEffect(prob.vs, prob.ws, capValue) : null;
   const allValues = rows.map((r) => r.value);
   const overallStats = useMemo(() => computeStats(allValues, weightingActive ? rows.map((r) => r.weight) : null), [rows, allValues, weightingActive]);
 
@@ -282,6 +296,18 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
                 <BoxPlots groups={groups} domainLabel={domainLabel} logScale={logScale} unit={elementUnits[symbol] || "ppm"} />
               </div>
 
+              {/* TASKS.csv #1388 */}
+              <div>
+                <div style={label}>{tr("Log-probability plot — {symbol} ({v}){v2}", { symbol, v: elementUnits[symbol] || tr("ppm"), v2: weightingActive ? tr(", length-weighted") : "" })}</div>
+                <ProbPlot prob={prob} cap={capFx ? capValue : null} domainLabel={domainLabel} unit={elementUnits[symbol] || "ppm"} />
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>
+                  <span>{tr("P97.5 = {a}, P99 = {b} {unit} (the caps Compositing suggests)", { a: gradeText(prob.p975), b: gradeText(prob.p99), unit: elementUnits[symbol] || "ppm" })}</span>
+                  <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Cap to test")}<input type="number" min="0" step="any" value={capTest} onChange={(e) => setCapTest(e.target.value)} style={{ ...sel, width: 80 }} aria-label={tr("Cap to test")} /></label>
+                  {capFx && <span>{weightingActive ? tr("{above} of {n} samples above it; {pct}% of the metal (grade × length) removed", { above: capFx.above, n: capFx.n, pct: capFx.pctMetalRemoved.toFixed(1) }) : tr("{above} of {n} samples above it", { above: capFx.above, n: capFx.n })}</span>}
+                </div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 2, lineHeight: 1.4 }}>{tr("Each population plots as a straight line on these axes (log-normal); a bend or a step in the high tail is where a second population starts, the usual place to cap (Sinclair 1976). Values of 0 count in the cumulative % but cannot be drawn on a log axis.")}</div>
+              </div>
+
               <div style={{ overflowX: "auto", flexShrink: 0 }}>{/* #1384: in the column body an overflow box shrank to a 25 px header strip */}
                 <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)", width: "100%" }}>
                   <thead>
@@ -395,3 +421,37 @@ const sel = { background: "var(--color-bg)", border: "1px solid var(--color-bord
 const btn = (primary) => ({ padding: "8px 0", borderRadius: 6, fontSize: "var(--font-size-base)", cursor: "pointer", border: primary ? "1px solid var(--color-success-border)" : "1px solid var(--color-border-light)", background: primary ? "var(--color-success-bg)" : "transparent", color: primary ? "var(--color-success-text)" : "var(--color-text-secondary)" });
 const th = { padding: "4px 8px", color: "var(--color-text-secondary)", fontWeight: 500, textAlign: "right", borderBottom: "1px solid var(--color-border)" };
 const td = { padding: "4px 8px", color: "var(--color-text)", textAlign: "right", fontFamily: "'Exo 2', system-ui, sans-serif" };
+
+// TASKS.csv #1388 — normal score of the cumulative length share against log10 grade, one colour per domain; the cap lines
+const PROB_COLOURS = ["#2f6db5", "#c9863d", "#3d9a5b", "#b5463f", "#7a5aa8", "#2a9aa0", "#9a7a2a", "#5a6472"];
+function ProbPlot({ prob, cap, domainLabel, unit }) {
+  const all = prob.series.flatMap((s) => s.points);
+  if (all.length < 3) return <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("Too few values above zero for a probability plot.")}</div>;
+  const w = 640, h = 220, pl = 46, pb = 26, pr = 90, pt = 8;
+  const lines = [[prob.p975, "P97.5", "#b5463f"], [prob.p99, "P99", "#7a1f1f"], [cap, tr("cap"), "#1a2028"]].filter(([v]) => v > 0);
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const [x, y] of all) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  for (const [v] of lines) { const l = Math.log10(v); if (l < y0) y0 = l; if (l > y1) y1 = l; }
+  y1 += 1e-9; x1 += 1e-9;
+  const X = (v) => pl + ((v - x0) / (x1 - x0)) * (w - pl - pr), Y = (v) => h - pb - ((v - y0) / (y1 - y0)) * (h - pb - pt);
+  const pct = [0.001, 0.01, 0.1, 0.5, 0.9, 0.99, 0.999].map((q) => [q, normalQuantile(q)]).filter(([, z]) => z >= x0 && z <= x1);
+  const dec = []; for (let d = Math.floor(y0); d <= Math.ceil(y1); d++) if (d >= y0 - 1e-9 && d <= y1) dec.push(d);
+  const fmtV = (v) => String(+v.toPrecision(3));
+  const dashed = (name) => name === "P97.5" || name === "P99";
+  // the line labels, top down, at least 11 px apart (a cap equal to P99 printed over its label)
+  const labelY = new Map();
+  [...lines].sort((p, q) => q[0] - p[0]).reduce((prev, [v, name]) => { const y = Math.max(Y(Math.log10(v)) + 3, prev + 11); labelY.set(name, y); return y; }, -Infinity);
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} width={w} style={{ maxWidth: "100%", display: "block" }} role="img" aria-label={tr("Log-probability plot")}>
+      <line x1={pl} x2={pl} y1={pt} y2={h - pb} style={{ stroke: "var(--color-border)" }} />
+      <line x1={pl} x2={w - pr} y1={h - pb} y2={h - pb} style={{ stroke: "var(--color-border)" }} />
+      {dec.map((d) => <g key={d}><line x1={pl} x2={w - pr} y1={Y(d)} y2={Y(d)} style={{ stroke: "var(--color-hover-bg)" }} /><text x={pl - 4} y={Y(d) + 3} textAnchor="end" fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{fmtV(10 ** d)}</text></g>)}
+      {pct.map(([q, z]) => <text key={q} x={X(z)} y={h - pb + 13} textAnchor="middle" fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{`${+(q * 100).toFixed(1)}%`}</text>)}
+      <text x={w - pr} y={h - 2} textAnchor="end" fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{tr("cumulative %")}</text>
+      <text x={4} y={pt + 8} fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{unit}</text>
+      {lines.map(([v, name, c]) => <g key={name}><line x1={pl} x2={w - pr} y1={Y(Math.log10(v))} y2={Y(Math.log10(v))} stroke={c} strokeWidth={dashed(name) ? 1 : 1.6} strokeDasharray={dashed(name) ? "5 3" : undefined} /><text x={w - pr + 4} y={labelY.get(name)} fontSize={fontSizes.xs} fill={c}>{`${name} ${fmtV(v)}`}</text></g>)}
+      {prob.series.map((s, si) => { const step = Math.max(1, Math.floor(s.points.length / 600)); const c = PROB_COLOURS[si] || "#9aa5b3"; return <g key={s.key}>{s.points.filter((_, i) => i % step === 0).map(([x, y], i) => <circle key={i} cx={X(x)} cy={Y(y)} r={1.7} fill={c} />)}</g>; })}
+      {prob.series.length > 1 && prob.series.slice(0, PROB_COLOURS.length).map((s, si) => <text key={s.key} x={pl + 6} y={pt + 10 + si * 11} fontSize={fontSizes.xs} fill={PROB_COLOURS[si]}>{domainLabel(s.key)}</text>)}
+    </svg>
+  );
+}

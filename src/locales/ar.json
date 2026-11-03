@@ -7025,5 +7025,15 @@
   "{type}: {core} core + {outcrop} outcrop": "{type}: {core} من اللب + {outcrop} من المنكشف",
   "{type} (outcrop)": "{type} (منكشف)",
   "Filled poles: core; open poles: outcrop": "الأقطاب المملوءة: اللب؛ الأقطاب المفرغة: المنكشف",
-  "The interval layers shown in the 3D View are offered here: turn a layer on there (Recovery %, for example) to colour the plan by it": "تُعرض هنا طبقات الفترات الظاهرة في العرض ثلاثي الأبعاد: فعّل طبقة هناك (نسبة الاسترجاع مثلًا) لتلوين المسقط بها"
+  "The interval layers shown in the 3D View are offered here: turn a layer on there (Recovery %, for example) to colour the plan by it": "تُعرض هنا طبقات الفترات الظاهرة في العرض ثلاثي الأبعاد: فعّل طبقة هناك (نسبة الاسترجاع مثلًا) لتلوين المسقط بها",
+  "Log-probability plot — {symbol} ({v}){v2}": "مخطط الاحتمال اللوغاريتمي — {symbol} ({v}){v2}",
+  ", length-weighted": "، مرجّح بالطول",
+  "P97.5 = {a}, P99 = {b} {unit} (the caps Compositing suggests)": "P97.5 = {a}، P99 = {b} {unit} (حدود القطع التي تقترحها أداة التركيب)",
+  "Cap to test": "حد قطع للاختبار",
+  "{above} of {n} samples above it; {pct}% of the metal (grade × length) removed": "{above} من {n} عينة فوقه؛ يُزال {pct}% من الفلز (المحتوى × الطول)",
+  "{above} of {n} samples above it": "{above} من {n} عينة فوقه",
+  "Each population plots as a straight line on these axes (log-normal); a bend or a step in the high tail is where a second population starts, the usual place to cap (Sinclair 1976). Values of 0 count in the cumulative % but cannot be drawn on a log axis.": "تظهر كل مجموعة خطًا مستقيمًا على هذين المحورين (لوغاريتمي طبيعي)؛ الانكسار أو الدرجة في الذيل العالي هو حيث تبدأ مجموعة ثانية، وهو المكان المعتاد للقطع (Sinclair 1976). القيم الصفرية تُحسب في النسبة التراكمية لكن لا يمكن رسمها على محور لوغاريتمي.",
+  "Too few values above zero for a probability plot.": "قيم قليلة جدًا فوق الصفر لرسم مخطط احتمال.",
+  "cap": "قطع",
+  "Log-probability plot": "مخطط الاحتمال اللوغاريتمي"
 }
