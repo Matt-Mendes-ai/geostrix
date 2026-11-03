@@ -691,6 +691,12 @@ export function useImportPipeline(ctx) {
       files: ["collars.csv", "survey.csv", "litho.csv", "alt.csv", "vein.csv", "mnlgy.csv", "geotech.csv", "magsusc.csv", "sg.csv", "structure.csv"],
       notice: "Loading the Woodjam sample project — 19 diamond drillholes from 2023 with their real logs, gyro surveys, oriented structures and assays, plus the 2023 IP lines and ZTEM 3D inversion, all from BC's public assessment report #41597. Nothing in it is synthesized (sample_data/woodjam/README.md).",
     },
+    // TASKS.csv #1346 — ARIS 42807; its assays and rock / soil / stream samples are loaded by the caller (lib/sampleSilvertip.js)
+    silvertip: {
+      dir: "silvertip", epsg: 26909, crs: "NAD83 / UTM zone 9N",
+      files: ["collars.csv", "survey.csv", "litho.csv", "alt.csv", "breccia.csv", "vein.csv", "mnlgy.csv", "struct_zones.csv", "geotech.csv", "recovery.csv", "magsusc.csv", "structure.csv"],
+      notice: "Loading the Silvertip sample project — 9 deep diamond drillholes from 2024 (to 1,323 m) with their logs, surveys, oriented structures and assays, plus 168 rock, 282 soil and 156 stream-sediment samples, all from BC's public assessment report #42807. Nothing in it is synthesized (sample_data/silvertip/README.md).",
+    },
   };
   const loadSampleProject = async (which = "harry") => {
     if (sampleLoading || importActiveRef.current) return false;

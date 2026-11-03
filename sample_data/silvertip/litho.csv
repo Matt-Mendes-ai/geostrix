@@ -1,0 +1,239 @@
+hole_id,from,to,lithology,description
+CCF24-PAD18-001,0,18,OB,Overburden composedof light brown clays and rubbly siliciclastic rocks.
+CCF24-PAD18-001,18,27,NRCV,No recovery.
+CCF24-PAD18-001,27,28,OB,Overburden composedof light brown clays and rubbly siliciclastic rocks.
+CCF24-PAD18-001,28,71.6,SNDST,"Grey coloured siliciclastic rocks alternating from pinched sandstone lense rich sections to lense poor sections. Sandstone lenses are hosted within darker grey coloured, laminated mudstone. Sandy lenses become deformed and ptygmatic around 57-61m depths. Weakly oxidized fractures until 61m depth. Veining is minor (2% total) and calcitic (Fg). Most veining is bedding parallel (35 degrees) with a lessor crosscutting vein set. Minor local sections of gouge and carbon rich faulting (bedding parallel- thrusting?). Lower contact is faulted."
+CCF24-PAD18-001,71.6,93.33,SLST,"Grey coloured siliciclastic rocks. Alternating laminations of lighter sandy silt and darker mudstone. Very local, weakly calcereous mudstone lenses. Veining ranges from mm-dcm cale (8% total) and silica-calcite (Fg).Veins show weakly extensional internal fabric. Most veining is bedding parallel (35 degrees) with a lessor crosscutting vein set. Minor local sections of gouge and carbon rich faulting (bedding parallel- thrusting?). Lower contact is sheared and faulted (bedding parallel - thrusting?)."
+CCF24-PAD18-001,93.33,131,SLST,Grey coloured siliciclastic rocks. Alternating bands of lighter sandy and darker mudstone (fining upwards). sandy layers are medium to coarse grained. Veining ranges from mm-dcm cale (8% total) and silica dominated veins with minor carbonate rims (Fg).Veins show weakly extensional internal fabric. Most veining is bedding parallel (50 degrees) with a lessor crosscutting vein set. Minor local sections of gouge and carbon rich faulting (bedding parallel- thrusting?). Lower contact is ??????
+CCF24-PAD18-001,131,132.74,SLST,
+CCF24-PAD18-001,132.74,166.74,SNDST,
+CCF24-PAD18-001,166.74,213.94,SLST,
+CCF24-PAD18-001,213.94,220.77,LMST,
+CCF24-PAD18-001,220.77,221.1,FAULT,
+CCF24-PAD18-001,221.1,231.42,LMST,
+CCF24-PAD18-001,231.42,231.55,FAULT,
+CCF24-PAD18-001,231.55,255.4,LMST,
+CCF24-PAD18-001,255.4,260.8,YBR,
+CCF24-PAD18-001,260.8,262.4,BRX,
+CCF24-PAD18-001,262.4,278,LMST,
+CCF24-PAD18-001,278,293,LMST,"Dark grey MLS, fossiliferous (Possible MLS 4?  between 281-283 m). Bedding is observed orienetated  high angle TCA. The upper contact is represented by pervasive moderate to strong secondary dolomitization (black sugar texture; grainy) observed in amphipora-rich limestone (floatstone?). Minor carbon-rich fault breccia observed at (278.80m), with trace disseminated fine grained py (<1%) contained in the matrix. Minor spotty playgorskite(white)/hydrozincite along fractures.The lower contact is marked by a cb-rich fault leading into weak to moderately recrystallized limestone."
+CCF24-PAD18-001,293,323.57,LMST,"Light grey MLS, minor intervals of fossils (amphipora), weak to moderate patchy recrystallization with subordinate dissolution features. The lower contact is marked by increase in amphipora abundance. Minor irregular calcite veinlets (1-3%)."
+CCF24-PAD18-001,323.57,329.8,LMST,Grey MLS. The upper contact is represented by increase in amphipora abundance lighter grey in colour representing minor recrystallization. The lower contact is a gradational tranistion leading into a lime mud unit with decreased fossil content.
+CCF24-PAD18-001,329.8,334.07,LMST,"MLS, mudstone represented by increase contents of dark grey micritic mud with minor amphiroa.  The lower contact is marked by a high angleTCA  styolitic contact leading into stromatoporoid-rich unit."
+CCF24-PAD18-001,334.07,341.63,LMST,Light grey fossiliferous MLS (2). The stromatoporoid-rich unit (rudstone) with amphoria. The stromatoporoids range in size from 0.2-5 cm with minor embayments along stromatoporoid boundaries (dissolution 1 feature). Minor graphitic stylolite�s are observed throughout interval.  The lower contact is marked by a gradational contact leading into an interval matrix supported interval with amphorphia.  Minor irregular calcite veinlets (1-3%).
+CCF24-PAD18-001,341.63,364.41,LMST,"MLS, Light grey wackestone. The fossils consist of amphiora (10-12%). The upper porition of the interval is moderate to strongly altered by secondary dolomite. The lower portion is altered by weak to moderate patchy recrystallization, with increase in calcite veining intensity (moderate; 15-20%). Galena (0.1%) stringer observed at 302.47 m."
+CCF24-PAD18-001,364.41,381.17,LMST,"Light grey crystalline MLS (85%) with minor locally darker coloured fossil beds (Wackestone; 15%) containing amphiora (5-10%). The light grey crystalline MLS intervals are weakly foliated with weak green-brown sericite alteration (pervasively) along fractures, possible shear plane (366.45 m)? and replacing the matrix of fossiliferous intervals (376.44-376.80 & 374.70-374.90 m; pseudo breccia?). Minor (1-2%) fine grained pyrite associated with the sericite alteration. Trace irregular calcite veinlets (1-2%). The lower contact is marked by a gradational transition into recrystallized MLS with no sericite alteration observed."
+CCF24-PAD18-001,381.17,414.14,LMST,"Dark grey MLS, The lower contact is marked by a weakly brecciatd marble/ possible calcite vein (413.47-413.90 m). At 413.90 a  sercite halo leading into a sharp high angle contact leading into yellow-brown intrusive."
+CCF24-PAD18-001,414.14,416.19,YBR,Yellow-brown pervasively sercite altered intrusive with spotty light green phenocrysts ( chlorite alteration? fluorite or apatite?). Possibe circular dark grey amygdules (2-5%)? The lower contact is marked by sharp irregular alteration halo contact (high angle TCA?) leading into dark grey MLS.
+CCF24-PAD18-001,416.19,417.87,LMST,moderate calcite veining. marble-izatoin.
+CCF24-PAD18-001,417.87,418.26,LMST,"Somewhat foliated, rare disseminated pyrite. fault zone."
+CCF24-PAD18-001,418.26,449.73,LMST,"Amphipora floatstone to wackestone, beds of shell fragements (brachiopods?), also rugose coral and massive straomatoporoids."
+CCF24-PAD18-001,449.73,470.88,LMST,"Less fossils, less reactive with acid than previous interval. Recrystallized, with increasing dolomitic alteration. Galena on some fracture surfaces (eg 463.4m),"
+CCF24-PAD18-001,470.88,483,LMST,"More brittle, less reactive than previous interval. No fossils. Lots of calcite veining. Dolomitic alteration, possibly siliceous as well. Coarse-grained calcite infill wiith sphalerite on some fracture surfaces. Local breccias with fg pyrite."
+CCF24-PAD18-001,483,484.18,YBR,Bands of fine grained pyrite
+CCF24-PAD18-001,484.18,487.51,LMST,"Relict fossils, possble dolomitic alteration"
+CCF24-PAD18-001,487.51,488.09,LMST,Rubbly fault zone in McDame Limestone.
+CCF24-PAD18-001,488.09,495.17,DLST,Extensive calcite veining/nearly stockwork/breccia.
+CCF24-PAD18-001,495.17,499.12,DLST,"Several massive (5cm+) calcite veins, possibly fugitive. Dolomitic."
+CCF24-PAD18-001,499.12,504,DLST,Less veining than previous intervals. End of hole.
+CCF24-PAD18-002,0,11.82,NRCV,
+CCF24-PAD18-002,11.82,21,OB,conglomeritc overburden. possble boulders of 2B?
+CCF24-PAD18-002,21,66.32,OB,"Overburden. Some minorly covesive peices. thinly flattend conglomerate grading into oxidized mudstone. Possble EXH layer. Some mineralization present, dism py."
+CCF24-PAD18-002,66.32,69.4,SLST,Possible exhalte unit. upper contact is a rubbly orange oxidized to darker grey mudston. sulphide pitting. Exhalte is mix between dark grey mudstone with qtz viening and a buff colord part with strong oxidation of fracture surfaces. interspersed dism py. minor sericite presence.
+CCF24-PAD18-002,69.4,87.35,SLST,"calcareous mudstone. calcite veinlets present, becoming abundant towards lower contact. calcareous beds are strongly reactive to hcl. mix between dark grey mudstone beds and a lighter grey bed. dism py. lower contact is gradational, becoming more graphitic."
+CCF24-PAD18-002,87.35,96.12,SLST,"Graphitic mudstone, fine grained and fairly soft with shiny fracture surfaces. Unaltered. Widespread thinly sheeted calcite veinlets, possibly following bedding. Possible slickensides on fracture surfaces. Minor pyrite, often in blebs 1-2cm, sometimes hosted in veinlets. Also in fine grained bands (eg at 95.20m) and disseminated. Small fault infilled with gouge from 95.14-94.18m."
+CCF24-PAD18-002,96.12,158.68,SNDST,"Dark grey mudstone rhythmically interbedded with lighter grey siltstone/fg sandstone. Unaltered, moderately graphitic but less so than previous interval. Beds typically less than 1cm thick, non-calcareous, dipping moderately (40-60 degrees) relative to core axis. Mudstone beds have well-developed foliation, expressing distinct intersection lineation on fracture surfaces. Local syn-sedimentary deformation, otherwise beds are generally planar. Severall sets of extensional calcite veinlets cross-cutting bedding. Several massive quartz veins (eg at 112m, 119m), milky white and up to 10cm thick. Widespread very fine grained disseminated pyrite, also occurring in stratiform bands up to 2cm thick (eg at 104.69m) and sometimes hosted in calcite veinlets. Sphalerite(?) (brownish-red, soft, reddisn streak) blebs in calcite vein at 132.75m. Aresenopyrite(?) (darkgrey/silvery, very hard, triangular habit) in quartz vein at 158.35m. Lower contact interbedded with sandier (coarser-grained) interval."
+CCF24-PAD18-002,158.68,182.04,SNDST,"Dark grey medium-grained unaltered sandstone. Upper contact interbedded with mudstone and siltstone, lower contact faulted. No bedding visible. Fairly incompetent, several rubbly fault zones (eg 162-163.00, 167-168m, 171-173m). Rare calcite veinlets, no preferred orientation. Widespread pyrite from 169.20-170.30m, disseminated in fault rubble, along fracture surfaces, and blebby in veins. Otherwise rare, and no other mineralization observed."
+CCF24-PAD18-002,182.04,194.5,SLST,"Large fault zone near contact with McDame. Sandstone and mudstone rubble, separated by significant intervals of dark grey clay-ey gouge. Rare disseminated pyrite."
+CCF24-PAD18-002,194.5,214.9,SLST,"Dark grey graphitic mudstone. Thin parallel bedding, some rubbly zones (likely faults). Especially graphitic (soft, shiny) from 205-207m. Rare calcite veinlets parallel to bedding. Occasional stratiform bands of fine grained pyrite (eg 194.86-194.90m), rare individual grains up to 3mm. Gradational contact with underlying interval, increasing calcareous beds."
+CCF24-PAD18-002,214.9,219.4,SLST,"Dark grey mudstone with lighter grey calcareous interbeds typically .5-2cm thick. Gentle to moderate effervescence. Erratic calcite veinlets, sometimes concordant with bedding, often not, and typically discontinuous. Trace disseminated pyrite. Moderately carbonaceous. Abrupt contact with McDame limestone below."
+CCF24-PAD18-002,219.4,224.08,LMST,"Start of McDame limestone. Upper contact is sharp with rubbly earn mudstone. This interval is moderat grey to a light recrystalized grey. stong semi massive pyrite is present for the majority of this interval. patchy recrystalization is intermixed with a darker grey blue limesstone, with angular contacts. qtz and carbonate veining is common throughout. lower contact is a stylolitic and demonstrates change to a darker limestone with possible dolomitic alteration."
+CCF24-PAD18-002,224.08,228.21,LMST,Zone contains multiple short breccia zones (10-20cm) angular MLS clasts with carbonate matrix. these short breccia zones are continous dolomitic altered limestone.Strong pyrite mineralization is present from about 225 to 226m. mineralization is semi massive (25%). lower contact is a sharp change to a dense amphipora bed.
+CCF24-PAD18-002,228.21,240.45,LMST,First observed fossiliferous MLS beds within this hole. dense amphipora beds make up aproximatly 90% of this interval. MLS ranges from a light grey to a darker possible dolomitic altered in patches. the lighter grey is possibly recrystalized. fossils all appear to be recrystalized. lower contact is styolitic.
+CCF24-PAD18-002,240.45,283.39,LMST,"Possible MLS 2, noted by the suddon presence of Stroms. Stromatoporoids intermix with amphipora beds. appear recrystalized. some fuative calcite present within the interval. light grey with darker dolomitic alteration patches. localized hydrothermal brecciation alternates between intense calcite veinlets."
+CCF24-PAD18-002,283.39,286.7,LMST,"Fault breccia zone. Gouge present at 284.57, with prominent slicks. gouge is a calcareous mud, white to grey. MLS clasts hosted in calcite matrix. Breccia above and below the fault zone. coarse calcite crystals present in localized void space. trace to no mineralization."
+CCF24-PAD18-002,286.7,306.37,LMST,Amphipora and Strom beds. fossils are likley recrystalized as they demonstrate a light grey to white color. Stroms range from 5cm to 15cm and are intermixed with amphipora fossil. karstic or vuggycavitys are present in the MLS. no mineralization observed.fault gouge present at 303.92m. No brecciation surrounds the gouge and minor carbonate veining is observed.
+CCF24-PAD18-002,306.37,311,LMST,"Possible MSL4 bed. Euryamphipora present in localized areas, apear to infil between larger strom fossil. interval ranges between packstone and wackestone as some areas are very dense with amphipora, strom and euryamphipora. lower contact is a gradational change to strongly recrystalized or marbleized MLS."
+CCF24-PAD18-002,311,315.95,LMST,"Strong recrystalization to marble. subtle angular clasts are present from a relic breccia. py strings grow in abundance moving to the lower contact, until there is semi massive pyrite filling the final 10 cm of the interval. The py is fine grained and pervasive. coarse calcite grains infil natural breaks."
+CCF24-PAD18-002,315.95,318.15,YBR,"Mineralized YBR. Fine grained sand, coaser than MLS. Pyrite mineralization is common within the YBR along fracture planes (5-10%). clay and rubble is present along natural fracture planes. Lower contact is an abrupt fault."
+CCF24-PAD18-002,318.15,319.54,FAULT,"Fault zone between YBR intrusive and Earn shales. intervals is amost entirely a dirty grey/beige gouge. dis py present within the gouge. gouge is calcareous, displaying a moderate reaction to HCL. The fault gouge displays light folliation. carbonate veinlets are present. lower contact grades darker to the graphitic shale, then the shales become compitent."
+CCF24-PAD18-002,319.54,337.3,SLST,"dark grey to black strongly graphitic shale or mudstone.  trace sand lenses or beds present. minor quartz and carbonate veining throughout. localized brecciation occurs around 330m, clasts are dark grey to black angular to sub angular earn fragement held in a muddy matrix. beginning of interval is rubbley, though moving down from fz (upper contact) earn starts to become more competent. at around 328m rubble is nearly absent. sparce pyrite blebs are common throughout the interval. (1%)"
+CCF24-PAD18-002,337.3,350.62,SLST,"strongly brecciated Earn clsts in a muddy white carbanaceous matrix. poorly sorted and angular to very angular clasts. Monomictic shale clasts. hydrothermal breccia. graphitic. trace dissm py, often oxidized. Lower contact is a 20cm  gradational change to a calcareous unit. MLS."
+CCF24-PAD18-002,350.62,390.8,LMST,"Dark grey 'sandy' fossiliferous limestone (weak presence of bulbous stromatoporoids, and elongated amphipora). Upper contact is gradational. Patchy disseminated anhedral 'dirty py' (1-3%) throughout following stylolites, white calcite veinlets and along vein margins. Localized semi-massive (~15-20%) anhedral 'dirty py' from 364-366m. Trace localized galena (1%) stringer vein, and  disseminated to blebby red-purple sph (1-2%) within white calcite veinlets and vein margins. Localized patches of weak to moderate light grey, recrystallized limestone, preferantially recrystallizing stromatoporoid fossils. Moderate patchy dark grey 'sandy/black sugar' limestone, possible secondary dolomitization (weak effervescence)? Weak to moderate patches of white calcite veinlets, stringers, and infilling microfractures. Localized undifferentiated microfaulting (~379.60m, ~384.15m), strongly overprinted by calcite infilled microfractures, and trace sulphides (py, sph) within the matrix. Fault planes are moderately graphitic with weakly developed slickenlines, and slickensides. Lower contact is faulted, leading into a black calcareous collapse/dissolution 2 breccia."
+CCF24-PAD18-002,390.8,397,BRX,"Black laminated calcareous mudstone (90%) with subordinate subangular matrix supported clasts of light grey limestone (10%). Upper contact is faulted with finely milled, matrix supported subrounded to rounded clasts of black mudstone, and light grey limestone. Trace disseminated subhedral py (1-2%) within matrix, along stylolites, and laminations. Localized patchy monomictic hydrothermal breccia's throughout, consisting of, blocky angular clasts of black calcareous mudstone, suspended within a fine grained white calcite matrix. Localized palygorskite along fracture planes, with moderately preserved slickenlines (394m). Lower contact is faulted, leading into light grey limestone."
+CCF24-PAD18-002,397,415.81,LMST,"Grey to light grey fossiliferous limestone (bulbous stromatoporoid, and minor amphipora). Upper contact is faulted. Trace (1-2%) disseminated 'dirty py' along fractures, stylolites, and white qtz-carb veins, veinlets, and stringers. Moderate localized qtz-carb vein intensity (401m). Weakly recrystallized limestone near upper contact, transitioning into moderate to strong light grey recrystallized limestone downhole (semi-pervasive). As recrystallization becomes stronger, disseminated dirty py is mainly concentrated along fractured surfaces, and along crosscutting calcite stringer vein margins. Presence of strongly microfractured, matrix supported, undifferentiated fault breccia (407m-409.60m). FBRX clasts of finely milled, subrounded, light grey to dark grey limestone are suspended within a calcite matrix. Lower contact is diffuse, transitioning into a possible sericitized intrusive? or altered limestone?"
+CCF24-PAD18-002,415.81,416.71,YBR,"Moderately vuggy, and weakly brecciated, biege/buff sericitized YBR intrusion? or altered limestone? Upper contact is diffuse. Trace disseminated py (1-2%) following stylolites and foliations, orientated ~40 degrees to core axis. Subangular clasts of grey limestone (5%) are fine grained, and suspended within a sericitized matrix (95%). Lower contact is faulted, leading into light grey limestone (MLS). Possible amigydules (>1mm micro pits) throughout."
+CCF24-PAD18-002,416.71,420.68,LMST,"Light grey to buff/beige limestone. Upper contact is faulted. Trace 'dirty py' (1-2%) along stylolites, fractured surfaces, subrounded clasts, and within fault breccia matrix. Undifferentiated microfaulting 417.71-419.40m, strongly overprinted by calcite and sericite infilled microfractures, and trace sulphides (py) within the matrix. Fault planes are infilled with palygorskite and overprinted pyrite, with weakly developed slickenlines, and slickensides. >50cm intervals of YBR (same as unit above) within the faulting; Weak overprinting calcite veinlets throughout. Possible sheared sericitic intrafolial slip nearing lower contact. Lower contact is diffuse transitioning into a white brecciated marble."
+CCF24-PAD18-002,420.68,421.5,LMST,"White brecciated marble. Poorly sorted subangular clasts of strongly bleached marble, suspended within a dark micritic matrix. Trace (1%) disseminated py within matrix, and as fine grained subrounded clasts. Lower contact is gradational and weakens in recrystallized intensity with depth, transitioning into a light grey limestone."
+CCF24-PAD18-002,421.5,428.68,LMST,"Lt to md grey limestone with weak recrystallization; moderate irregular and discontinuos carb+/-qtz veining; trace finely disseminated pyrite occurs sporadically throughout; locallized healed, clast-supprted fault breccia (>1m) with white-pale grey angular MLS clasts in a med grey MLS matrix, gradational contacts; weak silicification and increasing recrystallization in last 1m of interval"
+CCF24-PAD18-002,428.68,430.17,VEIN,"White massive quartz vein, subparallel TCA; rare 2cm grey MLS clasts; halo of weak silicification in surrounding wall rock; sharp contacts"
+CCF24-PAD18-002,430.17,507.38,LMST,Md to dk grey fg limestone; weak to locally moderate irregular and selectively discontinuous carbonate veinlets and stringers; minor 1-6cm low angle milky qtz-carb vns with subangular MLS frags; trace py stringers; patches of densely packed carb-replaced amphipora and trace gastropods; rare bedding (75d tca) with dissolution features; rare trace clots of pyrite; rare locallized dissolution fluids (med grey-beige); alternation between weakly and moderately RXL throughout this interval; strong RXL at end of interval at contact with YBR
+CCF24-PAD18-002,507.38,513,YBR,Fg sandy biege sericitized YBR intrusion. Plag altered to sericite and sericite replaced by unknown bright light green mineral (?). Upper contact is sharp.Trace disseminated py (1-2%); common calcite vnlet sets and lesser py stringers and vnlets; .
+CCF24-PAD42-001,0,75,SNDST,"Dark grey / black to medium grey, lineated, mineralized 2AP Earn. Alternating mm-cm thick parallel beds of dark grey / black mudstone and medium grey siltstone. Abundant flaser bedded / pinched light grey mediumgrained sandstone lenses, 3 mm to 20 mm thick. Pervasive disseminated Py (variying intensities) 1%; occasional Py and Sph veinlets; Spradic thick qz veining, hosting Py, Sph, Gn and Ankerite. Rock breaks along bedding and exposed bedding planes are rusty brown and strongly lineated. Graphitic near fault (next interval). Lower contact transitions into fault gouge, last 3 m of current interval are partially competent and partially gouge (damage zone?)."
+CCF24-PAD42-001,75,94.24,BRX,"Rubbly, mineralized, grey to light grey fault / white fault, carbonaceous fault gouge / fault BRX. Disseminated, very finegrained, euhedral Py (mineralization after faulting?). Fault gouge fragments are fine to coarsegrained and subangular to angular. Lower contact is sharp and transitions into silicified exhalite."
+CCF24-PAD42-001,94.24,100.41,SLST,Light to medium grey-buff finely bedded and sericite altered siltstone; pervasive 1% disseminated py with rare mm wide py patches; common 1 cm wide pinched dark grey fg lenses with preferentially hosted blebby py; quartz eyes common within dark grey pinched lenses
+CCF24-PAD42-001,100.41,103.84,VEIN,Milky white massive quartz veining hosting common py stringers and blebby to patchy py throughout; rare ankerite veinlets; common mm scale vugs
+CCF24-PAD42-001,103.84,106.18,FAULT,Light greenish-grey fracture zone followed by rubbly fault gouge; 1%  fg disseminated euhedral py throughout
+CCF24-PAD42-001,106.18,164,SLST,"Grey-greenish to dark grey finegrained exhalite. Several up to 50 cm long patchy to semi-massive euhedral Py intervals with blebby Sph and Gn. Finegrained pervasive disseminated euhedral Py; common Py stringers and veinlets, sometimes include Gn. Intervals are variably moderately to strongly silicified, tends to increase with depth. Common qz stringers / veinlets / veins, often host ankerite (orange to tan, HCL reaction when scratched). Rare Po (at 135.50 m).  Beds host cm thick dark grey chert nodules. Core is variably competent to rubbly with some rare short intervals of fault gouge. Rare vugs. Signs of deformation including rare extensional qz vein arrays, rare boudinaged ankerite veinlet, rare folding. Near end of interval (157 m - 158 m) seafoam green veins (possibly mariposite and/or chlorite?)  in strongly silicified exhalite, associated with Py. Lower contact is gradational with alternating intervals of bleached EXH and silty to sandy 1B."
+CCF24-PAD42-001,164,175.51,SNDST,"Dark grey cg sandstone conglomerate, clasts are silicified and variably flattened along bedding. Sporadic mineralized discordant qz veining with large euhedral py, disseminated py, blebby gn and ankerite. One discordant vein shows sigmoidal wall rock clasts (possible shearing?). Lower contact to more fg 1B is sharp."
+CCF24-PAD42-001,175.51,315,SNDST,"Dark grey fine to medium grained sandstone. Mineralization; pervasive disemminated pyr - occasional pyrite rich beds and occasional blebby euhedral pyr. Sporatic discordant qtz veins with disseminated to blebby pyr with galena and sphalerite occasionally, most noteable that galena and sphalerite are only found in the discordant veins. Thicker qtz veins downhole starting around 228m with pyr, with minor calcite infill towards the mcdame contact. Fracture surfaces are often slickenslides with a chloritic green sheen - soft. Rare deformation features, small scale folding. Around 236m downhole the competency of the core degrades to more rubbly recovery and a fault gouge breccia at 250.6 to 256.1m. Aftre the fault there is a coarsening of the grains to a pebble conglomerate texture, then fining again. At 288.5m a small zone of hydrothermal brecciation with a greenish alteration in the matrix. Competency of the core degrades around 297 to rubbly pieces and a zone of mildly calcareous (UV small patch yellow) medium grained 1B. Approaching the Earn-McDame contact, brecciation increases, carbonate veining increases, mineralization increases."
+CCF24-PAD42-001,315,528,LMST,"Fg, light to dark grey wackestone MLS. Strong brecciation and mineralization until 327 m (see mineralization and brx tab). Mineralization after 327 m is patchy py associated with calcite veining. RXL is weak to moderate, rarely strong. Sporadic weak stylolitic pressure dissolution textures (abundance decreases with depth). Common amphipora fossils with varying abundance. Overall weak veining with intervals of stronger veining and minor hydrothermal becciation. Patchy weak to moderate dolomitization until EOH (?). Common mm to cm scale vugs in host rock. Common vuggy carb veins."
+CCF24-PAD42-002,0,33,NRCV,
+CCF24-PAD42-002,33,127.43,SLST,Sheared towards the lower contact
+CCF24-PAD42-002,127.43,168.34,SLST,"Pale grey 2AS, HBRX @ 132m-133m, micro folding @ 160.48m"
+CCF24-PAD42-002,168.34,303.86,SNDST,
+CCF24-PAD42-002,303.86,305,DYK,dyke?
+CCF24-PAD42-002,305,348,SNDST,
+CCF24-PAD42-002A,0,39,NRCV,
+CCF24-PAD42-002A,39,129.2,SLST,
+CCF24-PAD42-002A,129.2,158.7,SLST,Possibly sheared @ the lower contact b/n 2AP
+CCF24-PAD42-002A,158.7,298.42,SNDST,
+CCF24-PAD42-002A,298.42,299.12,DYK,"fine to medium, light grey to brown, traces of py, dyke?"
+CCF24-PAD42-002A,299.12,336.63,SNDST,Moderate to strongly 1B altered with layered of dyke?rubbly @ lower contact
+CCF24-PAD42-002A,336.63,344.64,LMST,
+CCF24-PAD42-002A,344.64,345.32,LMST,strongly rexl limestone (marble)
+CCF24-PAD42-002A,345.32,347.72,MSULF,"Semi-massive to massive sulphide, (massive @ the upper contact ) with vug texture"
+CCF24-PAD42-002A,347.72,360.5,LMST,
+CCF24-PAD42-002A,360.5,362.11,LMST,Carbon rich fault
+CCF24-PAD42-002A,362.11,365.55,LMST,
+CCF24-PAD42-002A,365.55,442.21,LMST,"Carbon rich infill, ocassionally within fractures @ 367.44M - 442.21m,"
+CCF24-PAD42-002A,442.21,442.85,LMST,Marble
+CCF24-PAD42-002A,442.85,452.08,LMST,"foss are mostly amhipora,  trace of  thin-shelled brachhipods @ 433m-435m"
+CCF24-PAD42-002A,452.08,493,DLST,
+SDZ24-PAD42-004,0,36,NRCV,
+SDZ24-PAD42-004,36,219.3,SLST,Rare sand lenses
+SDZ24-PAD42-004,219.3,229.32,SLST,"Heavily faulted area with strong alteration, contact with 2A units and 1B is difficult to discern, Unit changed to 2AS due to textural change but may be 2AC or even still 2AP."
+SDZ24-PAD42-004,229.32,230,NRCV,
+SDZ24-PAD42-004,230,235.5,SLST,"Heavily faulted area with strong alteration, contact with 2A units and 1B is difficult to discern, Unit changed to 2AS due to textural change but may be 2AC or even still 2AP."
+SDZ24-PAD42-004,235.5,236.8,NRCV,
+SDZ24-PAD42-004,236.8,252.35,SNDST,"Heavily faulted area with strong alteration, contact with 2A units and 1B is difficult to discern, Unit changed to 2AS due to textural change but may be 2AC or even still 2AP."
+SDZ24-PAD42-004,252.35,437.33,SNDST,"Contact with 2A units and 1B is difficult to discern due to faulting,"
+SDZ24-PAD42-004,437.33,457,SLST,Dark grey to black.
+SDZ24-PAD42-004,457,458,NRCV,
+SDZ24-PAD42-004,458,475.49,SLST,Dark grey to black
+SDZ24-PAD42-004,475.49,510.5,SHALE,Dark grey to black.
+SDZ24-PAD42-004,510.5,514.53,SHALE,Calcareous bed ~13cm in length marks upper contact. MLS marks lower contact. Very carbon rich at lower contact.
+SDZ24-PAD42-004,514.53,546.82,LMST,Massive stromatoporoid wackestone with lesser amphipora.
+SDZ24-PAD42-004,546.82,551.4,VEIN,Massive quartz-carbonate veining.
+SDZ24-PAD42-004,551.4,616.18,LMST,Massive stromatoporoid mudstone to wackestone. Amphipora content begins to increase from 600m.
+SDZ24-PAD42-004,616.18,657.88,LMST,Amhipora wackestone to packstone
+SDZ24-PAD42-004,657.88,681,LMST,Rubbly fault zone ~660-662m. Gastropods and rugose corals present near 663m. Dissolution breccia present at ~674m. EOH.
+SSZ24-PAD34-001,0,24.4,OB,
+SSZ24-PAD34-001,24.4,40.35,OB,
+SSZ24-PAD34-001,40.35,283.4,SNDST,"occasional discordant mm-scale sulphide veins throughout, typically Po+-Py, rarely w/ Cpy, sph or Gn. Occasional sericite alteration zones, Bedding 59m 50TCA, 71.5m 60TCA, 90m 60TCA, 109.5m 65TCA, 131m 60TCA, 185 m 65 CTA, 195m 70 CTA, 213m 70TCA, 228.5m 70, 248.5m 80TCA, 261.5m 60 TCA"
+SSZ24-PAD34-001,283.4,284.8,FAULT,
+SSZ24-PAD34-001,284.8,289.5,SNDST,"Thin bedded intercalation of shaly siltstones and shales, imbrincated clastic texture, strongly fractured"
+SSZ24-PAD34-001,289.5,291.9,FAULT,Clast supported breccia with sulphide Po + Py minealization replacing initiall clastic matrix
+SSZ24-PAD34-001,291.9,379.05,SNDST,Earn 2AP. Patchy (2-3m wide) moderate sericitic alteration present from top of interval to ~363m. Rare (<1%) pyrrhotite-rich quartz veining present throughout interval.  Fault breccia texture from 302.10 to 307.15.
+SSZ24-PAD34-001,379.05,381.31,BRX,Sedimentary earn breccia. Quartz veining w py+po present throughout. Texture is irregular and chaotic relative to neighboring units.
+SSZ24-PAD34-001,381.31,395.05,SNDST,Earn 2AP. dm-scale graphitic pocket at 286m.
+SSZ24-PAD34-001,395.05,397.17,BRX,Sedimentary earn breccia. Semimassive qtz vein hosting po+sph present. Texture is irregular and chaotic relative to neighboring units.
+SSZ24-PAD34-001,397.17,508.25,SNDST,Earn 2AP. Graphitic zone from 402-406m. py+po+cpy occasionally hosted in qtz veinlets (SAMPLED).
+SSZ24-PAD34-001,508.25,508.52,FAULT,Matrix supported fault breccia pocket between 2AP and 2AS w poorly sorted rounded o subangular clasts and milled earn matrix.
+SSZ24-PAD34-001,508.52,517.86,SLST,Bedding at 45-50 dTCA. Laminated to layered siltstone beds. Contact marked w mineralized quartz veining.
+SSZ24-PAD34-001,517.86,541.55,SLST,"Mineralized Earn 2AS. Mineralization comprised of pyrite (~7%) and lesser sphalerite (~2%). Lower contact sharp but rubbly. Mineralization tends to be along bedding, with accasional semimassive pyrite patches. Pyrite is dull brassy yellow. Sphalerite is red-brown. Mineralization is fine-coarse grained and anhedral."
+SSZ24-PAD34-001,541.55,543.57,VEIN,"Mineralized massive milky quartz vein. Blebby to patchy py present within. Dull brassy yellow, anhedral, fg-cg."
+SSZ24-PAD34-001,543.57,546,FAULT,Fault gouge interval. Very poorly sorted fragments.
+SSZ24-PAD34-001,546,555,SLST,"Mineralized Earn 2AS. Mineralization comprised of pyrite (~7%) and lesser sphalerite (~2%).  Mineralization tends to be along bedding, with accasional semimassive pyrite patches. Pyrite is dull brassy yellow. Sphalerite is red-brown. Mineralization is fine-coarse grained and anhedral. Buff-colored (EXH-esque) from 551.5-552m."
+SSZ24-PAD34-001,555,556.14,FAULT,Fault gouge/rubble interval. Very poorly sorted fragments. Cg dull brassy yellow py blebs present throughout (~1%).
+SSZ24-PAD34-001,556.14,561,SLST,Mineralized Earn 2AS (8% py 3% pyh). Pervasive chlorite aleration present thru interval.  Laminated to chaotic texture (discordant cg milky qtz veinlets present throughout [~5%]). Mineralization comprised of blebby py w semimassive patch at 558.5m. dm-scale patch of dull brassy pyrrhotite within larger pyrite patch. Pyrite and pyrrhotite are both fine-coarse grained and anhedral.
+SSZ24-PAD34-001,561,565,FAULT,Mineralized earn (see above unit) w dm-scale gouge and rubble pockets. Very poorly sorted fragments.
+SSZ24-PAD34-001,565,568.03,SLST,Silicified Earn 2AS. Rare (<1%) py blebs present.
+SSZ24-PAD34-001,568.03,589,SLST,Graphitic mudstone w ptygmatically folded qt veinlets. Blebby to patchy py present (~2%) w quartz eyes and pyrite  nodules. Soft sediment deformation features locally present (flame structures & ripup clasts).
+SSZ24-PAD34-001,589,593.2,SLST,"Graphitic mudstone-siltstone,  ptygmatically folded qt veinlets have dropped out (from unit above), locally 20% euhedral med grained pyrite; rare quartz eyes, select containing pyrrhotite; increasing interbeding and grain size towards contact in last 4m of interval; minor fault breccia; less graphitic than 2AA above with weak patchy silicification, transitional unit into 1B(?)"
+SSZ24-PAD34-001,593.2,942,SNDST,"Dark grey 1B generally interbedded sandstone-siltstone +/-mudstone with course grained conglomerate units with; finely dissem py throughout with lesser narrow bands of cg pyrite; common fracturing and localized rubble zones +/- fault breccia; rare low angle qtz with bleby py and trace hairline carb stringers, select conglomerate units are weakly deformed/compressed with aligned lenses of conglom clasts (minor); minor intervals of crossbedding layers. Lower contact marked by reduction in sandstone content."
+SSZ24-PAD34-001,942,959.3,SLST,"Very thinly laminated, minor graphite-rich laminations/fracture surfaces towards lower contact; trace dissem py; few anomalous magsus near upper contact (trace dissem po?)"
+SSZ24-PAD34-001,959.3,980.88,SLST,"Very thinly laminated, cg dissem py up to 10% locally"
+SSZ24-PAD34-001,980.88,990.81,SLST,"Very thinly laminated silicified interbeds of sandstone/siltstone. pyrite blebs 2-3%, subhedral to euhedral grains. lower contact a sharp transition to MLS. Green mineral present on fractures and core surface - possible chlorite or fuchsite; silicified; containes foliation parallel elongated secondary biotite in sporadic narrow intervals (skarn mineralogy?)"
+SSZ24-PAD34-001,990.81,1008.08,LMST,Fossiliferous limestone with trace euhedral pyrite throughout the interval. Large stroms (5-10cm) and amphipora. Course grained semi-translucent carb vn followed by graphitic fault at 997m. patchy light-moderate recrystalization.
+SSZ24-PAD34-001,1008.08,1009.49,MSULF,Lower zone - massive pyrrotite-galena-sphalerite- pyrite mineralization with minor frags/bands of MLS
+SSZ24-PAD34-001,1009.49,1088.56,LMST,"Variable RXL throughout, narrow irregular wisps of py (generally bedding parallel) and minor locallize semi-massive sph+/gn mineralization; well bedded; hydrothermal+/-flt bxa at 1060m followed by 3m zone of strong carb veining"
+SSZ24-PAD34-001,1088.56,1091.25,MSULF,Massive po-py-sph-cpy mineralization with spotty limonite oxidation of sph(?)
+SSZ24-PAD34-001,1091.25,1099.45,YBR,"Intrusive with minor py, F2 noted potential trace cpy. faulted upper and lower contacts"
+SSZ24-PAD34-001,1099.45,1118.22,LMST,"Damage zone; Strong rexl mls, some carbon rich laminations subparallel TCA ~1004m in a brecciated section. strong vein intenisty. trace py in some fractures. strong effervescence."
+SSZ24-PAD34-001,1118.22,1119.45,LMST,"Sporadically brecciated MLS with vfg dissem pyrite; strongly altered and rexl breccia/fault zone. diffuse pg py throughout. Soft grey-green clay(?) mineral not quite fingernail soft. Dark blue-green soft and greasy fracture coating, partially chlorite."
+SSZ24-PAD34-001,1119.45,1129.68,LMST,"Strongly recrystallized MLS, with dolomitization(?) with patchy pale green talc(?) alteration and chlorite along fracture surfaces and in hairline stringers; possible marisposite (?)"
+SSZ24-PAD34-001,1129.68,1133.69,LMST,Skarn-like alteration(?); RXL MLS (or MDS?) with vuggy spotty carb-py-chl alt
+SSZ24-PAD34-001,1133.69,1136.12,LMST,Strongly RXL MLS
+SSZ24-PAD34-001,1136.12,1138.36,LMST,"Skarnoid(?), strongly spotty carb-chl-epi(?)-talc alt with trace po"
+SSZ24-PAD34-001,1138.36,1150.98,DLST,
+SSZ24-PAD34-001,1150.98,1153.53,DLST,Skarnoid(?) with strong carb alt and po
+SSZ24-PAD34-001,1153.53,1156.81,SNDST,
+SSZ24-PAD34-001,1156.81,1158.2,MSULF,"Skarnoid Lower zone(?), patchy and semi massive sulphides + chl-epi-talc-carb alt"
+SSZ24-PAD34-001,1158.2,1160.27,SNDST,
+SSZ24-PAD34-001,1160.27,1161,MSULF,"Skarnoid Lower zone(?), patchy and semi massive sulphides (po-py) + chl-epi-talc-carb alt"
+SSZ24-PAD34-001,1161,1235.44,SNDST,"TSS with irregular skarn-like patches of alteration, generally pale green talc(?)-carb+/-chl-epi; minor patches of bleby py and trace dissem po; tapioca beaded texture; Calcareous mediurm to fine grain sandstone. Alteratiion including patchy decalcification, patchy silicification, weak selective-fluidal texture  chloritization. Locally Wollastonite crystals altered by chlorite-sericite alteration. Po >> Py + tr Cpy at the contacts of the chlorie-sericite alteraiton"
+SSZ24-PAD34-001,1235.44,1236,MSULF,Massive po-py-cpy mineralization with TSS frags/wispy bands
+SSZ24-PAD34-001,1236,1236.49,SNDST,
+SSZ24-PAD34-001,1236.49,1237.74,MSULF,Massive po-py-cpy mineralization with minor frags of TSS host rock
+SSZ24-PAD34-001,1237.74,1249.56,SNDST,"TSS with tapoioca/beaded texture, sporadic and wispy to semi-massive sulphide mineralization (po-py+/-cpy); Coarse Grained Wollastonite?, traces of fine grain biotie?"
+SSZ24-PAD34-001,1249.56,1250.19,MSULF,Massive po-py-cpy
+SSZ24-PAD34-001,1250.19,1253.5,SNDST,"TSS with tapoioca/beaded texture; Coarse Grained Wollastonite?, traces of fine grain biotie?; >50cm LZ with massive po+/-cpy-py at 1251.6-1251.8m"
+SSZ24-PAD34-001,1253.5,1266,SLST,"Carbonaceus limy siltstone, thin bedded; 1% fine grain dissminated Py (diagenetic?); weak selective silicification, incipient qtz-silica crackle brecciation. Patchy Po >> Py; EOH"
+SSZ24-PAD34-002,0,42,OB,OVB comprised of dominantly 2B fragments. Strongly oxidized and rubbly throughout
+SSZ24-PAD34-002,42,49.4,SNDST,Weathered and oxidized 2B
+SSZ24-PAD34-002,49.4,511.54,SNDST,Bedding/laminations varies from ~45-80dTCA throughout unit but dominantly occuring at ~70dTCA
+SSZ24-PAD34-002,511.54,527.11,SLST,
+SSZ24-PAD34-002,527.11,545.63,SLST,"Multiphase unit containing intermittent Earn and Exhalative (or just strongly altered alternating beds and clasts?). Brecciation and annealling of flt/brx locally with dissolution along clast boundaries (where visible). Strong overprinting of RXL and alteration thoughout. Occasional sections contain concentric masses within the sediment(?). Sulphide content (dominantly Py and Po) varies throughout. Locally quartzcarb veining with minor fg, mm-scale carbonate vns crosscutting all phases."
+SSZ24-PAD34-002,545.63,549.3,SLST,
+SSZ24-PAD34-002,549.3,583.64,SLST,
+SSZ24-PAD34-002,583.64,902.4,SNDST,
+SSZ24-PAD34-002,902.4,973.7,SLST,"Bedding varies from ~60-80dTCA throughout, increasing as depth increases. No 1AA unit and contact appears gradational/ conformable with MLS becoming increasingly calcareous (?)"
+SSZ24-PAD34-002,973.7,981.74,LMST,Gradational/ conformable contact with altered 1BA above (no 1AA?).
+SSZ24-PAD34-002,981.74,989.74,MSULF,Massive to semi-massive polymetallic LZ sulphides replacing rxl mls. Lower contact is patchy but weakly orientated TCA
+SSZ24-PAD34-002,989.74,990.24,LMST,Textures completely obscured due to rxl.
+SSZ24-PAD34-002,990.24,990.86,MSULF,Patchy to massive LZ dominantly consisting of Po and Cpy
+SSZ24-PAD34-002,990.86,995.68,LMST,Strong RXL MLS with minor Py. Primary textures are weakly visibe
+SSZ24-PAD34-002,995.68,997.33,MSULF,Patchy to massive polymetallic LZ sulphides replacing RXL MLS/ MRBL Weakly diffuse contact but general orientation at 50dTCA
+SSZ24-PAD34-002,997.33,999.55,LMST,Light grey to white strong RXL MLS to MRBL. Primary textures are locally weakly visible. Rare visible ca-vns show vcg euhedral calcite blades along fractures. Lower contact is diffuse but weakly orientated at ~55dTCA
+SSZ24-PAD34-002,999.55,1007.67,MSULF,Semi-massive to massive polymetallic LZ sulphides replacing RXL MLS
+SSZ24-PAD34-002,1007.67,1037.07,LMST,Locally weakly foliated at ~70dTCA
+SSZ24-PAD34-002,1037.07,1039.2,MSULF,Patchy to massive polymetallic LZ sulphides replacing RXL MLS. Weakly layered at ~50dTCA throughout.
+SSZ24-PAD34-002,1039.2,1046.05,LMST,MLS with RXL through upper half and weak foliation at ~50dTCA
+SSZ24-PAD34-002,1046.05,1051.07,YBR,Grey-green intrusive with disseminated to wispy Py and Po throughout. Weakly laminated at ~30-40dTCA
+SSZ24-PAD34-002,1051.07,1068.5,LMST,Weak bedding/ foliation at ~35dTCA. Primary textures/ fossils are weakly visible throughout. Contact between lower MDS unit is difficult to discern due to rxl
+SSZ24-PAD34-002,1068.5,1109,DLST,Strong argillic Alt MDS
+SSZ24-PAD34-002,1109,1186.84,SNDST,Strong argillic alt TSS
+SSZ24-PAD34-002,1186.84,1195,SLST,Strongly graphitic RRG
+SSZ24-PAD34-003,0,42,OB,Oxidized rubbly overburden
+SSZ24-PAD34-003,42,49.55,SNDST,Massive quartz vein present at ~47m. Sandy beds with conglomerate.
+SSZ24-PAD34-003,49.55,125,SNDST,Occasional mineralized veinlets (SAMPLED).
+SSZ24-PAD34-003,125,233.7,SNDST,"Occasional dark grey to grey @ 154.82m-167m, 175m-182m and 205.70m -215m"
+SSZ24-PAD34-003,233.7,514.79,SNDST,"Occasional dark grey-grey @ 263m - 266.24m, 282m-301.16m, 318.82m-325.31m, 360.24m - 364m, and 398.75m- 401.2m.  Altered sandy horizon from 449.78 to 452.12m."
+SSZ24-PAD34-003,514.79,549.93,SLST,Minor carbonate bedding. Strongly faulted at upper contact
+SSZ24-PAD34-003,549.93,566.31,SLST,"Upper zone. strongly altered, abundant pyite. Veins leading into lower contact."
+SSZ24-PAD34-003,566.31,578.58,SLST,Quartz veining and blebby pyrite present within interval. Sheared/rubbly lower contact.
+SSZ24-PAD34-003,578.58,598.61,SHALE,Folded quartz veins throughout (ptygmatic folding). Pyrite nodules and quartz eyes present.
+SSZ24-PAD34-003,598.61,949.69,SNDST,Blebby pyrite locally present within sand beds.
+SSZ24-PAD34-003,949.69,1010.45,SLST,grey light and very fine layered 1BA with carbonate str crosscutting the unit toward the interval end; more diss py with depth
+SSZ24-PAD34-003,1010.45,1012.18,LMST,calcitic veins and stringers. More or less silicified  throughout. Lower contact sharp but undulating.
+SSZ24-PAD34-003,1012.18,1012.6,MSULF,MSULF with more pink and red sphalerite including pyrite + pyrrhotite; and chalcopyrite in traces
+SSZ24-PAD34-003,1012.6,1014.12,LMST,fault and hydrothermal breccia in LMST
+SSZ24-PAD34-003,1014.12,1026.15,LMST,gradational contact betwenn Earn and wackstone/packstone MLS with more Limestone; brecciated at the upper contact; few layer of RXL throughout
+SSZ24-PAD34-003,1026.15,1028.5,LMST,grey light to more or less dark LMST with strong RXL features
+SSZ24-PAD34-003,1028.5,1031.08,MSULF,"MSULF crosscutted by carbonate and quartz vein; py, sph; po and cpy most present"
+SSZ24-PAD34-003,1031.08,1032.58,LMST,Marble LMST with 5 cm onf MSULF vein in the upper contact
+SSZ24-PAD34-003,1032.58,1035.42,LMST,Dark grey to light grey LMST with veinlets of calcite and very fine grained; fracture infill mineralization mostly by py
+SSZ24-PAD34-003,1035.42,1053,LMST,Strongly recrystallized MLS with depth; rarely wackestone MLS near upper contact
+SSZ24-PAD34-003,1053,1054,LMST,dark grey and massive RXL LMSTwith delay reaction to HCl; diss py in fracture througthout
+SSZ24-PAD34-003,1054,1059.7,LMST,Strongly RXL LMST (MRBL) with occasional stylolites throughtout associated to diss and blb py
+SSZ24-PAD34-003,1059.7,1062.95,LMST,Grey RXL LMST with delayed reaction to HCl; Dissem py present near upper contact. Cc stringers throughout.
+SSZ24-PAD34-003,1062.95,1074.14,LMST,white to dark grey and massive LMST; moderately to strongly recrystalyzed (MRBL); pass of fossileferous and stylolites features throughout all the interaval
+SSZ24-PAD34-003,1074.14,1074.54,MSULF,Pyrrhotite+pyrite+chalcopyrite
+SSZ24-PAD34-003,1074.54,1077.6,DYK,"Mineralized dyke w pyrrhotite, pyrite, sphalerite, chalcopyrite; texture more or less layered"
+SSZ24-PAD34-003,1077.6,1077.95,MSULF,MSULF vuggy with smoky quartz vein
+SSZ24-PAD34-003,1077.95,1078.7,DYK,PORPH to layered DYK
+SSZ24-PAD34-003,1078.7,1079.47,MSULF,MSULF with grey to smokey quartz vein
+SSZ24-PAD34-003,1079.47,1083,LMST,"Light grey fossiliferous MLS, recrystallized throughout."
+SSZ24-PAD34-003,1083,1083.73,MSULF,dark red to brown MSULF; traces of irregular calcite vein; hydrothermal breccia with more silica cement signatures recorded throughout.
+SSZ24-PAD34-003,1083.73,1108.06,LMST,30-40 cm of fault breccia zone around 1086 m; mineralized veinlets and ~10cm zones present of py including localized py + sph vein; 30 cm zones of strong altered around 1093 m and marbled from 1101.24 m to 1102 m;   fossil rich from 1093.50 m to 1100 m
+SSZ24-PAD34-003,1108.06,1143.2,LMST,white and massive LMST; moderately to strongly recrystalyzed (MRBL); localized pass of fossiliferous limestone less than 50 cm;  and stylolites throughout; mineralized in disseminated and blebby py more/less as STR or vein; 5 cm of MSUL registered at 1113.50m. Massive calcite veins up to 50cm in length present from 1122m to 1136m.
+SSZ24-PAD34-003,1143.2,1145.6,LMST,dark grey to light grey LMST crosscut by calcite veinlets
+SSZ24-PAD34-003,1145.6,1151.61,LMST,white to lligth grey recrystallized LMST (MRBL); texture or less present
+SSZ24-PAD34-003,1151.61,1152.46,LMST,dark grey to light grey LMST crosscut by calcite veinlets
+SSZ24-PAD34-003,1152.46,1153.37,LMST,MRBL
+SSZ24-PAD34-003,1153.37,1176.41,LMST,layered LMST with veinlets of quartz; phosphorescence Orange1 from1165.50 m to end of interval
+SSZ24-PAD34-003,1176.41,1294.45,SNDST,"Altered throughout. Silica alteration and dolomitic alteration; ( phosphorescence Orange1  throughout , by A. Bathily 12-24-2024)"
+SSZ24-PAD34-003,1294.45,1295.63,VEIN,Blebby pyrite present throughout
+SSZ24-PAD34-003,1295.63,1312,SNDST,
+SSZ24-PAD34-003,1312,1323,SHALE,Dark grey to black carbonaceous shales. EOH.

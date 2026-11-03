@@ -125,7 +125,9 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
   geotech, etc — the source DB has no such tables) synthesized around the real assay anomalies.
   `sample_data/woodjam/` (TASKS.csv #637) is a second, fully real project (ARIS 41597: 19 holes from 2023 with logs,
   surveys, oriented structures and assays, six IP lines, the ZTEM 3D inversion as OMF), built by
-  `scripts/samples/build-woodjam.mjs`; the 3D View's empty state offers both samples.
+  `scripts/samples/build-woodjam.mjs`. `sample_data/silvertip/` (TASKS.csv #1346, ARIS 42807: 9 deep 2024 holes with
+  acQuire logs and oriented core, assays, rock / soil / stream samples) is built by `scripts/samples/build-silvertip.mjs`;
+  the 3D View's empty state offers all the samples (with `perk_rocky/`, surface mapping).
   Each has its own README explaining exactly what's real vs. synthetic — read those before
   reusing this data for anything, and don't present the synthesized parts as real to anyone.
 - `python-sidecar/` — optional local Python server for scipy-backed geoprocessing (interpolation

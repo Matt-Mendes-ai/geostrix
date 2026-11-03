@@ -24,6 +24,8 @@ import { blockToCells, modelledIntervals, ABOVE_TOPS, unitAt } from "../lib/mode
 import { sectionGrid, sameLine, unpackUnits, sectionPixels, blockSpacing, sectionZRange } from "../lib/modelSection.js"; // TASKS.csv #759
 import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/desktop.js"; // copyText: TASKS.csv #589
 import { sampleProjectName } from "../lib/sampleProjectName.js"; // TASKS.csv #1218
+import { sampleCardsFor, sampleFootnote } from "../lib/sampleCards.js"; // TASKS.csv #1346
+import { symbolRadiusByMedium } from "../lib/viewer/surfaceSymbols.js"; // TASKS.csv #1346
 import { sectionFromCentre, sectionThroughHole, fenceLines, fenceExtentPoints, fenceLabels } from "../lib/sectionDefs.js";
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, RIBBON_TONES } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { Pickaxe, Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate, Sparkles, Download } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
@@ -4497,14 +4499,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // TASKS.csv #849 — a symbol in proportion to the program's extent: a fixed 1.8 m sphere is a fraction of a pixel over a
     // 20-30 km stream-sediment program (ARIS 42807Z: 21 x 28 km, nothing visible). 1.8 m stays the minimum (a soil grid
     // of ~1 km keeps its look within a few pixels); 1/250 of the extent's diagonal otherwise (~5-7 px across when the whole program fills the view).
-    const sx = minMax(placedSurfaceSamples, (p) => p.x), sy = minMax(placedSurfaceSamples, (p) => p.y);
-    const baseR = Math.max(1.8, Math.hypot(sx.max - sx.min, sy.max - sy.min) / 250);
+    const radiusOf = symbolRadiusByMedium(placedSurfaceSamples); // #1346 — and each medium capped by its own spacing
     placedSurfaceSamples.forEach((row, i) => {
       try {
         const cl = an ? an.classOf[i] : -2;
         const color = an ? (cl >= 0 ? an.classes[cl].color : an.noDataColor) : (st.color || colorForMedium(row.medium));
         const mesh = new THREE.Mesh(proto, new THREE.MeshLambertMaterial({ color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide })); // #312
-        mesh.scale.setScalar(baseR * st.size * (an?.isolated[i] ? 0.55 : 1)); // #843 — an isolated anomaly is drawn small; #849 size
+        mesh.scale.setScalar(radiusOf(row.medium) * st.size * (an?.isolated[i] ? 0.55 : 1)); // #843 — an isolated anomaly is drawn small; #849 size
         mesh.position.set(row.x - ox, row.z - oz, -(row.y - oy));
         mesh.userData = { row, tip: surfaceSampleTip(row) + (an ? `\n${cl >= 0 ? tr(an.classes[cl].label) : tr("no value")}${an.isolated[i] ? ` · ${tr("isolated anomaly")}` : ""}` : "") };
         g.add(mesh);
@@ -5838,14 +5839,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #637 — Harry or Woodjam. Woodjam's assays, ZTEM block model and IP lines are not drillhole tables, so they
   // are loaded here (lib/sampleWoodjam.js, lazily) once its tables are queued.
   // TASKS.csv #1120 — the three bundled samples, the one that suits this tab first (the empty card's filled button)
-  const sampleCards = (() => {
-    const cards = [
-      { id: "harry", label: tr("Sample: Harry property (37 holes)"), title: tr("Load the bundled Harry property sample project — 37 real drillholes from BC's public ARIS database, with synthesized interval layers") },
-      { id: "woodjam", label: tr("Sample: Woodjam (19 holes, IP, ZTEM)"), title: tr("Load the bundled Woodjam sample project — 19 diamond drillholes (2023) with real logs, surveys, oriented structures and assays, six IP lines and the ZTEM 3D inversion, from BC's public assessment report 41597") },
-      { id: "perk", label: tr("Sample: Perk-Rocky (mapping, no holes)"), title: tr("Load the bundled Perk-Rocky sample — a 2024 surface-mapping project (geological map, structure lines and 147 outcrop measurements as MapInfo files, with a Copernicus terrain), no drillholes: try 3D Modelling > Model from map") },
-    ];
-    return mode === "surface" ? [cards[2], cards[0], cards[1]] : cards;
-  })();
+  const sampleCards = sampleCardsFor(mode); // TASKS.csv #1346 — lib/sampleCards.js
   // TASKS.csv #1120 — File > Open sample project: the store opened a new tab (or kept an empty one) and left the request
   useEffect(() => {
     const req = store.sampleRequest;
@@ -5868,7 +5862,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       return;
     }
     const ok = await loadSampleProject(which);
-    if (ok && which !== "woodjam") { // TASKS.csv #1124 — Harry's assays into Geochem with the drillhole tables
+    if (ok && which === "silvertip") { // TASKS.csv #1346 — assays and surface samples
+      try {
+        const { loadSilvertipExtras } = await import("../lib/sampleSilvertip.js");
+        const notes = await loadSilvertipExtras(async (rel) => (await loadSampleFiles("silvertip", [rel]))[0], { setAssays, setAssayElements, setSurfaceSamples: store.setSurfaceSamples, setSurfaceElements: store.setSurfaceElements }, { existingElements: assayElements, existingSurfaceElements: surfaceElements });
+        setNotices((p) => [...p, ...notes]);
+      } catch (e) { setNotices((p) => [...p, errorNotice(tr("The Silvertip sample's assays and surface samples could not be loaded: {message}", { message: e.message }))]); }
+      return;
+    }
+    if (ok && which === "harry") { // TASKS.csv #1124 — Harry's assays into Geochem with the drillhole tables
       try {
         const { loadHarryAssays } = await import("../lib/sampleHarry.js");
         const notes = await loadHarryAssays(async (rel) => (await loadSampleFiles("harry_property", [rel]))[0], { setAssays, setAssayElements }, { existingElements: assayElements });
@@ -8292,7 +8294,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             actionDisabled={sampleLoading}
             actionTitle={sampleCards[0].title}
             secondary={<>{sampleCards.slice(1).map((c, i) => <button key={c.id} type="button" onClick={() => loadSample(c.id)} disabled={sampleLoading} title={c.title} style={{ marginLeft: i ? 8 : 0, padding: "8px 14px", borderRadius: 6, border: "1px solid var(--color-accent)", background: "var(--color-bg)", color: "var(--color-accent-dark)", fontSize: "var(--font-size-base)", fontWeight: 600, cursor: sampleLoading ? "default" : "pointer", opacity: sampleLoading ? 0.6 : 1 }}>{c.label}</button>)}</>}
-            footnote={tr("No data of your own yet? Three real projects from BC's public assessment reports are bundled. Harry (report #37584): 37 holes with assays; some interval layers are synthesized — its README says which. Woodjam (report #41597): 19 holes from 2023 with their real logs, gyro surveys, oriented structures and assays, six IP lines and the ZTEM 3D inversion — nothing synthesized. Perk-Rocky (report #42317): 2024 surface mapping only — the geological map, structures and outcrop measurements as delivered, on a Copernicus terrain — to model from the map.")}
+            footnote={sampleFootnote()}
           >
             <>
               <div style={{ marginBottom: 8 }}>{tx("This is the 3D view — drillhole traces in real world coordinates, with lithology, alteration, veining, geotech and assay data hung off them downhole. Everything starts from a {collar} file.", { collar: <b>{tr("collar")}</b> })}</div>
