@@ -17,8 +17,8 @@ The early versions were built in Claude in Cowork mode (a cloud sandbox); since 
 developed in Claude Code on Matt's own machine, as a git repository with CI and tagged releases,
 working through a backlog tracked in `TASKS.csv` and new requests Matt makes in chat, with a
 specific delivery/verification discipline (below). That discipline is the main thing worth carrying
-forward — it's what keeps a large codebase (the biggest file, `ViewerModule.jsx`, is ~770 KB /
-~9,300 lines as of 2026-10-29, capped by test/viewerModuleSize1084.test.mjs) coherent and low-regression despite near-continuous feature work.
+forward — it's what keeps a large codebase (the biggest file, `ViewerModule.jsx`, is ~730 KB /
+~8,800 lines as of 2026-11-03, capped by test/viewerModuleSize1084.test.mjs) coherent and low-regression despite near-continuous feature work.
 
 ## TASKS.csv — read this before starting anything
 
@@ -112,7 +112,7 @@ that phrasing), that's a flag this task deserves a *real* verification pass now 
   collections: collars/survey/layers/themes/rasters/voxelModels/etc, save/load/autosave).
 - `src/modules/*.jsx` — one file per top-level tab (`ViewerModule` handles View/Modelling/Targeting
   via a `mode` prop — see its own header comments for why; `GeophysicsModule`, `RasterModule`,
-  `GeochemModule`, `LayoutModule`). **`ViewerModule.jsx` is huge (~770 KB, ~9.3k lines; a test caps it, TASKS.csv #1084 — put new features in `src/modules/viewer/` or `src/lib`)** — use targeted
+  `GeochemModule`, `LayoutModule`). **`ViewerModule.jsx` is huge (~730 KB, ~8.8k lines; a test caps it at 775,000 bytes, TASKS.csv #1084 — put new features in `src/modules/viewer/` or `src/lib`; its toolbar and sidebar rows are in `src/modules/viewer/ViewerParts.jsx`, #1495)** — use targeted
   Read/Grep rather than reading it front-to-back, and lean on its extensive inline comments (many
   reference specific TASKS.csv ids) to orient before editing.
 - `src/components/*` — modals, panels, and small reusable pieces.

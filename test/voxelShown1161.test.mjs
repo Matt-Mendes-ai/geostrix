@@ -15,14 +15,14 @@ test("#1161 voxelCellShown applies the cutoff band and the support", () => {
 });
 
 test("#1161 the sections and the level plan filter with the same function as the 3D view", () => {
-  const src = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const src = ["../src/modules/ViewerModule.jsx", "../src/modules/viewer/ViewerParts.jsx"].map((f) => fs.readFileSync(new URL(f, import.meta.url), "utf8")).join("\n"); // both drawing files (#1084)
   assert.equal((src.match(/voxelCellShown\(model, c\)/g) || []).length, 3, "3D view, section, level plan");
   assert.ok(!/cells\.forEach\(\(c\) => \{\s*if \(!voxelCellSupported\(model, c\)\) return;/.test(src), "no bare support-only filter is left in a drawing path");
 });
 
 // TASKS.csv #1283 — the Targeting pane's sliders follow the store's band (a source pin: the component is not importable alone)
 test("#1283 VoxelRangeRow re-reads threshold / rangeMax from the model", () => {
-  const src = fs.readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  const src = fs.readFileSync(new URL("../src/modules/viewer/ViewerParts.jsx", import.meta.url), "utf8"); // moved at the size cap (#1084)
   const body = src.slice(src.indexOf("function VoxelRangeRow("), src.indexOf("function VoxelRangeRow(") + 2500);
   assert.match(body, /useEffect\(\(\) => \{\s*if \(debounceRef\.current\) return;[\s\S]*\}, \[model\.threshold, model\.rangeMax, model\.min, model\.max\]\);/);
   assert.match(body, /debounceRef\.current = null; onUpdate\(model\.id, patch\);/, "the pending push clears itself so the next store change is taken");

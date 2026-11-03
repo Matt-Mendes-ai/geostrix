@@ -48,7 +48,7 @@ test("#1246 a map layer at no elevation is 2D in the shapefile; one with an elev
 test("#1245, #1249, #1208, #1260, #1223, #1204 in place", () => {
   assert.match(read("src/lib/projectReproject.js"), /Imported as \$\{l\.crsNote\}; /);
   assert.match(read("src/modules/GeophysicsModule.jsx"), /Source cell ~\{src\} m, mesh spacing ~\{v2\} m/);
-  const v = read("src/modules/ViewerModule.jsx");
+  const v = read("src/modules/ViewerModule.jsx") + read("src/modules/viewer/ViewerParts.jsx"); // VoxelRangeRow moved to ViewerParts at the size cap (#1084)
   assert.match(v, /<VoxelRangeNumber value=\{dispMin\}/); assert.match(v, /<VoxelRangeNumber value=\{dispMax\}/);
   assert.match(v, /setStyleTarget\(null\); setInspectLayer\(styleTarget\.colourKey\)/);
   assert.ok(!v.includes("Imported via the Raster module"));
