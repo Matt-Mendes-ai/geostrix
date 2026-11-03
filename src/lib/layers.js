@@ -571,9 +571,9 @@ export const TARGET_SCHEMAS = {
   // TASKS.csv #600 — the column names real logging exports use (acQuire / MX Deposit, seen in BC ARIS reports):
   // numbered primary columns (Alt1_Code, Min1_Code / Min_Code1, Vein1_Comp / Vein_Type1, MagSus1, Ave_Reading,
   // BulkDens_Calc, SG_D). Listed FIRST so the primary (1st) column wins over a later one.
-  alt: { label: "Alteration", fields: intervalFields(["alt1_code", "alt_code", "alt_assemblage", "assemblage", "alteration"]) },
+  alt: { label: "Alteration", fields: intervalFields(["alt1_code", "alt_code", "alt_assemblage", "alt_rx_min1_type", "alt_min1_type", "alt_min_1_type", "assemblage", "alteration"]) }, // alt_rx_min1_type: #1345 (acQuire)
   vein: { label: "Veins", fields: intervalFields(["vein1_comp", "vein_type1", "vein1_type", "vein_comp", "assemblage", "type", "vein_type", "type_code"]) }, // type_code: 40958Z "Vein type"
-  breccia: { label: "Breccia", fields: intervalFields(["breccia_type", "brecc_type", "brx_type", "bx_type", "breccia", "assemblage", "genesis", "type"]) }, // TASKS.csv #608
+  breccia: { label: "Breccia", fields: intervalFields(["breccia_type", "brecc_type", "brx_type", "bx_type", "bx_class", "breccia", "assemblage", "genesis", "type"]) }, // TASKS.csv #608; bx_class: #1345
   // TASKS.csv #604 — structure logged as zones (from / to + code + intensity + alpha), Matt 2026-10-21: "keep it as
   // intervals, as a layer of structural zones". Intensity stays text (Copley "4", Woodjam "M"); alpha is the zone's
   // representative core angle when logged, kept but not turned into a plane (one angle for a whole zone is not a pick).
@@ -582,21 +582,21 @@ export const TARGET_SCHEMAS = {
     { key: "intensity", label: "Intensity (optional)", required: false, aliases: ["struc_intensity", "struct_intensity", "structure_intensity", "structure_int", "intensity"] },
     { key: "alpha", label: "Alpha (core angle, optional)", required: false, aliases: ["struc_alpha", "struct_alpha", "structure_alpha", "alpha", "alpha_deg"] },
   ] },
-  mnlgy: { label: "Mineralization", fields: intervalFields(["min1_code", "min_code1", "min_code", "min_mnlgy", "mineral"], ["min1_pct", "min_pct1", "min_int_pct", "percent", "pct"]) },
-  geotech: { label: "Geotech (numeric)", fields: intervalFields(["rqd_pct", "rqd", "value"], null, true) },
-  recovery: { label: "Recovery % (numeric)", fields: intervalFields(["recovery_pct", "recovery", "rec_pct", "core_recovery", "value"], null, true) },
+  mnlgy: { label: "Mineralization", fields: intervalFields(["min1_code", "min_code1", "min_code", "min_mnlgy", "sul_min_1", "sulph_min_1", "mineral"], ["min1_pct", "min_pct1", "min_int_pct", "sul_min_1_pct", "percent", "pct"]) }, // sul_min_1: #1345 (acQuire sulphide log)
+  geotech: { label: "Geotech (numeric)", fields: intervalFields(["rqd_pct", "rqd_pct_d", "rqq_pct_d", "rqd", "value"], null, true) }, // #1345: the percent column before REC_RQD_M (metres)
+  recovery: { label: "Recovery % (numeric)", fields: intervalFields(["recovery_pct", "recovery", "rec_pct", "rec_pct_d", "core_recovery", "value"], null, true) },
   sg: { label: "Specific gravity (numeric)", fields: intervalFields(["sg", "sg_d", "bulkdens_calc", "sg_calc", "specific_gravity", "specific_grav", "bulk_density", "density", "value"], null, true) },
   // TASKS.csv #605 — mag sus is often logged as POINT readings (depth + value, an MX-style "Mag Susc" sheet), so a
   // Depth column is an alternative to From / To (oneOf below; the reading is placed at that depth).
   magsusc: { label: "Mag. susceptibility (numeric)", oneOf: [["from", "to"], ["depth"]], fields: [
-    ...intervalFields(["mag_avg_si", "ave_reading", "avg_reading", "magsus1", "magsus", "mag_si", "mag_sus", "mag_avg", "mag", "value"], null, true)
+    ...intervalFields(["mag_avg_si", "ave_reading", "avg_reading", "mag_reading", "magsus1", "magsus", "mag_si", "mag_sus", "mag_avg", "mag", "value"], null, true) // mag_reading: #1345
       .map((f) => (f.key === "from" || f.key === "to" ? { ...f, required: false, label: `${f.label} (or Depth below)` } : f)),
     { key: "depth", label: "Depth (point readings, instead of From / To)", required: false, aliases: ["depth", "depth_m", "md", "at"] },
   ] },
   structure: { label: "Structure planes", fields: [
     { key: "hole_id", label: "Hole ID", required: true, aliases: ["hole_id", "holeid", "hole", "bhid", "dhid", "ddh", "ddh_id", "ddh_no"] },
-    { key: "depth", label: "Depth", required: true, aliases: ["depth_m", "depth", "at", "md"] },
-    { key: "value", label: "Structure type", required: true, aliases: ["structure_type", "type", "struct", "structure"] },
+    { key: "depth", label: "Depth", required: true, aliases: ["depth_m", "depth", "at", "md", "geolfrom", "from"] }, // geolfrom / from: #1345 (acQuire point table, GEOLFROM = GEOLTO)
+    { key: "value", label: "Structure type", required: true, aliases: ["structure_type", "stpt_feature", "type", "struct", "structure"] },
     { key: "dip", label: "Dip (optional)", required: false, aliases: ["inferred_dip_deg", "dip"] },
     { key: "azimuth", label: "Dip direction / dip azimuth (optional)", required: false, aliases: ["assumed_dip_azimuth", "dip_azimuth", "dip_direction", "dipdirection", "dip_dir", "dipdir", "ddir", "dd", "azimuth"] },
     // TASKS.csv #426 — strike (right-hand rule) is converted to dip direction = strike + 90 when there is
@@ -704,6 +704,13 @@ export function guessMapping(target, headers) {
   schema.fields.forEach((f) => { mapping[f.key] = guessColumn(headers, f.aliases); });
   // TASKS.csv #1071 — "Hole_Length" / "Hole_Depth" matched "hole" in the substring pass and became the Hole ID
   if (mapping.hole_id && /(length|depth|_len$|_m$|azi|dip|elev)/.test(normHeader(mapping.hole_id))) mapping.hole_id = "";
+  // TASKS.csv #1345 (42807Z) — MAG_INSTRUMENT matched "mag" and the mag-sus log loaded 0 of 6,264 rows: a numeric layer's value is
+  // never the instrument, the logger, a date or a comment
+  const notAValue = (h) => /(instrument|device|logged|entered|_by$|date|comment|desc|model|serial|srm_name|photo)/.test(normHeader(h));
+  if (schema.fields.some((f) => f.key === "value" && /numeric/.test(f.label)) && mapping.value && notAValue(mapping.value)) {
+    const vf = schema.fields.find((f) => f.key === "value");
+    mapping.value = guessColumn(headers.filter((h) => !notAValue(h)), vf.aliases);
+  }
   if (target === "structure") {
     const g = guessStructureColumns(headers);
     // Only where the structure-aware guesser found something: sample_data's inferred_dip_deg /
@@ -740,9 +747,12 @@ export function guessColumnExact(headers, aliases) {
 export function guessColumn(headers, aliases) {
   const forms = headerForms(headers);
   for (const a of aliases) { const i = forms.findIndex((f) => f[0] === a || f[1] === a); if (i >= 0) return headers[i]; }
-  for (const a of aliases) { if (a.length <= 2) continue; const i = forms.findIndex((f) => f[0].includes(a) || f[1].includes(a)); if (i >= 0) return headers[i]; }
+  for (const a of aliases) { if (a.length <= 2 || WHOLE_ONLY.has(a)) continue; const i = forms.findIndex((f) => f[0].includes(a) || f[1].includes(a)); if (i >= 0) return headers[i]; }
   return "";
 }
+// TASKS.csv #1345 (ARIS 42807Z) — "val" matched inside "GEO_INTERVAL_D" (inter-VAL), so an acQuire alteration log was coloured by
+// each interval's length. A last-resort alias that is a fragment of common words matches a whole header only.
+const WHOLE_ONLY = new Set(["val"]);
 export function guessTarget(headers) {
   // #600 (40958Z): the normalised forms too ("Mag Avg" -> mag_avg, "Specific Gravity" -> specific_gravity)
   const lower = [...new Set(headers.flatMap((h) => [h.toLowerCase(), normHeader(h)]))];
@@ -791,7 +801,8 @@ export function guessTarget(headers) {
   // column made the mag-sus log a lithology) or "vein" (a Sample_Type column), with the value unmapped.
   const base = lower.map((h) => h.trim().split(".").pop());
   const any = (re) => base.some((h) => re.test(h));
-  if ((has("from") || has("depth")) && any(/^(ave|avg)_reading$|^magsus\d*$|^mag_?sus(ceptibility)?(_si)?$|^mag_si$/)) return "magsusc"; // #605: point readings (depth) too
+  if ((has("from") || has("depth")) && any(/^(ave|avg)_reading$|^magsus\d*$|^mag_?sus(ceptibility)?(_si)?$|^mag_si$|^mag_reading$/)) return "magsusc"; // #605: point readings (depth) too; mag_reading: #1345
+  if (has("from") && any(/^sul(ph|f)?(ide)?s?_min_?1$/)) return "mnlgy"; // #1345 — a sulphide log (SUL_MIN_1, SUL_MIN_1_PCT) was read as lithology
   if (has("from") && any(/^bulkdens|^sg(_d|_calc)?$|^specific_gravity$/)) return "sg";
   if (has("from") && any(/^min\d*_code\d*$|^min_mnlgy$/)) return "mnlgy";
   // #600 (40958Z) — a domain log ("Domain Type": waste / ore zone...) is not veins (the bare "type" rule below) nor
@@ -807,6 +818,10 @@ export function guessTarget(headers) {
   // the mnlgy schema's own value-column aliases are just ["mineral"] (see TARGET_SCHEMAS.mnlgy
   // above) — a real mnlgy CSV never has an "assemblage" column, so that combined check could
   // never actually match one, and it fell through to the generic from/to→"litho" guess instead.
+  // TASKS.csv #1345 (42807Z) — oriented-core picks logged with GEOLFROM = GEOLTO (acQuire "STRUCTURE POINTS"): alpha AND beta columns, and no
+  // primary interval column matched above (a vein log with Vein1_Alpha / Vein1_Beta stays veins), so STPT_MINERALIZATION no longer sends
+  // 551 picks to Mineralization
+  if (any(/(^|_)alpha$/) && any(/(^|_)beta$/)) return "structure";
   if (has("mineral")) return "mnlgy";
   if (has("rqd")) return "geotech";
   if (has("recovery") || has("rec_pct")) return "recovery";
@@ -848,6 +863,7 @@ export function schemaSatisfied(target, mapping) {
 export function guessTargetFor(headers, name) {
   // #600 (40958Z) — a void / cavity log is not veins (its bare "Type" column hit the vein rule): ask, as custom
   if (/\b(voids?|cavit(y|ies))\b/i.test(String(name || ""))) return "custom";
+  if (/fluoresc/i.test(String(name || ""))) return "custom"; // #1345 — a UV fluorescence log is not lithology
   const hint = targetFromName(name);
   if (hint && schemaSatisfied(hint, guessMapping(hint, headers))) return hint;
   return guessTarget(headers);

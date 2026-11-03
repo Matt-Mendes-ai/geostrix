@@ -139,7 +139,7 @@ import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syn
 import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
 import { useModelling } from "./viewer/useModelling.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
-import { isMarkedQcRow } from "../lib/qaqc.js"; // TASKS.csv #601
+import { isMarkedQcRow } from "../lib/qaqcCore.js"; // TASKS.csv #601; qaqcCore: #1345
 import { loadGpkg, groupShapefileParts } from "../lib/viewer/importHelpers.js"; // TASKS.csv #445 step 3; groupShapefileParts #600
 import { useImportPipeline } from "./viewer/useImportPipeline.js"; // TASKS.csv #445 step 3
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1034 — the drillhole tables' stamp

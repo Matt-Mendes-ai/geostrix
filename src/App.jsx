@@ -139,7 +139,7 @@ export default function App() {
   // TASKS.csv #615 — one project-CRS dialog for every request (status bar, imports, online fetches); a second request
   // while one is open is answered with the same choice
   const [crsRequest, setCrsRequest] = useState(null); // { reason, resolvers: [] }
-  useEffect(() => onProjectCrsRequest(({ reason, points, resolve }) => setCrsRequest((cur) => (cur ? { ...cur, resolvers: [...cur.resolvers, resolve] } : { reason, points, resolvers: [resolve] }))), []);
+  useEffect(() => onProjectCrsRequest(({ reason, points, suggested, resolve }) => setCrsRequest((cur) => (cur ? { ...cur, resolvers: [...cur.resolvers, resolve] } : { reason, points, suggested, resolvers: [resolve] }))), []);
   const finishCrsRequest = (epsg) => setCrsRequest((cur) => { cur?.resolvers.forEach((r) => r(epsg)); return null; });
   const [shortcutsTab, setShortcutsTab] = useState(null); // null | "shortcuts" | "python" (#391) | "about"
   // TASKS.csv #598 — Help > Report a problem: { screenshot, crashed } while open; the window is captured BEFORE the
@@ -572,7 +572,7 @@ export default function App() {
 
       <StatusBar onEpsg={() => requestProjectCrs()} pyStatus={pyStatus} updater={updater} onHelp={() => setShortcutsTab("shortcuts")} onPython={() => setShortcutsTab("python")} />
       <ExportToast />
-      {crsRequest && <Suspense fallback={null}><ProjectCrsModal reason={crsRequest.reason} points={crsRequest.points} onDone={finishCrsRequest} /></Suspense>}
+      {crsRequest && <Suspense fallback={null}><ProjectCrsModal reason={crsRequest.reason} points={crsRequest.points} suggested={crsRequest.suggested} onDone={finishCrsRequest} /></Suspense>}
       {licensesOpen && <Suspense fallback={null}><LicensesModal onClose={() => setLicensesOpen(false)} /></Suspense>}
       {reportProblem && <Suspense fallback={null}><ReportProblemModal screenshot={reportProblem.screenshot} crashed={reportProblem.crashed} onClose={() => setReportProblem(null)} /></Suspense>}
       {shortcutsTab && <Suspense fallback={null}><ShortcutsModal initialTab={shortcutsTab} pyStatus={pyStatus} onClose={() => setShortcutsTab(null)} /></Suspense>}

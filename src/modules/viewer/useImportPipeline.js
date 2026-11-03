@@ -503,7 +503,11 @@ export function useImportPipeline(ctx) {
     if (m.target !== "collars" || live.project?.crsSet !== false || m.sourceEpsg || m.perRowEpsgCol || m.localGridOn) return;
     const xc = m.mapping?.x, yc = m.mapping?.y;
     const pts = xc && yc ? (m.allRows || []).map((r) => ({ x: parseFloat(String(r[xc]).replace(",", ".")), y: parseFloat(String(r[yc]).replace(",", ".")) })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y)) : null;
-    const chosen = await requestProjectCrs(`${String(m.fileName).replace(/ \(\d+ more queued\)$/, "")}: which coordinate system are these collar coordinates in? They are placed as they are, with no conversion.`, pts);
+    const { epsgFromColumns } = await import("../../lib/crsFromColumns.js"); // #1345 — the headers may name it
+    const named = epsgFromColumns(m.headers || Object.keys((m.allRows || [])[0] || {}));
+    const chosen = await requestProjectCrs(named
+      ? tr("{file}: the column names say these collars are in EPSG:{code}, chosen below. Check it on the map, then use it. They are placed as they are, with no conversion.", { file: String(m.fileName).replace(/ \(\d+ more queued\)$/, ""), code: named })
+      : `${String(m.fileName).replace(/ \(\d+ more queued\)$/, "")}: which coordinate system are these collar coordinates in? They are placed as they are, with no conversion.`, pts, named);
     if (chosen) importStateRef.current = { ...importStateRef.current, project: { ...importStateRef.current.project, epsg: chosen, crsSet: true } };
   };
 

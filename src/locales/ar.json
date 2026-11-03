@@ -6930,5 +6930,6 @@
   "Elevation change": "تغير الارتفاع",
   "Steepest grade": "أقصى ميل",
   "Tightest radius": "أضيق نصف قطر",
-  "{m} m of this line, in plan, is above the terrain.": "{m} م من هذا الخط، في المسقط، فوق التضاريس."
+  "{m} m of this line, in plan, is above the terrain.": "{m} م من هذا الخط، في المسقط، فوق التضاريس.",
+  "{file}: the column names say these collars are in EPSG:{code}, chosen below. Check it on the map, then use it. They are placed as they are, with no conversion.": "{file}: تقول أسماء الأعمدة إن هذه الفوهات بنظام EPSG:{code}، المختار أدناه. تحقق منه على الخريطة ثم استخدمه. تُوضع كما هي دون تحويل."
 }

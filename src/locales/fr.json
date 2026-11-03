@@ -6930,5 +6930,6 @@
   "Elevation change": "Variation d'altitude",
   "Steepest grade": "Pente maximale",
   "Tightest radius": "Rayon minimal",
-  "{m} m of this line, in plan, is above the terrain.": "{m} m de cette ligne, en plan, sont au-dessus du terrain."
+  "{m} m of this line, in plan, is above the terrain.": "{m} m de cette ligne, en plan, sont au-dessus du terrain.",
+  "{file}: the column names say these collars are in EPSG:{code}, chosen below. Check it on the map, then use it. They are placed as they are, with no conversion.": "{file} : les noms des colonnes indiquent que ces collets sont en EPSG:{code}, choisi ci-dessous. Vérifiez sur la carte, puis utilisez-le. Ils sont placés tels quels, sans conversion."
 }

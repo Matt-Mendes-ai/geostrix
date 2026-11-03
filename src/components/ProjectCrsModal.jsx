@@ -16,11 +16,11 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const CrsWorldMap = React.lazy(() => import("./CrsWorldMap.jsx")); // #1330
 
-export default function ProjectCrsModal({ reason, points, onDone }) {
+export default function ProjectCrsModal({ reason, points, suggested = null, onDone }) {
   const { project, collars: storeCollars, setEpsg, projectIsEmpty } = useStore();
   const collars = points?.length ? points : storeCollars; // the file being imported, when there is one
   const [where, setWhere] = useState("");
-  const [choice, setChoice] = useState(project.crsSet ? Number(project.epsg) : null);
+  const [choice, setChoice] = useState(project.crsSet ? Number(project.epsg) : suggested ? Number(suggested) : null); // suggested: #1345
   const [searchAll, setSearchAll] = useState(false);
   const cancel = () => onDone(null);
   useEscapeKey(cancel);

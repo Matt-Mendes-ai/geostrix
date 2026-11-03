@@ -5,8 +5,9 @@ import { t as tr } from "./i18n.js";
 const EVENT = "geostrix-request-project-crs";
 
 // points: [{ x, y }] about to be imported (not yet in the store), for the "your collars would be at …" check
-export function requestProjectCrs(reason = "", points = null) {
-  return new Promise((resolve) => window.dispatchEvent(new CustomEvent(EVENT, { detail: { reason, points, resolve } })));
+// suggested: an EPSG code the file itself names (#1345), chosen when the dialog opens; the user still confirms
+export function requestProjectCrs(reason = "", points = null, suggested = null) {
+  return new Promise((resolve) => window.dispatchEvent(new CustomEvent(EVENT, { detail: { reason, points, suggested, resolve } })));
 }
 
 export function onProjectCrsRequest(handler) {

@@ -8,6 +8,8 @@ const ADVICE = [
   { re: /\.geosoft_voxel$/i, what: "a Geosoft voxel (a closed format)", how: "export it as a UBC mesh + model or a block-model CSV" },
   { re: /\.dwg$/i, what: "an AutoCAD drawing (.dwg, a closed format)", how: "save or export it as .dxf from AutoCAD, DWG TrueView or any CAD program, then drop that" },
   { re: /\.(mdb|accdb)$/i, what: "a Microsoft Access database", how: "export the collar, survey and interval tables to CSV (in Access: External Data > Text File), then drop those" },
+  // TASKS.csv #1345 — 108 of these in the ARIS Sample Data folder (2004-2005 reports): the Excel 97-2003 binary format
+  { re: /\.xls$/i, what: "an Excel 97-2003 workbook (.xls)", how: "open it in Excel or LibreOffice and save it as .xlsx (or each sheet as CSV), then drop that" },
 ];
 
 // name -> one sentence for a notice, or null when the file is not one of these
