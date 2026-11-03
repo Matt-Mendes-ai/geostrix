@@ -61,6 +61,7 @@ import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.c
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { vectorToBoundaryPolylines } from "../lib/boundaryImport.js"; // TASKS.csv #1035
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
+import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
 const GradeTonnageModal = lazyModal(() => import("../components/GradeTonnageModal.jsx")); // TASKS.csv #1052 — loaded when opened
 
 // TASKS.csv #309 — the format reference that USED to be this tab's entire empty state: a twelve-line
@@ -684,6 +685,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       return vectorToBoundaryPolylines(parsed, project?.epsg);
     }
     if (name.endsWith(".gpkg")) {
+      checkGpkgSize(file); // #1716
       const buf = await file.arrayBuffer();
       const { layers } = await parseGeoPackage(buf);
       const layer = layers.find((l) => l.features.length);

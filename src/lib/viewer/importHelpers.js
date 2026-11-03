@@ -11,6 +11,7 @@ const loadShapefile = () => import("../shapefile.js");
 import { num, isOverturnedValue, targetFromName, guessTargetFor, guessColumn, TARGET_SCHEMAS } from "../layers.js";
 import { parseTableFile, parseTableText } from "../tabular.js";
 import { t as tr } from "../i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { checkGpkgSize } from "../gpkgSize.js"; // TASKS.csv #1716
 
 export function normInterval(r, mapping, customFields) {
   return applyCustomFields({
@@ -268,6 +269,7 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
   }
   if (name.endsWith(".gpkg")) {
     let gpkgFeaturesToRows;
+    try { checkGpkgSize(file); } catch (e) { onDone(null, e.message); return; } // #1716
     Promise.all([file.arrayBuffer(), loadGpkg()]).then(([buf, g]) => { gpkgFeaturesToRows = g.gpkgFeaturesToRows; return g.parseGeoPackage(buf); }).then(({ layers }) => {
       const usable = layers.filter((l) => l.features.length);
       if (!usable.length) { onDone(null, "No usable point/line features found in this GeoPackage."); return; }

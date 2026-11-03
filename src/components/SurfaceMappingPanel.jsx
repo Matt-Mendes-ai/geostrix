@@ -30,6 +30,7 @@ import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
 import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
 import { toExportCsv } from "../lib/tabular.js";
+import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
 
 export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { // part: "maps" | "structures" | null = both (TASKS.csv #458)
   const {
@@ -134,6 +135,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
           if (!layers.length) throw new Error(tr("no points, lines or polygons in this file"));
           layers.forEach((l) => addParsed({ ...l, name: layers.length > 1 ? l.name : null }, base(f), { wgs84: true }));
         } else if (n.endsWith(".gpkg")) {
+          checkGpkgSize(f); // #1716 — refused before reading when too big
           const { layers } = await parseGeoPackage(await f.arrayBuffer());
           const usable = layers.filter((l) => l.features.length);
           if (!usable.length) throw new Error(tr("no feature tables with geometry"));
