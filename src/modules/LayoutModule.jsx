@@ -10,7 +10,7 @@ import PromptModal from "../components/PromptModal.jsx";
 import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape } from "../lib/legendGroups.js"; // TASKS.csv #725; #948
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
-import { withLiveScaleBars, relinkCopies, tieStarterFurniture } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924
+import { withLiveScaleBars, relinkCopies, tieStarterFurniture, northRotationOf } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
 import { capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; section scale: #944
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
@@ -548,6 +548,11 @@ export default function LayoutModule() {
     if (type === "text") base.text = "Text", base.w = 200;
     if (type === "logo") logoInput.current.click();
     if (type === "scale") { base.meters = 100; base.pxPerMeter = DEFAULT_PX_PER_METER; }
+    if (type === "north") { // TASKS.csv #1632 — tied to the selected view, else the page's only view with a camera azimuth
+      const views = elements.filter((el) => el.type === "viewport" && el.cameraAzimuthDeg != null);
+      const vp = views.find((v) => v.id === selected) || (views.length === 1 ? views[0] : null);
+      if (vp) { base.boundTo = vp.id; base.rotation = northRotationOf(vp); }
+    }
     if (type === "legend") {
       // TASKS.csv #1224 — what the 3D view shows now, bound to the page's viewport if there is just one: a stock row on a printed figure says nothing true
       const { items } = legendFromView(viewerUiState || {});
@@ -1006,10 +1011,15 @@ export default function LayoutModule() {
             {/* Manual rotation for elements other than "viewport" (which has its own Rotation field
                 inside ViewportControls below) — mainly for the north arrow (TASKS.csv #67), whether
                 set by hand or nudged after "Sync north arrow". */}
-            {sel.type === "north" && (
-              <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Rotation (°)")}<input type="number" value={sel.rotation || 0} onChange={(e) => updateSelected({ rotation: Number(e.target.value) || 0 })} style={inp} />
-              </label>
-            )}
+            {sel.type === "north" && (() => {
+              // TASKS.csv #1632 — a tied arrow shows its view's live angle; typing an angle unties it
+              const live = sel.boundTo ? northRotationOf(elements.find((v) => v.id === sel.boundTo)) : null;
+              return (<>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Rotation (°)")}<input type="number" value={Math.round((live ?? sel.rotation ?? 0) * 10) / 10} onChange={(e) => updateSelected({ rotation: Number(e.target.value) || 0, boundTo: null })} style={inp} />
+                </label>
+                {live != null && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("Follows its view's north. Typing an angle frees it.")}</div>}
+              </>);
+            })()}
             {/* TASKS.csv #399 — grid / true / magnetic north diagram. Assessment-report maps are expected to
                 declare which north they show; the plain arrow is GRID north. Convergence and IGRF-14
                 declination are computed for a date at the centre of the first top-down viewport capture on
@@ -1109,11 +1119,12 @@ export default function LayoutModule() {
                   // that angle is derived (reuses the compass rose's own -theta formula).
                   if (sel.cameraAzimuthDeg == null) return;
                   // #1477 — a frame turned on the sheet turns its north with it: the arrow is the camera azimuth plus the frame's rotation
-                  const deg = (((sel.cameraAzimuthDeg + (Number(sel.rotation) || 0)) % 360) + 360) % 360;
+                  // #1632 — and the arrow is tied to this view from now on (it follows refreshes, fits and rescales)
+                  const deg = northRotationOf(sel);
                   setElements((els) => {
                     const hasNorth = els.some((el) => el.type === "north");
-                    if (hasNorth) return els.map((el) => el.type === "north" ? { ...el, rotation: deg } : el);
-                    return [...els, { id: `north_${Date.now()}`, type: "north", x: 1000, y: 40, rotation: deg }];
+                    if (hasNorth) return els.map((el) => el.type === "north" ? { ...el, rotation: deg, boundTo: sel.id } : el);
+                    return [...els, { id: `north_${Date.now()}`, type: "north", x: 1000, y: 40, rotation: deg, boundTo: sel.id }];
                   });
                 }}
               />

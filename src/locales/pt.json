@@ -7061,5 +7061,6 @@
   "Remove": "Remover",
   "{v} of the solid lies above the terrain and was left out (air, not the unit).": "{v} do sólido fica acima do terreno e foi excluído (ar, não a unidade).",
   "{v} of the solid lies above the ground between the collars and was left out (air, not the unit; load a terrain for the real surface).": "{v} do sólido fica acima do solo interpolado entre as bocas de furo e foi excluído (ar, não a unidade; carregue um terreno para a superfície real).",
-  "The target is above the collar, so the solved hole points upward. From a surface collar that is not a hole you can drill: check the target's elevation.": "O alvo está acima da boca do furo, então o furo resolvido aponta para cima. A partir de uma boca na superfície isso não é perfurável: confira a elevação do alvo."
+  "The target is above the collar, so the solved hole points upward. From a surface collar that is not a hole you can drill: check the target's elevation.": "O alvo está acima da boca do furo, então o furo resolvido aponta para cima. A partir de uma boca na superfície isso não é perfurável: confira a elevação do alvo.",
+  "Follows its view's north. Typing an angle frees it.": "Segue o norte da sua vista. Digitar um ângulo a libera."
 }

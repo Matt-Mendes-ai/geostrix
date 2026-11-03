@@ -15,6 +15,7 @@ const SCALE_BAR_PX = 180; // LayoutModule's default bar length (px) for a fresh 
 const BAR_MIN_PX = 40, BAR_MAX_PX = 600;
 export function withLiveScaleBars(els) {
   return (els || []).map((el) => {
+    if (el.type === "north" && el.boundTo) return liveNorth(el, els);
     if (el.type !== "scale" || !el.boundTo) return el;
     const vp = els.find((v) => v.id === el.boundTo);
     if (!vp) return el;
@@ -31,6 +32,16 @@ export function withLiveScaleBars(els) {
   });
 }
 
+// TASKS.csv #1632 (review #1497, Lawyers) — a north arrow tied to a view follows it as the bar does: its rotation is the view's
+// camera azimuth plus the frame's own rotation on the sheet (#1477), at every refresh, fit, rescale or theme rebind. It was set
+// once: after Fit the holes turned the frame north-up, the arrow still showed the first oblique capture's 45°. A view without
+// a camera azimuth (an image, a section snapshot), or one that is gone, leaves the arrow as it was.
+export const northRotationOf = (vp) => (vp && vp.cameraAzimuthDeg != null ? ((((vp.cameraAzimuthDeg + (Number(vp.rotation) || 0)) % 360) + 360) % 360) : null);
+function liveNorth(el, els) {
+  const deg = northRotationOf(els.find((v) => v.id === el.boundTo));
+  return deg == null || deg === el.rotation ? el : { ...el, rotation: deg };
+}
+
 // TASKS.csv #1320 — the default page's scale bar and north arrow start tied to nothing: beside a view 10 km across the bar
 // still printed "100 m", wrong by 100 times. The first view placed on the page takes them. A bar from Add scale bar has its
 // own pxPerMeter, and a retyped length differs from the starter's 100 m: those were the user's choice and stay free.
@@ -42,7 +53,7 @@ export function tieStarterFurniture(els, view) {
   if (!bar && !north) return els;
   return els.map((el) => {
     if (el === bar) return { ...el, boundTo: view.id, pxPerMeter: ppm, meters: niceScaleNumber(SCALE_BAR_PX / ppm) };
-    if (el === north) return { ...el, rotation: view.cameraAzimuthDeg };
+    if (el === north) return { ...el, rotation: northRotationOf(view), boundTo: view.id }; // #1632 — and follows it
     return el;
   });
 }

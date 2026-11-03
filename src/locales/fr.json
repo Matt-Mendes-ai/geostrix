@@ -7061,5 +7061,6 @@
   "Remove": "Supprimer",
   "{v} of the solid lies above the terrain and was left out (air, not the unit).": "{v} du solide est au-dessus du terrain et a été exclu (de l'air, pas l'unité).",
   "{v} of the solid lies above the ground between the collars and was left out (air, not the unit; load a terrain for the real surface).": "{v} du solide est au-dessus du sol interpolé entre les collets et a été exclu (de l'air, pas l'unité ; chargez un terrain pour la vraie surface).",
-  "The target is above the collar, so the solved hole points upward. From a surface collar that is not a hole you can drill: check the target's elevation.": "La cible est au-dessus du collet : le sondage résolu pointe vers le haut. Depuis un collet en surface, ce n'est pas un sondage forable : vérifiez l'altitude de la cible."
+  "The target is above the collar, so the solved hole points upward. From a surface collar that is not a hole you can drill: check the target's elevation.": "La cible est au-dessus du collet : le sondage résolu pointe vers le haut. Depuis un collet en surface, ce n'est pas un sondage forable : vérifiez l'altitude de la cible.",
+  "Follows its view's north. Typing an angle frees it.": "Suit le nord de sa vue. Saisir un angle la libère."
 }

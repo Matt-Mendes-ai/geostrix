@@ -20,7 +20,9 @@ test("#1476 / #1477: Fit the holes uses the desurveyed traces; Sync north adds t
   const s = fs.readFileSync("src/modules/LayoutModule.jsx", "utf8");
   const fit = s.slice(s.indexOf("const fitViewport = async (sel) => {"), s.indexOf("const onResizeStart"));
   assert.match(fit, /holeTraces\(collars, survey, project\?\.desurveyMethod\)/);
-  assert.match(s, /sel\.cameraAzimuthDeg \+ \(Number\(sel\.rotation\) \|\| 0\)/);
+  // #1632 — the formula moved to layoutLinks.northRotationOf (Sync and the live arrow share it)
+  assert.match(s, /const deg = northRotationOf\(sel\);/);
+  assert.match(fs.readFileSync("src/lib/layoutLinks.js", "utf8"), /vp\.cameraAzimuthDeg \+ \(Number\(vp\.rotation\) \|\| 0\)/);
 });
 
 test("#1479: a frame's capture is 300 dpi of its printed size, 600 px at least, 3,000 at most", async () => {
