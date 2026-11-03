@@ -7081,5 +7081,7 @@
   "{n} zero value(s). In a pXRF file a zero usually means not detected. What do they mean here?": "{n} valor(es) cero. En un archivo pXRF un cero suele significar no detectado. ¿Qué significan aquí?",
   "Below detection (stored as \"<\" at half the smallest reading in that column)": "Bajo el límite de detección (guardado como \"<\" a la mitad de la lectura más baja de esa columna)",
   "A real measured zero": "Un cero medido real",
-  "No collars are loaded, so these {label} for {n} hole(s) ({ex}{v}) cannot be drawn yet: they are kept, and appear once collars with those hole ids are imported.": "No hay collares cargados, así que estos {label} de {n} sondaje(s) ({ex}{v}) aún no se pueden dibujar: se conservan y aparecerán al importar collares con esos identificadores."
+  "No collars are loaded, so these {label} for {n} hole(s) ({ex}{v}) cannot be drawn yet: they are kept, and appear once collars with those hole ids are imported.": "No hay collares cargados, así que estos {label} de {n} sondaje(s) ({ex}{v}) aún no se pueden dibujar: se conservan y aparecerán al importar collares con esos identificadores.",
+  "{name}: none of its {n} features comes within reach of the project's holes and samples, so nothing was imported (check its CRS if it should).": "{name}: ninguno de sus {n} elementos se acerca a los sondajes y muestras del proyecto, así que no se importó nada (revise su CRS si debería).",
+  "{name}: {kept} of its {total} features lie near the project; the rest, far from the holes and samples, were left out.": "{name}: {kept} de sus {total} elementos están cerca del proyecto; el resto, lejos de los sondajes y muestras, se dejó fuera."
 }

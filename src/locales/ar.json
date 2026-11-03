@@ -7081,5 +7081,7 @@
   "{n} zero value(s). In a pXRF file a zero usually means not detected. What do they mean here?": "{n} قيمة صفرية. في ملف pXRF يعني الصفر عادةً عدم الكشف. ماذا تعني هنا؟",
   "Below detection (stored as \"<\" at half the smallest reading in that column)": "دون حد الكشف (يُخزَّن \"<\" عند نصف أصغر قراءة في ذلك العمود)",
   "A real measured zero": "صفر مقاس فعلي",
-  "No collars are loaded, so these {label} for {n} hole(s) ({ex}{v}) cannot be drawn yet: they are kept, and appear once collars with those hole ids are imported.": "لا توجد فوهات محمّلة، لذا لا يمكن رسم {label} هذه لـ {n} ثقبًا ({ex}{v}) بعد: تُحفظ وتظهر بمجرد استيراد فوهات بهذه المعرّفات."
+  "No collars are loaded, so these {label} for {n} hole(s) ({ex}{v}) cannot be drawn yet: they are kept, and appear once collars with those hole ids are imported.": "لا توجد فوهات محمّلة، لذا لا يمكن رسم {label} هذه لـ {n} ثقبًا ({ex}{v}) بعد: تُحفظ وتظهر بمجرد استيراد فوهات بهذه المعرّفات.",
+  "{name}: none of its {n} features comes within reach of the project's holes and samples, so nothing was imported (check its CRS if it should).": "{name}: لا يقترب أي من عناصره البالغة {n} من ثقوب المشروع وعيّناته، لذا لم يُستورد شيء (تحقق من نظام إحداثياته إن كان ينبغي ذلك).",
+  "{name}: {kept} of its {total} features lie near the project; the rest, far from the holes and samples, were left out.": "{name}: {kept} من أصل {total} عنصرًا قريبة من المشروع؛ والباقي، البعيد عن الثقوب والعيّنات، استُبعد."
 }

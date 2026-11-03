@@ -15,7 +15,7 @@ import InfoButton from "./InfoButton.jsx";
 import { parseShapefileZip, parseShapefileParts, listZipNames, readZipEntries } from "../lib/shapefile.js";
 import { parseGeoPackage } from "../lib/gpkg.js";
 import { guessEpsgFromPrjWkt, reprojectXY, getProj4DefSync, crsName, pointTransform, turnGridBearing, bearingTurn } from "../lib/reproject.js";
-import { buildLayer, findField, autoColorFor } from "../lib/mapLayerBuild.js"; // TASKS.csv #609 — shared with the 3D-view drop
+import { buildLayer, findField, autoColorFor, projectClipBox } from "../lib/mapLayerBuild.js"; // TASKS.csv #609 — shared with the 3D-view drop
 import { askAdoptCrs } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import {
   parseQmlStyle, autoCategories, applyQmlToCategories,
@@ -36,7 +36,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     project, terrain, projectIsEmpty, setEpsg, // #607
     mapLayers, addMapLayer, updateMapLayer, removeMapLayer,
     surfaceStructures, addSurfaceStructureSet, updateSurfaceStructureSet, removeSurfaceStructureSet,
-  collars = [], /* #1325 */ } = useStore();
+  collars = [], /* #1325 */ surfaceSamples = [], /* #1715 */ } = useStore();
   const mapInput = useRef(null);
   const qmlInput = useRef(null);
   const qmlTargetRef = useRef(null);
@@ -104,7 +104,9 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       const adopted = wgs84 ? null : askAdoptCrs({ isEmpty: empty, currentEpsg: projectEpsg, declaredEpsg: mapSourceEpsg || parsed.epsg, fileName: sourceName });
       if (adopted) { setEpsg(adopted); projectEpsg = adopted; done.push(tr("project CRS set to EPSG:{epsg}", { epsg: adopted })); }
       empty = false;
-      let layer = buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride: mapSourceEpsg });
+      // #1715 — clipped to the project area (collars, surface samples) when there is one
+      let layer = buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride: mapSourceEpsg, clipTo: projectClipBox([...(collars || []), ...(surfaceSamples || [])]) });
+      if (layer?.outside) { failed.push(tr("{name}: none of its {n} features comes within reach of the project's holes and samples, so nothing was imported (check its CRS if it should).", { name: sourceName, n: layer.outside.toLocaleString() })); return; }
       if (!layer) { failed.push(tr("{name}: no usable features", { name: `${sourceName}${parsed.name ? ` (${parsed.name})` : ""}` })); return; }
       // #1325 — a layer with no units to tell apart gets a colour of its own: a batch used to be one amber
       if (!qml && layer.categories.length <= 1) { const color = CATEGORICAL_SAFE_COLORS[colourAt % CATEGORICAL_SAFE_COLORS.length]; layer = { ...layer, color, categories: layer.categories.map((c) => ({ ...c, color })) }; }
@@ -113,6 +115,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       layersAdded++;
       addMapLayer({ ...layer, drapeMode: terrain ? "terrain" : "flat" });
       // TASKS.csv #1116 — whole phrases (the geometry name used to take an English "s")
+      if (layer.clipped) done.push(tr("{name}: {kept} of its {total} features lie near the project; the rest, far from the holes and samples, were left out.", { name: layer.name, kept: layer.clipped.kept.toLocaleString(), total: layer.clipped.total.toLocaleString() })); // #1715
       done.push(`${layer.name}: ${featureCountText(layer.features.length, layer.geomType)}${layer.skipped ? ` (${tr("{n} empty/unsupported skipped", { n: layer.skipped })})` : ""}, ${layer.crsNote}${qml ? `, ${tr("styled from .qml")}` : ""}`);
     };
     for (const f of files) {

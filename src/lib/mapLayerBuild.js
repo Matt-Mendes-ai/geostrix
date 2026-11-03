@@ -20,7 +20,20 @@ export const autoColorFor = () => {
 // Builds a store-ready map layer from a parsed vector layer. Reprojects into the project CRS when the
 // source CRS is known and differs (and both are codes reproject.js can build); otherwise the coordinates
 // are taken as already being in the project CRS, and the returned note says so.
-export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride }) {
+// TASKS.csv #1715 (review #1645, Copley) — the project area a map layer is clipped to: the collars and surface samples (project CRS),
+// widened by their own size or 5 km, whichever is more. null with nothing to measure (a first import sets the area itself).
+export function projectClipBox(points) {
+  let xmin = Infinity, ymin = Infinity, xmax = -Infinity, ymax = -Infinity;
+  for (const p of points || []) { if (!Number.isFinite(p?.x) || !Number.isFinite(p?.y)) continue; if (p.x < xmin) xmin = p.x; if (p.x > xmax) xmax = p.x; if (p.y < ymin) ymin = p.y; if (p.y > ymax) ymax = p.y; }
+  if (!Number.isFinite(xmin)) return null;
+  const pad = Math.max(5000, Math.hypot(xmax - xmin, ymax - ymin));
+  return [xmin - pad, ymin - pad, xmax + pad, ymax + pad];
+}
+
+// clipTo (optional, #1715): [xmin, ymin, xmax, ymax] in the project CRS — features whose extent lies wholly outside are left out BEFORE
+// reprojection (a province-wide map: 33,532 polygons, none within 70 km of Copley, froze the window 28 s and took the autosave to 113 MB).
+// The result carries clipped: { kept, total }; when nothing is inside, { outside: total } (and no layer).
+export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverride, clipTo = null }) {
   // #488 — a Source CRS chosen in the panel wins over the file's own (.prj / GeoPackage) CRS
   const src = sourceOverride ? Number(sourceOverride) : parsed.epsg ? Number(parsed.epsg) : null;
   const dst = projectEpsg ? Number(projectEpsg) : null;
@@ -38,6 +51,21 @@ export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverrid
   } else {
     crsNote = `EPSG:${src}`;
   }
+  let clipped = null;
+  if (clipTo && (parsed.features || []).length) {
+    const tf = transform || ((x, y) => [x, y]);
+    const total = parsed.features.length;
+    const inside = parsed.features.filter((f) => {
+      let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
+      for (const part of (f.parts && f.parts.length ? f.parts : [f.geometry || []])) for (const pt of part) { const x = pt[0], y = pt[1]; if (x < a) a = x; if (x > c) c = x; if (y < b) b = y; if (y > d) d = y; }
+      if (!Number.isFinite(a)) return false;
+      const cs = [tf(a, b), tf(a, d), tf(c, b), tf(c, d)];
+      const xs = cs.map((q) => q[0]), ys = cs.map((q) => q[1]);
+      return Math.max(...xs) >= clipTo[0] && Math.min(...xs) <= clipTo[2] && Math.max(...ys) >= clipTo[1] && Math.min(...ys) <= clipTo[3];
+    });
+    if (!inside.length) return { outside: total, sourceName, crsNote };
+    if (inside.length < total) { parsed = { ...parsed, features: inside }; clipped = { kept: inside.length, total }; }
+  }
   const norm = normalizeMapLayer(parsed, transform);
   if (!norm.features.length) return null;
   const qmlField = findField(norm.fields, qml?.field);
@@ -49,7 +77,7 @@ export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverrid
     sourceName, geomType: norm.geomType, features: norm.features, fields: norm.fields, bbox: norm.bbox,
     styleField, categories,
     opacity: qml ? Math.max(0.15, qml.opacity) : (norm.geomType === "polygon" ? 0.6 : 1),
-    sourceEpsg: src, crsNote, skipped: parsed.skippedCount || 0,
+    sourceEpsg: src, crsNote, skipped: parsed.skippedCount || 0, ...(clipped ? { clipped } : {}),
   };
 }
 
