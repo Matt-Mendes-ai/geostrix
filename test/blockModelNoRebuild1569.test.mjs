@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 const src = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
 
 test("the big build depends on the block models only for a project without holes", () => {
-  assert.ok(src.includes('collars.length ? "" : voxelGeomSignature /* #1569 — with holes, only the fit box below */'));
+  assert.ok(src.includes('noHoles && voxelGeomSignature /* #1569 — with holes, only the fit box below */'));
   assert.ok(!/, voxelGeomSignature, fitBox,/.test(src));
 });
 
