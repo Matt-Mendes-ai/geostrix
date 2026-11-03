@@ -8,6 +8,9 @@ import { colors } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1048 — the legend drawn into the PNG
 import { levelPlanFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1017
 import { saveFile } from "../lib/desktop.js"; // TASKS.csv #1114 — the native save dialog, as every other export (#444)
+import { planLegend } from "../lib/levelPlanLegend.js"; // TASKS.csv #1404
+import { resolveLabels } from "../lib/sectionLabels.js"; // TASKS.csv #1404 — the sections' label declutter (#1144)
+import { LAYER_META } from "../lib/layers.js";
 
 // TASKS.csv #525 — the LEVEL PLAN window: a horizontal section at an RL, at true scale with E / N axes, a scale bar
 // and a north arrow. What the plane z = RL cuts — and what lies in the slab RL ± half-width — comes from
@@ -56,6 +59,13 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
   const data = useMemo(() => buildRef.current(Number(rl), Math.max(0.1, Number(half) || 0)), [rl, half, rev]);
   const layerKeys = useMemo(() => [...new Set(data.intervals.map((iv) => iv.layer))], [data]);
   const activeLayer = layerKeys.includes(colourBy) ? colourBy : layerKeys.includes("litho") ? "litho" : layerKeys[0] || "";
+  // #1404 — the legend is the "Colour holes by" layer (categories, or a numeric layer's colours at their values) plus the
+  // structure symbols drawn on the plan; it used to list every layer whichever one filled the pierce points
+  const legend = useMemo(() => {
+    const L = planLegend(data.intervals, activeLayer, { numeric: !!LAYER_META[activeLayer]?.numeric });
+    const structs = (data.legendItems || []).filter(([label]) => /^Structure/.test(label));
+    return [...L.items.map(([n, c]) => [L.title ? `${L.title}: ${n}` : n, c]), ...structs];
+  }, [data, activeLayer]);
 
   // a fixed frame for the whole project (from every hole's full trace), so moving the RL doesn't rescale the plan
   const frame = useMemo(() => {
@@ -133,7 +143,6 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
 
   const exportPng = async (toLayout) => {
     // TASKS.csv #1048 — the legend (HTML under the plan) drawn into the PNG; exportSvgMarkup as every other figure (#1089)
-    const legend = data.legendItems || [];
     const { markup, width: fw, height: fh } = exportSvgMarkup(svgRef.current, { furniture: levelPlanFurniture(legend) }); // #1017 — in lib, tested
     const url = URL.createObjectURL(new Blob([markup], { type: "image/svg+xml" }));
     const img = new Image();
@@ -159,7 +168,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
           <input type="range" min={Math.floor(zRange[0])} max={Math.ceil(zRange[1])} step={1} value={rl} onChange={(e) => setRl(e.target.value)} style={{ width: 160 }} aria-label={tr("Plan elevation slider")} />
           <label style={ctrl} title={tr("Hole runs, logs, assays and structures within this distance above and below the RL are drawn")}>{tr("± slab (m)")}{" "}<input type="number" min={0.1} step="any" value={half} onChange={(e) => setHalf(e.target.value)} style={{ ...inp, width: 56 }} aria-label={tr("Slab half-width")} /></label>
           {layerKeys.length > 0 && (
-            <label style={ctrl}>{tr("Colour holes by")}<select value={activeLayer} onChange={(e) => setColourBy(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Colour holes by")}>
+            <label style={ctrl} title={tr("The interval layers shown in the 3D View are offered here: turn a layer on there (Recovery %, for example) to colour the plan by it")}>{tr("Colour holes by")}<select value={activeLayer} onChange={(e) => setColourBy(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Colour holes by")}>
                 {layerKeys.map((k) => <option key={k} value={k}>{(data.intervals.find((iv) => iv.layer === k)?.label || k).split(":")[0]}</option>)}
               </select>
             </label>
@@ -200,9 +209,14 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
               <circle cx={X(pc.x)} cy={Y(pc.y)} r={4.6} fill={(pc.logs || []).find((l) => l.layer === activeLayer)?.color || "#ffffff"} stroke="#1a2028" strokeWidth={1.6}>
                 <title>{[tr("{hole_id} pierces {rl} m at {md} m", { hole_id: h.hole_id, rl, md: pc.md.toFixed(1) }), ...(pc.logs || []).map((l) => l.label), ...(pc.assays || [])].join("\n")}</title>
               </circle>
-              {labels && <text x={X(pc.x) + 6} y={Y(pc.y) - 5} fontSize="10.5" fill="#1a2028" stroke="#ffffff" strokeWidth={2.5} paintOrder="stroke">{h.hole_id}</text>}
             </g>
           )))}
+          {/* #1404 — hole ids through the sections' declutter (#1144): a fan's collars no longer print over each other */}
+          {labels && resolveLabels(
+            data.holes.flatMap((h) => h.pierce.map((pc, i) => { const x = X(pc.x), y = Y(pc.y); return { key: `${h.hole_id}_${i}`, text: h.hole_id, size: 10.5, prio: 2, cands: [{ x: x + 6, y: y - 5, anchor: "start" }, { x: x + 6, y: y + 13, anchor: "start" }, { x: x - 6, y: y - 5, anchor: "end" }, { x: x - 6, y: y + 13, anchor: "end" }] }; })),
+            data.holes.flatMap((h) => h.pierce.map((pc) => ({ x: X(pc.x), y: Y(pc.y) + 5, w: 11, h: 11 }))),
+            { bounds: [2, W - 2], yBounds: [20, H - 2] },
+          ).map((l) => <g key={`hl${l.key}`}>{l.leaderFrom && <line x1={l.leaderFrom.x} y1={l.leaderFrom.y} x2={l.x} y2={l.y - 4} stroke="#7a8494" strokeWidth={0.6} />}<text x={l.x} y={l.y} fontSize="10.5" textAnchor={l.anchor} fill="#1a2028" stroke="#ffffff" strokeWidth={2.5} paintOrder="stroke">{l.text}</text></g>)}
           {/* the outline being drawn */}
           {pts.length > 0 && <path d={path(hover && drawing ? [...pts, hover] : pts) + (pts.length > 2 && !drawing ? " Z" : "")} stroke="#d1495b" strokeWidth={1.8} fill="rgba(209,73,91,0.08)" />}
           {pts.map((p, i) => <circle key={`d${i}`} cx={X(p[0])} cy={Y(p[1])} r={2.6} fill="#d1495b" />)}
@@ -221,10 +235,10 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
           <button style={btn} onClick={() => exportPng(false)}><Download size={14} />{" "}{tr("PNG")}</button>
           <button style={btn} onClick={() => exportPng(true)}>{tr("Add to Layout")}</button>
         </div>
-        {data.legendItems.length > 0 && (
+        {legend.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 12px", marginTop: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", maxWidth: W }}>
-            {data.legendItems.slice(0, 40).map(([label, color]) => <span key={label + color} style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 10, background: color, borderRadius: 2, border: "1px solid var(--color-border)" }} />{label}</span>)}
-            {data.legendItems.length > 40 && <span>{tr("+ {v} more", { v: data.legendItems.length - 40 })}</span>}
+            {legend.slice(0, 40).map(([label, color]) => <span key={label + color} style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ width: 10, height: 10, background: color, borderRadius: 2, border: "1px solid var(--color-border)" }} />{label}</span>)}
+            {legend.length > 40 && <span>{tr("+ {v} more", { v: legend.length - 40 })}</span>}
           </div>
         )}
         {note && <div role="status" style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{note}</div>}

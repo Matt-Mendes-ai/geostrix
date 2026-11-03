@@ -7024,5 +7024,6 @@
   "No oriented-core vein measurements lie within {tol} m of these intercepts.": "Aucune mesure de veine sur carotte orientée ne se trouve à {tol} m ou moins de ces intersections.",
   "{type}: {core} core + {outcrop} outcrop": "{type} : {core} sur carotte + {outcrop} à l'affleurement",
   "{type} (outcrop)": "{type} (affleurement)",
-  "Filled poles: core; open poles: outcrop": "Pôles pleins : carotte ; pôles vides : affleurement"
+  "Filled poles: core; open poles: outcrop": "Pôles pleins : carotte ; pôles vides : affleurement",
+  "The interval layers shown in the 3D View are offered here: turn a layer on there (Recovery %, for example) to colour the plan by it": "Les couches d'intervalles affichées dans la vue 3D sont proposées ici : activez-en une là-bas (Récupération %, par exemple) pour colorer le plan selon elle"
 }

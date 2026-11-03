@@ -7024,5 +7024,6 @@
   "No oriented-core vein measurements lie within {tol} m of these intercepts.": "No hay mediciones de vetas en testigo orientado a menos de {tol} m de estas intersecciones.",
   "{type}: {core} core + {outcrop} outcrop": "{type}: {core} en testigo + {outcrop} en afloramiento",
   "{type} (outcrop)": "{type} (afloramiento)",
-  "Filled poles: core; open poles: outcrop": "Polos rellenos: testigo; polos abiertos: afloramiento"
+  "Filled poles: core; open poles: outcrop": "Polos rellenos: testigo; polos abiertos: afloramiento",
+  "The interval layers shown in the 3D View are offered here: turn a layer on there (Recovery %, for example) to colour the plan by it": "Aquí se ofrecen las capas de intervalos visibles en la Vista 3D: active una capa allí (Recuperación %, por ejemplo) para colorear la planta con ella"
 }
