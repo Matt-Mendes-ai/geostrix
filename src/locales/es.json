@@ -7088,5 +7088,6 @@
   "Grades capped at {cap} {unit} before estimating.": "Leyes cortadas a {cap} {unit} antes de estimar.",
   "Open Planned holes aimed at the zone's point farthest from the drilling: choose a collar, then Solve": "Abrir Sondajes planificados apuntando al punto de la zona más alejado de la perforación: elija un collar y luego Resolver",
   "Azimuth (grid)": "Azimut (cuadrícula)",
-  "* From the shallowest survey station: the collar record has none for that value.": "* De la estación de levantamiento más somera: el registro del collar no tiene ese valor."
+  "* From the shallowest survey station: the collar record has none for that value.": "* De la estación de levantamiento más somera: el registro del collar no tiene ese valor.",
+  "No below-detection results in this element, so its lowest value ({dl} {unit}) is not a detection limit: every pair counts.": "Este elemento no tiene resultados bajo el límite de detección, así que su valor más bajo ({dl} {unit}) no es un límite de detección: todos los pares cuentan."
 }

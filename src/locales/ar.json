@@ -7088,5 +7088,6 @@
   "Grades capped at {cap} {unit} before estimating.": "قُصّت المحتويات عند {cap} {unit} قبل التقدير.",
   "Open Planned holes aimed at the zone's point farthest from the drilling: choose a collar, then Solve": "افتح الثقوب المخططة موجّهة إلى نقطة المنطقة الأبعد عن الحفر: اختر فوهة ثم حُلّ",
   "Azimuth (grid)": "السمت (الشبكة)",
-  "* From the shallowest survey station: the collar record has none for that value.": "* من أضحل محطة مسح: لا يحتوي سجل الفوهة على هذه القيمة."
+  "* From the shallowest survey station: the collar record has none for that value.": "* من أضحل محطة مسح: لا يحتوي سجل الفوهة على هذه القيمة.",
+  "No below-detection results in this element, so its lowest value ({dl} {unit}) is not a detection limit: every pair counts.": "لا توجد نتائج دون حد الكشف لهذا العنصر، لذا فإن أصغر قيمة له ({dl} {unit}) ليست حد كشف: تُحتسب كل الأزواج."
 }

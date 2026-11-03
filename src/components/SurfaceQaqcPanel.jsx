@@ -72,7 +72,7 @@ export default function SurfaceQaqcPanel({ onClose }) {
   const stds = useMemo(() => standardsByCode(records, symbol, units, crmCertificates), [records, symbol, units, crmCertificates]);
   const std = stds.find((g) => g.code === stdCode) || stds[0] || null;
   const blanks = useMemo(() => blankResults(records, symbol, units, blankLimit), [records, symbol, units, blankLimit]);
-  const pairs = useMemo(() => duplicatePairsSurface(records, surfaceSamples, symbol, units, { rpd: settings.rpd, floor: dl.limit ? settings.pairFloorMultiple * dl.limit : 0 }), [records, surfaceSamples, symbol, units, settings, dl]);
+  const pairs = useMemo(() => duplicatePairsSurface(records, surfaceSamples, symbol, units, { rpd: settings.rpd, floor: dl.limit && dl.basis === "lt" ? settings.pairFloorMultiple * dl.limit : 0 /* #1793 — only a known limit ('<' results) sets the floor */ }), [records, surfaceSamples, symbol, units, settings, dl]);
   const dupStats = useMemo(() => duplicateStats(pairs), [pairs]);
   const censored = useMemo(() => censoredShares(surfaceSamples, surfaceElements), [surfaceSamples, surfaceElements]);
   const methods = useMemo(() => methodsByElement(qc.certificates), [qc.certificates]);
@@ -188,6 +188,7 @@ export default function SurfaceQaqcPanel({ onClose }) {
           {tab === "duplicates" && (!pairs.length ? <div style={note}>{tr("No duplicate pairs for {symbol}: a duplicate needs its original, in your samples or in the same certificates.", { symbol })}</div> : (
             <>
               <div style={note}>{tr("{w} of {u} counted pairs within their limit; {b} pair(s) near the detection limit shown but not counted. Field duplicates carry the sampling variance and are expected to be much noisier than lab duplicates.", { w: dupStats.within, u: dupStats.used, b: dupStats.n - dupStats.used })} {Object.entries(dupStats.byType).map(([k, v]) => tr("{type}: {w}/{n} within {lim}%", { type: tr(k === "lab" ? "lab" : k === "field" ? "field" : "type not stated"), w: v.within, n: v.n, lim: v.limit })).join(" · ")}</div>
+              {dl.limit && dl.basis !== "lt" && <div style={note}>{tr("No below-detection results in this element, so its lowest value ({dl} {unit}) is not a detection limit: every pair counts.", { dl: fmt(dl.limit), unit })}</div>}{/* #1793 */}
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                 <div style={{ flex: "1 1 300px", minWidth: 0 }}><DupScatter pairs={pairs} unit={unit} /></div>
                 <div style={{ flex: "1 1 380px", minWidth: 0, overflowX: "auto", maxHeight: 300 }}><table style={tbl}>
