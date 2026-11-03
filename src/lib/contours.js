@@ -26,6 +26,8 @@
 //     long polylines by matching shared endpoints, which is what makes the result usable (and is
 //     what makes closed contours actually close).
 
+import { terrainNodeIsFill } from "./viewer/geomath.js";
+
 // Quantized key for endpoint matching during stitching. Floating-point endpoints computed from two
 // different cells that SHOULD be identical can differ in the last bits, so exact === matching would
 // fail to join them and leave the contour fragmented. Quantizing to ~1e-6 of a grid cell is far finer
@@ -172,7 +174,11 @@ export function contourLevel({ bbox, gridW, gridH, elevations }, level) {
 // maxLines guards against a user typing an absurdly small interval on a large DEM and locking the UI
 // up building millions of segments — it stops early and reports how many levels actually ran, rather
 // than silently truncating with no explanation.
-export function contourTerrain(terrain, { interval = 50, maxLevels = 200 } = {}) {
+export function contourTerrain(terrain0, { interval = 50, maxLevels = 200 } = {}) {
+  // TASKS.csv #1619 (review #1497, Lawyers) — a filled no-data node (the mean-elevation fill, #927) is not ground: as NaN, every
+  // marching-squares cell touching it is skipped, so lines stop (open) at the edge of the data. On a terrain from 446 collars
+  // 74 % of the contour vertices were a rim stacked along the fill's edge.
+  const terrain = terrain0.noDataMask ? { ...terrain0, elevations: Float64Array.from(terrain0.elevations, (v, i) => (terrainNodeIsFill(terrain0, i) ? NaN : v)) } : terrain0;
   const { elevations } = terrain;
   let min = Infinity, max = -Infinity;
   for (let i = 0; i < elevations.length; i++) {
