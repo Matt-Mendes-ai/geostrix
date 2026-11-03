@@ -7013,5 +7013,6 @@
   "Colour of the contour lines (all levels are one boundary).": "Cor das curvas de nível (todos os níveis são um único limite).",
   "+ {n} more group(s): Load from view adds them": "+ {n} grupo(s) a mais: «Carregar da vista» os adiciona",
   "Model surfaces": "Superfícies do modelo",
-  "(log)": "(log)"
+  "(log)": "(log)",
+  "Log scale spreads trace-element grades and mag susc (a few high values no longer flatten the rest). Linear is proportional to the value.": "A escala logarítmica separa os teores de elementos-traço e a suscetibilidade magnética (poucos valores altos não achatam mais o resto). A linear é proporcional ao valor."
 }

@@ -7013,5 +7013,6 @@
   "Colour of the contour lines (all levels are one boundary).": "لون خطوط الكنتور (كل المستويات حد واحد).",
   "+ {n} more group(s): Load from view adds them": "+ {n} مجموعة أخرى: «التحميل من العرض» يضيفها",
   "Model surfaces": "أسطح النموذج",
-  "(log)": "(لوغاريتمي)"
+  "(log)": "(لوغاريتمي)",
+  "Log scale spreads trace-element grades and mag susc (a few high values no longer flatten the rest). Linear is proportional to the value.": "يباعد المقياس اللوغاريتمي بين محتويات العناصر النزرة والقابلية المغناطيسية (لم تعد بضع قيم عالية تُسطّح البقية). المقياس الخطي يتناسب مع القيمة."
 }

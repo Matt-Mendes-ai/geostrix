@@ -1,7 +1,8 @@
 import { fillLanes } from "../lib/stripLanes.js"; // TASKS.csv #1254
 import React, { useMemo, useRef, useState } from "react";
 import { X, Download } from "./icons.js";
-import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, colorForBreccia, colorForStructZone } from "../lib/layers.js";
+import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, colorForBreccia, colorForStructZone, colorForStructure } from "../lib/layers.js";
+import { logFrac, valueRange, recoveryMax, alphaTick, holeStructures } from "../lib/stripTracks.js"; // TASKS.csv #1400
 import { valueIn } from "../lib/geochem.js";
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -45,12 +46,14 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const structzone = useMemo(() => (layers.structzone || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.structzone, holeId]); // #604
   const mnlgy = useMemo(() => (layers.mnlgy || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.mnlgy, holeId]); // #684
   const geotech = useMemo(() => (layers.geotech || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.geotech, holeId]);
+  const recovery = useMemo(() => (layers.recovery || []).filter((r) => r.hole_id === holeId && Number.isFinite(Number(r.value))).sort((a, b) => a.from - b.from), [layers.recovery, holeId]); // #1400
+  const structs = useMemo(() => holeStructures(layers.structure, holeId), [layers.structure, holeId]); // #1400
   const holeAssays = useMemo(() => assays.filter((a) => a.hole_id === holeId).sort((a, b) => a.from - b.from), [assays, holeId]);
 
   const collar = collars.find((c) => c.hole_id === holeId);
   const maxDepth = Math.max(
     collar?.length || 0,
-    arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(geotech.map((r) => r.to)), arrMax(breccia.map((r) => r.to)), arrMax(structzone.map((r) => r.to)), arrMax(mnlgy.map((r) => r.to)),
+    arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(geotech.map((r) => r.to)), arrMax(recovery.map((r) => r.to)), arrMax(structs.map((s) => s.depth)), arrMax(breccia.map((r) => r.to)), arrMax(structzone.map((r) => r.to)), arrMax(mnlgy.map((r) => r.to)),
     arrMax(holeAssays.map((a) => a.to)),
     1);
 
@@ -79,7 +82,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     // TASKS.csv #356 — the implicit model's unit at each logged interval, right beside the logged litho.
     ...modelledLayers.filter((ml) => !ml.rows?.[0]?.numeric).map((ml, i, arr) => { const rows = (ml.rows || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); const col = Object.fromEntries(rows.map((r) => [r.value, r.modelColor])); return { key: `modelled_${ml.id}`, label: arr.length > 1 ? `Model ${i + 1}` : "Modelled", title: ml.name, rows, kind: "fill", colorFn: (v) => col[v] || "#d9dce1", nameFn: (v) => v }; }).filter((t) => t.rows.length),
     // TASKS.csv #323 — logged susceptibility / SG and a numeric model evaluated onto the hole, side by side
-    ...[["magsusc", "Mag. susc."], ["sg", "SG"]].map(([k, label]) => { const rows = (layers[k] || []).filter((r) => r.hole_id === holeId && Number.isFinite(Number(r.value))).map((r) => (Number.isFinite(r.depth) && !Number.isFinite(r.to) ? { ...r, from: r.depth - 0.25, to: r.depth + 0.25 } : r)).sort((a, b) => a.from - b.from); return { key: `log_${k}`, label, title: `${label} as logged`, rows, kind: "bar", max: rows.reduce((m, r) => Math.max(m, Number(r.value)), 0), scaleLabel: true }; }).filter((t) => t.rows.length),
+    ...[["magsusc", "Mag. susc."], ["sg", "SG"]].map(([k, label]) => { const rows = (layers[k] || []).filter((r) => r.hole_id === holeId && Number.isFinite(Number(r.value))).map((r) => (Number.isFinite(r.depth) && !Number.isFinite(r.to) ? { ...r, from: r.depth - 0.25, to: r.depth + 0.25 } : r)).sort((a, b) => a.from - b.from); return { key: `log_${k}`, label, title: `${label} as logged`, rows, kind: "bar", max: rows.reduce((m, r) => Math.max(m, Number(r.value)), 0), scaleLabel: true, ...(k === "magsusc" ? { logOk: true, minPos: valueRange(rows).minPos } : {}) }; }).filter((t) => t.rows.length), // logOk: #1400 — mag susc follows the Log scale box
     ...modelledLayers.filter((ml) => ml.rows?.[0]?.numeric).map((ml) => { const rows = (ml.rows || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); return { key: `modelledN_${ml.id}`, label: "Model", title: `${ml.name}${ml.unit ? ` (${ml.unit})` : ""}`, rows, kind: "bar", max: rows.reduce((m, r) => Math.max(m, r.value), 0), scaleLabel: true, colorOf: (r) => r.modelColor }; }).filter((t) => t.rows.length),
     { key: "alt", label: "Alt.", rows: alt, kind: "fill", colorFn: (v) => fill("alt", colorForAlteration, v), nameFn: labelFor ? (v) => labelFor("alt", v) : null },
     { key: "vein", label: "Vein", rows: vein, kind: "tick", colorFn: (v) => fill("vein", colorForVein, v), nameFn: nameOf("vein") }, // #1289 — renamed categories on every track
@@ -88,7 +91,9 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     // TASKS.csv #684 — the mineralisation log: an interval row is a block over its depths (Woodjam: up to 69 m), a
     // point-style row (from = to) a thin line at its depth
     ...(mnlgy.length ? [{ key: "mnlgy", label: "Min.", title: "Mineralization", rows: mnlgy, kind: "fill", colorFn: (v) => fill("mnlgy", LAYER_META.mnlgy.colorFn, v), nameFn: nameOf("mnlgy") }] : []),
+    ...((layers.structure || []).length ? [{ key: "structure", label: "Struct.", title: "Structure picks: each a tick at its alpha to the core axis (horizontal = 90°), a short mark at the edge without one", rows: structs, kind: "struct", colorFn: (v) => fill("structure", colorForStructure, v), nameFn: nameOf("structure") }] : []), // #1400
     { key: "geotech", label: "RQD%", rows: geotech, kind: "bar", max: 100 },
+    ...((layers.recovery || []).length ? [{ key: "recovery", label: "Rec.%", title: "Recovery %", rows: recovery, kind: "bar", max: recoveryMax(recovery), scaleLabel: true, colorOf: () => "#5aa469" }] : []), // #1400 — beside RQD, over 100 % kept
     ...(shownSymbols.length ? shownSymbols : [""]).map((sym) => ({ key: `assay_${sym}`, sym, label: sym ? `${sym} (${elementUnits[sym] || "ppm"})` : "Assay", rows: holeAssays, kind: "assaybar" })),
   ];
 
@@ -102,7 +107,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   // TASKS.csv #1048 — hole, collar, attitude, depth, scale and a key of the codes in each colour track, drawn into the file
   const [pngNote, setPngNote] = useState("");
   const furniture = () => stripLogFurniture({ holeId, collar, maxDepth, pxPerMeter, date: new Date().toISOString().slice(0, 10),
-    tracks: tracks.filter((t) => t.kind === "fill").map((t) => {
+    tracks: tracks.filter((t) => t.kind === "fill" || t.kind === "struct").map((t) => { // struct: #1400
       const seen = [...new Set(t.rows.map((r) => r.value).filter((v) => v != null && v !== ""))];
       return { title: t.title || t.label, items: seen.map((v) => ({ label: t.nameFn ? `${v} ${t.nameFn(v) !== v ? `(${t.nameFn(v)})` : ""}`.trim() : String(v), color: t.colorFn(v) })) };
     }) });
@@ -158,7 +163,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
               {symbols.filter((s) => s !== assaySymbol).map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           ))}
-          <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 5 }} title={tr("Log scale spreads trace-element grades (a few high samples no longer flatten the rest). Linear is proportional to grade.")}>
+          <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 5 }} title={tr("Log scale spreads trace-element grades and mag susc (a few high values no longer flatten the rest). Linear is proportional to the value.")}>
             <input type="checkbox" checked={logScale} onChange={(e) => setLogScale(e.target.checked)} />{" "}{tr("Log scale")}</label>
           <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6 }}>{tr("Vertical scale (px/m)")}<input type="number" min="1" max="40" value={pxPerMeter} onChange={(e) => setPxPerMeter(Math.max(1, Math.min(40, Number(e.target.value) || 6)))} style={{ ...selStyle, width: 60 }} />
           </label>
@@ -205,12 +210,21 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                     <rect key={i} x={x0} y={sy(r.from)} width={TRACK_W - 6} height={Math.max(1.5, sy(r.to) - sy(r.from))} fill={t.colorFn(r.value)} opacity="0.85" />
                   ))}
                   {t.kind === "bar" && t.rows.map((r, i) => {
-                    const w = t.max > 0 ? Math.max(0, Math.min(1, (Number(r.value) || 0) / t.max)) * (TRACK_W - 8) : 0;
+                    const lg = t.logOk && logScale; // #1400
+                    const w = (lg ? logFrac(Number(r.value), t.minPos, t.max) : t.max > 0 ? Math.max(0, Math.min(1, (Number(r.value) || 0) / t.max)) : 0) * (TRACK_W - 8);
                     return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={(t.colorOf && t.colorOf(r)) || "#4a9be0"} opacity="0.75"><title>{`${r.from}-${r.to} m: ${Number(r.value).toPrecision(3)}`}</title></rect>;
                   })}
                   {t.kind === "bar" && t.scaleLabel && t.max > 0 && ( // #323 — each bar track's own full-scale value
-                    <text x={x0 + TRACK_W / 2} y={sy(maxDepth) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{`0–${t.max.toPrecision(3)}`}</text>
+                    <text x={x0 + TRACK_W / 2} y={sy(maxDepth) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{t.logOk && logScale && t.minPos > 0 ? tr("log {minPos}–{max}", { minPos: t.minPos.toPrecision(2), max: t.max.toPrecision(3) }) : `0–${t.max.toPrecision(3)}`}</text>
                   )}
+                  {t.kind === "struct" && t.rows.map((s, i) => { // #1400
+                    const cx = x0 + (TRACK_W - 6) / 2, y = sy(s.depth), tk = alphaTick(s.alpha, (TRACK_W - 6) / 2 - 4), c = t.colorFn(s.value);
+                    const oriented = Number.isFinite(Number(s.dip)) && Number.isFinite(Number(s.azimuth)) && s.dip !== null && s.azimuth !== null;
+                    const tip = `${t.nameFn ? t.nameFn(s.value) : s.value} at ${s.depth} m${tk ? `, alpha ${s.alpha}°` : ""}${oriented ? `, dip ${Math.round(s.dip)}° to ${Math.round(s.azimuth)}°` : ""}`;
+                    return tk
+                      ? <line key={i} x1={cx - tk.dx} y1={y - tk.dy} x2={cx + tk.dx} y2={y + tk.dy} stroke={c} strokeWidth="1.6" strokeLinecap="round"><title>{tip}</title></line>
+                      : <line key={i} x1={x0} y1={y} x2={x0 + 10} y2={y} stroke={c} strokeWidth="2"><title>{tip}</title></line>;
+                  })}
                   {t.kind === "assaybar" && t.sym && t.rows.map((r, i) => {
                     const v = valueIn(r, t.sym, elementUnits[t.sym] || "ppm", elementUnits);
                     if (v == null) return null;
