@@ -56,6 +56,7 @@ import EmptyState, { emptyStateSecondaryBtn } from "../components/EmptyState.jsx
 
 const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { labAssays } from "../lib/qaqc.js"; // TASKS.csv #1673
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
@@ -719,7 +720,8 @@ export default function GeochemModule() {
       (layers.litho || []).forEach((r) => { if (!lithoByHole.has(r.hole_id)) lithoByHole.set(r.hole_id, []); lithoByHole.get(r.hole_id).push(r); });
     }
     const counts = {};
-    const rows = assays.map((a) => {
+    const labRows = labAssays(assays), pxrfLeft = assays.length - labRows.length; // #1673 — a classification layer from lab assays only
+    const rows = labRows.map((a) => {
       let opts;
       if (altSetup) {
         const protolith = protolithForSample(a, { fixed: altSetup.source === "logged" ? null : altSetup.source, lithoByHole, map: altSetup.map });
@@ -733,6 +735,7 @@ export default function GeochemModule() {
       return { hole_id: a.hole_id, from: a.from, to: a.to, value };
     }).filter(Boolean);
     const runs = mergeClassRuns(rows); // #1513 — touching samples of one class: one interval
+    if (pxrfLeft) setNotices((p) => [...p, notice("{n} pXRF reading(s) were left out of the classification: it uses lab assays only.", { n: pxrfLeft })]); // #1673
     replaceLayer(targetKey, runs);
     const detail = altSetup ? tr(" {v}.{v2}{v3} Screening level: protolith assumed.", { v: Object.entries(counts).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${GEOCHEM_LABELS[k] || k} ${n}`).join(", "), v2: noProtolith ? tr(" {noProtolith} sample(s) not classified: no protolith (unmapped lithology code or no logged interval).", { noProtolith }) : "", v3: JSON.stringify(altSetup.boxes) === JSON.stringify(PROVISIONAL_ALTERATION_BOXES) ? tr(" Box limits are the PROVISIONAL defaults (not yet checked against Large et al. 2001).") : tr(" Box limits: your edited values.") }) : "";
     const sedN = Object.values(sedSkipped).reduce((s, n) => s + n, 0);

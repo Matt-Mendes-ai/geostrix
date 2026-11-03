@@ -63,8 +63,13 @@ export function controlLimits(values) {
 // they were real assay results, since none of those consulted classifyQAQCRow at all — a synthetic
 // standard could turn up as a "best intercept" alongside real drillhole intervals. Every report that
 // shouldn't be diluted/skewed by a QC insert can call this once instead of re-deriving the same filter.
+// TASKS.csv #1673 / #1674 (review #1645, Copley) — pXRF readings are not lab grades: they were averaged into Grade stats, intercepts,
+// correlations and classifications beside the lab assays (Copley: Spearman Cu-Mo 0.56 lab-only, 0.38 mixed; Pearson Rb-Sr 1.00 from one
+// bad reading). They are kept out of every grade tool, whatever its QC toggle says; the dialogs say how many were left out.
+export const isPxrfRow = (a) => a?.source === "pXRF";
+export const labAssays = (assays) => (assays || []).filter((a) => !isPxrfRow(a));
 export function excludeQAQC(assays, patterns = DEFAULT_QAQC_PATTERNS) {
-  return assays.filter((a) => classifyQAQCRow(a, patterns) === "regular");
+  return assays.filter((a) => !isPxrfRow(a) && classifyQAQCRow(a, patterns) === "regular");
 }
 
 // TASKS.csv #400 — what is being left out, and why, so an exclusion is never silent: distinct ids per class.

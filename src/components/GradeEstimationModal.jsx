@@ -5,7 +5,7 @@ import { X, Play } from "./icons.js";
 import { compositeDownhole, rawSampleIntervals, PRECIOUS_METALS, capAudit } from "../lib/geochem.js"; // rawSampleIntervals: #571
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import EstimateCheck from "./EstimateCheck.jsx"; // TASKS.csv #1051
-import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #266
+import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266
 import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport } from "../lib/estimation.js";
 import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice, overlapBox } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
@@ -28,7 +28,8 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 // Edge are built around. Depends on downhole compositing (#118, implemented alongside this) as its
 // input — see lib/estimation.js's top comment for why kriging isn't offered here (needs a fitted
 // variogram as a genuine prerequisite, not just a harder formula dropped into the same loop).
-export default function GradeEstimationModal({ assays, assayElements, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend = null, groundAt = null }) { // groundAt: TASKS.csv #803
+export default function GradeEstimationModal({ assays: assaysIn, assayElements, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend = null, groundAt = null }) { // groundAt: TASKS.csv #803
+  const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const { desurveyMethod, voxelModels, project } = useStore(); // TASKS.csv #135 — estimation samples must sit on the same trace the 3D view draws
@@ -445,6 +446,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.45 }}>{tr("This element's coefficient of variation is {elementCV}% — a skewed, outlier-driven distribution. Estimating it without a high-grade cap will overstate grade. Set a cap (commonly the 97.5th–99th percentile) before trusting this result.", { elementCV: elementCV.toFixed(0) })}</div>
           )}
           {/* TASKS.csv #266 — same toggle Best Intercepts / Compositing / Grade Statistics already have. */}
+          {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
           {qaqcExcludedCount > 0 && (
             <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }} title={tr("QC samples (standards/blanks/duplicates, detected by hole_id naming) are excluded by default so a standard's own repeat-insertion grade can't bias the estimate — a field duplicate logged under its parent hole's id would otherwise be double-counted.")}>
               <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />{tr("Include QC samples (standards/blanks/duplicates) in this estimate — {qaqcExcludedCount} detected", { qaqcExcludedCount })}</label>

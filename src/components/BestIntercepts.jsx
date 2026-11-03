@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { X, Download, Sheet } from "./icons.js";
 import { computeBestIntercepts, makeRangeAverager, domainsForInterval, attachIncluding, metalEquivalent, metalEquivalentFormula, PRECIOUS_METALS } from "../lib/geochem.js"; // attachIncluding, metal equivalent: #402
-import { excludeQAQC } from "../lib/qaqc.js";
+import { excludeQAQC, labAssays } from "../lib/qaqc.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import { interceptLocations } from "../lib/interceptLocation.js"; // TASKS.csv #1047
 import { trueWidthForIntercept } from "../lib/trueWidth.js";
@@ -26,7 +26,8 @@ const RESULT_ROW_H = 26; // TASKS.csv #222 — matches AttributeTableModal's row
 // that GeoStrix had no equivalent of — the composite math itself lives in lib/geochem.js's
 // computeBestIntercepts (grouped by hole, internal-dilution bridging, length-weighted grade); this is
 // just the control panel + results table + CSV export around it.
-export default function BestIntercepts({ assays, assayElements, collars, survey, layers, onClose }) {
+export default function BestIntercepts({ assays: assaysIn, assayElements, collars, survey, layers, onClose }) {
+  const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const { desurveyMethod, project, setLayoutElements, goToModule } = useStore(); // TASKS.csv #135 — true-width needs the project's own trace; layout: #911
@@ -198,6 +199,7 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Best-intercept report")}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Composited downhole intersections above a cutoff, with an internal-dilution allowance — {assays} intervals loaded.{v}", { assays: assays.length, v: qaqcExcludedCount > 0 && !includeQAQC ? tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }) : "" })}
+            {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
             </div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />

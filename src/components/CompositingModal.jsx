@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { compositeDownhole, countDuplicateAssayIntervals, capAudit, capAuditText } from "../lib/geochem.js";
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
-import { excludeQAQC } from "../lib/qaqc.js";
+import { excludeQAQC, labAssays } from "../lib/qaqc.js";
 import { stampLines, withStamp, ASSAY_READING_RULES } from "../lib/provenance.js"; // TASKS.csv #404
 import { desurveyHole } from "../lib/desurvey.js"; // TASKS.csv #411
 import { compositeRows } from "../lib/drillReportExport.js"; // TASKS.csv #1083
@@ -30,7 +30,8 @@ const RESULT_ROW_H = 26; // TASKS.csv #222 — composited-interval count can gen
 // table + CSV export around it, matching the BestIntercepts.jsx pattern already established.
 const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "structzone", "geotech"];
 
-export default function CompositingModal({ assays, assayElements, layers, onClose }) {
+export default function CompositingModal({ assays: assaysIn, assayElements, layers, onClose }) {
+  const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   // TASKS.csv #411 — composites go out with from/to/mid XYZ on the project's own desurveyed traces.
   const { collars, survey, desurveyMethod, project } = useStore();
   const tracesByHole = useMemo(() => {
@@ -102,6 +103,7 @@ export default function CompositingModal({ assays, assayElements, layers, onClos
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Downhole compositing")}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Fixed-length composites, breaking at domain boundaries — {assays} raw intervals loaded.{v}", { assays: assays.length, v: qaqcExcludedCount > 0 && !includeQAQC ? tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }) : "" })}
+            {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
             </div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />

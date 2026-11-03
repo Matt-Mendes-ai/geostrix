@@ -4,7 +4,7 @@ import { valueIn, resolvedSegments } from "../lib/geochem.js"; // resolvedSegmen
 import { useStore } from "../lib/store.jsx";
 import { stampLines, withStamp, ASSAY_READING_RULES } from "../lib/provenance.js"; // TASKS.csv #1099
 import { version as APP_VERSION } from "../../package.json";
-import { excludeQAQC } from "../lib/qaqc.js";
+import { excludeQAQC, labAssays } from "../lib/qaqc.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { LAYER_META, UNIT_NAMES } from "../lib/layers.js";
@@ -97,7 +97,8 @@ function niceBinCount(n) {
   return Math.max(6, Math.min(24, Math.round(Math.log2(n) + 1)));
 }
 
-export default function GradeStatistics({ assays, assayElements, layers, surfaceSamples = [], surfaceElements = [], onClose }) {
+export default function GradeStatistics({ assays: assaysIn, assayElements, layers, surfaceSamples = [], surfaceElements = [], onClose }) {
+  const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
@@ -221,6 +222,7 @@ export default function GradeStatistics({ assays, assayElements, layers, surface
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Grade statistics")}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Univariate distribution per domain — {v}{v2}", { v: source === "surface" ? tr("{surfaceSamples} surface samples loaded.", { surfaceSamples: surfaceSamples.length }) : tr("{assays} intervals loaded.", { assays: assays.length }), v2: source === "assays" && qaqcExcludedCount > 0 && !includeQAQC ? tr(" {qaqcExcludedCount} QC sample(s) (standards/blanks/duplicates) excluded.", { qaqcExcludedCount }) : "" })}
+            {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
             </div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />

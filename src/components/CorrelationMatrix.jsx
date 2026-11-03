@@ -6,7 +6,7 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
-import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #405
+import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #405
 import { correlationMatrix } from "../lib/correlation.js"; // TASKS.csv #405, #1514
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
@@ -39,8 +39,9 @@ export default function CorrelationMatrix({ assays: allAssays, assayElements, on
   // TASKS.csv #405 — QAQC inserts are never samples of the ground; Spearman by default.
   const [includeQAQC, setIncludeQAQC] = useState(false);
   const [method, setMethod] = useState("spearman");
-  const assays = useMemo(() => (includeQAQC ? allAssays : excludeQAQC(allAssays)), [allAssays, includeQAQC]);
-  const qaqcCount = useMemo(() => allAssays.length - excludeQAQC(allAssays).length, [allAssays]);
+  const labRows = useMemo(() => labAssays(allAssays), [allAssays]), pxrfLeft = allAssays.length - labRows.length; // #1673 — lab grades only
+  const assays = useMemo(() => (includeQAQC ? labRows : excludeQAQC(labRows)), [labRows, includeQAQC]);
+  const qaqcCount = useMemo(() => labRows.length - excludeQAQC(labRows).length, [labRows]);
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const allSymbols = assayElements.map((e) => e.symbol);
   // Default to the first 12 loaded elements — a full 60+-element suite renders as an unreadable wall
@@ -71,6 +72,7 @@ export default function CorrelationMatrix({ assays: allAssays, assayElements, on
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Multi-element correlation matrix")}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{v}, pairwise deletion — {assays} intervals{v2}. Cells with fewer than {MIN_PAIRS} pairs are greyed.", { v: tr(METHOD_LABEL[method]), assays: assays.length, v2: includeQAQC ? tr(" (QAQC inserts included)") : qaqcCount ? tr(", {qaqcCount} QAQC rows excluded", { qaqcCount }) : "", MIN_PAIRS })}</div>
+            {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
