@@ -6994,5 +6994,9 @@
   "Boundaries and models": "الحدود والنماذج",
   "No search radius: data support was scored against {m} m (twice the median spacing between holes); a block farther than that from every sample, not between holes, is unsupported.": "لا نصف قطر بحث: قُيّم دعم البيانات مقابل {m} م (ضعف التباعد الوسيط بين الآبار)؛ والكتلة الأبعد من ذلك عن كل عينة، وليست بين آبار، بلا دعم.",
   "Restricted to {v}.": "مقيد بـ {v}.",
-  "{n} element(s) on this page reach past its edge and will be cut off in the export. Export anyway?": "يتجاوز {n} من عناصر هذه الصفحة حافتها وسيُقص في التصدير. هل تريد التصدير على أي حال؟"
+  "{n} element(s) on this page reach past its edge and will be cut off in the export. Export anyway?": "يتجاوز {n} من عناصر هذه الصفحة حافتها وسيُقص في التصدير. هل تريد التصدير على أي حال؟",
+  "Copy or move to another page": "نسخ أو نقل إلى صفحة أخرى",
+  "To another page…": "إلى صفحة أخرى…",
+  "Copy to {page}": "نسخ إلى {page}",
+  "Move to {page}": "نقل إلى {page}"
 }

@@ -86,7 +86,7 @@ export default function LayoutModule() {
     // TASKS.csv #69 — multiple layout pages per project (see store.jsx's own comment on
     // layoutPages/layoutElements for how these two coexist: `elements`/`setElements` above already
     // transparently follow whichever page is active).
-    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat,
+    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, sendLayoutElement, // #1484
     // Legend "load lithologies from the bound view" (below) needs the actual litho rows — a theme
     // only records which units were filtered/hidden at capture time, not the vocabulary itself.
     // TASKS.csv #130 — collars/sections needed for the Atlas batch-page-generation feature below.
@@ -943,6 +943,12 @@ export default function LayoutModule() {
               <button onClick={() => reorderSelected("front")} title={tr("Bring to front")} style={smallBtn}>{tr("To front")}</button>
               <button onClick={() => reorderSelected("back")} title={tr("Send to back")} style={smallBtn}>{tr("To back")}</button>
               <button onClick={duplicateSelected} title={tr("Duplicate (Ctrl+D). Arrow keys move the selection 1 mm, with Shift 10 mm.")} style={smallBtn}>{tr("Duplicate")}</button>
+              {layoutPages.length > 1 && ( /* TASKS.csv #1484 — to another page */
+                <select value="" onChange={(e) => { const [how, id] = e.target.value.split(":"); if (!id) return; sendLayoutElement(sel.id, id, how === "move"); if (how === "move") setSelected(null); }} style={{ ...smallBtn, cursor: "pointer" }} aria-label={tr("Copy or move to another page")}>
+                  <option value="">{tr("To another page…")}</option>
+                  {layoutPages.filter((p) => p.id !== activeLayoutPageId).flatMap((p) => [<option key={`c${p.id}`} value={`copy:${p.id}`}>{tr("Copy to {page}", { page: p.name })}</option>, <option key={`m${p.id}`} value={`move:${p.id}`}>{tr("Move to {page}", { page: p.name })}</option>])}
+                </select>
+              )}
               <label style={{ ...smallBtn, cursor: "pointer" }} title={tr("A locked element cannot be moved or resized (it can still be edited and deleted)")}><input type="checkbox" checked={!!sel.locked} onChange={(e) => updateSelected({ locked: e.target.checked })} />{tr("Lock")}</label>
             </div>
             {"text" in sel && (

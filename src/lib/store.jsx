@@ -1513,6 +1513,14 @@ export function StoreProvider({ children }) {
     return id;
   }, [clearUndoHistory]);
   const renameLayoutPage = useCallback((id, name) => setLayoutPages((p) => p.map((pg) => (pg.id === id ? { ...pg, name } : pg))), []);
+  // TASKS.csv #1484 (review #1352) — an element copied or moved from the active page to another (a section snapshot landed on the
+  // plan's page with nowhere else to go); a copy gets a new id, a move keeps its own
+  const sendLayoutElement = useCallback((elementId, toPageId, move = false) => setLayoutPages((pages) => {
+    const el = pages.find((p) => p.id === activeLayoutPageId)?.elements?.find((e) => e.id === elementId);
+    if (!el || toPageId === activeLayoutPageId || !pages.some((p) => p.id === toPageId)) return pages;
+    const put = move ? el : { ...el, id: `${el.type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}` };
+    return pages.map((p) => (p.id === toPageId ? { ...p, elements: [...(p.elements || []), put] } : move && p.id === activeLayoutPageId ? { ...p, elements: p.elements.filter((e) => e.id !== elementId) } : p));
+  }), [activeLayoutPageId]);
   // TASKS.csv #398 — per-page paper size / orientation ({size, orientation}, see lib/pageFormats.js). Saved
   // with the page; a page without one is A4 landscape, exactly as before.
   const setLayoutPageFormat = useCallback((id, format) => setLayoutPages((p) => p.map((pg) => (pg.id === id ? { ...pg, format } : pg))), []);
@@ -1602,7 +1610,7 @@ export function StoreProvider({ children }) {
     generatedSurfaces, setGeneratedSurfaces, modelDomains, setModelDomains, // TASKS.csv #52
     layerGroups, addLayerGroup, renameLayerGroup, deleteLayerGroup, toggleLayerGroupCollapsed, setLayerGroupFor,
     layoutElements, setLayoutElements,
-    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat,
+    layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, sendLayoutElement, // sendLayoutElement: #1484
     layoutTemplates, addLayoutTemplate, renameLayoutTemplate, deleteLayoutTemplate,
     viewportRenderRequest, viewportRenderRequestSeq, requestViewportRender, viewportPendingRequest,
     viewportRenderResult, viewportRenderResultSeq, resolveViewportRender,
