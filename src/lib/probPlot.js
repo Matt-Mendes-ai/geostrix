@@ -47,3 +47,18 @@ export function capEffect(values, weights, cap) {
   }
   return { n, above, pctMetalRemoved: metal > 0 ? (100 * removed) / metal : 0 };
 }
+
+// TASKS.csv #1512 (review #1497, Lawyers) — the plot kept every Nth point by rank (every 139th of 83,670 Au assays): the top dot was
+// 12.9 g/t though the maximum is 136 and 160 intervals pass 10 g/t, so the high-grade tail a cap is chosen from was not drawn.
+// One point per screen pixel instead: the dense middle collapses to a line of pixels, every sparse tail point stays.
+// points: [[x, y]] data; X, Y: data -> px. -> the points to draw (in their order)
+export function thinToPixels(points, X, Y) {
+  const seen = new Set(), out = [];
+  for (const p of points || []) {
+    const k = `${Math.round(X(p[0]))},${Math.round(Y(p[1]))}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(p);
+  }
+  return out;
+}

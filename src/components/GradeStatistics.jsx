@@ -23,7 +23,7 @@ import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { gradeStatsRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
-import { weightedProbPoints, weightedPercentile, capEffect } from "../lib/probPlot.js"; // TASKS.csv #1388
+import { weightedProbPoints, weightedPercentile, capEffect, thinToPixels } from "../lib/probPlot.js"; // TASKS.csv #1388; thinToPixels: #1512
 import { normalQuantile } from "../lib/thresholds.js";
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
@@ -450,7 +450,7 @@ function ProbPlot({ prob, cap, domainLabel, unit }) {
       <text x={w - pr} y={h - 2} textAnchor="end" fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{tr("cumulative %")}</text>
       <text x={4} y={pt + 8} fontSize={fontSizes.xs} style={{ fill: "var(--color-text-muted)" }}>{unit}</text>
       {lines.map(([v, name, c]) => <g key={name}><line x1={pl} x2={w - pr} y1={Y(Math.log10(v))} y2={Y(Math.log10(v))} stroke={c} strokeWidth={dashed(name) ? 1 : 1.6} strokeDasharray={dashed(name) ? "5 3" : undefined} /><text x={w - pr + 4} y={labelY.get(name)} fontSize={fontSizes.xs} fill={c}>{`${name} ${fmtV(v)}`}</text></g>)}
-      {prob.series.map((s, si) => { const step = Math.max(1, Math.floor(s.points.length / 600)); const c = PROB_COLOURS[si] || "#9aa5b3"; return <g key={s.key}>{s.points.filter((_, i) => i % step === 0).map(([x, y], i) => <circle key={i} cx={X(x)} cy={Y(y)} r={1.7} fill={c} />)}</g>; })}
+      {prob.series.map((s, si) => { const c = PROB_COLOURS[si] || "#9aa5b3"; return <g key={s.key}>{thinToPixels(s.points, X, Y).map(([x, y], i) => <circle key={i} cx={X(x)} cy={Y(y)} r={1.7} fill={c} />)}</g>; })}{/* #1512 — one point per pixel, the tail kept */}
       {prob.series.length > 1 && prob.series.slice(0, PROB_COLOURS.length).map((s, si) => <text key={s.key} x={pl + 6} y={pt + 10 + si * 11} fontSize={fontSizes.xs} fill={PROB_COLOURS[si]}>{domainLabel(s.key)}</text>)}
     </svg>
   );
