@@ -33,5 +33,5 @@ test("#1178 #1183 #1233 readouts and tables", () => {
   assert.match(g, /\{sigFigs\(displayThreshold\)\}/);
   assert.match(g, /min: sigFigs\(model\.min\)/);
   assert.match(read("src/components/BestIntercepts.jsx"), /minHeight: 180, flexShrink: 0/);
-  assert.match(read("src/components/LayerInspector.jsx"), /\[r\.dip, r\.azimuth, r\.alpha, r\.beta\]/);
+  assert.match(read("src/lib/inspectorColumns.js"), /key: "dip", label: "Dip"[^\n]*key: "azimuth"[^\n]*key: "alpha"[^\n]*key: "beta"/); // #1402 — the columns moved to a helper
 });

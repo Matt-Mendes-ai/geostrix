@@ -7014,5 +7014,6 @@
   "+ {n} more group(s): Load from view adds them": "+ {n} groupe(s) de plus : « Charger depuis la vue » les ajoute",
   "Model surfaces": "Surfaces du modèle",
   "(log)": "(log)",
-  "Log scale spreads trace-element grades and mag susc (a few high values no longer flatten the rest). Linear is proportional to the value.": "L'échelle logarithmique étale les teneurs en éléments traces et la susceptibilité magnétique (quelques valeurs fortes n'écrasent plus le reste). L'échelle linéaire est proportionnelle à la valeur."
+  "Log scale spreads trace-element grades and mag susc (a few high values no longer flatten the rest). Linear is proportional to the value.": "L'échelle logarithmique étale les teneurs en éléments traces et la susceptibilité magnétique (quelques valeurs fortes n'écrasent plus le reste). L'échelle linéaire est proportionnelle à la valeur.",
+  "Intensity": "Intensité"
 }

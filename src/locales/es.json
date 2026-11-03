@@ -7014,5 +7014,6 @@
   "+ {n} more group(s): Load from view adds them": "+ {n} grupo(s) más: «Cargar desde la vista» los añade",
   "Model surfaces": "Superficies del modelo",
   "(log)": "(log)",
-  "Log scale spreads trace-element grades and mag susc (a few high values no longer flatten the rest). Linear is proportional to the value.": "La escala logarítmica separa las leyes de elementos traza y la susceptibilidad magnética (unos pocos valores altos ya no aplastan el resto). La lineal es proporcional al valor."
+  "Log scale spreads trace-element grades and mag susc (a few high values no longer flatten the rest). Linear is proportional to the value.": "La escala logarítmica separa las leyes de elementos traza y la susceptibilidad magnética (unos pocos valores altos ya no aplastan el resto). La lineal es proporcional al valor.",
+  "Intensity": "Intensidad"
 }

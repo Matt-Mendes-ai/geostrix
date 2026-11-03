@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { X, Eye, EyeOff, Trash2, Download, Upload } from "./icons.js";
 import { distinctValues } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
@@ -9,6 +9,7 @@ import { backdropProps } from "../lib/modalStyles.js"; // TASKS.csv #387
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
+import { inspectorColumns, inspectorCell } from "../lib/inspectorColumns.js"; // TASKS.csv #1402
 
 // TASKS.csv #123 — QGIS-specialist audit finding: "Themes save whole-view state per-project; there's
 // no reusable style definition (color ramp + classification + symbol) that travels between projects
@@ -32,7 +33,8 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
   const [search, setSearch] = useState("");
   const [styleNotice, setStyleNotice] = useState(null);
   const styleFileInput = useRef(null);
-  const isStructure = layerKey === "structure"; // TASKS.csv #1233 — a pick is checked by its hole and orientation, not by "to" and "extra"
+  // TASKS.csv #1233 / #1402 — the columns follow the data: Hole for every hole-based layer, description, intensity, percent
+  const columns = useMemo(() => inspectorColumns(layerKey, rows), [layerKey, rows]);
   const categories = meta.numeric ? [] : distinctValues(rows);
 
   const importLayerStyle = async (file) => {
@@ -138,15 +140,11 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: "0 14px" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--font-size-base)" }}>
-                <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>{isStructure ? <th style={th}>{tr("Hole")}</th> : null}<th style={th}>{tr("from/depth")}</th>{isStructure ? null : <th style={th}>{tr("to")}</th>}<th style={th}>{tr("value")}</th>{isStructure ? <><th style={th}>{tr("Dip")}</th><th style={th}>{tr("Dip dir.")}</th><th style={th}>α</th><th style={th}>β</th></> : <th style={th}>{tr("extra")}</th>}</tr></thead>
+                <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>{columns.map((c) => <th key={c.key} style={th}>{/^[αβ%]$/.test(c.label) ? c.label : tr(c.label)}</th>)}</tr></thead>
                 <tbody>
                   {searched.slice(0, 400).map((r, i) => (
                     <tr key={i} style={{ borderBottom: "1px solid var(--color-hover-bg)", opacity: !meta.numeric && categoryFilter.has(String(r.value)) ? 0.35 : 1 }}>
-                      {isStructure ? <td style={td}>{r.hole_id}</td> : null}
-                      <td style={td}>{(r.from ?? r.depth)?.toFixed?.(2) ?? r.from ?? r.depth}</td>
-                      {isStructure ? null : <td style={td}>{r.to != null ? r.to.toFixed(2) : "—"}</td>}
-                      <td style={td}>{String(r.value)}</td>
-                      {isStructure ? <>{[r.dip, r.azimuth, r.alpha, r.beta].map((v, k) => <td key={k} style={td}>{v != null && v !== "" ? v : "—"}</td>)}</> : <td style={td}>{r.extra != null ? r.extra : "—"}</td>}
+                      {columns.map((c) => { const text = inspectorCell(c, r); return <td key={c.key} style={c.wide ? { ...td, maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } : td} title={c.wide ? text : undefined}>{text}</td>; })}
                     </tr>
                   ))}
                 </tbody>
