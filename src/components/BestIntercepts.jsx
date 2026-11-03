@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { X, Download, Sheet } from "./icons.js";
 import { computeBestIntercepts, makeRangeAverager, domainsForInterval, attachIncluding, metalEquivalent, metalEquivalentFormula, PRECIOUS_METALS } from "../lib/geochem.js"; // attachIncluding, metal equivalent: #402
 import { excludeQAQC } from "../lib/qaqc.js";
@@ -35,6 +35,21 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
   const [symbol, setSymbol] = useState(symbols[0] || "Au");
   const unit = elementUnits[symbol] || "ppm";
   const [cutoff, setCutoff] = useState(0.5);
+  // TASKS.csv #1387 (review #1352) — a cutoff belongs to its element: Ag 30 ppm became "Cutoff (%) = 30" for Pb. Each element keeps
+  // the cutoff last used with it; one not used yet starts at its 90th percentile (one significant figure), said in the box's tooltip.
+  const cutoffBySymbol = useRef({});
+  const suggestCutoff = (sym) => {
+    const v = assays.map((a) => Number(a.values?.[sym])).filter((x) => Number.isFinite(x) && x > 0).sort((a, b) => a - b);
+    if (!v.length) return cutoff;
+    const p = v[Math.floor(0.9 * (v.length - 1))], mag = 10 ** Math.floor(Math.log10(p));
+    return Number((Math.round(p / mag) * mag).toPrecision(1));
+  };
+  const [suggested, setSuggested] = useState(null);
+  const changeSymbol = (sym) => {
+    cutoffBySymbol.current[symbol] = cutoff;
+    const kept = cutoffBySymbol.current[sym], next = kept ?? suggestCutoff(sym);
+    setSymbol(sym); setCutoff(next); setSuggested(kept == null ? next : null);
+  };
   const [maxInternalDilution, setMaxInternalDilution] = useState(2);
   const [minLength, setMinLength] = useState(0);
   const [minGradeLen, setMinGradeLen] = useState(0); // grade × length screening cutoff, e.g. "gram-metres"
@@ -194,11 +209,11 @@ export default function BestIntercepts({ assays, assayElements, collars, survey,
               <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />{tr("Include QC samples (standards/blanks/duplicates) in this report")}</label>
           )}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <label style={fieldLabel}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbol(e.target.value); setExtraSymbols((p) => p.filter((s) => s !== e.target.value)); }} style={inp}>
+            <label style={fieldLabel}>{tr("Element")}<select value={symbol} onChange={(e) => { changeSymbol(e.target.value); setExtraSymbols((p) => p.filter((s) => s !== e.target.value)); }} style={inp}>
                 {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
               </select>
             </label>
-            <label style={fieldLabel}>{tr("Cutoff ({unit})", { unit })}<input type="number" step="any" value={cutoff} onChange={(e) => setCutoff(Number(e.target.value) || 0)} style={inp} />
+            <label style={fieldLabel}>{tr("Cutoff ({unit})", { unit })}<input type="number" step="any" value={cutoff} onChange={(e) => { setCutoff(Number(e.target.value) || 0); setSuggested(null); }} style={inp} title={suggested != null && cutoff === suggested ? tr("Suggested: this element's 90th percentile. Set the cutoff you report at.") : undefined} />
             </label>
             <label style={fieldLabel} title={tr("How much below-cutoff ('waste') core between two above-cutoff samples is still folded into one intercept, diluting its grade, rather than splitting the intercept in two.")}>{tr("Max internal dilution (m)")}<input type="number" step="any" min="0" value={maxInternalDilution} onChange={(e) => setMaxInternalDilution(Math.max(0, Number(e.target.value) || 0))} style={inp} />
             </label>

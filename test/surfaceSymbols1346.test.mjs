@@ -8,8 +8,9 @@ const grid = (x0, y0, step, n, medium) => { const out = []; for (let i = 0; i < 
 test("a 20 m soil grid with a few samples 45 km away is drawn at its own scale, not as 250 m balls", () => {
   const s = [...grid(0, 0, 20, 15, "soil"), { x: 0, y: -45000, medium: "rock chip" }, { x: 300, y: -45000, medium: "rock chip" }];
   const r = symbolRadiusByMedium(s);
-  assert.ok(Math.abs(r("soil") - 8) < 0.01, String(r("soil")));
-  assert.ok(r("rock chip") <= 120 + 1e-9, String(r("rock chip"))); // 0.4 x 300 m
+  // #1403 — the 2 far rocks no longer set the extent: the soils are sized as if they were alone (1/250 of 280 m, floored at 1.8 m)
+  assert.equal(r("soil"), 1.8);
+  assert.ok(r("rock chip") <= 120 + 1e-9, String(r("rock chip")));
 });
 
 test("a sparse regional stream program keeps the #849 size (1/250 of its extent)", () => {
@@ -34,6 +35,6 @@ test("the grid search finds the true nearest neighbour (against a plain search)"
   const ext = (k) => Math.max(...s.map((p) => p[k])) - Math.min(...s.map((p) => p[k]));
   const want = Math.min(Math.hypot(ext("x"), ext("y")) / 250, 0.4 * d[d.length >> 1]);
   assert.ok(Math.abs(symbolRadiusByMedium(s)("soil") - want) < 1e-6);
-  const far = [...s, { x: 0, y: 60000, medium: "rock chip" }]; // a far sample: the extent cap grows, the soils' spacing cap decides
-  assert.ok(Math.abs(symbolRadiusByMedium(far)("soil") - 0.4 * d[d.length >> 1]) < 1e-6);
+  const far = [...s, { x: 0, y: 60000, medium: "rock chip" }]; // #1403 — one far sample is an outlier: it changes nothing
+  assert.ok(Math.abs(symbolRadiusByMedium(far)("soil") - want) < 1e-6);
 });

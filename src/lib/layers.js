@@ -411,10 +411,16 @@ export function classifyBreaks(values, n, method = "equal") {
     for (let i = 0; i < count; i++) breaks.push(nums[Math.floor((i / count) * (nums.length - 1))]);
   } else if (method === "log" && min > 0) {
     // Geometric spacing — only meaningful for strictly positive data (chargeability/resistivity/IP
-    // always are; log of zero or a negative value is undefined, so anything else falls through to
-    // the plain equal-interval branch below instead of producing NaN breaks).
+    // always are; log of zero or a negative value is undefined).
     const logMin = Math.log(min), logMax = Math.log(max);
     for (let i = 0; i < count; i++) breaks.push(Math.exp(logMin + (i / count) * (logMax - logMin)));
+  } else if (method === "log" && max > 0) {
+    // TASKS.csv #1397 (review #1352, Silvertip) — zeros or negatives (915 zero mag-susc readings) made "log" fall through to equal
+    // intervals (0 / 20 / 40 ...) in silence. They now take the lowest class; the others are spaced geometrically from the
+    // smallest positive value.
+    const pos = nums.find((v) => v > 0), logMin = Math.log(pos), logMax = Math.log(max);
+    breaks.push(min);
+    for (let i = 0; i < count - 1; i++) breaks.push(Math.exp(logMin + (i / (count - 1)) * (logMax - logMin)));
   } else if (method === "normal") {
     // Fit the data's own mean/stddev, space breaks evenly in cumulative-probability space, map back
     // to raw values via mean + z*std — concentrates more class boundaries near the mean, where real

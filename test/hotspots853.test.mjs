@@ -24,7 +24,7 @@ test("#853 the cluster is a 99 % hot spot, the spike is not, far background is n
   assert.ok(a.classOf[at(S, 100, 900)] <= 3, "a lone spike with eight background neighbours is at most a 95 % hint");
   assert.equal(a.classOf[at(S, 0, 0)], 2);
   assert.ok(a.stat[at(S, 500, 500)] > 2.576 && Math.abs(a.stat[at(S, 0, 0)]) < 1.96);
-  assert.match(a.label, /Getis–Ord Gi\* hot spots of log values, neighbours within 75 m/);
+  assert.match(a.label, /Getis–Ord Gi\* hot spots of log values, each medium against itself, neighbours within 75 m/);
   assert.equal(a.coherence, false, "coherence does not apply to a spatial statistic");
   assert.equal(a.mode, "hotspot");
 });
@@ -41,4 +41,15 @@ test("#853 too few samples: no statistic, a note", () => {
   const a = anomalyClasses(S, { mode: "hotspot", symbol: "Cu", hotRadius: 75 }, { units: { Cu: "ppm" } });
   assert.ok([...a.classOf].every((c) => c === -1));
   assert.equal(a.notes[0].params.min, HOTSPOT_MIN_SAMPLES);
+});
+
+test("#1382: each medium is tested against itself — a soil line beside high rock chips is not a hot spot because of them", async () => {
+  const { anomalyClasses } = await import("../src/lib/anomalyMap.js");
+  const samples = [];
+  for (let i = 0; i < 30; i++) samples.push({ x: i * 25, y: 0, medium: "soil", values: { Zn: 50 + (i % 3) } }); // flat soil line
+  for (let i = 0; i < 12; i++) samples.push({ x: 2000 + i * 400, y: 3000, medium: "rock chip", values: { Zn: 5000 } }); // high rocks elsewhere
+  for (let i = 0; i < 12; i++) samples.push({ x: 300 + i * 30, y: 40, medium: "stream sediment", values: { Zn: 2 } }); // low streams beside the soils
+  const r = anomalyClasses(samples, { mode: "hotspot", symbol: "Zn", hotRadius: 100 }, { units: { Zn: "ppm" } });
+  const soilHot = samples.map((s, i) => (s.medium === "soil" && r.classOf[i] >= 3 ? 1 : 0)).reduce((a, b) => a + b, 0);
+  assert.equal(soilHot, 0, "pooled, the soils sat far above the low streams and lit up");
 });

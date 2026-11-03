@@ -4,6 +4,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
+import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1385
 import { soilGrid, streamSites, numberSamples, planGpx, planKml, planCsvRows, planFieldSheet } from "../lib/surveyPlan.js";
 import { routeTerrainAsync } from "../lib/hydrologyClient.js";
 import { pointTransform, crsName } from "../lib/reproject.js";
@@ -49,7 +50,8 @@ export default function SurveyPlannerPanel({ onClose }) {
     boundaries.forEach((b) => { const ring = (b.polylines || []).find((l, i) => l.length >= 3 && b.closedFlags?.[i] !== false); if (ring) out.push({ id: `b:${b.id}`, label: tr("Boundary: {name}", { name: b.name }), ring: ring.map((p) => [p.x, p.y]) }); });
     const box = (x0, y0, x1, y1) => [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
     if (terrain?.bbox) out.push({ id: "terrain", label: tr("The terrain's extent"), ring: box(...terrain.bbox) });
-    const pts = surfaceSamples.filter((s) => Number.isFinite(s.x) && Number.isFinite(s.y));
+    const core = mainClusters(surfaceSamples).keep; // #1385 — not the 5 rocks 45 km south (50,001 soil sites, 1,251 field days on Silvertip)
+    const pts = surfaceSamples.filter((s, i) => core[i] && Number.isFinite(s.x) && Number.isFinite(s.y));
     if (pts.length) { const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y); out.push({ id: "samples", label: tr("Around the surface samples"), ring: box(Math.min(...xs) - 200, Math.min(...ys) - 200, Math.max(...xs) + 200, Math.max(...ys) + 200) }); }
     const r = rect; if ([r.x0, r.y0, r.x1, r.y1].every((v) => v !== "" && Number.isFinite(Number(v))) && Number(r.x1) > Number(r.x0) && Number(r.y1) > Number(r.y0)) out.push({ id: "rect", label: tr("Typed corners"), ring: box(Number(r.x0), Number(r.y0), Number(r.x1), Number(r.y1)) });
     return out;

@@ -2,6 +2,8 @@
 // visible at all; but a project with soils at 20 m and a few rocks 45 km away (the Silvertip sample) then drew every soil as a
 // 250 m ball that buried the drillholes. Each medium is now also capped at 0.4 of its own typical spacing (median distance to the
 // nearest sample of that medium), so neighbouring symbols never merge; a sparse regional program keeps its #849 size. Pure.
+import { mainClusters } from "../dataClusters.js";
+
 const MIN_R = 1.8;
 
 // median nearest-neighbour distance of [x, y] points, on a grid (exact for the points it checks; at most 3,000 of them)
@@ -33,8 +35,10 @@ function medianSpacing(pts) {
 export function symbolRadiusByMedium(samples) {
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
   const by = new Map();
-  for (const s of samples) {
-    if (!Number.isFinite(s.x) || !Number.isFinite(s.y)) continue;
+  const { keep } = mainClusters(samples); // TASKS.csv #1403 — far outliers (Silvertip's rocks 45 km south) do not set the extent
+  for (let i = 0; i < samples.length; i++) {
+    const s = samples[i];
+    if (!keep[i]) continue;
     if (s.x < x0) x0 = s.x; if (s.x > x1) x1 = s.x; if (s.y < y0) y0 = s.y; if (s.y > y1) y1 = s.y;
     (by.get(s.medium) || by.set(s.medium, []).get(s.medium)).push([s.x, s.y]);
   }

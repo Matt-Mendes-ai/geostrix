@@ -6970,5 +6970,9 @@
   "Only blocks classed interpolated": "الكتل المصنفة مستكملة فقط",
   "Most of this volume is in blocks the estimate carried outward from the holes (extrapolated or unsupported), not between them: the tonnage rests on grades the drilling does not surround.": "معظم هذا الحجم في كتل مدّها التقدير خارج الآبار (مستقرأة أو بلا دعم)، لا بينها: الحمولة تعتمد على درجات لا تحيط بها الآبار.",
   " ({n} left out: no elevation, or 0 among elevations well above sea level)": " (استُبعدت {n}: بلا ارتفاع، أو 0 بين ارتفاعات أعلى بكثير من سطح البحر)",
-  "The longest strip log prints its labels at about {pt} pt on this page: use a larger page, or the strip log window for a full-size log.": "أطول عمود بئري يطبع تسمياته بنحو {pt} نقطة على هذه الصفحة: استخدم صفحة أكبر، أو نافذة العمود البئري لعمود بالحجم الكامل."
+  "The longest strip log prints its labels at about {pt} pt on this page: use a larger page, or the strip log window for a full-size log.": "أطول عمود بئري يطبع تسمياته بنحو {pt} نقطة على هذه الصفحة: استخدم صفحة أكبر، أو نافذة العمود البئري لعمود بالحجم الكامل.",
+  "Fewer than {min} samples with {sym} in {media}: no hot-spot statistic there.": "أقل من {min} عينات تحتوي {sym} في {media}: لا إحصاء للبؤر الساخنة هناك.",
+  "Carbonate replacement (CRD / manto) Ag–Pb–Zn": "إحلال الكربونات (CRD / مانتو) Ag–Pb–Zn",
+  "* Azimuth and dip of the shallowest survey station: the collar record has none.": "* السمت والميل من أقرب محطة مسح إلى السطح: سجل رأس البئر لا يحتويهما.",
+  "Suggested: this element's 90th percentile. Set the cutoff you report at.": "مقترح: المئين التسعون لهذا العنصر. حدّد حد القطع الذي تعلن به."
 }

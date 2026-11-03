@@ -737,7 +737,13 @@ export default function LayoutModule() {
   // first true-scale one, else the approximate scale of the first viewport
   const activePageIndex = Math.max(0, layoutPages.findIndex((pg) => pg.id === activeLayoutPageId));
   const credits = useMemo(() => projectCredits(terrain, rasters), [terrain, rasters]); // TASKS.csv #949
-  const textCtx = useMemo(() => textContextFor(elements, project, activePage, activePageIndex, layoutPages.length, collars, credits), [elements, project, activePage, activePageIndex, layoutPages.length, collars, credits]);
+  // TASKS.csv #1483 — a collar with no azimuth / dip of its own (Silvertip's) takes its shallowest survey station's, marked so
+  const tableCollars = useMemo(() => {
+    const first = new Map();
+    for (const s of survey || []) { if (!Number.isFinite(s.depth)) continue; const f = first.get(s.hole_id); if (!f || s.depth < f.depth) first.set(s.hole_id, s); }
+    return (collars || []).map((c) => { const s = first.get(c.hole_id); return s && !(Number.isFinite(c.azimuth) && Number.isFinite(c.dip)) ? { ...c, azimuth: Number.isFinite(c.azimuth) ? c.azimuth : s.azimuth, dip: Number.isFinite(c.dip) ? c.dip : s.dip, orientFromSurvey: true } : c; });
+  }, [collars, survey]);
+  const textCtx = useMemo(() => textContextFor(elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits), [elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits]);
 
   // "Each viewport and cross section need an option to assign a scale bar to it" — previously there
   // was only ever ONE scale-bar element on a page (onSyncScaleBar found-or-created the single
@@ -858,7 +864,7 @@ export default function LayoutModule() {
 
   return (
     <div className="ge-body" style={{ width: "100%" }}>
-      {printing && <LayoutPrintRoot ref={printRootRef} pages={layoutPages} project={project} collars={collars} credits={credits} />}{/* TASKS.csv #908 */}
+      {printing && <LayoutPrintRoot ref={printRootRef} pages={layoutPages} project={project} collars={tableCollars} credits={credits} />}{/* TASKS.csv #908 */}
       <div className="ge-panel" style={{ padding: "16px 14px", width: sidebarWidth }}>
         {/* TASKS.csv #458 — Layout ribbon (replaces the #65 icon palette and the Templates / Output buttons). */}
         <Ribbon label="Layout tools">
@@ -1862,17 +1868,19 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   // TASKS.csv #911 — a table: live drillhole collars, or a static copy (Best intercepts' results). Print typography (pt),
   // numbers right-aligned in tabular figures, a hairline grid; rows beyond the limit are counted, not dropped silently.
   if (el.type === "table") {
-    let columns = el.columns || [], rows = el.rows || [], more = 0;
+    let columns = el.columns || [], rows = el.rows || [], more = 0, surveyNote = null;
     if (el.source === "collars") {
       const cs = sortedCollars(ctx?.collars || []);
       const f = (v, d) => (Number.isFinite(Number(v)) && v !== "" && v != null ? Number(v).toFixed(d) : "");
       columns = [tr("Hole"), tr("Easting"), tr("Northing"), tr("Elev. (m)"), tr("Azimuth"), tr("Dip"), tr("Depth (m)")];
       const lim = el.maxRows || 40;
-      rows = cs.slice(0, lim).map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), f(c.z, 1), f(c.azimuth, 0), f(Number.isFinite(c.dip) ? -c.dip : "", 0) /* #1033 — negative = down, as imported */, f(c.length, 1)]);
+      const star = (v, c) => (v !== "" && c.orientFromSurvey ? `${v}*` : v); // #1483 — from the first survey station
+      rows = cs.slice(0, lim).map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), f(c.z, 1), star(f(c.azimuth, 0), c), star(f(Number.isFinite(c.dip) ? -c.dip : "", 0), c) /* #1033 — negative = down, as imported */, f(c.length, 1)]);
       more = Math.max(0, cs.length - lim);
+      if (cs.slice(0, lim).some((c) => c.orientFromSurvey)) surveyNote = tr("* Azimuth and dip of the shallowest survey station: the collar record has none.");
     }
     const fs = printPx(el.fontPt || printPt.small), cell = { padding: `${Math.round(fs * 0.25)}px ${Math.round(fs * 0.5)}px`, borderBottom: "1px solid #c9ced4" /* #999 — 0.26 mm on paper like the scale bar; 0.5 px vanished on screen at Fit zoom */, whiteSpace: "nowrap" };
-    const numeric = columns.map((_, j) => rows.length > 0 && rows.every((r) => r[j] === "" || /^[-+≥<>]?[\d.,]+$/.test(String(r[j]))));
+    const numeric = columns.map((_, j) => rows.length > 0 && rows.every((r) => r[j] === "" || /^[-+≥<>]?[\d.,]+\*?$/.test(String(r[j])))); // \*: #1483
     return (
       <div style={{ ...wrap, width: el.w || 520, background: "#fff", border: frameBorder(el), padding: 6, boxSizing: "border-box", fontFamily: "'Exo 2', system-ui, sans-serif", color: "#1a2028" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         {el.title && <div style={{ fontSize: printPx((el.fontPt || printPt.small) + 2), fontWeight: 700, marginBottom: 4 }}>{fillText(el.title, ctx)}</div>}
@@ -1884,6 +1892,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
             {more > 0 && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{tr("… and {n} more hole(s) (raise \"Rows at most\" or add a second table)", { n: more })}</td></tr>}
           </tbody>
         </table>
+        {surveyNote && <div style={{ fontSize: printPx(Math.max(5, (el.fontPt || printPt.small) - 1)), fontStyle: "italic", color: "#3a424c", marginTop: 4, lineHeight: 1.35, whiteSpace: "normal" }}>{surveyNote}</div>}
         {el.note && <div style={{ fontSize: printPx(Math.max(5, (el.fontPt || printPt.small) - 1)), fontStyle: "italic", color: "#3a424c", marginTop: 4, lineHeight: 1.35, whiteSpace: "normal" }}>{fillText(el.note, ctx)}</div>}{/* TASKS.csv #936 */}
         {handles}
       </div>

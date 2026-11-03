@@ -19,7 +19,9 @@
 // and its neighbours are high together, so a cluster of moderate values scores high and a lone spike among background
 // does not. Classes at the two-sided 95 % (1.96) and 99 % (2.576) levels, with NO correction for the many tests made
 // (one per sample): the usual practice, and a reason to read the 95 % class as a hint. On the logs because geochemical
-// values are skewed; the mean and SD are those of all the samples with the element.
+// values are skewed. TASKS.csv #1382 / #1401 (review #1352, Silvertip) — one medium at a time: the mean and SD are those of the
+// samples of the same medium, and a sample's neighbours are of its own medium. Pooled, soils beside mineralised rock chips
+// and regional streams made the whole soil line a 99 % hot spot.
 import { populations, groupKeyFn, candidateThresholds, robustZ, quantileSorted, defaultPopulations } from "./thresholds.js";
 import { valueIn } from "./geochem.js";
 
@@ -31,6 +33,8 @@ export const PATHFINDER_PRESETS = [
   { id: "orogenic", label: "Orogenic Au", elements: ["Au", "As", "Sb", "W", "Bi", "Te"], ref: "Goldfarb et al. 2005" },
   { id: "carlin", label: "Carlin-type Au", elements: ["Au", "As", "Sb", "Hg", "Tl"], ref: "Cline et al. 2005" },
   { id: "sedex", label: "Sediment-hosted Zn–Pb (SEDEX / MVT)", elements: ["Zn", "Pb", "Ag", "Ba", "Tl", "Mn"], ref: "Leach et al. 2005" },
+  // TASKS.csv #1386 — Silvertip's own style: high-temperature carbonate-replacement (manto / chimney) Ag–Pb–Zn with Mn haloes
+  { id: "crd", label: "Carbonate replacement (CRD / manto) Ag–Pb–Zn", elements: ["Ag", "Pb", "Zn", "Mn", "Cd", "Sb", "As"], ref: "Megaw et al. 1988" },
   { id: "nicupge", label: "Magmatic Ni–Cu–PGE", elements: ["Ni", "Cu", "Co", "Cr", "Pt", "Pd"], ref: "Naldrett 2004" },
   { id: "lct", label: "LCT pegmatite / lithium", elements: ["Li", "Cs", "Rb", "Ta", "Sn", "Be", "Nb"], ref: "Selway et al. 2005" },
   { id: "uranium", label: "Unconformity uranium", elements: ["U", "Ni", "Co", "As", "B", "Pb"], ref: "Jefferson et al. 2007" },
@@ -119,26 +123,31 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
     valueName = `${sym}_${unit.replace("%", "pct")}`;
     const idx = [], xs = [];
     samples.forEach((s, i) => { const v = valueIn(s, sym, unit, units); if (v > 0) { idx.push(i); xs.push(Math.log10(v)); } });
-    const m = idx.length;
     classes = [{ label: "cold spot (99 %)", color: "#2166ac" }, { label: "cold spot (95 %)", color: "#92c5de" }, { label: "not significant", color: "#bdbdbd" }, { label: "hot spot (95 %)", color: "#f4a582" }, { label: "hot spot (99 %)", color: "#b2182b" }];
     anomalousFrom = 3;
-    if (m >= HOTSPOT_MIN_SAMPLES) {
-      const mean = xs.reduce((a, v) => a + v, 0) / m, S = Math.sqrt(xs.reduce((a, v) => a + (v - mean) ** 2, 0) / m);
+    // #1382 — each medium on its own: its own mean, SD and neighbours
+    const byMedium = new Map();
+    idx.forEach((i, k) => { const md = samples[i].medium || ""; (byMedium.get(md) || byMedium.set(md, []).get(md)).push(k); });
+    const z = new Float32Array(samples.length).fill(NaN), few = [];
+    byMedium.forEach((ks, md) => {
+      const mm = ks.length;
+      if (mm < HOTSPOT_MIN_SAMPLES) { few.push(md || "?"); return; }
+      const mean = ks.reduce((a, k) => a + xs[k], 0) / mm, S = Math.sqrt(ks.reduce((a, k) => a + (xs[k] - mean) ** 2, 0) / mm);
       const cell = new Map(), key = (x, y) => `${Math.floor(x / R)},${Math.floor(y / R)}`;
-      idx.forEach((i, k) => { const s = samples[i], kk = key(s.x, s.y); (cell.get(kk) || cell.set(kk, []).get(kk)).push(k); });
-      const z = new Float32Array(samples.length).fill(NaN);
-      idx.forEach((i, k) => {
-        const s = samples[i], cx = Math.floor(s.x / R), cy = Math.floor(s.y / R);
+      ks.forEach((k) => { const s = samples[idx[k]], kk = key(s.x, s.y); (cell.get(kk) || cell.set(kk, []).get(kk)).push(k); });
+      ks.forEach((k) => {
+        const i = idx[k], s = samples[i], cx = Math.floor(s.x / R), cy = Math.floor(s.y / R);
         let W = 0, sum = 0;
         for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (const j of cell.get(`${cx + dx},${cy + dy}`) || []) { const t = samples[idx[j]]; if (Math.hypot(t.x - s.x, t.y - s.y) <= R) { W++; sum += xs[j]; } }
-        const denom = S * Math.sqrt(Math.max(0, (m * W - W * W) / (m - 1)));
+        const denom = S * Math.sqrt(Math.max(0, (mm * W - W * W) / (mm - 1)));
         z[i] = denom > 0 ? (sum - mean * W) / denom : 0;
         const g = z[i];
         classOf[i] = g <= -2.576 ? 0 : g <= -1.96 ? 1 : g < 1.96 ? 2 : g < 2.576 ? 3 : 4;
       });
-      stat = z;
-    } else notes.push({ text: "Fewer than {min} samples with {sym}: no hot-spot statistic.", params: { min: HOTSPOT_MIN_SAMPLES, sym } });
-    label = `${sym} (${unit}): Getis–Ord Gi* hot spots of log values, neighbours within ${R} m (Getis & Ord 1992); two-sided 95 % / 99 %, no correction for multiple tests`;
+    });
+    if (few.length < byMedium.size) stat = z;
+    if (few.length) notes.push({ text: "Fewer than {min} samples with {sym} in {media}: no hot-spot statistic there.", params: { min: HOTSPOT_MIN_SAMPLES, sym, media: few.join(", ") } });
+    label = `${sym} (${unit}): Getis–Ord Gi* hot spots of log values, each medium against itself, neighbours within ${R} m (Getis & Ord 1992); two-sided 95 % / 99 %, no correction for multiple tests`;
     c.coherence = false; // already a spatial statistic
   } else {
     return null;

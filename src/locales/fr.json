@@ -6970,5 +6970,9 @@
   "Only blocks classed interpolated": "Seulement les blocs classés interpolés",
   "Most of this volume is in blocks the estimate carried outward from the holes (extrapolated or unsupported), not between them: the tonnage rests on grades the drilling does not surround.": "La plupart de ce volume est dans des blocs que l'estimation a prolongés au-delà des forages (extrapolés ou sans appui), pas entre eux : le tonnage repose sur des teneurs que les forages n'entourent pas.",
   " ({n} left out: no elevation, or 0 among elevations well above sea level)": " ({n} écartés : sans altitude, ou 0 parmi des altitudes bien au-dessus du niveau de la mer)",
-  "The longest strip log prints its labels at about {pt} pt on this page: use a larger page, or the strip log window for a full-size log.": "Le log le plus long imprime ses étiquettes à environ {pt} pt sur cette page : utilisez une page plus grande, ou la fenêtre du log pour un log en pleine taille."
+  "The longest strip log prints its labels at about {pt} pt on this page: use a larger page, or the strip log window for a full-size log.": "Le log le plus long imprime ses étiquettes à environ {pt} pt sur cette page : utilisez une page plus grande, ou la fenêtre du log pour un log en pleine taille.",
+  "Fewer than {min} samples with {sym} in {media}: no hot-spot statistic there.": "Moins de {min} échantillons avec {sym} dans {media} : pas de statistique de points chauds là.",
+  "Carbonate replacement (CRD / manto) Ag–Pb–Zn": "Remplacement de carbonates (CRD / manto) Ag–Pb–Zn",
+  "* Azimuth and dip of the shallowest survey station: the collar record has none.": "* Azimut et pendage de la station de levé la moins profonde : la fiche du collet n'en a pas.",
+  "Suggested: this element's 90th percentile. Set the cutoff you report at.": "Suggéré : le 90e centile de cet élément. Fixez la teneur de coupure que vous publiez."
 }
