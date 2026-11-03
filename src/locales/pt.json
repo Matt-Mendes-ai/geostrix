@@ -7067,5 +7067,7 @@
   " Categories from the {h} of {all} holes inside the frame.": " Categorias dos {h} de {all} furos dentro do quadro.",
   "Note": "Nota",
   "Set from the file's {col} column.": "Definido pela coluna {col} do arquivo.",
-  " Azimuths taken as grid north: the file does not say which north (import it on its own to choose true or magnetic north).": " Azimutes considerados como norte de quadrícula: o arquivo não diz qual norte usa (importe-o sozinho para escolher norte verdadeiro ou magnético)."
+  " Azimuths taken as grid north: the file does not say which north (import it on its own to choose true or magnetic north).": " Azimutes considerados como norte de quadrícula: o arquivo não diz qual norte usa (importe-o sozinho para escolher norte verdadeiro ou magnético).",
+  "Read negative codes at a column's largest value as over the upper limit (-10 means \">10\", stored at the limit and flagged \">\"): {v}.": "Ler códigos negativos no maior valor da coluna como acima do limite superior (-10 significa \">10\", guardado no limite e marcado \">\"): {v}.",
+  "{n} negative value(s) read as over the upper limit (e.g. -10 → \">10\", stored at the limit).": "{n} valor(es) negativo(s) lido(s) como acima do limite superior (ex. -10 → \">10\", guardado no limite)."
 }

@@ -7067,5 +7067,7 @@
   " Categories from the {h} of {all} holes inside the frame.": " Categorías de los {h} de {all} sondajes dentro del marco.",
   "Note": "Nota",
   "Set from the file's {col} column.": "Tomado de la columna {col} del archivo.",
-  " Azimuths taken as grid north: the file does not say which north (import it on its own to choose true or magnetic north).": " Azimuts tomados como norte de cuadrícula: el archivo no indica qué norte usa (impórtelo solo para elegir norte verdadero o magnético)."
+  " Azimuths taken as grid north: the file does not say which north (import it on its own to choose true or magnetic north).": " Azimuts tomados como norte de cuadrícula: el archivo no indica qué norte usa (impórtelo solo para elegir norte verdadero o magnético).",
+  "Read negative codes at a column's largest value as over the upper limit (-10 means \">10\", stored at the limit and flagged \">\"): {v}.": "Leer los códigos negativos iguales al valor más alto de la columna como sobre el límite superior (-10 significa \">10\", guardado en el límite y marcado \">\"): {v}.",
+  "{n} negative value(s) read as over the upper limit (e.g. -10 → \">10\", stored at the limit).": "{n} valor(es) negativo(s) leído(s) como sobre el límite superior (p. ej. -10 → \">10\", guardado en el límite)."
 }

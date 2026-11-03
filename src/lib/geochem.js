@@ -173,10 +173,21 @@ export const NO_DATA_SENTINEL_MAX = -99;
 //   mode "bdl"     (default) -0.005 -> 0.0025 with qualifier '<' (same half-detection rule as "<0.005")
 //   mode "missing"           -0.005 -> not assayed
 // kind is "neg_bdl" / "neg_missing" when a negative was converted, so the importer can report counts.
-export function readAssayCell(raw, negativeMode = "bdl") {
+// TASKS.csv #1648 (review #1645, Copley) — some databases write an OVER-limit result as a negative too: Copley's K -10 (">10 %", beside
+// 8.4-9.9 % neighbours, column maximum 9.89) and Mn -10000 (">10,000 ppm", maximum 9,447) were read as "<10" = 5 % K and as no-data.
+// A code whose size is at or above the column's largest positive value, and no more than twice it, is that column's upper limit.
+export const isOverLimitCode = (value, colMax) => value < 0 && colMax > 0 && -value >= colMax && -value <= 2 * colMax;
+export function columnPositiveMax(rows, header) {
+  let max = 0;
+  for (let i = 0; i < (rows || []).length; i++) { const v = parseAssayValue(rows[i][header]); if (v != null && v > max) max = v; }
+  return max;
+}
+// colMax (optional, #1648): the column's largest positive value; a code at that limit -> its size, qualifier '>' (kind "neg_over")
+export function readAssayCell(raw, negativeMode = "bdl", colMax = 0) {
   const value = parseAssayValue(raw);
   const qualifier = assayQualifier(raw);
   if (value == null || value >= 0) return { value, qualifier, kind: null };
+  if (negativeMode !== "missing" && isOverLimitCode(value, colMax)) return { value: -value, qualifier: ">", kind: "neg_over" };
   if (value <= NO_DATA_SENTINEL_MAX || negativeMode === "missing") return { value: null, qualifier: null, kind: "neg_missing" };
   return { value: Math.abs(value) / 2, qualifier: "<", kind: "neg_bdl" };
 }

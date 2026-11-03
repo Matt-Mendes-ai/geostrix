@@ -17,7 +17,7 @@ import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"
 import { addCalculatedElement, CALC_PRESETS } from "../lib/calcElement.js"; // TASKS.csv #401
 import { useStore } from "../lib/store.jsx";
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
-import { isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples } from "../lib/geochem.js";
+import { isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples } from "../lib/geochem.js";
 import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, mergeClassRuns } from "../lib/geochemDiagrams.js";
 import { qcRecordFromFileRow, emptySurfaceQc } from "../lib/surfaceQaqc.js"; // TASKS.csv #842
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
@@ -372,14 +372,18 @@ export default function GeochemModule() {
     const converted = chosen.filter((e) => existingUnit[e.symbol] && existingUnit[e.symbol] !== e.unit);
     // TASKS.csv #333 — negative lab/database codes resolved at import (see readAssayCell).
     const negativeMode = modal.negativeMode || "bdl";
-    let negBdl = 0, negMissing = 0;
+    let negBdl = 0, negMissing = 0, negOver = 0;
+    // #1648 — each column's largest positive value, once: a negative code at that size is its upper limit
+    const colMaxCache = new Map();
+    const colMaxOf = (header) => { if (modal.overLimitCodes === false) return 0; let m = colMaxCache.get(header); if (m === undefined) { m = columnPositiveMax(modal.allRows, header); colMaxCache.set(header, m); } return m; };
     const oxideNotes = new Set(); // #403
     const oxideCache = new Map(); // #583 — per header, not per cell (2.3 M lookups on a 190,000-row file)
     const oxideOf = (header) => { let o = oxideCache.get(header); if (o === undefined) { o = oxideOfHeader(header) || null; oxideCache.set(header, o); } return o; };
     const read = (raw, sym, header) => {
-      const c = readAssayCell(raw, negativeMode);
+      const c = readAssayCell(raw, negativeMode, colMaxOf(header));
       if (c.kind === "neg_bdl") negBdl++;
       else if (c.kind === "neg_missing") negMissing++;
+      else if (c.kind === "neg_over") negOver++;
       const e = chosenBySymbol.get(sym);
       // TASKS.csv #403 — an oxide column (SiO2, Fe2O3T...) is stored as element wt%.
       const ox = oxideOf(header);
@@ -501,6 +505,7 @@ export default function GeochemModule() {
       converted.length ? tr("Converted {list} to match the unit already used in this project.", { list: converted.map((e) => `${e.symbol} ${e.unit} → ${existingUnit[e.symbol]}`).join(", ") }) : null,
       negBdl ? tr("{n} negative value(s) read as below detection (e.g. -0.005 → \"<0.005\", stored at half).", { n: negBdl }) : null,
       negMissing ? tr("{n} negative value(s) treated as not assayed.", { n: negMissing }) : null,
+      negOver ? tr("{n} negative value(s) read as over the upper limit (e.g. -10 → \">10\", stored at the limit).", { n: negOver }) : null, // #1648
       mergedCount ? tr("{n} interval(s) were already loaded and were updated in place, not duplicated.", { n: mergedCount }) : null,
       (() => { // #541 — ids that miss a collar only by case / spaces / hyphens
         const ids = new Set(collars.map((c) => c.hole_id)); if (!ids.size) return null;

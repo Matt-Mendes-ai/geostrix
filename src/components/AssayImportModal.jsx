@@ -1,7 +1,7 @@
 import { QC_COLUMN_KEYS } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
 import React, { useMemo, useState } from "react";
 import { X } from "./icons.js";
-import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, parseAssayValue, NO_DATA_SENTINEL_MAX, isBlankAssayCell, unitAssumed } from "../lib/geochem.js";
+import { isElementColumn, inferUnit, ELEMENT_SYMBOLS, parseAssayValue, NO_DATA_SENTINEL_MAX, isBlankAssayCell, unitAssumed, isOverLimitCode } from "../lib/geochem.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
@@ -20,16 +20,29 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   const negativesOf = (h) => {
     let c = negByColumn.get(h);
     if (!c) {
-      c = { codes: 0, sentinels: 0 };
+      c = { codes: 0, sentinels: 0, over: 0, overCode: null };
       const rows = modal.allRows;
-      for (let i = 0; i < rows.length; i++) { const v = parseAssayValue(rows[i][h]); if (v != null && v < 0) { if (v <= NO_DATA_SENTINEL_MAX) c.sentinels++; else c.codes++; } }
+      let max = 0; // #1648 — the column's largest positive value: a negative code at that size is its upper limit
+      for (let i = 0; i < rows.length; i++) { const v = parseAssayValue(rows[i][h]); if (v != null && v > max) max = v; }
+      for (let i = 0; i < rows.length; i++) {
+        const v = parseAssayValue(rows[i][h]);
+        if (v == null || v >= 0) continue;
+        if (isOverLimitCode(v, max)) { c.over++; c.overCode = v; } else if (v <= NO_DATA_SENTINEL_MAX) c.sentinels++; else c.codes++;
+      }
       negByColumn.set(h, c);
     }
     return c;
   };
   const negatives = useMemo(() => {
     const hs = modal.format === "long" ? [modal.mapping.value] : modal.elements.filter((e) => e.checked).map((e) => e.header);
-    return hs.reduce((t, h) => { const c = negativesOf(h); return { codes: t.codes + c.codes, sentinels: t.sentinels + c.sentinels }; }, { codes: 0, sentinels: 0 });
+    // #1648 — over-limit codes are counted apart, and fall back into the other two when the user turns their reading off
+    const overOn = modal.overLimitCodes !== false;
+    return hs.reduce((t, h) => {
+      const c = negativesOf(h);
+      const over = overOn ? c.over : 0, back = overOn ? 0 : c.over;
+      return { codes: t.codes + c.codes + (back && c.overCode > NO_DATA_SENTINEL_MAX ? back : 0), sentinels: t.sentinels + c.sentinels + (back && c.overCode <= NO_DATA_SENTINEL_MAX ? back : 0), over: t.over + over,
+        overCols: c.over ? [...t.overCols, `${h} ${c.overCode} (×${c.over})`] : t.overCols, overAny: t.overAny + c.over };
+    }, { codes: 0, sentinels: 0, over: 0, overCols: [], overAny: 0 });
   }, [modal.allRows, modal.elements, modal.format, modal.mapping.value]);
   // TASKS.csv #502 — empty element cells (in rows that have at least one result: a row with none had nothing
   // analysed). The user says what they mean for this file; GeochemModule applies it.
@@ -206,8 +219,14 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
           )}
         </div>
 
-        {(negatives.codes > 0 || negatives.sentinels > 0 || unitClashes.length > 0 || blanks > 0) && (
+        {(negatives.codes > 0 || negatives.sentinels > 0 || negatives.overAny > 0 || unitClashes.length > 0 || blanks > 0) && (
           <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 6 }}>
+            {negatives.overAny > 0 && ( /* TASKS.csv #1648 */
+              <label style={{ display: "flex", gap: 6, alignItems: "flex-start", cursor: "pointer", color: "var(--color-text)" }}>
+                <input type="checkbox" checked={modal.overLimitCodes !== false} onChange={(e) => onChange({ ...modal, overLimitCodes: e.target.checked })} style={{ marginTop: 2 }} />
+                <span>{tr("Read negative codes at a column's largest value as over the upper limit (-10 means \">10\", stored at the limit and flagged \">\"): {v}.", { v: negatives.overCols.join(", ") })}</span>
+              </label>
+            )}
             {negatives.codes > 0 && (
               <div>
                 <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{tr("{codes} negative value(s) between {NO_DATA_SENTINEL_MAX} and 0. Assays can't be negative, so these are codes. What do they mean?", { codes: negatives.codes, NO_DATA_SENTINEL_MAX })}</div>
