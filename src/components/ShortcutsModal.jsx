@@ -42,8 +42,9 @@ const SHORTCUT_GROUPS = [
       ["Ctrl/Cmd+4", "Geochem"], // #750 — geoML models are a 3D Modelling tool now
       ["Ctrl/Cmd+5", "Geophysics"],
       ["Ctrl/Cmd+6", "Targeting"],
-      ["Ctrl/Cmd+7", "Maps"], // #749 — rasters, terrain, boundaries, CRS (geology map layers: Surface Geology, #820)
-      ["Ctrl/Cmd+8", "Layout"], // #565 — in tab order
+      ["Ctrl/Cmd+7", "Mine Design"],
+      ["Ctrl/Cmd+8", "Maps"], // #749 — rasters, terrain, boundaries, CRS (geology map layers: Surface Geology, #820)
+      ["Ctrl/Cmd+9", "Layout"], // #565 — in tab order
     ],
   },
   {

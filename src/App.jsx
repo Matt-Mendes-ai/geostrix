@@ -3,7 +3,7 @@ import { t as tr, LANGUAGES, currentLanguage, setLanguage } from "./lib/i18n.js"
 import { oncePerWindow } from "./lib/oncePerWindow.js"; // TASKS.csv #1163
 import { requestModuleAction } from "./lib/menuRequests.js"; // TASKS.csv #565
 import { onProjectCrsRequest, requestProjectCrs } from "./lib/projectCrsRequest.js"; // TASKS.csv #615
-import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Layers3, Target, FileBarChart2, Map as MapIcon, Compass } from "./components/icons.js"; // Compass: #820
+import { FileDown, Box, FlaskConical, Radio, Layout, Save, FolderOpen, FilePlus2, RotateCcw, X, Undo2, Redo2, Plus, Layers3, Target, FileBarChart2, Map as MapIcon, Compass, Pickaxe } from "./components/icons.js"; // Compass: #820
 import { crsName, getProj4DefSync, loadEpsgRegistry, onEpsgRegistry, isMetricProjectedEpsg } from "./lib/reproject.js"; // TASKS.csv #485; #834 registry; #1148
 import { useStore, useCursorValue, useTaskProgressValue, FreezeStore } from "./lib/store.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx"; // TASKS.csv #442
@@ -64,6 +64,7 @@ const MODULES = [
   { id: "geochem", label: "Geochem", icon: FlaskConical },
   { id: "geophysics", label: "Geophysics", icon: Radio },
   { id: "targeting", label: "Targeting", icon: Target },
+  { id: "minedesign", label: "Mine Design", icon: Pickaxe }, // TASKS.csv #1341 — the 3D view in a fifth mode
   // TASKS.csv #749 — one Maps tab: rasters / satellite / terrain beside each other, map + web layers, boundaries, and the
   // whole former Cartography tab (project CRS, reprojection). Was: Raster, Cartography, and four Geophysics tools.
   { id: "maps", label: "Maps", icon: MapIcon },
@@ -76,7 +77,7 @@ const MODULES = [
 // mounted (hidden via CSS, not unmounted) across all three instead of three separate conditional JSX
 // expressions each occupying their own position in the render tree (which is what forced the
 // unmount/remount in the first place).
-const VIEWER_MODES = { viewer: "view", surface: "surface", modelling: "modelling", targeting: "targeting" }; // surface: #820 // #750 — Predictive is a Modelling tool now
+const VIEWER_MODES = { viewer: "view", surface: "surface", modelling: "modelling", targeting: "targeting", minedesign: "minedesign" }; // surface: #820 // #750 — Predictive is a Modelling tool now
 
 // TASKS.csv #1163 — one crash-recovery check per window (the store's checkAutosave is bound at mount)
 const recoveryCheck = oncePerWindow(() => recoveryCheck.fn());

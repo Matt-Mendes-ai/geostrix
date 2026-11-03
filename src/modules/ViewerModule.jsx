@@ -26,7 +26,7 @@ import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/d
 import { sampleProjectName } from "../lib/sampleProjectName.js"; // TASKS.csv #1218
 import { sectionFromCentre, sectionThroughHole, fenceLines, fenceExtentPoints, fenceLabels } from "../lib/sectionDefs.js";
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, RIBBON_TONES } from "../components/Ribbon.jsx"; // TASKS.csv #458
-import { Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate, Sparkles, Download } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
+import { Pickaxe, Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, SquareSplitVertical, LayoutTemplate, Sparkles, Download } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
 import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImportMeta.js"; // TASKS.csv #148; #552 split
 import { parseSolidInWorker } from "../lib/solidImportClient.js"; // TASKS.csv #414
 // TASKS.csv #414 — imported solids, one tone per layer (grey-blue family: never the generated-surface gold).
@@ -89,6 +89,7 @@ import { ASSAY_ELEMENT_COLORS, assayColorFor, categoryLegendGroups, assayLegendG
 // TASKS.csv #843 — the anomaly map (lib/anomalyMap.js + lib/thresholds.js) and its controls load only when used: off the startup bundle
 const SurfaceAnomalyControls = React.lazy(() => import("../components/SurfaceAnomalyControls.jsx"));
 const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverlayPane.jsx"));
+const PitShellPane = React.lazy(() => import("../components/PitShellPane.jsx")); // TASKS.csv #1341
 const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")); // TASKS.csv #1152
 const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
@@ -661,6 +662,7 @@ const SURFACE_TYPES = [
   { key: "mineralization_envelope", label: "Mineralization envelope" },
   { key: "alteration_envelope", label: "Alteration envelope" },
   { key: "unit_body", label: "Unit body (closed)" }, // TASKS.csv #1340 — a rock unit from its modelling code
+  { key: "pit_shell", label: "Pit shell (conceptual)" }, // TASKS.csv #1341
   // TASKS.csv #144 — a vein/dyke is modelled as a PAIR of walls plus (optionally) the solid between
   // them, so the three parts get distinct types: they are not interchangeable, and the checker (#90)
   // reads "hangingwall is above footwall" off the relationship these are created with.
@@ -1340,13 +1342,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // switcher). Now that View and Modelling are separate top-level modules, which content shows is
   // dictated entirely by the `mode` prop App.jsx passes in — kept as a local alias so the render code
   // below (`sidebarTab === "home"` / `=== "modelling"`) didn't need a mechanical find/replace.
-  const sidebarTab = mode === "modelling" ? "modelling" : mode === "targeting" ? "targeting" : mode === "surface" ? "surface" : "home"; // #750 — no Predictive tab; surface: #820
+  const sidebarTab = mode === "modelling" ? "modelling" : mode === "targeting" ? "targeting" : mode === "surface" ? "surface" : mode === "minedesign" ? "minedesign" : "home"; // #750 — no Predictive tab; surface: #820
   // TASKS.csv #458 — the tool shown in the sidebar ("task pane") — picked from the ribbon; null = only the
   // tab's data. Targeting opens on its planned-holes pane (its main job). Reset when the tab changes.
-  const [toolPane, setToolPane] = useState(mode === "targeting" ? "plan" : null);
+  const [toolPane, setToolPane] = useState(mode === "targeting" ? "plan" : mode === "minedesign" ? "pit" : null);
   // TASKS.csv #820 — a pane to open in the NEXT tab (e.g. Surface Geology's "Model it" -> 3D Modelling's Model from map)
   const pendingPaneRef = useRef(null);
-  useEffect(() => { setToolPane(pendingPaneRef.current || (mode === "targeting" ? "plan" : null)); pendingPaneRef.current = null; }, [mode]);
+  useEffect(() => { setToolPane(pendingPaneRef.current || (mode === "targeting" ? "plan" : mode === "minedesign" ? "pit" : null)); pendingPaneRef.current = null; }, [mode]);
   const paneProps = (id) => ({ active: toolPane === id, expanded: toolPane === id, onClick: () => setToolPane((p) => (p === id ? null : id)) }); // expanded: #595
   const paneHeader = (title, icon, tone) => <TaskPaneHeader title={title} icon={icon} tone={tone} onClose={() => setToolPane(null)} />;
   // TASKS.csv #572 — a modelling pane with nothing to model says what to load, instead of an empty "Choose…" select
@@ -3642,19 +3644,20 @@ ${describeTrend(t)}` };
     setNotices((p) => [...p, notice("Added {added} closed unit volume(s) from {title}: {lines} (inside the model box — a unit that continues beyond it is closed at the box). They are listed with the model surfaces: export, sections, the volume readout and \"Restrict to a modelled volume\" in Grade estimation work on them.", { added: added.length, title: lb.title, lines: lines.join(", ") })]);
   };
   // TASKS.csv #1139 — the undrilled zones of a unit as a closed solid (world E, N, Z from UndrilledZonesPane)
-  const addUndrilledSolid = ({ name, positions: w, indices, volumeM3, params, tip }) => {
+  // #1341 — a pit shell comes through here too: an open surface of its own type
+  const addUndrilledSolid = ({ name, positions: w, indices, volumeM3, params, tip, type = "unit_volume", closure = "closed", color = "#e8590c", tag = "undrilled" }) => {
     const o = originRef.current, scene = new Float32Array(w.length);
     for (let i = 0; i < w.length; i += 3) { scene[i] = w[i] - o.x; scene[i + 1] = w[i + 2] - o.z; scene[i + 2] = o.y - w[i + 1]; }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(scene, 3));
     geo.setIndex(new THREE.BufferAttribute(indices, 1));
     geo.computeVertexNormals();
-    const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: new THREE.Color("#e8590c"), side: THREE.DoubleSide, transparent: true, opacity: 0.55 }));
+    const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: new THREE.Color(color), side: THREE.DoubleSide, transparent: true, opacity: 0.55 }));
     mesh.userData = { tip };
     implicitGroupRef.current?.add(mesh);
-    const id = `impl_${Date.now()}_undrilled`;
+    const id = `impl_${Date.now()}_${tag}`;
     implicitMeshesRef.current[id] = mesh;
-    setImplicitSurfaces((p) => [...p, { id, name, visible: true, vertexCount: w.length / 3, faceCount: indices.length / 3, type: "unit_volume", relationships: [], closure: "closed", params: { ...params, volumeM3: Math.round(volumeM3) } }]);
+    setImplicitSurfaces((p) => [...p, { id, name, visible: true, vertexCount: w.length / 3, faceCount: indices.length / 3, type, relationships: [], closure, params: { ...params, ...(volumeM3 != null ? { volumeM3: Math.round(volumeM3) } : {}) } }]);
   };
   const addModelledLayer = () => {
     const lb = lastLithBlock; if (!lb) return;
@@ -6981,6 +6984,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </Ribbon>
       )}
       {/* TASKS.csv #458 — Targeting ribbon */}
+      {mode === "minedesign" && (
+        <Ribbon show={visible} label="Mine design tools">
+          <RibbonGroup label="Open pit">
+            <RibbonButton icon={Pickaxe} label="Pit shell" tone="model" title="The pit that makes the most money at your prices and costs, from a block model" {...paneProps("pit")} />
+          </RibbonGroup>
+        </Ribbon>
+      )}
       {mode === "targeting" && (
         <Ribbon show={visible} label="Targeting tools">
           <RibbonGroup label="Targets">
@@ -8101,6 +8111,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </Suspense>
         </>)}{/* TASKS.csv #820 */}
 
+        {sidebarTab === "minedesign" && toolPane === "pit" && <Suspense fallback={null}><PitShellPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>}
         {sidebarTab === "targeting" && (<>
         {toolPane === "ranges" && (<>
         {paneHeader("Voxel value ranges", Box, "view")}

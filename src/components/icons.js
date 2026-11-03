@@ -99,6 +99,7 @@ export const Milestone = memoIcon(L.Milestone);
 export const Minus = memoIcon(L.Minus);
 export const MonitorPlay = memoIcon(L.MonitorPlay);
 export const Mountain = memoIcon(L.Mountain);
+export const Pickaxe = memoIcon(L.Pickaxe); // TASKS.csv #1341
 export const Move = memoIcon(L.Move);
 export const Paperclip = memoIcon(L.Paperclip); // TASKS.csv #598
 export const Package = memoIcon(L.Package);
