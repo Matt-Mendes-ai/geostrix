@@ -2434,7 +2434,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         updateCamera();
         return;
       }
-      if (compass.isOver(mount, mx, my)) { setTooltip(null); return; }
+      // #1491 — only over the canvas itself: from the side panel the ray went off the view's edge and hit samples there
+      if (e.target !== renderer.domElement || compass.isOver(mount, mx, my)) { setTooltip(null); return; }
       // world coords under cursor -> status bar. Raycasts every real feature in the scene (terrain,
       // voxels, drillholes, OMF, rasters, etc. — see pickHoverTargets/raycastWorldPoint above) and
       // takes whichever is nearest the camera, falling back to a flat plane only when nothing is hit —
@@ -7378,7 +7379,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               "-", ...overlayExportItems("surface_samples", async () => (await overlayLib()).surfaceSampleFeatures(surfaceSamples, surfaceElements, surfaceAnomaly ? { result: surfaceAnomaly, drawn: placedSurfaceSamples } : null), {
                 kml: { nameOf: (f) => f.attributes.sample_id, colorOf: (f) => (f.attributes.anomalous ? "#d7301f" : "#7a7a7a") },
                 csvRows: async () => (await overlayLib()).surfaceSampleRows(surfaceSamples, surfaceElements, surfaceAnomaly ? { result: surfaceAnomaly, drawn: placedSurfaceSamples } : null) }),
-              "-", { label: tr("Import or edit samples — Geochem tab"), onClick: () => goToModule("geochem") }])} className="ge-section-label" style={{ marginTop: 16 }}>{tr("Surface samples")}</div>
+              "-", { label: tr("Import or edit samples — Geochem tab"), onClick: () => goToModule("geochem") }])}>{/* #1492 — the row too, not only the heading */}<div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Surface samples")}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 4 }}>
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setLayerVisible((p) => ({ ...p, surface_samples: !p.surface_samples }))} style={{ cursor: "pointer", color: layerVisible.surface_samples ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                 {layerVisible.surface_samples ? <Eye size={14} /> : <EyeOff size={14} />}
@@ -7386,7 +7387,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               <Beaker size={14} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
               <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{tr(surfaceSamples.length === 1 ? "{n} sample" : "{n} samples", { n: surfaceSamples.length })}</span>
               <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geochem"), tr("Import more assays, or edit them, in the Geochem tab"))} />
-            </div>
+            </div></div>
             {surfaceSamplesUnplaced > 0 && ( // TASKS.csv #606
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", padding: "2px 2px 4px", lineHeight: 1.4 }}>
                 {tr(terrain ? "{n} surface sample(s) have no elevation and lie outside the terrain — extend the DEM to cover them." : "{n} surface sample(s) have no elevation and no terrain to sit on — load a DEM or SRTM terrain (Geophysics tab) and they are placed on it.", { n: surfaceSamplesUnplaced })}
