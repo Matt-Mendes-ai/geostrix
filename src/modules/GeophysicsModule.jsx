@@ -675,9 +675,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       const { parseGPX, gpxToLayers, parseGeoJSON, layersToBoundaryPolylines } = await import("../lib/gpxGeojson.js");
       const text = await file.text();
       const layers = name.endsWith(".gpx") ? gpxToLayers(parseGPX(text)) : parseGeoJSON(text).layers;
-      const { polylines, failed } = layersToBoundaryPolylines(layers, project?.epsg, reprojectXY);
+      const { polylines, closedFlags, failed } = layersToBoundaryPolylines(layers, project?.epsg, reprojectXY); // closedFlags: #1760
       if (!polylines.length) throw new Error(failed ? tr("Coordinates could not be converted to EPSG:{v}.", { v: project?.epsg }) : tr("No lines or polygons found in this file (GPX waypoints and GeoJSON points are imported as a map layer in Surface Geology)."));
-      return { polylines };
+      return { polylines, closedFlags };
     }
     // TASKS.csv #1035 — every part of every feature, reprojected from the file's own CRS (lib/boundaryImport.js)
     if (name.endsWith(".zip") || name.endsWith(".shp")) {

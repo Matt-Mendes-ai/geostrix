@@ -22,3 +22,12 @@ test("a real lon / lat file is unchanged", () => {
   assert.equal(r.epsg, 4326);
   assert.equal(r.notDegrees, false);
 });
+
+test("#1760 lines stay open, polygons closed", () => {
+  const fc = { type: "FeatureCollection", features: [
+    { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: [[381000, 5955000], [382000, 5956000]] } },
+    { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [[[381000, 5955000], [383000, 5955000], [383000, 5957000], [381000, 5955000]]] } },
+  ] };
+  const { closedFlags } = layersToBoundaryPolylines(parseGeoJSON(fc).layers, 26910, () => null);
+  assert.deepEqual(closedFlags.sort(), [false, true]);
+});

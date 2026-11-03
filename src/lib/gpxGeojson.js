@@ -123,8 +123,10 @@ export function parseGeoJSON(text) {
 
 // lines and polygon rings of map layers as boundary polylines [{x, y}] in the project CRS. reproject(x, y, from, to)
 // -> {x, y} | null is passed in (lib/reproject.js reprojectXY) so this file stays dependency-free.
+// TASKS.csv #1760 (review #1645, Copley) — closedFlags: a polygon ring is closed, a line (a road, a GPX track) is open; without them every
+// line was drawn back to its start
 export function layersToBoundaryPolylines(layers, epsg, reproject) {
-  const polylines = [];
+  const polylines = [], closedFlags = [];
   let failed = 0;
   for (const l of layers) {
     if (l.geomType === "point") continue;
@@ -136,8 +138,8 @@ export function layersToBoundaryPolylines(layers, epsg, reproject) {
         if (!p) { failed++; continue; }
         pts.push({ x: p.x, y: p.y });
       }
-      if (pts.length >= 2) polylines.push(pts);
+      if (pts.length >= 2) { polylines.push(pts); closedFlags.push(l.geomType === "polygon"); }
     }
   }
-  return { polylines, failed };
+  return { polylines, closedFlags, failed };
 }
