@@ -90,6 +90,7 @@ import { ASSAY_ELEMENT_COLORS, assayColorFor, categoryLegendGroups, assayLegendG
 const SurfaceAnomalyControls = React.lazy(() => import("../components/SurfaceAnomalyControls.jsx"));
 const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverlayPane.jsx"));
 const PitShellPane = React.lazy(() => import("../components/PitShellPane.jsx")); // TASKS.csv #1341
+const DesignLinesPane = React.lazy(() => import("../components/DesignLinesPane.jsx")); // TASKS.csv #1342
 const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")); // TASKS.csv #1152
 const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
@@ -747,7 +748,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     collars, setCollars, survey, setSurvey, layers, setLayers, replaceLayer, assays, assayElements,
     desurveyMethod, // TASKS.csv #135 — project-wide desurvey method; every trace built here must use it
     surfaceSamples, surfaceElements,
-    plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,
+    designLines, /* TASKS.csv #1342 */ plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,
     generatedSurfaces, setGeneratedSurfaces, modelDomains, setModelDomains, // TASKS.csv #52 — persisted implicit surfaces + domains
     getProjectToken, isSameProject, // TASKS.csv #466
     customLayers: storeCustomLayers, setCustomLayers: setStoreCustomLayers,
@@ -5695,6 +5696,37 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     });
   }, [plannedHoles]);
 
+  // TASKS.csv #1342 — Mine Design linework in the view, drawn over the rock so a line inside a block model stays in sight
+  const designGroupRef = useRef(null);
+  useEffect(() => {
+    let live = true;
+    const scene = sceneRef.current;
+    if (!scene) return undefined;
+    const clear = () => { const g = designGroupRef.current; if (g) { scene.remove(g); g.traverse((o) => { o.geometry?.dispose(); o.material?.dispose(); }); designGroupRef.current = null; } lastActivityRef.current = Date.now(); };
+    if (!designLines.length) { clear(); return undefined; }
+    import("../lib/designLines.js").then(({ computeLine }) => {
+      if (!live) return;
+      clear();
+      const g = new THREE.Group(), { x: ox, y: oy, z: oz } = originRef.current;
+      g.name = "designLines";
+      designLines.forEach((l) => {
+        if (l.visible === false || !Number.isFinite(l.start?.x) || !Number.isFinite(l.start?.y) || !Number.isFinite(l.start?.z)) return;
+        const c = computeLine(l), at = (v) => new THREE.Vector3(v[0] - ox, v[2] - oz, -(v[1] - oy));
+        const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(c.vertices.map(at)), new THREE.LineBasicMaterial({ color: l.color, depthTest: false, transparent: true }));
+        line.renderOrder = 10; line.frustumCulled = false;
+        // a dot where each segment starts and ends
+        const ends = [[l.start.x, l.start.y, l.start.z], ...c.segments.map((s) => s.end)];
+        const dots = new THREE.Points(new THREE.BufferGeometry().setFromPoints(ends.map(at)), new THREE.PointsMaterial({ color: l.color, size: 7, sizeAttenuation: false, depthTest: false, transparent: true }));
+        dots.renderOrder = 10; dots.frustumCulled = false;
+        g.add(line, dots);
+      });
+      scene.add(g);
+      designGroupRef.current = g;
+      lastActivityRef.current = Date.now();
+    });
+    return () => { live = false; };
+  }, [designLines, collars]); // collars: they set the scene's origin
+
   // TASKS.csv #121 — measurement tool's own 3D visual: a solid line/polyline for distance mode (each
   // segment is a real placed measurement, unlike the dashed "planned/proposed" convention #188 uses),
   // or the same line auto-closed with one dashed segment back to the start for area mode (dashed
@@ -6989,6 +7021,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <RibbonGroup label="Open pit">
             <RibbonButton icon={Pickaxe} label="Pit shell" tone="model" title="The pit that makes the most money at your prices and costs, from a block model" {...paneProps("pit")} />
           </RibbonGroup>
+          <RibbonGroup label="Underground">
+            <RibbonButton icon={Spline} label="Drifts and ramps" tone="model" title="Draw drifts, tunnels, ramps and declines at set grades, with curves of a chosen radius" {...paneProps("lines")} />
+          </RibbonGroup>
         </Ribbon>
       )}
       {mode === "targeting" && (
@@ -8112,6 +8147,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </>)}{/* TASKS.csv #820 */}
 
         {sidebarTab === "minedesign" && toolPane === "pit" && <Suspense fallback={null}><PitShellPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>}
+        {sidebarTab === "minedesign" && toolPane === "lines" && <Suspense fallback={null}><DesignLinesPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef }} onClose={() => setToolPane(null)} /></Suspense>}
         {sidebarTab === "targeting" && (<>
         {toolPane === "ranges" && (<>
         {paneHeader("Voxel value ranges", Box, "view")}
