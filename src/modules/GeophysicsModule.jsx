@@ -62,6 +62,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { vectorToBoundaryPolylines } from "../lib/boundaryImport.js"; // TASKS.csv #1035
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
 import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
+import { usePrompt } from "../components/usePrompt.jsx"; // TASKS.csv #1779
 const GradeTonnageModal = lazyModal(() => import("../components/GradeTonnageModal.jsx")); // TASKS.csv #1052 — loaded when opened
 
 // TASKS.csv #309 — the format reference that USED to be this tab's entire empty state: a twelve-line
@@ -2009,6 +2010,7 @@ const VOXEL_PROPERTIES = ["Conductivity (S/m)", "Resistivity (ohm·m)", "Chargea
 // TASKS.csv #1178 — a conductivity cutoff read "0" with 5,765 cells hidden: three significant figures, whatever the size
 export const sigFigs = (v) => (Number.isFinite(v) ? (v === 0 ? "0" : Number(v.toPrecision(3)).toLocaleString(undefined, { maximumSignificantDigits: 3 })) : "—");
 function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage, getEpsg, csvNames = "datamine", stampChoice = "auto", epsg = null }) {
+  const [askPrompt, promptEl] = usePrompt(); // TASKS.csv #1779 — window.prompt throws in Electron
   const [gtOpen, setGtOpen] = useState(false); // TASKS.csv #1052
   const [displayThreshold, setDisplayThreshold] = useState(model.threshold);
   const [displayOpacity, setDisplayOpacity] = useState(model.opacity ?? 0.85);
@@ -2040,6 +2042,7 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage,
     : undefined;
   return (
     <div data-voxel-id={model.id} /* #1417 — the 3D View's link scrolls here */ style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
+      {promptEl}
       <div style={{ color: "var(--color-text)", overflowWrap: "anywhere", lineHeight: 1.3, marginBottom: 3 }}>{model.name}</div>{/* #1178: seven icons squeezed it to one letter */}
       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onUpdate(model.id, { visible: model.visible === false })} style={{ cursor: "pointer", color: model.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
@@ -2066,7 +2069,7 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage,
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
           <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Values are")}</span>
           <select value={VOXEL_PROPERTIES.includes(model.property) ? model.property : model.property ? "__other" : ""} aria-label={tr("What the values of \"{name}\" are", { name: model.name })}
-            onChange={(e) => { const v = e.target.value; const other = v === "__other" ? window.prompt(tr("What are the values (property and unit)?"), model.property || "") : null; if (v === "__other" && !other) return; onUpdate(model.id, { property: v === "__other" ? other.trim() : v || null, propertyChosen: true }); }}
+            onChange={(e) => { const v = e.target.value; if (v === "__other") { askPrompt(tr("What are the values (property and unit)?"), model.property || "", (other) => { if (other && other.trim()) onUpdate(model.id, { property: other.trim(), propertyChosen: true }); }); return; } onUpdate(model.id, { property: v || null, propertyChosen: true }); }}
             style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)", padding: "2px 4px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)" }}>
             <option value="">{tr("Not stated (the file names no unit)")}</option>
             {VOXEL_PROPERTIES.map((v) => <option key={v} value={v}>{tr(v)}</option>)}

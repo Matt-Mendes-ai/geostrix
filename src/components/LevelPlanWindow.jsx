@@ -11,6 +11,7 @@ import { saveFile } from "../lib/desktop.js"; // TASKS.csv #1114 — the native 
 import { planLegend } from "../lib/levelPlanLegend.js"; // TASKS.csv #1404
 import { resolveLabels } from "../lib/sectionLabels.js"; // TASKS.csv #1404 — the sections' label declutter (#1144)
 import { LAYER_META } from "../lib/layers.js";
+import { usePrompt } from "./usePrompt.jsx"; // TASKS.csv #1779
 
 // TASKS.csv #525 — the LEVEL PLAN window: a horizontal section at an RL, at true scale with E / N axes, a scale bar
 // and a north arrow. What the plane z = RL cuts — and what lies in the slab RL ± half-width — comes from
@@ -38,6 +39,7 @@ function toWorldF(frame, e, root) {
 }
 
 export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onSaveBoundary, onAddToLayout }) {
+  const [askPrompt, promptEl] = usePrompt(); // TASKS.csv #1779 — window.prompt throws in Electron
   useEscapeKey(onClose);
   useFocusTrap();
   const [rl, setRl] = useState(() => Math.round(defaultRl));
@@ -99,6 +101,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
     return () => el.removeEventListener("wheel", onWheel);
   });
 
+        {promptEl}
   useEffect(() => { setNote(null); }, [rl, half]);
 
   if (!frame) return null;
@@ -125,11 +128,11 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
   const onUp = () => { setTimeout(() => { dragRef.current = null; }, 0); };
   const saveOutline = () => {
     if (pts.length < 3) { setNote(tr("An outline needs at least three points.")); return; }
-    const name = window.prompt(tr("Name for this outline (saved as a boundary at this RL):"), `Plan outline RL ${rl}`);
-    if (name == null) return;
-    onSaveBoundary(pts, Number(rl), name || `Plan outline RL ${rl}`);
-    setNote(tr("\"{v}\" saved as a boundary at {rl} m (Geophysics > Boundaries; visible in 3D).", { v: name || tr("Plan outline RL {rl}", { rl }), rl }));
-    setPts([]); setDrawing(false);
+    askPrompt(tr("Name for this outline (saved as a boundary at this RL):"), `Plan outline RL ${rl}`, (name) => { // #1779
+      onSaveBoundary(pts, Number(rl), name || `Plan outline RL ${rl}`);
+      setNote(tr("\"{v}\" saved as a boundary at {rl} m (Geophysics > Boundaries; visible in 3D).", { v: name || tr("Plan outline RL {rl}", { rl }), rl }));
+      setPts([]); setDrawing(false);
+    });
   };
 
   // scale bar and grid

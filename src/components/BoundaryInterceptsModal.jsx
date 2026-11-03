@@ -9,6 +9,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { usePrompt } from "./usePrompt.jsx"; // TASKS.csv #1779
 
 // TASKS.csv #84 — geological architecture layer 3 (drillhole -> geological-boundary intercepts as
 // explicit control points). `intercepts` is computed fresh by ViewerModule's computeIntercepts() every
@@ -31,6 +32,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 // unchanged for anyone not using the feature.
 export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts, softIntercepts, onToggle, onToggleSoft, onCancel,
   interceptSets = [], onAddSet, onRenameSet, onDeleteSet, onToggleInSet, onSetMembership }) {
+  const [askPrompt, promptEl] = usePrompt(); // TASKS.csv #1779 — window.prompt throws in Electron
   const { project } = useStore(); // #1053
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
@@ -70,6 +72,7 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
   return (
     <div style={overlay} {...backdropProps(onCancel)}>
       <div style={panel} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+        {promptEl}
         <div style={header}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <Milestone size={18} color="#55606e" />
@@ -108,7 +111,7 @@ export default function BoundaryInterceptsModal({ intercepts, excludedIntercepts
                 {interceptSets.map((x) => <option key={x.id} value={x.id}>{x.name} ({(x.ids || []).length})</option>)}
               </select>
               {editingSet && (
-                <button onClick={() => { const n = window.prompt(tr("Rename set"), editingSet.name); if (n && n.trim()) onRenameSet?.(editingSet.id, n.trim()); }} style={miniBtn} title={tr("Rename this set")}>{tr("Rename")}</button>
+                <button onClick={() => askPrompt(tr("Rename set"), editingSet.name, (n) => { if (n && n.trim()) onRenameSet?.(editingSet.id, n.trim()); })} style={miniBtn} title={tr("Rename this set")}>{tr("Rename")}</button>
               )}
               {editingSet && (
                 <button onClick={() => { if (window.confirm(tr("Delete the set \"{name}\"? The intercepts themselves are untouched.", { name: editingSet.name }))) { onDeleteSet?.(editingSet.id); setEditingSetId(""); } }} style={{ ...miniBtn, color: "var(--color-danger-icon)" }} title={tr("Delete this set")}>
