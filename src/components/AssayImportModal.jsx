@@ -44,6 +44,13 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
         overCols: c.over ? [...t.overCols, `${h} ${c.overCode} (×${c.over})`] : t.overCols, overAny: t.overAny + c.over };
     }, { codes: 0, sentinels: 0, over: 0, overCols: [], overAny: 0 });
   }, [modal.allRows, modal.elements, modal.format, modal.mapping.value]);
+  // TASKS.csv #1677 — exact zeros in the columns being imported (in a pXRF file: 'not detected')
+  const zeros = useMemo(() => {
+    const hs = modal.format === "long" ? [modal.mapping.value] : modal.elements.filter((e) => e.checked).map((e) => e.header);
+    let n = 0;
+    for (const r of modal.allRows) for (const h of hs) if (parseAssayValue(r[h]) === 0) n++;
+    return n;
+  }, [modal.allRows, modal.elements, modal.format, modal.mapping.value]);
   // TASKS.csv #502 — empty element cells (in rows that have at least one result: a row with none had nothing
   // analysed). The user says what they mean for this file; GeochemModule applies it.
   const blanks = useMemo(() => {
@@ -219,7 +226,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
           )}
         </div>
 
-        {(negatives.codes > 0 || negatives.sentinels > 0 || negatives.overAny > 0 || unitClashes.length > 0 || blanks > 0) && (
+        {(negatives.codes > 0 || negatives.sentinels > 0 || negatives.overAny > 0 || unitClashes.length > 0 || blanks > 0 || zeros > 0) && (
           <div style={{ padding: "10px 16px", borderTop: "1px solid var(--color-border)", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", flexDirection: "column", gap: 6 }}>
             {negatives.overAny > 0 && ( /* TASKS.csv #1648 */
               <label style={{ display: "flex", gap: 6, alignItems: "flex-start", cursor: "pointer", color: "var(--color-text)" }}>
@@ -234,6 +241,15 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
                   <input type="radio" name="negmode" checked={(modal.negativeMode || "bdl") === "bdl"} onChange={() => onChange({ ...modal, negativeMode: "bdl" })} />{tr("Below detection (-0.005 means \"<0.005\"; stored at half and flagged \"<\")")}</label>
                 <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
                   <input type="radio" name="negmode" checked={modal.negativeMode === "missing"} onChange={() => onChange({ ...modal, negativeMode: "missing" })} />{tr("Not assayed (leave blank)")}</label>
+              </div>
+            )}
+            {zeros > 0 && ( /* TASKS.csv #1677 */
+              <div>
+                <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{tr("{n} zero value(s). In a pXRF file a zero usually means not detected. What do they mean here?", { n: zeros })}</div>
+                <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
+                  <input type="radio" name="zeromode" checked={(modal.zeroMode || (modal.isPxrf ? "bdl" : "real")) === "bdl"} onChange={() => onChange({ ...modal, zeroMode: "bdl" })} />{tr("Below detection (stored as \"<\" at half the smallest reading in that column)")}</label>
+                <label style={{ display: "flex", gap: 6, alignItems: "center", cursor: "pointer" }}>
+                  <input type="radio" name="zeromode" checked={(modal.zeroMode || (modal.isPxrf ? "bdl" : "real")) === "real"} onChange={() => onChange({ ...modal, zeroMode: "real" })} />{tr("A real measured zero")}</label>
               </div>
             )}
             {blanks > 0 && (

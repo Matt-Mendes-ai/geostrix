@@ -7075,5 +7075,10 @@
   "an earlier import": "uma importação anterior",
   "This is a 3D IP survey: electrodes on {n} lines, {offline} reading(s) with current and potential on different lines. The DC / IP tool inverts one 2D line at a time: import one line's readings, or the contractor's 3D inversion model (Block models).": "Este é um levantamento de IP 3D: eletrodos em {n} linhas, {offline} leitura(s) com corrente e potencial em linhas diferentes. A ferramenta DC / IP inverte uma linha 2D por vez: importe as leituras de uma linha, ou o modelo de inversão 3D da contratada (Modelos de blocos).",
   "{n} pXRF reading(s) left out: the grades here come from lab assays only.": "{n} leitura(s) de pXRF deixada(s) de fora: os teores aqui vêm apenas das análises de laboratório.",
-  "{n} pXRF reading(s) were left out of the classification: it uses lab assays only.": "{n} leitura(s) de pXRF ficaram fora da classificação: ela usa apenas análises de laboratório."
+  "{n} pXRF reading(s) were left out of the classification: it uses lab assays only.": "{n} leitura(s) de pXRF ficaram fora da classificação: ela usa apenas análises de laboratório.",
+  "{n} zero value(s) read as below detection (stored as \"<\" at half the smallest reading in their column).": "{n} valor(es) zero lido(s) como abaixo da detecção (guardados como \"<\" na metade da menor leitura da coluna).",
+  "{n} zero value(s) left out: their column has no reading above zero to set a detection limit.": "{n} valor(es) zero deixado(s) de fora: a coluna não tem leitura acima de zero para definir um limite de detecção.",
+  "{n} zero value(s). In a pXRF file a zero usually means not detected. What do they mean here?": "{n} valor(es) zero. Num arquivo de pXRF um zero geralmente significa não detectado. O que significam aqui?",
+  "Below detection (stored as \"<\" at half the smallest reading in that column)": "Abaixo da detecção (guardado como \"<\" na metade da menor leitura dessa coluna)",
+  "A real measured zero": "Um zero medido real"
 }

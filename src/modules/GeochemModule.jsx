@@ -415,6 +415,19 @@ export default function GeochemModule() {
         ? allRows.map((r) => r[e.header])
         : allRows.filter((r) => (!mapping.method || r[mapping.method] === selectedMethod) && isElementColumn(String(r[mapping.analyte] ?? "")) === e.symbol).map((r) => r[mapping.value]))));
     }
+    // TASKS.csv #1677 (review #1645, Copley) — an exact 0 in a pXRF file is 'not detected' (Copley: Cu 166, Mo 334, Ag 547 of 556 readings):
+    // stored as measured zeros they tied every rank, made Nb/Y = 0 and log10(0) (#1672). When the dialog says below detection (the pXRF
+    // default), a zero becomes '<' at half the smallest reading in its column; with no reading at all in the column it is left out.
+    const zeroMode = modal.zeroMode || (modal.isPxrf ? "bdl" : "real");
+    const zeroLimits = new Map(); let zeroBdl = 0, zeroNoLimit = 0;
+    const zeroAsBdl = (cell, sym, header) => {
+      if (zeroMode !== "bdl" || parseAssayValue(cell) !== 0) return null;
+      let L = zeroLimits.get(header);
+      if (L === undefined) { L = Infinity; for (const r of allRows) { const x = parseAssayValue(format === "wide" ? r[header] : r[mapping.value]); if (x > 0 && x < L) L = x; } zeroLimits.set(header, L); }
+      if (!Number.isFinite(L)) { zeroNoLimit++; return { v: null, q: null }; }
+      zeroBdl++;
+      return read(`<${L}`, sym, header);
+    };
     const blankAsBdl = (sym, header) => {
       const L = blankLimits.get(sym);
       if (!L?.limit) { blankNoLimit.add(sym); return null; }
@@ -434,7 +447,7 @@ export default function GeochemModule() {
         const anyResult = blankMode === "bdl" && chosen.some((e) => !isBlankAssayCell(r[e.header])); // #502
         chosen.forEach((e) => {
           const cell = r[e.header]; // #583 — read once (a columnar row's value is a getter)
-          let { v, q } = read(cell, e.symbol, e.header);
+          let { v, q } = zeroAsBdl(cell, e.symbol, e.header) || read(cell, e.symbol, e.header); // #1677
           // #600 / #542 — a sample at the main column's cap takes its ore-grade re-assay (converted to the main
           // column's unit) when the file has one; only while the element still reads the auto-picked column
           const ol = e.overLimit && e.header === e.mainHeader ? e.overLimit : null;
@@ -469,7 +482,7 @@ export default function GeochemModule() {
         const hole = String(r[mapping.hole_id] ?? "").trim(), from = num(r[mapping.from]), to = num(r[mapping.to]);
         const key = `${hole}|${from}|${to}`;
         if (!byInterval.has(key)) byInterval.set(key, tagQC({ hole_id: hole, from, to, values: {}, source: modal.isPxrf ? "pXRF" : "assay", ...(modal.fileName ? { srcFile: modal.fileName } : {}) }, r)); // srcFile: #624
-        let { v, q } = read(r[mapping.value], sym, String(r[mapping.analyte] ?? "")); // TASKS.csv #261 qualifiers, #333 negatives, #334 units, #403 oxides
+        let { v, q } = zeroAsBdl(r[mapping.value], sym, String(r[mapping.analyte] ?? "")) || read(r[mapping.value], sym, String(r[mapping.analyte] ?? "")); // TASKS.csv #261 qualifiers, #333 negatives, #334 units, #403 oxides; #1677 zeros
         if (v == null && blankMode === "bdl" && isBlankAssayCell(r[mapping.value])) ({ v, q } = blankAsBdl(sym, String(r[mapping.analyte] ?? "")) || { v, q }); // #502
         if (v != null) {
           const target = byInterval.get(key);
@@ -506,6 +519,8 @@ export default function GeochemModule() {
       converted.length ? tr("Converted {list} to match the unit already used in this project.", { list: converted.map((e) => `${e.symbol} ${e.unit} → ${existingUnit[e.symbol]}`).join(", ") }) : null,
       negBdl ? tr("{n} negative value(s) read as below detection (e.g. -0.005 → \"<0.005\", stored at half).", { n: negBdl }) : null,
       negMissing ? tr("{n} negative value(s) treated as not assayed.", { n: negMissing }) : null,
+      zeroBdl ? tr("{n} zero value(s) read as below detection (stored as \"<\" at half the smallest reading in their column).", { n: zeroBdl }) : null, // #1677
+      zeroNoLimit ? tr("{n} zero value(s) left out: their column has no reading above zero to set a detection limit.", { n: zeroNoLimit }) : null,
       negOver ? tr("{n} negative value(s) read as over the upper limit (e.g. -10 → \">10\", stored at the limit).", { n: negOver }) : null, // #1648
       mergedCount ? tr("{n} interval(s) were already loaded and were updated in place, not duplicated.", { n: mergedCount }) : null,
       (() => { // #541 — ids that miss a collar only by case / spaces / hyphens

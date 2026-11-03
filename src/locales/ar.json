@@ -7075,5 +7075,10 @@
   "an earlier import": "استيراد سابق",
   "This is a 3D IP survey: electrodes on {n} lines, {offline} reading(s) with current and potential on different lines. The DC / IP tool inverts one 2D line at a time: import one line's readings, or the contractor's 3D inversion model (Block models).": "هذا مسح استقطاب مستحث ثلاثي الأبعاد: أقطاب على {n} خطًا، و{offline} قراءة بتيار وجهد على خطوط مختلفة. أداة DC / IP تعكس خطًا ثنائي الأبعاد واحدًا في كل مرة: استورد قراءات خط واحد، أو نموذج العكس ثلاثي الأبعاد من المقاول (نماذج الكتل).",
   "{n} pXRF reading(s) left out: the grades here come from lab assays only.": "استُبعدت {n} قراءة pXRF: المحتويات هنا من تحاليل المختبر فقط.",
-  "{n} pXRF reading(s) were left out of the classification: it uses lab assays only.": "استُبعدت {n} قراءة pXRF من التصنيف: يستخدم تحاليل المختبر فقط."
+  "{n} pXRF reading(s) were left out of the classification: it uses lab assays only.": "استُبعدت {n} قراءة pXRF من التصنيف: يستخدم تحاليل المختبر فقط.",
+  "{n} zero value(s) read as below detection (stored as \"<\" at half the smallest reading in their column).": "قُرئت {n} قيمة صفرية على أنها دون حد الكشف (خُزنت \"<\" عند نصف أصغر قراءة في عمودها).",
+  "{n} zero value(s) left out: their column has no reading above zero to set a detection limit.": "استُبعدت {n} قيمة صفرية: لا يحتوي عمودها على أي قراءة فوق الصفر لتحديد حد الكشف.",
+  "{n} zero value(s). In a pXRF file a zero usually means not detected. What do they mean here?": "{n} قيمة صفرية. في ملف pXRF يعني الصفر عادةً عدم الكشف. ماذا تعني هنا؟",
+  "Below detection (stored as \"<\" at half the smallest reading in that column)": "دون حد الكشف (يُخزَّن \"<\" عند نصف أصغر قراءة في ذلك العمود)",
+  "A real measured zero": "صفر مقاس فعلي"
 }

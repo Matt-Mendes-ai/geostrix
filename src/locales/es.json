@@ -7075,5 +7075,10 @@
   "an earlier import": "una importación anterior",
   "This is a 3D IP survey: electrodes on {n} lines, {offline} reading(s) with current and potential on different lines. The DC / IP tool inverts one 2D line at a time: import one line's readings, or the contractor's 3D inversion model (Block models).": "Este es un levantamiento de IP 3D: electrodos en {n} líneas, {offline} lectura(s) con corriente y potencial en líneas distintas. La herramienta DC / IP invierte una línea 2D a la vez: importe las lecturas de una línea, o el modelo de inversión 3D del contratista (Modelos de bloques).",
   "{n} pXRF reading(s) left out: the grades here come from lab assays only.": "{n} lectura(s) pXRF excluida(s): las leyes aquí vienen solo de los ensayes de laboratorio.",
-  "{n} pXRF reading(s) were left out of the classification: it uses lab assays only.": "{n} lectura(s) pXRF quedaron fuera de la clasificación: usa solo ensayes de laboratorio."
+  "{n} pXRF reading(s) were left out of the classification: it uses lab assays only.": "{n} lectura(s) pXRF quedaron fuera de la clasificación: usa solo ensayes de laboratorio.",
+  "{n} zero value(s) read as below detection (stored as \"<\" at half the smallest reading in their column).": "{n} valor(es) cero leído(s) como bajo el límite de detección (guardados como \"<\" a la mitad de la lectura más baja de su columna).",
+  "{n} zero value(s) left out: their column has no reading above zero to set a detection limit.": "{n} valor(es) cero excluido(s): su columna no tiene ninguna lectura sobre cero para fijar un límite de detección.",
+  "{n} zero value(s). In a pXRF file a zero usually means not detected. What do they mean here?": "{n} valor(es) cero. En un archivo pXRF un cero suele significar no detectado. ¿Qué significan aquí?",
+  "Below detection (stored as \"<\" at half the smallest reading in that column)": "Bajo el límite de detección (guardado como \"<\" a la mitad de la lectura más baja de esa columna)",
+  "A real measured zero": "Un cero medido real"
 }

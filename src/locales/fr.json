@@ -7075,5 +7075,10 @@
   "an earlier import": "une importation précédente",
   "This is a 3D IP survey: electrodes on {n} lines, {offline} reading(s) with current and potential on different lines. The DC / IP tool inverts one 2D line at a time: import one line's readings, or the contractor's 3D inversion model (Block models).": "Il s'agit d'un levé PP 3D : électrodes sur {n} lignes, {offline} lecture(s) avec courant et potentiel sur des lignes différentes. L'outil DC / IP inverse une ligne 2D à la fois : importez les lectures d'une ligne, ou le modèle d'inversion 3D du prestataire (Modèles de blocs).",
   "{n} pXRF reading(s) left out: the grades here come from lab assays only.": "{n} lecture(s) pXRF laissée(s) de côté : les teneurs ici viennent des seules analyses de laboratoire.",
-  "{n} pXRF reading(s) were left out of the classification: it uses lab assays only.": "{n} lecture(s) pXRF ont été laissées hors de la classification : elle n'utilise que les analyses de laboratoire."
+  "{n} pXRF reading(s) were left out of the classification: it uses lab assays only.": "{n} lecture(s) pXRF ont été laissées hors de la classification : elle n'utilise que les analyses de laboratoire.",
+  "{n} zero value(s) read as below detection (stored as \"<\" at half the smallest reading in their column).": "{n} valeur(s) nulle(s) lue(s) comme sous la limite de détection (stockées « < » à la moitié de la plus petite lecture de leur colonne).",
+  "{n} zero value(s) left out: their column has no reading above zero to set a detection limit.": "{n} valeur(s) nulle(s) laissée(s) de côté : leur colonne n'a aucune lecture au-dessus de zéro pour fixer une limite de détection.",
+  "{n} zero value(s). In a pXRF file a zero usually means not detected. What do they mean here?": "{n} valeur(s) nulle(s). Dans un fichier pXRF, un zéro veut généralement dire non détecté. Que signifient-elles ici ?",
+  "Below detection (stored as \"<\" at half the smallest reading in that column)": "Sous la limite de détection (stocké « < » à la moitié de la plus petite lecture de cette colonne)",
+  "A real measured zero": "Un vrai zéro mesuré"
 }
