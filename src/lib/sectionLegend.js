@@ -24,3 +24,29 @@ export function groupSectionLegend(items) {
   }
   return out;
 }
+
+// TASKS.csv #1475 (review #1352, Silvertip) — a section of Zn assays came to Layout with a 51-row legend and no Zn: its grade bars
+// and their numbers had no key. The assay groups (assayLegendGroups' output) of the elements this section draws, first, as
+// "Zn (%): 0.5–2 %" rows; and the mineralization drawn, by name (the logged % left out so each mineral is one row).
+// points: buildSectionPayload's points ({ assay: { sym } } for grade bars); intervals / points labels "Mineralization: X (n%)".
+export function sectionAssayLegend(points, assayGroups) {
+  const drawn = new Set((points || []).filter((p) => p.assay).map((p) => p.assay.sym));
+  const out = [];
+  for (const g of assayGroups || []) {
+    if (!drawn.has(String(g.key).replace(/^assay_/, ""))) continue;
+    for (const [label, color] of g.items || []) if (color && color !== "transparent") out.push([`${g.label}: ${label}`, color]);
+  }
+  return out;
+}
+export function sectionMineralLegend(intervals, points, groupLabel = "Mineralization") {
+  const prefix = `${groupLabel}: `, seen = new Set(), out = [];
+  for (const r of [...(intervals || []), ...(points || [])]) {
+    const s = String(r?.label || "");
+    if (!s.startsWith(prefix) || r.assay) continue;
+    const name = s.replace(/\s*\([\d.]+\s*%\)\s*$/, "");
+    if (seen.has(`${name}|${r.color}`)) continue;
+    seen.add(`${name}|${r.color}`);
+    out.push([name, r.color]);
+  }
+  return out.sort((a, b) => a[0].localeCompare(b[0]));
+}

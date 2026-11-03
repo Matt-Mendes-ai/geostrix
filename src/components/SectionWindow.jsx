@@ -790,7 +790,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
           return (
             <g key={i}>
               <line x1={bx0} y1={by0} x2={bx1} y2={by1} stroke={row.color} strokeWidth={Math.min(thick, 6)} strokeLinecap="butt"><title>{`${row.label} (${a.from}–${a.to} m)`}</title></line>
-              {labelledAssays.has(row) && <text x={bx1 + nx * 3} y={by1 + ny * 3 + 3} fill="#1a2028" fontSize={fs(9)} textAnchor={nx >= 0 ? "start" : "end"}>{a.value}</text>}
+              {labelledAssays.has(row) && <text x={bx1 + nx * 3} y={by1 + ny * 3 + 3} fill="#1a2028" fontSize={fs(9)} textAnchor={nx >= 0 ? "start" : "end"}>{a.u ? `${a.value} ${a.u} ${a.sym}` : a.value}</text>}{/* unit: #1475 */}
             </g>
           );
         }

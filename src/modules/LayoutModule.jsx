@@ -90,7 +90,7 @@ export default function LayoutModule() {
     // Legend "load lithologies from the bound view" (below) needs the actual litho rows — a theme
     // only records which units were filtered/hidden at capture time, not the vocabulary itself.
     // TASKS.csv #130 — collars/sections needed for the Atlas batch-page-generation feature below.
-    layers, collars, sections, project,
+    layers, collars, sections, project, survey, // survey: #1476
     surfaceSamples, boundaries, // TASKS.csv #907 — what "Fit the holes" fits when there are no holes
     mapLayers, surfaceSampleLegend, // TASKS.csv #948 — the Surface Geology map's legend groups
     assays, assayElements, voxelModels, // TASKS.csv #725 — the legend loads assay classes and block-model keys too
@@ -389,9 +389,12 @@ export default function LayoutModule() {
   // the way the viewport's last capture looked (its azimuth), centred on that data, then a refresh at that scale and
   // centre. The check is in plan: for an oblique view the vertical extent is not a map distance, so it is approximate
   // there and exact for a top-down view.
-  const fitViewport = (sel) => {
+  const fitViewport = async (sel) => {
     const pts = [];
     for (const c of collars || []) if (Number.isFinite(c.x) && Number.isFinite(c.y)) pts.push([c.x, c.y]);
+    // #1476 — the holes, not only their collars: Silvertip's 1,300 m fans ran off the frame. Each desurveyed trace point counts.
+    const { holeTraces } = await import("../lib/evidenceSources.js"); // loaded on use: not on the startup path
+    for (const t of holeTraces(collars, survey, project?.desurveyMethod).values()) for (const p of t) if (Number.isFinite(p.x) && Number.isFinite(p.y)) pts.push([p.x, p.y]);
     if (!pts.length) for (const s of surfaceSamples || []) if (Number.isFinite(s.x) && Number.isFinite(s.y)) pts.push([s.x, s.y]);
     if (!pts.length) for (const b of boundaries || []) for (const pl of b.polylines || []) for (const p of pl) if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) pts.push([p.x, p.y]);
     if (!pts.length) { setSyncNotice(tr("Nothing to fit: the project has no located data yet.")); return; }
@@ -1082,7 +1085,8 @@ export default function LayoutModule() {
                   // there isn't one yet. See the cameraAzimuthDeg comment in ViewerModule.jsx for how
                   // that angle is derived (reuses the compass rose's own -theta formula).
                   if (sel.cameraAzimuthDeg == null) return;
-                  const deg = sel.cameraAzimuthDeg;
+                  // #1477 — a frame turned on the sheet turns its north with it: the arrow is the camera azimuth plus the frame's rotation
+                  const deg = (((sel.cameraAzimuthDeg + (Number(sel.rotation) || 0)) % 360) + 360) % 360;
                   setElements((els) => {
                     const hasNorth = els.some((el) => el.type === "north");
                     if (hasNorth) return els.map((el) => el.type === "north" ? { ...el, rotation: deg } : el);
@@ -1298,6 +1302,7 @@ export default function LayoutModule() {
             legendOverride={viewerUiState?.legendOverride} // TASKS.csv #1092 — the 3D legend's colours / names
             sections={sections}
             addLayoutPages={addLayoutPages}
+            page={A4}
           />
         )}
         {/* TASKS.csv #788 — the sheet is physical paper (rulers from the left, x in mm): it stays left-to-right in Arabic, or an RTL scroll would open on the page's right edge */}

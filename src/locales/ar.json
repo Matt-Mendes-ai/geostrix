@@ -6969,5 +6969,6 @@
   "Interpolated": "مستكمل",
   "Only blocks classed interpolated": "الكتل المصنفة مستكملة فقط",
   "Most of this volume is in blocks the estimate carried outward from the holes (extrapolated or unsupported), not between them: the tonnage rests on grades the drilling does not surround.": "معظم هذا الحجم في كتل مدّها التقدير خارج الآبار (مستقرأة أو بلا دعم)، لا بينها: الحمولة تعتمد على درجات لا تحيط بها الآبار.",
-  " ({n} left out: no elevation, or 0 among elevations well above sea level)": " (استُبعدت {n}: بلا ارتفاع، أو 0 بين ارتفاعات أعلى بكثير من سطح البحر)"
+  " ({n} left out: no elevation, or 0 among elevations well above sea level)": " (استُبعدت {n}: بلا ارتفاع، أو 0 بين ارتفاعات أعلى بكثير من سطح البحر)",
+  "The longest strip log prints its labels at about {pt} pt on this page: use a larger page, or the strip log window for a full-size log.": "أطول عمود بئري يطبع تسمياته بنحو {pt} نقطة على هذه الصفحة: استخدم صفحة أكبر، أو نافذة العمود البئري لعمود بالحجم الكامل."
 }

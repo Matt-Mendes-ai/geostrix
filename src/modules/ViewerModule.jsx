@@ -48,7 +48,7 @@ import { createCompassRose } from "../components/CompassRose.js";
 import { createAxisGizmo } from "../components/AxisGizmo.js";
 import ViewportFigureOverlay from "../components/ViewportFigureOverlay.jsx"; // TASKS.csv #311 — in-viewport title/legend/scale-bar figure furniture
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309 — the shared empty-state card, extracted from this file's own #294 card
-import { fixedScaleHalfHeight } from "../lib/layoutGeometry.js";
+import { fixedScaleHalfHeight, captureLongPx } from "../lib/layoutGeometry.js";
 import { worldHeightAtTargetM } from "../lib/figureScale.js"; // TASKS.csv #311 — the single shared metres-per-pixel derivation (Layout's scale bar uses it too)
 import HoverToolInfo from "../components/HoverToolInfo.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
@@ -88,6 +88,7 @@ const FenceDiagramModal = lazyModal(() => import("../components/FenceDiagramModa
 const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrientationCalculator.jsx"));  // TASKS.csv #301
 import { codesInUse, connectIntervals, effectiveCode, codeInfo } from "../lib/modellingCodes.js"; // TASKS.csv #599
 import { ASSAY_ELEMENT_COLORS, assayColorFor, categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, scaleLegendGroup, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, surfaceSampleLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; map / boundary / samples: #948
+import { sectionAssayLegend, sectionMineralLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1475
 // TASKS.csv #843 — the anomaly map (lib/anomalyMap.js + lib/thresholds.js) and its controls load only when used: off the startup bundle
 const SurfaceAnomalyControls = React.lazy(() => import("../components/SurfaceAnomalyControls.jsx"));
 const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverlayPane.jsx"));
@@ -298,14 +299,14 @@ const CAPTURE_LONG_PX = 3000;
 // TASKS.csv #906 — outW x outH (CSS px): the size the capture is drawn at, when it is not the canvas's own (a Layout
 // frame's aspect); the renderer goes back to cssW x cssH afterwards.
 const tickedShown = (collars, f) => { const k = new Set(holesMatching(collars.map((c) => c.hole_id), f)); return collars.filter((c) => k.has(c.hole_id)); };
-function captureHiRes(renderer, cssW, cssH, draw, outW = cssW, outH = cssH) {
+function captureHiRes(renderer, cssW, cssH, draw, outW = cssW, outH = cssH, longPx = CAPTURE_LONG_PX) {
   const gl = renderer.getContext();
   const maxRb = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 4096;
   const maxVp = gl.getParameter(gl.MAX_VIEWPORT_DIMS)?.[0] || 4096;
   const cap = Math.min(4096, maxRb, maxVp);
   const oldPr = renderer.getPixelRatio();
   const longCss = Math.max(outW, outH) || 1;
-  const pr = Math.max(oldPr, Math.min(CAPTURE_LONG_PX, cap) / longCss);
+  const pr = Math.max(oldPr, Math.min(longPx, cap) / longCss);
   const resize = pr !== oldPr || outW !== cssW || outH !== cssH;
   try {
     if (resize) { renderer.setPixelRatio(pr); renderer.setSize(outW, outH, false); }
@@ -2996,7 +2997,7 @@ ${describeTrend(t)}` };
         renderer.clippingPlanes = slicePlanesRef.current; // #453 — the figure shows the slice you see
         renderer.render(scene, renderCamera);
         renderer.clippingPlanes = [];
-      }, outW, outH); // #906 — at the frame's aspect
+      }, outW, outH, captureLongPx(req.elementW, req.elementH, CAPTURE_LONG_PX)); // #906 — at the frame's aspect; #1479: 300 dpi of the frame
       encoded = shot.encoded; shotW = shot.width; shotH = shot.height;
     } catch (err) { applyTheme(liveViewBeforeRender); resolveViewportRender({ requestId: req.requestId, error: err.message }); return; }
     // TASKS.csv #311 — this used to be the inline `2 * cs.radius * Math.tan(fovRad / 2)`. Same figure,
@@ -6426,9 +6427,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const style = assayStyle[sym];
         const vals = assays.filter((a) => holeIds.has(a.hole_id) && a.values[sym] != null && assayPassesCutoff(a.values[sym], style));
         if (!vals.length) return;
+        const u = assayElements.find((e) => e.symbol === sym)?.unit || ""; // #1475 — the label carries its unit
         vals.forEach((a) => {
           const mid = (a.from + a.to) / 2, v = a.values[sym];
-          points.push({ hole_id: a.hole_id, md: mid, color: assayColorFor(v, idx, style), label: `${sym}: ${v}`, assay: { sym, value: v, idx, from: a.from, to: a.to } }); // #392 — drawn as a grade bar
+          points.push({ hole_id: a.hole_id, md: mid, color: assayColorFor(v, idx, style), label: `${sym}: ${v}`, assay: { sym, value: v, idx, from: a.from, to: a.to, u } }); // #392 — drawn as a grade bar
         });
       });
     }
@@ -6629,6 +6631,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       legendItems.push([r.label, r.color]);
     });
     legendItems.sort((a, b) => a[0].localeCompare(b[0]));
+    // #1475 — the grade classes drawn (first) and the mineralization; not the numeric ramps yet
+    legendItems.unshift(...sectionAssayLegend(points, assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle })));
+    legendItems.push(...sectionMineralLegend(intervals, points, LAYER_META.mnlgy.label));
 
     // TASKS.csv #357 — model surfaces and imported solids ON the section. Every visible implicit/solid mesh
     // is cut by the vertical section plane (per-triangle sign test, once per section): the geologist can

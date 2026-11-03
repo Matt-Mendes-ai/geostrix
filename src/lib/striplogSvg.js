@@ -139,7 +139,7 @@ export async function buildStripLogDataUrl({ holeId, collars, layers, legendOver
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    return { dataUrl: canvas.toDataURL("image/png"), aspect: width / height };
+    return { dataUrl: canvas.toDataURL("image/png"), aspect: width / height, height }; // height: #1478, for the printed text size
   } finally {
     URL.revokeObjectURL(url);
   }

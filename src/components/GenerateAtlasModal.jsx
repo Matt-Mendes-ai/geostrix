@@ -11,7 +11,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 // template: every text/title element's {{token}} placeholders get filled in per hole/section, and one
 // new Layout page is created per item. See src/lib/atlas.js's own header comment for the deliberate
 // scope boundary (no per-item 3D viewport re-render — text + an optional per-hole strip-log image).
-export default function GenerateAtlasModal({ onClose, templateElements, collars, layers, legendOverride = null, sections, addLayoutPages }) { // legendOverride: #1092
+export default function GenerateAtlasModal({ onClose, templateElements, collars, layers, legendOverride = null, sections, addLayoutPages, page = null }) { // legendOverride: #1092; page: #1478
   useEscapeKey(onClose);
   useFocusTrap(); // TASKS.csv #238
   const [mode, setMode] = useState("hole"); // "hole" | "section"
@@ -56,16 +56,19 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
         ? await (async () => {
             const out = [];
             for (let i = 0; i < chosen.length; i++) {
-              const [page] = await generateAtlasPages({ mode, items: [chosen[i]], templateElements, collars, layers, includeStripLog, legendOverride });
-              out.push(page);
+              const [pg] = await generateAtlasPages({ mode, items: [chosen[i]], templateElements, collars, layers, includeStripLog, legendOverride, page });
+              out.push(pg);
               setProgress({ done: i + 1, total: chosen.length });
             }
             return out;
           })()
-        : await generateAtlasPages({ mode, items: chosen, templateElements, collars, layers, includeStripLog, legendOverride });
+        : await generateAtlasPages({ mode, items: chosen, templateElements, collars, layers, includeStripLog, legendOverride, page });
+      // #1478 — a long hole squeezed onto one page prints its depth labels too small to read: said, with the size
+      const smallest = Math.min(...pages.map((pg) => pg.textPt).filter(Number.isFinite));
+      const smallText = Number.isFinite(smallest) && smallest < 6 ? ` ${tr("The longest strip log prints its labels at about {pt} pt on this page: use a larger page, or the strip log window for a full-size log.", { pt: smallest.toFixed(1) })}` : "";
       addLayoutPages(pages);
       const failed = pages.filter((pg) => pg.stripLogFailed).map((pg) => pg.name); // #1080
-      setResult({ ok: !failed.length, text: tr("Generated {n} page(s).", { n: pages.length }) + (failed.length ? ` ${tr("The strip log could not be drawn for {n} hole(s), added without it: {holes}.", { n: failed.length, holes: failed.slice(0, 8).join(", ") + (failed.length > 8 ? "…" : "") })}` : "") });
+      setResult({ ok: !failed.length, text: tr("Generated {n} page(s).", { n: pages.length }) + smallText + (failed.length ? ` ${tr("The strip log could not be drawn for {n} hole(s), added without it: {holes}.", { n: failed.length, holes: failed.slice(0, 8).join(", ") + (failed.length > 8 ? "…" : "") })}` : "") });
     } catch (err) {
       setResult({ ok: false, text: err.message });
     } finally {

@@ -103,3 +103,12 @@ export function snapToGuides(vals, lines, thr) {
   for (const v of vals) for (const l of lines) { const d = l - v; if (Math.abs(d) <= thr && (!best || Math.abs(d) < Math.abs(best.delta))) best = { delta: d, at: l }; }
   return best || { delta: 0, at: null };
 }
+
+// TASKS.csv #1479 (review #1352) — the long side, in pixels, to render a Layout frame's capture at: 300 dpi of the frame's printed
+// size (elementW / elementH in page px at 96 dpi), at least 600 px, at most `max`. Every capture used to be 3,000 px long, so a
+// 60 x 40 mm overview frame was drawn at a pixel ratio of up to 13 (points and labels overdrawn) and froze the window for seconds.
+// No frame size (a capture that is not for a Layout frame): `max`.
+export function captureLongPx(elementW, elementH, max = 3000) {
+  if (!(elementW > 0)) return max;
+  return Math.min(max, Math.max(600, Math.round((Math.max(elementW, elementH || 0) * 300) / 96)));
+}

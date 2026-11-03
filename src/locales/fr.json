@@ -6969,5 +6969,6 @@
   "Interpolated": "Interpolé",
   "Only blocks classed interpolated": "Seulement les blocs classés interpolés",
   "Most of this volume is in blocks the estimate carried outward from the holes (extrapolated or unsupported), not between them: the tonnage rests on grades the drilling does not surround.": "La plupart de ce volume est dans des blocs que l'estimation a prolongés au-delà des forages (extrapolés ou sans appui), pas entre eux : le tonnage repose sur des teneurs que les forages n'entourent pas.",
-  " ({n} left out: no elevation, or 0 among elevations well above sea level)": " ({n} écartés : sans altitude, ou 0 parmi des altitudes bien au-dessus du niveau de la mer)"
+  " ({n} left out: no elevation, or 0 among elevations well above sea level)": " ({n} écartés : sans altitude, ou 0 parmi des altitudes bien au-dessus du niveau de la mer)",
+  "The longest strip log prints its labels at about {pt} pt on this page: use a larger page, or the strip log window for a full-size log.": "Le log le plus long imprime ses étiquettes à environ {pt} pt sur cette page : utilisez une page plus grande, ou la fenêtre du log pour un log en pleine taille."
 }
