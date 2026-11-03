@@ -405,8 +405,11 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 </div>
                 <div style={{ marginTop: 4, color: "#55606e" }}>
                   <span title={tr("Woodcock shape K = {K} (< 1 girdle, > 1 cluster), strength C = {C}", { K: fabric.K.toFixed(2), C: fabric.C.toFixed(1) })}>
-                    {isGirdle ? tr("Girdle — picks spread along a great circle (possible fold); a single mean plane is not meaningful, use the fold axis (β) below.")
-                      : fabric.shape === "cluster" ? tr("Tight cluster — a single dominant orientation.")
+                    {/* TASKS.csv #1441 (review #1352) — no shape verdict over pooled types (it read "Tight cluster" under "Mixed types ... not one
+                        population"), and "tight" only for a Fisher k of 20 or more (it was said at k = 4.7) */}
+                    {typeFilter === "all" && types.length > 1 ? tr("Shape not assessed: the picks are of several types.")
+                      : isGirdle ? tr("Girdle — picks spread along a great circle (possible fold); a single mean plane is not meaningful, use the fold axis (β) below.")
+                      : fabric.shape === "cluster" ? (!(stats?.k >= 20) ? tr("Cluster — one dominant orientation, loosely defined (k {k}).", { k: Number.isFinite(stats?.k) ? stats.k.toFixed(1) : "?" }) : tr("Tight cluster — a single dominant orientation."))
                       : fabric.shape === "few" ? tr("Too few picks to judge the shape (fewer than 4) — the mean plane is only as good as these picks.")
                       : fabric.shape === "weak" ? tr("Weak / no preferred orientation — treat this mean with caution.")
                       : tr("Moderate clustering.")}
