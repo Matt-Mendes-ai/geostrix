@@ -6531,7 +6531,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         if (l + halfWidthL < 0 || l - halfWidthL > secLen) return; // entirely off the drawn extent
         rects.push({ l0: l - halfWidthL, l1: l + halfWidthL, z0: c.z - (c.dz || 0) / 2, z1: c.z + (c.dz || 0) / 2, color: colorForVoxelValue(model, c.value) });
       });
-      if (rects.length) voxelSlices.push({ id: model.id, name: model.name, rects });
+      if (rects.length) voxelSlices.push({ id: model.id, name: model.name, rects, legend: voxelLegendGroups([{ ...model, visible: true }])[0] || null }); // #1373 key
     });
 
     const { intervals, points } = layerPrimitivesFor(holeIds, scope); // #525 — shared with the level plan

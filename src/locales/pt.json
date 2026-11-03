@@ -7011,5 +7011,7 @@
   "Generated {levels} contour level ({contourInterval} m interval) as one boundary.{v2}": "Gerado {levels} nível de curvas (intervalo de {contourInterval} m) como um único limite.{v2}",
   "Generated {levels} contour levels ({contourInterval} m interval) as one boundary.{v2}": "Gerados {levels} níveis de curvas (intervalo de {contourInterval} m) como um único limite.{v2}",
   "Colour of the contour lines (all levels are one boundary).": "Cor das curvas de nível (todos os níveis são um único limite).",
-  "+ {n} more group(s): Load from view adds them": "+ {n} grupo(s) a mais: «Carregar da vista» os adiciona"
+  "+ {n} more group(s): Load from view adds them": "+ {n} grupo(s) a mais: «Carregar da vista» os adiciona",
+  "Model surfaces": "Superfícies do modelo",
+  "(log)": "(log)"
 }

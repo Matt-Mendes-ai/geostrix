@@ -6,7 +6,7 @@
 import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
-const EAGER_BUDGET_KB = 1627; // measured 2026-09-26 after #476: 1,548 kB, +5% headroom. 2026-11-03: +2 kB, deliberately, for the role patterns (#1369) and the outlier-aware sample symbols (#1403) that the first draw needs
+const EAGER_BUDGET_KB = 1628; // measured 2026-09-26 after #476: 1,548 kB, +5% headroom. 2026-11-03: +2 kB, deliberately, for the role patterns (#1369) and the outlier-aware sample symbols (#1403) that the first draw needs; +1 kB for the review fixes after v0.1.94 (support classes, legend ranking, section model keys #1373, canvas-only hover #1491). Papaparse (18 kB) could leave startup: TASKS.csv #1493
 
 const dist = path.resolve(process.argv[2] || "dist");
 const html = readFileSync(path.join(dist, "index.html"), "utf8");

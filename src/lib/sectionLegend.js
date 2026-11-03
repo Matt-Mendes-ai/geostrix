@@ -50,3 +50,34 @@ export function sectionMineralLegend(intervals, points, groupLabel = "Mineraliza
   }
   return out.sort((a, b) => a[0].localeCompare(b[0]));
 }
+
+// TASKS.csv #1373 (review #1352, Silvertip) — ten generated surfaces were drawn on a section as coloured lines over block-model
+// cells, with no name on any of them and no key in the snapshot. The Layout legend now lists the model surfaces cut by the section
+// and each block model drawn, its classes as swatches or its ramp as five values from low to high.
+// surfaceTraces: [{ name, color }]; voxelSlices: [{ name, legend: voxelLegendGroups' group | null }]
+export function rampRows(ramp, n = 5) {
+  if (!ramp?.colors?.length || !Number.isFinite(ramp.min) || !Number.isFinite(ramp.max)) return [];
+  const { colors, min, max, log } = ramp, rows = [];
+  for (let k = 0; k < n; k++) {
+    const t = n > 1 ? k / (n - 1) : 0;
+    const v = log && min > 0 ? 10 ** (Math.log10(min) + t * (Math.log10(max) - Math.log10(min))) : min + t * (max - min);
+    rows.push([String(+v.toPrecision(3)), colors[Math.round(t * (colors.length - 1))]]);
+  }
+  return rows;
+}
+export function sectionModelLegend(surfaceTraces, voxelSlices, surfaceGroup = "Model surfaces") {
+  const out = [], seen = new Set();
+  for (const st of surfaceTraces || []) {
+    const k = `${st.name}|${st.color}`;
+    if (!st.name || seen.has(k)) continue;
+    seen.add(k);
+    out.push([`${surfaceGroup}: ${st.name}`, st.color]);
+  }
+  for (const vs of voxelSlices || []) {
+    // the heading is everything before the first ": " (groupSectionLegend): a name such as "Model units: stack SLST" keeps its colon as a dash
+    const g = vs.legend, name = String(g?.label || vs.name).replace(/: /g, " – ");
+    const rows = g ? (g.ramp ? rampRows(g.ramp) : g.items || []) : [];
+    for (const [label, color] of rows) if (color && color !== "transparent") out.push([`${name}: ${label}`, color]);
+  }
+  return out;
+}

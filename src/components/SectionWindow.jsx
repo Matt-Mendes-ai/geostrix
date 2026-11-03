@@ -7,7 +7,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { sectionPaper } from "../lib/pageFormats.js"; // TASKS.csv #1143
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { placeLabels, leaderEnd, resolveLabels, labelWidth } from "../lib/sectionLabels.js"; // TASKS.csv #823
-import { groupSectionLegend, sectionAssayLegend, sectionMineralLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped; #1475
+import { groupSectionLegend, sectionAssayLegend, sectionMineralLegend, sectionModelLegend, rampRows } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped; #1475
 import { LAYER_META } from "../lib/layers.js"; // #1475 — the mineralization group name
 import { exportSvgMarkup, FIGURE_FONT } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { wrapText } from "../lib/figureFurniture.js";
@@ -183,7 +183,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
       // snapshot and show exactly what's drawn in it — a flattened image has no live data of its own
       // to sync from otherwise.
       // #759; grouped under layer headings: #1127 / #1128; #1475 — the grade classes drawn first, the mineralization last
-      legendItems: groupSectionLegend([...sectionAssayLegend(data.points, data.assayLegend), ...shownLegendItems, ...sectionMineralLegend(data.intervals, data.points, LAYER_META.mnlgy.label)]),
+      legendItems: groupSectionLegend([...sectionAssayLegend(data.points, data.assayLegend), ...shownLegendItems, ...sectionMineralLegend(data.intervals, data.points, LAYER_META.mnlgy.label), ...sectionModelLegend(data.surfaceTraces, data.voxelSlices, tr("Model surfaces"))]), // models: #1373
     });
     setSnapped(true);
     setTimeout(() => setSnapped(false), 1800);
@@ -482,6 +482,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
         <SectionSVG textFont={textFont} textScale={printScale ?? textScale} /* #1090 — the print size while an export is drawn */ holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
           snap={snapOn && !planning ? targets : null} projectSnaps={projectSnaps} editingId={editingId} onEditPoints={editPoints} onCopyGhost={drawing || planning ? null : copyGhost}
           labels={labels} onMoveLabel={(key, off) => changeLabels({ offsets: { ...labels.offsets, [key]: off } })} /* #823 */ />
+        <BlockModelKey slices={data.voxelSlices} />
       </div>
     </div>
   );
@@ -628,6 +629,18 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
     if (seg >= 0) { const pt = pointAt(local); onEditPoints(c.id, (pts) => insertVertex(pts, seg, pt)); }
   };
 
+  // TASKS.csv #1373 (review #1352, Silvertip) — ten surfaces crossed a section as unnamed coloured lines: each is named at the end
+  // of its trace inside the frame (the right end first, else the left), in a darker shade of its own colour so a pale line's name reads
+  const pushSurfaceLabel = (st) => {
+    const ends = [];
+    for (const sg of st.segs) { ends.push([sx(sg[0]), sz(sg[1])], [sx(sg[2]), sz(sg[3])]); }
+    const inside = ends.filter(inPlot);
+    if (!inside.length || !st.name) return null;
+    const r = inside.reduce((m, p) => (p[0] > m[0] ? p : m)), l = inside.reduce((m, p) => (p[0] < m[0] ? p : m));
+    const fill = darker(st.color);
+    floatLabels.push({ key: `sf${st.id}`, text: st.name, size: fs(9), fill, weight: 600, prio: 2, cands: [{ x: r[0] - 4, y: r[1] - 5, anchor: "end" }, { x: r[0] - 4, y: r[1] + fs(12), anchor: "end" }, { x: l[0] + 4, y: l[1] - 5, anchor: "start" }, { x: l[0] + 4, y: l[1] + fs(12), anchor: "start" }] });
+    return null;
+  };
   // #1144 — what the hole names and other labels stay off (centre-x / baseline-y, as placeLabels): the elevation numbers, the
   // title band above the frame and the distance axis band below it
   const axisLabelBoxes = [
@@ -754,6 +767,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
           {surfaceTraces.map((st) => (
             <g key={st.id}>
               <path d={st.segs.map((sg) => `M${sx(sg[0]).toFixed(1)},${sz(sg[1]).toFixed(1)}L${sx(sg[2]).toFixed(1)},${sz(sg[3]).toFixed(1)}`).join("")} stroke={st.color} strokeWidth="2" fill="none" strokeLinecap="round"><title>{tr("Model surface: {name}", { name: st.name })}</title></path>
+              {pushSurfaceLabel(st)}
             </g>
           ))}
         </g>
@@ -1028,4 +1042,40 @@ function niceTicks(min, max, count) {
   const out = [];
   for (let v = Math.ceil(min / step) * step; v <= max + 1e-9; v += step) out.push(Math.round(v / step) * step);
   return out;
+}
+
+// TASKS.csv #1373 — a darker shade of a surface's colour for its label (55 % of each channel), so a yellow or pale line's name reads on white
+function darker(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
+  if (!m) return "#1a2028";
+  const v = parseInt(m[1], 16), ch = (s) => Math.round(((v >> s) & 255) * 0.55);
+  return `rgb(${ch(16)}, ${ch(8)}, ${ch(0)})`;
+}
+// TASKS.csv #1373 — the block models drawn behind the section, keyed below it: classes as swatches, a continuous model as its ramp
+// with the low and high values (the same key the snapshot carries to Layout)
+function BlockModelKey({ slices }) {
+  const shown = (slices || []).filter((vs) => vs.legend);
+  if (!shown.length) return null;
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 18px", marginTop: 8, fontSize: 11, color: "#55606e" }}>
+      {shown.map((vs) => {
+        const g = vs.legend;
+        return (
+          <div key={vs.id} style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span style={{ fontWeight: 600, color: "#1a2028" }}>{g.label || vs.name}</span>
+            {g.ramp ? (
+              <>
+                <span>{g.ramp.minLabel}</span>
+                <span title={rampRows(g.ramp).map(([v]) => v).join(" · ")} style={{ width: 120, height: 10, borderRadius: 2, border: "1px solid #d9dce1", background: `linear-gradient(to right, ${g.ramp.colors.join(", ")})` }} />
+                <span>{g.ramp.maxLabel}{g.ramp.log ? ` ${tr("(log)")}` : ""}</span>
+              </>
+            ) : (g.items || []).slice(0, 12).map(([label, color]) => (
+              <span key={label} style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: color, border: "1px solid #d9dce1" }} />{label}</span>
+            ))}
+            {!g.ramp && (g.items || []).length > 12 && <span>{tr("+{n} more", { n: g.items.length - 12 })}</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
