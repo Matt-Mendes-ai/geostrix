@@ -10,6 +10,7 @@ import { pickDefaultReachM, medianSiteSpacing } from "../lib/evidenceSources.js"
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1449 / #1450
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
 import { evidenceGrid, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, bestCutoff, posterior, predictionArea, scoreImage } from "../lib/evidence.js";
+import { cachedEvidence, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457
 import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, voxelColumnEvidence, holeTraces, holeGradePoints, structureCodes, structureParts, rasterFloorZ } from "../lib/evidenceSources.js"; // TASKS.csv #1154
 import { categoricalModels } from "../lib/geologyForward.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";
@@ -80,7 +81,13 @@ export default function EvidenceOverlayPane({ onClose }) {
     return out;
   }, [valueRasters, mapLayers, surfaceElements, geophysPts, voxelModels, traces, assayElements, structurePicks]);
 
-  const computeValues = (src, opts = {}) => {
+  // #1457 — through the cache: a reopened pane, or the same layer added again, reuses values computed from the same grid and data
+  const computeValues = (src, opts = {}) => (grid ? cachedEvidence(
+    `${gridSignature(grid)}|${src.kind}|${src.ref}|${src.how || ""}|${opts.field || ""}|${opts.value ?? ""}|${opts.reach || ""}`,
+    [rasters, mapLayers, surfaceSamples, surfaceElements, collars, survey, project?.desurveyMethod, assays, assayElements, voxelModels, geophysPts, structurePicks],
+    () => computeValuesNow(src, opts),
+  ) : null);
+  const computeValuesNow = (src, opts = {}) => {
     if (!grid) return null;
     if (src.kind === "raster") { const r = valueRasters.find((x) => x.id === src.ref); return r ? rasterEvidence(grid, r.grid) : null; }
     if (src.kind === "distance") {
