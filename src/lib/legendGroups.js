@@ -70,7 +70,7 @@ export function assayLegendGroups({ assays, assayElements, assayVisible, assayDi
       })
       : [[`${sym} (sphere size = grade)`, assayColorFor(0, idx, style)]];
     if (style?.minCutoff != null && Number.isFinite(style.minCutoff)) items.push([`below ${fmt(style.minCutoff)} ${unit} hidden`, "transparent"]);
-    return { key: `assay_${sym}`, label: `${sym} (${unit})`, items };
+    return { key: `assay_${sym}`, label: `${sym} (${unit})`, items, grade: !!style?.breaks?.length }; // grade: #1534 — classes low to high
   });
 }
 
@@ -232,7 +232,16 @@ export function allocateLegendRows(groups, max) {
     moved = false;
     for (let i = 0; i < gs.length && left > 0; i++) if (quota[i] < gs[i].items.length) { quota[i]++; left--; moved = true; }
   }
+  // TASKS.csv #1534 (reviews #1497 Lawyers, #1645 Copley) — a group cut short kept its FIRST rows: the lowest grade classes (the ore-grade
+  // class was the one dropped) and the alphabetically first categories (Cong, Felsic Dyke, not the main host). A grade group keeps its
+  // highest classes, a category group with counts its most frequent entries, each in its usual order.
+  const pick = (g, n) => {
+    if (n >= g.items.length) return g.items;
+    if (g.grade) return g.items.slice(g.items.length - n);
+    if (g.counts) { const keep = new Set(g.items.map((_, i) => i).sort((a, b) => g.counts[b] - g.counts[a] || a - b).slice(0, n)); return g.items.filter((_, i) => keep.has(i)); }
+    return g.items.slice(0, n);
+  };
   const multi = gs.filter((_, i) => quota[i] > 0).length > 1, rows = [];
-  gs.forEach((g, i) => g.items.slice(0, quota[i]).forEach(([label, color, opt], k) => rows.push({ label, color, kind: opt?.kind, opacity: opt?.opacity, group: g.label, head: (multi || g.alwaysHead) && k === 0 })));
+  gs.forEach((g, i) => pick(g, quota[i]).forEach(([label, color, opt], k) => rows.push({ label, color, kind: opt?.kind, opacity: opt?.opacity, group: g.label, head: (multi || g.alwaysHead) && k === 0 })));
   return { rows, shown: rows.length, total: gs.reduce((n, g) => n + g.items.length, 0) };
 }
