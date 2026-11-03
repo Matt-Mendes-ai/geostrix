@@ -77,7 +77,7 @@ export function assayLegendGroups({ assays, assayElements, assayVisible, assayDi
 // A model's own stops: classes as swatches, a continuous model as a ramp (log or linear, #498 / #522)
 export function scaleLegendGroup(key, label, model, lo, hi) {
   const L = legendScale(model, lo, hi, fmtLegendValue);
-  return L.kind === "classes" ? { key, label, items: L.items } : { key, label, items: [], ramp: L };
+  return L.kind === "classes" ? { key, label, items: L.items, grade: true /* #1714 — low to high: a cut keeps the top */ } : { key, label, items: [], ramp: L };
 }
 // TASKS.csv #1236 — a raster whose value range is known, as its ramp
 export function rasterLegendGroups(rasters) {

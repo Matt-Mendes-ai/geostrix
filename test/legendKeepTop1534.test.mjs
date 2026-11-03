@@ -16,3 +16,13 @@ test("a group that fits is untouched", () => {
   const g = { key: "x", label: "X", items: [["a", "#1"], ["b", "#2"]] };
   assert.deepEqual(allocateLegendRows([g], 5).rows.map((r) => r.label), ["a", "b"]);
 });
+
+test("#1714 a classified block model's legend group keeps its top classes too", async () => {
+  const { scaleLegendGroup } = await import("../src/lib/legendGroups.js");
+  const model = { colorMode: "classes", stops: [1, 2, 3, 4, 5].map((v, i) => ({ value: v, color: `#${i}${i}${i}` })) };
+  const g = scaleLegendGroup("vox", "Fe", model, 0, 6);
+  if (g.ramp) return; // a model this legend draws as a ramp has nothing to cut
+  assert.equal(g.grade, true);
+  const { rows } = allocateLegendRows([g], 2);
+  assert.deepEqual(rows.map((r) => r.label), g.items.slice(-2).map((it) => it[0]));
+});
