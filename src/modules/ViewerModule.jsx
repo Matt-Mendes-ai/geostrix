@@ -4,7 +4,7 @@ import { holesMatching } from "../lib/holeFilter.js";
 import FenceOptions from "./viewer/FenceOptions.jsx";
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js";
 import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } from "react";
-import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
+import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1417
 import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
 import * as THREE from "three";
 import { piercePoints as surfacePierces, piercePointRows } from "../lib/piercePoints.js"; // TASKS.csv #1009
@@ -7332,7 +7332,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 {o.kind === "points" ? <MapPin size={14} style={{ color: o.color || "var(--color-text-secondary)", flexShrink: 0 }} />
                   : o.kind === "lines" ? <Waypoints size={14} style={{ color: o.color || "var(--color-text-secondary)", flexShrink: 0 }} />
                   : <Triangle size={14} style={{ color: o.color || "var(--color-text-secondary)", flexShrink: 0 }} />}
-                <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.name}</span>
+                <span title={o.name} style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.name}</span>
                 <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{tr("OMF {kind}", { kind: o.kind })}</span>
                 <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), tr("Edit OMF object \"{name}\" in the Geophysics tab", { name: o.name }))} />
                 <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => removeOmfObject(o.id), tr("Remove OMF object \"{name}\"", { name: o.name }))} />
@@ -7342,19 +7342,19 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               <div key={v.id} onContextMenu={(e) => openRowMenu(e, v.name, [
                   { label: v.visible === false ? "Show" : "Hide", onClick: () => updateVoxelModel(v.id, { visible: v.visible === false }) },
                   { label: tr("Zoom to"), onClick: () => zoomToObject(voxelMeshesRef.current[v.id]) },
-                  "-", { label: tr("Legend, classes and palette — Geophysics tab"), onClick: () => goToModule("geophysics") },
+                  "-", { label: tr("Legend, classes and palette — Geophysics tab"), onClick: () => { goToModule("geophysics"); requestModuleAction("edit-block-model", { id: v.id }); } }, // #1417 — its own card
                   { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove block/voxel model \"{name}\"?", { name: v.name }), { recover: tr("it would have to be re-imported or re-run.") })) removeVoxelModel(v.id); } }])} style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateVoxelModel(v.id, { visible: v.visible === false })} style={{ cursor: "pointer", color: v.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
                   {v.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
                 </div>
                 <Box size={14} style={{ color: "var(--color-text-secondary)", flexShrink: 0 }} />
-                <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.name}</span>
+                <span title={v.name} /* #1417 — three "Zn estimate (..." rows looked identical */ style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.name}</span>
                 <input
                   type="range" min={0.1} max={1} step={0.05} value={v.opacity ?? 1}
                   onChange={(e) => updateVoxelModel(v.id, { opacity: Number(e.target.value) })}
                   style={{ width: 46, flexShrink: 0 }} title={(v.cells?.length || 0) > TRANSPARENT_BOX_LIMIT ? tr("Opacity. Over {n} blocks a see-through model is drawn as its outer skin (and, for a unit model, the contacts between units), so it stays fast; use the cutoff or a 3D slice to look inside.", { n: TRANSPARENT_BOX_LIMIT.toLocaleString() }) : tr("Opacity")} /* #904 */
                 />
-                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geophysics"), tr("Edit legend / classify / palette for this model in the Geophysics tab"))} />
+                <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { goToModule("geophysics"); requestModuleAction("edit-block-model", { id: v.id }); }, tr("Edit legend / classify / palette for this model in the Geophysics tab"))} />
                 <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove block/voxel model \"{name}\"?", { name: v.name }), { recover: tr("it would have to be re-imported or re-run.") })) removeVoxelModel(v.id); }, tr("Remove block/voxel model \"{name}\"", { name: v.name }))} />
               </div>
             ))}

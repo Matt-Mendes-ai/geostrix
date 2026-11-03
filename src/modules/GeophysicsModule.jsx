@@ -205,6 +205,18 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
   const fileInput = useRef(null);
   useModuleAction(["import-points"], () => fileInput.current?.click()); // TASKS.csv #565 — File > Import CSV here
+  // TASKS.csv #1417 (review #1352) — a 3D View block-model row's palette link opened the Point survey pane: it now opens Block
+  // models and brings that model's card into view (and outlines it briefly)
+  useModuleAction(["edit-block-model"], (_a, p) => {
+    setGeoPane("voxel");
+    setTimeout(() => {
+      const el = p?.id ? [...document.querySelectorAll(`[data-voxel-id="${CSS.escape(String(p.id))}"]`)].find((e) => e.offsetParent) : null; // the visible copy (the Maps tab can embed this module too)
+      if (!el) return;
+      el.scrollIntoView({ block: "start", behavior: "smooth" });
+      el.style.outline = "2px solid var(--color-accent)";
+      setTimeout(() => { el.style.outline = ""; }, 1800);
+    }, 120);
+  });
   const terrainInput = useRef(null);
   const ubcInput = useRef(null);
   const blockModelInput = useRef(null);
@@ -2013,7 +2025,7 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage,
     ? `${p.tool}: ${p.element}, ${p.method}, ${p.cellSizeM} m cells, search ${p.searchRadiusM} m${p.searchRadiusWasUnlimited ? " (unlimited, capped at grid diagonal)" : ""}, ${p.minSamples}-${p.maxSamples} samples, min ${p.minHoles} holes, ${p.composited ? `${p.compositeLengthM} m composites (min coverage ${Math.round((p.minCoverage || 0) * 100)}%)` : "raw intervals"}, cap ${p.capValue ?? "none"}, QAQC ${p.includeQAQC ? "included" : "excluded"}${p.domain ? `, domain ${p.domain}${p.restrictToDomain ? " (restricted)" : ""}` : ""}, desurvey ${p.desurveyMethod}, ${p.samplePoints} sample points, ${p.generatedAt}${p.value ? `. Values: ${p.value}` : ""}. Not a Mineral Resource estimate.`
     : undefined;
   return (
-    <div style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
+    <div data-voxel-id={model.id} /* #1417 — the 3D View's link scrolls here */ style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
       <div style={{ color: "var(--color-text)", overflowWrap: "anywhere", lineHeight: 1.3, marginBottom: 3 }}>{model.name}</div>{/* #1178: seven icons squeezed it to one letter */}
       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onUpdate(model.id, { visible: model.visible === false })} style={{ cursor: "pointer", color: model.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
@@ -2050,14 +2062,14 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage,
       )}
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
         <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Cutoff")}</span>
-        <input type="range" min={model.min} max={model.max} step={(model.max - model.min) / 100 || 0.01} value={displayThreshold} onChange={(e) => onThresholdInput(Number(e.target.value))} style={{ flex: 1 }} />
+        <input type="range" min={model.min} max={model.max} step={(model.max - model.min) / 100 || 0.01} value={displayThreshold} onChange={(e) => onThresholdInput(Number(e.target.value))} style={{ flex: 1, minWidth: 0 }} /* #1417 — a range input's default width pushed the value off the card */ />
         <span style={{ color: "var(--color-text-secondary)", width: 60, textAlign: "right", flexShrink: 0 }}>{sigFigs(displayThreshold)}</span>
       </div>
       <div style={{ marginTop: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Showing {visibleCount} of {cells} cell(s) (value ≥ cutoff) — range {min} to {max}", { visibleCount: visibleCount.toLocaleString(), cells: model.cells.length.toLocaleString(), min: sigFigs(model.min), max: sigFigs(model.max) })}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
         <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Opacity")}</span>
-        <input type="range" min={0.1} max={1} step={0.05} value={displayOpacity} onChange={(e) => onOpacityInput(Number(e.target.value))} style={{ flex: 1 }} />
+        <input type="range" min={0.1} max={1} step={0.05} value={displayOpacity} onChange={(e) => onOpacityInput(Number(e.target.value))} style={{ flex: 1, minWidth: 0 }} />
       </div>
       {legendOpen && <VoxelLegendEditor model={model} onUpdate={onUpdate} />}
       {gtOpen && <GradeTonnageModal model={model} epsg={epsg} onClose={() => setGtOpen(false)} />}
