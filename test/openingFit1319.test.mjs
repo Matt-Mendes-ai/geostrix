@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 const src = readFileSync("src/modules/ViewerModule.jsx", "utf8").replace(/\r\n/g, "\n"); // a Windows checkout has CRLF
 test("the opening fit takes the hole traces, counted before the block models are added", () => {
   assert.match(src, /autoFitInitial = useCallback\(\(traces, nHoles\) => \{ fitView\(nHoles \? traces\.slice\(0, nHoles\) : traces\); \}/);
-  const count = src.indexOf("const nHoleTraces = allTraces.length;"), voxels = src.indexOf("(voxelModels || []).forEach((model) => {\n      if (!model.cells?.length) return;\n      const xs = minMax");
+  const count = src.indexOf("const nHoleTraces = allTraces.length;"), voxels = src.indexOf("allTraces.push(...voxelFitCorners(voxelModels, { x: ox, y: oy, z: oz }));"); // #1569 — the corners come from a helper now
   assert.ok(count > 0 && count < voxels);
   assert.match(src, /autoFitInitial\(allTraces, nHoleTraces\)/);
 });

@@ -537,6 +537,16 @@ const PROTO_PILLAR = sharedProto(new THREE.CylinderGeometry(0.8, 0.8, 2, 12, 1, 
 const PROTO_SQUARE = sharedProto(new THREE.PlaneGeometry(1.8, 1.8), "square"); // ~ the disc's area
 const PIN_AXIS = new THREE.Vector3(0, 1, 0), dipPinDir = new THREE.Vector3(); // #1241 — PROTO_PRISM_4 runs up +Y from its base
 const INTERVAL_PROTO = { cylinder: PROTO_CYLINDER, smooth: PROTO_CYLINDER_16, square: PROTO_PRISM_4 };
+// TASKS.csv #1569 — each block model's min / max corner in scene space (origin-relative, z-up flipped), for the fit box
+function voxelFitCorners(models, o) {
+  const out = [];
+  (models || []).forEach((model) => {
+    if (!model.cells?.length) return;
+    const xs = minMax(model.cells, (c) => c.x), ys = minMax(model.cells, (c) => c.y), zs = minMax(model.cells, (c) => c.z);
+    out.push([{ x: xs.min - o.x, y: zs.min - o.z, z: -(ys.min - o.y) }, { x: xs.max - o.x, y: zs.max - o.z, z: -(ys.max - o.y) }]);
+  });
+  return out;
+}
 // TASKS.csv #1618 — two placed surface-sample lists put the same samples at the same heights (a draped copy is new each time)
 const samePlacement = (a, b) => a.length === b.length && a.every((r, i) => r === b[i] || (r.zDraped && b[i].zDraped && r.z === b[i].z && r.x === b[i].x && r.y === b[i].y && r.sample_id === b[i].sample_id));
 const POINT_PROTO = { sphere: PROTO_SPHERE_10, cube: PROTO_CUBE, disc: PROTO_DISC_FLAT, pillar: PROTO_PILLAR };
@@ -4970,14 +4980,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // box to include it; a full per-cell contribution isn't needed since fitView only cares about the
     // overall AABB.
     const nHoleTraces = allTraces.length; // #1319
-    (voxelModels || []).forEach((model) => {
-      if (!model.cells?.length) return;
-      const xs = minMax(model.cells, (c) => c.x), ys = minMax(model.cells, (c) => c.y), zs = minMax(model.cells, (c) => c.z);
-      allTraces.push([
-        { x: xs.min - ox, y: zs.min - oz, z: -(ys.min - oy) },
-        { x: xs.max - ox, y: zs.max - oz, z: -(ys.max - oy) },
-      ]);
-    });
+    allTraces.push(...voxelFitCorners(voxelModels, { x: ox, y: oy, z: oz }));
 
     // TASKS.csv #312 — every layer group is fully populated at this point, so collapse each group's
     // same-geometry/same-material families into InstancedMesh batches (see buildLayerBatches). This
@@ -5016,7 +5019,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // applyCategoryVisibility/applyLegendOverrideColors are deliberately NOT listed either, for the
     // same reason categoryFilter/legendOverride were removed from this array — both are called
     // directly above using whatever this render closed over, not as re-trigger conditions.
-  }, [collars, survey, desurveyMethod /* #135 — switching method must rebuild every trace */, layers, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStyles /* #635 */, anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, voxelGeomSignature, fitBox, rebuildSeq, placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
+  }, [collars, survey, desurveyMethod /* #135 — switching method must rebuild every trace */, layers, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStyles /* #635 */, anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, collars.length ? "" : voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
+  // TASKS.csv #1569 (review #1497, Lawyers) — with drillholes, a block model only widens the fit box (the origin and the first
+  // fit come from the holes): adding one re-derives that box here instead of rebuilding every drillhole and custom layer
+  // (25-26 s per 'Add as block model' on Lawyers). Without holes the build above still runs, since the models anchor it.
+  useEffect(() => {
+    if (!collars.length || !lastTracesRef.current) return;
+    lastTracesRef.current = [...lastTracesRef.current.slice(0, lastHoleTraceCountRef.current), ...voxelFitCorners(voxelModels, originRef.current)];
+  }, [voxelGeomSignature]);
   // TASKS.csv #1277 — the Hole labels dropdown redraws the labels only
   useEffect(() => { syncHoleLabels(layerGroupsRef.current?.hole_labels, holeLabelAnchorsRef.current, holeLabelMode, makeTextSprite); }, [holeLabelMode]);
   // #551 — declared AFTER the big effect: when both fire, the big one builds first and these then see unchanged inputs
