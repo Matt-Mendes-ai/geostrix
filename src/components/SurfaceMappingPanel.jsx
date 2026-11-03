@@ -482,7 +482,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       {pendingStruct && (
         <div style={card}>
           <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{tr("{name}: {rows} rows — check the columns", { name: pendingStruct.name, rows: pendingStruct.rows.length })}</div>
-          {[["x", tr("Easting")], ["y", tr("Northing")], ["z", tr("Elevation")], ["dip", tr("Dip")], ["dipDir", tr("Dip dir.")], ["strike", tr("Strike")], ["type", tr("Type")], ["comment", tr("Comments")]].map(([k, label]) => (
+          {[["x", tr("Easting")], ["y", tr("Northing")], ["z", tr("Elevation")], ["dip", tr("Dip")], ["dipDir", tr("Dip dir.")], ["strike", tr("Strike")], ["type", tr("Type")], ["station", tr("Station")], ["comment", tr("Comments")]].map(([k, label]) => ( /* station: #1442 */
             <div key={k} style={row}>
               <span style={lbl}>{label}</span>
               <select value={pendingStruct.cols[k] || ""} onChange={(e) => setPendingStruct((p) => ({ ...p, cols: { ...p.cols, [k]: e.target.value || null } }))} style={select}>

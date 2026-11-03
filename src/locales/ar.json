@@ -7004,5 +7004,7 @@
   "Fewer than 10 occurrence cells: the weights, the posterior and the prediction-area figures are not interpretable — read them as a sketch.": "أقل من 10 خلايا حدوث: الأوزان والاحتمال اللاحق وأرقام مساحة التنبؤ غير قابلة للتفسير — اقرأها كمسودة.",
   "Cell size set to {c} m: the 10 m default needs more blocks than the {b}-block budget.": "ضُبط حجم الخلية على {c} م: يحتاج الافتراضي 10 م كتلًا أكثر من ميزانية {b} كتلة.",
   "Shape not assessed: the picks are of several types.": "الشكل غير مقيَّم: القياسات من عدة أنواع.",
-  "Cluster — one dominant orientation, loosely defined (k {k}).": "تجمّع — اتجاه سائد واحد، محدد بشكل ضعيف (k {k})."
+  "Cluster — one dominant orientation, loosely defined (k {k}).": "تجمّع — اتجاه سائد واحد، محدد بشكل ضعيف (k {k}).",
+  "The map tiles could not be loaded (offline, or the tile server is blocked). The area can still be drawn here or chosen from the list.": "تعذّر تحميل بلاطات الخريطة (دون اتصال، أو خادم البلاطات محجوب). لا يزال بالإمكان رسم المنطقة هنا أو اختيارها من القائمة.",
+  "Station": "المحطة"
 }

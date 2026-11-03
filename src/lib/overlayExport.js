@@ -84,6 +84,7 @@ export function surfaceStructureRows(set, epsg, zAt = null) {
     const ddTrue = off ? wrap360(dd - off.offset) : null;
     const zT = zAt && set.snapToTerrain !== false ? zAt(r.x, r.y) : null;
     return {
+      station: r.station ?? "", // #1442
       x: r.x, y: r.y, z: Number.isFinite(zT) ? Math.round(zT * 100) / 100 : Number.isFinite(r.z) ? r.z : "",
       cls: r.cls ?? "", type: r.type ?? "",
       dip: Number.isFinite(dip) ? dip : "",

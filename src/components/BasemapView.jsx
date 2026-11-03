@@ -64,6 +64,9 @@ export default function BasemapView({
   const [zoom, setZoom] = useState(11);
   const [center, setCenter] = useState(null); // { wx, wy } world px at current zoom
   const [bbox, setBbox] = useState(initialBboxLonLat);
+  // TASKS.csv #1465 (review #1352) — offline (or with the tile server blocked) the picker was a grid of broken-image icons with no
+  // word: failed tiles are hidden, and once several fail with none loaded the map says why
+  const [tileState, setTileState] = useState({ ok: 0, failed: 0 });
   const [subMode, setSubMode] = useState(mode === "draw" ? "draw" : "pan");
   const dragRef = useRef(null);
   const [baseLayerId, setBaseLayerId] = useState(getSavedLayerId());
@@ -313,9 +316,15 @@ export default function BasemapView({
             alt=""
             draggable={false}
             style={{ position: "absolute", left: t.tx * TILE + offsetX, top: t.y * TILE + offsetY, width: TILE, height: TILE, userSelect: "none" }}
-            onError={(e) => { e.currentTarget.style.background = "#e4e6ea"; }}
+            onError={(e) => { e.currentTarget.style.visibility = "hidden"; setTileState((s) => ({ ...s, failed: s.failed + 1 })); }}
+            onLoad={() => setTileState((s) => (s.ok ? s : { ...s, ok: 1 }))}
           />
         ))}
+        {tileState.failed >= 3 && !tileState.ok && (
+          <div style={{ position: "absolute", left: 12, top: 12, right: 60, padding: "8px 10px", background: "rgba(255,255,255,0.92)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", pointerEvents: "none" }}>
+            {tr("The map tiles could not be loaded (offline, or the tile server is blocked). The area can still be drawn here or chosen from the list.")}
+          </div>
+        )}
         {markerPx && (
           <div style={{ position: "absolute", left: markerPx.x - 7, top: markerPx.y - 18, width: 14, height: 18, pointerEvents: "none" }}>
             <svg width="14" height="18" viewBox="0 0 14 18">

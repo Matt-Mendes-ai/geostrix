@@ -414,7 +414,10 @@ export function guessStructureColumns(headers) {
   const strike = take([(n) => n === "strike" || n === "strk", (n) => n.startsWith("strike")]);
   const type = take([(n) => n === "structuretype" || n === "type" || n === "structure", (n) => n.endsWith("structuretype"), (n) => n.includes("type")]);
   const comment = take([(n) => n === "comments" || n === "comment" || n === "notes" || n === "description", (n) => n.startsWith("comment")]);
-  return { x, y, z, strike, dip, dipDir, type, comment };
+  // TASKS.csv #1442 (review #1352) — the field station: it was dropped, so a symbol on the map or a row of the CSV / KML / GeoPackage
+  // could not be traced back to the notebook
+  const station = take([(n) => n === "station" || n === "stn" || n === "stationid" || n === "site" || n === "siteid" || n === "waypoint" || n === "wpt" || n === "pointid" || n === "id", (n) => n.startsWith("station")]);
+  return { x, y, z, strike, dip, dipDir, type, comment, station };
 }
 
 // Normalizes a structure type string to a short canonical class used for colouring and filtering.
@@ -462,7 +465,7 @@ export function parseStructureRows(rawRows, cols) {
       if (d > 2 && d < 358) rhrMismatches++;
     }
     const type = cols.type ? String(r[cols.type] ?? "") : "";
-    rows.push({ x, y, z: cols.z ? num(r[cols.z]) : null, dip, dipDir: ((dipDir % 360) + 360) % 360, strike, type, cls: structureClass(type), comment: cols.comment ? String(r[cols.comment] ?? "") : "" });
+    rows.push({ x, y, z: cols.z ? num(r[cols.z]) : null, dip, dipDir: ((dipDir % 360) + 360) % 360, strike, type, cls: structureClass(type), ...(cols.station ? { station: String(r[cols.station] ?? "").trim() } : {}), comment: cols.comment ? String(r[cols.comment] ?? "") : "" });
   });
   return { rows, skipped, derivedFromStrike, rhrMismatches };
 }

@@ -7004,5 +7004,7 @@
   "Fewer than 10 occurrence cells: the weights, the posterior and the prediction-area figures are not interpretable — read them as a sketch.": "Menos de 10 celdas de ocurrencia: los pesos, la probabilidad posterior y las cifras de área de predicción no son interpretables — léalos como un esbozo.",
   "Cell size set to {c} m: the 10 m default needs more blocks than the {b}-block budget.": "Tamaño de celda fijado en {c} m: el valor por defecto de 10 m necesita más bloques que el presupuesto de {b} bloques.",
   "Shape not assessed: the picks are of several types.": "Forma no evaluada: las medidas son de varios tipos.",
-  "Cluster — one dominant orientation, loosely defined (k {k}).": "Agrupamiento — una orientación dominante, poco definida (k {k})."
+  "Cluster — one dominant orientation, loosely defined (k {k}).": "Agrupamiento — una orientación dominante, poco definida (k {k}).",
+  "The map tiles could not be loaded (offline, or the tile server is blocked). The area can still be drawn here or chosen from the list.": "No se pudieron cargar los mosaicos del mapa (sin conexión, o el servidor de mosaicos está bloqueado). El área aún se puede dibujar aquí o elegir de la lista.",
+  "Station": "Estación"
 }
