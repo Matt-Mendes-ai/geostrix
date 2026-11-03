@@ -166,13 +166,13 @@ export default function EvidenceOverlayPane({ onClose }) {
     if (t.source === "collars" && t.symbol && Number.isFinite(min)) {
       // TASKS.csv #933 — standards, blanks and duplicates filed under a real hole id are not grades of that hole: a CRM in
       // a barren hole's sample stream would make it a "known occurrence" (every other grade consumer filters them too)
-      const maxBy = new Map();
-      cleanAssays.forEach((a) => { const v = valueIn(a, t.symbol, assayUnits[t.symbol] || "ppm", assayUnits); if (v != null && (!maxBy.has(a.hole_id) || v > maxBy.get(a.hole_id))) maxBy.set(a.hole_id, v); });
-      return collars.filter((c) => (maxBy.get(c.hole_id) ?? -Infinity) >= min).map((c) => ({ x: c.x, y: c.y }));
+      // TASKS.csv #1452 (review #1352) — where the grade is along the hole, not its collar: Silvertip's mineralised fans collapsed to
+      // two pad cells (and every threshold gave the same three), though the grades lie 300-1,300 m down holes spread hundreds of metres
+      return holeGradePoints(cleanAssays, t.symbol, assayUnits[t.symbol] || "ppm", assayUnits, traces).filter((p) => p.value >= min).map((p) => ({ x: p.x, y: p.y }));
     }
     if (t.source === "samples" && t.symbol && Number.isFinite(min)) return surfaceSamples.filter((s) => { const v = valueIn(s, t.symbol, units[t.symbol] || "ppm", units); return v != null && v >= min; }).map((s) => ({ x: s.x, y: s.y }));
     return [];
-  }, [training, pointLayers, cleanAssays, collars, surfaceSamples, assayUnits, units]);
+  }, [training, pointLayers, cleanAssays, traces, surfaceSamples, assayUnits, units]);
   const circular = (training.source === "samples" && layers.some((l) => (l.kind === "element" && l.ref === training.symbol) || l.kind === "index"))
     || (training.source === "collars" && layers.some((l) => l.kind === "grade" && l.ref === training.symbol));
 
@@ -272,6 +272,7 @@ export default function EvidenceOverlayPane({ onClose }) {
             {result.wofe && (
               <>
                 <div style={{ color: "var(--color-text-secondary)", marginTop: 4 }}>{tr("Weights of evidence: {d} occurrence cells in {n} cells", { d: result.wofe.ND, n: result.wofe.N.toLocaleString() })}</div>
+                {result.wofe.ND < 10 && <div style={{ color: "var(--color-warn-text)", marginTop: 2 }}>{tr("Fewer than 10 occurrence cells: the weights, the posterior and the prediction-area figures are not interpretable — read them as a sketch.")}</div>}{/* #1452 */}
                 {result.wofe.rows.map((r, i) => ( // wrapped lines, not a table: the sidebar is narrow
                   <div key={i} style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4 }}>
                     <div style={{ color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.label}>{r.label}</div>
