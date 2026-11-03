@@ -42,7 +42,7 @@ test("#1451: collars on a pad are one site; the structure reach is no longer 4 m
 });
 
 test("#1461: the default fetch area covers the collars and the soil grid near them, not the far rocks", async () => {
-  const { fetchAreaBox } = await import("../src/lib/dataClusters.js");
+  const { fetchAreaBox } = await import("../src/lib/dataExtent.js");
   const allCollars = readFileSync("sample_data/silvertip/collars.csv", "utf8").trim().split(/\r?\n/).slice(1).map((l) => { const [, x, y] = l.split(","); return { x: +x, y: +y }; });
   const [x0, y0, x1, y1] = fetchAreaBox(allCollars, samples);
   const soils = samples.filter((s) => s.medium === "soil");

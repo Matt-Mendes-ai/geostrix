@@ -10,7 +10,8 @@ import { guessGeophysColumns, rowsToGeophysPoints } from "../lib/geophysColumns.
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import Papa from "papaparse";
 import { zeroMeansMissing } from "../lib/missingElevation.js"; // TASKS.csv #1436
-import { fetchAreaBox, mainClusters, modelGapKm } from "../lib/dataClusters.js"; // TASKS.csv #1461; modelGapKm: #1427
+import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
+import { fetchAreaBox, modelGapKm } from "../lib/dataExtent.js"; // #1461; modelGapKm: #1427
 import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen, Scale } from "../components/icons.js"; // Scale: #1052
 import { lazyModal } from "../lib/lazyModal.jsx";
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323

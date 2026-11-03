@@ -19,7 +19,7 @@ test("a cluster still gets down-weighted", () => {
 });
 
 test("#1427: a model 870 km from the collars is measured as such; one over them is 0", async () => {
-  const { modelGapKm } = await import("../src/lib/dataClusters.js");
+  const { modelGapKm } = await import("../src/lib/dataExtent.js");
   const collars = [{ x: 425000, y: 6642000 }, { x: 426000, y: 6643000 }];
   assert.ok(modelGapKm([{ x: 1295000, y: 6642000 }], collars) > 860);
   assert.equal(modelGapKm([{ x: 425500, y: 6642500 }], collars), 0);

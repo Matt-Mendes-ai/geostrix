@@ -22,7 +22,8 @@ import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
-import { fetchAreaBox, mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
+import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
+import { fetchAreaBox } from "../lib/dataExtent.js"; // #1461
 import RasterColourControls from "../components/RasterColourControls.jsx"; // TASKS.csv #1236
 import { gridCellText } from "../lib/raster.js"; // TASKS.csv #1242
 
