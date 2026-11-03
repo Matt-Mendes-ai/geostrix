@@ -372,10 +372,16 @@ export function cellValueRange(cells) {
 // the cells hold exactly it, those cells are marked no-data (in place). Returns { count, value } (count 0 =
 // nothing changed). A model that genuinely contains many cells of one tiny value is rare; the import
 // message states what was done either way.
+// TASKS.csv #1659 (review #1646, Kodiak) — a DCIP3D chargeability model marks air as -1 (81,460 of Kodiak's 380,250 cells): it was drawn
+// as a slab of rock over the model and averaged into the near-surface blocks. A NEGATIVE minimum is air too when it fills at least
+// minShare of the cells and no other value is negative (a model that really holds negatives, e.g. a susceptibility, is left alone).
 export function maskAirCells(values, minShare = 0.05) {
-  let min = Infinity;
-  for (let i = 0; i < values.length; i++) { const v = values[i]; if (Number.isFinite(v) && v > NODATA_MAX && v < min) min = v; }
-  if (!(min > 0 && min <= 1e-8)) return { count: 0, value: null };
+  let min = Infinity, negatives = 0;
+  for (let i = 0; i < values.length; i++) { const v = values[i]; if (Number.isFinite(v) && v > NODATA_MAX) { if (v < min) min = v; if (v < 0) negatives++; } }
+  const tinyAir = min > 0 && min <= 1e-8;
+  let flagAir = false;
+  if (min < 0) { let atMin = 0; for (let i = 0; i < values.length; i++) if (values[i] === min) atMin++; flagAir = atMin === negatives; }
+  if (!tinyAir && !flagAir) return { count: 0, value: null };
   let count = 0;
   for (let i = 0; i < values.length; i++) if (values[i] === min) count++;
   if (count < minShare * values.length) return { count: 0, value: null };

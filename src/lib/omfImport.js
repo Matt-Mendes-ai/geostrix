@@ -45,7 +45,7 @@ export async function omfToProjectObjects(arrayBuffer, maxCells, { attribute = n
       } else if (min > 0 && max / min >= 100) {
         colorInit = { colorMode: "continuous", stops: logStops(min, max, SEQUENTIAL_ANCHORS) }; // #482, as #481
       }
-      if (air?.count) notes.push(tr("{name}: {count} cells at {v} (the tiny value this model uses for air above the ground) treated as air (no data).", { name: el.name, count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }));
+      if (air?.count) notes.push(tr("{name}: {count} cells at {v} (the value this model uses for air above the ground) treated as air (no data).", { name: el.name, count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }));
       voxelModels.push({ name: `${el.name} (${attrName})`, source: "omf", cells, min, max, ...colorInit, ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}) }); // #1095
       if (coarsenNote) notes.push(`${el.name}: ${coarsenNote}`);
     }
