@@ -1240,10 +1240,11 @@ export function createModellingRuns(ctx, mcRef) {
       }
     }
     // TASKS.csv #360 — faults that offset the stack, solved in the same GemPy run (FAULT groups)
-    const faultSpecs = [], faultKey = new Map();
+    const faultSpecs = [], faultKey = new Map(), faultWarnings = [];
     stackFaults.forEach((key) => {
       const f = gatherFaultSpec(key, traces);
       if (f.spec) { faultSpecs.push(f.spec); faultKey.set(key, f.spec); } else setNotices((p) => [...p, notice("Fault \"{v}\" left out: {why}", { v: key.replace("|", " — "), why: f.why })]);
+      faultWarnings.push(...(f.warnings || [])); // #1372 — said after the run: the run's own messages pushed them out of the last six
     });
     if (faultSpecs.length) setNotices((p) => [...p, notice("The stack is offset by {faultSpecs} fault(s) solved in the same model: {v}.", { faultSpecs: faultSpecs.length, v: faultSpecs.map((f) => f.meshName).join(", ") })]);
 
@@ -1257,6 +1258,7 @@ export function createModellingRuns(ctx, mcRef) {
       spec.offsets = [...specs.slice(Math.max(0, from)).map((s) => s.meshName), ...(cfg.faults || []).filter((k) => later.includes(k) && faultKey.has(k)).map((k) => faultKey.get(k).meshName)];
     });
     await runSurfaceStack([...faultSpecs, ...specs], { relation: breakAt.size ? "erode" : stackRelation, packages }); // TASKS.csv #271; #1309
+    if (faultWarnings.length) setNotices((p) => [...p, ...faultWarnings]);
   };
 
   // TASKS.csv #817 — a stratigraphic model from the surface geology ALONE (no drillholes needed). Matt: "I wanna have a
@@ -1367,8 +1369,14 @@ export function createModellingRuns(ctx, mcRef) {
     });
     const orientations = structureRowsToOrientations(rows, traces);
     if (!points.length || !orientations.length) return { why: "its picks could not be placed on the hole traces." };
-    const name = id ? `${type} — ${id}` : type;
-    return { spec: { label: `Fault: ${name}`, meshName: `Fault ${name}`, points, orientations, color: colorForStructure(type), type: "fault", fault: true } };
+    // TASKS.csv #1372 (review #1352, Silvertip) — five unrelated "Fault" picks in three pads were solved as one fault plane in silence
+    // (the Structures tool warns on the same picks), and the fault was named "Fault Fault". The same checks as runStructuralModel:
+    // picks no more aligned than random planes (#1066), and picks of several holes with no ID. "<type> (all picks)" without an ID.
+    const name = id ? `${type} — ${id}` : tr("{type} (all picks)", { type });
+    const warnings = [], fs = rows.length >= 4 ? fisherStats(rows) : null, holes = new Set(rows.map((s) => s.hole_id)).size;
+    if (fs?.noPreferred) warnings.push(notice("Warning: the {n} \"{name}\" picks show no preferred orientation (k = {k}, at the level of random planes), so their dips do not define one surface. Check them on the Stereonet, or give each structure its own name/ID.", { n: rows.length, name, k: fs.k.toFixed(1) }));
+    if (!id && holes > 1) warnings.push(notice("All {rows} \"{structType}\" picks ({holes} holes) are modelled as ONE surface. If they belong to different {v}, map a structure name/ID column when importing the structure file and each will be modelled on its own.", { rows: rows.length, structType: type, holes, v: tr("faults") }));
+    return { warnings, spec: { label: `Fault: ${name}`, meshName: /fault|flt|shear/i.test(type) ? name : `Fault ${name}`, points, orientations, color: colorForStructure(type), type: "fault", fault: true } };
   };
 
   // Structural modelling tool: models a surface from one structure-plane type (e.g. a fault or shear
