@@ -19,7 +19,7 @@ export const MeasureResults = lazyModal(() => import("../../components/MeasureRe
 const NumericSymbologyEditor = lazyModal(() => import("../../components/NumericSymbologyEditor.jsx"));
 export function ViewToolbar({
   openPopover, setOpenPopover, gridConfig, setGridConfig,
-  figureOverlay, setFigureOverlay, projectName, legendCount, // TASKS.csv #311
+  figureOverlay, setFigureOverlay, projectName, legendCount, legendShown, // TASKS.csv #311
   themes, themeNameDraft, setThemeNameDraft, captureCurrentTheme, applyTheme,
   renamingThemeId, setRenamingThemeId, renameDraft, setRenameDraft, renameTheme, deleteTheme,
   onDbConnect, onQc, qcDisabled, onBoundaryIntercepts, boundaryDisabled, onSqlWorkspace, sqlDisabled,
@@ -80,7 +80,7 @@ export function ViewToolbar({
                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
                   <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.title} onChange={(e) => setFigureOverlay((f) => ({ ...f, title: e.target.checked }))} />{" "}{tr("Title")}</label>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
-                  <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.legend} onChange={(e) => setFigureOverlay((f) => ({ ...f, legend: e.target.checked }))} />{" "}{tr("Legend{v}", { v: legendCount ? ` (${legendCount} shown)` : tr(" (nothing switched on)") })}
+                  <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.legend} onChange={(e) => setFigureOverlay((f) => ({ ...f, legend: e.target.checked }))} />{" "}{tr("Legend{v}", { v: legendCount ? (legendShown != null && legendShown < legendCount ? ` (${tr("{n} of {m} shown", { n: legendShown, m: legendCount })})` : ` (${legendCount} shown)`) : tr(" (nothing switched on)") })}
                 </label>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
                   <input type="checkbox" disabled={!figureOverlay.enabled} checked={!!figureOverlay.scale} onChange={(e) => setFigureOverlay((f) => ({ ...f, scale: e.target.checked }))} />{" "}{tr("Scale bar")}</label>

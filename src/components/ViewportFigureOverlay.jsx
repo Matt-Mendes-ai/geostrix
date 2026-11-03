@@ -39,6 +39,7 @@ import { metresPerPixelAtTarget, chooseScaleBar } from "../lib/figureScale.js";
 // CSS-vs-JS boundary theme.js documents for colour.
 import { fontSizes } from "../lib/theme.js";
 import { rampTickLabels } from "../lib/legendScale.js"; // TASKS.csv #736
+import { allocateLegendRows } from "../lib/legendGroups.js"; // TASKS.csv #1398
 import { swatchShape } from "../lib/legendGroups.js"; // TASKS.csv #948
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
@@ -65,7 +66,7 @@ const SCALE_LEFT_PX = 12 + 76 + 14;
 // A legend longer than this stops being figure furniture and starts being a data panel. Truncating
 // SILENTLY would be the dishonest option (a reader would assume the key is complete), so the
 // remainder is stated explicitly instead.
-const MAX_LEGEND_ITEMS = 14;
+export const MAX_LEGEND_ITEMS = 14; // shared between the groups (#1398); 18 with the numeric ramps ran into the scale bar
 
 const card = {
   background: "var(--color-bg)",
@@ -132,18 +133,14 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
 
   if (!config.enabled) return null;
 
-  const items = [];
-  // TASKS.csv #381 — short groups (assay grade classes, a few-category layer) go first so a long
-  // lithology list cannot push them past the item cap; the sort is stable, so equal sizes keep order.
-  // With more than one group, each group's first row carries its heading.
-  const swatchGroups = (legendGroups || []).filter((g) => g.items.length).map((g, i) => ({ g, i })).sort((a, b) => (a.g.items.length - b.g.items.length) || (a.i - b.i)).map((x) => x.g);
-  const multi = swatchGroups.length > 1;
-  swatchGroups.forEach((g) => g.items.forEach(([label, color, opt], k) => items.push({ label, color, kind: opt?.kind, opacity: opt?.opacity, group: g.label, head: (multi || g.alwaysHead) && k === 0 }))); // #843 alwaysHead: the anomaly map's rule; kind: #948
-  const shown = items.slice(0, MAX_LEGEND_ITEMS);
-  const hiddenCount = items.length - shown.length;
-  // TASKS.csv #381 — continuous keys (block models, geophysics points): gradient bar + min/max.
-  const ramps = (legendGroups || []).filter((g) => g.ramp).slice(0, 4);
-  const showLegend = config.legend && (items.length > 0 || ramps.length > 0);
+  // TASKS.csv #1398 (review #1352) — the rows are shared out between the groups in turn (allocateLegendRows), in their own order:
+  // #381 sorted short groups first so grade classes were not pushed out, but that pushed Lithology, the colour of every hole, out
+  // instead ("+ 51 more", no Lithology, on Silvertip). Each group's first row carries its heading; #843 alwaysHead, #948 kind.
+  const { rows: shown, total } = allocateLegendRows(legendGroups, MAX_LEGEND_ITEMS);
+  const hiddenCount = total - shown.length;
+  // TASKS.csv #381 — continuous keys (block models, geophysics points, #1398 the numeric hole layers): gradient bar + min/max
+  const ramps = (legendGroups || []).filter((g) => g.ramp).slice(0, 6);
+  const showLegend = config.legend && (shown.length > 0 || ramps.length > 0);
   const fmtR = (v) => (Math.abs(v) >= 1000 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 ? v.toFixed(2) : v.toPrecision(2));
   const showTitle = config.title && !!title;
 

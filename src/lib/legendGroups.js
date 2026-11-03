@@ -184,3 +184,40 @@ export function rankLegendGroups(items) {
   return groups.map((g, i) => ({ g, i, r: rank(g) })).sort((a, b) => a.r - b.r || a.i - b.i).flatMap((x) => x.g);
 }
 export const legendGroupCount = (items) => (items || []).filter((it) => it?.[2]?.heading).length;
+
+// TASKS.csv #1398 (review #1352, Silvertip) — the RQD, recovery and mag susc tubes wrap every hole (radius 4.2-4.6 m, outside the
+// logs) and colour it, but had no key. A ramp per visible numeric hole layer, sampled from the colour function the 3D view draws
+// it with (colorOf(key, value, range): numericLayerColor), over the range it uses: 0-100 for RQD and recovery, the visible rows'
+// own min-max for SG and mag susc. -> legend groups with a ramp, as legendScale draws them.
+export function numericLayerLegendGroups({ keys = ["geotech", "recovery", "sg", "magsusc"], layers = {}, layerVisible = {}, isRowVisible = () => true, colorOf }) {
+  const out = [];
+  for (const key of keys) {
+    if (!layerVisible[key] || !(layers[key] || []).length || !colorOf) continue;
+    let lo = 0, hi = 100;
+    if (key !== "geotech" && key !== "recovery") {
+      lo = Infinity; hi = -Infinity;
+      for (const r of layers[key]) { const v = r.value; if (typeof v === "number" && Number.isFinite(v) && isRowVisible(key, r)) { if (v < lo) lo = v; if (v > hi) hi = v; } }
+      if (!(hi > lo)) continue;
+    }
+    const fmt = (v) => String(+Number(v).toPrecision(3));
+    const colors = Array.from({ length: 17 }, (_, i) => colorOf(key, lo + (i / 16) * (hi - lo), { min: lo, max: hi }));
+    out.push({ key: `numeric_${key}`, label: LAYER_META[key]?.label || key, items: [], ramp: { kind: "ramp", log: false, min: lo, max: hi, minLabel: fmt(lo), maxLabel: fmt(hi), colors, ticks: [] } });
+  }
+  return out;
+}
+
+// TASKS.csv #1398 — the 3D legend's rows shared out between its groups: one row per group in turn until `max` are given, so a long
+// group (lithology) cannot push the others out and short groups (#381: grade classes) still show in full; groups in their own
+// order (lithology first). -> { rows: [{ label, color, kind, opacity, group, head }], shown, total }
+export function allocateLegendRows(groups, max) {
+  const gs = (groups || []).filter((g) => g.items?.length);
+  const quota = gs.map(() => 0);
+  let left = max, moved = true;
+  while (left > 0 && moved) {
+    moved = false;
+    for (let i = 0; i < gs.length && left > 0; i++) if (quota[i] < gs[i].items.length) { quota[i]++; left--; moved = true; }
+  }
+  const multi = gs.filter((_, i) => quota[i] > 0).length > 1, rows = [];
+  gs.forEach((g, i) => g.items.slice(0, quota[i]).forEach(([label, color, opt], k) => rows.push({ label, color, kind: opt?.kind, opacity: opt?.opacity, group: g.label, head: (multi || g.alwaysHead) && k === 0 })));
+  return { rows, shown: rows.length, total: gs.reduce((n, g) => n + g.items.length, 0) };
+}

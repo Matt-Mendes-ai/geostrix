@@ -7042,5 +7042,6 @@
   "Draw only these depths (blank: the whole hole); the exports and Add to Layout follow": "Ne dessiner que ces profondeurs (vide : tout le sondage) ; les exports et l'ajout à la mise en page suivent",
   "Depth range from (m)": "Intervalle de profondeur depuis (m)",
   "Depth range to (m)": "Intervalle de profondeur jusqu'à (m)",
-  "Sent to Layout. At the width Layout gives it, its labels print at about {pt} pt: drag its corner larger on the page, or draw fewer tracks.": "Envoyé à la mise en page. À la largeur que lui donne la mise en page, ses étiquettes s'impriment à environ {pt} pt : agrandissez-le par son coin sur la page, ou dessinez moins de pistes."
+  "Sent to Layout. At the width Layout gives it, its labels print at about {pt} pt: drag its corner larger on the page, or draw fewer tracks.": "Envoyé à la mise en page. À la largeur que lui donne la mise en page, ses étiquettes s'impriment à environ {pt} pt : agrandissez-le par son coin sur la page, ou dessinez moins de pistes.",
+  "{n} of {m} shown": "{n} sur {m} affichés"
 }

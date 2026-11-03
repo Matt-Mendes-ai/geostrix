@@ -7042,5 +7042,6 @@
   "Draw only these depths (blank: the whole hole); the exports and Add to Layout follow": "Desenhar só estas profundidades (em branco: o furo inteiro); as exportações e Adicionar ao Layout seguem",
   "Depth range from (m)": "Intervalo de profundidade de (m)",
   "Depth range to (m)": "Intervalo de profundidade até (m)",
-  "Sent to Layout. At the width Layout gives it, its labels print at about {pt} pt: drag its corner larger on the page, or draw fewer tracks.": "Enviado ao Layout. Na largura que o Layout lhe dá, os rótulos saem com cerca de {pt} pt: arraste o canto para aumentá-lo na página, ou desenhe menos trilhas."
+  "Sent to Layout. At the width Layout gives it, its labels print at about {pt} pt: drag its corner larger on the page, or draw fewer tracks.": "Enviado ao Layout. Na largura que o Layout lhe dá, os rótulos saem com cerca de {pt} pt: arraste o canto para aumentá-lo na página, ou desenhe menos trilhas.",
+  "{n} of {m} shown": "{n} de {m} visíveis"
 }
