@@ -7035,5 +7035,8 @@
   "Each population plots as a straight line on these axes (log-normal); a bend or a step in the high tail is where a second population starts, the usual place to cap (Sinclair 1976). Values of 0 count in the cumulative % but cannot be drawn on a log axis.": "Cada población se grafica como una recta en estos ejes (lognormal); un quiebre o un escalón en la cola alta marca dónde empieza una segunda población, el lugar habitual para el corte (Sinclair 1976). Los valores 0 cuentan en el % acumulado pero no se pueden dibujar en un eje logarítmico.",
   "Too few values above zero for a probability plot.": "Muy pocos valores mayores que cero para un gráfico de probabilidad.",
   "cap": "corte",
-  "Log-probability plot": "Gráfico de probabilidad logarítmica"
+  "Log-probability plot": "Gráfico de probabilidad logarítmica",
+  "The log as drawn here (its tracks, depth axis and key) on the Layout page, with its colour tracks as a legend": "El registro tal como se dibuja aquí (sus pistas, eje de profundidad y clave) en la página de Layout, con sus pistas de color como leyenda",
+  "Sent to Layout. Its labels print at about {pt} pt there: lower the vertical scale (px/m) and send it again for a readable log.": "Enviado a Layout. Allí sus etiquetas se imprimen a unos {pt} pt: baje la escala vertical (px/m) y envíelo de nuevo para un registro legible.",
+  "Sent to Layout. A {m} m hole is too long to print readably on one page (labels about {pt} pt, {pt1} pt even at 1 px/m): use the SVG or PNG for a full-size log.": "Enviado a Layout. Un sondaje de {m} m es demasiado largo para imprimirse legible en una página (etiquetas de unos {pt} pt, {pt1} pt incluso a 1 px/m): use el SVG o el PNG para un registro a tamaño completo."
 }

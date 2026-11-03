@@ -8619,6 +8619,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           assayElements={assayElements}
           colorFor={effectiveColor} labelFor={effectiveLabel} // TASKS.csv #402 — the user's legend colours/names
           modelledLayers={customLayers.filter((l) => l.rows?.[0]?.modelled)} // TASKS.csv #356
+          onAddToLayout={(img) => { addLayoutImage(img); goToModule("layout"); }} // #1480
           assayColor={(sym, v) => assayColorFor(v, Math.max(0, assayDisplayElements.indexOf(sym)), assayStyle[sym])}
           onClose={() => setStripLogHoleId(null)}
         />

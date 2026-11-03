@@ -272,7 +272,8 @@ export default function LayoutModule() {
     const maxW = A4.w - 160;
     const additions = pendingLayoutImages.map((img) => {
       const aspect = img.naturalW && img.naturalH ? img.naturalW / img.naturalH : 16 / 9;
-      const w = Math.min(maxW, 700);
+      // TASKS.csv #1480 — a tall image (a strip log) fits the sheet's height too; it ran off the page at 700 px wide
+      const maxH = A4.h - 160, w = Math.round(Math.min(maxW, 700, maxH * aspect));
       const h = Math.round(w / aspect);
       const stagger = (importedSnapCount.current++ % 5) * 24;
       // worldWidthAtCaptureM (cross-section snapshots only — see SectionWindow.jsx's

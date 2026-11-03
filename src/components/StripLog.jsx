@@ -22,10 +22,11 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { stripLogFurniture, pngScaleFor } from "../lib/figureFurniture.js"; // TASKS.csv #1048
+import { stripLogTextPt } from "../lib/atlas.js"; // TASKS.csv #1480 — the size its labels print at
 const DEPTH_COL_W = 50;
 const PAD_TOP = 40;
 
-export default function StripLog({ holeId, collars, layers, assays, assayElements, colorFor, labelFor, assayColor, onClose, modelledLayers = [] }) {
+export default function StripLog({ holeId, collars, layers, assays, assayElements, colorFor, labelFor, assayColor, onClose, modelledLayers = [], onAddToLayout = null }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const svgRef = useRef(null);
@@ -111,6 +112,26 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
       const seen = [...new Set(t.rows.map((r) => r.value).filter((v) => v != null && v !== ""))];
       return { title: t.title || t.label, items: seen.map((v) => ({ label: t.nameFn ? `${v} ${t.nameFn(v) !== v ? `(${t.nameFn(v)})` : ""}`.trim() : String(v), color: t.colorFn(v) })) };
     }) });
+  // TASKS.csv #1480 (review #1352) — the strip log to Layout, as the section window, level plan and Best intercepts do: the same
+  // figure as the SVG export (the chosen assay tracks, the depth axis and its metres, the collar caption and the colour-track
+  // key), and its colour tracks as the bound Layout legend. Layout fits it to the sheet; when that would print its 9.5 px labels
+  // under 6 pt the window says so (a lower vertical scale gives a shorter, readable log).
+  const addToLayout = () => {
+    const svg = svgRef.current;
+    if (!svg || !onAddToLayout) return;
+    const { markup, width: fw, height: fh } = exportSvgMarkup(svg, { furniture: furniture() });
+    const legendItems = tracks.filter((t) => t.kind === "fill" || t.kind === "struct").flatMap((t) => {
+      const seen = [...new Set(t.rows.map((r) => r.value).filter((v) => v != null && v !== ""))];
+      const group = String(t.title || t.label).split(": ")[0]; // the legend splits a heading at its first ": " (the structure track's title has one)
+      return seen.map((v) => [`${group}: ${t.nameFn ? t.nameFn(v) : v}`, t.colorFn(v)]);
+    });
+    onAddToLayout({ label: `Strip log — ${holeId}` /* project data stays English */, src: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(markup)))}`, naturalW: fw, naturalH: fh, legendItems });
+    const ptAt = (h) => stripLogTextPt(h, Math.min(700 * (h / fw), 794 - 160)); // Layout: 700 px wide, at most the sheet height less margins (A4 landscape)
+    const pt = ptAt(fh), pt1 = ptAt(fh - maxDepth * (pxPerMeter - 1)); // the same log drawn at 1 px/m
+    setPngNote(pt == null || pt >= 6 ? "" : pt1 >= 6
+      ? tr("Sent to Layout. Its labels print at about {pt} pt there: lower the vertical scale (px/m) and send it again for a readable log.", { pt: pt.toFixed(1) })
+      : tr("Sent to Layout. A {m} m hole is too long to print readably on one page (labels about {pt} pt, {pt1} pt even at 1 px/m): use the SVG or PNG for a full-size log.", { m: Math.round(maxDepth), pt: pt.toFixed(1), pt1: pt1.toFixed(1) }));
+  };
   const exportSVG = () => {
     const svg = svgRef.current;
     if (!svg) return;
@@ -170,6 +191,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
           <div style={{ flex: 1 }} />
           <button onClick={exportSVG} style={{ ...btn(false), padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("SVG")}</button>
           <button onClick={exportPNG} style={{ ...btn(false), padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("PNG")}</button>
+          {onAddToLayout && <button onClick={addToLayout} style={{ ...btn(false), padding: "6px 10px" }} title={tr("The log as drawn here (its tracks, depth axis and key) on the Layout page, with its colour tracks as a legend")}>{tr("Add to Layout")}</button>}
         </div>
         {pngNote && <div role="status" style={{ padding: "6px 16px", fontSize: 11, color: "#7a4a1f", background: "#fdf4e6", borderBottom: "1px solid #edd9b7" }}>{pngNote}</div>}
 

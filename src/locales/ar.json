@@ -7035,5 +7035,8 @@
   "Each population plots as a straight line on these axes (log-normal); a bend or a step in the high tail is where a second population starts, the usual place to cap (Sinclair 1976). Values of 0 count in the cumulative % but cannot be drawn on a log axis.": "تظهر كل مجموعة خطًا مستقيمًا على هذين المحورين (لوغاريتمي طبيعي)؛ الانكسار أو الدرجة في الذيل العالي هو حيث تبدأ مجموعة ثانية، وهو المكان المعتاد للقطع (Sinclair 1976). القيم الصفرية تُحسب في النسبة التراكمية لكن لا يمكن رسمها على محور لوغاريتمي.",
   "Too few values above zero for a probability plot.": "قيم قليلة جدًا فوق الصفر لرسم مخطط احتمال.",
   "cap": "قطع",
-  "Log-probability plot": "مخطط الاحتمال اللوغاريتمي"
+  "Log-probability plot": "مخطط الاحتمال اللوغاريتمي",
+  "The log as drawn here (its tracks, depth axis and key) on the Layout page, with its colour tracks as a legend": "السجل كما يُرسم هنا (مساراته ومحور العمق والمفتاح) على صفحة التخطيط، مع مسارات الألوان كمفتاح للخريطة",
+  "Sent to Layout. Its labels print at about {pt} pt there: lower the vertical scale (px/m) and send it again for a readable log.": "أُرسل إلى التخطيط. تُطبع تسمياته هناك بحجم {pt} نقطة تقريبًا: خفّض المقياس الرأسي (بكسل/م) وأرسله مجددًا لسجل مقروء.",
+  "Sent to Layout. A {m} m hole is too long to print readably on one page (labels about {pt} pt, {pt1} pt even at 1 px/m): use the SVG or PNG for a full-size log.": "أُرسل إلى التخطيط. ثقب بطول {m} م أطول من أن يُطبع مقروءًا على صفحة واحدة (التسميات نحو {pt} نقطة، و{pt1} نقطة حتى عند 1 بكسل/م): استخدم SVG أو PNG لسجل بالحجم الكامل."
 }
