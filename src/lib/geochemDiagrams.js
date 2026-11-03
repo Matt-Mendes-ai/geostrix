@@ -420,3 +420,28 @@ export function spreadLines(lines, max, keyOf) {
   }
   return { shown: shown.slice(0, max), groups: by.size };
 }
+
+// TASKS.csv #1513 (review #1497, Lawyers) — a classification writes one row per sample (83,648 on Lawyers), and the 3D View then
+// froze 41.5 s building them. Touching samples of one class in a hole become one interval (samples: how many); a gap of more
+// than gapM between samples stays a gap, and a class change or an overlap starts a new interval.
+export function mergeClassRuns(rows, gapM = 0.05) {
+  const byHole = new Map();
+  for (const r of rows) {
+    if (!Number.isFinite(r.from) || !Number.isFinite(r.to)) continue;
+    let a = byHole.get(r.hole_id);
+    if (!a) byHole.set(r.hole_id, (a = []));
+    a.push(r);
+  }
+  const out = [];
+  for (const [, list] of byHole) {
+    list.sort((p, q) => p.from - q.from || p.to - q.to);
+    let run = null;
+    for (const r of list) {
+      if (run && r.value === run.value && Math.abs(r.from - run.to) <= gapM) { run.to = Math.max(run.to, r.to); run.samples++; continue; }
+      if (run) out.push(run);
+      run = { hole_id: r.hole_id, from: r.from, to: r.to, value: r.value, samples: 1 };
+    }
+    if (run) out.push(run);
+  }
+  return out;
+}

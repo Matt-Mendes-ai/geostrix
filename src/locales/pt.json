@@ -761,7 +761,7 @@
   "Only .csv or .xlsx files can be dropped in directly.": "Só arquivos .csv ou .xlsx podem ser soltos diretamente.",
   "{skipped} other file(s) skipped.": "{skipped} outro(s) arquivo(s) ignorado(s).",
   "{label}: missing {missing}.": "{label}: falta {missing}.",
-  "Generated {rows} intervals → {v} layer.{detail} Switch to 3D View to see it.": "Gerados {rows} intervalos → camada {v}.{detail} Vá para a Visualização 3D para vê-la.",
+  "Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} Switch to 3D View to see it.": "Gerados {rows} intervalos a partir de {n} amostras → camada {v} (amostras contíguas da mesma classe são unidas).{detail} Vá para a Visualização 3D para vê-la.",
   "Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. It can now be shown downhole, in 3D and on sections like any element. It is not recalculated if assays are re-imported.": "Adicionado o elemento calculado {symbol} = {expr} em {computed} intervalo(s) de análise (faixa {min}–{max}){v}. Agora pode ser mostrado no furo, em 3D e em seções como qualquer elemento. Não é recalculado se as análises forem reimportadas.",
   "; {skipped} interval(s) missing an element in the formula have no value": "; {skipped} intervalo(s) sem algum elemento da fórmula ficam sem valor",
   "Removed {removed} assay interval(s) from {label}.{v} Ctrl+Z to undo.": "Removidos {removed} intervalo(s) de análise de {label}.{v} Ctrl+Z para desfazer.",

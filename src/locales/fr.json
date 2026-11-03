@@ -761,7 +761,7 @@
   "Only .csv or .xlsx files can be dropped in directly.": "Seuls les fichiers .csv ou .xlsx peuvent être déposés directement.",
   "{skipped} other file(s) skipped.": "{skipped} autre(s) fichier(s) ignoré(s).",
   "{label}: missing {missing}.": "{label} : {missing} manquant.",
-  "Generated {rows} intervals → {v} layer.{detail} Switch to 3D View to see it.": "{rows} intervalles générés → couche {v}.{detail} Passez à la Vue 3D pour la voir.",
+  "Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} Switch to 3D View to see it.": "{rows} intervalles générés à partir de {n} échantillons → couche {v} (les échantillons contigus d'une même classe sont regroupés).{detail} Passez à la Vue 3D pour la voir.",
   "Added calculated element {symbol} = {expr} on {computed} assay interval(s) (range {min}–{max}){v}. It can now be shown downhole, in 3D and on sections like any element. It is not recalculated if assays are re-imported.": "Élément calculé {symbol} = {expr} ajouté sur {computed} intervalle(s) d'analyse (plage {min}–{max}){v}. Il peut maintenant être affiché en sondage, en 3D et sur les coupes comme tout élément. Il n'est pas recalculé si les analyses sont réimportées.",
   "; {skipped} interval(s) missing an element in the formula have no value": "; {skipped} intervalle(s) sans un élément de la formule n'ont pas de valeur",
   "Removed {removed} assay interval(s) from {label}.{v} Ctrl+Z to undo.": "{removed} intervalle(s) d'analyse supprimé(s) de {label}.{v} Ctrl+Z pour annuler.",

@@ -18,7 +18,7 @@ import { addCalculatedElement, CALC_PRESETS } from "../lib/calcElement.js"; // T
 import { useStore } from "../lib/store.jsx";
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
 import { isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples } from "../lib/geochem.js";
-import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode } from "../lib/geochemDiagrams.js";
+import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, mergeClassRuns } from "../lib/geochemDiagrams.js";
 import { qcRecordFromFileRow, emptySurfaceQc } from "../lib/surfaceQaqc.js"; // TASKS.csv #842
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
 import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
@@ -727,12 +727,13 @@ export default function GeochemModule() {
       counts[value] = (counts[value] || 0) + 1;
       return { hole_id: a.hole_id, from: a.from, to: a.to, value };
     }).filter(Boolean);
-    replaceLayer(targetKey, rows);
+    const runs = mergeClassRuns(rows); // #1513 — touching samples of one class: one interval
+    replaceLayer(targetKey, runs);
     const detail = altSetup ? tr(" {v}.{v2}{v3} Screening level: protolith assumed.", { v: Object.entries(counts).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${GEOCHEM_LABELS[k] || k} ${n}`).join(", "), v2: noProtolith ? tr(" {noProtolith} sample(s) not classified: no protolith (unmapped lithology code or no logged interval).", { noProtolith }) : "", v3: JSON.stringify(altSetup.boxes) === JSON.stringify(PROVISIONAL_ALTERATION_BOXES) ? tr(" Box limits are the PROVISIONAL defaults (not yet checked against Large et al. 2001).") : tr(" Box limits: your edited values.") }) : "";
     const sedN = Object.values(sedSkipped).reduce((s, n) => s + n, 0);
     const sedText = sedN ? tr(" {n} sample(s) in logged sedimentary or carbonate codes ({codes}) were not classified: this classifier is for volcanic rocks.", { n: sedN, codes: Object.entries(sedSkipped).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k} ${n}`).join(", ") }) : "";
     const jensenText = methodKey === "litho_jensen" ? tr(" The classes are a simplified threshold split of the cation ternary, not the published Jensen fields.") : "";
-    setNotices((p) => [...p, notice("Generated {rows} intervals → {v} layer.{detail} Switch to 3D View to see it.", { rows: rows.length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)"), detail: detail + sedText + jensenText })]);
+    setNotices((p) => [...p, notice("Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} Switch to 3D View to see it.", { rows: runs.length, n: rows.length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)"), detail: detail + sedText + jensenText })]);
   };
 
   // ---------- exports ----------
