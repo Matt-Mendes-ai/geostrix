@@ -1,0 +1,14 @@
+// TASKS.csv #1506 — a queued file's dialog title "(N more queued)" never becomes a layer name, a row's source or a notice
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const src = readFileSync(new URL("../src/modules/viewer/useImportPipeline.js", import.meta.url), "utf8");
+
+test("commitImportData works with the bare file name", () => {
+  assert.match(src, /const commitImportData = \(\{ target, mapping, allRows, dipConvention, fileName: shownName,/);
+  assert.match(src, /const fileName = String\(shownName \?\? ""\)\.replace\(\/ \\(\d\+ more queued\\)\$\/, ""\);/);
+  const strip = (s) => String(s).replace(/ \(\d+ more queued\)$/, "");
+  assert.equal(strip("2021 & 2022 DDH Min Domain.csv (10 more queued)").replace(/\.csv$/i, ""), "2021 & 2022 DDH Min Domain");
+  assert.equal(strip("plain.csv"), "plain.csv");
+});

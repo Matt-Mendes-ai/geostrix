@@ -183,7 +183,10 @@ export function useImportPipeline(ctx) {
   // a later file of the SAME drop adds to them instead of replacing them by hole (replaceRowsByHole keepRows).
   const batchRowsRef = useRef(null);
   const keepBatch = (rows) => { if (batchRowsRef.current) rows.forEach((r) => batchRowsRef.current.add(r)); return rows; };
-  const commitImportData = ({ target, mapping, allRows, dipConvention, fileName, sourceEpsg, perRowEpsgCol, customFields, azimuthRef, azimuthDate, betaRefLine, azimuthGridEpsg, unseen = false }) => {
+  const commitImportData = ({ target, mapping, allRows, dipConvention, fileName: shownName, sourceEpsg, perRowEpsgCol, customFields, azimuthRef, azimuthDate, betaRefLine, azimuthGridEpsg, unseen = false }) => {
+    // TASKS.csv #1506 (review #1497) — the dialog's title carries the drop's queue count ("Min Domain.csv (10 more queued)"), and it
+    // became the custom layer's name, each row's source (_src) and every notice: the bare file name from here on
+    const fileName = String(shownName ?? "").replace(/ \(\d+ more queued\)$/, "");
     // TASKS.csv #396 — convert azimuths measured from true or magnetic north to the project grid, per hole
     // location (declination and convergence vary across a property). Returns the rows plus a notice.
     const applyAzimuthRef = (rows, locate) => {
