@@ -279,17 +279,17 @@ function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef, describe 
   const { shown, groups } = useMemo(() => spreadLines(lines, MAX_LINES, (l) => l.sample.hole_id ?? l.sample.sample_id ?? ""), [lines]);
   const hiddenCount = lines.length - shown.length;
 
-  const allVals = shown.flatMap((l) => l.profile.map((p) => p.value).filter((v) => v != null));
+  const allVals = shown.flatMap((l) => l.profile.map((p) => p.value).filter((v) => v > 0 && Number.isFinite(v))); // #1672 — a log axis: no zeros
   const ymin = allVals.length ? Math.pow(10, Math.floor(Math.log10(Math.min(arrMin(allVals), 0.9)))) : 0.1;
   const ymax = allVals.length ? Math.pow(10, Math.ceil(Math.log10(Math.max(arrMax(allVals), 1.1)))) : 100;
   const sy = (v) => H - PAD - ((Math.log10(v) - Math.log10(ymin)) / (Math.log10(ymax) - Math.log10(ymin))) * innerH;
   const yticks = logTicks(ymin, ymax);
 
   const pathFor = (profile) => {
-    let d = "";
+    let d = "", pen = false;
     profile.forEach((p, i) => {
-      if (p.value == null) return; // gap: lift the pen, don't interpolate across missing elements
-      d += `${d ? "L" : "M"}${sx(i)},${sy(p.value)} `;
+      if (p.value == null || !(p.value > 0)) { pen = false; return; } // gap: lift the pen, don't interpolate across missing elements (#1672: or a zero)
+      d += `${pen ? "L" : "M"}${sx(i)},${sy(p.value)} `; pen = true;
     });
     return d.trim();
   };
@@ -329,7 +329,10 @@ function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef, describe 
 
 // ---------- helpers ----------
 function linTicks(min, max, n) { const step = (max - min) / n; return Array.from({ length: n + 1 }, (_, i) => min + i * step); }
+// TASKS.csv #1672 (review #1645, Copley) — a bound of 0 (pXRF 'not detected' zeros on a log axis) made log10 -Infinity and this loop never
+// ended: the renderer ran out of memory and the window went black. No ticks for a bound a log axis cannot have.
 function logTicks(min, max) {
+  if (!(min > 0) || !(max > 0) || !Number.isFinite(min) || !Number.isFinite(max) || Math.log10(max) - Math.log10(min) > 40) return [];
   const ticks = [];
   for (let e = Math.floor(Math.log10(min)); e <= Math.ceil(Math.log10(max)); e++) ticks.push(Math.pow(10, e));
   return ticks.filter((t) => t >= min && t <= max);

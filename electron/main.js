@@ -426,6 +426,17 @@ function createMainWindow() {
   // passed to shell.openExternal, which on Windows would happily launch a registered handler.
   mainWindow.webContents.setWindowOpenHandler(openExternalOnly); // #345 — shared with every window
   if (isDev) mainWindow.webContents.openDevTools({ mode: "detach" });
+  // TASKS.csv #1672 (review #1645, Copley) — a renderer that dies (it ran out of memory on a log-axis bug) left a black window with no
+  // word and no way back. Say so and offer a reload; the autosave (at most a minute old) offers the work back on reload.
+  mainWindow.webContents.on("render-process-gone", (_e, details) => {
+    if (!details || details.reason === "clean-exit") return;
+    const choice = dialog.showMessageBoxSync(mainWindow, {
+      type: "error", buttons: ["Reload", "Close GeoStrix"], defaultId: 0, cancelId: 1, title: "GeoStrix stopped",
+      message: "The GeoStrix window stopped working (" + details.reason + ").",
+      detail: "Reload it to carry on. Work since your last save may come back from the autosave, which is at most a minute old.",
+    });
+    if (choice === 0) mainWindow.webContents.reload(); else app.quit();
+  });
   buildMenu();
   // See the top-of-file comment on rendererDirty for why this exists: intercepts the window close
   // (triggered by the X button, File > Exit, Cmd/Ctrl+Q, or app.quit() from anywhere) and shows a real
