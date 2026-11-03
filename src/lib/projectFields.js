@@ -32,6 +32,7 @@ import { compactLayers, expandLayers } from "./compactRows.js"; // TASKS.csv #37
 import { compactTable, expandTable, compactIntervalLayers, expandIntervalLayers } from "./compactTable.js"; // TASKS.csv #555
 import { compactSurfaces, expandSurfaces } from "./compactSurfaces.js"; // TASKS.csv #483
 import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js";
+import { poolLayoutImages, expandLayoutImages } from "./layoutImagePool.js"; // TASKS.csv #1631
 
 // v6 adds terrain + layerGroups (TASKS.csv #77/#81 SRTM terrain, #76 named layer groups) — v5 and
 // older files still open fine, terrain falls back to null (no terrain surface) and layerGroups to [].
@@ -55,7 +56,8 @@ import { DEFAULT_DESURVEY_METHOD, normalizeDesurveyMethod } from "./desurvey.js"
 // v18 (TASKS.csv #1003) adds evidenceOverlay (the Evidence overlay pane's recipe: evidence sources and memberships, operator,
 // training points; values are recomputed from the sources), so a targeting score can be re-run and audited after reopening.
 // v21 (TASKS.csv #1342) adds designLines (Mine Design linework: a start and segments; the geometry is recomputed from them).
-export const PROJECT_VERSION = 21; // #1342: designLines. Was 20 // #1081: no dbConnections (per computer now). Was 19 // #1073: surface samples may be stored as exact columns. Was 18 // #1003: evidenceOverlay. Was 17 // #842: surfaceQc. Was 16 // #841: geochemThresholds. Was 15 // #811: explicitSurfaces. Was 14 // #796: big terrain grids as elevationsF32. Was 13 // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
+// v22 (TASKS.csv #1631) writes Layout pages and templates with each repeated image once ({ __layoutImages, images, items }).
+export const PROJECT_VERSION = 22; // #1631: layout image pool. Was 21 // #1342: designLines. Was 20 // #1081: no dbConnections (per computer now). Was 19 // #1073: surface samples may be stored as exact columns. Was 18 // #1003: evidenceOverlay. Was 17 // #842: surfaceQc. Was 16 // #841: geochemThresholds. Was 15 // #811: explicitSurfaces. Was 14 // #796: big terrain grids as elevationsF32. Was 13 // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
 
 export const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], magsusc: [], structure: [], litho_gc: [], alt_gc: [], geophys_pts: [] };
 
@@ -216,7 +218,8 @@ export const FIELDS = [
   // cleared, which would leave the old project's other pages behind). #463: undo tracks the whole pages list.
   { key: "layoutPages", track: "undo",
     empty: () => [{ id: newPageId(), name: "Page 1", elements: DEFAULT_LAYOUT_ELEMENTS }],
-    load: (data) => (data.layoutPages && data.layoutPages.length ? data.layoutPages : [{ id: newPageId(), name: "Page 1", elements: data.layoutElements || DEFAULT_LAYOUT_ELEMENTS }]) },
+    save: poolLayoutImages, // #1631 — a repeated image (atlas pages, page copies) written once
+    load: (data) => { const pages = expandLayoutImages(data.layoutPages); return pages && pages.length ? pages : [{ id: newPageId(), name: "Page 1", elements: data.layoutElements || DEFAULT_LAYOUT_ELEMENTS }]; } },
   // Which page is showing: navigation, not an edit. Resolved against the pages actually loaded (see below).
   { key: "activeLayoutPageId", track: "view", empty: () => null },
   // Saved connection profiles — host/db/user only; DatabaseConnectModal strips the password before storing.
@@ -227,7 +230,7 @@ export const FIELDS = [
   { key: "sections", track: "undo", empty: list },
   { key: "sectionGroups", track: "undo", empty: list },
   // Saved layout templates round-trip through the project file like themes, so New resets them too.
-  { key: "layoutTemplates", track: "dirty", empty: list },
+  { key: "layoutTemplates", track: "dirty", empty: list, save: poolLayoutImages, load: (data) => expandLayoutImages(data.layoutTemplates) || [] }, // #1631
   { key: "plannedHoles", track: "undo", empty: list }, // TASKS.csv #188
   { key: "designLines", track: "undo", empty: list }, // TASKS.csv #1342
   // TASKS.csv #1073 (review #1016) — exact columns from 2,000 rows, like assays: 50k samples x 48 elements were 29 MB and
@@ -263,7 +266,7 @@ export function emptyFields() {
 // function" on first render. checkProjectFile (#342) only looks at which keys exist. A compact table (#555) stands for a list.
 export function fieldShapeOk(value, empty) {
   if (value == null) return true; // absent: the empty value is used anyway
-  if (Array.isArray(empty)) return Array.isArray(value) || (typeof value === "object" && !!value.__compactTable);
+  if (Array.isArray(empty)) return Array.isArray(value) || (typeof value === "object" && (!!value.__compactTable || !!value.__layoutImages)); // #1631
   if (empty && typeof empty === "object") return typeof value === "object" && !Array.isArray(value);
   if (empty == null) return true; // an optional field (terrain, a number range...): its own load() guards it
   return typeof empty === typeof value;
