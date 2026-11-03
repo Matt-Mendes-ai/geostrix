@@ -7043,5 +7043,7 @@
   "Depth range from (m)": "Rango de profundidad desde (m)",
   "Depth range to (m)": "Rango de profundidad hasta (m)",
   "Sent to Layout. At the width Layout gives it, its labels print at about {pt} pt: drag its corner larger on the page, or draw fewer tracks.": "Enviado a Layout. Con el ancho que le da Layout, sus etiquetas se imprimen a unos {pt} pt: arrastre su esquina para agrandarlo en la página, o dibuje menos pistas.",
-  "{n} of {m} shown": "{n} de {m} visibles"
+  "{n} of {m} shown": "{n} de {m} visibles",
+  "{name} is assay data: it is open in the Geochem assay import, which asks which columns are elements.": "{name} contiene ensayes: está abierto en la importación de ensayes de Geoquímica, que pregunta qué columnas son elementos.",
+  "{n} more assay file(s) to import from the Geochem tab: {list}.": "{n} archivo(s) de ensayes más para importar desde la pestaña Geoquímica: {list}."
 }

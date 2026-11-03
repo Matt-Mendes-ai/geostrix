@@ -7043,5 +7043,7 @@
   "Depth range from (m)": "نطاق العمق من (م)",
   "Depth range to (m)": "نطاق العمق إلى (م)",
   "Sent to Layout. At the width Layout gives it, its labels print at about {pt} pt: drag its corner larger on the page, or draw fewer tracks.": "أُرسل إلى التخطيط. بالعرض الذي يمنحه له التخطيط تُطبع تسمياته بحجم {pt} نقطة تقريبًا: اسحب زاويته لتكبيره على الصفحة، أو ارسم مسارات أقل.",
-  "{n} of {m} shown": "{n} من {m} معروضة"
+  "{n} of {m} shown": "{n} من {m} معروضة",
+  "{name} is assay data: it is open in the Geochem assay import, which asks which columns are elements.": "{name} يحتوي على تحاليل: وهو مفتوح في استيراد التحاليل في وحدة الجيوكيمياء، التي تسأل أي الأعمدة عناصر.",
+  "{n} more assay file(s) to import from the Geochem tab: {list}.": "{n} ملف تحاليل آخر للاستيراد من تبويب الجيوكيمياء: {list}."
 }

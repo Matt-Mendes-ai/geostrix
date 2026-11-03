@@ -109,6 +109,8 @@ export default function GeochemModule() {
   const certRef = useRef(null); // TASKS.csv #601
   // TASKS.csv #565 — File > Import CSV / Import Assays / Import pXRF
   useModuleAction(["import-assays", "import-pxrf"], (a) => (a === "import-pxrf" ? pxrfRef : fileRef).current?.click());
+  // TASKS.csv #1350 — an assay file dropped on the 3D View (alone or in a drill folder) opens here, as if picked with Import
+  useModuleAction(["import-assay-file"], (_a, p) => { if (p?.file) handleFile(p.file, false); });
   // TASKS.csv #917 — assays straight from a database: this tab's Database button, or a table the 3D View's database
   // Browser panel recognized as assays and handed over
   const [dbOpen, setDbOpen] = useState(false);

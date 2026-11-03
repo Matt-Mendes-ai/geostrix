@@ -96,7 +96,7 @@ export function useImportPipeline(ctx) {
       if (isMapGeometry(meta) && forceTarget !== "custom") { sendToMapLayers(file, meta.vector); return; } // #609
       const headers = meta?.headers || Object.keys(data[0]);
       if (!forceTarget && looksLikeAssay(headers, file.name)) { // file.name: #1105
-        setNotices((p) => [...p, notice("{name} looks like assay data — import it from the Geochem module instead (it needs the element checklist).", { name: file.name })]);
+        assayHandoffRef.current.push(file); handOverAssays(); // #1350
         return;
       }
       const target = forceTarget || guessTargetFor(headers, file.name); // #605: the file name as a hint
@@ -566,9 +566,21 @@ export function useImportPipeline(ctx) {
   // call's freshly-reset array from the top, re-importing files the first chain had already committed.
   // importActiveRef blocks a second queue from starting while one is already draining.
   const importActiveRef = useRef(false);
+  // TASKS.csv #1350 — an assay file dropped here went no further than "import it from the Geochem module instead": a dead end
+  // for someone who dropped the whole drill folder (42807Z). It is now handed to the Geochem assay import (which has the element
+  // checklist) — at once for a single file, after the rest of the queue for a folder, so this view's own dialogs come first.
+  const assayHandoffRef = useRef([]);
+  const handOverAssays = () => {
+    const files = assayHandoffRef.current.splice(0);
+    if (!files.length) return;
+    goToModule("geochem");
+    requestModuleAction("import-assay-file", { file: files[0] });
+    setNotices((p) => [...p, notice("{name} is assay data: it is open in the Geochem assay import, which asks which columns are elements.", { name: files[0].name }),
+      ...(files.length > 1 ? [notice("{n} more assay file(s) to import from the Geochem tab: {list}.", { n: files.length - 1, list: files.slice(1).map((f) => f.name).join(", ") })] : [])]);
+  };
   const processImportQueue = useCallback(() => {
     const file = importQueueRef.current.shift();
-    if (!file) { importActiveRef.current = false; batchRowsRef.current = null; setTaskProgress?.(null); importQueueTotalRef.current = 0; return; }
+    if (!file) { importActiveRef.current = false; batchRowsRef.current = null; setTaskProgress?.(null); importQueueTotalRef.current = 0; handOverAssays(); return; } // #1350
     const total = importQueueTotalRef.current || importQueueRef.current.length + 1;
     const doneCount = total - importQueueRef.current.length; // this file counts as "now processing"
     setTaskProgress?.({ label: `Importing files (${doneCount}/${total}): ${file.name}`, pct: Math.round((doneCount / total) * 100) });
@@ -583,7 +595,7 @@ export function useImportPipeline(ctx) {
       const headers = meta?.headers || Object.keys(data[0]);
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
       if (looksLikeAssay(headers, file.name)) { // file.name: #1105
-        setNotices((p) => [...p, notice("{name} looks like assay data — import it from the Geochem module instead (it needs the element checklist).", { name: file.name })]);
+        assayHandoffRef.current.push(file); // #1350 — to the Geochem import when the queue is done
         processImportQueue();
         return;
       }
