@@ -144,6 +144,14 @@ export default function LayoutModule() {
   useEffect(() => {
     if (!layoutPrintRequest || layoutPrintRequest.seq === handledPrintSeq) return;
     handledPrintSeq = layoutPrintRequest.seq;
+    // TASKS.csv #1481 (review #1352) — anything past the paper's edge was cut from the PDF / PNG in silence (a 73-row legend, an
+    // arrow left outside after a switch to portrait): the page on screen is measured first, and the export asks
+    const pg = pageRef.current;
+    if (pg) {
+      const r = pg.getBoundingClientRect();
+      const off = [...pg.querySelectorAll("[data-el-id]")].filter((e) => { const b = e.getBoundingClientRect(); return b.width > 0 && (b.right > r.right + 1 || b.bottom > r.bottom + 1 || b.left < r.left - 1 || b.top < r.top - 1); }).length;
+      if (off && !window.confirm(tr("{n} element(s) on this page reach past its edge and will be cut off in the export. Export anyway?", { n: off }))) return;
+    }
     setPrinting(layoutPrintRequest);
   }, [layoutPrintRequest]);
   useEffect(() => {

@@ -6993,5 +6993,6 @@
   "Colours, labels and draping — Surface Geology tab": "Colores, etiquetas y drapeado — pestaña Geología de superficie",
   "Boundaries and models": "Límites y modelos",
   "No search radius: data support was scored against {m} m (twice the median spacing between holes); a block farther than that from every sample, not between holes, is unsupported.": "Sin radio de búsqueda: el soporte de datos se evaluó contra {m} m (el doble del espaciado mediano entre sondajes); un bloque más lejos que eso de toda muestra, y no entre sondajes, queda sin soporte.",
-  "Restricted to {v}.": "Restringido a {v}."
+  "Restricted to {v}.": "Restringido a {v}.",
+  "{n} element(s) on this page reach past its edge and will be cut off in the export. Export anyway?": "{n} elemento(s) de esta página sobrepasan su borde y quedarán cortados en la exportación. ¿Exportar de todos modos?"
 }
