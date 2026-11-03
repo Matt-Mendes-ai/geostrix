@@ -537,6 +537,8 @@ const PROTO_PILLAR = sharedProto(new THREE.CylinderGeometry(0.8, 0.8, 2, 12, 1, 
 const PROTO_SQUARE = sharedProto(new THREE.PlaneGeometry(1.8, 1.8), "square"); // ~ the disc's area
 const PIN_AXIS = new THREE.Vector3(0, 1, 0), dipPinDir = new THREE.Vector3(); // #1241 — PROTO_PRISM_4 runs up +Y from its base
 const INTERVAL_PROTO = { cylinder: PROTO_CYLINDER, smooth: PROTO_CYLINDER_16, square: PROTO_PRISM_4 };
+// TASKS.csv #1618 — two placed surface-sample lists put the same samples at the same heights (a draped copy is new each time)
+const samePlacement = (a, b) => a.length === b.length && a.every((r, i) => r === b[i] || (r.zDraped && b[i].zDraped && r.z === b[i].z && r.x === b[i].x && r.y === b[i].y && r.sample_id === b[i].sample_id));
 const POINT_PROTO = { sphere: PROTO_SPHERE_10, cube: PROTO_CUBE, disc: PROTO_DISC_FLAT, pillar: PROTO_PILLAR };
 
 // TASKS.csv #695 — what a batched (never drawn) member keeps of its material; see buildLayerBatches
@@ -1177,14 +1179,22 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // TASKS.csv #606 — a surface sample with no elevation (z null: blank, or an all-zero Z column at import) sits
   // on the terrain where the DEM covers it; outside the DEM (or with no DEM) it is left out and the panel says
   // how many. Same array back when every sample has its own z, so loading a DEM does not rebuild the scene then.
+  // TASKS.csv #1618 (review #1497, Lawyers) — a terrain edit that moves no sample (its colour, opacity, visibility) hands back
+  // the SAME array: one rock chip without a z made every terrain change a new array, and this list feeds the scene build, so
+  // the terrain eye froze the window 33 s rebuilding every drillhole (a regression of #435).
+  const placedRef = useRef(null);
   const placedSurfaceSamples = useMemo(() => {
     if (surfaceSamples.every((r) => Number.isFinite(r.z))) return surfaceSamples;
     const b = terrain?.bbox;
-    return surfaceSamples.map((r) => {
+    const next = surfaceSamples.map((r) => {
       if (Number.isFinite(r.z)) return r;
       const z = b ? terrainGroundAt(terrain, r.x, r.y) : NaN; // TASKS.csv #927 — over the terrain's fill a sample stays unplaced
       return Number.isFinite(z) ? { ...r, z, zDraped: true } : null;
     }).filter(Boolean);
+    const prev = placedRef.current;
+    if (prev && prev.src === surfaceSamples && samePlacement(prev.out, next)) return prev.out;
+    placedRef.current = { src: surfaceSamples, out: next };
+    return next;
   }, [surfaceSamples, terrain]);
   const surfaceSamplesUnplaced = surfaceSamples.length - placedSurfaceSamples.length;
   // TASKS.csv #843 — colour by an element's anomaly classes or a pathfinder index (null = by medium, as before);
