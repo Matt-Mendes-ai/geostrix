@@ -1,7 +1,7 @@
 // TASKS.csv #1341 — the Mine Design tab's pit shell: a block model and your own economics in, the pit that makes the most
 // undiscounted money out, as a surface in the 3D view with what it holds. Every number is the user's: no default price, cost or
 // density (a default would read as a fact, as #264). Maths in lib/pitShell.js; framing from #836.
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Pickaxe, Eye, EyeOff, Trash2, Pencil } from "./icons.js";
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // #1498
 import { TaskPaneHeader } from "./Ribbon.jsx";
@@ -43,6 +43,10 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
   const [res, setRes] = useState(() => (kept && models.some((m) => m.name === kept.model) ? kept : null));
   const [hideEarlier, setHideEarlier] = useState(true);
   const [msg, setMsg] = useState(null);
+  // TASKS.csv #1613 (review #1497, Lawyers) — the figures belong to one pit: once it is removed (here, or from 3D Modelling's
+  // surfaces list) they go too, as does a "no pit" message once the inputs it describes are changed
+  const resGone = !!res?.pitId && !surfaces.some((s) => s.id === res.pitId);
+  useEffect(() => { if (resGone) { setRes(null); if (kept?.pitId === res.pitId) kept = null; } }, [resGone]);
   // TASKS.csv #1498 — Matt: "currently there is no way to turn off or remove or edit the pit shell". The pits are listed here with a
   // show / hide eye, Edit (their saved inputs back in the form; the next run replaces that pit) and delete.
   const pits = surfaces.filter((s) => s.type === "pit_shell");
@@ -65,7 +69,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
   const metal = unit ? metalOf(unit) : null;
   const prices = metal ? PRICE_UNITS[metal.unit] : null, priceUnit = prices?.some(([k]) => k === f.priceUnit) ? f.priceUnit : prices?.[0][0];
   const sg = useMemo(() => sgSummary(layers?.sg), [layers?.sg]);
-  const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+  const set = (k) => (e) => { setF((p) => ({ ...p, [k]: e.target.value })); setMsg(null); }; // #1613
   // #1355 — a price belongs to the unit it was typed in: switching from a % model ($/lb) to a ppm one ($/oz) blanks it, never re-reads it
   const priceStale = f.price !== "" && !!f.priceUnit && !!prices && !prices.some(([k]) => k === f.priceUnit);
   const setPrice = (e) => setF((p) => ({ ...p, price: e.target.value, priceUnit }));
@@ -92,12 +96,13 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       if (hideEarlier) surfaces.filter((s) => s.type === "pit_shell" && s.visible && s.id !== editingId).forEach((s) => onToggle?.(s.id)); // #1356 — one pit on view at a time
       if (editingId) { onRemove?.(editingId); setEditingId(null); } // #1498 — the edited pit is replaced by the new run
       const priceLabel = (prices.find(([k]) => k === priceUnit) || [])[1] || "";
-      onAdd({
+      const pitId = onAdd({
         // #1356 — named by what usually changes between runs, so a list of pits can be told apart
         name: tr("Pit shell: {model} at {price} {unit}, {slope}°{rf}", { model: model.name, price: inputs.price, unit: priceLabel, slope: inputs.slopeDeg, rf: rfText }), positions: r.positions, indices: r.indices, type: "pit_shell", closure: null, color: "#b5651d", tag: "pit",
         tip: tr("Conceptual pit shell: not a mine plan, a Reserve or a Resource"),
         params: { tool: "conceptual pit shell (maximum closure, exact)", inputs: { ...inputs, priceUnit, modelId, unit: stated ? "" : unit }, blockModel: model.name, gradeUnit: unit, oreTonnes: Math.round(r.oreT), wasteTonnes: Math.round(r.wasteT), stripRatio: r.stripRatio == null ? null : +r.stripRatio.toFixed(2), meanGrade: r.meanGrade == null ? null : +r.meanGrade.toPrecision(4), containedMetal: Math.round(contained), containedMetalUnit: r.metalUnit, cutoffGrade: +r.cutoff.toPrecision(3), undiscountedMargin: Math.round(r.money), maxDepthM: Math.round(r.maxDepth), wallAnglesDeg: [+r.walls.flattest.toFixed(1), +r.walls.steepest.toFixed(1)], gridCellM: r.cell.map((v) => +v.toFixed(1)), rockOutsideBlockModelShare: +r.barrenShare.toFixed(3), noTerrainShare: +r.topAssumed.toFixed(3), groundFrom: r.groundSource, ...(support ? { oreSingleHoleShare: +r.oreSingleHoleShare.toFixed(3), oreExtrapolatedShare: +r.oreExtrapolatedShare.toFixed(3) } : {}), reachesModelBase: r.touchesBase, caution: "conceptual: undiscounted, no ramps, berms, dilution or scheduling; not a Mineral Reserve or Resource", generatedAt: new Date().toISOString() },
       });
+      if (pitId) { kept = { ...kept, pitId }; setRes(kept); } // #1613 — the result knows its pit
     } catch (e) {
       setMsg(tr("The pit run failed: {v}", { v: e.message || e }));
     } finally {

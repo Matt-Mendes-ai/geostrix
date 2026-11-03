@@ -3669,6 +3669,7 @@ ${describeTrend(t)}` };
     const id = `impl_${Date.now()}_${tag}`;
     implicitMeshesRef.current[id] = mesh;
     setImplicitSurfaces((p) => [...p, { id, name, visible: true, vertexCount: w.length / 3, faceCount: indices.length / 3, type, relationships: [], closure, params: { ...params, ...(volumeM3 != null ? { volumeM3: Math.round(volumeM3) } : {}) } }]);
+    return id; // #1613 — the pit pane follows its pit
   };
   const addModelledLayer = () => {
     const lb = lastLithBlock; if (!lb) return;
