@@ -8,7 +8,7 @@ test("#1224 a new legend is built from the view, by the same builder the sync us
   assert.match(s, /const \{ items \} = legendFromView\(viewerUiState \|\| \{\}\);/);
   assert.match(s, /const \{ groups, items \} = legendFromView\(theme\);/);
   assert.equal(s.split("legendGroupsToItems(groups)").length - 1, 1);
-  assert.match(s, /items\.length \? firstLegendGroups\(items\) : \[\["Item", "#55606e"\]\]/);
+  assert.match(s, /ranked = rankLegendGroups\(items\), kept = firstLegendGroups\(ranked\)[\s\S]{0,400}: \[\["Item", "#55606e"\]\]/);
 });
 test("#1225 fault-like types and the rest are separate groups", () => {
   const s = read("src/modules/viewer/ModellingPanes.jsx");
