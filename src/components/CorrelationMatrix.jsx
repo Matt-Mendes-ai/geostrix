@@ -7,7 +7,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #405
-import { correlate } from "../lib/correlation.js"; // TASKS.csv #405
+import { correlationMatrix } from "../lib/correlation.js"; // TASKS.csv #405, #1514
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { correlationRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
@@ -48,30 +48,14 @@ export default function CorrelationMatrix({ assays: allAssays, assayElements, on
   const [selected, setSelected] = useState(new Set(allSymbols.slice(0, 12)));
   const toggle = (sym) => setSelected((p) => { const n = new Set(p); n.has(sym) ? n.delete(sym) : n.add(sym); return n; });
 
-  const symbols = allSymbols.filter((s) => selected.has(s));
-
-  const columns = useMemo(() => {
-    const cols = {};
-    symbols.forEach((s) => { cols[s] = assays.map((a) => valueIn(a, s, "ppm", elementUnits)); });
-    return cols;
-  }, [symbols, assays, elementUnits]);
-
+  // TASKS.csv #1514 — a memo, not a new array per render (it made every re-render recompute the whole matrix); columns and
+  // pairs are cached while the rows stay the same, so a tick computes the new element's row only (see correlationMatrix)
+  const symbols = useMemo(() => allSymbols.filter((s) => selected.has(s)), [assayElements, selected]);
+  const caches = useMemo(() => ({ cols: {}, pairs: new Map() }), [assays, elementUnits]);
   const matrix = useMemo(() => {
-    const m = {};
-    symbols.forEach((a) => {
-      m[a] = {};
-      symbols.forEach((b) => {
-        const xs = [], ys = [];
-        const ca = columns[a], cb = columns[b];
-        for (let i = 0; i < assays.length; i++) {
-          if (ca[i] != null && cb[i] != null) { xs.push(ca[i]); ys.push(cb[i]); }
-        }
-        const c = correlate(xs, ys, method);
-        m[a][b] = a === b ? { r: c.n >= 2 ? 1 : null, n: c.n } : c;
-      });
-    });
-    return m;
-  }, [symbols, columns, assays.length, method]);
+    symbols.forEach((s) => { if (!caches.cols[s]) caches.cols[s] = assays.map((a) => valueIn(a, s, "ppm", elementUnits)); });
+    return correlationMatrix(caches.cols, symbols, method, caches.pairs);
+  }, [symbols, caches, method]);
 
   const exportCSV = () => {
     const { rows, nRows } = correlationRows(symbols, matrix); // #1083 — rows in lib, tested

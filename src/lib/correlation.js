@@ -34,3 +34,71 @@ export function correlate(xs, ys, method) {
   if (method === "spearman") return { r: pearson(ranks(xs), ranks(ys)), n: xs.length };
   return { r: pearson(xs, ys), n: xs.length };
 }
+
+// TASKS.csv #1514 (review #1497, Lawyers) — the whole matrix at once, as correlate() pair by pair (pairwise deletion, the same
+// n and r), but: an element without gaps is ranked once (Spearman), log10 values are taken once, Pearson runs over the two
+// columns in place (no paired arrays), only the upper triangle is computed, and `cache` (a Map the caller keeps while the
+// rows stay the same) holds each element's prepared column and each pair, so ticking one more element computes its row only.
+// On Lawyers (83,670 rows, 13 elements) every cell re-sorted both columns: 13.4 s per tick.
+// cols: symbol -> array of numbers, null for missing.
+export function correlationMatrix(cols, symbols, method, cache = new Map()) {
+  const prep = (s) => {
+    const key = `prep|${method}|${s}`;
+    let p = cache.get(key);
+    if (p) return p;
+    const src = cols[s] || [];
+    const vals = new Float64Array(src.length);
+    let complete = true;
+    for (let i = 0; i < src.length; i++) {
+      const v = src[i];
+      const x = v == null || !Number.isFinite(v) ? NaN : method === "log" ? (v > 0 ? Math.log10(v) : NaN) : v;
+      if (Number.isNaN(x)) complete = false;
+      vals[i] = x;
+    }
+    p = { vals, complete, ranks: method === "spearman" && complete ? Float64Array.from(ranks(Array.from(vals))) : null };
+    cache.set(key, p);
+    return p;
+  };
+  const cell = (a, b) => {
+    const key = `pair|${method}|${a}|${b}`;
+    let c = cache.get(key);
+    if (c) return c;
+    const pa = prep(a), pb = prep(b);
+    if (a === b) {
+      let n = 0;
+      for (let i = 0; i < pa.vals.length; i++) if (!Number.isNaN(pa.vals[i])) n++;
+      c = { r: n >= 2 ? 1 : null, n };
+    } else if (method === "spearman" && pa.ranks && pb.ranks) {
+      c = { r: pearsonPaired(pa.ranks, pb.ranks).r, n: pa.vals.length };
+    } else if (method === "spearman") {
+      const xs = [], ys = [];
+      for (let i = 0; i < pa.vals.length; i++) if (!Number.isNaN(pa.vals[i]) && !Number.isNaN(pb.vals[i])) { xs.push(pa.vals[i]); ys.push(pb.vals[i]); }
+      c = { r: pearson(ranks(xs), ranks(ys)), n: xs.length };
+    } else {
+      c = pearsonPaired(pa.vals, pb.vals);
+    }
+    cache.set(key, c);
+    return c;
+  };
+  const m = {};
+  symbols.forEach((a) => { m[a] = {}; });
+  symbols.forEach((a, i) => {
+    for (let j = i; j < symbols.length; j++) {
+      const b = symbols[j];
+      const c = cell(a, b);
+      m[a][b] = c; m[b][a] = c;
+    }
+  });
+  return m;
+}
+
+// Pearson over the rows where both columns hold a number (NaN = missing): { r, n }, as pearson() on the paired values
+function pearsonPaired(x, y) {
+  let n = 0, sx = 0, sy = 0;
+  for (let i = 0; i < x.length; i++) { const a = x[i], b = y[i]; if (a === a && b === b) { n++; sx += a; sy += b; } }
+  if (n < 2) return { r: null, n };
+  const mx = sx / n, my = sy / n;
+  let sxy = 0, sxx = 0, syy = 0;
+  for (let i = 0; i < x.length; i++) { const a = x[i], b = y[i]; if (a === a && b === b) { const dx = a - mx, dy = b - my; sxy += dx * dy; sxx += dx * dx; syy += dy * dy; } }
+  return { r: sxx === 0 || syy === 0 ? null : sxy / Math.sqrt(sxx * syy), n };
+}
