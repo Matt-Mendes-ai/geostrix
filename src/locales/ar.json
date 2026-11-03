@@ -6998,5 +6998,6 @@
   "Copy or move to another page": "نسخ أو نقل إلى صفحة أخرى",
   "To another page…": "إلى صفحة أخرى…",
   "Copy to {page}": "نسخ إلى {page}",
-  "Move to {page}": "نقل إلى {page}"
+  "Move to {page}": "نقل إلى {page}",
+  "This frame has a fixed scale (1:{s}): in the 3D view only where you centre it is used, not the zoom. Set Scale to \"free (as framed)\" to use the zoom.": "لهذا الإطار مقياس ثابت (1:{s}): في العرض ثلاثي الأبعاد يُستخدم موضع التوسيط فقط، لا التكبير. اضبط المقياس على \"حر (كما هو مؤطر)\" لاستخدام التكبير."
 }

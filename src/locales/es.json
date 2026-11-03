@@ -6998,5 +6998,6 @@
   "Copy or move to another page": "Copiar o mover a otra página",
   "To another page…": "A otra página…",
   "Copy to {page}": "Copiar a {page}",
-  "Move to {page}": "Mover a {page}"
+  "Move to {page}": "Mover a {page}",
+  "This frame has a fixed scale (1:{s}): in the 3D view only where you centre it is used, not the zoom. Set Scale to \"free (as framed)\" to use the zoom.": "Este marco tiene una escala fija (1:{s}): en la vista 3D solo se usa dónde lo centra, no el zoom. Ponga Escala en \"libre (según encuadre)\" para usar el zoom."
 }
