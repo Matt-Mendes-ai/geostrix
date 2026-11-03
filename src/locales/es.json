@@ -7058,5 +7058,8 @@
   "Hide {name}": "Ocultar {name}",
   "Show {name}": "Mostrar {name}",
   "Put this pit's inputs in the form; the next run replaces it": "Pone los datos de este pit en el formulario; la próxima ejecución lo reemplaza",
-  "Remove": "Eliminar"
+  "Remove": "Eliminar",
+  "{v} of the solid lies above the terrain and was left out (air, not the unit).": "{v} del sólido queda por encima del terreno y se excluyó (aire, no la unidad).",
+  "{v} of the solid lies above the ground between the collars and was left out (air, not the unit; load a terrain for the real surface).": "{v} del sólido queda por encima del suelo interpolado entre los collares y se excluyó (aire, no la unidad; cargue un terreno para la superficie real).",
+  "The target is above the collar, so the solved hole points upward. From a surface collar that is not a hole you can drill: check the target's elevation.": "El objetivo está por encima del collar, así que el sondaje resuelto apunta hacia arriba. Desde un collar en superficie no es un sondaje perforable: revise la elevación del objetivo."
 }

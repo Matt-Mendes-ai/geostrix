@@ -52,8 +52,11 @@ export function defaultCellSize(positions, coverM, target = 300_000, maxCells = 
 // traces inside the unit. minZoneM3: gaps smaller than this are left out of the zones (counted in `ignored`).
 // Returns { block: { extent, resolution, ids (1 = not covered; x-major, z fastest), labels: ["not covered"] },
 // cellVolume, unitCells, coveredCells, uncoveredCells, zones: [{ cells, volumeM3, centre: {x, y, z}, box }],
-// ignored: { zones, cells }, segments, cellM }.
-export function undrilledZones({ solid, traces, coverM, cellM, insideOnly = false, minZoneM3 = 0, maxCells = 2_000_000 }) {
+// ignored: { zones, cells }, segments, cellM, aboveGroundCells }.
+// TASKS.csv #1557 (review #1497, Lawyers) — groundAt(x, y) -> elevation | NaN: blocks above the ground are not the unit. A grade
+// shell closed artificially is capped above the collars, and those blocks of air, far from every hole, made the largest
+// "undrilled zone" (centred 26 m above an AGB collar), and "Plan a hole to here" then aimed a hole upward.
+export function undrilledZones({ solid, traces, coverM, cellM, insideOnly = false, minZoneM3 = 0, maxCells = 2_000_000, groundAt = null }) {
   if (!(coverM > 0)) throw new Error(tr("Enter a coverage distance above zero."));
   const cell = cellM > 0 ? cellM : defaultCellSize(solid.positions, coverM, 300_000, maxCells);
   // the box snapped to whole blocks plus one: block faces on round coordinates, so a solid's flat faces fall on block
@@ -108,12 +111,16 @@ export function undrilledZones({ solid, traces, coverM, cellM, insideOnly = fals
 
   const c2 = coverM * coverM;
   const out = new Uint8Array(ids.length);
-  let unitCells = 0, uncovered = 0;
+  let unitCells = 0, uncovered = 0, aboveGround = 0, colKey = -1, colG = NaN;
   for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++) {
     const at = i * ny * nz + j * nz + k;
     if (ids[at] !== unitId) continue;
-    unitCells++;
     const px = xmin + (i + 0.5) * dx, py = ymin + (j + 0.5) * dy, pz = zmin + (k + 0.5) * dz;
+    if (groundAt) {
+      if (colKey !== i * ny + j) { colKey = i * ny + j; colG = groundAt(px, py); } // one lookup per column
+      if (Number.isFinite(colG) && pz > colG) { aboveGround++; continue; } // #1557 — air, not the unit
+    }
+    unitCells++;
     const bi = Math.floor((px - bx0) / B), bj = Math.floor((py - by0) / B), bk = Math.floor((pz - bz0) / B);
     let hit = false;
     for (let a = bi - 1; a <= bi + 1 && !hit; a++) for (let b = bj - 1; b <= bj + 1 && !hit; b++) for (let c = bk - 1; c <= bk + 1 && !hit; c++) {
@@ -159,6 +166,6 @@ export function undrilledZones({ solid, traces, coverM, cellM, insideOnly = fals
   zones.sort((a, b) => b.cells - a.cells);
   return {
     block: { extent: coded.block.extent, resolution: [nx, ny, nz], ids: out, labels: ["not covered"] },
-    cellVolume, unitCells, coveredCells: unitCells - uncovered, uncoveredCells: uncovered, zones, ignored, segments: nSeg, cellM: cell,
+    cellVolume, unitCells, coveredCells: unitCells - uncovered, uncoveredCells: uncovered, zones, ignored, segments: nSeg, cellM: cell, aboveGroundCells: aboveGround,
   };
 }
