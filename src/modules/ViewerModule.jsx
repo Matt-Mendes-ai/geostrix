@@ -88,7 +88,6 @@ const FenceDiagramModal = lazyModal(() => import("../components/FenceDiagramModa
 const CoreOrientationCalculator = lazyModal(() => import("../components/CoreOrientationCalculator.jsx"));  // TASKS.csv #301
 import { codesInUse, connectIntervals, effectiveCode, codeInfo } from "../lib/modellingCodes.js"; // TASKS.csv #599
 import { ASSAY_ELEMENT_COLORS, assayColorFor, categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, scaleLegendGroup, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, surfaceSampleLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; map / boundary / samples: #948
-import { sectionAssayLegend, sectionMineralLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1475
 // TASKS.csv #843 — the anomaly map (lib/anomalyMap.js + lib/thresholds.js) and its controls load only when used: off the startup bundle
 const SurfaceAnomalyControls = React.lazy(() => import("../components/SurfaceAnomalyControls.jsx"));
 const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverlayPane.jsx"));
@@ -6631,9 +6630,6 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       legendItems.push([r.label, r.color]);
     });
     legendItems.sort((a, b) => a[0].localeCompare(b[0]));
-    // #1475 — the grade classes drawn (first) and the mineralization; not the numeric ramps yet
-    legendItems.unshift(...sectionAssayLegend(points, assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle })));
-    legendItems.push(...sectionMineralLegend(intervals, points, LAYER_META.mnlgy.label));
 
     // TASKS.csv #357 — model surfaces and imported solids ON the section. Every visible implicit/solid mesh
     // is cut by the vertical section plane (per-triangle sign test, once per section): the geologist can
@@ -6681,7 +6677,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
     const modelBackdrop = modelBackdropFor(a, b, secId, showTerrain, corridor); // #759
     if (modelBackdrop) modelBackdrop.legend.forEach((it) => legendItems.push(it));
-    return { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop };
+    const assayLegend = assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle }); // #1475 — the section window keys the grades it draws
+    return { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, assayLegend, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop };
   };
 
   // TASKS.csv #525 — a LEVEL PLAN: everything cut by the horizontal plane z = rl, keeping what lies in the slab

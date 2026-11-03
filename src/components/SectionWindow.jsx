@@ -7,7 +7,8 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { sectionPaper } from "../lib/pageFormats.js"; // TASKS.csv #1143
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { placeLabels, leaderEnd, resolveLabels, labelWidth } from "../lib/sectionLabels.js"; // TASKS.csv #823
-import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped
+import { groupSectionLegend, sectionAssayLegend, sectionMineralLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped; #1475
+import { LAYER_META } from "../lib/layers.js"; // #1475 — the mineralization group name
 import { exportSvgMarkup, FIGURE_FONT } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { wrapText } from "../lib/figureFurniture.js";
 import { signedOffset } from "../lib/sectionCorridor.js"; // TASKS.csv #1231
@@ -181,7 +182,8 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
       // Layout image element this snapshot becomes, so a legend can be bound directly to THIS
       // snapshot and show exactly what's drawn in it — a flattened image has no live data of its own
       // to sync from otherwise.
-      legendItems: groupSectionLegend(shownLegendItems), // #759; grouped under layer headings: #1127 / #1128
+      // #759; grouped under layer headings: #1127 / #1128; #1475 — the grade classes drawn first, the mineralization last
+      legendItems: groupSectionLegend([...sectionAssayLegend(data.points, data.assayLegend), ...shownLegendItems, ...sectionMineralLegend(data.intervals, data.points, LAYER_META.mnlgy.label)]),
     });
     setSnapped(true);
     setTimeout(() => setSnapped(false), 1800);
