@@ -7038,5 +7038,9 @@
   "Log-probability plot": "Gráfico de probabilidad logarítmica",
   "The log as drawn here (its tracks, depth axis and key) on the Layout page, with its colour tracks as a legend": "El registro tal como se dibuja aquí (sus pistas, eje de profundidad y clave) en la página de Layout, con sus pistas de color como leyenda",
   "Sent to Layout. Its labels print at about {pt} pt there: lower the vertical scale (px/m) and send it again for a readable log.": "Enviado a Layout. Allí sus etiquetas se imprimen a unos {pt} pt: baje la escala vertical (px/m) y envíelo de nuevo para un registro legible.",
-  "Sent to Layout. A {m} m hole is too long to print readably on one page (labels about {pt} pt, {pt1} pt even at 1 px/m): use the SVG or PNG for a full-size log.": "Enviado a Layout. Un sondaje de {m} m es demasiado largo para imprimirse legible en una página (etiquetas de unos {pt} pt, {pt1} pt incluso a 1 px/m): use el SVG o el PNG para un registro a tamaño completo."
+  "Sent to Layout. A {m} m log is too long to print readably on one page (labels about {pt} pt, {pt1} pt even at 1 px/m): set a shorter depth range, or use the SVG or PNG for a full-size log.": "Enviado a Layout. Un registro de {m} m es demasiado largo para imprimirse legible en una página (etiquetas de unos {pt} pt, {pt1} pt incluso a 1 px/m): defina un rango de profundidad más corto, o use el SVG o el PNG para un registro a tamaño completo.",
+  "Draw only these depths (blank: the whole hole); the exports and Add to Layout follow": "Dibujar solo estas profundidades (en blanco: todo el sondaje); las exportaciones y Agregar a Layout las siguen",
+  "Depth range from (m)": "Rango de profundidad desde (m)",
+  "Depth range to (m)": "Rango de profundidad hasta (m)",
+  "Sent to Layout. At the width Layout gives it, its labels print at about {pt} pt: drag its corner larger on the page, or draw fewer tracks.": "Enviado a Layout. Con el ancho que le da Layout, sus etiquetas se imprimen a unos {pt} pt: arrastre su esquina para agrandarlo en la página, o dibuje menos pistas."
 }

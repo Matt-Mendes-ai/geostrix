@@ -22,3 +22,15 @@ test("a 3,000 px log fitted to a 634 px sheet height prints its labels too small
   assert.ok(stripLogTextPt(3000, 634) < 6);
   assert.ok(stripLogTextPt(700, 634) > 6);
 });
+
+test("a depth range trims every track, and the axis, exports and caption follow it", async () => {
+  const src = read("src/components/StripLog.jsx");
+  assert.match(src, /const sy = \(d\) => PAD_TOP \+ \(d - d0\) \* pxPerMeter;/);
+  assert.match(src, /const tracks = ranged \? allTracks\.map\(\(t\) => \(\{ \.\.\.t, rows: t\.kind === "struct" \? t\.rows\.filter\(\(s\) => s\.depth >= d0 && s\.depth <= d1\) : clip\(t\.rows\) \}\)\) : allTracks;/);
+  assert.match(src, /stripLogFurniture\(\{ holeId, collar, fromDepth: d0, maxDepth: d1,/);
+  assert.match(src, /depthTicks\(d0, d1, pxPerMeter\)/);
+  assert.match(src, /const wide = 700 \* \(fh \/ fw\) <= 794 - 160;/);
+  const { stripLogFurniture } = await import("../src/lib/figureFurniture.js");
+  assert.match(stripLogFurniture({ holeId: "H", collar: {}, fromDepth: 900, maxDepth: 1000, pxPerMeter: 4, tracks: [] }).caption[1], /^Depth 900\.0-1000\.0 m along the hole/);
+  assert.match(stripLogFurniture({ holeId: "H", collar: {}, maxDepth: 402.5, pxPerMeter: 6, tracks: [] }).caption[1], /^Depth 0-402\.5 m/);
+});

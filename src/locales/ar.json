@@ -7038,5 +7038,9 @@
   "Log-probability plot": "مخطط الاحتمال اللوغاريتمي",
   "The log as drawn here (its tracks, depth axis and key) on the Layout page, with its colour tracks as a legend": "السجل كما يُرسم هنا (مساراته ومحور العمق والمفتاح) على صفحة التخطيط، مع مسارات الألوان كمفتاح للخريطة",
   "Sent to Layout. Its labels print at about {pt} pt there: lower the vertical scale (px/m) and send it again for a readable log.": "أُرسل إلى التخطيط. تُطبع تسمياته هناك بحجم {pt} نقطة تقريبًا: خفّض المقياس الرأسي (بكسل/م) وأرسله مجددًا لسجل مقروء.",
-  "Sent to Layout. A {m} m hole is too long to print readably on one page (labels about {pt} pt, {pt1} pt even at 1 px/m): use the SVG or PNG for a full-size log.": "أُرسل إلى التخطيط. ثقب بطول {m} م أطول من أن يُطبع مقروءًا على صفحة واحدة (التسميات نحو {pt} نقطة، و{pt1} نقطة حتى عند 1 بكسل/م): استخدم SVG أو PNG لسجل بالحجم الكامل."
+  "Sent to Layout. A {m} m log is too long to print readably on one page (labels about {pt} pt, {pt1} pt even at 1 px/m): set a shorter depth range, or use the SVG or PNG for a full-size log.": "أُرسل إلى التخطيط. سجل بطول {m} م أطول من أن يُطبع مقروءًا على صفحة واحدة (التسميات نحو {pt} نقطة، و{pt1} نقطة حتى عند 1 بكسل/م): حدّد نطاق عمق أقصر، أو استخدم SVG أو PNG لسجل بالحجم الكامل.",
+  "Draw only these depths (blank: the whole hole); the exports and Add to Layout follow": "ارسم هذه الأعماق فقط (فارغ: الثقب كله)؛ تتبعها عمليات التصدير والإضافة إلى التخطيط",
+  "Depth range from (m)": "نطاق العمق من (م)",
+  "Depth range to (m)": "نطاق العمق إلى (م)",
+  "Sent to Layout. At the width Layout gives it, its labels print at about {pt} pt: drag its corner larger on the page, or draw fewer tracks.": "أُرسل إلى التخطيط. بالعرض الذي يمنحه له التخطيط تُطبع تسمياته بحجم {pt} نقطة تقريبًا: اسحب زاويته لتكبيره على الصفحة، أو ارسم مسارات أقل."
 }

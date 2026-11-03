@@ -93,7 +93,7 @@ export function stripLogFurniture(o) {
   const att = num(c.azimuth, 1) != null && num(c.dip, 1) != null ? `azimuth ${num(c.azimuth, 1)}°, dip ${num(c.dip, 1)}° (at the collar)` : null;
   const caption = [
     [at && `Collar ${at}`, att].filter(Boolean).join(" · ") || "Collar position not loaded",
-    `Depth 0-${num(o.maxDepth, 1)} m along the hole${num(c.length) ? ` (EOH ${num(c.length, 1)} m)` : ""} · ${o.pxPerMeter} px per metre · GeoStrix${o.date ? ` · ${o.date}` : ""}`,
+    `Depth ${num(o.fromDepth || 0, 1) === "0.0" ? "0" : num(o.fromDepth || 0, 1)}-${num(o.maxDepth, 1)} m along the hole${num(c.length) ? ` (EOH ${num(c.length, 1)} m)` : ""} · ${o.pxPerMeter} px per metre · GeoStrix${o.date ? ` · ${o.date}` : ""}`,
   ];
   const MAX = 40;
   const keys = (o.tracks || []).filter((t) => t.items?.length).map((t) => ({ title: t.title, items: t.items.length > MAX ? [...t.items.slice(0, MAX - 1), { label: `+${t.items.length - MAX + 1} more`, color: "#ffffff" }] : t.items }));
