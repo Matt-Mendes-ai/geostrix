@@ -28,6 +28,28 @@ export const AZIMUTH_REFS = {
   magnetic: "Magnetic north (compass / magnetic tools) — needs the survey date",
 };
 
+// TASKS.csv #1647 (review #1645, Copley) — a column saying which north the azimuths use (acQuire's AZIMUTHTYPE = True on a gyro
+// survey) was never read: Copley's true-north survey went in as grid north, every trace turned 1.45° and the hole ends moved
+// 4-6 m, with no question asked. -> { ref: "grid" | "true" | "magnetic", col, mixed } from the rows' values, or null with no
+// such column (or no value it recognizes). mixed: more than one north in the file (the dialog must ask).
+const AZ_REF_COLS = ["azimuthtype", "azimuth_type", "aztype", "az_type", "azimuthref", "azimuth_ref", "azref", "az_ref", "northref", "north_ref", "northtype", "north_type", "azimuthnorth", "azimuth_north"];
+const azRefOf = (v) => {
+  const s = String(v ?? "").trim().toLowerCase().replace(/[\s_-]+/g, "");
+  if (!s) return null;
+  if (/^(t|tn|true|truenorth|geographic|geo)$/.test(s)) return "true";
+  if (/^(g|gn|grid|gridnorth|utm|map)$/.test(s)) return "grid";
+  if (/^(m|mn|mag|magnetic|magneticnorth)$/.test(s)) return "magnetic";
+  return null;
+};
+export function detectAzimuthRef(headers, rows) {
+  const col = (headers || []).find((h) => AZ_REF_COLS.includes(String(h).trim().toLowerCase()));
+  if (!col) return null;
+  const seen = new Set();
+  for (const r of rows || []) { const ref = azRefOf(r?.[col]); if (ref) seen.add(ref); }
+  if (!seen.size) return null;
+  return { ref: seen.size === 1 ? [...seen][0] : null, col, mixed: seen.size > 1 };
+}
+
 // Degrees to ADD to an azimuth measured from `ref` at project coordinates (x, y) to get a grid azimuth.
 // { offset, declination?, convergence? } or null.
 export function azimuthToGridOffset(ref, x, y, epsg, isoDate) {

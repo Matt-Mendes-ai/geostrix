@@ -7065,5 +7065,7 @@
   "Follows its view's north. Typing an angle frees it.": "Suit le nord de sa vue. Saisir un angle la libère.",
   "+ {n} more (fewer intervals; edit the legend to add them)": "+ {n} autres (moins d'intervalles ; modifiez la légende pour les ajouter)",
   " Categories from the {h} of {all} holes inside the frame.": " Catégories des {h} sondages sur {all} situés dans le cadre.",
-  "Note": "Note"
+  "Note": "Note",
+  "Set from the file's {col} column.": "Déduit de la colonne {col} du fichier.",
+  " Azimuths taken as grid north: the file does not say which north (import it on its own to choose true or magnetic north).": " Azimuts pris comme nord du quadrillage : le fichier ne dit pas quel nord il utilise (importez-le seul pour choisir le nord vrai ou magnétique)."
 }

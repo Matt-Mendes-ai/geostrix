@@ -7065,5 +7065,7 @@
   "Follows its view's north. Typing an angle frees it.": "يتبع شمال العرض المرتبط به. كتابة زاوية تفكّه.",
   "+ {n} more (fewer intervals; edit the legend to add them)": "+ {n} أخرى (فترات أقل؛ عدّل المفتاح لإضافتها)",
   " Categories from the {h} of {all} holes inside the frame.": " الفئات من {h} من أصل {all} ثقبًا داخل الإطار.",
-  "Note": "ملاحظة"
+  "Note": "ملاحظة",
+  "Set from the file's {col} column.": "مأخوذ من العمود {col} في الملف.",
+  " Azimuths taken as grid north: the file does not say which north (import it on its own to choose true or magnetic north).": " اعتُبرت السموت مقيسة من شمال الشبكة: لا يذكر الملف أي شمال يستخدم (استورده وحده لاختيار الشمال الحقيقي أو المغناطيسي)."
 }

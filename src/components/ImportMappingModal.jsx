@@ -222,6 +222,7 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
           {["collars", "survey", "structure"].includes(modal.target) && (
             <div style={{ marginTop: 14 }}>
               <div style={label}>{tr("Azimuths in this file are measured from")}</div>
+              {modal.azimuthRefFrom && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Set from the file's {col} column.", { col: modal.azimuthRefFrom })}</div>}{/* #1647 */}
               <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: "var(--font-size-base)" }}>
                 {Object.entries(AZIMUTH_REFS).map(([k, text]) => (
                   <label key={k} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>

@@ -12,7 +12,7 @@ import { errorNotice, notice, appendNotice } from "../../lib/notices.js"; // TAS
 import * as THREE from "three";
 import { reprojectXY, pointTransform, turnGridBearing, bearingTurn, crsName, guessEpsgFromPrjWkt } from "../../lib/reproject.js";
 import { surveyAzimuthDipAt } from "../../lib/desurvey.js";
-import { azimuthToGridOffset, wrap360, loadIgrf } from "../../lib/azimuthRef.js"; // loadIgrf: #552
+import { azimuthToGridOffset, wrap360, loadIgrf, detectAzimuthRef } from "../../lib/azimuthRef.js"; // loadIgrf: #552; detectAzimuthRef: #1647
 import { orientFromAlphaBeta, reorientAlphaBetaPicks } from "../../lib/coreOrientation.js";
 import { fitSimilarity, parseControlPoints, transformImportRows } from "../../lib/localGrid.js";
 import { loadSampleFiles } from "../../lib/desktop.js";
@@ -25,6 +25,8 @@ import { normInterval, applyCustomFields, normNumericInterval, normStructure, sk
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917
+
+const AZ_TARGETS = new Set(["collars", "survey", "structure"]); // TASKS.csv #1647 — tables with an azimuth
 
 export function useImportPipeline(ctx) {
   const {
@@ -103,7 +105,7 @@ export function useImportPipeline(ctx) {
       const ll = lonLatForCollars(target, guessMapping(target, headers), headers, data); // #1235
       const mapping = ll ? ll.mapping : guessMapping(target, headers); // #426
       const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
-      setImportModal({ file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down", perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
+      setImportModal({ ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down", perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
     }, chosenLayer);
   };
@@ -170,7 +172,7 @@ export function useImportPipeline(ctx) {
     const ll = lonLatForCollars(target, guessMapping(target, headers), headers, rows); // #1235
     const mapping = ll ? ll.mapping : guessMapping(target, headers); // #426
     const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
-    setImportModal({ fileName: sourceName, headers, rowCount: rows.length, sampleRows: rows.slice(0, 5), allRows: rows, target, mapping, dipConvention: "neg_down", perRowEpsgCol, ...(ll ? { sourceEpsg: ll.sourceEpsg } : {}) });
+    setImportModal({ ...azRefFor(target, headers, rows), fileName: sourceName, headers, rowCount: rows.length, sampleRows: rows.slice(0, 5), allRows: rows, target, mapping, dipConvention: "neg_down", perRowEpsgCol, ...(ll ? { sourceEpsg: ll.sourceEpsg } : {}) });
     setDbModalOpen(false);
   };
 
@@ -183,6 +185,8 @@ export function useImportPipeline(ctx) {
   // a later file of the SAME drop adds to them instead of replacing them by hole (replaceRowsByHole keepRows).
   const batchRowsRef = useRef(null);
   const keepBatch = (rows) => { if (batchRowsRef.current) rows.forEach((r) => batchRowsRef.current.add(r)); return rows; };
+  // TASKS.csv #1647 — the north a file states for its azimuths (collars, survey, structures), pre-set in the dialog
+  const azRefFor = (target, headers, rows) => { const d = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, rows) : null; return d?.ref ? { azimuthRef: d.ref, azimuthRefFrom: d.col } : {}; };
   const commitImportData = ({ target, mapping, allRows, dipConvention, fileName: shownName, sourceEpsg, perRowEpsgCol, customFields, azimuthRef, azimuthDate, betaRefLine, azimuthGridEpsg, unseen = false }) => {
     // TASKS.csv #1506 (review #1497) — the dialog's title carries the drop's queue count ("Min Domain.csv (10 more queued)"), and it
     // became the custom layer's name, each row's source (_src) and every notice: the bare file name from here on
@@ -405,7 +409,8 @@ export function useImportPipeline(ctx) {
       setNotices((p) => [...p, tr("Loaded {rows} survey stations from {fileName}.", { rows: rows.length, fileName })
         + replaceNote(replaced, "survey")
         + (bad.length ? tr(" Skipped {bad} station(s) with a missing or non-numeric azimuth/dip ({v}).", { bad: bad.length, v: [...new Set(bad.map((r) => `${r.hole_id}@${r.depth}`))].slice(0, 5).join(", ") }) : "")
-        + skippedRowsText(svDropped, allRows.length) + azs.note]);
+        + skippedRowsText(svDropped, allRows.length) + azs.note
+        + (unseen && !azimuthRef && !azimuthGridEpsg ? tr(" Azimuths taken as grid north: the file does not say which north (import it on its own to choose true or magnetic north).") : "")]); // #1647
     } else if (target === "structure") {
       // TASKS.csv #719 — no sign convention for structure dips: the "negative = down" radio is shown only for collars and
       // survey, so a minus sign here is a logging error (unknown, counted below), not a 45 degree plane
@@ -614,11 +619,14 @@ export function useImportPipeline(ctx) {
       const exactRequired = schema.fields.filter((f) => f.required).every((f) => mapping[f.key] && guessColumnExact(headers, f.aliases) === mapping[f.key]);
       const dipCol = schema.dipConvention || target === "survey" ? mapping.dip : null;
       const dipsAgree = !dipCol || data.every((r) => { const d = Number(r[dipCol]); return r[dipCol] == null || r[dipCol] === "" || !Number.isFinite(d) || d <= 0; });
-      const confident = target !== "custom" && missingRequired.length === 0 && exactRequired && dipsAgree;
+      // #1647 — a stated north: true is converted unseen; magnetic (needs a date) or a mix of norths opens the dialog
+      const azDetected = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, data) : null;
+      const azOk = !azDetected || (!azDetected.mixed && azDetected.ref !== "magnetic");
+      const confident = target !== "custom" && missingRequired.length === 0 && exactRequired && dipsAgree && azOk;
       // TASKS.csv #609 — the file's own CRS (.prj / GeoPackage) and a per-row EPSG column, as openImportModal passes
       // them: a queued shapefile used to be committed with no Source CRS, so its collars stayed in their own UTM
       // zone's numbers inside a project in another zone (~400 km from the same drop's reprojected map layers).
-      const modalData = { file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down",
+      const modalData = { ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down",
         sourceEpsg: queueLl ? queueLl.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "", perRowEpsgCol: guessColumn(headers, EPSG_COL_ALIASES) };
       if (confident) {
         askCrsForCollars(modalData).then(() => { commitImportData({ ...modalData, unseen: true }); processImportQueue(); }); // #615; unseen: #715 — no dialog, so its defaults are assumptions

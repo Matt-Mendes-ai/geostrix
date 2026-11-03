@@ -7065,5 +7065,7 @@
   "Follows its view's north. Typing an angle frees it.": "Sigue el norte de su vista. Escribir un ángulo la libera.",
   "+ {n} more (fewer intervals; edit the legend to add them)": "+ {n} más (con menos intervalos; edite la leyenda para añadirlos)",
   " Categories from the {h} of {all} holes inside the frame.": " Categorías de los {h} de {all} sondajes dentro del marco.",
-  "Note": "Nota"
+  "Note": "Nota",
+  "Set from the file's {col} column.": "Tomado de la columna {col} del archivo.",
+  " Azimuths taken as grid north: the file does not say which north (import it on its own to choose true or magnetic north).": " Azimuts tomados como norte de cuadrícula: el archivo no indica qué norte usa (impórtelo solo para elegir norte verdadero o magnético)."
 }
