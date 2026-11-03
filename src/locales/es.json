@@ -6982,5 +6982,8 @@
   "Straight-line (3D):": "En línea recta (3D):",
   "Last segment (3D):": "Último tramo (3D):",
   "Same pad as {holes}: the first {m} m are not compared.": "Misma plataforma que {holes}: los primeros {m} m no se comparan.",
-  ", at {md} m down this hole": ", a {md} m de profundidad en este sondaje"
+  ", at {md} m down this hole": ", a {md} m de profundidad en este sondaje",
+  "It lies {km} km from the drillholes: check its coordinate system (a neighbouring UTM zone?).": "Está a {km} km de los sondajes: revise su sistema de coordenadas (¿una zona UTM vecina?).",
+  "\"{survey}\" is labelled {label}: invert it as {label}, or change its label under Point survey first.": "\"{survey}\" está etiquetado como {label}: inviértalo como {label}, o cambie primero su etiqueta en Levantamiento puntual.",
+  "{unitName}: {n} hole(s) give more than one top of this one surface ({list}), so it is forced through all of them. A repeated unit is several surfaces: split it with Modelling codes (Auto-number or Connect) or an intercept set.": "{unitName}: {n} sondaje(s) dan más de un techo de esta única superficie ({list}), así que se la fuerza a pasar por todos. Una unidad repetida son varias superficies: divídala con Códigos de modelado (Autonumerar o Conectar) o un conjunto de intersecciones."
 }

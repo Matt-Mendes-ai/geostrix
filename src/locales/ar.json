@@ -6982,5 +6982,8 @@
   "Straight-line (3D):": "خط مستقيم (ثلاثي الأبعاد):",
   "Last segment (3D):": "آخر قطعة (ثلاثي الأبعاد):",
   "Same pad as {holes}: the first {m} m are not compared.": "المنصة نفسها مثل {holes}: لا تُقارن أول {m} م.",
-  ", at {md} m down this hole": "، على عمق {md} م في هذه البئر"
+  ", at {md} m down this hole": "، على عمق {md} م في هذه البئر",
+  "It lies {km} km from the drillholes: check its coordinate system (a neighbouring UTM zone?).": "يقع على بعد {km} كم من الآبار: تحقق من نظام إحداثياته (منطقة UTM مجاورة؟).",
+  "\"{survey}\" is labelled {label}: invert it as {label}, or change its label under Point survey first.": "\"{survey}\" موسوم {label}: اعكسه بوصفه {label}، أو غيّر وسمه أولًا في المسح النقطي.",
+  "{unitName}: {n} hole(s) give more than one top of this one surface ({list}), so it is forced through all of them. A repeated unit is several surfaces: split it with Modelling codes (Auto-number or Connect) or an intercept set.": "{unitName}: تعطي {n} بئر أكثر من سطح علوي لهذا السطح الواحد ({list})، فيُجبر على المرور بها كلها. الوحدة المتكررة عدة أسطح: قسّمها برموز النمذجة (الترقيم التلقائي أو الربط) أو بمجموعة تقاطعات."
 }

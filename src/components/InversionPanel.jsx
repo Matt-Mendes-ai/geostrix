@@ -69,10 +69,13 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   const [mesh, setMesh] = useKeptState(keptScope, "inversion.mesh", { coreCell: "", depth: "", type: "tensor", octree: { fine: "4", fine2: "4", maxFactor: "4" } }); // type, octree: TASKS.csv #324 (inversions)
   const octreeSettings = { fine: Math.round(Number(mesh.octree.fine)), fine2: Math.round(Number(mesh.octree.fine2)), maxFactor: Number(mesh.octree.maxFactor) }; // #324 follow-up
   // TASKS.csv #451 — a survey already labelled magnetics / gravity pre-selects the method (still confirmed below)
+  // TASKS.csv #1426 (review #1352) — and follows the label when it changes: a survey relabelled Gravity (mGal) stayed a Magnetics
+  // (nT) inversion from the kept setting, and ran to the memory check. Picking the other method by hand is refused below.
+  const labelled = geophysSurveys?.[activeSurvey]?.method;
+  const methodClash = (labelled === "mag" && method === "grav") || (labelled === "grav" && method === "mag");
   useEffect(() => {
-    const m = geophysSurveys?.[activeSurvey]?.method;
-    if (!method && (m === "mag" || m === "grav")) setMethod(m);
-  }, [activeSurvey, geophysSurveys]);
+    if ((labelled === "mag" || labelled === "grav") && labelled !== method) { setMethod(labelled); setConfirmed(false); setPlan(null); }
+  }, [activeSurvey, labelled]);
   // TASKS.csv #323 — drillhole logs as constraints: mag susceptibility (units stated) or SG (background stated)
   const [dh, setDh] = useKeptState(keptScope, "inversion.dh", { on: false, units: "", background: "", tolerance: "" });
   const [adv, setAdv] = useKeptState(keptScope, "inversion.adv", { open: false, maxIter: 15, lx: 1, ly: 1, lz: 1, lower: "", upper: "", supportCutoff: 0.005 });
@@ -406,6 +409,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                     </label>
                   ))}
                 </div>
+                {methodClash && <div style={{ ...small, color: "var(--color-danger-fg)", marginTop: 4 }}>{tr("\"{survey}\" is labelled {label}: invert it as {label}, or change its label under Point survey first.", { survey: activeSurvey, label: tr(SURVEY_METHODS[labelled]?.label || labelled) })}</div>}
                 {M && (
                   <label style={{ ...row, alignItems: "flex-start", cursor: "pointer" }}>
                     <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} style={{ marginTop: 2 }} />
@@ -536,7 +540,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                   <div style={row} title={tr("Cells whose normalized sensitivity is below this are hidden in the 3D view: the data can barely see them, so their value says more about the regularization than about the rock. Display only — it does not change the inversion.")}><span style={lbl}>{tr("Hide cells below support")}</span><input type="number" min={0} max={1} step={0.01} value={adv.supportCutoff} onChange={(e) => setAdv((p) => ({ ...p, supportCutoff: e.target.value }))} style={inp} /></div>
                 </>}
               </>)}
-              <button onClick={() => doPlan("inversion")} disabled={planBusy || running} style={{ ...pBtn, marginTop: 8, marginBottom: 4 }}><Gauge size={14} /> {planBusy ? tr("Estimating…") : tr("Estimate size and memory")}</button>
+              <button onClick={() => doPlan("inversion")} disabled={planBusy || running || methodClash} style={{ ...pBtn, marginTop: 8, marginBottom: 4 }}><Gauge size={14} /> {planBusy ? tr("Estimating…") : tr("Estimate size and memory")}</button>
               {plan && (
                 <div style={{ ...small, marginBottom: 6 }} aria-live="polite">
                   {tr("{nData} stations × {v}{nActiveEst} underground cells", { nData: plan.nData.toLocaleString(), v: plan.octree ? "" : "~", nActiveEst: plan.nActiveEst.toLocaleString() })}{" "}

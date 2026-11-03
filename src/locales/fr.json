@@ -6982,5 +6982,8 @@
   "Straight-line (3D):": "En ligne droite (3D) :",
   "Last segment (3D):": "Dernier segment (3D) :",
   "Same pad as {holes}: the first {m} m are not compared.": "Même plateforme que {holes} : les {m} premiers mètres ne sont pas comparés.",
-  ", at {md} m down this hole": ", à {md} m de profondeur dans ce forage"
+  ", at {md} m down this hole": ", à {md} m de profondeur dans ce forage",
+  "It lies {km} km from the drillholes: check its coordinate system (a neighbouring UTM zone?).": "Il se trouve à {km} km des forages : vérifiez son système de coordonnées (une zone UTM voisine ?).",
+  "\"{survey}\" is labelled {label}: invert it as {label}, or change its label under Point survey first.": "« {survey} » est étiqueté {label} : inversez-le en tant que {label}, ou changez d'abord son étiquette dans Levé ponctuel.",
+  "{unitName}: {n} hole(s) give more than one top of this one surface ({list}), so it is forced through all of them. A repeated unit is several surfaces: split it with Modelling codes (Auto-number or Connect) or an intercept set.": "{unitName} : {n} forage(s) donnent plus d'un toit de cette seule surface ({list}), qui est donc forcée à passer par tous. Une unité répétée forme plusieurs surfaces : séparez-la avec Codes de modélisation (Numérotation auto ou Relier) ou un jeu d'intersections."
 }

@@ -7,7 +7,7 @@ import { mainClusters } from "../dataClusters.js";
 const MIN_R = 1.8;
 
 // median nearest-neighbour distance of [x, y] points, on a grid (exact for the points it checks; at most 3,000 of them)
-function medianSpacing(pts) {
+export function medianSpacing(pts) { // exported for geoprocessing.paddedBounds (#1428)
   const n = pts.length;
   if (n < 2) return Infinity;
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;

@@ -10,7 +10,7 @@ import { guessGeophysColumns, rowsToGeophysPoints } from "../lib/geophysColumns.
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import Papa from "papaparse";
 import { zeroMeansMissing } from "../lib/missingElevation.js"; // TASKS.csv #1436
-import { fetchAreaBox, mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
+import { fetchAreaBox, mainClusters, modelGapKm } from "../lib/dataClusters.js"; // TASKS.csv #1461; modelGapKm: #1427
 import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen, Scale } from "../components/icons.js"; // Scale: #1052
 import { lazyModal } from "../lib/lazyModal.jsx";
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
@@ -497,6 +497,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   // every vertex across every loop; rasters already carry their own bbox.
   // TASKS.csv #845 — the surface samples' extent with a margin (10 %, at least 1 km: a stream site's catchment reaches well
   // beyond the sites), in project coordinates, or null
+  // TASKS.csv #1427 — a model far from the drilling (another property, or a neighbouring UTM zone) is said, not drawn off-screen
+  const farNote = (cells) => { const km = modelGapKm(cells, collars, terrain?.bbox); return km != null && km > 20 ? ` ${tr("It lies {km} km from the drillholes: check its coordinate system (a neighbouring UTM zone?).", { km: Math.round(km).toLocaleString() })} ` : ""; };
   const surfaceSampleBox = () => {
     const { keep } = mainClusters(surfaceSamples || []); // #1461 — not the 5 rocks 45 km south (a 42 x 67 km area on Silvertip)
     const pts = (surfaceSamples || []).filter((p, i) => keep[i] && Number.isFinite(p.x) && Number.isFinite(p.y));
@@ -787,6 +789,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       let msg = parts.length ? tr("Imported \"{name}\" — {parts}.", { name: file.name, parts: parts.join(", ") }) : tr("\"{name}\" parsed but nothing usable was found.", { name: file.name });
       if (coarsenNotes.length) msg += ` ${coarsenNotes.join(" ")}`;
       if (skipped.length) msg += tr(" Skipped: {skipped}.", { skipped: skipped.join("; ") });
+      msg += farNote(res.voxelModels.flatMap((m) => m.cells || [])); // #1427
       setOmfError({ info: parts.length > 0, text: msg });
     } catch (err) {
       setOmfError({ info: false, text: err.message });
@@ -1033,7 +1036,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       addVoxelModel({ name: meshFile.name.replace(/\.msh$/i, ""), source: "ubc", cells, min, max, ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}) /* #1095 */, ...(logColours ? { stops: logStops(min, max, SEQUENTIAL_ANCHORS), colorMode: "continuous" } : {}) });
       setVoxelError({
         info: true,
-        text: tr("Imported \"{name}\" — {nx}×{ny}×{nz} mesh, {cells} cell(s) with data.{v}{v2}{coarsenNote}", { name: meshFile.name, nx: mesh.nx, ny: mesh.ny, nz: mesh.nz, cells: cells.length.toLocaleString(), v: air.count ? tr(" {count} cells at {v} (the tiny value this model uses for air above the ground) were treated as air (no data).", { count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }) : "", v2: logColours ? tr(" Values span {min} to {max} ({v} decades), so colours are log-spaced.", { min: min.toPrecision(2), max: max.toPrecision(2), v: Math.round(Math.log10(max / min)) }) : "", coarsenNote }),
+        text: farNote(cells) + tr("Imported \"{name}\" — {nx}×{ny}×{nz} mesh, {cells} cell(s) with data.{v}{v2}{coarsenNote}", { name: meshFile.name, nx: mesh.nx, ny: mesh.ny, nz: mesh.nz, cells: cells.length.toLocaleString(), v: air.count ? tr(" {count} cells at {v} (the tiny value this model uses for air above the ground) were treated as air (no data).", { count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }) : "", v2: logColours ? tr(" Values span {min} to {max} ({v} decades), so colours are log-spaced.", { min: min.toPrecision(2), max: max.toPrecision(2), v: Math.round(Math.log10(max / min)) }) : "", coarsenNote }),
       });
     } catch (err) {
       setVoxelError({ info: false, text: err.message });
@@ -1083,7 +1086,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       const { cells, factors, sourceM3, mergedM3 } = coarsenBlockCells(raw, effectiveMaxCells);
       const { min, max } = cellValueRange(cells);
       addVoxelModel({ name: `${base} (${attr})`, source: "csv", cells, min, max });
-      let m = tr("{attr}: {n} block(s)", { attr, n: cells.length.toLocaleString() });
+      let m = farNote(cells) + tr("{attr}: {n} block(s)", { attr, n: cells.length.toLocaleString() }); // far: #1427
       if (factors) m += tr(" ({raw} merged {fx}×{fy}×{fz} to fit the {budget}-cell budget — volume-weighted means)", { raw: raw.length.toLocaleString(), fx: factors.fx, fy: factors.fy, fz: factors.fz, budget: effectiveMaxCells.toLocaleString() });
       // TASKS.csv #943 — merged blocks are full cells: where the model did not fill them, they are larger than it
       if (factors && mergedM3 > sourceM3 * 1.005) m += tr(". The merged blocks are full cells and cover {pct}% more volume than the model's own blocks ({src} m³): each keeps the share it really holds (COVERAGE in the CSV, VTK and OMF exports; VOLUME_M3 in the CSV). Take volume and tonnage from those, or import the model without merging (raise the 3D view cell budget)", { pct: (((mergedM3 - sourceM3) / sourceM3) * 100).toFixed(0), src: Math.round(sourceM3).toLocaleString() });

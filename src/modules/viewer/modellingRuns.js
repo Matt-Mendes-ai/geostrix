@@ -950,6 +950,11 @@ export function createModellingRuns(ctx, mcRef) {
     // that surface, no separate matching step. Domain-filtered the same way litho points are, so a
     // contact drawn outside the active modelling domain doesn't leak into a run scoped to exclude it.
     if (splitsSkipped && !silent) setNotices((p) => [...p, notice("{unitName}: {splitsSkipped} interval start(s) inside the unit (the row above in the same hole is the same {v}) were not used as contacts.", { unitName, splitsSkipped, v: isGroup ? tr("group") : tr("unit") })]);
+    // TASKS.csv #1371 (review #1352) — one surface forced through several tops of the same hole (SSZ24-PAD34-001 gave 6, a 199 m
+    // worst miss): the holes are named, inside a stack too, with what splits them
+    { const per = new Map(); points.forEach((p) => { if (p.hole_id != null) per.set(p.hole_id, (per.get(p.hole_id) || 0) + 1); });
+      const multi = [...per].filter(([, n]) => n > 1).sort((a, b) => b[1] - a[1]);
+      if (multi.length) setNotices((p) => [...p, notice("{unitName}: {n} hole(s) give more than one top of this one surface ({list}), so it is forced through all of them. A repeated unit is several surfaces: split it with Modelling codes (Auto-number or Connect) or an intercept set.", { unitName, n: multi.length, list: multi.slice(0, 6).map(([h, k]) => `${h} ${k}`).join(", ") + (multi.length > 6 ? ", …" : "") })]); }
     // #1367 — said inside a stack too: it changes which picks the surface follows
     if (belowRoleSkipped) setNotices((p) => [...p, notice("{unitName}: {n} interval start(s) right under a fault, breccia, vein, dyke, no-recovery or casing interval were not used as tops (roles in Modelling codes).", { unitName, n: belowRoleSkipped })]);
     if (upHolePicks && !silent) setNotices((p) => [...p, notice("{unitName}: {upHolePicks} contact(s) are in holes drilled upward there — the unit's top was taken at the interval's deeper end (to), which is the higher one.", { unitName, upHolePicks })]); // #569

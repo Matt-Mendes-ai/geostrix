@@ -9,6 +9,7 @@
 // immediately on whatever points/collars are already loaded rather than gated behind shapefile
 // import (#79/#80, still Planned).
 import { Delaunay } from "d3-delaunay";
+import { medianSpacing } from "./viewer/surfaceSymbols.js"; // TASKS.csv #1428
 
 // Clips Voronoi cells to `bounds` ({xmin,ymin,xmax,ymax}); pass a padded bbox derived from the point
 // set so edge points get a finite (if arbitrary) cell instead of an unbounded one — Voronoi cells on
@@ -63,6 +64,9 @@ export { pointInPolygon, pointInBoundary } from "./pointInPolygon.js";
 // helper, since those pad in pixel/SVG space — this pads in world units, sized relative to point
 // spread rather than a fixed constant, so it behaves reasonably from drillhole-collar spacing (tens
 // of metres) up to district-scale point sets (kilometres).
+// TASKS.csv #1428 (review #1352) — the pad is half the median nearest-neighbour spacing: a 15 % pad gave every edge station of a
+// regular grid a cell far larger than the inner ones, so a perfectly regular grid "declustered" to 0.481 against a naive 1.55.
+// padFrac: the old fraction of the spread, used only when a spacing cannot be measured (fewer than 2 distinct points).
 export function paddedBounds(points, padFrac = 0.15) {
   // Plain loop, not Math.min(...xs)/Math.max(...xs) — spreading a large point set (a real geophysics
   // survey or assay dataset run through this module's Voronoi declustering can have well over 100k
@@ -75,7 +79,8 @@ export function paddedBounds(points, padFrac = 0.15) {
     if (p.y < ymin) ymin = p.y; if (p.y > ymax) ymax = p.y;
   }
   const w = xmax - xmin || 1, h = ymax - ymin || 1;
-  const padX = w * padFrac, padY = h * padFrac;
+  const sp = medianSpacing(points.map((p) => [p.x, p.y]));
+  const padX = Number.isFinite(sp) && sp > 0 ? sp / 2 : w * padFrac, padY = Number.isFinite(sp) && sp > 0 ? sp / 2 : h * padFrac;
   return { xmin: xmin - padX, ymin: ymin - padY, xmax: xmax + padX, ymax: ymax + padY };
 }
 
