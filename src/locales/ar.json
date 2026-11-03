@@ -7072,5 +7072,6 @@
   "{n} negative value(s) read as over the upper limit (e.g. -10 → \">10\", stored at the limit).": "{n} قيمة سالبة قُرئت فوق الحد الأعلى (مثلًا -10 ← \">10\"، تُخزَّن عند الحد).",
   "Set to Custom layer: it looked like {layer}, but {layer} already holds {n} row(s) from {src} for {holes} of this file's holes, and importing there would replace them.": "ضُبط على طبقة مخصصة: بدا الملف كأنه {layer}، لكن {layer} تحتوي بالفعل على {n} صف من {src} لـ {holes} من ثقوب هذا الملف، والاستيراد إليها سيستبدلها.",
   "Importing as {layer} replaces {n} row(s) from {src} in {holes} hole(s) (Ctrl+Z undoes it).": "الاستيراد كـ {layer} يستبدل {n} صفًا من {src} في {holes} ثقبًا (Ctrl+Z يتراجع عنه).",
-  "an earlier import": "استيراد سابق"
+  "an earlier import": "استيراد سابق",
+  "This is a 3D IP survey: electrodes on {n} lines, {offline} reading(s) with current and potential on different lines. The DC / IP tool inverts one 2D line at a time: import one line's readings, or the contractor's 3D inversion model (Block models).": "هذا مسح استقطاب مستحث ثلاثي الأبعاد: أقطاب على {n} خطًا، و{offline} قراءة بتيار وجهد على خطوط مختلفة. أداة DC / IP تعكس خطًا ثنائي الأبعاد واحدًا في كل مرة: استورد قراءات خط واحد، أو نموذج العكس ثلاثي الأبعاد من المقاول (نماذج الكتل)."
 }

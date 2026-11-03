@@ -98,6 +98,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
         // TASKS.csv #1326 — plot points, not electrodes: the survey's .IPG files are the readings
         if (/^\s*\$\$DATA\$\$/.test(text)) throw new Error(tr("this is a table of plot points with no electrode positions. Import the .IPG file of the same line instead."));
         const r = parseRes2dinv(text) || parseDcipWhitespaceText(text);
+        if (r?.error) throw new Error(r.error); // #1660 — a 3D survey, said
         if (r) t = { headers: r.headers, rows: r.rows, note: r.note };
       }
       const m = guessDcipColumns(t.headers);
@@ -118,7 +119,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
     const text = decodeTableBytes(await f.arrayBuffer()).text;
     if (/^\s*\$\$DATA\$\$/.test(text)) throw new Error(tr("this is a table of plot points with no electrode positions. Import the .IPG file of the same line instead."));
     let t = await parseTableFile(f).catch(() => ({ headers: [], rows: [] }));
-    if (!guessDcipColumns(t.headers).a || !guessDcipColumns(t.headers).m) { const r = parseRes2dinv(text) || parseDcipWhitespaceText(text); if (r) t = r; }
+    if (!guessDcipColumns(t.headers).a || !guessDcipColumns(t.headers).m) { const r = parseRes2dinv(text) || parseDcipWhitespaceText(text); if (r?.error) throw new Error(r.error); if (r) t = r; } // #1660
     const m = guessDcipColumns(t.headers);
     if (!m.a || !m.m || !m.rho) throw new Error(tr("no electrode and apparent-resistivity columns found."));
     return parseDcipRows(t.rows, m);

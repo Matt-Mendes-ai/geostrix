@@ -20,7 +20,7 @@ const ALIASES = {
   b: ["b", "c2", "t2x", "b_x", "bx", "b_pos", "tx2", "c2_x"],
   m: ["m", "p1", "r1x", "m_x", "m_pos", "rx1", "p1_x"],
   n: ["n", "p2", "r2x", "n_x", "nx", "n_pos", "rx2", "p2_x"],
-  rho: ["rho", "rho_a", "rhoa", "app_res", "apparent_resistivity", "resistivity", "res", "rhoa_ohm_m", "rho_ohm_m"],
+  rho: ["rho", "rho_a", "rhoa", "app_res", "apparent_resistivity", "resistivity", "res", "rhoa_ohm_m", "rho_ohm_m", "ra", "ra_ohm_m", "app_rho"], // ra: #1660 (SJ Geophysics)
   ip: ["ip", "m_mv_v", "chargeability", "charg", "chg", "mv_v", "ma", "mx", "eta", "ip_mv_v"],
   // TASKS.csv #683 — a per-reading error column (what it measures differs between receivers, so the panel asks)
   err: ["sd", "dev", "std", "stdev", "std_dev", "error", "err", "rho_err", "rho_sd", "mx_sd", "m_sd", "ip_err"],
@@ -46,8 +46,18 @@ export function parseDcipWhitespaceText(text) {
     rows.push(Object.fromEntries(headers.map((h, i) => [h, t[i]])));
   }
   const meta = lines.slice(0, hi).map((l) => l.trim()).filter(Boolean).join(" · ");
+  // TASKS.csv #1660 (review #1646, Kodiak) — a 3D IP export (SJ Geophysics: C1_line ... P2_line, offline currents) is not one 2D line: chained
+  // along its local X it gave nonsense. Said, and nothing is read from it here.
+  const lineCol = (k) => headers.find((h) => norm(h) === `${k}_line`);
+  const c1l = lineCol("c1"), p1l = lineCol("p1");
+  if (c1l && p1l) {
+    const lines3d = new Set(); let offline = 0;
+    for (const r of rows) { lines3d.add(r[c1l]); lines3d.add(r[p1l]); if (r[c1l] !== r[p1l]) offline++; }
+    if (lines3d.size > 1) return { headers, rows: [], note: "", error: tr("This is a 3D IP survey: electrodes on {n} lines, {offline} reading(s) with current and potential on different lines. The DC / IP tool inverts one 2D line at a time: import one line's readings, or the contractor's 3D inversion model (Block models).", { n: lines3d.size, offline }) };
+  }
   // TASKS.csv #1326 — a Geosoft IP file can hold Vp and I but no apparent resistivity: nothing could be imported from it
-  const made = addRhoFromVpI(headers, rows);
+  // #1660 — the current's unit: mA when the header block says so ("I (in mA)") or the currents look like milliamps
+  const made = addRhoFromVpI(headers, rows, /\bI\b[^·]{0,20}\bmA\b/.test(meta));
   if (made) return { headers: [...headers, "RHO"], rows, note: `${tr("Whitespace-separated line file{v}; {rows} readings{v2}.", { v: meta ? ` (${meta.slice(0, 160)})` : "", rows: rows.length, v2: skipped ? "" : "" })} ${tr("This file has no apparent resistivity: it was computed from Vp (mV), I (A) and the electrode positions.")}` };
   return { headers, rows, note: tr("Whitespace-separated line file{v}; {rows} readings{v2}.", { v: meta ? ` (${meta.slice(0, 160)})` : "", rows: rows.length, v2: skipped ? tr(", {skipped} line(s) with a different column count skipped", { skipped }) : "" }) };
 }
@@ -60,12 +70,15 @@ export function apparentResistivity(a, b, m, n, vpMv, iA) {
   if (!Number.isFinite(g) || g === 0) return null;
   return ((2 * Math.PI) / Math.abs(g)) * ((vpMv / 1000) / iA);
 }
-function addRhoFromVpI(headers, rows) {
+function addRhoFromVpI(headers, rows, saysMa = false) {
   const g = guessDcipColumns(headers);
   const vp = headers.find((h) => norm(h) === "vp"), cur = headers.find((h) => norm(h) === "i" || norm(h) === "current");
   if (g.rho || !vp || !cur || !g.a || !g.m) return false;
+  // #1660 — transmitter currents are a few amps: a median above 20 is milliamps
+  const cs = rows.map((r) => num(r[cur])).filter((x) => x > 0).sort((p, q) => p - q);
+  const toA = saysMa || (cs.length && cs[cs.length >> 1] > 20) ? 1 / 1000 : 1;
   for (const r of rows) {
-    const v = apparentResistivity(num(r[g.a]), g.b ? num(r[g.b]) : null, num(r[g.m]), g.n ? num(r[g.n]) : null, num(r[vp]), num(r[cur]));
+    const v = apparentResistivity(num(r[g.a]), g.b ? num(r[g.b]) : null, num(r[g.m]), g.n ? num(r[g.n]) : null, num(r[vp]), num(r[cur]) * toA);
     r.RHO = v == null ? "" : String(v);
   }
   return true;
