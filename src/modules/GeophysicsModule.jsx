@@ -9,6 +9,8 @@ import { parseTableFile, toExportCsv } from "../lib/tabular.js"; // TASKS.csv #4
 import { guessGeophysColumns, rowsToGeophysPoints } from "../lib/geophysColumns.js"; // TASKS.csv #484
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import Papa from "papaparse";
+import { zeroMeansMissing } from "../lib/missingElevation.js"; // TASKS.csv #1436
+import { fetchAreaBox, mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
 import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Triangle, Box, MapPin, Waypoints, Plus, Palette, Download, Flag, Globe, ArrowDownToLine, PackageOpen, Scale } from "../components/icons.js"; // Scale: #1052
 import { lazyModal } from "../lib/lazyModal.jsx";
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
@@ -395,9 +397,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         const col = (k) => (header ? header.indexOf(g[k]) : g[k]);
         const [ix, iy, iz] = [col("x"), col("y"), col("z")];
         if (ix < 0 || iy < 0 || iz < 0) throw new Error(tr("{name}: no X, Y and elevation columns found (headers such as Easting, Northing, Elevation, or three numbers per line).", { name: file.name }));
-        const n = (v) => Number(String(v ?? "").trim().replace(",", "."));
-        points = (header ? rows.slice(1) : rows).map((r) => ({ x: n(r[ix]), y: n(r[iy]), z: n(r[iz]) })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z));
-        what = tr("{n} point(s)", { n: points.length });
+        // TASKS.csv #1436 — a blank cell is no value (Number("") is 0: Silvertip's blank elevations became sea level), and a 0 among
+        // elevations well above sea level is a missing one too (zeroMeansMissing, #1394): a pit to 6 m at the drill pads otherwise
+        const n = (v) => { const t = String(v ?? "").trim(); return t === "" ? NaN : Number(t.replace(",", ".")); };
+        const read = (header ? rows.slice(1) : rows).map((r) => ({ x: n(r[ix]), y: n(r[iy]), z: n(r[iz]) })).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+        const zeroMissing = zeroMeansMissing(read.map((p) => p.z));
+        points = read.filter((p) => Number.isFinite(p.z) && !(zeroMissing && p.z === 0));
+        const left = read.length - points.length;
+        what = tr("{n} point(s)", { n: points.length }) + (left ? tr(" ({n} left out: no elevation, or 0 among elevations well above sea level)", { n: left }) : "");
       }
       // longitude / latitude in a projected project: reproject from WGS 84
       const all = [...points, ...lines.flat()];
@@ -474,13 +481,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       if (lls.some((ll) => !ll)) return null;
       return [arrMin(lls.map((ll) => ll.lon)), arrMin(lls.map((ll) => ll.lat)), arrMax(lls.map((ll) => ll.lon)), arrMax(lls.map((ll) => ll.lat))];
     }
-    const xs = collars.map((c) => c.x), ys = collars.map((c) => c.y);
-    const xmin = arrMin(xs), xmax = arrMax(xs), ymin = arrMin(ys), ymax = arrMax(ys);
-    const marginX = Math.max((xmax - xmin) * 0.25, 200), marginY = Math.max((ymax - ymin) * 0.25, 200);
-    const corners = [
-      [xmin - marginX, ymin - marginY], [xmax + marginX, ymin - marginY],
-      [xmax + marginX, ymax + marginY], [xmin - marginX, ymax + marginY],
-    ];
+    // #1461 — the collars and the surface samples near them (the soil grid), not the collars alone
+    const [xmin, ymin, xmax, ymax] = fetchAreaBox(collars, surfaceSamples);
+    const corners = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]];
     const lonLats = await Promise.all(corners.map(([x, y]) => toLonLat(x, y, project.epsg)));
     if (lonLats.some((ll) => !ll)) return null;
     const lons = lonLats.map((ll) => ll.lon), lats = lonLats.map((ll) => ll.lat);
@@ -495,7 +498,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   // TASKS.csv #845 — the surface samples' extent with a margin (10 %, at least 1 km: a stream site's catchment reaches well
   // beyond the sites), in project coordinates, or null
   const surfaceSampleBox = () => {
-    const pts = (surfaceSamples || []).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+    const { keep } = mainClusters(surfaceSamples || []); // #1461 — not the 5 rocks 45 km south (a 42 x 67 km area on Silvertip)
+    const pts = (surfaceSamples || []).filter((p, i) => keep[i] && Number.isFinite(p.x) && Number.isFinite(p.y));
     if (!pts.length) return null;
     const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
     const x0 = arrMin(xs), x1 = arrMax(xs), y0 = arrMin(ys), y1 = arrMax(ys);

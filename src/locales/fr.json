@@ -6968,5 +6968,6 @@
   "Share of the volume in blocks the estimate classed interpolated (between holes, from at least two)": "Part du volume dans les blocs que l'estimation a classés interpolés (entre forages, d'au moins deux)",
   "Interpolated": "Interpolé",
   "Only blocks classed interpolated": "Seulement les blocs classés interpolés",
-  "Most of this volume is in blocks the estimate carried outward from the holes (extrapolated or unsupported), not between them: the tonnage rests on grades the drilling does not surround.": "La plupart de ce volume est dans des blocs que l'estimation a prolongés au-delà des forages (extrapolés ou sans appui), pas entre eux : le tonnage repose sur des teneurs que les forages n'entourent pas."
+  "Most of this volume is in blocks the estimate carried outward from the holes (extrapolated or unsupported), not between them: the tonnage rests on grades the drilling does not surround.": "La plupart de ce volume est dans des blocs que l'estimation a prolongés au-delà des forages (extrapolés ou sans appui), pas entre eux : le tonnage repose sur des teneurs que les forages n'entourent pas.",
+  " ({n} left out: no elevation, or 0 among elevations well above sea level)": " ({n} écartés : sans altitude, ou 0 parmi des altitudes bien au-dessus du niveau de la mer)"
 }

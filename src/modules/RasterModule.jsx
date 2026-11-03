@@ -22,6 +22,7 @@ import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { fetchAreaBox, mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
 import RasterColourControls from "../components/RasterColourControls.jsx"; // TASKS.csv #1236
 import { gridCellText } from "../lib/raster.js"; // TASKS.csv #1242
 
@@ -72,7 +73,7 @@ function SpectrumPanel({ spectrum, onSplit }) {
 }
 
 export default function RasterModule({ embedded = false } = {}) {
-  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, boundaries, setLayers, projectIsEmpty, setEpsg } = useStore(); // projectIsEmpty/setEpsg: #607
+  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [] } = useStore(); // projectIsEmpty/setEpsg: #607
   // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
   // any earlier points made from the same grid, so doing it twice does not double the survey.
   // TASKS.csv #373 — potential-field filters on a grid's kept values; each result is a new raster
@@ -206,13 +207,9 @@ export default function RasterModule({ embedded = false } = {}) {
 
   const defaultSatBboxLonLat = async () => {
     if (!collars.length || !project?.epsg) return null;
-    const xs = collars.map((c) => c.x), ys = collars.map((c) => c.y);
-    const xmin = arrMin(xs), xmax = arrMax(xs), ymin = arrMin(ys), ymax = arrMax(ys);
-    const marginX = Math.max((xmax - xmin) * 0.25, 200), marginY = Math.max((ymax - ymin) * 0.25, 200);
-    const corners = [
-      [xmin - marginX, ymin - marginY], [xmax + marginX, ymin - marginY],
-      [xmax + marginX, ymax + marginY], [xmin - marginX, ymax + marginY],
-    ];
+    // TASKS.csv #1461 — the collars and the surface samples near them (Silvertip's soil grid), not the collars alone
+    const [xmin, ymin, xmax, ymax] = fetchAreaBox(collars, surfaceSamples);
+    const corners = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]];
     const lonLats = await Promise.all(corners.map(([x, y]) => toLonLat(x, y, project.epsg)));
     if (lonLats.some((ll) => !ll)) return null;
     const lons = lonLats.map((ll) => ll.lon), lats = lonLats.map((ll) => ll.lat);
@@ -225,6 +222,10 @@ export default function RasterModule({ embedded = false } = {}) {
     if (terrain?.bbox) {
       const [xmin, ymin, xmax, ymax] = terrain.bbox;
       jobs.push({ id: "terrain", label: `Match terrain/SRTM: ${terrain.name}`, xmin, xmax, ymin, ymax });
+    }
+    { // #1461 — the surface samples' area (without far outliers), as the terrain picker offers
+      const { keep } = mainClusters(surfaceSamples || []), pts = (surfaceSamples || []).filter((p, i) => keep[i]);
+      if (pts.length) { const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y), x0 = arrMin(xs), x1 = arrMax(xs), y0 = arrMin(ys), y1 = arrMax(ys), m = Math.max(500, 0.05 * Math.max(x1 - x0, y1 - y0)); jobs.push({ id: "surface_samples", label: tr("Around the surface samples"), xmin: x0 - m, xmax: x1 + m, ymin: y0 - m, ymax: y1 + m }); }
     }
     for (const b of boundaries) {
       const xs = [], ys = [];

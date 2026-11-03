@@ -40,3 +40,13 @@ test("#1451: collars on a pad are one site; the structure reach is no longer 4 m
   assert.ok(pickDefaultReachM(500, s) >= 300);
   assert.equal(medianSiteSpacing([{ x: 0, y: 0 }, { x: 2, y: 1 }]), null, "one pad: no spacing");
 });
+
+test("#1461: the default fetch area covers the collars and the soil grid near them, not the far rocks", async () => {
+  const { fetchAreaBox } = await import("../src/lib/dataClusters.js");
+  const allCollars = readFileSync("sample_data/silvertip/collars.csv", "utf8").trim().split(/\r?\n/).slice(1).map((l) => { const [, x, y] = l.split(","); return { x: +x, y: +y }; });
+  const [x0, y0, x1, y1] = fetchAreaBox(allCollars, samples);
+  const soils = samples.filter((s) => s.medium === "soil");
+  assert.ok(soils.every((s) => s.x >= x0 && s.x <= x1 && s.y >= y0 && s.y <= y1), "every soil inside");
+  assert.ok(y0 > 6600000, "the rocks 45 km south are not");
+  assert.equal(fetchAreaBox([], samples), null);
+});
