@@ -1714,7 +1714,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
   // ---------- project save/load: mirror custom layers (plain data) into the store, and
   // reconstruct three.js groups for any custom layers a loaded project brought in ----------
+  // TASKS.csv #1527 (review #1497) — a remount of this view (a language change remounts the app; the store above it keeps the project)
+  // started with no local layers, and this mirror wrote that [] over the store before the restore below could read it: every custom
+  // layer was deleted, and autosave saved the loss. Nothing is written back until the restore has run once.
+  const customRestoredRef = useRef(false);
   useEffect(() => {
+    if (!customRestoredRef.current) return;
     // #478 — skip an empty-over-empty write: at startup it replaced [] with a new [] and the undo watcher
     // read that as an edit, marking an untouched project unsaved.
     setStoreCustomLayers((prev) => (!customLayers.length && !(prev || []).length ? prev : customLayers.map(({ id, name, rows }) => ({ id, name, rows }))));
@@ -1934,6 +1939,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
 
   useEffect(() => {
     if (!sceneRef.current) return;
+    customRestoredRef.current = true; // #1527 — from here the mirror above may write
     const localIds = new Set(customLayers.map((l) => l.id));
     const missing = (storeCustomLayers || []).filter((l) => !localIds.has(l.id));
     if (!missing.length) return;
@@ -5082,7 +5088,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       const { vertices: _v, indices: _i, ...meta } = s;
       restored.push({ ...meta, visible: s.visible !== false });
     });
-    surfaceHydrationRef.current = { seq: viewerUiStateSeq, installed: restored };
+    surfaceHydrationRef.current = { seq: viewerUiStateSeq, installed: restored, pending: true }; // pending: #1527, cleared by the mirror below
     setImplicitSurfaces(restored);
     if (restored.length) {
       setNotices((p) => [...p, notice(restored.length > 1 ? "Restored {restored} generated surfaces from the project file, with the parameters that produced them (see each surface's \"Parameters used\")." : "Restored {restored} generated surface from the project file, with the parameters that produced it (see its \"Parameters used\").", { restored: restored.length })]);
@@ -5106,7 +5112,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (surfaceHydrationRef.current.seq !== viewerUiStateSeq) return;
     // The array identity hydration just installed is already exactly what's in the store — writing it
     // back would be a pointless full re-serialisation of every mesh on every project open.
-    if (surfaceHydrationRef.current.installed === implicitSurfaces) return;
+    if (surfaceHydrationRef.current.installed === implicitSurfaces) { surfaceHydrationRef.current.pending = false; return; }
+    // TASKS.csv #1527 (review #1497) — a remount (a language change remounts the app; the store keeps the project) found the scene
+    // group already built, so hydration ran in the same commit as this effect's mount pass, which still saw the initial [] (not the
+    // restored list, queued for the next render): it passed both guards and wrote [] over the store's surfaces, and autosave saved
+    // the loss (traced with logs on Silvertip). Until the restored list itself arrives here, nothing is written.
+    if (surfaceHydrationRef.current.pending) return;
     const o = originRef.current;
     const r2 = (v) => Math.round(v * 100) / 100; // 1 cm — see store.jsx's size note
     const payload = implicitSurfaces.map((s) => {
