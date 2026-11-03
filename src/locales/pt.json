@@ -7006,5 +7006,9 @@
   "Shape not assessed: the picks are of several types.": "Forma não avaliada: as medidas são de vários tipos.",
   "Cluster — one dominant orientation, loosely defined (k {k}).": "Agrupamento — uma orientação dominante, pouco definida (k {k}).",
   "The map tiles could not be loaded (offline, or the tile server is blocked). The area can still be drawn here or chosen from the list.": "Os blocos do mapa não puderam ser carregados (sem conexão, ou o servidor de blocos está bloqueado). A área ainda pode ser desenhada aqui ou escolhida na lista.",
-  "Station": "Estação"
+  "Station": "Estação",
+  "{terrain} contours ({interval} m)": "Curvas de nível de {terrain} ({interval} m)",
+  "Generated {levels} contour level ({contourInterval} m interval) as one boundary.{v2}": "Gerado {levels} nível de curvas (intervalo de {contourInterval} m) como um único limite.{v2}",
+  "Generated {levels} contour levels ({contourInterval} m interval) as one boundary.{v2}": "Gerados {levels} níveis de curvas (intervalo de {contourInterval} m) como um único limite.{v2}",
+  "Colour of the contour lines (all levels are one boundary).": "Cor das curvas de nível (todos os níveis são um único limite)."
 }

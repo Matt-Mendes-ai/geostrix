@@ -1597,7 +1597,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                   <input type="number" min="1" value={contourInterval} onChange={(e) => setContourInterval(Math.max(1, Number(e.target.value) || 50))} style={numInput} />
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                  <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title={tr("Colour applied to every generated contour level (each level is its own boundary, so they can be recoloured individually afterwards).")}>{tr("Colour")}</span>
+                  <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }} title={tr("Colour of the contour lines (all levels are one boundary).")}>{tr("Colour")}</span>
                   <input type="color" value={contourColor} onChange={(e) => setContourColor(e.target.value)} style={{ width: 30, height: 20, padding: 0, border: "1px solid var(--color-border-light)", borderRadius: 3, background: "none", cursor: "pointer" }} />
                 </div>
                 <button
@@ -1607,10 +1607,18 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                       setError(tr("No contours generated — the terrain spans {v}–{v2} m, so an interval of {contourInterval} m doesn't cross it anywhere. Try a smaller interval.", { v: Number.isFinite(min) ? min.toFixed(1) : "?", v2: Number.isFinite(max) ? max.toFixed(1) : "?", contourInterval }));
                       return;
                     }
-                    levels.forEach(({ level, polylines }) => {
-                      addBoundary({ name: `${terrain.name} ${level} m`, polylines, color: contourColor, elevation: level, drapeMode: "flat" });
-                    });
-                    setError({ info: true, text: tr(levels.length === 1 ? "Generated {levels} contour level ({contourInterval} m interval) as boundaries.{v2}" : "Generated {levels} contour levels ({contourInterval} m interval) as boundaries.{v2}", { levels: levels.length, contourInterval, v2: truncated ? tr(" Stopped at the 200-level cap — use a larger interval for full coverage.") : "" }) });
+                    // TASKS.csv #1466 (review #1352) — one boundary holding every level (each line at its own height), not one per level: 28
+                    // entries for the Silvertip soil terrain flooded the Boundaries list and every area picker. A line that does not close on
+                    // itself is flagged open, so area pickers leave it out.
+                    const lines = [], closed = [], lineLevels = [];
+                    levels.forEach(({ level, polylines }) => polylines.forEach((pl) => {
+                      lines.push(pl.map((p) => ({ ...p, z: level })));
+                      const a = pl[0], b = pl[pl.length - 1];
+                      closed.push(pl.length > 3 && Math.hypot(a.x - b.x, a.y - b.y) < 1e-6);
+                      lineLevels.push(level);
+                    }));
+                    addBoundary({ name: tr("{terrain} contours ({interval} m)", { terrain: terrain.name, interval: contourInterval }), polylines: lines, closedFlags: closed, contourLevels: lineLevels, useVertexZ: true, color: contourColor, drapeMode: "flat" });
+                    setError({ info: true, text: tr(levels.length === 1 ? "Generated {levels} contour level ({contourInterval} m interval) as one boundary.{v2}" : "Generated {levels} contour levels ({contourInterval} m interval) as one boundary.{v2}", { levels: levels.length, contourInterval, v2: truncated ? tr(" Stopped at the 200-level cap — use a larger interval for full coverage.") : "" }) });
                     setContourOpen(false);
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}

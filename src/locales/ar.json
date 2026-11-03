@@ -7006,5 +7006,9 @@
   "Shape not assessed: the picks are of several types.": "الشكل غير مقيَّم: القياسات من عدة أنواع.",
   "Cluster — one dominant orientation, loosely defined (k {k}).": "تجمّع — اتجاه سائد واحد، محدد بشكل ضعيف (k {k}).",
   "The map tiles could not be loaded (offline, or the tile server is blocked). The area can still be drawn here or chosen from the list.": "تعذّر تحميل بلاطات الخريطة (دون اتصال، أو خادم البلاطات محجوب). لا يزال بالإمكان رسم المنطقة هنا أو اختيارها من القائمة.",
-  "Station": "المحطة"
+  "Station": "المحطة",
+  "{terrain} contours ({interval} m)": "خطوط كنتور {terrain} ({interval} م)",
+  "Generated {levels} contour level ({contourInterval} m interval) as one boundary.{v2}": "أُنشئ {levels} مستوى كنتور (فاصل {contourInterval} م) كحد واحد.{v2}",
+  "Generated {levels} contour levels ({contourInterval} m interval) as one boundary.{v2}": "أُنشئت {levels} مستويات كنتور (فاصل {contourInterval} م) كحد واحد.{v2}",
+  "Colour of the contour lines (all levels are one boundary).": "لون خطوط الكنتور (كل المستويات حد واحد)."
 }
