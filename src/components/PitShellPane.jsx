@@ -6,7 +6,7 @@ import { Pickaxe, Eye, EyeOff, Trash2, Pencil } from "./icons.js";
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // #1498
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
-import { PRICE_UNITS, pitEconomics } from "../lib/pitShell.js";
+import { PRICE_UNITS, pitEconomics, pitMetalOf, elementOfModel } from "../lib/pitShell.js"; // pitMetalOf / elementOfModel: #1748
 import { metalOf, sgSummary } from "../lib/gradeTonnage.js";
 import { valueUnit } from "../lib/blockModelExport.js";
 import { categoricalModels } from "../lib/geologyForward.js";
@@ -66,7 +66,8 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
   const job = useRef(null);
   const model = models.find((m) => (m.id ?? m.name) === modelId) || null;
   const stated = model ? valueUnit(model) : null, unit = stated || f.unit;
-  const metal = unit ? metalOf(unit) : null;
+  const element = elementOfModel(model); // #1748 — copper in ppm is still sold by the pound
+  const metal = unit ? pitMetalOf(unit, element) : null;
   const prices = metal ? PRICE_UNITS[metal.unit] : null, priceUnit = prices?.some(([k]) => k === f.priceUnit) ? f.priceUnit : prices?.[0][0];
   const sg = useMemo(() => sgSummary(layers?.sg), [layers?.sg]);
   const set = (k) => (e) => { setF((p) => ({ ...p, [k]: e.target.value })); setMsg(null); }; // #1613
@@ -75,11 +76,11 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
   const setPrice = (e) => setF((p) => ({ ...p, price: e.target.value, priceUnit }));
   const value = (k) => (k === "price" && priceStale ? NaN : Number(f[k]));
   const missing = !model || !metal || FIELDS.some((k) => !(value(k) > 0)) || value("slopeDeg") >= 90 || value("recovery") > 100 || !(Number(f.revenueFactor) > 0); // revenue factor: #1363
-  const cutoff = !missing ? pitEconomics({ unit, price: value("price"), priceUnit, recovery: value("recovery"), processingCost: value("processingCost"), revenueFactor: Number(f.revenueFactor) || 1 })?.cutoff : null;
+  const cutoff = !missing ? pitEconomics({ unit, element, price: value("price"), priceUnit, recovery: value("recovery"), processingCost: value("processingCost"), revenueFactor: Number(f.revenueFactor) || 1 })?.cutoff : null;
 
   const run = async () => {
     const rf = Number(f.revenueFactor) > 0 ? Number(f.revenueFactor) : 1, size = Number(f.size) > 0 ? Number(f.size) : null;
-    const inputs = { unit, price: value("price"), priceUnit, recovery: value("recovery"), miningCost: value("miningCost"), processingCost: value("processingCost"), density: value("density"), slopeDeg: value("slopeDeg"), revenueFactor: rf, size };
+    const inputs = { unit, element, price: value("price"), priceUnit, recovery: value("recovery"), miningCost: value("miningCost"), processingCost: value("processingCost"), density: value("density"), slopeDeg: value("slopeDeg"), revenueFactor: rf, size };
     setBusy(0); setMsg(null); // the previous result stays until a new one arrives (#1366)
     const t0 = performance.now();
     try {
@@ -110,7 +111,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
     }
   };
   const cancel = () => job.current?.cancel();
-  const metalText = (r) => { const m = r.metalU * r.metalFactor; return r.metalUnit === "g" ? `${big(m / G_PER_OZ)} oz` : `${big(m)} t`; };
+  const metalText = (r) => { const m = r.metalU * r.metalFactor; return r.metalUnit === "g" ? `${big(m / G_PER_OZ)} oz` : `${big(m)} t (${big(m * 2204.62262)} lb)`; }; // #1748 — and pounds
   const line = (label, v) => <div style={row}><span>{label}</span><b>{v}</b></div>;
   const field = (k, label, extra = {}) => <label style={row}>{label}<input type="number" min={0} step="any" value={f[k]} onChange={set(k)} style={num} {...extra} /></label>;
 

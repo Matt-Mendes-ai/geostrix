@@ -6,13 +6,24 @@
 import { metalOf } from "./gradeTonnage.js";
 
 const G_PER_OZ = 31.1034768, LB_PER_T = 2204.62262;
+// TASKS.csv #1748 (review #1645, Copley) — copper in ppm was priced in $/oz and reported in troy ounces ("Contained metal 234M oz"), and $4
+// typed in that box made a 91.5 ppm cut-off and a $1.21B margin. A base metal is sold by the pound or tonne whatever unit its grade is in:
+// its ppm / g/t / ppb grade is counted in tonnes of metal (1 ppm = 1e-6 t per t), so it takes $/lb and $/t and reports tonnes.
+export const BASE_METALS = new Set(["Cu", "Zn", "Pb", "Ni", "Mo", "Co", "Sn", "W", "Sb", "Bi", "U"]);
+export function pitMetalOf(unit, element) {
+  const m = metalOf(unit);
+  if (m && m.unit === "g" && BASE_METALS.has(String(element || ""))) return { factor: m.factor / 1e6, unit: "t" };
+  return m;
+}
+// the element a block model holds: its estimate's parameters, else a symbol at the start of its name ("Cu estimate (idw2, 20m)")
+export const elementOfModel = (model) => model?.params?.element || (/^([A-Z][a-z]?)\b/.exec(String(model?.name || "")) || [])[1] || null;
 // the units a price can be entered in, for a metal counted in grams or in tonnes (gradeTonnage.js metalOf)
 export const PRICE_UNITS = { g: [["oz", "$/oz"], ["g", "$/g"]], t: [["lb", "$/lb"], ["t", "$/t"]] };
 
 // economics: { unit (of the block values), price, priceUnit, recovery (%), miningCost, processingCost ($/t rock), revenueFactor? }
 // -> { revenuePerGrade: $ per tonne of rock per unit of grade, cutoff: the grade that just pays for processing } or null
-export function pitEconomics({ unit, price, priceUnit, recovery, processingCost, revenueFactor = 1 }) {
-  const m = metalOf(unit);
+export function pitEconomics({ unit, element = null, price, priceUnit, recovery, processingCost, revenueFactor = 1 }) {
+  const m = pitMetalOf(unit, element); // #1748
   if (!m) return null;
   const perBase = m.unit === "g" ? (priceUnit === "oz" ? price / G_PER_OZ : price) : (priceUnit === "lb" ? price * LB_PER_T : price);
   const revenuePerGrade = m.factor * (recovery / 100) * perBase * revenueFactor;
