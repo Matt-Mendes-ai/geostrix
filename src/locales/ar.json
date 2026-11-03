@@ -7080,5 +7080,6 @@
   "{n} zero value(s) left out: their column has no reading above zero to set a detection limit.": "استُبعدت {n} قيمة صفرية: لا يحتوي عمودها على أي قراءة فوق الصفر لتحديد حد الكشف.",
   "{n} zero value(s). In a pXRF file a zero usually means not detected. What do they mean here?": "{n} قيمة صفرية. في ملف pXRF يعني الصفر عادةً عدم الكشف. ماذا تعني هنا؟",
   "Below detection (stored as \"<\" at half the smallest reading in that column)": "دون حد الكشف (يُخزَّن \"<\" عند نصف أصغر قراءة في ذلك العمود)",
-  "A real measured zero": "صفر مقاس فعلي"
+  "A real measured zero": "صفر مقاس فعلي",
+  "No collars are loaded, so these {label} for {n} hole(s) ({ex}{v}) cannot be drawn yet: they are kept, and appear once collars with those hole ids are imported.": "لا توجد فوهات محمّلة، لذا لا يمكن رسم {label} هذه لـ {n} ثقبًا ({ex}{v}) بعد: تُحفظ وتظهر بمجرد استيراد فوهات بهذه المعرّفات."
 }

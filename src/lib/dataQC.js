@@ -183,7 +183,16 @@ export function importCheckSummary(rows, collars, survey, label = "rows") {
     const ex = [...orphans].slice(0, 3).map((id) => { const m = /Did you mean "([^"]+)"/.exec(didYouMean(collarIds, id)); return m ? `${id} — collar ${m[1]} exists` : id; });
     parts.push(tr("{size} hole id(s) with no collar ({ex}{v})", { size: orphans.size, ex: ex.join("; "), v: orphans.size > 3 ? "; …" : "" }));
   }
-  return parts.length ? tr("Check these {label}: {parts}. They were imported as they are — Data QC lists each one.", { label, parts: parts.join(", ") }) : "";
+  // TASKS.csv #1663 (review #1646, Kodiak) — with no collars at all every hole is an orphan, and nothing was said (6,239 assays and two logs
+  // for 33 holes went in silently, drawn nowhere). Said once, as a count.
+  let none = "";
+  if (!collarIds.size) {
+    const ids = new Set();
+    for (const r of rows || []) if (r.hole_id && !isMarkedQcRow(r)) ids.add(r.hole_id);
+    if (ids.size) none = tr("No collars are loaded, so these {label} for {n} hole(s) ({ex}{v}) cannot be drawn yet: they are kept, and appear once collars with those hole ids are imported.", { label, n: ids.size, ex: [...ids].slice(0, 3).join(", "), v: ids.size > 3 ? ", …" : "" });
+  }
+  const check = parts.length ? tr("Check these {label}: {parts}. They were imported as they are — Data QC lists each one.", { label, parts: parts.join(", ") }) : "";
+  return [none, check].filter(Boolean).join(" ");
 }
 
 function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps = true } = {}) {

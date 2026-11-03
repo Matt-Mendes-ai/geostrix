@@ -7080,5 +7080,6 @@
   "{n} zero value(s) left out: their column has no reading above zero to set a detection limit.": "{n} valor(es) cero excluido(s): su columna no tiene ninguna lectura sobre cero para fijar un límite de detección.",
   "{n} zero value(s). In a pXRF file a zero usually means not detected. What do they mean here?": "{n} valor(es) cero. En un archivo pXRF un cero suele significar no detectado. ¿Qué significan aquí?",
   "Below detection (stored as \"<\" at half the smallest reading in that column)": "Bajo el límite de detección (guardado como \"<\" a la mitad de la lectura más baja de esa columna)",
-  "A real measured zero": "Un cero medido real"
+  "A real measured zero": "Un cero medido real",
+  "No collars are loaded, so these {label} for {n} hole(s) ({ex}{v}) cannot be drawn yet: they are kept, and appear once collars with those hole ids are imported.": "No hay collares cargados, así que estos {label} de {n} sondaje(s) ({ex}{v}) aún no se pueden dibujar: se conservan y aparecerán al importar collares con esos identificadores."
 }
