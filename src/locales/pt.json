@@ -7086,5 +7086,7 @@
   "{name}: {kept} of its {total} features lie near the project; the rest, far from the holes and samples, were left out.": "{name}: {kept} dos seus {total} elementos ficam perto do projeto; o restante, longe dos furos e amostras, ficou de fora.",
   "{name} is {mb} MB: GeoStrix reads a GeoPackage whole, and one this size would freeze the window for minutes and need several GB of memory. Export just the tables and the area you need (in QGIS: clip to your property, save as a new GeoPackage or shapefile) and import that.": "{name} tem {mb} MB: o GeoStrix lê um GeoPackage inteiro, e um deste tamanho congelaria a janela por minutos e precisaria de vários GB de memória. Exporte só as tabelas e a área de que precisa (no QGIS: recorte para a sua propriedade e salve como novo GeoPackage ou shapefile) e importe isso.",
   "Grades capped at {cap} {unit} before estimating.": "Teores cortados em {cap} {unit} antes de estimar.",
-  "Open Planned holes aimed at the zone's point farthest from the drilling: choose a collar, then Solve": "Abrir Furos planejados mirando o ponto da zona mais distante da sondagem: escolha uma boca de furo e depois Resolver"
+  "Open Planned holes aimed at the zone's point farthest from the drilling: choose a collar, then Solve": "Abrir Furos planejados mirando o ponto da zona mais distante da sondagem: escolha uma boca de furo e depois Resolver",
+  "Azimuth (grid)": "Azimute (quadrícula)",
+  "* From the shallowest survey station: the collar record has none for that value.": "* Da estação de levantamento mais rasa: o registro da boca não tem esse valor."
 }

@@ -758,7 +758,10 @@ export default function LayoutModule() {
   const tableCollars = useMemo(() => {
     const first = new Map();
     for (const s of survey || []) { if (!Number.isFinite(s.depth)) continue; const f = first.get(s.hole_id); if (!f || s.depth < f.depth) first.set(s.hole_id, s); }
-    return (collars || []).map((c) => { const s = first.get(c.hole_id); return s && !(Number.isFinite(c.azimuth) && Number.isFinite(c.dip)) ? { ...c, azimuth: Number.isFinite(c.azimuth) ? c.azimuth : s.azimuth, dip: Number.isFinite(c.dip) ? c.dip : s.dip, orientFromSurvey: true } : c; });
+    // TASKS.csv #1771 (review #1645, Copley) — each value flagged by its own source: Copley's collars have a dip but no azimuth, and both
+    // were starred 'from the survey' (COP-23-0005 printed the collar's -41 under that footnote, the gyro reads -46)
+    return (collars || []).map((c) => { const s = first.get(c.hole_id); if (!s) return c; const azS = !Number.isFinite(c.azimuth) && Number.isFinite(s.azimuth), dipS = !Number.isFinite(c.dip) && Number.isFinite(s.dip);
+      return azS || dipS ? { ...c, azimuth: azS ? s.azimuth : c.azimuth, dip: dipS ? s.dip : c.dip, azFromSurvey: azS, dipFromSurvey: dipS, orientFromSurvey: azS || dipS } : c; });
   }, [collars, survey]);
   const textCtx = useMemo(() => textContextFor(elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits), [elements, project, activePage, activePageIndex, layoutPages.length, tableCollars, credits]);
 
@@ -1336,7 +1339,7 @@ export default function LayoutModule() {
           <GenerateAtlasModal
             onClose={() => setAtlasModalOpen(false)}
             templateElements={elements}
-            collars={collars}
+            collars={tableCollars} /* #1772 — the same survey fallback as the collar table */
             layers={layers}
             legendOverride={viewerUiState?.legendOverride} // TASKS.csv #1092 — the 3D legend's colours / names
             sections={sections}
@@ -1908,12 +1911,12 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     if (el.source === "collars") {
       const cs = sortedCollars(ctx?.collars || []);
       const f = (v, d) => (Number.isFinite(Number(v)) && v !== "" && v != null ? Number(v).toFixed(d) : "");
-      columns = [tr("Hole"), tr("Easting"), tr("Northing"), tr("Elev. (m)"), tr("Azimuth"), tr("Dip"), tr("Depth (m)")];
+      columns = [tr("Hole"), tr("Easting"), tr("Northing"), tr("Elev. (m)"), tr("Azimuth (grid)") /* #1771 — GeoStrix keeps grid azimuths */, tr("Dip"), tr("Depth (m)")];
       const lim = el.maxRows || 40;
-      const star = (v, c) => (v !== "" && c.orientFromSurvey ? `${v}*` : v); // #1483 — from the first survey station
-      rows = cs.slice(0, lim).map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), f(c.z, 1), star(f(c.azimuth, 0), c), star(f(Number.isFinite(c.dip) ? -c.dip : "", 0), c) /* #1033 — negative = down, as imported */, f(c.length, 1)]);
+      const star = (v, fromSurvey) => (v !== "" && fromSurvey ? `${v}*` : v); // #1483 — from the first survey station; #1771 each value its own flag
+      rows = cs.slice(0, lim).map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), f(c.z, 1), star(f(c.azimuth, 0), c.azFromSurvey ?? c.orientFromSurvey), star(f(Number.isFinite(c.dip) ? -c.dip : "", 0), c.dipFromSurvey ?? c.orientFromSurvey) /* #1033 — negative = down, as imported */, f(c.length, 1)]);
       more = Math.max(0, cs.length - lim);
-      if (cs.slice(0, lim).some((c) => c.orientFromSurvey)) surveyNote = tr("* Azimuth and dip of the shallowest survey station: the collar record has none.");
+      if (cs.slice(0, lim).some((c) => c.orientFromSurvey)) surveyNote = tr("* From the shallowest survey station: the collar record has none for that value.");
     }
     const fs = printPx(el.fontPt || printPt.small), cell = { padding: `${Math.round(fs * 0.25)}px ${Math.round(fs * 0.5)}px`, borderBottom: "1px solid #c9ced4" /* #999 — 0.26 mm on paper like the scale bar; 0.5 px vanished on screen at Fit zoom */, whiteSpace: "nowrap" };
     const numeric = columns.map((_, j) => rows.length > 0 && rows.every((r) => r[j] === "" || /^[-+≥<>]?[\d.,]+\*?$/.test(String(r[j])))); // \*: #1483
