@@ -7001,5 +7001,6 @@
   "Move to {page}": "نقل إلى {page}",
   "This frame has a fixed scale (1:{s}): in the 3D view only where you centre it is used, not the zoom. Set Scale to \"free (as framed)\" to use the zoom.": "لهذا الإطار مقياس ثابت (1:{s}): في العرض ثلاثي الأبعاد يُستخدم موضع التوسيط فقط، لا التكبير. اضبط المقياس على \"حر (كما هو مؤطر)\" لاستخدام التكبير.",
   "\"{label}\": no solid and no volume were made — the intercepts do not behave like one vein (midpoints {v} m RMS off one plane for a {v2} m mean thickness, {v3} intercepts per hole). Split the code into single veins (Modelling codes, intercept sets) and model each.": "\"{label}\": لم يُنشأ مجسم ولا حجم — التقاطعات لا تتصرف كعرق واحد (نقاط المنتصف على بعد {v} م RMS عن مستوى واحد لسماكة متوسطة {v2} م، و{v3} تقاطعات لكل بئر). قسّم الرمز إلى عروق منفردة (رموز النمذجة، مجموعات التقاطعات) ونمذج كلًا منها.",
-  "Fewer than 10 occurrence cells: the weights, the posterior and the prediction-area figures are not interpretable — read them as a sketch.": "أقل من 10 خلايا حدوث: الأوزان والاحتمال اللاحق وأرقام مساحة التنبؤ غير قابلة للتفسير — اقرأها كمسودة."
+  "Fewer than 10 occurrence cells: the weights, the posterior and the prediction-area figures are not interpretable — read them as a sketch.": "أقل من 10 خلايا حدوث: الأوزان والاحتمال اللاحق وأرقام مساحة التنبؤ غير قابلة للتفسير — اقرأها كمسودة.",
+  "Cell size set to {c} m: the 10 m default needs more blocks than the {b}-block budget.": "ضُبط حجم الخلية على {c} م: يحتاج الافتراضي 10 م كتلًا أكثر من ميزانية {b} كتلة."
 }

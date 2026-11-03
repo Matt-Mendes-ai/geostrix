@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { buildMeshQuery, isPointInsideMesh, isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #517
 import { validateSolid } from "../lib/meshValidate.js"; // TASKS.csv #860
 import { X, Play } from "./icons.js";
@@ -170,6 +170,11 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
   const cellLabel = matched ? (cell3.dx === cell3.dy && cell3.dy === cell3.dz ? cell3.dx : `${cell3.dx}×${cell3.dy}×${cell3.dz}`) : cellSize; // #724 — names say the real block size
   const fitCell = overLimit && bounds && !matched ? cellToFit(bounds, blockBudget, cellSize) : null; // a matched model's cell size is not ours to change
   const fitCellMax = overLimit && bounds && !matched && blockBudget < MAX_BLOCK_MODEL_BUDGET ? cellToFit(bounds, MAX_BLOCK_MODEL_BUDGET, cellSize) : null;
+  // TASKS.csv #1416 (review #1352) — the default 10 m cell could not run on Silvertip (2.3 M blocks over the budget, Run disabled): the
+  // first time the grid is over the budget, before the cell size is touched, the cell that fits is filled in, and said
+  const cellTouched = useRef(false);
+  const [autoCell, setAutoCell] = useState(null);
+  useEffect(() => { if (!cellTouched.current && fitCell) { cellTouched.current = true; setAutoCell(fitCell); setCellSize(fitCell); } }, [fitCell]);
 
   // TASKS.csv #520 — the estimate runs in a worker: the window keeps repainting, shows progress and can be cancelled
   const [progress, setProgress] = useState(null); // 0..1 while running
@@ -477,8 +482,9 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
             <label style={fieldLabel} title={tr("Extends the block grid beyond the collar bounding box in every direction, so blocks near the edge of the drilling aren't starved of nearby samples.")}>{tr("Padding around collars (m)")}<input type="number" min="0" step="any" value={padding} onChange={(e) => setPadding(Math.max(0, Number(e.target.value) || 0))} style={inp} />
             </label>
-            <label style={fieldLabel}>{tr("Cell size (m, cubic)")}<input type="number" min="0.5" step="any" value={matched ? "" : cellSize} placeholder={matched ? `${cell3.dx} × ${cell3.dy} × ${cell3.dz}` : undefined} disabled={!!matched} onChange={(e) => setCellSize(Math.max(0.5, Number(e.target.value) || 10))} style={inp} />
+            <label style={fieldLabel}>{tr("Cell size (m, cubic)")}<input type="number" min="0.5" step="any" value={matched ? "" : cellSize} placeholder={matched ? `${cell3.dx} × ${cell3.dy} × ${cell3.dz}` : undefined} disabled={!!matched} onChange={(e) => { cellTouched.current = true; setAutoCell(null); setCellSize(Math.max(0.5, Number(e.target.value) || 10)); }} style={inp} />
             </label>
+            {autoCell != null && autoCell === cellSize && !matched && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Cell size set to {c} m: the 10 m default needs more blocks than the {b}-block budget.", { c: autoCell, b: blockBudget.toLocaleString() })}</div>}{/* #1416 */}
             <label style={fieldLabel} title={tr("Fit to the drilling: the box of the assayed holes plus the padding, as before. Match a block model: its cell size and origin, so this estimate's blocks sit exactly on that model's blocks and the two can be compared or merged block for block. Origin: the cell size above, on block corners at a typed E / N / RL.")}>{tr("Grid")}
               <select value={gridMode} onChange={(e) => setGridMode(e.target.value)} style={inp}>
                 <option value="data">{tr("Fit to the drilling")}</option>
@@ -512,7 +518,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
             <div style={{ fontSize: "var(--font-size-sm)", color: overLimit ? "var(--color-danger-icon-strong)" : "var(--color-text-muted)" }}>{tr("Grid: {nx} × {ny} × {nz} = {totalBlocksPreview} blocks{v}", { nx: gridPreview.nx, ny: gridPreview.ny, nz: gridPreview.nz, totalBlocksPreview: totalBlocksPreview.toLocaleString(), v: overLimit ? tr(" — over the {blockBudget}-block budget.", { blockBudget: blockBudget.toLocaleString() }) : "" })}
               {overLimit && (
                 <span style={{ display: "inline-flex", gap: 6, marginLeft: 6, flexWrap: "wrap" }}>
-                  <button type="button" onClick={() => setCellSize(fitCell)} style={{ ...btn(false), padding: "2px 8px" }}>{tr("Use {fitCell} m blocks", { fitCell })}</button>
+                  <button type="button" onClick={() => { cellTouched.current = true; setCellSize(fitCell); }} style={{ ...btn(false), padding: "2px 8px" }}>{tr("Use {fitCell} m blocks", { fitCell })}</button>
                   {fitCellMax && <button type="button" onClick={() => { setBlockBudget(MAX_BLOCK_MODEL_BUDGET); setCellSize(fitCellMax); }} style={{ ...btn(false), padding: "2px 8px" }}>{tr("Largest budget + {fitCellMax} m blocks", { fitCellMax })}</button>}
                 </span>
               )}
