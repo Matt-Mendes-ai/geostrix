@@ -406,12 +406,15 @@ export function guessStructureColumns(headers) {
     }
     return null;
   };
-  const dipDir = take([(n) => n === "dipdirection" || n === "dipdir" || n === "ddir" || n === "dd" || n === "dipazimuth" || n === "dipaz", (n) => n.startsWith("dipdir"), (n) => n === "azimuth" || n === "az"]); // "dd": TASKS.csv #426
-  const dip = take([(n) => n === "dip", (n) => n.startsWith("dip") && !n.startsWith("dipdir") && !n.startsWith("dipaz")], [dipDir]);
-  const x = take([(n) => n === "x" || n === "easting" || n === "east", (n) => n.startsWith("easting") || n.startsWith("east"), (n) => n.includes("easting")]);
-  const y = take([(n) => n === "y" || n === "northing" || n === "north", (n) => n.startsWith("northing") || n.startsWith("north"), (n) => n.includes("northing")]);
+  // TASKS.csv #1605 (review #1497, Lawyers) — "dip1_conf" / "strike1_conf" (a confidence code) were taken for Dip and Strike by the
+  // starts-with fallbacks: a column that describes a measurement is never the measurement
+  const about = (n) => /conf|qual|err|accur|certain|method|flag|source/.test(n);
+  const dipDir = take([(n) => n === "dipdirection" || n === "dipdir" || n === "ddir" || n === "dd" || n === "dipazimuth" || n === "dipaz", (n) => n.startsWith("dipdir") && !about(n), (n) => n === "azimuth" || n === "az"]); // "dd": TASKS.csv #426
+  const dip = take([(n) => n === "dip", (n) => n.startsWith("dip") && !n.startsWith("dipdir") && !n.startsWith("dipaz") && !about(n)], [dipDir]);
+  const x = take([(n) => n === "x" || n === "easting" || n === "east", (n) => n.startsWith("easting") || n.startsWith("east"), (n) => n.includes("easting"), (n) => n === "eutm" || n === "utme" || n === "utmeast"]); // e_utm: #1605 (40958Z)
+  const y = take([(n) => n === "y" || n === "northing" || n === "north", (n) => n.startsWith("northing") || n.startsWith("north"), (n) => n.includes("northing"), (n) => n === "nutm" || n === "utmn" || n === "utmnorth"]);
   const z = take([(n) => n === "z" || n === "elev" || n === "elevation" || n === "rl" || n === "alt" || n === "altitude", (n) => n.startsWith("elev")]);
-  const strike = take([(n) => n === "strike" || n === "strk", (n) => n.startsWith("strike")]);
+  const strike = take([(n) => n === "strike" || n === "strk", (n) => n.startsWith("strike") && !about(n)]);
   const type = take([(n) => n === "structuretype" || n === "type" || n === "structure", (n) => n.endsWith("structuretype"), (n) => n.includes("type")]);
   const comment = take([(n) => n === "comments" || n === "comment" || n === "notes" || n === "description", (n) => n.startsWith("comment")]);
   // TASKS.csv #1442 (review #1352) — the field station: it was dropped, so a symbol on the map or a row of the CSV / KML / GeoPackage

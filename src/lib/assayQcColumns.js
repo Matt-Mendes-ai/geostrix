@@ -3,7 +3,7 @@
 import { sampleTypeClass } from "./qaqc.js";
 
 const ALIASES = {
-  sample_id: ["sample_id", "sampleid", "sample_no", "sample_number", "sample", "samp_id", "sample_num"],
+  sample_id: ["sample_id", "sampleid", "sample_no", "sample_number", "sample", "samp_id", "sample_num", "samp_num"], // samp_num: #1510 (40958Z's drill assays; the surface import knew it)
   sample_type: ["sample_type", "samp_type", "sampletype", "qc_type", "qctype", "qaqc_type", "qaqc", "sample_class", "sample_category", "type"],
   parent_id: ["parent_id", "parent", "parent_sample", "parent_sample_id", "original_id", "original", "orig_sample_id", "primary_id", "original_sample"],
   qc_code: ["standard_id", "std_id", "standard", "crm", "crm_id", "crm_name", "standard_name", "qc_code", "qc_id", "qc_name", "reference_material"],
