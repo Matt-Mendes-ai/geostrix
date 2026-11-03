@@ -543,6 +543,9 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
   const hScale = (W - 2 * PAD) / maxL;
   const vScale = hScale * (vExag || 1);
   const H = Math.max(200, Math.round((maxZ - minZ) * vScale) + 2 * PAD);
+  // TASKS.csv #1396 — a depth tick, EOH or offset label is drawn only for a point inside the plot frame: #1205 clipped the
+  // traces, but the labels of a hole beyond the frame (PAD18 on a Silvertip section) were still placed over the elevation axis
+  const inPlot = ([x, y]) => x >= PAD - 0.5 && x <= W - PAD + 0.5 && y >= PAD - 0.5 && y <= H - PAD + 0.5;
   // Mirrored out for snapshotToLayout (see that function's comment) — a plain ref write, not state,
   // since nothing here needs to re-render when it changes.
   if (geomRef) geomRef.current = { hScale };
@@ -738,7 +741,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
             {runs && <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#9aa5b3" strokeWidth="1" strokeDasharray="4 3"><title>{tr("{hole_id}: outside the ±{corridor} m buffer — projected onto the section, no data drawn here", { hole_id: h.hole_id, corridor: section.corridor })}</title></polyline>}
             {solid.map((seg, si) => <polyline key={si} points={seg.map((p) => p.join(",")).join(" ")} fill="none" stroke="#445064" strokeWidth="1.2"><title>{`${h.hole_id}${off ? tr(": {off} from the section line", { off }) : ""}`}</title></polyline>)}
             {/* TASKS.csv #897 — the offset in view, not only in the tooltip, when the hole is more than 5 m off the section */}
-            {off && Math.max(Math.abs(h.minOffset), Math.abs(h.maxOffset)) > 5 && (() => { const end = solid.length ? solid[solid.length - 1].at(-1) : pts.at(-1); if (end) floatLabels.push({ key: `off${hi}`, text: off, size: fs(9), fill: "#7a8494", prio: 2, cands: [{ x: end[0] + 4, y: end[1] + fs(10), anchor: "start" }, { x: end[0] - 4, y: end[1] + fs(10), anchor: "end" }, { x: end[0] + 4, y: end[1] + fs(21), anchor: "start" }, { x: end[0] - 4, y: end[1] + fs(21), anchor: "end" }, { x: end[0] + 6, y: end[1] - 4, anchor: "start" }] }); return null; })() /* #1134 */}
+            {off && Math.max(Math.abs(h.minOffset), Math.abs(h.maxOffset)) > 5 && (() => { const end = solid.length ? solid[solid.length - 1].at(-1) : pts.at(-1); if (end && inPlot(end)) floatLabels.push({ key: `off${hi}`, text: off, size: fs(9), fill: "#7a8494", prio: 2, cands: [{ x: end[0] + 4, y: end[1] + fs(10), anchor: "start" }, { x: end[0] - 4, y: end[1] + fs(10), anchor: "end" }, { x: end[0] + 4, y: end[1] + fs(21), anchor: "start" }, { x: end[0] - 4, y: end[1] + fs(21), anchor: "end" }, { x: end[0] + 6, y: end[1] - 4, anchor: "start" }] }); return null; })() /* #1134 */}
           </g>
         );
       })}
@@ -880,6 +883,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
           const p = interpTrace(trace, md), q = interpTrace(trace, Math.min(eoh, md + 1));
           if (!p || !q) continue;
           const x = sx(along(p.x, p.y)), y = sz(p.z);
+          if (!inPlot([x, y])) continue;
           const [nx, ny] = screenNormal(x, y, sx(along(q.x, q.y)), sz(q.z));
           marks.push(<line key={md} x1={x - nx * 3} y1={y - ny * 3} x2={x - nx * 7} y2={y - ny * 7} stroke={colors.textSecondary} strokeWidth="0.8" />);
           if (md % 100 === 0) floatLabels.push({ key: `dm${hi}_${md}`, text: String(md), size: fs(8), fill: "#65717e", prio: 1, cands: [{ x: x - nx * 10, y: y - ny * 10 + 3, anchor: nx >= 0 ? "end" : "start" }, { x: x + nx * (10 + ribbonReach), y: y + ny * (10 + ribbonReach) + 3, anchor: nx >= 0 ? "start" : "end" }] }); // #1134
@@ -888,7 +892,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
         return (
           <g key={`dt${hi}`}>
             {marks}
-            {labels.mode !== "end" && labels.mode !== "both" && (() => { const ex = sx(along(last.x, last.y)), ey = sz(last.z); floatLabels.push({ key: `eoh${hi}`, text: tr("EOH {v} m", { v: Math.round(eoh) }), size: fs(9), fill: "#1a2028", prio: 2, cands: [{ x: ex, y: ey + fs(11), anchor: "middle" }, { x: ex + 6, y: ey + 3, anchor: "start" }, { x: ex - 6, y: ey + 3, anchor: "end" }, { x: ex, y: ey + fs(22), anchor: "middle" }] }); return null; })()}{/* #823: in the end-of-hole label otherwise; #1134: placed in the final pass */}
+            {labels.mode !== "end" && labels.mode !== "both" && (() => { const ex = sx(along(last.x, last.y)), ey = sz(last.z); if (inPlot([ex, ey])) floatLabels.push({ key: `eoh${hi}`, text: tr("EOH {v} m", { v: Math.round(eoh) }), size: fs(9), fill: "#1a2028", prio: 2, cands: [{ x: ex, y: ey + fs(11), anchor: "middle" }, { x: ex + 6, y: ey + 3, anchor: "start" }, { x: ex - 6, y: ey + 3, anchor: "end" }, { x: ex, y: ey + fs(22), anchor: "middle" }] }); return null; })()}{/* #823: in the end-of-hole label otherwise; #1134: placed in the final pass */}
           </g>
         );
       })}
@@ -923,12 +927,13 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
             const p = interpTrace(t, md), q = interpTrace(t, Math.min(eoh, md + 1));
             if (!p || !q) continue;
             const x = sx(along(p.x, p.y)), y = sz(p.z);
+            if (!inPlot([x, y])) continue; // #1396
             const [nx, ny] = screenNormal(x, y, sx(along(q.x, q.y)), sz(q.z));
             marks.push(<line key={`m${md}`} x1={x - nx * 3} y1={y - ny * 3} x2={x - nx * 7} y2={y - ny * 7} stroke={colors.planned} strokeWidth="0.8" />);
             if (md % 100 === 0) floatLabels.push({ key: `pm${i}_${md}`, text: String(md), size: fs(8), fill: colors.planned, prio: 1, cands: [{ x: x - nx * 10, y: y - ny * 10 + 3, anchor: nx >= 0 ? "end" : "start" }, { x: x + nx * 10, y: y + ny * 10 + 3, anchor: nx >= 0 ? "start" : "end" }] }); // #1134
           }
           const last = t[t.length - 1];
-          { const ex = sx(along(last.x, last.y)), ey = sz(last.z); floatLabels.push({ key: `peoh${i}`, text: tr("planned EOH {v} m", { v: Math.round(eoh) }), size: fs(9), fill: colors.planned, prio: 2, cands: [{ x: ex, y: ey + fs(11), anchor: "middle" }, { x: ex + 6, y: ey + 3, anchor: "start" }, { x: ex - 6, y: ey + 3, anchor: "end" }, { x: ex, y: ey + fs(22), anchor: "middle" }] }); } // #1134
+          { const ex = sx(along(last.x, last.y)), ey = sz(last.z); if (inPlot([ex, ey])) floatLabels.push({ key: `peoh${i}`, text: tr("planned EOH {v} m", { v: Math.round(eoh) }), size: fs(9), fill: colors.planned, prio: 2, cands: [{ x: ex, y: ey + fs(11), anchor: "middle" }, { x: ex + 6, y: ey + 3, anchor: "start" }, { x: ex - 6, y: ey + 3, anchor: "end" }, { x: ex, y: ey + fs(22), anchor: "middle" }] }); } // #1134
         }
         (ph.pierces || []).forEach((q, k) => {
           const x = sx(along(q.x, q.y)), y = sz(q.z);

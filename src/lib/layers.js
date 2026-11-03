@@ -136,10 +136,25 @@ export const UNIT_ROLES = {
   i6: "dyke",
   silbx: "breccia",
 };
-export function roleForLithology(u) { return UNIT_ROLES[(u || "").toLowerCase()] || "stratigraphic"; }
+// TASKS.csv #1369 (review #1352, Silvertip) — the usual full-word and acQuire-style codes, so FAULT, BRX, DYK, VEIN and NRCV no
+// longer default to "stratigraphic" (every fault inside the McDame made a "Top of McDame"). Whole codes only, never a prefix
+// (VBX, a volcanic breccia, stays a unit); they are suggestions the geologist changes in Modelling codes.
+const ROLE_PATTERNS = [
+  [/^(fault|faults|flt|fz|fltz|gouge|gge)$/, "fault"],
+  [/^(bx|brx|breccia|hbx)$/, "breccia"],
+  [/^(dyk|dyke|dike|dk)$/, "dyke"],
+  [/^(vein|vn|qv|qtzv|qzv)$/, "vein"],
+  [/^(nr|nrcv|norec|nrec|lost|core ?loss|void|cavity)$/, "no recovery"],
+];
+export function roleForLithology(u) {
+  const k = String(u || "").trim().toLowerCase();
+  return UNIT_ROLES[k] || ROLE_PATTERNS.find(([re]) => re.test(k))?.[1] || "stratigraphic";
+}
 // Cross-cutting = doesn't belong in an ordered, non-crossing stratigraphic pile (see the Stack tool's
-// own scope comment in ViewerModule.jsx) — faults, dykes, and breccia bodies all qualify.
-export function isCrossCuttingRole(role) { return role === "fault" || role === "dyke" || role === "breccia"; }
+// own scope comment in ViewerModule.jsx) — faults, dykes, breccia bodies and veins (#1369) all qualify.
+export function isCrossCuttingRole(role) { return role === "fault" || role === "dyke" || role === "breccia" || role === "vein"; }
+// a Modelling codes role from a unit role (#599 roles: stratigraphic / overburden / cross-cutting / ignore)
+export function mcodeRoleOf(role) { return role === "overburden" ? "overburden" : role === "no recovery" ? "ignore" : isCrossCuttingRole(role) ? "cross-cutting" : "stratigraphic"; }
 
 // TASKS.csv #249 (colorblind-safety review) — CHL/PRO and SER/QSP were exact-duplicate hex values
 // (not even a colorblind-specific issue — indistinguishable to anyone), and OX/KSP were a

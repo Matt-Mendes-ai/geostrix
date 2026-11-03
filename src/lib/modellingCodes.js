@@ -71,6 +71,18 @@ export function codedRuns(lithoRows, mc, groupOf) {
   return runs;
 }
 
+// TASKS.csv #1367 — for a raw code or a lithology group: does this interval start right under rows that are never a younger unit
+// (a fault, breccia, vein, dyke, no recovery, casing)? Then its start is not a top, as topsForCode decides for a modelling code.
+// aboveValues: the logged codes that end where it starts (down-hole) or start where it ends (up-hole). Roles: the code's own
+// in Modelling codes (by its group's name when grouped), else defaultRole(name).
+export function startsBelowNonUnit(aboveValues, mc, groupOf, defaultRole) {
+  if (!aboveValues?.length) return false;
+  return aboveValues.every((v) => {
+    const name = (groupOf && groupOf(v)) || String(v ?? "").trim();
+    return NOT_A_TOP_ABOVE.has(codeInfo(mc, name, defaultRole).role);
+  });
+}
+
 // The tops ("Top of <code>" interface points) of one code, and why the other starts were not used.
 export function topsForCode(runs, code, mc, defaultRole) {
   const me = codeInfo(mc, code, defaultRole);

@@ -545,7 +545,9 @@ const contourColor = (sigma) => {
 };
 
 const overlay = { position: "fixed", inset: 0, background: "rgba(20,24,30,0.35)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" };
-const panel = { width: 660, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)" };
+// TASKS.csv #1368 — never taller or wider than the window: it measured 1,023 px in an 835 px window, with its title, close
+// button and Plot / Source dropdowns above the screen and nothing to scroll. Now it scrolls inside the window.
+const panel = { width: 660, maxWidth: "calc(100vw - 24px)", maxHeight: "calc(100vh - 24px)", overflowY: "auto", boxSizing: "border-box", background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 10, padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.3)" };
 const rowLabel = { fontSize: 10.5, color: "#55606e", display: "flex", flexDirection: "column", gap: 3 };
 const sel = { background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 5, padding: "5px 6px", color: "#1a2028", fontSize: 11 };
 const exportBtn = { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "7px 10px", borderRadius: 6, border: "1px solid #c7ccd3", background: "transparent", color: "#55606e", fontSize: 11.5, cursor: "pointer" };

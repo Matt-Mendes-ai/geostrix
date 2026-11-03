@@ -104,7 +104,7 @@ import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.cs
 import { unitShell, meshVolume, blockUnitStats } from "../lib/unitVolumes.js"; // TASKS.csv #517; blockUnitStats: #877
 const ModellingCodesPane = React.lazy(() => import("../components/ModellingCodesPane.jsx")); // TASKS.csv #599 — modelling view only, so loaded on demand (#476 budget)
 import { resolveLayerStyle, cleanLayerStyle, TUBE_SEGMENTS } from "../lib/layerStyle.js"; // TASKS.csv #635
-import { LAYER_META, colorForLithology, rqdColor, magColor, hashColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, isCrossCuttingRole, colorForMedium } from "../lib/layers.js";
+import { LAYER_META, colorForLithology, rqdColor, magColor, hashColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, mcodeRoleOf, isCrossCuttingRole, colorForMedium } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
 import { sceneVertsToWorldFlat } from "../lib/meshFlat.js"; // TASKS.csv #600 — the exporters (meshExport.js) load on first export
 import { useSculpt } from "../lib/useSculpt.js"; // TASKS.csv #145 — manual surface editing
@@ -3142,7 +3142,7 @@ ${describeTrend(t)}` };
   const isLithoGroupKey = (v) => typeof v === "string" && v.startsWith("group:");
   const isMcodeKey = (v) => typeof v === "string" && v.startsWith("mcode:"); // TASKS.csv #599
   // TASKS.csv #599 — modelling codes the geologist created or assigned (not every raw code again), with role
-  const mcodeDefaultRole = (name) => { const r = roleForLithology(name); return r === "overburden" ? "overburden" : isCrossCuttingRole(r) ? "cross-cutting" : "stratigraphic"; };
+  const mcodeDefaultRole = (name) => mcodeRoleOf(roleForLithology(name)); // #1369
   const mcGroupOf = useCallback((v) => lithoGroups.find((g) => (g.codes || []).includes(v))?.name || null, [lithoGroups]);
   const modellingCodeList = useMemo(() => {
     const named = new Set([...Object.values(modellingCodes?.assign || {}), ...(modellingCodes?.codes || []).map((c) => c.name)]);

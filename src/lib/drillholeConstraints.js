@@ -40,6 +40,9 @@ export function constraintSamples({ collars, survey, rows, method, units, backgr
     if (!t) { out.skipped.noTrace++; continue; }
     const mds = [];
     if (Number.isFinite(r.depth)) mds.push(r.depth);
+    // TASKS.csv #1352 review (Silvertip) — a point reading is stored with from = to: it is a sample at that depth, not a bad value
+    // (all 6,264 mag-susc readings were refused, with a message blaming the collars)
+    else if (Number.isFinite(r.from) && Number.isFinite(r.to) && Math.abs(r.to - r.from) < 1e-9) mds.push(r.from);
     else if (Number.isFinite(r.from) && Number.isFinite(r.to) && r.to > r.from) {
       const n = Math.max(1, Math.round((r.to - r.from) / step));
       for (let k = 0; k < n; k++) mds.push(r.from + ((k + 0.5) * (r.to - r.from)) / n);

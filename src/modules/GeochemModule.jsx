@@ -1,4 +1,5 @@
 import { qcColumns, qcFields } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
+import { zeroMeansMissing } from "../lib/missingElevation.js"; // TASKS.csv #1394
 import React, { useState, useRef, useMemo, Suspense } from "react";
 import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1284
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
@@ -591,8 +592,9 @@ export default function GeochemModule() {
     if (!mapping.x || !mapping.y) { setNotices((p) => [...p, errorNotice(tr("Map the X and Y columns."))]); return; }
     // TASKS.csv #606 — Z is optional: a blank z, or a Z column that is 0 on every row (an MX soil export whose
     // elevation was never filled in), is MISSING, not sea level; the 3D view places those samples on the terrain.
-    const zAllZero = !!mapping.z && allRows.length > 0 && allRows.every((r) => { const v = num(r[mapping.z]); return v === 0 || !Number.isFinite(v); });
-    const zOf = (r) => { if (!mapping.z || zAllZero) return null; const v = num(r[mapping.z]); return Number.isFinite(v) ? v : null; };
+    // #1394 — and a 0 among real elevations well above sea level is missing too (zeroMeansMissing)
+    const zeroMissing = !!mapping.z && zeroMeansMissing(allRows.map((r) => num(r[mapping.z])));
+    const zOf = (r) => { if (!mapping.z) return null; const v = num(r[mapping.z]); return Number.isFinite(v) && !(v === 0 && zeroMissing) ? v : null; };
     const mediaSet = new Set(SURFACE_MEDIA);
     // TASKS.csv #600 (40958Z) — the words exports use for a medium: an MX rock file says "rock", which used to
     // fall back to the default ("soil"), so every rock sample was labelled soil
@@ -672,7 +674,7 @@ export default function GeochemModule() {
       negMissing ? `${negMissing} value(s) ≤ -99 treated as not assayed (no-data codes).` : null,
       overLimitFilled.size ? `Over-limit samples filled from the ore-grade column: ${[...overLimitFilled].map(([sym, n]) => `${sym} ${n}`).join(", ")}.` : null,
       qcRecords.length ? `${qcRecords.length} QC insert(s) (${["standard", "blank", "duplicate"].map((k) => `${qcRecords.filter((q) => q.kind === k).length} ${k}`).join(", ")}) kept apart for Surface QA/QC, not as samples.` : null,
-      noZ ? `${noZ} sample(s) have no elevation${zAllZero ? ` (the "${mapping.z}" column is 0 on every row)` : ""} — the 3D view places them on the terrain.` : null,
+      noZ ? `${noZ} sample(s) have no elevation${zeroMissing ? ` (a 0 in the "${mapping.z}" column is read as no elevation)` : ""} — the 3D view places them on the terrain.` : null,
       doReproject ? `Reprojected from EPSG:${fromEpsg} to the project's EPSG:${toEpsg}${reprojectFailed ? ` (${reprojectFailed} row(s) could not be converted and were skipped)` : ""}.` : null,
     ].filter(Boolean).join(" ");
     setNotices((p) => [...p, notice("Loaded {rows} surface samples ({chosen} elements). Switch to 3D View to see them.{v}", { rows: rows.length, chosen: chosen.length, v: extra ? " " + extra : "" })]);

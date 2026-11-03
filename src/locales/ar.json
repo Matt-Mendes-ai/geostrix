@@ -6954,5 +6954,7 @@
   "Ore from one hole / extrapolated": "خام من بئر واحدة / مستقرأ",
   "Most of this ore is in blocks the estimate classed as extrapolated: the pit rests on grades the drilling does not surround.": "معظم هذا الخام في كتل صنّفها التقدير مستقرأة: تعتمد الحفرة على درجات لا تحيط بها الآبار.",
   "Steeper than 65° overall or deeper than 500 m is beyond most open pits: treat it as a sign the body is an underground question.": "ميل إجمالي أكثر من 65° أو عمق أكثر من 500 م يتجاوز معظم الحفر المكشوفة: اعتبره إشارة إلى أن الجسم مسألة تعدين تحت الأرض.",
-  "The ground is interpolated between the collars, not a terrain.": "سطح الأرض مستكمل بين رؤوس الآبار، وليس تضاريس."
+  "The ground is interpolated between the collars, not a terrain.": "سطح الأرض مستكمل بين رؤوس الآبار، وليس تضاريس.",
+  "{unitName}: {n} interval start(s) right under a fault, breccia, vein, dyke, no-recovery or casing interval were not used as tops (roles in Modelling codes).": "{unitName}: لم تُستخدم {n} من بدايات الفترات الواقعة مباشرة تحت صدع أو بريشيا أو عرق أو قاطع أو فترة بلا استرداد أو تغليف كأسطح علوية (الأدوار في رموز النمذجة).",
+  "Skipping from the stack (no top contacts it can use — no intervals, or every start is at a hole start or under casing, overburden, a cross-cutting or an older unit; the notes above say which): {skipped}.": "تخطي في العمود (لا توجد تماسات علوية صالحة: لا فترات، أو كل بداية عند بداية البئر أو تحت تغليف أو غطاء أو وحدة قاطعة أو وحدة أقدم؛ الملاحظات أعلاه تبيّن أيها): {skipped}."
 }

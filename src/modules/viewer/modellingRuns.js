@@ -7,15 +7,15 @@ import { sanitizeMesh } from "../../lib/meshSanitize.js";
 import { checkAgainstLogs, unitVolumes, resampleWarpedBlock, capBlockAtGround } from "../../lib/modelCheck.js";
 import { pythonImplicitModel } from "../../lib/desktop.js";
 import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, spreadSummary, spreadColor, SPREAD_NOT_REPRODUCED } from "../../lib/surfaceSpread.js";
-import { colorForLithology, colorForAlteration, colorForStructure, minMax, roleForLithology } from "../../lib/layers.js";
+import { colorForLithology, colorForAlteration, colorForStructure, minMax, roleForLithology, mcodeRoleOf } from "../../lib/layers.js";
 import { computeMeshVolume } from "../../lib/volumetrics.js";
 import { MAX_BLOCKS, SUPPORT_COLORS, MAX_BLOCK_BUDGET, gridBlockCount, cellToFit } from "../../lib/estimationMeta.js"; // budget: #625 // #552 — the estimator itself loads in the run functions
 import { compositeDownhole, rawSampleIntervals, capAudit, capAuditText } from "../../lib/geochem.js"; // capAudit: #533; rawSampleIntervals: #571
 import { excludeQAQC } from "../../lib/qaqc.js";
 import { errorNotice, notice, appendNotice } from "../../lib/notices.js";
 import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, splitIntervalForSampling, spatialClusters, terrainGroundAt } from "../../lib/viewer/geomath.js";
-import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals } from "../../lib/viewer/intervals.js";
-import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit } from "../../lib/modellingCodes.js"; // TASKS.csv #599
+import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals, depthKey } from "../../lib/viewer/intervals.js";
+import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit, startsBelowNonUnit } from "../../lib/modellingCodes.js"; // TASKS.csv #599; #1367
 import { clipMesh } from "../../lib/clipMesh.js";
 import { holeCounts } from "../../lib/intervalBox.js"; // TASKS.csv #1337
 import { thinStructurePicks } from "../../lib/viewer/orientationThin.js"; // TASKS.csv #765
@@ -844,7 +844,7 @@ export function createModellingRuns(ctx, mcRef) {
   // only where the code starts directly below a younger stratigraphic unit (lib/modellingCodes.js), never at
   // a hole start, below an unlogged gap, below casing / overburden or below an intrusion / cross-cutting body
   // (#495). Roles default from the code (#496's old four-code table) and are set in the code list.
-  const mcodeDefaultRole = (name) => { const r = roleForLithology(name); return r === "overburden" ? "overburden" : (r === "fault" || r === "dyke" || r === "breccia") ? "cross-cutting" : "stratigraphic"; };
+  const mcodeDefaultRole = (name) => mcodeRoleOf(roleForLithology(name)); // #1369: veins cross-cut, no recovery is ignored
   const mcodeGroupOf = (v) => (lithoGroups || []).find((g) => (g.codes || []).includes(v))?.name || null;
   const gatherLithoSurfaceSpec = (target, traces, { silent = false, mapConstraint: mapC = null, pileOrder = null } = {}) => {
     const isMcode = typeof target === "object" && target !== null && target.kind === "mcode";
@@ -873,7 +873,9 @@ export function createModellingRuns(ctx, mcRef) {
     const contCodes = hasAssign ? new Set([IN]) : codes;
     const litEnds = intervalEndIndex(idxRows);
     const litStarts = intervalStartIndex(idxRows); // #569 — for up-holes
-    let splitsSkipped = 0, upHolePicks = 0;
+    let splitsSkipped = 0, upHolePicks = 0, belowRoleSkipped = 0;
+    // #1367 — the logged codes around each depth, for the roles of what sits right above an interval (raw values, not IN tokens)
+    const rawEnds = isMcode ? null : intervalEndIndex(layers.litho), rawStarts = isMcode ? null : intervalStartIndex(layers.litho);
     if (isMcode) {
       // a stack's own order is the pile order for codes the code list hasn't placed
       const mc = withPileOrder(modellingCodes, pileOrder); // roles of every code kept (the first version dropped unplaced codes' roles)
@@ -908,6 +910,9 @@ export function createModellingRuns(ctx, mcRef) {
         // TASKS.csv #569 — the upper contact is at `to` in a rising (up-hole) interval
         const top = upperContactOf(r, zAt, { startIndex: litStarts, endIndex: litEnds, codes: contCodes });
         if (top.continues) { splitsSkipped++; return; }
+        // #1367 — under a fault, breccia, vein, dyke, no recovery or casing the start is not a top (the roles of Modelling codes)
+        const aboveVals = top.upHole ? rawStarts.get(depthKey(r.hole_id, r.to)) : rawEnds.get(depthKey(r.hole_id, r.from));
+        if (startsBelowNonUnit(aboveVals, modellingCodes, mcodeGroupOf, mcodeDefaultRole)) { belowRoleSkipped++; return; }
         // TASKS.csv #84 — a boundary intercept the user has explicitly reviewed and excluded (via the
         // Boundary intercepts table) never feeds a modelling run, same as if the row didn't exist.
         if (excludedIntercepts.includes(interceptId("litho", r))) return;
@@ -945,6 +950,8 @@ export function createModellingRuns(ctx, mcRef) {
     // that surface, no separate matching step. Domain-filtered the same way litho points are, so a
     // contact drawn outside the active modelling domain doesn't leak into a run scoped to exclude it.
     if (splitsSkipped && !silent) setNotices((p) => [...p, notice("{unitName}: {splitsSkipped} interval start(s) inside the unit (the row above in the same hole is the same {v}) were not used as contacts.", { unitName, splitsSkipped, v: isGroup ? tr("group") : tr("unit") })]);
+    // #1367 — said inside a stack too: it changes which picks the surface follows
+    if (belowRoleSkipped) setNotices((p) => [...p, notice("{unitName}: {n} interval start(s) right under a fault, breccia, vein, dyke, no-recovery or casing interval were not used as tops (roles in Modelling codes).", { unitName, n: belowRoleSkipped })]);
     if (upHolePicks && !silent) setNotices((p) => [...p, notice("{unitName}: {upHolePicks} contact(s) are in holes drilled upward there — the unit's top was taken at the interval's deeper end (to), which is the higher one.", { unitName, upHolePicks })]); // #569
     // #810 — always said, even inside a stack (silent): it changes which picks the surface follows
     if (assignedIn || assignedOut) setNotices((p) => [...p, notice("{unitName}: modelling-code assignments followed: {assignedIn} interval(s) re-coded into it used, {assignedOut} logged as it but re-coded to another code left out.", { unitName, assignedIn, assignedOut })]);
@@ -1137,7 +1144,7 @@ export function createModellingRuns(ctx, mcRef) {
     if (isMcode) role = mcodeInfo.role === "overburden" ? "overburden" : mcodeInfo.role === "stratigraphic" ? "stratigraphic" : "dyke"; // #599: intrusion / cross-cutting -> a cross-cutting surface type
     else if (isGroup) { const roles = new Set([...codes].map(roleForLithology)); role = roles.size === 1 ? [...roles][0] : "stratigraphic"; }
     else role = roleForLithology(unitName);
-    const type = role === "overburden" ? "overburden_base" : role === "fault" ? "fault" : role === "dyke" ? "dyke" : role === "breccia" ? "breccia_body" : "stratigraphic_contact";
+    const type = role === "overburden" ? "overburden_base" : role === "fault" ? "fault" : role === "dyke" || role === "vein" ? "dyke" : role === "breccia" ? "breccia_body" : "stratigraphic_contact"; // vein: #1369, a tabular cross-cutting body
     // A group's own assignable color drives its surface/legend; falls back to the first member's
     // per-code color if none set. Raw intervals in the 3D log keep their individual code colors.
     const color = isMcode ? (mcodeInfo.color || colorForLithology([...(mcodeLogged || [])][0] || unitName)) : isGroup ? (target.color || colorForLithology([...codes][0])) : colorForLithology(unitName);
@@ -1203,7 +1210,7 @@ export function createModellingRuns(ctx, mcRef) {
       if (stackBreaks?.includes(u) && specs.length) breakAt.add(specs.length - 1);
     });
     breakAt.delete(specs.length - 1); // nothing below it
-    if (skipped.length) setNotices((p) => [...p, notice("Skipping from the stack (no lithology intervals found): {skipped}.", { skipped: skipped.join(", ") })]);
+    if (skipped.length) setNotices((p) => [...p, notice("Skipping from the stack (no top contacts it can use — no intervals, or every start is at a hole start or under casing, overburden, a cross-cutting or an older unit; the notes above say which): {skipped}.", { skipped: skipped.join(", ") }) /* #1370 */]);
     if (specs.length < 2) { setNotices((p) => [...p, notice("Need at least 2 units with data to model a stack — add more units or check your lithology import.")]); return; }
     noteUnmatchedDrawnContacts(specs);
     let packages = 0; // TASKS.csv #1309

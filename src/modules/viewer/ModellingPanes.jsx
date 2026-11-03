@@ -644,7 +644,7 @@ export default function ModellingPanes(props) {
             {/* TASKS.csv #241 — cross-cutting units (fault/dyke/breccia) are hidden here, not just
                 warned about in the paragraph above: they break the tool's own non-crossing guarantee,
                 so they're unselectable rather than trusting the user to read the warning first. */}
-            {litho_units.filter((u) => !stackUnits.includes(u) && !isCrossCuttingRole(roleForLithology(u))).map((u) => {
+            {litho_units.filter((u) => !stackUnits.includes(u) && !isCrossCuttingRole(roleForLithology(u)) && roleForLithology(u) !== "no recovery").map((u) => { // no recovery: #1369
               const role = roleForLithology(u);
               return <option key={u} value={u}>{u}{role === "overburden" ? tr(" (overburden)") : ""}</option>;
             })}

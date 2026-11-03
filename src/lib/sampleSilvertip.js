@@ -5,6 +5,7 @@ import Papa from "papaparse";
 import { inferUnit, mergeAssayRows, readAssayCell, mergeSurfaceSamples } from "./geochem.js";
 import { alignAssayUnits } from "./sampleWoodjam.js";
 import { t as tr } from "./i18n.js";
+import { zeroMeansMissing } from "./missingElevation.js";
 
 export const SILVERTIP_EPSG = 26909; // NAD83 / UTM zone 9N — the NAD83_9N_* columns of the acQuire export
 export const SILVERTIP_SURFACE = [["rocks.csv", "rock chip"], ["soils.csv", "soil"], ["streams.csv", "stream sediment"]];
@@ -69,6 +70,8 @@ export async function loadSilvertipExtras(readFile, store, { existingElements = 
       r.elements.forEach((e) => { if (!els.has(e.symbol)) els.set(e.symbol, e); });
       counts.push(`${r.samples.length} ${medium}`);
     }
+    // #1394 — 57 rows across the three files say z = 0 among elevations of 1,069-2,074 m: missing, not sea level
+    if (zeroMeansMissing(all.map((r) => r.z))) all.forEach((r) => { if (r.z === 0) r.z = null; });
     // an element already loaded keeps its unit (as the surface import does)
     const unitOf = new Map((existingSurfaceElements || []).map((e) => [e.symbol, e.unit]));
     store.setSurfaceSamples((prev) => mergeSurfaceSamples(prev || [], all).samples);

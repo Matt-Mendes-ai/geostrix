@@ -214,7 +214,8 @@ function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps 
     if (Number.isFinite(maxDepth) && Number.isFinite(r.to) && r.to > maxDepth + 0.5) {
       pushIssue(issues, "warning", layerLabel, r.hole_id, tr("Interval to={to}m extends past this hole's own recorded length/survey extent (~{maxDepth}m) — depth may be measured-depth vs true-vertical-depth confusion, or a mis-keyed hole ID.", { to: r.to, maxDepth: maxDepth.toFixed(0) }));
     }
-    if (!r.value || r.value === "Unknown") pushIssue(issues, "info", layerLabel, r.hole_id, tr("Interval at {v}–{v2}m has no code/value.", { v: Number.isFinite(r.from) ? r.from : "?", v2: Number.isFinite(r.to) ? r.to : "?" }));
+    // #1395 — a 0 (0 % RQD, 0 % recovery) is a measurement, not a missing value: only blank, NaN or "Unknown" counts
+    if (r.value == null || r.value === "" || (typeof r.value === "number" && !Number.isFinite(r.value)) || r.value === "Unknown") pushIssue(issues, "info", layerLabel, r.hole_id, tr("Interval at {v}–{v2}m has no code/value.", { v: Number.isFinite(r.from) ? r.from : "?", v2: Number.isFinite(r.to) ? r.to : "?" }));
   });
   byHole.forEach((intervals, holeId) => {
     const sorted = [...intervals].filter((r) => Number.isFinite(r.from) && Number.isFinite(r.to)).sort((a, b) => a.from - b.from);

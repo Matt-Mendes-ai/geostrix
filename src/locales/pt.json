@@ -6954,5 +6954,7 @@
   "Ore from one hole / extrapolated": "Minério de um só furo / extrapolado",
   "Most of this ore is in blocks the estimate classed as extrapolated: the pit rests on grades the drilling does not surround.": "A maior parte deste minério está em blocos que a estimativa classificou como extrapolados: a cava assenta em teores que os furos não rodeiam.",
   "Steeper than 65° overall or deeper than 500 m is beyond most open pits: treat it as a sign the body is an underground question.": "Mais de 65° de talude global ou mais de 500 m de profundidade ultrapassa a maioria das cavas a céu aberto: tome-o como sinal de que o corpo é um caso subterrâneo.",
-  "The ground is interpolated between the collars, not a terrain.": "A superfície é interpolada entre os colares, não é um terreno."
+  "The ground is interpolated between the collars, not a terrain.": "A superfície é interpolada entre os colares, não é um terreno.",
+  "{unitName}: {n} interval start(s) right under a fault, breccia, vein, dyke, no-recovery or casing interval were not used as tops (roles in Modelling codes).": "{unitName}: {n} início(s) de intervalo logo abaixo de uma falha, brecha, veio, dique, trecho sem recuperação ou revestimento não foram usados como topos (funções em Códigos de modelagem).",
+  "Skipping from the stack (no top contacts it can use — no intervals, or every start is at a hole start or under casing, overburden, a cross-cutting or an older unit; the notes above say which): {skipped}.": "Fora da pilha (sem contatos de topo utilizáveis: sem intervalos, ou cada início está no começo do furo ou sob revestimento, cobertura, uma unidade que corta ou uma unidade mais antiga; as notas acima dizem qual): {skipped}."
 }
