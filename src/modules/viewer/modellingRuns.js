@@ -1651,6 +1651,7 @@ export function createModellingRuns(ctx, mcRef) {
     setVeinBusy(true);
     setTaskProgress?.({ label, pct: 20 });
     setTimeout(async () => {
+      let logged = null; // #1415 — read by the catch below
       try {
         const { buildVeinModel } = await import("../../lib/vein.js"); // #144; loaded on first use (#476)
         const traceOf = new Map(traces.map((t) => [t.hole_id, t]));
@@ -1689,10 +1690,17 @@ export function createModellingRuns(ctx, mcRef) {
 
         const dip = veinDip === "" ? null : Number(veinDip);
         const dipDir = veinDipDir === "" ? null : Number(veinDipDir);
+        const typed = Number.isFinite(dip) && Number.isFinite(dipDir);
+        // TASKS.csv #1415 — the oriented-core vein measurements at the intercepts: the attitude when the midpoints cannot fix
+        // one, a check beside the fitted plane when they can
+        const { loggedVeinAttitude } = await import("../../lib/veinOrientations.js");
+        logged = typed ? null : loggedVeinAttitude(used, layers.structure, { veinValue });
+        const fromLogs = logged?.n ? `mean of ${logged.n} oriented-core vein measurement(s) at the intercepts` : null;
         const model = buildVeinModel(used, {
           cellSize: veinCellSize > 0 ? veinCellSize : 0,
           searchRadius: veinSearchRadius > 0 ? veinSearchRadius : 0,
-          ...(Number.isFinite(dip) && Number.isFinite(dipDir) ? { dip, dipDir } : {}),
+          ...(typed ? { dip, dipDir } : {}),
+          ...(fromLogs ? { fallbackAttitude: { dip: logged.meanDip, dipDir: logged.meanDipDir, source: fromLogs } } : {}),
         });
 
         const toScene = (p) => apiToScene([p.x - o.x, p.y - o.y, p.z - o.z]);
@@ -1767,10 +1775,24 @@ export function createModellingRuns(ctx, mcRef) {
         const holeCount = new Set(used.map((i) => i.holeId)).size;
         if (holeCount && used.length / holeCount > 2.5) setNotices((p) => [...p, notice("\"{label}\": {used} intercepts in {holeCount} hole(s) — about {v} per hole. A single vein is cut once per hole, so this code is behaving like a vein SET or stockwork; the pair below is the average envelope of all of them, not one vein. To model one vein, log or filter it as its own code.", { label, used: used.length, holeCount, v: (used.length / holeCount).toFixed(1) })]);
         if (ck.nominalLabels) setNotices((p) => [...p, notice("\"{label}\" is near-vertical ({v}° dip), so \"hangingwall\" and \"footwall\" are nominal labels here — the two surfaces are simply the two walls of the structure.", { label, v: fmt(pl.dip, 0) })]);
+        // #1415 — last, so they are among the messages the sidebar keeps
+        if (logged?.n) {
+          const spread = logged.k != null ? tr(", k = {k}, α95 = {a}°", { k: logged.k.toFixed(1), a: logged.alpha95.toFixed(0) }) : tr(", one measurement only");
+          if (pl.attitudeSource === fromLogs) setNotices((p) => [...p, notice("\"{label}\": attitude {dip}° / {dipDir}° from {n} oriented-core measurement(s) at the intercepts ({types}; {holes} hole(s); within {tol} m){spread}. The intercept midpoints alone could not fix it.", { label, dip: fmt(pl.dip, 0), dipDir: fmt(pl.dipDir, 0), n: logged.n, types: logged.types.join(", "), holes: logged.holes, tol: logged.tolM, spread })]);
+          else if (pl.attitudeSource === "fitted to intercept midpoints") {
+            const toN = (d, dd) => { const a = (d * Math.PI) / 180, b = (dd * Math.PI) / 180; return [Math.sin(b) * Math.sin(a), Math.cos(b) * Math.sin(a), Math.cos(a)]; };
+            const [n1, n2] = [toN(pl.dip, pl.dipDir), toN(logged.meanDip, logged.meanDipDir)];
+            const angle = (Math.acos(Math.min(1, Math.abs(n1[0] * n2[0] + n1[1] * n2[1] + n1[2] * n2[2]))) * 180) / Math.PI;
+            setNotices((p) => [...p, notice("\"{label}\": the {n} oriented-core vein measurement(s) at the intercepts average {dip}° / {dipDir}°{spread}, {angle}° from the plane fitted to the midpoints.", { label, n: logged.n, dip: fmt(logged.meanDip, 0), dipDir: fmt(logged.meanDipDir, 0), spread, angle: fmt(angle, 0) })]);
+          }
+          if (logged.noPreferred) setNotices((p) => [...p, notice("Warning: the {n} \"{name}\" picks show no preferred orientation (k = {k}, at the level of random planes), so their dips do not define one surface. Check them on the Stereonet, or give each structure its own name/ID.", { n: logged.n, name: logged.types.join(", "), k: logged.k.toFixed(1) })]);
+        }
         const meshes = Object.values(implicitMeshesRef.current);
         if (meshes.length) fitBox(new THREE.Box3().setFromObject(meshes[meshes.length - 1]));
       } catch (e) {
-        setNotices((p) => [...p, errorNotice(tr("Vein model failed: {v}", { v: e.message || e }))]);
+        // #1415 — when the attitude was the problem, say whether the core had any vein measurements to offer
+        const none = e?.attitude && logged && !logged.n ? ` ${tr("No oriented-core vein measurements lie within {tol} m of these intercepts.", { tol: logged.tolM })}` : "";
+        setNotices((p) => [...p, errorNotice(tr("Vein model failed: {v}", { v: e.message || e }) + none)]);
       }
       setTaskProgress?.(null);
       setVeinBusy(false);

@@ -7015,5 +7015,11 @@
   "Model surfaces": "أسطح النموذج",
   "(log)": "(لوغاريتمي)",
   "Log scale spreads trace-element grades and mag susc (a few high values no longer flatten the rest). Linear is proportional to the value.": "يباعد المقياس اللوغاريتمي بين محتويات العناصر النزرة والقابلية المغناطيسية (لم تعد بضع قيم عالية تُسطّح البقية). المقياس الخطي يتناسب مع القيمة.",
-  "Intensity": "الشدة"
+  "Intensity": "الشدة",
+  "All the vein intercepts are in one hole, so their midpoints lie along the hole and cannot fix the vein's attitude. Enter the vein's dip and dip direction to model it.": "كل تقاطعات العرق في ثقب حفر واحد، لذا تقع نقاطها الوسطى على امتداد الثقب ولا تحدد وضعية العرق. أدخل ميل العرق واتجاه ميله لنمذجته.",
+  ", k = {k}, α95 = {a}°": "، k = {k}، α95 = {a}°",
+  ", one measurement only": "، قياس واحد فقط",
+  "\"{label}\": attitude {dip}° / {dipDir}° from {n} oriented-core measurement(s) at the intercepts ({types}; {holes} hole(s); within {tol} m){spread}. The intercept midpoints alone could not fix it.": "\"{label}\": الوضعية {dip}° / {dipDir}° من {n} قياس(ات) لُب موجّه عند التقاطعات ({types}؛ {holes} ثقب؛ ضمن {tol} م){spread}. لم تكن النقاط الوسطى للتقاطعات وحدها كافية لتحديدها.",
+  "\"{label}\": the {n} oriented-core vein measurement(s) at the intercepts average {dip}° / {dipDir}°{spread}, {angle}° from the plane fitted to the midpoints.": "\"{label}\": متوسط قياسات العروق الـ{n} في اللب الموجّه عند التقاطعات هو {dip}° / {dipDir}°{spread}، على بعد {angle}° من المستوى الملائم للنقاط الوسطى.",
+  "No oriented-core vein measurements lie within {tol} m of these intercepts.": "لا توجد قياسات عروق في لب موجّه ضمن {tol} م من هذه التقاطعات."
 }

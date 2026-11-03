@@ -197,6 +197,8 @@ const MAX_NODES = 250000;
  *                   three intercepts, or when the geologist knows the attitude better than a plane
  *                   fitted through a handful of midpoints does.
  *   padding         extra margin around the data in the plane (m). Default: one search radius.
+ *   fallbackAttitude { dip, dipDir, source } — TASKS.csv #1415: used only when the midpoints cannot fix the attitude (fewer
+ *                   than three, or all on one line), e.g. the mean of the oriented-core vein measurements at the intercepts.
  */
 export function buildVeinModel(intercepts, opts = {}) {
   const pts = (intercepts || []).filter((i) => i && i.hw && i.fw);
@@ -210,21 +212,29 @@ export function buildVeinModel(intercepts, opts = {}) {
   const downhole = pts.map((i) => Math.hypot(i.fw.x - i.hw.x, i.fw.y - i.hw.y, i.fw.z - i.hw.z));
 
   let plane, attitudeSource;
-  if (Number.isFinite(opts.dip) && Number.isFinite(opts.dipDir)) {
-    // Build the normal from the supplied attitude the same way trueWidth.js does, so the override and
-    // the fit agree on convention by construction.
-    const dipR = opts.dip / DEG, ddR = opts.dipDir / DEG;
-    // Upward normal for (dipDir, dip): the negated downward pole trendPlungeToVec(dipDir+180, 90-dip).
-    // Verified orthogonal to the down-dip vector (sinα cosδ, cosα cosδ, -sinδ) in the harness.
+  // Build the normal from a given attitude the same way trueWidth.js does, so the override and the fit agree on convention
+  // by construction. Upward normal for (dipDir, dip): the negated downward pole trendPlungeToVec(dipDir+180, 90-dip).
+  // Verified orthogonal to the down-dip vector (sinα cosδ, cosα cosδ, -sinδ) in the harness.
+  const planeOf = (dip, dipDir) => {
+    const dipR = dip / DEG, ddR = dipDir / DEG;
     const nv = { x: Math.sin(ddR) * Math.sin(dipR), y: Math.cos(ddR) * Math.sin(dipR), z: Math.cos(dipR) };
     const c = mids.reduce((a, p) => ({ x: a.x + p.x / mids.length, y: a.y + p.y / mids.length, z: a.z + p.z / mids.length }), { x: 0, y: 0, z: 0 });
-    plane = { centroid: c, normal: nv, rmsOffPlane: null, planarity: null, dip: opts.dip, dipDir: opts.dipDir };
+    return { centroid: c, normal: nv, rmsOffPlane: null, planarity: null, dip, dipDir };
+  };
+  const fb = opts.fallbackAttitude && Number.isFinite(opts.fallbackAttitude.dip) && Number.isFinite(opts.fallbackAttitude.dipDir) ? opts.fallbackAttitude : null;
+  if (Number.isFinite(opts.dip) && Number.isFinite(opts.dipDir)) {
+    plane = planeOf(opts.dip, opts.dipDir);
     attitudeSource = "user-supplied";
   } else {
     plane = fitPlane(mids);
-    if (!plane) throw new Error(tr("At least three vein intercepts (or an explicit dip / dip direction) are needed to establish the vein's attitude."));
-    if (plane.collinearity < 0.02) throw new Error(tr("The vein intercepts lie along a single line (one section of holes), so their midpoints cannot fix the vein's attitude — the fitted plane could be rotated freely about that line. Enter the vein's dip and dip direction to model it."));
-    attitudeSource = "fitted to intercept midpoints";
+    const oneHole = new Set(pts.map((i) => i.holeId)).size === 1;
+    if (!plane || plane.collinearity < 0.02) {
+      if (fb) { plane = planeOf(fb.dip, fb.dipDir); attitudeSource = fb.source || "fallback attitude"; } // #1415
+      else if (!plane) throw Object.assign(new Error(tr("At least three vein intercepts (or an explicit dip / dip direction) are needed to establish the vein's attitude.")), { attitude: true });
+      // #1415 — "one section of holes" was said of intercepts all in one hole
+      else if (oneHole) throw Object.assign(new Error(tr("All the vein intercepts are in one hole, so their midpoints lie along the hole and cannot fix the vein's attitude. Enter the vein's dip and dip direction to model it.")), { attitude: true });
+      else throw Object.assign(new Error(tr("The vein intercepts lie along a single line (one section of holes), so their midpoints cannot fix the vein's attitude — the fitted plane could be rotated freely about that line. Enter the vein's dip and dip direction to model it.")), { attitude: true });
+    } else attitudeSource = "fitted to intercept midpoints";
   }
 
   const { u: U, v: V } = planeBasis(plane.normal);

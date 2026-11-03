@@ -18,7 +18,7 @@ test("gatherFaultSpec runs the #1066 orientation check and the several-holes che
 
 test("the wording is the Structures tool's own (one translation key for both)", () => {
   const key = "Warning: the {n} \\\"{name}\\\" picks show no preferred orientation";
-  assert.equal(src.split(key).length - 1, 2);
+  assert.ok(src.split(key).length - 1 >= 2); // the Structures tool and the stack (the vein tool reuses it too, #1415)
 });
 
 test("a fault type that already says fault is not prefixed again; no ID reads '(all picks)'", () => {

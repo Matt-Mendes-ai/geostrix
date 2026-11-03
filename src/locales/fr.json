@@ -7015,5 +7015,11 @@
   "Model surfaces": "Surfaces du modèle",
   "(log)": "(log)",
   "Log scale spreads trace-element grades and mag susc (a few high values no longer flatten the rest). Linear is proportional to the value.": "L'échelle logarithmique étale les teneurs en éléments traces et la susceptibilité magnétique (quelques valeurs fortes n'écrasent plus le reste). L'échelle linéaire est proportionnelle à la valeur.",
-  "Intensity": "Intensité"
+  "Intensity": "Intensité",
+  "All the vein intercepts are in one hole, so their midpoints lie along the hole and cannot fix the vein's attitude. Enter the vein's dip and dip direction to model it.": "Toutes les intersections de la veine sont dans un seul sondage : leurs points milieux s'alignent le long du sondage et ne fixent pas l'attitude de la veine. Saisissez le pendage et la direction de pendage de la veine pour la modéliser.",
+  ", k = {k}, α95 = {a}°": ", k = {k}, α95 = {a}°",
+  ", one measurement only": ", une seule mesure",
+  "\"{label}\": attitude {dip}° / {dipDir}° from {n} oriented-core measurement(s) at the intercepts ({types}; {holes} hole(s); within {tol} m){spread}. The intercept midpoints alone could not fix it.": "« {label} » : attitude {dip}° / {dipDir}° tirée de {n} mesure(s) sur carotte orientée aux intersections ({types} ; {holes} sondage(s) ; à {tol} m ou moins){spread}. Les points milieux des intersections ne suffisaient pas à la fixer.",
+  "\"{label}\": the {n} oriented-core vein measurement(s) at the intercepts average {dip}° / {dipDir}°{spread}, {angle}° from the plane fitted to the midpoints.": "« {label} » : les {n} mesures de veines sur carotte orientée aux intersections donnent en moyenne {dip}° / {dipDir}°{spread}, à {angle}° du plan ajusté aux points milieux.",
+  "No oriented-core vein measurements lie within {tol} m of these intercepts.": "Aucune mesure de veine sur carotte orientée ne se trouve à {tol} m ou moins de ces intersections."
 }
