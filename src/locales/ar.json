@@ -7062,5 +7062,8 @@
   "{v} of the solid lies above the terrain and was left out (air, not the unit).": "{v} من المجسم فوق سطح الأرض وقد استُبعد (هواء، لا الوحدة).",
   "{v} of the solid lies above the ground between the collars and was left out (air, not the unit; load a terrain for the real surface).": "{v} من المجسم فوق الأرض المستكملة بين الفوهات وقد استُبعد (هواء، لا الوحدة؛ حمّل تضاريس للسطح الحقيقي).",
   "The target is above the collar, so the solved hole points upward. From a surface collar that is not a hole you can drill: check the target's elevation.": "الهدف أعلى من الفوهة، لذا يتجه الثقب المحلول إلى الأعلى. من فوهة سطحية هذا ثقب لا يمكن حفره: تحقّق من ارتفاع الهدف.",
-  "Follows its view's north. Typing an angle frees it.": "يتبع شمال العرض المرتبط به. كتابة زاوية تفكّه."
+  "Follows its view's north. Typing an angle frees it.": "يتبع شمال العرض المرتبط به. كتابة زاوية تفكّه.",
+  "+ {n} more (fewer intervals; edit the legend to add them)": "+ {n} أخرى (فترات أقل؛ عدّل المفتاح لإضافتها)",
+  " Categories from the {h} of {all} holes inside the frame.": " الفئات من {h} من أصل {all} ثقبًا داخل الإطار.",
+  "Note": "ملاحظة"
 }

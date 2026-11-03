@@ -88,6 +88,21 @@ export function worldToVp(el, E, N) {
   const a = (E - el.targetWorld.x) / m, c = -(N - el.targetWorld.y) / m;
   return [a * cb + c * sb, -a * sb + c * cb];
 }
+// TASKS.csv #1633 (review #1497, Lawyers) — the holes a top-down, true-scale frame shows: the collar, the middle or the end of the
+// hole (straight from the collar's azimuth / dip / length; a survey bends it little at legend precision) inside the captured
+// image. null when the frame is not such a capture (an oblique view has no ground extent to test).
+export function holesInFrame(el, collars) {
+  if (!utmGridReady(el)) return null;
+  const { w, h } = capturedSize(el), out = new Set();
+  const inside = (E, N) => { const [x, y] = worldToVp(el, E, N); return Math.abs(x) <= w / 2 && Math.abs(y) <= h / 2; };
+  for (const c of collars || []) {
+    if (!Number.isFinite(c.x) || !Number.isFinite(c.y)) continue;
+    const az = ((Number(c.azimuth) || 0) * Math.PI) / 180, dip = ((Math.abs(Number(c.dip)) || 90) * Math.PI) / 180, horiz = (Number(c.length) || 0) * Math.cos(dip);
+    const at = (t) => [c.x + Math.sin(az) * horiz * t, c.y + Math.cos(az) * horiz * t];
+    if ([0, 0.5, 1].some((t) => inside(...at(t)))) out.add(c.hole_id);
+  }
+  return out;
+}
 export function overviewPolygon(overview, target) {
   if (!target || !utmGridReady(overview) || !utmGridReady(target)) return null;
   const { w: tw, h: th } = capturedSize(target), { w: ow, h: oh } = capturedSize(overview);

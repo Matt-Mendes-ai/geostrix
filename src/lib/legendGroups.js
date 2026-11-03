@@ -35,18 +35,20 @@ export function categoryLegendGroups({ keys, layers, layerVisible, hidden = {}, 
     if (singleColor[key]) { groups.push({ key, label: LAYER_META[key].label, items: [["all (one colour)", singleColor[key]]] }); return; }
     const h = hidden[key];
     const isHidden = h instanceof Set ? (v) => h.has(v) : Array.isArray(h) ? ((s) => (v) => s.has(v))(new Set(h)) : () => false;
-    const seen = new Set();
-    const items = [];
+    const seen = new Map(); // value -> its row in `items` (#1633: and how many intervals carry it)
+    const items = [], counts = [];
     for (const row of rows) {
       const v = row.value;
       if (v == null || v === "") continue;
       const k = String(v);
-      if (isHidden(k) || seen.has(k)) continue;
+      if (isHidden(k)) continue;
       if (row.hole_id && visibleHoles[row.hole_id] === false) continue;
-      seen.add(k);
-      items.push([labelFor(key, v), colorFor(key, v)]);
+      if (seen.has(k)) { counts[seen.get(k)]++; continue; }
+      seen.set(k, items.length);
+      items.push([labelFor(key, v), colorFor(key, v)]); counts.push(1);
     }
-    if (items.length) groups.push({ key, label: LAYER_META[key].label, items: items.sort((a, b) => String(a[0]).localeCompare(String(b[0]))) });
+    const order = items.map((_, i) => i).sort((a, b) => String(items[a][0]).localeCompare(String(items[b][0])));
+    if (items.length) groups.push({ key, label: LAYER_META[key].label, items: order.map((i) => items[i]), counts: order.map((i) => counts[i]) });
   });
   return groups;
 }
@@ -135,6 +137,19 @@ export function surfaceSampleLegendGroup({ samples, visible = true, style = null
 // TASKS.csv #725 — groups as Layout legend rows: [label, colour] swatches as before, plus a group heading row
 // [label, null, { heading: true }] when more than one group is shown, and a ramp row [label, null, { ramp }]. A row's
 // own options ({ kind }, #948) are kept.
+// TASKS.csv #1633 (review #1497, Lawyers) — 'Load from view' made a 4,857-row legend (59,081 px tall) because the Mineralization log
+// held free-text descriptions. A group longer than perGroup keeps its most frequent entries (by interval count, when the group
+// has counts; else its first), in their usual order, and ends with a note row saying how many were left out (moreLabel(n)).
+export function capLegendGroups(groups, perGroup = 12, moreLabel = (n) => `+ ${n} more`) {
+  return groups.map((g) => {
+    if (g.ramp || !g.items || g.items.length <= perGroup) return g;
+    const idx = g.items.map((_, i) => i);
+    const keep = new Set(g.counts ? idx.sort((a, b) => g.counts[b] - g.counts[a] || a - b).slice(0, perGroup) : idx.slice(0, perGroup));
+    const items = g.items.filter((_, i) => keep.has(i));
+    return { ...g, items: [...items, [moreLabel(g.items.length - items.length), null, { note: true }]], counts: undefined };
+  });
+}
+
 export function legendGroupsToItems(groups) {
   const multi = groups.length > 1;
   const items = [];

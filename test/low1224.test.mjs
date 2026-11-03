@@ -5,9 +5,9 @@ import { readFileSync } from "node:fs";
 const read = (f) => readFileSync(f, "utf8");
 test("#1224 a new legend is built from the view, by the same builder the sync uses", () => {
   const s = read("src/modules/LayoutModule.jsx");
-  assert.match(s, /const \{ items \} = legendFromView\(viewerUiState \|\| \{\}\);/);
-  assert.match(s, /const \{ groups, items \} = legendFromView\(theme\);/);
-  assert.equal(s.split("legendGroupsToItems(groups)").length - 1, 1);
+  assert.match(s, /const \{ items \} = legendFromView\(viewerUiState \|\| \{\}, \{ frameHoles:/); // #1633 — and the frame's holes
+  assert.match(s, /const \{ groups, items \} = legendFromView\(theme, \{ frameHoles \}\);/);
+  assert.equal(s.split("legendGroupsToItems(capLegendGroups(groups,").length - 1, 1); // #1633 — capped
   assert.match(s, /ranked = rankLegendGroups\(items\), kept = firstLegendGroups\(ranked\)[\s\S]{0,400}: \[\["Item", "#55606e"\]\]/);
 });
 test("#1225 fault-like types and the rest are separate groups", () => {

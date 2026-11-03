@@ -8,10 +8,10 @@ import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
 import { useStore } from "../lib/store.jsx";
 import PromptModal from "../components/PromptModal.jsx";
 import { minMax, LAYER_META } from "../lib/layers.js";
-import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape } from "../lib/legendGroups.js"; // TASKS.csv #725; #948
+import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
 import { withLiveScaleBars, relinkCopies, tieStarterFurniture, northRotationOf } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
-import { capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; section scale: #944
+import { capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, holesInFrame, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; section scale: #944
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
@@ -555,7 +555,8 @@ export default function LayoutModule() {
     }
     if (type === "legend") {
       // TASKS.csv #1224 — what the 3D view shows now, bound to the page's viewport if there is just one: a stock row on a printed figure says nothing true
-      const { items } = legendFromView(viewerUiState || {});
+      const only = elements.filter((el) => el.type === "viewport");
+      const { items } = legendFromView(viewerUiState || {}, { frameHoles: only.length === 1 ? holesInFrame(only[0], collars) : null }); // #1633
       // the whole view can run off the page: Load from view brings the rest. #1482 — samples and grades first, and a line says what was left out
       const ranked = rankLegendGroups(items), kept = firstLegendGroups(ranked), left = legendGroupCount(ranked) - legendGroupCount(kept);
       base.items = items.length ? (left > 0 ? [...kept, [tr("+ {n} more group(s): Load from view adds them", { n: left }), null, { heading: true }]] : kept) : [["Item", "#55606e"]];
@@ -798,7 +799,8 @@ export default function LayoutModule() {
   // ViewerModule itself uses to decide what's on screen — see captureCurrentTheme there) against the
   // ACTUAL litho vocabulary in `layers.litho` (a theme only stores which units are hidden, not the
   // full unit list, since that list can grow after the theme was saved) to build the item list.
-  const legendFromView = (theme) => {
+  // TASKS.csv #1633 — frameHoles (holesInFrame of the bound frame, or null): only the holes the frame shows give categories
+  const legendFromView = (theme, { frameHoles = null } = {}) => {
     // TASKS.csv #725 — everything the bound view draws, not only lithology: every categorical layer the theme shows
     // (minus its hidden categories and holes, with its label / colour overrides), its assay grade classes, and the
     // visible block models (classes, or a ramp) — the same builders as the 3D view's figure overlay.
@@ -807,13 +809,14 @@ export default function LayoutModule() {
     const colorFor = (k, v) => categoryColor(ov[k]?.[v], LAYER_META[k], v);
     const layerVisible = { litho: true, ...(theme.layerVisible || {}) }; // a theme saved before a layer existed: lithology on, the rest off
     const groups = [
-      ...categoryLegendGroups({ keys: LEGEND_CATEGORY_KEYS, layers, layerVisible, hidden: theme.categoryFilter || {}, visibleHoles: theme.visibleHoles || {}, singleColor: Object.fromEntries(LEGEND_CATEGORY_KEYS.filter((k) => theme.layerStyles?.[k]?.color).map((k) => [k, theme.layerStyles[k].color])), labelFor, colorFor }), // #1288
+      ...categoryLegendGroups({ keys: LEGEND_CATEGORY_KEYS, layers, layerVisible, hidden: theme.categoryFilter || {}, visibleHoles: frameHoles ? { ...(theme.visibleHoles || {}), ...Object.fromEntries(collars.filter((c) => !frameHoles.has(c.hole_id)).map((c) => [c.hole_id, false])) } : theme.visibleHoles || {}, singleColor: Object.fromEntries(LEGEND_CATEGORY_KEYS.filter((k) => theme.layerStyles?.[k]?.color).map((k) => [k, theme.layerStyles[k].color])), labelFor, colorFor }), // #1288
       ...assayLegendGroups({ assays, assayElements, assayVisible: theme.assayVisible !== false, assayDisplayElements: theme.assayDisplayElements || (theme.assayDisplayElement ? [theme.assayDisplayElement] : []), assayStyle: theme.assayStyle || {} }),
       ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), // #1236
       // TASKS.csv #948 — the Surface Geology map: surface samples as the 3D view colours them, map layers, boundaries
       ...(surfaceSampleLegend ? [surfaceSampleLegend] : []), ...mapLayerLegendGroups(mapLayers), ...boundaryLegendGroups(boundaries),
     ];
-    const items = legendGroupsToItems(groups);
+    // #1633 — a long group keeps its most frequent entries and says how many it left out
+    const items = legendGroupsToItems(capLegendGroups(groups, 12, (n) => tr("+ {n} more (fewer intervals; edit the legend to add them)", { n })));
     return { groups, items };
   };
   const syncLegendFromView = (legendId) => {
@@ -839,10 +842,12 @@ export default function LayoutModule() {
     // TASKS.csv #948 — a viewport captured from the current view (no theme) carries that view's own settings
     const theme = themes.find((t) => t.id === vp.themeId) || (!vp.themeId && vp.viewState ? { ...vp.viewState, name: tr("the current view") } : null);
     if (!theme) { setSyncNotice(tr("This viewport's saved theme could no longer be found (it may have been renamed or deleted) — rebind the viewport to a theme in its own panel, or resave that theme, then sync again.")); return; }
-    const { groups, items } = legendFromView(theme);
+    const frameHoles = holesInFrame(vp, collars); // #1633 — a top-down true-scale frame: what it shows; else the whole view
+    const { groups, items } = legendFromView(theme, { frameHoles });
     if (!items.length) { setElements((els) => els.map((el) => el.id === legendId ? { ...el, items: [] } : el)); setSyncNotice(tr("Nothing that view shows has a legend: no visible category layer, assay classes, block model, surface samples, map layer or boundary.")); return; }
     setElements((els) => els.map((el) => el.id === legendId ? { ...el, items } : el));
-    setSyncNotice(tr(groups.length === 1 ? "Loaded {n} legend group from \"{name}\"." : "Loaded {n} legend groups from \"{name}\".", { n: groups.length, name: theme.name }));
+    setSyncNotice(tr(groups.length === 1 ? "Loaded {n} legend group from \"{name}\"." : "Loaded {n} legend groups from \"{name}\".", { n: groups.length, name: theme.name })
+      + (frameHoles ? tr(" Categories from the {h} of {all} holes inside the frame.", { h: frameHoles.size, all: collars.length }) : ""));
   };
 
   // TASKS.csv #78 — drag-and-drop as a consistent import method. Layout's own "asset" is an image
@@ -1072,8 +1077,8 @@ export default function LayoutModule() {
                 {syncNotice && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-accent-dark)", margin: "4px 0 8px", lineHeight: 1.4 }}>{syncNotice}</div>}
                 {sel.items.map(([name, color, opt], i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
-                    {opt?.heading || opt?.ramp /* TASKS.csv #725 — a group heading or a ramp has no single colour */
-                      ? <span title={opt.ramp ? tr("Colour scale") : tr("Group heading")} style={{ width: 24, height: 24, flexShrink: 0, borderRadius: 4, border: "1px solid var(--color-border)", background: opt.ramp ? `linear-gradient(to right, ${opt.ramp.colors.join(", ")})` : "transparent" }} />
+                    {opt?.heading || opt?.ramp || opt?.note /* TASKS.csv #725 — a group heading or a ramp has no single colour; #1633 a note */
+                      ? <span title={opt.ramp ? tr("Colour scale") : opt.note ? tr("Note") : tr("Group heading")} style={{ width: 24, height: 24, flexShrink: 0, borderRadius: 4, border: "1px solid var(--color-border)", background: opt.ramp ? `linear-gradient(to right, ${opt.ramp.colors.join(", ")})` : "transparent" }} />
                       : <input type="color" value={color} onChange={(e) => {
                         const items = sel.items.map((it, j) => j === i ? [it[0], e.target.value, ...it.slice(2)] : it);
                         updateSelected({ items });
@@ -1880,6 +1885,8 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
       <div style={{ fontSize: printPx(printPt.body), fontWeight: 700, color: INK, marginBottom: 6, fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Legend")}</div>
       {el.items.map(([name, color, opt], i) => opt?.heading ? ( /* TASKS.csv #725 — a group heading */
         <div key={i} style={{ fontSize: printPx(printPt.small), fontWeight: 700, color: INK, margin: i ? "6px 0 2px" : "0 0 2px" }}>{name}</div>
+      ) : opt?.note ? ( /* TASKS.csv #1633 — what a capped group left out */
+        <div key={i} style={{ fontSize: printPx(printPt.caption), fontStyle: "italic", color: "#55606e", margin: "0 0 3px 28px" }}>{name}</div>
       ) : opt?.ramp ? ( /* a block model's continuous scale */
         <div key={i} style={{ marginBottom: 4 }}>
           <div style={{ fontSize: printPx(printPt.small), fontWeight: 700, color: INK, marginTop: i ? 6 : 0 }}>{name}{opt.ramp.log ? tr(" · log scale") : ""}</div>
