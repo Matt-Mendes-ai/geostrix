@@ -108,9 +108,17 @@ export function parseGeoJSON(text) {
     if (f?.id != null && attributes.id == null) attributes.id = f.id;
     add(f?.geometry, attributes);
   }
+  // TASKS.csv #1757 (review #1645, Copley) — RFC 7946 says longitude / latitude, but a GeoJSON written in UTM with no "crs" member was read as
+  // degrees and placed ~15,000 km away, with "Imported" said. Coordinates outside +-180 / +-90 cannot be degrees: such a file is taken as the
+  // project CRS (notDegrees), which the importers then say.
+  let notDegrees = false;
+  if (epsg === 4326 && !crsName) {
+    outer: for (const list of Object.values(by)) for (const f of list) for (const part of f.parts) for (const [x, y] of part) if (Math.abs(x) > 180 || Math.abs(y) > 90) { notDegrees = true; break outer; }
+  }
+  const epsgOut = notDegrees ? null : epsg;
   const names = { point: "points", polyline: "lines", polygon: "polygons" };
-  const layers = Object.entries(by).filter(([, l]) => l.length).map(([geomType, features], i) => ({ name: names[geomType], geomType, epsg, features, skippedCount: i === 0 ? skipped : 0 }));
-  return { layers, epsg, skipped, crsNamed: crsName || null };
+  const layers = Object.entries(by).filter(([, l]) => l.length).map(([geomType, features], i) => ({ name: names[geomType], geomType, epsg: epsgOut, ...(notDegrees ? { notDegrees } : {}), features, skippedCount: i === 0 ? skipped : 0 }));
+  return { layers, epsg: epsgOut, skipped, crsNamed: crsName || null, notDegrees };
 }
 
 // lines and polygon rings of map layers as boundary polylines [{x, y}] in the project CRS. reproject(x, y, from, to)
@@ -120,7 +128,7 @@ export function layersToBoundaryPolylines(layers, epsg, reproject) {
   let failed = 0;
   for (const l of layers) {
     if (l.geomType === "point") continue;
-    const from = l.epsg || 4326;
+    const from = l.notDegrees ? Number(epsg) : l.epsg || 4326; // #1757 — not degrees: already in the project CRS
     for (const f of l.features) for (const part of f.parts) {
       const pts = [];
       for (const [x, y] of part) {
