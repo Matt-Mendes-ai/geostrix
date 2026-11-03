@@ -8152,7 +8152,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </Suspense>
         </>)}{/* TASKS.csv #820 */}
 
-        {sidebarTab === "minedesign" && toolPane === "pit" && <Suspense fallback={null}><PitShellPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onClose={() => setToolPane(null)} /></Suspense>}
+        {sidebarTab === "minedesign" && toolPane === "pit" && <Suspense fallback={null}><PitShellPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} /* #1498 */ onClose={() => setToolPane(null)} /></Suspense>}
         {sidebarTab === "minedesign" && toolPane === "lines" && <Suspense fallback={null}><DesignLinesPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef }} onClose={() => setToolPane(null)} /></Suspense>}
         {sidebarTab === "targeting" && (<>
         {toolPane === "ranges" && (<>

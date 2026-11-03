@@ -2,7 +2,8 @@
 // undiscounted money out, as a surface in the 3D view with what it holds. Every number is the user's: no default price, cost or
 // density (a default would read as a fact, as #264). Maths in lib/pitShell.js; framing from #836.
 import React, { useMemo, useRef, useState } from "react";
-import { Pickaxe } from "./icons.js";
+import { Pickaxe, Eye, EyeOff, Trash2, Pencil } from "./icons.js";
+import { confirmDestructive } from "../lib/confirmDestructive.js"; // #1498
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
 import { PRICE_UNITS, pitEconomics } from "../lib/pitShell.js";
@@ -25,8 +26,9 @@ const FIELDS = ["price", "recovery", "miningCost", "processingCost", "density", 
 let kept = null; // #1356 — the last result, shown again when the pane or the tab comes back (this session)
 
 // surfaces: the project's generated surfaces (the last pit's inputs come back from its saved parameters).
-// onAdd({ name, positions, indices, params, tip, type, closure, color, tag }) puts the pit in the 3D view; onToggle(id) shows/hides a surface.
-export default function PitShellPane({ surfaces = [], onAdd, onToggle, onClose }) {
+// onAdd({ name, positions, indices, params, tip, type, closure, color, tag }) puts the pit in the 3D view; onToggle(id) shows/hides a surface;
+// onRemove(id) deletes one (#1498).
+export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove, onClose }) {
   const { voxelModels = [], terrain, layers, collars = [] } = useStore();
   // a grade: a unit that counts metal first, then none stated (an import may simply not say); never a resistivity, a variance, an inversion or a category
   const models = useMemo(() => {
@@ -41,6 +43,22 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onClose }
   const [res, setRes] = useState(() => (kept && models.some((m) => m.name === kept.model) ? kept : null));
   const [hideEarlier, setHideEarlier] = useState(true);
   const [msg, setMsg] = useState(null);
+  // TASKS.csv #1498 — Matt: "currently there is no way to turn off or remove or edit the pit shell". The pits are listed here with a
+  // show / hide eye, Edit (their saved inputs back in the form; the next run replaces that pit) and delete.
+  const pits = surfaces.filter((s) => s.type === "pit_shell");
+  const [editingId, setEditingId] = useState(null);
+  const editing = pits.find((s) => s.id === editingId) || null;
+  const editPit = (s) => {
+    const inp = s.params?.inputs || {};
+    if (inp.modelId != null && models.some((m) => (m.id ?? m.name) === inp.modelId)) setModelId(inp.modelId);
+    setF({ ...EMPTY, ...Object.fromEntries(Object.entries(inp).filter(([k]) => k in EMPTY).map(([k, v]) => [k, v == null ? "" : String(v)])) });
+    setEditingId(s.id); setMsg(null);
+  };
+  const removePit = (s) => {
+    if (!confirmDestructive(tr("Remove the pit \"{name}\"?", { name: s.name }), { recover: tr("run it again with the same inputs (Edit keeps them until then).") })) return;
+    if (editingId === s.id) setEditingId(null);
+    onRemove?.(s.id);
+  };
   const job = useRef(null);
   const model = models.find((m) => (m.id ?? m.name) === modelId) || null;
   const stated = model ? valueUnit(model) : null, unit = stated || f.unit;
@@ -71,7 +89,8 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onClose }
       kept = { ...r, unit, seconds, hasTerrain: !!terrain, model: model.name, slopeDeg: inputs.slopeDeg, support };
       setRes(kept);
       const contained = r.metalU * r.metalFactor;
-      if (hideEarlier) surfaces.filter((s) => s.type === "pit_shell" && s.visible).forEach((s) => onToggle?.(s.id)); // #1356 — one pit on view at a time
+      if (hideEarlier) surfaces.filter((s) => s.type === "pit_shell" && s.visible && s.id !== editingId).forEach((s) => onToggle?.(s.id)); // #1356 — one pit on view at a time
+      if (editingId) { onRemove?.(editingId); setEditingId(null); } // #1498 — the edited pit is replaced by the new run
       const priceLabel = (prices.find(([k]) => k === priceUnit) || [])[1] || "";
       onAdd({
         // #1356 — named by what usually changes between runs, so a list of pits can be told apart
@@ -117,10 +136,25 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onClose }
           : tr("No terrain is loaded, so the top of the block model is taken as the ground and no overburden above it is costed. Load one in Maps.")}</div>}
         {surfaces.some((s) => s.type === "pit_shell" && s.visible) && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={hideEarlier} onChange={(e) => setHideEarlier(e.target.checked)} />{tr("Hide the earlier pits")}</label>}
         {busy == null
-          ? <button onClick={run} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Pickaxe size={14} /> {tr("Run the pit shell")}</button>
+          ? <button onClick={run} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Pickaxe size={14} /> {editing ? tr("Run and replace the pit") : tr("Run the pit shell")}</button>
           : <button onClick={cancel} style={{ ...pBtn, marginTop: 8 }}>{tr("Solving ({n}): cancel", { n: busy })}</button>}
         {missing && busy == null && <div style={note}>{tr("Enter every number above: none has a default, because the result is only as good as they are.")}</div>}
+        {editing && <div style={{ ...note, marginTop: 4 }}>{tr("Editing \"{name}\": its inputs are in the form; running replaces it.", { name: editing.name })} <button onClick={() => setEditingId(null)} style={linkBtn}>{tr("Stop editing")}</button></div>}
       </>)}
+      {pits.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ ...row, marginTop: 0, fontWeight: 600, color: "var(--color-text)" }}>{tr("Pits ({n})", { n: pits.length })}</div>
+          {pits.map((s) => (
+            <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, padding: "4px 6px", border: `1px solid ${s.id === editingId ? "var(--color-selected-border)" : "var(--color-border)"}`, borderRadius: 5, background: "var(--color-bg-subtle)", fontSize: "var(--font-size-sm)" }}>
+              <button onClick={() => onToggle?.(s.id)} style={iconBtnStyle} aria-label={s.visible ? tr("Hide {name}", { name: s.name }) : tr("Show {name}", { name: s.name })} title={s.visible ? tr("Hide") : tr("Show")}>{s.visible ? <Eye size={13} /> : <EyeOff size={13} />}</button>
+              <span title={s.name} style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: s.visible ? "var(--color-text)" : "var(--color-text-muted)" }}>{String(s.name).replace(/^Pit shell: /, "")}</span>
+              {Number.isFinite(s.params?.oreTonnes) && <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{`${big(s.params.oreTonnes)} t`}</span>}
+              <button onClick={() => editPit(s)} style={iconBtnStyle} aria-label={tr("Edit {name}", { name: s.name })} title={tr("Put this pit's inputs in the form; the next run replaces it")}><Pencil size={13} /></button>
+              <button onClick={() => removePit(s)} style={iconBtnStyle} aria-label={tr("Remove {name}", { name: s.name })} title={tr("Remove")}><Trash2 size={13} /></button>
+            </div>
+          ))}
+        </div>
+      )}
       {msg && <div style={warn}>{msg}</div>}
       {res && (
         <div style={{ marginTop: 8, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
@@ -149,3 +183,5 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onClose }
     </div>
   );
 }
+const iconBtnStyle = { display: "flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, padding: 0, background: "transparent", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }; // #1498
+const linkBtn = { background: "none", border: "none", padding: 0, color: "var(--color-accent)", cursor: "pointer", fontSize: "inherit", textDecoration: "underline" };

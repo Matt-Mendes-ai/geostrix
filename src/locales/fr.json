@@ -7048,5 +7048,15 @@
   "{n} more assay file(s) to import from the Geochem tab: {list}.": "{n} autre(s) fichier(s) d'analyses à importer depuis l'onglet Géochimie : {list}.",
   "Plan a hole to here": "Planifier un sondage ici",
   "Open Planned holes with this zone's centre as the target: choose a collar, then Solve": "Ouvre les sondages planifiés avec le centre de cette zone comme cible : choisissez un collet, puis Résoudre",
-  "Solve azimuth/dip/length to hit a target from the E/N/Elev above (the length runs {m} m past it; the target is kept on the hole)": "Résoudre azimut/pendage/longueur pour atteindre une cible depuis les E/N/Élév ci-dessus (la longueur va {m} m au-delà ; la cible reste sur le sondage)"
+  "Solve azimuth/dip/length to hit a target from the E/N/Elev above (the length runs {m} m past it; the target is kept on the hole)": "Résoudre azimut/pendage/longueur pour atteindre une cible depuis les E/N/Élév ci-dessus (la longueur va {m} m au-delà ; la cible reste sur le sondage)",
+  "Remove the pit \"{name}\"?": "Supprimer la fosse « {name} » ?",
+  "run it again with the same inputs (Edit keeps them until then).": "relancez-la avec les mêmes paramètres (Modifier les garde jusque-là).",
+  "Run and replace the pit": "Lancer et remplacer la fosse",
+  "Editing \"{name}\": its inputs are in the form; running replaces it.": "Modification de « {name} » : ses paramètres sont dans le formulaire ; lancer la remplace.",
+  "Stop editing": "Arrêter la modification",
+  "Pits ({n})": "Fosses ({n})",
+  "Hide {name}": "Masquer {name}",
+  "Show {name}": "Afficher {name}",
+  "Put this pit's inputs in the form; the next run replaces it": "Met les paramètres de cette fosse dans le formulaire ; le prochain calcul la remplace",
+  "Remove": "Supprimer"
 }
