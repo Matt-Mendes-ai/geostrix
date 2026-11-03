@@ -7,7 +7,7 @@ import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import EstimateCheck from "./EstimateCheck.jsx"; // TASKS.csv #1051
 import { excludeQAQC } from "../lib/qaqc.js"; // TASKS.csv #266
 import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport } from "../lib/estimation.js";
-import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
+import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice, overlapBox } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
 import { desurveyHole } from "../lib/desurvey.js";
 import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #702
@@ -101,7 +101,6 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
     }
     return holes && Number.isFinite(xmin) ? { xmin, xmax, ymin, ymax, zmin, zmax, holes } : null;
   }, [assays, collars, survey, desurveyMethod]);
-  const gridBox = traceBounds || collarBounds;
 
   const [padding, setPadding] = useState(25);
   const [cellSize, setCellSize] = useState(10);
@@ -128,6 +127,22 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
   const [restrictToDomain, setRestrictToDomain] = useState(false); // TASKS.csv #260
   const [classifySupport, setClassifySupport] = useState(true); // TASKS.csv #91/#92
   const [shellId, setShellId] = useState(""); // TASKS.csv #517 — restrict to a closed modelled volume ("" = none)
+  // TASKS.csv #1570 (review #1497, Lawyers) — the grid spanned the whole district even when the estimate was restricted to one solid
+  // (Lawyers: 100 x 116 x 17 blocks of 53.5 m, 99 % empty, the 0.3 g/t shell holding 131 of them). Restricted, the grid is the
+  // solid's box where it overlaps the drilling's (the solid's own box when they do not overlap), so a prospect gets small blocks.
+  const shellBox = useMemo(() => {
+    const sh = shellId ? (volumeShells || []).find((v) => v.id === shellId) : null;
+    const pos = sh?.positions;
+    if (!pos || pos.length < 9) return null;
+    let xmin = Infinity, ymin = Infinity, zmin = Infinity, xmax = -Infinity, ymax = -Infinity, zmax = -Infinity;
+    for (let i = 0; i + 2 < pos.length; i += 3) {
+      const x = pos[i], y = pos[i + 1], z = pos[i + 2];
+      if (x < xmin) xmin = x; if (x > xmax) xmax = x; if (y < ymin) ymin = y; if (y > ymax) ymax = y; if (z < zmin) zmin = z; if (z > zmax) zmax = z;
+    }
+    return Number.isFinite(xmin) ? { xmin, xmax, ymin, ymax, zmin, zmax, name: sh.name } : null;
+  }, [shellId, volumeShells]);
+  const drillBox = traceBounds || collarBounds;
+  const gridBox = shellBox ? (drillBox ? overlapBox(shellBox, drillBox) || shellBox : shellBox) : drillBox;
   const [belowGround, setBelowGround] = useState(true); // TASKS.csv #803 — drop blocks whose centre is above the terrain
   const [modelName, setModelName] = useState("");
   const [result, setResult] = useState(null); // { cells, blocksEstimated, blocksSkipped, grid, samplePointCount, droppedCount } | null
@@ -175,6 +190,13 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
   const cellTouched = useRef(false);
   const [autoCell, setAutoCell] = useState(null);
   useEffect(() => { if (!cellTouched.current && fitCell) { cellTouched.current = true; setAutoCell(fitCell); setCellSize(fitCell); } }, [fitCell]);
+  // #1570 — a restricting solid changes the box: a cell the dialog chose (not typed) is chosen again for it, 10 m when that fits
+  useEffect(() => {
+    if (!bounds || matched || autoCell == null || cellSize !== autoCell) return;
+    const blocksAt = (c) => ["x", "y", "z"].reduce((t, k) => t * Math.max(1, Math.round((bounds[`${k}max`] - bounds[`${k}min`]) / c)), 1);
+    const c = blocksAt(10) <= blockBudget ? 10 : cellToFit(bounds, blockBudget, 10);
+    if (c && c !== cellSize) { setAutoCell(c); setCellSize(c); }
+  }, [shellBox]);
 
   // TASKS.csv #520 — the estimate runs in a worker: the window keeps repainting, shows progress and can be cancelled
   const [progress, setProgress] = useState(null); // 0..1 while running
@@ -270,7 +292,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
         const params = {
           tool: "Grade estimation", element: symbol, method, cellSizeM: matched ? [cell3.dx, cell3.dy, cell3.dz] : cellSize, paddingM: padding,
           ...(lattice ? { gridOrigin: [lattice.ox, lattice.oy, lattice.oz], gridMatched: matched ? matched.m.name : "typed origin" } : {}), // #724
-          gridFrom: traceBounds ? `desurveyed traces of ${traceBounds.holes} assayed hole(s)` : "collar box (no hole could be desurveyed)", // #521
+          gridFrom: shellBox ? `box of the restricting solid "${shellBox.name}" within the drilling` : traceBounds ? `desurveyed traces of ${traceBounds.holes} assayed hole(s)` : "collar box (no hole could be desurveyed)", // #521; #1570
           searchRadiusM: searchRadius > 0 ? searchRadius : Math.round(gridDiagonal), searchRadiusWasUnlimited: !(searchRadius > 0), ...(supportRef > 0 ? { supportScoredAgainstM: Math.round(supportRef) } : {}), // #1411
           minSamples, maxSamples, minHoles, maxSamplesPerHole: maxPerHole || null,
           searchTrend: trend ? { name: trend.name, dip: trend.dip, dipAzimuth: trend.dipAzimuth, pitch: trend.pitch, ratios: trend.ratios, ellipsoidM: [1, trend.ratios.int / trend.ratios.max, trend.ratios.min / trend.ratios.max].map((f) => Math.round(f * (searchRadius > 0 ? searchRadius : gridDiagonal))) } : null, // #650

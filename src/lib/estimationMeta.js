@@ -70,3 +70,9 @@ export function snapBoundsToLattice(b, L) {
   const lo = (v, o, d) => o + Math.floor((v - o) / d + 1e-9) * d, hi = (v, o, d) => o + Math.ceil((v - o) / d - 1e-9) * d;
   return { xmin: lo(b.xmin, L.ox, L.dx), xmax: hi(b.xmax, L.ox, L.dx), ymin: lo(b.ymin, L.oy, L.dy), ymax: hi(b.ymax, L.oy, L.dy), zmin: lo(b.zmin, L.oz, L.dz), zmax: hi(b.zmax, L.oz, L.dz) };
 }
+
+// TASKS.csv #1570 — the overlap of two boxes, or null when they do not overlap
+export function overlapBox(a, b) {
+  const o = { xmin: Math.max(a.xmin, b.xmin), xmax: Math.min(a.xmax, b.xmax), ymin: Math.max(a.ymin, b.ymin), ymax: Math.min(a.ymax, b.ymax), zmin: Math.max(a.zmin, b.zmin), zmax: Math.min(a.zmax, b.zmax) };
+  return o.xmin < o.xmax && o.ymin < o.ymax && o.zmin < o.zmax ? o : null;
+}
