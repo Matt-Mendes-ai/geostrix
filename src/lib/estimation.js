@@ -163,7 +163,7 @@ export function estimateBlockModel(samplePoints, opts) {
   let singleHoleCells = 0; // TASKS.csv #258 — surfaced in the run summary
   let dominatedCells = 0; // TASKS.csv #676 — 2+ holes, but one carries >= 95 % of the weight
   const mlsCounts = { full: 0, reduced: 0, idw: 0 }; // TASKS.csv #516
-  const okCounts = { kriged: 0, exact: 0, negativeWeights: 0, fallbackIdw: 0, beyondRange: 0 }; // TASKS.csv #709; beyondRange: #1027
+  const okCounts = { kriged: 0, exact: 0, negativeWeights: 0, fallbackIdw: 0, beyondRange: 0, clampedNegative: 0 }; // TASKS.csv #709; beyondRange: #1027; clampedNegative: #1412
   const supportCounts = { interpolated: 0, extrapolated: 0, unsupported: 0, searchLimited: 0 };
 
   for (let iz = 0; iz < nz; iz++) {
@@ -177,7 +177,7 @@ export function estimateBlockModel(samplePoints, opts) {
         if (r.nHoles === 1) singleHoleCells++;
         else if (r.domShare >= DOMINANT_SHARE) dominatedCells++; // #676
         if (r.mlsMode) mlsCounts[r.mlsMode]++; // #516
-        if (r.okMode) { okCounts[r.okMode]++; if (r.okNeg) okCounts.negativeWeights++; if (r.okFar) okCounts.beyondRange++; } // #709; #1027
+        if (r.okMode) { okCounts[r.okMode]++; if (r.okNeg) okCounts.negativeWeights++; if (r.okFar) okCounts.beyondRange++; if (r.okClamp) okCounts.clampedNegative++; } // #709; #1027; #1412
         if (r.support) {
           supportCounts[r.support.cls]++;
           if (r.support.cls === SUPPORT_EXTRAPOLATED && r.support.dataBracketed) supportCounts.searchLimited++;
@@ -469,6 +469,9 @@ function makeCellEstimator(samplePoints, opts = {}) {
         // TASKS.csv #709 — a singular system (two composites at one position with no nugget) falls back to IDW2, counted
         const k = okEstimate(used, cx, cy, cz, opts.variogram);
         if (k) { value = k.value; okRes = k; } else { value = idwValue(used, 2); okRes = { fallback: true }; }
+        // TASKS.csv #1412 (review #1352) — negative weights let a kriged grade fall below zero (-0.0016 % Zn on Silvertip): a grade is
+        // never negative, so it is set to 0 and counted (as samplePointsFromIntervals does for samples, #270)
+        if (value < 0 && opts.nonNegative !== false) { value = 0; okRes = { ...okRes, clampedNegative: true }; }
       } else {
         value = idwValue(used, power);
       }
@@ -505,7 +508,7 @@ function makeCellEstimator(samplePoints, opts = {}) {
       if (!okRes) { out.okMode = "exact"; out.kv = 0; }
       else if (okRes.fallback) out.okMode = "fallbackIdw";
       else {
-        out.okMode = "kriged"; out.kv = okRes.kv; if (okRes.negative) out.okNeg = true;
+        out.okMode = "kriged"; out.kv = okRes.kv; if (okRes.negative) out.okNeg = true; if (okRes.clampedNegative) out.okClamp = true;
         // #1027 — the nearest composite beyond the range: every covariance to the block is 0, so the "kriged" value is a
         // redundancy-weighted mean of the neighbours
         let m2 = Infinity; for (const u of used) if (u.d2 < m2) m2 = u.d2;

@@ -405,3 +405,18 @@ export function diagramExportRows(assays, diagram, elementUnits) {
     return { hole_id: a.hole_id, from: a.from, to: a.to, [axis(diagram.xLabel, "x")]: p?.x ?? "", [axis(diagram.yLabel, "y")]: p?.y ?? "" };
   });
 }
+
+// TASKS.csv #1381 (review #1352) — the last 250 rows of Silvertip's file were all one hole (SSZ24-PAD34-003). Over the cap, the
+// lines are now spread evenly across the holes (or sample groups): each hole gets its share of the cap, picked evenly down its
+// depth. -> { shown, groups }
+export function spreadLines(lines, max, keyOf) {
+  if (lines.length <= max) return { shown: lines, groups: new Set(lines.map(keyOf)).size };
+  const by = new Map();
+  for (const l of lines) { const k = keyOf(l); (by.get(k) || by.set(k, []).get(k)).push(l); }
+  const shown = [];
+  for (const list of by.values()) {
+    const q = Math.max(1, Math.floor((max * list.length) / lines.length));
+    for (let i = 0; i < q && i < list.length; i++) shown.push(list[Math.floor(((i + 0.5) * list.length) / q)]);
+  }
+  return { shown: shown.slice(0, max), groups: by.size };
+}

@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-import { DIAGRAMS, SPIDER_DIAGRAMS, reeProfile } from "../lib/geochemDiagrams.js";
+import { DIAGRAMS, SPIDER_DIAGRAMS, reeProfile, spreadLines } from "../lib/geochemDiagrams.js"; // spreadLines: #1381
 import { minMax } from "../lib/layers.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
@@ -276,7 +276,7 @@ function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef, describe 
     return samples.map((s) => ({ sample: s, profile: reeProfile(s, elementUnits, order, norm) }))
       .filter((l) => l.profile.some((p) => p.value != null));
   }, [samples, elementUnits, order, norm]);
-  const shown = lines.length > MAX_LINES ? lines.slice(-MAX_LINES) : lines;
+  const { shown, groups } = useMemo(() => spreadLines(lines, MAX_LINES, (l) => l.sample.hole_id ?? l.sample.sample_id ?? ""), [lines]);
   const hiddenCount = lines.length - shown.length;
 
   const allVals = shown.flatMap((l) => l.profile.map((p) => p.value).filter((v) => v != null));
@@ -321,7 +321,7 @@ function SpiderPlot({ diagram, samples, elementUnits, colorBy, svgRef, describe 
       <text x={W / 2} y={H - 12} fill="#55606e" fontSize="11" textAnchor="middle">{tr("Element (chondrite/primitive-mantle order)")}</text>
       <text x={16} y={H / 2} fill="#55606e" fontSize="11" textAnchor="middle" transform={`rotate(-90 16 ${H / 2})`}>{tr("Sample / normalizing value")}</text>
       {hiddenCount > 0 && (
-        <text x={W - PAD} y={PAD - 10} fill="#8a6a3a" fontSize={fontSizes.xs} textAnchor="end">{tr("+{hiddenCount} more samples not drawn (showing most recent {max})", { hiddenCount, max: MAX_LINES })}</text>
+        <text x={W - PAD} y={PAD - 10} fill="#8a6a3a" fontSize={fontSizes.xs} textAnchor="end">{tr("{shown} of {total} samples drawn, spread evenly across {groups} hole(s)", { shown: shown.length, total: lines.length, groups })}</text>
       )}
     </svg>
   );

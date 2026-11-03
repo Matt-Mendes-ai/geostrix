@@ -55,7 +55,9 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
   const [minCoverage, setMinCoverage] = useState(0.5);
   const [domainKey, setDomainKey] = useState("");
   const [domainValue, setDomainValue] = useState("__all__");
-  const domainOptions = ["litho", "alt", "vein", "breccia", "structzone", "geotech"].filter((k) => (layers[k] || []).length > 0);
+  // TASKS.csv #1413 (review #1352) — a layer of numbers (Silvertip's RQD %) is not a domain: every distinct value became one
+  const numericLayer = (rows) => { let n = 0, num = 0; for (const r of rows) { if (r.value == null || r.value === "") continue; n++; if (Number.isFinite(Number(r.value))) num++; } return n > 0 && num / n > 0.8; };
+  const domainOptions = ["litho", "alt", "vein", "breccia", "structzone", "geotech"].filter((k) => (layers[k] || []).length > 0 && !numericLayer(layers[k]));
 
   const [transform, setTransform] = useState("none");
   const [capPercentile, setCapPercentile] = useState(98);

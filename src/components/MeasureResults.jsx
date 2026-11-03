@@ -78,14 +78,17 @@ export default function MeasureResults({ mode, pts, onClear, onSwitchMode }) {
       );
     }
     const totalPath = polylineLength(pts, false);
+    let total3d = 0; for (let i = 1; i < pts.length; i++) total3d += segmentStats(pts[i - 1], pts[i]).dist3d; // #1399 — both totals, each named
     const straight = segmentStats(pts[0], pts[pts.length - 1]);
     const last = segmentStats(pts[pts.length - 2], pts[pts.length - 1]);
     return (
       <div style={box}>
         {modeSwitch}
-        <span><b style={{ color: "var(--color-text)" }}>{tr("Total:")}</b> {fmtLen(totalPath)}</span>
-        {pts.length > 2 && <span><b style={{ color: "var(--color-text)" }}>{tr("Straight-line:")}</b> {fmtLen(straight.dist3d)}</span>}
-        <span><b style={{ color: "var(--color-text)" }}>{tr("Last segment:")}</b> {tr("{v} @ {azimuth}° (Δelev {v2}{vert} m)", { v: fmtLen(last.dist3d), azimuth: last.azimuth.toFixed(1), v2: last.vert >= 0 ? "+" : "", vert: last.vert.toFixed(1) })}</span>
+        {/* TASKS.csv #1399 — "Total" was the map length beside a 3D last segment, neither named (513 m vs 520 m on Silvertip) */}
+        <span><b style={{ color: "var(--color-text)" }}>{tr("Total in plan:")}</b> {fmtLen(totalPath)}</span>
+        <span><b style={{ color: "var(--color-text)" }}>{tr("Total in 3D:")}</b> {fmtLen(total3d)}</span>
+        {pts.length > 2 && <span><b style={{ color: "var(--color-text)" }}>{tr("Straight-line (3D):")}</b> {fmtLen(straight.dist3d)}</span>}
+        <span><b style={{ color: "var(--color-text)" }}>{tr("Last segment (3D):")}</b> {tr("{v} @ {azimuth}° (Δelev {v2}{vert} m)", { v: fmtLen(last.dist3d), azimuth: last.azimuth.toFixed(1), v2: last.vert >= 0 ? "+" : "", vert: last.vert.toFixed(1) })}</span>
         <span style={{ color: "var(--color-text-muted)" }}>{tr("{pts} pt(s)", { pts: pts.length })}</span>
         <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClear} style={clearBtn}><X size={12} />{" "}{tr("Clear")}</span>
       </div>

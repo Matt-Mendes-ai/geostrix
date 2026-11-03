@@ -6974,5 +6974,13 @@
   "Fewer than {min} samples with {sym} in {media}: no hot-spot statistic there.": "أقل من {min} عينات تحتوي {sym} في {media}: لا إحصاء للبؤر الساخنة هناك.",
   "Carbonate replacement (CRD / manto) Ag–Pb–Zn": "إحلال الكربونات (CRD / مانتو) Ag–Pb–Zn",
   "* Azimuth and dip of the shallowest survey station: the collar record has none.": "* السمت والميل من أقرب محطة مسح إلى السطح: سجل رأس البئر لا يحتويهما.",
-  "Suggested: this element's 90th percentile. Set the cutoff you report at.": "مقترح: المئين التسعون لهذا العنصر. حدّد حد القطع الذي تعلن به."
+  "Suggested: this element's 90th percentile. Set the cutoff you report at.": "مقترح: المئين التسعون لهذا العنصر. حدّد حد القطع الذي تعلن به.",
+  "{shown} of {total} samples drawn, spread evenly across {groups} hole(s)": "رُسمت {shown} من {total} عينة، موزعة بالتساوي على {groups} بئر",
+  "{n} kriged grade(s) below zero were set to 0.": "ضُبطت {n} من الدرجات المقدَّرة بالكريجنغ تحت الصفر على 0.",
+  "Total in plan:": "الإجمالي في المسقط:",
+  "Total in 3D:": "الإجمالي ثلاثي الأبعاد:",
+  "Straight-line (3D):": "خط مستقيم (ثلاثي الأبعاد):",
+  "Last segment (3D):": "آخر قطعة (ثلاثي الأبعاد):",
+  "Same pad as {holes}: the first {m} m are not compared.": "المنصة نفسها مثل {holes}: لا تُقارن أول {m} م.",
+  ", at {md} m down this hole": "، على عمق {md} م في هذه البئر"
 }

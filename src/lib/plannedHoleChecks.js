@@ -76,13 +76,19 @@ export function targetBandIndex(model) {
   return { modelId: model.id, modelName: model.name, inside, cells: cells.length };
 }
 
-// -> [{ hole, nearestReal: { hole_id, distance } | null, targetHits: [{ modelId, modelName, metres }] }]
+// TASKS.csv #1454 (review #1352, Silvertip) — a hole drilled from an existing pad was always "0.0 m from" its neighbour: the
+// collars are metres apart by design. Drilled collars within PAD_M of the planned collar are reported as the same pad, and the
+// first COLLAR_ZONE_M of the planned hole are then left out of the nearest-hole search; the depth where it comes closest is said.
+export const PAD_M = 10, COLLAR_ZONE_M = 50;
+// -> [{ hole, nearestReal: { hole_id, distance, md } | null, samePad: [hole_id], targetHits: [{ modelId, modelName, metres }] }]
 export function planChecks(plannedHoles, drilled, targets, traceOf = plannedTrace) {
   return (plannedHoles || []).map((hole) => {
     const pts = traceOf(hole); // dense (~3 m) desurveyed points
-    if (!pts.length) return { hole, nearestReal: null, targetHits: [] };
+    if (!pts.length) return { hole, nearestReal: null, samePad: [], targetHits: [] };
     let nearestReal = null;
-    if (drilled?.n) for (const p of pts) { const { best, hole: h } = nearestDrilled(drilled, p); if (h != null && (!nearestReal || best < nearestReal.distance)) nearestReal = { hole_id: h, distance: best }; }
+    const c0 = pts[0], samePad = (drilled?.holes || []).filter((h) => h.pts[0] && Math.hypot(h.pts[0].x - c0.x, h.pts[0].y - c0.y, h.pts[0].z - c0.z) <= PAD_M).map((h) => h.hole_id);
+    const skipMd = samePad.length ? COLLAR_ZONE_M : -Infinity;
+    if (drilled?.n) for (const p of pts) { if ((p.md ?? 0) < skipMd) continue; const { best, hole: h } = nearestDrilled(drilled, p); if (h != null && (!nearestReal || best < nearestReal.distance)) nearestReal = { hole_id: h, distance: best, md: p.md ?? 0 }; }
     const targetHits = (targets || []).map((t) => {
       let metres = 0;
       for (let i = 1; i < pts.length; i++) {
@@ -91,6 +97,6 @@ export function planChecks(plannedHoles, drilled, targets, traceOf = plannedTrac
       }
       return { modelId: t.modelId, modelName: t.modelName, metres };
     }).filter((h) => h.metres > 0);
-    return { hole, nearestReal, targetHits };
+    return { hole, nearestReal, samePad, targetHits };
   });
 }

@@ -6974,5 +6974,13 @@
   "Fewer than {min} samples with {sym} in {media}: no hot-spot statistic there.": "Menos de {min} muestras con {sym} en {media}: sin estadístico de puntos calientes allí.",
   "Carbonate replacement (CRD / manto) Ag–Pb–Zn": "Reemplazo en carbonatos (CRD / manto) Ag–Pb–Zn",
   "* Azimuth and dip of the shallowest survey station: the collar record has none.": "* Azimut e inclinación de la estación de survey más somera: el registro del collar no los tiene.",
-  "Suggested: this element's 90th percentile. Set the cutoff you report at.": "Sugerido: el percentil 90 de este elemento. Fije la ley de corte con la que informa."
+  "Suggested: this element's 90th percentile. Set the cutoff you report at.": "Sugerido: el percentil 90 de este elemento. Fije la ley de corte con la que informa.",
+  "{shown} of {total} samples drawn, spread evenly across {groups} hole(s)": "{shown} de {total} muestras dibujadas, repartidas por igual entre {groups} sondaje(s)",
+  "{n} kriged grade(s) below zero were set to 0.": "{n} ley(es) krigeada(s) bajo cero se fijaron en 0.",
+  "Total in plan:": "Total en planta:",
+  "Total in 3D:": "Total en 3D:",
+  "Straight-line (3D):": "En línea recta (3D):",
+  "Last segment (3D):": "Último tramo (3D):",
+  "Same pad as {holes}: the first {m} m are not compared.": "Misma plataforma que {holes}: los primeros {m} m no se comparan.",
+  ", at {md} m down this hole": ", a {md} m de profundidad en este sondaje"
 }

@@ -7,7 +7,7 @@ import { t as tr } from "../lib/i18n.js";
 import { colors } from "../lib/theme.js";
 import { lazyModal } from "../lib/lazyModal.jsx";
 import { solveOrientationToTarget, plannedTrace } from "../lib/holePlanning.js";
-import { planGeometryKey, drilledTraceIndex, isTargetModel, targetBandIndex, planChecks } from "../lib/plannedHoleChecks.js"; // TASKS.csv #1039
+import { planGeometryKey, drilledTraceIndex, isTargetModel, targetBandIndex, planChecks, COLLAR_ZONE_M } from "../lib/plannedHoleChecks.js"; // TASKS.csv #1039; COLLAR_ZONE_M: #1454
 import { piercePoints as surfacePierces } from "../lib/piercePoints.js"; // TASKS.csv #1009
 
 const PlannedHoleTargeting = lazyModal(() => import("./PlannedHoleTargeting.jsx")); // TASKS.csv #119
@@ -184,13 +184,14 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
       {voxelModels.length > 0 && !anyTargetModel && (
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 7, lineHeight: 1.4 }}>{tr("Narrow a voxel model's Min/Max range above (in \"Geophysical voxel ranges\") to check planned holes against a target band.")}</div>
       )}
-      {results.map(({ hole, nearestReal, targetHits }) => {
+      {results.map(({ hole, nearestReal, samePad = [], targetHits }) => {
         const tooClose = nearestReal && nearestReal.distance < minSpacing;
         return (
           <div key={hole.id} style={{ padding: "6px 8px", marginBottom: 5, borderRadius: 5, background: tooClose ? "var(--color-danger-bg-soft)" : "var(--color-bg-subtle)", border: `1px solid ${tooClose ? "var(--color-danger-fg)" : "var(--color-border)"}`, fontSize: "var(--font-size-sm)" }}>
             <div style={{ color: "var(--color-text)", marginBottom: 2 }}>{hole.name || tr("Planned hole")}</div>
+            {samePad.length > 0 && <div style={{ color: "var(--color-text-caption)" }}>{tr("Same pad as {holes}: the first {m} m are not compared.", { holes: samePad.join(", "), m: COLLAR_ZONE_M })}</div>}{/* #1454 */}
             {nearestReal ? (
-              <div style={{ color: tooClose ? "var(--color-danger-fg)" : "var(--color-text-caption)" }}>{tr("Nearest existing hole: {hole_id} — {distance} m{v}", { hole_id: nearestReal.hole_id, distance: nearestReal.distance.toFixed(1), v: tooClose ? tr(" (within the {minSpacing} m minimum)", { minSpacing }) : "" })}
+              <div style={{ color: tooClose ? "var(--color-danger-fg)" : "var(--color-text-caption)" }}>{tr("Nearest existing hole: {hole_id} — {distance} m{v}", { hole_id: nearestReal.hole_id, distance: nearestReal.distance.toFixed(1), v: tooClose ? tr(" (within the {minSpacing} m minimum)", { minSpacing }) : "" })}{nearestReal.md > 0 ? tr(", at {md} m down this hole", { md: Math.round(nearestReal.md) }) : ""}
               </div>
             ) : (
               <div style={{ color: "var(--color-text-muted)" }}>{tr("No existing drilled holes to compare against.")}</div>
