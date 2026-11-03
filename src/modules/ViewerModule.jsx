@@ -4921,8 +4921,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         (customRowsByHoleByLayer.get(layer.id)?.get(c.hole_id) || []).forEach((row) => {
           if (row.to != null && !isNaN(row.to)) {
             const p1 = findOnTrace(pts, row.from), p2 = findOnTrace(pts, row.to);
-            const curve = new THREE.CatmullRomCurve3([new THREE.Vector3(p1.x, p1.y, p1.z), new THREE.Vector3(p2.x, p2.y, p2.z)]);
-            const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 2, 1.6 * stI.size, TUBE_SEGMENTS[stI.shape], false), new THREE.MeshLambertMaterial({ color: stI.color || row.modelColor || hashColor(row.value), transparent: stI.opacity < 1, opacity: stI.opacity })); // #323: a model's own colour; #635 style
+            // TASKS.csv #1529 (review #1497, Lawyers) — a custom interval runs straight between its two ends, so it is the shared
+            // unit cylinder scaled and turned (as the built-in interval layers, #312) and batches into a few draw calls per layer.
+            // It was a TubeGeometry + material per row: Lawyers' 5 custom layers were 16,860 meshes, ~14,700 draw calls, 9 fps orbit.
+            const dx = p2.x - p1.x, dy = p2.y - p1.y, dz = p2.z - p1.z, len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (!(len > 1e-6)) return;
+            const mesh = new THREE.Mesh(INTERVAL_PROTO[stI.shape] || PROTO_CYLINDER, new THREE.MeshLambertMaterial({ color: stI.color || row.modelColor || hashColor(row.value), transparent: stI.opacity < 1, opacity: stI.opacity }));
+            mesh.scale.set(1.6 * stI.size, len, 1.6 * stI.size);
+            mesh.position.set(p1.x, p1.y, p1.z);
+            mesh.quaternion.setFromUnitVectors(PIN_AXIS, dipPinDir.set(dx / len, dy / len, dz / len));
             mesh.userData = { row, tip: `${c.hole_id}\n${layer.name}: ${row.value}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m` };
             layer.group.add(mesh);
           } else if (row.depth != null && !isNaN(row.depth)) {
