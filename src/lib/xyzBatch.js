@@ -19,9 +19,12 @@ export function gemHeaderEpsg(text) {
 }
 
 export const KEEP_CHOICES = [1, 2, 5, 10, 20, 50];
-// The lightest thinning that brings an import to about `target` points
-export function suggestKeepEvery(total, target = 100000) {
-  return KEEP_CHOICES.find((n) => total / n <= target) || KEEP_CHOICES[KEEP_CHOICES.length - 1];
+// The lightest thinning that brings an import to about `target` points. TASKS.csv #1582 (review #1497, Lawyers) — counting
+// the readings the project already draws (`existing`): the target was per import, so a fourth 85k batch still defaulted to
+// 'Every reading'. What is left of the target, but never under a fifth of it (a project can always add a modest survey).
+export function suggestKeepEvery(total, target = 100000, existing = 0) {
+  const room = Math.max(target / 5, target - (existing || 0));
+  return KEEP_CHOICES.find((n) => total / n <= room) || KEEP_CHOICES[KEEP_CHOICES.length - 1];
 }
 export const everyNth = (rows, n) => (n > 1 ? rows.filter((_, i) => i % n === 0) : rows);
 

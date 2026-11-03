@@ -4571,6 +4571,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // samples and block models only anchor a project with no drillholes (the branch just below); with holes they are not
   // dependencies, so importing a 3-polygon map no longer re-desurveys every hole (24.8 s on Lawyers)
   const noHoles = !collars.length;
+  // TASKS.csv #1582 (review #1497, Lawyers) — geophysics readings live in layers.geophys_pts but are built by their own builder;
+  // with holes the big build never reads them, so a survey import or removal keeps the same object here (23-30 s on Lawyers)
+  const layersBuildRef = useRef(null);
+  const layersForBuild = useMemo(() => {
+    const prev = layersBuildRef.current;
+    if (prev && Object.keys({ ...prev, ...layers }).every((k) => k === "geophys_pts" || prev[k] === layers[k])) return prev;
+    layersBuildRef.current = layers;
+    return layers;
+  }, [layers]);
   useEffect(() => {
     const groups = layerGroupsRef.current;
     if (!groups.litho) return;
@@ -5043,7 +5052,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // applyCategoryVisibility/applyLegendOverrideColors are deliberately NOT listed either, for the
     // same reason categoryFilter/legendOverride were removed from this array — both are called
     // directly above using whatever this render closed over, not as re-trigger conditions.
-  }, [collars, survey, survey.length ? desurveyMethod : "" /* #135 — switching method must rebuild every trace; #1528 — with no survey every method gives the same straight holes */, layers, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStylesBuildKey /* #635; #1528 — not the in-place opacities */, noHoles && anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, noHoles && mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, noHoles && voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, noHoles && placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
+  }, [collars, survey, survey.length ? desurveyMethod : "" /* #135 — switching method must rebuild every trace; #1528 — with no survey every method gives the same straight holes */, noHoles ? layers : layersForBuild /* #1582 */, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStylesBuildKey /* #635; #1528 — not the in-place opacities */, noHoles && anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, noHoles && mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, noHoles && voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, noHoles && placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
   // TASKS.csv #1569 (review #1497, Lawyers) — with drillholes, a block model only widens the fit box (the origin and the first
   // fit come from the holes): adding one re-derives that box here instead of rebuilding every drillhole and custom layer
   // (25-26 s per 'Add as block model' on Lawyers). Without holes the build above still runs, since the models anchor it.

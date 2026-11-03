@@ -855,7 +855,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       const g = guessXyzChannels(columns, parsedRows);
       const bytes = files.reduce((a, f) => a + f.size, 0), estimate = Math.round((parsedRows.length / Math.max(1, files[0].size)) * bytes);
       setXyzPending({ fileName: files[0].name, columns, rows: parsedRows, xCol: guessColumn(columns, XY_NAME_HINTS.x), yCol: guessColumn(columns, XY_NAME_HINTS.y), zCol: g.z, valueCol: g.value, header: gemHeaderInfo(text), headerEpsg: gemHeaderEpsg(text),
-        batch: { files, gpsFiles, estimate, keepEvery: suggestKeepEvery(estimate) } });
+        batch: { files, gpsFiles, estimate, keepEvery: suggestKeepEvery(estimate, 100000, (layers.geophys_pts || []).length) } }); // #1582 — counts what is already drawn
     } catch (err) {
       setXyzError({ info: false, text: tr("Could not parse {name}: {message}", { name: files[0].name, message: err.message }) });
     }
