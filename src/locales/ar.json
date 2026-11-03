@@ -7045,5 +7045,8 @@
   "Sent to Layout. At the width Layout gives it, its labels print at about {pt} pt: drag its corner larger on the page, or draw fewer tracks.": "أُرسل إلى التخطيط. بالعرض الذي يمنحه له التخطيط تُطبع تسمياته بحجم {pt} نقطة تقريبًا: اسحب زاويته لتكبيره على الصفحة، أو ارسم مسارات أقل.",
   "{n} of {m} shown": "{n} من {m} معروضة",
   "{name} is assay data: it is open in the Geochem assay import, which asks which columns are elements.": "{name} يحتوي على تحاليل: وهو مفتوح في استيراد التحاليل في وحدة الجيوكيمياء، التي تسأل أي الأعمدة عناصر.",
-  "{n} more assay file(s) to import from the Geochem tab: {list}.": "{n} ملف تحاليل آخر للاستيراد من تبويب الجيوكيمياء: {list}."
+  "{n} more assay file(s) to import from the Geochem tab: {list}.": "{n} ملف تحاليل آخر للاستيراد من تبويب الجيوكيمياء: {list}.",
+  "Plan a hole to here": "خطّط ثقبًا إلى هنا",
+  "Open Planned holes with this zone's centre as the target: choose a collar, then Solve": "يفتح الثقوب المخطّطة مع مركز هذه المنطقة هدفًا: اختر فوهة ثم حلّ",
+  "Solve azimuth/dip/length to hit a target from the E/N/Elev above (the length runs {m} m past it; the target is kept on the hole)": "حلّ السمت/الميل/الطول لبلوغ هدف من E/N/الارتفاع أعلاه (يمتد الطول {m} م بعده؛ ويُحفظ الهدف مع الثقب)"
 }

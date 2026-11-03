@@ -47,10 +47,20 @@ function solveAzDipToTarget(from, to) {
   const s = solveOrientationToTarget(from, to) || { azimuth: 0, dip: 0, length: 0 };
   return { azimuth: s.azimuth, dip: s.dip, distance: s.length };
 }
-export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars, noTerrain }) {
+// TASKS.csv #1456 (review #1352) — presetTarget ({ x, y, z, at }): a target handed over from Targeting (an undrilled zone's centre);
+// the target typed or handed over is saved on the new hole (its Target panel opened empty and had to be typed again), and the
+// solve runs PAST_TARGET_M beyond it like that panel's default (the first solve ended the hole on the target, 14 m into the zone)
+const PAST_TARGET_M = 30;
+export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars, noTerrain, presetTarget = null }) {
   const [draft, setDraft] = useState({ name: "", x: "", y: "", z: "", azimuth: 0, dip: -60, length: 100 });
   const [fromCollarId, setFromCollarId] = useState("");
   const [target, setTarget] = useState({ x: "", y: "", z: "" });
+  const lastPreset = useRef(null);
+  useEffect(() => {
+    if (!presetTarget || presetTarget === lastPreset.current) return;
+    lastPreset.current = presetTarget;
+    setTarget({ x: Math.round(presetTarget.x * 10) / 10, y: Math.round(presetTarget.y * 10) / 10, z: Math.round(presetTarget.z * 10) / 10 });
+  }, [presetTarget]);
   const set = (k, v) => setDraft((p) => ({ ...p, [k]: v }));
   const lastAppliedPick = useRef(null);
   useEffect(() => {
@@ -71,12 +81,13 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
       { x: Number(draft.x), y: Number(draft.y), z: Number(draft.z) },
       { x: Number(target.x), y: Number(target.y), z: Number(target.z) },
     );
-    setDraft((p) => ({ ...p, azimuth: Math.round(azimuth * 10) / 10, dip: Math.round(dip * 10) / 10, length: Math.round(distance * 10) / 10 }));
+    setDraft((p) => ({ ...p, azimuth: Math.round(azimuth * 10) / 10, dip: Math.round(dip * 10) / 10, length: Math.round((distance + PAST_TARGET_M) * 10) / 10 })); // #1456 — past the target
   };
   const canAdd = draft.x !== "" && draft.y !== "" && draft.z !== "" && !isNaN(Number(draft.x)) && !isNaN(Number(draft.y)) && !isNaN(Number(draft.z)) && !isNaN(Number(draft.azimuth)) && !isNaN(Number(draft.dip)) && Number(draft.length) > 0;
   const submit = () => {
     if (!canAdd) return;
-    onAdd({ name: draft.name.trim() || undefined, x: Number(draft.x), y: Number(draft.y), z: Number(draft.z), azimuth: Number(draft.azimuth), dip: Number(draft.dip), length: Number(draft.length) });
+    onAdd({ name: draft.name.trim() || undefined, x: Number(draft.x), y: Number(draft.y), z: Number(draft.z), azimuth: Number(draft.azimuth), dip: Number(draft.dip), length: Number(draft.length),
+      ...(targetReady ? { target: { x: Number(target.x), y: Number(target.y), z: Number(target.z) }, pastTargetM: PAST_TARGET_M } : {}) }); // #1456 — the target goes with the hole
     setDraft({ name: "", x: "", y: "", z: "", azimuth: 0, dip: -60, length: 100 });
     setFromCollarId(""); setTarget({ x: "", y: "", z: "" });
   };
@@ -117,7 +128,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
       {/* TASKS.csv #1182 — with no terrain a click on empty space gets its Elev from a flat plane at the data's origin, and that value reached the rig sheet's CSV and GPX unmarked */}
       {noTerrain && pickedPoint && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{tr("No terrain is loaded, so a picked Elev is whatever the click hit, or a flat plane through the data. Check it before using it, or load a terrain.")}</div>}
       <div style={{ borderTop: "1px solid var(--color-border)", marginTop: 7, paddingTop: 7 }}>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Solve azimuth/dip/length to hit a target from the E/N/Elev above")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Solve azimuth/dip/length to hit a target from the E/N/Elev above (the length runs {m} m past it; the target is kept on the hole)", { m: PAST_TARGET_M })}</div>
         <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
           <NumField label={tr("Target E")} value={target.x} onChange={(v) => setTarget((p) => ({ ...p, x: v }))} />
           <NumField label={tr("Target N")} value={target.y} onChange={(v) => setTarget((p) => ({ ...p, y: v }))} />

@@ -1009,6 +1009,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // reusing onMeasureClick's exact raycast pattern (raycastWorldPoint — terrain/voxel/drillhole-aware,
   // not just a flat plane) so a picked point reflects whatever's actually under the cursor.
   const [pickHoleMode, setPickHoleMode] = useState(false);
+  const [planTarget, setPlanTarget] = useState(null); // TASKS.csv #1456 — a target handed to the planned-hole form from Targeting
   // TASKS.csv #1152 — interpretation lines: the pane, the drawing (on, the clicks, a counter a double-click bumps to end the
   // line, the survey a Geophysics button named); a ref for the mount-once handlers, the preview group made on first use
   const [interpretOpen, setInterpretOpen] = useState(false);
@@ -8170,7 +8171,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <Suspense fallback={null}><EvidenceOverlayPane onClose={() => setToolPane(null)} /></Suspense>
         )}
         {toolPane === "undrilled" && ( // TASKS.csv #1139
-          <Suspense fallback={null}><UndrilledZonesPane solids={closedShellsForEstimation()} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>
+          <Suspense fallback={null}><UndrilledZonesPane solids={closedShellsForEstimation()} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} onPlanTo={(c) => { setPlanTarget({ x: c.x, y: c.y, z: c.z }); setToolPane("plan"); }} /* #1456 */ /></Suspense>
         )}
         {toolPane === "plan" && (<>
         {paneHeader("Planned drillholes", Target, "model")}
@@ -8180,7 +8181,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <FileBarChart2 size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => exportPlannedHoles("csv"), tr("Export all planned holes to CSV"))} />
           )}
         </div>
-        <PlannedHoleAddForm noTerrain={!terrain} onAdd={addPlannedHole} pickMode={pickHoleMode} onStartPick={() => setPickHoleMode((v) => !v)} pickedPoint={pickedHolePoint} collars={collars} />
+        <PlannedHoleAddForm presetTarget={planTarget} noTerrain={!terrain} onAdd={addPlannedHole} pickMode={pickHoleMode} onStartPick={() => setPickHoleMode((v) => !v)} pickedPoint={pickedHolePoint} collars={collars} />
         {plannedHoles.length === 0 ? (
           <div style={{ padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", marginTop: 8 }}>{tr("No planned holes yet — add a collar position and design orientation above. A planned hole renders as a dashed orange line (distinct from real, drilled holes) in the 3D view, in every module tab, and in the same orange on sections, level plans and the rig KML.")}</div>
         ) : (

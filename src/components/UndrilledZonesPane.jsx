@@ -18,7 +18,10 @@ const mm3 = (v) => (v >= 1e5 ? `${(v / 1e6).toFixed(2)} Mm³` : `${Math.round(v)
 
 // solids: [{ id, name, positions (world E, N, Z), indices }] (ViewerModule closedShellsForEstimation).
 // onAdd({ name, positions, indices, volumeM3, params, tip }) adds the zones as a closed solid.
-export default function UndrilledZonesPane({ solids = [], onAdd, onClose }) {
+// TASKS.csv #1456 — the last result outlives the pane (as PitShellPane's does, #1341): "Plan a hole to here" opens the Planned
+// holes pane, and coming back should not mean measuring again
+let lastResult = null;
+export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlanTo = null }) {
   const { collars = [], survey = [], plannedHoles = [], desurveyMethod } = useStore();
   const [unitId, setUnitId] = useState("");
   const [coverM, setCoverM] = useState(25);
@@ -28,7 +31,8 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose }) {
   const [minText, setMinText] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
-  const [result, setResult] = useState(null);
+  const [result, setResultState] = useState(() => lastResult);
+  const setResult = (r) => { lastResult = r; setResultState(r); };
   const unit = solids.find((s) => s.id === unitId) || null;
   const autoCell = useMemo(() => (unit && coverM > 0 ? defaultCellSize(unit.positions, coverM) : null), [unit, coverM]);
 
@@ -110,7 +114,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose }) {
               {result.zones.length ? tr(result.zones.length === 1 ? "Not covered: {v} in 1 zone." : "Not covered: {v} in {n} zones.", { v: mm3(openV), n: result.zones.length }) : tr("Every part of the unit is within the distance of a hole.")}</div>
             {result.ignored.zones > 0 && <div style={note}>{tr(result.ignored.zones === 1 ? "1 smaller gap ({v}) left out." : "{n} smaller gaps ({v}) left out.", { n: result.ignored.zones, v: mm3(result.ignored.cells * result.cellVolume) })}</div>}
             {result.zones.slice(0, 8).map((z, i) => (
-              <div key={i} style={{ ...note, color: "var(--color-text-secondary)" }}>{tr("{i}. {v} around E {x}, N {y}, elevation {z}", { i: i + 1, v: mm3(z.volumeM3), x: Math.round(z.centre.x).toLocaleString(), y: Math.round(z.centre.y).toLocaleString(), z: Math.round(z.centre.z).toLocaleString() })}</div>
+              <div key={i} style={{ ...note, color: "var(--color-text-secondary)" }}>{onPlanTo && <button onClick={() => onPlanTo(z.centre)} style={planBtn} title={tr("Open Planned holes with this zone's centre as the target: choose a collar, then Solve")}>{tr("Plan a hole to here")}</button>}{tr("{i}. {v} around E {x}, N {y}, elevation {z}", { i: i + 1, v: mm3(z.volumeM3), x: Math.round(z.centre.x).toLocaleString(), y: Math.round(z.centre.y).toLocaleString(), z: Math.round(z.centre.z).toLocaleString() })}</div>
             ))}
             {result.zones.length > 8 && <div style={note}>{tr("… and {n} more.", { n: result.zones.length - 8 })}</div>}
             <div style={note}>{tr(result.holes.planned ? "{drilled} drilled and {planned} planned holes; {b} m blocks, measured from each block's centre to the hole traces in 3D." : "{drilled} drilled holes; {b} m blocks, measured from each block's centre to the hole traces in 3D.", { drilled: result.holes.drilled, planned: result.holes.planned, b: +result.cellM.toFixed(2) })}</div>
@@ -121,3 +125,4 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose }) {
     </>
   );
 }
+const planBtn = { float: "right", marginLeft: 6, padding: "1px 6px", fontSize: "var(--font-size-xs)", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, cursor: "pointer", color: "var(--color-text-secondary)" }; // #1456

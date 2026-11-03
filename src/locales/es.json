@@ -7045,5 +7045,8 @@
   "Sent to Layout. At the width Layout gives it, its labels print at about {pt} pt: drag its corner larger on the page, or draw fewer tracks.": "Enviado a Layout. Con el ancho que le da Layout, sus etiquetas se imprimen a unos {pt} pt: arrastre su esquina para agrandarlo en la página, o dibuje menos pistas.",
   "{n} of {m} shown": "{n} de {m} visibles",
   "{name} is assay data: it is open in the Geochem assay import, which asks which columns are elements.": "{name} contiene ensayes: está abierto en la importación de ensayes de Geoquímica, que pregunta qué columnas son elementos.",
-  "{n} more assay file(s) to import from the Geochem tab: {list}.": "{n} archivo(s) de ensayes más para importar desde la pestaña Geoquímica: {list}."
+  "{n} more assay file(s) to import from the Geochem tab: {list}.": "{n} archivo(s) de ensayes más para importar desde la pestaña Geoquímica: {list}.",
+  "Plan a hole to here": "Planificar un sondaje aquí",
+  "Open Planned holes with this zone's centre as the target: choose a collar, then Solve": "Abre Sondajes planificados con el centro de esta zona como objetivo: elija un collar y luego Resolver",
+  "Solve azimuth/dip/length to hit a target from the E/N/Elev above (the length runs {m} m past it; the target is kept on the hole)": "Resolver azimut/inclinación/largo para alcanzar un objetivo desde el E/N/Elev de arriba (el largo sigue {m} m más allá; el objetivo queda guardado en el sondaje)"
 }
