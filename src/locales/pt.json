@@ -6991,5 +6991,7 @@
   "Colour and style — Maps tab": "Cor e estilo — aba Mapas",
   "Edit boundary \"{name}\" in the Maps tab": "Editar o limite \"{name}\" na aba Mapas",
   "Colours, labels and draping — Surface Geology tab": "Cores, rótulos e drapeado — aba Geologia de superfície",
-  "Boundaries and models": "Limites e modelos"
+  "Boundaries and models": "Limites e modelos",
+  "No search radius: data support was scored against {m} m (twice the median spacing between holes); a block farther than that from every sample, not between holes, is unsupported.": "Sem raio de busca: o suporte de dados foi avaliado contra {m} m (o dobro do espaçamento mediano entre furos); um bloco mais longe que isso de toda amostra, e não entre furos, fica sem suporte.",
+  "Restricted to {v}.": "Restrito a {v}."
 }

@@ -136,7 +136,7 @@ export function estimateBlockModel(samplePoints, opts) {
   // TASKS.csv #709 — kriging needs a variogram (resolveVariogram), in the same frame the search works in
   const tw0 = method === "ok" ? withTrend(samplePoints, opts) : null;
   const variogram = method === "ok" ? resolveVariogram(tw0.pts, opts.variogram, cellSize) : null;
-  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, variogram };
+  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, variogram, supportRef: opts.supportRef }; // supportRef: #1411
   // TASKS.csv #91/#92 — support classification is opt-in and OFF by default: it widens the neighbour
   // search and adds per-cell work, so it must never be paid for by a caller that didn't ask. `bracketTol`
   // is half a cell, so bracketing has to be real at the scale the block model is drawn at.
@@ -515,7 +515,7 @@ function makeCellEstimator(samplePoints, opts = {}) {
         if (Math.sqrt(m2) > opts.variogram.range) out.okFar = true;
       }
     }
-    if (wantSupport) out.support = supportFrom(candidates, used, holes, cx, cy, cz, bracketTol, bracketMax, opts.searchRadius);
+    if (wantSupport) out.support = supportFrom(candidates, used, holes, cx, cy, cz, bracketTol, bracketMax, opts.supportRef > 0 ? opts.supportRef : opts.searchRadius, opts.supportRef > 0); // supportRef: #1411
     return out;
   };
 }
@@ -524,7 +524,10 @@ function makeCellEstimator(samplePoints, opts = {}) {
 // standalone makeSupportClassifier (which exists so a mesh's VERTICES can be classified after the fact,
 // where there is no grid pass to fuse into). `candidates` is the sorted in-radius list, `used` its
 // nearest-maxSamples prefix — i.e. exactly the samples that produced the estimate.
-function supportFrom(candidates, used, holes, cx, cy, cz, bracketTol, bracketMax, searchRadius) {
+// farUnsupported (#1411): with no search radius, `searchRadius` is a reference distance from the data (the caller's supportRef), and an
+// estimate farther than it from every sample, not bracketed, is classed unsupported: on Silvertip a block 1 km from any hole was
+// "extrapolated", like one 25 m away, and the support index never fell below 0.39 (scored against the 2.4 km grid diagonal).
+function supportFrom(candidates, used, holes, cx, cy, cz, bracketTol, bracketMax, searchRadius, farUnsupported = false) {
   let anyNegX = false, anyPosX = false, anyNegY = false, anyPosY = false, anyNegZ = false, anyPosZ = false;
   const allHoles = new Set();
   const wide = candidates.length > bracketMax ? candidates.slice(0, bracketMax) : candidates;
@@ -555,9 +558,10 @@ function supportFrom(candidates, used, holes, cx, cy, cz, bracketTol, bracketMax
   // line cannot bracket a point in 3-space no matter how many composites are strung along it.
   const isInterp = bracketed.x && bracketed.y && bracketed.z && holes.size >= 2;
   const nearest = Math.sqrt(used[0].d2);
+  const far = farUnsupported && !isInterp && nearest > searchRadius;
   return {
-    cls: isInterp ? SUPPORT_INTERPOLATED : SUPPORT_EXTRAPOLATED,
-    code: isInterp ? 2 : 1,
+    cls: isInterp ? SUPPORT_INTERPOLATED : far ? SUPPORT_UNSUPPORTED : SUPPORT_EXTRAPOLATED,
+    code: isInterp ? 2 : far ? 0 : 1,
     nearest, nearestPoint: used[0].p, nSamples: used.length, nHoles: holes.size, nOctants, bracketed, dataBracketed,
     nHolesWide: allHoles.size, nWide: wide.length,
     index: supportIndex({ nearest, nHoles: holes.size, nOctants, searchRadius }),
@@ -1001,7 +1005,7 @@ export function estimateDenseGrid(samplePoints, opts) {
   const twK = method === "ok" ? withTrend(samplePoints, opts) : null; // #709 — kriging works on grade shells too
   const variogram = method === "ok" ? resolveVariogram(twK.pts, opts.variogram, cellSize) : null;
   if (variogram) out.variogram = variogram;
-  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, variogram };
+  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, variogram, supportRef: opts.supportRef }; // supportRef: #1411
   // TASKS.csv #91/#92 — opt-in per-node data-support classification, OFF by default so no existing
   // caller pays for it. When on, the grid carries two extra parallel arrays on the same
   // [ix + nx * (iy + ny * iz)] indexing as `values`, so a mesh extracted from this grid can be coloured

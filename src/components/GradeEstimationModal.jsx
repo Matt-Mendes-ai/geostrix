@@ -232,6 +232,16 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
         const gridDiagonal = Math.sqrt(
           (bounds.xmax - bounds.xmin) ** 2 + (bounds.ymax - bounds.ymin) ** 2 + (bounds.zmax - bounds.zmin) ** 2
         );
+        // TASKS.csv #1411 — no search radius: support is still scored against a distance from the data, twice the median spacing
+        // between the holes' sample centroids (a fan's holes spread apart at depth), not the grid diagonal
+        let supportRef = 0;
+        if (!(searchRadius > 0)) {
+          const cen = new Map();
+          for (const p of points) { const c = cen.get(p.hole_id) || { x: 0, y: 0, z: 0, n: 0 }; c.x += p.x; c.y += p.y; c.z += p.z; c.n++; cen.set(p.hole_id, c); }
+          const cs = [...cen.values()].map((c) => [c.x / c.n, c.y / c.n, c.z / c.n]);
+          const nn = cs.map((a) => Math.min(...cs.filter((b) => b !== a).map((b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])))).filter(Number.isFinite).sort((a, b) => a - b);
+          if (nn.length) supportRef = Math.max(2 * nn[nn.length >> 1], 2 * Math.max(cell3.dx, cell3.dy, cell3.dz));
+        }
         const ac = new AbortController(); abortRef.current = ac;
         const est = await runEstimation("block", points, {
           bounds, cellSize: cell3, maxBlocks: blockBudget, // #626; cell3 / bounds: the matched lattice (#724)
@@ -239,6 +249,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           minHoles,                                              // TASKS.csv #258
           restrictToDomain: restrictToDomain && !!domainKey,     // TASKS.csv #260
           support: classifySupport,                              // TASKS.csv #91/#92
+          ...(supportRef > 0 ? { supportRef } : {}),             // #1411
           ...(method === "ok" ? { variogram: { model: vgModel, ...(vgNugget !== "" && vgSill !== "" && vgRange !== "" ? { nugget: Number(vgNugget), sill: Number(vgSill), range: Number(vgRange) } : {}) } } : {}), // #709
           ...(trend ? { trend: { basis: trendBasis(trend), scales: trendSearchScales(trend) } } : {}), // TASKS.csv #650 — ellipsoidal search
         }, { onProgress: (f) => setProgress(method === "nn" ? f : 0.8 * f), signal: ac.signal });
@@ -255,7 +266,7 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           tool: "Grade estimation", element: symbol, method, cellSizeM: matched ? [cell3.dx, cell3.dy, cell3.dz] : cellSize, paddingM: padding,
           ...(lattice ? { gridOrigin: [lattice.ox, lattice.oy, lattice.oz], gridMatched: matched ? matched.m.name : "typed origin" } : {}), // #724
           gridFrom: traceBounds ? `desurveyed traces of ${traceBounds.holes} assayed hole(s)` : "collar box (no hole could be desurveyed)", // #521
-          searchRadiusM: searchRadius > 0 ? searchRadius : Math.round(gridDiagonal), searchRadiusWasUnlimited: !(searchRadius > 0),
+          searchRadiusM: searchRadius > 0 ? searchRadius : Math.round(gridDiagonal), searchRadiusWasUnlimited: !(searchRadius > 0), ...(supportRef > 0 ? { supportScoredAgainstM: Math.round(supportRef) } : {}), // #1411
           minSamples, maxSamples, minHoles, maxSamplesPerHole: maxPerHole || null,
           searchTrend: trend ? { name: trend.name, dip: trend.dip, dipAzimuth: trend.dipAzimuth, pitch: trend.pitch, ratios: trend.ratios, ellipsoidM: [1, trend.ratios.int / trend.ratios.max, trend.ratios.min / trend.ratios.max].map((f) => Math.round(f * (searchRadius > 0 ? searchRadius : gridDiagonal))) } : null, // #650
           composited: useComposites, compositeLengthM: useComposites ? compositeLength : null, minCoverage: useComposites ? minCoverage : null,
@@ -273,6 +284,15 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
           est.cells = est.cells.filter((c) => inShell(c));
           est.blocksSkipped += before - est.cells.length; est.blocksEstimated = est.cells.length;
           params.restrictedToVolume = `${shellInfo.name}: ${shellInfo.samplesInside} sample(s) inside used, ${shellInfo.samplesOutside} outside left out; ${before - est.cells.length} block(s) outside it dropped`;
+          // TASKS.csv #1410 (review #1352) — the tallies describe the blocks kept, not the whole grid (they read "22 estimated" beside
+          // "48 extrapolated, 190,032 unsupported"). Unsupported blocks have no cell, so inside or outside cannot be told: not counted.
+          if (est.supportCounts) {
+            const sc = { interpolated: 0, extrapolated: 0, unsupported: 0, searchLimited: 0 };
+            for (const c of est.cells) if (c.support in sc) sc[c.support]++;
+            sc.searchLimited = Math.min(est.supportCounts.searchLimited || 0, sc.extrapolated);
+            est.supportCounts = sc;
+          }
+          est.singleHoleCells = est.cells.filter((c) => c.nHoles === 1).length;
         }
         // TASKS.csv #803 — Matt: "I can't get my grade shell block model to end at surface". The grid is padded around the
         // samples, so near the surface its top layers were in the air: a block whose centre is above the terrain is dropped
@@ -557,6 +577,8 @@ export default function GradeEstimationModal({ assays, assayElements, layers, co
                 <div style={{ color: "var(--color-warn-text)" }}>
                   {tr("{singleHoleCells} of the estimated blocks ({v}%) were informed by only ONE drillhole — continuity there is asserted, not demonstrated. Raise \"Min distinct holes per block\" to exclude them.", { singleHoleCells: result.singleHoleCells.toLocaleString(), v: ((result.singleHoleCells / Math.max(1, result.blocksEstimated)) * 100).toFixed(0) })}</div>
               )}
+              {result.params?.supportScoredAgainstM > 0 && <div style={{ color: "var(--color-text-secondary)" }}>{tr("No search radius: data support was scored against {m} m (twice the median spacing between holes); a block farther than that from every sample, not between holes, is unsupported.", { m: result.params.supportScoredAgainstM.toLocaleString() })}</div>}{/* #1411 */}
+              {result.params?.restrictedToVolume && <div style={{ color: "var(--color-text-secondary)" }}>{tr("Restricted to {v}.", { v: result.params.restrictedToVolume })}</div>}{/* #1410 */}
               {/* TASKS.csv #676 — passing the hole rule while one hole carries nearly all the weight */}
               {result.dominatedCells > 0 && (
                 <div style={{ color: "var(--color-warn-text)" }}>

@@ -6991,5 +6991,7 @@
   "Colour and style — Maps tab": "اللون والنمط — تبويب الخرائط",
   "Edit boundary \"{name}\" in the Maps tab": "تحرير الحد \"{name}\" في تبويب الخرائط",
   "Colours, labels and draping — Surface Geology tab": "الألوان والتسميات والإسقاط — تبويب الجيولوجيا السطحية",
-  "Boundaries and models": "الحدود والنماذج"
+  "Boundaries and models": "الحدود والنماذج",
+  "No search radius: data support was scored against {m} m (twice the median spacing between holes); a block farther than that from every sample, not between holes, is unsupported.": "لا نصف قطر بحث: قُيّم دعم البيانات مقابل {m} م (ضعف التباعد الوسيط بين الآبار)؛ والكتلة الأبعد من ذلك عن كل عينة، وليست بين آبار، بلا دعم.",
+  "Restricted to {v}.": "مقيد بـ {v}."
 }
