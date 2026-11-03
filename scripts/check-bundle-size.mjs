@@ -6,7 +6,12 @@
 import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
-const EAGER_BUDGET_KB = 1628; // measured 2026-09-26 after #476: 1,548 kB, +5% headroom. 2026-11-03: +2 kB, deliberately, for the role patterns (#1369) and the outlier-aware sample symbols (#1403) that the first draw needs; +1 kB for the review fixes after v0.1.94 (support classes, legend ranking, section model keys #1373, canvas-only hover #1491). Papaparse (18 kB) could leave startup: TASKS.csv #1493
+// TASKS.csv #1494 — Matt (2026-11-03): raise the budget as far as needed, as long as GeoStrix starts in 3 seconds or less on his
+// laptop. Measured with scripts/measure-startup.mjs (built app over app://, spawn to the first frame with the ribbon): at 1,627 kB,
+// 0.80-0.92 s median, 1.13 s at worst; with 301 kB more startup JavaScript (Geochem made eager for the test), 0.96 s median, so
+// about 0.15-0.5 ms per kB there. 2,000 kB adds about 0.2 s at the higher rate: about 1.3 s at worst on that laptop, under 3 s even
+// on a computer more than twice as slow. History: 1,548 kB +5 % (2026-09-26, #476); 1,627 / 1,628 kB (2026-11-03, #1369, #1403, #1373).
+const EAGER_BUDGET_KB = 2000;
 
 const dist = path.resolve(process.argv[2] || "dist");
 const html = readFileSync(path.join(dist, "index.html"), "utf8");
