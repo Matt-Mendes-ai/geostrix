@@ -21,6 +21,10 @@ const appAsar = path.join(path.dirname(exe), "resources", "app.asar");
 const electronBin = createRequire(import.meta.url)("electron"); // the npm package exports the path of its binary
 const childEnv = { ...process.env };
 delete childEnv.NODE_ENV; delete childEnv.ELECTRON_RUN_AS_NODE; // "development" would load the Vite server instead of the packaged files
+// TASKS.csv #1344 — an installed copy lives under %LOCALAPPDATA%, which the file guard protects; from v0.1.87 to v0.1.93 no sample opened and this
+// check, run from a build folder, could not see it. The package's folder stands in for LOCALAPPDATA, so its samples sit where an install's do.
+childEnv.LOCALAPPDATA = path.dirname(exe); // its temp folder is a fresh one: the guard lets Temp through, and a build sitting in Temp would hide the bug
+childEnv.TEMP = childEnv.TMP = mkdtempSync(path.join(profile, "tmp-"));
 let child = spawn(electronBin, [appAsar, `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`], { stdio: ["ignore", "pipe", "pipe"], env: childEnv });
 let log = "";
 child.stdout.on("data", (d) => { log += d; });
@@ -78,7 +82,13 @@ else {
   else if (!/3D View/.test(state.text)) fail(`unexpected first screen: ${state.text}`);
   else {
     console.log("SMOKE OK: the packaged app renders.");
-    if (!process.env.CI) finish(0);
+    // #1344 — a bundled sample file reads through the same guard a user's click goes through
+    const sample = await evaluate(page.webSocketDebuggerUrl, `(async () => { const p = await window.desktop.sampleDataPath(); if (!p.ok) return "no sample folder: " + p.error; const sep = p.path.includes("\\\\") ? "\\\\" : "/"; const r = await window.desktop.fsReadFile(p.path + sep + "harry_property" + sep + "collars.csv"); return r.ok ? "ok " + (r.data?.length || r.data?.byteLength || 0) : r.error; })()`).catch((e) => String(e));
+    console.log("sample:", sample);
+    const samplesOk = /^ok [1-9]/.test(String(sample));
+    if (samplesOk) console.log("SMOKE OK: the bundled samples read from inside a protected folder.");
+    if (!samplesOk) fail(`a bundled sample cannot be read: ${sample}`);
+    else if (!process.env.CI) finish(0);
     else {
       // never outside CI: with no profile switch allowed, this would open the real profile of whoever ran it
       done = true; child.kill(); await wait(1500); done = false;

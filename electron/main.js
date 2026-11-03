@@ -1178,6 +1178,9 @@ async function inProtectedFolder(p) {
   if (hit(dirKey(p))) return true;
   try { return hit(dirKey(await fs.promises.realpath(p))); } catch (_) { return false; }
 }
+async function realPathInSamples(p) {
+  try { const real = dirKey(await fs.promises.realpath(p)); return [...sampleRoots].some((r) => real.startsWith(r + path.sep)); } catch (_) { return false; }
+}
 const approvedShareHosts = new Set();
 async function allowNetworkPath(p) {
   if (!isUncPath(p)) return true;
@@ -1240,7 +1243,10 @@ ipcMain.handle("fs-read-file", async (_e, { filePath }) => {
     const full = dirKey(filePath); // #746 — its folder listed this session, or the bundled samples
     const inSamples = [...sampleRoots].some((r) => full.startsWith(r + path.sep));
     if (!inSamples && !listedDirs.has(path.dirname(full))) return { ok: false, error: "Open the file's folder in the Browser panel first." };
-    if (isNamespacedPath(filePath) || (await inProtectedFolder(filePath))) return { ok: false, error: "GeoStrix does not read files from this location." }; // #1076
+    // TASKS.csv #1344 — an installed copy keeps its samples in %LOCALAPPDATA%\Programs\GeoStrix\resources, which #1266 protects, so from
+    // v0.1.87 no sample opened. GeoStrix's own sample files are read; only when the real path is in the samples too, so a link cannot pass for one.
+    const sampleFile = inSamples && (await realPathInSamples(filePath));
+    if (!sampleFile && (isNamespacedPath(filePath) || (await inProtectedFolder(filePath)))) return { ok: false, error: "GeoStrix does not read files from this location." }; // #1076
     if (!(await allowNetworkPath(filePath))) return { ok: false, error: "Network location not opened." };
     const st = await fs.promises.stat(filePath);
     if (!st.isFile()) return { ok: false, error: "Not a file." };
@@ -1260,11 +1266,13 @@ ipcMain.handle("fs-read-file", async (_e, { filePath }) => {
 // "read the whole sample project" handler, so the sample load walks the exact same
 // fsReadFile -> base64ToFile -> parseVectorFile path as the Browser panel's own file-click import.
 ipcMain.handle("sample-data-path", async () => {
+  // #1344 — the CI smoke test runs a package's app.asar with the plain Electron binary (not "packaged"): its samples sit beside the asar
+  const appPath = app.getAppPath();
   const candidates = app.isPackaged
     ? [path.join(process.resourcesPath || "", "sample_data")]
-    : [path.join(__dirname, "..", "sample_data")];
+    : [path.join(__dirname, "..", "sample_data"), ...(/\.asar$/i.test(appPath) ? [path.join(path.dirname(appPath), "sample_data")] : [])];
   for (const dir of candidates) {
-    try { if (fs.existsSync(dir)) { sampleRoots.add(dirKey(dir)); return { ok: true, path: dir }; } } catch (_) {} // #746
+    try { if (fs.existsSync(dir)) { sampleRoots.add(dirKey(dir)); try { sampleRoots.add(dirKey(fs.realpathSync(dir))); } catch (_) {} return { ok: true, path: dir }; } } catch (_) {} // #746
   }
   return { ok: false, error: "The bundled sample data folder wasn't found in this install." };
 });
