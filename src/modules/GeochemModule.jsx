@@ -18,7 +18,7 @@ import { addCalculatedElement, CALC_PRESETS } from "../lib/calcElement.js"; // T
 import { useStore } from "../lib/store.jsx";
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
 import { isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples } from "../lib/geochem.js";
-import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile } from "../lib/geochemDiagrams.js";
+import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode } from "../lib/geochemDiagrams.js";
 import { qcRecordFromFileRow, emptySurfaceQc } from "../lib/surfaceQaqc.js"; // TASKS.csv #842
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
 import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
@@ -703,8 +703,11 @@ export default function GeochemModule() {
     // TASKS.csv #503 — the box plot needs its protolith set-up first (dialog), then classifies per sample
     if (methodKey === "alteration_boxplot" && !altSetup) { setAltBoxOpen(true); return; }
     const targetKey = method.target === "litho" ? "litho_gc" : "alt_gc";
+    // TASKS.csv #1380 — replacing a geochem layer asks first (Winchester silently replaced Jensen's)
+    if ((layers[targetKey] || []).length && !window.confirm(tr("Replace the {n} intervals already in the {v} layer?", { n: layers[targetKey].length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)") }))) return;
     let lithoByHole = null, noProtolith = 0;
-    if (altSetup && altSetup.source === "logged") {
+    const sedSkipped = {}; // #1380 — logged code -> samples left out of a volcanic classifier
+    if ((altSetup && altSetup.source === "logged") || method.volcanicOnly) {
       lithoByHole = new Map();
       (layers.litho || []).forEach((r) => { if (!lithoByHole.has(r.hole_id)) lithoByHole.set(r.hole_id, []); lithoByHole.get(r.hole_id).push(r); });
     }
@@ -716,6 +719,7 @@ export default function GeochemModule() {
         if (!protolith) { noProtolith++; return null; }
         opts = { protolith, boxes: altSetup.boxes };
       }
+      if (method.volcanicOnly) { const code = loggedCodeAt(a, lithoByHole); if (isSedimentaryCode(code)) { sedSkipped[code] = (sedSkipped[code] || 0) + 1; return null; } }
       const value = method.classify(a.values, elementUnits, a, opts);
       if (!value) return null;
       counts[value] = (counts[value] || 0) + 1;
@@ -723,7 +727,10 @@ export default function GeochemModule() {
     }).filter(Boolean);
     replaceLayer(targetKey, rows);
     const detail = altSetup ? tr(" {v}.{v2}{v3} Screening level: protolith assumed.", { v: Object.entries(counts).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${GEOCHEM_LABELS[k] || k} ${n}`).join(", "), v2: noProtolith ? tr(" {noProtolith} sample(s) not classified: no protolith (unmapped lithology code or no logged interval).", { noProtolith }) : "", v3: JSON.stringify(altSetup.boxes) === JSON.stringify(PROVISIONAL_ALTERATION_BOXES) ? tr(" Box limits are the PROVISIONAL defaults (not yet checked against Large et al. 2001).") : tr(" Box limits: your edited values.") }) : "";
-    setNotices((p) => [...p, notice("Generated {rows} intervals → {v} layer.{detail} Switch to 3D View to see it.", { rows: rows.length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)"), detail })]);
+    const sedN = Object.values(sedSkipped).reduce((s, n) => s + n, 0);
+    const sedText = sedN ? tr(" {n} sample(s) in logged sedimentary or carbonate codes ({codes}) were not classified: this classifier is for volcanic rocks.", { n: sedN, codes: Object.entries(sedSkipped).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k} ${n}`).join(", ") }) : "";
+    const jensenText = methodKey === "litho_jensen" ? tr(" The classes are a simplified threshold split of the cation ternary, not the published Jensen fields.") : "";
+    setNotices((p) => [...p, notice("Generated {rows} intervals → {v} layer.{detail} Switch to 3D View to see it.", { rows: rows.length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)"), detail: detail + sedText + jensenText })]);
   };
 
   // ---------- exports ----------

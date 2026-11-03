@@ -79,7 +79,7 @@ export const DIAGRAMS = {
   winchester: {
     id: "winchester",
     label: "Zr/TiO₂ vs Nb/Y (Winchester & Floyd 1977)",
-    caption: "Immobile-element classification. Robust to alteration.",
+    caption: "Immobile-element classification. Robust to alteration. The fields are simplified to boxes: check a name against the published diagram.",
     requires: ["Zr", "Ti", "Nb", "Y"],
     xLabel: "Nb/Y", yLabel: "Zr/TiO₂",
     logX: true, logY: true,
@@ -130,6 +130,7 @@ export const DIAGRAMS = {
     label: "Jensen cation plot (1976)",
     caption: "Al–(Fe+Ti)–Mg cation ternary for subalkaline volcanics.",
     requires: ["Al", "Fe", "Ti", "Mg"],
+    noFields: true, // TASKS.csv #1379 — the published fields are not drawn yet: the plot says so
     ternary: true,
     corners: ["Al₂O₃", "FeOt+TiO₂", "MgO"],
     project: (s, u) => {
@@ -145,6 +146,7 @@ export const DIAGRAMS = {
     label: "Th/Yb vs Nb/Yb (Pearce 2008)",
     caption: "Immobile ratios; separates arc from MORB/OIB mantle array.",
     requires: ["Th", "Nb", "Yb"],
+    noFields: true, // #1379
     xLabel: "Nb/Yb", yLabel: "Th/Yb",
     logX: true, logY: true,
     xRange: [0.1, 100], yRange: [0.01, 10],
@@ -157,8 +159,9 @@ export const DIAGRAMS = {
   tizry: {
     id: "tizry",
     label: "Ti–Zr–Y (Pearce & Cann 1973)",
-    caption: "Ternary discrimination for basaltic rocks — immobile elements, robust through greenschist-facies alteration common in VMS footwalls. Fields: A=island-arc tholeiite, B=IAT/MORB/calc-alkali basalt (overlap), C=calc-alkali basalt, D=within-plate basalt.",
+    caption: "Ternary discrimination for basaltic rocks — immobile elements, robust through greenschist-facies alteration common in VMS footwalls. Pearce & Cann's fields (island-arc tholeiite, MORB, calc-alkali and within-plate basalt) are not drawn yet.",
     requires: ["Ti", "Zr", "Y"],
+    noFields: true, // #1379 — the caption named fields A-D that were never drawn
     ternary: true,
     corners: ["Ti/100", "Zr", "Y×3"],
     project: (s, u) => {
@@ -174,6 +177,7 @@ export const DIAGRAMS = {
     label: "Th–Hf–Ta (Wood 1980)",
     caption: "Ternary tectonic discrimination using HFSE/Th — very resistant to hydrothermal alteration, useful for classifying altered VMS-hosting mafic volcanics.",
     requires: ["Th", "Hf", "Ta"],
+    noFields: true, // #1379
     ternary: true,
     corners: ["Th", "Hf/3", "Ta"],
     project: (s, u) => {
@@ -314,6 +318,20 @@ export function protolithForSample(sample, { fixed = null, lithoByHole = null, m
   return code in map ? map[code] || null : guessProtolith(code);
 }
 
+// TASKS.csv #1380 — the logged lithology code at a sample's midpoint (lithoByHole: hole -> rows), or null
+export function loggedCodeAt(sample, lithoByHole) {
+  const rows = lithoByHole?.get(sample.hole_id);
+  if (!rows) return null;
+  const mid = (Number(sample.from) + Number(sample.to)) / 2;
+  const r = rows.find((x) => mid >= Number(x.from) && mid < Number(x.to));
+  return r ? String(r.value ?? "").trim() || null : null;
+}
+// #1380 — the usual whole codes of sedimentary and carbonate rocks: a volcanic classifier (Jensen, Winchester & Floyd) called
+// Silvertip's limestone and dolostone "komatiite" because their MgO dominates the cation sum
+export function isSedimentaryCode(code) {
+  return /^(lmst|lst|ls|limestone|dlst|dolst|dolostone|dolomite|marble|mbl|slst|sltst|siltstone|sndst|sst|sandstone|sh|shale|arg|argillite|mdst|mudstone|cong|cgl|conglomerate|chert|cht|wacke|gwke|greywacke|graywacke|evap|evaporite|coal)$/i.test(String(code || "").trim());
+}
+
 // ---------- alteration / litho classification (reuse projections above) ----------
 export const GEOCHEM_METHODS = {
   alteration_boxplot: {
@@ -330,6 +348,7 @@ export const GEOCHEM_METHODS = {
   litho_winchester: {
     label: "Winchester–Floyd immobile fields",
     target: "litho", requires: ["Zr", "Ti", "Nb", "Y"],
+    volcanicOnly: true, // #1380
     classify: (v, u, sampleShim) => {
       const s = sampleShim || { values: v };
       const p = DIAGRAMS.winchester.project(s, u);
@@ -340,6 +359,7 @@ export const GEOCHEM_METHODS = {
   litho_jensen: {
     label: "Jensen cation fields",
     target: "litho", requires: ["Al", "Fe", "Ti", "Mg"],
+    volcanicOnly: true, // #1380 — and a simplified threshold split, not the published Jensen fields (said in the notice)
     classify: (v, u, sampleShim) => {
       const s = sampleShim || { values: v };
       const Al = valueIn(s, "Al", "%", u), Fe = valueIn(s, "Fe", "%", u), Ti = valueIn(s, "Ti", "%", u), Mg = valueIn(s, "Mg", "%", u);

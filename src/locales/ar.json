@@ -1846,7 +1846,6 @@
   "Phonolite": "فونوليت",
   "Picrobasalt": "بيكروبازلت",
   "Zr/TiO₂ vs Nb/Y (Winchester & Floyd 1977)": "Zr/TiO₂ مقابل Nb/Y (Winchester & Floyd 1977)",
-  "Immobile-element classification. Robust to alteration.": "تصنيف بالعناصر غير المتحركة. مقاوم للتحول.",
   "Rhyolite/Dacite": "ريوليت/داسيت",
   "Bas-And": "بازلت-أنديزيت",
   "Subalkaline basalt": "بازلت تحت قلوي",
@@ -1860,7 +1859,6 @@
   "Th/Yb vs Nb/Yb (Pearce 2008)": "Th/Yb مقابل Nb/Yb (Pearce 2008)",
   "Immobile ratios; separates arc from MORB/OIB mantle array.": "نسب غير متحركة؛ تفصل القوس عن مصفوفة الوشاح MORB/OIB.",
   "Ti–Zr–Y (Pearce & Cann 1973)": "Ti–Zr–Y (Pearce & Cann 1973)",
-  "Ternary discrimination for basaltic rocks — immobile elements, robust through greenschist-facies alteration common in VMS footwalls. Fields: A=island-arc tholeiite, B=IAT/MORB/calc-alkali basalt (overlap), C=calc-alkali basalt, D=within-plate basalt.": "تمييز ثلاثي للصخور البازلتية — عناصر غير متحركة، مقاوم لتحول سحنة الشيست الأخضر الشائع في قواعد رواسب VMS. الحقول: A=ثولييت أقواس جزرية، B=IAT/MORB/بازلت كلسي قلوي (تداخل)، C=بازلت كلسي قلوي، D=بازلت داخل الصفيحة.",
   "Th–Hf–Ta (Wood 1980)": "Th–Hf–Ta (Wood 1980)",
   "Ternary tectonic discrimination using HFSE/Th — very resistant to hydrothermal alteration, useful for classifying altered VMS-hosting mafic volcanics.": "تمييز تكتوني ثلاثي باستخدام HFSE/Th — شديد المقاومة للتحول الحراري المائي، مفيد لتصنيف البركانيات المافية المتحولة المضيفة لرواسب VMS.",
   "PER: Al₂O₃ vs 3K₂O (MacLean & Kranidiotis 1987)": "PER: Al₂O₃ مقابل 3K₂O (MacLean & Kranidiotis 1987)",
@@ -6956,5 +6954,11 @@
   "Steeper than 65° overall or deeper than 500 m is beyond most open pits: treat it as a sign the body is an underground question.": "ميل إجمالي أكثر من 65° أو عمق أكثر من 500 م يتجاوز معظم الحفر المكشوفة: اعتبره إشارة إلى أن الجسم مسألة تعدين تحت الأرض.",
   "The ground is interpolated between the collars, not a terrain.": "سطح الأرض مستكمل بين رؤوس الآبار، وليس تضاريس.",
   "{unitName}: {n} interval start(s) right under a fault, breccia, vein, dyke, no-recovery or casing interval were not used as tops (roles in Modelling codes).": "{unitName}: لم تُستخدم {n} من بدايات الفترات الواقعة مباشرة تحت صدع أو بريشيا أو عرق أو قاطع أو فترة بلا استرداد أو تغليف كأسطح علوية (الأدوار في رموز النمذجة).",
-  "Skipping from the stack (no top contacts it can use — no intervals, or every start is at a hole start or under casing, overburden, a cross-cutting or an older unit; the notes above say which): {skipped}.": "تخطي في العمود (لا توجد تماسات علوية صالحة: لا فترات، أو كل بداية عند بداية البئر أو تحت تغليف أو غطاء أو وحدة قاطعة أو وحدة أقدم؛ الملاحظات أعلاه تبيّن أيها): {skipped}."
+  "Skipping from the stack (no top contacts it can use — no intervals, or every start is at a hole start or under casing, overburden, a cross-cutting or an older unit; the notes above say which): {skipped}.": "تخطي في العمود (لا توجد تماسات علوية صالحة: لا فترات، أو كل بداية عند بداية البئر أو تحت تغليف أو غطاء أو وحدة قاطعة أو وحدة أقدم؛ الملاحظات أعلاه تبيّن أيها): {skipped}.",
+  "Ternary discrimination for basaltic rocks — immobile elements, robust through greenschist-facies alteration common in VMS footwalls. Pearce & Cann's fields (island-arc tholeiite, MORB, calc-alkali and within-plate basalt) are not drawn yet.": "تمييز ثلاثي للصخور البازلتية — عناصر غير متحركة، متين أمام تحول سحنة الشست الأخضر الشائع تحت رواسب VMS. حقول بيرس وكان (ثوليت أقواس الجزر، MORB، البازلت الكلسي القلوي وبازلت داخل الصفيحة) لم تُرسم بعد.",
+  "Immobile-element classification. Robust to alteration. The fields are simplified to boxes: check a name against the published diagram.": "تصنيف بالعناصر غير المتحركة. متين أمام التحول. الحقول مبسطة إلى مستطيلات: تحقق من الاسم مقابل المخطط المنشور.",
+  "Replace the {n} intervals already in the {v} layer?": "استبدال الفترات الـ{n} الموجودة في طبقة {v}؟",
+  " {n} sample(s) in logged sedimentary or carbonate codes ({codes}) were not classified: this classifier is for volcanic rocks.": " لم تُصنَّف {n} من العينات في رموز مسجلة رسوبية أو كربوناتية ({codes}): هذا المصنِّف للصخور البركانية.",
+  " The classes are a simplified threshold split of the cation ternary, not the published Jensen fields.": " الفئات تقسيم مبسط بالعتبات للمثلث الكاتيوني، وليست حقول جنسن المنشورة.",
+  "No fields drawn: compare with the published diagram": "لا حقول مرسومة: قارن بالمخطط المنشور"
 }

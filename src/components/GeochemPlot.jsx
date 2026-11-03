@@ -102,6 +102,8 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef, altBoxes, describe })
     <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" style={{ background: "var(--color-bg)", borderRadius: 8, maxHeight: "72vh" }} onMouseMove={onMove} onMouseLeave={onLeave}>
       <rect x={PAD} y={PAD} width={W - 2 * PAD} height={H - 2 * PAD} fill="#ffffff" stroke="#d9dce1" />
 
+      {/* TASKS.csv #1379 — a classification diagram drawn without its fields says so on the plot */}
+      {diagram.noFields && <text x={W - PAD - 6} y={PAD + 14} fill="#8a5a00" fontSize={fontSizes.xs} textAnchor="end">{tr("No fields drawn: compare with the published diagram")}</text>}
       {/* reference fields */}
       {diagram.fields && diagram.fields.map((f, i) => (
         <g key={i}>
@@ -110,6 +112,8 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef, altBoxes, describe })
             <polygon points={[[f.box[0][0], f.box[0][1]], [f.box[1][0], f.box[0][1]], [f.box[1][0], f.box[1][1]], [f.box[0][0], f.box[1][1]]].map(([x, y]) => `${sx(x)},${sy(y)}`).join(" ")} fill="none" stroke="#2a3444" strokeWidth="1" />
           )}
           {f.pts && <text x={sx(centroid(f.pts)[0])} y={sy(centroid(f.pts)[1])} fill="#4a5568" fontSize={fontSizes.xs} textAnchor="middle">{tr(f.name)}</text>}
+          {/* TASKS.csv #1379 — a box field is named at its centre (the geometric centre on a log axis); Winchester & Floyd's were never named */}
+          {f.box && (() => { const mid = (a, b, log) => (log ? Math.sqrt(a * b) : (a + b) / 2); return <text x={sx(mid(f.box[0][0], f.box[1][0], diagram.logX))} y={sy(mid(f.box[0][1], f.box[1][1], diagram.logY))} fill="#4a5568" fontSize={fontSizes.xs} textAnchor="middle">{tr(f.name)}</text>; })()}
         </g>
       ))}
 

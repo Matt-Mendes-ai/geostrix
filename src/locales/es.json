@@ -1846,7 +1846,6 @@
   "Phonolite": "Fonolita",
   "Picrobasalt": "Picrobasalto",
   "Zr/TiO₂ vs Nb/Y (Winchester & Floyd 1977)": "Zr/TiO₂ vs Nb/Y (Winchester & Floyd 1977)",
-  "Immobile-element classification. Robust to alteration.": "Clasificación por elementos inmóviles. Robusta frente a la alteración.",
   "Rhyolite/Dacite": "Riolita/Dacita",
   "Bas-And": "Bas-And",
   "Subalkaline basalt": "Basalto subalcalino",
@@ -1860,7 +1859,6 @@
   "Th/Yb vs Nb/Yb (Pearce 2008)": "Th/Yb vs Nb/Yb (Pearce 2008)",
   "Immobile ratios; separates arc from MORB/OIB mantle array.": "Razones inmóviles; separa el arco del arreglo mantélico MORB/OIB.",
   "Ti–Zr–Y (Pearce & Cann 1973)": "Ti–Zr–Y (Pearce & Cann 1973)",
-  "Ternary discrimination for basaltic rocks — immobile elements, robust through greenschist-facies alteration common in VMS footwalls. Fields: A=island-arc tholeiite, B=IAT/MORB/calc-alkali basalt (overlap), C=calc-alkali basalt, D=within-plate basalt.": "Discriminación ternaria para rocas basálticas — elementos inmóviles, robusta frente a la alteración en facies de esquisto verde común en los muros de VMS. Campos: A=toleita de arco de islas, B=IAT/MORB/basalto calcoalcalino (traslape), C=basalto calcoalcalino, D=basalto de intraplaca.",
   "Th–Hf–Ta (Wood 1980)": "Th–Hf–Ta (Wood 1980)",
   "Ternary tectonic discrimination using HFSE/Th — very resistant to hydrothermal alteration, useful for classifying altered VMS-hosting mafic volcanics.": "Discriminación tectónica ternaria con HFSE/Th — muy resistente a la alteración hidrotermal, útil para clasificar volcánicas máficas alteradas que alojan VMS.",
   "PER: Al₂O₃ vs 3K₂O (MacLean & Kranidiotis 1987)": "PER: Al₂O₃ vs 3K₂O (MacLean & Kranidiotis 1987)",
@@ -6956,5 +6954,11 @@
   "Steeper than 65° overall or deeper than 500 m is beyond most open pits: treat it as a sign the body is an underground question.": "Más de 65° de talud global o más de 500 m de profundidad supera a la mayoría de los tajos abiertos: tómelo como señal de que el cuerpo es un caso subterráneo.",
   "The ground is interpolated between the collars, not a terrain.": "La superficie se interpola entre los collares, no es un terreno.",
   "{unitName}: {n} interval start(s) right under a fault, breccia, vein, dyke, no-recovery or casing interval were not used as tops (roles in Modelling codes).": "{unitName}: {n} inicio(s) de intervalo justo debajo de una falla, brecha, veta, dique, tramo sin recuperación o entubado no se usaron como techos (roles en Códigos de modelado).",
-  "Skipping from the stack (no top contacts it can use — no intervals, or every start is at a hole start or under casing, overburden, a cross-cutting or an older unit; the notes above say which): {skipped}.": "Se omiten de la pila (sin contactos de techo utilizables: sin intervalos, o cada inicio está al comienzo del sondaje o bajo entubado, sobrecarga, una unidad que corta o una unidad más antigua; las notas de arriba dicen cuál): {skipped}."
+  "Skipping from the stack (no top contacts it can use — no intervals, or every start is at a hole start or under casing, overburden, a cross-cutting or an older unit; the notes above say which): {skipped}.": "Se omiten de la pila (sin contactos de techo utilizables: sin intervalos, o cada inicio está al comienzo del sondaje o bajo entubado, sobrecarga, una unidad que corta o una unidad más antigua; las notas de arriba dicen cuál): {skipped}.",
+  "Ternary discrimination for basaltic rocks — immobile elements, robust through greenschist-facies alteration common in VMS footwalls. Pearce & Cann's fields (island-arc tholeiite, MORB, calc-alkali and within-plate basalt) are not drawn yet.": "Discriminación ternaria para rocas basálticas — elementos inmóviles, robusta frente a la alteración en facies de esquisto verde común en los muros de VMS. Los campos de Pearce y Cann (toleita de arco de islas, MORB, basalto calcoalcalino y de intraplaca) aún no se dibujan.",
+  "Immobile-element classification. Robust to alteration. The fields are simplified to boxes: check a name against the published diagram.": "Clasificación por elementos inmóviles. Robusta frente a la alteración. Los campos están simplificados a rectángulos: compare un nombre con el diagrama publicado.",
+  "Replace the {n} intervals already in the {v} layer?": "¿Reemplazar los {n} intervalos que ya hay en la capa {v}?",
+  " {n} sample(s) in logged sedimentary or carbonate codes ({codes}) were not classified: this classifier is for volcanic rocks.": " {n} muestra(s) en códigos registrados como sedimentarios o carbonatados ({codes}) no se clasificaron: este clasificador es para rocas volcánicas.",
+  " The classes are a simplified threshold split of the cation ternary, not the published Jensen fields.": " Las clases son una división simplificada por umbrales del ternario catiónico, no los campos publicados de Jensen.",
+  "No fields drawn: compare with the published diagram": "Sin campos dibujados: compare con el diagrama publicado"
 }
