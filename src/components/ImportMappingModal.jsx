@@ -3,7 +3,7 @@ import { useStore } from "../lib/store.jsx"; // TASKS.csv #615
 import { crsName } from "../lib/reproject.js"; // TASKS.csv #488
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import { X } from "./icons.js";
-import { TARGET_SCHEMAS, guessMapping } from "../lib/layers.js";
+import { TARGET_SCHEMAS, guessMapping, LAYER_META } from "../lib/layers.js";
 import { AZIMUTH_REFS } from "../lib/azimuthRef.js"; // TASKS.csv #396
 import { fitSimilarity, parseControlPoints } from "../lib/localGrid.js"; // TASKS.csv #412
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -14,7 +14,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { fieldNeedsNumber, columnHasNoNumbers } from "../lib/importChecks.js"; // TASKS.csv #1257
 
 
-export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg }) {
+export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg, replaceInfo = null }) { // replaceInfo: #1649
   const crsUnset = useStore().project?.crsSet === false; // TASKS.csv #615
   useEscapeKey(onCancel); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
@@ -67,6 +67,17 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
           <select aria-label={tr("Import as")} value={modal.target} onChange={(e) => setTarget(e.target.value)} style={{ ...sel, width: "100%", marginBottom: 16 }}>
             {Object.entries(TARGET_SCHEMAS).map(([k, v]) => <option key={k} value={k}>{tr(v.label)}</option>)}
           </select>
+          {/* TASKS.csv #1649 — a guess that would have replaced another file's log, and what the current choice replaces */}
+          {modal.guessNote && modal.target === "custom" && (
+            <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", margin: "-10px 0 12px", lineHeight: 1.4 }}>
+              {tr("Set to Custom layer: it looked like {layer}, but {layer} already holds {n} row(s) from {src} for {holes} of this file's holes, and importing there would replace them.", { layer: tr(LAYER_META[modal.guessNote.target]?.label || modal.guessNote.target), n: modal.guessNote.n, src: modal.guessNote.src || tr("an earlier import"), holes: modal.guessNote.holes })}
+            </div>
+          )}
+          {replaceInfo && (
+            <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", margin: "-10px 0 12px", lineHeight: 1.4 }}>
+              {tr("Importing as {layer} replaces {n} row(s) from {src} in {holes} hole(s) (Ctrl+Z undoes it).", { layer: tr(LAYER_META[replaceInfo.target]?.label || replaceInfo.target), n: replaceInfo.n, src: replaceInfo.src || tr("an earlier import"), holes: replaceInfo.holes })}
+            </div>
+          )}
 
           <div style={label}>{tr("Column mapping")}</div>
           {schema.fields.map((f) => (

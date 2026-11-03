@@ -7069,5 +7069,8 @@
   "Set from the file's {col} column.": "Déduit de la colonne {col} du fichier.",
   " Azimuths taken as grid north: the file does not say which north (import it on its own to choose true or magnetic north).": " Azimuts pris comme nord du quadrillage : le fichier ne dit pas quel nord il utilise (importez-le seul pour choisir le nord vrai ou magnétique).",
   "Read negative codes at a column's largest value as over the upper limit (-10 means \">10\", stored at the limit and flagged \">\"): {v}.": "Lire les codes négatifs égaux à la plus grande valeur de la colonne comme au-dessus de la limite supérieure (-10 signifie « >10 », stocké à la limite et marqué « > ») : {v}.",
-  "{n} negative value(s) read as over the upper limit (e.g. -10 → \">10\", stored at the limit).": "{n} valeur(s) négative(s) lue(s) comme au-dessus de la limite supérieure (p. ex. -10 → « >10 », stockée à la limite)."
+  "{n} negative value(s) read as over the upper limit (e.g. -10 → \">10\", stored at the limit).": "{n} valeur(s) négative(s) lue(s) comme au-dessus de la limite supérieure (p. ex. -10 → « >10 », stockée à la limite).",
+  "Set to Custom layer: it looked like {layer}, but {layer} already holds {n} row(s) from {src} for {holes} of this file's holes, and importing there would replace them.": "Réglé sur Couche personnalisée : cela ressemblait à {layer}, mais {layer} contient déjà {n} ligne(s) de {src} pour {holes} des sondages de ce fichier, et l'importer là les remplacerait.",
+  "Importing as {layer} replaces {n} row(s) from {src} in {holes} hole(s) (Ctrl+Z undoes it).": "Importer comme {layer} remplace {n} ligne(s) de {src} dans {holes} sondage(s) (Ctrl+Z annule).",
+  "an earlier import": "une importation précédente"
 }

@@ -7069,5 +7069,8 @@
   "Set from the file's {col} column.": "مأخوذ من العمود {col} في الملف.",
   " Azimuths taken as grid north: the file does not say which north (import it on its own to choose true or magnetic north).": " اعتُبرت السموت مقيسة من شمال الشبكة: لا يذكر الملف أي شمال يستخدم (استورده وحده لاختيار الشمال الحقيقي أو المغناطيسي).",
   "Read negative codes at a column's largest value as over the upper limit (-10 means \">10\", stored at the limit and flagged \">\"): {v}.": "اعتبار الرموز السالبة المساوية لأكبر قيمة في العمود فوق الحد الأعلى (-10 تعني \">10\"، تُخزَّن عند الحد وتُعلَّم \">\"): {v}.",
-  "{n} negative value(s) read as over the upper limit (e.g. -10 → \">10\", stored at the limit).": "{n} قيمة سالبة قُرئت فوق الحد الأعلى (مثلًا -10 ← \">10\"، تُخزَّن عند الحد)."
+  "{n} negative value(s) read as over the upper limit (e.g. -10 → \">10\", stored at the limit).": "{n} قيمة سالبة قُرئت فوق الحد الأعلى (مثلًا -10 ← \">10\"، تُخزَّن عند الحد).",
+  "Set to Custom layer: it looked like {layer}, but {layer} already holds {n} row(s) from {src} for {holes} of this file's holes, and importing there would replace them.": "ضُبط على طبقة مخصصة: بدا الملف كأنه {layer}، لكن {layer} تحتوي بالفعل على {n} صف من {src} لـ {holes} من ثقوب هذا الملف، والاستيراد إليها سيستبدلها.",
+  "Importing as {layer} replaces {n} row(s) from {src} in {holes} hole(s) (Ctrl+Z undoes it).": "الاستيراد كـ {layer} يستبدل {n} صفًا من {src} في {holes} ثقبًا (Ctrl+Z يتراجع عنه).",
+  "an earlier import": "استيراد سابق"
 }

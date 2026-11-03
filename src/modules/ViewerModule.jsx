@@ -5901,7 +5901,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // ---------- generic import pipeline ----------
   // TASKS.csv #445 step 3 — the import pipeline lives in modules/viewer/useImportPipeline.js (moved verbatim); called here, where that code used to sit, so the hook order is unchanged.
-  const { commitImport, handleDrop, importBrowserFile, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker } = useImportPipeline({
+  const { commitImport, handleDrop, importBrowserFile, importOverlap /* #1649 */, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker } = useImportPipeline({
     addBoundary,
     addRaster,
     collars,
@@ -8661,7 +8661,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           onCancel={() => { setLayerPicker(null); processImportQueue(); }}
         />
       )}
-      {importModal && <ImportMappingModal modal={importModal} onChange={setImportModal} onCancel={() => { setImportModal(null); processImportQueue(); }} onCommit={commitImport} projectEpsg={project?.epsg} />}
+      {importModal && <ImportMappingModal modal={importModal} replaceInfo={importOverlap(importModal)} onChange={setImportModal} onCancel={() => { setImportModal(null); processImportQueue(); }} onCommit={commitImport} projectEpsg={project?.epsg} />}
       {dbModalOpen && <DatabaseConnectModal onCancel={() => setDbModalOpen(false)} onResults={openImportFromRows} />}
       {sectionEditOpen && (() => {
         const ids = Array.from(selectedSectionIds);
