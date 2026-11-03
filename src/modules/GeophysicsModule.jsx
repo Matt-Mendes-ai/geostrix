@@ -189,6 +189,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   // for the mountainous BC terrain this app's users actually work in, and coarse enough that a first
   // click on a large DEM returns quickly rather than appearing to hang.
   const [contourOpen, setContourOpen] = useState(false);
+  const [contourMsg, setContourMsg] = useState(null); // TASKS.csv #1759 — shown in the Terrain pane, not the Point survey pane's box
   const [contourInterval, setContourInterval] = useState(50);
   const [contourColor, setContourColor] = useState("#8a6a45");
   const [hillshadeAzimuth, setHillshadeAzimuth] = useState(315);
@@ -1611,6 +1612,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                 for free. One boundary per contour level so individual levels can be styled/hidden. */}
             <button onClick={() => setContourOpen((v) => !v)} style={{ ...pBtn, marginTop: 6, marginBottom: 0, background: contourOpen ? "var(--color-selected-bg)" : undefined }}>
               <Waypoints size={14} />{" "}{tr("Generate contours…")}</button>
+            {contourMsg && ( /* #1759 */
+              <div style={{ marginTop: 6, padding: "6px 8px", fontSize: "var(--font-size-sm)", borderRadius: 6, background: typeof contourMsg === "object" && contourMsg.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", color: typeof contourMsg === "object" && contourMsg.info ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{typeof contourMsg === "object" ? contourMsg.text : contourMsg}</div>
+            )}
             {contourOpen && (
               <div style={{ marginTop: 6, padding: "8px 9px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
@@ -1623,9 +1627,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                 </div>
                 <button
                   onClick={() => {
+                    setContourMsg(null);
                     const { levels, truncated, min, max } = contourTerrain(terrain, { interval: contourInterval });
                     if (!levels.length) {
-                      setError(tr("No contours generated — the terrain spans {v}–{v2} m, so an interval of {contourInterval} m doesn't cross it anywhere. Try a smaller interval.", { v: Number.isFinite(min) ? min.toFixed(1) : "?", v2: Number.isFinite(max) ? max.toFixed(1) : "?", contourInterval }));
+                      setContourMsg(tr("No contours generated — the terrain spans {v}–{v2} m, so an interval of {contourInterval} m doesn't cross it anywhere. Try a smaller interval.", { v: Number.isFinite(min) ? min.toFixed(1) : "?", v2: Number.isFinite(max) ? max.toFixed(1) : "?", contourInterval }));
                       return;
                     }
                     // TASKS.csv #1466 (review #1352) — one boundary holding every level (each line at its own height), not one per level: 28
@@ -1639,7 +1644,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                       lineLevels.push(level);
                     }));
                     addBoundary({ name: tr("{terrain} contours ({interval} m)", { terrain: terrain.name, interval: contourInterval }), polylines: lines, closedFlags: closed, contourLevels: lineLevels, useVertexZ: true, color: contourColor, drapeMode: "flat" });
-                    setError({ info: true, text: tr(levels.length === 1 ? "Generated {levels} contour level ({contourInterval} m interval) as one boundary.{v2}" : "Generated {levels} contour levels ({contourInterval} m interval) as one boundary.{v2}", { levels: levels.length, contourInterval, v2: truncated ? tr(" Stopped at the 200-level cap — use a larger interval for full coverage.") : "" }) });
+                    setContourMsg({ info: true, text: tr(levels.length === 1 ? "Generated {levels} contour level ({contourInterval} m interval) as one boundary.{v2}" : "Generated {levels} contour levels ({contourInterval} m interval) as one boundary.{v2}", { levels: levels.length, contourInterval, v2: truncated ? tr(" Stopped at the 200-level cap — use a larger interval for full coverage.") : "" }) });
                     setContourOpen(false);
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
