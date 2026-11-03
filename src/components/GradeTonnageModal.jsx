@@ -29,9 +29,12 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
   const { layers } = useStore();
   const sgLayer = useMemo(() => sgSummary(layers?.sg), [layers?.sg]); // #1216
   const [fromSg, setFromSg] = useState(false); // the density is the SG layer's until it is typed over
+  const [interpOnly, setInterpOnly] = useState(false); // #1409 — count only blocks the estimate classed interpolated
+  const hasSupport = useMemo(() => model.cells.some((c) => typeof c.support === "string"), [model.cells]);
   const cutoffs = useMemo(() => [...new Set(cutoffText.split(/[,;\s]+/).map(Number).filter(Number.isFinite))], [cutoffText]);
   const rho = Number(density) > 0 ? Number(density) : null;
-  const rows = useMemo(() => gradeTonnageTable(model.cells, { cutoffs, density: rho, unit }), [model.cells, cutoffs, rho, unit]);
+  const rows = useMemo(() => gradeTonnageTable(model.cells, { cutoffs, density: rho, unit, interpolatedOnly: interpOnly }), [model.cells, cutoffs, rho, unit, interpOnly]);
+  const shown = rows.find((r) => r.blocks > 0) || null, lowSupport = shown?.interpolatedShare != null && shown.interpolatedShare < 0.5;
   const merged = model.cells.some((c) => Number.isFinite(c.coverage));
 
   // the curve: tonnes (or volume without a density) and mean grade against the cutoff
@@ -47,6 +50,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
       `Block model: ${model.name} (${model.cells.length} blocks, source ${model.source || "import"}) | value ${vname}${unit ? ` in ${unit}` : " (no unit stated)"}`,
       `Density: ${rho ? (fromSg ? `${rho} t/m3, length-weighted mean of ${sgLayer.n} Specific gravity rows, ${sgLayer.min}-${sgLayer.max}${sgLayer.left ? `, ${sgLayer.left} outside 1-8 left out` : ""} (one value for every block)` : `${rho} t/m3, entered by the user (one value for every block)`) : "not entered: volumes only"}${merged ? " | merged blocks counted at their COVERAGE share" : ""}`,
       "Mean grade: volume-weighted over the blocks at or above the cutoff",
+      ...(hasSupport ? [interpOnly ? "Blocks: only those the estimate classed interpolated" : "Blocks: every estimated block; interpolated_pct / one_hole_pct give the volume share by support"] : []), // #1409
       EXPLORATION_TARGET_CAUTION,
     ] });
     saveFile({ suggestedName: `${String(model.name).replace(/[^a-z0-9_-]+/gi, "_")}_grade_tonnage.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(out), stamp) });
@@ -73,13 +77,17 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
           <thead><tr>
             <th style={th}>{tr("Cutoff")}</th><th style={th}>{tr("Blocks")}</th><th style={th}>{tr("Volume (m³)")}</th><th style={th}>{tr("Mean grade")}</th>
             {rho && <th style={th}>{tr("Tonnes")}</th>}{rho && metal && <th style={th}>{metal.unit === "g" ? tr("Metal (g)") : tr("Metal (t)")}</th>}
+            {hasSupport && <th style={th} title={tr("Share of the volume in blocks the estimate classed interpolated (between holes, from at least two)")}>{tr("Interpolated")}</th>}
           </tr></thead>
           <tbody>{rows.map((r) => (
             <tr key={r.cutoff}>
               <td style={td}>{sig(r.cutoff)}</td><td style={td}>{fmt(r.blocks)}</td><td style={td}>{fmt(r.volumeM3)}</td><td style={td}>{sig(r.meanGrade)}</td>
               {rho && <td style={td}>{fmt(r.tonnes)}</td>}{rho && metal && <td style={td}>{fmt(r.metal)}</td>}
+              {hasSupport && <td style={td}>{r.interpolatedShare == null ? "—" : `${Math.round(r.interpolatedShare * 100)} %`}</td>}
             </tr>))}</tbody>
         </table>
+        {hasSupport && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", marginBottom: 6 }}><input type="checkbox" checked={interpOnly} onChange={(e) => setInterpOnly(e.target.checked)} />{tr("Only blocks classed interpolated")}</label>}
+        {hasSupport && !interpOnly && lowSupport && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.5 }}>{tr("Most of this volume is in blocks the estimate carried outward from the holes (extrapolated or unsupported), not between them: the tonnage rests on grades the drilling does not surround.")}</div>}
         {rows.length > 1 && (
           <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={tr("Grade-tonnage curve")} style={{ display: "block", marginBottom: 8 }} dir="ltr">
             <line x1={L} y1={H - B} x2={W - R} y2={H - B} stroke="#94a1b0" /><line x1={L} y1={T} x2={L} y2={H - B} stroke="#94a1b0" /><line x1={W - R} y1={T} x2={W - R} y2={H - B} stroke="#94a1b0" />

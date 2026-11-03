@@ -27,16 +27,22 @@ export function autoCutoffs(cells) {
   return [...new Set([0, ...[0.25, 0.5, 0.75, 0.9, 0.95].map((p) => r2(q(p)))])].sort((a, b) => a - b);
 }
 
-// -> [{ cutoff, blocks, volumeM3, meanGrade, tonnes, metal }] (tonnes / metal null without a density); mean grade is
-// volume-weighted, over the blocks with value >= cutoff
-export function gradeTonnageTable(cells, { cutoffs, density = null, unit = null } = {}) {
+// -> [{ cutoff, blocks, volumeM3, meanGrade, tonnes, metal, interpolatedShare, singleHoleShare }] (tonnes / metal null without a
+// density); mean grade is volume-weighted, over the blocks with value >= cutoff. TASKS.csv #1409 (review #1352, Silvertip) — the
+// table gave 110 Mt @ 0.73 % Zn from a model 98 % extrapolated, up to 300 m from nine fan holes, and never said so: the volume shares
+// in blocks the estimate classed "interpolated" and informed by one hole are in each row (null when the model carries no support).
+// interpolatedOnly: count only the blocks classed interpolated.
+export function gradeTonnageTable(cells, { cutoffs, density = null, unit = null, interpolatedOnly = false } = {}) {
   const m = metalOf(unit), rho = Number(density) > 0 ? Number(density) : null;
-  const blocks = cells.filter((c) => Number.isFinite(c.value) && c.dx > 0 && c.dy > 0 && c.dz > 0).map((c) => ({ v: c.value, vol: blockVolume(c) }));
+  const hasSupport = cells.some((c) => typeof c.support === "string"), hasHoles = cells.some((c) => Number.isFinite(c.nHoles));
+  const blocks = cells.filter((c) => Number.isFinite(c.value) && c.dx > 0 && c.dy > 0 && c.dz > 0 && (!interpolatedOnly || c.support === "interpolated"))
+    .map((c) => ({ v: c.value, vol: blockVolume(c), interp: c.support === "interpolated", one: c.nHoles === 1 }));
   return [...cutoffs].sort((a, b) => a - b).map((cutoff) => {
-    let n = 0, vol = 0, gv = 0;
-    for (const b of blocks) if (b.v >= cutoff) { n++; vol += b.vol; gv += b.v * b.vol; }
+    let n = 0, vol = 0, gv = 0, vi = 0, v1 = 0;
+    for (const b of blocks) if (b.v >= cutoff) { n++; vol += b.vol; gv += b.v * b.vol; if (b.interp) vi += b.vol; if (b.one) v1 += b.vol; }
     const meanGrade = vol > 0 ? gv / vol : null, tonnes = rho && vol > 0 ? vol * rho : null;
-    return { cutoff, blocks: n, volumeM3: vol, meanGrade, tonnes, metal: m && tonnes != null && meanGrade != null ? tonnes * meanGrade * m.factor : null };
+    return { cutoff, blocks: n, volumeM3: vol, meanGrade, tonnes, metal: m && tonnes != null && meanGrade != null ? tonnes * meanGrade * m.factor : null,
+      interpolatedShare: hasSupport && vol > 0 ? vi / vol : null, singleHoleShare: hasHoles && vol > 0 ? v1 / vol : null };
   });
 }
 
@@ -47,7 +53,8 @@ export const EXPLORATION_TARGET_CAUTION = "Any tonnage and grade from this table
 // density: t/m3 or null (then no tonnes / metal columns); metal: { unit } when a metal column is wanted
 export function gradeTonnageRows(rows, { vname, density = null, metal = null }) {
   return rows.map((r) => ({ cutoff: r.cutoff, blocks: r.blocks, volume_m3: Math.round(r.volumeM3), [`mean_${vname}`]: r.meanGrade == null ? "" : Number(r.meanGrade.toPrecision(5)),
-    ...(density ? { tonnes: Math.round(r.tonnes || 0) } : {}), ...(density && metal ? { [`metal_${metal.unit}`]: r.metal == null ? "" : Math.round(r.metal) } : {}) }));
+    ...(density ? { tonnes: Math.round(r.tonnes || 0) } : {}), ...(density && metal ? { [`metal_${metal.unit}`]: r.metal == null ? "" : Math.round(r.metal) } : {}),
+    ...(r.interpolatedShare != null ? { interpolated_pct: Math.round(r.interpolatedShare * 100) } : {}), ...(r.singleHoleShare != null ? { one_hole_pct: Math.round(r.singleHoleShare * 100) } : {}) })); // #1409
 }
 
 // TASKS.csv #1216 — the project's measured specific gravity as one density: the length-weighted mean, with what it rests on. A value outside 1-8 t/m3 is

@@ -6964,5 +6964,9 @@
   " {n} surface sample(s) far from the rest are outside it.": " {n} amostra(s) de superfície longe das demais ficam de fora.",
   "Samples of one medium": "Amostras de um meio",
   "(no medium)": "(sem meio)",
-  "all media together": "todos os meios juntos"
+  "all media together": "todos os meios juntos",
+  "Share of the volume in blocks the estimate classed interpolated (between holes, from at least two)": "Parte do volume em blocos que a estimativa classificou como interpolados (entre furos, de pelo menos dois)",
+  "Interpolated": "Interpolado",
+  "Only blocks classed interpolated": "Só blocos classificados como interpolados",
+  "Most of this volume is in blocks the estimate carried outward from the holes (extrapolated or unsupported), not between them: the tonnage rests on grades the drilling does not surround.": "A maior parte deste volume está em blocos que a estimativa estendeu para fora dos furos (extrapolados ou sem suporte), não entre eles: a tonelagem assenta em teores que os furos não rodeiam."
 }
