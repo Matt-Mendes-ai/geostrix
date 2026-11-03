@@ -2374,7 +2374,7 @@
   " (skipped {skipped} row(s) with {v} values in the chosen columns)": " ({skipped} linha(s) com valores {v} nas colunas escolhidas ignorada(s))",
   "blank or non-numeric": "vazios ou não numéricos",
   "no-data \"*\"": "sem dado \"*\"",
-  "Select both the .msh mesh file and its matching model file (.mod/.con/.den/etc.) together.": "Selecione juntos o arquivo de malha .msh e o arquivo de modelo correspondente (.mod/.con/.den/etc.).",
+  "Select the mesh file (.msh, or a text mesh such as mesh.txt) and its model file(s) (.mod / .con / .den / .sus / .res / .chg) together.": "Selecione juntos o arquivo de malha (.msh, ou uma malha em texto como mesh.txt) e seu(s) arquivo(s) de modelo (.mod / .con / .den / .sus / .res / .chg).",
   " Original mesh had {rawTotal} cells — over GeoStrix's {effectiveMaxCells}-cell budget for staying responsive in the 3D view, so it was block-averaged down (merging {fx}×{fy}×{fz} fine cells into each coarse cell) to {coarseTotal} cells. Raise the \"3D view cell budget\" setting above and re-import if you want finer detail.": " A malha original tinha {rawTotal} células — acima do orçamento de {effectiveMaxCells} células do GeoStrix para manter a visão 3D ágil, então foi reduzida por média em blocos (juntando {fx}×{fy}×{fz} células finas em cada célula grossa) para {coarseTotal} células. Aumente acima o ajuste \"Orçamento de células da visão 3D\" e importe de novo se quiser mais detalhe.",
   "Every cell in this model is no-data — nothing to render.": "Todas as células deste modelo são sem dado — nada para desenhar.",
   "Imported \"{name}\" — {nx}×{ny}×{nz} mesh, {cells} cell(s) with data.{v}{v2}{coarsenNote}": "\"{name}\" importado — malha de {nx}×{ny}×{nz}, {cells} célula(s) com dados.{v}{v2}{coarsenNote}",

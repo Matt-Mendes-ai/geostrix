@@ -32,7 +32,7 @@ import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone } from "../lib/
 import { fetchCopernicusTerrain } from "../lib/copernicusDem.js"; // TASKS.csv #814
 import { toLonLat, reprojectXY, crsName, pointTransform } from "../lib/reproject.js";
 import { omfToProjectObjectsAsync } from "../lib/omfImport.js"; // TASKS.csv #637; #1280
-import { parseUBCMesh, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel, coarsenRecord } from "../lib/voxel.js"; // coarsenRecord: #1095
+import { parseUBCMesh, isUBCMeshText, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel, coarsenRecord } from "../lib/voxel.js"; // coarsenRecord: #1095
 import { parsePLYBoundary, parseXYZ, guessXyzChannels } from "../lib/geosoft.js";
 import { gridPairs, stationPlacer, nearestStationZ, looksLikeLocalGrid } from "../lib/gridFromStations.js"; // TASKS.csv #1326
 import { parseStationFile } from "../lib/dcipStations.js";
@@ -1010,13 +1010,21 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     setVoxelBusy(true);
     setVoxelProgress(null);
     try {
-      const meshFile = files.find((f) => /\.msh$/i.test(f.name));
-      const modelFile = files.find((f) => f !== meshFile);
-      if (!meshFile || !modelFile) {
-        throw new Error(tr("Select both the .msh mesh file and its matching model file (.mod/.con/.den/etc.) together."));
+      // TASKS.csv #1658 (review #1646, Kodiak) — the mesh by its content, not its name: SJ Geophysics delivered "3dmesh_utm.txt" (nx ny nz,
+      // then the origin), which a .msh-only test refused. A .msh name still wins; every other file is a model on that mesh (#1669: each
+      // imported, named after its own file, so the resistivity and chargeability of one mesh are no longer both "3dmesh_utm").
+      const looksLikeMesh = async (f) => { try { return isUBCMeshText(await f.slice(0, 2048).text()); } catch { return false; } };
+      let meshFile = files.find((f) => /\.msh$/i.test(f.name)) || null;
+      if (!meshFile) for (const f of files) { if (f.size < 5e6 && await looksLikeMesh(f)) { meshFile = f; break; } }
+      const modelFiles = files.filter((f) => f !== meshFile);
+      if (!meshFile || !modelFiles.length) {
+        throw new Error(tr("Select the mesh file (.msh, or a text mesh such as mesh.txt) and its model file(s) (.mod / .con / .den / .sus / .res / .chg) together."));
       }
       const meshText = await meshFile.text();
+      const infoNotes = [];
+      for (const modelFile of modelFiles) {
       let mesh = parseUBCMesh(meshText);
+      const modelName = modelFile.name.replace(/\.([a-z0-9]+)$/i, " ($1)"); // "MPD-2023_dcinv3d_r2i10 (res)" 
       // Read the model file as a stream rather than meshFile.text()-style whole-file-into-one-string —
       // a real UBC-GIF inversion model can be 500MB+ of plain-text numbers, and streaming avoids ever
       // holding the full text AND a full tokenized array in memory at once. See voxel.js's
@@ -1046,11 +1054,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       // #481 — a positive model spanning 2+ decades (conductivity, resistivity) gets log-spaced colours;
       // on a linear ramp almost every cell of a ZTEM conductivity model (1e-5 .. 0.1 S/m) was one colour.
       const logColours = min > 0 && max / min >= 100;
-      addVoxelModel({ name: meshFile.name.replace(/\.msh$/i, ""), source: "ubc", cells, min, max, ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}) /* #1095 */, ...(logColours ? { stops: logStops(min, max, SEQUENTIAL_ANCHORS), colorMode: "continuous" } : {}) });
-      setVoxelError({
-        info: true,
-        text: farNote(cells) + tr("Imported \"{name}\" — {nx}×{ny}×{nz} mesh, {cells} cell(s) with data.{v}{v2}{coarsenNote}", { name: meshFile.name, nx: mesh.nx, ny: mesh.ny, nz: mesh.nz, cells: cells.length.toLocaleString(), v: air.count ? tr(" {count} cells at {v} (the tiny value this model uses for air above the ground) were treated as air (no data).", { count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }) : "", v2: logColours ? tr(" Values span {min} to {max} ({v} decades), so colours are log-spaced.", { min: min.toPrecision(2), max: max.toPrecision(2), v: Math.round(Math.log10(max / min)) }) : "", coarsenNote }),
-      });
+      addVoxelModel({ name: modelName, source: "ubc", cells, min, max, ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}) /* #1095 */, ...(logColours ? { stops: logStops(min, max, SEQUENTIAL_ANCHORS), colorMode: "continuous" } : {}) });
+      infoNotes.push(farNote(cells) + tr("Imported \"{name}\" — {nx}×{ny}×{nz} mesh, {cells} cell(s) with data.{v}{v2}{coarsenNote}", { name: modelName, nx: mesh.nx, ny: mesh.ny, nz: mesh.nz, cells: cells.length.toLocaleString(), v: air.count ? tr(" {count} cells at {v} (the tiny value this model uses for air above the ground) were treated as air (no data).", { count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }) : "", v2: logColours ? tr(" Values span {min} to {max} ({v} decades), so colours are log-spaced.", { min: min.toPrecision(2), max: max.toPrecision(2), v: Math.round(Math.log10(max / min)) }) : "", coarsenNote }));
+      }
+      setVoxelError({ info: true, text: infoNotes.join(" ") });
     } catch (err) {
       setVoxelError({ info: false, text: err.message });
     } finally {
@@ -1862,7 +1869,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         <input
           ref={ubcInput}
           type="file"
-          accept=".msh,.mod,.con,.den,.txt"
+          accept=".msh,.mod,.con,.den,.sus,.res,.chg,.sen,.txt"
           multiple
           style={{ display: "none" }}
           onChange={(e) => { importUBC(e.target.files); e.target.value = ""; }}

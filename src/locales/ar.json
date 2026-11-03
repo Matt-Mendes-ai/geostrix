@@ -2374,7 +2374,7 @@
   " (skipped {skipped} row(s) with {v} values in the chosen columns)": " (تُخطي {skipped} صف بقيم {v} في الأعمدة المختارة)",
   "blank or non-numeric": "فارغة أو غير رقمية",
   "no-data \"*\"": "بلا بيانات «*»",
-  "Select both the .msh mesh file and its matching model file (.mod/.con/.den/etc.) together.": "حدد ملف الشبكة ‎.msh وملف النموذج المطابق له (‎.mod/.con/.den/إلخ) معًا.",
+  "Select the mesh file (.msh, or a text mesh such as mesh.txt) and its model file(s) (.mod / .con / .den / .sus / .res / .chg) together.": "اختر معًا ملف الشبكة (.msh، أو شبكة نصية مثل mesh.txt) وملف (ملفات) النموذج (.mod / .con / .den / .sus / .res / .chg).",
   " Original mesh had {rawTotal} cells — over GeoStrix's {effectiveMaxCells}-cell budget for staying responsive in the 3D view, so it was block-averaged down (merging {fx}×{fy}×{fz} fine cells into each coarse cell) to {coarseTotal} cells. Raise the \"3D view cell budget\" setting above and re-import if you want finer detail.": " كانت الشبكة الأصلية {rawTotal} خلية — فوق ميزانية GeoStrix البالغة {effectiveMaxCells} خلية للبقاء سريع الاستجابة في العرض ثلاثي الأبعاد، لذا خُفضت بمتوسط الكتل (دمج {fx}×{fy}×{fz} خلية دقيقة في كل خلية خشنة) إلى {coarseTotal} خلية. ارفع إعداد «ميزانية خلايا العرض ثلاثي الأبعاد» أعلاه وأعد الاستيراد لتفاصيل أدق.",
   "Every cell in this model is no-data — nothing to render.": "كل خلية في هذا النموذج بلا بيانات — لا شيء للعرض.",
   "Imported \"{name}\" — {nx}×{ny}×{nz} mesh, {cells} cell(s) with data.{v}{v2}{coarsenNote}": "استُورد «{name}» — شبكة {nx}×{ny}×{nz}، {cells} خلية ببيانات.{v}{v2}{coarsenNote}",

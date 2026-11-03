@@ -390,3 +390,11 @@ export function coarsenRecord({ shape, factors, cellsTo, values, valid = Number.
   for (let i = 0; i < values.length; i++) { const v = values[i]; if (valid(v)) { if (v < lo) lo = v; if (v > hi) hi = v; } }
   return { shape, factors, cellsFrom: shape[0] * shape[1] * shape[2], cellsTo, rule: "arithmetic mean of the fine cells with data in each block", fineMin: lo <= hi ? lo : null, fineMax: lo <= hi ? hi : null };
 }
+
+// TASKS.csv #1658 (review #1646, Kodiak) — a UBC-GIF tensor mesh by its first lines (nx ny nz, then the origin E N Z), whatever the
+// file is called: SJ Geophysics delivered "3dmesh_utm.txt". A model file starts with one value per line.
+export function isUBCMeshText(text) {
+  const head = String(text || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const num = String.raw`-?\d+(?:\.\d*)?(?:e[-+]?\d+)?`;
+  return /^\d+\s+\d+\s+\d+$/.test(head[0] || "") && new RegExp(String.raw`^${num}\s+${num}\s+${num}$`, "i").test(head[1] || "");
+}
