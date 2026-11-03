@@ -973,16 +973,22 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const globalAssayRanges = useMemo(() => {
     const out = {};
     assayElements.forEach((e) => {
-      const vals = assays.filter((a) => a.values[e.symbol] != null).map((a) => a.values[e.symbol]);
+      // TASKS.csv #1695 / #1696 (review #1645, Copley) — the classes come from the lab assays (pXRF readings are a screening number, with
+      // 'not detected' zeros), and a pile of values at the detection floor (Au: P50 = the minimum) does not decide them: the percentiles
+      // are then taken over the values above the floor
+      const lab = assays.filter((a) => a.source !== "pXRF");
+      const vals = (lab.length ? lab : assays).filter((a) => a.values[e.symbol] != null).map((a) => a.values[e.symbol]);
       // TASKS.csv #306 — p50/p90 alongside min/max, because seedBreaks' default class boundaries are
       // now percentile-based rather than equal-interval (see seedBreaks' own comment for the measured
       // reason: equal-interval put 99.8-100% of every ore element in this file's data into class 1).
       // Cost is one sort of each element's values, once per assays/assayElements change — measured at
       // ~11 ms total for all 14 elements of the 6,297-interval harry_property assay file, inside a
       // useMemo that already walks the same array 14 times to build the ranges at all.
-      const finite = vals.filter(Number.isFinite).sort((a, b) => a - b);
+      const all = vals.filter(Number.isFinite).sort((a, b) => a - b);
+      const atFloor = all.length ? all.filter((v) => v === all[0]).length : 0;
+      const finite = atFloor >= 0.3 * all.length && atFloor < all.length ? all.slice(atFloor) : all;
       const q = (p) => (finite.length ? finite[Math.min(finite.length - 1, Math.floor(p * (finite.length - 1)))] : undefined);
-      out[e.symbol] = { ...minMax(vals), p50: q(0.5), p90: q(0.9) }; // not Math.min/max(...vals) — a large assay dataset can exceed the JS engine's argument-spread limit, see layers.js's minMax comment
+      out[e.symbol] = { ...minMax(vals), p50: q(0.5), p90: q(0.9), p975: q(0.975) }; // not Math.min/max(...vals) — a large assay dataset can exceed the JS engine's argument-spread limit, see layers.js's minMax comment
     });
     return out;
   }, [assays, assayElements]);

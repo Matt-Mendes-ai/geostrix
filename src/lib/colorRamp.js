@@ -184,8 +184,10 @@ export function lightnessRamp(baseHex, lightnesses = RAMP_LIGHTNESS, chromaScale
 // colours changes behaviour. Seeded breaks are tagged `seeded: true`; editing one in this modal drops
 // the tag (see updateBreak), which is what lets a future re-seed tell "GeoStrix chose this" from "the
 // user chose this" — the distinction #319 recorded as missing.
+// TASKS.csv #1696 (review #1645, Copley) — p975 (optional): a fourth, darker class above P97.5, so ore grade stands apart from merely
+// anomalous (Copley Cu: every sample from 59 ppm to 1.94 % sat in one top class).
 export function seedBreaks(range, baseColor) {
-  const { min, max, p50, p90 } = range || {};
+  const { min, max, p50, p90, p975 } = range || {};
   const span = max - min;
   const C = lightnessRamp(baseColor) || ["#f2ddb8", "#e0894a", "#8c2f1f"]; // low / medium / high — see the lightness argument above
   if (!(span > 0)) return [{ max: max || 1, color: C[2], label: "All", seeded: true }];
@@ -199,10 +201,12 @@ export function seedBreaks(range, baseColor) {
   // low class back to nothing. Below that scale, keep three SIGNIFICANT figures instead of three
   // decimal places.
   const round = (v) => (Math.abs(v) >= 0.001 ? +v.toFixed(3) : +v.toPrecision(3));
+  const veryHigh = usable && Number.isFinite(p975) && p975 > p90 && p975 < max; // #1696
   return [
     { max: round(b1), color: C[0], label: "Low", seeded: true },
     { max: round(b2), color: C[1], label: "Medium", seeded: true },
-    { max: round(max), color: C[2], label: "High", seeded: true },
+    { max: round(veryHigh ? p975 : max), color: C[2], label: "High", seeded: true },
+    ...(veryHigh ? [{ max: round(max), color: nextDarkerClassColor(baseColor, C[2]), label: "Very high", seeded: true }] : []),
   ];
 }
 
