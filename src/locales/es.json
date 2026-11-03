@@ -7085,5 +7085,6 @@
   "{name}: none of its {n} features comes within reach of the project's holes and samples, so nothing was imported (check its CRS if it should).": "{name}: ninguno de sus {n} elementos se acerca a los sondajes y muestras del proyecto, así que no se importó nada (revise su CRS si debería).",
   "{name}: {kept} of its {total} features lie near the project; the rest, far from the holes and samples, were left out.": "{name}: {kept} de sus {total} elementos están cerca del proyecto; el resto, lejos de los sondajes y muestras, se dejó fuera.",
   "{name} is {mb} MB: GeoStrix reads a GeoPackage whole, and one this size would freeze the window for minutes and need several GB of memory. Export just the tables and the area you need (in QGIS: clip to your property, save as a new GeoPackage or shapefile) and import that.": "{name} pesa {mb} MB: GeoStrix lee un GeoPackage completo, y uno de este tamaño congelaría la ventana varios minutos y necesitaría varios GB de memoria. Exporte solo las tablas y el área que necesita (en QGIS: recorte a su propiedad y guárdelo como un nuevo GeoPackage o shapefile) e importe eso.",
-  "Grades capped at {cap} {unit} before estimating.": "Leyes cortadas a {cap} {unit} antes de estimar."
+  "Grades capped at {cap} {unit} before estimating.": "Leyes cortadas a {cap} {unit} antes de estimar.",
+  "Open Planned holes aimed at the zone's point farthest from the drilling: choose a collar, then Solve": "Abrir Sondajes planificados apuntando al punto de la zona más alejado de la perforación: elija un collar y luego Resolver"
 }

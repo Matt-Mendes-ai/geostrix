@@ -112,6 +112,7 @@ export function undrilledZones({ solid, traces, coverM, cellM, insideOnly = fals
   const c2 = coverM * coverM;
   const out = new Uint8Array(ids.length);
   let unitCells = 0, uncovered = 0, aboveGround = 0, colKey = -1, colG = NaN;
+  const covered = new Uint8Array(ids.length); // #1724 — unit blocks within reach of a hole
   for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++) {
     const at = i * ny * nz + j * nz + k;
     if (ids[at] !== unitId) continue;
@@ -128,9 +129,26 @@ export function undrilledZones({ solid, traces, coverM, cellM, insideOnly = fals
       const l = buckets.get((a * bny + b) * bnz + c);
       if (l) for (let q = 0; q < l.length; q++) if (segDist2(segs, l[q], px, py, pz) <= c2) { hit = true; break; }
     }
-    if (!hit) { out[at] = 1; uncovered++; }
+    if (!hit) { out[at] = 1; uncovered++; } else covered[at] = 1; // covered: #1724
   }
 
+  // TASKS.csv #1724 (review #1645, Copley) — a zone that wraps a hole (a ring of blocks around COP-23-0001) had its centroid ON the hole, and
+  // "Plan a hole to here" aimed 2.6 m from it. Each zone also gets a target: its block farthest (in block steps) from the covered blocks,
+  // found by stepping out from the zone's blocks that touch covered ground; a zone touching no covered block keeps its centroid block.
+  const zoneTarget = (members) => {
+    const inZone = new Map(members.map((at, n) => [at, n]));
+    const dist = new Int32Array(members.length).fill(-1);
+    const queue = [];
+    const nbrs = (at) => { const i = Math.floor(at / (ny * nz)), j = Math.floor(at / nz) % ny, k = at % nz, o = [];
+      for (const [a, b, c] of [[i - 1, j, k], [i + 1, j, k], [i, j - 1, k], [i, j + 1, k], [i, j, k - 1], [i, j, k + 1]]) if (a >= 0 && b >= 0 && c >= 0 && a < nx && b < ny && c < nz) o.push(a * ny * nz + b * nz + c);
+      return o; };
+    members.forEach((at, n) => { if (nbrs(at).some((q) => covered[q])) { dist[n] = 0; queue.push(n); } });
+    if (!queue.length) return null;
+    for (let h = 0; h < queue.length; h++) { const n = queue[h]; for (const q of nbrs(members[n])) { const m2 = inZone.get(q); if (m2 !== undefined && dist[m2] < 0) { dist[m2] = dist[n] + 1; queue.push(m2); } } }
+    let best = 0; for (let n = 1; n < members.length; n++) if (dist[n] > dist[best]) best = n;
+    const at = members[best], i = Math.floor(at / (ny * nz)), j = Math.floor(at / nz) % ny, k = at % nz;
+    return { x: xmin + (i + 0.5) * dx, y: ymin + (j + 0.5) * dy, z: zmin + (k + 0.5) * dz, steps: dist[best] };
+  };
   // face-connected zones of uncovered blocks, largest first; those under minZoneM3 are dropped from the block
   const cellVolume = dx * dy * dz;
   const seen = new Uint8Array(ids.length);
@@ -161,7 +179,8 @@ export function undrilledZones({ solid, traces, coverM, cellM, insideOnly = fals
       box[3] = Math.max(box[3], y + dy / 2); box[4] = Math.min(box[4], z - dz / 2); box[5] = Math.max(box[5], z + dz / 2);
     }
     const m = members.length;
-    zones.push({ cells: m, volumeM3, centre: { x: sx / m, y: sy / m, z: sz / m }, box });
+    const centre = { x: sx / m, y: sy / m, z: sz / m };
+    zones.push({ cells: m, volumeM3, centre, target: zoneTarget(members) || centre, box });
   }
   zones.sort((a, b) => b.cells - a.cells);
   return {

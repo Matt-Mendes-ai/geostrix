@@ -7085,5 +7085,6 @@
   "{name}: none of its {n} features comes within reach of the project's holes and samples, so nothing was imported (check its CRS if it should).": "{name}: لا يقترب أي من عناصره البالغة {n} من ثقوب المشروع وعيّناته، لذا لم يُستورد شيء (تحقق من نظام إحداثياته إن كان ينبغي ذلك).",
   "{name}: {kept} of its {total} features lie near the project; the rest, far from the holes and samples, were left out.": "{name}: {kept} من أصل {total} عنصرًا قريبة من المشروع؛ والباقي، البعيد عن الثقوب والعيّنات، استُبعد.",
   "{name} is {mb} MB: GeoStrix reads a GeoPackage whole, and one this size would freeze the window for minutes and need several GB of memory. Export just the tables and the area you need (in QGIS: clip to your property, save as a new GeoPackage or shapefile) and import that.": "حجم {name} هو {mb} ميغابايت: يقرأ GeoStrix ملف GeoPackage كاملًا، وملف بهذا الحجم سيجمّد النافذة لدقائق ويحتاج عدة غيغابايت من الذاكرة. صدّر الجداول والمنطقة التي تحتاجها فقط (في QGIS: اقتطع على عقارك واحفظه كملف GeoPackage أو shapefile جديد) ثم استورده.",
-  "Grades capped at {cap} {unit} before estimating.": "قُصّت المحتويات عند {cap} {unit} قبل التقدير."
+  "Grades capped at {cap} {unit} before estimating.": "قُصّت المحتويات عند {cap} {unit} قبل التقدير.",
+  "Open Planned holes aimed at the zone's point farthest from the drilling: choose a collar, then Solve": "افتح الثقوب المخططة موجّهة إلى نقطة المنطقة الأبعد عن الحفر: اختر فوهة ثم حُلّ"
 }

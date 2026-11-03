@@ -7,7 +7,7 @@ const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
 
 test("an undrilled zone row hands its centre to the planned-hole form", () => {
   const uz = read("src/components/UndrilledZonesPane.jsx");
-  assert.match(uz, /\{onPlanTo && <button onClick=\{\(\) => onPlanTo\(z\.centre\)\}/);
+  assert.match(uz, /\{onPlanTo && <button onClick=\{\(\) => onPlanTo\(z\.target \|\| z\.centre\)\}/); // #1724 — the point farthest from the drilling
   assert.match(uz, /let lastResult = null;/);
   const vm = read("src/modules/ViewerModule.jsx");
   assert.match(vm, /onPlanTo=\{\(c\) => \{ setPlanTarget\(\{ x: c\.x, y: c\.y, z: c\.z \}\); setToolPane\("plan"\); \}\}/);
