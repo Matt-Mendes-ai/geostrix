@@ -2,7 +2,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { payloadFromFields, fieldsFromPayload, emptyFields } from "../src/lib/projectFields.js";
-import { computeLine, tangentTo, segmentsToPoint, runAboveGround, gradeRatio, designLineRows, designLineFeatures, norm360 } from "../src/lib/designLines.js";
+import { computeLine, tangentTo, segmentsToPoint, runAboveGround, gradeRatio, designLineRows, designLineFeatures, norm360, vertexChainage, selfClearance } from "../src/lib/designLines.js";
+import { buildDXF, hexToAci } from "../src/lib/dxf.js";
 
 const near = (a, b, tol = 1e-6, msg = "") => assert.ok(Math.abs(a - b) <= tol, `${msg} ${a} vs ${b}`);
 const start = { x: 1000, y: 2000, z: 500 };
@@ -129,4 +130,29 @@ test("lines are saved with the project and draw the same when reopened; an older
   assert.deepEqual(computeLine(back[0]).end, computeLine(f.designLines[0]).end);
   const old = { ...file, version: 20 }; delete old.designLines;
   assert.deepEqual(fieldsFromPayload(old, "old.geostrix.json").designLines, []);
+});
+
+test("#1365: CSV chainage runs along the arcs and ends at the driven length; the DXF carries the line colour", () => {
+  const line = { start, azimuth: 0, segments: [{ type: "straight", length: 100, grade: -2 }, { type: "curve", radius: 30, turn: "right", angle: 3600, grade: -15 }], color: "#1971c2", name: "Decline" };
+  const c = computeLine(line), rows = designLineRows([line]);
+  near(rows[rows.length - 1].chainage_m, c.length, 0.01, "last chainage = driven length");
+  near(vertexChainage(c)[1], 100, 1e-9);
+  const dxf = buildDXF({ features: designLineFeatures([line]), geomType: "line", layerOf: (f) => f.attributes.name, colorOf: (f) => f.attributes.color });
+  assert.match(dxf, /POLYLINE\n8\nDecline\n62\n\d+\n66\n1/);
+  assert.equal(hexToAci("#ff0000"), 10);
+  assert.equal(hexToAci("#00ff00"), 90);
+  assert.equal(hexToAci("#0000ff"), 170);
+  assert.equal(hexToAci("#808080"), 8);
+  assert.equal(hexToAci("#ffffff"), 7);
+  assert.equal(hexToAci("teal"), null);
+});
+
+test("#1364: the closest pass of a line to itself — a spiral's turn drop, a crossing, nothing for a plain drift", () => {
+  const R = 30, g = -15;
+  const spiral = computeLine({ start, azimuth: 0, segments: [{ type: "curve", radius: R, turn: "right", angle: 720, grade: g }] });
+  const drop = 2 * Math.PI * R * Math.abs(g) / 100;
+  near(selfClearance(spiral).distance, drop, 0.5, "one turn apart");
+  assert.equal(selfClearance(computeLine({ start, azimuth: 0, segments: [{ type: "straight", length: 300, grade: 1 }, { type: "curve", radius: 50, turn: "left", angle: 90, grade: 1 }] })), null);
+  const cross = computeLine({ start, azimuth: 0, segments: [{ type: "straight", length: 200, grade: 0 }, { type: "straight", length: 100, azimuth: 90, grade: 0 }, { type: "straight", length: 100, azimuth: 180, grade: 0 }, { type: "straight", length: 200, azimuth: 270, grade: 0 }] });
+  assert.ok(selfClearance(cross).distance < 1e-9, "crosses itself at one level");
 });

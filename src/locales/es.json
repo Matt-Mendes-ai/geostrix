@@ -6941,5 +6941,18 @@
   "Silvertip assays could not be loaded: {message}": "No se pudieron cargar los ensayes de Silvertip: {message}",
   "Silvertip surface samples: {list} — shown in the 3D View and the Geochem tab.": "Muestras de superficie de Silvertip: {list}, en la Vista 3D y la pestaña Geoquímica.",
   "Silvertip surface samples could not be loaded: {message}": "No se pudieron cargar las muestras de superficie de Silvertip: {message}",
-  "Loading the Silvertip sample project — 9 deep diamond drillholes from 2024 (to 1,323 m) with their logs, surveys, oriented structures and assays, plus 168 rock, 282 soil and 156 stream-sediment samples, all from BC's public assessment report #42807. Nothing in it is synthesized (sample_data/silvertip/README.md).": "Cargando el proyecto de muestra Silvertip: 9 sondajes diamantinos profundos de 2024 (hasta 1.323 m) con sus registros, levantamientos, estructuras orientadas y ensayes, y 168 muestras de roca, 282 de suelo y 156 de sedimento de quebrada, todo del informe público de evaluación #42807 de BC. Nada es sintético (sample_data/silvertip/README.md)."
+  "Loading the Silvertip sample project — 9 deep diamond drillholes from 2024 (to 1,323 m) with their logs, surveys, oriented structures and assays, plus 168 rock, 282 soil and 156 stream-sediment samples, all from BC's public assessment report #42807. Nothing in it is synthesized (sample_data/silvertip/README.md).": "Cargando el proyecto de muestra Silvertip: 9 sondajes diamantinos profundos de 2024 (hasta 1.323 m) con sus registros, levantamientos, estructuras orientadas y ensayes, y 168 muestras de roca, 282 de suelo y 156 de sedimento de quebrada, todo del informe público de evaluación #42807 de BC. Nada es sintético (sample_data/silvertip/README.md).",
+  "The nearest the line passes to another part of itself, as between the turns of a spiral: the rock left between them.": "Lo más cerca que la línea pasa de otra parte de sí misma, como entre las vueltas de una espiral: la roca que queda entre ellas.",
+  "Closest pass to itself": "Paso más cercano a sí misma",
+  "The line passes within {m} m of itself near {x}, {y}, {z}: it may run through its own opening.": "La línea pasa a {m} m de sí misma cerca de {x}, {y}, {z}: puede atravesar su propia excavación.",
+  "No terrain: the line is not checked against the ground.": "Sin terreno: la línea no se comprueba contra la superficie.",
+  "Cancelled: nothing was added.": "Cancelado: no se añadió nada.",
+  "Pit shell: {model} at {price} {unit}, {slope}°{rf}": "Envolvente de tajo: {model} a {price} {unit}, {slope}°{rf}",
+  "The price was entered for another metal unit: enter it again for this block model.": "El precio se introdujo para otra unidad de metal: introdúzcalo de nuevo para este modelo de bloques.",
+  "No terrain is loaded, so the ground is interpolated between the {n} collar elevations. Load a terrain in Maps for the real surface.": "No hay terreno cargado, así que la superficie se interpola entre las {n} cotas de collar. Cargue un terreno en Mapas para la superficie real.",
+  "Hide the earlier pits": "Ocultar los tajos anteriores",
+  "Ore from one hole / extrapolated": "Mineral de un solo sondaje / extrapolado",
+  "Most of this ore is in blocks the estimate classed as extrapolated: the pit rests on grades the drilling does not surround.": "La mayor parte de este mineral está en bloques que la estimación clasificó como extrapolados: el tajo se apoya en leyes que los sondajes no rodean.",
+  "Steeper than 65° overall or deeper than 500 m is beyond most open pits: treat it as a sign the body is an underground question.": "Más de 65° de talud global o más de 500 m de profundidad supera a la mayoría de los tajos abiertos: tómelo como señal de que el cuerpo es un caso subterráneo.",
+  "The ground is interpolated between the collars, not a terrain.": "La superficie se interpola entre los collares, no es un terreno."
 }

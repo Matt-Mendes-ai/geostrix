@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { terrainGroundAt } from "../src/lib/viewer/geomath.js";
-import { pitEconomics, marginPerTonne, precedenceArcs, wallAngles, MAX_ARCS, solvePit, pitSummary, runPitShell } from "../src/lib/pitShell.js";
+import { collarGround, pitEconomics, marginPerTonne, precedenceArcs, wallAngles, MAX_ARCS, solvePit, pitSummary, runPitShell } from "../src/lib/pitShell.js";
 
 // a hand-made grid: value[k][j][i], every cell rock, k = 0 at the base
 const gridOf = (vals, dx = 10, dy = 10, dz = 10) => {
@@ -162,4 +162,33 @@ test("a terrain sent to the worker as the client sends it: a hill adds cover, a 
   assert.ok(hill.oreT > 0);
   assert.ok(hill.stripRatio > flat.stripRatio, `${hill.stripRatio} vs ${flat.stripRatio}`);
   assert.ok(hill.topAssumed >= 0 && hill.topAssumed < 1);
+});
+
+test("#1353: no terrain — the ground comes from the collars, not the top of the highest block", () => {
+  const cells = orebody(1000, 10, 1.5); // block tops reach 1,000 m
+  const collars = [{ x: 400, y: 400, z: 960 }, { x: 800, y: 400, z: 960 }, { x: 400, y: 800, z: 960 }, { x: 800, y: 800, z: 960 }];
+  const r = runPitShell({ ...econ, cells }, { collars });
+  assert.equal(r.groundSource, "collars");
+  assert.ok(Math.abs(r.oreT - 120 * 120 * 60 * 2.7) < 1e-3 * r.oreT, String(r.oreT)); // the top 40 m is above the collars: air, not ore
+  const g = collarGround(collars);
+  assert.equal(g(400, 400), 960);
+  assert.ok(Math.abs(g(600, 600) - 960) < 1e-9);
+  assert.equal(collarGround([]), null);
+  assert.equal(runPitShell({ ...econ, cells }, {}).groundSource, "model top");
+});
+
+test("#1358: the grid stops at the deepest paying block, so a deep barren tail no longer coarsens the blocks", () => {
+  const cells = orebody(1000, 4, 1.5); // 40 m of ore at the top
+  for (let i = 0; i < 12; i++) for (let j = 0; j < 12; j++) for (let k = 0; k < 120; k++) cells.push({ x: 500 + i * 10, y: 500 + j * 10, z: 955 - k * 10, dx: 10, dy: 10, dz: 10, value: 0 }); // 1.2 km of barren model below
+  const r = runPitShell({ ...econ, cells }, { groundAt: flatGround(1000) });
+  assert.deepEqual(r.cell, [10, 10, 10], "blocks stay at the model's 10 m");
+  assert.ok(r.maxDepth <= 41, String(r.maxDepth));
+  assert.ok(runPitShell({ ...econ, cells: orebody(1000, 4, 0.01) }, { groundAt: flatGround(1000) }).empty, "nothing pays: no pit");
+});
+
+test("#1354: the result says how much of the ore rests on one hole or is extrapolated", () => {
+  const cells = orebody(1000, 10, 1.5).map((c, i) => ({ ...c, nHoles: i % 2 ? 1 : 3, support: i % 4 === 0 ? "extrapolated" : "interpolated" }));
+  const r = runPitShell({ ...econ, cells }, { groundAt: flatGround(1000) });
+  assert.ok(Math.abs(r.oreSingleHoleShare - 0.5) < 0.02, String(r.oreSingleHoleShare));
+  assert.ok(Math.abs(r.oreExtrapolatedShare - 0.25) < 0.02, String(r.oreExtrapolatedShare));
 });

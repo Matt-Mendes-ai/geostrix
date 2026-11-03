@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { Spline, Download, X, Trash2, Plus } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
-import { computeLine, segmentsToPoint, runAboveGround, gradeRatio, designLineRows, designLineFeatures } from "../lib/designLines.js";
+import { computeLine, segmentsToPoint, runAboveGround, gradeRatio, designLineRows, designLineFeatures, selfClearance } from "../lib/designLines.js";
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { buildDXF } from "../lib/dxf.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js";
@@ -24,19 +24,25 @@ const label = { ...note, marginTop: 10, fontWeight: 600, textTransform: "upperca
 const COLOURS = ["#e8590c", "#1971c2", "#2f9e44", "#ae3ec9", "#f08c00", "#0c8599"];
 const m1 = (v) => (Math.round(v * 10) / 10).toLocaleString();
 const num0 = (s) => (s === "" || s == null || !Number.isFinite(Number(s)) ? null : Number(s));
+const nextSeg = { grade: "0", radius: "" }; // #1360 — the next segment's grade and radius outlive the pane (this session)
+const nearestZ = (pts, x, y) => pts.reduce((b, k) => (Number.isFinite(k.z) && (!b || Math.hypot(k.x - x, k.y - y) < Math.hypot(b.x - x, b.y - y)) ? k : b), null)?.z;
 
-// a number that is only taken when you leave it, so "-" and "1." can be typed on the way to -1.5
+// a number that is only taken when you leave it, so "-" and "1." can be typed on the way to -1.5. onCommit returning false
+// refuses the number, and the cell goes back to the stored value instead of showing what was refused (#1363)
 function Cell({ value, onCommit, width = 54, ariaLabel, placeholder }) {
-  return <input type="number" step="any" key={String(value)} defaultValue={value ?? ""} placeholder={placeholder} aria-label={ariaLabel} style={{ ...smallSel, width }}
-    onBlur={(e) => { const v = num0(e.target.value); if (v !== (value ?? null)) onCommit(v); }} onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} />;
+  const [reset, setReset] = useState(0);
+  return <input type="number" step="any" key={`${value}|${reset}`} defaultValue={value ?? ""} placeholder={placeholder} aria-label={ariaLabel} style={{ ...smallSel, width }}
+    onBlur={(e) => { const v = num0(e.target.value); if (v !== (value ?? null) && onCommit(v) === false) setReset((k) => k + 1); }} onKeyDown={(e) => { if (e.key === "Enter") e.target.blur(); }} />;
 }
 
 // view: { scene, camera, renderer, activity, dragHook, origin } (refs)
 export default function DesignLinesPane({ view, onClose }) {
   const { designLines = [], setDesignLines, collars = [], terrain, project } = useStore();
   const [activeId, setActiveId] = useState(() => designLines[designLines.length - 1]?.id ?? null);
-  const [grade, setGrade] = useState("0");
-  const [radius, setRadius] = useState("");
+  const [grade, setGradeState] = useState(nextSeg.grade);
+  const [radius, setRadiusState] = useState(nextSeg.radius);
+  const setGrade = (v) => { nextSeg.grade = v; setGradeState(v); };
+  const setRadius = (v) => { nextSeg.radius = v; setRadiusState(v); };
   const [lengthText, setLengthText] = useState("");
   const [azText, setAzText] = useState("");
   const [angleText, setAngleText] = useState("");
@@ -44,6 +50,8 @@ export default function DesignLinesPane({ view, onClose }) {
   const [drawing, setDrawing] = useState(false);
   const [hover, setHover] = useState(null);
   const line = designLines.find((l) => l.id === activeId) || null;
+  // #1357 — after a delete or an undo the active line can be gone: the last line takes over, so the editor never goes blank
+  useEffect(() => { if (!line && designLines.length) setActiveId(designLines[designLines.length - 1].id); }, [line, designLines]);
   const c = useMemo(() => (line?.start ? computeLine(line) : null), [line]);
   const update = (patch) => setDesignLines((L) => L.map((l) => (l.id === activeId ? { ...l, ...patch } : l)));
   const appendSegments = (segs) => setDesignLines((L) => L.map((l) => (l.id === activeId ? { ...l, segments: [...l.segments, ...segs] } : l)));
@@ -51,7 +59,7 @@ export default function DesignLinesPane({ view, onClose }) {
 
   const newLine = () => {
     const id = `line_${Date.now()}`, z = median(collars.map((k) => k.z).filter(Number.isFinite));
-    setDesignLines((L) => [...L, { id, name: tr("Line {n}", { n: L.length + 1 }), color: COLOURS[L.length % COLOURS.length], visible: true, start: { x: null, y: null, z: Number.isFinite(z) ? Math.round(z) : null }, azimuth: null, segments: [] }]);
+    setDesignLines((L) => [...L, { id, name: tr("Line {n}", { n: L.length + 1 }), color: COLOURS[L.length % COLOURS.length], visible: true, start: { x: null, y: null, z: Number.isFinite(z) ? Math.round(z) : null, zAuto: true }, azimuth: null, segments: [] }]);
     setActiveId(id); setDrawing(false);
   };
   const started = line && Number.isFinite(line.start?.x) && Number.isFinite(line.start?.y) && Number.isFinite(line.start?.z);
@@ -59,7 +67,7 @@ export default function DesignLinesPane({ view, onClose }) {
 
   // ---------- drawing in the 3D view ----------
   const state = useRef(); // the effect below lives as long as the drawing does, and reads the latest of these
-  state.current = { line, started, grade: Number(grade) || 0, radius: Number(radius) > 0 ? Number(radius) : 0, appendSegments, update };
+  state.current = { line, started, grade: Number(grade) || 0, radius: Number(radius) > 0 ? Number(radius) : 0, appendSegments, update, terrain, collars };
   useEffect(() => {
     const dom = view?.renderer.current?.domElement, scene = view?.scene.current;
     if (!drawing || !dom || !scene) return undefined;
@@ -100,7 +108,12 @@ export default function DesignLinesPane({ view, onClose }) {
         if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 5) return; // a drag is not a click
         const s = state.current, p = pointAt(ev);
         if (!p) return;
-        if (!s.started) { s.update({ start: { x: +p[0].toFixed(2), y: +p[1].toFixed(2), z: s.line.start.z } }); return; }
+        if (!s.started) {
+          // #1359 — a start Z nobody typed is the ground under the click (terrain, else the nearest collar), not one median for the whole property
+          const g = s.line.start.zAuto ? (s.terrain ? terrainGroundAt(s.terrain, p[0], p[1]) : nearestZ(s.collars, p[0], p[1])) : null;
+          s.update({ start: { x: +p[0].toFixed(2), y: +p[1].toFixed(2), z: Number.isFinite(g) ? Math.round(g) : s.line.start.z } });
+          return;
+        }
         const r = segmentsToPoint(s.line, p, { radius: s.radius, grade: s.grade });
         if (r.segments.length) s.appendSegments(r.segments);
       };
@@ -138,9 +151,10 @@ export default function DesignLinesPane({ view, onClose }) {
     setAngleText("");
   };
   const above = useMemo(() => (c && terrain ? runAboveGround(c.vertices, (x, y) => terrainGroundAt(terrain, x, y)) : 0), [c, terrain]);
+  const clearance = useMemo(() => (c && c.vertices.length > 2 ? selfClearance(c) : null), [c]);
 
   const exportCsv = () => saveFile({ suggestedName: "design_lines.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(designLineRows(designLines).map((r) => ({ ...r, crs: crsCell(project) }))) });
-  const exportDxf = () => saveFile({ suggestedName: "design_lines.dxf", filters: [{ name: "DXF", extensions: ["dxf"] }], content: buildDXF({ features: designLineFeatures(designLines), geomType: "line", layerOf: (f) => f.attributes.name }) });
+  const exportDxf = () => saveFile({ suggestedName: "design_lines.dxf", filters: [{ name: "DXF", extensions: ["dxf"] }], content: buildDXF({ features: designLineFeatures(designLines), geomType: "line", layerOf: (f) => f.attributes.name, colorOf: (f) => f.attributes.color }) });
 
   return (
     <div>
@@ -160,12 +174,12 @@ export default function DesignLinesPane({ view, onClose }) {
           <input key={line.id} defaultValue={line.name} onBlur={(e) => { const n = e.target.value.trim(); if (n && n !== line.name) update({ name: n }); }} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Name of the line")} />
           <input type="color" value={line.color} onChange={(e) => update({ color: e.target.value })} aria-label={tr("Colour of the line")} style={{ width: 24, height: 22, padding: 0, border: "none", background: "none" }} />
           <label style={{ ...note, display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }}><input type="checkbox" checked={line.visible !== false} onChange={(e) => update({ visible: e.target.checked })} />{tr("Show")}</label>
-          <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => { setDesignLines((L) => L.filter((l) => l.id !== line.id)); setActiveId(null); setDrawing(false); }, tr("Delete this line"))} />
+          <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => { const rest = designLines.filter((l) => l.id !== line.id); setDesignLines((L) => L.filter((l) => l.id !== line.id)); setActiveId(rest[rest.length - 1]?.id ?? null); setDrawing(false); }, tr("Delete this line"))} />
         </div>
 
         <div style={label}>{tr("Start")}</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginTop: 4 }}>
-          {[["x", "E"], ["y", "N"], ["z", "Z"]].map(([k, l]) => <label key={k} style={{ ...note, minWidth: 0 }}>{l}<Cell value={line.start?.[k]} width="100%" ariaLabel={tr("Start {axis}", { axis: l })} onCommit={(v) => update({ start: { ...line.start, [k]: v } })} /></label>)}
+          {[["x", "E"], ["y", "N"], ["z", "Z"]].map(([k, l]) => <label key={k} style={{ ...note, minWidth: 0 }}>{l}<Cell value={line.start?.[k]} width="100%" ariaLabel={tr("Start {axis}", { axis: l })} onCommit={(v) => update({ start: { ...line.start, [k]: v, ...(k === "z" ? { zAuto: false } : {}) } })} /></label>)}
           <label style={{ ...note, minWidth: 0 }} title={tr("Which way the line sets off, clockwise from north. Blank: the first straight decides.")}>{tr("Heading °")}<Cell value={line.azimuth} width="100%" ariaLabel={tr("Heading at the start")} onCommit={(v) => update({ azimuth: v })} /></label>
         </div>
         {!canDraw && <div style={warn}>{tr("Enter the start elevation (Z): clicks in the view are taken on that level.")}</div>}
@@ -205,9 +219,9 @@ export default function DesignLinesPane({ view, onClose }) {
               <span style={{ width: 16, flexShrink: 0 }}>{i + 1}</span>
               {s.type === "curve"
                 ? <><Cell value={s.radius} width={52} ariaLabel={tr("Radius of segment {n}", { n: i + 1 })} onCommit={(v) => v > 0 && updateSegment(i, { radius: v })} /><span style={note}>R</span>
-                    <Cell value={s.angle} width={46} ariaLabel={tr("Angle of segment {n}", { n: i + 1 })} onCommit={(v) => v > 0 && updateSegment(i, { angle: v })} /><span style={note}>{s.turn === "left" ? tr("° left") : tr("° right")}</span></>
+                    <Cell value={+s.angle.toFixed(1)} width={64} ariaLabel={tr("Angle of segment {n}", { n: i + 1 })} onCommit={(v) => v > 0 && updateSegment(i, { angle: v })} /><span style={note}>{s.turn === "left" ? tr("° left") : tr("° right")}</span></>
                 : <><Cell value={+s.length.toFixed(2)} width={66} ariaLabel={tr("Length of segment {n}", { n: i + 1 })} onCommit={(v) => v > 0 && updateSegment(i, { length: v })} /><span style={note}>m</span>
-                    <Cell value={+s.azimuthOut.toFixed(1)} width={46} ariaLabel={tr("Azimuth of segment {n}", { n: i + 1 })} onCommit={(v) => updateSegment(i, { azimuth: v })} /><span style={note}>°</span></>}
+                    <Cell value={+s.azimuthOut.toFixed(1)} width={56} ariaLabel={tr("Azimuth of segment {n}", { n: i + 1 })} onCommit={(v) => updateSegment(i, { azimuth: v })} /><span style={note}>°</span></>}
               <Cell value={s.grade} width={52} ariaLabel={tr("Grade of segment {n}", { n: i + 1 })} onCommit={(v) => updateSegment(i, { grade: v ?? 0 })} /><span style={note}>%</span>
               <X size={12} style={{ cursor: "pointer", flexShrink: 0 }} {...iconAction(() => update({ segments: line.segments.filter((_, k) => k !== i) }), tr("Remove segment {n}", { n: i + 1 }))} />
             </div>
@@ -218,7 +232,10 @@ export default function DesignLinesPane({ view, onClose }) {
             <div style={row}><span>{tr("End")}</span><b>{m1(c.end[0])}, {m1(c.end[1])}, {m1(c.end[2])}</b></div>
             <div style={row}><span>{tr("Steepest grade")}</span><b>{m1(c.steepest)} %</b></div>
             {c.minRadius != null && <div style={row}><span>{tr("Tightest radius")}</span><b>{m1(c.minRadius)} m</b></div>}
+            {clearance && <div style={row}><span title={tr("The nearest the line passes to another part of itself, as between the turns of a spiral: the rock left between them.")}>{tr("Closest pass to itself")}</span><b>{m1(clearance.distance)} m</b></div>}
+            {clearance && clearance.distance < 10 && <div style={warn}>{tr("The line passes within {m} m of itself near {x}, {y}, {z}: it may run through its own opening.", { m: m1(clearance.distance), x: m1(clearance.at[0]), y: m1(clearance.at[1]), z: m1(clearance.at[2]) })}</div>}
             {above > 0.5 && <div style={warn}>{tr("{m} m of this line, in plan, is above the terrain.", { m: m1(above) })}</div>}
+            {!terrain && <div style={note}>{tr("No terrain: the line is not checked against the ground.")}</div>}
           </div>
         </>)}
       </>)}

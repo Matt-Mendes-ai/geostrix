@@ -93,17 +93,58 @@ export function runAboveGround(vertices, groundAt) {
 export const gradeRatio = (g) => (Math.abs(g) >= 0.5 ? `1:${Math.round(100 / Math.abs(g) * 10) / 10}` : null);
 
 // export rows, one per vertex, with the distance driven so far
+// TASKS.csv #1365 — the distance driven to each vertex, along the arcs: a curve's vertices share its length evenly (they are equal
+// steps of angle), where summing the 5° chords came out 2 m short of the driven length on a 6.7 km decline. c: computeLine()
+export function vertexChainage(c) {
+  const per = new Map();
+  c.vertices.forEach((v) => { if (v[3] >= 0) per.set(v[3], (per.get(v[3]) || 0) + 1); });
+  let chain = 0;
+  return c.vertices.map((v) => (v[3] < 0 ? 0 : (chain += c.segments[v[3]].length / per.get(v[3]))));
+}
+
+
+// TASKS.csv #1364 — the closest the line comes back to itself: two points far apart along it (more than 3x their distance) but
+// near in space, as the turns of a spiral ramp or a drift crossing another. Segment to segment, so a crossing between vertices
+// counts. Passes farther than `within` metres are not looked for. Pieces whose boxes are farther apart than the best so far are
+// skipped, and nothing is allocated in the loop: a 6.7 km spiral (2,300 vertices) takes tens of ms, not a second.
+// -> { distance, at: [x, y, z] } or null
+export function selfClearance(c, within = 100) {
+  const v = c.vertices, ch = vertexChainage(c), n = v.length - 1;
+  if (n < 3) return null;
+  const lo = new Float64Array(n * 3), hi = new Float64Array(n * 3);
+  for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) { lo[i * 3 + k] = Math.min(v[i][k], v[i + 1][k]); hi[i * 3 + k] = Math.max(v[i][k], v[i + 1][k]); }
+  const clamp = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
+  let bestD = within, bx = 0, by = 0, bz = 0, found = false;
+  for (let i = 0; i < n; i++) {
+    const p0 = v[i], p1 = v[i + 1], ux = p1[0] - p0[0], uy = p1[1] - p0[1], uz = p1[2] - p0[2], a = ux * ux + uy * uy + uz * uz;
+    for (let j = i + 2; j < n; j++) {
+      let gap = 0; // the distance between the two boxes: a lower bound on the pieces' distance
+      for (let k = 0; k < 3; k++) { const g = Math.max(lo[j * 3 + k] - hi[i * 3 + k], lo[i * 3 + k] - hi[j * 3 + k], 0); gap += g * g; }
+      if (gap >= bestD * bestD) continue;
+      const q0 = v[j], q1 = v[j + 1], vx = q1[0] - q0[0], vy = q1[1] - q0[1], vz = q1[2] - q0[2], wx = p0[0] - q0[0], wy = p0[1] - q0[1], wz = p0[2] - q0[2];
+      const b = ux * vx + uy * vy + uz * vz, cc = vx * vx + vy * vy + vz * vz, d = ux * wx + uy * wy + uz * wz, e = vx * wx + vy * wy + vz * wz, den = a * cc - b * b;
+      let s = den > 1e-12 ? clamp((b * e - cc * d) / den) : 0;
+      const t = cc > 1e-12 ? clamp((b * s + e) / cc) : 0;
+      s = a > 1e-12 ? clamp((b * t - d) / a) : 0;
+      const qx = q0[0] + t * vx, qy = q0[1] + t * vy, qz = q0[2] + t * vz;
+      const dist = Math.hypot(p0[0] + s * ux - qx, p0[1] + s * uy - qy, p0[2] + s * uz - qz);
+      if (dist >= bestD) continue;
+      const along = ch[j] + t * (ch[j + 1] - ch[j]) - (ch[i] + s * (ch[i + 1] - ch[i]));
+      if (dist * 3 < along) { bestD = dist; bx = qx; by = qy; bz = qz; found = true; }
+    }
+  }
+  return found ? { distance: bestD, at: [bx, by, bz] } : null;
+}
+
 export function designLineRows(lines) {
   const out = [];
   lines.forEach((line) => {
-    const c = computeLine(line);
-    let chain = 0;
+    const c = computeLine(line), chain = vertexChainage(c);
     c.vertices.forEach((v, i) => {
-      if (i > 0) { const p = c.vertices[i - 1]; chain += Math.hypot(v[0] - p[0], v[1] - p[1], v[2] - p[2]); }
       const seg = c.segments[v[3]];
-      out.push({ line: line.name, vertex: i, segment: v[3] < 0 ? "" : v[3] + 1, x: +v[0].toFixed(3), y: +v[1].toFixed(3), z: +v[2].toFixed(3), chainage_m: +chain.toFixed(2), type: seg?.type || "start", grade_pct: seg ? seg.grade : "", radius_m: seg?.radius ?? "" });
+      out.push({ line: line.name, vertex: i, segment: v[3] < 0 ? "" : v[3] + 1, x: +v[0].toFixed(3), y: +v[1].toFixed(3), z: +v[2].toFixed(3), chainage_m: +chain[i].toFixed(2), type: seg?.type || "start", grade_pct: seg ? seg.grade : "", radius_m: seg?.radius ?? "" });
     });
   });
   return out;
 }
-export const designLineFeatures = (lines) => lines.map((line) => ({ attributes: { name: line.name }, geometry: computeLine(line).vertices.map((v) => [v[0], v[1], v[2]]) })).filter((f) => f.geometry.length > 1);
+export const designLineFeatures = (lines) => lines.map((line) => ({ attributes: { name: line.name, color: line.color }, geometry: computeLine(line).vertices.map((v) => [v[0], v[1], v[2]]) })).filter((f) => f.geometry.length > 1);

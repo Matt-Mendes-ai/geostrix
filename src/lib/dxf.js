@@ -455,7 +455,19 @@ export function sanitizeLayerName(name) {
 // layer (default: its hole id, as before) and opts.labelOf(feature) adds an R12 TEXT beside a point (a structure pick's
 // "dip/dip direction"). A DXF has no attribute table: 679 Woodjam lithology intervals went out on 19 per-hole layers
 // with none of the 25 rock codes in the file. Callers now name the layer after the logged value ("LITHO_IMMOQ").
-export function buildDXF({ features, geomType, layerOf = null, labelOf = null, textHeight = 1 }) {
+// TASKS.csv #1365 — the AutoCAD Colour Index nearest a "#rrggbb": greys to 7/8/9, other colours to the full-strength hue wheel
+// (ACI 10, 20 ... 240 step 15° of hue from red). Returns null for anything that is not a hex colour.
+export function hexToAci(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
+  if (!m) return null;
+  const n = parseInt(m[1], 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255, hi = Math.max(r, g, b), lo = Math.min(r, g, b);
+  if (hi - lo < 40) return hi > 220 ? 7 : hi > 160 ? 9 : 8; // 7 white, 9 #c0c0c0, 8 #808080
+  const d = hi - lo, h = hi === r ? ((g - b) / d + 6) % 6 : hi === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return 10 + 10 * (Math.round(h * 4) % 24);
+}
+
+// colorOf(feature) -> "#rrggbb" or null: written as each polyline's colour (group 62)
+export function buildDXF({ features, geomType, layerOf = null, labelOf = null, textHeight = 1, colorOf = null }) {
   const lines = [];
   const put = (code, value) => { lines.push(String(code), String(value)); };
 
@@ -488,7 +500,10 @@ export function buildDXF({ features, geomType, layerOf = null, labelOf = null, t
     if (ring) g = g.slice(0, -1);
     const is3d = g.some((p) => Number.isFinite(p[2]));
     // R12 POLYLINE: 3D (flag 8, VERTEX flag 32) when there are elevations, else a 2D one (flag 0, VERTEX flag 0)
-    put(0, "POLYLINE"); put(8, layer); put(66, 1); put(70, (is3d ? 8 : 0) | (closed ? 1 : 0)); put(10, "0.0"); put(20, "0.0"); put(30, "0.0");
+    put(0, "POLYLINE"); put(8, layer);
+    const aci = colorOf ? hexToAci(colorOf(f)) : null;
+    if (aci != null) put(62, aci);
+    put(66, 1); put(70, (is3d ? 8 : 0) | (closed ? 1 : 0)); put(10, "0.0"); put(20, "0.0"); put(30, "0.0");
     g.forEach((p) => { put(0, "VERTEX"); put(8, layer); put(10, p[0].toFixed(4)); put(20, p[1].toFixed(4)); put(30, z(p).toFixed(4)); put(70, is3d ? 32 : 0); });
     put(0, "SEQEND"); put(8, layer);
   });

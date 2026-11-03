@@ -6941,5 +6941,18 @@
   "Silvertip assays could not be loaded: {message}": "تعذر تحميل تحاليل سيلفرتيب: {message}",
   "Silvertip surface samples: {list} — shown in the 3D View and the Geochem tab.": "عينات سيلفرتيب السطحية: {list}، في العرض ثلاثي الأبعاد وتبويب الجيوكيمياء.",
   "Silvertip surface samples could not be loaded: {message}": "تعذر تحميل عينات سيلفرتيب السطحية: {message}",
-  "Loading the Silvertip sample project — 9 deep diamond drillholes from 2024 (to 1,323 m) with their logs, surveys, oriented structures and assays, plus 168 rock, 282 soil and 156 stream-sediment samples, all from BC's public assessment report #42807. Nothing in it is synthesized (sample_data/silvertip/README.md).": "جارٍ تحميل مشروع العينة سيلفرتيب: 9 ثقوب حفر ماسية عميقة من 2024 (حتى 1323 م) بسجلاتها ومسوحاتها وبناها الموجهة وتحاليلها، و168 عينة صخر و282 تربة و156 رواسب جداول، كلها من تقرير التقييم العام #42807 في كولومبيا البريطانية. لا شيء مُصطنع (sample_data/silvertip/README.md)."
+  "Loading the Silvertip sample project — 9 deep diamond drillholes from 2024 (to 1,323 m) with their logs, surveys, oriented structures and assays, plus 168 rock, 282 soil and 156 stream-sediment samples, all from BC's public assessment report #42807. Nothing in it is synthesized (sample_data/silvertip/README.md).": "جارٍ تحميل مشروع العينة سيلفرتيب: 9 ثقوب حفر ماسية عميقة من 2024 (حتى 1323 م) بسجلاتها ومسوحاتها وبناها الموجهة وتحاليلها، و168 عينة صخر و282 تربة و156 رواسب جداول، كلها من تقرير التقييم العام #42807 في كولومبيا البريطانية. لا شيء مُصطنع (sample_data/silvertip/README.md).",
+  "The nearest the line passes to another part of itself, as between the turns of a spiral: the rock left between them.": "أقرب مسافة يمر بها الخط من جزء آخر منه، كما بين لفات الحلزون: الصخر المتبقي بينها.",
+  "Closest pass to itself": "أقرب مرور للخط من نفسه",
+  "The line passes within {m} m of itself near {x}, {y}, {z}: it may run through its own opening.": "يمر الخط على بعد {m} م من نفسه قرب {x}، {y}، {z}: قد يخترق فتحته نفسها.",
+  "No terrain: the line is not checked against the ground.": "لا توجد تضاريس: لا يُفحص الخط مقابل سطح الأرض.",
+  "Cancelled: nothing was added.": "أُلغي: لم يُضف شيء.",
+  "Pit shell: {model} at {price} {unit}, {slope}°{rf}": "غلاف الحفرة: {model} عند {price} {unit}، {slope}°{rf}",
+  "The price was entered for another metal unit: enter it again for this block model.": "أُدخل السعر لوحدة معدن أخرى: أدخله مجددًا لنموذج الكتل هذا.",
+  "No terrain is loaded, so the ground is interpolated between the {n} collar elevations. Load a terrain in Maps for the real surface.": "لا توجد تضاريس محمّلة، لذا يُستكمل سطح الأرض بين ارتفاعات {n} من رؤوس الآبار. حمّل تضاريس في الخرائط للحصول على السطح الحقيقي.",
+  "Hide the earlier pits": "إخفاء الحفر السابقة",
+  "Ore from one hole / extrapolated": "خام من بئر واحدة / مستقرأ",
+  "Most of this ore is in blocks the estimate classed as extrapolated: the pit rests on grades the drilling does not surround.": "معظم هذا الخام في كتل صنّفها التقدير مستقرأة: تعتمد الحفرة على درجات لا تحيط بها الآبار.",
+  "Steeper than 65° overall or deeper than 500 m is beyond most open pits: treat it as a sign the body is an underground question.": "ميل إجمالي أكثر من 65° أو عمق أكثر من 500 م يتجاوز معظم الحفر المكشوفة: اعتبره إشارة إلى أن الجسم مسألة تعدين تحت الأرض.",
+  "The ground is interpolated between the collars, not a terrain.": "سطح الأرض مستكمل بين رؤوس الآبار، وليس تضاريس."
 }

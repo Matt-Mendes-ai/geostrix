@@ -6941,5 +6941,18 @@
   "Silvertip assays could not be loaded: {message}": "Impossible de charger les analyses de Silvertip : {message}",
   "Silvertip surface samples: {list} — shown in the 3D View and the Geochem tab.": "Échantillons de surface de Silvertip : {list}, dans la vue 3D et l'onglet Géochimie.",
   "Silvertip surface samples could not be loaded: {message}": "Impossible de charger les échantillons de surface de Silvertip : {message}",
-  "Loading the Silvertip sample project — 9 deep diamond drillholes from 2024 (to 1,323 m) with their logs, surveys, oriented structures and assays, plus 168 rock, 282 soil and 156 stream-sediment samples, all from BC's public assessment report #42807. Nothing in it is synthesized (sample_data/silvertip/README.md).": "Chargement du projet d'exemple Silvertip : 9 sondages carottés profonds de 2024 (jusqu'à 1 323 m) avec journaux, levés, structures orientées et analyses, et 168 échantillons de roche, 282 de sol et 156 de sédiment de ruisseau, tous du rapport d'évaluation public #42807 de la C.-B. Rien n'est synthétique (sample_data/silvertip/README.md)."
+  "Loading the Silvertip sample project — 9 deep diamond drillholes from 2024 (to 1,323 m) with their logs, surveys, oriented structures and assays, plus 168 rock, 282 soil and 156 stream-sediment samples, all from BC's public assessment report #42807. Nothing in it is synthesized (sample_data/silvertip/README.md).": "Chargement du projet d'exemple Silvertip : 9 sondages carottés profonds de 2024 (jusqu'à 1 323 m) avec journaux, levés, structures orientées et analyses, et 168 échantillons de roche, 282 de sol et 156 de sédiment de ruisseau, tous du rapport d'évaluation public #42807 de la C.-B. Rien n'est synthétique (sample_data/silvertip/README.md).",
+  "The nearest the line passes to another part of itself, as between the turns of a spiral: the rock left between them.": "Le plus près que la ligne passe d'une autre partie d'elle-même, comme entre les tours d'une spirale : la roche laissée entre eux.",
+  "Closest pass to itself": "Passage le plus proche d'elle-même",
+  "The line passes within {m} m of itself near {x}, {y}, {z}: it may run through its own opening.": "La ligne passe à {m} m d'elle-même près de {x}, {y}, {z} : elle peut traverser sa propre excavation.",
+  "No terrain: the line is not checked against the ground.": "Pas de terrain : la ligne n'est pas vérifiée par rapport au sol.",
+  "Cancelled: nothing was added.": "Annulé : rien n'a été ajouté.",
+  "Pit shell: {model} at {price} {unit}, {slope}°{rf}": "Fosse : {model} à {price} {unit}, {slope}°{rf}",
+  "The price was entered for another metal unit: enter it again for this block model.": "Le prix a été saisi pour une autre unité de métal : saisissez-le à nouveau pour ce modèle de blocs.",
+  "No terrain is loaded, so the ground is interpolated between the {n} collar elevations. Load a terrain in Maps for the real surface.": "Aucun terrain n'est chargé : le sol est interpolé entre les {n} altitudes des collets. Chargez un terrain dans Cartes pour la vraie surface.",
+  "Hide the earlier pits": "Masquer les fosses précédentes",
+  "Ore from one hole / extrapolated": "Minerai d'un seul forage / extrapolé",
+  "Most of this ore is in blocks the estimate classed as extrapolated: the pit rests on grades the drilling does not surround.": "La plupart de ce minerai est dans des blocs que l'estimation a classés comme extrapolés : la fosse repose sur des teneurs que les forages n'entourent pas.",
+  "Steeper than 65° overall or deeper than 500 m is beyond most open pits: treat it as a sign the body is an underground question.": "Une pente globale de plus de 65° ou une profondeur de plus de 500 m dépasse la plupart des fosses à ciel ouvert : voyez-y le signe d'un gisement à exploiter en souterrain.",
+  "The ground is interpolated between the collars, not a terrain.": "Le sol est interpolé entre les collets, ce n'est pas un terrain."
 }

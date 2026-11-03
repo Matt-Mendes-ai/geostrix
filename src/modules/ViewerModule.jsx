@@ -1351,7 +1351,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const [toolPane, setToolPane] = useState(mode === "targeting" ? "plan" : mode === "minedesign" ? "pit" : null);
   // TASKS.csv #820 — a pane to open in the NEXT tab (e.g. Surface Geology's "Model it" -> 3D Modelling's Model from map)
   const pendingPaneRef = useRef(null);
-  useEffect(() => { setToolPane(pendingPaneRef.current || (mode === "targeting" ? "plan" : mode === "minedesign" ? "pit" : null)); pendingPaneRef.current = null; }, [mode]);
+  const minePaneRef = useRef("pit"); // #1360 — the Mine Design pane last open
+  useEffect(() => { setToolPane(pendingPaneRef.current || (mode === "targeting" ? "plan" : mode === "minedesign" ? minePaneRef.current : null)); pendingPaneRef.current = null; }, [mode]);
+  useEffect(() => { if (mode === "minedesign" && toolPane) minePaneRef.current = toolPane; }, [mode, toolPane]);
   const paneProps = (id) => ({ active: toolPane === id, expanded: toolPane === id, onClick: () => setToolPane((p) => (p === id ? null : id)) }); // expanded: #595
   const paneHeader = (title, icon, tone) => <TaskPaneHeader title={title} icon={icon} tone={tone} onClose={() => setToolPane(null)} />;
   // TASKS.csv #572 — a modelling pane with nothing to model says what to load, instead of an empty "Choose…" select
@@ -8148,7 +8150,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </Suspense>
         </>)}{/* TASKS.csv #820 */}
 
-        {sidebarTab === "minedesign" && toolPane === "pit" && <Suspense fallback={null}><PitShellPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>}
+        {sidebarTab === "minedesign" && toolPane === "pit" && <Suspense fallback={null}><PitShellPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onClose={() => setToolPane(null)} /></Suspense>}
         {sidebarTab === "minedesign" && toolPane === "lines" && <Suspense fallback={null}><DesignLinesPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef }} onClose={() => setToolPane(null)} /></Suspense>}
         {sidebarTab === "targeting" && (<>
         {toolPane === "ranges" && (<>
