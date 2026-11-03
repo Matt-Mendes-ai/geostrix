@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useState } from "react";
 import { X } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { activateOnKey } from "../lib/a11y.js";
@@ -13,6 +13,17 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 export default function LayerStyleModal({ target, style, onChange, onReset, onClose }) {
   useEscapeKey(onClose);
   const st = resolveLayerStyle(style, target.kind, target.defaults);
+  // TASKS.csv #1528 — a slider drag commits once it rests (150 ms, as VoxelRangeRow #188), not on every step: a size step
+  // rebuilds the layer, and an assay or surface-sample opacity step rebuilds those symbols
+  const [draft, setDraft] = useState({});
+  const timers = useRef({});
+  const slide = (k) => (e) => {
+    const v = Number(e.target.value);
+    setDraft((p) => ({ ...p, [k]: v }));
+    clearTimeout(timers.current[k]);
+    timers.current[k] = setTimeout(() => { setDraft((p) => ({ ...p, [k]: undefined })); onChange({ [k]: v }); }, 150);
+  };
+  const size = draft.size ?? st.size, opacity = draft.opacity ?? st.opacity;
   const shapes = SHAPES[target.kind] || SHAPES.point;
   const surface = target.kind === "surface";
   const lbl = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", width: 74, flexShrink: 0 };
@@ -36,15 +47,15 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
         </div>
         <div style={row}>
           <span style={lbl}>{tr("Size")}</span>
-          <input type="range" min={SIZE_MIN} max={SIZE_MAX} step={0.05} value={st.size} onChange={(e) => onChange({ size: Number(e.target.value) })} aria-label={tr("Size")} style={{ flex: 1 }} />
-          <span style={{ width: 40, textAlign: "right", color: "var(--color-text-secondary)", fontVariantNumeric: "tabular-nums" }}>×{st.size.toFixed(2)}</span>
+          <input type="range" min={SIZE_MIN} max={SIZE_MAX} step={0.05} value={size} onChange={slide("size")} aria-label={tr("Size")} style={{ flex: 1 }} />
+          <span style={{ width: 40, textAlign: "right", color: "var(--color-text-secondary)", fontVariantNumeric: "tabular-nums" }}>×{size.toFixed(2)}</span>
         </div>
         </>}
         {target.sizeNote && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-6px 0 10px 82px" }}>{target.sizeNote}</div>}
         <div style={row}>
           <span style={lbl}>{tr("Opacity")}</span>
-          <input type="range" min={0.1} max={1} step={0.05} value={st.opacity} onChange={(e) => onChange({ opacity: Number(e.target.value) })} aria-label={tr("Opacity")} style={{ flex: 1 }} />
-          <span style={{ width: 40, textAlign: "right", color: "var(--color-text-secondary)", fontVariantNumeric: "tabular-nums" }}>{Math.round(st.opacity * 100)}%</span>
+          <input type="range" min={0.1} max={1} step={0.05} value={opacity} onChange={slide("opacity")} aria-label={tr("Opacity")} style={{ flex: 1 }} />
+          <span style={{ width: 40, textAlign: "right", color: "var(--color-text-secondary)", fontVariantNumeric: "tabular-nums" }}>{Math.round(opacity * 100)}%</span>
         </div>
         <div style={{ ...row, alignItems: "flex-start" }}>
           <span style={{ ...lbl, paddingTop: 3 }}>{tr("Colour")}</span>

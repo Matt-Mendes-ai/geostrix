@@ -537,6 +537,21 @@ const PROTO_PILLAR = sharedProto(new THREE.CylinderGeometry(0.8, 0.8, 2, 12, 1, 
 const PROTO_SQUARE = sharedProto(new THREE.PlaneGeometry(1.8, 1.8), "square"); // ~ the disc's area
 const PIN_AXIS = new THREE.Vector3(0, 1, 0), dipPinDir = new THREE.Vector3(); // #1241 — PROTO_PRISM_4 runs up +Y from its base
 const INTERVAL_PROTO = { cylinder: PROTO_CYLINDER, smooth: PROTO_CYLINDER_16, square: PROTO_PRISM_4 };
+// TASKS.csv #1528 (review #1497, Lawyers) — the layers whose opacity is one number for every member (default: the layer's
+// own), so an Opacity change is applied in place; mineralization (0.85 intervals, 1 for points) and structures (discs + opaque
+// pins) still rebuild. One Opacity tick on Geotech froze Lawyers 19.9 s rebuilding every drillhole.
+const FAST_OPACITY_KEYS = new Set(["litho", "alt", "vein", "breccia", "structzone", "geotech", "recovery", "sg", "litho_gc", "alt_gc", "magsusc"]);
+const isFastOpacityKey = (k) => FAST_OPACITY_KEYS.has(k) || k.startsWith("custom:");
+function applyGroupOpacity(group, op) {
+  const transparent = op < 1;
+  for (const o of group.children) {
+    const m = o.material;
+    if (!m || Array.isArray(m) || m.opacity === undefined) continue;
+    m.opacity = op; m.transparent = transparent;
+    if (o.isInstancedMesh) { m.depthWrite = !transparent; m.needsUpdate = true; } // as buildLayerBatches sets it
+    else if (!m.isPickOnlyMaterial) m.needsUpdate = true;
+  }
+}
 // TASKS.csv #1569 — each block model's min / max corner in scene space (origin-relative, z-up flipped), for the fit box
 function voxelFitCorners(models, o) {
   const out = [];
@@ -4410,6 +4425,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // array instead of the raw voxelModels reference. The effect body still reads the latest voxelModels
   // via closure (harmless: when only a display flag changed and the effect correctly does NOT rerun,
   // the cell positions it needs for the camera-fit bounding box are identical either way).
+  // TASKS.csv #1528 — what of layerStyles the big build reads: the drillhole and custom layers' styles, without the opacity
+  // of the layers that take it in place (the effect after the build)
+  const layerStylesBuildKey = useMemo(() => JSON.stringify(Object.keys(layerStyles).filter((k) => k in LAYER_META || k.startsWith("custom:")).sort()
+    .map((k) => [k, isFastOpacityKey(k) && layerStyles[k] ? { ...layerStyles[k], opacity: undefined } : layerStyles[k]])
+    .filter(([, v]) => v && JSON.stringify(v) !== "{}")), [layerStyles]); // a style holding only an opacity is no style here
   const voxelGeomSignature = useMemo(
     () => voxelModels.map((m) => `${m.id}:${m.cells?.length || 0}`).join("|"),
     [voxelModels]
@@ -5019,7 +5039,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // applyCategoryVisibility/applyLegendOverrideColors are deliberately NOT listed either, for the
     // same reason categoryFilter/legendOverride were removed from this array — both are called
     // directly above using whatever this render closed over, not as re-trigger conditions.
-  }, [collars, survey, desurveyMethod /* #135 — switching method must rebuild every trace */, layers, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStyles /* #635 */, anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, collars.length ? "" : voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
+  }, [collars, survey, survey.length ? desurveyMethod : "" /* #135 — switching method must rebuild every trace; #1528 — with no survey every method gives the same straight holes */, layers, customLayers, numericRange, isRowVisibleForBuild, baseColorForBuild, effectiveLabel, numericLayerColor, fitView, layerStylesBuildKey /* #635; #1528 — not the in-place opacities */, anchorSourcesKey /* #435 — extents only, NOT terrain/rasters/boundaries/omfObjects themselves */, mapAnchorKey /* #316 — extents only, NOT mapLayers: a colour edit must not rebuild every drillhole */, collars.length ? "" : voxelGeomSignature /* #1569 — with holes, only the fit box below */, fitBox, rebuildSeq, placedSurfaceSamples /* #606 — and the no-drillhole camera anchor */]); // #551: assay / geophysics-legend / surface-visibility inputs moved to their own builders
   // TASKS.csv #1569 (review #1497, Lawyers) — with drillholes, a block model only widens the fit box (the origin and the first
   // fit come from the holes): adding one re-derives that box here instead of rebuilding every drillhole and custom layer
   // (25-26 s per 'Add as block model' on Lawyers). Without holes the build above still runs, since the models anchor it.
@@ -5027,6 +5047,22 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!collars.length || !lastTracesRef.current) return;
     lastTracesRef.current = [...lastTracesRef.current.slice(0, lastHoleTraceCountRef.current), ...voxelFitCorners(voxelModels, originRef.current)];
   }, [voxelGeomSignature]);
+  // TASKS.csv #1528 — an Opacity change on a drillhole or custom layer: its materials and batches, in place
+  const opacityStylesRef = useRef(null);
+  useEffect(() => {
+    const prev = opacityStylesRef.current;
+    opacityStylesRef.current = layerStyles;
+    if (!prev) return;
+    const groups = layerGroupsRef.current;
+    new Set([...Object.keys(prev), ...Object.keys(layerStyles)]).forEach((k) => {
+      if (!isFastOpacityKey(k)) return;
+      const def = { opacity: k.startsWith("custom:") || k === "magsusc" ? 1 : LAYER_META[k]?.opacity ?? 1 };
+      const op = resolveLayerStyle(layerStyles[k], "point", def).opacity;
+      if (op === resolveLayerStyle(prev[k], "point", def).opacity) return;
+      const g = groups[k.startsWith("custom:") ? k.slice("custom:".length) : k];
+      if (g) applyGroupOpacity(g, op);
+    });
+  }, [layerStyles]);
   // TASKS.csv #1277 — the Hole labels dropdown redraws the labels only
   useEffect(() => { syncHoleLabels(layerGroupsRef.current?.hole_labels, holeLabelAnchorsRef.current, holeLabelMode, makeTextSprite); }, [holeLabelMode]);
   // #551 — declared AFTER the big effect: when both fire, the big one builds first and these then see unchanged inputs
