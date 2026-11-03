@@ -6999,5 +6999,6 @@
   "To another page…": "Vers une autre page…",
   "Copy to {page}": "Copier vers {page}",
   "Move to {page}": "Déplacer vers {page}",
-  "This frame has a fixed scale (1:{s}): in the 3D view only where you centre it is used, not the zoom. Set Scale to \"free (as framed)\" to use the zoom.": "Ce cadre a une échelle fixe (1:{s}) : dans la vue 3D seul le centrage est utilisé, pas le zoom. Mettez Échelle sur « libre (tel que cadré) » pour utiliser le zoom."
+  "This frame has a fixed scale (1:{s}): in the 3D view only where you centre it is used, not the zoom. Set Scale to \"free (as framed)\" to use the zoom.": "Ce cadre a une échelle fixe (1:{s}) : dans la vue 3D seul le centrage est utilisé, pas le zoom. Mettez Échelle sur « libre (tel que cadré) » pour utiliser le zoom.",
+  "\"{label}\": no solid and no volume were made — the intercepts do not behave like one vein (midpoints {v} m RMS off one plane for a {v2} m mean thickness, {v3} intercepts per hole). Split the code into single veins (Modelling codes, intercept sets) and model each.": "« {label} » : ni solide ni volume n'ont été créés — les intersections ne se comportent pas comme une seule veine (milieux à {v} m RMS d'un plan pour une épaisseur moyenne de {v2} m, {v3} intersections par forage). Séparez le code en veines individuelles (Codes de modélisation, jeux d'intersections) et modélisez chacune."
 }

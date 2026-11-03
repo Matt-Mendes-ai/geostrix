@@ -6999,5 +6999,6 @@
   "To another page…": "A otra página…",
   "Copy to {page}": "Copiar a {page}",
   "Move to {page}": "Mover a {page}",
-  "This frame has a fixed scale (1:{s}): in the 3D view only where you centre it is used, not the zoom. Set Scale to \"free (as framed)\" to use the zoom.": "Este marco tiene una escala fija (1:{s}): en la vista 3D solo se usa dónde lo centra, no el zoom. Ponga Escala en \"libre (según encuadre)\" para usar el zoom."
+  "This frame has a fixed scale (1:{s}): in the 3D view only where you centre it is used, not the zoom. Set Scale to \"free (as framed)\" to use the zoom.": "Este marco tiene una escala fija (1:{s}): en la vista 3D solo se usa dónde lo centra, no el zoom. Ponga Escala en \"libre (según encuadre)\" para usar el zoom.",
+  "\"{label}\": no solid and no volume were made — the intercepts do not behave like one vein (midpoints {v} m RMS off one plane for a {v2} m mean thickness, {v3} intercepts per hole). Split the code into single veins (Modelling codes, intercept sets) and model each.": "\"{label}\": no se creó sólido ni volumen — las intersecciones no se comportan como una sola veta (puntos medios a {v} m RMS de un plano para un espesor medio de {v2} m, {v3} intersecciones por sondaje). Divida el código en vetas individuales (Códigos de modelado, conjuntos de intersecciones) y modele cada una."
 }

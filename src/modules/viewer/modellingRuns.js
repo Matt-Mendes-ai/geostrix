@@ -1739,7 +1739,12 @@ export function createModellingRuns(ctx, mcRef) {
         // in plan and "above" would be a meaningless (and possibly falsely violated) claim.
         const aboveRel = pl.dip <= 75 ? [{ relation: "above", targetId: fwSurf.id }] : [];
         stamp(model.hangingwall, "hangingwall", 0xe08a3c, 0.75, "vein_hangingwall", aboveRel);
-        const solidVol = stamp(model.solid, "solid", 0xb5477e, 0.45, "vein_solid").vol;
+        // TASKS.csv #1414 (review #1352) — Silvertip's MASS: 45 intercepts whose midpoints sit 89 m RMS off one plane, for a 0.54 m vein.
+        // A solid of that is the envelope of a vein set, and its volume means nothing: the walls are kept, the solid is not made.
+        const perHole = used.length / Math.max(1, new Set(used.map((i) => i.holeId)).size);
+        const notOneVein = (pl.rmsOffPlane != null && pl.rmsOffPlane > 10 * Math.max(th.trueMean || 0, 0.5)) || perHole > 2.5;
+        const solidVol = notOneVein ? null : stamp(model.solid, "solid", 0xb5477e, 0.45, "vein_solid").vol;
+        if (notOneVein) setNotices((p) => [...p, notice("\"{label}\": no solid and no volume were made — the intercepts do not behave like one vein (midpoints {v} m RMS off one plane for a {v2} m mean thickness, {v3} intercepts per hole). Split the code into single veins (Modelling codes, intercept sets) and model each.", { label, v: pl.rmsOffPlane != null ? Number(pl.rmsOffPlane).toFixed(1) : "?", v2: Number(th.trueMean || 0).toFixed(2), v3: perHole.toFixed(1) })]);
 
         const fmt = (n, d = 2) => Number(n).toFixed(d);
         setNotices((p) => [...p, notice("Added \"{label}\": {intercepts} paired intercept(s){v} → midplane {v2}° / {v3}° ({attitudeSource}), TRUE thickness {v4}–{v5} m (mean {v6} m; mean DOWNHOLE length {v7} m){v8} → {nu}×{nv} grid, {informedNodes} informed nodes, {v9} m cells, {v10} m search{v11}{v12}.", { label, intercepts: model.intercepts.length, v: unplaceable ? tr(", {unplaceable} unplaceable", { unplaceable }) : "", v2: fmt(pl.dip, 1), v3: fmt(pl.dipDir, 1), attitudeSource: pl.attitudeSource, v4: fmt(th.trueMin), v5: fmt(th.trueMax), v6: fmt(th.trueMean), v7: fmt(th.downholeMean), v8: th.refined ? tr(", thickness corrected against the local modelled normal") : "", nu: model.grid.nu, nv: model.grid.nv, informedNodes: model.grid.informedNodes.toLocaleString(), v9: fmt(model.grid.cellSize, 1), v10: fmt(model.grid.searchRadius, 0), v11: model.grid.coarsened ? tr(" (coarsened to stay under the grid limit)") : "", v12: solidVol?.watertight ? tr(". Solid {volumeM3} m³", { volumeM3: solidVol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : "" })]);
