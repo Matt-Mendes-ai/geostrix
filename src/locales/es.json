@@ -7010,5 +7010,6 @@
   "{terrain} contours ({interval} m)": "Curvas de nivel de {terrain} ({interval} m)",
   "Generated {levels} contour level ({contourInterval} m interval) as one boundary.{v2}": "Se generó {levels} nivel de curvas ({contourInterval} m de intervalo) como un solo límite.{v2}",
   "Generated {levels} contour levels ({contourInterval} m interval) as one boundary.{v2}": "Se generaron {levels} niveles de curvas ({contourInterval} m de intervalo) como un solo límite.{v2}",
-  "Colour of the contour lines (all levels are one boundary).": "Color de las curvas de nivel (todos los niveles son un solo límite)."
+  "Colour of the contour lines (all levels are one boundary).": "Color de las curvas de nivel (todos los niveles son un solo límite).",
+  "+ {n} more group(s): Load from view adds them": "+ {n} grupo(s) más: «Cargar desde la vista» los añade"
 }

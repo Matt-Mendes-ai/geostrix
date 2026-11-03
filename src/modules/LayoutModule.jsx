@@ -34,7 +34,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the 
 import { crsName } from "../lib/reproject.js"; // TASKS.csv #947
 import { projectCredits } from "../lib/credits.js"; // TASKS.csv #949
 import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1127 / #1128
-import { firstLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #1224
+import { firstLegendGroups, rankLegendGroups, legendGroupCount } from "../lib/legendGroups.js"; // rank / count: #1482 // TASKS.csv #1224
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 // (The page size used to be a fixed `const A4 = { w: 1123, h: 794 }` here; it is now per page — see
 // `A4` inside the component, kept under that name so every existing use follows the chosen format.)
@@ -550,7 +550,9 @@ export default function LayoutModule() {
     if (type === "legend") {
       // TASKS.csv #1224 — what the 3D view shows now, bound to the page's viewport if there is just one: a stock row on a printed figure says nothing true
       const { items } = legendFromView(viewerUiState || {});
-      base.items = items.length ? firstLegendGroups(items) : [["Item", "#55606e"]]; // the whole view can run off the page: Load from view brings the rest
+      // the whole view can run off the page: Load from view brings the rest. #1482 — samples and grades first, and a line says what was left out
+      const ranked = rankLegendGroups(items), kept = firstLegendGroups(ranked), left = legendGroupCount(ranked) - legendGroupCount(kept);
+      base.items = items.length ? (left > 0 ? [...kept, [tr("+ {n} more group(s): Load from view adds them", { n: left }), null, { heading: true }]] : kept) : [["Item", "#55606e"]];
       const viewports = elements.filter((el) => el.type === "viewport");
       if (viewports.length === 1) base.boundViewportId = viewports[0].id;
     }

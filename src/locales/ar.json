@@ -7010,5 +7010,6 @@
   "{terrain} contours ({interval} m)": "خطوط كنتور {terrain} ({interval} م)",
   "Generated {levels} contour level ({contourInterval} m interval) as one boundary.{v2}": "أُنشئ {levels} مستوى كنتور (فاصل {contourInterval} م) كحد واحد.{v2}",
   "Generated {levels} contour levels ({contourInterval} m interval) as one boundary.{v2}": "أُنشئت {levels} مستويات كنتور (فاصل {contourInterval} م) كحد واحد.{v2}",
-  "Colour of the contour lines (all levels are one boundary).": "لون خطوط الكنتور (كل المستويات حد واحد)."
+  "Colour of the contour lines (all levels are one boundary).": "لون خطوط الكنتور (كل المستويات حد واحد).",
+  "+ {n} more group(s): Load from view adds them": "+ {n} مجموعة أخرى: «التحميل من العرض» يضيفها"
 }

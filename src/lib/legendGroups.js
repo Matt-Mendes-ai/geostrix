@@ -165,3 +165,22 @@ export function firstLegendGroups(items, maxRows = 32) {
   }
   return items.slice(0, end);
 }
+
+// TASKS.csv #1482 (review #1352) — a new Layout legend kept the first groups that fit, Lithology and Alteration, beside a map of rock
+// chips and streams with no entry for them. Groups are ranked by what a plan shows on top: surface samples and assay grades first,
+// interval logs after, the rest in between. items: legend rows, groups starting with a heading row. -> rows, same groups, reordered
+export function rankLegendGroups(items) {
+  const groups = [];
+  for (const it of items || []) {
+    if (it?.[2]?.heading || !groups.length) groups.push([]);
+    groups[groups.length - 1].push(it);
+  }
+  const rank = (g) => {
+    const h = String(g[0]?.[2]?.heading ? g[0][0] : "");
+    if (/surface sample|rock chip|soil|stream|\((%|ppm|ppb|g\/t|oz\/t)\)/i.test(h)) return 0;
+    if (/litholog|alteration|vein|breccia|structural zone/i.test(h)) return 2;
+    return 1;
+  };
+  return groups.map((g, i) => ({ g, i, r: rank(g) })).sort((a, b) => a.r - b.r || a.i - b.i).flatMap((x) => x.g);
+}
+export const legendGroupCount = (items) => (items || []).filter((it) => it?.[2]?.heading).length;
