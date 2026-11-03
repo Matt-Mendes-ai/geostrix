@@ -8672,7 +8672,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {stereonetOpen && (
         <StereonetModal
           picks={structurePicksWithHoleAttitude}
-          surfacePicks={(surfaceStructures || []).flatMap((st) => st.rows || []).filter((r) => Number.isFinite(r.dip) && Number.isFinite(r.dipDir)).map((r) => ({ value: `${r.cls || "structure"} (outcrop)`, dip: r.dip, azimuth: r.dipDir, x: r.x, y: r.y, outcrop: true }))} // TASKS.csv #428
+          surfacePicks={(surfaceStructures || []).flatMap((st) => st.rows || []).filter((r) => Number.isFinite(r.dip) && Number.isFinite(r.dipDir)).map((r) => ({ value: r.type || r.cls || "structure", dip: r.dip, azimuth: r.dipDir, x: r.x, y: r.y, outcrop: true }))} // TASKS.csv #428; the file's type: #1440
           domains={domains}
           domainFilter={domainStereonetFilter}
           onClose={() => setStereonetOpen(false)}

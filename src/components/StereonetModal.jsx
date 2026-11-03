@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { projectPole, projectLowerHemisphere, greatCirclePoints, fisherStats, kambContourGrid, roseDiagramBins, DEFAULT_TERZAGHI_MAX_WEIGHT, fabricShape } from "../lib/stereonet.js";
 import { colorForStructure, PALETTES } from "../lib/layers.js";
+import { typeKeyOf, typeEntries } from "../lib/stereonetTypes.js"; // TASKS.csv #1440
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -48,16 +49,18 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
   const [terzaghiOn, setTerzaghiOn] = useState(false); // TASKS.csv #280
   const [roseMode, setRoseMode] = useState("strike"); // TASKS.csv #278
   const [roseBin, setRoseBin] = useState(10); // TASKS.csv #278
-  // TASKS.csv #428 — outcrop measurements (Geophysics > Surface structures) on the same net. Their
-  // type label carries "(outcrop)" so the two populations stay distinguishable in the type filter.
+  // TASKS.csv #428 — outcrop measurements (Geophysics > Surface structures) on the same net. #1440 — they carry the file's own
+  // type text, so core "Bedding" and outcrop "Bedding" are one type (counted by source); with Both, outcrop poles are open.
   const [source, setSource] = useState(downholePicks.length ? "downhole" : "surface");
   const picks = useMemo(() => (source === "downhole" ? downholePicks : source === "surface" ? surfacePicks : [...downholePicks, ...surfacePicks]), [source, downholePicks, surfacePicks]);
 
-  const types = useMemo(() => {
-    const set = new Set();
-    picks.forEach((p) => set.add(String(p.value || "").trim() || "(unlabeled)"));
-    return Array.from(set).sort();
-  }, [picks]);
+  const typeList = useMemo(() => typeEntries(picks), [picks]); // #1440 — [{ key, label, core, outcrop }]
+  const types = useMemo(() => typeList.map((t) => t.key), [typeList]);
+  const labelOf = useMemo(() => new Map(typeList.map((t) => [t.key, t.label])), [typeList]);
+  const colorOf = (p) => colorForStructure(labelOf.get(typeKeyOf(p)) ?? p.value); // one colour per type, whichever source
+  const both = source === "both";
+  // #1440 — a Source change keeps the chosen type when the new source has it
+  useEffect(() => { if (typeFilter !== "all" && !types.includes(typeFilter)) setTypeFilter("all"); }, [types, typeFilter]);
 
   // TASKS.csv #281 (structural-geology specialist review): the stereonet filtered by structure TYPE but
   // never by spatial DOMAIN, so on a property with two genuinely different structural domains (two fault
@@ -76,7 +79,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
 
   const filtered = useMemo(() => {
     if (typeFilter === "all") return domainScoped;
-    return domainScoped.filter((p) => (String(p.value || "").trim() || "(unlabeled)") === typeFilter);
+    return domainScoped.filter((p) => typeKeyOf(p) === typeFilter);
   }, [domainScoped, typeFilter]);
 
   // TASKS.csv #280 — Terzaghi option object, shared by every statistic below so the stereonet, the
@@ -132,7 +135,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
     const furniture = stereonetFurniture({ view, projection, roseMode, roseBin, plotted, filtered: filtered.length, total: picks.length, source, typeFilter,
       domainName: domainId ? (domains.find((d) => d.id === domainId) || {}).name || domainId : "", stats, shape: fabric?.shape, showMean, roseN: rose?.n,
       contour: showContours && view === "stereonet" ? contour : null, contourLevels: CONTOUR_LEVELS, contourColors: CONTOUR_COLORS,
-      types: (typeFilter === "all" ? types : [typeFilter]).map((t) => ({ label: t, color: colorForStructure(t) })), date: new Date().toISOString().slice(0, 10) });
+      types: (typeFilter === "all" ? types : [typeFilter]).map((t) => ({ label: labelOf.get(t) ?? t, color: colorForStructure(labelOf.get(t) ?? t) })), date: new Date().toISOString().slice(0, 10) });
     const content = exportSvgMarkup(svgEl, { furniture }).markup;
     saveFile({ suggestedName: view === "rose" ? "rose-diagram.svg" : "stereonet.svg", filters: [{ name: "SVG", extensions: ["svg"] }], content, encoding: "text" });
   };
@@ -202,15 +205,15 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 if (p.dip == null || p.azimuth == null || isNaN(p.dip) || isNaN(p.azimuth)) return null;
                 const pts = greatCirclePoints(p.azimuth, p.dip, projection, 48).map(toSvg);
                 const d = pts.map((pt, j) => `${j === 0 ? "M" : "L"} ${pt.x.toFixed(2)} ${pt.y.toFixed(2)}`).join(" ");
-                const color = colorForStructure(p.value);
+                const color = colorOf(p);
                 return <path key={`gc_${i}`} d={d} fill="none" stroke={color} strokeWidth={1} opacity={0.6} />;
               })}
 
               {showPoles && filtered.map((p, i) => {
                 if (p.dip == null || p.azimuth == null || isNaN(p.dip) || isNaN(p.azimuth)) return null;
                 const pt = toSvg(projectPole(p.azimuth, p.dip, projection));
-                const color = colorForStructure(p.value);
-                return <circle key={`pole_${i}`} cx={pt.x} cy={pt.y} r={3.2} fill={color} stroke="#1a2028" strokeWidth={0.5} opacity={0.9}>
+                const color = colorOf(p), open = both && p.outcrop; // #1440 — filled = core, open = outcrop
+                return <circle key={`pole_${i}`} cx={pt.x} cy={pt.y} r={3.2} fill={open ? "#ffffff" : color} stroke={open ? color : "#1a2028"} strokeWidth={open ? 1.4 : 0.5} opacity={0.9}>
                   <title>{tr("{v} — dip {dip}° / dipdir {azimuth}°{v2}", { v: p.value || tr("(unlabeled)"), dip: deg1(p.dip), azimuth: deg1(p.azimuth), v2: p.hole_id ? ` (${p.hole_id} @ ${p.depth}m)` : "" })}</title>
                 </circle>;
               })}
@@ -268,7 +271,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
               </select>
             </label>
             {view === "stereonet" && (
-              <label style={rowLabel}>{tr("Source")}<select value={source} onChange={(e) => { setSource(e.target.value); setTypeFilter("all"); }} style={sel} aria-label={tr("Measurement source")}>
+              <label style={rowLabel}>{tr("Source")}<select value={source} onChange={(e) => setSource(e.target.value)} style={sel} aria-label={tr("Measurement source")}>
                   <option value="downhole" disabled={!downholePicks.length}>{tr("Downhole picks ({downholePicks})", { downholePicks: downholePicks.length })}</option>
                   <option value="surface" disabled={!surfacePicks.length}>{tr("Outcrop measurements ({surfacePicks})", { surfacePicks: surfacePicks.length })}</option>
                   <option value="both" disabled={!downholePicks.length || !surfacePicks.length}>{tr("Both")}</option>
@@ -294,7 +297,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
             )}
             <label style={rowLabel}>{tr("Structure type")}<select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={sel}>
                 <option value="all">{tr("All types")}</option>
-                {types.map((t) => <option key={t} value={t}>{t}</option>)}
+                {typeList.map((t) => <option key={t.key} value={t.key}>{both && t.core && t.outcrop ? tr("{type}: {core} core + {outcrop} outcrop", { type: t.label, core: t.core, outcrop: t.outcrop }) : both && t.outcrop ? tr("{type} (outcrop)", { type: t.label }) : t.label}</option>)}
               </select>
             </label>
             {/* TASKS.csv #281 — spatial-domain filter. Only offered when the caller actually supplied
@@ -457,14 +460,15 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
           </div>
         </div>
 
-        {types.length > 1 && (
+        {(types.length > 1 || both) && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-            {types.map((t) => (
-              <div key={t} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#55606e" }}>
-                <div style={{ width: 8, height: 8, borderRadius: 4, background: colorForStructure(t) }} />
-                {t}
+            {typeList.map((t) => (
+              <div key={t.key} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#55606e" }}>
+                <div style={{ width: 8, height: 8, borderRadius: 4, background: colorForStructure(t.label) }} />
+                {t.label}
               </div>
             ))}
+            {both && <div style={{ fontSize: 10, color: "#55606e" }}>{tr("Filled poles: core; open poles: outcrop")}</div>}
           </div>
         )}
       </div>

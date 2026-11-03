@@ -7021,5 +7021,8 @@
   ", one measurement only": ", una sola medición",
   "\"{label}\": attitude {dip}° / {dipDir}° from {n} oriented-core measurement(s) at the intercepts ({types}; {holes} hole(s); within {tol} m){spread}. The intercept midpoints alone could not fix it.": "\"{label}\": actitud {dip}° / {dipDir}° a partir de {n} medición(es) de testigo orientado en las intersecciones ({types}; {holes} sondaje(s); a menos de {tol} m){spread}. Los puntos medios de las intersecciones por sí solos no podían fijarla.",
   "\"{label}\": the {n} oriented-core vein measurement(s) at the intercepts average {dip}° / {dipDir}°{spread}, {angle}° from the plane fitted to the midpoints.": "\"{label}\": las {n} mediciones de vetas en testigo orientado en las intersecciones promedian {dip}° / {dipDir}°{spread}, a {angle}° del plano ajustado a los puntos medios.",
-  "No oriented-core vein measurements lie within {tol} m of these intercepts.": "No hay mediciones de vetas en testigo orientado a menos de {tol} m de estas intersecciones."
+  "No oriented-core vein measurements lie within {tol} m of these intercepts.": "No hay mediciones de vetas en testigo orientado a menos de {tol} m de estas intersecciones.",
+  "{type}: {core} core + {outcrop} outcrop": "{type}: {core} en testigo + {outcrop} en afloramiento",
+  "{type} (outcrop)": "{type} (afloramiento)",
+  "Filled poles: core; open poles: outcrop": "Polos rellenos: testigo; polos abiertos: afloramiento"
 }
