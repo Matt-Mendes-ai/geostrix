@@ -894,7 +894,14 @@ export default function ModellingPanes(props) {
           return (
             <>
               <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                <label style={{ ...miniField }} title={tr("Assay element to model")}>{tr("Element")}<select value={sym} onChange={(e) => setNumericSymbol(e.target.value)} style={{ ...smallSel, width: "100%" }} disabled={!symbols.length}>
+                <label style={{ ...miniField }} title={tr("Assay element to model")}>{tr("Element")}<select value={sym} onChange={(e) => {
+                    // TASKS.csv #1736 (review #1645, Copley) — a cap and a cutoff belong to their element: Au's 0.078 cap and Cu's 1000 cutoff were kept
+                    // across a switch. The cap is cleared; the cutoff is proposed as the new element's P90 of lab assays (pXRF left out).
+                    const next = e.target.value;
+                    setNumericSymbol(next); setNumericCapValue(NaN);
+                    const v = (assays || []).filter((a) => a.source !== "pXRF").map((a) => a.values?.[next]).filter((x) => Number.isFinite(x) && x > 0).sort((x, y) => x - y);
+                    if (v.length) setNumericCutoff(+v[Math.floor(0.9 * (v.length - 1))].toPrecision(3));
+                  }} style={{ ...smallSel, width: "100%" }} disabled={!symbols.length}>
                     {symbols.length === 0 && <option value="">{tr("— no assays —")}</option>}
                     {symbols.map((s) => <option key={s} value={s}>{s} ({assayElements.find((e) => e.symbol === s)?.unit || "ppm"})</option>)}
                   </select>

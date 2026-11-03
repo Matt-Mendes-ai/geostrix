@@ -348,9 +348,16 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
   // TASKS.csv #92 — same cells, `value` swapped for the 0–1 Data Support Index. Named explicitly so it
   // can never be mistaken for a grade model or for a statistical confidence surface once it is sitting
   // in the project's model list months later.
+  // TASKS.csv #1737 (review #1645, Copley) — a result is named from ITS settings, not the dialog's current ones: a capped Cu IDW2 result was
+  // added as "Au estimate (ok, 20.5m)" after the form had been changed
+  const resultName = () => {
+    const p = result?.params || {};
+    const c = Array.isArray(p.cellSizeM) ? (p.cellSizeM.every((v) => v === p.cellSizeM[0]) ? p.cellSizeM[0] : p.cellSizeM.join("×")) : p.cellSizeM;
+    return modelName.trim() || (p.element ? `${p.element} estimate (${p.method}, ${c}m)` : `${symbol} estimate (${method}, ${cellLabel}m)`);
+  };
   const addSupportModel = () => {
     if (!result || !result.cells.length) return;
-    const base = modelName.trim() || `${symbol} estimate (${method}, ${cellLabel}m)`;
+    const base = resultName();
     onAddModel({
       name: `${base} — Data Support Index (geometric, not a confidence)`,
       source: `support-index-${method}`,
@@ -362,14 +369,14 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
   // TASKS.csv #709 — the kriging variance as its own block model, named so it can't be read as an error bar on grade
   const addKvModel = () => {
     if (!result || !result.cells.length) return;
-    const base = modelName.trim() || `${symbol} estimate (${method}, ${cellLabel}m)`;
+    const base = resultName(); // #1737
     const cells = result.cells.filter((c) => Number.isFinite(c.kv)).map((c) => ({ x: c.x, y: c.y, z: c.z, dx: c.dx, dy: c.dy, dz: c.dz, value: c.kv, nSamples: c.nSamples, nHoles: c.nHoles }));
     onAddModel({ name: `${base} — kriging variance (data layout, not a grade error)`, source: "kriging-variance", cells, params: { ...result.params, value: `kriging variance (${unit} squared): how well the samples' layout constrains the block under the variogram` } });
     setAddedKv(true);
   };
   const addToProject = () => {
     if (!result || !result.cells.length) return;
-    const name = modelName.trim() || `${symbol} estimate (${method}, ${cellLabel}m)`;
+    const name = resultName(); // #1737
     // TASKS.csv #702 — the shared grade ramp (lib/inversion.js gradeStops), the one a geoML estimate gets too
     let gMin = Infinity, gMax = -Infinity;
     for (const c of result.cells) { if (Number.isFinite(c.value)) { if (c.value < gMin) gMin = c.value; if (c.value > gMax) gMax = c.value; } }
@@ -391,7 +398,7 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <label style={fieldLabel}>{tr("Element")}<select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={inp}>
+            <label style={fieldLabel}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbol(e.target.value); setCapValue(NaN); setResult(null); }} style={inp}>{/* #1736 — a cap belongs to its element */}
                 {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
               </select>
             </label>
@@ -586,6 +593,7 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
               {result.rawStats && (result.rawStats.duplicatesSkipped > 0 || result.rawStats.overlappingRows > 0) && (
                 <div>{tr("Raw assays: {duplicatesSkipped} exact duplicate row(s) left out; {overlappingRows} overlapping row(s) resolved into segments at the mean of the overlapping results.", { duplicatesSkipped: result.rawStats.duplicatesSkipped, overlappingRows: result.rawStats.overlappingRows })}</div>
               )}
+              {result.params?.capValue != null && <div>{tr("Grades capped at {cap} {unit} before estimating.", { cap: result.params.capValue, unit: result.params.capUnit || "" })}</div>}{/* #1736 — said in the result */}
               <div>{tr("{blocksEstimated} block(s) estimated, {blocksSkipped} left un-estimated (no sample within search radius / below min-samples / below min distinct holes).", { blocksEstimated: result.blocksEstimated.toLocaleString(), blocksSkipped: result.blocksSkipped.toLocaleString() })}</div>
               {result.cutAboveGround > 0 && <div>{tr("{n} of those are above the terrain surface and were left out.", { n: result.cutAboveGround.toLocaleString() })}</div>}
               {/* TASKS.csv #258 */}
