@@ -170,8 +170,13 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
     const stamp = Date.now();
     const r = seedPicksFromTops(def.picks, seedInfo.tops, (hole, md) => { const t = sc.traces.current.find((tc) => tc.hole_id === hole); return t ? findOnTraceWorld(t, md) : null; }, (i) => `pk_${stamp}_${i}`);
     if (r.picks.length) update({ picks: [...(def.picks || []), ...r.picks] });
-    const k = seedInfo.skipped, why = [k.belowRole ? tr("{n} under casing, overburden or a cross-cutting unit", { n: k.belowRole }) : null, k.holeStart ? tr("{n} at a hole start", { n: k.holeStart }) : null,
-      k.gap ? tr("{n} below an unlogged gap", { n: k.gap }) : null, k.olderAbove ? tr("{n} below an older unit", { n: k.olderAbove }) : null].filter(Boolean);
+    const k = seedInfo.skipped, why = [k.belowRole ? tr("{n} under casing or a cross-cutting unit", { n: k.belowRole }) : null, k.underOverburden ? tr("{n} directly under overburden (the base of overburden: seed the overburden unit itself for it)", { n: k.underOverburden }) : null, k.holeStart ? tr("{n} at a hole start", { n: k.holeStart }) : null,
+      k.gap ? tr("{n} below an unlogged gap", { n: k.gap }) : null, k.olderAbove ? tr("{n} below an older unit", { n: k.olderAbove }) : null].filter(Boolean); // underOverburden: #1684
+    if (seedInfo.base) { // TASKS.csv #1684 — the base of overburden, one pick per hole where it ends on a logged unit
+      setSeedNote(tr("Added {n} pick(s) at the logged base of {unit}.", { n: r.picks.length, unit: seedUnit }) + (r.had ? ` ${tr("{n} hole(s) already had a pick and were left as they were.", { n: r.had })}` : "")
+        + (r.noTrace ? ` ${tr("{n} hole(s) are not drawn (no survey or collar).", { n: r.noTrace })}` : "") + (k.holeEnd ? ` ${tr("{n} hole(s) end inside {unit} or have an unlogged gap under it: no base there.", { n: k.holeEnd, unit: seedUnit })}` : ""));
+      return;
+    }
     setSeedNote(tr("Added {n} pick(s) at the logged tops of {unit}.", { n: r.picks.length, unit: seedUnit }) + (r.had ? ` ${tr("{n} hole(s) already had a pick and were left as they were.", { n: r.had })}` : "")
       + (r.noTrace ? ` ${tr("{n} hole(s) are not drawn (no survey or collar).", { n: r.noTrace })}` : "") + (why.length ? ` ${tr("Not tops of {unit}: {why}.", { unit: seedUnit, why: why.join("; ") })}` : ""));
   };
@@ -861,7 +866,8 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         {seedInfo && seedInfo.holes.length > 0 && ( // TASKS.csv #871 — start from the logged tops, then edit
           <div style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4, marginBottom: 6, color: "var(--color-text-secondary)" }}>
             {tr("{a} of {b} holes that log {unit} have a pick on this surface.", { a: seedInfo.holes.filter((h) => pickedHoles.has(h)).length, b: seedInfo.holes.length, unit: seedUnit })}{" "}
-            {contactOf(def) !== "lower" && seedInfo.tops.some((t) => !pickedHoles.has(t.hole_id)) && <button onClick={seedTops} title={tr("One pick per hole where {unit} starts below a younger unit (not at a hole start, under casing or overburden, or below a gap) — the same tops the implicit tool uses. Check them, then move or delete the outliers.", { unit: seedUnit })} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged tops of {unit}", { unit: seedUnit })}</button>}
+            {seedInfo.base && seedInfo.tops.some((t) => !pickedHoles.has(t.hole_id)) && <button onClick={seedTops} title={tr("One pick per hole where {unit} ends on a logged unit — the base of overburden, the contact every hole shares — the same points the implicit tool uses for \"Base of {unit}\". Check them, then move or delete the outliers.", { unit: seedUnit })} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged base of {unit}", { unit: seedUnit })}</button>}{/* #1684 */}
+            {!seedInfo.base && contactOf(def) !== "lower" && seedInfo.tops.some((t) => !pickedHoles.has(t.hole_id)) && <button onClick={seedTops} title={tr("One pick per hole where {unit} starts below a younger unit (not at a hole start, under casing or overburden, or below a gap) — the same tops the implicit tool uses. Check them, then move or delete the outliers.", { unit: seedUnit })} style={{ ...pBtn, width: "auto", display: "inline-flex", marginBottom: 0, padding: "2px 6px" }}>{tr("Add the logged tops of {unit}", { unit: seedUnit })}</button>}
           </div>
         )}
         {(def.log || []).length > 0 && ( // TASKS.csv #878

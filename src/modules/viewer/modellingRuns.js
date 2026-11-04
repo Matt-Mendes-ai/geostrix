@@ -15,7 +15,7 @@ import { excludeQAQC } from "../../lib/qaqc.js";
 import { errorNotice, notice, appendNotice } from "../../lib/notices.js";
 import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, splitIntervalForSampling, spatialClusters, terrainGroundAt } from "../../lib/viewer/geomath.js";
 import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals, depthKey } from "../../lib/viewer/intervals.js";
-import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit, startsBelowNonUnit } from "../../lib/modellingCodes.js"; // TASKS.csv #599; #1367
+import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit, startsBelowNonUnit, startsBelowOverburden, overburdenBases } from "../../lib/modellingCodes.js"; // TASKS.csv #599; #1367; #1684
 import { clipMesh } from "../../lib/clipMesh.js";
 import { holeCounts } from "../../lib/intervalBox.js"; // TASKS.csv #1337
 import { thinStructurePicks } from "../../lib/viewer/orientationThin.js"; // TASKS.csv #765
@@ -486,6 +486,11 @@ export function createModellingRuns(ctx, mcRef) {
     // TASKS.csv #593 — the block was asked for but did not come back (an older engine, or the sync fallback before
     // it forwarded the request): say why the model check, volumes and "Add as block model" are missing
     if (!res.block) setNotices((p) => [...p, notice("The Python engine did not return the model's lithology block, so the model check, unit volumes and \"Add as block model\" are not available for this run. Updating GeoStrix (its engine is bundled) brings them back.")]);
+    // TASKS.csv #1684 — a "Base of X" run (one overburden_base surface): GemPy's block labels the volume UNDER a surface with
+    // that surface's unit, but here the unit lies ABOVE its base and what lies below is not modelled, so the labels are
+    // swapped before the model check, the volumes, the sections and "Add as block model" read them
+    const baseRun = specs.length === 1 && specs[0].type === "overburden_base";
+    if (res.block && baseRun) res.block = { ...res.block, labels: [specs[0].meshName, ...res.block.labels.slice(1).map(() => null)] };
     if (res.block) {
       const codeToUnit = new Map();
       specs.forEach((sp) => { if (!sp.mcode) (sp.codes || [sp.meshName]).forEach((c) => codeToUnit.set(c, sp.meshName)); });
@@ -536,7 +541,7 @@ export function createModellingRuns(ctx, mcRef) {
       // predicted map scores it against that unit instead of leaving it grey and unscored (Perk-Rocky: andesite, 23 km2).
       const topSpec = specs.find((sp) => !sp.fault) || specs[0];
       const aboveUnit = stackOpts.aboveUnit || null;
-      const aboveText = aboveUnit || `above the top of ${topSpec.meshName} (not modelled)`;
+      const aboveText = aboveUnit || (baseRun ? topSpec.meshName : `above the top of ${topSpec.meshName} (not modelled)`); // baseRun: #1684 (the unit is above its base)
       const unitSpecs = specs.filter((sp) => !sp.fault);
       // TASKS.csv #759 — each evaluated section's units (packed), keyed by section id with the line it was evaluated on
       const secResults = {};
@@ -561,17 +566,18 @@ export function createModellingRuns(ctx, mcRef) {
       // cell has the volume of its real-space parallelepiped; dividing by the product keeps that true if it ever isn't
       const warpDet = anisotropy.enabled ? anisoScl.major * anisoScl.semiMajor * anisoScl.minor : 1;
       const loggedMetres = new Map(chk.units.map((u) => [u.unit, u.logged])); // #1189 — no logged metres: no volume to quote
-      const vols = unitVolumes(volBlock).filter((v) => v.name && !(Math.round(loggedMetres.get(v.name) ?? 1) === 0)).map((v) => ({ ...v, volume: v.volume / warpDet })); // #1029 — below the ground
+      // #1684 — the overburden above its base reaches the top of the model box unless a terrain caps it: no volume to quote then
+      const vols = unitVolumes(volBlock).filter((v) => v.name && !(Math.round(loggedMetres.get(v.name) ?? 1) === 0) && !(baseRun && !clipTerrain)).map((v) => ({ ...v, volume: v.volume / warpDet })); // #1029 — below the ground
       const pct = (a, b) => (b > 0 ? `${Math.round((100 * a) / b)}%` : "—");
       const fmtVol = (v) => (v >= 1e9 ? `${(v / 1e9).toFixed(2)} km³` : `${(v / 1e6).toFixed(1)} Mm³`);
-      const perUnit = chk.units.map((u) => `${u.unit} ${pct(u.matched, u.logged)} of ${Math.round(u.logged)} m${u.mostOftenModelledAs !== undefined && u.matched < u.logged ? ` (otherwise mostly modelled as ${u.mostOftenModelledAs ?? "above the modelled tops"})` : ""}`).join("; ");
+      const perUnit = chk.units.map((u) => `${u.unit} ${pct(u.matched, u.logged)} of ${Math.round(u.logged)} m${u.mostOftenModelledAs !== undefined && u.matched < u.logged ? ` (otherwise mostly modelled as ${u.mostOftenModelledAs ?? (baseRun ? "below its base" : "above the modelled tops")})` : ""}`).join("; "); // baseRun: #1684
       const worst = chk.holes.filter((h) => h.logged >= 5).slice(0, 3).map((h) => `${h.hole_id} ${pct(h.matched, h.logged)}`).join(", ");
       // TASKS.csv #1190 — a trend tripled a "unit volume" because the padded box of the stretched points is a much bigger volume: say so, so two runs are not compared by it
       if (anisotropy.enabled) {
         const km3 = (a, b, c) => ((a * b * c) / 1e9).toFixed(1), span = (k) => { const v = extentApiPts.map((q) => q[k]); return Math.max(...v) - Math.min(...v); };
         setNotices((p) => [...p, notice("With a trend the model box is about {a} km³, against {b} km³ around the same data without one, so a unit's volume cannot be compared between the two runs.", { a: km3(extent[1] - extent[0], extent[3] - extent[2], (extent[5] - extent[4]) / warpDet), b: km3(span("x"), span("y"), span("z")) })]);
       }
-      if (chk.total > 0) setNotices((p) => [...p, notice("Model check{v}: the model puts {v2} of {v3} logged metres of the modelled units in the unit they were logged as. By unit: {perUnit}.{v4}{v5} Unit volumes inside the model box ({v6}) are bounded by that box and are not resource figures.{v8}{v7}", { v8: clipTerrain ? tr(" They and the lithology block are cut at the terrain ({cells} cells above the ground left out).", { cells: airCut.toLocaleString() }) : "", v: exact ? tr(" (each interval's midpoint evaluated exactly)") : tr(" (read from the {modelResolution}³ block)", { modelResolution }), v2: pct(chk.matched, chk.total), v3: Math.round(chk.total), perUnit, v4: worst ? tr(" Least reproduced holes: {worst}.", { worst }) : "", v5: chk.outside ? tr(" {v} m fell outside the model extent.", { v: Math.round(chk.outside) }) : "", v6: vols.length ? vols.map((v) => `${v.name} ${fmtVol(v.volume)}`).join(", ") : tr("none"), v7: anisotropy.enabled ? tr(" With the {trendWord} \"{v}\" the model is solved in a stretched frame: the check and volumes account for it, and \"Add as block model\" gets the model resampled onto a real-space grid.", { trendWord, v: anisotropy.params?.trend || tr("unnamed") }) : "" })]);
+      if (chk.total > 0) setNotices((p) => [...p, notice("Model check{v}: the model puts {v2} of {v3} logged metres of the modelled units in the unit they were logged as. By unit: {perUnit}.{v4}{v5} Unit volumes inside the model box ({v6}) are bounded by that box and are not resource figures.{v8}{v7}", { v8: clipTerrain ? tr(" They and the lithology block are cut at the terrain ({cells} cells above the ground left out).", { cells: airCut.toLocaleString() }) : "", v: exact ? tr(" (each interval's midpoint evaluated exactly)") : tr(" (read from the {modelResolution}³ block)", { modelResolution }), v2: pct(chk.matched, chk.total), v3: Math.round(chk.total), perUnit, v4: worst ? tr(" Least reproduced holes: {worst}.", { worst }) : "", v5: chk.outside ? tr(" {v} m fell outside the model extent.", { v: Math.round(chk.outside) }) : "", v6: vols.length ? vols.map((v) => `${v.name} ${fmtVol(v.volume)}`).join(", ") : baseRun ? tr("none: {unit} lies above its base and nothing caps it without a terrain", { unit: specs[0].meshName }) : tr("none"), v7: anisotropy.enabled ? tr(" With the {trendWord} \"{v}\" the model is solved in a stretched frame: the check and volumes account for it, and \"Add as block model\" gets the model resampled onto a real-space grid.", { trendWord, v: anisotropy.params?.trend || tr("unnamed") }) : "" })]);
       // TASKS.csv #758 — the predicted geological map, and how it compares with the mapped geology
       if (mapGrid && exact && addRaster) {
         const [bx0, bx1, by0, by1, bz0, bz1] = res.block.extent;
@@ -846,7 +852,18 @@ export function createModellingRuns(ctx, mcRef) {
   // (#495). Roles default from the code (#496's old four-code table) and are set in the code list.
   const mcodeDefaultRole = (name) => mcodeRoleOf(roleForLithology(name)); // #1369: veins cross-cut, no recovery is ignored
   const mcodeGroupOf = (v) => (lithoGroups || []).find((g) => (g.codes || []).includes(v))?.name || null;
-  const gatherLithoSurfaceSpec = (target, traces, { silent = false, mapConstraint: mapC = null, pileOrder = null } = {}) => {
+  // TASKS.csv #1684 — a stack unit's role, whatever kind of target names it (the same rule the surface type uses below)
+  const unitRoleOf = (target) => {
+    if (!target) return null;
+    if (typeof target === "object" && target.kind === "mcode") return codeInfo(modellingCodes, target.name, mcodeDefaultRole).role;
+    if (typeof target === "object") { const roles = new Set((target.codes || []).map(roleForLithology)); return roles.size === 1 ? [...roles][0] : "stratigraphic"; }
+    return roleForLithology(target);
+  };
+  // TASKS.csv #1684 (review #1645, Copley) — an overburden unit is modelled from its logged BASES (where it ends on a logged unit:
+  // the one contact every hole shares), as "Base of OVB", not from its collars. `underOverburden`: in a stack, the unit directly
+  // below the overburden takes the contacts under it as its tops (that contact IS the base of overburden); `extraBases` are the
+  // overburden bases resting on OTHER units, added to that same top so it is the whole erosional surface.
+  const gatherLithoSurfaceSpec = (target, traces, { silent = false, mapConstraint: mapC = null, pileOrder = null, underOverburden = false, extraBases = null } = {}) => {
     const isMcode = typeof target === "object" && target !== null && target.kind === "mcode";
     const isGroup = typeof target === "object" && target !== null && !isMcode;
     const unitName = isGroup || isMcode ? target.name : target;
@@ -873,14 +890,37 @@ export function createModellingRuns(ctx, mcRef) {
     const contCodes = hasAssign ? new Set([IN]) : codes;
     const litEnds = intervalEndIndex(idxRows);
     const litStarts = intervalStartIndex(idxRows); // #569 — for up-holes
-    let splitsSkipped = 0, upHolePicks = 0, belowRoleSkipped = 0;
+    let splitsSkipped = 0, upHolePicks = 0, belowRoleSkipped = 0, underOvbSkipped = 0; // underOvbSkipped: #1684
+    const isOverburdenUnit = unitRoleOf(target) === "overburden"; // #1684
     // #1367 — the logged codes around each depth, for the roles of what sits right above an interval (raw values, not IN tokens)
     const rawEnds = isMcode ? null : intervalEndIndex(layers.litho), rawStarts = isMcode ? null : intervalStartIndex(layers.litho);
-    if (isMcode) {
+    const pushBase = (b, byHole) => { // #1684 — one overburden base as an interface point
+      const t = byHole.get(b.hole_id);
+      if (!t || excludedIntercepts.includes(interceptId("litho", b.row)) || !interceptInActiveSet(interceptId("litho", b.row))) return false;
+      const p = findOnTrace(t.pts, b.md);
+      if (!p || (domain && !pointInDomain(p, domain, implicitMeshesRef.current))) return false;
+      const api = sceneToApi(p);
+      if (softIntercepts.includes(interceptId("litho", b.row))) api.nugget = SOFT_NUGGET;
+      api.srcCode = b.row.value; api.hole_id = t.hole_id; api.contactMd = b.md;
+      points.push(api);
+      return true;
+    };
+    if (isOverburdenUnit) {
+      // #1684 — the base of the overburden: where it ends on a logged unit, in every hole
+      const runs = codedRuns(layers.litho, modellingCodes, mcodeGroupOf);
+      const mine = (run) => run.code === unitName || codes.has(run.code) || run.rows.every((r) => inUnit(r));
+      const { bases, skipped: bs } = overburdenBases(runs, modellingCodes, mcodeDefaultRole, mine);
+      const byHole = new Map(traces.map((t) => [t.hole_id, t]));
+      let used = 0;
+      bases.forEach((b) => { if (pushBase(b, byHole)) used++; });
+      if (isMcode) { mcodeInfo = codeInfo(withPileOrder(modellingCodes, pileOrder), unitName, mcodeDefaultRole); mcodeLogged = new Set(runs.filter(mine).flatMap((x) => x.rows.map((r) => r.value))); }
+      if (!silent || bs.holeEnd) setNotices((p) => [...p, notice("Base of {unitName}: {n} contact(s) where it ends on a logged unit ({below}). Its top is the ground at the collars and is not modelled.{v}", { unitName, n: used, below: [...new Set(bases.map((b) => b.below))].join(", ") || "—", v: bs.holeEnd ? tr(" {k} hole(s) end inside it or have an unlogged gap under it: no base there.", { k: bs.holeEnd }) : "" })]);
+    }
+    if (isMcode && !isOverburdenUnit) {
       // a stack's own order is the pile order for codes the code list hasn't placed
       const mc = withPileOrder(modellingCodes, pileOrder); // roles of every code kept (the first version dropped unplaced codes' roles)
       const runs = codedRuns(layers.litho, mc, mcodeGroupOf);
-      const { tops, skipped } = topsForCode(runs, unitName, mc, mcodeDefaultRole);
+      const { tops, skipped } = topsForCode(runs, unitName, mc, mcodeDefaultRole, { underOverburden }); // underOverburden: #1684
       mcodeInfo = codeInfo(mc, unitName, mcodeDefaultRole);
       mcodeLogged = new Set(runs.filter((x) => x.code === unitName).flatMap((x) => x.rows.map((r) => r.value)));
       const byHole = new Map(traces.map((t) => [t.hole_id, t]));
@@ -893,15 +933,17 @@ export function createModellingRuns(ctx, mcRef) {
         if (softIntercepts.includes(interceptId("litho", r))) api.nugget = SOFT_NUGGET;
         api.srcCode = r.value;
         api.hole_id = t.hole_id; // #762 — named in the pick check
+        api.contactMd = run.from; // #1684 — so a #1309 unconformity can take the contact
         const pickSigma = r.uncertainty_m == null || r.uncertainty_m === "" ? NaN : Number(r.uncertainty_m);
         if (Number.isFinite(pickSigma) && pickSigma >= 0) api.sigma = pickSigma;
         points.push(api);
       });
-      const why = [skipped.belowRole ? `${skipped.belowRole} below casing / overburden or an intrusion / cross-cutting unit` : null, skipped.holeStart ? `${skipped.holeStart} at a hole start` : null,
+      const why = [skipped.belowRole ? `${skipped.belowRole} below casing or an intrusion / cross-cutting unit` : null, skipped.holeStart ? `${skipped.holeStart} at a hole start` : null,
         skipped.gap ? `${skipped.gap} below an unlogged gap` : null, skipped.olderAbove ? `${skipped.olderAbove} below an OLDER unit (overturned, repeated or up-hole)` : null].filter(Boolean);
+      underOvbSkipped = skipped.underOverburden; // #1684: said below, with the route to that surface
       if (!silent || why.length) setNotices((p) => [...p, notice("{unitName}: {tops} contact(s) where it starts below a younger stratigraphic unit.{v}", { unitName, tops: tops.length, v: why.length ? tr(" Not used as contacts: {why}.", { why: why.join("; ") }) : "" })]);
     }
-    if (!isMcode) traces.forEach((t) => {
+    if (!isMcode && !isOverburdenUnit) traces.forEach((t) => {
       const zAt = (md) => findOnTrace(t.pts, md)?.y; // scene y = elevation
       (layers.litho || []).filter((r) => r.hole_id === t.hole_id && !isNaN(r.from)).forEach((r) => {
         const isIn = inUnit(r);
@@ -912,7 +954,7 @@ export function createModellingRuns(ctx, mcRef) {
         if (top.continues) { splitsSkipped++; return; }
         // #1367 — under a fault, breccia, vein, dyke, no recovery or casing the start is not a top (the roles of Modelling codes)
         const aboveVals = top.upHole ? rawStarts.get(depthKey(r.hole_id, r.to)) : rawEnds.get(depthKey(r.hole_id, r.from));
-        if (startsBelowNonUnit(aboveVals, modellingCodes, mcodeGroupOf, mcodeDefaultRole)) { belowRoleSkipped++; return; }
+        if (startsBelowNonUnit(aboveVals, modellingCodes, mcodeGroupOf, mcodeDefaultRole, { underOverburden })) { if (startsBelowOverburden(aboveVals, modellingCodes, mcodeGroupOf, mcodeDefaultRole)) underOvbSkipped++; else belowRoleSkipped++; return; } // #1684
         // TASKS.csv #84 — a boundary intercept the user has explicitly reviewed and excluded (via the
         // Boundary intercepts table) never feeds a modelling run, same as if the row didn't exist.
         if (excludedIntercepts.includes(interceptId("litho", r))) return;
@@ -957,6 +999,14 @@ export function createModellingRuns(ctx, mcRef) {
       if (multi.length) setNotices((p) => [...p, notice("{unitName}: {n} hole(s) give more than one top of this one surface ({list}), so it is forced through all of them. A repeated unit is several surfaces: split it with Modelling codes (Auto-number or Connect) or an intercept set.", { unitName, n: multi.length, list: multi.slice(0, 6).map(([h, k]) => `${h} ${k}`).join(", ") + (multi.length > 6 ? ", …" : "") })]); }
     // #1367 — said inside a stack too: it changes which picks the surface follows
     if (belowRoleSkipped) setNotices((p) => [...p, notice("{unitName}: {n} interval start(s) right under a fault, breccia, vein, dyke, no-recovery or casing interval were not used as tops (roles in Modelling codes).", { unitName, n: belowRoleSkipped })]);
+    // #1684 — the contact under overburden is the base of overburden, an erosional surface: not this unit's top on its own
+    if (underOvbSkipped) setNotices((p) => [...p, notice("{unitName}: {n} interval start(s) directly under overburden were not used as its top: that contact is the base of overburden. Model the overburden unit itself for \"Base of …\", or put both in a Strat. stack, where the unit under the overburden takes it as its top.", { unitName, n: underOvbSkipped })]);
+    if (extraBases?.length) { // #1684 — the stack: this unit's top is the base of overburden, wherever the overburden rests on another unit too
+      const byHole = new Map(traces.map((t) => [t.hole_id, t]));
+      let used = 0;
+      extraBases.forEach((b) => { if (pushBase(b, byHole)) used++; });
+      setNotices((p) => [...p, notice("Top of {unitName} is the base of {ovb} in this stack: {n} contact(s) where {ovb} rests on {others} were added to it, so it is the whole erosional surface.", { unitName, ovb: extraBases[0].above, n: used, others: [...new Set(extraBases.map((b) => b.below))].join(", ") })]);
+    }
     if (upHolePicks && !silent) setNotices((p) => [...p, notice("{unitName}: {upHolePicks} contact(s) are in holes drilled upward there — the unit's top was taken at the interval's deeper end (to), which is the higher one.", { unitName, upHolePicks })]); // #569
     // #810 — always said, even inside a stack (silent): it changes which picks the surface follows
     if (assignedIn || assignedOut) setNotices((p) => [...p, notice("{unitName}: modelling-code assignments followed: {assignedIn} interval(s) re-coded into it used, {assignedOut} logged as it but re-coded to another code left out.", { unitName, assignedIn, assignedOut })]);
@@ -1153,7 +1203,7 @@ export function createModellingRuns(ctx, mcRef) {
     // A group's own assignable color drives its surface/legend; falls back to the first member's
     // per-code color if none set. Raw intervals in the 3D log keep their individual code colors.
     const color = isMcode ? (mcodeInfo.color || colorForLithology([...(mcodeLogged || [])][0] || unitName)) : isGroup ? (target.color || colorForLithology([...codes][0])) : colorForLithology(unitName);
-    return { label: `Top of ${unitName}`, meshName: unitName, ...(isMcode ? { contactHoles: holeCounts(points) } : {}), /* #1337 */ points, orientations, color, type, codes: isMcode ? [...mcodeLogged] : [...codes], sectionTags: [...sectionTags] /* #810 */, ...(isMcode ? { mcode: true } : {}), params: { ...(thinNote ? { orientationsAveraged: thinNote } : {}), ...(nearPicks.total ? { picksNearContacts: { kept: nearPicks.kept.length, of: nearPicks.total, withinM: reachM, automatic: !(orientationReachM > 0) } } : {}) } }; // codes: #356 model check (logged codes); mcode: #599
+    return { label: isOverburdenUnit ? `Base of ${unitName}` : `Top of ${unitName}` /* #1684 */, meshName: unitName, ...(isMcode ? { contactHoles: holeCounts(points) } : {}), /* #1337 */ points, orientations, color, type, codes: isMcode ? [...mcodeLogged] : [...codes], sectionTags: [...sectionTags] /* #810 */, ...(isMcode ? { mcode: true } : {}), params: { ...(thinNote ? { orientationsAveraged: thinNote } : {}), ...(nearPicks.total ? { picksNearContacts: { kept: nearPicks.kept.length, of: nearPicks.total, withinM: reachM, automatic: !(orientationReachM > 0) } } : {}) } }; // codes: #356 model check (logged codes); mcode: #599
   };
 
   // TASKS.csv #810 — drawn upper contacts whose unit tag matches no unit of this run: name them, so a contact tagged
@@ -1176,11 +1226,8 @@ export function createModellingRuns(ctx, mcRef) {
     if (!spec) return;
     noteUnmatchedDrawnContacts([spec]);
     if (mapConstraint) spec.params = { ...(spec.params || {}), surfaceMapContact: { units: mapConstraint.units, classes: mapConstraint.classes, radiusM: mapConstraint.radius } };
-    // TASKS.csv #1191 — one overburden unit's "top" is its collars, the ground. It is named so, and is not its base: that comes from the stack, as the top of the unit below.
-    if (spec.type === "overburden_base") {
-      spec.label = `${spec.label} (ground)`; spec.type = "stratigraphic_contact";
-      setNotices((p) => [...p, notice("The top of overburden is the ground at the collars. For its base, run a Strat. stack with the unit below it: that unit's top is the base of overburden.")]);
-    }
+    // TASKS.csv #1191 / #1684 — an overburden unit's surface is its BASE (gatherLithoSurfaceSpec), typed overburden_base; the #1191
+    // route through a stack did not work (the unit below never took the contact under overburden as its top)
     await runSurfaceModel(spec, runOpts.ensemble ? { ensemble: runOpts.ensemble } : undefined);
   };
 
@@ -1206,11 +1253,29 @@ export function createModellingRuns(ctx, mcRef) {
     const pileOrder = unitNames.filter((u) => typeof u === "string" && u.startsWith("mcode:")).map((u) => u.slice(6));
     const specKey = new Map(); // TASKS.csv #1054 — stack unit key -> its spec, for a fault's "offsets units from ... down"
     const breakAt = new Set(); // TASKS.csv #1309 — index of the last gathered spec above each marked unconformity
-    unitNames.forEach((u) => {
+    // TASKS.csv #1684 — overburden in a stack: not a surface of its own (its base would coincide with the next unit's top in one
+    // field); the unit directly below it takes every contact under the overburden as its top, the base of overburden
+    const targets = unitNames.map((u) => resolveLithoTarget(u));
+    const ovbAt = targets.findIndex((t) => unitRoleOf(t) === "overburden");
+    let ovbBases = null;
+    if (ovbAt >= 0) {
+      const ovb = targets[ovbAt], ovbName = typeof ovb === "object" ? ovb.name : ovb, ovbCodes = new Set(typeof ovb === "object" && !ovb.kind ? ovb.codes || [] : [ovbName]);
+      const runs = codedRuns(layers.litho, modellingCodes, mcodeGroupOf);
+      ovbBases = overburdenBases(runs, modellingCodes, mcodeDefaultRole, (run) => run.code === ovbName || ovbCodes.has(run.code) || run.rows.every((r) => ovbCodes.has(r.value))).bases;
+      const next = targets[ovbAt + 1], nextName = next ? (typeof next === "object" ? next.name : next) : null;
+      setNotices((p) => [...p, nextName
+        ? notice("{ovb}: not a surface of its own in the stack. Its base is the top of {next}, the unit under it: the contact every hole shares.", { ovb: ovbName, next: nextName })
+        : notice("{ovb}: nothing in the stack below it, so its base is not modelled here. Model {ovb} on its own with the Implicit tool for \"Base of {ovb}\".", { ovb: ovbName })]);
+    }
+    unitNames.forEach((u, i) => {
       // TASKS.csv #176 — stackUnits carries `group:<id>` keys verbatim; resolve to the group object
       // only here, at the point the spec is actually gathered.
-      const target = resolveLithoTarget(u);
-      const spec = target ? gatherLithoSurfaceSpec(target, traces, { silent: true, pileOrder }) : null;
+      const target = targets[i];
+      if (i === ovbAt) return; // #1684
+      const under = ovbAt >= 0 && i === ovbAt + 1; // #1684
+      const myCodes = under ? new Set(typeof target === "object" && !target.kind ? target.codes || [] : [typeof target === "object" ? target.name : target]) : null;
+      const extraBases = under ? ovbBases.filter((b) => !myCodes.has(b.below) && !myCodes.has(b.row.value) && !(typeof target === "object" && !target.kind && mcodeGroupOf(b.row.value) === target.name)) : null;
+      const spec = target ? gatherLithoSurfaceSpec(target, traces, { silent: true, pileOrder, underOverburden: under, extraBases }) : null;
       if (spec) { specs.push(spec); specKey.set(u, spec); } else skipped.push(target && typeof target === "object" ? target.name : target || "(deleted group)");
       if (stackBreaks?.includes(u) && specs.length) breakAt.add(specs.length - 1);
     });

@@ -6576,7 +6576,6 @@
   "QC columns (optional)": "Colunas de QC (opcional)",
   "Parent sample": "Amostra original",
   "CRM / standard name": "Nome do CRM / padrão",
-  "The top of overburden is the ground at the collars. For its base, run a Strat. stack with the unit below it: that unit's top is the base of overburden.": "O topo do capeamento é o terreno nos colares. Para sua base, execute uma pilha estratigráfica com a unidade abaixo: o topo dessa unidade é a base do capeamento.",
   "Not extended: {names}. A contact under 5% of the box stays as drawn; others reach at most three times their own radius.": "Não estendidos: {names}. Um contato abaixo de 5 % da caixa fica como desenhado; os demais alcançam no máximo três vezes seu raio.",
   "With a trend the model box is about {a} km³, against {b} km³ around the same data without one, so a unit's volume cannot be compared between the two runs.": "Com uma tendência a caixa do modelo tem cerca de {a} km³, contra {b} km³ em torno dos mesmos dados sem ela, então o volume de uma unidade não é comparável entre as duas execuções.",
   "Add layer": "Adicionar camada",
@@ -7661,5 +7660,18 @@
   "on {n} cells with a value; {m} without count 0": "em {n} células com valor; {m} sem valor contam 0",
   "fuzzy": "difusa",
   "posterior": "posterior",
-  "no threshold reaches the crossing: the score jumps from {r1}% in {a1}% of the area to {r2}% in {a2}% (Nd {nd} at the nearer one)": "nenhum limiar atinge o cruzamento: a pontuação salta de {r1}% em {a1}% da área para {r2}% em {a2}% (Nd {nd} no mais próximo)"
+  "no threshold reaches the crossing: the score jumps from {r1}% in {a1}% of the area to {r2}% in {a2}% (Nd {nd} at the nearer one)": "nenhum limiar atinge o cruzamento: a pontuação salta de {r1}% em {a1}% da área para {r2}% em {a2}% (Nd {nd} no mais próximo)",
+  "Base of {unitName}: {n} contact(s) where it ends on a logged unit ({below}). Its top is the ground at the collars and is not modelled.{v}": "Base de {unitName}: {n} contato(s) onde termina sobre uma unidade registada ({below}). O seu topo é o terreno nos colares e não é modelado.{v}",
+  " {k} hole(s) end inside it or have an unlogged gap under it: no base there.": " {k} furo(s) terminam dentro dela ou têm um vazio sem registo por baixo: aí não há base.",
+  "{unitName}: {n} interval start(s) directly under overburden were not used as its top: that contact is the base of overburden. Model the overburden unit itself for \"Base of …\", or put both in a Strat. stack, where the unit under the overburden takes it as its top.": "{unitName}: {n} início(s) de intervalo logo abaixo da cobertura não foram usados como o seu topo: esse contato é a base da cobertura. Modele a própria unidade de cobertura para \"Base de …\", ou ponha ambas numa pilha estratigráfica, onde a unidade sob a cobertura o toma como o seu topo.",
+  "Top of {unitName} is the base of {ovb} in this stack: {n} contact(s) where {ovb} rests on {others} were added to it, so it is the whole erosional surface.": "O topo de {unitName} é a base de {ovb} nesta pilha: foram-lhe adicionados {n} contato(s) onde {ovb} assenta sobre {others}, por isso é toda a superfície erosiva.",
+  "{ovb}: not a surface of its own in the stack. Its base is the top of {next}, the unit under it: the contact every hole shares.": "{ovb}: não é uma superfície própria na pilha. A sua base é o topo de {next}, a unidade por baixo: o contato que todos os furos partilham.",
+  "{ovb}: nothing in the stack below it, so its base is not modelled here. Model {ovb} on its own with the Implicit tool for \"Base of {ovb}\".": "{ovb}: nada na pilha abaixo dela, por isso a sua base não é modelada aqui. Modele {ovb} sozinha com a ferramenta implícita para \"Base de {ovb}\".",
+  "{n} under casing or a cross-cutting unit": "{n} sob revestimento ou uma unidade transversal",
+  "{n} directly under overburden (the base of overburden: seed the overburden unit itself for it)": "{n} logo abaixo da cobertura (a base da cobertura: semeie a própria unidade de cobertura para a obter)",
+  "Added {n} pick(s) at the logged base of {unit}.": "Adicionados {n} pick(s) na base registada de {unit}.",
+  "{n} hole(s) end inside {unit} or have an unlogged gap under it: no base there.": "{n} furo(s) terminam dentro de {unit} ou têm um vazio sem registo por baixo: aí não há base.",
+  "One pick per hole where {unit} ends on a logged unit — the base of overburden, the contact every hole shares — the same points the implicit tool uses for \"Base of {unit}\". Check them, then move or delete the outliers.": "Um pick por furo onde {unit} termina sobre uma unidade registada — a base da cobertura, o contato que todos os furos partilham —, os mesmos pontos que a ferramenta implícita usa para \"Base de {unit}\". Verifique-os, depois mova ou apague os discrepantes.",
+  "Add the logged base of {unit}": "Adicionar a base registada de {unit}",
+  "none: {unit} lies above its base and nothing caps it without a terrain": "nenhum: {unit} fica acima da sua base e nada a limita sem um terreno"
 }

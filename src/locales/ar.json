@@ -6576,7 +6576,6 @@
   "QC columns (optional)": "أعمدة ضبط الجودة (اختياري)",
   "Parent sample": "العينة الأصلية",
   "CRM / standard name": "اسم المادة المرجعية / المعيار",
-  "The top of overburden is the ground at the collars. For its base, run a Strat. stack with the unit below it: that unit's top is the base of overburden.": "أعلى الغطاء هو سطح الأرض عند الفوهات. لقاعدته شغّل عمودًا طبقيًا مع الوحدة تحته: أعلى تلك الوحدة هو قاعدة الغطاء.",
   "Not extended: {names}. A contact under 5% of the box stays as drawn; others reach at most three times their own radius.": "لم تُمدَّد: {names}. يبقى التماس الأقل من 5% من الصندوق كما رُسم؛ وتصل البقية إلى ثلاثة أضعاف نصف قطرها كحد أقصى.",
   "With a trend the model box is about {a} km³, against {b} km³ around the same data without one, so a unit's volume cannot be compared between the two runs.": "مع الاتجاه يبلغ صندوق النموذج نحو {a} كم³، مقابل {b} كم³ حول البيانات نفسها دونه، لذا لا يمكن مقارنة حجم الوحدة بين التشغيلين.",
   "Add layer": "إضافة طبقة",
@@ -7661,5 +7660,18 @@
   "on {n} cells with a value; {m} without count 0": "على {n} خلية ذات قيمة؛ {m} بلا قيمة تُحسب 0",
   "fuzzy": "ضبابي",
   "posterior": "لاحق",
-  "no threshold reaches the crossing: the score jumps from {r1}% in {a1}% of the area to {r2}% in {a2}% (Nd {nd} at the nearer one)": "لا عتبة تبلغ التقاطع: تقفز الدرجة من {r1}٪ في {a1}٪ من المساحة إلى {r2}٪ في {a2}٪ (Nd {nd} عند الأقرب)"
+  "no threshold reaches the crossing: the score jumps from {r1}% in {a1}% of the area to {r2}% in {a2}% (Nd {nd} at the nearer one)": "لا عتبة تبلغ التقاطع: تقفز الدرجة من {r1}٪ في {a1}٪ من المساحة إلى {r2}٪ في {a2}٪ (Nd {nd} عند الأقرب)",
+  "Base of {unitName}: {n} contact(s) where it ends on a logged unit ({below}). Its top is the ground at the collars and is not modelled.{v}": "قاعدة {unitName}: {n} تماسًا حيث تنتهي فوق وحدة مسجلة ({below}). سطحها العلوي هو الأرض عند الفوهات ولا يُنمذج.{v}",
+  " {k} hole(s) end inside it or have an unlogged gap under it: no base there.": " {k} ثقبًا ينتهي داخلها أو تحته فجوة غير مسجلة: لا قاعدة هناك.",
+  "{unitName}: {n} interval start(s) directly under overburden were not used as its top: that contact is the base of overburden. Model the overburden unit itself for \"Base of …\", or put both in a Strat. stack, where the unit under the overburden takes it as its top.": "{unitName}: {n} بداية فترة مباشرة تحت الغطاء السطحي لم تُستخدم كسطحها العلوي: ذلك التماس هو قاعدة الغطاء. نمذج وحدة الغطاء نفسها لـ \"قاعدة …\"، أو ضع كلتيهما في عمود طبقي، حيث تأخذه الوحدة تحت الغطاء سطحًا علويًا لها.",
+  "Top of {unitName} is the base of {ovb} in this stack: {n} contact(s) where {ovb} rests on {others} were added to it, so it is the whole erosional surface.": "سطح {unitName} العلوي هو قاعدة {ovb} في هذا العمود: أُضيف إليه {n} تماسًا حيث يستقر {ovb} فوق {others}، فهو سطح التعرية كله.",
+  "{ovb}: not a surface of its own in the stack. Its base is the top of {next}, the unit under it: the contact every hole shares.": "{ovb}: ليس سطحًا مستقلًا في العمود. قاعدته هي سطح {next} العلوي، الوحدة تحته: التماس الذي تشترك فيه كل الثقوب.",
+  "{ovb}: nothing in the stack below it, so its base is not modelled here. Model {ovb} on its own with the Implicit tool for \"Base of {ovb}\".": "{ovb}: لا شيء في العمود تحته، فلا تُنمذج قاعدته هنا. نمذج {ovb} وحده بالأداة الضمنية لـ \"قاعدة {ovb}\".",
+  "{n} under casing or a cross-cutting unit": "{n} تحت التغليف أو وحدة قاطعة",
+  "{n} directly under overburden (the base of overburden: seed the overburden unit itself for it)": "{n} مباشرة تحت الغطاء السطحي (قاعدة الغطاء: ابدأ من وحدة الغطاء نفسها للحصول عليها)",
+  "Added {n} pick(s) at the logged base of {unit}.": "أُضيفت {n} نقطة التقاط عند القاعدة المسجلة لـ {unit}.",
+  "{n} hole(s) end inside {unit} or have an unlogged gap under it: no base there.": "{n} ثقبًا ينتهي داخل {unit} أو تحته فجوة غير مسجلة: لا قاعدة هناك.",
+  "One pick per hole where {unit} ends on a logged unit — the base of overburden, the contact every hole shares — the same points the implicit tool uses for \"Base of {unit}\". Check them, then move or delete the outliers.": "نقطة التقاط واحدة لكل ثقب حيث تنتهي {unit} فوق وحدة مسجلة — قاعدة الغطاء السطحي، التماس الذي تشترك فيه كل الثقوب — النقاط نفسها التي تستخدمها الأداة الضمنية لـ \"قاعدة {unit}\". راجعها، ثم انقل الشاذة أو احذفها.",
+  "Add the logged base of {unit}": "إضافة القاعدة المسجلة لـ {unit}",
+  "none: {unit} lies above its base and nothing caps it without a terrain": "لا شيء: {unit} يقع فوق قاعدته ولا شيء يحدّه من الأعلى بدون تضاريس"
 }

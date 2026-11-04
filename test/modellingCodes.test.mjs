@@ -29,7 +29,7 @@ test("#599 runs merge row splits; tops only below a younger stratigraphic unit (
   // H1: 5 (below casing) no; 40 (below AND) yes; 70 (below AND) yes; 85 (below the intrusion) no.
   // H2: 3 (below casing) no; 50 (below a gap) no.
   assert.deepEqual(tops.map((t) => `${t.hole_id}@${t.from}`), ["H1@40", "H1@70"]);
-  assert.deepEqual(skipped, { holeStart: 0, gap: 1, belowRole: 3, olderAbove: 0 });
+  assert.deepEqual(skipped, { holeStart: 0, gap: 1, belowRole: 1, olderAbove: 0, underOverburden: 2 }); // #1684: casing has the overburden role here, so H1@5 and H2@3 are counted apart
   assert.equal(topsForCode(runs, "CAS", mc, roles).skipped.holeStart, 2);
 });
 
@@ -67,7 +67,7 @@ test("#599 on the real Harry log: DACT tops under casing / intrusions / hole sta
   const { tops, skipped } = topsForCode(runs, "DACT", mc, roles);
   console.log(`Harry DACT: ${all} runs -> ${tops.length} tops; skipped`, skipped);
   assert.ok(tops.length <= 25, `the review counted at most 25 real DACT contacts, got ${tops.length}`);
-  assert.equal(tops.length + skipped.holeStart + skipped.gap + skipped.belowRole + skipped.olderAbove, all);
+  assert.equal(tops.length + skipped.holeStart + skipped.gap + skipped.belowRole + skipped.olderAbove + skipped.underOverburden, all); // underOverburden: #1684
 });
 
 test("#599 a stack's pile order keeps every code's role (casing / intrusions still block tops)", () => {

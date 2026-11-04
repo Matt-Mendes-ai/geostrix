@@ -18,7 +18,7 @@ const role = (v) => (roleForLithology(v) === "overburden" ? "overburden" : "stra
 test("#871 the logged tops exclude casing and hole starts; one pick per hole, existing picks kept", () => {
   const runs = codedRuns(rows, null, () => null);
   const { tops, skipped } = topsForCode(runs, "DACT", null, role);
-  assert.equal(skipped.belowRole, 1); assert.equal(skipped.holeStart, 1);
+  assert.equal(skipped.underOverburden, 1); assert.equal(skipped.belowRole, 0); assert.equal(skipped.holeStart, 1); // #1684: casing is overburden-role, counted apart
   const t = tops.map((r) => ({ hole_id: r.hole_id, md: r.from, above: r.above?.code ?? null, below: r.code }));
   const existing = [{ id: "a", hole_id: "H5", md: 6, x: 0, y: 0, z: 0 }];
   const r = seedPicksFromTops(existing, t, (h, md) => (h === "H6" ? null : [1, 2, -md]), (i) => `n${i}`);

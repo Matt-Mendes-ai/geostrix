@@ -12,7 +12,7 @@ import { Fragment, Suspense, useCallback, useMemo, useState } from "react";
 import { withChangeLog } from "../../lib/explicitLog.js"; // TASKS.csv #878
 import { activateOnKey, iconAction } from "../../lib/a11y.js";
 import { colorForLithology, isCrossCuttingRole, roleForLithology } from "../../lib/layers.js";
-import { codedRuns, topsForCode } from "../../lib/modellingCodes.js"; // TASKS.csv #871
+import { codedRuns, topsForCode, codeInfo, overburdenBases } from "../../lib/modellingCodes.js"; // TASKS.csv #871; #1684
 import { pBtn, smallSel } from "../../lib/sidebarStyles.js";
 import { sceneVertsToWorldFlat } from "../../lib/meshFlat.js";
 import { octreeCellM } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1171
@@ -238,8 +238,14 @@ export default function ModellingPanes(props) {
   const [unitBody, setUnitBody] = useState({ iso: 0.5, largest: false, search: 0, cell: 0 }); // TASKS.csv #1340 — its own settings: a rock unit is not an alteration halo
   const mcodesView = useMemo(() => ({ scene: sceneRef, groups: layerGroupsRef, camera: cameraRef, renderer: rendererRef, traces: tracesRef, activity: lastActivityRef, dragHook: viewDragHookRef }), [sceneRef, layerGroupsRef, cameraRef, rendererRef, tracesRef, lastActivityRef, viewDragHookRef]);
   const topsOfUnit = useCallback((unit) => {
-    const runs = codedRuns(layers.litho || [], modellingCodes, mcGroupOf), { tops, skipped } = topsForCode(runs, unit, modellingCodes, mcodeDefaultRole);
-    return { tops: tops.map((r) => ({ hole_id: r.hole_id, md: r.from, above: r.above?.code ?? null, below: r.code })), skipped, holes: [...new Set(runs.filter((r) => r.code === unit).map((r) => r.hole_id))] };
+    const runs = codedRuns(layers.litho || [], modellingCodes, mcGroupOf);
+    const holes = [...new Set(runs.filter((r) => r.code === unit).map((r) => r.hole_id))];
+    if (codeInfo(modellingCodes, unit, mcodeDefaultRole).role === "overburden") { // TASKS.csv #1684 — an overburden unit seeds its BASE
+      const { bases, skipped } = overburdenBases(runs, modellingCodes, mcodeDefaultRole, unit);
+      return { base: true, tops: bases.map((b) => ({ hole_id: b.hole_id, md: b.md, above: b.above, below: b.below })), skipped: { holeStart: 0, gap: 0, belowRole: 0, olderAbove: 0, holeEnd: skipped.holeEnd }, holes };
+    }
+    const { tops, skipped } = topsForCode(runs, unit, modellingCodes, mcodeDefaultRole);
+    return { tops: tops.map((r) => ({ hole_id: r.hole_id, md: r.from, above: r.above?.code ?? null, below: r.code })), skipped, holes };
   }, [layers.litho, modellingCodes, lithoGroups]); // mcGroupOf / mcodeDefaultRole are rebuilt every render from lithoGroups
   return (<>
         {toolPane === "settings" && (<>

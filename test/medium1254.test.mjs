@@ -27,6 +27,7 @@ test("#1194 extension stops at its limit and leaves the rest empty", () => {
 });
 
 test("#1191 #1178 labels", () => {
-  assert.match(read("src/modules/viewer/modellingRuns.js"), /spec\.label = `\$\{spec\.label\} \(ground\)`/);
+  // TASKS.csv #1684 — an overburden unit's surface is now its BASE ("Base of X", type overburden_base), not its collars "(ground)"
+  assert.match(read("src/modules/viewer/modellingRuns.js"), /isOverburdenUnit \? `Base of \$\{unitName\}` : `Top of \$\{unitName\}`/);
   assert.match(read("src/modules/GeophysicsModule.jsx"), /overflowWrap: "anywhere"[^\n]*\{model\.name\}/);
 });

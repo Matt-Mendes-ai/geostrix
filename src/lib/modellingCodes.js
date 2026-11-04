@@ -16,7 +16,10 @@
 
 export const EMPTY_MODELLING_CODES = { codes: [], assign: {}, ties: [] };
 export const CODE_ROLES = ["stratigraphic", "intrusion", "cross-cutting", "overburden", "ignore"];
-// a unit with one of these roles directly above does NOT make the interval below it a stratigraphic top
+// a unit with one of these roles directly above does NOT make the interval below it a stratigraphic top. TASKS.csv #1684 (review
+// #1645, Copley) — overburden is the exception the callers choose: the contact under it is an erosional surface, the BASE of
+// overburden, which is what the stack's unit directly below the overburden takes as its top (`underOverburden`), and what
+// overburdenBases() lists for the overburden unit itself; on its own a unit's top is still not taken there (#495).
 const NOT_A_TOP_ABOVE = new Set(["intrusion", "cross-cutting", "overburden", "ignore"]);
 const EPS = 1e-3;
 
@@ -75,25 +78,52 @@ export function codedRuns(lithoRows, mc, groupOf) {
 // (a fault, breccia, vein, dyke, no recovery, casing)? Then its start is not a top, as topsForCode decides for a modelling code.
 // aboveValues: the logged codes that end where it starts (down-hole) or start where it ends (up-hole). Roles: the code's own
 // in Modelling codes (by its group's name when grouped), else defaultRole(name).
-export function startsBelowNonUnit(aboveValues, mc, groupOf, defaultRole) {
+export function startsBelowNonUnit(aboveValues, mc, groupOf, defaultRole, { underOverburden = false } = {}) {
   if (!aboveValues?.length) return false;
   return aboveValues.every((v) => {
-    const name = (groupOf && groupOf(v)) || String(v ?? "").trim();
-    return NOT_A_TOP_ABOVE.has(codeInfo(mc, name, defaultRole).role);
+    const role = codeInfo(mc, (groupOf && groupOf(v)) || String(v ?? "").trim(), defaultRole).role;
+    return role === "overburden" ? !underOverburden : NOT_A_TOP_ABOVE.has(role);
   });
 }
+// TASKS.csv #1684 — does the interval start right under overburden only (its start is the base of overburden)?
+export function startsBelowOverburden(aboveValues, mc, groupOf, defaultRole) {
+  if (!aboveValues?.length) return false;
+  return aboveValues.every((v) => codeInfo(mc, (groupOf && groupOf(v)) || String(v ?? "").trim(), defaultRole).role === "overburden");
+}
 
-// The tops ("Top of <code>" interface points) of one code, and why the other starts were not used.
-export function topsForCode(runs, code, mc, defaultRole) {
+// TASKS.csv #1684 — the BASES of overburden: where an overburden-role run ends and a logged run begins right below it, whatever
+// that unit is (the one contact every hole shares: an erosional surface). `match`: the overburden code's name, a predicate on
+// a run, or nothing (every run whose role is overburden). A run that ends at the hole end or above an unlogged gap has no base
+// there (skipped.holeEnd); overburden directly on another overburden code continues it.
+// -> { bases: [{ hole_id, md, above, below, row (the first row below), ovbRow (the last overburden row) }], skipped: { holeEnd } }
+export function overburdenBases(runs, mc, defaultRole, match = null) {
+  const isOvb = typeof match === "function" ? match : match ? (r) => r.code === match : (r) => codeInfo(mc, r.code, defaultRole).role === "overburden";
+  const belowOf = new Map();
+  runs.forEach((r) => { if (r.above) belowOf.set(r.above, r); });
+  const bases = [], skipped = { holeEnd: 0 };
+  runs.forEach((run) => {
+    if (!isOvb(run)) return;
+    const b = belowOf.get(run);
+    if (!b) { skipped.holeEnd++; return; }
+    if (codeInfo(mc, b.code, defaultRole).role === "overburden") return;
+    bases.push({ hole_id: run.hole_id, md: run.to, above: run.code, below: b.code, row: b.rows[0], ovbRow: run.rows[run.rows.length - 1] });
+  });
+  return { bases, skipped };
+}
+
+// The tops ("Top of <code>" interface points) of one code, and why the other starts were not used. #1684: a start directly
+// under overburden is counted apart (skipped.underOverburden), and is a top when `underOverburden` is on.
+export function topsForCode(runs, code, mc, defaultRole, { underOverburden = false } = {}) {
   const me = codeInfo(mc, code, defaultRole);
   const tops = [];
-  const skipped = { holeStart: 0, gap: 0, belowRole: 0, olderAbove: 0 };
+  const skipped = { holeStart: 0, gap: 0, belowRole: 0, olderAbove: 0, underOverburden: 0 };
   runs.forEach((run) => {
     if (run.code !== code) return;
     if (run.holeStart) { skipped.holeStart++; return; }
     if (!run.above) { skipped.gap++; return; }
     const above = codeInfo(mc, run.above.code, defaultRole);
-    if (NOT_A_TOP_ABOVE.has(above.role)) { skipped.belowRole++; return; }
+    if (above.role === "overburden") { if (!underOverburden) { skipped.underOverburden++; return; } }
+    else if (NOT_A_TOP_ABOVE.has(above.role)) { skipped.belowRole++; return; }
     // both placed in the pile and the one above is OLDER: overturned, faulted repeat, or an up-hole
     if (me.order != null && above.order != null && above.order > me.order) { skipped.olderAbove++; return; }
     tops.push(run);
