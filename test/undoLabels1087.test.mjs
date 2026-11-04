@@ -14,3 +14,10 @@ test("#1087 the message names each kind once, and says when there was nothing", 
   assert.equal(undoMessage("undo", null), "Nothing to undo.");
   assert.equal(undoMessage("undo", []), "Undone (no data changed).");
 });
+
+test("#1888 a later change outside the undo history is named, and stays", () => {
+  assert.equal(undoMessage("undo", { keys: ["designStrings"], later: ["generatedSurfaces"] }), "Undone: design strings. A later change to generated surfaces is outside the undo history and stays.");
+  assert.equal(undoMessage("undo", { keys: ["designStrings"], later: [] }), "Undone: design strings.");
+  assert.equal(undoMessage("redo", { keys: ["designStrings"], later: ["generatedSurfaces"] }), "Redone: design strings.");
+  assert.equal(undoMessage("undo", { keys: [], later: ["voxelModels", "rasters"] }), "Undone (no data changed). A later change to block models, rasters is outside the undo history and stays.");
+});

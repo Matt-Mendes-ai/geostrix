@@ -27,6 +27,13 @@ function labelOf(key) {
     case "surfaceSamples": case "surfaceElements": return tr("surface samples");
     case "geochemThresholds": return tr("geochem thresholds");
     case "surfaceQc": return tr("surface QAQC");
+    // #1888 — fields outside the undo history, named when a later change to them stays after an undo
+    case "generatedSurfaces": return tr("generated surfaces");
+    case "voxelModels": return tr("block models");
+    case "rasters": return tr("rasters");
+    case "mapLayers": return tr("map layers");
+    case "themes": return tr("themes");
+    case "evidenceOverlay": return tr("the evidence overlay");
     default: return key;
   }
 }
@@ -37,10 +44,16 @@ export function changedKeys(a, b) {
   return [...keys].filter((k) => (a || {})[k] !== (b || {})[k]);
 }
 
-// "Undone: assays, Layout pages" / "Redone: ..." / nothing to undo
-export function undoMessage(kind, keys) {
-  if (keys == null) return kind === "undo" ? tr("Nothing to undo.") : tr("Nothing to redo.");
+// "Undone: assays, Layout pages" / "Redone: ..." / nothing to undo. `result` is the store's undo() / redo() return: null, an
+// array of changed keys, or { keys, later } where `later` names fields outside the undo history (generated surfaces, block
+// models ...) that changed AFTER the step just undone and therefore stay (TASKS.csv #1888: Undo after 'Stopes to the view'
+// removed the strings drawn before it while the 64 stope solids stayed, and said only 'Undone: design strings.')
+export function undoMessage(kind, result) {
+  if (result == null) return kind === "undo" ? tr("Nothing to undo.") : tr("Nothing to redo.");
+  const keys = Array.isArray(result) ? result : result.keys || [], later = Array.isArray(result) ? [] : result.later || [];
   const what = [...new Set(keys.map(labelOf))].join(", ");
-  if (!what) return kind === "undo" ? tr("Undone (no data changed).") : tr("Redone (no data changed).");
-  return kind === "undo" ? tr("Undone: {what}.", { what }) : tr("Redone: {what}.", { what });
+  const base = !what ? (kind === "undo" ? tr("Undone (no data changed).") : tr("Redone (no data changed)."))
+    : kind === "undo" ? tr("Undone: {what}.", { what }) : tr("Redone: {what}.", { what });
+  if (!later.length || kind !== "undo") return base;
+  return `${base} ${tr("A later change to {what} is outside the undo history and stays.", { what: [...new Set(later.map(labelOf))].join(", ") })}`;
 }

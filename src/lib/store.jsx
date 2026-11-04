@@ -7,7 +7,7 @@ import { tieStarterFurniture, sendElementWithFurniture } from "./layoutLinks.js"
 import { setKnownHoleIds } from "./qaqcCore.js"; // TASKS.csv #400; qaqcCore: #1345
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
 import { readDbProfiles, writeDbProfiles, mergeDbProfiles, profilesFromFile } from "./dbProfiles.js"; // TASKS.csv #1081
-import { FIELD_KEYS, FIELDS, UNDO_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
+import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod } from "./desurvey.js";
 
@@ -1407,6 +1407,12 @@ export function StoreProvider({ children }) {
   const undoDebounceTimer = useRef(null);
   const undoApplying = useRef(false); // true while undo()/redo() itself is writing state, so that write doesn't get mistaken for a new user change
   const undoPrevSnapshot = useRef(undoSnapshot());
+  // TASKS.csv #1888 — the dirty-only fields (generated surfaces, block models, rasters ...) are outside the undo history. When
+  // one changed AFTER the step being undone began, undo() names it so the window can say it stays: Undo after 'Stopes to the
+  // view' removed the strings drawn before it while the 64 stope solids stayed, and said only 'Undone: design strings.'
+  const lastOutsideUndo = useRef(null); // { at, keys }
+  const undoPastAt = useRef([]); // when each step of undoPast began (parallel to it)
+  const undoBurstAt = useRef(0);
 
   // useLayoutEffect (not useEffect) deliberately — applySnapshot's setTimeout(0) that clears
   // undoApplying needs this watcher to have already run and seen the flag first, and a layout effect
@@ -1426,7 +1432,11 @@ export function StoreProvider({ children }) {
     const prev = extraDirtyBaseline.current;
     extraDirtyBaseline.current = extraDirtyFields;
     if (!prev) return; // just loaded / new project: this is the baseline
-    if (extraDirtyFields.some((v, i) => v !== prev[i])) setActiveTabDirty(true);
+    if (extraDirtyFields.some((v, i) => v !== prev[i])) {
+      setActiveTabDirty(true);
+      const keys = DIRTY_KEYS.filter((k, i) => extraDirtyFields[i] !== prev[i]); // the first DIRTY_KEYS.length entries are the dirty fields
+      if (keys.length) lastOutsideUndo.current = { at: Date.now(), keys }; // #1888
+    }
   }, extraDirtyFields);
 
   useLayoutEffect(() => {
@@ -1443,12 +1453,12 @@ export function StoreProvider({ children }) {
     const prevSnap = undoPrevSnapshot.current;
     if (Object.keys(current).every((k) => current[k] === prevSnap[k])) return; // no real change
     setActiveTabDirty(true); // TASKS.csv #34 — see activeTabDirty's own comment above for scope/limits
-    if (!undoBeforeBurst.current) undoBeforeBurst.current = undoPrevSnapshot.current;
+    if (!undoBeforeBurst.current) { undoBeforeBurst.current = undoPrevSnapshot.current; undoBurstAt.current = Date.now(); }
     undoPrevSnapshot.current = current;
     if (undoDebounceTimer.current) clearTimeout(undoDebounceTimer.current);
     undoDebounceTimer.current = setTimeout(() => {
-      undoPast.current.push(undoBeforeBurst.current);
-      if (undoPast.current.length > UNDO_MAX) undoPast.current.shift();
+      undoPast.current.push(undoBeforeBurst.current); undoPastAt.current.push(undoBurstAt.current);
+      if (undoPast.current.length > UNDO_MAX) { undoPast.current.shift(); undoPastAt.current.shift(); }
       undoBeforeBurst.current = null;
       undoFuture.current = [];
       setUndoCount(undoPast.current.length);
@@ -1471,28 +1481,29 @@ export function StoreProvider({ children }) {
     if (undoDebounceTimer.current) { clearTimeout(undoDebounceTimer.current); undoDebounceTimer.current = null; }
     // A burst still "in flight" (mid-drag, say) counts as the thing to undo first — commit it as a
     // step rather than silently discarding it.
-    if (undoBeforeBurst.current) { undoPast.current.push(undoBeforeBurst.current); undoBeforeBurst.current = null; }
+    if (undoBeforeBurst.current) { undoPast.current.push(undoBeforeBurst.current); undoPastAt.current.push(undoBurstAt.current); undoBeforeBurst.current = null; }
     if (!undoPast.current.length) return null;
-    const prev = undoPast.current.pop(), cur = undoSnapshotRef.current();
+    const prev = undoPast.current.pop(), at = undoPastAt.current.pop() ?? 0, cur = undoSnapshotRef.current();
     undoFuture.current.push(cur);
     applySnapshot(prev);
     setUndoCount(undoPast.current.length);
     setRedoCount(undoFuture.current.length);
-    return changedKeys(cur, prev); // TASKS.csv #1087 — what changed, for the window to say (null: nothing to undo)
+    const later = lastOutsideUndo.current && lastOutsideUndo.current.at >= at ? lastOutsideUndo.current.keys : []; // #1888
+    return { keys: changedKeys(cur, prev), later }; // TASKS.csv #1087 — what changed, for the window to say (null: nothing to undo)
   }, [applySnapshot]);
 
   const redo = useCallback(() => {
     if (!undoFuture.current.length) return null;
     const next = undoFuture.current.pop(), cur = undoSnapshotRef.current();
-    undoPast.current.push(cur);
+    undoPast.current.push(cur); undoPastAt.current.push(Date.now());
     applySnapshot(next);
     setUndoCount(undoPast.current.length);
     setRedoCount(undoFuture.current.length);
-    return changedKeys(cur, next); // #1087
+    return { keys: changedKeys(cur, next), later: [] }; // #1087
   }, [applySnapshot]);
 
   const clearUndoHistory = useCallback(() => {
-    undoPast.current = []; undoFuture.current = []; undoBeforeBurst.current = null;
+    undoPast.current = []; undoPastAt.current = []; undoFuture.current = []; undoBeforeBurst.current = null; lastOutsideUndo.current = null;
     if (undoDebounceTimer.current) { clearTimeout(undoDebounceTimer.current); undoDebounceTimer.current = null; }
     setUndoCount(0); setRedoCount(0);
   }, []);

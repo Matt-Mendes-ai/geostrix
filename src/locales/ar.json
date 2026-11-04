@@ -7459,5 +7459,11 @@
   "The grid is padded around the samples, so near the surface its top layers can be in the air. With no terrain loaded the ground is interpolated between the collar elevations (as the pit shell takes it); ticked, a block whose centre is above it is left out.": "الشبكة محشوّة حول العينات، فقرب السطح قد تكون طبقاتها العليا في الهواء. دون تضاريس محمّلة تُستكمل الأرض بين مناسيب الفوهات (كما يأخذها غلاف الحفرة)؛ عند التحديد تُستبعد الكتلة التي يقع مركزها فوقها.",
   "Only blocks below the ground (interpolated between the collars: no terrain)": "الكتل تحت الأرض فقط (مستكمَلة بين الفوهات: لا تضاريس)",
   "{t} t in {n} ore-grade block(s) sit wholly above the ground and were left out: the estimate was not clipped to the ground (3D Modelling › Estimation, \"Only blocks below the ground\").": "{t} طن في {n} كتلة بدرجة خام تقع كليًا فوق الأرض واستُبعدت: لم يُقصّ التقدير عند الأرض (النمذجة ثلاثية الأبعاد › التقدير، \"الكتل تحت الأرض فقط\").",
-  "One block model, one price: a by-product metal counts only through a metal-equivalent model (Geochem › calculated element, e.g. AuEq with Ag at a stated ratio) estimated into blocks and priced as the main metal.": "نموذج كتل واحد وسعر واحد: لا يُحتسب المعدن الثانوي إلا عبر نموذج مكافئ معدني (الجيوكيمياء › عنصر محسوب، مثل AuEq مع Ag بنسبة مُعلنة) مقدَّر في الكتل ومسعَّر كالمعدن الرئيسي."
+  "One block model, one price: a by-product metal counts only through a metal-equivalent model (Geochem › calculated element, e.g. AuEq with Ag at a stated ratio) estimated into blocks and priced as the main metal.": "نموذج كتل واحد وسعر واحد: لا يُحتسب المعدن الثانوي إلا عبر نموذج مكافئ معدني (الجيوكيمياء › عنصر محسوب، مثل AuEq مع Ag بنسبة مُعلنة) مقدَّر في الكتل ومسعَّر كالمعدن الرئيسي.",
+  "generated surfaces": "الأسطح المولَّدة",
+  "rasters": "الصور النقطية",
+  "map layers": "طبقات الخريطة",
+  "themes": "السمات",
+  "the evidence overlay": "تراكب الأدلة",
+  "A later change to {what} is outside the undo history and stays.": "تغيير لاحق في {what} خارج سجل التراجع ويبقى."
 }

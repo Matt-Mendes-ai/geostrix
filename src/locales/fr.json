@@ -7459,5 +7459,11 @@
   "The grid is padded around the samples, so near the surface its top layers can be in the air. With no terrain loaded the ground is interpolated between the collar elevations (as the pit shell takes it); ticked, a block whose centre is above it is left out.": "La grille est rembourrée autour des échantillons, si bien que près de la surface ses couches du haut peuvent être en l'air. Sans terrain chargé, le sol est interpolé entre les altitudes des collets (comme l'enveloppe de fosse le prend) ; coché, un bloc dont le centre est au-dessus est laissé de côté.",
   "Only blocks below the ground (interpolated between the collars: no terrain)": "Seulement les blocs sous le sol (interpolé entre les collets : pas de terrain)",
   "{t} t in {n} ore-grade block(s) sit wholly above the ground and were left out: the estimate was not clipped to the ground (3D Modelling › Estimation, \"Only blocks below the ground\").": "{t} t dans {n} bloc(s) à teneur de minerai sont entièrement au-dessus du sol et ont été laissés de côté : l'estimation n'a pas été coupée au sol (Modélisation 3D › Estimation, « Seulement les blocs sous le sol »).",
-  "One block model, one price: a by-product metal counts only through a metal-equivalent model (Geochem › calculated element, e.g. AuEq with Ag at a stated ratio) estimated into blocks and priced as the main metal.": "Un modèle de blocs, un prix : un métal secondaire ne compte que par un modèle d'équivalent métal (Géochimie › élément calculé, p. ex. AuEq avec Ag à un ratio déclaré) estimé en blocs et valorisé comme le métal principal."
+  "One block model, one price: a by-product metal counts only through a metal-equivalent model (Geochem › calculated element, e.g. AuEq with Ag at a stated ratio) estimated into blocks and priced as the main metal.": "Un modèle de blocs, un prix : un métal secondaire ne compte que par un modèle d'équivalent métal (Géochimie › élément calculé, p. ex. AuEq avec Ag à un ratio déclaré) estimé en blocs et valorisé comme le métal principal.",
+  "generated surfaces": "surfaces générées",
+  "rasters": "rasters",
+  "map layers": "couches de carte",
+  "themes": "thèmes",
+  "the evidence overlay": "la superposition d'évidences",
+  "A later change to {what} is outside the undo history and stays.": "Une modification ultérieure de {what} est hors de l'historique d'annulation et reste."
 }
