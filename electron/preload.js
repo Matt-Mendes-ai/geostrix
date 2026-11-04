@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, webUtils } = require("electron"); // webUtils: TASKS.csv #1716
 
 contextBridge.exposeInMainWorld("desktop", {
   isDesktop: true,
@@ -52,6 +52,10 @@ contextBridge.exposeInMainWorld("desktop", {
   fsListDir: (dirPath) => ipcRenderer.invoke("fs-list-dir", { dirPath }),
   fsListDrives: () => ipcRenderer.invoke("fs-list-drives"),
   fsReadFile: (filePath) => ipcRenderer.invoke("fs-read-file", { filePath }),
+  // TASKS.csv #1716 — a big GeoPackage read in the main process: these take the File the user chose (input or drop), not a path, so
+  // the renderer can only ever point them at a file the user picked; a File with no path on disk returns { ok: false }
+  gpkgIndex: (file) => { const filePath = webUtils.getPathForFile(file); return filePath ? ipcRenderer.invoke("gpkg-index", { filePath }) : Promise.resolve({ ok: false, error: "no path" }); },
+  gpkgRead: (file, opts) => { const filePath = webUtils.getPathForFile(file); return filePath ? ipcRenderer.invoke("gpkg-read", { filePath, ...opts }) : Promise.resolve({ ok: false, error: "no path" }); },
   sampleDataPath: () => ipcRenderer.invoke("sample-data-path"),
   autosaveWrite: (payload) => ipcRenderer.invoke("autosave-write", payload),
   autosaveRead: () => ipcRenderer.invoke("autosave-read"),

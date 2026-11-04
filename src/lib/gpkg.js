@@ -269,13 +269,7 @@ export async function parseGeoPackage(gpkgBytes) {
     const geomColByTable = {};
     (geomColRes[0]?.values || []).forEach(([table, col, srsId]) => { geomColByTable[table] = { col, srsId }; });
     const srsRes = db.exec("SELECT srs_id, organization, organization_coordsys_id, definition FROM gpkg_spatial_ref_sys;");
-    const epsgBySrsId = {};
-    // #415 — an EPSG-tagged row gives the code; a custom row (organization "NONE", or a user-defined CRS QGIS
-    // wrote) is recognised from its WKT definition, as a shapefile's .prj is. -1 / 0 are "undefined".
-    (srsRes[0]?.values || []).forEach(([srsId, org, orgCode, definition]) => {
-      if (String(org).toUpperCase() === "EPSG" && Number(orgCode) > 0) epsgBySrsId[srsId] = orgCode;
-      else if (Number(srsId) > 0) { const g = guessEpsgFromPrjWkt(definition); if (g) epsgBySrsId[srsId] = g; }
-    });
+    const epsgBySrsId = epsgBySrsRows(srsRes[0]?.values || []);
 
     const layers = [];
     for (const [tableName] of contentsRes[0].values) {
@@ -283,29 +277,45 @@ export async function parseGeoPackage(gpkgBytes) {
       if (!geomInfo) continue; // no registered geometry column — not something this app can render
       const rowsRes = db.exec(`SELECT * FROM "${tableName}";`);
       if (!rowsRes.length) { layers.push({ name: tableName, features: [], geomType: "point", epsg: epsgBySrsId[geomInfo.srsId], skippedCount: 0 }); continue; }
-      const cols = rowsRes[0].columns;
-      const geomIdx = cols.indexOf(geomInfo.col);
-      const fidIdx = cols.indexOf("fid");
-      const features = [];
-      let skippedCount = 0;
-      let geomTypeSeen = null;
-      rowsRes[0].values.forEach((row) => {
-        const blob = row[geomIdx];
-        const parsed = blob instanceof Uint8Array ? parseGpbBlob(blob) : null;
-        if (!parsed) { skippedCount++; return; }
-        geomTypeSeen = geomTypeSeen || parsed.type;
-        const attributes = {};
-        cols.forEach((c, i) => { if (i !== geomIdx && i !== fidIdx) attributes[c] = row[i]; });
-        // #728 — a MultiPoint is one feature per point, as shapefile.js reads it (#415): same layer, same row count
-        if (parsed.type === "point" && parsed.parts.length > 1) parsed.parts.forEach((pt) => features.push({ geometry: pt, parts: [pt], attributes: { ...attributes } }));
-        else features.push({ geometry: parsed.pts, parts: parsed.parts, attributes });
-      });
-      layers.push({ name: tableName, features, geomType: geomTypeSeen || "point", epsg: epsgBySrsId[geomInfo.srsId], skippedCount });
+      layers.push(layerFromRows(tableName, rowsRes[0].columns, rowsRes[0].values, geomInfo.col, epsgBySrsId[geomInfo.srsId]));
     }
     return { layers };
   } finally {
     db.close();
   }
+}
+
+// #415 — an EPSG-tagged row gives the code; a custom row (organization "NONE", or a user-defined CRS QGIS wrote) is recognised from
+// its WKT definition, as a shapefile's .prj is. -1 / 0 are "undefined". rows: [srs_id, organization, organization_coordsys_id, definition]
+export function epsgBySrsRows(rows) {
+  const epsgBySrsId = {};
+  rows.forEach(([srsId, org, orgCode, definition]) => {
+    if (String(org).toUpperCase() === "EPSG" && Number(orgCode) > 0) epsgBySrsId[srsId] = Number(orgCode);
+    else if (Number(srsId) > 0) { const g = guessEpsgFromPrjWkt(definition); if (g) epsgBySrsId[srsId] = g; }
+  });
+  return epsgBySrsId;
+}
+
+// One feature table's rows (arrays in `cols` order, the geometry as a GeoPackage blob) as a layer. Shared by the whole-file read above
+// and the main-process read of a big file (TASKS.csv #1716, gpkgInPlace.js).
+export function layerFromRows(tableName, cols, values, geomCol, epsg) {
+  const geomIdx = cols.indexOf(geomCol);
+  const fidIdx = cols.indexOf("fid");
+  const features = [];
+  let skippedCount = 0;
+  let geomTypeSeen = null;
+  values.forEach((row) => {
+    const blob = row[geomIdx];
+    const parsed = blob instanceof Uint8Array ? parseGpbBlob(blob) : null;
+    if (!parsed) { skippedCount++; return; }
+    geomTypeSeen = geomTypeSeen || parsed.type;
+    const attributes = {};
+    cols.forEach((c, i) => { if (i !== geomIdx && i !== fidIdx) attributes[c] = row[i]; });
+    // #728 — a MultiPoint is one feature per point, as shapefile.js reads it (#415): same layer, same row count
+    if (parsed.type === "point" && parsed.parts.length > 1) parsed.parts.forEach((pt) => features.push({ geometry: pt, parts: [pt], attributes: { ...attributes } }));
+    else features.push({ geometry: parsed.pts, parts: parsed.parts, attributes });
+  });
+  return { name: tableName, features, geomType: geomTypeSeen || "point", epsg, skippedCount };
 }
 
 // Mirrors shapefile.js's shapefileFeaturesToRows exactly — same flattening rule (first vertex ->

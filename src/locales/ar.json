@@ -7779,5 +7779,10 @@
   "This grid has fewer than 2 x 2 nodes.": "هذه الشبكة أقل من 2 × 2 عقدة.",
   "Read as a {kind} grid ({type}{v}), {nx} × {ny} nodes at {dx} m.": "قُرئت كشبكة {kind} ({type}{v})، {nx} × {ny} عقدة عند {dx} م.",
   ", compressed": "، مضغوطة",
-  "• Geosoft (compressed or not) and Surfer 6 / 7 binary grids (.grd) — read as a raster drape with values (Raster tab), like .gxf": "• شبكات Geosoft الثنائية (مضغوطة أو لا) وSurfer 6 / 7 (.grd) — تُقرأ كإسقاط نقطي بالقيم (تبويب النقطية)، مثل .gxf"
+  "• Geosoft (compressed or not) and Surfer 6 / 7 binary grids (.grd) — read as a raster drape with values (Raster tab), like .gxf": "• شبكات Geosoft الثنائية (مضغوطة أو لا) وSurfer 6 / 7 (.grd) — تُقرأ كإسقاط نقطي بالقيم (تبويب النقطية)، مثل .gxf",
+  "{name} is {mb} MB. GeoStrix reads a GeoPackage this size only around the project's holes and samples, and this project has none yet: import them first, or export just your area from QGIS and import that.": "حجم {name} هو {mb} ميغابايت. يقرأ GeoStrix ملف GeoPackage بهذا الحجم حول ثقوب الحفر والعينات في المشروع فقط، وهذا المشروع لا يحتوي على أي منها بعد: استوردها أولاً، أو صدّر منطقتك فقط من QGIS واستوردها.",
+  "none of its {n} feature tables has anything within reach of the project's holes and samples, so nothing was imported (check its CRS if it should).": "لا يحتوي أي من جداول المعالم الـ {n} على شيء ضمن نطاق ثقوب الحفر والعينات في المشروع، لذا لم يُستورد شيء (تحقق من نظام الإحداثيات إن كان ينبغي ذلك).",
+  "{name}: only the first {kept} features near the project were read; export a smaller area from QGIS for the rest.": "{name}: قُرئت أول {kept} معلماً قريباً من المشروع فقط؛ صدّر منطقة أصغر من QGIS للباقي.",
+  "Unzip it and import the .gpkg itself: GeoStrix then reads only the features around the project's holes and samples.": "فك ضغطه واستورد ملف .gpkg نفسه: سيقرأ GeoStrix حينها المعالم المحيطة بثقوب الحفر والعينات في المشروع فقط.",
+  "{name}: {kept} of its {total} features lie near the project, read from the file in place; the rest, far from the holes and samples, were left out.": "{name}: {kept} من معالمه البالغة {total} قريبة من المشروع، قُرئت من الملف مباشرة؛ وتُرك الباقي البعيد عن ثقوب الحفر والعينات."
 }

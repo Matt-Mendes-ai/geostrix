@@ -1269,6 +1269,31 @@ ipcMain.handle("fs-read-file", async (_e, { filePath }) => {
   }
 });
 
+// TASKS.csv #1716 — a big GeoPackage the user chose (its path comes from the File itself, through preload's webUtils, never a typed
+// path) opened read-only here with Node's SQLite: the table list first, then only the rows near the project through each R-tree.
+const gpkgReader = require("./gpkgReader.js");
+async function gpkgPathRefusal(filePath) {
+  if (!filePath || path.extname(String(filePath)).toLowerCase() !== ".gpkg") return "Not a GeoPackage (.gpkg).";
+  if (isNamespacedPath(filePath) || (await inProtectedFolder(filePath))) return "GeoStrix does not read files from this location.";
+  if (!(await allowNetworkPath(filePath))) return "Network location not opened.";
+  const st = await fs.promises.stat(filePath);
+  return st.isFile() ? null : "Not a file.";
+}
+ipcMain.handle("gpkg-index", async (_e, { filePath }) => {
+  try {
+    const refused = await gpkgPathRefusal(filePath);
+    if (refused) return { ok: false, error: refused };
+    return { ok: true, ...gpkgReader.indexGpkg(filePath) };
+  } catch (err) { return { ok: false, error: err.message }; }
+});
+ipcMain.handle("gpkg-read", async (_e, { filePath, table, bbox, max }) => {
+  try {
+    const refused = await gpkgPathRefusal(filePath);
+    if (refused) return { ok: false, error: refused };
+    return { ok: true, ...(await gpkgReader.readGpkgTable(filePath, { table: String(table), bbox, max: Math.min(200000, Math.max(1, Number(max) || 100000)) })) };
+  } catch (err) { return { ok: false, error: err.message }; }
+});
+
 // TASKS.csv #293 — where the bundled sample_data/ folder actually lives at runtime. In a packaged
 // build it's shipped via electron-builder's extraResources (see package.json's build.extraResources),
 // which lands it at <resources>/sample_data; in a dev run (`npm run dev`) there's no resources dir, so

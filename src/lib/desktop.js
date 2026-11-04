@@ -270,6 +270,16 @@ export async function fsListDrives() {
   if (!d) return { ok: true, drives: [] };
   return d.fsListDrives();
 }
+// TASKS.csv #1716 — a big GeoPackage's tables and the rows in an area, read in the main process (electron/gpkgReader.js)
+export const canReadGpkgInPlace = () => !!d?.gpkgIndex;
+export async function gpkgIndex(file) {
+  if (!d?.gpkgIndex) return { ok: false, error: "no path" };
+  return d.gpkgIndex(file);
+}
+export async function gpkgRead(file, opts) {
+  if (!d?.gpkgRead) return { ok: false, error: "no path" };
+  return d.gpkgRead(file, opts);
+}
 export async function fsReadFile(filePath) {
   if (!d) return { ok: false, error: "Folder browsing requires the desktop app." };
   return d.fsReadFile(filePath);

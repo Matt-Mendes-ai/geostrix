@@ -31,6 +31,8 @@ import { saveFile } from "../lib/desktop.js";
 import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
 import { toExportCsv } from "../lib/tabular.js";
 import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
+import { readGeoPackageNear, GPKG_IN_PLACE_BYTES } from "../lib/gpkgInPlace.js"; // TASKS.csv #1716
+import { canReadGpkgInPlace } from "../lib/desktop.js";
 
 export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { // part: "maps" | "structures" | null = both (TASKS.csv #458)
   const {
@@ -116,7 +118,9 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       layersAdded++;
       addMapLayer({ ...layer, drapeMode: terrain ? "terrain" : "flat" });
       // TASKS.csv #1116 — whole phrases (the geometry name used to take an English "s")
-      if (layer.clipped) done.push(tr("{name}: {kept} of its {total} features lie near the project; the rest, far from the holes and samples, were left out.", { name: layer.name, kept: layer.clipped.kept.toLocaleString(), total: layer.clipped.total.toLocaleString() })); // #1715
+      // #1716 — read in place: one line, counted against the whole table, not against the rows the R-tree returned
+      if (parsed.inPlace) done.push(tr("{name}: {kept} of its {total} features lie near the project, read from the file in place; the rest, far from the holes and samples, were left out.", { name: layer.name, kept: layer.features.length.toLocaleString(), total: parsed.inPlace.total.toLocaleString() }));
+      else if (layer.clipped) done.push(tr("{name}: {kept} of its {total} features lie near the project; the rest, far from the holes and samples, were left out.", { name: layer.name, kept: layer.clipped.kept.toLocaleString(), total: layer.clipped.total.toLocaleString() })); // #1715
       done.push(`${layer.name}: ${featureCountText(layer.features.length, layer.geomType)}${layer.skipped ? ` (${tr("{n} empty/unsupported skipped", { n: layer.skipped })})` : ""}, ${layer.crsNote}${qml ? `, ${tr("styled from .qml")}` : ""}`);
     };
     for (const f of files) {
@@ -135,6 +139,18 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
           if (!layers.length) throw new Error(tr("no points, lines or polygons in this file"));
           layers.forEach((l) => addParsed({ ...l, name: layers.length > 1 ? l.name : null }, base(f), { wgs84: true }));
         } else if (n.endsWith(".gpkg")) {
+          // #1716 — a big file is opened in place by the desktop app and only the features around the project are read
+          const near = f.size > GPKG_IN_PLACE_BYTES && canReadGpkgInPlace()
+            ? await readGeoPackageNear(f, { clipBox: projectClipBox([...(collars || []), ...(surfaceSamples || [])]), projectEpsg, sourceEpsg: mapSourceEpsg || null })
+            : null;
+          if (near) {
+            if (!near.layers.length) throw new Error(tr("none of its {n} feature tables has anything within reach of the project's holes and samples, so nothing was imported (check its CRS if it should).", { n: near.outside.length }));
+            near.layers.forEach((l) => {
+              addParsed(l, base(f));
+              if (l.inPlace.truncated) failed.push(tr("{name}: only the first {kept} features near the project were read; export a smaller area from QGIS for the rest.", { name: l.name, kept: l.inPlace.kept.toLocaleString() }));
+            });
+            continue;
+          }
           checkGpkgSize(f); // #1716 — refused before reading when too big
           const { layers } = await parseGeoPackage(await f.arrayBuffer());
           const usable = layers.filter((l) => l.features.length);
@@ -147,7 +163,10 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
           const gpkgs = zipNames.filter((x) => /\.gpkg$/i.test(x));
           if (gpkgs.length && !zipNames.some((x) => /\.shp$/i.test(x))) {
             for (const g of gpkgs) {
-              const { layers } = await parseGeoPackage((await readZipEntries(zbuf, { test: (x) => x === g }))[g]);
+              let entry;
+              // #1716 — over the zip limit: the .gpkg itself can be read around the project in the desktop app
+              try { entry = (await readZipEntries(zbuf, { test: (x) => x === g }))[g]; } catch (e) { throw new Error(canReadGpkgInPlace() && /uncompressed/.test(e.message) ? `${e.message} ${tr("Unzip it and import the .gpkg itself: GeoStrix then reads only the features around the project's holes and samples.")}` : e.message); }
+              const { layers } = await parseGeoPackage(entry);
               const usable = layers.filter((l) => l.features.length);
               if (!usable.length) throw new Error(tr("no feature tables with geometry in {g}", { g }));
               usable.forEach((l) => addParsed(l, base(f)));
