@@ -74,7 +74,11 @@ export function reachFromSpacing(points, factor = 1.5) {
 export function airFlagOf(model) {
   let min = Infinity, neg = 0, atMin = 0;
   for (const c of model?.cells || []) { const v = c.value; if (!Number.isFinite(v)) continue; if (v < min) { min = v; atMin = 0; } if (v === min) atMin++; if (v < 0) neg++; }
-  return min < 0 && atMin === neg ? min : null;
+  // as voxel.js maskAirCells: every negative at the minimum, or at least 90 % of them when the minimum fills 5 % of the cells (blocks
+  // averaged with air before #1659 leave a few in between: Kodiak's saved chargeability, 19,824 at -1 and 439 from -0.75 to 0)
+  let n = 0;
+  for (const c of model?.cells || []) if (Number.isFinite(c.value)) n++;
+  return min < 0 && (atMin === neg || (atMin >= 0.9 * neg && atMin >= 0.05 * n)) ? min : null;
 }
 export function voxelColumnEvidence(g, model, how = "max", { zMin = null, zMax = null } = {}) {
   if (how === "mean") return voxelColumnMean(g, model, { zMin, zMax });

@@ -380,7 +380,9 @@ export function maskAirCells(values, minShare = 0.05) {
   for (let i = 0; i < values.length; i++) { const v = values[i]; if (Number.isFinite(v) && v > NODATA_MAX) { if (v < min) min = v; if (v < 0) negatives++; } }
   const tinyAir = min > 0 && min <= 1e-8;
   let flagAir = false;
-  if (min < 0) { let atMin = 0; for (let i = 0; i < values.length; i++) if (values[i] === min) atMin++; flagAir = atMin === negatives; }
+  // #1831 — or nearly all of them: a model reduced for the view before #1659 averaged the air into mixed blocks (Kodiak's saved
+  // chargeability: 19,824 cells at -1 and 439 between -0.75 and 0), and those few must not keep the flag from being seen
+  if (min < 0) { let atMin = 0; for (let i = 0; i < values.length; i++) if (values[i] === min) atMin++; flagAir = atMin === negatives || atMin >= 0.9 * negatives; }
   if (!tinyAir && !flagAir) return { count: 0, value: null };
   let count = 0;
   for (let i = 0; i < values.length; i++) if (values[i] === min) count++;
