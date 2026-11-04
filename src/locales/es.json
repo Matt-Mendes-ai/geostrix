@@ -7819,5 +7819,7 @@
   "Class": "Clase",
   "2–98 % of the cells ({lo} to {hi})": "2–98 % de las celdas ({lo} a {hi})",
   "2–98 % of the cells": "2–98 % de las celdas",
-  "The range above (min to max)": "El rango de arriba (mín. a máx.)"
+  "The range above (min to max)": "El rango de arriba (mín. a máx.)",
+  "Log (suggested: the values span {n} decades)": "Log (sugerido: los valores abarcan {n} décadas)",
+  "Log (positive values)": "Log (valores positivos)"
 }

@@ -7819,5 +7819,7 @@
   "Class": "الفئة",
   "2–98 % of the cells ({lo} to {hi})": "2–98 % من الخلايا ({lo} إلى {hi})",
   "2–98 % of the cells": "2–98 % من الخلايا",
-  "The range above (min to max)": "النطاق أعلاه (من الأدنى إلى الأعلى)"
+  "The range above (min to max)": "النطاق أعلاه (من الأدنى إلى الأعلى)",
+  "Log (suggested: the values span {n} decades)": "لوغاريتمي (مقترح: تمتد القيم على {n} عقود)",
+  "Log (positive values)": "لوغاريتمي (القيم الموجبة)"
 }

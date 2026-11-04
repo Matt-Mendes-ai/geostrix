@@ -126,8 +126,18 @@ export function makeStretch(values, mode = "p2-98") {
       return v.length > 1 ? a / (v.length - 1) : 0;
     } };
   }
+  // TASKS.csv #1857 (review #1646, Kodiak) — "log": the 2-98 % clip of the POSITIVE values, spaced by decade. A resistivity slice of
+  // 32-3,852 ohm.m on a linear ramp put a quarter of the map (under 329 ohm.m: the conductors, the porphyry target) in the bottom 9 %
+  // of the colours. Zero and negative values take the bottom colour; with no positive value it falls back to the 2-98 % clip.
+  if (mode === "log") {
+    const pos = v.filter((x) => x > 0);
+    if (pos.length) {
+      const qp = (p) => percentileSorted(pos, p), lo = qp(0.02), hi = qp(0.98), a = Math.log10(lo), d = Math.log10(hi) - a;
+      if (hi > lo) return { mode, lo, hi, log: true, t: (x) => (x > 0 ? Math.min(1, Math.max(0, (Math.log10(x) - a) / d)) : 0) };
+    }
+  }
   const lo = mode === "linear" ? v[0] : q(0.02), hi = mode === "linear" ? v[v.length - 1] : q(0.98);
-  return { mode, lo, hi, t: (x) => (hi > lo ? Math.min(1, Math.max(0, (x - lo) / (hi - lo))) : 0) };
+  return { mode: mode === "log" ? "p2-98" : mode, lo, hi, t: (x) => (hi > lo ? Math.min(1, Math.max(0, (x - lo) / (hi - lo))) : 0) };
 }
 
 // TASKS.csv #538 — maxDistance blanks cells farther than that from every point (NaN = transparent) instead of

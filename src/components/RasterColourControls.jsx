@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { RASTER_RAMPS, DEFAULT_RASTER_STYLE, rasterColourFields, rasterRange } from "../lib/rasterColour.js";
+import { RASTER_RAMPS, DEFAULT_RASTER_STYLE, rasterColourFields, rasterRange, decadesSpanned } from "../lib/rasterColour.js";
 import { b64ToF32 } from "../lib/inversion.js";
 import { PALETTES } from "../lib/layers.js";
 import { t as tr } from "../lib/i18n.js";
@@ -24,6 +24,7 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
     if (max > min) apply({ stretch: "custom", min, max });
   };
   const stops = r.colourStops || [];
+  const decades = useMemo(() => decadesSpanned(values), [values]); // #1857
   return (
     <div style={{ marginTop: 7 }}>
       <div style={row}>
@@ -38,6 +39,7 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
         <select value={style.stretch} aria-label={tr("Colour stretch of \"{name}\"", { name: r.name })} onChange={(e) => { const stretch = e.target.value; apply(stretch === "custom" ? { stretch, min: range[0], max: range[1] } : { stretch }); }} style={inputStyle}>
           <option value="p2-98">{tr("2-98% percentile clip")}</option>
           <option value="linear">{tr("Linear min-max")}</option>
+          <option value="log">{decades > 1 ? tr("Log (suggested: the values span {n} decades)", { n: decades.toFixed(1) }) : tr("Log (positive values)")}</option>
           <option value="equalise">{tr("Histogram equalized")}</option>
           <option value="custom">{tr("Typed range")}</option>
         </select>
@@ -54,7 +56,7 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
       {stops.length > 1 && (
         <div style={{ marginTop: 6 }}>
           <div aria-hidden="true" style={{ height: 8, borderRadius: 2, background: `linear-gradient(to right, ${stops.map((s) => s.color).join(", ")})` }} />
-          <div dir="ltr" style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 2 }}><span>{fmt(range[0])}</span>{style.stretch === "equalise" && <span>{tr("equalized: colour does not scale with value")}</span>}<span>{fmt(range[1])}</span></div>
+          <div dir="ltr" style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", marginTop: 2 }}><span>{fmt(range[0])}</span>{style.stretch === "equalise" && <span>{tr("equalized: colour does not scale with value")}</span>}{style.stretch === "log" && <span>{tr("log scale")}</span>}<span>{fmt(range[1])}</span></div>
         </div>
       )}
       {r.grid.averagedBy > 1 && r.colourStyle && <div style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.35 }}>{tr("Drawn from the kept values, where every {n} × {n} pixels were averaged, so this image is coarser than the imported one.", { n: r.grid.averagedBy })}</div>}
