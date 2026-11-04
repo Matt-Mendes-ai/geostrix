@@ -151,7 +151,7 @@ import { PRECIOUS_METALS } from "../lib/geochem.js";
 // symbology editor load the first time they are shown (PlannedHoleTargeting, #119, now loads from PlannedHoleParts)
 const plannedPart = (name) => lazyModal(() => import("../components/PlannedHoleParts.jsx").then((m) => ({ default: m[name] })));
 const PlannedHoleAddForm = plannedPart("PlannedHoleAddForm"), PlannedHoleRow = plannedPart("PlannedHoleRow"), PlannedHoleChecks = plannedPart("PlannedHoleChecks");
-import { ViewToolbar, ContextItem, HoleRow, LayerRow, LayerQuickPanel, distToSegment, VoxelRangeRow, miniBtn, iconBtn, miniField, typedSectionInput } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1084 — moved out at the size cap
+import { ViewToolbar, ContextItem, HoleRow, OrphanHoles, LayerRow, LayerQuickPanel, distToSegment, VoxelRangeRow, miniBtn, iconBtn, miniField, typedSectionInput } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1084 — moved out at the size cap
 import { plannedTrace } from "../lib/holePlanning.js"; // TASKS.csv #119 - shared, Node-verified target math; plannedTrace: #524
 import { extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
@@ -8619,6 +8619,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </>
         )}
 
+        <OrphanHoles layers={layers} assays={assays} collars={collars} onOpenStripLog={setStripLogHoleId} />{/* #1809 */}
         {/* TASKS.csv #298 — deliberately NOT a live region: the floating toast above already announces
             each new notice, and a second live region over the same message would make a screen reader
             read every message twice. This is the persistent record of the same messages, so it just

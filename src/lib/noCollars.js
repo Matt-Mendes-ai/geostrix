@@ -31,3 +31,12 @@ export function interceptsDisabledText(layers) {
     ? tr("Needs collars: the {n} logged intervals of {holes} hole(s) have no collar to place them in 3D.", { n: w.intervals.toLocaleString(), holes: w.holes.toLocaleString() })
     : tr("Load some lithology/alteration interval data first.");
 }
+
+// TASKS.csv #1809 — the hole ids of the interval layers and assays that match no collar, in natural order (the 3D sidebar lists them
+// with a strip-log button)
+export function orphanHoleIds(layers, assays, collars) {
+  const known = new Set((collars || []).map((c) => String(c.hole_id))), ids = new Set();
+  for (const rows of Object.values(layers || {})) if (Array.isArray(rows)) for (const r of rows) if (r?.hole_id != null && !known.has(String(r.hole_id))) ids.add(String(r.hole_id));
+  for (const r of assays || []) if (r?.hole_id != null && !known.has(String(r.hole_id))) ids.add(String(r.hole_id));
+  return [...ids].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+}

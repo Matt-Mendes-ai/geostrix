@@ -14,6 +14,7 @@ import { confirmDestructive } from "../../lib/confirmDestructive.js";
 import { chipLook } from "../../lib/viewer/modelHelpers.js";
 import { lazyModal } from "../../lib/lazyModal.jsx";
 import { t as tr } from "../../lib/i18n.js";
+import { orphanHoleIds } from "../../lib/noCollars.js"; // TASKS.csv #1809
 
 export const MeasureResults = lazyModal(() => import("../../components/MeasureResults.jsx"));
 const NumericSymbologyEditor = lazyModal(() => import("../../components/NumericSymbologyEditor.jsx"));
@@ -250,6 +251,27 @@ export function ContextItem({ label, onClick, disabled, title }) {
 // restructuring this pass didn't attempt; memoization fixes the actual measured symptom (the toggle
 // cost) without that risk.
 export const typedSectionInput = { width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", color: "var(--color-text)", fontSize: "var(--font-size-sm)" }; // #393
+// TASKS.csv #1809 (review #1646, Kodiak) — holes known only from their logs and assays (no collar): listed with a strip-log button, as
+// the strip log needs only depths. With 0 collars, Kodiak's 33 holes (904 lithology, 782 alteration, 6,239 assay intervals) had no
+// downhole view anywhere. The ids are those of the interval layers and assays that match no collar.
+export function OrphanHoles({ layers, assays, collars, onOpenStripLog }) {
+  const ids = React.useMemo(() => orphanHoleIds(layers, assays, collars), [layers, assays, collars]);
+  if (!ids.length) return null;
+  return (
+    <>
+      <div className="ge-section-label" style={{ marginTop: 16 }} title={tr("Holes in the logs or assays with no collar: not drawn in 3D, but their strip logs open from their depths")}>{tr("Holes without collars ({n})", { n: ids.length })}</div>
+      {ids.map((id) => (
+        <div key={id} role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onOpenStripLog(id)} title={tr("Strip log — {hole_id}", { hole_id: id })}
+          style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>
+          <span style={{ flex: 1 }}>{id}</span>
+          <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("no collar")}</span>
+          <FileBarChart2 size={12} />
+        </div>
+      ))}
+    </>
+  );
+}
+
 export const HoleRow = React.memo(function HoleRow({ hole_id, visible, onToggle, onOpenStripLog, onSection, onZoom }) {
   return (
     <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onToggle(hole_id)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 8px", borderRadius: 5, cursor: "pointer", fontSize: "var(--font-size-base)", color: visible === false ? "var(--color-text-disabled)" : "var(--color-text)" }}>
