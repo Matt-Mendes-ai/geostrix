@@ -1134,18 +1134,22 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     const base = p.fileName.replace(/\.csv$/i, "");
     const msgs = [];
     attrs.forEach((attr) => {
-      const { cells: raw, badRows, inferred } = blockModelCellsFromRows(p.rows, mapping, attr);
+      const { cells: raw, badRows, inferred, air } = blockModelCellsFromRows(p.rows, mapping, attr); // air: #1662
       if (!raw.length) { msgs.push(tr("{attr}: no usable rows (x/y/z and {attr} all need numbers).", { attr })); return; }
       const { cells, factors, sourceM3, mergedM3 } = coarsenBlockCells(raw, effectiveMaxCells);
       const { min, max } = cellValueRange(cells);
-      addVoxelModel({ name: `${base} (${attr})`, source: "csv", cells, min, max });
+      // TASKS.csv #1662 — the UBC rule (#481): a positive property spanning two decades or more gets log-spaced colours and log-stepped sliders
+      const logColours = min > 0 && max / min >= 100;
+      addVoxelModel({ name: `${base} (${attr})`, source: "csv", cells, min, max, ...(logColours ? { stops: logStops(min, max, SEQUENTIAL_ANCHORS), colorMode: "continuous", logScale: true } : {}) });
       let m = farNote(cells) + tr("{attr}: {n} block(s)", { attr, n: cells.length.toLocaleString() }); // far: #1427
+      if (air) m += tr(", {n} block(s) at {v} (the value this model uses for air above the ground) left out", { n: air.count.toLocaleString(), v: Number(air.value).toExponential(2) }); // #1662
+      if (logColours) m += tr(", log-spaced colours (the values span {d} decades)", { d: Math.log10(max / min).toFixed(1) });
       if (factors) m += tr(" ({raw} merged {fx}×{fy}×{fz} to fit the {budget}-cell budget — volume-weighted means)", { raw: raw.length.toLocaleString(), fx: factors.fx, fy: factors.fy, fz: factors.fz, budget: effectiveMaxCells.toLocaleString() });
       // TASKS.csv #943 — merged blocks are full cells: where the model did not fill them, they are larger than it
       if (factors && mergedM3 > sourceM3 * 1.005) m += tr(". The merged blocks are full cells and cover {pct}% more volume than the model's own blocks ({src} m³): each keeps the share it really holds (COVERAGE in the CSV, VTK and OMF exports; VOLUME_M3 in the CSV). Take volume and tonnage from those, or import the model without merging (raise the 3D view cell budget)", { pct: (((mergedM3 - sourceM3) / sourceM3) * 100).toFixed(0), src: Math.round(sourceM3).toLocaleString() });
       if (badRows) m += tr(", {n} row(s) without numbers skipped", { n: badRows.toLocaleString() });
       msgs.push(m + ".");
-      if (inferred && msgs.length === 1) msgs.push(tr("Block size inferred from centroid spacing: {v} — check it matches the model.", { v: ["dx", "dy", "dz"].map((k) => (inferred[k] != null ? `${k} ${+inferred[k].toFixed(3)}` : null)).filter(Boolean).join(", ") }));
+      if (inferred && msgs.length === 1) msgs.push(tr("Block size inferred from centroid spacing: {v} — check it matches the model.", { v: ["dx", "dy", "dz"].map((k) => (inferred[k] != null ? (inferred[k].variable ? `${k} ${+inferred[k].min.toFixed(3)}–${+inferred[k].max.toFixed(3)} (${tr("variable")})` : `${k} ${+inferred[k].min.toFixed(3)}`) : null)).filter(Boolean).join(", ") })); // variable widths: #1662
     });
     setVoxelError({ info: true, text: tr("Imported \"{fileName}\": {msgs}{v}", { fileName: p.fileName, msgs: msgs.join(" "), v: p.note ? ` ${p.note.trim()}` : "" }) });
   };

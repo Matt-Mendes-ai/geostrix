@@ -276,7 +276,7 @@ test("#410 block-model CSV: Micromine / Datamine / Vulcan headers map; several a
   const rows = [];
   for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) rows.push({ E: 5 + 10 * i, N: 5 + 10 * j, RL: 5, AU: i < 2 ? 1 : 3 });
   const { cells, inferred } = blockModelCellsFromRows(rows, { x: "E", y: "N", z: "RL", dx: "", dy: "", dz: "" }, "AU");
-  assert.equal(cells.length, 16); assert.equal(inferred.dx, 10);
+  assert.equal(cells.length, 16); assert.equal(inferred.dx.min, 10); assert.equal(inferred.dx.variable, false); // TASKS.csv #1662 — per-axis { min, max, variable }
   // coarsen 16 -> <= 4: 2x2 merges; the left half averages 1, the right half 3
   const c = coarsenBlockCells(cells, 4);
   assert.equal(c.cells.length, 4); assert.deepEqual(c.factors, { fx: 2, fy: 2, fz: 1 });

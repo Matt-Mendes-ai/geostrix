@@ -6,6 +6,7 @@
 // volume-weighted block average down to the budget instead of a refusal. Rotated models are still out of
 // scope (their centroids are in a local frame; say so rather than draw them in the wrong place). Pure.
 
+import { maskAirCells } from "./voxel.js"; // TASKS.csv #1662
 const norm = (h) => String(h ?? "").trim().toLowerCase().replace(/[\s\-.]+/g, "_").replace(/^_+|_+$/g, "");
 // TASKS.csv #659 — Micromine writes the block SIZES as _EAST / _NORTH / _RL beside the centroids EAST / NORTH / RL.
 // norm() strips that underscore, so the size columns collided with the centroids and were offered as attributes
@@ -53,21 +54,50 @@ export function guessBlockModelMapping(headers, rows) {
 
 // Rows -> cells for ONE attribute. Missing / non-positive sizes are inferred per axis from the smallest
 // gap between distinct centroids (a regular lattice's spacing), as before.
+// TASKS.csv #1662 (review #1646, Kodiak) — the widths of a VARIABLE mesh from its centroids alone. Adjacent centroids are a gap of
+// (w_i + w_{i+1}) / 2 apart, so from one cell of known width the rest follow: the core cells share the most common gap (their
+// width), and the recurrence w_{i+1} = 2 gap_i - w_i walks outward into the padding (30, 30, 40, 60 m ... as the inversion mesh
+// has them). One modal width for every cell drew Kodiak's 30 / 40 m padding as 30 m blocks with gaps, and a 96-level lattice over a
+// 78-level mesh. sorted: the distinct centroids along one axis -> Map(centroid -> width). A lone centroid gets `fallback`.
+export function inferAxisWidths(sorted, fallback = 1) {
+  const n = sorted.length, out = new Map();
+  if (!n) return out;
+  if (n === 1) { out.set(sorted[0], fallback); return out; }
+  const gaps = []; for (let i = 1; i < n; i++) gaps.push(sorted[i] - sorted[i - 1]);
+  const count = new Map(); for (const g of gaps) { const k = Math.round(g * 1000); count.set(k, (count.get(k) || 0) + 1); }
+  const modeKey = [...count].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0], mode = modeKey / 1000;
+  // start at a cell whose gaps on both sides are the modal one (an interior core cell), else the first modal gap's lower cell
+  let i0 = gaps.findIndex((g, i) => i + 1 < gaps.length && Math.round(g * 1000) === modeKey && Math.round(gaps[i + 1] * 1000) === modeKey) + 1;
+  if (i0 < 1) i0 = Math.max(0, gaps.findIndex((g) => Math.round(g * 1000) === modeKey));
+  const w = new Array(n).fill(NaN); w[i0] = mode;
+  const lo = 0.25 * Math.min(...gaps), hi = 4 * Math.max(...gaps);
+  const clamp = (v, g) => (Number.isFinite(v) && v > lo && v < hi ? v : g); // a drifting recurrence falls back to the local gap
+  for (let i = i0; i + 1 < n; i++) w[i + 1] = clamp(2 * gaps[i] - w[i], gaps[i]);
+  for (let i = i0; i > 0; i--) w[i - 1] = clamp(2 * gaps[i - 1] - w[i], gaps[i - 1]);
+  sorted.forEach((c, i) => out.set(c, w[i]));
+  return out;
+}
+
 export function blockModelCellsFromRows(rows, mapping, attr) {
   // TASKS.csv #508 — layers.num: a blank / "NA" cell is NaN, not 0 (an unestimated block was a real 0-grade block)
   const cell = (r, k) => (mapping[k] ? num(r[mapping[k]]) : NaN);
   const parsed = rows.map((r) => ({ x: cell(r, "x"), y: cell(r, "y"), z: cell(r, "z"), dx: cell(r, "dx"), dy: cell(r, "dy"), dz: cell(r, "dz"), value: attr ? num(r[attr]) : NaN }));
-  const good = parsed.filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z) && Number.isFinite(r.value));
-  const infer = (sizeKey, posKey) => {
+  let good = parsed.filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z) && Number.isFinite(r.value));
+  // TASKS.csv #1662 — the same air rule as a UBC / OMF model (#481, #1659): a tiny or flagged value filling at least 5 % of the
+  // blocks is air above the ground, not rock, and is left out instead of drawn as a slab on a linear ramp
+  const air = maskAirCells(Float64Array.from(good, (r) => r.value));
+  if (air.count) good = good.filter((r) => r.value !== air.value);
+  // sizes the file does not give: per-axis widths from the centroids (variable where the mesh is), #1662
+  const widths = (sizeKey, posKey) => {
     if (!good.some((r) => !(r[sizeKey] > 0))) return null;
     const vals = Array.from(new Set(good.map((r) => r[posKey]))).sort((a, b) => a - b);
-    let minGap = Infinity;
-    for (let i = 1; i < vals.length; i++) minGap = Math.min(minGap, vals[i] - vals[i - 1]);
-    return Number.isFinite(minGap) && minGap > 0 ? minGap : 1;
+    return inferAxisWidths(vals, 1);
   };
-  const ix = infer("dx", "x"), iy = infer("dy", "y"), iz = infer("dz", "z");
-  const cells = good.map((r) => ({ x: r.x, y: r.y, z: r.z, dx: r.dx > 0 ? r.dx : ix, dy: r.dy > 0 ? r.dy : iy, dz: r.dz > 0 ? r.dz : iz, value: r.value }));
-  return { cells, badRows: parsed.length - good.length, inferred: ix !== null || iy !== null || iz !== null ? { dx: ix, dy: iy, dz: iz } : null };
+  const wx = widths("dx", "x"), wy = widths("dy", "y"), wz = widths("dz", "z");
+  const cells = good.map((r) => ({ x: r.x, y: r.y, z: r.z, dx: r.dx > 0 ? r.dx : wx.get(r.x), dy: r.dy > 0 ? r.dy : wy.get(r.y), dz: r.dz > 0 ? r.dz : wz.get(r.z), value: r.value }));
+  const range = (m) => { if (!m) return null; let lo = Infinity, hi = -Infinity; for (const v of m.values()) { if (v < lo) lo = v; if (v > hi) hi = v; } return { min: lo, max: hi, variable: hi - lo > 1e-6 }; };
+  const inferred = wx || wy || wz ? { dx: range(wx), dy: range(wy), dz: range(wz) } : null;
+  return { cells, badRows: parsed.length - good.length - air.count, inferred, air: air.count ? { count: air.count, value: air.value } : null };
 }
 
 // Cells -> at most maxCells cells: merge fx x fy x fz lattice blocks (lattice = the smallest cell size per
