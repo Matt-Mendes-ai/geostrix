@@ -7852,5 +7852,14 @@
   "Holes without collars ({n})": "Furos sem boca de furo ({n})",
   "no collar": "sem boca de furo",
   ", values read as {p} from the name (change it under Values are)": ", valores lidos como {p} pelo nome (altere em Os valores são)",
-  "Not offered: {v} (intervals with no assemblage logged).": "Não oferecido: {v} (intervalos sem assembleia descrita)."
+  "Not offered: {v} (intervals with no assemblage logged).": "Não oferecido: {v} (intervalos sem assembleia descrita).",
+  "Azimuth from": "Azimute a partir do",
+  "North reference of the azimuth": "Referência de norte do azimute",
+  "true north": "norte verdadeiro",
+  "magnetic north (today)": "norte magnético (hoje)",
+  "magnetic north": "norte magnético",
+  "= {g}° grid at this collar": "= {g}° da quadrícula nesta boca de furo",
+  "Enter the collar and a project CRS to convert it.": "Informe a boca de furo e um SRC do projeto para convertê-lo.",
+  "Az° grid": "Az° quadrícula",
+  "Entered as {v}° {ref} ({date}).": "Informado como {v}° {ref} ({date})."
 }

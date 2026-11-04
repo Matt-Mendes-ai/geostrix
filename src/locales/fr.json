@@ -7852,5 +7852,14 @@
   "Holes without collars ({n})": "Sondages sans collet ({n})",
   "no collar": "sans collet",
   ", values read as {p} from the name (change it under Values are)": ", valeurs lues comme {p} d'après le nom (à changer sous Les valeurs sont)",
-  "Not offered: {v} (intervals with no assemblage logged).": "Non proposé : {v} (intervalles sans assemblage décrit)."
+  "Not offered: {v} (intervals with no assemblage logged).": "Non proposé : {v} (intervalles sans assemblage décrit).",
+  "Azimuth from": "Azimut depuis",
+  "North reference of the azimuth": "Référence du nord de l'azimut",
+  "true north": "nord géographique",
+  "magnetic north (today)": "nord magnétique (aujourd'hui)",
+  "magnetic north": "nord magnétique",
+  "= {g}° grid at this collar": "= {g}° quadrillage à ce collet",
+  "Enter the collar and a project CRS to convert it.": "Saisissez le collet et un SCR du projet pour le convertir.",
+  "Az° grid": "Az° quadrillage",
+  "Entered as {v}° {ref} ({date}).": "Saisi comme {v}° {ref} ({date})."
 }

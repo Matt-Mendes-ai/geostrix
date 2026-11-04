@@ -7852,5 +7852,14 @@
   "Holes without collars ({n})": "ثقوب بلا فوهات ({n})",
   "no collar": "بلا فوهة",
   ", values read as {p} from the name (change it under Values are)": "، قُرئت القيم على أنها {p} من الاسم (غيّرها في القيم هي)",
-  "Not offered: {v} (intervals with no assemblage logged).": "غير معروض: {v} (فترات لم يُسجّل لها تجمع)."
+  "Not offered: {v} (intervals with no assemblage logged).": "غير معروض: {v} (فترات لم يُسجّل لها تجمع).",
+  "Azimuth from": "السمت من",
+  "North reference of the azimuth": "مرجع الشمال للسمت",
+  "true north": "الشمال الحقيقي",
+  "magnetic north (today)": "الشمال المغناطيسي (اليوم)",
+  "magnetic north": "الشمال المغناطيسي",
+  "= {g}° grid at this collar": "= {g}° شبكة عند هذه الفوهة",
+  "Enter the collar and a project CRS to convert it.": "أدخل الفوهة ونظام إحداثيات للمشروع لتحويله.",
+  "Az° grid": "السمت° شبكة",
+  "Entered as {v}° {ref} ({date}).": "أُدخل كـ {v}° {ref} ({date})."
 }

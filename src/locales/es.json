@@ -7852,5 +7852,14 @@
   "Holes without collars ({n})": "Sondajes sin collar ({n})",
   "no collar": "sin collar",
   ", values read as {p} from the name (change it under Values are)": ", valores leídos como {p} por el nombre (cámbielo en Los valores son)",
-  "Not offered: {v} (intervals with no assemblage logged).": "No se ofrece: {v} (intervalos sin asociación registrada)."
+  "Not offered: {v} (intervals with no assemblage logged).": "No se ofrece: {v} (intervalos sin asociación registrada).",
+  "Azimuth from": "Acimut desde",
+  "North reference of the azimuth": "Referencia norte del acimut",
+  "true north": "norte verdadero",
+  "magnetic north (today)": "norte magnético (hoy)",
+  "magnetic north": "norte magnético",
+  "= {g}° grid at this collar": "= {g}° de cuadrícula en este collar",
+  "Enter the collar and a project CRS to convert it.": "Ingrese el collar y un SRC del proyecto para convertirlo.",
+  "Az° grid": "Az° cuadrícula",
+  "Entered as {v}° {ref} ({date}).": "Ingresado como {v}° {ref} ({date})."
 }

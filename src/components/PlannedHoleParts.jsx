@@ -7,6 +7,7 @@ import { t as tr } from "../lib/i18n.js";
 import { colors } from "../lib/theme.js";
 import { lazyModal } from "../lib/lazyModal.jsx";
 import { solveOrientationToTarget, plannedTrace } from "../lib/holePlanning.js";
+import { azimuthToGridOffset, loadIgrf, wrap360 } from "../lib/azimuthRef.js"; // TASKS.csv #1729
 import { planGeometryKey, drilledTraceIndex, isTargetModel, targetBandIndex, planChecks, COLLAR_ZONE_M } from "../lib/plannedHoleChecks.js"; // TASKS.csv #1039; COLLAR_ZONE_M: #1454
 import { piercePoints as surfacePierces } from "../lib/piercePoints.js"; // TASKS.csv #1009
 
@@ -51,8 +52,16 @@ function solveAzDipToTarget(from, to) {
 // the target typed or handed over is saved on the new hole (its Target panel opened empty and had to be typed again), and the
 // solve runs PAST_TARGET_M beyond it like that panel's default (the first solve ended the hole on the target, 14 m into the zone)
 const PAST_TARGET_M = 30;
-export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars, noTerrain, presetTarget = null }) {
+export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars, noTerrain, presetTarget = null, epsg = null }) {
   const [draft, setDraft] = useState({ name: "", x: "", y: "", z: "", azimuth: 0, dip: -60, length: 100 });
+  // TASKS.csv #1729 (review #1645, Copley) — which north the typed azimuth is from. Stored holes stay grid (every check and the rig
+  // sheet read grid); a true or magnetic entry is converted at the collar and kept beside it. Copley designs in true north: typed as
+  // grid, its hole turned 1.45 deg and the as-drilled comparison counted the convergence as drift.
+  const [azRef, setAzRef] = useState("grid");
+  const [igrfReady, setIgrfReady] = useState(false);
+  useEffect(() => { if (azRef === "magnetic") loadIgrf().then(() => setIgrfReady(true)).catch(() => {}); }, [azRef]);
+  const today = new Date().toISOString().slice(0, 10);
+  const azOffset = useMemo(() => { if (azRef === "grid") return { offset: 0 }; if (azRef === "magnetic" && !igrfReady) return null; try { return azimuthToGridOffset(azRef, Number(draft.x), Number(draft.y), epsg, today); } catch { return null; } }, [azRef, igrfReady, draft.x, draft.y, epsg, today]);
   const [fromCollarId, setFromCollarId] = useState("");
   const [target, setTarget] = useState({ x: "", y: "", z: "" });
   const lastPreset = useRef(null);
@@ -82,13 +91,16 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
       { x: Number(draft.x), y: Number(draft.y), z: Number(draft.z) },
       { x: Number(target.x), y: Number(target.y), z: Number(target.z) },
     );
-    setDraft((p) => ({ ...p, azimuth: Math.round(azimuth * 10) / 10, dip: Math.round(dip * 10) / 10, length: Math.round((distance + PAST_TARGET_M) * 10) / 10 })); // #1456 — past the target
+    const shown = azOffset ? wrap360(azimuth - azOffset.offset) : azimuth; // #1729 — the solved grid bearing in the chosen north
+    setDraft((p) => ({ ...p, azimuth: Math.round(shown * 10) / 10, dip: Math.round(dip * 10) / 10, length: Math.round((distance + PAST_TARGET_M) * 10) / 10 })); // #1456 — past the target
     setUpward(dip > 0); // #1557 — a target above the collar: an upward hole, said
   };
-  const canAdd = draft.x !== "" && draft.y !== "" && draft.z !== "" && !isNaN(Number(draft.x)) && !isNaN(Number(draft.y)) && !isNaN(Number(draft.z)) && !isNaN(Number(draft.azimuth)) && !isNaN(Number(draft.dip)) && Number(draft.length) > 0;
+  const canAdd = draft.x !== "" && draft.y !== "" && draft.z !== "" && !isNaN(Number(draft.x)) && !isNaN(Number(draft.y)) && !isNaN(Number(draft.z)) && !isNaN(Number(draft.azimuth)) && !isNaN(Number(draft.dip)) && Number(draft.length) > 0 && !!azOffset;
+  const gridAz = azOffset ? Math.round(wrap360(Number(draft.azimuth) + azOffset.offset) * 100) / 100 : null;
   const submit = () => {
     if (!canAdd) return;
-    onAdd({ name: draft.name.trim() || undefined, x: Number(draft.x), y: Number(draft.y), z: Number(draft.z), azimuth: Number(draft.azimuth), dip: Number(draft.dip), length: Number(draft.length),
+    onAdd({ name: draft.name.trim() || undefined, x: Number(draft.x), y: Number(draft.y), z: Number(draft.z), azimuth: azRef === "grid" ? Number(draft.azimuth) : gridAz, dip: Number(draft.dip), length: Number(draft.length),
+      ...(azRef !== "grid" ? { azimuthEntered: { value: Number(draft.azimuth), ref: azRef, date: today } } : {}), // #1729
       ...(targetReady ? { target: { x: Number(target.x), y: Number(target.y), z: Number(target.z) }, pastTargetM: PAST_TARGET_M } : {}) }); // #1456 — the target goes with the hole
     setDraft({ name: "", x: "", y: "", z: "", azimuth: 0, dip: -60, length: 100 });
     setFromCollarId(""); setTarget({ x: "", y: "", z: "" });
@@ -116,6 +128,12 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
         <NumField label={tr("Az°")} value={draft.azimuth} onChange={(v) => set("azimuth", v)} />
         <NumField label={tr("Dip°")} value={draft.dip} onChange={(v) => set("dip", v)} />
         <NumField label={tr("Length m")} value={draft.length} onChange={(v) => set("length", v)} />
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{/* #1729 */}
+        <label>{tr("Azimuth from")} <select value={azRef} onChange={(e) => setAzRef(e.target.value)} aria-label={tr("North reference of the azimuth")} style={{ fontSize: "var(--font-size-xs)" }}>
+          <option value="grid">{tr("grid north")}</option><option value="true">{tr("true north")}</option><option value="magnetic">{tr("magnetic north (today)")}</option>
+        </select></label>
+        {azRef !== "grid" && (azOffset && gridAz != null ? <span>{tr("= {g}° grid at this collar", { g: gridAz })}</span> : <span style={{ color: "var(--color-warn-text)" }}>{tr("Enter the collar and a project CRS to convert it.")}</span>)}
       </div>
       <div style={{ display: "flex", gap: 5 }}>
         <button
@@ -277,10 +295,11 @@ export function PlannedHoleRow({ hole, onUpdate, onRemove, collars, survey }) { 
             <NumField label={tr("Elev")} value={hole.z} onChange={(v) => onUpdate(hole.id, { z: v })} />
           </div>
           <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
-            <NumField label={tr("Az°")} value={hole.azimuth} onChange={(v) => onUpdate(hole.id, { azimuth: v })} />
+            <NumField label={tr("Az° grid")} value={hole.azimuth} onChange={(v) => onUpdate(hole.id, { azimuth: v, azimuthEntered: undefined })} />{/* #1729 — stored grid; an edit here is grid */}
             <NumField label={tr("Dip°")} value={hole.dip} onChange={(v) => onUpdate(hole.id, { dip: v })} />
             <NumField label={tr("Length m")} value={hole.length} onChange={(v) => onUpdate(hole.id, { length: v })} />
           </div>
+          {hole.azimuthEntered && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Entered as {v}° {ref} ({date}).", { v: hole.azimuthEntered.value, ref: tr(hole.azimuthEntered.ref === "true" ? "true north" : "magnetic north"), date: hole.azimuthEntered.date })}</div>}
           <textarea placeholder={tr("Notes")} value={hole.notes || ""} onChange={(e) => onUpdate(hole.id, { notes: e.target.value })} rows={2} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 6px", fontSize: "var(--font-size-sm)", color: "var(--color-text)", resize: "vertical" }} />
           {/* TASKS.csv #119 - drill-to-target solver and planned-vs-as-drilled comparison. `raw` is
               this row's already-built trace, so the panel never desurveys the planned hole again. */}
