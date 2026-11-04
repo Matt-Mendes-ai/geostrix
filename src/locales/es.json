@@ -7090,5 +7090,7 @@
   "Azimuth (grid)": "Azimut (cuadrícula)",
   "* From the shallowest survey station: the collar record has none for that value.": "* De la estación de levantamiento más somera: el registro del collar no tiene ese valor.",
   "No below-detection results in this element, so its lowest value ({dl} {unit}) is not a detection limit: every pair counts.": "Este elemento no tiene resultados bajo el límite de detección, así que su valor más bajo ({dl} {unit}) no es un límite de detección: todos los pares cuentan.",
-  "No drillholes to export: load collars first.": "No hay sondajes que exportar: cargue primero los collares."
+  "No drillholes to export: load collars first.": "No hay sondajes que exportar: cargue primero los collares.",
+  "{n} surface sample(s) have no elevation and there is no terrain: drawn flat at {z} m (the median collar or sample elevation). Load a terrain (Maps > Terrain) to place them on the ground.": "{n} muestra(s) superficial(es) no tienen elevación y no hay terreno: se dibujan planas a {z} m (la elevación mediana de los collares o de las muestras). Cargue un terreno (Mapas > Terreno) para colocarlas sobre el suelo.",
+  "Classes are computed on all {n} samples; {m} of them are not drawn (no elevation, off the terrain).": "Las clases se calculan sobre las {n} muestras; {m} de ellas no se dibujan (sin elevación, fuera del terreno)."
 }

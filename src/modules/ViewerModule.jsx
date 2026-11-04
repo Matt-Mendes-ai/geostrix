@@ -563,7 +563,9 @@ function voxelFitCorners(models, o) {
   return out;
 }
 // TASKS.csv #1618 — two placed surface-sample lists put the same samples at the same heights (a draped copy is new each time)
-const samePlacement = (a, b) => a.length === b.length && a.every((r, i) => r === b[i] || (r.zDraped && b[i].zDraped && r.z === b[i].z && r.x === b[i].x && r.y === b[i].y && r.sample_id === b[i].sample_id));
+const samePlacement = (a, b) => a.length === b.length && a.every((r, i) => r === b[i] || ((r.zDraped || r.zFlat) && (b[i].zDraped || b[i].zFlat) && r.zFlat === b[i].zFlat && r.z === b[i].z && r.x === b[i].x && r.y === b[i].y && r.sample_id === b[i].sample_id));
+// TASKS.csv #1819 — a placed copy (draped or flat) -> the store's sample, so classes computed on every sample find the drawn ones
+const placedSrc = new WeakMap();
 const POINT_PROTO = { sphere: PROTO_SPHERE_10, cube: PROTO_CUBE, disc: PROTO_DISC_FLAT, pillar: PROTO_PILLAR };
 
 // TASKS.csv #695 — what a batched (never drawn) member keeps of its material; see buildLayerBatches
@@ -816,7 +818,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const surfaceElementUnits = useMemo(() => Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit])), [surfaceElements]);
   const surfaceSampleTip = (row) => {
     const vals = Object.entries(row.values || {}).map(([sym, v]) => `${sym}: ${v}${surfaceElementUnits[sym] || "ppm"}`).join("\n");
-    return `Surface sample${row.sample_id ? ` ${row.sample_id}` : ""} (${row.medium})\n${vals}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z${row.zDraped ? " (from the terrain — no elevation in the file)" : ""}`; // #606
+    return `Surface sample${row.sample_id ? ` ${row.sample_id}` : ""} (${row.medium})\n${vals}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z${row.zDraped ? " (from the terrain — no elevation in the file)" : row.zFlat ? " (flat at the plan elevation — no elevation in the file and no terrain)" : ""}`; // #606, #1818
   };
 
   const mountRef = useRef(null);
@@ -1213,6 +1215,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // TASKS.csv #1618 (review #1497, Lawyers) — a terrain edit that moves no sample (its colour, opacity, visibility) hands back
   // the SAME array: one rock chip without a z made every terrain change a new array, and this list feeds the scene build, so
   // the terrain eye froze the window 33 s rebuilding every drillhole (a regression of #435).
+  // TASKS.csv #1818 (review #1646, Kodiak) — with NO terrain a sample without a z is drawn flat at a plan elevation (the map layers'
+  // rule, store.jsx #1438: median collar z, else the samples' own), not dropped: Kodiak's 2,705 soils (no Z column, no terrain
+  // offline) were invisible on every tab. Off a loaded terrain (or over its fill) a sample stays unplaced, as before.
+  const surfaceFlatZ = useMemo(() => {
+    const med = (rows) => { const z = rows.map((r) => r.z).filter(Number.isFinite).sort((x, y) => x - y); return z.length ? z[z.length >> 1] : null; };
+    return med(collars) ?? med(surfaceSamples) ?? 0;
+  }, [collars, surfaceSamples]);
   const placedRef = useRef(null);
   const placedSurfaceSamples = useMemo(() => {
     if (surfaceSamples.every((r) => Number.isFinite(r.z))) return surfaceSamples;
@@ -1220,28 +1229,40 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const next = surfaceSamples.map((r) => {
       if (Number.isFinite(r.z)) return r;
       const z = b ? terrainGroundAt(terrain, r.x, r.y) : NaN; // TASKS.csv #927 — over the terrain's fill a sample stays unplaced
-      return Number.isFinite(z) ? { ...r, z, zDraped: true } : null;
+      const out = Number.isFinite(z) ? { ...r, z, zDraped: true } : !b ? { ...r, z: surfaceFlatZ, zFlat: true } : null;
+      if (out) placedSrc.set(out, r);
+      return out;
     }).filter(Boolean);
     const prev = placedRef.current;
     if (prev && prev.src === surfaceSamples && samePlacement(prev.out, next)) return prev.out;
     placedRef.current = { src: surfaceSamples, out: next };
     return next;
-  }, [surfaceSamples, terrain]);
+  }, [surfaceSamples, terrain, surfaceFlatZ]);
   const surfaceSamplesUnplaced = surfaceSamples.length - placedSurfaceSamples.length;
+  const surfaceSamplesFlat = useMemo(() => placedSurfaceSamples.reduce((n, r) => n + (r.zFlat ? 1 : 0), 0), [placedSurfaceSamples]);
+  // #1819 — each drawn sample's index in surfaceSamples (the anomaly classes are per surfaceSamples index)
+  const surfaceDrawnIdx = useMemo(() => {
+    if (placedSurfaceSamples === surfaceSamples) return null;
+    const at = new Map(surfaceSamples.map((r, i) => [r, i]));
+    return placedSurfaceSamples.map((r) => at.get(placedSrc.get(r) || r) ?? -1);
+  }, [surfaceSamples, placedSurfaceSamples]);
   // TASKS.csv #843 — colour by an element's anomaly classes or a pathfinder index (null = by medium, as before);
   // its settings live in layerStyles.surface_anomaly, so they are saved with the view and in themes
   const [surfaceAnomaly, setSurfaceAnomaly] = useState(null);
   useEffect(() => {
     const cfg = layerStyles.surface_anomaly;
-    if (!cfg || cfg.mode === "medium" || !placedSurfaceSamples.length) { setSurfaceAnomaly(null); return undefined; }
+    if (!cfg || cfg.mode === "medium" || !surfaceSamples.length) { setSurfaceAnomaly(null); return undefined; }
     let alive = true;
     import("../lib/anomalyMap.js").then((m) => {
       if (!alive) return;
-      const a = m.anomalyClasses(placedSurfaceSamples, cfg, { units: surfaceElementUnits, mapLayers, thresholds: geochemThresholds });
+      // TASKS.csv #1819 (review #1646, Kodiak) — classes on EVERY sample, drawn or not: on the drawn ones only, Kodiak's legend said
+      // 'within each sampling medium' over 56 rock chips while the 2,705 soils (no elevation) were left out of the classes and the CSV
+      const a = m.anomalyClasses(surfaceSamples, cfg, { units: surfaceElementUnits, mapLayers, thresholds: geochemThresholds });
+      if (a && surfaceSamplesUnplaced > 0) a.notes.push({ text: "Classes are computed on all {n} samples; {m} of them are not drawn (no elevation, off the terrain).", params: { n: surfaceSamples.length, m: surfaceSamplesUnplaced } });
       setSurfaceAnomaly(a ? { ...a, legendGroup: m.anomalyLegendGroup(a) } : null);
     }).catch(() => {});
     return () => { alive = false; };
-  }, [layerStyles.surface_anomaly, placedSurfaceSamples, surfaceElementUnits, mapLayers, geochemThresholds]);
+  }, [layerStyles.surface_anomaly, surfaceSamples, surfaceSamplesUnplaced, surfaceElementUnits, mapLayers, geochemThresholds]);
   const mapAnchorKey = useMemo(() => JSON.stringify([(mapLayers || []).map((l) => l.bbox), (surfaceStructures || []).map((st) => st.rows?.length || 0)]), [mapLayers, surfaceStructures]);
   // TASKS.csv #435 — same idea for terrain, raster drapes, boundaries and OMF objects: the geometry rebuild
   // reads them ONLY for its no-collar camera anchor, so it depends on this extent signature instead of the
@@ -4540,7 +4561,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const buildGeophysPtsRef = useRef(buildGeophysPts);
   buildGeophysPtsRef.current = buildGeophysPts;
 
-  const surfaceInputs = [placedSurfaceSamples, layerVisible.surface_samples, layerStyles.surface_samples, surfaceAnomaly]; // #635 style, #843 anomaly map
+  const surfaceInputs = [placedSurfaceSamples, layerVisible.surface_samples, layerStyles.surface_samples, surfaceAnomaly, surfaceDrawnIdx]; // #635 style, #843 anomaly map
   const surfaceBuiltRef = useRef(null);
   const buildSurfaceSamples = () => {
     const g = layerGroupsRef.current.surface_samples;
@@ -4560,12 +4581,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const radiusOf = symbolRadiusByMedium(placedSurfaceSamples); // #1346 — and each medium capped by its own spacing
     placedSurfaceSamples.forEach((row, i) => {
       try {
-        const cl = an ? an.classOf[i] : -2;
+        const j = surfaceDrawnIdx ? surfaceDrawnIdx[i] : i; // #1819 — classes are per surfaceSamples index
+        const cl = an ? (j >= 0 ? an.classOf[j] : -1) : -2;
         const color = an ? (cl >= 0 ? an.classes[cl].color : an.noDataColor) : (st.color || colorForMedium(row.medium));
         const mesh = new THREE.Mesh(proto, new THREE.MeshLambertMaterial({ color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide })); // #312
-        mesh.scale.setScalar(radiusOf(row.medium) * st.size * (an?.isolated[i] ? 0.55 : 1)); // #843 — an isolated anomaly is drawn small; #849 size
+        mesh.scale.setScalar(radiusOf(row.medium) * st.size * (an?.isolated[j] ? 0.55 : 1)); // #843 — an isolated anomaly is drawn small; #849 size
         mesh.position.set(row.x - ox, row.z - oz, -(row.y - oy));
-        mesh.userData = { row, tip: surfaceSampleTip(row) + (an ? `\n${cl >= 0 ? tr(an.classes[cl].label) : tr("no value")}${an.isolated[i] ? ` · ${tr("isolated anomaly")}` : ""}` : "") };
+        mesh.userData = { row, tip: surfaceSampleTip(row) + (an ? `\n${cl >= 0 ? tr(an.classes[cl].label) : tr("no value")}${an.isolated[j] ? ` · ${tr("isolated anomaly")}` : ""}` : "") };
         g.add(mesh);
       } catch (err) { errors.push(err.message); }
     });
@@ -7477,9 +7499,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               { label: tr("Zoom to"), onClick: () => zoomToObject(layerGroupsRef.current.surface_samples) },
               { label: tr("Style (colour, size, shape)…"), onClick: () => openLayerStyle("surface_samples", "Surface samples") },
               // #1025 — every element with its unit, the detection flags, the sample's own columns and its anomaly class
-              "-", ...overlayExportItems("surface_samples", async () => (await overlayLib()).surfaceSampleFeatures(surfaceSamples, surfaceElements, surfaceAnomaly ? { result: surfaceAnomaly, drawn: placedSurfaceSamples } : null), {
+              "-", ...overlayExportItems("surface_samples", async () => (await overlayLib()).surfaceSampleFeatures(surfaceSamples, surfaceElements, surfaceAnomaly ? { result: surfaceAnomaly, drawn: surfaceSamples /* #1819 — classes per sample */ } : null), {
                 kml: { nameOf: (f) => f.attributes.sample_id, colorOf: (f) => (f.attributes.anomalous ? "#d7301f" : "#7a7a7a") },
-                csvRows: async () => (await overlayLib()).surfaceSampleRows(surfaceSamples, surfaceElements, surfaceAnomaly ? { result: surfaceAnomaly, drawn: placedSurfaceSamples } : null) }),
+                csvRows: async () => (await overlayLib()).surfaceSampleRows(surfaceSamples, surfaceElements, surfaceAnomaly ? { result: surfaceAnomaly, drawn: surfaceSamples } : null) }),
               "-", { label: tr("Import or edit samples — Geochem tab"), onClick: () => goToModule("geochem") }])}>{/* #1492 — the row too, not only the heading */}<div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Surface samples")}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 4 }}>
               <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setLayerVisible((p) => ({ ...p, surface_samples: !p.surface_samples }))} style={{ cursor: "pointer", color: layerVisible.surface_samples ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>
@@ -7489,12 +7511,17 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{tr(surfaceSamples.length === 1 ? "{n} sample" : "{n} samples", { n: surfaceSamples.length })}</span>
               <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geochem"), tr("Import more assays, or edit them, in the Geochem tab"))} />
             </div></div>
-            {surfaceSamplesUnplaced > 0 && ( // TASKS.csv #606
+            {surfaceSamplesFlat > 0 && ( // TASKS.csv #1818
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", padding: "2px 2px 4px", lineHeight: 1.4 }}>
-                {tr(terrain ? "{n} surface sample(s) have no elevation and lie outside the terrain — extend the DEM to cover them." : "{n} surface sample(s) have no elevation and no terrain to sit on — load a DEM or SRTM terrain (Geophysics tab) and they are placed on it.", { n: surfaceSamplesUnplaced })}
+                {tr("{n} surface sample(s) have no elevation and there is no terrain: drawn flat at {z} m (the median collar or sample elevation). Load a terrain (Maps > Terrain) to place them on the ground.", { n: surfaceSamplesFlat, z: Math.round(surfaceFlatZ) })}
               </div>
             )}
-            <Suspense fallback={null}><SurfaceAnomalyControls cfg={layerStyles.surface_anomaly} setCfg={(cfg) => setLayerStyles((p) => ({ ...p, surface_anomaly: cfg }))} surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} mapLayers={mapLayers} thresholds={geochemThresholds} result={surfaceAnomaly} drawn={placedSurfaceSamples} /></Suspense>{/* TASKS.csv #843 / #854 */}
+            {surfaceSamplesUnplaced > 0 && ( // TASKS.csv #606
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", padding: "2px 2px 4px", lineHeight: 1.4 }}>
+                {tr("{n} surface sample(s) have no elevation and lie outside the terrain — extend the DEM to cover them.", { n: surfaceSamplesUnplaced }) /* #1818 — with no terrain they are drawn flat (above) */}
+              </div>
+            )}
+            <Suspense fallback={null}><SurfaceAnomalyControls cfg={layerStyles.surface_anomaly} setCfg={(cfg) => setLayerStyles((p) => ({ ...p, surface_anomaly: cfg }))} surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} mapLayers={mapLayers} thresholds={geochemThresholds} result={surfaceAnomaly} drawn={surfaceSamples} /* #1819 — the class CSV holds every sample */ /></Suspense>{/* TASKS.csv #843 / #854 */}
             {!surfaceAnomaly && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "2px 2px 8px" }}>
               {Array.from(new Set(surfaceSamples.map((s) => s.medium))).map((m) => (
                 <div key={m} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
