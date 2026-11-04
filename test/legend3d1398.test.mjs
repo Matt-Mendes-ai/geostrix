@@ -39,6 +39,6 @@ test("the overlay allocates its rows and the Figure count says how many of them 
   assert.match(ov, /const \{ rows: shown, total \} = allocateLegendRows\(legendGroups, MAX_LEGEND_ITEMS\);/);
   assert.doesNotMatch(ov, /a\.g\.items\.length - b\.g\.items\.length/);
   const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(vm, /numericLayerLegendGroups\(\{ layers, layerVisible, isRowVisible, colorOf: numericLayerColor \}\)/);
+  assert.match(vm, /numericLayerLegendGroups\(\{ layers, layerVisible, isRowVisible, colorOf: numericLayerColor(, symbology: numericSymbology)? \}\)/); // symbology: #1699
   assert.match(readFileSync(new URL("../src/modules/viewer/ViewerParts.jsx", import.meta.url), "utf8"), /tr\("\{n\} of \{m\} shown"/);
 });

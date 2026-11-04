@@ -1990,7 +1990,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       ...categoryLegendGroups({ keys: CATEGORY_LAYER_KEYS, layers, layerVisible, hidden: categoryFilter, visibleHoles, singleColor, labelFor: effectiveLabel, colorFor: effectiveColor, placed: new Set(collars.map((c) => String(c.hole_id))) }), // #1813
       ...assayLegendGroups({ assays, assayElements, assayVisible: assayVisible && collars.length > 0 /* #1813 */, assayDisplayElements, assayStyle }),
       ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), // #1236
-      ...numericLayerLegendGroups({ layers, layerVisible, isRowVisible, colorOf: numericLayerColor }), // #1398 — the RQD / recovery / SG / mag susc ramps
+      ...numericLayerLegendGroups({ layers, layerVisible, isRowVisible, colorOf: numericLayerColor, symbology: numericSymbology }), // #1398 — the RQD / recovery / SG / mag susc ramps
     ];
     // TASKS.csv #843 / #948 — the surface samples as the view colours them (the anomaly map's rule and classes, one colour,
     // or by medium), then the Surface Geology map layers and the boundaries
