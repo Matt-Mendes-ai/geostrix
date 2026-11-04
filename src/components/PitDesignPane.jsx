@@ -21,7 +21,9 @@ const warn = { ...note, color: "var(--color-warn-text-strong)", marginTop: 4 };
 const num = { ...smallSel, width: 84 };
 const big = (v) => new Intl.NumberFormat(undefined, { notation: "compact", maximumSignificantDigits: 3 }).format(v);
 const G_PER_OZ = 31.1034768;
-const EMPTY = { benchH: "", berm: "", batterDeg: "", datum: "" };
+const EMPTY = { benchH: "", berm: "", batterDeg: "", datum: "", rampAz: "", rampTurn: "clockwise", rampGrade: "", rampW: "", sectors: {} }; // ramp*: #1948; sectors: #1952
+const SECTOR_GRID = [["NW", "N", "NE"], ["W", null, "E"], ["SW", "S", "SE"]];
+const SECTORS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
 let kept = null; // #1356 — the last result (with its strings, for export) outlives the pane this session
 
 // surfaces: the project's generated surfaces (pit shells in, designs out); worldPositionsOf(id) -> Float64Array of E, N, Z for a
@@ -41,11 +43,19 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
   const [res, setRes] = useState(() => (kept && surfaces.some((s) => s.id === kept.designId) ? kept : null));
   const [hideEarlier, setHideEarlier] = useState(true);
   const [largestOnly, setLargestOnly] = useState(true); // #1899 — a shell of several separate pits: design the largest alone
+  const [showSectors, setShowSectors] = useState(() => Object.values(kept?.inputs?.sectors || {}).some((s) => s && (s.batterDeg || s.berm))); // #1952
+  const setSector = (k, key, val) => { setF((p) => ({ ...p, sectors: { ...(p.sectors || {}), [k]: { ...(p.sectors?.[k] || {}), [key]: val } } })); setMsg(null); };
+  // #1952 — the sectors typed, as numbers (blank: the overall); #1948 — the ramp, when all four of its numbers are typed
+  const sectorsIn = (() => { const out = {}; SECTORS.forEach((k) => { const s = f.sectors?.[k] || {}, b = Number(s.batterDeg), w = Number(s.berm), o = {}; if (s.batterDeg !== "" && s.batterDeg != null && b > 0 && b < 90) o.batterDeg = b; if (s.berm !== "" && s.berm != null && w >= 0) o.berm = w; if (Object.keys(o).length) out[k] = o; }); return Object.keys(out).length ? out : null; })();
+  const sectorBad = SECTORS.some((k) => { const s = f.sectors?.[k] || {}; return (s.batterDeg !== "" && s.batterDeg != null && !(Number(s.batterDeg) > 0 && Number(s.batterDeg) < 90)) || (s.berm !== "" && s.berm != null && !(Number(s.berm) >= 0)); });
+  const rampTyped = [f.rampAz, f.rampGrade, f.rampW].some((x) => x !== "" && x != null);
+  const rampIn = rampTyped && Number.isFinite(Number(f.rampAz)) && f.rampAz !== "" && Number(f.rampGrade) > 0 && Number(f.rampW) > 0 ? { azimuthDeg: Number(f.rampAz), turn: f.rampTurn === "anticlockwise" ? "anticlockwise" : "clockwise", gradientPct: Number(f.rampGrade), widthM: Number(f.rampW) } : null;
+  const rampBad = rampTyped && !rampIn;
   const pitCount = Number(pit?.params?.pitCount) || 1;
   const job = useRef(null);
   const set = (k) => (e) => { setF((p) => ({ ...p, [k]: e.target.value })); setMsg(null); };
   const v = (k) => Number(f[k]);
-  const missing = !pit || !(v("benchH") > 0) || !(v("berm") >= 0) || f.berm === "" || !(v("batterDeg") > 0 && v("batterDeg") < 90);
+  const missing = !pit || !(v("benchH") > 0) || !(v("berm") >= 0) || f.berm === "" || !(v("batterDeg") > 0 && v("batterDeg") < 90) || sectorBad || rampBad; // sectorBad: #1952; rampBad: #1948
   const reach = !missing ? v("benchH") / Math.tan((v("batterDeg") * Math.PI) / 180) + v("berm") : null;
   const interRamp = reach != null ? (Math.atan(v("benchH") / reach) * 180) / Math.PI : null;
   const shellSlope = Number(pit?.params?.inputs?.slopeDeg);
@@ -71,7 +81,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
   const run = async () => {
     const positions = worldPositionsOf?.(pit.id);
     if (!positions) { setMsg(tr("The pit's mesh is not in the view: show it and try again.")); return; }
-    const inputs = { benchH: v("benchH"), berm: v("berm"), batterDeg: v("batterDeg"), datum: f.datum === "" ? 0 : Number(f.datum) || 0 };
+    const inputs = { benchH: v("benchH"), berm: v("berm"), batterDeg: v("batterDeg"), datum: f.datum === "" ? 0 : Number(f.datum) || 0, ...(sectorsIn ? { sectors: sectorsIn } : {}), ...(rampIn ? { ramp: rampIn } : {}) }; // sectors: #1952; ramp: #1948
     const opts = { ...inputs, cutoff: Number(pit.params?.cutoffGrade) || Infinity, density: Number(pit.params?.inputs?.density) || 1, largestOnly: pitCount > 1 && largestOnly && !area, areaPoly: area ? area.vertices.map((q) => [q[0], q[1]]) : null, economics: byIn && byModel ? { ...pit.params.inputs, unit: unit || pit.params.inputs.unit } : null /* #1917 */ }; // areaPoly: #1916
     setBusy(true); setMsg(null);
     const t0 = performance.now();
@@ -85,7 +95,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
       if (r.benches.length === 1 && !r.daylights && r.faceRun < r.cell) { setMsg(tr("One bench only: a face run of {r} m is narrower than the {c} m design grid, so the walls could not be drawn. Use a flatter face, a taller bench or a berm.", { r: r.faceRun.toFixed(2), c: r.cell.toFixed(1) })); return; } // #1902
       const seconds = Math.round((performance.now() - t0) / 100) / 10;
       if (hideEarlier) designs.filter((s) => s.visible).forEach((s) => onToggle?.(s.id));
-      const name = tr("Pit design: {pit}, {h} m benches, {b} m berms, {a}°", { pit: String(pit.name).replace(/^Pit shell: /, ""), h: inputs.benchH, b: inputs.berm, a: inputs.batterDeg });
+      const name = tr("Pit design: {pit}, {h} m benches, {b} m berms, {a}°{sec}{ramp}", { pit: String(pit.name).replace(/^Pit shell: /, ""), h: inputs.benchH, b: inputs.berm, a: inputs.batterDeg, sec: sectorsIn ? tr(" (by sector)") : "", ramp: rampIn ? tr(", {w} m ramp at {g} %", { w: rampIn.widthM, g: rampIn.gradientPct }) : "" }); // sec: #1952; ramp: #1948
       const metalFactor = Number(pit.params?.containedMetal) && Number(pit.params?.oreTonnes) ? null : null; // the shell's metal unit is reported, not recomputed
       const designId = onAdd({
         name, positions: r.positions, indices: r.indices, type: "pit_design", closure: null, color: "#d9a441", tag: "pitdesign",
@@ -93,6 +103,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
         params: { tool: "benched pit design (bottom-up dilation on a grid)", pit: pit.name, pitId: pit.id, blockModel: model?.name || null, gradeUnit: unit, inputs, interRampDeg: +r.interRampDeg.toFixed(1), shellSlopeDeg: Number.isFinite(shellSlope) ? shellSlope : null,
           benches: benchTableRows(r.benches, unit), floorRL: r.floorRL, crestRL: r.crestRL, oreTonnes: Math.round(r.totals.oreT), wasteTonnes: Math.round(r.totals.wasteT), stripRatio: r.totals.stripRatio == null ? null : +r.totals.stripRatio.toFixed(2),
           meanGrade: r.totals.meanGrade == null ? null : +r.totals.meanGrade.toPrecision(4), designCellM: +r.cell.toFixed(2), coarsened: r.coarsened, groundFrom: r.groundSource, strings: r.strings.length,
+          sectorsUsed: r.sectorsUsed || null /* #1952 */, ramp: r.ramp ? { ...r.ramp, rockT: Math.round(r.ramp.rockT) } : null /* #1948 */,
           caution: "geometric design on a conceptual shell: no ramp, no slope by sector, no dilution or scheduling; not a Mineral Reserve or Resource", generatedAt: new Date().toISOString(), metalFactor },
       });
       kept = { ...r, inputs, seconds, designId, pitName: pit.name, unit, shell: pit.params || {}, modelMissing: !model, areaName: area?.name || null };
@@ -138,6 +149,29 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
         {field("berm", tr("Berm width (m)"), { title: tr("The catch bench left between one face's crest and the next face's toe.") })}
         {field("batterDeg", tr("Face angle (°)"), { max: 89, title: tr("The angle of each bench face (batter), steeper than the overall slope.") })}
         {field("datum", tr("Bench datum (m)"), { placeholder: "0", title: tr("Bench floors sit at this elevation plus whole bench heights. Blank: multiples of the bench height.") })}
+        {/* TASKS.csv #1952 — a face angle and a berm width per wall sector: blank takes the overall */}
+        <div style={{ ...note, marginTop: 2 }}><button onClick={() => setShowSectors((s) => !s)} style={linkBtn} aria-expanded={showSectors}>{showSectors ? tr("Hide the face and berm by wall sector") : tr("Face and berm by wall sector…")}</button></div>
+        {showSectors && (
+          <div style={{ marginTop: 4 }}>
+            <div style={note}>{tr("The wall on each side of the pit: face angle (°) and berm width (m). Blank takes the overall. From the geotechnical domains, not a guess.")}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 3, marginTop: 4 }}>
+              {SECTOR_GRID.flat().map((k, i) => (k
+                ? <div key={k} style={{ ...note, display: "flex", alignItems: "center", gap: 2, minWidth: 0 }}><span style={{ width: 20, textAlign: "right", flexShrink: 0 }}>{k}</span>
+                    <input type="number" min={1} max={89} step="any" value={f.sectors?.[k]?.batterDeg ?? ""} onChange={(e) => setSector(k, "batterDeg", e.target.value)} placeholder={f.batterDeg || "°"} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Face angle of the {k} wall", { k })} />
+                    <input type="number" min={0} step="any" value={f.sectors?.[k]?.berm ?? ""} onChange={(e) => setSector(k, "berm", e.target.value)} placeholder={f.berm || "m"} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Berm width of the {k} wall", { k })} /></div>
+                : <span key={`c${i}`} style={{ ...note, textAlign: "center", alignSelf: "center" }}>{tr("° / m")}</span>))}
+            </div>
+            {sectorBad && <div style={warn}>{tr("A sector's face angle must be between 0 and 90°, its berm 0 or more.")}</div>}
+          </div>
+        )}
+        {/* TASKS.csv #1948 — a ramp: where the road reaches the floor, which way it turns, its gradient and width */}
+        <div style={{ ...label, marginTop: 8 }}>{tr("Ramp (optional)")}</div>
+        <div style={note}>{tr("A haul road spiralling up the wall from the pit floor: the bearing from the pit's centre where it reaches the floor, the way it turns climbing, its gradient and width. Each bench's berm is widened by the road, so the design's waste includes it. One spiral: where a wall is too short for the run, the ramp stops and says a switchback is needed.")}</div>
+        {field("rampAz", tr("Reaches the floor at (° from the pit centre)"), { min: 0, max: 360, placeholder: tr("none") })}
+        <label style={row}>{tr("Turns, climbing")}<select value={f.rampTurn || "clockwise"} onChange={set("rampTurn")} style={{ ...smallSel, width: 120 }} aria-label={tr("Ramp turn")}><option value="clockwise">{tr("clockwise")}</option><option value="anticlockwise">{tr("anticlockwise")}</option></select></label>
+        {field("rampGrade", tr("Gradient (%)"), { placeholder: tr("none") })}
+        {field("rampW", tr("Road width (m)"), { placeholder: tr("none") })}
+        {rampBad && <div style={warn}>{tr("A ramp needs its floor bearing, a gradient above 0 and a width above 0.")}</div>}
         {/* TASKS.csv #1916 — a design area: a closed design string; the design grid then covers that part of the shell alone */}
         {areas.length > 0 && <label style={row}>{tr("Design area")}<select value={areaId} onChange={(e) => { setAreaId(e.target.value); setMsg(null); }} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Design area (a closed design string)")} title={tr("Only the shell's columns inside this closed string are designed, so the design grid goes to one prospect.")}><option value="">{tr("— the whole shell —")}</option>{areas.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>}
         {predicted && (predicted.facesDrawn
@@ -178,6 +212,11 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
         <div style={{ marginTop: 8, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
           {line(tr("Benches"), tr("{n} ({lo} to {hi} m)", { n: res.benches.length, lo: Math.round(res.floorRL), hi: Math.round(res.crestRL) }))}
           {line(tr("Inter-ramp angle"), `${res.interRampDeg.toFixed(1)}°`)}
+          {res.sectorsUsed && <div style={note}>{tr("By wall (face° / berm m): {list}.", { list: Object.entries(res.sectorsUsed).map(([k, s]) => `${k} ${s.batterDeg}° / ${s.berm}`).join(", ") })}</div>}{/* #1952 */}
+          {res.ramp && line(tr("Ramp"), tr("{L} m at {g} %, {w} m wide, over {n} bench(es)", { L: Math.round(res.ramp.lengthM).toLocaleString(), g: res.ramp.gradientPct, w: res.ramp.widthM, n: res.ramp.benches }))}{/* #1948 */}
+          {res.ramp && line(tr("Rock under the road"), `${big(res.ramp.rockT)} t`)}
+          {res.ramp?.needsSwitchback && <div style={warn}>{tr("The wall at {rl} m is too short for a {g} % run at this width: the ramp stops there and a switchback is needed, which is not drawn.", { rl: Math.round(res.ramp.stoppedAtRL), g: res.ramp.gradientPct })}</div>}
+          {res.ramp && !res.ramp.needsSwitchback && res.ramp.benches < res.benches.length && <div style={note}>{tr("The ramp climbs {n} of the {m} benches: the benches above it have no road.", { n: res.ramp.benches, m: res.benches.length })}</div>}
           {/* #1929 — when the largest part alone was designed, the comparison is that part's, not the whole shell's */}
           {line(cmpLabel(tr("Ore (shell)"), tr("Ore (largest pit)")), `${big(res.totals.oreT)} t (${big(Number(cmp.oreTonnes) || 0)} t)`)}
           {line(cmpLabel(tr("Mean grade (shell)"), tr("Mean grade (largest pit)")), `${gradeText(res.totals.meanGrade)} (${gradeText(Number(cmp.meanGrade) || null)})`)}
@@ -215,4 +254,6 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
   );
 }
 const cellStyle = { textAlign: "right", padding: "2px 4px", borderBottom: "1px solid var(--color-border)", whiteSpace: "nowrap" };
+const linkBtn = { background: "none", border: "none", padding: 0, color: "var(--color-accent)", cursor: "pointer", fontSize: "inherit", textDecoration: "underline" }; // #1952
+const label = { fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--color-text-secondary)", marginTop: 6, textTransform: "uppercase", letterSpacing: 0.3 }; // #1948
 const iconBtnStyle = { display: "flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, padding: 0, background: "transparent", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 };

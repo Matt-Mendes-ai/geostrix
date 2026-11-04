@@ -12,10 +12,23 @@
 //   3. the design surface is that height field cut at the ground; the toe and crest strings of every bench are its contours just
 //      above each toe and just below each crest (lib/contours.js); the bench table counts the rock between the design and the
 //      ground per bench slab, and the ore from the block model's blocks above the shell's cut-off inside the design.
-// It is a geometric design, not a schedule: no ramp, no slope by sector, no dilution. World E, N, Z; pure, runs in a worker.
+// It is a geometric design, not a schedule: no dilution, no scheduling. World E, N, Z; pure, runs in a worker.
+// TASKS.csv #1952 (Vulcan review) — a face angle and a berm width PER WALL SECTOR (N, NE, E ... as the shell's slope by sector): the
+// dilation of each bench reads the batter and berm for the bearing from the lower toe region to the cell, so the weak wall gets its
+// flatter faces and wider berms and the good wall its steeper ones.
+// TASKS.csv #1948 (Vulcan review) — a RAMP: a haul road of a typed width descending at a typed gradient along the wall, spiralling in
+// the typed turn from where it reaches the pit floor (a bearing from the pit's centre). Bottom-up, each bench's berm is widened by the
+// road's width over the arc the road needs to climb one bench (the run bench height / gradient, measured along the wall at that
+// bench), the road surface descends linearly across that arc, and the next bench's wall stands outside the road, so the design's
+// waste and bench table carry the road's rock. One spiral only: where a bench's wall is shorter than the run (the arc would pass
+// 350 degrees) the ramp stops there and says a switchback is needed; none is drawn.
 import { contourLevel } from "./contours.js";
 
 const RAD = Math.PI / 180;
+export const DESIGN_SECTORS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+const sectorOfBearing = (deg) => DESIGN_SECTORS[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
+const bearingOf = (dx, dy) => (Math.atan2(dx, dy) / RAD + 360) % 360; // 0 = north, 90 = east
+const normDeg = (d) => ((d % 360) + 360) % 360;
 export const MAX_DESIGN_CELLS = 1000000; // #1916: was 250,000; a Treaty Creek shell then got a 9.2 m cell, wider than a 4.7 m face
 
 // TASKS.csv #1916 — the design cell a shell will get at these benches, before the run: the mined box (metres) widened by every
@@ -73,7 +86,7 @@ export const toeRL = (z, benchH, datum = 0) => datum + Math.round((z - datum) / 
 // blocks ({ x, y, z, dx, dy, dz, value, coverage }), cutoff and density from the shell's run; benchH, berm, batterDeg, datum.
 // -> { positions, indices, strings: [{ bench, rl, kind: "toe" | "crest", lines: [[[x, y, z], ...]] }], benches: [{ rl, rockT, oreT, wasteT,
 //      metalU, meanGrade }], totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL }
-export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infinity, density = 1, benchH, berm, batterDeg, datum = 0, maxCells = MAX_DESIGN_CELLS, largestOnly = false, areaPoly = null } = {}) {
+export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infinity, density = 1, benchH, berm, batterDeg, datum = 0, maxCells = MAX_DESIGN_CELLS, largestOnly = false, areaPoly = null, sectors = null, ramp = null } = {}) {
   // TASKS.csv #1916 — a design AREA (areaPoly): a closed polygon [[x, y], ...] in world metres (a design string); only the shell's columns
   // whose centre lies inside it are designed, so one prospect of a district-wide shell gets the whole grid
   let columnsInArea = null;
@@ -106,6 +119,16 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
   if (!shell || !(benchH > 0) || !(berm >= 0) || !(batterDeg > 0 && batterDeg < 90)) return null;
   const tanB = Math.tan(batterDeg * RAD), faceRun = benchH / tanB, reach = faceRun + berm;
   const interRampDeg = Math.atan(benchH / reach) / RAD;
+  // #1952 — the batter and berm for a bearing: the sector's own when typed, else the overall
+  const secParam = (bearing, key, base) => { const s = sectors ? sectors[sectorOfBearing(bearing)] : null, v = s ? Number(s[key]) : NaN; return Number.isFinite(v) && (key === "berm" ? v >= 0 : v > 0 && v < 90) ? v : base; };
+  const batterAt = (b) => secParam(b, "batterDeg", batterDeg), bermAt = (b) => secParam(b, "berm", berm);
+  const faceRunAt = (b) => benchH / Math.tan(batterAt(b) * RAD), reachAt = (b) => faceRunAt(b) + bermAt(b);
+  const sectorsUsed = sectors ? Object.fromEntries(DESIGN_SECTORS.map((k, i) => [k, { batterDeg: batterAt(i * 45), berm: bermAt(i * 45) }])) : null;
+  // #1948 — the ramp's figures; rampW widens the reach wherever the road runs
+  const rampOn = !!ramp && Number(ramp.widthM) > 0 && Number(ramp.gradientPct) > 0 && Number.isFinite(Number(ramp.azimuthDeg));
+  const rampW = rampOn ? Number(ramp.widthM) : 0, rampRun = rampOn ? benchH / (Number(ramp.gradientPct) / 100) : 0, turn = rampOn && ramp.turn === "anticlockwise" ? -1 : 1;
+  const reachMax = Math.max(reach, ...DESIGN_SECTORS.map((k, i) => reachAt(i * 45))) + rampW, reachMin = Math.min(reach, ...DESIGN_SECTORS.map((k, i) => reachAt(i * 45)));
+  const rampState = rampOn ? { theta: normDeg(Number(ramp.azimuthDeg)), arcs: [], lengthM: 0, needsSwitchback: false, stoppedAt: null, centre: [], edgeIn: [], edgeOut: [] } : null;
   // the bench RLs the shell's floors take
   let floorRL = Infinity, floorMax = -Infinity, sx0 = Infinity, sx1 = -Infinity, sy0 = Infinity, sy1 = -Infinity;
   for (let j = 0; j < shell.ny; j++) for (let i = 0; i < shell.nx; i++) {
@@ -121,9 +144,9 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
   // the design grid: the shell's mined box widened by every bench's reach, at about a quarter of the reach
   let gTop = shell.top;
   for (let j = 0; j < shell.ny; j++) for (let i = 0; i < shell.nx; i++) { const g = ground(shell.x0 + i * shell.dx, shell.y0 + j * shell.dy); if (g > gTop) gTop = g; }
-  const nBenchMax = Math.ceil((gTop - floorRL) / benchH) + 1, pad = nBenchMax * reach + Math.max(shell.dx, shell.dy);
+  const nBenchMax = Math.ceil((gTop - floorRL) / benchH) + 1, pad = nBenchMax * reachMax + Math.max(shell.dx, shell.dy); // reachMax: #1952 / #1948
   const bx0 = sx0 - pad, bx1 = sx1 + pad, by0 = sy0 - pad, by1 = sy1 + pad;
-  let cell = Math.max(0.5, Math.min(reach / 4, Math.min(shell.dx, shell.dy))), coarsened = false;
+  let cell = Math.max(0.5, Math.min(reachMin / 4, Math.min(shell.dx, shell.dy))), coarsened = false;
   const dims = () => [Math.max(2, Math.ceil((bx1 - bx0) / cell) + 1), Math.max(2, Math.ceil((by1 - by0) / cell) + 1)];
   let [nx, ny] = dims();
   while (nx * ny > maxCells) { cell *= 1.25; coarsened = true; [nx, ny] = dims(); }
@@ -142,16 +165,29 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
   // bottom-up benches
   const z = new Float64Array(N).fill(NaN); // the design surface where the pit is
   let T = new Uint8Array(N); // the toe region of the bench below, below the ground
-  const R = Math.ceil(reach / cell), dist = new Float64Array(N);
+  const R = Math.ceil(reachMax / cell), dist = new Float64Array(N), bear = new Float32Array(N); // bear: the bearing of the nearest toe cell (#1952)
+  const isRamp = new Uint8Array(N); // #1948 — cells under the road
   const benches = [];
   let daylights = false;
+  // #1948 — the toe region's centre and its radius by 5-degree bin (the farthest boundary cell in that bearing), for the road's arc
+  const toeProfile = () => {
+    let cx = 0, cy = 0, n = 0;
+    for (let c = 0; c < N; c++) if (T[c]) { const j = Math.floor(c / nx), i = c - j * nx; cx += X(i); cy += Y(j); n++; }
+    if (!n) return null;
+    cx /= n; cy /= n;
+    const r = new Float64Array(72).fill(0);
+    for (let c = 0; c < N; c++) { if (!T[c]) continue; const j = Math.floor(c / nx), i = c - j * nx, dx = X(i) - cx, dy = Y(j) - cy, d = Math.hypot(dx, dy), bin = Math.floor(normDeg(bearingOf(dx, dy)) / 5) % 72; if (d > r[bin]) r[bin] = d; }
+    for (let b = 0; b < 72; b++) if (!r[b]) { let l = b, h = b; while (!r[(l + 71) % 72] && l !== b + 72) l--; while (!r[(h + 1) % 72] && h !== b - 72) h++; r[b] = (r[((l + 71) % 72 + 72) % 72] + r[(h + 1) % 72]) / 2 || 0; } // an empty bin takes its neighbours
+    const rAt = (deg) => { const u = normDeg(deg) / 5, b0 = Math.floor(u) % 72, t = u - Math.floor(u); return r[b0] * (1 - t) + r[(b0 + 1) % 72] * t; };
+    return { cx, cy, rAt };
+  };
   for (let k = 0, rl = floorRL; k < 10000; k++, rl += benchH) {
     const next = new Uint8Array(N);
     let any = false;
     if (k === 0) {
       for (let c = 0; c < N; c++) if (fb[c] <= rl + 1e-6) { next[c] = 1; z[c] = rl; any = true; }
     } else {
-      // the plan distance from the lower toe region, out to the reach: from its boundary cells
+      // the plan distance from the lower toe region, out to the reach: from its boundary cells, with the bearing of the nearest
       dist.fill(Infinity);
       for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
         const c = j * nx + i;
@@ -165,16 +201,43 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
             const q = jj * nx + ii;
             if (T[q]) continue;
             const d = Math.hypot(di, dj) * cell;
-            if (d < dist[q]) dist[q] = d;
+            if (d < dist[q]) { dist[q] = d; bear[q] = bearingOf(di, dj); }
           }
         }
       }
+      // #1948 — this bench's stretch of the road: from where it meets the floor below (thetaLo, at rl - benchH) back against the
+      // turn to where it meets this floor (thetaHi, at rl), the run measured along the wall outside the berm
+      let arc = null;
+      if (rampState && !rampState.needsSwitchback) {
+        const prof = toeProfile();
+        if (prof) {
+          const thetaLo = rampState.theta, step = 0.5;
+          let run = 0, sweep = 0;
+          while (run < rampRun && sweep < 350) { const b = thetaLo - turn * (sweep + step / 2); run += (prof.rAt(b) + reachAt(b) + rampW / 2) * step * RAD; sweep += step; }
+          if (run < rampRun) { rampState.needsSwitchback = true; rampState.stoppedAt = rl; }
+          else {
+            arc = { bench: k, lo: thetaLo, sweep, cx: prof.cx, cy: prof.cy, rAt: prof.rAt };
+            rampState.theta = normDeg(thetaLo - turn * sweep); rampState.lengthM += run;
+            rampState.arcs.push({ bench: k, floorRL: rl - benchH, fromDeg: +thetaLo.toFixed(1), toDeg: +rampState.theta.toFixed(1), sweepDeg: +sweep.toFixed(1), runM: +run.toFixed(1) });
+            // the road's strings along this arc: centreline and edges, every 2 degrees, descending with the turn
+            const cl = [], ein = [], eout = [];
+            const steps = []; for (let s = sweep; s > 0; s -= 2) steps.push(s); steps.push(0); // the last point exactly at the floor below
+            for (const s of steps) { const b = thetaLo - turn * s, rr = prof.rAt(b) + reachAt(b), zz = rl - benchH * (1 - s / sweep), sx = Math.sin(b * RAD), sy = Math.cos(b * RAD); cl.push([prof.cx + (rr + rampW / 2) * sx, prof.cy + (rr + rampW / 2) * sy, zz]); ein.push([prof.cx + rr * sx, prof.cy + rr * sy, zz]); eout.push([prof.cx + (rr + rampW) * sx, prof.cy + (rr + rampW) * sy, zz]); }
+            rampState.centre.push({ bench: k, line: cl }); rampState.edgeIn.push({ bench: k, line: ein }); rampState.edgeOut.push({ bench: k, line: eout });
+          }
+        }
+      }
+      // is a bearing (from the toe region's centre) within this bench's arc, and how far along the descent (0 at the top, 1 at the floor below)
+      const onArc = (x, y) => { if (!arc) return -1; const u = normDeg((arc.lo - bearingOf(x - arc.cx, y - arc.cy)) * turn); return u <= arc.sweep ? u / arc.sweep : -1; };
       for (let c = 0; c < N; c++) {
         if (T[c]) { next[c] = 1; continue; }
-        const d = dist[c], own = fb[c] <= rl + 1e-6;
-        if (d <= reach || own) {
+        const d = dist[c], own = fb[c] <= rl + 1e-6, b = bear[c], fr = faceRunAt(b), re = reachAt(b);
+        if (d <= re || own) {
           next[c] = 1; any = true;
-          z[c] = d <= faceRun ? rl - benchH + d * tanB : rl; // on the face, else the berm or the floor
+          z[c] = d <= fr ? rl - benchH + d * Math.tan(batterAt(b) * RAD) : rl; // on the face, else the berm or the floor (#1952: by the wall's sector)
+        } else if (arc && d <= re + rampW) {
+          const j = Math.floor(c / nx), i = c - j * nx, u = onArc(X(i), Y(j));
+          if (u >= 0) { next[c] = 1; any = true; z[c] = rl - benchH * u; isRamp[c] = 1; } // #1948 — the road, descending across the arc
         }
       }
     }
@@ -193,6 +256,9 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
     T = T2;
   }
   const crestRL = benches.length ? benches[benches.length - 1].rl + benchH : floorRL;
+  // #1948 — the road's rock: what the design takes out under the road cells, and the strings
+  let rampRockT = 0;
+  if (rampState) { const area = cell * cell; for (let c = 0; c < N; c++) if (isRamp[c] && Number.isFinite(z[c]) && z[c] < g[c]) rampRockT += (g[c] - z[c]) * area * density; }
   // the surface: the design where it is below the ground, the ground on a one-cell ring around it (so it meets the ground)
   const inPit = new Uint8Array(N);
   for (let c = 0; c < N; c++) if (Number.isFinite(z[c]) && z[c] < g[c] - 1e-6) inPit[c] = 1;
@@ -221,6 +287,11 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
     const crest = contourLevel(cgrid, b.rl + benchH - EPS).map((l) => l.map((p) => [p.x, p.y, b.rl + benchH]));
     if (crest.length) strings.push({ bench: k + 1, rl: b.rl + benchH, kind: "crest", lines: crest });
   });
+  if (rampState) { // #1948 — the road's strings beside the bench strings
+    rampState.centre.forEach((s) => strings.push({ bench: s.bench, rl: null, kind: "ramp_centre", lines: [s.line] }));
+    rampState.edgeIn.forEach((s) => strings.push({ bench: s.bench, rl: null, kind: "ramp_edge", lines: [s.line] }));
+    rampState.edgeOut.forEach((s) => strings.push({ bench: s.bench, rl: null, kind: "ramp_edge", lines: [s.line] }));
+  }
   // the bench table: the rock between the design and the ground per slab, the ore from the blocks inside the design
   const area = cell * cell;
   for (let c = 0; c < N; c++) {
@@ -253,7 +324,8 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
   totals.meanGrade = totals.oreT > 0 ? totals.metalU / totals.oreT : null;
   let nCells = 0;
   for (let c = 0; c < N; c++) nCells += inPit[c];
-  return { positions: Float64Array.from(pos), indices: Uint32Array.from(idx), strings, benches, totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL, partsDropped, columnsInArea };
+  return { positions: Float64Array.from(pos), indices: Uint32Array.from(idx), strings, benches, totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL, partsDropped, columnsInArea,
+    sectorsUsed /* #1952 */, ramp: rampState ? { arcs: rampState.arcs, lengthM: +rampState.lengthM.toFixed(1), widthM: rampW, gradientPct: Number(ramp.gradientPct), turn: turn > 0 ? "clockwise" : "anticlockwise", azimuthDeg: normDeg(Number(ramp.azimuthDeg)), needsSwitchback: rampState.needsSwitchback, stoppedAtRL: rampState.stoppedAt, rockT: rampRockT, benches: rampState.arcs.length } : null /* #1948 */ };
 }
 
 // export rows: one per string vertex
@@ -262,5 +334,5 @@ export function benchStringRows(strings) {
   strings.forEach((s) => s.lines.forEach((line, li) => line.forEach((p, vi) => out.push({ bench: s.bench, rl: s.rl, kind: s.kind, line: li + 1, vertex: vi + 1, x: +p[0].toFixed(2), y: +p[1].toFixed(2), z: +p[2].toFixed(2) }))));
   return out;
 }
-export const benchStringFeatures = (strings) => strings.flatMap((s) => s.lines.map((line) => ({ attributes: { name: `BENCH_${Math.round(s.rl)}_${s.kind.toUpperCase()}`, kind: s.kind, rl: s.rl }, geometry: line })));
+export const benchStringFeatures = (strings) => strings.flatMap((s) => s.lines.map((line) => ({ attributes: { name: s.kind === "ramp_centre" ? `RAMP_CL_${s.bench}` : s.kind === "ramp_edge" ? `RAMP_EDGE_${s.bench}` : `BENCH_${Math.round(s.rl)}_${s.kind.toUpperCase()}`, kind: s.kind, rl: s.rl }, geometry: line }))); // ramp layers: #1948
 export const benchTableRows = (benches, unit) => benches.map((b, i) => ({ bench: i + 1, floor_rl: b.rl, rock_t: Math.round(b.rockT), ore_t: Math.round(b.oreT), waste_t: Math.round(b.wasteT), [`mean_grade_${String(unit || "").replace("%", "pct")}`]: b.meanGrade == null ? "" : +b.meanGrade.toPrecision(4), strip_ratio: b.oreT > 0 ? +(b.wasteT / b.oreT).toFixed(2) : "" }));
