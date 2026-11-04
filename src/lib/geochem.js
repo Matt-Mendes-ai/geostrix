@@ -944,6 +944,30 @@ export function metalEquivalent(grades, metals) {
   const eqGt = value / (pricePerGram(base.symbol, base.price) * base.recovery);
   return base.unit === "%" ? eqGt / 10000 : base.unit === "ppb" ? eqGt * 1000 : eqGt;
 }
+// TASKS.csv #1387 (review #1352, Silvertip) — the assay rows with a per-sample metal equivalent as a virtual element `${base}Eq` (in
+// the base element's unit), so intercepts can be cut on the equivalent with the same cutoff / dilution / length rules: a Zn-rich,
+// Ag-poor zone is found by an AgEq report and never by an Ag one. A sample missing any of the metals (or with a negative code) has no
+// equivalent: unassayed for it, left out of the grade as #502 does. A '>' result on any metal makes the sample's equivalent a minimum
+// ('>'); it reads '<' only when every metal was below detection. -> { rows, symbol, units }
+export function withMetalEquivalent(assays, metals, elementUnits) {
+  const base = metals[0], symbol = `${base.symbol}Eq`;
+  const rows = assays.map((r) => {
+    const grades = {};
+    let gt = false, allLt = true;
+    for (const m of metals) {
+      const v = valueIn(r, m.symbol, m.unit, elementUnits);
+      grades[m.symbol] = v != null && v >= 0 ? v : NaN;
+      const q = r.qualifiers?.[m.symbol];
+      if (q === ">") gt = true;
+      if (q !== "<") allLt = false;
+    }
+    const eq = metalEquivalent(grades, metals);
+    const q = eq == null ? undefined : gt ? ">" : allLt ? "<" : undefined;
+    return { ...r, values: { ...r.values, [symbol]: eq }, qualifiers: q ? { ...(r.qualifiers || {}), [symbol]: q } : r.qualifiers };
+  });
+  return { rows, symbol, units: { ...elementUnits, [symbol]: base.unit } };
+}
+
 export function metalEquivalentFormula(metals) {
   const b = metals[0];
   const per = (s) => (PRECIOUS_METALS.has(s) ? "/oz" : "/lb");
