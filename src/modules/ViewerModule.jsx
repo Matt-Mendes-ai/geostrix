@@ -5853,7 +5853,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!scene) return undefined;
     const clear = () => { const g = designGroupRef.current; if (g) { scene.remove(g); g.traverse((o) => { o.geometry?.dispose(); o.material?.dispose(); }); designGroupRef.current = null; } lastActivityRef.current = Date.now(); };
     if (!designLines.length) { clear(); return undefined; }
-    import("../lib/designLines.js").then(({ computeLine }) => {
+    import("../lib/designLines.js").then(({ computeLine, profileMesh }) => {
       if (!live) return;
       clear();
       const g = new THREE.Group(), { x: ox, y: oy, z: oz } = originRef.current;
@@ -5861,6 +5861,18 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       designLines.forEach((l) => {
         if (l.visible === false || !Number.isFinite(l.start?.x) || !Number.isFinite(l.start?.y) || !Number.isFinite(l.start?.z)) return;
         const c = computeLine(l), at = (v) => new THREE.Vector3(v[0] - ox, v[2] - oz, -(v[1] - oy));
+        // TASKS.csv #1878 — a line with a profile is drawn as the opening it would be: a swept width x height tube, through the rock
+        if (l.profile?.width > 0 && l.profile?.height > 0 && c.vertices.length > 1) {
+          const pm = profileMesh(c.vertices.map((v) => [v[0], v[1], v[2]]), l.profile);
+          if (pm) {
+            const scene3 = new Float32Array(pm.positions.length);
+            for (let i = 0; i < pm.positions.length; i += 3) { scene3[i] = pm.positions[i] - ox; scene3[i + 1] = pm.positions[i + 2] - oz; scene3[i + 2] = oy - pm.positions[i + 1]; }
+            const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(scene3, 3)); geo.setIndex(new THREE.BufferAttribute(pm.indices, 1)); geo.computeVertexNormals();
+            const tube = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: l.color, transparent: true, opacity: 0.6, side: THREE.DoubleSide }));
+            tube.userData = { tip: `${l.name}\n${l.profile.width} x ${l.profile.height} m ${l.profile.shape === "arched" ? "arched" : "flat back"}` };
+            g.add(tube);
+          }
+        }
         const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(c.vertices.map(at)), new THREE.LineBasicMaterial({ color: l.color, depthTest: false, transparent: true }));
         line.renderOrder = 10; line.frustumCulled = false;
         // a dot where each segment starts and ends
@@ -8336,7 +8348,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {sidebarTab === "minedesign" && toolPane === "nested" && <Suspense fallback={null}><NestedPitsPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1875 */}
         {sidebarTab === "minedesign" && toolPane === "pitdesign" && <Suspense fallback={null}><PitDesignPane surfaces={implicitSurfaces} worldPositionsOf={worldPositionsOfSurface} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1874 */}
         {sidebarTab === "minedesign" && toolPane === "strings" && <Suspense fallback={null}><DesignStringsPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient }} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1876 */}
-        {sidebarTab === "minedesign" && toolPane === "lines" && <Suspense fallback={null}><DesignLinesPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef }} onClose={() => setToolPane(null)} /></Suspense>}
+        {sidebarTab === "minedesign" && toolPane === "lines" && <Suspense fallback={null}><DesignLinesPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient /* #1878 */ }} onClose={() => setToolPane(null)} /></Suspense>}
         {sidebarTab === "targeting" && (<>
         {toolPane === "ranges" && (<>
         {paneHeader("Voxel value ranges", Box, "view")}

@@ -6,7 +6,9 @@ import * as THREE from "three";
 import { Spline, Download, X, Trash2, Plus } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
-import { computeLine, segmentsToPoint, runAboveGround, gradeRatio, designLineRows, designLineFeatures, selfClearance } from "../lib/designLines.js";
+import { computeLine, segmentsToPoint, runAboveGround, gradeRatio, designLineRows, designLineFeatures, selfClearance, declineToTarget, clearanceTo, sharpCorners, developmentRows, profileArea } from "../lib/designLines.js"; // #1878
+import { holeTraces } from "../lib/evidenceSources.js"; // #1878 — the drillhole traces the clearance is checked against
+import { plannedTrace } from "../lib/holePlanning.js"; // #1878 — a planned hole's toe as a target
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { buildDXF } from "../lib/dxf.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js";
@@ -23,8 +25,12 @@ const num = { ...smallSel, width: 72 };
 const label = { ...note, marginTop: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4 };
 const COLOURS = ["#e8590c", "#1971c2", "#2f9e44", "#ae3ec9", "#f08c00", "#0c8599"];
 const m1 = (v) => (Math.round(v * 10) / 10).toLocaleString();
+const m2 = (v) => (Math.round(v * 100) / 100).toLocaleString();
+const cellStyle = { textAlign: "right", padding: "2px 3px", borderBottom: "1px solid var(--color-border)", whiteSpace: "nowrap" };
 const num0 = (s) => (s === "" || s == null || !Number.isFinite(Number(s)) ? null : Number(s));
 const nextSeg = { grade: "0", radius: "" }; // #1360 — the next segment's grade and radius outlive the pane (this session)
+const toTargetDefaults = { maxGrade: "", minRadius: "", pillar: "", density: "" }; // #1878 — kept this session too
+const fmtEN = (v) => Math.round(v).toLocaleString(); // #1853 — a coordinate readout that is not confused with its own thousands separators
 const nearestZ = (pts, x, y) => pts.reduce((b, k) => (Number.isFinite(k.z) && (!b || Math.hypot(k.x - x, k.y - y) < Math.hypot(b.x - x, b.y - y)) ? k : b), null)?.z;
 
 // a number that is only taken when you leave it, so "-" and "1." can be typed on the way to -1.5. onCommit returning false
@@ -37,7 +43,7 @@ function Cell({ value, onCommit, width = 54, ariaLabel, placeholder }) {
 
 // view: { scene, camera, renderer, activity, dragHook, origin } (refs)
 export default function DesignLinesPane({ view, onClose }) {
-  const { designLines = [], setDesignLines, collars = [], terrain, project } = useStore();
+  const { designLines = [], setDesignLines, collars = [], survey = [], plannedHoles = [], terrain, project } = useStore();
   const [activeId, setActiveId] = useState(() => designLines[designLines.length - 1]?.id ?? null);
   const [grade, setGradeState] = useState(nextSeg.grade);
   const [radius, setRadiusState] = useState(nextSeg.radius);
@@ -49,6 +55,14 @@ export default function DesignLinesPane({ view, onClose }) {
   const [turn, setTurn] = useState("right");
   const [drawing, setDrawing] = useState(false);
   const [hover, setHover] = useState(null);
+  // TASKS.csv #1878 — a decline to a target, a development profile, clearance to other lines and drillholes
+  const [tgt, setTgt] = useState({ x: "", y: "", z: "", holeId: "", maxGrade: toTargetDefaults.maxGrade, minRadius: toTargetDefaults.minRadius });
+  const [picking, setPicking] = useState(false);
+  const [pillar, setPillarState] = useState(toTargetDefaults.pillar);
+  const [density, setDensityState] = useState(toTargetDefaults.density);
+  const setPillar = (v) => { toTargetDefaults.pillar = v; setPillarState(v); };
+  const setDensity = (v) => { toTargetDefaults.density = v; setDensityState(v); };
+  const [toTargetMsg, setToTargetMsg] = useState(null);
   const line = designLines.find((l) => l.id === activeId) || null;
   // #1357 — after a delete or an undo the active line can be gone: the last line takes over, so the editor never goes blank
   useEffect(() => { if (!line && designLines.length) setActiveId(designLines[designLines.length - 1].id); }, [line, designLines]);
@@ -64,6 +78,62 @@ export default function DesignLinesPane({ view, onClose }) {
   };
   const started = line && Number.isFinite(line.start?.x) && Number.isFinite(line.start?.y) && Number.isFinite(line.start?.z);
   const canDraw = line && Number.isFinite(line.start?.z);
+  // #1612 / #1851 — the ground at a point: the terrain, else the nearest collar; null when the project knows no ground
+  const groundAt = (x, y) => { const g = terrain ? terrainGroundAt(terrain, x, y) : nearestZ(collars, x, y); return Number.isFinite(g) ? g : null; };
+  const groundKnown = !!terrain || collars.some((k) => Number.isFinite(k.z));
+  const collarZs = collars.map((k) => k.z).filter(Number.isFinite);
+  // #1852 — a start far outside any elevation the project knows (or the planet) is probably a slip
+  const startZOdd = line && Number.isFinite(line.start?.z) && (line.start.z > 9000 || line.start.z < -500 || (collarZs.length && (line.start.z > Math.max(...collarZs) + 1500 || line.start.z < Math.min(...collarZs) - 3000)));
+  // #1612 — a typed start takes the ground under it when nobody typed a Z
+  const setStart = (k, v) => {
+    const next = { ...line.start, [k]: v, ...(k === "z" ? { zAuto: false } : {}) };
+    if (k !== "z" && next.zAuto && Number.isFinite(next.x) && Number.isFinite(next.y)) { const g = groundAt(next.x, next.y); if (Number.isFinite(g)) next.z = Math.round(g); }
+    update({ start: next });
+  };
+  const traces = useMemo(() => [...holeTraces(collars, survey, project?.desurveyMethod)].map(([name, pts]) => ({ name, vertices: pts.map((p) => [p.x, p.y, p.z]) })), [collars, survey, project?.desurveyMethod]);
+  const otherLines = useMemo(() => designLines.filter((l) => l.id !== activeId && Number.isFinite(l.start?.x) && l.segments?.length).map((l) => ({ name: l.name, vertices: computeLine(l).vertices.map((v) => [v[0], v[1], v[2]]) })), [designLines, activeId]);
+  const nearLine = useMemo(() => (c && otherLines.length ? clearanceTo(c, otherLines, 200) : null), [c, otherLines]);
+  const nearHole = useMemo(() => (c && traces.length ? clearanceTo(c, traces, 200) : null), [c, traces]);
+  const corners = useMemo(() => (c ? sharpCorners(c) : []), [c]);
+  const pillarM = num0(pillar);
+  const targetPoint = () => {
+    if (tgt.holeId) { const h = plannedHoles.find((p) => p.id === tgt.holeId); const tr0 = h ? plannedTrace(h) : []; const toe = tr0[tr0.length - 1]; return toe ? [toe.x, toe.y, toe.z] : null; }
+    const p = [num0(tgt.x), num0(tgt.y), num0(tgt.z)];
+    return p.every((v) => v != null) ? p : null;
+  };
+  const designToTarget = () => {
+    const target = targetPoint(); if (!target || !started) return;
+    const r = declineToTarget(line, target, { maxGrade: num0(tgt.maxGrade) || 0, minRadius: num0(tgt.minRadius) || 0 });
+    if (r.insideCircle) { setToTargetMsg(tr("The target is inside the turning circle: a smaller radius, or start farther off.")); return; }
+    if (r.needsGrade) { setToTargetMsg(tr("Enter the maximum grade: the target is at another elevation.")); return; }
+    if (r.needsRadius) { setToTargetMsg(tr("Enter the minimum radius: the route needs a spiral to lose that much elevation.")); return; }
+    if (!r.segments.length) { setToTargetMsg(tr("Nothing to add: the line already ends at the target.")); return; }
+    appendSegments(r.segments);
+    setToTargetMsg(r.turns > 0 ? tr("{n} spiral turn(s) at {r} m, then {l} m at {g} % to the target: {total} m driven.", { n: r.turns, r: num0(tgt.minRadius), l: m1(r.run), g: m1(r.grade), total: m1(r.length) }) : tr("{l} m at {g} % to the target.", { l: m1(r.length), g: m1(r.grade) }));
+  };
+  // a one-shot pick of the target in the view (#1878), through the same drag hook the drawing uses
+  useEffect(() => {
+    const dom = view?.renderer.current?.domElement;
+    if (!picking || !dom) return undefined;
+    const prev = dom.style.cursor; dom.style.cursor = "crosshair";
+    view.dragHook.current = (e) => {
+      const x0 = e.clientX, y0 = e.clientY;
+      const onUp = (ev) => {
+        window.removeEventListener("pointerup", onUp);
+        if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 5) return;
+        const w = view.worldPointAt?.(ev.clientX, ev.clientY);
+        if (w) setTgt((t) => ({ ...t, x: String(+w.x.toFixed(2)), y: String(+w.y.toFixed(2)), z: String(+w.z.toFixed(2)), holeId: "" }));
+        setPicking(false);
+      };
+      window.addEventListener("pointerup", onUp);
+      return true;
+    };
+    const onKey = (ev) => { if (ev.key === "Escape") { ev.stopImmediatePropagation(); setPicking(false); } };
+    window.addEventListener("keydown", onKey, true);
+    return () => { window.removeEventListener("keydown", onKey, true); view.dragHook.current = null; dom.style.cursor = prev; };
+  }, [picking, view]);
+  const devRows = useMemo(() => developmentRows(designLines.filter((l) => Number.isFinite(l.start?.x) && l.segments?.length), { density: num0(density) }), [designLines, density]);
+  const exportDevCsv = () => saveFile({ suggestedName: "development.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(devRows.map((r) => ({ ...r, crs: crsCell(project) }))) });
 
   // ---------- drawing in the 3D view ----------
   const state = useRef(); // the effect below lives as long as the drawing does, and reads the latest of these
@@ -179,10 +249,12 @@ export default function DesignLinesPane({ view, onClose }) {
 
         <div style={label}>{tr("Start")}</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, marginTop: 4 }}>
-          {[["x", "E"], ["y", "N"], ["z", "Z"]].map(([k, l]) => <label key={k} style={{ ...note, minWidth: 0 }}>{l}<Cell value={line.start?.[k]} width="100%" ariaLabel={tr("Start {axis}", { axis: l })} onCommit={(v) => update({ start: { ...line.start, [k]: v, ...(k === "z" ? { zAuto: false } : {}) } })} /></label>)}
+          {[["x", "E"], ["y", "N"], ["z", "Z"]].map(([k, l]) => <label key={k} style={{ ...note, minWidth: 0 }}>{l}<Cell value={line.start?.[k]} width="100%" ariaLabel={tr("Start {axis}", { axis: l })} onCommit={(v) => setStart(k, v)} /></label>)}
           <label style={{ ...note, minWidth: 0 }} title={tr("Which way the line sets off, clockwise from north. Blank: the first straight decides.")}>{tr("Heading °")}<Cell value={line.azimuth} width="100%" ariaLabel={tr("Heading at the start")} onCommit={(v) => update({ azimuth: v })} /></label>
         </div>
-        {!canDraw && <div style={warn}>{tr("Enter the start elevation (Z): clicks in the view are taken on that level.")}</div>}
+        {!canDraw && <div style={warn}>{groundKnown ? tr("Enter the start elevation (Z): clicks in the view are taken on that level.") : tr("Enter the start elevation (Z): the project has no terrain or collars to take the ground from. Clicks in the view are taken on that level.")}</div>}
+        {line.start?.zAuto && Number.isFinite(line.start?.z) && started && <div style={note}>{tr("Start Z taken from {src} under the start.", { src: terrain ? tr("the terrain") : tr("the nearest collar") })}</div>}
+        {startZOdd && <div style={warn}>{tr("Start Z {z} m is far from every elevation this project knows: check it.", { z: fmtEN(line.start.z) })}</div>}
 
         <div style={label}>{tr("Next segment")}</div>
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
@@ -212,6 +284,23 @@ export default function DesignLinesPane({ view, onClose }) {
           </div>
         )}
 
+        {started && (<>
+          <div style={label}>{tr("To a target")}</div>
+          <div style={note}>{tr("The line goes on to a point at no more than the maximum grade, with curves no tighter than the minimum radius: a curve off its heading and a straight, with whole spiral turns first when that run cannot lose the elevation.")}</div>
+          <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>
+            <Cell value={num0(tgt.x)} width={66} placeholder="E" ariaLabel={tr("Target easting")} onCommit={(v) => setTgt((t) => ({ ...t, x: v == null ? "" : String(v), holeId: "" }))} />
+            <Cell value={num0(tgt.y)} width={70} placeholder="N" ariaLabel={tr("Target northing")} onCommit={(v) => setTgt((t) => ({ ...t, y: v == null ? "" : String(v), holeId: "" }))} />
+            <Cell value={num0(tgt.z)} width={52} placeholder="Z" ariaLabel={tr("Target elevation")} onCommit={(v) => setTgt((t) => ({ ...t, z: v == null ? "" : String(v), holeId: "" }))} />
+            <button onClick={() => setPicking((p) => !p)} aria-pressed={picking} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 6px", background: picking ? "var(--color-selected-bg)" : undefined }}>{picking ? tr("Click the target…") : tr("Pick in view")}</button>
+          </div>
+          {plannedHoles.length > 0 && <label style={row}>{tr("Or a planned hole's toe")}<select value={tgt.holeId} onChange={(e) => setTgt((t) => ({ ...t, holeId: e.target.value }))} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Planned hole whose toe is the target")}><option value="">{tr("— none —")}</option>{plannedHoles.map((h) => <option key={h.id} value={h.id}>{h.name || h.id}</option>)}</select></label>}
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <label style={{ ...row, marginTop: 0 }}>{tr("Max grade (%)")}<input type="number" min={0} step="any" value={tgt.maxGrade} onChange={(e) => { toTargetDefaults.maxGrade = e.target.value; setTgt((t) => ({ ...t, maxGrade: e.target.value })); }} style={num} aria-label={tr("Maximum grade to the target")} /></label>
+            <label style={{ ...row, marginTop: 0 }}>{tr("Min radius (m)")}<input type="number" min={0} step="any" value={tgt.minRadius} onChange={(e) => { toTargetDefaults.minRadius = e.target.value; setTgt((t) => ({ ...t, minRadius: e.target.value })); }} style={num} aria-label={tr("Minimum curve radius to the target")} /></label>
+          </div>
+          <button onClick={designToTarget} disabled={!targetPoint()} style={{ ...pBtn, marginTop: 4, opacity: targetPoint() ? 1 : 0.5 }}><Spline size={14} /> {tr("Design to the target")}</button>
+          {toTargetMsg && <div style={note}>{toTargetMsg}</div>}
+        </>)}
         {c && c.segments.length > 0 && (<>
           <div style={label}>{tr("Segments")}</div>
           {c.segments.map((s, i) => (
@@ -229,15 +318,41 @@ export default function DesignLinesPane({ view, onClose }) {
           <div style={{ marginTop: 6, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
             <div style={row}><span>{tr("Driven length")}</span><b>{m1(c.length)} m</b></div>
             <div style={row}><span>{tr("Elevation change")}</span><b>{c.dz >= 0 ? "+" : ""}{m1(c.dz)} m</b></div>
-            <div style={row}><span>{tr("End")}</span><b>{m1(c.end[0])}, {m1(c.end[1])}, {m1(c.end[2])}</b></div>
+            <div style={row}><span>{tr("End")}</span><b>{`E ${fmtEN(c.end[0])} N ${fmtEN(c.end[1])} Z ${m1(c.end[2])}`}</b></div>{/* #1853 */}
             <div style={row}><span>{tr("Steepest grade")}</span><b>{m1(c.steepest)} %</b></div>
-            {c.minRadius != null && <div style={row}><span>{tr("Tightest radius")}</span><b>{m1(c.minRadius)} m</b></div>}
+            {c.minRadius != null && !corners.length && <div style={row}><span>{tr("Tightest radius")}</span><b>{m1(c.minRadius)} m</b></div>}
+            {corners.length > 0 && <div style={warn}>{tr("{n} sharp corner(s) (segment {list}): a typed azimuth turned the line without a curve, which no machine can drive. Add a curve or match the heading.", { n: corners.length, list: corners.map((k) => `${k.segment} (${k.turn}°)`).join(", ") })}</div>}{/* #1611 */}
+            {nearLine && <div style={row}><span>{tr("Closest pass to another line")}</span><b>{m1(nearLine.distance)} m ({nearLine.name})</b></div>}
+            {nearHole && <div style={row}><span>{tr("Closest pass to a drillhole")}</span><b>{m1(nearHole.distance)} m ({nearHole.name})</b></div>}
+            {pillarM > 0 && ((nearLine && nearLine.distance < pillarM) || (nearHole && nearHole.distance < pillarM) || (clearance && clearance.distance < pillarM)) && <div style={warn}>{tr("Less than the {p} m pillar is left somewhere: see the passes above.", { p: pillarM })}</div>}
             {clearance && <div style={row}><span title={tr("The nearest the line passes to another part of itself, as between the turns of a spiral: the rock left between them.")}>{tr("Closest pass to itself")}</span><b>{m1(clearance.distance)} m</b></div>}
             {clearance && clearance.distance < 10 && <div style={warn}>{tr("The line passes within {m} m of itself near {x}, {y}, {z}: it may run through its own opening.", { m: m1(clearance.distance), x: m1(clearance.at[0]), y: m1(clearance.at[1]), z: m1(clearance.at[2]) })}</div>}
             {above > 0.5 && <div style={warn}>{tr("{m} m of this line, in plan, is above the terrain.", { m: m1(above) })}</div>}
             {!terrain && <div style={note}>{tr("No terrain: the line is not checked against the ground.")}</div>}
           </div>
+          <div style={label}>{tr("Profile and clearance")}</div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+            <label style={{ ...row, marginTop: 0 }}>{tr("Width (m)")}<Cell value={line.profile?.width ?? null} width={52} ariaLabel={tr("Profile width")} onCommit={(v) => update({ profile: { ...(line.profile || { shape: "flat" }), width: v } })} /></label>
+            <label style={{ ...row, marginTop: 0 }}>{tr("Height (m)")}<Cell value={line.profile?.height ?? null} width={52} ariaLabel={tr("Profile height")} onCommit={(v) => update({ profile: { ...(line.profile || { shape: "flat" }), height: v } })} /></label>
+            <select value={line.profile?.shape || "flat"} onChange={(e) => update({ profile: { ...(line.profile || {}), shape: e.target.value } })} style={{ ...smallSel, width: 72 }} aria-label={tr("Profile shape")}><option value="flat">{tr("flat back")}</option><option value="arched">{tr("arched")}</option></select>
+          </div>
+          {line.profile?.width > 0 && line.profile?.height > 0 && <div style={note}>{tr("{a} m² section, {v} m³ along this line{t}. The profile is drawn in the view.", { a: m2(profileArea(line.profile)), v: Math.round(profileArea(line.profile) * c.length).toLocaleString(), t: num0(density) > 0 ? tr(", {t} t at {d} t/m³", { t: Math.round(profileArea(line.profile) * c.length * num0(density)).toLocaleString(), d: num0(density) }) : "" })}</div>}
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <label style={{ ...row, marginTop: 0 }}>{tr("Density (t/m³)")}<input type="number" min={0} step="any" value={density} onChange={(e) => setDensity(e.target.value)} style={num} aria-label={tr("Rock density for the excavation tonnes")} /></label>
+            <label style={{ ...row, marginTop: 0 }} title={tr("The rock to keep between this line and any other line or drillhole; a pass closer than it is flagged.")}>{tr("Pillar (m)")}<input type="number" min={0} step="any" value={pillar} onChange={(e) => setPillar(e.target.value)} style={num} aria-label={tr("Pillar to keep")} /></label>
+          </div>
         </>)}
+        {devRows.length > 0 && (
+          <div style={{ marginTop: 6 }}>
+            <div style={label}>{tr("Development")}</div>
+            <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-xs)", marginTop: 4 }}>
+              <thead><tr>{[tr("Line"), tr("m"), tr("Level"), tr("Ramp"), tr("m³"), tr("t")].map((h) => <th key={h} style={{ textAlign: "right", padding: "2px 3px", borderBottom: "1px solid var(--color-border)", fontWeight: 600 }}>{h}</th>)}</tr></thead>
+              <tbody>{devRows.map((r) => <tr key={r.line}><td style={{ ...cellStyle, textAlign: "left" }}>{r.line}</td><td style={cellStyle}>{r.length_m.toLocaleString()}</td><td style={cellStyle}>{r.level_m.toLocaleString()}</td><td style={cellStyle}>{r.ramp_m.toLocaleString()}</td><td style={cellStyle}>{r.volume_m3 === "" ? "—" : r.volume_m3.toLocaleString()}</td><td style={cellStyle}>{r.tonnes === "" ? "—" : r.tonnes.toLocaleString()}</td></tr>)}</tbody>
+            </table>
+            <div style={note}>{tr("Level: segments within 2 % of flat; ramp: the rest. m³ and t need a profile on the line and a density.")}</div>
+            <button onClick={exportDevCsv} style={{ ...pBtn, marginTop: 4 }}><Download size={13} /> {tr("Development CSV")}</button>
+          </div>
+        )}
       </>)}
       {designLines.some((l) => l.segments.length) && (
         <div style={{ display: "flex", gap: 4, marginTop: 8 }}>
