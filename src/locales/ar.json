@@ -7434,5 +7434,15 @@
   "(on {name})": "(على {name})",
   "An extrude uses the plan outline only; a loft takes each ring flat at its mean elevation.": "البثق يستخدم المخطط الأفقي فقط؛ أما الرفع فيأخذ كل حلقة مسطحة عند منسوبها المتوسط.",
   "({z} m, sloped {lo}–{hi}: taken flat at its mean)": "({z} م، مائل {lo}–{hi}: يؤخذ مسطحًا عند متوسطه)",
-  "The angle of repose must be between 1 and 89°.": "يجب أن تكون زاوية الاستقرار بين 1 و89°."
+  "The angle of repose must be between 1 and 89°.": "يجب أن تكون زاوية الاستقرار بين 1 و89°.",
+  "Walls as drawn (block steps)": "الجدران كما رُسمت (درجات الكتل)",
+  "By wall as drawn (asked → drawn): {list}.": "حسب الجدار كما رُسم (المطلوب → المرسوم): {list}.",
+  "Separate pits": "حفر منفصلة",
+  "The largest holds {p} % of the ore. Ore / waste / strip / depth of each: {list}{more}": "الأكبر يحوي {p} % من الخام. الخام / النفايات / النسبة / العمق لكل منها: {list}{more}",
+  "; {n} more": "؛ {n} أخرى",
+  "Blocks of {c} m are mined all-or-nothing: no selectivity or dilution at a 5–10 m mining unit, and the ore and strip ratio change with the grid alone. A smaller estimate grid over one prospect gives a pit that means something.": "كتل بحجم {c} م تُستخرج كلها أو لا شيء: لا انتقائية ولا تخفيف عند وحدة تعدين 5–10 م، ويتغير الخام ونسبة النفايات بالشبكة وحدها. شبكة تقدير أصغر فوق موقع واحد تعطي حفرة ذات معنى.",
+  "The pit is {n} block(s) deep: the typed slope cannot be expressed on it, and its walls are block steps.": "عمق الحفرة {n} كتلة: لا يمكن التعبير عن الميل المُدخل عليها، وجدرانها درجات كتل.",
+  "The shell is several separate pits; the design grid then goes to the largest alone.": "الغلاف عدة حفر منفصلة؛ تذهب شبكة التصميم عندئذ إلى الأكبر وحدها.",
+  "Design the largest of the {n} separate pits only": "تصميم الأكبر فقط من الحفر المنفصلة الـ{n}",
+  "The largest of the shell's separate pits was designed; {k} left out.": "صُمِّمت أكبر الحفر المنفصلة للغلاف؛ تُركت {k}."
 }

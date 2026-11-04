@@ -7434,5 +7434,15 @@
   "(on {name})": "(sobre {name})",
   "An extrude uses the plan outline only; a loft takes each ring flat at its mean elevation.": "Una extrusión usa solo el contorno en planta; un loft toma cada anillo plano a su cota media.",
   "({z} m, sloped {lo}–{hi}: taken flat at its mean)": "({z} m, inclinado {lo}–{hi}: tomado plano a su media)",
-  "The angle of repose must be between 1 and 89°.": "El ángulo de reposo debe estar entre 1 y 89°."
+  "The angle of repose must be between 1 and 89°.": "El ángulo de reposo debe estar entre 1 y 89°.",
+  "Walls as drawn (block steps)": "Paredes dibujadas (escalones de bloques)",
+  "By wall as drawn (asked → drawn): {list}.": "Por pared dibujada (pedido → dibujado): {list}.",
+  "Separate pits": "Rajos separados",
+  "The largest holds {p} % of the ore. Ore / waste / strip / depth of each: {list}{more}": "El mayor contiene el {p} % del mineral. Mineral / estéril / razón / profundidad de cada uno: {list}{more}",
+  "; {n} more": "; {n} más",
+  "Blocks of {c} m are mined all-or-nothing: no selectivity or dilution at a 5–10 m mining unit, and the ore and strip ratio change with the grid alone. A smaller estimate grid over one prospect gives a pit that means something.": "Los bloques de {c} m se minan enteros o nada: sin selectividad ni dilución a una unidad de minado de 5–10 m, y el mineral y la razón de estéril cambian solo con la grilla. Una grilla de estimación más fina sobre un prospecto da un rajo con sentido.",
+  "The pit is {n} block(s) deep: the typed slope cannot be expressed on it, and its walls are block steps.": "El rajo tiene {n} bloque(s) de profundidad: el talud ingresado no puede expresarse en él, y sus paredes son escalones de bloques.",
+  "The shell is several separate pits; the design grid then goes to the largest alone.": "El cono son varios rajos separados; la grilla de diseño va entonces solo al mayor.",
+  "Design the largest of the {n} separate pits only": "Diseñar solo el mayor de los {n} rajos separados",
+  "The largest of the shell's separate pits was designed; {k} left out.": "Se diseñó el mayor de los rajos separados del cono; {k} quedaron fuera."
 }

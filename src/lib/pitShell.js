@@ -344,6 +344,56 @@ export function pitSurface(grid, mined) {
   return { positions: Float64Array.from(pos), indices: Uint32Array.from(idx), maxDepth, touchesBase, touchesEdge };
 }
 
+// TASKS.csv #1608 — the pit AS DRAWN: its separate parts (4-connected mined columns) with ore, waste, strip and depth each, how
+// many blocks deep it is, and the wall angles its block steps make (floor to floor between axis-neighbouring columns, by the
+// sector the step faces: N / S / E / W), which is what the mesh shows; wallAngles() is the arc pattern's figure over 32 benches, which a
+// pit one or two blocks deep never reaches. -> { pits: [{ columns, oreT, wasteT, rockT, money, stripRatio, maxDepth, blocksDeep }]
+// (largest ore first), blocksDeep, drawnWalls: { flattest, steepest, bySector (median step) } | null }
+export function pitParts(grid, mined) {
+  const { nx, ny, nz, dx, dy, dz, ground, z0 } = grid, NC = nx * ny;
+  const floor = new Float64Array(NC).fill(NaN);
+  for (let c = 0; c < NC; c++) for (let k = 0; k < nz; k++) if (mined[k * NC + c]) { floor[c] = z0 + k * dz; break; }
+  const label = new Int32Array(NC).fill(-1), pits = [];
+  for (let s = 0; s < NC; s++) {
+    if (!Number.isFinite(floor[s]) || label[s] >= 0) continue;
+    const id = pits.length, stack = [s], part = { columns: 0, oreT: 0, wasteT: 0, rockT: 0, money: 0, maxDepth: 0 };
+    label[s] = id;
+    while (stack.length) {
+      const c = stack.pop(); part.columns++;
+      const depth = ground[c] - floor[c]; if (depth > part.maxDepth) part.maxDepth = depth;
+      for (let k = 0; k < nz; k++) { const q = k * NC + c; if (!mined[q]) continue; part.oreT += grid.oreT[q]; part.rockT += grid.rockT[q]; part.money += grid.value[q]; }
+      const j = Math.floor(c / nx), i = c - j * nx;
+      for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const ii = i + a, jj = j + b; if (ii < 0 || jj < 0 || ii >= nx || jj >= ny) continue; const p = jj * nx + ii; if (Number.isFinite(floor[p]) && label[p] < 0) { label[p] = id; stack.push(p); } }
+    }
+    part.wasteT = part.rockT - part.oreT; part.stripRatio = part.oreT > 0 ? part.wasteT / part.oreT : null; part.blocksDeep = Math.max(1, Math.round(part.maxDepth / dz));
+    pits.push(part);
+  }
+  pits.sort((a, b) => b.oreT - a.oreT);
+  const zOf = (c) => (Number.isFinite(floor[c]) ? floor[c] : ground[c]);
+  let flattest = Infinity, steepest = -Infinity, steps = 0;
+  const bySectorSteps = {};
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const c = j * nx + i;
+    for (const [a, b] of [[1, 0], [0, 1]]) { // axis neighbours: the mesh's faces run along the grid, a diagonal step is no wall
+      const ii = i + a, jj = j + b; if (ii < 0 || jj < 0 || ii >= nx || jj >= ny) continue;
+      const p = jj * nx + ii;
+      if (!Number.isFinite(floor[c]) && !Number.isFinite(floor[p])) continue;
+      const dzv = zOf(c) - zOf(p); if (Math.abs(dzv) < 1e-6) continue;
+      // at the rim, a floor a few metres under the neighbouring ground is the pit daylighting, not a wall: a rim step counts
+      // from half a level up
+      if ((!Number.isFinite(floor[c]) || !Number.isFinite(floor[p])) && Math.abs(dzv) < 0.5 * dz) continue;
+      const deg = (Math.atan2(Math.abs(dzv), Math.hypot(a * dx, b * dy)) * 180) / Math.PI;
+      const sign = dzv < 0 ? 1 : -1; // the wall faces from the deeper column towards the shallower
+      const sector = sectorOfBearing((Math.atan2(sign * a * dx, sign * b * dy) * 180) / Math.PI);
+      if (deg < flattest) flattest = deg; if (deg > steepest) steepest = deg; steps++;
+      (bySectorSteps[sector] || (bySectorSteps[sector] = [])).push(deg);
+    }
+  }
+  const med = (arr) => { const a = arr.slice().sort((p, q) => p - q); return a[a.length >> 1]; };
+  const drawnWalls = steps ? { flattest, steepest, bySector: Object.fromEntries(Object.entries(bySectorSteps).map(([k, v]) => [k, med(v)])) } : null;
+  return { pits, blocksDeep: pits.reduce((m, p) => Math.max(m, p.blocksDeep), 0), drawnWalls };
+}
+
 // the whole run, for the worker and the tests. inputs: { cells, unit, price, priceUnit, recovery, miningCost, processingCost, density, slopeDeg, revenueFactor, size }; ground as for buildPitGrid
 export function runPitShell(inputs, { groundAt = null, collars = null, onProgress = null } = {}) {
   const economics = pitEconomics(inputs);
@@ -356,7 +406,7 @@ export function runPitShell(inputs, { groundAt = null, collars = null, onProgres
   const solve = solvePit(grid, inputs.slopeDeg, { onProgress, sectorSlopes: inputs.sectorSlopes }); // #1881
   const summary = pitSummary(grid, solve.mined);
   if (!summary.blocks) return { empty: true, cutoff: economics.cutoff, cell: [grid.dx, grid.dy, grid.dz], groundSource };
-  return { ...summary, ...pitSurface(grid, solve.mined), cutoff: economics.cutoff, metalUnit: economics.metalUnit, metalFactor: economics.metalFactor, cell: [grid.dx, grid.dy, grid.dz], grid: [grid.nx, grid.ny, grid.nz], walls: wallAngles(grid.dx, grid.dy, grid.dz, inputs.slopeDeg, 32, inputs.sectorSlopes), groundSource, nodes: solve.nodes, arcs: solve.arcs, topAssumed: grid.topAssumed / (grid.nx * grid.ny), coarsened: grid.coarsened };
+  return { ...summary, ...pitSurface(grid, solve.mined), parts: pitParts(grid, solve.mined) /* #1608 */, cutoff: economics.cutoff, metalUnit: economics.metalUnit, metalFactor: economics.metalFactor, cell: [grid.dx, grid.dy, grid.dz], grid: [grid.nx, grid.ny, grid.nz], walls: wallAngles(grid.dx, grid.dy, grid.dz, inputs.slopeDeg, 32, inputs.sectorSlopes), groundSource, nodes: solve.nodes, arcs: solve.arcs, topAssumed: grid.topAssumed / (grid.nx * grid.ny), coarsened: grid.coarsened };
 }
 
 // TASKS.csv #1875 — what a shell is worth at the ENTERED price (#1609 valued a revenue-factor shell at the scaled price): the

@@ -47,7 +47,25 @@ export const toeRL = (z, benchH, datum = 0) => datum + Math.round((z - datum) / 
 // blocks ({ x, y, z, dx, dy, dz, value, coverage }), cutoff and density from the shell's run; benchH, berm, batterDeg, datum.
 // -> { positions, indices, strings: [{ bench, rl, kind: "toe" | "crest", lines: [[[x, y, z], ...]] }], benches: [{ rl, rockT, oreT, wasteT,
 //      metalU, meanGrade }], totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL }
-export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infinity, density = 1, benchH, berm, batterDeg, datum = 0, maxCells = MAX_DESIGN_CELLS } = {}) {
+export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infinity, density = 1, benchH, berm, batterDeg, datum = 0, maxCells = MAX_DESIGN_CELLS, largestOnly = false } = {}) {
+  // TASKS.csv #1899 / #1608 — a shell that is several separate pits: keep the largest (most mined columns, 4-connected) and let the
+  // design grid go to it alone; the parts left out are counted in partsDropped
+  let partsDropped = 0;
+  if (largestOnly) {
+    const { nx, ny, floor } = shell, label = new Int32Array(nx * ny).fill(-1), sizes = [];
+    for (let s = 0; s < nx * ny; s++) {
+      if (!Number.isFinite(floor[s]) || label[s] >= 0) continue;
+      const id = sizes.length, stack = [s]; label[s] = id; let n = 0;
+      while (stack.length) { const c = stack.pop(); n++; const j = Math.floor(c / nx), i = c - j * nx; for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const ii = i + a, jj = j + b; if (ii < 0 || jj < 0 || ii >= nx || jj >= ny) continue; const p = jj * nx + ii; if (Number.isFinite(floor[p]) && label[p] < 0) { label[p] = id; stack.push(p); } } }
+      sizes.push(n);
+    }
+    if (sizes.length > 1) {
+      const keep = sizes.indexOf(Math.max(...sizes)), kept = new Float64Array(floor.length).fill(NaN);
+      for (let c = 0; c < floor.length; c++) if (label[c] === keep) kept[c] = floor[c];
+      shell = { ...shell, floor: kept, mined: sizes[keep] };
+      partsDropped = sizes.length - 1;
+    }
+  }
   if (!shell || !(benchH > 0) || !(berm >= 0) || !(batterDeg > 0 && batterDeg < 90)) return null;
   const tanB = Math.tan(batterDeg * RAD), faceRun = benchH / tanB, reach = faceRun + berm;
   const interRampDeg = Math.atan(benchH / reach) / RAD;
@@ -198,7 +216,7 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
   totals.meanGrade = totals.oreT > 0 ? totals.metalU / totals.oreT : null;
   let nCells = 0;
   for (let c = 0; c < N; c++) nCells += inPit[c];
-  return { positions: Float64Array.from(pos), indices: Uint32Array.from(idx), strings, benches, totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL };
+  return { positions: Float64Array.from(pos), indices: Uint32Array.from(idx), strings, benches, totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL, partsDropped };
 }
 
 // export rows: one per string vertex

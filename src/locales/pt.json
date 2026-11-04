@@ -7434,5 +7434,15 @@
   "(on {name})": "(sobre {name})",
   "An extrude uses the plan outline only; a loft takes each ring flat at its mean elevation.": "Uma extrusão usa só o contorno em planta; um loft toma cada anel plano na sua cota média.",
   "({z} m, sloped {lo}–{hi}: taken flat at its mean)": "({z} m, inclinado {lo}–{hi}: tomado plano na média)",
-  "The angle of repose must be between 1 and 89°.": "O ângulo de repouso deve ficar entre 1 e 89°."
+  "The angle of repose must be between 1 and 89°.": "O ângulo de repouso deve ficar entre 1 e 89°.",
+  "Walls as drawn (block steps)": "Paredes desenhadas (degraus de blocos)",
+  "By wall as drawn (asked → drawn): {list}.": "Por parede desenhada (pedido → desenhado): {list}.",
+  "Separate pits": "Cavas separadas",
+  "The largest holds {p} % of the ore. Ore / waste / strip / depth of each: {list}{more}": "A maior contém {p} % do minério. Minério / estéril / relação / profundidade de cada uma: {list}{more}",
+  "; {n} more": "; mais {n}",
+  "Blocks of {c} m are mined all-or-nothing: no selectivity or dilution at a 5–10 m mining unit, and the ore and strip ratio change with the grid alone. A smaller estimate grid over one prospect gives a pit that means something.": "Blocos de {c} m são lavrados inteiros ou nada: sem seletividade nem diluição numa unidade de lavra de 5–10 m, e o minério e a relação estéril/minério mudam só com a grade. Uma grade de estimativa menor sobre um prospecto dá uma cava com sentido.",
+  "The pit is {n} block(s) deep: the typed slope cannot be expressed on it, and its walls are block steps.": "A cava tem {n} bloco(s) de profundidade: o talude digitado não pode ser expresso nela, e as paredes são degraus de blocos.",
+  "The shell is several separate pits; the design grid then goes to the largest alone.": "A cava conceitual são várias cavas separadas; a grade de projeto vai então só para a maior.",
+  "Design the largest of the {n} separate pits only": "Projetar só a maior das {n} cavas separadas",
+  "The largest of the shell's separate pits was designed; {k} left out.": "Foi projetada a maior das cavas separadas; {k} ficaram de fora."
 }

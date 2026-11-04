@@ -7434,5 +7434,15 @@
   "(on {name})": "(sur {name})",
   "An extrude uses the plan outline only; a loft takes each ring flat at its mean elevation.": "Une extrusion n'utilise que le contour en plan ; un lissage prend chaque anneau à plat à son altitude moyenne.",
   "({z} m, sloped {lo}–{hi}: taken flat at its mean)": "({z} m, incliné {lo}–{hi} : pris à plat à sa moyenne)",
-  "The angle of repose must be between 1 and 89°.": "L'angle de repos doit être compris entre 1 et 89°."
+  "The angle of repose must be between 1 and 89°.": "L'angle de repos doit être compris entre 1 et 89°.",
+  "Walls as drawn (block steps)": "Parois dessinées (marches de blocs)",
+  "By wall as drawn (asked → drawn): {list}.": "Par paroi dessinée (demandé → dessiné) : {list}.",
+  "Separate pits": "Fosses séparées",
+  "The largest holds {p} % of the ore. Ore / waste / strip / depth of each: {list}{more}": "La plus grande contient {p} % du minerai. Minerai / stérile / ratio / profondeur de chacune : {list}{more}",
+  "; {n} more": " ; {n} de plus",
+  "Blocks of {c} m are mined all-or-nothing: no selectivity or dilution at a 5–10 m mining unit, and the ore and strip ratio change with the grid alone. A smaller estimate grid over one prospect gives a pit that means something.": "Des blocs de {c} m sont exploités en tout ou rien : ni sélectivité ni dilution à une unité d'exploitation de 5–10 m, et le minerai et le ratio stérile changent avec la seule grille. Une grille d'estimation plus fine sur un prospect donne une fosse qui a un sens.",
+  "The pit is {n} block(s) deep: the typed slope cannot be expressed on it, and its walls are block steps.": "La fosse a {n} bloc(s) de profondeur : la pente saisie ne peut pas s'y exprimer, et ses parois sont des marches de blocs.",
+  "The shell is several separate pits; the design grid then goes to the largest alone.": "L'enveloppe est plusieurs fosses séparées ; la grille de conception va alors à la plus grande seule.",
+  "Design the largest of the {n} separate pits only": "Concevoir seulement la plus grande des {n} fosses séparées",
+  "The largest of the shell's separate pits was designed; {k} left out.": "La plus grande des fosses séparées de l'enveloppe a été conçue ; {k} laissées de côté."
 }

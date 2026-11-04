@@ -37,6 +37,8 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
   const [msg, setMsg] = useState(null);
   const [res, setRes] = useState(() => (kept && surfaces.some((s) => s.id === kept.designId) ? kept : null));
   const [hideEarlier, setHideEarlier] = useState(true);
+  const [largestOnly, setLargestOnly] = useState(true); // #1899 — a shell of several separate pits: design the largest alone
+  const pitCount = Number(pit?.params?.pitCount) || 1;
   const job = useRef(null);
   const set = (k) => (e) => { setF((p) => ({ ...p, [k]: e.target.value })); setMsg(null); };
   const v = (k) => Number(f[k]);
@@ -52,7 +54,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
     const positions = worldPositionsOf?.(pit.id);
     if (!positions) { setMsg(tr("The pit's mesh is not in the view: show it and try again.")); return; }
     const inputs = { benchH: v("benchH"), berm: v("berm"), batterDeg: v("batterDeg"), datum: f.datum === "" ? 0 : Number(f.datum) || 0 };
-    const opts = { ...inputs, cutoff: Number(pit.params?.cutoffGrade) || Infinity, density: Number(pit.params?.inputs?.density) || 1 };
+    const opts = { ...inputs, cutoff: Number(pit.params?.cutoffGrade) || Infinity, density: Number(pit.params?.inputs?.density) || 1, largestOnly: pitCount > 1 && largestOnly };
     setBusy(true); setMsg(null);
     const t0 = performance.now();
     try {
@@ -120,6 +122,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
           </div>
         )}
         {pit && !model && <div style={warn}>{tr("The block model the shell was run on (\"{m}\") is not in the project any more: the table will show rock only, no ore.", { m: pit.params?.blockModel || "?" })}</div>}
+        {pitCount > 1 && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("The shell is several separate pits; the design grid then goes to the largest alone.")}><input type="checkbox" checked={largestOnly} onChange={(e) => setLargestOnly(e.target.checked)} />{tr("Design the largest of the {n} separate pits only", { n: pitCount })}</label>}{/* #1899 */}
         {designs.some((s) => s.visible) && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={hideEarlier} onChange={(e) => setHideEarlier(e.target.checked)} />{tr("Hide the earlier designs")}</label>}
         {!busy
           ? <button onClick={run} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Layers3 size={14} /> {tr("Design the benches")}</button>
@@ -153,6 +156,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
           {line(tr("Designed in"), `${res.seconds} s`)}
           {res.modelMissing && <div style={warn}>{tr("No block model: the ore column is empty, the rock is counted.")}</div>}
           {res.coarsened && <div style={warn}>{tr("The design grid was made coarser to stay within the limit: faces and strings are coarser than asked.")}</div>}
+          {res.partsDropped > 0 && <div style={note}>{tr("The largest of the shell's separate pits was designed; {k} left out.", { k: res.partsDropped })}</div>}{/* #1899 */}
           {res.cell > res.faceRun && <div style={warn}>{tr("The design cell ({c} m) is wider than a face ({f} m): faces and berms are not drawn at this size, and the surface is the shell stepped to bench floors.", { c: res.cell.toFixed(1), f: res.faceRun.toFixed(1) })}</div>}{/* #1899 */}
           {Number(res.shell?.gridCellM?.[0]) > Number(res.inputs?.benchH) && <div style={note}>{tr("The shell's walls are {d} m block steps, wider than a {h} m bench: the shell's waste understates what the benched walls take out.", { d: res.shell.gridCellM[0], h: res.inputs.benchH })}</div>}{/* #1899 */}
           {!res.daylights && <div style={warn}>{tr("The walls never met the ground: the design stops at the top bench.")}</div>}
