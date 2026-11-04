@@ -9,7 +9,7 @@ import { useStore } from "../lib/store.jsx";
 import { pickDefaultReachM, medianSiteSpacing } from "../lib/evidenceSources.js"; // TASKS.csv #1179; #1451
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1449 / #1450
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
-import { evidenceGrid, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, bestCutoff, posterior, predictionArea, scoreImage, isOverlayOutput } from "../lib/evidence.js";
+import { evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, bestCutoff, posterior, predictionArea, scoreImage, isOverlayOutput } from "../lib/evidence.js";
 import { cachedEvidence, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457
 import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, structureCodes, structureParts, rasterFloorZ, elementsWithValues } from "../lib/evidenceSources.js"; // TASKS.csv #1154; elementsWithValues: #1723
 import { categoricalModels } from "../lib/geologyForward.js";
@@ -57,20 +57,29 @@ export default function EvidenceOverlayPane({ onClose }) {
   // TASKS.csv #1450 — surface samples far from the rest (Silvertip's 5 rocks 45 km south) do not size the grid or a reach
   const sampleCore = useMemo(() => { const { keep, dropped } = mainClusters(surfaceSamples); return { samples: surfaceSamples.filter((_, i) => keep[i]), dropped }; }, [surfaceSamples]);
   const media = useMemo(() => { const m = new Map(); sampleCore.samples.forEach((s) => m.set(s.medium || "", (m.get(s.medium || "") || 0) + 1)); return [...m].sort((a, b) => b[1] - a[1]).map(([k]) => k); }, [sampleCore]);
-  // the grid: the terrain, else the union of the sources' extents
-  const grid = useMemo(() => {
-    if (terrain) return evidenceGrid({ terrain });
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    const grow = (a, b, c, d) => { x0 = Math.min(x0, a); y0 = Math.min(y0, b); x1 = Math.max(x1, c); y1 = Math.max(y1, d); };
-    valueRasters.forEach((r) => { const g = r.grid; grow(g.x0 - g.dx / 2, g.yTop - g.ny * g.dy + g.dy / 2, g.x0 + g.nx * g.dx - g.dx / 2, g.yTop + g.dy / 2); });
-    mapLayers.forEach((l) => { if (l.bbox) grow(...l.bbox); });
-    sampleCore.samples.forEach((s) => { if (Number.isFinite(s.x) && Number.isFinite(s.y)) grow(s.x - 200, s.y - 200, s.x + 200, s.y + 200); });
+  // TASKS.csv #1450 (review #1352, Silvertip) — the area and cell size are the geologist's: "all" sources (as before), the surface samples,
+  // the drilling, or a typed box; the cell is typed or automatic (the longest side / 500). With a terrain and "all", the terrain's grid.
+  const [gridArea, setGridArea] = useState("all"); // "all" | "samples" | "drilling" | "box"
+  const [gridCell, setGridCell] = useState(""); // "" = automatic
+  const [gridBox, setGridBox] = useState(["", "", "", ""]);
+  const extents = useMemo(() => {
+    const mk = () => { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; return { grow: (a, b, c, d) => { x0 = Math.min(x0, a); y0 = Math.min(y0, b); x1 = Math.max(x1, c); y1 = Math.max(y1, d); }, box: () => (x1 > x0 && y1 > y0 ? [x0, y0, x1, y1] : null) }; };
+    const all = mk(), smp = mk(), drl = mk();
+    valueRasters.forEach((r) => { const g = r.grid; all.grow(g.x0 - g.dx / 2, g.yTop - g.ny * g.dy + g.dy / 2, g.x0 + g.nx * g.dx - g.dx / 2, g.yTop + g.dy / 2); });
+    mapLayers.forEach((l) => { if (l.bbox) all.grow(...l.bbox); });
+    sampleCore.samples.forEach((s) => { if (Number.isFinite(s.x) && Number.isFinite(s.y)) { all.grow(s.x - 200, s.y - 200, s.x + 200, s.y + 200); smp.grow(s.x - 200, s.y - 200, s.x + 200, s.y + 200); } });
     // TASKS.csv #1154 — a project of holes, surveys or block models has an extent too
-    for (const t of traces.values()) for (const p of t) grow(p.x - DRILL_REACH_M, p.y - DRILL_REACH_M, p.x + DRILL_REACH_M, p.y + DRILL_REACH_M);
-    (geophysPts || []).forEach((r) => { if (Number.isFinite(r.x) && Number.isFinite(r.y)) grow(r.x, r.y, r.x, r.y); });
-    voxelModels.forEach((m) => (m.cells || []).forEach((c) => { if (Number.isFinite(c.x) && Number.isFinite(c.y)) grow(c.x - c.dx / 2, c.y - c.dy / 2, c.x + c.dx / 2, c.y + c.dy / 2); }));
-    return x1 > x0 && y1 > y0 ? evidenceGrid({ extent: [x0, y0, x1, y1] }) : null;
-  }, [terrain, valueRasters, mapLayers, sampleCore, traces, geophysPts, voxelModels]);
+    for (const t of traces.values()) for (const p of t) { all.grow(p.x - DRILL_REACH_M, p.y - DRILL_REACH_M, p.x + DRILL_REACH_M, p.y + DRILL_REACH_M); drl.grow(p.x - DRILL_REACH_M, p.y - DRILL_REACH_M, p.x + DRILL_REACH_M, p.y + DRILL_REACH_M); }
+    (geophysPts || []).forEach((r) => { if (Number.isFinite(r.x) && Number.isFinite(r.y)) all.grow(r.x, r.y, r.x, r.y); });
+    voxelModels.forEach((m) => (m.cells || []).forEach((c) => { if (Number.isFinite(c.x) && Number.isFinite(c.y)) all.grow(c.x - c.dx / 2, c.y - c.dy / 2, c.x + c.dx / 2, c.y + c.dy / 2); }));
+    return { all: all.box(), samples: smp.box(), drilling: drl.box() };
+  }, [valueRasters, mapLayers, sampleCore, traces, geophysPts, voxelModels]);
+  const cellTyped = Number(gridCell) > 0 ? Number(gridCell) : null;
+  const grid = useMemo(() => {
+    if (terrain && gridArea === "all" && !cellTyped) return evidenceGrid({ terrain });
+    const ext = evidenceExtent(gridArea, extents, gridBox.map((v) => (v === "" ? NaN : Number(v))));
+    return ext ? evidenceGrid({ extent: ext, cellSize: cellTyped }) : null;
+  }, [terrain, gridArea, cellTyped, extents, gridBox]);
 
   // evidence sources the project offers
   const sources = useMemo(() => {
@@ -154,6 +163,7 @@ export default function EvidenceOverlayPane({ onClose }) {
     if (!R) return;
     if (R.operator) setOperator(R.operator);
     if (Number.isFinite(R.gamma)) setGamma(R.gamma);
+    if (R.grid) { setGridArea(R.grid.area || "all"); setGridCell(R.grid.cell > 0 ? String(R.grid.cell) : ""); if (Array.isArray(R.grid.box)) setGridBox(R.grid.box.map((v) => (Number.isFinite(v) ? String(v) : ""))); } // #1450
     setFloor(Number.isFinite(R.floor) ? R.floor : 0); // #1555: a recipe saved before the floor existed keeps its 0-1 ramps
     if (R.training) setTraining((t) => ({ ...t, ...R.training }));
     const missing = [];
@@ -170,7 +180,8 @@ export default function EvidenceOverlayPane({ onClose }) {
   const recipe = useMemo(() => ({
     layers: layers.map((l) => ({ key: l.key, kind: l.kind, ref: l.ref, label: l.label, shape: l.shape, low: l.low, high: l.high, ...(l.log ? { log: true } : {}), field: l.field || "", value: l.value || "", reach: l.reach, ...(l.kind === "voxel" ? { zMin: l.zMin ?? null, zMax: l.zMax ?? null } : {}) })),
     operator, gamma, floor, training,
-  }), [layers, operator, gamma, floor, training]);
+    ...(gridArea !== "all" || cellTyped ? { grid: { area: gridArea, cell: cellTyped, ...(gridArea === "box" ? { box: gridBox.map((v) => (v === "" ? null : Number(v))) } : {}) } } : {}), // #1450
+  }), [layers, operator, gamma, floor, training, gridArea, cellTyped, gridBox]);
   useEffect(() => {
     if (!restored.current) return; // never write an empty recipe over the saved one before it has been read
     const next = recipe.layers.length ? recipe : null;
@@ -240,7 +251,25 @@ export default function EvidenceOverlayPane({ onClose }) {
     <>
       <TaskPaneHeader title={tr("Evidence overlay")} icon={Layers} tone="model" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: "var(--font-size-sm)" }}>
-        <div style={note}>{grid ? tr("Grid: {nx} × {ny} cells of {dx} × {dy} m{src}.", { nx: grid.nx, ny: grid.ny, dx: Math.round(grid.dx), dy: Math.round(grid.dy), src: grid.from === "terrain" ? tr(" (the terrain)") : tr(" (the data's extent)") }) : tr("No grid yet: load terrain, a raster, a map layer or samples first.")}{grid && grid.from !== "terrain" && sampleCore.dropped > 0 ? tr(" {n} surface sample(s) far from the rest are outside it.", { n: sampleCore.dropped }) : ""}</div>
+        <div style={note}>{grid ? tr("Grid: {nx} × {ny} cells of {dx} × {dy} m{src}.", { nx: grid.nx, ny: grid.ny, dx: Math.round(grid.dx), dy: Math.round(grid.dy), src: grid.from === "terrain" ? tr(" (the terrain)") : gridArea === "samples" ? tr(" (the surface samples)") : gridArea === "drilling" ? tr(" (the drilling)") : gridArea === "box" ? tr(" (the typed box)") : tr(" (the data's extent)") /* area: #1450 */ }) : tr("No grid yet: load terrain, a raster, a map layer or samples first.")}{grid && grid.from !== "terrain" && sampleCore.dropped > 0 ? tr(" {n} surface sample(s) far from the rest are outside it.", { n: sampleCore.dropped }) : ""}</div>
+        {/* TASKS.csv #1450 — the area and the cell size the scores are computed on */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          <label style={row}>{tr("Area")}<select value={gridArea} onChange={(e) => { setGridArea(e.target.value); setResult(null); }} style={sel} aria-label={tr("Grid area")}>
+            <option value="all">{terrain ? tr("the terrain / every source") : tr("every source")}</option>
+            {extents.samples && <option value="samples">{tr("the surface samples")}</option>}
+            {extents.drilling && <option value="drilling">{tr("the drilling")}</option>}
+            <option value="box">{tr("a box (typed)")}</option>
+          </select></label>
+          <label style={row} title={tr("Blank = automatic: the longest side / 500, coarsened if the grid would pass its cell limit. A soil grid at 25-50 m wants a cell of about half its spacing.")}>{tr("Cell (m)")}<input type="number" min="1" step="5" value={gridCell} placeholder={tr("auto")} onChange={(e) => { setGridCell(e.target.value); setResult(null); }} style={{ ...sel, width: 64 }} aria-label={tr("Grid cell size (m)")} /></label>
+        </div>
+        {gridArea === "box" && (
+          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+            {[tr("West (E)"), tr("South (N)"), tr("East (E)"), tr("North (N)")].map((lab, i) => (
+              <input key={i} type="number" step="any" value={gridBox[i]} placeholder={lab} aria-label={lab} title={lab} onChange={(e) => { const v = e.target.value; setGridBox((b) => b.map((x, j) => (j === i ? v : x))); setResult(null); }} style={{ ...sel, width: 92 }} />
+            ))}
+          </div>
+        )}
+        {grid && cellTyped && Math.round(grid.dx) > Math.round(cellTyped) && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("The {c} m cell would make more cells than the grid can hold over this area, so it was coarsened to {d} m. A smaller area keeps it.", { c: cellTyped, d: Math.round(grid.dx) })}</div>}
         <select value="" onChange={(e) => addLayer(e.target.value)} style={sel} aria-label={tr("Add evidence")} disabled={!grid || !sources.length}>
           <option value="">{tr("+ add evidence…")}</option>
           {sources.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}

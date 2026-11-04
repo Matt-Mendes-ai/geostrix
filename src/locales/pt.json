@@ -7755,5 +7755,17 @@
   "{n} QC insert(s) were already held from an earlier import and were updated, not added again.": "{n} inserção(ões) de QC já existiam de uma importação anterior e foram atualizadas, não adicionadas de novo.",
   "The column that marks standards, blanks and duplicates (REG / DUP / STD / BLK / Control ...). Those rows are kept for Surface QAQC, not drawn as samples. Left on none, the medium column is read for these labels, as before.": "A coluna que marca padrões, brancos e duplicados (REG / DUP / STD / BLK / Control ...). Essas linhas ficam para o QAQC de superfície, não são desenhadas como amostras. Sem coluna, estes rótulos são lidos da coluna do meio, como antes.",
   "QC type": "Tipo de QC",
-  "QC type column": "Coluna de tipo de QC"
+  "QC type column": "Coluna de tipo de QC",
+  "Grid area": "Área da grelha",
+  "the terrain / every source": "o terreno / todas as fontes",
+  "every source": "todas as fontes",
+  "the surface samples": "as amostras de superfície",
+  "the drilling": "os furos",
+  "a box (typed)": "uma caixa (escrita)",
+  "Blank = automatic: the longest side / 500, coarsened if the grid would pass its cell limit. A soil grid at 25-50 m wants a cell of about half its spacing.": "Vazio = automático: o lado maior / 500, engrossado se a grelha passar o seu limite de células. Uma malha de solos a 25-50 m pede uma célula de cerca de metade do seu espaçamento.",
+  "Grid cell size (m)": "Tamanho da célula da grelha (m)",
+  "The {c} m cell would make more cells than the grid can hold over this area, so it was coarsened to {d} m. A smaller area keeps it.": "A célula de {c} m daria mais células do que a grelha admite nesta área, por isso foi engrossada para {d} m. Uma área menor mantém-na.",
+  " (the surface samples)": " (as amostras de superfície)",
+  " (the drilling)": " (os furos)",
+  " (the typed box)": " (a caixa escrita)"
 }

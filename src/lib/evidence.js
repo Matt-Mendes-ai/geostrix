@@ -37,6 +37,15 @@ export function evidenceGrid({ terrain = null, extent = null, cellSize = null, m
   const nx = Math.max(1, Math.ceil((xmax - xmin) / cell - 1e-9)), ny = Math.max(1, Math.ceil((ymax - ymin) / cell - 1e-9));
   return { nx, ny, x0: xmin + cell / 2, yTop: ymax - cell / 2, dx: cell, dy: cell, from: "extent", coarsened: 1 };
 }
+// TASKS.csv #1450 (review #1352, Silvertip) — the grid over the area the geologist chooses: "all" (every source, as before), "samples"
+// (the surface samples' main cluster), "drilling" (the hole traces plus the drill reach) or "box" ([x0, y0, x1, y1] typed); padded by
+// `pad` m. parts: { all: box, samples: box, drilling: box } (each [x0, y0, x1, y1] or null). -> [x0, y0, x1, y1] | null
+export function evidenceExtent(area, parts, box = null, pad = 0) {
+  const b = area === "box" ? box : parts?.[area] || null;
+  if (!b || !b.every(Number.isFinite) || !(b[2] > b[0] && b[3] > b[1])) return null;
+  return [b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad];
+}
+
 // TASKS.csv #1830 — a raster this overlay made ("Fuzzy score → map", "Posterior → map"; params.tool, #1003)
 export const isOverlayOutput = (r) => /^(fuzzy overlay|weights of evidence)/.test(String(r?.params?.tool || ""));
 export const cellXY = (g, k) => [g.x0 + (k % g.nx) * g.dx, g.yTop - Math.floor(k / g.nx) * g.dy];

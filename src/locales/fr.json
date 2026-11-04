@@ -7755,5 +7755,17 @@
   "{n} QC insert(s) were already held from an earlier import and were updated, not added again.": "{n} insertion(s) QC étaient déjà là d'un import précédent et ont été mises à jour, pas ajoutées à nouveau.",
   "The column that marks standards, blanks and duplicates (REG / DUP / STD / BLK / Control ...). Those rows are kept for Surface QAQC, not drawn as samples. Left on none, the medium column is read for these labels, as before.": "La colonne qui marque les standards, blancs et duplicatas (REG / DUP / STD / BLK / Control ...). Ces lignes sont gardées pour le QAQC de surface, pas dessinées comme échantillons. Sans colonne, ces libellés sont lus dans la colonne du milieu, comme avant.",
   "QC type": "Type QC",
-  "QC type column": "Colonne du type QC"
+  "QC type column": "Colonne du type QC",
+  "Grid area": "Zone de la grille",
+  "the terrain / every source": "le terrain / toutes les sources",
+  "every source": "toutes les sources",
+  "the surface samples": "les échantillons de surface",
+  "the drilling": "les sondages",
+  "a box (typed)": "un cadre (saisi)",
+  "Blank = automatic: the longest side / 500, coarsened if the grid would pass its cell limit. A soil grid at 25-50 m wants a cell of about half its spacing.": "Vide = automatique : le plus grand côté / 500, grossi si la grille dépassait sa limite de cellules. Une maille de sols à 25-50 m demande une cellule d'environ la moitié de son espacement.",
+  "Grid cell size (m)": "Taille de cellule de la grille (m)",
+  "The {c} m cell would make more cells than the grid can hold over this area, so it was coarsened to {d} m. A smaller area keeps it.": "La cellule de {c} m donnerait plus de cellules que la grille n'en accepte sur cette zone ; elle a donc été grossie à {d} m. Une zone plus petite la garde.",
+  " (the surface samples)": " (les échantillons de surface)",
+  " (the drilling)": " (les sondages)",
+  " (the typed box)": " (le cadre saisi)"
 }

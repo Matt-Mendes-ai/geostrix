@@ -7755,5 +7755,17 @@
   "{n} QC insert(s) were already held from an earlier import and were updated, not added again.": "{n} إدراج QC كان موجودًا من استيراد سابق فحُدّث ولم يُضف مرة أخرى.",
   "The column that marks standards, blanks and duplicates (REG / DUP / STD / BLK / Control ...). Those rows are kept for Surface QAQC, not drawn as samples. Left on none, the medium column is read for these labels, as before.": "العمود الذي يحدد المعايير والفراغات والمكررات (REG / DUP / STD / BLK / Control ...). تُحفظ تلك الصفوف لـ QAQC السطحي ولا تُرسم كعينات. إن تُرك بلا عمود، تُقرأ هذه التسميات من عمود الوسط كما سبق.",
   "QC type": "نوع QC",
-  "QC type column": "عمود نوع QC"
+  "QC type column": "عمود نوع QC",
+  "Grid area": "منطقة الشبكة",
+  "the terrain / every source": "التضاريس / كل المصادر",
+  "every source": "كل المصادر",
+  "the surface samples": "العينات السطحية",
+  "the drilling": "الحفر",
+  "a box (typed)": "مستطيل (مكتوب)",
+  "Blank = automatic: the longest side / 500, coarsened if the grid would pass its cell limit. A soil grid at 25-50 m wants a cell of about half its spacing.": "فارغ = تلقائي: الضلع الأطول / 500، ويُخشّن إن تجاوزت الشبكة حد خلاياها. شبكة تربة بتباعد 25-50 م تحتاج خلية بنحو نصف تباعدها.",
+  "Grid cell size (m)": "حجم خلية الشبكة (م)",
+  "The {c} m cell would make more cells than the grid can hold over this area, so it was coarsened to {d} m. A smaller area keeps it.": "الخلية {c} م ستعطي خلايا أكثر مما تحتمله الشبكة على هذه المنطقة، فخُشّنت إلى {d} م. منطقة أصغر تحفظها.",
+  " (the surface samples)": " (العينات السطحية)",
+  " (the drilling)": " (الحفر)",
+  " (the typed box)": " (المستطيل المكتوب)"
 }
