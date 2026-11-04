@@ -320,7 +320,6 @@
   "— pick a boundary/claim —": "— اختر حدًا أو امتيازًا —",
   "— pick a column —": "— اختر عمودًا —",
   "— the same place on both grids (surveyed pins, a re-located hole), with project coordinates in EPSG:": "— المكان نفسه على الشبكتين (علامات مساحية، ثقب أعيد تحديد موقعه)، بإحداثيات المشروع في EPSG:",
-  "{n} surface sample(s) have no elevation and lie outside the terrain — extend the DEM to cover them.": "{n} عينة سطحية بلا ارتفاع وتقع خارج التضاريس — وسّع نموذج الارتفاع الرقمي لتغطيتها.",
   "{n} surface sample(s) have no elevation and no terrain to sit on — load a DEM or SRTM terrain (Geophysics tab) and they are placed on it.": "{n} عينة سطحية بلا ارتفاع ولا تضاريس تستقر عليها — حمّل نموذج ارتفاع رقميًا أو تضاريس SRTM (تبويب الجيوفيزياء) فتوضع عليها.",
   "This is the 3D view — drillhole traces in real world coordinates, with lithology, alteration, veining, geotech and assay data hung off them downhole. Everything starts from a {collar} file.": "هذا هو العرض ثلاثي الأبعاد — مسارات ثقوب الحفر بإحداثيات حقيقية، مع الليثولوجيا والتحوّل والعروق والبيانات الجيوتقنية والتحاليل على طول كل ثقب. يبدأ كل شيء بملف {collar}.",
   "Use the {collars} button under {geometry} in the panel on the left (or File ▸ Import CSV, Ctrl+I), or drag a file straight onto this view. Collars: a CSV (or zipped shapefile / GeoPackage) with a hole ID and x/y/z — {cols}, plus optional {az}, {dip} and {len}. Column names are guessed for you (easting/northing/elevation and friends all work) and anything ambiguous opens a mapping dialog rather than importing wrong.": "استخدم زر {collars} تحت {geometry} في اللوحة الجانبية (أو ملف ▸ استيراد CSV، Ctrl+I)، أو اسحب ملفًا مباشرة إلى هذا العرض. الفوهات: ملف CSV (أو shapefile مضغوط / GeoPackage) بمعرّف الثقب وx/y/z — {cols}، مع {az} و{dip} و{len} اختياريًا. تُخمَّن أسماء الأعمدة تلقائيًا (easting/northing/elevation وما شابهها) وأي غموض يفتح نافذة مطابقة بدلًا من استيراد خاطئ.",
@@ -7736,5 +7735,7 @@
   "Nothing to reload yet: import a table from the Browser panel or Database first, and it is remembered here with its schema, table and column choices.": "لا شيء لإعادة تحميله بعد: استورد أولًا جدولًا من لوحة المتصفح أو قاعدة البيانات، فيُحفظ هنا مع مخططه وجدوله واختيارات أعمدته.",
   "Reload data": "إعادة تحميل البيانات",
   "{table} → {target}: {n} row(s) pulled{v} (the layer had {before} row(s) before){v2}.": "{table} ← {target}: جُلب {n} صفًا{v} (كانت الطبقة تضم {before} صفًا من قبل){v2}.",
-  "; {changed} existing hole(s) took the database's values, {fresh} new": "؛ {changed} ثقبًا موجودًا أخذ قيم قاعدة البيانات، و{fresh} جديدة"
+  "; {changed} existing hole(s) took the database's values, {fresh} new": "؛ {changed} ثقبًا موجودًا أخذ قيم قاعدة البيانات، و{fresh} جديدة",
+  "{n} surface sample(s) have no elevation and lie outside the terrain's footprint: drawn flat at {z} m. A terrain that covers them (Maps > Terrain) places them on the ground.": "{n} عينة سطحية بلا منسوب تقع خارج نطاق التضاريس: رُسمت مسطحة عند {z} م. تضاريس تغطيها (الخرائط > التضاريس) تضعها على الأرض.",
+  "{n} surface sample(s) have no elevation and lie over a void of the terrain (no data there): not placed.": "{n} عينة سطحية بلا منسوب تقع فوق فراغ في التضاريس (لا بيانات هناك): لم تُوضع."
 }

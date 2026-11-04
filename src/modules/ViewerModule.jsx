@@ -1291,7 +1291,10 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const next = surfaceSamples.map((r) => {
       if (Number.isFinite(r.z)) return r;
       const z = b ? terrainGroundAt(terrain, r.x, r.y) : NaN; // TASKS.csv #927 — over the terrain's fill a sample stays unplaced
-      const out = Number.isFinite(z) ? { ...r, z, zDraped: true } : !b ? { ...r, z: surfaceFlatZ, zFlat: true } : null;
+      // TASKS.csv #1806 — outside the terrain's footprint (a terrain from an inversion mesh's top covers the IP box only) a sample
+      // is still drawn flat, as with no terrain; over the terrain's fill (a void of the DEM) it stays unplaced (#927)
+      const inside = !!b && r.x >= b[0] && r.x <= b[2] && r.y >= b[1] && r.y <= b[3];
+      const out = Number.isFinite(z) ? { ...r, z, zDraped: true } : !b || !inside ? { ...r, z: surfaceFlatZ, zFlat: true, ...(b ? { zOutside: true } : {}) } : null;
       if (out) placedSrc.set(out, r);
       return out;
     }).filter(Boolean);
@@ -1302,6 +1305,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   }, [surfaceSamples, terrain, surfaceFlatZ]);
   const surfaceSamplesUnplaced = surfaceSamples.length - placedSurfaceSamples.length;
   const surfaceSamplesFlat = useMemo(() => placedSurfaceSamples.reduce((n, r) => n + (r.zFlat ? 1 : 0), 0), [placedSurfaceSamples]);
+  const surfaceSamplesFlatOutside = useMemo(() => placedSurfaceSamples.reduce((n, r) => n + (r.zFlat && r.zOutside ? 1 : 0), 0), [placedSurfaceSamples]); // #1806
   // #1819 — each drawn sample's index in surfaceSamples (the anomaly classes are per surfaceSamples index)
   const surfaceDrawnIdx = useMemo(() => {
     if (placedSurfaceSamples === surfaceSamples) return null;
@@ -7695,14 +7699,19 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{tr(surfaceSamples.length === 1 ? "{n} sample" : "{n} samples", { n: surfaceSamples.length })}</span>
               <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("geochem"), tr("Import more assays, or edit them, in the Geochem tab"))} />
             </div></div>
-            {surfaceSamplesFlat > 0 && ( // TASKS.csv #1818
+            {surfaceSamplesFlat - surfaceSamplesFlatOutside > 0 && ( // TASKS.csv #1818
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", padding: "2px 2px 4px", lineHeight: 1.4 }}>
-                {tr("{n} surface sample(s) have no elevation and there is no terrain: drawn flat at {z} m (the median collar or sample elevation). Load a terrain (Maps > Terrain) to place them on the ground.", { n: surfaceSamplesFlat, z: Math.round(surfaceFlatZ) })}
+                {tr("{n} surface sample(s) have no elevation and there is no terrain: drawn flat at {z} m (the median collar or sample elevation). Load a terrain (Maps > Terrain) to place them on the ground.", { n: surfaceSamplesFlat - surfaceSamplesFlatOutside, z: Math.round(surfaceFlatZ) })}
+              </div>
+            )}
+            {surfaceSamplesFlatOutside > 0 && ( // TASKS.csv #1806
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", padding: "2px 2px 4px", lineHeight: 1.4 }}>
+                {tr("{n} surface sample(s) have no elevation and lie outside the terrain's footprint: drawn flat at {z} m. A terrain that covers them (Maps > Terrain) places them on the ground.", { n: surfaceSamplesFlatOutside, z: Math.round(surfaceFlatZ) })}
               </div>
             )}
             {surfaceSamplesUnplaced > 0 && ( // TASKS.csv #606
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", padding: "2px 2px 4px", lineHeight: 1.4 }}>
-                {tr("{n} surface sample(s) have no elevation and lie outside the terrain — extend the DEM to cover them.", { n: surfaceSamplesUnplaced }) /* #1818 — with no terrain they are drawn flat (above) */}
+                {tr("{n} surface sample(s) have no elevation and lie over a void of the terrain (no data there): not placed.", { n: surfaceSamplesUnplaced }) /* #1818 / #1806 — with no terrain, or outside it, they are drawn flat (above) */}
               </div>
             )}
             <Suspense fallback={null}><SurfaceAnomalyControls cfg={layerStyles.surface_anomaly} setCfg={(cfg) => setLayerStyles((p) => ({ ...p, surface_anomaly: cfg }))} surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} mapLayers={mapLayers} thresholds={geochemThresholds} result={surfaceAnomaly} drawn={surfaceSamples} /* #1819 — the class CSV holds every sample */ /></Suspense>{/* TASKS.csv #843 / #854 */}

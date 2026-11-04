@@ -10,7 +10,7 @@ const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.ur
 
 test("no terrain: a sample without a z is placed flat at the median collar / sample elevation, and the panel says so", () => {
   assert.ok(v.includes("return med(collars) ?? med(surfaceSamples) ?? 0;"));
-  assert.ok(v.includes(": !b ? { ...r, z: surfaceFlatZ, zFlat: true } : null;"));
+  assert.ok(v.includes(": !b || !inside ? { ...r, z: surfaceFlatZ, zFlat: true, ...(b ? { zOutside: true } : {}) } : null;")); // TASKS.csv #1806 — outside the terrain's footprint: flat too
   assert.ok(v.includes("drawn flat at {z} m (the median collar or sample elevation)"));
 });
 
