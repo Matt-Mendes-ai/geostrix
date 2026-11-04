@@ -13,6 +13,7 @@ self.onmessage = (e) => {
     if (!shell) { self.postMessage({ failed: "no-floors" }); return; }
     const r = benchedPit(shell, { ...opts, groundAt, cells });
     if (!r) { self.postMessage({ failed: "no-design" }); return; }
+    if (r.failed) { self.postMessage({ failed: r.failed }); return; } // #1916: "area-empty"
     r.groundSource = terrain ? "terrain" : collars ? "collars" : "model top";
     self.postMessage({ result: r }, [r.positions.buffer, r.indices.buffer]);
   } catch (err) {

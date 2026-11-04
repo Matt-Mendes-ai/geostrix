@@ -7147,7 +7147,6 @@
   "Waste t": "Estéril t",
   "run it again with the same inputs.": "ejecútelo de nuevo con las mismas entradas.",
   "{n} ({lo} to {hi} m)": "{n} ({lo} a {hi} m)",
-  " (snapped)": " (ajustado)",
   "; {k} other entities skipped": "; {k} otras entidades omitidas",
   "A parallel copy in plan: to the right of the direction of travel, outward on a closed string; negative goes the other way.": "Una copia paralela en planta: a la derecha del sentido de avance, hacia afuera en una línea cerrada; negativo va hacia el otro lado.",
   "A solid joins the generated surfaces (3D Modelling), with its volume; the tonnes count the blocks whose centre lies inside it.": "Un sólido se suma a las superficies generadas (Modelado 3D), con su volumen; las toneladas cuentan los bloques cuyo centro queda dentro.",
@@ -7444,5 +7443,17 @@
   "The pit is {n} block(s) deep: the typed slope cannot be expressed on it, and its walls are block steps.": "El rajo tiene {n} bloque(s) de profundidad: el talud ingresado no puede expresarse en él, y sus paredes son escalones de bloques.",
   "The shell is several separate pits; the design grid then goes to the largest alone.": "El cono son varios rajos separados; la grilla de diseño va entonces solo al mayor.",
   "Design the largest of the {n} separate pits only": "Diseñar solo el mayor de los {n} rajos separados",
-  "The largest of the shell's separate pits was designed; {k} left out.": "Se diseñó el mayor de los rajos separados del cono; {k} quedaron fuera."
+  "The largest of the shell's separate pits was designed; {k} left out.": "Se diseñó el mayor de los rajos separados del cono; {k} quedaron fuera.",
+  " (snapped to {name})": " (ajustado a {name})",
+  "{name} vertex {n}": "{name} vértice {n}",
+  "Design area": "Área de diseño",
+  "Design area (a closed design string)": "Área de diseño (un string cerrado)",
+  "Only the shell's columns inside this closed string are designed, so the design grid goes to one prospect.": "Solo se diseñan las columnas del cono dentro de este string cerrado, así la grilla de diseño va a un solo prospecto.",
+  "— the whole shell —": "— todo el cono —",
+  "Design cell at these benches: {c} m; the {f} m faces are drawn.": "Celda de diseño con estos bancos: {c} m; las caras de {f} m sí se dibujan.",
+  "Design cell at these benches: {c} m, wider than the {f} m face: no faces or berms would be drawn, only the shell stepped to bench floors.": "Celda de diseño con estos bancos: {c} m, más ancha que la cara de {f} m: no se dibujarían caras ni bermas, solo el cono escalonado a los pisos de banco.",
+  "Benches of {h} m would draw at this size; or pick a design area (a closed design string) so the grid covers one prospect.": "Bancos de {h} m sí se dibujarían a este tamaño; o elija un área de diseño (un string cerrado) para que la grilla cubra un solo prospecto.",
+  "Pick a design area (a closed design string) so the grid covers one prospect.": "Elija un área de diseño (un string cerrado) para que la grilla cubra un solo prospecto.",
+  "No column of the shell lies inside \"{name}\": move or enlarge the area, or pick another.": "Ninguna columna del cono queda dentro de \"{name}\": mueva o agrande el área, o elija otra.",
+  "Designed inside \"{name}\": {n} of the shell's columns.": "Diseñado dentro de \"{name}\": {n} columnas del cono."
 }

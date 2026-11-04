@@ -7147,7 +7147,6 @@
   "Waste t": "Estéril t",
   "run it again with the same inputs.": "execute-o de novo com as mesmas entradas.",
   "{n} ({lo} to {hi} m)": "{n} ({lo} a {hi} m)",
-  " (snapped)": " (ajustado)",
   "; {k} other entities skipped": "; {k} outras entidades ignoradas",
   "A parallel copy in plan: to the right of the direction of travel, outward on a closed string; negative goes the other way.": "Uma cópia paralela em planta: à direita do sentido de avanço, para fora numa linha fechada; negativo vai para o outro lado.",
   "A solid joins the generated surfaces (3D Modelling), with its volume; the tonnes count the blocks whose centre lies inside it.": "Um sólido junta-se às superfícies geradas (Modelagem 3D), com o seu volume; as toneladas contam os blocos cujo centro fica dentro dele.",
@@ -7444,5 +7443,17 @@
   "The pit is {n} block(s) deep: the typed slope cannot be expressed on it, and its walls are block steps.": "A cava tem {n} bloco(s) de profundidade: o talude digitado não pode ser expresso nela, e as paredes são degraus de blocos.",
   "The shell is several separate pits; the design grid then goes to the largest alone.": "A cava conceitual são várias cavas separadas; a grade de projeto vai então só para a maior.",
   "Design the largest of the {n} separate pits only": "Projetar só a maior das {n} cavas separadas",
-  "The largest of the shell's separate pits was designed; {k} left out.": "Foi projetada a maior das cavas separadas; {k} ficaram de fora."
+  "The largest of the shell's separate pits was designed; {k} left out.": "Foi projetada a maior das cavas separadas; {k} ficaram de fora.",
+  " (snapped to {name})": " (ajustado a {name})",
+  "{name} vertex {n}": "{name} vértice {n}",
+  "Design area": "Área de projeto",
+  "Design area (a closed design string)": "Área de projeto (uma string fechada)",
+  "Only the shell's columns inside this closed string are designed, so the design grid goes to one prospect.": "Só as colunas da cava dentro desta string fechada são projetadas, assim a grade de projeto vai para um só prospecto.",
+  "— the whole shell —": "— toda a cava —",
+  "Design cell at these benches: {c} m; the {f} m faces are drawn.": "Célula de projeto com estas bancadas: {c} m; as faces de {f} m são desenhadas.",
+  "Design cell at these benches: {c} m, wider than the {f} m face: no faces or berms would be drawn, only the shell stepped to bench floors.": "Célula de projeto com estas bancadas: {c} m, mais larga que a face de {f} m: nenhuma face ou berma seria desenhada, só a cava escalonada aos pisos das bancadas.",
+  "Benches of {h} m would draw at this size; or pick a design area (a closed design string) so the grid covers one prospect.": "Bancadas de {h} m seriam desenhadas neste tamanho; ou escolha uma área de projeto (uma string fechada) para a grade cobrir um só prospecto.",
+  "Pick a design area (a closed design string) so the grid covers one prospect.": "Escolha uma área de projeto (uma string fechada) para a grade cobrir um só prospecto.",
+  "No column of the shell lies inside \"{name}\": move or enlarge the area, or pick another.": "Nenhuma coluna da cava fica dentro de \"{name}\": mova ou amplie a área, ou escolha outra.",
+  "Designed inside \"{name}\": {n} of the shell's columns.": "Projetado dentro de \"{name}\": {n} colunas da cava."
 }

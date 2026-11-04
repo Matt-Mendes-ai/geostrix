@@ -9,7 +9,7 @@ import * as THREE from "three";
 import { PenTool, Download, Upload, X, Trash2, Plus, Box, Maximize2 } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
-import { stringStats, offsetString, joinStrings, splitString, reverseString, fromDistanceBearing, orthoPoint, snapToGrid, nearestPoint, bearingOf, stringRows, stringFeatures, stringsFromDxf } from "../lib/designStrings.js";
+import { stringStats, offsetString, joinStrings, splitString, reverseString, fromDistanceBearing, orthoPoint, snapToGrid, bearingOf, stringRows, stringFeatures, stringsFromDxf } from "../lib/designStrings.js";
 import { extrudeString, loftStrings, solidTonnage } from "../lib/stringSolids.js";
 import { categoricalModels } from "../lib/geologyForward.js";
 import { buildDXF } from "../lib/dxf.js";
@@ -105,14 +105,19 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
       if (ev.shiftKey && last) p = orthoPoint(last, p);
       if (s.grid > 0) p = snapToGrid(p, s.grid);
       if (s.snap) {
-        // a snap radius of about 12 px at the point's distance from the camera
-        const cam = view.camera.current, dist = cam.position.distanceTo(toScene(p));
-        const perPx = (2 * dist * Math.tan((cam.fov * Math.PI) / 360)) / dom.clientHeight, r = 12 * perPx;
-        const cands = [];
-        s.strings.forEach((st) => st.vertices.forEach((v, i) => { if (!(st.id === s.string?.id && i === st.vertices.length - 1)) cands.push(v); }));
-        s.collars.forEach((c) => { if ([c.x, c.y, c.z].every(Number.isFinite)) cands.push([c.x, c.y, c.z]); });
-        const near = nearestPoint(p, cands, r);
-        if (near) { p = near; snapped = true; }
+        // TASKS.csv #1909 — the snap is judged on the SCREEN: a candidate within 12 px of the cursor's pixel takes the point,
+        // with its own Z, whatever surface lies over it (a collar under a dump still snaps); the hover names what it snapped to
+        const rect = dom.getBoundingClientRect(), cam = view.camera.current;
+        let best = null, bestD = 12;
+        const tryCand = (v, label) => {
+          const q = toScene(v).project(cam);
+          if (q.z > 1) return; // behind the camera
+          const d = Math.hypot(((q.x + 1) / 2) * rect.width + rect.left - ev.clientX, ((1 - q.y) / 2) * rect.height + rect.top - ev.clientY);
+          if (d < bestD) { bestD = d; best = { p: v, label }; }
+        };
+        s.strings.forEach((st) => st.vertices.forEach((v, i) => { if (!(st.id === s.string?.id && i === st.vertices.length - 1)) tryCand(v, tr("{name} vertex {n}", { name: st.name, n: i + 1 })); }));
+        s.collars.forEach((c) => { if ([c.x, c.y, c.z].every(Number.isFinite)) tryCand([c.x, c.y, c.z], String(c.hole_id ?? c.id ?? "")); });
+        if (best) { p = best.p.slice(); snapped = best.label; }
       }
       return { p, snapped, on };
     };
@@ -157,6 +162,37 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
       setHover(null);
     };
   }, [drawing, activeId, view]);
+
+  // TASKS.csv #1907 — while the pane is open and nothing is being drawn, a click (no drag) on a string in the view selects it:
+  // the nearest string whose segment passes within 8 px of the click, judged on the screen. The press is not claimed, so an
+  // orbit still starts from it.
+  useEffect(() => {
+    const dom = view?.renderer.current?.domElement;
+    if (drawing || !dom) return undefined;
+    const toScene = (v) => { const o = view.origin.current; return new THREE.Vector3(v[0] - o.x, v[2] - o.z, -(v[1] - o.y)); };
+    const pick = (ev) => {
+      const rect = dom.getBoundingClientRect(), cam = view.camera.current;
+      if (!cam) return null;
+      const px = (v) => { const q = toScene(v).project(cam); return q.z > 1 ? null : [((q.x + 1) / 2) * rect.width + rect.left, ((1 - q.y) / 2) * rect.height + rect.top]; };
+      const segDist = (a, b) => { const vx = b[0] - a[0], vy = b[1] - a[1], L = vx * vx + vy * vy; const t = L > 0 ? Math.max(0, Math.min(1, ((ev.clientX - a[0]) * vx + (ev.clientY - a[1]) * vy) / L)) : 0; return Math.hypot(a[0] + t * vx - ev.clientX, a[1] + t * vy - ev.clientY); };
+      let best = null, bestD = 8;
+      for (const st of state.current.strings) {
+        if (st.visible === false || !st.vertices.length) continue;
+        const pts = st.vertices.map(px);
+        const n = pts.length, m = st.closed && n > 2 ? n : n - 1;
+        for (let i = 0; i < Math.max(1, m); i++) { const a = pts[i], b = pts[(i + 1) % n] || a; if (!a || !b) continue; const d = segDist(a, b); if (d < bestD) { bestD = d; best = st; } }
+      }
+      return best;
+    };
+    view.dragHook.current = (e) => {
+      const x0 = e.clientX, y0 = e.clientY;
+      // capture: the viewer's own orbit handlers on window run on the bubble phase and may stop the event there
+      const onUp = (ev) => { window.removeEventListener("pointerup", onUp, true); if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 5) return; const hit = pick(ev); if (hit) { setActiveId(hit.id); setMsg(null); } };
+      window.addEventListener("pointerup", onUp, true);
+      return false;
+    };
+    return () => { view.dragHook.current = null; };
+  }, [drawing, view]);
 
   // ---------- typed vertices and tools ----------
   const addTyped = () => { const p = [num0(typed.x), num0(typed.y), num0(typed.z)]; if (p.some((v) => v == null)) return; appendVertex(p); setTyped((t) => ({ ...t, x: "", y: "", z: "" })); };
@@ -261,7 +297,7 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
         <button onClick={() => setDrawing((d) => !d)} aria-pressed={drawing} style={{ ...pBtn, marginTop: 6, background: drawing ? "var(--color-selected-bg)" : undefined }}>
           <PenTool size={14} /> {drawing ? tr("Click points in the view. Shift: a grid direction. Esc stops; right-drag moves the view") : tr("Draw in the 3D view")}
         </button>
-        {drawing && hover && <div style={note}>{hover.dist != null ? tr("Next: {d} m on {b}°, {dz} m in Z{s}", { d: m1(hover.dist), b: Math.round(hover.bearing), dz: m1(hover.dz), s: hover.snapped ? tr(" (snapped)") : "" }) : tr("E {x}, N {y}, Z {z}{s}", { x: m1(hover.p[0]), y: m1(hover.p[1]), z: m1(hover.p[2]), s: hover.snapped ? tr(" (snapped)") : "" })}{hover.on && !hover.snapped ? ` ${hover.on === "ground" ? tr("(on the ground)") : tr("(on {name})", { name: hover.on })}` : ""}</div>}{/* on: #1905 */}
+        {drawing && hover && <div style={note}>{hover.dist != null ? tr("Next: {d} m on {b}°, {dz} m in Z{s}", { d: m1(hover.dist), b: Math.round(hover.bearing), dz: m1(hover.dz), s: hover.snapped ? tr(" (snapped to {name})", { name: hover.snapped }) : "" }) : tr("E {x}, N {y}, Z {z}{s}", { x: m1(hover.p[0]), y: m1(hover.p[1]), z: m1(hover.p[2]), s: hover.snapped ? tr(" (snapped to {name})", { name: hover.snapped }) : "" })}{hover.on && !hover.snapped ? ` ${hover.on === "ground" ? tr("(on the ground)") : tr("(on {name})", { name: hover.on })}` : ""}</div>}{/* on: #1905 */}
         <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>
           <Cell value={num0(typed.x)} width={66} placeholder="E" ariaLabel={tr("Easting of the vertex")} onCommit={(v) => setTyped((t) => ({ ...t, x: v == null ? "" : String(v) }))} />
           <Cell value={num0(typed.y)} width={70} placeholder="N" ariaLabel={tr("Northing of the vertex")} onCommit={(v) => setTyped((t) => ({ ...t, y: v == null ? "" : String(v) }))} />

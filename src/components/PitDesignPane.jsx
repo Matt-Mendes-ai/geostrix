@@ -8,7 +8,7 @@ import { confirmDestructive } from "../lib/confirmDestructive.js"; // #1498
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
 import { runPitDesignAsync } from "../lib/pitDesignClient.js";
-import { benchStringRows, benchStringFeatures, benchTableRows } from "../lib/pitDesign.js";
+import { benchStringRows, benchStringFeatures, benchTableRows, predictDesignCell, benchHeightThatDraws, MAX_DESIGN_CELLS } from "../lib/pitDesign.js"; // predictDesignCell: #1916
 import { buildDXF } from "../lib/dxf.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
@@ -27,7 +27,10 @@ let kept = null; // #1356 — the last result (with its strings, for export) out
 // surfaces: the project's generated surfaces (pit shells in, designs out); worldPositionsOf(id) -> Float64Array of E, N, Z for a
 // surface's mesh; onAdd / onToggle / onRemove as the pit pane's
 export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, onToggle, onRemove, onClose }) {
-  const { voxelModels = [], terrain, collars = [], project } = useStore();
+  const { voxelModels = [], terrain, collars = [], project, designStrings = [] } = useStore();
+  const areas = useMemo(() => designStrings.filter((s) => s.closed && s.vertices.length > 2), [designStrings]); // #1916 — design areas
+  const [areaId, setAreaId] = useState("");
+  const area = areas.find((s) => s.id === areaId) || null;
   const pits = useMemo(() => surfaces.filter((s) => s.type === "pit_shell"), [surfaces]);
   const designs = useMemo(() => surfaces.filter((s) => s.type === "pit_design"), [surfaces]);
   const [pitId, setPitId] = useState(() => pits[pits.length - 1]?.id ?? "");
@@ -46,6 +49,17 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
   const reach = !missing ? v("benchH") / Math.tan((v("batterDeg") * Math.PI) / 180) + v("berm") : null;
   const interRamp = reach != null ? (Math.atan(v("benchH") / reach) * 180) / Math.PI : null;
   const shellSlope = Number(pit?.params?.inputs?.slopeDeg);
+  // #1916 — the cell the design grid will get, before the run: from the shell's box (or the area's), its depth and its cell
+  const shellBox = useMemo(() => {
+    const p = pit && worldPositionsOf?.(pit.id); if (!p) return null;
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (let i = 0; i < p.length; i += 3) { if (p[i] < x0) x0 = p[i]; if (p[i] > x1) x1 = p[i]; if (p[i + 1] < y0) y0 = p[i + 1]; if (p[i + 1] > y1) y1 = p[i + 1]; }
+    return Number.isFinite(x0) ? { w: x1 - x0, h: y1 - y0 } : null;
+  }, [pit, worldPositionsOf]);
+  const areaBox = useMemo(() => { if (!area) return null; const xs = area.vertices.map((q) => q[0]), ys = area.vertices.map((q) => q[1]); return { w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) }; }, [area]);
+  const predictArgs = (shellBox || areaBox) && pit ? { boxW: Math.min(areaBox?.w ?? Infinity, shellBox?.w ?? Infinity), boxH: Math.min(areaBox?.h ?? Infinity, shellBox?.h ?? Infinity), /* the run's box is the kept columns': within both */ depth: Number(pit.params?.maxDepthM) || 0, shellCell: Number(pit.params?.gridCellM?.[0]) || 10, berm: v("berm"), batterDeg: v("batterDeg"), maxCells: MAX_DESIGN_CELLS } : null;
+  const predicted = !missing && predictArgs ? predictDesignCell({ ...predictArgs, benchH: v("benchH") }) : null;
+  const drawsAt = predicted && !predicted.facesDrawn ? benchHeightThatDraws(predictArgs) : null;
   // the block model the shell was run on: its blocks above the shell's cut-off are the design's ore
   const model = useMemo(() => (pit ? voxelModels.find((m) => (m.id ?? m.name) === pit.params?.inputs?.modelId) || voxelModels.find((m) => m.name === pit.params?.blockModel) || null : null), [pit, voxelModels]);
   const unit = pit?.params?.gradeUnit || "";
@@ -54,13 +68,15 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
     const positions = worldPositionsOf?.(pit.id);
     if (!positions) { setMsg(tr("The pit's mesh is not in the view: show it and try again.")); return; }
     const inputs = { benchH: v("benchH"), berm: v("berm"), batterDeg: v("batterDeg"), datum: f.datum === "" ? 0 : Number(f.datum) || 0 };
-    const opts = { ...inputs, cutoff: Number(pit.params?.cutoffGrade) || Infinity, density: Number(pit.params?.inputs?.density) || 1, largestOnly: pitCount > 1 && largestOnly };
+    const opts = { ...inputs, cutoff: Number(pit.params?.cutoffGrade) || Infinity, density: Number(pit.params?.inputs?.density) || 1, largestOnly: pitCount > 1 && largestOnly && !area, areaPoly: area ? area.vertices.map((q) => [q[0], q[1]]) : null }; // areaPoly: #1916
     setBusy(true); setMsg(null);
     const t0 = performance.now();
     try {
       job.current = runPitDesignAsync(positions, model, opts, terrain, collars);
       const r = await job.current.promise;
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
+      if (r.failed === "area-empty") { setMsg(tr("No column of the shell lies inside \"{name}\": move or enlarge the area, or pick another.", { name: area?.name || "?" })); return; } // #1916
+      if (r.failed) { setMsg(tr("The design failed: {v}", { v: r.failed })); return; }
       if (!r.benches.length) { setMsg(tr("No bench fits: the shell is shallower than one bench height.")); return; }
       if (r.benches.length === 1 && !r.daylights && r.faceRun < r.cell) { setMsg(tr("One bench only: a face run of {r} m is narrower than the {c} m design grid, so the walls could not be drawn. Use a flatter face, a taller bench or a berm.", { r: r.faceRun.toFixed(2), c: r.cell.toFixed(1) })); return; } // #1902
       const seconds = Math.round((performance.now() - t0) / 100) / 10;
@@ -75,7 +91,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
           meanGrade: r.totals.meanGrade == null ? null : +r.totals.meanGrade.toPrecision(4), designCellM: +r.cell.toFixed(2), coarsened: r.coarsened, groundFrom: r.groundSource, strings: r.strings.length,
           caution: "geometric design on a conceptual shell: no ramp, no slope by sector, no dilution or scheduling; not a Mineral Reserve or Resource", generatedAt: new Date().toISOString(), metalFactor },
       });
-      kept = { ...r, inputs, seconds, designId, pitName: pit.name, unit, shell: pit.params || {}, modelMissing: !model };
+      kept = { ...r, inputs, seconds, designId, pitName: pit.name, unit, shell: pit.params || {}, modelMissing: !model, areaName: area?.name || null };
       setRes(kept);
     } catch (e) {
       setMsg(e.message === "no-floors" ? tr("No mined column was found under the ground: the shell may sit above the terrain loaded now.") : tr("The design failed: {v}", { v: e.message || e }));
@@ -113,6 +129,11 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
         {field("berm", tr("Berm width (m)"), { title: tr("The catch bench left between one face's crest and the next face's toe.") })}
         {field("batterDeg", tr("Face angle (°)"), { max: 89, title: tr("The angle of each bench face (batter), steeper than the overall slope.") })}
         {field("datum", tr("Bench datum (m)"), { placeholder: "0", title: tr("Bench floors sit at this elevation plus whole bench heights. Blank: multiples of the bench height.") })}
+        {/* TASKS.csv #1916 — a design area: a closed design string; the design grid then covers that part of the shell alone */}
+        {areas.length > 0 && <label style={row}>{tr("Design area")}<select value={areaId} onChange={(e) => { setAreaId(e.target.value); setMsg(null); }} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Design area (a closed design string)")} title={tr("Only the shell's columns inside this closed string are designed, so the design grid goes to one prospect.")}><option value="">{tr("— the whole shell —")}</option>{areas.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>}
+        {predicted && (predicted.facesDrawn
+          ? <div style={note}>{tr("Design cell at these benches: {c} m; the {f} m faces are drawn.", { c: predicted.cell.toFixed(1), f: predicted.faceRun.toFixed(1) })}</div>
+          : <div style={warn}>{tr("Design cell at these benches: {c} m, wider than the {f} m face: no faces or berms would be drawn, only the shell stepped to bench floors.", { c: predicted.cell.toFixed(1), f: predicted.faceRun.toFixed(1) })} {drawsAt ? tr("Benches of {h} m would draw at this size; or pick a design area (a closed design string) so the grid covers one prospect.", { h: drawsAt }) : tr("Pick a design area (a closed design string) so the grid covers one prospect.")}</div>)}
         {interRamp != null && (
           <div style={{ ...note, marginTop: 4 }}>
             {tr("Inter-ramp angle at these benches: {a}° (a face run of {r} m plus the berm).", { a: interRamp.toFixed(1), r: (reach - v("berm")).toFixed(1) })}
@@ -156,6 +177,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
           {line(tr("Designed in"), `${res.seconds} s`)}
           {res.modelMissing && <div style={warn}>{tr("No block model: the ore column is empty, the rock is counted.")}</div>}
           {res.coarsened && <div style={warn}>{tr("The design grid was made coarser to stay within the limit: faces and strings are coarser than asked.")}</div>}
+          {res.columnsInArea > 0 && <div style={note}>{tr("Designed inside \"{name}\": {n} of the shell's columns.", { name: res.areaName || "?", n: res.columnsInArea })}</div>}{/* #1916 */}
           {res.partsDropped > 0 && <div style={note}>{tr("The largest of the shell's separate pits was designed; {k} left out.", { k: res.partsDropped })}</div>}{/* #1899 */}
           {res.cell > res.faceRun && <div style={warn}>{tr("The design cell ({c} m) is wider than a face ({f} m): faces and berms are not drawn at this size, and the surface is the shell stepped to bench floors.", { c: res.cell.toFixed(1), f: res.faceRun.toFixed(1) })}</div>}{/* #1899 */}
           {Number(res.shell?.gridCellM?.[0]) > Number(res.inputs?.benchH) && <div style={note}>{tr("The shell's walls are {d} m block steps, wider than a {h} m bench: the shell's waste understates what the benched walls take out.", { d: res.shell.gridCellM[0], h: res.inputs.benchH })}</div>}{/* #1899 */}

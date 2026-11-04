@@ -7147,7 +7147,6 @@
   "Waste t": "النفايات ط",
   "run it again with the same inputs.": "شغّله مجددًا بالمدخلات نفسها.",
   "{n} ({lo} to {hi} m)": "{n} ({lo} إلى {hi} م)",
-  " (snapped)": " (مُلتقط)",
   "; {k} other entities skipped": "؛ تم تخطي {k} كيانات أخرى",
   "A parallel copy in plan: to the right of the direction of travel, outward on a closed string; negative goes the other way.": "نسخة موازية في المسقط: إلى يمين اتجاه السير، وإلى الخارج في خط مغلق؛ والقيمة السالبة تذهب إلى الجهة الأخرى.",
   "A solid joins the generated surfaces (3D Modelling), with its volume; the tonnes count the blocks whose centre lies inside it.": "ينضم المجسم إلى الأسطح المولّدة (النمذجة ثلاثية الأبعاد) مع حجمه؛ وتُحسب الأطنان من الكتل التي يقع مركزها داخله.",
@@ -7444,5 +7443,17 @@
   "The pit is {n} block(s) deep: the typed slope cannot be expressed on it, and its walls are block steps.": "عمق الحفرة {n} كتلة: لا يمكن التعبير عن الميل المُدخل عليها، وجدرانها درجات كتل.",
   "The shell is several separate pits; the design grid then goes to the largest alone.": "الغلاف عدة حفر منفصلة؛ تذهب شبكة التصميم عندئذ إلى الأكبر وحدها.",
   "Design the largest of the {n} separate pits only": "تصميم الأكبر فقط من الحفر المنفصلة الـ{n}",
-  "The largest of the shell's separate pits was designed; {k} left out.": "صُمِّمت أكبر الحفر المنفصلة للغلاف؛ تُركت {k}."
+  "The largest of the shell's separate pits was designed; {k} left out.": "صُمِّمت أكبر الحفر المنفصلة للغلاف؛ تُركت {k}.",
+  " (snapped to {name})": " (مُثبَّت إلى {name})",
+  "{name} vertex {n}": "{name} الرأس {n}",
+  "Design area": "منطقة التصميم",
+  "Design area (a closed design string)": "منطقة التصميم (خط مغلق)",
+  "Only the shell's columns inside this closed string are designed, so the design grid goes to one prospect.": "تُصمَّم فقط أعمدة الغلاف داخل هذا الخط المغلق، فتذهب شبكة التصميم إلى موقع واحد.",
+  "— the whole shell —": "— الغلاف كله —",
+  "Design cell at these benches: {c} m; the {f} m faces are drawn.": "خلية التصميم عند هذه الدرجات: {c} م؛ تُرسم الوجوه بطول {f} م.",
+  "Design cell at these benches: {c} m, wider than the {f} m face: no faces or berms would be drawn, only the shell stepped to bench floors.": "خلية التصميم عند هذه الدرجات: {c} م، أعرض من الوجه {f} م: لن تُرسم وجوه ولا أرصفة، بل الغلاف مدرَّجًا إلى أرضيات الدرجات فقط.",
+  "Benches of {h} m would draw at this size; or pick a design area (a closed design string) so the grid covers one prospect.": "درجات بارتفاع {h} م ستُرسم عند هذا الحجم؛ أو اختر منطقة تصميم (خط مغلق) لتغطي الشبكة موقعًا واحدًا.",
+  "Pick a design area (a closed design string) so the grid covers one prospect.": "اختر منطقة تصميم (خط مغلق) لتغطي الشبكة موقعًا واحدًا.",
+  "No column of the shell lies inside \"{name}\": move or enlarge the area, or pick another.": "لا يقع أي عمود من الغلاف داخل \"{name}\": حرّك المنطقة أو وسّعها، أو اختر غيرها.",
+  "Designed inside \"{name}\": {n} of the shell's columns.": "صُمِّم داخل \"{name}\": {n} من أعمدة الغلاف."
 }

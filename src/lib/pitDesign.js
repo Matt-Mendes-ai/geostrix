@@ -16,7 +16,33 @@
 import { contourLevel } from "./contours.js";
 
 const RAD = Math.PI / 180;
-export const MAX_DESIGN_CELLS = 250000;
+export const MAX_DESIGN_CELLS = 1000000; // #1916: was 250,000; a Treaty Creek shell then got a 9.2 m cell, wider than a 4.7 m face
+
+// TASKS.csv #1916 — the design cell a shell will get at these benches, before the run: the mined box (metres) widened by every
+// bench's reach, at a quarter of the reach, coarsened by 1.25 until the grid fits the cell budget. Also whether a face fits in it.
+export function predictDesignCell({ boxW, boxH, depth, shellCell, benchH, berm, batterDeg, maxCells = MAX_DESIGN_CELLS }) {
+  if (!(benchH > 0) || !(berm >= 0) || !(batterDeg > 0 && batterDeg < 90)) return null;
+  const faceRun = benchH / Math.tan(batterDeg * RAD), reach = faceRun + berm;
+  const pad = (Math.ceil(Math.max(0, depth) / benchH) + 1) * reach + shellCell, w = boxW + 2 * pad, h = boxH + 2 * pad;
+  let cell = Math.max(0.5, Math.min(reach / 4, shellCell)), coarsened = false;
+  const n = () => (Math.ceil(w / cell) + 1) * (Math.ceil(h / cell) + 1);
+  while (n() > maxCells) { cell *= 1.25; coarsened = true; }
+  return { cell, faceRun, reach, coarsened, facesDrawn: faceRun >= cell };
+}
+// the smallest round bench height (5 m steps) whose face would be drawn at this box, or null
+export function benchHeightThatDraws(args) {
+  for (let h = 5; h <= 60; h += 5) { const p = predictDesignCell({ ...args, benchH: h }); if (p && p.facesDrawn) return h; }
+  return null;
+}
+// a point inside a closed polygon [[x, y], ...] (ray casting)
+function insidePolygon(x, y, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
 
 // the shell mesh's nodes are column centres on a regular lattice: x0 / y0 are the lattice's first centres
 export function shellFloors(positions, groundAt = null) {
@@ -47,7 +73,18 @@ export const toeRL = (z, benchH, datum = 0) => datum + Math.round((z - datum) / 
 // blocks ({ x, y, z, dx, dy, dz, value, coverage }), cutoff and density from the shell's run; benchH, berm, batterDeg, datum.
 // -> { positions, indices, strings: [{ bench, rl, kind: "toe" | "crest", lines: [[[x, y, z], ...]] }], benches: [{ rl, rockT, oreT, wasteT,
 //      metalU, meanGrade }], totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL }
-export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infinity, density = 1, benchH, berm, batterDeg, datum = 0, maxCells = MAX_DESIGN_CELLS, largestOnly = false } = {}) {
+export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infinity, density = 1, benchH, berm, batterDeg, datum = 0, maxCells = MAX_DESIGN_CELLS, largestOnly = false, areaPoly = null } = {}) {
+  // TASKS.csv #1916 — a design AREA (areaPoly): a closed polygon [[x, y], ...] in world metres (a design string); only the shell's columns
+  // whose centre lies inside it are designed, so one prospect of a district-wide shell gets the whole grid
+  let columnsInArea = null;
+  if (shell && Array.isArray(areaPoly) && areaPoly.length > 2) {
+    const { nx, ny, floor } = shell, kept = new Float64Array(floor.length).fill(NaN);
+    let n = 0;
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { const c = j * nx + i; if (Number.isFinite(floor[c]) && insidePolygon(shell.x0 + i * shell.dx, shell.y0 + j * shell.dy, areaPoly)) { kept[c] = floor[c]; n++; } }
+    shell = { ...shell, floor: kept, mined: n };
+    columnsInArea = n;
+    if (!n) return { failed: "area-empty" };
+  }
   // TASKS.csv #1899 / #1608 — a shell that is several separate pits: keep the largest (most mined columns, 4-connected) and let the
   // design grid go to it alone; the parts left out are counted in partsDropped
   let partsDropped = 0;
@@ -216,7 +253,7 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
   totals.meanGrade = totals.oreT > 0 ? totals.metalU / totals.oreT : null;
   let nCells = 0;
   for (let c = 0; c < N; c++) nCells += inPit[c];
-  return { positions: Float64Array.from(pos), indices: Uint32Array.from(idx), strings, benches, totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL, partsDropped };
+  return { positions: Float64Array.from(pos), indices: Uint32Array.from(idx), strings, benches, totals, interRampDeg, faceRun, reach, cell, nCells, coarsened, daylights, crestRL, floorRL, partsDropped, columnsInArea };
 }
 
 // export rows: one per string vertex
