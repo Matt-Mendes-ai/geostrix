@@ -76,7 +76,11 @@ test("#851 synthetic deposits in the east: the best cutoff, a positive W+, the p
   assert.ok(Math.abs(post.ratio - 1) < 1e-6);
   assert.ok(post.prob[cellXY(g, 0)[0] === 0 ? 0 : 0] < post.prob[99], "west below east");
   const pa = predictionArea(post.prob, D, valid);
-  assert.ok(pa.point && Math.abs(pa.point.rate + pa.point.area - 1) < 0.02 && pa.point.nd > 1.5, JSON.stringify(pa.point));
+  // TASKS.csv #1555 — a one-layer posterior has two values, so no threshold reaches the crossing: it is reported as the step
+  // between them (the top class's area and rate), not as a point interpolated across the jump
+  assert.equal(pa.point, null);
+  const top = pa.step && pa.step[pa.step.at]; // the top class is the nearer real threshold; above it nothing is predicted
+  assert.ok(top && pa.step.at === "below" && top.area < 0.45 && top.rate > 0.8 && pa.step.nd > 1.5, JSON.stringify(pa.step));
   assert.ok(pa.curve.every((c, i) => i === 0 || c.area <= pa.curve[i - 1].area + 1e-12), "area falls as the threshold rises");
 });
 

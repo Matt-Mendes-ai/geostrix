@@ -7651,5 +7651,15 @@
   "{k} triangle(s) with an edge over {m} m (ten times the median) were left out: they would have bridged a gap nobody measured.": "أُستبعد {k} مثلثًا بحافة تتجاوز {m} م (عشرة أمثال الوسيط): كانت ستجسر فجوة لم يقسها أحد.",
   "{d} point(s) shared a plan position with another and were dropped.": "{d} نقطة تشاركت الموقع المسقط مع أخرى فأُسقطت.",
   "A Delaunay triangulation in plan through every pick and line vertex, as a surveyor's TIN: no spline, no smoothing, and nothing beyond the points (a triangle with an edge over ten times the median is left out). For a pit or trench survey, spot heights or a DXF of points.": "تثليث ديلوني في المسقط عبر كل نقطة التقاط ورأس خط، كشبكة مثلثات المسّاح: بلا شريحة، بلا تنعيم، ولا شيء خارج النقاط (يُستبعد مثلث حافته تتجاوز عشرة أمثال الوسيط). لمسح حفرة أو خندق، أو مناسيب نقطية، أو DXF نقاط.",
-  "Triangulate the points as they are (no fit, no extrapolation)": "تثليث النقاط كما هي (بلا موافقة، بلا استقراء)"
+  "Triangulate the points as they are (no fit, no extrapolation)": "تثليث النقاط كما هي (بلا موافقة، بلا استقراء)",
+  "The ramp runs on the logarithm of the values: even steps in grade ratio, as a lognormal grade is spread. Off, it runs on the values and is flat over most of a skewed layer.": "يمتد المنحدر على لوغاريتم القيم: خطوات متساوية في نسبة المحتوى، كما يتوزع المحتوى اللوغاريتمي الطبيعي. عند إيقافه يمتد على القيم ويبقى مسطحًا على معظم طبقة ملتوية.",
+  "log ramp": "منحدر لوغاريتمي",
+  "Memberships run from 0.01 to 0.99 instead of 0 to 1, so an evidence at its lowest cannot veto a cell on its own under AND, product or gamma: the cell keeps a low score and its rank among the others. Off, a cell with any membership at 0 scores exactly 0.": "تمتد درجات العضوية من 0.01 إلى 0.99 بدلًا من 0 إلى 1، فلا يستطيع دليل في أدنى قيمته وحده نقض خلية تحت AND أو الضرب أو غاما: تحتفظ الخلية بدرجة منخفضة وبترتيبها بين الأخريات. عند الإيقاف، تحصل خلية بأي عضوية تساوي 0 على 0 بالضبط.",
+  "no single evidence vetoes a cell (0.01–0.99)": "لا دليل واحد ينقض خلية بمفرده (0.01–0.99)",
+  "{p}% of the scored cells sit at the lowest score ({v}): an evidence's membership is at its floor there and the operator keeps the floor. The top cells are only those no evidence vetoed, not the most favourable. Turn on the 0.01–0.99 floor, widen the 0 = points, or combine with OR / algebraic sum.": "{p}٪ من الخلايا المقيَّمة عند أدنى درجة ({v}): عضوية أحد الأدلة هناك عند حدها الأدنى والمشغّل يحتفظ به. الخلايا العليا هي فقط التي لم ينقضها أي دليل، لا الأكثر ملاءمة. فعّل الحد الأدنى 0.01–0.99، أو وسّع نقاط 0 =، أو اجمع بـ OR / الجمع الجبري.",
+  "An evidence's weights come from the cells where it has a value; where it has none it adds nothing to the posterior (weight 0), so the score cannot reach past the drilled ground on drill evidence alone.": "تأتي أوزان الدليل من الخلايا التي له فيها قيمة؛ وحيث لا قيمة له لا يضيف شيئًا إلى اللاحق (وزن 0)، فلا تستطيع الدرجة تجاوز الأرض المحفورة بدليل الحفر وحده.",
+  "on {n} cells with a value; {m} without count 0": "على {n} خلية ذات قيمة؛ {m} بلا قيمة تُحسب 0",
+  "fuzzy": "ضبابي",
+  "posterior": "لاحق",
+  "no threshold reaches the crossing: the score jumps from {r1}% in {a1}% of the area to {r2}% in {a2}% (Nd {nd} at the nearer one)": "لا عتبة تبلغ التقاطع: تقفز الدرجة من {r1}٪ في {a1}٪ من المساحة إلى {r2}٪ في {a2}٪ (Nd {nd} عند الأقرب)"
 }

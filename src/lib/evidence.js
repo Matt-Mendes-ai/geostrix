@@ -145,15 +145,22 @@ export function sampleValues(samples, { kind, symbol, preset, elements }, units)
 
 // ---------- fuzzy overlay ----------
 export const quantile = quantileLinear; // TASKS.csv #1114 — arrayStats.js
-// membership: linear ramp from `low` (0) to `high` (1), or the reverse when decreasing
-export function membership(values, { shape = "increasing", low, high }) {
+// membership: linear ramp from `low` (0) to `high` (1), or the reverse when decreasing. TASKS.csv #1555 (review #1497,
+// Lawyers) — `floor` runs the ramp over [floor, 1 - floor] instead of [0, 1]: with six layers each at 0 below its own 10th
+// percentile, one 0 in any layer made the product term (and so AND, product and gamma) exactly 0 on 98 % of the cells, and
+// the "top" cells were the few with no zero rather than the gold; a 0.01 floor keeps the ranking and stops the veto.
+// `log` runs the ramp on the logarithm of the values (a grade ramp 10th -> 90th percentile is otherwise flat over the
+// low grades and saturates on the few highs); a value <= 0 is then below any low point.
+export function membership(values, { shape = "increasing", low, high, floor = 0, log = false }) {
   const out = new Float32Array(values.length);
-  const a = shape === "decreasing" ? high : low, b = shape === "decreasing" ? low : high, span = b - a;
+  const f = log ? (v) => (v > 0 ? Math.log(v) : -Infinity) : (v) => v;
+  const a = shape === "decreasing" ? f(high) : f(low), b = shape === "decreasing" ? f(low) : f(high), span = b - a;
+  const lo = Math.max(0, Math.min(0.49, Number(floor) || 0)), hi = 1 - lo;
   for (let i = 0; i < values.length; i++) {
     const v = values[i];
     if (!Number.isFinite(v)) { out[i] = NaN; continue; }
-    const m = span === 0 ? (v >= b ? 1 : 0) : (v - a) / span;
-    out[i] = Math.max(0, Math.min(1, m));
+    const x = f(v), m = span === 0 || !Number.isFinite(span) ? (x >= b ? 1 : 0) : (x - a) / span;
+    out[i] = lo + (hi - lo) * Math.max(0, Math.min(1, m));
   }
   return out;
 }
@@ -189,10 +196,15 @@ export function weights(nB, nBD, N, ND) {
   return { nB, nBD, wPlus, wMinus, sPlus, sMinus, C, sC, studC: C / sC };
 }
 // For a continuous evidence: the cutoff (over its quantiles) with the largest contrast; `direction` increasing means
-// B = value >= cutoff. -> { best, table: [{ cutoff, quantile, ...weights }] }
+// B = value >= cutoff. -> { best, table: [{ cutoff, quantile, ...weights }], N, ND, nMissing }
+// TASKS.csv #1556 (review #1497, Lawyers) — the weights come from the cells where THIS evidence has a value: a cell with none
+// (beyond the drill layers' reach, under fuzzy OR the study area reaches there) used to count as "not in the pattern" and
+// took W-, so the posterior was a map of where the holes are (98 % of the occurrences in 2 % of the area). Missing evidence
+// is neither B nor not-B (Bonham-Carter 1994, ch. 9: missing data); `nMissing` says how many study-area cells it skipped.
 export function bestCutoff(values, D, valid, { direction = "increasing", steps = 40 } = {}) {
   const idx = [];
-  for (let k = 0; k < values.length; k++) if (valid[k]) idx.push(k);
+  let nMissing = 0;
+  for (let k = 0; k < values.length; k++) if (valid[k]) { if (Number.isFinite(values[k])) idx.push(k); else nMissing++; }
   const N = idx.length, ND = idx.reduce((c, k) => c + (D.has(k) ? 1 : 0), 0);
   const sorted = idx.map((k) => values[k]).sort((a, b) => a - b);
   const table = [];
@@ -204,28 +216,35 @@ export function bestCutoff(values, D, valid, { direction = "increasing", steps =
     if (w) table.push({ cutoff, quantile: q, ...w });
   }
   const best = table.reduce((b, r) => (!b || r.C > b.C ? r : b), null);
-  return { best, table, N, ND };
+  return { best, table, N, ND, nMissing };
 }
-// posterior probability per cell from the chosen binary patterns: layers = [{ values, cutoff, direction, wPlus, wMinus }]
+// posterior probability per cell from the chosen binary patterns: layers = [{ values, cutoff, direction, wPlus, wMinus }];
+// N, ND = the study area (the valid cells) and its occurrence cells, for the prior. TASKS.csv #1556 — an evidence with no
+// value at a cell adds a weight of 0 there (the prior stands); `missingCells` counts the cells where at least one did.
 export function posterior(layers, valid, N, ND) {
   const n = valid.length, out = new Float32Array(n).fill(NaN), prior = Math.log(ND / (N - ND));
-  let expected = 0;
+  let expected = 0, missingCells = 0;
   for (let k = 0; k < n; k++) {
     if (!valid[k]) continue;
-    let logit = prior;
-    for (const L of layers) { const v = L.values[k]; const inB = L.direction === "increasing" ? v >= L.cutoff : v <= L.cutoff; logit += inB ? L.wPlus : L.wMinus; }
+    let logit = prior, miss = false;
+    for (const L of layers) { const v = L.values[k]; if (!Number.isFinite(v)) { miss = true; continue; } const inB = L.direction === "increasing" ? v >= L.cutoff : v <= L.cutoff; logit += inB ? L.wPlus : L.wMinus; }
+    if (miss) missingCells++;
     const p = 1 / (1 + Math.exp(-logit));
     out[k] = p; expected += p;
   }
   // omnibus conditional-independence check (Bonham-Carter 1994): the posterior summed over the area should give back
   // about the number of known occurrences; a sum well above it (ratio under 0.85) means the layers double-count
-  return { prob: out, expected, ratio: expected > 0 ? ND / expected : NaN };
+  return { prob: out, expected, ratio: expected > 0 ? ND / expected : NaN, missingCells };
 }
 
 // ---------- prediction-area plot ----------
 // score grid + training cells -> curves over 200 thresholds: area (fraction of cells >= t), prediction rate (fraction of
-// training cells >= t); the P-A point where prediction rate + area = 1 (Yousefi & Carranza 2015), Nd = rate / area
-export function predictionArea(score, D, valid, steps = 200) {
+// training cells >= t); the P-A point where prediction rate + area = 1 (Yousefi & Carranza 2015), Nd = rate / area.
+// TASKS.csv #1555 — the crossing is interpolated between two thresholds only when they are close in area (`maxJump`, 5 %
+// of the cells): a score with few distinct values (98 % of the cells at exactly 0, or a binary posterior) jumps across the
+// line, and the point interpolated on the jump ("50 % in 50 % of the area, Nd 1.0") is one no threshold gives. Then
+// `point` is null and `step` holds the two thresholds either side, with Nd at the one nearer the line (`at`).
+export function predictionArea(score, D, valid, steps = 200, { maxJump = 0.05 } = {}) {
   const vals = [], train = [];
   for (let k = 0; k < score.length; k++) if (valid[k] && Number.isFinite(score[k])) { vals.push(score[k]); if (D.has(k)) train.push(score[k]); }
   if (!vals.length || !train.length) return null;
@@ -239,10 +258,18 @@ export function predictionArea(score, D, valid, steps = 200) {
   // above the top score nothing is predicted: closes the step so a score with few distinct values (a binary posterior)
   // still has a crossing - the one on the jump, where rate / area is well defined
   curve.push({ t: vals[vals.length - 1], area: 0, rate: 0 });
-  let point = null;
-  for (let i = 1; i < curve.length; i++) { const a = curve[i - 1], b = curve[i]; const fa = a.rate + a.area - 1, fb = b.rate + b.area - 1; if ((fa >= 0 && fb <= 0) || (fa <= 0 && fb >= 0)) { const u = fa === fb ? 0 : fa / (fa - fb); point = { t: a.t + u * (b.t - a.t), area: a.area + u * (b.area - a.area), rate: a.rate + u * (b.rate - a.rate) }; break; } }
+  let point = null, step = null;
+  for (let i = 1; i < curve.length; i++) {
+    const a = curve[i - 1], b = curve[i]; const fa = a.rate + a.area - 1, fb = b.rate + b.area - 1;
+    if (!((fa >= 0 && fb <= 0) || (fa <= 0 && fb >= 0))) continue;
+    if (fa === 0) { point = { ...a }; break; }
+    if (fb === 0) { point = { ...b }; break; }
+    if (Math.abs(a.area - b.area) > maxJump) { const at = b.area > 0 && Math.abs(fb) < Math.abs(fa) ? "above" : "below", s = at === "above" ? b : a; step = { below: { ...a }, above: { ...b }, at, nd: s.area > 0 ? s.rate / s.area : NaN }; break; }
+    const u = fa / (fa - fb);
+    point = { t: a.t + u * (b.t - a.t), area: a.area + u * (b.area - a.area), rate: a.rate + u * (b.rate - a.rate) }; break;
+  }
   if (point) point.nd = point.area > 0 ? point.rate / point.area : NaN;
-  return { curve, point, nTrain: train.length, nCells: vals.length };
+  return { curve, point, step, nTrain: train.length, nCells: vals.length };
 }
 function lowerBound(sorted, t) { let lo = 0, hi = sorted.length; while (lo < hi) { const m = (lo + hi) >> 1; if (sorted[m] < t) lo = m + 1; else hi = m; } return lo; }
 

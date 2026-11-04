@@ -35,6 +35,7 @@ export default function EvidenceOverlayPane({ onClose }) {
   const [layers, setLayers] = useState([]); // [{ id, kind, label, ref, shape, low, high, values }]
   const [operator, setOperator] = useState("gamma");
   const [gamma, setGamma] = useState(0.9);
+  const [floor, setFloor] = useState(0.01); // TASKS.csv #1555 — memberships run 0.01-0.99 so no single evidence vetoes a cell
   const [training, setTraining] = useState({ source: "none", layerId: "", symbol: assayElements[0]?.symbol || surfaceElements[0]?.symbol || "", min: "" });
   const [result, setResult] = useState(null);
   const [msg, setMsg] = useState(null);
@@ -124,7 +125,8 @@ export default function EvidenceOverlayPane({ onClose }) {
     if (!finite.length) { setMsg(tr("\"{name}\" has no values over the grid.", { name: src.label })); return; }
     finite.sort(); // TASKS.csv #1281 — one numeric sort of the typed copy, not a comparator sort per quantile (a third of the stall)
     const dec = src.kind === "distance" || src.kind === "pick", low = dec ? 0 : quantileSorted(finite, 0.1), high = src.kind === "pick" ? Math.max(3 * Math.max(grid.dx, grid.dy), pickDefaultReachM(quantileSorted(finite, 0.5), (medianSiteSpacing(collars) || 0) / 3)) /* #1451: one site spacing, at least 3 cells */ : dec ? quantileSorted(finite, 0.5) : quantileSorted(finite, 0.9); // #1179
-    setLayers((L) => [...L, { id: nextId++, ...src, shape: dec ? "decreasing" : "increasing", low, high, lowText: numText(low), highText: numText(high), field: pick.field || "", value: pick.value ?? "", reach: pick.reach || reachOf(src), values }]);
+    const log = src.kind === "grade" && low > 0 && high > low; // #1555: a drill grade ramps on its logarithm (10th -> 90th percentile of a lognormal grade is otherwise flat over most of the holes)
+    setLayers((L) => [...L, { id: nextId++, ...src, shape: dec ? "decreasing" : "increasing", low, high, log, lowText: numText(low), highText: numText(high), field: pick.field || "", value: pick.value ?? "", reach: pick.reach || reachOf(src), values }]);
     setResult(null); setMsg(null);
   };
   // the grid changed under the layers (terrain loaded, a source removed): re-sample every evidence on the new grid
@@ -144,6 +146,7 @@ export default function EvidenceOverlayPane({ onClose }) {
     if (!R) return;
     if (R.operator) setOperator(R.operator);
     if (Number.isFinite(R.gamma)) setGamma(R.gamma);
+    setFloor(Number.isFinite(R.floor) ? R.floor : 0); // #1555: a recipe saved before the floor existed keeps its 0-1 ramps
     if (R.training) setTraining((t) => ({ ...t, ...R.training }));
     const missing = [];
     const back = (R.layers || []).flatMap((l) => {
@@ -151,15 +154,15 @@ export default function EvidenceOverlayPane({ onClose }) {
       if (!src) { missing.push(l.label || l.key); return []; }
       const band = { zMin: Number.isFinite(l.zMin) ? l.zMin : null, zMax: Number.isFinite(l.zMax) ? l.zMax : null }; // #1831
       const values = computeValues(src, { field: l.field, value: l.value, reach: l.reach, ...band });
-      return values ? [{ id: nextId++, ...src, shape: l.shape, low: l.low, high: l.high, lowText: numText(l.low), highText: numText(l.high), field: l.field || "", value: l.value || "", reach: l.reach || reachOf(src), ...band, values }] : [];
+      return values ? [{ id: nextId++, ...src, shape: l.shape, low: l.low, high: l.high, log: !!l.log, lowText: numText(l.low), highText: numText(l.high), field: l.field || "", value: l.value || "", reach: l.reach || reachOf(src), ...band, values }] : [];
     });
     setLayers(back);
     if (missing.length) setMsg(tr("Restored the saved overlay without {list}: not in this project any more.", { list: missing.join(", ") }));
   }, [grid, evidenceOverlay]); // once, when there is a grid; sources / computeValues are read at that moment
   const recipe = useMemo(() => ({
-    layers: layers.map((l) => ({ key: l.key, kind: l.kind, ref: l.ref, label: l.label, shape: l.shape, low: l.low, high: l.high, field: l.field || "", value: l.value || "", reach: l.reach, ...(l.kind === "voxel" ? { zMin: l.zMin ?? null, zMax: l.zMax ?? null } : {}) })),
-    operator, gamma, training,
-  }), [layers, operator, gamma, training]);
+    layers: layers.map((l) => ({ key: l.key, kind: l.kind, ref: l.ref, label: l.label, shape: l.shape, low: l.low, high: l.high, ...(l.log ? { log: true } : {}), field: l.field || "", value: l.value || "", reach: l.reach, ...(l.kind === "voxel" ? { zMin: l.zMin ?? null, zMax: l.zMax ?? null } : {}) })),
+    operator, gamma, floor, training,
+  }), [layers, operator, gamma, floor, training]);
   useEffect(() => {
     if (!restored.current) return; // never write an empty recipe over the saved one before it has been read
     const next = recipe.layers.length ? recipe : null;
@@ -192,18 +195,21 @@ export default function EvidenceOverlayPane({ onClose }) {
   const compute = () => {
     if (!grid || !layers.length) return;
     if (layers.some((l) => !Number.isFinite(l.low) || !Number.isFinite(l.high) || l.values.length !== n)) { setMsg(tr("Set both membership points (0 = and 1 =) on every evidence.")); return; }
-    const members = layers.map((l) => membership(l.values, l));
+    const members = layers.map((l) => membership(l.values, { ...l, floor }));
     const fuzzy = fuzzyCombine(members, operator, gamma);
     const valid = new Uint8Array(n);
-    for (let k = 0; k < n; k++) valid[k] = Number.isFinite(fuzzy[k]) ? 1 : 0;
+    let minScore = Infinity;
+    for (let k = 0; k < n; k++) { valid[k] = Number.isFinite(fuzzy[k]) ? 1 : 0; if (valid[k] && fuzzy[k] < minScore) minScore = fuzzy[k]; }
     const nValid = valid.reduce((a, v) => a + v, 0);
-    const out = { fuzzy, nValid, n, wofe: null, pa: null, paPost: null };
+    let atMin = 0; // #1555 — how many scored cells sit at the lowest score (one evidence's membership vetoed them)
+    for (let k = 0; k < n; k++) if (valid[k] && fuzzy[k] <= minScore + 1e-6) atMin++;
+    const out = { fuzzy, nValid, n, atMin, minScore: nValid ? minScore : NaN, wofe: null, pa: null, paPost: null };
     const D = trainingCells(grid, trainingPoints, valid);
     if (D.size >= 3) {
       const rowsW = [], chosen = [];
-      let N = 0, ND = 0;
-      layers.forEach((l) => { const bc = bestCutoff(l.values, D, valid, { direction: l.shape }); N = bc.N; ND = bc.ND; if (bc.best) { rowsW.push({ label: l.label, ...bc.best }); chosen.push({ values: l.values, cutoff: bc.best.cutoff, direction: l.shape, wPlus: bc.best.wPlus, wMinus: bc.best.wMinus }); } else rowsW.push({ label: l.label, none: true }); });
-      if (chosen.length) { const post = posterior(chosen, valid, N, ND); out.wofe = { rows: rowsW, N, ND, post, nD: D.size }; out.paPost = predictionArea(post.prob, D, valid); }
+      const N = nValid, ND = D.size; // #1556: the prior over the study area (every valid cell), not one layer's cells
+      layers.forEach((l) => { const bc = bestCutoff(l.values, D, valid, { direction: l.shape }); if (bc.best) { rowsW.push({ label: l.label, nMissing: bc.nMissing, nCells: bc.N, ...bc.best }); chosen.push({ values: l.values, cutoff: bc.best.cutoff, direction: l.shape, wPlus: bc.best.wPlus, wMinus: bc.best.wMinus }); } else rowsW.push({ label: l.label, none: true, nMissing: bc.nMissing, nCells: bc.N }); });
+      if (chosen.length) { const post = posterior(chosen, valid, N, ND); out.wofe = { rows: rowsW, N, ND, post, nD: D.size, anyMissing: rowsW.some((r) => r.nMissing > 0) }; out.paPost = predictionArea(post.prob, D, valid); }
       out.pa = predictionArea(fuzzy, D, valid);
     } else if (trainingPoints.length) out.fewPoints = D.size;
     setResult(out); setMsg(null);
@@ -255,6 +261,7 @@ export default function EvidenceOverlayPane({ onClose }) {
               <select value={l.shape} onChange={(e) => updateLayer(l.id, { shape: e.target.value })} style={sel} aria-label={tr("Membership")}><option value="increasing">{tr("favourable when high")}</option><option value="decreasing">{tr("favourable when low")}</option></select>
               <label style={row}>{l.shape === "decreasing" ? "1" : "0"} ={" "}<input type="number" step="any" value={l.lowText} onChange={(e) => updateLayer(l.id, { lowText: e.target.value, low: e.target.value === "" ? NaN : Number(e.target.value) })} style={{ ...sel, width: 76 }} aria-label={l.shape === "decreasing" ? tr("Membership 1 at") : tr("Membership 0 at")} /></label>
               <label style={row}>{l.shape === "decreasing" ? "0" : "1"} ={" "}<input type="number" step="any" value={l.highText} onChange={(e) => updateLayer(l.id, { highText: e.target.value, high: e.target.value === "" ? NaN : Number(e.target.value) })} style={{ ...sel, width: 76 }} aria-label={l.shape === "decreasing" ? tr("Membership 0 at") : tr("Membership 1 at")} /></label>
+              {l.kind !== "distance" && l.kind !== "pick" && l.low > 0 && l.high > 0 && <label style={{ ...row, cursor: "pointer" }} title={tr("The ramp runs on the logarithm of the values: even steps in grade ratio, as a lognormal grade is spread. Off, it runs on the values and is flat over most of a skewed layer.")}><input type="checkbox" checked={!!l.log} onChange={(e) => updateLayer(l.id, { log: e.target.checked })} />{tr("log ramp")}</label>}{/* #1555 */}
             </div>
           </div>
         ))}
@@ -262,6 +269,8 @@ export default function EvidenceOverlayPane({ onClose }) {
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <label style={row}>{tr("Combine")}<select value={operator} onChange={(e) => setOperator(e.target.value)} style={sel}>{FUZZY_OPERATORS.map((o) => <option key={o} value={o}>{tr({ and: "fuzzy AND (min)", or: "fuzzy OR (max)", product: "algebraic product", sum: "algebraic sum", gamma: "gamma" }[o])}</option>)}</select></label>
             {operator === "gamma" && <label style={row}>γ<input type="number" min="0" max="1" step="0.05" value={gamma} onChange={(e) => setGamma(Math.max(0, Math.min(1, Number(e.target.value))))} style={{ ...sel, width: 60 }} /></label>}
+            {/* TASKS.csv #1555 — one membership of exactly 0 zeroes the product, and so AND, product and gamma, whatever the other evidence says */}
+            <label style={{ ...row, cursor: "pointer" }} title={tr("Memberships run from 0.01 to 0.99 instead of 0 to 1, so an evidence at its lowest cannot veto a cell on its own under AND, product or gamma: the cell keeps a low score and its rank among the others. Off, a cell with any membership at 0 scores exactly 0.")}><input type="checkbox" checked={floor > 0} onChange={(e) => { setFloor(e.target.checked ? 0.01 : 0); setResult(null); }} />{tr("no single evidence vetoes a cell (0.01–0.99)")}</label>
           </div>
         )}
         <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: 6, display: "flex", flexDirection: "column", gap: 4 }}>
@@ -287,6 +296,7 @@ export default function EvidenceOverlayPane({ onClose }) {
         {result && (
           <>
             <div style={note}>{tr("Fuzzy score on {v} of {n} cells (the rest lack an evidence).", { v: result.nValid.toLocaleString(), n: result.n.toLocaleString() })}{result.fewPoints != null ? " " + tr("Only {k} occurrence cells: weights of evidence need at least 3.", { k: result.fewPoints }) : ""}</div>
+            {result.nValid > 0 && result.atMin / result.nValid > 0.5 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{p}% of the scored cells sit at the lowest score ({v}): an evidence's membership is at its floor there and the operator keeps the floor. The top cells are only those no evidence vetoed, not the most favourable. Turn on the 0.01–0.99 floor, widen the 0 = points, or combine with OR / algebraic sum.", { p: Math.round((100 * result.atMin) / result.nValid), v: fmt(result.minScore) })}</div>}{/* #1555 */}
             <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
               <button type="button" style={pBtn} onClick={() => toMap("fuzzy")}>{tr("Fuzzy score → map")}</button>
               <button type="button" style={{ ...pBtn, display: "flex", alignItems: "center", gap: 4 }} onClick={() => toTif("fuzzy")}><Download size={12} />GeoTIFF</button>
@@ -294,11 +304,12 @@ export default function EvidenceOverlayPane({ onClose }) {
             {result.wofe && (
               <>
                 <div style={{ color: "var(--color-text-secondary)", marginTop: 4 }}>{tr("Weights of evidence: {d} occurrence cells in {n} cells", { d: result.wofe.ND, n: result.wofe.N.toLocaleString() })}</div>
+                {result.wofe.anyMissing && <div style={{ ...note, marginTop: 2 }}>{tr("An evidence's weights come from the cells where it has a value; where it has none it adds nothing to the posterior (weight 0), so the score cannot reach past the drilled ground on drill evidence alone.")}</div>}{/* #1556 */}
                 {result.wofe.ND < 10 && <div style={{ color: "var(--color-warn-text)", marginTop: 2 }}>{tr("Fewer than 10 occurrence cells: the weights, the posterior and the prediction-area figures are not interpretable — read them as a sketch.")}</div>}{/* #1452 */}
                 {result.wofe.rows.map((r, i) => ( // wrapped lines, not a table: the sidebar is narrow
                   <div key={i} style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4 }}>
                     <div style={{ color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.label}>{r.label}</div>
-                    <div style={{ color: "var(--color-text-secondary)", fontWeight: !r.none && Math.abs(r.studC) >= 2 ? 600 : 400 }}>{r.none ? tr("no usable cutoff") : tr("cutoff {c} · W+ {wp} ± {sp} · W− {wm} ± {sm} · C/s {s}", { c: fmt(r.cutoff), wp: fmt(r.wPlus), sp: fmt(r.sPlus), wm: fmt(r.wMinus), sm: fmt(r.sMinus), s: fmt(r.studC, 1) })}</div>
+                    <div style={{ color: "var(--color-text-secondary)", fontWeight: !r.none && Math.abs(r.studC) >= 2 ? 600 : 400 }}>{r.none ? tr("no usable cutoff") : tr("cutoff {c} · W+ {wp} ± {sp} · W− {wm} ± {sm} · C/s {s}", { c: fmt(r.cutoff), wp: fmt(r.wPlus), sp: fmt(r.sPlus), wm: fmt(r.wMinus), sm: fmt(r.sMinus), s: fmt(r.studC, 1) })}{r.nMissing > 0 ? " · " + tr("on {n} cells with a value; {m} without count 0", { n: r.nCells.toLocaleString(), m: r.nMissing.toLocaleString() }) : ""}</div>
                   </div>
                 ))}
                 <div style={{ ...note, color: result.wofe.post.ratio < 0.85 ? "var(--color-warn-text)" : undefined }}>{tr("Conditional independence check: the posterior predicts {e} occurrences for {d} known (ratio {r}).", { e: result.wofe.post.expected.toFixed(1), d: result.wofe.ND, r: result.wofe.post.ratio.toFixed(2) })}{result.wofe.post.ratio < 0.85 ? " " + tr("Under 0.85: the layers double-count each other; the posterior is too high.") : ""}</div>
@@ -322,7 +333,8 @@ function PAPlot({ fuzzy, post }) {
   const w = 280, h = 150, pl = 28, pr = 8, pt = 8, pb = 20;
   const X = (i, n) => pl + (i / (n - 1)) * (w - pl - pr), Y = (v) => h - pb - v * (h - pb - pt);
   const line = (c, key, colour, dash) => c && <polyline points={c.curve.map((p, i) => `${X(i, c.curve.length)},${Y(p[key])}`).join(" ")} style={{ fill: "none", stroke: colour, strokeWidth: 1.5, strokeDasharray: dash }} />;
-  const pt1 = fuzzy?.point, pt2 = post?.point;
+  const pt1 = fuzzy?.point, pt2 = post?.point, st1 = fuzzy?.step, st2 = post?.step; // #1555: a step where no threshold reaches the crossing
+  const stepText = (s) => tr("no threshold reaches the crossing: the score jumps from {r1}% in {a1}% of the area to {r2}% in {a2}% (Nd {nd} at the nearer one)", { r1: (100 * s.below.rate).toFixed(0), a1: (100 * s.below.area).toFixed(0), r2: (100 * s.above.rate).toFixed(0), a2: (100 * s.above.area).toFixed(0), nd: Number.isFinite(s.nd) ? s.nd.toFixed(1) : "—" });
   return (
     <div>
       <svg viewBox={`0 0 ${w} ${h}`} width="100%" role="img" aria-label={tr("Prediction-area plot")} style={{ display: "block" }}>
@@ -333,8 +345,10 @@ function PAPlot({ fuzzy, post }) {
       </svg>
       <div style={note}>
         {tr("Solid: share of occurrences predicted; dashed: share of the area. Where they cross:")}{" "}
-        {pt1 && <span style={{ color: "#D55E00" }}>{tr("fuzzy {r}% in {a}% of the area (Nd {nd})", { r: (100 * pt1.rate).toFixed(0), a: (100 * pt1.area).toFixed(0), nd: pt1.nd.toFixed(1) })}</span>}{pt1 && pt2 ? " · " : ""}
+        {pt1 && <span style={{ color: "#D55E00" }}>{tr("fuzzy {r}% in {a}% of the area (Nd {nd})", { r: (100 * pt1.rate).toFixed(0), a: (100 * pt1.area).toFixed(0), nd: pt1.nd.toFixed(1) })}</span>}
+        {!pt1 && st1 && <span style={{ color: "#D55E00" }}>{tr("fuzzy")}: {stepText(st1)}</span>}{(pt1 || st1) && (pt2 || st2) ? " · " : ""}
         {pt2 && <span style={{ color: "#0072B2" }}>{tr("posterior {r}% in {a}% of the area (Nd {nd})", { r: (100 * pt2.rate).toFixed(0), a: (100 * pt2.area).toFixed(0), nd: pt2.nd.toFixed(1) })}</span>}
+        {!pt2 && st2 && <span style={{ color: "#0072B2" }}>{tr("posterior")}: {stepText(st2)}</span>}
         {" "}{tr("(Yousefi & Carranza 2015; Nd = 1 is no better than chance)")}
       </div>
     </div>
