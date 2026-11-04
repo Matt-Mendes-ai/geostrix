@@ -7843,5 +7843,9 @@
   " Merged on the logs (geometric means), as a resistivity or conductivity model should be, so a .res and a .con of the same inversion give the same model.": " Combinado sobre los logaritmos (medias geométricas), como corresponde a un modelo de resistividad o conductividad, de modo que un .res y un .con de la misma inversión dan el mismo modelo.",
   ", merged on the logs (geometric means: a log-normal property)": ", combinado sobre los logaritmos (medias geométricas: una propiedad log-normal)",
   "{n} population(s) with fewer than {min} samples ({list}) were pooled into one: too few for percentiles of their own.": "{n} población(es) con menos de {min} muestras ({list}) se agruparon en una: muy pocas para percentiles propios.",
-  "{n} population(s) with fewer than {min} samples ({list}) are left unclassed: too few for percentiles, even pooled.": "{n} población(es) con menos de {min} muestras ({list}) quedan sin clasificar: muy pocas para percentiles, incluso agrupadas."
+  "{n} population(s) with fewer than {min} samples ({list}) are left unclassed: too few for percentiles, even pooled.": "{n} población(es) con menos de {min} muestras ({list}) quedan sin clasificar: muy pocas para percentiles, incluso agrupadas.",
+  "Around sample cluster {name} ({n} samples)": "Alrededor del grupo de muestras {name} ({n} muestras)",
+  "Around the samples of {name} ({n})": "Alrededor de las muestras de {name} ({n})",
+  "Around all the surface samples": "Alrededor de todas las muestras de superficie",
+  "Only {pct} % of this area lies within 250 m of a sample: it spans the ground between separate grids. Pick one grid's area, or type the corners.": "Solo el {pct} % de esta área está a menos de 250 m de una muestra: abarca el terreno entre mallas separadas. Elija el área de una malla o escriba las esquinas."
 }

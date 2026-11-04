@@ -7843,5 +7843,9 @@
   " Merged on the logs (geometric means), as a resistivity or conductivity model should be, so a .res and a .con of the same inversion give the same model.": " Fusionné sur les logarithmes (moyennes géométriques), comme il convient pour un modèle de résistivité ou de conductivité : un .res et un .con de la même inversion donnent le même modèle.",
   ", merged on the logs (geometric means: a log-normal property)": ", fusionné sur les logarithmes (moyennes géométriques : une propriété log-normale)",
   "{n} population(s) with fewer than {min} samples ({list}) were pooled into one: too few for percentiles of their own.": "{n} population(s) de moins de {min} échantillons ({list}) ont été regroupées en une : trop peu pour leurs propres percentiles.",
-  "{n} population(s) with fewer than {min} samples ({list}) are left unclassed: too few for percentiles, even pooled.": "{n} population(s) de moins de {min} échantillons ({list}) restent non classées : trop peu pour des percentiles, même regroupées."
+  "{n} population(s) with fewer than {min} samples ({list}) are left unclassed: too few for percentiles, even pooled.": "{n} population(s) de moins de {min} échantillons ({list}) restent non classées : trop peu pour des percentiles, même regroupées.",
+  "Around sample cluster {name} ({n} samples)": "Autour du groupe d'échantillons {name} ({n} échantillons)",
+  "Around the samples of {name} ({n})": "Autour des échantillons de {name} ({n})",
+  "Around all the surface samples": "Autour de tous les échantillons de surface",
+  "Only {pct} % of this area lies within 250 m of a sample: it spans the ground between separate grids. Pick one grid's area, or type the corners.": "Seulement {pct} % de cette zone est à moins de 250 m d'un échantillon : elle couvre le terrain entre des grilles séparées. Choisissez la zone d'une grille, ou tapez les coins."
 }

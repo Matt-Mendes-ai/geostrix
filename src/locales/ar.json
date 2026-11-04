@@ -7843,5 +7843,9 @@
   " Merged on the logs (geometric means), as a resistivity or conductivity model should be, so a .res and a .con of the same inversion give the same model.": " دُمج على اللوغاريتمات (متوسطات هندسية)، كما ينبغي لنموذج المقاومية أو الموصلية، فيعطي ملفا .res و.con للانعكاس نفسه النموذج ذاته.",
   ", merged on the logs (geometric means: a log-normal property)": "، دُمج على اللوغاريتمات (متوسطات هندسية: خاصية لوغاريتمية طبيعية)",
   "{n} population(s) with fewer than {min} samples ({list}) were pooled into one: too few for percentiles of their own.": "جُمعت {n} مجموعة سكانية بأقل من {min} عينات ({list}) في واحدة: أقل من أن يكون لها مئينات خاصة.",
-  "{n} population(s) with fewer than {min} samples ({list}) are left unclassed: too few for percentiles, even pooled.": "تُركت {n} مجموعة سكانية بأقل من {min} عينات ({list}) دون تصنيف: أقل من أن يكون لها مئينات حتى مجمّعة."
+  "{n} population(s) with fewer than {min} samples ({list}) are left unclassed: too few for percentiles, even pooled.": "تُركت {n} مجموعة سكانية بأقل من {min} عينات ({list}) دون تصنيف: أقل من أن يكون لها مئينات حتى مجمّعة.",
+  "Around sample cluster {name} ({n} samples)": "حول مجموعة العينات {name} ({n} عينة)",
+  "Around the samples of {name} ({n})": "حول عينات {name} ({n})",
+  "Around all the surface samples": "حول كل العينات السطحية",
+  "Only {pct} % of this area lies within 250 m of a sample: it spans the ground between separate grids. Pick one grid's area, or type the corners.": "فقط {pct} % من هذه المنطقة تقع ضمن 250 م من عينة: إنها تمتد على الأرض بين شبكات منفصلة. اختر منطقة شبكة واحدة، أو اكتب الزوايا."
 }

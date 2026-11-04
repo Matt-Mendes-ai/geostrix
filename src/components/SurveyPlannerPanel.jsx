@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1385
+import { sampleAreas, coverage } from "../lib/sampleAreas.js"; // TASKS.csv #1795
 import { soilGrid, streamSites, numberSamples, planGpx, planKml, planCsvRows, planFieldSheet } from "../lib/surveyPlan.js";
 import { routeTerrainAsync } from "../lib/hydrologyClient.js";
 import { pointTransform, crsName } from "../lib/reproject.js";
@@ -52,11 +53,17 @@ export default function SurveyPlannerPanel({ onClose }) {
     if (terrain?.bbox) out.push({ id: "terrain", label: tr("The terrain's extent"), ring: box(...terrain.bbox) });
     const core = mainClusters(surfaceSamples).keep; // #1385 — not the 5 rocks 45 km south (50,001 soil sites, 1,251 field days on Silvertip)
     const pts = surfaceSamples.filter((s, i) => core[i] && Number.isFinite(s.x) && Number.isFinite(s.y));
-    if (pts.length) { const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y); out.push({ id: "samples", label: tr("Around the surface samples"), ring: box(Math.min(...xs) - 200, Math.min(...ys) - 200, Math.max(...xs) + 200, Math.max(...ys) + 200) }); }
+    // #1795 — one area per grid (a Target-like column, else spatial clusters), before the box around them all
+    const grids = sampleAreas(pts);
+    (grids?.areas || []).forEach((a, i) => out.push({ id: `grid:${i}`, label: grids.by === "cluster" ? tr("Around sample cluster {name} ({n} samples)", { name: a.name, n: a.n.toLocaleString() }) : tr("Around the samples of {name} ({n})", { name: a.name, n: a.n.toLocaleString() }), ring: box(...a.box), box: a.box }));
+    if (pts.length) { const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y), b = [Math.min(...xs) - 200, Math.min(...ys) - 200, Math.max(...xs) + 200, Math.max(...ys) + 200]; out.push({ id: "samples", label: grids ? tr("Around all the surface samples") : tr("Around the surface samples"), ring: box(...b), box: b }); }
     const r = rect; if ([r.x0, r.y0, r.x1, r.y1].every((v) => v !== "" && Number.isFinite(Number(v))) && Number(r.x1) > Number(r.x0) && Number(r.y1) > Number(r.y0)) out.push({ id: "rect", label: tr("Typed corners"), ring: box(Number(r.x0), Number(r.y0), Number(r.x1), Number(r.y1)) });
     return out;
   }, [boundaries, terrain, surfaceSamples, rect]);
   const area = areas.find((a) => a.id === areaId) || null;
+  // #1795 — how much of a samples box is near a sample (a box spanning several grids is mostly empty ground)
+  const areaCover = useMemo(() => (area?.box && (area.id === "samples" || area.id.startsWith("grid:")) ? coverage(area.box, surfaceSamples) : null), [area, surfaceSamples]);
+  const pickArea = (id) => { setAreaId(id); const a = areas.find((x) => x.id === id); if (a?.box) setRect({ x0: Math.round(a.box[0]), y0: Math.round(a.box[1]), x1: Math.round(a.box[2]), y1: Math.round(a.box[3]) }); }; // the corners show the extent used
 
   const plan = useMemo(() => {
     if (mode === "soil") {
@@ -112,12 +119,13 @@ export default function SurveyPlannerPanel({ onClose }) {
             {[["soil", "Soil grid"], ["streams", "Stream sites"]].map(([k, l]) => <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => setMode(k)} style={{ ...tabBtn, borderBottom: mode === k ? "2px solid var(--color-accent)" : "2px solid transparent", color: mode === k ? "var(--color-text)" : "var(--color-text-secondary)" }}>{tr(l)}</button>)}
           </div>
           <div style={rowS}>
-            <label style={ctl}>{mode === "soil" ? tr("Area") : tr("Area (optional)")}<select value={areaId} onChange={(e) => setAreaId(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, maxWidth: 260 }}>
+            <label style={ctl}>{mode === "soil" ? tr("Area") : tr("Area (optional)")}<select value={areaId} onChange={(e) => pickArea(e.target.value)} style={{ ...sel, display: "block", marginTop: 4, maxWidth: 260 }}>
               <option value="">{mode === "soil" ? tr("— choose —") : tr("Whole terrain")}</option>
               {areas.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
             </select></label>
             {["x0", "y0", "x1", "y1"].map((k) => <label key={k} style={ctl}>{{ x0: tr("West (E)"), y0: tr("South (N)"), x1: tr("East (E)"), y1: tr("North (N)") }[k]}<input type="number" value={rect[k]} onChange={(e) => { setRect((r) => ({ ...r, [k]: e.target.value })); setAreaId("rect"); }} style={{ ...sel, display: "block", marginTop: 4, width: 100 }} /></label>)}
           </div>
+          {areaCover != null && areaCover < 0.25 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("Only {pct} % of this area lies within 250 m of a sample: it spans the ground between separate grids. Pick one grid's area, or type the corners.", { pct: Math.round(areaCover * 100) })}</div>}{/* #1795 */}
           {mode === "soil" ? (
             <div style={rowS}>
               <label style={ctl}>{tr("Line azimuth (°)")}<input type="number" min="0" max="359" value={grid.azimuth} onChange={(e) => setGrid((g) => ({ ...g, azimuth: ((Number(e.target.value) % 360) + 360) % 360 }))} style={inp} /></label>
