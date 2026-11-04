@@ -7767,5 +7767,13 @@
   "The {c} m cell would make more cells than the grid can hold over this area, so it was coarsened to {d} m. A smaller area keeps it.": "الخلية {c} م ستعطي خلايا أكثر مما تحتمله الشبكة على هذه المنطقة، فخُشّنت إلى {d} م. منطقة أصغر تحفظها.",
   " (the surface samples)": " (العينات السطحية)",
   " (the drilling)": " (الحفر)",
-  " (the typed box)": " (المستطيل المكتوب)"
+  " (the typed box)": " (المستطيل المكتوب)",
+  "{name} (custom layer)": "{name} (طبقة مخصصة)",
+  "{p}% of this layer's intervals overlap another in the same hole (several types logged over one depth): a composite takes the first interval by depth, so its domain among the overlapping ones is arbitrary. A layer with one value per depth makes a defensible domain.": "{p}٪ من فترات هذه الطبقة تتداخل مع أخرى في الثقب نفسه (عدة أنواع مسجلة على عمق واحد): يأخذ المركّب أول فترة بالعمق، فمجاله بين المتداخلة اعتباطي. طبقة بقيمة واحدة لكل عمق تعطي مجالًا يمكن الدفاع عنه.",
+  "A cap here applies to the composites of that domain only; blank = the cap below. The percentiles are length-weighted over that domain's own samples.": "السقف هنا يُطبق على مركّبات ذلك المجال فقط؛ فارغ = السقف أدناه. المئينات موزونة بالطول على عينات ذلك المجال.",
+  "Cap per domain ({unit})": "سقف لكل مجال ({unit})",
+  "{n} smp": "{n} عينة",
+  "global": "عام",
+  "Cap for domain {d}": "سقف المجال {d}",
+  "{c} of {n} capped, {m}% of the metal": "{c} من {n} مسقوفة، {m}٪ من المعدن"
 }

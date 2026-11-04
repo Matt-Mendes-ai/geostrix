@@ -7767,5 +7767,13 @@
   "The {c} m cell would make more cells than the grid can hold over this area, so it was coarsened to {d} m. A smaller area keeps it.": "La cellule de {c} m donnerait plus de cellules que la grille n'en accepte sur cette zone ; elle a donc été grossie à {d} m. Une zone plus petite la garde.",
   " (the surface samples)": " (les échantillons de surface)",
   " (the drilling)": " (les sondages)",
-  " (the typed box)": " (le cadre saisi)"
+  " (the typed box)": " (le cadre saisi)",
+  "{name} (custom layer)": "{name} (couche personnalisée)",
+  "{p}% of this layer's intervals overlap another in the same hole (several types logged over one depth): a composite takes the first interval by depth, so its domain among the overlapping ones is arbitrary. A layer with one value per depth makes a defensible domain.": "{p} % des intervalles de cette couche en chevauchent un autre du même sondage (plusieurs types enregistrés à une même profondeur) : un composite prend le premier intervalle par profondeur, son domaine parmi ceux qui se chevauchent est donc arbitraire. Une couche à une valeur par profondeur donne un domaine défendable.",
+  "A cap here applies to the composites of that domain only; blank = the cap below. The percentiles are length-weighted over that domain's own samples.": "Un plafond ici ne s'applique qu'aux composites de ce domaine ; vide = le plafond ci-dessous. Les percentiles sont pondérés par la longueur sur les échantillons propres à ce domaine.",
+  "Cap per domain ({unit})": "Plafond par domaine ({unit})",
+  "{n} smp": "{n} éch",
+  "global": "global",
+  "Cap for domain {d}": "Plafond du domaine {d}",
+  "{c} of {n} capped, {m}% of the metal": "{c} sur {n} plafonnés, {m} % du métal"
 }

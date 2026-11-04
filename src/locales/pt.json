@@ -7767,5 +7767,13 @@
   "The {c} m cell would make more cells than the grid can hold over this area, so it was coarsened to {d} m. A smaller area keeps it.": "A célula de {c} m daria mais células do que a grelha admite nesta área, por isso foi engrossada para {d} m. Uma área menor mantém-na.",
   " (the surface samples)": " (as amostras de superfície)",
   " (the drilling)": " (os furos)",
-  " (the typed box)": " (a caixa escrita)"
+  " (the typed box)": " (a caixa escrita)",
+  "{name} (custom layer)": "{name} (camada personalizada)",
+  "{p}% of this layer's intervals overlap another in the same hole (several types logged over one depth): a composite takes the first interval by depth, so its domain among the overlapping ones is arbitrary. A layer with one value per depth makes a defensible domain.": "{p}% dos intervalos desta camada sobrepõem-se a outro do mesmo furo (vários tipos registados na mesma profundidade): um compósito toma o primeiro intervalo por profundidade, por isso o seu domínio entre os sobrepostos é arbitrário. Uma camada com um valor por profundidade dá um domínio defensável.",
+  "A cap here applies to the composites of that domain only; blank = the cap below. The percentiles are length-weighted over that domain's own samples.": "Um teto aqui aplica-se só aos compósitos desse domínio; vazio = o teto abaixo. Os percentis são ponderados pelo comprimento sobre as amostras desse domínio.",
+  "Cap per domain ({unit})": "Teto por domínio ({unit})",
+  "{n} smp": "{n} amo",
+  "global": "global",
+  "Cap for domain {d}": "Teto do domínio {d}",
+  "{c} of {n} capped, {m}% of the metal": "{c} de {n} com teto, {m}% do metal"
 }

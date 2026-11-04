@@ -17,6 +17,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { domainLayerChoices } from "../lib/domainLayers.js"; // TASKS.csv #1571
 
 // TASKS.csv #147 — variogram / spatial-continuity analysis per domain.
 //
@@ -41,7 +42,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
   // and silently fell back to the default method — meaning a project set to, say, tangential would
   // have had its variogram computed on minimum-curvature traces. Same store field GradeEstimationModal
   // reads.
-  const { desurveyMethod } = useStore();
+  const { desurveyMethod, customLayers = [] } = useStore(); // customLayers: TASKS.csv #1571
 
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
@@ -56,8 +57,9 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
   const [domainKey, setDomainKey] = useState("");
   const [domainValue, setDomainValue] = useState("__all__");
   // TASKS.csv #1413 (review #1352) — a layer of numbers (Silvertip's RQD %) is not a domain: every distinct value became one
-  const numericLayer = (rows) => { let n = 0, num = 0; for (const r of rows) { if (r.value == null || r.value === "") continue; n++; if (Number.isFinite(Number(r.value))) num++; } return n > 0 && num / n > 0.8; };
-  const domainOptions = ["litho", "alt", "vein", "breccia", "structzone", "geotech"].filter((k) => (layers[k] || []).length > 0 && !numericLayer(layers[k]));
+  // TASKS.csv #1571 (review #1497, Lawyers) — custom layers (Lawyers' Min Domain) are domains too
+  const domainChoices = useMemo(() => domainLayerChoices(layers, customLayers, (k) => tr(LAYER_META[k]?.label || k)), [layers, customLayers]);
+  const domainChoice = domainChoices.find((c) => c.key === domainKey) || null;
 
   const [transform, setTransform] = useState("none");
   const [capPercentile, setCapPercentile] = useState(98);
@@ -86,9 +88,9 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
   const domainValues = useMemo(() => {
     if (!domainKey) return [];
     const s = new Set();
-    (layers[domainKey] || []).forEach((r) => { if (r.value != null && r.value !== "") s.add(String(r.value)); });
+    (domainChoice?.rows || []).forEach((r) => { if (r.value != null && r.value !== "") s.add(String(r.value)); });
     return Array.from(s).sort();
-  }, [domainKey, layers]);
+  }, [domainKey, domainChoice]);
 
   const run = () => {
     setError(""); setResult(null); setRunning(true);
@@ -99,7 +101,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
       try {
         const intervals = compositeDownhole(srcAssays, symbol, unit, elementUnits, {
           length: compositeLength, minCoverage,
-          domainRows: domainKey ? layers[domainKey] : null,
+          domainRows: domainChoice ? domainChoice.rows : null, // #1571
         });
         if (!intervals.length) { setError(tr("Compositing produced no intervals — check the element and composite length.")); setRunning(false); return; }
         const { points: allPoints, dropped } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
@@ -196,7 +198,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
             </label>
             <label style={fieldLabel}>{tr("Domain layer")}<select value={domainKey} onChange={(e) => { setDomainKey(e.target.value); setDomainValue("__all__"); }} style={inp}>
                 <option value="">{tr("(none)")}</option>
-                {domainOptions.map((k) => <option key={k} value={k}>{tr(LAYER_META[k]?.label || k)}</option>)}
+                {domainChoices.map((c) => <option key={c.key} value={c.key}>{c.custom ? tr("{name} (custom layer)", { name: c.label }) : c.label}</option>)}
               </select>
             </label>
             {domainKey && (

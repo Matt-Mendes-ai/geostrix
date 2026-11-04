@@ -729,6 +729,8 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
   const minCoverage = opts.minCoverage ?? 0.5;
   const capValue = opts.capValue ?? null;
   const domainRows = opts.domainRows ?? null; // [{hole_id, from, to, value}] | null — e.g. a litho layer
+  // TASKS.csv #1571 — a cap per domain value ({ value: cap }); a composite never spans two domains, so its domain's cap applies, else capValue
+  const capByDomain = opts.capByDomain && domainRows ? opts.capByDomain : null;
   const EPS = 1e-6;
   if (length <= 0) return [];
 
@@ -820,11 +822,13 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
       // any minCoverage with 1 of 2 m sampled.
       while (segIdx < segs.length && segs[segIdx].to <= from + EPS) segIdx++;
       let gradeLen = 0, coveredLen = 0, conflictLen = 0;
+      const dHere = domRows ? domainAt(domRows, (from + to) / 2) : null;
+      const capHere = capByDomain && dHere != null && Number(capByDomain[String(dHere)]) > 0 ? Number(capByDomain[String(dHere)]) : capValue; // #1571
       for (let k = segIdx; k < segs.length && segs[k].from < to - EPS; k++) {
         const g = segs[k];
         const ov = Math.min(g.to, to) - Math.max(g.from, from);
         if (ov <= EPS || g.value == null) continue;
-        const v = capValue != null && g.value > capValue ? capValue : g.value;
+        const v = capHere != null && g.value > capHere ? capHere : g.value;
         gradeLen += v * ov;
         coveredLen += ov;
         if (g.conflict) conflictLen += ov;

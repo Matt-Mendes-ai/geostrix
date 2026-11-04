@@ -22,6 +22,8 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 import { trendBasis, trendSearchScales, describeTrend } from "../lib/trend.js"; // TASKS.csv #650
 import { t as tr } from "../lib/i18n.js";
 import { topCompositesWithoutBlocks } from "../lib/shellSupport.js"; // TASKS.csv #1735 // TASKS.csv #786
+import { domainLayerChoices } from "../lib/domainLayers.js"; // TASKS.csv #1571
+import DomainCaps from "./DomainCaps.jsx"; // TASKS.csv #1571
 
 // TASKS.csv #117 — grade estimation into block models (not just display). Micromine-specialist AND
 // Leapfrog-specialist audits both independently flagged this as the top 3D-Modelling gap: GeoStrix
@@ -35,7 +37,7 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
-  const { desurveyMethod, voxelModels, project } = useStore(); // TASKS.csv #135 — estimation samples must sit on the same trace the 3D view draws
+  const { desurveyMethod, voxelModels, project, customLayers = [] } = useStore(); // TASKS.csv #135 — estimation samples must sit on the same trace the 3D view draws; customLayers: #1571
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   const [symbol, setSymbol] = useState(symbols[0] || "Au");
@@ -50,8 +52,11 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
   const [minCoverage, setMinCoverage] = useState(0.5);
   const [domainKey, setDomainKey] = useState("");
   // TASKS.csv #1413 (review #1352) — a layer of numbers (Silvertip's RQD %) is not a domain: every distinct value became one
-  const numericLayer = (rows) => { let n = 0, num = 0; for (const r of rows) { if (r.value == null || r.value === "") continue; n++; if (Number.isFinite(Number(r.value))) num++; } return n > 0 && num / n > 0.8; };
-  const domainOptions = ["litho", "alt", "vein", "breccia", "structzone", "geotech"].filter((k) => (layers[k] || []).length > 0 && !numericLayer(layers[k]));
+  // TASKS.csv #1571 (review #1497, Lawyers) — every categorical interval layer, custom layers included (Lawyers' Min Domain), is a domain choice
+  const domainChoices = useMemo(() => domainLayerChoices(layers, customLayers, (k) => tr(LAYER_META[k].label)), [layers, customLayers]);
+  const domainChoice = domainChoices.find((c) => c.key === domainKey) || null;
+  const domainRowsSel = domainChoice ? domainChoice.rows : null;
+  const [capByDomain, setCapByDomain] = useState({}); // TASKS.csv #1571 — { domain value: cap }, blank = the global cap
 
   // TASKS.csv #265 — a collar with no recorded length used to silently contribute 300 m of grid depth
   // (`c.z - (c.length || 300)`), which combined with minSamples:1 and a 50 m search radius meant the
@@ -262,7 +267,8 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
           intervals = compositeDownhole(srcAssays, symbol, unit, elementUnits, {
             length: compositeLength, minCoverage, // TASKS.csv #262 — was hardcoded 0.5
             capValue: cap,
-            domainRows: domainKey ? layers[domainKey] : null,
+            domainRows: domainRowsSel, // #1571 — a built-in or a custom layer
+            ...(domainRowsSel && Object.values(capByDomain).some((v) => Number(v) > 0) ? { capByDomain: Object.fromEntries(Object.entries(capByDomain).filter(([, v]) => Number(v) > 0).map(([k, v]) => [k, Number(v)])) } : {}), // #1571
           });
         } else {
           // TASKS.csv #571 — duplicates / overlaps resolved, values in `unit`, as in compositing
@@ -336,7 +342,7 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
           capValue: Number.isFinite(cap) ? cap : null, capAudit: cap != null ? capAudit(srcAssays, symbol, unit, elementUnits, cap) : null, includeQAQC, // capAudit: #533
           // TASKS.csv #529 — the unit of the estimated values and of the cap (an "Au" column could be ppm or ppb); and the
           // domain fields, which #533's edit had left inside the comment above (estimates since then lacked them)
-          unit, capUnit: cap != null ? unit : null, domain: domainKey || null, restrictToDomain: restrictToDomain && !!domainKey,
+          unit, capUnit: cap != null ? unit : null, domain: domainChoice ? domainChoice.label : null, ...(domainRowsSel && Object.values(capByDomain).some((v) => Number(v) > 0) ? { capByDomain: Object.fromEntries(Object.entries(capByDomain).filter(([, v]) => Number(v) > 0).map(([k, v]) => [k, Number(v)])) } : {}), // #1571 restrictToDomain: restrictToDomain && !!domainKey,
           desurveyMethod: desurveyMethod || "minimum curvature", samplePoints: points.length, generatedAt: new Date().toISOString(),
         };
         if (est.mlsCounts) params.mlsBlocks = est.mlsCounts; // #516 — how the linear trend was fitted
@@ -494,6 +500,7 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
             </label>
           </div>
           {/* TASKS.csv #533 — P97.5 / P99 caps and the capping audit (samples cut, metal removed) */}
+          {domainRowsSel && useComposites && <DomainCaps assays={srcAssays} symbol={symbol} unit={unit} elementUnits={elementUnits} domainRows={domainRowsSel} caps={capByDomain} setCaps={setCapByDomain} />}{/* #1571 */}
           <CapAuditHint assays={srcAssays} symbol={symbol} unit={unit} elementUnits={elementUnits} capValue={Number.isFinite(capValue) && capValue > 0 ? capValue : null} onSetCap={(v) => setCapValue(Number(v.toPrecision(4)))} unitLabel={PRECIOUS_METALS.has(symbol) && unit === "ppm" ? "g/t" : unit} />
 
           {/* TASKS.csv #259 — CV > 150% means a skewed, outlier-driven distribution: the classic setup
@@ -520,11 +527,12 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
                 </label>
                 {/* TASKS.csv #260 — renamed. "Honor domain" reads as "the estimate respects my geology";
                     it never did that. All it does on its own is break composites at domain edges. */}
-                <label style={fieldLabel}>{tr("Break composites at domain boundary")}<select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={inp}>
+                <label style={fieldLabel}>{tr("Break composites at domain boundary")}<select value={domainKey} onChange={(e) => { setDomainKey(e.target.value); setCapByDomain({}); }} style={inp}>
                     <option value="">{tr("— none —")}</option>
-                    {domainOptions.map((k) => <option key={k} value={k}>{tr(LAYER_META[k].label)}</option>)}
+                    {domainChoices.map((c) => <option key={c.key} value={c.key}>{c.custom ? tr("{name} (custom layer)", { name: c.label }) : c.label}</option>)}
                   </select>
                 </label>
+                {domainChoice && domainChoice.overlap > 0.05 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("{p}% of this layer's intervals overlap another in the same hole (several types logged over one depth): a composite takes the first interval by depth, so its domain among the overlapping ones is arbitrary. A layer with one value per depth makes a defensible domain.", { p: Math.round(domainChoice.overlap * 100) })}</div>}{/* #1571 */}
               </div>
             )}
             {useComposites && domainKey && (
