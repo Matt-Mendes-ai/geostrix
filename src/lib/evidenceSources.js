@@ -22,6 +22,36 @@ export function surveyPoints(rows, key) {
   return out;
 }
 
+// TASKS.csv #1829 / #1561 (reviews #1646 Kodiak, #1497 Lawyers) — how far a SAMPLE's value reaches: `factor` x the median distance
+// to its nearest neighbour, in tens of metres, 50 m to 5 km. The bounding-box spacing below is ten times too wide for a program of
+// separate grids or outcrop clusters: Kodiak's soils (seven grids over 19 x 31 km, 48 m stations) reached 700 m, its rock chips
+// 3,570 m, and 71 % of the cells scored over the IP model had no soil within 75 m. Up to 2,000 points are asked (every k-th),
+// against all of them; coincident points (duplicates) are not neighbours.
+export function reachFromNeighbours(points, factor = 2) {
+  const pts = (points || []).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+  const n = pts.length;
+  if (n < 2) return 500;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of pts) { if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; }
+  const cell = Math.max(1, Math.sqrt(Math.max(1, (x1 - x0) * (y1 - y0)) / n)), key = (cx, cy) => `${cx},${cy}`, buckets = new Map();
+  pts.forEach((p) => { const k = key(Math.floor(p.x / cell), Math.floor(p.y / cell)); (buckets.get(k) || buckets.set(k, []).get(k)).push(p); });
+  const step = Math.max(1, Math.floor(n / 2000)), nn = [];
+  for (let i = 0; i < n; i += step) {
+    const p = pts[i], cx = Math.floor(p.x / cell), cy = Math.floor(p.y / cell);
+    let best = Infinity;
+    for (let ring = 1; ring <= 4 && !(best <= (ring - 1) * cell); ring++) {
+      for (let dx = -ring; dx <= ring; dx++) for (let dy = -ring; dy <= ring; dy++) {
+        if (ring > 1 && Math.abs(dx) < ring && Math.abs(dy) < ring) continue; // inner cells already searched
+        for (const q of buckets.get(key(cx + dx, cy + dy)) || []) { const d = Math.hypot(q.x - p.x, q.y - p.y); if (d > 0 && d < best) best = d; }
+      }
+    }
+    if (Number.isFinite(best)) nn.push(best);
+  }
+  if (!nn.length) return reachFromSpacing(pts, factor);
+  nn.sort((a, b) => a - b);
+  return Math.min(5000, Math.max(50, Math.round((factor * nn[nn.length >> 1]) / 10) * 10));
+}
+
 // How far a point's value reaches: `factor` x the mean spacing, in tens of metres, 50 m to 5 km. Stations along lines are
 // far closer than the lines are apart, so a survey takes a larger factor than a soil grid to bridge its lines.
 export function reachFromSpacing(points, factor = 1.5) {

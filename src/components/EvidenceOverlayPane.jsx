@@ -11,7 +11,7 @@ import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1449 / #145
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
 import { evidenceGrid, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, bestCutoff, posterior, predictionArea, scoreImage, isOverlayOutput } from "../lib/evidence.js";
 import { cachedEvidence, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457
-import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, voxelColumnEvidence, holeTraces, holeGradePoints, structureCodes, structureParts, rasterFloorZ } from "../lib/evidenceSources.js"; // TASKS.csv #1154
+import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, holeTraces, holeGradePoints, structureCodes, structureParts, rasterFloorZ } from "../lib/evidenceSources.js"; // TASKS.csv #1154
 import { categoricalModels } from "../lib/geologyForward.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";
 import { valueIn } from "../lib/geochem.js";
@@ -107,9 +107,10 @@ export default function EvidenceOverlayPane({ onClose }) {
     const pts = opts.field === "medium" ? all.filter((_, i) => (surfaceSamples[i].medium || "") === opts.value) : all;
     return pointEvidence(grid, pts, { maxDistance: opts.reach || reachOfMedium(opts.field === "medium" ? opts.value : null) });
   };
-  // samples reach about one and a half spacings of their own medium: a regional stream program gets kilometres, a soil grid tens
-  // of metres (#1449 — one reach for all media gave Silvertip's soils 2.5 km); far outliers do not count (#1450)
-  const reachOfMedium = (medium) => reachFromSpacing(medium == null ? sampleCore.samples : sampleCore.samples.filter((s) => (s.medium || "") === medium));
+  // samples reach about two spacings of their own medium: a regional stream program gets kilometres, a soil grid tens
+  // of metres (#1449 — one reach for all media gave Silvertip's soils 2.5 km); far outliers do not count (#1450); the spacing is
+  // the median nearest-neighbour distance (#1829 / #1561: the bounding box of seven soil grids gave Kodiak's 48 m soils 700 m)
+  const reachOfMedium = (medium) => reachFromNeighbours(medium == null ? sampleCore.samples : sampleCore.samples.filter((s) => (s.medium || "") === medium));
   const reachOf = (src, medium = null) => (src.kind === "grade" ? DRILL_REACH_M : src.kind === "survey" ? reachFromSpacing(surveyPoints(geophysPts, src.ref), 4) : reachOfMedium(medium));
   const addLayer = (key) => {
     const src = sources.find((s) => s.key === key); if (!src) return;
