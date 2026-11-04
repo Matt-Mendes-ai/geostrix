@@ -7751,5 +7751,9 @@
   ", {n} block(s) at {v} (the value this model uses for air above the ground) left out": "، {n} كتلة عند {v} (القيمة التي يستخدمها هذا النموذج للهواء فوق الأرض) مستبعدة",
   ", log-spaced colours (the values span {d} decades)": "، ألوان بتدرج لوغاريتمي (تمتد القيم على {d} عقود)",
   "variable": "متغير",
-  "{n} QC insert(s) without depths kept for QAQC ({s} standard(s), {b} blank(s), {d} duplicate(s)).": "{n} إدراج QC بلا أعماق احتُفظ به لـ QAQC ({s} معيارًا، {b} فراغًا، {d} مكررًا)."
+  "{n} QC insert(s) without depths kept for QAQC ({s} standard(s), {b} blank(s), {d} duplicate(s)).": "{n} إدراج QC بلا أعماق احتُفظ به لـ QAQC ({s} معيارًا، {b} فراغًا، {d} مكررًا).",
+  "{n} QC insert(s) were already held from an earlier import and were updated, not added again.": "{n} إدراج QC كان موجودًا من استيراد سابق فحُدّث ولم يُضف مرة أخرى.",
+  "The column that marks standards, blanks and duplicates (REG / DUP / STD / BLK / Control ...). Those rows are kept for Surface QAQC, not drawn as samples. Left on none, the medium column is read for these labels, as before.": "العمود الذي يحدد المعايير والفراغات والمكررات (REG / DUP / STD / BLK / Control ...). تُحفظ تلك الصفوف لـ QAQC السطحي ولا تُرسم كعينات. إن تُرك بلا عمود، تُقرأ هذه التسميات من عمود الوسط كما سبق.",
+  "QC type": "نوع QC",
+  "QC type column": "عمود نوع QC"
 }

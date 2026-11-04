@@ -135,11 +135,46 @@ export function qcFromCertificates(parsed, surfaceSamples, elementUnits) {
 }
 
 // Rows of a surface-sample FILE marked as QC by their sample-type value -> records (kept even without coordinates)
+// TASKS.csv #1794 (review #1646, Kodiak) — a column of QC labels (REG / DUP / Control / STD / BLK ...) is a QC-type column, not the
+// sample medium: Kodiak's 'Sample Type' was mapped to Sample medium, so every row's medium became the default and the QC labels were
+// read off the medium column. True when at least 80 % of the non-empty values are recognised sample types (or 'control') and none
+// names a medium. values: the column's cells; isMedium(v) -> the medium the value names, or null.
+export function looksLikeQcTypeColumn(values, isMedium = () => null) {
+  let n = 0, qc = 0;
+  for (const raw of values || []) {
+    const v = String(raw ?? "").trim();
+    if (!v) continue;
+    n++;
+    if (isMedium(v.toLowerCase())) return false;
+    if (sampleTypeClass(v) || /^control$/i.test(v)) qc++;
+  }
+  return n > 0 && qc / n >= 0.8;
+}
+
+// TASKS.csv #1794 — a re-import of the same file must not double the QC set (Kodiak: 122 duplicates became 244 and a '(blank)'
+// batch appeared): an incoming record with a sample id replaces the held record of the same kind and id; a record without an id
+// is added. -> { records, replaced, added }
+export function mergeQcRecords(prev, incoming) {
+  const key = (r) => (r.sample_id ? `${r.kind}|${r.sample_id}` : null);
+  const out = (prev || []).slice(), at = new Map();
+  out.forEach((r, i) => { const k = key(r); if (k) at.set(k, i); });
+  let replaced = 0, added = 0;
+  for (const r of incoming || []) {
+    const k = key(r);
+    if (k && at.has(k)) { out[at.get(k)] = { ...r, id: out[at.get(k)].id }; replaced++; }
+    else { if (k) at.set(k, out.length); out.push(r); added++; }
+  }
+  return { records: out, replaced, added };
+}
+
 export function qcRecordFromFileRow({ sample_id, type, values, bdl, parent_id, attrs }) {
-  const kind = sampleTypeClass(type);
+  let kind = sampleTypeClass(type);
+  // TASKS.csv #1794 / #1661 — a type the rules do not know ('Control') beside a CRM name is a standard, or a blank when the name says so
+  const crmName = attrs ? Object.entries(attrs).find(([k, v]) => /^(crm|std|standard|reference)|standard[\s_]*(type|name|id)|crm[\s_]*(type|name|id)/i.test(k) && String(v ?? "").trim())?.[1] : null;
+  if (!kind && type && crmName) kind = /(blk|blank)|^blk|blank/i.test(String(crmName)) ? "blank" : "standard";
   if (kind !== "standard" && kind !== "blank" && kind !== "duplicate") return null;
   const rec = { id: `file|${sample_id || ""}|${Math.random().toString(36).slice(2, 8)}`, sample_id: sample_id || "", kind, source: "inserted", type: String(type), values, ...(bdl?.length ? { bdl } : {}), ...(attrs ? { attrs } : {}) };
-  if (kind === "standard") rec.code = attrs?.CRM || attrs?.crm || attrs?.Standard || attrs?.STANDARD || String(type);
+  if (kind === "standard") rec.code = attrs?.CRM || attrs?.crm || attrs?.Standard || attrs?.STANDARD || crmName || String(type); // crmName: #1794
   if (kind === "duplicate") { rec.parent_id = parent_id || null; rec.dupType = /lab|pulp|rep/i.test(type) ? "lab" : "field"; }
   return rec;
 }

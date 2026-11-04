@@ -7751,5 +7751,9 @@
   ", {n} block(s) at {v} (the value this model uses for air above the ground) left out": ", {n} bloque(s) en {v} (el valor que este modelo usa para el aire sobre el terreno) excluidos",
   ", log-spaced colours (the values span {d} decades)": ", colores en escala logarítmica (los valores abarcan {d} décadas)",
   "variable": "variable",
-  "{n} QC insert(s) without depths kept for QAQC ({s} standard(s), {b} blank(s), {d} duplicate(s)).": "{n} inserto(s) de QC sin profundidades conservados para QAQC ({s} estándar(es), {b} blanco(s), {d} duplicado(s))."
+  "{n} QC insert(s) without depths kept for QAQC ({s} standard(s), {b} blank(s), {d} duplicate(s)).": "{n} inserto(s) de QC sin profundidades conservados para QAQC ({s} estándar(es), {b} blanco(s), {d} duplicado(s)).",
+  "{n} QC insert(s) were already held from an earlier import and were updated, not added again.": "{n} inserto(s) de QC ya estaban de una importación anterior y se actualizaron, no se añadieron de nuevo.",
+  "The column that marks standards, blanks and duplicates (REG / DUP / STD / BLK / Control ...). Those rows are kept for Surface QAQC, not drawn as samples. Left on none, the medium column is read for these labels, as before.": "La columna que marca estándares, blancos y duplicados (REG / DUP / STD / BLK / Control ...). Esas filas se guardan para el QAQC de superficie, no se dibujan como muestras. Sin columna, estas etiquetas se leen de la columna del medio, como antes.",
+  "QC type": "Tipo de QC",
+  "QC type column": "Columna de tipo de QC"
 }

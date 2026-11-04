@@ -19,7 +19,7 @@ import { useStore } from "../lib/store.jsx";
 import { saveFile, loadSampleFiles } from "../lib/desktop.js"; // loadSampleFiles: TASKS.csv #391
 import { isElementColumn, inferUnit, pickElementColumns, assayExportRows, parseAssayValue, valueIn, readAssayCell, columnPositiveMax, convertUnit, mergeAssayRows, holesWithChangedIntervals, dropHoleAssays, blankDetectionLimit, isBlankAssayCell, oxideOfHeader, fromOxideHeader, surfaceAttrColumns, surfaceAttrs, mergeSurfaceSamples } from "../lib/geochem.js";
 import { DIAGRAMS, SPIDER_DIAGRAMS, GEOCHEM_METHODS, diagramExportRows, protolithForSample, PROVISIONAL_ALTERATION_BOXES, GEOCHEM_LABELS, reeProfile, loggedCodeAt, isSedimentaryCode, mergeClassRuns } from "../lib/geochemDiagrams.js";
-import { qcRecordFromFileRow, emptySurfaceQc } from "../lib/surfaceQaqc.js"; // TASKS.csv #842
+import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcRecords } from "../lib/surfaceQaqc.js"; // TASKS.csv #842; looksLikeQcTypeColumn, mergeQcRecords: #1794
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
 import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
 import { isSurfaceSampleTable, SURFACE_XY_ALIASES } from "../lib/viewer/importHelpers.js"; // TASKS.csv #975
@@ -33,6 +33,8 @@ import LabCertificateModal from "../components/LabCertificateModal.jsx"; // TASK
 import { isLabCertificateText, parseLabCertificate, combineCertificates, joinCertificatesToAssays, suggestQcTypes, qcRowPlacement, indexAssaysForPlacement } from "../lib/labCertificate.js"; // TASKS.csv #601
 import AlterationBoxModal from "../components/AlterationBoxModal.jsx"; // TASKS.csv #503
 import SurfaceImportModal, { SURFACE_MEDIA } from "../components/SurfaceImportModal.jsx";
+// TASKS.csv #1794 — the medium a cell names (the import's own list and aliases), for telling a medium column from a QC-type column
+const surfaceMediumOf = (m) => (SURFACE_MEDIA.includes(m) ? m : /rock|grab|chip|outcrop|float|channel|soil|silt|stream|sediment|moss|talus|bleg|\bhmc\b|heavy.?min|concentrate|water/.test(m) ? m : null);
 import IsoconTool from "../components/IsoconTool.jsx";
 import CorrelationMatrix from "../components/CorrelationMatrix.jsx";
 import BestIntercepts from "../components/BestIntercepts.jsx";
@@ -584,7 +586,10 @@ export default function GeochemModule() {
           z: guess(["z", "elevation", "elev", "elev_m", "rl", "elev_dem_m"]),
           sample_id: guess(["sample_id", "sampleid", "samp_num", "sample_num", "sample_number", "samp_id", "sample", "sample_no"]),
           medium: guess(["medium", "sample_medium", "samp_type", "sample_type", "smpl_medium", "type"]),
+          qcType: guess(["qc_type", "qctype", "qaqc_type", "qaqc", "sample_class", "qc_code_type", "control_type"]), // TASKS.csv #1794
         };
+        // TASKS.csv #1794 (review #1646, Kodiak) — a guessed medium column that holds QC labels (REG / DUP / Control) is the QC type
+        if (mapping.medium && looksLikeQcTypeColumn(data.map((r) => r[mapping.medium]), surfaceMediumOf)) { if (!mapping.qcType) mapping.qcType = mapping.medium; mapping.medium = ""; }
         // Bug found live-testing this feature: a bare "y" (northing) header false-positives against
         // isElementColumn as the element symbol Y (yttrium) — same first-token match logic that
         // correctly handles "Ag_XRF_..." also matches a coordinate column that just happens to BE an
@@ -682,8 +687,9 @@ export default function GeochemModule() {
         if (v != null) values[e.symbol] = v;
       });
       const rawMedium = mapping.medium ? String(r[mapping.medium] ?? "").trim().toLowerCase() : "";
-      if (mapping.medium) { // TASKS.csv #842 — QC inserts are not samples: kept for QA/QC, with or without coordinates
-        const rec = qcRecordFromFileRow({ sample_id: mapping.sample_id ? String(r[mapping.sample_id] ?? "").trim() : "", type: String(r[mapping.medium] ?? "").trim(), values, bdl, parent_id: parentCol ? String(r[parentCol] ?? "").trim() || null : null, ...surfaceAttrs(r, attrCols) });
+      const qcCol = mapping.qcType || mapping.medium; // #1794 — the QC-type column when there is one, else the medium column as before
+      if (qcCol) { // TASKS.csv #842 — QC inserts are not samples: kept for QA/QC, with or without coordinates
+        const rec = qcRecordFromFileRow({ sample_id: mapping.sample_id ? String(r[mapping.sample_id] ?? "").trim() : "", type: String(r[qcCol] ?? "").trim(), values, bdl, parent_id: parentCol ? String(r[parentCol] ?? "").trim() || null : null, ...surfaceAttrs(r, attrCols) });
         if (rec) { rec.batch = rec.attrs?.[Object.keys(rec.attrs || {}).find((k) => /cert|batch|job|work\s*order/i.test(k))] ?? null; qcRecords.push(rec); return null; }
       }
       let x = num(r[mapping.x]), y = num(r[mapping.y]);
@@ -702,7 +708,9 @@ export default function GeochemModule() {
       };
     }).filter((r) => r && Number.isFinite(r.x) && Number.isFinite(r.y));
     const noZ = rows.filter((r) => r.z == null).length;
-    if (qcRecords.length) setSurfaceQc((prev) => ({ ...(prev || emptySurfaceQc()), records: [...(prev?.records || []), ...qcRecords] })); // TASKS.csv #842
+    // TASKS.csv #842; #1794 — merged by kind and sample id: a re-import replaces the QC records it already brought instead of doubling them
+    const qcMerge = qcRecords.length ? mergeQcRecords(surfaceQc?.records || [], qcRecords) : null;
+    if (qcMerge) setSurfaceQc((prev) => ({ ...(prev || emptySurfaceQc()), records: mergeQcRecords(prev?.records || [], qcRecords).records }));
     // TASKS.csv #954 — merged by (sample_id, medium) onto the samples already loaded, not appended. Computed from the
     // current samples (not inside the setter) so the notice can say how many were updated.
     const merged = mergeSurfaceSamples(surfaceSamples, rows);
@@ -710,6 +718,7 @@ export default function GeochemModule() {
     setSurfaceElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: "%" } : e); }); return Array.from(merged.values()); }); // #403
     const extra = [
       modal.publicNote || null, // TASKS.csv #846
+      qcMerge?.replaced ? tr("{n} QC insert(s) were already held from an earlier import and were updated, not added again.", { n: qcMerge.replaced }) : null, // #1794
       merged.updated ? tr("{updated} of them matched samples already in the project by sample id and medium and updated them ({added} added).", { updated: merged.updated, added: merged.added }) : null, // #954
       converted.length ? `Converted ${converted.map((e) => `${e.symbol} ${e.unit} → ${existingUnit[e.symbol]}`).join(", ")} to match the unit already used in this project.` : null,
       negBdl ? `${negBdl} negative value(s) read as below detection.` : null,

@@ -95,6 +95,14 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
               {SURFACE_MEDIA.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
+          {/* TASKS.csv #1794 (review #1646, Kodiak) — the QC type apart from the medium: REG / DUP / STD / BLK / Control mark inserts, not media */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }} title={tr("The column that marks standards, blanks and duplicates (REG / DUP / STD / BLK / Control ...). Those rows are kept for Surface QAQC, not drawn as samples. Left on none, the medium column is read for these labels, as before.")}>
+            <div style={{ width: 120, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{tr("QC type")}</div>
+            <select value={modal.mapping.qcType || ""} onChange={(e) => setMapping("qcType", e.target.value)} style={{ ...sel, flex: 1 }} aria-label={tr("QC type column")}>
+              <option value="">{tr("— none —")}</option>
+              {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
+            </select>
+          </div>
           {/* TASKS.csv #600 — reprojected into the project CRS on import, like collars */}
           <div style={{ marginTop: 12 }}>
             <SourceCrsField
