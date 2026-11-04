@@ -66,7 +66,22 @@ const boundToId = (el, id) => el.boundTo === id || el.boundViewportId === id || 
 export function sendElementWithFurniture(from, to, elementId, move, newId = (el) => `${el.type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`) {
   const el = (from || []).find((e) => e.id === elementId);
   if (!el) return null;
-  const deps = from.filter((e) => e.id !== elementId && boundToId(e, elementId));
+  let deps = from.filter((e) => e.id !== elementId && boundToId(e, elementId));
+  // the page's own starter bar / arrow (fixed ids "scale" / "north") tied to this view by its snapshot: on a move they stay on
+  // their page, untied, when the destination has an untouched starter of that type (which then ties to the view); when the
+  // destination's starter is already someone else's, they travel under a new id, so no page holds two elements of one id
+  let kept = [];
+  const origDepIds = deps.map((e) => e.id); // removed from the source whatever id they travel under
+  if (move) {
+    const untouched = (e) => (e.type === "scale" ? !e.boundTo && !e.pxPerMeter && e.meters === 100 : e.type === "north" ? e.rotation == null : false);
+    const untie = (e) => (e.type === "scale" ? { ...e, boundTo: null, pxPerMeter: undefined, meters: 100 } : { ...e, boundTo: null, rotation: null });
+    deps = deps.flatMap((e) => {
+      const twin = (to || []).find((t) => t.id === e.id);
+      if (!twin) return [e];
+      if ((e.type === "scale" || e.type === "north") && untouched(twin)) { kept.push(untie(e)); return []; }
+      return [{ ...e, id: newId(e) }];
+    });
+  }
   let sent = [el, ...deps];
   if (!move) {
     const idMap = new Map(sent.map((e) => [e.id, newId(e)]));
@@ -75,8 +90,8 @@ export function sendElementWithFurniture(from, to, elementId, move, newId = (el)
   const view = sent[0];
   let dest = [...(to || []), ...sent];
   if (view.type === "viewport" || view.type === "image") dest = tieStarterFurniture(dest, view, { bar: !deps.some((e) => e.type === "scale"), north: !deps.some((e) => e.type === "north") });
-  const sentIds = new Set([el.id, ...deps.map((e) => e.id)]);
-  return { from: move ? from.filter((e) => !sentIds.has(e.id)) : from, to: dest };
+  const keptById = new Map(kept.map((e) => [e.id, e])), sentIds = new Set([el.id, ...origDepIds.filter((id) => !keptById.has(id))]);
+  return { from: move ? from.filter((e) => !sentIds.has(e.id)).map((e) => keptById.get(e.id) || e) : from, to: dest };
 }
 
 // TASKS.csv #924 — copied elements get new ids, so a copied scale bar / overview must follow its copied viewport
