@@ -28,7 +28,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 // Edge are built around. Depends on downhole compositing (#118, implemented alongside this) as its
 // input — see lib/estimation.js's top comment for why kriging isn't offered here (needs a fitted
 // variogram as a genuine prerequisite, not just a harder formula dropped into the same loop).
-export default function GradeEstimationModal({ assays: assaysIn, assayElements, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend = null, groundAt = null }) { // groundAt: TASKS.csv #803
+export default function GradeEstimationModal({ assays: assaysIn, assayElements, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend = null, groundAt = null, groundSource = null }) { // groundAt: TASKS.csv #803; groundSource "terrain" | "collars": #1616
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
@@ -330,7 +330,8 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
           est.cells = est.cells.filter((c) => { const g = groundAt(c.x, c.y); return !(Number.isFinite(g) && c.z > g); });
           const cut = before - est.cells.length;
           est.blocksSkipped += cut; est.blocksEstimated = est.cells.length;
-          params.cutAtTerrain = `${cut} block(s) whose centre is above the terrain dropped`;
+          params.cutAtTerrain = groundSource === "collars" ? `${cut} block(s) whose centre is above the ground interpolated between the collars dropped (no terrain)` : `${cut} block(s) whose centre is above the terrain dropped`; // #1616
+          params.groundFrom = groundSource || "terrain";
           est.cutAboveGround = cut;
         }
         setResult({ ...est, params, nnCells: method === "nn" ? est.cells : nnEst.cells, checkPoints: points, samplePointCount: points.length, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
@@ -495,8 +496,8 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
 
           {/* TASKS.csv #803 */}
           {groundAt && (
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("The grid is padded around the samples, so near the surface its top layers can be in the air. Ticked, a block whose centre is above the terrain is left out.")}>
-              <input type="checkbox" checked={belowGround} onChange={(e) => setBelowGround(e.target.checked)} />{tr("Only blocks below the terrain surface")}
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={groundSource === "collars" ? tr("The grid is padded around the samples, so near the surface its top layers can be in the air. With no terrain loaded the ground is interpolated between the collar elevations (as the pit shell takes it); ticked, a block whose centre is above it is left out.") : tr("The grid is padded around the samples, so near the surface its top layers can be in the air. Ticked, a block whose centre is above the terrain is left out.")}>
+              <input type="checkbox" checked={belowGround} onChange={(e) => setBelowGround(e.target.checked)} />{groundSource === "collars" ? tr("Only blocks below the ground (interpolated between the collars: no terrain)") : tr("Only blocks below the terrain surface")}
             </label>
           )}
           {/* TASKS.csv #517 — a modelled unit volume (or an imported closed solid) as a hard domain boundary */}

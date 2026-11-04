@@ -7455,5 +7455,8 @@
   "Benches of {h} m would draw at this size; or pick a design area (a closed design string) so the grid covers one prospect.": "Bancos de {h} m sí se dibujarían a este tamaño; o elija un área de diseño (un string cerrado) para que la grilla cubra un solo prospecto.",
   "Pick a design area (a closed design string) so the grid covers one prospect.": "Elija un área de diseño (un string cerrado) para que la grilla cubra un solo prospecto.",
   "No column of the shell lies inside \"{name}\": move or enlarge the area, or pick another.": "Ninguna columna del cono queda dentro de \"{name}\": mueva o agrande el área, o elija otra.",
-  "Designed inside \"{name}\": {n} of the shell's columns.": "Diseñado dentro de \"{name}\": {n} columnas del cono."
+  "Designed inside \"{name}\": {n} of the shell's columns.": "Diseñado dentro de \"{name}\": {n} columnas del cono.",
+  "The grid is padded around the samples, so near the surface its top layers can be in the air. With no terrain loaded the ground is interpolated between the collar elevations (as the pit shell takes it); ticked, a block whose centre is above it is left out.": "La grilla se rellena alrededor de las muestras, así que cerca de la superficie sus capas superiores pueden quedar en el aire. Sin terreno cargado, el suelo se interpola entre las cotas de los collares (como lo toma el cono de rajo); marcado, un bloque cuyo centro queda por encima se omite.",
+  "Only blocks below the ground (interpolated between the collars: no terrain)": "Solo bloques bajo el suelo (interpolado entre los collares: sin terreno)",
+  "{t} t in {n} ore-grade block(s) sit wholly above the ground and were left out: the estimate was not clipped to the ground (3D Modelling › Estimation, \"Only blocks below the ground\").": "{t} t en {n} bloque(s) con ley de mineral quedan enteramente sobre el suelo y se omitieron: la estimación no se recortó al suelo (Modelado 3D › Estimación, \"Solo bloques bajo el suelo\")."
 }

@@ -96,6 +96,7 @@ const PitDesignPane = React.lazy(() => import("../components/PitDesignPane.jsx")
 const DesignStringsPane = React.lazy(() => import("../components/DesignStringsPane.jsx")); // TASKS.csv #1876
 const NestedPitsPane = React.lazy(() => import("../components/NestedPitsPane.jsx")); // TASKS.csv #1875
 const StopesPane = React.lazy(() => import("../components/StopesPane.jsx")); // TASKS.csv #1879
+import { collarGround } from "../lib/pitShell.js"; // TASKS.csv #1616 — the estimate's ground without a terrain
 let solidSeq = 0; // TASKS.csv #1887 — distinct ids for solids added within one millisecond
 // TASKS.csv #1891 — what a pick in the view landed on, in a few words: the object's tip (its first line) or the kind of group it sits in
 const HIT_KINDS = { voxels: "a block model", terrain: "the terrain", implicit: "a generated surface", rasters: "a raster", omf: "an OMF object", planned: "a planned hole", mapLayers: "a map layer", sectionImages: "a section image", surface_samples: "a surface sample", assay: "an assay interval" };
@@ -8866,7 +8867,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           survey={survey}
           volumeShells={closedShellsForEstimation()}
           trend={trendFor("estimation")} // TASKS.csv #650
-          groundAt={terrain ? (x, y) => terrainGroundAt(terrain, x, y) : null} // TASKS.csv #803, #927
+          groundAt={terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collarGround(collars)} // TASKS.csv #803, #927; collars: #1616
+          groundSource={terrain ? "terrain" : collarGround(collars) ? "collars" : null}
           onAddModel={(model) => { const id = addVoxelModel(model); setNotices((p) => [...p, notice("Added block model \"{name}\" ({cells} cells).", { name: model.name, cells: model.cells.length.toLocaleString() })]); return id; }}
           onClose={() => setGradeEstOpen(false)}
         />

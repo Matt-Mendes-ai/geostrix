@@ -7455,5 +7455,8 @@
   "Benches of {h} m would draw at this size; or pick a design area (a closed design string) so the grid covers one prospect.": "درجات بارتفاع {h} م ستُرسم عند هذا الحجم؛ أو اختر منطقة تصميم (خط مغلق) لتغطي الشبكة موقعًا واحدًا.",
   "Pick a design area (a closed design string) so the grid covers one prospect.": "اختر منطقة تصميم (خط مغلق) لتغطي الشبكة موقعًا واحدًا.",
   "No column of the shell lies inside \"{name}\": move or enlarge the area, or pick another.": "لا يقع أي عمود من الغلاف داخل \"{name}\": حرّك المنطقة أو وسّعها، أو اختر غيرها.",
-  "Designed inside \"{name}\": {n} of the shell's columns.": "صُمِّم داخل \"{name}\": {n} من أعمدة الغلاف."
+  "Designed inside \"{name}\": {n} of the shell's columns.": "صُمِّم داخل \"{name}\": {n} من أعمدة الغلاف.",
+  "The grid is padded around the samples, so near the surface its top layers can be in the air. With no terrain loaded the ground is interpolated between the collar elevations (as the pit shell takes it); ticked, a block whose centre is above it is left out.": "الشبكة محشوّة حول العينات، فقرب السطح قد تكون طبقاتها العليا في الهواء. دون تضاريس محمّلة تُستكمل الأرض بين مناسيب الفوهات (كما يأخذها غلاف الحفرة)؛ عند التحديد تُستبعد الكتلة التي يقع مركزها فوقها.",
+  "Only blocks below the ground (interpolated between the collars: no terrain)": "الكتل تحت الأرض فقط (مستكمَلة بين الفوهات: لا تضاريس)",
+  "{t} t in {n} ore-grade block(s) sit wholly above the ground and were left out: the estimate was not clipped to the ground (3D Modelling › Estimation, \"Only blocks below the ground\").": "{t} طن في {n} كتلة بدرجة خام تقع كليًا فوق الأرض واستُبعدت: لم يُقصّ التقدير عند الأرض (النمذجة ثلاثية الأبعاد › التقدير، \"الكتل تحت الأرض فقط\")."
 }
