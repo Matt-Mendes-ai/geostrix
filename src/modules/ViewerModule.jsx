@@ -458,9 +458,12 @@ function assaySizeFor(value, range, style) {
   if (max > min) {
     const seg = (v, lo, hi, tLo, tHi) => tLo + ((v - lo) / (hi - lo)) * (tHi - tLo);
     if (Number.isFinite(p50) && Number.isFinite(p90) && p50 > min && p90 > p50 && p90 < max) {
-      t = value <= p50 ? seg(value, min, p50, 0, 0.5)
-        : value <= p90 ? seg(value, p50, p90, 0.5, 0.9)
-        : seg(value, p90, max, 0.9, 1);
+      // TASKS.csv #1696 (review #1645, Copley) — above P90 the size grows on a LOG scale to the maximum over 40 % of the size range: on
+      // a linear 0.9-1 segment, 97 ppm and 6,887 ppm Cu (P90 59, max 19,400) were radius 3.54 and 3.63 - the same sphere. Now 2.8 and 3.6.
+      t = value <= p50 ? seg(value, min, p50, 0, 0.35)
+        : value <= p90 ? seg(value, p50, p90, 0.35, 0.6)
+        : p90 > 0 ? 0.6 + 0.4 * (Math.log(value / p90) / Math.log(max / p90))
+        : seg(value, p90, max, 0.6, 1);
     } else {
       t = (value - min) / (max - min);
     }
@@ -4638,7 +4641,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         assayDisplayElements.forEach((sym, idx) => {
           const style = assayStyle[sym];
           const angle = (2 * Math.PI * idx) / n;
-          const offX = n > 1 ? Math.cos(angle) * 2.2 : 0, offZ = n > 1 ? Math.sin(angle) * 2.2 : 0;
+          // TASKS.csv #1696 — far enough apart that the largest marker of one element does not swallow another's (Au sat 2.2 m off the trace
+          // inside Cu spheres of radius 3.8): the largest radius (3.8 x the bigger size multiplier) between neighbours
+          const ring = n > 1 ? (3.9 * Math.max(...assayDisplayElements.map((x) => assayStyle[x]?.sizeMult ?? 1))) / Math.sin(Math.PI / n) : 0; // neighbours 2 x 3.9 m apart
+          const offX = n > 1 ? Math.cos(angle) * ring : 0, offZ = n > 1 ? Math.sin(angle) * ring : 0;
           (byHole.get(c.hole_id) || []).forEach((a) => {
             const v = a.values[sym];
             if (v == null || !assayPassesCutoff(v, style)) return;
