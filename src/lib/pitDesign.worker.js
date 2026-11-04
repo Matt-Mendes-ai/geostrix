@@ -1,13 +1,16 @@
 // TASKS.csv #1874 — the benched pit design off the UI thread: a few hundred thousand design cells and their contours
 import { shellFloors, benchedPit } from "./pitDesign.js";
-import { collarGround } from "./pitShell.js";
+import { collarGround, pitEconomics, joinByProduct, cellRevenue } from "./pitShell.js"; // pitEconomics / joinByProduct / cellRevenue: #1917
 import { terrainGroundAt } from "./viewer/geomath.js";
 
 self.onmessage = (e) => {
   try {
     const { shellPositions, terrain, collars, columns: c, opts } = e.data;
-    const cells = new Array(c ? c.value.length : 0);
+    let cells = new Array(c ? c.value.length : 0);
     for (let i = 0; i < cells.length; i++) cells[i] = { x: c.x[i], y: c.y[i], z: c.z[i], dx: c.dx[i], dy: c.dy[i], dz: c.dz[i], value: c.value[i], coverage: c.coverage[i] };
+    // TASKS.csv #1917 — a shell priced with a by-product: a block is ore when its revenue over both metals pays the processing, as the shell decided
+    const b = e.data.byColumns, eco = opts.economics ? pitEconomics(opts.economics) : null;
+    if (b && eco?.by) { const j = joinByProduct(cells, Array.from(b.value, (v, i) => ({ x: b.x[i], y: b.y[i], z: b.z[i], value: v }))); cells = j.cells.map((cell) => ({ ...cell, ore: cellRevenue(cell, eco) > opts.economics.processingCost })); }
     const groundAt = terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collars ? collarGround(collars) : null; // as the pit's run (#1353)
     const shell = shellFloors(shellPositions, groundAt);
     if (!shell) { self.postMessage({ failed: "no-floors" }); return; }

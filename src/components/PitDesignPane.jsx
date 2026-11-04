@@ -64,16 +64,19 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
   // the block model the shell was run on: its blocks above the shell's cut-off are the design's ore
   const model = useMemo(() => (pit ? voxelModels.find((m) => (m.id ?? m.name) === pit.params?.inputs?.modelId) || voxelModels.find((m) => m.name === pit.params?.blockModel) || null : null), [pit, voxelModels]);
   const unit = pit?.params?.gradeUnit || "";
+  // TASKS.csv #1917 — a shell priced with a by-product: its blocks are ore on both metals' revenue, so the by-product model goes too
+  const byIn = pit?.params?.inputs?.by || null;
+  const byModel = useMemo(() => (byIn ? voxelModels.find((m) => (m.id ?? m.name) === byIn.modelId) || voxelModels.find((m) => m.name === pit?.params?.byProduct?.blockModel) || null : null), [byIn, pit, voxelModels]);
 
   const run = async () => {
     const positions = worldPositionsOf?.(pit.id);
     if (!positions) { setMsg(tr("The pit's mesh is not in the view: show it and try again.")); return; }
     const inputs = { benchH: v("benchH"), berm: v("berm"), batterDeg: v("batterDeg"), datum: f.datum === "" ? 0 : Number(f.datum) || 0 };
-    const opts = { ...inputs, cutoff: Number(pit.params?.cutoffGrade) || Infinity, density: Number(pit.params?.inputs?.density) || 1, largestOnly: pitCount > 1 && largestOnly && !area, areaPoly: area ? area.vertices.map((q) => [q[0], q[1]]) : null }; // areaPoly: #1916
+    const opts = { ...inputs, cutoff: Number(pit.params?.cutoffGrade) || Infinity, density: Number(pit.params?.inputs?.density) || 1, largestOnly: pitCount > 1 && largestOnly && !area, areaPoly: area ? area.vertices.map((q) => [q[0], q[1]]) : null, economics: byIn && byModel ? { ...pit.params.inputs, unit: unit || pit.params.inputs.unit } : null /* #1917 */ }; // areaPoly: #1916
     setBusy(true); setMsg(null);
     const t0 = performance.now();
     try {
-      job.current = runPitDesignAsync(positions, model, opts, terrain, collars);
+      job.current = runPitDesignAsync(positions, model, opts, terrain, collars, null, byIn ? byModel : null); // byModel: #1917
       const r = await job.current.promise;
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
       if (r.failed === "area-empty") { setMsg(tr("No column of the shell lies inside \"{name}\": move or enlarge the area, or pick another.", { name: area?.name || "?" })); return; } // #1916
@@ -149,6 +152,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
           </div>
         )}
         {pit && !model && <div style={warn}>{tr("The block model the shell was run on (\"{m}\") is not in the project any more: the table will show rock only, no ore.", { m: pit.params?.blockModel || "?" })}</div>}
+        {pit && model && byIn && !byModel && <div style={warn}>{tr("The by-product model the shell was run with (\"{m}\") is not in the project any more: the ore is decided on the main metal alone, at its cut-off.", { m: pit.params?.byProduct?.blockModel || "?" })}</div>}{/* #1917 */}
         {pitCount > 1 && !area && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("The shell is several separate pits; the design grid then goes to the largest alone.")}><input type="checkbox" checked={largestOnly} onChange={(e) => setLargestOnly(e.target.checked)} />{tr("Design the largest of the {n} separate pits only", { n: pitCount })}</label>}{/* #1899 */}
         {designs.some((s) => s.visible) && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={hideEarlier} onChange={(e) => setHideEarlier(e.target.checked)} />{tr("Hide the earlier designs")}</label>}
         {!busy

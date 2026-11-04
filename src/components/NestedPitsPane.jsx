@@ -58,15 +58,19 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
   const element = elementOfModel(model);
   const metal = unit ? pitMetalOf(unit, element) : null;
   const priceLabel = metal && inputs ? (PRICE_UNITS[metal.unit].find(([k]) => k === inputs.priceUnit) || [])[1] || "" : "";
+  // TASKS.csv #1917 — the shell's by-product model, for the series; gone from the project: the series cannot run as the shell did
+  const byModel = inputs?.by ? models.find((m) => (m.id ?? m.name) === inputs.by.modelId) || models.find((m) => m.name === lastPit?.params?.byProduct?.blockModel) || null : null;
+  const byMissing = !!inputs?.by && !byModel, byEl = inputs?.by?.element || byModel?.name || "";
+  const byPriceLabel = inputs?.by ? (PRICE_UNITS[pitMetalOf(inputs.by.unit, inputs.by.element)?.unit || "g"].find(([k]) => k === inputs.by.priceUnit) || [])[1] || "" : "";
   const rate = Number(f.rate) > 0 ? Number(f.rate) : null, discount = f.discount === "" ? null : Number(f.discount);
   const shells = useMemo(() => surfaces.filter((s) => s.type === "pit_shell" && s.params?.seriesId), [surfaces]);
 
   const run = async () => {
-    if (!inputs || !model || !factors.length) return;
+    if (!inputs || !model || !factors.length || byMissing) return;
     setBusy({ idx: 0, of: factors.length }); setMsg(null);
     const t0 = performance.now();
     try {
-      job.current = runPitSeriesAsync(model, { ...inputs, unit, element }, factors, { rate, discountPct: Number.isFinite(discount) ? discount : null, terrain, collars, onProgress: (p) => setBusy(p) });
+      job.current = runPitSeriesAsync(model, { ...inputs, unit, element }, factors, { rate, discountPct: Number.isFinite(discount) ? discount : null, terrain, collars, byModel /* #1917 */, onProgress: (p) => setBusy(p) });
       const r = await job.current.promise;
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
       if (r.failed || r.empty) { setMsg(r.empty ? tr("At these inputs no block pays for the rock over it at the largest factor, so there is no pit.") : tr("The series failed: {v}", { v: r.failed })); return; }
@@ -90,14 +94,16 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
       tip: tr("Conceptual pit shell at revenue factor {rf}: not a mine plan, a Reserve or a Resource", { rf: r.rf }),
       params: { tool: "conceptual pit shell (maximum closure, exact), nested series", inputs: { ...inputs, revenueFactor: r.rf, unit: valueUnit(model) ? "" : unit }, blockModel: model?.name, gradeUnit: unit, revenueFactor: r.rf, seriesId: res.seriesId,
         oreTonnes: Math.round(r.oreT), wasteTonnes: Math.round(r.wasteT), stripRatio: r.stripRatio == null ? null : +r.stripRatio.toFixed(2), meanGrade: r.meanGrade == null ? null : +r.meanGrade.toPrecision(4), containedMetal: Math.round(r.metalU * res.metalFactor), containedMetalUnit: res.metalUnit,
-        cutoffGrade: +res.cutoffBase.toPrecision(3), undiscountedMargin: Math.round(r.moneyBase), valuedAt: "the entered price", npv: r.npv == null ? null : Math.round(r.npv), yearsToMine: r.years == null ? null : +r.years.toFixed(1), miningRateTpa: res.rate, discountPct: res.discountPct, maxDepthM: Math.round(r.maxDepth), gridCellM: res.cell.map((v) => +v.toFixed(1)), groundFrom: res.groundSource, reachesModelBase: r.touchesBase,
+        cutoffGrade: +res.cutoffBase.toPrecision(3), undiscountedMargin: Math.round(r.moneyBase), valuedAt: "the entered price",
+        ...(inputs.by && res.byMetalUnit ? { byProduct: { blockModel: lastPit.params?.byProduct?.blockModel || byModel?.name || null, element: byEl, gradeUnit: inputs.by.unit, price: inputs.by.price, priceUnit: inputs.by.priceUnit, recovery: inputs.by.recovery, meanGrade: r.meanGrade2 == null ? null : +r.meanGrade2.toPrecision(4), containedMetal: Math.round((r.metalU2 || 0) * res.byMetalFactor), containedMetalUnit: res.byMetalUnit }, cutoffBasis: lastPit.params?.cutoffBasis || null } : {}), /* #1917 */ npv: r.npv == null ? null : Math.round(r.npv), yearsToMine: r.years == null ? null : +r.years.toFixed(1), miningRateTpa: res.rate, discountPct: res.discountPct, maxDepthM: Math.round(r.maxDepth), gridCellM: res.cell.map((v) => +v.toFixed(1)), groundFrom: res.groundSource, reachesModelBase: r.touchesBase,
         caution: "conceptual: one of a nested series, valued at the entered price; the schedule mines the shells as pushbacks at one rate with no stockpiles, ramps, dilution, capital or closure; not a Mineral Reserve or Resource", generatedAt: new Date().toISOString() },
     });
   };
   const shownState = (i) => { const r = res.runs[i]; const s = shells.find((x) => x.params?.seriesId === res.seriesId && x.params?.revenueFactor === r.rf); return s ? (s.visible ? "on" : "off") : null; };
   const metalText = (r) => { const m = r.metalU * res.metalFactor; return res.metalUnit === "g" ? `${big(m / G_PER_OZ)} oz` : `${big(m)} t`; };
+  const byMetalText = (r) => { const m = (r.metalU2 || 0) * res.byMetalFactor; return res.byMetalUnit === "g" ? `${big(m / G_PER_OZ)} oz` : `${big(m)} t`; }; // #1917
   const exportCsv = () => saveFile({ suggestedName: "nested_pits.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv([
-    ...res.runs.map((r) => ({ section: "shell", revenue_factor: r.rf, price: res.price, price_unit: res.priceLabel, ore_t: Math.round(r.oreT), [`mean_grade_${res.unit.replace("%", "pct")}`]: r.meanGrade == null ? "" : +r.meanGrade.toPrecision(4), contained_metal: Math.round(r.metalU * res.metalFactor), metal_unit: res.metalUnit, waste_t: Math.round(r.wasteT), strip_ratio: r.stripRatio == null ? "" : +r.stripRatio.toFixed(2), max_depth_m: Math.round(r.maxDepth), undiscounted_margin_at_entered_price: Math.round(r.moneyBase), years_to_mine: r.years == null ? "" : +r.years.toFixed(2), npv: r.npv == null ? "" : Math.round(r.npv), crs: crsCell(project) })),
+    ...res.runs.map((r) => ({ section: "shell", revenue_factor: r.rf, price: res.price, price_unit: res.priceLabel, ore_t: Math.round(r.oreT), [`mean_grade_${res.unit.replace("%", "pct")}`]: r.meanGrade == null ? "" : +r.meanGrade.toPrecision(4), contained_metal: Math.round(r.metalU * res.metalFactor), metal_unit: res.metalUnit, waste_t: Math.round(r.wasteT), strip_ratio: r.stripRatio == null ? "" : +r.stripRatio.toFixed(2), max_depth_m: Math.round(r.maxDepth), undiscounted_margin_at_entered_price: Math.round(r.moneyBase), years_to_mine: r.years == null ? "" : +r.years.toFixed(2), npv: r.npv == null ? "" : Math.round(r.npv), ...(inputs?.by && res.byMetalUnit ? { by_product: byEl, by_product_mean_grade: r.meanGrade2 == null ? "" : +r.meanGrade2.toPrecision(4), by_product_contained_metal: Math.round((r.metalU2 || 0) * res.byMetalFactor), by_product_metal_unit: res.byMetalUnit } : {}) /* #1917 */, crs: crsCell(project) })),
     ...res.yearly.map((y) => ({ section: "year", year: y.year, rock_t: Math.round(y.rockT), ore_t: Math.round(y.oreT), cash_undiscounted: Math.round(y.cash) })),
   ]) });
   const line = (label, v) => <div style={row}><span>{label}</span><b>{v}</b></div>;
@@ -110,12 +116,14 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
       {lastPit && !model && <div style={warn}>{tr("The block model the shell was run on (\"{m}\") is not in the project any more.", { m: lastPit.params?.blockModel || "?" })}</div>}
       {lastPit && model && (<>
         <div style={{ ...note, marginTop: 4 }}>{tr("From \"{pit}\": {price} {unit}, recovery {rec} %, mining ${mc}/t, processing ${pc}/t, density {d}, slope {s}°{sec}.", { pit: String(lastPit.name).replace(/^Pit shell: /, ""), price: inputs.price, unit: priceLabel, rec: inputs.recovery, mc: inputs.miningCost, pc: inputs.processingCost, d: inputs.density, s: inputs.slopeDeg, sec: inputs.sectorSlopes ? tr(" (by sector)") : "" })}</div>{/* sec: #1897 */}
+        {inputs.by && !byMissing && <div style={note}>{tr("By-product: {el} at {price} {unit}, recovery {rec} %.", { el: byEl, price: inputs.by.price, unit: byPriceLabel, rec: inputs.by.recovery })}</div>}{/* #1917 */}
+        {byMissing && <div style={warn}>{tr("The by-product model the shell was run with (\"{m}\") is not in the project any more.", { m: lastPit.params?.byProduct?.blockModel || "?" })}</div>}
         <label style={row}>{tr("Revenue factors")}<input value={f.factors} onChange={(e) => setF((p) => ({ ...p, factors: e.target.value }))} style={{ ...smallSel, width: 130 }} aria-label={tr("Revenue factors of the series")} title={tr("A range with a step, or a list: 0.3-1.2 step 0.1, or 0.5, 0.8, 1, 1.2")} /></label>
         <div style={note}>{factors.length ? tr("{n} factor(s): {list}", { n: factors.length, list: factors.join(", ") }) : tr("Enter a range with a step, or a list of factors.")}{droppedFactors(f.factors).length > 0 && <> {tr("Ignored: {list} (a factor must be above 0).", { list: droppedFactors(f.factors).join(", ") })}</>}</div>
         <label style={row}>{tr("Mining rate (t rock / year)")}<input type="number" min={0} step="any" value={f.rate} onChange={(e) => setF((p) => ({ ...p, rate: e.target.value }))} style={num} aria-label={tr("Mining rate")} placeholder={tr("optional")} /></label>
         <label style={row}>{tr("Discount rate (% / year)")}<input type="number" min={0} step="any" value={f.discount} onChange={(e) => setF((p) => ({ ...p, discount: e.target.value }))} style={num} aria-label={tr("Discount rate")} placeholder={tr("optional")} disabled={!rate} /></label>
         {busy == null
-          ? <button onClick={run} disabled={!factors.length} style={{ ...pBtn, marginTop: 8, opacity: factors.length ? 1 : 0.5 }}><Layers size={14} /> {tr("Run the series")}</button>
+          ? <button onClick={run} disabled={!factors.length || byMissing} style={{ ...pBtn, marginTop: 8, opacity: factors.length && !byMissing ? 1 : 0.5 }}><Layers size={14} /> {tr("Run the series")}</button>
           : <button onClick={cancel} style={{ ...pBtn, marginTop: 8 }}>{tr("Solving shell {i} of {n}: cancel", { i: (busy.idx || 0) + 1, n: busy.of || factors.length })}</button>}
       </>)}
       {msg && <div style={warn}>{msg}</div>}
@@ -139,6 +147,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
           {res.bestNpv >= 0 && line(tr("Best NPV"), tr("factor {rf}: ${npv} over {y} years", { rf: res.runs[res.bestNpv].rf, npv: big(res.runs[res.bestNpv].npv), y: res.runs[res.bestNpv].years.toFixed(1) }))}
           {res.bestMoney >= 0 && line(tr("Largest undiscounted margin"), tr("factor {rf}: ${v}", { rf: res.runs[res.bestMoney].rf, v: big(res.runs[res.bestMoney].moneyBase) }))}
           {res.bestMoney >= 0 && line(tr("Contained metal at it"), metalText(res.runs[res.bestMoney]))}
+          {res.bestMoney >= 0 && inputs?.by && res.byMetalUnit && line(tr("Contained {el} at it", { el: byEl }), byMetalText(res.runs[res.bestMoney]))}{/* #1917 */}
           {line(tr("Grid cell"), `${res.cell.map((v) => Math.round(v * 10) / 10).join(" × ")} m`)}
           {line(tr("Solved in"), `${res.seconds} s`)}
           {res.groundSource === "collars" && <div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div>}

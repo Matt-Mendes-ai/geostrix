@@ -230,7 +230,7 @@ export function benchedPit(shell, { groundAt = null, cells = [], cutoff = Infini
   // each block's overlap with every design cell's square (cells are centred on the lattice nodes), as buildPitGrid does
   const span = (lo, hi, o, N1) => [Math.max(0, Math.ceil((lo - o) / cell - 0.5)), Math.min(N1 - 1, Math.floor((hi - o) / cell + 0.5))];
   for (const bl of cells) {
-    if (!(bl.value >= cutoff) || !(bl.dx > 0 && bl.dy > 0 && bl.dz > 0)) continue;
+    if (!(bl.ore != null ? bl.ore : bl.value >= cutoff) || !(bl.dx > 0 && bl.dy > 0 && bl.dz > 0)) continue; // bl.ore: decided on both metals (#1917)
     const xlo = bl.x - bl.dx / 2, xhi = bl.x + bl.dx / 2, ylo = bl.y - bl.dy / 2, yhi = bl.y + bl.dy / 2;
     const [i0, i1] = span(xlo, xhi, bx0, nx), [j0, j1] = span(ylo, yhi, by0, ny);
     const cover = Number.isFinite(bl.coverage) ? bl.coverage : 1, zlo = bl.z - bl.dz / 2, zhi = bl.z + bl.dz / 2;

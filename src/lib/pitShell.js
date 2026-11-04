@@ -22,13 +22,18 @@ export const PRICE_UNITS = { g: [["oz", "$/oz"], ["g", "$/g"]], t: [["lb", "$/lb
 
 // economics: { unit (of the block values), price, priceUnit, recovery (%), miningCost, processingCost ($/t rock), revenueFactor? }
 // -> { revenuePerGrade: $ per tonne of rock per unit of grade, cutoff: the grade that just pays for processing } or null
-export function pitEconomics({ unit, element = null, price, priceUnit, recovery, processingCost, revenueFactor = 1 }) {
+export function pitEconomics({ unit, element = null, price, priceUnit, recovery, processingCost, revenueFactor = 1, by = null }) {
   const m = pitMetalOf(unit, element); // #1748
   if (!m) return null;
   const perBase = m.unit === "g" ? (priceUnit === "oz" ? price / G_PER_OZ : price) : (priceUnit === "lb" ? price * LB_PER_T : price);
   const revenuePerGrade = m.factor * (recovery / 100) * perBase * revenueFactor;
   if (!(revenuePerGrade > 0)) return null;
-  return { revenuePerGrade, cutoff: processingCost / revenuePerGrade, metalUnit: m.unit, metalFactor: m.factor };
+  const e = { revenuePerGrade, cutoff: processingCost / revenuePerGrade, metalUnit: m.unit, metalFactor: m.factor };
+  // TASKS.csv #1917 (from #1615 Lawyers, #1749 Copley) — a BY-PRODUCT metal (Ag beside Au, Au beside Cu) with its own price and
+  // recovery: its revenue per tonne per unit of ITS grade; a block's revenue is the sum over the metals (cellRevenue), so the ore
+  // decision and the pit follow both. by: { unit, element, price, priceUnit, recovery }; the revenue factor scales both prices.
+  if (by) { const b = pitEconomics({ ...by, by: null, processingCost, revenueFactor }); e.by = b; e.byFailed = !b; }
+  return e;
 }
 
 // a block's money per tonne: processed if that pays more than sending it to the dump (both pay for mining)
@@ -36,6 +41,19 @@ export const marginPerTonne = (grade, e, miningCost, processingCost) => {
   const rev = grade * e.revenuePerGrade;
   return rev > processingCost ? rev - processingCost - miningCost : -miningCost;
 };
+// TASKS.csv #1917 — a block's revenue per tonne summed over the metals (c.by: its by-product grade, from joinByProduct), and its margin
+export const cellRevenue = (c, e) => c.value * e.revenuePerGrade + (e.by && c.by > 0 ? c.by * e.by.revenuePerGrade : 0);
+export const cellMargin = (c, e, miningCost, processingCost) => { const rev = cellRevenue(c, e); return rev > processingCost ? rev - processingCost - miningCost : -miningCost; };
+// the by-product model's grades joined to the main model's blocks by block centre (to the centimetre): the same grid, so the same
+// centres. A block without a match keeps no by-product grade; no match at all means another grid. -> { cells, matched }
+export function joinByProduct(cells, byCells) {
+  const key = (c) => `${Math.round(c.x * 100)}|${Math.round(c.y * 100)}|${Math.round(c.z * 100)}`;
+  const map = new Map();
+  for (const b of byCells || []) if (Number.isFinite(b.value)) map.set(key(b), b.value);
+  let matched = 0;
+  const out = cells.map((c) => { const v = map.get(key(c)); if (v == null) return c; matched++; return { ...c, by: v }; });
+  return { cells: out, matched };
+}
 
 // TASKS.csv #1353 (review #1352, Silvertip) — with no terrain the pit took ONE flat ground at the top of the highest block,
 // above every collar: 100-140 m of air was costed as waste and a paying Zn pit came out empty. The collars are surveyed points on
@@ -152,7 +170,7 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
   good.forEach((c) => {
     x0 = Math.min(x0, c.x - c.dx / 2); x1 = Math.max(x1, c.x + c.dx / 2); y0 = Math.min(y0, c.y - c.dy / 2); y1 = Math.max(y1, c.y + c.dy / 2);
     zLow = Math.min(zLow, c.z - c.dz / 2); zHigh = Math.max(zHigh, c.z + c.dz / 2);
-    if (marginPerTonne(c.value, economics, miningCost, processingCost) > 0) payLow = Math.min(payLow, c.z - c.dz / 2);
+    if (cellMargin(c, economics, miningCost, processingCost) > 0) payLow = Math.min(payLow, c.z - c.dz / 2); // both metals: #1917
   });
   // TASKS.csv #1358 — a pit never goes below its deepest paying block (below it there is only cost), so the grid and the wall reach
   // stop there: on a deep fan-drilled model the reach from the model base forced 25 m blocks up to 39 m for a pit 242 m deep
@@ -186,7 +204,7 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
     for (let k = 0; k < ground.length; k++) if (!Number.isFinite(ground[k])) ground[k] = top; // no terrain there: the top of the model
     if (zTop > top) { nz = Math.max(1, Math.ceil((zTop - zLow) / dz)); while (nx * ny * nz > maxCells) { dz *= 1.25; nz = Math.max(1, Math.ceil((zTop - zLow) / dz)); coarsened = true; } }
   }
-  const z0 = zLow, n = nx * ny * nz, value = new Float64Array(n), oreT = new Float32Array(n), metalU = new Float64Array(n), rockT = new Float32Array(n), modelT = new Float32Array(n);
+  const z0 = zLow, n = nx * ny * nz, value = new Float64Array(n), oreT = new Float32Array(n), metalU = new Float64Array(n), metalU2 = new Float64Array(n) /* the by-product's metal in the ore (#1917) */, rockT = new Float32Array(n), modelT = new Float32Array(n);
   const oreThin = new Float32Array(n), oreExtrap = new Float32Array(n); // #1354 — ore resting on one hole / classed extrapolated or unsupported
   const at = (i, j, k) => k * nx * ny + j * nx + i;
   // every cell starts as barren rock below the ground
@@ -205,10 +223,10 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
   const gAt = (x, y) => { const i = Math.min(nx - 1, Math.max(0, Math.floor((x - x0) / dx))), j = Math.min(ny - 1, Math.max(0, Math.floor((y - y0) / dy))); return ground[j * nx + i]; };
   // each block replaces the barren rock it overlaps, per overlapped cell
   good.forEach((c) => {
-    if (marginPerTonne(c.value, economics, miningCost, processingCost) > -miningCost && c.z - c.dz / 2 >= gAt(c.x, c.y) - 1e-6) { oreAboveGroundT += c.dx * c.dy * c.dz * (Number.isFinite(c.coverage) ? c.coverage : 1) * density; oreAboveGroundBlocks++; }
+    if (cellMargin(c, economics, miningCost, processingCost) > -miningCost && c.z - c.dz / 2 >= gAt(c.x, c.y) - 1e-6) { oreAboveGroundT += c.dx * c.dy * c.dz * (Number.isFinite(c.coverage) ? c.coverage : 1) * density; oreAboveGroundBlocks++; }
     const span = (lo, hi, o, d, N) => [Math.max(0, Math.floor((lo - o) / d)), Math.min(N - 1, Math.ceil((hi - o) / d) - 1)];
     const [i0, i1] = span(c.x - c.dx / 2, c.x + c.dx / 2, x0, dx, nx), [j0, j1] = span(c.y - c.dy / 2, c.y + c.dy / 2, y0, dy, ny), [k0, k1] = span(c.z - c.dz / 2, c.z + c.dz / 2, z0, dz, nz);
-    const cover = Number.isFinite(c.coverage) ? c.coverage : 1, margin = marginPerTonne(c.value, economics, miningCost, processingCost), ore = margin > -miningCost;
+    const cover = Number.isFinite(c.coverage) ? c.coverage : 1, margin = cellMargin(c, economics, miningCost, processingCost), ore = margin > -miningCost;
     for (let k = k0; k <= k1; k++) for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
       const q = at(i, j, k);
       if (!rockT[q]) continue; // in the air
@@ -219,10 +237,10 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
       if (t <= 0) continue;
       modelT[q] += t;
       value[q] += t * (margin + miningCost); // it was counted as barren: take that back
-      if (ore) { oreT[q] += t; metalU[q] += t * c.value; if (c.nHoles === 1) oreThin[q] += t; if (c.support === "extrapolated" || c.support === "unsupported") oreExtrap[q] += t; }
+      if (ore) { oreT[q] += t; metalU[q] += t * c.value; if (c.by > 0) metalU2[q] += t * c.by; if (c.nHoles === 1) oreThin[q] += t; if (c.support === "extrapolated" || c.support === "unsupported") oreExtrap[q] += t; }
     }
   });
-  return { nx, ny, nz, x0, y0, z0, dx, dy, dz, ground, value, oreT, metalU, rockT, modelT, oreThin, oreExtrap, coarsened, topAssumed, oreAboveGroundT, oreAboveGroundBlocks, askedSize, modelCell, atModelBase: z0 <= modelBase + 1e-6 };
+  return { nx, ny, nz, x0, y0, z0, dx, dy, dz, ground, value, oreT, metalU, metalU2, rockT, modelT, oreThin, oreExtrap, coarsened, topAssumed, oreAboveGroundT, oreAboveGroundBlocks, askedSize, modelCell, atModelBase: z0 <= modelBase + 1e-6 };
 }
 
 // ---------- the solve ----------
@@ -311,14 +329,14 @@ export function solvePit(grid, slopeDeg, { onProgress = null, sectorSlopes = nul
 // ---------- what comes out ----------
 // totals inside the pit; metal in the block values' own grade x tonnes (mean grade = metalU / oreT)
 export function pitSummary(grid, mined) {
-  let oreT = 0, rockT = 0, metalU = 0, modelT = 0, money = 0, blocks = 0, thin = 0, extrap = 0;
+  let oreT = 0, rockT = 0, metalU = 0, metalU2 = 0, modelT = 0, money = 0, blocks = 0, thin = 0, extrap = 0;
   for (let q = 0; q < mined.length; q++) {
     if (!mined[q]) continue;
-    blocks++; oreT += grid.oreT[q]; rockT += grid.rockT[q]; metalU += grid.metalU[q]; modelT += grid.modelT[q]; money += grid.value[q];
+    blocks++; oreT += grid.oreT[q]; rockT += grid.rockT[q]; metalU += grid.metalU[q]; metalU2 += grid.metalU2?.[q] || 0; modelT += grid.modelT[q]; money += grid.value[q];
     thin += grid.oreThin?.[q] || 0; extrap += grid.oreExtrap?.[q] || 0;
   }
   const wasteT = rockT - oreT;
-  return { blocks, oreT, wasteT, rockT, stripRatio: oreT > 0 ? wasteT / oreT : null, meanGrade: oreT > 0 ? metalU / oreT : null, metalU, money, barrenShare: rockT > 0 ? 1 - modelT / rockT : 0,
+  return { blocks, oreT, wasteT, rockT, stripRatio: oreT > 0 ? wasteT / oreT : null, meanGrade: oreT > 0 ? metalU / oreT : null, metalU, metalU2, meanGrade2: oreT > 0 ? metalU2 / oreT : null /* #1917 */, money, barrenShare: rockT > 0 ? 1 - modelT / rockT : 0,
     oreSingleHoleShare: oreT > 0 ? thin / oreT : 0, oreExtrapolatedShare: oreT > 0 ? extrap / oreT : 0 }; // #1354
 }
 
@@ -363,20 +381,21 @@ export function pitParts(grid, mined) {
   const label = new Int32Array(NC).fill(-1), pits = [];
   for (let s = 0; s < NC; s++) {
     if (!Number.isFinite(floor[s]) || label[s] >= 0) continue;
-    const id = pits.length, stack = [s], part = { columns: 0, oreT: 0, wasteT: 0, rockT: 0, money: 0, metalU: 0, maxDepth: 0 };
+    const id = pits.length, stack = [s], part = { columns: 0, oreT: 0, wasteT: 0, rockT: 0, money: 0, metalU: 0, metalU2: 0, maxDepth: 0 };
     let i0 = Infinity, i1 = -Infinity, j0 = Infinity, j1 = -Infinity;
     label[s] = id;
     while (stack.length) {
       const c = stack.pop(); part.columns++;
       { const jj = Math.floor(c / nx), ii = c - jj * nx; if (ii < i0) i0 = ii; if (ii > i1) i1 = ii; if (jj < j0) j0 = jj; if (jj > j1) j1 = jj; }
       const depth = ground[c] - floor[c]; if (depth > part.maxDepth) part.maxDepth = depth;
-      for (let k = 0; k < nz; k++) { const q = k * NC + c; if (!mined[q]) continue; part.oreT += grid.oreT[q]; part.rockT += grid.rockT[q]; part.money += grid.value[q]; part.metalU += grid.metalU[q]; }
+      for (let k = 0; k < nz; k++) { const q = k * NC + c; if (!mined[q]) continue; part.oreT += grid.oreT[q]; part.rockT += grid.rockT[q]; part.money += grid.value[q]; part.metalU += grid.metalU[q]; part.metalU2 += grid.metalU2?.[q] || 0; }
       const j = Math.floor(c / nx), i = c - j * nx;
       for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const ii = i + a, jj = j + b; if (ii < 0 || jj < 0 || ii >= nx || jj >= ny) continue; const p = jj * nx + ii; if (Number.isFinite(floor[p]) && label[p] < 0) { label[p] = id; stack.push(p); } }
     }
     part.wasteT = part.rockT - part.oreT; part.stripRatio = part.oreT > 0 ? part.wasteT / part.oreT : null; part.blocksDeep = Math.max(1, Math.round(part.maxDepth / dz));
     part.boxM = [(i1 - i0 + 1) * dx, (j1 - j0 + 1) * dy]; // its plan extent (#1926)
     part.meanGrade = part.oreT > 0 ? part.metalU / part.oreT : null; // #1929
+    part.meanGrade2 = part.oreT > 0 ? part.metalU2 / part.oreT : null; // #1917
     pits.push(part);
   }
   pits.sort((a, b) => b.oreT - a.oreT);
@@ -409,15 +428,21 @@ export function pitParts(grid, mined) {
 export function runPitShell(inputs, { groundAt = null, collars = null, onProgress = null } = {}) {
   const economics = pitEconomics(inputs);
   if (!economics) return { failed: "units" };
+  if (economics.byFailed) return { failed: "by-units" }; // #1917
+  // TASKS.csv #1917 — the by-product's grades joined to the blocks; another grid matches no block and is refused
+  let cells = inputs.cells, byMatched = null;
+  if (inputs.by) { const j = joinByProduct(cells, inputs.byCells); if (!j.matched) return { failed: "by-grid" }; cells = j.cells; byMatched = j.matched / cells.length; }
   const fromCollars = !groundAt ? collarGround(collars) : null; // #1353
-  const grid = buildPitGrid(inputs.cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes, density: inputs.density, economics, miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: groundAt || fromCollars });
+  const grid = buildPitGrid(cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes, density: inputs.density, economics, miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: groundAt || fromCollars });
   if (!grid) return { failed: "no-cells" };
   if (grid.empty) return { empty: true, cutoff: economics.cutoff, cell: [] };
   const groundSource = groundAt ? "terrain" : fromCollars ? "collars" : "model top";
   const solve = solvePit(grid, inputs.slopeDeg, { onProgress, sectorSlopes: inputs.sectorSlopes }); // #1881
   const summary = pitSummary(grid, solve.mined);
   if (!summary.blocks) return { empty: true, cutoff: economics.cutoff, cell: [grid.dx, grid.dy, grid.dz], groundSource };
-  return { ...summary, ...pitSurface(grid, solve.mined), parts: pitParts(grid, solve.mined) /* #1608 */, oreAboveGroundT: grid.oreAboveGroundT, oreAboveGroundBlocks: grid.oreAboveGroundBlocks /* #1616 */, askedSize: grid.askedSize, modelCellM: grid.modelCell /* #1610 */, cutoff: economics.cutoff, metalUnit: economics.metalUnit, metalFactor: economics.metalFactor, cell: [grid.dx, grid.dy, grid.dz], grid: [grid.nx, grid.ny, grid.nz], walls: wallAngles(grid.dx, grid.dy, grid.dz, inputs.slopeDeg, 32, inputs.sectorSlopes), groundSource, nodes: solve.nodes, arcs: solve.arcs, topAssumed: grid.topAssumed / (grid.nx * grid.ny), coarsened: grid.coarsened };
+  // #1917 — the by-product's figures: its metal, mean grade over the ore, its share of the revenue, and how many blocks carried it
+  const by = economics.by ? (() => { const r1 = summary.metalU * economics.revenuePerGrade, r2 = summary.metalU2 * economics.by.revenuePerGrade; return { metalU: summary.metalU2, meanGrade: summary.meanGrade2, metalUnit: economics.by.metalUnit, metalFactor: economics.by.metalFactor, cutoff: economics.by.cutoff, revenueShare: r1 + r2 > 0 ? r2 / (r1 + r2) : 0, matchedShare: byMatched }; })() : null;
+  return { ...summary, ...pitSurface(grid, solve.mined), by, parts: pitParts(grid, solve.mined) /* #1608 */, oreAboveGroundT: grid.oreAboveGroundT, oreAboveGroundBlocks: grid.oreAboveGroundBlocks /* #1616 */, askedSize: grid.askedSize, modelCellM: grid.modelCell /* #1610 */, cutoff: economics.cutoff, metalUnit: economics.metalUnit, metalFactor: economics.metalFactor, cell: [grid.dx, grid.dy, grid.dz], grid: [grid.nx, grid.ny, grid.nz], walls: wallAngles(grid.dx, grid.dy, grid.dz, inputs.slopeDeg, 32, inputs.sectorSlopes), groundSource, nodes: solve.nodes, arcs: solve.arcs, topAssumed: grid.topAssumed / (grid.nx * grid.ny), coarsened: grid.coarsened };
 }
 
 // TASKS.csv #1875 — what a shell is worth at the ENTERED price (#1609 valued a revenue-factor shell at the scaled price): the
@@ -425,7 +450,7 @@ export function runPitShell(inputs, { groundAt = null, collars = null, onProgres
 // ore / waste split (a block the lower price sent to waste stays waste here)
 export function pitValueAt(grid, mined, economics, miningCost, processingCost) {
   let money = 0;
-  for (let q = 0; q < mined.length; q++) if (mined[q]) money += grid.metalU[q] * economics.revenuePerGrade - grid.oreT[q] * processingCost - grid.rockT[q] * miningCost;
+  for (let q = 0; q < mined.length; q++) if (mined[q]) money += grid.metalU[q] * economics.revenuePerGrade + (economics.by && grid.metalU2 ? grid.metalU2[q] * economics.by.revenuePerGrade : 0) /* #1917 */ - grid.oreT[q] * processingCost - grid.rockT[q] * miningCost;
   return money;
 }
 
@@ -437,24 +462,27 @@ export function pitValueAt(grid, mined, economics, miningCost, processingCost) {
 export function runPitSeries(inputs, rfs, { groundAt = null, collars = null, rate = null, discountPct = null, onProgress = null } = {}) {
   const base = pitEconomics({ ...inputs, revenueFactor: 1 });
   if (!base) return { failed: "units" };
+  if (base.byFailed) return { failed: "by-units" }; // #1917
+  let cells = inputs.cells;
+  if (inputs.by) { const j = joinByProduct(cells, inputs.byCells); if (!j.matched) return { failed: "by-grid" }; cells = j.cells; } // #1917
   const list = [...new Set(rfs.filter((r) => Number.isFinite(r) && r > 0))].sort((a, b) => a - b);
   if (!list.length) return { failed: "factors" };
   const fromCollars = !groundAt ? collarGround(collars) : null, ground = groundAt || fromCollars;
   const eco = (rf) => pitEconomics({ ...inputs, revenueFactor: rf });
   const topRf = list[list.length - 1];
-  const top = buildPitGrid(inputs.cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes, density: inputs.density, economics: eco(topRf), miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: ground });
+  const top = buildPitGrid(cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes, density: inputs.density, economics: eco(topRf), miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: ground });
   if (!top) return { failed: "no-cells" };
   if (top.empty) return { empty: true, cutoff: base.cutoff };
   const fixed = { nx: top.nx, ny: top.ny, nz: top.nz, x0: top.x0, y0: top.y0, z0: top.z0, dx: top.dx, dy: top.dy, dz: top.dz, ground: top.ground, topAssumed: top.topAssumed, coarsened: top.coarsened };
   // every shell is reported and valued on the ENTERED price's grid: its ore / waste decisions and cash per cell (#1609)
-  const baseGrid = topRf === 1 ? top : buildPitGrid(inputs.cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, density: inputs.density, economics: base, miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: ground, fixed });
+  const baseGrid = topRf === 1 ? top : buildPitGrid(cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, density: inputs.density, economics: base, miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: ground, fixed });
   const N = top.nx * top.ny * top.nz, slab = top.nx * top.ny;
   const runs = [], order = []; // order: every mined cell once, in the order it is mined: pushback by pushback, top bench first
   const cellRock = [], cellCash = [], cellOre = [], when = new Int32Array(N).fill(-1);
   const discount = Number.isFinite(discountPct) ? discountPct / 100 : null;
   list.forEach((rf, idx) => {
     const e = eco(rf);
-    const grid = rf === topRf ? top : buildPitGrid(inputs.cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, density: inputs.density, economics: e, miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: ground, fixed });
+    const grid = rf === topRf ? top : buildPitGrid(cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, density: inputs.density, economics: e, miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: ground, fixed });
     if (!grid || grid.empty) { runs.push({ rf, cutoff: e.cutoff, blocks: 0, oreT: 0, wasteT: 0, rockT: 0, metalU: 0, meanGrade: null, money: 0, moneyBase: 0, stripRatio: null, maxDepth: 0, pushbackCells: 0, pushbackRockT: 0, positions: null, indices: null }); return; }
     const solve = solvePit(grid, inputs.slopeDeg, { onProgress: (phases) => onProgress?.({ idx, of: list.length, rf, phases }), sectorSlopes: inputs.sectorSlopes }); // #1881
     const summary = pitSummary(baseGrid, solve.mined), moneyBase = summary.money; // tonnes, grade and value at the entered price
@@ -489,5 +517,5 @@ export function runPitSeries(inputs, rfs, { groundAt = null, collars = null, rat
   }
   let bestNpv = -1, bestMoney = -1;
   runs.forEach((r, j) => { if (r.npv != null && (bestNpv < 0 || r.npv > runs[bestNpv].npv)) bestNpv = j; if (bestMoney < 0 || r.moneyBase > runs[bestMoney].moneyBase) bestMoney = j; });
-  return { runs, yearly, cell: [top.dx, top.dy, top.dz], grid: [top.nx, top.ny, top.nz], groundSource: groundAt ? "terrain" : fromCollars ? "collars" : "model top", coarsened: top.coarsened, topAssumed: top.topAssumed / slab, cutoffBase: base.cutoff, metalUnit: base.metalUnit, metalFactor: base.metalFactor, bestNpv, bestMoney, rate, discountPct };
+  return { runs, yearly, cell: [top.dx, top.dy, top.dz], grid: [top.nx, top.ny, top.nz], groundSource: groundAt ? "terrain" : fromCollars ? "collars" : "model top", coarsened: top.coarsened, topAssumed: top.topAssumed / slab, cutoffBase: base.cutoff, metalUnit: base.metalUnit, metalFactor: base.metalFactor, byMetalUnit: base.by?.metalUnit ?? null, byMetalFactor: base.by?.metalFactor ?? null /* #1917 */, bestNpv, bestMoney, rate, discountPct };
 }

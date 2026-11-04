@@ -8,7 +8,8 @@ self.onmessage = (e) => {
     const cells = new Array(c.value.length);
     const SUP = ["", "interpolated", "extrapolated", "unsupported"];
     for (let i = 0; i < cells.length; i++) cells[i] = { x: c.x[i], y: c.y[i], z: c.z[i], dx: c.dx[i], dy: c.dy[i], dz: c.dz[i], value: c.value[i], coverage: c.coverage[i], nHoles: c.nHoles[i], support: SUP[c.support[i]] }; // nHoles / support: #1354
-    const r = runPitShell({ ...inputs, cells }, { groundAt: terrain ? (x, y) => terrainGroundAt(terrain, x, y) : null, collars, onProgress: (phases) => self.postMessage({ phases }) }); // collars: #1353
+    const b = e.data.byColumns, byCells = b ? Array.from(b.value, (v, i) => ({ x: b.x[i], y: b.y[i], z: b.z[i], value: v })) : null; // #1917
+    const r = runPitShell({ ...inputs, cells, byCells }, { groundAt: terrain ? (x, y) => terrainGroundAt(terrain, x, y) : null, collars, onProgress: (phases) => self.postMessage({ phases }) }); // collars: #1353
     self.postMessage({ result: r }, r.positions ? [r.positions.buffer, r.indices.buffer] : []);
   } catch (err) {
     self.postMessage({ failed: String(err?.message || err) });

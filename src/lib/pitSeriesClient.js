@@ -1,7 +1,8 @@
 // TASKS.csv #1875 — UI side of the nested-pit worker, as pitShellClient.js. -> { promise, cancel }
 import { voxelCellSupported } from "./viewer/geomath.js";
+import { byColumnsOf } from "./pitShellClient.js"; // #1917
 
-export function runPitSeriesAsync(model, inputs, rfs, { rate = null, discountPct = null, terrain = null, collars = null, onProgress = null } = {}) {
+export function runPitSeriesAsync(model, inputs, rfs, { rate = null, discountPct = null, terrain = null, collars = null, byModel = null, onProgress = null } = {}) { // byModel: #1917
   const cells = (model.cells || []).filter((c) => voxelCellSupported(model, c)), n = cells.length;
   const col = () => new Float64Array(n), columns = { x: col(), y: col(), z: col(), dx: col(), dy: col(), dz: col(), value: col(), coverage: col(), nHoles: new Uint16Array(n), support: new Uint8Array(n) };
   const SUP = { interpolated: 1, extrapolated: 2, unsupported: 3 };
@@ -21,7 +22,8 @@ export function runPitSeriesAsync(model, inputs, rfs, { rate = null, discountPct
     worker.onerror = (e) => { e.preventDefault?.(); worker.terminate(); reject(new Error(e.message || "worker failed")); };
     const t = terrain ? { bbox: terrain.bbox, gridW: terrain.gridW, gridH: terrain.gridH, elevations: terrain.elevations, noDataMask: terrain.noDataMask } : null;
     const cl = !t && collars ? collars.filter((c) => [c.x, c.y, c.z].every(Number.isFinite)).map((c) => ({ x: c.x, y: c.y, z: c.z })) : null;
-    worker.postMessage({ inputs, rfs, rate, discountPct, columns, terrain: t, collars: cl }, Object.values(columns).map((a) => a.buffer));
+    const by = byModel ? byColumnsOf(byModel) : null; // #1917
+    worker.postMessage({ inputs, rfs, rate, discountPct, columns, byColumns: by, terrain: t, collars: cl }, [...Object.values(columns).map((a) => a.buffer), ...(by ? Object.values(by).map((a) => a.buffer) : [])]);
   });
   return { promise, cancel: () => { worker?.terminate(); settle?.({ cancelled: true }); } };
 }

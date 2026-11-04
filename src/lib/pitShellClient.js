@@ -2,7 +2,15 @@
 // is there to keep free. A window that cannot start a worker gets an error, not a frozen minute. -> { promise, cancel }
 import { voxelCellSupported } from "./viewer/geomath.js";
 
-export function runPitShellAsync(model, inputs, terrain, onProgress, collars = null) { // collars: #1353 — the ground when there is no terrain
+// TASKS.csv #1917 — the by-product model's blocks: centre and grade only, joined to the main model's in the worker
+export function byColumnsOf(model) {
+  const cells = (model?.cells || []).filter((c) => voxelCellSupported(model, c)), n = cells.length, col = () => new Float64Array(n);
+  const out = { x: col(), y: col(), z: col(), value: col() };
+  cells.forEach((c, i) => { out.x[i] = c.x; out.y[i] = c.y; out.z[i] = c.z; out.value[i] = c.value; });
+  return out;
+}
+
+export function runPitShellAsync(model, inputs, terrain, onProgress, collars = null, byModel = null) { // collars: #1353 — the ground when there is no terrain; byModel: #1917
   const cells = (model.cells || []).filter((c) => voxelCellSupported(model, c)), n = cells.length;
   const col = () => new Float64Array(n), columns = { x: col(), y: col(), z: col(), dx: col(), dy: col(), dz: col(), value: col(), coverage: col(), nHoles: new Uint16Array(n), support: new Uint8Array(n) };
   const SUP = { interpolated: 1, extrapolated: 2, unsupported: 3 }; // #1354
@@ -23,7 +31,8 @@ export function runPitShellAsync(model, inputs, terrain, onProgress, collars = n
     worker.onerror = (e) => { e.preventDefault?.(); worker.terminate(); reject(new Error(e.message || "worker failed")); };
     const t = terrain ? { bbox: terrain.bbox, gridW: terrain.gridW, gridH: terrain.gridH, elevations: terrain.elevations, noDataMask: terrain.noDataMask } : null;
     const cl = !t && collars ? collars.filter((c) => [c.x, c.y, c.z].every(Number.isFinite)).map((c) => ({ x: c.x, y: c.y, z: c.z })) : null;
-    worker.postMessage({ inputs, columns, terrain: t, collars: cl }, Object.values(columns).map((a) => a.buffer));
+    const by = byModel ? byColumnsOf(byModel) : null; // #1917
+    worker.postMessage({ inputs, columns, byColumns: by, terrain: t, collars: cl }, [...Object.values(columns).map((a) => a.buffer), ...(by ? Object.values(by).map((a) => a.buffer) : [])]);
   });
   return { promise, cancel: () => { worker?.terminate(); settle?.({ cancelled: true }); } };
 }
