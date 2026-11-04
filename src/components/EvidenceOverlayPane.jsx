@@ -9,7 +9,7 @@ import { useStore } from "../lib/store.jsx";
 import { pickDefaultReachM, medianSiteSpacing } from "../lib/evidenceSources.js"; // TASKS.csv #1179; #1451
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1449 / #1450
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
-import { evidenceGrid, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, bestCutoff, posterior, predictionArea, scoreImage } from "../lib/evidence.js";
+import { evidenceGrid, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, bestCutoff, posterior, predictionArea, scoreImage, isOverlayOutput } from "../lib/evidence.js";
 import { cachedEvidence, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457
 import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, voxelColumnEvidence, holeTraces, holeGradePoints, structureCodes, structureParts, rasterFloorZ } from "../lib/evidenceSources.js"; // TASKS.csv #1154
 import { categoricalModels } from "../lib/geologyForward.js";
@@ -39,7 +39,10 @@ export default function EvidenceOverlayPane({ onClose }) {
   const [result, setResult] = useState(null);
   const [msg, setMsg] = useState(null);
   const cleanAssays = useMemo(() => excludeQAQC(assays), [assays]); // TASKS.csv #933: standards and blanks are not grades
-  const valueRasters = useMemo(() => rasters.filter((r) => r.grid), [rasters]);
+  // TASKS.csv #1830 (review #1646, Kodiak) — the overlay's own outputs (score / posterior sent to the map) are neither evidence nor
+  // extent: offered as a source the score could be fed back into itself, and its half-cell-wider box grew the grid by a column,
+  // which cleared the result on screen and re-sampled every layer (2.09 s)
+  const valueRasters = useMemo(() => rasters.filter((r) => r.grid && !isOverlayOutput(r)), [rasters]);
   const pointLayers = useMemo(() => mapLayers.filter((l) => l.geomType === "point" && l.features?.length), [mapLayers]);
 
   const geophysPts = projectLayers?.geophys_pts, structurePicks = projectLayers?.structure;

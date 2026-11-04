@@ -33,9 +33,12 @@ export function evidenceGrid({ terrain = null, extent = null, cellSize = null, m
   const [xmin, ymin, xmax, ymax] = extent;
   let cell = cellSize || Math.max(10, Math.max(xmax - xmin, ymax - ymin) / 500);
   while (Math.ceil((xmax - xmin) / cell) * Math.ceil((ymax - ymin) / cell) > maxCells) cell *= 1.25;
-  const nx = Math.max(1, Math.ceil((xmax - xmin) / cell)), ny = Math.max(1, Math.ceil((ymax - ymin) / cell));
+  // #1830 — a width that is a whole number of cells (a raster with this grid's own box) must not gain a column from rounding
+  const nx = Math.max(1, Math.ceil((xmax - xmin) / cell - 1e-9)), ny = Math.max(1, Math.ceil((ymax - ymin) / cell - 1e-9));
   return { nx, ny, x0: xmin + cell / 2, yTop: ymax - cell / 2, dx: cell, dy: cell, from: "extent", coarsened: 1 };
 }
+// TASKS.csv #1830 — a raster this overlay made ("Fuzzy score → map", "Posterior → map"; params.tool, #1003)
+export const isOverlayOutput = (r) => /^(fuzzy overlay|weights of evidence)/.test(String(r?.params?.tool || ""));
 export const cellXY = (g, k) => [g.x0 + (k % g.nx) * g.dx, g.yTop - Math.floor(k / g.nx) * g.dy];
 
 // ---------- evidence layers (Float32Array over the grid, NaN = no evidence) ----------
