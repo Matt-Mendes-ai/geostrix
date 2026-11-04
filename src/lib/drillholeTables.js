@@ -54,8 +54,26 @@ export function layerTableFileName(key) {
   return `${LAYER_COLUMNS[key]?.[1] || String(key).replace(/[^\w-]+/g, "_").toLowerCase() || "layer"}.csv`;
 }
 
-// -> [{ name, text }]: collars.csv, survey.csv and one CSV per loaded hole log (geophysics points have no hole: not a table here)
-export function drillholeTableFiles({ collars = [], survey = [], layers = {}, epsg, version }) {
+// TASKS.csv #1701 (review #1645, Copley) — the assays as one wide table: hole_id, from, to, one column per element named with its unit
+// (Cu_ppm, Au_ppb, Zn_pct: the importer reads the unit from the header), a '<' / '>' qualifier kept in front of the value, then the
+// row's own fields (sample_id, source, ...). Copley's 2,095 lab and pXRF intervals were left out of 'all drillhole tables'.
+const unitTag = (u) => String(u || "ppm").replace("%", "pct");
+export function assayTableRows(assays, assayElements = []) {
+  const els = assayElements.map((e) => e.symbol);
+  const unit = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit]));
+  const skip = new Set(["hole_id", "from", "to", "values", "qualifiers", "bdl"]);
+  return (assays || []).map((r) => {
+    const row = { hole_id: r.hole_id, from: cell(r.from), to: cell(r.to) };
+    for (const s of els) { const v = r.values?.[s], q = r.qualifiers?.[s]; row[`${s}_${unitTag(unit[s])}`] = v == null ? "" : q === "<" || q === ">" ? `${q}${v}` : cell(v); }
+    return { ...row, ...rest(r, skip) };
+  });
+}
+// a custom layer's file: its own name, made safe, under custom_
+export const customLayerFileName = (name, i) => `custom_${String(name || `layer_${i + 1}`).replace(/[^\w-]+/g, "_").replace(/^_+|_+$/g, "").toLowerCase() || `layer_${i + 1}`}.csv`;
+
+// -> [{ name, text }]: collars.csv, survey.csv, one CSV per loaded hole log, one per custom layer (#1701) and assays.csv (#1701)
+// (geophysics points have no hole: not a table here)
+export function drillholeTableFiles({ collars = [], survey = [], layers = {}, customLayers = [], assays = [], assayElements = [], epsg, version }) {
   const conv = (what) => stampLines({ tool: `Drillhole tables: ${what}`, version, epsg, params: [
     "Dip: negative = down (import with the default \"Negative = down\"). Azimuths and dip directions: project-grid bearings (import as grid north).",
   ] });
@@ -65,6 +83,17 @@ export function drillholeTableFiles({ collars = [], survey = [], layers = {}, ep
   for (const [key, rows] of Object.entries(layers || {})) {
     if (!Array.isArray(rows) || !rows.length || key === "geophys_pts") continue;
     files.push({ name: layerTableFileName(key), text: withStamp(toExportCsv(layerTableRows(key, rows)), conv(LAYER_META[key]?.label || key)) });
+  }
+  const taken = new Set(files.map((f) => f.name));
+  (customLayers || []).forEach((l, i) => {
+    if (!l?.rows?.length) return;
+    let name = customLayerFileName(l.name, i);
+    for (let k = 2; taken.has(name); k++) name = customLayerFileName(`${l.name}_${k}`, i);
+    taken.add(name);
+    files.push({ name, text: withStamp(toExportCsv(layerTableRows("custom", l.rows)), conv(`custom layer ${l.name || i + 1}`)) });
+  });
+  if ((assays || []).length && (assayElements || []).length) {
+    files.push({ name: "assays.csv", text: withStamp(toExportCsv(assayTableRows(assays, assayElements)), stampLines({ tool: "Drillhole tables: assays", version, epsg, params: ["One column per element, named with its unit (_pct = %). A '<' or '>' result keeps its qualifier in front of the value; a below-detection value is the one the app holds (half the limit when read from '<x')."] })) });
   }
   return files;
 }

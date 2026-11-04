@@ -6393,7 +6393,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       const T = await import("../lib/drillholeTables.js"); // on demand
       const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021 — the stamp's CRS
       if (kind === "all") {
-        const files = T.drillholeTableFiles({ collars, survey, layers, epsg, version: APP_VERSION });
+        const files = T.drillholeTableFiles({ collars, survey, layers, customLayers, assays, assayElements, epsg, version: APP_VERSION }); // custom layers, assays: #1701
         if (!files.length) { setNotices((p) => [...p, notice("Nothing to export: no collars, survey or hole logs are loaded.")]); return; }
         const { buildZip } = await import("../lib/shapefile.js");
         const enc = new TextEncoder();
