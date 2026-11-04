@@ -7813,5 +7813,8 @@
   "The equivalent is computed for each sample and the intercepts are built on it, with the same cutoff, dilution and length rules. A sample missing any of the metals is left out of the grade, as an unassayed one is.": "يُحسب المكافئ لكل عينة وتُبنى التقاطعات عليه، بقواعد حد القطع والتخفيف والطول نفسها. تُستبعد من المحتوى العينة التي ينقصها أحد المعادن، كما تُستبعد العينة غير المحللة.",
   "Cut the intercepts on {symbol}Eq, not on {symbol} alone": "قطع التقاطعات على {symbol}Eq، لا على {symbol} وحده",
   "To make room for the strip log, the template's elements beside it were narrowed on {n} page(s); a map keeps its scale and shows less ground.": "لإفساح المجال لسجل الثقب، ضُيّقت عناصر القالب المجاورة له في {n} صفحة؛ تحتفظ الخريطة بمقياسها وتعرض أرضاً أقل.",
-  "On {n} page(s) the strip log still covers part of the template: move it, or leave a free column at the side of the template.": "في {n} صفحة لا يزال السجل يغطي جزءاً من القالب: انقله، أو اترك عموداً فارغاً بجانب القالب."
+  "On {n} page(s) the strip log still covers part of the template: move it, or leave a free column at the side of the template.": "في {n} صفحة لا يزال السجل يغطي جزءاً من القالب: انقله، أو اترك عموداً فارغاً بجانب القالب.",
+  "Hot-spot z (Gi*)": "z للبقعة الساخنة (Gi*)",
+  "+{n} more elements (Identify lists them all)": "+{n} عناصر أخرى (التعريف يسردها كلها)",
+  "Class": "الفئة"
 }

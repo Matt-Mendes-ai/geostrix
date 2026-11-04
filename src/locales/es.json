@@ -7813,5 +7813,8 @@
   "The equivalent is computed for each sample and the intercepts are built on it, with the same cutoff, dilution and length rules. A sample missing any of the metals is left out of the grade, as an unassayed one is.": "El equivalente se calcula para cada muestra y los intercepts se construyen sobre él, con las mismas reglas de ley de corte, dilución y longitud. Una muestra a la que le falte alguno de los metales queda fuera de la ley, como una sin ensayar.",
   "Cut the intercepts on {symbol}Eq, not on {symbol} alone": "Cortar los intercepts sobre {symbol}Eq, no solo sobre {symbol}",
   "To make room for the strip log, the template's elements beside it were narrowed on {n} page(s); a map keeps its scale and shows less ground.": "Para dejar espacio al registro del sondaje, los elementos de la plantilla a su lado se estrecharon en {n} página(s); un mapa conserva su escala y muestra menos terreno.",
-  "On {n} page(s) the strip log still covers part of the template: move it, or leave a free column at the side of the template.": "En {n} página(s) el registro todavía cubre parte de la plantilla: muévalo, o deje una columna libre al costado de la plantilla."
+  "On {n} page(s) the strip log still covers part of the template: move it, or leave a free column at the side of the template.": "En {n} página(s) el registro todavía cubre parte de la plantilla: muévalo, o deje una columna libre al costado de la plantilla.",
+  "Hot-spot z (Gi*)": "z de punto caliente (Gi*)",
+  "+{n} more elements (Identify lists them all)": "+{n} elementos más (Identificar los lista todos)",
+  "Class": "Clase"
 }

@@ -1,4 +1,5 @@
 import { canvasPngDataUrl } from "../lib/canvasEncode.js";
+import { surfaceSampleTip, mappedOfSample } from "../lib/viewer/sampleTip.js"; // TASKS.csv #1821
 import HoleFilterBar from "./viewer/HoleFilterBar.jsx";
 import { holesMatching } from "../lib/holeFilter.js";
 import FenceOptions from "./viewer/FenceOptions.jsx";
@@ -875,10 +876,6 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // (same convention assays/assayElements already use — see store.jsx's own comment on that), so this
   // just looks up each element's unit from surfaceElements rather than doing any conversion.
   const surfaceElementUnits = useMemo(() => Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit])), [surfaceElements]);
-  const surfaceSampleTip = (row) => {
-    const vals = Object.entries(row.values || {}).map(([sym, v]) => `${sym}: ${v}${surfaceElementUnits[sym] || "ppm"}`).join("\n");
-    return `Surface sample${row.sample_id ? ` ${row.sample_id}` : ""} (${row.medium})\n${vals}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z${row.zDraped ? " (from the terrain — no elevation in the file)" : row.zFlat ? " (flat at the plan elevation — no elevation in the file and no terrain)" : ""}`; // #606, #1818
-  };
 
   const mountRef = useRef(null);
   const modelAbortControllerRef = useRef(null); // TASKS.csv #231 — cancel button for an in-flight GemPy run
@@ -1068,8 +1065,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (!el) return;
     if (!t) { if (el.style.display !== "none") el.style.display = "none"; return; }
     if (el.textContent !== t.text) el.textContent = t.text;
-    el.style.left = `${t.x + 14}px`; el.style.top = `${t.y + 14}px`;
     el.style.display = "block";
+    const w = el.offsetWidth, h = el.offsetHeight; // #1821 — kept inside the window
+    el.style.left = `${Math.max(4, Math.min(t.x + 14, innerWidth - w - 8))}px`; el.style.top = `${t.y + 22 + h > innerHeight ? Math.max(4, t.y - h - 8) : t.y + 14}px`;
   }, []);
   const [notices, setNotices] = useTabNotices(store.activeTabId, () => { setCursor({ x: null, y: null, z: null }); setToast(null); tabSwitchedRef.current = true; }); // #1203
   const tabSwitchedRef = useRef(false); // a tab's own notices coming back are not news: no toast for them
@@ -4734,7 +4732,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const mesh = new THREE.Mesh(proto, new THREE.MeshLambertMaterial({ color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide })); // #312
         mesh.scale.setScalar(Math.max(radiusOf(row.medium), minR) * st.size * (an?.isolated[j] ? 0.55 : 1)); // #843 — an isolated anomaly is drawn small; #849 size; minR: #1597
         mesh.position.set(row.x - ox, row.z - oz, -(row.y - oy));
-        mesh.userData = { row, tip: surfaceSampleTip(row) + (an ? `\n${cl >= 0 ? tr(an.classes[cl].label) : tr("no value")}${an.isolated[j] ? ` · ${tr("isolated anomaly")}` : ""}` : "") };
+        const mapped = mappedOfSample(an, layerStyles.surface_anomaly, j, surfaceElementUnits); // #1821
+        mesh.userData = { row, mapped, units: surfaceElementUnits, tip: surfaceSampleTip(row, { units: surfaceElementUnits, mapped }) };
         g.add(mesh);
       } catch (err) { errors.push(err.message); }
     });

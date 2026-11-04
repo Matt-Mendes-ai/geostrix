@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { b64ToF32 } from "../inversion.js";
 import { pointInRings } from "../mapLayers.js";
 import { t as tr } from "../i18n.js";
+import { sampleIdentifyFields } from "./sampleTip.js"; // TASKS.csv #1821
 
 const num = (v, d = 2) => (Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: d }) : String(v ?? ""));
 const metres = (v) => `${num(v, 2)} m`;
@@ -89,6 +90,8 @@ function describe(hit, ctx) {
     const fields = [];
     if (hole) fields.push([tr("Hole"), hole]);
     if (collar) return { ...base, layer: tr("Collars"), title: hole, hole, fields };
+    // #1821 — a surface sample: the element it is coloured by and its class first, every element, its own fields
+    if (o.userData?.units && row?.medium != null) return { ...base, layer: group, title: tipLines[0] || group, hole: null, fields: [...sampleIdentifyFields(row, o.userData.mapped, o.userData.units), ...attributeFields(row, new Set([...SKIP, "attrs"]))] };
     const nameLine = tipLines[1]?.includes(":") ? tipLines[1].slice(tipLines[1].indexOf(":") + 1).trim() : null;
     if (nameLine) fields.push([tr("Value"), nameLine]);
     else if (row?.value != null) fields.push([tr("Value"), String(row.value)]);
@@ -106,7 +109,8 @@ function describe(hit, ctx) {
     const c = voxelCellAt(m, world.e + d.x * step, world.n - d.z * step, world.z + d.y * step);
     const fields = [];
     if (c) {
-      fields.push([tr("Value"), m.valueLabels?.[c.value] ?? num(c.value, 4)]);
+      // #1811 — the model's property and unit name the value ('Chargeability (mV/V): 12.09'), to 4 significant figures
+      fields.push([m.property || tr("Value"), m.valueLabels?.[c.value] ?? (Number.isFinite(c.value) ? num(+c.value.toPrecision(4), 6) : String(c.value))]);
       fields.push([tr("Block size"), `${num(c.dx ?? m.dx, 1)} × ${num(c.dy ?? m.dy, 1)} × ${num(c.dz ?? m.dz, 1)} m`]);
       fields.push([tr("Block centre"), `${num(c.x, 1)} E, ${num(c.y, 1)} N, ${num(c.z, 1)} m`]);
     }
