@@ -96,6 +96,7 @@ const PitDesignPane = React.lazy(() => import("../components/PitDesignPane.jsx")
 const DesignStringsPane = React.lazy(() => import("../components/DesignStringsPane.jsx")); // TASKS.csv #1876
 const NestedPitsPane = React.lazy(() => import("../components/NestedPitsPane.jsx")); // TASKS.csv #1875
 const StopesPane = React.lazy(() => import("../components/StopesPane.jsx")); // TASKS.csv #1879
+const DumpPane = React.lazy(() => import("../components/DumpPane.jsx")); // TASKS.csv #1880
 const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")); // TASKS.csv #1152
 const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
@@ -699,6 +700,7 @@ const SURFACE_TYPES = [
   { key: "pit_design", label: "Pit design (benched)" }, // TASKS.csv #1874
   { key: "design_solid", label: "Design solid (from strings)" }, // TASKS.csv #1877
   { key: "stope", label: "Stope outline (from a block model)" }, // TASKS.csv #1879
+  { key: "dump", label: "Dump / stockpile (from a footprint)" }, // TASKS.csv #1880
   // TASKS.csv #144 — a vein/dyke is modelled as a PAIR of walls plus (optionally) the solid between
   // them, so the three parts get distinct types: they are not interchangeable, and the checker (#90)
   // reads "hangingwall is above footwall" off the relationship these are created with.
@@ -7212,6 +7214,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <RibbonButton icon={Pickaxe} label="Pit shell" tone="model" title="The pit that makes the most money at your prices and costs, from a block model" {...paneProps("pit")} />
             <RibbonButton icon={Layers} label="Nested pits" tone="model" title="The shell at a series of revenue factors, valued at the entered price, with a schedule and an NPV per shell" {...paneProps("nested")} />{/* TASKS.csv #1875 */}
             <RibbonButton icon={Layers3} label="Pit design" tone="model" title="Benches, berms and faces on a pit shell: crest and toe strings and a bench-by-bench table" {...paneProps("pitdesign")} />{/* TASKS.csv #1874 */}
+            <RibbonButton icon={Mountain} label="Dump / stockpile" tone="model" title="A footprint string, a crest and an angle of repose: the dump's shape on the ground and what it holds, against a pit's waste" {...paneProps("dump")} />{/* TASKS.csv #1880 */}
           </RibbonGroup>
           <RibbonGroup label="Underground">
             <RibbonButton icon={Spline} label="Drifts and ramps" tone="model" title="Draw drifts, tunnels, ramps and declines at set grades, with curves of a chosen radius" {...paneProps("lines")} />
@@ -8351,6 +8354,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {sidebarTab === "minedesign" && toolPane === "nested" && <Suspense fallback={null}><NestedPitsPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1875 */}
         {sidebarTab === "minedesign" && toolPane === "pitdesign" && <Suspense fallback={null}><PitDesignPane surfaces={implicitSurfaces} worldPositionsOf={worldPositionsOfSurface} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1874 */}
         {sidebarTab === "minedesign" && toolPane === "strings" && <Suspense fallback={null}><DesignStringsPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient }} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1876 */}
+        {sidebarTab === "minedesign" && toolPane === "dump" && <Suspense fallback={null}><DumpPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1880 */}
         {sidebarTab === "minedesign" && toolPane === "stopes" && <Suspense fallback={null}><StopesPane onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1879 */}
         {sidebarTab === "minedesign" && toolPane === "lines" && <Suspense fallback={null}><DesignLinesPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient /* #1878 */ }} onClose={() => setToolPane(null)} /></Suspense>}
         {sidebarTab === "targeting" && (<>
