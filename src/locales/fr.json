@@ -6864,7 +6864,6 @@
   "The pit reaches the edge of the grid, so it was cut off there.": "La fosse atteint le bord de la grille : elle y est coupée.",
   "{p} % of the rock in this pit is outside the block model and counted as barren: undrilled rock could hold ore or need a different cost.": "{p} % de la roche de cette fosse est hors du modèle de blocs et comptée comme stérile : la roche non sondée pourrait contenir du minerai ou coûter autrement.",
   "The terrain does not cover {p} % of the grid; the top of the block model stands in there.": "Le terrain ne couvre pas {p} % de la grille; le haut du modèle de blocs y sert de surface.",
-  "The grid was made coarser to stay within the limit, so the walls are coarser than the block model.": "La grille a été grossie pour respecter la limite : les parois sont plus grossières que le modèle de blocs.",
   "Conceptual, from your inputs and this block model. It is not a Mineral Reserve or Resource, and the margin is not a value of the project.": "Conceptuel, d'après vos données et ce modèle de blocs. Ce n'est ni une Réserve ni une Ressource minérale, et la marge n'est pas une valeur du projet.",
   "Underground": "Souterrain",
   "Drifts and ramps": "Galeries et rampes",
@@ -7483,5 +7482,16 @@
   "Nothing under the cursor there: the target was not changed.": "Rien sous le curseur à cet endroit : la cible n'a pas changé.",
   "{x} times the {t} t": "{x} fois les {t} t",
   "The swell factor is 1 or more: broken rock takes more room than in place, never less.": "Le facteur de foisonnement est de 1 ou plus : la roche abattue prend plus de place qu'en place, jamais moins.",
-  "; mean grade {g} {u}": " ; teneur moyenne {g} {u}"
+  "; mean grade {g} {u}": " ; teneur moyenne {g} {u}",
+  "The grid was made coarser than the {a} m asked, to stay within the cell limit: {c} m cells, {rel} the block model's {b} m.": "La grille a été faite plus grossière que les {a} m demandés, pour rester dans la limite de cellules : cellules de {c} m, {rel} les {b} m du modèle de blocs.",
+  "coarser than": "plus grossières que",
+  "finer than": "plus fines que",
+  "Cells of {c} m in plan for the {a} m asked; the benches keep the block model's {h} m.": "Cellules de {c} m en plan pour les {a} m demandés ; les gradins gardent les {h} m du modèle de blocs.",
+  "The estimate reaches {r} m from the holes: beyond that the model has no blocks and the pit counts barren rock, so the pit's extent follows the search radius.": "L'estimation atteint {r} m des sondages : au-delà le modèle n'a pas de blocs et la fosse compte du stérile, si bien que l'étendue de la fosse suit le rayon de recherche.",
+  "The overall slope must be below 90°.": "La pente globale doit être inférieure à 90°.",
+  "The recovery is at most 100 %.": "La récupération est d'au plus 100 %.",
+  "The revenue factor must be above 0.": "Le facteur de revenu doit être supérieur à 0.",
+  "Every price, cost, recovery, density and slope must be above 0.": "Chaque prix, coût, récupération, densité et pente doit être supérieur à 0.",
+  "Use the logged mean, {v} (all {n} measurements, every hole)": "Utiliser la moyenne mesurée, {v} (les {n} mesures, tous les sondages)",
+  "The grid was made coarser to stay within the limit, so the walls are coarser than the block model.": "La grille a été grossie pour respecter la limite : les parois sont plus grossières que le modèle de blocs."
 }

@@ -6864,7 +6864,6 @@
   "The pit reaches the edge of the grid, so it was cut off there.": "El rajo llega al borde de la grilla, así que quedó cortado allí.",
   "{p} % of the rock in this pit is outside the block model and counted as barren: undrilled rock could hold ore or need a different cost.": "El {p} % de la roca de este rajo está fuera del modelo de bloques y se cuenta como estéril: la roca sin sondear podría tener mineral o requerir otro costo.",
   "The terrain does not cover {p} % of the grid; the top of the block model stands in there.": "El terreno no cubre el {p} % de la grilla; ahí se usa la parte superior del modelo de bloques.",
-  "The grid was made coarser to stay within the limit, so the walls are coarser than the block model.": "La grilla se hizo más gruesa para respetar el límite, así que las paredes son más gruesas que el modelo de bloques.",
   "Conceptual, from your inputs and this block model. It is not a Mineral Reserve or Resource, and the margin is not a value of the project.": "Conceptual, a partir de sus datos y este modelo de bloques. No es una Reserva ni un Recurso Mineral, y el margen no es un valor del proyecto.",
   "Underground": "Subterráneo",
   "Drifts and ramps": "Galerías y rampas",
@@ -7483,5 +7482,16 @@
   "Nothing under the cursor there: the target was not changed.": "Nada bajo el cursor ahí: el objetivo no cambió.",
   "{x} times the {t} t": "{x} veces las {t} t",
   "The swell factor is 1 or more: broken rock takes more room than in place, never less.": "El factor de esponjamiento es 1 o más: la roca quebrada ocupa más espacio que en sitio, nunca menos.",
-  "; mean grade {g} {u}": "; ley media {g} {u}"
+  "; mean grade {g} {u}": "; ley media {g} {u}",
+  "The grid was made coarser than the {a} m asked, to stay within the cell limit: {c} m cells, {rel} the block model's {b} m.": "La grilla se hizo más gruesa que los {a} m pedidos, para quedar dentro del límite de celdas: celdas de {c} m, {rel} los {b} m del modelo de bloques.",
+  "coarser than": "más gruesas que",
+  "finer than": "más finas que",
+  "Cells of {c} m in plan for the {a} m asked; the benches keep the block model's {h} m.": "Celdas de {c} m en planta para los {a} m pedidos; los bancos conservan los {h} m del modelo de bloques.",
+  "The estimate reaches {r} m from the holes: beyond that the model has no blocks and the pit counts barren rock, so the pit's extent follows the search radius.": "La estimación llega a {r} m de los sondajes: más allá el modelo no tiene bloques y el rajo cuenta roca estéril, así que la extensión del rajo sigue el radio de búsqueda.",
+  "The overall slope must be below 90°.": "El talud global debe ser menor que 90°.",
+  "The recovery is at most 100 %.": "La recuperación es como máximo 100 %.",
+  "The revenue factor must be above 0.": "El factor de ingreso debe ser mayor que 0.",
+  "Every price, cost, recovery, density and slope must be above 0.": "Cada precio, costo, recuperación, densidad y talud debe ser mayor que 0.",
+  "Use the logged mean, {v} (all {n} measurements, every hole)": "Usar la media registrada, {v} (las {n} mediciones, todos los sondajes)",
+  "The grid was made coarser to stay within the limit, so the walls are coarser than the block model.": "La grilla se hizo más gruesa para respetar el límite, así que las paredes son más gruesas que el modelo de bloques."
 }

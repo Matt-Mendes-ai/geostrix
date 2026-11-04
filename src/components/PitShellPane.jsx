@@ -91,6 +91,16 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
   };
   const value = (k) => (k === "price" && priceStale ? NaN : Number(f[k]));
   const missing = !model || !metal || FIELDS.some((k) => !(value(k) > 0)) || value("slopeDeg") >= 90 || value("recovery") > 100 || !(Number(f.revenueFactor) > 0) || sectorBad; // revenue factor: #1363; sectorBad: #1881
+  // #1753 — when every number is typed but one is out of its range, say which
+  const outOfRange = (() => {
+    if (!model || !metal) return null;
+    if (FIELDS.some((k) => f[k] === "") || f.revenueFactor === "") return null;
+    if (value("slopeDeg") >= 90) return tr("The overall slope must be below 90°.");
+    if (value("recovery") > 100) return tr("The recovery is at most 100 %.");
+    if (!(Number(f.revenueFactor) > 0)) return tr("The revenue factor must be above 0.");
+    const zero = FIELDS.find((k) => !(value(k) > 0));
+    return zero ? tr("Every price, cost, recovery, density and slope must be above 0.") : null;
+  })();
   const cutoff = !missing ? pitEconomics({ unit, element, price: value("price"), priceUnit, recovery: value("recovery"), processingCost: value("processingCost"), revenueFactor: Number(f.revenueFactor) || 1 })?.cutoff : null;
 
   const run = async () => {
@@ -155,7 +165,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
         {field("miningCost", tr("Mining cost ($/t rock)"))}
         {field("processingCost", tr("Processing cost ($/t ore)"))}
         {field("density", tr("Density (t/m³)"))}
-        {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v}", { v: sg.mean })}</button></div>}
+        {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v} (all {n} measurements, every hole)", { v: sg.mean, n: sg.n })}</button></div>}{/* every hole: #1755 */}
         {field("slopeDeg", tr("Overall slope (°)"))}
         {/* TASKS.csv #1881 — a slope per wall sector: the wall on that side of the pit; blank takes the overall slope */}
         <div style={{ ...note, marginTop: 2 }}><button onClick={() => setShowSectors((v) => !v)} style={linkBtn} aria-expanded={showSectors}>{showSectors ? tr("Hide the slope by wall sector") : tr("Slope by wall sector…")}</button></div>
@@ -180,7 +190,9 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
         {busy == null
           ? <button onClick={run} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Pickaxe size={14} /> {editing ? tr("Run and replace the pit") : tr("Run the pit shell")}</button>
           : <button onClick={cancel} style={{ ...pBtn, marginTop: 8 }}>{tr("Solving ({n}): cancel", { n: busy })}</button>}
-        {missing && busy == null && <div style={note}>{tr("Enter every number above: none has a default, because the result is only as good as they are.")}</div>}
+        {missing && busy == null && (outOfRange
+          ? <div style={warn}>{outOfRange}</div>
+          : <div style={note}>{tr("Enter every number above: none has a default, because the result is only as good as they are.")}</div>)}{/* #1753 */}
         {editing && <div style={{ ...note, marginTop: 4 }}>{tr("Editing \"{name}\": its inputs are in the form; running replaces it.", { name: editing.name })} <button onClick={() => setEditingId(null)} style={linkBtn}>{tr("Stop editing")}</button></div>}
       </>)}
       {pits.length > 0 && (
@@ -230,7 +242,9 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
           {res.touchesEdge && <div style={warn}>{tr("The pit reaches the edge of the grid, so it was cut off there.")}</div>}
           {res.barrenShare > 0.02 && <div style={warn}>{tr("{p} % of the rock in this pit is outside the block model and counted as barren: undrilled rock could hold ore or need a different cost.", { p: Math.round(res.barrenShare * 100) })}</div>}
           {res.hasTerrain && res.topAssumed > 0.02 && <div style={warn}>{tr("The terrain does not cover {p} % of the grid; the top of the block model stands in there.", { p: Math.round(res.topAssumed * 100) })}</div>}
-          {res.coarsened && <div style={warn}>{tr("The grid was made coarser to stay within the limit, so the walls are coarser than the block model.")}</div>}
+          {res.coarsened && <div style={warn}>{tr("The grid was made coarser than the {a} m asked, to stay within the cell limit: {c} m cells, {rel} the block model's {b} m.", { a: res.askedSize || res.modelCellM, c: Math.round(res.cell[0] * 10) / 10, rel: res.cell[0] > (res.modelCellM || 0) + 1e-6 ? tr("coarser than") : tr("finer than"), b: res.modelCellM })}</div>}{/* #1610 */}
+          {res.askedSize && !res.coarsened && res.askedSize !== res.cell[0] && <div style={note}>{tr("Cells of {c} m in plan for the {a} m asked; the benches keep the block model's {h} m.", { c: Math.round(res.cell[0] * 10) / 10, a: res.askedSize, h: Math.round(res.cell[2] * 10) / 10 })}</div>}{/* #1854 */}
+          {Number(model?.params?.searchRadiusM) > 0 && <div style={note}>{tr("The estimate reaches {r} m from the holes: beyond that the model has no blocks and the pit counts barren rock, so the pit's extent follows the search radius.", { r: Math.round(model.params.searchRadiusM) })}</div>}{/* #1750 */}
           <div style={{ ...note, marginTop: 4 }}>{tr("Conceptual, from your inputs and this block model. It is not a Mineral Reserve or Resource, and the margin is not a value of the project.")}</div>
         </div>
       )}

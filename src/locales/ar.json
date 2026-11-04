@@ -6864,7 +6864,6 @@
   "The pit reaches the edge of the grid, so it was cut off there.": "تصل الحفرة إلى حافة الشبكة، فقُطعت هناك.",
   "{p} % of the rock in this pit is outside the block model and counted as barren: undrilled rock could hold ore or need a different cost.": "{p} % من صخر هذه الحفرة خارج نموذج الكتل ويُحتسب عقيمًا: قد يحوي الصخر غير المحفور خامًا أو يتطلب تكلفة أخرى.",
   "The terrain does not cover {p} % of the grid; the top of the block model stands in there.": "لا تغطي التضاريس {p} % من الشبكة؛ ويحل محلها هناك أعلى نموذج الكتل.",
-  "The grid was made coarser to stay within the limit, so the walls are coarser than the block model.": "جُعلت الشبكة أخشن لتبقى ضمن الحد، فالجدران أخشن من نموذج الكتل.",
   "Conceptual, from your inputs and this block model. It is not a Mineral Reserve or Resource, and the margin is not a value of the project.": "تصوري، من مدخلاتك ونموذج الكتل هذا. ليس احتياطيًا أو موردًا معدنيًا، والهامش ليس قيمة للمشروع.",
   "Underground": "تحت الأرض",
   "Drifts and ramps": "الأنفاق والمنحدرات",
@@ -7483,5 +7482,16 @@
   "Nothing under the cursor there: the target was not changed.": "لا شيء تحت المؤشر هناك: لم يتغير الهدف.",
   "{x} times the {t} t": "{x} أضعاف الـ{t} طن",
   "The swell factor is 1 or more: broken rock takes more room than in place, never less.": "معامل الانتفاش 1 أو أكثر: الصخر المكسَّر يشغل حيزًا أكبر مما في موضعه، لا أقل أبدًا.",
-  "; mean grade {g} {u}": "؛ متوسط المحتوى {g} {u}"
+  "; mean grade {g} {u}": "؛ متوسط المحتوى {g} {u}",
+  "The grid was made coarser than the {a} m asked, to stay within the cell limit: {c} m cells, {rel} the block model's {b} m.": "جُعلت الشبكة أخشن من الـ{a} م المطلوبة للبقاء ضمن حد الخلايا: خلايا {c} م، {rel} الـ{b} م لنموذج الكتل.",
+  "coarser than": "أخشن من",
+  "finer than": "أدق من",
+  "Cells of {c} m in plan for the {a} m asked; the benches keep the block model's {h} m.": "خلايا {c} م في المسقط مقابل الـ{a} م المطلوبة؛ تحتفظ الدرجات بـ{h} م لنموذج الكتل.",
+  "The estimate reaches {r} m from the holes: beyond that the model has no blocks and the pit counts barren rock, so the pit's extent follows the search radius.": "يصل التقدير إلى {r} م من الثقوب: بعد ذلك لا كتل في النموذج وتحسب الحفرة صخرًا عقيمًا، فيتبع امتداد الحفرة نصف قطر البحث.",
+  "The overall slope must be below 90°.": "يجب أن يكون الميل الكلي أقل من 90°.",
+  "The recovery is at most 100 %.": "الاسترداد 100 % على الأكثر.",
+  "The revenue factor must be above 0.": "يجب أن يكون معامل الإيراد أكبر من 0.",
+  "Every price, cost, recovery, density and slope must be above 0.": "يجب أن يكون كل سعر وتكلفة واسترداد وكثافة وميل أكبر من 0.",
+  "Use the logged mean, {v} (all {n} measurements, every hole)": "استخدام المتوسط المسجَّل {v} (كل القياسات الـ{n}، كل الثقوب)",
+  "The grid was made coarser to stay within the limit, so the walls are coarser than the block model.": "جُعلت الشبكة أخشن لتبقى ضمن الحد، فالجدران أخشن من نموذج الكتل."
 }

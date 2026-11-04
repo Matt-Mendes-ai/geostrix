@@ -397,7 +397,8 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
   const resultName = () => {
     const p = result?.params || {};
     const c = Array.isArray(p.cellSizeM) ? (p.cellSizeM.every((v) => v === p.cellSizeM[0]) ? p.cellSizeM[0] : p.cellSizeM.join("×")) : p.cellSizeM;
-    return modelName.trim() || (p.element ? `${p.element} estimate (${p.method}, ${c}m)` : `${symbol} estimate (${method}, ${cellLabel}m)`);
+    const r = p.searchRadiusM > 0 && !p.searchRadiusWasUnlimited ? `, r${Math.round(p.searchRadiusM)}m` : searchRadius > 0 ? `, r${Math.round(searchRadius)}m` : ""; // #1752 — estimates at different radii get different names
+    return modelName.trim() || (p.element ? `${p.element} estimate (${p.method}, ${c}m${r})` : `${symbol} estimate (${method}, ${cellLabel}m${r})`);
   };
   const addSupportModel = () => {
     if (!result || !result.cells.length) return;

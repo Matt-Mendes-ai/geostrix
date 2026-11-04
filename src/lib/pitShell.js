@@ -146,7 +146,8 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
   const good = cells.filter((c) => Number.isFinite(c.value) && c.dx > 0 && c.dy > 0 && c.dz > 0);
   if (!good.length) return null;
   const med = (k) => good.map((c) => c[k]).sort((a, b) => a - b)[good.length >> 1];
-  let dx = size || med("dx"), dy = size || med("dy"), dz = size || med("dz");
+  let dx = size || med("dx"), dy = size || med("dy"), dz = med("dz"); // a typed size is the plan cell; the bench stays the block height (#1854)
+  const modelCell = med("dx"), askedSize = size || null;
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, zLow = Infinity, zHigh = -Infinity, payLow = Infinity;
   good.forEach((c) => {
     x0 = Math.min(x0, c.x - c.dx / 2); x1 = Math.max(x1, c.x + c.dx / 2); y0 = Math.min(y0, c.y - c.dy / 2); y1 = Math.max(y1, c.y + c.dy / 2);
@@ -156,6 +157,7 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
   // TASKS.csv #1358 — a pit never goes below its deepest paying block (below it there is only cost), so the grid and the wall reach
   // stop there: on a deep fan-drilled model the reach from the model base forced 25 m blocks up to 39 m for a pit 242 m deep
   if (!Number.isFinite(payLow)) return { empty: true };
+  const modelBase = zLow; // #1751 — the model's own base; the grid's base is the deepest paying block (#1358), which is above it
   let nx, ny, nz, ground, topAssumed = 0, coarsened = false, top;
   if (fixed) {
     ({ nx, ny, nz, x0, y0, dx, dy, dz, ground, topAssumed, coarsened } = fixed); zLow = fixed.z0; top = fixed.z0 + nz * dz;
@@ -220,7 +222,7 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
       if (ore) { oreT[q] += t; metalU[q] += t * c.value; if (c.nHoles === 1) oreThin[q] += t; if (c.support === "extrapolated" || c.support === "unsupported") oreExtrap[q] += t; }
     }
   });
-  return { nx, ny, nz, x0, y0, z0, dx, dy, dz, ground, value, oreT, metalU, rockT, modelT, oreThin, oreExtrap, coarsened, topAssumed, oreAboveGroundT, oreAboveGroundBlocks };
+  return { nx, ny, nz, x0, y0, z0, dx, dy, dz, ground, value, oreT, metalU, rockT, modelT, oreThin, oreExtrap, coarsened, topAssumed, oreAboveGroundT, oreAboveGroundBlocks, askedSize, modelCell, atModelBase: z0 <= modelBase + 1e-6 };
 }
 
 // ---------- the solve ----------
@@ -330,7 +332,7 @@ export function pitSurface(grid, mined) {
     for (let k = 0; k < nz; k++) {
       if (!mined[k * nx * ny + j * nx + i]) continue;
       const c = j * nx + i, zf = z0 + k * dz;
-      floor[c] = zf; if (k === 0) touchesBase = true;
+      floor[c] = zf; if (k === 0 && grid.atModelBase !== false) touchesBase = true; // #1751 — the grid's base is the model's, not merely the deepest paying block
       if (i === 0 || j === 0 || i === nx - 1 || j === ny - 1) touchesEdge = true;
       if (ground[c] - zf > maxDepth) maxDepth = ground[c] - zf;
       break;
@@ -415,7 +417,7 @@ export function runPitShell(inputs, { groundAt = null, collars = null, onProgres
   const solve = solvePit(grid, inputs.slopeDeg, { onProgress, sectorSlopes: inputs.sectorSlopes }); // #1881
   const summary = pitSummary(grid, solve.mined);
   if (!summary.blocks) return { empty: true, cutoff: economics.cutoff, cell: [grid.dx, grid.dy, grid.dz], groundSource };
-  return { ...summary, ...pitSurface(grid, solve.mined), parts: pitParts(grid, solve.mined) /* #1608 */, oreAboveGroundT: grid.oreAboveGroundT, oreAboveGroundBlocks: grid.oreAboveGroundBlocks /* #1616 */, cutoff: economics.cutoff, metalUnit: economics.metalUnit, metalFactor: economics.metalFactor, cell: [grid.dx, grid.dy, grid.dz], grid: [grid.nx, grid.ny, grid.nz], walls: wallAngles(grid.dx, grid.dy, grid.dz, inputs.slopeDeg, 32, inputs.sectorSlopes), groundSource, nodes: solve.nodes, arcs: solve.arcs, topAssumed: grid.topAssumed / (grid.nx * grid.ny), coarsened: grid.coarsened };
+  return { ...summary, ...pitSurface(grid, solve.mined), parts: pitParts(grid, solve.mined) /* #1608 */, oreAboveGroundT: grid.oreAboveGroundT, oreAboveGroundBlocks: grid.oreAboveGroundBlocks /* #1616 */, askedSize: grid.askedSize, modelCellM: grid.modelCell /* #1610 */, cutoff: economics.cutoff, metalUnit: economics.metalUnit, metalFactor: economics.metalFactor, cell: [grid.dx, grid.dy, grid.dz], grid: [grid.nx, grid.ny, grid.nz], walls: wallAngles(grid.dx, grid.dy, grid.dz, inputs.slopeDeg, 32, inputs.sectorSlopes), groundSource, nodes: solve.nodes, arcs: solve.arcs, topAssumed: grid.topAssumed / (grid.nx * grid.ny), coarsened: grid.coarsened };
 }
 
 // TASKS.csv #1875 — what a shell is worth at the ENTERED price (#1609 valued a revenue-factor shell at the scaled price): the
