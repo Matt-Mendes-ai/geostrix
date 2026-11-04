@@ -7389,5 +7389,13 @@
   "no terrain or collars: the footprint's own elevation, flat": "لا تضاريس ولا فوهات: منسوب البصمة نفسه، مستوٍ",
   "{a} ha; the ground at its centre is {g} m ({src}).": "{a} هكتار؛ الأرض عند مركزها على {g} م ({src}).",
   "{p} % of the footprint stands above the crest: no dump there.": "{p} % من البصمة فوق القمة: لا مكب هناك.",
-  "{p} % of {t} t": "{p} % من {t} طن"
+  "{p} % of {t} t": "{p} % من {t} طن",
+  " (by sector)": " (حسب القطاع)",
+  "A sector slope must be between 0 and 90°.": "يجب أن يكون ميل القطاع بين 0 و90°.",
+  "Hide the slope by wall sector": "إخفاء الميل حسب قطاع الجدار",
+  "Pit shell: {model} at {price} {unit}, {slope}°{rf}{sec}": "غلاف الحفرة: {model} عند {price} {unit}، {slope}°{rf}{sec}",
+  "Slope by wall sector…": "الميل حسب قطاع الجدار…",
+  "Slope of the {k} wall": "ميل الجدار {k}",
+  "The wall on each side of the pit: blank takes the overall slope. From a geotechnical study, not a guess.": "الجدار على كل جانب من الحفرة: الفارغ يأخذ الميل الكلي. من دراسة جيوتقنية لا تخمين.",
+  "By wall: {list} (a wall a little off a sector's centre grades towards its neighbours).": "حسب الجدار: {list} (الجدار المنحرف قليلًا عن مركز قطاعه يتدرج نحو جيرانه)."
 }

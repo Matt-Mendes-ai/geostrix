@@ -7389,5 +7389,13 @@
   "no terrain or collars: the footprint's own elevation, flat": "sin terreno ni collares: la cota propia de la huella, plana",
   "{a} ha; the ground at its centre is {g} m ({src}).": "{a} ha; el terreno en su centro está a {g} m ({src}).",
   "{p} % of the footprint stands above the crest: no dump there.": "El {p} % de la huella queda sobre la cresta: ahí no hay botadero.",
-  "{p} % of {t} t": "{p} % de {t} t"
+  "{p} % of {t} t": "{p} % de {t} t",
+  " (by sector)": " (por sector)",
+  "A sector slope must be between 0 and 90°.": "Un talud por sector debe estar entre 0 y 90°.",
+  "Hide the slope by wall sector": "Ocultar el talud por sector de pared",
+  "Pit shell: {model} at {price} {unit}, {slope}°{rf}{sec}": "Cono de rajo: {model} a {price} {unit}, {slope}°{rf}{sec}",
+  "Slope by wall sector…": "Talud por sector de pared…",
+  "Slope of the {k} wall": "Talud de la pared {k}",
+  "The wall on each side of the pit: blank takes the overall slope. From a geotechnical study, not a guess.": "La pared de cada lado del rajo: en blanco toma el talud global. De un estudio geotécnico, no una suposición.",
+  "By wall: {list} (a wall a little off a sector's centre grades towards its neighbours).": "Por pared: {list} (una pared algo desviada del centro de su sector se gradúa hacia sus vecinas)."
 }

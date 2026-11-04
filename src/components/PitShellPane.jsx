@@ -6,7 +6,7 @@ import { Pickaxe, Eye, EyeOff, Trash2, Pencil } from "./icons.js";
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // #1498
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
-import { PRICE_UNITS, pitEconomics, pitMetalOf, elementOfModel } from "../lib/pitShell.js"; // pitMetalOf / elementOfModel: #1748
+import { PRICE_UNITS, pitEconomics, pitMetalOf, elementOfModel, SECTORS, hasSectorSlopes } from "../lib/pitShell.js"; // pitMetalOf / elementOfModel: #1748; SECTORS: #1881
 import { sgSummary } from "../lib/gradeTonnage.js";
 import { valueUnit } from "../lib/blockModelExport.js";
 import { categoricalModels } from "../lib/geologyForward.js";
@@ -22,7 +22,8 @@ const num = { ...smallSel, width: 84 };
 const big = (v) => new Intl.NumberFormat(undefined, { notation: "compact", maximumSignificantDigits: 3 }).format(v);
 const G_PER_OZ = 31.1034768;
 const GRADE_UNITS = ["g/t", "ppm", "ppb", "%"];
-const EMPTY = { price: "", priceUnit: "", recovery: "", miningCost: "", processingCost: "", density: "", slopeDeg: "", revenueFactor: "1", size: "", unit: "" };
+const EMPTY = { price: "", priceUnit: "", recovery: "", miningCost: "", processingCost: "", density: "", slopeDeg: "", revenueFactor: "1", size: "", unit: "", sectorSlopes: {} }; // sectorSlopes: #1881
+const SECTOR_GRID = [["NW", "N", "NE"], ["W", null, "E"], ["SW", "S", "SE"]]; // the compass layout of the sector slopes
 const FIELDS = ["price", "recovery", "miningCost", "processingCost", "density", "slopeDeg"];
 let kept = null; // #1356 — the last result, shown again when the pane or the tab comes back (this session)
 
@@ -44,6 +45,9 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
   const [res, setRes] = useState(() => (kept && models.some((m) => m.name === kept.model) ? kept : null));
   const [hideEarlier, setHideEarlier] = useState(true);
   const [msg, setMsg] = useState(null);
+  const [showSectors, setShowSectors] = useState(() => hasSectorSlopes(last?.sectorSlopes)); // #1881
+  const sectorBad = SECTORS.some((k) => { const v = f.sectorSlopes?.[k]; return v !== "" && v != null && !(Number(v) > 0 && Number(v) < 90); });
+  const setSector = (k, v) => { setF((p) => ({ ...p, sectorSlopes: { ...(p.sectorSlopes || {}), [k]: v } })); setMsg(null); };
   // TASKS.csv #1613 (review #1497, Lawyers) — the figures belong to one pit: once it is removed (here, or from 3D Modelling's
   // surfaces list) they go too, as does a "no pit" message once the inputs it describes are changed
   const resGone = !!res?.pitId && !surfaces.some((s) => s.id === res.pitId);
@@ -56,7 +60,8 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
   const editPit = (s) => {
     const inp = s.params?.inputs || {};
     if (inp.modelId != null && models.some((m) => (m.id ?? m.name) === inp.modelId)) setModelId(inp.modelId);
-    setF({ ...EMPTY, ...Object.fromEntries(Object.entries(inp).filter(([k]) => k in EMPTY).map(([k, v]) => [k, v == null ? "" : String(v)])) });
+    setF({ ...EMPTY, ...Object.fromEntries(Object.entries(inp).filter(([k]) => k in EMPTY && k !== "sectorSlopes").map(([k, v]) => [k, v == null ? "" : String(v)])), sectorSlopes: Object.fromEntries(SECTORS.map((k) => [k, inp.sectorSlopes?.[k] == null ? "" : String(inp.sectorSlopes[k])])) }); // sectorSlopes: #1881
+    setShowSectors(hasSectorSlopes(inp.sectorSlopes));
     setEditingId(s.id); setMsg(null);
   };
   const removePit = (s) => {
@@ -76,12 +81,14 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
   const priceStale = f.price !== "" && !!f.priceUnit && !!prices && !prices.some(([k]) => k === f.priceUnit);
   const setPrice = (e) => setF((p) => ({ ...p, price: e.target.value, priceUnit }));
   const value = (k) => (k === "price" && priceStale ? NaN : Number(f[k]));
-  const missing = !model || !metal || FIELDS.some((k) => !(value(k) > 0)) || value("slopeDeg") >= 90 || value("recovery") > 100 || !(Number(f.revenueFactor) > 0); // revenue factor: #1363
+  const missing = !model || !metal || FIELDS.some((k) => !(value(k) > 0)) || value("slopeDeg") >= 90 || value("recovery") > 100 || !(Number(f.revenueFactor) > 0) || sectorBad; // revenue factor: #1363; sectorBad: #1881
   const cutoff = !missing ? pitEconomics({ unit, element, price: value("price"), priceUnit, recovery: value("recovery"), processingCost: value("processingCost"), revenueFactor: Number(f.revenueFactor) || 1 })?.cutoff : null;
 
   const run = async () => {
     const rf = Number(f.revenueFactor) > 0 ? Number(f.revenueFactor) : 1, size = Number(f.size) > 0 ? Number(f.size) : null;
-    const inputs = { unit, element, price: value("price"), priceUnit, recovery: value("recovery"), miningCost: value("miningCost"), processingCost: value("processingCost"), density: value("density"), slopeDeg: value("slopeDeg"), revenueFactor: rf, size };
+    // #1881 — the sector slopes that are set, as numbers; none set: no key at all, so an older project's inputs read the same
+    const sectors = Object.fromEntries(SECTORS.filter((k) => Number(f.sectorSlopes?.[k]) > 0 && Number(f.sectorSlopes?.[k]) < 90).map((k) => [k, Number(f.sectorSlopes[k])]));
+    const inputs = { unit, element, price: value("price"), priceUnit, recovery: value("recovery"), miningCost: value("miningCost"), processingCost: value("processingCost"), density: value("density"), slopeDeg: value("slopeDeg"), revenueFactor: rf, size, ...(Object.keys(sectors).length ? { sectorSlopes: sectors } : {}) };
     setBusy(0); setMsg(null); // the previous result stays until a new one arrives (#1366)
     const t0 = performance.now();
     try {
@@ -92,7 +99,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       if (r.failed || r.empty) { setMsg(r.empty ? tr("At these inputs no block pays for the rock over it, so there is no pit. Cut-off grade {c} {unit}.", { c: Number(r.cutoff.toPrecision(3)), unit }) : tr("The block model has no blocks with values.")); return; }
       const seconds = Math.round((performance.now() - t0) / 100) / 10, rfText = rf !== 1 ? ` x${rf}` : "";
       const support = model.cells.some((c) => Number.isFinite(c.nHoles)); // #1354 — the estimate says how many holes informed each block
-      kept = { ...r, unit, seconds, hasTerrain: !!terrain, model: model.name, slopeDeg: inputs.slopeDeg, support };
+      kept = { ...r, unit, seconds, hasTerrain: !!terrain, model: model.name, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes || null, support };
       setRes(kept);
       const contained = r.metalU * r.metalFactor;
       if (hideEarlier) surfaces.filter((s) => s.type === "pit_shell" && s.visible && s.id !== editingId).forEach((s) => onToggle?.(s.id)); // #1356 — one pit on view at a time
@@ -100,7 +107,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       const priceLabel = (prices.find(([k]) => k === priceUnit) || [])[1] || "";
       const pitId = onAdd({
         // #1356 — named by what usually changes between runs, so a list of pits can be told apart
-        name: tr("Pit shell: {model} at {price} {unit}, {slope}°{rf}", { model: model.name, price: inputs.price, unit: priceLabel, slope: inputs.slopeDeg, rf: rfText }), positions: r.positions, indices: r.indices, type: "pit_shell", closure: null, color: "#b5651d", tag: "pit",
+        name: tr("Pit shell: {model} at {price} {unit}, {slope}°{rf}{sec}", { model: model.name, price: inputs.price, unit: priceLabel, slope: inputs.slopeDeg, rf: rfText, sec: inputs.sectorSlopes ? tr(" (by sector)") : "" }), positions: r.positions, indices: r.indices, type: "pit_shell", closure: null, color: "#b5651d", tag: "pit",
         tip: tr("Conceptual pit shell: not a mine plan, a Reserve or a Resource"),
         params: { tool: "conceptual pit shell (maximum closure, exact)", inputs: { ...inputs, priceUnit, modelId, unit: stated ? "" : unit }, blockModel: model.name, gradeUnit: unit, oreTonnes: Math.round(r.oreT), wasteTonnes: Math.round(r.wasteT), stripRatio: r.stripRatio == null ? null : +r.stripRatio.toFixed(2), meanGrade: r.meanGrade == null ? null : +r.meanGrade.toPrecision(4), containedMetal: Math.round(contained), containedMetalUnit: r.metalUnit, cutoffGrade: +r.cutoff.toPrecision(3), undiscountedMargin: Math.round(r.money), maxDepthM: Math.round(r.maxDepth), wallAnglesDeg: [+r.walls.flattest.toFixed(1), +r.walls.steepest.toFixed(1)], gridCellM: r.cell.map((v) => +v.toFixed(1)), rockOutsideBlockModelShare: +r.barrenShare.toFixed(3), noTerrainShare: +r.topAssumed.toFixed(3), groundFrom: r.groundSource, ...(support ? { oreSingleHoleShare: +r.oreSingleHoleShare.toFixed(3), oreExtrapolatedShare: +r.oreExtrapolatedShare.toFixed(3) } : {}), reachesModelBase: r.touchesBase, caution: "conceptual: undiscounted, no ramps, berms, dilution or scheduling; not a Mineral Reserve or Resource", generatedAt: new Date().toISOString() },
       });
@@ -138,6 +145,19 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
         {field("density", tr("Density (t/m³)"))}
         {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v}", { v: sg.mean })}</button></div>}
         {field("slopeDeg", tr("Overall slope (°)"))}
+        {/* TASKS.csv #1881 — a slope per wall sector: the wall on that side of the pit; blank takes the overall slope */}
+        <div style={{ ...note, marginTop: 2 }}><button onClick={() => setShowSectors((v) => !v)} style={linkBtn} aria-expanded={showSectors}>{showSectors ? tr("Hide the slope by wall sector") : tr("Slope by wall sector…")}</button></div>
+        {showSectors && (
+          <div style={{ marginTop: 4 }}>
+            <div style={note}>{tr("The wall on each side of the pit: blank takes the overall slope. From a geotechnical study, not a guess.")}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 3, marginTop: 4 }}>
+              {SECTOR_GRID.flat().map((k, i) => (k
+                ? <label key={k} style={{ ...note, display: "flex", alignItems: "center", gap: 3, minWidth: 0 }}><span style={{ width: 20, textAlign: "right", flexShrink: 0 }}>{k}</span><input type="number" min={1} max={89} step="any" value={f.sectorSlopes?.[k] ?? ""} onChange={(e) => setSector(k, e.target.value)} placeholder={f.slopeDeg || "°"} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Slope of the {k} wall", { k })} /></label>
+                : <span key={`c${i}`} style={{ ...note, textAlign: "center", alignSelf: "center" }}>°</span>))}
+            </div>
+            {sectorBad && <div style={warn}>{tr("A sector slope must be between 0 and 90°.")}</div>}
+          </div>
+        )}
         {field("revenueFactor", tr("Revenue factor"), { title: tr("Multiplies the price: below 1 gives a smaller pit, a quick test of how much it depends on price.") })}
         {field("size", tr("Pit block size (m)"), { placeholder: tr("auto"), title: tr("Blank: the block model's own size. A larger size runs faster and draws coarser walls; a block keeps its own ore or waste decision either way.") })}
         {cutoff != null && <div style={{ ...note, marginTop: 4 }}>{tr("Cut-off grade at these inputs: {c} {unit}.", { c: Number(cutoff.toPrecision(3)), unit })}</div>}
@@ -177,6 +197,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
           {line(tr("Pit depth"), `${Math.round(res.maxDepth)} m`)}
           {line(tr("Undiscounted margin"), `$${big(res.money)}`)}
           {line(tr("Walls stand at"), `${res.walls.flattest.toFixed(0)}–${res.walls.steepest.toFixed(0)}°`)}
+          {res.walls.bySector && res.sectorSlopes && <div style={note}>{tr("By wall: {list} (a wall a little off a sector's centre grades towards its neighbours).", { list: SECTORS.filter((k) => res.walls.bySector[k] != null).map((k) => `${k} ${res.walls.bySector[k].toFixed(0)}°`).join(", ") })}</div>}{/* #1881 */}
           {line(tr("Grid cell"), `${res.cell.map((v) => Math.round(v * 10) / 10).join(" × ")} m`)}
           {line(tr("Solved in"), `${res.seconds} s`)}
           {res.support && res.oreExtrapolatedShare > 0.5 && <div style={warn}>{tr("Most of this ore is in blocks the estimate classed as extrapolated: the pit rests on grades the drilling does not surround.")}</div>}

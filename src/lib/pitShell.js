@@ -58,17 +58,30 @@ export function collarGround(collars) {
 // Measured (scratchpad pitarcs): more levels hold the slope better in every bearing and cost arcs, memory and time, so the
 // pattern is the most levels that stay within MAX_ARCS: 200,000 blocks at 57 arcs each was 440 MB, too much for a cheap laptop.
 export const MAX_ARCS = 25;
-export function precedenceArcs(dx, dy, dz, slopeDeg, maxLevels = null) {
+// TASKS.csv #1881 — a slope per WALL SECTOR: the wall on the north side of the pit (the blocks that must come out north of, and
+// above, a mined block) may stand steeper or flatter than the south wall. sectorSlopes: { N, NE, E, SE, S, SW, W, NW } in degrees,
+// a missing or empty sector taking the overall slope. An arc's sector is the bearing of its offset from the mined block.
+export const SECTORS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+export const sectorOfBearing = (deg) => SECTORS[Math.round((((deg % 360) + 360) % 360) / 45) % 8];
+export function slopeForSector(slopeDeg, sectorSlopes, sector) {
+  const v = sectorSlopes ? Number(sectorSlopes[sector]) : NaN;
+  return v > 0 && v < 90 ? v : slopeDeg;
+}
+export const hasSectorSlopes = (sectorSlopes) => !!sectorSlopes && SECTORS.some((k) => { const v = Number(sectorSlopes[k]); return v > 0 && v < 90; });
+// the flattest slope a pit's walls can take, for the grid's reach
+export const flattestSlope = (slopeDeg, sectorSlopes) => Math.min(slopeDeg, ...SECTORS.map((k) => slopeForSector(slopeDeg, sectorSlopes, k)));
+export function precedenceArcs(dx, dy, dz, slopeDeg, maxLevels = null, sectorSlopes = null) {
   if (maxLevels == null) {
     let best = null;
-    for (let L = 1; L <= 8; L++) { const a = precedenceArcs(dx, dy, dz, slopeDeg, L); if (a.length > MAX_ARCS) break; best = a; }
+    for (let L = 1; L <= 8; L++) { const a = precedenceArcs(dx, dy, dz, slopeDeg, L, sectorSlopes); if (a.length > MAX_ARCS) break; best = a; }
     return best;
   }
-  const run = dz / Math.tan((slopeDeg * Math.PI) / 180);
+  const runOf = (a, b) => dz / Math.tan((slopeForSector(slopeDeg, sectorSlopes, sectorOfBearing((Math.atan2(a * dx, b * dy) * 180) / Math.PI)) * Math.PI) / 180);
+  const runMax = dz / Math.tan((flattestSlope(slopeDeg, sectorSlopes) * Math.PI) / 180);
   const allowed = [];
   for (let l = 1; l <= maxLevels; l++) {
-    const r = l * run, ax = Math.floor(r / dx), ay = Math.floor(r / dy);
-    for (let a = -ax; a <= ax; a++) for (let b = -ay; b <= ay; b++) if (Math.hypot(a * dx, b * dy) <= r + 1e-9) allowed.push([a, b, l]);
+    const r = l * runMax, ax = Math.floor(r / dx), ay = Math.floor(r / dy);
+    for (let a = -ax; a <= ax; a++) for (let b = -ay; b <= ay; b++) if (Math.hypot(a * dx, b * dy) <= l * runOf(a, b) + 1e-9) allowed.push([a, b, l]);
   }
   const key = (a, b, l) => `${a},${b},${l}`, set = new Set(allowed.map(([a, b, l]) => key(a, b, l)));
   return allowed.filter(([a, b, l]) => {
@@ -82,8 +95,8 @@ export function precedenceArcs(dx, dy, dz, slopeDeg, maxLevels = null) {
 
 // The flattest and steepest wall that pattern really makes, over all bearings, in degrees: it can only stand at or above the
 // slope asked for, so a run says what it got.
-export function wallAngles(dx, dy, dz, slopeDeg, levels = 32) {
-  const arcs = precedenceArcs(dx, dy, dz, slopeDeg), reach = Array.from({ length: levels + 1 }, () => new Map());
+export function wallAngles(dx, dy, dz, slopeDeg, levels = 32, sectorSlopes = null) {
+  const arcs = precedenceArcs(dx, dy, dz, slopeDeg, null, sectorSlopes), reach = Array.from({ length: levels + 1 }, () => new Map());
   reach[0].set("0,0", [0, 0]);
   for (let l = 0; l < levels; l++) for (const [a, b] of reach[l].values()) for (const [p, q, m] of arcs) if (l + m <= levels) reach[l + m].set(`${a + p},${b + q}`, [a + p, b + q]);
   const bins = new Float64Array(16);
@@ -94,7 +107,10 @@ export function wallAngles(dx, dy, dz, slopeDeg, levels = 32) {
     if (h > bins[bin]) bins[bin] = h;
   }
   const h = levels * dz, used = Array.from(bins).filter((v) => v > 0), deg = (r) => (Math.atan2(h, r) * 180) / Math.PI;
-  return used.length ? { flattest: deg(Math.max(...used)), steepest: deg(Math.min(...used)) } : { flattest: 90, steepest: 90 };
+  // #1881 — the flattest wall in each compass sector (bins run from -180 deg = west, counter-clockwise in (x, y))
+  const bySector = {};
+  for (let k = 0; k < 16; k++) { if (!(bins[k] > 0)) continue; const ang = -180 + (k + 0.5) * 22.5, bearing = 90 - ang, s = sectorOfBearing(bearing), d = deg(bins[k]); if (bySector[s] == null || d < bySector[s]) bySector[s] = d; }
+  return used.length ? { flattest: deg(Math.max(...used)), steepest: deg(Math.min(...used)), bySector } : { flattest: 90, steepest: 90, bySector };
 }
 
 // Regular grid over the block model plus room for the walls. cells: [{ x, y, z, dx, dy, dz, value }] in world metres.
@@ -102,7 +118,7 @@ export function wallAngles(dx, dy, dz, slopeDeg, levels = 32) {
 // sum of its parts, so a coarser grid does not average ore into waste. -> { nx, ny, nz, x0, y0, z0, dx, dy, dz, ground, value, oreT, metalT, wasteT, outsideT, topAssumed }
 // TASKS.csv #1875 — `fixed`: another grid's geometry ({ nx, ny, nz, x0, y0, z0, dx, dy, dz, ground, topAssumed, coarsened }), so a
 // series of revenue factors shares one grid and its shells nest cell for cell (each RF's own box would start at a different corner)
-export function buildPitGrid(cells, { size = null, slopeDeg, density, economics, miningCost, processingCost, groundAt = null, maxCells = 600000, fixed = null }) {
+export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null, density, economics, miningCost, processingCost, groundAt = null, maxCells = 600000, fixed = null }) {
   const good = cells.filter((c) => Number.isFinite(c.value) && c.dx > 0 && c.dy > 0 && c.dz > 0);
   if (!good.length) return null;
   const med = (k) => good.map((c) => c[k]).sort((a, b) => a - b)[good.length >> 1];
@@ -124,7 +140,7 @@ export function buildPitGrid(cells, { size = null, slopeDeg, density, economics,
     // the highest ground over the blocks and a first wall reach, then the ground over the wider box
     top = zHigh;
     if (groundAt) for (const c of good) { const g = groundAt(c.x, c.y); if (Number.isFinite(g) && g > top) top = g; }
-    const reach = (top - zLow) / Math.tan((slopeDeg * Math.PI) / 180);
+    const reach = (top - zLow) / Math.tan((flattestSlope(slopeDeg, sectorSlopes) * Math.PI) / 180); // #1881 — the flattest wall decides the room
     x0 -= reach; x1 += reach; y0 -= reach; y1 += reach;
     const dims = () => [Math.max(1, Math.ceil((x1 - x0) / dx)), Math.max(1, Math.ceil((y1 - y0) / dy)), Math.max(1, Math.ceil((top - zLow) / dz))];
     [nx, ny, nz] = dims();
@@ -176,9 +192,9 @@ export function buildPitGrid(cells, { size = null, slopeDeg, density, economics,
 // ---------- the solve ----------
 // Maximum closure as a minimum cut on the blocks that can matter (paying blocks and the cones over them). Dinic in typed arrays,
 // iterative: arcs of infinite capacity from a block to the blocks it needs. onProgress(phases) only says it is alive.
-export function solvePit(grid, slopeDeg, { onProgress = null } = {}) {
+export function solvePit(grid, slopeDeg, { onProgress = null, sectorSlopes = null } = {}) {
   const { nx, ny, nz, dx, dy, dz, value, rockT } = grid;
-  const arcs = precedenceArcs(dx, dy, dz, slopeDeg);
+  const arcs = precedenceArcs(dx, dy, dz, slopeDeg, null, sectorSlopes); // #1881
   const n = nx * ny * nz, id = new Int32Array(n).fill(-1), list = [];
   // from the top down in reverse: a paying block, or anything a kept block needs
   const need = new Uint8Array(n);
@@ -304,14 +320,14 @@ export function runPitShell(inputs, { groundAt = null, collars = null, onProgres
   const economics = pitEconomics(inputs);
   if (!economics) return { failed: "units" };
   const fromCollars = !groundAt ? collarGround(collars) : null; // #1353
-  const grid = buildPitGrid(inputs.cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, density: inputs.density, economics, miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: groundAt || fromCollars });
+  const grid = buildPitGrid(inputs.cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes, density: inputs.density, economics, miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: groundAt || fromCollars });
   if (!grid) return { failed: "no-cells" };
   if (grid.empty) return { empty: true, cutoff: economics.cutoff, cell: [] };
   const groundSource = groundAt ? "terrain" : fromCollars ? "collars" : "model top";
-  const solve = solvePit(grid, inputs.slopeDeg, { onProgress });
+  const solve = solvePit(grid, inputs.slopeDeg, { onProgress, sectorSlopes: inputs.sectorSlopes }); // #1881
   const summary = pitSummary(grid, solve.mined);
   if (!summary.blocks) return { empty: true, cutoff: economics.cutoff, cell: [grid.dx, grid.dy, grid.dz], groundSource };
-  return { ...summary, ...pitSurface(grid, solve.mined), cutoff: economics.cutoff, metalUnit: economics.metalUnit, metalFactor: economics.metalFactor, cell: [grid.dx, grid.dy, grid.dz], grid: [grid.nx, grid.ny, grid.nz], walls: wallAngles(grid.dx, grid.dy, grid.dz, inputs.slopeDeg), groundSource, nodes: solve.nodes, arcs: solve.arcs, topAssumed: grid.topAssumed / (grid.nx * grid.ny), coarsened: grid.coarsened };
+  return { ...summary, ...pitSurface(grid, solve.mined), cutoff: economics.cutoff, metalUnit: economics.metalUnit, metalFactor: economics.metalFactor, cell: [grid.dx, grid.dy, grid.dz], grid: [grid.nx, grid.ny, grid.nz], walls: wallAngles(grid.dx, grid.dy, grid.dz, inputs.slopeDeg, 32, inputs.sectorSlopes), groundSource, nodes: solve.nodes, arcs: solve.arcs, topAssumed: grid.topAssumed / (grid.nx * grid.ny), coarsened: grid.coarsened };
 }
 
 // TASKS.csv #1875 — what a shell is worth at the ENTERED price (#1609 valued a revenue-factor shell at the scaled price): the
@@ -336,7 +352,7 @@ export function runPitSeries(inputs, rfs, { groundAt = null, collars = null, rat
   const fromCollars = !groundAt ? collarGround(collars) : null, ground = groundAt || fromCollars;
   const eco = (rf) => pitEconomics({ ...inputs, revenueFactor: rf });
   const topRf = list[list.length - 1];
-  const top = buildPitGrid(inputs.cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, density: inputs.density, economics: eco(topRf), miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: ground });
+  const top = buildPitGrid(inputs.cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes, density: inputs.density, economics: eco(topRf), miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: ground });
   if (!top) return { failed: "no-cells" };
   if (top.empty) return { empty: true, cutoff: base.cutoff };
   const fixed = { nx: top.nx, ny: top.ny, nz: top.nz, x0: top.x0, y0: top.y0, z0: top.z0, dx: top.dx, dy: top.dy, dz: top.dz, ground: top.ground, topAssumed: top.topAssumed, coarsened: top.coarsened };
@@ -350,7 +366,7 @@ export function runPitSeries(inputs, rfs, { groundAt = null, collars = null, rat
     const e = eco(rf);
     const grid = rf === topRf ? top : buildPitGrid(inputs.cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, density: inputs.density, economics: e, miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: ground, fixed });
     if (!grid || grid.empty) { runs.push({ rf, cutoff: e.cutoff, blocks: 0, oreT: 0, wasteT: 0, rockT: 0, metalU: 0, meanGrade: null, money: 0, moneyBase: 0, stripRatio: null, maxDepth: 0, pushbackCells: 0, pushbackRockT: 0, positions: null, indices: null }); return; }
-    const solve = solvePit(grid, inputs.slopeDeg, { onProgress: (phases) => onProgress?.({ idx, of: list.length, rf, phases }) });
+    const solve = solvePit(grid, inputs.slopeDeg, { onProgress: (phases) => onProgress?.({ idx, of: list.length, rf, phases }), sectorSlopes: inputs.sectorSlopes }); // #1881
     const summary = pitSummary(baseGrid, solve.mined), moneyBase = summary.money; // tonnes, grade and value at the entered price
     const moneyScaled = pitSummary(grid, solve.mined).money; // what the solver optimized: the scaled price
     // the pushback: this shell's cells not yet mined by a smaller one, top bench down

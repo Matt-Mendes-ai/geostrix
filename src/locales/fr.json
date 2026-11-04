@@ -7389,5 +7389,13 @@
   "no terrain or collars: the footprint's own elevation, flat": "ni terrain ni collets : la cote propre de l'emprise, plate",
   "{a} ha; the ground at its centre is {g} m ({src}).": "{a} ha ; le sol en son centre est à {g} m ({src}).",
   "{p} % of the footprint stands above the crest: no dump there.": "{p} % de l'emprise se trouve au-dessus de la crête : pas de verse à cet endroit.",
-  "{p} % of {t} t": "{p} % de {t} t"
+  "{p} % of {t} t": "{p} % de {t} t",
+  " (by sector)": " (par secteur)",
+  "A sector slope must be between 0 and 90°.": "Une pente par secteur doit être comprise entre 0 et 90°.",
+  "Hide the slope by wall sector": "Masquer la pente par secteur de paroi",
+  "Pit shell: {model} at {price} {unit}, {slope}°{rf}{sec}": "Enveloppe de fosse : {model} à {price} {unit}, {slope}°{rf}{sec}",
+  "Slope by wall sector…": "Pente par secteur de paroi…",
+  "Slope of the {k} wall": "Pente de la paroi {k}",
+  "The wall on each side of the pit: blank takes the overall slope. From a geotechnical study, not a guess.": "La paroi de chaque côté de la fosse : vide prend la pente globale. D'une étude géotechnique, pas d'une supposition.",
+  "By wall: {list} (a wall a little off a sector's centre grades towards its neighbours).": "Par paroi : {list} (une paroi un peu écartée du centre de son secteur tend vers ses voisines)."
 }

@@ -7389,5 +7389,13 @@
   "no terrain or collars: the footprint's own elevation, flat": "sem terreno nem bocas de furo: a cota da própria pegada, plana",
   "{a} ha; the ground at its centre is {g} m ({src}).": "{a} ha; o terreno no seu centro está a {g} m ({src}).",
   "{p} % of the footprint stands above the crest: no dump there.": "{p} % da pegada fica acima da crista: ali não há pilha.",
-  "{p} % of {t} t": "{p} % de {t} t"
+  "{p} % of {t} t": "{p} % de {t} t",
+  " (by sector)": " (por setor)",
+  "A sector slope must be between 0 and 90°.": "Um talude por setor deve ficar entre 0 e 90°.",
+  "Hide the slope by wall sector": "Ocultar o talude por setor de parede",
+  "Pit shell: {model} at {price} {unit}, {slope}°{rf}{sec}": "Cava conceitual: {model} a {price} {unit}, {slope}°{rf}{sec}",
+  "Slope by wall sector…": "Talude por setor de parede…",
+  "Slope of the {k} wall": "Talude da parede {k}",
+  "The wall on each side of the pit: blank takes the overall slope. From a geotechnical study, not a guess.": "A parede de cada lado da cava: em branco toma o talude global. De um estudo geotécnico, não um palpite.",
+  "By wall: {list} (a wall a little off a sector's centre grades towards its neighbours).": "Por parede: {list} (uma parede um pouco fora do centro do seu setor gradua-se para as vizinhas)."
 }
