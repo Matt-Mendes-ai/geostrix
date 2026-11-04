@@ -1,0 +1,154 @@
+// TASKS.csv #1879 — STOPE OUTLINES BY LEVEL: the underground counterpart of the pit shell for a high-grade body. For each level
+// slab the block model is seen in plan: every column's grade over the slab (block overlaps weighted); columns at or above the
+// cut-off are the candidate ore; a morphological OPENING (erode then dilate by half the minimum mining width, a disc) drops
+// anything thinner than a machine can mine; a dilution skin dilates what is left, the added columns carrying the model's grade
+// there (or none); each connected patch longer than the minimum length is a stope: its outline is the exact boundary of its
+// columns' squares (holes inside a patch are filled and counted), extruded over the slab into a closed solid.
+// Outlines, not a stope optimizer: no geotechnical, access, sequencing or shape-regularity check. Pure: no three.js, no React.
+import { extrudeString } from "./stringSolids.js";
+
+const fin = Number.isFinite;
+
+// model: { cells: [{ x, y, z, dx, dy, dz, value, coverage }] }; opts: cutoff, levelH, zMin / zMax (level floors run from zMin by levelH up
+// to zMax), minWidth, minLength, skin, density (t / m3). -> { levels: [{ rl, stopes: [{ outline: [[x, y, z]], positions, indices, volume,
+// tonnes, metalU, grade, oreTonnes, oreGrade, columns, holesFilled }], tonnes, oreTonnes, grade }], totals, cell: [dx, dy], grid: [nx, ny], unit? }
+export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null, minWidth = 0, minLength = 0, skin = 0, density = 1 } = {}) {
+  const cells = (model?.cells || []).filter((c) => fin(c.x) && fin(c.y) && fin(c.z) && c.dx > 0 && c.dy > 0 && c.dz > 0);
+  if (!cells.length || !(levelH > 0) || !fin(cutoff)) return null;
+  const med = (k) => cells.map((c) => c[k]).sort((a, b) => a - b)[cells.length >> 1];
+  const dx = med("dx"), dy = med("dy");
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, zLo = Infinity, zHi = -Infinity;
+  for (const c of cells) { if (c.x < x0) x0 = c.x; if (c.x > x1) x1 = c.x; if (c.y < y0) y0 = c.y; if (c.y > y1) y1 = c.y; if (c.z - c.dz / 2 < zLo) zLo = c.z - c.dz / 2; if (c.z + c.dz / 2 > zHi) zHi = c.z + c.dz / 2; }
+  const pad = Math.ceil(Math.max(0, skin) / Math.min(dx, dy)) + 1;
+  const gx0 = x0 - pad * dx, gy0 = y0 - pad * dy; // the first column centre
+  const nx = Math.round((x1 - x0) / dx) + 1 + 2 * pad, ny = Math.round((y1 - y0) / dy) + 1 + 2 * pad, N = nx * ny;
+  if (N > 4_000_000) return { failed: "too-many-columns", columns: N };
+  const col = (c) => { const i = Math.round((c.x - gx0) / dx), j = Math.round((c.y - gy0) / dy); return i >= 0 && i < nx && j >= 0 && j < ny ? j * nx + i : -1; };
+  const from = fin(zMin) ? zMin : Math.floor(zLo / levelH) * levelH, to = fin(zMax) ? zMax : zHi;
+  // the opening's element is a k x k square of columns, k the minimum width in whole columns (a 20 m zone on 10 m columns is two wide
+  // and survives a 15 m minimum; a one-column stringer does not); the skin is a square ring of rS columns
+  const k = Math.max(1, Math.ceil(minWidth / Math.min(dx, dy) - 1e-9)), rS = Math.max(0, Math.round(skin / Math.min(dx, dy)));
+  const area = dx * dy, levels = [];
+  const totals = { tonnes: 0, metalU: 0, oreTonnes: 0, oreMetalU: 0, stopes: 0 };
+  const square = (lo, hi) => { const o = []; for (let j = lo; j <= hi; j++) for (let i = lo; i <= hi; i++) o.push([i, j]); return o; };
+  const dE = square(0, k - 1), dS = square(-rS, rS);
+  const inside = (mask, i, j) => i >= 0 && i < nx && j >= 0 && j < ny && mask[j * nx + i];
+  const erode = (mask, offsets) => { const out = new Uint8Array(N); for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { let keep = 1; for (const [a, b] of offsets) if (!inside(mask, i + a, j + b)) { keep = 0; break; } out[j * nx + i] = keep; } return out; };
+  const dilate = (mask, offsets) => { const out = new Uint8Array(N); for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { if (!mask[j * nx + i]) continue; for (const [a, b] of offsets) { const ii = i + a, jj = j + b; if (ii >= 0 && ii < nx && jj >= 0 && jj < ny) out[jj * nx + ii] = 1; } } return out; };
+  for (let rl = from; rl < to - 1e-9; rl += levelH) {
+    const top = Math.min(rl + levelH, to);
+    const t = new Float64Array(N), m = new Float64Array(N);
+    for (const c of cells) {
+      const q = col(c); if (q < 0) continue;
+      const h = Math.min(c.z + c.dz / 2, top) - Math.max(c.z - c.dz / 2, rl);
+      if (h <= 0) continue;
+      const tt = h * area * (fin(c.coverage) ? c.coverage : 1) * density;
+      t[q] += tt; if (fin(c.value)) m[q] += tt * c.value;
+    }
+    let mask = new Uint8Array(N);
+    for (let q = 0; q < N; q++) if (t[q] > 0 && m[q] / t[q] >= cutoff) mask[q] = 1;
+    const ore = mask;
+    if (k > 1) mask = dilate(erode(mask, dE), dE); // opening: nothing thinner than the minimum width survives
+    if (rS > 0) mask = dilate(mask, dS); // the skin
+    // connected patches (4-neighbours)
+    const label = new Int32Array(N).fill(-1);
+    const patches = [];
+    for (let s = 0; s < N; s++) {
+      if (!mask[s] || label[s] >= 0) continue;
+      const id = patches.length, stack = [s], members = [];
+      label[s] = id;
+      while (stack.length) {
+        const q = stack.pop(); members.push(q);
+        const j = Math.floor(q / nx), i = q - j * nx;
+        for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const ii = i + a, jj = j + b; if (ii < 0 || ii >= nx || jj < 0 || jj >= ny) continue; const p = jj * nx + ii; if (mask[p] && label[p] < 0) { label[p] = id; stack.push(p); } }
+      }
+      patches.push(members);
+    }
+    const stopes = [];
+    for (const members of patches) {
+      let i0 = Infinity, i1 = -Infinity, j0 = Infinity, j1 = -Infinity, tonnes = 0, metalU = 0, oreT = 0, oreM = 0;
+      for (const q of members) {
+        const j = Math.floor(q / nx), i = q - j * nx;
+        if (i < i0) i0 = i; if (i > i1) i1 = i; if (j < j0) j0 = j; if (j > j1) j1 = j;
+        // a column of the skin with no block in this slab: rock of unknown grade, counted at the density with no metal
+        const tt = t[q] > 0 ? t[q] : (top - rl) * area * density;
+        tonnes += tt; metalU += m[q]; if (ore[q]) { oreT += t[q]; oreM += m[q]; }
+      }
+      const extent = Math.max((i1 - i0 + 1) * dx, (j1 - j0 + 1) * dy);
+      if (extent < minLength) continue;
+      const loops = boundaryLoops(members, nx, gx0, gy0, dx, dy);
+      if (!loops.length) continue;
+      const outer = loops.reduce((a, b) => (Math.abs(b.area) > Math.abs(a.area) ? b : a));
+      const outline = outer.points.map(([x, y]) => [x, y, rl]);
+      const solid = extrudeString(outline, rl, top);
+      stopes.push({ outline, positions: solid?.positions || null, indices: solid?.indices || null, volume: solid?.volume ?? null, tonnes, metalU, grade: tonnes > 0 ? metalU / tonnes : null, oreTonnes: oreT, oreGrade: oreT > 0 ? oreM / oreT : null, columns: members.length, holesFilled: loops.length - 1 });
+      totals.tonnes += tonnes; totals.metalU += metalU; totals.oreTonnes += oreT; totals.oreMetalU += oreM; totals.stopes++;
+    }
+    const lt = stopes.reduce((a, s) => a + s.tonnes, 0), lm = stopes.reduce((a, s) => a + s.metalU, 0), lo = stopes.reduce((a, s) => a + s.oreTonnes, 0), lom = stopes.reduce((a, s) => a + (s.oreGrade == null ? 0 : s.oreGrade * s.oreTonnes), 0);
+    levels.push({ rl, top, stopes, tonnes: lt, grade: lt > 0 ? lm / lt : null, oreTonnes: lo, oreGrade: lo > 0 ? lom / lo : null });
+  }
+  totals.grade = totals.tonnes > 0 ? totals.metalU / totals.tonnes : null;
+  totals.oreGrade = totals.oreTonnes > 0 ? totals.oreMetalU / totals.oreTonnes : null;
+  totals.dilutionPct = totals.oreTonnes > 0 ? ((totals.tonnes - totals.oreTonnes) / totals.oreTonnes) * 100 : null;
+  return { levels, totals, cell: [dx, dy], grid: [nx, ny], from, to };
+}
+
+// the boundary of a set of grid squares as closed loops in world coordinates (the squares are centred on the column centres)
+function boundaryLoops(members, nx, gx0, gy0, dx, dy) {
+  const inSet = new Set(members);
+  const edges = new Map(); // from corner key -> [to corner key, ...], directed with the set on the left
+  const key = (i, j) => `${i},${j}`;
+  const add = (a, b) => { const k = key(...a); (edges.get(k) || edges.set(k, []).get(k)).push(b); };
+  for (const q of members) {
+    const j = Math.floor(q / nx), i = q - j * nx;
+    const has = (ii, jj) => inSet.has(jj * nx + ii);
+    // corners of the square: (i, j) is its south-west corner in corner coordinates
+    if (!has(i, j - 1)) add([i, j], [i + 1, j]); // south edge, walking east
+    if (!has(i + 1, j)) add([i + 1, j], [i + 1, j + 1]); // east edge, north
+    if (!has(i, j + 1)) add([i + 1, j + 1], [i, j + 1]); // north edge, west
+    if (!has(i - 1, j)) add([i, j + 1], [i, j]); // west edge, south
+  }
+  const loops = [];
+  const parse = (k) => k.split(",").map(Number);
+  while (edges.size) {
+    const [startK, list] = edges.entries().next().value;
+    const pts = [parse(startK)];
+    let cur = startK, next = list.shift();
+    if (!list.length) edges.delete(startK);
+    let guard = 0;
+    while (next && guard++ < 1e6) {
+      const nk = key(...next);
+      if (nk === startK) break;
+      pts.push(next);
+      const l = edges.get(nk);
+      if (!l) break;
+      // at a corner where two squares touch diagonally, keep turning the same way: take the edge that turns left first
+      let pick = 0;
+      if (l.length > 1) { const [px, py] = parse(cur), [cx, cy] = next, dirx = cx - px, diry = cy - py; pick = l.findIndex(([tx, ty]) => (tx - cx) * diry - (ty - cy) * dirx < 0); if (pick < 0) pick = 0; }
+      next = l.splice(pick, 1)[0];
+      if (!l.length) edges.delete(nk);
+      cur = nk;
+    }
+    // corner (i, j) -> world: the square's south-west corner is half a cell below and left of the column centre
+    const points = pts.map(([i, j]) => [gx0 + (i - 0.5) * dx, gy0 + (j - 0.5) * dy]);
+    let area = 0;
+    for (let k = 0; k < points.length; k++) { const a = points[k], b = points[(k + 1) % points.length]; area += a[0] * b[1] - b[0] * a[1]; }
+    loops.push({ points: simplifyCollinear(points), area: area / 2 });
+  }
+  return loops;
+}
+function simplifyCollinear(pts) {
+  const out = [];
+  const n = pts.length;
+  for (let k = 0; k < n; k++) {
+    const a = pts[(k - 1 + n) % n], b = pts[k], c = pts[(k + 1) % n];
+    if (Math.abs((b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0])) > 1e-9) out.push(b);
+  }
+  return out;
+}
+
+export function stopeRows(result, unit) {
+  const out = [];
+  result.levels.forEach((l) => l.stopes.forEach((s, i) => out.push({ level_rl: l.rl, stope: i + 1, columns: s.columns, tonnes: Math.round(s.tonnes), [`grade_${String(unit || "").replace("%", "pct")}`]: s.grade == null ? "" : +s.grade.toPrecision(4), ore_tonnes: Math.round(s.oreTonnes), ore_grade: s.oreGrade == null ? "" : +s.oreGrade.toPrecision(4), volume_m3: s.volume == null ? "" : Math.round(s.volume), holes_filled: s.holesFilled, min_x: +Math.min(...s.outline.map((p) => p[0])).toFixed(1), max_x: +Math.max(...s.outline.map((p) => p[0])).toFixed(1), min_y: +Math.min(...s.outline.map((p) => p[1])).toFixed(1), max_y: +Math.max(...s.outline.map((p) => p[1])).toFixed(1) })));
+  return out;
+}

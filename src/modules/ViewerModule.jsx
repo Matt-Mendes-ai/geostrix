@@ -95,6 +95,7 @@ const DesignLinesPane = React.lazy(() => import("../components/DesignLinesPane.j
 const PitDesignPane = React.lazy(() => import("../components/PitDesignPane.jsx")); // TASKS.csv #1874
 const DesignStringsPane = React.lazy(() => import("../components/DesignStringsPane.jsx")); // TASKS.csv #1876
 const NestedPitsPane = React.lazy(() => import("../components/NestedPitsPane.jsx")); // TASKS.csv #1875
+const StopesPane = React.lazy(() => import("../components/StopesPane.jsx")); // TASKS.csv #1879
 const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")); // TASKS.csv #1152
 const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
@@ -697,6 +698,7 @@ const SURFACE_TYPES = [
   { key: "pit_shell", label: "Pit shell (conceptual)" }, // TASKS.csv #1341
   { key: "pit_design", label: "Pit design (benched)" }, // TASKS.csv #1874
   { key: "design_solid", label: "Design solid (from strings)" }, // TASKS.csv #1877
+  { key: "stope", label: "Stope outline (from a block model)" }, // TASKS.csv #1879
   // TASKS.csv #144 — a vein/dyke is modelled as a PAIR of walls plus (optionally) the solid between
   // them, so the three parts get distinct types: they are not interchangeable, and the checker (#90)
   // reads "hangingwall is above footwall" off the relationship these are created with.
@@ -7213,6 +7215,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </RibbonGroup>
           <RibbonGroup label="Underground">
             <RibbonButton icon={Spline} label="Drifts and ramps" tone="model" title="Draw drifts, tunnels, ramps and declines at set grades, with curves of a chosen radius" {...paneProps("lines")} />
+            <RibbonButton icon={Layers3} label="Stope outlines" tone="model" title="A block model at a cut-off, level by level: stope outlines and solids no thinner than a mining width, with a dilution skin" {...paneProps("stopes")} />{/* TASKS.csv #1879 */}
           </RibbonGroup>
           <RibbonGroup label="CAD">{/* TASKS.csv #1876 / #1877 */}
             <RibbonButton icon={PenTool} label="Strings" tone="model" title="Free polylines and polygons in 3D: draw, type, offset, join and split them; extrude or loft closed ones into solids; DXF in and out" {...paneProps("strings")} />
@@ -8348,6 +8351,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {sidebarTab === "minedesign" && toolPane === "nested" && <Suspense fallback={null}><NestedPitsPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1875 */}
         {sidebarTab === "minedesign" && toolPane === "pitdesign" && <Suspense fallback={null}><PitDesignPane surfaces={implicitSurfaces} worldPositionsOf={worldPositionsOfSurface} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1874 */}
         {sidebarTab === "minedesign" && toolPane === "strings" && <Suspense fallback={null}><DesignStringsPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient }} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1876 */}
+        {sidebarTab === "minedesign" && toolPane === "stopes" && <Suspense fallback={null}><StopesPane onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1879 */}
         {sidebarTab === "minedesign" && toolPane === "lines" && <Suspense fallback={null}><DesignLinesPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient /* #1878 */ }} onClose={() => setToolPane(null)} /></Suspense>}
         {sidebarTab === "targeting" && (<>
         {toolPane === "ranges" && (<>
