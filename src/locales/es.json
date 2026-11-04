@@ -2533,7 +2533,6 @@
   "Not stated (the file names no unit)": "No indicado (el archivo no nombra unidad)",
   "Other…": "Otro…",
   "Cutoff": "Corte",
-  "Showing {visibleCount} of {cells} cell(s) (value ≥ cutoff) — range {min} to {max}": "Se muestran {visibleCount} de {cells} celda(s) (valor ≥ corte) — rango {min} a {max}",
   "Range": "Rango",
   "to": "a",
   "Continuous gradient": "Degradado continuo",
@@ -7699,5 +7698,13 @@
   "\"{label}\" contains only {n} of the {m} sample points of {code} it was built from, so it is NOT that unit: the indicator reached {iso} away from the logged intervals ({cell} m cells, {r} m search). Its volume and tonnage are withheld. A smaller cell and a search near the intervals follow the logs; a larger search joins holes but invents rock between them.": "«{label}» contiene solo {n} de los {m} puntos de muestra de {code} con que se construyó, así que NO es esa unidad: el indicador alcanzó {iso} lejos de los intervalos registrados (celdas de {cell} m, búsqueda de {r} m). Su volumen y tonelaje se retienen. Una celda menor y una búsqueda cerca de los intervalos siguen los registros; una búsqueda mayor une sondajes pero inventa roca entre ellos.",
   "\"{label}\" contains {n} of the {m} sample points of {code} it was built from{v}.": "«{label}» contiene {n} de los {m} puntos de muestra de {code} con que se construyó{v}.",
   " ({k} outside: logged intervals the body does not reach)": " ({k} fuera: intervalos registrados que el cuerpo no alcanza)",
-  "No volume or tonnage: this body contains only {n} of the {m} sample points of {code} it was built from, so it is not that unit. Rebuild it with a smaller cell and a search near the logged intervals.": "Sin volumen ni tonelaje: este cuerpo contiene solo {n} de los {m} puntos de muestra de {code} con que se construyó, así que no es esa unidad. Reconstrúyalo con una celda menor y una búsqueda cerca de los intervalos registrados."
+  "No volume or tonnage: this body contains only {n} of the {m} sample points of {code} it was built from, so it is not that unit. Rebuild it with a smaller cell and a search near the logged intervals.": "Sin volumen ni tonelaje: este cuerpo contiene solo {n} de los {m} puntos de muestra de {code} con que se construyó, así que no es esa unidad. Reconstrúyalo con una celda menor y una búsqueda cerca de los intervalos registrados.",
+  "Log-stepped: the model's values span decades": "Pasos logarítmicos: los valores del modelo abarcan décadas",
+  "A closed solid around the cells in this range (marching cubes on the model's grid), added to the generated surfaces: the chargeability high or the resistivity low as a body to section, query and target.": "Un sólido cerrado alrededor de las celdas en este rango (marching cubes sobre la grilla del modelo), añadido a las superficies generadas: el alto de cargabilidad o el bajo de resistividad como cuerpo para seccionar, consultar y apuntar.",
+  "Shell at this range → generated surfaces": "Envolvente en este rango → superficies generadas",
+  "Range {min} to {max}": "Rango {min} a {max}",
+  "No shell for \"{name}\" at {lo} to {hi}: no cell in that range, or the model is not on a rectilinear grid (sub-blocked or rotated).": "Sin envolvente para «{name}» de {lo} a {hi}: ninguna celda en ese rango, o el modelo no está en una grilla rectilínea (sub-bloqueado o rotado).",
+  "Added \"{name}\": {cells} cell(s) in the range ({cellVol} m³ of blocks) → a lattice of {nx}×{ny}×{nz} nodes at {dx} m{v} → {faces} faces enclosing {vol} m³{v2}. A property's shell is a target outline, not a geological contact.": "Añadida «{name}»: {cells} celda(s) en el rango ({cellVol} m³ de bloques) → una malla de {nx}×{ny}×{nz} nodos a {dx} m{v} → {faces} caras que encierran {vol} m³{v2}. La envolvente de una propiedad es un contorno de blanco, no un contacto geológico.",
+  " (coarsened to stay within the node limit)": " (engrosada para no superar el límite de nodos)",
+  "; closed at the model's edge on {n} vertex(es), so part of its boundary is the model box, not the anomaly": "; cerrada en el borde del modelo en {n} vértice(s), así que parte de su límite es la caja del modelo, no la anomalía"
 }

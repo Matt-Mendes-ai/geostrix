@@ -2533,7 +2533,6 @@
   "Not stated (the file names no unit)": "Não informado (o arquivo não cita unidade)",
   "Other…": "Outro…",
   "Cutoff": "Corte",
-  "Showing {visibleCount} of {cells} cell(s) (value ≥ cutoff) — range {min} to {max}": "Mostrando {visibleCount} de {cells} célula(s) (valor ≥ corte) — faixa {min} a {max}",
   "Range": "Faixa",
   "to": "a",
   "Continuous gradient": "Degradê contínuo",
@@ -7699,5 +7698,13 @@
   "\"{label}\" contains only {n} of the {m} sample points of {code} it was built from, so it is NOT that unit: the indicator reached {iso} away from the logged intervals ({cell} m cells, {r} m search). Its volume and tonnage are withheld. A smaller cell and a search near the intervals follow the logs; a larger search joins holes but invents rock between them.": "\"{label}\" contém só {n} dos {m} pontos de amostra de {code} com que foi construído, por isso NÃO é essa unidade: o indicador atingiu {iso} longe dos intervalos registados (células de {cell} m, busca de {r} m). O seu volume e tonelagem são retidos. Uma célula menor e uma busca perto dos intervalos seguem os registos; uma busca maior junta furos mas inventa rocha entre eles.",
   "\"{label}\" contains {n} of the {m} sample points of {code} it was built from{v}.": "\"{label}\" contém {n} dos {m} pontos de amostra de {code} com que foi construído{v}.",
   " ({k} outside: logged intervals the body does not reach)": " ({k} fora: intervalos registados que o corpo não alcança)",
-  "No volume or tonnage: this body contains only {n} of the {m} sample points of {code} it was built from, so it is not that unit. Rebuild it with a smaller cell and a search near the logged intervals.": "Sem volume nem tonelagem: este corpo contém só {n} dos {m} pontos de amostra de {code} com que foi construído, por isso não é essa unidade. Reconstrua-o com uma célula menor e uma busca perto dos intervalos registados."
+  "No volume or tonnage: this body contains only {n} of the {m} sample points of {code} it was built from, so it is not that unit. Rebuild it with a smaller cell and a search near the logged intervals.": "Sem volume nem tonelagem: este corpo contém só {n} dos {m} pontos de amostra de {code} com que foi construído, por isso não é essa unidade. Reconstrua-o com uma célula menor e uma busca perto dos intervalos registados.",
+  "Log-stepped: the model's values span decades": "Passos logarítmicos: os valores do modelo abrangem décadas",
+  "A closed solid around the cells in this range (marching cubes on the model's grid), added to the generated surfaces: the chargeability high or the resistivity low as a body to section, query and target.": "Um sólido fechado à volta das células neste intervalo (marching cubes na grelha do modelo), adicionado às superfícies geradas: o alto de cargabilidade ou o baixo de resistividade como corpo para seccionar, consultar e alvejar.",
+  "Shell at this range → generated surfaces": "Envelope neste intervalo → superfícies geradas",
+  "Range {min} to {max}": "Intervalo {min} a {max}",
+  "No shell for \"{name}\" at {lo} to {hi}: no cell in that range, or the model is not on a rectilinear grid (sub-blocked or rotated).": "Sem envelope para \"{name}\" de {lo} a {hi}: nenhuma célula nesse intervalo, ou o modelo não está numa grelha retilínea (sub-blocado ou rodado).",
+  "Added \"{name}\": {cells} cell(s) in the range ({cellVol} m³ of blocks) → a lattice of {nx}×{ny}×{nz} nodes at {dx} m{v} → {faces} faces enclosing {vol} m³{v2}. A property's shell is a target outline, not a geological contact.": "Adicionado \"{name}\": {cells} célula(s) no intervalo ({cellVol} m³ de blocos) → uma malha de {nx}×{ny}×{nz} nós a {dx} m{v} → {faces} faces a encerrar {vol} m³{v2}. O envelope de uma propriedade é um contorno de alvo, não um contato geológico.",
+  " (coarsened to stay within the node limit)": " (engrossada para ficar dentro do limite de nós)",
+  "; closed at the model's edge on {n} vertex(es), so part of its boundary is the model box, not the anomaly": "; fechado na borda do modelo em {n} vértice(s), por isso parte do seu limite é a caixa do modelo, não a anomalia"
 }

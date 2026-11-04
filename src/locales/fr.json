@@ -2533,7 +2533,6 @@
   "Not stated (the file names no unit)": "Non indiqué (le fichier ne nomme aucune unité)",
   "Other…": "Autre…",
   "Cutoff": "Seuil",
-  "Showing {visibleCount} of {cells} cell(s) (value ≥ cutoff) — range {min} to {max}": "Affichage de {visibleCount} sur {cells} cellule(s) (valeur ≥ seuil) — plage {min} à {max}",
   "Range": "Plage",
   "to": "à",
   "Continuous gradient": "Dégradé continu",
@@ -7699,5 +7698,13 @@
   "\"{label}\" contains only {n} of the {m} sample points of {code} it was built from, so it is NOT that unit: the indicator reached {iso} away from the logged intervals ({cell} m cells, {r} m search). Its volume and tonnage are withheld. A smaller cell and a search near the intervals follow the logs; a larger search joins holes but invents rock between them.": "« {label} » ne contient que {n} des {m} points d'échantillon de {code} dont il a été construit, ce n'est donc PAS cette unité : l'indicateur a atteint {iso} loin des intervalles enregistrés (cellules de {cell} m, recherche de {r} m). Son volume et son tonnage sont retenus. Une cellule plus petite et une recherche près des intervalles suivent les logs ; une recherche plus large relie les sondages mais invente de la roche entre eux.",
   "\"{label}\" contains {n} of the {m} sample points of {code} it was built from{v}.": "« {label} » contient {n} des {m} points d'échantillon de {code} dont il a été construit{v}.",
   " ({k} outside: logged intervals the body does not reach)": " ({k} en dehors : intervalles enregistrés que le corps n'atteint pas)",
-  "No volume or tonnage: this body contains only {n} of the {m} sample points of {code} it was built from, so it is not that unit. Rebuild it with a smaller cell and a search near the logged intervals.": "Ni volume ni tonnage : ce corps ne contient que {n} des {m} points d'échantillon de {code} dont il a été construit, ce n'est donc pas cette unité. Reconstruisez-le avec une cellule plus petite et une recherche près des intervalles enregistrés."
+  "No volume or tonnage: this body contains only {n} of the {m} sample points of {code} it was built from, so it is not that unit. Rebuild it with a smaller cell and a search near the logged intervals.": "Ni volume ni tonnage : ce corps ne contient que {n} des {m} points d'échantillon de {code} dont il a été construit, ce n'est donc pas cette unité. Reconstruisez-le avec une cellule plus petite et une recherche près des intervalles enregistrés.",
+  "Log-stepped: the model's values span decades": "Pas logarithmiques : les valeurs du modèle couvrent des décades",
+  "A closed solid around the cells in this range (marching cubes on the model's grid), added to the generated surfaces: the chargeability high or the resistivity low as a body to section, query and target.": "Un solide fermé autour des cellules de cette plage (marching cubes sur la grille du modèle), ajouté aux surfaces générées : le haut de chargeabilité ou le bas de résistivité comme corps à sectionner, interroger et cibler.",
+  "Shell at this range → generated surfaces": "Enveloppe de cette plage → surfaces générées",
+  "Range {min} to {max}": "Plage {min} à {max}",
+  "No shell for \"{name}\" at {lo} to {hi}: no cell in that range, or the model is not on a rectilinear grid (sub-blocked or rotated).": "Pas d'enveloppe pour « {name} » de {lo} à {hi} : aucune cellule dans cette plage, ou le modèle n'est pas sur une grille rectiligne (sous-bloqué ou tourné).",
+  "Added \"{name}\": {cells} cell(s) in the range ({cellVol} m³ of blocks) → a lattice of {nx}×{ny}×{nz} nodes at {dx} m{v} → {faces} faces enclosing {vol} m³{v2}. A property's shell is a target outline, not a geological contact.": "Ajouté « {name} » : {cells} cellule(s) dans la plage ({cellVol} m³ de blocs) → un réseau de {nx}×{ny}×{nz} nœuds à {dx} m{v} → {faces} faces enfermant {vol} m³{v2}. L'enveloppe d'une propriété est un contour de cible, pas un contact géologique.",
+  " (coarsened to stay within the node limit)": " (grossie pour rester sous la limite de nœuds)",
+  "; closed at the model's edge on {n} vertex(es), so part of its boundary is the model box, not the anomaly": " ; fermée au bord du modèle sur {n} sommet(s), une partie de sa limite est donc la boîte du modèle, pas l'anomalie"
 }

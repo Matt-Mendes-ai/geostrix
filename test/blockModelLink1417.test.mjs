@@ -19,6 +19,7 @@ test("Geophysics opens Block models and scrolls to the visible card of that id",
 });
 
 test("the cutoff and opacity sliders can shrink", () => {
-  assert.match(geo, /onThresholdInput\(Number\(e\.target\.value\)\)\} style=\{\{ flex: 1, minWidth: 0 \}\}/);
+  // TASKS.csv #1780 — the card's cutoff is now the Min / Max range row (ViewerParts VoxelRangeRow); its sliders shrink the same way
+  assert.match(readFileSync(new URL("../src/modules/viewer/ViewerParts.jsx", import.meta.url), "utf8"), /fromS\(Number\(e\.target\.value\)\), dispMax\)\)\} style=\{\{ flex: 1, minWidth: 0 \}\}/);
   assert.match(geo, /onOpacityInput\(Number\(e\.target\.value\)\)\} style=\{\{ flex: 1, minWidth: 0 \}\}/);
 });

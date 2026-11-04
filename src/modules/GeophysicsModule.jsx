@@ -59,6 +59,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../lib/i18n.js";
+import { VoxelRangeRow } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1780
 import { guessQualityColumn, filterSignalQuality, despikeAlongLines } from "../lib/surveyClean.js"; // TASKS.csv #1583 // TASKS.csv #786
 import { vectorToBoundaryPolylines } from "../lib/boundaryImport.js"; // TASKS.csv #1035
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
@@ -1077,7 +1078,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       // #481 — a positive model spanning 2+ decades (conductivity, resistivity) gets log-spaced colours;
       // on a linear ramp almost every cell of a ZTEM conductivity model (1e-5 .. 0.1 S/m) was one colour.
       const logColours = min > 0 && max / min >= 100;
-      addVoxelModel({ name: modelName, source: "ubc", cells, min, max, ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}) /* #1095 */, ...(logColours ? { stops: logStops(min, max, SEQUENTIAL_ANCHORS), colorMode: "continuous" } : {}) });
+      addVoxelModel({ name: modelName, source: "ubc", cells, min, max, ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}) /* #1095 */, ...(logColours ? { stops: logStops(min, max, SEQUENTIAL_ANCHORS), colorMode: "continuous", logScale: true /* #1780: log-stepped range sliders */ } : {}) });
       infoNotes.push(farNote(cells) + tr("Imported \"{name}\" — {nx}×{ny}×{nz} mesh, {cells} cell(s) with data.{v}{v2}{coarsenNote}", { name: modelName, nx: mesh.nx, ny: mesh.ny, nz: mesh.nz, cells: cells.length.toLocaleString(), v: air.count ? tr(" {count} cells at {v} (the value this model uses for air above the ground) were treated as air (no data).", { count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }) : "", v2: logColours ? tr(" Values span {min} to {max} ({v} decades), so colours are log-spaced.", { min: min.toPrecision(2), max: max.toPrecision(2), v: Math.round(Math.log10(max / min)) }) : "", coarsenNote }));
       }
       setVoxelError({ info: true, text: infoNotes.join(" ") });
@@ -1949,7 +1950,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
           </label>
         )}
         {voxelModels.map((v) => (
-          <VoxelModelRow key={v.id} epsg={project?.epsg} /* #1052 */ model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} getEpsg={() => ensureExportCrs(project)} /* #1021 */ csvNames={bmNames} stampChoice={bmStamp} />
+          <VoxelModelRow key={v.id} epsg={project?.epsg} /* #1052 */ model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} onShell={(m) => { goToModule("viewer"); requestModuleAction("voxel-shell", { id: m.id, model: m }); }} /* #1780 */ getEpsg={() => ensureExportCrs(project)} /* #1021 */ csvNames={bmNames} stampChoice={bmStamp} />
         ))}
 
         <div style={{ marginTop: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6 }}>
@@ -2042,19 +2043,12 @@ async function exportBlockModelVTK(model, epsg) {
 const VOXEL_PROPERTIES = ["Conductivity (S/m)", "Resistivity (ohm·m)", "Chargeability (mV/V)", "Susceptibility (SI)", "Density (g/cc)", "Density contrast (g/cc)"];
 // TASKS.csv #1178 — a conductivity cutoff read "0" with 5,765 cells hidden: three significant figures, whatever the size
 export const sigFigs = (v) => (Number.isFinite(v) ? (v === 0 ? "0" : Number(v.toPrecision(3)).toLocaleString(undefined, { maximumSignificantDigits: 3 })) : "—");
-function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage, getEpsg, csvNames = "datamine", stampChoice = "auto", epsg = null }) {
+function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage, getEpsg, csvNames = "datamine", stampChoice = "auto", epsg = null, onShell = null }) {
   const [askPrompt, promptEl] = usePrompt(); // TASKS.csv #1779 — window.prompt throws in Electron
   const [gtOpen, setGtOpen] = useState(false); // TASKS.csv #1052
-  const [displayThreshold, setDisplayThreshold] = useState(model.threshold);
   const [displayOpacity, setDisplayOpacity] = useState(model.opacity ?? 0.85);
   const [legendOpen, setLegendOpen] = useState(false);
-  const debounceRef = useRef(null);
   const opacityDebounceRef = useRef(null);
-  const onThresholdInput = (v) => {
-    setDisplayThreshold(v);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => onUpdate(model.id, { threshold: v }), 150);
-  };
   // Opacity is debounced the same way as threshold — ViewerModule's voxel effect rebuilds the whole
   // InstancedMesh on ANY model field change (same brute-force-rebuild approach the raster/terrain
   // effects already use), so a bare onChange here would rebuild a model that could be tens of
@@ -2064,7 +2058,6 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage,
     if (opacityDebounceRef.current) clearTimeout(opacityDebounceRef.current);
     opacityDebounceRef.current = setTimeout(() => onUpdate(model.id, { opacity: v }), 150);
   };
-  const visibleCount = model.cells.filter((c) => c.value >= displayThreshold).length;
   // TASKS.csv #404 — estimated / support-index models were labelled "CSV"; they now say what they are,
   // and hovering the label shows the parameters that produced them.
   const sourceLabel = model.source === "ubc" ? "UBC" : model.source === "omf" ? "OMF" : model.source === "simpeg" ? "SimPEG"
@@ -2110,13 +2103,11 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage,
           </select>
         </div>
       )}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
-        <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Cutoff")}</span>
-        <input type="range" min={model.min} max={model.max} step={(model.max - model.min) / 100 || 0.01} value={displayThreshold} onChange={(e) => onThresholdInput(Number(e.target.value))} style={{ flex: 1, minWidth: 0 }} /* #1417 — a range input's default width pushed the value off the card */ />
-        <span style={{ color: "var(--color-text-secondary)", width: 60, textAlign: "right", flexShrink: 0 }}>{sigFigs(displayThreshold)}</span>
-      </div>
-      <div style={{ marginTop: 3, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Showing {visibleCount} of {cells} cell(s) (value ≥ cutoff) — range {min} to {max}", { visibleCount: visibleCount.toLocaleString(), cells: model.cells.length.toLocaleString(), min: sigFigs(model.min), max: sigFigs(model.max) })}
-      </div>
+      {/* TASKS.csv #1780 (review #1646, Kodiak) — the one-sided "value >= cutoff" slider could only hide the conductors on a resistivity
+          model: the same Min / Max range the Targeting sidebar has (typed values, log steps on a model whose values span decades),
+          and the range as a closed solid */}
+      <VoxelRangeRow compact model={model} onUpdate={onUpdate} onShell={onShell} />
+      <div style={{ marginTop: 2, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Range {min} to {max}", { min: sigFigs(model.min), max: sigFigs(model.max) })}</div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
         <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Opacity")}</span>
         <input type="range" min={0.1} max={1} step={0.05} value={displayOpacity} onChange={(e) => onOpacityInput(Number(e.target.value))} style={{ flex: 1, minWidth: 0 }} />

@@ -734,6 +734,7 @@ const SURFACE_TYPES = [
   { key: "dyke", label: "Dyke (cross-cutting)" },
   { key: "breccia_body", label: "Breccia body (cross-cutting)" },
   { key: "mineralization_envelope", label: "Mineralization envelope" },
+  { key: "geophysical_shell", label: "Geophysical anomaly shell" }, // TASKS.csv #1780 — a block model's value range as a solid
   { key: "alteration_envelope", label: "Alteration envelope" },
   { key: "unit_body", label: "Unit body (closed)" }, // TASKS.csv #1340 — a rock unit from its modelling code
   { key: "pit_shell", label: "Pit shell (conceptual)" }, // TASKS.csv #1341
@@ -6497,6 +6498,25 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     syncInterpretPreview(interpretGroupRef.current, interpret.on ? interpret.points : [], originRef.current);
   }, [interpret]);
   useModuleAction(["interpret-lines"], (a, payload) => { setInterpretOpen(true); setInterpret((s) => ({ ...s, survey: payload?.survey || null })); });
+  // TASKS.csv #1780 (review #1646, Kodiak) — a block model's value range as a closed solid: the chargeability high, the resistivity
+  // low or a band becomes a generated surface to section, query and target (lib/voxelShell.js: marching cubes on the model's grid)
+  const makeVoxelShell = useCallback(async (model) => {
+    if (!model) return;
+    const lo = Number.isFinite(model.threshold) ? model.threshold : -Infinity, hi = Number.isFinite(model.rangeMax) ? model.rangeMax : Infinity;
+    const { voxelShell } = await import("../lib/voxelShell.js");
+    const r = voxelShell(model, { lo, hi });
+    const fmtB = (v, open) => (Number.isFinite(v) ? String(+v.toPrecision(3)) : open);
+    if (!r) { setNotices((p) => [...p, notice("No shell for \"{name}\" at {lo} to {hi}: no cell in that range, or the model is not on a rectilinear grid (sub-blocked or rotated).", { name: model.name, lo: fmtB(lo, "−∞"), hi: fmtB(hi, "∞") })]); return; }
+    const rangeText = Number.isFinite(lo) && Number.isFinite(hi) ? `${fmtB(lo)}–${fmtB(hi)}` : Number.isFinite(lo) ? `≥ ${fmtB(lo)}` : `≤ ${fmtB(hi)}`;
+    const name = `${model.name} ${rangeText}${model.property ? ` ${model.property}` : ""} shell`;
+    const closure = r.closingVertices > 0 ? "artificial" : "natural";
+    addUndrilledSolid({ name, positions: r.positions, indices: r.indices, volumeM3: r.volumeM3, type: "geophysical_shell", closure, color: "#7b3fa0", tag: "voxelshell",
+      params: { tool: "shell of a block model at a value range (marching cubes)", model: model.name, property: model.property || null, rangeLow: Number.isFinite(lo) ? lo : null, rangeHigh: Number.isFinite(hi) ? hi : null, cellsInRange: r.cellsInside, cellVolumeM3: Math.round(r.cellVolumeM3), latticeNodes: r.nodes, latticeSpacingM: r.spacing.map((v) => +v.toFixed(2)), coarsened: r.coarsened, closedAtModelEdge: r.closingVertices, generatedAt: new Date().toISOString() },
+      tip: `${name}\n${r.cellsInside.toLocaleString()} cells in the range\n${Math.round(r.volumeM3).toLocaleString()} m³ enclosed` });
+    setNotices((p) => [...p, notice("Added \"{name}\": {cells} cell(s) in the range ({cellVol} m³ of blocks) → a lattice of {nx}×{ny}×{nz} nodes at {dx} m{v} → {faces} faces enclosing {vol} m³{v2}. A property's shell is a target outline, not a geological contact.", { name, cells: r.cellsInside.toLocaleString(), cellVol: Math.round(r.cellVolumeM3).toLocaleString(), nx: r.nodes[0], ny: r.nodes[1], nz: r.nodes[2], dx: +r.spacing[0].toFixed(1), v: r.coarsened ? tr(" (coarsened to stay within the node limit)") : "", faces: (r.indices.length / 3).toLocaleString(), vol: Math.round(r.volumeM3).toLocaleString(), v2: r.closingVertices ? tr("; closed at the model's edge on {n} vertex(es), so part of its boundary is the model box, not the anomaly", { n: r.closingVertices.toLocaleString() }) : "" })]);
+  }, [addUndrilledSolid]);
+  const voxelModelsForShell = useRef(voxelModels); voxelModelsForShell.current = voxelModels;
+  useModuleAction(["voxel-shell"], (a, payload) => { makeVoxelShell(payload?.model || (voxelModelsForShell.current || []).find((x) => x.id === payload?.id)); }); // payload.model: the card's own, current copy (this module's render can lag a store change made in another tab)
   // TASKS.csv #599 — a click (not a drag) on a lithology interval in the Modelling tab: select it, or — when
   // "connect" is armed — give it the first interval's code and draw the tie. Uses the same pick index as the
   // hover tooltip; the lithology layer must be visible to be picked.
@@ -8450,7 +8470,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <div style={{ padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", marginBottom: 12 }}>{tr("No voxel/block models loaded yet — import one from the Geophysics tab first, then come back here to isolate a value range (e.g. just a mag high, or an IP high band).")}</div>
         ) : (
           <div style={{ marginBottom: 12 }}>
-            {voxelModels.map((model) => <VoxelRangeRow key={model.id} model={model} onUpdate={updateVoxelModel} />)}
+            {voxelModels.map((model) => <VoxelRangeRow key={model.id} model={model} onUpdate={updateVoxelModel} onShell={makeVoxelShell} />)}{/* onShell: #1780 */}
           </div>
         )}
 

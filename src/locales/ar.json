@@ -2533,7 +2533,6 @@
   "Not stated (the file names no unit)": "غير مذكور (لا يسمي الملف وحدة)",
   "Other…": "أخرى…",
   "Cutoff": "الحد",
-  "Showing {visibleCount} of {cells} cell(s) (value ≥ cutoff) — range {min} to {max}": "عرض {visibleCount} من {cells} خلية (القيمة ≥ الحد) — النطاق {min} إلى {max}",
   "Range": "النطاق",
   "to": "إلى",
   "Continuous gradient": "تدرج مستمر",
@@ -7699,5 +7698,13 @@
   "\"{label}\" contains only {n} of the {m} sample points of {code} it was built from, so it is NOT that unit: the indicator reached {iso} away from the logged intervals ({cell} m cells, {r} m search). Its volume and tonnage are withheld. A smaller cell and a search near the intervals follow the logs; a larger search joins holes but invents rock between them.": "\"{label}\" لا يحتوي إلا على {n} من {m} نقطة عينة لـ {code} بُني منها، فهو ليس تلك الوحدة: بلغ المؤشر {iso} بعيدًا عن الفترات المسجلة (خلايا {cell} م، بحث {r} م). حُجب حجمه وحمولته. خلية أصغر وبحث قرب الفترات يتبعان السجلات؛ بحث أوسع يربط الثقوب لكنه يختلق صخرًا بينها.",
   "\"{label}\" contains {n} of the {m} sample points of {code} it was built from{v}.": "\"{label}\" يحتوي على {n} من {m} نقطة عينة لـ {code} بُني منها{v}.",
   " ({k} outside: logged intervals the body does not reach)": " ({k} خارجه: فترات مسجلة لا يبلغها الجسم)",
-  "No volume or tonnage: this body contains only {n} of the {m} sample points of {code} it was built from, so it is not that unit. Rebuild it with a smaller cell and a search near the logged intervals.": "لا حجم ولا حمولة: هذا الجسم لا يحتوي إلا على {n} من {m} نقطة عينة لـ {code} بُني منها، فهو ليس تلك الوحدة. أعد بناءه بخلية أصغر وبحث قرب الفترات المسجلة."
+  "No volume or tonnage: this body contains only {n} of the {m} sample points of {code} it was built from, so it is not that unit. Rebuild it with a smaller cell and a search near the logged intervals.": "لا حجم ولا حمولة: هذا الجسم لا يحتوي إلا على {n} من {m} نقطة عينة لـ {code} بُني منها، فهو ليس تلك الوحدة. أعد بناءه بخلية أصغر وبحث قرب الفترات المسجلة.",
+  "Log-stepped: the model's values span decades": "خطوات لوغاريتمية: تمتد قيم النموذج على عقود",
+  "A closed solid around the cells in this range (marching cubes on the model's grid), added to the generated surfaces: the chargeability high or the resistivity low as a body to section, query and target.": "مجسم مغلق حول الخلايا في هذا النطاق (مكعبات متحركة على شبكة النموذج)، يُضاف إلى الأسطح المولدة: قمة قابلية الشحن أو منخفض المقاومية كجسم للتقطيع والاستعلام والاستهداف.",
+  "Shell at this range → generated surfaces": "غلاف عند هذا النطاق ← الأسطح المولدة",
+  "Range {min} to {max}": "النطاق من {min} إلى {max}",
+  "No shell for \"{name}\" at {lo} to {hi}: no cell in that range, or the model is not on a rectilinear grid (sub-blocked or rotated).": "لا غلاف لـ \"{name}\" من {lo} إلى {hi}: لا خلية في ذلك النطاق، أو النموذج ليس على شبكة مستقيمة (مجزأ أو مُدار).",
+  "Added \"{name}\": {cells} cell(s) in the range ({cellVol} m³ of blocks) → a lattice of {nx}×{ny}×{nz} nodes at {dx} m{v} → {faces} faces enclosing {vol} m³{v2}. A property's shell is a target outline, not a geological contact.": "أُضيف \"{name}\": {cells} خلية في النطاق ({cellVol} م³ من الكتل) ← شبكة من {nx}×{ny}×{nz} عقدة عند {dx} م{v} ← {faces} وجهًا تحيط بـ {vol} م³{v2}. غلاف خاصية هو مخطط هدف، لا تماس جيولوجي.",
+  " (coarsened to stay within the node limit)": " (خُشّنت للبقاء ضمن حد العقد)",
+  "; closed at the model's edge on {n} vertex(es), so part of its boundary is the model box, not the anomaly": "؛ أُغلق عند حافة النموذج على {n} رأسًا، فجزء من حدوده هو صندوق النموذج، لا الشذوذ"
 }

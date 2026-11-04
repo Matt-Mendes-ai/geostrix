@@ -384,9 +384,15 @@ export function distToSegment(px, py, ax, ay, bx, by) {
 // tens of thousands of instances on every pixel of movement. `threshold` is the pre-existing lower
 // bound (GeophysicsModule's Cutoff); `rangeMax` is the new upper bound this task added — together
 // they isolate a BAND (e.g. "just my IP high", "just my mag low"), not just a single cutoff.
-export function VoxelRangeRow({ model, onUpdate }) {
+// TASKS.csv #1780 (review #1646, Kodiak) — `compact` leaves out the name / eye line (the Geophysics card has its own); `onShell`
+// adds "Shell at this range" (a closed solid of the cells in the band, lib/voxelShell.js); a model imported with log colours
+// (model.logScale) gets log-stepped sliders: a linear step over 15-15,000 ohm.m put 2-3 positions in the 100-600 ohm.m range.
+export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null }) {
   const [dispMin, setDispMin] = useState(Number.isFinite(model.threshold) ? model.threshold : model.min);
   const [dispMax, setDispMax] = useState(Number.isFinite(model.rangeMax) ? model.rangeMax : model.max);
+  const useLog = !!model.logScale && model.min > 0 && model.max > model.min;
+  const toS = (v) => (useLog ? Math.log10(Math.max(model.min, v)) : v), fromS = (s) => (useLog ? 10 ** s : s);
+  const sMin = toS(model.min), sMax = toS(model.max), sStep = (sMax - sMin) / 200 || 0.01;
   const debounceRef = useRef(null);
   const push = (patch) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -406,28 +412,31 @@ export function VoxelRangeRow({ model, onUpdate }) {
   const visibleCount = model.cells.filter((c) => c.value >= dispMin && c.value <= dispMax && voxelCellSupported(model, c)).length;
   const isFiltered = dispMin > model.min || dispMax < model.max;
   return (
-    <div style={{ marginTop: 8, padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <div style={compact ? { marginTop: 6, fontSize: "var(--font-size-base)" } : { marginTop: 8, padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
+      {!compact && <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onUpdate(model.id, { visible: model.visible === false })} style={{ cursor: "pointer", color: model.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }} title={model.visible !== false ? tr("Hide") : tr("Show")}>
           {model.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
         </div>
         <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</div>
         {isFiltered && <span style={{ color: "var(--color-info)", fontSize: "var(--font-size-xs)", flexShrink: 0 }} title={tr("A range filter is active on this model")}>{tr("band")}</span>}
-      </div>
+      </div>}
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6 }}>
         <span style={{ color: "var(--color-text-faint)", width: 30, flexShrink: 0 }}>{tr("Min")}</span>
-        <input type="range" min={model.min} max={model.max} step={(model.max - model.min) / 200 || 0.01} value={dispMin} onChange={(e) => onMinInput(Math.min(Number(e.target.value), dispMax))} style={{ flex: 1 }} />
+        <input type="range" min={sMin} max={sMax} step={sStep} value={toS(dispMin)} onChange={(e) => onMinInput(Math.min(fromS(Number(e.target.value)), dispMax))} style={{ flex: 1, minWidth: 0 }} title={useLog ? tr("Log-stepped: the model's values span decades") : undefined} />
         <VoxelRangeNumber value={dispMin} label={tr("Lowest value shown of \"{name}\"", { name: model.name })} onCommit={(v) => { const x = Math.min(Math.max(v, model.min), dispMax); setDispMin(x); onUpdate(model.id, { threshold: x }); }} />
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 4 }}>
         <span style={{ color: "var(--color-text-faint)", width: 30, flexShrink: 0 }}>{tr("Max")}</span>
-        <input type="range" min={model.min} max={model.max} step={(model.max - model.min) / 200 || 0.01} value={dispMax} onChange={(e) => onMaxInput(Math.max(Number(e.target.value), dispMin))} style={{ flex: 1 }} />
+        <input type="range" min={sMin} max={sMax} step={sStep} value={toS(dispMax)} onChange={(e) => onMaxInput(Math.max(fromS(Number(e.target.value)), dispMin))} style={{ flex: 1, minWidth: 0 }} title={useLog ? tr("Log-stepped: the model's values span decades") : undefined} />
         <VoxelRangeNumber value={dispMax} label={tr("Highest value shown of \"{name}\"", { name: model.name })} onCommit={(v) => { const x = Math.max(Math.min(v, model.max), dispMin); setDispMax(x); onUpdate(model.id, { rangeMax: x }); }} />
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>
         <span>{tr("Showing {visibleCount} of {cells} cell(s)", { visibleCount: visibleCount.toLocaleString(), cells: model.cells.length.toLocaleString() })}</span>
         {isFiltered && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={reset} style={{ cursor: "pointer", color: "var(--color-info)" }}>{tr("Reset")}</span>}
       </div>
+      {onShell && isFiltered && visibleCount > 0 && ( // TASKS.csv #1780 — the band as a closed solid for targeting and sections
+        <button type="button" onClick={() => onShell(model)} style={{ ...miniBtn, marginTop: 5, width: "100%", justifyContent: "center" }} title={tr("A closed solid around the cells in this range (marching cubes on the model's grid), added to the generated surfaces: the chargeability high or the resistivity low as a body to section, query and target.")}>{tr("Shell at this range → generated surfaces")}</button>
+      )}
     </div>
   );
 }
