@@ -7,6 +7,7 @@ import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } fr
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1417
 import { isPxrfRow } from "../lib/qaqc.js"; // TASKS.csv #1695
 import { describeDbImport } from "../lib/dbImports.js"; // TASKS.csv #1963
+import { metresPerPixel, minSymbolRadiusM, needsSymbolRebuild } from "../lib/viewer/symbolScale.js"; // TASKS.csv #1597
 import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
 import * as THREE from "three";
 import { piercePoints as surfacePierces, piercePointRows } from "../lib/piercePoints.js"; // TASKS.csv #1009
@@ -2731,6 +2732,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       if (now - lastFrameAtRef.current >= interval) {
         resortTransparentVoxels(now);
         { const hl = layerGroupsRef.current?.hole_labels; if (hl?.visible && hl.children.length) { fitScreenLabels(hl, camera, mount.clientHeight); declutterHoleLabels(hl, camera, mount.clientWidth, mount.clientHeight); } }
+        { // TASKS.csv #1597 — surface-sample symbols are sized for the zoom they were built at: once the camera has settled (400 ms) a
+          // factor of two away from it, they are rebuilt at the new size (never per frame, never mid-orbit)
+          const sg = layerGroupsRef.current?.surface_samples;
+          if (sg?.visible && sg.children.length) {
+            const now = Date.now(), mpp = metresPerPixel(camera, camState.current?.radius, mount.clientHeight), key = Math.round(Math.log2(mpp || 1) * 8);
+            const zr = surfaceZoomRef.current;
+            if (key !== zr.key) { zr.key = key; zr.at = now; }
+            else if (now - zr.at > 400 && needsSymbolRebuild(surfaceSymbolMppRef.current, mpp)) { zr.at = Infinity; buildSurfaceSamplesRef.current(); }
+          }
+        }
         if (sectionLinesGroupRef.current?.children.length) fitScreenLabels(sectionLinesGroupRef.current, camera, mount.clientHeight); // #1126 — section end labels
         renderer.setViewport(0, 0, mount.clientWidth, mount.clientHeight);
         renderer.setScissorTest(false);
@@ -4701,13 +4712,19 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     // 20-30 km stream-sediment program (ARIS 42807Z: 21 x 28 km, nothing visible). 1.8 m stays the minimum (a soil grid
     // of ~1 km keeps its look within a few pixels); 1/250 of the extent's diagonal otherwise (~5-7 px across when the whole program fills the view).
     const radiusOf = symbolRadiusByMedium(placedSurfaceSamples); // #1346 — and each medium capped by its own spacing
+    // TASKS.csv #1597 (review #1497, Lawyers) — a readable minimum on screen (6 px across) at the view's metres-per-pixel at the orbit
+    // target: Lawyers' 4.1 m rock chips were 1-2 px specks beside 36.9 m soils at the 2 km scale. Rebuilt from the render loop when
+    // the camera settles a factor of two away from the zoom this build was sized for.
+    const mpp = metresPerPixel(cameraRef.current, camState.current?.radius, mountRef.current?.clientHeight);
+    surfaceSymbolMppRef.current = mpp;
+    const minR = minSymbolRadiusM(mpp, 6);
     placedSurfaceSamples.forEach((row, i) => {
       try {
         const j = surfaceDrawnIdx ? surfaceDrawnIdx[i] : i; // #1819 — classes are per surfaceSamples index
         const cl = an ? (j >= 0 ? an.classOf[j] : -1) : -2;
         const color = an ? (cl >= 0 ? an.classes[cl].color : an.noDataColor) : (st.color || colorForMedium(row.medium));
         const mesh = new THREE.Mesh(proto, new THREE.MeshLambertMaterial({ color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide })); // #312
-        mesh.scale.setScalar(radiusOf(row.medium) * st.size * (an?.isolated[j] ? 0.55 : 1)); // #843 — an isolated anomaly is drawn small; #849 size
+        mesh.scale.setScalar(Math.max(radiusOf(row.medium), minR) * st.size * (an?.isolated[j] ? 0.55 : 1)); // #843 — an isolated anomaly is drawn small; #849 size; minR: #1597
         mesh.position.set(row.x - ox, row.z - oz, -(row.y - oy));
         mesh.userData = { row, tip: surfaceSampleTip(row) + (an ? `\n${cl >= 0 ? tr(an.classes[cl].label) : tr("no value")}${an.isolated[j] ? ` · ${tr("isolated anomaly")}` : ""}` : "") };
         g.add(mesh);
@@ -4716,6 +4733,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     buildLayerBatches(g);
     if (errors.length) setNotices((pv) => [...pv, errorNotice(tr("{errors} surface sample(s) failed to render: {v}", { errors: errors.length, v: errors.slice(0, 3).join(" · ") }))]);
   };
+  const surfaceSymbolMppRef = useRef(NaN); // TASKS.csv #1597 — the metres-per-pixel the surface symbols were sized for
+  const surfaceZoomRef = useRef({ key: null, at: 0 });
   const buildSurfaceSamplesRef = useRef(buildSurfaceSamples);
   buildSurfaceSamplesRef.current = buildSurfaceSamples;
 
@@ -8481,6 +8500,34 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </>)}
 
         {sidebarTab === "surface" && (<>
+        {/* TASKS.csv #1597 (review #1497, Lawyers) — what else sits on the map, from this tab: the rasters, block models and samples
+            that buried the rock chips could only be hidden from the 3D View sidebar */}
+        {!toolPane && (rasters.length > 0 || voxelModels.length > 0 || surfaceSamples.length > 0) && (
+          <div style={{ padding: "2px 8px 6px" }}>
+            <div className="ge-section-label" style={{ marginTop: 8, marginBottom: 4 }}>{tr("On the map")}</div>
+            {rasters.map((r) => (
+              <div key={`sg-r-${r.id}`} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 0", fontSize: "var(--font-size-sm)" }}>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateRaster(r.id, { visible: r.visible === false })} title={r.visible !== false ? tr("Hide") : tr("Show")} style={{ cursor: "pointer", color: r.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>{r.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}</div>
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }} title={r.name}>{r.name}</span>
+                <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{tr("raster")}</span>
+              </div>
+            ))}
+            {voxelModels.map((v) => (
+              <div key={`sg-v-${v.id}`} style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 0", fontSize: "var(--font-size-sm)" }}>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateVoxelModel(v.id, { visible: v.visible === false })} title={v.visible !== false ? tr("Hide") : tr("Show")} style={{ cursor: "pointer", color: v.visible !== false ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>{v.visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}</div>
+                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--color-text)" }} title={v.name}>{v.name}</span>
+                <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{tr("block model")}</span>
+              </div>
+            ))}
+            {surfaceSamples.length > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 0", fontSize: "var(--font-size-sm)" }}>
+                <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setLayerVisible((p) => ({ ...p, surface_samples: !p.surface_samples }))} title={layerVisible.surface_samples ? tr("Hide") : tr("Show")} style={{ cursor: "pointer", color: layerVisible.surface_samples ? "var(--color-accent)" : "var(--color-text-disabled)", flexShrink: 0 }}>{layerVisible.surface_samples ? <Eye size={13} /> : <EyeOff size={13} />}</div>
+                <span style={{ flex: 1, minWidth: 0, color: "var(--color-text)" }}>{tr("{n} surface samples", { n: surfaceSamples.length.toLocaleString() })}</span>
+                <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{tr("kept a readable size at any zoom")}</span>
+              </div>
+            )}
+          </div>
+        )}
         {toolPane === "sgMaps" && paneHeader("Geology map", MapIcon, "data")}
         {toolPane === "sgStructs" && paneHeader("Outcrop structures", Compass, "data")}
         <Suspense fallback={null}>

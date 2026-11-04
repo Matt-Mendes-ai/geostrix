@@ -7737,5 +7737,9 @@
   "{table} → {target}: {n} row(s) pulled{v} (the layer had {before} row(s) before){v2}.": "{table} → {target}: {n} fila(s) leídas{v} (la capa tenía {before} fila(s) antes){v2}.",
   "; {changed} existing hole(s) took the database's values, {fresh} new": "; {changed} sondaje(s) existentes tomaron los valores de la base, {fresh} nuevos",
   "{n} surface sample(s) have no elevation and lie outside the terrain's footprint: drawn flat at {z} m. A terrain that covers them (Maps > Terrain) places them on the ground.": "{n} muestra(s) de superficie no tienen elevación y quedan fuera de la huella del terreno: dibujadas planas a {z} m. Un terreno que las cubra (Mapas > Terreno) las coloca sobre el suelo.",
-  "{n} surface sample(s) have no elevation and lie over a void of the terrain (no data there): not placed.": "{n} muestra(s) de superficie no tienen elevación y quedan sobre un vacío del terreno (sin datos ahí): no colocadas."
+  "{n} surface sample(s) have no elevation and lie over a void of the terrain (no data there): not placed.": "{n} muestra(s) de superficie no tienen elevación y quedan sobre un vacío del terreno (sin datos ahí): no colocadas.",
+  "On the map": "En el mapa",
+  "raster": "ráster",
+  "{n} surface samples": "{n} muestras de superficie",
+  "kept a readable size at any zoom": "con tamaño legible a cualquier zoom"
 }

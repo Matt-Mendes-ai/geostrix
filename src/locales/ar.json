@@ -7737,5 +7737,9 @@
   "{table} → {target}: {n} row(s) pulled{v} (the layer had {before} row(s) before){v2}.": "{table} ← {target}: جُلب {n} صفًا{v} (كانت الطبقة تضم {before} صفًا من قبل){v2}.",
   "; {changed} existing hole(s) took the database's values, {fresh} new": "؛ {changed} ثقبًا موجودًا أخذ قيم قاعدة البيانات، و{fresh} جديدة",
   "{n} surface sample(s) have no elevation and lie outside the terrain's footprint: drawn flat at {z} m. A terrain that covers them (Maps > Terrain) places them on the ground.": "{n} عينة سطحية بلا منسوب تقع خارج نطاق التضاريس: رُسمت مسطحة عند {z} م. تضاريس تغطيها (الخرائط > التضاريس) تضعها على الأرض.",
-  "{n} surface sample(s) have no elevation and lie over a void of the terrain (no data there): not placed.": "{n} عينة سطحية بلا منسوب تقع فوق فراغ في التضاريس (لا بيانات هناك): لم تُوضع."
+  "{n} surface sample(s) have no elevation and lie over a void of the terrain (no data there): not placed.": "{n} عينة سطحية بلا منسوب تقع فوق فراغ في التضاريس (لا بيانات هناك): لم تُوضع.",
+  "On the map": "على الخريطة",
+  "raster": "نقطي",
+  "{n} surface samples": "{n} عينة سطحية",
+  "kept a readable size at any zoom": "بحجم مقروء عند أي تكبير"
 }
