@@ -9,7 +9,7 @@ import * as THREE from "three";
 import { PenTool, Download, Upload, X, Trash2, Plus, Box, Maximize2 } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
-import { stringStats, offsetString, joinStrings, splitString, reverseString, fromDistanceBearing, orthoPoint, snapToGrid, bearingOf, stringRows, stringFeatures, stringsFromDxf } from "../lib/designStrings.js";
+import { stringStats, offsetString, joinStrings, splitString, reverseString, fromDistanceBearing, orthoPoint, squarePoint, stringCrossings, snapToGrid, bearingOf, stringRows, stringFeatures, stringsFromDxf } from "../lib/designStrings.js";
 import { extrudeString, loftStrings, solidTonnage } from "../lib/stringSolids.js";
 import { categoricalModels } from "../lib/geologyForward.js";
 import { valueUnit } from "../lib/blockModelExport.js"; // #1945
@@ -89,7 +89,9 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
 
   // ---------- drawing in the 3D view ----------
   const state = useRef();
-  state.current = { string, target, planeZ: num0(planeZ), snap, grid: num0(grid) || 0, appendVertex, collars, strings: designStrings, groundAt };
+  // #1961 — the crossings of the other strings with each other, once per strings change
+  const crossings = useMemo(() => { const out = []; for (let i = 0; i < designStrings.length; i++) for (let j = i; j < designStrings.length; j++) { const a = designStrings[i], b = designStrings[j]; if (a.id === activeId || b.id === activeId) continue; stringCrossings(a, b).forEach((pt) => out.push([pt, a === b ? tr("{name} crossing itself", { name: a.name }) : tr("crossing of {a} and {b}", { a: a.name, b: b.name })])); } return out; }, [designStrings, activeId]);
+  state.current = { string, target, planeZ: num0(planeZ), snap, grid: num0(grid) || 0, appendVertex, collars, strings: designStrings, groundAt, crossings };
   useEffect(() => {
     const dom = view?.renderer.current?.domElement, scene = view?.scene.current;
     if (!drawing || !dom || !scene) return undefined;
@@ -117,7 +119,10 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
       }
       const last = s.string?.vertices[s.string.vertices.length - 1] || null;
       let snapped = null;
-      if (ev.shiftKey && last) p = orthoPoint(last, p);
+      const prev = s.string?.vertices.length > 1 ? s.string.vertices[s.string.vertices.length - 2] : null;
+      let held = null;
+      if (ev.altKey && last) { p = squarePoint(prev, last, p); held = prev ? "square" : "grid"; } // #1961 — square to the last segment
+      else if (ev.shiftKey && last) { p = orthoPoint(last, p); held = "grid"; }
       if (s.grid > 0) p = snapToGrid(p, s.grid);
       if (s.snap) {
         // TASKS.csv #1909 — the snap is judged on the SCREEN: a candidate within 12 px of the cursor's pixel takes the point,
@@ -132,9 +137,12 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
         };
         s.strings.forEach((st) => st.vertices.forEach((v, i) => { if (!(st.id === s.string?.id && i === st.vertices.length - 1)) tryCand(v, tr("{name} vertex {n}", { name: st.name, n: i + 1 })); }));
         s.collars.forEach((c) => { if ([c.x, c.y, c.z].every(Number.isFinite)) tryCand([c.x, c.y, c.z], String(c.hole_id ?? c.id ?? "")); });
+        // TASKS.csv #1961 — the midpoint of every segment of the other strings, and where two strings cross in plan
+        s.strings.forEach((st) => { if (st.id === s.string?.id) return; const V = st.vertices, n = st.closed && V.length > 2 ? V.length : V.length - 1; for (let i = 0; i < n; i++) { const a = V[i], b = V[(i + 1) % V.length]; tryCand([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2], tr("midpoint of {name} {i}–{j}", { name: st.name, i: i + 1, j: ((i + 1) % V.length) + 1 })); } });
+        if (s.crossings) s.crossings.forEach(([pt, label]) => tryCand(pt, label));
         if (best) { p = best.p.slice(); snapped = best.label; }
       }
-      return { p, snapped, on };
+      return { p, snapped, on, held };
     };
     const onMove = (ev) => {
       const s = state.current, r = pointAt(ev);
@@ -147,7 +155,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
       preview.geometry = new THREE.BufferGeometry().setFromPoints(pts.map(toScene));
       preview.computeLineDistances();
       preview.visible = pts.length > 1;
-      setHover({ p: r.p, snapped: r.snapped, on: r.on, dist: last ? Math.hypot(r.p[0] - last[0], r.p[1] - last[1]) : null, bearing: last ? bearingOf(last, r.p) : null, dz: last ? r.p[2] - last[2] : null });
+      setHover({ p: r.p, snapped: r.snapped, on: r.on, held: r.held, dist: last ? Math.hypot(r.p[0] - last[0], r.p[1] - last[1]) : null, bearing: last ? bearingOf(last, r.p) : null, dz: last ? r.p[2] - last[2] : null });
     };
     dom.addEventListener("pointermove", onMove);
     view.dragHook.current = (e) => {
@@ -289,7 +297,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
   const doLoft = () => {
     const picked = designStrings.filter((s) => solid.loft.includes(s.id) && s.closed && s.vertices.length > 2);
     if (picked.length < 2) return;
-    try { const r = loftStrings(picked); if (!r || r.failed) { setMsg(r?.failed === "same-level" ? tr("Two of the strings are on the same elevation: a loft needs one closed string per level.") : tr("The strings could not be lofted.")); return; } finishSolid(tr("Loft of {list}", { list: picked.map((s) => s.name).join(", ") }), r, "loft"); if (r.warnings?.length) setMsg((m) => `${m || ""} ${r.warnings.join(" ")}`); }
+    try { const r = loftStrings(picked); if (!r || r.failed) { setMsg(r?.failed === "same-level" ? tr("Two of the strings are on the same elevation ({levels} m): a loft needs one closed string per level. A body that branches is lofted one branch at a time: give each branch's rings a name of their own and loft them in turn.", { levels: [...new Set((r.levels || []).map((z) => Math.round(z)))].join(", ") }) : tr("The strings could not be lofted.")); return; } finishSolid(tr("Loft of {list}", { list: picked.map((s) => s.name).join(", ") }), r, "loft"); if (r.warnings?.length) setMsg((m) => `${m || ""} ${r.warnings.join(" ")}`); }
     catch (e) { setMsg(e.message || String(e)); }
   };
 
@@ -342,14 +350,14 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
         <label style={row}>{tr("Clicks land on")}<select value={target} onChange={(e) => setTarget(e.target.value)} style={{ ...smallSel, width: 150 }} aria-label={tr("Where a click lands")}>{groundAt && <option value="ground">{terrain ? tr("the ground (terrain)") : tr("the ground (between the collars)")}</option>}<option value="hit">{tr("what is under the cursor")}</option><option value="plane">{tr("an elevation plane")}</option></select></label>{/* ground: #1905 */}
         {target === "plane" && <label style={row}>{tr("Plane elevation (m)")}<input type="number" step="any" value={planeZ} onChange={(e) => setPlaneZ(e.target.value)} placeholder={tr("last vertex")} style={num} aria-label={tr("Elevation of the drawing plane")} /></label>}
         <div style={{ ...row, justifyContent: "flex-start", gap: 10 }}>
-          <label style={{ ...note, display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }} title={tr("Within about 12 pixels of another vertex or a collar the click takes that point.")}><input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />{tr("Snap to vertices and collars")}</label>
+          <label style={{ ...note, display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }} title={tr("Within about 12 pixels of another vertex, a collar, the midpoint of another string's segment or a crossing of two strings, the click takes that point. Shift holds the grid directions; Alt squares off the last segment (parallel or perpendicular to it).")}><input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />{tr("Snap to vertices and collars")}</label>
           <label style={{ ...note, display: "flex", alignItems: "center", gap: 3 }}>{tr("Grid (m)")}<input type="number" min={0} step="any" value={grid} onChange={(e) => setGrid(e.target.value)} placeholder={tr("off")} style={{ ...smallSel, width: 52 }} aria-label={tr("Grid the clicks snap to")} /></label>
         </div>
         <button onClick={() => setDrawing((d) => !d)} aria-pressed={drawing} style={{ ...pBtn, marginTop: 6, background: drawing ? "var(--color-selected-bg)" : undefined }}>
-          <PenTool size={14} /> {drawing ? tr("Click points in the view. Shift: a grid direction. Esc stops; right-drag moves the view") : tr("Draw in the 3D view")}
+          <PenTool size={14} /> {drawing ? tr("Click points in the view. Shift: a grid direction; Alt: square to the last segment. Esc stops; right-drag moves the view") : tr("Draw in the 3D view")}
         </button>
         {!drawing && hover?.drag && <div style={note}>{tr("Moving vertex {n}: E {x}, N {y}, Z {z}", { n: hover.drag, x: m1(hover.p[0]), y: m1(hover.p[1]), z: m1(hover.p[2]) })}</div>}{/* #1876 drag */}
-        {drawing && hover && <div style={note}>{hover.dist != null ? tr("Next: {d} m on {b}°, {dz} m in Z{s}", { d: m1(hover.dist), b: Math.round(hover.bearing), dz: m1(hover.dz), s: hover.snapped ? tr(" (snapped to {name})", { name: hover.snapped }) : "" }) : tr("E {x}, N {y}, Z {z}{s}", { x: m1(hover.p[0]), y: m1(hover.p[1]), z: m1(hover.p[2]), s: hover.snapped ? tr(" (snapped to {name})", { name: hover.snapped }) : "" })}{hover.on && !hover.snapped ? ` ${hover.on === "ground" ? tr("(on the ground)") : tr("(on {name})", { name: hover.on })}` : ""}</div>}{/* on: #1905 */}
+        {drawing && hover && <div style={note}>{hover.dist != null ? tr("Next: {d} m on {b}°, {dz} m in Z{s}", { d: m1(hover.dist), b: Math.round(hover.bearing), dz: m1(hover.dz), s: (hover.snapped ? tr(" (snapped to {name})", { name: hover.snapped }) : "") + (hover.held === "square" ? tr(" (square to the last segment)") : hover.held === "grid" ? tr(" (held to the grid directions)") : "") }) : tr("E {x}, N {y}, Z {z}{s}", { x: m1(hover.p[0]), y: m1(hover.p[1]), z: m1(hover.p[2]), s: (hover.snapped ? tr(" (snapped to {name})", { name: hover.snapped }) : "") + (hover.held === "square" ? tr(" (square to the last segment)") : hover.held === "grid" ? tr(" (held to the grid directions)") : "") })}{hover.on && !hover.snapped ? ` ${hover.on === "ground" ? tr("(on the ground)") : tr("(on {name})", { name: hover.on })}` : ""}</div>}{/* on: #1905 */}
         <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>
           <Cell value={num0(typed.x)} width={78} placeholder="E" ariaLabel={tr("Easting of the vertex")} onCommit={(v) => setTyped((t) => ({ ...t, x: v == null ? "" : String(v) }))} />
           <Cell value={num0(typed.y)} width={84} placeholder="N" ariaLabel={tr("Northing of the vertex")} onCommit={(v) => setTyped((t) => ({ ...t, y: v == null ? "" : String(v) }))} />
@@ -372,6 +380,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
               <div key={i} style={{ ...row, gap: 3, marginTop: 2 }}>
                 <span style={{ width: 18, flexShrink: 0, fontSize: "var(--font-size-xs)" }}>{i + 1}</span>
                 {[0, 1, 2].map((k) => <Cell key={k} value={p[k]} width={k === 2 ? 52 : k === 1 ? 84 : 78} ariaLabel={tr("Vertex {n} {axis}", { n: i + 1, axis: ["E", "N", "Z"][k] })} onCommit={(v) => setVertex(i, k, v)} />)}
+                <button onClick={() => update({ tieVertex: string.tieVertex === i ? null : i })} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "0 4px", fontSize: "var(--font-size-xs)", flexShrink: 0, background: string.tieVertex === i ? "var(--color-accent)" : undefined, color: string.tieVertex === i ? "#fff" : undefined }} aria-pressed={string.tieVertex === i} aria-label={tr("Tie vertex {n}", { n: i + 1 })} title={tr("The tie: a loft pairs this vertex with the other ring's tie, so the solid does not twist between the rings.")}>{tr("tie")}</button>{/* #1956 */}
                 <Plus size={12} style={{ cursor: "pointer", flexShrink: 0 }} {...iconAction(() => insertAfter(i), tr("Insert a vertex after {n}", { n: i + 1 }))} />
                 <X size={12} style={{ cursor: "pointer", flexShrink: 0 }} {...iconAction(() => deleteVertex(i), tr("Remove vertex {n}", { n: i + 1 }))} />
               </div>

@@ -8,6 +8,7 @@ import { Crosshair, Move, Undo2, Trash2, X as XIcon, Pencil } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
 import { LOO_MAX_POINTS, explicitPoints } from "../lib/explicitSurface.js";
 import { fitExplicitSurfaceAsync } from "../lib/explicitSurfaceClient.js"; // TASKS.csv #865
+import { tinSurface } from "../lib/tinSurface.js"; // TASKS.csv #1958
 import { findOnTraceWorld, traceDirWorld } from "../lib/viewer/modelHelpers.js";
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { dragTarget, holeContacts, nearestContact, SNAP_REACH_M } from "../lib/explicitDrag.js"; // TASKS.csv #813; contacts: #868
@@ -91,7 +92,7 @@ function upsertMesh(sc, def, res, info) {
   if (shade) geo.setAttribute("color", new THREE.BufferAttribute(shade, 3));
   const nVerts = P.length / 3, nTris = res.indices.length / 3;
   const tip = `${def.name} — explicit surface\n${res.n} points (${info.picks} picks, ${info.lines} section lines${info.mapLines ? `, ${info.mapLines} mapped contact lines` : ""}${info.guideLines ? `, ${info.guideLines} dip guide lines` : ""}${info.drawnLines ? `, ${info.drawnLines} lines on section images` : ""}${info.importedLines ? `, ${info.importedLines} imported DXF lines` : ""}${info.downholeGuide ? `, ${info.downholeGuide.lines} downhole dip guide lines (constructed)` : ""})`; // #1056
-  const params = { tool: "explicit surface (thin-plate spline exactly through hand-picked contacts)", picks: info.picks, sectionLines: info.lines, sections: info.sections, lineSpacingM: info.spacing ? Math.round(info.spacing * 10) / 10 : null, points: res.n,
+  const params = { tool: info.tin ? "triangulated points (Delaunay in plan through the picks and line vertices: no fit, no smoothing, nothing beyond the points)" : "explicit surface (thin-plate spline exactly through hand-picked contacts)", picks: info.picks, sectionLines: info.lines, sections: info.sections, lineSpacingM: info.spacing ? Math.round(info.spacing * 10) / 10 : null, points: res.n,
     mapContacts: (def.mapContacts || []).map((c) => c.units.join(" | ")), mapLines: info.mapLines || 0, dipGuide: info.guideLines ? { depthM: def.dipGuide?.depth, lines: info.guideLines, constructed: true } : null, // #817
     drawnLines: info.drawnLines || 0, importedLines: info.importedLines || 0, downholeGuide: info.downholeGuide || null, // #1056
     frame: res.frame.steep ? `over its best-fit plane (dip ${res.frame.dip.toFixed(1)}°)` : "elevation over the map", maxMisfitM: Number(res.residualMax.toExponential(2)), marginM: Math.round(res.margin),
@@ -676,6 +677,18 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
         const frame = shapeFrame(def.shape, appDip); // #901: lib/explicitBuild.js
         // TASKS.csv #957 — the fault trim runs in the worker too, after the fit
         const trimReq = def.boundedBy && faultMesh ? { key: `${faultMesh.geometry?.uuid || def.boundedBy.surfaceId}:${faultMesh.geometry?.attributes?.position?.version ?? 0}` /* a sculpted fault keeps its uuid */, side: def.boundedBy.side, mesh: () => worldMesh(faultMesh, sc.origin.current) } : null;
+        // TASKS.csv #1958 (Vulcan review) — the points triangulated AS THEY ARE: a survey or a DXF of points becomes a TIN through
+        // them, no fit, no smoothing, nothing beyond them (a long edge across a gap is left out and counted)
+        if (def.tin) {
+          const tin = tinSurface(ep.points);
+          clearTimeout(slow);
+          if (wantKey.current !== key) return;
+          if (!tin) { setStatus({ ok: false, text: tr("The points cannot be triangulated as they are: at least 3 points spread over an area are needed.") + stale }); return; }
+          upsertMesh(sc, def, { positions: tin.positions, indices: tin.indices, n: tin.stats.points, supportHull: null }, { tin: true, picks: ep.picks, lines: ep.lines, sections: ep.sections, spacing: ep.spacing, mapLines: ep.mapLines, guideLines: ep.guideLines, key,
+            importedLines: (def.lines || []).filter((l) => l.pts?.length >= 2 && l.imageId === "dxf").length, drawnLines: (def.lines || []).filter((l) => l.pts?.length >= 2 && l.imageId !== "dxf").length, downholeGuide: null });
+          setStatus({ ok: true, built: true, text: tr("Triangulated {n} point(s) as they are into {t} triangle(s), in {ms} ms: no fit, no smoothing, nothing beyond the points.", { n: tin.stats.points, t: tin.stats.triangles, ms: Math.round(performance.now() - t0) }) + (tin.stats.longDropped ? ` ${tr("{k} triangle(s) with an edge over {m} m (ten times the median) were left out: they would have bridged a gap nobody measured.", { k: tin.stats.longDropped, m: Math.round(tin.stats.maxEdgeM) })}` : "") + (tin.stats.given > tin.stats.points ? ` ${tr("{d} point(s) shared a plan position with another and were dropped.", { d: tin.stats.given - tin.stats.points })}` : "") });
+          return;
+        }
         const res = await fitExplicitSurfaceAsync(ep.points, { margin: def.margin, marginBasis: def.boundedBy ? "long" : "short" /* #1013 */, resolution: def.resolution || 80, frame, trend }, def.cutAtTerrain && hasTerrain ? terrain : null, trimReq); // trend: #881
         clearTimeout(slow);
         if (!res || wantKey.current !== key) return; // the inputs changed while it was building: a newer build is on its way
@@ -1095,6 +1108,10 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           </select>
         </div>
         {def.shape && def.shape !== "legacy" && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", margin: "-2px 0 6px 126px", lineHeight: 1.35 }}>{def.shape === "map" ? tr("Elevation over the map: one height per map point — contacts that are flat-lying to moderately dipping.") : def.shape === "plane" ? tr("Over its own plane: steep contacts, dykes and faults.") : tr("Automatic: chosen from the lines on sections and the picks.")}</div>}{/* #892 */}
+        {/* TASKS.csv #1958 — a point file or a pit survey as it is: a TIN, not a fitted surface */}
+        <label style={{ ...row, cursor: "pointer" }} title={tr("A Delaunay triangulation in plan through every pick and line vertex, as a surveyor's TIN: no spline, no smoothing, and nothing beyond the points (a triangle with an edge over ten times the median is left out). For a pit or trench survey, spot heights or a DXF of points.")}>
+          <input type="checkbox" checked={!!def.tin} onChange={(e) => update({ tin: e.target.checked })} />{tr("Triangulate the points as they are (no fit, no extrapolation)")}
+        </label>
         <div style={row}>
           <span style={{ width: 120, flexShrink: 0 }}>{tr("Mesh detail")}</span>
           <select value={def.resolution || 80} onChange={(e) => update({ resolution: Number(e.target.value) })} style={smallSel} aria-label={tr("Mesh detail")}>

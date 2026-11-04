@@ -97,6 +97,31 @@ export function orthoPoint(last, p) {
   const az = Math.round(bearingOf(last, p) / 90) * 90 * RAD;
   return [last[0] + L * Math.sin(az), last[1] + L * Math.cos(az), p[2]];
 }
+// TASKS.csv #1961 — Alt while drawing: the point moved onto the nearest of the four directions square to the previous segment
+// (parallel or perpendicular to it), at the same plan distance; with no previous segment, the grid directions
+export function squarePoint(prev, last, p) {
+  if (!prev) return orthoPoint(last, p);
+  const dx = p[0] - last[0], dy = p[1] - last[1], L = Math.hypot(dx, dy);
+  if (L < 1e-9) return [...p];
+  const base = bearingOf(prev, last), rel = bearingOf(last, p) - base, az = (base + Math.round(rel / 90) * 90) * RAD;
+  return [last[0] + L * Math.sin(az), last[1] + L * Math.cos(az), p[2]];
+}
+// the crossings in plan of the segments of one string with another's (or its own non-adjacent segments), with the first string's
+// Z there: a snap target when tracing
+export function stringCrossings(a, b) {
+  const out = [], A = a.vertices.filter(ok), B = b.vertices.filter(ok), same = a === b;
+  const segs = (v, closed) => { const s = []; for (let i = 0; i < v.length - 1; i++) s.push([v[i], v[i + 1], i]); if (closed && v.length > 2) s.push([v[v.length - 1], v[0], v.length - 1]); return s; };
+  for (const [p0, p1, i] of segs(A, a.closed)) for (const [q0, q1, j] of segs(B, b.closed)) {
+    if (same && j <= i + 1) continue; // each pair once, never a segment with itself or its neighbour
+    if (same && a.closed && j - i === A.length - 1) continue;
+    const d = (p1[0] - p0[0]) * (q1[1] - q0[1]) - (p1[1] - p0[1]) * (q1[0] - q0[0]);
+    if (Math.abs(d) < 1e-12) continue;
+    const t = ((q0[0] - p0[0]) * (q1[1] - q0[1]) - (q0[1] - p0[1]) * (q1[0] - q0[0])) / d, u = ((q0[0] - p0[0]) * (p1[1] - p0[1]) - (q0[1] - p0[1]) * (p1[0] - p0[0])) / d;
+    if (t < 0 || t > 1 || u < 0 || u > 1) continue;
+    out.push([p0[0] + t * (p1[0] - p0[0]), p0[1] + t * (p1[1] - p0[1]), p0[2] + t * (p1[2] - p0[2])]);
+  }
+  return out;
+}
 export const snapToGrid = (p, g) => (g > 0 ? [Math.round(p[0] / g) * g, Math.round(p[1] / g) * g, p[2]] : [...p]);
 // the nearest of the candidate points within `radius` (3D), or null
 export function nearestPoint(p, candidates, radius) {

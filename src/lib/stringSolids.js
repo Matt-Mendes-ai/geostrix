@@ -42,13 +42,16 @@ const area2 = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1]
 
 // closed strings on different levels lofted into one solid (each at its mean elevation, ordered bottom-up)
 export function loftStrings(strings, opts = {}) {
-  const plans = strings.filter((s) => s.vertices.length > 2).map((s) => ({ name: s.name, rl: s.vertices.reduce((a, p) => a + p[2], 0) / s.vertices.length, points: dedupe(s.vertices).map((p) => ({ x: p[0], y: p[1] })) }))
+  // TASKS.csv #1956 — a string's tie vertex (s.tieVertex, an index) rides as the point's `tie` flag, which the linker pairs with
+  // the other ring's tie, as a section outline's Shift-click tie does (#874)
+  const planPoints = (s) => { const seen = new Set(), out = []; s.vertices.forEach((p, i) => { if (!(Number.isFinite(p[0]) && Number.isFinite(p[1]))) return; const k = `${Math.round(p[0] * 1000)},${Math.round(p[1] * 1000)}`; if (seen.has(k)) return; seen.add(k); out.push({ x: p[0], y: p[1], ...(i === s.tieVertex ? { tie: true } : {}) }); }); return out; };
+  const plans = strings.filter((s) => s.vertices.length > 2).map((s) => ({ name: s.name, rl: s.vertices.reduce((a, p) => a + p[2], 0) / s.vertices.length, points: planPoints(s), tied: s.tieVertex != null }))
     .sort((a, b) => a.rl - b.rl);
   if (plans.length < 2) return null;
   for (let i = 1; i < plans.length; i++) if (plans[i].rl - plans[i - 1].rl < 0.01) return { failed: "same-level", levels: plans.map((p) => p.rl) };
   const w = linkPlanOutlines(plans, opts);
   const positions = Float64Array.from(w.positions), indices = Uint32Array.from(w.indices);
-  return { positions, indices, volume: Math.abs(meshVolume(positions, indices)), warnings: w.warnings || [], levels: plans.map((p) => p.rl) };
+  return { positions, indices, volume: Math.abs(meshVolume(positions, indices)), warnings: w.warnings || [], levels: plans.map((p) => p.rl), tied: plans.filter((p) => p.tied).length /* #1956 */ };
 }
 
 // what a block model holds inside a closed solid: blocks whose centre is inside, at the typed density (t/m3)

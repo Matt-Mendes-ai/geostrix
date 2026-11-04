@@ -6,6 +6,7 @@
 // columns' squares (holes inside a patch are filled and counted), extruded over the slab into a closed solid.
 // Outlines, not a stope optimizer: no geotechnical, access, sequencing or shape-regularity check. Pure: no three.js, no React.
 import { extrudeString } from "./stringSolids.js";
+import { meshVolume } from "./unitVolumes.js"; // #1953
 
 const fin = Number.isFinite;
 
@@ -14,9 +15,22 @@ const fin = Number.isFinite;
 // tonnes, metalU, grade, oreTonnes, oreGrade, columns, holesFilled }], tonnes, oreTonnes, grade }], totals, cell: [dx, dy], grid: [nx, ny],
 // widthCols / skinCols (the whole columns the width and skin rounded to, #1885), blockH (the median block height), oreColumns (columns at
 // or above the cut-off over all levels), unbuilt (outlines whose solid could not be made, #1884) }; { failed: "range" } when zMin >= zMax
-export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null, minWidth = 0, minLength = 0, skin = 0, density = 1 } = {}) {
-  const cells = (model?.cells || []).filter((c) => fin(c.x) && fin(c.y) && fin(c.z) && c.dx > 0 && c.dy > 0 && c.dz > 0);
-  if (!cells.length || !(levelH > 0) || !fin(cutoff)) return null;
+// TASKS.csv #1953 (Vulcan review) — dipDeg / dipDirDeg: the stope framework follows a DIPPING vein. The blocks are sheared so the
+// vein stands vertical (a block at height z above the base moves (z - base) / tan(dip) towards the dip direction), the columns
+// are taken in that frame, and each outline and solid is sheared back: the bottom ring at its level, the top ring at the level's
+// top, so a stope is a prism leaning with the dip. The width and skin typed are measured ACROSS the vein: on the ground they are
+// that / sin(dip). Without a dip everything is as before (vertical columns).
+export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null, minWidth = 0, minLength = 0, skin = 0, density = 1, dipDeg = null, dipDirDeg = null } = {}) {
+  const cells0 = (model?.cells || []).filter((c) => fin(c.x) && fin(c.y) && fin(c.z) && c.dx > 0 && c.dy > 0 && c.dz > 0);
+  if (!cells0.length || !(levelH > 0) || !fin(cutoff)) return null;
+  const dipping = fin(dipDeg) && dipDeg > 0 && dipDeg < 90 && fin(dipDirDeg);
+  const sinD = dipping ? Math.sin((dipDeg * Math.PI) / 180) : 1, cotD = dipping ? 1 / Math.tan((dipDeg * Math.PI) / 180) : 0;
+  const ux = dipping ? Math.sin((dipDirDeg * Math.PI) / 180) : 0, uy = dipping ? Math.cos((dipDirDeg * Math.PI) / 180) : 0; // the dip direction in plan
+  let zBase = Infinity; for (const c of cells0) if (c.z - c.dz / 2 < zBase) zBase = c.z - c.dz / 2;
+  const shift = (z) => (z - zBase) * cotD; // how far up-dip the vein has moved at height z above the base
+  const cells = dipping ? cells0.map((c) => ({ ...c, x: c.x + shift(c.z) * ux, y: c.y + shift(c.z) * uy })) : cells0;
+  const unshear = ([x, y], z) => [x - shift(z) * ux, y - shift(z) * uy];
+  if (dipping) { minWidth = minWidth / sinD; skin = skin / sinD; } // typed across the vein, applied on the ground
   const med = (k) => cells.map((c) => c[k]).sort((a, b) => a - b)[cells.length >> 1];
   const dx = med("dx"), dy = med("dy");
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, zLo = Infinity, zHi = -Infinity;
@@ -85,10 +99,17 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
       const loops = boundaryLoops(members, nx, gx0, gy0, dx, dy);
       if (!loops.length) continue;
       const outer = loops.reduce((a, b) => (Math.abs(b.area) > Math.abs(a.area) ? b : a));
-      const outline = outer.points.map(([x, y]) => [x, y, rl]);
+      const outline = outer.points.map((p) => [...unshear(p, rl), rl]); // the bottom ring, back in the ground frame (#1953)
       // #1884 — an outline the ear clipper refuses keeps its tonnes and outline without a solid, and the run goes on
       let solid = null;
-      try { solid = extrudeString(outline, rl, top); } catch { solid = null; }
+      try {
+        solid = extrudeString(outline, rl, top);
+        if (solid && dipping) { // #1953 — the top ring leans with the dip: the extrusion lists the bottom ring first, then the top
+          const n = outline.length, d = shift(top) - shift(rl), P = solid.positions;
+          for (let i = 0; i < n; i++) { P[3 * (n + i)] -= d * ux; P[3 * (n + i) + 1] -= d * uy; }
+          solid.volume = Math.abs(meshVolume(P, solid.indices));
+        }
+      } catch { solid = null; }
       if (!solid) unbuilt++;
       stopes.push({ outline, positions: solid?.positions || null, indices: solid?.indices || null, volume: solid?.volume ?? null, tonnes, metalU, grade: tonnes > 0 ? metalU / tonnes : null, oreTonnes: oreT, oreGrade: oreT > 0 ? oreM / oreT : null, columns: members.length, holesFilled: loops.length - 1 });
       totals.tonnes += tonnes; totals.metalU += metalU; totals.oreTonnes += oreT; totals.oreMetalU += oreM; totals.stopes++;
@@ -99,7 +120,8 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
   totals.grade = totals.tonnes > 0 ? totals.metalU / totals.tonnes : null;
   totals.oreGrade = totals.oreTonnes > 0 ? totals.oreMetalU / totals.oreTonnes : null;
   totals.dilutionPct = totals.oreTonnes > 0 ? ((totals.tonnes - totals.oreTonnes) / totals.oreTonnes) * 100 : null;
-  return { levels, totals, cell: [dx, dy], grid: [nx, ny], from, to, widthCols: k, skinCols: rS, blockH: med("dz"), oreColumns, unbuilt };
+  return { levels, totals, cell: [dx, dy], grid: [nx, ny], from, to, widthCols: k, skinCols: rS, blockH: med("dz"), oreColumns, unbuilt,
+    dip: dipping ? { dipDeg, dipDirDeg, widthOnGroundM: minWidth, skinOnGroundM: skin } : null /* #1953 */ };
 }
 
 // the boundary of a set of grid squares as closed loops in world coordinates (the squares are centred on the column centres)

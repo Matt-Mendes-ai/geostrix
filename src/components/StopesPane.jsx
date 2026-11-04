@@ -22,7 +22,7 @@ const warn = { ...note, color: "var(--color-warn-text-strong)", marginTop: 4 };
 const num = { ...smallSel, width: 84 };
 const big = (v) => new Intl.NumberFormat(undefined, { notation: "compact", maximumSignificantDigits: 3 }).format(v);
 const LEVEL_COLOURS = ["#e76f51", "#f4a261", "#e9c46a", "#2a9d8f", "#264653", "#8ab17d", "#bc6c25", "#6d597a"];
-const EMPTY = { modelId: "", cutoff: "", levelH: "", zMin: "", zMax: "", minWidth: "", minLength: "", skin: "", density: "" };
+const EMPTY = { modelId: "", cutoff: "", levelH: "", zMin: "", zMax: "", minWidth: "", minLength: "", skin: "", density: "", dip: "", dipDir: "" }; // dip / dipDir: #1953
 let kept = null; // #1356 — the last result outlives the pane (this session)
 
 // onAdd as the pit pane's (a solid into the generated surfaces); onRemove(id) takes one out again (#1887: a re-run replaces the
@@ -42,12 +42,13 @@ export default function StopesPane({ onAdd, onRemove, onClose }) {
   const set = (k) => (e) => { setF((p) => ({ ...p, [k]: e.target.value })); setMsg(null); };
   const v = (k) => (f[k] === "" ? null : Number(f[k]));
   const rangeBad = v("zMin") != null && v("zMax") != null && !(v("zMax") > v("zMin")); // #1893
-  const missing = !model || !(v("cutoff") >= 0) || !(v("levelH") > 0) || !(v("density") > 0) || rangeBad;
+  const dipTyped = v("dip") != null || v("dipDir") != null, dipBad = dipTyped && !(v("dip") > 0 && v("dip") < 90 && v("dipDir") != null && v("dipDir") >= 0 && v("dipDir") <= 360); // #1953 — both or neither
+  const missing = !model || !(v("cutoff") >= 0) || !(v("levelH") > 0) || !(v("density") > 0) || rangeBad || dipBad;
   const run = () => {
     if (missing) return;
     const t0 = performance.now();
     let r;
-    try { r = stopeOutlines(model, { cutoff: v("cutoff"), levelH: v("levelH"), zMin: v("zMin"), zMax: v("zMax"), minWidth: v("minWidth") || 0, minLength: v("minLength") || 0, skin: v("skin") || 0, density: v("density") }); }
+    try { r = stopeOutlines(model, { cutoff: v("cutoff"), levelH: v("levelH"), zMin: v("zMin"), zMax: v("zMax"), minWidth: v("minWidth") || 0, minLength: v("minLength") || 0, skin: v("skin") || 0, density: v("density"), dipDeg: dipTyped ? v("dip") : null, dipDirDeg: dipTyped ? v("dipDir") : null /* #1953 */ }); }
     catch (e) { kept = null; setRes(null); setMsg(tr("The outlines failed: {error}", { error: e?.message || String(e) })); return; } // #1884 — never a silent stale result
     if (!r) { setMsg(tr("Nothing to outline: the model has no blocks with sizes.")); return; }
     if (r.failed === "range") { setMsg(tr("From RL must be below To RL.")); return; }
@@ -71,7 +72,7 @@ export default function StopesPane({ onAdd, onRemove, onClose }) {
       const id = onAdd?.({ name: tr("Stope {rl} m #{n}: {model} ≥ {c} {u}", { rl: Math.round(l.rl), n: si + 1, model: res.model, c: res.inputs.cutoff, u: res.unit }), positions: s.positions, indices: s.indices, volumeM3: s.volume, type: "stope", closure: "closed", color: LEVEL_COLOURS[li % LEVEL_COLOURS.length], tag: "stope",
         tip: tr("Stope outline: blocks at or above the cut-off, no thinner than {w} m ({n} column(s)), with a {k} m skin ({m} column(s)); not a mine design", { w: res.inputs.minWidth || 0, n: res.widthCols, k: res.inputs.skin || 0, m: res.skinCols }),
         params: { tool: "stope outlines by level (opening by the minimum width, a dilution skin)", blockModel: res.model, gradeUnit: res.unit, cutoff: Number(res.inputs.cutoff), levelRL: l.rl, levelTop: l.top, minWidthM: Number(res.inputs.minWidth) || 0, minWidthAppliedM: effWidthM, minLengthM: Number(res.inputs.minLength) || 0, skinM: Number(res.inputs.skin) || 0, skinAppliedM: effSkinM, columnM: res.cell, density: Number(res.inputs.density),
-          tonnes: Math.round(s.tonnes), grade: s.grade == null ? null : +s.grade.toPrecision(4), oreTonnes: Math.round(s.oreTonnes), oreGrade: s.oreGrade == null ? null : +s.oreGrade.toPrecision(4), columns: s.columns, holesFilled: s.holesFilled,
+          tonnes: Math.round(s.tonnes), grade: s.grade == null ? null : +s.grade.toPrecision(4), oreTonnes: Math.round(s.oreTonnes), oreGrade: s.oreGrade == null ? null : +s.oreGrade.toPrecision(4), columns: s.columns, dip: res.dip ? { dipDeg: res.dip.dipDeg, dipDirDeg: res.dip.dipDirDeg } : null /* #1953 */, holesFilled: s.holesFilled,
           caution: "a stope outline from a block model: no geotechnical, access, sequencing or shape check; not a Mineral Reserve or Resource", generatedAt: new Date().toISOString() } });
       if (id) ids.push(id);
     }));
@@ -105,6 +106,10 @@ export default function StopesPane({ onAdd, onRemove, onClose }) {
         {field("minLength", tr("Minimum length (m)"), { title: tr("A patch shorter than this in both directions is dropped.") })}
         {field("skin", tr("Dilution skin (m)"), { title: tr("The outline grows by this all round; the added rock carries the model's grade there, or none.") })}
         {field("density", tr("Density (t/m³)"))}
+        {/* TASKS.csv #1953 — a dipping vein: the stopes lean with it, the width and skin are measured across it */}
+        {field("dip", tr("Vein dip (°)"), { max: 89, placeholder: tr("vertical"), title: tr("Blank: vertical columns. With a dip, the blocks are taken along it, each stope leans with the vein between its levels, and the width and skin are measured across the vein.") })}
+        {field("dipDir", tr("Dip direction (°)"), { max: 360, placeholder: tr("—") })}
+        {dipBad && <div style={warn}>{tr("A dip needs both the dip (0–90°) and the dip direction (0–360°).")}</div>}
         {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v}", { v: sg.mean })}</button></div>}
         {model && <div style={note}>{tr("Columns of {dx} × {dy} m (the model's blocks); widths and skins round to whole columns.", { dx: model.cells[0]?.dx ?? "?", dy: model.cells[0]?.dy ?? "?" })}</div>}
         {rangeBad && <div style={warn}>{tr("From RL must be below To RL.")}</div>}
@@ -121,6 +126,7 @@ export default function StopesPane({ onAdd, onRemove, onClose }) {
           {line(tr("Grade above cut-off"), g(res.totals.oreGrade))}
           {res.totals.dilutionPct != null && line(tr("Dilution"), `${res.totals.dilutionPct.toFixed(0)} %`)}
           {line(tr("Outlined in"), `${res.seconds} s`)}
+          {res.dip && <div style={note}>{tr("Along a dip of {d}° towards {a}°: each stope leans with the vein; the {w} m width and {s} m skin across it are {wg} m and {sg} m on the ground.", { d: res.dip.dipDeg, a: res.dip.dipDirDeg, w: res.inputs.minWidth || 0, s: res.inputs.skin || 0, wg: +res.dip.widthOnGroundM.toFixed(1), sg: +res.dip.skinOnGroundM.toFixed(1) })}</div>}{/* #1953 */}
           {/* #1885 — the width and skin as applied; #1886 — a level interval below the block height slices the same block */}
           <div style={note}>{tr("Width {w} m → {n} column(s) ({m} m); skin {s} m → {k} column(s) ({t} m).", { w: res.inputs.minWidth || 0, n: res.widthCols, m: +effWidthM.toFixed(1), s: res.inputs.skin || 0, k: res.skinCols, t: +effSkinM.toFixed(1) })}</div>
           {Number(res.inputs.skin) > 0 && res.skinCols === 0 && <div style={warn}>{tr("No dilution counted: the skin is under half a column.")}</div>}
