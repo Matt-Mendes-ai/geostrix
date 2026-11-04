@@ -511,9 +511,10 @@ function disposeThreeGroup(group) {
 // pick to ONE specific interval object: pickIndex.js (#304), the hover tooltip, the right-click
 // context menu, applyCategoryVisibility, applyLegendOverrideColors, the visibleHoles effect,
 // zoomToLayer. A naive merge would break those SILENTLY (a plausible-but-wrong interval). So the
-// per-interval Mesh objects are NOT removed and NOT changed structurally — they stay exactly where
-// they were, as direct children of their layer group, keeping their own userData.tip/catValue,
-// their own material.color and their own .visible flag. They simply stop being DRAWN: each one is
+// per-interval Mesh objects are NOT removed and NOT changed structurally — they keep their layer
+// group as `parent`, their own userData.tip/catValue, their own material.color and their own
+// .visible flag (since TASKS.csv #1540 they are no longer in the group's `children` array: see
+// buildLayerBatches and eachLayerMember). They simply stop being DRAWN: each one is
 // moved onto a non-camera three.js layer channel (PICK_ONLY_LAYER), and one InstancedMesh per
 // (geometry prototype + material signature) family is added to the same group to draw all of them
 // in a single call. The instanced mesh is a pure RENDER-SIDE MIRROR derived from those objects; the
@@ -562,13 +563,14 @@ const FAST_OPACITY_KEYS = new Set(["litho", "alt", "vein", "breccia", "structzon
 const isFastOpacityKey = (k) => FAST_OPACITY_KEYS.has(k) || k.startsWith("custom:");
 function applyGroupOpacity(group, op) {
   const transparent = op < 1;
-  for (const o of group.children) {
+  const one = (o) => {
     const m = o.material;
-    if (!m || Array.isArray(m) || m.opacity === undefined) continue;
+    if (!m || Array.isArray(m) || m.opacity === undefined) return;
     m.opacity = op; m.transparent = transparent;
     if (o.isInstancedMesh) { m.depthWrite = !transparent; m.needsUpdate = true; } // as buildLayerBatches sets it
     else if (!m.isPickOnlyMaterial) m.needsUpdate = true;
-  }
+  };
+  for (const o of group.children) { one(o); if (o.userData?.batchMembers) o.userData.batchMembers.forEach(one); } // the members' stand-ins too (#1540)
 }
 // TASKS.csv #1569 — each block model's min / max corner in scene space (origin-relative, z-up flipped), for the fit box
 function voxelFitCorners(models, o) {
@@ -626,7 +628,7 @@ function syncBatchedInstances(inst) {
 // transform. Anything without a shared prototype geometry (a curved TubeGeometry interval, a
 // drillhole trace Line, a hole-label Sprite) is simply not a candidate and keeps drawing as before.
 function buildLayerBatches(group) {
-  const families = new Map();
+  const families = new Map(), dropped = new Set(); // dropped: #1540
   for (const child of group.children) {
     if (!child.isMesh || child.isInstancedMesh) continue;
     if (child.userData.batched) continue; // #695 — already mirrored by a batch (and holding a pick-only material)
@@ -685,6 +687,22 @@ function buildLayerBatches(group) {
     }
     group.add(inst);
     syncBatchedInstances(inst);
+    for (const m of fam.members) dropped.add(m);
+  }
+  // TASKS.csv #1540 (review #1497, Lawyers) — a batched member is never drawn, yet as a child of the group it was still walked by
+  // every frame's projectObject and updateMatrixWorld: on Lawyers (446 holes, ~146,000 intervals) that walk was two thirds of a
+  // 55 ms orbit frame (projectObject 906 ms of a 1,377 ms render over 2.1 s, CPU profile of the built app). The members leave the
+  // children array but keep `parent` (identify, the hit kind and firstVisibleLayerHit walk `.parent` up to the group and the scene)
+  // and their frozen matrixWorld (#695); everything that needs them reaches them through the batch's batchMembers (eachLayerMember).
+  // A clear of the group pops its children: a member holds no GPU resource (a shared prototype geometry, a pick-only material), so
+  // it needs no disposal and goes with its batch.
+  if (dropped.size) group.children = group.children.filter((c) => !dropped.has(c));
+}
+// TASKS.csv #1540 — every pickable member of a layer group: the unbatched children and each batch's members
+function eachLayerMember(g, fn) {
+  for (const c of g.children) {
+    const bm = c.userData?.batchMembers;
+    if (bm) { for (let i = 0; i < bm.length; i++) fn(bm[i]); } else if (!c.userData?.pickIgnore) fn(c);
   }
 }
 
@@ -1771,7 +1789,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const g = groups[key];
       if (!g) return;
       const hidden = categoryFilter[key];
-      g.children.forEach((child) => { child.visible = !(hidden && hidden.has(String(child.userData?.catValue))); });
+      eachLayerMember(g, (child) => { child.visible = !(hidden && hidden.has(String(child.userData?.catValue))); }); // #1540
     });
     syncLayerBatches(CATEGORY_LAYER_KEYS); // TASKS.csv #312
   }, [categoryFilter, syncLayerBatches]);
@@ -1788,7 +1806,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const g = groups[key];
       if (!g) return;
       const single = layerStyles[key]?.color; // TASKS.csv #635 — a one-colour layer style wins over category colours
-      g.children.forEach((child) => {
+      eachLayerMember(g, (child) => { // #1540
         if (child.userData?.catValue === undefined || !child.material?.color) return;
         child.material.color.set(single || effectiveColor(key, child.userData.catValue));
       });
@@ -2071,7 +2089,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // still in this list, unchanged — they simply no longer render.
     Object.values(layerGroupsRef.current).forEach((g) => {
       if (!g || g.visible === false) return;
-      for (const c of g.children) if (!c.userData?.pickIgnore) list.push(c);
+      eachLayerMember(g, (c) => list.push(c)); // the batches' members too (#1540)
     });
     return list;
   }, []);
@@ -2120,6 +2138,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       let last = n - 1;
       while (last > 0 && children[last].userData?.pickIgnore) last--;
       if (n) { const a = children[0].matrixWorld.elements, b = children[last].matrixWorld.elements; s += `@${a[12]},${a[13]},${a[14]},${b[12]},${b[13]},${b[14]}`; }
+      // TASKS.csv #1540 — a batch's members are no longer children: each batch is tagged by its members' count, first / last id
+      // and sampled world translations, so the signature still describes every pick target (O(batches), never O(members))
+      for (let i = 0; i < n; i++) {
+        const bm = children[i].userData?.batchMembers;
+        if (!bm || !bm.length) continue;
+        const a = bm[0].matrixWorld.elements, b = bm[bm.length - 1].matrixWorld.elements;
+        s += `#${bm.length}:${bm[0].id}:${bm[bm.length - 1].id}@${a[12]},${a[13]},${a[14]},${b[12]},${b[13]},${b[14]}`;
+      }
     };
     tag("v", voxelGroupRef.current?.children);
     tag("o", omfGroupRef.current?.children);
@@ -2423,7 +2449,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const groups = layerGroupsRef.current;
       const visibleGroups = new Set();
       for (const key in groups) { const g = groups[key]; if (g && g.visible !== false) visibleGroups.add(g); }
-      for (let i = 0; i < hits.length; i++) if (visibleGroups.has(hits[i].object.parent)) return hits[i];
+      // #1540 (found while verifying) — a member hidden in place (a hole unchecked, a category filtered: zero-scale in its batch,
+      // never drawn) still answered the tooltip; its own .visible says so
+      for (let i = 0; i < hits.length; i++) if (visibleGroups.has(hits[i].object.parent) && hits[i].object.visible !== false) return hits[i];
       return null;
     };
 
@@ -6006,8 +6034,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   useEffect(() => {
     const groups = layerGroupsRef.current;
     Object.values(groups).forEach((g) => {
-      g.children.forEach((child) => {
-        if (child.userData?.pickIgnore) return; // TASKS.csv #312 — an InstancedMesh batch has no tip of its own; its members are handled individually and mirrored by the sync below
+      eachLayerMember(g, (child) => { // TASKS.csv #312 — an InstancedMesh batch has no tip of its own; its members are handled individually and mirrored by the sync below; #1540: reached through the batch
         const tip = child.userData?.tip || "";
         const holeId = tip.split("\n")[0];
         child.visible = !(holeId && visibleHoles[holeId] === false);
