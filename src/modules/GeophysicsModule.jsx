@@ -59,6 +59,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../lib/i18n.js";
+import { voxelStretch, sortedShownValues } from "../lib/voxelStretch.js"; // TASKS.csv #1812 / #1781
 import { VoxelRangeRow } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1780
 import { terrainFromBlockModel } from "../lib/terrainFromModel.js"; // TASKS.csv #1806
 import { guessQualityColumn, filterSignalQuality, despikeAlongLines } from "../lib/surveyClean.js"; // TASKS.csv #1583 // TASKS.csv #786
@@ -2177,8 +2178,18 @@ function VoxelLegendEditor({ model, onUpdate }) {
     const colors = paletteColorsHex(palette, stops.length);
     setStops(stops.map((s, i) => ({ ...s, color: colors[i] })));
   };
+  // TASKS.csv #1781 (review #1646, Kodiak) — classes from the cells SHOWN: air and the cells outside the Min / Max range left out (a
+  // quantile class 1 was 'to -1', the air slab; with a cutoff of 8 every visible cell fell in the top class). Log needs positive
+  // values; Jenks on more than 50,000 values runs on an even sample (2.8 s on 380,250 cells froze the window).
+  const shownValues = () => {
+    const s = sortedShownValues(model) || [];
+    const lo = Number.isFinite(model.threshold) ? model.threshold : -Infinity, hi = Number.isFinite(model.rangeMax) ? model.rangeMax : Infinity;
+    let v = Array.from(s).filter((x) => x >= lo && x <= hi && (method !== "log" || x > 0));
+    if (method === "jenks" && v.length > 50000) { const k = v.length / 50000; v = Array.from({ length: 50000 }, (_, i) => v[Math.floor(i * k)]); }
+    return v;
+  };
   const applyClassify = () => {
-    const breaks = classifyBreaks(model.cells.map((c) => c.value), classCount, method);
+    const breaks = classifyBreaks(shownValues(), classCount, method);
     if (!breaks.length) return;
     const colors = paletteColorsHex(palette, breaks.length);
     setStops(breaks.map((v, i) => ({ value: v, color: colors[i] })), { colorMode: "discrete" });
@@ -2189,10 +2200,19 @@ function VoxelLegendEditor({ model, onUpdate }) {
     <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid var(--color-border)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Range")}</span>
-        <input type="number" value={model.min} onChange={(e) => onUpdate(model.id, { min: Number(e.target.value) })} style={{ ...numInput, width: 70 }} />
+        <input type="number" value={model.min} onChange={(e) => onUpdate(model.id, { min: Number(e.target.value), stretch: "minmax" })} style={{ ...numInput, width: 70 }} />
         <span style={{ color: "var(--color-text-muted)" }}>{tr("to")}</span>
-        <input type="number" value={model.max} onChange={(e) => onUpdate(model.id, { max: Number(e.target.value) })} style={{ ...numInput, width: 70 }} />
+        <input type="number" value={model.max} onChange={(e) => onUpdate(model.id, { max: Number(e.target.value), stretch: "minmax" })} style={{ ...numInput, width: 70 }} />
       </div>
+      {!stops.length && ( // TASKS.csv #1812 — the default gradient's stretch
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
+          <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Stretch")}</span>
+          <select value={model.stretch === "minmax" ? "minmax" : "p2-98"} onChange={(e) => onUpdate(model.id, { stretch: e.target.value === "minmax" ? "minmax" : null })} style={{ ...numInput, flex: 1 }} aria-label={tr("Colour stretch of \"{name}\"", { name: model.name })}>
+            <option value="p2-98">{(() => { const r = voxelStretch({ ...model, stretch: null }); return r ? tr("2–98 % of the cells ({lo} to {hi})", { lo: +r[0].toPrecision(3), hi: +r[1].toPrecision(3) }) : tr("2–98 % of the cells"); })()}</option>
+            <option value="minmax">{tr("The range above (min to max)")}</option>
+          </select>
+        </div>
+      )}
 
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
         <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Style")}</span>

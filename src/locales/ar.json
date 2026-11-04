@@ -7816,5 +7816,8 @@
   "On {n} page(s) the strip log still covers part of the template: move it, or leave a free column at the side of the template.": "في {n} صفحة لا يزال السجل يغطي جزءاً من القالب: انقله، أو اترك عموداً فارغاً بجانب القالب.",
   "Hot-spot z (Gi*)": "z للبقعة الساخنة (Gi*)",
   "+{n} more elements (Identify lists them all)": "+{n} عناصر أخرى (التعريف يسردها كلها)",
-  "Class": "الفئة"
+  "Class": "الفئة",
+  "2–98 % of the cells ({lo} to {hi})": "2–98 % من الخلايا ({lo} إلى {hi})",
+  "2–98 % of the cells": "2–98 % من الخلايا",
+  "The range above (min to max)": "النطاق أعلاه (من الأدنى إلى الأعلى)"
 }

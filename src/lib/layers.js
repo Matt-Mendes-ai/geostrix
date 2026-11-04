@@ -1,6 +1,7 @@
 // ============================================================
 // Layer metadata, colors, and generic CSV import mapping helpers
 // ============================================================
+import { voxelStretch } from "./voxelStretch.js"; // TASKS.csv #1812
 import { guessStructureColumns } from "./mapLayers.js"; // TASKS.csv #426
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
@@ -317,7 +318,7 @@ export function paletteColorsHex(paletteKey, n) {
 export function makeVoxelColorResolverRGB(model) {
   const stops = model?.stops;
   if (!stops || !stops.length) {
-    const min = model?.min, max = model?.max;
+    const r = voxelStretch(model), min = r ? r[0] : model?.min, max = r ? r[1] : model?.max; // #1812
     return (value) => magColorRGB(value, min, max);
   }
   const sorted = [...stops].sort((a, b) => a.value - b.value).map((s) => ({ value: s.value, rgb: hexToRgb(s.color) }));
@@ -349,7 +350,7 @@ export function makeVoxelColorResolverRGB(model) {
 // present, else falling back to the original continuous 2-color magColor(value, min, max) behavior.
 export function colorForVoxelValue(model, value) {
   const stops = model?.stops;
-  if (!stops || !stops.length) return magColor(value, model?.min, model?.max);
+  if (!stops || !stops.length) { const r = voxelStretch(model); return magColor(value, r ? r[0] : model?.min, r ? r[1] : model?.max); } // #1812 — the 2-98 % stretch
   const sorted = [...stops].sort((a, b) => a.value - b.value);
   if (model.colorMode === "discrete") {
     let color = sorted[0].color;

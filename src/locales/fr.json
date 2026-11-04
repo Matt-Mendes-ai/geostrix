@@ -7816,5 +7816,8 @@
   "On {n} page(s) the strip log still covers part of the template: move it, or leave a free column at the side of the template.": "Sur {n} page(s), le log couvre encore une partie du modèle : déplacez-le, ou laissez une colonne libre sur le côté du modèle.",
   "Hot-spot z (Gi*)": "z de point chaud (Gi*)",
   "+{n} more elements (Identify lists them all)": "+{n} éléments de plus (Identifier les liste tous)",
-  "Class": "Classe"
+  "Class": "Classe",
+  "2–98 % of the cells ({lo} to {hi})": "2–98 % des cellules ({lo} à {hi})",
+  "2–98 % of the cells": "2–98 % des cellules",
+  "The range above (min to max)": "La plage ci-dessus (min à max)"
 }

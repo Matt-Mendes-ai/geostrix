@@ -4,6 +4,7 @@
 // #481 / #482) six of the seven fell in the top fifth of the ramp and the whole conductive red-to-white half
 // (the DC/IP target) got one swatch, under an unlabelled linear bar; and a classified (discrete) model was
 // painted as seven equal steps that could skip a whole class. Pure; tested in test/core.test.mjs.
+import { voxelStretch } from "./voxelStretch.js"; // TASKS.csv #1812
 import { colorForVoxelValue } from "./layers.js";
 
 // Stops that are spaced evenly in log10 (and not evenly in value) — how logStops builds them.
@@ -32,6 +33,10 @@ export function legendScale(model, lo, hi, fmt = (x) => String(+Number(x).toPrec
     }
     return { kind: "classes", items };
   }
+  // TASKS.csv #1812 — a model with no stops is coloured on its 2-98 % stretch: the bar spans it and the clipped ends read ≤ / ≥
+  const st = voxelStretch(model), clipLo = st && lo < st[0] && st[0] < hi, clipHi = st && hi > st[1] && st[1] > lo;
+  if (clipLo) lo = st[0];
+  if (clipHi) hi = st[1];
   const log = (model?.log === true || stopsAreLogSpaced(stops)) && lo > 0 && hi > lo;
   const n = 17;
   const at = (t) => (log ? 10 ** (Math.log10(lo) + t * (Math.log10(hi) - Math.log10(lo))) : lo + t * (hi - lo));
@@ -44,7 +49,7 @@ export function legendScale(model, lo, hi, fmt = (x) => String(+Number(x).toPrec
     }
   }
   // #736 — the end labels in the ticks' own format (they were "1.00 | 10 100 | 10000" with a second formatter)
-  return { kind: "ramp", log, min: lo, max: hi, minLabel: fmt(lo), maxLabel: fmt(hi), colors, ticks };
+  return { kind: "ramp", log, min: lo, max: hi, minLabel: `${clipLo ? "≤ " : ""}${fmt(lo)}`, maxLabel: `${clipHi ? "≥ " : ""}${fmt(hi)}`, colors, ticks, stretched: !!(clipLo || clipHi) };
 }
 
 // TASKS.csv #736 — which tick labels fit under a ramp bar of `width` px between its min and max labels. A label is
