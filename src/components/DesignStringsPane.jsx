@@ -12,6 +12,7 @@ import { useStore } from "../lib/store.jsx";
 import { stringStats, offsetString, joinStrings, splitString, reverseString, fromDistanceBearing, orthoPoint, snapToGrid, bearingOf, stringRows, stringFeatures, stringsFromDxf } from "../lib/designStrings.js";
 import { extrudeString, loftStrings, solidTonnage } from "../lib/stringSolids.js";
 import { categoricalModels } from "../lib/geologyForward.js";
+import { valueUnit } from "../lib/blockModelExport.js"; // #1945
 import { buildDXF } from "../lib/dxf.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
@@ -42,7 +43,7 @@ function Cell({ value, onCommit, width = 60, ariaLabel, placeholder }) {
 
 // view: { scene, camera, renderer, activity, dragHook, origin, worldPointAt } (refs; worldPointAt(clientX, clientY) -> world point
 // under the cursor on any drawn feature, or null); onAdd as the pit pane's (a solid into the generated surfaces)
-export default function DesignStringsPane({ view, onAdd, onClose }) {
+export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [] }) { // surfaces: the generated surfaces, for unique solid names (#1942)
   const { designStrings = [], setDesignStrings, collars = [], voxelModels = [], project, terrain } = useStore();
   const [activeId, setActiveId] = useState(() => designStrings[designStrings.length - 1]?.id ?? null);
   const [drawing, setDrawing] = useState(false);
@@ -252,15 +253,16 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
   // ---------- solids ----------
   const model = models.find((m) => (m.id ?? m.name) === solid.modelId) || null;
   const density = num0(solid.density);
-  const finishSolid = (name, r, how, prefix = "") => {
+  const finishSolid = (name0, r, how, prefix = "") => {
+    const taken = new Set((surfaces || []).map((s) => s.name)); let name = name0; for (let k = 2; taken.has(name); k++) name = `${name0} (${k})`; // #1942
     // #1904 — the tonnes are the solid's own volume at the density; the blocks (counted whole by their centre) give the grade only
     const tonnage = model && density > 0 ? solidTonnage(r.positions, r.indices, model.cells, density) : null;
     const tonnes = density > 0 ? r.volume * density : null, blockM = model?.cells?.[0]?.dx;
     onAdd?.({ name, positions: r.positions, indices: r.indices, volumeM3: r.volume, type: "design_solid", closure: "closed", color: "#5c7cfa", tag: "string",
       tip: tr("Solid from design strings ({how}): a drawn shape, not a modelled one", { how }),
-      params: { tool: `solid from design strings (${how})`, strings: how === "extrude" ? [string.name] : solid.loft.map((id) => designStrings.find((s) => s.id === id)?.name), volumeM3: Math.round(r.volume), ...(tonnes != null ? { density, tonnes: Math.round(tonnes) } : {}), ...(tonnage ? { blockModel: model.name, blockSizeM: blockM, blocksInside: tonnage.blocks, blockTonnes: Math.round(tonnage.tonnes), meanGrade: tonnage.meanGrade == null ? null : +tonnage.meanGrade.toPrecision(4), gradeFrom: "blocks whose centre lies inside, counted whole" } : {}), warnings: r.warnings || [], generatedAt: new Date().toISOString() } });
+      params: { tool: `solid from design strings (${how})`, strings: how === "extrude" ? [string.name] : solid.loft.map((id) => designStrings.find((s) => s.id === id)?.name), volumeM3: Math.round(r.volume), ...(tonnes != null ? { density, tonnes: Math.round(tonnes) } : {}), ...(tonnage ? { blockModel: model.name, blockSizeM: blockM, blocksInside: tonnage.blocks, blockTonnes: Math.round(tonnage.tonnes), meanGrade: tonnage.meanGrade == null ? null : +tonnage.meanGrade.toPrecision(4), gradeUnit: valueUnit(model) || null, gradeFrom: "blocks whose centre lies inside, counted whole" } : {}), warnings: r.warnings || [], generatedAt: new Date().toISOString() } });
     setMsg(prefix + (tonnage
-      ? tr("\"{name}\": {v} m³ = {t} t at {d} t/m³{g} from {n} block(s) of {m} ({b} m, counted whole by their centre).", { name, v: big(r.volume), t: big(tonnes), d: density, n: tonnage.blocks, m: model.name, b: blockM, g: tonnage.meanGrade == null ? tr("; no grade") : tr("; mean grade {g}", { g: Number(tonnage.meanGrade.toPrecision(3)) }) })
+      ? tr("\"{name}\": {v} m³ = {t} t at {d} t/m³{g} from {n} block(s) of {m} ({b} m, counted whole by their centre).", { name, v: big(r.volume), t: big(tonnes), d: density, n: tonnage.blocks, m: model.name, b: blockM, g: tonnage.meanGrade == null ? tr("; no grade") : tr("; mean grade {g} {u}", { g: Number(tonnage.meanGrade.toPrecision(3)), u: valueUnit(model) || "" }) })
       : tonnes != null ? tr("\"{name}\": {v} m³ = {t} t at {d} t/m³. Choose a block model for its grade.", { name, v: big(r.volume), t: big(tonnes), d: density })
       : tr("\"{name}\": {v} m³. Enter a density for its tonnes, and a block model for its grade.", { name, v: big(r.volume) })));
   };
@@ -335,8 +337,8 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
         {!drawing && hover?.drag && <div style={note}>{tr("Moving vertex {n}: E {x}, N {y}, Z {z}", { n: hover.drag, x: m1(hover.p[0]), y: m1(hover.p[1]), z: m1(hover.p[2]) })}</div>}{/* #1876 drag */}
         {drawing && hover && <div style={note}>{hover.dist != null ? tr("Next: {d} m on {b}°, {dz} m in Z{s}", { d: m1(hover.dist), b: Math.round(hover.bearing), dz: m1(hover.dz), s: hover.snapped ? tr(" (snapped to {name})", { name: hover.snapped }) : "" }) : tr("E {x}, N {y}, Z {z}{s}", { x: m1(hover.p[0]), y: m1(hover.p[1]), z: m1(hover.p[2]), s: hover.snapped ? tr(" (snapped to {name})", { name: hover.snapped }) : "" })}{hover.on && !hover.snapped ? ` ${hover.on === "ground" ? tr("(on the ground)") : tr("(on {name})", { name: hover.on })}` : ""}</div>}{/* on: #1905 */}
         <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>
-          <Cell value={num0(typed.x)} width={66} placeholder="E" ariaLabel={tr("Easting of the vertex")} onCommit={(v) => setTyped((t) => ({ ...t, x: v == null ? "" : String(v) }))} />
-          <Cell value={num0(typed.y)} width={70} placeholder="N" ariaLabel={tr("Northing of the vertex")} onCommit={(v) => setTyped((t) => ({ ...t, y: v == null ? "" : String(v) }))} />
+          <Cell value={num0(typed.x)} width={78} placeholder="E" ariaLabel={tr("Easting of the vertex")} onCommit={(v) => setTyped((t) => ({ ...t, x: v == null ? "" : String(v) }))} />
+          <Cell value={num0(typed.y)} width={84} placeholder="N" ariaLabel={tr("Northing of the vertex")} onCommit={(v) => setTyped((t) => ({ ...t, y: v == null ? "" : String(v) }))} />
           <Cell value={num0(typed.z)} width={52} placeholder="Z" ariaLabel={tr("Elevation of the vertex")} onCommit={(v) => setTyped((t) => ({ ...t, z: v == null ? "" : String(v) }))} />
           <button onClick={addTyped} disabled={[typed.x, typed.y, typed.z].some((v) => num0(v) == null)} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 6px" }}>{tr("Add vertex")}</button>
         </div>
@@ -355,7 +357,7 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
             {string.vertices.map((p, i) => (
               <div key={i} style={{ ...row, gap: 3, marginTop: 2 }}>
                 <span style={{ width: 18, flexShrink: 0, fontSize: "var(--font-size-xs)" }}>{i + 1}</span>
-                {[0, 1, 2].map((k) => <Cell key={k} value={p[k]} width={k === 2 ? 52 : 66} ariaLabel={tr("Vertex {n} {axis}", { n: i + 1, axis: ["E", "N", "Z"][k] })} onCommit={(v) => setVertex(i, k, v)} />)}
+                {[0, 1, 2].map((k) => <Cell key={k} value={p[k]} width={k === 2 ? 52 : k === 1 ? 84 : 78} ariaLabel={tr("Vertex {n} {axis}", { n: i + 1, axis: ["E", "N", "Z"][k] })} onCommit={(v) => setVertex(i, k, v)} />)}
                 <Plus size={12} style={{ cursor: "pointer", flexShrink: 0 }} {...iconAction(() => insertAfter(i), tr("Insert a vertex after {n}", { n: i + 1 }))} />
                 <X size={12} style={{ cursor: "pointer", flexShrink: 0 }} {...iconAction(() => deleteVertex(i), tr("Remove vertex {n}", { n: i + 1 }))} />
               </div>

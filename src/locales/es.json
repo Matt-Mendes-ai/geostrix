@@ -7416,7 +7416,6 @@
   "The shell's walls are {d} m block steps, wider than a {h} m bench: the shell's waste understates what the benched walls take out.": "Las paredes del cono son escalones de bloques de {d} m, más anchos que un banco de {h} m: el estéril del cono subestima lo que sacan las paredes abancadas.",
   "\"{name}\": {v} m³ = {t} t at {d} t/m³{g} from {n} block(s) of {m} ({b} m, counted whole by their centre).": "\"{name}\": {v} m³ = {t} t a {d} t/m³{g} de {n} bloque(s) de {m} ({b} m, contados enteros por su centro).",
   "; no grade": "; sin ley",
-  "; mean grade {g}": "; ley media {g}",
   "\"{name}\": {v} m³ = {t} t at {d} t/m³. Choose a block model for its grade.": "\"{name}\": {v} m³ = {t} t a {d} t/m³. Elija un modelo de bloques para su ley.",
   "\"{name}\": {v} m³. Enter a density for its tonnes, and a block model for its grade.": "\"{name}\": {v} m³. Ingrese una densidad para sus toneladas y un modelo de bloques para su ley.",
   "Bottom and top were swapped. ": "Se intercambiaron base y techo. ",
@@ -7481,5 +7480,8 @@
   "Mean grade (largest pit)": "Ley media (rajo mayor)",
   "Waste (largest pit)": "Estéril (rajo mayor)",
   "Strip ratio (largest pit)": "Razón de estéril (rajo mayor)",
-  "Nothing under the cursor there: the target was not changed.": "Nada bajo el cursor ahí: el objetivo no cambió."
+  "Nothing under the cursor there: the target was not changed.": "Nada bajo el cursor ahí: el objetivo no cambió.",
+  "{x} times the {t} t": "{x} veces las {t} t",
+  "The swell factor is 1 or more: broken rock takes more room than in place, never less.": "El factor de esponjamiento es 1 o más: la roca quebrada ocupa más espacio que en sitio, nunca menos.",
+  "; mean grade {g} {u}": "; ley media {g} {u}"
 }

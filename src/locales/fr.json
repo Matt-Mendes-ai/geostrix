@@ -7416,7 +7416,6 @@
   "The shell's walls are {d} m block steps, wider than a {h} m bench: the shell's waste understates what the benched walls take out.": "Les parois de l'enveloppe sont des marches de blocs de {d} m, plus larges qu'un gradin de {h} m : le stérile de l'enveloppe sous-estime ce que les parois en gradins enlèvent.",
   "\"{name}\": {v} m³ = {t} t at {d} t/m³{g} from {n} block(s) of {m} ({b} m, counted whole by their centre).": "« {name} » : {v} m³ = {t} t à {d} t/m³{g} d'après {n} bloc(s) de {m} ({b} m, comptés entiers par leur centre).",
   "; no grade": " ; pas de teneur",
-  "; mean grade {g}": " ; teneur moyenne {g}",
   "\"{name}\": {v} m³ = {t} t at {d} t/m³. Choose a block model for its grade.": "« {name} » : {v} m³ = {t} t à {d} t/m³. Choisissez un modèle de blocs pour sa teneur.",
   "\"{name}\": {v} m³. Enter a density for its tonnes, and a block model for its grade.": "« {name} » : {v} m³. Saisissez une densité pour ses tonnes et un modèle de blocs pour sa teneur.",
   "Bottom and top were swapped. ": "Base et sommet ont été échangés. ",
@@ -7481,5 +7480,8 @@
   "Mean grade (largest pit)": "Teneur moyenne (plus grande fosse)",
   "Waste (largest pit)": "Stérile (plus grande fosse)",
   "Strip ratio (largest pit)": "Ratio stérile (plus grande fosse)",
-  "Nothing under the cursor there: the target was not changed.": "Rien sous le curseur à cet endroit : la cible n'a pas changé."
+  "Nothing under the cursor there: the target was not changed.": "Rien sous le curseur à cet endroit : la cible n'a pas changé.",
+  "{x} times the {t} t": "{x} fois les {t} t",
+  "The swell factor is 1 or more: broken rock takes more room than in place, never less.": "Le facteur de foisonnement est de 1 ou plus : la roche abattue prend plus de place qu'en place, jamais moins.",
+  "; mean grade {g} {u}": " ; teneur moyenne {g} {u}"
 }

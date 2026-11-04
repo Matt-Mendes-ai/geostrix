@@ -103,7 +103,8 @@ const HIT_KINDS = { voxels: "a block model", terrain: "the terrain", implicit: "
 function hitLabel(obj) {
   let kind = null;
   for (let n = obj; n; n = n.parent) {
-    const tip = n.userData?.tip; if (typeof tip === "string" && tip.trim()) return tip.split("\n")[0].trim().slice(0, 60);
+    const tip = n.userData?.tip;
+    if (typeof tip === "string" && tip.trim()) { const line = tip.split("\n")[0].trim(); if (line.length <= 60) return line; const cut = line.lastIndexOf(" ", 60); return `${line.slice(0, cut > 20 ? cut : 60)}…`; } // cut at a word (#1943)
     if (n.name && n.parent?.name === "root") kind = HIT_KINDS[n.name] || (LAYER_META[n.name] ? "a drillhole" : n.name);
   }
   return kind;
@@ -8371,7 +8372,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {sidebarTab === "minedesign" && toolPane === "pit" && <Suspense fallback={null}><PitShellPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} /* #1498 */ onClose={() => setToolPane(null)} /></Suspense>}
         {sidebarTab === "minedesign" && toolPane === "nested" && <Suspense fallback={null}><NestedPitsPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1875 */}
         {sidebarTab === "minedesign" && toolPane === "pitdesign" && <Suspense fallback={null}><PitDesignPane surfaces={implicitSurfaces} worldPositionsOf={worldPositionsOfSurface} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1874 */}
-        {sidebarTab === "minedesign" && toolPane === "strings" && <Suspense fallback={null}><DesignStringsPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient, zoomTo: zoomToWorldPoints /* #1892 */ }} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1876 */}
+        {sidebarTab === "minedesign" && toolPane === "strings" && <Suspense fallback={null}><DesignStringsPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient, zoomTo: zoomToWorldPoints /* #1892 */ }} onAdd={addUndrilledSolid} surfaces={implicitSurfaces} /* #1942 */ onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1876 */}
         {sidebarTab === "minedesign" && toolPane === "dump" && <Suspense fallback={null}><DumpPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1880 */}
         {sidebarTab === "minedesign" && toolPane === "stopes" && <Suspense fallback={null}><StopesPane onAdd={addUndrilledSolid} onRemove={removeImplicitSurface} /* #1887 */ onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1879 */}
         {sidebarTab === "minedesign" && toolPane === "lines" && <Suspense fallback={null}><DesignLinesPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient /* #1878 */, zoomTo: zoomToWorldPoints /* #1892 */ }} onClose={() => setToolPane(null)} /></Suspense>}

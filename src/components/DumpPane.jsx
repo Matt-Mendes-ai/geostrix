@@ -37,8 +37,9 @@ export default function DumpPane({ surfaces = [], onAdd, onClose }) {
   const centre = useMemo(() => { if (!footprint) return null; const st = stringStats(footprint.vertices, true); const cx = (st.box[0] + st.box[3]) / 2, cy = (st.box[1] + st.box[4]) / 2; const g = groundAt ? groundAt(cx, cy) : NaN; return { x: cx, y: cy, ground: Number.isFinite(g) ? g : (st.box[2] + st.box[5]) / 2, area: st.area }; }, [footprint, groundAt]);
   const set = (k) => (e) => { setF((p) => ({ ...p, [k]: e.target.value })); setMsg(null); };
   const v = (k) => (f[k] === "" ? null : Number(f[k]));
-  const reposeBad = v("repose") != null && !(v("repose") > 0 && v("repose") < 90); // #1912
-  const missing = !footprint || v("crestZ") == null || v("repose") == null || reposeBad;
+  const reposeBad = v("repose") != null && !(v("repose") >= 1 && v("repose") <= 89); // #1912; the range the message states (#1940)
+  const swellBad = v("swell") != null && !(v("swell") >= 1); // #1940 — broken rock never takes less room
+  const missing = !footprint || v("crestZ") == null || v("repose") == null || reposeBad || swellBad;
   const make = () => {
     if (missing || busy.current) return;
     busy.current = true;
@@ -52,8 +53,8 @@ export default function DumpPane({ surfaces = [], onAdd, onClose }) {
       const taken = new Set(surfaces.map((s) => s.name)); let name = base; for (let k = 2; taken.has(name); k++) name = `${base} (${k})`; // #1910
       onAdd?.({ name, positions: r.positions, indices: r.indices, volumeM3: r.volume, type: "dump", closure: "closed", color: "#8d6e63", tag: "dump",
         tip: tr("Dump / stockpile: a platform at {z} m with sides at {a}°, down to the ground; a conceptual shape", { z: v("crestZ"), a: v("repose") }),
-        params: { tool: "dump / stockpile from a footprint (platform at the crest, sides at the angle of repose to the ground)", footprint: footprint.name, crestZ: v("crestZ"), reposeDeg: v("repose"), density: v("density"), swell: v("swell"), looseVolumeM3: Math.round(r.volume), looseTonnes: tonnes == null ? null : Math.round(tonnes), footprintAreaM2: Math.round(r.footprintArea), dumpAreaM2: Math.round(r.dumpArea), maxHeightM: +r.maxHeight.toFixed(1), toeReachM: +r.toeReach.toFixed(1), groundFrom: groundSource, cellM: +r.cell.toFixed(2), caution: "a conceptual shape: no stability, lift, drainage or foundation check", generatedAt: new Date().toISOString() } });
-      const result = { ...r, tonnes, name, seconds: Math.round((performance.now() - t0) / 100) / 10, pitWaste: pit ? Number(pit.params.wasteTonnes) : null, pitName: pit?.name || null };
+        params: { tool: "dump / stockpile from a footprint (platform at the crest, sides at the angle of repose to the ground)", footprint: footprint.name, crestZ: v("crestZ"), reposeDeg: v("repose"), density: v("density"), swell: v("swell"), looseVolumeM3: Math.round(r.volume), looseTonnes: tonnes == null ? null : Math.round(tonnes), footprintAreaM2: Math.round(centre?.area ?? r.footprintArea), footprintGridAreaM2: Math.round(r.footprintArea), dumpAreaM2: Math.round(r.dumpArea), ...(pit ? { comparedPit: pit.name, pitWasteTonnes: Number(pit.params.wasteTonnes) } : {}), maxHeightM: +r.maxHeight.toFixed(1), toeReachM: +r.toeReach.toFixed(1), groundFrom: groundSource, cellM: +r.cell.toFixed(2), caution: "a conceptual shape: no stability, lift, drainage or foundation check", generatedAt: new Date().toISOString() } });
+      const result = { ...r, tonnes, name, seconds: Math.round((performance.now() - t0) / 100) / 10, pitWaste: pit ? Number(pit.params.wasteTonnes) : null, pitName: pit?.name || null, stringArea: centre?.area ?? null };
       kept = { inputs: { ...f }, result }; setRes(result); setMsg(null);
     } catch (e) { setMsg(e.message || String(e)); }
     finally { busy.current = false; }
@@ -76,6 +77,7 @@ export default function DumpPane({ surfaces = [], onAdd, onClose }) {
         {pits.length > 0 && <label style={row}>{tr("Compare with pit")}<select value={f.pitId} onChange={set("pitId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Pit shell whose waste the dump is compared with")}><option value="">{tr("— none —")}</option>{pits.map((s) => <option key={s.id} value={s.id}>{String(s.name).replace(/^Pit shell: /, "")}</option>)}</select></label>}
         <button onClick={make} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Box size={14} /> {tr("Make the dump")}</button>
         {reposeBad && <div style={warn}>{tr("The angle of repose must be between 1 and 89°.")}</div>}
+        {swellBad && <div style={warn}>{tr("The swell factor is 1 or more: broken rock takes more room than in place, never less.")}</div>}{/* #1940 */}
         {missing && !reposeBad && <div style={note}>{tr("Enter the crest elevation and the angle of repose: neither has a default.")}</div>}
       </>)}
       {msg && <div style={warn}>{msg}</div>}
@@ -83,10 +85,10 @@ export default function DumpPane({ surfaces = [], onAdd, onClose }) {
         <div style={{ marginTop: 8, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
           {line(tr("Capacity (loose)"), `${big(res.volume)} m³`)}
           {res.tonnes != null && line(tr("Loose tonnes"), `${big(res.tonnes)} t`)}
-          {line(tr("Footprint / with slopes"), `${(res.footprintArea / 10000).toFixed(2)} / ${(res.dumpArea / 10000).toFixed(2)} ha`)}
+          {line(tr("Footprint / with slopes"), `${((res.stringArea ?? res.footprintArea) / 10000).toFixed(2)} / ${(res.dumpArea / 10000).toFixed(2)} ha`)}{/* the string's own area, the slopes' from the grid: #1939 */}
           {line(tr("Highest face"), `${res.maxHeight.toFixed(1)} m`)}
           {line(tr("Toe reach"), `${res.toeReach.toFixed(1)} m`)}
-          {res.pitWaste != null && res.tonnes != null && line(tr("Holds of the pit's waste"), tr("{p} % of {t} t", { p: Math.round((res.tonnes / res.pitWaste) * 100), t: big(res.pitWaste) }))}
+          {res.pitWaste != null && res.tonnes != null && line(tr("Holds of the pit's waste"), res.tonnes / res.pitWaste >= 10 ? tr("{x} times the {t} t", { x: Math.round(res.tonnes / res.pitWaste).toLocaleString(), t: big(res.pitWaste) }) : tr("{p} % of {t} t", { p: Math.round((res.tonnes / res.pitWaste) * 100).toLocaleString(), t: big(res.pitWaste) }))}{/* #1941 */}
           {res.pitWaste != null && res.tonnes == null && <div style={note}>{tr("Enter a density to compare the tonnes with the pit's {t} t of waste.", { t: big(res.pitWaste) })}</div>}
           {res.aboveCrestShare > 0 && <div style={warn}>{tr("{p} % of the footprint stands above the crest: no dump there.", { p: Math.round(res.aboveCrestShare * 100) })}</div>}
           {res.coarsened && <div style={warn}>{tr("The grid was made coarser to stay within the limit.")}</div>}

@@ -7416,7 +7416,6 @@
   "The shell's walls are {d} m block steps, wider than a {h} m bench: the shell's waste understates what the benched walls take out.": "جدران الغلاف درجات كتل بعرض {d} م، أعرض من درجة {h} م: نفايات الغلاف تقلل مما تزيله الجدران المدرَّجة.",
   "\"{name}\": {v} m³ = {t} t at {d} t/m³{g} from {n} block(s) of {m} ({b} m, counted whole by their centre).": "\"{name}\": {v} م³ = {t} طن عند {d} طن/م³{g} من {n} كتلة من {m} ({b} م، تُحسب كاملة بمركزها).",
   "; no grade": "؛ لا محتوى",
-  "; mean grade {g}": "؛ متوسط المحتوى {g}",
   "\"{name}\": {v} m³ = {t} t at {d} t/m³. Choose a block model for its grade.": "\"{name}\": {v} م³ = {t} طن عند {d} طن/م³. اختر نموذج كتل لمحتواه.",
   "\"{name}\": {v} m³. Enter a density for its tonnes, and a block model for its grade.": "\"{name}\": {v} م³. أدخل كثافة لأطنانه ونموذج كتل لمحتواه.",
   "Bottom and top were swapped. ": "تم تبديل القاع والقمة. ",
@@ -7481,5 +7480,8 @@
   "Mean grade (largest pit)": "متوسط المحتوى (أكبر حفرة)",
   "Waste (largest pit)": "النفايات (أكبر حفرة)",
   "Strip ratio (largest pit)": "نسبة التعرية (أكبر حفرة)",
-  "Nothing under the cursor there: the target was not changed.": "لا شيء تحت المؤشر هناك: لم يتغير الهدف."
+  "Nothing under the cursor there: the target was not changed.": "لا شيء تحت المؤشر هناك: لم يتغير الهدف.",
+  "{x} times the {t} t": "{x} أضعاف الـ{t} طن",
+  "The swell factor is 1 or more: broken rock takes more room than in place, never less.": "معامل الانتفاش 1 أو أكثر: الصخر المكسَّر يشغل حيزًا أكبر مما في موضعه، لا أقل أبدًا.",
+  "; mean grade {g} {u}": "؛ متوسط المحتوى {g} {u}"
 }

@@ -7416,7 +7416,6 @@
   "The shell's walls are {d} m block steps, wider than a {h} m bench: the shell's waste understates what the benched walls take out.": "As paredes da cava são degraus de blocos de {d} m, mais largos que uma bancada de {h} m: o estéril da cava subestima o que as paredes em bancadas retiram.",
   "\"{name}\": {v} m³ = {t} t at {d} t/m³{g} from {n} block(s) of {m} ({b} m, counted whole by their centre).": "\"{name}\": {v} m³ = {t} t a {d} t/m³{g} de {n} bloco(s) de {m} ({b} m, contados inteiros pelo centro).",
   "; no grade": "; sem teor",
-  "; mean grade {g}": "; teor médio {g}",
   "\"{name}\": {v} m³ = {t} t at {d} t/m³. Choose a block model for its grade.": "\"{name}\": {v} m³ = {t} t a {d} t/m³. Escolha um modelo de blocos para o teor.",
   "\"{name}\": {v} m³. Enter a density for its tonnes, and a block model for its grade.": "\"{name}\": {v} m³. Informe uma densidade para as toneladas e um modelo de blocos para o teor.",
   "Bottom and top were swapped. ": "Base e topo foram trocados. ",
@@ -7481,5 +7480,8 @@
   "Mean grade (largest pit)": "Teor médio (maior cava)",
   "Waste (largest pit)": "Estéril (maior cava)",
   "Strip ratio (largest pit)": "Relação estéril/minério (maior cava)",
-  "Nothing under the cursor there: the target was not changed.": "Nada sob o cursor ali: o alvo não mudou."
+  "Nothing under the cursor there: the target was not changed.": "Nada sob o cursor ali: o alvo não mudou.",
+  "{x} times the {t} t": "{x} vezes as {t} t",
+  "The swell factor is 1 or more: broken rock takes more room than in place, never less.": "O fator de empolamento é 1 ou mais: a rocha desmontada ocupa mais espaço que in situ, nunca menos.",
+  "; mean grade {g} {u}": "; teor médio {g} {u}"
 }
