@@ -980,8 +980,11 @@ export function surfaceAttrs(row, cols) {
 // thresholds, catchments, evidence overlay and QC. The new row's values, flags, position and attributes win; an element
 // only the old row has is kept. Rows without an id are always added, and an import's own repeated ids are left as the
 // file has them (not merged with each other). -> { samples, updated, added }
+// TASKS.csv #1794 (review #1646, Kodiak) — a numeric id matches without its leading zeros: Excel dropped them in Kodiak's soil data sheet
+// ('45601') but not in its assay sheet ('045601'), and the join added 135 duplicate sites at the same coordinates.
+export const sampleIdKey = (id) => { const t = String(id ?? "").trim(); return /^\d+$/.test(t) ? t.replace(/^0+(?=\d)/, "") : t; };
 export function mergeSurfaceSamples(prev, rows) {
-  const keyOf = (s) => (s.sample_id ? `${s.sample_id}\u0000${s.medium}` : null);
+  const keyOf = (s) => (s.sample_id ? `${sampleIdKey(s.sample_id)}\u0000${s.medium}` : null);
   const at = new Map();
   prev.forEach((s, i) => { const k = keyOf(s); if (k && !at.has(k)) at.set(k, i); });
   const samples = prev.slice();
