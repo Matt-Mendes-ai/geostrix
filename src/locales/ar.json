@@ -1022,7 +1022,6 @@
   "{holeId} has no desurveyed trace to cut a section through.": "لا مسار محسوب لـ{holeId} لقطع مقطع عبره.",
   "{holeId} is vertical, so it has no bearing of its own — the section runs at the typed azimuth, {azimuth}°.": "{holeId} رأسي، فلا اتجاه خاص له — يسير المقطع بالسمت المُدخل {azimuth}°.",
   "Slice series needs a visible voxel/block model or at least one drillhole to know what extent to cover — nothing found.": "تحتاج سلسلة الشرائح نموذج فوكسل/كتل ظاهرًا أو ثقبًا واحدًا على الأقل لمعرفة الامتداد المطلوب — لم يُعثر على شيء.",
-  "Load collars first — a level plan cuts the drillholes at an elevation.": "حمّل الفوهات أولًا — المسقط المستوي يقطع الثقوب عند ارتفاع.",
   "Exported {rows} vertices of section strings to CSV.": "صُدّر {rows} رأس من خطوط المقاطع إلى CSV.",
   "Exported {count} section string(s) to 3D DXF.": "صُدّر {count} خط مقطع إلى DXF ثلاثي الأبعاد.",
   "View refreshed — geometry rebuilt from current data": "حُدّث العرض — أعيد بناء الهندسة من البيانات الحالية",
@@ -7825,5 +7824,8 @@
   "Placed flat at 0 m: nothing in the project gives a ground level yet; change Elev. on its card.": "وُضع مسطحاً عند 0 م: لا شيء في المشروع يعطي مستوى الأرض بعد؛ غيّر الارتفاع في بطاقته.",
   "No terrain: the contacts' dips cannot be fitted and the model cannot run. Fetch one (Maps > Terrain, needs the internet), import a DEM, or offline make one from a block model's top (Geophysics > Block models > Terrain from the model's top).": "لا توجد تضاريس: لا يمكن ملاءمة ميول التماسات ولا يمكن تشغيل النموذج. نزّل واحدة (الخرائط > التضاريس، تتطلب الإنترنت)، أو استورد نموذج ارتفاع رقمي، أو دون اتصال أنشئ واحدة من قمة نموذج كتلي (الجيوفيزياء > النماذج الكتلية > تضاريس من قمة النموذج).",
   "Needs a terrain: the top of each body is the ground. Offline, Geophysics > Block models > Terrain from the model's top makes one.": "يتطلب تضاريس: قمة كل جسم هي الأرض. دون اتصال، الجيوفيزياء > النماذج الكتلية > تضاريس من قمة النموذج تنشئ واحدة.",
-  " (import or fetch a DEM first, or offline: Geophysics > Block models > Terrain from the model's top)": " (استورد أو نزّل نموذج ارتفاع رقمي أولاً، أو دون اتصال: الجيوفيزياء > النماذج الكتلية > تضاريس من قمة النموذج)"
+  " (import or fetch a DEM first, or offline: Geophysics > Block models > Terrain from the model's top)": " (استورد أو نزّل نموذج ارتفاع رقمي أولاً، أو دون اتصال: الجيوفيزياء > النماذج الكتلية > تضاريس من قمة النموذج)",
+  "Nothing to cut yet: a level plan cuts drillholes and block models at an elevation.": "لا شيء للقطع بعد: المسقط المستوي يقطع ثقوب الحفر والنماذج الكتلية عند ارتفاع.",
+  "Fit the data at a round scale": "ملاءمة البيانات بمقياس مستدير",
+  "Pick the round scale at which the visible block models (else the surface samples, map layers or boundaries) fit this frame, centre the view on them, and refresh": "اختيار المقياس المستدير الذي تتسع فيه النماذج الكتلية المرئية (وإلا العينات السطحية أو طبقات الخريطة أو الحدود) لهذا الإطار، وتوسيط العرض عليها، والتحديث"
 }

@@ -78,6 +78,8 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
       data.planned.forEach((p) => { p.lines.forEach((l) => l.forEach(add)); p.pierce.forEach((pc) => add([pc.x, pc.y])); });
     }
     if (!fitSlab || !Number.isFinite(x0)) { data.holes.forEach((h) => h.context.forEach(add)); data.planned.forEach((p) => p.context.forEach(add)); }
+    // TASKS.csv #1782 — no holes: frame the block-model slices and surface cuts (a project with no collars)
+    if (!Number.isFinite(x0)) { data.voxelSlices.forEach((v) => v.rects.forEach((r) => { add([r.x0, r.y0]); add([r.x1, r.y1]); })); data.surfaceCuts.forEach((sc) => sc.segs.forEach((g) => { add([g[0], g[1]]); add([g[2], g[3]]); })); }
     if (!Number.isFinite(x0)) return null;
     if (view) { x0 = view.x0; x1 = view.x1; y0 = view.y0; y1 = view.y1; } // zoomed / panned
     const pad = view ? 0 : Math.max(x1 - x0, y1 - y0, 50) * 0.06;
@@ -85,7 +87,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
     const s = Math.min((W - 2 * PAD) / (x1 - x0), (H - 2 * PAD) / (y1 - y0));
     const ox = PAD + ((W - 2 * PAD) - (x1 - x0) * s) / 2, oy = PAD + ((H - 2 * PAD) - (y1 - y0) * s) / 2;
     return { x0, x1, y0, y1, s, X: (x) => ox + (x - x0) * s, Y: (y) => H - (oy + (y - y0) * s) };
-  }, [fitSlab, fitSlab ? data : null, data.holes.length, data.planned.length, view]);
+  }, [fitSlab, fitSlab || !data.holes.length ? data : null, data.holes.length, data.planned.length, view]); // no holes: the slices frame it (#1782)
 
   // wheel = zoom about the cursor (a native listener: React's onWheel is passive and can't stop the page scrolling)
   useEffect(() => {

@@ -1022,7 +1022,6 @@
   "{holeId} has no desurveyed trace to cut a section through.": "{holeId} n'a pas de trajectoire calculée à travers laquelle couper une coupe.",
   "{holeId} is vertical, so it has no bearing of its own — the section runs at the typed azimuth, {azimuth}°.": "{holeId} est vertical, il n'a donc pas d'orientation propre — la coupe suit l'azimut saisi, {azimuth}°.",
   "Slice series needs a visible voxel/block model or at least one drillhole to know what extent to cover — nothing found.": "La série de tranches a besoin d'un modèle de voxels/blocs visible ou d'au moins un sondage pour connaître l'étendue à couvrir — rien trouvé.",
-  "Load collars first — a level plan cuts the drillholes at an elevation.": "Chargez d'abord des collets — un plan de niveau coupe les sondages à une élévation.",
   "Exported {rows} vertices of section strings to CSV.": "{rows} sommets de tracés de coupe exportés en CSV.",
   "Exported {count} section string(s) to 3D DXF.": "{count} tracé(s) de coupe exporté(s) en DXF 3D.",
   "View refreshed — geometry rebuilt from current data": "Vue actualisée — géométrie reconstruite à partir des données actuelles",
@@ -7825,5 +7824,8 @@
   "Placed flat at 0 m: nothing in the project gives a ground level yet; change Elev. on its card.": "Placé à plat à 0 m : rien dans le projet ne donne encore le niveau du sol ; changez Élév. sur sa carte.",
   "No terrain: the contacts' dips cannot be fitted and the model cannot run. Fetch one (Maps > Terrain, needs the internet), import a DEM, or offline make one from a block model's top (Geophysics > Block models > Terrain from the model's top).": "Pas de terrain : les pendages des contacts ne peuvent pas être ajustés et le modèle ne peut pas tourner. Téléchargez-en un (Cartes > Terrain, nécessite Internet), importez un MNT ou, hors ligne, créez-en un à partir du sommet d'un modèle de blocs (Géophysique > Modèles de blocs > Terrain à partir du sommet du modèle).",
   "Needs a terrain: the top of each body is the ground. Offline, Geophysics > Block models > Terrain from the model's top makes one.": "Nécessite un terrain : le sommet de chaque corps est le sol. Hors ligne, Géophysique > Modèles de blocs > Terrain à partir du sommet du modèle en crée un.",
-  " (import or fetch a DEM first, or offline: Geophysics > Block models > Terrain from the model's top)": " (importez ou téléchargez d'abord un MNT, ou hors ligne : Géophysique > Modèles de blocs > Terrain à partir du sommet du modèle)"
+  " (import or fetch a DEM first, or offline: Geophysics > Block models > Terrain from the model's top)": " (importez ou téléchargez d'abord un MNT, ou hors ligne : Géophysique > Modèles de blocs > Terrain à partir du sommet du modèle)",
+  "Nothing to cut yet: a level plan cuts drillholes and block models at an elevation.": "Rien à couper pour l'instant : un plan de niveau coupe les sondages et les modèles de blocs à une altitude.",
+  "Fit the data at a round scale": "Ajuster les données à une échelle ronde",
+  "Pick the round scale at which the visible block models (else the surface samples, map layers or boundaries) fit this frame, centre the view on them, and refresh": "Choisir l'échelle ronde à laquelle les modèles de blocs visibles (sinon les échantillons de surface, couches cartographiques ou limites) tiennent dans ce cadre, centrer la vue sur eux et actualiser"
 }

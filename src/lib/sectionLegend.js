@@ -19,7 +19,9 @@ export function groupSectionLegend(items) {
   }
   const multi = groups.size > 1, out = [];
   for (const [g, list] of groups) {
-    if (multi && g) out.push([g, null, { heading: true }]);
+    // TASKS.csv #1865 (review #1646, Kodiak) — a lone group keeps its heading when it names a model or a unit ('3dmesh_utm — Chargeability
+    // (mV/V)'): a one-model section came to Layout keyed by five bare numbers. A lone category group (lithology) stays bare, as before.
+    if (g && (multi || / — |\(.+\)/.test(g))) out.push([g, null, { heading: true }]);
     out.push(...list);
   }
   return out;

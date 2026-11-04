@@ -1,4 +1,5 @@
 import { canvasPngDataUrl } from "../lib/canvasEncode.js";
+import { levelPlanZRange } from "../lib/viewer/levelPlanRange.js"; // TASKS.csv #1782
 import { surfaceSampleTip, mappedOfSample } from "../lib/viewer/sampleTip.js"; // TASKS.csv #1821
 import HoleFilterBar from "./viewer/HoleFilterBar.jsx";
 import { holesMatching } from "../lib/holeFilter.js";
@@ -7272,7 +7273,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     <div style={{ display: visible ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, width: "100%" }}>
       {mode === "view" && (
         <ViewToolbar
-          onLevelPlan={() => { if (!tracesRef.current.length) { setNotices((p) => [...p, notice("Load collars first — a level plan cuts the drillholes at an elevation.")]); return; } setLevelPlanOpen(true); }}
+          onLevelPlan={() => { if (!levelPlanZRange(tracesRef.current, voxelModels)) { setNotices((p) => [...p, notice("Nothing to cut yet: a level plan cuts drillholes and block models at an elevation.")]); return; } setLevelPlanOpen(true); }} /* #1782 */
           openPopover={openPopover} setOpenPopover={setOpenPopover}
           gridConfig={gridConfig} setGridConfig={setGridConfig}
           figureOverlay={figureOverlay} setFigureOverlay={setFigureOverlay} projectName={project?.name || ""} legendCount={overlayLegendGroups.reduce((n, g) => n + g.items.length + (g.ramp ? 1 : 0), 0)} legendShown={Math.min(MAX_LEGEND_ITEMS, overlayLegendGroups.reduce((n, g) => n + g.items.length, 0)) + Math.min(6, overlayLegendGroups.filter((g) => g.ramp).length)} /* #1398 */
@@ -9095,10 +9096,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {/* TASKS.csv #277 — downhole structural (tadpole) plot. Fed the SAME hole-attitude-enriched picks
           the stereonet's Terzaghi correction uses, so alpha means one thing across both tools. */}
       {levelPlanOpen && (() => {
-        // TASKS.csv #525 — elevation range of the loaded holes (loops, not Math.min(...) over every vertex, #371)
-        let z0 = Infinity, z1 = -Infinity;
-        tracesRef.current.forEach((t) => t.wz.forEach((z) => { if (z < z0) z0 = z; if (z > z1) z1 = z; }));
-        if (!Number.isFinite(z0)) return null;
+        const zr = levelPlanZRange(tracesRef.current, voxelModels); // #525, #1782 — the holes, else the visible block models
+        if (!zr) return null;
+        const [z0, z1] = zr;
         return (
           <LevelPlanWindow
             build={buildPlanPayload}

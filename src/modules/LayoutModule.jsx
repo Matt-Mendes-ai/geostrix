@@ -404,7 +404,11 @@ export default function LayoutModule() {
     // #1476 — the holes, not only their collars: Silvertip's 1,300 m fans ran off the frame. Each desurveyed trace point counts.
     const { holeTraces } = await import("../lib/evidenceSources.js"); // loaded on use: not on the startup path
     for (const t of holeTraces(collars, survey, project?.desurveyMethod).values()) for (const p of t) if (Number.isFinite(p.x) && Number.isFinite(p.y)) pts.push([p.x, p.y]);
+    // #1866 (review #1646, Kodiak) — no holes: the visible block models' ground footprint first (the 2 km IP model was a speck at
+    // 1:300,000 when the 19 x 31 km soil program decided the fit), then the samples, the map layers, the boundaries
+    if (!pts.length) { const { modelFootprint } = await import("../lib/surfacePlan.js"); for (const m of voxelModels || []) { if (m.visible === false) continue; const b = modelFootprint(m); if (b) pts.push([b[0], b[1]], [b[2], b[3]]); } }
     if (!pts.length) for (const s of surfaceSamples || []) if (Number.isFinite(s.x) && Number.isFinite(s.y)) pts.push([s.x, s.y]);
+    if (!pts.length) for (const l of mapLayers || []) if (l.visible !== false && Array.isArray(l.bbox)) pts.push([l.bbox[0], l.bbox[1]], [l.bbox[2], l.bbox[3]]);
     if (!pts.length) for (const b of boundaries || []) for (const pl of b.polylines || []) for (const p of pl) if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) pts.push([p.x, p.y]);
     if (!pts.length) { setSyncNotice(tr("Nothing to fit: the project has no located data yet.")); return; }
     const beta = (-(sel.cameraAzimuthDeg || 0) * Math.PI) / 180, cb = Math.cos(beta), sb = Math.sin(beta);
@@ -1110,7 +1114,7 @@ export default function LayoutModule() {
                 onRefresh={() => startViewportRender(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
                 onRebind={(themeId) => startViewportRender(themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
                 onEnter={() => startInteractiveViewportEdit(sel.themeId, sel.id, sel.trueScale, { fixedScale: sel.fixedScale, elementW: sel.w, elementH: sel.h })}
-                onFit={() => fitViewport(sel)}
+                onFit={() => fitViewport(sel)} hasHoles={(collars || []).length > 0} /* #1866 — the button's label */
                 // TASKS.csv #1007 — Matt: "when I select the scale, it won't change. it only changes when I click on fit all
                 // holes". Choosing a scale only stored it and waited for a Refresh; it now re-captures at once, centred where
                 // the last capture was (as Fit does), so the frame shows that scale straight away. 0 = free (as framed).
@@ -1536,7 +1540,7 @@ function SectionScaleControls({ sel, pageW, pageH, updateSelected }) {
   );
 }
 
-function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, onEnter, onFit, onRescale, onSyncScaleBar, onSyncNorth, syncNotice, others = [] }) {
+function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, onEnter, onFit, onRescale, onSyncScaleBar, onSyncNorth, syncNotice, others = [], hasHoles = true }) {
   // TASKS.csv #907 — the scale picker: a preset, "custom" (a typed 1:N), or free (whatever the 3D view frames)
   const [customScale, setCustomScale] = useState(false);
   const scaleChoice = customScale || (sel.fixedScale > 0 && !SCALE_PRESETS.includes(sel.fixedScale)) ? "custom" : sel.fixedScale > 0 ? String(sel.fixedScale) : "";
@@ -1617,8 +1621,8 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
       {sel.overviewOf && !overviewPolygon(sel, others.find((o) => o.id === sel.overviewOf)) && (
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }}>{tr("The extent shows when both viewports are top-down, true-scale captures: set the 3D view to Top, pick a scale, and refresh each.")}</div>
       )}
-      <button onClick={onFit} disabled={sel.refreshing} title={tr("Pick the round scale at which all the drillholes (or the surface samples / boundaries) fit this frame, centre the view on them, and refresh")} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
-        <Maximize2 size={14} />{" "}{tr("Fit the holes at a round scale")}</button>
+      <button onClick={onFit} disabled={sel.refreshing} title={hasHoles ? tr("Pick the round scale at which all the drillholes (or the surface samples / boundaries) fit this frame, centre the view on them, and refresh") : tr("Pick the round scale at which the visible block models (else the surface samples, map layers or boundaries) fit this frame, centre the view on them, and refresh")} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
+        <Maximize2 size={14} />{" "}{hasHoles ? tr("Fit the holes at a round scale") : tr("Fit the data at a round scale")}</button>
       {sel.fixedScale > 0 && (
         <div style={{ fontSize: "var(--font-size-xs)", color: sel.capturedFixedScale === sel.fixedScale ? "var(--color-success-fg)" : "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>
           {sel.capturedFixedScale === sel.fixedScale
