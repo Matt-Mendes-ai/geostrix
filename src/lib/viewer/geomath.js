@@ -167,6 +167,33 @@ export function autoHaloParams(collarList) {
   return { radius, cell, spacing };
 }
 
+// TASKS.csv #1683 (review #1645, Copley) — a unit body's auto cell and search come from the unit's OWN logged runs, not from the
+// spacing of the holes: 0.6-9.5 m dykes on holes 405 m apart got 50 m cells and a 486 m search, and the body was 16 slabs
+// 466 m from every hole. The cell is half the median run (so a run is at least two cells thick), the search twice the median
+// run (the body closes against the logged intervals above and below), both no larger than the hole-spacing values.
+// runLengthsM: the merged logged runs' lengths; fallback: autoHaloParams' { radius, cell, spacing }.
+export function autoBodyParams(runLengthsM, fallback) {
+  const L = (runLengthsM || []).filter((v) => Number.isFinite(v) && v > 0).sort((a, b) => a - b);
+  if (!L.length) return { ...fallback, fromRuns: false };
+  const med = L[L.length >> 1], max = L[L.length - 1];
+  const cell = Math.min(fallback.cell, Math.max(0.5, med / 2));
+  const radius = Math.min(fallback.radius, Math.max(3 * cell, 2 * med));
+  return { cell, radius, spacing: fallback.spacing, medianRunM: med, maxRunM: max, runs: L.length, fromRuns: true };
+}
+
+// Merge touching logged rows of one code into runs per hole. rows: [{ hole_id, from, to }] -> [{ hole_id, from, to }]
+export function mergedRuns(rows) {
+  const byHole = new Map();
+  for (const r of rows || []) { const f = Number(r.from), t = Number(r.to); if (!(t > f)) continue; if (!byHole.has(r.hole_id)) byHole.set(r.hole_id, []); byHole.get(r.hole_id).push([f, t]); }
+  const out = [];
+  byHole.forEach((iv, hole_id) => {
+    iv.sort((a, b) => a[0] - b[0]);
+    let cur = null;
+    for (const [f, t] of iv) { if (cur && f <= cur.to + 1e-3) cur.to = Math.max(cur.to, t); else { cur = { hole_id, from: f, to: t }; out.push(cur); } }
+  });
+  return out;
+}
+
 // Split a downhole interval into sub-intervals of at most `maxLen` so a thick logged interval
 // contributes several sample points down its length rather than one midpoint. Without this a 60 m
 // alteration run and a 1 m one carry identical weight and identical spatial footprint, which visibly

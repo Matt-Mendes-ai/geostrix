@@ -13,7 +13,7 @@ import { MAX_BLOCKS, SUPPORT_COLORS, MAX_BLOCK_BUDGET, gridBlockCount, cellToFit
 import { compositeDownhole, rawSampleIntervals, capAudit, capAuditText } from "../../lib/geochem.js"; // capAudit: #533; rawSampleIntervals: #571
 import { excludeQAQC } from "../../lib/qaqc.js";
 import { errorNotice, notice, appendNotice } from "../../lib/notices.js";
-import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, splitIntervalForSampling, spatialClusters, terrainGroundAt } from "../../lib/viewer/geomath.js";
+import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, autoBodyParams, mergedRuns, splitIntervalForSampling, spatialClusters, terrainGroundAt } from "../../lib/viewer/geomath.js";
 import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals, depthKey } from "../../lib/viewer/intervals.js";
 import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit, startsBelowNonUnit, startsBelowOverburden, overburdenBases } from "../../lib/modellingCodes.js"; // TASKS.csv #599; #1367; #1684
 import { samplesInsideShell } from "../../lib/shellSupport.js"; // TASKS.csv #1735
@@ -1563,8 +1563,12 @@ export function createModellingRuns(ctx, mcRef) {
         // not every collar in the project — a regional hole 5 km away shouldn't set the halo's scale.
         const loggedHoles = new Set(altRows.map((r) => r.hole_id));
         const auto = autoHaloParams(collars.filter((c) => loggedHoles.has(c.hole_id)));
-        const radius = searchSetting > 0 ? searchSetting : auto.radius;
-        const cs = cellSetting > 0 ? cellSetting : auto.cell;
+        // TASKS.csv #1683 — a unit body's auto cell and search come from the code's own logged runs (an alteration halo keeps the
+        // hole-spacing rule: it is a halo around the holes, not a logged body)
+        const codeRuns = isCode ? mergedRuns(targetRows) : [];
+        const autoB = isCode ? autoBodyParams(codeRuns.map((r) => r.to - r.from), auto) : auto;
+        let radius = searchSetting > 0 ? searchSetting : autoB.radius, radiusRaisedFrom = null;
+        const cs = cellSetting > 0 ? cellSetting : autoB.cell;
 
         // Indicator intervals: 1 inside the target assemblage, 0 inside any other logged alteration.
         // The zeros are what CLOSE the envelope — without a "definitely not altered" sample between two
@@ -1619,6 +1623,8 @@ export function createModellingRuns(ctx, mcRef) {
         const cellsAt = (c) => Math.max(1, Math.round((bounds.xmax - bounds.xmin) / c)) * Math.max(1, Math.round((bounds.ymax - bounds.ymin) / c)) * Math.max(1, Math.round((bounds.zmax - bounds.zmin) / c));
         let coarsened = false;
         while (cellsAt(cell) > MAX_BLOCKS * 0.75) { cell *= 1.5; coarsened = true; }
+        if (radius < 1.5 * cell) { radiusRaisedFrom = radius; radius = 1.5 * cell; } // #1683 — a search under a cell and a half finds nothing at most nodes
+        if (isCode && autoB.fromRuns && !(searchSetting > 0) && !(cellSetting > 0)) setNotices((p) => [...p, notice("\"{label}\": auto settings from the {n} logged run(s) of {code} (median {med} m, {max} m at most): {cs} m cells and a {r} m search{v}. The body follows the logged intervals; a larger search joins holes, but what it puts between them is an assumption.", { label, n: autoB.runs, code: altValue, med: +autoB.medianRunM.toFixed(1), max: +autoB.maxRunM.toFixed(1), cs: +cs.toFixed(1), r: Math.round(autoB.radius), v: coarsened ? tr(" (coarsened to {cell} m cells to stay under the grid limit, the search raised to {r2} m)", { cell: +cell.toFixed(1), r2: Math.round(radius) }) : "" })]);
 
         // TASKS.csv #520 — the grid runs in a worker: progress + Cancel on the status bar, the window keeps painting
         const ac = new AbortController();
@@ -1636,7 +1642,12 @@ export function createModellingRuns(ctx, mcRef) {
         const mc = marchingCubes(altCap.values, grid.nx, grid.ny, grid.nz, iso, {
           origin: grid.origin, spacing: grid.cellSize, noData: "outside",
         });
-        if (!mc.faces.length) throw new Error(isCode ? tr("The interpolated \"{altValue}\" indicator never reaches {iso} — no body to extract (try a lower Inside at or a smaller cell size).", { altValue, iso }) : tr("The interpolated \"{altValue}\" indicator never crosses 0.5 — no envelope to extract (try a larger search radius or a smaller cell size).", { altValue }));
+        if (!mc.faces.length) throw new Error(isCode ? tr("The interpolated \"{altValue}\" indicator never reaches {iso} — no body to extract (try a lower Inside at or a smaller cell size).", { altValue, iso }) + (autoB.maxRunM && cell > autoB.maxRunM ? " " + tr("The {cell} m cells are larger than the thickest logged run of {code} ({max} m): a body cannot be thinner than a cell. A smaller cell over fewer holes (a domain, or an intercept set) keeps the grid within its limit.", { cell: +cell.toFixed(1), code: altValue, max: +autoB.maxRunM.toFixed(1) }) : "") : tr("The interpolated \"{altValue}\" indicator never crosses 0.5 — no envelope to extract (try a larger search radius or a smaller cell size).", { altValue }));
+        // TASKS.csv #1683 — does the body contain the sample points of the code it was built from? (the nearest grid node of each
+        // inside point against the indicator field the body is the iso-surface of). Fewer than half inside: it is not the unit,
+        // and its volume is withheld.
+        const contain = isCode ? samplesInsideShell(gridPts, grid, altCap.values, iso) : null;
+        const withheld = !!(contain && contain.above > 0 && contain.inside < contain.above / 2);
         // #1339 — said on every run: separate bodies from one unit are a finding, and a dropped body is data left out
         const { meshBodies, keepLargestBody } = await import("../../lib/meshBodies.js"); // on demand: the startup budget
         const bodies = isCode ? meshBodies(mc.faces) : { count: 1 };
@@ -1670,6 +1681,9 @@ export function createModellingRuns(ctx, mcRef) {
           domain: domain ? domain.name : null,
           interceptSet: activeInterceptSetRef.current ? { name: activeInterceptSetRef.current.name, intercepts: (activeInterceptSetRef.current.ids || []).length } : null, // TASKS.csv #52 (c)
           samplePoints: pts.length, alteredSamplePoints: insideCount, cellsEstimated: grid.estimated,
+          ...(contain ? { samplesInside: { inside: contain.inside, of: contain.above }, volumeWithheld: withheld } : {}), // #1683
+          ...(isCode && autoB.fromRuns ? { loggedRuns: { n: autoB.runs, medianM: +autoB.medianRunM.toFixed(2), maxM: +autoB.maxRunM.toFixed(2) } } : {}),
+          ...(radiusRaisedFrom != null ? { searchRaisedFromM: Math.round(radiusRaisedFrom * 10) / 10 } : {}),
           generatedAt: new Date().toISOString(),
         };
         mesh.userData = { tip: `${label}\n${mc.vertices.length} vertices, ${mc.faces.length} faces\nindicator envelope, ${cell.toFixed(1)} m cells, ${Math.round(radius)} m search${vol.watertight ? `\n${vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 })} m³ enclosed` : "\n(open envelope)"}` };
@@ -1678,6 +1692,9 @@ export function createModellingRuns(ctx, mcRef) {
         implicitMeshesRef.current[id] = mesh;
         setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: isCode ? "unit_body" : "alteration_envelope", /* #1340 */ relationships: [], closure, params }]);
         setNotices((p) => [...p, notice(isCode ? "Added \"{label}\": {insideCount} of {pts} sample point(s) inside the code{v} → {nx}×{ny}×{nz} grid ({cell} m cells{v2}, {v3} m search{v4}) → {vertices} vertices / {faces} faces{v5}. Closed indicator envelope, not a draped contact." : "Added \"{label}\": {insideCount} altered of {pts} indicator sample point(s){v} → {nx}×{ny}×{nz} grid ({cell} m cells{v2}, {v3} m search{v4}) → {vertices} vertices / {faces} faces{v5}. Closed indicator envelope, not a draped contact.", { label, insideCount, pts: pts.length, v: dropped ? tr(", {dropped} unplaceable", { dropped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, cell: cell.toFixed(1), v2: coarsened ? tr(", coarsened to stay under the grid limit") : "", v3: Math.round(radius), v4: anisotropy.enabled ? tr(", anisotropy applied") : "", vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v5: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr(", open") })]);
+        if (contain) setNotices((p) => [...p, withheld
+          ? errorNotice(tr("\"{label}\" contains only {n} of the {m} sample points of {code} it was built from, so it is NOT that unit: the indicator reached {iso} away from the logged intervals ({cell} m cells, {r} m search). Its volume and tonnage are withheld. A smaller cell and a search near the intervals follow the logs; a larger search joins holes but invents rock between them.", { label, n: contain.inside, m: contain.above, code: altValue, iso, cell: +cell.toFixed(1), r: Math.round(radius) }))
+          : notice("\"{label}\" contains {n} of the {m} sample points of {code} it was built from{v}.", { label, n: contain.inside, m: contain.above, code: altValue, v: contain.inside < contain.above ? tr(" ({k} outside: logged intervals the body does not reach)", { k: contain.above - contain.inside }) : "" })]); // #1683
         if (bodies.count > 1) setNotices((p) => [...p, bodyOpts.largest
           ? notice("\"{label}\": threshold {iso}. Kept the largest of {n} separate bodies, {p} % of the triangles; the other {m} were left out.", { label, iso, n: bodies.count, p: Math.round(bodies.largestShare * 100), m: bodies.count - 1 })
           : notice("\"{label}\": threshold {iso} gives {n} separate bodies; the largest has {p} % of the triangles. A lower \"Inside at\" or a geology trend can join them, but a lower threshold can also add small separate bodies around isolated holes (Modelling codes).", { label, iso, n: bodies.count, p: Math.round(bodies.largestShare * 100) })]);
