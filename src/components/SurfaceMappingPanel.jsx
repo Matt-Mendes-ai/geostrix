@@ -232,9 +232,12 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     // TASKS.csv #1325 — sort what was read; ask only when some of it does not belong on this map
     let leftOut = 0;
     {
+      // TASKS.csv #1717 (review #1645, Copley) — one row per table / layer of a file, not one per file: a seven-table GeoPackage was ONE
+      // tick box, so the geology polygons and contacts could not be taken without 386,025 lake polygons
+      const keyOf = (q) => (q.parsed.name ? `${q.sourceName} — ${q.parsed.name}` : q.sourceName);
       const byTable = new Map();
-      for (const q of queued) (byTable.get(q.sourceName) || byTable.set(q.sourceName, { name: q.sourceName, epsg: mapSourceEpsg ? Number(mapSourceEpsg) : q.opts.wgs84 ? 4326 : Number(q.parsed.epsg) || null, layers: [], items: [] }).get(q.sourceName));
-      for (const q of queued) { const t = byTable.get(q.sourceName); t.layers.push(q.parsed); t.items.push(q); if (!t.epsg && q.parsed.epsg) t.epsg = Number(q.parsed.epsg); }
+      for (const q of queued) { const k = keyOf(q); if (!byTable.has(k)) byTable.set(k, { name: k, epsg: mapSourceEpsg ? Number(mapSourceEpsg) : q.opts.wgs84 ? 4326 : Number(q.parsed.epsg) || null, layers: [], items: [] }); }
+      for (const q of queued) { const t = byTable.get(keyOf(q)); t.layers.push(q.parsed); t.items.push(q); if (!t.epsg && q.parsed.epsg) t.epsg = Number(q.parsed.epsg); }
       const tables = [...byTable.values()];
       const counts = new Map();
       tables.forEach((t) => { if (t.epsg) counts.set(t.epsg, (counts.get(t.epsg) || 0) + 1); });
