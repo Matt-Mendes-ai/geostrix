@@ -7827,5 +7827,16 @@
   " (import or fetch a DEM first, or offline: Geophysics > Block models > Terrain from the model's top)": " (importe o descargue un MDE primero, o sin conexión: Geofísica > Modelos de bloques > Terreno desde el tope del modelo)",
   "Nothing to cut yet: a level plan cuts drillholes and block models at an elevation.": "Todavía no hay nada que cortar: un plano de nivel corta sondajes y modelos de bloques a una elevación.",
   "Fit the data at a round scale": "Ajustar los datos a una escala redonda",
-  "Pick the round scale at which the visible block models (else the surface samples, map layers or boundaries) fit this frame, centre the view on them, and refresh": "Elegir la escala redonda a la que los modelos de bloques visibles (si no, las muestras de superficie, capas de mapa o límites) caben en este marco, centrar la vista en ellos y actualizar"
+  "Pick the round scale at which the visible block models (else the surface samples, map layers or boundaries) fit this frame, centre the view on them, and refresh": "Elegir la escala redonda a la que los modelos de bloques visibles (si no, las muestras de superficie, capas de mapa o límites) caben en este marco, centrar la vista en ellos y actualizar",
+  "Load some lithology/alteration interval data first.": "Cargue primero datos de intervalos de litología/alteración.",
+  "Needs collars: the {n} logged intervals of {holes} hole(s) have no collar to place them in 3D.": "Necesita collares: los {n} intervalos registrados de {holes} sondaje(s) no tienen collar que los ubique en 3D.",
+  "Load collars/survey data before running {what}.": "Cargue datos de collares/levantamientos antes de ejecutar {what}.",
+  "{what} needs collars: {n} logged intervals and assays for {holes} hole(s) are loaded, but no collar places them in 3D. Import the collars (and surveys) with those hole ids.": "{what} necesita collares: hay {n} intervalos y ensayes cargados para {holes} sondaje(s), pero ningún collar los ubica en 3D. Importe los collares (y levantamientos) con esos identificadores.",
+  "the implicit model": "el modelo implícito",
+  "the stratigraphic stack": "la pila estratigráfica",
+  "the structural model": "el modelo estructural",
+  "the unit body": "el cuerpo de la unidad",
+  "the alteration model": "el modelo de alteración",
+  "the vein model": "el modelo de vetas",
+  "the numeric model": "el modelo numérico"
 }

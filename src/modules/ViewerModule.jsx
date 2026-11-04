@@ -1,4 +1,5 @@
 import { canvasPngDataUrl } from "../lib/canvasEncode.js";
+import { interceptsDisabledText } from "../lib/noCollars.js"; // TASKS.csv #1810
 import { levelPlanZRange } from "../lib/viewer/levelPlanRange.js"; // TASKS.csv #1782
 import { surfaceSampleTip, mappedOfSample } from "../lib/viewer/sampleTip.js"; // TASKS.csv #1821
 import HoleFilterBar from "./viewer/HoleFilterBar.jsx";
@@ -1986,7 +1987,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // TASKS.csv #725 — the same builders the Layout legend uses (lib/legendGroups.js), so the two keys cannot disagree
     const singleColor = Object.fromEntries(CATEGORY_LAYER_KEYS.filter((k) => layerStyles[k]?.color).map((k) => [k, layerStyles[k].color])); // #635
     const groups = [
-      ...categoryLegendGroups({ keys: CATEGORY_LAYER_KEYS, layers, layerVisible, hidden: categoryFilter, visibleHoles, singleColor, labelFor: effectiveLabel, colorFor: effectiveColor }),
+      ...categoryLegendGroups({ keys: CATEGORY_LAYER_KEYS, layers, layerVisible, hidden: categoryFilter, visibleHoles, singleColor, labelFor: effectiveLabel, colorFor: effectiveColor, placed: new Set(collars.map((c) => String(c.hole_id))) }), // #1813
       ...assayLegendGroups({ assays, assayElements, assayVisible, assayDisplayElements, assayStyle }),
       ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), // #1236
       ...numericLayerLegendGroups({ layers, layerVisible, isRowVisible, colorOf: numericLayerColor }), // #1398 — the RQD / recovery / SG / mag susc ramps
@@ -2009,7 +2010,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       }
     }
     return groups;
-  }, [rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible]); // the last two: #1398
+  }, [rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars]); // the last two: #1398; collars: #1813
 
   // TASKS.csv #453 — build the clipping planes from the slice settings over the drilled extent (hole
   // traces; the terrain bbox when there is no drilling). Vertical: across the azimuth line, position along
@@ -7285,7 +7286,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           onDbConnect={() => setDbModalOpen(true)}
           onReloadDb={reloadDbImports} reloadDbCount={(store.dbImports || []).length} reloadDbTitle={(store.dbImports || []).map(describeDbImport).join("\n")} /* TASKS.csv #1963 */
           onQc={() => setQcModalOpen(true)} qcDisabled={!collars.length}
-          onBoundaryIntercepts={() => setInterceptsModalOpen(true)} boundaryDisabled={!collars.length}
+          onBoundaryIntercepts={() => setInterceptsModalOpen(true)} boundaryDisabled={!collars.length} boundaryWhy={collars.length ? null : interceptsDisabledText(layers)}
           onSqlWorkspace={() => setSqlModalOpen(true)} sqlDisabled={!collars.length && !assays.length}
           onSnapshot={snapshotToLayout} snapshotDisabled={!dataLoaded} exportDisabled={!collars.length} /* #1803 — drillhole exports need holes */
           onExportHoles={(e) => { const r = e.currentTarget.getBoundingClientRect(); setLayerContextMenu({ key: "__drillholes__", label: tr("Export drillholes"), x: Math.max(8, Math.min(r.left, window.innerWidth - 320)), y: r.bottom + 4 }); }} /* #1085 */

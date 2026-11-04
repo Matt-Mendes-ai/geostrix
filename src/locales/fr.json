@@ -7827,5 +7827,16 @@
   " (import or fetch a DEM first, or offline: Geophysics > Block models > Terrain from the model's top)": " (importez ou téléchargez d'abord un MNT, ou hors ligne : Géophysique > Modèles de blocs > Terrain à partir du sommet du modèle)",
   "Nothing to cut yet: a level plan cuts drillholes and block models at an elevation.": "Rien à couper pour l'instant : un plan de niveau coupe les sondages et les modèles de blocs à une altitude.",
   "Fit the data at a round scale": "Ajuster les données à une échelle ronde",
-  "Pick the round scale at which the visible block models (else the surface samples, map layers or boundaries) fit this frame, centre the view on them, and refresh": "Choisir l'échelle ronde à laquelle les modèles de blocs visibles (sinon les échantillons de surface, couches cartographiques ou limites) tiennent dans ce cadre, centrer la vue sur eux et actualiser"
+  "Pick the round scale at which the visible block models (else the surface samples, map layers or boundaries) fit this frame, centre the view on them, and refresh": "Choisir l'échelle ronde à laquelle les modèles de blocs visibles (sinon les échantillons de surface, couches cartographiques ou limites) tiennent dans ce cadre, centrer la vue sur eux et actualiser",
+  "Load some lithology/alteration interval data first.": "Chargez d'abord des intervalles de lithologie/altération.",
+  "Needs collars: the {n} logged intervals of {holes} hole(s) have no collar to place them in 3D.": "Nécessite des collets : les {n} intervalles décrits de {holes} sondage(s) n'ont aucun collet pour les placer en 3D.",
+  "Load collars/survey data before running {what}.": "Chargez les collets et levés avant de lancer {what}.",
+  "{what} needs collars: {n} logged intervals and assays for {holes} hole(s) are loaded, but no collar places them in 3D. Import the collars (and surveys) with those hole ids.": "{what} nécessite des collets : {n} intervalles et analyses sont chargés pour {holes} sondage(s), mais aucun collet ne les place en 3D. Importez les collets (et les levés) avec ces identifiants.",
+  "the implicit model": "le modèle implicite",
+  "the stratigraphic stack": "la pile stratigraphique",
+  "the structural model": "le modèle structural",
+  "the unit body": "le corps de l'unité",
+  "the alteration model": "le modèle d'altération",
+  "the vein model": "le modèle de filons",
+  "the numeric model": "le modèle numérique"
 }

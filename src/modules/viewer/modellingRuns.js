@@ -13,6 +13,7 @@ import { MAX_BLOCKS, SUPPORT_COLORS, MAX_BLOCK_BUDGET, gridBlockCount, cellToFit
 import { compositeDownhole, rawSampleIntervals, capAudit, capAuditText } from "../../lib/geochem.js"; // capAudit: #533; rawSampleIntervals: #571
 import { excludeQAQC } from "../../lib/qaqc.js";
 import { errorNotice, notice, appendNotice } from "../../lib/notices.js";
+import { noCollarsNotice } from "../../lib/noCollars.js"; // TASKS.csv #1841 — what is waiting for collars
 import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, autoBodyParams, mergedRuns, splitIntervalForSampling, spatialClusters, terrainGroundAt } from "../../lib/viewer/geomath.js";
 import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals, depthKey } from "../../lib/viewer/intervals.js";
 import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit, startsBelowNonUnit, startsBelowOverburden, overburdenBases } from "../../lib/modellingCodes.js"; // TASKS.csv #599; #1367; #1684
@@ -1219,7 +1220,7 @@ export function createModellingRuns(ctx, mcRef) {
   const runImplicitModel = async (unitName, runOpts = {}) => { // runOpts.ensemble — TASKS.csv #52 (a)
     if (!unitName) return;
     const traces = tracesRef.current;
-    if (!traces.length) { setNotices((p) => [...p, notice("Load collars/survey data before running the implicit model.")]); return; }
+    if (!traces.length) { setNotices((p) => [...p, noCollarsNotice(tr("the implicit model"), layers, assays)]); return; }
     // TASKS.csv #176 — a `group:<id>` pick resolves to its group object here; the raw-code path is untouched.
     const target = resolveLithoTarget(unitName);
     if (!target) { setNotices((p) => [...p, notice("That lithology group no longer exists — pick another unit.")]); return; }
@@ -1246,7 +1247,7 @@ export function createModellingRuns(ctx, mcRef) {
   const runStackModel = async (unitNames) => {
     if (!unitNames || unitNames.length < 2) return;
     const traces = tracesRef.current;
-    if (!traces.length) { setNotices((p) => [...p, notice("Load collars/survey data before running the stratigraphic stack.")]); return; }
+    if (!traces.length) { setNotices((p) => [...p, noCollarsNotice(tr("the stratigraphic stack"), layers, assays)]); return; }
 
     const specs = [];
     const skipped = [];
@@ -1453,7 +1454,7 @@ export function createModellingRuns(ctx, mcRef) {
   const runStructuralModel = async (structType) => {
     if (!structType) return;
     const traces = tracesRef.current;
-    if (!traces.length) { setNotices((p) => [...p, notice("Load collars/survey data before running the structural model.")]); return; }
+    if (!traces.length) { setNotices((p) => [...p, noCollarsNotice(tr("the structural model"), layers, assays)]); return; }
 
     let rows = (layers.structure || []).filter((s) => String(s.value).toUpperCase() === String(structType).toUpperCase() && s.dip != null && s.azimuth != null && !isNaN(s.dip) && !isNaN(s.azimuth));
     if (!rows.length) { setNotices((p) => [...p, notice("No \"{structType}\" structure picks with dip/azimuth found — nothing to model.", { structType })]); return; }
@@ -1538,7 +1539,7 @@ export function createModellingRuns(ctx, mcRef) {
     const altValue = isCode ? String(target).slice(6) : target, sourceKey = isCode ? "litho" : "alt";
     const isTargetRow = (r) => (isCode ? effectiveCode(r, modellingCodes, mcodeGroupOf) === altValue : r.value === altValue);
     const traces = tracesRef.current;
-    if (!traces.length) { setNotices((p) => [...p, notice("Load collars/survey data before running the alteration model.")]); return; }
+    if (!traces.length) { setNotices((p) => [...p, noCollarsNotice(isCode ? tr("the unit body") : tr("the alteration model"), layers, assays)]); return; }
 
     const domain = domains.find((d) => d.id === modelDomainId);
     const o = originRef.current;
@@ -1727,7 +1728,7 @@ export function createModellingRuns(ctx, mcRef) {
   const runVeinModel = (veinValue) => {
     if (!veinValue) return;
     const traces = tracesRef.current;
-    if (!traces.length) { setNotices((p) => [...p, notice("Load collars/survey data before running the vein model.")]); return; }
+    if (!traces.length) { setNotices((p) => [...p, noCollarsNotice(tr("the vein model"), layers, assays)]); return; }
     const o = originRef.current;
     const domain = domains.find((d) => d.id === modelDomainId);
     const label = `Vein: ${veinValue}`;
@@ -1902,7 +1903,7 @@ export function createModellingRuns(ctx, mcRef) {
     const anisotropy = trendWarp("gradeShell"); // TASKS.csv #650
     const symbol = numericSymbol || assayElements[0]?.symbol;
     if (!symbol) { setNotices((p) => [...p, notice("No assay elements loaded — import assays before running the numeric model.")]); return; }
-    if (!collars.length) { setNotices((p) => [...p, notice("Load collars/survey data before running the numeric model.")]); return; }
+    if (!collars.length) { setNotices((p) => [...p, noCollarsNotice(tr("the numeric model"), layers, assays)]); return; }
     if (!Number.isFinite(numericCutoff)) { setNotices((p) => [...p, notice("Enter a numeric cutoff grade.")]); return; }
     const elementUnits = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit]));
     const unit = elementUnits[symbol] || "ppm";

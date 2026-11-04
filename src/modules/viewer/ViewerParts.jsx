@@ -22,7 +22,7 @@ export function ViewToolbar({
   figureOverlay, setFigureOverlay, projectName, legendCount, legendShown, // TASKS.csv #311
   themes, themeNameDraft, setThemeNameDraft, captureCurrentTheme, applyTheme,
   renamingThemeId, setRenamingThemeId, renameDraft, setRenameDraft, renameTheme, deleteTheme,
-  onDbConnect, onQc, qcDisabled, onBoundaryIntercepts, boundaryDisabled, onSqlWorkspace, sqlDisabled,
+  onDbConnect, onQc, qcDisabled, onBoundaryIntercepts, boundaryDisabled, boundaryWhy = null /* #1810 */, onSqlWorkspace, sqlDisabled,
   onReloadDb = null, reloadDbCount = 0, reloadDbTitle = "", // TASKS.csv #1963
   onSnapshot, snapshotDisabled, exportDisabled = snapshotDisabled, onExportHoles, sectionMode, onToggleSection, sectionCorridor, setSectionCorridor,
   identifyOn, onToggleIdentify, measureMode, onToggleMeasure, onSwitchMeasureMode, measurePts, clearMeasure,
@@ -190,7 +190,7 @@ export function ViewToolbar({
           </HoverToolInfo>
         </div>
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title={tr("Boundary intercepts")} text={boundaryDisabled ? tr("Load some lithology/alteration interval data first. Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface.") : tr("Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface.")}>
+          <HoverToolInfo title={tr("Boundary intercepts")} text={boundaryDisabled ? `${boundaryWhy || tr("Load some lithology/alteration interval data first.")} ` + tr("Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface.") : tr("Lists every geological unit boundary (top of each litho/alteration interval) resolved to a real 3D position along each hole — the same control points the implicit-modelling tools use — so you can review, exclude, or mark individual points \"soft\" before running a surface.")}>
             <button className={`ge-ribbon-btn${boundaryDisabled ? " is-disabled" : ""}`} onClick={boundaryDisabled ? undefined : onBoundaryIntercepts} aria-disabled={boundaryDisabled || undefined}><Milestone size={22} strokeWidth={1.7} color={RIBBON_TONES.analyse} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Intercepts")}</span></button>
           </HoverToolInfo>
         </div>

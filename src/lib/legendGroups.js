@@ -26,7 +26,8 @@ export const fmtLegendValue = (v) => (Math.abs(v) >= 1000 || v === 0 ? v.toFixed
 
 // keys: the categorical layer keys, in order. hidden[key]: a Set or array of hidden values. singleColor[key]: a one-
 // colour layer style (#635). labelFor / colorFor(key, value): with the user's overrides applied.
-export function categoryLegendGroups({ keys, layers, layerVisible, hidden = {}, visibleHoles = {}, singleColor = {}, labelFor, colorFor }) {
+// placed (TASKS.csv #1867 / #1813): the hole ids that have a collar; intervals of any other hole draw nothing and are left out (null = all)
+export function categoryLegendGroups({ keys, layers, layerVisible, hidden = {}, visibleHoles = {}, singleColor = {}, labelFor, colorFor, placed = null }) {
   const groups = [];
   keys.forEach((key) => {
     if (!layerVisible?.[key]) return;
@@ -43,6 +44,7 @@ export function categoryLegendGroups({ keys, layers, layerVisible, hidden = {}, 
       const k = String(v);
       if (isHidden(k)) continue;
       if (row.hole_id && visibleHoles[row.hole_id] === false) continue;
+      if (placed && !placed.has(String(row.hole_id))) continue; // #1867 — no collar: nowhere on the sheet
       if (seen.has(k)) { counts[seen.get(k)]++; continue; }
       seen.set(k, items.length);
       items.push([labelFor(key, v), colorFor(key, v)]); counts.push(1);

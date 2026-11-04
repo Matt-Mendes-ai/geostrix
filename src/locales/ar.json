@@ -7827,5 +7827,16 @@
   " (import or fetch a DEM first, or offline: Geophysics > Block models > Terrain from the model's top)": " (استورد أو نزّل نموذج ارتفاع رقمي أولاً، أو دون اتصال: الجيوفيزياء > النماذج الكتلية > تضاريس من قمة النموذج)",
   "Nothing to cut yet: a level plan cuts drillholes and block models at an elevation.": "لا شيء للقطع بعد: المسقط المستوي يقطع ثقوب الحفر والنماذج الكتلية عند ارتفاع.",
   "Fit the data at a round scale": "ملاءمة البيانات بمقياس مستدير",
-  "Pick the round scale at which the visible block models (else the surface samples, map layers or boundaries) fit this frame, centre the view on them, and refresh": "اختيار المقياس المستدير الذي تتسع فيه النماذج الكتلية المرئية (وإلا العينات السطحية أو طبقات الخريطة أو الحدود) لهذا الإطار، وتوسيط العرض عليها، والتحديث"
+  "Pick the round scale at which the visible block models (else the surface samples, map layers or boundaries) fit this frame, centre the view on them, and refresh": "اختيار المقياس المستدير الذي تتسع فيه النماذج الكتلية المرئية (وإلا العينات السطحية أو طبقات الخريطة أو الحدود) لهذا الإطار، وتوسيط العرض عليها، والتحديث",
+  "Load some lithology/alteration interval data first.": "حمّل أولاً بيانات فترات الصخارة/التبدل.",
+  "Needs collars: the {n} logged intervals of {holes} hole(s) have no collar to place them in 3D.": "يتطلب فوهات: الفترات المسجلة البالغة {n} لـ {holes} ثقب لا فوهة لها تضعها في ثلاثي الأبعاد.",
+  "Load collars/survey data before running {what}.": "حمّل بيانات الفوهات/المسوحات قبل تشغيل {what}.",
+  "{what} needs collars: {n} logged intervals and assays for {holes} hole(s) are loaded, but no collar places them in 3D. Import the collars (and surveys) with those hole ids.": "{what} يتطلب فوهات: حُمّلت {n} فترة وتحليلاً لـ {holes} ثقب، لكن لا فوهة تضعها في ثلاثي الأبعاد. استورد الفوهات (والمسوحات) بمعرّفات تلك الثقوب.",
+  "the implicit model": "النموذج الضمني",
+  "the stratigraphic stack": "العمود الطبقي",
+  "the structural model": "النموذج البنيوي",
+  "the unit body": "جسم الوحدة",
+  "the alteration model": "نموذج التبدل",
+  "the vein model": "نموذج العروق",
+  "the numeric model": "النموذج العددي"
 }
