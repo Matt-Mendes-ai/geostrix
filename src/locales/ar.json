@@ -7838,5 +7838,6 @@
   "the unit body": "جسم الوحدة",
   "the alteration model": "نموذج التبدل",
   "the vein model": "نموذج العروق",
-  "the numeric model": "النموذج العددي"
+  "the numeric model": "النموذج العددي",
+  "{v}: not drawn, its holes have no collars.": "{v}: غير مرسوم، ثقوبه بلا فوهات."
 }

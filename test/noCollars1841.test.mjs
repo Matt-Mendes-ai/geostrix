@@ -39,3 +39,10 @@ test("#1867 the legend leaves out the intervals of holes with no collar", () => 
   const l = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
   assert.ok(l.includes("placed: new Set((collars || []).map((c) => String(c.hole_id))) /* #1867 */"));
 });
+
+test("#1813 no collars: the assay classes leave the legend, and zoom-to says why", () => {
+  const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+  assert.ok(v.includes("assayVisible: assayVisible && collars.length > 0 /* #1813 */"));
+  assert.ok(v.includes('"{v}: not drawn, its holes have no collars."'));
+  assert.ok(v.includes("}, [fitBox, collars, layers]); // collars, layers: #1813"));
+});

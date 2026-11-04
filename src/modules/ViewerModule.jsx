@@ -1988,7 +1988,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const singleColor = Object.fromEntries(CATEGORY_LAYER_KEYS.filter((k) => layerStyles[k]?.color).map((k) => [k, layerStyles[k].color])); // #635
     const groups = [
       ...categoryLegendGroups({ keys: CATEGORY_LAYER_KEYS, layers, layerVisible, hidden: categoryFilter, visibleHoles, singleColor, labelFor: effectiveLabel, colorFor: effectiveColor, placed: new Set(collars.map((c) => String(c.hole_id))) }), // #1813
-      ...assayLegendGroups({ assays, assayElements, assayVisible, assayDisplayElements, assayStyle }),
+      ...assayLegendGroups({ assays, assayElements, assayVisible: assayVisible && collars.length > 0 /* #1813 */, assayDisplayElements, assayStyle }),
       ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), // #1236
       ...numericLayerLegendGroups({ layers, layerVisible, isRowVisible, colorOf: numericLayerColor }), // #1398 — the RQD / recovery / SG / mag susc ramps
     ];
@@ -2833,9 +2833,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const autoFitInitial = useCallback((traces, nHoles) => { fitView(nHoles ? traces.slice(0, nHoles) : traces); }, [fitView]);
   const zoomToLayer = useCallback((key) => {
     const group = layerGroupsRef.current[key];
-    if (!group || !group.children.length) { setNotices((p) => [...p, notice("{v}: nothing rendered to zoom to.", { v: LAYER_META[key]?.label || key })]); return; }
+    if (!group || !group.children.length) { setNotices((p) => [...p, notice(!collars.length && layers[key]?.length ? "{v}: not drawn, its holes have no collars." : "{v}: nothing rendered to zoom to.", { v: LAYER_META[key]?.label || key })]); return; } // #1813
     fitBox(new THREE.Box3().setFromObject(group));
-  }, [fitBox]);
+  }, [fitBox, collars, layers]); // collars, layers: #1813
   const zoomToCustom = useCallback((id) => { const g = layerGroupsRef.current[id]; if (g && g.children.length) fitBox(new THREE.Box3().setFromObject(g)); }, [fitBox]);
   const zoomToFitAll = () => fitView(lastTracesRef.current);
   // TASKS.csv #1181 — the Fit button frames the drilling, as the opening view does: a 25 km mesh over 5 km of holes left them a few pixels. All of it stays on the right-click menu.

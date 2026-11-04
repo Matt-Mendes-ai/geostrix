@@ -7838,5 +7838,6 @@
   "the unit body": "o corpo da unidade",
   "the alteration model": "o modelo de alteração",
   "the vein model": "o modelo de veios",
-  "the numeric model": "o modelo numérico"
+  "the numeric model": "o modelo numérico",
+  "{v}: not drawn, its holes have no collars.": "{v}: não desenhado, os furos não têm bocas de furo."
 }
