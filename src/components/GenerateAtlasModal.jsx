@@ -68,7 +68,11 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
       const smallText = Number.isFinite(smallest) && smallest < 6 ? ` ${tr("The longest strip log prints its labels at about {pt} pt on this page: use a larger page, or the strip log window for a full-size log.", { pt: smallest.toFixed(1) })}` : "";
       addLayoutPages(pages);
       const failed = pages.filter((pg) => pg.stripLogFailed).map((pg) => pg.name); // #1080
-      setResult({ ok: !failed.length, text: tr("Generated {n} page(s).", { n: pages.length }) + smallText + (failed.length ? ` ${tr("The strip log could not be drawn for {n} hole(s), added without it: {holes}.", { n: failed.length, holes: failed.slice(0, 8).join(", ") + (failed.length > 8 ? "…" : "") })}` : "") });
+      // #1772 — what making room for the strip log did to the template's elements
+      const narrowedPages = pages.filter((pg) => pg.narrowed > 0).length, coveredPages = pages.filter((pg) => pg.overlapping > 0).length;
+      const room = (narrowedPages ? ` ${tr("To make room for the strip log, the template's elements beside it were narrowed on {n} page(s); a map keeps its scale and shows less ground.", { n: narrowedPages })}` : "")
+        + (coveredPages ? ` ${tr("On {n} page(s) the strip log still covers part of the template: move it, or leave a free column at the side of the template.", { n: coveredPages })}` : "");
+      setResult({ ok: !failed.length, text: tr("Generated {n} page(s).", { n: pages.length }) + smallText + room + (failed.length ? ` ${tr("The strip log could not be drawn for {n} hole(s), added without it: {holes}.", { n: failed.length, holes: failed.slice(0, 8).join(", ") + (failed.length > 8 ? "…" : "") })}` : "") });
     } catch (err) {
       setResult({ ok: false, text: err.message });
     } finally {

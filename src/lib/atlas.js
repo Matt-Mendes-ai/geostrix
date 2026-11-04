@@ -82,13 +82,41 @@ export function placeStripLog(elements, aspect, page = { w: 1123, h: 794 }, marg
   const right = page.w - margin - w, left = margin;
   return { x: overlap(right) <= overlap(left) ? right : left, y: margin, w, h };
 }
+// TASKS.csv #1772 (review #1645, Copley) — the strip log's column still covered a wide template map (the 1:5,000 viewport ran to
+// x 1011 of 1123 px, the log started at 959). Each template element it covers is narrowed to end `gap` px before it (or, on the
+// left, to start after it) when at least `minKeep` of its width remains; a viewport keeps its scale and shows less ground. One that
+// cannot keep that much (a north arrow or a scale bar near the map's edge) moves aside whole when it fits on the page. Elements that
+// can do neither are left as they are and counted. -> { elements, narrowed (narrowed or moved), overlapping }
+// A north arrow draws at a fixed size whatever its saved width (LayoutModule: 54 x 70 px, 170 x 124 with the declination diagram):
+// it is moved, never narrowed, to whichever side of the log has room, nearer first.
+const fixedSize = (el) => (el.type === "north" ? (el.decl ? [170, 124] : [54, 70]) : null);
+export function makeRoomForStripLog(elements, box, { gap = 12, minKeep = 0.4, pageW = 1123 } = {}) {
+  let narrowed = 0, overlapping = 0;
+  const out = elements.map((el) => {
+    const fixed = fixedSize(el);
+    const ex = el.x || 0, ey = el.y || 0, ew = fixed ? fixed[0] : el.w || 100, eh = fixed ? fixed[1] : el.h || 40;
+    const ox = Math.min(box.x + box.w, ex + ew) - Math.max(box.x, ex), oy = Math.min(box.y + box.h, ey + eh) - Math.max(box.y, ey);
+    if (!(ox > 0.5 && oy > 0.5)) return el;
+    const onRight = box.x + box.w / 2 > ex + ew / 2;
+    const w = onRight ? box.x - gap - ex : ex + ew - (box.x + box.w + gap);
+    if (fixed || !(w >= minKeep * ew)) {
+      const fits = [box.x - gap - ew, box.x + box.w + gap].filter((x) => x >= 0 && x + ew <= pageW).sort((a, b) => Math.abs(a - ex) - Math.abs(b - ex));
+      if (fits.length) { narrowed++; return { ...el, x: fits[0] }; }
+      overlapping++; return el;
+    }
+    narrowed++;
+    return onRight ? { ...el, w } : { ...el, x: box.x + box.w + gap, w };
+  });
+  return { elements: out, narrowed, overlapping };
+}
+
 // the size its 9.5 px drawing text prints at, in points (96 px per inch, 72 pt per inch), once the drawing is scaled to `h`
 export const stripLogTextPt = (drawingHeight, h) => (drawingHeight > 0 ? (9.5 * (h / drawingHeight) * 72) / 96 : null);
 
 async function buildOneHolePage(holeId, templateElements, { collars, layers, includeStripLog, legendOverride, page }) {
   const values = holeAtlasValues(holeId, collars, layers);
   let elements = templateElements.map((el) => substituteElement(el, values));
-  let stripLogFailed = false, textPt = null;
+  let stripLogFailed = false, textPt = null, narrowed = 0, overlapping = 0;
   if (includeStripLog) {
     // TASKS.csv #1080 — one hole's strip log failing (a rasterize error) no longer aborts the whole atlas: its page is
     // added without the image and counted in the result notice
@@ -97,10 +125,11 @@ async function buildOneHolePage(holeId, templateElements, { collars, layers, inc
     if (built) {
       const box = placeStripLog(elements, built.aspect, page || undefined);
       textPt = stripLogTextPt(built.height, box.h);
+      ({ elements, narrowed, overlapping } = makeRoomForStripLog(elements, box, { pageW: (page || {}).w || 1123 })); // #1772
       elements = [...elements, { id: `striplog_${holeId}_${Date.now()}`, type: "image", label: `Strip log — ${holeId}`, src: built.dataUrl, aspect: built.aspect, ...box }];
     }
   }
-  return { name: substituteTokens("{{hole_id}}", values), elements, stripLogFailed, textPt };
+  return { name: substituteTokens("{{hole_id}}", values), elements, stripLogFailed, textPt, narrowed, overlapping };
 }
 
 function buildOneSectionPage(section, templateElements) {
