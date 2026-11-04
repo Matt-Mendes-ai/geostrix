@@ -4,7 +4,8 @@
 import React, { useMemo, useState } from "react";
 import { X } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
-import { usableElements, geochemDomains, writeDomains, DOMAIN_ATTR } from "../lib/geochemDomains.js";
+import { usableElements, writeDomains, DOMAIN_ATTR } from "../lib/geochemDomains.js";
+import { geochemDomainsAsync } from "../lib/geochemDomainsClient.js"; // TASKS.csv #1797 — in a worker
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps, sel, th, td, label, panel, header, rowBtn as btn } from "../lib/modalStyles.js";
@@ -19,8 +20,10 @@ export default function DomainsPanel({ onClose }) {
   useFocusTrap();
   const { surfaceSamples, surfaceElements, setSurfaceSamples } = useStore();
   const units = useMemo(() => Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit])), [surfaceElements]);
-  const [medium, setMedium] = useState("all");
   const media = useMemo(() => [...new Set(surfaceSamples.map((s) => s.medium))], [surfaceSamples]);
+  // TASKS.csv #1797 — the largest medium first, not all media together (soils and rock chips are different populations, #1382)
+  const [medium, setMedium] = useState(() => { const n = new Map(); surfaceSamples.forEach((s) => n.set(s.medium, (n.get(s.medium) || 0) + 1)); return [...n.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "all"; });
+  const [busy, setBusy] = useState(false);
   const subset = useMemo(() => (medium === "all" ? surfaceSamples : surfaceSamples.filter((s) => s.medium === medium)), [surfaceSamples, medium]);
   const usable = useMemo(() => usableElements(subset, surfaceElements, units), [subset, surfaceElements, units]);
   const [chosen, setChosen] = useState(null);
@@ -28,10 +31,13 @@ export default function DomainsPanel({ onClose }) {
   const [k, setK] = useState(3);
   const [result, setResult] = useState(null);
   const [msg, setMsg] = useState(null);
-  const run = () => {
-    const r = geochemDomains(subset, symbols, units, { k });
-    setResult(r.error ? null : r);
-    setMsg(r.error ? tr("Too few samples with all the chosen elements ({n}); drop an element or choose fewer clusters.", { n: r.n }) : null);
+  const run = async () => {
+    setBusy(true); setMsg(null);
+    try {
+      const r = await geochemDomainsAsync(subset, symbols, units, { k });
+      setResult(r.error ? null : r);
+      setMsg(r.error ? tr("Too few samples with all the chosen elements ({n}); drop an element or choose fewer clusters.", { n: r.n }) : null);
+    } catch (e) { setMsg(e.message); } finally { setBusy(false); }
   };
   const write = () => {
     // the subset's indices map back to the full list
@@ -58,7 +64,7 @@ export default function DomainsPanel({ onClose }) {
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
             <label style={ctl}>{tr("Samples")}<select value={medium} onChange={(e) => { setMedium(e.target.value); setChosen(null); setResult(null); }} style={{ ...sel, display: "block", marginTop: 4 }}><option value="all">{tr("All media together")}</option>{media.map((m) => <option key={m} value={m}>{tr(m)}</option>)}</select></label>
             <label style={ctl}>{tr("Clusters (k)")}<select value={k} onChange={(e) => setK(Number(e.target.value))} style={{ ...sel, display: "block", marginTop: 4 }}>{[2, 3, 4, 5, 6, 7, 8].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
-            <button type="button" style={btn(true)} onClick={run} disabled={symbols.length < 2 || subset.length < 6}>{tr("Run")}</button>
+            <button type="button" style={btn(true)} onClick={run} disabled={busy || symbols.length < 2 || subset.length < 6}>{busy ? tr("Running…") : tr("Run")}</button>
           </div>
           <div>
             <div style={label}>{tr("Elements ({n} of {m}; those with a value in 90 % of the samples are ticked)", { n: symbols.length, m: surfaceElements.length })}</div>
