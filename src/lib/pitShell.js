@@ -362,15 +362,18 @@ export function pitParts(grid, mined) {
   for (let s = 0; s < NC; s++) {
     if (!Number.isFinite(floor[s]) || label[s] >= 0) continue;
     const id = pits.length, stack = [s], part = { columns: 0, oreT: 0, wasteT: 0, rockT: 0, money: 0, maxDepth: 0 };
+    let i0 = Infinity, i1 = -Infinity, j0 = Infinity, j1 = -Infinity;
     label[s] = id;
     while (stack.length) {
       const c = stack.pop(); part.columns++;
+      { const jj = Math.floor(c / nx), ii = c - jj * nx; if (ii < i0) i0 = ii; if (ii > i1) i1 = ii; if (jj < j0) j0 = jj; if (jj > j1) j1 = jj; }
       const depth = ground[c] - floor[c]; if (depth > part.maxDepth) part.maxDepth = depth;
       for (let k = 0; k < nz; k++) { const q = k * NC + c; if (!mined[q]) continue; part.oreT += grid.oreT[q]; part.rockT += grid.rockT[q]; part.money += grid.value[q]; }
       const j = Math.floor(c / nx), i = c - j * nx;
       for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const ii = i + a, jj = j + b; if (ii < 0 || jj < 0 || ii >= nx || jj >= ny) continue; const p = jj * nx + ii; if (Number.isFinite(floor[p]) && label[p] < 0) { label[p] = id; stack.push(p); } }
     }
     part.wasteT = part.rockT - part.oreT; part.stripRatio = part.oreT > 0 ? part.wasteT / part.oreT : null; part.blocksDeep = Math.max(1, Math.round(part.maxDepth / dz));
+    part.boxM = [(i1 - i0 + 1) * dx, (j1 - j0 + 1) * dy]; // its plan extent (#1926)
     pits.push(part);
   }
   pits.sort((a, b) => b.oreT - a.oreT);

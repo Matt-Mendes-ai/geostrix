@@ -38,7 +38,7 @@ export function parseFactors(text) {
 export function droppedFactors(text) {
   const t = String(text || "").trim();
   if (/^(-?[\d.]+)\s*(?:-|to)\s*(-?[\d.]+)\s*(?:step|by|\/)\s*([\d.]+)$/i.test(t)) return [];
-  return t.split(/[,\s;]+/).map(Number).filter((v) => Number.isFinite(v) && !(v > 0));
+  return t.split(/[,\s;]+/).filter((x) => x !== "").map(Number).filter((v) => Number.isFinite(v) && !(v > 0));
 }
 
 // surfaces: the generated surfaces (the last pit shell's inputs are the defaults); onAdd / onToggle / onRemove as the pit pane's
@@ -71,6 +71,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
       if (r.failed || r.empty) { setMsg(r.empty ? tr("At these inputs no block pays for the rock over it at the largest factor, so there is no pit.") : tr("The series failed: {v}", { v: r.failed })); return; }
       const seconds = Math.round((performance.now() - t0) / 100) / 10;
+      if (kept?.seriesId && onRemove) surfaces.filter((s) => s.params?.seriesId === kept.seriesId).forEach((s) => onRemove(s.id)); // #1931 — the earlier series' shells go
       kept = { ...r, seconds, pitId: lastPit.id, factorsText: f.factors, rateText: f.rate, discountText: f.discount, unit, priceLabel, price: inputs.price, seriesId: `series_${Date.now()}`, shown: {} };
       setRes(kept);
     } catch (e) { setMsg(tr("The series failed: {v}", { v: e.message || e })); }

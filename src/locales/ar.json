@@ -7468,5 +7468,6 @@
   "Undo (Ctrl/Cmd+Z): collars, surveys, logs, assays, surface samples, sections, planned holes, design lines and strings, explicit surfaces, Layout pages ... Rasters, terrain, map layers, block models and generated surfaces are not undoable.": "تراجع (Ctrl/Cmd+Z): الفوهات، المسوحات، السجلات، التحاليل، العينات السطحية، المقاطع، الثقوب المخطط لها، خطوط التصميم وخطوطه المتعددة، الأسطح الصريحة، صفحات التخطيط ... الصور النقطية والتضاريس وطبقات الخريطة ونماذج الكتل والأسطح المولَّدة لا يمكن التراجع عنها.",
   "\"{name}\" deleted: Undo (Ctrl+Z) brings it back.": "حُذف \"{name}\": التراجع (Ctrl+Z) يعيده.",
   "Moving vertex {n}: E {x}, N {y}, Z {z}": "تحريك الرأس {n}: E {x}، N {y}، Z {z}",
-  "In the view: click a string to select it; drag a vertex of the selected string to move it (on its own level, or on the ground when that is the drawing target).": "في العرض: انقر خطًا لتحديده؛ اسحب رأسًا من الخط المحدد لتحريكه (على مستواه، أو على الأرض عندما تكون هدف الرسم)."
+  "In the view: click a string to select it; drag a vertex of the selected string to move it (on its own level, or on the ground when that is the drawing target).": "في العرض: انقر خطًا لتحديده؛ اسحب رأسًا من الخط المحدد لتحريكه (على مستواه، أو على الأرض عندما تكون هدف الرسم).",
+  "{n} of those are above the ground interpolated between the collars (no terrain) and were left out.": "{n} منها فوق الأرض المستكمَلة بين الفوهات (لا تضاريس) واستُبعدت."
 }

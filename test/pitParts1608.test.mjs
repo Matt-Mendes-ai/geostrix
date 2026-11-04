@@ -24,7 +24,7 @@ test("two bodies far apart give two separate pits whose ore adds up to the shell
   assert.ok(Math.abs(sum - r.oreT) < 1e-6 && Math.abs(r.parts.pits.reduce((a, p) => a + p.wasteT, 0) - r.wasteT) < 1e-6);
   assert.ok(r.parts.pits[0].oreT >= r.parts.pits[1].oreT, "largest first");
   assert.equal(r.parts.blocksDeep, 2);
-  for (const p of r.parts.pits) { assert.equal(p.blocksDeep, 2); assert.ok(p.columns >= 4); assert.ok(p.stripRatio >= 0); }
+  for (const p of r.parts.pits) { assert.equal(p.blocksDeep, 2); assert.ok(p.columns >= 4); assert.ok(p.stripRatio >= 0); assert.ok(p.boxM[0] >= 20 && p.boxM[1] >= 20 && p.boxM[0] <= 100, `box ${p.boxM}`); } // boxM: #1926
   // on cubes at 45 degrees the drawn steps are one level per column: 45 degrees everywhere, in every sector the pit has a wall
   assert.ok(Math.abs(r.parts.drawnWalls.flattest - 45) < 1e-9 && Math.abs(r.parts.drawnWalls.steepest - 45) < 1e-9, `${r.parts.drawnWalls.flattest}–${r.parts.drawnWalls.steepest}`);
   for (const k of ["N", "S", "E", "W"]) assert.ok(Math.abs(r.parts.drawnWalls.bySector[k] - 45) < 1e-9, k);

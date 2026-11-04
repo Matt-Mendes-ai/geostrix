@@ -596,7 +596,7 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
               )}
               {result.params?.capValue != null && <div>{tr("Grades capped at {cap} {unit} before estimating.", { cap: result.params.capValue, unit: result.params.capUnit || "" })}</div>}{/* #1736 — said in the result */}
               <div>{tr("{blocksEstimated} block(s) estimated, {blocksSkipped} left un-estimated (no sample within search radius / below min-samples / below min distinct holes).", { blocksEstimated: result.blocksEstimated.toLocaleString(), blocksSkipped: result.blocksSkipped.toLocaleString() })}</div>
-              {result.cutAboveGround > 0 && <div>{tr("{n} of those are above the terrain surface and were left out.", { n: result.cutAboveGround.toLocaleString() })}</div>}
+              {result.cutAboveGround > 0 && <div>{groundSource === "collars" ? tr("{n} of those are above the ground interpolated between the collars (no terrain) and were left out.", { n: result.cutAboveGround.toLocaleString() }) : tr("{n} of those are above the terrain surface and were left out.", { n: result.cutAboveGround.toLocaleString() })}</div>}{/* collars: #1932 */}
               {/* TASKS.csv #258 */}
               {/* TASKS.csv #516 — say how MLS (linear) actually ran */}
               {result.variogram && (

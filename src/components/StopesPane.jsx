@@ -54,6 +54,8 @@ export default function StopesPane({ onAdd, onRemove, onClose }) {
     if (r.failed) { setMsg(tr("The model has too many columns ({n}) for this tool.", { n: r.columns })); return; }
     const addedIds = kept?.addedIds || []; // #1887 — the stopes the earlier run put in the view go when a new run replaces them
     if (addedIds.length && onRemove) addedIds.forEach((id) => onRemove(id));
+    const oldStrings = kept?.addedStringIds || []; // #1922 — and its outline strings
+    if (oldStrings.length) { const gone = new Set(oldStrings); setDesignStrings((L) => L.filter((s) => !gone.has(s.id))); }
     kept = { ...r, inputs: { ...f }, model: model.name, unit, seconds: Math.round((performance.now() - t0) / 100) / 10, addedIds: [] };
     setRes(kept); setAdded({ solids: false, strings: false }); setMsg(null);
   };
@@ -80,6 +82,7 @@ export default function StopesPane({ onAdd, onRemove, onClose }) {
     const strings = [];
     res.levels.forEach((l, li) => l.stopes.forEach((s, si) => strings.push({ id: `string_stope_${Date.now()}_${li}_${si}`, name: tr("Stope {rl} m #{n}", { rl: Math.round(l.rl), n: si + 1 }), color: LEVEL_COLOURS[li % LEVEL_COLOURS.length], visible: true, closed: true, vertices: s.outline.map((p) => p.map((x) => +x.toFixed(3))) })));
     setDesignStrings((L) => [...L, ...strings]);
+    if (kept === res) { kept = { ...res, addedStringIds: strings.map((s) => s.id) }; setRes(kept); } // #1922
     setAdded((a) => ({ ...a, strings: true })); setMsg(tr("{n} outline(s) added as design strings (Strings tool).", { n: strings.length }));
   };
   const exportCsv = () => saveFile({ suggestedName: "stope_outlines.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(stopeRows(res, res.unit).map((r) => ({ ...r, block_model: res.model, cutoff: res.inputs.cutoff, crs: crsCell(project) }))) });
@@ -96,7 +99,7 @@ export default function StopesPane({ onAdd, onRemove, onClose }) {
         <label style={row}>{tr("Block model")}<select value={f.modelId} onChange={set("modelId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Block model of the stopes")}>{models.map((m) => <option key={m.id ?? m.name} value={m.id ?? m.name}>{m.name}</option>)}</select></label>
         {field("cutoff", unit ? tr("Cut-off ({unit})", { unit }) : tr("Cut-off"))}
         {field("levelH", tr("Level interval (m)"), { title: tr("The height of each stope: the distance between sublevels."), placeholder: blockH ? String(blockH) : "" })}
-        {field("zMin", tr("From RL (m)"), { placeholder: zRange ? String(Math.round(zRange[0])) : "" })}
+        {field("zMin", tr("From RL (m)"), { placeholder: zRange ? String(v("levelH") > 0 ? Math.floor(zRange[0] / v("levelH")) * v("levelH") : Math.round(zRange[0])) : "" })}{/* the level a blank run starts at: #1923 */}
         {field("zMax", tr("To RL (m)"), { placeholder: zRange ? String(Math.round(zRange[1])) : "" })}
         {field("minWidth", tr("Minimum mining width (m)"), { title: tr("Anything thinner is dropped (a morphological opening by this width, in whole columns of the model).") })}
         {field("minLength", tr("Minimum length (m)"), { title: tr("A patch shorter than this in both directions is dropped.") })}
@@ -106,7 +109,7 @@ export default function StopesPane({ onAdd, onRemove, onClose }) {
         {model && <div style={note}>{tr("Columns of {dx} × {dy} m (the model's blocks); widths and skins round to whole columns.", { dx: model.cells[0]?.dx ?? "?", dy: model.cells[0]?.dy ?? "?" })}</div>}
         {rangeBad && <div style={warn}>{tr("From RL must be below To RL.")}</div>}
         <button onClick={run} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Layers3 size={14} /> {tr("Outline the stopes")}</button>
-        {missing && <div style={note}>{tr("Enter the cut-off, the level interval and the density: none has a default.")}</div>}
+        {missing && !rangeBad && <div style={note}>{tr("Enter the cut-off, the level interval and the density: none has a default.")}</div>}
       </>)}
       {msg && <div style={warn}>{msg}</div>}
       {res && (

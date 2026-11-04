@@ -57,7 +57,8 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
     return Number.isFinite(x0) ? { w: x1 - x0, h: y1 - y0 } : null;
   }, [pit, worldPositionsOf]);
   const areaBox = useMemo(() => { if (!area) return null; const xs = area.vertices.map((q) => q[0]), ys = area.vertices.map((q) => q[1]); return { w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) }; }, [area]);
-  const predictArgs = (shellBox || areaBox) && pit ? { boxW: Math.min(areaBox?.w ?? Infinity, shellBox?.w ?? Infinity), boxH: Math.min(areaBox?.h ?? Infinity, shellBox?.h ?? Infinity), /* the run's box is the kept columns': within both */ depth: Number(pit.params?.maxDepthM) || 0, shellCell: Number(pit.params?.gridCellM?.[0]) || 10, berm: v("berm"), batterDeg: v("batterDeg"), maxCells: MAX_DESIGN_CELLS } : null;
+  const largestBox = !area && pitCount > 1 && largestOnly && Array.isArray(pit?.params?.largestPitBoxM) ? { w: pit.params.largestPitBoxM[0], h: pit.params.largestPitBoxM[1] } : null; // #1926
+  const predictArgs = (shellBox || areaBox) && pit ? { boxW: Math.min(areaBox?.w ?? Infinity, largestBox?.w ?? shellBox?.w ?? Infinity), boxH: Math.min(areaBox?.h ?? Infinity, largestBox?.h ?? shellBox?.h ?? Infinity), /* the run's box is the kept columns': within both */ depth: Number(pit.params?.maxDepthM) || 0, shellCell: Number(pit.params?.gridCellM?.[0]) || 10, berm: v("berm"), batterDeg: v("batterDeg"), maxCells: MAX_DESIGN_CELLS } : null;
   const predicted = !missing && predictArgs ? predictDesignCell({ ...predictArgs, benchH: v("benchH") }) : null;
   const drawsAt = predicted && !predicted.facesDrawn ? benchHeightThatDraws(predictArgs) : null;
   // the block model the shell was run on: its blocks above the shell's cut-off are the design's ore
@@ -94,7 +95,9 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
       kept = { ...r, inputs, seconds, designId, pitName: pit.name, unit, shell: pit.params || {}, modelMissing: !model, areaName: area?.name || null };
       setRes(kept);
     } catch (e) {
-      setMsg(e.message === "no-floors" ? tr("No mined column was found under the ground: the shell may sit above the terrain loaded now.") : tr("The design failed: {v}", { v: e.message || e }));
+      setMsg(e.message === "no-floors" ? tr("No mined column was found under the ground: the shell may sit above the terrain loaded now.")
+        : e.message === "area-empty" ? tr("No column of the shell lies inside \"{name}\": move or enlarge the area, or pick another.", { name: area?.name || "?" }) // #1928
+        : tr("The design failed: {v}", { v: e.message || e }));
     } finally { setBusy(false); job.current = null; }
   };
   const cancel = () => job.current?.cancel();
@@ -143,7 +146,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
           </div>
         )}
         {pit && !model && <div style={warn}>{tr("The block model the shell was run on (\"{m}\") is not in the project any more: the table will show rock only, no ore.", { m: pit.params?.blockModel || "?" })}</div>}
-        {pitCount > 1 && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("The shell is several separate pits; the design grid then goes to the largest alone.")}><input type="checkbox" checked={largestOnly} onChange={(e) => setLargestOnly(e.target.checked)} />{tr("Design the largest of the {n} separate pits only", { n: pitCount })}</label>}{/* #1899 */}
+        {pitCount > 1 && !area && <label style={{ ...row, justifyContent: "flex-start" }} title={tr("The shell is several separate pits; the design grid then goes to the largest alone.")}><input type="checkbox" checked={largestOnly} onChange={(e) => setLargestOnly(e.target.checked)} />{tr("Design the largest of the {n} separate pits only", { n: pitCount })}</label>}{/* #1899 */}
         {designs.some((s) => s.visible) && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={hideEarlier} onChange={(e) => setHideEarlier(e.target.checked)} />{tr("Hide the earlier designs")}</label>}
         {!busy
           ? <button onClick={run} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Layers3 size={14} /> {tr("Design the benches")}</button>
