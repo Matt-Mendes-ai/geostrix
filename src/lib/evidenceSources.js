@@ -67,11 +67,22 @@ export function reachFromSpacing(points, factor = 1.5) {
 
 // A block model seen from above: in each grid cell, the highest (or lowest) value of the blocks over it, whatever their
 // depth. A block smaller than the grid cell still marks the cell it falls in. Blocks the data cannot see are left out.
-export function voxelColumnEvidence(g, model, how = "max") {
+// TASKS.csv #1831 (review #1646, Kodiak) — { zMin, zMax }: only blocks whose centre lies in that elevation band (a 3D model as plan
+// evidence at a chosen level, not 'the maximum down to the base of the mesh'); how "mean" averages the band. An air flag (a negative
+// minimum that every negative value equals: UBC-GIF's -1, masked at import since #1659 but still in older projects) is not a value:
+// 'lowest in each column' on Kodiak's chargeability was -1 everywhere.
+export function airFlagOf(model) {
+  let min = Infinity, neg = 0, atMin = 0;
+  for (const c of model?.cells || []) { const v = c.value; if (!Number.isFinite(v)) continue; if (v < min) { min = v; atMin = 0; } if (v === min) atMin++; if (v < 0) neg++; }
+  return min < 0 && atMin === neg ? min : null;
+}
+export function voxelColumnEvidence(g, model, how = "max", { zMin = null, zMax = null } = {}) {
+  if (how === "mean") return voxelColumnMean(g, model, { zMin, zMax });
   // TASKS.csv #1281 — a sentinel, not a finite test per write: 100,000 blocks over 64 grid cells each is millions of writes
   const high = how !== "min", empty = high ? -Infinity : Infinity, out = new Float32Array(g.nx * g.ny).fill(empty);
+  const air = airFlagOf(model), lo = Number.isFinite(zMin) ? zMin : -Infinity, hi = Number.isFinite(zMax) ? zMax : Infinity;
   for (const c of model?.cells || []) {
-    if (!Number.isFinite(c.value) || !voxelCellSupported(model, c)) continue;
+    if (!Number.isFinite(c.value) || c.value === air || !(c.z >= lo && c.z <= hi) || !voxelCellSupported(model, c)) continue;
     let i0 = Math.ceil((c.x - c.dx / 2 - g.x0) / g.dx), i1 = Math.floor((c.x + c.dx / 2 - g.x0) / g.dx);
     let j0 = Math.ceil((g.yTop - c.y - c.dy / 2) / g.dy), j1 = Math.floor((g.yTop - c.y + c.dy / 2) / g.dy);
     if (i1 < i0) i0 = i1 = Math.round((c.x - g.x0) / g.dx);
@@ -85,6 +96,27 @@ export function voxelColumnEvidence(g, model, how = "max") {
   }
   for (let k = 0; k < out.length; k++) if (out[k] === empty) out[k] = NaN;
   return out;
+}
+// #1831 — the mean of the blocks over each grid cell within the band (each block counted once per cell it covers)
+function voxelColumnMean(g, model, { zMin, zMax }) {
+  const sum = new Float64Array(g.nx * g.ny), cnt = new Uint32Array(g.nx * g.ny), out = new Float32Array(g.nx * g.ny).fill(NaN);
+  const air = airFlagOf(model), lo = Number.isFinite(zMin) ? zMin : -Infinity, hi = Number.isFinite(zMax) ? zMax : Infinity;
+  for (const c of model?.cells || []) {
+    if (!Number.isFinite(c.value) || c.value === air || !(c.z >= lo && c.z <= hi) || !voxelCellSupported(model, c)) continue;
+    let i0 = Math.ceil((c.x - c.dx / 2 - g.x0) / g.dx), i1 = Math.floor((c.x + c.dx / 2 - g.x0) / g.dx);
+    let j0 = Math.ceil((g.yTop - c.y - c.dy / 2) / g.dy), j1 = Math.floor((g.yTop - c.y + c.dy / 2) / g.dy);
+    if (i1 < i0) i0 = i1 = Math.round((c.x - g.x0) / g.dx);
+    if (j1 < j0) j0 = j1 = Math.round((g.yTop - c.y) / g.dy);
+    for (let j = Math.max(0, j0); j <= Math.min(g.ny - 1, j1); j++) for (let i = Math.max(0, i0); i <= Math.min(g.nx - 1, i1); i++) { const k = j * g.nx + i; sum[k] += c.value; cnt[k]++; }
+  }
+  for (let k = 0; k < out.length; k++) if (cnt[k]) out[k] = sum[k] / cnt[k];
+  return out;
+}
+// #1831 — a model's elevation range (block centres), for the band's placeholders
+export function voxelZRange(model) {
+  let z0 = Infinity, z1 = -Infinity;
+  for (const c of model?.cells || []) if (Number.isFinite(c.z)) { if (c.z < z0) z0 = c.z; if (c.z > z1) z1 = c.z; }
+  return z1 >= z0 ? [z0, z1] : null;
 }
 
 // hole_id -> desurveyed trace

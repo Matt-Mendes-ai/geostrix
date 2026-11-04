@@ -11,7 +11,7 @@ import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1449 / #145
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
 import { evidenceGrid, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, bestCutoff, posterior, predictionArea, scoreImage, isOverlayOutput } from "../lib/evidence.js";
 import { cachedEvidence, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457
-import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, holeTraces, holeGradePoints, structureCodes, structureParts, rasterFloorZ } from "../lib/evidenceSources.js"; // TASKS.csv #1154
+import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, structureCodes, structureParts, rasterFloorZ } from "../lib/evidenceSources.js"; // TASKS.csv #1154
 import { categoricalModels } from "../lib/geologyForward.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";
 import { valueIn } from "../lib/geochem.js";
@@ -78,6 +78,7 @@ export default function EvidenceOverlayPane({ onClose }) {
     voxelModels.filter((m) => m.cells?.length && !categorical.has(m)).forEach((m) => {
       out.push({ key: `vox:max:${m.id ?? m.name}`, label: tr("Block model: {name} (highest in each column)", { name: m.name }), kind: "voxel", ref: m.id ?? m.name, how: "max" });
       out.push({ key: `vox:min:${m.id ?? m.name}`, label: tr("Block model: {name} (lowest in each column)", { name: m.name }), kind: "voxel", ref: m.id ?? m.name, how: "min" });
+      out.push({ key: `vox:mean:${m.id ?? m.name}`, label: tr("Block model: {name} (mean in each column)", { name: m.name }), kind: "voxel", ref: m.id ?? m.name, how: "mean" }); // #1831
     });
     if (traces.size) assayElements.forEach((e) => out.push({ key: `grade:${e.symbol}`, label: tr("Drillholes: {sym} grade along the holes", { sym: e.symbol }), kind: "grade", ref: e.symbol }));
     structureCodes(structurePicks, traces).forEach((code) => out.push({ key: `pick:${code}`, label: tr("Distance to logged structure: {code}", { code }), kind: "pick", ref: code }));
@@ -86,7 +87,7 @@ export default function EvidenceOverlayPane({ onClose }) {
 
   // #1457 — through the cache: a reopened pane, or the same layer added again, reuses values computed from the same grid and data
   const computeValues = (src, opts = {}) => (grid ? cachedEvidence(
-    `${gridSignature(grid)}|${src.kind}|${src.ref}|${src.how || ""}|${opts.field || ""}|${opts.value ?? ""}|${opts.reach || ""}`,
+    `${gridSignature(grid)}|${src.kind}|${src.ref}|${src.how || ""}|${opts.field || ""}|${opts.value ?? ""}|${opts.reach || ""}|${opts.zMin ?? ""}|${opts.zMax ?? ""}`,
     [rasters, mapLayers, surfaceSamples, surfaceElements, collars, survey, project?.desurveyMethod, assays, assayElements, voxelModels, geophysPts, structurePicks],
     () => computeValuesNow(src, opts),
   ) : null);
@@ -98,7 +99,7 @@ export default function EvidenceOverlayPane({ onClose }) {
       const feats = opts.field ? l.features.filter((f) => String(f.attributes?.[opts.field] ?? "") === String(opts.value)) : l.features;
       return distanceEvidence(grid, feats.flatMap((f) => f.parts));
     }
-    if (src.kind === "voxel") { const m = voxelModels.find((x) => (x.id ?? x.name) === src.ref); return m ? voxelColumnEvidence(grid, m, src.how) : null; }
+    if (src.kind === "voxel") { const m = voxelModels.find((x) => (x.id ?? x.name) === src.ref); return m ? voxelColumnEvidence(grid, m, src.how, { zMin: opts.zMin, zMax: opts.zMax }) : null; } // #1831 — an elevation band
     if (src.kind === "pick") return distanceEvidence(grid, structureParts(structurePicks, src.ref, traces));
     if (src.kind === "survey") { const pts = surveyPoints(geophysPts, src.ref); return pointEvidence(grid, pts, { maxDistance: opts.reach || reachFromSpacing(pts, 4) }); }
     if (src.kind === "grade") return pointEvidence(grid, holeGradePoints(cleanAssays, src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces), { maxDistance: opts.reach || DRILL_REACH_M });
@@ -148,14 +149,15 @@ export default function EvidenceOverlayPane({ onClose }) {
     const back = (R.layers || []).flatMap((l) => {
       const src = sources.find((x) => x.key === l.key);
       if (!src) { missing.push(l.label || l.key); return []; }
-      const values = computeValues(src, { field: l.field, value: l.value, reach: l.reach });
-      return values ? [{ id: nextId++, ...src, shape: l.shape, low: l.low, high: l.high, lowText: numText(l.low), highText: numText(l.high), field: l.field || "", value: l.value || "", reach: l.reach || reachOf(src), values }] : [];
+      const band = { zMin: Number.isFinite(l.zMin) ? l.zMin : null, zMax: Number.isFinite(l.zMax) ? l.zMax : null }; // #1831
+      const values = computeValues(src, { field: l.field, value: l.value, reach: l.reach, ...band });
+      return values ? [{ id: nextId++, ...src, shape: l.shape, low: l.low, high: l.high, lowText: numText(l.low), highText: numText(l.high), field: l.field || "", value: l.value || "", reach: l.reach || reachOf(src), ...band, values }] : [];
     });
     setLayers(back);
     if (missing.length) setMsg(tr("Restored the saved overlay without {list}: not in this project any more.", { list: missing.join(", ") }));
   }, [grid, evidenceOverlay]); // once, when there is a grid; sources / computeValues are read at that moment
   const recipe = useMemo(() => ({
-    layers: layers.map((l) => ({ key: l.key, kind: l.kind, ref: l.ref, label: l.label, shape: l.shape, low: l.low, high: l.high, field: l.field || "", value: l.value || "", reach: l.reach })),
+    layers: layers.map((l) => ({ key: l.key, kind: l.kind, ref: l.ref, label: l.label, shape: l.shape, low: l.low, high: l.high, field: l.field || "", value: l.value || "", reach: l.reach, ...(l.kind === "voxel" ? { zMin: l.zMin ?? null, zMax: l.zMax ?? null } : {}) })),
     operator, gamma, training,
   }), [layers, operator, gamma, training]);
   useEffect(() => {
@@ -166,7 +168,7 @@ export default function EvidenceOverlayPane({ onClose }) {
   const updateLayer = (id, patch, recompute = false) => setLayers((L) => L.map((l) => {
     if (l.id !== id) return l;
     const next = { ...l, ...patch };
-    if (recompute) { const v = computeValues(next, { field: next.field, value: next.value, reach: next.reach }); if (v) next.values = v; }
+    if (recompute) { const v = computeValues(next, { field: next.field, value: next.value, reach: next.reach, zMin: next.zMin, zMax: next.zMax }); if (v) next.values = v; }
     return next;
   }));
 
@@ -239,6 +241,15 @@ export default function EvidenceOverlayPane({ onClose }) {
                 {l.field && <select value={l.value} onChange={(e) => updateLayer(l.id, { value: e.target.value }, true)} style={sel} aria-label={tr("equals")}><option value="">{tr("— value —")}</option>{vals.map((v) => <option key={v} value={v}>{v || "(blank)"}</option>)}</select>}
               </div>); })()}
             {(l.kind === "element" || l.kind === "index") && media.length > 1 && <label style={row}>{tr("Samples")}<select value={l.field === "medium" ? l.value : "\u0000all"} onChange={(e) => { const m = e.target.value === "\u0000all" ? null : e.target.value; updateLayer(l.id, m == null ? { field: "", value: "", reach: reachOf(l) } : { field: "medium", value: m, reach: reachOf(l, m) }, true); }} style={sel} aria-label={tr("Samples of one medium")}>{media.map((m) => <option key={m} value={m}>{m || tr("(no medium)")}</option>)}<option value={"\u0000all"}>{tr("all media together")}</option></select></label>}
+            {l.kind === "voxel" && (() => { // TASKS.csv #1831 — the elevation band the column is read over (blank = the whole column)
+              const zr = voxelZRange(voxelModels.find((x) => (x.id ?? x.name) === l.ref));
+              const setZ = (k, txt) => { const v = txt === "" ? null : Number(txt); updateLayer(l.id, { [k]: Number.isFinite(v) ? v : null }, true); };
+              return (<div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
+                <label style={row}>{tr("Elevation from (m)")}<input type="number" step="10" value={l.zMin ?? ""} placeholder={zr ? String(Math.round(zr[0])) : ""} onChange={(e) => setZ("zMin", e.target.value)} style={{ ...sel, width: 70 }} /></label>
+                <label style={row}>{tr("to (m)")}<input type="number" step="10" value={l.zMax ?? ""} placeholder={zr ? String(Math.round(zr[1])) : ""} onChange={(e) => setZ("zMax", e.target.value)} style={{ ...sel, width: 70 }} /></label>
+                {l.zMin == null && l.zMax == null && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)" }}>{tr("Whole column: every depth of the model counts. Set an elevation band to read one level.")}</span>}
+              </div>);
+            })()}
             {(l.kind === "element" || l.kind === "index" || l.kind === "survey" || l.kind === "grade") && <label style={row}>{tr("Reach (m)")}<input type="number" min="10" step="50" value={l.reach} onChange={(e) => updateLayer(l.id, { reach: Math.max(10, Number(e.target.value) || reachOf(l, l.field === "medium" ? l.value : null)) }, true)} style={{ ...sel, width: 70 }} /></label>}
             <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
               <select value={l.shape} onChange={(e) => updateLayer(l.id, { shape: e.target.value })} style={sel} aria-label={tr("Membership")}><option value="increasing">{tr("favourable when high")}</option><option value="decreasing">{tr("favourable when low")}</option></select>

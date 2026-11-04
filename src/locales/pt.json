@@ -7093,5 +7093,9 @@
   "No drillholes to export: load collars first.": "Não há furos para exportar: carregue primeiro as bocas de furo.",
   "{n} surface sample(s) have no elevation and there is no terrain: drawn flat at {z} m (the median collar or sample elevation). Load a terrain (Maps > Terrain) to place them on the ground.": "{n} amostra(s) de superfície não têm elevação e não há terreno: desenhadas planas a {z} m (a elevação mediana das bocas de furo ou das amostras). Carregue um terreno (Mapas > Terreno) para colocá-las sobre o solo.",
   "Classes are computed on all {n} samples; {m} of them are not drawn (no elevation, off the terrain).": "As classes são calculadas sobre todas as {n} amostras; {m} delas não são desenhadas (sem elevação, fora do terreno).",
-  "Not offered: {list}. Geophysical, categorical and estimation-quality models are not grades.": "Não oferecidos: {list}. Modelos geofísicos, categóricos e de qualidade da estimativa não são teores."
+  "Not offered: {list}. Geophysical, categorical and estimation-quality models are not grades.": "Não oferecidos: {list}. Modelos geofísicos, categóricos e de qualidade da estimativa não são teores.",
+  "Block model: {name} (mean in each column)": "Modelo de blocos: {name} (média em cada coluna)",
+  "Elevation from (m)": "Elevação de (m)",
+  "to (m)": "até (m)",
+  "Whole column: every depth of the model counts. Set an elevation band to read one level.": "Coluna inteira: toda profundidade do modelo conta. Defina uma faixa de elevação para ler um só nível."
 }
