@@ -7784,5 +7784,9 @@
   "none of its {n} feature tables has anything within reach of the project's holes and samples, so nothing was imported (check its CRS if it should).": "nenhuma das suas {n} tabelas de feições tem algo ao alcance dos furos e amostras do projeto, por isso nada foi importado (verifique o seu SRC se deveria).",
   "{name}: only the first {kept} features near the project were read; export a smaller area from QGIS for the rest.": "{name}: só as primeiras {kept} feições próximas do projeto foram lidas; exporte uma área menor no QGIS para o resto.",
   "Unzip it and import the .gpkg itself: GeoStrix then reads only the features around the project's holes and samples.": "Descompacte-o e importe o próprio .gpkg: o GeoStrix então lê só as feições em torno dos furos e amostras do projeto.",
-  "{name}: {kept} of its {total} features lie near the project, read from the file in place; the rest, far from the holes and samples, were left out.": "{name}: {kept} das suas {total} feições estão perto do projeto, lidas diretamente do arquivo; o resto, longe dos furos e amostras, ficou de fora."
+  "{name}: {kept} of its {total} features lie near the project, read from the file in place; the rest, far from the holes and samples, were left out.": "{name}: {kept} das suas {total} feições estão perto do projeto, lidas diretamente do arquivo; o resto, longe dos furos e amostras, ficou de fora.",
+  "Keep only the biggest connected body of this range; smaller, separate bodies are left out of the solid.": "Manter só o maior corpo conectado deste intervalo; corpos separados menores ficam fora do sólido.",
+  "Largest body only": "Só o maior corpo",
+  "The range holds {n} separate bodies; only the largest ({pct} % of the range's lattice nodes) was kept.": "O intervalo contém {n} corpos separados; só o maior ({pct} % dos nós da malha no intervalo) foi mantido.",
+  "The range holds {n} separate bodies, all in this shell: tick Largest body only for the main one.": "O intervalo contém {n} corpos separados, todos neste invólucro: marque Só o maior corpo para o principal."
 }

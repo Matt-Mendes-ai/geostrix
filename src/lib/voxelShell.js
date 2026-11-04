@@ -15,10 +15,40 @@ function intervalOf(edges, x) {
   return lo;
 }
 
-// lo / hi: the range (either may be -Infinity / Infinity / NaN for open); -> { positions (Float32Array, world E N Z),
+// TASKS.csv #1840 — the separate bodies of the range on the lattice: nodes inside (field >= 0) joined across faces, edges and
+// corners (26 neighbours: marching cubes can join two nodes that share only a corner of a cube). -> { label (Int32Array, -1 =
+// outside), sizes (node count per body), largest (its label) }
+export function latticeBodies(field, nx, ny, nz) {
+  const n = nx * ny * nz, label = new Int32Array(n).fill(-1), sizes = [];
+  const stack = new Int32Array(n);
+  for (let s = 0; s < n; s++) {
+    if (label[s] !== -1 || !(field[s] >= 0)) continue;
+    const id = sizes.length;
+    let top = 0, size = 0;
+    stack[top++] = s; label[s] = id;
+    while (top) {
+      const p = stack[--top]; size++;
+      const i = p % nx, j = ((p - i) / nx) % ny, k = Math.floor(p / (nx * ny));
+      for (let dk = -1; dk <= 1; dk++) { const kk = k + dk; if (kk < 0 || kk >= nz) continue;
+        for (let dj = -1; dj <= 1; dj++) { const jj = j + dj; if (jj < 0 || jj >= ny) continue;
+          for (let di = -1; di <= 1; di++) { const ii = i + di; if (ii < 0 || ii >= nx) continue;
+            const q = ii + nx * (jj + ny * kk);
+            if (label[q] === -1 && field[q] >= 0) { label[q] = id; stack[top++] = q; }
+          } } }
+    }
+    sizes.push(size);
+  }
+  let largest = -1;
+  sizes.forEach((v, i) => { if (largest < 0 || v > sizes[largest]) largest = i; });
+  return { label, sizes, largest };
+}
+
+// lo / hi: the range (either may be -Infinity / Infinity / NaN for open); largestOnly (#1840): keep only the biggest body of the
+// range (by lattice nodes), the others turned outside before marching cubes. -> { positions (Float32Array, world E N Z),
 // indices (Uint32Array), volumeM3, cellsInside, cellVolumeM3, closingVertices, nodes: [nx, ny, nz], spacing: [dx, dy, dz],
-// coarsened } | null (not a rectilinear model, or nothing in the range)
-export function voxelShell(model, { lo = -Infinity, hi = Infinity } = {}, { maxNodes = 1.5e6 } = {}) {
+// coarsened, bodies (how many separate bodies the range has), keptShare (the kept body's share of the inside nodes) } | null
+// (not a rectilinear model, or nothing in the range)
+export function voxelShell(model, { lo = -Infinity, hi = Infinity, largestOnly = false } = {}, { maxNodes = 1.5e6 } = {}) {
   const cells = model?.cells || [];
   const G = rectilinearGrid(cells);
   if (!G) return null;
@@ -50,6 +80,13 @@ export function voxelShell(model, { lo = -Infinity, hi = Infinity } = {}, { maxN
         const a = Number.isFinite(L) ? v - L : Infinity, b = Number.isFinite(H) ? H - v : Infinity;
         field[i + nx * (j + ny * k)] = Math.min(a, b);
       } } }
+  const B = latticeBodies(field, nx, ny, nz);
+  const insideNodes = B.sizes.reduce((a, v) => a + v, 0);
+  let keptShare = 1;
+  if (largestOnly && B.sizes.length > 1) {
+    for (let p = 0; p < field.length; p++) if (B.label[p] >= 0 && B.label[p] !== B.largest) field[p] = -Math.max(Math.abs(field[p]), 1e-9);
+    keptShare = B.sizes[B.largest] / insideNodes;
+  }
   const mc = marchingCubes(field, nx, ny, nz, 0, { origin: { x: ox, y: oy, z: oz }, spacing: { dx, dy, dz }, noData: "outside" });
   if (!mc.faces.length) return null;
   const positions = new Float32Array(mc.vertices.length * 3);
@@ -62,5 +99,5 @@ export function voxelShell(model, { lo = -Infinity, hi = Infinity } = {}, { maxN
     const ax = positions[a], ay = positions[a + 1], az = positions[a + 2], bx = positions[b], by = positions[b + 1], bz = positions[b + 2], cx = positions[c], cy = positions[c + 1], cz = positions[c + 2];
     vol6 += ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx);
   }
-  return { positions, indices, volumeM3: Math.abs(vol6) / 6, cellsInside, cellVolumeM3, closingVertices: mc.closingVertices || 0, nodes: [nx, ny, nz], spacing: [dx, dy, dz], coarsened };
+  return { positions, indices, volumeM3: Math.abs(vol6) / 6, cellsInside, cellVolumeM3, closingVertices: mc.closingVertices || 0, nodes: [nx, ny, nz], spacing: [dx, dy, dz], coarsened, bodies: B.sizes.length, keptShare };
 }

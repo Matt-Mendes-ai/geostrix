@@ -6542,23 +6542,26 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   useModuleAction(["interpret-lines"], (a, payload) => { setInterpretOpen(true); setInterpret((s) => ({ ...s, survey: payload?.survey || null })); });
   // TASKS.csv #1780 (review #1646, Kodiak) — a block model's value range as a closed solid: the chargeability high, the resistivity
   // low or a band becomes a generated surface to section, query and target (lib/voxelShell.js: marching cubes on the model's grid)
-  const makeVoxelShell = useCallback(async (model) => {
+  const makeVoxelShell = useCallback(async (model, { largestOnly = false } = {}) => { // largestOnly: #1840
     if (!model) return;
     const lo = Number.isFinite(model.threshold) ? model.threshold : -Infinity, hi = Number.isFinite(model.rangeMax) ? model.rangeMax : Infinity;
     const { voxelShell } = await import("../lib/voxelShell.js");
-    const r = voxelShell(model, { lo, hi });
+    const r = voxelShell(model, { lo, hi, largestOnly });
     const fmtB = (v, open) => (Number.isFinite(v) ? String(+v.toPrecision(3)) : open);
     if (!r) { setNotices((p) => [...p, notice("No shell for \"{name}\" at {lo} to {hi}: no cell in that range, or the model is not on a rectilinear grid (sub-blocked or rotated).", { name: model.name, lo: fmtB(lo, "−∞"), hi: fmtB(hi, "∞") })]); return; }
     const rangeText = Number.isFinite(lo) && Number.isFinite(hi) ? `${fmtB(lo)}–${fmtB(hi)}` : Number.isFinite(lo) ? `≥ ${fmtB(lo)}` : `≤ ${fmtB(hi)}`;
-    const name = `${model.name} ${rangeText}${model.property ? ` ${model.property}` : ""} shell`;
+    const kept = largestOnly && r.bodies > 1;
+    const name = `${model.name} ${rangeText}${model.property ? ` ${model.property}` : ""} shell${kept ? " (largest body)" : ""}`;
     const closure = r.closingVertices > 0 ? "artificial" : "natural";
     addUndrilledSolid({ name, positions: r.positions, indices: r.indices, volumeM3: r.volumeM3, type: "geophysical_shell", closure, color: "#7b3fa0", tag: "voxelshell",
-      params: { tool: "shell of a block model at a value range (marching cubes)", model: model.name, property: model.property || null, rangeLow: Number.isFinite(lo) ? lo : null, rangeHigh: Number.isFinite(hi) ? hi : null, cellsInRange: r.cellsInside, cellVolumeM3: Math.round(r.cellVolumeM3), latticeNodes: r.nodes, latticeSpacingM: r.spacing.map((v) => +v.toFixed(2)), coarsened: r.coarsened, closedAtModelEdge: r.closingVertices, generatedAt: new Date().toISOString() },
+      params: { tool: "shell of a block model at a value range (marching cubes)", model: model.name, property: model.property || null, rangeLow: Number.isFinite(lo) ? lo : null, rangeHigh: Number.isFinite(hi) ? hi : null, cellsInRange: r.cellsInside, cellVolumeM3: Math.round(r.cellVolumeM3), latticeNodes: r.nodes, latticeSpacingM: r.spacing.map((v) => +v.toFixed(2)), coarsened: r.coarsened, closedAtModelEdge: r.closingVertices, bodiesInRange: r.bodies, largestBodyOnly: kept, keptShareOfRange: kept ? +r.keptShare.toFixed(3) : 1, generatedAt: new Date().toISOString() },
       tip: `${name}\n${r.cellsInside.toLocaleString()} cells in the range\n${Math.round(r.volumeM3).toLocaleString()} m³ enclosed` });
     setNotices((p) => [...p, notice("Added \"{name}\": {cells} cell(s) in the range ({cellVol} m³ of blocks) → a lattice of {nx}×{ny}×{nz} nodes at {dx} m{v} → {faces} faces enclosing {vol} m³{v2}. A property's shell is a target outline, not a geological contact.", { name, cells: r.cellsInside.toLocaleString(), cellVol: Math.round(r.cellVolumeM3).toLocaleString(), nx: r.nodes[0], ny: r.nodes[1], nz: r.nodes[2], dx: +r.spacing[0].toFixed(1), v: r.coarsened ? tr(" (coarsened to stay within the node limit)") : "", faces: (r.indices.length / 3).toLocaleString(), vol: Math.round(r.volumeM3).toLocaleString(), v2: r.closingVertices ? tr("; closed at the model's edge on {n} vertex(es), so part of its boundary is the model box, not the anomaly", { n: r.closingVertices.toLocaleString() }) : "" })]);
+    // #1840 — how many bodies the range holds, and what keeping one left out
+    if (r.bodies > 1) setNotices((p) => [...p, notice(kept ? "The range holds {n} separate bodies; only the largest ({pct} % of the range's lattice nodes) was kept." : "The range holds {n} separate bodies, all in this shell: tick Largest body only for the main one.", { n: r.bodies.toLocaleString(), pct: Math.round(r.keptShare * 100) })]);
   }, [addUndrilledSolid]);
   const voxelModelsForShell = useRef(voxelModels); voxelModelsForShell.current = voxelModels;
-  useModuleAction(["voxel-shell"], (a, payload) => { makeVoxelShell(payload?.model || (voxelModelsForShell.current || []).find((x) => x.id === payload?.id)); }); // payload.model: the card's own, current copy (this module's render can lag a store change made in another tab)
+  useModuleAction(["voxel-shell"], (a, payload) => { makeVoxelShell(payload?.model || (voxelModelsForShell.current || []).find((x) => x.id === payload?.id), { largestOnly: !!payload?.largestOnly }); }); // payload.model: the card's own, current copy (this module's render can lag a store change made in another tab)
   // TASKS.csv #599 — a click (not a drag) on a lithology interval in the Modelling tab: select it, or — when
   // "connect" is armed — give it the first interval's code and draw the tie. Uses the same pick index as the
   // hover tooltip; the lithology layer must be visible to be picked.

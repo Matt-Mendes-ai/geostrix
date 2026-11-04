@@ -7784,5 +7784,9 @@
   "none of its {n} feature tables has anything within reach of the project's holes and samples, so nothing was imported (check its CRS if it should).": "لا يحتوي أي من جداول المعالم الـ {n} على شيء ضمن نطاق ثقوب الحفر والعينات في المشروع، لذا لم يُستورد شيء (تحقق من نظام الإحداثيات إن كان ينبغي ذلك).",
   "{name}: only the first {kept} features near the project were read; export a smaller area from QGIS for the rest.": "{name}: قُرئت أول {kept} معلماً قريباً من المشروع فقط؛ صدّر منطقة أصغر من QGIS للباقي.",
   "Unzip it and import the .gpkg itself: GeoStrix then reads only the features around the project's holes and samples.": "فك ضغطه واستورد ملف .gpkg نفسه: سيقرأ GeoStrix حينها المعالم المحيطة بثقوب الحفر والعينات في المشروع فقط.",
-  "{name}: {kept} of its {total} features lie near the project, read from the file in place; the rest, far from the holes and samples, were left out.": "{name}: {kept} من معالمه البالغة {total} قريبة من المشروع، قُرئت من الملف مباشرة؛ وتُرك الباقي البعيد عن ثقوب الحفر والعينات."
+  "{name}: {kept} of its {total} features lie near the project, read from the file in place; the rest, far from the holes and samples, were left out.": "{name}: {kept} من معالمه البالغة {total} قريبة من المشروع، قُرئت من الملف مباشرة؛ وتُرك الباقي البعيد عن ثقوب الحفر والعينات.",
+  "Keep only the biggest connected body of this range; smaller, separate bodies are left out of the solid.": "الإبقاء على أكبر جسم متصل في هذا النطاق فقط؛ تُستبعد الأجسام المنفصلة الأصغر من المجسم.",
+  "Largest body only": "أكبر جسم فقط",
+  "The range holds {n} separate bodies; only the largest ({pct} % of the range's lattice nodes) was kept.": "يحتوي النطاق على {n} أجسام منفصلة؛ احتُفظ بالأكبر فقط ({pct} % من عقد الشبكة في النطاق).",
+  "The range holds {n} separate bodies, all in this shell: tick Largest body only for the main one.": "يحتوي النطاق على {n} أجسام منفصلة، كلها في هذا الغلاف: فعّل أكبر جسم فقط للجسم الرئيسي."
 }

@@ -1963,7 +1963,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
           </label>
         )}
         {voxelModels.map((v) => (
-          <VoxelModelRow key={v.id} epsg={project?.epsg} /* #1052 */ model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} onShell={(m) => { goToModule("viewer"); requestModuleAction("voxel-shell", { id: m.id, model: m }); }} /* #1780 */ onTerrain={terrainFromModelTop} /* #1806 */ getEpsg={() => ensureExportCrs(project)} /* #1021 */ csvNames={bmNames} stampChoice={bmStamp} />
+          <VoxelModelRow key={v.id} epsg={project?.epsg} /* #1052 */ model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} onShell={(m, opts = {}) => { goToModule("viewer"); requestModuleAction("voxel-shell", { id: m.id, model: m, largestOnly: !!opts.largestOnly }); }} /* #1780; largestOnly: #1840 */ onTerrain={terrainFromModelTop} /* #1806 */ getEpsg={() => ensureExportCrs(project)} /* #1021 */ csvNames={bmNames} stampChoice={bmStamp} />
         ))}
 
         <div style={{ marginTop: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6 }}>

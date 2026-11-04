@@ -417,6 +417,7 @@ export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null
   const reset = () => { setDispMin(model.min); setDispMax(model.max); onUpdate(model.id, { threshold: model.min, rangeMax: model.max }); };
   const visibleCount = model.cells.filter((c) => c.value >= dispMin && c.value <= dispMax && voxelCellSupported(model, c)).length;
   const isFiltered = dispMin > model.min || dispMax < model.max;
+  const [largestOnly, setLargestOnly] = useState(false); // TASKS.csv #1840 — one target body, not every speck in the range
   return (
     <div style={compact ? { marginTop: 6, fontSize: "var(--font-size-base)" } : { marginTop: 8, padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
       {!compact && <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -441,7 +442,12 @@ export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null
         {isFiltered && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={reset} style={{ cursor: "pointer", color: "var(--color-info)" }}>{tr("Reset")}</span>}
       </div>
       {onShell && isFiltered && visibleCount > 0 && ( // TASKS.csv #1780 — the band as a closed solid for targeting and sections
-        <button type="button" onClick={() => onShell(model)} style={{ ...miniBtn, marginTop: 5, width: "100%", justifyContent: "center" }} title={tr("A closed solid around the cells in this range (marching cubes on the model's grid), added to the generated surfaces: the chargeability high or the resistivity low as a body to section, query and target.")}>{tr("Shell at this range → generated surfaces")}</button>
+        <>
+        <label style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Keep only the biggest connected body of this range; smaller, separate bodies are left out of the solid.")}>
+          <input type="checkbox" checked={largestOnly} onChange={(e) => setLargestOnly(e.target.checked)} />{tr("Largest body only")}
+        </label>
+        <button type="button" onClick={() => onShell(model, { largestOnly })} style={{ ...miniBtn, marginTop: 5, width: "100%", justifyContent: "center" }} title={tr("A closed solid around the cells in this range (marching cubes on the model's grid), added to the generated surfaces: the chargeability high or the resistivity low as a body to section, query and target.")}>{tr("Shell at this range → generated surfaces")}</button>
+        </>
       )}
     </div>
   );
