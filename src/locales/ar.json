@@ -7851,5 +7851,6 @@
   "Holes in the logs or assays with no collar: not drawn in 3D, but their strip logs open from their depths": "ثقوب في السجلات أو التحاليل بلا فوهة: غير مرسومة ثلاثياً، لكن سجلاتها تُفتح من أعماقها",
   "Holes without collars ({n})": "ثقوب بلا فوهات ({n})",
   "no collar": "بلا فوهة",
-  ", values read as {p} from the name (change it under Values are)": "، قُرئت القيم على أنها {p} من الاسم (غيّرها في القيم هي)"
+  ", values read as {p} from the name (change it under Values are)": "، قُرئت القيم على أنها {p} من الاسم (غيّرها في القيم هي)",
+  "Not offered: {v} (intervals with no assemblage logged).": "غير معروض: {v} (فترات لم يُسجّل لها تجمع)."
 }

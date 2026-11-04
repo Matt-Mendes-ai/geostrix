@@ -7851,5 +7851,6 @@
   "Holes in the logs or assays with no collar: not drawn in 3D, but their strip logs open from their depths": "Sondages des descriptions ou analyses sans collet : non dessinés en 3D, mais leurs logs s'ouvrent depuis leurs profondeurs",
   "Holes without collars ({n})": "Sondages sans collet ({n})",
   "no collar": "sans collet",
-  ", values read as {p} from the name (change it under Values are)": ", valeurs lues comme {p} d'après le nom (à changer sous Les valeurs sont)"
+  ", values read as {p} from the name (change it under Values are)": ", valeurs lues comme {p} d'après le nom (à changer sous Les valeurs sont)",
+  "Not offered: {v} (intervals with no assemblage logged).": "Non proposé : {v} (intervalles sans assemblage décrit)."
 }

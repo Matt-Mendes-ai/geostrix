@@ -7851,5 +7851,6 @@
   "Holes in the logs or assays with no collar: not drawn in 3D, but their strip logs open from their depths": "Furos nas descrições ou análises sem boca de furo: não desenhados em 3D, mas os perfis abrem a partir das profundidades",
   "Holes without collars ({n})": "Furos sem boca de furo ({n})",
   "no collar": "sem boca de furo",
-  ", values read as {p} from the name (change it under Values are)": ", valores lidos como {p} pelo nome (altere em Os valores são)"
+  ", values read as {p} from the name (change it under Values are)": ", valores lidos como {p} pelo nome (altere em Os valores são)",
+  "Not offered: {v} (intervals with no assemblage logged).": "Não oferecido: {v} (intervalos sem assembleia descrita)."
 }

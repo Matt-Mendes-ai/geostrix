@@ -4,6 +4,7 @@
 // stands) and loaded on demand: they are only rendered once a modelling pane is opened, and ViewerModule was over its
 // startup budget. The props are exactly the free identifiers of the moved JSX that ViewerModule declares (found by
 // Babel scope analysis, not by hand); module imports are re-imported here.
+import { isNotLogged } from "../../lib/notLogged.js"; // TASKS.csv #1740
 import { Activity, Calculator, ChevronDown, ChevronRight, ChevronUp, Compass, Droplets, FileBarChart2, Gem, GitCompare, Group, Layers, Layers3, Milestone, Mountain, Settings, Shapes, Sparkles, Trash2, Waves, Waypoints, X, PenTool } from "../../components/icons.js";
 import { BLOCK_BUDGETS, ESTIMATION_METHODS, MAX_BLOCKS } from "../../lib/estimationMeta.js";
 import InfoButton from "../../components/InfoButton.jsx";
@@ -817,10 +818,11 @@ export default function ModellingPanes(props) {
             GemPy; it interpolates a 0/1 "altered?" indicator and takes the 0.5 iso-surface, which is a
             closed envelope with no assumed up-direction. Runs in-app, no sidecar. */}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Builds a closed halo envelope for one assemblage: every logged alteration interval becomes a 0/1 \"altered?\" sample down its hole, interpolated onto a grid, iso-surfaced at 0.5. Unlike the lithology/structural tools this makes no assumption about which way is \"up\" — a halo wraps its conduit rather than draping like a contact. Runs in-app, no Python engine needed.")}</div>
+        {alt_units.some((u) => isNotLogged(u)) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("Not offered: {v} (intervals with no assemblage logged).", { v: alt_units.filter((u) => isNotLogged(u)).map((u) => `"${u}"`).join(", ") })}</div>}
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select aria-label={tr("Assemblage")} value={alterationTarget} onChange={(e) => setAlterationTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Choose an assemblage…")}</option>
-            {alt_units.map((u) => <option key={u} value={u}>{u}</option>)}
+            {alt_units.filter((u) => !isNotLogged(u)).map((u) => <option key={u} value={u}>{u}</option>)}{/* #1740 — 'Unknown' is not an assemblage */}
           </select>
           <button
             onClick={() => runAlterationModel(alterationTarget)}
