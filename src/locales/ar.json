@@ -7720,5 +7720,21 @@
   "pXRF readings (screening)": "قراءات pXRF (فرز)",
   "Lab + pXRF": "المختبر + pXRF",
   "all holes": "كل الثقوب",
-  "{n} pXRF reading(s) are screening points on core, not assay intervals: the zero-length and overlap checks leave them out.": "{n} قراءة pXRF هي نقاط فرز على العينة اللبية، لا فترات تحليل: فحوص الطول الصفري والتداخل تستثنيها."
+  "{n} pXRF reading(s) are screening points on core, not assay intervals: the zero-length and overlap checks leave them out.": "{n} قراءة pXRF هي نقاط فرز على العينة اللبية، لا فترات تحليل: فحوص الطول الصفري والتداخل تستثنيها.",
+  "Reload cancelled — {rows} row(s) fetched, nothing imported.": "أُلغيت إعادة التحميل: جُلبت {rows} صفًا، ولم يُستورد شيء.",
+  "Nothing to reload: no layer of this project was imported from a database yet (Browser panel > a database table, or Database on the ribbon).": "لا شيء لإعادة تحميله: لم تُستورد أي طبقة في هذا المشروع من قاعدة بيانات بعد (لوحة المتصفح > جدول قاعدة بيانات، أو قاعدة البيانات في الشريط).",
+  "{table}: the connection profile \"{name}\" is not on this computer (Database > connect with that name, or reimport).": "{table}: ملف الاتصال \"{name}\" ليس على هذا الحاسوب (قاعدة البيانات > اتصل بذلك الاسم، أو أعد الاستيراد).",
+  "could not connect": "تعذر الاتصال",
+  "Reloading {table}": "إعادة تحميل {table}",
+  "{table}: the table is empty now; its rows were left as they were.": "{table}: الجدول فارغ الآن؛ تُركت صفوفه كما كانت.",
+  "{table} → assays: {n} row(s) pulled, committed through Geochem's assay import with the saved elements and options.": "{table} ← التحاليل: جُلب {n} صفًا، وأُدخل عبر استيراد تحاليل الجيوكيمياء بالعناصر والخيارات المحفوظة.",
+  "{table} → {target}: the saved column mapping no longer fits the table (a column was renamed?) — reimport it once from the Browser panel.": "{table} ← {target}: ربط الأعمدة المحفوظ لم يعد يناسب الجدول (أعيدت تسمية عمود؟) — أعد استيراده مرة من لوحة المتصفح.",
+  ", the first {k} of {total}": "، أول {k} من {total}",
+  "Reloaded from the database: {lines}": "أُعيد التحميل من قاعدة البيانات: {lines}",
+  "Reload from database": "إعادة التحميل من قاعدة البيانات",
+  "Pulls every table this project imported from a database again, through the same connection, schema, table and column choices, and replaces those layers' rows. {n} table(s): {list}": "يعيد جلب كل جدول استورده هذا المشروع من قاعدة بيانات، عبر الاتصال والمخطط والجدول واختيارات الأعمدة نفسها، ويستبدل صفوف تلك الطبقات. {n} جدولًا: {list}",
+  "Nothing to reload yet: import a table from the Browser panel or Database first, and it is remembered here with its schema, table and column choices.": "لا شيء لإعادة تحميله بعد: استورد أولًا جدولًا من لوحة المتصفح أو قاعدة البيانات، فيُحفظ هنا مع مخططه وجدوله واختيارات أعمدته.",
+  "Reload data": "إعادة تحميل البيانات",
+  "{table} → {target}: {n} row(s) pulled{v} (the layer had {before} row(s) before){v2}.": "{table} ← {target}: جُلب {n} صفًا{v} (كانت الطبقة تضم {before} صفًا من قبل){v2}.",
+  "; {changed} existing hole(s) took the database's values, {fresh} new": "؛ {changed} ثقبًا موجودًا أخذ قيم قاعدة البيانات، و{fresh} جديدة"
 }

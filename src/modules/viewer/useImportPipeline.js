@@ -5,6 +5,8 @@
 // its body as the code used to run, so React's hook order (the useState / useRef / useCallback inside) and every
 // closure see exactly the same values as before. `ctx` = what the code reads from the component, listed by an
 // eslint-scope analysis; the return = what the rest of ViewerModule uses.
+import { dbImportRecord, upsertDbImport } from "../../lib/dbImports.js"; // TASKS.csv #1963
+import { pullAllRows } from "../../lib/useTablePull.js"; // TASKS.csv #1963
 import { lonLatForCollars } from "../../lib/projectCrs.js"; // TASKS.csv #1235
 import { featureCountText } from "../../lib/featureCount.js"; // TASKS.csv #1116
 import { useRef, useState, useCallback } from "react";
@@ -53,6 +55,7 @@ export function useImportPipeline(ctx) {
     setSurvey,
     setTaskProgress,
     setVisibleHoles,
+    connectDb = null, dbConnections = [], dbImports = [], setDbImports = null, // TASKS.csv #1963
   } = ctx;
 
   // TASKS.csv #609 — a LINE or POLYGON shapefile (IP lines, claim outlines, a geology map) is map data, not a
@@ -153,7 +156,7 @@ export function useImportPipeline(ctx) {
   };
 
   // same pipeline as CSV import, just fed from a database query result instead of a parsed file
-  const openImportFromRows = async ({ headers, rows, sourceName }) => {
+  const openImportFromRows = async ({ headers, rows, sourceName, dbSource = null }) => { // dbSource: TASKS.csv #1963
     if (!rows.length) return;
     // TASKS.csv #917 — Matt: "the geochem module doesn't give me an option to import assays straight from the database".
     // An assay table (from the Browser panel or Connect to database) is handed to Geochem's assay dialog, which needs
@@ -161,7 +164,7 @@ export function useImportPipeline(ctx) {
     // #952 — a long table (analyte + value columns, one row per element) has no element columns to count
     if (looksLikeAssay(headers, sourceName) || (await import("../../lib/longAssays.js")).detectLongAssay(headers)) { // on demand: off the startup bundle
       setDbModalOpen(false);
-      requestModuleAction("import-assay-rows", { headers, rows, sourceName });
+      requestModuleAction("import-assay-rows", { headers, rows, sourceName, dbSource });
       goToModule("geochem");
       setNotices((p) => [...p, isSurfaceSampleTable(headers) // #975 — Geochem opens a surface-sample table in its surface import
         ? notice("{name} looks like a table of surface samples (coordinates, no from / to), so it opened in Geochem's surface-sample import, where you choose the elements.", { name: sourceName })
@@ -172,7 +175,7 @@ export function useImportPipeline(ctx) {
     const ll = lonLatForCollars(target, guessMapping(target, headers), headers, rows); // #1235
     const mapping = ll ? ll.mapping : guessMapping(target, headers); // #426
     const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
-    setImportModal({ ...azRefFor(target, headers, rows), fileName: sourceName, headers, rowCount: rows.length, sampleRows: rows.slice(0, 5), allRows: rows, target, mapping, ...guardGuess(target, mapping, headers, rows, sourceName), dipConvention: "neg_down", perRowEpsgCol, ...(ll ? { sourceEpsg: ll.sourceEpsg } : {}) });
+    setImportModal({ dbSource, ...azRefFor(target, headers, rows), fileName: sourceName, headers, rowCount: rows.length, sampleRows: rows.slice(0, 5), allRows: rows, target, mapping, ...guardGuess(target, mapping, headers, rows, sourceName), dipConvention: "neg_down", perRowEpsgCol, ...(ll ? { sourceEpsg: ll.sourceEpsg } : {}) });
     setDbModalOpen(false);
   };
 
@@ -208,7 +211,8 @@ export function useImportPipeline(ctx) {
     return ov ? { target: "custom", mapping: guessMapping("custom", headers), guessNote: ov } : { target, mapping };
   };
   const azRefFor = (target, headers, rows) => { const d = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, rows) : null; return d?.ref ? { azimuthRef: d.ref, azimuthRefFrom: d.col } : {}; };
-  const commitImportData = ({ target, mapping, allRows, dipConvention, fileName: shownName, sourceEpsg, perRowEpsgCol, customFields, azimuthRef, azimuthDate, betaRefLine, azimuthGridEpsg, unseen = false }) => {
+  const commitImportData = (data) => {
+    const { target, mapping, allRows, dipConvention, fileName: shownName, sourceEpsg, perRowEpsgCol, customFields, azimuthRef, azimuthDate, betaRefLine, azimuthGridEpsg, unseen = false, dbSource = null, reload = null } = data; // dbSource, reload: #1963 (reload: an object the collar diff is written to; no overwrite question)
     // TASKS.csv #1506 (review #1497) — the dialog's title carries the drop's queue count ("Min Domain.csv (10 more queued)"), and it
     // became the custom layer's name, each row's source (_src) and every notice: the bare file name from here on
     const fileName = String(shownName ?? "").replace(/ \(\d+ more queued\)$/, "");
@@ -264,6 +268,8 @@ export function useImportPipeline(ctx) {
     const schema = TARGET_SCHEMAS[target];
     const missing = schema.fields.filter((f) => f.required && !mapping[f.key]);
     if (missing.length) { setNotices((p) => [...p, notice("{fileName}: map required field(s) — {v}", { fileName, v: missing.map((f) => f.label).join(", ") })]); return false; }
+    // TASKS.csv #1963 — a table pulled from a database: its record (profile, schema, table, these choices) for "Reload from database"
+    if (dbSource?.profile && setDbImports) { const rec = dbImportRecord(data, dbSource, target); if (rec) setDbImports((prev) => upsertDbImport(prev, rec)); }
     const flipDip = (raw) => (dipConvention === "neg_down" ? -raw : raw);
     // TASKS.csv #548 — alpha/beta picks were oriented from the survey present at THEIR import; a new survey or
     // collar for those holes re-derives them (logged dip / dip direction and calculator results are left alone).
@@ -376,7 +382,8 @@ export function useImportPipeline(ctx) {
       const liveCollars = importStateRef.current.collars || [];
       const diff = diffCollarImport(liveCollars, rows);
       let overwriteExisting = true;
-      if (diff.changed.length) {
+      if (reload) { reload.changedHoles = diff.changed.length; reload.newHoles = diff.newHoles.length; } // #1963 — a reload takes the database's values and reports them
+      if (diff.changed.length && !reload) {
         const preview = diff.changed.slice(0, 6).map((c) => {
           const moved = c.shift > 1e-6 ? ` — moves ${c.shift < 10 ? c.shift.toFixed(2) : c.shift.toFixed(0)} world units` : "";
           return `  • ${c.hole_id}: ${c.fields.join(", ")} differ${moved}`;
@@ -776,5 +783,45 @@ export function useImportPipeline(ctx) {
 
   // #1649 — for the dialog: what importing this file as its CURRENT type would replace
   const importOverlap = (m) => (m ? layerOverlap(m.target, m.mapping, m.allRows || [], m.fileName) : null);
-  return { commitImport, handleDrop, importBrowserFile, importOverlap, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker };
+  // TASKS.csv #1963 — Matt: "the option on the 3d view to reload the imported layers from the database ... a reload data button.
+  // That way I don't have to search for the schema in the database and load it again." Every recorded import is pulled again
+  // through its saved profile (the live connection, or a new one: a remembered password connects without asking, #621) and
+  // committed through the same dialog choices; assay tables go back through Geochem's commit. Says what each table gave.
+  const reloadDbImports = async () => {
+    const recs = dbImports || [];
+    if (!recs.length) { setNotices((p) => [...p, notice("Nothing to reload: no layer of this project was imported from a database yet (Browser panel > a database table, or Database on the ribbon).")]); return; }
+    if (!connectDb) return;
+    const lines = [];
+    let assayRecs = 0;
+    for (const rec of recs) {
+      const src = rec.dbSource || {};
+      const label = `${src.schema ? `${src.schema}.` : ""}${src.table}`;
+      const profile = (dbConnections || []).find((p) => p.name === src.profile);
+      if (!profile) { lines.push(tr("{table}: the connection profile \"{name}\" is not on this computer (Database > connect with that name, or reimport).", { table: label, name: src.profile })); continue; }
+      const con = await connectDb(profile);
+      if (!con.ok) { lines.push(`${label}: ${con.error || tr("could not connect")}`); continue; }
+      setTaskProgress?.({ label: tr("Reloading {table}", { table: label }), pct: 5 });
+      const pulled = await pullAllRows({ liveId: con.id, engine: profile.engine || "postgres", schema: src.schema, table: src.table, limit: src.limit, setTaskProgress, label: tr("Reloading {table}", { table: label }) });
+      setTaskProgress?.(null);
+      if (!pulled.ok) { lines.push(`${label}: ${pulled.error}`); continue; }
+      if (!pulled.rows.length) { lines.push(tr("{table}: the table is empty now; its rows were left as they were.", { table: label })); continue; }
+      if (rec.target === "assays") {
+        assayRecs++;
+        requestModuleAction("reload-assay-rows", { saved: rec.choices, rows: pulled.rows, headers: pulled.fields, dbSource: src });
+        lines.push(tr("{table} → assays: {n} row(s) pulled, committed through Geochem's assay import with the saved elements and options.", { table: label, n: pulled.rows.length.toLocaleString() }));
+        continue;
+      }
+      const live = importStateRef.current;
+      const before = rec.target === "collars" ? (live.collars || []).length : rec.target === "survey" ? (live.survey || []).length : (live.layers?.[rec.target] || []).length;
+      const report = {};
+      const ok = commitImportData({ ...rec.choices, target: rec.target, fileName: rec.fileName, allRows: pulled.rows, headers: pulled.fields, unseen: true, dbSource: src, reload: report });
+      lines.push(ok === false
+        ? tr("{table} → {target}: the saved column mapping no longer fits the table (a column was renamed?) — reimport it once from the Browser panel.", { table: label, target: rec.target })
+        : tr("{table} → {target}: {n} row(s) pulled{v} (the layer had {before} row(s) before){v2}.", { table: label, target: rec.target, n: pulled.rows.length.toLocaleString(), v: pulled.truncated ? tr(", the first {k} of {total}", { k: pulled.rows.length.toLocaleString(), total: pulled.total.toLocaleString() }) : "", before: before.toLocaleString(), v2: report.changedHoles != null ? tr("; {changed} existing hole(s) took the database's values, {fresh} new", { changed: report.changedHoles, fresh: report.newHoles }) : "" }));
+    }
+    if (assayRecs) goToModule("geochem");
+    setNotices((p) => [...p, notice("Reloaded from the database: {lines}", { lines: lines.join(" · ") })]);
+  };
+
+  return { commitImport, handleDrop, importBrowserFile, importOverlap, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker, reloadDbImports };
 }

@@ -141,6 +141,7 @@ export function StoreProvider({ children }) {
   // a legend group: its style lives in the view, so it publishes the group here for Layout's legend. Session only.
   const [surfaceSampleLegend, setSurfaceSampleLegend] = useState(null);
   const [surfaceQc, setSurfaceQc] = useState(null); // TASKS.csv #842 — surface-program QC: { records, certificates, settings }
+  const [dbImports, setDbImports] = useState([]); // TASKS.csv #1963 — the database imports to reload (lib/dbImports.js)
   const [evidenceOverlay, setEvidenceOverlay] = useState(null); // TASKS.csv #1003 — the Evidence overlay pane's recipe
   const [customLayers, setCustomLayers] = useState([]); // plain {id,name,rows} mirror for save/load; ViewerModule owns the live three.js groups
   // saved (non-secret) connection profiles — TASKS.csv #1081: kept on this computer (lib/dbProfiles.js), not in the project
@@ -879,6 +880,7 @@ export function StoreProvider({ children }) {
     sections: [sections, setSections], sectionGroups: [sectionGroups, setSectionGroups], layoutTemplates: [layoutTemplates, setLayoutTemplates],
     plannedHoles: [plannedHoles, setPlannedHoles], designLines: [designLines, setDesignLines], designStrings: [designStrings, setDesignStrings], surfaceSamples: [surfaceSamples, setSurfaceSamples], surfaceElements: [surfaceElements, setSurfaceElements], geochemThresholds: [geochemThresholds, setGeochemThresholds], surfaceQc: [surfaceQc, setSurfaceQc],
     evidenceOverlay: [evidenceOverlay, setEvidenceOverlay], // TASKS.csv #1003
+    dbImports: [dbImports, setDbImports], // TASKS.csv #1963
     generatedSurfaces: [generatedSurfaces, setGeneratedSurfaces], modelDomains: [modelDomains, setModelDomains],
   };
   const live = {};
@@ -1586,6 +1588,7 @@ export function StoreProvider({ children }) {
     surfaceSampleLegend, setSurfaceSampleLegend, // TASKS.csv #948
     surfaceQc, setSurfaceQc, // TASKS.csv #842
     evidenceOverlay, setEvidenceOverlay, // TASKS.csv #1003
+    dbImports, setDbImports, // TASKS.csv #1963
     designLines, setDesignLines, // TASKS.csv #1342
     designStrings, setDesignStrings, // TASKS.csv #1876
     customLayers, setCustomLayers,

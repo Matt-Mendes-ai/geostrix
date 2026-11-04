@@ -58,7 +58,9 @@ import { poolLayoutImages, expandLayoutImages } from "./layoutImagePool.js"; // 
 // v21 (TASKS.csv #1342) adds designLines (Mine Design linework: a start and segments; the geometry is recomputed from them).
 // v23 (TASKS.csv #1876) adds designStrings (free 3D polylines / polygons: { id, name, color, closed, visible, vertices: [[E, N, Z]] }).
 // v22 (TASKS.csv #1631) writes Layout pages and templates with each repeated image once ({ __layoutImages, images, items }).
-export const PROJECT_VERSION = 23; // #1876: designStrings. Was 22 // #1631: layout image pool. Was 21 // #1342: designLines. Was 20 // #1081: no dbConnections (per computer now). Was 19 // #1073: surface samples may be stored as exact columns. Was 18 // #1003: evidenceOverlay. Was 17 // #842: surfaceQc. Was 16 // #841: geochemThresholds. Was 15 // #811: explicitSurfaces. Was 14 // #796: big terrain grids as elevationsF32. Was 13 // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
+// v24 (TASKS.csv #1963) adds dbImports: what each database import pulled (profile name, schema, table) and the dialog's choices, so
+// "Reload from database" can pull the tables again. No host, login or password: those stay on the computer (#1081, #621).
+export const PROJECT_VERSION = 24; // #1963: dbImports. Was 23; // #1876: designStrings. Was 22 // #1631: layout image pool. Was 21 // #1342: designLines. Was 20 // #1081: no dbConnections (per computer now). Was 19 // #1073: surface samples may be stored as exact columns. Was 18 // #1003: evidenceOverlay. Was 17 // #842: surfaceQc. Was 16 // #841: geochemThresholds. Was 15 // #811: explicitSurfaces. Was 14 // #796: big terrain grids as elevationsF32. Was 13 // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
 
 export const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], magsusc: [], structure: [], litho_gc: [], alt_gc: [], geophys_pts: [] };
 
@@ -245,6 +247,7 @@ export const FIELDS = [
   { key: "generatedSurfaces", track: "dirty", empty: list, // TASKS.csv #52
     save: compactSurfaces, load: (data) => expandSurfaces(data.generatedSurfaces || []) }, // #483 — large meshes stored compact
   { key: "modelDomains", track: "dirty", empty: list },
+  { key: "dbImports", track: "dirty", empty: list }, // TASKS.csv #1963 — [{ id, target, dbSource: { profile, schema, table, limit }, fileName, choices, when }]
 ];
 
 export const FIELD_KEYS = FIELDS.map((f) => f.key);

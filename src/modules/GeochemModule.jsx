@@ -28,6 +28,7 @@ import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv 
 import GeochemPlot from "../components/GeochemPlot.jsx";
 import { lithologyBySample, lithologyCounts, NOT_LOGGED } from "../lib/sampleLithology.js"; // TASKS.csv #619
 import AssayImportModal from "../components/AssayImportModal.jsx";
+import { dbImportRecord, upsertDbImport } from "../lib/dbImports.js"; // TASKS.csv #1963
 import LabCertificateModal from "../components/LabCertificateModal.jsx"; // TASKS.csv #601
 import { isLabCertificateText, parseLabCertificate, combineCertificates, joinCertificatesToAssays, suggestQcTypes, qcRowPlacement, indexAssaysForPlacement } from "../lib/labCertificate.js"; // TASKS.csv #601
 import AlterationBoxModal from "../components/AlterationBoxModal.jsx"; // TASKS.csv #503
@@ -118,13 +119,20 @@ export default function GeochemModule() {
   // TASKS.csv #975 — a surface-sample table (coordinates, no from / to) from a database opens in the surface import
   useModuleAction(["import-assay-rows"], (_a, p) => {
     if (!p?.rows?.length) return;
+    const file = { name: p.sourceName, dbSource: p.dbSource || null }; // dbSource: TASKS.csv #1963
     if (isSurfaceSampleTable(p.headers)) {
       const pv = detectLongAssay(p.headers) ? pivotLongAssays(p.rows, p.headers, (sym) => inferUnit(sym, sym), (a) => isElementColumn(a)) : null;
       if (pv?.rows.length) setNotices((q) => [...q, `${p.sourceName}: ${longAssayNote(pv.report)}`]);
-      openSurfaceRows({ name: p.sourceName }, pv?.rows.length ? pv.headers : p.headers, pv?.rows.length ? pv.rows : p.rows);
+      openSurfaceRows(file, pv?.rows.length ? pv.headers : p.headers, pv?.rows.length ? pv.rows : p.rows);
       return;
     }
-    openTable({ name: p.sourceName }, p.headers, p.rows, false);
+    openTable(file, p.headers, p.rows, false);
+  });
+  // TASKS.csv #1963 — "Reload from database" on the 3D View: an assay table pulled again, committed with the saved choices
+  useModuleAction(["reload-assay-rows"], (_a, p) => {
+    if (!p?.rows?.length || !p.saved) return;
+    const file = { name: p.saved.fileName || "db table", dbSource: p.dbSource || null };
+    commitAssayImport({ ...p.saved, file, fileName: file.name, headers: p.headers || p.saved.headers, sampleRows: p.rows.slice(0, 5), allRows: p.rows, busy: false });
   });
   const svgRef = useRef(null);
 
@@ -364,6 +372,8 @@ export default function GeochemModule() {
     const { format, allRows, mapping, selectedMethod, elements } = modal;
     const chosen = elements.filter((e) => e.checked);
     if (!mapping.hole_id || !mapping.from || !mapping.to) { setNotices((p) => [...p, errorNotice(tr("Map hole ID, from, and to columns."))]); return; }
+    // TASKS.csv #1963 — a table pulled from a database: its record (profile, schema, table, these element and option choices)
+    if (modal.file?.dbSource?.profile && store.setDbImports) { const rec = dbImportRecord(modal, modal.file.dbSource, "assays"); if (rec) store.setDbImports((prev) => upsertDbImport(prev, rec)); }
     // TASKS.csv #334 — the project keeps ONE unit per element (assayElements) and valueIn reads every
     // stored value in it, so importing a batch in a different unit used to silently rescale all the
     // EARLIER values (Au in ppm, then a ppb batch: every earlier Au read 1000x too low). Incoming values

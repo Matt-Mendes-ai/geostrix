@@ -20,6 +20,45 @@ export const ROW_WARN_THRESHOLD = 50000;
 export const CHUNK_ROWS = 20000;
 const IMPORT_STEP = { importStep: true }; // TASKS.csv #665 — the import's own transaction steps (the SQL box never sends this)
 
+// TASKS.csv #1963 — the same count-then-chunked read as fetchTable below, as a plain function for "Reload from database":
+// -> { ok: true, rows, fields, total, truncated } | { ok: false, error }. setTaskProgress(null | { label, pct, onCancel }) optional.
+export async function pullAllRows({ liveId, engine = "postgres", schema, table, limit = null, setTaskProgress = null, label = null }) {
+  const t = { table_schema: schema, table_name: table };
+  const counted = await dbLiveQuery(liveId, countSql(engine, schema, table));
+  if (!counted.ok) return { ok: false, error: counted.error };
+  const total = Number(counted.rows?.[0]?.[counted.fields?.[0]] ?? Object.values(counted.rows?.[0] || {})[0] ?? 0) || 0;
+  const target = limit == null ? total : Math.min(limit, total);
+  const name = label || `${schema ? `${schema}.` : ""}${table}`;
+  if (target <= CHUNK_ROWS) {
+    const res = await dbLiveQuery(liveId, selectSql(engine, schema, table, limit));
+    if (!res.ok) return { ok: false, error: res.error };
+    return { ok: true, rows: res.rows, fields: res.fields, total, truncated: limit != null && total > limit };
+  }
+  let cancelled = false;
+  const rows = []; let fields = null;
+  const plan = chunkedReadPlan(engine, t.table_schema, t.table_name);
+  const begin = await dbLiveQuery(liveId, plan.begin, IMPORT_STEP);
+  if (!begin.ok) return { ok: false, error: begin.error };
+  try {
+    if (plan.open) { const decl = await dbLiveQuery(liveId, plan.open, IMPORT_STEP); if (!decl.ok) return { ok: false, error: decl.error }; }
+    while (rows.length < target) {
+      if (cancelled) return { ok: false, error: tr("Reload cancelled — {rows} row(s) fetched, nothing imported.", { rows: rows.length.toLocaleString() }) };
+      const want = Math.min(CHUNK_ROWS, target - rows.length);
+      const res = await dbLiveQuery(liveId, plan.page(want, rows.length), IMPORT_STEP);
+      if (!res.ok) return { ok: false, error: res.error };
+      if (!fields) fields = res.fields;
+      for (const r of res.rows) rows.push(r);
+      setTaskProgress?.({ label: `${name} — ${rows.length.toLocaleString()} / ${target.toLocaleString()} rows`, pct: Math.min(99, (rows.length / Math.max(1, target)) * 100), onCancel: () => { cancelled = true; } });
+      if (res.rows.length < want) break;
+    }
+    return { ok: true, rows, fields: fields || [], total, truncated: limit != null && total > limit };
+  } finally {
+    if (plan.close) await dbLiveQuery(liveId, plan.close, IMPORT_STEP).catch(() => {});
+    await dbLiveQuery(liveId, plan.end, IMPORT_STEP).catch(() => {});
+    setTaskProgress?.(null);
+  }
+}
+
 // liveId: the live connection's id; profile: { engine, database }; onRows({ headers, rows, sourceName }); setError(text | null)
 export function useTablePull({ liveId, profile, onRows, setError }) {
   const [pending, setPending] = useState(null); // a counted, not yet fetched table: { t, total }
@@ -44,7 +83,9 @@ export function useTablePull({ liveId, profile, onRows, setError }) {
       if (!rows.length) { setError(tr("That table returned no rows.")); return; }
       let sourceName = `db:${database}.${t.table_name}`;
       if (truncated) sourceName += ` (first ${rows.length.toLocaleString()} of ${total.toLocaleString()})`;
-      onRows({ headers: fields, rows, sourceName });
+      // TASKS.csv #1963 — where the rows came from, by profile NAME (host and login stay on this computer, #1081): the import's
+      // record in the project, so "Reload from database" can pull the same table again
+      onRows({ headers: fields, rows, sourceName, dbSource: { profile: profile?.name || null, schema: t.table_schema, table: t.table_name, limit: limit == null ? null : limit } });
     };
 
     // small enough for one round trip: no cursor, no transaction, no progress bar

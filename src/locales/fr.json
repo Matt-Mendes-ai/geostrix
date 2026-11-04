@@ -7720,5 +7720,21 @@
   "pXRF readings (screening)": "Lectures pXRF (dépistage)",
   "Lab + pXRF": "Laboratoire + pXRF",
   "all holes": "tous les sondages",
-  "{n} pXRF reading(s) are screening points on core, not assay intervals: the zero-length and overlap checks leave them out.": "{n} lecture(s) pXRF sont des points de dépistage sur carotte, pas des intervalles d'analyse : les contrôles de longueur nulle et de chevauchement les laissent de côté."
+  "{n} pXRF reading(s) are screening points on core, not assay intervals: the zero-length and overlap checks leave them out.": "{n} lecture(s) pXRF sont des points de dépistage sur carotte, pas des intervalles d'analyse : les contrôles de longueur nulle et de chevauchement les laissent de côté.",
+  "Reload cancelled — {rows} row(s) fetched, nothing imported.": "Rechargement annulé : {rows} ligne(s) lues, rien d'importé.",
+  "Nothing to reload: no layer of this project was imported from a database yet (Browser panel > a database table, or Database on the ribbon).": "Rien à recharger : aucune couche de ce projet n'a encore été importée d'une base de données (panneau Navigateur > une table, ou Base de données dans le ruban).",
+  "{table}: the connection profile \"{name}\" is not on this computer (Database > connect with that name, or reimport).": "{table} : le profil de connexion « {name} » n'est pas sur cet ordinateur (Base de données > connectez-vous sous ce nom, ou réimportez).",
+  "could not connect": "connexion impossible",
+  "Reloading {table}": "Rechargement de {table}",
+  "{table}: the table is empty now; its rows were left as they were.": "{table} : la table est vide maintenant ; ses lignes ont été laissées telles quelles.",
+  "{table} → assays: {n} row(s) pulled, committed through Geochem's assay import with the saved elements and options.": "{table} → analyses : {n} ligne(s) lues, validées par l'import d'analyses de Géochimie avec les éléments et options enregistrés.",
+  "{table} → {target}: the saved column mapping no longer fits the table (a column was renamed?) — reimport it once from the Browser panel.": "{table} → {target} : la correspondance de colonnes enregistrée ne convient plus à la table (une colonne renommée ?) — réimportez-la une fois depuis le panneau Navigateur.",
+  ", the first {k} of {total}": ", les {k} premières sur {total}",
+  "Reloaded from the database: {lines}": "Rechargé depuis la base de données : {lines}",
+  "Reload from database": "Recharger depuis la base de données",
+  "Pulls every table this project imported from a database again, through the same connection, schema, table and column choices, and replaces those layers' rows. {n} table(s): {list}": "Relit chaque table que ce projet a importée d'une base de données, avec la même connexion, le même schéma, la même table et les mêmes colonnes, et remplace les lignes de ces couches. {n} table(s) : {list}",
+  "Nothing to reload yet: import a table from the Browser panel or Database first, and it is remembered here with its schema, table and column choices.": "Rien à recharger pour l'instant : importez d'abord une table depuis le panneau Navigateur ou Base de données, et elle est mémorisée ici avec son schéma, sa table et ses colonnes.",
+  "Reload data": "Recharger",
+  "{table} → {target}: {n} row(s) pulled{v} (the layer had {before} row(s) before){v2}.": "{table} → {target} : {n} ligne(s) lues{v} (la couche avait {before} ligne(s) avant){v2}.",
+  "; {changed} existing hole(s) took the database's values, {fresh} new": " ; {changed} sondage(s) existants ont pris les valeurs de la base, {fresh} nouveaux"
 }

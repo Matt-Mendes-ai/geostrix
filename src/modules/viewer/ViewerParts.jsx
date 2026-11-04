@@ -2,7 +2,7 @@
 // (test/viewerModuleSize1084.test.mjs). Unchanged code: ViewToolbar, ContextItem, HoleRow, LayerRow, LayerQuickPanel,
 // VoxelRangeRow, distToSegment and the shared sidebar styles, plus the two lazy modals only they use.
 import React, { useState, useRef, useEffect } from "react";
-import { Bookmark, BookmarkPlus, Camera, ChevronDown, ChevronUp, Database, Download, Eye, EyeOff, FileBarChart2, Grid3x3, Info, LayoutTemplate, ListFilter, Maximize2, Milestone, PenTool, Pencil, Ruler, Scissors, ShieldAlert, TerminalSquare, Trash2, Upload, X, SquareSplitVertical, Rows3, Layers3, Crosshair } from "../../components/icons.js";
+import { Bookmark, BookmarkPlus, Camera, ChevronDown, ChevronUp, Database, Download, RefreshCw, Eye, EyeOff, FileBarChart2, Grid3x3, Info, LayoutTemplate, ListFilter, Maximize2, Milestone, PenTool, Pencil, Ruler, Scissors, ShieldAlert, TerminalSquare, Trash2, Upload, X, SquareSplitVertical, Rows3, Layers3, Crosshair } from "../../components/icons.js";
 import { Ribbon, RibbonGroup, RibbonButton, RIBBON_TONES } from "../../components/Ribbon.jsx";
 import HoverToolInfo from "../../components/HoverToolInfo.jsx";
 import VoxelRangeNumber from "../../components/VoxelRangeNumber.jsx"; // TASKS.csv #1208
@@ -23,6 +23,7 @@ export function ViewToolbar({
   themes, themeNameDraft, setThemeNameDraft, captureCurrentTheme, applyTheme,
   renamingThemeId, setRenamingThemeId, renameDraft, setRenameDraft, renameTheme, deleteTheme,
   onDbConnect, onQc, qcDisabled, onBoundaryIntercepts, boundaryDisabled, onSqlWorkspace, sqlDisabled,
+  onReloadDb = null, reloadDbCount = 0, reloadDbTitle = "", // TASKS.csv #1963
   onSnapshot, snapshotDisabled, exportDisabled = snapshotDisabled, onExportHoles, sectionMode, onToggleSection, sectionCorridor, setSectionCorridor,
   identifyOn, onToggleIdentify, measureMode, onToggleMeasure, onSwitchMeasureMode, measurePts, clearMeasure,
   interpretOpen, onInterpret, // TASKS.csv #1152
@@ -198,6 +199,11 @@ export function ViewToolbar({
         <div className="ge-ribbon-cell">
           <HoverToolInfo title={tr("Connect database")} text={tr("Connects directly to a PostgreSQL database and pulls collars, survey, or other tables straight in — no CSV export/import round trip needed if your data already lives in a database.")}>
             <button className="ge-ribbon-btn" onClick={onDbConnect}><Database size={22} strokeWidth={1.7} color={RIBBON_TONES.data} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Database")}</span></button>
+          </HoverToolInfo>
+        </div>
+        <div className="ge-ribbon-cell">{/* TASKS.csv #1963 — Matt: "a reload data button. That way I don't have to search for the schema in the database and load it again" */}
+          <HoverToolInfo title={tr("Reload from database")} text={reloadDbCount ? tr("Pulls every table this project imported from a database again, through the same connection, schema, table and column choices, and replaces those layers' rows. {n} table(s): {list}", { n: reloadDbCount, list: reloadDbTitle.split("\n").join("; ") }) : tr("Nothing to reload yet: import a table from the Browser panel or Database first, and it is remembered here with its schema, table and column choices.")}>
+            <button className={`ge-ribbon-btn${reloadDbCount ? "" : " is-disabled"}`} onClick={reloadDbCount ? onReloadDb : undefined} aria-disabled={!reloadDbCount || undefined} title={reloadDbTitle || undefined}><RefreshCw size={22} strokeWidth={1.7} color={RIBBON_TONES.data} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Reload data")}</span></button>
           </HoverToolInfo>
         </div>
         <div className="ge-ribbon-cell">

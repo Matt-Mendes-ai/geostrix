@@ -6,6 +6,7 @@ import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js";
 import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } from "react";
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1417
 import { isPxrfRow } from "../lib/qaqc.js"; // TASKS.csv #1695
+import { describeDbImport } from "../lib/dbImports.js"; // TASKS.csv #1963
 import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
 import * as THREE from "three";
 import { piercePoints as surfacePierces, piercePointRows } from "../lib/piercePoints.js"; // TASKS.csv #1009
@@ -6088,7 +6089,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // ---------- generic import pipeline ----------
   // TASKS.csv #445 step 3 — the import pipeline lives in modules/viewer/useImportPipeline.js (moved verbatim); called here, where that code used to sit, so the hook order is unchanged.
-  const { commitImport, handleDrop, importBrowserFile, importOverlap /* #1649 */, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker } = useImportPipeline({
+  const { commitImport, handleDrop, importBrowserFile, importOverlap /* #1649 */, layerPicker, loadSampleProject, openImportFromRows, openImportModal, processImportQueue, sampleLoading, setLayerPicker, reloadDbImports /* #1963 */ } = useImportPipeline({
+    connectDb: store.connectDb, dbConnections: store.dbConnections, dbImports: store.dbImports, setDbImports: store.setDbImports, // TASKS.csv #1963
     addBoundary,
     addRaster,
     collars,
@@ -7247,6 +7249,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           renameDraft={renameDraft} setRenameDraft={setRenameDraft}
           renameTheme={renameTheme} deleteTheme={deleteTheme}
           onDbConnect={() => setDbModalOpen(true)}
+          onReloadDb={reloadDbImports} reloadDbCount={(store.dbImports || []).length} reloadDbTitle={(store.dbImports || []).map(describeDbImport).join("\n")} /* TASKS.csv #1963 */
           onQc={() => setQcModalOpen(true)} qcDisabled={!collars.length}
           onBoundaryIntercepts={() => setInterceptsModalOpen(true)} boundaryDisabled={!collars.length}
           onSqlWorkspace={() => setSqlModalOpen(true)} sqlDisabled={!collars.length && !assays.length}

@@ -7720,5 +7720,21 @@
   "pXRF readings (screening)": "Leituras pXRF (triagem)",
   "Lab + pXRF": "Laboratório + pXRF",
   "all holes": "todos os furos",
-  "{n} pXRF reading(s) are screening points on core, not assay intervals: the zero-length and overlap checks leave them out.": "{n} leitura(s) pXRF são pontos de triagem no testemunho, não intervalos de análise: as verificações de comprimento zero e de sobreposição deixam-nas de fora."
+  "{n} pXRF reading(s) are screening points on core, not assay intervals: the zero-length and overlap checks leave them out.": "{n} leitura(s) pXRF são pontos de triagem no testemunho, não intervalos de análise: as verificações de comprimento zero e de sobreposição deixam-nas de fora.",
+  "Reload cancelled — {rows} row(s) fetched, nothing imported.": "Recarga cancelada: {rows} linha(s) lidas, nada importado.",
+  "Nothing to reload: no layer of this project was imported from a database yet (Browser panel > a database table, or Database on the ribbon).": "Nada para recarregar: nenhuma camada deste projeto foi ainda importada de uma base de dados (painel Navegador > uma tabela da base, ou Base de dados na faixa).",
+  "{table}: the connection profile \"{name}\" is not on this computer (Database > connect with that name, or reimport).": "{table}: o perfil de ligação \"{name}\" não está neste computador (Base de dados > ligue com esse nome, ou reimporte).",
+  "could not connect": "não foi possível ligar",
+  "Reloading {table}": "A recarregar {table}",
+  "{table}: the table is empty now; its rows were left as they were.": "{table}: a tabela está vazia agora; as suas linhas ficaram como estavam.",
+  "{table} → assays: {n} row(s) pulled, committed through Geochem's assay import with the saved elements and options.": "{table} → análises: {n} linha(s) lidas, confirmadas pela importação de análises da Geoquímica com os elementos e opções guardados.",
+  "{table} → {target}: the saved column mapping no longer fits the table (a column was renamed?) — reimport it once from the Browser panel.": "{table} → {target}: o mapeamento de colunas guardado já não corresponde à tabela (uma coluna foi renomeada?) — reimporte-a uma vez a partir do painel Navegador.",
+  ", the first {k} of {total}": ", as primeiras {k} de {total}",
+  "Reloaded from the database: {lines}": "Recarregado da base de dados: {lines}",
+  "Reload from database": "Recarregar da base de dados",
+  "Pulls every table this project imported from a database again, through the same connection, schema, table and column choices, and replaces those layers' rows. {n} table(s): {list}": "Volta a ler cada tabela que este projeto importou de uma base de dados, com a mesma ligação, esquema, tabela e escolha de colunas, e substitui as linhas dessas camadas. {n} tabela(s): {list}",
+  "Nothing to reload yet: import a table from the Browser panel or Database first, and it is remembered here with its schema, table and column choices.": "Nada para recarregar ainda: importe primeiro uma tabela a partir do painel Navegador ou de Base de dados, e ela fica aqui lembrada com o seu esquema, tabela e escolha de colunas.",
+  "Reload data": "Recarregar dados",
+  "{table} → {target}: {n} row(s) pulled{v} (the layer had {before} row(s) before){v2}.": "{table} → {target}: {n} linha(s) lidas{v} (a camada tinha {before} linha(s) antes){v2}.",
+  "; {changed} existing hole(s) took the database's values, {fresh} new": "; {changed} furo(s) existentes tomaram os valores da base, {fresh} novos"
 }
