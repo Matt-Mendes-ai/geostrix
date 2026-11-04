@@ -8,6 +8,7 @@ import HoverToolInfo from "../../components/HoverToolInfo.jsx";
 import VoxelRangeNumber from "../../components/VoxelRangeNumber.jsx"; // TASKS.csv #1208
 import { iconAction, activateOnKey } from "../../lib/a11y.js";
 import { voxelCellSupported } from "../../lib/viewer/geomath.js";
+import { coincidentModels } from "../../lib/voxelOverlap.js"; // TASKS.csv #1808
 import { pBtn } from "../../lib/sidebarStyles.js";
 import { distinctValues } from "../../lib/layers.js";
 import { confirmDestructive } from "../../lib/confirmDestructive.js";
@@ -415,7 +416,8 @@ export function distToSegment(px, py, ax, ay, bx, by) {
 // TASKS.csv #1780 (review #1646, Kodiak) — `compact` leaves out the name / eye line (the Geophysics card has its own); `onShell`
 // adds "Shell at this range" (a closed solid of the cells in the band, lib/voxelShell.js); a model imported with log colours
 // (model.logScale) gets log-stepped sliders: a linear step over 15-15,000 ohm.m put 2-3 positions in the 100-600 ohm.m range.
-export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null }) {
+export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null, others = null }) {
+  const sameCells = others ? coincidentModels(model, others) : []; // TASKS.csv #1808 — drawn into each other
   const [dispMin, setDispMin] = useState(Number.isFinite(model.threshold) ? model.threshold : model.min);
   const [dispMax, setDispMax] = useState(Number.isFinite(model.rangeMax) ? model.rangeMax : model.max);
   const useLog = !!model.logScale && model.min > 0 && model.max > model.min;
@@ -463,6 +465,12 @@ export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null
         <span>{tr("Showing {visibleCount} of {cells} cell(s)", { visibleCount: visibleCount.toLocaleString(), cells: model.cells.length.toLocaleString() })}</span>
         {isFiltered && <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={reset} style={{ cursor: "pointer", color: "var(--color-info)" }}>{tr("Reset")}</span>}
       </div>
+      {sameCells.length > 0 && ( // TASKS.csv #1808 (review #1646, Kodiak) — two inversions on one mesh drew a mosaic of two palettes
+        <div style={{ marginTop: 4, fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.35 }}>
+          {tr("Drawn in the same cells as {names}: the two colour each other's blocks. Show one at a time to read it.", { names: sameCells.map((m) => `"${m.name}${m.property ? ` (${m.property})` : ""}"`).join(", ") })}{" "}
+          <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onUpdate(model.id, { visible: false })} style={{ cursor: "pointer", color: "var(--color-info)", textDecoration: "underline" }}>{tr("Hide this one")}</span>
+        </div>
+      )}
       {onShell && isFiltered && visibleCount > 0 && ( // TASKS.csv #1780 — the band as a closed solid for targeting and sections
         <>
         <label style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 5, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer" }} title={tr("Keep only the biggest connected body of this range; smaller, separate bodies are left out of the solid.")}>

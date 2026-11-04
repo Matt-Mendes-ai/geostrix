@@ -30,7 +30,7 @@ test("#1270 the SQL snapshot has every stored field of a layer", () => {
 
 test("#1178 #1183 #1233 readouts and tables", () => {
   const g = read("src/modules/GeophysicsModule.jsx");
-  assert.match(g, /<VoxelRangeRow compact model=\{model\} onUpdate=\{onUpdate\} onShell=\{onShell\} \/>/); // TASKS.csv #1780 — the one-sided cutoff slider became the Min / Max range row (typed values, three significant figures in VoxelRangeNumber)
+  assert.match(g, /<VoxelRangeRow compact model=\{model\} onUpdate=\{onUpdate\} onShell=\{onShell\}( others=\{others\})? \/>/); // others: #1808 // TASKS.csv #1780 — the one-sided cutoff slider became the Min / Max range row (typed values, three significant figures in VoxelRangeNumber)
   assert.match(g, /min: sigFigs\(model\.min\)/);
   assert.match(read("src/components/BestIntercepts.jsx"), /minHeight: 180, flexShrink: 0/);
   assert.match(read("src/lib/inspectorColumns.js"), /key: "dip", label: "Dip"[^\n]*key: "azimuth"[^\n]*key: "alpha"[^\n]*key: "beta"/); // #1402 — the columns moved to a helper

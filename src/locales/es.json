@@ -7861,5 +7861,7 @@
   "= {g}° grid at this collar": "= {g}° de cuadrícula en este collar",
   "Enter the collar and a project CRS to convert it.": "Ingrese el collar y un SRC del proyecto para convertirlo.",
   "Az° grid": "Az° cuadrícula",
-  "Entered as {v}° {ref} ({date}).": "Ingresado como {v}° {ref} ({date})."
+  "Entered as {v}° {ref} ({date}).": "Ingresado como {v}° {ref} ({date}).",
+  "Drawn in the same cells as {names}: the two colour each other's blocks. Show one at a time to read it.": "Dibujado en las mismas celdas que {names}: cada uno colorea los bloques del otro. Muestre uno a la vez para leerlo.",
+  "Hide this one": "Ocultar este"
 }

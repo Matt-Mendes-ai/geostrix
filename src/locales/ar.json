@@ -7861,5 +7861,7 @@
   "= {g}° grid at this collar": "= {g}° شبكة عند هذه الفوهة",
   "Enter the collar and a project CRS to convert it.": "أدخل الفوهة ونظام إحداثيات للمشروع لتحويله.",
   "Az° grid": "السمت° شبكة",
-  "Entered as {v}° {ref} ({date}).": "أُدخل كـ {v}° {ref} ({date})."
+  "Entered as {v}° {ref} ({date}).": "أُدخل كـ {v}° {ref} ({date}).",
+  "Drawn in the same cells as {names}: the two colour each other's blocks. Show one at a time to read it.": "مرسوم في الخلايا نفسها مثل {names}: كل منهما يلوّن كتل الآخر. اعرض واحداً في كل مرة لقراءته.",
+  "Hide this one": "إخفاء هذا"
 }

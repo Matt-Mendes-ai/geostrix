@@ -8562,7 +8562,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <div style={{ padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", marginBottom: 12 }}>{tr("No voxel/block models loaded yet — import one from the Geophysics tab first, then come back here to isolate a value range (e.g. just a mag high, or an IP high band).")}</div>
         ) : (
           <div style={{ marginBottom: 12 }}>
-            {voxelModels.map((model) => <VoxelRangeRow key={model.id} model={model} onUpdate={updateVoxelModel} onShell={makeVoxelShell} />)}{/* onShell: #1780 */}
+            {voxelModels.map((model) => <VoxelRangeRow key={model.id} model={model} onUpdate={updateVoxelModel} onShell={makeVoxelShell} others={voxelModels} />)}{/* onShell: #1780 */}
           </div>
         )}
 

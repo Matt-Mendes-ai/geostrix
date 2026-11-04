@@ -1974,7 +1974,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
           </label>
         )}
         {voxelModels.map((v) => (
-          <VoxelModelRow key={v.id} epsg={project?.epsg} /* #1052 */ model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} onShell={(m, opts = {}) => { goToModule("viewer"); requestModuleAction("voxel-shell", { id: m.id, model: m, largestOnly: !!opts.largestOnly }); }} /* #1780; largestOnly: #1840 */ onTerrain={terrainFromModelTop} /* #1806 */ getEpsg={() => ensureExportCrs(project)} /* #1021 */ csvNames={bmNames} stampChoice={bmStamp} />
+          <VoxelModelRow key={v.id} epsg={project?.epsg} /* #1052 */ others={voxelModels} /* #1808 */ model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} onShell={(m, opts = {}) => { goToModule("viewer"); requestModuleAction("voxel-shell", { id: m.id, model: m, largestOnly: !!opts.largestOnly }); }} /* #1780; largestOnly: #1840 */ onTerrain={terrainFromModelTop} /* #1806 */ getEpsg={() => ensureExportCrs(project)} /* #1021 */ csvNames={bmNames} stampChoice={bmStamp} />
         ))}
 
         <div style={{ marginTop: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6 }}>
@@ -2069,7 +2069,7 @@ async function exportBlockModelVTK(model, epsg) {
 const VOXEL_PROPERTIES = ["Conductivity (S/m)", "Resistivity (ohm·m)", "Chargeability (mV/V)", "Chargeability (ms)", "Susceptibility (SI)", "Density (g/cc)", "Density contrast (g/cc)"];
 // TASKS.csv #1178 — a conductivity cutoff read "0" with 5,765 cells hidden: three significant figures, whatever the size
 export const sigFigs = (v) => (Number.isFinite(v) ? (v === 0 ? "0" : Number(v.toPrecision(3)).toLocaleString(undefined, { maximumSignificantDigits: 3 })) : "—");
-function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage, getEpsg, csvNames = "datamine", stampChoice = "auto", epsg = null, onShell = null, onTerrain = null }) {
+function VoxelModelRow({ others = null, model, onUpdate, onRemove, onEvaluate, onExportPackage, getEpsg, csvNames = "datamine", stampChoice = "auto", epsg = null, onShell = null, onTerrain = null }) {
   const [askPrompt, promptEl] = usePrompt(); // TASKS.csv #1779 — window.prompt throws in Electron
   const [gtOpen, setGtOpen] = useState(false); // TASKS.csv #1052
   const [displayOpacity, setDisplayOpacity] = useState(model.opacity ?? 0.85);
@@ -2134,7 +2134,7 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage,
       {/* TASKS.csv #1780 (review #1646, Kodiak) — the one-sided "value >= cutoff" slider could only hide the conductors on a resistivity
           model: the same Min / Max range the Targeting sidebar has (typed values, log steps on a model whose values span decades),
           and the range as a closed solid */}
-      <VoxelRangeRow compact model={model} onUpdate={onUpdate} onShell={onShell} />
+      <VoxelRangeRow compact model={model} onUpdate={onUpdate} onShell={onShell} others={others} />{/* others: #1808 */}
       <div style={{ marginTop: 2, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Range {min} to {max}", { min: sigFigs(model.min), max: sigFigs(model.max) })}</div>
       {/* TASKS.csv #1806 (review #1646, Kodiak) — an inversion mesh carries the topography as its air / ground boundary: a terrain from it,
           offline, for the samples with no elevation, the sections' profile and the clip at topography */}
