@@ -94,6 +94,7 @@ const PitShellPane = React.lazy(() => import("../components/PitShellPane.jsx"));
 const DesignLinesPane = React.lazy(() => import("../components/DesignLinesPane.jsx")); // TASKS.csv #1342
 const PitDesignPane = React.lazy(() => import("../components/PitDesignPane.jsx")); // TASKS.csv #1874
 const DesignStringsPane = React.lazy(() => import("../components/DesignStringsPane.jsx")); // TASKS.csv #1876
+const NestedPitsPane = React.lazy(() => import("../components/NestedPitsPane.jsx")); // TASKS.csv #1875
 const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")); // TASKS.csv #1152
 const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
@@ -7195,6 +7196,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <Ribbon show={visible} label="Mine design tools">
           <RibbonGroup label="Open pit">
             <RibbonButton icon={Pickaxe} label="Pit shell" tone="model" title="The pit that makes the most money at your prices and costs, from a block model" {...paneProps("pit")} />
+            <RibbonButton icon={Layers} label="Nested pits" tone="model" title="The shell at a series of revenue factors, valued at the entered price, with a schedule and an NPV per shell" {...paneProps("nested")} />{/* TASKS.csv #1875 */}
             <RibbonButton icon={Layers3} label="Pit design" tone="model" title="Benches, berms and faces on a pit shell: crest and toe strings and a bench-by-bench table" {...paneProps("pitdesign")} />{/* TASKS.csv #1874 */}
           </RibbonGroup>
           <RibbonGroup label="Underground">
@@ -8331,6 +8333,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </>)}{/* TASKS.csv #820 */}
 
         {sidebarTab === "minedesign" && toolPane === "pit" && <Suspense fallback={null}><PitShellPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} /* #1498 */ onClose={() => setToolPane(null)} /></Suspense>}
+        {sidebarTab === "minedesign" && toolPane === "nested" && <Suspense fallback={null}><NestedPitsPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1875 */}
         {sidebarTab === "minedesign" && toolPane === "pitdesign" && <Suspense fallback={null}><PitDesignPane surfaces={implicitSurfaces} worldPositionsOf={worldPositionsOfSurface} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1874 */}
         {sidebarTab === "minedesign" && toolPane === "strings" && <Suspense fallback={null}><DesignStringsPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient }} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1876 */}
         {sidebarTab === "minedesign" && toolPane === "lines" && <Suspense fallback={null}><DesignLinesPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef }} onClose={() => setToolPane(null)} /></Suspense>}
