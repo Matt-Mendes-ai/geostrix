@@ -194,7 +194,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
           {Number(res.shell?.gridCellM?.[0]) > Number(res.inputs?.benchH) && <div style={note}>{tr("The shell's walls are {d} m block steps, wider than a {h} m bench: the shell's waste understates what the benched walls take out.", { d: res.shell.gridCellM[0], h: res.inputs.benchH })}</div>}{/* #1899 */}
           {!res.daylights && <div style={warn}>{tr("The walls never met the ground: the design stops at the top bench.")}</div>}
           {res.groundSource === "collars" && <div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div>}
-          {res.groundSource === "model top" && <div style={note}>{tr("No terrain and no collars: the top of the shell is taken as flat ground.")}</div>}
+          {res.groundSource === "model top" && <div style={note}>{res.modelMissing ? tr("No terrain and no collars: the top of the shell is taken as flat ground.") : tr("No terrain and no collars: the ground is the top of the block model's columns, interpolated between them.")}</div>}{/* #1850 */}
           <div style={{ marginTop: 6, maxHeight: 220, overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 4 }}>
             <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-xs)" }}>
               <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>{[tr("Floor"), tr("Ore t"), tr("Grade"), tr("Waste t"), tr("Strip")].map((h) => <th key={h} style={{ textAlign: "right", padding: "2px 4px", borderBottom: "1px solid var(--color-border)", fontWeight: 600 }}>{h}</th>)}</tr></thead>

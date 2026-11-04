@@ -221,7 +221,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
           : tr("Cut-off grade at these inputs: {c} {unit}.", { c: Number(cutoff.toPrecision(3)), unit })}</div>}
         {!terrain && <div style={warn}>{collars.some((c) => Number.isFinite(c.z))
           ? tr("No terrain is loaded, so the ground is interpolated between the {n} collar elevations. Load a terrain in Maps for the real surface.", { n: collars.filter((c) => Number.isFinite(c.z)).length })
-          : tr("No terrain is loaded, so the top of the block model is taken as the ground and no overburden above it is costed. Load one in Maps.")}</div>}
+          : tr("No terrain is loaded and no collar has an elevation, so the top of each column of the block model stands in for the ground, interpolated between columns: nothing above the highest block is costed. Load a terrain in Maps for the real surface.")}</div>}{/* #1850 */}
         {surfaces.some((s) => s.type === "pit_shell" && s.visible) && <label style={{ ...row, justifyContent: "flex-start" }}><input type="checkbox" checked={hideEarlier} onChange={(e) => setHideEarlier(e.target.checked)} />{tr("Hide the earlier pits")}</label>}
         {busy == null
           ? <button onClick={run} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Pickaxe size={14} /> {editing ? tr("Run and replace the pit") : tr("Run the pit shell")}</button>
@@ -278,6 +278,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
           {res.support && res.oreExtrapolatedShare > 0.5 && <div style={warn}>{tr("Most of this ore is in blocks the estimate classed as extrapolated: the pit rests on grades the drilling does not surround.")}</div>}
           {(res.slopeDeg > 65 || res.maxDepth > 500) && <div style={warn}>{tr("Steeper than 65° overall or deeper than 500 m is beyond most open pits: treat it as a sign the body is an underground question.")}</div>}
           {res.groundSource === "collars" && <div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div>}
+          {res.groundSource === "model top" && <div style={note}>{tr("The ground is the top of the block model's columns, interpolated between them, not a terrain.")}</div>}{/* #1850 */}
           {res.oreAboveGroundBlocks > 0 && <div style={warn}>{tr("{t} t in {n} ore-grade block(s) sit wholly above the ground and were left out: the estimate was not clipped to the ground (3D Modelling › Estimation, \"Only blocks below the ground\").", { t: big(res.oreAboveGroundT), n: res.oreAboveGroundBlocks })}</div>}{/* #1616 */}
           {res.touchesBase && <div style={warn}>{tr("The pit reaches the bottom of the block model: it may go deeper if the body does.")}</div>}
           {res.touchesEdge && <div style={warn}>{tr("The pit reaches the edge of the grid, so it was cut off there.")}</div>}

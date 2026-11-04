@@ -6842,7 +6842,6 @@
   "Pit block size (m)": "حجم كتلة الحفرة (م)",
   "Blank: the block model's own size. A larger size runs faster and draws coarser walls; a block keeps its own ore or waste decision either way.": "فارغ: حجم نموذج الكتل نفسه. الحجم الأكبر أسرع ويرسم جدرانًا أخشن؛ وتحتفظ كل كتلة بقرارها خامًا أو نفاية.",
   "Cut-off grade at these inputs: {c} {unit}.": "المحتوى الحدي بهذه المدخلات: {c} {unit}.",
-  "No terrain is loaded, so the top of the block model is taken as the ground and no overburden above it is costed. Load one in Maps.": "لا توجد تضاريس محمّلة، لذا يُعد أعلى نموذج الكتل سطح الأرض ولا تُحتسب تكلفة الغطاء فوقه. حمّل واحدة من الخرائط.",
   "Run the pit shell": "حساب غلاف الحفرة",
   "Solving ({n}): cancel": "جارٍ الحل ({n}): إلغاء",
   "Enter every number above: none has a default, because the result is only as good as they are.": "أدخل كل الأرقام أعلاه: لا قيمة افتراضية لأي منها، فجودة النتيجة من جودتها.",
@@ -7519,5 +7518,8 @@
   "The by-product model the shell was run with (\"{m}\") is not in the project any more: the ore is decided on the main metal alone, at its cut-off.": "نموذج المنتج الثانوي الذي شُغِّلت به الحفرة (\"{m}\") لم يعد في المشروع: يُقرَّر الخام على المعدن الرئيسي وحده عند حد قطعه.",
   "Unit of the calculated element": "وحدة العنصر المحسوب",
   "An index has no unit. A metal-equivalent (CuEq, AuEq) takes the grade unit its formula gives, % or g/t, so an estimate of it can be priced in the pit shell.": "المؤشر بلا وحدة. يأخذ مكافئ المعدن (CuEq، AuEq) وحدة المحتوى التي تعطيها معادلته، % أو g/t، ليمكن تسعير تقديره في حفرة المنجم.",
-  "index (no unit)": "مؤشر (بلا وحدة)"
+  "index (no unit)": "مؤشر (بلا وحدة)",
+  "No terrain is loaded and no collar has an elevation, so the top of each column of the block model stands in for the ground, interpolated between columns: nothing above the highest block is costed. Load a terrain in Maps for the real surface.": "لا تضاريس محمَّلة ولا فوهة لها منسوب، لذا يقوم سطح كل عمود من نموذج الكتل مقام الأرض، مُستكمَلًا بين الأعمدة: لا يُحتسب شيء فوق أعلى كتلة. حمِّل تضاريس في الخرائط للسطح الحقيقي.",
+  "The ground is the top of the block model's columns, interpolated between them, not a terrain.": "الأرض هي سطح أعمدة نموذج الكتل، مُستكمَلًا بينها، لا تضاريس.",
+  "No terrain and no collars: the ground is the top of the block model's columns, interpolated between them.": "لا تضاريس ولا فوهات: الأرض هي سطح أعمدة نموذج الكتل، مُستكمَلًا بينها."
 }

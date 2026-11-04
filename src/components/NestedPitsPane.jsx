@@ -151,6 +151,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
           {line(tr("Grid cell"), `${res.cell.map((v) => Math.round(v * 10) / 10).join(" × ")} m`)}
           {line(tr("Solved in"), `${res.seconds} s`)}
           {res.groundSource === "collars" && <div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div>}
+          {res.groundSource === "model top" && <div style={note}>{tr("The ground is the top of the block model's columns, interpolated between them, not a terrain.")}</div>}{/* #1850 */}
           {res.coarsened && <div style={warn}>{tr("The grid was made coarser to stay within the limit, so the walls are coarser than the block model.")}</div>}
           {res.runs.some((r) => r.touchesBase) && <div style={warn}>{tr("A shell reaches the bottom of the block model: it may go deeper if the body does.")}</div>}
           <button onClick={exportCsv} style={{ ...pBtn, marginTop: 6 }}><Download size={13} /> {tr("Shells and years CSV")}</button>

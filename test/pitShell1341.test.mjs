@@ -127,7 +127,8 @@ test("ore in the air is not counted, and a block below cut-off is waste", () => 
 
 test("no terrain: the top of the model stands in, and that is reported", () => {
   const r = runPitShell({ ...econ, cells: orebody(1000, 10, 1.5) }, {});
-  assert.equal(r.topAssumed, 1);
+  assert.equal(r.groundSource, "model top"); // #1850 — the model's own column tops, so no column is assumed
+  assert.equal(r.topAssumed, 0);
   assert.ok(r.oreT > 0);
 });
 

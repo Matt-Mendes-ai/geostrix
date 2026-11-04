@@ -94,6 +94,20 @@ export function collarGround(collars) {
   };
 }
 
+// TASKS.csv #1850 (review #1646, Kodiak) — with no terrain AND no collars the pit took ONE flat ground at the model's highest block
+// top: on Kodiak 90-255 m of air over the real top of rock was mined as waste at 2.7 t/m3. The block model carries a topography of
+// its own, the top of each column's highest block; interpolated between the columns as the collars are (#1353), it stands in for
+// the terrain. cells: [{ x, y, z, dz }] -> groundAt(x, y) or null.
+export function modelTopGround(cells) {
+  const tops = new Map();
+  for (const c of cells || []) {
+    if (!Number.isFinite(c?.x) || !Number.isFinite(c?.y) || !Number.isFinite(c?.z) || !(c.dz > 0)) continue;
+    const k = `${Math.round(c.x * 100)}|${Math.round(c.y * 100)}`, t = c.z + c.dz / 2, p = tops.get(k);
+    if (!p) tops.set(k, { x: c.x, y: c.y, z: t }); else if (t > p.z) p.z = t;
+  }
+  return collarGround([...tops.values()]);
+}
+
 // ---------- the grid ----------
 // How far a slope lets a wall step sideways per bench decides the arcs. Each is (di, dj, levels up), never flatter than the
 // slope, and an arc two others already imply is left out (a block's cone is the same with far fewer arcs).
@@ -433,7 +447,8 @@ export function runPitShell(inputs, { groundAt = null, collars = null, onProgres
   let cells = inputs.cells, byMatched = null;
   if (inputs.by) { const j = joinByProduct(cells, inputs.byCells); if (!j.matched) return { failed: "by-grid" }; cells = j.cells; byMatched = j.matched / cells.length; }
   const fromCollars = !groundAt ? collarGround(collars) : null; // #1353
-  const grid = buildPitGrid(cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes, density: inputs.density, economics, miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: groundAt || fromCollars });
+  const fromModel = !groundAt && !fromCollars ? modelTopGround(cells) : null; // #1850 — the model's own column tops, never one flat plane
+  const grid = buildPitGrid(cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes, density: inputs.density, economics, miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: groundAt || fromCollars || fromModel });
   if (!grid) return { failed: "no-cells" };
   if (grid.empty) return { empty: true, cutoff: economics.cutoff, cell: [] };
   const groundSource = groundAt ? "terrain" : fromCollars ? "collars" : "model top";
@@ -467,7 +482,7 @@ export function runPitSeries(inputs, rfs, { groundAt = null, collars = null, rat
   if (inputs.by) { const j = joinByProduct(cells, inputs.byCells); if (!j.matched) return { failed: "by-grid" }; cells = j.cells; } // #1917
   const list = [...new Set(rfs.filter((r) => Number.isFinite(r) && r > 0))].sort((a, b) => a - b);
   if (!list.length) return { failed: "factors" };
-  const fromCollars = !groundAt ? collarGround(collars) : null, ground = groundAt || fromCollars;
+  const fromCollars = !groundAt ? collarGround(collars) : null, ground = groundAt || fromCollars || modelTopGround(cells); // model top: #1850
   const eco = (rf) => pitEconomics({ ...inputs, revenueFactor: rf });
   const topRf = list[list.length - 1];
   const top = buildPitGrid(cells, { size: inputs.size, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes, density: inputs.density, economics: eco(topRf), miningCost: inputs.miningCost, processingCost: inputs.processingCost, groundAt: ground });
@@ -508,7 +523,7 @@ export function runPitSeries(inputs, rfs, { groundAt = null, collars = null, rat
       const cash = cellCash[i], disc = discount != null ? cash / Math.pow(1 + discount, t) : cash;
       for (let j = pb; j < runs.length; j++) { npvAt[j] += disc; undAt[j] += cash; }
       yearsAt[pb] = cum / rate;
-      const y = Math.floor(cum / rate - 1e-9);
+      const y = Math.max(0, Math.floor(cum / rate - 1e-9)); // never below year 1: a first cell holding a sliver of rock under an interpolated ground (#1850)
       while (yearly.length <= y) yearly.push({ year: yearly.length + 1, rockT: 0, oreT: 0, cash: 0 });
       yearly[y].rockT += cellRock[i]; yearly[y].oreT += cellOre[i]; yearly[y].cash += cash;
     }

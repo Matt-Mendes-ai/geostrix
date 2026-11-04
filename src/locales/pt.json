@@ -6842,7 +6842,6 @@
   "Pit block size (m)": "Tamanho de bloco da cava (m)",
   "Blank: the block model's own size. A larger size runs faster and draws coarser walls; a block keeps its own ore or waste decision either way.": "Em branco: o tamanho do próprio modelo de blocos. Um tamanho maior roda mais rápido e desenha paredes mais grosseiras; cada bloco mantém sua decisão de minério ou estéril.",
   "Cut-off grade at these inputs: {c} {unit}.": "Teor de corte com estes dados: {c} {unit}.",
-  "No terrain is loaded, so the top of the block model is taken as the ground and no overburden above it is costed. Load one in Maps.": "Nenhum terreno carregado: o topo do modelo de blocos é tomado como superfície e a cobertura acima dele não é custeada. Carregue um em Mapas.",
   "Run the pit shell": "Calcular a cava",
   "Solving ({n}): cancel": "Resolvendo ({n}): cancelar",
   "Enter every number above: none has a default, because the result is only as good as they are.": "Informe todos os números: nenhum tem valor padrão, porque o resultado só é tão bom quanto eles.",
@@ -7519,5 +7518,8 @@
   "The by-product model the shell was run with (\"{m}\") is not in the project any more: the ore is decided on the main metal alone, at its cut-off.": "O modelo do subproduto com que a cava foi executada (\"{m}\") já não está no projeto: o minério é decidido só pelo metal principal, ao seu teor de corte.",
   "Unit of the calculated element": "Unidade do elemento calculado",
   "An index has no unit. A metal-equivalent (CuEq, AuEq) takes the grade unit its formula gives, % or g/t, so an estimate of it can be priced in the pit shell.": "Um índice não tem unidade. Um equivalente de metal (CuEq, AuEq) toma a unidade de teor que a sua fórmula dá, % ou g/t, para que a sua estimativa possa ser precificada na cava.",
-  "index (no unit)": "índice (sem unidade)"
+  "index (no unit)": "índice (sem unidade)",
+  "No terrain is loaded and no collar has an elevation, so the top of each column of the block model stands in for the ground, interpolated between columns: nothing above the highest block is costed. Load a terrain in Maps for the real surface.": "Não há terreno carregado e nenhuma boca de furo tem elevação, por isso o topo de cada coluna do modelo de blocos faz de superfície, interpolado entre colunas: nada acima do bloco mais alto é custeado. Carregue um terreno em Mapas para a superfície real.",
+  "The ground is the top of the block model's columns, interpolated between them, not a terrain.": "A superfície é o topo das colunas do modelo de blocos, interpolado entre elas, não um terreno.",
+  "No terrain and no collars: the ground is the top of the block model's columns, interpolated between them.": "Sem terreno nem bocas de furo: a superfície é o topo das colunas do modelo de blocos, interpolado entre elas."
 }
