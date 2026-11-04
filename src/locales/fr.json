@@ -3821,7 +3821,6 @@
   "Leave it on the file's own CRS. Change it when a shapefile has no .prj or a wrong one.": "Laissez sur le SCR propre au fichier. Changez-le quand un shapefile n'a pas de .prj ou un mauvais.",
   "Import map layer (.gpkg / .zip / .shp + .qml)…": "Importer une couche cartographique (.gpkg / .zip / .shp + .qml)…",
   "Remove map layer \"{name}\"": "Retirer la couche cartographique « {name} »",
-  " (import or fetch a DEM above first)": " (importez ou récupérez d'abord un MNE ci-dessus)",
   "Colour by": "Colorer par",
   "Apply a QGIS .qml style to this layer": "Appliquer un style QGIS .qml à cette couche",
   ".qml": ".qml",
@@ -4976,7 +4975,6 @@
   "Dips towards": "Pend vers",
   "to {a}°": "vers {a}°",
   "Stratigraphic order (youngest at the top)": "Ordre stratigraphique (la plus jeune en haut)",
-  "No terrain: the contacts' dips cannot be fitted and the model cannot run. Fetch a terrain first.": "Pas de terrain : les pendages des contacts ne peuvent pas être ajustés et le modèle ne peut pas tourner. Récupérez d'abord un terrain.",
   "Role of {u}": "Rôle de {u}",
   "Left out of the stack:": "Hors de la pile :",
   "Why this order (contact by contact)": "Pourquoi cet ordre (contact par contact)",
@@ -5073,7 +5071,6 @@
   "Wall direction": "Sens des parois",
   "widens with depth": "s'élargit en profondeur",
   "narrows with depth": "se rétrécit en profondeur",
-  "Needs a terrain: the top of each body is the ground": "Nécessite un terrain : le toit de chaque corps est le sol",
   "Build intrusion bodies": "Construire les corps intrusifs",
   "This polygon has fewer than three distinct points.": "Ce polygone a moins de trois points distincts.",
   "Part of this polygon is beyond the terrain, so the top of the body is unknown there. Fetch or import a terrain that covers it.": "Une partie de ce polygone est hors du terrain : le toit du corps y est inconnu. Téléchargez ou importez un terrain qui le couvre.",
@@ -7821,5 +7818,12 @@
   "2–98 % of the cells": "2–98 % des cellules",
   "The range above (min to max)": "La plage ci-dessus (min à max)",
   "Log (suggested: the values span {n} decades)": "Log (suggéré : les valeurs couvrent {n} décades)",
-  "Log (positive values)": "Log (valeurs positives)"
+  "Log (positive values)": "Log (valeurs positives)",
+  "Placed flat at {z} m, the median collar elevation; change Elev. on its card.": "Placé à plat à {z} m, l'altitude médiane des collets ; changez Élév. sur sa carte.",
+  "Placed flat at {z} m, the top of the block model \"{model}\" there; change Elev. on its card.": "Placé à plat à {z} m, le sommet du modèle de blocs « {model} » à cet endroit ; changez Élév. sur sa carte.",
+  "Placed flat at {z} m, the median surface-sample elevation; change Elev. on its card.": "Placé à plat à {z} m, l'altitude médiane des échantillons de surface ; changez Élév. sur sa carte.",
+  "Placed flat at 0 m: nothing in the project gives a ground level yet; change Elev. on its card.": "Placé à plat à 0 m : rien dans le projet ne donne encore le niveau du sol ; changez Élév. sur sa carte.",
+  "No terrain: the contacts' dips cannot be fitted and the model cannot run. Fetch one (Maps > Terrain, needs the internet), import a DEM, or offline make one from a block model's top (Geophysics > Block models > Terrain from the model's top).": "Pas de terrain : les pendages des contacts ne peuvent pas être ajustés et le modèle ne peut pas tourner. Téléchargez-en un (Cartes > Terrain, nécessite Internet), importez un MNT ou, hors ligne, créez-en un à partir du sommet d'un modèle de blocs (Géophysique > Modèles de blocs > Terrain à partir du sommet du modèle).",
+  "Needs a terrain: the top of each body is the ground. Offline, Geophysics > Block models > Terrain from the model's top makes one.": "Nécessite un terrain : le sommet de chaque corps est le sol. Hors ligne, Géophysique > Modèles de blocs > Terrain à partir du sommet du modèle en crée un.",
+  " (import or fetch a DEM first, or offline: Geophysics > Block models > Terrain from the model's top)": " (importez ou téléchargez d'abord un MNT, ou hors ligne : Géophysique > Modèles de blocs > Terrain à partir du sommet du modèle)"
 }

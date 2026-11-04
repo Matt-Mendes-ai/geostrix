@@ -1,6 +1,7 @@
 import { stylingTracker } from "./viewerDirty.js"; // TASKS.csv #1286
+import { defaultDrapeElevation } from "./drapeElevation.js"; // TASKS.csv #1823
 import { t as tr } from "./i18n.js"; // TASKS.csv #1285
-import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { changedKeys } from "./undoLabels.js"; // TASKS.csv #1087
 import { capturedFrameFields } from "./layoutGeometry.js"; // TASKS.csv #906 / #961
 import { tieStarterFurniture, sendElementWithFurniture } from "./layoutLinks.js"; // TASKS.csv #1320, #1634
@@ -403,14 +404,13 @@ export function StoreProvider({ children }) {
   const [mapLayers, setMapLayers] = useState([]);
   // TASKS.csv #1438 (review #1352) — with no terrain a map is drawn flat at its elevation, which was 0 m: on Silvertip 1,400 m
   // under the collars. A new map starts at the median collar elevation (else the surface samples'); the card's Elev. changes it.
-  const groundRef = useRef(0);
-  groundRef.current = useMemo(() => {
-    const med = (rows) => { const z = rows.map((r) => r.z).filter(Number.isFinite).sort((x, y) => x - y); return z.length ? z[z.length >> 1] : null; };
-    return med(collars) ?? med(surfaceSamples) ?? 0;
-  }, [collars, surfaceSamples]);
+  // TASKS.csv #1823 (review #1646, Kodiak) — with no collars, the top of the block models under the layer's box (the median rock-chip
+  // elevation put Kodiak's test polygons 160-320 m inside the IP block), else the surface samples (lib/drapeElevation.js)
+  const groundRef = useRef({}); // filled below, once voxelModels is declared
   const addMapLayer = useCallback((layer) => {
     const id = `maplayer_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    setMapLayers((p) => [...p, { opacity: 0.6, visible: true, drapeMode: "terrain", elevation: Math.round(groundRef.current), showOutlines: true, ...layer, id }]);
+    const ground = Math.round(defaultDrapeElevation({ ...groundRef.current, bbox: layer.bbox || null }).z);
+    setMapLayers((p) => [...p, { opacity: 0.6, visible: true, drapeMode: "terrain", elevation: ground, showOutlines: true, ...layer, id }]);
     return id;
   }, []);
   const updateMapLayer = useCallback((id, patch) => setMapLayers((p) => p.map((l) => l.id === id ? { ...l, ...(typeof patch === "function" ? patch(l) : patch) } : l)), []);
@@ -545,6 +545,7 @@ export function StoreProvider({ children }) {
   // project like everything else; they just don't participate in Ctrl+Z or the tab "unsaved changes"
   // dot, the same documented tradeoff themes/dbConnections/layoutTemplates already accept.
   const [voxelModels, setVoxelModels] = useState([]);
+  groundRef.current = { collars, surfaceSamples, voxelModels }; // TASKS.csv #1823 — read by addMapLayer
   // TASKS.csv #400 — collar hole ids are real drillholes: the QAQC classifier must never read one as a QC
   // insert because of its name ("BLK-22-01").
   useEffect(() => { setKnownHoleIds(new Set((collars || []).map((c) => c.hole_id))); }, [collars]);

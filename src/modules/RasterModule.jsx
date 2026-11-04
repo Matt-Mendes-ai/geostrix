@@ -1,8 +1,9 @@
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
+import { defaultDrapeElevation, drapeElevationNote } from "../lib/drapeElevation.js"; // TASKS.csv #1856
 import { ensureProjectCrs, ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615; export: #1021
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal, Rainbow, Download } from "../components/icons.js";
 import SpectralIndexModal from "../components/SpectralIndexModal.jsx"; // TASKS.csv #783
 import { useStore } from "../lib/store.jsx";
@@ -74,7 +75,7 @@ function SpectrumPanel({ spectrum, onSplit }) {
 }
 
 export default function RasterModule({ embedded = false } = {}) {
-  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [] } = useStore(); // projectIsEmpty/setEpsg: #607
+  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [], voxelModels = [] } = useStore(); // voxelModels: #1856 // projectIsEmpty/setEpsg: #607
   // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
   // any earlier points made from the same grid, so doing it twice does not double the survey.
   // TASKS.csv #373 — potential-field filters on a grid's kept values; each result is a new raster
@@ -299,7 +300,8 @@ export default function RasterModule({ embedded = false } = {}) {
   // Same reasoning as Geophysics's defaultElevation: a flat (non-terrain-draped) raster needs SOME
   // starting elevation, and "roughly at surface/collar level" is a better default than 0 when holes
   // are already loaded.
-  const defaultElevation = collars.length ? collars.reduce((s, c) => s + c.z, 0) / collars.length : 0;
+  // TASKS.csv #1856 — with no collars, the top of the block models, else the surface samples (was 0 m: 1,500 m under Kodiak's ground)
+  const defaultElevation = useMemo(() => defaultDrapeElevation({ collars, voxelModels, surfaceSamples }).z, [collars, voxelModels, surfaceSamples]);
 
   // TASKS.csv #287 — "Source CRS (EPSG, optional)", the field the vector/collar importers have had
   // since #120/#205 and the raster side never got. Blank = fall back to the file's own CRS tag (a
@@ -316,8 +318,9 @@ export default function RasterModule({ embedded = false } = {}) {
     try {
       const chooseProjectEpsg = projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }); // #607
       const { raster, msg } = await buildRasterImport(file, { epsg: project?.epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, keepDetail });
-      addRaster(raster);
-      setError({ info: true, text: msg });
+      const drape = defaultDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox }); // #1856 — the ground under this raster
+      addRaster({ ...raster, elevation: drape.z });
+      setError({ info: true, text: `${msg} ${drapeElevationNote(drape)}` });
     } catch (err) {
       setError({ info: false, text: err.message });
     } finally {

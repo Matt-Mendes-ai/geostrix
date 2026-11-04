@@ -3821,7 +3821,6 @@
   "Leave it on the file's own CRS. Change it when a shapefile has no .prj or a wrong one.": "Déjelo en el SRC propio del archivo. Cámbielo cuando un shapefile no tiene .prj o tiene uno erróneo.",
   "Import map layer (.gpkg / .zip / .shp + .qml)…": "Importar capa de mapa (.gpkg / .zip / .shp + .qml)…",
   "Remove map layer \"{name}\"": "Quitar capa de mapa \"{name}\"",
-  " (import or fetch a DEM above first)": " (importe u obtenga primero un DEM arriba)",
   "Colour by": "Colorear por",
   "Apply a QGIS .qml style to this layer": "Aplicar un estilo .qml de QGIS a esta capa",
   ".qml": ".qml",
@@ -4976,7 +4975,6 @@
   "Dips towards": "Buza hacia",
   "to {a}°": "hacia {a}°",
   "Stratigraphic order (youngest at the top)": "Orden estratigráfico (la más joven arriba)",
-  "No terrain: the contacts' dips cannot be fitted and the model cannot run. Fetch a terrain first.": "Sin terreno: no se pueden ajustar los buzamientos de los contactos ni ejecutar el modelo. Descargue primero un terreno.",
   "Role of {u}": "Papel de {u}",
   "Left out of the stack:": "Fuera de la pila:",
   "Why this order (contact by contact)": "Por qué este orden (contacto por contacto)",
@@ -5073,7 +5071,6 @@
   "Wall direction": "Sentido de las paredes",
   "widens with depth": "se ensancha en profundidad",
   "narrows with depth": "se estrecha en profundidad",
-  "Needs a terrain: the top of each body is the ground": "Necesita un terreno: el techo de cada cuerpo es el suelo",
   "Build intrusion bodies": "Construir cuerpos intrusivos",
   "This polygon has fewer than three distinct points.": "Este polígono tiene menos de tres puntos distintos.",
   "Part of this polygon is beyond the terrain, so the top of the body is unknown there. Fetch or import a terrain that covers it.": "Parte de este polígono queda fuera del terreno, así que allí se desconoce el techo del cuerpo. Descargue o importe un terreno que lo cubra.",
@@ -7821,5 +7818,12 @@
   "2–98 % of the cells": "2–98 % de las celdas",
   "The range above (min to max)": "El rango de arriba (mín. a máx.)",
   "Log (suggested: the values span {n} decades)": "Log (sugerido: los valores abarcan {n} décadas)",
-  "Log (positive values)": "Log (valores positivos)"
+  "Log (positive values)": "Log (valores positivos)",
+  "Placed flat at {z} m, the median collar elevation; change Elev. on its card.": "Colocado plano a {z} m, la elevación mediana de los collares; cambie Elev. en su tarjeta.",
+  "Placed flat at {z} m, the top of the block model \"{model}\" there; change Elev. on its card.": "Colocado plano a {z} m, el tope del modelo de bloques \"{model}\" allí; cambie Elev. en su tarjeta.",
+  "Placed flat at {z} m, the median surface-sample elevation; change Elev. on its card.": "Colocado plano a {z} m, la elevación mediana de las muestras de superficie; cambie Elev. en su tarjeta.",
+  "Placed flat at 0 m: nothing in the project gives a ground level yet; change Elev. on its card.": "Colocado plano a 0 m: nada en el proyecto da todavía un nivel del suelo; cambie Elev. en su tarjeta.",
+  "No terrain: the contacts' dips cannot be fitted and the model cannot run. Fetch one (Maps > Terrain, needs the internet), import a DEM, or offline make one from a block model's top (Geophysics > Block models > Terrain from the model's top).": "Sin terreno: no se pueden ajustar los buzamientos de los contactos y el modelo no puede correr. Descargue uno (Mapas > Terreno, requiere internet), importe un MDE o, sin conexión, cree uno desde el tope de un modelo de bloques (Geofísica > Modelos de bloques > Terreno desde el tope del modelo).",
+  "Needs a terrain: the top of each body is the ground. Offline, Geophysics > Block models > Terrain from the model's top makes one.": "Necesita un terreno: el tope de cada cuerpo es el suelo. Sin conexión, Geofísica > Modelos de bloques > Terreno desde el tope del modelo crea uno.",
+  " (import or fetch a DEM first, or offline: Geophysics > Block models > Terrain from the model's top)": " (importe o descargue un MDE primero, o sin conexión: Geofísica > Modelos de bloques > Terreno desde el tope del modelo)"
 }

@@ -59,6 +59,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../lib/i18n.js";
+import { defaultDrapeElevation, drapeElevationNote } from "../lib/drapeElevation.js"; // TASKS.csv #1856
 import { voxelStretch, sortedShownValues } from "../lib/voxelStretch.js"; // TASKS.csv #1812 / #1781
 import { VoxelRangeRow } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1780
 import { terrainFromBlockModel } from "../lib/terrainFromModel.js"; // TASKS.csv #1806
@@ -325,7 +326,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   // Default drape elevation: average collar elevation if holes are loaded (drapes usually make most
   // sense roughly at surface/collar level), otherwise 0 — either way it's just a starting point, the
   // per-raster elevation slider below moves it.
-  const defaultElevation = collars.length ? collars.reduce((s, c) => s + c.z, 0) / collars.length : 0;
+  const defaultElevation = useMemo(() => defaultDrapeElevation({ collars, voxelModels, surfaceSamples }).z, [collars, voxelModels, surfaceSamples]); // #1856
 
   // TASKS.csv — raster import UI itself moved to its own Raster module (user request); this stays
   // here ONLY so a .tif/.gxf dropped directly on the Geophysics tab (see onDrop below) still imports
@@ -336,8 +337,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     setRasterError({ info: true, text: tr("Importing {name}…", { name: file.name }) }); // a large GeoTIFF takes a few seconds
     try {
       const { raster, msg } = await buildRasterImport(file, { epsg: project?.epsg, defaultElevation, chooseProjectEpsg: projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }) }); // #607
-      addRaster(raster);
-      setRasterError({ info: true, text: tr("{msg} (Tip: raster imports now have their own \"Raster\" tab — this drop still works here too.)", { msg }) });
+      const drape = defaultDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox }); // #1856
+      addRaster({ ...raster, elevation: drape.z });
+      setRasterError({ info: true, text: tr("{msg} (Tip: raster imports now have their own \"Raster\" tab — this drop still works here too.)", { msg: `${msg} ${drapeElevationNote(drape)}` }) });
     } catch (err) {
       setRasterError({ info: false, text: err.message });
     }

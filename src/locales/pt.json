@@ -3821,7 +3821,6 @@
   "Leave it on the file's own CRS. Change it when a shapefile has no .prj or a wrong one.": "Deixe no SRC próprio do arquivo. Mude quando um shapefile não tiver .prj ou tiver um errado.",
   "Import map layer (.gpkg / .zip / .shp + .qml)…": "Importar camada de mapa (.gpkg / .zip / .shp + .qml)…",
   "Remove map layer \"{name}\"": "Remover camada de mapa \"{name}\"",
-  " (import or fetch a DEM above first)": " (importe ou baixe antes um MDE acima)",
   "Colour by": "Colorir por",
   "Apply a QGIS .qml style to this layer": "Aplicar um estilo .qml do QGIS a esta camada",
   ".qml": ".qml",
@@ -4976,7 +4975,6 @@
   "Dips towards": "Mergulha para",
   "to {a}°": "para {a}°",
   "Stratigraphic order (youngest at the top)": "Ordem estratigráfica (a mais jovem no topo)",
-  "No terrain: the contacts' dips cannot be fitted and the model cannot run. Fetch a terrain first.": "Sem terreno: não é possível ajustar os mergulhos dos contatos nem executar o modelo. Baixe um terreno primeiro.",
   "Role of {u}": "Papel de {u}",
   "Left out of the stack:": "Fora da pilha:",
   "Why this order (contact by contact)": "Por que esta ordem (contato por contato)",
@@ -5073,7 +5071,6 @@
   "Wall direction": "Sentido das paredes",
   "widens with depth": "alarga-se em profundidade",
   "narrows with depth": "estreita-se em profundidade",
-  "Needs a terrain: the top of each body is the ground": "Precisa de um terreno: o topo de cada corpo é o solo",
   "Build intrusion bodies": "Construir corpos intrusivos",
   "This polygon has fewer than three distinct points.": "Este polígono tem menos de três pontos distintos.",
   "Part of this polygon is beyond the terrain, so the top of the body is unknown there. Fetch or import a terrain that covers it.": "Parte deste polígono fica fora do terreno, então o topo do corpo é desconhecido ali. Baixe ou importe um terreno que o cubra.",
@@ -7821,5 +7818,12 @@
   "2–98 % of the cells": "2–98 % das células",
   "The range above (min to max)": "O intervalo acima (mín. a máx.)",
   "Log (suggested: the values span {n} decades)": "Log (sugerido: os valores abrangem {n} décadas)",
-  "Log (positive values)": "Log (valores positivos)"
+  "Log (positive values)": "Log (valores positivos)",
+  "Placed flat at {z} m, the median collar elevation; change Elev. on its card.": "Colocado plano a {z} m, a elevação mediana das bocas de furo; altere Elev. no seu cartão.",
+  "Placed flat at {z} m, the top of the block model \"{model}\" there; change Elev. on its card.": "Colocado plano a {z} m, o topo do modelo de blocos \"{model}\" ali; altere Elev. no seu cartão.",
+  "Placed flat at {z} m, the median surface-sample elevation; change Elev. on its card.": "Colocado plano a {z} m, a elevação mediana das amostras de superfície; altere Elev. no seu cartão.",
+  "Placed flat at 0 m: nothing in the project gives a ground level yet; change Elev. on its card.": "Colocado plano a 0 m: nada no projeto dá ainda um nível do terreno; altere Elev. no seu cartão.",
+  "No terrain: the contacts' dips cannot be fitted and the model cannot run. Fetch one (Maps > Terrain, needs the internet), import a DEM, or offline make one from a block model's top (Geophysics > Block models > Terrain from the model's top).": "Sem terreno: os mergulhos dos contatos não podem ser ajustados e o modelo não pode rodar. Baixe um (Mapas > Terreno, precisa de internet), importe um MDE ou, offline, crie um a partir do topo de um modelo de blocos (Geofísica > Modelos de blocos > Terreno a partir do topo do modelo).",
+  "Needs a terrain: the top of each body is the ground. Offline, Geophysics > Block models > Terrain from the model's top makes one.": "Precisa de um terreno: o topo de cada corpo é o terreno. Offline, Geofísica > Modelos de blocos > Terreno a partir do topo do modelo cria um.",
+  " (import or fetch a DEM first, or offline: Geophysics > Block models > Terrain from the model's top)": " (importe ou baixe um MDE primeiro, ou offline: Geofísica > Modelos de blocos > Terreno a partir do topo do modelo)"
 }
