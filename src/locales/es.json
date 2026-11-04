@@ -2502,7 +2502,6 @@
   "Import UBC mesh + model…": "Importar malla UBC + modelo…",
   "Import block model CSV…": "Importar CSV de modelo de bloques…",
   "Also planned:": "También previsto:",
-  "• Geosoft binary grid (.grd) — no public format spec, so lower confidence than .gxf above": "• Grilla binaria de Geosoft (.grd) — sin especificación pública del formato, así que menos confianza que .gxf arriba",
   "• Geosoft voxel (.geosoft_voxel) — proprietary binary, no public spec (see the voxel section above for the CSV-based alternative that's supported instead)": "• Vóxel de Geosoft (.geosoft_voxel) — binario propietario, sin especificación pública (vea la sección de vóxeles arriba para la alternativa basada en CSV que sí se admite)",
   "{rows} geophysics point(s)": "{rows} punto(s) geofísico(s)",
   "{rasters} raster drape(s)": "{rasters} ráster(s) colgado(s)",
@@ -7775,5 +7774,10 @@
   "{n} smp": "{n} mtr",
   "global": "global",
   "Cap for domain {d}": "Tope del dominio {d}",
-  "{c} of {n} capped, {m}% of the metal": "{c} de {n} con tope, {m}% del metal"
+  "{c} of {n} capped, {m}% of the metal": "{c} de {n} con tope, {m}% del metal",
+  "This {kind} grid is rotated by {rotation}° — rotated grids aren't supported yet (the raster drape only handles axis-aligned grids). Re-export it unrotated, or as a GeoTIFF.": "Esta grilla {kind} está rotada {rotation}° — las grillas rotadas aún no se admiten (el drapeado de ráster solo maneja grillas alineadas a los ejes). Reexpórtela sin rotar, o como GeoTIFF.",
+  "This grid has fewer than 2 x 2 nodes.": "Esta grilla tiene menos de 2 x 2 nodos.",
+  "Read as a {kind} grid ({type}{v}), {nx} × {ny} nodes at {dx} m.": "Leída como grilla {kind} ({type}{v}), {nx} × {ny} nodos a {dx} m.",
+  ", compressed": ", comprimida",
+  "• Geosoft (compressed or not) and Surfer 6 / 7 binary grids (.grd) — read as a raster drape with values (Raster tab), like .gxf": "• Grillas binarias Geosoft (comprimidas o no) y Surfer 6 / 7 (.grd) — se leen como drapeado de ráster con valores (pestaña Ráster), como .gxf"
 }

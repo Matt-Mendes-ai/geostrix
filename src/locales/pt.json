@@ -2502,7 +2502,6 @@
   "Import UBC mesh + model…": "Importar malha UBC + modelo…",
   "Import block model CSV…": "Importar CSV de modelo de blocos…",
   "Also planned:": "Também previsto:",
-  "• Geosoft binary grid (.grd) — no public format spec, so lower confidence than .gxf above": "• Grade binária do Geosoft (.grd) — sem especificação pública do formato, então menos confiança que o .gxf acima",
   "• Geosoft voxel (.geosoft_voxel) — proprietary binary, no public spec (see the voxel section above for the CSV-based alternative that's supported instead)": "• Voxel do Geosoft (.geosoft_voxel) — binário proprietário, sem especificação pública (veja a seção de voxels acima para a alternativa baseada em CSV que é aceita no lugar)",
   "{rows} geophysics point(s)": "{rows} ponto(s) geofísico(s)",
   "{rasters} raster drape(s)": "{rasters} raster(s) drapeado(s)",
@@ -7775,5 +7774,10 @@
   "{n} smp": "{n} amo",
   "global": "global",
   "Cap for domain {d}": "Teto do domínio {d}",
-  "{c} of {n} capped, {m}% of the metal": "{c} de {n} com teto, {m}% do metal"
+  "{c} of {n} capped, {m}% of the metal": "{c} de {n} com teto, {m}% do metal",
+  "This {kind} grid is rotated by {rotation}° — rotated grids aren't supported yet (the raster drape only handles axis-aligned grids). Re-export it unrotated, or as a GeoTIFF.": "Esta grelha {kind} está rodada {rotation}° — grelhas rodadas ainda não são suportadas (o drapeado de raster só lida com grelhas alinhadas aos eixos). Reexporte-a sem rotação, ou como GeoTIFF.",
+  "This grid has fewer than 2 x 2 nodes.": "Esta grelha tem menos de 2 x 2 nós.",
+  "Read as a {kind} grid ({type}{v}), {nx} × {ny} nodes at {dx} m.": "Lida como grelha {kind} ({type}{v}), {nx} × {ny} nós a {dx} m.",
+  ", compressed": ", comprimida",
+  "• Geosoft (compressed or not) and Surfer 6 / 7 binary grids (.grd) — read as a raster drape with values (Raster tab), like .gxf": "• Grelhas binárias Geosoft (comprimidas ou não) e Surfer 6 / 7 (.grd) — lidas como drapeado de raster com valores (separador Raster), como .gxf"
 }

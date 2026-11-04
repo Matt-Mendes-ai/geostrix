@@ -78,7 +78,7 @@ const FORMAT_REFERENCE = "CSV: x/y/z (or easting/northing/elevation, lon/lat) pl
   + "\"terrain\"/\"topo\" in it is treated as elevation data, otherwise it's imported as a flat raster drape. "
   + ".gxf grids always import as a raster drape. .ply/.dxf import as a boundary polyline; .xyz opens a column "
   + "picker (Geosoft line/profile data, e.g. airborne survey exports). UBC mesh+model and block-model CSV "
-  + "import (in the sidebar) render as coloured 3D blocks — Geosoft's own binary .grd/voxel formats stay "
+  + "import (in the sidebar) render as coloured 3D blocks — Geosoft's binary voxel format stays "
   + "unsupported, there is no public spec to implement against.";
 
 // TASKS.csv #25 — CSV point-cloud import (x, y, z, value[, label]) for raw geophysics survey data
@@ -1968,7 +1968,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
 
         <div style={{ marginTop: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6 }}>
           <div style={{ color: "var(--color-text)", marginBottom: 6 }}>{tr("Also planned:")}</div>
-          <div>{tr("• Geosoft binary grid (.grd) — no public format spec, so lower confidence than .gxf above")}</div>
+          <div>{tr("• Geosoft (compressed or not) and Surfer 6 / 7 binary grids (.grd) — read as a raster drape with values (Raster tab), like .gxf")}</div>
           <div>{tr("• Geosoft voxel (.geosoft_voxel) — proprietary binary, no public spec (see the voxel section above for the CSV-based alternative that's supported instead)")}</div>
         </div>
         </>)}

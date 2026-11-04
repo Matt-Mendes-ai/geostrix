@@ -128,7 +128,7 @@ export function useImportPipeline(ctx) {
     // Drape elevation default, same rule RasterModule/GeophysicsModule use: roughly collar level if
     // holes are loaded, else 0. The per-raster elevation control on the Raster tab moves it after.
     const defaultElevation = collars.length ? collars.reduce((s, c) => s + c.z, 0) / collars.length : 0;
-    if (/\.(tiff?|gxf)$/.test(name)) {
+    if (/\.(tiff?|gxf|grd)$/.test(name)) { // grd: #1347
       try {
         const live = importStateRef.current;
         const chooseProjectEpsg = (src, cur) => adoptCrsIfEmpty(src, file.name) || cur; // #607
@@ -676,7 +676,7 @@ export function useImportPipeline(ctx) {
     // TASKS.csv #600 (40958Z) — grids (.tif/.gxf), CAD lines / solids (.dxf) and .obj solids dropped here used to
     // be refused ("Only .csv … can be dropped") although the Browser panel and the Raster / 3D Modelling buttons
     // import them: they go to those same handlers (importBrowserFile / importSolidFile), outside the table queue.
-    const direct = grouped.files.filter((f) => /\.(tiff?|gxf|dxf|obj)$/i.test(f.name));
+    const direct = grouped.files.filter((f) => /\.(tiff?|gxf|grd|dxf|obj)$/i.test(f.name)); // grd: #1347
     for (const f of direct) { if (/\.obj$/i.test(f.name)) importSolidFile(f); else await importBrowserFile(f); }
     let files = grouped.files.filter((f) => /\.(csv|zip|gpkg|shp|kml|kmz|xlsx|las)$/i.test(f.name)); // kml/kmz: #424, xlsx: #605, las: #492
     // TASKS.csv #603 — a closed format (Geosoft .gdb / .grd, .dwg, Access) gets the way out, not "unrecognized"

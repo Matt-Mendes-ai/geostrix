@@ -2502,7 +2502,6 @@
   "Import UBC mesh + model…": "استيراد شبكة + نموذج UBC…",
   "Import block model CSV…": "استيراد CSV نموذج كتل…",
   "Also planned:": "مخطط أيضًا:",
-  "• Geosoft binary grid (.grd) — no public format spec, so lower confidence than .gxf above": "• شبكة Geosoft الثنائية ‏(.grd) — لا مواصفة عامة للتنسيق، لذا ثقة أقل من ‎.gxf أعلاه",
   "• Geosoft voxel (.geosoft_voxel) — proprietary binary, no public spec (see the voxel section above for the CSV-based alternative that's supported instead)": "• فوكسل Geosoft ‏(.geosoft_voxel) — ثنائي احتكاري، لا مواصفة عامة (انظر قسم الفوكسل أعلاه للبديل المدعوم المعتمد على CSV)",
   "{rows} geophysics point(s)": "{rows} نقطة جيوفيزيائية",
   "{rasters} raster drape(s)": "{rasters} تغطية نقطية",
@@ -7775,5 +7774,10 @@
   "{n} smp": "{n} عينة",
   "global": "عام",
   "Cap for domain {d}": "سقف المجال {d}",
-  "{c} of {n} capped, {m}% of the metal": "{c} من {n} مسقوفة، {m}٪ من المعدن"
+  "{c} of {n} capped, {m}% of the metal": "{c} من {n} مسقوفة، {m}٪ من المعدن",
+  "This {kind} grid is rotated by {rotation}° — rotated grids aren't supported yet (the raster drape only handles axis-aligned grids). Re-export it unrotated, or as a GeoTIFF.": "هذه الشبكة {kind} مُدارة بزاوية {rotation}° — الشبكات المُدارة غير مدعومة بعد (إسقاط الصورة النقطية يتعامل مع الشبكات المحاذية للمحاور فقط). أعد تصديرها دون تدوير، أو كـ GeoTIFF.",
+  "This grid has fewer than 2 x 2 nodes.": "هذه الشبكة أقل من 2 × 2 عقدة.",
+  "Read as a {kind} grid ({type}{v}), {nx} × {ny} nodes at {dx} m.": "قُرئت كشبكة {kind} ({type}{v})، {nx} × {ny} عقدة عند {dx} م.",
+  ", compressed": "، مضغوطة",
+  "• Geosoft (compressed or not) and Surfer 6 / 7 binary grids (.grd) — read as a raster drape with values (Raster tab), like .gxf": "• شبكات Geosoft الثنائية (مضغوطة أو لا) وSurfer 6 / 7 (.grd) — تُقرأ كإسقاط نقطي بالقيم (تبويب النقطية)، مثل .gxf"
 }

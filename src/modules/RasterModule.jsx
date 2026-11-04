@@ -333,7 +333,7 @@ export default function RasterModule({ embedded = false } = {}) {
       onDragLeave={() => setDragOver(false)}
       onDrop={(e) => {
         e.preventDefault(); setDragOver(false);
-        const files = Array.from(e.dataTransfer.files || []).filter((f) => /\.(tiff?|gxf)$/i.test(f.name));
+        const files = Array.from(e.dataTransfer.files || []).filter((f) => /\.(tiff?|gxf|grd)$/i.test(f.name)); // grd: #1347
         files.forEach((f) => importRaster(f));
       }}
     >
@@ -362,7 +362,7 @@ export default function RasterModule({ embedded = false } = {}) {
         <input
           ref={fileInput}
           type="file"
-          accept=".tif,.tiff,.gxf"
+          accept=".tif,.tiff,.gxf,.grd"
           multiple
           style={{ display: "none" }}
           onChange={(e) => { Array.from(e.target.files || []).forEach((f) => importRaster(f)); e.target.value = ""; }}

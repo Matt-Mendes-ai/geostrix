@@ -15,6 +15,8 @@
 // geographic (lon/lat) DEM source not lining up with a projected project EPSG isn't just "in the
 // wrong place", it silently builds a real terrain mesh many orders of magnitude away from the rest of
 // the scene, so that path DOES reproject automatically when it can.
+import { inflateCapped, MB } from "./inflate.js"; // TASKS.csv #1347
+import { decodeGrd } from "./grdFormats.js"; // TASKS.csv #1347
 import { fromArrayBuffer } from "geotiff";
 import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
 import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #326 — compact grid values
@@ -587,12 +589,31 @@ export async function parseGXF(file) {
   const mirrored = sense === -1;
   const senseNote = (sense !== 1 && sense !== -1) ? ` Note: #SENSE ${sense} (a transpose variant) isn't specifically handled — the grid was read as if SENSE were 1, so double-check its orientation looks right.` : "";
 
+  return rasterFromRows({ name: file.name, values, ncols, nrows, x0, y0, dx, dy, isDummy: (v) => v === dummy || !Number.isFinite(v), mirrored, withGrid: sense === 1 || sense === -1, note: senseNote || null });
+}
+
+// TASKS.csv #1347 — Geosoft (Oasis montaj; compressed or not) and Surfer 6 / 7 binary grids (lib/grdFormats.js), as a raster drape
+// with its values, like a GXF. A rotated grid is refused as the GXF reader refuses one.
+export async function parseGRD(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const g = await decodeGrd(bytes, (u8) => inflateCapped(u8, "deflate", 512 * MB, file.name)); // zlib streams, with a ceiling (#351)
+  if (Math.abs(g.rotation || 0) > 0.01) throw new Error(tr("This {kind} grid is rotated by {rotation}° — rotated grids aren't supported yet (the raster drape only handles axis-aligned grids). Re-export it unrotated, or as a GeoTIFF.", { kind: g.kind, rotation: g.rotation }));
+  if (!(g.ncols >= 2 && g.nrows >= 2)) throw new Error(tr("This grid has fewer than 2 x 2 nodes."));
+  const out = rasterFromRows({ name: file.name, values: g.values, ncols: g.ncols, nrows: g.nrows, x0: g.x0, y0: g.y0, dx: g.dx, dy: g.dy, isDummy: (v) => !Number.isFinite(v) });
+  out.note = " " + tr("Read as a {kind} grid ({type}{v}), {nx} × {ny} nodes at {dx} m.", { kind: g.kind, type: g.elementType, v: g.compressed ? tr(", compressed") : "", nx: g.ncols, ny: g.nrows, dx: +g.dx.toPrecision(4) });
+  return out;
+}
+
+// TASKS.csv #1347 — the drape image, the stretch and the value grid of a grid whose rows run south -> north (each west -> east, or
+// east -> west when `mirrored`), shared by the GXF reader and the Geosoft / Surfer .grd reader. -> parseGeoTIFF's shape
+function rasterFromRows({ name, values, ncols, nrows, x0, y0, dx, dy, isDummy, mirrored = false, withGrid = true, note = null }) {
+  const total = ncols * nrows;
   const scale = Math.min(1, MAX_TEXTURE_SIZE / Math.max(ncols, nrows));
   const outW = Math.max(1, Math.round(ncols * scale)), outH = Math.max(1, Math.round(nrows * scale));
 
   let min = Infinity, max = -Infinity;
   const valid = [];
-  for (let i = 0; i < total; i++) { const v = values[i]; if (v !== dummy && Number.isFinite(v)) { if (v < min) min = v; if (v > max) max = v; valid.push(v); } }
+  for (let i = 0; i < total; i++) { const v = values[i]; if (!isDummy(v)) { if (v < min) min = v; if (v > max) max = v; valid.push(v); } }
   const hasRange = Number.isFinite(min) && Number.isFinite(max) && max > min;
   const gxfStretch = makeStretch(valid, "p2-98"); // #708 — as single-band GeoTIFFs and IDW grids
 
@@ -611,8 +632,8 @@ export async function parseGXF(file) {
       if (mirrored) col = ncols - 1 - col;
       const v = values[gxfRow * ncols + col];
       const idx = (oy * outW + ox) * 4;
-      const isDummy = v === dummy || !Number.isFinite(v);
-      if (isDummy) { imgData.data[idx + 3] = 0; continue; }
+      const isDum = isDummy(v);
+      if (isDum) { imgData.data[idx + 3] = 0; continue; }
       const t = hasRange ? gxfStretch.t(v) : 0.5; // #708
       const [cr, cg, cb] = rampColor(t);
       imgData.data[idx] = cr; imgData.data[idx + 1] = cg; imgData.data[idx + 2] = cb; imgData.data[idx + 3] = 255;
@@ -623,17 +644,17 @@ export async function parseGXF(file) {
   const bbox = [x0, y0, x0 + dx * (ncols - 1), y0 + dy * (nrows - 1)];
   // #326 — the values, north row first (GXF SENSE=1 lists rows south->north, each west->east)
   let grid = null;
-  if (sense === 1 || sense === -1) {
+  if (withGrid) {
     const northFirst = new Float64Array(total);
     for (let r = 0; r < nrows; r++) for (let c = 0; c < ncols; c++) {
       const src = values[r * ncols + (mirrored ? ncols - 1 - c : c)];
       northFirst[(nrows - 1 - r) * ncols + c] = src;
     }
-    grid = makeValueGrid(northFirst, ncols, nrows, x0, y0 + dy * (nrows - 1), dx, dy, (v) => v === dummy || !Number.isFinite(v));
+    grid = makeValueGrid(northFirst, ncols, nrows, x0, y0 + dy * (nrows - 1), dx, dy, isDummy);
   }
   return {
     grid, // #326
-    name: file.name,
+    name,
     bbox,
     width: ncols,
     height: nrows,
@@ -641,7 +662,7 @@ export async function parseGXF(file) {
     stretch: { mode: gxfStretch.mode, lo: gxfStretch.lo, hi: gxfStretch.hi }, // #708
     bandCount: 1,
     epsgTag: null, // GXF headers don't carry a standard CRS tag the way GeoTIFF's GeoKeys do
-    note: senseNote || null,
+    note,
     pixels: { width: outW, height: outH, data: imgData.data }, // TASKS.csv #287 — see parseGeoTIFF's note
   };
 }
@@ -670,9 +691,9 @@ export async function parseGXF(file) {
 // merely warned about. Every other case still imports as before, but now says explicitly which
 // assumption it fell back on rather than only mentioning it on a tag mismatch.
 export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, samples = null, name = null, keepDetail = false } = {}) { // samples: #807; keepDetail: #838
-  const isGxf = /\.gxf$/i.test(file.name);
+  const isGxf = /\.gxf$/i.test(file.name), isGrd = /\.grd$/i.test(file.name); // isGrd: #1347
   const maxSide = keepDetail ? FULL_DETAIL_SIZE : MAX_TEXTURE_SIZE;
-  const parsed = isGxf ? await parseGXF(file) : await parseGeoTIFF(file, { bandFn, samples, maxSide }); // bandFn: #783; samples: #807
+  const parsed = isGxf ? await parseGXF(file) : isGrd ? await parseGRD(file) : await parseGeoTIFF(file, { bandFn, samples, maxSide }); // bandFn: #783; samples: #807
   if (name) parsed.name = name;
   let bbox = parsed.bbox;
   let dataUrl = parsed.dataUrl;

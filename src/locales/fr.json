@@ -2502,7 +2502,6 @@
   "Import UBC mesh + model…": "Importer un maillage + modèle UBC…",
   "Import block model CSV…": "Importer un CSV de modèle de blocs…",
   "Also planned:": "Également prévu :",
-  "• Geosoft binary grid (.grd) — no public format spec, so lower confidence than .gxf above": "• Grille binaire Geosoft (.grd) — pas de spécification publique du format, donc moins de certitude que .gxf ci-dessus",
   "• Geosoft voxel (.geosoft_voxel) — proprietary binary, no public spec (see the voxel section above for the CSV-based alternative that's supported instead)": "• Voxel Geosoft (.geosoft_voxel) — binaire propriétaire, pas de spécification publique (voir la section voxel ci-dessus pour l'alternative basée sur CSV prise en charge à la place)",
   "{rows} geophysics point(s)": "{rows} point(s) géophysique(s)",
   "{rasters} raster drape(s)": "{rasters} drapé(s) raster",
@@ -7775,5 +7774,10 @@
   "{n} smp": "{n} éch",
   "global": "global",
   "Cap for domain {d}": "Plafond du domaine {d}",
-  "{c} of {n} capped, {m}% of the metal": "{c} sur {n} plafonnés, {m} % du métal"
+  "{c} of {n} capped, {m}% of the metal": "{c} sur {n} plafonnés, {m} % du métal",
+  "This {kind} grid is rotated by {rotation}° — rotated grids aren't supported yet (the raster drape only handles axis-aligned grids). Re-export it unrotated, or as a GeoTIFF.": "Cette grille {kind} est tournée de {rotation}° — les grilles tournées ne sont pas encore prises en charge (le drapé raster ne gère que des grilles alignées sur les axes). Réexportez-la sans rotation, ou en GeoTIFF.",
+  "This grid has fewer than 2 x 2 nodes.": "Cette grille a moins de 2 x 2 nœuds.",
+  "Read as a {kind} grid ({type}{v}), {nx} × {ny} nodes at {dx} m.": "Lue comme grille {kind} ({type}{v}), {nx} × {ny} nœuds à {dx} m.",
+  ", compressed": ", compressée",
+  "• Geosoft (compressed or not) and Surfer 6 / 7 binary grids (.grd) — read as a raster drape with values (Raster tab), like .gxf": "• Grilles binaires Geosoft (compressées ou non) et Surfer 6 / 7 (.grd) — lues comme drapé raster avec valeurs (onglet Raster), comme .gxf"
 }
