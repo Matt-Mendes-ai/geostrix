@@ -7741,5 +7741,6 @@
   "On the map": "Sur la carte",
   "raster": "raster",
   "{n} surface samples": "{n} échantillons de surface",
-  "kept a readable size at any zoom": "taille lisible à tout zoom"
+  "kept a readable size at any zoom": "taille lisible à tout zoom",
+  "Chargeability (ms)": "Chargeabilité (ms)"
 }

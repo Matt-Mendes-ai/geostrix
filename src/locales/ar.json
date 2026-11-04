@@ -7741,5 +7741,6 @@
   "On the map": "على الخريطة",
   "raster": "نقطي",
   "{n} surface samples": "{n} عينة سطحية",
-  "kept a readable size at any zoom": "بحجم مقروء عند أي تكبير"
+  "kept a readable size at any zoom": "بحجم مقروء عند أي تكبير",
+  "Chargeability (ms)": "قابلية الشحن (ms)"
 }

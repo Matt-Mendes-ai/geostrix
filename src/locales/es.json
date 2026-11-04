@@ -7741,5 +7741,6 @@
   "On the map": "En el mapa",
   "raster": "ráster",
   "{n} surface samples": "{n} muestras de superficie",
-  "kept a readable size at any zoom": "con tamaño legible a cualquier zoom"
+  "kept a readable size at any zoom": "con tamaño legible a cualquier zoom",
+  "Chargeability (ms)": "Cargabilidad (ms)"
 }

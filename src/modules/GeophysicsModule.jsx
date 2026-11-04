@@ -2049,7 +2049,9 @@ async function exportBlockModelVTK(model, epsg) {
   saveFile({ suggestedName: `${String(model.name || "block_model").replace(/[^\w\- ]/g, "").slice(0, 80)}.vtk`, filters: [{ name: "VTK (legacy)", extensions: ["vtk"] }], content: bytes /* #1040 bytes */ });
 }
 // TASKS.csv #711 — what an imported volume's values can be (the units the rest of the app uses)
-const VOXEL_PROPERTIES = ["Conductivity (S/m)", "Resistivity (ohm·m)", "Chargeability (mV/V)", "Susceptibility (SI)", "Density (g/cc)", "Density contrast (g/cc)"];
+// TASKS.csv #1779 (review #1646, Kodiak) — chargeability in both conventions: the integral Mx in ms (SJ Geophysics and many contractors:
+// "Mx (in ms): calculated apparent chargeability") beside mV/V; the legend, the section key and the exports carry whichever is chosen
+const VOXEL_PROPERTIES = ["Conductivity (S/m)", "Resistivity (ohm·m)", "Chargeability (mV/V)", "Chargeability (ms)", "Susceptibility (SI)", "Density (g/cc)", "Density contrast (g/cc)"];
 // TASKS.csv #1178 — a conductivity cutoff read "0" with 5,765 cells hidden: three significant figures, whatever the size
 export const sigFigs = (v) => (Number.isFinite(v) ? (v === 0 ? "0" : Number(v.toPrecision(3)).toLocaleString(undefined, { maximumSignificantDigits: 3 })) : "—");
 function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage, getEpsg, csvNames = "datamine", stampChoice = "auto", epsg = null, onShell = null, onTerrain = null }) {
