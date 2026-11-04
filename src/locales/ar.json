@@ -7713,5 +7713,12 @@
   "Top of {name} (block model)": "سطح {name} (نموذج كتل)",
   "Added the terrain \"{name}\": {w} × {h} nodes at {dx} × {dy} m from the top cell of {cols} column(s), {zmin} to {zmax} m{v}. It is the mesh's own ground, as fine as its columns and only where the mesh is{v2}. Samples with no elevation now sit on it; sections take its profile.": "أُضيفت التضاريس \"{name}\": {w} × {h} عقدة عند {dx} × {dy} م من الخلية العليا لـ {cols} عمودًا، من {zmin} إلى {zmax} م{v}. هي أرض الشبكة نفسها، بدقة أعمدتها وفقط حيث توجد الشبكة{v2}. تجلس عليها الآن العينات بلا منسوب؛ وتأخذ المقاطع ملامحها.",
   ", {n} node(s) with no column marked as no ground": "، {n} عقدة بلا عمود موسومة بلا أرض",
-  " (it replaces the terrain that was loaded)": " (تحل محل التضاريس التي كانت محمّلة)"
+  " (it replaces the terrain that was loaded)": " (تحل محل التضاريس التي كانت محمّلة)",
+  "The project holds portable XRF readings beside the lab assays. They are screening numbers (zero-length points, 'not detected' zeros), so the markers, their size range and the default classes come from the lab assays unless you choose otherwise; a pXRF marker is a cube and its tooltip says pXRF.": "يحوي المشروع قراءات XRF محمولة بجانب تحاليل المختبر. هي أرقام فرز (نقاط بطول صفري، أصفار 'غير مكتشف')، فالعلامات ونطاق حجمها والفئات الافتراضية تأتي من تحاليل المختبر ما لم تختر غير ذلك؛ علامة pXRF مكعب وتلميحها يقول pXRF.",
+  "Assay source": "مصدر التحاليل",
+  "Lab assays": "تحاليل المختبر",
+  "pXRF readings (screening)": "قراءات pXRF (فرز)",
+  "Lab + pXRF": "المختبر + pXRF",
+  "all holes": "كل الثقوب",
+  "{n} pXRF reading(s) are screening points on core, not assay intervals: the zero-length and overlap checks leave them out.": "{n} قراءة pXRF هي نقاط فرز على العينة اللبية، لا فترات تحليل: فحوص الطول الصفري والتداخل تستثنيها."
 }

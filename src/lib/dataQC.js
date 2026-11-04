@@ -297,14 +297,16 @@ function validateAssays(assays, collarIds, holeLengths) {
   });
   assays.forEach((a) => {
     if (isMarkedQcRow(a)) return; // #601 — QC samples sit on a drill sample's interval or at a zero-length insertion point by design
-    if (!byHole.has(a.hole_id)) byHole.set(a.hole_id, []);
-    byHole.get(a.hole_id).push(a);
+    // TASKS.csv #1695 (review #1645, Copley) — a pXRF reading on core is a zero-length point beside the lab intervals by design: 556
+    // 'zero-length' and 551 'overlapping' warnings were all pXRF. They keep the per-row checks but are not intervals to overlap.
+    const pxrf = a.source === "pXRF";
+    if (!pxrf) { if (!byHole.has(a.hole_id)) byHole.set(a.hole_id, []); byHole.get(a.hole_id).push(a); }
     if (!collarIds.has(a.hole_id)) pushIssue(issues, "error", "Assays", a.hole_id, tr("Assay interval references hole \"{hole_id}\", which has no matching collar.{v}", { hole_id: a.hole_id, v: didYouMean(collarIds, a.hole_id) }));
     if (!Number.isFinite(a.from) || !Number.isFinite(a.to)) {
       pushIssue(issues, "error", "Assays", a.hole_id, tr("Assay interval has a non-numeric from/to ({from}–{to}).", { from: a.from, to: a.to }));
     } else if (a.from > a.to) {
       pushIssue(issues, "error", "Assays", a.hole_id, tr("Assay interval from ({from}) is greater than to ({to}) — swapped or mis-entered.", { from: a.from, to: a.to }));
-    } else if (a.from === a.to) {
+    } else if (a.from === a.to && !pxrf) {
       pushIssue(issues, "warning", "Assays", a.hole_id, tr("Zero-length assay interval at {from}m.", { from: a.from }));
     }
     // TASKS.csv #285 — same negative-depth check as validateIntervalLayer above (and as survey depths
@@ -328,6 +330,7 @@ function validateAssays(assays, collarIds, holeLengths) {
       });
     }
   });
+  { const px = assays.filter((a) => a.source === "pXRF" && !isMarkedQcRow(a)).length; if (px) pushIssue(issues, "info", "Assays", tr("all holes"), tr("{n} pXRF reading(s) are screening points on core, not assay intervals: the zero-length and overlap checks leave them out.", { n: px })); } // #1695
   byHole.forEach((intervals, holeId) => {
     const sorted = [...intervals].filter((a) => Number.isFinite(a.from) && Number.isFinite(a.to)).sort((a, b) => a.from - b.from);
     let maxEnd = -Infinity, maxEndOwner = null;

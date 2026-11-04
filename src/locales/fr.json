@@ -7713,5 +7713,12 @@
   "Top of {name} (block model)": "Toit de {name} (modèle de blocs)",
   "Added the terrain \"{name}\": {w} × {h} nodes at {dx} × {dy} m from the top cell of {cols} column(s), {zmin} to {zmax} m{v}. It is the mesh's own ground, as fine as its columns and only where the mesh is{v2}. Samples with no elevation now sit on it; sections take its profile.": "Terrain « {name} » ajouté : {w} × {h} nœuds à {dx} × {dy} m depuis la cellule du haut de {cols} colonne(s), de {zmin} à {zmax} m{v}. C'est le sol propre du maillage, fin comme ses colonnes et seulement là où le maillage est{v2}. Les échantillons sans altitude s'y posent désormais ; les sections prennent son profil.",
   ", {n} node(s) with no column marked as no ground": ", {n} nœud(s) sans colonne marqués sans sol",
-  " (it replaces the terrain that was loaded)": " (il remplace le terrain qui était chargé)"
+  " (it replaces the terrain that was loaded)": " (il remplace le terrain qui était chargé)",
+  "The project holds portable XRF readings beside the lab assays. They are screening numbers (zero-length points, 'not detected' zeros), so the markers, their size range and the default classes come from the lab assays unless you choose otherwise; a pXRF marker is a cube and its tooltip says pXRF.": "Le projet contient des lectures XRF portable à côté des analyses de laboratoire. Ce sont des nombres de dépistage (points de longueur nulle, zéros « non détecté »), les marqueurs, leur gamme de taille et les classes par défaut viennent donc des analyses de laboratoire sauf choix contraire ; un marqueur pXRF est un cube et son infobulle dit pXRF.",
+  "Assay source": "Source des analyses",
+  "Lab assays": "Analyses de laboratoire",
+  "pXRF readings (screening)": "Lectures pXRF (dépistage)",
+  "Lab + pXRF": "Laboratoire + pXRF",
+  "all holes": "tous les sondages",
+  "{n} pXRF reading(s) are screening points on core, not assay intervals: the zero-length and overlap checks leave them out.": "{n} lecture(s) pXRF sont des points de dépistage sur carotte, pas des intervalles d'analyse : les contrôles de longueur nulle et de chevauchement les laissent de côté."
 }

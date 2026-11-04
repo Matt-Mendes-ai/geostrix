@@ -5,6 +5,7 @@ import FenceOptions from "./viewer/FenceOptions.jsx";
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js";
 import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } from "react";
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1417
+import { isPxrfRow } from "../lib/qaqc.js"; // TASKS.csv #1695
 import { lazyModal } from "../lib/lazyModal.jsx"; // TASKS.csv #301
 import * as THREE from "three";
 import { piercePoints as surfacePierces, piercePointRows } from "../lib/piercePoints.js"; // TASKS.csv #1009
@@ -1015,6 +1016,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // means "not recategorized", the plain single-color behavior). Same save/restore/theme-capture
   // treatment as legendOverride/numericRange right above — view-display state, not raw project data.
   const [assayStyle, setAssayStyle] = useState({});
+  // TASKS.csv #1695 (review #1645, Copley) — which assay rows the ASSAYS markers, their size ranges and classes come from: "lab" (the
+  // default), "pxrf" (portable XRF readings on core: a screening number, zero-length points, 'not detected' zeros) or "both"; a
+  // pXRF marker is a cube and says pXRF, a lab one the element's own shape. Saved with the view / a theme.
+  const [assaySource, setAssaySource] = useState("lab");
+  const hasPxrf = useMemo(() => assays.some(isPxrfRow), [assays]);
+  const assayRowShown = useCallback((a) => (assaySource === "both" ? true : assaySource === "pxrf" ? isPxrfRow(a) : !isPxrfRow(a)), [assaySource]);
   const [assayStyleModalSymbol, setAssayStyleModalSymbol] = useState(null); // symbol string | null
   const [gradeEstOpen, setGradeEstOpen] = useState(false); // TASKS.csv #117 — grade estimation into block models
   const [variogramOpen, setVariogramOpen] = useState(false); // TASKS.csv #147 — variogram / spatial continuity
@@ -1030,13 +1037,13 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const assayRangeCache = useRef({ assays: null, elements: null, by: {} });
   const assayRangeFor = useCallback((symbol) => {
     const c = assayRangeCache.current;
-    if (c.assays !== assays || c.elements !== assayElements) { c.assays = assays; c.elements = assayElements; c.by = {}; }
+    if (c.assays !== assays || c.elements !== assayElements || c.src !== assaySource) { c.assays = assays; c.elements = assayElements; c.src = assaySource; c.by = {}; } // src: #1695
     if (c.by[symbol] !== undefined) return c.by[symbol];
     if (!assayElements.some((e) => e.symbol === symbol)) return (c.by[symbol] = null);
     // TASKS.csv #1695 / #1696 (review #1645, Copley) — the classes come from the lab assays (pXRF readings are a screening number, with
     // 'not detected' zeros), and a pile of values at the detection floor (Au: P50 = the minimum) does not decide them: the percentiles
     // are then taken over the values above the floor
-    const lab = assays.filter((a) => a.source !== "pXRF");
+    const lab = assaySource === "pxrf" ? assays.filter(isPxrfRow) : assays.filter((a) => a.source !== "pXRF"); // #1695: the shown source (lab for "both")
     const vals = (lab.length ? lab : assays).filter((a) => a.values[symbol] != null).map((a) => a.values[symbol]);
     // TASKS.csv #306 — p50/p90 alongside min/max, because seedBreaks' default class boundaries are percentile-based rather than
     // equal-interval (see seedBreaks' own comment for the measured reason: equal-interval put 99.8-100% of every ore element in
@@ -1046,7 +1053,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const finite = atFloor >= 0.3 * all.length && atFloor < all.length ? all.subarray(atFloor) : all;
     const q = (p) => (finite.length ? finite[Math.min(finite.length - 1, Math.floor(p * (finite.length - 1)))] : undefined);
     return (c.by[symbol] = { ...minMax(vals), p50: q(0.5), p90: q(0.9), p975: q(0.975) }); // not Math.min/max(...vals) — a large assay dataset can exceed the JS engine's argument-spread limit, see layers.js's minMax comment
-  }, [assays, assayElements]);
+  }, [assays, assayElements, assaySource]);
   // TASKS.csv #437 — the hover tooltip is written straight to its DOM node instead of React state:
   // setTooltip({x, y, text}) ran on every pointermove over an interval and re-rendered this whole
   // 10k-line component (133 useState) each time. Same signature as before, so every caller is unchanged.
@@ -1891,6 +1898,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // assayDisplayElements (array) shape — see the multi-element display state comment above.
     setAssayDisplayElements(s.assayDisplayElements || (s.assayDisplayElement ? [s.assayDisplayElement] : []));
     setAssayStyle(s.assayStyle || {});
+    setAssaySource(s.assaySource || "lab"); // #1695
     setGridConfig({ ...DEFAULT_GRID, ...(s.gridConfig || {}) });
     setBgColor(s.bgColor || DEFAULT_BG_COLOR);
     setHoleLabelMode(s.holeLabelMode || "none");
@@ -1913,14 +1921,14 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       customVisible,
       assayVisible,
       assayDisplayElements,
-      assayStyle,
+      assayStyle, assaySource, // assaySource: #1695
       gridConfig,
       bgColor,
       holeLabelMode,
       figureOverlay, // TASKS.csv #311
       layerStyles, // TASKS.csv #635
     });
-  }, [layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, gridConfig, bgColor, holeLabelMode, figureOverlay, layerStyles, setViewerUiState]);
+  }, [layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, assaySource, gridConfig, bgColor, holeLabelMode, figureOverlay, layerStyles, setViewerUiState]);
 
   // Applies bgColor to the live three.js scene whenever it changes — separate from the push-to-store
   // effect above since this one needs sceneRef.current (set up in the big scene-setup effect further
@@ -2935,14 +2943,14 @@ ${describeTrend(t)}` };
   const currentViewBundle = useCallback(() => {
     const cs = camState.current;
     return {
-      layerVisible, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle,
+      layerVisible, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, assaySource /* #1695 */,
       categoryFilter: Object.fromEntries(Object.entries(categoryFilter).map(([k, v]) => [k, Array.from(v)])),
       gridConfig,
       bgColor, holeLabelMode, figureOverlay, layerStyles, // TASKS.csv #1288 — these used to stay whatever was live, so one theme rendered differently from one refresh to the next
       ...surfaceVisibilityBundle(),
       camState: { theta: cs.theta, phi: cs.phi, radius: cs.radius, target: { x: cs.target.x, y: cs.target.y, z: cs.target.z } },
     };
-  }, [layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, gridConfig, bgColor, holeLabelMode, figureOverlay, layerStyles, surfaceVisibilityBundle]);
+  }, [layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, assaySource, gridConfig, bgColor, holeLabelMode, figureOverlay, layerStyles, surfaceVisibilityBundle]);
 
   // TASKS.csv #202 — root-cause fix. currentViewBundle() above reads local component state
   // (layerVisible, etc), which is fine for a NORMAL user action (Save theme) but turned out to be
@@ -2973,6 +2981,7 @@ ${describeTrend(t)}` };
       assayVisible: s?.assayVisible !== false,
       assayDisplayElements: s?.assayDisplayElements || (s?.assayDisplayElement ? [s.assayDisplayElement] : []),
       assayStyle: s?.assayStyle || {},
+      assaySource: s?.assaySource || "lab", // #1695
       gridConfig: { ...DEFAULT_GRID, ...(s?.gridConfig || {}) },
       bgColor: s?.bgColor || DEFAULT_BG_COLOR, holeLabelMode: s?.holeLabelMode || "none", figureOverlay: { ...DEFAULT_FIGURE_OVERLAY, ...(s?.figureOverlay || {}) }, layerStyles: s?.layerStyles || {}, // #1288
       // #52 (b) — read from the live scene, not from viewerUiState (surfaces aren't mirrored there), so
@@ -3021,6 +3030,7 @@ ${describeTrend(t)}` };
     setAssayVisible(theme.assayVisible !== false);
     setAssayDisplayElements(theme.assayDisplayElements || (theme.assayDisplayElement ? [theme.assayDisplayElement] : []));
     setAssayStyle(theme.assayStyle || {});
+    setAssaySource(theme.assaySource || "lab"); // #1695
     setGridConfig({ ...DEFAULT_GRID, ...(theme.gridConfig || {}) });
     // TASKS.csv #1288 — a theme saved before these existed leaves them as they are. layerStyles rebuilds every drillhole, so an equal value keeps its identity.
     if (theme.bgColor) setBgColor(theme.bgColor);
@@ -4581,7 +4591,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // after the big effect already built with the same inputs).
   const sameInputs = (a, b) => !!a && a.length === b.length && a.every((v, i) => v === b[i]);
   const clearGroup = (g) => { if (!g) return; while (g.children.length) { const c = g.children.pop(); if (!c.geometry?.userData?.sharedProto) c.geometry?.dispose?.(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.dispose?.(); } };
-  const assayInputs = [assays, assayDisplayElements, assayStyle, assayElements, assayVisible, collars];
+  const assayInputs = [assays, assayDisplayElements, assayStyle, assayElements, assayVisible, collars, assaySource]; // assaySource: #1695
   const assayBuiltRef = useRef(null);
   const buildAssaySpheres = () => {
     const g = layerGroupsRef.current.assay;
@@ -4591,11 +4601,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!assayVisible || !assayDisplayElements.length || !collars.length) return;
     const elementUnits = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit]));
     const byHole = new Map();
-    assays.forEach((a) => { if (!a.hole_id || isMarkedQcRow(a)) return; let arr = byHole.get(a.hole_id); if (!arr) byHole.set(a.hole_id, (arr = [])); arr.push(a); }); // #601 — a standard's grade is not the rock's
+    assays.forEach((a) => { if (!a.hole_id || isMarkedQcRow(a) || !assayRowShown(a)) return; let arr = byHole.get(a.hole_id); if (!arr) byHole.set(a.hole_id, (arr = [])); arr.push(a); }); // #601 — a standard's grade is not the rock's; assayRowShown: #1695
     // one size range PER element across all holes (Au in g/t and Cu in % share no scale); p50/p90 for #306's quantile sizes
     const ranges = {};
     assayDisplayElements.forEach((sym) => {
-      const vals = assays.filter((a) => a.values[sym] != null).map((a) => a.values[sym]);
+      const vals = assays.filter((a) => a.values[sym] != null && assayRowShown(a)).map((a) => a.values[sym]); // #1695: sizes from the shown source
       const finite = vals.filter(Number.isFinite).sort((x, y) => x - y);
       const q = (pp) => (finite.length ? finite[Math.min(finite.length - 1, Math.floor(pp * (finite.length - 1)))] : undefined);
       ranges[sym] = { ...minMax(vals), p50: q(0.5), p90: q(0.9) };
@@ -4619,11 +4629,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             const pt = look.at((a.from + a.to) / 2);
             if (!pt) return;
             // #312 — shared prototype + scale; #649 — the element's chosen shape and opacity
-            const op = style?.opacity ?? 1, shape = style?.shape || "sphere";
+            const px = isPxrfRow(a); // #1695 — a pXRF reading is a cube, and says so
+            const op = style?.opacity ?? 1, shape = px ? "cube" : style?.shape || "sphere";
             const mesh = new PickStandIn(POINT_PROTO[shape] || PROTO_SPHERE_10, { color: assayColorFor(v, idx, style), transparent: op < 1, opacity: op, side: shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #1500
             mesh.scale.setScalar(assaySizeFor(v, ranges[sym], style)); // #306
             mesh.position.set(pt.x + offX, pt.y, pt.z + offZ);
-            mesh.userData = { tip: `${c.hole_id}\n${sym}: ${v} ${elementUnits[sym] || ""}\n${a.from.toFixed(0)}–${a.to.toFixed(0)} m`, row: a };
+            mesh.userData = { tip: `${c.hole_id}\n${sym}: ${v} ${elementUnits[sym] || ""}${px ? " (pXRF)" : ""}\n${a.from.toFixed(0)}–${a.to.toFixed(0)} m`, row: a };
             g.add(mesh);
           });
         });
@@ -7719,6 +7730,16 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAssayDisplayElements([])} style={{ cursor: "pointer", color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{tr("Clear")}</span>
               )}
             </div>
+            {hasPxrf && ( /* TASKS.csv #1695 — lab assays by default; the pXRF readings on request, as cubes that say pXRF */
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "0 10px 4px", fontSize: "var(--font-size-sm)" }} title={tr("The project holds portable XRF readings beside the lab assays. They are screening numbers (zero-length points, 'not detected' zeros), so the markers, their size range and the default classes come from the lab assays unless you choose otherwise; a pXRF marker is a cube and its tooltip says pXRF.")}>
+                <span style={{ color: "var(--color-text-caption)" }}>{tr("Source")}</span>
+                <select value={assaySource} onChange={(e) => setAssaySource(e.target.value)} aria-label={tr("Assay source")} style={{ ...smallSel, flex: 1, minWidth: 0 }}>
+                  <option value="lab">{tr("Lab assays")}</option>
+                  <option value="pxrf">{tr("pXRF readings (screening)")}</option>
+                  <option value="both">{tr("Lab + pXRF")}</option>
+                </select>
+              </div>
+            )}
             {/* User request: show several elements at once (e.g. Au/Ag/Zn/Cu/Pb together), each
                 individually toggleable — replaces the old single-<select> "one at a time" picker. Each
                 chip's swatch matches that element's marker color (custom, if styled — see

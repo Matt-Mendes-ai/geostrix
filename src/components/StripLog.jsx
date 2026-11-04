@@ -52,7 +52,11 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const geotech = useMemo(() => (layers.geotech || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.geotech, holeId]);
   const recovery = useMemo(() => (layers.recovery || []).filter((r) => r.hole_id === holeId && Number.isFinite(Number(r.value))).sort((a, b) => a.from - b.from), [layers.recovery, holeId]); // #1400
   const structs = useMemo(() => holeStructures(layers.structure, holeId), [layers.structure, holeId]); // #1400
-  const holeAssays = useMemo(() => assays.filter((a) => a.hole_id === holeId).sort((a, b) => a.from - b.from), [assays, holeId]);
+  // TASKS.csv #1695 (review #1645, Copley) — the bars are the lab assays; the pXRF readings (zero-length screening points, drawn as 1 px
+  // hairlines in the same colour before) get a track of their own, as dots
+  const holeAssays = useMemo(() => assays.filter((a) => a.hole_id === holeId && a.source !== "pXRF").sort((a, b) => a.from - b.from), [assays, holeId]);
+  const pxrfAssays = useMemo(() => assays.filter((a) => a.hole_id === holeId && a.source === "pXRF").sort((a, b) => a.from - b.from), [assays, holeId]);
+  const pxrfRange = useMemo(() => Object.fromEntries(shownSymbols.map((sym) => { const vals = pxrfAssays.map((a) => valueIn(a, sym, elementUnits[sym] || "ppm", elementUnits)).filter((v) => v != null && Number.isFinite(v)); return [sym, vals.length ? arrMax(vals) : 0]; })), [pxrfAssays, shownSymbols.join("|"), elementUnits]);
 
   const collar = collars.find((c) => c.hole_id === holeId);
   const maxDepth = Math.max(
@@ -103,6 +107,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     { key: "geotech", label: "RQD%", rows: geotech, kind: "bar", max: 100 },
     ...((layers.recovery || []).length ? [{ key: "recovery", label: "Rec.%", title: "Recovery %", rows: recovery, kind: "bar", max: recoveryMax(recovery), scaleLabel: true, colorOf: () => "#5aa469" }] : []), // #1400 — beside RQD, over 100 % kept
     ...(shownSymbols.length ? shownSymbols : [""]).map((sym) => ({ key: `assay_${sym}`, sym, label: sym ? `${sym} (${elementUnits[sym] || "ppm"})` : "Assay", rows: holeAssays, kind: "assaybar" })),
+    ...shownSymbols.filter((sym) => pxrfRange[sym] > 0).map((sym) => ({ key: `pxrf_${sym}`, sym, label: `${sym} pXRF`, rows: pxrfAssays, kind: "pxrfdots" })), // #1695
   ];
 
   // #1480 — each track's rows inside the range, an interval cut at its ends; a structure pick or a point row kept when inside
@@ -269,6 +274,14 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                     if (!(w > 0)) return null;
                     return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={assayColor ? assayColor(t.sym, v) : "#c9863d"} opacity="0.85"><title>{`${r.from}-${r.to} m: ${v} ${elementUnits[t.sym] || "ppm"}`}</title></rect>;
                   })}
+                  {t.kind === "pxrfdots" && t.sym && t.rows.map((r, i) => { // #1695 — a pXRF reading: a dot at its depth, scaled to the pXRF readings' own maximum
+                    const v = valueIn(r, t.sym, elementUnits[t.sym] || "ppm", elementUnits);
+                    if (v == null || !Number.isFinite(v) || !(pxrfRange[t.sym] > 0)) return null;
+                    return <circle key={i} cx={x0 + 2 + Math.max(0, Math.min(1, v / pxrfRange[t.sym])) * (TRACK_W - 8)} cy={sy(r.from)} r="2" fill="#6b4fa0" opacity="0.9"><title>{`${r.from} m: ${v} ${elementUnits[t.sym] || "ppm"} (pXRF)`}</title></circle>;
+                  })}
+                  {t.kind === "pxrfdots" && t.sym && pxrfRange[t.sym] > 0 && (
+                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{`pXRF 0–${pxrfRange[t.sym].toPrecision(3)}`}</text>
+                  )}
                   {t.kind === "assaybar" && t.sym && assayRange[t.sym]?.max > 0 && (
                     <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{logScale ? tr("log {minPos}–{max}", { minPos: assayRange[t.sym].minPos.toPrecision(2), max: assayRange[t.sym].max.toPrecision(3) }) : `0–${assayRange[t.sym].max.toPrecision(3)}`}</text>
                   )}

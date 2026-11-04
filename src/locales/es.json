@@ -7713,5 +7713,12 @@
   "Top of {name} (block model)": "Techo de {name} (modelo de bloques)",
   "Added the terrain \"{name}\": {w} × {h} nodes at {dx} × {dy} m from the top cell of {cols} column(s), {zmin} to {zmax} m{v}. It is the mesh's own ground, as fine as its columns and only where the mesh is{v2}. Samples with no elevation now sit on it; sections take its profile.": "Añadido el terreno «{name}»: {w} × {h} nodos a {dx} × {dy} m desde la celda superior de {cols} columna(s), {zmin} a {zmax} m{v}. Es el terreno propio de la malla, tan fino como sus columnas y solo donde está la malla{v2}. Las muestras sin elevación ahora se apoyan en él; las secciones toman su perfil.",
   ", {n} node(s) with no column marked as no ground": ", {n} nodo(s) sin columna marcados como sin terreno",
-  " (it replaces the terrain that was loaded)": " (reemplaza el terreno que estaba cargado)"
+  " (it replaces the terrain that was loaded)": " (reemplaza el terreno que estaba cargado)",
+  "The project holds portable XRF readings beside the lab assays. They are screening numbers (zero-length points, 'not detected' zeros), so the markers, their size range and the default classes come from the lab assays unless you choose otherwise; a pXRF marker is a cube and its tooltip says pXRF.": "El proyecto tiene lecturas de XRF portátil junto a los ensayes de laboratorio. Son números de tamizaje (puntos de longitud cero, ceros de 'no detectado'), así que los marcadores, su rango de tamaño y las clases por defecto salen de los ensayes de laboratorio salvo que elija otra cosa; un marcador pXRF es un cubo y su tooltip dice pXRF.",
+  "Assay source": "Fuente de ensayes",
+  "Lab assays": "Ensayes de laboratorio",
+  "pXRF readings (screening)": "Lecturas pXRF (tamizaje)",
+  "Lab + pXRF": "Laboratorio + pXRF",
+  "all holes": "todos los sondajes",
+  "{n} pXRF reading(s) are screening points on core, not assay intervals: the zero-length and overlap checks leave them out.": "{n} lectura(s) pXRF son puntos de tamizaje sobre testigo, no intervalos de ensaye: las comprobaciones de longitud cero y de solape las dejan fuera."
 }

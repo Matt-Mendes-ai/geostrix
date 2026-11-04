@@ -7713,5 +7713,12 @@
   "Top of {name} (block model)": "Topo de {name} (modelo de blocos)",
   "Added the terrain \"{name}\": {w} × {h} nodes at {dx} × {dy} m from the top cell of {cols} column(s), {zmin} to {zmax} m{v}. It is the mesh's own ground, as fine as its columns and only where the mesh is{v2}. Samples with no elevation now sit on it; sections take its profile.": "Adicionado o terreno \"{name}\": {w} × {h} nós a {dx} × {dy} m a partir da célula do topo de {cols} coluna(s), {zmin} a {zmax} m{v}. É o terreno da própria malha, tão fino quanto as suas colunas e só onde a malha está{v2}. As amostras sem elevação assentam agora nele; as secções tomam o seu perfil.",
   ", {n} node(s) with no column marked as no ground": ", {n} nó(s) sem coluna marcados como sem terreno",
-  " (it replaces the terrain that was loaded)": " (substitui o terreno que estava carregado)"
+  " (it replaces the terrain that was loaded)": " (substitui o terreno que estava carregado)",
+  "The project holds portable XRF readings beside the lab assays. They are screening numbers (zero-length points, 'not detected' zeros), so the markers, their size range and the default classes come from the lab assays unless you choose otherwise; a pXRF marker is a cube and its tooltip says pXRF.": "O projeto tem leituras de XRF portátil ao lado das análises de laboratório. São números de triagem (pontos de comprimento zero, zeros de 'não detetado'), por isso os marcadores, o seu intervalo de tamanho e as classes por defeito vêm das análises de laboratório salvo escolha em contrário; um marcador pXRF é um cubo e a sua dica diz pXRF.",
+  "Assay source": "Fonte das análises",
+  "Lab assays": "Análises de laboratório",
+  "pXRF readings (screening)": "Leituras pXRF (triagem)",
+  "Lab + pXRF": "Laboratório + pXRF",
+  "all holes": "todos os furos",
+  "{n} pXRF reading(s) are screening points on core, not assay intervals: the zero-length and overlap checks leave them out.": "{n} leitura(s) pXRF são pontos de triagem no testemunho, não intervalos de análise: as verificações de comprimento zero e de sobreposição deixam-nas de fora."
 }
