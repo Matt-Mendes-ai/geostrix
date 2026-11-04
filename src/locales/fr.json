@@ -7469,5 +7469,10 @@
   "\"{name}\" deleted: Undo (Ctrl+Z) brings it back.": "« {name} » supprimé : Annuler (Ctrl+Z) le ramène.",
   "Moving vertex {n}: E {x}, N {y}, Z {z}": "Déplacement du sommet {n} : E {x}, N {y}, Z {z}",
   "In the view: click a string to select it; drag a vertex of the selected string to move it (on its own level, or on the ground when that is the drawing target).": "Dans la vue : cliquez sur une polyligne pour la sélectionner ; faites glisser un sommet de la polyligne sélectionnée pour le déplacer (à son niveau, ou sur le sol quand c'est la cible de dessin).",
-  "{n} of those are above the ground interpolated between the collars (no terrain) and were left out.": "{n} d'entre eux sont au-dessus du sol interpolé entre les collets (pas de terrain) et ont été laissés de côté."
+  "{n} of those are above the ground interpolated between the collars (no terrain) and were left out.": "{n} d'entre eux sont au-dessus du sol interpolé entre les collets (pas de terrain) et ont été laissés de côté.",
+  "Fit to the checked holes ({n} of {total})": "Ajuster aux sondages cochés ({n} sur {total})",
+  "Inside the string \"{name}\"": "À l'intérieur de la polyligne « {name} »",
+  "The grid is the string's box within the drilling; after the run, blocks whose centre lies outside the string are dropped. Every sample still informs the estimate.": "La grille est la boîte de la polyligne dans le forage ; après le calcul, les blocs dont le centre est hors de la polyligne sont écartés. Tous les échantillons informent encore l'estimation.",
+  "None of the checked holes carries assays: the grid fits the drilling.": "Aucun des sondages cochés ne porte d'analyses : la grille s'ajuste au forage.",
+  "{n} of those lie outside the string and were left out.": "{n} d'entre eux sont hors de la polyligne et ont été laissés de côté."
 }

@@ -15,7 +15,8 @@ import { LAYER_META } from "../lib/layers.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
-import { useStore } from "../lib/store.jsx"; // TASKS.csv #135 — project desurvey method
+import { useStore } from "../lib/store.jsx";
+import { pointInPolygon } from "../lib/pointInPolygon.js"; // TASKS.csv #1570 // TASKS.csv #135 — project desurvey method
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { trendBasis, trendSearchScales, describeTrend } from "../lib/trend.js"; // TASKS.csv #650
@@ -28,7 +29,8 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 // Edge are built around. Depends on downhole compositing (#118, implemented alongside this) as its
 // input — see lib/estimation.js's top comment for why kriging isn't offered here (needs a fitted
 // variogram as a genuine prerequisite, not just a harder formula dropped into the same loop).
-export default function GradeEstimationModal({ assays: assaysIn, assayElements, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend = null, groundAt = null, groundSource = null }) { // groundAt: TASKS.csv #803; groundSource "terrain" | "collars": #1616
+// checkedHoleIds (a Set, or null) and areaStrings (closed design strings): two more grid sources, TASKS.csv #1570
+export default function GradeEstimationModal({ assays: assaysIn, assayElements, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend = null, groundAt = null, groundSource = null, checkedHoleIds = null, areaStrings = [] }) { // groundAt: TASKS.csv #803; groundSource "terrain" | "collars": #1616
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
@@ -84,6 +86,26 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
   // were never estimated around, while z was padded 45 m below the deepest sample. Now the box of the desurveyed
   // traces of the holes that carry assays (the grade-shell tool already works from the samples' own box), with the
   // collar box only as the fallback when nothing can be desurveyed.
+  // #1570 — the same box over a subset of the holes (the checked ones)
+  const boundsOfHoles = (keep) => {
+    const assayed = new Set(assays.map((a) => a.hole_id));
+    const byHole = new Map();
+    survey.forEach((s) => { if (!byHole.has(s.hole_id)) byHole.set(s.hole_id, []); byHole.get(s.hole_id).push(s); });
+    let xmin = Infinity, ymin = Infinity, zmin = Infinity, xmax = -Infinity, ymax = -Infinity, zmax = -Infinity, holes = 0;
+    for (const c of collars) {
+      if (assayed.size && !assayed.has(c.hole_id)) continue;
+      if (keep && !keep(c)) continue;
+      let trace = [];
+      try { trace = desurveyHole(c, byHole.get(c.hole_id) || [], desurveyMethod) || []; } catch { trace = []; }
+      if (!trace.length) continue;
+      holes++;
+      for (const p of trace) {
+        if (p.x < xmin) xmin = p.x; if (p.x > xmax) xmax = p.x; if (p.y < ymin) ymin = p.y; if (p.y > ymax) ymax = p.y;
+        if (p.z < zmin) zmin = p.z; if (p.z > zmax) zmax = p.z;
+      }
+    }
+    return holes && Number.isFinite(xmin) ? { xmin, xmax, ymin, ymax, zmin, zmax, holes } : null;
+  };
   const traceBounds = useMemo(() => {
     const assayed = new Set(assays.map((a) => a.hole_id));
     const byHole = new Map();
@@ -143,7 +165,18 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
     return Number.isFinite(xmin) ? { xmin, xmax, ymin, ymax, zmin, zmax, name: sh.name } : null;
   }, [shellId, volumeShells]);
   const drillBox = traceBounds || collarBounds;
-  const gridBox = shellBox ? (drillBox ? overlapBox(shellBox, drillBox) || shellBox : shellBox) : drillBox;
+  // TASKS.csv #1570 (the open part) — two more grid sources: the box of the CHECKED holes (the sidebar's Holes list), and the box of
+  // a closed design string (Mine Design › Strings), whose blocks outside the polygon are dropped after the run. Either gives one
+  // prospect small blocks on a district-wide project (Lawyers: 53.5 m blocks over 5 x 6 km, 99 % empty).
+  const checkedCount = checkedHoleIds ? collars.filter((c) => checkedHoleIds.has(c.hole_id)).length : collars.length;
+  const checkedBounds = useMemo(() => (gridMode === "checked" && checkedHoleIds ? boundsOfHoles((c) => checkedHoleIds.has(c.hole_id)) : null), [gridMode, checkedHoleIds, assays, collars, survey, desurveyMethod]);
+  const areaString = gridMode.startsWith("string:") ? (areaStrings || []).find((s) => s.id === gridMode.slice(7)) || null : null;
+  const areaBox = useMemo(() => {
+    if (!areaString || !drillBox) return null;
+    const xs = areaString.vertices.map((q) => q[0]), ys = areaString.vertices.map((q) => q[1]);
+    return { xmin: Math.min(...xs), xmax: Math.max(...xs), ymin: Math.min(...ys), ymax: Math.max(...ys), zmin: drillBox.zmin, zmax: drillBox.zmax, name: areaString.name };
+  }, [areaString, drillBox]);
+  const gridBox = shellBox ? (drillBox ? overlapBox(shellBox, drillBox) || shellBox : shellBox) : areaBox ? (overlapBox(areaBox, drillBox) || areaBox) : gridMode === "checked" && checkedBounds ? checkedBounds : drillBox;
   const [belowGround, setBelowGround] = useState(true); // TASKS.csv #803 — drop blocks whose centre is above the terrain
   const [modelName, setModelName] = useState("");
   const [result, setResult] = useState(null); // { cells, blocksEstimated, blocksSkipped, grid, samplePointCount, droppedCount } | null
@@ -197,7 +230,7 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
     const blocksAt = (c) => ["x", "y", "z"].reduce((t, k) => t * Math.max(1, Math.round((bounds[`${k}max`] - bounds[`${k}min`]) / c)), 1);
     const c = blocksAt(10) <= blockBudget ? 10 : cellToFit(bounds, blockBudget, 10);
     if (c && c !== cellSize) { setAutoCell(c); setCellSize(c); }
-  }, [shellBox]);
+  }, [shellBox, areaBox, checkedBounds]); // #1570: any change of the box's source
 
   // TASKS.csv #520 — the estimate runs in a worker: the window keeps repainting, shows progress and can be cancelled
   const [progress, setProgress] = useState(null); // 0..1 while running
@@ -290,10 +323,11 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
         }, { onProgress: (f) => setProgress(0.8 + 0.2 * f), signal: ac.signal });
         // TASKS.csv #404 — the parameters are captured AT RUN TIME (the form can be edited before
         // "Add to project"), and travel with the block model into the project file.
+        let outsideArea = 0; // #1570 — set below when a design-string area drops blocks; params read it, so it is declared first
         const params = {
           tool: "Grade estimation", element: symbol, method, cellSizeM: matched ? [cell3.dx, cell3.dy, cell3.dz] : cellSize, paddingM: padding,
           ...(lattice ? { gridOrigin: [lattice.ox, lattice.oy, lattice.oz], gridMatched: matched ? matched.m.name : "typed origin" } : {}), // #724
-          gridFrom: shellBox ? `box of the restricting solid "${shellBox.name}" within the drilling` : traceBounds ? `desurveyed traces of ${traceBounds.holes} assayed hole(s)` : "collar box (no hole could be desurveyed)", // #521; #1570
+          gridFrom: shellBox ? `box of the restricting solid "${shellBox.name}" within the drilling` : areaString ? `inside the closed design string "${areaString.name}" (${outsideArea} block(s) outside it dropped)` : gridMode === "checked" && checkedBounds ? `desurveyed traces of the ${checkedBounds.holes} checked hole(s)` : traceBounds ? `desurveyed traces of ${traceBounds.holes} assayed hole(s)` : "collar box (no hole could be desurveyed)", // #521; #1570
           searchRadiusM: searchRadius > 0 ? searchRadius : Math.round(gridDiagonal), searchRadiusWasUnlimited: !(searchRadius > 0), ...(supportRef > 0 ? { supportScoredAgainstM: Math.round(supportRef) } : {}), // #1411
           minSamples, maxSamples, minHoles, maxSamplesPerHole: maxPerHole || null,
           searchTrend: trend ? { name: trend.name, dip: trend.dip, dipAzimuth: trend.dipAzimuth, pitch: trend.pitch, ratios: trend.ratios, ellipsoidM: [1, trend.ratios.int / trend.ratios.max, trend.ratios.min / trend.ratios.max].map((f) => Math.round(f * (searchRadius > 0 ? searchRadius : gridDiagonal))) } : null, // #650
@@ -325,6 +359,15 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
         // TASKS.csv #803 — Matt: "I can't get my grade shell block model to end at surface". The grid is padded around the
         // samples, so near the surface its top layers were in the air: a block whose centre is above the terrain is dropped
         // (outside the terrain's footprint nothing is known, so nothing is dropped)
+        // #1570 — a design-string area: blocks whose centre is outside the polygon are dropped
+        if (areaString) {
+          const pts = areaString.vertices.map((q) => ({ x: q[0], y: q[1] }));
+          const before = est.cells.length;
+          est.cells = est.cells.filter((c) => pointInPolygon(c.x, c.y, pts));
+          outsideArea = before - est.cells.length;
+          est.blocksSkipped += outsideArea; est.blocksEstimated = est.cells.length;
+          est.cutOutsideArea = outsideArea;
+        }
         if (groundAt && belowGround) {
           const before = est.cells.length;
           est.cells = est.cells.filter((c) => { const g = groundAt(c.x, c.y); return !(Number.isFinite(g) && c.z > g); });
@@ -520,6 +563,8 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
             <label style={fieldLabel} title={tr("Fit to the drilling: the box of the assayed holes plus the padding, as before. Match a block model: its cell size and origin, so this estimate's blocks sit exactly on that model's blocks and the two can be compared or merged block for block. Origin: the cell size above, on block corners at a typed E / N / RL.")}>{tr("Grid")}
               <select value={gridMode} onChange={(e) => setGridMode(e.target.value)} style={inp}>
                 <option value="data">{tr("Fit to the drilling")}</option>
+                {checkedHoleIds && checkedCount < collars.length && checkedCount > 0 && <option value="checked">{tr("Fit to the checked holes ({n} of {total})", { n: checkedCount, total: collars.length })}</option>}{/* #1570 */}
+                {(areaStrings || []).map((s) => <option key={s.id} value={`string:${s.id}`}>{tr("Inside the string \"{name}\"", { name: s.name })}</option>)}
                 {latticeModels.map(({ m, L }) => <option key={m.id} value={`model:${m.id}`}>{tr("Match {name} ({dx} × {dy} × {dz} m)", { name: m.name, dx: L.dx, dy: L.dy, dz: L.dz })}</option>)}
                 <option value="origin">{tr("Origin (E, N, RL)…")}</option>
               </select>
@@ -530,6 +575,8 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
           </div>
           {lattice && bounds && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Blocks on a lattice with corners at {e}, {n}, {z} (E, N, RL), {dx} × {dy} × {dz} m: the drilling's box is grown outward to whole blocks.", { e: +lattice.ox.toFixed(3), n: +lattice.oy.toFixed(3), z: +lattice.oz.toFixed(3), dx: cell3.dx, dy: cell3.dy, dz: cell3.dz })}</div>}
           {gridMode === "origin" && !originOk && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Type all three origin coordinates; until then the grid fits the drilling.")}</div>}
+          {areaString && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("The grid is the string's box within the drilling; after the run, blocks whose centre lies outside the string are dropped. Every sample still informs the estimate.")}</div>}{/* #1570 */}
+          {gridMode === "checked" && !checkedBounds && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("None of the checked holes carries assays: the grid fits the drilling.")}</div>}
 
           {/* TASKS.csv #91/#92 — data support classification. */}
           <div>
@@ -596,6 +643,7 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
               )}
               {result.params?.capValue != null && <div>{tr("Grades capped at {cap} {unit} before estimating.", { cap: result.params.capValue, unit: result.params.capUnit || "" })}</div>}{/* #1736 — said in the result */}
               <div>{tr("{blocksEstimated} block(s) estimated, {blocksSkipped} left un-estimated (no sample within search radius / below min-samples / below min distinct holes).", { blocksEstimated: result.blocksEstimated.toLocaleString(), blocksSkipped: result.blocksSkipped.toLocaleString() })}</div>
+              {result.cutOutsideArea > 0 && <div>{tr("{n} of those lie outside the string and were left out.", { n: result.cutOutsideArea.toLocaleString() })}</div>}{/* #1570 */}
               {result.cutAboveGround > 0 && <div>{groundSource === "collars" ? tr("{n} of those are above the ground interpolated between the collars (no terrain) and were left out.", { n: result.cutAboveGround.toLocaleString() }) : tr("{n} of those are above the terrain surface and were left out.", { n: result.cutAboveGround.toLocaleString() })}</div>}{/* collars: #1932 */}
               {/* TASKS.csv #258 */}
               {/* TASKS.csv #516 — say how MLS (linear) actually ran */}

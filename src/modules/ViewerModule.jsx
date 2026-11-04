@@ -8869,6 +8869,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           trend={trendFor("estimation")} // TASKS.csv #650
           groundAt={terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collarGround(collars)} // TASKS.csv #803, #927; collars: #1616
           groundSource={terrain ? "terrain" : collarGround(collars) ? "collars" : null}
+          checkedHoleIds={new Set(collars.filter((c) => visibleHoles[c.hole_id] !== false).map((c) => c.hole_id))} // TASKS.csv #1570
+          areaStrings={designStrings.filter((s) => s.closed && s.vertices.length > 2)}
           onAddModel={(model) => { const id = addVoxelModel(model); setNotices((p) => [...p, notice("Added block model \"{name}\" ({cells} cells).", { name: model.name, cells: model.cells.length.toLocaleString() })]); return id; }}
           onClose={() => setGradeEstOpen(false)}
         />

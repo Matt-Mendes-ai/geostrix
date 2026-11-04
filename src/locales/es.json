@@ -7469,5 +7469,10 @@
   "\"{name}\" deleted: Undo (Ctrl+Z) brings it back.": "\"{name}\" eliminado: Deshacer (Ctrl+Z) lo recupera.",
   "Moving vertex {n}: E {x}, N {y}, Z {z}": "Moviendo el vértice {n}: E {x}, N {y}, Z {z}",
   "In the view: click a string to select it; drag a vertex of the selected string to move it (on its own level, or on the ground when that is the drawing target).": "En la vista: clic en un string para seleccionarlo; arrastre un vértice del string seleccionado para moverlo (en su propio nivel, o sobre el terreno cuando ese es el destino de dibujo).",
-  "{n} of those are above the ground interpolated between the collars (no terrain) and were left out.": "{n} de ellos están sobre el suelo interpolado entre los collares (sin terreno) y se omitieron."
+  "{n} of those are above the ground interpolated between the collars (no terrain) and were left out.": "{n} de ellos están sobre el suelo interpolado entre los collares (sin terreno) y se omitieron.",
+  "Fit to the checked holes ({n} of {total})": "Ajustar a los sondajes marcados ({n} de {total})",
+  "Inside the string \"{name}\"": "Dentro del string \"{name}\"",
+  "The grid is the string's box within the drilling; after the run, blocks whose centre lies outside the string are dropped. Every sample still informs the estimate.": "La grilla es la caja del string dentro de la perforación; tras la corrida se descartan los bloques cuyo centro queda fuera del string. Todas las muestras siguen informando la estimación.",
+  "None of the checked holes carries assays: the grid fits the drilling.": "Ninguno de los sondajes marcados tiene ensayes: la grilla se ajusta a la perforación.",
+  "{n} of those lie outside the string and were left out.": "{n} de ellos quedan fuera del string y se omitieron."
 }

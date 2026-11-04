@@ -22,6 +22,6 @@ test("at the 200,000-block budget the shell's box takes 10 m blocks where the di
 
 test("the dialog grids over the restricting solid and says so", () => {
   const src = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
-  assert.ok(src.includes("const gridBox = shellBox ? (drillBox ? overlapBox(shellBox, drillBox) || shellBox : shellBox) : drillBox;"));
+  assert.ok(src.includes("const gridBox = shellBox ? (drillBox ? overlapBox(shellBox, drillBox) || shellBox : shellBox) : areaBox ? (overlapBox(areaBox, drillBox) || areaBox) : gridMode === \"checked\" && checkedBounds ? checkedBounds : drillBox;")); // the string area and the checked holes came later (#1570's open part)
   assert.ok(src.includes('gridFrom: shellBox ? `box of the restricting solid "${shellBox.name}" within the drilling`'));
 });

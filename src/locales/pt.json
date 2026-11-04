@@ -7469,5 +7469,10 @@
   "\"{name}\" deleted: Undo (Ctrl+Z) brings it back.": "\"{name}\" excluído: Desfazer (Ctrl+Z) o traz de volta.",
   "Moving vertex {n}: E {x}, N {y}, Z {z}": "Movendo o vértice {n}: E {x}, N {y}, Z {z}",
   "In the view: click a string to select it; drag a vertex of the selected string to move it (on its own level, or on the ground when that is the drawing target).": "Na vista: clique numa string para selecioná-la; arraste um vértice da string selecionada para movê-lo (no seu próprio nível, ou no terreno quando esse é o alvo de desenho).",
-  "{n} of those are above the ground interpolated between the collars (no terrain) and were left out.": "{n} deles estão acima do solo interpolado entre os colares (sem terreno) e foram deixados de fora."
+  "{n} of those are above the ground interpolated between the collars (no terrain) and were left out.": "{n} deles estão acima do solo interpolado entre os colares (sem terreno) e foram deixados de fora.",
+  "Fit to the checked holes ({n} of {total})": "Ajustar aos furos marcados ({n} de {total})",
+  "Inside the string \"{name}\"": "Dentro da string \"{name}\"",
+  "The grid is the string's box within the drilling; after the run, blocks whose centre lies outside the string are dropped. Every sample still informs the estimate.": "A grade é a caixa da string dentro da perfuração; após a corrida, blocos cujo centro fica fora da string são descartados. Todas as amostras continuam a informar a estimativa.",
+  "None of the checked holes carries assays: the grid fits the drilling.": "Nenhum dos furos marcados tem análises: a grade ajusta-se à perfuração.",
+  "{n} of those lie outside the string and were left out.": "{n} deles ficam fora da string e foram deixados de fora."
 }

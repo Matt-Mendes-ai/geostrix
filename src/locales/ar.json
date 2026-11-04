@@ -7469,5 +7469,10 @@
   "\"{name}\" deleted: Undo (Ctrl+Z) brings it back.": "حُذف \"{name}\": التراجع (Ctrl+Z) يعيده.",
   "Moving vertex {n}: E {x}, N {y}, Z {z}": "تحريك الرأس {n}: E {x}، N {y}، Z {z}",
   "In the view: click a string to select it; drag a vertex of the selected string to move it (on its own level, or on the ground when that is the drawing target).": "في العرض: انقر خطًا لتحديده؛ اسحب رأسًا من الخط المحدد لتحريكه (على مستواه، أو على الأرض عندما تكون هدف الرسم).",
-  "{n} of those are above the ground interpolated between the collars (no terrain) and were left out.": "{n} منها فوق الأرض المستكمَلة بين الفوهات (لا تضاريس) واستُبعدت."
+  "{n} of those are above the ground interpolated between the collars (no terrain) and were left out.": "{n} منها فوق الأرض المستكمَلة بين الفوهات (لا تضاريس) واستُبعدت.",
+  "Fit to the checked holes ({n} of {total})": "ملاءمة الثقوب المحددة ({n} من {total})",
+  "Inside the string \"{name}\"": "داخل الخط \"{name}\"",
+  "The grid is the string's box within the drilling; after the run, blocks whose centre lies outside the string are dropped. Every sample still informs the estimate.": "الشبكة هي صندوق الخط ضمن الحفر؛ بعد التشغيل تُستبعد الكتل التي يقع مركزها خارج الخط. تظل كل العينات تغذي التقدير.",
+  "None of the checked holes carries assays: the grid fits the drilling.": "لا يحمل أي من الثقوب المحددة تحاليل: الشبكة تلائم الحفر.",
+  "{n} of those lie outside the string and were left out.": "{n} منها خارج الخط واستُبعدت."
 }
