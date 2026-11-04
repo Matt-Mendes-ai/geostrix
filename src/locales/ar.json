@@ -7706,5 +7706,12 @@
   "No shell for \"{name}\" at {lo} to {hi}: no cell in that range, or the model is not on a rectilinear grid (sub-blocked or rotated).": "لا غلاف لـ \"{name}\" من {lo} إلى {hi}: لا خلية في ذلك النطاق، أو النموذج ليس على شبكة مستقيمة (مجزأ أو مُدار).",
   "Added \"{name}\": {cells} cell(s) in the range ({cellVol} m³ of blocks) → a lattice of {nx}×{ny}×{nz} nodes at {dx} m{v} → {faces} faces enclosing {vol} m³{v2}. A property's shell is a target outline, not a geological contact.": "أُضيف \"{name}\": {cells} خلية في النطاق ({cellVol} م³ من الكتل) ← شبكة من {nx}×{ny}×{nz} عقدة عند {dx} م{v} ← {faces} وجهًا تحيط بـ {vol} م³{v2}. غلاف خاصية هو مخطط هدف، لا تماس جيولوجي.",
   " (coarsened to stay within the node limit)": " (خُشّنت للبقاء ضمن حد العقد)",
-  "; closed at the model's edge on {n} vertex(es), so part of its boundary is the model box, not the anomaly": "؛ أُغلق عند حافة النموذج على {n} رأسًا، فجزء من حدوده هو صندوق النموذج، لا الشذوذ"
+  "; closed at the model's edge on {n} vertex(es), so part of its boundary is the model box, not the anomaly": "؛ أُغلق عند حافة النموذج على {n} رأسًا، فجزء من حدوده هو صندوق النموذج، لا الشذوذ",
+  "The uppermost cell of every column of this model is the ground there (the air cells above it are no-data), so the model's top is a terrain: samples with no elevation sit on it, sections get its profile, and surfaces can be cut at it. No download. It is only as fine as the mesh's columns, and only where the mesh is.": "أعلى خلية في كل عمود من هذا النموذج هي الأرض هناك (خلايا الهواء فوقها بلا بيانات)، فسطح النموذج تضاريس: تجلس عليه العينات بلا منسوب، وتأخذ المقاطع ملامحه، ويمكن قطع الأسطح عنده. بلا تنزيل. دقته دقة أعمدة الشبكة، وفقط حيث توجد الشبكة.",
+  "Terrain from the model's top (offline)": "تضاريس من سطح النموذج (دون اتصال)",
+  "\"{name}\" gives no terrain: fewer than 2 × 2 columns with a value.": "\"{name}\" لا يعطي تضاريس: أقل من 2 × 2 عمود ذي قيمة.",
+  "Top of {name} (block model)": "سطح {name} (نموذج كتل)",
+  "Added the terrain \"{name}\": {w} × {h} nodes at {dx} × {dy} m from the top cell of {cols} column(s), {zmin} to {zmax} m{v}. It is the mesh's own ground, as fine as its columns and only where the mesh is{v2}. Samples with no elevation now sit on it; sections take its profile.": "أُضيفت التضاريس \"{name}\": {w} × {h} عقدة عند {dx} × {dy} م من الخلية العليا لـ {cols} عمودًا، من {zmin} إلى {zmax} م{v}. هي أرض الشبكة نفسها، بدقة أعمدتها وفقط حيث توجد الشبكة{v2}. تجلس عليها الآن العينات بلا منسوب؛ وتأخذ المقاطع ملامحها.",
+  ", {n} node(s) with no column marked as no ground": "، {n} عقدة بلا عمود موسومة بلا أرض",
+  " (it replaces the terrain that was loaded)": " (تحل محل التضاريس التي كانت محمّلة)"
 }

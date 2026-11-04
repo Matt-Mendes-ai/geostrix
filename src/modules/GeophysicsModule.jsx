@@ -60,6 +60,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../lib/i18n.js";
 import { VoxelRangeRow } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1780
+import { terrainFromBlockModel } from "../lib/terrainFromModel.js"; // TASKS.csv #1806
 import { guessQualityColumn, filterSignalQuality, despikeAlongLines } from "../lib/surveyClean.js"; // TASKS.csv #1583 // TASKS.csv #786
 import { vectorToBoundaryPolylines } from "../lib/boundaryImport.js"; // TASKS.csv #1035
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
@@ -1027,6 +1028,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   // in one multi-file dialog and matched by extension (.msh is the mesh, whichever other file was
   // picked is the model) rather than a two-step wizard — a UBC mesh/model pair is always distributed
   // as exactly two files together, so this is the same click either way with less UI.
+  // TASKS.csv #1806 — the top of a block model's non-air cells as a terrain (lib/terrainFromModel.js)
+  const terrainFromModelTop = (model) => {
+    const t = terrainFromBlockModel(model.cells);
+    if (!t) { setVoxelError({ info: false, text: tr("\"{name}\" gives no terrain: fewer than 2 × 2 columns with a value.", { name: model.name }) }); return; }
+    const name = tr("Top of {name} (block model)", { name: model.name });
+    addTerrain({ name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask, source: { kind: "top of a block model", model: model.name, columns: t.stats.columns, nodeM: t.stats.nodeM.map((v) => Math.round(v * 10) / 10) } });
+    setVoxelError({ info: true, text: tr("Added the terrain \"{name}\": {w} × {h} nodes at {dx} × {dy} m from the top cell of {cols} column(s), {zmin} to {zmax} m{v}. It is the mesh's own ground, as fine as its columns and only where the mesh is{v2}. Samples with no elevation now sit on it; sections take its profile.", { name, w: t.gridW, h: t.gridH, dx: Math.round(t.stats.nodeM[0] * 10) / 10, dy: Math.round(t.stats.nodeM[1] * 10) / 10, cols: t.stats.columns.toLocaleString(), zmin: Math.round(t.stats.relief[0]), zmax: Math.round(t.stats.relief[1]), v: t.stats.empty ? tr(", {n} node(s) with no column marked as no ground", { n: t.stats.empty.toLocaleString() }) : "", v2: terrain ? tr(" (it replaces the terrain that was loaded)") : "" }) });
+  };
   const importUBC = async (fileList) => {
     const files = Array.from(fileList || []);
     if (!files.length) return;
@@ -1950,7 +1959,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
           </label>
         )}
         {voxelModels.map((v) => (
-          <VoxelModelRow key={v.id} epsg={project?.epsg} /* #1052 */ model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} onShell={(m) => { goToModule("viewer"); requestModuleAction("voxel-shell", { id: m.id, model: m }); }} /* #1780 */ getEpsg={() => ensureExportCrs(project)} /* #1021 */ csvNames={bmNames} stampChoice={bmStamp} />
+          <VoxelModelRow key={v.id} epsg={project?.epsg} /* #1052 */ model={v} onUpdate={updateVoxelModel} onRemove={removeVoxelModel} onEvaluate={evaluateOnHoles} onExportPackage={exportModelPackage} onShell={(m) => { goToModule("viewer"); requestModuleAction("voxel-shell", { id: m.id, model: m }); }} /* #1780 */ onTerrain={terrainFromModelTop} /* #1806 */ getEpsg={() => ensureExportCrs(project)} /* #1021 */ csvNames={bmNames} stampChoice={bmStamp} />
         ))}
 
         <div style={{ marginTop: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6 }}>
@@ -2043,7 +2052,7 @@ async function exportBlockModelVTK(model, epsg) {
 const VOXEL_PROPERTIES = ["Conductivity (S/m)", "Resistivity (ohm·m)", "Chargeability (mV/V)", "Susceptibility (SI)", "Density (g/cc)", "Density contrast (g/cc)"];
 // TASKS.csv #1178 — a conductivity cutoff read "0" with 5,765 cells hidden: three significant figures, whatever the size
 export const sigFigs = (v) => (Number.isFinite(v) ? (v === 0 ? "0" : Number(v.toPrecision(3)).toLocaleString(undefined, { maximumSignificantDigits: 3 })) : "—");
-function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage, getEpsg, csvNames = "datamine", stampChoice = "auto", epsg = null, onShell = null }) {
+function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage, getEpsg, csvNames = "datamine", stampChoice = "auto", epsg = null, onShell = null, onTerrain = null }) {
   const [askPrompt, promptEl] = usePrompt(); // TASKS.csv #1779 — window.prompt throws in Electron
   const [gtOpen, setGtOpen] = useState(false); // TASKS.csv #1052
   const [displayOpacity, setDisplayOpacity] = useState(model.opacity ?? 0.85);
@@ -2108,6 +2117,11 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage,
           and the range as a closed solid */}
       <VoxelRangeRow compact model={model} onUpdate={onUpdate} onShell={onShell} />
       <div style={{ marginTop: 2, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("Range {min} to {max}", { min: sigFigs(model.min), max: sigFigs(model.max) })}</div>
+      {/* TASKS.csv #1806 (review #1646, Kodiak) — an inversion mesh carries the topography as its air / ground boundary: a terrain from it,
+          offline, for the samples with no elevation, the sections' profile and the clip at topography */}
+      {onTerrain && (model.source === "ubc" || model.source === "omf" || model.source === "simpeg") && (
+        <button type="button" onClick={() => onTerrain(model)} style={{ ...pBtn, marginTop: 6, marginBottom: 0, fontSize: "var(--font-size-sm)" }} title={tr("The uppermost cell of every column of this model is the ground there (the air cells above it are no-data), so the model's top is a terrain: samples with no elevation sit on it, sections get its profile, and surfaces can be cut at it. No download. It is only as fine as the mesh's columns, and only where the mesh is.")}>{tr("Terrain from the model's top (offline)")}</button>
+      )}
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
         <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Opacity")}</span>
         <input type="range" min={0.1} max={1} step={0.05} value={displayOpacity} onChange={(e) => onOpacityInput(Number(e.target.value))} style={{ flex: 1, minWidth: 0 }} />
