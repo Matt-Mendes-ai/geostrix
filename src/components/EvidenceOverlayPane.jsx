@@ -11,11 +11,11 @@ import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1449 / #145
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
 import { evidenceGrid, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, bestCutoff, posterior, predictionArea, scoreImage, isOverlayOutput } from "../lib/evidence.js";
 import { cachedEvidence, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457
-import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, structureCodes, structureParts, rasterFloorZ } from "../lib/evidenceSources.js"; // TASKS.csv #1154
+import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, structureCodes, structureParts, rasterFloorZ, elementsWithValues } from "../lib/evidenceSources.js"; // TASKS.csv #1154; elementsWithValues: #1723
 import { categoricalModels } from "../lib/geologyForward.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";
 import { valueIn } from "../lib/geochem.js";
-import { excludeQAQC } from "../lib/qaqc.js";
+import { excludeQAQC, isPxrfRow } from "../lib/qaqc.js"; // isPxrfRow: TASKS.csv #1723
 import { f32ToB64 } from "../lib/inversion.js";
 import { gridToGeoTIFF, saveGeoTIFF } from "../lib/gridExport.js";
 import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
@@ -39,7 +39,13 @@ export default function EvidenceOverlayPane({ onClose }) {
   const [training, setTraining] = useState({ source: "none", layerId: "", symbol: assayElements[0]?.symbol || surfaceElements[0]?.symbol || "", min: "" });
   const [result, setResult] = useState(null);
   const [msg, setMsg] = useState(null);
-  const cleanAssays = useMemo(() => excludeQAQC(assays), [assays]); // TASKS.csv #933: standards and blanks are not grades
+  const cleanAssays = useMemo(() => excludeQAQC(assays), [assays]); // TASKS.csv #933: standards and blanks are not grades; #1673: nor pXRF
+  // TASKS.csv #1723 (review #1645, Copley) — pXRF readings are screening numbers, not assays: two 0 m readings of 5,700 ppm Cu made two
+  // barren collars Cu targets as strong as the mineralization. Lab grades only in "grade along the holes" and the occurrences;
+  // pXRF offered apart, labelled, for whoever wants it; an element with no lab value is not a grade source.
+  const pxrfAssays = useMemo(() => (assays || []).filter(isPxrfRow), [assays]);
+  const labElements = useMemo(() => elementsWithValues(cleanAssays, assayElements, assayUnits), [cleanAssays, assayElements, assayUnits]);
+  const pxrfElements = useMemo(() => elementsWithValues(pxrfAssays, assayElements, assayUnits), [pxrfAssays, assayElements, assayUnits]);
   // TASKS.csv #1830 (review #1646, Kodiak) — the overlay's own outputs (score / posterior sent to the map) are neither evidence nor
   // extent: offered as a source the score could be fed back into itself, and its half-cell-wider box grew the grid by a column,
   // which cleared the result on screen and re-sampled every layer (2.09 s)
@@ -81,10 +87,11 @@ export default function EvidenceOverlayPane({ onClose }) {
       out.push({ key: `vox:min:${m.id ?? m.name}`, label: tr("Block model: {name} (lowest in each column)", { name: m.name }), kind: "voxel", ref: m.id ?? m.name, how: "min" });
       out.push({ key: `vox:mean:${m.id ?? m.name}`, label: tr("Block model: {name} (mean in each column)", { name: m.name }), kind: "voxel", ref: m.id ?? m.name, how: "mean" }); // #1831
     });
-    if (traces.size) assayElements.forEach((e) => out.push({ key: `grade:${e.symbol}`, label: tr("Drillholes: {sym} grade along the holes", { sym: e.symbol }), kind: "grade", ref: e.symbol }));
+    if (traces.size) labElements.forEach((e) => out.push({ key: `grade:${e.symbol}`, label: tr("Drillholes: {sym} grade along the holes", { sym: e.symbol }), kind: "grade", ref: e.symbol })); // #1723: lab assays only
+    if (traces.size) pxrfElements.forEach((e) => out.push({ key: `pxrf:${e.symbol}`, label: tr("Drillholes: {sym} pXRF along the holes (screening readings, not assays)", { sym: e.symbol }), kind: "pxrf", ref: e.symbol })); // #1723
     structureCodes(structurePicks, traces).forEach((code) => out.push({ key: `pick:${code}`, label: tr("Distance to logged structure: {code}", { code }), kind: "pick", ref: code }));
     return out;
-  }, [valueRasters, mapLayers, surfaceElements, geophysPts, voxelModels, traces, assayElements, structurePicks]);
+  }, [valueRasters, mapLayers, surfaceElements, geophysPts, voxelModels, traces, labElements, pxrfElements, structurePicks]);
 
   // #1457 — through the cache: a reopened pane, or the same layer added again, reuses values computed from the same grid and data
   const computeValues = (src, opts = {}) => (grid ? cachedEvidence(
@@ -104,6 +111,7 @@ export default function EvidenceOverlayPane({ onClose }) {
     if (src.kind === "pick") return distanceEvidence(grid, structureParts(structurePicks, src.ref, traces));
     if (src.kind === "survey") { const pts = surveyPoints(geophysPts, src.ref); return pointEvidence(grid, pts, { maxDistance: opts.reach || reachFromSpacing(pts, 4) }); }
     if (src.kind === "grade") return pointEvidence(grid, holeGradePoints(cleanAssays, src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces), { maxDistance: opts.reach || DRILL_REACH_M });
+    if (src.kind === "pxrf") return pointEvidence(grid, holeGradePoints(pxrfAssays, src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces), { maxDistance: opts.reach || DRILL_REACH_M }); // #1723
     const all = sampleValues(surfaceSamples, src.kind === "element" ? { kind: "element", symbol: src.ref } : { kind: "index", preset: src.ref }, units);
     // #1449 — one medium at a time when the layer names one (value = medium): soils and streams are not one surface
     const pts = opts.field === "medium" ? all.filter((_, i) => (surfaceSamples[i].medium || "") === opts.value) : all;
@@ -113,7 +121,7 @@ export default function EvidenceOverlayPane({ onClose }) {
   // of metres (#1449 — one reach for all media gave Silvertip's soils 2.5 km); far outliers do not count (#1450); the spacing is
   // the median nearest-neighbour distance (#1829 / #1561: the bounding box of seven soil grids gave Kodiak's 48 m soils 700 m)
   const reachOfMedium = (medium) => reachFromNeighbours(medium == null ? sampleCore.samples : sampleCore.samples.filter((s) => (s.medium || "") === medium));
-  const reachOf = (src, medium = null) => (src.kind === "grade" ? DRILL_REACH_M : src.kind === "survey" ? reachFromSpacing(surveyPoints(geophysPts, src.ref), 4) : reachOfMedium(medium));
+  const reachOf = (src, medium = null) => (src.kind === "grade" || src.kind === "pxrf" ? DRILL_REACH_M : src.kind === "survey" ? reachFromSpacing(surveyPoints(geophysPts, src.ref), 4) : reachOfMedium(medium));
   const addLayer = (key) => {
     const src = sources.find((s) => s.key === key); if (!src) return;
     // #1449 — sample evidence starts on the medium with the most samples when there are several (changeable on the card)
@@ -125,7 +133,7 @@ export default function EvidenceOverlayPane({ onClose }) {
     if (!finite.length) { setMsg(tr("\"{name}\" has no values over the grid.", { name: src.label })); return; }
     finite.sort(); // TASKS.csv #1281 — one numeric sort of the typed copy, not a comparator sort per quantile (a third of the stall)
     const dec = src.kind === "distance" || src.kind === "pick", low = dec ? 0 : quantileSorted(finite, 0.1), high = src.kind === "pick" ? Math.max(3 * Math.max(grid.dx, grid.dy), pickDefaultReachM(quantileSorted(finite, 0.5), (medianSiteSpacing(collars) || 0) / 3)) /* #1451: one site spacing, at least 3 cells */ : dec ? quantileSorted(finite, 0.5) : quantileSorted(finite, 0.9); // #1179
-    const log = src.kind === "grade" && low > 0 && high > low; // #1555: a drill grade ramps on its logarithm (10th -> 90th percentile of a lognormal grade is otherwise flat over most of the holes)
+    const log = (src.kind === "grade" || src.kind === "pxrf") && low > 0 && high > low; // #1555: a drill grade ramps on its logarithm (10th -> 90th percentile of a lognormal grade is otherwise flat over most of the holes)
     setLayers((L) => [...L, { id: nextId++, ...src, shape: dec ? "decreasing" : "increasing", low, high, log, lowText: numText(low), highText: numText(high), field: pick.field || "", value: pick.value ?? "", reach: pick.reach || reachOf(src), values }]);
     setResult(null); setMsg(null);
   };
@@ -256,7 +264,7 @@ export default function EvidenceOverlayPane({ onClose }) {
                 {l.zMin == null && l.zMax == null && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)" }}>{tr("Whole column: every depth of the model counts. Set an elevation band to read one level.")}</span>}
               </div>);
             })()}
-            {(l.kind === "element" || l.kind === "index" || l.kind === "survey" || l.kind === "grade") && <label style={row}>{tr("Reach (m)")}<input type="number" min="10" step="50" value={l.reach} onChange={(e) => updateLayer(l.id, { reach: Math.max(10, Number(e.target.value) || reachOf(l, l.field === "medium" ? l.value : null)) }, true)} style={{ ...sel, width: 70 }} /></label>}
+            {(l.kind === "element" || l.kind === "index" || l.kind === "survey" || l.kind === "grade" || l.kind === "pxrf") && <label style={row}>{tr("Reach (m)")}<input type="number" min="10" step="50" value={l.reach} onChange={(e) => updateLayer(l.id, { reach: Math.max(10, Number(e.target.value) || reachOf(l, l.field === "medium" ? l.value : null)) }, true)} style={{ ...sel, width: 70 }} /></label>}
             <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
               <select value={l.shape} onChange={(e) => updateLayer(l.id, { shape: e.target.value })} style={sel} aria-label={tr("Membership")}><option value="increasing">{tr("favourable when high")}</option><option value="decreasing">{tr("favourable when low")}</option></select>
               <label style={row}>{l.shape === "decreasing" ? "1" : "0"} ={" "}<input type="number" step="any" value={l.lowText} onChange={(e) => updateLayer(l.id, { lowText: e.target.value, low: e.target.value === "" ? NaN : Number(e.target.value) })} style={{ ...sel, width: 76 }} aria-label={l.shape === "decreasing" ? tr("Membership 1 at") : tr("Membership 0 at")} /></label>
@@ -278,17 +286,17 @@ export default function EvidenceOverlayPane({ onClose }) {
           <select value={training.source} onChange={(e) => setTraining((t) => ({ ...t, source: e.target.value }))} style={sel} aria-label={tr("Known occurrences")}>
             <option value="none">{tr("none")}</option>
             {pointLayers.length > 0 && <option value="layer">{tr("a point map layer")}</option>}
-            {collars.length > 0 && assayElements.length > 0 && <option value="collars">{tr("drillholes with a grade")}</option>}
+            {collars.length > 0 && labElements.length > 0 && <option value="collars">{tr("drillholes with a grade")}</option>}{/* #1723: lab grades */}
             {surfaceSamples.length > 0 && <option value="samples">{tr("surface samples above a value")}</option>}
           </select>
           {training.source === "layer" && <select value={training.layerId} onChange={(e) => setTraining((t) => ({ ...t, layerId: e.target.value }))} style={sel}><option value="">{tr("— choose —")}</option>{pointLayers.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select>}
           {(training.source === "collars" || training.source === "samples") && (
             <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
-              <select value={training.symbol} onChange={(e) => setTraining((t) => ({ ...t, symbol: e.target.value }))} style={sel}>{(training.source === "collars" ? assayElements : surfaceElements).map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({e.unit})</option>)}</select>
+              <select value={training.symbol} onChange={(e) => setTraining((t) => ({ ...t, symbol: e.target.value }))} style={sel}>{(training.source === "collars" ? labElements : surfaceElements).map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({e.unit})</option>)}</select>
               ≥ <input type="number" step="any" value={training.min} onChange={(e) => setTraining((t) => ({ ...t, min: e.target.value }))} style={{ ...sel, width: 80 }} aria-label={tr("At least")} />
             </div>
           )}
-          {training.source !== "none" && <div style={note}>{tr("{n} occurrence points.", { n: trainingPoints.length })}{circular ? " " + tr("Circular: the same samples are evidence and occurrences, so the weights will flatter the evidence.") : ""}</div>}
+          {training.source !== "none" && <div style={note}>{tr("{n} occurrence points.", { n: trainingPoints.length })}{training.source === "collars" && pxrfAssays.length ? " " + tr("Lab assays only: the {n} pXRF readings are not occurrences.", { n: pxrfAssays.length.toLocaleString() }) : ""}{circular ? " " + tr("Circular: the same samples are evidence and occurrences, so the weights will flatter the evidence.") : ""}</div>}{/* pXRF: #1723 */}
         </div>
         <button type="button" style={{ ...pBtn, ...(grid && layers.length ? null : { opacity: 0.5, cursor: "default" }) }} onClick={compute} disabled={!grid || !layers.length}>{tr("Compute")}</button>
         {grid && !layers.length && sources.length > 0 && <div style={note}>{tr("Add at least one evidence from the list above, then Compute.")}</div>}

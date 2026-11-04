@@ -157,6 +157,12 @@ export function holeGradePoints(assays, symbol, unit, units, traces, bin = GRADE
   return [...best.values()];
 }
 
+// TASKS.csv #1723 (review #1645, Copley) — the elements that have at least one value in these rows: once pXRF is kept out of the
+// drill grades (#1673), the pXRF-only elements (Br, Cl, Ir, Rh on Copley) must not be offered as "X grade along the holes".
+export function elementsWithValues(assays, elements, units) {
+  return (elements || []).filter((e) => (assays || []).some((a) => valueIn(a, e.symbol, units[e.symbol] || "ppm", units) != null));
+}
+
 // the structure types logged, with how many picks have a place on a hole
 export function structureCodes(rows, traces) {
   const counts = new Map();
