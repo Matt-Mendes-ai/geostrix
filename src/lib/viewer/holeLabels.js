@@ -35,6 +35,31 @@ export function labelsToShow(labels, gap = 2) {
   });
 }
 
+// The labels' screen boxes (pixels, centred) through `camera` on a width x height viewport; null behind the camera.
+// TASKS.csv #1770 — shared by the live declutter and the Layout capture's overlap count.
+export function labelBoxes(group, camera, width, height, labelPx = 16) {
+  const e = camera.matrixWorldInverse.elements, p = camera.projectionMatrix.elements;
+  return group.children.map((sp) => {
+    const { x, y, z } = sp.position;
+    const cx = e[0] * x + e[4] * y + e[8] * z + e[12], cy = e[1] * x + e[5] * y + e[9] * z + e[13], cz = e[2] * x + e[6] * y + e[10] * z + e[14], cw = e[3] * x + e[7] * y + e[11] * z + e[15];
+    const w = p[3] * cx + p[7] * cy + p[11] * cz + p[15] * cw;
+    if (!(w > 0)) return null;
+    return { x: ((p[0] * cx + p[4] * cy + p[8] * cz + p[12] * cw) / w) * 0.5 * width, y: ((p[1] * cx + p[5] * cy + p[9] * cz + p[13] * cw) / w) * 0.5 * height, w: labelPx * (sp.material?.userData?.labelAspect || 4), h: labelPx };
+  });
+}
+
+// TASKS.csv #1770 (review #1645, Copley) — a Layout capture is a drill plan: every hole keeps its label (the live declutter's
+// hidden labels are shown for the render and put back after), and the labels that would overlap one already placed at
+// the capture's size are counted, so the page can say so instead of a label going missing in silence.
+// draw(): the render. -> the number of labels overlapping another at this size.
+export function withEveryLabel(group, camera, width, height, draw, labelPx = 16) {
+  const was = group ? group.children.map((sp) => sp.visible) : null;
+  if (group) group.children.forEach((sp) => { sp.visible = true; });
+  try { draw(); } finally { if (group) group.children.forEach((sp, i) => { sp.visible = was[i]; }); }
+  if (!group || !group.visible || !group.children.length) return 0;
+  return labelsToShow(labelBoxes(group, camera, width, height, labelPx)).filter((s) => s === false).length;
+}
+
 const IDLE_MS = 150;
 const idle = new WeakMap();
 // Call every frame; does its work once, IDLE_MS after the camera or the viewport last changed.
@@ -45,15 +70,6 @@ export function declutterHoleLabels(group, camera, width, height, labelPx = 16, 
   if (key !== st.key) { st.key = key; st.at = now; st.done = false; return; }
   if (st.done || now - st.at < IDLE_MS) return;
   st.done = true;
-  const v = { x: 0, y: 0, z: 0 };
-  const boxes = group.children.map((sp) => {
-    v.x = sp.position.x; v.y = sp.position.y; v.z = sp.position.z;
-    const e = camera.matrixWorldInverse.elements, p = camera.projectionMatrix.elements;
-    const cx = e[0] * v.x + e[4] * v.y + e[8] * v.z + e[12], cy = e[1] * v.x + e[5] * v.y + e[9] * v.z + e[13], cz = e[2] * v.x + e[6] * v.y + e[10] * v.z + e[14], cw = e[3] * v.x + e[7] * v.y + e[11] * v.z + e[15];
-    const w = p[3] * cx + p[7] * cy + p[11] * cz + p[15] * cw;
-    if (!(w > 0)) return null;
-    return { x: ((p[0] * cx + p[4] * cy + p[8] * cz + p[12] * cw) / w) * 0.5 * width, y: ((p[1] * cx + p[5] * cy + p[9] * cz + p[13] * cw) / w) * 0.5 * height, w: labelPx * (sp.material?.userData?.labelAspect || 4), h: labelPx };
-  });
-  const show = labelsToShow(boxes);
+  const show = labelsToShow(labelBoxes(group, camera, width, height, labelPx));
   group.children.forEach((sp, i) => { sp.visible = show[i] !== false; });
 }

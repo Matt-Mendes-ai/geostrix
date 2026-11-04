@@ -7673,5 +7673,6 @@
   "{n} hole(s) end inside {unit} or have an unlogged gap under it: no base there.": "{n} sondage(s) se terminent dans {unit} ou ont un vide non enregistré dessous : pas de base là.",
   "One pick per hole where {unit} ends on a logged unit — the base of overburden, the contact every hole shares — the same points the implicit tool uses for \"Base of {unit}\". Check them, then move or delete the outliers.": "Un pointé par sondage où {unit} se termine sur une unité enregistrée — la base du mort-terrain, le contact que tous les sondages partagent —, les mêmes points que l'outil implicite utilise pour « Base de {unit} ». Vérifiez-les, puis déplacez ou supprimez les aberrants.",
   "Add the logged base of {unit}": "Ajouter la base enregistrée de {unit}",
-  "none: {unit} lies above its base and nothing caps it without a terrain": "aucun : {unit} se trouve au-dessus de sa base et rien ne la plafonne sans terrain"
+  "none: {unit} lies above its base and nothing caps it without a terrain": "aucun : {unit} se trouve au-dessus de sa base et rien ne la plafonne sans terrain",
+  "Layout capture: every hole is labelled, and {n} label(s) overlap another at this scale. A larger scale, or a shorter label mode, separates them.": "Capture pour la mise en page : chaque sondage porte son étiquette et {n} étiquette(s) en chevauchent une autre à cette échelle. Une échelle plus grande, ou un mode d'étiquette plus court, les sépare."
 }

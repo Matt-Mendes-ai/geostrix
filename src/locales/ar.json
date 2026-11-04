@@ -7673,5 +7673,6 @@
   "{n} hole(s) end inside {unit} or have an unlogged gap under it: no base there.": "{n} ثقبًا ينتهي داخل {unit} أو تحته فجوة غير مسجلة: لا قاعدة هناك.",
   "One pick per hole where {unit} ends on a logged unit — the base of overburden, the contact every hole shares — the same points the implicit tool uses for \"Base of {unit}\". Check them, then move or delete the outliers.": "نقطة التقاط واحدة لكل ثقب حيث تنتهي {unit} فوق وحدة مسجلة — قاعدة الغطاء السطحي، التماس الذي تشترك فيه كل الثقوب — النقاط نفسها التي تستخدمها الأداة الضمنية لـ \"قاعدة {unit}\". راجعها، ثم انقل الشاذة أو احذفها.",
   "Add the logged base of {unit}": "إضافة القاعدة المسجلة لـ {unit}",
-  "none: {unit} lies above its base and nothing caps it without a terrain": "لا شيء: {unit} يقع فوق قاعدته ولا شيء يحدّه من الأعلى بدون تضاريس"
+  "none: {unit} lies above its base and nothing caps it without a terrain": "لا شيء: {unit} يقع فوق قاعدته ولا شيء يحدّه من الأعلى بدون تضاريس",
+  "Layout capture: every hole is labelled, and {n} label(s) overlap another at this scale. A larger scale, or a shorter label mode, separates them.": "التقاط التخطيط: كل ثقب موسوم، و{n} وسمًا يتداخل مع آخر عند هذا المقياس. مقياس أكبر، أو نمط وسم أقصر، يفصل بينها."
 }

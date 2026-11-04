@@ -7673,5 +7673,6 @@
   "{n} hole(s) end inside {unit} or have an unlogged gap under it: no base there.": "{n} furo(s) terminam dentro de {unit} ou têm um vazio sem registo por baixo: aí não há base.",
   "One pick per hole where {unit} ends on a logged unit — the base of overburden, the contact every hole shares — the same points the implicit tool uses for \"Base of {unit}\". Check them, then move or delete the outliers.": "Um pick por furo onde {unit} termina sobre uma unidade registada — a base da cobertura, o contato que todos os furos partilham —, os mesmos pontos que a ferramenta implícita usa para \"Base de {unit}\". Verifique-os, depois mova ou apague os discrepantes.",
   "Add the logged base of {unit}": "Adicionar a base registada de {unit}",
-  "none: {unit} lies above its base and nothing caps it without a terrain": "nenhum: {unit} fica acima da sua base e nada a limita sem um terreno"
+  "none: {unit} lies above its base and nothing caps it without a terrain": "nenhum: {unit} fica acima da sua base e nada a limita sem um terreno",
+  "Layout capture: every hole is labelled, and {n} label(s) overlap another at this scale. A larger scale, or a shorter label mode, separates them.": "Captura para o Layout: todos os furos têm etiqueta e {n} etiqueta(s) sobrepõem-se a outra nesta escala. Uma escala maior, ou um modo de etiqueta mais curto, separa-as."
 }

@@ -152,7 +152,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #390
 import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellShown, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
-import { syncHoleLabels, declutterHoleLabels } from "../lib/viewer/holeLabels.js";
+import { syncHoleLabels, declutterHoleLabels, withEveryLabel } from "../lib/viewer/holeLabels.js"; // withEveryLabel: TASKS.csv #1770
 import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // TASKS.csv #1500
 import { findOnTraceWorld, findOnTrace, traceLookup, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693
@@ -3137,17 +3137,20 @@ ${describeTrend(t)}` };
     }
     // No disposal needed for orthoCamera even though it's discarded right after this — a THREE
     // camera holds no GPU resources (no geometry/material/texture), just plain JS-side matrices.
-    let encoded, shotW = 0, shotH = 0;
+    let encoded, shotW = 0, shotH = 0, labelsOverlapping = 0;
     try {
       const shot = captureHiRes(renderer, mountW, mountH, () => { // #380 — print resolution
-        fitScreenLabels(layerGroupsRef.current?.hole_labels, renderCamera, outH); // #379
+        const hl = layerGroupsRef.current?.hole_labels;
+        fitScreenLabels(hl, renderCamera, outH); // #379
         fitScreenLabels(sectionLinesGroupRef.current, renderCamera, outH); // #1126
         renderer.clippingPlanes = slicePlanesRef.current; // #453 — the figure shows the slice you see
-        renderer.render(scene, renderCamera);
+        // TASKS.csv #1770 — a drill plan labels every hole: the live view's declutter (#1294) must not hide one in the capture
+        labelsOverlapping = withEveryLabel(hl, renderCamera, outW, outH, () => renderer.render(scene, renderCamera), LABEL_PX); // outW x outH: the frame fitScreenLabels sized the labels against (the canvas is that times the print pixel ratio)
         renderer.clippingPlanes = [];
       }, outW, outH, captureLongPx(req.elementW, req.elementH, CAPTURE_LONG_PX)); // #906 — at the frame's aspect; #1479: 300 dpi of the frame
       encoded = shot.encoded; shotW = shot.width; shotH = shot.height;
     } catch (err) { applyTheme(liveViewBeforeRender); resolveViewportRender({ requestId: req.requestId, error: err.message }); return; }
+    if (labelsOverlapping) setNotices((p) => [...p, notice("Layout capture: every hole is labelled, and {n} label(s) overlap another at this scale. A larger scale, or a shorter label mode, separates them.", { n: labelsOverlapping })]); // #1770
     // TASKS.csv #311 — this used to be the inline `2 * cs.radius * Math.tan(fovRad / 2)`. Same figure,
     // now imported from src/lib/figureScale.js so the Layout scale bar (which this feeds) and the new
     // in-viewport scale bar cannot possibly derive different metres-per-pixel from the same camera.
