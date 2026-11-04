@@ -7839,5 +7839,7 @@
   "the alteration model": "نموذج التبدل",
   "the vein model": "نموذج العروق",
   "the numeric model": "النموذج العددي",
-  "{v}: not drawn, its holes have no collars.": "{v}: غير مرسوم، ثقوبه بلا فوهات."
+  "{v}: not drawn, its holes have no collars.": "{v}: غير مرسوم، ثقوبه بلا فوهات.",
+  " Merged on the logs (geometric means), as a resistivity or conductivity model should be, so a .res and a .con of the same inversion give the same model.": " دُمج على اللوغاريتمات (متوسطات هندسية)، كما ينبغي لنموذج المقاومية أو الموصلية، فيعطي ملفا .res و.con للانعكاس نفسه النموذج ذاته.",
+  ", merged on the logs (geometric means: a log-normal property)": "، دُمج على اللوغاريتمات (متوسطات هندسية: خاصية لوغاريتمية طبيعية)"
 }

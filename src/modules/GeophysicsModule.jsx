@@ -32,7 +32,7 @@ import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone } from "../lib/
 import { fetchCopernicusTerrain } from "../lib/copernicusDem.js"; // TASKS.csv #814
 import { toLonLat, reprojectXY, crsName, pointTransform } from "../lib/reproject.js";
 import { omfToProjectObjectsAsync } from "../lib/omfImport.js"; // TASKS.csv #637; #1280
-import { parseUBCMesh, isUBCMeshText, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel, coarsenRecord } from "../lib/voxel.js"; // coarsenRecord: #1095
+import { parseUBCMesh, isUBCMeshText, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel, coarsenRecord, wantsLogMean, MEAN_RULE } from "../lib/voxel.js"; // coarsenRecord: #1095
 import { parsePLYBoundary, parseXYZ, guessXyzChannels } from "../lib/geosoft.js";
 import { gridPairs, stationPlacer, nearestStationZ, looksLikeLocalGrid } from "../lib/gridFromStations.js"; // TASKS.csv #1326
 import { parseStationFile } from "../lib/dcipStations.js";
@@ -1074,15 +1074,18 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       // voxel.js's coarsenUBCModel) — the mesh still imports and renders, just at reduced resolution,
       // with the reduction reported below rather than silently applied.
       const rawTotal = mesh.nx * mesh.ny * mesh.nz;
-      let coarsenNote = "", coarsenedFrom = null;
+      let coarsenNote = "", coarsenedFrom = null, coarsenMeanNote = ""; // coarsenMeanNote: #1785
       if (rawTotal > effectiveMaxCells) {
         const { fx, fy, fz } = planCoarsenFactors(mesh.nx, mesh.ny, mesh.nz, effectiveMaxCells);
         const shape = [mesh.nx, mesh.ny, mesh.nz], fine = values; // #1095 — before averaging
-        const coarsened = coarsenUBCModel(mesh, values, fx, fy, fz);
-        coarsenedFrom = coarsenRecord({ shape, factors: [fx, fy, fz], cellsTo: coarsened.mesh.nx * coarsened.mesh.ny * coarsened.mesh.nz, values: fine, valid: (v) => Number.isFinite(v) && v > -99999 });
+        const log = wantsLogMean(values); // #1785 — resistivity / conductivity on their logs
+        const coarsened = coarsenUBCModel(mesh, values, fx, fy, fz, { log });
+        coarsenedFrom = coarsenRecord({ shape, factors: [fx, fy, fz], cellsTo: coarsened.mesh.nx * coarsened.mesh.ny * coarsened.mesh.nz, values: fine, valid: (v) => Number.isFinite(v) && v > -99999, rule: log ? MEAN_RULE.log : MEAN_RULE.arithmetic });
+        if (log) coarsenMeanNote = tr(" Merged on the logs (geometric means), as a resistivity or conductivity model should be, so a .res and a .con of the same inversion give the same model.");
         mesh = coarsened.mesh; values = coarsened.values;
         const coarseTotal = mesh.nx * mesh.ny * mesh.nz;
         coarsenNote = tr(" Original mesh had {rawTotal} cells — over GeoStrix's {effectiveMaxCells}-cell budget for staying responsive in the 3D view, so it was block-averaged down (merging {fx}×{fy}×{fz} fine cells into each coarse cell) to {coarseTotal} cells. Raise the \"3D view cell budget\" setting above and re-import if you want finer detail.", { rawTotal: rawTotal.toLocaleString(), effectiveMaxCells: effectiveMaxCells.toLocaleString(), fx, fy, fz, coarseTotal: coarseTotal.toLocaleString() });
+        coarsenNote += coarsenMeanNote; // #1785
       }
       const cells = ubcMeshToCells(mesh, values);
       if (!cells.length) throw new Error(tr("Every cell in this model is no-data — nothing to render."));
@@ -1139,7 +1142,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     attrs.forEach((attr) => {
       const { cells: raw, badRows, inferred, air } = blockModelCellsFromRows(p.rows, mapping, attr); // air: #1662
       if (!raw.length) { msgs.push(tr("{attr}: no usable rows (x/y/z and {attr} all need numbers).", { attr })); return; }
-      const { cells, factors, sourceM3, mergedM3 } = coarsenBlockCells(raw, effectiveMaxCells);
+      const logMean = wantsLogMean(raw.map((c) => c.value)); // #1785
+      const { cells, factors, sourceM3, mergedM3 } = coarsenBlockCells(raw, effectiveMaxCells, { log: logMean });
       const { min, max } = cellValueRange(cells);
       // TASKS.csv #1662 — the UBC rule (#481): a positive property spanning two decades or more gets log-spaced colours and log-stepped sliders
       const logColours = min > 0 && max / min >= 100;
@@ -1148,6 +1152,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       if (air) m += tr(", {n} block(s) at {v} (the value this model uses for air above the ground) left out", { n: air.count.toLocaleString(), v: Number(air.value).toExponential(2) }); // #1662
       if (logColours) m += tr(", log-spaced colours (the values span {d} decades)", { d: Math.log10(max / min).toFixed(1) });
       if (factors) m += tr(" ({raw} merged {fx}×{fy}×{fz} to fit the {budget}-cell budget — volume-weighted means)", { raw: raw.length.toLocaleString(), fx: factors.fx, fy: factors.fy, fz: factors.fz, budget: effectiveMaxCells.toLocaleString() });
+      if (factors && logMean) m += tr(", merged on the logs (geometric means: a log-normal property)"); // #1785
       // TASKS.csv #943 — merged blocks are full cells: where the model did not fill them, they are larger than it
       if (factors && mergedM3 > sourceM3 * 1.005) m += tr(". The merged blocks are full cells and cover {pct}% more volume than the model's own blocks ({src} m³): each keeps the share it really holds (COVERAGE in the CSV, VTK and OMF exports; VOLUME_M3 in the CSV). Take volume and tonnage from those, or import the model without merging (raise the 3D view cell budget)", { pct: (((mergedM3 - sourceM3) / sourceM3) * 100).toFixed(0), src: Math.round(sourceM3).toLocaleString() });
       if (badRows) m += tr(", {n} row(s) without numbers skipped", { n: badRows.toLocaleString() });

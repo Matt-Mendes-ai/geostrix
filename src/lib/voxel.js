@@ -249,7 +249,17 @@ export function planCoarsenFactors(nx, ny, nz, maxCells = MAX_CELLS) {
   return { fx, fy, fz };
 }
 
-export function coarsenUBCModel(mesh, values, fx, fy, fz) {
+// TASKS.csv #1785 (review #1646, Kodiak) — a log-normal property (resistivity, conductivity) is block-averaged on its logs: the
+// arithmetic mean biased resistivity up, so the same inversion loaded as .res or .con gave different models (the conductor 14.9 vs
+// 7.3 ohm.m; 1,542 coarse cells more than 10 % apart). The rule is the log-colour rule (#481): positive values spanning two decades.
+export function wantsLogMean(values) {
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i < values.length; i++) { const v = values[i]; if (Number.isFinite(v) && v > NODATA_MAX) { if (v < lo) lo = v; if (v > hi) hi = v; } }
+  return lo > 0 && hi / lo >= 100;
+}
+export const MEAN_RULE = { arithmetic: "arithmetic mean of the fine cells with data in each block", log: "geometric mean (the mean of log10) of the fine cells with data in each block: a log-normal property such as resistivity or conductivity" };
+
+export function coarsenUBCModel(mesh, values, fx, fy, fz, { log = false } = {}) {
   const { nx, ny, nz, x0, y0, z0, dx, dy, dz } = mesh;
   if (fx <= 1 && fy <= 1 && fz <= 1) return { mesh, values };
   const cnx = Math.ceil(nx / fx), cny = Math.ceil(ny / fy), cnz = Math.ceil(nz / fz);
@@ -277,17 +287,17 @@ export function coarsenUBCModel(mesh, values, fx, fy, fz) {
       const cz = Math.floor(iz / fz);
       for (let ix = 0; ix < nx; ix++) {
         const v = values[idx++];
-        if (Number.isFinite(v) && v > NODATA_MAX) {
+        if (Number.isFinite(v) && v > NODATA_MAX && (!log || v > 0)) {
           const cx = Math.floor(ix / fx);
           const cidx = cx + cz * cnx + cy * cnx * cnz;
-          sums[cidx] += v;
+          sums[cidx] += log ? Math.log10(v) : v; // #1785
           counts[cidx]++;
         }
       }
     }
   }
   const coarseValues = new Array(cellCount);
-  for (let i = 0; i < cellCount; i++) coarseValues[i] = counts[i] ? sums[i] / counts[i] : COARSEN_NODATA_SENTINEL;
+  for (let i = 0; i < cellCount; i++) coarseValues[i] = counts[i] ? (log ? 10 ** (sums[i] / counts[i]) : sums[i] / counts[i]) : COARSEN_NODATA_SENTINEL;
 
   return { mesh: { nx: cnx, ny: cny, nz: cnz, x0, y0, z0, dx: cdx, dy: cdy, dz: cdz }, values: coarseValues };
 }
@@ -393,10 +403,10 @@ export function maskAirCells(values, minShare = 0.05) {
 
 // TASKS.csv #1095 — what block-averaging did, kept on the model as params.coarsenedFrom (blockModelExport.coarsenedText
 // prints it). values: the fine values before averaging; `valid` excludes no-data.
-export function coarsenRecord({ shape, factors, cellsTo, values, valid = Number.isFinite }) {
+export function coarsenRecord({ shape, factors, cellsTo, values, valid = Number.isFinite, rule = MEAN_RULE.arithmetic }) {
   let lo = Infinity, hi = -Infinity;
   for (let i = 0; i < values.length; i++) { const v = values[i]; if (valid(v)) { if (v < lo) lo = v; if (v > hi) hi = v; } }
-  return { shape, factors, cellsFrom: shape[0] * shape[1] * shape[2], cellsTo, rule: "arithmetic mean of the fine cells with data in each block", fineMin: lo <= hi ? lo : null, fineMax: lo <= hi ? hi : null };
+  return { shape, factors, cellsFrom: shape[0] * shape[1] * shape[2], cellsTo, rule, fineMin: lo <= hi ? lo : null, fineMax: lo <= hi ? hi : null };
 }
 
 // TASKS.csv #1658 (review #1646, Kodiak) — a UBC-GIF tensor mesh by its first lines (nx ny nz, then the origin E N Z), whatever the

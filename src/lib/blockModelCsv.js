@@ -112,7 +112,8 @@ export function blockModelCellsFromRows(rows, mapping, attr) {
 // came out larger (+22 % in the review's file). Each merged cell now carries `coverage` (covered volume / cell volume,
 // 0-1) and the result the source and merged volumes, so the import can say so and the CSV export can write the real
 // volume per block.
-export function coarsenBlockCells(cells, maxCells) {
+// log (TASKS.csv #1785): volume-weighted mean of log10, back-transformed, for a log-normal property (voxel.js wantsLogMean)
+export function coarsenBlockCells(cells, maxCells, { log = false } = {}) {
   if (cells.length <= maxCells) return { cells, factors: null };
   let x0 = Infinity, y0 = Infinity, z0 = Infinity, ux = Infinity, uy = Infinity, uz = Infinity;
   for (const c of cells) {
@@ -142,7 +143,8 @@ export function coarsenBlockCells(cells, maxCells) {
         const w = per * nx * ny * nz;
         const keyStr = `${kx},${ky},${kz}`;
         const e = m.get(keyStr);
-        if (e) { e.w += w; e.s += w * c.value; } else m.set(keyStr, { w, s: w * c.value, k: [kx, ky, kz] });
+        const v = log ? Math.log10(c.value) : c.value;
+        if (e) { e.w += w; e.s += w * v; } else m.set(keyStr, { w, s: w * v, k: [kx, ky, kz] });
       }
     }
     return m;
@@ -160,7 +162,7 @@ export function coarsenBlockCells(cells, maxCells) {
   let sourceM3 = 0;
   for (const e of bins.values()) {
     sourceM3 += e.w;
-    out.push({ x: x0 + (e.k[0] + 0.5) * sx, y: y0 + (e.k[1] + 0.5) * sy, z: z0 + (e.k[2] + 0.5) * sz, dx: sx, dy: sy, dz: sz, value: e.s / e.w, coverage: Math.min(1, e.w / full) });
+    out.push({ x: x0 + (e.k[0] + 0.5) * sx, y: y0 + (e.k[1] + 0.5) * sy, z: z0 + (e.k[2] + 0.5) * sz, dx: sx, dy: sy, dz: sz, value: log ? 10 ** (e.s / e.w) : e.s / e.w, coverage: Math.min(1, e.w / full) });
   }
   return { cells: out, factors: { fx: f[0], fy: f[1], fz: f[2] }, sourceM3, mergedM3: out.length * full };
 }

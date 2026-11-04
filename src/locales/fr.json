@@ -7839,5 +7839,7 @@
   "the alteration model": "le modèle d'altération",
   "the vein model": "le modèle de filons",
   "the numeric model": "le modèle numérique",
-  "{v}: not drawn, its holes have no collars.": "{v} : non dessiné, ses sondages n'ont pas de collets."
+  "{v}: not drawn, its holes have no collars.": "{v} : non dessiné, ses sondages n'ont pas de collets.",
+  " Merged on the logs (geometric means), as a resistivity or conductivity model should be, so a .res and a .con of the same inversion give the same model.": " Fusionné sur les logarithmes (moyennes géométriques), comme il convient pour un modèle de résistivité ou de conductivité : un .res et un .con de la même inversion donnent le même modèle.",
+  ", merged on the logs (geometric means: a log-normal property)": ", fusionné sur les logarithmes (moyennes géométriques : une propriété log-normale)"
 }
