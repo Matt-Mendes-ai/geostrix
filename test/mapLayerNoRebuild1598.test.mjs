@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const src = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+const src = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n"); // a CRLF checkout (CI) reads the same
 const deps = src.match(/\}, \[collars, survey, survey\.length \? desurveyMethod[^\n]*\]\);/)[0];
 
 test("map layers, other anchors, surface samples and block models count only without holes", () => {
