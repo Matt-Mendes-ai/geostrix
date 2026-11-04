@@ -54,6 +54,7 @@ export function sectionScaleText(el) {
   const d = sectionScaleDenom(el);
   if (!d) return null;
   const n = Math.round(d), ve = el.verticalExaggeration || 1;
+  if (el.planMap) return tr("1 : {n} (a plan: the same scale in both directions)", { n: n.toLocaleString() }); // TASKS.csv #1864
   return ve !== 1 ? tr("1 : {n} along the section, {ve}x vertical exaggeration", { n: n.toLocaleString(), ve }) : tr("1 : {n} along the section", { n: n.toLocaleString() });
 }
 

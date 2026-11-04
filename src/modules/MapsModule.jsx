@@ -20,7 +20,7 @@ const CRS_PANES = new Set(["crs", "layer", "file"]);
 
 export default function MapsModule() {
   const [pane, setPane] = useState("raster");
-  const { rasters = [], terrain, mapLayers = [], boundaries = [], project } = useStore();
+  const { rasters = [], terrain, mapLayers = [], boundaries = [], project, surfaceSamples = [] } = useStore(); // surfaceSamples: TASKS.csv #1792
   useModuleAction(["maps-crs"], () => setPane("crs")); // the Set project CRS menu item
   const btn = (id, action) => ({ active: pane === id, onClick: () => { setPane(id); if (action) requestModuleAction(action); } });
 
@@ -60,10 +60,12 @@ export default function MapsModule() {
               if (terrain) parts.push(tr("a terrain surface"));
               if (mapLayers.length) parts.push(tr(mapLayers.length === 1 ? "{mapLayers} map layer" : "{mapLayers} map layers", { mapLayers: mapLayers.length }));
               if (boundaries.length) parts.push(tr(boundaries.length === 1 ? "{boundaries} boundary" : "{boundaries} boundaries", { boundaries: boundaries.length }));
+              if (surfaceSamples.length) parts.push(tr(surfaceSamples.length === 1 ? "{n} surface sample" : "{n} surface samples", { n: surfaceSamples.length.toLocaleString() })); // #1792
               return parts.length ? tr("Loaded: {list}", { list: parts.join(", ") }) : tr("Nothing on the map yet");
             })()}
           >
             <div style={{ marginBottom: 8 }}>{tr("Imagery, terrain, map layers and boundaries all lie under your drillholes in the")}{" "}<b>{tr("3D View")}</b>{" "}{tr("— switch tabs to see them. Everything is placed in the project CRS{v}.", { v: project?.crsSet === false ? tr(" (not chosen yet: Project CRS above)") : `, ${crsName(project?.epsg) || tr("EPSG:{v}", { v: project?.epsg })}` })}</div>
+            {surfaceSamples.length > 0 && <div style={{ marginBottom: 8 }}>{tr("Surface samples in plan, classed by a saved threshold and over a block-model level: Geochem > Plan map.")}</div>}{/* #1792 */}
           </EmptyState>
         </div>
       )}

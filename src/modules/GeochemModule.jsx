@@ -44,6 +44,7 @@ const ThresholdToolkit = React.lazy(() => import("../components/ThresholdToolkit
 const SurfaceQaqcPanel = React.lazy(() => import("../components/SurfaceQaqcPanel.jsx")); // TASKS.csv #842
 const DatabaseConnectModal = React.lazy(() => import("../components/DatabaseConnectModal.jsx")); // TASKS.csv #917
 const CatchmentsPanel = React.lazy(() => import("../components/CatchmentsPanel.jsx")); // TASKS.csv #845
+const SurfacePlanMap = React.lazy(() => import("../components/SurfacePlanMap.jsx")); // TASKS.csv #1792 / #1864
 const SurveyPlannerPanel = React.lazy(() => import("../components/SurveyPlannerPanel.jsx")); // TASKS.csv #844
 const DomainsPanel = React.lazy(() => import("../components/DomainsPanel.jsx")); // TASKS.csv #852
 const LevellingPanel = React.lazy(() => import("../components/LevellingPanel.jsx")); // TASKS.csv #1001
@@ -101,6 +102,7 @@ export default function GeochemModule() {
   const [compositingOpen, setCompositingOpen] = useState(false);
   const [gradeStatsOpen, setGradeStatsOpen] = useState(false);
   const [thresholdsOpen, setThresholdsOpen] = useState(false); // TASKS.csv #841
+  const [planMapOpen, setPlanMapOpen] = useState(false); // TASKS.csv #1792 / #1864
   const [surfaceQcOpen, setSurfaceQcOpen] = useState(false); // TASKS.csv #842
   const [catchmentsOpen, setCatchmentsOpen] = useState(false); // TASKS.csv #845
   const [plannerOpen, setPlannerOpen] = useState(false); // TASKS.csv #844
@@ -873,6 +875,7 @@ export default function GeochemModule() {
             <RibbonButton advanced icon={Grid3x3} label="Correlation" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Correlation matrix" onClick={() => setCorrOpen(true)} />
             <RibbonButton icon={GBarChart} label="Grade stats" tone="analyse" disabled={!(assayElements.length || surfaceElements.length)} disabledReason="Import assays or surface samples first" title="Grade statistics (assays or surface samples)" onClick={() => setGradeStatsOpen(true)} />
             <RibbonButton icon={GBarChart} label="Thresholds" tone="analyse" disabled={!surfaceElements.length} disabledReason="Import surface samples first" title="Anomaly thresholds for soil and stream-sediment samples, judged within populations" onClick={() => setThresholdsOpen(true)} />{/* TASKS.csv #841 */}
+            <RibbonButton icon={GMapPin} label="Plan map" tone="output" disabled={!surfaceSamples.length} disabledReason="Import surface samples first" title="Surface samples in plan, classed by the saved threshold, over a block-model level slice: to Layout or PNG" onClick={() => setPlanMapOpen(true)} />{/* TASKS.csv #1792 / #1864 */}
             <RibbonButton advanced icon={GBarChart} label="Level surveys" tone="analyse" disabled={!surfaceElements.length} disabledReason="Import surface samples first" title="Bring one survey's values to another's level (tie samples first), as a new column" onClick={() => setLevellingOpen(true)} />{/* TASKS.csv #1001 */}
             <RibbonButton icon={GBarChart} label="Domains" tone="analyse" disabled={surfaceElements.length < 2} disabledReason="Import surface samples with several elements first" title="Geochemical domains: log-ratio principal components and k-means on the surface samples, written back as a column for the Thresholds populations" onClick={() => setDomainsOpen(true)} />{/* TASKS.csv #852 */}
             <RibbonButton icon={GMapPin} label="Catchments" tone="analyse" disabled={!surfaceSamples.length} disabledReason="Import surface samples first" title="Stream-sediment catchments from the terrain: dilution correction (Hawkes), drainage ranking, follow-up reaches" onClick={() => setCatchmentsOpen(true)} />{/* TASKS.csv #845 */}
@@ -1164,6 +1167,10 @@ export default function GeochemModule() {
 
       {surfaceQcOpen && ( // TASKS.csv #842
         <React.Suspense fallback={null}><SurfaceQaqcPanel onClose={() => setSurfaceQcOpen(false)} /></React.Suspense>
+      )}
+
+      {planMapOpen && ( // TASKS.csv #1792 / #1864
+        <React.Suspense fallback={null}><SurfacePlanMap onClose={() => setPlanMapOpen(false)} /></React.Suspense>
       )}
 
       {thresholdsOpen && ( // TASKS.csv #841
