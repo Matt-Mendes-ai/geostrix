@@ -152,6 +152,7 @@ import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"
 import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellShown, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { syncHoleLabels, declutterHoleLabels } from "../lib/viewer/holeLabels.js";
+import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // TASKS.csv #1500
 import { findOnTraceWorld, findOnTrace, traceLookup, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693
 import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
@@ -527,7 +528,9 @@ function disposeThreeGroup(group) {
 // three.js's Raycaster does NOT test object.visible (only WebGLRenderer does — see the note in
 // firstVisibleLayerHit), so moving an object to another layer channel is the only way to stop it
 // drawing without changing what is pickable. pickHits() enables PICK_ONLY_LAYER on the raycaster.
-const PICK_ONLY_LAYER = 1;
+// TASKS.csv #1500 — the high-volume members (interval tubes, assay markers, point and custom layers) are now built as
+// PickStandIn objects (lib/viewer/pickStandIn.js, which also owns PICK_ONLY_LAYER): the pick-only form from the start, never a
+// Mesh + Material per interval. A family of them too small to batch is promoted to real Meshes here and drawn as before.
 // Below this, an InstancedMesh (and its per-instance buffers) costs more than the draw calls it
 // saves — a handful of collar markers is not worth batching.
 const BATCH_MIN_MEMBERS = 24;
@@ -641,9 +644,12 @@ function buildLayerBatches(group) {
     if (!fam) families.set(sig, (fam = { geometry: child.geometry, material: m, members: [] }));
     fam.members.push(child);
   }
+  const promote = new Map(); // #1500 — a stand-in in a family too small to batch becomes a real Mesh, drawn on its own
   for (const fam of families.values()) {
-    if (fam.members.length < BATCH_MIN_MEMBERS) continue;
-    const material = fam.material.clone();
+    if (fam.members.length < BATCH_MIN_MEMBERS) { for (const m of fam.members) if (m.isPickStandIn) promote.set(m, m.toMesh()); continue; }
+    const material = fam.material.isPickOnlyMaterial
+      ? new THREE.MeshLambertMaterial({ transparent: fam.material.transparent, opacity: fam.material.opacity, side: fam.material.side }) // a stand-in family (#1500)
+      : fam.material.clone();
     // Per-instance colour comes from instanceColor, which the shader MULTIPLIES by the material's
     // own diffuse colour — so the batch material must be white or every interval would be tinted by
     // whichever member happened to be cloned. (Do NOT set vertexColors:true here either; see the
@@ -677,6 +683,7 @@ function buildLayerBatches(group) {
     group.updateWorldMatrix(true, false);
     group.matrixAutoUpdate = false;
     for (const m of fam.members) {
+      if (m.isPickStandIn) { m.updateMatrix(); m.updateMatrixWorld(); m.userData.batched = true; continue; } // #1500 — already the pick-only form, on the pick-only channel
       m.layers.set(PICK_ONLY_LAYER); m.updateMatrix(); m.matrixAutoUpdate = false; m.updateMatrixWorld(); m.matrixWorldAutoUpdate = false;
       // TASKS.csv #695 — a member is never drawn, so its MeshLambertMaterial (~1.2 kB of heap each, measured) only
       // ever answered two questions: its colour (read by syncBatchedInstances, repainted by applyLegendOverrideColors)
@@ -697,6 +704,7 @@ function buildLayerBatches(group) {
   // A clear of the group pops its children: a member holds no GPU resource (a shared prototype geometry, a pick-only material), so
   // it needs no disposal and goes with its batch.
   if (dropped.size) group.children = group.children.filter((c) => !dropped.has(c));
+  if (promote.size) { group.children = group.children.map((c) => { const real = promote.get(c); if (!real) return c; real.parent = group; c.parent = null; return real; }); group.updateMatrixWorld(true); } // #1500
 }
 // TASKS.csv #1540 — every pickable member of a layer group: the unbatched children and each batch's members
 function eachLayerMember(g, fn) {
@@ -4587,7 +4595,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             if (!pt) return;
             // #312 — shared prototype + scale; #649 — the element's chosen shape and opacity
             const op = style?.opacity ?? 1, shape = style?.shape || "sphere";
-            const mesh = new THREE.Mesh(POINT_PROTO[shape] || PROTO_SPHERE_10, new THREE.MeshLambertMaterial({ color: assayColorFor(v, idx, style), transparent: op < 1, opacity: op, side: shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }));
+            const mesh = new PickStandIn(POINT_PROTO[shape] || PROTO_SPHERE_10, { color: assayColorFor(v, idx, style), transparent: op < 1, opacity: op, side: shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #1500
             mesh.scale.setScalar(assaySizeFor(v, ranges[sym], style)); // #306
             mesh.position.set(pt.x + offX, pt.y, pt.z + offZ);
             mesh.userData = { tip: `${c.hole_id}\n${sym}: ${v} ${elementUnits[sym] || ""}\n${a.from.toFixed(0)}–${a.to.toFixed(0)} m`, row: a };
@@ -4970,8 +4978,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             // space, so picking is unchanged.
             geo = INTERVAL_PROTO[st.shape];
             const color = st.color || (meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
-            const mat = new THREE.MeshLambertMaterial({ color, transparent: st.opacity < 1, opacity: st.opacity });
-            mesh_ = new THREE.Mesh(geo, mat);
+            mesh_ = new PickStandIn(geo, { color, transparent: st.opacity < 1, opacity: st.opacity }); // #1500 — never drawn itself (its batch is)
             mesh_.scale.set(radius, len, radius);
             mesh_.position.set(p1.x, p1.y, p1.z);
             mesh_.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dx / len, dy / len, dz / len));
@@ -5017,7 +5024,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           if (!p) return;
           const size = meta.numeric ? 1.6 + 3.5 * (max > min ? (row.value - min) / (max - min) : 0.3) : 2 + Math.min(3, (row.extra || 1) * 0.4);
           const color = st.color || (meta.numeric ? numericLayerColor(groupKey, row.value, { min, max }) : baseColorForBuild(groupKey, row.value));
-          const mesh = new THREE.Mesh(POINT_PROTO[st.shape], new THREE.MeshLambertMaterial({ color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide })); // TASKS.csv #312 — shared prototype + scale; #635 style
+          const mesh = new PickStandIn(POINT_PROTO[st.shape], { color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // TASKS.csv #312 — shared prototype + scale; #635 style; #1500 a stand-in
           mesh.scale.setScalar(size * st.size);
           mesh.position.set(p.x, p.y, p.z);
           const lbl = meta.numeric ? row.value : effectiveLabel(groupKey, row.value);
@@ -5088,7 +5095,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             // It was a TubeGeometry + material per row: Lawyers' 5 custom layers were 16,860 meshes, ~14,700 draw calls, 9 fps orbit.
             const dx = p2.x - p1.x, dy = p2.y - p1.y, dz = p2.z - p1.z, len = Math.sqrt(dx * dx + dy * dy + dz * dz);
             if (!(len > 1e-6)) return;
-            const mesh = new THREE.Mesh(INTERVAL_PROTO[stI.shape] || PROTO_CYLINDER, new THREE.MeshLambertMaterial({ color: stI.color || row.modelColor || hashColor(row.value), transparent: stI.opacity < 1, opacity: stI.opacity }));
+            const mesh = new PickStandIn(INTERVAL_PROTO[stI.shape] || PROTO_CYLINDER, { color: stI.color || row.modelColor || hashColor(row.value), transparent: stI.opacity < 1, opacity: stI.opacity }); // #1500
             mesh.scale.set(1.6 * stI.size, len, 1.6 * stI.size);
             mesh.position.set(p1.x, p1.y, p1.z);
             mesh.quaternion.setFromUnitVectors(PIN_AXIS, dipPinDir.set(dx / len, dy / len, dz / len));
@@ -5096,7 +5103,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             layer.group.add(mesh);
           } else if (row.depth != null && !isNaN(row.depth)) {
             const p = look.at(row.depth);
-            const mesh = new THREE.Mesh(POINT_PROTO[stP.shape], new THREE.MeshLambertMaterial({ color: stP.color || hashColor(row.value), transparent: stP.opacity < 1, opacity: stP.opacity, side: stP.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide })); // TASKS.csv #312 — shared prototype + scale; #635 style
+            const mesh = new PickStandIn(POINT_PROTO[stP.shape], { color: stP.color || hashColor(row.value), transparent: stP.opacity < 1, opacity: stP.opacity, side: stP.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // TASKS.csv #312 — shared prototype + scale; #635 style; #1500 a stand-in
             mesh.scale.setScalar(2.4 * stP.size);
             mesh.position.set(p.x, p.y, p.z);
             mesh.userData = { row, tip: `${c.hole_id}\n${layer.name}: ${row.value}\n@ ${row.depth.toFixed(0)} m` };

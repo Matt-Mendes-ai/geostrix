@@ -9,7 +9,7 @@ const block = src.slice(src.indexOf("customLayers.forEach((layer) => {\n        
 test("a custom interval is the shared cylinder scaled between its ends, not a TubeGeometry per row", () => {
   assert.ok(block.length > 100);
   assert.ok(!block.includes("new THREE.TubeGeometry"), "no per-row tube");
-  assert.ok(block.includes("new THREE.Mesh(INTERVAL_PROTO[stI.shape] || PROTO_CYLINDER,"));
+  assert.ok(block.includes("new PickStandIn(INTERVAL_PROTO[stI.shape] || PROTO_CYLINDER,")); // a pick stand-in since #1500 (its batch draws it)
   assert.ok(block.includes("mesh.scale.set(1.6 * stI.size, len, 1.6 * stI.size);"));
   assert.ok(block.includes("mesh.quaternion.setFromUnitVectors(PIN_AXIS, dipPinDir.set(dx / len, dy / len, dz / len));"));
 });
