@@ -146,14 +146,29 @@ export const defaultPopulations = (samples) => (hasMixedSources(samples) ? "medi
 export function groupOptions(surfaceSamples, mapLayers = []) {
   const opts = [{ value: "none", label: "All samples (one population)" }, { value: "medium", label: "Sampling medium" }];
   if (hasMixedSources(surfaceSamples)) opts.push({ value: "medium_source", label: "Sampling medium and source" });
+  // TASKS.csv #1796 (review #1646, Kodiak) — only columns a population can be named by: 2-30 distinct values, not mostly numbers (64
+  // columns were offered: free-text descriptions, sample weights, point numbers, 85 one-day dates); survey-style names first
   const attrs = new Map();
-  surfaceSamples.forEach((s) => Object.keys(s.attrs || {}).forEach((k) => { if (!k.endsWith("_lev_basis")) attrs.set(k, (attrs.get(k) || 0) + 1); })); // #1001: an audit column; grouping by it would undo the levelling
-  [...attrs.keys()].sort().forEach((k) => opts.push({ value: `attr:${k}`, label: k, kind: "column" }));
+  surfaceSamples.forEach((s) => Object.entries(s.attrs || {}).forEach(([k, v]) => {
+    if (k.endsWith("_lev_basis") || v == null || v === "") return; // #1001: an audit column; grouping by it would undo the levelling
+    const a = attrs.get(k) || attrs.set(k, { vals: new Set(), num: 0, n: 0 }).get(k);
+    a.n++; if (a.vals.size <= 31) a.vals.add(String(v)); if (Number.isFinite(Number(v))) a.num++;
+  }));
+  const FIRST = /target|horizon|lab|year|survey|program|grid|campaign|source|crew|batch/i;
+  [...attrs.entries()].filter(([, a]) => a.vals.size >= 2 && a.vals.size <= 30 && a.num < 0.5 * a.n)
+    .sort(([k1], [k2]) => (FIRST.test(k2) - FIRST.test(k1)) || k1.localeCompare(k2))
+    .forEach(([k]) => opts.push({ value: `attr:${k}`, label: k, kind: "column" }));
   mapLayers.filter((l) => l.geomType === "polygon" && l.features?.length).forEach((l) => (l.fields || []).forEach((f) => opts.push({ value: `layer:${l.id}:${f}`, label: `${l.name} › ${f}`, kind: "map" })));
   return opts;
 }
-export function groupKeyFn(groupBy, mapLayers = []) {
+// samples (TASKS.csv #1796): when they hold more than one medium, a column or map-unit grouping is split by medium first ('soil · Eclipse'),
+// so soils and rock chips are never one population (Kodiak's '(blank)' Target held 55 soils and 57 rock chips: P90 2,350 ppm Cu)
+export function groupKeyFn(groupBy, mapLayers = [], samples = null) {
   if (!groupBy || groupBy === "none") return () => "All";
+  if (samples && (groupBy.startsWith("attr:") || groupBy.startsWith("layer:")) && new Set(samples.map((s) => s.medium)).size > 1) {
+    const inner = groupKeyFn(groupBy, mapLayers);
+    return (s) => `${s.medium || "(none)"} · ${inner(s)}`;
+  }
   if (groupBy === "medium") return (s) => s.medium || "(none)";
   if (groupBy === "medium_source") return (s) => `${s.medium || "(none)"} · ${s.attrs?.source || PROJECT_SOURCE}`; // #932
   if (groupBy.startsWith("attr:")) { const k = groupBy.slice(5); return (s) => { const v = s.attrs?.[k]; return v == null || v === "" ? "(blank)" : String(v); }; }

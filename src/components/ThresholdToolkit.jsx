@@ -35,7 +35,7 @@ export default function ThresholdToolkit({ surfaceSamples, surfaceElements, mapL
 
   const unit = units[symbol] || "ppm";
   const pops = useMemo(() => {
-    const keyOf = groupKeyFn(groupBy, mapLayers);
+    const keyOf = groupKeyFn(groupBy, mapLayers, surfaceSamples); // samples: #1796 — split by medium
     return populations(surfaceSamples, { valueOf: (s) => valueIn(s, symbol, unit, units), censoredOf: (s) => !!s.bdl?.includes(symbol), zeroOf: (s) => !!s.nd?.includes(symbol), keyOf }) // zeroOf: #931
       .map((p) => ({ ...p, cand: candidateThresholds(p.summary) }));
   }, [surfaceSamples, symbol, unit, units, groupBy, mapLayers]);
@@ -59,7 +59,7 @@ export default function ThresholdToolkit({ surfaceSamples, surfaceElements, mapL
   const clear = () => setGeochemThresholds((prev) => (prev || []).filter((r) => r.symbol !== symbol));
 
   const exportCsv = () => {
-    const keyOf = groupKeyFn(groupBy, mapLayers);
+    const keyOf = groupKeyFn(groupBy, mapLayers, surfaceSamples); // #1796
     const rows = thresholdRows(surfaceSamples, { symbol, unit, units, pops, keyOf, method, methodLabel: THRESHOLD_METHODS.find((x) => x.id === method).label }); // #1083 — rows in lib, tested
     saveFile({ suggestedName: `${symbol}_thresholds.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(rows) });
   };

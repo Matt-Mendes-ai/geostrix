@@ -88,7 +88,7 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
     const scheme = c.scheme === "threshold" && saved ? "threshold" : "percentile";
     if (c.scheme === "threshold" && !saved) notes.push({ text: "No threshold saved for {sym} (Geochem > Thresholds): percentile classes shown instead.", params: { sym } });
     const groupBy = c.groupBy || (scheme === "threshold" ? saved.groupBy : defaultPopulations(samples)); // #932
-    const pooledP = poolSmallPopulations(populations(samples, { valueOf: (s) => valueIn(s, sym, unit, units), keyOf: groupKeyFn(groupBy, mapLayers) })); // #1820
+    const pooledP = poolSmallPopulations(populations(samples, { valueOf: (s) => valueIn(s, sym, unit, units), keyOf: groupKeyFn(groupBy, mapLayers, samples) })); // #1820; samples: #1796
     const pops = pooledP.pops;
     smallNotes(notes, pooledP.pooled, pooledP.unclassed, MIN_POPULATION);
     if (scheme === "threshold") {
@@ -121,7 +121,7 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
     const missing = wanted.filter((e) => !have.has(e));
     if (missing.length) notes.push({ text: "Not in the samples: {list}.", params: { list: missing.join(", ") } });
     const groupBy = c.groupBy || defaultPopulations(samples); // #932 — public and project samples apart
-    const keyOf = groupKeyFn(groupBy, mapLayers);
+    const keyOf = groupKeyFn(groupBy, mapLayers, samples); // #1796
     const zs = samples.map(() => []);
     els.forEach((sym) => {
       const pops = populations(samples, { valueOf: (s) => valueIn(s, sym, units[sym] || "ppm", units), keyOf });
