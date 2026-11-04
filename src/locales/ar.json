@@ -7742,5 +7742,10 @@
   "raster": "نقطي",
   "{n} surface samples": "{n} عينة سطحية",
   "kept a readable size at any zoom": "بحجم مقروء عند أي تكبير",
-  "Chargeability (ms)": "قابلية الشحن (ms)"
+  "Chargeability (ms)": "قابلية الشحن (ms)",
+  "Portable XRF readings are screening numbers (zero-length points, 'not detected' zeros, a bad reading at 36,096 ppm Rb): plotted apart from the lab assays unless you choose both.": "قراءات XRF المحمولة أرقام فرز (نقاط بطول صفري، أصفار 'غير مكتشف'، قراءة خاطئة عند 36,096 ppm Rb): تُرسم منفصلة عن تحاليل المختبر ما لم تختر كليهما.",
+  "Samples:": "العينات:",
+  "Samples plotted": "العينات المرسومة",
+  "{k} lab assay(s) left out: pXRF readings only.": "{k} تحليل مختبري مستبعد: قراءات pXRF فقط.",
+  "{k} pXRF reading(s) left out: lab assays only.": "{k} قراءة pXRF مستبعدة: تحاليل المختبر فقط."
 }

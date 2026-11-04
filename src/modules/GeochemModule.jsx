@@ -57,7 +57,7 @@ import EmptyState, { emptyStateSecondaryBtn } from "../components/EmptyState.jsx
 
 const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
-import { labAssays } from "../lib/qaqc.js"; // TASKS.csv #1673
+import { labAssays, isPxrfRow } from "../lib/qaqc.js"; // TASKS.csv #1673
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
@@ -77,6 +77,11 @@ export default function GeochemModule() {
   const [colorMode, setColorMode] = useKeptState(keptScope, "geochem.colorMode", "hole"); // hole | element | lithology (#619) | uniform
   // TASKS.csv #619 — plot only samples from chosen logged lithologies (null = every sample)
   const [lithFilter, setLithFilter] = useKeptState(keptScope, "geochem.lithFilter", null); // null | Set of codes (NOT_LOGGED = samples with no log)
+  // TASKS.csv #1673 (review #1645, Copley) — the diagrams and the lithology filter plotted lab assays and pXRF readings together without
+  // a word (2,095 points, 556 of them screening readings): the plots take one source, lab by default, pXRF or both on request
+  const [plotSource, setPlotSource] = useKeptState(keptScope, "geochem.plotSource", "lab");
+  const hasPxrf = useMemo(() => assays.some(isPxrfRow), [assays]);
+  const sourceRows = useMemo(() => (!hasPxrf || plotSource === "both" ? assays : assays.filter((a) => (plotSource === "pxrf" ? isPxrfRow(a) : !isPxrfRow(a)))), [assays, hasPxrf, plotSource]);
   const [lithMenuOpen, setLithMenuOpen] = useState(false);
   const [colorElement, setColorElement] = useKeptState(keptScope, "geochem.colorElement", null);
   // TASKS.csv #1091 — the element to colour by: the one chosen, else Au, else the first. colorElement is set only when an
@@ -155,7 +160,7 @@ export default function GeochemModule() {
   // 3D view and moved whenever the lithology filter changed the ranks.
   const lithOverride = viewerUiState?.legendOverride?.litho;
   const lithColors = useMemo(() => Object.fromEntries(lithCounts.map(([k]) => [k, k === NOT_LOGGED ? "#b8bec7" : lithOverride?.[k]?.color || colorForLithology(k)])), [lithCounts, lithOverride]);
-  const plotted = useMemo(() => (lithFilter ? assays.filter((a) => lithFilter.has(sampleLith.get(a) ?? NOT_LOGGED)) : assays), [assays, lithFilter, sampleLith]);
+  const plotted = useMemo(() => (lithFilter ? sourceRows.filter((a) => lithFilter.has(sampleLith.get(a) ?? NOT_LOGGED)) : sourceRows), [sourceRows, lithFilter, sampleLith]); // sourceRows: #1673
   const describeSample = (sm) => {
     const num = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(2).replace(/\.?0+$/, "") : "?");
     return [
@@ -954,6 +959,11 @@ export default function GeochemModule() {
           <select aria-label={tr("Diagram")} value={diagramId} onChange={(e) => setDiagramId(e.target.value)} style={selectStyle}>
             {Object.values(ALL_DIAGRAMS).map((d) => <option key={d.id} value={d.id}>{tr(d.label)}</option>)}
           </select>
+          {hasPxrf && ( /* TASKS.csv #1673 — which rows the plot uses */
+            <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: "#55606e" }} title={tr("Portable XRF readings are screening numbers (zero-length points, 'not detected' zeros, a bad reading at 36,096 ppm Rb): plotted apart from the lab assays unless you choose both.")}>{tr("Samples:")}<select aria-label={tr("Samples plotted")} value={plotSource} onChange={(e) => setPlotSource(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
+              <option value="lab">{tr("Lab assays")}</option><option value="pxrf">{tr("pXRF readings (screening)")}</option><option value="both">{tr("Lab + pXRF")}</option>
+            </select></div>
+          )}
           <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("Colour:")}<select aria-label={tr("Colour by")} value={colorMode} onChange={(e) => setColorMode(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
               <option value="hole">{tr("by hole")}</option>
               <option value="element">{tr("by element")}</option>
@@ -1043,8 +1053,8 @@ export default function GeochemModule() {
             <GeochemPlot diagramId={diagramId} samples={plotted} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} altBoxes={alterationBoxes?.boxes || PROVISIONAL_ALTERATION_BOXES} describe={describeSample} /> {/* plotted / describe: #619 */}
             <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 8 }}>
               {tr("{v}{v2} Below-detection values substituted at half the detection limit.", { v: diagram.spider
-                ? tr("{n} of {assays} samples have at least one plottable element.", { n: plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length, assays: assays.length })
-                : tr("{n} of {assays} samples plotted.", { n: plotted.filter((a) => diagram.project(a, elementUnits)).length, assays: assays.length }), v2: lithFilter ? tr(" {v} hidden by the lithology filter.", { v: assays.length - plotted.length }) : "" })}</div>
+                ? tr("{n} of {assays} samples have at least one plottable element.", { n: plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length, assays: sourceRows.length })
+                : tr("{n} of {assays} samples plotted.", { n: plotted.filter((a) => diagram.project(a, elementUnits)).length, assays: sourceRows.length }), v2: (lithFilter ? tr(" {v} hidden by the lithology filter.", { v: sourceRows.length - plotted.length }) : "") + (hasPxrf && plotSource !== "both" ? " " + (plotSource === "pxrf" ? tr("{k} lab assay(s) left out: pXRF readings only.", { k: (assays.length - sourceRows.length).toLocaleString() }) : tr("{k} pXRF reading(s) left out: lab assays only.", { k: (assays.length - sourceRows.length).toLocaleString() })) : "") })}</div>
           </div>
         )}
       </div>

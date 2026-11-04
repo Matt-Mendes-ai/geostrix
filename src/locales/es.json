@@ -7742,5 +7742,10 @@
   "raster": "ráster",
   "{n} surface samples": "{n} muestras de superficie",
   "kept a readable size at any zoom": "con tamaño legible a cualquier zoom",
-  "Chargeability (ms)": "Cargabilidad (ms)"
+  "Chargeability (ms)": "Cargabilidad (ms)",
+  "Portable XRF readings are screening numbers (zero-length points, 'not detected' zeros, a bad reading at 36,096 ppm Rb): plotted apart from the lab assays unless you choose both.": "Las lecturas de XRF portátil son números de tamizaje (puntos de longitud cero, ceros de 'no detectado', una lectura errónea de 36.096 ppm Rb): se grafican aparte de los ensayes de laboratorio salvo que elija ambos.",
+  "Samples:": "Muestras:",
+  "Samples plotted": "Muestras graficadas",
+  "{k} lab assay(s) left out: pXRF readings only.": "{k} ensaye(s) de laboratorio excluidos: solo lecturas pXRF.",
+  "{k} pXRF reading(s) left out: lab assays only.": "{k} lectura(s) pXRF excluidas: solo ensayes de laboratorio."
 }
