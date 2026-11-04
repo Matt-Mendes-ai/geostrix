@@ -46,6 +46,59 @@ export function gradeTonnageTable(cells, { cutoffs, density = null, unit = null,
   });
 }
 
+// TASKS.csv #1949 (Vulcan review) — the blocks of a model INSIDE a closed solid (a lofted, linked, vein, modelled or imported body):
+// by block centre (whole blocks, as the Strings tool reports), or by the SHARE of each block inside, sampled on a lattice of
+// `samples` points per axis (2 -> the eight sub-block centres). A kept block carries its share as `coverage` (times any coverage it
+// had), which blockVolume already honours, so the grade-tonnage sums need no other change. -> { cells, inside, partial, outside }
+import { buildMeshQuery, isPointInsideMesh } from "./meshQuery.js";
+export function blocksInsideSolid(cells, positions, indices, { mode = "centre", samples = 2 } = {}) {
+  const q = buildMeshQuery(positions, indices);
+  if (!q) return { cells: [], inside: 0, partial: 0, outside: cells.length };
+  const out = [];
+  let inside = 0, partial = 0, outside = 0;
+  const n = Math.max(1, Math.min(4, Math.round(samples))), offs = Array.from({ length: n }, (_, i) => (i + 0.5) / n - 0.5);
+  for (const c of cells || []) {
+    if (!(c.dx > 0 && c.dy > 0 && c.dz > 0)) { outside++; continue; }
+    if (mode !== "share") {
+      if (isPointInsideMesh(q, { x: c.x, y: c.y, z: c.z })) { inside++; out.push(c); } else outside++;
+      continue;
+    }
+    let hit = 0, total = 0;
+    for (const a of offs) for (const b of offs) for (const d of offs) { total++; if (isPointInsideMesh(q, { x: c.x + a * c.dx, y: c.y + b * c.dy, z: c.z + d * c.dz })) hit++; }
+    if (!hit) { outside++; continue; }
+    const share = hit / total;
+    if (share >= 1) inside++; else partial++;
+    out.push(share >= 1 ? c : { ...c, coverage: (Number.isFinite(c.coverage) ? c.coverage : 1) * share });
+  }
+  return { cells: out, inside, partial, outside };
+}
+
+// TASKS.csv #1957 (Vulcan review) — the same sums bench by bench at one cutoff: bench height and datum typed by the user (floors at
+// datum + k x benchH); a block spanning two benches splits by its vertical overlap. -> [{ floorRL, blocks, volumeM3, meanGrade,
+// tonnes, metal, interpolatedShare }] from the top bench down; a bench with nothing at the cutoff is not listed.
+export function gradeTonnageByBench(cells, { cutoff, benchH, datum = 0, density = null, unit = null, interpolatedOnly = false } = {}) {
+  const m = metalOf(unit), rho = Number(density) > 0 ? Number(density) : null, h = Number(benchH);
+  if (!(h > 0)) return [];
+  const hasSupport = cells.some((c) => typeof c.support === "string");
+  const benches = new Map();
+  for (const c of cells || []) {
+    if (!Number.isFinite(c.value) || !(c.dx > 0 && c.dy > 0 && c.dz > 0) || c.value < cutoff || (interpolatedOnly && c.support !== "interpolated")) continue;
+    const vol = blockVolume(c), zlo = c.z - c.dz / 2, zhi = c.z + c.dz / 2;
+    const k0 = Math.floor((zlo - datum) / h + 1e-9), k1 = Math.ceil((zhi - datum) / h - 1e-9) - 1;
+    for (let k = k0; k <= Math.max(k0, k1); k++) {
+      const lo = datum + k * h, hi = lo + h, overlap = Math.min(zhi, hi) - Math.max(zlo, lo);
+      if (!(overlap > 1e-9)) continue;
+      const share = Math.min(1, overlap / c.dz), v = vol * share;
+      let b = benches.get(k); if (!b) benches.set(k, (b = { floorRL: lo, blocks: 0, vol: 0, gv: 0, vi: 0 }));
+      b.blocks += share; b.vol += v; b.gv += v * c.value; if (c.support === "interpolated") b.vi += v;
+    }
+  }
+  return [...benches.values()].sort((a, b) => b.floorRL - a.floorRL).map((b) => {
+    const meanGrade = b.vol > 0 ? b.gv / b.vol : null, tonnes = rho && b.vol > 0 ? b.vol * rho : null;
+    return { floorRL: b.floorRL, blocks: +b.blocks.toFixed(2), volumeM3: b.vol, meanGrade, tonnes, metal: m && tonnes != null && meanGrade != null ? tonnes * meanGrade * m.factor : null, interpolatedShare: hasSupport && b.vol > 0 ? b.vi / b.vol : null };
+  });
+}
+
 // the cautionary statement NI 43-101 2.3(2) asks to accompany an exploration target (in substance), shown beside the table
 export const EXPLORATION_TARGET_CAUTION = "Any tonnage and grade from this table are conceptual: they describe an exploration target, not a Mineral Resource. There has been insufficient exploration to define a Mineral Resource, and it is uncertain whether further exploration will result in the target being delineated as one. State them as ranges, with the basis (this model, its method and the density used).";
 

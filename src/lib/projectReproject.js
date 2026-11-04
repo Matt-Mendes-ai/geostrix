@@ -162,7 +162,8 @@ export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
           return { ...p, x, y, l: (x - ax) * ux + (y - ay) * uy };
         }),
       }));
-      const name = /^Section \d{1,3}°$/.test(s.name || "") ? `Section ${String(Math.round(azimuth) % 360).padStart(3, "0")}°` : s.name;
+      const auto = /^Section \d{1,3}°( \(\d+\))?$/.exec(s.name || ""); // the (2) suffix of #1960 survives the rename
+      const name = auto ? `Section ${String(Math.round(azimuth) % 360).padStart(3, "0")}°${auto[1] || ""}` : s.name;
       return { ...s, ax, ay, bx, by, ...(fin(s.azimuth) ? { azimuth } : {}), contacts, name };
     });
     count("sections", f.sections.length);

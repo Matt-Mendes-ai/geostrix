@@ -12,7 +12,7 @@ import { saveFile } from "../lib/desktop.js";
 import { toExportCsv } from "../lib/tabular.js";
 import { stampLines, withStamp, NOT_A_RESOURCE } from "../lib/provenance.js";
 import { valueUnit, valueColumnName } from "../lib/blockModelExport.js";
-import { gradeTonnageTable, gradeTonnageRows, autoCutoffs, metalOf, sgSummary, EXPLORATION_TARGET_CAUTION } from "../lib/gradeTonnage.js";
+import { gradeTonnageTable, gradeTonnageRows, autoCutoffs, metalOf, sgSummary, EXPLORATION_TARGET_CAUTION, blocksInsideSolid, gradeTonnageByBench } from "../lib/gradeTonnage.js"; // blocksInsideSolid: #1949; gradeTonnageByBench: #1957
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1216
 import { version as APP_VERSION } from "../../package.json";
 
@@ -26,14 +26,28 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
   const unit = valueUnit(model), metal = metalOf(unit);
   const [cutoffText, setCutoffText] = useState(() => autoCutoffs(model.cells).join(", "));
   const [density, setDensity] = useState("");
-  const { layers } = useStore();
+  const { layers, generatedSurfaces = [] } = useStore();
+  // TASKS.csv #1949 (Vulcan review) — the table inside a chosen closed solid, by block centre or by the share of each block inside
+  const solids = useMemo(() => generatedSurfaces.filter((s) => s.closure === "closed" && s.vertices?.length >= 12 && s.indices?.length >= 12), [generatedSurfaces]);
+  const [solidId, setSolidId] = useState("");
+  const [insideMode, setInsideMode] = useState("centre");
+  const solid = solids.find((s) => s.id === solidId) || null;
+  const inside = useMemo(() => (solid ? blocksInsideSolid(model.cells, solid.vertices, solid.indices, { mode: insideMode }) : null), [model.cells, solid, insideMode]);
+  const cellsUsed = inside ? inside.cells : model.cells;
+  // TASKS.csv #1957 (Vulcan review) — the sums bench by bench at one cutoff
+  const [byBench, setByBench] = useState(false);
+  const [benchH, setBenchH] = useState("");
+  const [benchDatum, setBenchDatum] = useState("");
+  const [benchCutoff, setBenchCutoff] = useState("");
   const sgLayer = useMemo(() => sgSummary(layers?.sg), [layers?.sg]); // #1216
   const [fromSg, setFromSg] = useState(false); // the density is the SG layer's until it is typed over
   const [interpOnly, setInterpOnly] = useState(false); // #1409 — count only blocks the estimate classed interpolated
   const hasSupport = useMemo(() => model.cells.some((c) => typeof c.support === "string"), [model.cells]);
   const cutoffs = useMemo(() => [...new Set(cutoffText.split(/[,;\s]+/).map(Number).filter(Number.isFinite))], [cutoffText]);
   const rho = Number(density) > 0 ? Number(density) : null;
-  const rows = useMemo(() => gradeTonnageTable(model.cells, { cutoffs, density: rho, unit, interpolatedOnly: interpOnly }), [model.cells, cutoffs, rho, unit, interpOnly]);
+  const rows = useMemo(() => gradeTonnageTable(cellsUsed, { cutoffs, density: rho, unit, interpolatedOnly: interpOnly }), [cellsUsed, cutoffs, rho, unit, interpOnly]);
+  const benchCut = cutoffs.includes(Number(benchCutoff)) ? Number(benchCutoff) : cutoffs[0];
+  const benchRows = useMemo(() => (byBench && Number(benchH) > 0 && benchCut != null ? gradeTonnageByBench(cellsUsed, { cutoff: benchCut, benchH: Number(benchH), datum: Number(benchDatum) || 0, density: rho, unit, interpolatedOnly: interpOnly }) : []), [byBench, benchH, benchDatum, benchCut, cellsUsed, rho, unit, interpOnly]); // #1957
   const shown = rows.find((r) => r.blocks > 0) || null, lowSupport = shown?.interpolatedShare != null && shown.interpolatedShare < 0.5;
   const merged = model.cells.some((c) => Number.isFinite(c.coverage));
 
@@ -48,12 +62,15 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
     const out = gradeTonnageRows(rows, { vname, density: rho, metal }); // #1017 — rows in lib, tested
     const stamp = stampLines({ tool: "Grade-tonnage table", version: APP_VERSION, epsg, params: [
       `Block model: ${model.name} (${model.cells.length} blocks, source ${model.source || "import"}) | value ${vname}${unit ? ` in ${unit}` : " (no unit stated)"}`,
+      ...(solid ? [`Inside the solid: ${solid.name} | ${insideMode === "share" ? `each block counted by the share of it inside (2 x 2 x 2 sample points): ${inside.inside} wholly inside, ${inside.partial} partly, ${inside.outside} outside` : `blocks counted whole by their centre: ${inside.inside} inside, ${inside.outside} outside`}`] : []), // #1949
+      ...(byBench && benchRows.length ? [`By bench: ${benchH} m benches from a datum of ${Number(benchDatum) || 0} m, at the ${benchCut} ${unit || ""} cutoff; a block spanning two benches is split by its vertical overlap`] : []), // #1957
       `Density: ${rho ? (fromSg ? `${rho} t/m3, length-weighted mean of ${sgLayer.n} Specific gravity rows, ${sgLayer.min}-${sgLayer.max}${sgLayer.left ? `, ${sgLayer.left} outside 1-8 left out` : ""} (one value for every block)` : `${rho} t/m3, entered by the user (one value for every block)`) : "not entered: volumes only"}${merged ? " | merged blocks counted at their COVERAGE share" : ""}`,
       "Mean grade: volume-weighted over the blocks at or above the cutoff",
       ...(hasSupport ? [interpOnly ? "Blocks: only those the estimate classed interpolated" : "Blocks: every estimated block; interpolated_pct / one_hole_pct give the volume share by support"] : []), // #1409
       EXPLORATION_TARGET_CAUTION,
     ] });
-    saveFile({ suggestedName: `${String(model.name).replace(/[^a-z0-9_-]+/gi, "_")}_grade_tonnage.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(out), stamp) });
+    const benchOut = byBench && benchRows.length ? benchRows.map((r) => ({ bench_floor_rl: Math.round(r.floorRL * 100) / 100, cutoff: benchCut, blocks: r.blocks, volume_m3: Math.round(r.volumeM3), [`mean_${vname}`]: r.meanGrade == null ? "" : Number(r.meanGrade.toPrecision(5)), ...(rho ? { tonnes: Math.round(r.tonnes || 0) } : {}), ...(rho && metal ? { [`metal_${metal.unit}`]: r.metal == null ? "" : Math.round(r.metal) } : {}), ...(r.interpolatedShare != null ? { interpolated_pct: Math.round(r.interpolatedShare * 100) } : {}) })) : null; // #1957
+    saveFile({ suggestedName: `${String(model.name).replace(/[^a-z0-9_-]+/gi, "_")}_grade_tonnage${solid ? "_inside_solid" : ""}${benchOut ? "_by_bench" : ""}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(benchOut || out), stamp) });
   };
 
   const th = { textAlign: "end", padding: "4px 8px", color: "var(--color-text-secondary)", fontWeight: 600, borderBottom: "1px solid var(--color-border)" };
@@ -73,6 +90,37 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
             <input type="number" min={0} step={0.01} value={density} placeholder={tr("required for tonnes")} onChange={(e) => { setDensity(e.target.value); setFromSg(false); }} style={{ ...inp, width: 120 }} /></label>
           {sgLayer && <button type="button" style={{ ...inp, cursor: "pointer" }} title={tr("The length-weighted mean of the Specific gravity layer: {n} rows, {min} to {max}. One value for every block.", { n: sgLayer.n, min: sgLayer.min, max: sgLayer.max })} onClick={() => { setDensity(String(sgLayer.mean)); setFromSg(true); }}>{tr("Use the SG layer's mean ({v})", { v: sgLayer.mean })}</button>}
         </div>
+        {/* TASKS.csv #1949 — inside a closed solid; #1957 — bench by bench */}
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 8, fontSize: "var(--font-size-sm)" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Inside the solid")}
+            <select value={solidId} onChange={(e) => setSolidId(e.target.value)} style={{ ...inp, maxWidth: 220 }} aria-label={tr("Solid to report inside")}><option value="">{solids.length ? tr("— the whole model —") : tr("— no closed solid in the project —")}</option>{solids.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+          {solid && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Count")}
+            <select value={insideMode} onChange={(e) => setInsideMode(e.target.value)} style={inp} aria-label={tr("How a block is counted inside")}><option value="centre">{tr("whole blocks by their centre")}</option><option value="share">{tr("the share of each block inside")}</option></select></label>}
+          <label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={byBench} onChange={(e) => setByBench(e.target.checked)} />{tr("By bench")}</label>
+          {byBench && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Bench height (m)")}<input type="number" min={0} step="any" value={benchH} onChange={(e) => setBenchH(e.target.value)} style={{ ...inp, width: 70 }} aria-label={tr("Bench height")} /></label>}
+          {byBench && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Datum (m)")}<input type="number" step="any" value={benchDatum} onChange={(e) => setBenchDatum(e.target.value)} placeholder="0" style={{ ...inp, width: 80 }} aria-label={tr("Bench datum")} /></label>}
+          {byBench && cutoffs.length > 1 && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("at cutoff")}<select value={benchCut ?? ""} onChange={(e) => setBenchCutoff(e.target.value)} style={inp} aria-label={tr("Cutoff of the bench table")}>{cutoffs.map((c) => <option key={c} value={c}>{sig(c)}</option>)}</select></label>}
+        </div>
+        {solid && inside && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{insideMode === "share"
+          ? tr("Inside \"{name}\": {a} block(s) wholly inside, {b} partly (counted by the share of each inside, from 2 × 2 × 2 sample points), {c} outside.", { name: solid.name, a: inside.inside, b: inside.partial, c: inside.outside })
+          : tr("Inside \"{name}\": {a} block(s) counted whole by their centre, {c} outside; a block the surface cuts is wholly in or wholly out here.", { name: solid.name, a: inside.inside, c: inside.outside })}</div>}
+        {byBench && !(Number(benchH) > 0) && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>{tr("Enter the bench height: the floors sit at the datum plus whole benches.")}</div>}
+        {byBench && benchRows.length > 0 && (
+          <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10 }}>
+            <thead><tr>
+              <th style={th}>{tr("Bench floor (m)")}</th><th style={th}>{tr("Blocks")}</th><th style={th}>{tr("Volume (m³)")}</th><th style={th}>{tr("Mean grade")}</th>
+              {rho && <th style={th}>{tr("Tonnes")}</th>}{rho && metal && <th style={th}>{metal.unit === "g" ? tr("Metal (g)") : tr("Metal (t)")}</th>}
+              {hasSupport && <th style={th}>{tr("Interpolated")}</th>}
+            </tr></thead>
+            <tbody>{benchRows.map((r) => (
+              <tr key={r.floorRL}>
+                <td style={td}>{fmt(r.floorRL, 1)}</td><td style={td}>{fmt(r.blocks, 1)}</td><td style={td}>{fmt(r.volumeM3)}</td><td style={td}>{sig(r.meanGrade)}</td>
+                {rho && <td style={td}>{fmt(r.tonnes)}</td>}{rho && metal && <td style={td}>{fmt(r.metal)}</td>}
+                {hasSupport && <td style={td}>{r.interpolatedShare == null ? "—" : `${Math.round(r.interpolatedShare * 100)} %`}</td>}
+              </tr>))}</tbody>
+          </table>
+        )}
+        {byBench && benchRows.length > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{tr("Benches of {h} m from a datum of {d} m, at the {c} {unit} cutoff; a block spanning two benches is split by its vertical overlap, so the block counts carry fractions.", { h: benchH, d: Number(benchDatum) || 0, c: sig(benchCut), unit: unit || "" })}</div>}
         <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10 }}>
           <thead><tr>
             <th style={th}>{tr("Cutoff")}</th><th style={th}>{tr("Blocks")}</th><th style={th}>{tr("Volume (m³)")}</th><th style={th}>{tr("Mean grade")}</th>

@@ -69,6 +69,7 @@ const DataQCModal = lazyModal(() => import("../components/DataQCModal.jsx"));  /
 const SQLWorkspaceModal = React.lazy(() => import("../components/SQLWorkspaceModal.jsx"));
 const SectionGeorefModal = React.lazy(() => import("../components/SectionGeorefModal.jsx")); // TASKS.csv #630
 const LayerStyleModal = React.lazy(() => import("../components/LayerStyleModal.jsx")); // TASKS.csv #635
+const SolidToolsModal = React.lazy(() => import("../components/SolidToolsModal.jsx")); // TASKS.csv #1950 / #1951 — clip a solid by a surface, combine two solids
 const TrendsPanel = React.lazy(() => import("../components/TrendsPanel.jsx")); // TASKS.csv #650
 import { cleanTrend, trendBasis, trendScales, describeTrend } from "../lib/trend.js"; // TASKS.csv #650
 import { colors } from "../lib/theme.js"; // TASKS.csv #700 — the trend preview's UI colours
@@ -740,6 +741,9 @@ const SURFACE_TYPES = [
   { key: "design_solid", label: "Design solid (from strings)" }, // TASKS.csv #1877
   { key: "stope", label: "Stope outline (from a block model)" }, // TASKS.csv #1879
   { key: "dump", label: "Dump / stockpile (from a footprint)" }, // TASKS.csv #1880
+  { key: "development", label: "Development opening (a profile along a design line)" }, // TASKS.csv #1954
+  { key: "clipped_solid", label: "Clipped solid (one side of a surface)" }, // TASKS.csv #1950
+  { key: "boolean_solid", label: "Combined solid (intersection, union or difference)" }, // TASKS.csv #1951
   // TASKS.csv #144 — a vein/dyke is modelled as a PAIR of walls plus (optionally) the solid between
   // them, so the three parts get distinct types: they are not interchangeable, and the checker (#90)
   // reads "hangingwall is above footwall" off the relationship these are created with.
@@ -1154,6 +1158,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // overrides; styleTarget = the layer whose Style dialog is open; rowMenu = the right-click menu of a non-interval row.
   const [layerStyles, setLayerStyles] = useState({});
   const [styleTarget, setStyleTarget] = useState(null); // { key, kind, label, defaults, categoriesKey }
+  const [solidToolsFor, setSolidToolsFor] = useState(null); // TASKS.csv #1950 / #1951 — the surface record the Solid tools dialog is open for
   const [rowMenu, setRowMenu] = useState(null); // { x, y, title, items: [{ label, onClick } | "-"] }
   const setLayerStyle = useCallback((key, kind, patch) => setLayerStyles((p) => {
     const next = { ...p };
@@ -3794,6 +3799,14 @@ ${describeTrend(t)}` };
   };
   // TASKS.csv #1139 — the undrilled zones of a unit as a closed solid (world E, N, Z from UndrilledZonesPane)
   // #1341 — a pit shell comes through here too: an open surface of its own type
+  // TASKS.csv #1955 (Vulcan review) — the elevation of a generated surface's mesh under a world (E, N): a ray straight down
+  // through the mesh, NaN where the surface is not there (the Strings pane drapes a string on it)
+  const surfaceZAt = useCallback((id, x, y) => {
+    const mesh = implicitMeshesRef.current[id]; if (!mesh) return NaN;
+    const o = originRef.current, ray = new THREE.Raycaster(new THREE.Vector3(x - o.x, 1e7, -(y - o.y)), new THREE.Vector3(0, -1, 0));
+    const hits = ray.intersectObject(mesh, false);
+    return hits.length ? hits[0].point.y + o.z : NaN;
+  }, []);
   const addUndrilledSolid = ({ name, positions: w, indices, volumeM3, params, tip, type = "unit_volume", closure = "closed", color = "#e8590c", tag = "undrilled" }) => {
     const o = originRef.current, scene = new Float32Array(w.length);
     for (let i = 0; i < w.length; i += 3) { scene[i] = w[i] - o.x; scene[i + 1] = w[i + 2] - o.z; scene[i + 2] = o.y - w[i + 1]; }
@@ -4143,6 +4156,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   }, [terrain]);
 
   // TASKS.csv #1874 — a generated surface's mesh back in world E, N, Z (the list holds no positions; the mesh is in scene space)
+  // TASKS.csv #1950 — a surface's mesh in world E, N, Z with its triangles, for the solid tools
+  const worldMeshOfSurface = useCallback((id) => {
+    const g = implicitMeshesRef.current[id]?.geometry, a = g?.attributes?.position?.array, idx = g?.index?.array;
+    if (!a || !idx) return null;
+    const o = originRef.current, positions = new Float64Array(a.length);
+    for (let i = 0; i < a.length; i += 3) { positions[i] = a[i] + o.x; positions[i + 1] = o.y - a[i + 2]; positions[i + 2] = a[i + 1] + o.z; }
+    return { positions, indices: Uint32Array.from(idx) };
+  }, []);
   const worldPositionsOfSurface = useCallback((id) => {
     const a = implicitMeshesRef.current[id]?.geometry?.attributes?.position?.array;
     if (!a) return null;
@@ -7024,7 +7045,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const corridor = sectionCorridor;
     const { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, assayLegend /* #1769 */, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop } = buildSectionPayload(a, b, corridor);
     const id = `sect_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    const name = `Section ${azimuth.toFixed(0)}°`;
+    // TASKS.csv #1960 (Vulcan review) — two E-W sections were both 'Section 90°': the window's tabs and the linker's refusal
+    // could not tell them apart. A second section at the same azimuth takes (2), (3) ...
+    const base = `Section ${azimuth.toFixed(0)}°`;
+    let name = base;
+    for (let k = 2; (sections || []).some((s) => s.name === name); k++) name = `${base} (${k})`;
     upsertSection({ id, name, ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth, corridor, contacts: [] });
     // lithoUnits: the same distinct-litho-value list the Modelling tab's unit pickers use (litho_units
     // above) — passed through so the pop-out's "Draw contact" flow can offer a real unit picker instead
@@ -8006,6 +8031,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               { label: tr("Zoom to"), onClick: () => zoomToImplicitSurface(s.id) },
               { label: expanded ? "Close type & relationships" : "Type & relationships…", onClick: () => setExpandedSurfaceId(expanded ? null : s.id) },
               { label: tr("Style (colour, opacity)…"), onClick: () => setStyleTarget({ key: `surface:${s.id}`, kind: "surface", label: s.name, surfaceId: s.id, defaults: { opacity: surfaceBaseLook(implicitMeshesRef.current[s.id]).opacity } }) }, // #636
+              { label: tr("Solid tools: clip by a surface, combine…"), onClick: () => setSolidToolsFor(s) }, // #1950 / #1951
               "-", { label: tr("Remove…"), onClick: () => { if (confirmRemoveSurface(s)) removeImplicitSurface(s.id); } }])}
               style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
@@ -8406,10 +8432,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {sidebarTab === "minedesign" && toolPane === "pit" && <Suspense fallback={null}><PitShellPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} /* #1498 */ onClose={() => setToolPane(null)} /></Suspense>}
         {sidebarTab === "minedesign" && toolPane === "nested" && <Suspense fallback={null}><NestedPitsPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1875 */}
         {sidebarTab === "minedesign" && toolPane === "pitdesign" && <Suspense fallback={null}><PitDesignPane surfaces={implicitSurfaces} worldPositionsOf={worldPositionsOfSurface} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1874 */}
-        {sidebarTab === "minedesign" && toolPane === "strings" && <Suspense fallback={null}><DesignStringsPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient, zoomTo: zoomToWorldPoints /* #1892 */ }} onAdd={addUndrilledSolid} surfaces={implicitSurfaces} /* #1942 */ onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1876 */}
+        {sidebarTab === "minedesign" && toolPane === "strings" && <Suspense fallback={null}><DesignStringsPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient, zoomTo: zoomToWorldPoints /* #1892 */ }} onAdd={addUndrilledSolid} surfaces={implicitSurfaces} /* #1942 */ surfaceZAt={surfaceZAt} /* #1955 */ onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1876 */}
         {sidebarTab === "minedesign" && toolPane === "dump" && <Suspense fallback={null}><DumpPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1880 */}
         {sidebarTab === "minedesign" && toolPane === "stopes" && <Suspense fallback={null}><StopesPane onAdd={addUndrilledSolid} onRemove={removeImplicitSurface} /* #1887 */ onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1879 */}
-        {sidebarTab === "minedesign" && toolPane === "lines" && <Suspense fallback={null}><DesignLinesPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient /* #1878 */, zoomTo: zoomToWorldPoints /* #1892 */ }} onClose={() => setToolPane(null)} /></Suspense>}
+        {sidebarTab === "minedesign" && toolPane === "lines" && <Suspense fallback={null}><DesignLinesPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient /* #1878 */, zoomTo: zoomToWorldPoints /* #1892 */ }} onAdd={addUndrilledSolid} surfaces={implicitSurfaces} /* #1954 */ onClose={() => setToolPane(null)} /></Suspense>}
         {sidebarTab === "targeting" && (<>
         {toolPane === "ranges" && (<>
         {paneHeader("Voxel value ranges", Box, "view")}
@@ -8780,6 +8806,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </div>
         </div>
       )}
+      {solidToolsFor && (
+        <Suspense fallback={null}>
+          <SolidToolsModal solid={solidToolsFor} surfaces={implicitSurfaces} meshOf={worldMeshOfSurface} groundAt={terrain ? (x, y) => terrainGroundAt(terrain, x, y) : null} hasTerrain={!!terrain} onAdd={addUndrilledSolid} onClose={() => setSolidToolsFor(null)} />
+        </Suspense>
+      )}{/* TASKS.csv #1950 / #1951 */}
       {styleTarget && (
         <Suspense fallback={null}>
           <LayerStyleModal target={{ ...styleTarget, onEditColours: styleTarget.colourKey ? () => { setStyleTarget(null); setInspectLayer(styleTarget.colourKey); } : null /* #1260 */ }}

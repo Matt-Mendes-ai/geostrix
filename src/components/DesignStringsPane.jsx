@@ -43,7 +43,7 @@ function Cell({ value, onCommit, width = 60, ariaLabel, placeholder }) {
 
 // view: { scene, camera, renderer, activity, dragHook, origin, worldPointAt } (refs; worldPointAt(clientX, clientY) -> world point
 // under the cursor on any drawn feature, or null); onAdd as the pit pane's (a solid into the generated surfaces)
-export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [] }) { // surfaces: the generated surfaces, for unique solid names (#1942)
+export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [], surfaceZAt = null }) { // surfaces: the generated surfaces, for unique solid names (#1942); surfaceZAt: a surface's elevation under a point, for draping (#1955)
   const { designStrings = [], setDesignStrings, collars = [], voxelModels = [], project, terrain } = useStore();
   const [activeId, setActiveId] = useState(() => designStrings[designStrings.length - 1]?.id ?? null);
   const [drawing, setDrawing] = useState(false);
@@ -59,7 +59,21 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [] 
   const setGrid = (v) => { draw.grid = v; setGridState(v); };
   const [hover, setHover] = useState(null);
   const [typed, setTyped] = useState({ x: "", y: "", z: "", dist: "", bearing: "", grade: "0" });
-  const [tool, setTool] = useState({ offset: "", dE: "", dN: "", dZ: "", joinId: "", splitAt: "" });
+  const [tool, setTool] = useState({ offset: "", dE: "", dN: "", dZ: "", joinId: "", splitAt: "", drapeOn: "ground", drapeOffset: "" }); // drape: #1955
+  // TASKS.csv #1955 (Vulcan review) — register an existing string (imported from DXF, drawn on a plane) onto the ground or a
+  // generated surface, with an optional height above it; a vertex with no surface under it is left where it is, and said so
+  const doDrape = () => {
+    if (!string) return;
+    const off = num0(tool.drapeOffset) || 0, src = tool.drapeOn || "ground";
+    const zAt = src === "ground" ? groundAt : surfaceZAt ? (x, y) => surfaceZAt(src, x, y) : null;
+    if (!zAt) { setMsg(tr("Nothing to drape on: load a terrain or collars with elevations, or pick a surface.")); return; }
+    let outside = 0;
+    const vertices = string.vertices.map((v) => { const z = zAt(v[0], v[1]); if (!Number.isFinite(z)) { outside++; return v; } return [v[0], v[1], +(z + off).toFixed(2)]; });
+    update({ vertices });
+    const what = src === "ground" ? (terrain ? tr("the terrain") : tr("the ground between the collars")) : (surfaces.find((s) => s.id === src)?.name || src);
+    const o = off ? tr(" plus {m} m", { m: off }) : "";
+    setMsg(outside ? tr("Draped {n} vertices on {what}{o}; {k} with nothing under them were left where they were.", { n: vertices.length - outside, what, o, k: outside }) : tr("Draped {n} vertices on {what}{o}.", { n: vertices.length, what, o }));
+  };
   const [solid, setSolid] = useState({ zBottom: "", zTop: "", modelId: "", density: "", loft: [] });
   const [msg, setMsg] = useState(null);
   const fileRef = useRef(null);
@@ -381,6 +395,11 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [] 
           <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>
             {["dE", "dN", "dZ"].map((k) => <Cell key={k} value={num0(tool[k])} width={50} placeholder={k} ariaLabel={tr("Copy shift {k}", { k })} onCommit={(v) => setTool((t) => ({ ...t, [k]: v == null ? "" : String(v) }))} />)}
             <button onClick={doDuplicate} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0, padding: "3px 6px" }}>{tr("Copy shifted")}</button>
+          </div>
+          <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>{/* #1955 */}
+            <select value={tool.drapeOn} onChange={(e) => setTool((t) => ({ ...t, drapeOn: e.target.value }))} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Drape onto")}><option value="ground">{terrain ? tr("the terrain") : tr("the ground (collars)")}</option>{surfaces.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+            <Cell value={num0(tool.drapeOffset)} width={50} placeholder={tr("+ m")} ariaLabel={tr("Height above the surface")} onCommit={(v) => setTool((t) => ({ ...t, drapeOffset: v == null ? "" : String(v) }))} />
+            <button onClick={doDrape} disabled={!string?.vertices.length} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 6px" }} title={tr("Every vertex takes the elevation of the surface under it, plus the height typed; a vertex with nothing under it is left where it is.")}>{tr("Drape")}</button>
           </div>
           {designStrings.length > 1 && (
             <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>

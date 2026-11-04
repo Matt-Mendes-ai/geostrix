@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { Spline, Download, X, Trash2, Plus, Maximize2 } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
-import { computeLine, segmentsToPoint, runAboveGround, gradeRatio, designLineRows, designLineFeatures, selfClearance, declineToTarget, clearanceTo, sharpCorners, developmentRows, profileArea, profileHalfAlong, passDirection } from "../lib/designLines.js"; // #1878; profileHalfAlong / passDirection: #1924
+import { computeLine, segmentsToPoint, runAboveGround, gradeRatio, designLineRows, designLineFeatures, selfClearance, declineToTarget, clearanceTo, sharpCorners, developmentRows, profileArea, profileMesh, profileHalfAlong, passDirection } from "../lib/designLines.js"; // #1878; profileHalfAlong / passDirection: #1924; profileMesh: #1954
 import { holeTraces } from "../lib/evidenceSources.js"; // #1878 — the drillhole traces the clearance is checked against
 import { plannedTrace } from "../lib/holePlanning.js"; // #1878 — a planned hole's toe as a target
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
@@ -42,7 +42,7 @@ function Cell({ value, onCommit, width = 54, ariaLabel, placeholder }) {
 }
 
 // view: { scene, camera, renderer, activity, dragHook, origin } (refs)
-export default function DesignLinesPane({ view, onClose }) {
+export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose }) { // onAdd / surfaces: the opening as a solid (#1954)
   const { designLines = [], setDesignLines, collars = [], survey = [], plannedHoles = [], terrain, project } = useStore();
   const [activeId, setActiveId] = useState(() => designLines[designLines.length - 1]?.id ?? null);
   const [grade, setGradeState] = useState(nextSeg.grade);
@@ -65,6 +65,20 @@ export default function DesignLinesPane({ view, onClose }) {
   const setDensity = (v) => { toTargetDefaults.density = v; setDensityState(v); };
   const [toTargetMsg, setToTargetMsg] = useState(null);
   const [msg, setMsg] = useState(null); // #1754 — a deletion says that Undo brings the line back
+  // TASKS.csv #1954 (Vulcan review) — the opening (the profile swept along the line) as a closed solid in Generated surfaces: for
+  // the engineer's DXF / OBJ, a query against the holes, or taking it out of a stope later. The tube drawn in the view is display only.
+  const addOpening = () => {
+    if (!c || !onAdd || !(line?.profile?.width > 0 && line?.profile?.height > 0)) return;
+    const pm = profileMesh(c.vertices.map((v) => [v[0], v[1], v[2]]), line.profile);
+    if (!pm || !(pm.volume > 0)) { setMsg(tr("The line is too short for an opening.")); return; }
+    const taken = new Set(surfaces.map((s) => s.name)), base = tr("{name} opening {w} x {h} m", { name: line.name, w: line.profile.width, h: line.profile.height });
+    let name = base; for (let k = 2; taken.has(name); k++) name = `${base} (${k})`;
+    const dens = num0(density) > 0 ? num0(density) : null, area = profileArea(line.profile);
+    onAdd({ name, positions: pm.positions, indices: pm.indices, volumeM3: pm.volume, type: "development", closure: "closed", color: line.color || "#4c6ef5", tag: "opening",
+      tip: tr("{name}: {w} x {h} m {shape} opening along the line", { name: line.name, w: line.profile.width, h: line.profile.height, shape: line.profile.shape === "arched" ? tr("arched") : tr("flat back") }),
+      params: { tool: "development opening (profile swept along a design line)", line: line.name, lineId: line.id, profile: { width: line.profile.width, height: line.profile.height, shape: line.profile.shape || "flat" }, lengthM: +c.length.toFixed(1), sectionAreaM2: +area.toFixed(2), volumeM3: Math.round(pm.volume), density: dens, tonnes: dens ? Math.round(pm.volume * dens) : null, generatedAt: new Date().toISOString() } });
+    setMsg(tr("Added \"{name}\": {v} m³{t}. It is listed in 3D Modelling › Generated surfaces, where it can be exported or queried.", { name, v: Math.round(pm.volume).toLocaleString(), t: dens ? tr(", {t} t at {d} t/m³", { t: Math.round(pm.volume * dens).toLocaleString(), d: dens }) : "" }));
+  };
   const line = designLines.find((l) => l.id === activeId) || null;
   // #1357 — after a delete or an undo the active line can be gone: the last line takes over, so the editor never goes blank
   useEffect(() => { if (!line && designLines.length) setActiveId(designLines[designLines.length - 1].id); }, [line, designLines]);
@@ -355,6 +369,7 @@ export default function DesignLinesPane({ view, onClose }) {
             <label style={{ ...row, marginTop: 0 }}>{tr("Height (m)")}<Cell value={line.profile?.height ?? null} width={52} ariaLabel={tr("Profile height")} onCommit={(v) => update({ profile: { ...(line.profile || { shape: "flat" }), height: v } })} /></label>
             <select value={line.profile?.shape || "flat"} onChange={(e) => update({ profile: { ...(line.profile || {}), shape: e.target.value } })} style={{ ...smallSel, width: 72 }} aria-label={tr("Profile shape")}><option value="flat">{tr("flat back")}</option><option value="arched">{tr("arched")}</option></select>
           </div>
+          {line.profile?.width > 0 && line.profile?.height > 0 && onAdd && <div style={{ marginTop: 4 }}><button onClick={addOpening} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 8px" }} title={tr("The swept profile as a closed solid in Generated surfaces: export it, query it against the holes, take it out of a stope.")}>{tr("Add the opening as a solid")}</button></div>}{/* #1954 */}
           {line.profile?.width > 0 && line.profile?.height > 0 && <div style={note}>{tr("{a} m² section, {v} m³ along this line{t}. The profile is drawn in the view.", { a: m2(profileArea(line.profile)), v: Math.round(profileArea(line.profile) * c.length).toLocaleString(), t: num0(density) > 0 ? tr(", {t} t at {d} t/m³", { t: Math.round(profileArea(line.profile) * c.length * num0(density)).toLocaleString(), d: num0(density) }) : "" })}</div>}
           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
             <label style={{ ...row, marginTop: 0 }}>{tr("Density (t/m³)")}<input type="number" min={0} step="any" value={density} onChange={(e) => setDensity(e.target.value)} style={num} aria-label={tr("Rock density for the excavation tonnes")} /></label>
