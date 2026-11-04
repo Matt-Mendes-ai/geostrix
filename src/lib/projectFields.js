@@ -56,8 +56,9 @@ import { poolLayoutImages, expandLayoutImages } from "./layoutImagePool.js"; // 
 // v18 (TASKS.csv #1003) adds evidenceOverlay (the Evidence overlay pane's recipe: evidence sources and memberships, operator,
 // training points; values are recomputed from the sources), so a targeting score can be re-run and audited after reopening.
 // v21 (TASKS.csv #1342) adds designLines (Mine Design linework: a start and segments; the geometry is recomputed from them).
+// v23 (TASKS.csv #1876) adds designStrings (free 3D polylines / polygons: { id, name, color, closed, visible, vertices: [[E, N, Z]] }).
 // v22 (TASKS.csv #1631) writes Layout pages and templates with each repeated image once ({ __layoutImages, images, items }).
-export const PROJECT_VERSION = 22; // #1631: layout image pool. Was 21 // #1342: designLines. Was 20 // #1081: no dbConnections (per computer now). Was 19 // #1073: surface samples may be stored as exact columns. Was 18 // #1003: evidenceOverlay. Was 17 // #842: surfaceQc. Was 16 // #841: geochemThresholds. Was 15 // #811: explicitSurfaces. Was 14 // #796: big terrain grids as elevationsF32. Was 13 // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
+export const PROJECT_VERSION = 23; // #1876: designStrings. Was 22 // #1631: layout image pool. Was 21 // #1342: designLines. Was 20 // #1081: no dbConnections (per computer now). Was 19 // #1073: surface samples may be stored as exact columns. Was 18 // #1003: evidenceOverlay. Was 17 // #842: surfaceQc. Was 16 // #841: geochemThresholds. Was 15 // #811: explicitSurfaces. Was 14 // #796: big terrain grids as elevationsF32. Was 13 // #660: every voxel model may be compacted (compactCells.keys). Was 12 // #650: structuralTrends. Was 11 // #630: sectionImages. Was 10 // #555: assays and big interval layers may be stored as exact columns ({ __compactTable })
 
 export const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: [], magsusc: [], structure: [], litho_gc: [], alt_gc: [], geophys_pts: [] };
 
@@ -233,6 +234,7 @@ export const FIELDS = [
   { key: "layoutTemplates", track: "dirty", empty: list, save: poolLayoutImages, load: (data) => expandLayoutImages(data.layoutTemplates) || [] }, // #1631
   { key: "plannedHoles", track: "undo", empty: list }, // TASKS.csv #188
   { key: "designLines", track: "undo", empty: list }, // TASKS.csv #1342
+  { key: "designStrings", track: "undo", empty: list }, // TASKS.csv #1876
   // TASKS.csv #1073 (review #1016) — exact columns from 2,000 rows, like assays: 50k samples x 48 elements were 29 MB and
   // 1.8 s of JSON.stringify per autosave as one object per sample; columns are ~14 MB and cached per array
   { key: "surfaceSamples", track: "undo", empty: list, save: compactTable, load: (data) => expandTable(data.surfaceSamples) || [] }, // TASKS.csv #228

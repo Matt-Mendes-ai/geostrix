@@ -645,6 +645,7 @@ export function StoreProvider({ children }) {
   // small user-authored list).
   const [plannedHoles, setPlannedHoles] = useState([]);
   const [designLines, setDesignLines] = useState([]); // TASKS.csv #1342
+  const [designStrings, setDesignStrings] = useState([]); // TASKS.csv #1876
   const addPlannedHole = useCallback((hole) => {
     const id = `plan_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     setPlannedHoles((p) => [...p, { name: `PLAN-${p.length + 1}`, x: 0, y: 0, z: 0, azimuth: 0, dip: -60, length: 100, notes: "", ...hole, id }]);
@@ -874,7 +875,7 @@ export function StoreProvider({ children }) {
     excludedIntercepts: [excludedIntercepts, setExcludedIntercepts],
     softIntercepts: [softIntercepts, setSoftIntercepts], interceptSets: [interceptSets, setInterceptSets],
     sections: [sections, setSections], sectionGroups: [sectionGroups, setSectionGroups], layoutTemplates: [layoutTemplates, setLayoutTemplates],
-    plannedHoles: [plannedHoles, setPlannedHoles], designLines: [designLines, setDesignLines], surfaceSamples: [surfaceSamples, setSurfaceSamples], surfaceElements: [surfaceElements, setSurfaceElements], geochemThresholds: [geochemThresholds, setGeochemThresholds], surfaceQc: [surfaceQc, setSurfaceQc],
+    plannedHoles: [plannedHoles, setPlannedHoles], designLines: [designLines, setDesignLines], designStrings: [designStrings, setDesignStrings], surfaceSamples: [surfaceSamples, setSurfaceSamples], surfaceElements: [surfaceElements, setSurfaceElements], geochemThresholds: [geochemThresholds, setGeochemThresholds], surfaceQc: [surfaceQc, setSurfaceQc],
     evidenceOverlay: [evidenceOverlay, setEvidenceOverlay], // TASKS.csv #1003
     generatedSurfaces: [generatedSurfaces, setGeneratedSurfaces], modelDomains: [modelDomains, setModelDomains],
   };
@@ -1573,6 +1574,7 @@ export function StoreProvider({ children }) {
     surfaceQc, setSurfaceQc, // TASKS.csv #842
     evidenceOverlay, setEvidenceOverlay, // TASKS.csv #1003
     designLines, setDesignLines, // TASKS.csv #1342
+    designStrings, setDesignStrings, // TASKS.csv #1876
     customLayers, setCustomLayers,
     dbConnections, setDbConnections,
     getProjectPayload: snapshotCurrentPayload, // TASKS.csv #598 — the project, as Save would write it, for an opt-in problem report

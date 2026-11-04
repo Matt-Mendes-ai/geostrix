@@ -22,6 +22,8 @@ function labelOf(key) {
     case "excludedIntercepts": case "softIntercepts": case "interceptSets": return tr("intercepts");
     case "sections": case "sectionGroups": return tr("sections");
     case "plannedHoles": return tr("planned holes");
+    case "designLines": return tr("design lines"); // #1754
+    case "designStrings": return tr("design strings"); // #1876
     case "surfaceSamples": case "surfaceElements": return tr("surface samples");
     case "geochemThresholds": return tr("geochem thresholds");
     case "surfaceQc": return tr("surface QAQC");

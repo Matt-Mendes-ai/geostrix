@@ -93,6 +93,7 @@ const EvidenceOverlayPane = React.lazy(() => import("../components/EvidenceOverl
 const PitShellPane = React.lazy(() => import("../components/PitShellPane.jsx")); // TASKS.csv #1341
 const DesignLinesPane = React.lazy(() => import("../components/DesignLinesPane.jsx")); // TASKS.csv #1342
 const PitDesignPane = React.lazy(() => import("../components/PitDesignPane.jsx")); // TASKS.csv #1874
+const DesignStringsPane = React.lazy(() => import("../components/DesignStringsPane.jsx")); // TASKS.csv #1876
 const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")); // TASKS.csv #1152
 const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
@@ -694,6 +695,7 @@ const SURFACE_TYPES = [
   { key: "unit_body", label: "Unit body (closed)" }, // TASKS.csv #1340 — a rock unit from its modelling code
   { key: "pit_shell", label: "Pit shell (conceptual)" }, // TASKS.csv #1341
   { key: "pit_design", label: "Pit design (benched)" }, // TASKS.csv #1874
+  { key: "design_solid", label: "Design solid (from strings)" }, // TASKS.csv #1877
   // TASKS.csv #144 — a vein/dyke is modelled as a PAIR of walls plus (optionally) the solid between
   // them, so the three parts get distinct types: they are not interchangeable, and the checker (#90)
   // reads "hangingwall is above footwall" off the relationship these are created with.
@@ -778,7 +780,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     collars, setCollars, survey, setSurvey, layers, setLayers, replaceLayer, assays, assayElements,
     desurveyMethod, // TASKS.csv #135 — project-wide desurvey method; every trace built here must use it
     surfaceSamples, surfaceElements,
-    designLines, /* TASKS.csv #1342 */ plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,
+    designLines, /* TASKS.csv #1342 */ designStrings, /* TASKS.csv #1876 */ plannedHoles, addPlannedHole, updatePlannedHole, removePlannedHole,
     generatedSurfaces, setGeneratedSurfaces, modelDomains, setModelDomains, // TASKS.csv #52 — persisted implicit surfaces + domains
     getProjectToken, isSameProject, // TASKS.csv #466
     customLayers: storeCustomLayers, setCustomLayers: setStoreCustomLayers,
@@ -2182,6 +2184,15 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // the three.js init effect below) and onMeasureClick further down — one raycaster, nearest hit among
   // pickHoverTargets() above, falling back to a flat plane at local y=0 (the origin's own elevation).
   const raycastWorldPoint = useCallback((raycaster) => worldPointFromHits(raycaster, pickHits(raycaster)), [pickHits, worldPointFromHits]);
+  // TASKS.csv #1876 — the world point under a client (x, y): what the design-string pane's clicks land on
+  const worldPointAtClient = useCallback((clientX, clientY) => {
+    const mount = mountRef.current, cam = cameraRef.current;
+    if (!mount || !cam) return null;
+    const rect = mount.getBoundingClientRect();
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(new THREE.Vector2(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1), cam);
+    return worldPointFromHits(raycaster, pickHits(raycaster).filter((h) => !h.object.userData.flatRaster)); // #1453
+  }, [pickHits, worldPointFromHits]);
 
   // ---------- three.js init ----------
   useEffect(() => {
@@ -5863,6 +5874,30 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     });
     return () => { live = false; };
   }, [designLines, collars]); // collars: they set the scene's origin
+  // TASKS.csv #1876 — design strings in the view: a line (a loop when closed) and a dot per vertex, over the rock like the design lines
+  const stringGroupRef = useRef(null);
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return undefined;
+    const clear = () => { const g = stringGroupRef.current; if (g) { scene.remove(g); g.traverse((o) => { o.geometry?.dispose(); o.material?.dispose(); }); stringGroupRef.current = null; } lastActivityRef.current = Date.now(); };
+    clear();
+    if (!designStrings.length) return undefined;
+    const g = new THREE.Group(), { x: ox, y: oy, z: oz } = originRef.current;
+    g.name = "designStrings";
+    designStrings.forEach((s) => {
+      if (s.visible === false || !s.vertices?.length) return;
+      const pts = s.vertices.filter((v) => v.every(Number.isFinite)).map((v) => new THREE.Vector3(v[0] - ox, v[2] - oz, -(v[1] - oy)));
+      if (!pts.length) return;
+      const mat = new THREE.LineBasicMaterial({ color: s.color || "#1971c2", depthTest: false, transparent: true });
+      const line = pts.length > 1 ? (s.closed && pts.length > 2 ? new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), mat) : new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat)) : null;
+      const dots = new THREE.Points(new THREE.BufferGeometry().setFromPoints(pts), new THREE.PointsMaterial({ color: s.color || "#1971c2", size: 6, sizeAttenuation: false, depthTest: false, transparent: true }));
+      [line, dots].forEach((o) => { if (!o) return; o.renderOrder = 10; o.frustumCulled = false; o.userData = { tip: `${s.name}` }; g.add(o); });
+    });
+    scene.add(g);
+    stringGroupRef.current = g;
+    lastActivityRef.current = Date.now();
+    return undefined;
+  }, [designStrings, collars]); // collars: they set the scene's origin
 
   // TASKS.csv #121 — measurement tool's own 3D visual: a solid line/polyline for distance mode (each
   // segment is a real placed measurement, unlike the dashed "planned/proposed" convention #188 uses),
@@ -7165,6 +7200,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           <RibbonGroup label="Underground">
             <RibbonButton icon={Spline} label="Drifts and ramps" tone="model" title="Draw drifts, tunnels, ramps and declines at set grades, with curves of a chosen radius" {...paneProps("lines")} />
           </RibbonGroup>
+          <RibbonGroup label="CAD">{/* TASKS.csv #1876 / #1877 */}
+            <RibbonButton icon={PenTool} label="Strings" tone="model" title="Free polylines and polygons in 3D: draw, type, offset, join and split them; extrude or loft closed ones into solids; DXF in and out" {...paneProps("strings")} />
+          </RibbonGroup>
         </Ribbon>
       )}
       {mode === "targeting" && (
@@ -8294,6 +8332,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
         {sidebarTab === "minedesign" && toolPane === "pit" && <Suspense fallback={null}><PitShellPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} /* #1498 */ onClose={() => setToolPane(null)} /></Suspense>}
         {sidebarTab === "minedesign" && toolPane === "pitdesign" && <Suspense fallback={null}><PitDesignPane surfaces={implicitSurfaces} worldPositionsOf={worldPositionsOfSurface} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1874 */}
+        {sidebarTab === "minedesign" && toolPane === "strings" && <Suspense fallback={null}><DesignStringsPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient }} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1876 */}
         {sidebarTab === "minedesign" && toolPane === "lines" && <Suspense fallback={null}><DesignLinesPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef }} onClose={() => setToolPane(null)} /></Suspense>}
         {sidebarTab === "targeting" && (<>
         {toolPane === "ranges" && (<>
