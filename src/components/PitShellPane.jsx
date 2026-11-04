@@ -145,6 +145,8 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
         <label style={row}>{tr("Block model")}<select value={modelId} onChange={(e) => setModelId(e.target.value)} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Block model of the pit")}>
           {models.map((m) => <option key={m.id ?? m.name} value={m.id ?? m.name}>{m.name}</option>)}
         </select></label>
+        {/* TASKS.csv #1615 — one metal, one price: say how a by-product (Ag beside Au) can count at all */}
+        {model && <div style={note}>{tr("One block model, one price: a by-product metal counts only through a metal-equivalent model (Geochem › calculated element, e.g. AuEq with Ag at a stated ratio) estimated into blocks and priced as the main metal.")}</div>}
         {model && !stated && <label style={row}>{tr("Its grades are in")}<select value={f.unit} onChange={set("unit")} style={num} aria-label={tr("Grade unit of the block model")}><option value="">{tr("— choose —")}</option>{GRADE_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}</select></label>}
         <label style={row}>{tr("Metal price")}<span style={{ display: "flex", gap: 4 }}><input type="number" min={0} step="any" value={priceStale ? "" : f.price} onChange={setPrice} style={num} aria-label={tr("Metal price")} />
           <select value={priceUnit || ""} onChange={setPriceUnit} disabled={!prices} style={{ ...smallSel, width: 62 }} aria-label={tr("Price unit")}>{(prices || []).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></span></label>
