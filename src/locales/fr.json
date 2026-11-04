@@ -7476,5 +7476,10 @@
   "A solid joins the generated surfaces (3D Modelling) with its volume and, at a density, its tonnes; a block model gives its mean grade from the blocks whose centre lies inside.": "Un solide rejoint les surfaces générées (Modélisation 3D) avec son volume et, à une densité, ses tonnes ; un modèle de blocs donne sa teneur moyenne d'après les blocs dont le centre est à l'intérieur.",
   "\"{name}\" is closed: open it first (Open) to join another string on at its end.": "« {name} » est fermée : ouvrez-la d'abord (Ouvrir) pour y joindre une autre polyligne à son extrémité.",
   "A closed string cannot take another on: open it first.": "Une polyligne fermée ne peut pas en recevoir une autre : ouvrez-la d'abord.",
-  "The height of each stope: the distance between sublevels. A column counts as ore on a level only where its blocks fill at least half of it.": "La hauteur de chaque chantier : la distance entre sous-niveaux. Une colonne ne compte comme minerai sur un niveau que là où ses blocs en remplissent au moins la moitié."
+  "The height of each stope: the distance between sublevels. A column counts as ore on a level only where its blocks fill at least half of it.": "La hauteur de chaque chantier : la distance entre sous-niveaux. Une colonne ne compte comme minerai sur un niveau que là où ses blocs en remplissent au moins la moitié.",
+  "Ore (largest pit)": "Minerai (plus grande fosse)",
+  "Mean grade (largest pit)": "Teneur moyenne (plus grande fosse)",
+  "Waste (largest pit)": "Stérile (plus grande fosse)",
+  "Strip ratio (largest pit)": "Ratio stérile (plus grande fosse)",
+  "Nothing under the cursor there: the target was not changed.": "Rien sous le curseur à cet endroit : la cible n'a pas changé."
 }

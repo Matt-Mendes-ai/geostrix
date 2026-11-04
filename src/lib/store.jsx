@@ -573,7 +573,9 @@ export function StoreProvider({ children }) {
     // not just cut off everything below one number. Defaults to `max` (i.e. unbounded/no filtering)
     // so every model still shows fully until a user explicitly narrows it — same backward-compatible
     // default the rest of this object's fields already follow.
-    setVoxelModels((p) => [...p, { visible: true, opacity: 1, threshold: min, rangeMax: max, min, max, ...model, id }]);
+    // TASKS.csv #1930 — two estimates with the same settings (one clipped to the ground, one not) got one name, and every
+    // picker and pit name after them could not tell them apart: a repeated name takes a (2), (3) ... suffix
+    setVoxelModels((p) => { const taken = new Set(p.map((v) => v.name)); let name = model.name, k = 2; while (name && taken.has(name)) name = `${model.name} (${k++})`; return [...p, { visible: true, opacity: 1, threshold: min, rangeMax: max, min, max, ...model, id, name }]; });
     return id;
   }, []);
   // TASKS.csv #466 — a finished job's block model goes to the project that STARTED it: live if that project

@@ -109,6 +109,9 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
   const exportStringsDxf = () => saveFile({ suggestedName: "pit_design_strings.dxf", filters: [{ name: "DXF", extensions: ["dxf"] }], content: buildDXF({ features: benchStringFeatures(res.strings), geomType: "line", layerOf: (ft) => ft.attributes.name, colorOf: (ft) => (ft.attributes.kind === "crest" ? "#b22222" : "#1f6fb2") }) });
   const exportStringsCsv = () => saveFile({ suggestedName: "pit_design_strings.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(benchStringRows(res.strings).map((r) => ({ ...r, crs: crsCell(project) }))) });
   const exportBenchesCsv = () => saveFile({ suggestedName: "pit_design_benches.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(benchTableRows(res.benches, res.unit).map((r) => ({ ...r, pit: res.pitName, crs: crsCell(project) }))) });
+  // #1929 — the figures in brackets: the whole shell's, or the largest separate pit's when that alone was designed
+  const cmp = res?.partsDropped > 0 && res.shell?.largestPit ? res.shell.largestPit : (res?.shell || {});
+  const cmpLabel = (whole, part) => (res?.partsDropped > 0 && res.shell?.largestPit ? part : whole);
   const line = (label, val) => <div style={row}><span>{label}</span><b>{val}</b></div>;
   const field = (k, label, extra = {}) => <label style={row}>{label}<input type="number" min={0} step="any" value={f[k]} onChange={set(k)} style={num} {...extra} /></label>;
   const metalText = (r) => { // the shell's contained metal is in its own unit; the design's is scaled from the same grade basis
@@ -171,11 +174,12 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
         <div style={{ marginTop: 8, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
           {line(tr("Benches"), tr("{n} ({lo} to {hi} m)", { n: res.benches.length, lo: Math.round(res.floorRL), hi: Math.round(res.crestRL) }))}
           {line(tr("Inter-ramp angle"), `${res.interRampDeg.toFixed(1)}°`)}
-          {line(tr("Ore (shell)"), `${big(res.totals.oreT)} t (${big(Number(res.shell.oreTonnes) || 0)} t)`)}
-          {line(tr("Mean grade (shell)"), `${gradeText(res.totals.meanGrade)} (${gradeText(Number(res.shell.meanGrade) || null)})`)}
+          {/* #1929 — when the largest part alone was designed, the comparison is that part's, not the whole shell's */}
+          {line(cmpLabel(tr("Ore (shell)"), tr("Ore (largest pit)")), `${big(res.totals.oreT)} t (${big(Number(cmp.oreTonnes) || 0)} t)`)}
+          {line(cmpLabel(tr("Mean grade (shell)"), tr("Mean grade (largest pit)")), `${gradeText(res.totals.meanGrade)} (${gradeText(Number(cmp.meanGrade) || null)})`)}
           {metalText(res) && line(tr("Contained metal"), metalText(res))}
-          {line(tr("Waste (shell)"), `${big(res.totals.wasteT)} t (${big(Number(res.shell.wasteTonnes) || 0)} t)`)}
-          {line(tr("Strip ratio (shell)"), `${res.totals.stripRatio == null ? "—" : res.totals.stripRatio.toFixed(2)} (${Number.isFinite(Number(res.shell.stripRatio)) ? Number(res.shell.stripRatio).toFixed(2) : "—"})`)}
+          {line(cmpLabel(tr("Waste (shell)"), tr("Waste (largest pit)")), `${big(res.totals.wasteT)} t (${big(Number(cmp.wasteTonnes) || 0)} t)`)}
+          {line(cmpLabel(tr("Strip ratio (shell)"), tr("Strip ratio (largest pit)")), `${res.totals.stripRatio == null ? "—" : res.totals.stripRatio.toFixed(2)} (${Number.isFinite(Number(cmp.stripRatio)) ? Number(cmp.stripRatio).toFixed(2) : "—"})`)}
           {line(tr("Design cell"), `${res.cell.toFixed(1)} m`)}
           {line(tr("Designed in"), `${res.seconds} s`)}
           {res.modelMissing && <div style={warn}>{tr("No block model: the ore column is empty, the rock is counted.")}</div>}

@@ -198,17 +198,20 @@ export function declineToTarget(line, target, { maxGrade, minRadius }) {
   }
   if (!(g > 0) && Math.abs(dz) > 1e-6) return { segments: [], turns: 0, grade: 0, run: route.run, length: 0, insideCircle: false, needsGrade: true };
   // whole turns of a spiral at the minimum radius to lose what the route cannot
-  let turns = 0, spiralDz = 0;
+  let turns = 0, spiralDz = 0, gSpiral = g;
   const canLose = route.run * g, need = Math.abs(dz);
   if (need > canLose + 1e-9) {
     if (!(R > 0)) return { segments: [], turns: 0, grade: 0, run: route.run, length: 0, insideCircle: false, needsRadius: true };
     const perTurn = 2 * Math.PI * R * g;
     turns = Math.ceil((need - canLose) / perTurn);
-    spiralDz = Math.sign(dz) * turns * perTurn;
+    // TASKS.csv #1920 — whole turns at the maximum grade overshot the target and the last run climbed back (+0.4 %): the spiral
+    // and the route now share the one grade that lands exactly, never above the maximum
+    gSpiral = need / (turns * 2 * Math.PI * R + route.run);
+    spiralDz = Math.sign(dz) * turns * 2 * Math.PI * R * gSpiral;
   }
   const rest = dz - spiralDz, grade = route.run > 1e-9 ? +((rest / route.run) * 100).toFixed(2) : 0, slope = Math.sqrt(1 + (grade / 100) ** 2); // 2 decimals: #1895
   const segments = [];
-  if (turns > 0) segments.push({ type: "curve", radius: R, turn, angle: 360 * turns, grade: +(Math.sign(dz) * g * 100).toFixed(2) });
+  if (turns > 0) segments.push({ type: "curve", radius: R, turn, angle: 360 * turns, grade: +(Math.sign(dz) * gSpiral * 100).toFixed(2) });
   if (route.curve) segments.push({ type: "curve", ...route.curve, grade });
   if (route.straight > 1e-3) segments.push({ type: "straight", length: +(route.straight * slope).toFixed(3), azimuth: route.azimuth ?? null, grade });
   const segLen = (s) => (s.type === "curve" ? s.radius * s.angle * RAD * Math.sqrt(1 + (s.grade / 100) ** 2) : s.length);

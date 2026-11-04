@@ -7476,5 +7476,10 @@
   "A solid joins the generated surfaces (3D Modelling) with its volume and, at a density, its tonnes; a block model gives its mean grade from the blocks whose centre lies inside.": "Un sólido se une a las superficies generadas (Modelado 3D) con su volumen y, con una densidad, sus toneladas; un modelo de bloques da su ley media a partir de los bloques cuyo centro queda dentro.",
   "\"{name}\" is closed: open it first (Open) to join another string on at its end.": "\"{name}\" está cerrado: ábralo primero (Abrir) para unir otro string a su extremo.",
   "A closed string cannot take another on: open it first.": "Un string cerrado no puede recibir otro: ábralo primero.",
-  "The height of each stope: the distance between sublevels. A column counts as ore on a level only where its blocks fill at least half of it.": "La altura de cada caserón: la distancia entre subniveles. Una columna cuenta como mineral en un nivel solo donde sus bloques llenan al menos la mitad."
+  "The height of each stope: the distance between sublevels. A column counts as ore on a level only where its blocks fill at least half of it.": "La altura de cada caserón: la distancia entre subniveles. Una columna cuenta como mineral en un nivel solo donde sus bloques llenan al menos la mitad.",
+  "Ore (largest pit)": "Mineral (rajo mayor)",
+  "Mean grade (largest pit)": "Ley media (rajo mayor)",
+  "Waste (largest pit)": "Estéril (rajo mayor)",
+  "Strip ratio (largest pit)": "Razón de estéril (rajo mayor)",
+  "Nothing under the cursor there: the target was not changed.": "Nada bajo el cursor ahí: el objetivo no cambió."
 }

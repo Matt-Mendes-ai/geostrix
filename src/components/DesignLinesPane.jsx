@@ -133,6 +133,7 @@ export default function DesignLinesPane({ view, onClose }) {
         if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 5) return;
         const w = view.worldPointAt?.(ev.clientX, ev.clientY);
         if (w) { setTgt((t) => ({ ...t, x: String(+w.x.toFixed(2)), y: String(+w.y.toFixed(2)), z: String(+w.z.toFixed(2)), holeId: "" })); setPickedOn({ on: w.on || null, z: w.z }); }
+        else setPickedOn({ miss: true }); // #1921
         setPicking(false);
       };
       window.addEventListener("pointerup", onUp);
@@ -311,7 +312,8 @@ export default function DesignLinesPane({ view, onClose }) {
             <label style={{ ...row, marginTop: 0 }}>{tr("Max grade (%)")}<input type="number" min={0} step="any" value={tgt.maxGrade} onChange={(e) => { toTargetDefaults.maxGrade = e.target.value; setTgt((t) => ({ ...t, maxGrade: e.target.value })); }} style={num} aria-label={tr("Maximum grade to the target")} /></label>
             <label style={{ ...row, marginTop: 0 }}>{tr("Min radius (m)")}<input type="number" min={0} step="any" value={tgt.minRadius} onChange={(e) => { toTargetDefaults.minRadius = e.target.value; setTgt((t) => ({ ...t, minRadius: e.target.value })); }} style={num} aria-label={tr("Minimum curve radius to the target")} /></label>
           </div>
-          {pickedOn && !tgt.holeId && <div style={note}>{pickedOn.on ? tr("Picked on {name} at Z {z}: set the Z by hand if that is not the elevation you mean.", { name: pickedOn.on, z: m1(pickedOn.z) }) : tr("Picked on the flat reference plane (nothing drawn under the cursor): set the Z by hand.")}</div>}{/* #1891 */}
+          {pickedOn?.miss && <div style={note}>{tr("Nothing under the cursor there: the target was not changed.")}</div>}{/* #1921 */}
+          {pickedOn && !pickedOn.miss && !tgt.holeId && <div style={note}>{pickedOn.on ? tr("Picked on {name} at Z {z}: set the Z by hand if that is not the elevation you mean.", { name: pickedOn.on, z: m1(pickedOn.z) }) : tr("Picked on the flat reference plane (nothing drawn under the cursor): set the Z by hand.")}</div>}{/* #1891 */}
           <button onClick={designToTarget} disabled={!targetPoint()} style={{ ...pBtn, marginTop: 4, opacity: targetPoint() ? 1 : 0.5 }}><Spline size={14} /> {tr("Design to the target")}</button>
           {toTargetMsg && <div style={note}>{toTargetMsg}</div>}
         </>)}
