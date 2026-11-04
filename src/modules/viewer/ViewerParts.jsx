@@ -23,7 +23,7 @@ export function ViewToolbar({
   themes, themeNameDraft, setThemeNameDraft, captureCurrentTheme, applyTheme,
   renamingThemeId, setRenamingThemeId, renameDraft, setRenameDraft, renameTheme, deleteTheme,
   onDbConnect, onQc, qcDisabled, onBoundaryIntercepts, boundaryDisabled, onSqlWorkspace, sqlDisabled,
-  onSnapshot, snapshotDisabled, onExportHoles, sectionMode, onToggleSection, sectionCorridor, setSectionCorridor,
+  onSnapshot, snapshotDisabled, exportDisabled = snapshotDisabled, onExportHoles, sectionMode, onToggleSection, sectionCorridor, setSectionCorridor,
   identifyOn, onToggleIdentify, measureMode, onToggleMeasure, onSwitchMeasureMode, measurePts, clearMeasure,
   interpretOpen, onInterpret, // TASKS.csv #1152
   show, paneProps, // TASKS.csv #458
@@ -214,8 +214,8 @@ export function ViewToolbar({
         </div>
         {/* TASKS.csv #1085 — the drillhole exports, which lived only on right-click of the import buttons */}
         <div className="ge-ribbon-cell">
-          <HoverToolInfo title={tr("Export drillholes")} text={snapshotDisabled ? tr("Load some data first.") : tr("Collars as points and hole traces as 3D lines (Shapefile, GeoPackage, DXF), or every drillhole table as CSV. Traces are exported whether they come from a survey file or from the collar azimuth, dip and length.")}>
-            <button className={`ge-ribbon-btn${snapshotDisabled ? " is-disabled" : ""}`} onClick={snapshotDisabled ? undefined : onExportHoles} aria-disabled={snapshotDisabled || undefined} aria-haspopup="menu"><Download size={22} strokeWidth={1.7} color={RIBBON_TONES.output} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Export")}</span></button>
+          <HoverToolInfo title={tr("Export drillholes")} text={exportDisabled ? tr("No drillholes to export: load collars first.") : tr("Collars as points and hole traces as 3D lines (Shapefile, GeoPackage, DXF), or every drillhole table as CSV. Traces are exported whether they come from a survey file or from the collar azimuth, dip and length.")}>
+            <button className={`ge-ribbon-btn${exportDisabled ? " is-disabled" : ""}`} onClick={exportDisabled ? undefined : onExportHoles} aria-disabled={exportDisabled || undefined} aria-haspopup="menu"><Download size={22} strokeWidth={1.7} color={RIBBON_TONES.output} aria-hidden="true" /><span className="ge-ribbon-label">{tr("Export")}</span></button>
           </HoverToolInfo>
         </div>
       </RibbonGroup>

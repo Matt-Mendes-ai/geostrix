@@ -1930,6 +1930,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       for (const p of pts) { if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; if (p.z < z0) z0 = p.z; if (p.z > z1) z1 = p.z; }
       return { x0, x1, y0, y1, z0, z1 };
     }
+    // #1804 — no hole traces: the data's own box (block models, samples, rasters), as the build recorded it
+    const box = (lastTracesRef.current || []).flat();
+    if (box.length) return { x0: Math.min(...box.map((p) => p.x)), x1: Math.max(...box.map((p) => p.x)), y0: Math.min(...box.map((p) => p.y)), y1: Math.max(...box.map((p) => p.y)), z0: Math.min(...box.map((p) => p.z)), z1: Math.max(...box.map((p) => p.z)) };
     return null;
   }, [slice3d.on, collars, survey, rebuildSeq]);
   const sliceReadout = useMemo(() => {
@@ -4702,6 +4705,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           new THREE.Vector3(bxmax - rox, ezMax - roz, -(bymin - roy)),
         );
         fitBox(box, 1.3);
+        // TASKS.csv #1803 / #1804 / #1805 (review #1646, Kodiak) — with no collars the anchor box is the fit extent: Fit / Zoom to fit all /
+        // the 3D slice range used hole traces only, and Snapshot was disabled ('Load some data first') beside two IP models
+        lastTracesRef.current = [[{ x: box.min.x, y: box.min.y, z: box.min.z }, { x: box.max.x, y: box.max.y, z: box.max.z }]];
+        lastHoleTraceCountRef.current = 0;
+        setDataLoaded(true);
       }
       // TASKS.csv #312 — this no-collars branch builds geophys_pts/surface_samples itself and then
       // returns before the main path's own buildLayerBatches pass at the end of this effect, so it
@@ -7046,7 +7054,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           onQc={() => setQcModalOpen(true)} qcDisabled={!collars.length}
           onBoundaryIntercepts={() => setInterceptsModalOpen(true)} boundaryDisabled={!collars.length}
           onSqlWorkspace={() => setSqlModalOpen(true)} sqlDisabled={!collars.length && !assays.length}
-          onSnapshot={snapshotToLayout} snapshotDisabled={!dataLoaded}
+          onSnapshot={snapshotToLayout} snapshotDisabled={!dataLoaded} exportDisabled={!collars.length} /* #1803 — drillhole exports need holes */
           onExportHoles={(e) => { const r = e.currentTarget.getBoundingClientRect(); setLayerContextMenu({ key: "__drillholes__", label: tr("Export drillholes"), x: Math.max(8, Math.min(r.left, window.innerWidth - 320)), y: r.bottom + 4 }); }} /* #1085 */
           sectionMode={sectionMode}
           onToggleSection={() => { setRectZoomMode(false); setMeasureMode(null); setMeasurePts([]); setSectionMode((s) => !s); sectionPts.current = []; setSectionPreview(null); }}

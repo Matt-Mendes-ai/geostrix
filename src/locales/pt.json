@@ -7089,5 +7089,6 @@
   "Open Planned holes aimed at the zone's point farthest from the drilling: choose a collar, then Solve": "Abrir Furos planejados mirando o ponto da zona mais distante da sondagem: escolha uma boca de furo e depois Resolver",
   "Azimuth (grid)": "Azimute (quadrícula)",
   "* From the shallowest survey station: the collar record has none for that value.": "* Da estação de levantamento mais rasa: o registro da boca não tem esse valor.",
-  "No below-detection results in this element, so its lowest value ({dl} {unit}) is not a detection limit: every pair counts.": "Este elemento não tem resultados abaixo da detecção, então seu menor valor ({dl} {unit}) não é um limite de detecção: todos os pares contam."
+  "No below-detection results in this element, so its lowest value ({dl} {unit}) is not a detection limit: every pair counts.": "Este elemento não tem resultados abaixo da detecção, então seu menor valor ({dl} {unit}) não é um limite de detecção: todos os pares contam.",
+  "No drillholes to export: load collars first.": "Não há furos para exportar: carregue primeiro as bocas de furo."
 }
