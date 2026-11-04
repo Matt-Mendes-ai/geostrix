@@ -1550,6 +1550,9 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
   const gridOk = utmGridReady(sel); // TASKS.csv #399
   return (
     <div style={{ marginTop: 4 }}>
+      {sel.samplesUnplaced > 0 && ( // TASKS.csv #1864 — the 3D view could not place these, so no capture holds them
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr(sel.samplesUnplaced === 1 ? "{n} surface sample is not in this frame: it lies over a void of the terrain, with no ground to sit on. Geochem > Plan map draws every sample by X / Y." : "{n} surface samples are not in this frame: they lie over a void of the terrain, with no ground to sit on. Geochem > Plan map draws every sample by X / Y.", { n: sel.samplesUnplaced.toLocaleString() })}</div>
+      )}
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: gridOk ? "var(--color-text)" : "var(--color-text-muted)", marginBottom: 6, cursor: gridOk ? "pointer" : "default" }}
         title={gridOk ? tr("Draw labelled easting/northing lines over this view") : tr("Needs a top-down, true-scale capture: set the 3D view to Top, tick true scale, and refresh this viewport.")}>
         <input type="checkbox" disabled={!gridOk} checked={!!sel.utmGrid && gridOk} onChange={(e) => updateSelected({ utmGrid: e.target.checked })} />{tr("UTM grid (labelled)")}{gridOk && sel.utmGrid && (

@@ -7807,5 +7807,7 @@
   "Assign scale bar to this map": "تعيين شريط المقياس لهذه الخريطة",
   "A plan map from Geochem, drawn as it was when sent: to change it, make a new one from Geochem > Plan map. Resizing it changes its scale.": "خريطة مسقطية من الجيوكيمياء، مرسومة كما كانت عند إرسالها: لتغييرها، أنشئ واحدة جديدة من الجيوكيمياء > خريطة مسقطية. تغيير حجمها يغيّر مقياسها.",
   "{n} surface sample": "{n} عينة سطحية",
-  "Surface samples in plan, classed by a saved threshold and over a block-model level: Geochem > Plan map.": "العينات السطحية في المسقط، مصنفة حسب عتبة محفوظة وفوق مستوى من نموذج كتلي: الجيوكيمياء > خريطة مسقطية."
+  "Surface samples in plan, classed by a saved threshold and over a block-model level: Geochem > Plan map.": "العينات السطحية في المسقط، مصنفة حسب عتبة محفوظة وفوق مستوى من نموذج كتلي: الجيوكيمياء > خريطة مسقطية.",
+  "{n} surface sample is not in this frame: it lies over a void of the terrain, with no ground to sit on. Geochem > Plan map draws every sample by X / Y.": "{n} عينة سطحية ليست في هذا الإطار: تقع فوق فراغ في التضاريس، بلا أرض تستقر عليها. الجيوكيمياء > خريطة مسقطية ترسم كل عينة حسب X / Y.",
+  "{n} surface samples are not in this frame: they lie over a void of the terrain, with no ground to sit on. Geochem > Plan map draws every sample by X / Y.": "{n} عينات سطحية ليست في هذا الإطار: تقع فوق فراغ في التضاريس، بلا أرض تستقر عليها. الجيوكيمياء > خريطة مسقطية ترسم كل عينة حسب X / Y."
 }

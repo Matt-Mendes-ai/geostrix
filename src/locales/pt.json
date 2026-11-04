@@ -7807,5 +7807,7 @@
   "Assign scale bar to this map": "Atribuir barra de escala a este mapa",
   "A plan map from Geochem, drawn as it was when sent: to change it, make a new one from Geochem > Plan map. Resizing it changes its scale.": "Um mapa em planta da Geoquímica, desenhado como estava ao ser enviado: para mudá-lo, faça um novo em Geoquímica > Mapa em planta. Redimensioná-lo muda a sua escala.",
   "{n} surface sample": "{n} amostra de superfície",
-  "Surface samples in plan, classed by a saved threshold and over a block-model level: Geochem > Plan map.": "Amostras de superfície em planta, classificadas por um limiar salvo e sobre um nível de um modelo de blocos: Geoquímica > Mapa em planta."
+  "Surface samples in plan, classed by a saved threshold and over a block-model level: Geochem > Plan map.": "Amostras de superfície em planta, classificadas por um limiar salvo e sobre um nível de um modelo de blocos: Geoquímica > Mapa em planta.",
+  "{n} surface sample is not in this frame: it lies over a void of the terrain, with no ground to sit on. Geochem > Plan map draws every sample by X / Y.": "{n} amostra de superfície não está neste quadro: fica sobre um vazio do terreno, sem chão onde assentar. Geoquímica > Mapa em planta desenha cada amostra por X / Y.",
+  "{n} surface samples are not in this frame: they lie over a void of the terrain, with no ground to sit on. Geochem > Plan map draws every sample by X / Y.": "{n} amostras de superfície não estão neste quadro: ficam sobre um vazio do terreno, sem chão onde assentar. Geoquímica > Mapa em planta desenha cada amostra por X / Y."
 }

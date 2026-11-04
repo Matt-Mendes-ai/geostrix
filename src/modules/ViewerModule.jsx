@@ -1308,6 +1308,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     return next;
   }, [surfaceSamples, terrain, surfaceFlatZ]);
   const surfaceSamplesUnplaced = surfaceSamples.length - placedSurfaceSamples.length;
+  const unplacedForCaptureRef = useRef(0); unplacedForCaptureRef.current = surfaceSamplesUnplaced; // TASKS.csv #1864 — read by the Layout capture
   const surfaceSamplesFlat = useMemo(() => placedSurfaceSamples.reduce((n, r) => n + (r.zFlat ? 1 : 0), 0), [placedSurfaceSamples]);
   const surfaceSamplesFlatOutside = useMemo(() => placedSurfaceSamples.reduce((n, r) => n + (r.zFlat && r.zOutside ? 1 : 0), 0), [placedSurfaceSamples]); // #1806
   // #1819 — each drawn sample's index in surfaceSamples (the anomaly classes are per surfaceSamples index)
@@ -3219,6 +3220,7 @@ ${describeTrend(t)}` };
       // TASKS.csv #948 — a "current view" capture has no theme to read its legend from: the view's own settings (the same
       // bundle a theme saves), kept on the viewport so Layout's "Load from view" works for it
       viewState: theme ? null : liveViewBeforeRender,
+      samplesUnplaced: unplacedForCaptureRef.current, // TASKS.csv #1864 — surface samples over a void of the terrain: in no frame
     }), (err) => resolveViewportRender({ requestId: req.requestId, error: err.message }));
     // Hopping back to "layout" now happens in store.jsx's own result-effect (right after it applies
     // this result to layoutElements), not here — that effect also covers the "Theme not found"/
