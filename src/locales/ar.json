@@ -7092,5 +7092,6 @@
   "No below-detection results in this element, so its lowest value ({dl} {unit}) is not a detection limit: every pair counts.": "لا توجد نتائج دون حد الكشف لهذا العنصر، لذا فإن أصغر قيمة له ({dl} {unit}) ليست حد كشف: تُحتسب كل الأزواج.",
   "No drillholes to export: load collars first.": "لا توجد ثقوب حفر لتصديرها: حمّل الفوهات أولًا.",
   "{n} surface sample(s) have no elevation and there is no terrain: drawn flat at {z} m (the median collar or sample elevation). Load a terrain (Maps > Terrain) to place them on the ground.": "{n} عينة سطحية بلا ارتفاع ولا توجد تضاريس: تُرسم مستوية عند {z} م (الارتفاع الوسيط للفوهات أو للعينات). حمّل تضاريس (الخرائط > التضاريس) لوضعها على الأرض.",
-  "Classes are computed on all {n} samples; {m} of them are not drawn (no elevation, off the terrain).": "تُحسب الفئات على جميع العينات البالغ عددها {n}؛ و{m} منها غير مرسومة (بلا ارتفاع، خارج التضاريس)."
+  "Classes are computed on all {n} samples; {m} of them are not drawn (no elevation, off the terrain).": "تُحسب الفئات على جميع العينات البالغ عددها {n}؛ و{m} منها غير مرسومة (بلا ارتفاع، خارج التضاريس).",
+  "Not offered: {list}. Geophysical, categorical and estimation-quality models are not grades.": "غير معروضة: {list}. النماذج الجيوفيزيائية والفئوية ونماذج جودة التقدير ليست محتويات."
 }

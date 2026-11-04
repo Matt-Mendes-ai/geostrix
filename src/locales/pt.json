@@ -7092,5 +7092,6 @@
   "No below-detection results in this element, so its lowest value ({dl} {unit}) is not a detection limit: every pair counts.": "Este elemento não tem resultados abaixo da detecção, então seu menor valor ({dl} {unit}) não é um limite de detecção: todos os pares contam.",
   "No drillholes to export: load collars first.": "Não há furos para exportar: carregue primeiro as bocas de furo.",
   "{n} surface sample(s) have no elevation and there is no terrain: drawn flat at {z} m (the median collar or sample elevation). Load a terrain (Maps > Terrain) to place them on the ground.": "{n} amostra(s) de superfície não têm elevação e não há terreno: desenhadas planas a {z} m (a elevação mediana das bocas de furo ou das amostras). Carregue um terreno (Mapas > Terreno) para colocá-las sobre o solo.",
-  "Classes are computed on all {n} samples; {m} of them are not drawn (no elevation, off the terrain).": "As classes são calculadas sobre todas as {n} amostras; {m} delas não são desenhadas (sem elevação, fora do terreno)."
+  "Classes are computed on all {n} samples; {m} of them are not drawn (no elevation, off the terrain).": "As classes são calculadas sobre todas as {n} amostras; {m} delas não são desenhadas (sem elevação, fora do terreno).",
+  "Not offered: {list}. Geophysical, categorical and estimation-quality models are not grades.": "Não oferecidos: {list}. Modelos geofísicos, categóricos e de qualidade da estimativa não são teores."
 }

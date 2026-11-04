@@ -7,9 +7,10 @@ import { confirmDestructive } from "../lib/confirmDestructive.js"; // #1498
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
 import { PRICE_UNITS, pitEconomics, pitMetalOf, elementOfModel } from "../lib/pitShell.js"; // pitMetalOf / elementOfModel: #1748
-import { metalOf, sgSummary } from "../lib/gradeTonnage.js";
+import { sgSummary } from "../lib/gradeTonnage.js";
 import { valueUnit } from "../lib/blockModelExport.js";
 import { categoricalModels } from "../lib/geologyForward.js";
+import { gradeCandidate } from "../lib/gradeCandidate.js"; // #1848
 import { runPitShellAsync } from "../lib/pitShellClient.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
@@ -33,7 +34,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
   // a grade: a unit that counts metal first, then none stated (an import may simply not say); never a resistivity, a variance, an inversion or a category
   const models = useMemo(() => {
     const cat = new Set(categoricalModels(voxelModels));
-    return voxelModels.filter((m) => m.cells?.length && !cat.has(m) && !m.method && !/^(support-index|kriging-variance|geoml|simpeg)/.test(String(m.source || "")) && (valueUnit(m) ? metalOf(valueUnit(m)) : !/ztem|conductiv|resistiv|chargeab|suscept|magnet|inversion/i.test(`${m.name} ${m.property || ""}`)))
+    return voxelModels.filter((m) => gradeCandidate(m, (x) => cat.has(x)))
       .sort((a, c) => (valueUnit(c) ? 1 : 0) - (valueUnit(a) ? 1 : 0));
   }, [voxelModels]);
   const last = useMemo(() => [...surfaces].reverse().find((s) => s.type === "pit_shell")?.params?.inputs || null, [surfaces]);
@@ -120,6 +121,9 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       <TaskPaneHeader title="Pit shell" icon={Pickaxe} tone="model" onClose={onClose} />
       <div style={note}>{tr("The pit that makes the most money at your prices and costs, solved exactly. It answers whether a body sits shallow enough for a pit. It has no discounting, ramps, berms or dilution, so it is not a mine plan, a Reserve or a Resource.")}</div>
       {!models.length && <div style={warn}>{tr("It needs a block model of grades. Estimate one (3D Modelling > Estimation) or import one.")}</div>}
+      {!models.length && voxelModels.length > 0 && ( // #1849 — why the project's models are not offered
+        <div style={note}>{tr("Not offered: {list}. Geophysical, categorical and estimation-quality models are not grades.", { list: voxelModels.slice(0, 4).map((m) => `${m.name}${m.property ? ` (${m.property})` : ""}`).join(", ") + (voxelModels.length > 4 ? ", …" : "") })}</div>
+      )}
       {models.length > 0 && (<>
         <label style={row}>{tr("Block model")}<select value={modelId} onChange={(e) => setModelId(e.target.value)} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Block model of the pit")}>
           {models.map((m) => <option key={m.id ?? m.name} value={m.id ?? m.name}>{m.name}</option>)}
