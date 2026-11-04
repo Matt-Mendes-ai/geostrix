@@ -22,7 +22,7 @@
 // values are skewed. TASKS.csv #1382 / #1401 (review #1352, Silvertip) — one medium at a time: the mean and SD are those of the
 // samples of the same medium, and a sample's neighbours are of its own medium. Pooled, soils beside mineralised rock chips
 // and regional streams made the whole soil line a 99 % hot spot.
-import { populations, groupKeyFn, candidateThresholds, robustZ, quantileSorted, defaultPopulations } from "./thresholds.js";
+import { populations, groupKeyFn, candidateThresholds, robustZ, quantileSorted, defaultPopulations, populationSummary } from "./thresholds.js";
 import { valueIn } from "./geochem.js";
 
 export const PATHFINDER_PRESETS = [
@@ -51,6 +51,25 @@ const SCHEMES = {
 };
 const fmt = (v) => (v == null || !Number.isFinite(v) ? "—" : v >= 100 ? Math.round(v).toLocaleString() : v >= 10 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v.toPrecision(2));
 
+// TASKS.csv #1820 (review #1646, Kodiak) — a population too small for percentiles or a threshold: grouped by rock Lithology, every
+// one-sample lithology (a 109 ppm tonalite) was '98th percentile and above' while a 5,360 ppm diorite in a group of 13 was 90th-95th.
+// Populations under MIN_POPULATION samples are pooled into one; if even the pool is too small, they stay unclassed. Both are named in
+// the notes. -> { pops, pooled: [keys], unclassed: [keys] }
+export const MIN_POPULATION = 10;
+export function poolSmallPopulations(pops, min = MIN_POPULATION) {
+  const big = pops.filter((p) => p.values.length >= min), small = pops.filter((p) => p.values.length < min);
+  if (!small.length) return { pops, pooled: [], unclassed: [] };
+  const values = small.flatMap((p) => p.values), idx = small.flatMap((p) => p.idx), censored = small.reduce((a, p) => a + (p.censored || 0), 0);
+  const keys = small.map((p) => String(p.key));
+  if (values.length < min) return { pops: big, pooled: [], unclassed: keys };
+  return { pops: [...big, { key: "(small groups pooled)", values, idx, censored, zero: 0, summary: populationSummary(values, censored) }], pooled: keys, unclassed: [] };
+}
+const smallNotes = (notes, pooled, unclassed, min) => {
+  const list = (k) => (k.length > 6 ? `${k.slice(0, 6).join(", ")} and ${k.length - 6} more` : k.join(", "));
+  if (pooled.length) notes.push({ text: "{n} population(s) with fewer than {min} samples ({list}) were pooled into one: too few for percentiles of their own.", params: { n: pooled.length, min, list: list(pooled) } });
+  if (unclassed.length) notes.push({ text: "{n} population(s) with fewer than {min} samples ({list}) are left unclassed: too few for percentiles, even pooled.", params: { n: unclassed.length, min, list: list(unclassed) } });
+};
+
 // samples (the drawn ones), cfg (DEFAULT_ANOMALY + choices), ctx { units, mapLayers, thresholds (store.geochemThresholds) }
 // -> { classOf: Int8Array (-1 no value), isolated: Uint8Array, classes: [{ label, color }], label, notes: [{ text, params }] (for t()), anomalousFrom }
 export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thresholds = [] } = {}) {
@@ -69,7 +88,9 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
     const scheme = c.scheme === "threshold" && saved ? "threshold" : "percentile";
     if (c.scheme === "threshold" && !saved) notes.push({ text: "No threshold saved for {sym} (Geochem > Thresholds): percentile classes shown instead.", params: { sym } });
     const groupBy = c.groupBy || (scheme === "threshold" ? saved.groupBy : defaultPopulations(samples)); // #932
-    const pops = populations(samples, { valueOf: (s) => valueIn(s, sym, unit, units), keyOf: groupKeyFn(groupBy, mapLayers) });
+    const pooledP = poolSmallPopulations(populations(samples, { valueOf: (s) => valueIn(s, sym, unit, units), keyOf: groupKeyFn(groupBy, mapLayers) })); // #1820
+    const pops = pooledP.pops;
+    smallNotes(notes, pooledP.pooled, pooledP.unclassed, MIN_POPULATION);
     if (scheme === "threshold") {
       classes = [{ label: `below the 75th percentile` }, { label: `75th percentile to the threshold` }, { label: `at or above the threshold (anomalous)` }];
       anomalousFrom = 2;

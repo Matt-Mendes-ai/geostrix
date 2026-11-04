@@ -7841,5 +7841,7 @@
   "the numeric model": "o modelo numérico",
   "{v}: not drawn, its holes have no collars.": "{v}: não desenhado, os furos não têm bocas de furo.",
   " Merged on the logs (geometric means), as a resistivity or conductivity model should be, so a .res and a .con of the same inversion give the same model.": " Combinado sobre os logaritmos (médias geométricas), como deve ser um modelo de resistividade ou condutividade, de modo que um .res e um .con da mesma inversão dão o mesmo modelo.",
-  ", merged on the logs (geometric means: a log-normal property)": ", combinado sobre os logaritmos (médias geométricas: uma propriedade log-normal)"
+  ", merged on the logs (geometric means: a log-normal property)": ", combinado sobre os logaritmos (médias geométricas: uma propriedade log-normal)",
+  "{n} population(s) with fewer than {min} samples ({list}) were pooled into one: too few for percentiles of their own.": "{n} população(ões) com menos de {min} amostras ({list}) foram agrupadas numa: poucas demais para percentis próprios.",
+  "{n} population(s) with fewer than {min} samples ({list}) are left unclassed: too few for percentiles, even pooled.": "{n} população(ões) com menos de {min} amostras ({list}) ficam sem classe: poucas demais para percentis, mesmo agrupadas."
 }
