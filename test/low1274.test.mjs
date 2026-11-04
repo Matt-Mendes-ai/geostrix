@@ -48,6 +48,6 @@ test("#1248, #1196, #1201, #1205 in place", () => {
   const geo = readFileSync("src/modules/GeophysicsModule.jsx", "utf8"), sec = readFileSync("src/components/SectionWindow.jsx", "utf8");
   assert.match(panel, /not a format this importer reads/);
   assert.match(inv, /Math\.abs\(mean\) > 10000/);
-  assert.match(geo, /!\(VOXEL_PROPERTIES\.includes\(model\.property\) \|\| model\.source === "simpeg"\) && <Scale/);
+  assert.match(geo, /!\(VOXEL_PROPERTIES\.includes\(model\.property\) \|\| model\.source === "simpeg"( \|\| categorical)?\) && <Scale/); // categorical: #1842
   assert.match(sec, /<g key=\{hi\} clipPath=\{`url\(#\$\{plotClipId\}\)`\}>/);
 });

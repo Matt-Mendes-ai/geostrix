@@ -7850,5 +7850,6 @@
   "Only {pct} % of this area lies within 250 m of a sample: it spans the ground between separate grids. Pick one grid's area, or type the corners.": "فقط {pct} % من هذه المنطقة تقع ضمن 250 م من عينة: إنها تمتد على الأرض بين شبكات منفصلة. اختر منطقة شبكة واحدة، أو اكتب الزوايا.",
   "Holes in the logs or assays with no collar: not drawn in 3D, but their strip logs open from their depths": "ثقوب في السجلات أو التحاليل بلا فوهة: غير مرسومة ثلاثياً، لكن سجلاتها تُفتح من أعماقها",
   "Holes without collars ({n})": "ثقوب بلا فوهات ({n})",
-  "no collar": "بلا فوهة"
+  "no collar": "بلا فوهة",
+  ", values read as {p} from the name (change it under Values are)": "، قُرئت القيم على أنها {p} من الاسم (غيّرها في القيم هي)"
 }

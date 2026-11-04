@@ -7850,5 +7850,6 @@
   "Only {pct} % of this area lies within 250 m of a sample: it spans the ground between separate grids. Pick one grid's area, or type the corners.": "Só {pct} % desta área fica a menos de 250 m de uma amostra: abrange o terreno entre malhas separadas. Escolha a área de uma malha ou digite os cantos.",
   "Holes in the logs or assays with no collar: not drawn in 3D, but their strip logs open from their depths": "Furos nas descrições ou análises sem boca de furo: não desenhados em 3D, mas os perfis abrem a partir das profundidades",
   "Holes without collars ({n})": "Furos sem boca de furo ({n})",
-  "no collar": "sem boca de furo"
+  "no collar": "sem boca de furo",
+  ", values read as {p} from the name (change it under Values are)": ", valores lidos como {p} pelo nome (altere em Os valores são)"
 }

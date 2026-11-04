@@ -59,6 +59,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../lib/i18n.js";
+import { guessVoxelProperty, isLogProperty } from "../lib/voxelProperty.js"; // TASKS.csv #1786
 import { defaultDrapeElevation, drapeElevationNote } from "../lib/drapeElevation.js"; // TASKS.csv #1856
 import { voxelStretch, sortedShownValues } from "../lib/voxelStretch.js"; // TASKS.csv #1812 / #1781
 import { VoxelRangeRow } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1780
@@ -1078,7 +1079,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       if (rawTotal > effectiveMaxCells) {
         const { fx, fy, fz } = planCoarsenFactors(mesh.nx, mesh.ny, mesh.nz, effectiveMaxCells);
         const shape = [mesh.nx, mesh.ny, mesh.nz], fine = values; // #1095 — before averaging
-        const log = wantsLogMean(values); // #1785 — resistivity / conductivity on their logs
+        const log = wantsLogMean(values, guessVoxelProperty(modelFile.name)); // #1785 — resistivity / conductivity on their logs; .chg not (#1786)
         const coarsened = coarsenUBCModel(mesh, values, fx, fy, fz, { log });
         coarsenedFrom = coarsenRecord({ shape, factors: [fx, fy, fz], cellsTo: coarsened.mesh.nx * coarsened.mesh.ny * coarsened.mesh.nz, values: fine, valid: (v) => Number.isFinite(v) && v > -99999, rule: log ? MEAN_RULE.log : MEAN_RULE.arithmetic });
         if (log) coarsenMeanNote = tr(" Merged on the logs (geometric means), as a resistivity or conductivity model should be, so a .res and a .con of the same inversion give the same model.");
@@ -1092,7 +1093,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       const { min, max } = cellValueRange(cells);
       // #481 — a positive model spanning 2+ decades (conductivity, resistivity) gets log-spaced colours;
       // on a linear ramp almost every cell of a ZTEM conductivity model (1e-5 .. 0.1 S/m) was one colour.
-      const logColours = min > 0 && max / min >= 100;
+      const logColours = isLogProperty(guessVoxelProperty(modelFile.name), min, max); // #1786 — a .chg is not log-normal
       addVoxelModel({ name: modelName, source: "ubc", cells, min, max, ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}) /* #1095 */, ...(logColours ? { stops: logStops(min, max, SEQUENTIAL_ANCHORS), colorMode: "continuous", logScale: true /* #1780: log-stepped range sliders */ } : {}) });
       infoNotes.push(farNote(cells) + tr("Imported \"{name}\" — {nx}×{ny}×{nz} mesh, {cells} cell(s) with data.{v}{v2}{coarsenNote}", { name: modelName, nx: mesh.nx, ny: mesh.ny, nz: mesh.nz, cells: cells.length.toLocaleString(), v: air.count ? tr(" {count} cells at {v} (the value this model uses for air above the ground) were treated as air (no data).", { count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }) : "", v2: logColours ? tr(" Values span {min} to {max} ({v} decades), so colours are log-spaced.", { min: min.toPrecision(2), max: max.toPrecision(2), v: Math.round(Math.log10(max / min)) }) : "", coarsenNote }));
       }
@@ -1142,15 +1143,17 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     attrs.forEach((attr) => {
       const { cells: raw, badRows, inferred, air } = blockModelCellsFromRows(p.rows, mapping, attr); // air: #1662
       if (!raw.length) { msgs.push(tr("{attr}: no usable rows (x/y/z and {attr} all need numbers).", { attr })); return; }
-      const logMean = wantsLogMean(raw.map((c) => c.value)); // #1785
+      const guessed = guessVoxelProperty(base, attr); // #1786 — chg / res / con / sus / den in the names
+      const logMean = wantsLogMean(raw.map((c) => c.value), guessed); // #1785
       const { cells, factors, sourceM3, mergedM3 } = coarsenBlockCells(raw, effectiveMaxCells, { log: logMean });
       const { min, max } = cellValueRange(cells);
       // TASKS.csv #1662 — the UBC rule (#481): a positive property spanning two decades or more gets log-spaced colours and log-stepped sliders
-      const logColours = min > 0 && max / min >= 100;
-      addVoxelModel({ name: `${base} (${attr})`, source: "csv", cells, min, max, ...(logColours ? { stops: logStops(min, max, SEQUENTIAL_ANCHORS), colorMode: "continuous", logScale: true } : {}) });
+      const logColours = isLogProperty(guessed, min, max); // #1786
+      addVoxelModel({ name: `${base} (${attr})`, source: "csv", cells, min, max, ...(guessed ? { property: guessed } : {}), ...(logColours ? { stops: logStops(min, max, SEQUENTIAL_ANCHORS), colorMode: "continuous", logScale: true } : {}) });
       let m = farNote(cells) + tr("{attr}: {n} block(s)", { attr, n: cells.length.toLocaleString() }); // far: #1427
       if (air) m += tr(", {n} block(s) at {v} (the value this model uses for air above the ground) left out", { n: air.count.toLocaleString(), v: Number(air.value).toExponential(2) }); // #1662
       if (logColours) m += tr(", log-spaced colours (the values span {d} decades)", { d: Math.log10(max / min).toFixed(1) });
+      if (guessed) m += tr(", values read as {p} from the name (change it under Values are)", { p: tr(guessed) }); // #1786
       if (factors) m += tr(" ({raw} merged {fx}×{fy}×{fz} to fit the {budget}-cell budget — volume-weighted means)", { raw: raw.length.toLocaleString(), fx: factors.fx, fy: factors.fy, fz: factors.fz, budget: effectiveMaxCells.toLocaleString() });
       if (factors && logMean) m += tr(", merged on the logs (geometric means: a log-normal property)"); // #1785
       // TASKS.csv #943 — merged blocks are full cells: where the model did not fill them, they are larger than it
@@ -2083,7 +2086,9 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage,
   };
   // TASKS.csv #404 — estimated / support-index models were labelled "CSV"; they now say what they are,
   // and hovering the label shows the parameters that produced them.
-  const sourceLabel = model.source === "ubc" ? "UBC" : model.source === "omf" ? "OMF" : model.source === "simpeg" ? "SimPEG"
+  // #1842 — a model of named units (solids from surfaces, a GemPy block) is not a CSV and its codes are not grades
+  const categorical = !!model.valueLabels;
+  const sourceLabel = categorical && (model.source === "surfaces" || model.source === "gempy") ? tr("Modelled units") : model.source === "ubc" ? "UBC" : model.source === "omf" ? "OMF" : model.source === "simpeg" ? "SimPEG"
     : String(model.source || "").startsWith("estimate-") ? "Estimate" : String(model.source || "").startsWith("support-index-") ? "Support index" : "CSV";
   const p = model.params;
   const paramsTitle = p && p.tool === "Grade estimation"
@@ -2106,7 +2111,7 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage,
         {onExportPackage && <PackageOpen role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" for other software", { name: model.name })} title={tr("Export for other software (zip): UBC mesh + model, .obs observed/predicted data (SimPEG inversions), GeoTIFF depth slices, provenance.txt")} onClick={() => onExportPackage(model)} />}
         {/* TASKS.csv #1052 — grade-tonnage table / curve at cutoffs and an entered density */}
         {/* #1201 — a tonnage of conductivity is not a resource figure: not offered on a physical-property model */}
-        {!(VOXEL_PROPERTIES.includes(model.property) || model.source === "simpeg") && <Scale role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Grade-tonnage table for \"{name}\"", { name: model.name })} title={tr("Grade-tonnage table for \"{name}\"", { name: model.name })} onClick={() => setGtOpen(true)} />}
+        {!(VOXEL_PROPERTIES.includes(model.property) || model.source === "simpeg" || categorical) && <Scale role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Grade-tonnage table for \"{name}\"", { name: model.name })} title={tr("Grade-tonnage table for \"{name}\"", { name: model.name })} onClick={() => setGtOpen(true)} />}
         {/* TASKS.csv #411 — block model out for estimation/mine-planning software */}
         <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as CSV", { name: model.name })} title={csvNames === "micromine" ? tr("Export as block-model CSV (EAST, NORTH, RL, _EAST, _NORTH, _RL, value: Micromine names)") : tr("Export as block-model CSV (XC, YC, ZC, XINC, YINC, ZINC, value)")} onClick={async () => { const e = await getEpsg(); if (e) exportBlockModelCSV(model, e, csvNames, stampChoice); }} />
         <Box role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} aria-label={tr("Export block model \"{name}\" as VTK", { name: model.name })} title={tr("Export as VTK for ParaView / PyVista (empty blocks are NaN)")} onClick={async () => { const e = await getEpsg(); if (e) exportBlockModelVTK(model, e); }} />{/* TASKS.csv #798 */}
@@ -2114,7 +2119,7 @@ function VoxelModelRow({ model, onUpdate, onRemove, onEvaluate, onExportPackage,
       </div>
       {/* TASKS.csv #711 — an OMF / UBC volume names no property or unit, so the legend, inspector and exports could only
           show the attribute name: the user says what the values are (stored as model.property). */}
-      {(model.source === "omf" || model.source === "ubc" || model.propertyChosen) && (
+      {!categorical && ( // #1786 — every block model of values (a CSV import too), not only OMF / UBC
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
           <span style={{ color: "var(--color-text-faint)", width: 62, flexShrink: 0 }}>{tr("Values are")}</span>
           <select value={VOXEL_PROPERTIES.includes(model.property) ? model.property : model.property ? "__other" : ""} aria-label={tr("What the values of \"{name}\" are", { name: model.name })}

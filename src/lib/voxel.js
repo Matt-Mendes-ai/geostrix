@@ -252,7 +252,10 @@ export function planCoarsenFactors(nx, ny, nz, maxCells = MAX_CELLS) {
 // TASKS.csv #1785 (review #1646, Kodiak) — a log-normal property (resistivity, conductivity) is block-averaged on its logs: the
 // arithmetic mean biased resistivity up, so the same inversion loaded as .res or .con gave different models (the conductor 14.9 vs
 // 7.3 ohm.m; 1,542 coarse cells more than 10 % apart). The rule is the log-colour rule (#481): positive values spanning two decades.
-export function wantsLogMean(values) {
+// property (#1786): a known one decides (resistivity / conductivity on logs; chargeability, density, susceptibility not)
+export function wantsLogMean(values, property = null) {
+  if (/resist|conduct/i.test(property || "")) return true;
+  if (/charg|densit|suscept/i.test(property || "")) return false;
   let lo = Infinity, hi = -Infinity;
   for (let i = 0; i < values.length; i++) { const v = values[i]; if (Number.isFinite(v) && v > NODATA_MAX) { if (v < lo) lo = v; if (v > hi) hi = v; } }
   return lo > 0 && hi / lo >= 100;
