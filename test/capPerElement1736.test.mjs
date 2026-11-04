@@ -13,10 +13,16 @@ test("Estimation: changing the element clears the cap and the old result; a capp
 
 test("Estimation: models are named from the result's own element / method / cell", () => {
   assert.ok(est.includes("p.element ? `${p.element} estimate (${p.method}, ${c}m)`"));
-  assert.equal(est.split("resultName()").length - 1, 3, "grade, support index and kriging variance models");
+  assert.equal(est.split("resultName()").length - 1, 4, "grade, support index and kriging variance models, and the name box's placeholder");
 });
 
 test("Grade shell: the cap is cleared and the cutoff re-proposed (P90 of lab assays) on an element change", () => {
   assert.ok(panes.includes("setNumericSymbol(next); setNumericCapValue(NaN);"));
   assert.ok(panes.includes('.filter((a) => a.source !== "pXRF").map((a) => a.values?.[next])'));
+});
+
+test("#1737 — the name box suggests the name the result will get, not the form's current settings", () => {
+  const src = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
+  assert.ok(src.includes('placeholder={modelName.trim() ? "" : resultName()'));
+  assert.ok(!src.includes('placeholder={tr("{symbol} estimate ({method}, {cellSize}m)"'));
 });

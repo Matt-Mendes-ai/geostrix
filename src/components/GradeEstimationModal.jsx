@@ -648,7 +648,7 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
               {result.blocksEstimated > 0 && result.nnCells && <EstimateCheck cells={result.cells} nnCells={result.nnCells} points={result.checkPoints} unit={unit} symbol={symbol} method={result.params.method} epsg={project?.epsg ?? null} />}
               {result.blocksEstimated > 0 && (
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
-                  <input placeholder={tr("{symbol} estimate ({method}, {cellSize}m)", { symbol, method, cellSize: cellLabel })} value={modelName} onChange={(e) => { setModelName(e.target.value); setAdded(false); setAddedSupport(false); }} style={{ ...inp, flex: 1, width: "auto" }} />
+                  <input placeholder={modelName.trim() ? "" : resultName() /* #1737 — the name the result will get, not the form's current settings */} value={modelName} onChange={(e) => { setModelName(e.target.value); setAdded(false); setAddedSupport(false); }} style={{ ...inp, flex: 1, width: "auto" }} />
                   <button onClick={addToProject} style={{ ...btn(true), padding: "7px 12px" }}>{added ? tr("Added ✓") : tr("Add as block model")}</button>
                 </div>
               )}
