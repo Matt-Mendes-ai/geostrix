@@ -6,6 +6,11 @@
 import { metalOf } from "./gradeTonnage.js";
 
 const G_PER_OZ = 31.1034768, LB_PER_T = 2204.62262;
+// TASKS.csv #1617 (review #1497, Lawyers) — a block the estimate itself called single-hole (one hole carrying at least this share of
+// the weight, estimation.js DOMINANT_SHARE; test/oneHoleShare1617 keeps the two equal) counts as one hole's ore in the pit, as a
+// block with nHoles 1 does: Lawyers' pit said 'Ore from one hole 0 %' while its estimate had called 160 blocks single-hole in effect
+export const ONE_HOLE_SHARE = 0.95;
+export const oneHoleBlock = (c) => c.nHoles === 1 || c.holeShare >= ONE_HOLE_SHARE;
 // TASKS.csv #1748 (review #1645, Copley) — copper in ppm was priced in $/oz and reported in troy ounces ("Contained metal 234M oz"), and $4
 // typed in that box made a 91.5 ppm cut-off and a $1.21B margin. A base metal is sold by the pound or tonne whatever unit its grade is in:
 // its ppm / g/t / ppb grade is counted in tonnes of metal (1 ppm = 1e-6 t per t), so it takes $/lb and $/t and reports tonnes.
@@ -251,7 +256,7 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
       if (t <= 0) continue;
       modelT[q] += t;
       value[q] += t * (margin + miningCost); // it was counted as barren: take that back
-      if (ore) { oreT[q] += t; metalU[q] += t * c.value; if (c.by > 0) metalU2[q] += t * c.by; if (c.nHoles === 1) oreThin[q] += t; if (c.support === "extrapolated" || c.support === "unsupported") oreExtrap[q] += t; }
+      if (ore) { oreT[q] += t; metalU[q] += t * c.value; if (c.by > 0) metalU2[q] += t * c.by; if (oneHoleBlock(c)) oreThin[q] += t; /* #1617 */ if (c.support === "extrapolated" || c.support === "unsupported") oreExtrap[q] += t; }
     }
   });
   return { nx, ny, nz, x0, y0, z0, dx, dy, dz, ground, value, oreT, metalU, metalU2, rockT, modelT, oreThin, oreExtrap, coarsened, topAssumed, oreAboveGroundT, oreAboveGroundBlocks, askedSize, modelCell, atModelBase: z0 <= modelBase + 1e-6 };

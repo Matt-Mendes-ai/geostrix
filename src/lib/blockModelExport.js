@@ -35,7 +35,7 @@ export function valueColumnName(model) {
 // never left the app except in the CSV. Names as the CSV's columns. -> [{ name, get }] for the fields some cell carries
 const num = (v) => (Number.isFinite(v) ? v : null);
 const CELL_FIELDS = [
-  ["N_SAMPLES", (c) => num(c.nSamples)], ["N_HOLES", (c) => num(c.nHoles)],
+  ["N_SAMPLES", (c) => num(c.nSamples)], ["N_HOLES", (c) => num(c.nHoles)], ["HOLE_SHARE", (c) => num(c.holeShare)], // HOLE_SHARE: the dominant hole's share of the weight (#1617)
   ["SUPPORT", (c) => (typeof c.support === "number" ? num(c.support) : null)],
   ["SUPPORT_CODE", (c) => (typeof c.support === "string" && SUPPORT_CODES[c.support] != null ? SUPPORT_CODES[c.support] : null)],
   ["SUPPORT_INDEX", (c) => num(c.supportIndex)], ["COVERAGE", (c) => num(c.coverage)], ["KV", (c) => num(c.kv)], ["NEAREST_M", (c) => num(c.nearestSampleM)],
@@ -78,6 +78,7 @@ export function blockModelRows(model, names = "datamine") {
     const row = { [X]: +c.x.toFixed(3), [Y]: +c.y.toFixed(3), [Z]: +c.z.toFixed(3), [DX]: +Number(c.dx).toFixed(4), [DY]: +Number(c.dy).toFixed(4), [DZ]: +Number(c.dz).toFixed(4), /* #978 — sizes saved as Float32 read back as 3.3329999446868896 */ [valueName]: c.value };
     if (c.nSamples != null) row.N_SAMPLES = c.nSamples;
     if (c.nHoles != null) row.N_HOLES = c.nHoles;
+    if (Number.isFinite(c.holeShare)) row.HOLE_SHARE = +c.holeShare.toFixed(3); // #1617
     if (c.support != null) row.SUPPORT = typeof c.support === "number" ? +c.support.toFixed(4) : c.support;
     // #529 — the support class as a number too (software that only reads numeric columns dropped it), and the index
     if (typeof c.support === "string" && SUPPORT_CODES[c.support] != null) row.SUPPORT_CODE = SUPPORT_CODES[c.support];
@@ -114,8 +115,8 @@ export function* blockModelCsvChunks(model, names = "datamine", chunk = 50000) {
   const cells = model.cells || [];
   if (!cells.length) return;
   const valueName = valueColumnName(model);
-  const OPT = ["N_SAMPLES", "N_HOLES", "SUPPORT", "SUPPORT_CODE", "SUPPORT_INDEX", "COVERAGE", "VOLUME_M3", "KV", "NEAREST_M", "INC_DEG", "DEC_GRID_DEG"]; // KV / NEAREST_M: #1049; INC / DEC: #1044
-  const has = (c) => [c.nSamples != null, c.nHoles != null, c.support != null, typeof c.support === "string" && SUPPORT_CODES[c.support] != null, Number.isFinite(c.supportIndex), Number.isFinite(c.coverage), Number.isFinite(c.coverage) || !!sectionTrueSize(model, c) /* #1093 */, Number.isFinite(c.kv), Number.isFinite(c.nearestSampleM), Number.isFinite(c.inc), Number.isFinite(c.dec)];
+  const OPT = ["N_SAMPLES", "N_HOLES", "SUPPORT", "SUPPORT_CODE", "SUPPORT_INDEX", "COVERAGE", "VOLUME_M3", "KV", "NEAREST_M", "INC_DEG", "DEC_GRID_DEG", "HOLE_SHARE"]; // KV / NEAREST_M: #1049; INC / DEC: #1044; HOLE_SHARE: #1617
+  const has = (c) => [c.nSamples != null, c.nHoles != null, c.support != null, typeof c.support === "string" && SUPPORT_CODES[c.support] != null, Number.isFinite(c.supportIndex), Number.isFinite(c.coverage), Number.isFinite(c.coverage) || !!sectionTrueSize(model, c) /* #1093 */, Number.isFinite(c.kv), Number.isFinite(c.nearestSampleM), Number.isFinite(c.inc), Number.isFinite(c.dec), Number.isFinite(c.holeShare)];
   // the columns in the order toExportCsv's union of row keys gives: the base seven, then each optional one where it first appears
   const fields = [...(BLOCK_COLUMN_NAMES[names] || BLOCK_COLUMN_NAMES.datamine), valueName], seen = new Set();
   for (let i = 0; i < cells.length && seen.size < OPT.length; i++) has(cells[i]).forEach((h, k) => { if (h && !seen.has(k)) { seen.add(k); fields.push(OPT[k]); } });
@@ -131,6 +132,7 @@ export function* blockModelCsvChunks(model, names = "datamine", chunk = 50000) {
     row[6] = csvCell(c.value);
     if (c.nSamples != null) row[col.N_SAMPLES] = csvCell(c.nSamples);
     if (c.nHoles != null) row[col.N_HOLES] = csvCell(c.nHoles);
+    if (Number.isFinite(c.holeShare)) row[col.HOLE_SHARE] = String(+c.holeShare.toFixed(3)); // #1617
     if (c.support != null) row[col.SUPPORT] = typeof c.support === "number" ? String(+c.support.toFixed(4)) : csvCell(c.support);
     if (typeof c.support === "string" && SUPPORT_CODES[c.support] != null) row[col.SUPPORT_CODE] = csvCell(SUPPORT_CODES[c.support]);
     if (Number.isFinite(c.supportIndex)) row[col.SUPPORT_INDEX] = String(+c.supportIndex.toFixed(4));

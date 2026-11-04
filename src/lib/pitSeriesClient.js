@@ -4,11 +4,11 @@ import { byColumnsOf } from "./pitShellClient.js"; // #1917
 
 export function runPitSeriesAsync(model, inputs, rfs, { rate = null, discountPct = null, terrain = null, collars = null, byModel = null, onProgress = null } = {}) { // byModel: #1917
   const cells = (model.cells || []).filter((c) => voxelCellSupported(model, c)), n = cells.length;
-  const col = () => new Float64Array(n), columns = { x: col(), y: col(), z: col(), dx: col(), dy: col(), dz: col(), value: col(), coverage: col(), nHoles: new Uint16Array(n), support: new Uint8Array(n) };
+  const col = () => new Float64Array(n), columns = { x: col(), y: col(), z: col(), dx: col(), dy: col(), dz: col(), value: col(), coverage: col(), nHoles: new Uint16Array(n), holeShare: new Float32Array(n).fill(NaN) /* #1617 */, support: new Uint8Array(n) };
   const SUP = { interpolated: 1, extrapolated: 2, unsupported: 3 };
   cells.forEach((c, i) => {
     columns.x[i] = c.x; columns.y[i] = c.y; columns.z[i] = c.z; columns.dx[i] = c.dx; columns.dy[i] = c.dy; columns.dz[i] = c.dz; columns.value[i] = c.value;
-    columns.coverage[i] = Number.isFinite(c.coverage) ? c.coverage : NaN; columns.nHoles[i] = Number.isFinite(c.nHoles) ? c.nHoles : 0; columns.support[i] = SUP[c.support] || 0;
+    columns.coverage[i] = Number.isFinite(c.coverage) ? c.coverage : NaN; columns.nHoles[i] = Number.isFinite(c.nHoles) ? c.nHoles : 0; if (Number.isFinite(c.holeShare)) columns.holeShare[i] = c.holeShare; columns.support[i] = SUP[c.support] || 0;
   });
   let worker = null, settle = null;
   const promise = new Promise((resolve, reject) => {

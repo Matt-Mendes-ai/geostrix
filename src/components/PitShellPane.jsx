@@ -250,7 +250,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
         <div style={{ marginTop: 8, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
           {line(tr("Ore"), `${big(res.oreT)} t`)}
           {line(tr("Mean grade"), `${Number(res.meanGrade.toPrecision(3))} ${res.unit}`)}
-          {res.support && line(tr("Ore from one hole / extrapolated"), `${Math.round(res.oreSingleHoleShare * 100)} % / ${Math.round(res.oreExtrapolatedShare * 100)} %`)}
+          {res.support && <div style={row}><span title={tr("One hole: the block's estimate used a single hole, or one hole carried at least 95 % of its weight (the estimate's own test). Extrapolated: the estimate classed the block as extrapolated or unsupported.")}>{tr("Ore from one hole / extrapolated")}</span><b>{`${Math.round(res.oreSingleHoleShare * 100)} % / ${Math.round(res.oreExtrapolatedShare * 100)} %`}</b></div>}{/* one hole incl. 95 %-weight blocks: #1617 */}
           {line(tr("Contained metal"), metalText(res))}
           {/* #1917 — the by-product's grade, metal and share of the revenue */}
           {res.by && line(tr("Mean {el} grade", { el: res.byLabel }), `${res.by.meanGrade == null ? "—" : Number(res.by.meanGrade.toPrecision(3))} ${res.byUnit}`)}

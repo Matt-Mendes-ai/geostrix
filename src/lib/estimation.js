@@ -155,7 +155,7 @@ export function estimateBlockModel(samplePoints, opts) {
   const cap = asColumns ? totalBlocks : 0;
   const col = asColumns ? {
     x: new Float64Array(cap), y: new Float64Array(cap), z: new Float64Array(cap), value: new Float64Array(cap),
-    nSamples: new Uint16Array(cap), nHoles: new Uint16Array(cap),
+    nSamples: new Uint16Array(cap), nHoles: new Uint16Array(cap), holeShare: new Float64Array(cap).fill(NaN), // holeShare: #1617 (Float64: the cells built from columns equal the object cells)
     ...(wantSupport ? { support: new Uint8Array(cap).fill(255), supportIndex: new Float64Array(cap), nearestSampleM: new Float64Array(cap) } : {}),
     ...(method === "ok" ? { kv: new Float64Array(cap) } : {}), // #709 — kriging variance
   } : null;
@@ -184,12 +184,14 @@ export function estimateBlockModel(samplePoints, opts) {
         }
         if (asColumns) {
           col.x[n] = cx; col.y[n] = cy; col.z[n] = cz; col.value[n] = r.value; col.nSamples[n] = r.nSamples; col.nHoles[n] = r.nHoles;
+          col.holeShare[n] = r.nHoles === 1 ? 1 : r.domShare ?? NaN; // #1617 — the dominant hole's share, for the pit's single-hole count
           if (col.kv) col.kv[n] = r.kv ?? NaN;
           if (r.support) { col.support[n] = SUPPORT_CODES[r.support.cls]; col.supportIndex[n] = r.support.index; col.nearestSampleM[n] = nearestM(r.support, cx, cy, cz); }
           n++;
           continue;
         }
         const cell = { x: cx, y: cy, z: cz, dx, dy, dz, value: r.value, nSamples: r.nSamples, nHoles: r.nHoles };
+        if (r.nHoles === 1) cell.holeShare = 1; else if (Number.isFinite(r.domShare)) cell.holeShare = r.domShare; // #1617
         if (r.kv != null) cell.kv = r.kv; // #709
         if (r.support) {
           cell.support = r.support.cls;
