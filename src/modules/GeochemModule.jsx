@@ -57,7 +57,7 @@ import EmptyState, { emptyStateSecondaryBtn } from "../components/EmptyState.jsx
 
 const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
-import { labAssays, isPxrfRow } from "../lib/qaqc.js"; // TASKS.csv #1673
+import { labAssays, isPxrfRow, sampleTypeClass } from "../lib/qaqc.js"; // TASKS.csv #1673; sampleTypeClass: #1661
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
@@ -415,7 +415,10 @@ export default function GeochemModule() {
     let rows = [];
     // TASKS.csv #508 — Number("") / Number(null) is 0, so a blank from or to used to become a phantom 0 m
     // interval (a real 2-3 m @ 10 g/t read as 5.5 g/t once averaged with it). Such rows are skipped and counted.
-    const validInterval = (r) => r.hole_id && Number.isFinite(r.from) && Number.isFinite(r.to);
+    // TASKS.csv #1661 (review #1646, Kodiak) — a row MARKED as a standard / blank / duplicate is a QC record and needs no depths: it is
+    // kept (from / to null) for QAQC, as the surface import keeps its inserts (#842); only an unmarked row without depths is skipped
+    const qcNoDepth = { standard: 0, blank: 0, duplicate: 0 };
+    const validInterval = (r) => { if (!r.hole_id) return false; if (Number.isFinite(r.from) && Number.isFinite(r.to)) return true; const c = sampleTypeClass(r.sample_type); if (c === "standard" || c === "blank" || c === "duplicate") { qcNoDepth[c]++; r.from = null; r.to = null; return true; } return false; };
     let skippedNoDepth = 0;
     const overLimitFilled = new Map(); // #600 / #542 — element -> samples filled from the ore-grade column
     // TASKS.csv #502 — what an EMPTY element cell means in this file (the import dialog asks when there are
@@ -546,6 +549,7 @@ export default function GeochemModule() {
       replaceHoles.length ? tr("Replaced the assays of {n} hole(s) whose sample intervals changed ({holes}).", { n: replaceHoles.length, holes: more(replaceHoles, 6) }) : null, // #530
       changed.length && !replaceHoles.length ? tr("{n} hole(s) kept their old intervals beside this file's different ones ({holes}) — Data QC lists the overlaps.", { n: changed.length, holes: more(changed, 6) }) : null, // #530
       skippedNoDepth ? tr("{n} row(s) skipped: no hole id, or a blank / non-numeric from or to depth.", { n: skippedNoDepth }) : null, // #508
+      qcNoDepth.standard + qcNoDepth.blank + qcNoDepth.duplicate ? tr("{n} QC insert(s) without depths kept for QAQC ({s} standard(s), {b} blank(s), {d} duplicate(s)).", { n: qcNoDepth.standard + qcNoDepth.blank + qcNoDepth.duplicate, s: qcNoDepth.standard, b: qcNoDepth.blank, d: qcNoDepth.duplicate }) : null, // #1661
       overLimitFilled.size ? tr("Over-limit samples filled from the ore-grade column: {list}.", { list: [...overLimitFilled].map(([sym, n]) => { const e = chosen.find((x) => x.symbol === sym); return tr("{symbol} {n} (at {limit} {unit} in \"{header}\", from \"{source}\")", { symbol: sym, n, limit: e.overLimit.limit, unit: e.unit, header: e.header, source: e.overLimit.header }); }).join("; ") }) : null, // #600 / #542
       blankBdl.size ? tr("Empty cells read as below detection: {list}; stored at half the limit and flagged '<'.", { list: [...blankBdl].map(([sym, n]) => { const L = blankLimits.get(sym); return tr(L.basis === "lt" ? "{symbol} {n} at <{limit} (the lab's most common '<' limit in the file)" : "{symbol} {n} at <{limit} (the lowest value reported — no '<' limit in the file)", { symbol: sym, n, limit: L.limit }); }).join("; ") }) : null, // #502
       blankNoLimit.size ? tr("No detection limit could be found for {list} (no '<' values and no reported values), so their empty cells stay not assayed.", { list: [...blankNoLimit].join(", ") }) : null,

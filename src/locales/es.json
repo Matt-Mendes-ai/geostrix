@@ -7747,5 +7747,9 @@
   "Samples:": "Muestras:",
   "Samples plotted": "Muestras graficadas",
   "{k} lab assay(s) left out: pXRF readings only.": "{k} ensaye(s) de laboratorio excluidos: solo lecturas pXRF.",
-  "{k} pXRF reading(s) left out: lab assays only.": "{k} lectura(s) pXRF excluidas: solo ensayes de laboratorio."
+  "{k} pXRF reading(s) left out: lab assays only.": "{k} lectura(s) pXRF excluidas: solo ensayes de laboratorio.",
+  ", {n} block(s) at {v} (the value this model uses for air above the ground) left out": ", {n} bloque(s) en {v} (el valor que este modelo usa para el aire sobre el terreno) excluidos",
+  ", log-spaced colours (the values span {d} decades)": ", colores en escala logarítmica (los valores abarcan {d} décadas)",
+  "variable": "variable",
+  "{n} QC insert(s) without depths kept for QAQC ({s} standard(s), {b} blank(s), {d} duplicate(s)).": "{n} inserto(s) de QC sin profundidades conservados para QAQC ({s} estándar(es), {b} blanco(s), {d} duplicado(s))."
 }

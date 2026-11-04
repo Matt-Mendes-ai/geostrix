@@ -54,7 +54,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const structs = useMemo(() => holeStructures(layers.structure, holeId), [layers.structure, holeId]); // #1400
   // TASKS.csv #1695 (review #1645, Copley) — the bars are the lab assays; the pXRF readings (zero-length screening points, drawn as 1 px
   // hairlines in the same colour before) get a track of their own, as dots
-  const holeAssays = useMemo(() => assays.filter((a) => a.hole_id === holeId && a.source !== "pXRF").sort((a, b) => a.from - b.from), [assays, holeId]);
+  const holeAssays = useMemo(() => assays.filter((a) => a.hole_id === holeId && a.source !== "pXRF" && Number.isFinite(a.from) && Number.isFinite(a.to)).sort((a, b) => a.from - b.from), [assays, holeId]); // finite: #1661 (a QC insert without depths)
   const pxrfAssays = useMemo(() => assays.filter((a) => a.hole_id === holeId && a.source === "pXRF").sort((a, b) => a.from - b.from), [assays, holeId]);
   const pxrfRange = useMemo(() => Object.fromEntries(shownSymbols.map((sym) => { const vals = pxrfAssays.map((a) => valueIn(a, sym, elementUnits[sym] || "ppm", elementUnits)).filter((v) => v != null && Number.isFinite(v)); return [sym, vals.length ? arrMax(vals) : 0]; })), [pxrfAssays, shownSymbols.join("|"), elementUnits]);
 

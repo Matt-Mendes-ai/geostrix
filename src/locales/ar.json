@@ -7747,5 +7747,9 @@
   "Samples:": "العينات:",
   "Samples plotted": "العينات المرسومة",
   "{k} lab assay(s) left out: pXRF readings only.": "{k} تحليل مختبري مستبعد: قراءات pXRF فقط.",
-  "{k} pXRF reading(s) left out: lab assays only.": "{k} قراءة pXRF مستبعدة: تحاليل المختبر فقط."
+  "{k} pXRF reading(s) left out: lab assays only.": "{k} قراءة pXRF مستبعدة: تحاليل المختبر فقط.",
+  ", {n} block(s) at {v} (the value this model uses for air above the ground) left out": "، {n} كتلة عند {v} (القيمة التي يستخدمها هذا النموذج للهواء فوق الأرض) مستبعدة",
+  ", log-spaced colours (the values span {d} decades)": "، ألوان بتدرج لوغاريتمي (تمتد القيم على {d} عقود)",
+  "variable": "متغير",
+  "{n} QC insert(s) without depths kept for QAQC ({s} standard(s), {b} blank(s), {d} duplicate(s)).": "{n} إدراج QC بلا أعماق احتُفظ به لـ QAQC ({s} معيارًا، {b} فراغًا، {d} مكررًا)."
 }

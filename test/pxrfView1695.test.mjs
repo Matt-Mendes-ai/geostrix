@@ -28,5 +28,5 @@ test("#1695 the 3D view keeps a source choice, draws a pXRF reading as a cube th
   assert.match(vm, /<option value="pxrf">/);
   const sl = readFileSync(new URL("../src/components/StripLog.jsx", import.meta.url), "utf8");
   assert.match(sl, /kind: "pxrfdots"/);
-  assert.match(sl, /a\.source !== "pXRF"\)\.sort/);
+  assert.match(sl, /a\.source !== "pXRF" && Number\.isFinite\(a\.from\)/); // #1661 added the finite-depth test beside it
 });
