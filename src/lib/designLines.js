@@ -177,13 +177,15 @@ export function sharpCorners(c) {
 // then a straight (tangentTo); if that run cannot lose the elevation at the maximum grade, a spiral of whole turns at the minimum
 // radius goes first (a full turn comes back to the same plan point and heading, one turn's worth lower), and the route then runs
 // at the grade that lands exactly on the target. A line with no heading yet heads straight at the target.
-// -> { segments, turns, grade, run, length, insideCircle } (segments empty when the target cannot be reached)
+// -> { segments, turns, grade, run, length, routeLength, insideCircle } (segments empty when the target cannot be reached);
+// routeLength is the driven length after the spiral (#1895), length the whole addition
 export function declineToTarget(line, target, { maxGrade, minRadius }) {
   const c = computeLine(line), g = Math.abs(finite(maxGrade)) / 100, R = Math.abs(finite(minRadius));
   const dz = target[2] - c.end[2];
   const hasHeading = c.segments.length > 0 || (line.azimuth != null && line.azimuth !== "");
   const dx = target[0] - c.end[0], dy = target[1] - c.end[1], dist = Math.hypot(dx, dy);
-  if (dist < 1e-6 && Math.abs(dz) < 1e-6) return { segments: [], turns: 0, grade: 0, run: 0, length: 0, insideCircle: false };
+  // #1890 — the stored segments round to the millimetre, so a line that already reaches the target ends within a few mm of it
+  if (dist < 0.05 && Math.abs(dz) < 0.05) return { segments: [], turns: 0, grade: 0, run: 0, length: 0, routeLength: 0, insideCircle: false };
   let route = null, azimuth = c.azimuth, turn = "right";
   if (hasHeading && R > 0) {
     const t = tangentTo(c.end, c.azimuth, R, target);
@@ -204,13 +206,15 @@ export function declineToTarget(line, target, { maxGrade, minRadius }) {
     turns = Math.ceil((need - canLose) / perTurn);
     spiralDz = Math.sign(dz) * turns * perTurn;
   }
-  const rest = dz - spiralDz, grade = route.run > 1e-9 ? +((rest / route.run) * 100).toFixed(4) : 0, slope = Math.sqrt(1 + (grade / 100) ** 2);
+  const rest = dz - spiralDz, grade = route.run > 1e-9 ? +((rest / route.run) * 100).toFixed(2) : 0, slope = Math.sqrt(1 + (grade / 100) ** 2); // 2 decimals: #1895
   const segments = [];
-  if (turns > 0) segments.push({ type: "curve", radius: R, turn, angle: 360 * turns, grade: +(Math.sign(dz) * g * 100).toFixed(4) });
+  if (turns > 0) segments.push({ type: "curve", radius: R, turn, angle: 360 * turns, grade: +(Math.sign(dz) * g * 100).toFixed(2) });
   if (route.curve) segments.push({ type: "curve", ...route.curve, grade });
   if (route.straight > 1e-3) segments.push({ type: "straight", length: +(route.straight * slope).toFixed(3), azimuth: route.azimuth ?? null, grade });
-  const length = segments.reduce((a, s) => a + (s.type === "curve" ? s.radius * s.angle * RAD * Math.sqrt(1 + (s.grade / 100) ** 2) : s.length), 0);
-  return { segments, turns, grade, run: route.run, length, insideCircle: false, azimuth };
+  const segLen = (s) => (s.type === "curve" ? s.radius * s.angle * RAD * Math.sqrt(1 + (s.grade / 100) ** 2) : s.length);
+  const length = segments.reduce((a, s) => a + segLen(s), 0);
+  const routeLength = length - (turns > 0 ? segLen(segments[0]) : 0);
+  return { segments, turns, grade, run: route.run, length, routeLength, insideCircle: false, azimuth };
 }
 
 // TASKS.csv #1878 — a development PROFILE swept along the line: width x height, a flat back or an arched one (a half circle of the

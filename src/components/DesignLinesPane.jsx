@@ -3,7 +3,7 @@
 // next segment gets; every segment stays editable, and a change moves everything after it. Geometry in lib/designLines.js.
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { Spline, Download, X, Trash2, Plus } from "./icons.js";
+import { Spline, Download, X, Trash2, Plus, Maximize2 } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
 import { computeLine, segmentsToPoint, runAboveGround, gradeRatio, designLineRows, designLineFeatures, selfClearance, declineToTarget, clearanceTo, sharpCorners, developmentRows, profileArea } from "../lib/designLines.js"; // #1878
@@ -58,6 +58,7 @@ export default function DesignLinesPane({ view, onClose }) {
   // TASKS.csv #1878 — a decline to a target, a development profile, clearance to other lines and drillholes
   const [tgt, setTgt] = useState({ x: "", y: "", z: "", holeId: "", maxGrade: toTargetDefaults.maxGrade, minRadius: toTargetDefaults.minRadius });
   const [picking, setPicking] = useState(false);
+  const [pickedOn, setPickedOn] = useState(null); // #1891 — what the last pick landed on
   const [pillar, setPillarState] = useState(toTargetDefaults.pillar);
   const [density, setDensityState] = useState(toTargetDefaults.density);
   const setPillar = (v) => { toTargetDefaults.pillar = v; setPillarState(v); };
@@ -96,6 +97,13 @@ export default function DesignLinesPane({ view, onClose }) {
   const nearHole = useMemo(() => (c && traces.length ? clearanceTo(c, traces, 200) : null), [c, traces]);
   const corners = useMemo(() => (c ? sharpCorners(c) : []), [c]);
   const pillarM = num0(pillar);
+  // #1889 — clearanceTo measures centreline to centreline (or hole trace); with a profile the rock left is that less half the width
+  // on this side, and less half the other line's width too. Without a profile the figures stay centreline figures and say so.
+  const halfW = line?.profile?.width > 0 ? line.profile.width / 2 : 0;
+  const otherHalfW = nearLine ? ((designLines.find((l) => l.name === nearLine.name)?.profile?.width || 0) / 2) : 0;
+  const wallHole = nearHole ? Math.max(0, nearHole.distance - halfW) : null;
+  const wallLine = nearLine ? Math.max(0, nearLine.distance - halfW - otherHalfW) : null;
+  const passLabel = (base) => (halfW > 0 ? tr("{label} (wall to wall)", { label: base }) : tr("{label} (centreline)", { label: base }));
   const targetPoint = () => {
     if (tgt.holeId) { const h = plannedHoles.find((p) => p.id === tgt.holeId); const tr0 = h ? plannedTrace(h) : []; const toe = tr0[tr0.length - 1]; return toe ? [toe.x, toe.y, toe.z] : null; }
     const p = [num0(tgt.x), num0(tgt.y), num0(tgt.z)];
@@ -109,7 +117,8 @@ export default function DesignLinesPane({ view, onClose }) {
     if (r.needsRadius) { setToTargetMsg(tr("Enter the minimum radius: the route needs a spiral to lose that much elevation.")); return; }
     if (!r.segments.length) { setToTargetMsg(tr("Nothing to add: the line already ends at the target.")); return; }
     appendSegments(r.segments);
-    setToTargetMsg(r.turns > 0 ? tr("{n} spiral turn(s) at {r} m, then {l} m at {g} % to the target: {total} m driven.", { n: r.turns, r: num0(tgt.minRadius), l: m1(r.run), g: m1(r.grade), total: m1(r.length) }) : tr("{l} m at {g} % to the target.", { l: m1(r.length), g: m1(r.grade) }));
+    // #1895 — the lengths quoted are driven lengths, as the segments and totals count them
+    setToTargetMsg(r.turns > 0 ? tr("{n} spiral turn(s) at {r} m, then {l} m at {g} % to the target: {total} m driven.", { n: r.turns, r: num0(tgt.minRadius), l: m1(r.routeLength), g: m1(r.grade), total: m1(r.length) }) : tr("{l} m at {g} % to the target.", { l: m1(r.length), g: m1(r.grade) }));
   };
   // a one-shot pick of the target in the view (#1878), through the same drag hook the drawing uses
   useEffect(() => {
@@ -122,7 +131,7 @@ export default function DesignLinesPane({ view, onClose }) {
         window.removeEventListener("pointerup", onUp);
         if (Math.hypot(ev.clientX - x0, ev.clientY - y0) > 5) return;
         const w = view.worldPointAt?.(ev.clientX, ev.clientY);
-        if (w) setTgt((t) => ({ ...t, x: String(+w.x.toFixed(2)), y: String(+w.y.toFixed(2)), z: String(+w.z.toFixed(2)), holeId: "" }));
+        if (w) { setTgt((t) => ({ ...t, x: String(+w.x.toFixed(2)), y: String(+w.y.toFixed(2)), z: String(+w.z.toFixed(2)), holeId: "" })); setPickedOn({ on: w.on || null, z: w.z }); }
         setPicking(false);
       };
       window.addEventListener("pointerup", onUp);
@@ -222,6 +231,7 @@ export default function DesignLinesPane({ view, onClose }) {
   };
   const above = useMemo(() => (c && terrain ? runAboveGround(c.vertices, (x, y) => terrainGroundAt(terrain, x, y)) : 0), [c, terrain]);
   const clearance = useMemo(() => (c && c.vertices.length > 2 ? selfClearance(c) : null), [c]);
+  const wallSelf = clearance ? Math.max(0, clearance.distance - 2 * halfW) : null; // #1889 (declared after clearance: TDZ otherwise)
 
   const exportCsv = () => saveFile({ suggestedName: "design_lines.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(designLineRows(designLines).map((r) => ({ ...r, crs: crsCell(project) }))) });
   const exportDxf = () => saveFile({ suggestedName: "design_lines.dxf", filters: [{ name: "DXF", extensions: ["dxf"] }], content: buildDXF({ features: designLineFeatures(designLines), geomType: "line", layerOf: (f) => f.attributes.name, colorOf: (f) => f.attributes.color }) });
@@ -237,6 +247,7 @@ export default function DesignLinesPane({ view, onClose }) {
           {!designLines.length && <option value="">{tr("No lines yet")}</option>}
           {designLines.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
         </select>
+        {c && c.vertices?.length > 0 && view?.zoomTo && <Maximize2 size={14} style={{ cursor: "pointer", flexShrink: 0, alignSelf: "center" }} {...iconAction(() => view.zoomTo(c.vertices), tr("Zoom to this line"))} />}{/* #1892 */}
         <button onClick={newLine} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 8px" }}><Plus size={13} /> {tr("New line")}</button>
       </div>
       {line && (<>
@@ -298,6 +309,7 @@ export default function DesignLinesPane({ view, onClose }) {
             <label style={{ ...row, marginTop: 0 }}>{tr("Max grade (%)")}<input type="number" min={0} step="any" value={tgt.maxGrade} onChange={(e) => { toTargetDefaults.maxGrade = e.target.value; setTgt((t) => ({ ...t, maxGrade: e.target.value })); }} style={num} aria-label={tr("Maximum grade to the target")} /></label>
             <label style={{ ...row, marginTop: 0 }}>{tr("Min radius (m)")}<input type="number" min={0} step="any" value={tgt.minRadius} onChange={(e) => { toTargetDefaults.minRadius = e.target.value; setTgt((t) => ({ ...t, minRadius: e.target.value })); }} style={num} aria-label={tr("Minimum curve radius to the target")} /></label>
           </div>
+          {pickedOn && !tgt.holeId && <div style={note}>{pickedOn.on ? tr("Picked on {name} at Z {z}: set the Z by hand if that is not the elevation you mean.", { name: pickedOn.on, z: m1(pickedOn.z) }) : tr("Picked on the flat reference plane (nothing drawn under the cursor): set the Z by hand.")}</div>}{/* #1891 */}
           <button onClick={designToTarget} disabled={!targetPoint()} style={{ ...pBtn, marginTop: 4, opacity: targetPoint() ? 1 : 0.5 }}><Spline size={14} /> {tr("Design to the target")}</button>
           {toTargetMsg && <div style={note}>{toTargetMsg}</div>}
         </>)}
@@ -322,11 +334,12 @@ export default function DesignLinesPane({ view, onClose }) {
             <div style={row}><span>{tr("Steepest grade")}</span><b>{m1(c.steepest)} %</b></div>
             {c.minRadius != null && !corners.length && <div style={row}><span>{tr("Tightest radius")}</span><b>{m1(c.minRadius)} m</b></div>}
             {corners.length > 0 && <div style={warn}>{tr("{n} sharp corner(s) (segment {list}): a typed azimuth turned the line without a curve, which no machine can drive. Add a curve or match the heading.", { n: corners.length, list: corners.map((k) => `${k.segment} (${k.turn}°)`).join(", ") })}</div>}{/* #1611 */}
-            {nearLine && <div style={row}><span>{tr("Closest pass to another line")}</span><b>{m1(nearLine.distance)} m ({nearLine.name})</b></div>}
-            {nearHole && <div style={row}><span>{tr("Closest pass to a drillhole")}</span><b>{m1(nearHole.distance)} m ({nearHole.name})</b></div>}
-            {pillarM > 0 && ((nearLine && nearLine.distance < pillarM) || (nearHole && nearHole.distance < pillarM) || (clearance && clearance.distance < pillarM)) && <div style={warn}>{tr("Less than the {p} m pillar is left somewhere: see the passes above.", { p: pillarM })}</div>}
-            {clearance && <div style={row}><span title={tr("The nearest the line passes to another part of itself, as between the turns of a spiral: the rock left between them.")}>{tr("Closest pass to itself")}</span><b>{m1(clearance.distance)} m</b></div>}
-            {clearance && clearance.distance < 10 && <div style={warn}>{tr("The line passes within {m} m of itself near {x}, {y}, {z}: it may run through its own opening.", { m: m1(clearance.distance), x: m1(clearance.at[0]), y: m1(clearance.at[1]), z: m1(clearance.at[2]) })}</div>}
+            {nearLine && <div style={row}><span title={halfW > 0 ? tr("Centreline to centreline: {m} m", { m: m1(nearLine.distance) }) : undefined}>{passLabel(tr("Closest pass to another line"))}</span><b>{m1(wallLine)} m ({nearLine.name})</b></div>}{/* #1889 */}
+            {nearHole && <div style={row}><span title={halfW > 0 ? tr("Centreline to hole: {m} m", { m: m1(nearHole.distance) }) : undefined}>{passLabel(tr("Closest pass to a drillhole"))}</span><b>{m1(wallHole)} m ({nearHole.name})</b></div>}
+            {pillarM > 0 && ((wallLine != null && wallLine < pillarM) || (wallHole != null && wallHole < pillarM) || (wallSelf != null && wallSelf < pillarM)) && <div style={warn}>{tr("Less than the {p} m pillar is left somewhere: see the passes above.", { p: pillarM })}</div>}
+            {pillarM > 0 && halfW === 0 && <div style={note}>{tr("The passes are centreline figures: set a profile width to measure the rock left wall to wall.")}</div>}
+            {clearance && <div style={row}><span title={tr("The nearest the line passes to another part of itself, as between the turns of a spiral: the rock left between them.")}>{passLabel(tr("Closest pass to itself"))}</span><b>{m1(wallSelf)} m</b></div>}
+            {clearance && wallSelf < 10 && <div style={warn}>{tr("The line passes within {m} m of itself near {x}, {y}, {z}: it may run through its own opening.", { m: m1(wallSelf), x: m1(clearance.at[0]), y: m1(clearance.at[1]), z: m1(clearance.at[2]) })}</div>}
             {above > 0.5 && <div style={warn}>{tr("{m} m of this line, in plan, is above the terrain.", { m: m1(above) })}</div>}
             {!terrain && <div style={note}>{tr("No terrain: the line is not checked against the ground.")}</div>}
           </div>

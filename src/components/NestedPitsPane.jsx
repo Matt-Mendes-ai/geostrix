@@ -32,7 +32,13 @@ export function parseFactors(text) {
   const t = String(text || "").trim();
   const m = /^(-?[\d.]+)\s*(?:-|to)\s*(-?[\d.]+)\s*(?:step|by|\/)\s*([\d.]+)$/i.exec(t);
   if (m) { const a = +m[1], b = +m[2], st = +m[3]; if (!(st > 0) || b < a) return []; const out = []; for (let v = a; v <= b + 1e-9; v += st) out.push(+v.toFixed(6)); return out; }
-  return t.split(/[,\s;]+/).map(Number).filter((v) => Number.isFinite(v) && v > 0);
+  return [...new Set(t.split(/[,\s;]+/).map(Number).filter((v) => Number.isFinite(v) && v > 0))].sort((a, b) => a - b); // unique, ascending: #1901
+}
+// the values a list dropped (zero, negative): said beside the count (#1901)
+export function droppedFactors(text) {
+  const t = String(text || "").trim();
+  if (/^(-?[\d.]+)\s*(?:-|to)\s*(-?[\d.]+)\s*(?:step|by|\/)\s*([\d.]+)$/i.test(t)) return [];
+  return t.split(/[,\s;]+/).map(Number).filter((v) => Number.isFinite(v) && !(v > 0));
 }
 
 // surfaces: the generated surfaces (the last pit shell's inputs are the defaults); onAdd / onToggle / onRemove as the pit pane's
@@ -78,7 +84,7 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
     const existing = shells.find((s) => s.params?.seriesId === res.seriesId && s.params?.revenueFactor === r.rf);
     if (existing) { onToggle?.(existing.id); return; }
     onAdd?.({
-      name: tr("Pit shell: {model} at {price} {unit} x{rf}, {slope}°", { model: model?.name || lastPit.params.blockModel, price: res.price, unit: res.priceLabel, rf: r.rf, slope: inputs.slopeDeg }),
+      name: tr("Pit shell: {model} at {price} {unit} x{rf}, {slope}°{sec}", { model: model?.name || lastPit.params.blockModel, price: res.price, unit: res.priceLabel, rf: r.rf, slope: inputs.slopeDeg, sec: inputs.sectorSlopes ? tr(" (by sector)") : "" }), // sec: #1897
       positions: r.positions, indices: r.indices, type: "pit_shell", closure: null, color: SHELL_COLOURS[i % SHELL_COLOURS.length], tag: "pit",
       tip: tr("Conceptual pit shell at revenue factor {rf}: not a mine plan, a Reserve or a Resource", { rf: r.rf }),
       params: { tool: "conceptual pit shell (maximum closure, exact), nested series", inputs: { ...inputs, revenueFactor: r.rf, unit: valueUnit(model) ? "" : unit }, blockModel: model?.name, gradeUnit: unit, revenueFactor: r.rf, seriesId: res.seriesId,
@@ -102,9 +108,9 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
       {!lastPit && <div style={warn}>{tr("It needs a pit shell: run one above first. Its price, costs, density and slope are the series' inputs.")}</div>}
       {lastPit && !model && <div style={warn}>{tr("The block model the shell was run on (\"{m}\") is not in the project any more.", { m: lastPit.params?.blockModel || "?" })}</div>}
       {lastPit && model && (<>
-        <div style={{ ...note, marginTop: 4 }}>{tr("From \"{pit}\": {price} {unit}, recovery {rec} %, mining ${mc}/t, processing ${pc}/t, density {d}, slope {s}°.", { pit: String(lastPit.name).replace(/^Pit shell: /, ""), price: inputs.price, unit: priceLabel, rec: inputs.recovery, mc: inputs.miningCost, pc: inputs.processingCost, d: inputs.density, s: inputs.slopeDeg })}</div>
+        <div style={{ ...note, marginTop: 4 }}>{tr("From \"{pit}\": {price} {unit}, recovery {rec} %, mining ${mc}/t, processing ${pc}/t, density {d}, slope {s}°{sec}.", { pit: String(lastPit.name).replace(/^Pit shell: /, ""), price: inputs.price, unit: priceLabel, rec: inputs.recovery, mc: inputs.miningCost, pc: inputs.processingCost, d: inputs.density, s: inputs.slopeDeg, sec: inputs.sectorSlopes ? tr(" (by sector)") : "" })}</div>{/* sec: #1897 */}
         <label style={row}>{tr("Revenue factors")}<input value={f.factors} onChange={(e) => setF((p) => ({ ...p, factors: e.target.value }))} style={{ ...smallSel, width: 130 }} aria-label={tr("Revenue factors of the series")} title={tr("A range with a step, or a list: 0.3-1.2 step 0.1, or 0.5, 0.8, 1, 1.2")} /></label>
-        <div style={note}>{factors.length ? tr("{n} factor(s): {list}", { n: factors.length, list: factors.join(", ") }) : tr("Enter a range with a step, or a list of factors.")}</div>
+        <div style={note}>{factors.length ? tr("{n} factor(s): {list}", { n: factors.length, list: factors.join(", ") }) : tr("Enter a range with a step, or a list of factors.")}{droppedFactors(f.factors).length > 0 && <> {tr("Ignored: {list} (a factor must be above 0).", { list: droppedFactors(f.factors).join(", ") })}</>}</div>
         <label style={row}>{tr("Mining rate (t rock / year)")}<input type="number" min={0} step="any" value={f.rate} onChange={(e) => setF((p) => ({ ...p, rate: e.target.value }))} style={num} aria-label={tr("Mining rate")} placeholder={tr("optional")} /></label>
         <label style={row}>{tr("Discount rate (% / year)")}<input type="number" min={0} step="any" value={f.discount} onChange={(e) => setF((p) => ({ ...p, discount: e.target.value }))} style={num} aria-label={tr("Discount rate")} placeholder={tr("optional")} disabled={!rate} /></label>
         {busy == null

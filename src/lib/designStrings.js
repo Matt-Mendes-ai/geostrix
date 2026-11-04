@@ -127,15 +127,20 @@ export function stringRows(strings) {
 }
 export const stringFeatures = (strings) => strings.filter((s) => s.vertices.length > 1).map((s) => ({ attributes: { name: s.name, color: s.color, closed: !!s.closed }, geometry: s.closed && s.vertices.length > 2 ? [...s.vertices, s.vertices[0]] : s.vertices }));
 
-// import: every polyline of a DXF (lib/dxf.js parseDXF keeps Z and the closed flag) as a string named after its layer; a 2D
-// polyline takes `zDefault`. Coordinates are taken as the project's CRS: the caller checks that.
+// import: every polyline of a DXF (lib/dxf.js parseDXF keeps Z and the closed flag) as a string named after its layer (the layer
+// alone when it holds one polyline, #1914); a 2D polyline takes `zDefault`: a number, or a function of (x, y) such as the ground
+// (#1906), and the string is flagged `flat`. Coordinates are taken as the project's CRS: the caller checks that.
 export function stringsFromDxf(text, { zDefault = 0, baseName = "DXF" } = {}) {
   const { polylines, layers, closed, has3D, skipped } = parseDXF(text);
-  const count = new Map();
+  const count = new Map(), total = new Map();
+  for (const l of layers) total.set(l || "0", (total.get(l || "0") || 0) + 1);
+  const zOf = typeof zDefault === "function" ? zDefault : () => zDefault;
   const strings = polylines.map((pl, k) => {
     const layer = layers[k] || "0", n = (count.get(layer) || 0) + 1; count.set(layer, n);
-    const vertices = dedupe(pl.map((q) => [q.x, q.y, fin(q.z) ? q.z : zDefault]).filter(ok));
-    return { name: polylines.length === 1 ? baseName : `${layer} ${n}`, closed: !!closed[k] && vertices.length > 2, vertices, layer };
+    const flat = pl.some((q) => !fin(q.z));
+    const vertices = dedupe(pl.map((q) => [q.x, q.y, fin(q.z) ? q.z : zOf(q.x, q.y)]).filter(ok));
+    const name = polylines.length === 1 && layer === "0" ? baseName : total.get(layer) === 1 ? layer : `${layer} ${n}`;
+    return { name, closed: !!closed[k] && vertices.length > 2, vertices, layer, flat };
   }).filter((s) => s.vertices.length > 1);
-  return { strings, has3D, skipped };
+  return { strings, has3D, skipped, flat: strings.filter((s) => s.flat).length };
 }

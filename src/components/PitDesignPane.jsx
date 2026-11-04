@@ -60,6 +60,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
       const r = await job.current.promise;
       if (r.cancelled) { setMsg(tr("Cancelled: nothing was added.")); return; }
       if (!r.benches.length) { setMsg(tr("No bench fits: the shell is shallower than one bench height.")); return; }
+      if (r.benches.length === 1 && !r.daylights && r.faceRun < r.cell) { setMsg(tr("One bench only: a face run of {r} m is narrower than the {c} m design grid, so the walls could not be drawn. Use a flatter face, a taller bench or a berm.", { r: r.faceRun.toFixed(2), c: r.cell.toFixed(1) })); return; } // #1902
       const seconds = Math.round((performance.now() - t0) / 100) / 10;
       if (hideEarlier) designs.filter((s) => s.visible).forEach((s) => onToggle?.(s.id));
       const name = tr("Pit design: {pit}, {h} m benches, {b} m berms, {a}°", { pit: String(pit.name).replace(/^Pit shell: /, ""), h: inputs.benchH, b: inputs.berm, a: inputs.batterDeg });
@@ -152,6 +153,8 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
           {line(tr("Designed in"), `${res.seconds} s`)}
           {res.modelMissing && <div style={warn}>{tr("No block model: the ore column is empty, the rock is counted.")}</div>}
           {res.coarsened && <div style={warn}>{tr("The design grid was made coarser to stay within the limit: faces and strings are coarser than asked.")}</div>}
+          {res.cell > res.faceRun && <div style={warn}>{tr("The design cell ({c} m) is wider than a face ({f} m): faces and berms are not drawn at this size, and the surface is the shell stepped to bench floors.", { c: res.cell.toFixed(1), f: res.faceRun.toFixed(1) })}</div>}{/* #1899 */}
+          {Number(res.shell?.gridCellM?.[0]) > Number(res.inputs?.benchH) && <div style={note}>{tr("The shell's walls are {d} m block steps, wider than a {h} m bench: the shell's waste understates what the benched walls take out.", { d: res.shell.gridCellM[0], h: res.inputs.benchH })}</div>}{/* #1899 */}
           {!res.daylights && <div style={warn}>{tr("The walls never met the ground: the design stops at the top bench.")}</div>}
           {res.groundSource === "collars" && <div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div>}
           {res.groundSource === "model top" && <div style={note}>{tr("No terrain and no collars: the top of the shell is taken as flat ground.")}</div>}

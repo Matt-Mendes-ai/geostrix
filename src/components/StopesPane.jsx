@@ -25,8 +25,9 @@ const LEVEL_COLOURS = ["#e76f51", "#f4a261", "#e9c46a", "#2a9d8f", "#264653", "#
 const EMPTY = { modelId: "", cutoff: "", levelH: "", zMin: "", zMax: "", minWidth: "", minLength: "", skin: "", density: "" };
 let kept = null; // #1356 — the last result outlives the pane (this session)
 
-// onAdd as the pit pane's (a solid into the generated surfaces)
-export default function StopesPane({ onAdd, onClose }) {
+// onAdd as the pit pane's (a solid into the generated surfaces); onRemove(id) takes one out again (#1887: a re-run replaces the
+// stopes this pane put in the view)
+export default function StopesPane({ onAdd, onRemove, onClose }) {
   const { voxelModels = [], layers, project, setDesignStrings } = useStore();
   const models = useMemo(() => { const cat = new Set(categoricalModels(voxelModels)); return voxelModels.filter((m) => gradeCandidate(m, (x) => cat.has(x))); }, [voxelModels]);
   const [f, setF] = useState(() => ({ ...EMPTY, ...(kept?.inputs || {}), modelId: kept?.inputs?.modelId && models.some((m) => (m.id ?? m.name) === kept.inputs.modelId) ? kept.inputs.modelId : models[0]?.id ?? models[0]?.name ?? "" }));
@@ -37,29 +38,42 @@ export default function StopesPane({ onAdd, onClose }) {
   const unit = model ? valueUnit(model) || "" : "";
   const sg = useMemo(() => sgSummary(layers?.sg), [layers?.sg]);
   const zRange = useMemo(() => { if (!model) return null; let lo = Infinity, hi = -Infinity; for (const c of model.cells) { if (c.z - c.dz / 2 < lo) lo = c.z - c.dz / 2; if (c.z + c.dz / 2 > hi) hi = c.z + c.dz / 2; } return [lo, hi]; }, [model]);
+  const blockH = model?.cells?.[0]?.dz; // #1886 — the level interval's placeholder and the slicing warning
   const set = (k) => (e) => { setF((p) => ({ ...p, [k]: e.target.value })); setMsg(null); };
   const v = (k) => (f[k] === "" ? null : Number(f[k]));
-  const missing = !model || !(v("cutoff") >= 0) || !(v("levelH") > 0) || !(v("density") > 0);
+  const rangeBad = v("zMin") != null && v("zMax") != null && !(v("zMax") > v("zMin")); // #1893
+  const missing = !model || !(v("cutoff") >= 0) || !(v("levelH") > 0) || !(v("density") > 0) || rangeBad;
   const run = () => {
     if (missing) return;
     const t0 = performance.now();
-    const r = stopeOutlines(model, { cutoff: v("cutoff"), levelH: v("levelH"), zMin: v("zMin"), zMax: v("zMax"), minWidth: v("minWidth") || 0, minLength: v("minLength") || 0, skin: v("skin") || 0, density: v("density") });
+    let r;
+    try { r = stopeOutlines(model, { cutoff: v("cutoff"), levelH: v("levelH"), zMin: v("zMin"), zMax: v("zMax"), minWidth: v("minWidth") || 0, minLength: v("minLength") || 0, skin: v("skin") || 0, density: v("density") }); }
+    catch (e) { kept = null; setRes(null); setMsg(tr("The outlines failed: {error}", { error: e?.message || String(e) })); return; } // #1884 — never a silent stale result
     if (!r) { setMsg(tr("Nothing to outline: the model has no blocks with sizes.")); return; }
+    if (r.failed === "range") { setMsg(tr("From RL must be below To RL.")); return; }
     if (r.failed) { setMsg(tr("The model has too many columns ({n}) for this tool.", { n: r.columns })); return; }
-    kept = { ...r, inputs: { ...f }, model: model.name, unit, seconds: Math.round((performance.now() - t0) / 100) / 10 };
+    const addedIds = kept?.addedIds || []; // #1887 — the stopes the earlier run put in the view go when a new run replaces them
+    if (addedIds.length && onRemove) addedIds.forEach((id) => onRemove(id));
+    kept = { ...r, inputs: { ...f }, model: model.name, unit, seconds: Math.round((performance.now() - t0) / 100) / 10, addedIds: [] };
     setRes(kept); setAdded({ solids: false, strings: false }); setMsg(null);
   };
+  // #1885 — what the typed width and skin became on this model's columns
+  const effWidthM = res ? res.widthCols * Math.min(...res.cell) : 0, effSkinM = res ? res.skinCols * Math.min(...res.cell) : 0;
   const addSolids = () => {
     let n = 0;
+    const ids = [];
     res.levels.forEach((l, li) => l.stopes.forEach((s, si) => {
       if (!s.positions) return;
       n++;
-      onAdd?.({ name: tr("Stope {rl} m #{n}: {model} ≥ {c} {u}", { rl: Math.round(l.rl), n: si + 1, model: res.model, c: res.inputs.cutoff, u: res.unit }), positions: s.positions, indices: s.indices, volumeM3: s.volume, type: "stope", closure: "closed", color: LEVEL_COLOURS[li % LEVEL_COLOURS.length], tag: "stope",
-        tip: tr("Stope outline: blocks at or above the cut-off, no thinner than {w} m, with a {k} m skin; not a mine design", { w: res.inputs.minWidth || 0, k: res.inputs.skin || 0 }),
-        params: { tool: "stope outlines by level (opening by the minimum width, a dilution skin)", blockModel: res.model, gradeUnit: res.unit, cutoff: Number(res.inputs.cutoff), levelRL: l.rl, levelTop: l.top, minWidthM: Number(res.inputs.minWidth) || 0, minLengthM: Number(res.inputs.minLength) || 0, skinM: Number(res.inputs.skin) || 0, density: Number(res.inputs.density),
+      // #1885 — the tip and the params carry the width and skin as applied (whole columns), beside what was typed
+      const id = onAdd?.({ name: tr("Stope {rl} m #{n}: {model} ≥ {c} {u}", { rl: Math.round(l.rl), n: si + 1, model: res.model, c: res.inputs.cutoff, u: res.unit }), positions: s.positions, indices: s.indices, volumeM3: s.volume, type: "stope", closure: "closed", color: LEVEL_COLOURS[li % LEVEL_COLOURS.length], tag: "stope",
+        tip: tr("Stope outline: blocks at or above the cut-off, no thinner than {w} m ({n} column(s)), with a {k} m skin ({m} column(s)); not a mine design", { w: res.inputs.minWidth || 0, n: res.widthCols, k: res.inputs.skin || 0, m: res.skinCols }),
+        params: { tool: "stope outlines by level (opening by the minimum width, a dilution skin)", blockModel: res.model, gradeUnit: res.unit, cutoff: Number(res.inputs.cutoff), levelRL: l.rl, levelTop: l.top, minWidthM: Number(res.inputs.minWidth) || 0, minWidthAppliedM: effWidthM, minLengthM: Number(res.inputs.minLength) || 0, skinM: Number(res.inputs.skin) || 0, skinAppliedM: effSkinM, columnM: res.cell, density: Number(res.inputs.density),
           tonnes: Math.round(s.tonnes), grade: s.grade == null ? null : +s.grade.toPrecision(4), oreTonnes: Math.round(s.oreTonnes), oreGrade: s.oreGrade == null ? null : +s.oreGrade.toPrecision(4), columns: s.columns, holesFilled: s.holesFilled,
           caution: "a stope outline from a block model: no geotechnical, access, sequencing or shape check; not a Mineral Reserve or Resource", generatedAt: new Date().toISOString() } });
+      if (id) ids.push(id);
     }));
+    if (kept === res) { kept = { ...res, addedIds: ids }; setRes(kept); } // #1887
     setAdded((a) => ({ ...a, solids: true })); setMsg(tr("{n} stope solid(s) added to the generated surfaces.", { n }));
   };
   const addStrings = () => {
@@ -81,7 +95,7 @@ export default function StopesPane({ onAdd, onClose }) {
       {models.length > 0 && (<>
         <label style={row}>{tr("Block model")}<select value={f.modelId} onChange={set("modelId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Block model of the stopes")}>{models.map((m) => <option key={m.id ?? m.name} value={m.id ?? m.name}>{m.name}</option>)}</select></label>
         {field("cutoff", unit ? tr("Cut-off ({unit})", { unit }) : tr("Cut-off"))}
-        {field("levelH", tr("Level interval (m)"), { title: tr("The height of each stope: the distance between sublevels.") })}
+        {field("levelH", tr("Level interval (m)"), { title: tr("The height of each stope: the distance between sublevels."), placeholder: blockH ? String(blockH) : "" })}
         {field("zMin", tr("From RL (m)"), { placeholder: zRange ? String(Math.round(zRange[0])) : "" })}
         {field("zMax", tr("To RL (m)"), { placeholder: zRange ? String(Math.round(zRange[1])) : "" })}
         {field("minWidth", tr("Minimum mining width (m)"), { title: tr("Anything thinner is dropped (a morphological opening by this width, in whole columns of the model).") })}
@@ -90,6 +104,7 @@ export default function StopesPane({ onAdd, onClose }) {
         {field("density", tr("Density (t/m³)"))}
         {sg && !f.density && <div style={{ ...note, marginTop: 2 }}><button onClick={() => setF((p) => ({ ...p, density: String(sg.mean) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Use the logged mean, {v}", { v: sg.mean })}</button></div>}
         {model && <div style={note}>{tr("Columns of {dx} × {dy} m (the model's blocks); widths and skins round to whole columns.", { dx: model.cells[0]?.dx ?? "?", dy: model.cells[0]?.dy ?? "?" })}</div>}
+        {rangeBad && <div style={warn}>{tr("From RL must be below To RL.")}</div>}
         <button onClick={run} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Layers3 size={14} /> {tr("Outline the stopes")}</button>
         {missing && <div style={note}>{tr("Enter the cut-off, the level interval and the density: none has a default.")}</div>}
       </>)}
@@ -103,6 +118,14 @@ export default function StopesPane({ onAdd, onClose }) {
           {line(tr("Grade above cut-off"), g(res.totals.oreGrade))}
           {res.totals.dilutionPct != null && line(tr("Dilution"), `${res.totals.dilutionPct.toFixed(0)} %`)}
           {line(tr("Outlined in"), `${res.seconds} s`)}
+          {/* #1885 — the width and skin as applied; #1886 — a level interval below the block height slices the same block */}
+          <div style={note}>{tr("Width {w} m → {n} column(s) ({m} m); skin {s} m → {k} column(s) ({t} m).", { w: res.inputs.minWidth || 0, n: res.widthCols, m: +effWidthM.toFixed(1), s: res.inputs.skin || 0, k: res.skinCols, t: +effSkinM.toFixed(1) })}</div>
+          {Number(res.inputs.skin) > 0 && res.skinCols === 0 && <div style={warn}>{tr("No dilution counted: the skin is under half a column.")}</div>}
+          {res.blockH > 0 && Number(res.inputs.levelH) < res.blockH - 1e-9 && <div style={warn}>{tr("Levels under {h} m are slices of the same block: the per-level figures repeat.", { h: res.blockH })}</div>}
+          {res.totals.stopes === 0 && (res.oreColumns === 0
+            ? <div style={warn}>{tr("No column reaches the cut-off on any level.")}</div>
+            : <div style={warn}>{tr("Columns reach the cut-off, but no patch is {n} column(s) wide and {l} m long.", { n: res.widthCols, l: res.inputs.minLength || 0 })}</div>)}
+          {res.unbuilt > 0 && <div style={warn}>{tr("{n} outline(s) could not be made into a solid (kept as outlines; the tonnes count).", { n: res.unbuilt })}</div>}
           <div style={{ marginTop: 6, maxHeight: 200, overflow: "auto", border: "1px solid var(--color-border)", borderRadius: 4 }}>
             <table style={{ borderCollapse: "collapse", width: "100%", fontSize: "var(--font-size-xs)" }}>
               <thead><tr style={{ position: "sticky", top: 0, background: "var(--color-bg)" }}>{[tr("Level"), tr("Stopes"), tr("t"), tr("Grade"), tr("Ore t")].map((h) => <th key={h} style={{ textAlign: "right", padding: "2px 4px", borderBottom: "1px solid var(--color-border)", fontWeight: 600 }}>{h}</th>)}</tr></thead>

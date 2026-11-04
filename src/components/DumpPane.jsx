@@ -37,7 +37,8 @@ export default function DumpPane({ surfaces = [], onAdd, onClose }) {
   const centre = useMemo(() => { if (!footprint) return null; const st = stringStats(footprint.vertices, true); const cx = (st.box[0] + st.box[3]) / 2, cy = (st.box[1] + st.box[4]) / 2; const g = groundAt ? groundAt(cx, cy) : NaN; return { x: cx, y: cy, ground: Number.isFinite(g) ? g : (st.box[2] + st.box[5]) / 2, area: st.area }; }, [footprint, groundAt]);
   const set = (k) => (e) => { setF((p) => ({ ...p, [k]: e.target.value })); setMsg(null); };
   const v = (k) => (f[k] === "" ? null : Number(f[k]));
-  const missing = !footprint || v("crestZ") == null || !(v("repose") > 0 && v("repose") < 90);
+  const reposeBad = v("repose") != null && !(v("repose") > 0 && v("repose") < 90); // #1912
+  const missing = !footprint || v("crestZ") == null || v("repose") == null || reposeBad;
   const make = () => {
     if (missing || busy.current) return;
     busy.current = true;
@@ -47,7 +48,8 @@ export default function DumpPane({ surfaces = [], onAdd, onClose }) {
       if (!r) { setMsg(tr("No dump: the footprint needs three or more points and a known ground.")); return; }
       if (!r.volume) { setMsg(tr("The crest is at or below the ground over the whole footprint: nothing stands above it.")); return; }
       const tonnes = v("density") > 0 ? looseTonnes(r.volume, v("density"), v("swell") || 1) : null;
-      const name = tr("Dump: {s}, crest {z} m at {a}°", { s: footprint.name, z: v("crestZ"), a: v("repose") });
+      const base = tr("Dump: {s}, crest {z} m at {a}°", { s: footprint.name, z: v("crestZ"), a: v("repose") });
+      const taken = new Set(surfaces.map((s) => s.name)); let name = base; for (let k = 2; taken.has(name); k++) name = `${base} (${k})`; // #1910
       onAdd?.({ name, positions: r.positions, indices: r.indices, volumeM3: r.volume, type: "dump", closure: "closed", color: "#8d6e63", tag: "dump",
         tip: tr("Dump / stockpile: a platform at {z} m with sides at {a}°, down to the ground; a conceptual shape", { z: v("crestZ"), a: v("repose") }),
         params: { tool: "dump / stockpile from a footprint (platform at the crest, sides at the angle of repose to the ground)", footprint: footprint.name, crestZ: v("crestZ"), reposeDeg: v("repose"), density: v("density"), swell: v("swell"), looseVolumeM3: Math.round(r.volume), looseTonnes: tonnes == null ? null : Math.round(tonnes), footprintAreaM2: Math.round(r.footprintArea), dumpAreaM2: Math.round(r.dumpArea), maxHeightM: +r.maxHeight.toFixed(1), toeReachM: +r.toeReach.toFixed(1), groundFrom: groundSource, cellM: +r.cell.toFixed(2), caution: "a conceptual shape: no stability, lift, drainage or foundation check", generatedAt: new Date().toISOString() } });
@@ -73,7 +75,8 @@ export default function DumpPane({ surfaces = [], onAdd, onClose }) {
         {field("swell", tr("Swell factor"), { min: 1, placeholder: tr("optional"), title: tr("Broken rock takes more room than in place: loose tonnes = volume × density ÷ swell.") })}
         {pits.length > 0 && <label style={row}>{tr("Compare with pit")}<select value={f.pitId} onChange={set("pitId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Pit shell whose waste the dump is compared with")}><option value="">{tr("— none —")}</option>{pits.map((s) => <option key={s.id} value={s.id}>{String(s.name).replace(/^Pit shell: /, "")}</option>)}</select></label>}
         <button onClick={make} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Box size={14} /> {tr("Make the dump")}</button>
-        {missing && <div style={note}>{tr("Enter the crest elevation and the angle of repose: neither has a default.")}</div>}
+        {reposeBad && <div style={warn}>{tr("The angle of repose must be between 1 and 89°.")}</div>}
+        {missing && !reposeBad && <div style={note}>{tr("Enter the crest elevation and the angle of repose: neither has a default.")}</div>}
       </>)}
       {msg && <div style={warn}>{msg}</div>}
       {res && (

@@ -96,6 +96,17 @@ const PitDesignPane = React.lazy(() => import("../components/PitDesignPane.jsx")
 const DesignStringsPane = React.lazy(() => import("../components/DesignStringsPane.jsx")); // TASKS.csv #1876
 const NestedPitsPane = React.lazy(() => import("../components/NestedPitsPane.jsx")); // TASKS.csv #1875
 const StopesPane = React.lazy(() => import("../components/StopesPane.jsx")); // TASKS.csv #1879
+let solidSeq = 0; // TASKS.csv #1887 — distinct ids for solids added within one millisecond
+// TASKS.csv #1891 — what a pick in the view landed on, in a few words: the object's tip (its first line) or the kind of group it sits in
+const HIT_KINDS = { voxels: "a block model", terrain: "the terrain", implicit: "a generated surface", rasters: "a raster", omf: "an OMF object", planned: "a planned hole", mapLayers: "a map layer", sectionImages: "a section image", surface_samples: "a surface sample", assay: "an assay interval" };
+function hitLabel(obj) {
+  let kind = null;
+  for (let n = obj; n; n = n.parent) {
+    const tip = n.userData?.tip; if (typeof tip === "string" && tip.trim()) return tip.split("\n")[0].trim().slice(0, 60);
+    if (n.name && n.parent?.name === "root") kind = HIT_KINDS[n.name] || (LAYER_META[n.name] ? "a drillhole" : n.name);
+  }
+  return kind;
+}
 const DumpPane = React.lazy(() => import("../components/DumpPane.jsx")); // TASKS.csv #1880
 const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")); // TASKS.csv #1152
 const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
@@ -2176,12 +2187,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const near = hits.find(drawn);
     if (near) {
       const p = near.point;
-      return { x: p.x + o.x, y: -p.z + o.y, z: p.y + o.z };
+      return { x: p.x + o.x, y: -p.z + o.y, z: p.y + o.z, on: hitLabel(near.object) }; // on: #1891
     }
     const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     const hit = new THREE.Vector3();
     if (raycaster.ray.intersectPlane(plane, hit)) {
-      return { x: hit.x + o.x, y: -hit.z + o.y, z: hit.y + o.z };
+      return { x: hit.x + o.x, y: -hit.z + o.y, z: hit.y + o.z, on: null };
     }
     return null;
   }, []);
@@ -2738,6 +2749,12 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     cameraRef.current?.__update?.();
     return true;
   }, []);
+  // TASKS.csv #1892 — frame a design line or string: world [E, N, Z] points into the scene frame, then the usual fit
+  const zoomToWorldPoints = useCallback((pts) => {
+    const o = originRef.current, box = new THREE.Box3();
+    for (const p of pts || []) if (Number.isFinite(p?.[0]) && Number.isFinite(p?.[1]) && Number.isFinite(p?.[2])) box.expandByPoint(new THREE.Vector3(p[0] - o.x, p[2] - o.z, o.y - p[1]));
+    return fitBox(box, 1.3, 40);
+  }, [fitBox]);
   const fitView = useCallback((traces) => { const box = new THREE.Box3(); traces.forEach((pts) => pts.forEach((p) => box.expandByPoint(new THREE.Vector3(p.x, p.y, p.z)))); fitBox(box); }, [fitBox]);
   // TASKS.csv #1319 — Matt: "have the project open at a zoom level to include all holes". The one-time opening view frames the holes; models count only in a
   // project with no holes. It replaces #313's clamp to the densest drilling, which left holes off screen; on a large property a tube can be a hairline at this zoom.
@@ -3749,7 +3766,7 @@ ${describeTrend(t)}` };
     const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: new THREE.Color(color), side: THREE.DoubleSide, transparent: true, opacity: 0.55 }));
     mesh.userData = { tip };
     implicitGroupRef.current?.add(mesh);
-    const id = `impl_${Date.now()}_${tag}`;
+    const id = `impl_${Date.now()}_${++solidSeq}_${tag}`; // solidSeq: #1887 — solids added in one burst must not share an id
     implicitMeshesRef.current[id] = mesh;
     setImplicitSurfaces((p) => [...p, { id, name, visible: true, vertexCount: w.length / 3, faceCount: indices.length / 3, type, relationships: [], closure, params: { ...params, ...(volumeM3 != null ? { volumeM3: Math.round(volumeM3) } : {}) } }]);
     return id; // #1613 — the pit pane follows its pit
@@ -7212,13 +7229,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <Ribbon show={visible} label="Mine design tools">
           <RibbonGroup label="Open pit">
             <RibbonButton icon={Pickaxe} label="Pit shell" tone="model" title="The pit that makes the most money at your prices and costs, from a block model" {...paneProps("pit")} />
-            <RibbonButton icon={Layers} label="Nested pits" tone="model" title="The shell at a series of revenue factors, valued at the entered price, with a schedule and an NPV per shell" {...paneProps("nested")} />{/* TASKS.csv #1875 */}
-            <RibbonButton icon={Layers3} label="Pit design" tone="model" title="Benches, berms and faces on a pit shell: crest and toe strings and a bench-by-bench table" {...paneProps("pitdesign")} />{/* TASKS.csv #1874 */}
-            <RibbonButton icon={Mountain} label="Dump / stockpile" tone="model" title="A footprint string, a crest and an angle of repose: the dump's shape on the ground and what it holds, against a pit's waste" {...paneProps("dump")} />{/* TASKS.csv #1880 */}
+            <RibbonButton advanced icon={Layers} label="Nested pits" tone="model" title="The shell at a series of revenue factors, valued at the entered price, with a schedule and an NPV per shell" {...paneProps("nested")} />{/* TASKS.csv #1875 */}
+            <RibbonButton advanced icon={Layers3} label="Pit design" tone="model" title="Benches, berms and faces on a pit shell: crest and toe strings and a bench-by-bench table" {...paneProps("pitdesign")} />{/* TASKS.csv #1874 */}
+            <RibbonButton advanced icon={Mountain} label="Dump / stockpile" tone="model" title="A footprint string, a crest and an angle of repose: the dump's shape on the ground and what it holds, against a pit's waste" {...paneProps("dump")} />{/* TASKS.csv #1880 */}
           </RibbonGroup>
           <RibbonGroup label="Underground">
             <RibbonButton icon={Spline} label="Drifts and ramps" tone="model" title="Draw drifts, tunnels, ramps and declines at set grades, with curves of a chosen radius" {...paneProps("lines")} />
-            <RibbonButton icon={Layers3} label="Stope outlines" tone="model" title="A block model at a cut-off, level by level: stope outlines and solids no thinner than a mining width, with a dilution skin" {...paneProps("stopes")} />{/* TASKS.csv #1879 */}
+            <RibbonButton advanced icon={Layers3} label="Stope outlines" tone="model" title="A block model at a cut-off, level by level: stope outlines and solids no thinner than a mining width, with a dilution skin" {...paneProps("stopes")} />{/* TASKS.csv #1879 */}
           </RibbonGroup>
           <RibbonGroup label="CAD">{/* TASKS.csv #1876 / #1877 */}
             <RibbonButton icon={PenTool} label="Strings" tone="model" title="Free polylines and polygons in 3D: draw, type, offset, join and split them; extrude or loft closed ones into solids; DXF in and out" {...paneProps("strings")} />
@@ -8353,10 +8370,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {sidebarTab === "minedesign" && toolPane === "pit" && <Suspense fallback={null}><PitShellPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} /* #1498 */ onClose={() => setToolPane(null)} /></Suspense>}
         {sidebarTab === "minedesign" && toolPane === "nested" && <Suspense fallback={null}><NestedPitsPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1875 */}
         {sidebarTab === "minedesign" && toolPane === "pitdesign" && <Suspense fallback={null}><PitDesignPane surfaces={implicitSurfaces} worldPositionsOf={worldPositionsOfSurface} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1874 */}
-        {sidebarTab === "minedesign" && toolPane === "strings" && <Suspense fallback={null}><DesignStringsPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient }} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1876 */}
+        {sidebarTab === "minedesign" && toolPane === "strings" && <Suspense fallback={null}><DesignStringsPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient, zoomTo: zoomToWorldPoints /* #1892 */ }} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1876 */}
         {sidebarTab === "minedesign" && toolPane === "dump" && <Suspense fallback={null}><DumpPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1880 */}
-        {sidebarTab === "minedesign" && toolPane === "stopes" && <Suspense fallback={null}><StopesPane onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1879 */}
-        {sidebarTab === "minedesign" && toolPane === "lines" && <Suspense fallback={null}><DesignLinesPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient /* #1878 */ }} onClose={() => setToolPane(null)} /></Suspense>}
+        {sidebarTab === "minedesign" && toolPane === "stopes" && <Suspense fallback={null}><StopesPane onAdd={addUndrilledSolid} onRemove={removeImplicitSurface} /* #1887 */ onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1879 */}
+        {sidebarTab === "minedesign" && toolPane === "lines" && <Suspense fallback={null}><DesignLinesPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient /* #1878 */, zoomTo: zoomToWorldPoints /* #1892 */ }} onClose={() => setToolPane(null)} /></Suspense>}
         {sidebarTab === "targeting" && (<>
         {toolPane === "ranges" && (<>
         {paneHeader("Voxel value ranges", Box, "view")}

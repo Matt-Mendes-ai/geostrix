@@ -6,7 +6,7 @@
 // lib/stringSolids.js. Every number is the user's.
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { PenTool, Download, Upload, X, Trash2, Plus, Box } from "./icons.js";
+import { PenTool, Download, Upload, X, Trash2, Plus, Box, Maximize2 } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
 import { stringStats, offsetString, joinStrings, splitString, reverseString, fromDistanceBearing, orthoPoint, snapToGrid, nearestPoint, bearingOf, stringRows, stringFeatures, stringsFromDxf } from "../lib/designStrings.js";
@@ -17,6 +17,8 @@ import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import { iconAction } from "../lib/a11y.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
+import { collarGround } from "../lib/pitShell.js"; // #1905
+import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { t as tr } from "../lib/i18n.js";
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
@@ -26,10 +28,9 @@ const label = { ...note, marginTop: 10, fontWeight: 600, textTransform: "upperca
 const num = { ...smallSel, width: 72 };
 const COLOURS = ["#1971c2", "#e8590c", "#2f9e44", "#ae3ec9", "#f08c00", "#0c8599"];
 const m1 = (v) => (Math.round(v * 10) / 10).toLocaleString();
-const m2 = (v) => (Math.round(v * 100) / 100).toLocaleString();
 const num0 = (s) => (s === "" || s == null || !Number.isFinite(Number(s)) ? null : Number(s));
 const big = (v) => new Intl.NumberFormat(undefined, { notation: "compact", maximumSignificantDigits: 3 }).format(v);
-const draw = { target: "hit", planeZ: "", snap: true, grid: "" }; // #1360 — the drawing settings outlive the pane (this session)
+const draw = { target: null, planeZ: "", snap: true, grid: "" }; // #1360 — the drawing settings outlive the pane (this session); target null: not chosen yet (#1905)
 let nextId = 1;
 
 // a number taken when you leave the cell (#1363)
@@ -42,10 +43,12 @@ function Cell({ value, onCommit, width = 60, ariaLabel, placeholder }) {
 // view: { scene, camera, renderer, activity, dragHook, origin, worldPointAt } (refs; worldPointAt(clientX, clientY) -> world point
 // under the cursor on any drawn feature, or null); onAdd as the pit pane's (a solid into the generated surfaces)
 export default function DesignStringsPane({ view, onAdd, onClose }) {
-  const { designStrings = [], setDesignStrings, collars = [], voxelModels = [], project } = useStore();
+  const { designStrings = [], setDesignStrings, collars = [], voxelModels = [], project, terrain } = useStore();
   const [activeId, setActiveId] = useState(() => designStrings[designStrings.length - 1]?.id ?? null);
   const [drawing, setDrawing] = useState(false);
-  const [target, setTargetState] = useState(draw.target);
+  // #1905 — the ground: the terrain, else interpolated between the collars (as the pit and dump panes take it); the default target
+  const groundAt = useMemo(() => (terrain ? (x, y) => terrainGroundAt(terrain, x, y) : collarGround(collars)), [terrain, collars]);
+  const [target, setTargetState] = useState(draw.target || (groundAt ? "ground" : "hit"));
   const [planeZ, setPlaneZState] = useState(draw.planeZ);
   const [snap, setSnapState] = useState(draw.snap);
   const [grid, setGridState] = useState(draw.grid);
@@ -63,14 +66,15 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
   useEffect(() => { if (!string && designStrings.length) setActiveId(designStrings[designStrings.length - 1].id); }, [string, designStrings]);
   const stats = useMemo(() => (string ? stringStats(string.vertices, string.closed) : null), [string]);
   const update = (patch, id = activeId) => setDesignStrings((L) => L.map((s) => (s.id === id ? { ...s, ...patch } : s)));
-  const addString = (s) => { const id = `string_${Date.now()}_${nextId++}`; setDesignStrings((L) => [...L, { id, color: COLOURS[L.length % COLOURS.length], visible: true, closed: false, vertices: [], ...s }]); return id; };
+  // #1910 — a name already in the list gets a (2), (3) ... suffix
+  const addString = (s) => { const id = `string_${Date.now()}_${nextId++}`; setDesignStrings((L) => { const taken = new Set(L.map((x) => x.name)); let name = s.name, k = 2; while (taken.has(name)) name = `${s.name} (${k++})`; return [...L, { id, color: COLOURS[L.length % COLOURS.length], visible: true, closed: false, vertices: [], ...s, name }]; }); return id; };
   const newString = () => { const id = addString({ name: tr("String {n}", { n: designStrings.length + 1 }) }); setActiveId(id); setMsg(null); };
   const appendVertex = (p) => update({ vertices: [...string.vertices, p.map((v) => +v.toFixed(3))] });
   const models = useMemo(() => { const cat = new Set(categoricalModels(voxelModels)); return voxelModels.filter((m) => m.cells?.length && !cat.has(m)); }, [voxelModels]);
 
   // ---------- drawing in the 3D view ----------
   const state = useRef();
-  state.current = { string, target, planeZ: num0(planeZ), snap, grid: num0(grid) || 0, appendVertex, collars, strings: designStrings };
+  state.current = { string, target, planeZ: num0(planeZ), snap, grid: num0(grid) || 0, appendVertex, collars, strings: designStrings, groundAt };
   useEffect(() => {
     const dom = view?.renderer.current?.domElement, scene = view?.scene.current;
     if (!drawing || !dom || !scene) return undefined;
@@ -83,8 +87,10 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
     const toScene = (v) => { const o = view.origin.current; return new THREE.Vector3(v[0] - o.x, v[2] - o.z, -(v[1] - o.y)); };
     const pointAt = (ev) => {
       const s = state.current, o = view.origin.current;
-      let p = null;
-      if (s.target === "hit") { const w = view.worldPointAt?.(ev.clientX, ev.clientY); if (w) p = [w.x, w.y, w.z]; }
+      let p = null, on = null;
+      if (s.target === "hit" || s.target === "ground") { const w = view.worldPointAt?.(ev.clientX, ev.clientY); if (w) { p = [w.x, w.y, w.z]; on = w.on || null; } }
+      // #1905 — on the ground: the E, N of what is under the cursor (or the plane), the Z from the terrain or the collars
+      if (p && s.target === "ground" && s.groundAt) { const g = s.groundAt(p[0], p[1]); if (Number.isFinite(g)) { p = [p[0], p[1], g]; on = "ground"; } }
       if (!p) {
         const level = Number.isFinite(s.planeZ) ? s.planeZ : (s.string?.vertices.length ? s.string.vertices[s.string.vertices.length - 1][2] : o.z);
         const rect = dom.getBoundingClientRect();
@@ -108,7 +114,7 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
         const near = nearestPoint(p, cands, r);
         if (near) { p = near; snapped = true; }
       }
-      return { p, snapped };
+      return { p, snapped, on };
     };
     const onMove = (ev) => {
       const s = state.current, r = pointAt(ev);
@@ -121,7 +127,7 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
       preview.geometry = new THREE.BufferGeometry().setFromPoints(pts.map(toScene));
       preview.computeLineDistances();
       preview.visible = pts.length > 1;
-      setHover({ p: r.p, snapped: r.snapped, dist: last ? Math.hypot(r.p[0] - last[0], r.p[1] - last[1]) : null, bearing: last ? bearingOf(last, r.p) : null, dz: last ? r.p[2] - last[2] : null });
+      setHover({ p: r.p, snapped: r.snapped, on: r.on, dist: last ? Math.hypot(r.p[0] - last[0], r.p[1] - last[1]) : null, bearing: last ? bearingOf(last, r.p) : null, dz: last ? r.p[2] - last[2] : null });
     };
     dom.addEventListener("pointermove", onMove);
     view.dragHook.current = (e) => {
@@ -170,26 +176,29 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
     setActiveId(id); setMsg(tr("Offset copy made. An inside corner tighter than the offset folds the copy back on itself there: check the corners."));
   };
   const doDuplicate = () => { const dE = num0(tool.dE) || 0, dN = num0(tool.dN) || 0, dZ = num0(tool.dZ) || 0; const id = addString({ name: tr("{name} copy", { name: string.name }), closed: string.closed, color: string.color, vertices: string.vertices.map((p) => [+(p[0] + dE).toFixed(3), +(p[1] + dN).toFixed(3), +(p[2] + dZ).toFixed(3)]) }); setActiveId(id); };
-  const doJoin = () => { const other = designStrings.find((s) => s.id === tool.joinId); if (!other) return; update({ vertices: joinStrings(string.vertices, other.vertices), closed: false }); setDesignStrings((L) => L.filter((s) => s.id !== other.id)); setTool((t) => ({ ...t, joinId: "" })); };
+  const doJoin = () => { const other = designStrings.find((s) => s.id === tool.joinId); if (!other) return; update({ vertices: joinStrings(string.vertices, other.vertices), closed: false }); setDesignStrings((L) => L.filter((s) => s.id !== other.id)); setTool((t) => ({ ...t, joinId: "" })); }; // closed strings are not offered (#1911)
   const doSplit = () => { const i = (num0(tool.splitAt) ?? 0) - 1, parts = splitString(string.vertices, i); if (!parts) { setMsg(tr("Split at a vertex between the first and the last.")); return; } update({ vertices: parts[0], closed: false }); addString({ name: tr("{name} (2)", { name: string.name }), color: string.color, vertices: parts[1] }); };
   const removeString = () => { const rest = designStrings.filter((s) => s.id !== string.id); setDesignStrings(rest); setActiveId(rest[rest.length - 1]?.id ?? null); setDrawing(false); };
 
   // ---------- solids ----------
   const model = models.find((m) => (m.id ?? m.name) === solid.modelId) || null;
   const density = num0(solid.density);
-  const finishSolid = (name, r, how) => {
+  const finishSolid = (name, r, how, prefix = "") => {
+    // #1904 — the tonnes are the solid's own volume at the density; the blocks (counted whole by their centre) give the grade only
     const tonnage = model && density > 0 ? solidTonnage(r.positions, r.indices, model.cells, density) : null;
+    const tonnes = density > 0 ? r.volume * density : null, blockM = model?.cells?.[0]?.dx;
     onAdd?.({ name, positions: r.positions, indices: r.indices, volumeM3: r.volume, type: "design_solid", closure: "closed", color: "#5c7cfa", tag: "string",
       tip: tr("Solid from design strings ({how}): a drawn shape, not a modelled one", { how }),
-      params: { tool: `solid from design strings (${how})`, strings: how === "extrude" ? [string.name] : solid.loft.map((id) => designStrings.find((s) => s.id === id)?.name), volumeM3: Math.round(r.volume), ...(tonnage ? { blockModel: model.name, density, tonnes: Math.round(tonnage.tonnes), blocksInside: tonnage.blocks, meanGrade: tonnage.meanGrade == null ? null : +tonnage.meanGrade.toPrecision(4) } : {}), warnings: r.warnings || [], generatedAt: new Date().toISOString() } });
-    setMsg(tonnage
-      ? tr("\"{name}\": {v} m³; {t} t in {n} block(s) of {m} at {d} t/m³{g}.", { name, v: big(r.volume), t: big(tonnage.tonnes), n: tonnage.blocks, m: model.name, d: density, g: tonnage.meanGrade == null ? "" : tr(", mean grade {g}", { g: Number(tonnage.meanGrade.toPrecision(3)) }) })
-      : tr("\"{name}\": {v} m³. Choose a block model and a density for its tonnes.", { name, v: big(r.volume) }));
+      params: { tool: `solid from design strings (${how})`, strings: how === "extrude" ? [string.name] : solid.loft.map((id) => designStrings.find((s) => s.id === id)?.name), volumeM3: Math.round(r.volume), ...(tonnes != null ? { density, tonnes: Math.round(tonnes) } : {}), ...(tonnage ? { blockModel: model.name, blockSizeM: blockM, blocksInside: tonnage.blocks, blockTonnes: Math.round(tonnage.tonnes), meanGrade: tonnage.meanGrade == null ? null : +tonnage.meanGrade.toPrecision(4), gradeFrom: "blocks whose centre lies inside, counted whole" } : {}), warnings: r.warnings || [], generatedAt: new Date().toISOString() } });
+    setMsg(prefix + (tonnage
+      ? tr("\"{name}\": {v} m³ = {t} t at {d} t/m³{g} from {n} block(s) of {m} ({b} m, counted whole by their centre).", { name, v: big(r.volume), t: big(tonnes), d: density, n: tonnage.blocks, m: model.name, b: blockM, g: tonnage.meanGrade == null ? tr("; no grade") : tr("; mean grade {g}", { g: Number(tonnage.meanGrade.toPrecision(3)) }) })
+      : tonnes != null ? tr("\"{name}\": {v} m³ = {t} t at {d} t/m³. Choose a block model for its grade.", { name, v: big(r.volume), t: big(tonnes), d: density })
+      : tr("\"{name}\": {v} m³. Enter a density for its tonnes, and a block model for its grade.", { name, v: big(r.volume) })));
   };
   const doExtrude = () => {
     const z0 = num0(solid.zBottom), z1 = num0(solid.zTop);
     if (!string?.closed || string.vertices.length < 3 || z0 == null || z1 == null) return;
-    try { const r = extrudeString(string.vertices, Math.min(z0, z1), Math.max(z0, z1)); if (!r) { setMsg(tr("The string could not be extruded: it needs three or more points and a height.")); return; } finishSolid(tr("{name} extruded {a} to {b} m", { name: string.name, a: Math.min(z0, z1), b: Math.max(z0, z1) }), r, "extrude"); }
+    try { const r = extrudeString(string.vertices, Math.min(z0, z1), Math.max(z0, z1)); if (!r) { setMsg(tr("The string could not be extruded: it needs three or more points and a height.")); return; } finishSolid(tr("{name} extruded {a} to {b} m", { name: string.name, a: Math.min(z0, z1), b: Math.max(z0, z1) }), r, "extrude", z0 > z1 ? tr("Bottom and top were swapped. ") : ""); } // swap note: #1908
     catch (e) { setMsg(e.message || String(e)); }
   };
   const doLoft = () => {
@@ -206,12 +215,14 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
     if (!file) return;
     try {
       const text = await file.text();
-      const z = num0(planeZ) ?? 0;
-      const { strings, has3D, skipped } = stringsFromDxf(text, { zDefault: z, baseName: file.name.replace(/\.dxf$/i, "") });
+      // #1906 — a polyline with no Z goes on the drawing plane when one is typed, else on the ground (terrain or collars), else 0
+      const z = num0(planeZ), zDefault = z != null ? z : groundAt ? (x, y) => { const g = groundAt(x, y); return Number.isFinite(g) ? +g.toFixed(2) : 0; } : 0;
+      const { strings, skipped, flat } = stringsFromDxf(text, { zDefault, baseName: file.name.replace(/\.dxf$/i, "") });
       if (!strings.length) { setMsg(tr("No polylines in {f}.", { f: file.name })); return; }
       strings.forEach((s) => addString({ name: s.name, closed: s.closed, vertices: s.vertices }));
       const skippedN = Object.values(skipped || {}).reduce((a, b) => a + b, 0);
-      setMsg(tr("{n} string(s) from {f}, taken as {crs}{z}{sk}.", { n: strings.length, f: file.name, crs: crsCell(project) || tr("the project's coordinates"), z: has3D ? "" : tr(", at {z} m (the file has no Z)", { z }), sk: skippedN ? tr("; {k} other entities skipped", { k: skippedN }) : "" }));
+      const flatText = !flat ? "" : z != null ? tr("; {k} string(s) with no Z put at {z} m (the drawing plane)", { k: flat, z }) : groundAt ? tr("; {k} string(s) with no Z draped on the ground ({src})", { k: flat, src: terrain ? tr("the terrain") : tr("interpolated between the collars") }) : tr("; {k} string(s) with no Z put at 0 m: no terrain, collars or drawing plane to take it from", { k: flat });
+      setMsg(tr("{n} string(s) from {f}, taken as {crs}{z}{sk}.", { n: strings.length, f: file.name, crs: crsCell(project) || tr("the project's coordinates"), z: flatText, sk: skippedN ? tr("; {k} other entities skipped", { k: skippedN }) : "" }));
     } catch (e) { setMsg(e.message || String(e)); }
   };
   const closedStrings = designStrings.filter((s) => s.closed && s.vertices.length > 2);
@@ -219,7 +230,7 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
   return (
     <div>
       <TaskPaneHeader title="Design strings" icon={PenTool} tone="model" onClose={onClose} />
-      <div style={note}>{tr("Free polylines and polygons in 3D: draw them in the view, type them, offset, join and split them, and turn closed ones into solids. DXF in and out.")}</div>
+      <div style={note}>{tr("Free polylines and polygons in 3D: draw them in the view, type them, offset, join and split them, and turn closed ones into solids. DXF in and out.")} {tr("Drawn shapes, not modelled ones: they are not shown in sections or level plans, and a solid is the strings' plan outline between elevations.")}</div>{/* #1913 */}
       <input ref={fileRef} type="file" accept=".dxf" style={{ display: "none" }} onChange={(e) => { importDxf(e.target.files?.[0]); e.target.value = ""; }} />
 
       <div style={label}>{tr("String")}</div>
@@ -228,6 +239,7 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
           {!designStrings.length && <option value="">{tr("No strings yet")}</option>}
           {designStrings.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
+        {string?.vertices?.length > 0 && view?.zoomTo && <Maximize2 size={14} style={{ cursor: "pointer", flexShrink: 0, alignSelf: "center" }} {...iconAction(() => view.zoomTo(string.vertices), tr("Zoom to this string"))} />}{/* #1892 */}
         <button onClick={newString} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 8px" }}><Plus size={13} /> {tr("New string")}</button>
       </div>
       {string && (<>
@@ -240,7 +252,7 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
         </div>
 
         <div style={label}>{tr("Draw")}</div>
-        <label style={row}>{tr("Clicks land on")}<select value={target} onChange={(e) => setTarget(e.target.value)} style={{ ...smallSel, width: 150 }} aria-label={tr("Where a click lands")}><option value="hit">{tr("what is under the cursor")}</option><option value="plane">{tr("an elevation plane")}</option></select></label>
+        <label style={row}>{tr("Clicks land on")}<select value={target} onChange={(e) => setTarget(e.target.value)} style={{ ...smallSel, width: 150 }} aria-label={tr("Where a click lands")}>{groundAt && <option value="ground">{terrain ? tr("the ground (terrain)") : tr("the ground (between the collars)")}</option>}<option value="hit">{tr("what is under the cursor")}</option><option value="plane">{tr("an elevation plane")}</option></select></label>{/* ground: #1905 */}
         {target === "plane" && <label style={row}>{tr("Plane elevation (m)")}<input type="number" step="any" value={planeZ} onChange={(e) => setPlaneZ(e.target.value)} placeholder={tr("last vertex")} style={num} aria-label={tr("Elevation of the drawing plane")} /></label>}
         <div style={{ ...row, justifyContent: "flex-start", gap: 10 }}>
           <label style={{ ...note, display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }} title={tr("Within about 12 pixels of another vertex or a collar the click takes that point.")}><input type="checkbox" checked={snap} onChange={(e) => setSnap(e.target.checked)} />{tr("Snap to vertices and collars")}</label>
@@ -249,7 +261,7 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
         <button onClick={() => setDrawing((d) => !d)} aria-pressed={drawing} style={{ ...pBtn, marginTop: 6, background: drawing ? "var(--color-selected-bg)" : undefined }}>
           <PenTool size={14} /> {drawing ? tr("Click points in the view. Shift: a grid direction. Esc stops; right-drag moves the view") : tr("Draw in the 3D view")}
         </button>
-        {drawing && hover && <div style={note}>{hover.dist != null ? tr("Next: {d} m on {b}°, {dz} m in Z{s}", { d: m1(hover.dist), b: Math.round(hover.bearing), dz: m1(hover.dz), s: hover.snapped ? tr(" (snapped)") : "" }) : tr("E {x}, N {y}, Z {z}{s}", { x: m1(hover.p[0]), y: m1(hover.p[1]), z: m1(hover.p[2]), s: hover.snapped ? tr(" (snapped)") : "" })}</div>}
+        {drawing && hover && <div style={note}>{hover.dist != null ? tr("Next: {d} m on {b}°, {dz} m in Z{s}", { d: m1(hover.dist), b: Math.round(hover.bearing), dz: m1(hover.dz), s: hover.snapped ? tr(" (snapped)") : "" }) : tr("E {x}, N {y}, Z {z}{s}", { x: m1(hover.p[0]), y: m1(hover.p[1]), z: m1(hover.p[2]), s: hover.snapped ? tr(" (snapped)") : "" })}{hover.on && !hover.snapped ? ` ${hover.on === "ground" ? tr("(on the ground)") : tr("(on {name})", { name: hover.on })}` : ""}</div>}{/* on: #1905 */}
         <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>
           <Cell value={num0(typed.x)} width={66} placeholder="E" ariaLabel={tr("Easting of the vertex")} onCommit={(v) => setTyped((t) => ({ ...t, x: v == null ? "" : String(v) }))} />
           <Cell value={num0(typed.y)} width={70} placeholder="N" ariaLabel={tr("Northing of the vertex")} onCommit={(v) => setTyped((t) => ({ ...t, y: v == null ? "" : String(v) }))} />
@@ -279,7 +291,7 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
           </div>
           <div style={{ marginTop: 6, padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
             <div style={row}><span>{tr("Length in plan / 3D")}</span><b>{m1(stats.length2d)} / {m1(stats.length3d)} m</b></div>
-            {string.closed && <div style={row}><span>{tr("Area in plan")}</span><b>{stats.area >= 10000 ? `${m2(stats.area / 10000)} ha` : `${m1(stats.area)} m²`}</b></div>}
+            {string.closed && <div style={row}><span>{tr("Area in plan")}</span><b>{stats.area >= 10000 ? `${(stats.area / 10000).toFixed(2)} ha` : `${m1(stats.area)} m²`}</b></div>}{/* two decimals as the dump pane: #1913 */}
             <div style={row}><span>{tr("Elevation")}</span><b>{m1(stats.box[2])} – {m1(stats.box[5])} m</b></div>
           </div>
 
@@ -298,7 +310,7 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
           </div>
           {designStrings.length > 1 && (
             <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>
-              <select value={tool.joinId} onChange={(e) => setTool((t) => ({ ...t, joinId: e.target.value }))} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("String to join")}><option value="">{tr("— join with —")}</option>{designStrings.filter((s) => s.id !== string.id).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+              <select value={tool.joinId} onChange={(e) => setTool((t) => ({ ...t, joinId: e.target.value }))} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("String to join")}><option value="">{tr("— join with —")}</option>{designStrings.filter((s) => s.id !== string.id && !s.closed).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
               <button onClick={doJoin} disabled={!tool.joinId} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 6px" }} title={tr("The other string is added on at the nearest ends and removed.")}>{tr("Join")}</button>
             </div>
           )}
@@ -325,8 +337,8 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
         )}
         {closedStrings.length > 1 && (
           <div style={{ marginTop: 4 }}>
-            <div style={note}>{tr("Loft closed strings on different levels into one body:")}</div>
-            {closedStrings.map((s) => <label key={s.id} style={{ ...note, display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}><input type="checkbox" checked={solid.loft.includes(s.id)} onChange={(e) => setSolid((o) => ({ ...o, loft: e.target.checked ? [...o.loft, s.id] : o.loft.filter((id) => id !== s.id) }))} />{s.name} <span style={{ color: "var(--color-text-muted)" }}>({m1(stringStats(s.vertices, true).box[2])} m)</span></label>)}
+            <div style={note}>{tr("Loft closed strings on different levels into one body:")} {tr("An extrude uses the plan outline only; a loft takes each ring flat at its mean elevation.")}</div>{/* #1908 */}
+            {closedStrings.map((s) => <label key={s.id} style={{ ...note, display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}><input type="checkbox" checked={solid.loft.includes(s.id)} onChange={(e) => setSolid((o) => ({ ...o, loft: e.target.checked ? [...o.loft, s.id] : o.loft.filter((id) => id !== s.id) }))} />{s.name} <span style={{ color: "var(--color-text-muted)" }}>{(() => { const b = stringStats(s.vertices, true).box, mean = s.vertices.reduce((a, p) => a + p[2], 0) / s.vertices.length; return b[5] - b[2] > 1 ? tr("({z} m, sloped {lo}–{hi}: taken flat at its mean)", { z: m1(mean), lo: m1(b[2]), hi: m1(b[5]) }) : `(${m1(mean)} m)`; })()}</span></label>)}{/* the loft's own level: #1908 */}
             <button onClick={doLoft} disabled={solid.loft.filter((id) => closedStrings.some((s) => s.id === id)).length < 2} style={{ ...pBtn, marginTop: 4 }}><Box size={13} /> {tr("Loft into a solid")}</button>
           </div>
         )}

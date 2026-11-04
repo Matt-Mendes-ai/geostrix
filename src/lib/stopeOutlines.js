@@ -1,6 +1,6 @@
 // TASKS.csv #1879 — STOPE OUTLINES BY LEVEL: the underground counterpart of the pit shell for a high-grade body. For each level
 // slab the block model is seen in plan: every column's grade over the slab (block overlaps weighted); columns at or above the
-// cut-off are the candidate ore; a morphological OPENING (erode then dilate by half the minimum mining width, a disc) drops
+// cut-off are the candidate ore; a morphological OPENING (erode then dilate by a k x k square, k the minimum width in columns) drops
 // anything thinner than a machine can mine; a dilution skin dilates what is left, the added columns carrying the model's grade
 // there (or none); each connected patch longer than the minimum length is a stope: its outline is the exact boundary of its
 // columns' squares (holes inside a patch are filled and counted), extruded over the slab into a closed solid.
@@ -11,7 +11,9 @@ const fin = Number.isFinite;
 
 // model: { cells: [{ x, y, z, dx, dy, dz, value, coverage }] }; opts: cutoff, levelH, zMin / zMax (level floors run from zMin by levelH up
 // to zMax), minWidth, minLength, skin, density (t / m3). -> { levels: [{ rl, stopes: [{ outline: [[x, y, z]], positions, indices, volume,
-// tonnes, metalU, grade, oreTonnes, oreGrade, columns, holesFilled }], tonnes, oreTonnes, grade }], totals, cell: [dx, dy], grid: [nx, ny], unit? }
+// tonnes, metalU, grade, oreTonnes, oreGrade, columns, holesFilled }], tonnes, oreTonnes, grade }], totals, cell: [dx, dy], grid: [nx, ny],
+// widthCols / skinCols (the whole columns the width and skin rounded to, #1885), blockH (the median block height), oreColumns (columns at
+// or above the cut-off over all levels), unbuilt (outlines whose solid could not be made, #1884) }; { failed: "range" } when zMin >= zMax
 export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null, minWidth = 0, minLength = 0, skin = 0, density = 1 } = {}) {
   const cells = (model?.cells || []).filter((c) => fin(c.x) && fin(c.y) && fin(c.z) && c.dx > 0 && c.dy > 0 && c.dz > 0);
   if (!cells.length || !(levelH > 0) || !fin(cutoff)) return null;
@@ -25,11 +27,13 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
   if (N > 4_000_000) return { failed: "too-many-columns", columns: N };
   const col = (c) => { const i = Math.round((c.x - gx0) / dx), j = Math.round((c.y - gy0) / dy); return i >= 0 && i < nx && j >= 0 && j < ny ? j * nx + i : -1; };
   const from = fin(zMin) ? zMin : Math.floor(zLo / levelH) * levelH, to = fin(zMax) ? zMax : zHi;
+  if (!(to > from)) return { failed: "range", from, to }; // #1893
   // the opening's element is a k x k square of columns, k the minimum width in whole columns (a 20 m zone on 10 m columns is two wide
   // and survives a 15 m minimum; a one-column stringer does not); the skin is a square ring of rS columns
   const k = Math.max(1, Math.ceil(minWidth / Math.min(dx, dy) - 1e-9)), rS = Math.max(0, Math.round(skin / Math.min(dx, dy)));
   const area = dx * dy, levels = [];
   const totals = { tonnes: 0, metalU: 0, oreTonnes: 0, oreMetalU: 0, stopes: 0 };
+  let oreColumns = 0, unbuilt = 0;
   const square = (lo, hi) => { const o = []; for (let j = lo; j <= hi; j++) for (let i = lo; i <= hi; i++) o.push([i, j]); return o; };
   const dE = square(0, k - 1), dS = square(-rS, rS);
   const inside = (mask, i, j) => i >= 0 && i < nx && j >= 0 && j < ny && mask[j * nx + i];
@@ -46,7 +50,7 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
       t[q] += tt; if (fin(c.value)) m[q] += tt * c.value;
     }
     let mask = new Uint8Array(N);
-    for (let q = 0; q < N; q++) if (t[q] > 0 && m[q] / t[q] >= cutoff) mask[q] = 1;
+    for (let q = 0; q < N; q++) if (t[q] > 0 && m[q] / t[q] >= cutoff) { mask[q] = 1; oreColumns++; }
     const ore = mask;
     if (k > 1) mask = dilate(erode(mask, dE), dE); // opening: nothing thinner than the minimum width survives
     if (rS > 0) mask = dilate(mask, dS); // the skin
@@ -80,7 +84,10 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
       if (!loops.length) continue;
       const outer = loops.reduce((a, b) => (Math.abs(b.area) > Math.abs(a.area) ? b : a));
       const outline = outer.points.map(([x, y]) => [x, y, rl]);
-      const solid = extrudeString(outline, rl, top);
+      // #1884 — an outline the ear clipper refuses keeps its tonnes and outline without a solid, and the run goes on
+      let solid = null;
+      try { solid = extrudeString(outline, rl, top); } catch { solid = null; }
+      if (!solid) unbuilt++;
       stopes.push({ outline, positions: solid?.positions || null, indices: solid?.indices || null, volume: solid?.volume ?? null, tonnes, metalU, grade: tonnes > 0 ? metalU / tonnes : null, oreTonnes: oreT, oreGrade: oreT > 0 ? oreM / oreT : null, columns: members.length, holesFilled: loops.length - 1 });
       totals.tonnes += tonnes; totals.metalU += metalU; totals.oreTonnes += oreT; totals.oreMetalU += oreM; totals.stopes++;
     }
@@ -90,7 +97,7 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
   totals.grade = totals.tonnes > 0 ? totals.metalU / totals.tonnes : null;
   totals.oreGrade = totals.oreTonnes > 0 ? totals.oreMetalU / totals.oreTonnes : null;
   totals.dilutionPct = totals.oreTonnes > 0 ? ((totals.tonnes - totals.oreTonnes) / totals.oreTonnes) * 100 : null;
-  return { levels, totals, cell: [dx, dy], grid: [nx, ny], from, to };
+  return { levels, totals, cell: [dx, dy], grid: [nx, ny], from, to, widthCols: k, skinCols: rS, blockH: med("dz"), oreColumns, unbuilt };
 }
 
 // the boundary of a set of grid squares as closed loops in world coordinates (the squares are centred on the column centres)
@@ -122,9 +129,11 @@ function boundaryLoops(members, nx, gx0, gy0, dx, dy) {
       pts.push(next);
       const l = edges.get(nk);
       if (!l) break;
-      // at a corner where two squares touch diagonally, keep turning the same way: take the edge that turns left first
+      // at a corner where two squares touch diagonally (a hole touching the outside, or two holes), take the edge that turns RIGHT
+      // first: the walk closes the tighter loop there, so the outer ring and the hole stay two simple loops. Turning left first
+      // chained them into one loop that visited the corner twice, which the ear clipper refused (TASKS.csv #1884, Lawyers).
       let pick = 0;
-      if (l.length > 1) { const [px, py] = parse(cur), [cx, cy] = next, dirx = cx - px, diry = cy - py; pick = l.findIndex(([tx, ty]) => (tx - cx) * diry - (ty - cy) * dirx < 0); if (pick < 0) pick = 0; }
+      if (l.length > 1) { const [px, py] = parse(cur), [cx, cy] = next, dirx = cx - px, diry = cy - py; pick = l.findIndex(([tx, ty]) => (tx - cx) * diry - (ty - cy) * dirx > 0); if (pick < 0) pick = 0; }
       next = l.splice(pick, 1)[0];
       if (!l.length) edges.delete(nk);
       cur = nk;

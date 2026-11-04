@@ -24,6 +24,7 @@ const G_PER_OZ = 31.1034768;
 const GRADE_UNITS = ["g/t", "ppm", "ppb", "%"];
 const EMPTY = { price: "", priceUnit: "", recovery: "", miningCost: "", processingCost: "", density: "", slopeDeg: "", revenueFactor: "1", size: "", unit: "", sectorSlopes: {} }; // sectorSlopes: #1881
 const SECTOR_GRID = [["NW", "N", "NE"], ["W", null, "E"], ["SW", "S", "SE"]]; // the compass layout of the sector slopes
+const PRICE_UNIT_MASS = { g: { g: 1, oz: 31.1034768 }, t: { t: 1, lb: 1 / 2204.62262 } }; // #1898 — the mass each price unit prices
 const FIELDS = ["price", "recovery", "miningCost", "processingCost", "density", "slopeDeg"];
 let kept = null; // #1356 — the last result, shown again when the pane or the tab comes back (this session)
 
@@ -80,6 +81,14 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
   // #1355 — a price belongs to the unit it was typed in: switching from a % model ($/lb) to a ppm one ($/oz) blanks it, never re-reads it
   const priceStale = f.price !== "" && !!f.priceUnit && !!prices && !prices.some(([k]) => k === f.priceUnit);
   const setPrice = (e) => setF((p) => ({ ...p, price: e.target.value, priceUnit }));
+  // #1898 — switching the picker converts the typed price to the new unit (1,800 $/oz is 57.87 $/g; 4 $/lb is 8,818 $/t)
+  const setPriceUnit = (e) => {
+    const to = e.target.value, from = priceUnit, n = Number(f.price);
+    const F = metal?.unit === "g" ? PRICE_UNIT_MASS.g : PRICE_UNIT_MASS.t;
+    const conv = n > 0 && from && from !== to && F[from] != null && F[to] != null ? n * (F[to] / F[from]) : null;
+    setF((p) => ({ ...p, priceUnit: to, price: conv == null ? p.price : String(+conv.toPrecision(6)) }));
+    setMsg(conv == null ? null : tr("The price was converted to {unit}: {v}.", { unit: (prices.find(([k]) => k === to) || [])[1] || to, v: +conv.toPrecision(6) }));
+  };
   const value = (k) => (k === "price" && priceStale ? NaN : Number(f[k]));
   const missing = !model || !metal || FIELDS.some((k) => !(value(k) > 0)) || value("slopeDeg") >= 90 || value("recovery") > 100 || !(Number(f.revenueFactor) > 0) || sectorBad; // revenue factor: #1363; sectorBad: #1881
   const cutoff = !missing ? pitEconomics({ unit, element, price: value("price"), priceUnit, recovery: value("recovery"), processingCost: value("processingCost"), revenueFactor: Number(f.revenueFactor) || 1 })?.cutoff : null;
@@ -98,6 +107,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       setRes(null); kept = null;
       if (r.failed || r.empty) { setMsg(r.empty ? tr("At these inputs no block pays for the rock over it, so there is no pit. Cut-off grade {c} {unit}.", { c: Number(r.cutoff.toPrecision(3)), unit }) : tr("The block model has no blocks with values.")); return; }
       const seconds = Math.round((performance.now() - t0) / 100) / 10, rfText = rf !== 1 ? ` x${rf}` : "";
+      const cellText = size || r.coarsened ? tr(", {c} m cells", { c: Math.round(r.cell[0] * 10) / 10 }) : ""; // #1900 — a typed or coarsened size names the pit
       const support = model.cells.some((c) => Number.isFinite(c.nHoles)); // #1354 — the estimate says how many holes informed each block
       kept = { ...r, unit, seconds, hasTerrain: !!terrain, model: model.name, slopeDeg: inputs.slopeDeg, sectorSlopes: inputs.sectorSlopes || null, support };
       setRes(kept);
@@ -107,7 +117,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
       const priceLabel = (prices.find(([k]) => k === priceUnit) || [])[1] || "";
       const pitId = onAdd({
         // #1356 — named by what usually changes between runs, so a list of pits can be told apart
-        name: tr("Pit shell: {model} at {price} {unit}, {slope}°{rf}{sec}", { model: model.name, price: inputs.price, unit: priceLabel, slope: inputs.slopeDeg, rf: rfText, sec: inputs.sectorSlopes ? tr(" (by sector)") : "" }), positions: r.positions, indices: r.indices, type: "pit_shell", closure: null, color: "#b5651d", tag: "pit",
+        name: tr("Pit shell: {model} at {price} {unit}, {slope}°{rf}{sec}{cells}", { model: model.name, price: inputs.price, unit: priceLabel, slope: inputs.slopeDeg, rf: rfText, sec: inputs.sectorSlopes ? tr(" (by sector)") : "", cells: cellText }), positions: r.positions, indices: r.indices, type: "pit_shell", closure: null, color: "#b5651d", tag: "pit",
         tip: tr("Conceptual pit shell: not a mine plan, a Reserve or a Resource"),
         params: { tool: "conceptual pit shell (maximum closure, exact)", inputs: { ...inputs, priceUnit, modelId, unit: stated ? "" : unit }, blockModel: model.name, gradeUnit: unit, oreTonnes: Math.round(r.oreT), wasteTonnes: Math.round(r.wasteT), stripRatio: r.stripRatio == null ? null : +r.stripRatio.toFixed(2), meanGrade: r.meanGrade == null ? null : +r.meanGrade.toPrecision(4), containedMetal: Math.round(contained), containedMetalUnit: r.metalUnit, cutoffGrade: +r.cutoff.toPrecision(3), undiscountedMargin: Math.round(r.money), maxDepthM: Math.round(r.maxDepth), wallAnglesDeg: [+r.walls.flattest.toFixed(1), +r.walls.steepest.toFixed(1)], gridCellM: r.cell.map((v) => +v.toFixed(1)), rockOutsideBlockModelShare: +r.barrenShare.toFixed(3), noTerrainShare: +r.topAssumed.toFixed(3), groundFrom: r.groundSource, ...(support ? { oreSingleHoleShare: +r.oreSingleHoleShare.toFixed(3), oreExtrapolatedShare: +r.oreExtrapolatedShare.toFixed(3) } : {}), reachesModelBase: r.touchesBase, caution: "conceptual: undiscounted, no ramps, berms, dilution or scheduling; not a Mineral Reserve or Resource", generatedAt: new Date().toISOString() },
       });
@@ -137,7 +147,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
         </select></label>
         {model && !stated && <label style={row}>{tr("Its grades are in")}<select value={f.unit} onChange={set("unit")} style={num} aria-label={tr("Grade unit of the block model")}><option value="">{tr("— choose —")}</option>{GRADE_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}</select></label>}
         <label style={row}>{tr("Metal price")}<span style={{ display: "flex", gap: 4 }}><input type="number" min={0} step="any" value={priceStale ? "" : f.price} onChange={setPrice} style={num} aria-label={tr("Metal price")} />
-          <select value={priceUnit || ""} onChange={set("priceUnit")} disabled={!prices} style={{ ...smallSel, width: 62 }} aria-label={tr("Price unit")}>{(prices || []).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></span></label>
+          <select value={priceUnit || ""} onChange={setPriceUnit} disabled={!prices} style={{ ...smallSel, width: 62 }} aria-label={tr("Price unit")}>{(prices || []).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></span></label>
         {priceStale && <div style={warn}>{tr("The price was entered for another metal unit: enter it again for this block model.")}</div>}
         {field("recovery", tr("Metallurgical recovery (%)"))}
         {field("miningCost", tr("Mining cost ($/t rock)"))}
@@ -197,6 +207,7 @@ export default function PitShellPane({ surfaces = [], onAdd, onToggle, onRemove,
           {line(tr("Pit depth"), `${Math.round(res.maxDepth)} m`)}
           {line(tr("Undiscounted margin"), `$${big(res.money)}`)}
           {line(tr("Walls stand at"), `${res.walls.flattest.toFixed(0)}–${res.walls.steepest.toFixed(0)}°`)}
+          {!res.sectorSlopes && (res.walls.steepest - res.slopeDeg > 3 || res.slopeDeg - res.walls.flattest > 3) && <div style={warn}>{tr("The walls stand {f}–{s}° for a typed {a}°: on {c} m cells the arc pattern cannot draw {a}° exactly, so read the attained angles, and compare runs at the angles it can draw.", { f: res.walls.flattest.toFixed(0), s: res.walls.steepest.toFixed(0), a: res.slopeDeg, c: Math.round(res.cell[0] * 10) / 10 })}</div>}{/* #1896 */}
           {res.walls.bySector && res.sectorSlopes && <div style={note}>{tr("By wall: {list} (a wall a little off a sector's centre grades towards its neighbours).", { list: SECTORS.filter((k) => res.walls.bySector[k] != null).map((k) => `${k} ${res.walls.bySector[k].toFixed(0)}°`).join(", ") })}</div>}{/* #1881 */}
           {line(tr("Grid cell"), `${res.cell.map((v) => Math.round(v * 10) / 10).join(" × ")} m`)}
           {line(tr("Solved in"), `${res.seconds} s`)}

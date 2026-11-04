@@ -43,11 +43,35 @@ export const marginPerTonne = (grade, e, miningCost, processingCost) => {
 export function collarGround(collars) {
   const pts = (collars || []).filter((c) => Number.isFinite(c?.x) && Number.isFinite(c?.y) && Number.isFinite(c?.z));
   if (!pts.length) return null;
+  // TASKS.csv #1903 — the four nearest come out of a cell bucket, ring by ring, with the same answer as sorting every collar: on
+  // Lawyers (446 collars) a dump grid of 30-40k cells sorted 446 distances per cell and froze the window 3-5 s; the pit and the
+  // pit design use this ground too.
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const c of pts) { if (c.x < x0) x0 = c.x; if (c.x > x1) x1 = c.x; if (c.y < y0) y0 = c.y; if (c.y > y1) y1 = c.y; }
+  const cell = Math.max(1, Math.sqrt(Math.max(1, (x1 - x0) * (y1 - y0)) / pts.length)); // about one collar per cell
+  const nx = Math.max(1, Math.floor((x1 - x0) / cell) + 1), ny = Math.max(1, Math.floor((y1 - y0) / cell) + 1);
+  const buckets = new Map();
+  const ci = (x) => Math.min(nx - 1, Math.max(0, Math.floor((x - x0) / cell))), cj = (y) => Math.min(ny - 1, Math.max(0, Math.floor((y - y0) / cell)));
+  pts.forEach((c, k) => { const q = cj(c.y) * nx + ci(c.x); (buckets.get(q) || buckets.set(q, []).get(q)).push(k); });
   return (x, y) => {
-    const near = pts.map((c) => [Math.hypot(c.x - x, c.y - y), c.z]).sort((a, b) => a[0] - b[0]).slice(0, 4);
-    if (near[0][0] < 1e-6) return near[0][1];
+    const i0 = ci(x), j0 = cj(y), best = []; // up to four [distance, z], ascending
+    const take = (k) => {
+      const c = pts[k], d = Math.hypot(c.x - x, c.y - y);
+      if (best.length === 4 && d >= best[3][0]) return;
+      let at = best.length; while (at > 0 && best[at - 1][0] > d) at--;
+      best.splice(at, 0, [d, c.z]); if (best.length > 4) best.pop();
+    };
+    const scan = (i, j) => { if (i < 0 || j < 0 || i >= nx || j >= ny) return; const b = buckets.get(j * nx + i); if (b) for (const k of b) take(k); };
+    for (let r = 0; ; r++) {
+      // a collar in ring r is at least (r - 1) cells away: once the fourth best is nearer than that, no later ring can beat it
+      if (best.length === 4 && best[3][0] <= (r - 1) * cell) break;
+      if (i0 - r < 0 && j0 - r < 0 && i0 + r >= nx && j0 + r >= ny) break; // the grid is exhausted
+      if (r === 0) scan(i0, j0);
+      else { for (let i = i0 - r; i <= i0 + r; i++) { scan(i, j0 - r); scan(i, j0 + r); } for (let j = j0 - r + 1; j <= j0 + r - 1; j++) { scan(i0 - r, j); scan(i0 + r, j); } }
+    }
+    if (best[0][0] < 1e-6) return best[0][1];
     let w = 0, s = 0;
-    for (const [d, z] of near) { const k = 1 / (d * d); w += k; s += k * z; }
+    for (const [d, z] of best) { const k = 1 / (d * d); w += k; s += k * z; }
     return s / w;
   };
 }
@@ -141,8 +165,13 @@ export function buildPitGrid(cells, { size = null, slopeDeg, sectorSlopes = null
     top = zHigh;
     if (groundAt) for (const c of good) { const g = groundAt(c.x, c.y); if (Number.isFinite(g) && g > top) top = g; }
     const reach = (top - zLow) / Math.tan((flattestSlope(slopeDeg, sectorSlopes) * Math.PI) / 180); // #1881 — the flattest wall decides the room
-    x0 -= reach; x1 += reach; y0 -= reach; y1 += reach;
-    const dims = () => [Math.max(1, Math.ceil((x1 - x0) / dx)), Math.max(1, Math.ceil((y1 - y0) / dy)), Math.max(1, Math.ceil((top - zLow) / dz))];
+    // TASKS.csv #1896 — the origin steps back from the blocks' own edge by WHOLE cells, so the grid stays on the block lattice: a
+    // block is one cell (or a whole number of them) whatever the slope, the sector slopes or the revenue factor. Stepping back by
+    // the raw reach put the origin anywhere within a cell of the lattice, every block then straddled four columns and two levels,
+    // and on Lawyers' 53.5 m blocks the margin swung $142M / $185M / $157M for 44 / 45 / 46 degrees.
+    const ex0 = x0, ey0 = y0;
+    x1 += reach; y1 += reach;
+    const dims = () => { x0 = ex0 - Math.ceil(reach / dx - 1e-9) * dx; y0 = ey0 - Math.ceil(reach / dy - 1e-9) * dy; return [Math.max(1, Math.ceil((x1 - x0) / dx)), Math.max(1, Math.ceil((y1 - y0) / dy)), Math.max(1, Math.ceil((top - zLow) / dz))]; };
     [nx, ny, nz] = dims();
     while (nx * ny * nz > maxCells) { dx *= 1.25; dy *= 1.25; dz *= 1.25; [nx, ny, nz] = dims(); coarsened = true; }
     ground = new Float64Array(nx * ny);
