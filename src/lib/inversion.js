@@ -2,6 +2,7 @@
 // three.js), Node-verified. The physics runs in the sidecar (python-sidecar/app/geophys/potential.py);
 // this file prepares honest inputs for it and turns its output into a GeoStrix voxel model.
 import { reprojectXY, isMetricProjectedEpsg } from "./reproject.js";
+import { robustAnomalyMax } from "./surveyClean.js"; // TASKS.csv #1583
 import { hexToRgb, rgbToHex, rgbToLab, labToRgb } from "./colorRamp.js";
 import { bytesToB64, b64ToBytes } from "./base64.js"; // TASKS.csv #1114
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
@@ -157,12 +158,10 @@ export function ipFitStored(result) { const f = ipFitOf(result); delete f.shown;
 // TASKS.csv #775 — SimPEG's magnetic tutorials: "a constant floor of 2 % of the maximum |TMI|, percent uncertainties
 // avoided". Shown as a HINT beside the field, never filled in (#564: nothing physical is defaulted). The anomaly is
 // measured about the mean, as the default base-level removal leaves it.
+// TASKS.csv #1583 — the largest anomaly among readings that are not outliers (about the median, within 10 MADs): a 167,300 nT
+// spike or a 2,105 nT dropout in a 56,500 nT survey made the hint 2,198 nT instead of the tens of nT the real data warrant
 export function simpegMagFloorHint(values) {
-  const v = (values || []).filter(Number.isFinite);
-  if (!v.length) return null;
-  const mean = v.reduce((a, b) => a + b, 0) / v.length;
-  let m = 0;
-  for (const x of v) m = Math.max(m, Math.abs(x - mean));
+  const m = robustAnomalyMax(values);
   return m > 0 ? 0.02 * m : null;
 }
 

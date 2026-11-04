@@ -7674,5 +7674,16 @@
   "One pick per hole where {unit} ends on a logged unit — the base of overburden, the contact every hole shares — the same points the implicit tool uses for \"Base of {unit}\". Check them, then move or delete the outliers.": "نقطة التقاط واحدة لكل ثقب حيث تنتهي {unit} فوق وحدة مسجلة — قاعدة الغطاء السطحي، التماس الذي تشترك فيه كل الثقوب — النقاط نفسها التي تستخدمها الأداة الضمنية لـ \"قاعدة {unit}\". راجعها، ثم انقل الشاذة أو احذفها.",
   "Add the logged base of {unit}": "إضافة القاعدة المسجلة لـ {unit}",
   "none: {unit} lies above its base and nothing caps it without a terrain": "لا شيء: {unit} يقع فوق قاعدته ولا شيء يحدّه من الأعلى بدون تضاريس",
-  "Layout capture: every hole is labelled, and {n} label(s) overlap another at this scale. A larger scale, or a shorter label mode, separates them.": "التقاط التخطيط: كل ثقب موسوم، و{n} وسمًا يتداخل مع آخر عند هذا المقياس. مقياس أكبر، أو نمط وسم أقصر، يفصل بينها."
+  "Layout capture: every hole is labelled, and {n} label(s) overlap another at this scale. A larger scale, or a shorter label mode, separates them.": "التقاط التخطيط: كل ثقب موسوم، و{n} وسمًا يتداخل مع آخر عند هذا المقياس. مقياس أكبر، أو نمط وسم أقصر، يفصل بينها.",
+  "Dropped {n} reading(s) with signal quality under {q}.": "أُسقطت {n} قراءة بجودة إشارة أقل من {q}.",
+  "Dropped {n} spike(s) more than 6 MAD from the running median along their line.": "أُسقطت {n} نتوءًا تبعد أكثر من 6 MAD عن الوسيط الجاري على طول خطها.",
+  "A GEM magnetometer writes a signal quality (0-99) beside each reading; the base-station reader already drops readings under 50. Below the floor the reading is a dropout or a spike (2,105 or 167,300 nT in a 56,500 nT survey) and is left out.": "يكتب مقياس المغناطيسية GEM جودة إشارة (0-99) بجانب كل قراءة؛ قارئ المحطة القاعدية يُسقط أصلًا القراءات دون 50. تحت الحد تكون القراءة انقطاعًا أو نتوءًا (2,105 أو 167,300 نانوتسلا في مسح 56,500 نانوتسلا) وتُستبعد.",
+  "Signal quality": "جودة الإشارة",
+  "Signal quality column": "عمود جودة الإشارة",
+  "(no quality column)": "(لا عمود جودة)",
+  "drop under": "إسقاط ما دون",
+  "Drop readings with signal quality under": "إسقاط القراءات بجودة إشارة أقل من",
+  "Each reading is compared with the median of the 11 readings around it on its line; one more than 6 MAD (and at least 20 nT) away is dropped as a spike. A real anomaly over tens of readings moves the running median with it and stays.": "تُقارن كل قراءة بوسيط القراءات الإحدى عشرة المحيطة بها على خطها؛ ما يبعد أكثر من 6 MAD (و20 نانوتسلا على الأقل) يُسقط كنتوء. الشذوذ الحقيقي على عشرات القراءات يحرك الوسيط الجاري معه ويبقى.",
+  "Despike": "إزالة النتوءات",
+  "drop readings more than 6 MAD from the running median along their line": "إسقاط القراءات التي تبعد أكثر من 6 MAD عن الوسيط الجاري على طول خطها"
 }

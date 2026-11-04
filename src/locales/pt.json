@@ -7674,5 +7674,16 @@
   "One pick per hole where {unit} ends on a logged unit — the base of overburden, the contact every hole shares — the same points the implicit tool uses for \"Base of {unit}\". Check them, then move or delete the outliers.": "Um pick por furo onde {unit} termina sobre uma unidade registada — a base da cobertura, o contato que todos os furos partilham —, os mesmos pontos que a ferramenta implícita usa para \"Base de {unit}\". Verifique-os, depois mova ou apague os discrepantes.",
   "Add the logged base of {unit}": "Adicionar a base registada de {unit}",
   "none: {unit} lies above its base and nothing caps it without a terrain": "nenhum: {unit} fica acima da sua base e nada a limita sem um terreno",
-  "Layout capture: every hole is labelled, and {n} label(s) overlap another at this scale. A larger scale, or a shorter label mode, separates them.": "Captura para o Layout: todos os furos têm etiqueta e {n} etiqueta(s) sobrepõem-se a outra nesta escala. Uma escala maior, ou um modo de etiqueta mais curto, separa-as."
+  "Layout capture: every hole is labelled, and {n} label(s) overlap another at this scale. A larger scale, or a shorter label mode, separates them.": "Captura para o Layout: todos os furos têm etiqueta e {n} etiqueta(s) sobrepõem-se a outra nesta escala. Uma escala maior, ou um modo de etiqueta mais curto, separa-as.",
+  "Dropped {n} reading(s) with signal quality under {q}.": "Descartadas {n} leitura(s) com qualidade de sinal abaixo de {q}.",
+  "Dropped {n} spike(s) more than 6 MAD from the running median along their line.": "Descartados {n} pico(s) a mais de 6 MAD da mediana móvel ao longo da sua linha.",
+  "A GEM magnetometer writes a signal quality (0-99) beside each reading; the base-station reader already drops readings under 50. Below the floor the reading is a dropout or a spike (2,105 or 167,300 nT in a 56,500 nT survey) and is left out.": "Um magnetómetro GEM escreve uma qualidade de sinal (0-99) ao lado de cada leitura; o leitor da estação base já descarta leituras abaixo de 50. Abaixo do piso a leitura é uma queda ou um pico (2.105 ou 167.300 nT num levantamento de 56.500 nT) e fica de fora.",
+  "Signal quality": "Qualidade do sinal",
+  "Signal quality column": "Coluna de qualidade do sinal",
+  "(no quality column)": "(sem coluna de qualidade)",
+  "drop under": "descartar abaixo de",
+  "Drop readings with signal quality under": "Descartar leituras com qualidade de sinal abaixo de",
+  "Each reading is compared with the median of the 11 readings around it on its line; one more than 6 MAD (and at least 20 nT) away is dropped as a spike. A real anomaly over tens of readings moves the running median with it and stays.": "Cada leitura é comparada com a mediana das 11 leituras à sua volta na sua linha; uma a mais de 6 MAD (e pelo menos 20 nT) é descartada como pico. Uma anomalia real ao longo de dezenas de leituras arrasta a mediana móvel consigo e fica.",
+  "Despike": "Remover picos",
+  "drop readings more than 6 MAD from the running median along their line": "descartar leituras a mais de 6 MAD da mediana móvel ao longo da sua linha"
 }

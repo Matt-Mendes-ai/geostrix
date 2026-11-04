@@ -58,7 +58,8 @@ import { Zap as RZap, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain,
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #603
-import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { t as tr } from "../lib/i18n.js";
+import { guessQualityColumn, filterSignalQuality, despikeAlongLines } from "../lib/surveyClean.js"; // TASKS.csv #1583 // TASKS.csv #786
 import { vectorToBoundaryPolylines } from "../lib/boundaryImport.js"; // TASKS.csv #1035
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
 import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
@@ -276,7 +277,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         // file. Not sure which is which -> the column picker below (shared with .xyz), never a dead end.
         const cols = guessGeophysColumns(res.meta.fields || []);
         const openPicker = (why) => {
-          setXyzPending({ fileName: file.name, columns: res.meta.fields || [], rows: res.data, source: "csv", xCol: cols.x, yCol: cols.y, zCol: cols.z, valueCol: cols.value, lineCol: cols.line, fidCol: cols.fid, labelCol: cols.label });
+          setXyzPending({ fileName: file.name, columns: res.meta.fields || [], rows: res.data, source: "csv", xCol: cols.x, yCol: cols.y, zCol: cols.z, valueCol: cols.value, lineCol: cols.line, fidCol: cols.fid, labelCol: cols.label, ...cleaningDefaults(res.meta.fields || []) /* #1583 */ });
           setError({ info: true, text: tr("{why} Pick the columns below, then Import.", { why }) });
         };
         if (!cols.ok) {
@@ -824,6 +825,15 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   // the same shape (world x/y/z + a scalar value).
   const XY_NAME_HINTS = { x: ["x", "east", "easting", "lon", "long", "longitude"], y: ["y", "north", "northing", "lat", "latitude"] };
   const guessColumn = (columns, hints) => columns.find((c) => hints.some((h) => c.toLowerCase() === h)) || columns.find((c) => hints.some((h) => c.toLowerCase().includes(h))) || "";
+  // TASKS.csv #1583 — the rover readings' signal quality (a GEM sq column) and an along-line despike, chosen in the picker:
+  // a quality floor of 50 (the base-station reader's) when the file has such a column, the despike off until ticked
+  const cleaningDefaults = (columns) => { const sqCol = guessQualityColumn(columns); return { sqCol, minQuality: sqCol ? 50 : 0, despike: false }; };
+  const cleanRows = (rows, pending, valueOf, lineOf) => {
+    const q = filterSignalQuality(rows, pending.sqCol, pending.minQuality);
+    const d = pending.despike ? despikeAlongLines(q.rows, valueOf, lineOf) : { rows: q.rows, dropped: 0 };
+    return { rows: d.rows, lowQuality: q.dropped, spikes: d.dropped };
+  };
+  const cleaningNote = (c) => (c.lowQuality || c.spikes ? " " + [c.lowQuality ? tr("Dropped {n} reading(s) with signal quality under {q}.", { n: c.lowQuality.toLocaleString(), q: xyzPending?.minQuality ?? 50 }) : "", c.spikes ? tr("Dropped {n} spike(s) more than 6 MAD from the running median along their line.", { n: c.spikes.toLocaleString() }) : ""].filter(Boolean).join(" ") : "");
   const importXYZFile = async (file) => {
     if (!file) return;
     setXyzError(null);
@@ -841,6 +851,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         valueCol: g.value,
         header: gemHeaderInfo(text), // #610 — survey date / UTC offset, for matching base-station files
         headerEpsg: gemHeaderEpsg(text), // #1329
+        ...cleaningDefaults(columns), // #1583
       });
     } catch (err) {
       setXyzError({ info: false, text: tr("Could not parse {name}: {message}", { name: file.name, message: err.message }) });
@@ -858,7 +869,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       const { columns, rows: parsedRows } = parseXYZ(text);
       const g = guessXyzChannels(columns, parsedRows);
       const bytes = files.reduce((a, f) => a + f.size, 0), estimate = Math.round((parsedRows.length / Math.max(1, files[0].size)) * bytes);
-      setXyzPending({ fileName: files[0].name, columns, rows: parsedRows, xCol: guessColumn(columns, XY_NAME_HINTS.x), yCol: guessColumn(columns, XY_NAME_HINTS.y), zCol: g.z, valueCol: g.value, header: gemHeaderInfo(text), headerEpsg: gemHeaderEpsg(text),
+      setXyzPending({ fileName: files[0].name, columns, rows: parsedRows, xCol: guessColumn(columns, XY_NAME_HINTS.x), yCol: guessColumn(columns, XY_NAME_HINTS.y), zCol: g.z, valueCol: g.value, header: gemHeaderInfo(text), headerEpsg: gemHeaderEpsg(text), ...cleaningDefaults(columns) /* #1583 */,
         batch: { files, gpsFiles, estimate, keepEvery: suggestKeepEvery(estimate, 100000, (layers.geophys_pts || []).length) } }); // #1582 — counts what is already drawn
     } catch (err) {
       setXyzError({ info: false, text: tr("Could not parse {name}: {message}", { name: files[0].name, message: err.message }) });
@@ -871,7 +882,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     const merged = files.length > 5; // each file its own survey and colour scale when few; a day's walking files are one survey
     const surveyName = merged ? batchSurveyName(files.map((f) => f.name)) : null;
     const placers = new Map(), failed = [], collected = [];
-    let target = project?.epsg, asked = false, read = 0, kept = 0;
+    let target = project?.epsg, asked = false, read = 0, kept = 0, lowQuality = 0, spikes = 0; // lowQuality, spikes: #1583
+    const cleaning = { sqCol: xyzPending.sqCol, minQuality: xyzPending.minQuality, despike: xyzPending.despike }, minQ = xyzPending.minQuality;
     setXyzPending(null);
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
@@ -883,7 +895,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         if (!columns.includes(xCol) || !columns.includes(yCol) || !columns.includes(valueCol)) throw new Error(tr("it has no {x}, {y} or {v} column.", { x: xCol, y: yCol, v: valueCol }));
         read += raw.length;
         const base = f.name.replace(/\.[^.]+$/, "");
-        let mapped = raw.map((r) => ({ x: r[xCol], y: r[yCol], z: zCol && Number.isFinite(r[zCol]) ? r[zCol] : null, value: r[valueCol], ...(r._line != null ? { line: merged ? `${base} ${r._line}` : String(r._line), label: `Line ${r._line}` } : {}), _src: surveyName || f.name }))
+        const cleaned = cleanRows(raw, cleaning, (r) => r[valueCol], (r) => r._line ?? null); // #1583
+        lowQuality += cleaned.lowQuality; spikes += cleaned.spikes;
+        let mapped = cleaned.rows.map((r) => ({ x: r[xCol], y: r[yCol], z: zCol && Number.isFinite(r[zCol]) ? r[zCol] : null, value: r[valueCol], ...(r._line != null ? { line: merged ? `${base} ${r._line}` : String(r._line), label: `Line ${r._line}` } : {}), _src: surveyName || f.name }))
           .filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value) && !(r.x === 0 && r.y === 0)); // #538 — no GPS fix
         mapped = everyNth(mapped, keepEvery);
         const gpsName = pairGpsFile(f.name, gpsFiles.map((g) => g.name));
@@ -911,6 +925,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     setXyzError({ info: !failed.length, text: [
       tr("Imported {kept} point(s) from {n} of {total} files ({read} readings in them).", { kept: kept.toLocaleString(), n: files.length - failed.length, total: files.length, read: read.toLocaleString() }),
       keepEvery > 1 ? tr("Kept 1 reading in {n}: a short anomaly between kept readings is not shown.", { n: keepEvery }) : "",
+      lowQuality ? tr("Dropped {n} reading(s) with signal quality under {q}.", { n: lowQuality.toLocaleString(), q: minQ }) : "", // #1583
+      spikes ? tr("Dropped {n} spike(s) more than 6 MAD from the running median along their line.", { n: spikes.toLocaleString() }) : "",
       failed.length ? tr("Problems: {failed}", { failed: failed.join("; ") }) : "",
     ].filter(Boolean).join(" ") });
   };
@@ -936,12 +952,15 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       setXyzError({ info: false, text: tr("Pick an X, Y, and Value column before importing.") });
       return;
     }
+    // TASKS.csv #1583 — the signal-quality floor and the despike, before anything else reads the values
+    const cleaned = cleanRows(parsedRows, xyzPending, (r) => Number(r[valueCol]), (r) => (xyzPending.source === "csv" ? (xyzPending.lineCol ? r[xyzPending.lineCol] : null) : r._line ?? null));
+    const cleanedRows = cleaned.rows;
     // TASKS.csv #484 — a CSV that fell through to the picker: same row mapping as the automatic path
     let mapped = xyzPending.source === "csv"
-      ? rowsToGeophysPoints(parsedRows, { x: xCol, y: yCol, z: zCol, value: valueCol, line: xyzPending.lineCol, fid: xyzPending.fidCol, label: xyzPending.labelCol })
+      ? rowsToGeophysPoints(cleanedRows, { x: xCol, y: yCol, z: zCol, value: valueCol, line: xyzPending.lineCol, fid: xyzPending.fidCol, label: xyzPending.labelCol })
         .map((r) => ({ ...r, _src: fileName }))
         .filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value))
-      : parsedRows
+      : cleanedRows
       .map((r) => ({
         // TASKS.csv #365 — no z column means "elevation not recorded" (null), not the mean collar elevation.
         x: r[xCol], y: r[yCol], z: zCol && Number.isFinite(r[zCol]) ? r[zCol] : null, value: r[valueCol],
@@ -995,10 +1014,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, mapped).rows }));
     { const g = guessSurveyMethodFrom(valueCol, mapped.map((r) => r.label)); if (g && !geophysSurveys[fileName]?.method) updateGeophysSurvey(fileName, { method: g, units: SURVEY_METHODS[g].units }); } // #1151
     if (replacedN) reprojectNote += tr(" Replaced the {replacedN} point(s) of the earlier import of this file.", { replacedN: replacedN.toLocaleString() });
-    const skipped = parsedRows.length - mapped.length - noFix; // #538 — the no-fix readings are reported separately
+    const skipped = cleanedRows.length - mapped.length - noFix; // #538 — the no-fix readings are reported separately; #1583: after the cleaning
     if (noFix) reprojectNote += tr(" Left out {noFix} reading(s) at X = 0, Y = 0 (no GPS fix).", { noFix });
     const dcNote = /_dc$/.test(valueCol) && xyzPending.diurnalNote ? ` ${xyzPending.diurnalNote}` : ""; // #610
-    setXyzError({ info: true, text: tr("Imported {mapped} point(s) from \"{fileName}\"{v}.{reprojectNote}{dcNote}", { mapped: mapped.length, fileName, v: skipped ? tr(" (skipped {skipped} row(s) with {v} values in the chosen columns)", { skipped, v: xyzPending.source === "csv" ? tr("blank or non-numeric") : tr("no-data \"*\"") }) : "", reprojectNote, dcNote }) });
+    setXyzError({ info: true, text: tr("Imported {mapped} point(s) from \"{fileName}\"{v}.{reprojectNote}{dcNote}", { mapped: mapped.length, fileName, v: skipped ? tr(" (skipped {skipped} row(s) with {v} values in the chosen columns)", { skipped, v: xyzPending.source === "csv" ? tr("blank or non-numeric") : tr("no-data \"*\"") }) : "", reprojectNote, dcNote }) + cleaningNote(cleaned) /* #1583 */ });
     setXyzPending(null);
     if (xyzPending.source === "csv") setError(null);
   };
@@ -1302,6 +1321,20 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                 </select>
               </div>
             ))}
+            {/* TASKS.csv #1583 — a signal-quality floor (a GEM sq column) and an along-line despike */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }} title={tr("A GEM magnetometer writes a signal quality (0-99) beside each reading; the base-station reader already drops readings under 50. Below the floor the reading is a dropout or a spike (2,105 or 167,300 nT in a 56,500 nT survey) and is left out.")}>
+              <span style={{ color: "var(--color-text-faint)", width: 140, flexShrink: 0 }}>{tr("Signal quality")}</span>
+              <select value={xyzPending.sqCol || ""} aria-label={tr("Signal quality column")} onChange={(e) => setXyzPending((p) => ({ ...p, sqCol: e.target.value, minQuality: e.target.value ? (p.minQuality || 50) : 0 }))} style={{ ...numInput, width: "auto", flex: 1, minWidth: 0 }}>
+                <option value="">{tr("(no quality column)")}</option>
+                {xyzPending.columns.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+              {xyzPending.sqCol && <label style={{ display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>{tr("drop under")}<input type="number" min="0" max="99" step="1" value={xyzPending.minQuality ?? 50} aria-label={tr("Drop readings with signal quality under")} onChange={(e) => setXyzPending((p) => ({ ...p, minQuality: Math.max(0, Math.min(99, Number(e.target.value) || 0)) }))} style={{ ...numInput, width: 56 }} /></label>}
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, cursor: "pointer" }} title={tr("Each reading is compared with the median of the 11 readings around it on its line; one more than 6 MAD (and at least 20 nT) away is dropped as a spike. A real anomaly over tens of readings moves the running median with it and stays.")}>
+              <span style={{ color: "var(--color-text-faint)", width: 140, flexShrink: 0 }}>{tr("Despike")}</span>
+              <input type="checkbox" checked={!!xyzPending.despike} onChange={(e) => setXyzPending((p) => ({ ...p, despike: e.target.checked }))} />
+              <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("drop readings more than 6 MAD from the running median along their line")}</span>
+            </label>
             {xyzPending.batch && (
               <div style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                 <div>{tr("{n} files, about {rows} readings. These columns apply to all of them; the first file is shown.", { n: xyzPending.batch.files.length, rows: xyzPending.batch.estimate.toLocaleString() })}{xyzPending.batch.gpsFiles.length ? ` ${tr("{n} GPS file(s) are used for the surveys named like them.", { n: xyzPending.batch.gpsFiles.length })}` : ""}</div>

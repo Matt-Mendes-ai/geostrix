@@ -7674,5 +7674,16 @@
   "One pick per hole where {unit} ends on a logged unit — the base of overburden, the contact every hole shares — the same points the implicit tool uses for \"Base of {unit}\". Check them, then move or delete the outliers.": "Un pointé par sondage où {unit} se termine sur une unité enregistrée — la base du mort-terrain, le contact que tous les sondages partagent —, les mêmes points que l'outil implicite utilise pour « Base de {unit} ». Vérifiez-les, puis déplacez ou supprimez les aberrants.",
   "Add the logged base of {unit}": "Ajouter la base enregistrée de {unit}",
   "none: {unit} lies above its base and nothing caps it without a terrain": "aucun : {unit} se trouve au-dessus de sa base et rien ne la plafonne sans terrain",
-  "Layout capture: every hole is labelled, and {n} label(s) overlap another at this scale. A larger scale, or a shorter label mode, separates them.": "Capture pour la mise en page : chaque sondage porte son étiquette et {n} étiquette(s) en chevauchent une autre à cette échelle. Une échelle plus grande, ou un mode d'étiquette plus court, les sépare."
+  "Layout capture: every hole is labelled, and {n} label(s) overlap another at this scale. A larger scale, or a shorter label mode, separates them.": "Capture pour la mise en page : chaque sondage porte son étiquette et {n} étiquette(s) en chevauchent une autre à cette échelle. Une échelle plus grande, ou un mode d'étiquette plus court, les sépare.",
+  "Dropped {n} reading(s) with signal quality under {q}.": "{n} lecture(s) de qualité de signal inférieure à {q} écartée(s).",
+  "Dropped {n} spike(s) more than 6 MAD from the running median along their line.": "{n} pic(s) à plus de 6 MAD de la médiane glissante le long de leur ligne écarté(s).",
+  "A GEM magnetometer writes a signal quality (0-99) beside each reading; the base-station reader already drops readings under 50. Below the floor the reading is a dropout or a spike (2,105 or 167,300 nT in a 56,500 nT survey) and is left out.": "Un magnétomètre GEM écrit une qualité de signal (0-99) à côté de chaque lecture ; le lecteur de station de base écarte déjà les lectures sous 50. Sous le plancher, la lecture est un décrochage ou un pic (2 105 ou 167 300 nT dans un levé à 56 500 nT) et est laissée de côté.",
+  "Signal quality": "Qualité du signal",
+  "Signal quality column": "Colonne de qualité du signal",
+  "(no quality column)": "(pas de colonne de qualité)",
+  "drop under": "écarter sous",
+  "Drop readings with signal quality under": "Écarter les lectures de qualité de signal inférieure à",
+  "Each reading is compared with the median of the 11 readings around it on its line; one more than 6 MAD (and at least 20 nT) away is dropped as a spike. A real anomaly over tens of readings moves the running median with it and stays.": "Chaque lecture est comparée à la médiane des 11 lectures qui l'entourent sur sa ligne ; une lecture à plus de 6 MAD (et d'au moins 20 nT) est écartée comme pic. Une vraie anomalie sur des dizaines de lectures entraîne la médiane glissante avec elle et reste.",
+  "Despike": "Dépointage",
+  "drop readings more than 6 MAD from the running median along their line": "écarter les lectures à plus de 6 MAD de la médiane glissante le long de leur ligne"
 }
