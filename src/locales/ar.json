@@ -6937,7 +6937,6 @@
   "Silvertip surface samples: {list} — shown in the 3D View and the Geochem tab.": "عينات سيلفرتيب السطحية: {list}، في العرض ثلاثي الأبعاد وتبويب الجيوكيمياء.",
   "Silvertip surface samples could not be loaded: {message}": "تعذر تحميل عينات سيلفرتيب السطحية: {message}",
   "Loading the Silvertip sample project — 9 deep diamond drillholes from 2024 (to 1,323 m) with their logs, surveys, oriented structures and assays, plus 168 rock, 282 soil and 156 stream-sediment samples, all from BC's public assessment report #42807. Nothing in it is synthesized (sample_data/silvertip/README.md).": "جارٍ تحميل مشروع العينة سيلفرتيب: 9 ثقوب حفر ماسية عميقة من 2024 (حتى 1323 م) بسجلاتها ومسوحاتها وبناها الموجهة وتحاليلها، و168 عينة صخر و282 تربة و156 رواسب جداول، كلها من تقرير التقييم العام #42807 في كولومبيا البريطانية. لا شيء مُصطنع (sample_data/silvertip/README.md).",
-  "The nearest the line passes to another part of itself, as between the turns of a spiral: the rock left between them.": "أقرب مسافة يمر بها الخط من جزء آخر منه، كما بين لفات الحلزون: الصخر المتبقي بينها.",
   "Closest pass to itself": "أقرب مرور للخط من نفسه",
   "The line passes within {m} m of itself near {x}, {y}, {z}: it may run through its own opening.": "يمر الخط على بعد {m} م من نفسه قرب {x}، {y}، {z}: قد يخترق فتحته نفسها.",
   "No terrain: the line is not checked against the ground.": "لا توجد تضاريس: لا يُفحص الخط مقابل سطح الأرض.",
@@ -7521,5 +7520,7 @@
   "index (no unit)": "مؤشر (بلا وحدة)",
   "No terrain is loaded and no collar has an elevation, so the top of each column of the block model stands in for the ground, interpolated between columns: nothing above the highest block is costed. Load a terrain in Maps for the real surface.": "لا تضاريس محمَّلة ولا فوهة لها منسوب، لذا يقوم سطح كل عمود من نموذج الكتل مقام الأرض، مُستكمَلًا بين الأعمدة: لا يُحتسب شيء فوق أعلى كتلة. حمِّل تضاريس في الخرائط للسطح الحقيقي.",
   "The ground is the top of the block model's columns, interpolated between them, not a terrain.": "الأرض هي سطح أعمدة نموذج الكتل، مُستكمَلًا بينها، لا تضاريس.",
-  "No terrain and no collars: the ground is the top of the block model's columns, interpolated between them.": "لا تضاريس ولا فوهات: الأرض هي سطح أعمدة نموذج الكتل، مُستكمَلًا بينها."
+  "No terrain and no collars: the ground is the top of the block model's columns, interpolated between them.": "لا تضاريس ولا فوهات: الأرض هي سطح أعمدة نموذج الكتل، مُستكمَلًا بينها.",
+  "{label} (back to floor)": "{label} (من السقف إلى الأرضية)",
+  "The nearest the line passes to another part of itself, as between the turns of a spiral: the rock left between them. Between stacked turns the profile's height is taken off (back to floor), beside each other its width (wall to wall).": "أقرب ما يمر الخط من جزء آخر من نفسه، كما بين لفات الحلزون: الصخر المتبقي بينها. بين اللفات المتراكبة يُطرح ارتفاع المقطع (من السقف إلى الأرضية)، وجنبًا إلى جنب عرضه (من جدار إلى جدار)."
 }

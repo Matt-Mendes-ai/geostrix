@@ -109,7 +109,7 @@ export function vertexChainage(c) {
 // skipped, and nothing is allocated in the loop: a 6.7 km spiral (2,300 vertices) takes tens of ms, not a second.
 // -> { distance, at: [x, y, z] } or null
 const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
-// the closest points of segments p0-p1 and q0-q1 -> { dist, s, t, q: [x, y, z] (the point on the second) }
+// the closest points of segments p0-p1 and q0-q1 -> { dist, s, t, p: [x, y, z] (the point on the first), q: (on the second) }
 function segDist(p0, p1, q0, q1) {
   const ux = p1[0] - p0[0], uy = p1[1] - p0[1], uz = p1[2] - p0[2], a = ux * ux + uy * uy + uz * uz;
   const vx = q1[0] - q0[0], vy = q1[1] - q0[1], vz = q1[2] - q0[2], wx = p0[0] - q0[0], wy = p0[1] - q0[1], wz = p0[2] - q0[2];
@@ -118,7 +118,23 @@ function segDist(p0, p1, q0, q1) {
   const t = cc > 1e-12 ? clamp01((b * s + e) / cc) : 0;
   s = a > 1e-12 ? clamp01((b * t - d) / a) : 0;
   const qx = q0[0] + t * vx, qy = q0[1] + t * vy, qz = q0[2] + t * vz;
-  return { dist: Math.hypot(p0[0] + s * ux - qx, p0[1] + s * uy - qy, p0[2] + s * uz - qz), s, t, q: [qx, qy, qz] };
+  const px = p0[0] + s * ux, py = p0[1] + s * uy, pz = p0[2] + s * uz;
+  return { dist: Math.hypot(px - qx, py - qy, pz - qz), s, t, p: [px, py, pz], q: [qx, qy, qz] };
+}
+// TASKS.csv #1924 — a pass is a VECTOR, not only a distance: between a spiral's stacked turns the rock left is back to floor (the
+// profile's height counts), beside another drift it is wall to wall (the width). pass: { at, from } from selfClearance / clearanceTo.
+// passDirection -> { horizontal, vertical } shares of the pass vector (a crossing, no vector, counts as horizontal)
+export function passDirection(pass) {
+  const d = pass?.from && pass?.at ? [pass.at[0] - pass.from[0], pass.at[1] - pass.from[1], pass.at[2] - pass.from[2]] : null, L = d ? Math.hypot(d[0], d[1], d[2]) : 0;
+  if (!(L > 1e-9)) return { horizontal: 1, vertical: 0 };
+  return { horizontal: Math.hypot(d[0], d[1]) / L, vertical: Math.abs(d[2]) / L };
+}
+// the half-extent of a profile along the pass: half the width by the horizontal share plus half the height by the vertical share
+// (a profile with no height is taken as high as it is wide). 0 without a profile width.
+export function profileHalfAlong(pass, profile) {
+  if (!(profile?.width > 0)) return 0;
+  const w = profile.width / 2, h = profile.height > 0 ? profile.height / 2 : w, { horizontal, vertical } = passDirection(pass);
+  return w * horizontal + h * vertical;
 }
 const boxes = (v) => { const n = v.length - 1, lo = new Float64Array(n * 3), hi = new Float64Array(n * 3); for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) { lo[i * 3 + k] = Math.min(v[i][k], v[i + 1][k]); hi[i * 3 + k] = Math.max(v[i][k], v[i + 1][k]); } return { lo, hi }; };
 const boxGap = (A, i, B, j) => { let gap = 0; for (let k = 0; k < 3; k++) { const g = Math.max(B.lo[j * 3 + k] - A.hi[i * 3 + k], A.lo[i * 3 + k] - B.hi[j * 3 + k], 0); gap += g * g; } return gap; };
@@ -126,15 +142,15 @@ export function selfClearance(c, within = 100) {
   const v = c.vertices, ch = vertexChainage(c), n = v.length - 1;
   if (n < 3) return null;
   const bx = boxes(v);
-  let bestD = within, at = null;
+  let bestD = within, at = null, from = null;
   for (let i = 0; i < n; i++) for (let j = i + 2; j < n; j++) {
     if (boxGap(bx, i, bx, j) >= bestD * bestD) continue; // the distance between the two boxes: a lower bound on the pieces' distance
     const r = segDist(v[i], v[i + 1], v[j], v[j + 1]);
     if (r.dist >= bestD) continue;
     const along = ch[j] + r.t * (ch[j + 1] - ch[j]) - (ch[i] + r.s * (ch[i + 1] - ch[i]));
-    if (r.dist * 3 < along) { bestD = r.dist; at = r.q; }
+    if (r.dist * 3 < along) { bestD = r.dist; at = r.q; from = r.p; }
   }
-  return at ? { distance: bestD, at } : null;
+  return at ? { distance: bestD, at, from } : null; // from: the point on the earlier part (#1924)
 }
 
 // TASKS.csv #1878 — the closest pass between this line and another polyline (another design line, a drillhole trace): the
@@ -143,7 +159,7 @@ export function clearanceTo(c, polylines, within = 100) {
   const v = c.vertices, n = v.length - 1;
   if (n < 1) return null;
   const A = boxes(v);
-  let bestD = within, at = null, name = null;
+  let bestD = within, at = null, from = null, name = null;
   for (const pl of polylines) {
     const w = pl.vertices, m = w.length - 1;
     if (m < 1) continue;
@@ -151,10 +167,10 @@ export function clearanceTo(c, polylines, within = 100) {
     for (let i = 0; i < n; i++) for (let j = 0; j < m; j++) {
       if (boxGap(A, i, B, j) >= bestD * bestD) continue;
       const r = segDist(v[i], v[i + 1], w[j], w[j + 1]);
-      if (r.dist < bestD) { bestD = r.dist; at = r.q; name = pl.name; }
+      if (r.dist < bestD) { bestD = r.dist; at = r.q; from = r.p; name = pl.name; }
     }
   }
-  return at ? { distance: bestD, at, name } : null;
+  return at ? { distance: bestD, at, from, name } : null; // from: the point on this line (#1924)
 }
 
 // TASKS.csv #1878 / #1611 — a straight whose typed azimuth turns the line (more than 2 degrees off the heading it arrives on) is a

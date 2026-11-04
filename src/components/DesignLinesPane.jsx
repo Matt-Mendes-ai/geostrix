@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { Spline, Download, X, Trash2, Plus, Maximize2 } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
-import { computeLine, segmentsToPoint, runAboveGround, gradeRatio, designLineRows, designLineFeatures, selfClearance, declineToTarget, clearanceTo, sharpCorners, developmentRows, profileArea } from "../lib/designLines.js"; // #1878
+import { computeLine, segmentsToPoint, runAboveGround, gradeRatio, designLineRows, designLineFeatures, selfClearance, declineToTarget, clearanceTo, sharpCorners, developmentRows, profileArea, profileHalfAlong, passDirection } from "../lib/designLines.js"; // #1878; profileHalfAlong / passDirection: #1924
 import { holeTraces } from "../lib/evidenceSources.js"; // #1878 — the drillhole traces the clearance is checked against
 import { plannedTrace } from "../lib/holePlanning.js"; // #1878 — a planned hole's toe as a target
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
@@ -100,11 +100,13 @@ export default function DesignLinesPane({ view, onClose }) {
   const pillarM = num0(pillar);
   // #1889 — clearanceTo measures centreline to centreline (or hole trace); with a profile the rock left is that less half the width
   // on this side, and less half the other line's width too. Without a profile the figures stay centreline figures and say so.
+  // TASKS.csv #1924 — the half-extent taken off follows the pass DIRECTION: beside another drift it is half the width, under or over
+  // one (a spiral's stacked turns, a hole passing over the back) half the height; the label says which it mostly is
   const halfW = line?.profile?.width > 0 ? line.profile.width / 2 : 0;
-  const otherHalfW = nearLine ? ((designLines.find((l) => l.name === nearLine.name)?.profile?.width || 0) / 2) : 0;
-  const wallHole = nearHole ? Math.max(0, nearHole.distance - halfW) : null;
-  const wallLine = nearLine ? Math.max(0, nearLine.distance - halfW - otherHalfW) : null;
-  const passLabel = (base) => (halfW > 0 ? tr("{label} (wall to wall)", { label: base }) : tr("{label} (centreline)", { label: base }));
+  const otherProfile = nearLine ? designLines.find((l) => l.name === nearLine.name)?.profile || null : null;
+  const wallHole = nearHole ? Math.max(0, nearHole.distance - profileHalfAlong(nearHole, line?.profile)) : null;
+  const wallLine = nearLine ? Math.max(0, nearLine.distance - profileHalfAlong(nearLine, line?.profile) - profileHalfAlong(nearLine, otherProfile)) : null;
+  const passLabel = (base, pass = null) => (halfW > 0 ? (passDirection(pass).vertical > 0.7 ? tr("{label} (back to floor)", { label: base }) : tr("{label} (wall to wall)", { label: base })) : tr("{label} (centreline)", { label: base }));
   const targetPoint = () => {
     if (tgt.holeId) { const h = plannedHoles.find((p) => p.id === tgt.holeId); const tr0 = h ? plannedTrace(h) : []; const toe = tr0[tr0.length - 1]; return toe ? [toe.x, toe.y, toe.z] : null; }
     const p = [num0(tgt.x), num0(tgt.y), num0(tgt.z)];
@@ -233,7 +235,7 @@ export default function DesignLinesPane({ view, onClose }) {
   };
   const above = useMemo(() => (c && terrain ? runAboveGround(c.vertices, (x, y) => terrainGroundAt(terrain, x, y)) : 0), [c, terrain]);
   const clearance = useMemo(() => (c && c.vertices.length > 2 ? selfClearance(c) : null), [c]);
-  const wallSelf = clearance ? Math.max(0, clearance.distance - 2 * halfW) : null; // #1889 (declared after clearance: TDZ otherwise)
+  const wallSelf = clearance ? Math.max(0, clearance.distance - 2 * profileHalfAlong(clearance, line?.profile)) : null; // #1889 (declared after clearance: TDZ otherwise); along the pass: #1924
 
   const exportCsv = () => saveFile({ suggestedName: "design_lines.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(designLineRows(designLines).map((r) => ({ ...r, crs: crsCell(project) }))) });
   const exportDxf = () => saveFile({ suggestedName: "design_lines.dxf", filters: [{ name: "DXF", extensions: ["dxf"] }], content: buildDXF({ features: designLineFeatures(designLines), geomType: "line", layerOf: (f) => f.attributes.name, colorOf: (f) => f.attributes.color }) });
@@ -338,11 +340,11 @@ export default function DesignLinesPane({ view, onClose }) {
             <div style={row}><span>{tr("Steepest grade")}</span><b>{m1(c.steepest)} %</b></div>
             {c.minRadius != null && !corners.length && <div style={row}><span>{tr("Tightest radius")}</span><b>{m1(c.minRadius)} m</b></div>}
             {corners.length > 0 && <div style={warn}>{tr("{n} sharp corner(s) (segment {list}): a typed azimuth turned the line without a curve, which no machine can drive. Add a curve or match the heading.", { n: corners.length, list: corners.map((k) => `${k.segment} (${k.turn}°)`).join(", ") })}</div>}{/* #1611 */}
-            {nearLine && <div style={row}><span title={halfW > 0 ? tr("Centreline to centreline: {m} m", { m: m1(nearLine.distance) }) : undefined}>{passLabel(tr("Closest pass to another line"))}</span><b>{m1(wallLine)} m ({nearLine.name})</b></div>}{/* #1889 */}
-            {nearHole && <div style={row}><span title={halfW > 0 ? tr("Centreline to hole: {m} m", { m: m1(nearHole.distance) }) : undefined}>{passLabel(tr("Closest pass to a drillhole"))}</span><b>{m1(wallHole)} m ({nearHole.name})</b></div>}
+            {nearLine && <div style={row}><span title={halfW > 0 ? tr("Centreline to centreline: {m} m", { m: m1(nearLine.distance) }) : undefined}>{passLabel(tr("Closest pass to another line"), nearLine)}</span><b>{m1(wallLine)} m ({nearLine.name})</b></div>}{/* #1889 */}
+            {nearHole && <div style={row}><span title={halfW > 0 ? tr("Centreline to hole: {m} m", { m: m1(nearHole.distance) }) : undefined}>{passLabel(tr("Closest pass to a drillhole"), nearHole)}</span><b>{m1(wallHole)} m ({nearHole.name})</b></div>}
             {pillarM > 0 && ((wallLine != null && wallLine < pillarM) || (wallHole != null && wallHole < pillarM) || (wallSelf != null && wallSelf < pillarM)) && <div style={warn}>{tr("Less than the {p} m pillar is left somewhere: see the passes above.", { p: pillarM })}</div>}
             {pillarM > 0 && halfW === 0 && <div style={note}>{tr("The passes are centreline figures: set a profile width to measure the rock left wall to wall.")}</div>}
-            {clearance && <div style={row}><span title={tr("The nearest the line passes to another part of itself, as between the turns of a spiral: the rock left between them.")}>{passLabel(tr("Closest pass to itself"))}</span><b>{m1(wallSelf)} m</b></div>}
+            {clearance && <div style={row}><span title={tr("The nearest the line passes to another part of itself, as between the turns of a spiral: the rock left between them. Between stacked turns the profile's height is taken off (back to floor), beside each other its width (wall to wall).")}>{passLabel(tr("Closest pass to itself"), clearance)}</span><b>{m1(wallSelf)} m</b></div>}{/* #1924 */}
             {clearance && wallSelf < 10 && <div style={warn}>{tr("The line passes within {m} m of itself near {x}, {y}, {z}: it may run through its own opening.", { m: m1(wallSelf), x: m1(clearance.at[0]), y: m1(clearance.at[1]), z: m1(clearance.at[2]) })}</div>}
             {above > 0.5 && <div style={warn}>{tr("{m} m of this line, in plan, is above the terrain.", { m: m1(above) })}</div>}
             {!terrain && <div style={note}>{tr("No terrain: the line is not checked against the ground.")}</div>}
