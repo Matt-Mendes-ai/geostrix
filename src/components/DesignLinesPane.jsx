@@ -64,6 +64,7 @@ export default function DesignLinesPane({ view, onClose }) {
   const setPillar = (v) => { toTargetDefaults.pillar = v; setPillarState(v); };
   const setDensity = (v) => { toTargetDefaults.density = v; setDensityState(v); };
   const [toTargetMsg, setToTargetMsg] = useState(null);
+  const [msg, setMsg] = useState(null); // #1754 — a deletion says that Undo brings the line back
   const line = designLines.find((l) => l.id === activeId) || null;
   // #1357 — after a delete or an undo the active line can be gone: the last line takes over, so the editor never goes blank
   useEffect(() => { if (!line && designLines.length) setActiveId(designLines[designLines.length - 1].id); }, [line, designLines]);
@@ -250,12 +251,13 @@ export default function DesignLinesPane({ view, onClose }) {
         {c && c.vertices?.length > 0 && view?.zoomTo && <Maximize2 size={14} style={{ cursor: "pointer", flexShrink: 0, alignSelf: "center" }} {...iconAction(() => view.zoomTo(c.vertices), tr("Zoom to this line"))} />}{/* #1892 */}
         <button onClick={newLine} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 8px" }}><Plus size={13} /> {tr("New line")}</button>
       </div>
+      {msg && <div style={note}>{msg}</div>}{/* #1754 */}
       {line && (<>
         <div style={{ display: "flex", gap: 4, alignItems: "center", marginTop: 4 }}>
           <input key={line.id} defaultValue={line.name} onBlur={(e) => { const n = e.target.value.trim(); if (n && n !== line.name) update({ name: n }); }} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Name of the line")} />
           <input type="color" value={line.color} onChange={(e) => update({ color: e.target.value })} aria-label={tr("Colour of the line")} style={{ width: 24, height: 22, padding: 0, border: "none", background: "none" }} />
           <label style={{ ...note, display: "flex", alignItems: "center", gap: 3, cursor: "pointer" }}><input type="checkbox" checked={line.visible !== false} onChange={(e) => update({ visible: e.target.checked })} />{tr("Show")}</label>
-          <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => { const rest = designLines.filter((l) => l.id !== line.id); setDesignLines((L) => L.filter((l) => l.id !== line.id)); setActiveId(rest[rest.length - 1]?.id ?? null); setDrawing(false); }, tr("Delete this line"))} />
+          <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} {...iconAction(() => { const rest = designLines.filter((l) => l.id !== line.id); setDesignLines((L) => L.filter((l) => l.id !== line.id)); setActiveId(rest[rest.length - 1]?.id ?? null); setDrawing(false); setMsg(tr("\"{name}\" deleted: Undo (Ctrl+Z) brings it back.", { name: line.name })); }, tr("Delete this line"))} />
         </div>
 
         <div style={label}>{tr("Start")}</div>

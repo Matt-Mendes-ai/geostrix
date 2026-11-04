@@ -214,7 +214,7 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
   const doDuplicate = () => { const dE = num0(tool.dE) || 0, dN = num0(tool.dN) || 0, dZ = num0(tool.dZ) || 0; const id = addString({ name: tr("{name} copy", { name: string.name }), closed: string.closed, color: string.color, vertices: string.vertices.map((p) => [+(p[0] + dE).toFixed(3), +(p[1] + dN).toFixed(3), +(p[2] + dZ).toFixed(3)]) }); setActiveId(id); };
   const doJoin = () => { const other = designStrings.find((s) => s.id === tool.joinId); if (!other) return; update({ vertices: joinStrings(string.vertices, other.vertices), closed: false }); setDesignStrings((L) => L.filter((s) => s.id !== other.id)); setTool((t) => ({ ...t, joinId: "" })); }; // closed strings are not offered (#1911)
   const doSplit = () => { const i = (num0(tool.splitAt) ?? 0) - 1, parts = splitString(string.vertices, i); if (!parts) { setMsg(tr("Split at a vertex between the first and the last.")); return; } update({ vertices: parts[0], closed: false }); addString({ name: tr("{name} (2)", { name: string.name }), color: string.color, vertices: parts[1] }); };
-  const removeString = () => { const rest = designStrings.filter((s) => s.id !== string.id); setDesignStrings(rest); setActiveId(rest[rest.length - 1]?.id ?? null); setDrawing(false); };
+  const removeString = () => { const rest = designStrings.filter((s) => s.id !== string.id); setDesignStrings(rest); setActiveId(rest[rest.length - 1]?.id ?? null); setDrawing(false); setMsg(tr("\"{name}\" deleted: Undo (Ctrl+Z) brings it back.", { name: string.name })); }; // the notice: #1754
 
   // ---------- solids ----------
   const model = models.find((m) => (m.id ?? m.name) === solid.modelId) || null;

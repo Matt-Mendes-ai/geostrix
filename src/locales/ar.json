@@ -6224,7 +6224,6 @@
   "Redone (no data changed).": "تمت الإعادة (لم تتغير أي بيانات).",
   "Undone: {what}.": "تم التراجع: {what}.",
   "Redone: {what}.": "تمت الإعادة: {what}.",
-  "Undo (Ctrl/Cmd+Z): collars, surveys, logs, assays, surface samples, sections, planned holes, explicit surfaces, Layout pages ... Rasters, terrain, map layers, block models and generated surfaces are not undoable.": "تراجع (Ctrl/Cmd+Z): الفوهات والمسوحات والسجلات والتحاليل والعينات السطحية والمقاطع والثقوب المخططة والأسطح الصريحة وصفحات التخطيط… لا يمكن التراجع عن الصور النقطية والتضاريس وطبقات الخرائط ونماذج الكتل والأسطح المولّدة.",
   "Save every issue (severity, category, hole, message) as a CSV, with the project, CRS, desurvey method and thresholds in its header": "حفظ كل المشكلات (الخطورة والفئة والثقب والرسالة) بصيغة CSV، مع المشروع ونظام الإحداثيات وطريقة حساب المسار والعتبات في الترويسة",
   "Export the points of \"{key}\" (CSV)": "تصدير نقاط \"{key}\" (CSV)",
   "Load drillholes, or a geological map with outcrop measurements — modelling works from either": "حمّل ثقوب الحفر، أو خريطة جيولوجية مع قياسات المكاشف — تعمل النمذجة بأيٍّ منهما",
@@ -7465,5 +7464,7 @@
   "map layers": "طبقات الخريطة",
   "themes": "السمات",
   "the evidence overlay": "تراكب الأدلة",
-  "A later change to {what} is outside the undo history and stays.": "تغيير لاحق في {what} خارج سجل التراجع ويبقى."
+  "A later change to {what} is outside the undo history and stays.": "تغيير لاحق في {what} خارج سجل التراجع ويبقى.",
+  "Undo (Ctrl/Cmd+Z): collars, surveys, logs, assays, surface samples, sections, planned holes, design lines and strings, explicit surfaces, Layout pages ... Rasters, terrain, map layers, block models and generated surfaces are not undoable.": "تراجع (Ctrl/Cmd+Z): الفوهات، المسوحات، السجلات، التحاليل، العينات السطحية، المقاطع، الثقوب المخطط لها، خطوط التصميم وخطوطه المتعددة، الأسطح الصريحة، صفحات التخطيط ... الصور النقطية والتضاريس وطبقات الخريطة ونماذج الكتل والأسطح المولَّدة لا يمكن التراجع عنها.",
+  "\"{name}\" deleted: Undo (Ctrl+Z) brings it back.": "حُذف \"{name}\": التراجع (Ctrl+Z) يعيده."
 }

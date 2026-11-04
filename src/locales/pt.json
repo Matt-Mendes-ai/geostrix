@@ -6224,7 +6224,6 @@
   "Redone (no data changed).": "Refeito (nenhum dado mudou).",
   "Undone: {what}.": "Desfeito: {what}.",
   "Redone: {what}.": "Refeito: {what}.",
-  "Undo (Ctrl/Cmd+Z): collars, surveys, logs, assays, surface samples, sections, planned holes, explicit surfaces, Layout pages ... Rasters, terrain, map layers, block models and generated surfaces are not undoable.": "Desfazer (Ctrl/Cmd+Z): bocas de furo, surveys, registros, análises, amostras de superfície, seções, furos planejados, superfícies explícitas, páginas do Layout... Rasters, terreno, camadas de mapa, modelos de blocos e superfícies geradas não podem ser desfeitos.",
   "Save every issue (severity, category, hole, message) as a CSV, with the project, CRS, desurvey method and thresholds in its header": "Salvar todos os problemas (gravidade, categoria, furo, mensagem) como CSV, com o projeto, o CRS, o método de desurvey e os limites no cabeçalho",
   "Export the points of \"{key}\" (CSV)": "Exportar os pontos de \"{key}\" (CSV)",
   "Load drillholes, or a geological map with outcrop measurements — modelling works from either": "Carregue furos, ou um mapa geológico com medidas de afloramento — a modelagem funciona com qualquer um dos dois",
@@ -7465,5 +7464,7 @@
   "map layers": "camadas de mapa",
   "themes": "temas",
   "the evidence overlay": "a sobreposição de evidências",
-  "A later change to {what} is outside the undo history and stays.": "Uma alteração posterior em {what} está fora do histórico de desfazer e permanece."
+  "A later change to {what} is outside the undo history and stays.": "Uma alteração posterior em {what} está fora do histórico de desfazer e permanece.",
+  "Undo (Ctrl/Cmd+Z): collars, surveys, logs, assays, surface samples, sections, planned holes, design lines and strings, explicit surfaces, Layout pages ... Rasters, terrain, map layers, block models and generated surfaces are not undoable.": "Desfazer (Ctrl/Cmd+Z): colares, desvios, logs, análises, amostras de superfície, seções, furos planejados, linhas e strings de projeto, superfícies explícitas, páginas de Layout ... Rasters, terreno, camadas de mapa, modelos de blocos e superfícies geradas não podem ser desfeitos.",
+  "\"{name}\" deleted: Undo (Ctrl+Z) brings it back.": "\"{name}\" excluído: Desfazer (Ctrl+Z) o traz de volta."
 }

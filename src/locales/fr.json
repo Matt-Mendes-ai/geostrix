@@ -6224,7 +6224,6 @@
   "Redone (no data changed).": "Rétabli (aucune donnée modifiée).",
   "Undone: {what}.": "Annulé : {what}.",
   "Redone: {what}.": "Rétabli : {what}.",
-  "Undo (Ctrl/Cmd+Z): collars, surveys, logs, assays, surface samples, sections, planned holes, explicit surfaces, Layout pages ... Rasters, terrain, map layers, block models and generated surfaces are not undoable.": "Annuler (Ctrl/Cmd+Z) : collets, levés, journaux, teneurs, échantillons de surface, coupes, sondages planifiés, surfaces explicites, pages de mise en page… Les rasters, le terrain, les couches cartographiques, les modèles de blocs et les surfaces générées ne peuvent pas être annulés.",
   "Save every issue (severity, category, hole, message) as a CSV, with the project, CRS, desurvey method and thresholds in its header": "Enregistrer tous les problèmes (gravité, catégorie, sondage, message) en CSV, avec le projet, le SCR, la méthode de calcul de trajectoire et les seuils dans l’en-tête",
   "Export the points of \"{key}\" (CSV)": "Exporter les points de « {key} » (CSV)",
   "Load drillholes, or a geological map with outcrop measurements — modelling works from either": "Chargez des sondages, ou une carte géologique avec des mesures d’affleurement — la modélisation fonctionne avec l’un ou l’autre",
@@ -7465,5 +7464,7 @@
   "map layers": "couches de carte",
   "themes": "thèmes",
   "the evidence overlay": "la superposition d'évidences",
-  "A later change to {what} is outside the undo history and stays.": "Une modification ultérieure de {what} est hors de l'historique d'annulation et reste."
+  "A later change to {what} is outside the undo history and stays.": "Une modification ultérieure de {what} est hors de l'historique d'annulation et reste.",
+  "Undo (Ctrl/Cmd+Z): collars, surveys, logs, assays, surface samples, sections, planned holes, design lines and strings, explicit surfaces, Layout pages ... Rasters, terrain, map layers, block models and generated surfaces are not undoable.": "Annuler (Ctrl/Cmd+Z) : collets, déviations, logs, analyses, échantillons de surface, sections, sondages planifiés, lignes et polylignes de conception, surfaces explicites, pages de Mise en page ... Les rasters, le terrain, les couches de carte, les modèles de blocs et les surfaces générées ne s'annulent pas.",
+  "\"{name}\" deleted: Undo (Ctrl+Z) brings it back.": "« {name} » supprimé : Annuler (Ctrl+Z) le ramène."
 }
