@@ -20,7 +20,8 @@ import { pointInPolygon } from "../lib/pointInPolygon.js"; // TASKS.csv #1570 //
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { trendBasis, trendSearchScales, describeTrend } from "../lib/trend.js"; // TASKS.csv #650
-import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { t as tr } from "../lib/i18n.js";
+import { topCompositesWithoutBlocks } from "../lib/shellSupport.js"; // TASKS.csv #1735 // TASKS.csv #786
 
 // TASKS.csv #117 — grade estimation into block models (not just display). Micromine-specialist AND
 // Leapfrog-specialist audits both independently flagged this as the top 3D-Modelling gap: GeoStrix
@@ -377,6 +378,9 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
           params.groundFrom = groundSource || "terrain";
           est.cutAboveGround = cut;
         }
+        // TASKS.csv #1735 (review #1645, Copley) — the highest composites with no estimated block within a cell of them: the
+        // two-hole rule left the only Cu intercept without a block and put the copper 90-110 m away
+        est.topUnsupported = topCompositesWithoutBlocks(points, est.cells, matched ? Math.max(cell3.dx, cell3.dy, cell3.dz) : Number(cellSize));
         setResult({ ...est, params, nnCells: method === "nn" ? est.cells : nnEst.cells, checkPoints: points, samplePointCount: points.length, droppedCount: dropped, clampedCount: clamped, beyondTraceCount: beyondTrace, rawStats, intervalCount: intervals.length });
         setAdded(false); setAddedSupport(false); setAddedKv(false); // a fresh run invalidates every "Added ✓" state
       } catch (e) {
@@ -664,6 +668,10 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
               {result.singleHoleCells > 0 && (
                 <div style={{ color: "var(--color-warn-text)" }}>
                   {tr("{singleHoleCells} of the estimated blocks ({v}%) were informed by only ONE drillhole — continuity there is asserted, not demonstrated. Raise \"Min distinct holes per block\" to exclude them.", { singleHoleCells: result.singleHoleCells.toLocaleString(), v: ((result.singleHoleCells / Math.max(1, result.blocksEstimated)) * 100).toFixed(0) })}</div>
+              )}
+              {result.topUnsupported?.unsupported.length > 0 && ( // TASKS.csv #1735
+                <div style={{ color: "var(--color-warn-text)" }}>
+                  {tr("{k} of the {n} highest composites have no estimated block within a cell of them ({list}): the blocks around them failed the Min distinct holes rule ({minHoles}) or the search, so this model puts the grade away from where it was drilled. Run with Min distinct holes 1 to estimate those blocks (they are flagged as informed by one hole), or widen the search.", { k: result.topUnsupported.unsupported.length, n: result.topUnsupported.checked, minHoles: result.params?.minHoles ?? "—", list: result.topUnsupported.unsupported.slice(0, 3).map((u) => `${u.hole_id ? `${u.hole_id} ` : ""}${u.value.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${unit}${u.nearestM != null ? tr(", nearest block {m} m", { m: Math.round(u.nearestM) }) : ""}`).join("; ") + (result.topUnsupported.unsupported.length > 3 ? ", …" : "") })}</div>
               )}
               {result.params?.supportScoredAgainstM > 0 && <div style={{ color: "var(--color-text-secondary)" }}>{tr("No search radius: data support was scored against {m} m (twice the median spacing between holes); a block farther than that from every sample, not between holes, is unsupported.", { m: result.params.supportScoredAgainstM.toLocaleString() })}</div>}{/* #1411 */}
               {result.params?.restrictedToVolume && <div style={{ color: "var(--color-text-secondary)" }}>{tr("Restricted to {v}.", { v: result.params.restrictedToVolume })}</div>}{/* #1410 */}

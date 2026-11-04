@@ -16,6 +16,7 @@ import { errorNotice, notice, appendNotice } from "../../lib/notices.js";
 import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, splitIntervalForSampling, spatialClusters, terrainGroundAt } from "../../lib/viewer/geomath.js";
 import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals, depthKey } from "../../lib/viewer/intervals.js";
 import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit, startsBelowNonUnit, startsBelowOverburden, overburdenBases } from "../../lib/modellingCodes.js"; // TASKS.csv #599; #1367; #1684
+import { samplesInsideShell } from "../../lib/shellSupport.js"; // TASKS.csv #1735
 import { clipMesh } from "../../lib/clipMesh.js";
 import { holeCounts } from "../../lib/intervalBox.js"; // TASKS.csv #1337
 import { thinStructurePicks } from "../../lib/viewer/orientationThin.js"; // TASKS.csv #765
@@ -2018,6 +2019,10 @@ export function createModellingRuns(ctx, mcRef) {
           origin: grid.origin, spacing: grid.cellSize, noData: numericCloseShell ? "outside" : "skip",
         });
         if (!mc.faces.length) throw new Error(tr("The interpolated {symbol} grid never crosses {numericCutoff} {unit} — no shell to extract (try a lower cutoff, a larger search radius, or a smaller cell size).", { symbol, numericCutoff, unit }));
+        // TASKS.csv #1735 (review #1645, Copley) — are the composites at/above the cutoff INSIDE the shell built to show them? With
+        // Min holes 2 on holes 100-1,350 m apart, the blocks round the only Cu intercept had one hole and were not estimated, so
+        // the "Cu > 1000 ppm" shell closed where two holes converge, 90-110 m away, and held no composite at all.
+        const inShell = samplesInsideShell(gridPoints, grid, gsCap.values, numericCutoff);
 
         const o = originRef.current;
         const pos = new Float32Array(mc.vertices.length * 3);
@@ -2093,6 +2098,7 @@ export function createModellingRuns(ctx, mcRef) {
           domain: gradeDomain ? gradeDomain.name : null,
           samplePoints: points.length, cellsEstimated: grid.estimated, ...(gsVariogram ? { variogram: gsVariogram } : {}), // #709; #935 — range in m along the trend
           singleHoleCells: grid.singleHoleCells, meanGradeInShell,
+          compositesInShell: inShell, // #1735 — { above, inside, outside, noData }: the at/above-cutoff composites against the shell
           // TASKS.csv #91/#92 — grid-wide classification, and the same classification restricted to the
           // shell's own surface. The second is the one that matters for a reported volume: it says what
           // fraction of the BOUNDARY is bracketed by data rather than carried out beyond it.
@@ -2106,6 +2112,15 @@ export function createModellingRuns(ctx, mcRef) {
         setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "mineralization_envelope", relationships: [], closure, params, surfaceSupportCounts: surfCounts, supportColored: false }]); // surfaceSupportCounts/supportColored: TASKS.csv #91
         setNotices((p) => [...p, notice("Added \"{label}\": {points} ({intervals}{v4}, {dropped} dropped{v5}, {above} at/above cutoff{v6}) → {nx}×{ny}×{nz} grid ({estimated} cells estimated, {skipped} outside the search radius{v7}{v8}) → {vertices} vertices / {faces} faces{v9}. Exploration target volume only — not a Mineral Resource.", { label, points: tr(points.length === 1 ? "{n} sample point" : "{n} sample points", { n: points.length }) /* #1116 */,
           intervals: numericUseComposites ? tr(intervals.length === 1 ? "{n} {len} m composite" : "{n} {len} m composites", { n: intervals.length, len: numericCompositeLength }) : tr(intervals.length === 1 ? "{n} raw interval" : "{n} raw intervals", { n: intervals.length }), v4: rawStats && (rawStats.duplicatesSkipped || rawStats.overlappingRows) ? tr(" after {duplicatesSkipped} exact duplicate(s) left out and {overlappingRows} overlapping row(s) resolved", { duplicatesSkipped: rawStats.duplicatesSkipped, overlappingRows: rawStats.overlappingRows }) : "", dropped, v5: beyondTrace ? tr(" ({beyondTrace} deeper than the hole's trace)", { beyondTrace }) : "", above, v6: clamped ? tr(clamped === 1 ? ", {clamped} negative grade clamped to zero" : ", {clamped} negative grades clamped to zero", { clamped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, estimated: grid.estimated.toLocaleString(), skipped: grid.skipped.toLocaleString(), v7: grid.singleHoleCells ? tr(", {singleHoleCells} informed by only ONE hole", { singleHoleCells: grid.singleHoleCells.toLocaleString() }) : "", v8: gsVariogram ? tr("; kriged with a {model} variogram {v}: nugget {v2}, sill {v3}, range {v4} m", { model: gsVariogram.model, v: gsVariogram.fitted ? tr("fitted to the samples") : tr("as entered"), v2: +gsVariogram.nugget.toPrecision(3), v3: +gsVariogram.sill.toPrecision(3), v4: Math.round(gsVariogram.range) }) + (anisotropy.enabled ? tr(" (along the trend \"{name}\")", { name: anisotropy.trend?.name || "" }) : "") : "" /* #935 */, vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v9: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr(", open ({openEdgeCount} open edges — shell reaches the edge of the estimated region)", { openEdgeCount: vol.openEdgeCount }) })]);
+        // TASKS.csv #1735 — said after the result, in numbers: a shell that holds none of its own composites is not where the grade is
+        if (inShell.above && inShell.inside < inShell.above) {
+          const mh = Math.max(1, numericMinHoles);
+          setNotices((p) => [...p, notice(inShell.inside === 0
+            ? (mh > 1 ? "\"{label}\" contains NONE of the {above} composite(s) at/above {cutoff} {unit}: with Min holes {minHoles} the blocks around them had too few holes and were not estimated, so the shell closed where {minHoles} holes converge, away from the samples. Its volume is not the mineralization. Run with Min holes 1 (its blocks are flagged as informed by one hole) or a wider search to see where the grade was drilled."
+              : "\"{label}\" contains NONE of the {above} composite(s) at/above {cutoff} {unit}: no block around them was estimated (the search radius), so the shell is not where the grade was drilled.")
+            : "\"{label}\" leaves {outside} of its {above} composite(s) at/above {cutoff} {unit} outside the shell ({noData} of them on blocks that were not estimated): the Min holes rule ({minHoles}) or the search radius removed the blocks around them, so the shell is smaller than the drilled grade.",
+            { label, above: inShell.above, outside: inShell.outside + inShell.noData, noData: inShell.noData, cutoff: numericCutoff, unit, minHoles: mh })]);
+        }
         // TASKS.csv #533 — say what the cap did: samples cut and share of metal removed (on the same QC-excluded raw samples)
         if (Number.isFinite(numericCapValue) && numericCapValue > 0) setNotices((p) => [...p, `"${label}" ${capAuditText(capAudit(srcAssays, symbol, unit, elementUnits, numericCapValue), unit)}.`]);
         // TASKS.csv #91/#92 — say what the model is actually supported by, for the whole grid and for
