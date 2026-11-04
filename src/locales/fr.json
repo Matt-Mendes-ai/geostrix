@@ -7466,5 +7466,7 @@
   "the evidence overlay": "la superposition d'évidences",
   "A later change to {what} is outside the undo history and stays.": "Une modification ultérieure de {what} est hors de l'historique d'annulation et reste.",
   "Undo (Ctrl/Cmd+Z): collars, surveys, logs, assays, surface samples, sections, planned holes, design lines and strings, explicit surfaces, Layout pages ... Rasters, terrain, map layers, block models and generated surfaces are not undoable.": "Annuler (Ctrl/Cmd+Z) : collets, déviations, logs, analyses, échantillons de surface, sections, sondages planifiés, lignes et polylignes de conception, surfaces explicites, pages de Mise en page ... Les rasters, le terrain, les couches de carte, les modèles de blocs et les surfaces générées ne s'annulent pas.",
-  "\"{name}\" deleted: Undo (Ctrl+Z) brings it back.": "« {name} » supprimé : Annuler (Ctrl+Z) le ramène."
+  "\"{name}\" deleted: Undo (Ctrl+Z) brings it back.": "« {name} » supprimé : Annuler (Ctrl+Z) le ramène.",
+  "Moving vertex {n}: E {x}, N {y}, Z {z}": "Déplacement du sommet {n} : E {x}, N {y}, Z {z}",
+  "In the view: click a string to select it; drag a vertex of the selected string to move it (on its own level, or on the ground when that is the drawing target).": "Dans la vue : cliquez sur une polyligne pour la sélectionner ; faites glisser un sommet de la polyligne sélectionnée pour le déplacer (à son niveau, ou sur le sol quand c'est la cible de dessin)."
 }
