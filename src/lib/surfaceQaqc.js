@@ -171,7 +171,7 @@ export function qcRecordFromFileRow({ sample_id, type, values, bdl, parent_id, a
   let kind = sampleTypeClass(type);
   // TASKS.csv #1794 / #1661 — a type the rules do not know ('Control') beside a CRM name is a standard, or a blank when the name says so
   const crmName = attrs ? Object.entries(attrs).find(([k, v]) => /^(crm|std|standard|reference)|standard[\s_]*(type|name|id)|crm[\s_]*(type|name|id)/i.test(k) && String(v ?? "").trim())?.[1] : null;
-  if (!kind && type && crmName) kind = /(blk|blank)|^blk|blank/i.test(String(crmName)) ? "blank" : "standard";
+  if (!kind && type && crmName) kind = /\b(blk|blank)\b|^blk|blank/i.test(String(crmName)) ? "blank" : "standard";
   if (kind !== "standard" && kind !== "blank" && kind !== "duplicate") return null;
   const rec = { id: `file|${sample_id || ""}|${Math.random().toString(36).slice(2, 8)}`, sample_id: sample_id || "", kind, source: "inserted", type: String(type), values, ...(bdl?.length ? { bdl } : {}), ...(attrs ? { attrs } : {}) };
   if (kind === "standard") rec.code = attrs?.CRM || attrs?.crm || attrs?.Standard || attrs?.STANDARD || crmName || String(type); // crmName: #1794
@@ -180,17 +180,33 @@ export function qcRecordFromFileRow({ sample_id, type, values, bdl, parent_id, a
 }
 
 // ---------- the checks ----------
-export const batchKeyOf = (settings) => {
+// TASKS.csv #1798 (review #1646, Kodiak) — batches by lab certificate: a sample with no certificate of its own (none imported) is
+// placed by a certificate-like column of the sample file, as its QC rows already are. Every Kodiak sample sat in '(no certificate)'
+// while its 122 duplicates sat in 16 certificate batches of 0 samples, so no insertion rate showed. The plain column wins over an
+// element's own ('Cu ppm AuME-ST43 certificate'); a '... completed' date column is never one.
+export function certificateColumns(samples) {
+  const keys = new Set();
+  for (const s of samples || []) { for (const k of Object.keys(s.attrs || {})) keys.add(k); if (keys.size > 400) break; }
+  const ks = [...keys].filter((k) => !/complet|date|time/i.test(k));
+  const plain = ks.filter((k) => /^(lab[\s_]*)?(certificate|cert|batch|job|work[\s_]*order)([\s_]*(no|number|#|id))?$/i.test(k.trim()));
+  return [...plain, ...ks.filter((k) => !plain.includes(k) && /certificate|\bcert\b|\bbatch\b/i.test(k))];
+}
+// the first certificate-like column a sample fills (rock chips and soils of one project may name it differently: Kodiak's rocks have
+// 'Certificate', its soils only 'Cu ppm AuME-ST43 certificate')
+export const certificateColumn = (samples) => certificateColumns(samples)[0] || null;
+export const batchKeyOf = (settings, samples = null) => {
   const by = settings.batchBy || "certificate";
   if (by.startsWith("attr:")) { const k = by.slice(5); return (s) => (s.attrs?.[k] ?? "(blank)"); }
-  return (s) => s.cert || s.batch || "(no certificate)";
+  const cols = samples ? certificateColumns(samples) : []; // #1798
+  const fromCols = (s) => { for (const c of cols) { const v = s.attrs?.[c]; if (v != null && v !== "") return String(v); } return null; };
+  return (s) => s.cert || s.batch || fromCols(s) || "(no certificate)";
 };
 
 // Per batch: samples, inserts by kind (program inserts and lab checks apart), the rate "one in N", and the target check
 // With certificate batches, a certificate's own sample count is used when it holds more samples than the project
 // (the field samples of another file or year): `fromCertificate` says so.
 export function batchSummary(samples, records, settings, certificates = []) {
-  const key = batchKeyOf(settings), by = new Map();
+  const key = batchKeyOf(settings, samples), by = new Map(); // samples: #1798
   const get = (k) => by.get(k) || (by.set(k, { batch: k, samples: 0, standard: 0, blank: 0, duplicate: 0, lab: { standard: 0, blank: 0, duplicate: 0 } }), by.get(k));
   samples.forEach((s) => get(String(key(s))).samples++);
   records.forEach((r) => { const b = get(String(r.batch ?? key(r))); if (r.source === "lab") b.lab[r.kind]++; else b[r.kind]++; });
