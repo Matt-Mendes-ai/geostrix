@@ -1,4 +1,5 @@
 import { canvasPngDataUrl } from "../lib/canvasEncode.js";
+import { exportDrillholeTablesWith } from "./viewer/drillholeExport.js"; // TASKS.csv #1034, moved at the #1084 cap
 import { interceptsDisabledText } from "../lib/noCollars.js"; // TASKS.csv #1810
 import { levelPlanZRange } from "../lib/viewer/levelPlanRange.js"; // TASKS.csv #1782
 import { surfaceSampleTip, mappedOfSample } from "../lib/viewer/sampleTip.js"; // TASKS.csv #1821
@@ -6386,31 +6387,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       setNotices((p) => [...p, errorNotice(tr("DXF export failed: {message}", { message: err.message }))]);
     }
   };
-  // TASKS.csv #1034 (review #1016) — the drillhole database as tables the CSV importer reads back unaided (lib/drillholeTables.js):
-  // one layer as a CSV, or collars + survey + every log as a .zip of CSVs.
-  const exportDrillholeTables = async (kind, key, label) => {
-    try {
-      const T = await import("../lib/drillholeTables.js"); // on demand
-      const epsg = await ensureExportCrs(project); if (!epsg) return; // #1021 — the stamp's CRS
-      if (kind === "all") {
-        const files = T.drillholeTableFiles({ collars, survey, layers, customLayers, assays, assayElements, epsg, version: APP_VERSION }); // custom layers, assays: #1701
-        if (!files.length) { setNotices((p) => [...p, notice("Nothing to export: no collars, survey or hole logs are loaded.")]); return; }
-        const { buildZip } = await import("../lib/shapefile.js");
-        const enc = new TextEncoder();
-        const zip = buildZip(files.map((f) => ({ name: f.name, data: enc.encode(`﻿${f.text}`) }))); // BOM: Excel reads accents (#1097)
-        const res = await saveFile({ quiet: true, suggestedName: `${(project?.name || "drillholes").replace(/[^a-z0-9_-]+/gi, "_").toLowerCase()}_tables.zip`, filters: [{ name: "ZIP of CSV tables", extensions: ["zip"] }], content: zip /* #1040 bytes */ });
-        if (!res?.ok) { if (res?.error) throw new Error(res.error); return; }
-        setNotices((p) => [...p, notice("Exported {n} drillhole tables ({files}) as CSV in a .zip. Dips are negative = down and azimuths grid, so they import back with the defaults.", { n: files.length, files: files.map((f) => f.name).join(", ") })]);
-        return;
-      }
-      const files = T.drillholeTableFiles({ collars: kind === "collars" ? collars : [], survey: kind === "survey" ? survey : [], layers: kind === "layer" ? { [key]: layers[key] || [] } : {}, epsg, version: APP_VERSION });
-      if (!files.length) { setNotices((p) => [...p, notice("Nothing to export for \"{label}\" — it has no rows.", { label })]); return; }
-      const res = await saveFile({ quiet: "success", suggestedName: files[0].name, filters: [{ name: "CSV", extensions: ["csv"] }], content: files[0].text });
-      if (res?.ok) setNotices((p) => [...p, notice("Exported \"{label}\" as a CSV table that imports back with the defaults (dips negative = down, azimuths grid).", { label })]);
-    } catch (err) {
-      setNotices((p) => [...p, errorNotice(tr("Table export failed: {message}", { message: err.message }))]);
-    }
-  };
+  // TASKS.csv #1034 — tables the CSV importer reads back (modules/viewer/drillholeExport.js)
+  const exportDrillholeTables = (kind, key, label) => exportDrillholeTablesWith({ collars, survey, layers, customLayers, assays, assayElements, project, setNotices }, kind, key, label);
   // TASKS.csv #184 — a layer key "has data" once its rows array is non-empty (geophys_pts uses the
   // same `layers[key]` array as every other key, so this one check covers all ten ALL_LAYER_KEYS).
   // Used to hide empty layer rows from the sidebar (see the Layers section render below) so an
