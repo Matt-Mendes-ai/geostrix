@@ -26,7 +26,8 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
   const nx = Math.round((x1 - x0) / dx) + 1 + 2 * pad, ny = Math.round((y1 - y0) / dy) + 1 + 2 * pad, N = nx * ny;
   if (N > 4_000_000) return { failed: "too-many-columns", columns: N };
   const col = (c) => { const i = Math.round((c.x - gx0) / dx), j = Math.round((c.y - gy0) / dy); return i >= 0 && i < nx && j >= 0 && j < ny ? j * nx + i : -1; };
-  const from = fin(zMin) ? zMin : Math.floor(zLo / levelH) * levelH, to = fin(zMax) ? zMax : zHi;
+  // #1919 — a blank From RL starts at the model's base, so a level interval equal to the block height puts each slab on one block
+  const from = fin(zMin) ? zMin : zLo, to = fin(zMax) ? zMax : zHi;
   if (!(to > from)) return { failed: "range", from, to }; // #1893
   // the opening's element is a k x k square of columns, k the minimum width in whole columns (a 20 m zone on 10 m columns is two wide
   // and survives a 15 m minimum; a one-column stringer does not); the skin is a square ring of rS columns
@@ -41,16 +42,17 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
   const dilate = (mask, offsets) => { const out = new Uint8Array(N); for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { if (!mask[j * nx + i]) continue; for (const [a, b] of offsets) { const ii = i + a, jj = j + b; if (ii >= 0 && ii < nx && jj >= 0 && jj < ny) out[jj * nx + ii] = 1; } } return out; };
   for (let rl = from; rl < to - 1e-9; rl += levelH) {
     const top = Math.min(rl + levelH, to);
-    const t = new Float64Array(N), m = new Float64Array(N);
+    const t = new Float64Array(N), m = new Float64Array(N), cover = new Float64Array(N); // cover: the slab height the blocks fill (#1919)
     for (const c of cells) {
       const q = col(c); if (q < 0) continue;
       const h = Math.min(c.z + c.dz / 2, top) - Math.max(c.z - c.dz / 2, rl);
       if (h <= 0) continue;
       const tt = h * area * (fin(c.coverage) ? c.coverage : 1) * density;
-      t[q] += tt; if (fin(c.value)) m[q] += tt * c.value;
+      t[q] += tt; if (fin(c.value)) m[q] += tt * c.value; cover[q] += h;
     }
     let mask = new Uint8Array(N);
-    for (let q = 0; q < N; q++) if (t[q] > 0 && m[q] / t[q] >= cutoff) { mask[q] = 1; oreColumns++; }
+    const slabH = top - rl;
+    for (let q = 0; q < N; q++) if (t[q] > 0 && m[q] / t[q] >= cutoff && cover[q] >= 0.5 * slabH - 1e-9) { mask[q] = 1; oreColumns++; } // half the slab at least (#1919)
     const ore = mask;
     if (k > 1) mask = dilate(erode(mask, dE), dE); // opening: nothing thinner than the minimum width survives
     if (rS > 0) mask = dilate(mask, dS); // the skin

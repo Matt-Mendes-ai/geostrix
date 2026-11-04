@@ -7148,7 +7148,6 @@
   "{n} ({lo} to {hi} m)": "{n} ({lo} إلى {hi} م)",
   "; {k} other entities skipped": "؛ تم تخطي {k} كيانات أخرى",
   "A parallel copy in plan: to the right of the direction of travel, outward on a closed string; negative goes the other way.": "نسخة موازية في المسقط: إلى يمين اتجاه السير، وإلى الخارج في خط مغلق؛ والقيمة السالبة تذهب إلى الجهة الأخرى.",
-  "A solid joins the generated surfaces (3D Modelling), with its volume; the tonnes count the blocks whose centre lies inside it.": "ينضم المجسم إلى الأسطح المولّدة (النمذجة ثلاثية الأبعاد) مع حجمه؛ وتُحسب الأطنان من الكتل التي يقع مركزها داخله.",
   "Add from last": "إضافة من الأخير",
   "Add vertex": "إضافة رأس",
   "Area in plan": "المساحة في المسقط",
@@ -7340,7 +7339,6 @@
   "Stopes": "الردهات",
   "Stopes to the view": "الردهات إلى العرض",
   "Strings added": "أُضيفت الخطوط",
-  "The height of each stope: the distance between sublevels.": "ارتفاع كل ردهة: المسافة بين المستويات الفرعية.",
   "The model has too many columns ({n}) for this tool.": "يحتوي النموذج على أعمدة كثيرة جدًا ({n}) لهذه الأداة.",
   "The outline grows by this all round; the added rock carries the model's grade there, or none.": "ينمو المخطط بهذا القدر من كل الجهات؛ ويحمل الصخر المضاف محتوى النموذج هناك، أو لا شيء.",
   "To RL (m)": "إلى منسوب (م)",
@@ -7474,5 +7472,9 @@
   "Inside the string \"{name}\"": "داخل الخط \"{name}\"",
   "The grid is the string's box within the drilling; after the run, blocks whose centre lies outside the string are dropped. Every sample still informs the estimate.": "الشبكة هي صندوق الخط ضمن الحفر؛ بعد التشغيل تُستبعد الكتل التي يقع مركزها خارج الخط. تظل كل العينات تغذي التقدير.",
   "None of the checked holes carries assays: the grid fits the drilling.": "لا يحمل أي من الثقوب المحددة تحاليل: الشبكة تلائم الحفر.",
-  "{n} of those lie outside the string and were left out.": "{n} منها خارج الخط واستُبعدت."
+  "{n} of those lie outside the string and were left out.": "{n} منها خارج الخط واستُبعدت.",
+  "A solid joins the generated surfaces (3D Modelling) with its volume and, at a density, its tonnes; a block model gives its mean grade from the blocks whose centre lies inside.": "ينضم المجسم إلى الأسطح المولَّدة (النمذجة ثلاثية الأبعاد) بحجمه، وبكثافة بأطنانه؛ ويعطي نموذج الكتل متوسط محتواه من الكتل التي يقع مركزها داخله.",
+  "\"{name}\" is closed: open it first (Open) to join another string on at its end.": "\"{name}\" مغلق: افتحه أولًا (فتح) لضم خط آخر إلى طرفه.",
+  "A closed string cannot take another on: open it first.": "لا يمكن لخط مغلق أن يضم خطًا آخر: افتحه أولًا.",
+  "The height of each stope: the distance between sublevels. A column counts as ore on a level only where its blocks fill at least half of it.": "ارتفاع كل محجر: المسافة بين المستويات الفرعية. يُحتسب العمود خامًا على مستوى فقط حيث تملأ كتله نصفه على الأقل."
 }

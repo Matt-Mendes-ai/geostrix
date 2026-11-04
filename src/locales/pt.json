@@ -7148,7 +7148,6 @@
   "{n} ({lo} to {hi} m)": "{n} ({lo} a {hi} m)",
   "; {k} other entities skipped": "; {k} outras entidades ignoradas",
   "A parallel copy in plan: to the right of the direction of travel, outward on a closed string; negative goes the other way.": "Uma cópia paralela em planta: à direita do sentido de avanço, para fora numa linha fechada; negativo vai para o outro lado.",
-  "A solid joins the generated surfaces (3D Modelling), with its volume; the tonnes count the blocks whose centre lies inside it.": "Um sólido junta-se às superfícies geradas (Modelagem 3D), com o seu volume; as toneladas contam os blocos cujo centro fica dentro dele.",
   "Add from last": "Adicionar a partir do último",
   "Add vertex": "Adicionar vértice",
   "Area in plan": "Área em planta",
@@ -7340,7 +7339,6 @@
   "Stopes": "Realces",
   "Stopes to the view": "Realces para a vista",
   "Strings added": "Linhas adicionadas",
-  "The height of each stope: the distance between sublevels.": "A altura de cada realce: a distância entre subníveis.",
   "The model has too many columns ({n}) for this tool.": "O modelo tem colunas demais ({n}) para esta ferramenta.",
   "The outline grows by this all round; the added rock carries the model's grade there, or none.": "O contorno cresce isto em todo o redor; a rocha acrescentada leva o teor do modelo ali, ou nenhum.",
   "To RL (m)": "Até cota (m)",
@@ -7474,5 +7472,9 @@
   "Inside the string \"{name}\"": "Dentro da string \"{name}\"",
   "The grid is the string's box within the drilling; after the run, blocks whose centre lies outside the string are dropped. Every sample still informs the estimate.": "A grade é a caixa da string dentro da perfuração; após a corrida, blocos cujo centro fica fora da string são descartados. Todas as amostras continuam a informar a estimativa.",
   "None of the checked holes carries assays: the grid fits the drilling.": "Nenhum dos furos marcados tem análises: a grade ajusta-se à perfuração.",
-  "{n} of those lie outside the string and were left out.": "{n} deles ficam fora da string e foram deixados de fora."
+  "{n} of those lie outside the string and were left out.": "{n} deles ficam fora da string e foram deixados de fora.",
+  "A solid joins the generated surfaces (3D Modelling) with its volume and, at a density, its tonnes; a block model gives its mean grade from the blocks whose centre lies inside.": "Um sólido junta-se às superfícies geradas (Modelagem 3D) com o seu volume e, com uma densidade, as suas toneladas; um modelo de blocos dá o teor médio a partir dos blocos cujo centro fica dentro.",
+  "\"{name}\" is closed: open it first (Open) to join another string on at its end.": "\"{name}\" está fechada: abra-a primeiro (Abrir) para juntar outra string na sua ponta.",
+  "A closed string cannot take another on: open it first.": "Uma string fechada não pode receber outra: abra-a primeiro.",
+  "The height of each stope: the distance between sublevels. A column counts as ore on a level only where its blocks fill at least half of it.": "A altura de cada realce: a distância entre subníveis. Uma coluna conta como minério num nível só onde os seus blocos preenchem pelo menos metade dele."
 }

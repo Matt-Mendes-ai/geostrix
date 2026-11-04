@@ -45,8 +45,8 @@ export default function DumpPane({ surfaces = [], onAdd, onClose }) {
     const t0 = performance.now();
     try {
       const r = dumpFromFootprint(footprint.vertices, { crestZ: v("crestZ"), reposeDeg: v("repose"), groundAt, flatZ: centre?.ground ?? null });
-      if (!r) { setMsg(tr("No dump: the footprint needs three or more points and a known ground.")); return; }
-      if (!r.volume) { setMsg(tr("The crest is at or below the ground over the whole footprint: nothing stands above it.")); return; }
+      if (!r) { setMsg(tr("No dump: the footprint needs three or more points and a known ground.")); setRes(null); kept = null; return; } // cleared: #1935
+      if (!r.volume) { setMsg(tr("The crest is at or below the ground over the whole footprint: nothing stands above it.")); setRes(null); kept = null; return; }
       const tonnes = v("density") > 0 ? looseTonnes(r.volume, v("density"), v("swell") || 1) : null;
       const base = tr("Dump: {s}, crest {z} m at {a}°", { s: footprint.name, z: v("crestZ"), a: v("repose") });
       const taken = new Set(surfaces.map((s) => s.name)); let name = base; for (let k = 2; taken.has(name); k++) name = `${base} (${k})`; // #1910

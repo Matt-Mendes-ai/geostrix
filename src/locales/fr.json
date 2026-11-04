@@ -7148,7 +7148,6 @@
   "{n} ({lo} to {hi} m)": "{n} ({lo} à {hi} m)",
   "; {k} other entities skipped": " ; {k} autres entités ignorées",
   "A parallel copy in plan: to the right of the direction of travel, outward on a closed string; negative goes the other way.": "Une copie parallèle en plan : à droite du sens de parcours, vers l'extérieur sur une ligne fermée ; négatif va de l'autre côté.",
-  "A solid joins the generated surfaces (3D Modelling), with its volume; the tonnes count the blocks whose centre lies inside it.": "Un solide rejoint les surfaces générées (Modélisation 3D), avec son volume ; les tonnes comptent les blocs dont le centre est à l'intérieur.",
   "Add from last": "Ajouter depuis le dernier",
   "Add vertex": "Ajouter un sommet",
   "Area in plan": "Surface en plan",
@@ -7340,7 +7339,6 @@
   "Stopes": "Chantiers",
   "Stopes to the view": "Chantiers dans la vue",
   "Strings added": "Lignes ajoutées",
-  "The height of each stope: the distance between sublevels.": "La hauteur de chaque chantier : la distance entre sous-niveaux.",
   "The model has too many columns ({n}) for this tool.": "Le modèle a trop de colonnes ({n}) pour cet outil.",
   "The outline grows by this all round; the added rock carries the model's grade there, or none.": "Le contour s'agrandit d'autant tout autour ; la roche ajoutée porte la teneur du modèle à cet endroit, ou aucune.",
   "To RL (m)": "À la cote (m)",
@@ -7474,5 +7472,9 @@
   "Inside the string \"{name}\"": "À l'intérieur de la polyligne « {name} »",
   "The grid is the string's box within the drilling; after the run, blocks whose centre lies outside the string are dropped. Every sample still informs the estimate.": "La grille est la boîte de la polyligne dans le forage ; après le calcul, les blocs dont le centre est hors de la polyligne sont écartés. Tous les échantillons informent encore l'estimation.",
   "None of the checked holes carries assays: the grid fits the drilling.": "Aucun des sondages cochés ne porte d'analyses : la grille s'ajuste au forage.",
-  "{n} of those lie outside the string and were left out.": "{n} d'entre eux sont hors de la polyligne et ont été laissés de côté."
+  "{n} of those lie outside the string and were left out.": "{n} d'entre eux sont hors de la polyligne et ont été laissés de côté.",
+  "A solid joins the generated surfaces (3D Modelling) with its volume and, at a density, its tonnes; a block model gives its mean grade from the blocks whose centre lies inside.": "Un solide rejoint les surfaces générées (Modélisation 3D) avec son volume et, à une densité, ses tonnes ; un modèle de blocs donne sa teneur moyenne d'après les blocs dont le centre est à l'intérieur.",
+  "\"{name}\" is closed: open it first (Open) to join another string on at its end.": "« {name} » est fermée : ouvrez-la d'abord (Ouvrir) pour y joindre une autre polyligne à son extrémité.",
+  "A closed string cannot take another on: open it first.": "Une polyligne fermée ne peut pas en recevoir une autre : ouvrez-la d'abord.",
+  "The height of each stope: the distance between sublevels. A column counts as ore on a level only where its blocks fill at least half of it.": "La hauteur de chaque chantier : la distance entre sous-niveaux. Une colonne ne compte comme minerai sur un niveau que là où ses blocs en remplissent au moins la moitié."
 }

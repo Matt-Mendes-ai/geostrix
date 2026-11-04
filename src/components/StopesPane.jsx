@@ -98,8 +98,8 @@ export default function StopesPane({ onAdd, onRemove, onClose }) {
       {models.length > 0 && (<>
         <label style={row}>{tr("Block model")}<select value={f.modelId} onChange={set("modelId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Block model of the stopes")}>{models.map((m) => <option key={m.id ?? m.name} value={m.id ?? m.name}>{m.name}</option>)}</select></label>
         {field("cutoff", unit ? tr("Cut-off ({unit})", { unit }) : tr("Cut-off"))}
-        {field("levelH", tr("Level interval (m)"), { title: tr("The height of each stope: the distance between sublevels."), placeholder: blockH ? String(blockH) : "" })}
-        {field("zMin", tr("From RL (m)"), { placeholder: zRange ? String(v("levelH") > 0 ? Math.floor(zRange[0] / v("levelH")) * v("levelH") : Math.round(zRange[0])) : "" })}{/* the level a blank run starts at: #1923 */}
+        {field("levelH", tr("Level interval (m)"), { title: tr("The height of each stope: the distance between sublevels. A column counts as ore on a level only where its blocks fill at least half of it."), placeholder: blockH ? String(blockH) : "" })}
+        {field("zMin", tr("From RL (m)"), { placeholder: zRange ? String(Math.round(zRange[0] * 10) / 10) : "" })}{/* the level a blank run starts at (the model's base): #1923, #1919 */}
         {field("zMax", tr("To RL (m)"), { placeholder: zRange ? String(Math.round(zRange[1])) : "" })}
         {field("minWidth", tr("Minimum mining width (m)"), { title: tr("Anything thinner is dropped (a morphological opening by this width, in whole columns of the model).") })}
         {field("minLength", tr("Minimum length (m)"), { title: tr("A patch shorter than this in both directions is dropped.") })}

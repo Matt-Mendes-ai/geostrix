@@ -245,7 +245,7 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
     setActiveId(id); setMsg(tr("Offset copy made. An inside corner tighter than the offset folds the copy back on itself there: check the corners."));
   };
   const doDuplicate = () => { const dE = num0(tool.dE) || 0, dN = num0(tool.dN) || 0, dZ = num0(tool.dZ) || 0; const id = addString({ name: tr("{name} copy", { name: string.name }), closed: string.closed, color: string.color, vertices: string.vertices.map((p) => [+(p[0] + dE).toFixed(3), +(p[1] + dN).toFixed(3), +(p[2] + dZ).toFixed(3)]) }); setActiveId(id); };
-  const doJoin = () => { const other = designStrings.find((s) => s.id === tool.joinId); if (!other) return; update({ vertices: joinStrings(string.vertices, other.vertices), closed: false }); setDesignStrings((L) => L.filter((s) => s.id !== other.id)); setTool((t) => ({ ...t, joinId: "" })); }; // closed strings are not offered (#1911)
+  const doJoin = () => { if (string.closed) { setMsg(tr("\"{name}\" is closed: open it first (Open) to join another string on at its end.", { name: string.name })); return; } const other = designStrings.find((s) => s.id === tool.joinId); if (!other) return; update({ vertices: joinStrings(string.vertices, other.vertices), closed: false }); setDesignStrings((L) => L.filter((s) => s.id !== other.id)); setTool((t) => ({ ...t, joinId: "" })); }; // closed strings are not offered (#1911)
   const doSplit = () => { const i = (num0(tool.splitAt) ?? 0) - 1, parts = splitString(string.vertices, i); if (!parts) { setMsg(tr("Split at a vertex between the first and the last.")); return; } update({ vertices: parts[0], closed: false }); addString({ name: tr("{name} (2)", { name: string.name }), color: string.color, vertices: parts[1] }); };
   const removeString = () => { const rest = designStrings.filter((s) => s.id !== string.id); setDesignStrings(rest); setActiveId(rest[rest.length - 1]?.id ?? null); setDrawing(false); setMsg(tr("\"{name}\" deleted: Undo (Ctrl+Z) brings it back.", { name: string.name })); }; // the notice: #1754
 
@@ -285,7 +285,8 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
     try {
       const text = await file.text();
       // #1906 — a polyline with no Z goes on the drawing plane when one is typed, else on the ground (terrain or collars), else 0
-      const z = num0(planeZ), zDefault = z != null ? z : groundAt ? (x, y) => { const g = groundAt(x, y); return Number.isFinite(g) ? +g.toFixed(2) : 0; } : 0;
+      const z = target === "plane" ? num0(planeZ) : null; // the plane counts only while it is the target (#1938)
+      const zDefault = z != null ? z : groundAt ? (x, y) => { const g = groundAt(x, y); return Number.isFinite(g) ? +g.toFixed(2) : 0; } : 0;
       const { strings, skipped, flat } = stringsFromDxf(text, { zDefault, baseName: file.name.replace(/\.dxf$/i, "") });
       if (!strings.length) { setMsg(tr("No polylines in {f}.", { f: file.name })); return; }
       strings.forEach((s) => addString({ name: s.name, closed: s.closed, vertices: s.vertices }));
@@ -382,7 +383,7 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
           {designStrings.length > 1 && (
             <div style={{ ...row, flexWrap: "wrap", gap: 3 }}>
               <select value={tool.joinId} onChange={(e) => setTool((t) => ({ ...t, joinId: e.target.value }))} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("String to join")}><option value="">{tr("— join with —")}</option>{designStrings.filter((s) => s.id !== string.id && !s.closed).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
-              <button onClick={doJoin} disabled={!tool.joinId} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 6px" }} title={tr("The other string is added on at the nearest ends and removed.")}>{tr("Join")}</button>
+              <button onClick={doJoin} disabled={!tool.joinId || string.closed} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 6px", opacity: string.closed ? 0.5 : 1 }} title={string.closed ? tr("A closed string cannot take another on: open it first.") : tr("The other string is added on at the nearest ends and removed.")}>{tr("Join")}</button>{/* closed: #1937 */}
             </div>
           )}
           {string.vertices.length > 2 && (
@@ -413,7 +414,7 @@ export default function DesignStringsPane({ view, onAdd, onClose }) {
             <button onClick={doLoft} disabled={solid.loft.filter((id) => closedStrings.some((s) => s.id === id)).length < 2} style={{ ...pBtn, marginTop: 4 }}><Box size={13} /> {tr("Loft into a solid")}</button>
           </div>
         )}
-        <div style={note}>{tr("A solid joins the generated surfaces (3D Modelling), with its volume; the tonnes count the blocks whose centre lies inside it.")}</div>
+        <div style={note}>{tr("A solid joins the generated surfaces (3D Modelling) with its volume and, at a density, its tonnes; a block model gives its mean grade from the blocks whose centre lies inside.")}</div>{/* #1936 */}
       </>)}
 
       {msg && <div style={warn}>{msg}</div>}
