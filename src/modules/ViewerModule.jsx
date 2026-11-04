@@ -152,7 +152,7 @@ import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"
 import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellShown, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { syncHoleLabels, declutterHoleLabels } from "../lib/viewer/holeLabels.js";
-import { findOnTraceWorld, findOnTrace, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
+import { findOnTraceWorld, findOnTrace, traceLookup, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
 import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693
 import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
 import { useModelling } from "./viewer/useModelling.js";
@@ -986,7 +986,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (turningOn) {
       setAssayStyle((s) => {
         if (s[symbol]?.breaks?.length) return s; // user already has their own breaks -- don't clobber
-        const range = globalAssayRanges[symbol] || { min: 0, max: 0 };
+        const range = assayRangeFor(symbol) || { min: 0, max: 0 }; // #1500 — on demand
         const baseColor = s[symbol]?.color || ASSAY_ELEMENT_COLORS[idx % ASSAY_ELEMENT_COLORS.length];
         return { ...s, [symbol]: { ...(s[symbol] || {}), breaks: seedBreaks(range, baseColor) } };
       });
@@ -1008,31 +1008,31 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // Per-element min/max across ALL loaded assays for that symbol (not just the currently-visible/
   // cutoff-passing ones) — used by AssayStyleModal so its "suggest even breaks" helper and range
   // display reflect the element's real data range regardless of what's currently toggled on/filtered.
-  // Deliberately a separate useMemo from the big rebuild effect's own local globalAssayRanges (that
-  // one only computes ranges for currently-toggled-on elements and lives inside a non-render effect
-  // closure, so it isn't available to read from JSX) — this one covers every element with a picker
-  // regardless of toggle state, cheap enough to recompute on every assays/assayElements change.
-  const globalAssayRanges = useMemo(() => {
-    const out = {};
-    assayElements.forEach((e) => {
-      // TASKS.csv #1695 / #1696 (review #1645, Copley) — the classes come from the lab assays (pXRF readings are a screening number, with
-      // 'not detected' zeros), and a pile of values at the detection floor (Au: P50 = the minimum) does not decide them: the percentiles
-      // are then taken over the values above the floor
-      const lab = assays.filter((a) => a.source !== "pXRF");
-      const vals = (lab.length ? lab : assays).filter((a) => a.values[e.symbol] != null).map((a) => a.values[e.symbol]);
-      // TASKS.csv #306 — p50/p90 alongside min/max, because seedBreaks' default class boundaries are
-      // now percentile-based rather than equal-interval (see seedBreaks' own comment for the measured
-      // reason: equal-interval put 99.8-100% of every ore element in this file's data into class 1).
-      // Cost is one sort of each element's values, once per assays/assayElements change — measured at
-      // ~11 ms total for all 14 elements of the 6,297-interval harry_property assay file, inside a
-      // useMemo that already walks the same array 14 times to build the ranges at all.
-      const all = vals.filter(Number.isFinite).sort((a, b) => a - b);
-      const atFloor = all.length ? all.filter((v) => v === all[0]).length : 0;
-      const finite = atFloor >= 0.3 * all.length && atFloor < all.length ? all.slice(atFloor) : all;
-      const q = (p) => (finite.length ? finite[Math.min(finite.length - 1, Math.floor(p * (finite.length - 1)))] : undefined);
-      out[e.symbol] = { ...minMax(vals), p50: q(0.5), p90: q(0.9), p975: q(0.975) }; // not Math.min/max(...vals) — a large assay dataset can exceed the JS engine's argument-spread limit, see layers.js's minMax comment
-    });
-    return out;
+  // Deliberately separate from the big rebuild effect's own local globalAssayRanges (that one only computes ranges for
+  // currently-toggled-on elements and lives inside a non-render effect closure, so it isn't available to read from JSX).
+  // TASKS.csv #1500 (review #1497, Lawyers) — computed per element ON DEMAND (an element toggled on, the style modal open) and
+  // cached until the assays change, not for every element on every assays change: the eager useMemo sorted every element's
+  // values (83k assays x ~50 elements, 4M values) inside the open of Lawyers, 1.8 s of its 11 s with Array.sort and a
+  // comparator; a Float64Array sorts the same values several times faster when one element is asked for.
+  const assayRangeCache = useRef({ assays: null, elements: null, by: {} });
+  const assayRangeFor = useCallback((symbol) => {
+    const c = assayRangeCache.current;
+    if (c.assays !== assays || c.elements !== assayElements) { c.assays = assays; c.elements = assayElements; c.by = {}; }
+    if (c.by[symbol] !== undefined) return c.by[symbol];
+    if (!assayElements.some((e) => e.symbol === symbol)) return (c.by[symbol] = null);
+    // TASKS.csv #1695 / #1696 (review #1645, Copley) — the classes come from the lab assays (pXRF readings are a screening number, with
+    // 'not detected' zeros), and a pile of values at the detection floor (Au: P50 = the minimum) does not decide them: the percentiles
+    // are then taken over the values above the floor
+    const lab = assays.filter((a) => a.source !== "pXRF");
+    const vals = (lab.length ? lab : assays).filter((a) => a.values[symbol] != null).map((a) => a.values[symbol]);
+    // TASKS.csv #306 — p50/p90 alongside min/max, because seedBreaks' default class boundaries are percentile-based rather than
+    // equal-interval (see seedBreaks' own comment for the measured reason: equal-interval put 99.8-100% of every ore element in
+    // this file's data into class 1).
+    const all = Float64Array.from(vals.filter(Number.isFinite)).sort();
+    let atFloor = 0; while (atFloor < all.length && all[atFloor] === all[0]) atFloor++;
+    const finite = atFloor >= 0.3 * all.length && atFloor < all.length ? all.subarray(atFloor) : all;
+    const q = (p) => (finite.length ? finite[Math.min(finite.length - 1, Math.floor(p * (finite.length - 1)))] : undefined);
+    return (c.by[symbol] = { ...minMax(vals), p50: q(0.5), p90: q(0.9), p975: q(0.975) }); // not Math.min/max(...vals) — a large assay dataset can exceed the JS engine's argument-spread limit, see layers.js's minMax comment
   }, [assays, assayElements]);
   // TASKS.csv #437 — the hover tooltip is written straight to its DOM node instead of React state:
   // setTooltip({x, y, text}) ran on every pointermove over an interval and re-rendered this whole
@@ -4571,7 +4571,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const n = assayDisplayElements.length;
     const errors = [];
     collars.forEach((c) => {
-      const pts = traceOf.get(c.hole_id);
+      const pts = traceOf.get(c.hole_id), look = traceLookup(pts); // look: #1500
       if (!pts?.length) return;
       try {
         // each selected element: its own hue and a small radial offset around the trace, so Au / Cu / Zn at one
@@ -4583,7 +4583,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           (byHole.get(c.hole_id) || []).forEach((a) => {
             const v = a.values[sym];
             if (v == null || !assayPassesCutoff(v, style)) return;
-            const pt = findOnTrace(pts, (a.from + a.to) / 2);
+            const pt = look.at((a.from + a.to) / 2);
             if (!pt) return;
             // #312 — shared prototype + scale; #649 — the element's chosen shape and opacity
             const op = style?.opacity ?? 1, shape = style?.shape || "sphere";
@@ -4884,7 +4884,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       const hs = surveyByHole.get(c.hole_id) || [];
       const raw = desurveyHole(c, hs, desurveyMethod); // TASKS.csv #135
       if (!raw.length) return;
-      const pts = raw.map((p) => ({ md: p.md, x: p.x - ox, y: p.z - oz, z: -(p.y - oy) }));
+      const pts = raw.map((p) => ({ md: p.md, x: p.x - ox, y: p.z - oz, z: -(p.y - oy) })), look = traceLookup(pts); // look: #1500 — binary search instead of a scan per interval
       allTraces.push(pts);
       tracesRef.current = tracesRef.current.filter((t) => t.hole_id !== c.hole_id);
       tracesRef.current.push({ hole_id: c.hole_id, pts, wx: raw.map((p) => p.x), wy: raw.map((p) => p.y), wz: raw.map((p) => p.z) });
@@ -4917,8 +4917,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         (rowsByHole[groupKey]?.get(c.hole_id) || []).filter((r) => isRowVisibleForBuild(groupKey, r) && (!opt.filter || opt.filter(r))).forEach((row) => {
          try {
           if (!Number.isFinite(row.from) || !Number.isFinite(row.to)) return; // #613 — null (a blank "to" after a JSON round-trip) passed isNaN
-          const p1 = findOnTrace(pts, row.from), p2 = findOnTrace(pts, row.to);
-          const mid = pts.filter((p) => p.md >= row.from - 0.01 && p.md <= row.to + 0.01);
+          const p1 = look.at(row.from), p2 = look.at(row.to);
+          const mid = look.between(row.from, row.to);
           const vecs = [new THREE.Vector3(p1.x, p1.y, p1.z), ...mid.map((p) => new THREE.Vector3(p.x, p.y, p.z)), new THREE.Vector3(p2.x, p2.y, p2.z)];
           if (vecs.length < 2) return;
           // TASKS.csv #209 — perf fix, profiled not guessed. A real repro (400 holes x 60 litho
@@ -5013,7 +5013,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         vals.forEach((row) => {
          try {
           const mid = (row.from + row.to) / 2;
-          const p = findOnTrace(pts, mid);
+          const p = look.at(mid);
           if (!p) return;
           const size = meta.numeric ? 1.6 + 3.5 * (max > min ? (row.value - min) / (max - min) : 0.3) : 2 + Math.min(3, (row.extra || 1) * 0.4);
           const color = st.color || (meta.numeric ? numericLayerColor(groupKey, row.value, { min, max }) : baseColorForBuild(groupKey, row.value));
@@ -5035,7 +5035,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
       const stStruct = resolveLayerStyle(layerStyles.structure, "plane", { opacity: 0.55 }); // TASKS.csv #635
       (rowsByHole.structure?.get(c.hole_id) || []).filter((s) => isRowVisibleForBuild("structure", s)).forEach((s) => {
-        const p = findOnTrace(pts, s.depth);
+        const p = look.at(s.depth);
         if (!p) return;
         // TASKS.csv #394 — a pick without a recorded dip AND dip direction is drawn as a small sphere on the
         // trace, NOT as a plane: it used to default to dip 45 / az 0 and the tooltip then presented
@@ -5082,7 +5082,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         // checkbox is toggled — see customVisible's removal from this effect's own dependency array.
         (customRowsByHoleByLayer.get(layer.id)?.get(c.hole_id) || []).forEach((row) => {
           if (row.to != null && !isNaN(row.to)) {
-            const p1 = findOnTrace(pts, row.from), p2 = findOnTrace(pts, row.to);
+            const p1 = look.at(row.from), p2 = look.at(row.to);
             // TASKS.csv #1529 (review #1497, Lawyers) — a custom interval runs straight between its two ends, so it is the shared
             // unit cylinder scaled and turned (as the built-in interval layers, #312) and batches into a few draw calls per layer.
             // It was a TubeGeometry + material per row: Lawyers' 5 custom layers were 16,860 meshes, ~14,700 draw calls, 9 fps orbit.
@@ -5095,7 +5095,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             mesh.userData = { row, tip: `${c.hole_id}\n${layer.name}: ${row.value}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m` };
             layer.group.add(mesh);
           } else if (row.depth != null && !isNaN(row.depth)) {
-            const p = findOnTrace(pts, row.depth);
+            const p = look.at(row.depth);
             const mesh = new THREE.Mesh(POINT_PROTO[stP.shape], new THREE.MeshLambertMaterial({ color: stP.color || hashColor(row.value), transparent: stP.opacity < 1, opacity: stP.opacity, side: stP.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide })); // TASKS.csv #312 — shared prototype + scale; #635 style
             mesh.scale.setScalar(2.4 * stP.size);
             mesh.position.set(p.x, p.y, p.z);
@@ -8880,7 +8880,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           symbol={assayStyleModalSymbol}
           unit={assayElements.find((e) => e.symbol === assayStyleModalSymbol)?.unit || "ppm"}
           defaultColor={ASSAY_ELEMENT_COLORS[assayDisplayElements.indexOf(assayStyleModalSymbol) % ASSAY_ELEMENT_COLORS.length]}
-          range={globalAssayRanges[assayStyleModalSymbol] || { min: 0, max: 0 }}
+          range={assayRangeFor(assayStyleModalSymbol) || { min: 0, max: 0 }}
           style={assayStyle[assayStyleModalSymbol] || null}
           onChange={(next) => setAssayStyle((p) => ({ ...p, [assayStyleModalSymbol]: next }))}
           onClose={() => setAssayStyleModalSymbol(null)}

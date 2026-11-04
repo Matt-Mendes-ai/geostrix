@@ -34,6 +34,27 @@ export function findOnTraceWorld(t, md) {
   return [t.wx[idx], t.wy[idx], t.wz[idx]];
 }
 
+// TASKS.csv #1500 — the same lookups by binary search, for a build that asks a hole's trace hundreds of times (every interval's
+// from and to, and the points between them): findOnTrace scanned the trace from its collar each time, and on Lawyers (446 holes,
+// ~146,000 intervals, ~170 points per trace) those scans were a third of the per-interval loop. pts: desurveyed, md ascending.
+// -> { at(md): the same answer as findOnTrace, between(from, to): the same points as pts.filter(md within [from - 0.01, to + 0.01]) }
+export function traceLookup(pts) {
+  const n = pts.length, md = new Float64Array(n);
+  for (let i = 0; i < n; i++) md[i] = pts[i].md;
+  // the first index whose md is >= v (n when none)
+  const lower = (v) => { let lo = 0, hi = n; while (lo < hi) { const m = (lo + hi) >> 1; if (md[m] < v) lo = m + 1; else hi = m; } return lo; };
+  const at = (v) => {
+    if (!n) return null;
+    // the first segment i with md[i] - 0.01 <= v <= md[i + 1] + 0.01, as findOnTrace's scan finds it
+    let i = lower(v - 0.01) - 1; if (i < 0) i = 0;
+    for (; i < n - 1; i++) { if (md[i] - 0.01 > v) break; if (v <= md[i + 1] + 0.01) { const span = md[i + 1] - md[i], t = span <= 0 ? 0 : (v - md[i]) / span, a = pts[i], b = pts[i + 1]; return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t }; } }
+    const edge = v <= md[0] ? pts[0] : pts[n - 1];
+    return { x: edge.x, y: edge.y, z: edge.z };
+  };
+  const between = (from, to) => { const i = lower(from - 0.01); let j = i; while (j < n && md[j] <= to + 0.01) j++; return pts.slice(i, j); };
+  return { at, between };
+}
+
 export function findOnTrace(pts, md) {
   if (!pts.length) return null;
   for (let i = 0; i < pts.length - 1; i++) {

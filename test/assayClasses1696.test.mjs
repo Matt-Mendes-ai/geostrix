@@ -18,6 +18,6 @@ test("without a usable P97.5 the three classes stay as before", () => {
 test("the ranges come from lab assays, with percentiles above a pile at the detection floor", () => {
   const src = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.ok(src.includes('const lab = assays.filter((a) => a.source !== "pXRF");'));
-  assert.ok(src.includes("const finite = atFloor >= 0.3 * all.length && atFloor < all.length ? all.slice(atFloor) : all;"));
-  assert.ok(src.includes("p975: q(0.975) };"));
+  assert.ok(src.includes("const finite = atFloor >= 0.3 * all.length && atFloor < all.length ? all.subarray(atFloor) : all;")); // a Float64Array since #1500
+  assert.ok(src.includes("p975: q(0.975) })"));
 });
