@@ -8222,5 +8222,16 @@
   "Template CSV": "Modelo CSV",
   "A CSV with the column headers this importer reads, to fill in a spreadsheet": "Um CSV com os cabeçalhos de coluna que este importador lê, para preencher numa planilha",
   "Type at least the easting, northing, dip and dip direction.": "Digite pelo menos a leste, a norte, o mergulho e a direção de mergulho.",
-  "Check and add": "Conferir e adicionar"
+  "Check and add": "Conferir e adicionar",
+  "Too few {el} values to grid ({n}): at least 3 samples with a value are needed.": "Poucos valores de {el} para interpolar ({n}): são necessárias pelo menos 3 amostras com valor.",
+  "Gridded {el} ({unit}) from {n} sample(s){m} at {cell} m cells, power {pw}{lg}{bl}: {valid} of {cells} cells have a value. It is in Maps > GeoTIFF / GXF and the 3D View.": "Interpolado {el} ({unit}) a partir de {n} amostra(s){m} em células de {cell} m, potência {pw}{lg}{bl}: {valid} de {cells} células têm valor. Está em Maps > GeoTIFF / GXF e na vista 3D.",
+  " ({medium})": " ({medium})",
+  ", on log10 values (shown back in {unit})": ", sobre valores log10 (mostrados de volta em {unit})",
+  "; {n} zero or negative value(s) left out": "; {n} valor(es) zero ou negativo(s) excluído(s)",
+  ", blank beyond {d} m of a sample": ", em branco a mais de {d} m de uma amostra",
+  "Grid an element to a raster…": "Interpolar um elemento para um raster…",
+  "Interpolate log10 of the values (trace elements are lognormal)": "Interpolar o log10 dos valores (elementos-traço são lognormais)",
+  "Blank beyond (m)": "Em branco além de (m)",
+  "Blank fields use the sample spacing: about {s} m between samples, so {c} m cells and no value beyond {b} m of a sample.": "Campos vazios usam o espaçamento das amostras: cerca de {s} m entre amostras, então células de {c} m e sem valor além de {b} m de uma amostra.",
+  "Grid to raster": "Interpolar para raster"
 }

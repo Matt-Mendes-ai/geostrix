@@ -68,6 +68,7 @@ import { geochemFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1017
 import { stampLines, withStamp } from "../lib/provenance.js"; // TASKS.csv #1212
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1212
 import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
+import SampleGridPanel from "../components/SampleGridPanel.jsx"; // TASKS.csv #1622
 
 export default function GeochemModule() {
   const store = useStore();
@@ -917,6 +918,8 @@ export default function GeochemModule() {
         </div>
         <div style={{ fontSize: 10, color: "#65717e", marginTop: 2, lineHeight: 1.4 }}>{tr("Or drag a CSV or Excel workbook (.xlsx — the sheet with the most element columns is read) anywhere on this page — filenames with \"pxrf\"/\"xrf\" go to the pXRF path, a table with x/y and no from / to opens as surface samples, everything else imports as assays.")}</div>
         {assayElements.length > 0 && <div style={{ fontSize: 10, color: "#65717e", marginTop: 8, lineHeight: 1.5 }}>{tr("Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.")}</div>}
+
+        <SampleGridPanel setNotices={setNotices} />{/* TASKS.csv #1622 — a soil grid */}
 
         {/* TASKS.csv #401 — calculated element form, opened from the ribbon */}
         {calc && (assayElements.length > 0 || surfaceElements.length > 0) && (() => {

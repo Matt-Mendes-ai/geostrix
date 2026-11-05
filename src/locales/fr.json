@@ -8222,5 +8222,16 @@
   "Template CSV": "Modèle CSV",
   "A CSV with the column headers this importer reads, to fill in a spreadsheet": "Un CSV avec les en-têtes de colonnes que lit cet importateur, à remplir dans un tableur",
   "Type at least the easting, northing, dip and dip direction.": "Saisissez au moins l'abscisse, l'ordonnée, le pendage et la direction de pendage.",
-  "Check and add": "Vérifier et ajouter"
+  "Check and add": "Vérifier et ajouter",
+  "Too few {el} values to grid ({n}): at least 3 samples with a value are needed.": "Trop peu de valeurs de {el} pour un maillage ({n}) : il faut au moins 3 échantillons avec une valeur.",
+  "Gridded {el} ({unit}) from {n} sample(s){m} at {cell} m cells, power {pw}{lg}{bl}: {valid} of {cells} cells have a value. It is in Maps > GeoTIFF / GXF and the 3D View.": "{el} ({unit}) maillé à partir de {n} échantillon(s){m} en cellules de {cell} m, puissance {pw}{lg}{bl} : {valid} cellules sur {cells} ont une valeur. Il est dans Maps > GeoTIFF / GXF et la vue 3D.",
+  " ({medium})": " ({medium})",
+  ", on log10 values (shown back in {unit})": ", sur les valeurs log10 (affichées à nouveau en {unit})",
+  "; {n} zero or negative value(s) left out": " ; {n} valeur(s) nulle(s) ou négative(s) exclue(s)",
+  ", blank beyond {d} m of a sample": ", vide au-delà de {d} m d'un échantillon",
+  "Grid an element to a raster…": "Mailler un élément en raster…",
+  "Interpolate log10 of the values (trace elements are lognormal)": "Interpoler le log10 des valeurs (les éléments traces sont lognormaux)",
+  "Blank beyond (m)": "Vide au-delà de (m)",
+  "Blank fields use the sample spacing: about {s} m between samples, so {c} m cells and no value beyond {b} m of a sample.": "Les champs vides suivent l'espacement des échantillons : environ {s} m entre échantillons, donc des cellules de {c} m et aucune valeur au-delà de {b} m d'un échantillon.",
+  "Grid to raster": "Mailler en raster"
 }

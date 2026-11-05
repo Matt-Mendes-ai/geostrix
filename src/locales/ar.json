@@ -8222,5 +8222,16 @@
   "Template CSV": "قالب CSV",
   "A CSV with the column headers this importer reads, to fill in a spreadsheet": "ملف CSV بعناوين الأعمدة التي يقرأها هذا المستورد، لتعبئته في جدول بيانات",
   "Type at least the easting, northing, dip and dip direction.": "اكتب على الأقل الإحداثي الشرقي والشمالي والميل واتجاه الميل.",
-  "Check and add": "تحقق وأضف"
+  "Check and add": "تحقق وأضف",
+  "Too few {el} values to grid ({n}): at least 3 samples with a value are needed.": "قيم {el} قليلة جداً للتشبيك ({n}): يلزم 3 عينات على الأقل لها قيمة.",
+  "Gridded {el} ({unit}) from {n} sample(s){m} at {cell} m cells, power {pw}{lg}{bl}: {valid} of {cells} cells have a value. It is in Maps > GeoTIFF / GXF and the 3D View.": "تم تشبيك {el} ({unit}) من {n} عينة{m} بخلايا {cell} م، أُس {pw}{lg}{bl}: {valid} من {cells} خلية لها قيمة. موجود في Maps > GeoTIFF / GXF وفي العرض ثلاثي الأبعاد.",
+  " ({medium})": " ({medium})",
+  ", on log10 values (shown back in {unit})": "، على قيم log10 (معروضة مجدداً بوحدة {unit})",
+  "; {n} zero or negative value(s) left out": "؛ استُبعدت {n} قيمة صفرية أو سالبة",
+  ", blank beyond {d} m of a sample": "، فارغ أبعد من {d} م عن أي عينة",
+  "Grid an element to a raster…": "تشبيك عنصر إلى صورة نقطية…",
+  "Interpolate log10 of the values (trace elements are lognormal)": "استيفاء log10 للقيم (العناصر النزرة لوغاريتمية التوزيع)",
+  "Blank beyond (m)": "فارغ أبعد من (م)",
+  "Blank fields use the sample spacing: about {s} m between samples, so {c} m cells and no value beyond {b} m of a sample.": "الحقول الفارغة تستخدم تباعد العينات: نحو {s} م بين العينات، أي خلايا {c} م ولا قيمة أبعد من {b} م عن أي عينة.",
+  "Grid to raster": "تشبيك إلى صورة نقطية"
 }
