@@ -8152,5 +8152,6 @@
   "alkali feldspar": "فلسبار قلوي",
   "Field that colours the layer": "الحقل الذي يلوّن الطبقة",
   "Value column": "عمود القيمة",
-  "Skipped {n} line(s) of notes above the header row.": "تم تخطي {n} سطر من الملاحظات فوق صف العناوين."
+  "Skipped {n} line(s) of notes above the header row.": "تم تخطي {n} سطر من الملاحظات فوق صف العناوين.",
+  "{n} row(s) with no easting / northing were left out (not QC inserts: their type was not standard, blank or duplicate).": "تُرك {n} صف بلا إحداثي شرقي / شمالي (ليست إدخالات ضبط جودة: نوعها لم يكن قياسيًا ولا فارغًا ولا مكررًا)."
 }

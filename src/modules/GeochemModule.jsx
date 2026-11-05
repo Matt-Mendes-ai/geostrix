@@ -670,7 +670,7 @@ export default function GeochemModule() {
     const parentCol = allHeaders.find((h) => /^(parent|orig(inal)?)[\s_-]*(sample)?[\s_-]*(id|no|number|#)?$|^dup(licate)?[\s_-]*of$/i.test(String(h).trim())) || null;
     const attrCols = surfaceAttrColumns(allHeaders, allRows, { ...mapping, parent: parentCol }, elements).filter((h) => !modal.attrExclude?.includes(h)); // TASKS.csv #841; attrExclude: #846
     const qcRecords = []; // TASKS.csv #842 — rows the sample-type column marks as standard / blank / duplicate
-    const rows = allRows.map((r) => {
+    const mappedRows = allRows.map((r) => {
       const values = {};
       const bdl = []; // TASKS.csv #841 — elements reported below detection (stored at half the limit), for the censored share
       const nd = []; // TASKS.csv #931 — elements a public layer reported as 0 (below detection or not analysed: it does not say), no value
@@ -708,7 +708,11 @@ export default function GeochemModule() {
         ...(nd.length ? { nd } : {}),
         ...surfaceAttrs(r, attrCols),
       };
-    }).filter((r) => r && Number.isFinite(r.x) && Number.isFinite(r.y));
+    });
+    // TASKS.csv #1664 (review #1646, Kodiak) — a sample row with no coordinates was dropped with no word (181 Kodiak control rows vanished
+    // before #1794 classed them as QC): every one left out is counted in the notice (a reprojection failure is counted on its own)
+    const rows = mappedRows.filter((r) => r && Number.isFinite(r.x) && Number.isFinite(r.y));
+    const noXY = mappedRows.filter((r) => r && !(Number.isFinite(r.x) && Number.isFinite(r.y))).length - reprojectFailed;
     const noZ = rows.filter((r) => r.z == null).length;
     // TASKS.csv #842; #1794 — merged by kind and sample id: a re-import replaces the QC records it already brought instead of doubling them
     const qcMerge = qcRecords.length ? mergeQcRecords(surfaceQc?.records || [], qcRecords) : null;
@@ -727,6 +731,7 @@ export default function GeochemModule() {
       negMissing ? `${negMissing} value(s) ≤ -99 treated as not assayed (no-data codes).` : null,
       overLimitFilled.size ? `Over-limit samples filled from the ore-grade column: ${[...overLimitFilled].map(([sym, n]) => `${sym} ${n}`).join(", ")}.` : null,
       qcRecords.length ? `${qcRecords.length} QC insert(s) (${["standard", "blank", "duplicate"].map((k) => `${qcRecords.filter((q) => q.kind === k).length} ${k}`).join(", ")}) kept apart for Surface QA/QC, not as samples.` : null,
+      noXY > 0 ? tr("{n} row(s) with no easting / northing were left out (not QC inserts: their type was not standard, blank or duplicate).", { n: noXY }) : null, // #1664
       noZ ? `${noZ} sample(s) have no elevation${zeroMissing ? ` (a 0 in the "${mapping.z}" column is read as no elevation)` : ""} — the 3D view places them on the terrain.` : null,
       doReproject ? `Reprojected from EPSG:${fromEpsg} to the project's EPSG:${toEpsg}${reprojectFailed ? ` (${reprojectFailed} row(s) could not be converted and were skipped)` : ""}.` : null,
     ].filter(Boolean).join(" ");
