@@ -815,6 +815,23 @@ ipcMain.handle("open-file", async (ev, { filters }) => {
 // straight to the new path (nothing ever writes the old path again).
 const AUTOSAVE_PATH = () => path.join(app.getPath("userData"), "autosave.geostrix.json");
 const OLD_AUTOSAVE_PATH = () => path.join(app.getPath("userData"), "autosave.geox.json");
+// TASKS.csv #1975 — the autosave in parts: the renderer sends only the top-level fields whose JSON changed since its last write; the
+// others are kept here, so a 54 MB project is not copied across the process boundary (nor assembled on the UI thread) every minute.
+// `order` is every key of the file in order; a key this process does not hold yet comes back as `missing` (the renderer then sends all).
+const autosaveParts = new Map();
+ipcMain.handle("autosave-write-parts", async (_e, { order, changed, reset } = {}) => {
+  try {
+    if (!Array.isArray(order) || !order.every((k) => typeof k === "string") || (changed && typeof changed !== "object")) return { ok: false, error: "bad autosave parts" };
+    if (reset) autosaveParts.clear();
+    for (const [k, v] of Object.entries(changed || {})) { if (typeof v !== "string") return { ok: false, error: "bad autosave part" }; autosaveParts.set(k, v); }
+    const missing = order.filter((k) => !autosaveParts.has(k));
+    if (missing.length) return { ok: false, missing };
+    const keep = new Set(order);
+    for (const k of [...autosaveParts.keys()]) if (!keep.has(k)) autosaveParts.delete(k);
+    await writeFileAtomic(AUTOSAVE_PATH(), `{${order.map((k) => `${JSON.stringify(k)}:${autosaveParts.get(k)}`).join(",")}}`, "utf8");
+    return { ok: true };
+  } catch (err) { return { ok: false, error: err.message }; }
+});
 ipcMain.handle("autosave-write", async (_e, { content }) => {
   try { await writeFileAtomic(AUTOSAVE_PATH(), content, "utf8"); return { ok: true }; } // #341
   catch (err) { return { ok: false, error: err.message }; }
@@ -842,6 +859,7 @@ ipcMain.handle("autosave-quarantine", async () => {
   } catch (err) { return { ok: false, error: err.message }; }
 });
 ipcMain.handle("autosave-clear", async () => {
+  autosaveParts.clear(); // #1975
   try {
     if (fs.existsSync(AUTOSAVE_PATH())) fs.unlinkSync(AUTOSAVE_PATH());
     if (fs.existsSync(OLD_AUTOSAVE_PATH())) fs.unlinkSync(OLD_AUTOSAVE_PATH());

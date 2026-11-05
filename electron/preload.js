@@ -58,6 +58,7 @@ contextBridge.exposeInMainWorld("desktop", {
   gpkgRead: (file, opts) => { const filePath = webUtils.getPathForFile(file); return filePath ? ipcRenderer.invoke("gpkg-read", { filePath, ...opts }) : Promise.resolve({ ok: false, error: "no path" }); },
   sampleDataPath: () => ipcRenderer.invoke("sample-data-path"),
   autosaveWrite: (payload) => ipcRenderer.invoke("autosave-write", payload),
+  autosaveWriteParts: (payload) => ipcRenderer.invoke("autosave-write-parts", payload), // TASKS.csv #1975
   autosaveRead: () => ipcRenderer.invoke("autosave-read"),
   autosaveQuarantine: () => ipcRenderer.invoke("autosave-quarantine"), // TASKS.csv #475
   autosaveClear: () => ipcRenderer.invoke("autosave-clear"),

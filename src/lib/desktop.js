@@ -141,6 +141,11 @@ export function onSectionContacts(cb) {
 // "small local state that survives a reload" job sessionStorage already does for the section pop-out
 // above, just needing to survive a full app restart instead of one tab's lifetime).
 const AUTOSAVE_KEY = "geox-autosave";
+// TASKS.csv #1975 — only the changed top-level parts of the autosave cross to the main process (see electron/main.js)
+export async function autosaveWriteParts(parts) {
+  if (d?.autosaveWriteParts) return d.autosaveWriteParts(parts);
+  return { ok: false, unsupported: true };
+}
 export async function autosaveWrite(content) {
   if (d) return d.autosaveWrite({ content });
   try { localStorage.setItem(AUTOSAVE_KEY, content); return { ok: true, fallback: true }; }

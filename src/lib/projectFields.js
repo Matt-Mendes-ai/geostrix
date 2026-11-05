@@ -294,6 +294,32 @@ export function payloadFromFields(live) {
   return out;
 }
 
+// TASKS.csv #1975 — the project as JSON text, each field's saved form cached by the identity of its value: the 60 s autosave of a
+// 54 MB project (Lawyers) compacted and stringified everything on the UI thread whenever anything changed (1.3-3 s frozen); now
+// only the fields whose value changed since the last call are compacted and stringified. Fields are immutable state (a change
+// is a new object, as the autosave's own change test already assumes). The text equals JSON.stringify({ ...payloadFromFields(live),
+// ...extra }) character for character (test/autosaveCache1975). Scalars are not cached (cheap).
+const fieldJson = new WeakMap();
+const keyJson = (k) => JSON.stringify(k);
+export function cachedJson(value, make) {
+  if (value === null || typeof value !== "object") return JSON.stringify(make(value));
+  let j = fieldJson.get(value);
+  if (j === undefined) { j = JSON.stringify(make(value)); fieldJson.set(value, j === undefined ? null : j); }
+  return j === null ? undefined : j;
+}
+// the same, as [key, json] pairs (the autosave sends only the pairs whose text changed, #1975)
+export function projectParts(live, extra = {}) {
+  const parts = [["version", JSON.stringify(PROJECT_VERSION)]];
+  for (const f of FIELDS) {
+    const j = cachedJson(live[f.key], f.save || ((v) => v));
+    if (j !== undefined) parts.push([f.key, j]);
+  }
+  for (const [k, v] of Object.entries(extra)) { const j = JSON.stringify(v); if (j !== undefined) parts.push([k, j]); }
+  return parts;
+}
+export const joinParts = (parts) => `{${parts.map(([k, j]) => `${keyJson(k)}:${j}`).join(",")}}`;
+export const projectJson = (live, extra = {}) => joinParts(projectParts(live, extra));
+
 // TASKS.csv #513 — does this project hold anything worth a crash-recovery autosave (and should a recovered
 // autosave go into its own tab rather than replace it)? Derived from FIELDS — any field that is not view state
 // and is not empty — instead of a hand-kept list: that list (collars, assays, layers, sections, surface

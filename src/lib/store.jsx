@@ -9,8 +9,8 @@ import { tieStarterFurniture, sendElementWithFurniture } from "./layoutLinks.js"
 import { setKnownHoleIds } from "./qaqcCore.js"; // TASKS.csv #400; qaqcCore: #1345
 import { compactLayers } from "./compactRows.js"; // TASKS.csv #374
 import { readDbProfiles, writeDbProfiles, mergeDbProfiles, profilesFromFile } from "./dbProfiles.js"; // TASKS.csv #1081
-import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
-import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
+import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, projectParts, joinParts, cachedJson /* #1975 */, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
+import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1975 */, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod } from "./desurvey.js";
 
 const StoreContext = createContext(null);
@@ -1263,6 +1263,8 @@ export function StoreProvider({ children }) {
   // TASKS.csv #341 — references of what was last written; an unchanged project is not re-serialised
   // every 60 s (the old tick stringified rasters/terrain/surfaces every minute regardless).
   const lastAutosaveSigRef = useRef(null);
+  const autosaveSentRef = useRef(new Map()); // #1975 — the parts the main process holds (key -> the JSON text sent)
+  const autosaveBgRef = useRef(null); // #1975 — { key: [payload, name, ...], text } of the background tabs last written
   useEffect(() => {
     const AUTOSAVE_INTERVAL_MS = 60000; // frequent enough to matter after a crash, infrequent enough not to be a perf/disk concern for a JSON payload this size
     const id = setInterval(() => {
@@ -1286,7 +1288,7 @@ export function StoreProvider({ children }) {
       const activeWorth = snap.hasWork && activeDirty;
       if (!activeWorth && !background.length) {
         // Nothing unsaved anywhere: a leftover recovery file would only offer already-saved work later.
-        if (lastAutosaveSigRef.current) { autosaveClear(); lastAutosaveSigRef.current = null; }
+        if (lastAutosaveSigRef.current) { autosaveClear(); lastAutosaveSigRef.current = null; autosaveSentRef.current = new Map(); }
         return;
       }
       const { hasWork: _drop, ...payload } = snap;
@@ -1294,12 +1296,24 @@ export function StoreProvider({ children }) {
       const last = lastAutosaveSigRef.current;
       if (last && last.length === sig.length && last.every((v, i) => v === sig[i])) return; // unchanged since the last write
       lastAutosaveSigRef.current = sig;
-      autosaveWrite(JSON.stringify({
-        ...payloadFromFields(payload), // #448 (layers #374 / voxel models #321 compact)
-        activeDirty: activeWorth,
-        backgroundTabs: background.map((t) => ({ name: t.name, payload: { ...t.payload, layers: compactLayers(t.payload.layers), voxelModels: compactVoxelModels(t.payload.voxelModels) } })),
-        autosavedAt: Date.now(),
-      }));
+      // TASKS.csv #1975 — only the fields (and background tabs) that changed are compacted and stringified again; the text is the same
+      // as JSON.stringify of the same payload (#448: layers #374 / voxel models #321 compact)
+      // the background tabs' text is kept while the same tabs (same payload objects and names) are unsaved: a list of recovered
+      // projects ran to 330 MB and was joined again every minute
+      const bgKey = background.flatMap((t) => [t.payload, t.name]), bgLast = autosaveBgRef.current;
+      const bgText = bgLast && bgLast.key.length === bgKey.length && bgLast.key.every((v, i) => v === bgKey[i]) ? bgLast.text
+        : `[${background.map((t) => `{"name":${JSON.stringify(t.name)},"payload":${cachedJson(t.payload, (pl) => ({ ...pl, layers: compactLayers(pl.layers), voxelModels: compactVoxelModels(pl.voxelModels) }))}}`).join(",")}]`;
+      autosaveBgRef.current = { key: bgKey, text: bgText };
+      const parts = projectParts(payload, { activeDirty: activeWorth });
+      parts.push(["backgroundTabs", bgText], ["autosavedAt", String(Date.now())]);
+      // only the parts whose text changed cross to the main process, which keeps the rest and writes the file (#1975)
+      const sent = autosaveSentRef.current, changed = {};
+      for (const [k, j] of parts) if (sent.get(k) !== j) changed[k] = j;
+      autosaveWriteParts({ order: parts.map((p) => p[0]), changed, reset: sent.size === 0 }).then((r) => {
+        if (r?.ok) { autosaveSentRef.current = new Map(parts); return; }
+        if (r?.unsupported) { autosaveWrite(joinParts(parts)); return; } // the browser build: one write, as before
+        autosaveSentRef.current = new Map(); lastAutosaveSigRef.current = null; // a part was missing or the write failed: everything next tick
+      });
     }, AUTOSAVE_INTERVAL_MS);
     return () => clearInterval(id);
   }, []);
