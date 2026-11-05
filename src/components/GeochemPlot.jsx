@@ -120,6 +120,19 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef, altBoxes, describe })
       {/* boxplot alteration trend guides */}
       {diagram.boxplotOverlay && <BoxplotGuides sx={sx} sy={sy} boxes={altBoxes} />}
 
+      {/* TASKS.csv #1678 — mineral nodes and tie lines (molar K/Al vs Na/Al) */}
+      {(diagram.tieLines || []).map((t, i) => (
+        <g key={`tl${i}`}>
+          <line x1={sx(t.from[0])} y1={sy(t.from[1])} x2={sx(t.to[0])} y2={sy(t.to[1])} stroke="#6b7a8c" strokeWidth="1" strokeDasharray="4 3" />
+          {t.label && <text x={sx((t.from[0] + t.to[0]) / 2) + 6} y={sy((t.from[1] + t.to[1]) / 2) - 4} fill="#6b7a8c" fontSize={fontSizes.xs}>{tr(t.label)}</text>}
+        </g>
+      ))}
+      {(diagram.nodes || []).map((n, i) => (
+        <g key={`nd${i}`}>
+          <rect x={sx(n.x) - 4} y={sy(n.y) - 4} width={8} height={8} fill="#ffffff" stroke="#2a3444" strokeWidth="1.5" />
+          <text x={sx(n.x) + 8} y={sy(n.y) - 6} fill="#2a3444" fontSize={fontSizes.xs}>{tr(n.label)}</text>
+        </g>
+      ))}
       {/* TASKS.csv #531 — theoretical mineral lines through the origin (PER diagrams), drawn beside the fitted trend */}
       {(diagram.mineralLines || []).map((ml, i) => {
         const x2 = Math.min(xmax, ymax / ml.slope);

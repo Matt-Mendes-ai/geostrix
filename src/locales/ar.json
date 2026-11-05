@@ -8142,5 +8142,12 @@
   "Molar (2Ca+Na+K)/Al": "(2Ca+Na+K)/Al المولي",
   "Ca, Na, K and Al in the same unit": "Ca وNa وK وAl بالوحدة نفسها",
   "Cu/Au ratio": "نسبة Cu/Au",
-  "read in the stored units (Cu ppm / Au ppm gives the usual ratio); say the units with the result": "تُقرأ بالوحدات المخزنة (Cu ppm / Au ppm تعطي النسبة المعتادة)؛ اذكر الوحدات مع النتيجة"
+  "read in the stored units (Cu ppm / Au ppm gives the usual ratio); say the units with the result": "تُقرأ بالوحدات المخزنة (Cu ppm / Au ppm تعطي النسبة المعتادة)؛ اذكر الوحدات مع النتيجة",
+  "Molar K/Al vs Na/Al (porphyry alteration)": "K/Al مقابل Na/Al المولي (تغيّر البورفيري)",
+  "Molar element ratios. Fresh igneous rock plots near the alkali-feldspar join (K/Al + Na/Al = 1); potassic alteration moves towards K-feldspar and biotite (K/Al = 1), phyllic towards muscovite / sericite (K/Al = 0.33), argillic towards kaolinite at the origin, and sodic towards albite. Na by pXRF is often unreliable: read Na/Al from lab assays.": "نسب مولية للعناصر. تقع الصخور النارية الطازجة قرب خط الفلسبار القلوي (K/Al + Na/Al = 1)؛ يتجه التغيّر البوتاسي نحو فلسبار K والبيوتيت (K/Al = 1)، والفيلي نحو المسكوفيت / السريسيت (K/Al = 0.33)، والطيني نحو الكاولينيت عند الأصل، والصوديومي نحو الألبيت. غالبًا ما يكون Na بجهاز pXRF غير موثوق: اقرأ Na/Al من تحاليل المختبر.",
+  "Na/Al (molar)": "Na/Al (مولي)",
+  "K/Al (molar)": "K/Al (مولي)",
+  "K-feldspar / biotite": "فلسبار K / بيوتيت",
+  "kaolinite": "كاولينيت",
+  "alkali feldspar": "فلسبار قلوي"
 }

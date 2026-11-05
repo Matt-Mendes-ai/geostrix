@@ -8142,5 +8142,12 @@
   "Molar (2Ca+Na+K)/Al": "(2Ca+Na+K)/Al molaire",
   "Ca, Na, K and Al in the same unit": "Ca, Na, K et Al dans la même unité",
   "Cu/Au ratio": "Rapport Cu/Au",
-  "read in the stored units (Cu ppm / Au ppm gives the usual ratio); say the units with the result": "lu dans les unités enregistrées (Cu ppm / Au ppm donne le rapport habituel) ; indiquez les unités avec le résultat"
+  "read in the stored units (Cu ppm / Au ppm gives the usual ratio); say the units with the result": "lu dans les unités enregistrées (Cu ppm / Au ppm donne le rapport habituel) ; indiquez les unités avec le résultat",
+  "Molar K/Al vs Na/Al (porphyry alteration)": "K/Al vs Na/Al molaires (altération de porphyre)",
+  "Molar element ratios. Fresh igneous rock plots near the alkali-feldspar join (K/Al + Na/Al = 1); potassic alteration moves towards K-feldspar and biotite (K/Al = 1), phyllic towards muscovite / sericite (K/Al = 0.33), argillic towards kaolinite at the origin, and sodic towards albite. Na by pXRF is often unreliable: read Na/Al from lab assays.": "Rapports molaires d’éléments. La roche ignée fraîche se place près du joint des feldspaths alcalins (K/Al + Na/Al = 1) ; l’altération potassique va vers le feldspath K et la biotite (K/Al = 1), la phyllique vers la muscovite / séricite (K/Al = 0,33), l’argileuse vers la kaolinite à l’origine, et la sodique vers l’albite. Le Na par pXRF est souvent peu fiable : lisez Na/Al sur les analyses de laboratoire.",
+  "Na/Al (molar)": "Na/Al (molaire)",
+  "K/Al (molar)": "K/Al (molaire)",
+  "K-feldspar / biotite": "feldspath K / biotite",
+  "kaolinite": "kaolinite",
+  "alkali feldspar": "feldspath alcalin"
 }

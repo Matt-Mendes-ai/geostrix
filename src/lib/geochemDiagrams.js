@@ -226,6 +226,24 @@ export const DIAGRAMS = {
       return { x: molAl2O3, y: molCaO + molNa2O }; // #531
     },
   },
+  // TASKS.csv #1678 (review #1645, Copley) — the porphyry alteration discriminator: molar K/Al against Na/Al, with the mineral nodes a
+  // sample moves towards (element ratios: K/39.098, Na/22.990, Al/26.982). The nodes are mineral formulas, not fields fitted to a deposit.
+  kal_naal: {
+    id: "kal_naal",
+    label: "Molar K/Al vs Na/Al (porphyry alteration)",
+    caption: "Molar element ratios. Fresh igneous rock plots near the alkali-feldspar join (K/Al + Na/Al = 1); potassic alteration moves towards K-feldspar and biotite (K/Al = 1), phyllic towards muscovite / sericite (K/Al = 0.33), argillic towards kaolinite at the origin, and sodic towards albite. Na by pXRF is often unreliable: read Na/Al from lab assays.",
+    requires: ["K", "Na", "Al"],
+    xLabel: "Na/Al (molar)", yLabel: "K/Al (molar)",
+    xRange: [0, 1.1], yRange: [0, 1.1],
+    nodes: [{ x: 0, y: 1, label: "K-feldspar / biotite" }, { x: 0, y: 1 / 3, label: "muscovite / sericite" }, { x: 1, y: 0, label: "albite" }, { x: 0, y: 0, label: "kaolinite" }],
+    tieLines: [{ from: [0, 1], to: [1, 0], label: "alkali feldspar" }],
+    project: (s, u) => {
+      const Al = valueIn(s, "Al", "%", u), K = valueIn(s, "K", "%", u), Na = valueIn(s, "Na", "%", u);
+      if ([Al, K, Na].some((v) => v == null) || !(Al > 0)) return null;
+      const al = Al / 26.982;
+      return { x: Na / 22.990 / al, y: K / 39.098 / al };
+    },
+  },
 };
 
 const MOLAR_MASS = { Al2O3: 101.96, K2O: 94.2, Na2O: 61.98, CaO: 56.08, MgO: 40.30, FeOt: 71.85, TiO2: 79.87 };
