@@ -8299,5 +8299,7 @@
   "VLF-EM: in-phase": "VLF-EM: المركّبة المتطابقة الطور",
   "VLF-EM: quadrature": "VLF-EM: المركّبة التربيعية",
   "Survey to analyse": "المسح المراد تحليله",
-  "Surveys are never mixed: each has its own units and spacing.": "لا تُخلط المسوح أبدًا: لكل مسح وحداته وتباعده."
+  "Surveys are never mixed: each has its own units and spacing.": "لا تُخلط المسوح أبدًا: لكل مسح وحداته وتباعده.",
+  "Survey whose legend to edit": "المسح الذي يُحرَّر مفتاحه",
+  "Each survey is coloured on its own 2–98 percentile range until its legend is edited here; the legend below is this survey's.": "يُلوَّن كل مسح على مدى المئينين 2–98 الخاص به حتى يُحرَّر مفتاحه هنا؛ المفتاح أدناه هو مفتاح هذا المسح."
 }

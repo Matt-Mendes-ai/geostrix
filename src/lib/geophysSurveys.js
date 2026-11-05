@@ -144,17 +144,21 @@ export function robustRange(values, lo = 0.02, hi = 0.98) {
   return r.max > r.min ? r : { min: v[0], max: v[v.length - 1] };
 }
 const tIn = (m, v) => (m.max > m.min ? Math.min(1, Math.max(0, (v - m.min) / (m.max - m.min))) : 0.3);
-export function makeSurveyColorer(rows, { stops, colorMode, min, max } = {}) {
+// TASKS.csv #1587 (review #1497, Lawyers) — `surveys` is the geophysSurveys meta: a survey's own legend ({ stops, colorMode,
+// min, max }, edited on the Point survey pane) wins over the 2-98 % range; with several surveys the global stops / mode /
+// range used to be ignored altogether, so the legend editor changed nothing in 3D.
+export function makeSurveyColorer(rows, { stops, colorMode, min, max } = {}, surveys = null) {
   const keys = new Set((rows || []).map(surveyKey));
+  const legendOf = (k) => (surveys && surveys[k] && surveys[k].legend) || null;
   if (keys.size <= 1) {
-    const rr = robustRange((rows || []).map((r) => r.value));
-    const model = { stops, colorMode, min: min ?? rr.min, max: max ?? rr.max };
+    const rr = robustRange((rows || []).map((r) => r.value)), lg = legendOf([...keys][0]) || {};
+    const model = { stops: lg.stops ?? stops, colorMode: lg.colorMode ?? colorMode, min: lg.min ?? min ?? rr.min, max: lg.max ?? max ?? rr.max };
     return { perSurvey: false, models: new Map([[[...keys][0], model]]), colorOf: (r) => ({ color: colorForVoxelValue(model, r.value), t: tIn(model, r.value) }) };
   }
   const values = new Map();
   for (const r of rows) { const k = surveyKey(r); if (!values.has(k)) values.set(k, []); values.get(k).push(r.value); }
   const models = new Map();
-  for (const [k, v] of values) models.set(k, robustRange(v));
+  for (const [k, v] of values) { const rr = robustRange(v), lg = legendOf(k); models.set(k, lg ? { stops: lg.stops ?? [], colorMode: lg.colorMode ?? "continuous", min: lg.min ?? rr.min, max: lg.max ?? rr.max, edited: true } : rr); } // #1587
   return {
     perSurvey: true, models,
     colorOf: (r) => {

@@ -15,7 +15,7 @@ export function corridorScatter({ geophysPts = null, geophysStyle = {}, samples 
     const inBand = [];
     for (const r of pts) { const d = project(r.x, r.y); if (d != null) inBand.push([r, d]); }
     if (inBand.length) {
-      const colorer = makeSurveyColorer(pts.filter((r) => Number.isFinite(r.value)), geophysStyle);
+      const colorer = makeSurveyColorer(pts.filter((r) => Number.isFinite(r.value)), geophysStyle, geophysStyle.surveys || null); // surveys: #1587
       for (const [r, d] of inBand) { if (out.length >= cap) break; out.push({ d, z: r.z, color: Number.isFinite(r.value) ? colorer.colorOf(r).color : "#9aa3b0", label: `${r.survey || r.label || "Geophysics"}: ${Number.isFinite(r.value) ? +Number(r.value).toPrecision(4) : "no value"}`, kind: "geophys" }); geo++; }
     }
   }

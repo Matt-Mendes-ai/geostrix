@@ -8299,5 +8299,7 @@
   "VLF-EM: in-phase": "VLF-EM: en fase",
   "VLF-EM: quadrature": "VLF-EM: cuadratura",
   "Survey to analyse": "Levantamiento a analizar",
-  "Surveys are never mixed: each has its own units and spacing.": "Los levantamientos nunca se mezclan: cada uno tiene sus propias unidades y espaciado."
+  "Surveys are never mixed: each has its own units and spacing.": "Los levantamientos nunca se mezclan: cada uno tiene sus propias unidades y espaciado.",
+  "Survey whose legend to edit": "Levantamiento cuya leyenda editar",
+  "Each survey is coloured on its own 2–98 percentile range until its legend is edited here; the legend below is this survey's.": "Cada levantamiento se colorea en su propio rango del percentil 2–98 hasta que su leyenda se edite aquí; la leyenda de abajo es la de este levantamiento."
 }

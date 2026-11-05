@@ -242,6 +242,16 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   const rows = layers.geophys_pts || [];
   const drawnRange = useMemo(() => robustRange(rows.map((r) => r.value)), [rows]); // TASKS.csv #1177 — the range the 3D colours use
   const surveyList = useMemo(() => surveyStats(rows), [rows]); // TASKS.csv #451
+  // TASKS.csv #1587 (review #1497, Lawyers) — with several surveys the legend below edits ONE survey's own legend
+  // (geophysSurveys[key].legend, read by makeSurveyColorer); the global stops / mode / range were ignored in 3D then, and the
+  // classes were cut across nT and % values together.
+  const [legendSurvey, setLegendSurvey] = useState("");
+  const manySurveys = surveyList.length > 1;
+  const legendKey = surveyList.some((s) => s.key === legendSurvey) ? legendSurvey : surveyList[0]?.key || "";
+  const legendRows = useMemo(() => (manySurveys ? rows.filter((r) => surveyKey(r) === legendKey) : rows), [manySurveys, rows, legendKey]);
+  const legendDrawn = useMemo(() => robustRange(legendRows.map((r) => r.value)), [legendRows]);
+  const legendRange = useMemo(() => { let a = null, b = null; for (const r of legendRows) { const v = r.value; if (typeof v !== "number" || isNaN(v)) continue; if (a === null || v < a) a = v; if (b === null || v > b) b = v; } return { min: a, max: b }; }, [legendRows]);
+  const legendMeta = (manySurveys && geophysSurveys[legendKey]?.legend) || null;
   // TASKS.csv #1094 — one survey's points as CSV (x, y, z, the value as "<method>_<unit>", line / fiducial / label), stamped
   const exportSurvey = (key) => {
     const meta = geophysSurveys[key] || {}, pts = rows.filter((r) => surveyKey(r) === key);
@@ -1525,10 +1535,19 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         {rows.length > 0 && (
           <div style={{ marginTop: 14, padding: "10px 12px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
             <div style={{ color: "var(--color-text)", marginBottom: 4 }}>{tr("{rows} {v} loaded", { rows: rows.length, v: tr(rows.length === 1 ? "point" : "points") })}</div>
-            {min !== null && (
-              <div style={{ color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{tr("Value range: {min} – {max}", { min: min.toLocaleString(), max: max.toLocaleString() })}</div>
+            {manySurveys && ( // #1587 — which survey the legend below edits
+              <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4, marginBottom: 4, fontSize: "var(--font-size-sm)" }}>
+                <span style={{ color: "var(--color-text-faint)", flexShrink: 0 }}>{tr("Survey")}</span>
+                <select value={legendKey} onChange={(e) => setLegendSurvey(e.target.value)} aria-label={tr("Survey whose legend to edit")} style={{ ...numInput, flex: 1, minWidth: 0 }}>
+                  {surveyList.map((s) => <option key={s.key} value={s.key}>{s.key} ({s.count.toLocaleString()}{geophysSurveys[s.key]?.units ? `, ${geophysSurveys[s.key].units}` : ""})</option>)}
+                </select>
+              </div>
             )}
-            {min !== null && geophysPtsMin == null && geophysPtsMax == null && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", marginTop: 2, lineHeight: 1.4 }}>{tr("Colours use the 2–98 percentile of the values, so a few extreme readings do not wash out the map. Edit a limit to change it.")}</div>/* #1177 */}
+            {manySurveys && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", marginBottom: 4, lineHeight: 1.4 }}>{tr("Each survey is coloured on its own 2–98 percentile range until its legend is edited here; the legend below is this survey's.")}</div>}
+            {(manySurveys ? legendRange.min : min) !== null && (
+              <div style={{ color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>{tr("Value range: {min} – {max}", { min: (manySurveys ? legendRange.min : min).toLocaleString(), max: (manySurveys ? legendRange.max : max).toLocaleString() })}{manySurveys && geophysSurveys[legendKey]?.units ? ` ${geophysSurveys[legendKey].units}` : ""}</div>
+            )}
+            {min !== null && (manySurveys ? legendMeta?.min == null && legendMeta?.max == null : geophysPtsMin == null && geophysPtsMax == null) && <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", marginTop: 2, lineHeight: 1.4 }}>{tr("Colours use the 2–98 percentile of the values, so a few extreme readings do not wash out the map. Edit a limit to change it.")}</div>/* #1177 */}
             {/* TASKS.csv #122 — same graduated/classed symbology (user-defined class breaks, adjustable
                 palette) voxel models already have, reused directly: geophysPtsModel below is shaped
                 exactly like a real voxel model ({min,max,colorMode,stops,cells}) so VoxelLegendEditor
@@ -1537,8 +1556,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                 instead of a per-model update, since geophys_pts is one flat layer, not a list. */}
             {min !== null && (
               <VoxelLegendEditor
-                model={{ id: "geophys_pts", min: geophysPtsMin ?? drawnRange.min, max: geophysPtsMax ?? drawnRange.max, colorMode: geophysPtsColorMode, stops: geophysPtsStops, cells: rows }}
+                key={manySurveys ? legendKey : "all"}
+                model={manySurveys
+                  ? { id: "geophys_pts", min: legendMeta?.min ?? legendDrawn.min, max: legendMeta?.max ?? legendDrawn.max, colorMode: legendMeta?.colorMode || "continuous", stops: legendMeta?.stops || [], cells: legendRows } // #1587 — this survey's own legend
+                  : { id: "geophys_pts", min: geophysPtsMin ?? drawnRange.min, max: geophysPtsMax ?? drawnRange.max, colorMode: geophysPtsColorMode, stops: geophysPtsStops, cells: rows }}
                 onUpdate={(_id, patch) => {
+                  if (manySurveys) { updateGeophysSurvey(legendKey, { legend: { ...(geophysSurveys[legendKey]?.legend || {}), ...patch } }); return; } // #1587
                   if ("min" in patch) setGeophysPtsMin(patch.min);
                   if ("max" in patch) setGeophysPtsMax(patch.max);
                   if ("colorMode" in patch) setGeophysPtsColorMode(patch.colorMode);

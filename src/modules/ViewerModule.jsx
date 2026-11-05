@@ -1957,7 +1957,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       const vals = gpts.map((r) => r.value).filter((v) => typeof v === "number" && Number.isFinite(v));
       if (vals.length) {
         // TASKS.csv #451 — one ramp per survey when several are loaded (each is coloured on its own range)
-        const colorer = makeSurveyColorer(gpts.filter((r) => Number.isFinite(r.value)), { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax });
+        const colorer = makeSurveyColorer(gpts.filter((r) => Number.isFinite(r.value)), { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax }, geophysSurveys); // geophysSurveys: #1587
         for (const [key, model] of colorer.models) {
           const units = geophysSurveys?.[key]?.units;
           pushScale(`geophys_pts_${key}`, colorer.perSurvey ? `${key}${units ? ` (${units})` : ""}` : `${LAYER_META.geophys_pts?.label || "Geophysics points"}${units ? ` (${units})` : ""}`, model, model.min, model.max);
@@ -4643,7 +4643,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const { x: ox, y: oy, z: oz } = originRef.current;
     const rows = (layers.geophys_pts || []).filter((r) => Number.isFinite(r.z) && isRowVisibleForBuild("geophys_pts", r)); // #431; #365 — no elevation = not drawn
     if (!rows.length) return;
-    const colorer = makeSurveyColorer(rows, { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax }); // #451 — per survey when several; #122 class breaks
+    const colorer = makeSurveyColorer(rows, { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax }, geophysSurveys); // #451 — per survey when several; #122 class breaks; #1587 each survey's own legend
     const errors = [];
     const st = resolveLayerStyle(layerStyles.geophys_pts, "point"); // TASKS.csv #635
     const proto = st.shape === "sphere" ? PROTO_SPHERE_8 : POINT_PROTO[st.shape];
@@ -6949,7 +6949,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const modelBackdrop = modelBackdropFor(a, b, secId, showTerrain, corridor); // #759
     if (modelBackdrop) modelBackdrop.legend.forEach((it) => legendItems.push(it));
     const assayLegend = assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle }); // #1475 — the section window keys the grades it draws
-    const scatter = corridorScatter({ geophysPts: layerVisible.geophys_pts ? layers.geophys_pts : null, geophysStyle: { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax }, samples: layerVisible.surface_samples ? placedSurfaceSamples : null }, a, b, corridor); // #1807
+    const scatter = corridorScatter({ geophysPts: layerVisible.geophys_pts ? layers.geophys_pts : null, geophysStyle: { stops: geophysPtsStops, colorMode: geophysPtsColorMode, min: geophysPtsMin, max: geophysPtsMax, surveys: geophysSurveys /* #1587 */ }, samples: layerVisible.surface_samples ? placedSurfaceSamples : null }, a, b, corridor); // #1807
     return { azimuth, holes, intervals, points, planes, elevationProfile, legendItems, assayLegend, voxelSlices, surfaceTraces, plannedHoles: plannedOnSection, modelBackdrop, scatter, scatterCounts: scatter.counts };
   };
 
