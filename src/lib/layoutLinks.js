@@ -13,6 +13,26 @@ const SCALE_BAR_PX = 180; // LayoutModule's default bar length (px) for a fresh 
 // scale; outside that it takes a round length near the default size. It used to keep its metres and be clamped to 20 px
 // on screen, so a 200 m bar of a view re-captured at 1:50,000 printed 265 m long under a "200 m" label.
 const BAR_MIN_PX = 40, BAR_MAX_PX = 600;
+// On-page pixels per real metre of a captured viewport or a section / plan snapshot; null when it has no scale yet.
+export function viewPxPerMetre(vp) {
+  if (!vp) return null;
+  const { w: imgW, h: imgH } = capturedSize(vp);
+  const ppm = vp.type === "viewport" ? (vp.worldHeightAtTarget && imgH ? imgH / vp.worldHeightAtTarget : 0) : vp.type === "image" ? (vp.worldWidthAtCaptureM && imgW ? imgW / vp.worldWidthAtCaptureM : 0) : 0;
+  return ppm > 0 ? ppm : null;
+}
+// TASKS.csv #1635 (review #1497, Lawyers) — what a scale bar can be bound to on a page, and a new bar bound on insert: to the
+// selected view, else the page's only one. Insert > Scale bar used to add a free '100 m' at an implied 1:2,117 over a 1:20,000
+// plan (the bar measured 952 m). With no view or several and none selected the bar stays free and its sidebar says so.
+export const scaleBarTargets = (els) => (els || []).filter((e) => viewPxPerMetre(e) != null);
+export function bindScaleBar(bar, view) {
+  const ppm = viewPxPerMetre(view);
+  return ppm ? { ...bar, boundTo: view.id, pxPerMeter: ppm, meters: niceScaleNumber(SCALE_BAR_PX / ppm) } : { ...bar, boundTo: null };
+}
+export function insertScaleBar(base, els, selectedId) {
+  const ts = scaleBarTargets(els);
+  const view = ts.find((v) => v.id === selectedId) || (ts.length === 1 ? ts[0] : null);
+  return view ? { ...bindScaleBar(base, view), x: view.x, y: view.y + (view.h || 0) + 14 } : base;
+}
 export function withLiveScaleBars(els) {
   return (els || []).map((el) => {
     if (el.type === "north" && el.boundTo) return liveNorth(el, els);

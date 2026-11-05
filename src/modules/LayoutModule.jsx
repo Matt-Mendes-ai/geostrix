@@ -11,7 +11,7 @@ import PromptModal from "../components/PromptModal.jsx";
 import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
-import { withLiveScaleBars, relinkCopies, tieStarterFurniture, northRotationOf } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
+import { withLiveScaleBars, relinkCopies, tieStarterFurniture, northRotationOf, insertScaleBar, scaleBarTargets, bindScaleBar } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
 import { capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, holesInFrame, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText, sectionTextPt, sectionTextFactor } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; sectionTextPt: #1485; section scale: #944
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
@@ -576,7 +576,7 @@ export default function LayoutModule() {
     if (type === "text") base.text = "Text", base.w = 200;
     if (type === "titleblock") Object.assign(base, newTitleBlock(id, Math.max(20, A4.w - 400), Math.max(20, A4.h - 260))); // TASKS.csv #1868 — bottom right
     if (type === "logo") logoInput.current.click();
-    if (type === "scale") { base.meters = 100; base.pxPerMeter = DEFAULT_PX_PER_METER; }
+    if (type === "scale") { base.meters = 100; base.pxPerMeter = DEFAULT_PX_PER_METER; Object.assign(base, insertScaleBar(base, elements, selected)); base.y = Math.min(base.y, A4.h - 50); } // #1635 — bound to the selected / only view
     if (type === "north") { // TASKS.csv #1632 — tied to the selected view, else the page's only view with a camera azimuth
       const views = elements.filter((el) => el.type === "viewport" && el.cameraAzimuthDeg != null);
       const vp = views.find((v) => v.id === selected) || (views.length === 1 ? views[0] : null);
@@ -1061,6 +1061,17 @@ export default function LayoutModule() {
                 <FrameControls sel={sel} updateSelected={updateSelected} />
               </>
             )}
+            {sel.type === "scale" && (() => { // TASKS.csv #1635 — what the bar measures
+              const ts = scaleBarTargets(elements);
+              return (<>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Bound to")}<select value={sel.boundTo || ""} onChange={(e) => { const v = ts.find((t) => t.id === e.target.value); updateSelected(v ? bindScaleBar(sel, v) : { boundTo: null }); }} style={{ ...inp, marginTop: 4 }}>
+                    <option value="">{tr("Nothing (a free bar)")}</option>
+                    {ts.map((v, i) => <option key={v.id} value={v.id}>{v.type === "viewport" ? (themes.find((t) => t.id === v.themeId)?.name || tr("Viewport {n}", { n: i + 1 })) : tr("{v} (cross-section)", { v: v.label || v.id })}</option>)}
+                  </select>
+                </label>
+                {!sel.boundTo && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Not tied to a view: its length is not a distance on any map of this page. Bind it to a view above (it then follows that view's scale).")}</div>}
+              </>);
+            })()}
             {"meters" in sel && (
               <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Scale length (m)")}<input type="number" value={sel.meters} onChange={(e) => updateSelected({ meters: Number(e.target.value) })} style={inp} />
               </label>
