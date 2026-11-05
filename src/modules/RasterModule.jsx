@@ -26,6 +26,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the 
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
 import { fetchAreaBox } from "../lib/dataExtent.js"; // #1461
 import RasterColourControls from "../components/RasterColourControls.jsx"; // TASKS.csv #1236
+import GridContourControls from "../components/GridContourControls.jsx"; // TASKS.csv #1622
 import { gridCellText } from "../lib/raster.js"; // TASKS.csv #1242
 import { detectKeyColour } from "../lib/rasterKey.js"; // TASKS.csv #1623
 
@@ -510,6 +511,7 @@ export default function RasterModule({ embedded = false } = {}) {
               <input type="number" value={Math.round(r.elevation)} disabled={r.drapeMode === "terrain"} onChange={(e) => updateRaster(r.id, { elevation: Number(e.target.value) })} style={numInput} />
             </div>
             {r.grid && !r.ternary && <RasterColourControls raster={r} onUpdate={updateRaster} inputStyle={numInput} />}{/* #1236 */}
+            {r.grid && r.geochem && <GridContourControls raster={r} inputStyle={numInput} />}{/* #1622 — contours of a geochemistry grid */}
             {!r.grid && r.dataUrl && ( /* TASKS.csv #1623 - a colour picture's background (white fill) shown transparent */
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", flex: 1, minWidth: 0 }}>

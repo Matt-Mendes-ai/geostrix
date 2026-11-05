@@ -29,14 +29,15 @@ test("spacing suggestion: 25 m samples -> a small cell and a blanking distance o
 });
 
 test("the grid is back in ppm; log IDW keeps the hot sample from flooding its neighbours", () => {
-  const lin = gridSamples(soils, "Au", { cellM: 25, log: false });
-  const lg = gridSamples(soils, "Au", { cellM: 25, log: true });
+  const lin = gridSamples(soils, "Au", { cellM: 12.5, log: false });
+  const lg = gridSamples(soils, "Au", { cellM: 12.5, log: true });
   assert.equal(lg.grid.nx, lin.grid.nx);
   const vals = Array.from(lg.grid.values).filter(Number.isFinite);
   assert.ok(Math.max(...vals) <= 1.2 + 1e-6 && Math.min(...vals) > 0, "in ppm, inside the data range");
-  // a cell 50 m from the hot sample: the linear IDW is pulled far up by one value, the log one much less
+  // a node between samples, 12.5 m from the hot one: the linear IDW is pulled far up by one value, the log one much less
   const at = (g, x, y) => g.grid.values[Math.round((g.grid.yTop - y) / g.grid.dy) * g.grid.nx + Math.round((x - g.grid.x0) / g.grid.dx)];
-  const x = 600000 + 12 * 25, y = 6350000 + 10 * 25;
+  const x = 600000 + 10 * 25 + 12.5, y = 6350000 + 10 * 25;
+  assert.ok(Math.abs(at(lg, 600250, 6350250) - 1.2) < 1e-6, "a node on the sample keeps its value");
   assert.ok(at(lg, x, y) < at(lin, x, y), `${at(lg, x, y)} vs ${at(lin, x, y)}`);
 });
 
@@ -57,4 +58,26 @@ test("wired: Geochem has the panel; a geochemistry raster gets no magnetic filte
   const r = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
   assert.match(r, /r\.grid && !r\.geochem [^\n]*<SlidersHorizontal/);
   assert.match(r, /filterFor === r\.id && r\.grid && !r\.geochem && \(/);
+});
+
+test("contours of the grid: a ring round the hot sample, stopping at blank nodes; percentile levels", async () => {
+  const { gridContours, suggestedContourLevels, gridNodes } = await import("../src/lib/sampleGrid.js");
+  const g = gridSamples(soils, "Au", { cellM: 25, log: true, blankM: 60 });
+  const levels = suggestedContourLevels(g.grid.values);
+  assert.ok(levels.length >= 2 && levels.every((v, i) => !i || v > levels[i - 1]), JSON.stringify(levels));
+  const nodes = gridNodes(g.grid, g.grid.values);
+  assert.ok(Math.abs(nodes.bbox[0] - g.grid.x0) < 1e-9 && Math.abs(nodes.bbox[3] - g.grid.yTop) < 1e-9);
+  const ring = gridContours(g.grid, g.grid.values, [0.1]);
+  assert.equal(ring.length, 1);
+  const pts = ring[0].polylines.flat();
+  const cx = 600000 + 250, cy = 6350000 + 250;
+  assert.ok(pts.every((p) => Math.hypot(p.x - cx, p.y - cy) < 60), "the 0.1 ppm line circles the 1.2 ppm sample");
+  assert.equal(gridContours(g.grid, g.grid.values, [50]).length, 0, "a level above the data crosses nothing");
+});
+
+test("wired: a geochemistry raster card has contour controls; lines become one draped boundary", () => {
+  const r = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
+  assert.match(r, /r\.grid && r\.geochem && <GridContourControls raster=\{r\}/);
+  const c = readFileSync(new URL("../src/components/GridContourControls.jsx", import.meta.url), "utf8");
+  assert.match(c, /drapeMode: terrain \? "terrain" : "flat", elevation: raster\.elevation/);
 });

@@ -8233,5 +8233,13 @@
   "Interpolate log10 of the values (trace elements are lognormal)": "Interpolar o log10 dos valores (elementos-traço são lognormais)",
   "Blank beyond (m)": "Em branco além de (m)",
   "Blank fields use the sample spacing: about {s} m between samples, so {c} m cells and no value beyond {b} m of a sample.": "Campos vazios usam o espaçamento das amostras: cerca de {s} m entre amostras, então células de {c} m e sem valor além de {b} m de uma amostra.",
-  "Grid to raster": "Interpolar para raster"
+  "Grid to raster": "Interpolar para raster",
+  "Type one or more levels, e.g. 0.01, 0.05, 0.1.": "Digite um ou mais níveis, ex.: 0.01, 0.05, 0.1.",
+  "None of those levels crosses the grid.": "Nenhum desses níveis cruza a grade.",
+  "{name} contours ({levels} {unit})": "Contornos de {name} ({levels} {unit})",
+  "Added {n} contour line(s) at {levels} {unit} to Maps > Boundaries{d}.": "Adicionada(s) {n} linha(s) de contorno em {levels} {unit} a Maps > Boundaries{d}.",
+  "Contours": "Contornos",
+  "Contour levels": "Níveis de contorno",
+  "the grid's unit": "a unidade da grade",
+  "Levels in {unit}, lowest first; blank: the grid's 75th, 90th, 95th and 98th percentiles": "Níveis em {unit}, do menor ao maior; em branco: os percentis 75, 90, 95 e 98 da grade"
 }

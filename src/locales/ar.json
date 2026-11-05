@@ -8233,5 +8233,13 @@
   "Interpolate log10 of the values (trace elements are lognormal)": "استيفاء log10 للقيم (العناصر النزرة لوغاريتمية التوزيع)",
   "Blank beyond (m)": "فارغ أبعد من (م)",
   "Blank fields use the sample spacing: about {s} m between samples, so {c} m cells and no value beyond {b} m of a sample.": "الحقول الفارغة تستخدم تباعد العينات: نحو {s} م بين العينات، أي خلايا {c} م ولا قيمة أبعد من {b} م عن أي عينة.",
-  "Grid to raster": "تشبيك إلى صورة نقطية"
+  "Grid to raster": "تشبيك إلى صورة نقطية",
+  "Type one or more levels, e.g. 0.01, 0.05, 0.1.": "اكتب مستوى أو أكثر، مثلاً 0.01، 0.05، 0.1.",
+  "None of those levels crosses the grid.": "لا يعبر أي من هذه المستويات الشبكة.",
+  "{name} contours ({levels} {unit})": "خطوط كنتور {name} ({levels} {unit})",
+  "Added {n} contour line(s) at {levels} {unit} to Maps > Boundaries{d}.": "أُضيف {n} خط كنتور عند {levels} {unit} إلى Maps > Boundaries{d}.",
+  "Contours": "خطوط الكنتور",
+  "Contour levels": "مستويات الكنتور",
+  "the grid's unit": "وحدة الشبكة",
+  "Levels in {unit}, lowest first; blank: the grid's 75th, 90th, 95th and 98th percentiles": "المستويات بوحدة {unit} من الأدنى؛ فارغ: المئينات 75 و90 و95 و98 للشبكة"
 }

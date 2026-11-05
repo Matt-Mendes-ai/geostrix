@@ -7,6 +7,7 @@
 // element's unit, so it is coloured with the log stretch (#1857) and its legend and identify read in ppm. Zero / negative values
 // cannot be logged and are counted out.
 import { idwGrid, suggestBlankingDistance } from "./idw.js";
+import { contourLevel } from "./contours.js";
 
 export const logByDefault = (unit) => /^(ppm|ppb|ppt|g\/t)$/i.test(String(unit || "").trim());
 
@@ -39,8 +40,11 @@ export function gridSamples(samples, symbol, { medium = "", log = false, cellM, 
   const cell = Number(cellM) > 0 ? Number(cellM) : (suggestSampleGrid(points)?.cellM ?? 25);
   let xmin = Infinity, ymin = Infinity, xmax = -Infinity, ymax = -Infinity;
   for (const p of points) { if (p.x < xmin) xmin = p.x; if (p.x > xmax) xmax = p.x; if (p.y < ymin) ymin = p.y; if (p.y > ymax) ymax = p.y; }
-  xmin = Math.floor(xmin / cell) * cell - cell; ymin = Math.floor(ymin / cell) * cell - cell;
-  xmax = Math.ceil(xmax / cell) * cell + cell; ymax = Math.ceil(ymax / cell) * cell + cell;
+  // Nodes on round multiples of the cell (cell edges half a cell off): a soil grid surveyed on round coordinates then has a node on
+  // every sample and IDW, an exact interpolator, keeps the sample's value there. With edges on round numbers the nodes sat half a
+  // cell off every sample and a lone 1.2 ppm sample gridded to 0.016 ppm under log10.
+  xmin = Math.floor(xmin / cell) * cell - 1.5 * cell; ymin = Math.floor(ymin / cell) * cell - 1.5 * cell;
+  xmax = Math.ceil(xmax / cell) * cell + 1.5 * cell; ymax = Math.ceil(ymax / cell) * cell + 1.5 * cell;
   const nx = Math.round((xmax - xmin) / cell), ny = Math.round((ymax - ymin) / cell);
   if (nx * ny > maxCells) return { error: "cells", nx, ny };
   const blank = blankM == null || blankM === "" ? (suggestBlankingDistance(points)?.distance ?? Infinity) : Number(blankM) > 0 ? Number(blankM) : Infinity;
@@ -52,4 +56,24 @@ export function gridSamples(samples, symbol, { medium = "", log = false, cellM, 
     bbox: [xmin, ymax - gridH * cell, xmin + gridW * cell, ymax],
     points: points.length, n, nonPositive, valid, blankM: Number.isFinite(blank) ? Math.round(blank) : null, cellM: cell,
   };
+}
+
+// TASKS.csv #1622 — contours of a gridded raster (any { nx, ny, x0, yTop, dx, dy } grid; blank nodes NaN stop the lines), with
+// lib/contours.js's marching squares, which takes node extents.
+export function gridNodes(grid, values) {
+  return { bbox: [grid.x0, grid.yTop - (grid.ny - 1) * grid.dy, grid.x0 + (grid.nx - 1) * grid.dx, grid.yTop], gridW: grid.nx, gridH: grid.ny, elevations: values };
+}
+// Starting levels: the grid's 75th, 90th, 95th and 98th percentiles (positive values) to two significant figures. The median was dropped:
+// on Lawyers' soil Au its line was most of 1,129 background loops; an anomaly map wants the upper tail.
+export function suggestedContourLevels(values) {
+  const v = [];
+  for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i]) && values[i] > 0) v.push(values[i]);
+  if (!v.length) return [];
+  v.sort((a, b) => a - b);
+  const at = (p) => v[Math.min(v.length - 1, Math.round(p * (v.length - 1)))];
+  return [...new Set([0.75, 0.9, 0.95, 0.98].map((p) => +at(p).toPrecision(2)))].sort((a, b) => a - b);
+}
+export function gridContours(grid, values, levels) {
+  const nodes = gridNodes(grid, values);
+  return (levels || []).map((level) => ({ level, polylines: contourLevel(nodes, level) })).filter((l) => l.polylines.length);
 }
