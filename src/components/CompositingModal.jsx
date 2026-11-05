@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
+import { customDomainOptions } from "../lib/customDomains.js"; // TASKS.csv #1678
 import { compositeDownhole, countDuplicateAssayIntervals, capAudit, capAuditText } from "../lib/geochem.js";
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import { excludeQAQC, labAssays } from "../lib/qaqc.js";
@@ -59,9 +60,12 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
   const qaqcExcludedCount = useMemo(() => assays.length - excludeQAQC(assays).length, [assays]);
   const compAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
 
+  const { customLayers = [] } = useStore(); // #1678 — custom-layer categories as domains
+  const customDomains = useMemo(() => customDomainOptions(customLayers), [customLayers]);
   const domainOptions = DOMAIN_LAYER_KEYS.filter((k) => (layers[k] || []).length > 0);
-  const domainRows = domainKey ? layers[domainKey] : null;
-  const domainMeta = domainKey ? LAYER_META[domainKey] : null;
+  const customDomain = customDomains.find((d) => d.key === domainKey) || null;
+  const domainRows = domainKey ? (customDomain ? customDomain.rows : layers[domainKey]) : null;
+  const domainMeta = domainKey ? (customDomain ? { label: customDomain.label } : LAYER_META[domainKey]) : null;
 
   const results = useMemo(() => {
     if (!symbol || length <= 0) return [];
@@ -136,6 +140,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
             <label style={fieldLabel} title={tr("Honour a domain layer's boundaries — a composite will never straddle a change in this layer's value, even if that makes it shorter than the target length.")}>{tr("Honour domain")}<select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={inp}>
                 <option value="">{tr("— none —")}</option>
                 {domainOptions.map((k) => <option key={k} value={k}>{LAYER_META[k].label}</option>)}
+                {customDomains.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}{/* #1678 */}
               </select>
             </label>
             <label style={fieldLabel} title={tr("Cap any single raw sample's grade at this value before it's folded into a composite average — applied per-sample, before compositing, matching standard practice.")}>{tr("High-grade cap ({unit})", { unit })}<input type="number" step="any" min="0" placeholder={tr("none")} value={capValue} onChange={(e) => setCapValue(e.target.value)} style={inp} />

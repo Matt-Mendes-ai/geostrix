@@ -1,0 +1,22 @@
+// TASKS.csv #1678 — custom-layer categories as domains; point layers are not offered
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { customDomainOptions } from "../src/lib/customDomains.js";
+
+test("an Oxidation-like layer gives its code column as a domain; numeric and free-text fields do not", () => {
+  const rows = [];
+  for (let i = 0; i < 26; i++) rows.push({ hole_id: `H${i % 5}`, from: i * 10, to: i * 10 + 10, value: ["O", "T", "S"][i % 3], Rock_Oxidation_Int: String(i % 4), Ox_Comments: `note ${i}` });
+  const opts = customDomainOptions([{ id: "ox", name: "Copley_2023_DH_Oxidation", rows }, { id: "swir", name: "SWIR", rows: [{ hole_id: "H", depth: 3, value: "Mu" }, { hole_id: "H", depth: 4, value: "Kao" }] }]);
+  assert.deepEqual(opts.map((o) => o.label), ["Copley_2023_DH_Oxidation · value"]);
+  assert.equal(opts[0].key, "custom:ox:value");
+  assert.equal(opts[0].rows.length, 26);
+  assert.deepEqual(opts[0].rows[1], { hole_id: "H1", from: 10, to: 20, value: "T" });
+});
+
+test("Grade stats and Compositing list them; Grade stats no longer offers point layers", () => {
+  const g = readFileSync(new URL("../src/components/GradeStatistics.jsx", import.meta.url), "utf8");
+  const c = readFileSync(new URL("../src/components/CompositingModal.jsx", import.meta.url), "utf8");
+  assert.ok(g.includes("customDomains.map((d) =>") && c.includes("customDomains.map((d) =>"));
+  assert.ok(g.includes('const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "structzone", "geotech"];'));
+});

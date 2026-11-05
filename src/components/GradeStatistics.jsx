@@ -17,7 +17,9 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 // distinct from the multi-element Correlation Matrix (#21) — this is ONE element's own distribution,
 // broken out by domain, not element-vs-element relationships.
 
-const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "structzone", "geotech", "magsusc", "structure"];
+// TASKS.csv #1515 / #1678 — interval layers only: magsusc and structure are point readings (no from / to), and as domains they gave
+// "(unclassified) 1537 / 0.15 1 / 0.515 1"
+const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "structzone", "geotech"];
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -27,6 +29,7 @@ import { weightedProbPoints, weightedPercentile, capEffect, thinToPixels } from 
 import { normalQuantile } from "../lib/thresholds.js";
 import { capAboveZone, capWarningText } from "../lib/capWarning.js"; // TASKS.csv #1676
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
+import { customDomainOptions } from "../lib/customDomains.js"; // TASKS.csv #1678
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
@@ -126,8 +129,12 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const qaqcExcludedCount = useMemo(() => assays.length - excludeQAQC(assays).length, [assays]);
   const statsAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
 
+  const { customLayers = [] } = useStore(); // #1678
+  const customDomains = useMemo(() => (source === "assays" ? customDomainOptions(customLayers) : []), [customLayers, source]);
   const domainOptions = source === "assays" ? DOMAIN_LAYER_KEYS.filter((k) => (layers[k] || []).length > 0) : [];
-  const domainRows = domainKey ? layers[domainKey] : null;
+  const customDomain = customDomains.find((d) => d.key === domainKey) || null;
+  const domainRows = domainKey ? (customDomain ? customDomain.rows : layers[domainKey]) : null;
+  const domainName = (k) => customDomains.find((d) => d.key === k)?.label || LAYER_META[k]?.label || k; // #1678
   const domainLabel = (v) => (domainKey === "litho" ? (UNIT_NAMES[v] || v) : v === "All" || v === "(unclassified)" ? tr(v) : v); // #786: the two built-in group names
 
   // Per-sample {value, domain} pairs — every row that has a real numeric value for the selected
@@ -208,7 +215,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
     const unit = (source === "surface" ? surfaceElementUnits[symbol] : elementUnits[symbol]) || "ppm";
     const rowsOut = gradeStatsRows(groups, { unit, label: (k) => (domainKey === "litho" ? domainLabel(k) : k), weighted: weightingActive }); // #1083 — rows in lib, tested
     const stamp = stampLines({ tool: "Grade statistics", version: APP_VERSION, epsg: project?.epsg, params: [
-      `Element: ${symbol} (${unit}) | source: ${source === "surface" ? "surface samples (one sample = weight 1)" : "drillhole assays"} | domains: ${domainKey ? (LAYER_META[domainKey]?.label || domainKey) : "none (all samples)"}`,
+      `Element: ${symbol} (${unit}) | source: ${source === "surface" ? "surface samples (one sample = weight 1)" : "drillhole assays"} | domains: ${domainKey ? domainName(domainKey) : "none (all samples)"}`,
       `Basis: ${weightingActive ? "length-weighted (interval length)" : "unweighted arithmetic"}; sample (n-1) variance`,
       ...(source === "surface" ? [] : [
         `QAQC inserts: ${includeQAQC ? "INCLUDED" : `excluded (${qaqcExcludedCount} rows)`}`,
@@ -266,6 +273,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
               <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Domain (optional)")}<select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
                   <option value="">{tr("— none, all intervals together —")}</option>
                   {domainOptions.map((k) => <option key={k} value={k}>{LAYER_META[k].label}</option>)}
+                  {customDomains.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}{/* #1678 */}
                 </select>
               </label>
             ) : (
