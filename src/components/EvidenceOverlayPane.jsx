@@ -10,7 +10,7 @@ import { pickDefaultReachM, medianSiteSpacing } from "../lib/evidenceSources.js"
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1449 / #1450
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
 import { evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, isOverlayOutput } from "../lib/evidence.js";
-import { cachedEvidence, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457
+import { cachedEvidence, evidenceDeps, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457, #1560
 import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, structureCodes, structureParts, rasterFloorZ, elementsWithValues, numericLayerFields, layerFieldPoints, zoneCodes, zoneParts } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
 import { categoricalModels } from "../lib/geologyForward.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";
@@ -146,7 +146,7 @@ export default function EvidenceOverlayPane({ onClose }) {
   // #1457 — through the cache: a reopened pane, or the same layer added again, reuses values computed from the same grid and data
   const computeValues = (src, opts = {}) => (grid ? cachedEvidence(
     `${gridSignature(grid)}|${src.kind}|${src.ref}|${src.how || ""}|${opts.field || ""}|${opts.value ?? ""}|${opts.reach || ""}|${opts.zMin ?? ""}|${opts.zMax ?? ""}`,
-    [rasters, mapLayers, surfaceSamples, surfaceElements, collars, survey, project?.desurveyMethod, assays, assayElements, voxelModels, geophysPts, structurePicks, projectLayers, customLayers],
+    evidenceDeps(src, opts, { rasters, mapLayers, surfaceSamples, surfaceElements, collars, survey, desurveyMethod: project?.desurveyMethod, assays, assayElements, voxelModels, geophysPts, structurePicks, projectLayers, customLayers }), // #1560: only what this source reads
     () => computeValuesNow(src, opts),
   ) : null);
   const computeValuesNow = (src, opts = {}) => {

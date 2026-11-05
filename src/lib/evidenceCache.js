@@ -23,5 +23,29 @@ export function cachedEvidence(key, deps, compute) {
   return values;
 }
 
+// TASKS.csv #1560 (review #1497, Lawyers) — the data a source reads, and nothing else: keyed on the whole project every layer
+// was recomputed when a raster's eye was toggled or a block model's display range edited (the reopen stalled 2.2-2.4 s instead
+// of ~0.5 s). A raster reads its grid, a map layer its features, a block model its cells (and the support cutoff), the logs
+// their rows; a visibility flag, a colour or a range lives on the parent object and never counts. The hole traces are the
+// collars, the survey and the desurvey method (the derived Map is rebuilt on every opening of the pane, the inputs are not).
+export function evidenceDeps(src, opts = {}, d = {}) {
+  const holes = [d.collars, d.survey, d.desurveyMethod];
+  switch (src.kind) {
+    case "raster": return [(d.rasters || []).find((r) => r.id === src.ref)?.grid];
+    case "distance": return [(d.mapLayers || []).find((l) => String(l.id) === String(src.ref))?.features];
+    case "element": case "index": return [d.surfaceSamples, d.surfaceElements];
+    case "survey": return [d.geophysPts];
+    case "voxel": { const m = (d.voxelModels || []).find((x) => (x.id ?? x.name) === src.ref); return [m?.cells, m?.supportCutoff, m?.method]; }
+    case "grade": case "pxrf": return [d.assays, d.assayElements, ...holes];
+    case "pick": return [d.structurePicks, ...holes];
+    case "numeric": {
+      const c = /^custom:(.+):[^:]+$/.exec(src.ref); if (c) return [(d.customLayers || []).find((l) => String(l.id) === c[1])?.rows, ...holes];
+      const k = src.ref.startsWith("coded:") ? src.ref.split(":")[1] : src.ref.split(":")[0]; return [d.projectLayers?.[k], ...holes];
+    }
+    case "zone": return [d.projectLayers?.[src.ref.slice(0, src.ref.indexOf(":"))], ...holes];
+    default: return [d.rasters, d.mapLayers, d.surfaceSamples, d.surfaceElements, d.assays, d.assayElements, d.voxelModels, d.geophysPts, d.structurePicks, d.projectLayers, d.customLayers, ...holes];
+  }
+}
+
 export const evidenceCacheSize = () => cache.size; // for tests
 export const clearEvidenceCache = () => cache.clear();
