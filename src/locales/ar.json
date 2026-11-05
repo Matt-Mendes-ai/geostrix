@@ -8155,5 +8155,6 @@
   "Skipped {n} line(s) of notes above the header row.": "تم تخطي {n} سطر من الملاحظات فوق صف العناوين.",
   "{n} row(s) with no easting / northing were left out (not QC inserts: their type was not standard, blank or duplicate).": "تُرك {n} صف بلا إحداثي شرقي / شمالي (ليست إدخالات ضبط جودة: نوعها لم يكن قياسيًا ولا فارغًا ولا مكررًا).",
   "The first row was a banner of group names over the field names: the second row is used as the header.": "كان الصف الأول شريطًا لأسماء المجموعات فوق أسماء الحقول: يُستخدم الصف الثاني كعناوين.",
-  "{n} row(s) with a blank hole id took the hole id of the row above, their depths continuing it: check them if the file is laid out otherwise.": "أخذ {n} صف بلا معرّف ثقب معرّف الصف الذي فوقه، لأن أعماقه تكمله: تحقّق منها إن كان الملف منظمًا بطريقة أخرى."
+  "{n} row(s) with a blank hole id took the hole id of the row above, their depths continuing it: check them if the file is laid out otherwise.": "أخذ {n} صف بلا معرّف ثقب معرّف الصف الذي فوقه، لأن أعماقه تكمله: تحقّق منها إن كان الملف منظمًا بطريقة أخرى.",
+  "Not imported from this drop: {names}. Dropped here, this tab reads CSV, GeoTIFF, GXF, XYZ and PLY / DXF; a UBC mesh and model go through Block models.": "لم يُستورد من هذا الإفلات: {names}. عند الإفلات هنا يقرأ هذا التبويب CSV وGeoTIFF وGXF وXYZ وPLY / DXF؛ أما شبكة ونموذج UBC فعبر نماذج الكتل."
 }

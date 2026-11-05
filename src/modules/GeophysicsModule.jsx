@@ -1245,6 +1245,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         // TASKS.csv #603 — a closed format (Geosoft .gdb / binary .grd, .dwg, Access) says how to get it out; such
         // files used to be ignored here without a word
         const advice = files.map((f) => unreadableFormatAdvice(f.name)).filter(Boolean);
+        // TASKS.csv #1667 — every other file this tab does not read is named too (a UBC .msh / .den went nowhere without a word)
+        const other = files.filter((f) => !/\.(csv|tiff?|gxf|ply|dxf|xyz)$/i.test(f.name) && !unreadableFormatAdvice(f.name)).map((f) => f.name);
+        if (other.length) advice.push(tr("Not imported from this drop: {names}. Dropped here, this tab reads CSV, GeoTIFF, GXF, XYZ and PLY / DXF; a UBC mesh and model go through Block models.", { names: other.slice(0, 6).join(", ") + (other.length > 6 ? " …" : "") }));
         if (advice.length) setRasterError({ info: true, text: advice.join(" ") });
         // A dropped .tif is ambiguous between a raster drape (#24) and a DEM (#77) — both are plain
         // georeferenced GeoTIFFs, nothing in the file format itself says which. Heuristic: a filename

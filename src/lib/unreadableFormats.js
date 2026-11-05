@@ -8,6 +8,9 @@ const ADVICE = [
   { re: /\.dwg$/i, what: "an AutoCAD drawing (.dwg, a closed format)", how: "save or export it as .dxf from AutoCAD, DWG TrueView or any CAD program, then drop that" },
   { re: /\.(mdb|accdb)$/i, what: "a Microsoft Access database", how: "export the collar, survey and interval tables to CSV (in Access: External Data > Text File), then drop those" },
   // TASKS.csv #1345 — 108 of these in the ARIS Sample Data folder (2004-2005 reports): the Excel 97-2003 binary format
+  // TASKS.csv #1667 (review #1646, Kodiak) — dropped on the Geophysics tab, these did nothing at all
+  { re: /\.(vtk|vtu|vtr|vts)$/i, what: "a VTK model", how: "import the same model as a UBC mesh + model, or as its XYZ / block-model CSV, under Geophysics > Block models (contractors deliver both)" },
+  { re: /\.edi$/i, what: "an MT / AMT sounding (.edi)", how: "GeoStrix has no magnetotelluric reader: import the inverted model (UBC mesh + model, or a block-model CSV) instead" },
   { re: /\.xls$/i, what: "an Excel 97-2003 workbook (.xls)", how: "open it in Excel or LibreOffice and save it as .xlsx (or each sheet as CSV), then drop that" },
 ];
 
