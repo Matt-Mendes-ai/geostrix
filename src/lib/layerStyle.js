@@ -53,6 +53,7 @@ export function cleanLayerStyle(style, kind) {
   const shapes = SHAPES[kind] || SHAPES.point;
   if (s.shape && s.shape !== shapes[0].id && shapes.some((x) => x.id === s.shape)) out.shape = s.shape;
   if (isHex(s.color)) out.color = s.color.toLowerCase();
+  if (typeof s.colourBy === "string" && s.colourBy && s.colourBy !== "value") out.colourBy = s.colourBy.slice(0, 120); // TASKS.csv #1697 — a custom layer's colour field
   return Object.keys(out).length ? out : null;
 }
 

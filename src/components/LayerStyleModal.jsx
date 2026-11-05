@@ -66,6 +66,14 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
             <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
               <input type="radio" name="colourMode" checked={!!st.color} onChange={() => onChange({ color: st.color || "#e8901a" })} />{" "}{tr("One colour")}<input type="color" value={st.color || "#e8901a"} onChange={(e) => onChange({ color: e.target.value })} aria-label={tr("Layer colour")} style={{ width: 34, height: 22, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "none" }} />
             </label>
+            {/* TASKS.csv #1697 — a custom layer: which field colours it (a number takes a ramp over its range, anything else its categories) */}
+            {target.fields?.length > 0 && !st.color && (
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Colour by")}
+                <select value={style?.colourBy || "value"} onChange={(e) => onChange({ colourBy: e.target.value === "value" ? null : e.target.value })} aria-label={tr("Field that colours the layer")} style={{ flex: 1, minWidth: 0, padding: "3px 6px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }}>
+                  {["value", ...target.fields.filter((f) => f !== "value")].map((f) => <option key={f} value={f}>{f === "value" ? tr("Value column") : f}</option>)}
+                </select>
+              </label>
+            )}
             {target.onEditColours && !st.color && (
               <button type="button" onClick={target.onEditColours} style={{ alignSelf: "flex-start", padding: "3px 8px", fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg-subtle)", color: "var(--color-text)", cursor: "pointer" }}>{tr("Edit legend colours…")}</button>
             )}

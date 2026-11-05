@@ -108,17 +108,8 @@ const StopesPane = React.lazy(() => import("../components/StopesPane.jsx")); // 
 import StopeRunRows from "./viewer/StopeRunRows.jsx"; // TASKS.csv #1968
 import { collarGround } from "../lib/pitShell.js"; // TASKS.csv #1616 — the estimate's ground without a terrain
 let solidSeq = 0; // TASKS.csv #1887 — distinct ids for solids added within one millisecond
-// TASKS.csv #1891 — what a pick in the view landed on, in a few words: the object's tip (its first line) or the kind of group it sits in
-const HIT_KINDS = { voxels: "a block model", terrain: "the terrain", implicit: "a generated surface", rasters: "a raster", omf: "an OMF object", planned: "a planned hole", mapLayers: "a map layer", sectionImages: "a section image", surface_samples: "a surface sample", assay: "an assay interval" };
-function hitLabel(obj) {
-  let kind = null;
-  for (let n = obj; n; n = n.parent) {
-    const tip = n.userData?.tip;
-    if (typeof tip === "string" && tip.trim()) { const line = tip.split("\n")[0].trim(); if (line.length <= 60) return line; const cut = line.lastIndexOf(" ", 60); return `${line.slice(0, cut > 20 ? cut : 60)}…`; } // cut at a word (#1943)
-    if (n.name && n.parent?.name === "root") kind = HIT_KINDS[n.name] || (LAYER_META[n.name] ? "a drillhole" : n.name);
-  }
-  return kind;
-}
+import { hitLabel } from "../lib/viewer/hitLabel.js"; // TASKS.csv #1891 (moved out, #1084 size cap)
+import { customColour, customLegendGroups, customFields } from "../lib/customColour.js"; // TASKS.csv #1697
 const DumpPane = React.lazy(() => import("../components/DumpPane.jsx")); // TASKS.csv #1880
 const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")); // TASKS.csv #1152
 const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
@@ -1997,6 +1988,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       ...assayLegendGroups({ assays, assayElements, assayVisible: assayVisible && collars.length > 0 /* #1813 */, assayDisplayElements, assayStyle }),
       ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), // #1236
       ...numericLayerLegendGroups({ layers, layerVisible, isRowVisible, colorOf: numericLayerColor, symbology: numericSymbology }), // #1398 — the RQD / recovery / SG / mag susc ramps
+      ...customLegendGroups(customLayers, customVisible, layerStyles), // #1697
     ];
     // TASKS.csv #843 / #948 — the surface samples as the view colours them (the anomaly map's rule and classes, one colour,
     // or by medium), then the Surface Geology map layers and the boundaries
@@ -2016,7 +2008,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       }
     }
     return groups;
-  }, [rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars]); // the last two: #1398; collars: #1813
+  }, [rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible]); // the last two: #1398; collars: #1813
 
   // TASKS.csv #453 — build the clipping planes from the slice settings over the drilled extent (hole
   // traces; the terrain bbox when there is no drilling). Vertical: across the azimuth line, position along
@@ -5169,18 +5161,18 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             // It was a TubeGeometry + material per row: Lawyers' 5 custom layers were 16,860 meshes, ~14,700 draw calls, 9 fps orbit.
             const dx = p2.x - p1.x, dy = p2.y - p1.y, dz = p2.z - p1.z, len = Math.sqrt(dx * dx + dy * dy + dz * dz);
             if (!(len > 1e-6)) return;
-            const mesh = new PickStandIn(INTERVAL_PROTO[stI.shape] || PROTO_CYLINDER, { color: stI.color || row.modelColor || hashColor(row.value), transparent: stI.opacity < 1, opacity: stI.opacity }); // #1500
+            const mesh = new PickStandIn(INTERVAL_PROTO[stI.shape] || PROTO_CYLINDER, { color: stI.color || row.modelColor || customColour(layer, layerStyles, row), transparent: stI.opacity < 1, opacity: stI.opacity }); // #1500; #1697
             mesh.scale.set(1.6 * stI.size, len, 1.6 * stI.size);
             mesh.position.set(p1.x, p1.y, p1.z);
             mesh.quaternion.setFromUnitVectors(PIN_AXIS, dipPinDir.set(dx / len, dy / len, dz / len));
-            mesh.userData = { row, tip: `${c.hole_id}\n${layer.name}: ${row.value}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m` };
+            mesh.userData = { row, tip: `${c.hole_id}\n${layer.name}: ${row.value ?? "—"}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m` };
             layer.group.add(mesh);
           } else if (row.depth != null && !isNaN(row.depth)) {
             const p = look.at(row.depth);
-            const mesh = new PickStandIn(POINT_PROTO[stP.shape], { color: stP.color || hashColor(row.value), transparent: stP.opacity < 1, opacity: stP.opacity, side: stP.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // TASKS.csv #312 — shared prototype + scale; #635 style; #1500 a stand-in
+            const mesh = new PickStandIn(POINT_PROTO[stP.shape], { color: stP.color || customColour(layer, layerStyles, row), transparent: stP.opacity < 1, opacity: stP.opacity, side: stP.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // TASKS.csv #312 — shared prototype + scale; #635 style; #1500 a stand-in
             mesh.scale.setScalar(2.4 * stP.size);
             mesh.position.set(p.x, p.y, p.z);
-            mesh.userData = { row, tip: `${c.hole_id}\n${layer.name}: ${row.value}\n@ ${row.depth.toFixed(0)} m` };
+            mesh.userData = { row, tip: `${c.hole_id}\n${layer.name}: ${row.value ?? "—"}\n@ ${row.depth.toFixed(0)} m` };
             layer.group.add(mesh);
           }
         });
@@ -6250,7 +6242,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   const openCustomStyle = (l) => {
     const intervals = (l.rows || []).filter((r) => r.to != null && !isNaN(r.to)).length;
     const kind = intervals >= (l.rows || []).length / 2 ? "interval" : "point";
-    setStyleTarget({ key: `custom:${l.id}`, kind, label: l.name, defaults: { opacity: 1 }, sizeNote: kind === "interval" ? tr("Default tube radius 1.6 m.") : tr("Default marker radius 2.4 m.") });
+    setStyleTarget({ key: `custom:${l.id}`, kind, label: l.name, fields: customFields(l) /* #1697 */, defaults: { opacity: 1 }, sizeNote: kind === "interval" ? tr("Default tube radius 1.6 m.") : tr("Default marker radius 2.4 m.") });
   };
   const openRowMenu = (e, title, items) => { e.preventDefault(); setRowMenu({ x: e.clientX, y: e.clientY, title, items: items.filter(Boolean) }); };
   const zoomToObject = (obj) => { if (obj) { const b = new THREE.Box3().setFromObject(obj); if (!b.isEmpty()) fitBox(b); } };

@@ -8149,5 +8149,7 @@
   "K/Al (molar)": "K/Al (molaire)",
   "K-feldspar / biotite": "feldspath K / biotite",
   "kaolinite": "kaolinite",
-  "alkali feldspar": "feldspath alcalin"
+  "alkali feldspar": "feldspath alcalin",
+  "Field that colours the layer": "Champ qui colore la couche",
+  "Value column": "Colonne de valeur"
 }

@@ -8149,5 +8149,7 @@
   "K/Al (molar)": "K/Al (مولي)",
   "K-feldspar / biotite": "فلسبار K / بيوتيت",
   "kaolinite": "كاولينيت",
-  "alkali feldspar": "فلسبار قلوي"
+  "alkali feldspar": "فلسبار قلوي",
+  "Field that colours the layer": "الحقل الذي يلوّن الطبقة",
+  "Value column": "عمود القيمة"
 }
