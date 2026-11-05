@@ -6,7 +6,7 @@
 // the same dependencies. No React here, so they run in Node with three (test/sceneBuilders693.test.mjs).
 import * as THREE from "three";
 import { sampleTerrainElevation } from "./geomath.js";
-import { drawMapLayer, mapStyleSignature, mapTextureSize, STRUCTURE_CLASS_COLORS, featureCategoryValue } from "../mapLayers.js"; // featureCategoryValue: #1601
+import { drawMapLayer, mapStyleSignature, mapTextureSize, STRUCTURE_CLASS_COLORS, layerCategoryValue } from "../mapLayers.js"; // featureCategoryValue: #1601
 import { decodeNoDataMask, isNoData } from "../demFill.js"; // TASKS.csv #421
 import { buildAdaptiveTerrain } from "../terrainMesh.js"; // TASKS.csv #796
 import { keyedCanvas } from "../rasterKey.js"; // TASKS.csv #1623
@@ -196,7 +196,7 @@ export function mapLayerAtOwnZ(l, origin) {
   const pos = [], col = [], c3 = new THREE.Color();
   const put = ([x, y, z], color) => { pos.push(x - ox, (Number.isFinite(z) ? z : l.elevation || 0) - oz, -(y - oy)); c3.set(color); col.push(c3.r, c3.g, c3.b); };
   for (const f of l.features || []) {
-    const cat = l.styleField ? (catByValue.get(featureCategoryValue(f, l.styleField)) || fallback) : fallback;
+    const cat = l.styleField ? (catByValue.get(layerCategoryValue(l, f)) || fallback) : fallback; // #1600
     if (cat.visible === false) continue;
     for (const part of f.parts || []) {
       if (l.geomType === "point") part.forEach((v) => put(v, cat.color));

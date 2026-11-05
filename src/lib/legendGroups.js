@@ -114,11 +114,12 @@ export function mapLayerLegendGroups(mapLayers) {
     const op = Number.isFinite(l.opacity) ? l.opacity : kind === "fill" ? 0.6 : 1;
     const o = op < 1 ? { kind, opacity: op } : { kind };
     // TASKS.csv #1157 — an interpretation layer carries every line type as a category: only the ones drawn are in the legend
-    const cats = l.styleField ? (l.categories || []).filter((c) => c.visible !== false && !(l.interpretation && !c.count)) : [];
+    const graduated = !!l.styleBreaks?.length; // TASKS.csv #1600 - classes of a numeric field: empty ones left out, the highest kept when rows run short
+    const cats = l.styleField ? (l.categories || []).filter((c) => c.visible !== false && !((l.interpretation || graduated) && !c.count)) : [];
     const items = cats.length
       ? cats.map((c) => [c.label ?? (c.value == null ? "(no value)" : String(c.value)), c.color, o])
       : [[l.name || "map layer", l.color || "#e2a63c", o]];
-    groups.push({ key: `map_${l.id ?? i}`, label: l.name || "Map layer", items });
+    groups.push({ key: `map_${l.id ?? i}`, label: l.name || "Map layer", items, ...(graduated && cats.length ? { grade: true } : {}) });
   });
   return groups;
 }

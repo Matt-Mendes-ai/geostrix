@@ -34,6 +34,7 @@ import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
 import { readGeoPackageNear, GPKG_IN_PLACE_BYTES } from "../lib/gpkgInPlace.js"; // TASKS.csv #1716
 import { canReadGpkgInPlace } from "../lib/desktop.js";
 import CoveringLayers from "./CoveringLayers.jsx"; // TASKS.csv #1823
+import { graduatedStyle, graduatedCategories, parseBreaks, isNumericField } from "../lib/mapGraduated.js"; // TASKS.csv #1600
 
 export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { // part: "maps" | "structures" | null = both (TASKS.csv #458)
   const {
@@ -263,7 +264,8 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       for (const t of tables) if (keep.has(t.name)) for (const q of t.items) addNow(q.parsed, q.sourceName, q.opts);
     }
     // TASKS.csv #1248 — a file no branch above takes vanished without a word
-    for (const f of files) if (!/\.(gpkg|zip|shp|shx|dbf|prj|cpg|sbn|sbx|qix|tab|map|id|dat|ind|mif|mid|gpx|geojson|json|kml|kmz|qml)$/i.test(f.name)) failed.push(tr("{name}: not a format this importer reads (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson, .kml, .kmz).", { name: f.name }));
+    for (const f of files) if (/\.(csv|txt|xlsx|xls)$/i.test(f.name)) failed.push(tr("{name}: a table, not a map layer. Sample points with coordinates (rock, soil, stream) go in Geochem > Surface samples; structural measurements in Outcrop structures.", { name: f.name })); // #1600
+    else if (!/\.(gpkg|zip|shp|shx|dbf|prj|cpg|sbn|sbx|qix|tab|map|id|dat|ind|mif|mid|gpx|geojson|json|kml|kmz|qml)$/i.test(f.name)) failed.push(tr("{name}: not a format this importer reads (.gpkg, .zip, .shp, .tab, .mif, .gpx, .geojson, .kml, .kmz).", { name: f.name }));
     if (qmlFiles.length && !files.some((f) => /\.(gpkg|zip|shp|tab|mif)$/i.test(f.name))) failed.push(tr("A .qml on its own doesn't import anything — use the .qml button on a layer's card to apply it to an existing layer."));
     setBusy(false);
     // #1325 — past a few layers the list is a wall of text: each layer's own note is under Map layers
@@ -286,8 +288,14 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
   };
 
   const changeStyleField = (layer, field) => {
-    updateMapLayer(layer.id, { styleField: field, categories: autoCategories(layer.features, field, autoColorFor()) });
+    const grad = graduatedStyle(layer.features, field); // TASKS.csv #1600 - a numeric field in classes
+    updateMapLayer(layer.id, grad ? { styleField: field, ...grad } : { styleField: field, styleBreaks: null, categories: autoCategories(layer.features, field, autoColorFor()) });
   };
+  const setBreaks = (layer, text) => { // #1600
+    const b = parseBreaks(text);
+    if (b.length) updateMapLayer(layer.id, { styleBreaks: b, categories: graduatedCategories(layer.features, layer.styleField, b) });
+  };
+  const eachValue = (layer) => updateMapLayer(layer.id, { styleBreaks: null, categories: autoCategories(layer.features, layer.styleField, autoColorFor()) });
 
   const readStructCsv = async (fileList) => {
     const all = Array.from(fileList || []);
@@ -466,6 +474,20 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
                   <Palette size={12} />{" "}{tr(".qml")}</button>
               </div>
             )}
+            {l.styleBreaks?.length > 0 && ( /* TASKS.csv #1600 - graduated classes, breaks typed lowest first */
+              <div style={row}>
+                <span style={lbl}>{tr("Classes")}</span>
+                <input key={l.styleBreaks.join(",")} defaultValue={l.styleBreaks.join(", ")} onBlur={(e) => setBreaks(l, e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                  title={tr("Class breaks, lowest first (e.g. 0.1, 0.5, 1, 5): each class runs from one break up to the next")} aria-label={tr("Class breaks")} style={select} />
+                <button onClick={() => eachValue(l)} title={tr("One colour per distinct value instead of classes")} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 7px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)", cursor: "pointer", flexShrink: 0 }}>{tr("Each value")}</button>
+              </div>
+            )}
+            {!l.styleBreaks?.length && l.categories?.length > 12 && isNumericField(l.features, l.styleField) && ( /* #1600 */
+              <div style={row}>
+                <span style={lbl} />
+                <button onClick={() => changeStyleField(l, l.styleField)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 7px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)", cursor: "pointer", flexShrink: 0 }}>{tr("Graduated classes")}</button>
+              </div>
+            )}
             {l.geomType === "polygon" && (
               <label style={{ ...row, cursor: "pointer" }}>
                 <input type="checkbox" checked={l.showOutlines !== false} onChange={(e) => updateMapLayer(l.id, { showOutlines: e.target.checked })} />
@@ -476,7 +498,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               <>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setOpenLegend((p) => ({ ...p, [l.id]: !legendOpen }))} style={{ ...row, cursor: "pointer", color: "var(--color-text-secondary)" }}>
                   {legendOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                  <span>{tr("Legend ({categories} {v})", { categories: l.categories.length, v: tr(l.categories.length === 1 ? "unit" : "units") })}</span>
+                  <span>{l.styleBreaks?.length ? tr("Legend ({n} classes)", { n: l.categories.length }) : tr("Legend ({categories} {v})", { categories: l.categories.length, v: tr(l.categories.length === 1 ? "unit" : "units") })}</span>
                   {!legendOpen && (
                     <span style={{ display: "flex", gap: 2, marginLeft: "auto", overflow: "hidden" }}>
                       {l.categories.slice(0, 14).map((c) => <span key={String(c.value)} style={{ width: 9, height: 9, borderRadius: 2, background: c.color, opacity: c.visible === false ? 0.25 : 1, flexShrink: 0 }} />)}

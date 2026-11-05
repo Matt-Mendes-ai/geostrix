@@ -8178,5 +8178,12 @@
   "Transparent colour": "لون شفاف",
   "This colour (and colours within a few shades of it) is not drawn": "لا يُرسم هذا اللون (ولا الألوان القريبة منه ببضع درجات)",
   "{p} % of the picture is white background, shown transparent (the raster card can turn this off).": "{p} % من الصورة خلفية بيضاء تُعرض شفافة (يمكن إيقاف ذلك من بطاقة النقطية).",
-  "{p} % of the picture is black background, shown transparent (the raster card can turn this off).": "{p} % من الصورة خلفية سوداء تُعرض شفافة (يمكن إيقاف ذلك من بطاقة النقطية)."
+  "{p} % of the picture is black background, shown transparent (the raster card can turn this off).": "{p} % من الصورة خلفية سوداء تُعرض شفافة (يمكن إيقاف ذلك من بطاقة النقطية).",
+  "Class breaks": "حدود الفئات",
+  "Class breaks, lowest first (e.g. 0.1, 0.5, 1, 5): each class runs from one break up to the next": "حدود الفئات من الأصغر إلى الأكبر (مثلاً 0.1، 0.5، 1، 5): تمتد كل فئة من حد إلى الحد التالي",
+  "Each value": "كل قيمة",
+  "One colour per distinct value instead of classes": "لون لكل قيمة مختلفة بدلاً من الفئات",
+  "Graduated classes": "فئات متدرجة",
+  "Legend ({n} classes)": "مفتاح الخريطة ({n} فئات)",
+  "{name}: a table, not a map layer. Sample points with coordinates (rock, soil, stream) go in Geochem > Surface samples; structural measurements in Outcrop structures.": "{name}: جدول وليس طبقة خريطة. نقاط العينات ذات الإحداثيات (صخور، تربة، رواسب) تُستورد من Geochem > Surface samples؛ والقياسات البنيوية من Outcrop structures."
 }

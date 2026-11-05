@@ -8178,5 +8178,12 @@
   "Transparent colour": "Color transparente",
   "This colour (and colours within a few shades of it) is not drawn": "Este color (y los que difieren pocos tonos de él) no se dibuja",
   "{p} % of the picture is white background, shown transparent (the raster card can turn this off).": "El {p} % de la imagen es fondo blanco, mostrado transparente (se puede desactivar en la tarjeta del ráster).",
-  "{p} % of the picture is black background, shown transparent (the raster card can turn this off).": "El {p} % de la imagen es fondo negro, mostrado transparente (se puede desactivar en la tarjeta del ráster)."
+  "{p} % of the picture is black background, shown transparent (the raster card can turn this off).": "El {p} % de la imagen es fondo negro, mostrado transparente (se puede desactivar en la tarjeta del ráster).",
+  "Class breaks": "Límites de clase",
+  "Class breaks, lowest first (e.g. 0.1, 0.5, 1, 5): each class runs from one break up to the next": "Límites de clase, de menor a mayor (p. ej. 0.1, 0.5, 1, 5): cada clase va de un límite al siguiente",
+  "Each value": "Cada valor",
+  "One colour per distinct value instead of classes": "Un color por cada valor distinto en lugar de clases",
+  "Graduated classes": "Clases graduadas",
+  "Legend ({n} classes)": "Leyenda ({n} clases)",
+  "{name}: a table, not a map layer. Sample points with coordinates (rock, soil, stream) go in Geochem > Surface samples; structural measurements in Outcrop structures.": "{name}: es una tabla, no una capa de mapa. Los puntos de muestreo con coordenadas (roca, suelo, sedimento) van en Geochem > Surface samples; las mediciones estructurales, en Outcrop structures."
 }

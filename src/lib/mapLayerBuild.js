@@ -3,6 +3,7 @@
 import { CATEGORICAL_SAFE_COLORS } from "./layers.js";
 import { reprojectXY, getProj4DefSync, prjRefusal, datumNote } from "./reproject.js";
 import { autoCategories, applyQmlToCategories, guessStyleField, normalizeMapLayer } from "./mapLayers.js";
+import { graduatedStyle } from "./mapGraduated.js"; // TASKS.csv #1600
 
 // A .qml names its attribute as QGIS saw it ("lith"); the same layer exported as a shapefile comes back
 // with DBF-uppercased names ("LITH"). Match case-insensitively and use the layer's own spelling.
@@ -70,12 +71,13 @@ export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverrid
   if (!norm.features.length) return null;
   const qmlField = findField(norm.fields, qml?.field);
   const styleField = qmlField || guessStyleField(norm.fields);
-  let categories = styleField ? autoCategories(norm.features, styleField, autoColorFor()) : [];
+  const grad = !qmlField ? graduatedStyle(norm.features, styleField) : null; // #1600 - a numeric field in classes, not one colour per value
+  let categories = grad ? grad.categories : styleField ? autoCategories(norm.features, styleField, autoColorFor()) : [];
   if (qml && qmlField) categories = applyQmlToCategories(categories, qml);
   return {
     name: norm.name && norm.name !== sourceName ? `${sourceName} — ${norm.name}` : sourceName,
     sourceName, geomType: norm.geomType, features: norm.features, fields: norm.fields, bbox: norm.bbox,
-    styleField, categories,
+    styleField, categories, ...(grad ? { styleBreaks: grad.styleBreaks } : {}),
     opacity: qml ? Math.max(0.15, qml.opacity) : (norm.geomType === "polygon" ? 0.6 : 1),
     sourceEpsg: src, crsNote, skipped: parsed.skippedCount || 0, ...(clipped ? { clipped } : {}), ...(norm.hasZ ? { hasZ: true } : {}), // hasZ: #1601
   };

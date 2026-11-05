@@ -16,6 +16,7 @@
 // the ground everywhere at the terrain's own resolution, costs one draw call however many polygons the
 // map has, and handles holes and multipart units for free via the even-odd fill rule. The cost is a
 // finite texel size, chosen per layer below (~1 m/px, capped).
+import { graduatedClassKey } from "./mapGraduated.js"; // TASKS.csv #1600
 
 // ---------- .qml (QGIS layer style) ----------
 
@@ -177,6 +178,10 @@ export function normalizeMapLayer(layer, transform = (x, y) => [x, y]) {
   };
 }
 
+// TASKS.csv #1600 - the category a feature is drawn in: its graduated class when the layer has breaks, else its value
+export function layerCategoryValue(layer, feature) {
+  return layer.styleBreaks?.length ? graduatedClassKey(feature.attributes?.[layer.styleField], layer.styleBreaks) : featureCategoryValue(feature, layer.styleField);
+}
 export function featureCategoryValue(feature, field) {
   const v = feature.attributes?.[field];
   return v == null || v === "" ? null : String(v);
@@ -210,7 +215,7 @@ export function drawMapLayer(ctx, layer, bbox, width, height) {
   ctx.clearRect(0, 0, width, height);
   let drawn = 0;
   const pass = (kind) => layer.features.forEach((f) => {
-    const cat = layer.styleField ? (catByValue.get(featureCategoryValue(f, layer.styleField)) || fallback) : fallback;
+    const cat = layer.styleField ? (catByValue.get(layerCategoryValue(layer, f)) || fallback) : fallback; // #1600
     if (cat.visible === false) return;
     if (layer.geomType === "polygon") {
       ctx.beginPath();
@@ -247,7 +252,7 @@ export function drawMapLayer(ctx, layer, bbox, width, height) {
 export function mapStyleSignature(layer) {
   // TASKS.csv #1152 — the vertex count too: an interpretation layer gains and loses lines after it is first drawn
   const vertices = (layer.features || []).reduce((n, f) => n + (f.parts || []).reduce((m, p) => m + p.length, 0), 0);
-  return JSON.stringify([layer.styleField, layer.showOutlines, layer.color, layer.lineWidthM, vertices, (layer.categories || []).map((c) => [c.value, c.color, c.outline, c.visible])]);
+  return JSON.stringify([layer.styleField, layer.styleBreaks || null, layer.showOutlines, layer.color, layer.lineWidthM, vertices, (layer.categories || []).map((c) => [c.value, c.color, c.outline, c.visible])]);
 }
 
 // ---------- contacts between mapped units ----------
