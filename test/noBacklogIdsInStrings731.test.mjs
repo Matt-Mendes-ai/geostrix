@@ -31,3 +31,11 @@ test("no backlog-style number (#123 / #1234) in a translated string", () => {
   const keys = Object.keys(JSON.parse(fs.readFileSync("src/locales/es.json", "utf8")));
   assert.deepEqual(keys.filter((k) => /#\d{3,4}\b/.test(k)), []);
 });
+
+// The translations too: the English keys lost their numbers (a151805e) while 18 translated values kept "(#642)" and the like.
+test("no backlog-style number in any translation", () => {
+  for (const l of ["es", "pt", "fr", "ar"]) {
+    const d = JSON.parse(fs.readFileSync(`src/locales/${l}.json`, "utf8"));
+    assert.deepEqual(Object.entries(d).filter(([, v]) => /#\d{3,4}\b/.test(v)).map(([k]) => k), [], l);
+  }
+});
