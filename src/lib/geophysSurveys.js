@@ -38,6 +38,7 @@ export const SURVEY_METHODS = {
   ip: { label: "IP chargeability", units: "mV/V", group: "el" },
   res: { label: "Resistivity", units: "Ω·m", group: "el" },
   sp: { label: "Self-potential", units: "mV", group: "el" },
+  magsus_downhole: { label: "Magnetic susceptibility (downhole readings, not a survey)", units: "×10⁻³ SI", group: "other" }, // TASKS.csv #1709 — an honest label for a log imported here
   other: { label: "Other", units: "", group: "other" },
 };
 // What the SimPEG inversion models: the measured total field and Bouguer gravity. A derivative or a filtered product is

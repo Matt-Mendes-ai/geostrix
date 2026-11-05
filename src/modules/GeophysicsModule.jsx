@@ -18,6 +18,7 @@ import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
 import { logStops, SEQUENTIAL_ANCHORS } from "../lib/inversion.js"; // TASKS.csv #481
 import { SURVEY_METHODS, unitsForMethod, robustRange, SURVEY_METHOD_GROUPS, guessSurveyMethodFrom, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
 import { terrainElevationAt } from "../lib/inversion.js";
+import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
 import { useStore } from "../lib/store.jsx";
 import { classifyBreaks, PALETTES, paletteColorsHex , colorForVoxelValue } from "../lib/layers.js";
@@ -327,9 +328,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         if (replacedN) reprojectNote += tr(" Replaced the {replacedN} point(s) of the earlier import of this file.", { replacedN: replacedN.toLocaleString() });
         const zNote = noZ ? tr(" {noZ} point(s) have no elevation: they are kept for modelling with \"sensor at a fixed height above terrain\", and are not drawn in 3D.", { noZ }) : ""; // #365
         const readNote = res.note ? ` ${res.note.trim()}` : ""; // #444 — comma decimals / encoding, said out loud
+        // TASKS.csv #1709 (review #1645, Copley) — 2,619 downhole susceptibility readings imported as a surface survey without a word
+        const dh = downholeLikeness(good, collars, terrain ? (x, y) => terrainElevationAt(terrain, x, y) : null);
+        const dhNote = dh?.isDownhole ? tr(" These look like downhole readings, not survey stations: {pct}% of the points sit more than 10 m below the {ground} (typically {med} m, up to {max} m). A point survey is read as the ground surface: gridding flattens every depth into one cell, and the inversion would take them as stations. Import such a log with the drillholes instead, and use the inversion's drillhole-constraint option; the survey is labelled \"downhole readings\" so the tools can say so.", { pct: Math.round(100 * dh.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(dh.medianDropM), max: Math.round(dh.maxDropM) }) : "";
+        if (dh?.isDownhole && !geophysSurveys[file.name]?.method) updateGeophysSurvey(file.name, { method: "magsus_downhole", units: SURVEY_METHODS.magsus_downhole.units });
         const others = cols.valueCandidates.filter((c) => c !== cols.value);
         const colNote = tr(" Columns: X = {x}, Y = {y}, Z = {v}, value = {value}{v2}.", { x: cols.x, y: cols.y, v: cols.z || "(none)", value: cols.value, v2: others.length ? tr(" (also looked like measurements: {others} — import again and pick one to use it instead)", { others: others.join(", ") }) : "" });
-        setError({ info: true, text: tr("Imported {good} point(s) from \"{name}\"{v}.{colNote}{zNote}{reprojectNote}{readNote}", { good: good.length.toLocaleString(), name: file.name, v: bad.length ? tr("; skipped {bad} row(s) missing x/y or a value", { bad: bad.length }) : "", colNote, zNote, reprojectNote, readNote }) });
+        setError({ info: true, text: tr("Imported {good} point(s) from \"{name}\"{v}.{colNote}{zNote}{reprojectNote}{readNote}{dhNote}", { dhNote, good: good.length.toLocaleString(), name: file.name, v: bad.length ? tr("; skipped {bad} row(s) missing x/y or a value", { bad: bad.length }) : "", colNote, zNote, reprojectNote, readNote }) });
     }).catch((err) => setError(tr("Could not parse {name}: {message}", { name: file.name, message: err.message })));
   };
 

@@ -30,7 +30,8 @@ import { orientationAt } from "../lib/mapLayers.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { constraintSamples, SUSC_UNITS } from "../lib/drillholeConstraints.js"; // TASKS.csv #323
 import { categoricalModels, modelUnits, unitMedians, modelBody } from "../lib/geologyForward.js"; // TASKS.csv #760
-import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { t as tr } from "../lib/i18n.js";
+import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709 // TASKS.csv #786
 import { SURVEY_METHODS, methodIsInvertible } from "../lib/geophysSurveys.js"; // TASKS.csv #1151
 
 const METHODS = {
@@ -104,6 +105,8 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   const running = job?.status?.state === "running";
   const xs = rows.map((r) => r.x), ys = rows.map((r) => r.y);
   const spacing = useMemo(() => (rows.length > 1 ? medianNearestSpacing(xs, ys) : null), [rows]);
+  // TASKS.csv #1709 — stations that sit down the holes are not survey stations (Copley's susceptibility log was offered as 2,619 TMI stations)
+  const downhole = useMemo(() => downholeLikeness(rows, collars, terrain ? (x, y) => terrainElevationAt(terrain, x, y) : null), [rows, collars, terrain]);
   const crsIssue = crsProblem(project?.epsg);
   const thinSuggestion = useMemo(() => (rows.length > MAX_STATIONS ? suggestThinSpacing(xs, ys) : null), [rows]);
 
@@ -131,6 +134,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     if (zMode === "drape" && !terrain) problems.push(tr("A terrain surface is needed to drape the stations on."));
     if (kind === "inversion" && !terrain) problems.push(tr("An inversion needs a terrain surface (Maps > Terrain) to know which cells are underground."));
     if (crsIssue) problems.push(crsIssue);
+    if (downhole?.isDownhole) problems.push(tr("These points are not survey stations: {pct}% of them sit more than 10 m below the {ground} (typically {med} m). A downhole log cannot be inverted as a surface survey; import it with the drillholes and use the drillhole-constraint option instead.", { pct: Math.round(100 * downhole.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(downhole.medianDropM) })); // #1709
     if (method === "mag") {
       if (!(num(field.strength) > 20000 && num(field.strength) < 70000)) problems.push(tr("Enter the field strength (nT, e.g. from IGRF for the survey date)."));
       if (!(Math.abs(num(field.inclination)) <= 90)) problems.push(tr("Enter the field inclination."));
@@ -401,6 +405,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
           {engine?.available && rows.length > 0 && (
             <>
               <div style={small}>{tr("{rows} survey stations loaded{v}. SimPEG {simpeg}.", { rows: rows.length.toLocaleString(), v: spacing ? tr(", median spacing {spacing} m", { spacing: spacing.toFixed(spacing < 10 ? 1 : 0) }) : "", simpeg: engine.simpeg })}</div>
+              {downhole?.isDownhole && <div style={{ ...small, color: "var(--color-warn-text)", marginBottom: 8 }}>{tr("These points are not survey stations: {pct}% of them sit more than 10 m below the {ground} (typically {med} m). A downhole log cannot be inverted as a surface survey; import it with the drillholes and use the drillhole-constraint option instead.", { pct: Math.round(100 * downhole.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(downhole.medianDropM) })}</div>}{/* #1709 */}
               {step(1, tr("Data"), <>
                 <div role="radiogroup" aria-label={tr("Survey type")} style={{ display: "flex", gap: 10, marginTop: 4 }}>
                   {Object.entries(METHODS).map(([k, m]) => (
