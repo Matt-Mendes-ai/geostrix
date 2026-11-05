@@ -229,6 +229,17 @@ export function duplicateKind(row) {
 // The lab's detection limit for an element, from the data: a '<x' result is stored at x/2 with qualifier '<', so the
 // most common doubled value among those IS the reported limit ({ basis: "lt" }); with none, the lowest positive value
 // is an upper bound on it ({ basis: "min" }). In the element's own unit. { limit: null } when nothing is assayed.
+// TASKS.csv #1520 (review #1497, Lawyers) — a censoring floor: half-detection-limit values already substituted in the source file sit
+// on one repeated minimum (Au 0.0005 ppm: 20 % of the soils, 17 % of the drill assays, Au-ICP21's limit 0.001 halved). When the
+// smallest positive value holds at least minShare of them it is that floor: { floor, n, share, dl: 2 x floor }, else null.
+export function censoringFloor(values, { minShare = 0.05 } = {}) {
+  let min = Infinity, nPos = 0;
+  for (const v of values || []) if (typeof v === "number" && v > 0) { nPos++; if (v < min) min = v; }
+  if (!nPos || !Number.isFinite(min)) return null;
+  let n = 0;
+  for (const v of values) if (typeof v === "number" && Math.abs(v - min) <= min * 1e-9) n++;
+  return n >= 20 && n / nPos >= minShare ? { floor: min, n, share: n / nPos, dl: Math.round(min * 2 * 1e9) / 1e9 } : null;
+}
 export function suggestDetectionLimit(assays, symbol) {
   const counts = new Map();
   let minPos = Infinity;
@@ -239,6 +250,9 @@ export function suggestDetectionLimit(assays, symbol) {
     else if (v < minPos) minPos = v;
   }
   if (counts.size) { let best = null, n = -1; counts.forEach((c, x) => { if (c > n || (c === n && x < best)) { best = x; n = c; } }); return { limit: best, basis: "lt", n }; }
+  // #1520 — no '<' results, but a floor holding a share of the values: half the limit was substituted before import
+  const fl = censoringFloor((assays || []).map((a) => a?.values?.[symbol]));
+  if (fl) return { limit: fl.dl, basis: "floor", floor: fl.floor, n: fl.n, share: fl.share };
   return Number.isFinite(minPos) ? { limit: minPos, basis: "min" } : { limit: null, basis: null };
 }
 // Control-chart order: by sample id (natural order: S9 before S10) when every insertion has one — the order the lab

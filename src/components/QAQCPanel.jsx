@@ -127,7 +127,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
             </label>
             {dlSuggestion.limit != null && dlSuggestion.limit !== dl && (
               <button type="button" onClick={() => setDetectionLimit(dlSuggestion.limit)} style={{ ...tabBtn, alignSelf: "flex-end" }} title={dlSuggestion.basis === "lt" ? tr("The lab reported {n} result(s) as '<{limit}'", { n: dlSuggestion.n, limit: dlSuggestion.limit }) : tr("No '<x' results: the lowest reported value (an upper bound on the limit)")}>
-                {dlSuggestion.basis === "lt" ? tr("Use the lab's <{limit}", { limit: dlSuggestion.limit }) : tr("Use the lowest value {limit}", { limit: dlSuggestion.limit })}
+                {dlSuggestion.basis === "lt" ? tr("Use the lab's <{limit}", { limit: dlSuggestion.limit }) : dlSuggestion.basis === "floor" ? tr("Use {limit}: twice the {floor} floor that {pct} % of the results sit on (half the limit substituted before import)", { limit: dlSuggestion.limit, floor: dlSuggestion.floor, pct: Math.round(dlSuggestion.share * 100) }) : tr("Use the lowest value {limit}", { limit: dlSuggestion.limit })}
               </button>
             )}
             <div style={{ display: "flex", gap: 4 }}>

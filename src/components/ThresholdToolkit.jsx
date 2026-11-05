@@ -7,6 +7,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { valueIn } from "../lib/geochem.js";
 import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, normalQuantile, hasMixedSources } from "../lib/thresholds.js";
+import { censoringFloor } from "../lib/qaqc.js"; // TASKS.csv #1520
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { saveFile } from "../lib/desktop.js";
@@ -34,11 +35,13 @@ export default function ThresholdToolkit({ surfaceSamples, surfaceElements, mapL
   useEffect(() => { if (saved) { setGroupBy(gOpts.some((o) => o.value === saved.groupBy) ? saved.groupBy : "none"); setMethod(saved.method); } }, [symbol]); // re-read the saved rule when the element changes
 
   const unit = units[symbol] || "ppm";
+  // TASKS.csv #1520 — values on a censoring floor (half the limit substituted in the file) count as <DL, as flagged ones do
+  const floor = useMemo(() => censoringFloor(surfaceSamples.map((s) => valueIn(s, symbol, unit, units))), [surfaceSamples, symbol, unit, units]);
   const pops = useMemo(() => {
     const keyOf = groupKeyFn(groupBy, mapLayers, surfaceSamples); // samples: #1796 — split by medium
-    return populations(surfaceSamples, { valueOf: (s) => valueIn(s, symbol, unit, units), censoredOf: (s) => !!s.bdl?.includes(symbol), zeroOf: (s) => !!s.nd?.includes(symbol), keyOf }) // zeroOf: #931
+    return populations(surfaceSamples, { valueOf: (s) => valueIn(s, symbol, unit, units), censoredOf: (s) => !!s.bdl?.includes(symbol) || (floor != null && Math.abs(valueIn(s, symbol, unit, units) - floor.floor) <= floor.floor * 1e-9), zeroOf: (s) => !!s.nd?.includes(symbol), keyOf }) // zeroOf: #931
       .map((p) => ({ ...p, cand: candidateThresholds(p.summary) }));
-  }, [surfaceSamples, symbol, unit, units, groupBy, mapLayers]);
+  }, [surfaceSamples, symbol, unit, units, groupBy, mapLayers, floor]);
   const [viewKey, setViewKey] = useState(null);
   const view = pops.find((p) => p.key === viewKey) || pops[0] || null;
   const groupLabel = (k) => (k === "All" ? tr("All samples") : k);
@@ -124,6 +127,7 @@ export default function ThresholdToolkit({ surfaceSamples, surfaceElements, mapL
               </div>
               <div style={note}>{tr("Values in {unit}. Click a column to choose its rule, a row to plot that population. Robust rules need at least {a} samples; the probability-plot break needs {b} and is suggested only where the plot really bends.", { unit, a: MIN_N_ROBUST, b: MIN_N_BREAKS })}</div>
               {view && view.zero > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{zero} {symbol} result(s) in \"{pop}\" were reported as 0 by the source (below detection or not analysed: the layer does not say). They are left out of n and of every threshold here; if they are below detection, the thresholds read high.", { zero: view.zero, symbol, pop: groupLabel(view.key) })}</div>}
+              {floor && <div style={note}>{tr("{pct} % of the {el} values sit on {floor} {unit}, probably half the detection limit {dl} substituted before import: counted as <DL.", { pct: Math.round(floor.share * 100), el: symbol, floor: floor.floor, unit, dl: floor.dl })}</div>}{/* #1520 */}
               {view && view.summary.censoredPct > 30 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("{pct}% of {symbol} in \"{pop}\" is below detection: its statistics are mostly about the detection limit.", { pct: Math.round(view.summary.censoredPct), symbol, pop: groupLabel(view.key) })}</div>}
 
               {view && (

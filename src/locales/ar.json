@@ -8263,5 +8263,7 @@
   "{list}: the picks show no preferred orientation (at the level of random planes), so the fault surface made from them is not a real plane. Run the stack anyway?": "{list}: لا تُظهر النقاط اتجاهاً مفضلاً (بمستوى المستويات العشوائية)، لذا سطح الصدع المصنوع منها ليس مستوى حقيقياً. تشغيل التكديس على أي حال؟",
   "Stack run cancelled before solving: check the fault picks on the Stereonet, or give each structure its own name / ID.": "أُلغي تشغيل التكديس قبل الحل: افحص نقاط الصدع على الشبكة المجسمة، أو أعطِ كل بنية اسمها أو معرّفها الخاص.",
   " · k {k}, no preferred orientation": " · k {k}، بلا اتجاه مفضل",
-  " · k {k}": " · k {k}"
+  " · k {k}": " · k {k}",
+  "Use {limit}: twice the {floor} floor that {pct} % of the results sit on (half the limit substituted before import)": "استخدام {limit}: ضعف الحد الأدنى {floor} الذي تقع عليه {pct} % من النتائج (نصف الحد مُستبدل قبل الاستيراد)",
+  "{pct} % of the {el} values sit on {floor} {unit}, probably half the detection limit {dl} substituted before import: counted as <DL.": "{pct} % من قيم {el} تقع عند {floor} {unit}، على الأرجح نصف حد الكشف {dl} مُستبدلاً قبل الاستيراد: تُحسب أقل من حد الكشف."
 }

@@ -303,10 +303,16 @@ export const PROVISIONAL_ALTERATION_BOXES = {
 };
 const PROTOLITH_SHORT = { rhyolite: "RHY", dacite: "DAC", andesite: "AND", basalt: "BAS" };
 // A starting guess from a logged code (editable per code in the app).
+// TASKS.csv #1517 (review #1497, Lawyers) — a sedimentary or cover code never guesses a volcanic protolith ('Sand' matched /and/ and became
+// andesite, dolomite /dol/ basalt); dolerite is named; 'Intermed' / intermediate / latite / trachyandesite guess andesite (83,426 of
+// Lawyers' 83,670 samples, the Toodoggone latite-andesite host logged V-Hbl-Intermed etc., were left unclassified).
+const SEDIMENT_WORDS = /\b(sand|sands|gravel|till|silt|mud|clay|shale|chert|marl|ovb|overburden|cas|casing|carb|carbonate)\b|sandst|siltst|mudst|limest|dolom|dolost|conglom|greywack|graywack/;
 export function guessProtolith(code) {
-  const c = String(code || "").toLowerCase();
-  if (/bas|bsl|gab|dol|mafic|^mv/.test(c)) return "basalt";
-  if (/and/.test(c)) return "andesite";
+  const c = String(code || "").toLowerCase().trim();
+  if (!c || isSedimentaryCode(c) || SEDIMENT_WORDS.test(c)) return null;
+  if (/doler/.test(c)) return "basalt";
+  if (/bas|bsl|gab|mafic|^mv/.test(c)) return "basalt";
+  if (/^and|\band\b|andes|intermed|latit|trachyand/.test(c)) return "andesite";
   if (/dac/.test(c)) return "dacite";
   if (/rhy|fel|qfp|qp/.test(c)) return "rhyolite";
   return null;
