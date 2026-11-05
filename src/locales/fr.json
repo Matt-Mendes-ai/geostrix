@@ -1882,7 +1882,6 @@
   "(unclassified)": "(non classé)",
   "Cap at the length-weighted": "Plafonner à la moyenne pondérée par la longueur",
   "Length-weighted: a 10 m sample counts ten times a 1 m sample": "Pondérée par la longueur : un échantillon de 10 m compte dix fois un échantillon de 1 m",
-  "That is a lot of metal for a cap to remove — check the cap against the grade distribution and the geology.": "C'est beaucoup de métal retiré par un plafond — vérifiez le plafond par rapport à la distribution des teneurs et à la géologie.",
   "mean": "moyenne",
   "Enter a search radius (m).": "Saisissez un rayon de recherche (m).",
   "The lines have no cells above their support cutoff.": "Les lignes n'ont aucune cellule au-dessus de leur seuil de support.",
@@ -6978,7 +6977,6 @@
   "The interval layers shown in the 3D View are offered here: turn a layer on there (Recovery %, for example) to colour the plan by it": "Les couches d'intervalles affichées dans la vue 3D sont proposées ici : activez-en une là-bas (Récupération %, par exemple) pour colorer le plan selon elle",
   "Log-probability plot — {symbol} ({v}){v2}": "Diagramme de probabilité logarithmique — {symbol} ({v}){v2}",
   ", length-weighted": ", pondéré par la longueur",
-  "P97.5 = {a}, P99 = {b} {unit} (the caps Compositing suggests)": "P97.5 = {a}, P99 = {b} {unit} (les plafonds que propose Composites)",
   "Cap to test": "Plafond à tester",
   "{above} of {n} samples above it; {pct}% of the metal (grade × length) removed": "{above} échantillons sur {n} au-dessus ; {pct} % du métal (teneur × longueur) retiré",
   "{above} of {n} samples above it": "{above} échantillons sur {n} au-dessus",
@@ -8127,5 +8125,9 @@
   "Picked on \"{model}\": the block there is {prop} {v}. The pick sits on that block's face, where the model is drawn at its current range, not on an interpolated value.": "Pointé sur « {model} » : le bloc à cet endroit vaut {prop} {v}. Le pointé est sur la face de ce bloc, là où le modèle est dessiné à sa plage actuelle, pas sur une valeur interpolée.",
   "Also drawn over the map": "Aussi dessiné sur la carte",
   "Raster": "Raster",
-  "Block models and rasters can hide the map in the view. Untick one to see the map under it; the 3D View's layer list shows the same setting.": "Les modèles de blocs et les rasters peuvent masquer la carte dans la vue. Décochez-en un pour voir la carte dessous ; la liste des couches de la Vue 3D montre le même réglage."
+  "Block models and rasters can hide the map in the view. Untick one to see the map under it; the 3D View's layer list shows the same setting.": "Les modèles de blocs et les rasters peuvent masquer la carte dans la vue. Décochez-en un pour voir la carte dessous ; la liste des couches de la Vue 3D montre le même réglage.",
+  "P97.5 = {a}, P99 = {b} {unit} (the percentiles Compositing offers as caps)": "P97.5 = {a}, P99 = {b} {unit} (les centiles que le Composite propose comme écrêtages)",
+  "This cap removes {pct}% of the metal, more than a cap on scattered outliers usually does.": "Cet écrêtage retire {pct} % du métal, plus qu’un écrêtage de valeurs aberrantes isolées n’en retire d’habitude.",
+  "The values above it form a coherent zone ({hole} {from}–{to} m, {k} of {n} samples), not scattered outliers. Domain the mineralized zone and cap within it.": "Les valeurs au-dessus forment une zone cohérente ({hole} {from}–{to} m, {k} sur {n} échantillons), pas des valeurs aberrantes isolées. Faites un domaine de la zone minéralisée et écrêtez à l’intérieur.",
+  "Check on the log-probability plot whether the values above it are a separate population; if so, domain it first and cap within it.": "Vérifiez sur le graphique log-probabilité si les valeurs au-dessus forment une population distincte ; si oui, faites-en d’abord un domaine et écrêtez à l’intérieur."
 }

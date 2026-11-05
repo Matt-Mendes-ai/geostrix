@@ -1882,7 +1882,6 @@
   "(unclassified)": "(غير مصنف)",
   "Cap at the length-weighted": "السقف عند المرجّح بالطول",
   "Length-weighted: a 10 m sample counts ten times a 1 m sample": "مرجّح بالطول: عينة 10 م تُحسب عشرة أضعاف عينة 1 م",
-  "That is a lot of metal for a cap to remove — check the cap against the grade distribution and the geology.": "هذه كمية كبيرة من المعدن يزيلها السقف — راجع السقف مقابل توزيع المحتوى والجيولوجيا.",
   "mean": "المتوسط",
   "Enter a search radius (m).": "أدخل نصف قطر البحث (م).",
   "The lines have no cells above their support cutoff.": "لا خلايا في الخطوط فوق حد الدعم الخاص بها.",
@@ -6978,7 +6977,6 @@
   "The interval layers shown in the 3D View are offered here: turn a layer on there (Recovery %, for example) to colour the plan by it": "تُعرض هنا طبقات الفترات الظاهرة في العرض ثلاثي الأبعاد: فعّل طبقة هناك (نسبة الاسترجاع مثلًا) لتلوين المسقط بها",
   "Log-probability plot — {symbol} ({v}){v2}": "مخطط الاحتمال اللوغاريتمي — {symbol} ({v}){v2}",
   ", length-weighted": "، مرجّح بالطول",
-  "P97.5 = {a}, P99 = {b} {unit} (the caps Compositing suggests)": "P97.5 = {a}، P99 = {b} {unit} (حدود القطع التي تقترحها أداة التركيب)",
   "Cap to test": "حد قطع للاختبار",
   "{above} of {n} samples above it; {pct}% of the metal (grade × length) removed": "{above} من {n} عينة فوقه؛ يُزال {pct}% من الفلز (المحتوى × الطول)",
   "{above} of {n} samples above it": "{above} من {n} عينة فوقه",
@@ -8127,5 +8125,9 @@
   "Picked on \"{model}\": the block there is {prop} {v}. The pick sits on that block's face, where the model is drawn at its current range, not on an interpolated value.": "نقطة على \"{model}\": الكتلة هناك {prop} {v}. تقع النقطة على وجه تلك الكتلة، حيث يُرسم النموذج بنطاقه الحالي، لا على قيمة مستكملة.",
   "Also drawn over the map": "مرسوم أيضًا فوق الخريطة",
   "Raster": "نقطية",
-  "Block models and rasters can hide the map in the view. Untick one to see the map under it; the 3D View's layer list shows the same setting.": "قد تحجب نماذج الكتل والطبقات النقطية الخريطة في العرض. ألغِ تحديد أحدها لترى الخريطة تحته؛ وتعرض قائمة طبقات العرض ثلاثي الأبعاد الإعداد نفسه."
+  "Block models and rasters can hide the map in the view. Untick one to see the map under it; the 3D View's layer list shows the same setting.": "قد تحجب نماذج الكتل والطبقات النقطية الخريطة في العرض. ألغِ تحديد أحدها لترى الخريطة تحته؛ وتعرض قائمة طبقات العرض ثلاثي الأبعاد الإعداد نفسه.",
+  "P97.5 = {a}, P99 = {b} {unit} (the percentiles Compositing offers as caps)": "P97.5 = {a}، P99 = {b} {unit} (المئينات التي يعرضها التركيب كحدود قص)",
+  "This cap removes {pct}% of the metal, more than a cap on scattered outliers usually does.": "يزيل هذا القص {pct}% من المعدن، أكثر مما يزيله عادةً قص القيم الشاذة المتفرقة.",
+  "The values above it form a coherent zone ({hole} {from}–{to} m, {k} of {n} samples), not scattered outliers. Domain the mineralized zone and cap within it.": "القيم فوقه تشكل نطاقًا متماسكًا ({hole} {from}–{to} م، {k} من {n} عينة)، لا قيمًا شاذة متفرقة. اجعل النطاق المتمعدن مجالًا مستقلًا وطبّق القص داخله.",
+  "Check on the log-probability plot whether the values above it are a separate population; if so, domain it first and cap within it.": "تحقق في مخطط الاحتمال اللوغاريتمي مما إذا كانت القيم فوقه مجتمعًا منفصلًا؛ وإن كانت، فاجعلها مجالًا أولًا وطبّق القص داخله."
 }

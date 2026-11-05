@@ -25,6 +25,7 @@ import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every ex
 import { gradeStatsRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
 import { weightedProbPoints, weightedPercentile, capEffect, thinToPixels } from "../lib/probPlot.js"; // TASKS.csv #1388; thinToPixels: #1512
 import { normalQuantile } from "../lib/thresholds.js";
+import { capAboveZone, capWarningText } from "../lib/capWarning.js"; // TASKS.csv #1676
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
@@ -177,6 +178,8 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   }, [rows, groups, weightingActive]);
   const capValue = capTest === "" ? null : Number(capTest);
   const capFx = Number.isFinite(capValue) && capValue > 0 ? capEffect(prob.vs, prob.ws, capValue) : null;
+  // #1676 — the warning Compositing gives, with the zone the capped samples form (drillhole assays only: surface samples have no depth)
+  const capWarn = useMemo(() => (capFx ? capWarningText(capFx.pctMetalRemoved, source === "assays" ? capAboveZone(resolvedSegments(statsAssays, symbol, elementUnits[symbol] || "ppm", elementUnits), capValue) : null) : ""), [capFx?.pctMetalRemoved, capValue, source, statsAssays, symbol, elementUnits]);
   const allValues = rows.map((r) => r.value);
   const overallStats = useMemo(() => computeStats(allValues, weightingActive ? rows.map((r) => r.weight) : null), [rows, allValues, weightingActive]);
 
@@ -303,10 +306,11 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                 <div style={label}>{tr("Log-probability plot — {symbol} ({v}){v2}", { symbol, v: elementUnits[symbol] || tr("ppm"), v2: weightingActive ? tr(", length-weighted") : "" })}</div>
                 <ProbPlot prob={prob} cap={capFx ? capValue : null} domainLabel={domainLabel} unit={elementUnits[symbol] || "ppm"} />
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>
-                  <span>{tr("P97.5 = {a}, P99 = {b} {unit} (the caps Compositing suggests)", { a: gradeText(prob.p975), b: gradeText(prob.p99), unit: elementUnits[symbol] || "ppm" })}</span>
+                  <span>{tr("P97.5 = {a}, P99 = {b} {unit} (the percentiles Compositing offers as caps)", { a: gradeText(prob.p975), b: gradeText(prob.p99), unit: elementUnits[symbol] || "ppm" })}</span>
                   <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Cap to test")}<input type="number" min="0" step="any" value={capTest} onChange={(e) => setCapTest(e.target.value)} style={{ ...sel, width: 80 }} aria-label={tr("Cap to test")} /></label>
                   {capFx && <span>{weightingActive ? tr("{above} of {n} samples above it; {pct}% of the metal (grade × length) removed", { above: capFx.above, n: capFx.n, pct: capFx.pctMetalRemoved.toFixed(1) }) : tr("{above} of {n} samples above it", { above: capFx.above, n: capFx.n })}</span>}
                 </div>
+                {capWarn && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text-strong)", marginTop: 3, lineHeight: 1.4 }}>{capWarn}</div>}{/* #1676 */}
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 2, lineHeight: 1.4 }}>{tr("Each population plots as a straight line on these axes (log-normal); a bend or a step in the high tail is where a second population starts, the usual place to cap (Sinclair 1976). Values of 0 count in the cumulative % but cannot be drawn on a log axis.")}</div>
               </div>
 

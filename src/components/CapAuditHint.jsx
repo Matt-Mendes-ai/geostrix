@@ -2,7 +2,8 @@
 // cap is applied to — QC inserts already excluded by the caller) and the audit a reviewer needs to judge the cap:
 // how many samples it cuts and what share of the metal it removes.
 import React, { useMemo } from "react";
-import { capAudit, capAuditText, lengthWeightedPercentile } from "../lib/geochem.js";
+import { capAudit, capAuditText, lengthWeightedPercentile, resolvedSegments } from "../lib/geochem.js";
+import { capAboveZone, capWarningText, CAP_WARN_PCT } from "../lib/capWarning.js"; // TASKS.csv #1676
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const fmt = (v) => (v == null ? "—" : Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 1 ? v.toFixed(2) : v.toPrecision(3));
@@ -10,6 +11,7 @@ const fmt = (v) => (v == null ? "—" : Math.abs(v) >= 100 ? v.toFixed(0) : Math
 export default function CapAuditHint({ assays, symbol, unit, elementUnits, capValue, onSetCap, unitLabel }) {
   const pcts = useMemo(() => (symbol ? { p975: lengthWeightedPercentile(assays, symbol, unit, elementUnits, 97.5), p99: lengthWeightedPercentile(assays, symbol, unit, elementUnits, 99) } : null), [assays, symbol, unit, elementUnits]);
   const audit = useMemo(() => (symbol && capValue != null && capValue > 0 ? capAudit(assays, symbol, unit, elementUnits, capValue) : null), [assays, symbol, unit, elementUnits, capValue]);
+  const warn = useMemo(() => (audit && audit.pctMetalRemoved > CAP_WARN_PCT ? capWarningText(audit.pctMetalRemoved, capAboveZone(resolvedSegments(assays, symbol, unit, elementUnits), audit.capValue)) : ""), [audit, assays, symbol, unit, elementUnits]); // #1676
   if (!pcts) return null;
   const btn = { background: "none", border: "1px solid var(--color-border)", borderRadius: 4, padding: "1px 6px", cursor: "pointer", fontSize: "var(--font-size-sm)", color: "var(--color-text)", fontFamily: "inherit" };
   return (
@@ -21,8 +23,8 @@ export default function CapAuditHint({ assays, symbol, unit, elementUnits, capVa
         <span style={{ color: "var(--color-text-muted)" }}>{unitLabel || unit}</span>
       </div>
       {audit && (
-        <div role="status" style={{ color: audit.pctMetalRemoved > 20 ? "var(--color-warn-text-strong)" : "var(--color-text-secondary)" }}>
-          {capAuditText(audit, unitLabel || unit)}.{audit.pctMetalRemoved > 20 ? " " + tr("That is a lot of metal for a cap to remove — check the cap against the grade distribution and the geology.") : ""}
+        <div role="status" style={{ color: warn ? "var(--color-warn-text-strong)" : "var(--color-text-secondary)" }}>
+          {capAuditText(audit, unitLabel || unit)}.{warn ? " " + warn : ""}{/* #1676 — the same warning as Grade stats, from 10 % */}
         </div>
       )}
     </div>

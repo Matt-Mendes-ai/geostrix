@@ -1882,7 +1882,6 @@
   "(unclassified)": "(sin clasificar)",
   "Cap at the length-weighted": "Recortar en el percentil ponderado por largo",
   "Length-weighted: a 10 m sample counts ten times a 1 m sample": "Ponderado por largo: una muestra de 10 m cuenta diez veces lo que una de 1 m",
-  "That is a lot of metal for a cap to remove — check the cap against the grade distribution and the geology.": "Es mucho metal para que lo quite un recorte — contraste el recorte con la distribución de leyes y la geología.",
   "mean": "media",
   "Enter a search radius (m).": "Ingrese un radio de búsqueda (m).",
   "The lines have no cells above their support cutoff.": "Las líneas no tienen celdas por encima de su corte de soporte.",
@@ -6978,7 +6977,6 @@
   "The interval layers shown in the 3D View are offered here: turn a layer on there (Recovery %, for example) to colour the plan by it": "Aquí se ofrecen las capas de intervalos visibles en la Vista 3D: active una capa allí (Recuperación %, por ejemplo) para colorear la planta con ella",
   "Log-probability plot — {symbol} ({v}){v2}": "Gráfico de probabilidad logarítmica — {symbol} ({v}){v2}",
   ", length-weighted": ", ponderado por longitud",
-  "P97.5 = {a}, P99 = {b} {unit} (the caps Compositing suggests)": "P97.5 = {a}, P99 = {b} {unit} (los cortes que sugiere Compositado)",
   "Cap to test": "Corte a probar",
   "{above} of {n} samples above it; {pct}% of the metal (grade × length) removed": "{above} de {n} muestras por encima; se elimina el {pct}% del metal (ley × longitud)",
   "{above} of {n} samples above it": "{above} de {n} muestras por encima",
@@ -8127,5 +8125,9 @@
   "Picked on \"{model}\": the block there is {prop} {v}. The pick sits on that block's face, where the model is drawn at its current range, not on an interpolated value.": "Punto en \"{model}\": el bloque ahí tiene {prop} {v}. El punto queda en la cara de ese bloque, donde el modelo se dibuja con su rango actual, no sobre un valor interpolado.",
   "Also drawn over the map": "También dibujado sobre el mapa",
   "Raster": "Ráster",
-  "Block models and rasters can hide the map in the view. Untick one to see the map under it; the 3D View's layer list shows the same setting.": "Los modelos de bloques y los rásteres pueden tapar el mapa en la vista. Desmarque uno para ver el mapa debajo; la lista de capas de la Vista 3D muestra el mismo ajuste."
+  "Block models and rasters can hide the map in the view. Untick one to see the map under it; the 3D View's layer list shows the same setting.": "Los modelos de bloques y los rásteres pueden tapar el mapa en la vista. Desmarque uno para ver el mapa debajo; la lista de capas de la Vista 3D muestra el mismo ajuste.",
+  "P97.5 = {a}, P99 = {b} {unit} (the percentiles Compositing offers as caps)": "P97.5 = {a}, P99 = {b} {unit} (los percentiles que Compositado ofrece como cortes)",
+  "This cap removes {pct}% of the metal, more than a cap on scattered outliers usually does.": "Este corte quita el {pct}% del metal, más de lo que suele quitar un corte de valores atípicos dispersos.",
+  "The values above it form a coherent zone ({hole} {from}–{to} m, {k} of {n} samples), not scattered outliers. Domain the mineralized zone and cap within it.": "Los valores sobre él forman una zona coherente ({hole} {from}–{to} m, {k} de {n} muestras), no valores atípicos dispersos. Defina un dominio para la zona mineralizada y aplique el corte dentro de él.",
+  "Check on the log-probability plot whether the values above it are a separate population; if so, domain it first and cap within it.": "Revise en el gráfico log-probabilidad si los valores sobre él son una población aparte; si lo son, defina primero un dominio y aplique el corte dentro de él."
 }
