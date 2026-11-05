@@ -356,7 +356,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
                       <td style={{ ...td, fontWeight: 600, color: "var(--color-text)" }}
                         title={[
                           r.overRange ? tr("Contains an over-range ('>') result, counted at its detection ceiling — the true grade is at least this.") : null,
-                          r.unsampledM > 1e-6 ? tr("{unsampledM} m inside this intercept has no {symbol} result (unsampled or not assayed): it is left out of the grade, which is over the assayed metres only (#502).", { unsampledM: r.unsampledM.toFixed(2), symbol: gradeSym }) : null,
+                          r.unsampledM > 1e-6 ? tr("{unsampledM} m inside this intercept has no {symbol} result (unsampled or not assayed): it is left out of the grade, which is over the assayed metres only.", { unsampledM: r.unsampledM.toFixed(2), symbol: gradeSym }) : null,
                           r.overlapM > 1e-6 ? tr("{overlapM} m is covered by overlapping assay rows with different results; their average is used.", { overlapM: r.overlapM.toFixed(2) }) : null,
                         ].filter(Boolean).join(" ") || undefined}>
                         {r.overRange ? "≥ " : ""}{+r.avgGrade.toPrecision(4)}{r.overlapM > 1e-6 ? " ⚠" : ""}

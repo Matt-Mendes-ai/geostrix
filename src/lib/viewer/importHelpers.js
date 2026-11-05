@@ -249,7 +249,7 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
       const nPts = features.filter((f) => f.geomType === "point").length;
       let note = tr(" KML: {nPts} point(s), {v} line/polygon(s) (one row per vertex, with part/vertex numbers). Coordinates are WGS84 longitude/latitude — Source CRS set to EPSG:4326 so they are reprojected to the project CRS.", { nPts, v: features.length - nPts });
       if (skipped) note += tr(" {skipped} placemark(s) without Point/LineString/Polygon geometry were skipped.", { skipped });
-      if (badTuples) note += tr(" {badTuples} coordinate(s) were not a valid longitude,latitude[,altitude] and were left out (#705).", { badTuples });
+      if (badTuples) note += tr(" {badTuples} coordinate(s) were not a valid longitude,latitude[,altitude] and were left out.", { badTuples });
       onDone(rows, null, { headers, note, detectedEpsg: 4326 });
     }).catch((err) => onDone(null, err.message));
     return;
@@ -306,7 +306,7 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
       let note = "";
       if (parsed.otherBaseNames) note += tr(" This .zip bundles {v} separate shapefiles — \"{layerName}\" was imported; open the file again to pick another.", { v: parsed.otherBaseNames + 1, layerName: parsed.layerName });
       if (parsed.skippedCount) note += tr(" {skippedCount} feature(s) with an unsupported shape type were skipped.", { skippedCount: parsed.skippedCount });
-      if (parsed.deletedCount) note += tr(" {deletedCount} record(s) flagged deleted in the .dbf were left out (#706).", { deletedCount: parsed.deletedCount });
+      if (parsed.deletedCount) note += tr(" {deletedCount} record(s) flagged deleted in the .dbf were left out.", { deletedCount: parsed.deletedCount });
       if (parsed.hasAttributes === false) note += tr(" No .dbf attribute table came with the .shp — only coordinates came through. Select or drop the .shp together with its .dbf and .prj (or a .zip of them).");
       // TASKS.csv #223 — read the .prj sidecar's declared CRS instead of silently ignoring it. Only
       // ever SUGGESTS a Source CRS for the user to confirm (prefills the import modal's field, doesn't

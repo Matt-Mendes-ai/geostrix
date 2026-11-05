@@ -23,3 +23,11 @@ test("no TASKS.csv id in a user-visible string", () => {
   }
   assert.deepEqual(hits, []);
 });
+
+// TASKS.csv #1966 (found while writing the offline help) — a bare "(#547)" reached a tooltip: the check above only knew the
+// "TASKS" prefix. Every user-visible string is a translation key, so no key may carry a backlog-style number (3-4 digits after
+// "#"); BC assessment report numbers ("report #37584") are five digits and stay.
+test("no backlog-style number (#123 / #1234) in a translated string", () => {
+  const keys = Object.keys(JSON.parse(fs.readFileSync("src/locales/es.json", "utf8")));
+  assert.deepEqual(keys.filter((k) => /#\d{3,4}\b/.test(k)), []);
+});
