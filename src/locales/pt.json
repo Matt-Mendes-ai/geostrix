@@ -8124,5 +8124,8 @@
   "\"{name}\" is {p}% beyond its {k} pick(s) and {l} section line(s){far}": "\"{name}\" está {p}% além dos seus {k} ponto(s) e {l} linha(s) de seção{far}",
   "3D point on {model} ({prop} {v})": "Ponto 3D em {model} ({prop} {v})",
   "Mostly extrapolation: {list}. The volume and thickness above are those surfaces extended, not measured; add contacts where the solid matters.": "Principalmente extrapolação: {list}. O volume e a espessura acima são essas superfícies estendidas, não medidas; adicione contatos onde o sólido importa.",
-  "Picked on \"{model}\": the block there is {prop} {v}. The pick sits on that block's face, where the model is drawn at its current range, not on an interpolated value.": "Ponto em \"{model}\": o bloco ali tem {prop} {v}. O ponto fica na face desse bloco, onde o modelo é desenhado no intervalo atual, não sobre um valor interpolado."
+  "Picked on \"{model}\": the block there is {prop} {v}. The pick sits on that block's face, where the model is drawn at its current range, not on an interpolated value.": "Ponto em \"{model}\": o bloco ali tem {prop} {v}. O ponto fica na face desse bloco, onde o modelo é desenhado no intervalo atual, não sobre um valor interpolado.",
+  "Also drawn over the map": "Também desenhado sobre o mapa",
+  "Raster": "Raster",
+  "Block models and rasters can hide the map in the view. Untick one to see the map under it; the 3D View's layer list shows the same setting.": "Modelos de blocos e rasters podem esconder o mapa na vista. Desmarque um para ver o mapa por baixo; a lista de camadas da Vista 3D mostra a mesma opção."
 }

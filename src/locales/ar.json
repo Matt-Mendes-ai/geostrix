@@ -8124,5 +8124,8 @@
   "\"{name}\" is {p}% beyond its {k} pick(s) and {l} section line(s){far}": "\"{name}\" يقع {p}% منه خارج نقاطه الـ{k} وخطوط المقطع الـ{l}{far}",
   "3D point on {model} ({prop} {v})": "نقطة ثلاثية الأبعاد على {model} ({prop} {v})",
   "Mostly extrapolation: {list}. The volume and thickness above are those surfaces extended, not measured; add contacts where the solid matters.": "استقراء في معظمه: {list}. الحجم والسماكة أعلاه هما تلك الأسطح ممتدة، لا مقيسة؛ أضف تماسات حيث يهم المجسم.",
-  "Picked on \"{model}\": the block there is {prop} {v}. The pick sits on that block's face, where the model is drawn at its current range, not on an interpolated value.": "نقطة على \"{model}\": الكتلة هناك {prop} {v}. تقع النقطة على وجه تلك الكتلة، حيث يُرسم النموذج بنطاقه الحالي، لا على قيمة مستكملة."
+  "Picked on \"{model}\": the block there is {prop} {v}. The pick sits on that block's face, where the model is drawn at its current range, not on an interpolated value.": "نقطة على \"{model}\": الكتلة هناك {prop} {v}. تقع النقطة على وجه تلك الكتلة، حيث يُرسم النموذج بنطاقه الحالي، لا على قيمة مستكملة.",
+  "Also drawn over the map": "مرسوم أيضًا فوق الخريطة",
+  "Raster": "نقطية",
+  "Block models and rasters can hide the map in the view. Untick one to see the map under it; the 3D View's layer list shows the same setting.": "قد تحجب نماذج الكتل والطبقات النقطية الخريطة في العرض. ألغِ تحديد أحدها لترى الخريطة تحته؛ وتعرض قائمة طبقات العرض ثلاثي الأبعاد الإعداد نفسه."
 }

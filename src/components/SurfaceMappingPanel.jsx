@@ -33,6 +33,7 @@ import { toExportCsv } from "../lib/tabular.js";
 import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
 import { readGeoPackageNear, GPKG_IN_PLACE_BYTES } from "../lib/gpkgInPlace.js"; // TASKS.csv #1716
 import { canReadGpkgInPlace } from "../lib/desktop.js";
+import CoveringLayers from "./CoveringLayers.jsx"; // TASKS.csv #1823
 
 export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { // part: "maps" | "structures" | null = both (TASKS.csv #458)
   const {
@@ -498,6 +499,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         );
       })}
 
+      <CoveringLayers />{/* TASKS.csv #1823 */}
       </>)}
       {part !== "maps" && (<>
       <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Surface structures")}<InfoButton title={tr("Surface structures")} text={tr("Import outcrop structural measurements from a CSV or a MapInfo point table (TAB or MIF) — easting, northing, optional elevation, dip, and dip direction and/or strike (right-hand rule), plus a structure type and comments if present. Each measurement is drawn in the 3D view as a disc lying in the measured plane, coloured by type (fault, bedding, foliation, vein, joint, contact…). Rows without an elevation sit on the terrain. These measurements are what the 3D Modelling tab uses to set the dip when projecting mapped contacts underground.")} />

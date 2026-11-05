@@ -8124,5 +8124,8 @@
   "\"{name}\" is {p}% beyond its {k} pick(s) and {l} section line(s){far}": "« {name} » est à {p} % au-delà de ses {k} pointé(s) et {l} ligne(s) de coupe{far}",
   "3D point on {model} ({prop} {v})": "Point 3D sur {model} ({prop} {v})",
   "Mostly extrapolation: {list}. The volume and thickness above are those surfaces extended, not measured; add contacts where the solid matters.": "Surtout de l’extrapolation : {list}. Le volume et l’épaisseur ci-dessus sont ces surfaces prolongées, non mesurées ; ajoutez des contacts là où le solide compte.",
-  "Picked on \"{model}\": the block there is {prop} {v}. The pick sits on that block's face, where the model is drawn at its current range, not on an interpolated value.": "Pointé sur « {model} » : le bloc à cet endroit vaut {prop} {v}. Le pointé est sur la face de ce bloc, là où le modèle est dessiné à sa plage actuelle, pas sur une valeur interpolée."
+  "Picked on \"{model}\": the block there is {prop} {v}. The pick sits on that block's face, where the model is drawn at its current range, not on an interpolated value.": "Pointé sur « {model} » : le bloc à cet endroit vaut {prop} {v}. Le pointé est sur la face de ce bloc, là où le modèle est dessiné à sa plage actuelle, pas sur une valeur interpolée.",
+  "Also drawn over the map": "Aussi dessiné sur la carte",
+  "Raster": "Raster",
+  "Block models and rasters can hide the map in the view. Untick one to see the map under it; the 3D View's layer list shows the same setting.": "Les modèles de blocs et les rasters peuvent masquer la carte dans la vue. Décochez-en un pour voir la carte dessous ; la liste des couches de la Vue 3D montre le même réglage."
 }
