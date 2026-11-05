@@ -58,3 +58,12 @@ test("3D legend: a graduated layer drops empty classes and, cut short, keeps its
   const { rows } = allocateLegendRows([g], 1);
   assert.equal(rows[0].label, g.items[g.items.length - 1][0], "the top class survives a one-row budget");
 });
+
+test("the first colour field skips a sample-number field", async () => {
+  const { isIdField } = await import("../src/lib/mapGraduated.js");
+  const fs = feats.map((f, i) => ({ ...f, attributes: { samp_num: `R${i}`, au_ppm: f.attributes.au_ppm } }));
+  assert.equal(isIdField(fs, "samp_num"), true);
+  assert.equal(isIdField(fs, "au_ppm"), false);
+  const l = buildLayer({ name: "r", geomType: "point", features: fs }, { sourceName: "r" });
+  assert.equal(l.styleField, "au_ppm"); assert.ok(l.styleBreaks.length > 0);
+});

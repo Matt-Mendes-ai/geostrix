@@ -30,6 +30,16 @@ export function isNumericField(features, field) {
   return filled > 0 && numeric >= filled * 0.9 && distinct.size > 12;
 }
 
+// An identifier: text, filled and different on every one of more than 20 features (a sample number). Colouring by it
+// makes one 'unit' per feature, so the layer's first colour field skips it (#1600).
+export function isIdField(features, field) {
+  const fs = features || [];
+  if (fs.length <= 20) return false;
+  const seen = new Set();
+  for (const f of fs) { const v = f.attributes?.[field]; if (v == null || v === "" || typeof v === "number" || seen.has(v)) return false; seen.add(v); }
+  return !isNumericField(fs, field);
+}
+
 const nice = (x) => (x === 0 ? 0 : +x.toPrecision(2));
 
 // Starting breaks from the data: its 50th, 75th, 90th, 95th and 98th percentiles to two significant figures, so the

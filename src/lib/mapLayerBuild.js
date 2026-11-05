@@ -3,7 +3,7 @@
 import { CATEGORICAL_SAFE_COLORS } from "./layers.js";
 import { reprojectXY, getProj4DefSync, prjRefusal, datumNote } from "./reproject.js";
 import { autoCategories, applyQmlToCategories, guessStyleField, normalizeMapLayer } from "./mapLayers.js";
-import { graduatedStyle } from "./mapGraduated.js"; // TASKS.csv #1600
+import { graduatedStyle, isIdField } from "./mapGraduated.js"; // TASKS.csv #1600
 
 // A .qml names its attribute as QGIS saw it ("lith"); the same layer exported as a shapefile comes back
 // with DBF-uppercased names ("LITH"). Match case-insensitively and use the layer's own spelling.
@@ -70,7 +70,8 @@ export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverrid
   const norm = normalizeMapLayer(parsed, transform);
   if (!norm.features.length) return null;
   const qmlField = findField(norm.fields, qml?.field);
-  const styleField = qmlField || guessStyleField(norm.fields);
+  let styleField = qmlField || guessStyleField(norm.fields);
+  if (!qmlField && styleField && isIdField(norm.features, styleField)) styleField = norm.fields.find((f) => f !== styleField && !isIdField(norm.features, f)) || styleField; // #1600 - not a sample number
   const grad = !qmlField ? graduatedStyle(norm.features, styleField) : null; // #1600 - a numeric field in classes, not one colour per value
   let categories = grad ? grad.categories : styleField ? autoCategories(norm.features, styleField, autoColorFor()) : [];
   if (qml && qmlField) categories = applyQmlToCategories(categories, qml);
