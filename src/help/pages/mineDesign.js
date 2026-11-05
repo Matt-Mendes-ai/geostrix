@@ -107,13 +107,14 @@ export default [
     id: "nested-pits",
     area: "Mine Design",
     title: "Nested pits",
-    summary: "Runs the latest pit shell's inputs at a series of revenue factors (the price scaled), all on one grid so the shells nest inside each other. Each shell is reported at the price you entered, with a chart of tonnes and margin against the factor. With a mining rate and a discount rate, the shells are mined in turn as pushbacks, top bench down, and each gets a net present value. It is a screen of how much the pit depends on price and time, not a mine plan or a valuation.",
+    summary: "Runs a pit shell's inputs (the latest one unless you pick another) at a series of revenue factors (the price scaled), all on one grid so the shells nest inside each other. Each shell is reported at the price you entered, with a chart of tonnes and margin against the factor. With a mining rate and a discount rate, the shells are mined in turn as pushbacks, top bench down, and each gets a net present value. It is a screen of how much the pit depends on price and time, not a mine plan or a valuation.",
     notFor: [
-      "It has no inputs of its own for price, costs, density or slope: it takes them from the most recent pit shell made in Pit shell. To change them, run a new pit shell first.",
+      "It has no inputs of its own for price, costs, density or slope: it takes them from a pit shell made in Pit shell (the latest one, or the one picked at the top). To change them, run a new pit shell first.",
       "The schedule is simple: one mining rate, each shell mined whole before the next, no stockpiles, ramps, dilution, capital or closure costs. The NPV is a comparison between shells, not a project value.",
       "It does not design benches. Pick a shell from the series in Pit design to bench it.",
     ],
     fields: [
+      { name: "Pit shell", what: "Shown when the project has more than one pit shell: the shell whose block model, price, costs, density and slope the series takes. It starts on the latest.", choose: "Pick the shell run with the inputs you want to test. Shells from an earlier series are not listed." },
       { name: "Revenue factors", what: "The price multipliers to run: a range with a step (for example in the form 0.3-1.2 step 0.1) or a list separated by commas. The box starts with a range as an example of the format. The count and the factors it read are shown below it.", choose: "Bracket 1 (the entered price) and go low enough that the smallest shell is a small starter pit. More factors give a smoother chart but take longer: each factor is a full solve." },
       { name: "Mining rate (t rock / year)", what: "Optional. The tonnes of rock (ore and waste) mined a year, used to schedule the shells as pushbacks.", choose: "From a study or a comparable operation, counting waste as well as ore. Without it, only the undiscounted margins are shown." },
       { name: "Discount rate (% / year)", what: "Optional, and only available with a mining rate. Each block's cash is discounted from the time it is mined.", choose: "Use the rate your company or study uses for scoping. Try a second rate to see whether the best shell moves." },
@@ -122,8 +123,8 @@ export default [
       { name: "Shells and years CSV", what: "The table of shells and a year-by-year schedule (rock, ore, undiscounted cash).", choose: "Use it for a sensitivity table in a report." },
     ],
     warnings: [
-      { says: "It needs a pit shell: run one above first. Its price, costs, density and slope are the series' inputs.", means: "There is no pit shell in the project yet.", do: "Run Pit shell once with your numbers." },
-      { says: "The block model the shell was run on (\"{m}\") is not in the project any more.", means: "The latest shell's block model was removed.", do: "Re-estimate or re-import it and run Pit shell again." },
+      { says: "It needs a pit shell: run Pit shell first. Its price, costs, density and slope are the series' inputs.", means: "There is no pit shell in the project yet.", do: "Run Pit shell once with your numbers." },
+      { says: "The block model the shell was run on (\"{m}\") is not in the project any more.", means: "The chosen shell's block model was removed.", do: "Re-estimate or re-import it and run Pit shell again." },
       { says: "At these inputs no block pays for the rock over it at the largest factor, so there is no pit.", means: "Even the highest price in the series makes no pit.", do: "Add a larger factor, or check the shell's inputs." },
       { says: "Ignored: {list} (a factor must be above 0).", means: "Zero or negative factors in the list were dropped.", do: "Nothing, unless you meant another value." },
       { says: "A shell reaches the bottom of the block model: it may go deeper if the body does.", means: "At least one shell is cut off by the base of the model.", do: "Treat the larger shells as minimums; extend the estimate deeper if the drilling supports it." },

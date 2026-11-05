@@ -15,3 +15,11 @@ test("#1971 no pane describes its own features as missing", () => {
   assert.doesNotMatch(dump, /Loose tonnes/);
   assert.match(dump, /tr\("Tonnes it holds"\)/);
 });
+
+test("#1971 Nested pits lets the user pick the shell whose inputs the series takes", () => {
+  const nested = read("NestedPitsPane.jsx"), pit = read("PitDesignPane.jsx");
+  assert.match(nested, /pitChoices\.length > 1 &&/);
+  assert.match(nested, /aria-label=\{tr\("Pit shell whose inputs the series takes"\)\}/);
+  assert.match(nested, /pitChoices\.find\(\(s\) => s\.id === pitId\) \|\| pitChoices\[pitChoices\.length - 1\]/);
+  assert.doesNotMatch(nested + pit, /run one above first/);
+});

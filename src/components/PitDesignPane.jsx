@@ -139,7 +139,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
     <div>
       <TaskPaneHeader title="Pit design" icon={Layers3} tone="model" onClose={onClose} />
       <div style={note}>{tr("Benches, berms and faces on a pit shell: bench floors on round elevations, a face at the batter angle up to each crest and a catch bench before the next, from the pit bottom to where the walls meet the ground. It gives crest and toe strings and a bench-by-bench table. A ramp, and a face angle and berm per wall sector, can be added; there is no dilution or scheduling, so it is a drawing of the shell, not a mine plan.")}</div>
-      {!pits.length && <div style={warn}>{tr("It needs a pit shell: run one above first.")}</div>}
+      {!pits.length && <div style={warn}>{tr("It needs a pit shell: run Pit shell first.")}</div>}
       {pits.length > 0 && (<>
         <label style={row}>{tr("Pit shell")}<select value={pit?.id || ""} onChange={(e) => setPitId(e.target.value)} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Pit shell to design on")}>
           {pits.map((s) => <option key={s.id} value={s.id}>{String(s.name).replace(/^Pit shell: /, "")}</option>)}

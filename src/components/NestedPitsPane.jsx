@@ -45,7 +45,10 @@ export function droppedFactors(text) {
 export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemove, onClose }) {
   const { voxelModels = [], terrain, collars = [], project } = useStore();
   const models = useMemo(() => { const cat = new Set(categoricalModels(voxelModels)); return voxelModels.filter((m) => gradeCandidate(m, (x) => cat.has(x))); }, [voxelModels]);
-  const lastPit = useMemo(() => [...surfaces].reverse().find((s) => s.type === "pit_shell" && s.params?.inputs && !s.params?.seriesId) || null, [surfaces]); // a shell of a series is not the inputs' source
+  // TASKS.csv #1971 — the shell whose inputs the series takes: picked, the latest by default (a shell of a series is not an inputs' source)
+  const pitChoices = useMemo(() => surfaces.filter((s) => s.type === "pit_shell" && s.params?.inputs && !s.params?.seriesId), [surfaces]);
+  const [pitId, setPitId] = useState(() => kept?.pitId ?? null);
+  const lastPit = useMemo(() => pitChoices.find((s) => s.id === pitId) || pitChoices[pitChoices.length - 1] || null, [pitChoices, pitId]);
   const inputs = lastPit?.params?.inputs || null;
   const model = useMemo(() => (inputs ? models.find((m) => (m.id ?? m.name) === inputs.modelId) || models.find((m) => m.name === lastPit?.params?.blockModel) || null : null), [inputs, models, lastPit]);
   const [f, setF] = useState(() => ({ factors: kept?.factorsText || "0.3-1.2 step 0.1", rate: kept?.rateText || "", discount: kept?.discountText || "" }));
@@ -112,7 +115,12 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
     <div>
       <TaskPaneHeader title="Nested pits" icon={Layers} tone="model" onClose={onClose} />
       <div style={note}>{tr("The pit shell at a series of revenue factors (the price scaled), all on one grid so they nest, each reported at the entered price. With a mining rate and a discount rate the shells are mined in turn as pushbacks, top bench down, and each gets a net present value. It is a screen of how much the pit depends on price and time, not a mine plan or a valuation.")}</div>
-      {!lastPit && <div style={warn}>{tr("It needs a pit shell: run one above first. Its price, costs, density and slope are the series' inputs.")}</div>}
+      {!lastPit && <div style={warn}>{tr("It needs a pit shell: run Pit shell first. Its price, costs, density and slope are the series' inputs.")}</div>}
+      {pitChoices.length > 1 && (
+        <label style={row}>{tr("Pit shell")}<select value={lastPit?.id || ""} onChange={(e) => { const id = e.target.value; setPitId(id); setRes(kept && kept.pitId === id ? kept : null); setMsg(null); }} disabled={!!busy} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Pit shell whose inputs the series takes")}>
+          {pitChoices.map((s) => <option key={s.id} value={s.id}>{String(s.name).replace(/^Pit shell: /, "")}</option>)}
+        </select></label>
+      )}
       {lastPit && !model && <div style={warn}>{tr("The block model the shell was run on (\"{m}\") is not in the project any more.", { m: lastPit.params?.blockModel || "?" })}</div>}
       {lastPit && model && (<>
         <div style={{ ...note, marginTop: 4 }}>{tr("From \"{pit}\": {price} {unit}, recovery {rec} %, mining ${mc}/t, processing ${pc}/t, density {d}, slope {s}°{sec}.", { pit: String(lastPit.name).replace(/^Pit shell: /, ""), price: inputs.price, unit: priceLabel, rec: inputs.recovery, mc: inputs.miningCost, pc: inputs.processingCost, d: inputs.density, s: inputs.slopeDeg, sec: inputs.sectorSlopes ? tr(" (by sector)") : "" })}</div>{/* sec: #1897 */}
