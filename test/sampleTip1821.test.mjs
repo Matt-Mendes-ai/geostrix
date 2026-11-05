@@ -50,6 +50,6 @@ test("#1811 / #1821 wiring: a block model's value row is its property; samples c
   assert.ok(id.includes('fields.push([m.property || tr("Value"), m.valueLabels?.[c.value] ?? (Number.isFinite(c.value) ? num(+c.value.toPrecision(4), 6) : String(c.value))]);'));
   assert.ok(id.includes("sampleIdentifyFields(row, o.userData.mapped, o.userData.units)"));
   const vm = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.ok(vm.includes("mesh.userData = { row, mapped, units: surfaceElementUnits, tip: surfaceSampleTip(row, { units: surfaceElementUnits, mapped }) };"));
+  assert.ok(vm.includes("mesh.userData = sampleUserData(row, mapped, surfaceElementUnits);")); // #1500: the same row / mapped / units, the tip made when read
   assert.ok(vm.includes("Math.min(t.x + 14, innerWidth - w - 8)"));
 });

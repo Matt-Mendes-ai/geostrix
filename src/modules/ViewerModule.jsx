@@ -3,7 +3,7 @@ import { corridorScatter } from "../lib/sectionScatter.js"; // TASKS.csv #1807
 import { exportDrillholeTablesWith } from "./viewer/drillholeExport.js"; // TASKS.csv #1034, moved at the #1084 cap
 import { interceptsDisabledText, noCollarsNotice } from "../lib/noCollars.js"; // TASKS.csv #1810, #1841
 import { levelPlanZRange } from "../lib/viewer/levelPlanRange.js"; // TASKS.csv #1782
-import { surfaceSampleTip, mappedOfSample } from "../lib/viewer/sampleTip.js"; // TASKS.csv #1821
+import { sampleUserData, mappedOfSample } from "../lib/viewer/sampleTip.js"; // TASKS.csv #1821; #1500
 import HoleFilterBar from "./viewer/HoleFilterBar.jsx";
 import { holesMatching } from "../lib/holeFilter.js";
 import FenceOptions from "./viewer/FenceOptions.jsx";
@@ -4735,11 +4735,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         const j = surfaceDrawnIdx ? surfaceDrawnIdx[i] : i; // #1819 — classes are per surfaceSamples index
         const cl = an ? (j >= 0 ? an.classOf[j] : -1) : -2;
         const color = an ? (cl >= 0 ? an.classes[cl].color : an.noDataColor) : (st.color || colorForMedium(row.medium));
-        const mesh = new THREE.Mesh(proto, new THREE.MeshLambertMaterial({ color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide })); // #312
+        const mesh = new PickStandIn(proto, { color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #312; #1500
         mesh.scale.setScalar(Math.max(radiusOf(row.medium), minR) * st.size * (an?.isolated[j] ? 0.55 : 1)); // #843 — an isolated anomaly is drawn small; #849 size; minR: #1597
         mesh.position.set(row.x - ox, row.z - oz, -(row.y - oy));
         const mapped = mappedOfSample(an, layerStyles.surface_anomaly, j, surfaceElementUnits); // #1821
-        mesh.userData = { row, mapped, units: surfaceElementUnits, tip: surfaceSampleTip(row, { units: surfaceElementUnits, mapped }) };
+        mesh.userData = sampleUserData(row, mapped, surfaceElementUnits); // #1500 — the tip when read
         g.add(mesh);
       } catch (err) { errors.push(err.message); }
     });
@@ -6115,8 +6115,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const groups = layerGroupsRef.current;
     Object.values(groups).forEach((g) => {
       eachLayerMember(g, (child) => { // TASKS.csv #312 — an InstancedMesh batch has no tip of its own; its members are handled individually and mirrored by the sync below; #1540: reached through the batch
-        const tip = child.userData?.tip || "";
-        const holeId = tip.split("\n")[0];
+        const holeId = child.userData?.holeId ?? (child.userData?.tip || "").split("\n")[0]; // holeId: #1500
         child.visible = !(holeId && visibleHoles[holeId] === false);
       });
     });

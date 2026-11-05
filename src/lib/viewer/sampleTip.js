@@ -7,10 +7,14 @@ import { t as tr } from "../i18n.js";
 
 // commodity and common pathfinder elements, read first; the rest keep the file's order
 const KEY = ["Cu", "Au", "Ag", "Zn", "Pb", "Mo", "As", "Sb", "Ni", "Co", "Bi", "Te", "W", "Sn", "Hg", "Mn"];
+// TASKS.csv #1500 — each symbol ranked once, then sorted on the ranks: the rank was recomputed (three indexOf scans) inside the
+// comparator, for every sample at every build (Lawyers: 4,521 samples x 49 elements, about 0.4 s of the open)
+const KEY_RANK = new Map(KEY.map((s, i) => [s, 100 + i]));
 export function orderedElements(values, first = []) {
   const syms = Object.keys(values || {}).filter((s) => values[s] != null);
-  const rank = (s) => { const f = first.indexOf(s); if (f >= 0) return f; const k = KEY.indexOf(s); return k >= 0 ? 100 + k : 1000 + syms.indexOf(s); };
-  return syms.sort((a, b) => rank(a) - rank(b));
+  const ranked = syms.map((s, i) => { const f = first.indexOf(s); return [f >= 0 ? f : KEY_RANK.get(s) ?? 1000 + i, s]; });
+  ranked.sort((a, b) => a[0] - b[0]);
+  return ranked.map((r) => r[1]);
 }
 
 const fmt = (v) => (!Number.isFinite(v) ? String(v ?? "") : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : +v.toPrecision(4));
@@ -37,6 +41,15 @@ export function surfaceSampleTip(row, { units = {}, mapped = null, max = 8 } = {
   if (els.length > max) lines.push(tr("+{n} more elements (Identify lists them all)", { n: els.length - max }));
   lines.push(`${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z${row.zDraped ? " (from the terrain — no elevation in the file)" : row.zFlat ? " (flat at the plan elevation — no elevation in the file and no terrain)" : ""}`); // #606, #1818
   return lines.join("\n");
+}
+
+// TASKS.csv #1500 — a drawn sample's userData with its tooltip made when first read (hover, Identify), not for all 4,521 Lawyers
+// samples at every build; holeId "" tells the visible-holes pass it belongs to no hole without reading the tooltip
+export function sampleUserData(row, mapped, units = {}) {
+  const ud = { row, mapped, units, holeId: "" };
+  let tip = null;
+  Object.defineProperty(ud, "tip", { enumerable: true, configurable: true, get: () => (tip ??= surfaceSampleTip(row, { units, mapped })), set: (v) => { tip = v; } });
+  return ud;
 }
 
 // Identify's fields for a sample: the coloured element and its class, every element (key ones first), then the sample's own fields
