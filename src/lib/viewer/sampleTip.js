@@ -22,13 +22,14 @@ export function mappedOfSample(an, cfg, j, units = {}) {
   const cl = an.classOf[j], cls = cl >= 0 ? tr(an.classes[cl].label) : tr("no value"), isolated = !!an.isolated?.[j];
   if (an.mode === "element" && cfg.symbol) return { sym: cfg.symbol, label: `${cfg.symbol} (${units[cfg.symbol] || "ppm"})`, value: an.values?.[j], cls, isolated };
   if (an.mode === "hotspot") return { sym: cfg.symbol || null, label: tr("Hot-spot z (Gi*)"), value: an.stat?.[j], cls, isolated };
+  if (an.mode === "field") return { sym: null, label: an.fieldName || cfg.field || tr("Field"), value: NaN, text: an.textOf?.[j] || "", cls, isolated }; // #1822
   return { sym: null, label: tr("Pathfinder index"), value: an.values?.[j], cls, isolated };
 }
 
 export function surfaceSampleTip(row, { units = {}, mapped = null, max = 8 } = {}) {
   const lines = [`Surface sample${row.sample_id ? ` ${row.sample_id}` : ""} (${row.medium})`];
   if (mapped) {
-    lines.push(`${mapped.label}: ${Number.isFinite(mapped.value) ? fmt(mapped.value) : tr("no value")}`);
+    lines.push(`${mapped.label}: ${Number.isFinite(mapped.value) ? fmt(mapped.value) : mapped.text || tr("no value")}`); // text: #1822
     lines.push(`${mapped.cls}${mapped.isolated ? ` · ${tr("isolated anomaly")}` : ""}`);
   }
   const els = orderedElements(row.values).filter((s) => s !== mapped?.sym);
@@ -41,7 +42,7 @@ export function surfaceSampleTip(row, { units = {}, mapped = null, max = 8 } = {
 // Identify's fields for a sample: the coloured element and its class, every element (key ones first), then the sample's own fields
 export function sampleIdentifyFields(row, mapped, units = {}) {
   const f = [];
-  if (mapped) { f.push([mapped.label, Number.isFinite(mapped.value) ? String(fmt(mapped.value)) : tr("no value")], [tr("Class"), `${mapped.cls}${mapped.isolated ? ` · ${tr("isolated anomaly")}` : ""}`]); }
+  if (mapped) { f.push([mapped.label, Number.isFinite(mapped.value) ? String(fmt(mapped.value)) : mapped.text || tr("no value")], [tr("Class"), `${mapped.cls}${mapped.isolated ? ` · ${tr("isolated anomaly")}` : ""}`]); } // text: #1822
   for (const s of orderedElements(row.values, mapped?.sym ? [mapped.sym] : [])) if (s !== mapped?.sym) f.push([s, `${fmt(row.values[s])} ${units[s] || "ppm"}`]);
   for (const [k, v] of Object.entries(row.attrs || {})) if (v != null && v !== "") f.push([k, String(v)]);
   return f;

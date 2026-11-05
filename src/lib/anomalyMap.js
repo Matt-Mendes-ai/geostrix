@@ -80,6 +80,7 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
   let valueName = null;
   const c = { ...DEFAULT_ANOMALY, ...cfg };
   let classes = [], label = "", anomalousFrom = Infinity;
+  let fieldName = null, textOf = null; // #1822 — the field a categorical map is coloured by, and each sample's text
   if (c.mode === "element" && c.symbol) {
     const sym = c.symbol, unit = units[sym] || "ppm";
     samples.forEach((s, i) => { const v = valueIn(s, sym, unit, units); if (v != null) values[i] = v; });
@@ -138,6 +139,19 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
     anomalousFrom = 2;
     valueName = `${preset?.id || "custom"}_index_z`;
     label = `${preset?.label || "Custom"} index: mean robust z of ${els.join(", ") || "(none of its elements)"}${c.elements?.length ? " (edited)" : ""}${preset ? `; ${preset.ref}` : ""}; within ${groupLabelOf(groupBy)}`;
+  } else if (c.mode === "field" && c.field) { // TASKS.csv #1822 (review #1646, Kodiak) — a sample text field (lithology, alteration, mineral) as categorical classes
+    const field = c.field, counts = new Map();
+    samples.forEach((s) => { const v = textAttr(s, field); if (v) counts.set(v, (counts.get(v) || 0) + 1); });
+    const sorted = [...counts].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
+    const kept = sorted.slice(0, FIELD_CLASS_MAX), rest = sorted.slice(FIELD_CLASS_MAX);
+    const index = new Map(kept.map(([v], i) => [v, i]));
+    classes = kept.map(([v, k], i) => ({ label: `${v} (${k})`, color: CATEGORY_COLORS[i % CATEGORY_COLORS.length] }));
+    if (rest.length) classes.push({ label: `other (${rest.length} more values, ${rest.reduce((a, [, k]) => a + k, 0)} samples)`, color: "#9e9e9e" });
+    samples.forEach((s, i) => { const v = textAttr(s, field); if (!v) return; const k = index.get(v); classOf[i] = k != null ? k : kept.length; });
+    const missing = samples.filter((s) => !textAttr(s, field)).length;
+    if (missing) notes.push({ text: "{n} of {m} samples have no {field}: drawn in the no-value colour.", params: { n: missing, m: n, field } });
+    label = `${field}: ${sorted.length} value(s)`;
+    fieldName = field; textOf = samples.map((s) => textAttr(s, field));
   } else if (c.mode === "hotspot" && c.symbol) { // TASKS.csv #853
     const sym = c.symbol, unit = units[sym] || "ppm", R = Math.max(1, Number(c.hotRadius) || 250);
     samples.forEach((s, i) => { const v = valueIn(s, sym, unit, units); if (v != null) values[i] = v; });
@@ -194,7 +208,7 @@ export function anomalyClasses(samples, cfg, { units = {}, mapLayers = [], thres
       ? { text: "{n} of {m} anomalous samples are isolated (no other anomalous sample within {r} m): drawn small.", params: { n: isolatedCount, m: anomalousCount, r: R } }
       : { text: "{n} of {m} anomalous samples are isolated (fewer than {need} anomalous neighbours within {r} m): drawn small.", params: { n: isolatedCount, m: anomalousCount, need, r: R } });
   }
-  return { classOf, isolated, classes, label, notes, anomalousFrom, noDataColor: NODATA, coherence: !!c.coherence, radius: c.radius, minNeighbours: c.minNeighbours, stat, mode: c.mode, values, valueName };
+  return { classOf, isolated, classes, label, notes, anomalousFrom, noDataColor: NODATA, coherence: !!c.coherence, radius: c.radius, minNeighbours: c.minNeighbours, stat, mode: c.mode, values, valueName, fieldName, textOf }; // fieldName, textOf: #1822
 }
 function groupLabelOf(groupBy) {
   if (!groupBy || groupBy === "none") return "all samples together";
@@ -206,6 +220,17 @@ function groupLabelOf(groupBy) {
 }
 
 // The legend group of an anomaly map (lib/legendGroups.js shape): the rule as its label, one swatch per class
+// TASKS.csv #1822 — the text fields a sample set carries that a map can be coloured by: at least one value, at most `maxDistinct`
+// distinct (a free-text description is read in Identify, not drawn as 600 classes)
+export function textAttrFields(samples, { maxDistinct = 200 } = {}) {
+  const seen = new Map();
+  for (const s of samples || []) for (const [k, v] of Object.entries(s.attrs || {})) { const t = String(v ?? "").trim(); if (!t) continue; (seen.get(k) || seen.set(k, new Set()).get(k)).add(t); }
+  return [...seen].filter(([, set]) => set.size >= 1 && set.size <= maxDistinct && [...set].some((t) => !/^-?\d+(\.\d+)?$/.test(t))).map(([k]) => k).sort();
+}
+const textAttr = (s, field) => { const v = s.attrs?.[field]; const t = v == null ? "" : String(v).trim(); return t; };
+export const FIELD_CLASS_MAX = 24;
+// a categorical palette (colour-blind friendlier than a hash), reused across fields
+export const CATEGORY_COLORS = ["#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f", "#edc948", "#b07aa1", "#ff9da7", "#9c755f", "#bab0ac", "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf", "#393b79", "#637939", "#8c6d31", "#843c39"];
 export function anomalyLegendGroup(a) {
   if (!a) return null;
   const items = a.classes.map((c) => [c.label, c.color]);

@@ -7902,5 +7902,8 @@
   "All the evidence comes from the {n} drillholes, so the score exists only within {reach} m of their traces: it ranks drilled ground, not untested targets. A surface evidence (a survey, a raster, soil or rock samples, a map layer) is what can score beyond the holes.": "Toda la evidencia viene de los {n} sondajes, así que el puntaje solo existe dentro de {reach} m de sus trazas: ordena terreno ya perforado, no objetivos sin probar. Una evidencia de superficie (un levantamiento, un ráster, muestras de suelo o roca, una capa de mapa) es lo que puede puntuar más allá de los sondajes.",
   "Drillholes: {name} along the holes": "Sondajes: {name} a lo largo de los sondajes",
   "Drillholes: {layer} {field} along the holes": "Sondajes: {layer} {field} a lo largo de los sondajes",
-  "Distance to logged zone: {code}": "Distancia a zona registrada: {code}"
+  "Distance to logged zone: {code}": "Distancia a zona registrada: {code}",
+  "Field: {name}": "Campo: {name}",
+  "{n} of {m} samples have no {field}: drawn in the no-value colour.": "{n} de {m} muestras no tienen {field}: dibujadas en el color sin valor.",
+  "Field": "Campo"
 }

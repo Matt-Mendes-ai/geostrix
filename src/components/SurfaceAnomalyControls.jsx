@@ -2,8 +2,8 @@
 // element (its saved threshold from #841, or percentile classes), or a pathfinder index for a deposit type, with the
 // spatial-coherence check. The settings live in the view state (layerStyles.surface_anomaly), so they are saved with
 // the project and in themes. Maths in lib/anomalyMap.js; the legend and notes come from the same result.
-import React, { useState } from "react";
-import { PATHFINDER_PRESETS, DEFAULT_ANOMALY } from "../lib/anomalyMap.js";
+import React, { useState, useMemo } from "react";
+import { textAttrFields, PATHFINDER_PRESETS, DEFAULT_ANOMALY } from "../lib/anomalyMap.js";
 import { saveFile } from "../lib/desktop.js";
 import { groupOptions } from "../lib/thresholds.js";
 import { t as tr } from "../lib/i18n.js";
@@ -20,7 +20,8 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
   const have = new Set(surfaceElements.map((e) => e.symbol));
   const els = cfg.elements?.length ? cfg.elements : preset?.elements || [];
   const gOpts = groupOptions(surfaceSamples, mapLayers);
-  const modeValue = cfg.mode === "element" ? `el:${cfg.symbol || ""}` : cfg.mode;
+  const modeValue = cfg.mode === "element" ? `el:${cfg.symbol || ""}` : cfg.mode === "field" ? `field:${cfg.field || ""}` : cfg.mode; // field: #1822
+  const attrFields = useMemo(() => textAttrFields(surfaceSamples), [surfaceSamples]); // #1822
   // TASKS.csv #854 — the drawn samples with their class (and the hot-spot z, #853) as CSV
   const exportCsv = () => {
     if (!result) return;
@@ -33,15 +34,16 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "0 2px 8px", fontSize: "var(--font-size-sm)" }}>
       <label style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--color-text-secondary)" }}>{tr("Colour by")}
-        <select value={modeValue} onChange={(e) => { const v = e.target.value; if (v.startsWith("el:")) set({ mode: "element", symbol: v.slice(3) }); else set({ mode: v }); }} style={selStyle} aria-label={tr("Colour surface samples by")}>
+        <select value={modeValue} onChange={(e) => { const v = e.target.value; if (v.startsWith("el:")) set({ mode: "element", symbol: v.slice(3) }); else if (v.startsWith("field:")) set({ mode: "field", field: v.slice(6) }); else set({ mode: v }); }} style={selStyle} aria-label={tr("Colour surface samples by")}>
           <option value="medium">{tr("Sampling medium")}</option>
           <option value="index">{tr("Pathfinder index")}</option>
           <option value="hotspot">{tr("Hot spots (Getis–Ord Gi*)")}</option>
           {surfaceElements.map((e) => <option key={e.symbol} value={`el:${e.symbol}`}>{e.symbol}{savedFor(e.symbol) ? ` — ${tr("threshold saved")}` : ""}</option>)}
+          {attrFields.map((f) => <option key={`field:${f}`} value={`field:${f}`}>{tr("Field: {name}", { name: f })}</option>)}{/* #1822 */}
         </select>
-        {cfg.mode !== "medium" && <button type="button" onClick={() => setOpen((o) => !o)} style={linkBtn} aria-expanded={open}>{open ? tr("Fewer options") : tr("Options")}</button>}
+        {cfg.mode !== "medium" && cfg.mode !== "field" && <button type="button" onClick={() => setOpen((o) => !o)} style={linkBtn} aria-expanded={open}>{open ? tr("Fewer options") : tr("Options")}</button>}
       </label>
-      {cfg.mode !== "medium" && open && (
+      {cfg.mode !== "medium" && cfg.mode !== "field" && open && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6, border: "1px solid var(--color-border)", borderRadius: 6, padding: 8 }}>
           {cfg.mode === "element" && (
             <label style={row}>{tr("Classes")}

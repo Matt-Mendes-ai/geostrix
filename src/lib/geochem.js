@@ -980,6 +980,9 @@ export function metalEquivalentFormula(metals) {
 // SURFACE_ATTR_MAX_DISTINCT distinct entries (categories, not running numbers, comments or coordinates); text is cut
 // to 60 characters.
 export const SURFACE_ATTR_MAX_DISTINCT = 100;
+export const SURFACE_ATTR_MAX_CHARS = 500; // TASKS.csv #1822
+// TASKS.csv #1822 — a free-text column (a description, a comment) has as many distinct values as rows; it is kept whole for Identify
+export const isFreeTextHeader = (h) => /desc|comment|note|remark|observ/i.test(String(h || ""));
 export function surfaceAttrColumns(headers, rows, mapping = {}, elements = []) {
   const mapped = new Set(Object.values(mapping || {}).filter(Boolean));
   const elementCols = new Set();
@@ -991,14 +994,14 @@ export function surfaceAttrColumns(headers, rows, mapping = {}, elements = []) {
       const v = r[h];
       if (v == null || String(v).trim() === "") continue;
       seen.add(String(v).trim());
-      if (seen.size > SURFACE_ATTR_MAX_DISTINCT) return false;
+      if (seen.size > SURFACE_ATTR_MAX_DISTINCT && !isFreeTextHeader(h)) return false; // free text: #1822
     }
     return seen.size > 0;
   });
 }
 export function surfaceAttrs(row, cols) {
   const attrs = {};
-  cols.forEach((h) => { const v = row[h]; if (v != null && String(v).trim() !== "") attrs[h] = String(v).trim().slice(0, 60); });
+  cols.forEach((h) => { const v = row[h]; if (v != null && String(v).trim() !== "") attrs[h] = String(v).trim().slice(0, SURFACE_ATTR_MAX_CHARS); }); // #1822: a field note is read whole in Identify (was 60 characters)
   return Object.keys(attrs).length ? { attrs } : {};
 }
 

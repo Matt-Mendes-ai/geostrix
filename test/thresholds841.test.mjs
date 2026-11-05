@@ -80,7 +80,7 @@ test("#841 populations by medium, by a file column and by the map polygon a samp
 test("#841 the importer keeps category columns as attrs, not elements, coordinates or running numbers", () => {
   const rows = Array.from({ length: 150 }, (_, i) => ({ E: 500000 + i, N: 6e6 + i, ID: `S${i}`, Cu_ppm: String(i), Horizon: i % 2 ? "B" : "C", Lab: "ALS", Comment: `note ${i}`, Year: i < 75 ? "2004" : "2005", Empty: "" }));
   const cols = surfaceAttrColumns(Object.keys(rows[0]), rows, { x: "E", y: "N", sample_id: "ID" }, [{ header: "Cu_ppm", mainHeader: "Cu_ppm" }]);
-  assert.deepEqual(cols, ["Horizon", "Lab", "Year"]);
-  assert.deepEqual(surfaceAttrs(rows[1], cols), { attrs: { Horizon: "B", Lab: "ALS", Year: "2004" } });
+  assert.deepEqual(cols, ["Horizon", "Lab", "Comment", "Year"]); // Comment: a free-text column is kept whole for Identify since TASKS.csv #1822
+  assert.deepEqual(surfaceAttrs(rows[1], cols), { attrs: { Horizon: "B", Lab: "ALS", Comment: "note 1", Year: "2004" } });
   assert.deepEqual(surfaceAttrs({ Horizon: " " }, ["Horizon"]), {});
 });
