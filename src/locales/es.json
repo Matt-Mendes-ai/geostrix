@@ -8282,5 +8282,17 @@
   "the base file": "el archivo de base",
   "the rover file": "el archivo del móvil",
   "{name}: the header says {date} but the file name says {nameDate}": "{name}: el encabezado dice {date} pero el nombre del archivo dice {nameDate}",
-  "{date} (from the file name)": "{date} (del nombre del archivo)"
+  "{date} (from the file name)": "{date} (del nombre del archivo)",
+  "Not used: {v}": "No usado: {v}",
+  "day unknown": "día desconocido",
+  "Diurnal-corrected {files} of {n} files against their day's base ({used} readings; {left} left out: outside the base coverage, in a gap over a minute or without a time).": "Corrección diurna en {files} de {n} archivos contra la base de su día ({used} lecturas; {left} excluidas: fuera de la cobertura de la base, en un hueco de más de un minuto o sin hora).",
+  "No base for {v}: imported raw.": "Sin base para {v}: importado sin corregir.",
+  "Not diurnal-corrected: no base-station files were loaded.": "Sin corrección diurna: no se cargaron archivos de estación base.",
+  "Load the base-station files of every day (GEM .tbl / .b). Each survey file is corrected against the base of its own day, read from its header or its yyyymmdd name; the Value column is the raw reading and \"{time}\" the time.": "Cargue los archivos de estación base de cada día (GEM .tbl / .b). Cada archivo de levantamiento se corrige con la base de su propio día, leído de su encabezado o de su nombre aaaammdd; la columna Valor es la lectura bruta y \"{time}\" la hora.",
+  "{n} base file(s) for {days} day(s): {v}": "{n} archivo(s) de base para {days} día(s): {v}",
+  "No day could be read from {v}; they are not used.": "No se pudo leer el día de {v}; no se usan.",
+  "No base for {n} of {total} survey files: {v} — they will be imported raw.": "Sin base para {n} de {total} archivos de levantamiento: {v} — se importarán sin corregir.",
+  "Every survey file has a base for its day.": "Cada archivo de levantamiento tiene una base para su día.",
+  "Add more base files…": "Añadir más archivos de base…",
+  "Load base-station files…": "Cargar archivos de estación base…"
 }

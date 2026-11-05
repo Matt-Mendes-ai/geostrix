@@ -37,7 +37,7 @@ import { parseUBCMesh, isUBCMeshText, parseUBCModelStream, maskAirCells, ubcMesh
 import { parsePLYBoundary, parseXYZ, guessXyzChannels } from "../lib/geosoft.js";
 import { gridPairs, stationPlacer, nearestStationZ, looksLikeLocalGrid } from "../lib/gridFromStations.js"; // TASKS.csv #1326
 import { parseStationFile } from "../lib/dcipStations.js";
-import { gemHeaderInfo } from "../lib/diurnal.js";
+import { gemHeaderInfo, fileNameDate, parseBaseStation, diurnalCorrect, batchDiurnalPlan } from "../lib/diurnal.js"; // fileNameDate…: TASKS.csv #1585
 import DiurnalCorrectionBox from "../components/DiurnalCorrectionBox.jsx";
 import { parseDXF, dxfToBoundaries, dxfSkippedText } from "../lib/dxf.js";
 import { readKmlFile, kmlToProjectPolylines } from "../lib/kml.js"; // TASKS.csv #424
@@ -238,6 +238,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   const claimInput = useRef(null);
   const xyzInput = useRef(null);
   const gridGpsInput = useRef(null); // #1326
+  const batchBaseInput = useRef(null); // #1585 — base-station files for a multi-file walk-mag import
   const rows = layers.geophys_pts || [];
   const drawnRange = useMemo(() => robustRange(rows.map((r) => r.value)), [rows]); // TASKS.csv #1177 — the range the 3D colours use
   const surveyList = useMemo(() => surveyStats(rows), [rows]); // TASKS.csv #451
@@ -949,10 +950,18 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       const g = guessXyzChannels(columns, parsedRows);
       const bytes = files.reduce((a, f) => a + f.size, 0), estimate = Math.round((parsedRows.length / Math.max(1, files[0].size)) * bytes);
       setXyzPending({ fileName: files[0].name, columns, rows: parsedRows, xCol: guessColumn(columns, XY_NAME_HINTS.x), yCol: guessColumn(columns, XY_NAME_HINTS.y), zCol: g.z, valueCol: g.value, header: gemHeaderInfo(text), headerEpsg: gemHeaderEpsg(text), ...cleaningDefaults(columns) /* #1583 */,
-        batch: { files, gpsFiles, estimate, keepEvery: suggestKeepEvery(estimate, 100000, (layers.geophys_pts || []).length) } }); // #1582 — counts what is already drawn
+        batch: { files, gpsFiles, estimate, keepEvery: suggestKeepEvery(estimate, 100000, (layers.geophys_pts || []).length), timeCol: columns.find((c) => /^time$/i.test(c)) || columns.find((c) => /time/i.test(c)) || null, bases: [] } }); // #1582 — counts what is already drawn; timeCol / bases: #1585
     } catch (err) {
       setXyzError({ info: false, text: tr("Could not parse {name}: {message}", { name: files[0].name, message: err.message }) });
     }
+  };
+  // TASKS.csv #1585 — base-station files for the whole batch: each rover file is corrected against the bases of its own day
+  const addBatchBases = async (fileList) => {
+    const files = Array.from(fileList || []); if (!files.length) return;
+    const parsed = [], failed = [];
+    for (const f of files) { try { parsed.push(parseBaseStation(await f.text(), { name: f.name })); } catch (err) { failed.push(err.message); } }
+    setXyzPending((p) => (p?.batch ? { ...p, batch: { ...p.batch, bases: [...p.batch.bases.filter((b) => !parsed.some((n) => n.name === b.name)), ...parsed] } } : p));
+    if (failed.length) setXyzError({ info: false, text: tr("Not used: {v}", { v: failed.join("; ") }) });
   };
   const confirmBatchXYZ = async () => {
     const { xCol, yCol, zCol, valueCol, batch } = xyzPending;
@@ -963,6 +972,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     const placers = new Map(), failed = [], collected = [];
     let target = project?.epsg, asked = false, read = 0, kept = 0, lowQuality = 0, spikes = 0; // lowQuality, spikes: #1583
     const cleaning = { sqCol: xyzPending.sqCol, minQuality: xyzPending.minQuality, despike: xyzPending.despike }, minQ = xyzPending.minQuality;
+    const bases = batch.bases || [], timeCol = batch.timeCol; // #1585
+    let dcFiles = 0, dcUsed = 0, dcLeft = 0; const noBase = []; // #1585
     setXyzPending(null);
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
@@ -976,6 +987,16 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         const base = f.name.replace(/\.[^.]+$/, "");
         const cleaned = cleanRows(raw, cleaning, (r) => r[valueCol], (r) => r._line ?? null); // #1583
         lowQuality += cleaned.lowQuality; spikes += cleaned.spikes;
+        // #1585 — the day's base(s): by the header date, else the file name's; a reading the bases do not cover is left out, not guessed
+        if (bases.length) {
+          const day = gemHeaderInfo(text).date || fileNameDate(f.name);
+          const dayBases = day ? bases.filter((b) => b.date === day) : [];
+          if (dayBases.length && timeCol && columns.includes(timeCol)) {
+            const res = diurnalCorrect(cleaned.rows.map((r) => r[timeCol]), cleaned.rows.map((r) => r[valueCol]), dayBases);
+            cleaned.rows = cleaned.rows.map((r, k) => ({ ...r, [valueCol]: res.corrected[k] }));
+            dcFiles++; dcUsed += res.used; dcLeft += res.outside + res.gaps + res.noTime;
+          } else noBase.push(day ? `${f.name} (${day})` : `${f.name} (${tr("day unknown")})`);
+        }
         let mapped = cleaned.rows.map((r) => ({ x: r[xCol], y: r[yCol], z: zCol && Number.isFinite(r[zCol]) ? r[zCol] : null, value: r[valueCol], ...(r._line != null ? { line: merged ? `${base} ${r._line}` : String(r._line), label: `Line ${r._line}` } : {}), _src: surveyName || f.name }))
           .filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value) && !(r.x === 0 && r.y === 0)); // #538 — no GPS fix
         mapped = everyNth(mapped, keepEvery);
@@ -1006,6 +1027,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       keepEvery > 1 ? tr("Kept 1 reading in {n}: a short anomaly between kept readings is not shown.", { n: keepEvery }) : "",
       lowQuality ? tr("Dropped {n} reading(s) with signal quality under {q}.", { n: lowQuality.toLocaleString(), q: minQ }) : "", // #1583
       spikes ? tr("Dropped {n} spike(s) more than 6 MAD from the running median along their line.", { n: spikes.toLocaleString() }) : "",
+      // #1585 — said either way: corrected against which days, or not corrected at all
+      bases.length ? tr("Diurnal-corrected {files} of {n} files against their day's base ({used} readings; {left} left out: outside the base coverage, in a gap over a minute or without a time).", { files: dcFiles, n: files.length - failed.length, used: dcUsed.toLocaleString(), left: dcLeft.toLocaleString() }) : "",
+      bases.length && noBase.length ? tr("No base for {v}: imported raw.", { v: noBase.join(", ") }) : "",
+      !bases.length && timeCol && xyzPending.source !== "csv" ? tr("Not diurnal-corrected: no base-station files were loaded.") : "",
       failed.length ? tr("Problems: {failed}", { failed: failed.join("; ") }) : "",
     ].filter(Boolean).join(" ") });
   };
@@ -1445,6 +1470,19 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                     {KEEP_CHOICES.map((n) => <option key={n} value={n}>{n === 1 ? tr("Every reading (about {rows} points)", { rows: xyzPending.batch.estimate.toLocaleString() }) : tr("1 in {n} (about {rows} points)", { n, rows: Math.round(xyzPending.batch.estimate / n).toLocaleString() })}</option>)}
                   </select>
                 </label>
+                {xyzPending.batch.timeCol && xyzPending.source !== "csv" && (() => { // #1585 — base stations for every day of the batch
+                  const plan = batchDiurnalPlan(xyzPending.batch.files.map((f) => f.name), xyzPending.batch.bases);
+                  return (
+                    <div style={{ marginTop: 8, paddingTop: 6, borderTop: "1px solid var(--color-border)" }}>
+                      <div style={{ color: "var(--color-text)", fontWeight: 600, marginBottom: 2 }}>{tr("Diurnal correction (base station)")}</div>
+                      <div style={{ color: "var(--color-text-faint)", lineHeight: 1.4 }}>{tr("Load the base-station files of every day (GEM .tbl / .b). Each survey file is corrected against the base of its own day, read from its header or its yyyymmdd name; the Value column is the raw reading and \"{time}\" the time.", { time: xyzPending.batch.timeCol })}</div>
+                      {xyzPending.batch.bases.length > 0 && <div style={{ marginTop: 4 }}>{tr("{n} base file(s) for {days} day(s): {v}", { n: xyzPending.batch.bases.length, days: plan.days.length, v: plan.days.join(", ") })}{plan.basesWithoutDay.length ? ` ${tr("No day could be read from {v}; they are not used.", { v: plan.basesWithoutDay.join(", ") })}` : ""}</div>}
+                      {xyzPending.batch.bases.length > 0 && <div style={{ marginTop: 2, color: plan.withoutBase.length ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{plan.withoutBase.length ? tr("No base for {n} of {total} survey files: {v} — they will be imported raw.", { n: plan.withoutBase.length, total: plan.files.length, v: plan.withoutBase.map((f) => f.name).join(", ") }) : tr("Every survey file has a base for its day.")}</div>}
+                      <button type="button" onClick={() => batchBaseInput.current?.click()} style={{ ...pBtn, marginTop: 6, marginBottom: 0 }}>{xyzPending.batch.bases.length ? tr("Add more base files…") : tr("Load base-station files…")}</button>
+                      <input ref={batchBaseInput} type="file" multiple accept=".tbl,.b,.txt,.dat,.csv" style={{ display: "none" }} onChange={(e) => { const fs = Array.from(e.target.files || []); e.target.value = ""; addBatchBases(fs); }} />
+                    </div>
+                  );
+                })()}
               </div>
             )}
             {!xyzPending.batch?.gpsFiles.length && !xyzPending.grid && looksLikeLocalGrid(xyzPending.rows, xyzPending.xCol, xyzPending.yCol) && (

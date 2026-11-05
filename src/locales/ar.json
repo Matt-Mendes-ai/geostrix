@@ -8282,5 +8282,17 @@
   "the base file": "ملف المحطة القاعدية",
   "the rover file": "ملف الجهاز المتنقل",
   "{name}: the header says {date} but the file name says {nameDate}": "{name}: الترويسة تقول {date} لكن اسم الملف يقول {nameDate}",
-  "{date} (from the file name)": "{date} (من اسم الملف)"
+  "{date} (from the file name)": "{date} (من اسم الملف)",
+  "Not used: {v}": "غير مستخدم: {v}",
+  "day unknown": "اليوم مجهول",
+  "Diurnal-corrected {files} of {n} files against their day's base ({used} readings; {left} left out: outside the base coverage, in a gap over a minute or without a time).": "صُحِّح التغيّر اليومي في {files} من {n} ملفًا مقابل محطة يومها ({used} قراءة؛ {left} استُبعدت: خارج تغطية المحطة، أو في فجوة تزيد عن دقيقة، أو بلا وقت).",
+  "No base for {v}: imported raw.": "لا محطة قاعدية لـ {v}: استُورد خامًا.",
+  "Not diurnal-corrected: no base-station files were loaded.": "بلا تصحيح للتغيّر اليومي: لم تُحمَّل ملفات المحطة القاعدية.",
+  "Load the base-station files of every day (GEM .tbl / .b). Each survey file is corrected against the base of its own day, read from its header or its yyyymmdd name; the Value column is the raw reading and \"{time}\" the time.": "حمّل ملفات المحطة القاعدية لكل يوم (GEM .tbl / .b). يُصحَّح كل ملف مسح مقابل محطة يومه، المقروء من ترويسته أو من اسمه بصيغة yyyymmdd؛ عمود القيمة هو القراءة الخام و\"{time}\" الوقت.",
+  "{n} base file(s) for {days} day(s): {v}": "{n} ملف(ات) محطة قاعدية لـ {days} يوم/أيام: {v}",
+  "No day could be read from {v}; they are not used.": "تعذّرت قراءة اليوم من {v}؛ لن تُستخدم.",
+  "No base for {n} of {total} survey files: {v} — they will be imported raw.": "لا محطة قاعدية لـ {n} من {total} ملفات مسح: {v} — ستُستورد خامًا.",
+  "Every survey file has a base for its day.": "لكل ملف مسح محطة قاعدية ليومه.",
+  "Add more base files…": "إضافة ملفات محطة قاعدية أخرى…",
+  "Load base-station files…": "تحميل ملفات المحطة القاعدية…"
 }

@@ -160,6 +160,16 @@ export function suggestClockShift(times, bases) {
   return best.h !== 0 && best.n > 0 ? { hours: best.h, covered: best.n, of: ts.length } : null;
 }
 
+// TASKS.csv #1585 (review #1497, Lawyers) — a season of daily walk-mag files imported at once: which days the loaded base
+// files cover, and which rover files (by their yyyymmdd name) have no base for their day. The import itself matches each
+// file by its header date, else its name (gemHeaderInfo / fileNameDate), so a plan from the names is a preview.
+export function batchDiurnalPlan(fileNames, bases) {
+  const days = new Map();
+  for (const b of bases || []) { if (!b.date) continue; days.set(b.date, (days.get(b.date) || 0) + 1); }
+  const files = (fileNames || []).map((name) => { const date = fileNameDate(name); return { name, date, bases: date ? days.get(date) || 0 : 0 }; });
+  return { days: [...days.keys()].sort(), files, withoutBase: files.filter((f) => !f.bases), basesWithoutDay: (bases || []).filter((b) => !b.date).map((b) => b.name) };
+}
+
 // One-line report for the import notice.
 export function diurnalSummaryText(res, roverCount) {
   const b = res.bases.map((x) => `${x.name || "base"} ${formatClock(x.start)}–${formatClock(x.end)}`).join(", ");
