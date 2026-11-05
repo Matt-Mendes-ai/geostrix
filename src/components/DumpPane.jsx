@@ -73,7 +73,7 @@ export default function DumpPane({ surfaces = [], onAdd, onClose }) {
         {field("crestZ", tr("Crest elevation (m)"), { placeholder: centre ? String(Math.round(centre.ground)) : "" })}
         {field("repose", tr("Angle of repose (°)"), { min: 1, max: 89 })}
         {field("density", tr("In-situ density (t/m³)"), { min: 0, placeholder: tr("optional") })}
-        {field("swell", tr("Swell factor"), { min: 1, placeholder: tr("optional"), title: tr("Broken rock takes more room than in place: loose tonnes = volume × density ÷ swell.") })}
+        {field("swell", tr("Swell factor"), { min: 1, placeholder: tr("optional"), title: tr("Broken rock takes more room than in place: the dump holds its volume ÷ swell of rock as it lay in place, so tonnes = volume × in-situ density ÷ swell.") })}
         {pits.length > 0 && <label style={row}>{tr("Compare with pit")}<select value={f.pitId} onChange={set("pitId")} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Pit shell whose waste the dump is compared with")}><option value="">{tr("— none —")}</option>{pits.map((s) => <option key={s.id} value={s.id}>{String(s.name).replace(/^Pit shell: /, "")}</option>)}</select></label>}
         <button onClick={make} disabled={missing} style={{ ...pBtn, marginTop: 8, opacity: missing ? 0.5 : 1 }}><Box size={14} /> {tr("Make the dump")}</button>
         {reposeBad && <div style={warn}>{tr("The angle of repose must be between 1 and 89°.")}</div>}
@@ -84,7 +84,7 @@ export default function DumpPane({ surfaces = [], onAdd, onClose }) {
       {res && (
         <div style={{ marginTop: 8, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)" }}>
           {line(tr("Capacity (loose)"), `${big(res.volume)} m³`)}
-          {res.tonnes != null && line(tr("Loose tonnes"), `${big(res.tonnes)} t`)}
+          {res.tonnes != null && line(tr("Tonnes it holds"), `${big(res.tonnes)} t`)}
           {line(tr("Footprint / with slopes"), `${((res.stringArea ?? res.footprintArea) / 10000).toFixed(2)} / ${(res.dumpArea / 10000).toFixed(2)} ha`)}{/* the string's own area, the slopes' from the grid: #1939 */}
           {line(tr("Highest face"), `${res.maxHeight.toFixed(1)} m`)}
           {line(tr("Toe reach"), `${res.toeReach.toFixed(1)} m`)}

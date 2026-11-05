@@ -96,7 +96,6 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
       const seconds = Math.round((performance.now() - t0) / 100) / 10;
       if (hideEarlier) designs.filter((s) => s.visible).forEach((s) => onToggle?.(s.id));
       const name = tr("Pit design: {pit}, {h} m benches, {b} m berms, {a}°{sec}{ramp}", { pit: String(pit.name).replace(/^Pit shell: /, ""), h: inputs.benchH, b: inputs.berm, a: inputs.batterDeg, sec: sectorsIn ? tr(" (by sector)") : "", ramp: rampIn ? tr(", {w} m ramp at {g} %", { w: rampIn.widthM, g: rampIn.gradientPct }) : "" }); // sec: #1952; ramp: #1948
-      const metalFactor = Number(pit.params?.containedMetal) && Number(pit.params?.oreTonnes) ? null : null; // the shell's metal unit is reported, not recomputed
       const designId = onAdd({
         name, positions: r.positions, indices: r.indices, type: "pit_design", closure: null, color: "#d9a441", tag: "pitdesign",
         tip: tr("Benched pit design: benches, berms and faces on a conceptual shell; not a mine plan, a Reserve or a Resource"),
@@ -104,7 +103,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
           benches: benchTableRows(r.benches, unit), floorRL: r.floorRL, crestRL: r.crestRL, oreTonnes: Math.round(r.totals.oreT), wasteTonnes: Math.round(r.totals.wasteT), stripRatio: r.totals.stripRatio == null ? null : +r.totals.stripRatio.toFixed(2),
           meanGrade: r.totals.meanGrade == null ? null : +r.totals.meanGrade.toPrecision(4), designCellM: +r.cell.toFixed(2), coarsened: r.coarsened, groundFrom: r.groundSource, strings: r.strings.length,
           sectorsUsed: r.sectorsUsed || null /* #1952 */, ramp: r.ramp ? { ...r.ramp, rockT: Math.round(r.ramp.rockT) } : null /* #1948 */,
-          caution: "geometric design on a conceptual shell: no ramp, no slope by sector, no dilution or scheduling; not a Mineral Reserve or Resource", generatedAt: new Date().toISOString(), metalFactor },
+          caution: "geometric design on a conceptual shell (with the ramp and the sector slopes as entered): no dilution or scheduling; not a Mineral Reserve or Resource", generatedAt: new Date().toISOString() }, // TASKS.csv #1971: the ramp and sectors exist; the always-null metalFactor removed
       });
       kept = { ...r, inputs, seconds, designId, pitName: pit.name, unit, shell: pit.params || {}, modelMissing: !model, areaName: area?.name || null };
       setRes(kept);
@@ -139,7 +138,7 @@ export default function PitDesignPane({ surfaces = [], worldPositionsOf, onAdd, 
   return (
     <div>
       <TaskPaneHeader title="Pit design" icon={Layers3} tone="model" onClose={onClose} />
-      <div style={note}>{tr("Benches, berms and faces on a pit shell: bench floors on round elevations, a face at the batter angle up to each crest and a catch bench before the next, from the pit bottom to where the walls meet the ground. It gives crest and toe strings and a bench-by-bench table. It has no ramp, no slope by sector and no dilution, so it is a drawing of the shell, not a mine plan.")}</div>
+      <div style={note}>{tr("Benches, berms and faces on a pit shell: bench floors on round elevations, a face at the batter angle up to each crest and a catch bench before the next, from the pit bottom to where the walls meet the ground. It gives crest and toe strings and a bench-by-bench table. A ramp, and a face angle and berm per wall sector, can be added; there is no dilution or scheduling, so it is a drawing of the shell, not a mine plan.")}</div>
       {!pits.length && <div style={warn}>{tr("It needs a pit shell: run one above first.")}</div>}
       {pits.length > 0 && (<>
         <label style={row}>{tr("Pit shell")}<select value={pit?.id || ""} onChange={(e) => setPitId(e.target.value)} style={{ ...smallSel, width: 0, flex: 1, minWidth: 0 }} aria-label={tr("Pit shell to design on")}>

@@ -6854,7 +6854,6 @@
   "Underground": "Souterrain",
   "Drifts and ramps": "Galeries et rampes",
   "Draw drifts, tunnels, ramps and declines at set grades, with curves of a chosen radius": "Tracez galeries, tunnels, rampes et descenderies à pentes fixées, avec des courbes de rayon choisi",
-  "Design lines for drifts, tunnels, ramps and declines: straights and curves, each at its own grade. They are centrelines, with no profile, ventilation or geotechnical check.": "Lignes de conception pour galeries, tunnels, rampes et descenderies : droites et courbes, chacune à sa pente. Ce sont des axes, sans profil, ventilation ni contrôle géotechnique.",
   "Line": "Ligne",
   "Design line": "Ligne de conception",
   "No lines yet": "Aucune ligne pour l'instant",
@@ -7087,7 +7086,6 @@
   "Benched pit design: benches, berms and faces on a conceptual shell; not a mine plan, a Reserve or a Resource": "Dessin de fosse à gradins : gradins, bermes et fronts sur une enveloppe conceptuelle ; ni plan minier, ni Réserve, ni Ressource",
   "Benches": "Gradins",
   "Benches CSV": "Gradins CSV",
-  "Benches, berms and faces on a pit shell: bench floors on round elevations, a face at the batter angle up to each crest and a catch bench before the next, from the pit bottom to where the walls meet the ground. It gives crest and toe strings and a bench-by-bench table. It has no ramp, no slope by sector and no dilution, so it is a drawing of the shell, not a mine plan.": "Gradins, bermes et fronts sur une enveloppe de fosse : planchers de gradin à des cotes rondes, un front à l'angle de talus jusqu'à chaque crête et une berme avant le suivant, du fond de la fosse jusqu'où les parois rejoignent le sol. Il donne les lignes de crête et de pied et un tableau gradin par gradin. Sans rampe, sans pente par secteur ni dilution : c'est un dessin de l'enveloppe, pas un plan minier.",
   "Berm width (m)": "Largeur de berme (m)",
   "Crest and toe strings, one DXF layer per bench": "Lignes de crête et de pied, une couche DXF par gradin",
   "Design cell": "Cellule du dessin",
@@ -7329,7 +7327,6 @@
   "\"{name}\" is in the generated surfaces with these figures. The capacity is the space between the shape and the ground as it is now.": "« {name} » est dans les surfaces générées avec ces chiffres. La capacité est l'espace entre la forme et le sol tel qu'il est maintenant.",
   "A closed design string is the footprint: a flat platform at the crest elevation whose sides fall at the angle of repose until they meet the ground. The solid between holds the capacity in loose cubic metres, and tonnes at an in-situ density over a swell factor, set against a pit shell's waste. A conceptual shape: no stability, lift, drainage or foundation check.": "Une ligne de dessin fermée est l'emprise : une plate-forme plane à la cote de crête dont les flancs descendent à l'angle de talus naturel jusqu'au sol. Le solide entre les deux donne la capacité en mètres cubes foisonnés, et les tonnes à une densité en place sur un coefficient de foisonnement, comparées au stérile d'une enveloppe de fosse. Une forme conceptuelle : sans vérification de stabilité, de levées, de drainage ni de fondation.",
   "Angle of repose (°)": "Angle de talus naturel (°)",
-  "Broken rock takes more room than in place: loose tonnes = volume × density ÷ swell.": "La roche abattue prend plus de place qu'en place : tonnes foisonnées = volume × densité ÷ foisonnement.",
   "Built in": "Construit en",
   "Capacity (loose)": "Capacité (foisonné)",
   "Compare with pit": "Comparer à la fosse",
@@ -7346,7 +7343,6 @@
   "Holds of the pit's waste": "Contient du stérile de la fosse",
   "In-situ density (t/m³)": "Densité en place (t/m³)",
   "It needs a closed design string as the footprint: draw one with the Strings tool first.": "Il faut une ligne de dessin fermée comme emprise : dessinez-en une avec l'outil Lignes d'abord.",
-  "Loose tonnes": "Tonnes foisonnées",
   "Make the dump": "Créer la verse",
   "No dump: the footprint needs three or more points and a known ground.": "Pas de verse : l'emprise demande trois points ou plus et un sol connu.",
   "Pit shell whose waste the dump is compared with": "Enveloppe de fosse dont le stérile est comparé à la verse",
@@ -8042,5 +8038,9 @@
   "These values average {v} nT: the raw total field. With no base level removed the inversion would model the Earth's own field. Choose Best-fit plane under Remove base level, or remove the regional field in your processing first.": "Ces valeurs valent en moyenne {v} nT : le champ total brut. Sans retirer de niveau de base, l'inversion modéliserait le champ terrestre lui-même. Choisissez Plan d'ajustement sous Retirer le niveau de base, ou retirez d'abord le champ régional au traitement.",
   "A ground survey: the z column is the ground at each station (GPS or surveyed), and the sensor sits a set height above it.": "Un levé au sol : la colonne z est le sol à chaque station (GPS ou levé), et le capteur est à une hauteur fixe au-dessus.",
   "z column is the ground; add the sensor height": "la colonne z est le sol ; ajouter la hauteur du capteur",
-  "Import a magnetic or gravity survey in Geophysics > Point survey first — x, y, z and the measured value per station.": "Importez d'abord un levé magnétique ou gravimétrique dans Géophysique > Levé de points — x, y, z et la valeur mesurée par station."
+  "Import a magnetic or gravity survey in Geophysics > Point survey first — x, y, z and the measured value per station.": "Importez d'abord un levé magnétique ou gravimétrique dans Géophysique > Levé de points — x, y, z et la valeur mesurée par station.",
+  "Benches, berms and faces on a pit shell: bench floors on round elevations, a face at the batter angle up to each crest and a catch bench before the next, from the pit bottom to where the walls meet the ground. It gives crest and toe strings and a bench-by-bench table. A ramp, and a face angle and berm per wall sector, can be added; there is no dilution or scheduling, so it is a drawing of the shell, not a mine plan.": "Gradins, bermes et faces sur une enveloppe de fosse : planchers de gradin à des cotes rondes, une face à l'angle de talus jusqu'à chaque crête et une berme avant la suivante, du fond de la fosse jusqu'où les parois rejoignent le terrain. Il donne les chaînes de crête et de pied et un tableau gradin par gradin. Une rampe, et un angle de face et une berme par secteur de paroi, peuvent être ajoutés ; il n'y a ni dilution ni planification : c'est un dessin de l'enveloppe, pas un plan minier.",
+  "Design lines for drifts, tunnels, ramps and declines: straights and curves, each at its own grade. Each line can carry a profile for clearance checks and be added as a solid of the opening; there is no ventilation or geotechnical check.": "Lignes de conception pour galeries, tunnels, rampes et descenderies : droites et courbes, chacune à sa pente. Chaque ligne peut porter un profil pour vérifier les dégagements et être ajoutée comme solide de l'ouverture ; il n'y a pas de vérification de ventilation ni géotechnique.",
+  "Broken rock takes more room than in place: the dump holds its volume ÷ swell of rock as it lay in place, so tonnes = volume × in-situ density ÷ swell.": "La roche abattue prend plus de place qu'en place : la verse contient son volume ÷ foisonnement de roche telle qu'elle était, donc tonnes = volume × densité en place ÷ foisonnement.",
+  "Tonnes it holds": "Tonnes qu'elle contient"
 }

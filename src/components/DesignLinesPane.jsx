@@ -257,7 +257,7 @@ export default function DesignLinesPane({ view, onAdd, surfaces = [], onClose })
   return (
     <div>
       <TaskPaneHeader title="Drifts and ramps" icon={Spline} tone="model" onClose={onClose} />
-      <div style={note}>{tr("Design lines for drifts, tunnels, ramps and declines: straights and curves, each at its own grade. They are centrelines, with no profile, ventilation or geotechnical check.")}</div>
+      <div style={note}>{tr("Design lines for drifts, tunnels, ramps and declines: straights and curves, each at its own grade. Each line can carry a profile for clearance checks and be added as a solid of the opening; there is no ventilation or geotechnical check.")}</div>
 
       <div style={label}>{tr("Line")}</div>
       <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
