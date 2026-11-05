@@ -8087,5 +8087,13 @@
   "\"{label}\" contains only {n} of the {m} sample points of {code} it was built from: the indicator reached {iso} away from the logged intervals, so this envelope is mostly not where {code} was logged.": "\"{label}\" contiene solo {n} de los {m} puntos de muestra de {code} con que se construyó: el indicador alcanzó {iso} lejos de los intervalos registrados, así que esta envolvente en su mayoría no está donde se registró {code}.",
   "Load some drillhole data (collars, intervals or assays) first. Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling.": "Cargue primero datos de sondajes (collares, intervalos o ensayes). Revisa los collares, survey e intervalos cargados en busca de errores comunes de datos de perforación — IDs de sondaje duplicados, profundidades desordenadas o traslapadas, estaciones de survey más allá del largo declarado de un sondaje, y similares — y lista todo lo que encuentra para corregirlo antes de modelar.",
   "the variogram": "el variograma",
-  "the modelled unit layer": "la capa de unidad modelada"
+  "the modelled unit layer": "la capa de unidad modelada",
+  "Start below": "Empezar debajo de",
+  "Pit the stopes start below": "Rajo bajo el cual empiezan los caserones",
+  "A pit shell or pit design: on each level a column is used only where the whole level lies under the pit's floor above it, so no stope sits in the volume the pit mines.": "Una envolvente de rajo o un diseño de rajo: en cada nivel una columna se usa solo donde todo el nivel queda bajo el fondo del rajo encima de ella, así ningún caserón ocupa el volumen que explota el rajo.",
+  "No pit (the whole model)": "Sin rajo (todo el modelo)",
+  "Pillar under the pit (m)": "Pilar bajo el rajo (m)",
+  "Rock left between the pit floor and the highest stope. Blank: none.": "Roca que se deja entre el fondo del rajo y el caserón más alto. En blanco: ninguna.",
+  "Below {pit}: {n} column-level(s) at the cut-off lie inside the pit or its {p} m pillar and were left out.": "Debajo de {pit}: {n} columna(s)-nivel sobre la ley de corte quedan dentro del rajo o de su pilar de {p} m y se excluyeron.",
+  "Every column at the cut-off lies inside the pit or its pillar.": "Todas las columnas sobre la ley de corte quedan dentro del rajo o de su pilar."
 }

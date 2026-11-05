@@ -8087,5 +8087,13 @@
   "\"{label}\" contains only {n} of the {m} sample points of {code} it was built from: the indicator reached {iso} away from the logged intervals, so this envelope is mostly not where {code} was logged.": "\"{label}\" contém apenas {n} dos {m} pontos de amostra de {code} com que foi construído: o indicador atingiu {iso} longe dos intervalos registados, por isso este envelope em grande parte não está onde {code} foi registado.",
   "Load some drillhole data (collars, intervals or assays) first. Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling.": "Carregue primeiro dados de furos (bocas, intervalos ou análises). Verifica as bocas, o survey e os intervalos carregados em busca de erros comuns de dados de sondagem — IDs de furo duplicados, profundidades fora de ordem ou sobrepostas, estações de survey além do comprimento declarado de um furo, e similares — e lista tudo o que encontra para você corrigir antes de modelar.",
   "the variogram": "o variograma",
-  "the modelled unit layer": "a camada de unidade modelada"
+  "the modelled unit layer": "a camada de unidade modelada",
+  "Start below": "Começar abaixo de",
+  "Pit the stopes start below": "Cava abaixo da qual começam os realces",
+  "A pit shell or pit design: on each level a column is used only where the whole level lies under the pit's floor above it, so no stope sits in the volume the pit mines.": "Uma cava matemática ou um desenho de cava: em cada nível uma coluna só é usada onde todo o nível fica abaixo do fundo da cava acima dela, assim nenhum realce ocupa o volume que a cava lavra.",
+  "No pit (the whole model)": "Sem cava (o modelo inteiro)",
+  "Pillar under the pit (m)": "Pilar sob a cava (m)",
+  "Rock left between the pit floor and the highest stope. Blank: none.": "Rocha deixada entre o fundo da cava e o realce mais alto. Em branco: nenhuma.",
+  "Below {pit}: {n} column-level(s) at the cut-off lie inside the pit or its {p} m pillar and were left out.": "Abaixo de {pit}: {n} coluna(s)-nível acima do teor de corte ficam dentro da cava ou do seu pilar de {p} m e foram excluídas.",
+  "Every column at the cut-off lies inside the pit or its pillar.": "Todas as colunas acima do teor de corte ficam dentro da cava ou do seu pilar."
 }

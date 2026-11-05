@@ -8087,5 +8087,13 @@
   "\"{label}\" contains only {n} of the {m} sample points of {code} it was built from: the indicator reached {iso} away from the logged intervals, so this envelope is mostly not where {code} was logged.": "« {label} » ne contient que {n} des {m} points d'échantillon de {code} à partir desquels il a été construit : l'indicateur a atteint {iso} loin des intervalles relevés, cette enveloppe n'est donc en majeure partie pas là où {code} a été relevé.",
   "Load some drillhole data (collars, intervals or assays) first. Scans the currently loaded collars, survey, and interval data for common drilling-data mistakes — duplicate hole IDs, out-of-order or overlapping depths, survey stations beyond a hole's stated length, and similar — and lists everything it finds so you can fix it before modelling.": "Chargez d'abord des données de sondage (collets, intervalles ou analyses). Analyse les collets, levés et données d'intervalles actuellement chargés pour détecter les erreurs courantes des données de forage — ID de sondages en double, profondeurs désordonnées ou chevauchantes, stations de levé au-delà de la longueur déclarée d'un sondage, etc. — et liste tout ce qu'il trouve pour que vous corrigiez avant de modéliser.",
   "the variogram": "le variogramme",
-  "the modelled unit layer": "la couche d'unité modélisée"
+  "the modelled unit layer": "la couche d'unité modélisée",
+  "Start below": "Commencer sous",
+  "Pit the stopes start below": "Fosse sous laquelle commencent les chantiers",
+  "A pit shell or pit design: on each level a column is used only where the whole level lies under the pit's floor above it, so no stope sits in the volume the pit mines.": "Une enveloppe de fosse ou un dessin de fosse : à chaque niveau, une colonne n'est utilisée que là où tout le niveau se trouve sous le fond de la fosse au-dessus d'elle, ainsi aucun chantier n'occupe le volume que la fosse exploite.",
+  "No pit (the whole model)": "Aucune fosse (tout le modèle)",
+  "Pillar under the pit (m)": "Pilier sous la fosse (m)",
+  "Rock left between the pit floor and the highest stope. Blank: none.": "Roche laissée entre le fond de la fosse et le chantier le plus haut. Vide : aucune.",
+  "Below {pit}: {n} column-level(s) at the cut-off lie inside the pit or its {p} m pillar and were left out.": "Sous {pit} : {n} colonne(s)-niveau à la teneur de coupure se trouvent dans la fosse ou son pilier de {p} m et ont été exclues.",
+  "Every column at the cut-off lies inside the pit or its pillar.": "Toutes les colonnes à la teneur de coupure se trouvent dans la fosse ou son pilier."
 }
