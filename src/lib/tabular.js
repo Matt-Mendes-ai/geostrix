@@ -73,6 +73,30 @@ export function stripLeadingComments(text, prefix = "#") {
   return { text: body, skipped };
 }
 
+// TASKS.csv #1666 (review #1646, Kodiak) — a contractor CSV with a block of notes above the header (SJ Geophysics' station file: 23 lines of
+// 'Client: Kodiak Copper', 'Datum/Projection/Zone: ...', then 'Line,Series,Station,Easting,Northing,Elevation,Type') was read as ONE
+// column headed 'Client: Kodiak Copper', in Point survey and Terrain from points alike. The table starts at the first line of three or
+// more delimited fields, wider than the first line, that the next lines share; the notes above it are skipped and counted.
+// Only looked at when the first line is narrower than 3 fields, so an ordinary table never changes. -> { text, skipped }
+export function skipPreamble(text, maxLines = 300) {
+  const head = text.slice(0, 200_000).split("\n").slice(0, maxLines).map((l) => l.replace(/\r$/, ""));
+  const first = head.findIndex((l) => l.trim() !== "");
+  if (first < 0) return { text, skipped: 0 };
+  const delim = [",", ";", "\t"].reduce((best, d) => (head.slice(first, first + 60).join("\n").split(d).length > head.slice(first, first + 60).join("\n").split(best).length ? d : best), ",");
+  const width = (l) => { let n = 1, q = false; for (const ch of l) { if (ch === '"') q = !q; else if (ch === delim && !q) n++; } return n; }; // a delimiter inside quotes ("1,5") is not a field break
+  if (width(head[first]) >= 3) return { text, skipped: 0 };
+  for (let h = first + 1; h < head.length; h++) {
+    const w = width(head[h]);
+    if (w < 3 || w <= width(head[first])) continue;
+    const next = head.slice(h + 1).filter((l) => l.trim() !== "").slice(0, 3);
+    if (next.length && next.every((l) => width(l) === w)) {
+      const lines = text.split("\n");
+      return { text: lines.slice(h).join("\n"), skipped: head.slice(0, h).filter((l) => l.trim() !== "").length };
+    }
+  }
+  return { text, skipped: 0 };
+}
+
 // Text -> { rows, headers, note, errors }. Header row, typed values (identifier columns kept as text, #509),
 // blank lines skipped, "#" lines before the header skipped (#404 / #720), comma decimals converted where provable
 // (#284).
@@ -80,6 +104,8 @@ const QUOTED_COMMA_NUMBER = /"\s*[+-]?\d+(?:\.\d{3})*,\d+\s*"/;
 const ID_LIKE_VALUE_IN = /(^|[,;\t"\n])\s*0\d+\s*("|[,;\t\r\n]|$)/; // #1071 — a cheap test of the whole text
 export function parseTableText(text, { comments = "#", columnar = false } = {}) {
   ({ text } = stripLeadingComments(text, comments)); // #720
+  let preamble = 0;
+  ({ text, skipped: preamble } = skipPreamble(text)); // #1666
   // TASKS.csv #611 — a big table can be held as COLUMNS (see parseTableColumns); null = not eligible, read as rows
   if (columnar && text.length >= COLUMNAR_MIN_CHARS) { const c = parseTableColumns(text, { comments: false }); if (c) return c; }
   // #600 (performance) — Papa asks once per CELL; the answer depends only on the header, so cache it per header.
@@ -92,7 +118,8 @@ export function parseTableText(text, { comments = "#", columnar = false } = {}) 
   // 1.4 s of a 4.4 s parse on an 83,670 x 109 assay export) is skipped. Semicolon / tab files are scanned as before.
   const commaFree = res.meta.delimiter === "," && !QUOTED_COMMA_NUMBER.test(text);
   const { rows, note } = commaFree ? { rows: res.data, note: "" } : normalizeCommaDecimals(res.data);
-  return { rows, headers: res.meta.fields || [], note: note || "", errors: res.errors || [] };
+  const pre = preamble ? tr("Skipped {n} line(s) of notes above the header row.", { n: preamble }) : ""; // #1666
+  return { rows, headers: res.meta.fields || [], note: [note, pre].filter(Boolean).join(" "), errors: res.errors || [] };
 }
 
 // TASKS.csv #611 — large assay exports held as columns. parseTableText's rows are one object per row, and a 60 MB
@@ -123,6 +150,7 @@ export function parseTableColumns(text, opts) {
 // rowsFromColumns wraps it as the accessor rows on the thread that uses them (getters can't be posted).
 export function parseColumnsRaw(text, { comments = "#" } = {}) {
   ({ text } = stripLeadingComments(text, comments)); // #720 — only before the header
+  ({ text } = skipPreamble(text)); // #1666
   if (QUOTED_COMMA_NUMBER.test(text)) return null;
   const idLike = ID_LIKE_VALUE_IN.test(text) ? idLikeColumns(text) : null; // #1071
   let headers = null, typed = null, cols = null, n = 0, cap = 4096, bad = false, delimiter = null;

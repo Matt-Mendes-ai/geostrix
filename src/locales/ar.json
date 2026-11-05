@@ -8151,5 +8151,6 @@
   "kaolinite": "كاولينيت",
   "alkali feldspar": "فلسبار قلوي",
   "Field that colours the layer": "الحقل الذي يلوّن الطبقة",
-  "Value column": "عمود القيمة"
+  "Value column": "عمود القيمة",
+  "Skipped {n} line(s) of notes above the header row.": "تم تخطي {n} سطر من الملاحظات فوق صف العناوين."
 }

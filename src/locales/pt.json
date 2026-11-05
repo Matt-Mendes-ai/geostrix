@@ -8151,5 +8151,6 @@
   "kaolinite": "caulinita",
   "alkali feldspar": "feldspato alcalino",
   "Field that colours the layer": "Campo que colore a camada",
-  "Value column": "Coluna de valor"
+  "Value column": "Coluna de valor",
+  "Skipped {n} line(s) of notes above the header row.": "{n} linha(s) de notas acima da linha de cabeçalho foram ignoradas."
 }

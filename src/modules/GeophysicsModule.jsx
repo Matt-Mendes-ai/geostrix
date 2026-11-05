@@ -5,7 +5,7 @@ import { askAdoptCrs, projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.c
 import { gemHeaderEpsg, KEEP_CHOICES, suggestKeepEvery, everyNth, batchSurveyName, pairGpsFile } from "../lib/xyzBatch.js"; // TASKS.csv #1329
 import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; // TASKS.csv #410
 import { guessBlockModelMapping, numericColumns, blockModelCellsFromRows, coarsenBlockCells } from "../lib/blockModelCsv.js";
-import { parseTableFile, toExportCsv } from "../lib/tabular.js"; // TASKS.csv #444; toExportCsv: #1094
+import { parseTableFile, toExportCsv, skipPreamble } from "../lib/tabular.js"; // TASKS.csv #444; toExportCsv: #1094; skipPreamble: #1666
 import { guessGeophysColumns, rowsToGeophysPoints } from "../lib/geophysColumns.js"; // TASKS.csv #484
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import Papa from "papaparse";
@@ -416,7 +416,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     setTerrainError(null);
     setTerrainBusy(true);
     try {
-      const text = await file.text();
+      const raw = await file.text();
+      const text = /\.dxf$/i.test(file.name) ? raw : skipPreamble(raw).text; // #1666 — a contractor's notes above the header
       let points = [], lines = [], what;
       if (/\.dxf$/i.test(file.name)) {
         const d = parseDXF(text);

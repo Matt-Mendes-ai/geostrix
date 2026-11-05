@@ -8151,5 +8151,6 @@
   "kaolinite": "kaolinite",
   "alkali feldspar": "feldspath alcalin",
   "Field that colours the layer": "Champ qui colore la couche",
-  "Value column": "Colonne de valeur"
+  "Value column": "Colonne de valeur",
+  "Skipped {n} line(s) of notes above the header row.": "{n} ligne(s) de notes au-dessus de la ligne d’en-tête ignorée(s)."
 }
