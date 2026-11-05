@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useMemo, useState, useRef, useLayoutEffect } from "react";
 import { Camera, Pencil, Check, Undo2, X, Save, Download, FileText, Crosshair } from "./icons.js";
-import { onSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF, canvasPngBytes } from "../lib/desktop.js";
+import { onSectionData, sendSectionSnapshot, sendSectionContacts, saveFile, savePDF, canvasPngBytes, onSectionResnap } from "../lib/desktop.js"; // onSectionResnap: TASKS.csv #1485
 import { solveOrientationToTarget } from "../lib/holePlanning.js"; // TASKS.csv #395
 import { snapTargets, snapClick, moveVertex, deleteVertex, insertVertex, nearestSegment, setTieVertex, copyGhostString, onSectionPlane, contactsKey, sectionHasUnsaved } from "../lib/sectionDigitise.js"; // TASKS.csv #519; copyGhostString: #1059
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
@@ -156,12 +156,13 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // on-screen size, when larger, is kept. The figure is re-laid out at that size (labels placed for it, margins grown),
   // exported, and the screen size restored, all before the next paint.
   const [printScale, setPrintScale] = useState(null);
-  const atPrintSize = (fn) => {
-    const need = Math.max(Number(textScale) || 1, (printPx(printPt.caption) * (SECTION_W / PLACED_W)) / 9);
+  // TASKS.csv #1485 — textFactor: Layout placed the snapshot narrower (a plot scale), so the labels are drawn that much larger
+  const atPrintSize = (fn, textFactor = 1) => {
+    const need = Math.max(Number(textScale) || 1, ((printPx(printPt.caption) * (SECTION_W / PLACED_W)) / 9) * (Number(textFactor) > 0 ? Number(textFactor) : 1));
     flushSync(() => setPrintScale(+need.toFixed(3)));
     try { return fn(); } finally { setPrintScale(null); }
   };
-  const snapshotToLayout = () => atPrintSize(() => {
+  const snapshotToLayout = ({ textFactor = 1, replaceElementId = null, round = 0 } = {}) => atPrintSize(() => {
     const svgEl = svgRef.current;
     const dims = svgDims();
     if (!svgEl || !dims) return;
@@ -171,6 +172,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
     sendSectionSnapshot({
       label: data?.title || "Cross-section",
       src, naturalW: dims.w, naturalH: dims.h,
+      sectionTabId: tabId, textFactor: Number(textFactor) > 0 ? Number(textFactor) : 1, replaceElementId: replaceElementId || null, resnapRound: round, // #1485 — so Layout can ask for the text at its print size
       // TASKS.csv — Layout scale-bar assignment for cross-sections: the real-world horizontal span
       // this snapshot represents at its native (naturalW) pixel width, so Layout can derive a scale
       // bar the same way it already does for viewport snapshots (worldHeightAtTarget).
@@ -187,7 +189,11 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
     });
     setSnapped(true);
     setTimeout(() => setSnapped(false), 1800);
-  });
+  }, textFactor);
+  // TASKS.csv #1485 — Layout's "Re-snapshot with the text at print size": the latest snapshotToLayout, through a ref
+  const resnapRef = useRef(null);
+  resnapRef.current = snapshotToLayout;
+  useEffect(() => onSectionResnap((m) => { if (m && tabId && m.tabId === tabId) resnapRef.current?.({ textFactor: m.textFactor, replaceElementId: m.elementId, round: m.round || 0 }); }), [tabId]);
 
   // A drawn contact is always the UPPER contact of a specific litho unit — not a freeform-named line —
   // so the unit is picked BEFORE drawing starts, from the real litho vocabulary this property actually
@@ -397,7 +403,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           <button onClick={saveContacts} disabled={!contacts.length && !drawing} style={{ ...btnStyle(saved), opacity: contacts.length || drawing ? 1 : 0.5 }}>
             <Save size={14} /> {saved ? tr("Saved ✓") : tr("Save contacts")}
           </button>
-          <button onClick={snapshotToLayout} style={btnStyle(snapped)}>
+          <button onClick={() => snapshotToLayout()} style={btnStyle(snapped)}>
             <Camera size={14} /> {snapped ? tr("Sent ✓") : tr("Snapshot to Layout")}
           </button>
           {data.modelBackdrop && ( // TASKS.csv #759

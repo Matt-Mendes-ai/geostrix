@@ -7906,5 +7906,13 @@
   "{n} of {m} samples have no {field}: drawn in the no-value colour.": "{n} de {m} amostras não têm {field}: desenhadas na cor sem valor.",
   "Field": "Campo",
   "Distance to logged {layer}: {code}": "Distância a {layer} registada: {code}",
-  "Drillholes: {code} % along the holes": "Furos: {code} % ao longo dos furos"
+  "Drillholes: {code} % along the holes": "Furos: {code} % ao longo dos furos",
+  "Its smallest text prints at about {pt} pt at this width (the snapshot was drawn for about 7 pt).": "O seu texto mais pequeno imprime a cerca de {pt} pt nesta largura (o instantâneo foi desenhado para cerca de 7 pt).",
+  "Its smallest text prints at about {pt} pt.": "O seu texto mais pequeno imprime a cerca de {pt} pt.",
+  "Asked the section window to snapshot again with the text at print size. If the section is closed, open it again and snapshot from there.": "Pediu-se à janela da secção um novo instantâneo com o texto no tamanho de impressão. Se a secção estiver fechada, abra-a de novo e tire o instantâneo a partir daí.",
+  "Could not reach the section window.": "Não foi possível contactar a janela da secção.",
+  "Re-snapshot with the text at print size": "Novo instantâneo com o texto no tamanho de impressão",
+  "Open the section again and snapshot it from there to get the text at print size.": "Abra a secção de novo e tire o instantâneo a partir daí para ter o texto no tamanho de impressão.",
+  "Snapshot taken again; adjusting its text once more for the plot scale…": "Instantâneo tirado de novo; a ajustar o texto mais uma vez para a escala…",
+  "Snapshot taken again with its text at print size, at the same plot scale.": "Instantâneo tirado de novo com o texto no tamanho de impressão, à mesma escala."
 }

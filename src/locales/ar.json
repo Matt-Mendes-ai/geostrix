@@ -7906,5 +7906,13 @@
   "{n} of {m} samples have no {field}: drawn in the no-value colour.": "{n} من {m} عينة ليس لها {field}: مرسومة بلون بلا قيمة.",
   "Field": "الحقل",
   "Distance to logged {layer}: {code}": "المسافة إلى {layer} المسجَّلة: {code}",
-  "Drillholes: {code} % along the holes": "ثقوب الحفر: {code} % على طول الثقوب"
+  "Drillholes: {code} % along the holes": "ثقوب الحفر: {code} % على طول الثقوب",
+  "Its smallest text prints at about {pt} pt at this width (the snapshot was drawn for about 7 pt).": "أصغر نص فيها يُطبع بنحو {pt} نقطة عند هذا العرض (رُسمت اللقطة لنحو 7 نقاط).",
+  "Its smallest text prints at about {pt} pt.": "أصغر نص فيها يُطبع بنحو {pt} نقطة.",
+  "Asked the section window to snapshot again with the text at print size. If the section is closed, open it again and snapshot from there.": "طُلب من نافذة المقطع أخذ اللقطة مجدداً بنص بحجم الطباعة. إذا كان المقطع مغلقاً فافتحه مجدداً وخذ اللقطة من هناك.",
+  "Could not reach the section window.": "تعذّر الوصول إلى نافذة المقطع.",
+  "Re-snapshot with the text at print size": "لقطة جديدة بنص بحجم الطباعة",
+  "Open the section again and snapshot it from there to get the text at print size.": "افتح المقطع مجدداً وخذ اللقطة من هناك لتحصل على النص بحجم الطباعة.",
+  "Snapshot taken again; adjusting its text once more for the plot scale…": "أُخذت اللقطة مجدداً؛ يُعاد ضبط نصها مرة أخرى لمقياس الرسم…",
+  "Snapshot taken again with its text at print size, at the same plot scale.": "أُخذت اللقطة مجدداً بنص بحجم الطباعة، وبمقياس الرسم نفسه."
 }

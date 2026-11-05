@@ -736,3 +736,19 @@ const b64toBlob = (b64) => new Blob([b64ToBytes(b64)]); // base64.js: #1114
 export function canvasPngBytes(canvas) {
   return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? b.arrayBuffer().then((ab) => resolve(new Uint8Array(ab)), reject) : reject(new Error("The image could not be encoded."))), "image/png"));
 }
+
+// TASKS.csv #1485 (review #1352, Silvertip) — Layout asks the section tab that made a snapshot to snapshot again with its text
+// sized for the width the image now has on the page (a 1:10,000 section printed its 11-13 px labels at 3.5-4 pt). The section
+// host window and the main window share the app origin, so a BroadcastChannel reaches every open section tab.
+const RESNAP_CHANNEL = "geox-section-resnap";
+export function sendSectionResnap(payload) {
+  try { new BroadcastChannel(RESNAP_CHANNEL).postMessage(payload); return true; } catch (_) { return false; }
+}
+export function onSectionResnap(cb) {
+  try {
+    const bc = new BroadcastChannel(RESNAP_CHANNEL);
+    const h = (e) => cb(e.data);
+    bc.addEventListener("message", h);
+    return () => { bc.removeEventListener("message", h); bc.close(); };
+  } catch (_) { return () => {}; }
+}

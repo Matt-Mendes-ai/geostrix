@@ -128,3 +128,16 @@ export function captureLongPx(elementW, elementH, max = 3000) {
   if (!(elementW > 0)) return max;
   return Math.min(max, Math.max(600, Math.round((Math.max(elementW, elementH || 0) * 300) / 96)));
 }
+
+// TASKS.csv #1485 (review #1352, Silvertip) — a section snapshot is drawn so that its caption prints at `captionPt` when the image is
+// `placedW` page px wide (theme PLACED_W; SectionWindow atPrintSize). Sized to another width on the page (a plot scale), its text
+// prints at captionPt x width / placedW; a snapshot taken again with `textFactor` keeps that factor on the element.
+// sectionTextPt(el) -> the caption's printed size at the element's width, or null
+export function sectionTextPt(el, { captionPt = 7, placedW = 700 } = {}) {
+  if (!el || !(el.w > 0)) return null;
+  return +((captionPt * el.w * (el.textFactor || 1)) / placedW).toFixed(1);
+}
+// the factor a new snapshot needs so its caption prints at captionPt at the element's width
+export function sectionTextFactor(el, { placedW = 700 } = {}) {
+  return el && el.w > 0 ? +(placedW / el.w).toFixed(3) : 1;
+}

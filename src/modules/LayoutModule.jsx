@@ -3,7 +3,7 @@ import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; //
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock } from "../components/icons.js";
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
-import { savePDF, saveFile, exportPDFData, canvasPngBytes } from "../lib/desktop.js"; // saveFile / exportPDFData: TASKS.csv #909 Export PNG; canvasPngBytes: #1040
+import { savePDF, saveFile, exportPDFData, canvasPngBytes, sendSectionResnap } from "../lib/desktop.js"; // saveFile / exportPDFData: TASKS.csv #909 Export PNG; canvasPngBytes: #1040; sendSectionResnap: #1485
 import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
 import { useStore } from "../lib/store.jsx";
 import PromptModal from "../components/PromptModal.jsx";
@@ -11,7 +11,7 @@ import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
 import { withLiveScaleBars, relinkCopies, tieStarterFurniture, northRotationOf } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
-import { capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, holesInFrame, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; section scale: #944
+import { capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, holesInFrame, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText, sectionTextPt, sectionTextFactor } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; sectionTextPt: #1485; section scale: #944
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
@@ -270,7 +270,28 @@ export default function LayoutModule() {
   useEffect(() => {
     if (!pendingLayoutImages.length) return;
     const maxW = A4.w - 160;
-    const additions = pendingLayoutImages.map((img) => {
+    // TASKS.csv #1485 — a snapshot taken again for an element already on the page replaces its picture (its place and width stay)
+    const replacing = pendingLayoutImages.filter((img) => img.replaceElementId && elements.some((el) => el.id === img.replaceElementId));
+    if (replacing.length) {
+      // Larger text grows the figure's margins, so the new picture spans more metres across: its width is set again for the plot
+      // scale the element had, and if the text then prints off 7 pt the section is asked once more (at most 3 rounds; it converges).
+      let again = 0;
+      const next = new Map();
+      for (const img of replacing) {
+        const el = elements.find((e) => e.id === img.replaceElementId);
+        const aspect = img.naturalW && img.naturalH ? img.naturalW / img.naturalH : el.aspect;
+        const world = img.worldWidthAtCaptureM ?? el.worldWidthAtCaptureM, denom = sectionScaleDenom(el);
+        const w = denom && world ? Math.round(sectionWidthForScale({ worldWidthAtCaptureM: world }, denom)) : el.w;
+        const upd = { ...el, src: img.src, naturalW: img.naturalW, naturalH: img.naturalH, aspect, w, h: Math.round(w / aspect), textFactor: img.textFactor || 1, legendItems: img.legendItems || el.legendItems, worldWidthAtCaptureM: world };
+        next.set(el.id, upd);
+        const pt = sectionTextPt(upd), round = Number(img.resnapRound) || 0;
+        if (pt != null && Math.abs(pt - 7) > 0.7 && round < 3 && upd.sectionTabId) { sendSectionResnap({ tabId: upd.sectionTabId, elementId: upd.id, textFactor: +((upd.textFactor * 7) / pt).toFixed(3), round: round + 1 }); again++; }
+      }
+      setElements((els) => els.map((el) => next.get(el.id) || el));
+      replacing.forEach((img) => consumeLayoutImage(img.id));
+      setSyncNotice(again ? tr("Snapshot taken again; adjusting its text once more for the plot scale…") : tr("Snapshot taken again with its text at print size, at the same plot scale."));
+    }
+    const additions = pendingLayoutImages.filter((img) => !replacing.includes(img)).map((img) => {
       const aspect = img.naturalW && img.naturalH ? img.naturalW / img.naturalH : 16 / 9;
       // TASKS.csv #1480 — a tall image (a strip log) fits the sheet's height too; it ran off the page at 700 px wide
       const maxH = A4.h - 160, w = Math.round(Math.min(maxW, 700, maxH * aspect));
@@ -284,7 +305,7 @@ export default function LayoutModule() {
       // ViewerModule's buildSectionPayload): the exact {label,color} pairs actually drawn in this
       // section, so a legend bound to this image (see syncLegendFromView below) can match it
       // without needing a live theme, which a flattened snapshot doesn't have.
-      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.src, aspect, x: 90 + stagger, y: 90 + stagger, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, planMap: !!img.planMap /* #1864 */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null };
+      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.src, aspect, x: 90 + stagger, y: 90 + stagger, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, planMap: !!img.planMap /* #1864 */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null, sectionTabId: img.sectionTabId || null, textFactor: img.textFactor || 1 /* #1485 */ };
     });
     // TASKS.csv #1128 — a cross-section snapshot comes with its legend as a Layout element (movable, editable, bound to
     // the snapshot so "Sync" refreshes it), right of the image when it fits on the sheet, else below it
@@ -292,9 +313,10 @@ export default function LayoutModule() {
       const right = a.x + a.w + 16, fits = right + 170 <= A4.w;
       return { id: `legend_${a.id}`, type: "legend", x: fits ? right : a.x, y: fits ? a.y : a.y + a.h + 16, items: groupSectionLegend(a.legendItems), boundViewportId: a.id };
     });
+    if (!additions.length) return;
     setElements((els) => additions.reduce((page, a) => tieStarterFurniture(page, a), [...els, ...additions, ...legends])); // #1320
     setSelected(additions[additions.length - 1]?.id ?? null);
-    pendingLayoutImages.forEach((img) => consumeLayoutImage(img.id));
+    additions.forEach((img) => consumeLayoutImage(img.id));
   }, [pendingLayoutImages, consumeLayoutImage]);
 
   useEffect(() => { setSyncNotice(""); }, [selected]);
@@ -1508,6 +1530,7 @@ function UtmGridOverlay({ el, crs = "" }) {
 // here, and the #907 preset picker sets the width that gives 1 : N (the height follows the snapshot's aspect).
 function SectionScaleControls({ sel, pageW, pageH, updateSelected }) {
   const [custom, setCustom] = useState(false);
+  const [resnapNote, setResnapNote] = useState(""); // #1485
   const d = sectionScaleDenom(sel), n = d ? Math.round(d) : 0;
   const preset = SCALE_PRESETS.find((p) => Math.abs(d - p) < 0.5);
   const choice = custom ? "custom" : preset ? String(preset) : "";
@@ -1534,6 +1557,19 @@ function SectionScaleControls({ sel, pageW, pageH, updateSelected }) {
         )}
       </label>
       <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{sectionScaleText(sel)}</div>
+      {(() => { // TASKS.csv #1485 — the plot scale changes the geometry, not the type: say what the text prints at, and take the snapshot again for this width
+        const pt = sectionTextPt(sel); if (pt == null || sel.planMap) return null;
+        const off = Math.abs(pt - 7) > 1;
+        return (
+          <div style={{ fontSize: "var(--font-size-xs)", color: off ? "var(--color-warn-text)" : "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>
+            {off ? tr("Its smallest text prints at about {pt} pt at this width (the snapshot was drawn for about 7 pt).", { pt }) : tr("Its smallest text prints at about {pt} pt.", { pt })}
+            {off && (sel.sectionTabId
+              ? <> <button type="button" onClick={() => { const ok = sendSectionResnap({ tabId: sel.sectionTabId, elementId: sel.id, textFactor: sectionTextFactor(sel) }); setResnapNote(ok ? tr("Asked the section window to snapshot again with the text at print size. If the section is closed, open it again and snapshot from there.") : tr("Could not reach the section window.")); }} style={{ ...inp, width: "auto", marginTop: 4, padding: "3px 8px", cursor: "pointer" }}>{tr("Re-snapshot with the text at print size")}</button></>
+              : <> {tr("Open the section again and snapshot it from there to get the text at print size.")}</>)}
+            {resnapNote && <div style={{ marginTop: 3 }}>{resnapNote}</div>}
+          </div>
+        );
+      })()}
       {tooBig && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4, lineHeight: 1.4 }}>{tr("At this scale the section is larger than the page: choose a smaller scale (a larger number), a larger page, or the other orientation.")}</div>}
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.45 }}>{sel.planMap ? tr("A plan map from Geochem, drawn as it was when sent: to change it, make a new one from Geochem > Plan map. Resizing it changes its scale.") : tr("A cross-section snapshot is a drawing of the section as it was when taken, so it has no theme, refresh or 3D camera to adjust. To change what it shows, take a new snapshot from the cross-section window. The scale is horizontal, along the section; resizing the snapshot changes it.")}</div>
     </div>
