@@ -3910,6 +3910,7 @@ ${describeTrend(t)}` };
     apiToScene,
     assayElements,
     assays,
+    customLayers, // #1739
     clipToDomainBoundary,
     clipToTopo,
     limitToContacts,

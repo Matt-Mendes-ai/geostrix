@@ -55,6 +55,7 @@ export function createModellingRuns(ctx, mcRef) {
     apiToScene,
     assayElements,
     assays,
+    customLayers, // TASKS.csv #1739 — a vein's logged angle to core axis may sit on a custom interval layer
     clipToDomainBoundary,
     clipToTopo,
     limitToContacts, // TASKS.csv #1335
@@ -1799,6 +1800,8 @@ export function createModellingRuns(ctx, mcRef) {
         };
 
         const th = model.thickness, ck = model.checks, pl = model.plane;
+        const { coreAngleThickness } = await import("../../lib/veinCoreAngle.js"); // #1739
+        const tca = coreAngleThickness(used, veinValue, [{ name: tr("Vein / dyke"), rows: layers.vein }, ...(customLayers || []).map((c) => ({ name: c.name, rows: c.rows }))]);
         const base = {
           tool: "vein/dyke (midplane + thickness field)", target: veinValue,
           construction: "one midplane surface plus an interpolated TRUE-thickness field, offset by ±t/2 along the reference pole — the hangingwall and footwall are the same structure, so they cannot cross",
@@ -1807,6 +1810,7 @@ export function createModellingRuns(ctx, mcRef) {
           intercepts: model.intercepts.length,
           trueThicknessMinM: th.trueMin, trueThicknessMaxM: th.trueMax, trueThicknessMeanM: th.trueMean,
           downholeThicknessMeanM: th.downholeMean, thicknessRefinedToLocalNormal: th.refined,
+          trueThicknessFromCoreAngle: tca ? { column: tca.column, layer: tca.layer, intercepts: tca.n, minM: tca.min, maxM: tca.max, meanM: tca.mean } : null, // #1739
           cellSizeM: model.grid.cellSize, cellSizeAuto: !(veinCellSize > 0),
           searchRadiusM: model.grid.searchRadius, searchRadiusAuto: !(veinSearchRadius > 0),
           gridCoarsened: model.grid.coarsened, informedNodes: model.grid.informedNodes,
@@ -1859,6 +1863,7 @@ export function createModellingRuns(ctx, mcRef) {
         const holeCount = new Set(used.map((i) => i.holeId)).size;
         if (holeCount && used.length / holeCount > 2.5) setNotices((p) => [...p, notice("\"{label}\": {used} intercepts in {holeCount} hole(s) — about {v} per hole. A single vein is cut once per hole, so this code is behaving like a vein SET or stockwork; the pair below is the average envelope of all of them, not one vein. To model one vein, log or filter it as its own code.", { label, used: used.length, holeCount, v: (used.length / holeCount).toFixed(1) })]);
         if (ck.nominalLabels) setNotices((p) => [...p, notice("\"{label}\" is near-vertical ({v}° dip), so \"hangingwall\" and \"footwall\" are nominal labels here — the two surfaces are simply the two walls of the structure.", { label, v: fmt(pl.dip, 0) })]);
+        if (tca) setNotices((p) => [...p, notice("\"{label}\": the logged angle to core axis ({column} in {layer}) on {n} of {of} intercept(s) gives a TRUE thickness of {a}–{b} m (mean {c} m), against a modelled mean of {d} m.", { label, column: tca.column, layer: tca.layer, n: tca.n, of: tca.of, a: fmt(tca.min), b: fmt(tca.max), c: fmt(tca.mean), d: fmt(th.trueMean) })]); // #1739
         // #1415 — last, so they are among the messages the sidebar keeps
         if (logged?.n) {
           const spread = logged.k != null ? tr(", k = {k}, α95 = {a}°", { k: logged.k.toFixed(1), a: logged.alpha95.toFixed(0) }) : tr(", one measurement only");

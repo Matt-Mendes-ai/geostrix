@@ -8076,5 +8076,8 @@
   "Vein: {v}": "Filon : {v}",
   "Measured from magnetic north{v}; converted to grid north at import": "Mesuré depuis le nord magnétique{v} ; converti au nord du quadrillage à l'import",
   "Measured from true north{v}; converted to grid north at import": "Mesuré depuis le nord géographique{v} ; converti au nord du quadrillage à l'import",
-  " on {date}": " le {date}"
+  " on {date}": " le {date}",
+  "The vein intercepts come from only {n} hole(s), so the plane through their midpoints is set by the holes' own paths, not by the vein: it fits them almost exactly and says nothing about the attitude. Enter the vein's dip and dip direction to model it.": "Les intersections du filon proviennent de {n} sondage(s) seulement : le plan passant par leurs milieux est fixé par le tracé des sondages eux-mêmes, pas par le filon ; il s'ajuste presque exactement et ne dit rien de l'attitude. Saisissez le pendage et la direction de pendage du filon pour le modéliser.",
+  "The holes that cut this vein lie along one line (one section of holes), so the plane through the intercept midpoints could be rotated freely about that line and does not measure the vein's attitude. Enter the vein's dip and dip direction to model it.": "Les sondages qui recoupent ce filon sont alignés (une seule coupe de sondages) : le plan passant par les milieux des intersections pourrait tourner librement autour de cette ligne et ne mesure pas l'attitude du filon. Saisissez le pendage et la direction de pendage du filon pour le modéliser.",
+  "\"{label}\": the logged angle to core axis ({column} in {layer}) on {n} of {of} intercept(s) gives a TRUE thickness of {a}–{b} m (mean {c} m), against a modelled mean of {d} m.": "« {label} » : l'angle à l'axe de la carotte relevé ({column} dans {layer}) sur {n} des {of} intersection(s) donne une épaisseur VRAIE de {a}–{b} m (moyenne {c} m), contre une moyenne modélisée de {d} m."
 }

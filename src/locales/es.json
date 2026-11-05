@@ -8076,5 +8076,8 @@
   "Vein: {v}": "Veta: {v}",
   "Measured from magnetic north{v}; converted to grid north at import": "Medido desde el norte magnético{v}; convertido a norte de cuadrícula al importar",
   "Measured from true north{v}; converted to grid north at import": "Medido desde el norte verdadero{v}; convertido a norte de cuadrícula al importar",
-  " on {date}": " el {date}"
+  " on {date}": " el {date}",
+  "The vein intercepts come from only {n} hole(s), so the plane through their midpoints is set by the holes' own paths, not by the vein: it fits them almost exactly and says nothing about the attitude. Enter the vein's dip and dip direction to model it.": "Los interceptos de la veta provienen de solo {n} sondaje(s), así que el plano por sus puntos medios lo fija el recorrido de los propios sondajes, no la veta: se ajusta casi exactamente y no dice nada sobre la actitud. Ingrese el manteo y la dirección de manteo de la veta para modelarla.",
+  "The holes that cut this vein lie along one line (one section of holes), so the plane through the intercept midpoints could be rotated freely about that line and does not measure the vein's attitude. Enter the vein's dip and dip direction to model it.": "Los sondajes que cortan esta veta están en una sola línea (una sección de sondajes), así que el plano por los puntos medios de los interceptos podría girar libremente en torno a esa línea y no mide la actitud de la veta. Ingrese el manteo y la dirección de manteo de la veta para modelarla.",
+  "\"{label}\": the logged angle to core axis ({column} in {layer}) on {n} of {of} intercept(s) gives a TRUE thickness of {a}–{b} m (mean {c} m), against a modelled mean of {d} m.": "\"{label}\": el ángulo al eje del testigo registrado ({column} en {layer}) en {n} de {of} intercepto(s) da un espesor VERDADERO de {a}–{b} m (media {c} m), frente a una media modelada de {d} m."
 }

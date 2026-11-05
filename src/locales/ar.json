@@ -8076,5 +8076,8 @@
   "Vein: {v}": "عرق: {v}",
   "Measured from magnetic north{v}; converted to grid north at import": "مقيس من الشمال المغناطيسي{v}؛ حُوّل إلى شمال الشبكة عند الاستيراد",
   "Measured from true north{v}; converted to grid north at import": "مقيس من الشمال الحقيقي{v}؛ حُوّل إلى شمال الشبكة عند الاستيراد",
-  " on {date}": " في {date}"
+  " on {date}": " في {date}",
+  "The vein intercepts come from only {n} hole(s), so the plane through their midpoints is set by the holes' own paths, not by the vein: it fits them almost exactly and says nothing about the attitude. Enter the vein's dip and dip direction to model it.": "تأتي تقاطعات العرق من {n} ثقب فقط، فالمستوي المار بنقاط منتصفها يحدده مسار الثقوب نفسها لا العرق: يطابقها تقريبًا تمامًا ولا يقول شيئًا عن الوضعية. أدخل ميل العرق واتجاه ميله لنمذجته.",
+  "The holes that cut this vein lie along one line (one section of holes), so the plane through the intercept midpoints could be rotated freely about that line and does not measure the vein's attitude. Enter the vein's dip and dip direction to model it.": "الثقوب التي تقطع هذا العرق تقع على خط واحد (مقطع واحد من الثقوب)، فيمكن للمستوي المار بنقاط منتصف التقاطعات أن يدور بحرية حول ذلك الخط ولا يقيس وضعية العرق. أدخل ميل العرق واتجاه ميله لنمذجته.",
+  "\"{label}\": the logged angle to core axis ({column} in {layer}) on {n} of {of} intercept(s) gives a TRUE thickness of {a}–{b} m (mean {c} m), against a modelled mean of {d} m.": "\"{label}\": زاوية المحور اللبابي المسجلة ({column} في {layer}) على {n} من {of} تقاطع تعطي سماكة حقيقية {a}–{b} م (المتوسط {c} م)، مقابل متوسط منمذج {d} م."
 }

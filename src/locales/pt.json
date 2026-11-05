@@ -8076,5 +8076,8 @@
   "Vein: {v}": "Veio: {v}",
   "Measured from magnetic north{v}; converted to grid north at import": "Medido a partir do norte magnético{v}; convertido para norte de quadrícula na importação",
   "Measured from true north{v}; converted to grid north at import": "Medido a partir do norte verdadeiro{v}; convertido para norte de quadrícula na importação",
-  " on {date}": " em {date}"
+  " on {date}": " em {date}",
+  "The vein intercepts come from only {n} hole(s), so the plane through their midpoints is set by the holes' own paths, not by the vein: it fits them almost exactly and says nothing about the attitude. Enter the vein's dip and dip direction to model it.": "As interseções do veio vêm de apenas {n} furo(s), por isso o plano pelos seus pontos médios é definido pelo percurso dos próprios furos, não pelo veio: ajusta-se quase exatamente e não diz nada sobre a atitude. Introduza o mergulho e a direção de mergulho do veio para modelá-lo.",
+  "The holes that cut this vein lie along one line (one section of holes), so the plane through the intercept midpoints could be rotated freely about that line and does not measure the vein's attitude. Enter the vein's dip and dip direction to model it.": "Os furos que cortam este veio estão numa só linha (uma seção de furos), por isso o plano pelos pontos médios das interseções poderia girar livremente em torno dessa linha e não mede a atitude do veio. Introduza o mergulho e a direção de mergulho do veio para modelá-lo.",
+  "\"{label}\": the logged angle to core axis ({column} in {layer}) on {n} of {of} intercept(s) gives a TRUE thickness of {a}–{b} m (mean {c} m), against a modelled mean of {d} m.": "\"{label}\": o ângulo ao eixo do testemunho registado ({column} em {layer}) em {n} de {of} interseção(ões) dá uma espessura VERDADEIRA de {a}–{b} m (média {c} m), contra uma média modelada de {d} m."
 }
