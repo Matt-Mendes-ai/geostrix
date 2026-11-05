@@ -1,3 +1,4 @@
+import { withGroupCodes } from "./lithoGroups.js"; // TASKS.csv #1685
 import { stylingTracker } from "./viewerDirty.js"; // TASKS.csv #1286
 import { defaultDrapeElevation } from "./drapeElevation.js"; // TASKS.csv #1823
 import { t as tr } from "./i18n.js"; // TASKS.csv #1285
@@ -485,7 +486,8 @@ export function StoreProvider({ children }) {
     setLithoGroups((p) => [...p, { name: "Group", color: "#8a7fbf", codes: [], ...group, id }]);
     return id;
   }, []);
-  const updateLithoGroup = useCallback((id, patch) => setLithoGroups((p) => p.map((g) => (g.id === id ? { ...g, ...patch } : g))), []);
+  // TASKS.csv #1685 — a code belongs to one group: codes given to this group leave every other group
+  const updateLithoGroup = useCallback((id, patch) => setLithoGroups((p) => { const base = patch.codes ? withGroupCodes(p, id, patch.codes) : p; return base.map((g) => (g.id === id ? { ...g, ...patch } : g)); }), []);
   const removeLithoGroup = useCallback((id) => setLithoGroups((p) => p.filter((g) => g.id !== id)), []);
 
   // ---- OMF objects (TASKS.csv — Open Mining Format import, src/lib/omf.js) — same list-of-objects

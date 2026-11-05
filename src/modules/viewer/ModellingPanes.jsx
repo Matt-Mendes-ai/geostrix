@@ -20,6 +20,7 @@ import { octreeCellM } from "../../lib/viewer/contactFit.js"; // TASKS.csv #1171
 import { t as tr } from "../../lib/i18n.js";
 import { errorNotice } from "../../lib/notices.js";
 import { tx } from "../../lib/i18nRich.js";
+import { groupOverlaps, groupOfCode } from "../../lib/lithoGroups.js"; // TASKS.csv #1685
 
 export default function ModellingPanes(props) {
   const {
@@ -483,6 +484,9 @@ export default function ModellingPanes(props) {
         {lithoGroups.length === 0 && (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("No groups yet.")}</div>
         )}
+        {groupOverlaps(lithoGroups).map((o) => ( // TASKS.csv #1685 — a saved project with a code in two groups: the tools would disagree
+          <div key={o.code} style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 6, lineHeight: 1.4 }}>{tr("{code} is in {n} groups ({groups}): the tools would read different memberships. Click it in the group it belongs to, and it leaves the others.", { code: o.code, n: o.groups.length, groups: o.groups.join(", ") })}</div>
+        ))}
         {lithoGroups.map((g) => {
           const open = expandedLithoGroupId === g.id;
           const codesInGroup = g.codes || [];
@@ -509,11 +513,12 @@ export default function ModellingPanes(props) {
                   {litho_units.length === 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("No lithology codes loaded yet — import a litho CSV first.")}</div>}
                   {litho_units.map((u) => {
                     const on = codesInGroup.includes(u);
+                    const elsewhere = on ? null : groupOfCode(lithoGroups, u, g.id); // TASKS.csv #1685 — held by another group: a click moves it here
                     return (
                       <span role="button" tabIndex={0} onKeyDown={activateOnKey} key={u} onClick={() => updateLithoGroup(g.id, { codes: on ? codesInGroup.filter((c) => c !== u) : [...codesInGroup, u] })}
-                        title={on ? tr("Remove {u} from this group", { u }) : tr("Add {u} to this group", { u })}
-                        style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", padding: "2px 7px", borderRadius: 10, cursor: "pointer", userSelect: "none",
-                          background: on ? "var(--color-success-bg)" : "var(--color-bg)", color: on ? "var(--color-success-text)" : "var(--color-text-secondary)", border: `1px solid ${on ? "var(--color-success-border)" : "var(--color-border)"}` }}>
+                        title={on ? tr("Remove {u} from this group", { u }) : elsewhere ? tr("In \"{group}\" — click to move it here", { group: elsewhere.name }) : tr("Add {u} to this group", { u })}
+                        style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", padding: "2px 7px", borderRadius: 10, cursor: "pointer", userSelect: "none", opacity: elsewhere ? 0.55 : 1,
+                          background: on ? "var(--color-success-bg)" : "var(--color-bg)", color: on ? "var(--color-success-text)" : "var(--color-text-secondary)", border: `1px ${elsewhere ? "dashed" : "solid"} ${on ? "var(--color-success-border)" : "var(--color-border)"}` }}>
                         <span style={{ width: 7, height: 7, borderRadius: 2, background: colorForLithology(u), flexShrink: 0 }} />{u}
                       </span>
                     );
