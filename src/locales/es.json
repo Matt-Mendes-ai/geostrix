@@ -8249,5 +8249,9 @@
   "{n} more column(s) kept with each hole (Identify shows them): {cols}": "{n} columna(s) más guardada(s) con cada sondaje (Identify las muestra): {cols}",
   "no survey loaded, so each hole is drawn straight from its collar azimuth, dip and length": "no hay survey cargado, así que cada sondaje se dibuja recto según el azimut, la inclinación y la longitud de su collar",
   "kept {n} more column(s) with each row (Identify shows them): {cols}": "se guardaron {n} columna(s) más con cada fila (Identify las muestra): {cols}",
-  "its \"{col}\" column also filled {layer}": "su columna \"{col}\" también llenó {layer}"
+  "its \"{col}\" column also filled {layer}": "su columna \"{col}\" también llenó {layer}",
+  "{n} holes ({ids}) share the same collar (within 1m) AND the same azimuth and dip — a duplicate import, a re-drill, or a coordinate entry error.": "{n} sondajes ({ids}) comparten el mismo collar (a menos de 1 m) Y el mismo azimut e inclinación: una importación duplicada, una reperforación o un error de coordenadas.",
+  "{n} holes ({ids}) start within 1m of each other with different azimuths or dips: a drill pad (fan), not a duplicate.": "{n} sondajes ({ids}) empiezan a menos de 1 m entre sí con azimuts o inclinaciones distintos: una plataforma (abanico), no un duplicado.",
+  "Value {v} at {from}–{to}m is outside the plausible {min}–{max} range for {layer} — a keying or unit error?": "El valor {v} en {from}–{to} m está fuera del rango plausible {min}–{max} para {layer}: ¿error de digitación o de unidad?",
+  "{n} interval(s) repeat another's exact from–to with a different value: a log that records several values per run (e.g. vein types). Not counted as overlaps.": "{n} intervalo(s) repiten exactamente el desde–hasta de otro con un valor distinto: un registro con varios valores por tramo (p. ej. tipos de vetas). No se cuentan como solapes."
 }

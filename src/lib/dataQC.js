@@ -60,8 +60,22 @@ function validateCollars(collars) {
   seenIds.forEach((count, id) => {
     if (count > 1) pushIssue(issues, "warning", "Collars", id, tr("Hole ID \"{id}\" appears {count} times in collars — duplicate import, or a genuine re-drill sharing a name?", { id, count }));
   });
+  // TASKS.csv #1532 (review #1497, Lawyers) — holes from one pad start within a metre of each other with different azimuth / dip (a fan):
+  // that is a pad (info). Only holes that also share their azimuth and dip (to 1 degree) are a possible duplicate (warning). 39 fan holes
+  // were worded as duplicates beside the 4 real ones.
+  const byId = new Map(collars.map((c) => [c.hole_id || "(blank)", c]));
+  const orient = (id) => { const c = byId.get(id) || {}; return Number.isFinite(c.azimuth) && Number.isFinite(c.dip) ? `${Math.round(c.azimuth)}|${Math.round(Math.abs(c.dip))}` : null; };
   seenCoords.forEach((ids, key) => {
     const unique = Array.from(new Set(ids));
+    const canTell = unique.length > 1 && unique.every((id) => orient(id) != null); // without azimuth / dip a fan cannot be told: the old warning below
+    if (canTell) {
+      const groups = new Map();
+      unique.forEach((id) => { const o = orient(id); if (!groups.has(o)) groups.set(o, []); groups.get(o).push(id); });
+      const same = [...groups.values()].filter((g) => g.length > 1);
+      same.forEach((g) => pushIssue(issues, "warning", "Collars", null, tr("{n} holes ({ids}) share the same collar (within 1m) AND the same azimuth and dip — a duplicate import, a re-drill, or a coordinate entry error.", { n: g.length, ids: g.join(", ") })));
+      if (same.flat().length < unique.length) pushIssue(issues, "info", "Collars", null, tr("{n} holes ({ids}) start within 1m of each other with different azimuths or dips: a drill pad (fan), not a duplicate.", { n: unique.length, ids: unique.join(", ") }));
+      return;
+    }
     if (unique.length > 1) pushIssue(issues, "warning", "Collars", null, tr("{unique} holes ({unique2}) share essentially the same collar location (within 1m) — check for a duplicate import or a coordinate entry error.", { unique: unique.length, unique2: unique.join(", ") }));
   });
   return issues;
@@ -195,8 +209,12 @@ export function importCheckSummary(rows, collars, survey, label = "rows") {
   return [none, check].filter(Boolean).join(" ");
 }
 
-function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps = true } = {}) {
+// TASKS.csv #1531 (review #1497, Lawyers) — range: { min, max } of a plausible value for the layer (RQD 0-110 %, recovery 0-110 %, SG
+// 1-6): a value outside it is reported with its hole and depth. 20 RQD values up to 295 %, recoveries up to 20,000 % (138 m keyed as
+// the recovery of a 1.5 m run) and an SG of -7.27 passed, then drove the numeric legends and classes.
+function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps = true, range = null } = {}) {
   const issues = [];
+  let multiValued = 0; // #1532
   const byHole = new Map();
   rows.forEach((r) => {
     if (!byHole.has(r.hole_id)) byHole.set(r.hole_id, []);
@@ -223,6 +241,7 @@ function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps 
     if (Number.isFinite(maxDepth) && Number.isFinite(r.to) && r.to > maxDepth + 0.5) {
       pushIssue(issues, "warning", layerLabel, r.hole_id, tr("Interval to={to}m extends past this hole's own recorded length/survey extent (~{maxDepth}m) — depth may be measured-depth vs true-vertical-depth confusion, or a mis-keyed hole ID.", { to: r.to, maxDepth: maxDepth.toFixed(0) }));
     }
+    if (range && typeof r.value === "number" && Number.isFinite(r.value) && (r.value < range.min || r.value > range.max)) pushIssue(issues, "warning", layerLabel, r.hole_id, tr("Value {v} at {from}–{to}m is outside the plausible {min}–{max} range for {layer} — a keying or unit error?", { v: r.value, from: r.from, to: r.to, min: range.min, max: range.max, layer: layerLabel })); // #1531
     // #1395 — a 0 (0 % RQD, 0 % recovery) is a measurement, not a missing value: only blank, NaN or "Unknown" counts
     if (r.value == null || r.value === "" || (typeof r.value === "number" && !Number.isFinite(r.value)) || r.value === "Unknown") pushIssue(issues, "info", layerLabel, r.hole_id, tr("Interval at {v}–{v2}m has no code/value.", { v: Number.isFinite(r.from) ? r.from : "?", v2: Number.isFinite(r.to) ? r.to : "?" }));
   });
@@ -239,7 +258,10 @@ function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps 
       const cur = sorted[i];
       if (i > 0) {
         const prev = sorted[i - 1];
-        if (cur.from < maxEnd - 0.01 && maxEndOwner) {
+        // #1532 — the same run logged again with another value (several vein types, each with its own %, over one interval) is a
+        // multi-valued log, not an overlap: counted once per layer below. 7,240 of Lawyers' 7,574 warnings were these.
+        if (maxEndOwner && Math.abs(cur.from - maxEndOwner.from) < 0.01 && Math.abs(cur.to - maxEndOwner.to) < 0.01 && String(cur.value) !== String(maxEndOwner.value)) multiValued++;
+        else if (cur.from < maxEnd - 0.01 && maxEndOwner) {
           pushIssue(issues, "warning", layerLabel, holeId, tr("Overlapping intervals: {from}–{to}m ({value}) and {from2}–{to2}m ({value2}).", { from: maxEndOwner.from, to: maxEndOwner.to, value: maxEndOwner.value, from2: cur.from, to2: cur.to, value2: cur.value }));
         } else if (cur.from > prev.to + 0.01 && cur.from >= maxEnd - 0.01) {
           const gap = cur.from - prev.to;
@@ -256,6 +278,7 @@ function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps 
       seen.add(key);
     });
   });
+  if (multiValued) pushIssue(issues, "info", layerLabel, null, tr("{n} interval(s) repeat another's exact from–to with a different value: a log that records several values per run (e.g. vein types). Not counted as overlaps.", { n: multiValued }));
   return issues;
 }
 
@@ -490,9 +513,9 @@ export function runDataQC({ project, collars, survey, layers, boundaries, assays
     ...validateIntervalLayer(layers.vein || [], "Vein", collarIds, holeLengths, { gaps: false }),
     ...validateIntervalLayer(layers.breccia || [], "Breccia", collarIds, holeLengths, { gaps: false }), // #608
     ...validateIntervalLayer(layers.structzone || [], "Structural zones", collarIds, holeLengths, { gaps: false }), // #604: zones are logged where they occur
-    ...validateIntervalLayer(layers.geotech || [], "Geotech", collarIds, holeLengths),
-    ...validateIntervalLayer(layers.recovery || [], "Recovery %", collarIds, holeLengths),
-    ...validateIntervalLayer(layers.sg || [], "Specific gravity", collarIds, holeLengths, { gaps: false }),
+    ...validateIntervalLayer(layers.geotech || [], "Geotech", collarIds, holeLengths, { range: { min: 0, max: 110 } }), // range: #1531
+    ...validateIntervalLayer(layers.recovery || [], "Recovery %", collarIds, holeLengths, { range: { min: 0, max: 110 } }),
+    ...validateIntervalLayer(layers.sg || [], "Specific gravity", collarIds, holeLengths, { gaps: false, range: { min: 1, max: 6 } }),
     ...validateIntervalLayer(layers.litho_gc || [], "Litho (geochem-derived)", collarIds, holeLengths),
     ...validateIntervalLayer(layers.alt_gc || [], "Alteration (geochem-derived)", collarIds, holeLengths),
     ...validateAssays(assays || [], collarIds, holeLengths),

@@ -8249,5 +8249,9 @@
   "{n} more column(s) kept with each hole (Identify shows them): {cols}": "حُفظ {n} عمود إضافي مع كل ثقب (يعرضها Identify): {cols}",
   "no survey loaded, so each hole is drawn straight from its collar azimuth, dip and length": "لا يوجد مسح محمّل، لذا يُرسم كل ثقب مستقيماً وفق سمت فوهته وميلها وطولها",
   "kept {n} more column(s) with each row (Identify shows them): {cols}": "حُفظ {n} عمود إضافي مع كل صف (يعرضها Identify): {cols}",
-  "its \"{col}\" column also filled {layer}": "ملأ عموده \"{col}\" أيضاً {layer}"
+  "its \"{col}\" column also filled {layer}": "ملأ عموده \"{col}\" أيضاً {layer}",
+  "{n} holes ({ids}) share the same collar (within 1m) AND the same azimuth and dip — a duplicate import, a re-drill, or a coordinate entry error.": "{n} ثقوب ({ids}) تشترك في الفوهة نفسها (ضمن 1 م) وفي السمت والميل نفسيهما: استيراد مكرر أو إعادة حفر أو خطأ في الإحداثيات.",
+  "{n} holes ({ids}) start within 1m of each other with different azimuths or dips: a drill pad (fan), not a duplicate.": "{n} ثقوب ({ids}) تبدأ ضمن 1 م من بعضها بسموت أو ميول مختلفة: منصة حفر (مروحة) وليست تكراراً.",
+  "Value {v} at {from}–{to}m is outside the plausible {min}–{max} range for {layer} — a keying or unit error?": "القيمة {v} عند {from}–{to} م خارج النطاق المعقول {min}–{max} لـ{layer}: خطأ إدخال أو وحدة؟",
+  "{n} interval(s) repeat another's exact from–to with a different value: a log that records several values per run (e.g. vein types). Not counted as overlaps.": "{n} فترة تكرر تماماً بداية ونهاية فترة أخرى بقيمة مختلفة: سجل يدوّن عدة قيم لكل مقطع (مثل أنواع العروق). لا تُحسب تداخلات."
 }

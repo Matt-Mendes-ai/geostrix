@@ -8249,5 +8249,9 @@
   "{n} more column(s) kept with each hole (Identify shows them): {cols}": "{n} coluna(s) a mais guardada(s) com cada furo (Identify as mostra): {cols}",
   "no survey loaded, so each hole is drawn straight from its collar azimuth, dip and length": "nenhum survey carregado, então cada furo é desenhado reto pelo azimute, inclinação e comprimento da boca",
   "kept {n} more column(s) with each row (Identify shows them): {cols}": "{n} coluna(s) a mais guardada(s) com cada linha (Identify as mostra): {cols}",
-  "its \"{col}\" column also filled {layer}": "a coluna \"{col}\" também preencheu {layer}"
+  "its \"{col}\" column also filled {layer}": "a coluna \"{col}\" também preencheu {layer}",
+  "{n} holes ({ids}) share the same collar (within 1m) AND the same azimuth and dip — a duplicate import, a re-drill, or a coordinate entry error.": "{n} furos ({ids}) compartilham a mesma boca (a menos de 1 m) E o mesmo azimute e inclinação: importação duplicada, refuro ou erro de coordenada.",
+  "{n} holes ({ids}) start within 1m of each other with different azimuths or dips: a drill pad (fan), not a duplicate.": "{n} furos ({ids}) começam a menos de 1 m uns dos outros com azimutes ou inclinações diferentes: uma praça de sondagem (leque), não um duplicado.",
+  "Value {v} at {from}–{to}m is outside the plausible {min}–{max} range for {layer} — a keying or unit error?": "O valor {v} em {from}–{to} m está fora da faixa plausível {min}–{max} para {layer}: erro de digitação ou de unidade?",
+  "{n} interval(s) repeat another's exact from–to with a different value: a log that records several values per run (e.g. vein types). Not counted as overlaps.": "{n} intervalo(s) repetem exatamente o de–até de outro com valor diferente: um registro com vários valores por trecho (ex.: tipos de veio). Não contados como sobreposições."
 }
