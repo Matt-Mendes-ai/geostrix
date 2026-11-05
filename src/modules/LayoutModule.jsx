@@ -1068,7 +1068,7 @@ export default function LayoutModule() {
                       <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Holes containing")}<input type="text" value={sel.holeFilter || ""} placeholder={tr("all")} onChange={(e) => updateSelected({ holeFilter: e.target.value, firstRow: 1 })} style={inp} /></label>
                     </div>
                     <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("Rows {a}–{b} of {n}.", { a: sl.total ? sl.start + 1 : 0, b: sl.end, n: sl.total })}</div>
-                    {conts.length > 0 && <button onClick={() => addLayoutPages(conts.map((t, i) => ({ name: `${activePage?.name || tr("Collars")} (${i + 2})`, elements: [t] })))} style={{ ...pBtn, marginBottom: 8 }}>{tr("Continue on {n} new page(s)", { n: conts.length })}</button>}
+                    {conts.length > 0 && <button onClick={() => addLayoutPages(conts.map((t, i) => ({ name: `${activePage?.name || tr("Collars")} (${i + 2})`, elements: [t], batch: `collars_${sel.id}` })))} style={{ ...pBtn, marginBottom: 8 }}>{tr("Continue on {n} new page(s)", { n: conts.length })}</button>}
                   </>);
                 })()}
                 <FrameControls sel={sel} updateSelected={updateSelected} />
@@ -1340,7 +1340,9 @@ export default function LayoutModule() {
             into the sidebar, so it reads as "which page am I looking at" the same way browser/editor
             tabs do, right next to the thing it switches. Hidden on print (see app.css) — only the
             active page's canvas below should ever end up on paper. */}
-        <div className="ge-layout-pagebar" style={{ display: "flex", alignItems: "center", gap: 4, padding: "10px 30px 0", flexShrink: 0 }}>
+        <div className="ge-layout-pagebar" style={{ display: "flex", alignItems: "center", gap: 4, padding: "10px 30px 0", flexShrink: 0, minWidth: 0 }}>
+          {/* TASKS.csv #1636 — the tabs scroll in their own strip; the page controls after it stay on screen (44 atlas pages pushed them off) */}
+          <div className="ge-layout-pagetabs" style={{ display: "flex", alignItems: "center", gap: 4, flex: "1 1 auto", minWidth: 60, overflowX: "auto", overflowY: "hidden", scrollbarWidth: "thin" }}>
           {layoutPages.map((p) => {
             const isActive = p.id === activeLayoutPageId;
             return (
@@ -1377,6 +1379,19 @@ export default function LayoutModule() {
           >
             <Plus size={14} />
           </button>
+          </div>
+          {layoutPages.length > 8 && ( /* #1636 — a picker for many pages */
+            <select value={activeLayoutPageId} onChange={(e) => switchLayoutPage(e.target.value)} aria-label={tr("Go to page")} title={tr("Go to page")}
+              style={{ height: 22, marginBottom: 2, marginLeft: 4, maxWidth: 170, flexShrink: 0, fontSize: "var(--font-size-sm)", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }}>
+              {layoutPages.map((p, i) => <option key={p.id} value={p.id}>{`${i + 1}. ${p.name}`}</option>)}
+            </select>
+          )}
+          {activePage?.batch && (() => { // #1636 — the generated pages of this one's run, in one action
+            const ids = layoutPages.filter((p) => p.batch === activePage.batch).map((p) => p.id);
+            return ids.length > 1 ? <button onClick={() => { if (window.confirm(tr("Delete the {n} pages generated with this one? (Ctrl+Z undoes this.)", { n: ids.length }))) deleteLayoutPage(ids); }}
+              style={{ height: 22, marginBottom: 2, marginLeft: 4, padding: "0 8px", flexShrink: 0, background: "transparent", border: "1px solid var(--color-border)", borderRadius: 5, color: "var(--color-text-faint)", fontSize: "var(--font-size-sm)", cursor: "pointer" }}>
+              {tr("Remove these {n} generated pages", { n: ids.length })}</button> : null;
+          })()}
           {/* TASKS.csv #398 — paper size / orientation of this page (also used for its PDF export). */}
           <select
             value={pageFormat.size}

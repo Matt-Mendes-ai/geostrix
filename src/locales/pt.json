@@ -8200,5 +8200,8 @@
   "Rows {a}–{b} of {n}": "Linhas {a}–{b} de {n}",
   "Continue on {n} new page(s)": "Continuar em {n} página(s) nova(s)",
   "… and {n} more hole(s), from row {r}: a table with that First row, or Continue on new pages": "… e mais {n} furo(s), a partir da linha {r}: uma tabela com essa Primeira linha, ou Continuar em páginas novas",
-  "No hole id contains \"{f}\".": "Nenhum id de furo contém \"{f}\"."
+  "No hole id contains \"{f}\".": "Nenhum id de furo contém \"{f}\".",
+  "Go to page": "Ir para a página",
+  "Delete the {n} pages generated with this one? (Ctrl+Z undoes this.)": "Excluir as {n} páginas geradas junto com esta? (Ctrl+Z desfaz.)",
+  "Remove these {n} generated pages": "Remover estas {n} páginas geradas"
 }

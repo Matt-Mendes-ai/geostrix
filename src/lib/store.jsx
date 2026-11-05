@@ -1575,7 +1575,8 @@ export function StoreProvider({ children }) {
   // page-navigating action.
   const addLayoutPages = useCallback((pages) => {
     if (!pages || !pages.length) return [];
-    const withIds = pages.map((pg, i) => ({ id: `page_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`, name: pg.name, elements: pg.elements }));
+    // TASKS.csv #1636 — batch: the run that generated the page (an atlas, a collar table's continuation), removable in one action
+    const withIds = pages.map((pg, i) => ({ id: `page_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`, name: pg.name, elements: pg.elements, ...(pg.batch ? { batch: pg.batch } : {}) }));
     setLayoutPages((p) => [...p, ...withIds]);
     setActiveLayoutPageId(withIds[0].id);
     clearUndoHistory();
@@ -1583,15 +1584,16 @@ export function StoreProvider({ children }) {
   }, [clearUndoHistory]);
   // Closing the last page is treated as resetting to one fresh blank page rather than leaving zero —
   // same reasoning as closeWorkspaceTab's "last tab closed" branch above.
-  const deleteLayoutPage = useCallback((id) => {
+  const deleteLayoutPage = useCallback((id) => { // TASKS.csv #1636 — or a list of ids (a generated batch)
+    const gone = new Set(Array.isArray(id) ? id : [id]);
     setLayoutPages((pages) => {
-      const remaining = pages.filter((p) => p.id !== id);
+      const remaining = pages.filter((p) => !gone.has(p.id));
       if (!remaining.length) {
         const freshId = `page_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-        if (id === activeLayoutPageId) { setActiveLayoutPageId(freshId); clearUndoHistory(); }
+        if (gone.has(activeLayoutPageId)) { setActiveLayoutPageId(freshId); clearUndoHistory(); }
         return [{ id: freshId, name: "Page 1", elements: DEFAULT_LAYOUT_ELEMENTS }];
       }
-      if (id === activeLayoutPageId) { setActiveLayoutPageId(remaining[0].id); clearUndoHistory(); }
+      if (gone.has(activeLayoutPageId)) { setActiveLayoutPageId(remaining[0].id); clearUndoHistory(); }
       return remaining;
     });
   }, [activeLayoutPageId, clearUndoHistory]);

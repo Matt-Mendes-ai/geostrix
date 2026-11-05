@@ -8200,5 +8200,8 @@
   "Rows {a}–{b} of {n}": "الصفوف {a}–{b} من {n}",
   "Continue on {n} new page(s)": "المتابعة في {n} صفحة جديدة",
   "… and {n} more hole(s), from row {r}: a table with that First row, or Continue on new pages": "… و{n} ثقب إضافي بدءاً من الصف {r}: جدول بهذا الصف الأول، أو المتابعة في صفحات جديدة",
-  "No hole id contains \"{f}\".": "لا يحتوي أي معرّف ثقب على \"{f}\"."
+  "No hole id contains \"{f}\".": "لا يحتوي أي معرّف ثقب على \"{f}\".",
+  "Go to page": "الانتقال إلى الصفحة",
+  "Delete the {n} pages generated with this one? (Ctrl+Z undoes this.)": "حذف الصفحات الـ{n} المولّدة مع هذه الصفحة؟ (Ctrl+Z يتراجع عن ذلك.)",
+  "Remove these {n} generated pages": "إزالة هذه الصفحات المولّدة الـ{n}"
 }

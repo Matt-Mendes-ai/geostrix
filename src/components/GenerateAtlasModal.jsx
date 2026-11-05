@@ -66,7 +66,8 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
       // #1478 — a long hole squeezed onto one page prints its depth labels too small to read: said, with the size
       const smallest = Math.min(...pages.map((pg) => pg.textPt).filter(Number.isFinite));
       const smallText = Number.isFinite(smallest) && smallest < 6 ? ` ${tr("The longest strip log prints its labels at about {pt} pt on this page: use a larger page, or the strip log window for a full-size log.", { pt: smallest.toFixed(1) })}` : "";
-      addLayoutPages(pages);
+      const batch = `atlas_${Date.now()}`; // TASKS.csv #1636 — removable as one batch
+      addLayoutPages(pages.map((pg) => ({ ...pg, batch })));
       const failed = pages.filter((pg) => pg.stripLogFailed).map((pg) => pg.name); // #1080
       // #1772 — what making room for the strip log did to the template's elements
       const narrowedPages = pages.filter((pg) => pg.narrowed > 0).length, coveredPages = pages.filter((pg) => pg.overlapping > 0).length;

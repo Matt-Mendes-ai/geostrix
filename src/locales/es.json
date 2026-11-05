@@ -8200,5 +8200,8 @@
   "Rows {a}–{b} of {n}": "Filas {a}–{b} de {n}",
   "Continue on {n} new page(s)": "Continuar en {n} página(s) nueva(s)",
   "… and {n} more hole(s), from row {r}: a table with that First row, or Continue on new pages": "… y {n} sondaje(s) más, desde la fila {r}: una tabla con esa Primera fila, o Continuar en páginas nuevas",
-  "No hole id contains \"{f}\".": "Ningún id de sondaje contiene \"{f}\"."
+  "No hole id contains \"{f}\".": "Ningún id de sondaje contiene \"{f}\".",
+  "Go to page": "Ir a la página",
+  "Delete the {n} pages generated with this one? (Ctrl+Z undoes this.)": "¿Eliminar las {n} páginas generadas junto con esta? (Ctrl+Z lo deshace.)",
+  "Remove these {n} generated pages": "Quitar estas {n} páginas generadas"
 }
