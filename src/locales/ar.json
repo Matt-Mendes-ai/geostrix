@@ -8295,5 +8295,7 @@
   "Every survey file has a base for its day.": "لكل ملف مسح محطة قاعدية ليومه.",
   "Add more base files…": "إضافة ملفات محطة قاعدية أخرى…",
   "Load base-station files…": "تحميل ملفات المحطة القاعدية…",
-  "{names}: only faces (a solid, not strings) — handed to the 3D View's solid import.": "{names}: وجوه فقط (مجسّم، لا خطوط) — أُحيل إلى استيراد المجسّمات في العرض ثلاثي الأبعاد."
+  "{names}: only faces (a solid, not strings) — handed to the 3D View's solid import.": "{names}: وجوه فقط (مجسّم، لا خطوط) — أُحيل إلى استيراد المجسّمات في العرض ثلاثي الأبعاد.",
+  "VLF-EM: in-phase": "VLF-EM: المركّبة المتطابقة الطور",
+  "VLF-EM: quadrature": "VLF-EM: المركّبة التربيعية"
 }

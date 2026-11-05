@@ -16,7 +16,7 @@ import { Radio, Upload, Trash2, ArrowRight, Eye, EyeOff, Loader2, Mountain, Tria
 import { lazyModal } from "../lib/lazyModal.jsx";
 import { sampleModelOnHoles } from "../lib/voxelSample.js"; // TASKS.csv #323
 import { logStops, SEQUENTIAL_ANCHORS } from "../lib/inversion.js"; // TASKS.csv #481
-import { SURVEY_METHODS, unitsForMethod, robustRange, SURVEY_METHOD_GROUPS, guessSurveyMethodFrom, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
+import { SURVEY_METHODS, unitsForMethod, robustRange, SURVEY_METHOD_GROUPS, guessSurveyMethodFrom, diurnalApplies /* #1586 */, Z_MEANINGS, surveyKey, surveyStats, aglToElevation, replaceSurveyPoints, surveyExportRows } from "../lib/geophysSurveys.js"; // surveyExportRows: #1094 // TASKS.csv #451; replaceSurveyPoints #600
 import { terrainElevationAt } from "../lib/inversion.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
@@ -1025,7 +1025,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     const points = collected.flat();
     if (points.length) {
       setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, points).rows }));
-      const g = guessSurveyMethodFrom(valueCol, []);
+      const g = guessSurveyMethodFrom(valueCol, [], { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }); // hints: #1586
       if (g) for (const src of new Set(points.map((r) => r._src))) if (!geophysSurveys[src]?.method) updateGeophysSurvey(src, { method: g, units: SURVEY_METHODS[g].units });
     }
     setXyzError({ info: !failed.length, text: [
@@ -1122,7 +1122,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     }
     const replacedN = replaceSurveyPoints(rows, mapped).replaced; // #600 — re-import replaces, does not double
     setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, mapped).rows }));
-    { const g = guessSurveyMethodFrom(valueCol, mapped.map((r) => r.label)); if (g && !geophysSurveys[fileName]?.method) updateGeophysSurvey(fileName, { method: g, units: SURVEY_METHODS[g].units }); } // #1151
+    { const g = guessSurveyMethodFrom(valueCol, mapped.map((r) => r.label), { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }); if (g && !geophysSurveys[fileName]?.method) updateGeophysSurvey(fileName, { method: g, units: SURVEY_METHODS[g].units }); } // #1151; hints: #1586
     if (replacedN) reprojectNote += tr(" Replaced the {replacedN} point(s) of the earlier import of this file.", { replacedN: replacedN.toLocaleString() });
     const skipped = cleanedRows.length - mapped.length - noFix; // #538 — the no-fix readings are reported separately; #1583: after the cleaning
     if (noFix) reprojectNote += tr(" Left out {noFix} reading(s) at X = 0, Y = 0 (no GPS fix).", { noFix });
@@ -1476,7 +1476,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                     {KEEP_CHOICES.map((n) => <option key={n} value={n}>{n === 1 ? tr("Every reading (about {rows} points)", { rows: xyzPending.batch.estimate.toLocaleString() }) : tr("1 in {n} (about {rows} points)", { n, rows: Math.round(xyzPending.batch.estimate / n).toLocaleString() })}</option>)}
                   </select>
                 </label>
-                {xyzPending.batch.timeCol && xyzPending.source !== "csv" && (() => { // #1585 — base stations for every day of the batch
+                {xyzPending.batch.timeCol && xyzPending.source !== "csv" && diurnalApplies(xyzPending.valueCol, { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }) /* #1586 */ && (() => { // #1585 — base stations for every day of the batch
                   const plan = batchDiurnalPlan(xyzPending.batch.files.map((f) => f.name), xyzPending.batch.bases);
                   return (
                     <div style={{ marginTop: 8, paddingTop: 6, borderTop: "1px solid var(--color-border)" }}>
@@ -1498,7 +1498,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                 <input ref={gridGpsInput} type="file" accept=".txt,.csv,.dat,.gpx,.wpt" style={{ display: "none" }} onChange={(e) => { placeLocalGrid(e.target.files[0]); e.target.value = ""; }} />
               </div>
             )}
-            {xyzPending.source !== "csv" && !xyzPending.batch && <DiurnalCorrectionBox key={xyzPending.fileName} pending={xyzPending} setPending={setXyzPending} numInput={numInput} pBtn={pBtn} />}
+            {xyzPending.source !== "csv" && !xyzPending.batch && diurnalApplies(xyzPending.valueCol, { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }) /* #1586 — a magnetics step */ && <DiurnalCorrectionBox key={xyzPending.fileName} pending={xyzPending} setPending={setXyzPending} numInput={numInput} pBtn={pBtn} />}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <button onClick={confirmImportXYZ} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>
                 <Upload size={14} />{" "}{tr("Import")}</button>

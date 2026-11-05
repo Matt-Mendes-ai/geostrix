@@ -8295,5 +8295,7 @@
   "Every survey file has a base for its day.": "Cada archivo de levantamiento tiene una base para su día.",
   "Add more base files…": "Añadir más archivos de base…",
   "Load base-station files…": "Cargar archivos de estación base…",
-  "{names}: only faces (a solid, not strings) — handed to the 3D View's solid import.": "{names}: solo caras (un sólido, no líneas) — pasado a la importación de sólidos de la Vista 3D."
+  "{names}: only faces (a solid, not strings) — handed to the 3D View's solid import.": "{names}: solo caras (un sólido, no líneas) — pasado a la importación de sólidos de la Vista 3D.",
+  "VLF-EM: in-phase": "VLF-EM: en fase",
+  "VLF-EM: quadrature": "VLF-EM: cuadratura"
 }

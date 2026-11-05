@@ -32,6 +32,8 @@ export const SURVEY_METHODS = {
   em_bfield: { label: "TEM: B-field (one channel)", units: "pT", group: "em" },
   em_tau: { label: "TEM: decay constant", units: "ms", group: "em" },
   vlf_tilt: { label: "VLF-EM: tilt angle", units: "%", group: "em" },
+  vlf_inphase: { label: "VLF-EM: in-phase", units: "%", group: "em" }, // TASKS.csv #1586 — GEM's ip_<kHz> / op_<kHz> columns, % of the primary field
+  vlf_quad: { label: "VLF-EM: quadrature", units: "%", group: "em" },
   ztem_tipper: { label: "ZTEM: tipper (in-phase)", units: "ratio", group: "em" },
   mt_rho: { label: "MT / AMT: apparent resistivity", units: "Ω·m", group: "em" },
   mt_phase: { label: "MT / AMT: phase", units: "°", group: "em" },
@@ -49,6 +51,10 @@ export const methodIsInvertible = (m) => m === "mag" || m === "grav";
 // matched whole, so "ip" never fires on "dip" and "k" never on "kelvin"; null when nothing fits (the select stays
 // "Method…"). The order matters: a specific product before its family.
 const WORD_RULES = [
+  // TASKS.csv #1586 (review #1497, Lawyers) — GEM walk-VLF writes ip_21p4 / op_21p4 (in-phase / quadrature at 21.4 kHz): matched
+  // as one word before the IP-chargeability rule can see "ip"; GEM walk-mag writes rawmag / cormag (and this app's _dc channel)
+  [/^(ip|inph|inphase)\d+p\d+$/, "vlf_inphase"], [/^(op|quad)\d+p\d+$/, "vlf_quad"],
+  [/^(rawmag|cormag|rawmagdc|cormagdc|magdc|tmidc)$/, "mag"],
   [/^(rtp|rtp_nt)$/, "mag_rtp"], [/^(1vd|fvd|dz|vd1)$/, "mag_1vd"], [/^(as|asig|analytic)$/, "mag_as"], [/^(vg|vgrad|vmg)$/, "mag_vg"],
   [/^(tmi|mag|magnetics|magnetic|nt|tf|rmi|igrf)$/, "mag"],
   [/^(boug|bouguer|cba|sba)$/, "grav"], [/^(fa|freeair)$/, "grav_fa"], [/^(gzz|ftg|eotvos)$/, "grav_gzz"], [/^(grav|gravity|mgal|gz)$/, "grav"],
@@ -58,23 +64,40 @@ const WORD_RULES = [
   [/^(rhoa|apprho|mt|amt)$/, "mt_rho"], [/^(phase|phs)$/, "mt_phase"],
   [/^(chargeability|charge|ip|mvv|mv_v)$/, "ip"], [/^(res|resistivity|rho|ohmm|appres)$/, "res"], [/^(sp|selfpotential)$/, "sp"],
 ];
-export function guessSurveyMethod(header) {
+// TASKS.csv #1586 — what the file says about itself, read before the column's own words: a GEM GSM-19 (or any magnetometer)
+// header makes an unnamed-looking channel magnetics; a VLF column set (f_/ip_/op_/h1_/pT_ with a frequency suffix) makes an
+// "ip_..." column VLF in-phase, not IP chargeability.
+const MAGNETOMETER = /gsm-?\d+|gem ?systems|overhauser|proton|cesium|caesium|magnetometer|scintrex ?env|envi ?mag|g-?85[0-9]/i;
+const VLF_COLUMN = /^(f|ip|op|h1|h2|pt|tilt)_?\d+p\d+$/i;
+export function fileHints({ instrument = null, columns = [] } = {}) {
+  const cols = (columns || []).map((c) => String(c).toLowerCase());
+  return { magnetometer: !!(instrument && MAGNETOMETER.test(String(instrument))), vlfSet: cols.filter((c) => VLF_COLUMN.test(c)).length >= 2 };
+}
+export function guessSurveyMethod(header, hints = null) {
   if (!header) return null;
   const words = String(header).toLowerCase().replace(/[()[\]]/g, " ").split(/[^a-z0-9]+/).filter(Boolean);
   const joined = words.join("");
+  const h = hints ? fileHints(hints) : null;
+  if (h?.vlfSet) { if (/^(ip|inph|inphase)/.test(joined)) return "vlf_inphase"; if (/^(op|quad)/.test(joined)) return "vlf_quad"; if (/^(tilt|h1)/.test(joined)) return "vlf_tilt"; } // #1586
   for (const [re, m] of WORD_RULES) { if (re.test(joined)) return m; } // "U_Th" is the ratio, not thorium
   for (const [re, m] of WORD_RULES) { if (words.some((w) => re.test(w))) return m; }
   // a header written as one word: "inphase", "freeair", "totalcount", "bouguer", "apparentconductivity"
   if (/^(apparent)?cond/.test(joined)) return "em_cond";
   if (/^(apparent)?res/.test(joined) || /ohm/.test(joined)) return "res";
+  if (h?.magnetometer && /mag|field|nt|tmi|total/.test(joined)) return "mag"; // #1586 — a magnetometer's own reading column
   return null;
 }
+// TASKS.csv #1586 — the diurnal correction is a magnetics step: offered for a magnetic channel, or one the rules cannot name
+export function diurnalApplies(header, hints = null) {
+  const g = guessSurveyMethod(header, hints);
+  return !g || SURVEY_METHODS[g]?.group === "mag";
+}
 // TASKS.csv #1197 — the value column's name, else a label column holding one value on every row ("TMI_nT" on all 3,528 rows of the Harry survey)
-export function guessSurveyMethodFrom(header, labels = []) {
-  const g = guessSurveyMethod(header);
+export function guessSurveyMethodFrom(header, labels = [], hints = null) { // hints: #1586
+  const g = guessSurveyMethod(header, hints);
   if (g) return g;
   const one = new Set(labels.filter((v) => v != null && v !== ""));
-  return one.size === 1 ? guessSurveyMethod([...one][0]) : null;
+  return one.size === 1 ? guessSurveyMethod([...one][0], hints) : null;
 }
 // What a survey's z column means. "agl" = height above ground (a helicopter survey's radar altimeter):
 // converted to elevation = terrain + height, with the original kept on each row as zAgl.
