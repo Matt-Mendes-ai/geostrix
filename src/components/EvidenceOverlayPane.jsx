@@ -54,6 +54,10 @@ export default function EvidenceOverlayPane({ onClose }) {
 
   const geophysPts = projectLayers?.geophys_pts, structurePicks = projectLayers?.structure;
   const traces = useMemo(() => holeTraces(collars, survey, project?.desurveyMethod), [collars, survey, project?.desurveyMethod]);
+  // TASKS.csv #1727 (review #1645, Copley) — the grid around the drilling grows with the largest reach a drillhole evidence was given
+  // (a 1,000 m reach ran into the edge of a box that ended 250 m past the outer holes), and a drill-only overlay says what it ranks
+  const drillPad = useMemo(() => Math.max(DRILL_REACH_M, ...layers.filter((l) => l.kind === "grade" || l.kind === "pxrf").map((l) => Number(l.reach) || 0)), [layers]);
+  const drillOnly = layers.length > 0 && layers.every((l) => l.kind === "grade" || l.kind === "pxrf" || l.kind === "pick");
   // TASKS.csv #1450 — surface samples far from the rest (Silvertip's 5 rocks 45 km south) do not size the grid or a reach
   const sampleCore = useMemo(() => { const { keep, dropped } = mainClusters(surfaceSamples); return { samples: surfaceSamples.filter((_, i) => keep[i]), dropped }; }, [surfaceSamples]);
   const media = useMemo(() => { const m = new Map(); sampleCore.samples.forEach((s) => m.set(s.medium || "", (m.get(s.medium || "") || 0) + 1)); return [...m].sort((a, b) => b[1] - a[1]).map(([k]) => k); }, [sampleCore]);
@@ -69,11 +73,11 @@ export default function EvidenceOverlayPane({ onClose }) {
     mapLayers.forEach((l) => { if (l.bbox) all.grow(...l.bbox); });
     sampleCore.samples.forEach((s) => { if (Number.isFinite(s.x) && Number.isFinite(s.y)) { all.grow(s.x - 200, s.y - 200, s.x + 200, s.y + 200); smp.grow(s.x - 200, s.y - 200, s.x + 200, s.y + 200); } });
     // TASKS.csv #1154 — a project of holes, surveys or block models has an extent too
-    for (const t of traces.values()) for (const p of t) { all.grow(p.x - DRILL_REACH_M, p.y - DRILL_REACH_M, p.x + DRILL_REACH_M, p.y + DRILL_REACH_M); drl.grow(p.x - DRILL_REACH_M, p.y - DRILL_REACH_M, p.x + DRILL_REACH_M, p.y + DRILL_REACH_M); }
+    for (const t of traces.values()) for (const p of t) { all.grow(p.x - drillPad, p.y - drillPad, p.x + drillPad, p.y + drillPad); drl.grow(p.x - drillPad, p.y - drillPad, p.x + drillPad, p.y + drillPad); } // drillPad: #1727
     (geophysPts || []).forEach((r) => { if (Number.isFinite(r.x) && Number.isFinite(r.y)) all.grow(r.x, r.y, r.x, r.y); });
     voxelModels.forEach((m) => (m.cells || []).forEach((c) => { if (Number.isFinite(c.x) && Number.isFinite(c.y)) { all.grow(c.x - c.dx / 2, c.y - c.dy / 2, c.x + c.dx / 2, c.y + c.dy / 2); mdl.grow(c.x - c.dx / 2, c.y - c.dy / 2, c.x + c.dx / 2, c.y + c.dy / 2); } }));
     return { all: all.box(), samples: smp.box(), drilling: drl.box(), model: mdl.box() };
-  }, [valueRasters, mapLayers, sampleCore, traces, geophysPts, voxelModels]);
+  }, [valueRasters, mapLayers, sampleCore, traces, geophysPts, voxelModels, drillPad]);
   const cellTyped = Number(gridCell) > 0 ? Number(gridCell) : null;
   const grid = useMemo(() => {
     if (terrain && gridArea === "all" && !cellTyped) return evidenceGrid({ terrain });
@@ -358,6 +362,7 @@ export default function EvidenceOverlayPane({ onClose }) {
               </>
             )}
             {(result.pa || result.paPost) && <PAPlot fuzzy={result.pa} post={result.paPost} />}
+            {drillOnly && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("All the evidence comes from the {n} drillholes, so the score exists only within {reach} m of their traces: it ranks drilled ground, not untested targets. A surface evidence (a survey, a raster, soil or rock samples, a map layer) is what can score beyond the holes.", { n: traces.size, reach: Math.round(drillPad) })}</div>}{/* #1727 */}
             <div style={note}>{tr("A fuzzy overlay only says where the chosen evidence agrees under your memberships. Weights are statistics of a few points over many cells: with few points they are unstable (± shown), the layers are assumed independent given the occurrences, and when the occurrences are the drilled targets the result is circular. Treat the score as a ranking of where to look, not a probability of a deposit.")}</div>
           </>
         )}
