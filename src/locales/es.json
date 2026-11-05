@@ -8083,5 +8083,6 @@
   "A world file on its own places nothing: select it together with its image (same name).": "Un archivo de mundo solo no ubica nada: selecciónelo junto con su imagen (mismo nombre).",
   "Couldn't load this image: PNG, JPG or TIFF only.": "No se pudo cargar esta imagen: solo PNG, JPG o TIFF.",
   "Load a scanned map or claim sketch (PNG / JPG / TIFF), click points on it, and type the matching real-world coordinates for each.": "Cargue un mapa escaneado o un croquis de concesión (PNG / JPG / TIFF), haga clic en puntos sobre él y escriba las coordenadas reales correspondientes a cada uno.",
-  "Load image (PNG / JPG / TIFF)…": "Cargar imagen (PNG / JPG / TIFF)…"
+  "Load image (PNG / JPG / TIFF)…": "Cargar imagen (PNG / JPG / TIFF)…",
+  "\"{label}\": {p}% of its volume lies farther than {d} m from any logged interval: that part is the {r} m search reaching between holes, not logged rock.": "\"{label}\": el {p}% de su volumen queda a más de {d} m de cualquier intervalo registrado: esa parte es la búsqueda de {r} m extendiéndose entre sondajes, no roca registrada."
 }

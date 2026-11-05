@@ -1669,6 +1669,9 @@ export function createModellingRuns(ctx, mcRef) {
         geo.computeVertexNormals();
         const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: isCode ? (codeInfo(modellingCodes, altValue).color || colorForLithology(altValue)) : colorForAlteration(altValue), side: THREE.DoubleSide, transparent: true, opacity: 0.6 }));
         const vol = computeMeshVolume(geo);
+        // TASKS.csv #1740 — the share of the envelope farther than 50 m (or a cell) from every sample point: search, not logs
+        const { farFromSamples } = await import("../../lib/haloSupport.js");
+        const farLogs = farFromSamples(altCap.values, grid.nx, grid.ny, grid.nz, grid.origin, grid.cellSize, iso, pts, Math.max(50, cell), { toReal: anisotropy.enabled ? (q) => anisoWarpPoint(q, center, basis, altUnwarp) : null });
         // Same honesty rule as the grade shell (#257): if part of the boundary is the search-radius
         // wall rather than a real 0/1 alteration boundary, the enclosed volume is a parameter choice.
         const closure = mc.closingVertices > 0 ? "artificial" : "natural";
@@ -1683,6 +1686,7 @@ export function createModellingRuns(ctx, mcRef) {
           domain: domain ? domain.name : null,
           interceptSet: activeInterceptSetRef.current ? { name: activeInterceptSetRef.current.name, intercepts: (activeInterceptSetRef.current.ids || []).length } : null, // TASKS.csv #52 (c)
           samplePoints: pts.length, alteredSamplePoints: insideCount, cellsEstimated: grid.estimated,
+          farFromLogs: { share: +farLogs.share.toFixed(3), beyondM: farLogs.dist }, // #1740
           ...(contain ? { samplesInside: { inside: contain.inside, of: contain.above }, volumeWithheld: withheld } : {}), // #1683
           ...(isCode && autoB.fromRuns ? { loggedRuns: { n: autoB.runs, medianM: +autoB.medianRunM.toFixed(2), maxM: +autoB.maxRunM.toFixed(2) } } : {}),
           ...(radiusRaisedFrom != null ? { searchRaisedFromM: Math.round(radiusRaisedFrom * 10) / 10 } : {}),
@@ -1694,6 +1698,10 @@ export function createModellingRuns(ctx, mcRef) {
         implicitMeshesRef.current[id] = mesh;
         setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: isCode ? "unit_body" : "alteration_envelope", /* #1340 */ relationships: [], closure, params }]);
         setNotices((p) => [...p, notice(isCode ? "Added \"{label}\": {insideCount} of {pts} sample point(s) inside the code{v} → {nx}×{ny}×{nz} grid ({cell} m cells{v2}, {v3} m search{v4}) → {vertices} vertices / {faces} faces{v5}. Closed indicator envelope, not a draped contact." : "Added \"{label}\": {insideCount} altered of {pts} indicator sample point(s){v} → {nx}×{ny}×{nz} grid ({cell} m cells{v2}, {v3} m search{v4}) → {vertices} vertices / {faces} faces{v5}. Closed indicator envelope, not a draped contact.", { label, insideCount, pts: pts.length, v: dropped ? tr(", {dropped} unplaceable", { dropped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, cell: cell.toFixed(1), v2: coarsened ? tr(", coarsened to stay under the grid limit") : "", v3: Math.round(radius), v4: anisotropy.enabled ? tr(", anisotropy applied") : "", vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v5: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr(", open") })]);
+        if (farLogs.inside) { // #1740 — half or more of it far from the logs: a warning, not a grey note
+          const farText = tr("\"{label}\": {p}% of its volume lies farther than {d} m from any logged interval: that part is the {r} m search reaching between holes, not logged rock.", { label, p: Math.round(farLogs.share * 100), d: Math.round(farLogs.dist), r: Math.round(radius) });
+          setNotices((p) => [...p, farLogs.share >= 0.5 ? errorNotice(farText) : notice(farText)]);
+        }
         if (contain) setNotices((p) => [...p, withheld
           ? errorNotice(tr("\"{label}\" contains only {n} of the {m} sample points of {code} it was built from, so it is NOT that unit: the indicator reached {iso} away from the logged intervals ({cell} m cells, {r} m search). Its volume and tonnage are withheld. A smaller cell and a search near the intervals follow the logs; a larger search joins holes but invents rock between them.", { label, n: contain.inside, m: contain.above, code: altValue, iso, cell: +cell.toFixed(1), r: Math.round(radius) }))
           : notice("\"{label}\" contains {n} of the {m} sample points of {code} it was built from{v}.", { label, n: contain.inside, m: contain.above, code: altValue, v: contain.inside < contain.above ? tr(" ({k} outside: logged intervals the body does not reach)", { k: contain.above - contain.inside }) : "" })]); // #1683
