@@ -351,9 +351,9 @@ export function StoreProvider({ children }) {
   // reusable page starting point (company letterhead + north arrow + scale bar + legend placement,
   // say) that a project can be seeded from without hand-rebuilding it every time.
   const [layoutTemplates, setLayoutTemplates] = useState([]);
-  const addLayoutTemplate = useCallback((name, elements) => {
+  const addLayoutTemplate = useCallback((name, elements, format = null) => { // format: TASKS.csv #1868 / #1487 — the paper size and orientation it was made at
     const id = `layouttpl_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    setLayoutTemplates((p) => [...p, { id, name, elements }]);
+    setLayoutTemplates((p) => [...p, { id, name, elements, ...(format ? { format } : {}) }]);
     return id;
   }, []);
   const renameLayoutTemplate = useCallback((id, name) => setLayoutTemplates((p) => p.map((t) => t.id === id ? { ...t, name } : t)), []);

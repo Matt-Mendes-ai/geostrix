@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
-import { Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock } from "../components/icons.js";
+import { Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock, LayoutTemplate, Download, Upload } from "../components/icons.js";
+import { newTitleBlock, STOCK_TEMPLATES, stockTemplateElements, templateFile, parseTemplateFile } from "../lib/layoutTitleBlock.js"; // TASKS.csv #1868
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { savePDF, saveFile, exportPDFData, canvasPngBytes, sendSectionResnap } from "../lib/desktop.js"; // saveFile / exportPDFData: TASKS.csv #909 Export PNG; canvasPngBytes: #1040; sendSectionResnap: #1485
 import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
@@ -207,6 +208,7 @@ export default function LayoutModule() {
   const dragState = useRef(null);
   const pageRef = useRef(null);
   const logoInput = useRef(null);
+  const templateInput = useRef(null); // TASKS.csv #1868 — Import template
   const importedSnapCount = useRef(0);
 
   // TASKS.csv #19 — more shapes/annotation tools. Rect/arrow/callout are click-to-place-then-adjust
@@ -572,6 +574,7 @@ export default function LayoutModule() {
     const id = `${type}_${Date.now()}`;
     const base = { id, type, x: 100, y: 100 };
     if (type === "text") base.text = "Text", base.w = 200;
+    if (type === "titleblock") Object.assign(base, newTitleBlock(id, Math.max(20, A4.w - 400), Math.max(20, A4.h - 260))); // TASKS.csv #1868 — bottom right
     if (type === "logo") logoInput.current.click();
     if (type === "scale") { base.meters = 100; base.pxPerMeter = DEFAULT_PX_PER_METER; }
     if (type === "north") { // TASKS.csv #1632 — tied to the selected view, else the page's only view with a camera azimuth
@@ -653,19 +656,35 @@ export default function LayoutModule() {
   const askPrompt = (title, defaultValue, onSubmit) => setPromptState({ title, defaultValue: defaultValue || "", onSubmit });
 
   const saveAsTemplate = () => {
-    askPrompt("Template name?", "", (name) => {
+    askPrompt(tr("Template name?"), "", (name) => { // #1868 — the prompt's title was not translated
       if (!name || !name.trim()) return;
-      addLayoutTemplate(name.trim(), elements);
+      addLayoutTemplate(name.trim(), elements, pageFormat); // #1868 / #1487 — with its paper size and orientation
     });
   };
   const loadTemplate = (tpl) => {
-    if (elements.length && !window.confirm(tr("Replace the current page with \"{name}\"? This can't be undone.", { name: tpl.name }))) return;
+    if (elements.length && !window.confirm(tr("Replace the current page with \"{name}\"? This can't be undone.", { name: tr(tpl.name) }))) return;
+    if (tpl.format) setLayoutPageFormat(activeLayoutPageId, tpl.format); // #1868 — a template keeps its paper size and orientation
+    if (tpl.stock) { setElements(stockTemplateElements(tpl)); setSelected(null); setTemplatesOpen(false); return; } // #1868 — a starter template
     const idMap = new Map(tpl.elements.map((el) => [el.id, `${el.type}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`]));
     setElements(relinkCopies(tpl.elements.map((el) => ({ ...el, id: idMap.get(el.id) })), idMap, true)); // #924
     setSelected(null);
     setTemplatesOpen(false);
   };
 
+  // TASKS.csv #1868 — a template as a small file, so next year's report starts from it in another project
+  const [templateMsg, setTemplateMsg] = useState(null);
+  const exportTemplate = (tpl) => saveFile({ suggestedName: `${String(tpl.name).replace(/[^\w.-]+/g, "_").slice(0, 60) || "template"}.geostrix-layout.json`, filters: [{ name: "GeoStrix layout template", extensions: ["json"] }], content: templateFile(tpl) });
+  const onTemplateFile = (e) => {
+    const f = e.target.files?.[0]; e.target.value = ""; if (!f) return;
+    if (f.size > 25 * 1024 * 1024) { setTemplateMsg(tr("That file is too large for a layout template.")); return; }
+    f.text().then((text) => {
+      try {
+        const t = parseTemplateFile(text, f.name.replace(/\.(geostrix-layout\.)?json$/i, ""));
+        addLayoutTemplate(t.name, t.elements, t.format);
+        setTemplateMsg(t.dropped ? tr("Imported the template \"{name}\" ({n} element(s)); {d} element(s) it could not use were left out.", { name: t.name, n: t.elements.length, d: t.dropped }) : tr("Imported the template \"{name}\" ({n} element(s)).", { name: t.name, n: t.elements.length }));
+      } catch (err) { setTemplateMsg(err.message); }
+    });
+  };
   const onLogoFile = (e) => {
     const f = e.target.files[0]; if (!f) return;
     const reader = new FileReader();
@@ -924,6 +943,7 @@ export default function LayoutModule() {
             <RibbonButton icon={Compass} label="North arrow" tone="output" title="Add north arrow" onClick={() => addElement("north")} />
             <RibbonButton icon={Ruler} label="Scale bar" tone="output" title="Add scale bar" onClick={() => addElement("scale")} />
             <RibbonButton icon={Plus} label="Legend" tone="output" title="Add legend" onClick={() => addElement("legend")} />
+            <RibbonButton icon={LayoutTemplate} label="Title block" tone="output" title="Add a title block: a ruled box of labelled fields (title, company, project, claims, map sheet, figure, author, date, scale, datum, page), the project, date, scale and datum filled in" onClick={() => addElement("titleblock")} />{/* TASKS.csv #1868 */}
             <RibbonButton advanced icon={Sheet} label="Collar table" tone="output" title="Add a table of the drillhole collars (hole, easting, northing, elevation, azimuth, dip, depth), kept up to date with the project. Best intercepts puts its results on the page from its own window." onClick={() => addElement("table")} />{/* TASKS.csv #911 */}
           </RibbonGroup>
           <RibbonGroup label="Views">
@@ -939,7 +959,7 @@ export default function LayoutModule() {
           <RibbonGroup advanced label="Page">
             <RibbonButton icon={Grid3x3} label="Grid + snap" tone="view" active={showGrid} title="Show the alignment grid and snap elements to it (spacing in the sidebar)" onClick={() => setShowGrid((v) => !v)} />
             <RibbonButton icon={Save} label="Save template" tone="data" title="Save this page as a reusable template" onClick={saveAsTemplate} />
-            <RibbonButton icon={FolderOpen} label={tr("Templates ({n})", { n: layoutTemplates.length })} tone="data" disabled={!layoutTemplates.length} active={templatesOpen} title="Load a saved template (list in the sidebar)" onClick={() => setTemplatesOpen((v) => !v)} />
+            <RibbonButton icon={FolderOpen} label={tr("Templates ({n})", { n: layoutTemplates.length + STOCK_TEMPLATES.length })} tone="data" active={templatesOpen} title="Starter templates, the ones saved in this project, and Import (list in the sidebar)" onClick={() => setTemplatesOpen((v) => !v)} />
           </RibbonGroup>
           <RibbonGroup label="Output">
             <RibbonButton icon={FileDown} label="Export PDF" tone="output" title="Export every page as a PDF, each at its own paper size and orientation" onClick={() => requestLayoutPrint()} />
@@ -947,6 +967,7 @@ export default function LayoutModule() {
           </RibbonGroup>
         </Ribbon>
         <input ref={logoInput} type="file" accept="image/*" style={{ display: "none" }} onChange={onLogoFile} />
+        <input ref={templateInput} type="file" accept=".json" style={{ display: "none" }} onChange={onTemplateFile} aria-label={tr("Import a layout template")} />{/* #1868 */}
         {themePickerFor === "new" && (
           <div style={{ marginBottom: 8, padding: 8, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>{tr("Pick a theme:")}</div>
@@ -993,9 +1014,11 @@ export default function LayoutModule() {
               )}
               <label style={{ ...smallBtn, cursor: "pointer" }} title={tr("A locked element cannot be moved or resized (it can still be edited and deleted)")}><input type="checkbox" checked={!!sel.locked} onChange={(e) => updateSelected({ locked: e.target.checked })} />{tr("Lock")}</label>
             </div>
-            {"text" in sel && (
-              <input value={sel.text} onChange={(e) => updateSelected({ text: e.target.value })} style={inp} />
+            {"text" in sel && (sel.type === "text" /* #1868 — several lines (a title block, a note) */
+              ? <textarea value={sel.text} onChange={(e) => updateSelected({ text: e.target.value })} rows={Math.min(8, Math.max(2, String(sel.text || "").split("\n").length))} style={{ ...inp, resize: "vertical", fontFamily: "inherit" }} aria-label={tr("Text")} />
+              : <input value={sel.text} onChange={(e) => updateSelected({ text: e.target.value })} style={inp} />
             )}
+            {sel.type === "titleblock" && <TitleBlockControls sel={sel} updateSelected={updateSelected} />}{/* TASKS.csv #1868 */}
             {(sel.type === "title" || sel.type === "text") && (
               <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }} title={tr("Filled in when the page is shown and printed: the project's name, today's date, this page's number and name, the number of pages, the scale of the page's viewport, the project's coordinate system, the credit lines the licences of fetched terrain and imagery ask for.")}>{tr("Placeholders: {project} {date} {page} {pages} {pagename} {scale} {crs} {credits}")}</div>
             )}{/* TASKS.csv #909 */}
@@ -1220,17 +1243,27 @@ export default function LayoutModule() {
         )}
 
         {/* TASKS.csv #18 — saved layout templates */}
-        {templatesOpen && layoutTemplates.length > 0 && <div className="ge-section-label" style={{ marginTop: 20 }}>{tr("Templates")}</div>}
-        {templatesOpen && (
-          <div style={{ marginBottom: 8, padding: 6, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, maxHeight: 180, overflowY: "auto" }}>
+        {templatesOpen && <div className="ge-section-label" style={{ marginTop: 20 }}>{tr("Templates")}</div>}
+        {templatesOpen && ( /* TASKS.csv #1868 — starter templates first, then this project's, then Import */
+          <div style={{ marginBottom: 8, padding: 6, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
+            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", padding: "2px 7px" }}>{tr("Starter templates: a neatline, a figure title and a title block at the paper size named; add the map or section view after.")}</div>
+            {STOCK_TEMPLATES.map((t) => <div key={t.id} role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => loadTemplate({ ...t, stock: true })} style={{ padding: "5px 7px", fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer", borderRadius: 4 }} onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-hover-bg)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>{tr(t.name)}</div>)}
+            {layoutTemplates.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", padding: "6px 7px 2px", borderTop: "1px solid var(--color-border)", marginTop: 4 }}>{tr("Saved in this project")}</div>}
+          <div style={{ maxHeight: 180, overflowY: "auto" }}>
             {layoutTemplates.map((t) => (
               <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 7px", borderRadius: 4 }}
                 onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-hover-bg)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => loadTemplate(t)} style={{ flex: 1, fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer" }}>{t.name}</span>
                 <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("{elements} el.", { elements: t.elements.length })}</span>
+                <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} aria-label={tr("Export the template \"{name}\" as a file", { name: t.name })} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => exportTemplate(t)} />{/* #1868 */}
                 <Trash2 role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => { if (confirmDestructive(tr("Delete template \"{name}\"?", { name: t.name }))) deleteLayoutTemplate(t.id); }} aria-label={tr("Delete template \"{name}\"", { name: t.name })} title={tr("Delete template \"{name}\"", { name: t.name })} />
               </div>
             ))}
+          </div>
+            <div style={{ display: "flex", gap: 6, alignItems: "center", borderTop: "1px solid var(--color-border)", marginTop: 4, paddingTop: 6 }}>
+              <button type="button" onClick={() => templateInput.current?.click()} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", padding: "3px 8px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg-subtle)", color: "var(--color-text)", cursor: "pointer" }}><Upload size={12} /> {tr("Import template…")}</button>
+            </div>
+            {templateMsg && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", padding: "4px 7px", lineHeight: 1.4 }}>{templateMsg}</div>}
           </div>
         )}
 
@@ -1528,6 +1561,31 @@ function UtmGridOverlay({ el, crs = "" }) {
 // snapshot. A section snapshot is a drawing, not a 3D camera, so theme / refresh / enter / UTM grid do not apply; what a
 // printed section needs is its plot scale. Its full width shows worldWidthAtCaptureM metres, so the scale is known: shown
 // here, and the #907 preset picker sets the width that gives 1 : N (the height follows the snapshot's aspect).
+// TASKS.csv #1868 — the title block's rows: a label and a value each (placeholders allowed), added, removed and reordered
+function TitleBlockControls({ sel, updateSelected }) {
+  const rows = sel.rows || [];
+  const setRow = (i, k, v) => updateSelected({ rows: rows.map((r, j) => (j === i ? (k === 0 ? [v, r[1]] : [r[0], v]) : r)) });
+  const move = (i, d) => { const j = i + d; if (j < 0 || j >= rows.length) return; const n = rows.slice(); [n[i], n[j]] = [n[j], n[i]]; updateSelected({ rows: n }); };
+  const small = { fontSize: "var(--font-size-sm)", padding: "2px 4px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)", color: "var(--color-text)", minWidth: 0 };
+  const btn = { ...small, cursor: "pointer", padding: "0 5px", flexShrink: 0 };
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr("Label and value of each row. Values can use {project}, {date}, {scale}, {crs}, {page} and {pages}; the first row prints bold.")}</div>
+      {rows.map((r, i) => (
+        <div key={i} style={{ display: "flex", gap: 3, marginBottom: 3 }}>
+          <input value={r[0]} onChange={(e) => setRow(i, 0, e.target.value)} style={{ ...small, width: "36%" }} aria-label={tr("Label of row {n}", { n: i + 1 })} />
+          <input value={r[1]} onChange={(e) => setRow(i, 1, e.target.value)} style={{ ...small, flex: 1 }} aria-label={tr("Value of row {n}", { n: i + 1 })} />
+          <button type="button" onClick={() => move(i, -1)} disabled={i === 0} style={btn} aria-label={tr("Move row {n} up", { n: i + 1 })}>↑</button>
+          <button type="button" onClick={() => updateSelected({ rows: rows.filter((_, j) => j !== i) })} style={btn} aria-label={tr("Remove row {n}", { n: i + 1 })}>×</button>
+        </div>
+      ))}
+      <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
+        <button type="button" onClick={() => updateSelected({ rows: [...rows, ["Label", ""]] })} style={{ ...btn, padding: "2px 8px" }}>{tr("Add row")}</button>
+        <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>{tr("Size (pt)")}<input type="number" min="5" max="16" step="0.5" value={sel.fontPt || 8} onChange={(e) => updateSelected({ fontPt: Math.max(5, Math.min(16, Number(e.target.value) || 8)) })} style={{ ...small, width: 52 }} /></label>
+      </div>
+    </div>
+  );
+}
 function SectionScaleControls({ sel, pageW, pageH, updateSelected }) {
   const [custom, setCustom] = useState(false);
   const [resnapNote, setResnapNote] = useState(""); // #1485
@@ -1763,8 +1821,8 @@ const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, proje
 // element that wraps text to its width, the tip of an arrow. Drawn on the single selected element only.
 const BOX_TYPES = new Set(["viewport", "image", "rect", "logo"]);
 const ASPECT_LOCKED = new Set(["image", "logo"]);
-const WIDTH_ONLY = new Set(["title", "text", "callout", "legend", "table"]);
-const HANDLES_FOR = { viewport: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], rect: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], image: ["nw", "ne", "se", "sw"], logo: ["nw", "ne", "se", "sw"], title: ["e", "w"], text: ["e", "w"], callout: ["e", "w"], legend: ["e", "w"], table: ["e", "w"] };
+const WIDTH_ONLY = new Set(["title", "text", "callout", "legend", "table", "titleblock"]); // titleblock: #1868
+const HANDLES_FOR = { titleblock: ["e", "w"], viewport: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], rect: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], image: ["nw", "ne", "se", "sw"], logo: ["nw", "ne", "se", "sw"], title: ["e", "w"], text: ["e", "w"], callout: ["e", "w"], legend: ["e", "w"], table: ["e", "w"] };
 const HANDLE_CURSOR = { n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize", ne: "nesw-resize", sw: "nesw-resize", nw: "nwse-resize", se: "nwse-resize", tip: "crosshair" };
 const HANDLE_POS = { n: { left: "50%", top: 0 }, s: { left: "50%", top: "100%" }, e: { left: "100%", top: "50%" }, w: { left: 0, top: "50%" }, ne: { left: "100%", top: 0 }, nw: { left: 0, top: 0 }, se: { left: "100%", top: "100%" }, sw: { left: 0, top: "100%" } };
 function Handles({ which, onStart, at = {} }) {
@@ -1818,7 +1876,23 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     const b = frameBorder(el);
     return (
       <div style={{ ...wrap, width: el.w, border: b, padding: b !== "none" ? 8 : 0, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
-        <div style={{ fontSize: el.fontSize ?? printPx(printPt.body), fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || INK }}>{fillText(el.text, ctx)}</div>
+        <div style={{ fontSize: el.fontSize ?? printPx(printPt.body), fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? "italic" : "normal", textAlign: el.align || "left", color: el.color || INK, whiteSpace: "pre-wrap" /* #1868 */ }}>{fillText(el.text, ctx)}</div>
+        {handles}
+      </div>
+    );
+  }
+  if (el.type === "titleblock") { // TASKS.csv #1868 — a ruled box of labelled fields, values through the page placeholders
+    const fs = printPx(el.fontPt || 8), line = `${Math.max(0.5, el.frameWidth ?? 1)}px solid ${el.frameColor || INK}`;
+    return (
+      <div style={{ ...wrap, width: el.w || 340, background: "#fff", border: line, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
+        <table style={{ borderCollapse: "collapse", width: "100%", fontSize: fs, color: INK, fontFamily: "'Exo 2', system-ui, sans-serif" }}>
+          <tbody>{(el.rows || []).map(([label, value], i) => (
+            <tr key={i} style={{ borderTop: i ? line : "none" }}>
+              <td style={{ padding: "2px 6px", width: "34%", borderRight: line, color: "#55606e", fontSize: Math.max(6, fs * 0.85), verticalAlign: "top", whiteSpace: "nowrap" }}>{label}</td>
+              <td style={{ padding: "2px 6px", fontWeight: i === 0 ? 700 : 400, whiteSpace: "pre-wrap", verticalAlign: "top" }}>{fillText(value, ctx) || "\u00a0"}</td>
+            </tr>
+          ))}</tbody>
+        </table>
         {handles}
       </div>
     );

@@ -1,0 +1,71 @@
+// TASKS.csv #1868 (review #1646, Kodiak) — a report figure's TITLE BLOCK, two starter templates, and templates as small files.
+// The reviewer built an ARIS title block from about eight single-line Text boxes and rectangles placed by hand, a fresh project
+// offered 'Templates (0)', and a saved template lived inside that one project. Pure: no React.
+import { pagePx } from "./pageFormats.js";
+import { t as tr } from "./i18n.js";
+
+// The labelled rows of a new title block. Values may hold the page placeholders ({project}, {date}, {scale}, {crs}, {page},
+// {pages}); the empty ones are for the geologist to fill (no company, tenure or author is invented, #264). Saved in the project,
+// so the labels stay English like the rest of the project data; they are edited on the page.
+export function defaultTitleBlockRows() {
+  return [
+    ["Title", ""],
+    ["Company", ""],
+    ["Project", "{project}"],
+    ["Claims / tenures", ""],
+    ["NTS / map sheet", ""],
+    ["Figure", ""],
+    ["Drawn by", ""],
+    ["Date", "{date}"],
+    ["Scale", "{scale}"],
+    ["Datum / projection", "{crs}"],
+    ["Page", "{page} of {pages}"],
+  ];
+}
+export function newTitleBlock(id, x, y) {
+  return { id, type: "titleblock", x, y, w: 340, rows: defaultTitleBlockRows(), fontPt: 8, frameWidth: 1 };
+}
+
+// Starter templates: built in, at a set paper size, laid out from that page's size. A neatline 10 mm in, the figure title at
+// the top, a title block in the bottom-right corner, and (on the plan) a north arrow; the map or section view goes in after.
+const MM = 96 / 25.4;
+export const STOCK_TEMPLATES = [
+  { id: "stock_plan_a4", name: "Plan figure (A4 landscape)", format: { size: "a4", orientation: "landscape" }, kind: "plan" },
+  { id: "stock_section_a3", name: "Section figure (A3 landscape)", format: { size: "a3", orientation: "landscape" }, kind: "section" },
+];
+export function stockTemplateElements(tpl, stamp = Date.now()) {
+  const { w: W, h: H } = pagePx(tpl.format), m = Math.round(10 * MM), id = (k) => `${k}_${stamp}_${tpl.kind}`;
+  const tb = newTitleBlock(id("titleblock"), 0, 0), tbW = tpl.kind === "section" ? 380 : 340, tbH = 11 * 19 + 4; // about 19 px a row at 8 pt
+  tb.w = tbW; tb.x = W - m - tbW - 8; tb.y = H - m - tbH - 8;
+  const els = [
+    { id: id("rect"), type: "rect", x: m, y: m, w: W - 2 * m, h: H - 2 * m, stroke: "#1a2028", strokeWidth: 1.5, fill: "#ffffff", fillOpacity: 0, locked: true },
+    { id: id("text"), type: "text", x: m + 12, y: m + 10, w: Math.round(W * 0.6), text: tpl.kind === "section" ? "Section" : "Plan map", fontSize: Math.round(16 * (96 / 72)), bold: true },
+    tb,
+  ];
+  if (tpl.kind === "plan") els.push({ id: id("north"), type: "north", x: W - m - 70, y: m + 14 });
+  return els;
+}
+
+// A template as a file: { geostrixLayoutTemplate: 1, name, format, elements }.
+export function templateFile(tpl) {
+  return JSON.stringify({ geostrixLayoutTemplate: 1, name: tpl.name, format: tpl.format || null, elements: tpl.elements }, null, 1);
+}
+// Reading one back. Only the Layout's own element types come in, and an image only as an embedded data: URL, so a template
+// from someone else cannot make the page fetch from the network. -> { name, format, elements, dropped } or throws.
+const KNOWN = new Set(["title", "text", "logo", "image", "scale", "north", "legend", "rect", "arrow", "callout", "table", "titleblock", "viewport", "freehand"]);
+export function parseTemplateFile(text, fallbackName = "Template") {
+  let d;
+  try { d = JSON.parse(text); } catch { throw new Error(tr("Not a GeoStrix layout template (not JSON).")); }
+  if (!d || d.geostrixLayoutTemplate !== 1 || !Array.isArray(d.elements)) throw new Error(tr("Not a GeoStrix layout template."));
+  let dropped = 0;
+  const elements = [];
+  for (const el of d.elements) {
+    if (!el || typeof el !== "object" || typeof el.id !== "string" || !KNOWN.has(el.type)) { dropped++; continue; }
+    const out = { ...el };
+    if ("src" in out && !(typeof out.src === "string" && /^data:image\/(png|jpeg|gif|webp);base64,/i.test(out.src))) delete out.src; // the only field drawn as an image
+    if ((out.type === "logo" || out.type === "image") && !out.src) { dropped++; continue; }
+    elements.push(out);
+  }
+  const f = d.format && typeof d.format === "object" ? { size: String(d.format.size || ""), orientation: d.format.orientation === "portrait" ? "portrait" : "landscape" } : null;
+  return { name: String(d.name || fallbackName).slice(0, 120), format: f, elements, dropped };
+}
