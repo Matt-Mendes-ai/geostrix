@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { parseGeoJSON, gpxToLayers } from "../src/lib/gpxGeojson.js";
 import { normalizeMapLayer } from "../src/lib/mapLayers.js";
 import { mapLayerAtOwnZ } from "../src/lib/viewer/sceneBuilders.js";
+import { parseKML, kmlToMapLayers } from "../src/lib/kml.js";
 
 test("GeoJSON points and lines keep their third coordinate", () => {
   const gj = { type: "FeatureCollection", features: [
@@ -44,4 +45,17 @@ test("buildLayer passes hasZ on", () => {
   const { layers } = parseGeoJSON({ type: "FeatureCollection", features: [{ type: "Feature", properties: { a: 1 }, geometry: { type: "Point", coordinates: [381835, 5956308, 830] } }] });
   const l = buildLayer({ ...layers[0], epsg: null }, { sourceName: "stations", projectEpsg: 26910 });
   assert.equal(l.hasZ, true);
+});
+
+test("KML: an absolute altitude is kept, a clamped one (the KML default) is not", () => {
+  const kml = `<kml><Document>
+    <Placemark><name>A</name><Point><altitudeMode>absolute</altitudeMode><coordinates>-127.1,57.2,1488</coordinates></Point></Placemark>
+    <Placemark><name>B</name><Point><coordinates>-127.2,57.3,0</coordinates></Point></Placemark>
+    <Placemark><name>T</name><LineString><altitudeMode>absolute</altitudeMode><coordinates>-127.1,57.2,1400 -127.11,57.21,1420</coordinates></LineString></Placemark>
+  </Document></kml>`;
+  const layers = kmlToMapLayers(parseKML(kml).features);
+  const pts = layers.find((l) => l.geomType === "point"), line = layers.find((l) => l.geomType !== "point");
+  assert.deepEqual(pts.features[0].parts[0][0], [-127.1, 57.2, 1488]);
+  assert.deepEqual(pts.features[1].parts[0][0], [-127.2, 57.3], "clampToGround: the 0 is not an elevation");
+  assert.deepEqual(line.features[0].parts[0].map((p) => p[2]), [1400, 1420]);
 });

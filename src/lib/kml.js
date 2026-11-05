@@ -65,7 +65,8 @@ export function parseKML(text) {
       badTuples += bad;
       if (!coords.length) continue;
       found++;
-      features.push({ name, description, attrs, placemark: nPlacemark, geomType: kind === "Point" ? "point" : kind === "LinearRing" ? "polygon" : "line", coords });
+      const absolute = /<(?:[\w-]+:)?altitudeMode>\s*absolute\s*</i.test(g[2]); // #1601 - KML altitudes count only when absolute (the default clamps to the ground)
+      features.push({ name, description, attrs, placemark: nPlacemark, geomType: kind === "Point" ? "point" : kind === "LinearRing" ? "polygon" : "line", coords, ...(absolute ? { absolute } : {}) });
     }
     if (!found) skipped++;
   }
@@ -91,13 +92,14 @@ export async function readKmlFile(file) {
 // A placemark's rings stay one feature: its inner boundaries are holes, not polygons of their own. MultiGeometry lines and points of one placemark stay separate features.
 export function kmlToMapLayers(features) {
   const attributes = (f) => ({ ...(f.name ? { name: f.name } : {}), ...(f.description ? { description: f.description } : {}), ...f.attrs });
-  const xy = (c) => c.map(([lon, lat]) => [lon, lat]);
+  // TASKS.csv #1601 - an absolute altitude is kept as the vertex elevation; clampToGround / relative ones are not elevations above sea level
+  const xyOf = (f) => f.coords.map((p) => (f.absolute && Number.isFinite(p[2]) ? [p[0], p[1], p[2]] : [p[0], p[1]]));
   const by = { point: [], polyline: [], polygon: [] }, rings = new Map();
   for (const f of features) {
-    if (f.geomType === "point") by.point.push({ parts: [xy(f.coords)], attributes: attributes(f) });
-    else if (f.geomType === "line") by.polyline.push({ parts: [xy(f.coords)], attributes: attributes(f) });
-    else if (rings.has(f.placemark)) rings.get(f.placemark).parts.push(xy(f.coords));
-    else { const p = { parts: [xy(f.coords)], attributes: attributes(f) }; rings.set(f.placemark, p); by.polygon.push(p); }
+    if (f.geomType === "point") by.point.push({ parts: [xyOf(f)], attributes: attributes(f) });
+    else if (f.geomType === "line") by.polyline.push({ parts: [xyOf(f)], attributes: attributes(f) });
+    else if (rings.has(f.placemark)) rings.get(f.placemark).parts.push(xyOf(f));
+    else { const p = { parts: [xyOf(f)], attributes: attributes(f) }; rings.set(f.placemark, p); by.polygon.push(p); }
   }
   const names = { point: "points", polyline: "lines", polygon: "polygons" };
   return Object.keys(by).filter((k) => by[k].length).map((k) => ({ name: names[k], geomType: k, epsg: 4326, features: by[k] }));
