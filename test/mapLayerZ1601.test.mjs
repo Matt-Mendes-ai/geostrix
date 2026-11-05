@@ -5,6 +5,7 @@ import { parseGeoJSON, gpxToLayers } from "../src/lib/gpxGeojson.js";
 import { normalizeMapLayer } from "../src/lib/mapLayers.js";
 import { mapLayerAtOwnZ } from "../src/lib/viewer/sceneBuilders.js";
 import { parseKML, kmlToMapLayers } from "../src/lib/kml.js";
+import { shapefileZipFiles, parseShapefileParts } from "../src/lib/shapefile.js";
 
 test("GeoJSON points and lines keep their third coordinate", () => {
   const gj = { type: "FeatureCollection", features: [
@@ -58,4 +59,21 @@ test("KML: an absolute altitude is kept, a clamped one (the KML default) is not"
   assert.deepEqual(pts.features[0].parts[0][0], [-127.1, 57.2, 1488]);
   assert.deepEqual(pts.features[1].parts[0][0], [-127.2, 57.3], "clampToGround: the 0 is not an elevation");
   assert.deepEqual(line.features[0].parts[0].map((p) => p[2]), [1400, 1420]);
+});
+
+test("all-zero Z (2D shapefile / GeoPackage shapes read as z = 0) is no elevation; one real Z keeps the zeros", () => {
+  const flat = normalizeMapLayer({ geomType: "point", features: [{ parts: [[[1, 2, 0]]] }, { parts: [[[3, 4, 0]]] }] });
+  assert.equal(flat.hasZ, undefined);
+  assert.deepEqual(flat.features[0].parts[0][0], [1, 2]);
+  const coast = normalizeMapLayer({ geomType: "point", features: [{ parts: [[[1, 2, 0]]] }, { parts: [[[3, 4, 12]]] }] });
+  assert.equal(coast.hasZ, true);
+  assert.deepEqual(coast.features[0].parts[0][0], [1, 2, 0]);
+});
+
+test("shapefile: PointZ elevations reach the map layer, a 2D Point file does not get a Z", () => {
+  const feats = [{ geometry: [[604800, 6357600, 1225.4]], attributes: { id: "S1" } }, { geometry: [[604900, 6357700, 1846]], attributes: { id: "S2" } }];
+  const read = (flat) => { const files = shapefileZipFiles({ features: feats, geomType: "point", baseName: "st", flat }); const by = Object.fromEntries(files.map((f) => [f.name, f.data])); return parseShapefileParts({ shp: by["st.shp"], dbf: by["st.dbf"] }); };
+  const z = normalizeMapLayer(read(false)), flat = normalizeMapLayer(read(true));
+  assert.equal(z.hasZ, true); assert.deepEqual(z.features.map((f) => f.parts[0][0][2]), [1225.4, 1846]);
+  assert.equal(flat.hasZ, undefined); assert.equal(flat.features[0].parts[0][0].length, 2);
 });

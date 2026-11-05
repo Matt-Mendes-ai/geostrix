@@ -150,7 +150,7 @@ export function normalizeMapLayer(layer, transform = (x, y) => [x, y]) {
   const r2 = (v) => Math.round(v * 100) / 100;
   let xmin = Infinity, ymin = Infinity, xmax = -Infinity, ymax = -Infinity;
   const features = [];
-  let withZ = 0; // TASKS.csv #1601 — vertices carrying their own elevation (GeoJSON [x, y, z], GPX <ele>)
+  let withZ = 0, nonZeroZ = 0; // TASKS.csv #1601 — vertices carrying their own elevation (GeoJSON [x, y, z], GPX <ele>)
   (layer.features || []).forEach((f) => {
     const srcParts = f.parts && f.parts.length ? f.parts : [f.geometry || []];
     const parts = srcParts.map((part, pi) => part.map(([x, y, z], vi) => {
@@ -158,12 +158,14 @@ export function normalizeMapLayer(layer, transform = (x, y) => [x, y]) {
       if (tx < xmin) xmin = tx; if (tx > xmax) xmax = tx;
       if (ty < ymin) ymin = ty; if (ty > ymax) ymax = ty;
       const zz = Number.isFinite(z) ? z : pi === 0 && Number.isFinite(f.zs?.[vi]) ? f.zs[vi] : Number.isFinite(f.z) ? f.z : null; // GPX: f.z (waypoint), f.zs (track)
-      if (zz != null) { withZ++; return [r2(tx), r2(ty), r2(zz)]; }
+      if (zz != null) { withZ++; if (zz !== 0) nonZeroZ++; return [r2(tx), r2(ty), r2(zz)]; }
       return [r2(tx), r2(ty)];
     })).filter((p) => p.length);
     if (!parts.length) return;
     features.push({ parts, attributes: f.attributes || {} });
   });
+  // #1601 - every z exactly 0 is no elevation: the shapefile and GeoPackage readers fill 0 for 2D shapes, and many 3D files carry a blank Z
+  if (withZ && !nonZeroZ) { withZ = 0; features.forEach((f) => { f.parts = f.parts.map((part) => part.map((v) => (v.length > 2 ? [v[0], v[1]] : v))); }); }
   const fields = Array.from(features.reduce((s, f) => { Object.keys(f.attributes).forEach((k) => s.add(k)); return s; }, new Set()));
   return {
     name: layer.name,
