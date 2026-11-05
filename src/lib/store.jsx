@@ -12,6 +12,7 @@ import { readDbProfiles, writeDbProfiles, mergeDbProfiles, profilesFromFile } fr
 import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYERS, DEFAULT_LAYOUT_ELEMENTS, compactVoxelModels, emptyFields, fieldsFromPayload, payloadFromFields, projectParts, joinParts, cachedJson /* #1975 */, extraDirtyValues, projectHasContent } from "./projectFields.js"; // TASKS.csv #448
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1975 */, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod } from "./desurvey.js";
+import { readCellBudget, saveCellBudget } from "./estimationMeta.js"; // TASKS.csv #1970
 
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
@@ -673,7 +674,8 @@ export function StoreProvider({ children }) {
   // the project) — GeophysicsModule's import panel exposes it with a plain-language explanation of the
   // tradeoff, so Matt can raise it and see for himself how his own machine handles it, and lower it
   // again if a particular import is sluggish, rather than the app enforcing one guess as a hard limit.
-  const [voxelCellBudget, setVoxelCellBudget] = useState(null); // null = use voxel.js's own MAX_CELLS default
+  const [voxelCellBudget, setVoxelCellBudget] = useState(() => readCellBudget()); // null = voxel.js's own MAX_CELLS default; remembered on this computer: TASKS.csv #1970
+  useEffect(() => { saveCellBudget(voxelCellBudget); }, [voxelCellBudget]);
 
   // ---- Named layer groups (TASKS.csv #76) — purely organizational: an ordered list of layer keys
   // (litho/alt/vein/.../geophys_pts — the same keys LAYER_META and the sidebar's LayerRow loop use)

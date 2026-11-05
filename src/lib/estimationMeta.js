@@ -21,6 +21,12 @@ export const MAX_BLOCK_MODEL_BUDGET = 2000000;
 // ~3.3 GB in the window plus 0.7 GB of drawing buffers at the #661 figures. null / not a number -> null (the default).
 export const MIN_CELL_BUDGET = 10000;
 export const clampCellBudget = (v) => (Number.isFinite(v) && v > 0 ? Math.min(MAX_BLOCK_MODEL_BUDGET, Math.max(MIN_CELL_BUDGET, Math.round(v))) : null);
+// TASKS.csv #1970 — the budget is a setting of this computer (what its memory and GPU can take), remembered across restarts;
+// null (the default) is stored as no key. A private window or blocked storage keeps it for the session only.
+export const CELL_BUDGET_KEY = "geostrix.voxelCellBudget";
+const storageOr = (s) => s ?? (typeof localStorage !== "undefined" ? localStorage : null);
+export function readCellBudget(storage) { try { return clampCellBudget(Number(storageOr(storage)?.getItem(CELL_BUDGET_KEY))); } catch { return null; } }
+export function saveCellBudget(v, storage) { try { const c = clampCellBudget(v), st = storageOr(storage); if (c == null) st?.removeItem(CELL_BUDGET_KEY); else st?.setItem(CELL_BUDGET_KEY, String(c)); } catch { /* session only */ } }
 export const blockModelBudgetNote = (b) => (b <= 200000 ? "fast, ~0.1 GB of memory" : b <= 1000000 ? "~40 s, ~0.4 GB of memory" : "~1.5 min, ~0.9 GB of memory");
 // the grid a box needs at a cell size (the same rounding as estimation.js's gridDims), and the smallest cell (to
 // 0.5 m) that keeps a box within a budget

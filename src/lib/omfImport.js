@@ -19,10 +19,14 @@ export function omfToProjectObjectsAsync(arrayBuffer, maxCells, opts = {}) {
 }
 
 // attribute: the cell attribute to show when a volume carries several (e.g. two inversion iterations); null = the first.
-export async function omfToProjectObjects(arrayBuffer, maxCells, { attribute = null } = {}) {
+// TASKS.csv #1970 — choices: each volume with more than one numeric attribute, the one shown and the others, so the pane can
+// offer the rest; volumesOnly: a re-import for another attribute leaves the points, lines and surfaces out (already imported).
+export async function omfToProjectObjects(arrayBuffer, maxCells, { attribute = null, volumesOnly = false, volume = null } = {}) {
   const project = await parseOMF(arrayBuffer);
-  const omfObjects = [], voxelModels = [], skipped = [], notes = [];
+  const omfObjects = [], voxelModels = [], skipped = [], notes = [], choices = [];
   for (const el of project.elements) {
+    if (volumesOnly && el.kind !== "volume") continue;
+    if (volume && el.kind === "volume" && el.name !== volume) continue; // that volume only
     if (el.kind === "skipped") { skipped.push(`${el.name} (${el.reason})`); continue; }
     if (el.kind === "points" || el.kind === "lines" || el.kind === "surface") {
       const hex = el.color ? `#${el.color.slice(0, 3).map((c) => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, "0")).join("")}` : undefined;
@@ -46,9 +50,11 @@ export async function omfToProjectObjects(arrayBuffer, maxCells, { attribute = n
         colorInit = { colorMode: "continuous", stops: logStops(min, max, SEQUENTIAL_ANCHORS) }; // #482, as #481
       }
       if (air?.count) notes.push(tr("{name}: {count} cells at {v} (the value this model uses for air above the ground) treated as air (no data).", { name: el.name, count: air.count.toLocaleString(), v: Number(air.value).toPrecision(3) }));
+      const numeric = (el.attributes || []).filter((a) => a.kind === "numeric").map((a) => a.name);
+      if (numeric.length > 1) choices.push({ volume: el.name, shown: attrName, attributes: numeric });
       voxelModels.push({ name: `${el.name} (${attrName})`, source: "omf", cells, min, max, ...colorInit, ...(coarsenedFrom ? { params: { coarsenedFrom } } : {}) }); // #1095
       if (coarsenNote) notes.push(`${el.name}: ${coarsenNote}`);
     }
   }
-  return { omfObjects, voxelModels, skipped, notes };
+  return { omfObjects, voxelModels, skipped, notes, choices };
 }

@@ -236,7 +236,7 @@ export default [
     notFor: [
       "It changes nothing already imported: after changing it, import the model again.",
       "Models GeoStrix makes itself (Mag / gravity and DC / IP inversions) are not merged by it, and grade estimation has its own block-count choice.",
-      "It is not kept in the project or on the computer: GeoStrix starts at the default each time it opens.",
+      "It is a setting of this computer, not of the project: it is remembered when GeoStrix closes, and a project opened on another computer uses that computer's budget.",
     ],
     fields: [
       { name: "cells (default …)", what: "The budget itself, between 10,000 and 2,000,000 cells. Each million cells takes about 0.4 GB of memory while the model is open, and drawing gets slower, most on older or integrated graphics.", choose: "Raise it on a computer with a dedicated graphics card and plenty of memory when a model's fine detail matters. Lower it if the 3D view becomes slow." },
@@ -267,7 +267,6 @@ export default [
     summary: "Imports an Open Mining Format v1 file, as written by Leapfrog, Oasis montaj / Geosoft and other programs. Point sets, line sets and triangulated surfaces are listed here and drawn in the 3D view; block models (volumes) go to Voxel / block models, merged to the 3D view cell budget when they are large.",
     notFor: [
       "OMF v2 files (a ZIP container) are not read: re-export as OMF v1 if the source program offers it. Grid-based (non-triangulated) surfaces are skipped.",
-      "A volume carrying several value attributes is imported with its first numeric attribute only; there is no choice of attribute here.",
       "Points from an OMF file are drawn as an object, not added to Point survey, so they cannot be gridded or inverted. Export them as a CSV from the source program for that.",
       "UBC meshes and block-model CSVs are imported in Voxel / block models.",
     ],
@@ -275,6 +274,7 @@ export default [
       { name: "Import OMF (.omf)…", what: "Reads one .omf file and sends each element where it belongs. The message lists what was imported, what was merged, what was skipped and why.", choose: "Import the file as delivered. If an element is reported skipped, export that element again in a supported form from the source program." },
       { name: "Object list (show / hide, kind, remove)", what: "One card per point set, line set or surface from the file, with its kind. The eye shows or hides it; the bin removes it.", choose: "Hide large surfaces while working on something else; they cost drawing time." },
       { name: "Colour", what: "The colour of the object, taken from the file when it has one.", choose: "Pick colours that stand apart from the drillhole and model colours." },
+      { name: "Another attribute of a volume / Add as a block model", what: "Shown after an import when a volume carries more than one numeric attribute (two inversion iterations, or resistivity and chargeability). The first was imported; pick another and press Add as a block model to bring it in as its own card. Only that volume is read again.", choose: "Check which attribute is the final iteration in the source program's notes, and add that one." },
       { name: "Block models from the file", what: "Each volume becomes a card in Voxel / block models, coloured by the file's own colour map, or on log-spaced colours when its values span two decades or more. Cells at the model's air value are treated as no data.", choose: "Open Voxel / block models after the import to check Values are, the range and the units." },
     ],
     warnings: [
@@ -290,7 +290,8 @@ export default [
       steps: [
         "Open the Woodjam sample. It already holds the ZTEM model from this file, so the import below adds a second copy.",
         "Geophysics > OMF > Import OMF (.omf)… and pick ztem_inversion_2023.omf in the sample_data/woodjam folder of the GeoStrix installation.",
-        "Read the message: the block model imported, how much it was merged, and the air cells. This import shows the file's first value attribute, which may not be the final iteration the sample shows.",
+        "Read the message: the block model imported, how much it was merged, and the air cells. This import shows the file's first value attribute; the message names the others.",
+        "Under the message, pick Woodjam_ZTEM_m_05_03 (the iteration the sample shows) and press Add as a block model.",
         "Open Voxel / block models and check Values are and the range on the new card.",
         "Compare the two copies in the 3D View, then remove the one you do not need.",
       ],

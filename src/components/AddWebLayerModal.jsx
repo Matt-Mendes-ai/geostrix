@@ -19,7 +19,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the 
 // WMS -> one rendered image for a chosen area, imported as a raster drape (addRaster). WFS -> real
 // vector features, imported as a boundary polylines layer (addBoundary). Both go through
 // src/lib/webLayers.js, which does the actual GetCapabilities/GetMap/GetFeature work.
-export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addMapLayer, projectEpsg, defaultBboxLonLat, collarsLoaded }) {
+export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addMapLayer, projectEpsg, defaultBboxLonLat }) {
   useEscapeKey(onClose);
   useFocusTrap(); // TASKS.csv #238
   const [service, setService] = useState("wms"); // "wms" | "wfs"
@@ -125,7 +125,7 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
           <button onClick={onClose} title={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={18} /></button>
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, lineHeight: 1.4 }}>{tr("Point this at a government/company OGC service URL (e.g. a provincial bedrock geology WMS, an airborne mag WMS, or a claim-tenure WFS) — the same kind of service you'd add in QGIS. WMS layers import as a raster drape for a chosen area; WFS layers import as a boundary/vector layer.")}</div>
+          <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, lineHeight: 1.4 }}>{tr("Point this at a government/company OGC service URL (e.g. a provincial bedrock geology WMS, an airborne mag WMS, or a claim-tenure WFS) — the same kind of service you'd add in QGIS. WMS layers import as a raster drape for a chosen area; WFS layers import as a Map layer that keeps their attributes, or as boundary lines if you choose.")}</div>
           <div style={{ display: "flex", gap: 8 }}>
             <select value={service} onChange={(e) => { setService(e.target.value); setLayers(null); setSelectedName(""); setResult(null); setCapsError(null); }} style={{ ...sel, width: 100 }}>
               <option value="wms">{tr("WMS")}</option>
@@ -178,8 +178,8 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
           )}
 
           {selectedLayer && service === "wfs" && (
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }} title={collarsLoaded ? undefined : tr("No collars loaded yet — nothing to clip against, so this has no effect.")}>
-              <input type="checkbox" checked={clipToArea} disabled={!collarsLoaded} onChange={(e) => setClipToArea(e.target.checked)} />{tr("Limit to the current project area (recommended for province/country-wide layers)")}</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }} title={defaultBboxLonLat ? undefined : tr("No project area yet (no drillholes, terrain, map layers or samples): nothing to clip against, so this has no effect.")}>{/* #1970 — the clip needs the project area, not drillholes */}
+              <input type="checkbox" checked={clipToArea} disabled={!defaultBboxLonLat} onChange={(e) => setClipToArea(e.target.checked)} />{tr("Limit to the current project area (recommended for province/country-wide layers)")}</label>
           )}
           {selectedLayer && service === "wfs" && (
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }}>{tr("Import as")}<select value={wfsAs} onChange={(e) => setWfsAs(e.target.value)} style={{ ...sel, width: "auto" }}>

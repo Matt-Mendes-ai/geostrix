@@ -51,11 +51,10 @@ import BasemapView from "../components/BasemapView.jsx";
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
-import SurfaceMappingPanel from "../components/SurfaceMappingPanel.jsx"; // TASKS.csv #316/#317
 import InversionPanel from "../components/InversionPanel.jsx"; // TASKS.csv #321 — SimPEG
 import DcipPanel from "../components/DcipPanel.jsx"; // TASKS.csv #322 — 2D DC resistivity / IP
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components/Ribbon.jsx"; // TASKS.csv #458
-import { Zap as RZap, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Map as RMapIcon, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "../components/icons.js";
+import { Zap as RZap, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "../components/icons.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #603
@@ -67,7 +66,7 @@ import { voxelStretch, sortedShownValues } from "../lib/voxelStretch.js"; // TAS
 import { VoxelRangeRow } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1780
 import { terrainFromBlockModel } from "../lib/terrainFromModel.js"; // TASKS.csv #1806
 import { guessQualityColumn, filterSignalQuality, despikeAlongLines } from "../lib/surveyClean.js"; // TASKS.csv #1583 // TASKS.csv #786
-import { vectorToBoundaryPolylines } from "../lib/boundaryImport.js"; // TASKS.csv #1035
+import { vectorToBoundaryPolylines, claimsFromVector } from "../lib/boundaryImport.js"; // TASKS.csv #1035; claims per feature: #1970
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
 import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
 import { usePrompt } from "../components/usePrompt.jsx"; // TASKS.csv #1779
@@ -184,8 +183,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   const [voxelBusy, setVoxelBusy] = useState(false);
   const [voxelProgress, setVoxelProgress] = useState(null);
   const [boundaryError, setBoundaryError] = useState(null);
+  const [claimMsg, setClaimMsg] = useState(null); // TASKS.csv #1970 — the Claims pane's own import message (it showed only under Boundaries)
   const [omfError, setOmfError] = useState(null);
   const [omfBusy, setOmfBusy] = useState(false);
+  const [omfChoices, setOmfChoices] = useState(null); // TASKS.csv #1970 — { file, choices: [{ volume, shown, attributes }] }
+  const [omfPick, setOmfPick] = useState({});
   const omfInput = useRef(null);
   const [idwOpen, setIdwOpen] = useState(false); // TASKS.csv #235 — grid geophys_pts to a raster (IDW)
   const [idwCellSize, setIdwCellSize] = useState(25);
@@ -711,9 +713,15 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       checkGpkgSize(file); // #1716
       const buf = await file.arrayBuffer();
       const { layers } = await parseGeoPackage(buf);
-      const layer = layers.find((l) => l.features.length);
-      if (!layer) throw new Error(tr("No usable features found in this GeoPackage."));
-      return vectorToBoundaryPolylines(layer, project?.epsg);
+      // TASKS.csv #1970 — every table with lines or polygons (only the first table with features was read, the rest left out unsaid)
+      const parts = [];
+      for (const layer of layers) {
+        if (!layer.features.length) continue;
+        const r = await vectorToBoundaryPolylines(layer, project?.epsg);
+        if (r.polylines.length) parts.push({ ...r, table: layer.name });
+      }
+      if (!parts.length) throw new Error(tr("No usable features found in this GeoPackage."));
+      return parts.length === 1 ? parts[0] : { multi: parts };
     }
     return null; // not a vector format this helper handles — caller falls back to .ply/.dxf
   }
@@ -726,6 +734,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     for (const file of files) {
       try {
         const shapePolylines = await shapeFileToPolylines(file);
+        if (shapePolylines?.multi) { // #1970 — a GeoPackage with several tables: one boundary per table
+          for (const p of shapePolylines.multi) {
+            addBoundary({ name: `${file.name}: ${p.table}`, polylines: p.polylines, closedFlags: p.closedFlags, elevation: defaultElevation });
+            imported++;
+            if (p.note) dxfNotes.push(`${file.name}: ${p.table}: ${p.note}`);
+          }
+          continue;
+        }
         if (!shapePolylines && /\.dxf$/i.test(file.name)) {
           // TASKS.csv #408 — one boundary per DXF layer, keeping 3D elevations.
           const specs = dxfToBoundaries(await file.text(), file.name);
@@ -765,35 +781,47 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   // the rest of this app's status-implies-color conventions (e.g. QAQC-style pass/fail coloring).
   const claims = boundaries.filter((b) => b.kind === "claim");
   const nonClaimBoundaries = boundaries.filter((b) => b.kind !== "claim");
+  const MAX_CLAIMS_PER_FILE = 300; // TASKS.csv #1970 — a province-wide tenure file is not a claim list for one property
   const claimStatusColor = (status) => status === "expired" ? "#d9534f" : status === "pending" ? "#e2a63c" : "#3ca65e";
   const importClaims = async (fileList) => {
     const files = Array.from(fileList || []).filter(Boolean);
     if (!files.length) return;
-    setBoundaryError(null);
+    setClaimMsg(null);
     let imported = 0;
     const failed = [], notes = [];
     for (const file of files) {
       try {
         const shapePolylines = await shapeFileToPolylines(file);
-        let polylines, closedFlags;
+        const base = file.name.replace(/\.(ply|dxf|zip|shp|gpkg|kml|kmz|gpx|geojson|json)$/i, "");
+        const addClaim = (c) => {
+          addBoundary({ name: c.name, polylines: c.polylines, ...(c.closedFlags ? { closedFlags: c.closedFlags } : {}), elevation: defaultElevation, kind: "claim", status: "active", tenureNumber: c.tenureNumber || "", expiryDate: c.expiryDate || "", color: claimStatusColor("active") });
+          imported++;
+        };
         if (shapePolylines) {
-          ({ polylines, closedFlags } = shapePolylines);
-          if (shapePolylines.note) notes.push(`${file.name}: ${shapePolylines.note}`); // #1035
+          // TASKS.csv #1970 — a tenure file holds one feature per claim: one claim each (tenure number, name, good-to date from the
+          // attributes), every GeoPackage table; a file of more than MAX_CLAIMS_PER_FILE features stays one claim and says so
+          for (const p of shapePolylines.multi || [shapePolylines]) {
+            const label = shapePolylines.multi ? `${base}: ${p.table}` : base;
+            if (p.note) notes.push(`${file.name}: ${p.note}`); // #1035
+            const split = claimsFromVector(p, label, MAX_CLAIMS_PER_FILE);
+            if (split) { split.forEach(addClaim); continue; }
+            addClaim({ name: label, polylines: p.polylines, closedFlags: p.closedFlags });
+            const nf = new Set(p.featureOf || []).size;
+            if (nf > MAX_CLAIMS_PER_FILE) notes.push(tr("{name}: {n} features, more than {max}, imported as one claim", { name: label, n: nf.toLocaleString(), max: MAX_CLAIMS_PER_FILE }));
+          }
         } else {
           const text = await file.text();
           const isDxf = /\.dxf$/i.test(file.name);
-          ({ polylines } = isDxf ? parseDXF(text) : parsePLYBoundary(text));
+          addClaim({ name: base, polylines: (isDxf ? parseDXF(text) : parsePLYBoundary(text)).polylines });
         }
-        addBoundary({ name: file.name.replace(/\.(ply|dxf|zip|shp|gpkg|kml|kmz|gpx|geojson|json)$/i, ""), polylines, ...(closedFlags ? { closedFlags } : {}), elevation: defaultElevation, kind: "claim", status: "active", tenureNumber: "", expiryDate: "", color: claimStatusColor("active") });
-        imported++;
       } catch (err) {
         failed.push(`${file.name}: ${err.message}`);
       }
     }
-    let msg = imported ? tr("Imported {imported} claim boundary file(s) ({v} total).", { imported, v: claims.length + imported }) : "";
+    let msg = imported ? tr("Imported {imported} claim(s) ({v} total).", { imported, v: claims.length + imported }) : "";
     if (notes.length) msg += ` ${notes.join(" ")}.`; // #1035
     if (failed.length) msg += tr("{v}Failed: {failed}", { v: msg ? " " : "", failed: failed.join("; ") });
-    if (msg) setBoundaryError({ info: !!imported && !failed.length, text: msg });
+    if (msg) setClaimMsg({ info: !!imported && !failed.length, text: msg });
   };
 
   // TASKS.csv — Open Mining Format (OMF) import. User request: "let's build a tool to import OMF
@@ -803,14 +831,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   // surfaces become generic omfObjects (rendered by ViewerModule, visibility/color list below, same
   // pattern as boundaries above); volume elements (tensor-grid block models) convert straight into the
   // existing voxel cell shape and go through addVoxelModel, reusing that renderer rather than a new one.
-  const importOmf = async (file) => {
+  const importOmf = async (file, opts = {}) => { // opts: { attribute, volume, volumesOnly } — another attribute of one volume (#1970)
     if (!file) return;
     setOmfError(null);
     setOmfBusy(true);
     try {
       const buf = await file.arrayBuffer();
       // TASKS.csv #637 — the element conversion lives in lib/omfImport.js (shared with the Woodjam sample project)
-      const res = await omfToProjectObjectsAsync(buf, effectiveMaxCells);
+      const res = await omfToProjectObjectsAsync(buf, effectiveMaxCells, opts);
       // TASKS.csv #1202 — pillar 3: a budget the geologist raised once should not fill a modest laptop unasked (about 0.4 GB per million blocks, as the budget's own tooltip says)
       const blocks = res.voxelModels.reduce((n, m) => n + (m.cells?.length || 0), 0);
       if (blocks > 500000 && !window.confirm(tr("\"{name}\" holds {n} blocks, about {gb} GB of memory while it is open. A modest laptop can slow down or run out. Import it? (Lowering the cell budget above coarsens it.)", { name: file.name, n: blocks.toLocaleString(), gb: (blocks * 0.4e-6).toFixed(1) }))) { setOmfError({ info: true, text: tr("\"{name}\" was not imported.", { name: file.name }) }); return; }
@@ -826,6 +854,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       if (volumesCount) parts.push(tr("{volumesCount} block model(s)", { volumesCount }));
       let msg = parts.length ? tr("Imported \"{name}\" — {parts}.", { name: file.name, parts: parts.join(", ") }) : tr("\"{name}\" parsed but nothing usable was found.", { name: file.name });
       if (coarsenNotes.length) msg += ` ${coarsenNotes.join(" ")}`;
+      if (!opts.volume) { // #1970 — a volume's other numeric attributes (two inversion iterations, conductivity and chargeability)
+        setOmfChoices(res.choices?.length ? { file, choices: res.choices } : null); setOmfPick({});
+        (res.choices || []).forEach((c) => { msg += tr(" \"{volume}\" shows {shown}; the file also holds {others}: pick another below to add it as a block model.", { volume: c.volume, shown: c.shown, others: c.attributes.filter((a) => a !== c.shown).join(", ") }); });
+      }
       if (skipped.length) msg += tr(" Skipped: {skipped}.", { skipped: skipped.join("; ") });
       msg += farNote(res.voxelModels.flatMap((m) => m.cells || [])); // #1427
       setOmfError({ info: parts.length > 0, text: msg });
@@ -1743,7 +1775,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         </>)}
         {geoPane === "boundaries" && (<>
         <TaskPaneHeader title="Boundaries" icon={RShapes} tone="data" />
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Boundaries (.ply / DXF / shapefile / GeoPackage)")}<InfoButton title={tr("Boundaries")} text={tr("Import a Geosoft .ply boundary/polygon export, a DXF file, a shapefile (.zip/.shp), a GeoPackage (.gpkg), or KML/KMZ (Google Earth, MTO — reprojected from WGS84 automatically) — property lines, claim blocks, survey/blind-grid extents, section templates from a surveyor or CAD/GIS package — as a polyline in the 3D view. Select multiple files at once, mixed formats if you like. DXF: only LINE/LWPOLYLINE/POLYLINE/POINT entities are read (2D plan-view CAD data, not 3D solids/text/blocks). Shapefile/GeoPackage: every feature in the file becomes its own part of the same boundary. Assumes the file's own coordinates already match the project's EPSG ({v}) — there's no on-import reprojection yet for any of these formats.", { v: project?.epsg ?? "?" })} />
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Boundaries (.ply / DXF / shapefile / GeoPackage)")}<InfoButton title={tr("Boundaries")} text={tr("Import a Geosoft .ply boundary/polygon export, a DXF file, a shapefile (.zip/.shp), a GeoPackage (.gpkg), KML/KMZ, GPX or GeoJSON — property lines, claim blocks, survey/blind-grid extents, section templates from a surveyor or CAD/GIS package — as a polyline in the 3D view. Select multiple files at once, mixed formats if you like. DXF: only LINE/LWPOLYLINE/POLYLINE/POINT entities are read (2D plan-view CAD data, not 3D solids/text/blocks). Shapefile: every feature in the file becomes its own part of the same boundary. GeoPackage: each table with lines or polygons becomes its own boundary. Shapefile and GeoPackage are reprojected from their own CRS to the project's EPSG ({v}); KML/KMZ, GPX and GeoJSON from WGS 84. .ply and DXF files are taken to be in the project's EPSG already.", { v: project?.epsg ?? "?" })} />
         </div>
         <button onClick={() => boundaryInput.current.click()} style={pBtn}>
           <Waypoints size={14} />{" "}{tr("Import boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml / .gpx / .geojson)…")}</button>
@@ -1773,7 +1805,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={b.drapeMode === "terrain"} disabled={!terrain}
                 onChange={(e) => updateBoundary(b.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
-              <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (import a DEM above first)") : "" })}</span>
+              <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (import a DEM in Terrain first)") : "" })}</span>
             </label>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, opacity: b.drapeMode === "terrain" ? 0.4 : 1 }}>
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Elev.")}</span>
@@ -1786,12 +1818,6 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
           </div>
         ))}
 
-        {/* TASKS.csv #316/#317 — GIS map layers draped on the terrain + outcrop structure measurements */}
-        </>)}
-        {geoPane === "maps" && (<>
-        <TaskPaneHeader title="Map layers & outcrop structures" icon={RMapIcon} tone="data" />
-        <SurfaceMappingPanel pBtn={pBtn} numInput={numInput} />
-
         </>)}
         {geoPane === "web" && (<>
         {/* TASKS.csv #543 — this dialog sat inside the Terrain pane, so "Add web layer" in this pane never showed it */}
@@ -1803,11 +1829,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             addMapLayer={addMapLayer}
             projectEpsg={project?.epsg}
             defaultBboxLonLat={webLayerDefaultBbox}
-            collarsLoaded={collars.length > 0}
           />
         )}
         <TaskPaneHeader title="Web layers (WMS / WFS)" icon={RGlobe} tone="data" />
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Web layers (WMS / WFS)")}<InfoButton title={tr("Web layers")} text={tr("Add a layer directly from a government/company OGC service URL — the same kind of WMS (provincial bedrock geology, airborne mag) or WFS (claim-tenure) layer you'd add in QGIS. A WMS layer imports as a raster drape for a chosen area; a WFS layer imports as a boundary/vector layer.")} />
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Web layers (WMS / WFS)")}<InfoButton title={tr("Web layers")} text={tr("Add a layer directly from a government/company OGC service URL — the same kind of WMS (provincial bedrock geology, airborne mag) or WFS (claim-tenure) layer you'd add in QGIS. A WMS layer imports as a raster drape for a chosen area; a WFS layer imports as a Map layer that keeps its attributes, or as boundary lines if you choose.")} />
         </div>
         <button onClick={async () => {
           // #615 — a web map is fetched for wherever the project CRS puts the data: choose it first when it never was
@@ -1819,7 +1844,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         </>)}
         {geoPane === "claims" && (<>
         <TaskPaneHeader title="Mineral claims / tenure" icon={RFlag} tone="data" />
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Mineral claims / tenure")}<InfoButton title={tr("Mineral claims / tenure")} text={tr("Import a claim/tenure boundary — .ply, DXF, shapefile (.zip/.shp), GeoPackage (.gpkg) or KML/KMZ, same formats as Boundaries above (BC's Mineral Titles Online distributes claims as shapefiles, not .ply) — tracked with its own tenure number, status, and expiry date, and its area computed automatically (hectares). Status sets a default colour (active = green, pending = amber, expired = red) so standing is visible at a glance in the 3D view — still overridable per claim. Assumes the file's own coordinates already match the project's EPSG.")} />
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Mineral claims / tenure")}<InfoButton title={tr("Mineral claims / tenure")} text={tr("Import a claim/tenure boundary — .ply, DXF, shapefile (.zip/.shp), GeoPackage (.gpkg), KML/KMZ, GPX or GeoJSON, the same formats as the Boundaries pane (BC's Mineral Titles Online distributes claims as shapefiles, not .ply) — tracked with its own tenure number, status, and expiry date, and its area computed automatically (hectares, holes taken away). A shapefile or GeoPackage with several features (up to 300) becomes one claim per feature, its tenure number, name and good-to date read from attribute columns named that way. Status sets a default colour (active = green, pending = amber, expired = red) so standing is visible at a glance in the 3D view — still overridable per claim. Shapefile and GeoPackage are reprojected from their own CRS to the project's EPSG; KML/KMZ, GPX and GeoJSON from WGS 84; .ply and DXF files are taken to be in the project's EPSG already.")} />
         </div>
         <button onClick={() => claimInput.current.click()} style={pBtn}>
           <Flag size={14} />{" "}{tr("Import claim boundary (.ply / .dxf / .zip / .shp / .gpkg / .kml / .gpx / .geojson)…")}</button>
@@ -1831,6 +1856,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
           style={{ display: "none" }}
           onChange={(e) => { importClaims(e.target.files); e.target.value = ""; }}
         />
+        {claimMsg && (
+          <div style={{ marginTop: 8, padding: "8px 10px", background: claimMsg.info ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${claimMsg.info ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 6, fontSize: "var(--font-size-base)", color: claimMsg.info ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.5 }}>
+            {claimMsg.text}
+          </div>
+        )}
         {claims.length === 0 && (
           <div style={{ marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("No claims imported yet.")}</div>
         )}
@@ -1873,7 +1903,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={c.drapeMode === "terrain"} disabled={!terrain}
                 onChange={(e) => updateBoundary(c.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
-              <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (import a DEM above first)") : "" })}</span>
+              <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (import a DEM in Terrain first)") : "" })}</span>
             </label>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, opacity: c.drapeMode === "terrain" ? 0.4 : 1 }}>
               <span style={{ color: "var(--color-text-faint)", width: 60, flexShrink: 0 }}>{tr("Elev.")}</span>
@@ -1898,7 +1928,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         </>)}
         {geoPane === "budget" && (<>
         <TaskPaneHeader title="3D view cell budget" icon={RSettings2} tone="view" />
-        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>{tr("3D view cell budget")}<InfoButton title={tr("3D view cell budget")} text={tr("A large OMF/UBC block model gets block-averaged down to this many cells before it's rendered, to keep the 3D view responsive. Higher = more detail but slower to render (especially on older/integrated GPUs) and more memory: about 0.4 GB per million cells, so it stops at {max} cells, above which GeoStrix can run out of memory. Only affects new imports, not models already in the project.", { max: MAX_BLOCK_MODEL_BUDGET.toLocaleString() })} />
+        <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>{tr("3D view cell budget")}<InfoButton title={tr("3D view cell budget")} text={tr("A large OMF/UBC block model gets block-averaged down to this many cells before it's rendered, to keep the 3D view responsive. Higher = more detail but slower to render (especially on older/integrated GPUs) and more memory: about 0.4 GB per million cells, so it stops at {max} cells, above which GeoStrix can run out of memory. Only affects new imports, not models already in the project. Remembered on this computer.", { max: MAX_BLOCK_MODEL_BUDGET.toLocaleString() })} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
           <input
@@ -1934,6 +1964,17 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             {omfError.text}
           </div>
         )}
+        {omfChoices?.choices.map((c) => {
+          const others = c.attributes.filter((a) => a !== c.shown), pick = omfPick[c.volume] ?? others[0];
+          return (
+            <div key={c.volume} style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
+              <select value={pick} onChange={(e) => setOmfPick((p) => ({ ...p, [c.volume]: e.target.value }))} aria-label={tr("Another attribute of \"{volume}\"", { volume: c.volume })} title={c.volume} style={{ ...numInput, flex: 1, minWidth: 0 }}>
+                {others.map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+              <button onClick={() => importOmf(omfChoices.file, { attribute: pick, volume: c.volume, volumesOnly: true })} disabled={omfBusy} style={{ ...pBtn, width: "auto", marginBottom: 0, flexShrink: 0 }}>{tr("Add as a block model")}</button>
+            </div>
+          );
+        })}
         {omfObjects.map((o) => (
           <div key={o.id} style={{ marginTop: 10, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>

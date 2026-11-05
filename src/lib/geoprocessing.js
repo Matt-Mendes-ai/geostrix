@@ -36,29 +36,40 @@ export function polygonArea(polygon) {
   return Math.abs(sum) / 2;
 }
 
-// TASKS.csv #126 — mineral claim/tenure area, in hectares. `polylines` is a boundary's own shape
-// ({x,y}[][], one array per part — see geosoft.js's parsePLYBoundary), NOT pre-closed the way
-// polygonArea's [x,y] input above assumes (real .ply files don't always repeat the first vertex, see
-// ViewerModule's boundary-render effect comment), so each loop is explicitly closed here first. Sums
-// every part's area rather than picking the largest — a real multi-part claim (a tenure with a
-// non-contiguous parcel, or a donut-shaped exclusion) is genuinely the sum of its pieces; this doesn't
-// attempt hole subtraction (no reliable "this ring is a hole in that one" signal in a flat .ply part
-// list), so a claim boundary with a deliberately-excluded inner hole will over-report slightly — an
-// acceptable simplification for a first pass, same spirit as this app's other geometry approximations
-// (e.g. reprojectGrid's corner-bbox-only reprojection).
+// TASKS.csv #126 — mineral claim/tenure area, in hectares. `polylines` is a boundary's own shape ({x,y}[][], one array per
+// part), not pre-closed (real .ply files don't always repeat the first vertex). TASKS.csv #1970 — a ring inside an odd number
+// of the other rings is a hole and is taken away (it used to be added: a claim with an excluded inner block over-reported by
+// the hole). Parts that overlap without nesting are not unioned: each claim card is now one feature of its file, so a
+// feature's own rings are what is measured. Bounding boxes skip most containment tests; the result is kept per shape.
+const areaCache = new WeakMap();
 export function boundaryAreaHectares(polylines) {
-  let m2 = 0;
-  for (const pts of polylines || []) {
-    if (pts.length < 3) continue;
+  if (!polylines) return 0;
+  const hit = areaCache.get(polylines);
+  if (hit != null) return hit;
+  const rings = [];
+  for (const pts of polylines) {
+    if (!pts || pts.length < 3) continue;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const p of pts) { if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; }
     const closed = pts[0].x === pts[pts.length - 1].x && pts[0].y === pts[pts.length - 1].y ? pts : [...pts, pts[0]];
-    m2 += polygonArea(closed.map((p) => [p.x, p.y]));
+    rings.push({ pts, area: polygonArea(closed.map((p) => [p.x, p.y])), x0, y0, x1, y1 });
   }
-  return m2 / 10000;
+  let m2 = 0;
+  rings.forEach((r, i) => {
+    const { x, y } = r.pts[0];
+    let depth = 0;
+    rings.forEach((o, k) => { if (k !== i && o.area > r.area && x >= o.x0 && x <= o.x1 && y >= o.y0 && y <= o.y1 && pointInPolygon(x, y, o.pts)) depth++; });
+    m2 += depth % 2 ? -r.area : r.area;
+  });
+  const ha = Math.max(0, m2) / 10000;
+  areaCache.set(polylines, ha);
+  return ha;
 }
 
 // pointInPolygon / pointInBoundary live in pointInPolygon.js (TASKS.csv #903: the 3D View needs them at startup,
 // and this module's d3-delaunay import should not come along); re-exported here for the existing callers.
 export { pointInPolygon, pointInBoundary } from "./pointInPolygon.js";
+import { pointInPolygon } from "./pointInPolygon.js";
 
 // Padded bounding box: geoprocessing.js's own helper rather than reusing a raster/section bbox
 // helper, since those pad in pixel/SVG space — this pads in world units, sized relative to point
