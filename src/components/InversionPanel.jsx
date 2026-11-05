@@ -33,6 +33,7 @@ import { categoricalModels, modelUnits, unitMedians, modelBody } from "../lib/ge
 import { t as tr } from "../lib/i18n.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709 // TASKS.csv #786
 import { SURVEY_METHODS, methodIsInvertible } from "../lib/geophysSurveys.js"; // TASKS.csv #1151
+import { terrainFromSurveyElevations } from "../lib/terrainFromPoints.js"; // TASKS.csv #1589
 
 const METHODS = {
   mag: { label: "Magnetics (TMI)", unit: "nT", confirm: "These values are the total magnetic field in nT as measured (not RTP, not a derivative): either the anomaly, with the IGRF / regional field removed in processing, or the raw total field over an area small enough that its regional field is a plane, which Remove base level > Best-fit plane takes out. GeoStrix does not remove the IGRF itself.", property: "susceptibility (SI)", contrastLabel: "Susceptibility (SI)" },
@@ -42,7 +43,7 @@ const METHODS = {
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 
 export default function InversionPanel({ pBtn, numInput, inPane = false, resultSlot = null }) { // inPane: TASKS.csv #458
-  const { layers, terrain, project, surfaceStructures, getProjectToken, addVoxelModelToTab, collars, survey: drillSurvey, desurveyMethod, geophysSurveys, voxelModels } = useStore();
+  const { layers, terrain, project, surfaceStructures, getProjectToken, addVoxelModelToTab, collars, survey: drillSurvey, desurveyMethod, geophysSurveys, voxelModels, addTerrain } = useStore(); // addTerrain: #1589
   const keptScope = scopeOf(getProjectToken()); // TASKS.csv #1284 — survives a tab switch
   const setTaskProgress = useSetTaskProgress();
   // TASKS.csv #364 — every imported point file lands in the one geophys_pts layer, so a mag survey and a
@@ -108,6 +109,24 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   // TASKS.csv #1709 — stations that sit down the holes are not survey stations (Copley's susceptibility log was offered as 2,619 TMI stations)
   const downhole = useMemo(() => downholeLikeness(rows, collars, terrain ? (x, y) => terrainElevationAt(terrain, x, y) : null), [rows, collars, terrain]);
   const crsIssue = crsProblem(project?.epsg);
+  // TASKS.csv #1589 (review #1497, Lawyers) — how much of the survey the terrain covers, said BEFORE Estimate (the review found out
+  // after: '275 station(s) fell outside the terrain'); and a ground surface from the stations' own elevations when there is none
+  const coverage = useMemo(() => {
+    if (!terrain || !rows.length) return null;
+    const step = Math.max(1, Math.floor(rows.length / 2000)); let m = 0, n = 0;
+    for (let i = 0; i < rows.length; i += step) { m++; if (Number.isFinite(terrainElevationAt(terrain, rows[i].x, rows[i].y))) n++; }
+    return { pct: (100 * n) / m };
+  }, [terrain, rows]);
+  const [groundNote, setGroundNote] = useState(null);
+  const groundFromStations = () => {
+    try {
+      const sh = zMode === "ground" ? 0 : num(sensorHeight) > 0 ? num(sensorHeight) : 0;
+      const t = terrainFromSurveyElevations(rows, { sensorHeight: sh });
+      const name = tr("Ground from the {survey} stations", { survey: activeSurvey || tr("survey") });
+      addTerrain({ name, bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask, source: { kind: "survey station elevations", survey: activeSurvey, ...t.stats } });
+      setGroundNote(tr("Added the terrain \"{name}\": {w} × {h} nodes at {cell} m from {n} station elevations{v}, blanked beyond {blank} m of a station ({pct}% of its box has ground, {zmin} to {zmax} m). It is the survey's own GPS heights, not a DEM: good enough for which cells are underground, coarse for anything else.", { name, w: t.gridW, h: t.gridH, cell: +t.stats.cellM.toFixed(1), n: t.stats.stations.toLocaleString(), v: sh ? tr(" minus the {sh} m sensor height", { sh }) : "", blank: Number.isFinite(t.stats.blankM) ? Math.round(t.stats.blankM) : "—", pct: Math.round(t.stats.coveredPct), zmin: Math.round(t.stats.zmin), zmax: Math.round(t.stats.zmax) }));
+    } catch (e) { setGroundNote(e.message); }
+  };
   const thinSuggestion = useMemo(() => (rows.length > MAX_STATIONS ? suggestThinSpacing(xs, ys) : null), [rows]);
 
   // TASKS.csv #323 — the log layer that constrains this method, and its samples in model units
@@ -551,6 +570,15 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                   <div style={row} title={tr("Cells whose normalized sensitivity is below this are hidden in the 3D view: the data can barely see them, so their value says more about the regularization than about the rock. Display only — it does not change the inversion.")}><span style={lbl}>{tr("Hide cells below support")}</span><input type="number" min={0} max={1} step={0.01} value={adv.supportCutoff} onChange={(e) => setAdv((p) => ({ ...p, supportCutoff: e.target.value }))} style={inp} /></div>
                 </>}
               </>)}
+              {rows.length > 0 && ( // TASKS.csv #1589
+                <div style={{ ...small, marginTop: 6 }}>
+                  {terrain
+                    ? (coverage && <span style={{ color: coverage.pct < 90 ? "var(--color-warn-text)" : "var(--color-text-secondary)" }}>{tr("The terrain covers {pct}% of the stations; the others would be left out.", { pct: Math.round(coverage.pct) })}</span>)
+                    : <span style={{ color: "var(--color-warn-text)" }}>{tr("No terrain yet: an inversion needs one to know which cells are underground.")}</span>}
+                  {(!terrain || (coverage && coverage.pct < 90)) && <div><button onClick={groundFromStations} style={{ ...pBtn, marginTop: 4, marginBottom: 0 }}>{tr("Ground from the stations' own elevations…")}</button></div>}
+                  {groundNote && <div style={{ marginTop: 4 }}>{groundNote}</div>}
+                </div>
+              )}
               <button onClick={() => doPlan("inversion")} disabled={planBusy || running || methodClash} style={{ ...pBtn, marginTop: 8, marginBottom: 4 }}><Gauge size={14} /> {planBusy ? tr("Estimating…") : tr("Estimate size and memory")}</button>
               {plan && (
                 <div style={{ ...small, marginBottom: 6 }} aria-live="polite">

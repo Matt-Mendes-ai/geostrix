@@ -8301,5 +8301,12 @@
   "Survey to analyse": "Levantamento a analisar",
   "Surveys are never mixed: each has its own units and spacing.": "Os levantamentos nunca se misturam: cada um tem as suas unidades e espaçamento.",
   "Survey whose legend to edit": "Levantamento cuja legenda editar",
-  "Each survey is coloured on its own 2–98 percentile range until its legend is edited here; the legend below is this survey's.": "Cada levantamento é colorido no seu próprio intervalo do percentil 2–98 até a sua legenda ser editada aqui; a legenda abaixo é a deste levantamento."
+  "Each survey is coloured on its own 2–98 percentile range until its legend is edited here; the legend below is this survey's.": "Cada levantamento é colorido no seu próprio intervalo do percentil 2–98 até a sua legenda ser editada aqui; a legenda abaixo é a deste levantamento.",
+  "Ground from the {survey} stations": "Terreno a partir das estações de {survey}",
+  "survey": "levantamento",
+  " minus the {sh} m sensor height": " menos a altura do sensor de {sh} m",
+  "Added the terrain \"{name}\": {w} × {h} nodes at {cell} m from {n} station elevations{v}, blanked beyond {blank} m of a station ({pct}% of its box has ground, {zmin} to {zmax} m). It is the survey's own GPS heights, not a DEM: good enough for which cells are underground, coarse for anything else.": "Adicionado o terreno \"{name}\": {w} × {h} nós a {cell} m a partir de {n} elevações de estação{v}, em branco além de {blank} m de uma estação ({pct}% da sua caixa tem solo, {zmin} a {zmax} m). São as alturas GPS do próprio levantamento, não um MDE: suficiente para saber que células estão no subsolo, grosseiro para qualquer outra coisa.",
+  "The terrain covers {pct}% of the stations; the others would be left out.": "O terreno cobre {pct}% das estações; as restantes ficariam de fora.",
+  "No terrain yet: an inversion needs one to know which cells are underground.": "Ainda sem terreno: uma inversão precisa de um para saber que células estão no subsolo.",
+  "Ground from the stations' own elevations…": "Terreno a partir das elevações das estações…"
 }

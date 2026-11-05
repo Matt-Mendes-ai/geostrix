@@ -465,7 +465,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     setTerrainBusy(true);
     try {
       const raw = await file.text();
-      const text = /\.dxf$/i.test(file.name) ? raw : skipPreamble(raw).text; // #1666 — a contractor's notes above the header
+      let text = /\.dxf$/i.test(file.name) ? raw : skipPreamble(raw).text; // #1666 — a contractor's notes above the header
+      // TASKS.csv #1589 — a GEM / Geosoft .xyz ('/X Y elev rawmag ...' header lines, 'line 6412.1' markers) is read by the Point
+      // survey's own parser and laid out as a table (a missing cell written NaN keeps the columns aligned); it was refused as
+      // 'no X, Y and elevation columns found'
+      if (/\.xyz$/i.test(file.name) && /^\s*\//.test(raw)) { const { columns, rows: xr } = parseXYZ(raw); text = [columns.join(" "), ...xr.map((r) => columns.map((c) => (r[c] == null || r[c] === "" ? "NaN" : r[c])).join(" "))].join("\n"); }
       let points = [], lines = [], what;
       if (/\.dxf$/i.test(file.name)) {
         const d = parseDXF(text);

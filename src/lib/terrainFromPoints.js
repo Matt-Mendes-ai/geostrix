@@ -11,6 +11,36 @@
 // Pure: no React, no three.js. Points are { x, y, z } in the project CRS.
 import { Delaunay } from "d3-delaunay";
 import { fillNoData } from "./demFill.js";
+import { idwGrid, suggestBlankingDistance } from "./idw.js"; // TASKS.csv #1589
+
+// TASKS.csv #1589 (review #1497, Lawyers) — a ground surface from a survey's own station elevations (GPS heights minus the
+// sensor height), for an inversion with no DEM at hand: a TIN of a walk-mag survey (lines 25-50 m apart, readings every
+// metre along them) left 82-99.5 % of the grid empty under the long-edge rule, so the inversion kept 20 of 295 stations.
+// Inverse-distance gridding (the Point survey's own gridder) with a blanking distance from the line spacing fills the
+// ground between lines and leaves no-data beyond the survey. Row 0 = north, nodes at cell centres (the terrain convention).
+export function terrainFromSurveyElevations(points, { sensorHeight = 0, cellSize = null, blankM = null, gridMax = 300 } = {}) {
+  const sh = Number.isFinite(sensorHeight) ? sensorHeight : 0;
+  const P = (points || []).filter((p) => p && Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)).map((p) => ({ x: p.x, y: p.y, value: p.z - sh, line: p.line }));
+  if (P.length < 3) throw new Error("At least 3 stations with elevations are needed to build a ground surface.");
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of P) { if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; }
+  if (!(x1 > x0) || !(y1 > y0)) throw new Error("The stations lie on a line: a ground surface needs them spread over an area.");
+  const sug = suggestBlankingDistance(P);
+  const blank = blankM > 0 ? blankM : sug ? sug.distance : Infinity;
+  const span = Math.max(x1 - x0, y1 - y0);
+  const cell = cellSize > 0 ? cellSize : Math.max(span / gridMax, sug ? sug.spacing / 4 : 1, 0.5);
+  const xmin = x0 - cell, ymin = y0 - cell, xmax = x1 + cell, ymax = y1 + cell;
+  const { gridW, gridH, values } = idwGrid(P, { xmin, ymin, xmax, ymax, cellSize: cell, power: 2, maxDistance: blank, maxPoints: 12 });
+  let valid = 0, zmin = Infinity, zmax = -Infinity;
+  for (let i = 0; i < values.length; i++) { const v = values[i]; if (Number.isFinite(v)) { valid++; if (v < zmin) zmin = v; if (v > zmax) zmax = v; } }
+  if (!valid) throw new Error("No ground could be gridded from these stations.");
+  const fill = fillNoData(Array.from(values));
+  return {
+    bbox: [xmin + cell / 2, ymax - (gridH - 0.5) * cell, xmin + (gridW - 0.5) * cell, ymax - cell / 2], gridW, gridH,
+    elevations: fill.elevations, noDataMask: fill.noDataMask,
+    stats: { stations: P.length, cellM: cell, blankM: blank, lineSpacingM: sug ? sug.spacing : null, coveredPct: (100 * valid) / values.length, sensorHeight: sh, zmin, zmax },
+  };
+}
 
 // polylines [[{x, y, z}]] -> points with a vertex at least every `step` along each segment (z interpolated)
 export function densify(polylines, step) {
