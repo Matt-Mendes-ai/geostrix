@@ -7995,15 +7995,11 @@
   "Hide these stopes": "Ocultar estes realces",
   "Show these stopes": "Mostrar estes realces",
   "{n} stope solids from one Stope outlines run; manage them in Mine Design > Stope outlines": "{n} sólidos de realce de uma execução de Contornos de realces; gira-os em Projeto de mina > Contornos de realces",
-  "Stopes: {model} ≥ {c} {u} ({n} on {l} level(s))": "Desmontes: {model} ≥ {c} {u} ({n} em {l} nível(is))",
   "Manage": "Gerir",
-  "Removed {n} stope solid(s) and {m} outline string(s). Undo (Ctrl+Z) brings them back.": "Foram removidos {n} sólido(s) de realce e {m} string(s) de contorno. Desfazer (Ctrl+Z) recupera-os.",
-  "Removed {n} stope solid(s). Undo (Ctrl+Z) brings them back.": "Foram removidos {n} sólido(s) de realce. Desfazer (Ctrl+Z) recupera-os.",
   "Its {m} outline string(s) in Strings go too.": "Os seus {m} string(s) de contorno em Strings também saem.",
   "Stopes in the project ({n})": "Desmontes no projeto ({n})",
   "Remove all {n} stope solid(s) from the project?": "Remover os {n} sólido(s) de realce do projeto?",
   "Remove all stopes ({n})": "Remover todos os realces ({n})",
-  "{model} ≥ {c} {u}": "{model} ≥ {c} {u}",
   "(unnamed model)": "(modelo sem nome)",
   "Show the stopes of {run}": "Mostrar os realces de {run}",
   "Remove the {n} stope solid(s) of {run}?": "Remover os {n} sólido(s) de realce de {run}?",
@@ -8036,5 +8032,10 @@
   "Show ticked": "Mostrar marcados",
   "Hide ticked": "Ocultar marcados",
   "the ticked strings": "os strings marcados",
-  "Remove ticked": "Remover marcados"
+  "Remove ticked": "Remover marcados",
+  "Removed {n} stope solid(s) and {m} outline string(s). Restore brings them back (Ctrl+Z does not undo generated surfaces).": "Foram removidos {n} sólido(s) de realce e {m} string(s) de contorno. Restaurar recupera-os (Ctrl+Z não desfaz as superfícies geradas).",
+  "Removed {n} stope solid(s). Restore brings them back (Ctrl+Z does not undo generated surfaces).": "Foram removidos {n} sólido(s) de realce. Restaurar recupera-os (Ctrl+Z não desfaz as superfícies geradas).",
+  "{model} ≥ {c}": "{model} ≥ {c}",
+  "Stopes: {model} ≥ {c} ({n} on {l} level(s))": "Realces: {model} ≥ {c} ({n} em {l} nível(is))",
+  "Restored {n} stope solid(s).": "Foram restaurados {n} sólido(s) de realce."
 }

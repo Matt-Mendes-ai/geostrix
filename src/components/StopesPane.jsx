@@ -15,6 +15,7 @@ import { toExportCsv, crsCell } from "../lib/tabular.js";
 import { saveFile } from "../lib/desktop.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
+import { stopeRuns, stopeIdsOnLevel, stopeStringIds } from "../lib/stopeRuns.js"; // TASKS.csv #1968
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
@@ -27,8 +28,8 @@ let kept = null; // #1356 — the last result outlives the pane (this session)
 
 // onAdd as the pit pane's (a solid into the generated surfaces); onRemove(id) takes one out again (#1887: a re-run replaces the
 // stopes this pane put in the view)
-export default function StopesPane({ onAdd, onRemove, onClose }) {
-  const { voxelModels = [], layers, project, setDesignStrings } = useStore();
+export default function StopesPane({ onAdd, onRemove, onClose, stopes = [], onShow = null, onRemoveMany = null }) { // stopes / onShow / onRemoveMany: TASKS.csv #1968
+  const { voxelModels = [], layers, project, setDesignStrings, designStrings = [], generatedSurfaces = [] } = useStore(); // generatedSurfaces: #1968 — the saved copy a Restore rebuilds from
   const models = useMemo(() => { const cat = new Set(categoricalModels(voxelModels)); return voxelModels.filter((m) => gradeCandidate(m, (x) => cat.has(x))); }, [voxelModels]);
   const [f, setF] = useState(() => ({ ...EMPTY, ...(kept?.inputs || {}), modelId: kept?.inputs?.modelId && models.some((m) => (m.id ?? m.name) === kept.inputs.modelId) ? kept.inputs.modelId : models[0]?.id ?? models[0]?.name ?? "" }));
   const [res, setRes] = useState(() => kept);
@@ -57,7 +58,7 @@ export default function StopesPane({ onAdd, onRemove, onClose }) {
     if (addedIds.length && onRemove) addedIds.forEach((id) => onRemove(id));
     const oldStrings = kept?.addedStringIds || []; // #1922 — and its outline strings
     if (oldStrings.length) { const gone = new Set(oldStrings); setDesignStrings((L) => L.filter((s) => !gone.has(s.id))); }
-    kept = { ...r, inputs: { ...f }, model: model.name, unit, seconds: Math.round((performance.now() - t0) / 100) / 10, addedIds: [] };
+    kept = { ...r, inputs: { ...f }, model: model.name, unit, seconds: Math.round((performance.now() - t0) / 100) / 10, addedIds: [], runId: `stoperun_${Date.now()}` }; // runId: #1968 — its solids and strings are managed together
     setRes(kept); setAdded({ solids: false, strings: false }); setMsg(null);
   };
   // #1885 — what the typed width and skin became on this model's columns
@@ -71,7 +72,7 @@ export default function StopesPane({ onAdd, onRemove, onClose }) {
       // #1885 — the tip and the params carry the width and skin as applied (whole columns), beside what was typed
       const id = onAdd?.({ name: tr("Stope {rl} m #{n}: {model} ≥ {c} {u}", { rl: Math.round(l.rl), n: si + 1, model: res.model, c: res.inputs.cutoff, u: res.unit }), positions: s.positions, indices: s.indices, volumeM3: s.volume, type: "stope", closure: "closed", color: LEVEL_COLOURS[li % LEVEL_COLOURS.length], tag: "stope",
         tip: tr("Stope outline: blocks at or above the cut-off, no thinner than {w} m ({n} column(s)), with a {k} m skin ({m} column(s)); not a mine design", { w: res.inputs.minWidth || 0, n: res.widthCols, k: res.inputs.skin || 0, m: res.skinCols }),
-        params: { tool: "stope outlines by level (opening by the minimum width, a dilution skin)", blockModel: res.model, gradeUnit: res.unit, cutoff: Number(res.inputs.cutoff), levelRL: l.rl, levelTop: l.top, minWidthM: Number(res.inputs.minWidth) || 0, minWidthAppliedM: effWidthM, minLengthM: Number(res.inputs.minLength) || 0, skinM: Number(res.inputs.skin) || 0, skinAppliedM: effSkinM, columnM: res.cell, density: Number(res.inputs.density),
+        params: { tool: "stope outlines by level (opening by the minimum width, a dilution skin)", runId: res.runId /* #1968 */, blockModel: res.model, gradeUnit: res.unit, cutoff: Number(res.inputs.cutoff), levelRL: l.rl, levelTop: l.top, minWidthM: Number(res.inputs.minWidth) || 0, minWidthAppliedM: effWidthM, minLengthM: Number(res.inputs.minLength) || 0, skinM: Number(res.inputs.skin) || 0, skinAppliedM: effSkinM, columnM: res.cell, density: Number(res.inputs.density),
           tonnes: Math.round(s.tonnes), grade: s.grade == null ? null : +s.grade.toPrecision(4), oreTonnes: Math.round(s.oreTonnes), oreGrade: s.oreGrade == null ? null : +s.oreGrade.toPrecision(4), columns: s.columns, dip: res.dip ? { dipDeg: res.dip.dipDeg, dipDirDeg: res.dip.dipDirDeg } : null /* #1953 */, holesFilled: s.holesFilled,
           caution: "a stope outline from a block model: no geotechnical, access, sequencing or shape check; not a Mineral Reserve or Resource", generatedAt: new Date().toISOString() } });
       if (id) ids.push(id);
@@ -81,7 +82,7 @@ export default function StopesPane({ onAdd, onRemove, onClose }) {
   };
   const addStrings = () => {
     const strings = [];
-    res.levels.forEach((l, li) => l.stopes.forEach((s, si) => strings.push({ id: `string_stope_${Date.now()}_${li}_${si}`, name: tr("Stope {rl} m #{n}", { rl: Math.round(l.rl), n: si + 1 }), color: LEVEL_COLOURS[li % LEVEL_COLOURS.length], visible: true, closed: true, vertices: s.outline.map((p) => p.map((x) => +x.toFixed(3))) })));
+    res.levels.forEach((l, li) => l.stopes.forEach((s, si) => strings.push({ id: `string_stope_${Date.now()}_${li}_${si}`, stopeRun: res.runId /* #1968 */, name: tr("Stope {rl} m #{n}", { rl: Math.round(l.rl), n: si + 1 }), color: LEVEL_COLOURS[li % LEVEL_COLOURS.length], visible: true, closed: true, vertices: s.outline.map((p) => p.map((x) => +x.toFixed(3))) })));
     setDesignStrings((L) => [...L, ...strings]);
     if (kept === res) { kept = { ...res, addedStringIds: strings.map((s) => s.id) }; setRes(kept); } // #1922
     setAdded((a) => ({ ...a, strings: true })); setMsg(tr("{n} outline(s) added as design strings (Strings tool).", { n: strings.length }));
@@ -150,6 +151,74 @@ export default function StopesPane({ onAdd, onRemove, onClose }) {
           <div style={{ ...note, marginTop: 4 }}>{tr("Conceptual, from your cut-off, width and skin on this block model. It is not a mine design, a Mineral Reserve or a Resource.")}</div>
         </div>
       )}
+      <StopesInProject stopes={stopes} saved={generatedSurfaces} onAdd={onAdd} strings={designStrings} onShow={onShow} onRemoveMany={onRemoveMany} setDesignStrings={setDesignStrings} onRemoved={(ids) => { if (kept?.addedIds?.some((id) => ids.includes(id))) { kept = { ...kept, addedIds: kept.addedIds.filter((id) => !ids.includes(id)) }; setRes(kept); } }} />
+    </div>
+  );
+}
+
+// TASKS.csv #1968 — every stope solid in the project, by the run that made them: show / hide, remove all, a run or one level, with the
+// outline strings the run sent to Strings. Generated surfaces are not in the project's undo (their meshes are too large to
+// snapshot), so the last removal is kept from the saved copy and Restore rebuilds it (same run id: it regroups).
+function StopesInProject({ stopes, saved = [], onAdd = null, strings, onShow, onRemoveMany, setDesignStrings, onRemoved }) {
+  const runs = useMemo(() => stopeRuns(stopes), [stopes]);
+  const [level, setLevel] = useState({});
+  const [said, setSaid] = useState(null);
+  const [last, setLast] = useState(null); // { surfaces: [saved copies], strings: [string objects] }
+  const restore = () => {
+    if (!last || !onAdd) return;
+    for (const g of last.surfaces) {
+      if (!g.vertices?.length || !g.indices?.length) continue;
+      onAdd({ name: g.name, positions: Float64Array.from(g.vertices), indices: Uint32Array.from(g.indices), type: "stope", closure: g.closure || "closed", ...(g.color ? { color: g.color } : {}), tag: "stope", params: g.params || {} });
+    }
+    if (last.strings.length) setDesignStrings((L) => [...L, ...last.strings.filter((s) => !L.some((x) => x.id === s.id))]);
+    setSaid(tr("Restored {n} stope solid(s).", { n: last.surfaces.length })); setLast(null);
+  };
+  if ((!runs.length && !last) || !onRemoveMany) return null;
+  const total = stopes.length, allStrings = stopeStringIds(strings);
+  const drop = (ids, stringIds, text) => {
+    if (!window.confirm(text)) return;
+    const idSet = new Set(ids), gone = new Set(stringIds);
+    setLast({ surfaces: saved.filter((g) => idSet.has(g.id)), strings: strings.filter((s) => gone.has(s.id)) });
+    onRemoveMany(ids); onRemoved?.(ids);
+    if (stringIds.length) setDesignStrings((L) => L.filter((s) => !gone.has(s.id)));
+    setSaid(tr(stringIds.length ? "Removed {n} stope solid(s) and {m} outline string(s). Restore brings them back (Ctrl+Z does not undo generated surfaces)." : "Removed {n} stope solid(s). Restore brings them back (Ctrl+Z does not undo generated surfaces).", { n: ids.length, m: stringIds.length }));
+  };
+  const andStrings = (m) => (m ? " " + tr("Its {m} outline string(s) in Strings go too.", { m }) : "");
+  const shownAll = runs.every((r) => r.visible === r.count);
+  return (
+    <div style={{ marginTop: 10, padding: "7px 8px", border: "1px solid var(--color-border)", borderRadius: 6 }}>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{tr("Stopes in the project ({n})", { n: total })}</div>
+      <div style={{ display: "flex", gap: 4, marginTop: 5, flexWrap: "wrap" }}>
+        {onShow && <button type="button" onClick={() => onShow(stopes.map((s) => s.id), !shownAll)} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0 }}>{shownAll ? tr("Hide all") : tr("Show all")}</button>}
+        <button type="button" onClick={() => drop(stopes.map((s) => s.id), allStrings, tr("Remove all {n} stope solid(s) from the project?", { n: total }) + andStrings(allStrings.length))} style={{ ...pBtn, width: "auto", flex: 1, marginBottom: 0 }}>{tr("Remove all stopes ({n})", { n: total })}</button>
+      </div>
+      {runs.map((r) => {
+        const strs = stopeStringIds(strings, r.key), lv = level[r.key] ?? "";
+        const label = tr("{model} ≥ {c}", { model: r.model || tr("(unnamed model)"), c: `${r.cutoff ?? "?"} ${r.unit}`.trim() });
+        return (
+          <div key={r.key} style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid var(--color-border)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {onShow && <input type="checkbox" checked={r.visible > 0} onChange={(e) => onShow(r.ids, e.target.checked)} aria-label={tr("Show the stopes of {run}", { run: label })} />}
+              <span style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{label}</span>
+              <button type="button" onClick={() => drop(r.ids, strs, tr("Remove the {n} stope solid(s) of {run}?", { n: r.count, run: label }) + andStrings(strs.length))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Remove")}</button>
+            </div>
+            <div style={{ ...note, marginTop: 2 }}>
+              {tr("{n} stope(s) on {l} level(s), {t} t", { n: r.count, l: r.levels.length, t: big(r.tonnes) })}{r.when ? ` · ${r.when.slice(0, 10)}` : ""}{r.key.startsWith("earlier|") ? ` · ${tr("from an earlier session")}` : ""}
+            </div>
+            {r.levels.length > 1 && (
+              <div style={{ display: "flex", gap: 4, alignItems: "center", marginTop: 3 }}>
+                <select value={lv} onChange={(e) => setLevel((p) => ({ ...p, [r.key]: e.target.value }))} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Level to remove")}>
+                  <option value="">{tr("A level…")}</option>
+                  {[...r.levels].reverse().map((rl) => <option key={rl} value={rl}>{tr("{rl} m", { rl })}</option>)}
+                </select>
+                <button type="button" disabled={lv === ""} onClick={() => { const ids = stopeIdsOnLevel(stopes, r.key, Number(lv)); drop(ids, [], tr("Remove the {n} stope solid(s) of {run} on the {rl} m level?", { n: ids.length, run: label, rl: lv })); setLevel((p) => ({ ...p, [r.key]: "" })); }} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px", opacity: lv === "" ? 0.5 : 1 }}>{tr("Remove level")}</button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {allStrings.length > 0 && allStrings.length > runs.reduce((a, r) => a + stopeStringIds(strings, r.key).length, 0) && <div style={{ ...note, marginTop: 6 }}>{tr("Outline strings sent before runs were tagged are not removed with a run: Remove all stopes takes them, or remove them in Strings.")}</div>}
+      {said && <div role="status" style={{ ...note, marginTop: 6 }}>{said}{last && onAdd && last.surfaces.length > 0 && <> <button type="button" onClick={restore} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "1px 6px" }}>{tr("Restore")}</button></>}</div>}
     </div>
   );
 }

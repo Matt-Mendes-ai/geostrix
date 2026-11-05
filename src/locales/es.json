@@ -7995,15 +7995,11 @@
   "Hide these stopes": "Ocultar estos caserones",
   "Show these stopes": "Mostrar estos caserones",
   "{n} stope solids from one Stope outlines run; manage them in Mine Design > Stope outlines": "{n} sólidos de caserón de una corrida de Contornos de caserones; gestiónelos en Diseño de mina > Contornos de caserones",
-  "Stopes: {model} ≥ {c} {u} ({n} on {l} level(s))": "Rebajes: {model} ≥ {c} {u} ({n} en {l} nivel(es))",
   "Manage": "Gestionar",
-  "Removed {n} stope solid(s) and {m} outline string(s). Undo (Ctrl+Z) brings them back.": "Se quitaron {n} sólido(s) de caserón y {m} string(s) de contorno. Deshacer (Ctrl+Z) los recupera.",
-  "Removed {n} stope solid(s). Undo (Ctrl+Z) brings them back.": "Se quitaron {n} sólido(s) de caserón. Deshacer (Ctrl+Z) los recupera.",
   "Its {m} outline string(s) in Strings go too.": "Sus {m} string(s) de contorno en Strings también se quitan.",
   "Stopes in the project ({n})": "Rebajes en el proyecto ({n})",
   "Remove all {n} stope solid(s) from the project?": "¿Quitar los {n} sólido(s) de caserón del proyecto?",
   "Remove all stopes ({n})": "Quitar todos los caserones ({n})",
-  "{model} ≥ {c} {u}": "{model} ≥ {c} {u}",
   "(unnamed model)": "(modelo sin nombre)",
   "Show the stopes of {run}": "Mostrar los caserones de {run}",
   "Remove the {n} stope solid(s) of {run}?": "¿Quitar los {n} sólido(s) de caserón de {run}?",
@@ -8036,5 +8032,10 @@
   "Show ticked": "Mostrar marcados",
   "Hide ticked": "Ocultar marcados",
   "the ticked strings": "los strings marcados",
-  "Remove ticked": "Quitar marcados"
+  "Remove ticked": "Quitar marcados",
+  "Removed {n} stope solid(s) and {m} outline string(s). Restore brings them back (Ctrl+Z does not undo generated surfaces).": "Se quitaron {n} sólido(s) de caserón y {m} string(s) de contorno. Restaurar los recupera (Ctrl+Z no deshace las superficies generadas).",
+  "Removed {n} stope solid(s). Restore brings them back (Ctrl+Z does not undo generated surfaces).": "Se quitaron {n} sólido(s) de caserón. Restaurar los recupera (Ctrl+Z no deshace las superficies generadas).",
+  "{model} ≥ {c}": "{model} ≥ {c}",
+  "Stopes: {model} ≥ {c} ({n} on {l} level(s))": "Caserones: {model} ≥ {c} ({n} en {l} nivel(es))",
+  "Restored {n} stope solid(s).": "Se restauraron {n} sólido(s) de caserón."
 }

@@ -105,6 +105,7 @@ const PitDesignPane = React.lazy(() => import("../components/PitDesignPane.jsx")
 const DesignStringsPane = React.lazy(() => import("../components/DesignStringsPane.jsx")); // TASKS.csv #1876
 const NestedPitsPane = React.lazy(() => import("../components/NestedPitsPane.jsx")); // TASKS.csv #1875
 const StopesPane = React.lazy(() => import("../components/StopesPane.jsx")); // TASKS.csv #1879
+import StopeRunRows from "./viewer/StopeRunRows.jsx"; // TASKS.csv #1968
 import { collarGround } from "../lib/pitShell.js"; // TASKS.csv #1616 — the estimate's ground without a terrain
 let solidSeq = 0; // TASKS.csv #1887 — distinct ids for solids added within one millisecond
 // TASKS.csv #1891 — what a pick in the view landed on, in a few words: the object's tip (its first line) or the kind of group it sits in
@@ -4208,6 +4209,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     for (let i = 0; i < a.length; i += 3) { out[i] = a[i] + o.x; out[i + 1] = o.y - a[i + 2]; out[i + 2] = a[i + 1] + o.z; }
     return out;
   }, []);
+  // TASKS.csv #1968 — stopes managed together: show / hide and remove many (one undo step: the snapshot is debounced)
+  const showSurfaces = useCallback((ids, v) => { const k = new Set(ids); setImplicitSurfaces((p) => p.map((s) => { if (!k.has(s.id)) return s; const m = implicitMeshesRef.current[s.id]; if (m) m.visible = v; return { ...s, visible: v }; })); }, []);
+  const removeSurfaces = useCallback((ids) => ids.forEach((id) => removeImplicitSurface(id)), []);
+  const stopeSurfaces = useMemo(() => implicitSurfaces.filter((s) => s.type === "stope"), [implicitSurfaces]);
   const toggleImplicitSurface = useCallback((id) => {
     setImplicitSurfaces((p) => p.map((s) => {
       if (s.id !== id) return s;
@@ -8053,7 +8058,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           {[[veinHw, setVeinHw, "Hangingwall…"], [veinFw, setVeinFw, "Footwall…"]].map(([v, set, ph]) => (
             <select key={ph} value={implicitSurfaces.some((x) => x.id === v) ? v : ""} onChange={(e) => set(e.target.value)} style={{ ...smallSel, flex: "1 0 40%", minWidth: 0 }} aria-label={tr(ph)}>
               <option value="">{tr(ph)}</option>
-              {implicitSurfaces.filter((x) => !SOLID_SURFACE_TYPES.has(x.type) || x.type === "imported").map((x) => <option key={x.id} value={x.id}>{surfaceLabels.get(x.id) ?? x.name}</option>)}{/* imported: a wall from another package */}
+              {implicitSurfaces.filter((x) => (!SOLID_SURFACE_TYPES.has(x.type) && x.type !== "stope") || x.type === "imported").map((x) => <option key={x.id} value={x.id}>{surfaceLabels.get(x.id) ?? x.name}</option>)}{/* imported: a wall from another package */}
             </select>
           ))}
           <button onClick={buildVeinSolid} disabled={!veinHw || !veinFw || veinHw === veinFw} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px", opacity: veinHw && veinFw && veinHw !== veinFw ? 1 : 0.5 }}>{tr("Make the solid")}</button>
@@ -8088,7 +8093,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {implicitSurfaces.length === 0 && (
           <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10, lineHeight: 1.4 }}>{tr("None yet — run one of the tools above. Generated surfaces now save with the project (mesh, type, declared relationships and the parameters that produced them), so a reported volume or tonnage can be reproduced after a restart. Binding a surface to a saved theme is still a follow-up.")}</div>
         )}
-        {implicitSurfaces.map((s) => {
+        <StopeRunRows stopes={stopeSurfaces} onShow={showSurfaces} onOpen={() => { goToModule("minedesign"); setToolPane("stopes"); }} />{/* #1968 — one row per stope run */}
+        {implicitSurfaces.filter((s) => s.type !== "stope").map((s) => {
           const expanded = expandedSurfaceId === s.id;
           const otherSurfaces = implicitSurfaces.filter((o) => o.id !== s.id);
           const stale = staleSurfaces.get(s.id); // TASKS.csv #878
@@ -8532,7 +8538,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {sidebarTab === "minedesign" && toolPane === "pitdesign" && <Suspense fallback={null}><PitDesignPane surfaces={implicitSurfaces} worldPositionsOf={worldPositionsOfSurface} onAdd={addUndrilledSolid} onToggle={toggleImplicitSurface} onRemove={removeImplicitSurface} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1874 */}
         {sidebarTab === "minedesign" && toolPane === "strings" && <Suspense fallback={null}><DesignStringsPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient, zoomTo: zoomToWorldPoints /* #1892 */ }} onAdd={addUndrilledSolid} surfaces={implicitSurfaces} /* #1942 */ surfaceZAt={surfaceZAt} /* #1955 */ onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1876 */}
         {sidebarTab === "minedesign" && toolPane === "dump" && <Suspense fallback={null}><DumpPane surfaces={implicitSurfaces} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1880 */}
-        {sidebarTab === "minedesign" && toolPane === "stopes" && <Suspense fallback={null}><StopesPane onAdd={addUndrilledSolid} onRemove={removeImplicitSurface} /* #1887 */ onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1879 */}
+        {sidebarTab === "minedesign" && toolPane === "stopes" && <Suspense fallback={null}><StopesPane onAdd={addUndrilledSolid} onRemove={removeImplicitSurface} /* #1887 */ stopes={stopeSurfaces} onShow={showSurfaces} onRemoveMany={removeSurfaces} /* #1968 */ onClose={() => setToolPane(null)} /></Suspense>}{/* TASKS.csv #1879 */}
         {sidebarTab === "minedesign" && toolPane === "lines" && <Suspense fallback={null}><DesignLinesPane view={{ scene: sceneRef, camera: cameraRef, renderer: rendererRef, activity: lastActivityRef, dragHook: viewDragHookRef, origin: originRef, worldPointAt: worldPointAtClient /* #1878 */, zoomTo: zoomToWorldPoints /* #1892 */ }} onAdd={addUndrilledSolid} surfaces={implicitSurfaces} /* #1954 */ onClose={() => setToolPane(null)} /></Suspense>}
         {sidebarTab === "targeting" && (<>
         {toolPane === "ranges" && (<>

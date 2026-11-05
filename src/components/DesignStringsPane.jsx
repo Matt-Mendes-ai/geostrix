@@ -21,6 +21,7 @@ import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { collarGround } from "../lib/pitShell.js"; // #1905
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { t as tr } from "../lib/i18n.js";
+import StringManager from "./StringManager.jsx"; // TASKS.csv #1968 — many strings at once
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between", marginTop: 4, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
@@ -336,6 +337,7 @@ export default function DesignStringsPane({ view, onAdd, onClose, surfaces = [],
         {string?.vertices?.length > 0 && view?.zoomTo && <Maximize2 size={14} style={{ cursor: "pointer", flexShrink: 0, alignSelf: "center" }} {...iconAction(() => view.zoomTo(string.vertices), tr("Zoom to this string"))} />}{/* #1892 */}
         <button onClick={newString} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "3px 8px" }}><Plus size={13} /> {tr("New string")}</button>
       </div>
+      <StringManager strings={designStrings} setStrings={setDesignStrings} surfaces={surfaces} activeId={activeId} setActiveId={setActiveId} />{/* #1968 */}
       {string && !drawing && <div style={note}>{tr("In the view: click a string to select it; drag a vertex of the selected string to move it (on its own level, or on the ground when that is the drawing target).")}</div>}{/* #1907 / #1876 */}
       {string && (<>
         <div style={{ display: "flex", gap: 4, alignItems: "center", marginTop: 4 }}>

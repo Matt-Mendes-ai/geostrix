@@ -7995,15 +7995,11 @@
   "Hide these stopes": "Masquer ces chantiers",
   "Show these stopes": "Afficher ces chantiers",
   "{n} stope solids from one Stope outlines run; manage them in Mine Design > Stope outlines": "{n} solides de chantier d'un même passage de Contours de chantiers ; gérez-les dans Conception minière > Contours de chantiers",
-  "Stopes: {model} ≥ {c} {u} ({n} on {l} level(s))": "Chantiers : {model} ≥ {c} {u} ({n} sur {l} niveau(x))",
   "Manage": "Gérer",
-  "Removed {n} stope solid(s) and {m} outline string(s). Undo (Ctrl+Z) brings them back.": "{n} solide(s) de chantier et {m} chaîne(s) de contour supprimés. Annuler (Ctrl+Z) les rétablit.",
-  "Removed {n} stope solid(s). Undo (Ctrl+Z) brings them back.": "{n} solide(s) de chantier supprimés. Annuler (Ctrl+Z) les rétablit.",
   "Its {m} outline string(s) in Strings go too.": "Ses {m} chaîne(s) de contour dans Strings partent aussi.",
   "Stopes in the project ({n})": "Chantiers du projet ({n})",
   "Remove all {n} stope solid(s) from the project?": "Supprimer les {n} solide(s) de chantier du projet ?",
   "Remove all stopes ({n})": "Supprimer tous les chantiers ({n})",
-  "{model} ≥ {c} {u}": "{model} ≥ {c} {u}",
   "(unnamed model)": "(modèle sans nom)",
   "Show the stopes of {run}": "Afficher les chantiers de {run}",
   "Remove the {n} stope solid(s) of {run}?": "Supprimer les {n} solide(s) de chantier de {run} ?",
@@ -8036,5 +8032,10 @@
   "Show ticked": "Afficher les cochées",
   "Hide ticked": "Masquer les cochées",
   "the ticked strings": "les chaînes cochées",
-  "Remove ticked": "Supprimer les cochées"
+  "Remove ticked": "Supprimer les cochées",
+  "Removed {n} stope solid(s) and {m} outline string(s). Restore brings them back (Ctrl+Z does not undo generated surfaces).": "{n} solide(s) de chantier et {m} chaîne(s) de contour supprimés. Rétablir les ramène (Ctrl+Z n'annule pas les surfaces générées).",
+  "Removed {n} stope solid(s). Restore brings them back (Ctrl+Z does not undo generated surfaces).": "{n} solide(s) de chantier supprimés. Rétablir les ramène (Ctrl+Z n'annule pas les surfaces générées).",
+  "{model} ≥ {c}": "{model} ≥ {c}",
+  "Stopes: {model} ≥ {c} ({n} on {l} level(s))": "Chantiers : {model} ≥ {c} ({n} sur {l} niveau(x))",
+  "Restored {n} stope solid(s).": "{n} solide(s) de chantier rétablis."
 }

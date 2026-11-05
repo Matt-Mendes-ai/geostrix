@@ -7995,15 +7995,11 @@
   "Hide these stopes": "إخفاء هذه الردهات",
   "Show these stopes": "إظهار هذه الردهات",
   "{n} stope solids from one Stope outlines run; manage them in Mine Design > Stope outlines": "{n} مجسّم ردهة من تشغيل واحد لمخططات الردهات؛ أدرها في تصميم المنجم > مخططات الردهات",
-  "Stopes: {model} ≥ {c} {u} ({n} on {l} level(s))": "الردهات: {model} ≥ {c} {u} ({n} على {l} مستوى)",
   "Manage": "إدارة",
-  "Removed {n} stope solid(s) and {m} outline string(s). Undo (Ctrl+Z) brings them back.": "أُزيل {n} مجسّم ردهة و{m} خط حدود. التراجع (Ctrl+Z) يعيدها.",
-  "Removed {n} stope solid(s). Undo (Ctrl+Z) brings them back.": "أُزيل {n} مجسّم ردهة. التراجع (Ctrl+Z) يعيدها.",
   "Its {m} outline string(s) in Strings go too.": "وتُزال معه خطوط الحدود الـ{m} في Strings.",
   "Stopes in the project ({n})": "الردهات في المشروع ({n})",
   "Remove all {n} stope solid(s) from the project?": "إزالة كل مجسّمات الردهات الـ{n} من المشروع؟",
   "Remove all stopes ({n})": "إزالة كل الردهات ({n})",
-  "{model} ≥ {c} {u}": "{model} ≥ {c} {u}",
   "(unnamed model)": "(نموذج بلا اسم)",
   "Show the stopes of {run}": "إظهار ردهات {run}",
   "Remove the {n} stope solid(s) of {run}?": "إزالة مجسّمات الردهات الـ{n} من {run}؟",
@@ -8036,5 +8032,10 @@
   "Show ticked": "إظهار المحددة",
   "Hide ticked": "إخفاء المحددة",
   "the ticked strings": "الخطوط المحددة",
-  "Remove ticked": "إزالة المحددة"
+  "Remove ticked": "إزالة المحددة",
+  "Removed {n} stope solid(s) and {m} outline string(s). Restore brings them back (Ctrl+Z does not undo generated surfaces).": "أُزيل {n} مجسّم ردهة و{m} خط حدود. الاستعادة تعيدها (لا يتراجع Ctrl+Z عن الأسطح المولّدة).",
+  "Removed {n} stope solid(s). Restore brings them back (Ctrl+Z does not undo generated surfaces).": "أُزيل {n} مجسّم ردهة. الاستعادة تعيدها (لا يتراجع Ctrl+Z عن الأسطح المولّدة).",
+  "{model} ≥ {c}": "{model} ≥ {c}",
+  "Stopes: {model} ≥ {c} ({n} on {l} level(s))": "الردهات: {model} ≥ {c} ({n} على {l} مستوى)",
+  "Restored {n} stope solid(s).": "استُعيد {n} مجسّم ردهة."
 }
