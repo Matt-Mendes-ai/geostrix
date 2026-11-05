@@ -8257,5 +8257,9 @@
   "Place the breaks on the 1st–99th percentiles ({a} – {b}): {above} value(s) above and {below} below go in the end classes (the full range is {min} – {max}).": "Colocar os limites nos percentis 1–99 ({a} – {b}): {above} valor(es) acima e {below} abaixo vão para as classes extremas (a faixa completa é {min} – {max}).",
   "Show the last 6": "Mostrar os últimos 6",
   "Show the last one": "Mostrar só o último",
-  "Show all {n} messages since this pane opened": "Mostrar as {n} mensagens desde que este painel abriu"
+  "Show all {n} messages since this pane opened": "Mostrar as {n} mensagens desde que este painel abriu",
+  "Logged codes": "Códigos descritos",
+  " (an older run)": " (uma execução anterior)",
+  "{list}: the picks show no preferred orientation (at the level of random planes), so the fault surface made from them is not a real plane. Run the stack anyway?": "{list}: os picks não mostram orientação preferencial (no nível de planos aleatórios), então a superfície de falha feita deles não é um plano real. Rodar o stack mesmo assim?",
+  "Stack run cancelled before solving: check the fault picks on the Stereonet, or give each structure its own name / ID.": "Execução do stack cancelada antes de resolver: confira os picks da falha no estereograma ou dê a cada estrutura seu próprio nome / ID."
 }

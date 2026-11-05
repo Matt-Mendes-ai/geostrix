@@ -1311,11 +1311,12 @@ export function createModellingRuns(ctx, mcRef) {
       }
     }
     // TASKS.csv #360 — faults that offset the stack, solved in the same GemPy run (FAULT groups)
-    const faultSpecs = [], faultKey = new Map(), faultWarnings = [];
+    const faultSpecs = [], faultKey = new Map(), faultWarnings = [], randomFaults = []; // randomFaults: #1543
     stackFaults.forEach((key) => {
       const f = gatherFaultSpec(key, traces);
       if (f.spec) { faultSpecs.push(f.spec); faultKey.set(key, f.spec); } else setNotices((p) => [...p, notice("Fault \"{v}\" left out: {why}", { v: key.replace("|", " — "), why: f.why })]);
       faultWarnings.push(...(f.warnings || [])); // #1372 — said after the run: the run's own messages pushed them out of the last six
+      if (f.spec && f.random) randomFaults.push(f.random);
     });
     if (faultSpecs.length) setNotices((p) => [...p, notice("The stack is offset by {faultSpecs} fault(s) solved in the same model: {v}.", { faultSpecs: faultSpecs.length, v: faultSpecs.map((f) => f.meshName).join(", ") })]);
 
@@ -1328,6 +1329,13 @@ export function createModellingRuns(ctx, mcRef) {
       const later = stackFaults.slice(i + 1);
       spec.offsets = [...specs.slice(Math.max(0, from)).map((s) => s.meshName), ...(cfg.faults || []).filter((k) => later.includes(k) && faultKey.has(k)).map((k) => faultKey.get(k).meshName)];
     });
+    // TASKS.csv #1543 (review #1497, Lawyers) — what the picks say about a fault is known now: said before the solve too (it came 173 s
+    // later), and a fault whose picks are no more aligned than random planes is asked about once, so minutes of GemPy can be saved
+    if (faultWarnings.length) setNotices((p) => [...p, ...faultWarnings]);
+    if (randomFaults.length && !window.confirm(tr("{list}: the picks show no preferred orientation (at the level of random planes), so the fault surface made from them is not a real plane. Run the stack anyway?", { list: randomFaults.map((r) => `\"${r.name}\" (k = ${Number(r.k).toFixed(1)})`).join(", ") }))) {
+      setNotices((p) => [...p, notice("Stack run cancelled before solving: check the fault picks on the Stereonet, or give each structure its own name / ID.")]);
+      return;
+    }
     await runSurfaceStack([...faultSpecs, ...specs], { relation: breakAt.size ? "erode" : stackRelation, packages }); // TASKS.csv #271; #1309
     if (faultWarnings.length) setNotices((p) => [...p, ...faultWarnings]);
   };
@@ -1447,7 +1455,7 @@ export function createModellingRuns(ctx, mcRef) {
     const warnings = [], fs = rows.length >= 4 ? fisherStats(rows) : null, holes = new Set(rows.map((s) => s.hole_id)).size;
     if (fs?.noPreferred) warnings.push(notice("Warning: the {n} \"{name}\" picks show no preferred orientation (k = {k}, at the level of random planes), so their dips do not define one surface. Check them on the Stereonet, or give each structure its own name/ID.", { n: rows.length, name, k: fs.k.toFixed(1) }));
     if (!id && holes > 1) warnings.push(notice("All {rows} \"{structType}\" picks ({holes} holes) are modelled as ONE surface. If they belong to different {v}, map a structure name/ID column when importing the structure file and each will be modelled on its own.", { rows: rows.length, structType: type, holes, v: tr("faults") }));
-    return { warnings, spec: { label: `Fault: ${name}`, meshName: /fault|flt|shear/i.test(type) ? name : `Fault ${name}`, points, orientations, color: colorForStructure(type), type: "fault", fault: true } };
+    return { warnings, random: fs?.noPreferred ? { name, k: fs.k } : null, spec: { label: `Fault: ${name}`, meshName: /fault|flt|shear/i.test(type) ? name : `Fault ${name}`, points, orientations, color: colorForStructure(type), type: "fault", fault: true } }; // random: #1543
   };
 
   // Structural modelling tool: models a surface from one structure-plane type (e.g. a fault or shear

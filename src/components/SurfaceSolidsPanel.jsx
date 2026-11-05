@@ -46,8 +46,15 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
     }
     const dip = (Math.atan2(Math.hypot(ax, ay), Math.abs(az)) * 180) / Math.PI;
     const steep = !closed && Math.round(dip) >= 70, leaning = !closed && Math.round(dip) > 45 && !steep; // refuse from 70° (the review: +238 % at 70°), warn above 45°
-    return { broken, dip, steep, leaning, id: s.id, name: s.name, unit: d ? layerLabel(d) : s.name, baseUnit: d ? unitOf(d) : s.name, mesh: m, closed, xy: [xmin, xmax, ymin, ymax], z: zStats(m.positions), defaultRole: s.type === "unit_volume" ? "none" : closed ? "solid" : d ? (contactOf(d) === "lower" ? "base" : "top") : (s.type === "fault" || s.type === "vein_hangingwall" || s.type === "vein_footwall" || SOLID_SURFACE_TYPES.has(s.type)) ? "none" : "top" }; // unit volumes are this tool's own output; faults / vein walls are steep, not unit tops; an OPEN body (#804) has no inside and is no top either
-  }).filter(Boolean), [surfaces, worldMesh, explicitDefs]);
+    // TASKS.csv #1544 (review #1497, Lawyers) — a structural surface (a vein, 'Structure: Vn1a') or an open envelope is not a unit top, and a
+    // surface 'Top of X' bounds the unit X (it named the unit 'Top of V-Vcl-Intermed')
+    const notATop = /^structure:/i.test(s.name || "") || ["dyke", "breccia_body", "alteration_envelope", "mineralization_envelope"].includes(s.type);
+    const unitName = String(s.name || "").replace(/^top of\s+/i, "");
+    return { broken, dip, steep, leaning, id: s.id, name: s.name, unit: d ? layerLabel(d) : unitName, baseUnit: d ? unitOf(d) : unitName, mesh: m, closed, xy: [xmin, xmax, ymin, ymax], z: zStats(m.positions), defaultRole: s.type === "unit_volume" ? "none" : closed ? "solid" : d ? (contactOf(d) === "lower" ? "base" : "top") : (s.type === "fault" || s.type === "vein_hangingwall" || s.type === "vein_footwall" || SOLID_SURFACE_TYPES.has(s.type) || notATop) ? "none" : "top" }; // unit volumes are this tool's own output; faults / vein walls are steep, not unit tops; an OPEN body (#804) has no inside and is no top either
+  }).filter(Boolean).map((it, k, all) => { // #1544 — an earlier run of a surface that was modelled again is not used by default
+    const key = it.name.trim().toLowerCase(), older = all.slice(k + 1).some((o) => o.name.trim().toLowerCase() === key);
+    return older ? { ...it, older, defaultRole: "none" } : it;
+  }), [surfaces, worldMesh, explicitDefs]);
   const [roles, setRoles] = useState({});
   const roleOf = (it) => roles[it.id] ?? (it.steep ? "none" : it.defaultRole);
   const { used, tops, solids } = useMemo(() => {
@@ -124,7 +131,7 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
             <option value="solid" disabled={!it.closed}>{tr("Solid (inside)")}</option>
             <option value="none">{tr("Not used")}</option>
           </select>
-          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={it.unit !== it.name ? tr("{name} — a contact of {unit}", { name: it.name, unit: it.unit }) : it.name}>{it.name}{it.unit !== it.name && <span style={{ color: "var(--color-text-muted)" }}> · {it.unit}</span>}</span>
+          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={it.unit !== it.name ? tr("{name} — a contact of {unit}", { name: it.name, unit: it.unit }) : it.name}>{it.name}{it.older ? tr(" (an older run)") : ""}{it.unit !== it.name && <span style={{ color: "var(--color-text-muted)" }}> · {it.unit}</span>}</span>
           <span style={{ color: "var(--color-text-faint)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{it.steep || it.leaning ? <span title={it.steep ? tr("A wall, not a top: dips {d}°. Vertical columns meet it over a sliver of the box, so it cannot bound units here. For a vein or dyke use Vein solid from two surfaces.", { d: it.dip.toFixed(0) }) : tr("Dips {d}°: blocks coded from a top this steep are approximate near its edges. For a vein or dyke use Vein solid from two surfaces.", { d: it.dip.toFixed(0) })}>{tr("dips {d}°", { d: it.dip.toFixed(0) })}</span> : it.broken ? <span title={tr("Closed, but it crosses itself ({n} triangle pairs) or its faces point both ways, so it has no well-defined inside. Fix or rebuild it before using it as a solid.", { n: it.broken.selfIntersectingPairs })}>{tr("crosses itself")}</span> : it.closed ? tr("closed") : tr("open")}</span>
         </div>
       ))}

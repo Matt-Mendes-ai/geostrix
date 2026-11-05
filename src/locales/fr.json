@@ -8257,5 +8257,9 @@
   "Place the breaks on the 1st–99th percentiles ({a} – {b}): {above} value(s) above and {below} below go in the end classes (the full range is {min} – {max}).": "Placer les limites sur les 1er–99e centiles ({a} – {b}) : {above} valeur(s) au-dessus et {below} en dessous vont dans les classes extrêmes (la plage complète est {min} – {max}).",
   "Show the last 6": "Afficher les 6 derniers",
   "Show the last one": "Afficher le dernier seulement",
-  "Show all {n} messages since this pane opened": "Afficher les {n} messages depuis l'ouverture de ce volet"
+  "Show all {n} messages since this pane opened": "Afficher les {n} messages depuis l'ouverture de ce volet",
+  "Logged codes": "Codes décrits",
+  " (an older run)": " (une exécution antérieure)",
+  "{list}: the picks show no preferred orientation (at the level of random planes), so the fault surface made from them is not a real plane. Run the stack anyway?": "{list} : les pointés n'ont pas d'orientation préférentielle (au niveau de plans aléatoires), la surface de faille qu'ils forment n'est donc pas un vrai plan. Lancer la pile quand même ?",
+  "Stack run cancelled before solving: check the fault picks on the Stereonet, or give each structure its own name / ID.": "Exécution de la pile annulée avant la résolution : vérifiez les pointés de la faille sur le stéréogramme, ou donnez à chaque structure son propre nom / ID."
 }

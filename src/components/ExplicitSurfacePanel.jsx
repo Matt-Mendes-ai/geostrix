@@ -136,7 +136,7 @@ function upsertMesh(sc, def, res, info) {
   return id;
 }
 
-export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesSeq = 0 /* #888 */, trend = null /* #881 */, topsOfUnit = null /* #871 */, defs: rawDefs, setDefs, sections, terrain, mapLayers, surfaceStructures, sectionImages = [], unitChoices = [] /* #831 */, onDigitizeImage, pickFor, setPickFor, snap, setSnap, scene: sc, onRemove, askPrompt, pBtn, smallSel, numInput }) {
+export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesSeq = 0 /* #888 */, trend = null /* #881 */, topsOfUnit = null /* #871 */, defs: rawDefs, setDefs, sections, terrain, mapLayers, surfaceStructures, sectionImages = [], unitChoices, loggedUnits = [] /* #1547 */ = [] /* #831 */, onDigitizeImage, pickFor, setPickFor, snap, setSnap, scene: sc, onRemove, askPrompt, pBtn, smallSel, numInput }) {
   // TASKS.csv #899 — a definition saved without picks / lines (hand-edited or from an older build) reads as empty, not a crash
   const defs = useMemo(() => (rawDefs || []).map((d) => (Array.isArray(d.picks) && (d.lines == null || Array.isArray(d.lines)) ? d : { ...d, picks: Array.isArray(d.picks) ? d.picks : [], lines: Array.isArray(d.lines) ? d.lines : [] })), [rawDefs]);
   const hasTerrain = !!terrain?.bbox;
@@ -916,6 +916,9 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
             title={tr("The modelling unit this surface is a contact of. Solid blocks from surfaces fills the units between their contacts.")}>
             {!allUnits.includes(curUnit) && <option value={curUnit}>{curUnit}</option>}
             {allUnits.map((u) => <option key={u} value={u}>{u}</option>)}
+            {/* TASKS.csv #1547 (review #1497, Lawyers) — the logged lithology codes too, so 'Add the logged tops' is one choice away (with no
+                Modelling codes yet the picker offered only the surface's own name, the groups and 'New unit...') */}
+            {loggedUnits.some((u) => !allUnits.includes(u)) && <optgroup label={tr("Logged codes")}>{loggedUnits.filter((u) => !allUnits.includes(u)).map((u) => <option key={`log_${u}`} value={u}>{u}</option>)}</optgroup>}
             <option value={NEW_UNIT}>{tr("New unit…")}</option>
           </select>
           <select value={def.layer || ""} onChange={(e) => { update({ layer: e.target.value }); setUnitNote(null); }} style={{ ...smallSel, width: 78, flexShrink: 0 }} aria-label={tr("Layer")}
