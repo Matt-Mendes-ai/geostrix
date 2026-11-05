@@ -31,12 +31,27 @@ const ALIASES = {
 // infinity. Finds the header line (the first one naming an A and an M electrode column), splits the rest on
 // whitespace, keeps rows with the header's column count. Returns { headers, rows, note } or null when the text
 // has no such header (then it is read as an ordinary CSV).
+const threeDError = (n, offline) => tr("This is a 3D IP survey: electrodes on {n} lines, {offline} reading(s) with current and potential on different lines. The 2D line import cannot take it: read it with \"3D survey from electrode coordinates\" at the end of this pane, which inverts every reading in one 3D model, or load the contractor's 3D model under Block models.", { n, offline }); // #1660 / #1784
 export function parseDcipWhitespaceText(text) {
   const lines = String(text).split(/\r?\n/);
   const isA = (t) => ALIASES.a.includes(norm(t)), isM = (t) => ALIASES.m.includes(norm(t));
   const hi = lines.findIndex((l) => { const t = l.trim().split(/\s+/); return t.length >= 4 && t.some(isA) && t.some(isM); });
   if (hi < 0) return null;
   const headers = lines[hi].trim().split(/\s+/);
+  // TASKS.csv #1784 — the 3D check (#1660, below) first, from the two line columns alone: Kodiak's 19 MB 3D export built 19,000
+  // row objects (about 270 ms) only to be refused
+  const ci = headers.findIndex((h) => norm(h) === "c1_line"), pi = headers.findIndex((h) => norm(h) === "p1_line");
+  if (ci >= 0 && pi >= 0) {
+    const seen = new Set(); let offline = 0;
+    for (let k = hi + 1; k < lines.length; k++) {
+      const l = lines[k].trim();
+      if (!l || l.startsWith("/")) continue;
+      const t = l.split(/\s+/);
+      if (t.length !== headers.length) continue;
+      seen.add(t[ci]); seen.add(t[pi]); if (t[ci] !== t[pi]) offline++;
+    }
+    if (seen.size > 1) return { headers, rows: [], note: "", error: threeDError(seen.size, offline) };
+  }
   const rows = [];
   let skipped = 0;
   for (const l of lines.slice(hi + 1)) {
@@ -53,7 +68,7 @@ export function parseDcipWhitespaceText(text) {
   if (c1l && p1l) {
     const lines3d = new Set(); let offline = 0;
     for (const r of rows) { lines3d.add(r[c1l]); lines3d.add(r[p1l]); if (r[c1l] !== r[p1l]) offline++; }
-    if (lines3d.size > 1) return { headers, rows: [], note: "", error: tr("This is a 3D IP survey: electrodes on {n} lines, {offline} reading(s) with current and potential on different lines. The 2D line import cannot take it: read it with \"3D survey from electrode coordinates\" at the end of this pane, which inverts every reading in one 3D model, or load the contractor's 3D model under Block models.", { n: lines3d.size, offline }) };
+    if (lines3d.size > 1) return { headers, rows: [], note: "", error: threeDError(lines3d.size, offline) };
   }
   // TASKS.csv #1326 — a Geosoft IP file can hold Vp and I but no apparent resistivity: nothing could be imported from it
   // #1660 — the current's unit: mA when the header block says so ("I (in mA)") or the currents look like milliamps
