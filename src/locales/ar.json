@@ -8244,5 +8244,6 @@
   "Levels in {unit}, lowest first; blank: the grid's 75th, 90th, 95th and 98th percentiles": "المستويات بوحدة {unit} من الأدنى؛ فارغ: المئينات 75 و90 و95 و98 للشبكة",
   "Plan of the map data": "مخطط بيانات الخريطة",
   "N ↑": "ش ↑",
-  "Plan view · wheel to zoom, drag to pan, double-click to fit · drape and 3D in the 3D View": "عرض مسقط · العجلة للتكبير، السحب للتحريك، النقر المزدوج للملاءمة · الإلقاء والعرض ثلاثي الأبعاد في العرض ثلاثي الأبعاد"
+  "Plan view · wheel to zoom, drag to pan, double-click to fit · drape and 3D in the 3D View": "عرض مسقط · العجلة للتكبير، السحب للتحريك، النقر المزدوج للملاءمة · الإلقاء والعرض ثلاثي الأبعاد في العرض ثلاثي الأبعاد",
+  "Theme \"{name}\" refers to {n} raster(s), block model(s) or map layer(s) no longer in this project: {v}. Everything else in the theme was applied.": "يشير الموضوع \"{name}\" إلى {n} صورة نقطية أو نموذج كتلي أو طبقة خريطة لم تعد في هذا المشروع: {v}. طُبّق كل ما عدا ذلك من الموضوع."
 }

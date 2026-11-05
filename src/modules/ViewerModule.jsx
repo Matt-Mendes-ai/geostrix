@@ -157,6 +157,7 @@ import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"
 import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellShown, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { assaySizeFor, assayPassesCutoff } from "../lib/viewer/assaySize.js"; // #1533 — moved out
+import { objectVisibilityBundle, applyObjectVisibility } from "../lib/viewer/themeObjects.js"; // TASKS.csv #1535
 import { syncHoleLabels, declutterHoleLabels, withEveryLabel } from "../lib/viewer/holeLabels.js"; // withEveryLabel: TASKS.csv #1770
 import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // TASKS.csv #1500
 import { findOnTraceWorld, findOnTrace, traceLookup, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
@@ -2905,9 +2906,13 @@ ${describeTrend(t)}` };
     };
   }, []);
 
+  // TASKS.csv #1535 — rasters, block models and map layers in a theme too; read through a ref so applyTheme ([] deps) sees the live lists
+  const themeObjRef = useRef(null);
+  themeObjRef.current = { rasters, voxelModels, mapLayers, updateRaster, updateVoxelModel, updateMapLayer };
   const currentViewBundle = useCallback(() => {
     const cs = camState.current;
     return {
+      ...objectVisibilityBundle(themeObjRef.current), // #1535
       layerVisible, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, assaySource /* #1695 */,
       categoryFilter: Object.fromEntries(Object.entries(categoryFilter).map(([k, v]) => [k, Array.from(v)])),
       gridConfig,
@@ -2952,6 +2957,7 @@ ${describeTrend(t)}` };
       // #52 (b) — read from the live scene, not from viewerUiState (surfaces aren't mirrored there), so
       // a Layout-viewport render that applies a theme hiding a surface puts it back afterwards.
       ...surfaceVisibilityBundle(),
+      ...objectVisibilityBundle(themeObjRef.current), // #1535 — the store's own lists, so the restore is right on a fresh mount too
       camState: { theta: cs.theta, phi: cs.phi, radius: cs.radius, target: { x: cs.target.x, y: cs.target.y, z: cs.target.z } },
     };
   }, [viewerUiState, surfaceVisibilityBundle]);
@@ -3020,6 +3026,8 @@ ${describeTrend(t)}` };
         setNotices((p) => [...p, notice("Theme \"{name}\" refers to {missing} generated surface(s) that aren't in this project any more: {v}{v2}. Everything else in the theme was applied.", { name: theme.name, missing: missing.length, v: names.slice(0, 3).join(", "), v2: names.length > 3 ? "…" : "" })]);
       }
     }
+    const missingObj = applyObjectVisibility(theme, themeObjRef.current); // #1535
+    if (missingObj.length) setNotices((p) => [...p, notice("Theme \"{name}\" refers to {n} raster(s), block model(s) or map layer(s) no longer in this project: {v}. Everything else in the theme was applied.", { name: theme.name, n: missingObj.length, v: missingObj.slice(0, 6).join(", ") + (missingObj.length > 6 ? "…" : "") })]);
     if (theme.camState) {
       const cs = camState.current;
       cs.theta = theme.camState.theta; cs.phi = theme.camState.phi; cs.radius = theme.camState.radius;

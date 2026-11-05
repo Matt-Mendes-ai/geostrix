@@ -8244,5 +8244,6 @@
   "Levels in {unit}, lowest first; blank: the grid's 75th, 90th, 95th and 98th percentiles": "Niveaux en {unit}, du plus bas au plus haut ; vide : les 75e, 90e, 95e et 98e centiles de la grille",
   "Plan of the map data": "Plan des données cartographiques",
   "N ↑": "N ↑",
-  "Plan view · wheel to zoom, drag to pan, double-click to fit · drape and 3D in the 3D View": "Vue en plan · molette pour zoomer, glisser pour déplacer, double-clic pour ajuster · drapage et 3D dans la vue 3D"
+  "Plan view · wheel to zoom, drag to pan, double-click to fit · drape and 3D in the 3D View": "Vue en plan · molette pour zoomer, glisser pour déplacer, double-clic pour ajuster · drapage et 3D dans la vue 3D",
+  "Theme \"{name}\" refers to {n} raster(s), block model(s) or map layer(s) no longer in this project: {v}. Everything else in the theme was applied.": "Le thème « {name} » cite {n} raster(s), modèle(s) de blocs ou couche(s) cartographique(s) absents de ce projet : {v}. Tout le reste du thème a été appliqué."
 }
