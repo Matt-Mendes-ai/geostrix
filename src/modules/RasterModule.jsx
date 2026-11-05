@@ -7,7 +7,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal, Rainbow, Download } from "../components/icons.js";
 import SpectralIndexModal from "../components/SpectralIndexModal.jsx"; // TASKS.csv #783
 import { useStore } from "../lib/store.jsx";
-import { buildRasterImport, gridToSurveyRows, rasterFromGrid, ternaryRaster } from "../lib/raster.js";
+import { buildRasterImport, gridToSurveyRows, rasterFromGrid, ternaryRaster, parseWorldFile } from "../lib/raster.js"; // parseWorldFile: TASKS.csv #1855
 import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373
 import { SAT_LEVELS, planLatestFetch } from "../lib/imageryLevels.js"; // TASKS.csv #781 / #837
 const NAIP_FINEST_M = 0.6; // lib/naipFetch.js, which stays out of this module until NAIP is fetched
@@ -311,13 +311,14 @@ export default function RasterModule({ embedded = false } = {}) {
   // project (same reasoning as the import modal's own Source CRS field).
   const [sourceEpsg, setSourceEpsg] = useState("");
 
-  const importRaster = async (file) => {
+  const importRaster = async (file, world = null) => { // world: a world file selected with it (TASKS.csv #1855)
     if (!file) return;
     setError(null);
     setBusy(true);
     try {
+      const worldFile = world ? parseWorldFile(await world.text(), world.name) : null;
       const chooseProjectEpsg = projectEpsgChooser({ isEmpty: projectIsEmpty, setEpsg, fileName: file.name }); // #607
-      const { raster, msg } = await buildRasterImport(file, { epsg: project?.epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, keepDetail });
+      const { raster, msg } = await buildRasterImport(file, { epsg: project?.epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, keepDetail, worldFile });
       const drape = defaultDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox }); // #1856 — the ground under this raster
       addRaster({ ...raster, elevation: drape.z });
       setError({ info: true, text: `${msg} ${drapeElevationNote(drape)}` });
@@ -365,10 +366,16 @@ export default function RasterModule({ embedded = false } = {}) {
         <input
           ref={fileInput}
           type="file"
-          accept=".tif,.tiff,.gxf,.grd"
+          accept=".tif,.tiff,.gxf,.grd,.tfw,.tifw,.tiffw,.wld"
           multiple
           style={{ display: "none" }}
-          onChange={(e) => { Array.from(e.target.files || []).forEach((f) => importRaster(f)); e.target.value = ""; }}
+          onChange={(e) => { // #1855 — a world file goes with the image of the same name
+            const all = Array.from(e.target.files || []), isWorld = (f) => /\.(tfw|tifw|tiffw|wld)$/i.test(f.name), base = (f) => f.name.replace(/\.[^.]+$/, "").toLowerCase();
+            const worlds = all.filter(isWorld), images = all.filter((f) => !isWorld(f));
+            if (!images.length && worlds.length) setError({ info: false, text: tr("A world file on its own places nothing: select it together with its image (same name).") });
+            images.forEach((f) => importRaster(f, worlds.find((w) => base(w) === base(f)) || null));
+            e.target.value = "";
+          }}
         />
         {satPickerOpen && (
           <BasemapView

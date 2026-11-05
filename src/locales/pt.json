@@ -1253,7 +1253,6 @@
   "{label} is {v} × {v2} px{v3} — over the {v4} million-value limit GeoStrix decodes at once, with no smaller overview inside. Crop it to your area, or add overviews (gdaladdo) / thin it (gdalwarp -tr) in QGIS or GDAL first.": "{label} tem {v} × {v2} px{v3} — acima do limite de {v4} milhões de valores que o GeoStrix decodifica de uma vez, e não traz uma visão geral menor. Recorte para a sua área, ou adicione visões gerais (gdaladdo) / reduza (gdalwarp -tr) no QGIS ou GDAL antes.",
   " × {bands} bands": " × {bands} bandas",
   "Not a readable GeoTIFF ({message}).": "Não é um GeoTIFF legível ({message}).",
-  "This GeoTIFF has no readable georeferencing (bounding box) — it may be a plain, non-georeferenced TIFF.": "Este GeoTIFF não tem georreferência legível (retângulo envolvente) — pode ser um TIFF comum, sem georreferência.",
   "\"{name}\" is not a readable GeoTIFF ({message}).": "“{name}” não é um GeoTIFF legível ({message}).",
   "\"{name}\" has no readable georeferencing (bounding box) — it may be a plain, non-georeferenced TIFF.": "“{name}” não tem georreferência legível (retângulo envolvente) — pode ser um TIFF comum, sem georreferência.",
   "\"{name}\" has no readable elevation band.": "“{name}” não tem banda de elevação legível.",
@@ -3211,10 +3210,7 @@
   "Generating…": "Gerando…",
   "Generate {selectedCount} page": "Gerar {selectedCount} página",
   "Generate {selectedCount} pages": "Gerar {selectedCount} páginas",
-  "Couldn't load this image — only PNG/JPG are supported (browsers can't decode plain TIFF, and an ungeoreferenced TIFF has no tags to read anyway).": "Não foi possível carregar esta imagem — só PNG/JPG são aceitos (navegadores não decodificam TIFF simples, e um TIFF sem georreferência não tem etiquetas para ler de qualquer jeito).",
   "Georeferencer — manual control points": "Georreferenciador — pontos de controle manuais",
-  "Load a scanned map or claim sketch (PNG/JPG), click points on it, and type the matching real-world coordinates for each.": "Carregue um mapa escaneado ou um croqui de concessão (PNG/JPG), clique em pontos nele e digite as coordenadas reais correspondentes a cada um.",
-  "Load image (PNG/JPG)…": "Carregar imagem (PNG/JPG)…",
   "Load an image to begin placing control points.": "Carregue uma imagem para começar a posicionar pontos de controle.",
   "The CRS of the coordinates printed on the scanned map (e.g. WGS 84 latitude/longitude, BC Albers). They're reprojected into the project's CRS before the transform is fitted.": "O SRC das coordenadas impressas no mapa escaneado (p. ex. latitude/longitude WGS 84, BC Albers). Elas são reprojetadas para o SRC do projeto antes de ajustar a transformação.",
   "Points are reprojected EPSG:{cpEpsg} → EPSG:{projectEpsg} before fitting, so the errors below are in project units.": "Os pontos são reprojetados EPSG:{cpEpsg} → EPSG:{projectEpsg} antes do ajuste, então os erros abaixo estão em unidades do projeto.",
@@ -8079,5 +8075,13 @@
   " on {date}": " em {date}",
   "The vein intercepts come from only {n} hole(s), so the plane through their midpoints is set by the holes' own paths, not by the vein: it fits them almost exactly and says nothing about the attitude. Enter the vein's dip and dip direction to model it.": "As interseções do veio vêm de apenas {n} furo(s), por isso o plano pelos seus pontos médios é definido pelo percurso dos próprios furos, não pelo veio: ajusta-se quase exatamente e não diz nada sobre a atitude. Introduza o mergulho e a direção de mergulho do veio para modelá-lo.",
   "The holes that cut this vein lie along one line (one section of holes), so the plane through the intercept midpoints could be rotated freely about that line and does not measure the vein's attitude. Enter the vein's dip and dip direction to model it.": "Os furos que cortam este veio estão numa só linha (uma seção de furos), por isso o plano pelos pontos médios das interseções poderia girar livremente em torno dessa linha e não mede a atitude do veio. Introduza o mergulho e a direção de mergulho do veio para modelá-lo.",
-  "\"{label}\": the logged angle to core axis ({column} in {layer}) on {n} of {of} intercept(s) gives a TRUE thickness of {a}–{b} m (mean {c} m), against a modelled mean of {d} m.": "\"{label}\": o ângulo ao eixo do testemunho registado ({column} em {layer}) em {n} de {of} interseção(ões) dá uma espessura VERDADEIRA de {a}–{b} m (média {c} m), contra uma média modelada de {d} m."
+  "\"{label}\": the logged angle to core axis ({column} in {layer}) on {n} of {of} intercept(s) gives a TRUE thickness of {a}–{b} m (mean {c} m), against a modelled mean of {d} m.": "\"{label}\": o ângulo ao eixo do testemunho registado ({column} em {layer}) em {n} de {of} interseção(ões) dá uma espessura VERDADEIRA de {a}–{b} m (média {c} m), contra uma média modelada de {d} m.",
+  "\"{name}\" has no georeferencing of its own (a plain TIFF). Select its world file (.tfw / .tifw / .wld, same name) together with it, or place it with Maps > Georeference.": "\"{name}\" não tem georreferência própria (um TIFF simples). Selecione o seu arquivo de mundo (.tfw / .tifw / .wld, mesmo nome) junto com ele, ou posicione-o com Mapas > Georreferenciar.",
+  "The world file \"{name}\" rotates the image (its rotation terms are not 0). GeoStrix places north-up images only: place it with Maps > Georeference instead.": "O arquivo de mundo \"{name}\" roda a imagem (os seus termos de rotação não são 0). O GeoStrix só posiciona imagens orientadas ao norte: posicione-a com Mapas > Georreferenciar.",
+  "\"{name}\" is not a world file: it needs six numbers, one per line.": "\"{name}\" não é um arquivo de mundo: precisa de seis números, um por linha.",
+  " Placed by its world file \"{w}\".": " Posicionado pelo seu arquivo de mundo \"{w}\".",
+  "A world file on its own places nothing: select it together with its image (same name).": "Um arquivo de mundo sozinho não posiciona nada: selecione-o junto com a sua imagem (mesmo nome).",
+  "Couldn't load this image: PNG, JPG or TIFF only.": "Não foi possível carregar esta imagem: só PNG, JPG ou TIFF.",
+  "Load a scanned map or claim sketch (PNG / JPG / TIFF), click points on it, and type the matching real-world coordinates for each.": "Carregue um mapa escaneado ou um croqui de concessão (PNG / JPG / TIFF), clique em pontos nele e digite as coordenadas reais correspondentes a cada um.",
+  "Load image (PNG / JPG / TIFF)…": "Carregar imagem (PNG / JPG / TIFF)…"
 }

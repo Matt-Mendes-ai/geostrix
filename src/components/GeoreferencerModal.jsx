@@ -11,8 +11,8 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the 
 
 // TASKS.csv #129 — QGIS-specialist audit finding: "there's no way to georeference an ungeoreferenced
 // scanned map ... the way QGIS's Georeferencer does with manual control points." This is that tool:
-// load a plain image (a scanned assessment-report map or claim sketch — PNG/JPG only, since browsers
-// don't natively decode TIFF and a non-georeferenced TIFF has no tags to fall back on anyway), click
+// load a plain image (a scanned assessment-report map or claim sketch — PNG, JPG, or a TIFF decoded by geotiff.js since
+// TASKS.csv #1855), click
 // points on it, type the matching real-world X/Y for each, and once >=3 non-collinear points are
 // placed the image is resampled into an axis-aligned world-space raster (see georef.js's
 // georeferenceImage — the same "forward-project corners for a bbox, inverse-sample per pixel" shape
@@ -42,8 +42,17 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
   const dispW = img ? Math.round(img.width * displayScale) : 0;
   const dispH = img ? Math.round(img.height * displayScale) : 0;
 
-  const loadImage = (file) => {
+  const loadImage = async (file) => {
     setError(null);
+    if (/\.tiff?$/i.test(file.name)) { // TASKS.csv #1855 — decoded by geotiff.js, as the GeoTIFF import does
+      try {
+        const { decodeTiffImage } = await import("../lib/raster.js");
+        const t = await decodeTiffImage(file);
+        setImg({ bitmap: t.canvas, width: t.width, height: t.height });
+        setPoints([]);
+      } catch (err) { setError(err.message); }
+      return;
+    }
     const url = URL.createObjectURL(file);
     const bitmap = new window.Image();
     bitmap.onload = () => {
@@ -51,7 +60,7 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
       setPoints([]);
       URL.revokeObjectURL(url);
     };
-    bitmap.onerror = () => { setError(tr("Couldn't load this image — only PNG/JPG are supported (browsers can't decode plain TIFF, and an ungeoreferenced TIFF has no tags to read anyway).")); URL.revokeObjectURL(url); };
+    bitmap.onerror = () => { setError(tr("Couldn't load this image: PNG, JPG or TIFF only.")); URL.revokeObjectURL(url); };
     bitmap.src = url;
   };
 
@@ -124,7 +133,7 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Georeferencer — manual control points")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Load a scanned map or claim sketch (PNG/JPG), click points on it, and type the matching real-world coordinates for each.")}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Load a scanned map or claim sketch (PNG / JPG / TIFF), click points on it, and type the matching real-world coordinates for each.")}</div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
@@ -132,8 +141,8 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
         <div style={{ padding: 16, overflow: "auto", display: "flex", gap: 16, flex: 1 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <button onClick={() => fileInput.current.click()} style={btn(false)}>
-              <Upload size={14} style={{ marginRight: 6 }} />{" "}{tr("Load image (PNG/JPG)…")}</button>
-            <input ref={fileInput} type="file" accept=".png,.jpg,.jpeg" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) loadImage(f); e.target.value = ""; }} />
+              <Upload size={14} style={{ marginRight: 6 }} />{" "}{tr("Load image (PNG / JPG / TIFF)…")}</button>
+            <input ref={fileInput} type="file" accept=".png,.jpg,.jpeg,.tif,.tiff" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) loadImage(f); e.target.value = ""; }} />
             {img ? (
               <div role="button" tabIndex={0} onKeyDown={activateOnKey}
                 onClick={onCanvasClick}

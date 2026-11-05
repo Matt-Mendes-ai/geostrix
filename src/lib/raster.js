@@ -142,7 +142,40 @@ export async function readRastersCapped(tiff, image, opts = {}, label = "This Ge
 // TASKS.csv #783 — `bandFn(bands, isNoData)` turns a multiband file into ONE band (a spectral index) before the
 // single-band path below: the same stretch, ramp, kept values and reprojection as any value grid.
 // TASKS.csv #807 — `samples` (0-based band indices): decode only those bands (a 285-band hyperspectral cube needs ~18)
-export async function parseGeoTIFF(file, { bandFn = null, samples = null, maxSide = MAX_TEXTURE_SIZE } = {}) { // maxSide: #838
+// TASKS.csv #1855 — a world file (.tfw / .tifw / .wld): six numbers, one per line — pixel width (A), two rotation terms (D, B),
+// pixel height (E, negative for north-up), and the CENTRE of the top-left pixel (C, F). -> { a, d, b, e, c, f, name }
+export function parseWorldFile(text, name = "world file") {
+  const v = String(text || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(0, 6).map(Number);
+  if (v.length < 6 || v.some((x) => !Number.isFinite(x)) || v[0] === 0 || v[3] === 0) throw new Error(tr("\"{name}\" is not a world file: it needs six numbers, one per line.", { name }));
+  const [a, d, b, e, c, f] = v;
+  return { a, d, b, e, c, f, name };
+}
+// the pixel-area extent [xmin, ymin, xmax, ymax] of a width x height image placed by a world file; a rotated one is refused
+export function worldFileBbox(w, width, height) {
+  if (Math.abs(w.d) > 1e-9 * Math.abs(w.a) || Math.abs(w.b) > 1e-9 * Math.abs(w.e)) throw new Error(tr("The world file \"{name}\" rotates the image (its rotation terms are not 0). GeoStrix places north-up images only: place it with Maps > Georeference instead.", { name: w.name }));
+  const x0 = w.c - w.a / 2, y0 = w.f - w.e / 2, x1 = x0 + w.a * width, y1 = y0 + w.e * height;
+  return [Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1)];
+}
+// TASKS.csv #1855 — any TIFF geotiff.js reads (RGB, palette, grey, YCbCr...) as an RGBA canvas for the Georeferencer, which
+// had refused TIFFs ("browsers can't decode plain TIFF") the GeoTIFF import decodes. Kept to maxSide on the long side.
+export async function decodeTiffImage(file, maxSide = FULL_DETAIL_SIZE) {
+  let image;
+  try { image = await (await fromArrayBuffer(await file.arrayBuffer())).getImage(); } catch (err) { throw new Error(tr("Not a readable GeoTIFF ({message}).", { message: err.message })); }
+  const W = image.getWidth(), H = image.getHeight(), s = Math.min(1, maxSide / Math.max(W, H));
+  const width = Math.max(1, Math.round(W * s)), height = Math.max(1, Math.round(H * s));
+  const rgb = await image.readRGB({ width, height, interleave: true });
+  const canvas = document.createElement("canvas");
+  canvas.width = width; canvas.height = height;
+  const ctx = canvas.getContext("2d"), out = ctx.createImageData(width, height);
+  const max = rgb.BYTES_PER_ELEMENT === 2 ? 257 : 1; // 16-bit RGB to 8 bit
+  for (let i = 0, n = width * height; i < n; i++) {
+    out.data[i * 4] = rgb[i * 3] / max; out.data[i * 4 + 1] = rgb[i * 3 + 1] / max; out.data[i * 4 + 2] = rgb[i * 3 + 2] / max; out.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(out, 0, 0);
+  return { canvas, width, height, sourceWidth: W, sourceHeight: H };
+}
+
+export async function parseGeoTIFF(file, { bandFn = null, samples = null, maxSide = MAX_TEXTURE_SIZE, worldFile = null } = {}) { // maxSide: #838; worldFile: #1855
   const buf = await file.arrayBuffer();
   let tiff, image;
   try {
@@ -162,8 +195,10 @@ export async function parseGeoTIFF(file, { bandFn = null, samples = null, maxSid
     // actually wrong instead of surfacing a raw library error.
     bbox = null;
   }
+  let placedBy = null;
+  if ((!bbox || bbox.some((v) => !Number.isFinite(v))) && worldFile) { bbox = worldFileBbox(worldFile, image.getWidth(), image.getHeight()); placedBy = worldFile.name; } // #1855
   if (!bbox || bbox.some((v) => !Number.isFinite(v))) {
-    throw new Error(tr("This GeoTIFF has no readable georeferencing (bounding box) — it may be a plain, non-georeferenced TIFF."));
+    throw new Error(tr("\"{name}\" has no georeferencing of its own (a plain TIFF). Select its world file (.tfw / .tifw / .wld, same name) together with it, or place it with Maps > Georeference.", { name: file.name })); // #1855 — says where to go
   }
 
   const srcW = image.getWidth(), srcH = image.getHeight();
@@ -251,6 +286,7 @@ export async function parseGeoTIFF(file, { bandFn = null, samples = null, maxSid
   return {
     name: file.name,
     bbox, // [xmin, ymin, xmax, ymax]
+    placedBy, // #1855 — the world file's name when it placed the image
     width: srcW,
     height: srcH,
     dataUrl: maxSide > MAX_TEXTURE_SIZE ? imageDataUrl(canvas) : canvas.toDataURL("image/png"), // #838 — a 16 megapixel PNG would bloat the project file
@@ -690,10 +726,10 @@ function rasterFromRows({ name, values, ncols, nrows, x0, y0, dx, dy, isDummy, m
 // ones reproject.js recognizes, the drape is ACTUALLY reprojected (reprojectImageRGBA) instead of
 // merely warned about. Every other case still imports as before, but now says explicitly which
 // assumption it fell back on rather than only mentioning it on a tag mismatch.
-export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, samples = null, name = null, keepDetail = false } = {}) { // samples: #807; keepDetail: #838
+export async function buildRasterImport(file, { epsg, defaultElevation, sourceEpsg, chooseProjectEpsg, bandFn = null, samples = null, name = null, keepDetail = false, worldFile = null } = {}) { // samples: #807; keepDetail: #838; worldFile: #1855
   const isGxf = /\.gxf$/i.test(file.name), isGrd = /\.grd$/i.test(file.name); // isGrd: #1347
   const maxSide = keepDetail ? FULL_DETAIL_SIZE : MAX_TEXTURE_SIZE;
-  const parsed = isGxf ? await parseGXF(file) : isGrd ? await parseGRD(file) : await parseGeoTIFF(file, { bandFn, samples, maxSide }); // bandFn: #783; samples: #807
+  const parsed = isGxf ? await parseGXF(file) : isGrd ? await parseGRD(file) : await parseGeoTIFF(file, { bandFn, samples, maxSide, worldFile }); // bandFn: #783; samples: #807
   if (name) parsed.name = name;
   let bbox = parsed.bbox;
   let dataUrl = parsed.dataUrl;
@@ -751,6 +787,7 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
   const [bx0, by0, bx1, by1] = bbox;
   let msg = tr("Imported \"{name}\" ({width}×{height}px, {v}×{v2} world units).", { name: parsed.name, width: parsed.width, height: parsed.height, v: (bx1 - bx0).toFixed(0), v2: (by1 - by0).toFixed(0) });
   msg += crsNote;
+  if (parsed.placedBy) msg += tr(" Placed by its world file \"{w}\".", { w: parsed.placedBy }); // #1855
   if (parsed.note) msg += parsed.note;
   msg += gridNote;
   // #1236 — what the import above drew: 2-98 % of the values, viridis

@@ -1253,7 +1253,6 @@
   "{label} is {v} × {v2} px{v3} — over the {v4} million-value limit GeoStrix decodes at once, with no smaller overview inside. Crop it to your area, or add overviews (gdaladdo) / thin it (gdalwarp -tr) in QGIS or GDAL first.": "{label} بحجم {v} × {v2} بكسل{v3} — أكثر من حد {v4} مليون قيمة يفكها GeoStrix دفعة واحدة، دون عرض مصغّر بداخله. اقتصه إلى منطقتك، أو أضف عروضًا مصغرة (gdaladdo) / خفّفه (gdalwarp -tr) في QGIS أو GDAL أولًا.",
   " × {bands} bands": " × {bands} نطاق",
   "Not a readable GeoTIFF ({message}).": "ملف GeoTIFF غير مقروء ({message}).",
-  "This GeoTIFF has no readable georeferencing (bounding box) — it may be a plain, non-georeferenced TIFF.": "لا يحوي ملف GeoTIFF هذا إسنادًا جغرافيًا مقروءًا (المستطيل المحيط) — قد يكون TIFF عاديًا غير مُسند جغرافيًا.",
   "\"{name}\" is not a readable GeoTIFF ({message}).": "«{name}» ليس ملف GeoTIFF مقروءًا ({message}).",
   "\"{name}\" has no readable georeferencing (bounding box) — it may be a plain, non-georeferenced TIFF.": "لا يحوي «{name}» إسنادًا جغرافيًا مقروءًا (المستطيل المحيط) — قد يكون TIFF عاديًا غير مُسند جغرافيًا.",
   "\"{name}\" has no readable elevation band.": "لا يحوي «{name}» نطاق ارتفاع مقروءًا.",
@@ -3211,10 +3210,7 @@
   "Generating…": "جارٍ التوليد…",
   "Generate {selectedCount} page": "توليد {selectedCount} صفحة",
   "Generate {selectedCount} pages": "توليد {selectedCount} صفحات",
-  "Couldn't load this image — only PNG/JPG are supported (browsers can't decode plain TIFF, and an ungeoreferenced TIFF has no tags to read anyway).": "تعذر تحميل هذه الصورة — يُدعم PNG/JPG فقط (لا تستطيع المتصفحات فك TIFF العادي، وTIFF غير المرجع جغرافيًا لا وسوم فيه للقراءة أصلًا).",
   "Georeferencer — manual control points": "أداة الإرجاع الجغرافي — نقاط تحكم يدوية",
-  "Load a scanned map or claim sketch (PNG/JPG), click points on it, and type the matching real-world coordinates for each.": "حمّل خريطة ممسوحة ضوئيًا أو مخطط امتياز (PNG/JPG)، انقر نقاطًا عليها، واكتب الإحداثيات الحقيقية المطابقة لكل منها.",
-  "Load image (PNG/JPG)…": "تحميل صورة (PNG/JPG)…",
   "Load an image to begin placing control points.": "حمّل صورة لبدء وضع نقاط التحكم.",
   "The CRS of the coordinates printed on the scanned map (e.g. WGS 84 latitude/longitude, BC Albers). They're reprojected into the project's CRS before the transform is fitted.": "نظام إحداثيات الإحداثيات المطبوعة على الخريطة الممسوحة (مثل WGS 84 خط عرض/طول، BC Albers). يُعاد إسقاطها إلى نظام المشروع قبل مطابقة التحويل.",
   "Points are reprojected EPSG:{cpEpsg} → EPSG:{projectEpsg} before fitting, so the errors below are in project units.": "يُعاد إسقاط النقاط EPSG:{cpEpsg} ← EPSG:{projectEpsg} قبل المطابقة، لذا الأخطاء أدناه بوحدات المشروع.",
@@ -8079,5 +8075,13 @@
   " on {date}": " في {date}",
   "The vein intercepts come from only {n} hole(s), so the plane through their midpoints is set by the holes' own paths, not by the vein: it fits them almost exactly and says nothing about the attitude. Enter the vein's dip and dip direction to model it.": "تأتي تقاطعات العرق من {n} ثقب فقط، فالمستوي المار بنقاط منتصفها يحدده مسار الثقوب نفسها لا العرق: يطابقها تقريبًا تمامًا ولا يقول شيئًا عن الوضعية. أدخل ميل العرق واتجاه ميله لنمذجته.",
   "The holes that cut this vein lie along one line (one section of holes), so the plane through the intercept midpoints could be rotated freely about that line and does not measure the vein's attitude. Enter the vein's dip and dip direction to model it.": "الثقوب التي تقطع هذا العرق تقع على خط واحد (مقطع واحد من الثقوب)، فيمكن للمستوي المار بنقاط منتصف التقاطعات أن يدور بحرية حول ذلك الخط ولا يقيس وضعية العرق. أدخل ميل العرق واتجاه ميله لنمذجته.",
-  "\"{label}\": the logged angle to core axis ({column} in {layer}) on {n} of {of} intercept(s) gives a TRUE thickness of {a}–{b} m (mean {c} m), against a modelled mean of {d} m.": "\"{label}\": زاوية المحور اللبابي المسجلة ({column} في {layer}) على {n} من {of} تقاطع تعطي سماكة حقيقية {a}–{b} م (المتوسط {c} م)، مقابل متوسط منمذج {d} م."
+  "\"{label}\": the logged angle to core axis ({column} in {layer}) on {n} of {of} intercept(s) gives a TRUE thickness of {a}–{b} m (mean {c} m), against a modelled mean of {d} m.": "\"{label}\": زاوية المحور اللبابي المسجلة ({column} في {layer}) على {n} من {of} تقاطع تعطي سماكة حقيقية {a}–{b} م (المتوسط {c} م)، مقابل متوسط منمذج {d} م.",
+  "\"{name}\" has no georeferencing of its own (a plain TIFF). Select its world file (.tfw / .tifw / .wld, same name) together with it, or place it with Maps > Georeference.": "\"{name}\" بلا إسناد جغرافي خاص به (ملف TIFF عادي). حدد ملف العالم الخاص به (.tfw / .tifw / .wld، الاسم نفسه) معه، أو ضعه عبر الخرائط > الإسناد الجغرافي.",
+  "The world file \"{name}\" rotates the image (its rotation terms are not 0). GeoStrix places north-up images only: place it with Maps > Georeference instead.": "ملف العالم \"{name}\" يدوّر الصورة (حدود الدوران فيه ليست 0). يضع GeoStrix الصور المتجهة شمالًا فقط: ضعها عبر الخرائط > الإسناد الجغرافي.",
+  "\"{name}\" is not a world file: it needs six numbers, one per line.": "\"{name}\" ليس ملف عالم: يحتاج ستة أرقام، رقمًا في كل سطر.",
+  " Placed by its world file \"{w}\".": " وُضع بواسطة ملف العالم \"{w}\".",
+  "A world file on its own places nothing: select it together with its image (same name).": "ملف العالم وحده لا يضع شيئًا: حدده مع صورته (الاسم نفسه).",
+  "Couldn't load this image: PNG, JPG or TIFF only.": "تعذّر تحميل هذه الصورة: PNG أو JPG أو TIFF فقط.",
+  "Load a scanned map or claim sketch (PNG / JPG / TIFF), click points on it, and type the matching real-world coordinates for each.": "حمّل خريطة ممسوحة ضوئيًا أو مخطط امتياز (PNG / JPG / TIFF)، انقر نقاطًا عليها، واكتب الإحداثيات الحقيقية المطابقة لكل منها.",
+  "Load image (PNG / JPG / TIFF)…": "تحميل صورة (PNG / JPG / TIFF)…"
 }
