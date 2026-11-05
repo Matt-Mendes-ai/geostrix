@@ -95,11 +95,11 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
           const field = pickWfsStyleField(layer.features, layer.fields, layer.styleField);
           if (field !== layer.styleField) { layer.styleField = field; layer.categories = autoCategories(layer.features, field, autoColorFor()); }
           addMapLayer(layer);
-          setResult({ ok: !more, warn: !!more, text: `Imported ${layer.features.length} feature(s) as a Map layer with ${layer.fields.length} attribute field(s)${layer.styleField ? `, coloured by ${layer.styleField}` : ""}${clipNote}.${more ? " " + more : ""}` });
+          setResult({ ok: !more, warn: !!more, text: tr("Imported {n} feature(s) as a Map layer with {f} attribute field(s){coloured}{clip}.", { n: layer.features.length, f: layer.fields.length, coloured: layer.styleField ? tr(", coloured by {v}", { v: layer.styleField }) : "", clip: clipNote }) + (more ? " " + more : "") }); // #1974
         } else {
           addBoundary({ name: `WFS: ${title}`, polylines: boundary.polylines });
-          const why = wfsAs === "map" && !boundary.geomType ? " (points or mixed geometry — Map layers take polygons or lines)" : "";
-          setResult({ ok: !more, warn: !!more, text: `Imported ${boundary.polylines.length} feature part(s) as boundary lines${why}${clipNote}.${more ? " " + more : ""}` });
+          const why = wfsAs === "map" && !boundary.geomType ? tr(" (points or mixed geometry — Map layers take polygons or lines)") : "";
+          setResult({ ok: !more, warn: !!more, text: tr("Imported {n} feature part(s) as boundary lines{why}{clip}.", { n: boundary.polylines.length, why, clip: clipNote }) + (more ? " " + more : "") });
         }
       }
     } catch (err) {

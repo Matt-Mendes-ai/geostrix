@@ -3,9 +3,10 @@
 // or GeoPackage srs_id) to the project CRS. Before, only each feature's first ring was kept and the coordinates were
 // assumed to be in the project CRS: a BC Albers (EPSG:3005) tenure shapefile landed 5,036 km away with 77 of 131 rings.
 import { getProj4Def, guessEpsgFromPrjWkt, pointTransform } from "./reproject.js";
+import { t as tr } from "./i18n.js"; // TASKS.csv #1974 — the CRS notes in the interface language
 
 // parsed: { features: [{ geometry, parts? }], geomType, epsg?, prjWkt? } (parseShapefileZip / a parseGeoPackage layer)
-// -> { polylines: [[{x, y}]], closedFlags, sourceEpsg, note } — note says what was done with the CRS, in English
+// -> { polylines: [[{x, y}]], closedFlags, sourceEpsg, note } — note says what was done with the CRS, in the interface language
 export async function vectorToBoundaryPolylines(parsed, projectEpsg) {
   const dst = Number(projectEpsg) || null;
   const src = Number(parsed.epsg) || (parsed.prjWkt ? guessEpsgFromPrjWkt(parsed.prjWkt) : null) || null;
@@ -13,10 +14,10 @@ export async function vectorToBoundaryPolylines(parsed, projectEpsg) {
   if (src && dst && src !== dst) {
     await Promise.all([getProj4Def(src), getProj4Def(dst)]); // registry codes load on demand (#834)
     T = pointTransform(src, dst);
-    note = T ? `reprojected from EPSG:${src} to EPSG:${dst}` : `its CRS (EPSG:${src}) could not be converted: the coordinates were taken as EPSG:${dst}, check where it lies`;
+    note = T ? tr("reprojected from EPSG:{src} to EPSG:{dst}", { src, dst }) : tr("its CRS (EPSG:{src}) could not be converted: the coordinates were taken as EPSG:{dst}, check where it lies", { src, dst });
   } else if (src) note = null; // already the project CRS
-  else note = parsed.prjWkt ? `its .prj names a CRS GeoStrix does not recognize: the coordinates were taken as EPSG:${dst}, check where it lies`
-    : `it states no CRS: the coordinates were taken as EPSG:${dst}, check where it lies`;
+  else note = parsed.prjWkt ? tr("its .prj names a CRS GeoStrix does not recognize: the coordinates were taken as EPSG:{dst}, check where it lies", { dst })
+    : tr("it states no CRS: the coordinates were taken as EPSG:{dst}, check where it lies", { dst });
   const closed = parsed.geomType === "polygon";
   const polylines = [], closedFlags = [], featureOf = []; // featureOf: TASKS.csv #1970 — the feature each polyline came from
   (parsed.features || []).forEach((f, fi) => {

@@ -124,6 +124,7 @@ const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")
 const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
 import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut } from "../lib/levelPlan.js"; // TASKS.csv #525
+import { sliceReadoutText } from "../lib/sliceReadout.js";
 import { buildVectorFeatures as buildVectorFeaturesOf } from "../lib/viewer/vectorFeatures.js"; // TASKS.csv #1083
 import { isRepeatClick } from "../lib/interpretation.js"; // TASKS.csv #1152
 import { syncInterpretPreview } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #1152
@@ -2031,15 +2032,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (box.length) return { x0: Math.min(...box.map((p) => p.x)), x1: Math.max(...box.map((p) => p.x)), y0: Math.min(...box.map((p) => p.y)), y1: Math.max(...box.map((p) => p.y)), z0: Math.min(...box.map((p) => p.z)), z1: Math.max(...box.map((p) => p.z)) };
     return null;
   }, [slice3d.on, collars, survey, rebuildSeq]);
-  const sliceReadout = useMemo(() => {
-    if (!slice3d.on || !sliceExtent) return slice3d.on ? "Load drillholes to set the slice range." : "";
-    const o = originRef.current;
-    if (slice3d.mode === "horizontal") {
-      const elev = sliceExtent.y0 + slice3d.pos * (sliceExtent.y1 - sliceExtent.y0) + o.z;
-      return slice3d.thickness > 0 ? `Showing ${Math.round(elev - slice3d.thickness / 2)}–${Math.round(elev + slice3d.thickness / 2)} m elevation` : `Showing everything below ${Math.round(elev)} m elevation`;
-    }
-    return slice3d.thickness > 0 ? `Vertical slab ${slice3d.thickness} m thick, striking ${slice3d.azimuth}°` : `Everything on one side of a vertical cut striking ${slice3d.azimuth}°`;
-  }, [slice3d, sliceExtent]);
+  const sliceReadout = useMemo(() => sliceReadoutText(slice3d, sliceExtent, originRef.current.z), [slice3d, sliceExtent]); // #1974
   useEffect(() => {
     lastActivityRef.current = Date.now(); // #441 — redraw now
     if (!slice3d.on || !sliceExtent) { slicePlanesRef.current = []; return; }
@@ -7419,7 +7412,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             </div>
             <input type="range" min="0" max="1" step="0.002" value={slice3d.pos} onChange={(e) => setSlice3d((s) => ({ ...s, pos: Number(e.target.value) }))} aria-label={tr("Slice position")} />
             <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Thickness")}{" "}<input type="number" min="0" step="5" value={slice3d.thickness} onChange={(e) => setSlice3d((s) => ({ ...s, thickness: Math.max(0, Number(e.target.value) || 0) }))} style={{ width: 64 }} aria-label={tr("Slice thickness")} /> m
-              <span style={{ color: "var(--color-text-muted)" }}>{slice3d.thickness > 0 ? "slab" : tr("0 = everything beyond the cut")}</span>
+              <span style={{ color: "var(--color-text-muted)" }}>{slice3d.thickness > 0 ? tr("slab") : tr("0 = everything beyond the cut")}</span>
             </label>
             <div style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)" }}>{sliceReadout}</div>
           </div>

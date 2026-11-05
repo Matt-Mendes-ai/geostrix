@@ -110,8 +110,8 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
       setMapping(m);
       const p = m.a && m.m && m.rho ? parseDcipRows(t.rows, m) : null;
       if (p?.spacing) setOpts((o) => ({ ...o, cell: o.cell || String(+(p.spacing / 2).toFixed(2)), depth: o.depth || String(suggestModelDepth(p.readings, p.span, p.spacing / 2)) })); // #680
-      setMsg(p ? { ok: true, text: `${f.name}: ${p.readings.length} readings (${p.array}), electrodes ${p.span[0]}–${p.span[1]} m, smallest spacing ${p.spacing} m${p.ip ? ", with chargeability" : ""}${p.skipped ? `; ${p.skipped} row(s) skipped (missing A/M, non-positive resistivity${m.ip ? " or no chargeability" : ""})` : ""}.${t.note ? " " + t.note : ""}` }
-        : { ok: false, text: "Map the A, M and apparent-resistivity columns below." });
+      setMsg(p ? { ok: true, text: tr("{name}: {n} readings ({array}), electrodes {a}–{b} m, smallest spacing {s} m{ip}{skipped}.", { name: f.name, n: p.readings.length, array: p.array, a: p.span[0], b: p.span[1], s: p.spacing, ip: p.ip ? tr(", with chargeability") : "", skipped: p.skipped ? tr("; {n} row(s) skipped (missing A/M, non-positive resistivity{v})", { n: p.skipped, v: m.ip ? tr(" or no chargeability") : "" }) : "" }) + (t.note ? " " + t.note : "") } // #1974
+        : { ok: false, text: tr("Map the A, M and apparent-resistivity columns below.") });
     } catch (e) { setMsg({ ok: false, text: tr("Could not read {name}: {message}", { name: f.name, message: e.message }) }); }
   };
 

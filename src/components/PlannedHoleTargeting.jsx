@@ -119,7 +119,7 @@ export default function PlannedHoleTargeting({ hole, onUpdate, plannedPts, colla
     <div style={{ marginTop: 6, borderTop: "1px solid var(--color-divider)", paddingTop: 6 }}>
       <div style={{ display: "flex", gap: 4, marginBottom: tab ? 7 : 0 }}>
         {tabBtn("target", tr("Target"), Crosshair)}
-        {tabBtn("actual", "As-drilled", GitCompareArrows)}
+        {tabBtn("actual", tr("As-drilled"), GitCompareArrows)}
       </div>
 
       {tab === "target" && (

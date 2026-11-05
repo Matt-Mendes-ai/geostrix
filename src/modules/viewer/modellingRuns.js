@@ -1731,7 +1731,7 @@ export function createModellingRuns(ctx, mcRef) {
     if (!traces.length) { setNotices((p) => [...p, noCollarsNotice(tr("the vein model"), layers, assays)]); return; }
     const o = originRef.current;
     const domain = domains.find((d) => d.id === modelDomainId);
-    const label = `Vein: ${veinValue}`;
+    const label = tr("Vein: {v}", { v: veinValue }); // #1974
     setVeinBusy(true);
     setTaskProgress?.({ label, pct: 20 });
     setTimeout(async () => {

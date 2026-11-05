@@ -376,7 +376,7 @@ export function omfVolumeToCells(vol, attributeName = null, maxCells = MAX_CELLS
     tensor_u = coarse.tensor_u; tensor_v = coarse.tensor_v; tensor_w = coarse.tensor_w; values = coarse.values;
     const newTotal = tensor_u.length * tensor_v.length * tensor_w.length;
     coarsenedFrom = coarsenRecord({ shape, factors: [fu, fv, fw], cellsTo: newTotal, values: fine, valid: (v) => Number.isFinite(v) && v > NODATA_MAX });
-    coarsenNote = `Coarsened from ${rawTotal.toLocaleString()} to ${newTotal.toLocaleString()} cells (merged ${fu}×${fv}×${fw} blocks) to stay within GeoStrix's ${maxCells.toLocaleString()}-cell 3D view budget — values are block-averaged, total volume is unchanged.`;
+    coarsenNote = tr("Coarsened from {raw} to {new} cells (merged {fu}×{fv}×{fw} blocks) to stay within GeoStrix's {max}-cell 3D view budget — values are block-averaged, total volume is unchanged.", { raw: rawTotal.toLocaleString(), new: newTotal.toLocaleString(), fu, fv, fw, max: maxCells.toLocaleString() }); // #1974
   }
 
   const nu = tensor_u.length, nv = tensor_v.length, nw = tensor_w.length;
