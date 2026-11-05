@@ -230,7 +230,7 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
             )}
             {targetHits.length > 0 && (
               <div style={{ color: "var(--color-info)", marginTop: 2 }}>
-                {targetHits.map((h) => `${h.metres.toFixed(0)} m in "${h.modelName}"'s target band`).join("; ")}
+                {targetHits.map((h) => tr("{m} m in the {band} band of \"{model}\"", { m: h.metres.toFixed(0), band: h.band || tr("target"), model: h.modelName })).join("; ")}{/* #1832 — the band's range and property */}
               </div>
             )}
             {/* TASKS.csv #1009 — pierce points */}

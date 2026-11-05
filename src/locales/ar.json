@@ -7864,5 +7864,6 @@
   "Entered as {v}° {ref} ({date}).": "أُدخل كـ {v}° {ref} ({date}).",
   "Drawn in the same cells as {names}: the two colour each other's blocks. Show one at a time to read it.": "مرسوم في الخلايا نفسها مثل {names}: كل منهما يلوّن كتل الآخر. اعرض واحداً في كل مرة لقراءته.",
   "Hide this one": "إخفاء هذا",
-  " · {g} geophysics points · {s} surface samples": " · {g} نقطة جيوفيزيائية · {s} عينة سطحية"
+  " · {g} geophysics points · {s} surface samples": " · {g} نقطة جيوفيزيائية · {s} عينة سطحية",
+  "{m} m in the {band} band of \"{model}\"": "{m} م في نطاق {band} لـ \"{model}\""
 }

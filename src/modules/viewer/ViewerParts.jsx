@@ -9,6 +9,7 @@ import VoxelRangeNumber from "../../components/VoxelRangeNumber.jsx"; // TASKS.c
 import { iconAction, activateOnKey } from "../../lib/a11y.js";
 import { voxelCellSupported } from "../../lib/viewer/geomath.js";
 import { coincidentModels } from "../../lib/voxelOverlap.js"; // TASKS.csv #1808
+import { isTargetModel } from "../../lib/plannedHoleChecks.js"; // TASKS.csv #1832
 import { pBtn } from "../../lib/sidebarStyles.js";
 import { distinctValues } from "../../lib/layers.js";
 import { confirmDestructive } from "../../lib/confirmDestructive.js";
@@ -441,6 +442,7 @@ export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null
   const reset = () => { setDispMin(model.min); setDispMax(model.max); onUpdate(model.id, { threshold: model.min, rangeMax: model.max }); };
   const visibleCount = model.cells.filter((c) => c.value >= dispMin && c.value <= dispMax && voxelCellSupported(model, c)).length;
   const isFiltered = dispMin > model.min || dispMax < model.max;
+  const isBand = isFiltered && isTargetModel({ ...model, threshold: dispMin, rangeMax: dispMax }); // #1832 — a cutoff that only hides air is no band
   const [largestOnly, setLargestOnly] = useState(false); // TASKS.csv #1840 — one target body, not every speck in the range
   return (
     <div style={compact ? { marginTop: 6, fontSize: "var(--font-size-base)" } : { marginTop: 8, padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
@@ -449,7 +451,7 @@ export function VoxelRangeRow({ model, onUpdate, compact = false, onShell = null
           {model.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
         </div>
         <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{model.name}</div>
-        {isFiltered && <span style={{ color: "var(--color-info)", fontSize: "var(--font-size-xs)", flexShrink: 0 }} title={tr("A range filter is active on this model")}>{tr("band")}</span>}
+        {isBand && <span style={{ color: "var(--color-info)", fontSize: "var(--font-size-xs)", flexShrink: 0 }} title={tr("A range filter is active on this model")}>{tr("band")}</span>}
       </div>}
       <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 6 }}>
         <span style={{ color: "var(--color-text-faint)", width: 30, flexShrink: 0 }}>{tr("Min")}</span>

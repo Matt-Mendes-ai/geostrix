@@ -367,9 +367,12 @@ export function StoreProvider({ children }) {
   // `elevation`, the original #24 behavior) or "terrain" (conform to the loaded `terrain` surface
   // below instead, ignoring `elevation`; only meaningful once a terrain surface actually exists).
   const [rasters, setRasters] = useState([]);
+  const terrainRef = useRef(null); // #1761 — filled once the terrain state is declared below
   const addRaster = useCallback((raster) => {
     const id = `raster_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    setRasters((p) => [...p, { opacity: 0.85, visible: true, drapeMode: "flat", ...raster, id }]);
+    // TASKS.csv #1761 (review #1645, Copley) — with a terrain loaded a new raster drapes on it unless the caller says otherwise (a
+    // depth slice or a grid at its own elevation passes drapeMode: "flat"); it came in flat at the collar elevation, the ground through it
+    setRasters((p) => [...p, { opacity: 0.85, visible: true, drapeMode: terrainRef.current ? "terrain" : "flat", ...raster, id }]);
     return id;
   }, []);
   const updateRaster = useCallback((id, patch) => setRasters((p) => p.map((r) => r.id === id ? { ...r, ...patch } : r)), []);
@@ -511,6 +514,7 @@ export function StoreProvider({ children }) {
   // colour-mapped plane like raster drapes (#24). { id, name, bbox:[xmin,ymin,xmax,ymax], gridW, gridH,
   // elevations: number[] (row-major, row 0 = bbox's north/ymax edge), visible, opacity, color }.
   const [terrain, setTerrain] = useState(null);
+  terrainRef.current = terrain; // TASKS.csv #1761 — read by addRaster
   const addTerrain = useCallback((t) => {
     const id = `terrain_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     setTerrain({ visible: true, opacity: 1, color: "#8a7f68", ...t, id });
