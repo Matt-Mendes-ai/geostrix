@@ -24,6 +24,7 @@ import { HATCH } from "../lib/supportHatch.js"; // TASKS.csv #535
 import { supportEnvelope } from "../lib/supportEnvelope.js"; // TASKS.csv #641
 import DcipMergePanel from "./DcipMergePanel.jsx"; // TASKS.csv #640
 import Dcip3dPanel from "./Dcip3dPanel.jsx"; // TASKS.csv #643
+import Dcip3dArrayPanel from "./Dcip3dArrayPanel.jsx"; // TASKS.csv #1967 — a 3D array from its electrode coordinates
 import { percentile } from "../lib/sectionMerge.js";
 import { parseStationFile, matchStationLine, fitStationLine, stationGroundProfile, linePlacement } from "../lib/dcipStations.js";
 import { reprojectXY, getProj4DefSync } from "../lib/reproject.js";
@@ -440,6 +441,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
       {last && <InResultArea slot={resultSlot}><SectionResult last={last} cutoff={Number(opts.supportCutoff) || 0} epsg={project?.epsg} pBtn={pBtn} large={!!resultSlot} /></InResultArea>}
       <DcipMergePanel pBtn={pBtn} numInput={numInput} />
       <Dcip3dPanel pBtn={pBtn} numInput={numInput} />
+      <Dcip3dArrayPanel pBtn={pBtn} numInput={numInput} />
     </div>
   );
 }

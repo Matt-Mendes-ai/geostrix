@@ -13,6 +13,8 @@ Input (built by the app from the saved lines, src/lib/dcip3d.js):
             none for that reading, as the 2D inversion takes them: TASKS.csv #683 / #929)
   topo      [[x, y, z]] ground points (station elevations, terrain samples)
   mesh      {core (m), depth (m below the electrodes where core-sized cells stop)}, maxIter, geometricFactor "flat" | "draped"
+            | "perReading" (TASKS.csv #1967: geometricFactorPerReading, one factor per reading in request order, for a 3D array
+            whose electrodes carry their own coordinates and whose file gives each reading's factor; chain is then null)
 Method, as prototyped in #643 and as the 2D inversion does it:
   * TreeMesh: core x core x core/2 cells at the electrodes, 2x core cells to `depth` under every line, the surface
     refined, ~2 km padding; cells above the ground inactive (air);
@@ -308,7 +310,22 @@ def run_job(req, progress, cap_bytes=None):
     survey = make_survey("apparent_resistivity")
     survey.set_geometric_factor()
     gf_mode = req.get("geometricFactor") or "flat"
-    if gf_mode == "flat" and chain is not None:
+    if gf_mode == "perReading":
+        # TASKS.csv #1967 — a 3D array (offline diamond dipoles, remote electrodes) has no line to measure along: the file
+        # gives each reading's own geometric factor (Kodiak: G = P / Ra, the normalized potential over the apparent
+        # resistivity, which matches the half-space factor of the surveyed electrode coordinates to within 0.5 %). Diamond
+        # geometries give negative factors for about half the readings; only zero is refused.
+        g = np.asarray([np.nan if v is None else v for v in req.get("geometricFactorPerReading") or []], dtype=float)
+        if g.shape != (len(order),):
+            raise ValueError("geometricFactorPerReading: one value per reading expected.")
+        g = g[order]
+        if np.any(~np.isfinite(g)) or np.any(g == 0):
+            raise ValueError("Every reading needs a non-zero geometric factor.")
+        slices = survey.get_all_slices()
+        for src in survey.source_list:
+            for rx in src.receiver_list:
+                rx._geometric_factor[src] = g[slices[src, rx]]
+    elif gf_mode == "flat" and chain is not None:
         # #580 — K from the nominal along-line spacings on flat ground, as the receiver computed the file's rho_a
         def inv_d(p, q):
             d = np.abs(p - q)
@@ -405,16 +422,21 @@ def run_job(req, progress, cap_bytes=None):
     if charge is not None:
         progress({"stage": "ip", "iter": 0, "maxIter": max_iter, "message": "Inverting chargeability in 3D"})
         eta_obs = charge / 1000.0
-        ip_sim = _linear_class()(G=-J / pred[:, None], model_map=maps.IdentityMap(nP=n_act))  # Seigel, see the header
-        ip_data = sdata.Data(ip_sim.survey, dobs=eta_obs, standard_deviation=ip_std)
+        # TASKS.csv #1967 — ipUse (request order): readings kept for resistivity whose chargeability the contractor removed
+        # (Mx_deleted) take no part in the IP fit; the misfit target counts only the readings used
+        ip_keep = np.ones(len(rho), dtype=bool) if req.get("ipUse") is None else np.asarray(req["ipUse"], dtype=bool)[order]
+        G_ip = -J / pred[:, None]  # Seigel, see the header
+        ip_sim = _linear_class()(G=G_ip[ip_keep], model_map=maps.IdentityMap(nP=n_act))
+        ip_data = sdata.Data(ip_sim.survey, dobs=eta_obs[ip_keep], standard_deviation=ip_std[ip_keep])
         ip_reg = regularization.WeightedLeastSquares(mesh, active_cells=active, mapping=maps.IdentityMap(nP=n_act))
         ip_opt = optimization.ProjectedGNCG(maxIter=max_iter, lower=0.0, upper=1.0, cg_maxiter=10, cg_atol=1e-3, cg_rtol=0.0)
-        m_ip, hist_ip, fit_ip = inv_run(data_misfit.L2DataMisfit(data=ip_data, simulation=ip_sim), ip_reg, ip_opt, np.full(n_act, 1e-3), "ip", float(len(eta_obs)),
-                                        phi_fn=lambda mm: float(np.sum(((eta_obs - ip_sim.dpred(mm)) / ip_std) ** 2)),
+        n_ip = int(ip_keep.sum())
+        m_ip, hist_ip, fit_ip = inv_run(data_misfit.L2DataMisfit(data=ip_data, simulation=ip_sim), ip_reg, ip_opt, np.full(n_act, 1e-3), "ip", float(n_ip),
+                                        phi_fn=lambda mm: float(np.sum(((eta_obs[ip_keep] - ip_sim.dpred(mm)) / ip_std[ip_keep]) ** 2)),
                                         opt_factory=lambda: optimization.ProjectedGNCG(maxIter=1, lower=0.0, upper=1.0, cg_maxiter=10, cg_atol=1e-3, cg_rtol=0.0))
-        ip_pred = ip_sim.dpred(m_ip)
-        ip_phi = float(np.sum(((eta_obs - ip_pred) / ip_std) ** 2))
-        out_ip = {"model": m_ip, "predicted": (ip_pred[back] * 1000).tolist(), "phi_d": ip_phi, "reachedTarget": ip_phi <= 1.05 * len(eta_obs), "iterations": len(hist_ip),
+        ip_pred = G_ip @ m_ip  # every reading, used or not (an unused one's prediction is still shown)
+        ip_phi = float(np.sum((((eta_obs - ip_pred) / ip_std)[ip_keep]) ** 2))
+        out_ip = {"model": m_ip, "predicted": (ip_pred[back] * 1000).tolist(), "phi_d": ip_phi, "target": float(n_ip), "readingsUsed": n_ip, "reachedTarget": ip_phi <= 1.05 * n_ip, "iterations": len(hist_ip),
                   "history": hist_ip, "standardDeviation": (ip_std[back] * 1000).tolist(), "fitChoice": fit_ip}
 
     # cells: below ground, within 300 m of the electrodes' footprint and down to depth + 300 m below the lowest electrode

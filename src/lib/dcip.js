@@ -53,7 +53,7 @@ export function parseDcipWhitespaceText(text) {
   if (c1l && p1l) {
     const lines3d = new Set(); let offline = 0;
     for (const r of rows) { lines3d.add(r[c1l]); lines3d.add(r[p1l]); if (r[c1l] !== r[p1l]) offline++; }
-    if (lines3d.size > 1) return { headers, rows: [], note: "", error: tr("This is a 3D IP survey: electrodes on {n} lines, {offline} reading(s) with current and potential on different lines. The DC / IP tool inverts one 2D line at a time: import one line's readings, or the contractor's 3D inversion model (Block models).", { n: lines3d.size, offline }) };
+    if (lines3d.size > 1) return { headers, rows: [], note: "", error: tr("This is a 3D IP survey: electrodes on {n} lines, {offline} reading(s) with current and potential on different lines. The 2D line import cannot take it: read it with \"3D survey from electrode coordinates\" at the end of this pane, which inverts every reading in one 3D model, or load the contractor's 3D model under Block models.", { n: lines3d.size, offline }) };
   }
   // TASKS.csv #1326 — a Geosoft IP file can hold Vp and I but no apparent resistivity: nothing could be imported from it
   // #1660 — the current's unit: mA when the header block says so ("I (in mA)") or the currents look like milliamps

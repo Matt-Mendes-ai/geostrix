@@ -384,8 +384,16 @@ def _validate_dcip3d(req):
         if not isinstance(arr, list) or len(arr) != len(r) or not all(v is None or (isinstance(v, (int, float)) and math.isfinite(v) and v >= 0) for v in arr):
             raise HTTPException(400, f"{key} must hold one non-negative value (or null) per reading.")
     req["maxIter"] = int(min(30, max(1, int(req.get("maxIter", 12)))))
-    if req.get("geometricFactor") not in (None, "flat", "draped"):
-        raise HTTPException(400, 'geometricFactor must be "flat" or "draped".')
+    if req.get("geometricFactor") not in (None, "flat", "draped", "perReading"):
+        raise HTTPException(400, 'geometricFactor must be "flat", "draped" or "perReading".')
+    # TASKS.csv #1967 — a 3D array file gives each reading's geometric factor (negative for some diamond dipoles; never zero)
+    if req.get("geometricFactor") == "perReading":
+        g = req.get("geometricFactorPerReading")
+        if not isinstance(g, list) or len(g) != len(r) or not all(isinstance(v, (int, float)) and math.isfinite(v) and v != 0 for v in g):
+            raise HTTPException(400, "geometricFactorPerReading must hold one non-zero geometric factor per reading.")
+    u_ip = req.get("ipUse")
+    if u_ip is not None and (not isinstance(u_ip, list) or len(u_ip) != len(r) or not all(isinstance(v, bool) for v in u_ip) or not any(u_ip)):
+        raise HTTPException(400, "ipUse must hold true / false per reading, with at least one true.")
 
 
 @app.post("/v1/geophys/dcip3d/plan")

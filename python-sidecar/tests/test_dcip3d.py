@@ -153,6 +153,46 @@ def test_flat_factor_equals_draped_on_flat_ground():
     assert err < 1e-6
 
 
+def test_per_reading_factor_equals_draped():
+    """TASKS.csv #1967 — a 3D array file gives each reading's geometric factor; fed the draped factors (request order), the
+    per-reading path predicts what the draped path predicts, and a zero factor is refused."""
+    from simpeg.electromagnetics.static import resistivity as dc
+    rows, chain = _readings(True)
+    req, rho, _ = _synthetic_data(rows, chain)
+    mesh, active, _, _ = D.build_mesh(req)
+    s, order = _surveys(dc, mesh, active, rows)
+    g_survey = np.concatenate([rx.geometric_factor[src] for src in s.source_list for rx in src.receiver_list])
+    g_req = g_survey[np.argsort(order)]  # survey order -> request order
+    base = dict(rho=rho.tolist(), maxIter=1)
+    r_d = D.run_job({**req, **base, "geometricFactor": "draped"}, lambda e: None)
+    r_p = D.run_job({**req, **base, "geometricFactor": "perReading", "geometricFactorPerReading": g_req.tolist(), "chain": None}, lambda e: None)
+    dp = np.max(np.abs(np.asarray(r_p["predicted"]) - np.asarray(r_d["predicted"])) / np.abs(np.asarray(r_d["predicted"])))
+    print(f"  per-reading vs draped factor: max rel diff in predicted data {dp:.1e}, phi_d {r_p['phi_d']:.1f} vs {r_d['phi_d']:.1f}")
+    assert dp < 1e-6 and abs(r_p["phi_d"] - r_d["phi_d"]) <= 1e-6 * max(1.0, r_d["phi_d"])
+    bad = g_req.copy(); bad[3] = 0.0
+    try:
+        D.run_job({**req, **base, "geometricFactor": "perReading", "geometricFactorPerReading": bad.tolist(), "chain": None}, lambda e: None)
+        raise AssertionError("a zero geometric factor was accepted")
+    except ValueError as e:
+        assert "non-zero geometric factor" in str(e)
+
+
+def test_ip_use_mask():
+    """TASKS.csv #1967 — readings marked ipUse false take no part in the IP fit: the target counts the used ones, and wrecking
+    the chargeability of the unused readings changes nothing."""
+    rows, chain = _readings(False)
+    req, rho, ip = _synthetic_data(rows, chain)
+    use = [i % 5 != 0 for i in range(len(rows))]
+    wrecked = np.where(use, ip, 500.0)
+    base = dict(rho=rho.tolist(), ipUncertainty={"percent": 3, "floor": 0.5}, maxIter=4)
+    a = D.run_job({**req, **base, "chargeability": ip.tolist(), "ipUse": use}, lambda e: None)
+    b = D.run_job({**req, **base, "chargeability": wrecked.tolist(), "ipUse": use}, lambda e: None)
+    print(f"  ipUse: {a['ip']['readingsUsed']} of {len(rows)} readings used; IP phi_d {a['ip']['phi_d']:.1f} vs {b['ip']['phi_d']:.1f}")
+    assert a["ip"]["readingsUsed"] == sum(use) and a["ip"]["target"] == float(sum(use))
+    assert abs(a["ip"]["phi_d"] - b["ip"]["phi_d"]) <= 1e-6 * max(1.0, a["ip"]["phi_d"])
+    assert np.allclose(a["cells"]["chargeability"], b["cells"]["chargeability"])
+
+
 def test_plan_is_cheap_and_honest():
     rows, chain = _readings(False)
     p = D.plan(_req(rows, chain), 1.5e9)
