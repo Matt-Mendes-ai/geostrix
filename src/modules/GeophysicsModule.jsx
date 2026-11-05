@@ -62,6 +62,7 @@ import { t as tr } from "../lib/i18n.js";
 import { guessVoxelProperty, isLogProperty } from "../lib/voxelProperty.js"; // TASKS.csv #1786
 import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #1783
 import { defaultDrapeElevation, drapeElevationNote } from "../lib/drapeElevation.js"; // TASKS.csv #1856
+import { collarTerrainOffset } from "../lib/terrainCheck.js"; // TASKS.csv #1620
 import { voxelStretch, sortedShownValues } from "../lib/voxelStretch.js"; // TASKS.csv #1812 / #1781
 import { VoxelRangeRow } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1780
 import { terrainFromBlockModel } from "../lib/terrainFromModel.js"; // TASKS.csv #1806
@@ -399,7 +400,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         msg += tr(" Note: this file's own CRS tag (EPSG:{epsgTag}) doesn't match the project's EPSG:{epsg} — no reprojection happens on import.", { epsgTag: parsed.epsgTag, epsg: project.epsg });
       }
       if (parsed.noDataNote) msg += parsed.noDataNote; // #421
-      setTerrainError({ info: true, text: msg });
+      // TASKS.csv #1620 — the new ground against the collars, as the online fetch already checks: a terrain in the wrong units or datum shows here
+      const dz = collarTerrainOffset(cc, { bbox: parsed.bbox, gridW: parsed.gridW, gridH: parsed.gridH, elevations: parsed.elevations, noDataMask: parsed.noDataMask || null });
+      if (dz && Math.abs(dz.median) > 100) msg += " " + tr("The {n} collars over it sit a median {d} m {dir} this terrain: check its units and vertical datum before relying on it.", { n: dz.n, d: Math.round(Math.abs(dz.median)).toLocaleString(), dir: dz.median > 0 ? tr("above") : tr("below") });
+      setTerrainError({ info: !(dz && Math.abs(dz.median) > 100), text: msg });
     } catch (err) {
       setTerrainError({ info: false, text: err.message });
     } finally {

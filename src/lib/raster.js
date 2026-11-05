@@ -357,6 +357,10 @@ async function readDemTile(file, crop = null, readMax = DEM_READ_MAX) {
   } catch (err) {
     throw new Error(tr("\"{name}\" is not a readable GeoTIFF ({message}).", { name: file.name, message: err.message }));
   }
+  // TASKS.csv #1620 (review #1497, Lawyers) — a colour picture is not elevations: an 8-bit RGB depth-slice image became a 0-255 m terrain
+  // (its white background 255 m) about 1,500 m under the collars. 3+ bands of 8 bits, or a Photometric RGB / palette image, is refused.
+  { const fd = image.fileDirectory || {}, bands = image.getSamplesPerPixel?.() || 1, bits = Array.isArray(fd.BitsPerSample) ? fd.BitsPerSample[0] : fd.BitsPerSample ?? image.getBitsPerSample?.(0), pi = fd.PhotometricInterpretation;
+    if (pi === 2 || pi === 3 || (bands >= 3 && bits <= 8)) throw new Error(tr("\"{name}\" is a colour picture ({bands} band(s) of {bits} bits), not elevations: a terrain needs a single-band elevation grid. Import it under Maps > GeoTIFF / GXF to drape it as a map.", { name: file.name, bands, bits: bits ?? "?" })); }
   let bbox;
   try { bbox = demNodeBbox(image); } catch (err) { if (err.code === "rotated") throw err; bbox = null; } // #560
   if (!bbox || bbox.some((v) => !Number.isFinite(v))) {
