@@ -153,7 +153,7 @@ import { ViewToolbar, ContextItem, HoleRow, OrphanHoles, LayerRow, LayerQuickPan
 import { plannedTrace } from "../lib/holePlanning.js"; // TASKS.csv #119 - shared, Node-verified target math; plannedTrace: #524
 import { extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
-import { noticeText, noticeLevel, errorNotice, notice } from "../lib/notices.js"; // TASKS.csv #390
+import { noticeText, noticeLevel, errorNotice, notice, appendNotice } from "../lib/notices.js"; // TASKS.csv #390
 import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellShown, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { assaySizeFor, assayPassesCutoff } from "../lib/viewer/assaySize.js"; // #1533 — moved out
@@ -5439,7 +5439,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         } else if (!res.violations.length) {
           setNotices((p) => [...p, notice("Topology check passed: {checked} check(s) across {surfacesChecked} surface(s), no violations.{v}", { checked: res.checked, surfacesChecked: res.surfacesChecked, v: res.skipped ? tr(" {skipped} declared relationship(s) skipped — either the target surface no longer exists, or the relationship (truncates / terminates against / cuts) is one where an intersection is expected and so has nothing to violate.", { skipped: res.skipped }) : "" })]);
         } else {
-          setNotices((p) => [...p, notice("Topology check found {violations} violation(s) in {checked} check(s):", { violations: res.violations.length, checked: res.checked }), ...res.violations.map((v) => `  • ${v.message}`)]);
+          setNotices((p) => [...p, appendNotice(notice("Topology check found {violations} violation(s) in {checked} check(s):", { violations: res.violations.length, checked: res.checked }), res.violations.map((v) => ` • ${v.message}`).join(""))]); // #1542 — one notice: the count and the list stay together
         }
       } catch (err) {
         setNotices((p) => [...p, errorNotice(tr("Topology check failed: {message}", { message: err.message }))]);
