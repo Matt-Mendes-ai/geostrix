@@ -8153,5 +8153,7 @@
   "Field that colours the layer": "Campo que colore a camada",
   "Value column": "Coluna de valor",
   "Skipped {n} line(s) of notes above the header row.": "{n} linha(s) de notas acima da linha de cabeçalho foram ignoradas.",
-  "{n} row(s) with no easting / northing were left out (not QC inserts: their type was not standard, blank or duplicate).": "{n} linha(s) sem leste / norte foram deixadas de fora (não são inserções de controle: o tipo não era padrão, branco nem duplicata)."
+  "{n} row(s) with no easting / northing were left out (not QC inserts: their type was not standard, blank or duplicate).": "{n} linha(s) sem leste / norte foram deixadas de fora (não são inserções de controle: o tipo não era padrão, branco nem duplicata).",
+  "The first row was a banner of group names over the field names: the second row is used as the header.": "A primeira linha era uma faixa de nomes de grupo sobre os nomes dos campos: a segunda linha é usada como cabeçalho.",
+  "{n} row(s) with a blank hole id took the hole id of the row above, their depths continuing it: check them if the file is laid out otherwise.": "{n} linha(s) sem identificador de furo receberam o da linha acima, pois as profundidades o continuam: verifique-as se o arquivo estiver organizado de outra forma."
 }

@@ -361,3 +361,21 @@ export function skippedRowsText(dropped, total) {
   const parts = [...by].map(([r, e]) => `${e.n} ${(SKIP_REASONS[r] || (() => r))()}${e.ex.length && r !== "no hole id" ? ` (${e.ex.join(", ")})` : ""}`);
   return ` ${tr("Skipped {n} of {m} row(s): {why}.", { n: dropped.length, m: total, why: parts.join("; ") })}`;
 }
+
+// TASKS.csv #1665 (review #1646, Kodiak) — Appendix A holds three interval tables side by side; the alteration and mineralization tables run
+// longer than the lithology one, and their extra rows leave the hole id blank: 395 alteration intervals were dropped as 'no hole id'. A
+// row with no hole id whose From depth continues the row above (same table: its From at or below the last From seen) takes the hole id
+// of the row above. A row with no From is left as it is. -> { rows (copies where filled), filled }
+export function fillDownHoleIds(allRows, mapping) {
+  const hk = mapping?.hole_id, fk = mapping?.from;
+  if (!hk || !fk) return { rows: allRows, filled: 0 };
+  const num = (v) => { const t = String(v ?? "").trim(); return t === "" ? NaN : Number(t); };
+  let last = null, lastFrom = NaN, filled = 0;
+  const rows = allRows.map((r) => {
+    const id = String(r?.[hk] ?? "").trim(), from = num(r?.[fk]);
+    if (id) { last = id; lastFrom = from; return r; }
+    if (last != null && Number.isFinite(from) && (!Number.isFinite(lastFrom) || from >= lastFrom - 1e-6)) { lastFrom = from; filled++; return { ...r, [hk]: last }; }
+    return r;
+  });
+  return { rows, filled };
+}

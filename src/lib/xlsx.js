@@ -79,10 +79,14 @@ export async function xlsxToCsvFiles(bytes, workbookName) {
   const sheets = await readXlsxSheets(bytes);
   const out = [];
   for (const s of sheets) {
-    const rows = s.rows.filter((r) => r.some((v) => String(v).trim() !== ""));
+    let rows = s.rows.filter((r) => r.some((v) => String(v).trim() !== ""));
     if (rows.length < 2) continue;
+    // TASKS.csv #1665 (review #1646, Kodiak) — a banner row of group names over the field names (Appendix A: '', 'Lithology', '', ..., 'Alteration' ...)
+    // became 'Column 1 / Lithology / Column 3'. A first row at most half filled over a row of text labels at least as wide: the labels are the header.
+    { const t = (v) => String(v ?? "").trim(), a = rows[0], b = rows[1], fa = a.filter((v) => t(v) !== "").length, tb = b.filter((v) => t(v) !== "" && !Number.isFinite(Number(t(v)))).length;
+      if (rows.length >= 3 && fa >= 1 && fa <= 0.5 * Math.max(a.length, b.length) && b.length >= a.length - 1 && tb >= 0.8 * b.length) rows = rows.slice(1); }
     const width = rows.reduce((m, r) => Math.max(m, r.length), 0); // #1079 — a spread of a million rows overflows the stack
-    const headers = rows[0].map((h, i) => String(h).trim() || `Column ${i + 1}`);
+    const headers = rows[0].map((h, i) => String(h).replace(/\s+/g, " ").trim() || `Column ${i + 1}`); // #1665 — a line break typed in a header cell becomes a space ('Hole Number')
     while (headers.length < width) headers.push(`Column ${headers.length + 1}`);
     out.push({ name: `${base} - ${s.name}.csv`, sheet: s.name, rows: rows.length - 1, text: toCsv({ fields: headers, data: rows.slice(1).map((r) => headers.map((_, i) => r[i] ?? "")) }) });
   }

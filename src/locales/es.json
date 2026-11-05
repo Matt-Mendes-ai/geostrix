@@ -8153,5 +8153,7 @@
   "Field that colours the layer": "Campo que colorea la capa",
   "Value column": "Columna de valor",
   "Skipped {n} line(s) of notes above the header row.": "Se omitieron {n} línea(s) de notas sobre la fila de encabezado.",
-  "{n} row(s) with no easting / northing were left out (not QC inserts: their type was not standard, blank or duplicate).": "Se omitieron {n} fila(s) sin este / norte (no son inserciones de control: su tipo no era estándar, blanco ni duplicado)."
+  "{n} row(s) with no easting / northing were left out (not QC inserts: their type was not standard, blank or duplicate).": "Se omitieron {n} fila(s) sin este / norte (no son inserciones de control: su tipo no era estándar, blanco ni duplicado).",
+  "The first row was a banner of group names over the field names: the second row is used as the header.": "La primera fila era un rótulo de grupos sobre los nombres de campo: se usa la segunda fila como encabezado.",
+  "{n} row(s) with a blank hole id took the hole id of the row above, their depths continuing it: check them if the file is laid out otherwise.": "{n} fila(s) sin identificador de sondaje tomaron el del sondaje de la fila de arriba, porque sus profundidades lo continúan: revíselas si el archivo está organizado de otra forma."
 }

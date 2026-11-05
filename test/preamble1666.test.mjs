@@ -24,3 +24,14 @@ test("ordinary tables, two-column tables, one-column lists and quoted comma deci
   const quoted = ["a,b", '"1,5",2', '"2,25",3', ""].join("\n");
   assert.equal(skipPreamble(quoted).text, quoted, "a quoted comma decimal is one field");
 });
+
+test("#1665 — a banner row of group names over the field names: the second row is the header", () => {
+  const t = [",Lithology,,,Alteration,,", "Hole Number,From (m),To (m),Lith,From (m) ,To (m) ,Alt", "MPD-23-001,0,10,DIOR,0,5,PROP", "MPD-23-001,10,20,MZDI,5,12,ARG", ""].join("\n");
+  const r = parseTableText(t);
+  assert.equal(r.headers[0], "Hole Number"); assert.equal(r.rows.length, 2); assert.equal(r.rows[0].Lith, "DIOR");
+  assert.match(r.note, /banner of group names/);
+  const normal = ["hole_id,from,to,code", "H1,0,1,GRN", ""].join("\n");
+  assert.equal(skipPreamble(normal).text, normal, "a normal header is not a banner");
+  const textData = ["a,b,c", "x,y,z", "p,q,r", ""].join("\n");
+  assert.equal(skipPreamble(textData).text, textData, "a full header is never a banner");
+});

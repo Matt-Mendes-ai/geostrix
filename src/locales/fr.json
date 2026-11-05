@@ -8153,5 +8153,7 @@
   "Field that colours the layer": "Champ qui colore la couche",
   "Value column": "Colonne de valeur",
   "Skipped {n} line(s) of notes above the header row.": "{n} ligne(s) de notes au-dessus de la ligne d’en-tête ignorée(s).",
-  "{n} row(s) with no easting / northing were left out (not QC inserts: their type was not standard, blank or duplicate).": "{n} ligne(s) sans abscisse / ordonnée ont été laissées de côté (pas des insertions de contrôle : leur type n’était ni standard, ni blanc, ni duplicata)."
+  "{n} row(s) with no easting / northing were left out (not QC inserts: their type was not standard, blank or duplicate).": "{n} ligne(s) sans abscisse / ordonnée ont été laissées de côté (pas des insertions de contrôle : leur type n’était ni standard, ni blanc, ni duplicata).",
+  "The first row was a banner of group names over the field names: the second row is used as the header.": "La première ligne était un bandeau de noms de groupe au-dessus des noms de champ : la deuxième ligne sert d’en-tête.",
+  "{n} row(s) with a blank hole id took the hole id of the row above, their depths continuing it: check them if the file is laid out otherwise.": "{n} ligne(s) sans identifiant de sondage ont pris celui de la ligne au-dessus, leurs profondeurs le prolongeant : vérifiez-les si le fichier est organisé autrement."
 }

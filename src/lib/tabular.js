@@ -82,9 +82,22 @@ export function skipPreamble(text, maxLines = 300) {
   const head = text.slice(0, 200_000).split("\n").slice(0, maxLines).map((l) => l.replace(/\r$/, ""));
   const first = head.findIndex((l) => l.trim() !== "");
   if (first < 0) return { text, skipped: 0 };
+  if ((head[first].split('"').length - 1) % 2) return { text, skipped: 0 }; // a quoted header cell running over several lines: leave it to the CSV reader
   const delim = [",", ";", "\t"].reduce((best, d) => (head.slice(first, first + 60).join("\n").split(d).length > head.slice(first, first + 60).join("\n").split(best).length ? d : best), ",");
   const width = (l) => { let n = 1, q = false; for (const ch of l) { if (ch === '"') q = !q; else if (ch === delim && !q) n++; } return n; }; // a delimiter inside quotes ("1,5") is not a field break
-  if (width(head[first]) >= 3) return { text, skipped: 0 };
+  // TASKS.csv #1665 (review #1646, Kodiak) — a two-row header: a banner of group names over the field names (Appendix A: '', 'Lithology', '', ...,
+  // 'Alteration', ... then 'Hole Number', 'From (m)' ...) mapped as 'Column 1 / Lithology / Column 3'. The banner is mostly empty cells; the
+  // row under it is as wide and fully labelled with text: the header is that row.
+  if (width(head[first]) >= 3) {
+    const cells = (l) => { const out = []; let cur = "", q = false; for (const ch of l) { if (ch === '"') q = !q; else if (ch === delim && !q) { out.push(cur); cur = ""; } else cur += ch; } out.push(cur); return out.map((c) => c.trim()); };
+    const a = cells(head[first]), nxt = head.findIndex((l, k) => k > first && l.trim() !== ""), b = nxt > 0 ? cells(head[nxt]) : [];
+    const filled = (cs) => cs.filter((c) => c !== "").length, texty = (cs) => cs.filter((c) => c !== "" && !Number.isFinite(Number(c))).length;
+    if (b.length === a.length && filled(a) <= 0.5 * a.length && filled(a) >= 1 && texty(b) >= 0.8 * b.length) {
+      const lines = text.split("\n");
+      return { text: lines.slice(nxt).join("\n"), skipped: 1, banner: true };
+    }
+    return { text, skipped: 0 };
+  }
   for (let h = first + 1; h < head.length; h++) {
     const w = width(head[h]);
     if (w < 3 || w <= width(head[first])) continue;
@@ -104,8 +117,8 @@ const QUOTED_COMMA_NUMBER = /"\s*[+-]?\d+(?:\.\d{3})*,\d+\s*"/;
 const ID_LIKE_VALUE_IN = /(^|[,;\t"\n])\s*0\d+\s*("|[,;\t\r\n]|$)/; // #1071 — a cheap test of the whole text
 export function parseTableText(text, { comments = "#", columnar = false } = {}) {
   ({ text } = stripLeadingComments(text, comments)); // #720
-  let preamble = 0;
-  ({ text, skipped: preamble } = skipPreamble(text)); // #1666
+  let preamble = 0, banner = false;
+  ({ text, skipped: preamble, banner } = skipPreamble(text)); // #1666; banner: #1665
   // TASKS.csv #611 — a big table can be held as COLUMNS (see parseTableColumns); null = not eligible, read as rows
   if (columnar && text.length >= COLUMNAR_MIN_CHARS) { const c = parseTableColumns(text, { comments: false }); if (c) return c; }
   // #600 (performance) — Papa asks once per CELL; the answer depends only on the header, so cache it per header.
@@ -118,7 +131,7 @@ export function parseTableText(text, { comments = "#", columnar = false } = {}) 
   // 1.4 s of a 4.4 s parse on an 83,670 x 109 assay export) is skipped. Semicolon / tab files are scanned as before.
   const commaFree = res.meta.delimiter === "," && !QUOTED_COMMA_NUMBER.test(text);
   const { rows, note } = commaFree ? { rows: res.data, note: "" } : normalizeCommaDecimals(res.data);
-  const pre = preamble ? tr("Skipped {n} line(s) of notes above the header row.", { n: preamble }) : ""; // #1666
+  const pre = banner ? tr("The first row was a banner of group names over the field names: the second row is used as the header.") : preamble ? tr("Skipped {n} line(s) of notes above the header row.", { n: preamble }) : ""; // #1666; #1665
   return { rows, headers: res.meta.fields || [], note: [note, pre].filter(Boolean).join(" "), errors: res.errors || [] };
 }
 
