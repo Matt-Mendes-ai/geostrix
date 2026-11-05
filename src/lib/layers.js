@@ -146,6 +146,14 @@ const ROLE_PATTERNS = [
   [/^(dyk|dyke|dike|dk)$/, "dyke"],
   [/^(vein|vn|qv|qtzv|qzv)$/, "vein"],
   [/^(nr|nrcv|norec|nrec|lost|core ?loss|void|cavity)$/, "no recovery"],
+  // TASKS.csv #1541 (review #1497, Lawyers) — whole WORDS inside a longer code too: 'Felsic Dyke', 'Mafic Dyke', 'I-Mafic' (intrusive),
+  // 'No Recovery', 'Sand' were all 'stratigraphic' and offered in the Strat. stack. Still not a prefix of a word ('FAULTED LMST' and
+  // 'veined' stay units) and breccia stays whole-code only ('Volcanic Breccia' is a unit). Suggestions; Modelling codes changes them.
+  [/\b(dykes?|dikes?|dyk)\b|^i[-_ ]|\bintrusi(ve|on)\b/, "dyke"],
+  [/\b(no ?rec(overy)?|core ?loss|lost core)\b/, "no recovery"],
+  [/\b(fault|faults|fault zone|gouge)\b/, "fault"],
+  [/\b(veins?)\b/, "vein"],
+  [/^(sand|gravel|till|alluvium|alluvial|colluvium|colluvial|glacial till|moraine|cover)$|\b(alluvium|colluvium|glacial)\b/, "overburden"],
 ];
 export function roleForLithology(u) {
   const k = String(u || "").trim().toLowerCase();
