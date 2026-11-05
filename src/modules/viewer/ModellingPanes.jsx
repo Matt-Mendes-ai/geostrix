@@ -21,6 +21,8 @@ import { t as tr } from "../../lib/i18n.js";
 import { errorNotice } from "../../lib/notices.js";
 import { tx } from "../../lib/i18nRich.js";
 import { groupOverlaps, groupOfCode } from "../../lib/lithoGroups.js"; // TASKS.csv #1685
+import { useStore } from "../../lib/store.jsx";
+import { zoneAlphaPicks, customAlphaPicks } from "../../lib/alphaPicks.js"; // TASKS.csv #1686
 
 export default function ModellingPanes(props) {
   const {
@@ -801,7 +803,7 @@ export default function ModellingPanes(props) {
           style={{ ...pBtn, marginBottom: 8, opacity: (layers.structure || []).length ? 1 : 0.5, cursor: (layers.structure || []).length ? "pointer" : "default" }}
           title={tr("Downhole tadpole plot — depth vs alpha/dip with an azimuth tail, plus lithology and structure-frequency tracks, per hole")}
         ><Milestone size={14} />{" "}{tr("Downhole structure (tadpole)")}</button>
-        {!struct_types.length && emptyPaneHint(tr("No structure picks loaded — import downhole structure planes on the 3D View tab (Add layer › Structure planes), or load the sample project."))}
+        {!struct_types.length && <AlphaOnlyHint layers={layers} fallback={emptyPaneHint(tr("No structure picks loaded — import downhole structure planes on the 3D View tab (Add layer › Structure planes), or load the sample project."))} />}{/* #1686 */}
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select aria-label={tr("Structure type")} value={structuralTarget} onChange={(e) => setStructuralTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Choose a structure type…")}</option>
@@ -1039,4 +1041,14 @@ export default function ModellingPanes(props) {
 
         </>)}
   </>);
+}
+
+// TASKS.csv #1686 — no Structure planes, but angles to the core axis in Structural zones or a custom layer: say where they went
+function AlphaOnlyHint({ layers, fallback }) {
+  const { customLayers = [] } = useStore();
+  const z = useMemo(() => zoneAlphaPicks(layers?.structzone).length, [layers?.structzone]);
+  const c = useMemo(() => customAlphaPicks(customLayers), [customLayers]);
+  if (!z && !c.length) return fallback;
+  const where = [z ? tr("{n} from Structural zones", { n: z }) : null, ...[...new Set(c.map((p) => p.source))].map((s) => tr("{n} from {source}", { n: c.filter((p) => p.source === s).length, source: s }))].filter(Boolean).join("; ");
+  return <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", lineHeight: 1.45, marginBottom: 8 }}>{tr("No oriented structure picks. Angles to the core axis are used as alpha-only picks ({where}): the Stereonet counts them, the Downhole plot draws them and sections fan them. A plane, and so these tools, needs a dip direction: oriented core (alpha and beta) or a Structure planes import.", { where })}</div>;
 }

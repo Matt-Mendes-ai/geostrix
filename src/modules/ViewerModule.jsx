@@ -130,6 +130,7 @@ import { isRepeatClick } from "../lib/interpretation.js"; // TASKS.csv #1152
 import { syncInterpretPreview } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #1152
 import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 import { extrapolationNotice } from "../lib/extrapolatedInputs.js"; // #1840
+import { withAlphaOnlyPicks } from "../lib/alphaPicks.js"; // #1686
 import { unitShell, meshVolume, blockUnitStats } from "../lib/unitVolumes.js"; // TASKS.csv #517; blockUnitStats: #877
 const ModellingCodesPane = React.lazy(() => import("../components/ModellingCodesPane.jsx")); // TASKS.csv #599 — modelling view only, so loaded on demand (#476 budget)
 import { resolveLayerStyle, cleanLayerStyle, TUBE_SEGMENTS } from "../lib/layerStyle.js"; // TASKS.csv #635
@@ -3427,7 +3428,7 @@ ${describeTrend(t)}` };
   // consumers degrade honestly (the plot falls back to true dip and says so; the Terzaghi weighting
   // leaves those picks at weight 1 and reports how many).
   const structurePicksWithHoleAttitude = useMemo(() => {
-    const rows = layers.structure || [];
+    const rows = withAlphaOnlyPicks(layers.structure, layers.structzone, customLayers); // #1686
     if (!rows.length) return rows;
     const collarById = new Map(collars.map((c) => [c.hole_id, c]));
     const surveyByHole = new Map();
@@ -3449,7 +3450,7 @@ ${describeTrend(t)}` };
       const att = cache.get(key);
       return att ? { ...p, holeAz: att.azimuth, holeDip: att.dip } : p;
     });
-  }, [layers.structure, collars, survey]);
+  }, [layers.structure, layers.structzone, customLayers, collars, survey]);
 
   // TASKS.csv #281 — the Stereonet's spatial-domain filter, handed to the modal as a callback so the
   // modal never needs to know what a domain IS (fault-side constraints evaluated against implicit
