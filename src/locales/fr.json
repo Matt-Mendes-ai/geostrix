@@ -8157,5 +8157,14 @@
   "The first row was a banner of group names over the field names: the second row is used as the header.": "La première ligne était un bandeau de noms de groupe au-dessus des noms de champ : la deuxième ligne sert d’en-tête.",
   "{n} row(s) with a blank hole id took the hole id of the row above, their depths continuing it: check them if the file is laid out otherwise.": "{n} ligne(s) sans identifiant de sondage ont pris celui de la ligne au-dessus, leurs profondeurs le prolongeant : vérifiez-les si le fichier est organisé autrement.",
   "Not imported from this drop: {names}. Dropped here, this tab reads CSV, GeoTIFF, GXF, XYZ and PLY / DXF; a UBC mesh and model go through Block models.": "Non importé de ce dépôt : {names}. Déposés ici, cet onglet lit CSV, GeoTIFF, GXF, XYZ et PLY / DXF ; un maillage et un modèle UBC passent par Modèles de blocs.",
-  "{n} more code(s) in {cols} on {m} interval(s) are not drawn (each interval is coloured by {first}); every code is kept on its interval as all_codes, which Identify lists.": "{n} code(s) de plus dans {cols} sur {m} intervalle(s) ne sont pas dessinés (chaque intervalle est coloré par {first}) ; chaque code est conservé sur son intervalle dans all_codes, qu’Identifier affiche."
+  "{n} more code(s) in {cols} on {m} interval(s) are not drawn (each interval is coloured by {first}); every code is kept on its interval as all_codes, which Identify lists.": "{n} code(s) de plus dans {cols} sur {m} intervalle(s) ne sont pas dessinés (chaque intervalle est coloré par {first}) ; chaque code est conservé sur son intervalle dans all_codes, qu’Identifier affiche.",
+  "Mean lab": "Moyenne labo",
+  "Mean pXRF": "Moyenne pXRF",
+  "Median pXRF / lab": "Médiane pXRF / labo",
+  "No element has 10 or more pairs with a value on both sides.": "Aucun élément n’a 10 paires ou plus avec une valeur des deux côtés.",
+  "Pearson r": "r de Pearson",
+  "Spearman rank r": "r de rang de Spearman",
+  "Sample types in the file: {list}.": "Types d’échantillon dans le fichier : {list}.",
+  "pXRF vs lab ({n})": "pXRF vs labo ({n})",
+  "{p} of {n} pXRF reading(s) sit inside a lab interval of the same hole and are paired with it. Rank r near 1: pXRF orders that element as the lab does (usable for mapping it); a median ratio away from 1: a bias to correct before the two are mixed. pXRF stays out of the grade tools either way.": "{p} des {n} lecture(s) pXRF se trouvent dans un intervalle de laboratoire du même sondage et y sont appariées. r de rang proche de 1 : le pXRF classe cet élément comme le laboratoire (utilisable pour le cartographier) ; un rapport médian loin de 1 : un biais à corriger avant de les mélanger. Le pXRF reste hors des outils de teneur dans tous les cas."
 }

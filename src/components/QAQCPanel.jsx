@@ -19,6 +19,7 @@ import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { qaqcStandardRows, qaqcBlankRows, qaqcDuplicateRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
+import { pxrfVsLab, sampleTypesSeen } from "../lib/pxrfVsLab.js"; // TASKS.csv #1675
 
 export default function QAQCPanel({ assays, assayElements, onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
@@ -61,10 +62,17 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
   const dupSummary = useMemo(() => duplicateSummary(dups, DUP_RPD_LIMITS), [dups]); // #534 — per duplicate type
   const dupLimit = (d) => DUP_RPD_LIMITS[d.kind] ?? DUP_RPD_LIMITS.unknown;
 
-  const exportCount = tab === "standards" ? (activeGroup ? series.points.length : 0) : tab === "blanks" ? blanks.length : dups.length; // #617
+  // TASKS.csv #1675 — what sample types the file carries, and pXRF against the lab interval holding each reading
+  const typesSeen = useMemo(() => sampleTypesSeen(assays), [assays]);
+  const pxrf = useMemo(() => pxrfVsLab(assays, assayElements, elementUnits), [assays, assayElements, elementUnits]);
+  const tabs = pxrf.readings ? [...TABS, "pxrf"] : TABS;
+  const exportCount = tab === "pxrf" ? pxrf.rows.length : tab === "standards" ? (activeGroup ? series.points.length : 0) : tab === "blanks" ? blanks.length : dups.length; // #617
   const exportCSV = () => {
     let rows, name;
-    if (tab === "standards" && activeGroup) {
+    if (tab === "pxrf") { // #1675
+      rows = pxrf.rows.map((r) => ({ element: r.symbol, unit: r.unit, pairs: r.n, pearson_r: r.r == null ? "" : +r.r.toFixed(3), spearman_rho: r.rho == null ? "" : +r.rho.toFixed(3), median_pxrf_over_lab: r.medianRatio == null ? "" : +r.medianRatio.toFixed(3), mean_pxrf: +r.meanPxrf.toPrecision(4), mean_lab: +r.meanLab.toPrecision(4) }));
+      name = "qaqc_pxrf_vs_lab.csv";
+    } else if (tab === "standards" && activeGroup) {
       rows = qaqcStandardRows(series.points, activeGroup.id, symbol); // #1083 — rows in lib, tested
       name = `qaqc_standard_${activeGroup.id}_${symbol}.csv`;
     } else if (tab === "blanks") {
@@ -93,6 +101,7 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("QAQC — lab quality control")}</div>
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Detected (a sample-type column if the assays have one, else the ID; never a hole that is in the collars): {s} standard(s), {b} blank(s), {d} duplicate(s), of {n} intervals in all.", { s: counts.standard, b: counts.blank, d: counts.duplicate, n: assays.length })}{/* #1119 — one sentence (it was glued from fragments, wrong word order in French / Arabic) */}{/* TASKS.csv #400 — exactly which ids are left out of the reports, and why */}
+              {typesSeen.length > 0 && <div style={{ marginTop: 2 }}>{tr("Sample types in the file: {list}.", { list: typesSeen.map(([t, n]) => `${t} ${n.toLocaleString()}`).join(", ") })}</div>}{/* #1675 — 'no QC here' told from 'QC not recognised' */}
               {(counts.standard + counts.blank + counts.duplicate) > 0 && (
                 <details style={{ marginTop: 4 }}>
                   <summary style={{ cursor: "pointer" }}>{tr("Excluded from intercepts, compositing, estimation and statistics — list the ids")}</summary>
@@ -122,14 +131,25 @@ export default function QAQCPanel({ assays, assayElements, onClose }) {
               </button>
             )}
             <div style={{ display: "flex", gap: 4 }}>
-              {TABS.map((t) => (
+              {tabs.map((t) => (
                 <button key={t} onClick={() => setTab(t)} style={t === tab ? tabBtnActive : tabBtn}>
-                  {t === "standards" ? tr("Standards ({groups})", { groups: groups.length }) : t === "blanks" ? tr("Blanks ({blank})", { blank: counts.blank }) : tr("Duplicates ({dups})", { dups: dups.length })}
+                  {t === "pxrf" ? tr("pXRF vs lab ({n})", { n: pxrf.pairs }) : t === "standards" ? tr("Standards ({groups})", { groups: groups.length }) : t === "blanks" ? tr("Blanks ({blank})", { blank: counts.blank }) : tr("Duplicates ({dups})", { dups: dups.length })}
                 </button>
               ))}
             </div>
           </div>
 
+          {tab === "pxrf" && ( /* TASKS.csv #1675 */
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
+              <div style={{ marginBottom: 6 }}>{tr("{p} of {n} pXRF reading(s) sit inside a lab interval of the same hole and are paired with it. Rank r near 1: pXRF orders that element as the lab does (usable for mapping it); a median ratio away from 1: a bias to correct before the two are mixed. pXRF stays out of the grade tools either way.", { p: pxrf.pairs, n: pxrf.readings })}</div>
+              {pxrf.rows.length ? (
+                <table style={{ borderCollapse: "collapse", fontSize: "var(--font-size-sm)" }}>
+                  <thead><tr>{[tr("Element"), tr("Pairs"), tr("Spearman rank r"), tr("Pearson r"), tr("Median pXRF / lab"), tr("Mean pXRF"), tr("Mean lab")].map((h) => <th key={h} style={{ textAlign: "right", padding: "3px 8px", borderBottom: "1px solid var(--color-border)" }}>{h}</th>)}</tr></thead>
+                  <tbody>{pxrf.rows.map((r) => <tr key={r.symbol}>{[`${r.symbol} (${r.unit})`, r.n, r.rho == null ? "—" : r.rho.toFixed(2), r.r == null ? "—" : r.r.toFixed(2), r.medianRatio == null ? "—" : r.medianRatio.toFixed(2), +r.meanPxrf.toPrecision(3), +r.meanLab.toPrecision(3)].map((v, i) => <td key={i} style={{ textAlign: "right", padding: "2px 8px", color: i === 2 && r.rho != null && r.rho < 0.5 ? "var(--color-warn-text-strong)" : undefined }}>{v}</td>)}</tr>)}</tbody>
+                </table>
+              ) : <div>{tr("No element has 10 or more pairs with a value on both sides.")}</div>}
+            </div>
+          )}
           {tab === "standards" && (
             groups.length === 0 ? (
               <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", padding: 8 }}>{tr("No repeated standard insertions found. Standards are detected by hole_id containing \"std\", \"crm\", \"oreas\", etc. — a standard inserted only once has nothing to compare it against.")}</div>

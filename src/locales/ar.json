@@ -8157,5 +8157,14 @@
   "The first row was a banner of group names over the field names: the second row is used as the header.": "كان الصف الأول شريطًا لأسماء المجموعات فوق أسماء الحقول: يُستخدم الصف الثاني كعناوين.",
   "{n} row(s) with a blank hole id took the hole id of the row above, their depths continuing it: check them if the file is laid out otherwise.": "أخذ {n} صف بلا معرّف ثقب معرّف الصف الذي فوقه، لأن أعماقه تكمله: تحقّق منها إن كان الملف منظمًا بطريقة أخرى.",
   "Not imported from this drop: {names}. Dropped here, this tab reads CSV, GeoTIFF, GXF, XYZ and PLY / DXF; a UBC mesh and model go through Block models.": "لم يُستورد من هذا الإفلات: {names}. عند الإفلات هنا يقرأ هذا التبويب CSV وGeoTIFF وGXF وXYZ وPLY / DXF؛ أما شبكة ونموذج UBC فعبر نماذج الكتل.",
-  "{n} more code(s) in {cols} on {m} interval(s) are not drawn (each interval is coloured by {first}); every code is kept on its interval as all_codes, which Identify lists.": "{n} رمز إضافي في {cols} على {m} فترة لا يُرسم (تُلوَّن كل فترة حسب {first})؛ ويُحفظ كل رمز على فترته في all_codes الذي تعرضه أداة التعريف."
+  "{n} more code(s) in {cols} on {m} interval(s) are not drawn (each interval is coloured by {first}); every code is kept on its interval as all_codes, which Identify lists.": "{n} رمز إضافي في {cols} على {m} فترة لا يُرسم (تُلوَّن كل فترة حسب {first})؛ ويُحفظ كل رمز على فترته في all_codes الذي تعرضه أداة التعريف.",
+  "Mean lab": "متوسط المختبر",
+  "Mean pXRF": "متوسط pXRF",
+  "Median pXRF / lab": "وسيط pXRF / المختبر",
+  "No element has 10 or more pairs with a value on both sides.": "لا يوجد عنصر له 10 أزواج أو أكثر بقيمة في الجانبين.",
+  "Pearson r": "r بيرسون",
+  "Spearman rank r": "r الرتبي لسبيرمان",
+  "Sample types in the file: {list}.": "أنواع العينات في الملف: {list}.",
+  "pXRF vs lab ({n})": "pXRF مقابل المختبر ({n})",
+  "{p} of {n} pXRF reading(s) sit inside a lab interval of the same hole and are paired with it. Rank r near 1: pXRF orders that element as the lab does (usable for mapping it); a median ratio away from 1: a bias to correct before the two are mixed. pXRF stays out of the grade tools either way.": "{p} من {n} قراءة pXRF تقع داخل فترة مختبر من الثقب نفسه وتُقرن بها. r الرتبي قرب 1: يرتّب pXRF هذا العنصر كما يرتّبه المختبر (صالح لرسم خرائطه)؛ ونسبة وسيطة بعيدة عن 1: انحياز يجب تصحيحه قبل خلطهما. يبقى pXRF خارج أدوات المحتوى في كل الأحوال."
 }

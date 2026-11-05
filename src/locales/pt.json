@@ -8157,5 +8157,14 @@
   "The first row was a banner of group names over the field names: the second row is used as the header.": "A primeira linha era uma faixa de nomes de grupo sobre os nomes dos campos: a segunda linha é usada como cabeçalho.",
   "{n} row(s) with a blank hole id took the hole id of the row above, their depths continuing it: check them if the file is laid out otherwise.": "{n} linha(s) sem identificador de furo receberam o da linha acima, pois as profundidades o continuam: verifique-as se o arquivo estiver organizado de outra forma.",
   "Not imported from this drop: {names}. Dropped here, this tab reads CSV, GeoTIFF, GXF, XYZ and PLY / DXF; a UBC mesh and model go through Block models.": "Não importado deste arraste: {names}. Soltos aqui, esta aba lê CSV, GeoTIFF, GXF, XYZ e PLY / DXF; uma malha e modelo UBC entram por Modelos de blocos.",
-  "{n} more code(s) in {cols} on {m} interval(s) are not drawn (each interval is coloured by {first}); every code is kept on its interval as all_codes, which Identify lists.": "{n} código(s) a mais em {cols} em {m} intervalo(s) não são desenhados (cada intervalo é colorido por {first}); todos os códigos ficam no intervalo como all_codes, que Identificar lista."
+  "{n} more code(s) in {cols} on {m} interval(s) are not drawn (each interval is coloured by {first}); every code is kept on its interval as all_codes, which Identify lists.": "{n} código(s) a mais em {cols} em {m} intervalo(s) não são desenhados (cada intervalo é colorido por {first}); todos os códigos ficam no intervalo como all_codes, que Identificar lista.",
+  "Mean lab": "Média lab.",
+  "Mean pXRF": "Média pXRF",
+  "Median pXRF / lab": "Mediana pXRF / lab.",
+  "No element has 10 or more pairs with a value on both sides.": "Nenhum elemento tem 10 ou mais pares com valor dos dois lados.",
+  "Pearson r": "r de Pearson",
+  "Spearman rank r": "r de postos de Spearman",
+  "Sample types in the file: {list}.": "Tipos de amostra no arquivo: {list}.",
+  "pXRF vs lab ({n})": "pXRF vs lab. ({n})",
+  "{p} of {n} pXRF reading(s) sit inside a lab interval of the same hole and are paired with it. Rank r near 1: pXRF orders that element as the lab does (usable for mapping it); a median ratio away from 1: a bias to correct before the two are mixed. pXRF stays out of the grade tools either way.": "{p} de {n} leitura(s) pXRF ficam dentro de um intervalo de laboratório do mesmo furo e são pareadas com ele. r de postos perto de 1: o pXRF ordena o elemento como o laboratório (útil para mapeá-lo); uma razão mediana longe de 1: um viés a corrigir antes de misturá-los. O pXRF fica fora das ferramentas de teor de qualquer forma."
 }
