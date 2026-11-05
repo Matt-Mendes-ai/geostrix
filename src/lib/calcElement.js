@@ -10,12 +10,17 @@
 import { compileCalc } from "./calcExpr.js";
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
-// Element wt% -> oxide wt% factors are written into the presets so AI/CCPI use oxides as defined.
+// Element wt% -> oxide wt% factors are written into the presets so AI/CCPI use oxides as defined. VMS indices first, then porphyry (#1678).
 export const CALC_PRESETS = [
   { name: "AI", label: "Ishikawa alteration index (AI)", expr: "100*(K*1.2046+Mg*1.6583)/(K*1.2046+Mg*1.6583+Na*1.3480+Ca*1.3992)", needs: ["K", "Mg", "Na", "Ca"], unitNote: "K, Mg, Na, Ca must be in %" },
   { name: "CCPI", label: "Chlorite-carbonate-pyrite index (CCPI)", expr: "100*(Mg*1.6583+Fe*1.2865)/(Mg*1.6583+Fe*1.2865+Na*1.3480+K*1.2046)", needs: ["Mg", "Fe", "Na", "K"], unitNote: "Mg, Fe, Na, K must be in %; Fe as FeO total" },
   { name: "ZnRatio", label: "Zn ratio 100·Zn/(Zn+Pb)", expr: "100*Zn/(Zn+Pb)", needs: ["Zn", "Pb"], unitNote: "Zn and Pb in the same unit" },
   { name: "CuRatio", label: "Cu ratio 100·Cu/(Cu+Zn)", expr: "100*Cu/(Cu+Zn)", needs: ["Cu", "Zn"], unitNote: "Cu and Zn in the same unit" },
+  // TASKS.csv #1678 (review #1645, Copley) — porphyry alteration and metal ratios (molar masses K 39.098, Na 22.990, Ca 40.078, Al 26.982)
+  { name: "KAl", label: "Molar K/Al (potassic / phyllic alteration)", expr: "(K/39.098)/(Al/26.982)", needs: ["K", "Al"], unitNote: "K and Al in the same unit (both % or both ppm)" },
+  { name: "NaAl", label: "Molar Na/Al (albite / sodic alteration)", expr: "(Na/22.990)/(Al/26.982)", needs: ["Na", "Al"], unitNote: "Na and Al in the same unit (both % or both ppm)" },
+  { name: "CNKAl", label: "Molar (2Ca+Na+K)/Al", expr: "(2*Ca/40.078+Na/22.990+K/39.098)/(Al/26.982)", needs: ["Ca", "Na", "K", "Al"], unitNote: "Ca, Na, K and Al in the same unit" },
+  { name: "CuAu", label: "Cu/Au ratio", expr: "Cu/Au", needs: ["Cu", "Au"], unitNote: "read in the stored units (Cu ppm / Au ppm gives the usual ratio); say the units with the result" },
 ];
 
 // Returns { assays, element, computed, skipped, min, max } or throws with a readable message.

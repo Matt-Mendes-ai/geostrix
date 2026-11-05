@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from "react";
 import { X, Download, Sheet } from "./icons.js";
+import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
 import { computeBestIntercepts, makeRangeAverager, domainsForInterval, attachIncluding, metalEquivalent, metalEquivalentFormula, PRECIOUS_METALS, withMetalEquivalent } from "../lib/geochem.js"; // attachIncluding, metal equivalent: #402
 import { excludeQAQC, labAssays } from "../lib/qaqc.js";
 import { desurveyHole } from "../lib/desurvey.js";
@@ -33,19 +34,22 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   const { desurveyMethod, project, setLayoutElements, goToModule } = useStore(); // TASKS.csv #135 — true-width needs the project's own trace; layout: #911
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
-  const [symbol, setSymbol] = useState(symbols[0] || "Au");
+  const [symbol, setSymbolRaw] = useState(() => preferredElement(symbols, "intercepts") || "Au");
+  const setSymbol = (v) => { setSymbolRaw(v); rememberElement("intercepts", typeof v === "string" ? v : null); }; // #1678 — kept for next time
   const unit = elementUnits[symbol] || "ppm";
-  const [cutoff, setCutoff] = useState(0.5);
   // TASKS.csv #1387 (review #1352) — a cutoff belongs to its element: Ag 30 ppm became "Cutoff (%) = 30" for Pb. Each element keeps
   // the cutoff last used with it; one not used yet starts at its 90th percentile (one significant figure), said in the box's tooltip.
-  const cutoffBySymbol = useRef({});
-  const suggestCutoff = (sym) => {
+  // #1678 — the element the tool opens on too (it opened at 0.5 whatever the element: every Cu interval in ppm passed)
+  const p90Of = (sym) => {
     const v = assays.map((a) => Number(a.values?.[sym])).filter((x) => Number.isFinite(x) && x > 0).sort((a, b) => a - b);
-    if (!v.length) return cutoff;
+    if (!v.length) return null;
     const p = v[Math.floor(0.9 * (v.length - 1))], mag = 10 ** Math.floor(Math.log10(p));
     return Number((Math.round(p / mag) * mag).toPrecision(1));
   };
-  const [suggested, setSuggested] = useState(null);
+  const [cutoff, setCutoff] = useState(() => p90Of(symbol) ?? 0.5);
+  const cutoffBySymbol = useRef({});
+  const suggestCutoff = (sym) => p90Of(sym) ?? cutoff;
+  const [suggested, setSuggested] = useState(() => p90Of(symbol)); // #1678 — the tooltip says the opening cutoff is a suggestion too
   const changeSymbol = (sym) => {
     cutoffBySymbol.current[symbol] = cutoff;
     const kept = cutoffBySymbol.current[sym], next = kept ?? suggestCutoff(sym);

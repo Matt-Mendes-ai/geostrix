@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
+import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
 import { compositeDownhole, countDuplicateAssayIntervals, capAudit, capAuditText } from "../lib/geochem.js";
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import { excludeQAQC, labAssays } from "../lib/qaqc.js";
@@ -45,7 +46,8 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
   useFocusTrap(); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
-  const [symbol, setSymbol] = useState(symbols[0] || "Au");
+  const [symbol, setSymbolRaw] = useState(() => preferredElement(symbols, "compositing") || "Au");
+  const setSymbol = (v) => { setSymbolRaw(v); rememberElement("compositing", typeof v === "string" ? v : null); }; // #1678 — kept for next time
   const unit = elementUnits[symbol] || "ppm";
   const [length, setLength] = useState(2);
   const [minCoverage, setMinCoverage] = useState(0.5);

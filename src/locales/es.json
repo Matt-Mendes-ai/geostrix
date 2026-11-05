@@ -8134,5 +8134,13 @@
   "{k} of {n} \"{unitName}\" contact points are in {hole}: the estimated dip follows that hole, not the unit. Add structure picks, or contacts in other holes, before trusting the surface's attitude.": "{k} de {n} puntos de contacto de \"{unitName}\" están en {hole}: el manteo estimado sigue ese sondaje, no la unidad. Agregue mediciones estructurales, o contactos en otros sondajes, antes de confiar en la actitud de la superficie.",
   "{n} from Structural zones": "{n} de Zonas estructurales",
   "{n} from {source}": "{n} de {source}",
-  "No oriented structure picks. Angles to the core axis are used as alpha-only picks ({where}): the Stereonet counts them, the Downhole plot draws them and sections fan them. A plane, and so these tools, needs a dip direction: oriented core (alpha and beta) or a Structure planes import.": "No hay mediciones estructurales orientadas. Los ángulos al eje del testigo se usan como mediciones solo alfa ({where}): el estereograma las cuenta, el gráfico de pozo las dibuja y las secciones las muestran en abanico. Un plano, y por tanto estas herramientas, necesita una dirección de manteo: testigo orientado (alfa y beta) o una importación de Planos estructurales."
+  "No oriented structure picks. Angles to the core axis are used as alpha-only picks ({where}): the Stereonet counts them, the Downhole plot draws them and sections fan them. A plane, and so these tools, needs a dip direction: oriented core (alpha and beta) or a Structure planes import.": "No hay mediciones estructurales orientadas. Los ángulos al eje del testigo se usan como mediciones solo alfa ({where}): el estereograma las cuenta, el gráfico de pozo las dibuja y las secciones las muestran en abanico. Un plano, y por tanto estas herramientas, necesita una dirección de manteo: testigo orientado (alfa y beta) o una importación de Planos estructurales.",
+  "Molar K/Al (potassic / phyllic alteration)": "K/Al molar (alteración potásica / fílica)",
+  "K and Al in the same unit (both % or both ppm)": "K y Al en la misma unidad (ambos % o ambos ppm)",
+  "Molar Na/Al (albite / sodic alteration)": "Na/Al molar (albita / alteración sódica)",
+  "Na and Al in the same unit (both % or both ppm)": "Na y Al en la misma unidad (ambos % o ambos ppm)",
+  "Molar (2Ca+Na+K)/Al": "(2Ca+Na+K)/Al molar",
+  "Ca, Na, K and Al in the same unit": "Ca, Na, K y Al en la misma unidad",
+  "Cu/Au ratio": "Razón Cu/Au",
+  "read in the stored units (Cu ppm / Au ppm gives the usual ratio); say the units with the result": "se lee en las unidades guardadas (Cu ppm / Au ppm da la razón habitual); indique las unidades con el resultado"
 }

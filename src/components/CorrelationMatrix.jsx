@@ -11,6 +11,7 @@ import { correlationMatrix } from "../lib/correlation.js"; // TASKS.csv #405, #1
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { correlationRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
+import { correlationDefaults } from "../lib/preferredElement.js"; // TASKS.csv #1678
 
 // TASKS.csv #21 — multi-element correlation matrix. Pearson r between every pair of selected
 // elements, pairwise deletion for missing data (a row missing one of the pair just doesn't count
@@ -51,8 +52,8 @@ export default function CorrelationMatrix({ assays: assaysIn, assayElements: ass
   const allSymbols = assayElements.map((e) => e.symbol);
   // Default to the first 12 loaded elements — a full 60+-element suite renders as an unreadable wall
   // of tiny cells; the checklist below lets the user swap in whichever subset they actually care about.
-  const [selected, setSelected] = useState(new Set(allSymbols.slice(0, 12)));
-  const pickSource = (next) => { setSource(next); setSelected(new Set((next === "surface" ? surfaceElements : assayElementsIn).map((e) => e.symbol).slice(0, 12))); }; // #1799
+  const [selected, setSelected] = useState(() => new Set(correlationDefaults(allSymbols))); // #1678 — the commodity / alteration suite first
+  const pickSource = (next) => { setSource(next); setSelected(new Set(correlationDefaults((next === "surface" ? surfaceElements : assayElementsIn).map((e) => e.symbol)))); }; // #1799
   const toggle = (sym) => setSelected((p) => { const n = new Set(p); n.has(sym) ? n.delete(sym) : n.add(sym); return n; });
 
   // TASKS.csv #1514 — a memo, not a new array per render (it made every re-render recompute the whole matrix); columns and

@@ -26,6 +26,7 @@ import { gradeStatsRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
 import { weightedProbPoints, weightedPercentile, capEffect, thinToPixels } from "../lib/probPlot.js"; // TASKS.csv #1388; thinToPixels: #1512
 import { normalQuantile } from "../lib/thresholds.js";
 import { capAboveZone, capWarningText } from "../lib/capWarning.js"; // TASKS.csv #1676
+import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
@@ -113,7 +114,8 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const [source, setSource] = useState("assays"); // "assays" | "surface"
   const surfaceElementUnits = useMemo(() => Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit])), [surfaceElements]);
   const activeElements = source === "surface" ? surfaceElements : assayElements;
-  const [symbol, setSymbol] = useState(assayElements[0]?.symbol || "");
+  const [symbol, setSymbolRaw] = useState(() => preferredElement(assayElements.map((e) => e.symbol), "gradestats"));
+  const setSymbol = (v) => { setSymbolRaw(v); rememberElement("gradestats", typeof v === "string" ? v : null); }; // #1678
   const [domainKey, setDomainKey] = useState("");
   const [logScale, setLogScale] = useState(false);
   const [lengthWeighted, setLengthWeighted] = useState(true); // TASKS.csv #267
@@ -240,7 +242,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                     const next = e.target.value;
                     setSource(next);
                     const els = next === "surface" ? surfaceElements : assayElements;
-                    setSymbol(els[0]?.symbol || "");
+                    setSymbolRaw(preferredElement(els.map((e) => e.symbol))); // #1678
                     setDomainKey("");
                   }}
                   style={{ ...sel, display: "block", marginTop: 4 }}
