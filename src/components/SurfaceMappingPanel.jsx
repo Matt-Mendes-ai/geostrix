@@ -438,10 +438,10 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
                 onChange={(e) => updateMapLayer(l.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
               <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (import or fetch a DEM first, or offline: Geophysics > Block models > Terrain from the model's top)") /* #1824 */ : "" })}</span>
             </label>
-            {l.hasZ && l.geomType !== "polygon" && !(l.drapeMode === "terrain" && terrain) && ( /* TASKS.csv #1601 */
+            {l.hasZ && !(l.drapeMode === "terrain" && terrain) && ( /* TASKS.csv #1601 - a polygon: outlines only (a drape is a flat picture) */
               <label style={{ ...row, cursor: "pointer" }}>
                 <input type="checkbox" checked={l.drapeMode === "file"} onChange={(e) => updateMapLayer(l.id, { drapeMode: e.target.checked ? "file" : "flat" })} />
-                <span style={{ color: "var(--color-text-caption)" }}>{tr("At the file's own elevations")}</span>
+                <span style={{ color: "var(--color-text-caption)" }}>{l.geomType === "polygon" ? tr("Outlines at the file's own elevations") : tr("At the file's own elevations")}</span>
               </label>
             )}
             {!(l.drapeMode === "terrain" && terrain) && l.drapeMode !== "file" && (

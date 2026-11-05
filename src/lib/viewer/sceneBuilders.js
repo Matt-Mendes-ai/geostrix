@@ -193,7 +193,11 @@ export function mapLayerAtOwnZ(l, origin) {
     if (cat.visible === false) continue;
     for (const part of f.parts || []) {
       if (l.geomType === "point") part.forEach((v) => put(v, cat.color));
-      else for (let i = 1; i < part.length; i++) { put(part[i - 1], cat.color); put(part[i], cat.color); }
+      else {
+        for (let i = 1; i < part.length; i++) { put(part[i - 1], cat.color); put(part[i], cat.color); }
+        const a = part[0], b = part[part.length - 1]; // a polygon ring drawn as its outline, closed
+        if (l.geomType === "polygon" && part.length > 2 && (a[0] !== b[0] || a[1] !== b[1])) { put(b, cat.color); put(a, cat.color); }
+      }
     }
   }
   const geometry = new THREE.BufferGeometry();
@@ -211,7 +215,7 @@ export function syncMapLayers(group, cache, mapLayers, { origin, terrain, render
   const maxTex = Math.min(4096, renderer?.capabilities?.maxTextureSize || 4096);
   mapLayers.forEach((l, li) => {
     if (!l.bbox || !l.features?.length) return;
-    if (l.drapeMode === "file" && l.hasZ && l.geomType !== "polygon") { // #1601
+    if (l.drapeMode === "file" && l.hasZ) { // #1601 (a polygon: its outlines)
       const key = `file|${ox},${oy},${oz}|${mapStyleSignature(l)}|${l.elevation || 0}`;
       let obj = cache[l.id];
       if (obj && obj.userData.geoKey !== key) { disposeMesh(obj); obj = null; delete cache[l.id]; }

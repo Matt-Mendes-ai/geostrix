@@ -77,3 +77,11 @@ test("shapefile: PointZ elevations reach the map layer, a 2D Point file does not
   assert.equal(z.hasZ, true); assert.deepEqual(z.features.map((f) => f.parts[0][0][2]), [1225.4, 1846]);
   assert.equal(flat.hasZ, undefined); assert.equal(flat.features[0].parts[0][0].length, 2);
 });
+
+test("a polygon with Z draws its rings as closed outlines at their own elevations", () => {
+  const obj = mapLayerAtOwnZ({ geomType: "polygon", features: [{ parts: [[[0, 0, 10], [10, 0, 20], [10, 10, 30]]], attributes: {} }] }, { x: 0, y: 0, z: 0 });
+  assert.equal(obj.type, "LineSegments");
+  const pos = obj.geometry.getAttribute("position");
+  assert.equal(pos.count, 6, "two edges plus the closing one");
+  assert.deepEqual([pos.getY(4), pos.getY(5)], [30, 10], "closing edge back to the first vertex");
+});

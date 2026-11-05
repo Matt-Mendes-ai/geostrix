@@ -8173,5 +8173,6 @@
   "Colours run from the 2nd to the 98th percentile ({a} – {b}); values beyond take the end colours (the full range is {min} – {max}).": "Los colores van del percentil 2 al 98 ({a} – {b}); los valores fuera de él toman los colores extremos (el rango completo es {min} – {max}).",
   "Use the 2nd–98th percentile": "Usar el percentil 2–98",
   "Use minimum–maximum": "Usar mínimo–máximo",
-  "At the file's own elevations": "En las elevaciones propias del archivo"
+  "At the file's own elevations": "En las elevaciones propias del archivo",
+  "Outlines at the file's own elevations": "Contornos en las elevaciones propias del archivo"
 }
