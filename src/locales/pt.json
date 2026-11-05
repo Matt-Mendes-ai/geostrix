@@ -8216,5 +8216,11 @@
   "{g} (ribbon {n} of {t}, from the left)": "{g} (faixa {n} de {t}, a partir da esquerda)",
   "+ {n} longer description(s) not listed (over {c} characters)": "+ {n} descrição(ões) mais longa(s) não listada(s) (mais de {c} caracteres)",
   "Ribbons on each hole, left to right: {list}": "Faixas em cada furo, da esquerda para a direita: {list}",
-  "This tool builds from the map and the outcrop measurements only: the {n} drillhole(s) are not used. To fit the logged contacts and the mapped ones together, use Explicit surface: its \"From the geological map\" section adds the map contacts to the hole picks.": "Esta ferramenta constrói apenas a partir do mapa e das medidas de afloramento: os {n} furo(s) não são usados. Para ajustar juntos os contatos descritos e os mapeados, use Explicit surface: a seção \"From the geological map\" acrescenta os contatos do mapa aos picks dos furos."
+  "This tool builds from the map and the outcrop measurements only: the {n} drillhole(s) are not used. To fit the logged contacts and the mapped ones together, use Explicit surface: its \"From the geological map\" section adds the map contacts to the hole picks.": "Esta ferramenta constrói apenas a partir do mapa e das medidas de afloramento: os {n} furo(s) não são usados. Para ajustar juntos os contatos descritos e os mapeados, use Explicit surface: a seção \"From the geological map\" acrescenta os contatos do mapa aos picks dos furos.",
+  "No terrain yet: make one in Maps > Terrain (fetch one, import a DEM, or offline from points, or from the project's samples and collars). Map layers and measurements then sit on the ground.": "Ainda não há terreno: crie um em Maps > Terrain (baixe, importe um DEM ou, offline, a partir de pontos ou das amostras e bocas de furo do projeto). As camadas de mapa e as medidas então ficam sobre o terreno.",
+  "Add a measurement": "Adicionar uma medida",
+  "Template CSV": "Modelo CSV",
+  "A CSV with the column headers this importer reads, to fill in a spreadsheet": "Um CSV com os cabeçalhos de coluna que este importador lê, para preencher numa planilha",
+  "Type at least the easting, northing, dip and dip direction.": "Digite pelo menos a leste, a norte, o mergulho e a direção de mergulho.",
+  "Check and add": "Conferir e adicionar"
 }

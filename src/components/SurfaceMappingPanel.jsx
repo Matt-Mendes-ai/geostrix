@@ -51,6 +51,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
   const [busy, setBusy] = useState(false);
   const [openLegend, setOpenLegend] = useState({});
   const [pendingStruct, setPendingStruct] = useState(null); // { name, rows, headers, cols }
+  const [typing, setTyping] = useState(null); // TASKS.csv #1719 — one measurement typed in: { station, x, y, z, type, dip, dipDir, comment }
   const [mapSourceEpsg, setMapSourceEpsg] = useState(""); // #488 — "" = the file's own CRS
 
   // TASKS.csv #1025 (review #1016, structural geologist) — an outcrop set back out: GeoPackage (POINT Z), KML (the icon
@@ -388,7 +389,10 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       rows = c.rows;
       northNote = tr(" {converted} dip direction(s) converted from {v} to grid north{v2}.", { converted: c.converted, v: northRefText(north.ref, north.date, c.example), v2: c.failed ? tr("; {failed} could not be converted and were left as they were", { failed: c.failed }) : "" });
     }
-    addSurfaceStructureSet({ name: p.name, rows, snapToTerrain: true, azimuthRef: north.ref, ...(north.ref === "magnetic" ? { azimuthDate: north.date } : {}) });
+    // TASKS.csv #1719 — typed measurements gather in one set per north reference instead of a set each
+    const typedSet = p.typed ? surfaceStructures.find((s) => s.typed && s.azimuthRef === north.ref && (north.ref !== "magnetic" || s.azimuthDate === north.date)) : null;
+    if (typedSet) updateSurfaceStructureSet(typedSet.id, { rows: [...typedSet.rows, ...rows] });
+    else addSurfaceStructureSet({ name: p.name, rows, snapToTerrain: true, azimuthRef: north.ref, ...(north.ref === "magnetic" ? { azimuthDate: north.date } : {}), ...(p.typed ? { typed: true } : {}) });
     const noZ = out.rows.filter((r) => r.z == null).length;
     setStructMsg({
       ok: !out.skipped,
@@ -532,8 +536,37 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       {part !== "maps" && (<>
       <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Surface structures")}<InfoButton title={tr("Surface structures")} text={tr("Import outcrop structural measurements from a CSV or a MapInfo point table (TAB or MIF) — easting, northing, optional elevation, dip, and dip direction and/or strike (right-hand rule), plus a structure type and comments if present. Each measurement is drawn in the 3D view as a disc lying in the measured plane, coloured by type (fault, bedding, foliation, vein, joint, contact…). Rows without an elevation sit on the terrain. These measurements are what the 3D Modelling tab uses to set the dip when projecting mapped contacts underground.")} />
       </div>
+      {!terrain && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 8 }}>{tr("No terrain yet: make one in Maps > Terrain (fetch one, import a DEM, or offline from points, or from the project's samples and collars). Map layers and measurements then sit on the ground.")}</div>}{/* TASKS.csv #1719 */}
       <button onClick={() => structInput.current.click()} style={pBtn} title={tr("Formats: .csv, MapInfo .tab / .mif")}>
         <Compass size={14} />{" "}{tr("Import structure measurements…")}</button>
+      <div style={{ display: "flex", gap: 6, marginTop: -2, marginBottom: 8 }}>{/* TASKS.csv #1719 — start mapping without a file */}
+        <button onClick={() => setTyping((t) => (t ? null : {}))} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }} aria-expanded={!!typing}>{tr("Add a measurement")}</button>
+        <button onClick={() => saveFile({ quiet: "success", suggestedName: "outcrop_measurements_template.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: "Station,Easting,Northing,Elevation,Type,Dip,Dip direction,Comments\r\n" })}
+          title={tr("A CSV with the column headers this importer reads, to fill in a spreadsheet")} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>{tr("Template CSV")}</button>
+      </div>
+      {typing && (
+        <div style={card}>
+              <div key="station" style={row}><span style={lbl}>{tr("Station")}</span><input type="text" value={typing.station ?? ""} onChange={(e) => setTyping((p) => ({ ...p, station: e.target.value }))} placeholder={tr("optional")} aria-label={tr("Station")} style={select} /></div>
+              <div key="x" style={row}><span style={lbl}>{tr("Easting")}</span><input type="number" value={typing.x ?? ""} onChange={(e) => setTyping((p) => ({ ...p, x: e.target.value }))} placeholder={""} aria-label={tr("Easting")} style={select} /></div>
+              <div key="y" style={row}><span style={lbl}>{tr("Northing")}</span><input type="number" value={typing.y ?? ""} onChange={(e) => setTyping((p) => ({ ...p, y: e.target.value }))} placeholder={""} aria-label={tr("Northing")} style={select} /></div>
+              <div key="z" style={row}><span style={lbl}>{tr("Elevation")}</span><input type="number" value={typing.z ?? ""} onChange={(e) => setTyping((p) => ({ ...p, z: e.target.value }))} placeholder={tr("optional")} aria-label={tr("Elevation")} style={select} /></div>
+              <div key="type" style={row}><span style={lbl}>{tr("Type")}</span><input type="text" value={typing.type ?? ""} onChange={(e) => setTyping((p) => ({ ...p, type: e.target.value }))} placeholder={tr("optional")} aria-label={tr("Type")} style={select} /></div>
+              <div key="dip" style={row}><span style={lbl}>{tr("Dip")}</span><input type="number" value={typing.dip ?? ""} onChange={(e) => setTyping((p) => ({ ...p, dip: e.target.value }))} placeholder={""} aria-label={tr("Dip")} style={select} /></div>
+              <div key="dipDir" style={row}><span style={lbl}>{tr("Dip direction")}</span><input type="number" value={typing.dipDir ?? ""} onChange={(e) => setTyping((p) => ({ ...p, dipDir: e.target.value }))} placeholder={""} aria-label={tr("Dip direction")} style={select} /></div>
+              <div key="comment" style={row}><span style={lbl}>{tr("Comments")}</span><input type="text" value={typing.comment ?? ""} onChange={(e) => setTyping((p) => ({ ...p, comment: e.target.value }))} placeholder={tr("optional")} aria-label={tr("Comments")} style={select} /></div>
+          <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+            <button onClick={() => {
+              const n = (v) => (String(v ?? "").trim() === "" ? NaN : Number(String(v).replace(",", ".")));
+              if (![typing.x, typing.y, typing.dip, typing.dipDir].every((v) => Number.isFinite(n(v)))) { setStructMsg({ ok: false, text: tr("Type at least the easting, northing, dip and dip direction.") }); return; }
+              const headers = ["Station", "Easting", "Northing", "Elevation", "Type", "Dip", "Dip direction", "Comments"];
+              const rowObj = { Station: typing.station || "", Easting: typing.x, Northing: typing.y, Elevation: typing.z || "", Type: typing.type || "", Dip: typing.dip, "Dip direction": typing.dipDir, Comments: typing.comment || "" };
+              setPendingStruct({ name: "Typed measurements", typed: true, rows: [rowObj], headers, cols: { x: "Easting", y: "Northing", z: Number.isFinite(n(typing.z)) ? "Elevation" : null, dip: "Dip", dipDir: "Dip direction", strike: null, type: "Type", station: "Station", comment: "Comments" }, sourceEpsg: project?.epsg ? String(project.epsg) : "" });
+              setTyping(null); setStructMsg(null);
+            }} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Check and add")}</button>
+            <button onClick={() => setTyping(null)} style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}>{tr("Cancel")}</button>
+          </div>
+        </div>
+      )}
       <input ref={structInput} type="file" accept=".csv,.txt,.tab,.map,.id,.dat,.mif,.mid" multiple style={{ display: "none" }}
         onChange={(e) => { readStructCsv(e.target.files); e.target.value = ""; }} />
       {pendingStruct && (

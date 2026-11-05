@@ -8216,5 +8216,11 @@
   "{g} (ribbon {n} of {t}, from the left)": "{g} (الشريط {n} من {t}، من اليسار)",
   "+ {n} longer description(s) not listed (over {c} characters)": "+ {n} وصف أطول غير مدرج (أكثر من {c} حرفاً)",
   "Ribbons on each hole, left to right: {list}": "الأشرطة على كل ثقب من اليسار إلى اليمين: {list}",
-  "This tool builds from the map and the outcrop measurements only: the {n} drillhole(s) are not used. To fit the logged contacts and the mapped ones together, use Explicit surface: its \"From the geological map\" section adds the map contacts to the hole picks.": "تبني هذه الأداة من الخريطة وقياسات المكاشف فقط: لا تُستخدم الثقوب الـ{n}. لملاءمة التماسات المسجلة والمرسومة معاً استخدم Explicit surface: يضيف قسم \"From the geological map\" فيه تماسات الخريطة إلى نقاط الثقوب."
+  "This tool builds from the map and the outcrop measurements only: the {n} drillhole(s) are not used. To fit the logged contacts and the mapped ones together, use Explicit surface: its \"From the geological map\" section adds the map contacts to the hole picks.": "تبني هذه الأداة من الخريطة وقياسات المكاشف فقط: لا تُستخدم الثقوب الـ{n}. لملاءمة التماسات المسجلة والمرسومة معاً استخدم Explicit surface: يضيف قسم \"From the geological map\" فيه تماسات الخريطة إلى نقاط الثقوب.",
+  "No terrain yet: make one in Maps > Terrain (fetch one, import a DEM, or offline from points, or from the project's samples and collars). Map layers and measurements then sit on the ground.": "لا توجد تضاريس بعد: أنشئها في Maps > Terrain (اجلبها، أو استورد نموذج ارتفاع رقمي، أو دون اتصال من نقاط أو من عينات المشروع وفوهاته). عندها تستقر طبقات الخريطة والقياسات على الأرض.",
+  "Add a measurement": "إضافة قياس",
+  "Template CSV": "قالب CSV",
+  "A CSV with the column headers this importer reads, to fill in a spreadsheet": "ملف CSV بعناوين الأعمدة التي يقرأها هذا المستورد، لتعبئته في جدول بيانات",
+  "Type at least the easting, northing, dip and dip direction.": "اكتب على الأقل الإحداثي الشرقي والشمالي والميل واتجاه الميل.",
+  "Check and add": "تحقق وأضف"
 }

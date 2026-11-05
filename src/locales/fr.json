@@ -8216,5 +8216,11 @@
   "{g} (ribbon {n} of {t}, from the left)": "{g} (ruban {n} sur {t}, depuis la gauche)",
   "+ {n} longer description(s) not listed (over {c} characters)": "+ {n} description(s) plus longue(s) non listée(s) (plus de {c} caractères)",
   "Ribbons on each hole, left to right: {list}": "Rubans de chaque sondage, de gauche à droite : {list}",
-  "This tool builds from the map and the outcrop measurements only: the {n} drillhole(s) are not used. To fit the logged contacts and the mapped ones together, use Explicit surface: its \"From the geological map\" section adds the map contacts to the hole picks.": "Cet outil construit uniquement à partir de la carte et des mesures d'affleurement : les {n} sondage(s) ne sont pas utilisés. Pour ajuster ensemble les contacts décrits et ceux de la carte, utilisez Explicit surface : sa section « From the geological map » ajoute les contacts de la carte aux pointés des sondages."
+  "This tool builds from the map and the outcrop measurements only: the {n} drillhole(s) are not used. To fit the logged contacts and the mapped ones together, use Explicit surface: its \"From the geological map\" section adds the map contacts to the hole picks.": "Cet outil construit uniquement à partir de la carte et des mesures d'affleurement : les {n} sondage(s) ne sont pas utilisés. Pour ajuster ensemble les contacts décrits et ceux de la carte, utilisez Explicit surface : sa section « From the geological map » ajoute les contacts de la carte aux pointés des sondages.",
+  "No terrain yet: make one in Maps > Terrain (fetch one, import a DEM, or offline from points, or from the project's samples and collars). Map layers and measurements then sit on the ground.": "Pas encore de terrain : créez-en un dans Maps > Terrain (téléchargez-le, importez un MNT ou, hors ligne, à partir de points ou des échantillons et collets du projet). Les couches et les mesures reposent alors sur le sol.",
+  "Add a measurement": "Ajouter une mesure",
+  "Template CSV": "Modèle CSV",
+  "A CSV with the column headers this importer reads, to fill in a spreadsheet": "Un CSV avec les en-têtes de colonnes que lit cet importateur, à remplir dans un tableur",
+  "Type at least the easting, northing, dip and dip direction.": "Saisissez au moins l'abscisse, l'ordonnée, le pendage et la direction de pendage.",
+  "Check and add": "Vérifier et ajouter"
 }
