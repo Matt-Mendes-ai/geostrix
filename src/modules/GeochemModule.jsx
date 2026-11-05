@@ -69,6 +69,7 @@ import { stampLines, withStamp } from "../lib/provenance.js"; // TASKS.csv #1212
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1212
 import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
 import SampleGridPanel from "../components/SampleGridPanel.jsx"; // TASKS.csv #1622
+import { methodColumnFor, methodsIn, partialDigestionFor } from "../lib/digestion.js"; // TASKS.csv #1518
 
 export default function GeochemModule() {
   const store = useStore();
@@ -380,7 +381,9 @@ export default function GeochemModule() {
   const commitAssayImport = async (modal) => {
     if (modal.busy) return; // #583 — one import at a time (the row build below yields to the UI)
     const { format, allRows, mapping, selectedMethod, elements } = modal;
-    const chosen = elements.filter((e) => e.checked);
+    // TASKS.csv #1518 — each element's method code(s) (a wide file's '<el>_analysis_code' column, a long file's chosen method), kept
+    // on its element so the immobile-element tools can say when a partial digestion measured them
+    const chosen = elements.filter((e) => e.checked).map((e) => { const ms = format === "wide" ? methodsIn(allRows, methodColumnFor(modal.headers || Object.keys(allRows[0] || {}), e.symbol)) : selectedMethod ? [String(selectedMethod)] : []; return ms.length ? { ...e, methods: ms } : e; });
     if (!mapping.hole_id || !mapping.from || !mapping.to) { setNotices((p) => [...p, errorNotice(tr("Map hole ID, from, and to columns."))]); return; }
     // TASKS.csv #1963 — a table pulled from a database: its record (profile, schema, table, these element and option choices)
     if (modal.file?.dbSource?.profile && store.setDbImports) { const rec = dbImportRecord(modal, modal.file.dbSource, "assays"); if (rec) store.setDbImports((prev) => upsertDbImport(prev, rec)); }
@@ -535,7 +538,7 @@ export default function GeochemModule() {
     const { merged: mergedCount, repeatedInFile } = mergeRes;
     setAssays((prev) => (prev === assays ? mergeRes.rows : mergeAssayRows(replaceHoles.length ? dropHoleAssays(prev, replaceHoles) : prev, rows).rows));
     // Existing elements keep their unit (#334); only new symbols add an entry.
-    setAssayElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: "%" } : e); }); return Array.from(merged.values()); }); // #403: oxide-sourced elements are stored in %
+    setAssayElements((prev) => { const merged = new Map(prev.map((e) => [e.symbol, e])); chosen.forEach((e) => { if (merged.has(e.symbol) && e.methods) { const m = merged.get(e.symbol); merged.set(e.symbol, { ...m, methods: [...new Set([...(m.methods || []), ...e.methods])] }); } /* #1518 */ if (!merged.has(e.symbol)) merged.set(e.symbol, oxideOfHeader(e.header) ? { ...e, unit: "%" } : e); }); return Array.from(merged.values()); }); // #403: oxide-sourced elements are stored in %
     if (!colorElement && chosen.length) setColorElement((chosen.find((e) => e.symbol === "Au") || chosen[0]).symbol);
     const more = (list, k) => list.slice(0, k).map((h) => h.hole_id).join(", ") + (list.length > k ? ", …" : "");
     const extra = [
@@ -793,6 +796,7 @@ export default function GeochemModule() {
     const sedText = sedN ? tr(" {n} sample(s) in logged sedimentary or carbonate codes ({codes}) were not classified: this classifier is for volcanic rocks.", { n: sedN, codes: Object.entries(sedSkipped).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k} ${n}`).join(", ") }) : "";
     const jensenText = methodKey === "litho_jensen" ? tr(" The classes are a simplified threshold split of the cation ternary, not the published Jensen fields.") : "";
     setNotices((p) => [...p, notice("Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} Switch to 3D View to see it.", { rows: runs.length, n: rows.length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)"), detail: detail + sedText + jensenText })]);
+    { const pd = partialDigestionFor(assayElements, method.requires); if (pd.length) setNotices((p) => [...p, notice("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pd.map(([s, m]) => `${s} ${m}`).join(", ") })]); } // #1518
   };
 
   // ---------- exports ----------
@@ -811,7 +815,8 @@ export default function GeochemModule() {
       : colorMode === "element" && colorRange ? elementKey().map(({ v, color }) => ({ label: `${+v.toPrecision(3)} ppm`, color, shape: "dot" }))
       : [];
     const keyTitle = colorMode === "hole" ? "Hole" : colorMode === "lithology" ? "Lithology" : colorMode === "element" ? `${colorEl} (${colorRange?.log ? "log" : "linear"} scale)` : "";
-    return geochemFurniture({ title: diagram.label, caption: diagram.caption, plotted: n, total: assays.length, spider: !!diagram.spider, hidden: lithFilter ? assays.length - plotted.length : null, keyTitle, keyItems, date: new Date().toISOString().slice(0, 10) }); // #1017 — in lib, tested
+    const pdx = partialDigestionFor(assayElements, diagram.requires); // #1518 — the warning travels with the exported figure
+    return geochemFurniture({ title: diagram.label, caption: pdx.length ? `${diagram.caption} ${tr("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pdx.map(([s, m]) => `${s} ${m}`).join(", ") })}` : diagram.caption, plotted: n, total: assays.length, spider: !!diagram.spider, hidden: lithFilter ? assays.length - plotted.length : null, keyTitle, keyItems, date: new Date().toISOString().slice(0, 10) }); // #1017 — in lib, tested
   };
   const exportPlotSVG = () => {
     const svg = svgRef.current;
@@ -1053,6 +1058,7 @@ export default function GeochemModule() {
         </div>
 
         <div style={{ fontSize: 11, color: "#65717e", marginBottom: 10 }}>{tr(diagram.caption)}</div>
+        {(() => { const pd = partialDigestionFor(assayElements, diagram.requires); return pd.length ? <div style={{ fontSize: 11, color: "var(--color-warn-text)", marginBottom: 10, lineHeight: 1.4 }}>{tr("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pd.map(([s, m]) => `${s} ${m}`).join(", ") })}</div> : null; })()}{/* #1518 */}
 
         {assays.length > 0 && missingForDiagram.length > 0 && (
           <div style={{ padding: "10px 12px", background: "#241f14", border: "1px solid #4a3d1e", borderRadius: 8, fontSize: 12, color: "#d8c080", marginBottom: 12 }}>{tr("This diagram needs {requires} — missing {missingForDiagram}. Points that can't be projected are dropped.", { requires: diagram.requires.join(", "), missingForDiagram: missingForDiagram.join(", ") })}</div>

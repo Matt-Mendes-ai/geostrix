@@ -8265,5 +8265,6 @@
   " · k {k}, no preferred orientation": " · k {k}، بلا اتجاه مفضل",
   " · k {k}": " · k {k}",
   "Use {limit}: twice the {floor} floor that {pct} % of the results sit on (half the limit substituted before import)": "استخدام {limit}: ضعف الحد الأدنى {floor} الذي تقع عليه {pct} % من النتائج (نصف الحد مُستبدل قبل الاستيراد)",
-  "{pct} % of the {el} values sit on {floor} {unit}, probably half the detection limit {dl} substituted before import: counted as <DL.": "{pct} % من قيم {el} تقع عند {floor} {unit}، على الأرجح نصف حد الكشف {dl} مُستبدلاً قبل الاستيراد: تُحسب أقل من حد الكشف."
+  "{pct} % of the {el} values sit on {floor} {unit}, probably half the detection limit {dl} substituted before import: counted as <DL.": "{pct} % من قيم {el} تقع عند {floor} {unit}، على الأرجح نصف حد الكشف {dl} مُستبدلاً قبل الاستيراد: تُحسب أقل من حد الكشف.",
+  "Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.": "هضم جزئي: {list}. لا يذيب الهضم بالأحماض الأربعة أو بالماء الملكي الزركون والمعادن المقاومة الأخرى كلياً، فتظهر قيم Zr وHf (وجزئياً Nb وTa وY والعناصر الأرضية النادرة) منخفضة وتنزاح الحقول. تحتاج مخططات ومصنفات العناصر غير المتحركة إلى هضم كلي (صهر / بورات الليثيوم)."
 }

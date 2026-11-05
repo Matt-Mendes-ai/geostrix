@@ -8265,5 +8265,6 @@
   " · k {k}, no preferred orientation": " · k {k}, sem orientação preferencial",
   " · k {k}": " · k {k}",
   "Use {limit}: twice the {floor} floor that {pct} % of the results sit on (half the limit substituted before import)": "Usar {limit}: o dobro do piso {floor} em que estão {pct} % dos resultados (metade do limite substituída antes da importação)",
-  "{pct} % of the {el} values sit on {floor} {unit}, probably half the detection limit {dl} substituted before import: counted as <DL.": "{pct} % dos valores de {el} estão em {floor} {unit}, provavelmente metade do limite de detecção {dl} substituída antes da importação: contados como <LD."
+  "{pct} % of the {el} values sit on {floor} {unit}, probably half the detection limit {dl} substituted before import: counted as <DL.": "{pct} % dos valores de {el} estão em {floor} {unit}, provavelmente metade do limite de detecção {dl} substituída antes da importação: contados como <LD.",
+  "Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.": "Digestão parcial: {list}. Uma digestão de quatro ácidos ou água-régia não dissolve totalmente o zircão e outros minerais resistentes, então Zr e Hf (e em parte Nb, Ta, Y e ETR) saem baixos e os campos se deslocam. Diagramas e classificadores de elementos imóveis exigem digestão total (fusão / borato de lítio)."
 }
