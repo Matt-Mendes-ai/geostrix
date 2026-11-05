@@ -150,12 +150,15 @@ export function normalizeMapLayer(layer, transform = (x, y) => [x, y]) {
   const r2 = (v) => Math.round(v * 100) / 100;
   let xmin = Infinity, ymin = Infinity, xmax = -Infinity, ymax = -Infinity;
   const features = [];
+  let withZ = 0; // TASKS.csv #1601 — vertices carrying their own elevation (GeoJSON [x, y, z], GPX <ele>)
   (layer.features || []).forEach((f) => {
     const srcParts = f.parts && f.parts.length ? f.parts : [f.geometry || []];
-    const parts = srcParts.map((part) => part.map(([x, y]) => {
+    const parts = srcParts.map((part, pi) => part.map(([x, y, z], vi) => {
       const [tx, ty] = transform(x, y);
       if (tx < xmin) xmin = tx; if (tx > xmax) xmax = tx;
       if (ty < ymin) ymin = ty; if (ty > ymax) ymax = ty;
+      const zz = Number.isFinite(z) ? z : pi === 0 && Number.isFinite(f.zs?.[vi]) ? f.zs[vi] : Number.isFinite(f.z) ? f.z : null; // GPX: f.z (waypoint), f.zs (track)
+      if (zz != null) { withZ++; return [r2(tx), r2(ty), r2(zz)]; }
       return [r2(tx), r2(ty)];
     })).filter((p) => p.length);
     if (!parts.length) return;
@@ -168,6 +171,7 @@ export function normalizeMapLayer(layer, transform = (x, y) => [x, y]) {
     features,
     fields,
     bbox: features.length ? [xmin, ymin, xmax, ymax] : null,
+    ...(withZ ? { hasZ: true } : {}), // #1601
   };
 }
 

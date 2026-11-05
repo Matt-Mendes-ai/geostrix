@@ -6,7 +6,7 @@
 // the same dependencies. No React here, so they run in Node with three (test/sceneBuilders693.test.mjs).
 import * as THREE from "three";
 import { sampleTerrainElevation } from "./geomath.js";
-import { drawMapLayer, mapStyleSignature, mapTextureSize, STRUCTURE_CLASS_COLORS } from "../mapLayers.js";
+import { drawMapLayer, mapStyleSignature, mapTextureSize, STRUCTURE_CLASS_COLORS, featureCategoryValue } from "../mapLayers.js"; // featureCategoryValue: #1601
 import { decodeNoDataMask, isNoData } from "../demFill.js"; // TASKS.csv #421
 import { buildAdaptiveTerrain } from "../terrainMesh.js"; // TASKS.csv #796
 
@@ -179,6 +179,30 @@ export function syncBoundaries(group, cache, boundaries, { origin, terrain }) {
 // material/mesh flags; a style change (colours, hidden units, outlines, colour-by field) re-rasterizes
 // into the existing texture's canvas; only a drape change (terrain replaced, flat<->terrain, origin
 // shift, flat elevation) rebuilds geometry.
+// TASKS.csv #1601 (review #1497, Lawyers) — a point or line layer whose vertices carry their own elevation, drawn at it (drapeMode "file"):
+// points as screen-sized dots, lines as segments, in the layer's category colours (the same rule as the 2D drawing); a vertex without
+// one sits at the layer's Elev. One draw call per layer.
+export function mapLayerAtOwnZ(l, origin) {
+  const { x: ox, y: oy, z: oz } = origin;
+  const catByValue = new Map((l.categories || []).map((c) => [c.value, c]));
+  const fallback = { color: l.color || "#e2a63c", visible: true };
+  const pos = [], col = [], c3 = new THREE.Color();
+  const put = ([x, y, z], color) => { pos.push(x - ox, (Number.isFinite(z) ? z : l.elevation || 0) - oz, -(y - oy)); c3.set(color); col.push(c3.r, c3.g, c3.b); };
+  for (const f of l.features || []) {
+    const cat = l.styleField ? (catByValue.get(featureCategoryValue(f, l.styleField)) || fallback) : fallback;
+    if (cat.visible === false) continue;
+    for (const part of f.parts || []) {
+      if (l.geomType === "point") part.forEach((v) => put(v, cat.color));
+      else for (let i = 1; i < part.length; i++) { put(part[i - 1], cat.color); put(part[i], cat.color); }
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+  geometry.computeBoundingSphere();
+  if (l.geomType === "point") return new THREE.Points(geometry, new THREE.PointsMaterial({ size: 7, sizeAttenuation: false, vertexColors: true, transparent: true, opacity: Math.max(0.5, l.opacity ?? 0.6) }));
+  return new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: Math.max(0.5, l.opacity ?? 0.6) }));
+}
 export function syncMapLayers(group, cache, mapLayers, { origin, terrain, renderer }) {
   const disposeMesh = (mesh) => { group.remove(mesh); mesh.geometry?.dispose?.(); mesh.material?.map?.dispose?.(); mesh.material?.dispose?.(); };
   const wanted = new Set(mapLayers.map((l) => l.id));
@@ -187,6 +211,15 @@ export function syncMapLayers(group, cache, mapLayers, { origin, terrain, render
   const maxTex = Math.min(4096, renderer?.capabilities?.maxTextureSize || 4096);
   mapLayers.forEach((l, li) => {
     if (!l.bbox || !l.features?.length) return;
+    if (l.drapeMode === "file" && l.hasZ && l.geomType !== "polygon") { // #1601
+      const key = `file|${ox},${oy},${oz}|${mapStyleSignature(l)}|${l.elevation || 0}`;
+      let obj = cache[l.id];
+      if (obj && obj.userData.geoKey !== key) { disposeMesh(obj); obj = null; delete cache[l.id]; }
+      if (!obj) { obj = mapLayerAtOwnZ(l, origin); obj.userData = { geoKey: key, styleKey: key }; obj.renderOrder = 2 + li; group.add(obj); cache[l.id] = obj; }
+      obj.material.opacity = Math.max(0.5, l.opacity ?? 0.6);
+      obj.visible = l.visible !== false;
+      return;
+    }
     // Later layers sit 0.2 m above earlier ones so two overlapping maps never z-fight with each other.
     const lift = 0.3 + li * 0.2;
     // Pad a little so outlines on the layer's outer edge aren't clipped in half.

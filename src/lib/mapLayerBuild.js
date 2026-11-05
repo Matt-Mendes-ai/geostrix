@@ -77,7 +77,7 @@ export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverrid
     sourceName, geomType: norm.geomType, features: norm.features, fields: norm.fields, bbox: norm.bbox,
     styleField, categories,
     opacity: qml ? Math.max(0.15, qml.opacity) : (norm.geomType === "polygon" ? 0.6 : 1),
-    sourceEpsg: src, crsNote, skipped: parsed.skippedCount || 0, ...(clipped ? { clipped } : {}),
+    sourceEpsg: src, crsNote, skipped: parsed.skippedCount || 0, ...(clipped ? { clipped } : {}), ...(norm.hasZ ? { hasZ: true } : {}), // hasZ: #1601
   };
 }
 

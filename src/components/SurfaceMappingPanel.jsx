@@ -117,7 +117,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       colourAt++;
       if (!qml && isCoveringPolygon(layer.name, layer.geomType)) layer = { ...layer, opacity: 0.08, showOutlines: true }; // #1325
       layersAdded++;
-      addMapLayer({ ...layer, drapeMode: terrain ? "terrain" : "flat" });
+      addMapLayer({ ...layer, drapeMode: terrain ? "terrain" : layer.hasZ && layer.geomType !== "polygon" ? "file" : "flat" }); // file: #1601 — points and lines at their own elevations
       // TASKS.csv #1116 — whole phrases (the geometry name used to take an English "s")
       // #1716 — read in place: one line, counted against the whole table, not against the rows the R-tree returned
       if (parsed.inPlace) done.push(tr("{name}: {kept} of its {total} features lie near the project, read from the file in place; the rest, far from the holes and samples, were left out.", { name: layer.name, kept: layer.features.length.toLocaleString(), total: parsed.inPlace.total.toLocaleString() }));
@@ -438,7 +438,13 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
                 onChange={(e) => updateMapLayer(l.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
               <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (import or fetch a DEM first, or offline: Geophysics > Block models > Terrain from the model's top)") /* #1824 */ : "" })}</span>
             </label>
-            {!(l.drapeMode === "terrain" && terrain) && (
+            {l.hasZ && l.geomType !== "polygon" && !(l.drapeMode === "terrain" && terrain) && ( /* TASKS.csv #1601 */
+              <label style={{ ...row, cursor: "pointer" }}>
+                <input type="checkbox" checked={l.drapeMode === "file"} onChange={(e) => updateMapLayer(l.id, { drapeMode: e.target.checked ? "file" : "flat" })} />
+                <span style={{ color: "var(--color-text-caption)" }}>{tr("At the file's own elevations")}</span>
+              </label>
+            )}
+            {!(l.drapeMode === "terrain" && terrain) && l.drapeMode !== "file" && (
               <div style={row}>
                 <span style={lbl}>{tr("Elev.")}</span>
                 <input type="number" value={Math.round(l.elevation || 0)} onChange={(e) => updateMapLayer(l.id, { elevation: Number(e.target.value) })} style={numInput} />

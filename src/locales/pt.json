@@ -8172,5 +8172,6 @@
   "Colours run from the minimum to the maximum ({a} – {b}).": "As cores vão do mínimo ao máximo ({a} – {b}).",
   "Colours run from the 2nd to the 98th percentile ({a} – {b}); values beyond take the end colours (the full range is {min} – {max}).": "As cores vão do percentil 2 ao 98 ({a} – {b}); valores além disso recebem as cores das pontas (a faixa completa é {min} – {max}).",
   "Use the 2nd–98th percentile": "Usar o percentil 2–98",
-  "Use minimum–maximum": "Usar mínimo–máximo"
+  "Use minimum–maximum": "Usar mínimo–máximo",
+  "At the file's own elevations": "Nas elevações do próprio arquivo"
 }

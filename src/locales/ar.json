@@ -8172,5 +8172,6 @@
   "Colours run from the minimum to the maximum ({a} – {b}).": "تمتد الألوان من الحد الأدنى إلى الحد الأقصى ({a} – {b}).",
   "Colours run from the 2nd to the 98th percentile ({a} – {b}); values beyond take the end colours (the full range is {min} – {max}).": "تمتد الألوان من المئين الثاني إلى المئين الثامن والتسعين ({a} – {b})؛ وتأخذ القيم خارجه ألوان الطرفين (المدى الكامل {min} – {max}).",
   "Use the 2nd–98th percentile": "استخدام المئين 2–98",
-  "Use minimum–maximum": "استخدام الأدنى–الأقصى"
+  "Use minimum–maximum": "استخدام الأدنى–الأقصى",
+  "At the file's own elevations": "على ارتفاعات الملف نفسه"
 }

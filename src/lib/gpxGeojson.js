@@ -91,12 +91,14 @@ export function parseGeoJSON(text) {
     const t = g.type, c = g.coordinates;
     if (t === "GeometryCollection") { (g.geometries || []).forEach((x) => add(x, attributes)); return; }
     let kind, parts;
-    if (t === "Point" && num(c)) { kind = "point"; parts = [[[c[0], c[1]]]]; }
-    else if (t === "MultiPoint" && Array.isArray(c)) { c.filter(num).forEach((p) => by.point.push({ parts: [[[p[0], p[1]]]], attributes })); return; }
-    else if (t === "LineString" && Array.isArray(c)) { kind = "polyline"; parts = [c.filter(num).map((p) => [p[0], p[1]])]; }
-    else if (t === "MultiLineString" && Array.isArray(c)) { kind = "polyline"; parts = c.map((l) => (l || []).filter(num).map((p) => [p[0], p[1]])); }
-    else if (t === "Polygon" && Array.isArray(c)) { kind = "polygon"; parts = c.map((r) => (r || []).filter(num).map((p) => [p[0], p[1]])); }
-    else if (t === "MultiPolygon" && Array.isArray(c)) { kind = "polygon"; parts = c.flatMap((poly) => (poly || []).map((r) => (r || []).filter(num).map((p) => [p[0], p[1]]))); }
+    // TASKS.csv #1601 (review #1497, Lawyers) — a third coordinate (elevation) is kept: 1,278 rock stations with lidar Z were drawn on one plane
+    const v = (p) => (Number.isFinite(p[2]) ? [p[0], p[1], p[2]] : [p[0], p[1]]);
+    if (t === "Point" && num(c)) { kind = "point"; parts = [[v(c)]]; }
+    else if (t === "MultiPoint" && Array.isArray(c)) { c.filter(num).forEach((p) => by.point.push({ parts: [[v(p)]], attributes })); return; }
+    else if (t === "LineString" && Array.isArray(c)) { kind = "polyline"; parts = [c.filter(num).map(v)]; }
+    else if (t === "MultiLineString" && Array.isArray(c)) { kind = "polyline"; parts = c.map((l) => (l || []).filter(num).map(v)); }
+    else if (t === "Polygon" && Array.isArray(c)) { kind = "polygon"; parts = c.map((r) => (r || []).filter(num).map(v)); }
+    else if (t === "MultiPolygon" && Array.isArray(c)) { kind = "polygon"; parts = c.flatMap((poly) => (poly || []).map((r) => (r || []).filter(num).map(v))); }
     else { skipped++; return; }
     parts = parts.filter((p) => p.length >= (kind === "point" ? 1 : 2));
     if (!parts.length) { skipped++; return; }
