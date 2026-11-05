@@ -17,10 +17,33 @@ export function pointInPolygon(x, y, pts) {
   return inside;
 }
 
-// A boundary can have multiple parts (a non-contiguous claim, or a real multi-polygon .ply/.dxf
-// export) — a point counts as "inside the boundary" if it's inside ANY one part, matching how
-// boundaryAreaHectares above treats multi-part boundaries as one combined shape rather than requiring
-// the caller to pick a single part.
+// A boundary can have multiple parts (a non-contiguous claim, or a real multi-polygon .ply/.dxf export). TASKS.csv #1976 — a part
+// lying inside another part is a hole (and a part inside a hole an island), as boundaryAreaHectares counts them since #1970: a
+// point is inside when the most deeply nested part holding it sits at an even depth. Parts that overlap without nesting both
+// stay depth 0, so their overlap is inside. Each part's depth and bounding box are worked out once per shape and kept.
+const ringCache = new WeakMap();
+function ringsOf(polylines) {
+  let rings = ringCache.get(polylines);
+  if (rings) return rings;
+  rings = [];
+  for (const pts of polylines) {
+    if (!pts || pts.length < 3) continue;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, a = 0;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const p = pts[i];
+      if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y;
+      a += (pts[j].x - p.x) * (pts[j].y + p.y);
+    }
+    rings.push({ pts, x0, y0, x1, y1, area: Math.abs(a / 2), depth: 0 });
+  }
+  const box = (r, x, y) => x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1;
+  rings.forEach((r) => { const { x, y } = r.pts[0]; r.depth = rings.filter((o) => o !== r && o.area > r.area && box(o, x, y) && pointInPolygon(x, y, o.pts)).length; });
+  ringCache.set(polylines, rings);
+  return rings;
+}
 export function pointInBoundary(x, y, polylines) {
-  return (polylines || []).some((pts) => pts.length >= 3 && pointInPolygon(x, y, pts));
+  if (!polylines?.length) return false;
+  let deepest = -1;
+  for (const r of ringsOf(polylines)) if (r.depth > deepest && x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1 && pointInPolygon(x, y, r.pts)) deepest = r.depth;
+  return deepest >= 0 && deepest % 2 === 0;
 }
