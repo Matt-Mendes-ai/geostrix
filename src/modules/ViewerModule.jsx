@@ -7244,6 +7244,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // wake the render loop from deep idle. Deliberately no dependency array.
   useEffect(() => { lastActivityRef.current = Date.now(); });
 
+  const anomalyControls = <Suspense fallback={null}><SurfaceAnomalyControls cfg={layerStyles.surface_anomaly} setCfg={(cfg) => setLayerStyles((p) => ({ ...p, surface_anomaly: cfg }))} surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} mapLayers={mapLayers} thresholds={geochemThresholds} result={surfaceAnomaly} drawn={surfaceSamples} /* #1819 — the class CSV holds every sample */ /></Suspense>; // #1603 — also on the Surface Geology tab
   return (
     <div style={{ display: visible ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, width: "100%" }}>
       {mode === "view" && (
@@ -7719,7 +7720,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 {tr("{n} surface sample(s) have no elevation and lie over a void of the terrain (no data there): not placed.", { n: surfaceSamplesUnplaced }) /* #1818 / #1806 — with no terrain, or outside it, they are drawn flat (above) */}
               </div>
             )}
-            <Suspense fallback={null}><SurfaceAnomalyControls cfg={layerStyles.surface_anomaly} setCfg={(cfg) => setLayerStyles((p) => ({ ...p, surface_anomaly: cfg }))} surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} mapLayers={mapLayers} thresholds={geochemThresholds} result={surfaceAnomaly} drawn={surfaceSamples} /* #1819 — the class CSV holds every sample */ /></Suspense>{/* TASKS.csv #843 / #854 */}
+            {anomalyControls}{/* TASKS.csv #843 / #854 */}
             {!surfaceAnomaly && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: "2px 2px 8px" }}>
               {Array.from(new Set(surfaceSamples.map((s) => s.medium))).map((m) => (
                 <div key={m} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
@@ -8513,6 +8514,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{tr("kept a readable size at any zoom")}</span>
               </div>
             )}
+            {surfaceSamples.length > 0 && anomalyControls}{/* #1603 */}
           </div>
         )}
         {toolPane === "sgMaps" && paneHeader("Geology map", MapIcon, "data")}
