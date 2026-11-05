@@ -662,7 +662,7 @@ export default function LayoutModule() {
     });
   };
   const loadTemplate = (tpl) => {
-    if (elements.length && !window.confirm(tr("Replace the current page with \"{name}\"? This can't be undone.", { name: tr(tpl.name) }))) return;
+    if (elements.length && !window.confirm(tr("Replace the current page with \"{name}\"? (Ctrl+Z undoes this.)", { name: tr(tpl.name) }))) return; // #1487 — layoutPages are in the undo history
     if (tpl.format) setLayoutPageFormat(activeLayoutPageId, tpl.format); // #1868 — a template keeps its paper size and orientation
     if (tpl.stock) { setElements(stockTemplateElements(tpl)); setSelected(null); setTemplatesOpen(false); return; } // #1868 — a starter template
     const idMap = new Map(tpl.elements.map((el) => [el.id, `${el.type}_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`]));
@@ -1341,7 +1341,7 @@ export default function LayoutModule() {
                   aria-label={tr("Delete page \"{name}\"", { name: p.name })} title={tr("Delete page \"{name}\"", { name: p.name })} /* TASKS.csv #238 — was keyboard-reachable but nameless */
                   size={12}
                   style={{ flexShrink: 0, color: "var(--color-text-muted)" }}
-                  onClick={(e) => { e.stopPropagation(); if (window.confirm(tr("Delete page \"{name}\"? This can't be undone.", { name: p.name }))) deleteLayoutPage(p.id); }}
+                  onClick={(e) => { e.stopPropagation(); if (window.confirm(tr("Delete page \"{name}\"? (Ctrl+Z undoes this.)", { name: p.name }))) deleteLayoutPage(p.id); }}
                 />
               </div>
             );

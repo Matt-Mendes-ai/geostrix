@@ -3925,7 +3925,6 @@
   "Loaded data ({inventory})": "Dados carregados ({inventory})",
   "Sections ({sections}) — move with the project": "Seções ({sections}) — se movem com o projeto",
   "Nothing loaded yet. Set the project CRS first: every import is then reprojected into it.": "Ainda não há nada carregado. Defina antes o SRC do projeto: depois toda importação é reprojetada para ele.",
-  "Replace the current page with \"{name}\"? This can't be undone.": "Substituir a página atual por \"{name}\"? Isto não pode ser desfeito.",
   "No scale data available yet for this element — for a viewport, click \"Refresh from theme\" first; for a cross-section, re-snapshot it from the section pop-out.": "Ainda não há dados de escala para este elemento — para uma janela de visualização, clique antes em \"Atualizar pelo tema\"; para uma seção, capture-a de novo pela janela da seção.",
   "Pick a bound viewport or cross-section above first.": "Escolha antes acima uma janela de visualização ou seção vinculada.",
   "That viewport/section no longer exists on this page — pick a different one.": "Essa janela de visualização/seção não existe mais nesta página — escolha outra.",
@@ -3981,7 +3980,6 @@
   "Use": "Usar",
   "on this tab's ribbon,": "na faixa de opções desta aba,",
   "Delete page \"{name}\"": "Excluir página \"{name}\"",
-  "Delete page \"{name}\"? This can't be undone.": "Excluir a página \"{name}\"? Isto não pode ser desfeito.",
   "Add page": "Adicionar página",
   "Paper size": "Tamanho do papel",
   "Paper size of this page (also used for its PDF export)": "Tamanho do papel desta página (também usado na exportação PDF)",
@@ -8119,5 +8117,7 @@
   "Add a title block: a ruled box of labelled fields (title, company, project, claims, map sheet, figure, author, date, scale, datum, page), the project, date, scale and datum filled in": "Adicionar um carimbo: uma caixa de campos rotulados (título, empresa, projeto, direitos minerários, folha, figura, autor, data, escala, datum, página), com o projeto, a data, a escala e o datum já preenchidos",
   "Starter templates, the ones saved in this project, and Import (list in the sidebar)": "Modelos iniciais, os salvos neste projeto e Importar (lista na barra lateral)",
   "Imported the template \"{name}\" ({n} element(s)).": "Modelo \"{name}\" importado ({n} elemento(s)).",
-  "Imported the template \"{name}\" ({n} element(s)); {d} element(s) it could not use were left out.": "Modelo \"{name}\" importado ({n} elemento(s)); {d} elemento(s) que não puderam ser usados ficaram de fora."
+  "Imported the template \"{name}\" ({n} element(s)); {d} element(s) it could not use were left out.": "Modelo \"{name}\" importado ({n} elemento(s)); {d} elemento(s) que não puderam ser usados ficaram de fora.",
+  "Replace the current page with \"{name}\"? (Ctrl+Z undoes this.)": "Substituir a página atual por \"{name}\"? (Ctrl+Z desfaz isto.)",
+  "Delete page \"{name}\"? (Ctrl+Z undoes this.)": "Excluir a página \"{name}\"? (Ctrl+Z desfaz isto.)"
 }

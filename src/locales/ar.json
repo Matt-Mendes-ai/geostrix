@@ -3925,7 +3925,6 @@
   "Loaded data ({inventory})": "البيانات المحمّلة ({inventory})",
   "Sections ({sections}) — move with the project": "المقاطع ({sections}) — تتحرك مع المشروع",
   "Nothing loaded yet. Set the project CRS first: every import is then reprojected into it.": "لا شيء محمّل بعد. اضبط نظام إحداثيات المشروع أولًا: سيُعاد إسقاط كل استيراد إليه.",
-  "Replace the current page with \"{name}\"? This can't be undone.": "استبدال الصفحة الحالية بـ«{name}»؟ لا يمكن التراجع عن هذا.",
   "No scale data available yet for this element — for a viewport, click \"Refresh from theme\" first; for a cross-section, re-snapshot it from the section pop-out.": "لا بيانات مقياس متاحة لهذا العنصر بعد — لنافذة عرض انقر «تحديث من السمة» أولًا؛ ولمقطع عرضي أعد أخذ اللقطة من نافذة المقطع المنبثقة.",
   "Pick a bound viewport or cross-section above first.": "اختر نافذة عرض مرتبطة أو مقطعًا أعلاه أولًا.",
   "That viewport/section no longer exists on this page — pick a different one.": "لم تعد نافذة العرض/المقطع موجودة في هذه الصفحة — اختر أخرى.",
@@ -3981,7 +3980,6 @@
   "Use": "استخدام",
   "on this tab's ribbon,": "في شريط هذا التبويب،",
   "Delete page \"{name}\"": "حذف الصفحة «{name}»",
-  "Delete page \"{name}\"? This can't be undone.": "حذف الصفحة «{name}»؟ لا يمكن التراجع عن هذا.",
   "Add page": "إضافة صفحة",
   "Paper size": "حجم الورق",
   "Paper size of this page (also used for its PDF export)": "حجم ورق هذه الصفحة (يُستخدم أيضًا لتصدير PDF)",
@@ -8119,5 +8117,7 @@
   "Add a title block: a ruled box of labelled fields (title, company, project, claims, map sheet, figure, author, date, scale, datum, page), the project, date, scale and datum filled in": "إضافة جدول عنوان: مربع حقول معنونة (العنوان، الشركة، المشروع، الامتيازات، اللوحة، الشكل، المُعِدّ، التاريخ، المقياس، المرجع الجيوديسي، الصفحة) مع ملء المشروع والتاريخ والمقياس والمرجع",
   "Starter templates, the ones saved in this project, and Import (list in the sidebar)": "قوالب البداية والمحفوظة في هذا المشروع والاستيراد (القائمة في الشريط الجانبي)",
   "Imported the template \"{name}\" ({n} element(s)).": "استُورد القالب \"{name}\" ({n} عنصر).",
-  "Imported the template \"{name}\" ({n} element(s)); {d} element(s) it could not use were left out.": "استُورد القالب \"{name}\" ({n} عنصر)؛ وتُرك {d} عنصر تعذّر استخدامه."
+  "Imported the template \"{name}\" ({n} element(s)); {d} element(s) it could not use were left out.": "استُورد القالب \"{name}\" ({n} عنصر)؛ وتُرك {d} عنصر تعذّر استخدامه.",
+  "Replace the current page with \"{name}\"? (Ctrl+Z undoes this.)": "استبدال الصفحة الحالية بـ \"{name}\"؟ (يتراجع Ctrl+Z عن ذلك.)",
+  "Delete page \"{name}\"? (Ctrl+Z undoes this.)": "حذف الصفحة \"{name}\"؟ (يتراجع Ctrl+Z عن ذلك.)"
 }

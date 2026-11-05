@@ -3925,7 +3925,6 @@
   "Loaded data ({inventory})": "Données chargées ({inventory})",
   "Sections ({sections}) — move with the project": "Coupes ({sections}) — se déplacent avec le projet",
   "Nothing loaded yet. Set the project CRS first: every import is then reprojected into it.": "Rien de chargé pour l'instant. Définissez d'abord le SCR du projet : chaque import y sera alors reprojeté.",
-  "Replace the current page with \"{name}\"? This can't be undone.": "Remplacer la page actuelle par « {name} » ? Cela ne peut pas être annulé.",
   "No scale data available yet for this element — for a viewport, click \"Refresh from theme\" first; for a cross-section, re-snapshot it from the section pop-out.": "Aucune donnée d'échelle disponible pour cet élément — pour une fenêtre, cliquez d'abord sur « Actualiser depuis le thème » ; pour une coupe, refaites l'instantané depuis la fenêtre de la coupe.",
   "Pick a bound viewport or cross-section above first.": "Choisissez d'abord une fenêtre liée ou une coupe ci-dessus.",
   "That viewport/section no longer exists on this page — pick a different one.": "Cette fenêtre/coupe n'existe plus sur cette page — choisissez-en une autre.",
@@ -3981,7 +3980,6 @@
   "Use": "Utiliser",
   "on this tab's ribbon,": "dans le ruban de cet onglet,",
   "Delete page \"{name}\"": "Supprimer la page « {name} »",
-  "Delete page \"{name}\"? This can't be undone.": "Supprimer la page « {name} » ? Cela ne peut pas être annulé.",
   "Add page": "Ajouter une page",
   "Paper size": "Format du papier",
   "Paper size of this page (also used for its PDF export)": "Format du papier de cette page (utilisé aussi pour son export PDF)",
@@ -8119,5 +8117,7 @@
   "Add a title block: a ruled box of labelled fields (title, company, project, claims, map sheet, figure, author, date, scale, datum, page), the project, date, scale and datum filled in": "Ajouter un cartouche : une boîte de champs libellés (titre, société, projet, claims, feuillet, figure, auteur, date, échelle, datum, page), avec le projet, la date, l’échelle et le datum déjà remplis",
   "Starter templates, the ones saved in this project, and Import (list in the sidebar)": "Modèles de départ, ceux enregistrés dans ce projet et Importer (liste dans la barre latérale)",
   "Imported the template \"{name}\" ({n} element(s)).": "Modèle « {name} » importé ({n} élément(s)).",
-  "Imported the template \"{name}\" ({n} element(s)); {d} element(s) it could not use were left out.": "Modèle « {name} » importé ({n} élément(s)) ; {d} élément(s) inutilisable(s) ont été laissés de côté."
+  "Imported the template \"{name}\" ({n} element(s)); {d} element(s) it could not use were left out.": "Modèle « {name} » importé ({n} élément(s)) ; {d} élément(s) inutilisable(s) ont été laissés de côté.",
+  "Replace the current page with \"{name}\"? (Ctrl+Z undoes this.)": "Remplacer la page actuelle par « {name} » ? (Ctrl+Z annule cette action.)",
+  "Delete page \"{name}\"? (Ctrl+Z undoes this.)": "Supprimer la page « {name} » ? (Ctrl+Z annule cette action.)"
 }
