@@ -8084,5 +8084,6 @@
   "Couldn't load this image: PNG, JPG or TIFF only.": "Não foi possível carregar esta imagem: só PNG, JPG ou TIFF.",
   "Load a scanned map or claim sketch (PNG / JPG / TIFF), click points on it, and type the matching real-world coordinates for each.": "Carregue um mapa escaneado ou um croqui de concessão (PNG / JPG / TIFF), clique em pontos nele e digite as coordenadas reais correspondentes a cada um.",
   "Load image (PNG / JPG / TIFF)…": "Carregar imagem (PNG / JPG / TIFF)…",
-  "\"{label}\": {p}% of its volume lies farther than {d} m from any logged interval: that part is the {r} m search reaching between holes, not logged rock.": "\"{label}\": {p}% do seu volume fica a mais de {d} m de qualquer intervalo registado: essa parte é a busca de {r} m a estender-se entre furos, não rocha registada."
+  "\"{label}\": {p}% of its volume lies farther than {d} m from any logged interval: that part is the {r} m search reaching between holes, not logged rock.": "\"{label}\": {p}% do seu volume fica a mais de {d} m de qualquer intervalo registado: essa parte é a busca de {r} m a estender-se entre furos, não rocha registada.",
+  "\"{label}\" contains only {n} of the {m} sample points of {code} it was built from: the indicator reached {iso} away from the logged intervals, so this envelope is mostly not where {code} was logged.": "\"{label}\" contém apenas {n} dos {m} pontos de amostra de {code} com que foi construído: o indicador atingiu {iso} longe dos intervalos registados, por isso este envelope em grande parte não está onde {code} foi registado."
 }

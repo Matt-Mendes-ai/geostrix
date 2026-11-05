@@ -22,3 +22,10 @@ test("#1740 the halo run reports it", () => {
   assert.match(s, /farFromSamples\(altCap\.values, grid\.nx, grid\.ny, grid\.nz, grid\.origin, grid\.cellSize, iso, pts, Math\.max\(50, cell\)/);
   assert.match(s, /farFromLogs: \{ share: \+farLogs\.share\.toFixed\(3\), beyondM: farLogs\.dist \}/);
 });
+
+test("#1740 halos check that they contain their own samples, as unit bodies do", () => {
+  const s = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
+  assert.match(s, /const contain = samplesInsideShell\(gridPts, grid, altCap\.values, iso\);/);
+  assert.match(s, /const withheld = !!\(isCode && contain/);
+  assert.match(s, /if \(haloMisses\) setNotices/);
+});

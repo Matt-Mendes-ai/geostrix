@@ -1648,8 +1648,9 @@ export function createModellingRuns(ctx, mcRef) {
         // TASKS.csv #1683 — does the body contain the sample points of the code it was built from? (the nearest grid node of each
         // inside point against the indicator field the body is the iso-surface of). Fewer than half inside: it is not the unit,
         // and its volume is withheld.
-        const contain = isCode ? samplesInsideShell(gridPts, grid, altCap.values, iso) : null;
-        const withheld = !!(contain && contain.above > 0 && contain.inside < contain.above / 2);
+        const contain = samplesInsideShell(gridPts, grid, altCap.values, iso); // #1740 — halos too (unit bodies since #1683)
+        const withheld = !!(isCode && contain && contain.above > 0 && contain.inside < contain.above / 2);
+        const haloMisses = !isCode && contain && contain.above > 0 && contain.inside < contain.above / 2;
         // #1339 — said on every run: separate bodies from one unit are a finding, and a dropped body is data left out
         const { meshBodies, keepLargestBody } = await import("../../lib/meshBodies.js"); // on demand: the startup budget
         const bodies = isCode ? meshBodies(mc.faces) : { count: 1 };
@@ -1702,7 +1703,8 @@ export function createModellingRuns(ctx, mcRef) {
           const farText = tr("\"{label}\": {p}% of its volume lies farther than {d} m from any logged interval: that part is the {r} m search reaching between holes, not logged rock.", { label, p: Math.round(farLogs.share * 100), d: Math.round(farLogs.dist), r: Math.round(radius) });
           setNotices((p) => [...p, farLogs.share >= 0.5 ? errorNotice(farText) : notice(farText)]);
         }
-        if (contain) setNotices((p) => [...p, withheld
+        if (haloMisses) setNotices((p) => [...p, errorNotice(tr("\"{label}\" contains only {n} of the {m} sample points of {code} it was built from: the indicator reached {iso} away from the logged intervals, so this envelope is mostly not where {code} was logged.", { label, n: contain.inside, m: contain.above, code: altValue, iso }))]); // #1740
+        else if (contain) setNotices((p) => [...p, withheld
           ? errorNotice(tr("\"{label}\" contains only {n} of the {m} sample points of {code} it was built from, so it is NOT that unit: the indicator reached {iso} away from the logged intervals ({cell} m cells, {r} m search). Its volume and tonnage are withheld. A smaller cell and a search near the intervals follow the logs; a larger search joins holes but invents rock between them.", { label, n: contain.inside, m: contain.above, code: altValue, iso, cell: +cell.toFixed(1), r: Math.round(radius) }))
           : notice("\"{label}\" contains {n} of the {m} sample points of {code} it was built from{v}.", { label, n: contain.inside, m: contain.above, code: altValue, v: contain.inside < contain.above ? tr(" ({k} outside: logged intervals the body does not reach)", { k: contain.above - contain.inside }) : "" })]); // #1683
         if (bodies.count > 1) setNotices((p) => [...p, bodyOpts.largest
