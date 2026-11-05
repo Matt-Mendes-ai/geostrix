@@ -8203,5 +8203,6 @@
   "No hole id contains \"{f}\".": "لا يحتوي أي معرّف ثقب على \"{f}\".",
   "Go to page": "الانتقال إلى الصفحة",
   "Delete the {n} pages generated with this one? (Ctrl+Z undoes this.)": "حذف الصفحات الـ{n} المولّدة مع هذه الصفحة؟ (Ctrl+Z يتراجع عن ذلك.)",
-  "Remove these {n} generated pages": "إزالة هذه الصفحات المولّدة الـ{n}"
+  "Remove these {n} generated pages": "إزالة هذه الصفحات المولّدة الـ{n}",
+  "{id} is outside this map": "{id} خارج هذه الخريطة"
 }

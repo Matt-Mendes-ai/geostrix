@@ -8203,5 +8203,6 @@
   "No hole id contains \"{f}\".": "Ningún id de sondaje contiene \"{f}\".",
   "Go to page": "Ir a la página",
   "Delete the {n} pages generated with this one? (Ctrl+Z undoes this.)": "¿Eliminar las {n} páginas generadas junto con esta? (Ctrl+Z lo deshace.)",
-  "Remove these {n} generated pages": "Quitar estas {n} páginas generadas"
+  "Remove these {n} generated pages": "Quitar estas {n} páginas generadas",
+  "{id} is outside this map": "{id} está fuera de este mapa"
 }

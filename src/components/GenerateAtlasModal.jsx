@@ -15,7 +15,8 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
   useEscapeKey(onClose);
   useFocusTrap(); // TASKS.csv #238
   const [mode, setMode] = useState("hole"); // "hole" | "section"
-  const [selectedIds, setSelectedIds] = useState(() => new Set(collars.map((c) => c.hole_id)));
+  // TASKS.csv #1644 — a large project opens with nothing ticked (446 holes opened as 'Generate 446 pages')
+  const [selectedIds, setSelectedIds] = useState(() => new Set(collars.length > 50 ? [] : collars.map((c) => c.hole_id)));
   const [includeStripLog, setIncludeStripLog] = useState(true);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(null); // {done, total}
@@ -30,7 +31,8 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
   // selection wouldn't even make sense once switched to sections.
   const switchMode = (m) => {
     setMode(m);
-    setSelectedIds(new Set(m === "hole" ? holeIds : sections.map((s) => s.id)));
+    const all = m === "hole" ? holeIds : sections.map((s) => s.id);
+    setSelectedIds(new Set(all.length > 50 ? [] : all)); // #1644
     setResult(null);
   };
 

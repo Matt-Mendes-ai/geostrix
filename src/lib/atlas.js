@@ -11,6 +11,16 @@
 // silently dropped, so a property-overview visual still appears on every page even though it isn't
 // per-item.
 import { buildStripLogDataUrl } from "./striplogSvg.js";
+import { utmGridReady } from "./layoutGeometry.js"; // TASKS.csv #1644
+
+// TASKS.csv #1644 (review #1497, Lawyers) — each hole marked on the template's map. The viewport is still the template's one capture
+// (see above), so a page used to show the district plan with nothing saying where its hole was (21AGBDD001 800 m off centre,
+// unmarked). A top-down, true-scale viewport now carries markHole: the page draws a ring and the id at the collar, or says the
+// hole is outside the map.
+export function markHoleOnViewports(elements, collar) {
+  if (!collar || !Number.isFinite(collar.x) || !Number.isFinite(collar.y)) return elements;
+  return elements.map((el) => (el.type === "viewport" && utmGridReady(el) ? { ...el, markHole: { id: String(collar.hole_id), x: collar.x, y: collar.y } } : el));
+}
 
 // Tokens available to each atlas mode — shown in the UI so the user knows what to type into a text
 // element before generating, rather than discovering it by trial and error.
@@ -115,7 +125,7 @@ export const stripLogTextPt = (drawingHeight, h) => (drawingHeight > 0 ? (9.5 * 
 
 async function buildOneHolePage(holeId, templateElements, { collars, layers, includeStripLog, legendOverride, page }) {
   const values = holeAtlasValues(holeId, collars, layers);
-  let elements = templateElements.map((el) => substituteElement(el, values));
+  let elements = markHoleOnViewports(templateElements.map((el) => substituteElement(el, values)), collars.find((c) => c.hole_id === holeId)); // #1644
   let stripLogFailed = false, textPt = null, narrowed = 0, overlapping = 0;
   if (includeStripLog) {
     // TASKS.csv #1080 — one hole's strip log failing (a rasterize error) no longer aborts the whole atlas: its page is

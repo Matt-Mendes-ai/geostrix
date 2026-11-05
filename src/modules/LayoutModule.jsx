@@ -13,7 +13,7 @@ import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegen
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
 import { collarTableSlice, collarRowsThatFit, continuationTables } from "../lib/collarTable.js"; // TASKS.csv #1638
 import { withLiveScaleBars, relinkCopies, tieStarterFurniture, northRotationOf, insertScaleBar, scaleBarTargets, bindScaleBar } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
-import { capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, holesInFrame, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText, sectionTextPt, sectionTextFactor } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; sectionTextPt: #1485; section scale: #944
+import { worldToVp, capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, holesInFrame, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText, sectionTextPt, sectionTextFactor } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; sectionTextPt: #1485; section scale: #944
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
@@ -1974,6 +1974,17 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
                 <polygon points={poly.map((p) => p.join(",")).join(" ")} fill="rgba(224,64,64,0.12)" stroke="#d62f2f" strokeWidth="1.5" />
               </svg>
             ) : null;
+          })()}
+          {el.markHole && (() => { /* TASKS.csv #1644 — an atlas page's hole on the template's map */
+            const [u, v] = worldToVp(el, el.markHole.x, el.markHole.y), inFrame = Math.abs(u) <= W / 2 - 4 && Math.abs(v) <= H / 2 - 4;
+            const font = { fontSize: printPx(printPt.small), fontFamily: "'Exo 2', system-ui, sans-serif", fontWeight: 700 };
+            return inFrame ? (
+              <svg style={{ position: "absolute", left: 0, top: 0, overflow: "visible", pointerEvents: "none" }} width={W} height={H}>
+                <circle cx={W / 2 + u} cy={H / 2 + v} r={8} fill="none" stroke="#ffffff" strokeWidth={4} />
+                <circle cx={W / 2 + u} cy={H / 2 + v} r={8} fill="none" stroke="#d62f2f" strokeWidth={2} />
+                <text x={W / 2 + u + 11} y={H / 2 + v + 4} fill="#d62f2f" stroke="#ffffff" strokeWidth={3} paintOrder="stroke" style={font}>{el.markHole.id}</text>
+              </svg>
+            ) : <div style={{ position: "absolute", left: 6, top: 6, padding: "2px 6px", background: "rgba(255,255,255,0.88)", color: "#d62f2f", pointerEvents: "none", ...font }}>{tr("{id} is outside this map", { id: el.markHole.id })}</div>;
           })()}
           {el.refreshing && !print && (
             <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.75)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "var(--font-size-base)", color: "#333", fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Rendering…")}</div>
