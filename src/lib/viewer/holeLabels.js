@@ -71,5 +71,8 @@ export function declutterHoleLabels(group, camera, width, height, labelPx = 16, 
   if (st.done || now - st.at < IDLE_MS) return;
   st.done = true;
   const show = labelsToShow(labelBoxes(group, camera, width, height, labelPx));
-  group.children.forEach((sp, i) => { sp.visible = show[i] !== false; });
+  // TASKS.csv #1533 (review #1497, Lawyers) — a label of a hole hidden in the Holes list stays hidden (it was shown again here each
+  // idle frame: 95 labels of hidden holes on screen); its first tip line is the hole id, as the visibleHoles effect reads it
+  const hidden = (sp) => sp.userData?.holeHidden === true;
+  group.children.forEach((sp, i) => { sp.visible = !hidden(sp) && show[i] !== false; });
 }

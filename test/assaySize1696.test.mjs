@@ -5,9 +5,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
+const sizeLib = readFileSync(new URL("../src/lib/viewer/assaySize.js", import.meta.url), "utf8"); // #1533 — assaySizeFor moved out of ViewerModule
 
 test("#1696 the size grows on a log scale above P90: 97 ppm and 6,887 ppm Cu are no longer the same sphere", () => {
-  assert.ok(v.includes(": p90 > 0 ? 0.6 + 0.4 * (Math.log(value / p90) / Math.log(max / p90))"));
+  assert.ok(sizeLib.includes(": p90 > 0 ? 0.6 + 0.4 * (Math.log(value / p90) / Math.log(max / p90))"));
   // the same formula, on Copley's Cu (min 0.25, P50 5.1, P90 59.2, max 19,400)
   const size = (value, min = 0.25, p50 = 5.1, p90 = 59.2, max = 19400) => { const seg = (x, lo, hi, a, b) => a + ((x - lo) / (hi - lo)) * (b - a); const t = value <= p50 ? seg(value, min, p50, 0, 0.35) : value <= p90 ? seg(value, p50, p90, 0.35, 0.6) : 0.6 + 0.4 * (Math.log(value / p90) / Math.log(max / p90)); return 1.2 + 2.6 * Math.max(0, Math.min(1, t)); };
   assert.ok(size(6887) - size(97) > 0.7, `${size(97)} vs ${size(6887)}`);
