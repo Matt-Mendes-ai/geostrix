@@ -397,6 +397,16 @@ function probit(p) {
 // classification methods; "equal" below is Linear, "quantile" is already equal-count-per-bin (i.e.
 // Histogram equalization), and "log"/"normal" are new to match the remaining two. Geosoft's "Custom"
 // needs no method of its own — both callers already let a user hand-edit stops after classifying.
+// TASKS.csv #1531 (review #1497, Lawyers) — the values class breaks are placed on: the 1st-99th percentiles, so a few keying errors
+// (RQD 295 %) do not spread the classes (equal intervals 0 / 59 / 118 / 177 / 236 left 4 of 5 classes for impossible values). Breaks
+// are class lower bounds, so values beyond still take the end classes. -> { values, lo, hi, below, above }
+export function trimForBreaks(values, pLo = 0.01, pHi = 0.99) {
+  const nums = values.filter((v) => Number.isFinite(v)).sort((a, b) => a - b);
+  if (nums.length < 20) return { values: nums, lo: nums[0], hi: nums[nums.length - 1], below: 0, above: 0 };
+  const at = (p) => nums[Math.min(nums.length - 1, Math.max(0, Math.round(p * (nums.length - 1))))];
+  const lo = at(pLo), hi = at(pHi), kept = nums.filter((v) => v >= lo && v <= hi);
+  return { values: kept, lo, hi, below: nums.filter((v) => v < lo).length, above: nums.filter((v) => v > hi).length };
+}
 export function classifyBreaks(values, n, method = "equal") {
   const nums = values.filter((v) => Number.isFinite(v)).sort((a, b) => a - b);
   if (!nums.length) return [];

@@ -1,7 +1,7 @@
 // TASKS.csv #1136 — moved out of ViewerModule (loaded on first use, not at startup)
 import React, { useState } from "react";
 import { CLIP_KEYS, numericClip } from "../lib/numericClip.js"; // TASKS.csv #1699
-import { minMax, classifyBreaks, paletteColorsHex, PALETTES } from "../lib/layers.js";
+import { minMax, classifyBreaks, paletteColorsHex, PALETTES, trimForBreaks } from "../lib/layers.js"; // trimForBreaks: #1531
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
 
@@ -20,13 +20,15 @@ export default function NumericSymbologyEditor({ layerKey, rows, sym, onChange }
   // without the user needing to know to pick it. "default" stays selectable (and unchanged) for anyone
   // who explicitly wants it.
   const [palette, setPalette] = useState("viridis");
+  const [trim, setTrim] = useState(true); // #1531 — breaks on the 1st-99th percentiles
   const values = React.useMemo(
     () => (rows || []).map((r) => r.value).filter((v) => typeof v === "number" && !isNaN(v)),
     [rows]
   );
   const { min, max } = minMax(values);
+  const trimmed = React.useMemo(() => trimForBreaks(values), [values]); // #1531
   const apply = () => {
-    const breaks = classifyBreaks(values, classCount, method);
+    const breaks = classifyBreaks(trim ? trimForBreaks(values).values : values, classCount, method); // #1531
     if (!breaks.length) return;
     const colors = paletteColorsHex(palette, breaks.length);
     onChange({ stops: breaks.map((v, i) => ({ value: v, color: colors[i] })), colorMode: "discrete" });
@@ -63,6 +65,12 @@ export default function NumericSymbologyEditor({ layerKey, rows, sym, onChange }
             style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon)", cursor: "pointer" }}>{tr("Reset")}</span>
         )}
       </div>
+      {(trimmed.below > 0 || trimmed.above > 0) && ( /* TASKS.csv #1531 */
+        <label style={{ display: "flex", alignItems: "flex-start", gap: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 5, cursor: "pointer" }}>
+          <input type="checkbox" checked={trim} onChange={(e) => setTrim(e.target.checked)} style={{ marginTop: 1 }} />
+          <span>{tr("Place the breaks on the 1st–99th percentiles ({a} – {b}): {above} value(s) above and {below} below go in the end classes (the full range is {min} – {max}).", { a: +Number(trimmed.lo).toPrecision(3), b: +Number(trimmed.hi).toPrecision(3), above: trimmed.above.toLocaleString(), below: trimmed.below.toLocaleString(), min: +Number(min).toPrecision(3), max: +Number(max).toPrecision(3) })}</span>
+        </label>
+      )}
       {clip && !stops.length && (
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 4 }}>
           {sym?.fullRange

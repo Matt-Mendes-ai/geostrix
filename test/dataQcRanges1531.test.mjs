@@ -39,3 +39,16 @@ test("#1532 a fan from one pad is a pad (info); identical collar and orientation
   assert.ok(out.some((i) => i.severity === "warning" && /M1, M2/.test(i.message) && /same azimuth and dip/.test(i.message)));
   assert.ok(!out.some((i) => i.severity === "warning" && /F1/.test(i.message)));
 });
+
+test("#1531 numeric Classify places its breaks on the 1st-99th percentiles: a few impossible values no longer take the classes", async () => {
+  const { classifyBreaks, trimForBreaks } = await import("../src/lib/layers.js");
+  const rqd = Array.from({ length: 2000 }, (_, i) => (i * 37) % 101); // 0-100 %
+  for (let k = 0; k < 20; k++) rqd.push(150 + k * 7); // 20 keying errors up to 283 %
+  const full = classifyBreaks(rqd, 5, "equal");
+  assert.ok(full[1] > 50, "on the full range the second break sits above half the plausible range");
+  const t = trimForBreaks(rqd);
+  assert.equal(t.above, 20);
+  const trimmed = classifyBreaks(t.values, 5, "equal");
+  assert.ok(trimmed.every((v) => v <= 100), JSON.stringify(trimmed));
+  assert.ok(Math.abs((trimmed[4] - trimmed[0]) / 4 - (trimmed[1] - trimmed[0])) < 1, "evenly spread over the plausible range");
+});
