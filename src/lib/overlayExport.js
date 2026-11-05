@@ -34,6 +34,17 @@ export function mapLayerFeatures(layer) {
 // closed loops (the default for a boundary: Geosoft .ply, claims) go out as one polygon with every ring; open lines
 // (closedFlags false: a DXF / shapefile line) as one multi-part line. A boundary mixing both is written as lines.
 export function boundaryFeatures(b) {
+  // TASKS.csv #1621 (review #1497, Lawyers) — contours exported as ONE polygon at z = 0 with no level: every line flagged closed made a
+  // multi-ring polygon and boundaryFeatures used b.elevation for every vertex. A boundary with per-vertex heights or contour levels exports
+  // one polyline feature per line, its vertices at their own z and a level attribute, as QGIS and CAD expect contours.
+  if (b.useVertexZ || (b.contourLevels || []).length) {
+    const feats = (b.polylines || []).map((pl, i) => {
+      const level = Number.isFinite(Number(b.contourLevels?.[i])) ? Number(b.contourLevels[i]) : null;
+      const line = pl.map((p) => [num(p.x), num(p.y), Number.isFinite(num(p.z)) ? num(p.z) : level ?? (num(b.elevation) || 0)]).filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
+      return line.length >= 2 ? { geometry: line, parts: [line], attributes: { name: b.name || "", kind: b.kind === "boundary" || !b.kind ? "contour" : b.kind, level: level ?? (Number.isFinite(line[0][2]) ? line[0][2] : null) } } : null;
+    }).filter(Boolean);
+    return { features: feats, geomType: "polyline", dxfLayerOf: (f) => `${b.name || "CONTOUR"}${f?.attributes?.level != null ? `_${f.attributes.level}` : ""}` };
+  }
   const lines = (b.polylines || []).map((pl) => pl.map((p) => [num(p.x), num(p.y), num(b.elevation) || 0]).filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y))).filter((p) => p.length >= 2);
   if (!lines.length) return { features: [], geomType: "polygon" };
   const closed = (b.closedFlags || []).length ? lines.every((_, i) => b.closedFlags[i] !== false) : true;
