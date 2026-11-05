@@ -239,7 +239,7 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
         {tr("{plannedHoles} {v}, {totalM} m total{v2}", { plannedHoles: plannedHoles.length, v: tr(plannedHoles.length === 1 ? "hole" : "holes"), totalM: totalM.toLocaleString(), v2: totalCost != null ? tr(" — est. ${totalCost} at ${rate}/m", { totalCost: totalCost.toLocaleString(undefined, { maximumFractionDigits: 0 }), rate }) : "" })}
       </div>
       {voxelModels.length > 0 && !anyTargetModel && (
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 7, lineHeight: 1.4 }}>{tr("Narrow a voxel model's Min/Max range above (in \"Geophysical voxel ranges\") to check planned holes against a target band.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 7, lineHeight: 1.4 }}>{tr("Narrow a voxel model's Min/Max range in Targeting > Voxel ranges to check planned holes against a target band.")}</div>
       )}
       {results.map(({ hole, nearestReal, samePad = [], targetHits }) => {
         const tooClose = nearestReal && nearestReal.distance < minSpacing;

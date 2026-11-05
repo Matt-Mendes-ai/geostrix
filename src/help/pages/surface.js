@@ -28,7 +28,7 @@ export default [
       { says: "{name}: no .DAT selected — imported without attributes, so it can't be styled by unit", means: "The MapInfo table came without its .DAT, which holds the attributes.", do: "Import it again with the .TAB, .MAP, .ID and .DAT selected together." },
       { says: "{name}.shp: no matching .dbf selected — imported without attributes, so it can't be styled by unit", means: "The shapefile came without its attribute file.", do: "Import it again with the .shp, .dbf and .prj selected together, or use the .zip." },
       { says: "{name}: no categorized style found (only QGIS \"Categorized\" styles are read).", means: "The .qml holds another kind of style (graduated, rule-based, single symbol).", do: "Save a Categorized style from QGIS, or colour the layer here with Colour by." },
-      { says: "A .qml on its own doesn't import anything — use a layer's Style button to apply it to an existing layer.", means: "Only a style file was selected. The button on the layer card is labelled .qml.", do: "Press .qml on the layer's card and pick the style there." },
+      { says: "A .qml on its own doesn't import anything — use the .qml button on a layer's card to apply it to an existing layer.", means: "Only a style file was selected. The button on the layer card is labelled .qml.", do: "Press .qml on the layer's card and pick the style there." },
       { says: "{n} attribute table(s) have no map objects, so they were not added: {names}. Import them from the tab their data belongs to.", means: "The tables have rows but no geometry to draw.", do: "Import them where their data belongs, for example as samples or drillhole data." },
     ],
     howto: {
