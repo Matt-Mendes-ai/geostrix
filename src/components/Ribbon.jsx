@@ -14,6 +14,7 @@ import { useUiMode } from "../lib/uiMode.js"; // TASKS.csv #748 — Simple / Adv
 import { createPortal } from "react-dom";
 import { X } from "./icons.js";
 import { t } from "../lib/i18n.js"; // TASKS.csv #786 — every tab's ribbon labels, captions and tooltips translated here
+import { helpIdForPane, openHelp } from "../lib/help.js"; // TASKS.csv #1966 — the "?" of a tool pane
 
 export const RibbonSlotContext = createContext(null);
 
@@ -140,7 +141,8 @@ export function RibbonButton({ icon: Icon, label: label0, title: title0, onClick
 // TASKS.csv #595 — focus: a pane opened from a ribbon button takes focus to its title, so a keyboard user lands in
 // the pane instead of Tabbing through the rest of the ribbon; when it closes and focus would otherwise fall to
 // <body> (its close button just disappeared), focus goes back to the button that opened it.
-export function TaskPaneHeader({ title, onClose, icon: Icon, tone = "neutral" }) {
+export function TaskPaneHeader({ title, onClose, icon: Icon, tone = "neutral", helpId = null }) {
+  const help = helpId || helpIdForPane(title); // #1966 — a pane whose title is passed already translated gives its helpId
   const titleRef = useRef(null);
   useEffect(() => {
     const opener = document.activeElement;
@@ -155,6 +157,7 @@ export function TaskPaneHeader({ title, onClose, icon: Icon, tone = "neutral" })
     <div className="ge-pane-header">
       {Icon && <Icon size={16} strokeWidth={1.8} color={RIBBON_TONES[tone] || tone} aria-hidden="true" />}
       <span ref={titleRef} tabIndex={-1} className="ge-pane-title">{t(title)}</span>
+      {help && <button type="button" className="ge-pane-close ge-pane-help" onClick={() => openHelp(help)} aria-label={t("Help: {name}", { name: t(title) })} title={t("Help for this tool (F1, works offline)")}>?</button>}
       {onClose && <button type="button" className="ge-pane-close" onClick={onClose} aria-label={t("Close {name}", { name: t(title) })} title={t("Close — back to the data")}><X size={14} /></button>}
     </div>
   );

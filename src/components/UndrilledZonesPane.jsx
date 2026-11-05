@@ -100,7 +100,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
   const openV = result ? (result.uncoveredCells - result.ignored.cells) * result.cellVolume : 0;
   return (
     <>
-      <TaskPaneHeader title={tr("Undrilled zones")} icon={Crosshair} tone="model" onClose={onClose} />
+      <TaskPaneHeader title={tr("Undrilled zones")} helpId="undrilled-zones" icon={Crosshair} tone="model" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: "var(--font-size-sm)" }}>
         <div style={note}>{tr("The parts of a modelled unit farther than a chosen distance from every drillhole: where the unit has not been tested yet.")}</div>
         {!solids.length && <div style={{ ...note, color: "var(--color-danger-fg)" }}>{tr("No modelled solids yet. Build a closed unit in 3D Modelling (unit volumes, an envelope, a vein solid or an imported solid), or make a shell of a block model's value range (Targeting > Voxel ranges > Shell at this range), first.")}</div>}

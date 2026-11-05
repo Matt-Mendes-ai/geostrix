@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { openHelp, onHelpOpen } from "./lib/help.js"; // TASKS.csv #1966
 import { t as tr, LANGUAGES, currentLanguage, setLanguage } from "./lib/i18n.js"; // TASKS.csv #786 — "tr": t is a common local name here
 import { oncePerWindow } from "./lib/oncePerWindow.js"; // TASKS.csv #1163
 import { requestModuleAction } from "./lib/menuRequests.js"; // TASKS.csv #565
@@ -33,6 +34,7 @@ const LayoutModule = React.lazy(() => import("./modules/LayoutModule.jsx"));
 // as the tab modules above rather than pulling it (and papaparse's CSV-building path it shares with
 // everything else, already loaded regardless) into the eagerly-loaded main bundle for no benefit.
 const ShortcutsModal = React.lazy(() => import("./components/ShortcutsModal.jsx")); // TASKS.csv #476
+const HelpPane = React.lazy(() => import("./components/HelpPane.jsx")); // TASKS.csv #1966 — offline help, loaded on first use
 const ReportProblemModal = React.lazy(() => import("./components/ReportProblemModal.jsx")); // TASKS.csv #598
 const LicensesModal = React.lazy(() => import("./components/LicensesModal.jsx")); // TASKS.csv #639
 const ProjectCrsModal = React.lazy(() => import("./components/ProjectCrsModal.jsx")); // TASKS.csv #615
@@ -142,6 +144,14 @@ export default function App() {
   useEffect(() => onProjectCrsRequest(({ reason, points, suggested, resolve }) => setCrsRequest((cur) => (cur ? { ...cur, resolvers: [...cur.resolvers, resolve] } : { reason, points, suggested, resolvers: [resolve] }))), []);
   const finishCrsRequest = (epsg) => setCrsRequest((cur) => { cur?.resolvers.forEach((r) => r(epsg)); return null; });
   const [shortcutsTab, setShortcutsTab] = useState(null); // null | "shortcuts" | "python" (#391) | "about"
+  const [helpAt, setHelpAt] = useState(null); // TASKS.csv #1966 — { id, n } while the Help panel is open (n re-opens it at a new page)
+  useEffect(() => onHelpOpen((id) => setHelpAt({ id, n: Date.now() })), []);
+  // F1: the page of the tool pane that is open (its "?"), else the contents
+  useEffect(() => {
+    const onKey = (e) => { if (e.key !== "F1") return; e.preventDefault(); const q = [...document.querySelectorAll(".ge-pane-help")].find((b) => b.offsetParent !== null); if (q) q.click(); else openHelp(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   // TASKS.csv #598 — Help > Report a problem: { screenshot, crashed } while open; the window is captured BEFORE the
   // dialog opens, so the picture shows the problem, not the dialog
   const [reportProblem, setReportProblem] = useState(null);
@@ -359,6 +369,7 @@ export default function App() {
       else if (action === "save-project") doSave();
       else if (action === "save-project-as") doSave({ saveAs: true }); // #553
       else if (action === "shortcuts") setShortcutsTab("shortcuts");
+      else if (action === "help") openHelp(null); // #1966
       else if (action === "about") setShortcutsTab("about");
       else if (action === "report-problem") openReportProblem(); // #598
       else if (action === "licenses") setLicensesOpen(true); // #639
@@ -575,6 +586,7 @@ export default function App() {
       {crsRequest && <Suspense fallback={null}><ProjectCrsModal reason={crsRequest.reason} points={crsRequest.points} suggested={crsRequest.suggested} onDone={finishCrsRequest} /></Suspense>}
       {licensesOpen && <Suspense fallback={null}><LicensesModal onClose={() => setLicensesOpen(false)} /></Suspense>}
       {reportProblem && <Suspense fallback={null}><ReportProblemModal screenshot={reportProblem.screenshot} crashed={reportProblem.crashed} onClose={() => setReportProblem(null)} /></Suspense>}
+      {helpAt && <Suspense fallback={null}><HelpPane key={helpAt.n} initialId={helpAt.id} onClose={() => setHelpAt(null)} /></Suspense>}{/* #1966 */}
       {shortcutsTab && <Suspense fallback={null}><ShortcutsModal initialTab={shortcutsTab} pyStatus={pyStatus} onClose={() => setShortcutsTab(null)} /></Suspense>}
       {showUpdatePrompt && <Suspense fallback={null}><UpdatePrompt updater={upd} onLater={() => setUpdateLater((s) => new Set(s).add(`${upd.version || ""}|${updateStage}`))} /></Suspense>}{/* TASKS.csv #915 */}
       {reportOpen && (

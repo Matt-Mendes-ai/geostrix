@@ -63,7 +63,7 @@ export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDo
 
   return (
     <>
-      <TaskPaneHeader title={tr("Interpretation lines")} icon={PenTool} tone="analyse" onClose={onClose} />
+      <TaskPaneHeader title={tr("Interpretation lines")} helpId="interpretation-lines" icon={PenTool} tone="analyse" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
         <div style={note}>{tr("Draw faults, contacts and lineaments over a survey in the 3D view (Top view works best). Each set of lines is a map layer: it drapes on the terrain, exports as Shapefile, GeoPackage, KML or DXF, and prints in the Layout legend.")}</div>
         <label style={row}>{tr("Survey")}

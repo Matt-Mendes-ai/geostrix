@@ -292,7 +292,7 @@ export default function EvidenceOverlayPane({ onClose }) {
 
   return (
     <>
-      <TaskPaneHeader title={tr("Evidence overlay")} icon={Layers} tone="model" onClose={onClose} />
+      <TaskPaneHeader title={tr("Evidence overlay")} helpId="evidence-overlay" icon={Layers} tone="model" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: "var(--font-size-sm)" }}>
         <div style={note}>{grid ? tr("Grid: {nx} × {ny} cells of {dx} × {dy} m{src}.", { nx: grid.nx, ny: grid.ny, dx: Math.round(grid.dx), dy: Math.round(grid.dy), src: grid.from === "terrain" ? tr(" (the terrain)") : gridArea === "samples" ? tr(" (the surface samples)") : gridArea === "drilling" ? tr(" (the drilling)") : gridArea === "model" ? tr(" (the block models)") : gridArea === "box" ? tr(" (the typed box)") : tr(" (the data's extent)") /* area: #1450 */ }) : tr("No grid yet: load terrain, a raster, a map layer or samples first.")}{grid && grid.from !== "terrain" && sampleCore.dropped > 0 ? tr(" {n} surface sample(s) far from the rest are outside it.", { n: sampleCore.dropped }) : ""}</div>
         {/* TASKS.csv #1450 — the area and the cell size the scores are computed on */}
