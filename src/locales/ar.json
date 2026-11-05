@@ -7878,5 +7878,8 @@
   "No drillholes yet: every part of a unit is undrilled. The {n} planned hole(s) are the only coverage that can be counted.": "لا توجد ثقوب حفر بعد: كل جزء من الوحدة غير محفور. الثقوب المخططة ({n}) هي التغطية الوحيدة التي يمكن احتسابها.",
   "No drillholes yet: every part of a unit is undrilled. Plan holes (Targeting > Planned holes) and count them here to see what they would leave untested.": "لا توجد ثقوب حفر بعد: كل جزء من الوحدة غير محفور. خطّط ثقوباً (الاستهداف > الثقوب المخططة) واحتسبها هنا لترى ما ستتركه دون اختبار.",
   "the block models' footprint": "مساحة نماذج الكتل",
-  " (the block models)": " (نماذج الكتل)"
+  " (the block models)": " (نماذج الكتل)",
+  "\"{name}\" rests on one hole: {p}% of its cells are informed by a single hole{e}. Away from that hole its shape is the interpolator's, not the rock's, so the parts not covered are where the shell is least known — not where grade is expected.": "\"{name}\" يستند إلى ثقب واحد: {p}% من خلاياه مستمدة من ثقب واحد{e}. بعيداً عن ذلك الثقب شكله شكل المُستكمِل لا شكل الصخر، فالأجزاء غير المغطاة هي حيث الغلاف أقل معرفة، لا حيث يُتوقع المحتوى.",
+  " and {q}% of its boundary is extrapolated": " و{q}% من حدوده مستقرأة",
+  "\"{name}\" is mostly extrapolated: {q}% of its boundary is carried out beyond the data rather than bracketed by it. Its parts not covered are where the shell is least known — not where grade is expected.": "\"{name}\" مستقرأ في معظمه: {q}% من حدوده ممتدة خارج البيانات بدل أن تكون محصورة بها. أجزاؤه غير المغطاة هي حيث الغلاف أقل معرفة، لا حيث يُتوقع المحتوى."
 }

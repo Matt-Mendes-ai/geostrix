@@ -7878,5 +7878,8 @@
   "No drillholes yet: every part of a unit is undrilled. The {n} planned hole(s) are the only coverage that can be counted.": "Ainda não há furos: cada parte de uma unidade está por perfurar. Os {n} furos planejados são a única cobertura que pode ser contada.",
   "No drillholes yet: every part of a unit is undrilled. Plan holes (Targeting > Planned holes) and count them here to see what they would leave untested.": "Ainda não há furos: cada parte de uma unidade está por perfurar. Planeje furos (Targeting > Furos planejados) e conte-os aqui para ver o que deixariam por testar.",
   "the block models' footprint": "a área dos modelos de blocos",
-  " (the block models)": " (os modelos de blocos)"
+  " (the block models)": " (os modelos de blocos)",
+  "\"{name}\" rests on one hole: {p}% of its cells are informed by a single hole{e}. Away from that hole its shape is the interpolator's, not the rock's, so the parts not covered are where the shell is least known — not where grade is expected.": "\"{name}\" apoia-se num só furo: {p}% das suas células são informadas por um único furo{e}. Longe desse furo a sua forma é a do interpolador, não a da rocha, por isso as partes não cobertas são onde a envoltória é menos conhecida, não onde se espera teor.",
+  " and {q}% of its boundary is extrapolated": " e {q}% do seu limite é extrapolado",
+  "\"{name}\" is mostly extrapolated: {q}% of its boundary is carried out beyond the data rather than bracketed by it. Its parts not covered are where the shell is least known — not where grade is expected.": "\"{name}\" é sobretudo extrapolada: {q}% do seu limite é levado para além dos dados em vez de delimitado por eles. As partes não cobertas são onde a envoltória é menos conhecida, não onde se espera teor."
 }

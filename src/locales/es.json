@@ -7878,5 +7878,8 @@
   "No drillholes yet: every part of a unit is undrilled. The {n} planned hole(s) are the only coverage that can be counted.": "Aún no hay sondajes: cada parte de una unidad está sin perforar. Los {n} sondajes planificados son la única cobertura que puede contarse.",
   "No drillholes yet: every part of a unit is undrilled. Plan holes (Targeting > Planned holes) and count them here to see what they would leave untested.": "Aún no hay sondajes: cada parte de una unidad está sin perforar. Planifique sondajes (Targeting > Sondajes planificados) y cuéntelos aquí para ver qué dejarían sin probar.",
   "the block models' footprint": "la huella de los modelos de bloques",
-  " (the block models)": " (los modelos de bloques)"
+  " (the block models)": " (los modelos de bloques)",
+  "\"{name}\" rests on one hole: {p}% of its cells are informed by a single hole{e}. Away from that hole its shape is the interpolator's, not the rock's, so the parts not covered are where the shell is least known — not where grade is expected.": "\"{name}\" se apoya en un solo sondaje: {p}% de sus celdas están informadas por un único sondaje{e}. Lejos de ese sondaje su forma es la del interpolador, no la de la roca, así que las partes no cubiertas son donde la envolvente es menos conocida, no donde se espera ley.",
+  " and {q}% of its boundary is extrapolated": " y {q}% de su borde es extrapolado",
+  "\"{name}\" is mostly extrapolated: {q}% of its boundary is carried out beyond the data rather than bracketed by it. Its parts not covered are where the shell is least known — not where grade is expected.": "\"{name}\" es mayormente extrapolada: {q}% de su borde se extiende más allá de los datos en vez de estar acotado por ellos. Sus partes no cubiertas son donde la envolvente es menos conocida, no donde se espera ley."
 }

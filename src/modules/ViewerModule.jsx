@@ -3594,7 +3594,7 @@ ${describeTrend(t)}` };
       const idx = mesh.geometry.index ? mesh.geometry.index.array : Uint32Array.from({ length: n }, (_, i) => i);
       // TASKS.csv #896 — a unit volume says the block size it was counted at (#877; before that only the cell volume)
       const bs = sf.params?.blockSizeM ? Math.max(...sf.params.blockSizeM) : sf.params?.cellVolumeM3 ? Math.cbrt(sf.params.cellVolumeM3) : null;
-      return [{ id: sf.id, name: sf.name, positions: w, indices: idx, ...(sf.type === "unit_volume" && bs ? { blockSizeM: +bs.toFixed(2) } : {}) }];
+      return [{ id: sf.id, name: sf.name, positions: w, indices: idx, type: sf.type, params: sf.params || null, ...(sf.type === "unit_volume" && bs ? { blockSizeM: +bs.toFixed(2) } : {}) }]; // type / params: #1725
     });
   };
   // TASKS.csv #802 — a generated / imported surface's mesh in WORLD coordinates (E, N, Z) with its colour, for

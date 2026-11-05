@@ -10,6 +10,7 @@ import { isMeshClosed } from "../lib/meshQuery.js";
 import { unitShell } from "../lib/unitVolumes.js";
 import { undrilledZones, defaultCellSize } from "../lib/undrilledZones.js";
 import { collarGround } from "../lib/pitShell.js"; // TASKS.csv #1557 — the ground between the collars
+import { unitSupport } from "../lib/unitSupport.js"; // TASKS.csv #1725 — a one-hole / extrapolated shell is said
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
@@ -37,6 +38,14 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
   const setResult = (r) => { lastResult = r; setResultState(r); };
   const unit = solids.find((s) => s.id === unitId) || null;
   const autoCell = useMemo(() => (unit && coverM > 0 ? defaultCellSize(unit.positions, coverM) : null), [unit, coverM]);
+  // TASKS.csv #1725 — a grade shell built from one hole, or mostly extrapolated: its undrilled parts are where it is least known
+  const support = useMemo(() => (unit ? unitSupport(unit.params) : null), [unit]);
+  const pct = (v) => Math.round(100 * v);
+  const supportText = support?.weak ? (
+    (support.oneHoleShare ?? 0) >= 0.5
+      ? tr("\"{name}\" rests on one hole: {p}% of its cells are informed by a single hole{e}. Away from that hole its shape is the interpolator's, not the rock's, so the parts not covered are where the shell is least known — not where grade is expected.", { name: unit.name, p: pct(support.oneHoleShare), e: support.extrapolatedShare != null ? tr(" and {q}% of its boundary is extrapolated", { q: pct(support.extrapolatedShare) }) : "" })
+      : tr("\"{name}\" is mostly extrapolated: {q}% of its boundary is carried out beyond the data rather than bracketed by it. Its parts not covered are where the shell is least known — not where grade is expected.", { name: unit.name, q: pct(support.extrapolatedShare) })
+  ) : null;
 
   const traces = () => {
     const by = new Map();
@@ -100,6 +109,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
           <option value="">{tr("Modelled unit…")}</option>
           {solids.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
+        {supportText && <div style={{ ...note, color: "var(--color-warn-text)" }}>{supportText}</div>}{/* #1725 */}
         <label style={row} title={tr("A block of the unit counts as covered when a drillhole passes within this distance of it")}>{tr("Covered within (m of a hole)")}
           <input type="number" min="1" step="5" value={coverM} onChange={(e) => setCoverM(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: 70 }} /></label>
         <label style={row}>{tr("Block size (m)")}
@@ -115,6 +125,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
         {result && (
           <div style={{ display: "flex", flexDirection: "column", gap: 5, border: "1px solid var(--color-border)", borderRadius: 6, padding: 8 }}>
             <div style={{ color: "var(--color-text)" }}>{tr("{pct}% of {unit} ({v}) is within {d} m of a hole.", { pct: ((100 * result.coveredCells) / Math.max(1, result.unitCells)).toFixed(1), unit: result.unitName, v: mm3(unitV), d: result.coverM })}</div>
+            {supportText && openV > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{supportText}</div>}{/* #1725 — beside the zones and their Plan buttons */}
             <div style={{ color: openV > 0 ? "var(--color-text)" : "var(--color-text-secondary)", fontWeight: 600 }}>
               {result.zones.length ? tr(result.zones.length === 1 ? "Not covered: {v} in 1 zone." : "Not covered: {v} in {n} zones.", { v: mm3(openV), n: result.zones.length }) : tr("Every part of the unit is within the distance of a hole.")}</div>
             {result.aboveGroundCells > 0 && <div style={note}>{tr(result.groundFrom === "terrain" ? "{v} of the solid lies above the terrain and was left out (air, not the unit)." : "{v} of the solid lies above the ground between the collars and was left out (air, not the unit; load a terrain for the real surface).", { v: mm3(result.aboveGroundCells * result.cellVolume) })}</div>}
