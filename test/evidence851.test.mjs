@@ -81,7 +81,9 @@ test("#851 synthetic deposits in the east: the best cutoff, a positive W+, the p
   // between them (the top class's area and rate), not as a point interpolated across the jump
   assert.equal(pa.point, null);
   const top = pa.step && pa.step[pa.step.at]; // the top class is the nearer real threshold; above it nothing is predicted
-  assert.ok(top && pa.step.at === "below" && top.area < 0.45 && top.rate > 0.8 && pa.step.nd > 1.5, JSON.stringify(pa.step));
+  // #1559 — the best cutoff is the largest STUDENTIZED contrast: here the 75th quantile, holding 20 of the 25 deposits (rate exactly 0.8)
+  // rather than a cutoff stranding one or two of them with a wide s(W-)
+  assert.ok(top && pa.step.at === "below" && top.area < 0.45 && top.rate >= 0.8 && pa.step.nd > 1.5, JSON.stringify(pa.step));
   assert.ok(pa.curve.every((c, i) => i === 0 || c.area <= pa.curve[i - 1].area + 1e-12), "area falls as the threshold rises");
 });
 

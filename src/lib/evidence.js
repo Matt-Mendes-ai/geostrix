@@ -191,6 +191,14 @@ export function fuzzyCombine(members, operator = "gamma", gamma = 0.9) {
 
 // ---------- weights of evidence ----------
 // training points -> the set of cells holding at least one (NaN-evidence cells are not part of the study area)
+// TASKS.csv #1558 (review #1497, Lawyers) — what became of the training points: how many fell in the grid, their cells, and the cells
+// the study-area mask dropped (647 points became '83 occurrence cells' in silence: 428 of their 511 cells had no soil value).
+export function trainingCoverage(g, points, valid) {
+  const all = trainingCells(g, points, null), kept = trainingCells(g, points, valid);
+  let inGrid = 0;
+  for (const p of points) { const i = Math.round((p.x - g.x0) / g.dx), j = Math.round((g.yTop - p.y) / g.dy); if (i >= 0 && j >= 0 && i < g.nx && j < g.ny) inGrid++; }
+  return { points: points.length, inGrid, cells: all.size, validCells: kept.size, droppedCells: all.size - kept.size, droppedShare: all.size ? (all.size - kept.size) / all.size : 0 };
+}
 export function trainingCells(g, points, valid) {
   const set = new Set();
   for (const p of points) { const i = Math.round((p.x - g.x0) / g.dx), j = Math.round((g.yTop - p.y) / g.dy); if (i >= 0 && j >= 0 && i < g.nx && j < g.ny) { const k = j * g.nx + i; if (!valid || valid[k]) set.add(k); } }
@@ -217,6 +225,10 @@ export function weights(nB, nBD, N, ND) {
 // (beyond the drill layers' reach, under fuzzy OR the study area reaches there) used to count as "not in the pattern" and
 // took W-, so the posterior was a map of where the holes are (98 % of the occurrences in 2 % of the area). Missing evidence
 // is neither B nor not-B (Bonham-Carter 1994, ch. 9: missing data); `nMissing` says how many study-area cells it skipped.
+// TASKS.csv #1559 (review #1497, Lawyers) — fewer than MIN_SIDE occurrence cells on a side is a weak basis for a weight (Bonham-Carter
+// 1994): the largest raw contrast landed where ONE occurrence cell was left outside the pattern (s(W-) = 1.00, c = 1), e.g. 'within
+// 1,387 m' of Vn4, nearly the whole area.
+export const MIN_SIDE = 5;
 export function bestCutoff(values, D, valid, { direction = "increasing", steps = 40 } = {}) {
   const idx = [];
   let nMissing = 0;
@@ -234,7 +246,12 @@ export function bestCutoff(values, D, valid, { direction = "increasing", steps =
   // #1726 — the best cutoff among the uncorrected rows when there are any (a corrected contrast is inflated by the 0.5); only an
   // evidence whose every cutoff has a zero cell (the one that defines the occurrences) takes its best from the corrected rows
   const pool = table.some((r) => !r.corrected) ? table.filter((r) => !r.corrected) : table;
-  const best = pool.reduce((b, r) => (!b || r.C > b.C ? r : b), null);
+  // #1559 — the largest STUDENTIZED contrast C/s, not the largest C: s(W-) carries sqrt(1/c), so a cutoff that strands one
+  // occurrence outside the pattern is paid for its uncertainty. A chosen cutoff with fewer than MIN_SIDE occurrence cells on a
+  // side is flagged thin (a pattern can still rightly hold every occurrence: #851's synthetic deposits, #1726's Cu).
+  const soundRow = (r) => r.nBD >= MIN_SIDE && ND - r.nBD >= MIN_SIDE;
+  const b0 = pool.reduce((b, r) => (!b || r.studC > b.studC ? r : b), null);
+  const best = b0 ? { ...b0, nD: ND, thin: !soundRow(b0) } : null;
   return { best, table, N, ND, nMissing };
 }
 // posterior probability per cell from the chosen binary patterns: layers = [{ values, cutoff, direction, wPlus, wMinus }];
