@@ -379,3 +379,22 @@ export function fillDownHoleIds(allRows, mapping) {
   });
   return { rows, filled };
 }
+
+// TASKS.csv #1650 (review #1645, Copley) — a log with numbered repeats (Min_Code1..7 with Min_pct1..7, Vein_Type1..5) mapped by its first
+// column kept only that one: 69 mineral codes in 56 of Copley's 228 intervals were dropped without a word, 13 of the 23 chalcopyrite
+// intervals among them. The interval still draws by its first code (one colour per interval), but every logged code is kept on it as
+// all_codes ('PY 1 · CP 0.3', Identify shows it) and the notice says how many were not drawn. -> { codes: [col], pcts: [col] } | null
+export function numberedSiblings(headers, valueCol, extraCol = null) {
+  const m = /^(.*?)(\d+)$/.exec(String(valueCol || ""));
+  if (!m || m[2] !== "1") return null;
+  const hs = new Set(headers || []), codes = [], pcts = [];
+  const pm = extraCol ? /^(.*?)(\d+)$/.exec(String(extraCol)) : null;
+  for (let k = 2; k < 50 && hs.has(`${m[1]}${k}`); k++) { codes.push(`${m[1]}${k}`); pcts.push(pm && pm[2] === "1" && hs.has(`${pm[1]}${k}`) ? `${pm[1]}${k}` : null); }
+  return codes.length ? { codes, pcts, first: valueCol, firstPct: pm && pm[2] === "1" ? extraCol : null } : null;
+}
+// one raw row -> { all: 'PY 1 · CP 0.3' | null, extra: number of codes past the first }
+export function allCodesOf(raw, sib) {
+  const part = (c, p) => { const v = String(raw?.[c] ?? "").trim(); if (!v) return null; const q = p ? String(raw?.[p] ?? "").trim() : ""; return q ? `${v} ${q}` : v; };
+  const first = part(sib.first, sib.firstPct), rest = sib.codes.map((c, i) => part(c, sib.pcts[i])).filter(Boolean);
+  return { all: first || rest.length ? [first, ...rest].filter(Boolean).join(" · ") : null, extra: rest.length };
+}
