@@ -29,6 +29,7 @@ import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917
 import { autoExtraFields, companionLayer } from "../../lib/viewer/autoExtras.js"; // TASKS.csv #1501
 import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochem.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs
+import { rasterDrapeElevation, drapeElevationNote } from "../../lib/drapeElevation.js"; // TASKS.csv #1505
 
 const AZ_TARGETS = new Set(["collars", "survey", "structure"]); // TASKS.csv #1647 — tables with an azimuth
 
@@ -127,16 +128,17 @@ export function useImportPipeline(ctx) {
   // picked from the Browser behaves exactly like the same file imported from its own module's button.
   const importBrowserFile = async (file) => {
     const name = (file?.name || "").toLowerCase();
-    // Drape elevation default, same rule RasterModule/GeophysicsModule use: roughly collar level if
-    // holes are loaded, else 0. The per-raster elevation control on the Raster tab moves it after.
+    // Drape elevation default, the rule RasterModule / GeophysicsModule use (#1505: above the collars under it, stacked over an
+    // earlier raster, or at the depth the file name says). The per-raster elevation control on the Maps tab moves it after.
     const defaultElevation = collars.length ? collars.reduce((s, c) => s + c.z, 0) / collars.length : 0;
     if (/\.(tiff?|gxf|grd)$/.test(name)) { // grd: #1347
       try {
         const live = importStateRef.current;
         const chooseProjectEpsg = (src, cur) => adoptCrsIfEmpty(src, file.name) || cur; // #607
         const { raster, msg } = await (await loadRaster()).buildRasterImport(file, { epsg: live.project?.epsg ?? project?.epsg, defaultElevation, chooseProjectEpsg });
-        addRaster(raster);
-        setNotices((p) => [...p, notice("{msg} Set its elevation/opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.", { msg })]);
+        const drape = rasterDrapeElevation({ collars: live.collars || collars, voxelModels: live.voxelModels || [], surfaceSamples: live.surfaceSamples || [], bbox: raster.bbox, rasters: live.rasters || [], fileName: file.name }); // #1505
+        addRaster({ ...raster, elevation: drape.z });
+        setNotices((p) => [...p, notice("{msg} {v} Set its opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.", { msg, v: drapeElevationNote(drape) })]);
       } catch (err) { setNotices((p) => [...p, errorNotice(`${file.name}: ${err.message}`)]); } // #739
       return;
     }

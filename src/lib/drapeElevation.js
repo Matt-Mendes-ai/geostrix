@@ -35,9 +35,50 @@ export function defaultDrapeElevation({ collars = [], voxelModels = [], surfaceS
   return { z: 0, source: "none" };
 }
 
+// TASKS.csv #1505 (review #1497, Lawyers) — where a NEW RASTER goes. Three grids all landed at the median collar elevation: they
+// z-fought, and the opaque sheet cut through 141 of 446 holes whose collars were higher; a 'Depth-100m' MVI slice sat at
+// surface level. Now: a depth read from the file name ('Depth-100m', 'depthslice-20m', '100m_depth') puts the slice that far
+// below the ground level; a surface grid goes 5 m ABOVE the highest collar under it (no hole top hidden); and a raster that
+// would land within 2 m of one already there is stacked 5 m above it. The map-layer / sample-grid rule (defaultDrapeElevation)
+// is unchanged.
+export const ABOVE_COLLARS_M = 5, STACK_STEP_M = 5;
+export function depthFromName(name) {
+  const s = String(name ?? "");
+  const m = /depth[\s_-]*slice[\s_-]*(\d+(?:\.\d+)?)\s*m|depth[\s_-]*(\d+(?:\.\d+)?)\s*m|(\d+(?:\.\d+)?)\s*m[\s_-]*depth|slice[\s_-]*(\d+(?:\.\d+)?)\s*m/i.exec(s);
+  if (!m) return null;
+  const d = Number(m[1] ?? m[2] ?? m[3] ?? m[4]);
+  return Number.isFinite(d) && d > 0 ? d : null;
+}
+const inBox = (c, b) => !b || (Number.isFinite(c.x) && Number.isFinite(c.y) && c.x >= b[0] && c.x <= b[2] && c.y >= b[1] && c.y <= b[3]);
+export function rasterDrapeElevation({ collars = [], voxelModels = [], surfaceSamples = [], bbox = null, rasters = [], fileName = null } = {}) {
+  const base = defaultDrapeElevation({ collars, voxelModels, surfaceSamples, bbox });
+  const depth = depthFromName(fileName);
+  let out;
+  if (depth != null && base.source !== "none") out = { z: base.z - depth, source: "depth", depth, groundZ: base.z, groundSource: base.source };
+  else if (base.source === "collars") {
+    const under = (collars || []).filter((c) => Number.isFinite(c.z) && inBox(c, bbox));
+    const zs = (under.length ? under : collars.filter((c) => Number.isFinite(c.z))).map((c) => c.z);
+    const top = Math.max(...zs);
+    out = { z: top + ABOVE_COLLARS_M, source: "collars", above: ABOVE_COLLARS_M, topCollarZ: top };
+  } else out = { ...base };
+  // stacked above a raster already at that level
+  const levels = (rasters || []).map((r) => r.elevation).filter(Number.isFinite);
+  let stacked = 0;
+  for (let guard = 0; guard < 50; guard++) {
+    const near = levels.filter((e) => Math.abs(e - out.z) < 2);
+    if (!near.length) break;
+    out.z = Math.max(out.z, ...near) + STACK_STEP_M; stacked++;
+  }
+  if (stacked) out.stacked = stacked;
+  return out;
+}
+
 // What the import notice says about it
 export function drapeElevationNote(d) {
   const z = Math.round(d.z).toLocaleString();
+  const stacked = d.stacked ? " " + tr("It sits {m} m above the raster(s) imported before, so they do not overlap.", { m: d.stacked * STACK_STEP_M }) : ""; // #1505
+  if (d.source === "depth") return tr("Placed flat at {z} m: {depth} m below the ground level ({ground} m), as the file name's depth says; change Elev. on its card.", { z, depth: d.depth, ground: Math.round(d.groundZ).toLocaleString() }) + stacked;
+  if (d.source === "collars" && d.above) return tr("Placed flat at {z} m, {m} m above the highest collar under it, so no hole top is hidden; change Elev. on its card.", { z, m: d.above }) + stacked;
   if (d.source === "collars") return tr("Placed flat at {z} m, the median collar elevation; change Elev. on its card.", { z });
   if (d.source === "model") return tr("Placed flat at {z} m, the top of the block model \"{model}\" there; change Elev. on its card.", { z, model: d.model });
   if (d.source === "samples") return tr("Placed flat at {z} m, the median surface-sample elevation; change Elev. on its card.", { z });

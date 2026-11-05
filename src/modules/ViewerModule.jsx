@@ -775,7 +775,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // TASKS.csv #336 — latest survey/layers for import notices. commitImportData is reached through the
   // multi-file queue's long-lived callback, whose closure can hold stale store values.
   const importStateRef = useRef({});
-  importStateRef.current = { survey: store.survey, layers: store.layers, collars: store.collars, project: store.project, terrain: store.terrain, addMapLayer: store.addMapLayer, projectIsEmpty: store.projectIsEmpty, setEpsg: store.setEpsg }; // terrain/addMapLayer: #609; projectIsEmpty/setEpsg: #607
+  importStateRef.current = { survey: store.survey, layers: store.layers, collars: store.collars, project: store.project, terrain: store.terrain, addMapLayer: store.addMapLayer, projectIsEmpty: store.projectIsEmpty, setEpsg: store.setEpsg, rasters: store.rasters, voxelModels: store.voxelModels, surfaceSamples: store.surfaceSamples }; // rasters / voxelModels / surfaceSamples: #1505 // terrain/addMapLayer: #609; projectIsEmpty/setEpsg: #607
   // TASKS.csv #226/#214 — cursor's own tiny context (see store.jsx's CursorProvider comment): this
   // component calls setCursor() on every pointermove but never actually reads the live cursor VALUE
   // anywhere in its own render output (only the status bar in App.jsx does), so subscribing here only

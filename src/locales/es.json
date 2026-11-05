@@ -8308,5 +8308,9 @@
   "Added the terrain \"{name}\": {w} × {h} nodes at {cell} m from {n} station elevations{v}, blanked beyond {blank} m of a station ({pct}% of its box has ground, {zmin} to {zmax} m). It is the survey's own GPS heights, not a DEM: good enough for which cells are underground, coarse for anything else.": "Se añadió el terreno \"{name}\": {w} × {h} nodos a {cell} m a partir de {n} elevaciones de estación{v}, en blanco más allá de {blank} m de una estación ({pct}% de su caja tiene suelo, {zmin} a {zmax} m). Son las alturas GPS del propio levantamiento, no un MDE: suficiente para saber qué celdas están bajo tierra, grueso para cualquier otra cosa.",
   "The terrain covers {pct}% of the stations; the others would be left out.": "El terreno cubre el {pct}% de las estaciones; las demás quedarían fuera.",
   "No terrain yet: an inversion needs one to know which cells are underground.": "Aún sin terreno: una inversión lo necesita para saber qué celdas están bajo tierra.",
-  "Ground from the stations' own elevations…": "Terreno a partir de las elevaciones de las estaciones…"
+  "Ground from the stations' own elevations…": "Terreno a partir de las elevaciones de las estaciones…",
+  "It sits {m} m above the raster(s) imported before, so they do not overlap.": "Queda {m} m por encima del/los ráster(es) importado(s) antes, para que no se superpongan.",
+  "Placed flat at {z} m: {depth} m below the ground level ({ground} m), as the file name's depth says; change Elev. on its card.": "Colocado plano a {z} m: {depth} m bajo el nivel del terreno ({ground} m), como indica la profundidad del nombre del archivo; cambie Elev. en su tarjeta.",
+  "Placed flat at {z} m, {m} m above the highest collar under it, so no hole top is hidden; change Elev. on its card.": "Colocado plano a {z} m, {m} m por encima del collar más alto bajo él, para que no se oculte el tope de ningún sondaje; cambie Elev. en su tarjeta.",
+  "{msg} {v} Set its opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.": "{msg} {v} Ajuste su opacidad (o un CRS de origen, si quedó en el lugar equivocado) en la pestaña Mapas."
 }

@@ -8308,5 +8308,9 @@
   "Added the terrain \"{name}\": {w} × {h} nodes at {cell} m from {n} station elevations{v}, blanked beyond {blank} m of a station ({pct}% of its box has ground, {zmin} to {zmax} m). It is the survey's own GPS heights, not a DEM: good enough for which cells are underground, coarse for anything else.": "أُضيف التضاريس \"{name}\": {w} × {h} عقدة بخطوة {cell} م من {n} ارتفاع محطة{v}، فارغ خارج {blank} م من أي محطة ({pct}% من صندوقه به أرض، من {zmin} إلى {zmax} م). هذه ارتفاعات GPS للمسح نفسه لا نموذج ارتفاعات رقمي: كافية لمعرفة الخلايا الواقعة تحت الأرض، وخشنة لأي شيء آخر.",
   "The terrain covers {pct}% of the stations; the others would be left out.": "تغطي التضاريس {pct}% من المحطات؛ وستُستبعد البقية.",
   "No terrain yet: an inversion needs one to know which cells are underground.": "لا تضاريس بعد: يحتاج العكس إلى تضاريس لمعرفة الخلايا الواقعة تحت الأرض.",
-  "Ground from the stations' own elevations…": "سطح الأرض من ارتفاعات المحطات نفسها…"
+  "Ground from the stations' own elevations…": "سطح الأرض من ارتفاعات المحطات نفسها…",
+  "It sits {m} m above the raster(s) imported before, so they do not overlap.": "يقع على ارتفاع {m} م فوق الصور النقطية المستوردة قبله حتى لا تتداخل.",
+  "Placed flat at {z} m: {depth} m below the ground level ({ground} m), as the file name's depth says; change Elev. on its card.": "وُضع مسطحًا عند {z} م: {depth} م تحت مستوى الأرض ({ground} م) كما يقول العمق في اسم الملف؛ غيّر الارتفاع في بطاقته.",
+  "Placed flat at {z} m, {m} m above the highest collar under it, so no hole top is hidden; change Elev. on its card.": "وُضع مسطحًا عند {z} م، أعلى بـ {m} م من أعلى فوهة تحته حتى لا يُحجب رأس أي ثقب؛ غيّر الارتفاع في بطاقته.",
+  "{msg} {v} Set its opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.": "{msg} {v} اضبط شفافيته (أو نظام إحداثيات المصدر إن حطّ في المكان الخطأ) في تبويب الخرائط."
 }

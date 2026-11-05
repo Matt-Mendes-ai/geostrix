@@ -35,10 +35,10 @@ test("#1856 the order: collars, the model, the samples, 0", () => {
 
 test("#1856 / #1823 wiring: the Raster and Geophysics imports and new map layers use it", () => {
   const r = readFileSync(new URL("../src/modules/RasterModule.jsx", import.meta.url), "utf8");
-  assert.ok(r.includes("const drape = defaultDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox });"));
+  assert.ok(r.includes("const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: file.name });")); // #1505
   assert.ok(r.includes("text: `${msg} ${drapeElevationNote(drape)}`"));
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
-  assert.ok(g.includes("const drape = defaultDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox }); // #1856"));
+  assert.ok(g.includes("const drape = rasterDrapeElevation({ collars, voxelModels, surfaceSamples, bbox: raster.bbox, rasters, fileName: file.name }); // #1856; #1505"));
   const s = readFileSync(new URL("../src/lib/store.jsx", import.meta.url), "utf8");
   assert.ok(s.includes("const ground = Math.round(defaultDrapeElevation({ ...groundRef.current, bbox: layer.bbox || null }).z);"));
   assert.ok(s.indexOf("groundRef.current = { collars, surfaceSamples, voxelModels };") > s.indexOf("const [voxelModels, setVoxelModels] = useState([]);"), "after voxelModels is declared");
