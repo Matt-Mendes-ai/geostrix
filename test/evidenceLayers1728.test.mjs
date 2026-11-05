@@ -40,7 +40,7 @@ test("#1728 field values sit on the hole trace, the highest per 25 m plan bin, a
 
 test("#1728 logged interval zones become distance evidence along the interval, not a point at the collar", () => {
   const zones = [{ hole_id: "H1", from: 100, to: 160, value: "FR" }, { hole_id: "H2", from: 0, to: 10, value: "BX" }, { hole_id: "H9", from: 0, to: 5, value: "FR" }, { hole_id: "H1", depth: 3, value: "FL" }];
-  assert.deepEqual(zoneCodes(zones, traces), ["BX", "FR"], "H9 has no trace, FL is a pick not an interval");
+  assert.deepEqual(zoneCodes(zones, traces), ["BX", "FL", "FR"], "H9 has no trace; FL is a point row, which counts since #1455");
   const parts = zoneParts(zones, "FR", traces);
   assert.equal(parts.length, 1);
   assert.equal(parts[0].length, 13, "100 to 160 m every 5 m");
@@ -52,6 +52,6 @@ test("#1728 logged interval zones become distance evidence along the interval, n
 
 test("#1728 the pane offers them and reads them", () => {
   const p = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8");
-  assert.ok(p.includes('kind: "numeric"') && p.includes('kind: "zone"') && p.includes("layerFieldPoints(rows, field, traces)") && p.includes("zoneParts(zoneRows, src.ref, traces)"));
-  assert.ok(p.includes('tr("Distance to logged zone: {code}", { code })') && p.includes('tr("Drillholes: {layer} {field} along the holes"'));
+  assert.ok(p.includes('kind: "numeric"') && p.includes('kind: "zone"') && p.includes("layerFieldPoints(rows, field, traces)") && p.includes("zoneParts(projectLayers?.[src.ref.slice(0, i)], src.ref.slice(i + 1), traces)")); // ref = layer:code since #1455
+  assert.ok(p.includes('tr("Distance to logged {layer}: {code}", { layer: name, code })') && p.includes('tr("Drillholes: {layer} {field} along the holes"'));
 });

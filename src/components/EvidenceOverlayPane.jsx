@@ -23,6 +23,7 @@ import { fontSizes } from "../lib/theme.js";
 import { pBtn as sidebarBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #997
 import { t as tr } from "../lib/i18n.js";
 import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #1728
+const CODED_LAYERS = ["litho", "alt", "vein", "breccia", "mnlgy", "structzone", "litho_gc", "alt_gc"]; // TASKS.csv #1455 — the coded logs offered as "distance to"
 import { SURVEY_METHODS } from "../lib/geophysSurveys.js"; // TASKS.csv #1209
 
 const fmt = (v, d = 2) => (v == null || !Number.isFinite(v) ? "—" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 || v === 0 ? v.toFixed(d) : v.toPrecision(2)); // a small cutoff keeps its digits, not "-0.00"
@@ -70,8 +71,28 @@ export default function EvidenceOverlayPane({ onClose }) {
     for (const cl of customLayers) for (const f of numericLayerFields(cl.rows)) out.push({ key: `num:custom:${cl.id}:${f}`, label: tr("Drillholes: {layer} {field} along the holes", { layer: cl.name, field: f }), kind: "numeric", ref: `custom:${cl.id}:${f}` });
     return out;
   }, [traces, projectLayers, customLayers]);
-  const zoneRows = projectLayers?.structzone;
-  const numericRowsOf = (ref) => { const m = /^custom:(.+):([^:]+)$/.exec(ref); if (m) { const cl = customLayers.find((c) => String(c.id) === m[1]); return { rows: cl?.rows || [], field: m[2] }; } const [key, field] = ref.split(":"); return { rows: projectLayers?.[key] || [], field }; };
+  // TASKS.csv #1455 (review #1352, Silvertip) — every coded log as "distance to" evidence (codes logged at least 3 times), and a
+  // mineralization code's percent along the holes
+  const codedSources = useMemo(() => {
+    if (!traces.size) return [];
+    const out = [];
+    for (const key of CODED_LAYERS) {
+      const rows = projectLayers?.[key]; if (!rows?.length) continue;
+      const name = tr(LAYER_META[key]?.label || key);
+      zoneCodes(rows, traces, { min: 3 }).forEach((code) => out.push({ key: `zone:${key}:${code}`, label: tr("Distance to logged {layer}: {code}", { layer: name, code }), kind: "zone", ref: `${key}:${code}` }));
+      if (key === "mnlgy") {
+        const pct = new Map();
+        for (const r of rows) { const code = String(r.value ?? "").trim(); if (code && typeof r.extra === "number" && Number.isFinite(r.extra)) pct.set(code, (pct.get(code) || 0) + 1); }
+        [...pct].filter(([, n]) => n >= 5).map(([c]) => c).sort().forEach((code) => out.push({ key: `num:coded:mnlgy:${code}:extra`, label: tr("Drillholes: {code} % along the holes", { code }), kind: "numeric", ref: `coded:mnlgy:${code}:extra` }));
+      }
+    }
+    return out;
+  }, [traces, projectLayers]);
+  const numericRowsOf = (ref) => {
+    const m = /^custom:(.+):([^:]+)$/.exec(ref); if (m) { const cl = customLayers.find((c) => String(c.id) === m[1]); return { rows: cl?.rows || [], field: m[2] }; }
+    const c = /^coded:([^:]+):(.+):([^:]+)$/.exec(ref); if (c) return { rows: (projectLayers?.[c[1]] || []).filter((r) => String(r.value ?? "").trim() === c[2]), field: c[3] }; // #1455 — one code's rows
+    const [key, field] = ref.split(":"); return { rows: projectLayers?.[key] || [], field };
+  };
   // TASKS.csv #1450 — surface samples far from the rest (Silvertip's 5 rocks 45 km south) do not size the grid or a reach
   const sampleCore = useMemo(() => { const { keep, dropped } = mainClusters(surfaceSamples); return { samples: surfaceSamples.filter((_, i) => keep[i]), dropped }; }, [surfaceSamples]);
   const media = useMemo(() => { const m = new Map(); sampleCore.samples.forEach((s) => m.set(s.medium || "", (m.get(s.medium || "") || 0) + 1)); return [...m].sort((a, b) => b[1] - a[1]).map(([k]) => k); }, [sampleCore]);
@@ -118,9 +139,9 @@ export default function EvidenceOverlayPane({ onClose }) {
     if (traces.size) pxrfElements.forEach((e) => out.push({ key: `pxrf:${e.symbol}`, label: tr("Drillholes: {sym} pXRF along the holes (screening readings, not assays)", { sym: e.symbol }), kind: "pxrf", ref: e.symbol })); // #1723
     structureCodes(structurePicks, traces).forEach((code) => out.push({ key: `pick:${code}`, label: tr("Distance to logged structure: {code}", { code }), kind: "pick", ref: code }));
     out.push(...numericLayerSources); // #1728
-    zoneCodes(zoneRows, traces).forEach((code) => out.push({ key: `zone:${code}`, label: tr("Distance to logged zone: {code}", { code }), kind: "zone", ref: code })); // #1728
+    out.push(...codedSources); // #1455 / #1728 — distance to a logged code, a mineral's percent
     return out;
-  }, [valueRasters, mapLayers, surfaceElements, geophysPts, voxelModels, traces, labElements, pxrfElements, structurePicks, numericLayerSources, zoneRows]);
+  }, [valueRasters, mapLayers, surfaceElements, geophysPts, voxelModels, traces, labElements, pxrfElements, structurePicks, numericLayerSources, codedSources]);
 
   // #1457 — through the cache: a reopened pane, or the same layer added again, reuses values computed from the same grid and data
   const computeValues = (src, opts = {}) => (grid ? cachedEvidence(
@@ -139,7 +160,7 @@ export default function EvidenceOverlayPane({ onClose }) {
     if (src.kind === "voxel") { const m = voxelModels.find((x) => (x.id ?? x.name) === src.ref); return m ? voxelColumnEvidence(grid, m, src.how, { zMin: opts.zMin, zMax: opts.zMax }) : null; } // #1831 — an elevation band
     if (src.kind === "pick") return distanceEvidence(grid, structureParts(structurePicks, src.ref, traces));
     if (src.kind === "numeric") { const { rows, field } = numericRowsOf(src.ref); return pointEvidence(grid, layerFieldPoints(rows, field, traces), { maxDistance: opts.reach || DRILL_REACH_M }); } // #1728
-    if (src.kind === "zone") return distanceEvidence(grid, zoneParts(zoneRows, src.ref, traces)); // #1728
+    if (src.kind === "zone") { const i = src.ref.indexOf(":"); return distanceEvidence(grid, zoneParts(projectLayers?.[src.ref.slice(0, i)], src.ref.slice(i + 1), traces)); } // #1728 / #1455 — ref = layer:code
     if (src.kind === "survey") { const pts = surveyPoints(geophysPts, src.ref); return pointEvidence(grid, pts, { maxDistance: opts.reach || reachFromSpacing(pts, 4) }); }
     if (src.kind === "grade") return pointEvidence(grid, holeGradePoints(cleanAssays, src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces), { maxDistance: opts.reach || DRILL_REACH_M });
     if (src.kind === "pxrf") return pointEvidence(grid, holeGradePoints(pxrfAssays, src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces), { maxDistance: opts.reach || DRILL_REACH_M }); // #1723

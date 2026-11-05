@@ -227,14 +227,15 @@ export function layerFieldPoints(rows, field, traces, bin = GRADE_BIN_M) {
   }
   return [...best.values()];
 }
-// the codes of interval rows (from / to) that sit on a hole, with their interval count
-export function zoneCodes(rows, traces) {
+// the codes of interval rows (from / to) or point rows (depth) that sit on a hole, with at least `min` of them
+// (TASKS.csv #1455: every coded log - lithology, alteration, veins, breccia, mineralization, structural zones - not only the zones)
+export function zoneCodes(rows, traces, { min = 1 } = {}) {
   const counts = new Map();
   for (const r of rows || []) {
     const code = String(r.value ?? "").trim();
-    if (code && traces.has(r.hole_id) && Number.isFinite(Number(r.from)) && Number.isFinite(Number(r.to))) counts.set(code, (counts.get(code) || 0) + 1);
+    if (code && traces.has(r.hole_id) && Number.isFinite(rowDepth(r))) counts.set(code, (counts.get(code) || 0) + 1);
   }
-  return [...counts.keys()].sort();
+  return [...counts].filter(([, n]) => n >= min).map(([k]) => k).sort();
 }
 // the intervals of one code as distanceEvidence parts: a polyline along the trace from `from` to `to`, a vertex every `stepM`
 export function zoneParts(rows, code, traces, stepM = 5) {
@@ -242,7 +243,8 @@ export function zoneParts(rows, code, traces, stepM = 5) {
   for (const r of rows || []) {
     if (String(r.value ?? "").trim() !== code) continue;
     const t = traces.get(r.hole_id), from = Number(r.from), to = Number(r.to);
-    if (!t || !Number.isFinite(from) || !Number.isFinite(to)) continue;
+    if (!t) continue;
+    if (!Number.isFinite(from) || !Number.isFinite(to)) { const d = Number(r.depth); if (Number.isFinite(d)) { const p = pointOnTrace(t, d); out.push([[p.x, p.y]]); } continue; } // a point row (#1455)
     const a = Math.min(from, to), b = Math.max(from, to), part = [];
     for (let d = a; d <= b + 1e-9; d += stepM) { const p = pointOnTrace(t, Math.min(d, b)); part.push([p.x, p.y]); }
     if (part.length === 1 || Math.abs((b - a) % stepM) > 1e-9) { const p = pointOnTrace(t, b); part.push([p.x, p.y]); }

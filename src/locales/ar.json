@@ -7902,8 +7902,9 @@
   "All the evidence comes from the {n} drillholes, so the score exists only within {reach} m of their traces: it ranks drilled ground, not untested targets. A surface evidence (a survey, a raster, soil or rock samples, a map layer) is what can score beyond the holes.": "كل الأدلة من ثقوب الحفر الـ{n}، فالدرجة موجودة فقط ضمن {reach} م من مساراتها: إنها ترتّب أرضاً محفورة، لا أهدافاً غير مختبَرة. دليل سطحي (مسح، صورة نقطية، عينات تربة أو صخر، طبقة خريطة) هو ما يمكنه التقييم خارج الثقوب.",
   "Drillholes: {name} along the holes": "ثقوب الحفر: {name} على طول الثقوب",
   "Drillholes: {layer} {field} along the holes": "ثقوب الحفر: {layer} {field} على طول الثقوب",
-  "Distance to logged zone: {code}": "المسافة إلى النطاق المسجَّل: {code}",
   "Field: {name}": "الحقل: {name}",
   "{n} of {m} samples have no {field}: drawn in the no-value colour.": "{n} من {m} عينة ليس لها {field}: مرسومة بلون بلا قيمة.",
-  "Field": "الحقل"
+  "Field": "الحقل",
+  "Distance to logged {layer}: {code}": "المسافة إلى {layer} المسجَّلة: {code}",
+  "Drillholes: {code} % along the holes": "ثقوب الحفر: {code} % على طول الثقوب"
 }

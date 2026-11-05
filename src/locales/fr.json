@@ -7902,8 +7902,9 @@
   "All the evidence comes from the {n} drillholes, so the score exists only within {reach} m of their traces: it ranks drilled ground, not untested targets. A surface evidence (a survey, a raster, soil or rock samples, a map layer) is what can score beyond the holes.": "Toute l'évidence vient des {n} sondages : le score n'existe donc qu'à moins de {reach} m de leurs traces et classe du terrain déjà foré, pas des cibles non testées. Une évidence de surface (un levé, un raster, des échantillons de sol ou de roche, une couche de carte) est ce qui peut noter au-delà des sondages.",
   "Drillholes: {name} along the holes": "Sondages : {name} le long des sondages",
   "Drillholes: {layer} {field} along the holes": "Sondages : {layer} {field} le long des sondages",
-  "Distance to logged zone: {code}": "Distance à la zone loggée : {code}",
   "Field: {name}": "Champ : {name}",
   "{n} of {m} samples have no {field}: drawn in the no-value colour.": "{n} des {m} échantillons n'ont pas de {field} : dessinés dans la couleur sans valeur.",
-  "Field": "Champ"
+  "Field": "Champ",
+  "Distance to logged {layer}: {code}": "Distance à {layer} loggée : {code}",
+  "Drillholes: {code} % along the holes": "Sondages : {code} % le long des sondages"
 }

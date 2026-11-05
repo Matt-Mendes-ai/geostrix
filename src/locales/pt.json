@@ -7902,8 +7902,9 @@
   "All the evidence comes from the {n} drillholes, so the score exists only within {reach} m of their traces: it ranks drilled ground, not untested targets. A surface evidence (a survey, a raster, soil or rock samples, a map layer) is what can score beyond the holes.": "Toda a evidência vem dos {n} furos, por isso a pontuação só existe até {reach} m dos seus traços: ordena terreno já perfurado, não alvos por testar. Uma evidência de superfície (um levantamento, um raster, amostras de solo ou rocha, uma camada de mapa) é o que pode pontuar além dos furos.",
   "Drillholes: {name} along the holes": "Furos: {name} ao longo dos furos",
   "Drillholes: {layer} {field} along the holes": "Furos: {layer} {field} ao longo dos furos",
-  "Distance to logged zone: {code}": "Distância à zona registada: {code}",
   "Field: {name}": "Campo: {name}",
   "{n} of {m} samples have no {field}: drawn in the no-value colour.": "{n} de {m} amostras não têm {field}: desenhadas na cor sem valor.",
-  "Field": "Campo"
+  "Field": "Campo",
+  "Distance to logged {layer}: {code}": "Distância a {layer} registada: {code}",
+  "Drillholes: {code} % along the holes": "Furos: {code} % ao longo dos furos"
 }
