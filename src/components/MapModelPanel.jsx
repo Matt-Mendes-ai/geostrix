@@ -13,7 +13,7 @@ const ROLES = ["stratigraphic", "intrusion", "cross-cutting", "other"];
 const roleLabel = (r) => ({ stratigraphic: tr("stratigraphic"), intrusion: tr("intrusion"), "cross-cutting": tr("cross-cutting"), other: tr("other (left out)") }[r] || r);
 const fieldsOf = (l) => l?.fields || Object.keys(l?.features?.[0]?.attributes || {});
 
-export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, busy, onRun, onBuildBodies, pBtn, smallSel }) { // onBuildBodies: #821
+export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, busy, onRun, onBuildBodies, pBtn, smallSel, holeCount = 0 }) { // holeCount: #1718 // onBuildBodies: #821
   const polys = (mapLayers || []).filter((l) => l.geomType === "polygon");
   const lines = (mapLayers || []).filter((l) => l.geomType === "line" || l.geomType === "polyline"); // the importer names them "polyline"
   const [layerId, setLayerId] = useState("");
@@ -92,9 +92,12 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const row = { display: "flex", alignItems: "center", gap: 6, marginBottom: 6 };
   const sel = { ...smallSel, flex: 1, minWidth: 0 };
 
-  if (!polys.length) return <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Import a geological map (polygons with a unit attribute) and the outcrop measurements in the Surface Geology tab first.")}</div>;
+  // TASKS.csv #1718 (review #1645, Copley) — on a drilled prospect, say that the holes are not used here and where they are
+  const holesNote = holeCount > 0 ? <div className="ge-holes-note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{tr("This tool builds from the map and the outcrop measurements only: the {n} drillhole(s) are not used. To fit the logged contacts and the mapped ones together, use Explicit surface: its \"From the geological map\" section adds the map contacts to the hole picks.", { n: holeCount })}</div> : null;
+  if (!polys.length) return <>{holesNote}<div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Import a geological map (polygons with a unit attribute) and the outcrop measurements in the Surface Geology tab first.")}</div></>;
   return (
     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+      {holesNote}
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
         {tr("Builds a stratigraphic model from the geological map and outcrop measurements alone: the map contacts on the terrain become the tops of units, the bedding and the contacts' own dips become orientations. The order below is a suggestion from the map — check it.")}
       </div>

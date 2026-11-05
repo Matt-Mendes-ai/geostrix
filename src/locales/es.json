@@ -8215,5 +8215,6 @@
   "Drawn from the collars, not the 3D view: traces run straight from each collar's azimuth, dip and length. Insert > Scale bar binds to it.": "Dibujado a partir de los collares, no de la vista 3D: las trazas siguen en línea recta el azimut, la inclinación y la longitud de cada collar. Insert > Scale bar se vincula a él.",
   "{g} (ribbon {n} of {t}, from the left)": "{g} (cinta {n} de {t}, desde la izquierda)",
   "+ {n} longer description(s) not listed (over {c} characters)": "+ {n} descripción(es) más larga(s) no listada(s) (más de {c} caracteres)",
-  "Ribbons on each hole, left to right: {list}": "Cintas en cada sondaje, de izquierda a derecha: {list}"
+  "Ribbons on each hole, left to right: {list}": "Cintas en cada sondaje, de izquierda a derecha: {list}",
+  "This tool builds from the map and the outcrop measurements only: the {n} drillhole(s) are not used. To fit the logged contacts and the mapped ones together, use Explicit surface: its \"From the geological map\" section adds the map contacts to the hole picks.": "Esta herramienta construye solo a partir del mapa y de las mediciones de afloramiento: no usa los {n} sondaje(s). Para ajustar juntos los contactos registrados y los mapeados, use Explicit surface: su sección \"From the geological map\" añade los contactos del mapa a los picks de los sondajes."
 }

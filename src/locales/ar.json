@@ -8215,5 +8215,6 @@
   "Drawn from the collars, not the 3D view: traces run straight from each collar's azimuth, dip and length. Insert > Scale bar binds to it.": "مرسوم من الفوهات لا من العرض ثلاثي الأبعاد: تمتد المسارات مستقيمة وفق سمت كل فوهة وميلها وطولها. Insert > Scale bar يرتبط به.",
   "{g} (ribbon {n} of {t}, from the left)": "{g} (الشريط {n} من {t}، من اليسار)",
   "+ {n} longer description(s) not listed (over {c} characters)": "+ {n} وصف أطول غير مدرج (أكثر من {c} حرفاً)",
-  "Ribbons on each hole, left to right: {list}": "الأشرطة على كل ثقب من اليسار إلى اليمين: {list}"
+  "Ribbons on each hole, left to right: {list}": "الأشرطة على كل ثقب من اليسار إلى اليمين: {list}",
+  "This tool builds from the map and the outcrop measurements only: the {n} drillhole(s) are not used. To fit the logged contacts and the mapped ones together, use Explicit surface: its \"From the geological map\" section adds the map contacts to the hole picks.": "تبني هذه الأداة من الخريطة وقياسات المكاشف فقط: لا تُستخدم الثقوب الـ{n}. لملاءمة التماسات المسجلة والمرسومة معاً استخدم Explicit surface: يضيف قسم \"From the geological map\" فيه تماسات الخريطة إلى نقاط الثقوب."
 }
