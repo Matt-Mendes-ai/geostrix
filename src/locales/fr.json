@@ -8297,5 +8297,7 @@
   "Load base-station files…": "Charger les fichiers de station de base…",
   "{names}: only faces (a solid, not strings) — handed to the 3D View's solid import.": "{names} : seulement des faces (un solide, pas des lignes) — transmis à l'import de solides de la Vue 3D.",
   "VLF-EM: in-phase": "VLF-EM : en phase",
-  "VLF-EM: quadrature": "VLF-EM : quadrature"
+  "VLF-EM: quadrature": "VLF-EM : quadrature",
+  "Survey to analyse": "Levé à analyser",
+  "Surveys are never mixed: each has its own units and spacing.": "Les levés ne sont jamais mélangés : chacun a ses propres unités et son propre espacement."
 }

@@ -2180,7 +2180,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         </div>
       </div>)}
 
-      {spatialOpen && <SpatialAnalysis points={rows} onClose={() => setSpatialOpen(false)} />}
+      {spatialOpen && <SpatialAnalysis points={rows} surveys={surveyList.map((s) => ({ ...s, units: geophysSurveys[s.key]?.units || "", method: geophysSurveys[s.key]?.method || null }))} /* #1588 — one survey at a time */ onClose={() => setSpatialOpen(false)} />}
     </div>
   );
 }

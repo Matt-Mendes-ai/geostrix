@@ -7,6 +7,7 @@ import { useStore } from "../lib/store.jsx"; // TASKS.csv #1053 — the project 
 import { saveFile } from "../lib/desktop.js";
 import { voronoiTessellation, paddedBounds, declusteredStats } from "../lib/geoprocessing.js";
 import { minMax } from "../lib/layers.js";
+import { surveyKey, robustRange } from "../lib/geophysSurveys.js"; // TASKS.csv #1588 — one survey at a time, its units, a 2-98 % stretch
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
@@ -33,19 +34,27 @@ function rampColor(t) {
   return `rgb(${Math.round(220)}, ${Math.round(220 - k * 170)}, ${Math.round(160 - k * 150)})`;
 }
 
-export default function SpatialAnalysis({ points, onClose }) {
+// TASKS.csv #1588 (review #1497, Lawyers) — surveys: [{ key, count, units, method }] of the loaded point surveys. Two mag surveys
+// and a VLF survey used to become one tessellation with a 'declustered mean 55,226.635' and no unit: the panel takes ONE
+// survey (a Survey select when there are several, as Grid to raster does), says its units, and colours on a 2-98 % stretch.
+export default function SpatialAnalysis({ points, surveys = [], onClose }) {
   const { project } = useStore();
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const [hoverIdx, setHoverIdx] = useState(null);
+  const [survey, setSurvey] = useState("");
+  const key = surveys.some((s) => s.key === survey) ? survey : surveys[0]?.key || null;
+  const meta = surveys.find((s) => s.key === key) || null;
+  const units = meta?.units || "";
+  const own = useMemo(() => (key != null && surveys.length ? points.filter((p) => surveyKey(p) === key) : points), [points, surveys, key]);
 
   const valid = useMemo(
-    () => points.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.value)),
-    [points]
+    () => own.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.value)),
+    [own]
   );
 
   const bounds = useMemo(() => (valid.length ? paddedBounds(valid) : null), [valid]);
-  const shape = useMemo(() => cloudShape(points), [points]); // #1783
+  const shape = useMemo(() => cloudShape(own), [own]); // #1783
   const { cells } = useMemo(() => (bounds ? voronoiTessellation(valid, bounds) : { cells: [] }), [valid, bounds]);
   const stats = useMemo(() => (bounds ? declusteredStats(valid, bounds) : null), [valid, bounds]);
 
@@ -53,9 +62,10 @@ export default function SpatialAnalysis({ points, onClose }) {
   // Not Math.min(...vals)/Math.max(...vals) — a real geophysics survey point cloud can exceed the JS
   // engine's argument-spread limit (see layers.js's minMax comment, and voxel.js's cellValueRange for
   // the real crash this pattern caused elsewhere in the app).
-  const vr = vals.length ? minMax(vals) : { min: 0, max: 1 };
-  const vmin = vr.min, vmax = vr.max;
-  const vrange = vmax - vmin || 1;
+  const vr = vals.length ? robustRange(vals) : null; // #1588 — the 2-98 % stretch, so a few extreme readings do not grey out the map
+  const vmin = vr ? vr.min : 0, vmax = vr ? vr.max : 1;
+  const vrange = vmax - vmin || (vals.length ? minMax(vals).max - minMax(vals).min : 0) || 1;
+  const fmt = (v) => (v == null ? "" : `${v.toLocaleString(undefined, { maximumFractionDigits: 3 })}${units ? ` ${units}` : ""}`); // #1588 — the survey's units on every number
 
   const sx = (x) => bounds ? PAD + ((x - bounds.xmin) / (bounds.xmax - bounds.xmin)) * (SVG_W - 2 * PAD) : 0;
   // World y grows north; SVG y grows down — flip.
@@ -76,6 +86,15 @@ export default function SpatialAnalysis({ points, onClose }) {
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
+        {surveys.length > 1 && (
+          <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "10px 14px 0", fontSize: "var(--font-size-sm)" }}>
+            <span style={{ color: "var(--color-text-faint)", flexShrink: 0 }}>{tr("Survey")}</span>
+            <select value={key || ""} onChange={(e) => { setSurvey(e.target.value); setHoverIdx(null); }} aria-label={tr("Survey to analyse")} style={{ flex: "0 1 420px", minWidth: 0 }}>
+              {surveys.map((s) => <option key={s.key} value={s.key}>{s.key} ({s.count.toLocaleString()}{s.units ? `, ${s.units}` : ""})</option>)}
+            </select>
+            <span style={{ color: "var(--color-text-faint)" }}>{tr("Surveys are never mixed: each has its own units and spacing.")}</span>
+          </div>
+        )}
         {valid.length < 3 ? (
           <div style={{ padding: 20, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Need at least 3 points with valid x, y, and value to build a tessellation — currently {valid}.", { valid: valid.length })}</div>
         ) : (
@@ -102,7 +121,7 @@ export default function SpatialAnalysis({ points, onClose }) {
               </svg>
               {hoverIdx !== null && cells[hoverIdx] && (
                 <div style={{ marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-caption)" }}>
-                  {tr("{v}value {value}, cell area {area} units², decluster weight {v2}%", { v: cells[hoverIdx].point.label ? `${cells[hoverIdx].point.label} — ` : "", value: cells[hoverIdx].point.value.toLocaleString(), area: cells[hoverIdx].area.toFixed(1), v2: (stats.cells[hoverIdx]?.weight * 100).toFixed(2) })}</div>
+                  {tr("{v}value {value}, cell area {area} units², decluster weight {v2}%", { v: cells[hoverIdx].point.label ? `${cells[hoverIdx].point.label} — ` : "", value: fmt(cells[hoverIdx].point.value) /* #1588 */ || cells[hoverIdx].point.value.toLocaleString(), area: cells[hoverIdx].area.toFixed(1), v2: (stats.cells[hoverIdx]?.weight * 100).toFixed(2) })}</div>
               )}
             </div>
 
@@ -115,9 +134,9 @@ export default function SpatialAnalysis({ points, onClose }) {
               {shape?.is3D && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("A 3D point cloud ({lo} to {hi} m elevation): these cells and means are over its plan projection, as if every point lay on one surface. Points at the same plan position count once.", { lo: Math.round(shape.zMin).toLocaleString(), hi: Math.round(shape.zMax).toLocaleString() })}</div>}{/* #1783 */}
               <StatRow label={tr("Points")} value={stats.n} />
               {stats.n < valid.length && <StatRow label={tr("Left out (same plan position)")} value={valid.length - stats.n} />}{/* #1783 — said, not silent */}
-              <StatRow label={tr("Naive mean")} value={stats.naiveMean?.toLocaleString(undefined, { maximumFractionDigits: 3 })} />
-              <StatRow label={tr("Declustered mean")} value={stats.declusteredMean?.toLocaleString(undefined, { maximumFractionDigits: 3 })} highlight />
-              {stats.declusteredStd !== null && <StatRow label={tr("Declustered std dev")} value={stats.declusteredStd.toLocaleString(undefined, { maximumFractionDigits: 3 })} />}
+              <StatRow label={tr("Naive mean")} value={fmt(stats.naiveMean)} />
+              <StatRow label={tr("Declustered mean")} value={fmt(stats.declusteredMean)} highlight />
+              {stats.declusteredStd !== null && <StatRow label={tr("Declustered std dev")} value={fmt(stats.declusteredStd)} />}
               <StatRow label={tr("Total tessellated area")} value={stats.totalArea.toLocaleString(undefined, { maximumFractionDigits: 0 })} />
 
               <button onClick={exportCSV} style={btn}>

@@ -8297,5 +8297,7 @@
   "Load base-station files…": "Cargar archivos de estación base…",
   "{names}: only faces (a solid, not strings) — handed to the 3D View's solid import.": "{names}: solo caras (un sólido, no líneas) — pasado a la importación de sólidos de la Vista 3D.",
   "VLF-EM: in-phase": "VLF-EM: en fase",
-  "VLF-EM: quadrature": "VLF-EM: cuadratura"
+  "VLF-EM: quadrature": "VLF-EM: cuadratura",
+  "Survey to analyse": "Levantamiento a analizar",
+  "Surveys are never mixed: each has its own units and spacing.": "Los levantamientos nunca se mezclan: cada uno tiene sus propias unidades y espaciado."
 }
