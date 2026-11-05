@@ -1024,6 +1024,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   }, []);
   const [notices, setNotices] = useTabNotices(store.activeTabId, () => { setCursor({ x: null, y: null, z: null }); setToast(null); tabSwitchedRef.current = true; }); // #1203
   const tabSwitchedRef = useRef(false); // a tab's own notices coming back are not news: no toast for them
+  const [allNotices, setAllNotices] = useState(false); // TASKS.csv #1542 — Recent messages in full
   const [toast, setToast] = useState(null); // { text, key } — most recent notice, shown briefly over the viewport
   const toastTimerRef = useRef(null); // #690
   const [inspectLayer, setInspectLayer] = useState(null);
@@ -8568,8 +8569,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             read every message twice. This is the persistent record of the same messages, so it just
             gets a name so it can be found by landmark/region navigation. */}
         {notices.length > 0 && (
-          <div role="region" aria-label={tr("Recent messages")} style={{ marginTop: 14, padding: "8px 10px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.5, maxHeight: 140, overflowY: "auto" }}>
-            {notices.slice(-6).map((n, i) => (noticeLevel(n) === "error"
+          <div role="region" aria-label={tr("Recent messages")} style={{ marginTop: 14, padding: "8px 10px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-xs)", color: "var(--color-text-caption)", lineHeight: 1.5, maxHeight: allNotices ? 360 : 140, overflowY: "auto" }}>
+            {notices.length > 6 && <div style={{ display: "flex", gap: 10, marginBottom: 4 }}><span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setAllNotices((a) => !a)} style={{ color: "var(--color-accent)", cursor: "pointer" }}>{allNotices ? tr("Show the last 6") : tr("Show all {n}", { n: notices.length })}</span><span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => copyText(notices.map(noticeText).join("\n"))} style={{ color: "var(--color-accent)", cursor: "pointer" }}>{tr("Copy")}</span></div>}{/* #1542 */}
+            {notices.slice(allNotices ? -500 : -6).map((n, i) => (noticeLevel(n) === "error"
               ? <div key={i} style={{ marginBottom: 4, color: "var(--color-danger-fg)", display: "flex", gap: 5, alignItems: "flex-start" }}><AlertTriangle size={12} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} /><span>{noticeText(n)}</span></div>
               : <div key={i} style={{ marginBottom: 4 }}>{noticeText(n)}</div>))}
           </div>

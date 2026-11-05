@@ -148,13 +148,17 @@ export function RibbonButton({ icon: Icon, label: label0, title: title0, onClick
 // opening another pane starts from its own first message.
 export function PaneNotice({ notices }) {
   const [from, setFrom] = useState(() => notices.length);
+  const [all, setAll] = useState(false); // TASKS.csv #1542 — a run's several lines (fit per surface, each violation), not only its last
   if (notices.length < from) setFrom(notices.length); // the list was cleared or swapped (another project tab)
   if (notices.length <= from) return null;
-  const n = notices[notices.length - 1], err = noticeLevel(n) === "error";
+  const n = notices[notices.length - 1], err = noticeLevel(n) === "error", count = notices.length - from;
   return (
     <div className="ge-pane-notice" role="status" style={{ display: "flex", gap: 6, alignItems: "flex-start", margin: "0 0 10px", padding: "6px 8px", borderRadius: 6, fontSize: "var(--font-size-sm)", lineHeight: 1.45,
       background: err ? "var(--color-danger-bg)" : "var(--color-bg)", color: err ? "var(--color-danger-text)" : "var(--color-text)", border: `1px solid ${err ? "var(--color-danger-border, var(--color-border))" : "var(--color-border)"}` }}>
-      <span style={{ flex: 1, minWidth: 0 }}>{noticeText(n)}</span>
+      <span style={{ flex: 1, minWidth: 0, maxHeight: all ? 260 : undefined, overflowY: all ? "auto" : undefined }}>
+        {all ? notices.slice(from).map((m, i) => <div key={i} style={{ marginBottom: 3 }}>{noticeText(m)}</div>) : noticeText(n)}
+        {count > 1 && <span role="button" tabIndex={0} onClick={() => setAll((a) => !a)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setAll((a) => !a); } }} style={{ display: "block", marginTop: 3, color: "var(--color-accent)", cursor: "pointer" }}>{all ? t("Show the last one") : t("Show all {n} messages since this pane opened", { n: count })}</span>}
+      </span>
       <button type="button" className="ge-pane-close" onClick={() => setFrom(notices.length)} aria-label={t("Dismiss message")} title={t("Dismiss")}><X size={12} /></button>
     </div>
   );

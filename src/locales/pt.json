@@ -8254,5 +8254,8 @@
   "{n} holes ({ids}) start within 1m of each other with different azimuths or dips: a drill pad (fan), not a duplicate.": "{n} furos ({ids}) começam a menos de 1 m uns dos outros com azimutes ou inclinações diferentes: uma praça de sondagem (leque), não um duplicado.",
   "Value {v} at {from}–{to}m is outside the plausible {min}–{max} range for {layer} — a keying or unit error?": "O valor {v} em {from}–{to} m está fora da faixa plausível {min}–{max} para {layer}: erro de digitação ou de unidade?",
   "{n} interval(s) repeat another's exact from–to with a different value: a log that records several values per run (e.g. vein types). Not counted as overlaps.": "{n} intervalo(s) repetem exatamente o de–até de outro com valor diferente: um registro com vários valores por trecho (ex.: tipos de veio). Não contados como sobreposições.",
-  "Place the breaks on the 1st–99th percentiles ({a} – {b}): {above} value(s) above and {below} below go in the end classes (the full range is {min} – {max}).": "Colocar os limites nos percentis 1–99 ({a} – {b}): {above} valor(es) acima e {below} abaixo vão para as classes extremas (a faixa completa é {min} – {max})."
+  "Place the breaks on the 1st–99th percentiles ({a} – {b}): {above} value(s) above and {below} below go in the end classes (the full range is {min} – {max}).": "Colocar os limites nos percentis 1–99 ({a} – {b}): {above} valor(es) acima e {below} abaixo vão para as classes extremas (a faixa completa é {min} – {max}).",
+  "Show the last 6": "Mostrar os últimos 6",
+  "Show the last one": "Mostrar só o último",
+  "Show all {n} messages since this pane opened": "Mostrar as {n} mensagens desde que este painel abriu"
 }

@@ -8254,5 +8254,8 @@
   "{n} holes ({ids}) start within 1m of each other with different azimuths or dips: a drill pad (fan), not a duplicate.": "{n} sondages ({ids}) partent à moins de 1 m les uns des autres avec des azimuts ou pendages différents : une plateforme (éventail), pas un doublon.",
   "Value {v} at {from}–{to}m is outside the plausible {min}–{max} range for {layer} — a keying or unit error?": "La valeur {v} à {from}–{to} m sort de la plage plausible {min}–{max} pour {layer} : erreur de saisie ou d'unité ?",
   "{n} interval(s) repeat another's exact from–to with a different value: a log that records several values per run (e.g. vein types). Not counted as overlaps.": "{n} intervalle(s) reprennent exactement le de–à d'un autre avec une valeur différente : un log à plusieurs valeurs par passe (p. ex. types de veines). Non comptés comme chevauchements.",
-  "Place the breaks on the 1st–99th percentiles ({a} – {b}): {above} value(s) above and {below} below go in the end classes (the full range is {min} – {max}).": "Placer les limites sur les 1er–99e centiles ({a} – {b}) : {above} valeur(s) au-dessus et {below} en dessous vont dans les classes extrêmes (la plage complète est {min} – {max})."
+  "Place the breaks on the 1st–99th percentiles ({a} – {b}): {above} value(s) above and {below} below go in the end classes (the full range is {min} – {max}).": "Placer les limites sur les 1er–99e centiles ({a} – {b}) : {above} valeur(s) au-dessus et {below} en dessous vont dans les classes extrêmes (la plage complète est {min} – {max}).",
+  "Show the last 6": "Afficher les 6 derniers",
+  "Show the last one": "Afficher le dernier seulement",
+  "Show all {n} messages since this pane opened": "Afficher les {n} messages depuis l'ouverture de ce volet"
 }
