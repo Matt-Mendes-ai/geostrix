@@ -8204,5 +8204,13 @@
   "Go to page": "الانتقال إلى الصفحة",
   "Delete the {n} pages generated with this one? (Ctrl+Z undoes this.)": "حذف الصفحات الـ{n} المولّدة مع هذه الصفحة؟ (Ctrl+Z يتراجع عن ذلك.)",
   "Remove these {n} generated pages": "إزالة هذه الصفحات المولّدة الـ{n}",
-  "{id} is outside this map": "{id} خارج هذه الخريطة"
+  "{id} is outside this map": "{id} خارج هذه الخريطة",
+  "Drill plan": "مخطط الثقوب",
+  "A drill-hole location plan: collar symbols, traces and labels at a true scale, drawn from the collars (not a 3D capture)": "مخطط مواقع الثقوب: رموز الفوهات والمسارات والتسميات بمقياس حقيقي، مرسوم من الفوهات (ليس لقطة ثلاثية الأبعاد)",
+  "Labels": "التسميات",
+  "Every hole with room for one": "كل ثقب يتسع لتسمية",
+  "Label only holes containing": "تسمية الثقوب التي تحتوي فقط على",
+  "Colour by series (the hole id without its number), with a key": "التلوين حسب السلسلة (معرّف الثقب دون رقمه) مع مفتاح",
+  "{n} hole(s) in the frame; {p} of {l} labelled ({s} without a label where it would overlap another).": "{n} ثقب في الإطار؛ {p} من {l} مسمّاة ({s} دون تسمية حيث كانت ستتداخل مع أخرى).",
+  "Drawn from the collars, not the 3D view: traces run straight from each collar's azimuth, dip and length. Insert > Scale bar binds to it.": "مرسوم من الفوهات لا من العرض ثلاثي الأبعاد: تمتد المسارات مستقيمة وفق سمت كل فوهة وميلها وطولها. Insert > Scale bar يرتبط به."
 }

@@ -8204,5 +8204,13 @@
   "Go to page": "Ir para a página",
   "Delete the {n} pages generated with this one? (Ctrl+Z undoes this.)": "Excluir as {n} páginas geradas junto com esta? (Ctrl+Z desfaz.)",
   "Remove these {n} generated pages": "Remover estas {n} páginas geradas",
-  "{id} is outside this map": "{id} está fora deste mapa"
+  "{id} is outside this map": "{id} está fora deste mapa",
+  "Drill plan": "Planta de furos",
+  "A drill-hole location plan: collar symbols, traces and labels at a true scale, drawn from the collars (not a 3D capture)": "Uma planta de localização de furos: símbolos de boca, traços e rótulos em escala real, desenhada a partir das bocas (não uma captura 3D)",
+  "Labels": "Rótulos",
+  "Every hole with room for one": "Cada furo com espaço para um",
+  "Label only holes containing": "Rotular só furos que contêm",
+  "Colour by series (the hole id without its number), with a key": "Cor por série (o id do furo sem o número), com legenda",
+  "{n} hole(s) in the frame; {p} of {l} labelled ({s} without a label where it would overlap another).": "{n} furo(s) no quadro; {p} de {l} rotulados ({s} sem rótulo onde se sobreporia a outro).",
+  "Drawn from the collars, not the 3D view: traces run straight from each collar's azimuth, dip and length. Insert > Scale bar binds to it.": "Desenhado a partir das bocas, não da vista 3D: os traços seguem em linha reta o azimute, a inclinação e o comprimento de cada boca. Insert > Scale bar vincula-se a ele."
 }

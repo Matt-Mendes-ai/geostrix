@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
-import { Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock, LayoutTemplate, Download, Upload } from "../components/icons.js";
+import { MapPinned, Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock, LayoutTemplate, Download, Upload } from "../components/icons.js";
 import { newTitleBlock, STOCK_TEMPLATES, stockTemplateElements, templateFile, parseTemplateFile } from "../lib/layoutTitleBlock.js"; // TASKS.csv #1868
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { savePDF, saveFile, exportPDFData, canvasPngBytes, sendSectionResnap } from "../lib/desktop.js"; // saveFile / exportPDFData: TASKS.csv #909 Export PNG; canvasPngBytes: #1040; sendSectionResnap: #1485
@@ -12,6 +12,8 @@ import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
 import { collarTableSlice, collarRowsThatFit, continuationTables } from "../lib/collarTable.js"; // TASKS.csv #1638
+import { fitDrillPlan, filterHoles } from "../lib/drillPlan.js"; // TASKS.csv #1639
+import DrillPlanElement, { drillPlanDrawing } from "../components/DrillPlanElement.jsx"; // TASKS.csv #1639
 import { withLiveScaleBars, relinkCopies, tieStarterFurniture, northRotationOf, insertScaleBar, scaleBarTargets, bindScaleBar } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
 import { worldToVp, capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, holesInFrame, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText, sectionTextPt, sectionTextFactor } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; sectionTextPt: #1485; section scale: #944
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
@@ -598,6 +600,10 @@ export default function LayoutModule() {
     if (type === "arrow") { base.length = 140; base.angle = 0; base.stroke = "#1a2028"; base.strokeWidth = 2.5; }
     if (type === "callout") { base.text = "Note"; base.w = 180; base.fill = "#fff9e0"; base.stroke = "#c9a227"; }
     // TASKS.csv #911 — a drillhole collar table, live from the project's collars (static tables come from Best intercepts)
+    if (type === "drillplan") { // TASKS.csv #1639 — every hole at a round scale
+      Object.assign(base, { x: 60, y: 80, w: Math.min(760, A4.w - 120), h: Math.min(480, A4.h - 180), labels: "all", fontPt: 7, frameWidth: 1 });
+      Object.assign(base, fitDrillPlan(collars, base.w, base.h, SCALE_PRESETS) || { scale: 10000, centre: { x: 0, y: 0 } });
+    }
     if (type === "table") { base.source = "collars"; base.title = "Drillhole collars"; base.w = 520; base.fontPt = 7; base.maxRows = collarRowsThatFit(A4.h, base.y, 7); /* #1638 — fits the sheet */ base.frameWidth = 1; }
     if (type !== "logo") setElements((els) => [...els, base]);
     setSelected(type !== "logo" ? id : null);
@@ -949,6 +955,7 @@ export default function LayoutModule() {
           </RibbonGroup>
           <RibbonGroup label="Views">
             <RibbonButton icon={Camera} label="Current view" tone="view" title="Add a viewport snapshot of the current 3D View (no theme needed)" onClick={() => startViewportRender(null, "new")} />
+            <RibbonButton icon={MapPinned} label="Drill plan" tone="view" disabled={!collars.length} title="A drill-hole location plan: collar symbols, traces and labels at a true scale, drawn from the collars (not a 3D capture)" onClick={() => addElement("drillplan")} />{/* TASKS.csv #1639 */}
             <RibbonButton advanced icon={MonitorPlay} label="Theme view" tone="view" disabled={!themes.length} active={themePickerFor === "new"} title={themes.length ? "Add a live-bound viewport of a saved 3D View theme (pick it in the sidebar)" : "Save a theme in the 3D View first (Themes on its ribbon)"} onClick={() => setThemePickerFor(themePickerFor === "new" ? null : "new")} />
           </RibbonGroup>
           <RibbonGroup advanced label="Draw">
@@ -1079,7 +1086,7 @@ export default function LayoutModule() {
               return (<>
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Bound to")}<select value={sel.boundTo || ""} onChange={(e) => { const v = ts.find((t) => t.id === e.target.value); updateSelected(v ? bindScaleBar(sel, v) : { boundTo: null }); }} style={{ ...inp, marginTop: 4 }}>
                     <option value="">{tr("Nothing (a free bar)")}</option>
-                    {ts.map((v, i) => <option key={v.id} value={v.id}>{v.type === "viewport" ? (themes.find((t) => t.id === v.themeId)?.name || tr("Viewport {n}", { n: i + 1 })) : tr("{v} (cross-section)", { v: v.label || v.id })}</option>)}
+                    {ts.map((v, i) => <option key={v.id} value={v.id}>{v.type === "drillplan" ? tr("Drill plan") : v.type === "viewport" ? (themes.find((t) => t.id === v.themeId)?.name || tr("Viewport {n}", { n: i + 1 })) : tr("{v} (cross-section)", { v: v.label || v.id })}</option>)}
                   </select>
                 </label>
                 {!sel.boundTo && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Not tied to a view: its length is not a distance on any map of this page. Bind it to a view above (it then follows that view's scale).")}</div>}
@@ -1226,6 +1233,29 @@ export default function LayoutModule() {
                 real-world scale — nothing to assign here, silently (no button shown at all), same as
                 before. */}
             {/* TASKS.csv #19 — shape/annotation property editors */}
+            {sel.type === "drillplan" && (() => { // TASKS.csv #1639 — the drill plan's scale, extent, labels and colours
+              const dd = drillPlanDrawing(sel, tableCollars || []);
+              return (<>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Scale 1 :")}<select value={String(sel.scale)} onChange={(e) => updateSelected({ scale: Number(e.target.value) })} style={{ ...inp, marginTop: 4 }}>
+                  {[...new Set([...SCALE_PRESETS, sel.scale])].sort((a, b) => a - b).map((s) => <option key={s} value={String(s)}>{Number(s).toLocaleString()}</option>)}
+                </select></label>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Centre E")}<input type="number" value={Math.round(sel.centre?.x || 0)} onChange={(e) => updateSelected({ centre: { ...sel.centre, x: Number(e.target.value) } })} style={inp} /></label>
+                  <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Centre N")}<input type="number" value={Math.round(sel.centre?.y || 0)} onChange={(e) => updateSelected({ centre: { ...sel.centre, y: Number(e.target.value) } })} style={inp} /></label>
+                </div>
+                <button onClick={() => { const fit = fitDrillPlan(filterHoles(tableCollars || [], sel.holeFilter), sel.w, sel.h, SCALE_PRESETS); if (fit) updateSelected(fit); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "6px 10px", marginBottom: 8, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text-secondary)", fontSize: "var(--font-size-base)", cursor: "pointer" }}><Maximize2 size={14} />{" "}{tr("Fit the holes at a round scale")}</button>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Holes containing")}<input type="text" value={sel.holeFilter || ""} placeholder={tr("all")} onChange={(e) => updateSelected({ holeFilter: e.target.value })} style={{ ...inp, marginTop: 4 }} /></label>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Labels")}<select value={sel.labels || "all"} onChange={(e) => updateSelected({ labels: e.target.value })} style={{ ...inp, marginTop: 4 }}>
+                  <option value="all">{tr("Every hole with room for one")}</option>
+                  <option value="none">{tr("None")}</option>
+                </select></label>
+                {sel.labels !== "none" && <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Label only holes containing")}<input type="text" value={sel.labelFilter || ""} placeholder={tr("all")} onChange={(e) => updateSelected({ labelFilter: e.target.value })} style={{ ...inp, marginTop: 4 }} /></label>}
+                <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", cursor: "pointer" }}><input type="checkbox" checked={!!sel.bySeries} onChange={(e) => updateSelected({ bySeries: e.target.checked })} />{tr("Colour by series (the hole id without its number), with a key")}</label>
+                <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Text size (pt)")}<input type="number" min="5" max="12" step="0.5" value={sel.fontPt || 7} onChange={(e) => updateSelected({ fontPt: Math.max(5, Math.min(12, Number(e.target.value) || 7)) })} style={{ ...inp, marginTop: 4 }} /></label>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("{n} hole(s) in the frame; {p} of {l} labelled ({s} without a label where it would overlap another).", { n: dd.holes.length, p: dd.labels.placed.length, l: dd.labelled, s: dd.labels.skipped })} {tr("Drawn from the collars, not the 3D view: traces run straight from each collar's azimuth, dip and length. Insert > Scale bar binds to it.")}</div>
+                <FrameControls sel={sel} updateSelected={updateSelected} />
+              </>);
+            })()}
             {sel.type === "rect" && (
               <>
                 <ColorRow label={tr("Stroke")} value={sel.stroke} onChange={(v) => updateSelected({ stroke: v })} />
@@ -1861,7 +1891,7 @@ const LayoutPrintRoot = React.forwardRef(function LayoutPrintRoot({ pages, proje
 const BOX_TYPES = new Set(["viewport", "image", "rect", "logo"]);
 const ASPECT_LOCKED = new Set(["image", "logo"]);
 const WIDTH_ONLY = new Set(["title", "text", "callout", "legend", "table", "titleblock"]); // titleblock: #1868
-const HANDLES_FOR = { titleblock: ["e", "w"], viewport: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], rect: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], image: ["nw", "ne", "se", "sw"], logo: ["nw", "ne", "se", "sw"], title: ["e", "w"], text: ["e", "w"], callout: ["e", "w"], legend: ["e", "w"], table: ["e", "w"] };
+const HANDLES_FOR = { drillplan: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], titleblock: ["e", "w"], viewport: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], rect: ["nw", "n", "ne", "e", "se", "s", "sw", "w"], image: ["nw", "ne", "se", "sw"], logo: ["nw", "ne", "se", "sw"], title: ["e", "w"], text: ["e", "w"], callout: ["e", "w"], legend: ["e", "w"], table: ["e", "w"] };
 const HANDLE_CURSOR = { n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize", ne: "nesw-resize", sw: "nesw-resize", nw: "nwse-resize", se: "nwse-resize", tip: "crosshair" };
 const HANDLE_POS = { n: { left: "50%", top: 0 }, s: { left: "50%", top: "100%" }, e: { left: "100%", top: "50%" }, w: { left: 0, top: "50%" }, ne: { left: "100%", top: 0 }, nw: { left: 0, top: 0 }, se: { left: "100%", top: "100%" }, sw: { left: 0, top: "100%" } };
 function Handles({ which, onStart, at = {} }) {
@@ -2106,6 +2136,12 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
     );
   }
   // TASKS.csv #19 — shapes/annotation tools
+  if (el.type === "drillplan") return ( /* TASKS.csv #1639 */
+    <div style={{ ...wrap, width: el.w, height: el.h, border: frameBorder(el), boxSizing: "content-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
+      <DrillPlanElement el={el} collars={ctx?.collars || []} />
+      {handles}
+    </div>
+  );
   if (el.type === "rect") return (
     <div style={{ ...wrap, width: el.w, height: el.h }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
       <svg width={el.w} height={el.h} style={{ display: "block" }}>

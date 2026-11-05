@@ -2,6 +2,7 @@
 // viewport showing another's footprint. Pure functions, out of LayoutModule.jsx so they can be tested (review #918).
 import { niceScaleNumber } from "./figureScale.js";
 import { obliqueCapture, capturedSize } from "./layoutGeometry.js";
+import { pxPerMetre } from "./drillPlan.js"; // TASKS.csv #1639
 
 const SCALE_BAR_PX = 180; // LayoutModule's default bar length (px) for a fresh bar
 
@@ -17,7 +18,7 @@ const BAR_MIN_PX = 40, BAR_MAX_PX = 600;
 export function viewPxPerMetre(vp) {
   if (!vp) return null;
   const { w: imgW, h: imgH } = capturedSize(vp);
-  const ppm = vp.type === "viewport" ? (vp.worldHeightAtTarget && imgH ? imgH / vp.worldHeightAtTarget : 0) : vp.type === "image" ? (vp.worldWidthAtCaptureM && imgW ? imgW / vp.worldWidthAtCaptureM : 0) : 0;
+  const ppm = vp.type === "viewport" ? (vp.worldHeightAtTarget && imgH ? imgH / vp.worldHeightAtTarget : 0) : vp.type === "image" ? (vp.worldWidthAtCaptureM && imgW ? imgW / vp.worldWidthAtCaptureM : 0) : vp.type === "drillplan" ? pxPerMetre(vp.scale) : 0; // drillplan: #1639
   return ppm > 0 ? ppm : null;
 }
 // TASKS.csv #1635 (review #1497, Lawyers) — what a scale bar can be bound to on a page, and a new bar bound on insert: to the
@@ -39,10 +40,7 @@ export function withLiveScaleBars(els) {
     if (el.type !== "scale" || !el.boundTo) return el;
     const vp = els.find((v) => v.id === el.boundTo);
     if (!vp) return el;
-    const { w: imgW, h: imgH } = capturedSize(vp);
-    let ppm = null;
-    if (vp.type === "viewport" && vp.worldHeightAtTarget && imgH) ppm = imgH / vp.worldHeightAtTarget;
-    else if (vp.type === "image" && vp.worldWidthAtCaptureM && imgW) ppm = imgW / vp.worldWidthAtCaptureM;
+    const ppm = viewPxPerMetre(vp); // #1639 — one rule for viewports, snapshots and drill plans
     if (!(ppm > 0)) return el;
     const px = (el.meters || 100) * ppm;
     // TASKS.csv #946 — an oblique (non-plan) orthographic capture is to scale in the view plane only: ground along the

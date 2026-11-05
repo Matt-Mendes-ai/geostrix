@@ -8204,5 +8204,13 @@
   "Go to page": "Ir a la página",
   "Delete the {n} pages generated with this one? (Ctrl+Z undoes this.)": "¿Eliminar las {n} páginas generadas junto con esta? (Ctrl+Z lo deshace.)",
   "Remove these {n} generated pages": "Quitar estas {n} páginas generadas",
-  "{id} is outside this map": "{id} está fuera de este mapa"
+  "{id} is outside this map": "{id} está fuera de este mapa",
+  "Drill plan": "Plano de sondajes",
+  "A drill-hole location plan: collar symbols, traces and labels at a true scale, drawn from the collars (not a 3D capture)": "Un plano de ubicación de sondajes: símbolos de collar, trazas y etiquetas a escala real, dibujado a partir de los collares (no una captura 3D)",
+  "Labels": "Etiquetas",
+  "Every hole with room for one": "Cada sondaje con espacio para una",
+  "Label only holes containing": "Etiquetar solo sondajes que contienen",
+  "Colour by series (the hole id without its number), with a key": "Color por serie (el id del sondaje sin su número), con leyenda",
+  "{n} hole(s) in the frame; {p} of {l} labelled ({s} without a label where it would overlap another).": "{n} sondaje(s) en el marco; {p} de {l} etiquetados ({s} sin etiqueta donde se superpondría con otra).",
+  "Drawn from the collars, not the 3D view: traces run straight from each collar's azimuth, dip and length. Insert > Scale bar binds to it.": "Dibujado a partir de los collares, no de la vista 3D: las trazas siguen en línea recta el azimut, la inclinación y la longitud de cada collar. Insert > Scale bar se vincula a él."
 }
