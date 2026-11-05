@@ -758,7 +758,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     if (!files.length) return;
     setBoundaryError(null);
     let imported = 0;
-    const failed = [], dxfNotes = []; // dxfNotes: #550
+    const failed = [], dxfNotes = [], solids = []; // dxfNotes: #550; solids: #1503
     for (const file of files) {
       try {
         const shapePolylines = await shapeFileToPolylines(file);
@@ -789,13 +789,19 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         addBoundary({ name: file.name, polylines, ...(closedFlags ? { closedFlags } : {}), elevation: defaultElevation });
         imported++;
       } catch (err) {
+        if (err.facesOnly) { solids.push(file); continue; } // TASKS.csv #1503 — 3DFACE / polyface only: a solid, for the 3D View's solid import
         failed.push(`${file.name}: ${err.message}`);
       }
     }
+    // TASKS.csv #1503 (review #1497, Lawyers) — a face-only DXF (an inversion isosurface) dropped here went nowhere: the error
+    // sat in boundaryError, which only the Boundaries pane shows. The solid goes to the 3D View's importer (as the 3D View's own
+    // drop does), and the message is shown where the user is: the banner under the ribbon when the Boundaries pane is not open.
+    if (solids.length) { goToModule("viewer"); requestModuleAction("import-solid", { files: solids }); }
     let msg = imported ? tr("Imported {imported} boundary file(s) ({v} total).", { imported, v: boundaries.length + imported }) : "";
+    if (solids.length) msg += `${msg ? " " : ""}${tr("{names}: only faces (a solid, not strings) — handed to the 3D View's solid import.", { names: solids.map((f) => f.name).join(", ") })}`;
     if (dxfNotes.length) msg += ` ${dxfNotes.join(" ")}.`; // #550
     if (failed.length) msg += tr("{v}Failed: {failed}", { v: msg ? " " : "", failed: failed.join("; ") });
-    if (msg) setBoundaryError({ info: !!imported && !failed.length, text: msg });
+    if (msg) (geoPane === "boundaries" ? setBoundaryError : setRasterError)({ info: (!!imported || !!solids.length) && !failed.length, text: msg }); // #1503 — visible on every pane
   };
 
   // TASKS.csv #126 — mineral claim/tenure layer, distinct from a generic boundary. QGIS-specialist and

@@ -4046,6 +4046,7 @@ ${describeTrend(t)}` };
       setNotices((p) => [...p, errorNotice(tr("{name}: couldn't import as a solid ({v}).", { name: file.name, v: e.message || e }))]); // #739
     }
   }, [fitBox, project?.epsg, setTaskProgress]);
+  useModuleAction(["import-solid"], (a, payload) => { for (const f of payload?.files || []) importSolidFile(f); }); // TASKS.csv #1503 — a face-only DXF dropped on the Geophysics tab
 
 
 

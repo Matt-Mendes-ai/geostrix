@@ -8294,5 +8294,6 @@
   "No base for {n} of {total} survey files: {v} — they will be imported raw.": "لا محطة قاعدية لـ {n} من {total} ملفات مسح: {v} — ستُستورد خامًا.",
   "Every survey file has a base for its day.": "لكل ملف مسح محطة قاعدية ليومه.",
   "Add more base files…": "إضافة ملفات محطة قاعدية أخرى…",
-  "Load base-station files…": "تحميل ملفات المحطة القاعدية…"
+  "Load base-station files…": "تحميل ملفات المحطة القاعدية…",
+  "{names}: only faces (a solid, not strings) — handed to the 3D View's solid import.": "{names}: وجوه فقط (مجسّم، لا خطوط) — أُحيل إلى استيراد المجسّمات في العرض ثلاثي الأبعاد."
 }

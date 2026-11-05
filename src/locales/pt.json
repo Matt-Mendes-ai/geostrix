@@ -8294,5 +8294,6 @@
   "No base for {n} of {total} survey files: {v} — they will be imported raw.": "Sem base para {n} de {total} ficheiros de levantamento: {v} — serão importados sem correção.",
   "Every survey file has a base for its day.": "Cada ficheiro de levantamento tem uma base para o seu dia.",
   "Add more base files…": "Adicionar mais ficheiros de base…",
-  "Load base-station files…": "Carregar ficheiros de estação base…"
+  "Load base-station files…": "Carregar ficheiros de estação base…",
+  "{names}: only faces (a solid, not strings) — handed to the 3D View's solid import.": "{names}: só faces (um sólido, não linhas) — passado à importação de sólidos da Vista 3D."
 }
