@@ -60,6 +60,7 @@ import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no 
 import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../lib/i18n.js";
 import { guessVoxelProperty, isLogProperty } from "../lib/voxelProperty.js"; // TASKS.csv #1786
+import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #1783
 import { defaultDrapeElevation, drapeElevationNote } from "../lib/drapeElevation.js"; // TASKS.csv #1856
 import { voxelStretch, sortedShownValues } from "../lib/voxelStretch.js"; // TASKS.csv #1812 / #1781
 import { VoxelRangeRow } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1780
@@ -250,7 +251,15 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   // radiometric one) and filled the whole bounding box. Now one survey, blanked beyond a distance from the data.
   const idwKey = surveyList.some((s) => s.key === idwSurvey) ? idwSurvey : surveyList[0]?.key || "";
   const idwRows = useMemo(() => (idwOpen ? rows.filter((r) => surveyKey(r) === idwKey) : []), [idwOpen, rows, idwKey]);
-  const idwSuggest = useMemo(() => (idwRows.length ? suggestBlankingDistance(idwRows) : null), [idwRows]);
+  // TASKS.csv #1783 (review #1646, Kodiak) — a 3D point cloud (an inversion model imported as points) is gridded one depth slice at a time
+  const idwShape = useMemo(() => (idwRows.length ? cloudShape(idwRows) : null), [idwRows]);
+  const [idwZ, setIdwZ] = useState({ lo: "", hi: "" });
+  const idwSlice = useMemo(() => {
+    if (!idwShape?.is3D) return idwRows;
+    const lo = idwZ.lo === "" ? -Infinity : Number(idwZ.lo), hi = idwZ.hi === "" ? Infinity : Number(idwZ.hi);
+    return idwRows.filter((r) => Number.isFinite(r.z) && r.z >= lo && r.z <= hi);
+  }, [idwRows, idwShape, idwZ]);
+  const idwSuggest = useMemo(() => (idwSlice.length ? suggestBlankingDistance(idwSlice) : null), [idwSlice]); // the slice's own spacing (#1783)
   // #451 — radar-altimeter heights -> elevations on the loaded terrain
   const convertAgl = (key) => {
     if (!terrain) return;
@@ -1446,6 +1455,18 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             {idwOpen && (
               <div style={{ marginTop: 8, padding: "9px 10px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
                 <div style={{ color: "var(--color-text-secondary)", marginBottom: 8, lineHeight: 1.5 }}>{tr("Interpolates a regular raster over this point cloud's own extent using inverse-distance weighting — a quick-look grid, not a geostatistically rigorous one (no variogram/kriging). Good for visualizing trend/coverage, not for resource estimation.")}</div>
+                {idwShape?.is3D && ( // #1783
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ color: "var(--color-warn-text)", fontSize: "var(--font-size-sm)", lineHeight: 1.4, marginBottom: 4 }}>{tr("This is a 3D point cloud, not a surface survey: {n} points from {lo} to {hi} m elevation (within a plan cell their elevations spread {k}× the cell). A raster flattens every depth into one value per cell, so grid one depth slice at a time.", { n: idwShape.n.toLocaleString(), lo: Math.round(idwShape.zMin).toLocaleString(), hi: Math.round(idwShape.zMax).toLocaleString(), k: idwShape.spread.toFixed(0) })}</div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Slice z (m)")}</span>
+                      <input type="number" step="any" value={idwZ.lo} placeholder={String(Math.round(idwShape.zMin))} onChange={(e) => setIdwZ((z) => ({ ...z, lo: e.target.value }))} style={{ ...numInput, width: 80 }} aria-label={tr("Lowest elevation of the slice")} />
+                      <span style={{ color: "var(--color-text-muted)" }}>{tr("to")}</span>
+                      <input type="number" step="any" value={idwZ.hi} placeholder={String(Math.round(idwShape.zMax))} onChange={(e) => setIdwZ((z) => ({ ...z, hi: e.target.value }))} style={{ ...numInput, width: 80 }} aria-label={tr("Highest elevation of the slice")} />
+                      <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-sm)" }}>{tr("{n} points in the slice", { n: idwSlice.length.toLocaleString() })}</span>
+                    </div>
+                  </div>
+                )}
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                   <span style={{ color: "var(--color-text-faint)", width: 70, flexShrink: 0 }}>{tr("Cell size")}</span>
                   <input type="number" min="0.1" step="any" value={idwCellSize} onChange={(e) => setIdwCellSize(Math.max(0.1, Number(e.target.value) || 25))} style={numInput} />
@@ -1479,8 +1500,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                 </div>
                 <button
                   onClick={() => {
-                    const pts = idwRows;
-                    if (!pts.length) return;
+                    const pts = idwSlice; // #1783 — a 3D cloud: the chosen depth slice
+                    if (!pts.length) { setError(tr("No points in that elevation slice.")); return; }
+                    const sliceTag = idwShape?.is3D ? ` z ${idwZ.lo === "" ? Math.round(idwShape.zMin) : idwZ.lo}–${idwZ.hi === "" ? Math.round(idwShape.zMax) : idwZ.hi} m` : "";
                     const xs = pts.map((r) => r.x), ys = pts.map((r) => r.y);
                     const xmin = arrMin(xs), xmax = arrMax(xs), ymin = arrMin(ys), ymax = arrMax(ys);
                     const gridW = Math.round((xmax - xmin) / idwCellSize), gridH = Math.round((ymax - ymin) / idwCellSize);
@@ -1488,7 +1510,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
                     const blank = idwBlank === "" ? idwSuggest?.distance ?? Infinity : Number(idwBlank) > 0 ? Number(idwBlank) : Infinity; // #538
                     const label = String(idwKey).replace(/\.[^.]+$/, "");
                     const raster = idwGridToRasterInput(pts, { xmin, ymin, xmax, ymax, cellSize: idwCellSize, power: idwPower, stretch: idwStretch, maxDistance: blank,
-                      name: `${label} IDW ${idwCellSize} m${Number.isFinite(blank) ? `, blanked > ${Math.round(blank)} m` : ""}` });
+                      name: `${label}${sliceTag} IDW ${idwCellSize} m${Number.isFinite(blank) ? `, blanked > ${Math.round(blank)} m` : ""}` }); // sliceTag: #1783
                     addRaster({ ...raster, elevation: defaultElevation, provenance: { tool: "IDW gridding", survey: idwKey, points: pts.length, cellM: idwCellSize, power: idwPower, blankingM: Number.isFinite(blank) ? Math.round(blank) : null, blankingBasis: idwBlank === "" && idwSuggest ? `1.5x / 2x the median ${idwSuggest.basis} (${idwSuggest.spacing.toFixed(1)} m)` : "entered" } });
                     const cells = raster.grid.nx * raster.grid.ny;
                     setError({ info: true, text: tr("Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept, so the raster filters (RTP, derivatives…) work on it.", { idwKey, pts: pts.length.toLocaleString(), idwCellSize, valid: raster.grid.valid.toLocaleString(), cells: cells.toLocaleString(), v: Number.isFinite(blank) ? tr("; cells more than {v} m from any point are left empty", { v: Math.round(blank) }) : "" }) });

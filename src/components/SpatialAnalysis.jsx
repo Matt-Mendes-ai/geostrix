@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { X, Download, Info } from "./icons.js";
 import { toExportCsv, crsCell } from "../lib/tabular.js"; // TASKS.csv #444; crsCell: #1053
 import { voronoiRows } from "../lib/tableExports.js"; // TASKS.csv #1083
+import { cloudShape } from "../lib/cloudShape.js"; // TASKS.csv #1783
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1053 — the project CRS for the CSV
 import { saveFile } from "../lib/desktop.js";
 import { voronoiTessellation, paddedBounds, declusteredStats } from "../lib/geoprocessing.js";
@@ -44,6 +45,7 @@ export default function SpatialAnalysis({ points, onClose }) {
   );
 
   const bounds = useMemo(() => (valid.length ? paddedBounds(valid) : null), [valid]);
+  const shape = useMemo(() => cloudShape(points), [points]); // #1783
   const { cells } = useMemo(() => (bounds ? voronoiTessellation(valid, bounds) : { cells: [] }), [valid, bounds]);
   const stats = useMemo(() => (bounds ? declusteredStats(valid, bounds) : null), [valid, bounds]);
 
@@ -110,7 +112,9 @@ export default function SpatialAnalysis({ points, onClose }) {
                 <span>{tr("Each point's Voronoi cell area is used as a declustering weight (Isaaks & Srivastava polygonal method) — clustered points get small cells/low weight, isolated points get large cells/high weight, correcting a naive mean's bias toward over-sampled areas.")}</span>
               </div>
 
+              {shape?.is3D && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("A 3D point cloud ({lo} to {hi} m elevation): these cells and means are over its plan projection, as if every point lay on one surface. Points at the same plan position count once.", { lo: Math.round(shape.zMin).toLocaleString(), hi: Math.round(shape.zMax).toLocaleString() })}</div>}{/* #1783 */}
               <StatRow label={tr("Points")} value={stats.n} />
+              {stats.n < valid.length && <StatRow label={tr("Left out (same plan position)")} value={valid.length - stats.n} />}{/* #1783 — said, not silent */}
               <StatRow label={tr("Naive mean")} value={stats.naiveMean?.toLocaleString(undefined, { maximumFractionDigits: 3 })} />
               <StatRow label={tr("Declustered mean")} value={stats.declusteredMean?.toLocaleString(undefined, { maximumFractionDigits: 3 })} highlight />
               {stats.declusteredStd !== null && <StatRow label={tr("Declustered std dev")} value={stats.declusteredStd.toLocaleString(undefined, { maximumFractionDigits: 3 })} />}

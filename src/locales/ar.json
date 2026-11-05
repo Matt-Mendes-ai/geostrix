@@ -7865,5 +7865,13 @@
   "Drawn in the same cells as {names}: the two colour each other's blocks. Show one at a time to read it.": "مرسوم في الخلايا نفسها مثل {names}: كل منهما يلوّن كتل الآخر. اعرض واحداً في كل مرة لقراءته.",
   "Hide this one": "إخفاء هذا",
   " · {g} geophysics points · {s} surface samples": " · {g} نقطة جيوفيزيائية · {s} عينة سطحية",
-  "{m} m in the {band} band of \"{model}\"": "{m} م في نطاق {band} لـ \"{model}\""
+  "{m} m in the {band} band of \"{model}\"": "{m} م في نطاق {band} لـ \"{model}\"",
+  "This is a 3D point cloud, not a surface survey: {n} points from {lo} to {hi} m elevation (within a plan cell their elevations spread {k}× the cell). A raster flattens every depth into one value per cell, so grid one depth slice at a time.": "هذه سحابة نقاط ثلاثية الأبعاد، لا مسح سطحي: {n} نقطة من {lo} إلى {hi} م ارتفاعاً (داخل خلية مسقطية تنتشر ارتفاعاتها {k}× الخلية). الصورة النقطية تسطّح كل الأعماق في قيمة واحدة لكل خلية، فاعمل شبكة لشريحة عمق واحدة في كل مرة.",
+  "Slice z (m)": "شريحة z (م)",
+  "Lowest elevation of the slice": "أدنى ارتفاع للشريحة",
+  "Highest elevation of the slice": "أعلى ارتفاع للشريحة",
+  "{n} points in the slice": "{n} نقطة في الشريحة",
+  "No points in that elevation slice.": "لا توجد نقاط في شريحة الارتفاع تلك.",
+  "A 3D point cloud ({lo} to {hi} m elevation): these cells and means are over its plan projection, as if every point lay on one surface. Points at the same plan position count once.": "سحابة نقاط ثلاثية الأبعاد (من {lo} إلى {hi} م ارتفاعاً): هذه الخلايا والمتوسطات على مسقطها المستوي، كأن كل نقطة تقع على سطح واحد. النقاط في الموضع المسقطي نفسه تُحسب مرة واحدة.",
+  "Left out (same plan position)": "مستبعدة (الموضع المسقطي نفسه)"
 }

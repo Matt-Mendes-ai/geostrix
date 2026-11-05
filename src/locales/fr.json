@@ -7865,5 +7865,13 @@
   "Drawn in the same cells as {names}: the two colour each other's blocks. Show one at a time to read it.": "Dessiné dans les mêmes cellules que {names} : chacun colore les blocs de l'autre. Affichez-en un à la fois pour le lire.",
   "Hide this one": "Masquer celui-ci",
   " · {g} geophysics points · {s} surface samples": " · {g} points de géophysique · {s} échantillons de surface",
-  "{m} m in the {band} band of \"{model}\"": "{m} m dans la bande {band} de « {model} »"
+  "{m} m in the {band} band of \"{model}\"": "{m} m dans la bande {band} de « {model} »",
+  "This is a 3D point cloud, not a surface survey: {n} points from {lo} to {hi} m elevation (within a plan cell their elevations spread {k}× the cell). A raster flattens every depth into one value per cell, so grid one depth slice at a time.": "Ceci est un nuage de points 3D, pas un levé de surface : {n} points de {lo} à {hi} m d'altitude (dans une cellule en plan leurs altitudes s'étalent sur {k}× la cellule). Un raster aplatit toutes les profondeurs en une valeur par cellule : maillez une tranche de profondeur à la fois.",
+  "Slice z (m)": "Tranche z (m)",
+  "Lowest elevation of the slice": "Altitude la plus basse de la tranche",
+  "Highest elevation of the slice": "Altitude la plus haute de la tranche",
+  "{n} points in the slice": "{n} points dans la tranche",
+  "No points in that elevation slice.": "Aucun point dans cette tranche d'altitude.",
+  "A 3D point cloud ({lo} to {hi} m elevation): these cells and means are over its plan projection, as if every point lay on one surface. Points at the same plan position count once.": "Un nuage de points 3D ({lo} à {hi} m d'altitude) : ces cellules et moyennes portent sur sa projection en plan, comme si chaque point reposait sur une seule surface. Les points à la même position en plan comptent une fois.",
+  "Left out (same plan position)": "Exclus (même position en plan)"
 }
