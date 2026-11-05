@@ -8272,5 +8272,6 @@
   "{m} point(s) are outside the grid.": "{m} point(s) sont hors de la grille.",
   "{a} of {d} occurrence cells inside the pattern ({b} cells)": "{a} des {d} cellules d'occurrences dans le motif ({b} cellules)",
   "thin: fewer than {m} occurrence cells on one side, a weak basis for this weight": "mince : moins de {m} cellules d'occurrences d'un côté, une base faible pour ce poids",
-  "left out of the posterior": "exclu de la postérieure"
+  "left out of the posterior": "exclu de la postérieure",
+  "Building… {table}: {done} of {total} rows": "Construction… {table} : {done} sur {total} lignes"
 }

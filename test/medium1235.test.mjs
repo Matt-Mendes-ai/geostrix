@@ -23,7 +23,7 @@ test("#1235 nothing changes when X and Y matched, for other tables, or for value
 });
 
 test("#1270 the SQL snapshot has every stored field of a layer", () => {
-  const s = read("src/lib/sqlWorkspace.js");
+  const s = read("src/lib/sqlTables.js"); // #1516 — the table builders moved
   assert.match(s, /extraCols\.forEach\(\(k\) => cols\.push/);
   assert.match(s, /extraCols\.forEach\(\(k\) => \{ const v = r\[k\]/);
 });

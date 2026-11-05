@@ -1246,6 +1246,7 @@ export default function GeochemModule() {
             boundaries={boundaries}
             surfaceSamples={surfaceSamples} /* TASKS.csv #1799 */
             surfaceElements={surfaceElements}
+            customLayers={store.customLayers || []} /* TASKS.csv #1516 */
             onClose={() => setSqlOpen(false)}
           />
         </Suspense>

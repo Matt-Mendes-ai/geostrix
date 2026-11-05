@@ -8272,5 +8272,6 @@
   "{m} point(s) are outside the grid.": "{m} نقطة خارج الشبكة.",
   "{a} of {d} occurrence cells inside the pattern ({b} cells)": "{a} من {d} خلية تواجد داخل النمط ({b} خلية)",
   "thin: fewer than {m} occurrence cells on one side, a weak basis for this weight": "ضعيف: أقل من {m} خلايا تواجد على أحد الجانبين، أساس ضعيف لهذا الوزن",
-  "left out of the posterior": "مستبعد من الاحتمال اللاحق"
+  "left out of the posterior": "مستبعد من الاحتمال اللاحق",
+  "Building… {table}: {done} of {total} rows": "جارٍ البناء… {table}: {done} من {total} صفًا"
 }

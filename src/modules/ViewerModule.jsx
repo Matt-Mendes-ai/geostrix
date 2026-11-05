@@ -8959,6 +8959,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             assays={assays}
             assayElements={assayElements}
             boundaries={boundaries}
+            customLayers={storeCustomLayers || []} /* TASKS.csv #1516 */
             onClose={() => setSqlModalOpen(false)}
           />
         </Suspense>

@@ -8272,5 +8272,6 @@
   "{m} point(s) are outside the grid.": "{m} ponto(s) estão fora da grade.",
   "{a} of {d} occurrence cells inside the pattern ({b} cells)": "{a} de {d} células com ocorrências dentro do padrão ({b} células)",
   "thin: fewer than {m} occurrence cells on one side, a weak basis for this weight": "escasso: menos de {m} células com ocorrências de um lado, uma base fraca para este peso",
-  "left out of the posterior": "deixado fora do posterior"
+  "left out of the posterior": "deixado fora do posterior",
+  "Building… {table}: {done} of {total} rows": "Construindo… {table}: {done} de {total} linhas"
 }

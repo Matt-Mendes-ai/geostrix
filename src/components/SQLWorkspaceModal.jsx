@@ -24,10 +24,11 @@ function defaultQueryFor(tables) {
   return tables.length ? `SELECT * FROM "${tables[0].name}" LIMIT 100;` : "";
 }
 
-export default function SQLWorkspaceModal({ collars, survey, layers, assays, assayElements, boundaries, surfaceSamples = [], surfaceElements = [], onClose }) { // surface*: TASKS.csv #1799
+export default function SQLWorkspaceModal({ collars, survey, layers, assays, assayElements, boundaries, surfaceSamples = [], surfaceElements = [], customLayers = [], onClose }) { // surface*: TASKS.csv #1799; customLayers: #1516
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const [state, setState] = useState({ status: "loading" }); // loading | ready | error
+  const [progress, setProgress] = useState(null); // #1516 — { table, done, total } between chunks of a big table
   const [sql, setSql] = useState("");
   const [result, setResult] = useState(null); // { columns, rows } | null
   const [queryError, setQueryError] = useState(null);
@@ -35,7 +36,7 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
 
   useEffect(() => {
     let cancelled = false;
-    buildWorkspaceDatabase({ collars, survey, layers, assays, assayElements, boundaries, surfaceSamples, surfaceElements })
+    buildWorkspaceDatabase({ collars, survey, layers, assays, assayElements, boundaries, surfaceSamples, surfaceElements, customLayers }, (p) => { if (!cancelled) setProgress(p); }) // #1516
       .then(({ db, tables }) => {
         if (cancelled) return;
         setState({ status: "ready", db, tables });
@@ -65,7 +66,7 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
     saveFile({ suggestedName: "sql_query_result.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(sqlResultRows(result.columns, result.rows)) });
   };
 
-  const emptyLoaded = useMemo(() => !collars.length && !assays.length && !surfaceSamples.length && !Object.values(layers || {}).some((r) => r?.length), [collars, survey, layers, assays, surfaceSamples]);
+  const emptyLoaded = useMemo(() => !collars.length && !assays.length && !surfaceSamples.length && !Object.values(layers || {}).some((r) => r?.length) && !customLayers.some((l) => l.rows?.length), [collars, survey, layers, assays, surfaceSamples, customLayers]);
 
   return (
     <div style={overlay}>
@@ -81,7 +82,7 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
         <div style={{ padding: 16, overflow: "auto", display: "flex", gap: 16, flex: 1, minHeight: 0 }}>
           <div style={{ width: 200, flexShrink: 0, overflow: "auto" }}>
             <div style={label}><Database size={12} style={{ marginRight: 4, verticalAlign: -1 }} />{tr("Tables")}</div>
-            {state.status === "loading" && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Building…")}</div>}
+            {state.status === "loading" && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{progress ? tr("Building… {table}: {done} of {total} rows", { table: progress.table, done: progress.done.toLocaleString(), total: progress.total.toLocaleString() }) : tr("Building…")}</div>}
             {state.status === "ready" && state.tables.length === 0 && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-muted)" }}>{tr("Nothing loaded yet — import collars/assays/layers first.")}</div>}
             {state.status === "ready" && state.tables.map((t) => (
               <div key={t.name} style={{ marginBottom: 8, fontSize: "var(--font-size-sm)" }}>
