@@ -35,7 +35,7 @@ import { sampleProjectName } from "../lib/sampleProjectName.js"; // TASKS.csv #1
 import { sampleCardsFor, sampleFootnote } from "../lib/sampleCards.js"; // TASKS.csv #1346
 import { symbolRadiusByMedium } from "../lib/viewer/surfaceSymbols.js"; // TASKS.csv #1346
 import { sectionFromCentre, sectionThroughHole, fenceLines, fenceExtentPoints, fenceLabels } from "../lib/sectionDefs.js";
-import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components/Ribbon.jsx"; // TASKS.csv #458
+import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, PaneNotice } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { Pickaxe, Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, SquareSplitVertical, Sparkles } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
 import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImportMeta.js"; // TASKS.csv #148; #552 split
 import { parseSolidInWorker } from "../lib/solidImportClient.js"; // TASKS.csv #414
@@ -1484,7 +1484,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   useEffect(() => { setToolPane(pendingPaneRef.current || (mode === "targeting" ? "plan" : mode === "minedesign" ? minePaneRef.current : null)); pendingPaneRef.current = null; }, [mode]);
   useEffect(() => { if (mode === "minedesign" && toolPane) minePaneRef.current = toolPane; }, [mode, toolPane]);
   const paneProps = (id) => ({ active: toolPane === id, expanded: toolPane === id, onClick: () => setToolPane((p) => (p === id ? null : id)) }); // expanded: #595
-  const paneHeader = (title, icon, tone) => <TaskPaneHeader title={title} icon={icon} tone={tone} onClose={() => setToolPane(null)} />;
+  const paneHeader = (title, icon, tone) => <><TaskPaneHeader title={title} icon={icon} tone={tone} onClose={() => setToolPane(null)} /><PaneNotice key={toolPane} notices={notices} /></>; // #1602
   // TASKS.csv #572 — a modelling pane with nothing to model says what to load, instead of an empty "Choose…" select
   const emptyPaneHint = (text) => <div role="note" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text-strong)", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", marginBottom: 8, lineHeight: 1.4 }}>{text}</div>;
   // TASKS.csv #155 — QGIS-style toolbar (view mode only, this pass): which of the Grid/Themes

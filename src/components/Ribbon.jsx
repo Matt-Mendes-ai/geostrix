@@ -15,6 +15,7 @@ import { createPortal } from "react-dom";
 import { X } from "./icons.js";
 import { t } from "../lib/i18n.js"; // TASKS.csv #786 — every tab's ribbon labels, captions and tooltips translated here
 import { helpIdForPane, openHelp } from "../lib/help.js"; // TASKS.csv #1966 — the "?" of a tool pane
+import { noticeText, noticeLevel } from "../lib/notices.js"; // TASKS.csv #1602
 
 export const RibbonSlotContext = createContext(null);
 
@@ -141,6 +142,23 @@ export function RibbonButton({ icon: Icon, label: label0, title: title0, onClick
 // TASKS.csv #595 — focus: a pane opened from a ribbon button takes focus to its title, so a keyboard user lands in
 // the pane instead of Tabbing through the rest of the ribbon; when it closes and focus would otherwise fall to
 // <body> (its close button just disappeared), focus goes back to the button that opened it.
+// TASKS.csv #1602 (review #1497, Lawyers) — a tool's outcome where it was clicked. 'Build the model (GemPy)' said why it
+// could not run only in the sidebar's message list, 13,700 px down below 446 hole rows (the toast over the view fades).
+// The newest message since this pane opened shows under its header until dismissed; mount it with key={the pane} so
+// opening another pane starts from its own first message.
+export function PaneNotice({ notices }) {
+  const [from, setFrom] = useState(() => notices.length);
+  if (notices.length < from) setFrom(notices.length); // the list was cleared or swapped (another project tab)
+  if (notices.length <= from) return null;
+  const n = notices[notices.length - 1], err = noticeLevel(n) === "error";
+  return (
+    <div className="ge-pane-notice" role="status" style={{ display: "flex", gap: 6, alignItems: "flex-start", margin: "0 0 10px", padding: "6px 8px", borderRadius: 6, fontSize: "var(--font-size-sm)", lineHeight: 1.45,
+      background: err ? "var(--color-danger-bg)" : "var(--color-bg)", color: err ? "var(--color-danger-text)" : "var(--color-text)", border: `1px solid ${err ? "var(--color-danger-border, var(--color-border))" : "var(--color-border)"}` }}>
+      <span style={{ flex: 1, minWidth: 0 }}>{noticeText(n)}</span>
+      <button type="button" className="ge-pane-close" onClick={() => setFrom(notices.length)} aria-label={t("Dismiss message")} title={t("Dismiss")}><X size={12} /></button>
+    </div>
+  );
+}
 export function TaskPaneHeader({ title, onClose, icon: Icon, tone = "neutral", helpId = null }) {
   const help = helpId || helpIdForPane(title); // #1966 — a pane whose title is passed already translated gives its helpId
   const titleRef = useRef(null);
