@@ -17,6 +17,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { noCollarsNotice } from "../lib/noCollars.js"; // TASKS.csv #1841
 import { domainLayerChoices } from "../lib/domainLayers.js"; // TASKS.csv #1571
 
 // TASKS.csv #147 — variogram / spatial-continuity analysis per domain.
@@ -105,7 +106,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
         });
         if (!intervals.length) { setError(tr("Compositing produced no intervals — check the element and composite length.")); setRunning(false); return; }
         const { points: allPoints, dropped } = samplePointsFromIntervals(intervals, collars, survey, desurveyHole, desurveyMethod); // #135
-        if (!allPoints.length) { setError(tr("No composite could be placed in 3D — check that holes have collars and (ideally) survey data.")); setRunning(false); return; }
+        if (!allPoints.length) { setError(collars.length ? tr("No composite could be placed in 3D — check that holes have collars and (ideally) survey data.") : noCollarsNotice(tr("the variogram"), layers, srcAssays).text); setRunning(false); return; } // #1841 — no collars at all: say what is waiting
 
         let points = allPoints;
         let domainLabel = null;

@@ -1,7 +1,7 @@
 import { canvasPngDataUrl } from "../lib/canvasEncode.js";
 import { corridorScatter } from "../lib/sectionScatter.js"; // TASKS.csv #1807
 import { exportDrillholeTablesWith } from "./viewer/drillholeExport.js"; // TASKS.csv #1034, moved at the #1084 cap
-import { interceptsDisabledText } from "../lib/noCollars.js"; // TASKS.csv #1810
+import { interceptsDisabledText, noCollarsNotice } from "../lib/noCollars.js"; // TASKS.csv #1810, #1841
 import { levelPlanZRange } from "../lib/viewer/levelPlanRange.js"; // TASKS.csv #1782
 import { surfaceSampleTip, mappedOfSample } from "../lib/viewer/sampleTip.js"; // TASKS.csv #1821
 import HoleFilterBar from "./viewer/HoleFilterBar.jsx";
@@ -3871,7 +3871,7 @@ ${describeTrend(t)}` };
       const unit = lb.units.find((u) => u.name === r.value);
       return { ...r, value: unit?.label || r.value, modelled: true, modelColor: r.value === ABOVE_TOPS ? "#d9dce1" : lithUnitColor(lb, r.value) };
     });
-    if (!rows.length) { setNotices((p) => [...p, notice("No logged litho intervals fall inside the last model's box.")]); return; }
+    if (!rows.length) { setNotices((p) => [...p, collars.length ? notice("No logged litho intervals fall inside the last model's box.") : noCollarsNotice(tr("the modelled unit layer"), layers, assays)]); return; } // #1841
     const id = `custom_${Date.now()}`;
     const group = new THREE.Group(); group.name = id;
     layerGroupsRef.current[id] = group;
@@ -7264,7 +7264,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           renameTheme={renameTheme} deleteTheme={deleteTheme}
           onDbConnect={() => setDbModalOpen(true)}
           onReloadDb={reloadDbImports} reloadDbCount={(store.dbImports || []).length} reloadDbTitle={(store.dbImports || []).map(describeDbImport).join("\n")} /* TASKS.csv #1963 */
-          onQc={() => setQcModalOpen(true)} qcDisabled={!collars.length}
+          onQc={() => setQcModalOpen(true)} qcDisabled={!collars.length && !assays?.length && !Object.values(layers).some((r) => r?.length)} /* #1810: interval checks need no collars */
           onBoundaryIntercepts={() => setInterceptsModalOpen(true)} boundaryDisabled={!collars.length} boundaryWhy={collars.length ? null : interceptsDisabledText(layers)}
           onSqlWorkspace={() => setSqlModalOpen(true)} sqlDisabled={!collars.length && !assays.length}
           onSnapshot={snapshotToLayout} snapshotDisabled={!dataLoaded} exportDisabled={!collars.length} /* #1803 — drillhole exports need holes */
