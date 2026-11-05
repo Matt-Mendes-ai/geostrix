@@ -319,7 +319,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
       <div ref={toolbarRef} className="ge-section-toolbar" style={{ padding: "10px 16px", borderBottom: "1px solid #d9dce1", fontSize: 14, color: "#8a6a1f", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, boxSizing: "border-box", ...(drawing && toolbarHeight.current ? { height: toolbarHeight.current } : null) }}>
         <span>{data.title || tr("Cross-section")} <span style={{ color: "#65717e", fontSize: 11, marginLeft: 8 }}>{tr("azimuth {v}° · buffer ±{v2}m", { v: data.section?.azimuth?.toFixed(0), v2: data.section?.corridor })}</span></span>
         <span style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span style={{ color: "#65717e", fontSize: 11 }}>{tr("{v} holes · {v2} intervals · {v3} points · {v4} structures{v5}{v6}", { v: data.holes?.length || 0, v2: data.intervals?.length || 0, v3: data.points?.length || 0, v4: data.planes?.length || 0, v5: data.elevationProfile?.length > 1 ? tr(" · terrain profile") : "", v6: data.voxelSlices?.length ? ` · ${data.voxelSlices.map((v) => v.name).join(", ")}` : "" })}</span>
+          <span style={{ color: "#65717e", fontSize: 11 }}>{tr("{v} holes · {v2} intervals · {v3} points · {v4} structures{v5}{v6}", { v: data.holes?.length || 0, v2: data.intervals?.length || 0, v3: data.points?.length || 0, v4: data.planes?.length || 0, v5: data.elevationProfile?.length > 1 ? tr(" · terrain profile") : "", v6: data.voxelSlices?.length ? ` · ${data.voxelSlices.map((v) => v.name).join(", ")}` : "" })}{data.scatterCounts && (data.scatterCounts.geophys || data.scatterCounts.samples) ? tr(" · {g} geophysics points · {s} surface samples", { g: data.scatterCounts.geophys.toLocaleString(), s: data.scatterCounts.samples.toLocaleString() }) : ""}</span>
           {!drawing ? (
             <>
               {/* Unit picked BEFORE drawing starts — a contact is always a specific unit's upper
@@ -503,7 +503,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
   const dragRef = useRef(null); // #519 — the vertex being dragged (before the early return: a hook)
   const labelDragRef = useRef(null); // #823 — the label being dragged: { key, ax, ay, grabDx, grabDy }
   const [labelDrag, setLabelDrag] = useState(null); // its live offset while dragging: { key, dx, dy }
-  const { holes = [], section, intervals = [], points = [], planes = [], elevationProfile = null, voxelSlices = [], surfaceTraces = [], plannedHoles = [], title = "", sectionImages = [] } = data;
+  const { holes = [], section, intervals = [], points = [], planes = [], elevationProfile = null, voxelSlices = [], surfaceTraces = [], plannedHoles = [], title = "", sectionImages = [], scatter = [] } = data; // scatter: #1807
   // TASKS.csv #1090 — the margin and the title / axis text positions follow the text size: at 2x (or the print size the
   // exports use) the title and subtitle, and the tick labels and coordinates under the frame, overlapped
   const ts = Math.max(1, textScale);
@@ -531,6 +531,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
   // extends above/below the visible collars doesn't get silently clipped off the page.
   voxelSlices.forEach((vs) => vs.rects.forEach((r) => { minZ = Math.min(minZ, r.z0); maxZ = Math.max(maxZ, r.z1); }));
   plannedHoles.forEach((h) => h.trace.forEach((p) => { minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); })); // #395
+  scatter.forEach((p) => { minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); }); // #1807 — the geophysics points and samples in the corridor
   if (showSectionImages) sectionImages.forEach((im) => [im.tl, im.tr, im.bl].forEach(([, z]) => { minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); })); // #631
   if (!isFinite(minZ)) { minZ = 0; maxZ = 100; }
   const zPad = (maxZ - minZ) * 0.08 || 10;
@@ -723,6 +724,12 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
           elevation, so it reads as "everything above this line is above ground" regardless of how far
           the axis has been panned/exaggerated. Absent entirely (not just empty) when no terrain is
           loaded, same as before this feature existed. */}
+      {/* TASKS.csv #1807 (review #1646, Kodiak) — geophysics points and placed surface samples inside the corridor, at their elevation */}
+      {scatter.length > 0 && (
+        <g>
+          {scatter.map((p, i) => <circle key={`sc${i}`} cx={sx(p.d)} cy={sz(p.z)} r={p.kind === "sample" ? 3 : 2.2} fill={p.color} stroke={p.kind === "sample" ? "#1a2028" : "none"} strokeWidth={0.6}><title>{p.label}</title></circle>)}
+        </g>
+      )}
       {elevationProfile && elevationProfile.length > 1 && (
         <g>
           <polygon

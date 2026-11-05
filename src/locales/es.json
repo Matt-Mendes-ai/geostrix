@@ -7863,5 +7863,6 @@
   "Az° grid": "Az° cuadrícula",
   "Entered as {v}° {ref} ({date}).": "Ingresado como {v}° {ref} ({date}).",
   "Drawn in the same cells as {names}: the two colour each other's blocks. Show one at a time to read it.": "Dibujado en las mismas celdas que {names}: cada uno colorea los bloques del otro. Muestre uno a la vez para leerlo.",
-  "Hide this one": "Ocultar este"
+  "Hide this one": "Ocultar este",
+  " · {g} geophysics points · {s} surface samples": " · {g} puntos de geofísica · {s} muestras de superficie"
 }
