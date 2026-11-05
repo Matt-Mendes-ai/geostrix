@@ -209,7 +209,7 @@ export const legendGroupCount = (items) => (items || []).filter((it) => it?.[2]?
 // symbology (TASKS.csv #1699, review #1645): a layer classified in its quick panel (numericSymbology[key].stops) gets its classes as
 // swatches with their break values ('0.391 – 0.797', '≥ 0.797'), or its own continuous stops as the ramp; Copley's mag susc classified
 // by quantile still showed a -0.845 to 310 min-max ramp that was 99 % one colour.
-export function numericLayerLegendGroups({ keys = ["geotech", "recovery", "sg", "magsusc"], layers = {}, layerVisible = {}, isRowVisible = () => true, colorOf, symbology = {} }) {
+export function numericLayerLegendGroups({ keys = ["geotech", "recovery", "sg", "magsusc"], layers = {}, layerVisible = {}, isRowVisible = () => true, colorOf, symbology = {}, clips = {} }) { // clips: #1699
   const out = [];
   for (const key of keys) {
     if (!layerVisible[key] || !(layers[key] || []).length || !colorOf) continue;
@@ -226,8 +226,11 @@ export function numericLayerLegendGroups({ keys = ["geotech", "recovery", "sg", 
       out.push(L.kind === "classes" ? { key: `numeric_${key}`, label, items: L.items, grade: true } : { key: `numeric_${key}`, label, items: [], ramp: L });
       continue;
     }
-    const colors = Array.from({ length: 17 }, (_, i) => colorOf(key, lo + (i / 16) * (hi - lo), { min: lo, max: hi }));
-    out.push({ key: `numeric_${key}`, label: LAYER_META[key]?.label || key, items: [], ramp: { kind: "ramp", log: false, min: lo, max: hi, minLabel: fmt(lo), maxLabel: fmt(hi), colors, ticks: [] } });
+    // TASKS.csv #1699 — the default ramp spans the 2nd-98th percentile (lib/numericClip.js); the ends say the rest is clamped there
+    const c = clips?.[key], clipped = c && !sym?.fullRange && key !== "geotech" && key !== "recovery";
+    const a = clipped ? c.lo : lo, b = clipped ? c.hi : hi;
+    const colors = Array.from({ length: 17 }, (_, i) => colorOf(key, a + (i / 16) * (b - a), { min: lo, max: hi }));
+    out.push({ key: `numeric_${key}`, label: LAYER_META[key]?.label || key, items: [], ramp: { kind: "ramp", log: false, min: a, max: b, minLabel: clipped && c.lo > c.min ? `≤ ${fmt(a)}` : fmt(a), maxLabel: clipped && c.hi < c.max ? `≥ ${fmt(b)}` : fmt(b), colors, ticks: [] } });
   }
   return out;
 }

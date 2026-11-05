@@ -8168,5 +8168,9 @@
   "pXRF vs lab ({n})": "pXRF vs lab. ({n})",
   "{p} of {n} pXRF reading(s) sit inside a lab interval of the same hole and are paired with it. Rank r near 1: pXRF orders that element as the lab does (usable for mapping it); a median ratio away from 1: a bias to correct before the two are mixed. pXRF stays out of the grade tools either way.": "{p} de {n} leitura(s) pXRF ficam dentro de um intervalo de laboratório do mesmo furo e são pareadas com ele. r de postos perto de 1: o pXRF ordena o elemento como o laboratório (útil para mapeá-lo); uma razão mediana longe de 1: um viés a corrigir antes de misturá-los. O pXRF fica fora das ferramentas de teor de qualquer forma.",
   "\"{name}\" is a colour picture ({bands} band(s) of {bits} bits), not elevations: a terrain needs a single-band elevation grid. Import it under Maps > GeoTIFF / GXF to drape it as a map.": "\"{name}\" é uma imagem colorida ({bands} banda(s) de {bits} bits), não elevações: um terreno precisa de uma grade de elevação de banda única. Importe-a em Mapas > GeoTIFF / GXF para drapejá-la como mapa.",
-  "The {n} collars over it sit a median {d} m {dir} this terrain: check its units and vertical datum before relying on it.": "Os {n} colares sobre ele ficam uma mediana de {d} m {dir} este terreno: verifique as unidades e o datum vertical antes de usá-lo."
+  "The {n} collars over it sit a median {d} m {dir} this terrain: check its units and vertical datum before relying on it.": "Os {n} colares sobre ele ficam uma mediana de {d} m {dir} este terreno: verifique as unidades e o datum vertical antes de usá-lo.",
+  "Colours run from the minimum to the maximum ({a} – {b}).": "As cores vão do mínimo ao máximo ({a} – {b}).",
+  "Colours run from the 2nd to the 98th percentile ({a} – {b}); values beyond take the end colours (the full range is {min} – {max}).": "As cores vão do percentil 2 ao 98 ({a} – {b}); valores além disso recebem as cores das pontas (a faixa completa é {min} – {max}).",
+  "Use the 2nd–98th percentile": "Usar o percentil 2–98",
+  "Use minimum–maximum": "Usar mínimo–máximo"
 }

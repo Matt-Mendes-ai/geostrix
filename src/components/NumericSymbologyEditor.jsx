@@ -1,5 +1,6 @@
 // TASKS.csv #1136 — moved out of ViewerModule (loaded on first use, not at startup)
 import React, { useState } from "react";
+import { CLIP_KEYS, numericClip } from "../lib/numericClip.js"; // TASKS.csv #1699
 import { minMax, classifyBreaks, paletteColorsHex, PALETTES } from "../lib/layers.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
@@ -31,6 +32,9 @@ export default function NumericSymbologyEditor({ layerKey, rows, sym, onChange }
     onChange({ stops: breaks.map((v, i) => ({ value: v, color: colors[i] })), colorMode: "discrete" });
   };
   const stops = sym?.stops || [];
+  // TASKS.csv #1699 — which range the default ramp spans, and the switch to minimum-maximum
+  const clip = React.useMemo(() => (CLIP_KEYS.includes(layerKey) ? numericClip(rows) : null), [layerKey, rows]);
+  const f3 = (v) => String(+Number(v).toPrecision(3));
   return (
     <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: "1px solid var(--color-border-subtle)" }}>
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 5 }}>{tr("Symbology — {values} {v}{v2}", { values: values.length.toLocaleString(), v: tr(values.length === 1 ? "value" : "values"), v2: values.length > 0 && ` (${min.toLocaleString(undefined, { maximumFractionDigits: 2 })} – ${max.toLocaleString(undefined, { maximumFractionDigits: 2 })})` })}
@@ -59,6 +63,14 @@ export default function NumericSymbologyEditor({ layerKey, rows, sym, onChange }
             style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon)", cursor: "pointer" }}>{tr("Reset")}</span>
         )}
       </div>
+      {clip && !stops.length && (
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 4 }}>
+          {sym?.fullRange
+            ? tr("Colours run from the minimum to the maximum ({a} – {b}).", { a: f3(clip.min), b: f3(clip.max) })
+            : tr("Colours run from the 2nd to the 98th percentile ({a} – {b}); values beyond take the end colours (the full range is {min} – {max}).", { a: f3(clip.lo), b: f3(clip.hi), min: f3(clip.min), max: f3(clip.max) })}{" "}
+          <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => onChange(sym?.fullRange ? null : { fullRange: true })} style={{ color: "var(--color-accent)", cursor: "pointer", textDecoration: "underline" }}>{sym?.fullRange ? tr("Use the 2nd–98th percentile") : tr("Use minimum–maximum")}</span>
+        </div>
+      )}
       {stops.length > 0 && (
         <>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>

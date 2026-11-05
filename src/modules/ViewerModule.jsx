@@ -122,6 +122,7 @@ import { syncInterpretPreview } from "../lib/viewer/interpretDraw.js"; // TASKS.
 import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
 import { extrapolationNotice } from "../lib/extrapolatedInputs.js"; // #1840
 import { withAlphaOnlyPicks } from "../lib/alphaPicks.js"; // #1686
+import { numericClips, rampRange } from "../lib/numericClip.js"; // #1699
 import { unitShell, meshVolume, blockUnitStats } from "../lib/unitVolumes.js"; // TASKS.csv #517; blockUnitStats: #877
 const ModellingCodesPane = React.lazy(() => import("../components/ModellingCodesPane.jsx")); // TASKS.csv #599 — modelling view only, so loaded on demand (#476 budget)
 import { resolveLayerStyle, cleanLayerStyle, TUBE_SEGMENTS } from "../lib/layerStyle.js"; // TASKS.csv #635
@@ -1746,14 +1747,16 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // exactly the continuous-lerp-between-stops / discrete-step-down semantics wanted here, and is
   // what geophys_pts and the voxel models already use, so "a colour means the same thing" holds
   // across every classified thing in the app.
+  const numericClip = useMemo(() => numericClips(layers), [layers]); // #1699
   const numericLayerColor = useCallback((layerKey, value, range) => {
     const sym = numericSymbology[layerKey];
     if (sym?.stops?.length) {
       return colorForVoxelValue({ stops: sym.stops, colorMode: sym.colorMode, min: range?.min, max: range?.max }, value);
     }
     if (layerKey === "geotech" || layerKey === "recovery") return rqdColor(value);
-    return magColor(value, range?.min ?? 0, range?.max ?? 0);
-  }, [numericSymbology]);
+    const r = rampRange(layerKey, sym, numericClip, range); // #1699 — p2-p98 by default
+    return magColor(value, r?.min ?? 0, r?.max ?? 0);
+  }, [numericSymbology, numericClip]);
 
   const effectiveColor = useCallback((layerKey, value) => {
     return categoryColor(legendOverride[layerKey]?.[value], LAYER_META[layerKey], value); // #1289
@@ -1987,7 +1990,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       ...categoryLegendGroups({ keys: CATEGORY_LAYER_KEYS, layers, layerVisible, hidden: categoryFilter, visibleHoles, singleColor, labelFor: effectiveLabel, colorFor: effectiveColor, placed: new Set(collars.map((c) => String(c.hole_id))) }), // #1813
       ...assayLegendGroups({ assays, assayElements, assayVisible: assayVisible && collars.length > 0 /* #1813 */, assayDisplayElements, assayStyle }),
       ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), // #1236
-      ...numericLayerLegendGroups({ layers, layerVisible, isRowVisible, colorOf: numericLayerColor, symbology: numericSymbology }), // #1398 — the RQD / recovery / SG / mag susc ramps
+      ...numericLayerLegendGroups({ layers, layerVisible, isRowVisible, colorOf: numericLayerColor, symbology: numericSymbology, clips: numericClip }), // #1398 — the RQD / recovery / SG / mag susc ramps
       ...customLegendGroups(customLayers, customVisible, layerStyles), // #1697
     ];
     // TASKS.csv #843 / #948 — the surface samples as the view colours them (the anomaly map's rule and classes, one colour,
