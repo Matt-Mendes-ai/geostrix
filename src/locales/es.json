@@ -8247,5 +8247,7 @@
   "Plan view · wheel to zoom, drag to pan, double-click to fit · drape and 3D in the 3D View": "Vista en planta · rueda para acercar, arrastrar para desplazar, doble clic para ajustar · relieve y 3D en la vista 3D",
   "Theme \"{name}\" refers to {n} raster(s), block model(s) or map layer(s) no longer in this project: {v}. Everything else in the theme was applied.": "El tema \"{name}\" menciona {n} ráster(es), modelo(s) de bloques o capa(s) de mapa que ya no están en este proyecto: {v}. Todo lo demás del tema se aplicó.",
   "{n} more column(s) kept with each hole (Identify shows them): {cols}": "{n} columna(s) más guardada(s) con cada sondaje (Identify las muestra): {cols}",
-  "no survey loaded, so each hole is drawn straight from its collar azimuth, dip and length": "no hay survey cargado, así que cada sondaje se dibuja recto según el azimut, la inclinación y la longitud de su collar"
+  "no survey loaded, so each hole is drawn straight from its collar azimuth, dip and length": "no hay survey cargado, así que cada sondaje se dibuja recto según el azimut, la inclinación y la longitud de su collar",
+  "kept {n} more column(s) with each row (Identify shows them): {cols}": "se guardaron {n} columna(s) más con cada fila (Identify las muestra): {cols}",
+  "its \"{col}\" column also filled {layer}": "su columna \"{col}\" también llenó {layer}"
 }

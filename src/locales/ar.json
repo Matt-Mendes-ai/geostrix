@@ -8247,5 +8247,7 @@
   "Plan view · wheel to zoom, drag to pan, double-click to fit · drape and 3D in the 3D View": "عرض مسقط · العجلة للتكبير، السحب للتحريك، النقر المزدوج للملاءمة · الإلقاء والعرض ثلاثي الأبعاد في العرض ثلاثي الأبعاد",
   "Theme \"{name}\" refers to {n} raster(s), block model(s) or map layer(s) no longer in this project: {v}. Everything else in the theme was applied.": "يشير الموضوع \"{name}\" إلى {n} صورة نقطية أو نموذج كتلي أو طبقة خريطة لم تعد في هذا المشروع: {v}. طُبّق كل ما عدا ذلك من الموضوع.",
   "{n} more column(s) kept with each hole (Identify shows them): {cols}": "حُفظ {n} عمود إضافي مع كل ثقب (يعرضها Identify): {cols}",
-  "no survey loaded, so each hole is drawn straight from its collar azimuth, dip and length": "لا يوجد مسح محمّل، لذا يُرسم كل ثقب مستقيماً وفق سمت فوهته وميلها وطولها"
+  "no survey loaded, so each hole is drawn straight from its collar azimuth, dip and length": "لا يوجد مسح محمّل، لذا يُرسم كل ثقب مستقيماً وفق سمت فوهته وميلها وطولها",
+  "kept {n} more column(s) with each row (Identify shows them): {cols}": "حُفظ {n} عمود إضافي مع كل صف (يعرضها Identify): {cols}",
+  "its \"{col}\" column also filled {layer}": "ملأ عموده \"{col}\" أيضاً {layer}"
 }

@@ -27,6 +27,7 @@ import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCusto
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917
+import { autoExtraFields, companionLayer } from "../../lib/viewer/autoExtras.js"; // TASKS.csv #1501
 import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochem.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs
 
 const AZ_TARGETS = new Set(["collars", "survey", "structure"]); // TASKS.csv #1647 — tables with an azimuth
@@ -671,7 +672,17 @@ export function useImportPipeline(ctx) {
       const modalData = { ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, dipConvention: "neg_down",
         sourceEpsg: queueLl ? queueLl.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "", perRowEpsgCol: guessColumn(headers, EPSG_COL_ALIASES), ...guarded };
       if (confident) {
-        askCrsForCollars(modalData).then(() => { commitImportData({ ...modalData, unseen: true }); processImportQueue(); }); // #615; unseen: #715 — no dialog, so its defaults are assumptions
+        // TASKS.csv #1501 — a log's other columns as extra fields, and a Geotech table's Recovery % as that layer too (collars keep
+        // theirs as attrs, #1504; a survey has no others worth keeping)
+        const comp = companionLayer(target, headers);
+        const extras = target === "collars" || target === "survey" ? [] : autoExtraFields(headers, data, mapping, { exclude: [modalData.perRowEpsgCol, comp?.column].filter(Boolean) });
+        askCrsForCollars(modalData).then(() => {
+          commitImportData({ ...modalData, customFields: extras, unseen: true }); // #615; unseen: #715 — no dialog, so its defaults are assumptions
+          if (comp) commitImportData({ ...modalData, target: comp.target, mapping: { ...mapping, value: comp.column }, customFields: [], unseen: true });
+          const said = [extras.length ? tr("kept {n} more column(s) with each row (Identify shows them): {cols}", { n: extras.length, cols: extras.slice(0, 8).map((f) => f.column).join(", ") + (extras.length > 8 ? "…" : "") }) : "", comp ? tr("its \"{col}\" column also filled {layer}", { col: comp.column, layer: LAYER_META[comp.target]?.label || comp.target }) : ""].filter(Boolean);
+          if (said.length) setNotices((p) => [...p, `${file.name}: ${said.join("; ")}.`]);
+          processImportQueue();
+        });
       } else {
         const remaining = importQueueRef.current.length;
         setImportModal({ ...modalData, fileName: remaining ? `${file.name} (${remaining} more queued)` : file.name });

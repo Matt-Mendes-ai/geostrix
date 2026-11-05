@@ -8247,5 +8247,7 @@
   "Plan view · wheel to zoom, drag to pan, double-click to fit · drape and 3D in the 3D View": "Vue en plan · molette pour zoomer, glisser pour déplacer, double-clic pour ajuster · drapage et 3D dans la vue 3D",
   "Theme \"{name}\" refers to {n} raster(s), block model(s) or map layer(s) no longer in this project: {v}. Everything else in the theme was applied.": "Le thème « {name} » cite {n} raster(s), modèle(s) de blocs ou couche(s) cartographique(s) absents de ce projet : {v}. Tout le reste du thème a été appliqué.",
   "{n} more column(s) kept with each hole (Identify shows them): {cols}": "{n} colonne(s) de plus conservée(s) avec chaque sondage (Identify les affiche) : {cols}",
-  "no survey loaded, so each hole is drawn straight from its collar azimuth, dip and length": "aucun levé chargé : chaque sondage est tracé droit selon l'azimut, le pendage et la longueur de son collet"
+  "no survey loaded, so each hole is drawn straight from its collar azimuth, dip and length": "aucun levé chargé : chaque sondage est tracé droit selon l'azimut, le pendage et la longueur de son collet",
+  "kept {n} more column(s) with each row (Identify shows them): {cols}": "{n} colonne(s) de plus conservée(s) avec chaque ligne (Identify les affiche) : {cols}",
+  "its \"{col}\" column also filled {layer}": "sa colonne « {col} » a aussi rempli {layer}"
 }
