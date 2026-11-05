@@ -658,15 +658,17 @@ export default function ModellingPanes(props) {
             {/* TASKS.csv #241 — cross-cutting units (fault/dyke/breccia) are hidden here, not just
                 warned about in the paragraph above: they break the tool's own non-crossing guarantee,
                 so they're unselectable rather than trusting the user to read the warning first. */}
-            {litho_units.filter((u) => !stackUnits.includes(u) && !isCrossCuttingRole(roleForLithology(u)) && roleForLithology(u) !== "no recovery").map((u) => { // no recovery: #1369
+            {/* TASKS.csv #1541 — a code whose group is already in the stack, or a group with a member already in it, is not offered: the
+                same unit twice ('Intermediate volcanics' after two of its members) */}
+            {litho_units.filter((u) => !stackUnits.includes(u) && !isCrossCuttingRole(roleForLithology(u)) && roleForLithology(u) !== "no recovery" && !lithoGroups.some((g) => stackUnits.includes(lithoGroupKey(g)) && (g.codes || []).includes(u))).map((u) => { // no recovery: #1369
               const role = roleForLithology(u);
               return <option key={u} value={u}>{u}{role === "overburden" ? tr(" (overburden)") : ""}</option>;
             })}
             {/* TASKS.csv #176 — groups with ANY cross-cutting member are excluded here, same rail as
                 a raw cross-cutting code just above. */}
-            {lithoGroups.some((g) => !stackUnits.includes(lithoGroupKey(g)) && !lithoGroupCrossCuts(g)) && (
+            {lithoGroups.some((g) => !stackUnits.includes(lithoGroupKey(g)) && !lithoGroupCrossCuts(g) && !(g.codes || []).some((c) => stackUnits.includes(c))) && (
               <optgroup label={tr("Groups")}>
-                {lithoGroups.filter((g) => !stackUnits.includes(lithoGroupKey(g)) && !lithoGroupCrossCuts(g)).map((g) => {
+                {lithoGroups.filter((g) => !stackUnits.includes(lithoGroupKey(g)) && !lithoGroupCrossCuts(g) && !(g.codes || []).some((c) => stackUnits.includes(c))).map((g) => {
                   const empty = !(g.codes || []).length;
                   return <option key={g.id} value={lithoGroupKey(g)} disabled={empty}>{g.name} [{(g.codes || []).join("+") || tr("no codes yet")}]{lithoGroupRole(g) === "overburden" ? tr(" (overburden)") : ""}</option>;
                 })}
