@@ -27,6 +27,7 @@ import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCusto
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
 import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917
+import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochem.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs
 
 const AZ_TARGETS = new Set(["collars", "survey", "structure"]); // TASKS.csv #1647 — tables with an azimuth
 
@@ -291,6 +292,9 @@ export function useImportPipeline(ctx) {
 
     if (target === "collars") {
       const ranked = pickRankedCollarRows(allRows, mapping.hole_id, allRows.length ? Object.keys(allRows[0]) : []); // #600
+      // TASKS.csv #1504 (review #1497, Lawyers) — the collar file's other columns (year, drill type, prospect, status, dates, comments)
+      // were dropped without a word: kept as attrs (the surface-sample rule, #841: a column with up to 100 distinct values, or free text)
+      const attrCols = surfaceAttrColumns(allRows.length ? Object.keys(allRows[0]) : [], ranked.rows, { ...mapping, _epsg: perRowEpsgCol || null, ...Object.fromEntries((customFields || []).map((f, k) => [`_c${k}`, f.column])) });
       let rows = ranked.rows.map((r) => applyCustomFields({
         // TASKS.csv #337 — num(): a blank cell is missing (NaN), not 0 (a blank RL used to put the collar at sea level).
         hole_id: String(r[mapping.hole_id] ?? "").trim(), x: num(r[mapping.x]), y: num(r[mapping.y]), z: num(r[mapping.z]),
@@ -300,6 +304,7 @@ export function useImportPipeline(ctx) {
         // Per-row source EPSG (TASKS.csv #205), carried alongside the row only long enough to drive
         // the reprojection pass below — stripped before the collar is stored.
         _rowEpsg: perRowEpsgCol ? String(r[perRowEpsgCol] ?? "").trim() : "",
+        ...surfaceAttrs(r, attrCols), // #1504
       }, r, customFields));
       // TASKS.csv #337 — a collar without all three coordinates can't be placed; skip it and say which,
       // instead of the old behaviour of keeping it at z = 0.
@@ -410,6 +415,8 @@ export function useImportPipeline(ctx) {
       if (diff.filled.length) parts.push(tr("{filled} existing hole(s) completed with values they did not have ({v})", { filled: diff.filled.length, v: [...new Set(diff.filled.flatMap((f) => f.fields))].join(", ") })); // #600
       if (diff.unchanged.length) parts.push(tr("{unchanged} already present and identical", { unchanged: diff.unchanged.length }));
       if (ranked.dropped) parts.push(tr("{holes} hole(s) had several location records ({dropped} extra rows) — kept the lowest \"{rankColumn}\" for each: {holes2}{v}", { holes: ranked.holes.length, dropped: ranked.dropped, rankColumn: ranked.rankColumn, holes2: ranked.holes.slice(0, 5).join(", "), v: ranked.holes.length > 5 ? ", …" : "" }));
+      if (attrCols.length) parts.push(tr("{n} more column(s) kept with each hole (Identify shows them): {cols}", { n: attrCols.length, cols: attrCols.slice(0, 8).join(", ") + (attrCols.length > 8 ? "…" : "") })); // #1504
+      if (!(importStateRef.current.survey || []).length) parts.push(tr("no survey loaded, so each hole is drawn straight from its collar azimuth, dip and length")); // #1504
       if (diff.duplicatesInFile.length) parts.push(tr("{duplicatesInFile} duplicate hole_id row(s) WITHIN the file itself (the last row of each hole won: {v})", { duplicatesInFile: diff.duplicatesInFile.length, v: [...new Set(diff.duplicatesInFile)].slice(0, 5).join(", ") }));
       setNotices((p) => [...p, notice("Loaded {size} collars from {fileName}{v}.{reprojectNote}{note}", { size: new Set(rows.map((r) => r.hole_id)).size, fileName, v: parts.length ? ` — ${parts.join("; ")}` : "", reprojectNote, note: azc.note })]);
     } else if (target === "survey") {

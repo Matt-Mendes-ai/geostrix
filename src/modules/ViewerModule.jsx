@@ -4930,7 +4930,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       const marker = new THREE.Mesh(PROTO_SPHERE_12, collarMaterialRef.current); // TASKS.csv #312 — shared prototype + scale (was SphereGeometry(3.2, 12, 12))
       marker.scale.setScalar(3.2);
       marker.position.set(pts[0].x, pts[0].y, pts[0].z);
-      marker.userData = { tip: `${c.hole_id}\ncollar` };
+      marker.userData = { tip: `${c.hole_id}\ncollar`, collar: c }; // collar: #1504 — Identify lists its fields
       groups.litho.add(marker);
 
       const traceLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((p) => new THREE.Vector3(p.x, p.y, p.z))), new THREE.LineBasicMaterial({ color: 0x445064, transparent: true, opacity: 0.5 }));

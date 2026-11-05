@@ -8245,5 +8245,7 @@
   "Plan of the map data": "Planta dos dados do mapa",
   "N ↑": "N ↑",
   "Plan view · wheel to zoom, drag to pan, double-click to fit · drape and 3D in the 3D View": "Vista em planta · roda para aproximar, arrastar para mover, duplo clique para ajustar · relevo e 3D na vista 3D",
-  "Theme \"{name}\" refers to {n} raster(s), block model(s) or map layer(s) no longer in this project: {v}. Everything else in the theme was applied.": "O tema \"{name}\" cita {n} raster(s), modelo(s) de blocos ou camada(s) de mapa que não estão mais neste projeto: {v}. Todo o resto do tema foi aplicado."
+  "Theme \"{name}\" refers to {n} raster(s), block model(s) or map layer(s) no longer in this project: {v}. Everything else in the theme was applied.": "O tema \"{name}\" cita {n} raster(s), modelo(s) de blocos ou camada(s) de mapa que não estão mais neste projeto: {v}. Todo o resto do tema foi aplicado.",
+  "{n} more column(s) kept with each hole (Identify shows them): {cols}": "{n} coluna(s) a mais guardada(s) com cada furo (Identify as mostra): {cols}",
+  "no survey loaded, so each hole is drawn straight from its collar azimuth, dip and length": "nenhum survey carregado, então cada furo é desenhado reto pelo azimute, inclinação e comprimento da boca"
 }

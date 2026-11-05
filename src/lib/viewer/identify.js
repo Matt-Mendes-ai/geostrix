@@ -89,7 +89,9 @@ function describe(hit, ctx) {
     const hole = row?.hole_id || (ctx.isHole(tipLines[0]) ? tipLines[0] : null);
     const fields = [];
     if (hole) fields.push([tr("Hole"), hole]);
-    if (collar) return { ...base, layer: tr("Collars"), title: hole, hole, fields };
+    // TASKS.csv #1504 — a collar's own record: position, orientation, length and the columns kept from its file
+    const c = o.userData?.collar;
+    if (collar) return { ...base, layer: tr("Collars"), title: hole, hole, fields: c ? [...fields, ...attributeFields(c), ...attributeFields(c.attrs, new Set())] : fields };
     // #1821 — a surface sample: the element it is coloured by and its class first, every element, its own fields
     if (o.userData?.units && row?.medium != null) return { ...base, layer: group, title: tipLines[0] || group, hole: null, fields: [...sampleIdentifyFields(row, o.userData.mapped, o.userData.units), ...attributeFields(row, new Set([...SKIP, "attrs"]))] };
     const nameLine = tipLines[1]?.includes(":") ? tipLines[1].slice(tipLines[1].indexOf(":") + 1).trim() : null;
