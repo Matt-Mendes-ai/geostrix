@@ -18,25 +18,41 @@
 //   large for an occupancy array; the caller then keeps instancing.
 
 const srgbToLinear = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-const MM = (v) => Math.round(v * 1000); // boundaries compared to the millimetre
+// boundaries are compared to the millimetre (axisEdges)
 
+// TASKS.csv #1784 — the boundaries are counted in millimetres from the axis's first whole metre, so the keys stay small
+// integers (a UTM northing in millimetres, ~5.5e9, is not one, and every Set / Map operation on it was slow); a block that
+// repeats the previous one's centre and size (the y and z axes, most of the time) is not looked up again. Same grid as
+// before: 280k cells 140-230 ms -> see the row's notes.
 function axisEdges(cells, centre, size, maxEdges) {
-  const set = new Set();
-  for (const c of cells) {
-    const h = c[size] / 2;
-    set.add(MM(c[centre] - h)); set.add(MM(c[centre] + h));
-    if (set.size > maxEdges) return null;
+  const n = cells.length, base = Math.floor(cells[0][centre]);
+  const lo = new Float64Array(n), hi = new Float64Array(n), set = new Set();
+  let pc = NaN, ps = NaN, pl = 0, ph = 0;
+  for (let t = 0; t < n; t++) {
+    const c = cells[t], cc = c[centre], sz = c[size];
+    if (cc !== pc || sz !== ps) {
+      const h = sz / 2;
+      pl = Math.round((cc - h - base) * 1000); ph = Math.round((cc + h - base) * 1000);
+      set.add(pl); set.add(ph);
+      if (set.size > maxEdges) return null;
+      pc = cc; ps = sz;
+    }
+    lo[t] = pl; hi[t] = ph;
   }
   const edges = Float64Array.from(set).sort();
   const at = new Map();
-  edges.forEach((e, i) => at.set(e, i));
-  const idx = new Int32Array(cells.length);
-  for (let t = 0; t < cells.length; t++) {
-    const c = cells[t], h = c[size] / 2, lo = at.get(MM(c[centre] - h)), hi = at.get(MM(c[centre] + h));
-    if (hi !== lo + 1) return null; // a block spanning several intervals: sub-blocks / octree
-    idx[t] = lo;
+  for (let i = 0; i < edges.length; i++) at.set(edges[i], i);
+  const idx = new Int32Array(n);
+  let pk = NaN, pi = 0;
+  for (let t = 0; t < n; t++) {
+    if (lo[t] !== pk) {
+      const l = at.get(lo[t]);
+      pk = lo[t]; pi = l;
+    }
+    if (at.get(hi[t]) !== pi + 1) return null; // a block spanning several intervals: sub-blocks / octree
+    idx[t] = pi;
   }
-  return { edges: Float64Array.from(edges, (e) => e / 1000), idx };
+  return { edges: Float64Array.from(edges, (e) => base + e / 1000), idx };
 }
 
 export function rectilinearGrid(cells, { maxEdges = 4096 } = {}) {
@@ -64,54 +80,59 @@ function faceTemplates() {
 }
 const FACES = faceTemplates();
 
+// TASKS.csv #1784 — the occupancy box is padded by one cell on every side (no bounds test per neighbour), the six neighbour
+// offsets are plain numbers, and the grid keeps its cell -> index map, so a cutoff change on the same model does not rebuild it.
+// Output identical to before.
 export function buildExposedFaces(cells, grid, origin, colorRGB, { maxGrid = 64e6, boundaries = false } = {}) {
   if (!cells.length || !grid) return null;
   const nx = grid.ex.length - 1, ny = grid.ey.length - 1, nz = grid.ez.length - 1;
   if (nx * ny * nz > maxGrid) return null;
   // interval indices of the shown cells (looked up from the grid's own cell list)
-  const pos = new Map();
-  grid.cells.forEach((c, t) => pos.set(c, t));
+  let pos = grid.cells === cells ? null : grid.posMap;
+  if (grid.cells !== cells && !pos) { pos = new Map(); const gc = grid.cells; for (let t = 0; t < gc.length; t++) pos.set(gc[t], t); grid.posMap = pos; }
   const n = cells.length, I = new Int32Array(n), J = new Int32Array(n), K = new Int32Array(n);
   for (let t = 0; t < n; t++) {
-    const g = pos.get(cells[t]);
+    const g = pos ? pos.get(cells[t]) : t;
     if (g === undefined) return null;
     I[t] = grid.I[g]; J[t] = grid.J[g]; K[t] = grid.K[g];
   }
-  const occ = new Uint8Array(nx * ny * nz);
-  for (let t = 0; t < n; t++) occ[(K[t] * ny + J[t]) * nx + I[t]] = 1;
+  const px = nx + 2, py = ny + 2, pz = nz + 2, at = (i, j, k) => ((k + 1) * py + (j + 1)) * px + (i + 1);
+  const occ = new Uint8Array(px * py * pz);
+  for (let t = 0; t < n; t++) occ[at(I[t], J[t], K[t])] = 1;
   // #904 — with boundaries, a neighbour of a different value counts as not shown (its face is drawn, from both sides)
   let val = null;
-  if (boundaries) { val = new Float64Array(nx * ny * nz); for (let t = 0; t < n; t++) val[(K[t] * ny + J[t]) * nx + I[t]] = cells[t].value; }
-  let cur = 0; // the value of the block whose faces are being tested
-  const shown = (i, j, k) => i >= 0 && j >= 0 && k >= 0 && i < nx && j < ny && k < nz && occ[(k * ny + j) * nx + i] === 1 && (!val || val[(k * ny + j) * nx + i] === cur);
-  // scene-axis neighbour step in grid indices: scene X = +i (east), scene Y = +k (elevation), scene Z = -j (north)
+  if (boundaries) { val = new Float64Array(px * py * pz); for (let t = 0; t < n; t++) val[at(I[t], J[t], K[t])] = cells[t].value; }
+  // scene-axis neighbour step in grid indices: scene X = +i (east), scene Y = +k (elevation), scene Z = -j (north), as an
+  // offset in the padded box, one per face of FACES
   const step = [[1, 0, 0], [0, 0, 1], [0, -1, 0]];
+  const off = FACES.map((f) => { const d = step[f.a]; return f.s * (d[0] + d[1] * px + d[2] * px * py); });
+  const hidden = (nb, v) => occ[nb] === 1 && (!val || val[nb] === v); // the neighbour shown (and the same value, with boundaries)
   let faces = 0;
-  for (let t = 0; t < n; t++) { cur = cells[t].value; for (const f of FACES) { const d = step[f.a]; if (!shown(I[t] + f.s * d[0], J[t] + f.s * d[1], K[t] + f.s * d[2])) faces++; } }
+  for (let t = 0; t < n; t++) { const q = at(I[t], J[t], K[t]), v = cells[t].value; for (let f = 0; f < 6; f++) if (!hidden(q + off[f], v)) faces++; }
   const positions = new Float32Array(faces * 12), normals = new Float32Array(faces * 12), colors = new Float32Array(faces * 12);
   const indices = new Uint32Array(faces * 6);
   const { ex, ey, ez } = grid;
-  let q = 0;
+  const B = [[0, 0], [0, 0], [0, 0]];
+  let q4 = 0;
   for (let t = 0; t < n; t++) {
-    const i = I[t], j = J[t], k = K[t];
-    cur = cells[t].value;
+    const i = I[t], j = J[t], k = K[t], q = at(i, j, k), v = cells[t].value;
     // scene bounds [low, high] per scene axis (Z = -north, so north's high edge is scene Z's low bound)
-    const B = [[ex[i] - origin.x, ex[i + 1] - origin.x], [ez[k] - origin.z, ez[k + 1] - origin.z], [-(ey[j + 1] - origin.y), -(ey[j] - origin.y)]];
-    let rgb = null;
-    for (const f of FACES) {
-      const d = step[f.a];
-      if (shown(i + f.s * d[0], j + f.s * d[1], k + f.s * d[2])) continue;
-      if (!rgb) { const [r, g, b] = colorRGB(cells[t].value); rgb = [srgbToLinear(r / 255), srgbToLinear(g / 255), srgbToLinear(b / 255)]; }
-      for (let v = 0; v < 4; v++) {
-        const p = f.quad[v], o = (q * 4 + v) * 3;
+    B[0][0] = ex[i] - origin.x; B[0][1] = ex[i + 1] - origin.x; B[1][0] = ez[k] - origin.z; B[1][1] = ez[k + 1] - origin.z; B[2][0] = -(ey[j + 1] - origin.y); B[2][1] = -(ey[j] - origin.y);
+    let r = -1, g = 0, b = 0;
+    for (let fi = 0; fi < 6; fi++) {
+      if (hidden(q + off[fi], v)) continue;
+      const f = FACES[fi];
+      if (r < 0) { const c = colorRGB(v); r = srgbToLinear(c[0] / 255); g = srgbToLinear(c[1] / 255); b = srgbToLinear(c[2] / 255); }
+      for (let vv = 0; vv < 4; vv++) {
+        const p = f.quad[vv], o = (q4 * 4 + vv) * 3;
         positions[o] = B[0][p[0]]; positions[o + 1] = B[1][p[1]]; positions[o + 2] = B[2][p[2]];
         normals[o] = f.n[0]; normals[o + 1] = f.n[1]; normals[o + 2] = f.n[2];
-        colors[o] = rgb[0]; colors[o + 1] = rgb[1]; colors[o + 2] = rgb[2];
+        colors[o] = r; colors[o + 1] = g; colors[o + 2] = b;
       }
-      const b4 = q * 4, b6 = q * 6;
+      const b4 = q4 * 4, b6 = q4 * 6;
       indices[b6] = b4; indices[b6 + 1] = b4 + 1; indices[b6 + 2] = b4 + 2;
       indices[b6 + 3] = b4; indices[b6 + 4] = b4 + 2; indices[b6 + 5] = b4 + 3;
-      q++;
+      q4++;
     }
   }
   return { positions, normals, colors, indices, faces };

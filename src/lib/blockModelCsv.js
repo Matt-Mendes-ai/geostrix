@@ -78,26 +78,44 @@ export function inferAxisWidths(sorted, fallback = 1) {
   return out;
 }
 
+// TASKS.csv #1784 — parsed straight into typed columns and the good rows kept as indices: the cell objects are made once, at the
+// end (it built an object per row, filtered it twice into new arrays and mapped it again: three 380k-object passes)
 export function blockModelCellsFromRows(rows, mapping, attr) {
   // TASKS.csv #508 — layers.num: a blank / "NA" cell is NaN, not 0 (an unestimated block was a real 0-grade block)
-  const cell = (r, k) => (mapping[k] ? num(r[mapping[k]]) : NaN);
-  const parsed = rows.map((r) => ({ x: cell(r, "x"), y: cell(r, "y"), z: cell(r, "z"), dx: cell(r, "dx"), dy: cell(r, "dy"), dz: cell(r, "dz"), value: attr ? num(r[attr]) : NaN }));
-  let good = parsed.filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.z) && Number.isFinite(r.value));
+  const n = rows.length, col = (k) => mapping[k] || null;
+  const kx = col("x"), ky = col("y"), kz = col("z"), kdx = col("dx"), kdy = col("dy"), kdz = col("dz");
+  const X = new Float64Array(n), Y = new Float64Array(n), Z = new Float64Array(n), DX = new Float64Array(n), DY = new Float64Array(n), DZ = new Float64Array(n), V = new Float64Array(n);
+  const keep = new Int32Array(n);
+  let m = 0;
+  for (let t = 0; t < n; t++) {
+    const r = rows[t];
+    const x = kx ? num(r[kx]) : NaN, y = ky ? num(r[ky]) : NaN, z = kz ? num(r[kz]) : NaN, v = attr ? num(r[attr]) : NaN;
+    if (!(Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z) && Number.isFinite(v))) continue;
+    X[m] = x; Y[m] = y; Z[m] = z; V[m] = v;
+    DX[m] = kdx ? num(r[kdx]) : NaN; DY[m] = kdy ? num(r[kdy]) : NaN; DZ[m] = kdz ? num(r[kdz]) : NaN;
+    keep[m] = t; m++;
+  }
   // TASKS.csv #1662 — the same air rule as a UBC / OMF model (#481, #1659): a tiny or flagged value filling at least 5 % of the
   // blocks is air above the ground, not rock, and is left out instead of drawn as a slab on a linear ramp
-  const air = maskAirCells(Float64Array.from(good, (r) => r.value));
-  if (air.count) good = good.filter((r) => r.value !== air.value);
+  const vals = V.slice(0, m), air = maskAirCells(vals); // marks the air in vals (a copy): V keeps the values
+  const ok = air.count ? (i) => vals[i] === V[i] : () => true;
   // sizes the file does not give: per-axis widths from the centroids (variable where the mesh is), #1662
-  const widths = (sizeKey, posKey) => {
-    if (!good.some((r) => !(r[sizeKey] > 0))) return null;
-    const vals = Array.from(new Set(good.map((r) => r[posKey]))).sort((a, b) => a - b);
-    return inferAxisWidths(vals, 1);
+  const widths = (S, P) => {
+    let missing = false, set = null;
+    for (let i = 0; i < m; i++) if (ok(i) && !(S[i] > 0)) { missing = true; break; }
+    if (!missing) return null;
+    set = new Set(); for (let i = 0; i < m; i++) if (ok(i)) set.add(P[i]);
+    return inferAxisWidths(Float64Array.from(set).sort(), 1);
   };
-  const wx = widths("dx", "x"), wy = widths("dy", "y"), wz = widths("dz", "z");
-  const cells = good.map((r) => ({ x: r.x, y: r.y, z: r.z, dx: r.dx > 0 ? r.dx : wx.get(r.x), dy: r.dy > 0 ? r.dy : wy.get(r.y), dz: r.dz > 0 ? r.dz : wz.get(r.z), value: r.value }));
-  const range = (m) => { if (!m) return null; let lo = Infinity, hi = -Infinity; for (const v of m.values()) { if (v < lo) lo = v; if (v > hi) hi = v; } return { min: lo, max: hi, variable: hi - lo > 1e-6 }; };
+  const wx = widths(DX, X), wy = widths(DY, Y), wz = widths(DZ, Z);
+  const cells = [];
+  for (let i = 0; i < m; i++) {
+    if (!ok(i)) continue;
+    cells.push({ x: X[i], y: Y[i], z: Z[i], dx: DX[i] > 0 ? DX[i] : wx.get(X[i]), dy: DY[i] > 0 ? DY[i] : wy.get(Y[i]), dz: DZ[i] > 0 ? DZ[i] : wz.get(Z[i]), value: V[i] });
+  }
+  const range = (mp) => { if (!mp) return null; let lo = Infinity, hi = -Infinity; for (const v of mp.values()) { if (v < lo) lo = v; if (v > hi) hi = v; } return { min: lo, max: hi, variable: hi - lo > 1e-6 }; };
   const inferred = wx || wy || wz ? { dx: range(wx), dy: range(wy), dz: range(wz) } : null;
-  return { cells, badRows: parsed.length - good.length - air.count, inferred, air: air.count ? { count: air.count, value: air.value } : null };
+  return { cells, badRows: n - m, inferred, air: air.count ? { count: air.count, value: air.value } : null };
 }
 
 // Cells -> at most maxCells cells: merge fx x fy x fz lattice blocks (lattice = the smallest cell size per
