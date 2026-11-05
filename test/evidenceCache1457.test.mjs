@@ -52,6 +52,6 @@ test("at most 16 entries, least recently used out first", () => {
 test("the pane computes through the cache with every data input as a dependency", () => {
   const src = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8");
   assert.match(src, /const computeValues = \(src, opts = \{\}\) => \(grid \? cachedEvidence\(/);
-  assert.match(src, /\[rasters, mapLayers, surfaceSamples, surfaceElements, collars, survey, project\?\.desurveyMethod, assays, assayElements, voxelModels, geophysPts, structurePicks\]/);
+  assert.match(src, /\[rasters, mapLayers, surfaceSamples, surfaceElements, collars, survey, project\?\.desurveyMethod, assays, assayElements, voxelModels, geophysPts, structurePicks, projectLayers, customLayers\]/); // projectLayers, customLayers: #1728
   assert.match(src, /\(\) => computeValuesNow\(src, opts\)/);
 });

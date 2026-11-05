@@ -11,7 +11,7 @@ import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1449 / #145
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
 import { evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, bestCutoff, posterior, predictionArea, scoreImage, isOverlayOutput } from "../lib/evidence.js";
 import { cachedEvidence, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457
-import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, structureCodes, structureParts, rasterFloorZ, elementsWithValues } from "../lib/evidenceSources.js"; // TASKS.csv #1154; elementsWithValues: #1723
+import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, structureCodes, structureParts, rasterFloorZ, elementsWithValues, numericLayerFields, layerFieldPoints, zoneCodes, zoneParts } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
 import { categoricalModels } from "../lib/geologyForward.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";
 import { valueIn } from "../lib/geochem.js";
@@ -22,6 +22,7 @@ import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #102
 import { fontSizes } from "../lib/theme.js";
 import { pBtn as sidebarBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #997
 import { t as tr } from "../lib/i18n.js";
+import { LAYER_META } from "../lib/layers.js"; // TASKS.csv #1728
 import { SURVEY_METHODS } from "../lib/geophysSurveys.js"; // TASKS.csv #1209
 
 const fmt = (v, d = 2) => (v == null || !Number.isFinite(v) ? "—" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 || v === 0 ? v.toFixed(d) : v.toPrecision(2)); // a small cutoff keeps its digits, not "-0.00"
@@ -29,7 +30,7 @@ const numText = (v) => (Number.isFinite(v) ? String(+v.toPrecision(3)) : ""); //
 let nextId = 1;
 
 export default function EvidenceOverlayPane({ onClose }) {
-  const { rasters = [], mapLayers = [], surfaceSamples = [], surfaceElements = [], terrain, collars = [], survey = [], assays = [], assayElements = [], layers: projectLayers, voxelModels = [], project, addRaster, evidenceOverlay, setEvidenceOverlay, geophysSurveys = {} } = useStore();
+  const { rasters = [], mapLayers = [], surfaceSamples = [], surfaceElements = [], terrain, collars = [], survey = [], assays = [], assayElements = [], layers: projectLayers, customLayers = [], voxelModels = [], project, addRaster, evidenceOverlay, setEvidenceOverlay, geophysSurveys = {} } = useStore();
   const units = useMemo(() => Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit])), [surfaceElements]);
   const assayUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const [layers, setLayers] = useState([]); // [{ id, kind, label, ref, shape, low, high, values }]
@@ -57,7 +58,20 @@ export default function EvidenceOverlayPane({ onClose }) {
   // TASKS.csv #1727 (review #1645, Copley) — the grid around the drilling grows with the largest reach a drillhole evidence was given
   // (a 1,000 m reach ran into the edge of a box that ended 250 m past the outer holes), and a drill-only overlay says what it ranks
   const drillPad = useMemo(() => Math.max(DRILL_REACH_M, ...layers.filter((l) => l.kind === "grade" || l.kind === "pxrf").map((l) => Number(l.reach) || 0)), [layers]);
-  const drillOnly = layers.length > 0 && layers.every((l) => l.kind === "grade" || l.kind === "pxrf" || l.kind === "pick");
+  const drillOnly = layers.length > 0 && layers.every((l) => l.kind === "grade" || l.kind === "pxrf" || l.kind === "pick" || l.kind === "numeric" || l.kind === "zone");
+  // TASKS.csv #1728 — numeric downhole layers and numeric custom-layer fields along the holes; logged interval zones as distances
+  const numericLayerSources = useMemo(() => {
+    if (!traces.size) return [];
+    const out = [];
+    for (const [key, meta] of Object.entries(LAYER_META)) {
+      if (!meta.numeric || key === "geophys_pts" || !projectLayers?.[key]?.length) continue;
+      if (numericLayerFields(projectLayers[key]).includes("value")) out.push({ key: `num:${key}:value`, label: tr("Drillholes: {name} along the holes", { name: tr(meta.label) }), kind: "numeric", ref: `${key}:value` });
+    }
+    for (const cl of customLayers) for (const f of numericLayerFields(cl.rows)) out.push({ key: `num:custom:${cl.id}:${f}`, label: tr("Drillholes: {layer} {field} along the holes", { layer: cl.name, field: f }), kind: "numeric", ref: `custom:${cl.id}:${f}` });
+    return out;
+  }, [traces, projectLayers, customLayers]);
+  const zoneRows = projectLayers?.structzone;
+  const numericRowsOf = (ref) => { const m = /^custom:(.+):([^:]+)$/.exec(ref); if (m) { const cl = customLayers.find((c) => String(c.id) === m[1]); return { rows: cl?.rows || [], field: m[2] }; } const [key, field] = ref.split(":"); return { rows: projectLayers?.[key] || [], field }; };
   // TASKS.csv #1450 — surface samples far from the rest (Silvertip's 5 rocks 45 km south) do not size the grid or a reach
   const sampleCore = useMemo(() => { const { keep, dropped } = mainClusters(surfaceSamples); return { samples: surfaceSamples.filter((_, i) => keep[i]), dropped }; }, [surfaceSamples]);
   const media = useMemo(() => { const m = new Map(); sampleCore.samples.forEach((s) => m.set(s.medium || "", (m.get(s.medium || "") || 0) + 1)); return [...m].sort((a, b) => b[1] - a[1]).map(([k]) => k); }, [sampleCore]);
@@ -103,13 +117,15 @@ export default function EvidenceOverlayPane({ onClose }) {
     if (traces.size) labElements.forEach((e) => out.push({ key: `grade:${e.symbol}`, label: tr("Drillholes: {sym} grade along the holes", { sym: e.symbol }), kind: "grade", ref: e.symbol })); // #1723: lab assays only
     if (traces.size) pxrfElements.forEach((e) => out.push({ key: `pxrf:${e.symbol}`, label: tr("Drillholes: {sym} pXRF along the holes (screening readings, not assays)", { sym: e.symbol }), kind: "pxrf", ref: e.symbol })); // #1723
     structureCodes(structurePicks, traces).forEach((code) => out.push({ key: `pick:${code}`, label: tr("Distance to logged structure: {code}", { code }), kind: "pick", ref: code }));
+    out.push(...numericLayerSources); // #1728
+    zoneCodes(zoneRows, traces).forEach((code) => out.push({ key: `zone:${code}`, label: tr("Distance to logged zone: {code}", { code }), kind: "zone", ref: code })); // #1728
     return out;
-  }, [valueRasters, mapLayers, surfaceElements, geophysPts, voxelModels, traces, labElements, pxrfElements, structurePicks]);
+  }, [valueRasters, mapLayers, surfaceElements, geophysPts, voxelModels, traces, labElements, pxrfElements, structurePicks, numericLayerSources, zoneRows]);
 
   // #1457 — through the cache: a reopened pane, or the same layer added again, reuses values computed from the same grid and data
   const computeValues = (src, opts = {}) => (grid ? cachedEvidence(
     `${gridSignature(grid)}|${src.kind}|${src.ref}|${src.how || ""}|${opts.field || ""}|${opts.value ?? ""}|${opts.reach || ""}|${opts.zMin ?? ""}|${opts.zMax ?? ""}`,
-    [rasters, mapLayers, surfaceSamples, surfaceElements, collars, survey, project?.desurveyMethod, assays, assayElements, voxelModels, geophysPts, structurePicks],
+    [rasters, mapLayers, surfaceSamples, surfaceElements, collars, survey, project?.desurveyMethod, assays, assayElements, voxelModels, geophysPts, structurePicks, projectLayers, customLayers],
     () => computeValuesNow(src, opts),
   ) : null);
   const computeValuesNow = (src, opts = {}) => {
@@ -122,6 +138,8 @@ export default function EvidenceOverlayPane({ onClose }) {
     }
     if (src.kind === "voxel") { const m = voxelModels.find((x) => (x.id ?? x.name) === src.ref); return m ? voxelColumnEvidence(grid, m, src.how, { zMin: opts.zMin, zMax: opts.zMax }) : null; } // #1831 — an elevation band
     if (src.kind === "pick") return distanceEvidence(grid, structureParts(structurePicks, src.ref, traces));
+    if (src.kind === "numeric") { const { rows, field } = numericRowsOf(src.ref); return pointEvidence(grid, layerFieldPoints(rows, field, traces), { maxDistance: opts.reach || DRILL_REACH_M }); } // #1728
+    if (src.kind === "zone") return distanceEvidence(grid, zoneParts(zoneRows, src.ref, traces)); // #1728
     if (src.kind === "survey") { const pts = surveyPoints(geophysPts, src.ref); return pointEvidence(grid, pts, { maxDistance: opts.reach || reachFromSpacing(pts, 4) }); }
     if (src.kind === "grade") return pointEvidence(grid, holeGradePoints(cleanAssays, src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces), { maxDistance: opts.reach || DRILL_REACH_M });
     if (src.kind === "pxrf") return pointEvidence(grid, holeGradePoints(pxrfAssays, src.ref, assayUnits[src.ref] || "ppm", assayUnits, traces), { maxDistance: opts.reach || DRILL_REACH_M }); // #1723
@@ -134,7 +152,7 @@ export default function EvidenceOverlayPane({ onClose }) {
   // of metres (#1449 — one reach for all media gave Silvertip's soils 2.5 km); far outliers do not count (#1450); the spacing is
   // the median nearest-neighbour distance (#1829 / #1561: the bounding box of seven soil grids gave Kodiak's 48 m soils 700 m)
   const reachOfMedium = (medium) => reachFromNeighbours(medium == null ? sampleCore.samples : sampleCore.samples.filter((s) => (s.medium || "") === medium));
-  const reachOf = (src, medium = null) => (src.kind === "grade" || src.kind === "pxrf" ? DRILL_REACH_M : src.kind === "survey" ? reachFromSpacing(surveyPoints(geophysPts, src.ref), 4) : reachOfMedium(medium));
+  const reachOf = (src, medium = null) => (src.kind === "grade" || src.kind === "pxrf" || src.kind === "numeric" ? DRILL_REACH_M : src.kind === "survey" ? reachFromSpacing(surveyPoints(geophysPts, src.ref), 4) : reachOfMedium(medium));
   const addLayer = (key) => {
     const src = sources.find((s) => s.key === key); if (!src) return;
     // #1449 — sample evidence starts on the medium with the most samples when there are several (changeable on the card)
@@ -145,7 +163,7 @@ export default function EvidenceOverlayPane({ onClose }) {
     const finite = values.filter(Number.isFinite);
     if (!finite.length) { setMsg(tr("\"{name}\" has no values over the grid.", { name: src.label })); return; }
     finite.sort(); // TASKS.csv #1281 — one numeric sort of the typed copy, not a comparator sort per quantile (a third of the stall)
-    const dec = src.kind === "distance" || src.kind === "pick", low = dec ? 0 : quantileSorted(finite, 0.1), high = src.kind === "pick" ? Math.max(3 * Math.max(grid.dx, grid.dy), pickDefaultReachM(quantileSorted(finite, 0.5), (medianSiteSpacing(collars) || 0) / 3)) /* #1451: one site spacing, at least 3 cells */ : dec ? quantileSorted(finite, 0.5) : quantileSorted(finite, 0.9); // #1179
+    const dec = src.kind === "distance" || src.kind === "pick" || src.kind === "zone", low = dec ? 0 : quantileSorted(finite, 0.1), high = src.kind === "pick" || src.kind === "zone" ? Math.max(3 * Math.max(grid.dx, grid.dy), pickDefaultReachM(quantileSorted(finite, 0.5), (medianSiteSpacing(collars) || 0) / 3)) /* #1451: one site spacing, at least 3 cells */ : dec ? quantileSorted(finite, 0.5) : quantileSorted(finite, 0.9); // #1179
     const log = (src.kind === "grade" || src.kind === "pxrf") && low > 0 && high > low; // #1555: a drill grade ramps on its logarithm (10th -> 90th percentile of a lognormal grade is otherwise flat over most of the holes)
     setLayers((L) => [...L, { id: nextId++, ...src, shape: dec ? "decreasing" : "increasing", low, high, log, lowText: numText(low), highText: numText(high), field: pick.field || "", value: pick.value ?? "", reach: pick.reach || reachOf(src), values }]);
     setResult(null); setMsg(null);
@@ -298,7 +316,7 @@ export default function EvidenceOverlayPane({ onClose }) {
                 {l.zMin == null && l.zMax == null && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)" }}>{tr("Whole column: every depth of the model counts. Set an elevation band to read one level.")}</span>}
               </div>);
             })()}
-            {(l.kind === "element" || l.kind === "index" || l.kind === "survey" || l.kind === "grade" || l.kind === "pxrf") && <label style={row}>{tr("Reach (m)")}<input type="number" min="10" step="50" value={l.reach} onChange={(e) => updateLayer(l.id, { reach: Math.max(10, Number(e.target.value) || reachOf(l, l.field === "medium" ? l.value : null)) }, true)} style={{ ...sel, width: 70 }} /></label>}
+            {(l.kind === "element" || l.kind === "index" || l.kind === "survey" || l.kind === "grade" || l.kind === "pxrf" || l.kind === "numeric") && <label style={row}>{tr("Reach (m)")}<input type="number" min="10" step="50" value={l.reach} onChange={(e) => updateLayer(l.id, { reach: Math.max(10, Number(e.target.value) || reachOf(l, l.field === "medium" ? l.value : null)) }, true)} style={{ ...sel, width: 70 }} /></label>}
             <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
               <select value={l.shape} onChange={(e) => updateLayer(l.id, { shape: e.target.value })} style={sel} aria-label={tr("Membership")}><option value="increasing">{tr("favourable when high")}</option><option value="decreasing">{tr("favourable when low")}</option></select>
               <label style={row}>{l.shape === "decreasing" ? "1" : "0"} ={" "}<input type="number" step="any" value={l.lowText} onChange={(e) => updateLayer(l.id, { lowText: e.target.value, low: e.target.value === "" ? NaN : Number(e.target.value) })} style={{ ...sel, width: 76 }} aria-label={l.shape === "decreasing" ? tr("Membership 1 at") : tr("Membership 0 at")} /></label>

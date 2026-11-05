@@ -9,7 +9,7 @@ test("#1727 the pane pads the drilling extent by the largest drillhole reach and
   assert.ok(p.includes('const drillPad = useMemo(() => Math.max(DRILL_REACH_M, ...layers.filter((l) => l.kind === "grade" || l.kind === "pxrf").map((l) => Number(l.reach) || 0)), [layers]);'));
   assert.ok(p.includes("all.grow(p.x - drillPad, p.y - drillPad, p.x + drillPad, p.y + drillPad)"), "the extent uses the pad, not the fixed reach");
   assert.ok(p.includes("geophysPts, voxelModels, drillPad]);"), "the extent memo re-runs when the pad changes");
-  assert.ok(p.includes('const drillOnly = layers.length > 0 && layers.every((l) => l.kind === "grade" || l.kind === "pxrf" || l.kind === "pick");'));
+  assert.ok(p.includes('const drillOnly = layers.length > 0 && layers.every((l) => l.kind === "grade" || l.kind === "pxrf" || l.kind === "pick" || l.kind === "numeric" || l.kind === "zone");')); // numeric / zone: #1728
   assert.ok(p.includes("it ranks drilled ground, not untested targets"));
   assert.equal(DRILL_REACH_M, 250);
 });

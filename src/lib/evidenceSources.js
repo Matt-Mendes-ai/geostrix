@@ -203,3 +203,50 @@ export function medianSiteSpacing(collars, padM = 25) {
   const nn = sites.map((a) => Math.min(...sites.filter((b) => b !== a).map((b) => Math.hypot(a.x - b.x, a.y - b.y)))).sort((a, b) => a - b);
   return nn[nn.length >> 1];
 }
+
+// TASKS.csv #1728 (review #1645, Copley) — the porphyry vectors a drilling project logs can be evidence too: a numeric downhole layer
+// (mag susc, SG, RQD) or a numeric field of a custom layer (SWIR white-mica wavelength, chalcopyrite %) "along the holes" like a grade,
+// and a logged interval zone (a structural zone, an alteration code) as a "distance to". A row is an interval (from / to) or a point
+// (depth); both are placed on the hole trace.
+const ROW_KEYS = new Set(["hole_id", "from", "to", "depth", "_src", "id"]);
+// the fields of these rows with at least `min` finite numbers (a text code field is not one)
+export function numericLayerFields(rows, { min = 5 } = {}) {
+  const counts = new Map();
+  for (const r of rows || []) for (const k of Object.keys(r)) { if (ROW_KEYS.has(k)) continue; const v = r[k]; if (typeof v === "number" && Number.isFinite(v)) counts.set(k, (counts.get(k) || 0) + 1); }
+  return [...counts].filter(([, n]) => n >= min).map(([k]) => k);
+}
+const rowDepth = (r) => { const from = Number(r.from), to = Number(r.to); if (Number.isFinite(from) && Number.isFinite(to)) return (from + to) / 2; const d = Number(r.depth); return Number.isFinite(d) ? d : NaN; };
+// one point per 25 m plan bin, the highest value in it (as holeGradePoints)
+export function layerFieldPoints(rows, field, traces, bin = GRADE_BIN_M) {
+  const best = new Map();
+  for (const r of rows || []) {
+    const t = traces.get(r.hole_id), d = rowDepth(r), v = r[field];
+    if (!t || !Number.isFinite(d) || typeof v !== "number" || !Number.isFinite(v)) continue;
+    const p = pointOnTrace(t, d), key = `${Math.floor(p.x / bin)},${Math.floor(p.y / bin)}`, was = best.get(key);
+    if (!was || v > was.value) best.set(key, { x: p.x, y: p.y, value: v });
+  }
+  return [...best.values()];
+}
+// the codes of interval rows (from / to) that sit on a hole, with their interval count
+export function zoneCodes(rows, traces) {
+  const counts = new Map();
+  for (const r of rows || []) {
+    const code = String(r.value ?? "").trim();
+    if (code && traces.has(r.hole_id) && Number.isFinite(Number(r.from)) && Number.isFinite(Number(r.to))) counts.set(code, (counts.get(code) || 0) + 1);
+  }
+  return [...counts.keys()].sort();
+}
+// the intervals of one code as distanceEvidence parts: a polyline along the trace from `from` to `to`, a vertex every `stepM`
+export function zoneParts(rows, code, traces, stepM = 5) {
+  const out = [];
+  for (const r of rows || []) {
+    if (String(r.value ?? "").trim() !== code) continue;
+    const t = traces.get(r.hole_id), from = Number(r.from), to = Number(r.to);
+    if (!t || !Number.isFinite(from) || !Number.isFinite(to)) continue;
+    const a = Math.min(from, to), b = Math.max(from, to), part = [];
+    for (let d = a; d <= b + 1e-9; d += stepM) { const p = pointOnTrace(t, Math.min(d, b)); part.push([p.x, p.y]); }
+    if (part.length === 1 || Math.abs((b - a) % stepM) > 1e-9) { const p = pointOnTrace(t, b); part.push([p.x, p.y]); }
+    out.push(part);
+  }
+  return out;
+}

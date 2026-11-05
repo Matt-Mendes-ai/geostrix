@@ -7899,5 +7899,8 @@
   "nearest collar": "أقرب فوهة",
   "These points are not survey stations: {pct}% of them sit more than 10 m below the {ground} (typically {med} m). A downhole log cannot be inverted as a surface survey; import it with the drillholes and use the drillhole-constraint option instead.": "هذه النقاط ليست محطات مسح: {pct}% منها تقع على عمق أكثر من 10 م تحت {ground} (عادة {med} م). لا يمكن عكس سجل داخل الثقب كمسح سطحي؛ استورده مع ثقوب الحفر واستخدم خيار تقييد ثقوب الحفر بدلاً من ذلك.",
   "Imported {good} point(s) from \"{name}\"{v}.{colNote}{zNote}{reprojectNote}{readNote}{dhNote}": "استُورد {good} نقطة من «{name}»{v}.{colNote}{zNote}{reprojectNote}{readNote}{dhNote}",
-  "All the evidence comes from the {n} drillholes, so the score exists only within {reach} m of their traces: it ranks drilled ground, not untested targets. A surface evidence (a survey, a raster, soil or rock samples, a map layer) is what can score beyond the holes.": "كل الأدلة من ثقوب الحفر الـ{n}، فالدرجة موجودة فقط ضمن {reach} م من مساراتها: إنها ترتّب أرضاً محفورة، لا أهدافاً غير مختبَرة. دليل سطحي (مسح، صورة نقطية، عينات تربة أو صخر، طبقة خريطة) هو ما يمكنه التقييم خارج الثقوب."
+  "All the evidence comes from the {n} drillholes, so the score exists only within {reach} m of their traces: it ranks drilled ground, not untested targets. A surface evidence (a survey, a raster, soil or rock samples, a map layer) is what can score beyond the holes.": "كل الأدلة من ثقوب الحفر الـ{n}، فالدرجة موجودة فقط ضمن {reach} م من مساراتها: إنها ترتّب أرضاً محفورة، لا أهدافاً غير مختبَرة. دليل سطحي (مسح، صورة نقطية، عينات تربة أو صخر، طبقة خريطة) هو ما يمكنه التقييم خارج الثقوب.",
+  "Drillholes: {name} along the holes": "ثقوب الحفر: {name} على طول الثقوب",
+  "Drillholes: {layer} {field} along the holes": "ثقوب الحفر: {layer} {field} على طول الثقوب",
+  "Distance to logged zone: {code}": "المسافة إلى النطاق المسجَّل: {code}"
 }
