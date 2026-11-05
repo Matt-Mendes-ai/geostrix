@@ -8241,5 +8241,8 @@
   "Contours": "خطوط الكنتور",
   "Contour levels": "مستويات الكنتور",
   "the grid's unit": "وحدة الشبكة",
-  "Levels in {unit}, lowest first; blank: the grid's 75th, 90th, 95th and 98th percentiles": "المستويات بوحدة {unit} من الأدنى؛ فارغ: المئينات 75 و90 و95 و98 للشبكة"
+  "Levels in {unit}, lowest first; blank: the grid's 75th, 90th, 95th and 98th percentiles": "المستويات بوحدة {unit} من الأدنى؛ فارغ: المئينات 75 و90 و95 و98 للشبكة",
+  "Plan of the map data": "مخطط بيانات الخريطة",
+  "N ↑": "ش ↑",
+  "Plan view · wheel to zoom, drag to pan, double-click to fit · drape and 3D in the 3D View": "عرض مسقط · العجلة للتكبير، السحب للتحريك، النقر المزدوج للملاءمة · الإلقاء والعرض ثلاثي الأبعاد في العرض ثلاثي الأبعاد"
 }

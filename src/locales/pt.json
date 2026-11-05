@@ -8241,5 +8241,8 @@
   "Contours": "Contornos",
   "Contour levels": "Níveis de contorno",
   "the grid's unit": "a unidade da grade",
-  "Levels in {unit}, lowest first; blank: the grid's 75th, 90th, 95th and 98th percentiles": "Níveis em {unit}, do menor ao maior; em branco: os percentis 75, 90, 95 e 98 da grade"
+  "Levels in {unit}, lowest first; blank: the grid's 75th, 90th, 95th and 98th percentiles": "Níveis em {unit}, do menor ao maior; em branco: os percentis 75, 90, 95 e 98 da grade",
+  "Plan of the map data": "Planta dos dados do mapa",
+  "N ↑": "N ↑",
+  "Plan view · wheel to zoom, drag to pan, double-click to fit · drape and 3D in the 3D View": "Vista em planta · roda para aproximar, arrastar para mover, duplo clique para ajustar · relevo e 3D na vista 3D"
 }

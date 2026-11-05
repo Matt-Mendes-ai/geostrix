@@ -10,6 +10,8 @@ import { requestModuleAction, useModuleAction } from "../lib/menuRequests.js";
 import { useStore } from "../lib/store.jsx";
 import { crsName } from "../lib/reproject.js";
 import EmptyState from "../components/EmptyState.jsx";
+import MapsPlanView from "../components/MapsPlanView.jsx"; // TASKS.csv #1625
+import { planDataExtent } from "../lib/mapsPlan.js";
 import RasterModule from "./RasterModule.jsx";
 import GeophysicsModule from "./GeophysicsModule.jsx";
 import CartographyModule from "./CartographyModule.jsx";
@@ -20,7 +22,8 @@ const CRS_PANES = new Set(["crs", "layer", "file"]);
 
 export default function MapsModule() {
   const [pane, setPane] = useState("raster");
-  const { rasters = [], terrain, mapLayers = [], boundaries = [], project, surfaceSamples = [] } = useStore(); // surfaceSamples: TASKS.csv #1792
+  const { rasters = [], terrain, mapLayers = [], boundaries = [], project, surfaceSamples = [], collars = [] } = useStore(); // surfaceSamples: TASKS.csv #1792; collars: #1625
+  const hasPlan = !!planDataExtent({ rasters, terrain, mapLayers, boundaries, collars, surfaceSamples }); // #1625 — a plan of it, else the card
   useModuleAction(["maps-crs"], () => setPane("crs")); // the Set project CRS menu item
   const btn = (id, action) => ({ active: pane === id, onClick: () => { setPane(id); if (action) requestModuleAction(action); } });
 
@@ -50,7 +53,8 @@ export default function MapsModule() {
       {GEO_PANES.has(pane) && <GeophysicsModule embedded forcePane={pane} />}
       {CRS_PANES.has(pane) && <CartographyModule embedded forcePane={pane} />}
 
-      {!CRS_PANES.has(pane) && (
+      {!CRS_PANES.has(pane) && hasPlan && <div className="ge-main" style={{ position: "relative", padding: 0 }}><MapsPlanView /></div>}
+      {!CRS_PANES.has(pane) && !hasPlan && (
         <div className="ge-main" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
           <EmptyState
             icon={<MapIcon size={18} />}

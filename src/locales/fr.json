@@ -8241,5 +8241,8 @@
   "Contours": "Contours",
   "Contour levels": "Niveaux de contour",
   "the grid's unit": "l'unité de la grille",
-  "Levels in {unit}, lowest first; blank: the grid's 75th, 90th, 95th and 98th percentiles": "Niveaux en {unit}, du plus bas au plus haut ; vide : les 75e, 90e, 95e et 98e centiles de la grille"
+  "Levels in {unit}, lowest first; blank: the grid's 75th, 90th, 95th and 98th percentiles": "Niveaux en {unit}, du plus bas au plus haut ; vide : les 75e, 90e, 95e et 98e centiles de la grille",
+  "Plan of the map data": "Plan des données cartographiques",
+  "N ↑": "N ↑",
+  "Plan view · wheel to zoom, drag to pan, double-click to fit · drape and 3D in the 3D View": "Vue en plan · molette pour zoomer, glisser pour déplacer, double-clic pour ajuster · drapage et 3D dans la vue 3D"
 }
