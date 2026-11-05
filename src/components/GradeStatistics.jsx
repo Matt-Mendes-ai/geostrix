@@ -29,7 +29,7 @@ import { weightedProbPoints, weightedPercentile, capEffect, thinToPixels } from 
 import { normalQuantile } from "../lib/thresholds.js";
 import { capAboveZone, capWarningText } from "../lib/capWarning.js"; // TASKS.csv #1676
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
-import { customDomainOptions } from "../lib/customDomains.js"; // TASKS.csv #1678
+import { customDomainOptions, isCategoricalLayer, domainIndex, domainAtMid } from "../lib/customDomains.js"; // TASKS.csv #1678; #1515
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
 // than a full population — grade data is always a sample of the deposit, never the whole thing).
@@ -86,16 +86,7 @@ function computeStats(values, weights = null) {
   return { n, mean, median, stdev, variance, cv, min: sorted[0], max: sorted[sorted.length - 1], q1: quantile(0.25), q3: quantile(0.75), sorted, totalLength: weights ? V1 : null };
 }
 
-// Domain lookup, same overlap-by-midpoint approach compositeAssays (geochem.js) already uses for
-// composite building — kept as its own small local copy here since this only needs a single value
-// per interval, not full domain-boundary-aware compositing.
-function domainForInterval(domainRows, hole_id, from, to) {
-  const rows = domainRows.filter((r) => r.hole_id === hole_id);
-  if (!rows.length) return null;
-  const mid = (from + to) / 2;
-  const hit = rows.find((r) => mid >= r.from && mid < r.to);
-  return hit ? hit.value : null;
-}
+// TASKS.csv #1515 — the domain lookup (midpoint in an interval of the hole) is lib/customDomains.js domainIndex / domainAtMid, indexed by hole
 
 function niceBinCount(n) {
   // Sturges' rule, clamped to a sane range for a small UI histogram.
@@ -131,9 +122,10 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
 
   const { customLayers = [] } = useStore(); // #1678
   const customDomains = useMemo(() => (source === "assays" ? customDomainOptions(customLayers) : []), [customLayers, source]);
-  const domainOptions = source === "assays" ? DOMAIN_LAYER_KEYS.filter((k) => (layers[k] || []).length > 0) : [];
+  const domainOptions = useMemo(() => (source === "assays" ? DOMAIN_LAYER_KEYS.filter((k) => (layers[k] || []).length > 0 && isCategoricalLayer(layers[k])) : []), [source, layers]); // #1515 — categories only
   const customDomain = customDomains.find((d) => d.key === domainKey) || null;
   const domainRows = domainKey ? (customDomain ? customDomain.rows : layers[domainKey]) : null;
+  const domainIdx = useMemo(() => (domainRows ? domainIndex(domainRows) : null), [domainRows]); // #1515
   const domainName = (k) => customDomains.find((d) => d.key === k)?.label || LAYER_META[k]?.label || k; // #1678
   const domainLabel = (v) => (domainKey === "litho" ? (UNIT_NAMES[v] || v) : v === "All" || v === "(unclassified)" ? tr(v) : v); // #786: the two built-in group names
 
@@ -154,10 +146,10 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
     // logged twice (overlapping or repeated rows) counts once, negative lab codes are not assays. Raw rows counted the
     // repeats twice, so this panel's percentiles disagreed with the cap audit's.
     return resolvedSegments(statsAssays, symbol, elementUnits[symbol] || "ppm", elementUnits).map((s) => {
-      const domain = domainRows ? domainForInterval(domainRows, s.hole_id, s.from, s.to) : "All";
+      const domain = domainIdx ? domainAtMid(domainIdx, s.hole_id, s.from, s.to) : "All"; // #1515 — indexed
       return { value: s.value, weight: s.to - s.from, domain }; // weight: #267
     });
-  }, [source, surfaceSamples, statsAssays, symbol, elementUnits, surfaceElementUnits, domainRows]);
+  }, [source, surfaceSamples, statsAssays, symbol, elementUnits, surfaceElementUnits, domainIdx]);
 
   // TASKS.csv #267 — weighting only applies to drillhole assays (surface samples have no interval
   // length), and only when every row in the group actually has a usable length.

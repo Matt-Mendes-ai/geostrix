@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
-import { customDomainOptions } from "../lib/customDomains.js"; // TASKS.csv #1678
+import { customDomainOptions, isCategoricalLayer } from "../lib/customDomains.js"; // TASKS.csv #1678; #1515
 import { compositeDownhole, countDuplicateAssayIntervals, capAudit, capAuditText } from "../lib/geochem.js";
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import { excludeQAQC, labAssays } from "../lib/qaqc.js";
@@ -62,7 +62,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
 
   const { customLayers = [] } = useStore(); // #1678 — custom-layer categories as domains
   const customDomains = useMemo(() => customDomainOptions(customLayers), [customLayers]);
-  const domainOptions = DOMAIN_LAYER_KEYS.filter((k) => (layers[k] || []).length > 0);
+  const domainOptions = useMemo(() => DOMAIN_LAYER_KEYS.filter((k) => (layers[k] || []).length > 0 && isCategoricalLayer(layers[k])), [layers]); // #1515 — categories only (RQD% broke composites at every change)
   const customDomain = customDomains.find((d) => d.key === domainKey) || null;
   const domainRows = domainKey ? (customDomain ? customDomain.rows : layers[domainKey]) : null;
   const domainMeta = domainKey ? (customDomain ? { label: customDomain.label } : LAYER_META[domainKey]) : null;

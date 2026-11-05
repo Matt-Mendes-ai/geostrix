@@ -21,3 +21,28 @@ export function customDomainOptions(customLayers) {
   }
   return out;
 }
+
+// TASKS.csv #1515 (review #1497, Lawyers) — a built-in interval layer is a domain only when its values are categories: Geotech (RQD%) as a
+// domain made 640 'domains' ('100', '96.67' ...) and a 17.7 s freeze, and broke composites at every RQD change. Mostly numbers: not offered.
+export function isCategoricalLayer(rows, sample = 2000) {
+  let filled = 0, numeric = 0;
+  for (const r of (rows || []).slice(0, sample)) { const v = r?.value; if (v == null || v === "") continue; filled++; if (fin(v)) numeric++; }
+  return filled > 0 && numeric <= 0.5 * filled;
+}
+// #1515 — domain rows indexed by hole once, sorted by from; a midpoint is then found by binary search (the lookup filtered every domain
+// row for each of Lawyers' 83,670 segments: 3-17 s per domain)
+export function domainIndex(domainRows) {
+  const m = new Map();
+  for (const r of domainRows || []) { if (r?.hole_id == null || !(Number(r.to) > Number(r.from))) continue; if (!m.has(r.hole_id)) m.set(r.hole_id, []); m.get(r.hole_id).push(r); }
+  for (const list of m.values()) list.sort((a, b) => a.from - b.from);
+  return m;
+}
+export function domainAtMid(index, hole_id, from, to) {
+  const rows = index?.get(hole_id);
+  if (!rows) return null;
+  const mid = (from + to) / 2;
+  let lo = 0, hi = rows.length - 1, at = -1;
+  while (lo <= hi) { const k = (lo + hi) >> 1; if (rows[k].from <= mid) { at = k; lo = k + 1; } else hi = k - 1; }
+  for (let k = at; k >= 0 && k >= at - 3; k--) if (mid >= rows[k].from && mid < rows[k].to) return rows[k].value; // a few back, for overlapping rows
+  return null;
+}

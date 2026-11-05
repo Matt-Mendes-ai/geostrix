@@ -20,3 +20,14 @@ test("Grade stats and Compositing list them; Grade stats no longer offers point 
   assert.ok(g.includes("customDomains.map((d) =>") && c.includes("customDomains.map((d) =>"));
   assert.ok(g.includes('const DOMAIN_LAYER_KEYS = ["litho", "alt", "vein", "breccia", "structzone", "geotech"];'));
 });
+
+import { isCategoricalLayer, domainIndex, domainAtMid } from "../src/lib/customDomains.js";
+test("#1515 — numeric interval layers are not domains; the indexed lookup finds the interval holding the midpoint", () => {
+  assert.equal(isCategoricalLayer([{ value: 100 }, { value: "96.67" }, { value: 98.33 }]), false);
+  assert.equal(isCategoricalLayer([{ value: "HBX" }, { value: "FZ" }, { value: 3 }]), true);
+  const rows = [];
+  for (let h = 0; h < 50; h++) for (let k = 0; k < 40; k++) rows.push({ hole_id: `H${h}`, from: k * 5, to: k * 5 + 5, value: `U${(h + k) % 7}` });
+  const idx = domainIndex(rows.slice().reverse());
+  const naive = (hole, from, to) => { const mid = (from + to) / 2; const hit = rows.find((r) => r.hole_id === hole && mid >= r.from && mid < r.to); return hit ? hit.value : null; };
+  for (let t = 0; t < 2000; t++) { const h = `H${t % 51}`, f = (t * 7.3) % 210; assert.equal(domainAtMid(idx, h, f, f + 1), naive(h, f, f + 1), `${h} ${f}`); }
+});
