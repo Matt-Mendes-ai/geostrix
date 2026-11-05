@@ -7,7 +7,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { sectionPaper } from "../lib/pageFormats.js"; // TASKS.csv #1143
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { placeLabels, leaderEnd, resolveLabels, labelWidth } from "../lib/sectionLabels.js"; // TASKS.csv #823
-import { groupSectionLegend, sectionAssayLegend, sectionMineralLegend, sectionModelLegend, rampRows } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped; #1475
+import { groupSectionLegend, sectionAssayLegend, sectionMineralLegend, sectionModelLegend, rampRows, ribbonOrder } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped; #1475
 import { LAYER_META } from "../lib/layers.js"; // #1475 — the mineralization group name
 import { exportSvgMarkup, FIGURE_FONT } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { wrapText } from "../lib/figureFurniture.js";
@@ -185,7 +185,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
       // snapshot and show exactly what's drawn in it — a flattened image has no live data of its own
       // to sync from otherwise.
       // #759; grouped under layer headings: #1127 / #1128; #1475 — the grade classes drawn first, the mineralization last
-      legendItems: groupSectionLegend([...sectionAssayLegend(data.points, data.assayLegend), ...shownLegendItems, ...sectionMineralLegend(data.intervals, data.points, LAYER_META.mnlgy.label), ...sectionModelLegend(data.surfaceTraces, data.voxelSlices, tr("Model surfaces"))]), // models: #1373
+      legendItems: groupSectionLegend([...sectionAssayLegend(data.points, data.assayLegend), ...shownLegendItems, ...sectionMineralLegend(data.intervals, data.points, LAYER_META.mnlgy.label), ...sectionModelLegend(data.surfaceTraces, data.voxelSlices, tr("Model surfaces"))], ribbonOrder(data.intervals)), // models: #1373; ribbons: #1637
     });
     setSnapped(true);
     setTimeout(() => setSnapped(false), 1800);
@@ -520,6 +520,8 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
   const dx = bx - ax, dy = by - ay;
   // TASKS.csv #1256 — at a large text size the subtitle ran past the frame and the PNG cut the sentence
   const subtitleLines = wrapText(tr("Azimuth {v}° · {v2}{v3} · elevation in m", { v: Number(section.azimuth ?? (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360).toFixed(0), v2: vExag && vExag !== 1 ? tr("{vExag}x vertical exaggeration", { vExag }) : tr("no vertical exaggeration"), v3: section.corridor ? tr(" · data within ±{corridor} m of the line (dashed = trace projected from further away)", { corridor: section.corridor }) : "" }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))));
+  // TASKS.csv #1637 — which ribbon is which: 5-6 parallel ribbons per hole had no key on the section itself
+  { const rib = ribbonOrder(intervals); if (rib.length > 1) subtitleLines.push(...wrapText(tr("Ribbons on each hole, left to right: {list}", { list: rib.join(" · ") }), Math.floor((W - 2 * PAD) / (0.56 * fs(10))))); }
   const len = Math.hypot(dx, dy) || 1;
   const ux = dx / len, uy = dy / len;
   const along = (x, y) => (x - ax) * ux + (y - ay) * uy;

@@ -8212,5 +8212,8 @@
   "Label only holes containing": "N'étiqueter que les sondages contenant",
   "Colour by series (the hole id without its number), with a key": "Couleur par série (l'identifiant sans son numéro), avec une légende",
   "{n} hole(s) in the frame; {p} of {l} labelled ({s} without a label where it would overlap another).": "{n} sondage(s) dans le cadre ; {p} sur {l} étiquetés ({s} sans étiquette là où elle en chevaucherait une autre).",
-  "Drawn from the collars, not the 3D view: traces run straight from each collar's azimuth, dip and length. Insert > Scale bar binds to it.": "Dessiné à partir des collets, pas de la vue 3D : les traces suivent en ligne droite l'azimut, le pendage et la longueur de chaque collet. Insert > Scale bar s'y lie."
+  "Drawn from the collars, not the 3D view: traces run straight from each collar's azimuth, dip and length. Insert > Scale bar binds to it.": "Dessiné à partir des collets, pas de la vue 3D : les traces suivent en ligne droite l'azimut, le pendage et la longueur de chaque collet. Insert > Scale bar s'y lie.",
+  "{g} (ribbon {n} of {t}, from the left)": "{g} (ruban {n} sur {t}, depuis la gauche)",
+  "+ {n} longer description(s) not listed (over {c} characters)": "+ {n} description(s) plus longue(s) non listée(s) (plus de {c} caractères)",
+  "Ribbons on each hole, left to right: {list}": "Rubans de chaque sondage, de gauche à droite : {list}"
 }

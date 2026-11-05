@@ -7,24 +7,45 @@
 // ["Model: Unit A", color]] -> Layout legend rows: [heading, null, { heading: true }] then [label, color] for each group
 // (no heading when there is one group, as legendGroupsToItems does). Rows already carrying options (a list grouped
 // before) are returned unchanged, so this is safe to apply twice.
-export function groupSectionLegend(items) {
+import { t as tr } from "./i18n.js"; // TASKS.csv #1637
+// TASKS.csv #1637 (review #1497, Lawyers) — a value over LONG_VALUE characters is a description, not a category: the Mineralization
+// group listed 25 free-text notes (one ~300 characters) and ran off the sheet. They are left out with a note row. ribbons (the
+// section's ribbonOrder) name each interval group's ribbon in its heading, so the parallel ribbons can be told apart in print.
+export const LONG_VALUE = 40;
+export function groupSectionLegend(items, ribbons = null) {
   const rows = (items || []).filter((it) => it && it[0] != null);
   if (rows.some((it) => it[2])) return rows;
-  const groups = new Map();
+  const groups = new Map(), long = new Map();
   for (const [label, color] of rows) {
     const s = String(label), i = s.indexOf(": ");
     const g = i > 0 ? s.slice(0, i) : "", name = i > 0 ? s.slice(i + 2) : s;
     if (!groups.has(g)) groups.set(g, []);
+    if (name.length > LONG_VALUE) { long.set(g, (long.get(g) || 0) + 1); continue; }
     groups.get(g).push([name, color]);
   }
+  const where = (g) => { const n = ribbons?.length > 1 ? ribbons.indexOf(g) : -1; return n < 0 ? g : tr("{g} (ribbon {n} of {t}, from the left)", { g, n: n + 1, t: ribbons.length }); };
   const multi = groups.size > 1, out = [];
   for (const [g, list] of groups) {
     // TASKS.csv #1865 (review #1646, Kodiak) — a lone group keeps its heading when it names a model or a unit ('3dmesh_utm — Chargeability
     // (mV/V)'): a one-model section came to Layout keyed by five bare numbers. A lone category group (lithology) stays bare, as before.
-    if (g && (multi || / — |\(.+\)/.test(g))) out.push([g, null, { heading: true }]);
+    if (g && (multi || / — |\(.+\)/.test(g))) out.push([where(g), null, { heading: true }]);
     out.push(...list);
+    if (long.get(g)) out.push([tr("+ {n} longer description(s) not listed (over {c} characters)", { n: long.get(g), c: LONG_VALUE }), null, { note: true }]);
   }
   return out;
+}
+
+// TASKS.csv #1637 — the interval layers' ribbons from left to right on a hole drawn downwards (SectionWindow offsets them 0, +w, -w,
+// +2w ... in first-seen order along each trace's normal, which points left on a descending trace). -> group names, e.g. Lithology.
+export function ribbonOrder(intervals) {
+  const seen = [];
+  for (const r of intervals || []) {
+    const k = r.layer || "_";
+    if (seen.some((s) => s.k === k)) continue;
+    const n = seen.length, label = String(r.label || ""), i = label.indexOf(": ");
+    seen.push({ k, group: i > 0 ? label.slice(0, i) : label, off: n === 0 ? 0 : (n % 2 ? 1 : -1) * Math.ceil(n / 2) });
+  }
+  return seen.sort((a, b) => b.off - a.off).map((s) => s.group);
 }
 
 // TASKS.csv #1475 (review #1352, Silvertip) — a section of Zn assays came to Layout with a 51-row legend and no Zn: its grade bars

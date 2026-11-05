@@ -8212,5 +8212,8 @@
   "Label only holes containing": "Rotular só furos que contêm",
   "Colour by series (the hole id without its number), with a key": "Cor por série (o id do furo sem o número), com legenda",
   "{n} hole(s) in the frame; {p} of {l} labelled ({s} without a label where it would overlap another).": "{n} furo(s) no quadro; {p} de {l} rotulados ({s} sem rótulo onde se sobreporia a outro).",
-  "Drawn from the collars, not the 3D view: traces run straight from each collar's azimuth, dip and length. Insert > Scale bar binds to it.": "Desenhado a partir das bocas, não da vista 3D: os traços seguem em linha reta o azimute, a inclinação e o comprimento de cada boca. Insert > Scale bar vincula-se a ele."
+  "Drawn from the collars, not the 3D view: traces run straight from each collar's azimuth, dip and length. Insert > Scale bar binds to it.": "Desenhado a partir das bocas, não da vista 3D: os traços seguem em linha reta o azimute, a inclinação e o comprimento de cada boca. Insert > Scale bar vincula-se a ele.",
+  "{g} (ribbon {n} of {t}, from the left)": "{g} (faixa {n} de {t}, a partir da esquerda)",
+  "+ {n} longer description(s) not listed (over {c} characters)": "+ {n} descrição(ões) mais longa(s) não listada(s) (mais de {c} caracteres)",
+  "Ribbons on each hole, left to right: {list}": "Faixas em cada furo, da esquerda para a direita: {list}"
 }

@@ -8212,5 +8212,8 @@
   "Label only holes containing": "تسمية الثقوب التي تحتوي فقط على",
   "Colour by series (the hole id without its number), with a key": "التلوين حسب السلسلة (معرّف الثقب دون رقمه) مع مفتاح",
   "{n} hole(s) in the frame; {p} of {l} labelled ({s} without a label where it would overlap another).": "{n} ثقب في الإطار؛ {p} من {l} مسمّاة ({s} دون تسمية حيث كانت ستتداخل مع أخرى).",
-  "Drawn from the collars, not the 3D view: traces run straight from each collar's azimuth, dip and length. Insert > Scale bar binds to it.": "مرسوم من الفوهات لا من العرض ثلاثي الأبعاد: تمتد المسارات مستقيمة وفق سمت كل فوهة وميلها وطولها. Insert > Scale bar يرتبط به."
+  "Drawn from the collars, not the 3D view: traces run straight from each collar's azimuth, dip and length. Insert > Scale bar binds to it.": "مرسوم من الفوهات لا من العرض ثلاثي الأبعاد: تمتد المسارات مستقيمة وفق سمت كل فوهة وميلها وطولها. Insert > Scale bar يرتبط به.",
+  "{g} (ribbon {n} of {t}, from the left)": "{g} (الشريط {n} من {t}، من اليسار)",
+  "+ {n} longer description(s) not listed (over {c} characters)": "+ {n} وصف أطول غير مدرج (أكثر من {c} حرفاً)",
+  "Ribbons on each hole, left to right: {list}": "الأشرطة على كل ثقب من اليسار إلى اليمين: {list}"
 }
