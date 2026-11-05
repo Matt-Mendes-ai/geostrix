@@ -8273,5 +8273,8 @@
   "{a} of {d} occurrence cells inside the pattern ({b} cells)": "{a} de {d} células com ocorrências dentro do padrão ({b} células)",
   "thin: fewer than {m} occurrence cells on one side, a weak basis for this weight": "escasso: menos de {m} células com ocorrências de um lado, uma base fraca para este peso",
   "left out of the posterior": "deixado fora do posterior",
-  "Building… {table}: {done} of {total} rows": "Construindo… {table}: {done} de {total} linhas"
+  "Building… {table}: {done} of {total} rows": "Construindo… {table}: {done} de {total} linhas",
+  " ({used} of {total} holes, whole holes, for the pair loop)": " ({used} de {total} furos, furos inteiros, para o ciclo de pares)",
+  " (subsampled to {nPoints} for the pair loop; no pairs closer than {h} m — Downhole only resolves the nugget)": " (subamostrado para {nPoints} no ciclo de pares; nenhum par a menos de {h} m — Só no furo resolve o efeito pepita)",
+  "The nugget ({pct}% of the sill) is read from the downhole variogram of every composite ({pairs} pairs at a {lag} m lag): the fit's own subsample held no pair closer than {h} m.": "O efeito pepita ({pct}% do patamar) é lido do variograma no furo de todos os compósitos ({pairs} pares com passo de {lag} m): a subamostra do ajuste não tinha nenhum par a menos de {h} m."
 }

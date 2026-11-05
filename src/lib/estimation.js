@@ -115,7 +115,18 @@ function resolveVariogram(pts, given, cellSize) {
   const ev = experimentalVariogram(pts, { lagDistance: lag, nLags: between ? 24 : 12 });
   const fit = fitVariogramModel(ev.bins, { model });
   if (!fit || !(fit.sill > 0) || !(fit.range > 0)) throw new Error(tr("A variogram could not be fitted to these composites (too few pairs at most lags). Enter the nugget, sill and range, or use the Variogram tool to choose them."));
-  return { model, nugget: Math.min(Math.max(0, fit.nugget), fit.sill), sill: fit.sill, range: fit.range, fitted: true, lagM: +lag.toFixed(2), betweenHoleM };
+  let nugget = Math.min(Math.max(0, fit.nugget), fit.sill), nuggetFrom = null;
+  // TASKS.csv #1572 (review #1497, Lawyers) — the omnidirectional fit runs on a stride subsample whose closest pairs sit several
+  // composites apart (16 m on Lawyers, 50,653 composites / 6,000), so its nugget is read off lags that hold no short pair.
+  // The downhole variogram over EVERY composite sees the composite-length lags; its nugget-to-sill ratio is carried onto the
+  // omnidirectional sill when the subsample's first pair lag lies beyond the downhole spacing.
+  const dhLag = suggestLagDistance(pts);
+  if (ev.subsampled && dhLag > 0 && ev.firstPairLag != null && ev.firstPairLag > 1.5 * dhLag) {
+    const dv = experimentalVariogram(pts, { lagDistance: dhLag, nLags: 12, holeMode: "downhole" });
+    const df = dv.nPairsUsed >= 30 ? fitVariogramModel(dv.bins, { model }) : null;
+    if (df && df.sill > 0) { const ratio = Math.min(1, Math.max(0, df.nugget / df.sill)); nugget = ratio * fit.sill; nuggetFrom = { ratio: +ratio.toFixed(3), lagM: +dhLag.toFixed(2), pairs: dv.nPairsUsed, firstPairLagM: +ev.firstPairLag.toFixed(1) }; }
+  }
+  return { model, nugget, sill: fit.sill, range: fit.range, fitted: true, lagM: +lag.toFixed(2), betweenHoleM, nuggetFrom };
 }
 
 function withTrend(samplePoints, opts) {

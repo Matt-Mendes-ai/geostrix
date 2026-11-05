@@ -8273,5 +8273,8 @@
   "{a} of {d} occurrence cells inside the pattern ({b} cells)": "{a} des {d} cellules d'occurrences dans le motif ({b} cellules)",
   "thin: fewer than {m} occurrence cells on one side, a weak basis for this weight": "mince : moins de {m} cellules d'occurrences d'un côté, une base faible pour ce poids",
   "left out of the posterior": "exclu de la postérieure",
-  "Building… {table}: {done} of {total} rows": "Construction… {table} : {done} sur {total} lignes"
+  "Building… {table}: {done} of {total} rows": "Construction… {table} : {done} sur {total} lignes",
+  " ({used} of {total} holes, whole holes, for the pair loop)": " ({used} des {total} sondages, sondages entiers, pour la boucle des paires)",
+  " (subsampled to {nPoints} for the pair loop; no pairs closer than {h} m — Downhole only resolves the nugget)": " (sous-échantillonné à {nPoints} pour la boucle des paires ; aucune paire à moins de {h} m — Dans le sondage seulement résout l'effet de pépite)",
+  "The nugget ({pct}% of the sill) is read from the downhole variogram of every composite ({pairs} pairs at a {lag} m lag): the fit's own subsample held no pair closer than {h} m.": "L'effet de pépite ({pct} % du palier) est lu sur le variogramme dans le sondage de tous les composites ({pairs} paires au pas de {lag} m) : le sous-échantillon de l'ajustement ne contenait aucune paire à moins de {h} m."
 }

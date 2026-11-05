@@ -54,6 +54,27 @@ function subsample(points, maxPoints) {
   return { pts: out, subsampled: true };
 }
 
+// TASKS.csv #1572 (review #1497, Lawyers) — the downhole variogram exists to resolve the nugget, and the stride above kept
+// every 8.4th composite of a hole (50,653 / 6,000), so no pair was closer than 16 m and the nugget it was computed for
+// was never measured. Downhole pairs are cheap (only pairs within one hole), so they are taken over ALL composites; when
+// even that is too many pairs, WHOLE holes are kept (a seeded choice, the same every run) up to the pair budget, so the
+// kept holes still carry every short lag. Returns { groups: [points of one hole], holesUsed, holesTotal, subsampled }.
+export const DOWNHOLE_PAIR_BUDGET = 20e6;
+export function downholeGroups(points, maxPairs = DOWNHOLE_PAIR_BUDGET, seed = 1) {
+  const byHole = new Map();
+  for (const p of points) { const k = p.hole_id ?? ""; let g = byHole.get(k); if (!g) byHole.set(k, (g = [])); g.push(p); }
+  const groups = [...byHole.values()];
+  const pairsOf = (g) => (g.length * (g.length - 1)) / 2;
+  let total = 0; for (const g of groups) total += pairsOf(g);
+  if (total <= maxPairs) return { groups, holesUsed: groups.length, holesTotal: groups.length, subsampled: false };
+  const order = Uint32Array.from(groups, (_, i) => i);
+  let s = seed >>> 0 || 1;
+  for (let i = 0; i < order.length - 1; i++) { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; const j = i + (s % (order.length - i)); const t = order[i]; order[i] = order[j]; order[j] = t; }
+  const kept = []; let used = 0;
+  for (const i of order) { const g = groups[i]; if (used + pairsOf(g) > maxPairs && kept.length) continue; kept.push(g); used += pairsOf(g); }
+  return { groups: kept, holesUsed: kept.length, holesTotal: groups.length, subsampled: true };
+}
+
 // ---------------------------------------------------------------------------------------------
 // TASKS.csv #147 — value transforms, and why this module has to offer them.
 //
@@ -135,7 +156,9 @@ export function experimentalVariogram(points, opts = {}) {
   const dir = opts.direction || null;
 
   const clean = (points || []).filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z) && Number.isFinite(p.value));
-  const { pts, subsampled } = subsample(clean, opts.maxPoints ?? 6000);
+  // #1572 — downhole pairs over every composite (whole holes when a budget bites); other modes keep the stride subsample
+  const dh = holeMode === "downhole" ? downholeGroups(clean, opts.maxPairs ?? DOWNHOLE_PAIR_BUDGET) : null;
+  const { pts, subsampled } = dh ? { pts: dh.groups.flat(), subsampled: dh.subsampled } : subsample(clean, opts.maxPoints ?? 6000);
   const n = pts.length;
 
   // Reference variance (population, /n) — the level a variogram of a stationary variable should
@@ -160,11 +183,14 @@ export function experimentalVariogram(points, opts = {}) {
   const bandwidth = dir && Number(dir.bandwidth) > 0 ? Number(dir.bandwidth) : null;
 
   let nPairsUsed = 0;
+  // #1572 — in downhole mode the points are grouped by hole, so each hole's block of the loop is its own pair set
+  const starts = dh ? dh.groups.map((g, i, arr) => arr.slice(0, i).reduce((s, x) => s + x.length, 0)) : null;
+  let gi = 0, gEnd = dh ? (dh.groups[0]?.length ?? 0) : n;
   for (let i = 0; i < n; i++) {
     const a = pts[i];
-    for (let j = i + 1; j < n; j++) {
+    if (dh && i >= gEnd) { gi++; gEnd = starts[gi] + dh.groups[gi].length; }
+    for (let j = i + 1; j < gEnd; j++) {
       const b = pts[j];
-      if (holeMode === "downhole" && a.hole_id !== b.hole_id) continue;
       if (holeMode === "between" && a.hole_id === b.hole_id) continue;
       const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
       const d2 = dx * dx + dy * dy + dz * dz;
@@ -204,8 +230,11 @@ export function experimentalVariogram(points, opts = {}) {
     });
   }
 
+  // #1572 — what the stride subsample cannot see: the shortest lag that holds any pair (the caption says so)
+  const firstPairLag = bins.find((b) => b.nPairs > 0)?.h ?? null;
   return {
-    bins, nPairsUsed, nPoints: n, mean, variance, subsampled,
+    bins, nPairsUsed, nPoints: n, mean, variance, subsampled, firstPairLag,
+    holesUsed: dh ? dh.holesUsed : null, holesTotal: dh ? dh.holesTotal : null,
     // Journel & Huijbregts' standard caution, surfaced rather than assumed: a lag with fewer than ~30
     // pairs is not a measurement, and a variogram should not be interpreted past about half the
     // field's extent. maxReliableLag is the largest lag that clears the 30-pair bar contiguously.
