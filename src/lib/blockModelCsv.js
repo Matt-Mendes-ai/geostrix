@@ -115,54 +115,78 @@ export function blockModelCellsFromRows(rows, mapping, attr) {
 // log (TASKS.csv #1785): volume-weighted mean of log10, back-transformed, for a log-normal property (voxel.js wantsLogMean)
 export function coarsenBlockCells(cells, maxCells, { log = false } = {}) {
   if (cells.length <= maxCells) return { cells, factors: null };
+  const n = cells.length;
   let x0 = Infinity, y0 = Infinity, z0 = Infinity, ux = Infinity, uy = Infinity, uz = Infinity;
   for (const c of cells) {
     x0 = Math.min(x0, c.x - c.dx / 2); y0 = Math.min(y0, c.y - c.dy / 2); z0 = Math.min(z0, c.z - c.dz / 2);
     ux = Math.min(ux, c.dx); uy = Math.min(uy, c.dy); uz = Math.min(uz, c.dz);
   }
   const u = [ux, uy, uz];
-  // per block, per axis: [first lattice index, number of lattice cells covered]
-  const span = cells.map((c) => [[c.x - c.dx / 2 - x0, c.dx], [c.y - c.dy / 2 - y0, c.dy], [c.z - c.dz / 2 - z0, c.dz]]
-    .map(([lo, w], i) => [Math.floor(lo / u[i] + 1e-6), Math.max(1, Math.round(w / u[i]))]));
+  // TASKS.csv #1784 (review #1646, Kodiak) — per block, per axis: first lattice index and lattice cells covered, as typed arrays (an
+  // array of arrays per block, string bin keys and a full volume-weighted accumulation for EVERY candidate factor took about a second
+  // for 380,250 blocks). The factor search now only counts occupied bins; the weighted sums are accumulated once, at the end.
+  const A0 = [new Int32Array(n), new Int32Array(n), new Int32Array(n)], AN = [new Int32Array(n), new Int32Array(n), new Int32Array(n)];
   const ext = [0, 0, 0];
-  for (const sp of span) for (let i = 0; i < 3; i++) ext[i] = Math.max(ext[i], sp[i][0] + sp[i][1]);
+  for (let t = 0; t < n; t++) {
+    const c = cells[t];
+    const lo = [c.x - c.dx / 2 - x0, c.y - c.dy / 2 - y0, c.z - c.dz / 2 - z0], w = [c.dx, c.dy, c.dz];
+    for (let i = 0; i < 3; i++) {
+      const a = Math.floor(lo[i] / u[i] + 1e-6), m = Math.max(1, Math.round(w[i] / u[i]));
+      A0[i][t] = a; AN[i][t] = m;
+      if (a + m > ext[i]) ext[i] = a + m;
+    }
+  }
   const f = [1, 1, 1];
-  // the coarse cells along one axis a block overlaps, with how many of its lattice cells fall in each
-  const pieces = ([a0, n], fi) => {
-    const out = [];
-    for (let k = Math.floor(a0 / fi); k * fi < a0 + n; k++) out.push([k, Math.min(a0 + n, (k + 1) * fi) - Math.max(a0, k * fi)]);
+  // the coarse cells along one axis a block overlaps, as [k, lattice cells in k] pairs, flat
+  const pieces = (a0, m, fi, out) => {
+    out.length = 0;
+    for (let k = Math.floor(a0 / fi); k * fi < a0 + m; k++) out.push(k, Math.min(a0 + m, (k + 1) * fi) - Math.max(a0, k * fi));
     return out;
   };
-  const bin = () => {
-    const m = new Map();
-    for (let i = 0; i < cells.length; i++) {
-      const c = cells[i], sp = span[i];
-      const px = pieces(sp[0], f[0]), py = pieces(sp[1], f[1]), pz = pieces(sp[2], f[2]);
-      const per = (c.dx * c.dy * c.dz) / (sp[0][1] * sp[1][1] * sp[2][1]); // volume of one covered lattice cell
-      for (const [kx, nx] of px) for (const [ky, ny] of py) for (const [kz, nz] of pz) {
-        const w = per * nx * ny * nz;
-        const keyStr = `${kx},${ky},${kz}`;
-        const e = m.get(keyStr);
-        const v = log ? Math.log10(c.value) : c.value;
-        if (e) { e.w += w; e.s += w * v; } else m.set(keyStr, { w, s: w * v, k: [kx, ky, kz] });
+  const px = [], py = [], pz = [];
+  const dims = () => ext.map((e, i) => Math.ceil(e / f[i]));
+  // every occupied coarse bin of the current factors, in first-touch order (the order the merged cells come out in); keys are
+  // (kz * cy + ky) * cx + kx — numbers, not strings. A dense flag array when the coarse box is small, a Set otherwise.
+  const bins = (visit) => {
+    const [cx, cy, cz] = dims(), total = cx * cy * cz;
+    const dense = total <= 4e6, occ = dense ? new Uint8Array(total) : null, seen = dense ? null : new Set();
+    const keys = [];
+    for (let t = 0; t < n; t++) {
+      pieces(A0[0][t], AN[0][t], f[0], px); pieces(A0[1][t], AN[1][t], f[1], py); pieces(A0[2][t], AN[2][t], f[2], pz);
+      for (let a = 0; a < px.length; a += 2) for (let b = 0; b < py.length; b += 2) for (let d = 0; d < pz.length; d += 2) {
+        const k = (pz[d] * cy + py[b]) * cx + px[a];
+        if (dense ? !occ[k] : !seen.has(k)) { if (dense) occ[k] = 1; else seen.add(k); keys.push(k); }
+        if (visit) visit(t, k, px[a + 1] * py[b + 1] * pz[d + 1]);
       }
     }
-    return m;
+    return { keys, cx, cy };
   };
-  let bins = bin(), guard = 0;
-  while (bins.size > maxCells && guard++ < 10000) {
-    const coarse = ext.map((e, i) => Math.ceil(e / f[i]));
+  let size = bins(null).keys.length, guard = 0;
+  while (size > maxCells && guard++ < 10000) {
+    const coarse = dims();
     const axis = coarse[0] >= coarse[1] && coarse[0] >= coarse[2] ? 0 : coarse[1] >= coarse[2] ? 1 : 2;
     f[axis]++;
-    bins = bin();
+    size = bins(null).keys.length;
   }
+  // one accumulation pass: volume (w) and weighted value (s) per bin — flat typed arrays over a small coarse box, Maps otherwise
+  const [bx, by, bz] = dims(), totalBins = bx * by * bz, denseAcc = totalBins <= 4e6;
+  const Wd = denseAcc ? new Float64Array(totalBins) : null, Sd = denseAcc ? new Float64Array(totalBins) : null;
+  const W = denseAcc ? null : new Map(), S = denseAcc ? null : new Map();
+  const { keys, cx, cy } = bins((t, k, latticeCells) => {
+    const c = cells[t];
+    const per = (c.dx * c.dy * c.dz) / (AN[0][t] * AN[1][t] * AN[2][t]); // volume of one covered lattice cell
+    const w = per * latticeCells, v = log ? Math.log10(c.value) : c.value;
+    if (denseAcc) { Wd[k] += w; Sd[k] += w * v; } else { W.set(k, (W.get(k) || 0) + w); S.set(k, (S.get(k) || 0) + w * v); }
+  });
   const [sx, sy, sz] = [ux * f[0], uy * f[1], uz * f[2]];
   const out = [];
   const full = sx * sy * sz;
   let sourceM3 = 0;
-  for (const e of bins.values()) {
-    sourceM3 += e.w;
-    out.push({ x: x0 + (e.k[0] + 0.5) * sx, y: y0 + (e.k[1] + 0.5) * sy, z: z0 + (e.k[2] + 0.5) * sz, dx: sx, dy: sy, dz: sz, value: log ? 10 ** (e.s / e.w) : e.s / e.w, coverage: Math.min(1, e.w / full) });
+  for (const k of keys) {
+    const w = denseAcc ? Wd[k] : W.get(k), s = denseAcc ? Sd[k] : S.get(k);
+    const kx = k % cx, ky = Math.floor(k / cx) % cy, kz = Math.floor(k / (cx * cy));
+    sourceM3 += w;
+    out.push({ x: x0 + (kx + 0.5) * sx, y: y0 + (ky + 0.5) * sy, z: z0 + (kz + 0.5) * sz, dx: sx, dy: sy, dz: sz, value: log ? 10 ** (s / w) : s / w, coverage: Math.min(1, w / full) });
   }
   return { cells: out, factors: { fx: f[0], fy: f[1], fz: f[2] }, sourceM3, mergedM3: out.length * full };
 }
