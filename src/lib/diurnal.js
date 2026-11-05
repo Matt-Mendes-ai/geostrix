@@ -26,6 +26,25 @@ import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the inter
 // reported, not guessed.
 
 const ROMAN = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8, IX: 9, X: 10, XI: 11, XII: 12 };
+// TASKS.csv #1584 (review #1497, Lawyers) — GEM writes the date spaced ("19 VI 21", "16 XI 2021") or compact ("01VIII22":
+// 46 of Lawyers' 52 2022 base files), and the rover header can carry an older date on another line ("/BL50 16 XI 2021",
+// which the spaced-only regex took for the survey date). The longest Roman numeral is tried first so "VIII" is not "V".
+const GEM_DATE = /(?:^|[\s/])(\d{1,2})\s*(XII|XI|IX|X|VIII|VII|VI|IV|V|III|II|I)\s*(\d{4}|\d{2})\s*$/;
+const pad2 = (n) => String(n).padStart(2, "0");
+export function gemDateOf(line) {
+  const d = GEM_DATE.exec(String(line ?? "").trim());
+  if (!d) return null;
+  const day = +d[1], y = d[3].length === 2 ? 2000 + +d[3] : +d[3];
+  return day >= 1 && day <= 31 ? `${y}-${pad2(ROMAN[d[2]])}-${pad2(day)}` : null;
+}
+// The yyyymmdd that Lawyers' files start with (20220801_Base4.tbl, 20220801_RedGreen_WalkMAG.xyz): the fallback when
+// the header has no readable date, and a cross-check when it has.
+export function fileNameDate(name) {
+  const m = /(?:^|\D)((?:19|20)\d{2})(\d{2})(\d{2})(?!\d)/.exec(String(name ?? ""));
+  if (!m) return null;
+  const mo = +m[2], d = +m[3];
+  return mo >= 1 && mo <= 12 && d >= 1 && d <= 31 ? `${m[1]}-${m[2]}-${m[3]}` : null;
+}
 
 // "10:46:26.0" -> seconds of the day; null when the token isn't a clock time
 export function parseClock(tok) {
@@ -44,15 +63,15 @@ export function formatClock(sec) {
 // offset ("/UTC-07", written by the GPS-equipped rover). Either may be missing.
 export function gemHeaderInfo(text) {
   const head = String(text).split(/\r\n|\r|\n/, 40).filter((l) => l.trim().startsWith("/"));
-  let date = null, utcOffsetH = null, instrument = null;
+  let idDate = null, otherDate = null, utcOffsetH = null, instrument = null;
   for (const l of head) {
-    const d = /\b(\d{1,2})\s+(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII)\s+(\d{2,4})\s*$/.exec(l.trim());
-    if (d && !date) { const y = +d[3] < 100 ? 2000 + +d[3] : +d[3]; date = `${y}-${String(ROMAN[d[2]]).padStart(2, "0")}-${String(+d[1]).padStart(2, "0")}`; }
+    const dt = gemDateOf(l); // #1584 — the "/ID ... file ..." line is the survey's own date; any other dated line is a fallback
+    if (dt) { if (/^\/\s*ID\b/i.test(l.trim())) idDate = idDate || dt; else otherDate = otherDate || dt; }
     const u = /^\/\s*UTC\s*([+-]\d{1,2})/i.exec(l.trim());
     if (u) utcOffsetH = Number(u[1]);
     if (!instrument && /gem systems|gsm-?\d+/i.test(l)) instrument = l.replace(/^\/+/, "").trim();
   }
-  return { date, utcOffsetH, instrument };
+  return { date: idDate || otherDate, dateFrom: idDate ? "id" : otherDate ? "header" : null, utcOffsetH, instrument };
 }
 
 // Reads a base-station recording: GEM .tbl / .b ("time nT sq" rows under "/" headers), or any plain text whose rows
@@ -60,6 +79,7 @@ export function gemHeaderInfo(text) {
 // is below `minQuality` are dropped (a 49 at the end of a Lawyers base file is a 3 nT dip as the sensor was packed).
 export function parseBaseStation(text, { minQuality = 50, name = "" } = {}) {
   const info = gemHeaderInfo(text);
+  const nameDate = fileNameDate(name); // #1584
   const samples = [];
   let lowQuality = 0, unreadable = 0;
   for (const raw of String(text).split(/\r\n|\r|\n/)) {
@@ -76,7 +96,7 @@ export function parseBaseStation(text, { minQuality = 50, name = "" } = {}) {
   }
   if (samples.length < 2) throw new Error(tr("{v} has no base-station readings GeoStrix can read (expected rows of \"time  nT\" such as \"07:55:05.0  57117.85 99\").", { v: name || tr("This file") }));
   samples.sort((a, b) => a.t - b.t);
-  return { name, ...info, samples, median: median(samples.map((s) => s.nT)), start: samples[0].t, end: samples[samples.length - 1].t, lowQuality, unreadable };
+  return { name, ...info, date: info.date || nameDate, dateFrom: info.date ? info.dateFrom : nameDate ? "filename" : null, nameDate, samples, median: median(samples.map((s) => s.nT)), start: samples[0].t, end: samples[samples.length - 1].t, lowQuality, unreadable };
 }
 
 // Base value at time t by linear interpolation; null outside coverage or inside a gap longer than maxGapSec.

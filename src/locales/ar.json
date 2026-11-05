@@ -8276,5 +8276,11 @@
   "Building… {table}: {done} of {total} rows": "جارٍ البناء… {table}: {done} من {total} صفًا",
   " ({used} of {total} holes, whole holes, for the pair loop)": " ({used} من {total} ثقبًا، ثقوب كاملة، لحلقة الأزواج)",
   " (subsampled to {nPoints} for the pair loop; no pairs closer than {h} m — Downhole only resolves the nugget)": " (أُخذت عينة فرعية بعدد {nPoints} لحلقة الأزواج؛ لا أزواج أقرب من {h} م — «داخل الثقب فقط» يحدد أثر الكتلة)",
-  "The nugget ({pct}% of the sill) is read from the downhole variogram of every composite ({pairs} pairs at a {lag} m lag): the fit's own subsample held no pair closer than {h} m.": "يُقرأ أثر الكتلة ({pct}% من العتبة) من فاريوغرام داخل الثقب لكل المركبات ({pairs} زوجًا بخطوة {lag} م): العينة الفرعية للمطابقة لم تحوِ أي زوج أقرب من {h} م."
+  "The nugget ({pct}% of the sill) is read from the downhole variogram of every composite ({pairs} pairs at a {lag} m lag): the fit's own subsample held no pair closer than {h} m.": "يُقرأ أثر الكتلة ({pct}% من العتبة) من فاريوغرام داخل الثقب لكل المركبات ({pairs} زوجًا بخطوة {lag} م): العينة الفرعية للمطابقة لم تحوِ أي زوج أقرب من {h} م.",
+  "{name}: the day could not be read from {v}, so it may be from another day than the rover": "{name}: تعذّرت قراءة اليوم من {v}، لذا قد يكون من يوم غير يوم الجهاز المتنقل",
+  "either file": "أيٍّ من الملفين",
+  "the base file": "ملف المحطة القاعدية",
+  "the rover file": "ملف الجهاز المتنقل",
+  "{name}: the header says {date} but the file name says {nameDate}": "{name}: الترويسة تقول {date} لكن اسم الملف يقول {nameDate}",
+  "{date} (from the file name)": "{date} (من اسم الملف)"
 }

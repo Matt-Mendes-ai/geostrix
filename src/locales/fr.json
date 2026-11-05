@@ -8276,5 +8276,11 @@
   "Building… {table}: {done} of {total} rows": "Construction… {table} : {done} sur {total} lignes",
   " ({used} of {total} holes, whole holes, for the pair loop)": " ({used} des {total} sondages, sondages entiers, pour la boucle des paires)",
   " (subsampled to {nPoints} for the pair loop; no pairs closer than {h} m — Downhole only resolves the nugget)": " (sous-échantillonné à {nPoints} pour la boucle des paires ; aucune paire à moins de {h} m — Dans le sondage seulement résout l'effet de pépite)",
-  "The nugget ({pct}% of the sill) is read from the downhole variogram of every composite ({pairs} pairs at a {lag} m lag): the fit's own subsample held no pair closer than {h} m.": "L'effet de pépite ({pct} % du palier) est lu sur le variogramme dans le sondage de tous les composites ({pairs} paires au pas de {lag} m) : le sous-échantillon de l'ajustement ne contenait aucune paire à moins de {h} m."
+  "The nugget ({pct}% of the sill) is read from the downhole variogram of every composite ({pairs} pairs at a {lag} m lag): the fit's own subsample held no pair closer than {h} m.": "L'effet de pépite ({pct} % du palier) est lu sur le variogramme dans le sondage de tous les composites ({pairs} paires au pas de {lag} m) : le sous-échantillon de l'ajustement ne contenait aucune paire à moins de {h} m.",
+  "{name}: the day could not be read from {v}, so it may be from another day than the rover": "{name} : le jour n'a pas pu être lu dans {v}, il peut donc venir d'un autre jour que le mobile",
+  "either file": "aucun des deux fichiers",
+  "the base file": "le fichier de base",
+  "the rover file": "le fichier du mobile",
+  "{name}: the header says {date} but the file name says {nameDate}": "{name} : l'en-tête indique {date} mais le nom du fichier indique {nameDate}",
+  "{date} (from the file name)": "{date} (d'après le nom du fichier)"
 }

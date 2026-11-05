@@ -8276,5 +8276,11 @@
   "Building… {table}: {done} of {total} rows": "Construindo… {table}: {done} de {total} linhas",
   " ({used} of {total} holes, whole holes, for the pair loop)": " ({used} de {total} furos, furos inteiros, para o ciclo de pares)",
   " (subsampled to {nPoints} for the pair loop; no pairs closer than {h} m — Downhole only resolves the nugget)": " (subamostrado para {nPoints} no ciclo de pares; nenhum par a menos de {h} m — Só no furo resolve o efeito pepita)",
-  "The nugget ({pct}% of the sill) is read from the downhole variogram of every composite ({pairs} pairs at a {lag} m lag): the fit's own subsample held no pair closer than {h} m.": "O efeito pepita ({pct}% do patamar) é lido do variograma no furo de todos os compósitos ({pairs} pares com passo de {lag} m): a subamostra do ajuste não tinha nenhum par a menos de {h} m."
+  "The nugget ({pct}% of the sill) is read from the downhole variogram of every composite ({pairs} pairs at a {lag} m lag): the fit's own subsample held no pair closer than {h} m.": "O efeito pepita ({pct}% do patamar) é lido do variograma no furo de todos os compósitos ({pairs} pares com passo de {lag} m): a subamostra do ajuste não tinha nenhum par a menos de {h} m.",
+  "{name}: the day could not be read from {v}, so it may be from another day than the rover": "{name}: não foi possível ler o dia de {v}, por isso pode ser de outro dia que o móvel",
+  "either file": "nenhum dos dois ficheiros",
+  "the base file": "o ficheiro da base",
+  "the rover file": "o ficheiro do móvel",
+  "{name}: the header says {date} but the file name says {nameDate}": "{name}: o cabeçalho diz {date} mas o nome do ficheiro diz {nameDate}",
+  "{date} (from the file name)": "{date} (do nome do ficheiro)"
 }

@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { Upload, X } from "./icons.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // #371 — no Math.min(...spread)
-import { parseBaseStation, diurnalCorrect, suggestClockShift, diurnalSummaryText, formatClock } from "../lib/diurnal.js";
+import { parseBaseStation, diurnalCorrect, suggestClockShift, diurnalSummaryText, formatClock, fileNameDate } from "../lib/diurnal.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #610 — diurnal correction step inside the .xyz column picker (GeophysicsModule). Shown when the rover
@@ -17,7 +17,7 @@ export default function DiurnalCorrectionBox({ pending, setPending, numInput, pB
   const [note, setNote] = useState(null); // { warn, text }
   const timeCols = pending.columns.filter((c) => /time/i.test(c));
   const [timeCol, setTimeCol] = useState(timeCols.find((c) => /^time$/i.test(c)) || timeCols[0] || "");
-  const roverDate = pending.header?.date || null;
+  const roverDate = pending.header?.date || fileNameDate(pending.fileName) || null; // #1584 — the file's yyyymmdd when the header has no date
 
   const apply = (nextBases, nextShift = shiftH, nextRaw = rawCol, nextTime = timeCol) => {
     const outCol = `${nextRaw}_dc`;
@@ -45,18 +45,22 @@ export default function DiurnalCorrectionBox({ pending, setPending, numInput, pB
 
   const addFiles = async (files) => {
     const next = [...bases];
-    const skipped = [];
+    const skipped = [], unsure = [];
     for (const f of files) {
       try {
         const b = parseBaseStation(await f.text(), { name: f.name });
         // a base from another day would "correct" with the wrong day's field — refused, never silently used
         if (roverDate && b.date && b.date !== roverDate) { skipped.push(`${f.name} is from ${b.date}, the rover file from ${roverDate}`); continue; }
+        // #1584 — a base whose day is unknown (or the rover's) is used, but said: a base from another day corrects with the wrong field
+        if (!roverDate || !b.date) unsure.push(tr("{name}: the day could not be read from {v}, so it may be from another day than the rover", { name: f.name, v: !b.date && !roverDate ? tr("either file") : !b.date ? tr("the base file") : tr("the rover file") }));
+        else if (b.nameDate && b.nameDate !== b.date) unsure.push(tr("{name}: the header says {date} but the file name says {nameDate}", { name: f.name, date: b.date, nameDate: b.nameDate }));
         if (!next.some((x) => x.name === b.name)) next.push(b);
       } catch (err) { skipped.push(err.message); }
     }
     setBases(next);
     apply(next);
     if (skipped.length) setNote((n) => ({ warn: true, text: `${n?.text ? n.text + " " : ""}Not used: ${skipped.join("; ")}.` }));
+    if (unsure.length) setNote((n) => ({ ...(n || {}), warn: true, text: `${n?.text ? n.text + " " : ""}${unsure.join(" ")}` })); // #1584
   };
 
   if (!timeCols.length) return null;
@@ -80,7 +84,7 @@ export default function DiurnalCorrectionBox({ pending, setPending, numInput, pB
       {bases.map((b) => (
         <div key={b.name} style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: "var(--font-size-sm)" }}>
           <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={b.instrument || b.name}>
-            {tr("{name} · {v} · {v2}–{v3} · {samples} readings{v4}", { name: b.name, v: b.date || tr("no date"), v2: formatClock(b.start), v3: formatClock(b.end), samples: b.samples.length.toLocaleString("en-US"), v4: b.lowQuality ? tr(" ({lowQuality} low-quality dropped)", { lowQuality: b.lowQuality }) : "" })}
+            {tr("{name} · {v} · {v2}–{v3} · {samples} readings{v4}", { name: b.name, v: b.date ? (b.dateFrom === "filename" ? tr("{date} (from the file name)", { date: b.date }) : b.date) : tr("no date"), v2: formatClock(b.start), v3: formatClock(b.end), samples: b.samples.length.toLocaleString("en-US"), v4: b.lowQuality ? tr(" ({lowQuality} low-quality dropped)", { lowQuality: b.lowQuality }) : "" })}
           </span>
           <button title={tr("Remove this base")} onClick={() => { const next = bases.filter((x) => x !== b); setBases(next); apply(next); }} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", padding: 2 }}><X size={12} /></button>
         </div>

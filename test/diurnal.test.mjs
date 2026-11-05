@@ -31,7 +31,7 @@ test("#610 clock times and GEM headers", () => {
   assert.equal(parseClock("10:46:26.0"), 10 * 3600 + 46 * 60 + 26);
   assert.equal(parseClock("07:55"), 7 * 3600 + 55 * 60);
   assert.equal(parseClock("57117.85"), null);
-  assert.deepEqual({ ...gemHeaderInfo(ROVER), instrument: undefined }, { date: "2021-06-19", utcOffsetH: -7, instrument: undefined });
+  assert.deepEqual({ ...gemHeaderInfo(ROVER), instrument: undefined }, { date: "2021-06-19", dateFrom: "id", utcOffsetH: -7, instrument: undefined }); // dateFrom: #1584
   const { rows } = parseXYZ(ROVER);
   assert.equal(rows[0].time, 36030); // was 10 (parseFloat of "10:00:30.0")
 });
