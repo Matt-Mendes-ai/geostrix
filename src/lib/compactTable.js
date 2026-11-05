@@ -45,22 +45,6 @@ function encodeColumn(get, n) {
   return { d: dict, c: codes.join(",") };
 }
 
-// columns are decoded once per load into arrays (split), then read per row
-function openColumn(col) {
-  if (typeof col.n === "string") return { num: col.n.split(",") };
-  return { dict: col.d, codes: typeof col.c === "string" ? col.c.split(",") : col.c };
-}
-
-function decodeColumn(col, i) {
-  if (col.num) { const v = col.num[i]; return v === "" || v === undefined ? undefined : Number(v); }
-  const c = Number(col.codes[i]);
-  if (c < 0) return undefined;
-  const v = col.dict[c];
-  // TASKS.csv #721 — an object value (an assay's qualifiers { Au: "<" }) is a copy per row: handing every row the one
-  // dictionary entry made 1,250 rows share a single object, so editing one row's qualifiers would change them all
-  return v !== null && typeof v === "object" ? structuredClone(v) : v;
-}
-
 export function compactTable(rows) {
   if (!Array.isArray(rows) || rows.length < COMPACT_TABLE_MIN_ROWS) return rows;
   const hit = cache.get(rows);
@@ -96,19 +80,68 @@ export function compactTable(rows) {
   return out;
 }
 
+// TASKS.csv #1500 (review #1497, Lawyers) — each column decoded ONCE into a typed array before the rows are built: a numeric column to a
+// Float64Array with NaN for absent (its present values are all finite numbers, so NaN cannot be one of them), a coded column
+// to an Int32Array of codes. It used to decode cell by cell through a generic function per row and per column: Lawyers'
+// nine tables (83,670 assays x 50 elements among them) took 1.1-1.6 s of the project open. Same rows, same key order.
+// TASKS.csv #1500 — a comma-joined column of numbers (String(number) forms, "" = absent) read into a Float64Array in one scan, with no
+// split array and no substring per cell. EXACT: a value of at most 15 significant digits is an integer m < 2^53 over (or times) a
+// power of ten <= 1e22, both exact doubles, and IEEE division / multiplication rounds that correctly, which is what Number()
+// returns; anything else (more digits, a larger exponent) is read with Number() on its slice. NaN marks an absent cell.
+const POW10 = Array.from({ length: 23 }, (_, k) => 10 ** k);
+export function parseNumberList(str, n) {
+  const out = new Float64Array(n), L = str.length;
+  let i = 0;
+  for (let t = 0; t < n; t++) {
+    if (i >= L) { out[t] = NaN; continue; }
+    const start = i;
+    let neg = false, m = 0, digits = 0, frac = 0, dot = false, exp = 0, ok = true, c = str.charCodeAt(i);
+    if (c === 44) { out[t] = NaN; i++; continue; } // an empty field
+    if (c === 45) { neg = true; i++; }
+    for (; i < L; i++) {
+      c = str.charCodeAt(i);
+      if (c >= 48 && c <= 57) { if (digits || c !== 48) digits++; m = m * 10 + (c - 48); if (dot) frac++; }
+      else if (c === 46 && !dot) dot = true;
+      else break;
+    }
+    if (i < L && (c === 101 || c === 69)) { // e / E
+      i++; let eneg = false, e = 0;
+      if (str.charCodeAt(i) === 45) { eneg = true; i++; } else if (str.charCodeAt(i) === 43) i++;
+      for (; i < L; i++) { c = str.charCodeAt(i); if (c >= 48 && c <= 57) e = e * 10 + (c - 48); else break; }
+      exp = eneg ? -e : e;
+    }
+    if (i < L && str.charCodeAt(i) !== 44) { ok = false; while (i < L && str.charCodeAt(i) !== 44) i++; }
+    const p = exp - frac;
+    if (ok && digits <= 15 && p >= -22 && p <= 22) { const v = p < 0 ? m / POW10[-p] : m * POW10[p]; out[t] = neg ? -v : v; }
+    else out[t] = Number(str.slice(start, i)); // the slice keeps its sign
+    i++; // the comma
+  }
+  return out;
+}
+function decodeAll(col, n) {
+  if (typeof col.n === "string") return { num: parseNumberList(col.n, n) };
+  const codes = new Int32Array(n);
+  if (typeof col.c === "string") { const f = parseNumberList(col.c, n); for (let i = 0; i < n; i++) codes[i] = f[i] === f[i] ? f[i] : -1; }
+  else for (let i = 0; i < n; i++) { const c = col.c[i]; codes[i] = c === undefined || c === "" ? -1 : Number(c); }
+  const dict = col.d, objects = dict.some((v) => v !== null && typeof v === "object");
+  return { codes, dict, objects };
+}
 export function expandTable(stored) {
   if (!stored || !stored.__compactTable) return stored;
   const { n, cols, nested } = stored;
-  const colEntries = Object.entries(cols).map(([k, c]) => [k, openColumn(c)]);
-  const nestedEntries = nested ? Object.entries(nested.cols).map(([k, c]) => [k, openColumn(c)]) : [];
-  const has = nested ? openColumn(nested.has) : null;
+  const keys = Object.keys(cols), C = keys.map((k) => decodeAll(cols[k], n));
+  const nkeys = nested ? Object.keys(nested.cols) : [], NC = nkeys.map((k) => decodeAll(nested.cols[k], n));
+  const has = nested ? decodeAll(nested.has, n) : null;
+  const present = (col, i) => (col.num ? col.num[i] === col.num[i] : col.codes[i] >= 0);
+  // TASKS.csv #721 — an object value (an assay's qualifiers { Au: "<" }) is a copy per row, never the shared dictionary entry
+  const value = (col, i) => { if (col.num) return col.num[i]; const v = col.dict[col.codes[i]]; return col.objects && v !== null && typeof v === "object" ? structuredClone(v) : v; };
   const rows = new Array(n);
   for (let i = 0; i < n; i++) {
     const r = {};
-    for (const [k, col] of colEntries) { const v = decodeColumn(col, i); if (v !== undefined) r[k] = v; }
-    if (has && decodeColumn(has, i) !== undefined) {
+    for (let c = 0; c < C.length; c++) { const col = C[c]; if (present(col, i)) r[keys[c]] = value(col, i); }
+    if (has && present(has, i)) {
       const o = {};
-      for (const [k, col] of nestedEntries) { const v = decodeColumn(col, i); if (v !== undefined) o[k] = v; }
+      for (let c = 0; c < NC.length; c++) { const col = NC[c]; if (present(col, i)) o[nkeys[c]] = value(col, i); }
       r[NESTED] = o;
     }
     rows[i] = r;
