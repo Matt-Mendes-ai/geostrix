@@ -18,6 +18,7 @@ test("#1972 no stale modelling text", () => {
   assert.doesNotMatch(runs + help, /along the declared trend/);
   assert.doesNotMatch(sg, /Maps → Map layers/);
   assert.match(sg, /Surface Geology > Geology map/);
+  assert.doesNotMatch(sg, /Implicit model run below|"Implicit model\\" run below/);
 });
 
 test("#1972 icon-only run buttons carry an aria-label", () => {
