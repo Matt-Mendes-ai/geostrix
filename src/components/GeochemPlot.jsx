@@ -1,11 +1,41 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { DIAGRAMS, SPIDER_DIAGRAMS, reeProfile, spreadLines } from "../lib/geochemDiagrams.js"; // spreadLines: #1381
 import { minMax } from "../lib/layers.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
+import { drawPoints, packPoints, renderPointsImage } from "../lib/geochemPointsImage.js"; // TASKS.csv #1519
 import { fontSizes } from "../lib/theme.js"; // TASKS.csv #385 — SVG font-size attributes on the type scale
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const W = 620, H = 560, PAD = 60;
+// TASKS.csv #1519 (review #1497, Lawyers) — a large plot's points drawn once on a canvas and placed in the SVG as one image: 83,670
+// <circle> nodes per diagram froze the window 0.7-2 s on every diagram, colour or filter change. Up to CANVAS_FROM points stay vector
+// circles (an SVG export keeps them as shapes); above, the export carries the points as that embedded image. colorBy.rank(sample), when
+// the colour encodes a value, orders the drawing so high values are on top (the few > 6 g/t points sat under the background).
+export const CANVAS_FROM = 4000;
+export function orderForDrawing(pts, rank) {
+  if (typeof rank !== "function") return pts;
+  return pts.map((q) => [q, rank(q.p.sample)]).sort((a, b) => (Number.isFinite(a[1]) ? a[1] : -Infinity) - (Number.isFinite(b[1]) ? b[1] : -Infinity)).map(([q]) => q);
+}
+function pointsLayer(pts, colorBy) {
+  const ordered = orderForDrawing(pts, colorBy?.rank);
+  if (ordered.length <= CANVAS_FROM || typeof document === "undefined") return ordered.map((q, i) => <circle key={i} cx={q.cx} cy={q.cy} r="3" fill={colorBy(q.p.sample)} fillOpacity="0.75" stroke="#ffffff" strokeWidth="0.5" />);
+  return <PointsImage ordered={ordered} colorBy={colorBy} />;
+}
+// Drawn and PNG-encoded in a worker (lib/geochemPointsImage.js): toBlob on the main thread still cost 213 ms of a switch. The
+// picture shows first by a blob: URL, then its href becomes a data: URL so an SVG / PNG export embeds it (an export in that
+// ~0.1 s window would carry the blob: URL). Without a worker it is drawn on the main thread as before.
+function PointsImage({ ordered, colorBy }) {
+  const [href, setHref] = useState(null);
+  useEffect(() => {
+    let live = true, url = null;
+    setHref(null); // the previous diagram's points must not sit on the new axes while the worker draws
+    const toDataUrl = (blob) => { const fr = new FileReader(); fr.onload = () => { if (live) setHref(fr.result); }; fr.readAsDataURL(blob); };
+    const onMain = () => { const k = 2, cv = document.createElement("canvas"); cv.width = W * k; cv.height = H * k; drawPoints(cv.getContext("2d"), packPoints(ordered, colorBy), k); cv.toBlob((blob) => { if (live && blob) toDataUrl(blob); }, "image/png"); };
+    renderPointsImage(packPoints(ordered, colorBy), { W, H }).then((blob) => { if (!live) return; url = URL.createObjectURL(blob); setHref(url); toDataUrl(blob); }).catch(() => { if (live) onMain(); });
+    return () => { live = false; if (url) URL.revokeObjectURL(url); };
+  }, [ordered, colorBy]);
+  return href ? <image href={href} x="0" y="0" width={W} height={H} preserveAspectRatio="none" pointerEvents="none" /> : null;
+}
 
 // describe(sample) -> lines for the hover tooltip (hole, depth, sample id, lithology: TASKS.csv #619)
 export default function GeochemPlot({ diagramId, samples, elementUnits, colorBy, svgRef, altBoxes = null, describe = null }) {
@@ -90,7 +120,7 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef, altBoxes, describe })
   // #619 — on-plot points with their screen positions (the same filter the circles always had)
   // memoized: a hover re-renders only the ring + tooltip, not 6,000 circles (~49 ms per hover change before)
   const pts = useMemo(() => projected.filter((p) => !(p.x < xmin || p.x > xmax || p.y < ymin || p.y > ymax)).map((p) => ({ cx: sx(p.x), cy: sy(p.y), p })), [projected, xmin, xmax, ymin, ymax, lx, ly]);
-  const dots = useMemo(() => pts.map((q, i) => <circle key={i} cx={q.cx} cy={q.cy} r="3" fill={colorBy(q.p.sample)} fillOpacity="0.75" stroke="#ffffff" strokeWidth="0.5" />), [pts, colorBy]);
+  const dots = useMemo(() => pointsLayer(pts, colorBy), [pts, colorBy]); // #1519
   const { hover, onMove, onLeave } = usePointHover(svgRef, pts);
   const hp = hover ? pts[hover.i] : null;
 
@@ -231,7 +261,7 @@ function TernaryPlot({ diagram, projected, colorBy, svgRef, describe }) {
   const tx = (p) => Fp[0] + p.x * (M[0] - Fp[0]);
   const ty = (p) => bottom - (p.y / (Math.sqrt(3) / 2)) * (bottom - top);
   const pts = useMemo(() => projected.map((p) => ({ cx: tx(p), cy: ty(p), p })), [projected]); // #619
-  const dots = useMemo(() => pts.map((q, i) => <circle key={i} cx={q.cx} cy={q.cy} r="3" fill={colorBy(q.p.sample)} fillOpacity="0.75" stroke="#ffffff" strokeWidth="0.5" />), [pts, colorBy]);
+  const dots = useMemo(() => pointsLayer(pts, colorBy), [pts, colorBy]); // #1519
   const { hover, onMove, onLeave } = usePointHover(svgRef, pts);
   const hp = hover ? pts[hover.i] : null;
 

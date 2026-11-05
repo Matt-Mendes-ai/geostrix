@@ -187,7 +187,9 @@ export default function GeochemModule() {
     const stops = gradeStops(min, max);
     return { min, max, stops, log: min > 0 && max / min >= 100 };
   }, [colorMode, colorEl, assays, elementUnits]);
-  const colorBy = (sample) => {
+  // TASKS.csv #1519 — one function per colour choice (not per render), so the plot's cached points image is redrawn only when the
+  // colours change: a new function every render redrew 83,670 points on any re-render of this tab
+  const colorBy = useMemo(() => { const fn = (sample) => {
     if (colorMode === "uniform") return "#4a9be0";
     if (colorMode === "hole") return holeColors[sample.hole_id] || "#55606e";
     if (colorMode === "lithology") return lithColors[sampleLith.get(sample) ?? NOT_LOGGED] || "#b8bec7";
@@ -198,8 +200,14 @@ export default function GeochemModule() {
     }
     return "#4a9be0";
   };
+  // with colour by element, the plot draws low values first and high values on top
+  fn.rank = colorMode === "element" && colorEl ? (sample) => valueIn(sample, colorEl, "ppm", elementUnits) ?? -Infinity : null;
+  return fn; }, [colorMode, colorEl, holeColors, lithColors, sampleLith, colorRange, elementUnits]);
 
   const diagram = ALL_DIAGRAMS[diagramId];
+  // #1519 — how many samples the diagram can place: computed once per diagram / sample set, not on every render (it projected
+  // all 83,670 samples again in the caption and the export furniture)
+  const plottedCount = useMemo(() => (diagram.spider ? plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length : plotted.filter((a) => diagram.project(a, elementUnits)).length), [diagram, plotted, elementUnits]);
   const availableSymbols = new Set(assayElements.map((e) => e.symbol));
   const missingForDiagram = diagram.requires.filter((s) => !availableSymbols.has(s));
 
@@ -809,7 +817,7 @@ export default function GeochemModule() {
     return [0, 0.25, 0.5, 0.75, 1].map((t) => { const v = log ? 10 ** (Math.log10(min) + (Math.log10(max) - Math.log10(min)) * t) : min + (max - min) * t; return { v, color: colorForVoxelValue({ stops: colorRange.stops, colorMode: "continuous" }, v) }; });
   };
   const plotFurniture = () => {
-    const n = diagram.spider ? plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length : plotted.filter((a) => diagram.project(a, elementUnits)).length;
+    const n = plottedCount; // #1519
     const keyItems = colorMode === "hole" ? [...new Set(plotted.map((a) => a.hole_id))].map((h) => ({ label: String(h), color: holeColors[h] || "#55606e", shape: "dot" }))
       : colorMode === "lithology" ? lithCounts.filter(([k]) => !lithFilter || lithFilter.has(k)).map(([k]) => ({ label: k === NOT_LOGGED ? "not logged" : String(k), color: lithColors[k] || "#b8bec7", shape: "dot" }))
       : colorMode === "element" && colorRange ? elementKey().map(({ v, color }) => ({ label: `${+v.toPrecision(3)} ppm`, color, shape: "dot" }))
@@ -1096,8 +1104,8 @@ export default function GeochemModule() {
             <GeochemPlot diagramId={diagramId} samples={plotted} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} altBoxes={alterationBoxes?.boxes || PROVISIONAL_ALTERATION_BOXES} describe={describeSample} /> {/* plotted / describe: #619 */}
             <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 8 }}>
               {tr("{v}{v2} Below-detection values substituted at half the detection limit.", { v: diagram.spider
-                ? tr("{n} of {assays} samples have at least one plottable element.", { n: plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length, assays: sourceRows.length })
-                : tr("{n} of {assays} samples plotted.", { n: plotted.filter((a) => diagram.project(a, elementUnits)).length, assays: sourceRows.length }), v2: (lithFilter ? tr(" {v} hidden by the lithology filter.", { v: sourceRows.length - plotted.length }) : "") + (hasPxrf && plotSource !== "both" ? " " + (plotSource === "pxrf" ? tr("{k} lab assay(s) left out: pXRF readings only.", { k: (assays.length - sourceRows.length).toLocaleString() }) : tr("{k} pXRF reading(s) left out: lab assays only.", { k: (assays.length - sourceRows.length).toLocaleString() })) : "") })}</div>
+                ? tr("{n} of {assays} samples have at least one plottable element.", { n: plottedCount, assays: sourceRows.length })
+                : tr("{n} of {assays} samples plotted.", { n: plottedCount, assays: sourceRows.length }), /* plottedCount: #1519 */ v2: (lithFilter ? tr(" {v} hidden by the lithology filter.", { v: sourceRows.length - plotted.length }) : "") + (hasPxrf && plotSource !== "both" ? " " + (plotSource === "pxrf" ? tr("{k} lab assay(s) left out: pXRF readings only.", { k: (assays.length - sourceRows.length).toLocaleString() }) : tr("{k} pXRF reading(s) left out: lab assays only.", { k: (assays.length - sourceRows.length).toLocaleString() })) : "") })}</div>
           </div>
         )}
       </div>
