@@ -21,6 +21,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { trendBasis, trendSearchScales, describeTrend } from "../lib/trend.js"; // TASKS.csv #650
 import { t as tr } from "../lib/i18n.js";
+import { holeSpacingSummary, zeroBlockAdvice } from "../lib/holeSpacing.js"; // TASKS.csv #1738
 import { topCompositesWithoutBlocks } from "../lib/shellSupport.js"; // TASKS.csv #1735 // TASKS.csv #786
 import { domainLayerChoices } from "../lib/domainLayers.js"; // TASKS.csv #1571
 import DomainCaps from "./DomainCaps.jsx"; // TASKS.csv #1571
@@ -78,6 +79,8 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
     return Number.isFinite(sd) && sd > 0 ? sd : null;
   };
   const collarsWithoutDepth = useMemo(() => collars.filter((c) => collarDepth(c) == null).length, [collars, surveyMaxDepth]);
+  // TASKS.csv #1738 (review #1645, Copley) — how far apart the holes are, under the radius and in a zero-block result
+  const spacing = useMemo(() => holeSpacingSummary(collars), [collars]);
   const collarBounds = useMemo(() => {
     if (!collars.length) return null;
     const xs = collars.map((c) => c.x), ys = collars.map((c) => c.y);
@@ -478,6 +481,7 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", flex: "1 1 160px" }}>{tr("Blank = fitted to these composites when you run. Values in the estimated unit ({unit}), squared for nugget and sill.", { unit })}</div>
               </div>
             )}
+            {spacing && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{tr(spacing.sites === 2 ? "Holes: the two drill sites are {near} m apart. Two holes must both lie within the search radius of a block for it to count (Min distinct holes)." : "Holes: {sites} drill sites, the nearest {near} m apart, typically {median} m from the next (up to {far} m). Two holes must both lie within the search radius of a block for it to count (Min distinct holes).", { sites: spacing.sites, near: Math.round(spacing.nearestM), median: Math.round(spacing.medianM), far: Math.round(spacing.farthestM) })}</div>}{/* #1738 */}
             <label style={fieldLabel} title={tr("No sample within this distance of a block leaves it un-estimated (no cell), rather than extrapolating grade far from any real data. 0 = no radius assumption, capped internally at the grid's own diagonal so the run can't hang.")}>{tr("Search radius (m, 0 = no limit)")}<input type="number" min="0" step="any" value={searchRadius} onChange={(e) => setSearchRadius(Math.max(0, Number(e.target.value) || 0))} style={inp} />
               {trend && !(searchRadius > 0) && gridDiagonalM > 0 && ( /* #710: 0 is not "no limit" across the trend */
                 <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", fontWeight: 400 }}>{tr("Along trend \"{name}\": with no radius the search reaches the grid diagonal ({d} m) along the trend but only {v} × {v2} m across it ({v3}); a sample farther across the trend is left out.", { name: trend.name, d: gridDiagonalM, v: Math.round((gridDiagonalM * trend.ratios.int) / trend.ratios.max), v2: Math.round((gridDiagonalM * trend.ratios.min) / trend.ratios.max), v3: describeTrend(trend) })}</span>
@@ -656,6 +660,14 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
               )}
               {result.params?.capValue != null && <div>{tr("Grades capped at {cap} {unit} before estimating.", { cap: result.params.capValue, unit: result.params.capUnit || "" })}</div>}{/* #1736 — said in the result */}
               <div>{tr("{blocksEstimated} block(s) estimated, {blocksSkipped} left un-estimated (no sample within search radius / below min-samples / below min distinct holes).", { blocksEstimated: result.blocksEstimated.toLocaleString(), blocksSkipped: result.blocksSkipped.toLocaleString() })}</div>
+              {(() => { // TASKS.csv #1738 — a zero-block run says which rule emptied it and what would change that
+                const adv = zeroBlockAdvice({ blocksEstimated: result.blocksEstimated, searchRadiusM: result.params?.searchRadiusM ?? searchRadius, minHoles: result.params?.minHoles ?? minHoles, spacing });
+                if (!adv) return null;
+                const r = Math.round(result.params?.searchRadiusM ?? searchRadius), k = result.params?.minHoles ?? minHoles;
+                return <div style={{ color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.45 }}>{adv.kind === "holes-apart"
+                  ? tr("No block has samples from {k} holes within {r} m: your nearest drill sites are {near} m apart and most are {median} m or more from the next. This is reconnaissance drilling on separate prospects, and a block between the holes is not supported. A radius of about {need} m would let the nearest pair meet; or set Min distinct holes to 1 (single-hole blocks are flagged), or estimate one prospect with its own area.", { k, r, near: Math.round(spacing.nearestM), median: Math.round(spacing.medianM), need: adv.radiusNeededM })
+                  : tr("No block met the rules: no composite within {r} m of a block, or fewer than the minimum samples or distinct holes ({k}) inside that radius. Raise the search radius first; the holes are {near}–{far} m from their nearest neighbour.", { r: Number.isFinite(r) && r > 0 ? r : "∞", k, near: spacing ? Math.round(spacing.nearestM) : "?", far: spacing ? Math.round(spacing.farthestM) : "?" })}</div>;
+              })()}
               {result.cutOutsideArea > 0 && <div>{tr("{n} of those lie outside the string and were left out.", { n: result.cutOutsideArea.toLocaleString() })}</div>}{/* #1570 */}
               {result.cutAboveGround > 0 && <div>{groundSource === "collars" ? tr("{n} of those are above the ground interpolated between the collars (no terrain) and were left out.", { n: result.cutAboveGround.toLocaleString() }) : tr("{n} of those are above the terrain surface and were left out.", { n: result.cutAboveGround.toLocaleString() })}</div>}{/* collars: #1932 */}
               {/* TASKS.csv #258 */}
