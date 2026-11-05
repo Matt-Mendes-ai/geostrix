@@ -33,6 +33,9 @@ export function rigRows(holes, epsg, isoDate, trace) {
       declination_deg: mag ? r2(mag.declination) : "", convergence_deg: Number.isFinite(conv) ? r2(conv) : "",
       declination_date: mag ? isoDate : "",
       dip: h.dip, length: h.length,
+      // TASKS.csv #1835 — where the collar's z came from (typed / picked on the view / a collar / solved on the terrain), and the target the hole was solved to (#1456 keeps it on the hole)
+      z_source: h.zSource || "",
+      target_x: h.target ? r2(h.target.x) : "", target_y: h.target ? r2(h.target.y) : "", target_z: h.target ? r2(h.target.z) : "",
       toe_x: toe ? r2(toe.x) : "", toe_y: toe ? r2(toe.y) : "", toe_z: toe ? r2(toe.z) : "",
       toe_lat: r7(tll?.y), toe_lon: r7(tll?.x),
       notes: h.notes || "",

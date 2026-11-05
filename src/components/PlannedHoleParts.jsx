@@ -6,7 +6,7 @@ import { activateOnKey, iconAction } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
 import { colors } from "../lib/theme.js";
 import { lazyModal } from "../lib/lazyModal.jsx";
-import { solveOrientationToTarget, plannedTrace } from "../lib/holePlanning.js";
+import { solveOrientationToTarget, plannedTrace, solveCollarForTarget, isShallowDip, SHALLOW_DIP_DEG } from "../lib/holePlanning.js"; // solveCollarForTarget / shallow: TASKS.csv #1835
 import { azimuthToGridOffset, loadIgrf, wrap360 } from "../lib/azimuthRef.js"; // TASKS.csv #1729
 import { planGeometryKey, drilledTraceIndex, isTargetModel, targetBandIndex, planChecks, COLLAR_ZONE_M } from "../lib/plannedHoleChecks.js"; // TASKS.csv #1039; COLLAR_ZONE_M: #1454
 import { piercePoints as surfacePierces } from "../lib/piercePoints.js"; // TASKS.csv #1009
@@ -52,8 +52,12 @@ function solveAzDipToTarget(from, to) {
 // the target typed or handed over is saved on the new hole (its Target panel opened empty and had to be typed again), and the
 // solve runs PAST_TARGET_M beyond it like that panel's default (the first solve ended the hole on the target, 14 m into the zone)
 const PAST_TARGET_M = 30;
-export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars, noTerrain, presetTarget = null, epsg = null }) {
+export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, collars, noTerrain, presetTarget = null, epsg = null, groundAt = null }) {
   const [draft, setDraft] = useState({ name: "", x: "", y: "", z: "", azimuth: 0, dip: -60, length: 100 });
+  // TASKS.csv #1835 (review #1646, Kodiak) — where the collar's Elev came from, kept on the hole and written to the rig sheet
+  // (z_source): a picked Elev is whatever the click hit (the top of an IP cell, there), and it reached the CSV / GPX unmarked
+  const [zSource, setZSource] = useState("typed");
+  const [collarNote, setCollarNote] = useState(null);
   // TASKS.csv #1729 (review #1645, Copley) — which north the typed azimuth is from. Stored holes stay grid (every check and the rig
   // sheet read grid); a true or magnetic entry is converted at the collar and kept beside it. Copley designs in true north: typed as
   // grid, its hole turned 1.45 deg and the as-drilled comparison counted the convergence as drift.
@@ -77,11 +81,12 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
     if (!pickedPoint || pickedPoint === lastAppliedPick.current) return;
     lastAppliedPick.current = pickedPoint;
     setDraft((p) => ({ ...p, x: Math.round(pickedPoint.x * 10) / 10, y: Math.round(pickedPoint.y * 10) / 10, z: Math.round(pickedPoint.z * 10) / 10 }));
+    setZSource(`picked on the view (${pickedPoint.on || "a flat plane through the data"})`); setCollarNote(null); // #1835
   }, [pickedPoint]);
   const applyFromCollar = (holeId) => {
     setFromCollarId(holeId);
     const c = collars.find((h) => h.hole_id === holeId);
-    if (c) setDraft((p) => ({ ...p, name: p.name || `${holeId}-target`, x: c.x, y: c.y, z: c.z }));
+    if (c) { setDraft((p) => ({ ...p, name: p.name || `${holeId}-target`, x: c.x, y: c.y, z: c.z })); setZSource(`collar ${holeId}`); setCollarNote(null); } // zSource: #1835
   };
   const targetReady = ["x", "y", "z"].every((k) => target[k] !== "" && !isNaN(Number(target[k])));
   const fromReady = draft.x !== "" && draft.y !== "" && draft.z !== "" && !isNaN(Number(draft.x)) && !isNaN(Number(draft.y)) && !isNaN(Number(draft.z));
@@ -95,15 +100,32 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
     setDraft((p) => ({ ...p, azimuth: Math.round(shown * 10) / 10, dip: Math.round(dip * 10) / 10, length: Math.round((distance + PAST_TARGET_M) * 10) / 10 })); // #1456 — past the target
     setUpward(dip > 0); // #1557 — a target above the collar: an upward hole, said
   };
+  // TASKS.csv #1835 — the other way round: keep the dip and azimuth, move the collar to where that line through the target meets
+  // the terrain (or the typed Elev when no terrain is loaded)
+  const collarReady = targetReady && Number(draft.dip) < 0 && !isNaN(Number(draft.azimuth)) && !!azOffset && (!!groundAt || (draft.z !== "" && !isNaN(Number(draft.z))));
+  const solveCollar = () => {
+    if (!collarReady) return;
+    const az = wrap360(Number(draft.azimuth) + azOffset.offset); // grid
+    const r = solveCollarForTarget({ x: Number(target.x), y: Number(target.y), z: Number(target.z) }, az, Number(draft.dip), { groundAt: groundAt || null, surfaceZ: draft.z === "" ? NaN : Number(draft.z) });
+    if (!r) { setCollarNote({ warn: true, text: groundAt ? tr("No collar: a line through the target at this dip does not reach the terrain (the target may be above the ground, or the line leaves the terrain).") : tr("No collar: with no terrain the typed Elev stands for the ground, and it must be above the target for a downward hole.") }); return; }
+    setDraft((p) => ({ ...p, x: Math.round(r.x * 10) / 10, y: Math.round(r.y * 10) / 10, z: Math.round(r.z * 10) / 10, length: Math.round((r.length + PAST_TARGET_M) * 10) / 10 }));
+    setZSource(r.source === "terrain" ? "solved on the terrain" : "solved at the typed elevation");
+    setCollarNote({ warn: r.source !== "terrain", text: r.source === "terrain"
+      ? tr("Collar placed where this line meets the terrain, {h} m from the target in plan; the length runs {m} m past the target.", { h: Math.round(r.horizontal), m: PAST_TARGET_M })
+      : tr("No terrain: the collar is placed at the typed Elev {z} m, {h} m from the target in plan. Check that elevation against the ground before using it.", { z: Math.round(r.z * 10) / 10, h: Math.round(r.horizontal) }) });
+    setUpward(false);
+  };
+  const shallow = isShallowDip(Number(draft.dip)); // #1835
   const canAdd = draft.x !== "" && draft.y !== "" && draft.z !== "" && !isNaN(Number(draft.x)) && !isNaN(Number(draft.y)) && !isNaN(Number(draft.z)) && !isNaN(Number(draft.azimuth)) && !isNaN(Number(draft.dip)) && Number(draft.length) > 0 && !!azOffset;
   const gridAz = azOffset ? Math.round(wrap360(Number(draft.azimuth) + azOffset.offset) * 100) / 100 : null;
   const submit = () => {
     if (!canAdd) return;
     onAdd({ name: draft.name.trim() || undefined, x: Number(draft.x), y: Number(draft.y), z: Number(draft.z), azimuth: azRef === "grid" ? Number(draft.azimuth) : gridAz, dip: Number(draft.dip), length: Number(draft.length),
       ...(azRef !== "grid" ? { azimuthEntered: { value: Number(draft.azimuth), ref: azRef, date: today } } : {}), // #1729
+      zSource, // #1835
       ...(targetReady ? { target: { x: Number(target.x), y: Number(target.y), z: Number(target.z) }, pastTargetM: PAST_TARGET_M } : {}) }); // #1456 — the target goes with the hole
     setDraft({ name: "", x: "", y: "", z: "", azimuth: 0, dip: -60, length: 100 });
-    setFromCollarId(""); setTarget({ x: "", y: "", z: "" });
+    setFromCollarId(""); setTarget({ x: "", y: "", z: "" }); setZSource("typed"); setCollarNote(null);
   };
   return (
     <div style={{ padding: "8px 9px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6 }}>
@@ -122,13 +144,14 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
       <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
         <NumField label="E" value={draft.x} onChange={(v) => set("x", v)} />
         <NumField label="N" value={draft.y} onChange={(v) => set("y", v)} />
-        <NumField label={tr("Elev")} value={draft.z} onChange={(v) => set("z", v)} />
+        <NumField label={tr("Elev")} value={draft.z} onChange={(v) => { set("z", v); setZSource("typed"); }} />{/* zSource: #1835 */}
       </div>
       <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
         <NumField label={tr("Az°")} value={draft.azimuth} onChange={(v) => set("azimuth", v)} />
         <NumField label={tr("Dip°")} value={draft.dip} onChange={(v) => set("dip", v)} />
         <NumField label={tr("Length m")} value={draft.length} onChange={(v) => set("length", v)} />
       </div>
+      {shallow && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 5, lineHeight: 1.4 }}>{tr("Dip {d}° is shallow: flatter than about {s}° a rig is hard to set up and the hole wanders more. Keep a dip you can drill and solve the collar for it below, or accept this one knowingly.", { d: draft.dip, s: -SHALLOW_DIP_DEG })}</div>}{/* #1835 */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{/* #1729 */}
         <label>{tr("Azimuth from")} <select value={azRef} onChange={(e) => setAzRef(e.target.value)} aria-label={tr("North reference of the azimuth")} style={{ fontSize: "var(--font-size-xs)" }}>
           <option value="grid">{tr("grid north")}</option><option value="true">{tr("true north")}</option><option value="magnetic">{tr("magnetic north (today)")}</option>
@@ -156,6 +179,8 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
         </div>
         {upward && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 4, lineHeight: 1.4 }}>{tr("The target is above the collar, so the solved hole points upward. From a surface collar that is not a hole you can drill: check the target's elevation.")}</div>}
         <button onClick={solveTarget} disabled={!targetReady || !fromReady} style={{ ...miniBtn, width: "100%", background: targetReady && fromReady ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", borderColor: targetReady && fromReady ? "var(--color-selected-border)" : "var(--color-border-light)", opacity: targetReady && fromReady ? 1 : 0.5 }}>{tr("Solve az/dip/length to target")}</button>
+        <button onClick={solveCollar} disabled={!collarReady} style={{ ...miniBtn, width: "100%", marginTop: 4, opacity: collarReady ? 1 : 0.5 }} title={tr("Keep the azimuth and dip above and move the collar: to where a line through the target at that dip meets the terrain, or the typed Elev when no terrain is loaded")}>{tr("Solve collar for this dip/azimuth")}</button>{/* #1835 */}
+        {collarNote && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: collarNote.warn ? "var(--color-warn-text)" : "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{collarNote.text}</div>}
       </div>
     </div>
   );

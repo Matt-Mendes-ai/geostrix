@@ -251,3 +251,36 @@ export function solveWithDeviation(collar, target, { lift = 0, drift = 0, tol = 
   }
   return best;
 }
+
+// TASKS.csv #1835 (review #1646, Kodiak) — the other way round: keep the dip and azimuth a rig can drill and find the COLLAR. The
+// solver above took any picked collar and returned a -21.8 deg hole to the chargeability high without comment. A line through the
+// target at (azimuth, dip) is walked up-hole until it meets the ground: the terrain (groundAt(x, y) -> z or NaN, iterated until the
+// collar sits on it) or, with no terrain, the typed surface elevation. dip is NEGATIVE below horizontal (the user convention).
+// -> { x, y, z, length (target to collar), horizontal, source: "terrain" | "elevation", iterations, converged } or null (a flat or
+// upward dip, a target above the surface, or ground not found)
+export function solveCollarForTarget(target, azimuth, dip, { groundAt = null, surfaceZ = NaN, maxIter = 25 } = {}) {
+  if (!target || !Number.isFinite(target.x) || !Number.isFinite(target.y) || !Number.isFinite(target.z)) return null;
+  if (!Number.isFinite(azimuth) || !Number.isFinite(dip) || !(dip < 0)) return null;
+  const rad = (v) => (v * Math.PI) / 180;
+  const a = rad(azimuth), d = rad(-dip);
+  const sE = Math.sin(a) * Math.cos(d), sN = Math.cos(a) * Math.cos(d); // per metre down the hole (plan); the hole falls sin(d) per metre
+  const at = (zs) => { const L = (zs - target.z) / Math.sin(d); return { x: target.x - L * sE, y: target.y - L * sN, z: zs, length: L, horizontal: L * Math.cos(d) }; };
+  if (typeof groundAt === "function") {
+    let zs = Number.isFinite(surfaceZ) ? surfaceZ : groundAt(target.x, target.y);
+    if (!Number.isFinite(zs)) return null;
+    let c = at(zs);
+    for (let i = 0; i < maxIter; i++) {
+      if (!(c.length > 0)) return null;
+      const g = groundAt(c.x, c.y);
+      if (!Number.isFinite(g)) return null;
+      if (Math.abs(g - c.z) < 0.05) return { ...c, source: "terrain", iterations: i + 1, converged: true };
+      c = at(g);
+    }
+    return c.length > 0 ? { ...c, source: "terrain", iterations: maxIter, converged: false } : null;
+  }
+  if (!Number.isFinite(surfaceZ) || !(surfaceZ > target.z)) return null;
+  return { ...at(surfaceZ), source: "elevation", iterations: 0, converged: true };
+}
+// a dip flatter than this (below horizontal) is hard to set a rig up for and wanders more: said, not refused (#1835)
+export const SHALLOW_DIP_DEG = 40;
+export const isShallowDip = (dip) => Number.isFinite(dip) && dip < 0 && dip > -SHALLOW_DIP_DEG;
