@@ -11,6 +11,7 @@ import { fitExplicitSurfaceAsync } from "../lib/explicitSurfaceClient.js"; // TA
 import { tinSurface } from "../lib/tinSurface.js"; // TASKS.csv #1958
 import { findOnTraceWorld, traceDirWorld } from "../lib/viewer/modelHelpers.js";
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
+import { voxelCellAt } from "../lib/viewer/identify.js"; // TASKS.csv #1840
 import { dragTarget, holeContacts, nearestContact, SNAP_REACH_M } from "../lib/explicitDrag.js"; // TASKS.csv #813; contacts: #868
 import { mapContactPairs, mapContactLines, dipGuideLines } from "../lib/explicitMapLines.js"; // TASKS.csv #817
 import { imagePlane, rayPlane, facingCamera, densify3, medianApparentDip, sectionSnapTargets, constrainOnImage, groundProfileOnImage, nearestOnPolyline, pointOnSegment, insertPoint, splitAt, joinLines, extendTo } from "../lib/sectionDigitize3d.js"; // TASKS.csv #824 / #825 / #828
@@ -73,7 +74,19 @@ function pickFromHits(hits, raycaster, sc, snap) {
     if (w) return { id, x: w[0], y: w[1], z: w[2], hole_id: row.hole_id, md, src: c ? "boundary" : "trace", ...(c ? { above: c.above, below: c.below } : {}) };
   }
   const w = sc.worldPointFromHits(raycaster, hits);
-  return w ? { id, x: w.x, y: w.y, z: w.z, src: "point" } : null;
+  if (!w) return null;
+  // TASKS.csv #1840 (review #1646, Kodiak) — a pick on a block model's face carries the value of the block it landed on: four
+  // picks on a chargeability model's faces became a surface with nothing saying what values they sat on
+  const vh = hits.find((h) => h.object.userData?.srcModel), o = sc.origin?.current;
+  if (vh && o) {
+    const e = vh.point.x + o.x, n = o.y - vh.point.z, z = vh.point.y + o.z;
+    if (Math.hypot(e - w.x, n - w.y, z - w.z) < 0.5) {
+      const m = vh.object.userData.srcModel, d = raycaster.ray.direction, step = 0.01 * Math.min(m.dx || 1, m.dy || 1, m.dz || 1, 1);
+      const c = voxelCellAt(m, e + d.x * step, n - d.z * step, z + d.y * step);
+      if (c) return { id, x: w.x, y: w.y, z: w.z, src: "point", onModel: { model: m.name, property: m.property || "", value: m.valueLabels?.[c.value] ?? (Number.isFinite(c.value) ? +c.value.toPrecision(4) : String(c.value)) } };
+    }
+  }
+  return { id, x: w.x, y: w.y, z: w.z, src: "point" };
 }
 
 // a build result -> the explicit surface's generated surface: replaced in place (same id, so its list entry, style and
@@ -136,6 +149,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
       const own = defRef.current?.id === pickFor && defRef.current.surfaceId ? sc.meshes.current[defRef.current.surfaceId] : null;
       const pick = pickFromHits(own ? hits.filter((h) => h.object !== own && h.object.parent !== own) : hits, raycaster, sc, snap);
       if (pick) setDefs((p) => p.map((d) => (d.id === pickFor ? { ...d, picks: [...(d.picks || []), pick] } : d)));
+      if (pick?.onModel) setStatus({ ok: true, text: tr("Picked on \"{model}\": the block there is {prop} {v}. The pick sits on that block's face, where the model is drawn at its current range, not on an interpolated value.", { model: pick.onModel.model, prop: pick.onModel.property || tr("value"), v: pick.onModel.value }) }); // #1840
     };
   }, [sc, snap, pickFor, setDefs]);
   useEffect(() => () => { sc.clickRef.current = null; setPickFor(null); }, []); // on unmount only
@@ -196,7 +210,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
       { ...live, id, name: tr("{name} (kept {at})", { name: def.name, at: at.slice(0, 16).replace("T", " ") }), type: "explicit_surface_kept", relationships: [], params: { ...p, keptAt: at, keptFrom: def.name, picksWhenKept: (def.picks || []).length }, supersedes: live.supersedes, accepted: false }]);
     setKeptNote(tr("Kept this build as a version in the surface list; this surface now supersedes it."));
   };
-  const pickLabel = (p) => `${p.hole_id ? tr("{hole} at {md} m ({how})", { hole: p.hole_id, md: Number(p.md).toFixed(1), how: p.above ? `${p.above} | ${p.below}` : p.src === "boundary" ? tr("logged contact") : tr("on the trace") }) : tr("3D point")} · ${Math.round(p.z)} m`;
+  const pickLabel = (p) => `${p.hole_id ? tr("{hole} at {md} m ({how})", { hole: p.hole_id, md: Number(p.md).toFixed(1), how: p.above ? `${p.above} | ${p.below}` : p.src === "boundary" ? tr("logged contact") : tr("on the trace") }) : p.onModel ? tr("3D point on {model} ({prop} {v})", { model: p.onModel.model, prop: p.onModel.property || tr("value"), v: p.onModel.value }) : tr("3D point")} · ${Math.round(p.z)} m`; // onModel: #1840
   const keepShallowest = () => { const best = new Map(); for (const p of def.picks) if (p.hole_id && (!best.has(p.hole_id) || p.md < best.get(p.hole_id).md)) best.set(p.hole_id, p); update({ picks: def.picks.filter((p) => !p.hole_id || best.get(p.hole_id) === p) }); };
   // TASKS.csv #817 — mapped contacts (draped on the terrain) and their dip guides as further hard lines
   const polys = useMemo(() => (mapLayers || []).filter((l) => l.geomType === "polygon"), [mapLayers]);

@@ -8119,5 +8119,10 @@
   "Imported the template \"{name}\" ({n} element(s)).": "استُورد القالب \"{name}\" ({n} عنصر).",
   "Imported the template \"{name}\" ({n} element(s)); {d} element(s) it could not use were left out.": "استُورد القالب \"{name}\" ({n} عنصر)؛ وتُرك {d} عنصر تعذّر استخدامه.",
   "Replace the current page with \"{name}\"? (Ctrl+Z undoes this.)": "استبدال الصفحة الحالية بـ \"{name}\"؟ (يتراجع Ctrl+Z عن ذلك.)",
-  "Delete page \"{name}\"? (Ctrl+Z undoes this.)": "حذف الصفحة \"{name}\"؟ (يتراجع Ctrl+Z عن ذلك.)"
+  "Delete page \"{name}\"? (Ctrl+Z undoes this.)": "حذف الصفحة \"{name}\"؟ (يتراجع Ctrl+Z عن ذلك.)",
+  " (up to {d} m from the nearest)": " (حتى {d} م من الأقرب)",
+  "\"{name}\" is {p}% beyond its {k} pick(s) and {l} section line(s){far}": "\"{name}\" يقع {p}% منه خارج نقاطه الـ{k} وخطوط المقطع الـ{l}{far}",
+  "3D point on {model} ({prop} {v})": "نقطة ثلاثية الأبعاد على {model} ({prop} {v})",
+  "Mostly extrapolation: {list}. The volume and thickness above are those surfaces extended, not measured; add contacts where the solid matters.": "استقراء في معظمه: {list}. الحجم والسماكة أعلاه هما تلك الأسطح ممتدة، لا مقيسة؛ أضف تماسات حيث يهم المجسم.",
+  "Picked on \"{model}\": the block there is {prop} {v}. The pick sits on that block's face, where the model is drawn at its current range, not on an interpolated value.": "نقطة على \"{model}\": الكتلة هناك {prop} {v}. تقع النقطة على وجه تلك الكتلة، حيث يُرسم النموذج بنطاقه الحالي، لا على قيمة مستكملة."
 }

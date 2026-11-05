@@ -8119,5 +8119,10 @@
   "Imported the template \"{name}\" ({n} element(s)).": "Se importó la plantilla \"{name}\" ({n} elemento(s)).",
   "Imported the template \"{name}\" ({n} element(s)); {d} element(s) it could not use were left out.": "Se importó la plantilla \"{name}\" ({n} elemento(s)); se omitieron {d} elemento(s) que no se pudieron usar.",
   "Replace the current page with \"{name}\"? (Ctrl+Z undoes this.)": "¿Reemplazar la página actual por \"{name}\"? (Ctrl+Z lo deshace.)",
-  "Delete page \"{name}\"? (Ctrl+Z undoes this.)": "¿Eliminar la página \"{name}\"? (Ctrl+Z lo deshace.)"
+  "Delete page \"{name}\"? (Ctrl+Z undoes this.)": "¿Eliminar la página \"{name}\"? (Ctrl+Z lo deshace.)",
+  " (up to {d} m from the nearest)": " (hasta {d} m del más cercano)",
+  "\"{name}\" is {p}% beyond its {k} pick(s) and {l} section line(s){far}": "\"{name}\" está en un {p}% más allá de sus {k} punto(s) y {l} línea(s) de sección{far}",
+  "3D point on {model} ({prop} {v})": "Punto 3D en {model} ({prop} {v})",
+  "Mostly extrapolation: {list}. The volume and thickness above are those surfaces extended, not measured; add contacts where the solid matters.": "Mayormente extrapolación: {list}. El volumen y el espesor de arriba son esas superficies extendidas, no medidas; agregue contactos donde el sólido importa.",
+  "Picked on \"{model}\": the block there is {prop} {v}. The pick sits on that block's face, where the model is drawn at its current range, not on an interpolated value.": "Punto en \"{model}\": el bloque ahí tiene {prop} {v}. El punto queda en la cara de ese bloque, donde el modelo se dibuja con su rango actual, no sobre un valor interpolado."
 }

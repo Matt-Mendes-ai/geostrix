@@ -129,6 +129,7 @@ import { buildVectorFeatures as buildVectorFeaturesOf } from "../lib/viewer/vect
 import { isRepeatClick } from "../lib/interpretation.js"; // TASKS.csv #1152
 import { syncInterpretPreview } from "../lib/viewer/interpretDraw.js"; // TASKS.csv #1152
 import { outlinesKey, blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
+import { extrapolationNotice } from "../lib/extrapolatedInputs.js"; // #1840
 import { unitShell, meshVolume, blockUnitStats } from "../lib/unitVolumes.js"; // TASKS.csv #517; blockUnitStats: #877
 const ModellingCodesPane = React.lazy(() => import("../components/ModellingCodesPane.jsx")); // TASKS.csv #599 — modelling view only, so loaded on demand (#476 budget)
 import { resolveLayerStyle, cleanLayerStyle, TUBE_SEGMENTS } from "../lib/layerStyle.js"; // TASKS.csv #635
@@ -3753,6 +3754,7 @@ ${describeTrend(t)}` };
       setNotices((p) => [...p, notice("Vein solid from \"{a}\" and \"{b}\": {v} m³, true thickness {t0}–{t1} m (mean {tm} m), {dip}° dip towards {dd}°. It ends where either wall ends and is stepped at {cell} m cells along its edges.{pinch}", {
         a: hw.name, b: fw.name, v: Math.round(w.volume).toLocaleString(), t0: w.thickness.min.toFixed(1), t1: w.thickness.max.toFixed(1), tm: w.thickness.mean.toFixed(1), dip: w.dip.toFixed(0), dd: w.dipDir.toFixed(0), cell: w.cellM.toFixed(1),
         pinch: w.pinchedNodes ? tr(" The walls meet or cross at {n} grid node(s); the solid stops there.", { n: w.pinchedNodes }) : "" })]);
+      { const xn = extrapolationNotice([hw, fw]); if (xn) setNotices((p) => [...p, xn]); } // #1840
     } catch (e) { setNotices((p) => [...p, e]); }
   };
   const surfaceSolidsBuilt = (lb, sum) => {
@@ -3770,6 +3772,7 @@ ${describeTrend(t)}` };
     setNotices((p) => [...p, notice("Built {n} blocks ({nx} × {ny} × {nz}) from the surfaces: {units}. Use \"Add unit volumes (closed)\" or \"Add as block model\" in the Last model box above the surface list.{v}", { n: sum.resolution.reduce((a, b) => a * b, 1).toLocaleString(), nx: sum.resolution[0], ny: sum.resolution[1], nz: sum.resolution[2], units: units || tr("no unit cells"), v: (partial.length ? (sum.extended /* #1138 */ ? tr(" Contacts were extended past their own edges until they meet ({list} as drawn).", { list: partial.join("; ") }) : tr(" Beyond a top's footprint the unit above it continues down: {list}.", { list: partial.join("; ") })) : "")
       + (sum.inverted?.baseAboveTop ? tr(" In {n} of {m} columns a unit's base lies above its own top (negative thickness): the blocks there follow the rules but not the geology.", { n: sum.inverted.baseAboveTop, m: sum.inverted.columns }) : "") // #860
       + (sum.inverted?.crossingTops ? tr(" In {n} of {m} columns the tops cross (a lower unit's top above a higher one's): check the stack order and the surfaces there.", { n: sum.inverted.crossingTops, m: sum.inverted.columns }) : "") })]);
+    { const xn = extrapolationNotice(implicitSurfaces.filter((s) => lb.source?.ids?.includes(s.id))); if (xn) setNotices((p) => [...p, xn]); } // #1840
   };
   // TASKS.csv #891 — the cheap step (coding the blocks) is guarded at 2 M cells; what follows is not cheap: a block model
   // holds one object per unit cell (~210 bytes each: 1.64 M cells took +340 MB in the #855 review) and unit volumes build
