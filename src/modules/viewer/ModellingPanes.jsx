@@ -9,7 +9,7 @@ import { Activity, Calculator, ChevronDown, ChevronRight, ChevronUp, Compass, Dr
 import { BLOCK_BUDGETS, ESTIMATION_METHODS, MAX_BLOCKS } from "../../lib/estimationMeta.js";
 import InfoButton from "../../components/InfoButton.jsx";
 import { PRECIOUS_METALS } from "../../lib/geochem.js";
-import { Fragment, Suspense, useCallback, useMemo, useState } from "react";
+import { Fragment, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { withChangeLog } from "../../lib/explicitLog.js"; // TASKS.csv #878
 import { activateOnKey, iconAction } from "../../lib/a11y.js";
 import { colorForLithology, isCrossCuttingRole, roleForLithology } from "../../lib/layers.js";
@@ -239,6 +239,22 @@ export default function ModellingPanes(props) {
   // object every render, so the pane's effects that list it re-ran on every render)
   const explicitScene = useMemo(() => ({origin: originRef, meshes: implicitMeshesRef, group: implicitGroupRef, traces: tracesRef, activity: lastActivityRef, setSurfaces: setImplicitSurfaces, worldPointFromHits, clickRef: explicitClickRef,
               dragHookRef: viewDragHookRef, camera: cameraRef, renderer: rendererRef, overlay: explicitOverlayRef, litho: layers.litho /* #813 */, structure: layers.structure /* #1002 */, camState /* #824 */ }), [originRef, implicitMeshesRef, implicitGroupRef, tracesRef, lastActivityRef, setImplicitSurfaces, worldPointFromHits, explicitClickRef, viewDragHookRef, cameraRef, rendererRef, explicitOverlayRef, layers.litho, layers.structure, camState]); // TASKS.csv #878 — every edit of a surface goes in its history
+  // TASKS.csv #1543 — each fault candidate's Fisher k in 'Add a fault...' (random picks said before anyone picks them); stereonet.js
+  // (38 kB) loads only when the Strat. stack pane opens with candidates
+  const [faultK, setFaultK] = useState({});
+  useEffect(() => {
+    if (toolPane !== "stack" || !faultCandidates.length) return undefined;
+    let live = true;
+    import("../../lib/stereonet.js").then(({ fisherStats }) => {
+      if (!live) return;
+      const by = new Map();
+      (layers.structure || []).forEach((s) => { if (!Number.isFinite(s.dip) || !Number.isFinite(s.azimuth)) return; const key = `${s.value}|${s.structure_id || ""}`; if (!by.has(key)) by.set(key, []); by.get(key).push(s); });
+      const out = {};
+      by.forEach((rows, key) => { const fs = rows.length >= 4 ? fisherStats(rows) : null; if (fs) out[key] = { k: fs.k, random: !!fs.noPreferred }; });
+      setFaultK(out);
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [toolPane, faultCandidates, layers.structure]);
   const [unitBody, setUnitBody] = useState({ iso: 0.5, largest: false, search: 0, cell: 0 }); // TASKS.csv #1340 — its own settings: a rock unit is not an alteration halo
   const mcodesView = useMemo(() => ({ scene: sceneRef, groups: layerGroupsRef, camera: cameraRef, renderer: rendererRef, traces: tracesRef, activity: lastActivityRef, dragHook: viewDragHookRef }), [sceneRef, layerGroupsRef, cameraRef, rendererRef, tracesRef, lastActivityRef, viewDragHookRef]);
   const topsOfUnit = useCallback((unit) => {
@@ -720,7 +736,7 @@ export default function ModellingPanes(props) {
           {/* TASKS.csv #1225 — bedding and fractures are not faults: apart, for a geologist who knows a code the name does not show */}
           {[[true, tr("Named as faults")], [false, tr("Other structure types")]].map(([like, label]) => {
             const list = faultCandidates.filter((c) => !stackFaults.includes(c.key) && !!c.faultLike === like);
-            return list.length ? <optgroup key={label} label={label}>{list.map((c) => <option key={c.key} value={c.key}>{c.id ? `${c.type} — ${c.id}` : tr("{type} (all picks)", { type: c.type })} · {tr(c.n === 1 ? "{n} pick" : "{n} picks", { n: c.n })}</option>)}</optgroup> : null;
+            return list.length ? <optgroup key={label} label={label}>{list.map((c) => <option key={c.key} value={c.key}>{c.id ? `${c.type} — ${c.id}` : tr("{type} (all picks)", { type: c.type })} · {tr(c.n === 1 ? "{n} pick" : "{n} picks", { n: c.n })}{faultK[c.key] ? (faultK[c.key].random ? tr(" · k {k}, no preferred orientation", { k: Number(faultK[c.key].k).toFixed(1) }) : tr(" · k {k}", { k: Number.isFinite(faultK[c.key].k) ? Number(faultK[c.key].k).toFixed(0) : "∞" })) : ""}</option>)}</optgroup> : null;
           })}
         </select>
         {stackFaults.map((k, fi) => {

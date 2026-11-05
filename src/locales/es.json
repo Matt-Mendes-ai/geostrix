@@ -8261,5 +8261,7 @@
   "Logged codes": "Códigos registrados",
   " (an older run)": " (una ejecución anterior)",
   "{list}: the picks show no preferred orientation (at the level of random planes), so the fault surface made from them is not a real plane. Run the stack anyway?": "{list}: los picks no muestran orientación preferente (al nivel de planos aleatorios), así que la superficie de falla que forman no es un plano real. ¿Ejecutar el stack de todas formas?",
-  "Stack run cancelled before solving: check the fault picks on the Stereonet, or give each structure its own name / ID.": "Ejecución del stack cancelada antes de resolver: revise los picks de la falla en el estereograma o dé a cada estructura su propio nombre / ID."
+  "Stack run cancelled before solving: check the fault picks on the Stereonet, or give each structure its own name / ID.": "Ejecución del stack cancelada antes de resolver: revise los picks de la falla en el estereograma o dé a cada estructura su propio nombre / ID.",
+  " · k {k}, no preferred orientation": " · k {k}, sin orientación preferente",
+  " · k {k}": " · k {k}"
 }
