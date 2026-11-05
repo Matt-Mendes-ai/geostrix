@@ -8185,5 +8185,9 @@
   "One colour per distinct value instead of classes": "لون لكل قيمة مختلفة بدلاً من الفئات",
   "Graduated classes": "فئات متدرجة",
   "Legend ({n} classes)": "مفتاح الخريطة ({n} فئات)",
-  "{name}: a table, not a map layer. Sample points with coordinates (rock, soil, stream) go in Geochem > Surface samples; structural measurements in Outcrop structures.": "{name}: جدول وليس طبقة خريطة. نقاط العينات ذات الإحداثيات (صخور، تربة، رواسب) تُستورد من Geochem > Surface samples؛ والقياسات البنيوية من Outcrop structures."
+  "{name}: a table, not a map layer. Sample points with coordinates (rock, soil, stream) go in Geochem > Surface samples; structural measurements in Outcrop structures.": "{name}: جدول وليس طبقة خريطة. نقاط العينات ذات الإحداثيات (صخور، تربة، رواسب) تُستورد من Geochem > Surface samples؛ والقياسات البنيوية من Outcrop structures.",
+  "{s} surface sample(s) and {c} collar(s) of this project": "{s} عينة سطحية و{c} فوهة من هذا المشروع",
+  "Triangulates the elevations the project's surface samples and drill collars already carry: offline, no file needed. Only as good as those elevations (GPS heights are rough).": "يثلّث الارتفاعات الموجودة أصلاً في العينات السطحية وفوهات الحفر في المشروع: دون اتصال ودون ملف. دقته بقدر دقة تلك الارتفاعات (ارتفاعات GPS تقريبية).",
+  "Terrain from this project's samples and collars ({n})": "تضاريس من عينات المشروع وفوهاته ({n})",
+  "No terrain: the contacts' dips cannot be fitted and the model cannot run. Fetch one (Maps > Terrain, needs the internet), import a DEM, or offline make one in Maps > Terrain from points or contours, from the project's samples and collars, or from a block model's top (Geophysics > Block models).": "لا توجد تضاريس: لا يمكن ملاءمة ميول التماسات ولا يمكن تشغيل النموذج. اجلب واحدة (Maps > Terrain، تحتاج إلى الإنترنت)، أو استورد نموذج ارتفاع رقمي، أو أنشئ واحدة دون اتصال في Maps > Terrain من نقاط أو خطوط كنتور، أو من عينات المشروع وفوهاته، أو من سطح نموذج كتلي (Geophysics > Block models)."
 }

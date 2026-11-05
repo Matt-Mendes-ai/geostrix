@@ -99,10 +99,14 @@ export function terrainFromPoints({ points = [], lines = [] } = {}, { gridMax = 
 export function guessXYZ(headers) {
   const norm = (h) => String(h).trim().toLowerCase().replace(/[\s_()-]+/g, "");
   const find = (names) => headers.find((h) => names.includes(norm(h))) ?? null;
+  // TASKS.csv #1599 (review #1497, Lawyers) — the surface-sample spellings too (importHelpers SURFACE_XY_ALIASES: e_utm / n_utm,
+  // utm_east, x_utm) and elev_m / elev_dem_m; a header starting "elev" when nothing else matched. The soils CSV was refused.
+  const z = find(["z", "elev", "elevation", "elevationm", "elevm", "elevdemm", "elevdem", "rl", "height", "alt", "altitude", "zm", "h", "zutm"])
+    ?? headers.find((h) => norm(h).startsWith("elev")) ?? null;
   return {
-    x: find(["x", "east", "easting", "e", "utme", "eastingm", "xm", "lon", "longitude"]),
-    y: find(["y", "north", "northing", "n", "utmn", "northingm", "ym", "lat", "latitude"]),
-    z: find(["z", "elev", "elevation", "elevationm", "rl", "height", "alt", "altitude", "zm", "h"]),
+    x: find(["x", "east", "easting", "e", "utme", "eutm", "utmeast", "xutm", "eastingm", "xm", "lon", "longitude"]),
+    y: find(["y", "north", "northing", "n", "utmn", "nutm", "utmnorth", "yutm", "northingm", "ym", "lat", "latitude"]),
+    z,
   };
 }
 
