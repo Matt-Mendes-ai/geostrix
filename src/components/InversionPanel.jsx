@@ -35,7 +35,7 @@ import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #170
 import { SURVEY_METHODS, methodIsInvertible } from "../lib/geophysSurveys.js"; // TASKS.csv #1151
 
 const METHODS = {
-  mag: { label: "Magnetics (TMI)", unit: "nT", confirm: "These values are the total-field ANOMALY in nT — the IGRF/regional field has already been removed (not RTP, not a derivative, not the raw total field).", property: "susceptibility (SI)", contrastLabel: "Susceptibility (SI)" },
+  mag: { label: "Magnetics (TMI)", unit: "nT", confirm: "These values are the total magnetic field in nT as measured (not RTP, not a derivative): either the anomaly, with the IGRF / regional field removed in processing, or the raw total field over an area small enough that its regional field is a plane, which Remove base level > Best-fit plane takes out. GeoStrix does not remove the IGRF itself.", property: "susceptibility (SI)", contrastLabel: "Susceptibility (SI)" },
   grav: { label: "Gravity (gz)", unit: "mGal", confirm: "These values are Bouguer/residual gravity in mGal, positive over dense rock (terrain-corrected, regional removed).", property: "density contrast (g/cc)", contrastLabel: "Density contrast (g/cc)" },
 };
 
@@ -130,6 +130,11 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     if (!confirmed) problems.push(tr("Confirm what the data values are."));
     if (surveys.length > 1 && !activeSurvey) problems.push(tr("Choose which imported survey to model — several are loaded and they must not be mixed."));
     if (!zMode) problems.push(tr("Say what the station z values mean."));
+    if (zMode === "ground" && !(num(sensorHeight) > 0)) problems.push(tr("Enter the sensor height above the ground elevation in the z column.")); // #1969
+    // TASKS.csv #1969 — a derivative, a filtered product or another method is not the field this inverts: blocked, not only warned
+    if (activeSurvey && geophysSurveys?.[activeSurvey]?.method && !methodIsInvertible(geophysSurveys[activeSurvey].method)) problems.push(tr("This survey is labelled {label}: only the measured total field and Bouguer gravity are inverted here. Change its Method in Point survey if the label is wrong.", { label: tr(SURVEY_METHODS[geophysSurveys[activeSurvey].method]?.label || geophysSurveys[activeSurvey].method) }));
+    // TASKS.csv #1969 — the raw total field with nothing removed is not an anomaly: the run would model the Earth's field
+    if (method === "mag" && baseLevel === "none" && rows.length) { const mean = rows.reduce((a, r) => a + r.value, 0) / rows.length; if (Math.abs(mean) > 10000) problems.push(tr("These values average {v} nT: the raw total field. With no base level removed the inversion would model the Earth's own field. Choose Best-fit plane under Remove base level, or remove the regional field in your processing first.", { v: Math.round(mean).toLocaleString() })); }
     if (zMode === "drape" && !(num(sensorHeight) > 0)) problems.push(tr("Enter the sensor height above the terrain."));
     if (zMode === "drape" && !terrain) problems.push(tr("A terrain surface is needed to drape the stations on."));
     if (kind === "inversion" && !terrain) problems.push(tr("An inversion needs a terrain surface (Maps > Terrain) to know which cells are underground."));
@@ -156,7 +161,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     const stations = [], observed = [];
     idx.forEach((i) => {
       const r = rows[i];
-      const z = zMode === "sensor" ? r.z : terrainElevationAt(terrain, r.x, r.y) + num(sensorHeight);
+      const z = zMode === "sensor" ? r.z : zMode === "ground" ? r.z + num(sensorHeight) /* #1969 — a ground survey's z is the ground */ : terrainElevationAt(terrain, r.x, r.y) + num(sensorHeight);
       if (!Number.isFinite(z)) { dropped++; return; }
       stations.push([r.x, r.y, z]); observed.push(r.value);
     });
@@ -250,8 +255,8 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
         : regStyle === "compact"
         ? "One compact (sparse-norm) model that fits the data to the stated uncertainty — not the only one. It assumes the source is a few compact bodies with sharp edges, so it draws them tighter and nearer their true depth than the smooth model, but the peak value can overshoot. Compare it with the smooth model: what both agree on is better supported. Not a geological boundary, not an orebody, not a volume."
         : "One smooth (L2) model that fits the data to the stated uncertainty — not the only one. Amplitudes are underestimated and bodies are smeared with depth. Not a geological boundary, not an orebody, not a volume.",
-      dataUnits: M.unit, dataStatement: M.confirm, stationZ: zMode === "sensor" ? "sensor elevation (z column)" : `terrain + ${num(sensorHeight)} m (draped — an assumption)`,
-      stationZDatum: zMode === "sensor" ? { same: "same vertical datum as the terrain (stated by user)", ellipsoidal: "GPS ellipsoidal heights (stated by user) — the terrain is geoid-based, so clearance is off by the local geoid height", unknown: "not known" }[zDatum] : "draped on the terrain", // #369
+      dataUnits: M.unit, dataStatement: M.confirm, stationZ: zMode === "sensor" ? "sensor elevation (z column)" : zMode === "ground" ? `ground elevation (z column) + ${num(sensorHeight)} m sensor height` : `terrain + ${num(sensorHeight)} m (draped — an assumption)`,
+      stationZDatum: zMode === "sensor" || zMode === "ground" ? { same: "same vertical datum as the terrain (stated by user)", ellipsoidal: "GPS ellipsoidal heights (stated by user) — the terrain is geoid-based, so clearance is off by the local geoid height", unknown: "not known" }[zDatum] : "draped on the terrain", // #369
       sensorClearanceM: p.clearance || null, // #369
       stationsUsed: p.meta.stationsUsed, stationsTotal: p.meta.stationsTotal, thinnedToM: p.meta.thinnedTo, droppedOutsideTerrain: p.meta.dropped,
       uncertainty: { floor: num(unc.floor), percent: Number.isFinite(num(unc.percent)) ? num(unc.percent) : 0, units: M.unit, source: "entered by user" },
@@ -381,7 +386,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
             <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Invert a survey to a 3D model, or test a body against it")}</span>
           </span>
         </span>
-        <InfoButton title={tr("Magnetics / gravity modelling")} width={420} text={tr("Uses SimPEG (simpeg.xyz, MIT) in GeoStrix's Python engine, on the survey points loaded in Point cloud above. Test a body: forward-models a dipping plate you define and compares its response with your data — the most direct way to ask whether a mapped or drilled body explains the anomaly. A dip sweep shows whether the data can tell the dip at all. Invert: finds ONE smooth 3D susceptibility or density-contrast model that fits the data to the uncertainty you give it. Many other models fit equally well; the smooth one is simply the least complicated. Expect amplitudes to be underestimated and bodies to be blurred and deeper-looking than reality. Remanent magnetization (common in pyrrhotite-bearing rocks) breaks the assumption behind a susceptibility inversion. Nothing physical is assumed for you: data type, station heights, the inducing field and the data uncertainty must all be entered.")} />
+        <InfoButton title={tr("Magnetics / gravity modelling")} width={420} text={tr("Uses SimPEG (simpeg.xyz, MIT) in GeoStrix's Python engine, on the survey points loaded in Point survey. Test a body: forward-models a dipping plate you define and compares its response with your data — the most direct way to ask whether a mapped or drilled body explains the anomaly. A dip sweep shows whether the data can tell the dip at all. Invert: finds ONE smooth 3D susceptibility or density-contrast model that fits the data to the uncertainty you give it. Many other models fit equally well; the smooth one is simply the least complicated. Expect amplitudes to be underestimated and bodies to be blurred and deeper-looking than reality. Remanent magnetization (common in pyrrhotite-bearing rocks) breaks the assumption behind a susceptibility inversion. Nothing physical is assumed for you: data type, station heights, the inducing field and the data uncertainty must all be entered.")} />
       </div>
       </>)}
       {open && (
@@ -389,7 +394,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
           {engine === null && <div style={small}>{tr("Starting the Python engine…")}</div>}
           {engine && !engine.ok && <div style={small}>{tr("Needs GeoStrix's Python engine, which could not be started (status bar: Py). The desktop app starts it when a feature needs it; if it never comes up, click \"Py\" in the status bar for what to check.")}</div>}
           {engine && engine.ok && !engine.available && <div style={small}>{tr("The running Python engine has no SimPEG — update GeoStrix to a version that includes it.")}</div>}
-          {engine?.available && !allRows.length && <div style={small}>{tr("Import a magnetic or gravity survey in Point cloud (CSV) above first — x, y, z and the measured value per station.")}</div>}
+          {engine?.available && !allRows.length && <div style={small}>{tr("Import a magnetic or gravity survey in Geophysics > Point survey first — x, y, z and the measured value per station.")}</div>}
           {/* TASKS.csv #364 — one survey per model; imported surveys are never mixed. */}
           {engine?.available && surveys.length > 1 && (
             <label style={{ ...small, display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>{tr("Survey to model ({surveys} imported — they are never mixed)", { surveys: surveys.length })}<select value={survey} onChange={(e) => { setSurvey(e.target.value); setPlan(null); }} style={{ ...numInput, width: "100%" }}>
@@ -424,10 +429,11 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                 <div role="radiogroup" aria-label={tr("What the station z values are")} style={{ marginTop: 6 }}>
                   <div style={small}>{tr("Station heights:")}</div>
                   <label style={{ ...row, marginTop: 2, cursor: "pointer" }}><input type="radio" name="inv-z" checked={zMode === "sensor"} onChange={() => setZMode("sensor")} />{" "}{tr("z column is the sensor elevation")}</label>
+                  <label style={{ ...row, marginTop: 2, cursor: "pointer" }} title={tr("A ground survey: the z column is the ground at each station (GPS or surveyed), and the sensor sits a set height above it.")}><input type="radio" name="inv-z" checked={zMode === "ground"} onChange={() => setZMode("ground")} />{" "}{tr("z column is the ground; add the sensor height")}</label>{/* #1969 */}
                   <label style={{ ...row, marginTop: 2, cursor: "pointer" }}><input type="radio" name="inv-z" checked={zMode === "drape"} onChange={() => setZMode("drape")} />{" "}{tr("Sensor is a fixed height above terrain")}</label>
-                  {zMode === "drape" && <div style={row}><span style={lbl}>{tr("Height above ground")}</span><input type="number" min={0} value={sensorHeight} onChange={(e) => setSensorHeight(e.target.value)} style={inp} /> m</div>}
+                  {(zMode === "drape" || zMode === "ground") && <div style={row}><span style={lbl}>{tr("Height above ground")}</span><input type="number" min={0} value={sensorHeight} onChange={(e) => setSensorHeight(e.target.value)} style={inp} /> m</div>}
                   {/* TASKS.csv #369 — GPS heights are usually ellipsoidal; SRTM/most DEMs are geoid (EGM96) based. */}
-                  {zMode === "sensor" && (
+                  {(zMode === "sensor" || zMode === "ground") && (
                     <div style={row} title={tr("SRTM and most DEMs give heights above the geoid (EGM96). Raw GPS heights are above the ellipsoid, about 15-20 m different in northwest BC — 40-50% of a 30-40 m helicopter survey's clearance.")}>
                       <span style={lbl}>{tr("z datum")}</span>
                       <select value={zDatum} onChange={(e) => setZDatum(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Vertical datum of the station z values")}>
@@ -437,7 +443,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                       </select>
                     </div>
                   )}
-                  {zMode === "sensor" && zDatum !== "same" && <div style={{ ...small, color: "var(--color-danger-fg)" }}>{tr("Station heights on a different datum from the terrain shift every clearance by the geoid height (roughly 15-20 m here). Check the clearance figures from \"Estimate size\" against the contractor's nominal survey height before trusting depths.")}</div>}
+                  {(zMode === "sensor" || zMode === "ground") && zDatum !== "same" && <div style={{ ...small, color: "var(--color-danger-fg)" }}>{tr("Station heights on a different datum from the terrain shift every clearance by the geoid height (roughly 15-20 m here). Check the clearance figures from \"Estimate size\" against the contractor's nominal survey height before trusting depths.")}</div>}
                 </div>
                 <div style={row} title={tr("Keep one station per cell of this size. Every station costs a row of the sensitivity matrix, and neighbouring readings along a line add little. Leave empty to use every station.")}>
                   <span style={lbl}>{tr("Thin to one per")}</span><input type="number" min={0} value={thin} onChange={(e) => setThin(e.target.value)} style={inp} /> m
