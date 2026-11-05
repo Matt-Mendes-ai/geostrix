@@ -27,6 +27,7 @@ import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1461
 import { fetchAreaBox } from "../lib/dataExtent.js"; // #1461
 import RasterColourControls from "../components/RasterColourControls.jsx"; // TASKS.csv #1236
 import { gridCellText } from "../lib/raster.js"; // TASKS.csv #1242
+import { detectKeyColour } from "../lib/rasterKey.js"; // TASKS.csv #1623
 
 // TASKS.csv — split out of the Geophysics module into its own tab (user request: "let's make a
 // separate Module for Raster, not within geophysics"). Geophysics had accumulated point-cloud/UBC
@@ -509,6 +510,19 @@ export default function RasterModule({ embedded = false } = {}) {
               <input type="number" value={Math.round(r.elevation)} disabled={r.drapeMode === "terrain"} onChange={(e) => updateRaster(r.id, { elevation: Number(e.target.value) })} style={numInput} />
             </div>
             {r.grid && !r.ternary && <RasterColourControls raster={r} onUpdate={updateRaster} inputStyle={numInput} />}{/* #1236 */}
+            {!r.grid && r.dataUrl && ( /* TASKS.csv #1623 - a colour picture's background (white fill) shown transparent */
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", flex: 1, minWidth: 0 }}>
+                  <input type="checkbox" checked={!!r.keyColour} onChange={async (e) => {
+                    if (!e.target.checked) { updateRaster(r.id, { keyColour: null }); return; }
+                    const k = await detectKeyColour(r.dataUrl);
+                    updateRaster(r.id, { keyColour: k?.colour || "#ffffff" });
+                  }} />
+                  <span style={{ color: "var(--color-text-caption)" }}>{tr("Transparent colour")}</span>
+                </label>
+                {r.keyColour && <input type="color" value={r.keyColour} onChange={(e) => updateRaster(r.id, { keyColour: e.target.value })} title={tr("This colour (and colours within a few shades of it) is not drawn")} style={{ width: 28, height: 20, padding: 0, border: "1px solid var(--color-border)", background: "none" }} />}
+              </div>
+            )}
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Opacity")}</span>
               <input type="range" min={0.1} max={1} step={0.05} value={r.opacity ?? 0.85} onChange={(e) => updateRaster(r.id, { opacity: Number(e.target.value) })} style={{ flex: 1 }} />

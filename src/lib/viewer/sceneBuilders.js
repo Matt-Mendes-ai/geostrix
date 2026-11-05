@@ -9,6 +9,7 @@ import { sampleTerrainElevation } from "./geomath.js";
 import { drawMapLayer, mapStyleSignature, mapTextureSize, STRUCTURE_CLASS_COLORS, featureCategoryValue } from "../mapLayers.js"; // featureCategoryValue: #1601
 import { decodeNoDataMask, isNoData } from "../demFill.js"; // TASKS.csv #421
 import { buildAdaptiveTerrain } from "../terrainMesh.js"; // TASKS.csv #796
+import { keyedCanvas } from "../rasterKey.js"; // TASKS.csv #1623
 
 // ---------- rebuild raster drapes (TASKS.csv #24, #81) ----------
 // Deliberately its own effect, not folded into the geometry-rebuild effect above: rasters come from
@@ -41,7 +42,7 @@ export function syncRasterDrapes(group, cache, rasters, { origin, terrain, rende
     // Rebuild geometry when the drape MODE changes (flat <-> terrain) or the terrain surface itself
     // changes (a re-imported/updated terrain would otherwise leave a stale drape shape) — everything
     // else (opacity, elevation for flat mode) is a cheap in-place update on the existing mesh.
-    const geoKey = `${drapeOnTerrain ? `terrain:${terrain.id}` : "flat"}${r.colourStyle ? JSON.stringify(r.colourStyle) : ""}`; // #1236 — a new style is a new texture
+    const geoKey = `${drapeOnTerrain ? `terrain:${terrain.id}` : "flat"}${r.colourStyle ? JSON.stringify(r.colourStyle) : ""}${r.keyColour && !r.grid ? `|key:${r.keyColour}` : ""}`; // #1236 — a new style is a new texture; #1623 a keyed-out colour too
     let mesh = cache[r.id];
     if (mesh && mesh.userData.geoKey !== geoKey) {
       // Dispose geometry AND material/texture here — the `!mesh` branch below always builds a fresh
@@ -52,7 +53,13 @@ export function syncRasterDrapes(group, cache, rasters, { origin, terrain, rende
       mesh = null;
     }
     if (!mesh) {
-      const texture = new THREE.TextureLoader().load(r.dataUrl);
+      let texture;
+      if (r.keyColour && !r.grid) { // TASKS.csv #1623 - the background colour keyed out of a copy; the stored picture is unchanged
+        texture = new THREE.Texture();
+        const img = new Image();
+        img.onload = () => { texture.image = keyedCanvas(img, r.keyColour); texture.needsUpdate = true; };
+        img.src = r.dataUrl;
+      } else texture = new THREE.TextureLoader().load(r.dataUrl);
       texture.colorSpace = THREE.SRGBColorSpace;
       // Sharpen oblique/close-up viewing of the drape (TASKS.csv "bad quality" report) — anisotropic
       // filtering only helps texels that ARE there look crisper at a grazing angle, it can't invent

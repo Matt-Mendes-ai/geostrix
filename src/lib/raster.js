@@ -28,6 +28,7 @@ import { makeStretch } from "./idw.js"; // TASKS.csv #708 — the same 2-98 % st
 import { rasterStops, DEFAULT_RASTER_STYLE } from "./rasterColour.js"; // TASKS.csv #1236
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { b64ToBytes } from "./base64.js"; // TASKS.csv #1114
+import { borderKeyColour, colourFraction, hexRgb } from "./rasterKey.js"; // TASKS.csv #1623
 
 // TASKS.csv #707 — a GeoTIFF's CRS as an EPSG code. 32767 means "user-defined" (what ArcGIS and Oasis montaj write for a
 // CRS they have no code for, the BC NAD83(CSRS) UTM zones being the usual case); the CRS is then named in a citation
@@ -737,6 +738,7 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
   if (name) parsed.name = name;
   let bbox = parsed.bbox;
   let dataUrl = parsed.dataUrl;
+  let px = parsed.pixels || null; // #1623 - the pixels the drape shows, for the background check
 
   // An explicit override always wins over the file's own tag — that's the whole point of the field
   // (a wrong/absent embedded tag is exactly why the user is typing one in).
@@ -758,7 +760,7 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
       canvas.width = rp.width; canvas.height = rp.height;
       const ctx = canvas.getContext("2d");
       ctx.putImageData(new ImageData(rp.data, rp.width, rp.height), 0, 0);
-      bbox = rp.bbox;
+      bbox = rp.bbox; px = rp;
       dataUrl = keepDetail ? imageDataUrl(canvas) : canvas.toDataURL("image/png");
       crsNote = ` Reprojected from EPSG:${srcEpsg} (${srcLabel}) into the project's EPSG:${projEpsg} on import — the drape's footprint moved ${Math.hypot(rp.bbox[0] - xmin, rp.bbox[1] - ymin).toFixed(0)} world units as a result.`;
     } else {
@@ -797,7 +799,17 @@ export async function buildRasterImport(file, { epsg, defaultElevation, sourceEp
   // #1236 — what the import above drew: 2-98 % of the values, viridis
   let colour = {};
   if (grid && parsed.grid) { const st = makeStretch(parsed.grid.values, "p2-98"); if (st.lo != null) colour = { colourRange: [st.lo, st.hi], colourStops: rasterStops(DEFAULT_RASTER_STYLE, st.lo, st.hi) }; }
-  return { raster: { name: parsed.name, bbox, dataUrl, elevation: defaultElevation, ...(grid ? { grid } : {}), ...colour }, msg: msg + (isGxf ? "" : reducedImportNote(parsed.width, parsed.height, keepDetail)) };
+  // TASKS.csv #1623 - a colour picture whose border is uniformly white or black: that colour is its background, shown transparent
+  let key = {};
+  if (!parsed.grid && px?.data && px.width && px.height) {
+    const kc = borderKeyColour(px.data, px.width, px.height);
+    if (kc) {
+      key = { keyColour: kc };
+      const pct = Math.round(colourFraction(px.data, hexRgb(kc)) * 100);
+      msg += " " + (kc === "#ffffff" ? tr("{p} % of the picture is white background, shown transparent (the raster card can turn this off).", { p: pct }) : tr("{p} % of the picture is black background, shown transparent (the raster card can turn this off).", { p: pct }));
+    }
+  }
+  return { raster: { name: parsed.name, bbox, dataUrl, elevation: defaultElevation, ...(grid ? { grid } : {}), ...colour, ...key }, msg: msg + (isGxf ? "" : reducedImportNote(parsed.width, parsed.height, keepDetail)) };
 }
 
 // TASKS.csv #203 — "We need options to export the generated SRTM, at least to geotiff." Once a

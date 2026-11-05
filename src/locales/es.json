@@ -8174,5 +8174,9 @@
   "Use the 2nd–98th percentile": "Usar el percentil 2–98",
   "Use minimum–maximum": "Usar mínimo–máximo",
   "At the file's own elevations": "En las elevaciones propias del archivo",
-  "Outlines at the file's own elevations": "Contornos en las elevaciones propias del archivo"
+  "Outlines at the file's own elevations": "Contornos en las elevaciones propias del archivo",
+  "Transparent colour": "Color transparente",
+  "This colour (and colours within a few shades of it) is not drawn": "Este color (y los que difieren pocos tonos de él) no se dibuja",
+  "{p} % of the picture is white background, shown transparent (the raster card can turn this off).": "El {p} % de la imagen es fondo blanco, mostrado transparente (se puede desactivar en la tarjeta del ráster).",
+  "{p} % of the picture is black background, shown transparent (the raster card can turn this off).": "El {p} % de la imagen es fondo negro, mostrado transparente (se puede desactivar en la tarjeta del ráster)."
 }

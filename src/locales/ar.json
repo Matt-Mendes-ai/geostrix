@@ -8174,5 +8174,9 @@
   "Use the 2nd–98th percentile": "استخدام المئين 2–98",
   "Use minimum–maximum": "استخدام الأدنى–الأقصى",
   "At the file's own elevations": "على ارتفاعات الملف نفسه",
-  "Outlines at the file's own elevations": "الحدود على ارتفاعات الملف نفسه"
+  "Outlines at the file's own elevations": "الحدود على ارتفاعات الملف نفسه",
+  "Transparent colour": "لون شفاف",
+  "This colour (and colours within a few shades of it) is not drawn": "لا يُرسم هذا اللون (ولا الألوان القريبة منه ببضع درجات)",
+  "{p} % of the picture is white background, shown transparent (the raster card can turn this off).": "{p} % من الصورة خلفية بيضاء تُعرض شفافة (يمكن إيقاف ذلك من بطاقة النقطية).",
+  "{p} % of the picture is black background, shown transparent (the raster card can turn this off).": "{p} % من الصورة خلفية سوداء تُعرض شفافة (يمكن إيقاف ذلك من بطاقة النقطية)."
 }

@@ -8174,5 +8174,9 @@
   "Use the 2nd–98th percentile": "Utiliser le 2e–98e centile",
   "Use minimum–maximum": "Utiliser minimum–maximum",
   "At the file's own elevations": "Aux altitudes du fichier lui-même",
-  "Outlines at the file's own elevations": "Contours aux altitudes propres au fichier"
+  "Outlines at the file's own elevations": "Contours aux altitudes propres au fichier",
+  "Transparent colour": "Couleur transparente",
+  "This colour (and colours within a few shades of it) is not drawn": "Cette couleur (et celles à quelques nuances près) n'est pas dessinée",
+  "{p} % of the picture is white background, shown transparent (the raster card can turn this off).": "{p} % de l'image est un fond blanc, affiché transparent (la fiche du raster permet de le désactiver).",
+  "{p} % of the picture is black background, shown transparent (the raster card can turn this off).": "{p} % de l'image est un fond noir, affiché transparent (la fiche du raster permet de le désactiver)."
 }
