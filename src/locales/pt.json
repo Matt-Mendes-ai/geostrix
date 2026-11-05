@@ -7876,5 +7876,7 @@
   "every occurrence inside the pattern: 0.5 added to the zero count · ": "todas as ocorrências dentro do padrão: 0,5 somado à contagem zero · ",
   "No modelled solids yet. Build a closed unit in 3D Modelling (unit volumes, an envelope, a vein solid or an imported solid), or make a shell of a block model's value range (Targeting > Voxel ranges > Shell at this range), first.": "Ainda não há sólidos modelados. Construa primeiro uma unidade fechada em Modelagem 3D (volumes de unidade, um envelope, um sólido de veio ou um sólido importado), ou faça um invólucro do intervalo de valores de um modelo de blocos (Targeting > Intervalos de voxels > Invólucro neste intervalo).",
   "No drillholes yet: every part of a unit is undrilled. The {n} planned hole(s) are the only coverage that can be counted.": "Ainda não há furos: cada parte de uma unidade está por perfurar. Os {n} furos planejados são a única cobertura que pode ser contada.",
-  "No drillholes yet: every part of a unit is undrilled. Plan holes (Targeting > Planned holes) and count them here to see what they would leave untested.": "Ainda não há furos: cada parte de uma unidade está por perfurar. Planeje furos (Targeting > Furos planejados) e conte-os aqui para ver o que deixariam por testar."
+  "No drillholes yet: every part of a unit is undrilled. Plan holes (Targeting > Planned holes) and count them here to see what they would leave untested.": "Ainda não há furos: cada parte de uma unidade está por perfurar. Planeje furos (Targeting > Furos planejados) e conte-os aqui para ver o que deixariam por testar.",
+  "the block models' footprint": "a área dos modelos de blocos",
+  " (the block models)": " (os modelos de blocos)"
 }

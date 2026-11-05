@@ -7876,5 +7876,7 @@
   "every occurrence inside the pattern: 0.5 added to the zero count · ": "كل التواجدات داخل النمط: أُضيف 0.5 إلى العدد الصفري · ",
   "No modelled solids yet. Build a closed unit in 3D Modelling (unit volumes, an envelope, a vein solid or an imported solid), or make a shell of a block model's value range (Targeting > Voxel ranges > Shell at this range), first.": "لا توجد مجسمات منمذجة بعد. ابنِ أولاً وحدة مغلقة في النمذجة ثلاثية الأبعاد (أحجام الوحدات، أو غلاف، أو مجسم عرق، أو مجسم مستورد)، أو اصنع غلافاً لنطاق قيم نموذج كتلي (الاستهداف > نطاقات الفوكسل > غلاف عند هذا النطاق).",
   "No drillholes yet: every part of a unit is undrilled. The {n} planned hole(s) are the only coverage that can be counted.": "لا توجد ثقوب حفر بعد: كل جزء من الوحدة غير محفور. الثقوب المخططة ({n}) هي التغطية الوحيدة التي يمكن احتسابها.",
-  "No drillholes yet: every part of a unit is undrilled. Plan holes (Targeting > Planned holes) and count them here to see what they would leave untested.": "لا توجد ثقوب حفر بعد: كل جزء من الوحدة غير محفور. خطّط ثقوباً (الاستهداف > الثقوب المخططة) واحتسبها هنا لترى ما ستتركه دون اختبار."
+  "No drillholes yet: every part of a unit is undrilled. Plan holes (Targeting > Planned holes) and count them here to see what they would leave untested.": "لا توجد ثقوب حفر بعد: كل جزء من الوحدة غير محفور. خطّط ثقوباً (الاستهداف > الثقوب المخططة) واحتسبها هنا لترى ما ستتركه دون اختبار.",
+  "the block models' footprint": "مساحة نماذج الكتل",
+  " (the block models)": " (نماذج الكتل)"
 }

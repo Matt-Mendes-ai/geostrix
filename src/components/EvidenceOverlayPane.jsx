@@ -59,20 +59,20 @@ export default function EvidenceOverlayPane({ onClose }) {
   const media = useMemo(() => { const m = new Map(); sampleCore.samples.forEach((s) => m.set(s.medium || "", (m.get(s.medium || "") || 0) + 1)); return [...m].sort((a, b) => b[1] - a[1]).map(([k]) => k); }, [sampleCore]);
   // TASKS.csv #1450 (review #1352, Silvertip) — the area and cell size are the geologist's: "all" sources (as before), the surface samples,
   // the drilling, or a typed box; the cell is typed or automatic (the longest side / 500). With a terrain and "all", the terrain's grid.
-  const [gridArea, setGridArea] = useState("all"); // "all" | "samples" | "drilling" | "box"
+  const [gridArea, setGridArea] = useState("all"); // "all" | "samples" | "drilling" | "model" (#1834) | "box"
   const [gridCell, setGridCell] = useState(""); // "" = automatic
   const [gridBox, setGridBox] = useState(["", "", "", ""]);
   const extents = useMemo(() => {
     const mk = () => { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; return { grow: (a, b, c, d) => { x0 = Math.min(x0, a); y0 = Math.min(y0, b); x1 = Math.max(x1, c); y1 = Math.max(y1, d); }, box: () => (x1 > x0 && y1 > y0 ? [x0, y0, x1, y1] : null) }; };
-    const all = mk(), smp = mk(), drl = mk();
+    const all = mk(), smp = mk(), drl = mk(), mdl = mk(); // mdl: #1834 — the block models' footprint (Kodiak: the 2 x 2 km IP block inside a 19 x 31 km soil program)
     valueRasters.forEach((r) => { const g = r.grid; all.grow(g.x0 - g.dx / 2, g.yTop - g.ny * g.dy + g.dy / 2, g.x0 + g.nx * g.dx - g.dx / 2, g.yTop + g.dy / 2); });
     mapLayers.forEach((l) => { if (l.bbox) all.grow(...l.bbox); });
     sampleCore.samples.forEach((s) => { if (Number.isFinite(s.x) && Number.isFinite(s.y)) { all.grow(s.x - 200, s.y - 200, s.x + 200, s.y + 200); smp.grow(s.x - 200, s.y - 200, s.x + 200, s.y + 200); } });
     // TASKS.csv #1154 — a project of holes, surveys or block models has an extent too
     for (const t of traces.values()) for (const p of t) { all.grow(p.x - DRILL_REACH_M, p.y - DRILL_REACH_M, p.x + DRILL_REACH_M, p.y + DRILL_REACH_M); drl.grow(p.x - DRILL_REACH_M, p.y - DRILL_REACH_M, p.x + DRILL_REACH_M, p.y + DRILL_REACH_M); }
     (geophysPts || []).forEach((r) => { if (Number.isFinite(r.x) && Number.isFinite(r.y)) all.grow(r.x, r.y, r.x, r.y); });
-    voxelModels.forEach((m) => (m.cells || []).forEach((c) => { if (Number.isFinite(c.x) && Number.isFinite(c.y)) all.grow(c.x - c.dx / 2, c.y - c.dy / 2, c.x + c.dx / 2, c.y + c.dy / 2); }));
-    return { all: all.box(), samples: smp.box(), drilling: drl.box() };
+    voxelModels.forEach((m) => (m.cells || []).forEach((c) => { if (Number.isFinite(c.x) && Number.isFinite(c.y)) { all.grow(c.x - c.dx / 2, c.y - c.dy / 2, c.x + c.dx / 2, c.y + c.dy / 2); mdl.grow(c.x - c.dx / 2, c.y - c.dy / 2, c.x + c.dx / 2, c.y + c.dy / 2); } }));
+    return { all: all.box(), samples: smp.box(), drilling: drl.box(), model: mdl.box() };
   }, [valueRasters, mapLayers, sampleCore, traces, geophysPts, voxelModels]);
   const cellTyped = Number(gridCell) > 0 ? Number(gridCell) : null;
   const grid = useMemo(() => {
@@ -251,13 +251,14 @@ export default function EvidenceOverlayPane({ onClose }) {
     <>
       <TaskPaneHeader title={tr("Evidence overlay")} icon={Layers} tone="model" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: "var(--font-size-sm)" }}>
-        <div style={note}>{grid ? tr("Grid: {nx} × {ny} cells of {dx} × {dy} m{src}.", { nx: grid.nx, ny: grid.ny, dx: Math.round(grid.dx), dy: Math.round(grid.dy), src: grid.from === "terrain" ? tr(" (the terrain)") : gridArea === "samples" ? tr(" (the surface samples)") : gridArea === "drilling" ? tr(" (the drilling)") : gridArea === "box" ? tr(" (the typed box)") : tr(" (the data's extent)") /* area: #1450 */ }) : tr("No grid yet: load terrain, a raster, a map layer or samples first.")}{grid && grid.from !== "terrain" && sampleCore.dropped > 0 ? tr(" {n} surface sample(s) far from the rest are outside it.", { n: sampleCore.dropped }) : ""}</div>
+        <div style={note}>{grid ? tr("Grid: {nx} × {ny} cells of {dx} × {dy} m{src}.", { nx: grid.nx, ny: grid.ny, dx: Math.round(grid.dx), dy: Math.round(grid.dy), src: grid.from === "terrain" ? tr(" (the terrain)") : gridArea === "samples" ? tr(" (the surface samples)") : gridArea === "drilling" ? tr(" (the drilling)") : gridArea === "model" ? tr(" (the block models)") : gridArea === "box" ? tr(" (the typed box)") : tr(" (the data's extent)") /* area: #1450 */ }) : tr("No grid yet: load terrain, a raster, a map layer or samples first.")}{grid && grid.from !== "terrain" && sampleCore.dropped > 0 ? tr(" {n} surface sample(s) far from the rest are outside it.", { n: sampleCore.dropped }) : ""}</div>
         {/* TASKS.csv #1450 — the area and the cell size the scores are computed on */}
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
           <label style={row}>{tr("Area")}<select value={gridArea} onChange={(e) => { setGridArea(e.target.value); setResult(null); }} style={sel} aria-label={tr("Grid area")}>
             <option value="all">{terrain ? tr("the terrain / every source") : tr("every source")}</option>
             {extents.samples && <option value="samples">{tr("the surface samples")}</option>}
             {extents.drilling && <option value="drilling">{tr("the drilling")}</option>}
+            {extents.model && <option value="model">{tr("the block models' footprint")}</option>}{/* #1834 */}
             <option value="box">{tr("a box (typed)")}</option>
           </select></label>
           <label style={row} title={tr("Blank = automatic: the longest side / 500, coarsened if the grid would pass its cell limit. A soil grid at 25-50 m wants a cell of about half its spacing.")}>{tr("Cell (m)")}<input type="number" min="1" step="5" value={gridCell} placeholder={tr("auto")} onChange={(e) => { setGridCell(e.target.value); setResult(null); }} style={{ ...sel, width: 64 }} aria-label={tr("Grid cell size (m)")} /></label>

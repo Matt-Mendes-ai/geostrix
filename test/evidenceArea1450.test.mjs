@@ -28,3 +28,15 @@ test("#1450 the pane offers the area and the cell, saves them in the recipe and 
   assert.ok(p.includes("evidenceGrid({ extent: ext, cellSize: cellTyped })"));
   assert.ok(p.includes("grid: { area: gridArea, cell: cellTyped"));
 });
+
+// TASKS.csv #1834 (review #1646, Kodiak) — the grid can be clipped to the block models' footprint (the IP block, not the whole soil program)
+test("#1834 a 'model' area is the block models' box, offered when there is one", async () => {
+  const { readFileSync } = await import("node:fs");
+  const parts = { all: [0, 0, 19000, 31000], samples: [0, 0, 19000, 31000], drilling: null, model: [684000, 5510000, 686000, 5512200] };
+  assert.deepEqual(evidenceExtent("model", parts), [684000, 5510000, 686000, 5512200]);
+  assert.equal(evidenceExtent("model", { ...parts, model: null }), null);
+  const g = evidenceGrid({ extent: evidenceExtent("model", parts), cellSize: 30 });
+  assert.deepEqual([g.nx, g.ny], [67, 74]);
+  const src = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8");
+  assert.ok(src.includes(`{extents.model && <option value="model">{tr("the block models' footprint")}</option>}`));
+});
