@@ -6362,7 +6362,6 @@
   "Undrilled zones": "مناطق غير محفورة",
   "The parts of a modelled unit farther than a chosen distance from every drillhole": "أجزاء الوحدة المنمذجة الأبعد من مسافة مختارة عن كل ثقب حفر",
   "The parts of a modelled unit farther than a chosen distance from every drillhole: where the unit has not been tested yet.": "أجزاء الوحدة المنمذجة الأبعد من مسافة مختارة عن كل ثقب حفر: حيث لم تُختبر الوحدة بعد.",
-  "No modelled solids yet. Build a closed unit in 3D Modelling (unit volumes, an envelope, a vein solid or an imported solid) first.": "لا توجد مجسمات منمذجة بعد. ابنِ أولًا وحدة مغلقة في النمذجة ثلاثية الأبعاد (أحجام الوحدات أو غلاف أو مجسم عرق أو مجسم مستورد).",
   "Modelled unit": "الوحدة المنمذجة",
   "Modelled unit…": "الوحدة المنمذجة…",
   "A block of the unit counts as covered when a drillhole passes within this distance of it": "تُعد كتلة الوحدة مغطاة عندما يمر ثقب حفر ضمن هذه المسافة منها",
@@ -7873,5 +7872,9 @@
   "{n} points in the slice": "{n} نقطة في الشريحة",
   "No points in that elevation slice.": "لا توجد نقاط في شريحة الارتفاع تلك.",
   "A 3D point cloud ({lo} to {hi} m elevation): these cells and means are over its plan projection, as if every point lay on one surface. Points at the same plan position count once.": "سحابة نقاط ثلاثية الأبعاد (من {lo} إلى {hi} م ارتفاعاً): هذه الخلايا والمتوسطات على مسقطها المستوي، كأن كل نقطة تقع على سطح واحد. النقاط في الموضع المسقطي نفسه تُحسب مرة واحدة.",
-  "Left out (same plan position)": "مستبعدة (الموضع المسقطي نفسه)"
+  "Left out (same plan position)": "مستبعدة (الموضع المسقطي نفسه)",
+  "every occurrence inside the pattern: 0.5 added to the zero count · ": "كل التواجدات داخل النمط: أُضيف 0.5 إلى العدد الصفري · ",
+  "No modelled solids yet. Build a closed unit in 3D Modelling (unit volumes, an envelope, a vein solid or an imported solid), or make a shell of a block model's value range (Targeting > Voxel ranges > Shell at this range), first.": "لا توجد مجسمات منمذجة بعد. ابنِ أولاً وحدة مغلقة في النمذجة ثلاثية الأبعاد (أحجام الوحدات، أو غلاف، أو مجسم عرق، أو مجسم مستورد)، أو اصنع غلافاً لنطاق قيم نموذج كتلي (الاستهداف > نطاقات الفوكسل > غلاف عند هذا النطاق).",
+  "No drillholes yet: every part of a unit is undrilled. The {n} planned hole(s) are the only coverage that can be counted.": "لا توجد ثقوب حفر بعد: كل جزء من الوحدة غير محفور. الثقوب المخططة ({n}) هي التغطية الوحيدة التي يمكن احتسابها.",
+  "No drillholes yet: every part of a unit is undrilled. Plan holes (Targeting > Planned holes) and count them here to see what they would leave untested.": "لا توجد ثقوب حفر بعد: كل جزء من الوحدة غير محفور. خطّط ثقوباً (الاستهداف > الثقوب المخططة) واحتسبها هنا لترى ما ستتركه دون اختبار."
 }

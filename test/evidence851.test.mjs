@@ -58,7 +58,8 @@ test("#851 weights of evidence against a count table", () => {
   assert.ok(Math.abs(w.wPlus - Math.log((15 / 20) / (185 / 980))) < 1e-9);
   assert.ok(Math.abs(w.wMinus - Math.log((5 / 20) / (795 / 980))) < 1e-9);
   assert.ok(Math.abs(w.C - (w.wPlus - w.wMinus)) < 1e-12 && w.studC > 3);
-  assert.equal(weights(200, 20, 1000, 20), null, "every deposit inside the pattern: an infinite weight is refused");
+  const all = weights(200, 20, 1000, 20); // every deposit inside the pattern: a zero cell, corrected by 0.5 (#1726), not refused
+  assert.ok(all && all.corrected && Number.isFinite(all.wMinus) && all.wMinus < -3, JSON.stringify(all));
 });
 
 test("#851 synthetic deposits in the east: the best cutoff, a positive W+, the posterior summing to the deposits, the P-A point", () => {

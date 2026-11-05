@@ -94,7 +94,8 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
       <TaskPaneHeader title={tr("Undrilled zones")} icon={Crosshair} tone="model" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 7, fontSize: "var(--font-size-sm)" }}>
         <div style={note}>{tr("The parts of a modelled unit farther than a chosen distance from every drillhole: where the unit has not been tested yet.")}</div>
-        {!solids.length && <div style={{ ...note, color: "var(--color-danger-fg)" }}>{tr("No modelled solids yet. Build a closed unit in 3D Modelling (unit volumes, an envelope, a vein solid or an imported solid) first.")}</div>}
+        {!solids.length && <div style={{ ...note, color: "var(--color-danger-fg)" }}>{tr("No modelled solids yet. Build a closed unit in 3D Modelling (unit volumes, an envelope, a vein solid or an imported solid), or make a shell of a block model's value range (Targeting > Voxel ranges > Shell at this range), first.")}</div>}
+        {!collars.length && solids.length > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr(plannedHoles.length ? "No drillholes yet: every part of a unit is undrilled. The {n} planned hole(s) are the only coverage that can be counted." : "No drillholes yet: every part of a unit is undrilled. Plan holes (Targeting > Planned holes) and count them here to see what they would leave untested.", { n: plannedHoles.length })}</div>}{/* TASKS.csv #1833 — Kodiak: zero holes, said instead of a 0 % figure */}
         <select value={unitId} onChange={(e) => { setUnitId(e.target.value); setResult(null); }} style={{ ...smallSel, width: "100%" }} aria-label={tr("Modelled unit")}>
           <option value="">{tr("Modelled unit…")}</option>
           {solids.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}

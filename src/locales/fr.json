@@ -6362,7 +6362,6 @@
   "Undrilled zones": "Zones non forées",
   "The parts of a modelled unit farther than a chosen distance from every drillhole": "Les parties d'une unité modélisée plus éloignées qu'une distance choisie de tout sondage",
   "The parts of a modelled unit farther than a chosen distance from every drillhole: where the unit has not been tested yet.": "Les parties d'une unité modélisée plus éloignées qu'une distance choisie de tout sondage : là où l'unité n'a pas encore été testée.",
-  "No modelled solids yet. Build a closed unit in 3D Modelling (unit volumes, an envelope, a vein solid or an imported solid) first.": "Pas encore de solides modélisés. Construisez d'abord une unité fermée dans Modélisation 3D (volumes d'unité, une enveloppe, un solide de veine ou un solide importé).",
   "Modelled unit": "Unité modélisée",
   "Modelled unit…": "Unité modélisée…",
   "A block of the unit counts as covered when a drillhole passes within this distance of it": "Un bloc de l'unité compte comme couvert quand un sondage passe à cette distance ou moins",
@@ -7873,5 +7872,9 @@
   "{n} points in the slice": "{n} points dans la tranche",
   "No points in that elevation slice.": "Aucun point dans cette tranche d'altitude.",
   "A 3D point cloud ({lo} to {hi} m elevation): these cells and means are over its plan projection, as if every point lay on one surface. Points at the same plan position count once.": "Un nuage de points 3D ({lo} à {hi} m d'altitude) : ces cellules et moyennes portent sur sa projection en plan, comme si chaque point reposait sur une seule surface. Les points à la même position en plan comptent une fois.",
-  "Left out (same plan position)": "Exclus (même position en plan)"
+  "Left out (same plan position)": "Exclus (même position en plan)",
+  "every occurrence inside the pattern: 0.5 added to the zero count · ": "toutes les occurrences dans le motif : 0,5 ajouté au compte nul · ",
+  "No modelled solids yet. Build a closed unit in 3D Modelling (unit volumes, an envelope, a vein solid or an imported solid), or make a shell of a block model's value range (Targeting > Voxel ranges > Shell at this range), first.": "Pas encore de solides modélisés. Construisez d'abord une unité fermée en Modélisation 3D (volumes d'unité, une enveloppe, un solide de filon ou un solide importé), ou faites une enveloppe de la plage de valeurs d'un modèle de blocs (Ciblage > Plages de voxels > Enveloppe à cette plage).",
+  "No drillholes yet: every part of a unit is undrilled. The {n} planned hole(s) are the only coverage that can be counted.": "Pas encore de sondages : chaque partie d'une unité est non forée. Les {n} sondages planifiés sont la seule couverture qui puisse être comptée.",
+  "No drillholes yet: every part of a unit is undrilled. Plan holes (Targeting > Planned holes) and count them here to see what they would leave untested.": "Pas encore de sondages : chaque partie d'une unité est non forée. Planifiez des sondages (Ciblage > Sondages planifiés) et comptez-les ici pour voir ce qu'ils laisseraient non testé."
 }

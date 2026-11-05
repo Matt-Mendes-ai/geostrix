@@ -102,7 +102,7 @@ export const MODEL_EXTENT_PAD_M = 500;
 // TASKS.csv #804 — surface types that describe a BODY (something with an inside) rather than a contact or a fault. A
 // closed surface of one of these types can restrict a grade estimate and is proposed as a solid by "Solid blocks from
 // surfaces"; the type alone cannot give an open sheet an inside.
-export const SOLID_SURFACE_TYPES = new Set(["mineralization_envelope", "alteration_envelope", "unit_body", "vein_solid", "breccia_body", "dyke", "unit_volume", "imported", "explicit_wireframe", "intrusion_body"]); // explicit_wireframe: #570; intrusion_body: #821
+export const SOLID_SURFACE_TYPES = new Set(["mineralization_envelope", "alteration_envelope", "unit_body", "vein_solid", "breccia_body", "dyke", "unit_volume", "imported", "explicit_wireframe", "intrusion_body", "geophysical_shell" /* #1833: a block model's range as a solid (#1780) */]); // explicit_wireframe: #570; intrusion_body: #821
 
 export function guessSurfaceType(label, meshName) {
   const s = `${label} ${meshName}`.toUpperCase();

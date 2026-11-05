@@ -197,12 +197,19 @@ export function trainingCells(g, points, valid) {
   return set;
 }
 // Weights of a binary pattern B over the study area: counts and W+, W-, contrast, their standard errors
+// TASKS.csv #1726 (review #1645, Copley) — a zero cell (every occurrence inside the pattern, or none) used to return null, which
+// dropped the evidence that predicts the occurrences best ('no usable cutoff' for Cu when the occurrences are Cu >= 5000) while the
+// weaker layers went into the posterior. A zero cell now takes the usual continuity correction: 0.5 added to each of the four
+// counts (Bonham-Carter 1994, ch. 9), flagged `corrected` so the row says so. Nothing at all in B or in D stays null.
 export function weights(nB, nBD, N, ND) {
-  const a = nBD, b = nB - nBD, c = ND - nBD, d = N - nB - ND + nBD; // B&D, B&~D, ~B&D, ~B&~D
-  if (a <= 0 || b <= 0 || c <= 0 || d <= 0) return null; // a zero cell makes a weight infinite
-  const wPlus = Math.log((a / ND) / (b / (N - ND))), wMinus = Math.log((c / ND) / (d / (N - ND)));
+  let a = nBD, b = nB - nBD, c = ND - nBD, d = N - nB - ND + nBD; // B&D, B&~D, ~B&D, ~B&~D
+  if (nB <= 0 || nB >= N || ND <= 0 || ND >= N) return null; // an empty or all-area pattern, or no occurrences, has no weights
+  const corrected = a <= 0 || b <= 0 || c <= 0 || d <= 0;
+  if (corrected) { a += 0.5; b += 0.5; c += 0.5; d += 0.5; }
+  const nd = a + c, nnd = b + d;
+  const wPlus = Math.log((a / nd) / (b / nnd)), wMinus = Math.log((c / nd) / (d / nnd));
   const sPlus = Math.sqrt(1 / a + 1 / b), sMinus = Math.sqrt(1 / c + 1 / d), C = wPlus - wMinus, sC = Math.sqrt(sPlus ** 2 + sMinus ** 2);
-  return { nB, nBD, wPlus, wMinus, sPlus, sMinus, C, sC, studC: C / sC };
+  return { nB, nBD, wPlus, wMinus, sPlus, sMinus, C, sC, studC: C / sC, corrected };
 }
 // For a continuous evidence: the cutoff (over its quantiles) with the largest contrast; `direction` increasing means
 // B = value >= cutoff. -> { best, table: [{ cutoff, quantile, ...weights }], N, ND, nMissing }
@@ -224,7 +231,10 @@ export function bestCutoff(values, D, valid, { direction = "increasing", steps =
     const w = weights(nB, nBD, N, ND);
     if (w) table.push({ cutoff, quantile: q, ...w });
   }
-  const best = table.reduce((b, r) => (!b || r.C > b.C ? r : b), null);
+  // #1726 — the best cutoff among the uncorrected rows when there are any (a corrected contrast is inflated by the 0.5); only an
+  // evidence whose every cutoff has a zero cell (the one that defines the occurrences) takes its best from the corrected rows
+  const pool = table.some((r) => !r.corrected) ? table.filter((r) => !r.corrected) : table;
+  const best = pool.reduce((b, r) => (!b || r.C > b.C ? r : b), null);
   return { best, table, N, ND, nMissing };
 }
 // posterior probability per cell from the chosen binary patterns: layers = [{ values, cutoff, direction, wPlus, wMinus }];

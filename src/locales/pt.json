@@ -6362,7 +6362,6 @@
   "Undrilled zones": "Zonas não perfuradas",
   "The parts of a modelled unit farther than a chosen distance from every drillhole": "As partes de uma unidade modelada mais distantes que uma distância escolhida de todo furo",
   "The parts of a modelled unit farther than a chosen distance from every drillhole: where the unit has not been tested yet.": "As partes de uma unidade modelada mais distantes que uma distância escolhida de todo furo: onde a unidade ainda não foi testada.",
-  "No modelled solids yet. Build a closed unit in 3D Modelling (unit volumes, an envelope, a vein solid or an imported solid) first.": "Ainda não há sólidos modelados. Primeiro construa uma unidade fechada em Modelagem 3D (volumes de unidade, um envelope, um sólido de veio ou um sólido importado).",
   "Modelled unit": "Unidade modelada",
   "Modelled unit…": "Unidade modelada…",
   "A block of the unit counts as covered when a drillhole passes within this distance of it": "Um bloco da unidade conta como coberto quando um furo passa a esta distância ou menos",
@@ -7873,5 +7872,9 @@
   "{n} points in the slice": "{n} pontos na fatia",
   "No points in that elevation slice.": "Não há pontos nessa fatia de elevação.",
   "A 3D point cloud ({lo} to {hi} m elevation): these cells and means are over its plan projection, as if every point lay on one surface. Points at the same plan position count once.": "Uma nuvem de pontos 3D ({lo} a {hi} m de elevação): estas células e médias são sobre a sua projeção em planta, como se cada ponto estivesse numa só superfície. Pontos na mesma posição em planta contam uma vez.",
-  "Left out (same plan position)": "Excluídos (mesma posição em planta)"
+  "Left out (same plan position)": "Excluídos (mesma posição em planta)",
+  "every occurrence inside the pattern: 0.5 added to the zero count · ": "todas as ocorrências dentro do padrão: 0,5 somado à contagem zero · ",
+  "No modelled solids yet. Build a closed unit in 3D Modelling (unit volumes, an envelope, a vein solid or an imported solid), or make a shell of a block model's value range (Targeting > Voxel ranges > Shell at this range), first.": "Ainda não há sólidos modelados. Construa primeiro uma unidade fechada em Modelagem 3D (volumes de unidade, um envelope, um sólido de veio ou um sólido importado), ou faça um invólucro do intervalo de valores de um modelo de blocos (Targeting > Intervalos de voxels > Invólucro neste intervalo).",
+  "No drillholes yet: every part of a unit is undrilled. The {n} planned hole(s) are the only coverage that can be counted.": "Ainda não há furos: cada parte de uma unidade está por perfurar. Os {n} furos planejados são a única cobertura que pode ser contada.",
+  "No drillholes yet: every part of a unit is undrilled. Plan holes (Targeting > Planned holes) and count them here to see what they would leave untested.": "Ainda não há furos: cada parte de uma unidade está por perfurar. Planeje furos (Targeting > Furos planejados) e conte-os aqui para ver o que deixariam por testar."
 }
