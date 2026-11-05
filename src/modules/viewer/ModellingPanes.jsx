@@ -262,7 +262,7 @@ export default function ModellingPanes(props) {
             1x in RasterModule, and 0x here until now), which opens on hover OR click. */}
         <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span>{tr("Domain")}</span>
-          <InfoButton title={tr("Domain")} width={280} text={tr("Restricts every tool below to one side of one or more faults — build domains in \"Domains\" further down first, then pick one here. Applies to all four tools; \"Whole property\" is the original, undomained behaviour.")} />
+          <InfoButton title={tr("Domain")} width={280} text={tr("Restricts every tool below to one side of one or more faults — build domains in \"Domains\" further down first, then pick one here. Applies to every modelling tool on this tab (implicit surface, stack, structural, model from map, alteration, vein / dyke, grade shell); \"Whole property\" is the original, undomained behaviour.")} />
         </div>
         <select aria-label={tr("Model domain")} value={modelDomainId} onChange={(e) => setModelDomainId(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", marginBottom: 4 }}>
           <option value="">{tr("Whole property")}</option>
@@ -389,7 +389,7 @@ export default function ModellingPanes(props) {
           <input type="checkbox" checked={smoothClusters} onChange={(e) => setSmoothClusters(e.target.checked)} />{tr("Smooth clustered contacts")}</label>
 
         <div className="ge-section-label" style={{ marginTop: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Search ellipsoid")}<InfoButton title={tr("Search ellipsoid")} width={300} text={tr("GemPy fits one global surface, not per-query local kriging, so this can't steer the interpolator's own search the way classic kriging software would. What it does instead: drops any control point with fewer than the minimum neighbour count within an ellipsoid oriented along the structural trend below, so isolated points don't quietly feed a run alongside well-supported ones. The structural trends below are set separately.")} />
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Search ellipsoid")}<InfoButton title={tr("Search ellipsoid")} width={300} text={tr("GemPy fits one global surface, not per-query local kriging, so this can't steer the interpolator's own search the way classic kriging software would. What it does instead: drops any control point with fewer than the minimum neighbour count within this ellipsoid, oriented by its own Azimuth and Dip here, so isolated points don't quietly feed a run alongside well-supported ones. The structural trends below are set separately and do not orient it.")} />
           </span>
           <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>
             <input type="checkbox" checked={searchEllipsoid.enabled} onChange={(e) => setSearchEllipsoid((p) => ({ ...p, enabled: e.target.checked }))} />{" "}{tr("On")}</label>
@@ -435,7 +435,7 @@ export default function ModellingPanes(props) {
         </>)}
         {toolPane === "gradeEst" && (<>
         {paneHeader("Grade estimation", Calculator, "model")}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Populate a block model FROM composited assays — nearest-neighbour or inverse- distance weighting, not a surface — a separate workflow from the implicit surface tools below.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Populate a block model FROM composited assays — nearest neighbour, inverse distance, moving least squares or ordinary kriging, not a surface — a separate workflow from the implicit surface tools below.")}</div>
         <button onClick={() => setGradeEstOpen(true)} disabled={!assayElements.length} style={{ ...pBtn, opacity: assayElements.length ? 1 : 0.5, marginBottom: 8 }}>
           <FileBarChart2 size={14} />{" "}{tr("Estimate grade into block model…")}</button>
         {/* TASKS.csv #147 — deliberately sits directly under the estimation button, because it is the
@@ -644,7 +644,7 @@ export default function ModellingPanes(props) {
         </>)}
         {toolPane === "stack" && (<>
         {paneHeader("Stratigraphic stack", Layers, "model")}
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models several units' top contacts together in one run so they can't cross each other — add units below in order, youngest (shallowest) first. Litho-only: veins/dykes cut across a stack by nature, so model those with the Structural tool instead, not here.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Models several units' top contacts together in one run so they can't cross each other — add units below in order, youngest (shallowest) first. Litho-only: veins/dykes cut across a stack by nature, so model those with the Vein / dyke tool instead, not here.")}</div>
         {!litho_units.length && emptyPaneHint(tr("No lithology intervals loaded — import them on the 3D View tab (Add layer › Lithology), or load the sample project."))}
         {/* TASKS.csv #810 — the stack reads the same option; it had no checkbox, so drawn contacts were dropped unseen */}
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }} title={tr("Also feed drawn cross-section contacts (Draw upper contact, in the section pop-out) tagged as this unit's upper contact into the run as extra interface points")}>
@@ -833,6 +833,7 @@ export default function ModellingPanes(props) {
             onClick={() => runAlterationModel(alterationTarget)}
             disabled={!alterationTarget || alterationBusy}
             title={tr("Build a closed alteration-halo envelope from the logged intervals (runs in-app)")}
+            aria-label={tr("Build a closed alteration-halo envelope from the logged intervals (runs in-app)")}
             style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", opacity: alterationTarget && !alterationBusy ? 1 : 0.5, cursor: alterationTarget && !alterationBusy ? "pointer" : "default" }}
           >{alterationBusy ? <span style={{ fontSize: "var(--font-size-sm)" }}>…</span> : <Layers3 size={14} />}</button>
         </div>
@@ -861,6 +862,7 @@ export default function ModellingPanes(props) {
             onClick={() => runVeinModel(veinTarget)}
             disabled={!veinTarget || veinBusy}
             title={tr("Build paired hangingwall/footwall surfaces plus a closed solid from the logged vein intervals (runs in-app)")}
+            aria-label={tr("Build paired hangingwall/footwall surfaces plus a closed solid from the logged vein intervals (runs in-app)")}
             style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", opacity: veinTarget && !veinBusy ? 1 : 0.5, cursor: veinTarget && !veinBusy ? "pointer" : "default" }}
           >{veinBusy ? <span style={{ fontSize: "var(--font-size-sm)" }}>…</span> : <Layers3 size={14} />}</button>
         </div>

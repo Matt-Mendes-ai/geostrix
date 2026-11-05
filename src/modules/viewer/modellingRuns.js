@@ -1082,7 +1082,7 @@ export function createModellingRuns(ctx, mcRef) {
     // TASKS.csv #85 — drop control points too isolated (along the declared structural trend) to trust.
     const supportedPoints = filterBySearchSupport(points, searchEllipsoid);
     if (searchEllipsoid.enabled && supportedPoints.length < points.length && !silent) {
-      setNotices((p) => [...p, notice("Search ellipsoid: excluded {v} of {points} \"{unitName}\" point(s) with fewer than {minSamples} neighbour(s) along the declared trend.", { v: points.length - supportedPoints.length, points: points.length, unitName, minSamples: searchEllipsoid.minSamples })]);
+      setNotices((p) => [...p, notice("Search ellipsoid: excluded {v} of {points} \"{unitName}\" point(s) with fewer than {minSamples} neighbour(s) inside the ellipsoid.", { v: points.length - supportedPoints.length, points: points.length, unitName, minSamples: searchEllipsoid.minSamples })]);
     }
     if (!supportedPoints.length) {
       if (!silent) setNotices((p) => [...p, notice("All \"{unitName}\" points were excluded by the search ellipsoid — widen its ranges or lower the minimum neighbour count.", { unitName })]);
@@ -1156,7 +1156,7 @@ export function createModellingRuns(ctx, mcRef) {
     const preSearchCount = structRows.length;
     structRows = filterRowsBySearchEllipsoid(structRows, traces, (s) => s.depth);
     if (searchEllipsoid.enabled && structRows.length < preSearchCount && !silent) {
-      setNotices((p) => [...p, notice("Search ellipsoid: excluded {v} of {preSearchCount} structure orientation(s) with fewer than {minSamples} neighbour(s) along the declared trend.", { v: preSearchCount - structRows.length, preSearchCount, minSamples: searchEllipsoid.minSamples })]);
+      setNotices((p) => [...p, notice("Search ellipsoid: excluded {v} of {preSearchCount} structure orientation(s) with fewer than {minSamples} neighbour(s) inside the ellipsoid.", { v: preSearchCount - structRows.length, preSearchCount, minSamples: searchEllipsoid.minSamples })]);
     }
     // TASKS.csv #765 — picks averaged per hole in depth windows (lib/viewer/orientationThin.js): far fewer gradient
     // constraints for GemPy (its time grows ~linearly with them) and the oriented-core scatter averaged out
@@ -1464,7 +1464,7 @@ export function createModellingRuns(ctx, mcRef) {
     const preEllipsoid = rows.length;
     rows = filterRowsBySearchEllipsoid(rows, traces, (s) => s.depth);
     if (searchEllipsoid.enabled && rows.length < preEllipsoid) {
-      setNotices((p) => [...p, notice("Search ellipsoid: excluded {v} of {preEllipsoid} \"{structType}\" pick(s) with fewer than {minSamples} neighbour(s) along the declared trend.", { v: preEllipsoid - rows.length, preEllipsoid, structType, minSamples: searchEllipsoid.minSamples })]);
+      setNotices((p) => [...p, notice("Search ellipsoid: excluded {v} of {preEllipsoid} \"{structType}\" pick(s) with fewer than {minSamples} neighbour(s) inside the ellipsoid.", { v: preEllipsoid - rows.length, preEllipsoid, structType, minSamples: searchEllipsoid.minSamples })]);
     }
     if (!rows.length) { setNotices((p) => [...p, notice("All \"{structType}\" picks were excluded by the search ellipsoid — widen its ranges or lower the minimum neighbour count.", { structType })]); return; }
 
