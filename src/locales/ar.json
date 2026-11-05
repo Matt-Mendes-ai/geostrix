@@ -6160,7 +6160,6 @@
   "linear": "خطي",
   "{name}: coordinates and no from / to depths, so it was opened as surface samples (soils, silts, rocks). Drillhole assays need a hole ID and from / to.": "{name}: يحتوي على إحداثيات دون أعماق من / إلى، لذا فُتح كعينات سطحية (تربة، رواسب، صخور). تحتاج تحاليل ثقوب الحفر إلى معرّف الثقب ومن / إلى.",
   "{n} surface samples loaded; the diagrams here plot drillhole assays": "تم تحميل {n} عينة سطحية؛ المخططات هنا ترسم تحاليل ثقوب الحفر",
-  "Your surface samples are used by Thresholds, Domains, Catchments and Surface QAQC in the ribbon above, and are drawn on the Maps tab.": "تُستخدم عيناتك السطحية في العتبات والنطاقات ومستجمعات المياه وضبط جودة العينات السطحية في الشريط أعلاه، وتُرسم في تبويب الخرائط.",
   "An assay CSV needs a hole ID, from/to depths and one column per element. A table with x/y (easting / northing) and no from/to opens as surface samples instead.": "يحتاج ملف CSV للتحاليل إلى معرّف الثقب وأعماق من/إلى وعمود لكل عنصر. الجدول الذي يحتوي x/y (الشرقيات / الشماليات) دون من/إلى يُفتح كعينات سطحية.",
   "Or drag a CSV or Excel workbook (.xlsx — the sheet with the most element columns is read) anywhere on this page — filenames with \"pxrf\"/\"xrf\" go to the pXRF path, a table with x/y and no from / to opens as surface samples, everything else imports as assays.": "أو اسحب ملف CSV أو مصنف Excel (.xlsx — تُقرأ الورقة ذات أكثر أعمدة العناصر) إلى أي مكان في هذه الصفحة — الملفات التي تحوي أسماؤها «pxrf»/«xrf» تذهب إلى مسار pXRF، والجدول الذي يحتوي x/y دون من / إلى يُفتح كعينات سطحية، وكل ما عداها يُستورد كتحاليل.",
   "surveys": "المسوحات",
@@ -8095,5 +8094,9 @@
   "Pillar under the pit (m)": "الركيزة تحت الحفرة (م)",
   "Rock left between the pit floor and the highest stope. Blank: none.": "الصخر المتروك بين قاع الحفرة وأعلى حجرة. فارغ: لا شيء.",
   "Below {pit}: {n} column-level(s) at the cut-off lie inside the pit or its {p} m pillar and were left out.": "أسفل {pit}: {n} عمود-مستوى عند حد القطع يقع داخل الحفرة أو ركيزتها البالغة {p} م واستُبعد.",
-  "Every column at the cut-off lies inside the pit or its pillar.": "كل الأعمدة عند حد القطع تقع داخل الحفرة أو ركيزتها."
+  "Every column at the cut-off lies inside the pit or its pillar.": "كل الأعمدة عند حد القطع تقع داخل الحفرة أو ركيزتها.",
+  "{v}, pairwise deletion — {n} surface samples. Cells with fewer than {MIN_PAIRS} pairs are greyed.": "{v}، حذف زوجي — {n} عينة سطحية. الخلايا التي تقل أزواجها عن {MIN_PAIRS} تظهر رمادية.",
+  "Added calculated element {symbol} = {expr} on {computed} surface sample(s) (range {min}–{max}){v}. The plan map, thresholds, grade stats and correlation can use it. It is not recalculated if the samples are re-imported.": "أُضيف العنصر المحسوب {symbol} = {expr} على {computed} عينة سطحية (المدى {min}–{max}){v}. يمكن للخريطة الأفقية والعتبات وإحصاءات المحتوى والارتباط استخدامه. لا يُعاد حسابه إذا أُعيد استيراد العينات.",
+  "; {skipped} sample(s) missing an element in the formula have no value": "؛ {skipped} عينة ينقصها عنصر من الصيغة ليس لها قيمة",
+  "Your surface samples are used by Thresholds, Grade stats, Correlation, Calc. element, SQL, Domains, Catchments and Surface QAQC in the ribbon above, and are drawn on the Maps tab.": "تُستخدم عيناتك السطحية في العتبات وإحصاءات المحتوى والارتباط والعنصر المحسوب وSQL والنطاقات ومستجمعات المياه وضبط جودة العينات السطحية في الشريط أعلاه، وتُرسم في تبويب الخرائط."
 }

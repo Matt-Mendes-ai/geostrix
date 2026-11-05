@@ -15,6 +15,7 @@
 // exactly what "ad hoc" means here; if the project changes, reopen the workspace for a fresh snapshot.
 import initSqlJs from "sql.js";
 import sqlWasmUrl from "sql.js/dist/sql-wasm.wasm?url";
+import { createSurfaceSamplesTable } from "./sqlSurfaceTable.js"; // TASKS.csv #1799
 
 let sqlPromise = null;
 function loadSQL() {
@@ -120,7 +121,7 @@ function createBoundariesTable(db, boundaries) {
 // Builds a fresh in-memory sql.js database from whatever's currently loaded. Returns { db, tables }
 // where `tables` is [{name, columns}] — a quick schema reference for the workspace UI, since a user
 // querying data they didn't design the table shape for needs to see what's actually queryable.
-export async function buildWorkspaceDatabase({ collars, survey, layers, assays, assayElements, boundaries }) {
+export async function buildWorkspaceDatabase({ collars, survey, layers, assays, assayElements, boundaries, surfaceSamples = [], surfaceElements = [] }) {
   const SQL = await loadSQL();
   const db = new SQL.Database();
   createCollarsTable(db, collars || []);
@@ -128,6 +129,7 @@ export async function buildWorkspaceDatabase({ collars, survey, layers, assays, 
   createAssaysTable(db, assays || [], assayElements || []);
   createLayerTables(db, layers || {});
   createBoundariesTable(db, boundaries || []);
+  createSurfaceSamplesTable(db, surfaceSamples || [], surfaceElements || []); // #1799
 
   const tables = [];
   const tableNames = db.exec("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;");

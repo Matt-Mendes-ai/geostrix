@@ -33,20 +33,26 @@ function cellColor(r) {
   return `rgb(${rr},${g},${Math.round(255 - at * 70)})`;
 }
 
-export default function CorrelationMatrix({ assays: allAssays, assayElements, onClose }) {
+// TASKS.csv #1799 (review #1646, Kodiak) — surfaceSamples / surfaceElements: a soil program's Cu-Au-Mo-As correlation. The source
+// switch is Grade stats' (#228); surface samples are one value each, with their QC already split off at import (Surface QAQC).
+export default function CorrelationMatrix({ assays: assaysIn, assayElements: assayElementsIn, surfaceSamples = [], surfaceElements = [], onClose }) {
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   // TASKS.csv #405 — QAQC inserts are never samples of the ground; Spearman by default.
   const [includeQAQC, setIncludeQAQC] = useState(false);
   const [method, setMethod] = useState("spearman");
-  const labRows = useMemo(() => labAssays(allAssays), [allAssays]), pxrfLeft = allAssays.length - labRows.length; // #1673 — lab grades only
-  const assays = useMemo(() => (includeQAQC ? labRows : excludeQAQC(labRows)), [labRows, includeQAQC]);
-  const qaqcCount = useMemo(() => labRows.length - excludeQAQC(labRows).length, [labRows]);
+  const [source, setSource] = useState(() => (!assayElementsIn.length && surfaceElements.length ? "surface" : "assays")); // #1799
+  const surface = source === "surface";
+  const allAssays = surface ? surfaceSamples : assaysIn, assayElements = surface ? surfaceElements : assayElementsIn;
+  const labRows = useMemo(() => (surface ? allAssays : labAssays(allAssays)), [allAssays, surface]), pxrfLeft = allAssays.length - labRows.length; // #1673 — lab grades only
+  const assays = useMemo(() => (includeQAQC || surface ? labRows : excludeQAQC(labRows)), [labRows, includeQAQC, surface]);
+  const qaqcCount = useMemo(() => (surface ? 0 : labRows.length - excludeQAQC(labRows).length), [labRows, surface]);
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const allSymbols = assayElements.map((e) => e.symbol);
   // Default to the first 12 loaded elements — a full 60+-element suite renders as an unreadable wall
   // of tiny cells; the checklist below lets the user swap in whichever subset they actually care about.
   const [selected, setSelected] = useState(new Set(allSymbols.slice(0, 12)));
+  const pickSource = (next) => { setSource(next); setSelected(new Set((next === "surface" ? surfaceElements : assayElementsIn).map((e) => e.symbol).slice(0, 12))); }; // #1799
   const toggle = (sym) => setSelected((p) => { const n = new Set(p); n.has(sym) ? n.delete(sym) : n.add(sym); return n; });
 
   // TASKS.csv #1514 — a memo, not a new array per render (it made every re-render recompute the whole matrix); columns and
@@ -61,7 +67,7 @@ export default function CorrelationMatrix({ assays: allAssays, assayElements, on
   const exportCSV = () => {
     const { rows, nRows } = correlationRows(symbols, matrix); // #1083 — rows in lib, tested
     // TASKS.csv #405 — the file says what it is: method, QAQC handling, pairwise n.
-    const basis = `# ${METHOD_LABEL[method]}; pairwise deletion; QAQC inserts ${includeQAQC ? "INCLUDED" : `excluded (${qaqcCount} rows)`}; ${assays.length} intervals, not length-weighted.`;
+    const basis = surface ? `# ${METHOD_LABEL[method]}; pairwise deletion; ${assays.length} surface samples (QC split off at import).` : `# ${METHOD_LABEL[method]}; pairwise deletion; QAQC inserts ${includeQAQC ? "INCLUDED" : `excluded (${qaqcCount} rows)`}; ${assays.length} intervals, not length-weighted.`; // #1799
     saveFile({ suggestedName: "correlation_matrix.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: `${basis}\n${toExportCsv(rows)}\n\n${toExportCsv(nRows)}` });
   };
 
@@ -71,23 +77,24 @@ export default function CorrelationMatrix({ assays: allAssays, assayElements, on
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Multi-element correlation matrix")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{v}, pairwise deletion — {assays} intervals{v2}. Cells with fewer than {MIN_PAIRS} pairs are greyed.", { v: tr(METHOD_LABEL[method]), assays: assays.length, v2: includeQAQC ? tr(" (QAQC inserts included)") : qaqcCount ? tr(", {qaqcCount} QAQC rows excluded", { qaqcCount }) : "", MIN_PAIRS })}</div>
-            {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{surface ? tr("{v}, pairwise deletion — {n} surface samples. Cells with fewer than {MIN_PAIRS} pairs are greyed.", { v: tr(METHOD_LABEL[method]), n: assays.length, MIN_PAIRS }) : tr("{v}, pairwise deletion — {assays} intervals{v2}. Cells with fewer than {MIN_PAIRS} pairs are greyed.", { v: tr(METHOD_LABEL[method]), assays: assays.length, v2: includeQAQC ? tr(" (QAQC inserts included)") : qaqcCount ? tr(", {qaqcCount} QAQC rows excluded", { qaqcCount }) : "", MIN_PAIRS })}</div>
+            {!surface && pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>
+            {assayElementsIn.length > 0 && surfaceElements.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Data source")}<select value={source} onChange={(e) => pickSource(e.target.value)} style={{ fontSize: "var(--font-size-base)" }}><option value="assays">{tr("Drillhole assays")}</option><option value="surface">{tr("Surface samples")}</option></select></label>}{/* #1799 */}
             <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Method")}<select value={method} onChange={(e) => setMethod(e.target.value)} style={{ fontSize: "var(--font-size-base)" }}>
                 <option value="spearman">{tr("Spearman rank (default)")}</option>
                 <option value="log">{tr("Pearson, log10 values")}</option>
                 <option value="pearson">{tr("Pearson, raw values")}</option>
               </select>
             </label>
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {!surface && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <input type="checkbox" checked={includeQAQC} onChange={(e) => setIncludeQAQC(e.target.checked)} />{" "}{tr("Include QAQC inserts{v}", { v: qaqcCount ? ` (${qaqcCount})` : "" })}
-            </label>
+            </label>}
           </div>
           <div>
             <div style={label}>{tr("Elements ({symbols} of {allSymbols} selected)", { symbols: symbols.length, allSymbols: allSymbols.length })}</div>

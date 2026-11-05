@@ -868,11 +868,11 @@ export default function GeochemModule() {
             <RibbonButton icon={GShapes} label="Jensen" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Lithology (Jensen cation plot) — screening level" onClick={() => runMethod("litho_jensen")} />
           </RibbonGroup>
           <RibbonGroup advanced label="Calculate">
-            <RibbonButton icon={Sigma} label="Calc. element" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" active={!!calc} title="Add a calculated element from a formula (AI, CCPI, ratios...) — usable everywhere a real element is" onClick={() => setCalc((c) => (c ? null : { name: "", expr: "", unit: "index", msg: null }))} />
+            <RibbonButton icon={Sigma} label="Calc. element" tone="analyse" disabled={!assayElements.length && !surfaceElements.length} disabledReason="Import assays or surface samples first" active={!!calc} title="Add a calculated element from a formula (AI, CCPI, ratios...) — usable everywhere a real element is" onClick={() => setCalc((c) => (c ? null : { name: "", expr: "", unit: "index", msg: null, source: assayElements.length ? "assays" : "surface" }))} />{/* source: TASKS.csv #1799 */}
             <RibbonButton icon={Scale} label="Isocon" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Isocon / mass-change calculator" onClick={() => setIsoconOpen(true)} />
           </RibbonGroup>
           <RibbonGroup label="Analyze">
-            <RibbonButton advanced icon={Grid3x3} label="Correlation" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="Correlation matrix" onClick={() => setCorrOpen(true)} />
+            <RibbonButton advanced icon={Grid3x3} label="Correlation" tone="analyse" disabled={!assayElements.length && !surfaceElements.length} disabledReason="Import assays or surface samples first" title="Correlation matrix" onClick={() => setCorrOpen(true)} />
             <RibbonButton icon={GBarChart} label="Grade stats" tone="analyse" disabled={!(assayElements.length || surfaceElements.length)} disabledReason="Import assays or surface samples first" title="Grade statistics (assays or surface samples)" onClick={() => setGradeStatsOpen(true)} />
             <RibbonButton icon={GBarChart} label="Thresholds" tone="analyse" disabled={!surfaceElements.length} disabledReason="Import surface samples first" title="Anomaly thresholds for soil and stream-sediment samples, judged within populations" onClick={() => setThresholdsOpen(true)} />{/* TASKS.csv #841 */}
             <RibbonButton icon={GMapPin} label="Plan map" tone="output" disabled={!surfaceSamples.length} disabledReason="Import surface samples first" title="Surface samples in plan, classed by the saved threshold, over a block-model level slice: to Layout or PNG" onClick={() => setPlanMapOpen(true)} />{/* TASKS.csv #1792 / #1864 */}
@@ -882,7 +882,7 @@ export default function GeochemModule() {
             <RibbonButton icon={GMapPin} label="Plan survey" tone="data" title="Plan a soil grid or stream-sediment sites, numbered with your QC inserts: GPX, KML, CSV and a printable field sheet" onClick={() => setPlannerOpen(true)} />{/* TASKS.csv #844 */}
             <RibbonButton advanced icon={ShieldCheck} label="QAQC" tone="analyse" disabled={!assayElements.length} disabledReason="Import assays first" title="QAQC: standards, blanks, duplicates" onClick={() => setQaqcOpen(true)} />
             <RibbonButton icon={ShieldCheck} label="Surface QAQC" tone="analyse" disabled={!(surfaceSamples.length || surfaceQc?.records?.length)} disabledReason="Import surface samples first" title="QA/QC of soil and stream-sediment programs: lab certificates, your standards, blanks and duplicates, insertion rates per batch" onClick={() => setSurfaceQcOpen(true)} />{/* TASKS.csv #842 */}
-            <RibbonButton advanced icon={TerminalSquare} label="SQL" tone="data" disabled={!assayElements.length} disabledReason="Import assays first" title="SQL workspace" onClick={() => setSqlOpen(true)} />
+            <RibbonButton advanced icon={TerminalSquare} label="SQL" tone="data" disabled={!assayElements.length && !surfaceSamples.length} disabledReason="Import assays or surface samples first" title="SQL workspace" onClick={() => setSqlOpen(true)} />
           </RibbonGroup>
           <RibbonGroup label="Report">
             <RibbonButton icon={GAward} label="Best intercepts" tone="output" disabled={!assayElements.length} disabledReason="Import assays first" title="Best-intercept report" onClick={() => setBestIntOpen(true)} />
@@ -914,23 +914,35 @@ export default function GeochemModule() {
         {assayElements.length > 0 && <div style={{ fontSize: 10, color: "#65717e", marginTop: 8, lineHeight: 1.5 }}>{tr("Screening-level classifications — a first pass, not a substitute for a proper plot and petrologic review.")}</div>}
 
         {/* TASKS.csv #401 — calculated element form, opened from the ribbon */}
-        {calc && assayElements.length > 0 && (
+        {calc && (assayElements.length > 0 || surfaceElements.length > 0) && (() => {
+          // TASKS.csv #1799 (review #1646, Kodiak) — a soil Cu + Au index is a calculated element on the surface samples
+          const onSurface = calc.source === "surface" && surfaceElements.length > 0, calcEls = onSurface ? surfaceElements : assayElements;
+          return (
           <>
             <div className="ge-section-label" style={{ marginTop: 18 }}>{tr("Calculated element")}</div>
               <div style={{ padding: 8, border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", display: "flex", flexDirection: "column", gap: 6 }}>
-                <select value="" onChange={(e) => { const p = CALC_PRESETS.find((x) => x.name === e.target.value); if (p) setCalc({ name: p.name, expr: p.expr, unit: "index", msg: { ok: true, text: `${tr(p.label)}. ${tr(p.unitNote)}.` } }); }} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Preset")}>
+                {assayElements.length > 0 && surfaceElements.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Data source")}<select value={onSurface ? "surface" : "assays"} onChange={(e) => setCalc((c) => ({ ...c, source: e.target.value, msg: null }))} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Data source")}><option value="assays">{tr("Drillhole assays")}</option><option value="surface">{tr("Surface samples")}</option></select></label>}
+                <select value="" onChange={(e) => { const p = CALC_PRESETS.find((x) => x.name === e.target.value); if (p) setCalc((c) => ({ source: c?.source, name: p.name, expr: p.expr, unit: "index", msg: { ok: true, text: `${tr(p.label)}. ${tr(p.unitNote)}.` } })); }} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Preset")}>
                   <option value="">{tr("Preset… (or write your own below)")}</option>
-                  {CALC_PRESETS.map((p) => <option key={p.name} value={p.name} disabled={!p.needs.every((s) => assayElements.some((e) => e.symbol === s))}>{tr(p.label)}{p.needs.every((s) => assayElements.some((e) => e.symbol === s)) ? "" : tr(" — needs {list}", { list: p.needs.join(", ") })}</option>)}
+                  {CALC_PRESETS.map((p) => <option key={p.name} value={p.name} disabled={!p.needs.every((s) => calcEls.some((e) => e.symbol === s))}>{tr(p.label)}{p.needs.every((s) => calcEls.some((e) => e.symbol === s)) ? "" : tr(" — needs {list}", { list: p.needs.join(", ") })}</option>)}
                 </select>
                 <input value={calc.name} onChange={(e) => setCalc((c) => ({ ...c, name: e.target.value }))} placeholder={tr("Name, e.g. AI")} aria-label={tr("Calculated element name")} style={{ fontSize: "var(--font-size-sm)" }} />
                 {/* TASKS.csv #1749 (review #1645, Copley) — a metal-equivalent (CuEq, AuEq) is a grade, not an index: with a grade unit its estimate can be priced in the pit shell */}
                 <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Unit")}<select value={calc.unit || "index"} onChange={(e) => setCalc((c) => ({ ...c, unit: e.target.value }))} style={{ fontSize: "var(--font-size-sm)" }} aria-label={tr("Unit of the calculated element")} title={tr("An index has no unit. A metal-equivalent (CuEq, AuEq) takes the grade unit its formula gives, % or g/t, so an estimate of it can be priced in the pit shell.")}>{["index", "%", "g/t", "ppm", "ppb"].map((u) => <option key={u} value={u}>{u === "index" ? tr("index (no unit)") : u}</option>)}</select></label>
                 <textarea value={calc.expr} onChange={(e) => setCalc((c) => ({ ...c, expr: e.target.value }))} rows={3} placeholder={tr("Formula over element symbols, e.g. 100*Zn/(Zn+Pb)")} aria-label={tr("Calculated element formula")} style={{ fontSize: "var(--font-size-sm)", fontFamily: "monospace" }} />
-                <div style={{ color: "var(--color-text-muted)" }}>{tr("Elements are read in their stored units ({v}{v2}). Rows missing any element in the formula get no value.", { v: assayElements.slice(0, 6).map((e) => `${e.symbol} ${e.unit}`).join(", "), v2: assayElements.length > 6 ? ", …" : "" })}</div>
+                <div style={{ color: "var(--color-text-muted)" }}>{tr("Elements are read in their stored units ({v}{v2}). Rows missing any element in the formula get no value.", { v: calcEls.slice(0, 6).map((e) => `${e.symbol} ${e.unit}`).join(", "), v2: calcEls.length > 6 ? ", …" : "" })}</div>
                 {calc.msg && <div style={{ color: calc.msg.ok ? "var(--color-text-secondary)" : "var(--color-danger-icon-strong)" }}>{calc.msg.text}</div>}
                 <div style={{ display: "flex", gap: 6 }}>
                   <button style={{ ...genBtn, flex: 1 }} onClick={() => {
                     try {
+                      if (onSurface) { // #1799 — stored on the surface samples like an imported element: plan map, thresholds, grade stats take it
+                        const r = addCalculatedElement(surfaceSamples, surfaceElements, calc.name, calc.expr, calc.unit || "index");
+                        setSurfaceSamples(r.assays);
+                        setSurfaceElements((prev) => [...prev, r.element]);
+                        setNotices((p) => [...p, notice("Added calculated element {symbol} = {expr} on {computed} surface sample(s) (range {min}–{max}){v}. The plan map, thresholds, grade stats and correlation can use it. It is not recalculated if the samples are re-imported.", { symbol: r.element.symbol, expr: r.element.calculated.expr, computed: r.computed.toLocaleString(), min: r.min.toFixed(2), max: r.max.toFixed(2), v: r.skipped ? tr("; {skipped} sample(s) missing an element in the formula have no value", { skipped: r.skipped.toLocaleString() }) : "" })]);
+                        setCalc(null);
+                        return;
+                      }
                       const r = addCalculatedElement(assays, assayElements, calc.name, calc.expr, calc.unit || "index"); // unit: #1749
                       setAssays(r.assays);
                       setAssayElements((prev) => [...prev, r.element]);
@@ -942,7 +954,8 @@ export default function GeochemModule() {
                 </div>
               </div>
           </>
-        )}
+          );
+        })()}
 
         {/* TASKS.csv #298 — this module has no floating toast of its own (unlike the 3D View), so this
             list is the ONLY surface a setNotices() message appears on while the user is in Geochem —
@@ -1061,7 +1074,7 @@ export default function GeochemModule() {
               footnote={tr("An assay CSV needs a hole ID, from/to depths and one column per element. A table with x/y (easting / northing) and no from/to opens as surface samples instead.")}
             >
               <div style={{ marginBottom: 12 }}>{tr("Ternary, bivariate and REE-spider diagrams over your assay or pXRF data, plus alteration indices, correlation matrices, QAQC and downhole compositing. Import a file to start plotting.")}</div>
-              {surfaceSamples.length > 0 && <div style={{ marginBottom: 12 }}>{tr("Your surface samples are used by Thresholds, Domains, Catchments and Surface QAQC in the ribbon above, and are drawn on the Maps tab.")}</div>}{/* #1086 */}
+              {surfaceSamples.length > 0 && <div style={{ marginBottom: 12 }}>{tr("Your surface samples are used by Thresholds, Grade stats, Correlation, Calc. element, SQL, Domains, Catchments and Surface QAQC in the ribbon above, and are drawn on the Maps tab.")}</div>}{/* #1086 */}
             </EmptyState>
           </div>
         ) : (
@@ -1119,6 +1132,8 @@ export default function GeochemModule() {
         <CorrelationMatrix
           assays={assays}
           assayElements={assayElements}
+          surfaceSamples={surfaceSamples} /* TASKS.csv #1799 */
+          surfaceElements={surfaceElements}
           onClose={() => setCorrOpen(false)}
         />
       )}
@@ -1207,6 +1222,8 @@ export default function GeochemModule() {
             assays={assays}
             assayElements={assayElements}
             boundaries={boundaries}
+            surfaceSamples={surfaceSamples} /* TASKS.csv #1799 */
+            surfaceElements={surfaceElements}
             onClose={() => setSqlOpen(false)}
           />
         </Suspense>

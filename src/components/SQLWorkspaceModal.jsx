@@ -19,11 +19,12 @@ function defaultQueryFor(tables) {
     const numericCol = assaysTable.columns.find((c) => !["hole_id", "from", "to", "source"].includes(c));
     if (numericCol) return `SELECT * FROM assays WHERE "${numericCol}" > 1 ORDER BY "${numericCol}" DESC LIMIT 100;`;
   }
+  if (tables.some((t) => t.name === "surface_samples")) return "SELECT * FROM surface_samples LIMIT 100;"; // #1799
   if (tables.some((t) => t.name === "collars")) return "SELECT * FROM collars LIMIT 100;";
   return tables.length ? `SELECT * FROM "${tables[0].name}" LIMIT 100;` : "";
 }
 
-export default function SQLWorkspaceModal({ collars, survey, layers, assays, assayElements, boundaries, onClose }) {
+export default function SQLWorkspaceModal({ collars, survey, layers, assays, assayElements, boundaries, surfaceSamples = [], surfaceElements = [], onClose }) { // surface*: TASKS.csv #1799
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const [state, setState] = useState({ status: "loading" }); // loading | ready | error
@@ -34,7 +35,7 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
 
   useEffect(() => {
     let cancelled = false;
-    buildWorkspaceDatabase({ collars, survey, layers, assays, assayElements, boundaries })
+    buildWorkspaceDatabase({ collars, survey, layers, assays, assayElements, boundaries, surfaceSamples, surfaceElements })
       .then(({ db, tables }) => {
         if (cancelled) return;
         setState({ status: "ready", db, tables });
@@ -64,7 +65,7 @@ export default function SQLWorkspaceModal({ collars, survey, layers, assays, ass
     saveFile({ suggestedName: "sql_query_result.csv", filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(sqlResultRows(result.columns, result.rows)) });
   };
 
-  const emptyLoaded = useMemo(() => !collars.length && !assays.length && !Object.values(layers || {}).some((r) => r?.length), [collars, survey, layers, assays]);
+  const emptyLoaded = useMemo(() => !collars.length && !assays.length && !surfaceSamples.length && !Object.values(layers || {}).some((r) => r?.length), [collars, survey, layers, assays, surfaceSamples]);
 
   return (
     <div style={overlay}>
