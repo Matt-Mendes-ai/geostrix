@@ -8192,5 +8192,13 @@
   "No terrain: the contacts' dips cannot be fitted and the model cannot run. Fetch one (Maps > Terrain, needs the internet), import a DEM, or offline make one in Maps > Terrain from points or contours, from the project's samples and collars, or from a block model's top (Geophysics > Block models).": "Sin terreno: no se pueden ajustar los buzamientos de los contactos y el modelo no puede ejecutarse. Descargue uno (Maps > Terrain, requiere internet), importe un DEM o, sin conexión, créelo en Maps > Terrain a partir de puntos o curvas de nivel, de las muestras y collares del proyecto, o del techo de un modelo de bloques (Geophysics > Block models).",
   "Bound to": "Vinculada a",
   "Nothing (a free bar)": "Nada (una barra libre)",
-  "Not tied to a view: its length is not a distance on any map of this page. Bind it to a view above (it then follows that view's scale).": "No vinculada a una vista: su longitud no es una distancia en ningún mapa de esta página. Vincúlela a una vista arriba (entonces sigue la escala de esa vista)."
+  "Not tied to a view: its length is not a distance on any map of this page. Bind it to a view above (it then follows that view's scale).": "No vinculada a una vista: su longitud no es una distancia en ningún mapa de esta página. Vincúlela a una vista arriba (entonces sigue la escala de esa vista).",
+  "First row": "Primera fila",
+  "Holes containing": "Sondajes que contienen",
+  "all": "todos",
+  "Rows {a}–{b} of {n}.": "Filas {a}–{b} de {n}.",
+  "Rows {a}–{b} of {n}": "Filas {a}–{b} de {n}",
+  "Continue on {n} new page(s)": "Continuar en {n} página(s) nueva(s)",
+  "… and {n} more hole(s), from row {r}: a table with that First row, or Continue on new pages": "… y {n} sondaje(s) más, desde la fila {r}: una tabla con esa Primera fila, o Continuar en páginas nuevas",
+  "No hole id contains \"{f}\".": "Ningún id de sondaje contiene \"{f}\"."
 }

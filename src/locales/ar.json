@@ -8192,5 +8192,13 @@
   "No terrain: the contacts' dips cannot be fitted and the model cannot run. Fetch one (Maps > Terrain, needs the internet), import a DEM, or offline make one in Maps > Terrain from points or contours, from the project's samples and collars, or from a block model's top (Geophysics > Block models).": "لا توجد تضاريس: لا يمكن ملاءمة ميول التماسات ولا يمكن تشغيل النموذج. اجلب واحدة (Maps > Terrain، تحتاج إلى الإنترنت)، أو استورد نموذج ارتفاع رقمي، أو أنشئ واحدة دون اتصال في Maps > Terrain من نقاط أو خطوط كنتور، أو من عينات المشروع وفوهاته، أو من سطح نموذج كتلي (Geophysics > Block models).",
   "Bound to": "مرتبط بـ",
   "Nothing (a free bar)": "لا شيء (شريط حر)",
-  "Not tied to a view: its length is not a distance on any map of this page. Bind it to a view above (it then follows that view's scale).": "غير مرتبط بعرض: طوله ليس مسافة على أي خريطة في هذه الصفحة. اربطه بعرض أعلاه (ليتبع عندها مقياس ذلك العرض)."
+  "Not tied to a view: its length is not a distance on any map of this page. Bind it to a view above (it then follows that view's scale).": "غير مرتبط بعرض: طوله ليس مسافة على أي خريطة في هذه الصفحة. اربطه بعرض أعلاه (ليتبع عندها مقياس ذلك العرض).",
+  "First row": "الصف الأول",
+  "Holes containing": "الثقوب التي تحتوي",
+  "all": "الكل",
+  "Rows {a}–{b} of {n}.": "الصفوف {a}–{b} من {n}.",
+  "Rows {a}–{b} of {n}": "الصفوف {a}–{b} من {n}",
+  "Continue on {n} new page(s)": "المتابعة في {n} صفحة جديدة",
+  "… and {n} more hole(s), from row {r}: a table with that First row, or Continue on new pages": "… و{n} ثقب إضافي بدءاً من الصف {r}: جدول بهذا الصف الأول، أو المتابعة في صفحات جديدة",
+  "No hole id contains \"{f}\".": "لا يحتوي أي معرّف ثقب على \"{f}\"."
 }

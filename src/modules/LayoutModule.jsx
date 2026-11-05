@@ -11,6 +11,7 @@ import PromptModal from "../components/PromptModal.jsx";
 import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
+import { collarTableSlice, collarRowsThatFit, continuationTables } from "../lib/collarTable.js"; // TASKS.csv #1638
 import { withLiveScaleBars, relinkCopies, tieStarterFurniture, northRotationOf, insertScaleBar, scaleBarTargets, bindScaleBar } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
 import { capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, holesInFrame, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText, sectionTextPt, sectionTextFactor } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; sectionTextPt: #1485; section scale: #944
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
@@ -597,7 +598,7 @@ export default function LayoutModule() {
     if (type === "arrow") { base.length = 140; base.angle = 0; base.stroke = "#1a2028"; base.strokeWidth = 2.5; }
     if (type === "callout") { base.text = "Note"; base.w = 180; base.fill = "#fff9e0"; base.stroke = "#c9a227"; }
     // TASKS.csv #911 — a drillhole collar table, live from the project's collars (static tables come from Best intercepts)
-    if (type === "table") { base.source = "collars"; base.title = "Drillhole collars"; base.w = 520; base.fontPt = 7; base.maxRows = 40; base.frameWidth = 1; }
+    if (type === "table") { base.source = "collars"; base.title = "Drillhole collars"; base.w = 520; base.fontPt = 7; base.maxRows = collarRowsThatFit(A4.h, base.y, 7); /* #1638 — fits the sheet */ base.frameWidth = 1; }
     if (type !== "logo") setElements((els) => [...els, base]);
     setSelected(type !== "logo" ? id : null);
   };
@@ -1058,6 +1059,18 @@ export default function LayoutModule() {
                 </div>
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 8, lineHeight: 1.4 }}>
                   {sel.source === "collars" ? tr("Kept up to date with the project's collars, sorted by hole; holes beyond the row limit are counted in the last line.") : tr("A copy of the results when it was sent (from {from}); send it again to update it.", { from: sel.from || tr("Best intercepts") })}</div>
+                {sel.source === "collars" && (() => { // TASKS.csv #1638 — an appendix of every hole: a first row, a filter, continuation pages
+                  const sl = collarTableSlice(sortedCollars(tableCollars || []), { firstRow: sel.firstRow, maxRows: sel.maxRows, filter: sel.holeFilter });
+                  const conts = sl.after > 0 ? continuationTables(sel, sl.total) : [];
+                  return (<>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("First row")}<input type="number" min="1" step="1" value={sel.firstRow || 1} onChange={(e) => updateSelected({ firstRow: Math.max(1, Math.round(Number(e.target.value) || 1)) })} style={inp} /></label>
+                      <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", flex: 1 }}>{tr("Holes containing")}<input type="text" value={sel.holeFilter || ""} placeholder={tr("all")} onChange={(e) => updateSelected({ holeFilter: e.target.value, firstRow: 1 })} style={inp} /></label>
+                    </div>
+                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("Rows {a}–{b} of {n}.", { a: sl.total ? sl.start + 1 : 0, b: sl.end, n: sl.total })}</div>
+                    {conts.length > 0 && <button onClick={() => addLayoutPages(conts.map((t, i) => ({ name: `${activePage?.name || tr("Collars")} (${i + 2})`, elements: [t] })))} style={{ ...pBtn, marginBottom: 8 }}>{tr("Continue on {n} new page(s)", { n: conts.length })}</button>}
+                  </>);
+                })()}
                 <FrameControls sel={sel} updateSelected={updateSelected} />
               </>
             )}
@@ -2035,28 +2048,29 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   // TASKS.csv #911 — a table: live drillhole collars, or a static copy (Best intercepts' results). Print typography (pt),
   // numbers right-aligned in tabular figures, a hairline grid; rows beyond the limit are counted, not dropped silently.
   if (el.type === "table") {
-    let columns = el.columns || [], rows = el.rows || [], more = 0, surveyNote = null;
+    let columns = el.columns || [], rows = el.rows || [], more = 0, surveyNote = null, head = null, nextRow = 0; // head, nextRow: #1638
     if (el.source === "collars") {
       const cs = sortedCollars(ctx?.collars || []);
       const f = (v, d) => (Number.isFinite(Number(v)) && v !== "" && v != null ? Number(v).toFixed(d) : "");
       columns = [tr("Hole"), tr("Easting"), tr("Northing"), tr("Elev. (m)"), tr("Azimuth (grid)") /* #1771 — GeoStrix keeps grid azimuths */, tr("Dip"), tr("Depth (m)")];
-      const lim = el.maxRows || 40;
+      const sl = collarTableSlice(cs, { firstRow: el.firstRow, maxRows: el.maxRows, filter: el.holeFilter }); // #1638
       const star = (v, fromSurvey) => (v !== "" && fromSurvey ? `${v}*` : v); // #1483 — from the first survey station; #1771 each value its own flag
-      rows = cs.slice(0, lim).map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), f(c.z, 1), star(f(c.azimuth, 0), c.azFromSurvey ?? c.orientFromSurvey), star(f(Number.isFinite(c.dip) ? -c.dip : "", 0), c.dipFromSurvey ?? c.orientFromSurvey) /* #1033 — negative = down, as imported */, f(c.length, 1)]);
-      more = Math.max(0, cs.length - lim);
-      if (cs.slice(0, lim).some((c) => c.orientFromSurvey)) surveyNote = tr("* From the shallowest survey station: the collar record has none for that value.");
+      rows = sl.rows.map((c) => [String(c.hole_id ?? ""), f(c.x, 0), f(c.y, 0), f(c.z, 1), star(f(c.azimuth, 0), c.azFromSurvey ?? c.orientFromSurvey), star(f(Number.isFinite(c.dip) ? -c.dip : "", 0), c.dipFromSurvey ?? c.orientFromSurvey) /* #1033 — negative = down, as imported */, f(c.length, 1)]);
+      more = sl.after; head = sl.start > 0 || el.holeFilter ? tr("Rows {a}–{b} of {n}", { a: sl.total ? sl.start + 1 : 0, b: sl.end, n: sl.total }) + (el.holeFilter ? ` (${el.holeFilter})` : "") : null; nextRow = sl.end + 1;
+      if (sl.rows.some((c) => c.orientFromSurvey)) surveyNote = tr("* From the shallowest survey station: the collar record has none for that value.");
     }
     const fs = printPx(el.fontPt || printPt.small), cell = { padding: `${Math.round(fs * 0.25)}px ${Math.round(fs * 0.5)}px`, borderBottom: "1px solid #c9ced4" /* #999 — 0.26 mm on paper like the scale bar; 0.5 px vanished on screen at Fit zoom */, whiteSpace: "nowrap" };
     const numeric = columns.map((_, j) => rows.length > 0 && rows.every((r) => r[j] === "" || /^[-+≥<>]?[\d.,]+\*?$/.test(String(r[j])))); // \*: #1483
     return (
       <div style={{ ...wrap, width: el.w || 520, background: "#fff", border: frameBorder(el), padding: 6, boxSizing: "border-box", fontFamily: "'Exo 2', system-ui, sans-serif", color: "#1a2028" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
         {el.title && <div style={{ fontSize: printPx((el.fontPt || printPt.small) + 2), fontWeight: 700, marginBottom: 4 }}>{fillText(el.title, ctx)}</div>}
+        {head && <div style={{ fontSize: fs, color: "#555", marginBottom: 3 }}>{head}</div>}{/* #1638 */}
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: fs, fontVariantNumeric: "tabular-nums", tableLayout: "auto" }}>
           <thead><tr>{columns.map((h, j) => <th key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left", fontWeight: 600, borderBottom: "1px solid #1a2028" }}>{h}</th>)}</tr></thead>
           <tbody>
             {rows.map((r, i) => <tr key={i}>{r.map((v, j) => <td key={j} style={{ ...cell, textAlign: numeric[j] ? "right" : "left" }}>{v}</td>)}</tr>)}
-            {!rows.length && <tr><td colSpan={Math.max(1, columns.length)} style={{ ...cell, color: "#777" }}>{el.source === "collars" ? tr("No collars in the project yet.") : tr("No rows.")}</td></tr>}
-            {more > 0 && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{tr("… and {n} more hole(s) (raise \"Rows at most\" or add a second table)", { n: more })}</td></tr>}
+            {!rows.length && <tr><td colSpan={Math.max(1, columns.length)} style={{ ...cell, color: "#777" }}>{el.source === "collars" ? (el.holeFilter ? tr("No hole id contains \"{f}\".", { f: el.holeFilter }) : tr("No collars in the project yet.")) : tr("No rows.")}</td></tr>}
+            {more > 0 && <tr><td colSpan={columns.length} style={{ ...cell, color: "#555", fontStyle: "italic" }}>{tr("… and {n} more hole(s), from row {r}: a table with that First row, or Continue on new pages", { n: more, r: nextRow })}</td></tr>}
           </tbody>
         </table>
         {surveyNote && <div style={{ fontSize: printPx(Math.max(5, (el.fontPt || printPt.small) - 1)), fontStyle: "italic", color: "#3a424c", marginTop: 4, lineHeight: 1.35, whiteSpace: "normal" }}>{surveyNote}</div>}

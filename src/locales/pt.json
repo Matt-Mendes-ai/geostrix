@@ -8192,5 +8192,13 @@
   "No terrain: the contacts' dips cannot be fitted and the model cannot run. Fetch one (Maps > Terrain, needs the internet), import a DEM, or offline make one in Maps > Terrain from points or contours, from the project's samples and collars, or from a block model's top (Geophysics > Block models).": "Sem terreno: os mergulhos dos contatos não podem ser ajustados e o modelo não pode rodar. Baixe um (Maps > Terrain, precisa de internet), importe um DEM ou, offline, crie um em Maps > Terrain a partir de pontos ou curvas de nível, das amostras e bocas de furo do projeto, ou do topo de um modelo de blocos (Geophysics > Block models).",
   "Bound to": "Vinculada a",
   "Nothing (a free bar)": "Nada (uma barra livre)",
-  "Not tied to a view: its length is not a distance on any map of this page. Bind it to a view above (it then follows that view's scale).": "Não vinculada a uma vista: seu comprimento não é uma distância em nenhum mapa desta página. Vincule-a a uma vista acima (ela passa a seguir a escala dessa vista)."
+  "Not tied to a view: its length is not a distance on any map of this page. Bind it to a view above (it then follows that view's scale).": "Não vinculada a uma vista: seu comprimento não é uma distância em nenhum mapa desta página. Vincule-a a uma vista acima (ela passa a seguir a escala dessa vista).",
+  "First row": "Primeira linha",
+  "Holes containing": "Furos que contêm",
+  "all": "todos",
+  "Rows {a}–{b} of {n}.": "Linhas {a}–{b} de {n}.",
+  "Rows {a}–{b} of {n}": "Linhas {a}–{b} de {n}",
+  "Continue on {n} new page(s)": "Continuar em {n} página(s) nova(s)",
+  "… and {n} more hole(s), from row {r}: a table with that First row, or Continue on new pages": "… e mais {n} furo(s), a partir da linha {r}: uma tabela com essa Primeira linha, ou Continuar em páginas novas",
+  "No hole id contains \"{f}\".": "Nenhum id de furo contém \"{f}\"."
 }
