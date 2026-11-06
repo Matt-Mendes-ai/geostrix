@@ -17,12 +17,14 @@ const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "sp
 // drawing: the 3D view's state { on, points: [{ x, y, z }], finishSeq }; onStart / onUndo / onCancel / onDone drive it.
 // presetSurvey: the survey a Geophysics-tab button named (TASKS.csv #1152), or null.
 export default function InterpretPane({ drawing, onStart, onUndo, onCancel, onDone, presetSurvey, onClose }) {
-  const { mapLayers, addMapLayer, updateMapLayer, layers, geophysSurveys, rasters } = useStore();
+  const { mapLayers, addMapLayer, updateMapLayer, layers, rasters } = useStore();
+  // TASKS.csv #1432 (review #1352) — the surveys that still have points: geophysSurveys keeps a cleared survey's settings (units, method),
+  // so listing its keys offered 'synthetic_mag_TEST.csv' after Clear had removed all 441 of its points
   const surveys = useMemo(() => {
-    const keys = new Set(Object.keys(geophysSurveys || {}));
+    const keys = new Set();
     (layers.geophys_pts || []).forEach((r) => keys.add(surveyKey(r)));
     return [...[...keys].sort(), ...(rasters || []).map((r) => r.name)];
-  }, [geophysSurveys, layers.geophys_pts, rasters]);
+  }, [layers.geophys_pts, rasters]);
   const mine = useMemo(() => mapLayers.filter(isInterpretationLayer), [mapLayers]);
   const [survey, setSurvey] = useState(presetSurvey || "");
   useEffect(() => { if (presetSurvey) setSurvey(presetSurvey); }, [presetSurvey]);
