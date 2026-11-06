@@ -3,6 +3,7 @@
 // lib/levelling.js.
 import React, { useMemo, useState } from "react";
 import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #1523
+import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — Au on an Au-Ag project
 import { X } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { surveysOf, fitLevelling, levellingPreview, writeLevelled, levelledSymbol, MIN_TIES, MIN_STAT } from "../lib/levelling.js";
@@ -28,7 +29,8 @@ export default function LevellingPanel({ onClose }) {
   const columns = useMemo(() => { const c = new Set(["source"]); surfaceSamples.forEach((s) => Object.keys(s.attrs || {}).forEach((k) => { if (!k.endsWith("_lev_basis")) c.add(k); })); return [...c]; }, [surfaceSamples]);
   const [column, setColumn] = useState("source");
   const [medium, setMedium] = useState(media[0] || "");
-  const [symbol, setSymbol] = useState(() => preferredElement(elements.map((e) => e.symbol))); // #1523 — the commodity, not the first stored (S)
+  const lead = useLeadCommodity();
+  const [symbol, setSymbol] = useState(() => preferredElement(elements.map((e) => e.symbol), null, lead)); // #1523 — the project's lead commodity, not the first stored (S)
   const inMedium = useMemo(() => surfaceSamples.filter((s) => s.medium === medium), [surfaceSamples, medium]);
   const surveys = useMemo(() => surveysOf(inMedium, column), [inMedium, column]);
   const [refPick, setRefPick] = useState("");

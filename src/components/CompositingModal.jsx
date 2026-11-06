@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
+import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the project's lead commodity
 import { customDomainOptions, isCategoricalLayer } from "../lib/customDomains.js"; // TASKS.csv #1678; #1515
 import { compositeDownhole, countDuplicateAssayIntervals, capAudit, capAuditText } from "../lib/geochem.js";
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
@@ -47,7 +48,8 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
   useFocusTrap(); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
-  const [symbol, setSymbolRaw] = useState(() => preferredElement(symbols, "compositing") || "Au");
+  const lead = useLeadCommodity();
+  const [symbol, setSymbolRaw] = useState(() => preferredElement(symbols, "compositing", lead) || "Au");
   const setSymbol = (v) => { setSymbolRaw(v); rememberElement("compositing", typeof v === "string" ? v : null); }; // #1678 — kept for next time
   const unit = elementUnits[symbol] || "ppm";
   const [length, setLength] = useState(2);

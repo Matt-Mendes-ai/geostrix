@@ -5,6 +5,7 @@
 // Maths in lib/surfaceQaqc.js; certified values are shared with the drillhole QA/QC (store.crmCertificates).
 import React, { useMemo, useRef, useState } from "react";
 import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #1523
+import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — Au on an Au-Ag project
 import { X, Download } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { parseLabCertificate, isLabCertificateText } from "../lib/labCertificate.js";
@@ -36,7 +37,8 @@ export default function SurfaceQaqcPanel({ onClose }) {
     const extra = [...new Set(records.flatMap((r) => Object.keys(r.values || {})))].filter((s) => !seen.has(s)).sort();
     return [...surfaceElements.map((e) => e.symbol), ...extra];
   }, [surfaceElements, records]);
-  const [symbol, setSymbol] = useState(() => preferredElement(elementList)); // #1523 — the commodity, not the first stored (S)
+  const lead = useLeadCommodity();
+  const [symbol, setSymbol] = useState(() => preferredElement(elementList, null, lead)); // #1523 — the project's lead commodity, not the first stored (S)
   const [tab, setTab] = useState("batches");
   const [stdCode, setStdCode] = useState(null);
   const [msg, setMsg] = useState(null);

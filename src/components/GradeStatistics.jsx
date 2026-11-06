@@ -29,6 +29,7 @@ import { weightedProbPoints, weightedPercentile, capEffect, thinToPixels } from 
 import { normalQuantile } from "../lib/thresholds.js";
 import { capAboveZone, capWarningText } from "../lib/capWarning.js"; // TASKS.csv #1676
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
+import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the project's lead commodity
 import { customDomainOptions, isCategoricalLayer, domainIndex, domainAtMid } from "../lib/customDomains.js"; // TASKS.csv #1678; #1515
 
 // Sample statistics (n-1 denominator for variance/stdev, the standard convention for a sample rather
@@ -108,7 +109,8 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const [source, setSource] = useState("assays"); // "assays" | "surface"
   const surfaceElementUnits = useMemo(() => Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit])), [surfaceElements]);
   const activeElements = source === "surface" ? surfaceElements : assayElements;
-  const [symbol, setSymbolRaw] = useState(() => preferredElement(assayElements.map((e) => e.symbol), "gradestats"));
+  const lead = useLeadCommodity();
+  const [symbol, setSymbolRaw] = useState(() => preferredElement(assayElements.map((e) => e.symbol), "gradestats", lead));
   const setSymbol = (v) => { setSymbolRaw(v); rememberElement("gradestats", typeof v === "string" ? v : null); }; // #1678
   const [domainKey, setDomainKey] = useState("");
   const [logChoice, setLogChoice] = useState(null); // #1524 — { key, on }: a tick for this source and element; otherwise the data decides
@@ -244,7 +246,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                     const next = e.target.value;
                     setSource(next);
                     const els = next === "surface" ? surfaceElements : assayElements;
-                    setSymbolRaw(els.some((e) => e.symbol === symbol) ? symbol : preferredElement(els.map((e) => e.symbol))); // #1678; #1523 — Au stays Au when the other source has it
+                    setSymbolRaw(els.some((e) => e.symbol === symbol) ? symbol : preferredElement(els.map((e) => e.symbol), null, lead)); // #1678; #1523 — Au stays Au when the other source has it
                     setDomainKey("");
                   }}
                   style={{ ...sel, display: "block", marginTop: 4 }}

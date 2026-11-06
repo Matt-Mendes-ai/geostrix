@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import { X, Download, Sheet } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
+import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the project's lead commodity
 import { computeBestIntercepts, makeRangeAverager, domainsForInterval, attachIncluding, metalEquivalent, metalEquivalentFormula, PRECIOUS_METALS, withMetalEquivalent } from "../lib/geochem.js"; // attachIncluding, metal equivalent: #402
 import { excludeQAQC, labAssays } from "../lib/qaqc.js";
 import { desurveyHole } from "../lib/desurvey.js";
@@ -34,7 +35,8 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   const { desurveyMethod, project, setLayoutElements, goToModule } = useStore(); // TASKS.csv #135 — true-width needs the project's own trace; layout: #911
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
-  const [symbol, setSymbolRaw] = useState(() => preferredElement(symbols, "intercepts") || "Au");
+  const lead = useLeadCommodity();
+  const [symbol, setSymbolRaw] = useState(() => preferredElement(symbols, "intercepts", lead) || "Au");
   const setSymbol = (v) => { setSymbolRaw(v); rememberElement("intercepts", typeof v === "string" ? v : null); }; // #1678 — kept for next time
   const unit = elementUnits[symbol] || "ppm";
   // TASKS.csv #1387 (review #1352) — a cutoff belongs to its element: Ag 30 ppm became "Cutoff (%) = 30" for Pb. Each element keeps

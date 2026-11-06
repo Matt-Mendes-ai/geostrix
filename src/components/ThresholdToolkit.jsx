@@ -5,6 +5,7 @@
 // so the anomaly maps of #843 can print the rule in their legend. Maths in lib/thresholds.js.
 import React, { useEffect, useMemo, useState } from "react";
 import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #1523
+import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — Au on an Au-Ag project
 import { X, Download } from "./icons.js";
 import { valueIn } from "../lib/geochem.js";
 import { THRESHOLD_METHODS, MIN_N_BREAKS, MIN_N_ROBUST, candidateThresholds, groupOptions, groupKeyFn, populations, normalQuantile, hasMixedSources } from "../lib/thresholds.js";
@@ -27,7 +28,8 @@ export default function ThresholdToolkit({ surfaceSamples, surfaceElements, mapL
   useEscapeKey(onClose);
   useFocusTrap();
   const units = useMemo(() => Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit])), [surfaceElements]);
-  const [symbol, setSymbol] = useState(() => preferredElement(surfaceElements.map((e) => e.symbol))); // #1523 — the commodity, not the first stored (S)
+  const lead = useLeadCommodity();
+  const [symbol, setSymbol] = useState(() => preferredElement(surfaceElements.map((e) => e.symbol), null, lead)); // #1523 — the project's lead commodity, not the first stored (S)
   const saved = geochemThresholds.find((r) => r.symbol === symbol) || null;
   const gOpts = useMemo(() => groupOptions(surfaceSamples, mapLayers), [surfaceSamples, mapLayers]);
   const mixedSources = useMemo(() => hasMixedSources(surfaceSamples), [surfaceSamples]); // TASKS.csv #932
