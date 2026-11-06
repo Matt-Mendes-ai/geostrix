@@ -701,7 +701,10 @@ export function turnGridBearing(T, x, y, a) {
   if (!T || !Number.isFinite(a) || !Number.isFinite(x) || !Number.isFinite(y)) return a;
   const r = a * Math.PI / 180, [x0, y0] = T(x, y), [x1, y1] = T(x + 10 * Math.sin(r), y + 10 * Math.cos(r));
   const out = ((Math.atan2(x1 - x0, y1 - y0) * 180 / Math.PI) % 360 + 360) % 360;
-  return Math.round(out * 100) / 100 % 360;
+  // TASKS.csv #1470 (review #1352, Silvertip) — no rounding to 0.01 deg here (a NAD83 -> WGS 84 move turned 278.43353 into 278.43):
+  // the bearing as given when grid north does not turn, else to 1e-6 deg (float noise of the 10 m step, far below any reading)
+  if (Math.abs(bearingTurn(a, out)) < 1e-7) return a;
+  return Math.round(out * 1e6) / 1e6 % 360;
 }
 // signed change (degrees, -180..180) from bearing a to bearing b
 export const bearingTurn = (a, b) => ((b - a + 540) % 360) - 180;

@@ -93,7 +93,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
   const moveAll = () => {
     // TASKS.csv #528 — one click moved every object and cleared Undo, picked from a long list of look-alike names
     const from = project.epsg, to = Number(newCrs);
-    if (!confirmDestructive(tr("Move every loaded object from {v} to {v2}?", { v: nameOf(from), v2: nameOf(to) }), { recover: tr("Undo history is cleared, and moving back re-samples raster images.") })) return;
+    if (!confirmDestructive(tr("Move every loaded object from {v} to {v2}?", { v: nameOf(from), v2: nameOf(to) }), { recover: tr("Undo history is cleared, and moving back re-samples the terrain and raster images (a slightly larger box, slightly coarser cells).") })) return;
     return run(async () => {
     const report = await reprojectProjectTo(to, { rotateAzimuths: rotate });
     setMsg({ ok: true, text: tr("{v} Undo history was cleared.", { v: reportText(report, `Moved the project from ${nameOf(from)} to ${nameOf(to)}`) }) });

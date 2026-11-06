@@ -24,12 +24,18 @@ import { b64ToBytes } from "./base64.js"; // TASKS.csv #1114
 const DEG = 180 / Math.PI;
 const fin = Number.isFinite;
 
+// TASKS.csv #1470 — the original NAD83 (GRS80 with a zero shift) and WGS 84: proj4 moves nothing between them (0.1 mm in the review)
+const isWgs84 = (d) => /\+datum=WGS84\b/.test(d || "") || (/\+ellps=WGS84\b/.test(d || "") && !/\+towgs84=/.test(d || ""));
+const isNad83Null = (d) => /\+ellps=GRS80\b/.test(d || "") && /\+towgs84=0,0,0(,0,0,0,0)?(\s|$)/.test(d || "");
+export const nullDatumPair = (a, b) => (isWgs84(a) && isNad83Null(b)) || (isNad83Null(a) && isWgs84(b));
+
 export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
   const T = pointTransform(fromEpsg, toEpsg);
   if (!T) throw new Error(tr("Can't reproject from EPSG:{fromEpsg} to EPSG:{toEpsg} — one of them isn't a CRS GeoStrix can build.", { fromEpsg, toEpsg }));
   const fromDef = getProj4DefSync(fromEpsg), toDef = getProj4DefSync(toEpsg);
   const rotate = opts.rotateAzimuths !== false;
   const counts = {}, notes = [];
+  if (nullDatumPair(fromDef, toDef)) notes.push(tr("NAD83 and WGS 84 are treated as the same datum in this move (no shift applied); today they differ by about 1–2 m in North America."));
   let maxRot = 0;
   const count = (k, n = 1) => { counts[k] = (counts[k] || 0) + n; };
   const xy = (x, y) => (fin(x) && fin(y) ? T(x, y) : [x, y]);
@@ -97,7 +103,7 @@ export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
         const [x, y] = xy(r.x, r.y);
         const dipDir = az(r.x, r.y, r.dipDir);
         // strike turns by exactly the same angle as the dip direction (whatever strike convention the file used)
-        const strike = fin(r.strike) && fin(dipDir) && fin(r.dipDir) ? Math.round(((r.strike + turn(r.dipDir, dipDir)) % 360 + 360) % 360 * 100) / 100 : r.strike;
+        const strike = fin(r.strike) && fin(dipDir) && fin(r.dipDir) ? Math.round(((r.strike + turn(r.dipDir, dipDir)) % 360 + 360) % 360 * 1e6) / 1e6 : r.strike; // #1470: not to 0.01
         return { ...r, x, y, dipDir, ...(r.strike !== undefined ? { strike } : {}) };
       }),
     }));
@@ -262,12 +268,12 @@ export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
   const cxy = cs.length ? [cs.reduce((a, c) => a + c.x, 0) / cs.length, cs.reduce((a, c) => a + c.y, 0) / cs.length] : null;
   if (live.structuralTrends?.trends?.length) {
     if (cxy) {
-      f.structuralTrends = { ...live.structuralTrends, trends: live.structuralTrends.trends.map((t) => (fin(Number(t.dipAzimuth)) ? { ...t, dipAzimuth: Math.round(az(cxy[0], cxy[1], Number(t.dipAzimuth)) * 100) / 100 } : t)) };
+      f.structuralTrends = { ...live.structuralTrends, trends: live.structuralTrends.trends.map((t) => (fin(Number(t.dipAzimuth)) ? { ...t, dipAzimuth: az(cxy[0], cxy[1], Number(t.dipAzimuth)) } : t)) };
       count("structural trends", f.structuralTrends.trends.length);
     } else notes.push(tr("Structural trends were not turned (no collars to tell where grid north changes); check their dip azimuths."));
   }
   if (live.fieldStructuralRefs?.length && cxy) {
-    f.fieldStructuralRefs = live.fieldStructuralRefs.map((r) => (fin(Number(r.dipDirDeg)) ? { ...r, dipDirDeg: Math.round(az(cxy[0], cxy[1], Number(r.dipDirDeg)) * 10) / 10 } : r));
+    f.fieldStructuralRefs = live.fieldStructuralRefs.map((r) => (fin(Number(r.dipDirDeg)) ? { ...r, dipDirDeg: az(cxy[0], cxy[1], Number(r.dipDirDeg)) } : r));
   }
   if (live.dcipLines?.length) {
     const s2 = (v) => String(+v.toFixed(2));
@@ -293,7 +299,7 @@ export function reprojectProject(live, fromEpsg, toEpsg, opts = {}) {
       const a = g.params?.anisotropy, src = live.generatedSurfaces[i];
       if (!a || !fin(a.dipAzimuth) || !src?.vertices?.length) return g;
       const v = src.vertices, cx = (v[0] + v[v.length - 3]) / 2, cy = (v[1] + v[v.length - 2]) / 2;
-      return { ...g, params: { ...g.params, anisotropy: { ...a, dipAzimuth: Math.round(az(cx, cy, a.dipAzimuth) * 100) / 100 } } };
+      return { ...g, params: { ...g.params, anisotropy: { ...a, dipAzimuth: az(cx, cy, a.dipAzimuth) } } };
     });
   }
 

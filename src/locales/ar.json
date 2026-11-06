@@ -8548,5 +8548,7 @@
   "Hole names, end-of-hole depths or offsets with nowhere free to go are left out rather than printed on top of each other. A narrower buffer (fewer holes), a higher VE, a smaller text size or dragging labels makes room; hover a hole for its name.": "تُحذف أسماء الآبار وأعماق نهاياتها والإزاحات التي لا تجد مكانًا فارغًا بدلًا من طباعتها فوق بعضها. يتيح نطاق أضيق (آبار أقل) أو مبالغة رأسية أكبر أو نص أصغر أو سحب التسميات مساحة أكبر؛ مرّر المؤشر فوق البئر لرؤية اسمه.",
   "1 label left out: no room": "حُذفت تسمية واحدة: لا مكان",
   "{n} labels left out: no room": "حُذفت {n} تسميات: لا مكان",
-  "The interval layers and assay elements shown in the 3D View are offered here: turn one on there (Recovery %, or an element under Assays) to colour the plan by it": "تُعرض هنا طبقات الفترات وعناصر التحليل الظاهرة في العرض ثلاثي الأبعاد: فعّل أحدها هناك (نسبة الاستخلاص %، أو عنصرًا ضمن التحاليل) لتلوين المسقط به"
+  "The interval layers and assay elements shown in the 3D View are offered here: turn one on there (Recovery %, or an element under Assays) to colour the plan by it": "تُعرض هنا طبقات الفترات وعناصر التحليل الظاهرة في العرض ثلاثي الأبعاد: فعّل أحدها هناك (نسبة الاستخلاص %، أو عنصرًا ضمن التحاليل) لتلوين المسقط به",
+  "Undo history is cleared, and moving back re-samples the terrain and raster images (a slightly larger box, slightly coarser cells).": "يُمسح سجل التراجع، والعودة تعيد أخذ عينات التضاريس والصور النقطية (إطار أكبر قليلًا وخلايا أخشن قليلًا).",
+  "NAD83 and WGS 84 are treated as the same datum in this move (no shift applied); today they differ by about 1–2 m in North America.": "يُعامَل NAD83 وWGS 84 كمرجع واحد في هذا النقل (دون إزاحة)؛ ويختلفان اليوم بنحو 1–2 م في أمريكا الشمالية."
 }
