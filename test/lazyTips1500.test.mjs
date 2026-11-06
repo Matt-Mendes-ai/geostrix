@@ -4,14 +4,15 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { lazyTip } from "../src/lib/viewer/lazyTip.js";
 
-test("lazyTip: built once on first read, assignable, enumerable, the other fields untouched", () => {
+test("lazyTip: built once on first read, assignable, the other fields kept as own properties", () => {
   let made = 0;
-  const ud = lazyTip({ row: { a: 1 }, holeId: "H1" }, () => { made++; return "H1\nLithology: VOLC"; });
+  const ud = lazyTip({ row: { a: 1 }, holeId: "H1", catValue: "VOLC" }, () => { made++; return "H1\nLithology: VOLC"; });
   assert.equal(made, 0);
+  assert.deepEqual([ud.row, ud.holeId, ud.catValue], [{ a: 1 }, "H1", "VOLC"]);
   assert.equal(ud.tip, "H1\nLithology: VOLC"); assert.equal(ud.tip.split("\n")[0], "H1"); assert.equal(made, 1);
-  assert.deepEqual(Object.keys(ud).sort(), ["holeId", "row", "tip"]);
-  assert.deepEqual({ ...ud }.tip, "H1\nLithology: VOLC"); assert.equal(made, 1);
+  assert.equal(ud?.tip, "H1\nLithology: VOLC"); assert.equal(made, 1); // optional-chaining readers (userData?.tip)
   ud.tip = "replaced"; assert.equal(ud.tip, "replaced"); assert.equal(made, 1);
+  assert.equal(lazyTip({}, () => "x").tip, "x");
 });
 
 test("the build: intervals, point logs, custom layers and assay markers use lazyTip with their hole id; vectors only for a bent interval", () => {
