@@ -200,7 +200,7 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
                   {Object.entries(SENSORS).map(([k, s]) => <option key={k} value={k}>{tr(s.label)}</option>)}
                 </select>
               )}
-              <select value={presetId} onChange={(e) => setPresetId(e.target.value)} style={sel} aria-label={tr("Index")}>
+              <select value={presetId} onChange={(e) => { const v = e.target.value; /* #1472 — Custom starts from a formula valid for the sensor (was 'b1/b2', an error on fetched imagery) */ if (v === CUSTOM) setCustom(fetchMode ? (preset?.expr || `${SENSORS[activeSensor].roles[0]}/${SENSORS[activeSensor].roles[1]}`) : "b1/b2"); setPresetId(v); }} style={sel} aria-label={tr("Index")}>
                 {presets.map((p) => <option key={p.id} value={p.id}>{tr(p.label)}</option>)}
                 <option value={CUSTOM}>{tr("Custom expression…")}</option>
               </select>
@@ -213,7 +213,7 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
             {reflective && sens.nir && (
               <label style={{ ...small, display: "flex", alignItems: "flex-start", gap: 6, marginTop: 8 }}>
                 <input type="checkbox" checked={maskVeg} onChange={(e) => setMaskVeg(e.target.checked)} style={{ marginTop: 2 }} />
-                <span>{tr("Leave out vegetation (NDVI above {max}, from {nir} and {red}): iron and clay ratios only mean something on exposed rock and soil, so the colours then compare rock with rock. Downloads one more band.", { max: VEG_NDVI_MAX, nir: sens.nir, red: sens.red })}</span>
+                <span>{tr("Leave out vegetation (NDVI above {max}, from {nir} and {red}): iron and clay ratios only mean something on exposed rock and soil, so the colours then compare rock with rock.{v}", { max: VEG_NDVI_MAX, nir: sens.nir, red: sens.red, v: fetchMode ? tr(" Downloads one more band.") : "" })}{/* #1472 — nothing is downloaded from a file */}</span>
               </label>
             )}
           </div>

@@ -12,7 +12,7 @@
 // Every importer still reprojects INTO the project CRS on import (its Source CRS box); #488 moves those boxes
 // onto the same picker.
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #528
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Globe2, Layers, FileSpreadsheet, Loader2, CheckCircle2 } from "../components/icons.js";
 import { useStore } from "../lib/store.jsx";
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components/Ribbon.jsx";
@@ -36,7 +36,8 @@ const selectStyle = { width: "100%", boxSizing: "border-box", background: "var(-
 const nameOf = (epsg) => `${crsName(epsg) || "Unrecognized CRS"} (EPSG:${epsg})`;
 
 function reportText(report, verb) {
-  const parts = Object.entries(report.counts || {}).map(([k, n]) => `${n.toLocaleString()} ${k}`);
+  // #1473 — '1 boundaries': a count of one takes the singular (boundaries -> boundary, DC/IP lines -> DC/IP line)
+  const parts = Object.entries(report.counts || {}).map(([k, n]) => `${n.toLocaleString()} ${n === 1 ? k.replace(/ies$/, "y").replace(/s$/, "") : k}`);
   return `${verb}${parts.length ? `: ${parts.join(", ")}` : ""}.${report.notes?.length ? ` ${report.notes.join(" ")}` : ""}`;
 }
 
@@ -49,6 +50,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
+  useEffect(() => { setMsg(null); }, [pane]); // #1473 — the Maps ribbon picks the pane (forcePane): one pane's result stayed on the next
   const run = async (fn) => { setBusy(true); setMsg(null); try { await fn(); } catch (e) { setMsg({ ok: false, text: e.message || String(e) }); } finally { setBusy(false); } };
 
   // ---- what's loaded (and where) ----

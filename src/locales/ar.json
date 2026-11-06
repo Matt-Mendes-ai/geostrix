@@ -8539,5 +8539,8 @@
   "Maps > Terrain": "الخرائط > التضاريس",
   "This area is outside the contiguous USA, where NAIP is flown: choose Sentinel-2 (worldwide) instead.": "هذه المنطقة خارج الولايات المتحدة المتصلة حيث يُلتقط NAIP: اختر Sentinel-2 (عالمي) بدلًا منه.",
   "Outside the USA: NAIP has no imagery here.": "خارج الولايات المتحدة: لا صور NAIP هنا.",
-  "Part of this area is outside the USA: NAIP covers only the rest.": "جزء من هذه المنطقة خارج الولايات المتحدة: يغطي NAIP الباقي فقط."
+  "Part of this area is outside the USA: NAIP covers only the rest.": "جزء من هذه المنطقة خارج الولايات المتحدة: يغطي NAIP الباقي فقط.",
+  "Leave out vegetation (NDVI above {max}, from {nir} and {red}): iron and clay ratios only mean something on exposed rock and soil, so the colours then compare rock with rock.{v}": "استبعاد الغطاء النباتي (NDVI فوق {max}، من {nir} و{red}): نسب الحديد والطين لا معنى لها إلا على الصخر والتربة المكشوفين، فتقارن الألوان عندها صخرًا بصخر.{v}",
+  " Downloads one more band.": " يُنزّل نطاقًا إضافيًا.",
+  "2. Feature": "2. السمة"
 }

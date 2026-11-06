@@ -93,7 +93,7 @@ export default function HyperspectralTab({ epsg, defaultElevation, sourceEpsg, o
         </div>
       )}
       <div>
-        <div style={label}>{tr("3. Feature")}</div>
+        <div style={label}>{file ? tr("3. Feature") : tr("2. Feature")}</div>{/* #1472 — step 2 shows only once a file is loaded */}
         <select value={feature} onChange={(e) => setFeature(e.target.value)} style={sel} aria-label={tr("Absorption feature")}>
           {Object.entries(FEATURES).map(([k, x]) => <option key={k} value={k}>{tr(x.label)}</option>)}
         </select>

@@ -8539,5 +8539,8 @@
   "Maps > Terrain": "Mapas > Terreno",
   "This area is outside the contiguous USA, where NAIP is flown: choose Sentinel-2 (worldwide) instead.": "Esta área está fora dos EUA contíguos, onde o NAIP é voado: escolha o Sentinel-2 (mundial).",
   "Outside the USA: NAIP has no imagery here.": "Fora dos EUA: o NAIP não tem imagens aqui.",
-  "Part of this area is outside the USA: NAIP covers only the rest.": "Parte desta área está fora dos EUA: o NAIP cobre só o resto."
+  "Part of this area is outside the USA: NAIP covers only the rest.": "Parte desta área está fora dos EUA: o NAIP cobre só o resto.",
+  "Leave out vegetation (NDVI above {max}, from {nir} and {red}): iron and clay ratios only mean something on exposed rock and soil, so the colours then compare rock with rock.{v}": "Deixar de fora a vegetação (NDVI acima de {max}, de {nir} e {red}): as razões de ferro e argila só significam algo sobre rocha e solo expostos, assim as cores comparam rocha com rocha.{v}",
+  " Downloads one more band.": " Baixa uma banda a mais.",
+  "2. Feature": "2. Feição"
 }
