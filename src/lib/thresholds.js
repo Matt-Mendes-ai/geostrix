@@ -201,7 +201,9 @@ export function populations(samples, { valueOf, censoredOf = () => false, zeroOf
   const group = (k) => { if (!by.has(k)) by.set(k, { key: k, values: [], idx: [], censored: 0, zero: 0 }); return by.get(k); };
   samples.forEach((s, i) => {
     const v = valueOf(s);
-    if (!(v > 0)) { if (v == null && zeroOf(s)) group(keyOf(s)).zero++; return; }
+    // TASKS.csv #1391 — a 0 kept by the import (readAssayCell keeps value >= 0) is a reported zero too (below detection or not analysed),
+    // counted as #931's flagged ones are: Silvertip's streams (12 Au = 0) and soils (10) were left out of n without a word
+    if (!(v > 0)) { if ((v == null && zeroOf(s)) || v === 0) group(keyOf(s)).zero++; return; }
     const g = group(keyOf(s));
     g.values.push(v); g.idx.push(i);
     if (censoredOf(s)) g.censored++;
