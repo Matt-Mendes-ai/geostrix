@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { buildMeshQuery, isPointInsideMesh, isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #517
 import { validateSolid } from "../lib/meshValidate.js"; // TASKS.csv #860
 import { X, Play } from "./icons.js";
-import { compositeDownhole, rawSampleIntervals, PRECIOUS_METALS, capAudit } from "../lib/geochem.js"; // rawSampleIntervals: #571
+import { compositeDownhole, rawSampleIntervals, PRECIOUS_METALS, capAudit, lengthWeightedPercentile } from "../lib/geochem.js"; // rawSampleIntervals: #571; lengthWeightedPercentile: #1573
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import EstimateCheck from "./EstimateCheck.jsx"; // TASKS.csv #1051
 import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266
@@ -152,9 +152,12 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
   const [searchRadius, setSearchRadius] = useState(50);
   const [minSamples, setMinSamples] = useState(1);
   const [minHoles, setMinHoles] = useState(2);          // TASKS.csv #258
+  const [materialHoles, setMaterialHoles] = useState(true); // TASKS.csv #1573 — a second hole must carry at least 5 % of the weight
   const [maxSamples, setMaxSamples] = useState(16);
   const [maxPerHole, setMaxPerHole] = useState(0); // TASKS.csv #709 — 0 = no explicit cap
   const [capValue, setCapValue] = useState(NaN);        // TASKS.csv #259
+  const capClearedFor = useRef(null); // TASKS.csv #1573 — the element whose default cap the user emptied: no refill
+  const [capAuto, setCapAuto] = useState(false);
   const [includeQAQC, setIncludeQAQC] = useState(false); // TASKS.csv #266
   const [restrictToDomain, setRestrictToDomain] = useState(false); // TASKS.csv #260
   const [classifySupport, setClassifySupport] = useState(true); // TASKS.csv #91/#92
@@ -207,6 +210,14 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
     return (Math.sqrt(variance) / mean) * 100;
   }, [srcAssays, symbol]);
 
+  // TASKS.csv #1573 (review #1497, Lawyers) — a CV over 150 % starts CAPPED at P99 (the default run on Lawyers was uncapped: one
+  // 52.8 g/t sample made a 13.3 g/t block); emptying the cap runs uncapped for that element, and the result says which
+  useEffect(() => {
+    if (!(elementCV > 150)) { setCapAuto(false); return; }
+    if (!symbol || (Number.isFinite(capValue) && capValue > 0) || capClearedFor.current === symbol) return;
+    const p99 = lengthWeightedPercentile(srcAssays, symbol, unit, elementUnits, 99);
+    if (Number.isFinite(p99) && p99 > 0) { setCapValue(Number(p99.toPrecision(4))); setCapAuto(true); }
+  }, [symbol, elementCV]); // the cap and the assays are read when the element or its CV changes, on purpose
   const matched = gridMode.startsWith("model:") ? latticeModels.find((x) => x.m.id === gridMode.slice(6)) || null : null;
   const originOk = [originE, originN, originZ].every((v) => v !== "" && Number.isFinite(Number(v)));
   const lattice = matched ? matched.L : gridMode === "origin" && originOk ? { dx: cellSize, dy: cellSize, dz: cellSize, ox: Number(originE), oy: Number(originN), oz: Number(originZ) } : null;
@@ -318,6 +329,7 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
           bounds, cellSize: cell3, maxBlocks: blockBudget, // #626; cell3 / bounds: the matched lattice (#724)
           method, searchRadius: searchRadius > 0 ? searchRadius : gridDiagonal, minSamples, maxSamples, maxPerHole, // maxPerHole: #709
           minHoles,                                              // TASKS.csv #258
+          materialHoles,                                         // TASKS.csv #1573
           restrictToDomain: restrictToDomain && !!domainKey,     // TASKS.csv #260
           support: classifySupport,                              // TASKS.csv #91/#92
           ...(supportRef > 0 ? { supportRef } : {}),             // #1411
@@ -495,8 +507,14 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
             {/* TASKS.csv #258 */}
             <label style={fieldLabel} title={tr("A block is only estimated if samples from at least this many DISTINCT drillholes fall inside its search radius. With 1, a single intercept becomes a full search-radius sphere of 'resource' with continuity asserted rather than demonstrated. Every resource practitioner's first sanity constraint is at least two, usually three. With 2 or more, each hole supplies at most (max samples / min holes) of a block's samples, e.g. 8 of 16.")}>{tr("Min distinct holes per block")}<input type="number" min="1" step="1" value={minHoles} onChange={(e) => setMinHoles(Math.max(1, Math.round(Number(e.target.value) || 1)))} style={inp} />
             </label>
+            {minHoles > 1 && ( // TASKS.csv #1573 (review #1497, Lawyers)
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", cursor: "pointer", flex: "1 1 100%" }} title={tr("On Lawyers a block beside a 16 m bonanza intercept counted a second hole whose near-zero grades 48 m away carried a third of the weight; with this on, a hole with under 5 % of the inverse-distance weight is not a second hole, and the block waits for real support.")}>
+                <input type="checkbox" checked={materialHoles} onChange={(e) => setMaterialHoles(e.target.checked)} />
+                <span>{tr("A hole counts only when it carries at least 5% of the weight")}</span>
+              </label>
+            )}
             {/* TASKS.csv #259 */}
-            <label style={fieldLabel} title={tr("Caps every RAW assay at this grade before compositing (compositeDownhole applies it per sample, before length-weighted averaging — the correct order). Blank = no cap. Commonly set at the 97.5th–99th percentile of the element's distribution.")}>{tr("High-grade cap ({v})", { v: PRECIOUS_METALS.has(symbol) && unit === "ppm" ? "g/t" : unit })}<input type="number" min="0" step="any" placeholder={tr("none")} value={Number.isFinite(capValue) ? capValue : ""} onChange={(e) => setCapValue(e.target.value === "" ? NaN : Number(e.target.value))} style={inp} />
+            <label style={fieldLabel} title={tr("Caps every RAW assay at this grade before compositing (compositeDownhole applies it per sample, before length-weighted averaging — the correct order). Blank = no cap. Commonly set at the 97.5th–99th percentile of the element's distribution.")}>{tr("High-grade cap ({v})", { v: PRECIOUS_METALS.has(symbol) && unit === "ppm" ? "g/t" : unit })}<input type="number" min="0" step="any" placeholder={tr("none")} value={Number.isFinite(capValue) ? capValue : ""} onChange={(e) => { const v = e.target.value === "" ? NaN : Number(e.target.value); capClearedFor.current = Number.isFinite(v) && v > 0 ? null : symbol; setCapAuto(false); setCapValue(v); }} style={inp} />
             </label>
             <label style={fieldLabel} title={tr("Caps how many nearest samples contribute to any one block's IDW average (ignored for nearest-neighbour).")}>{tr("Max samples/block")}<input type="number" min="1" value={maxSamples} onChange={(e) => setMaxSamples(Math.max(1, Number(e.target.value) || 1))} style={inp} />
             </label>
@@ -512,6 +530,7 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
           {elementCV != null && elementCV > 150 && !(Number.isFinite(capValue) && capValue > 0) && (
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.45 }}>{tr("This element's coefficient of variation is {elementCV}% — a skewed, outlier-driven distribution. Estimating it without a high-grade cap will overstate grade. Set a cap (commonly the 97.5th–99th percentile) before trusting this result.", { elementCV: elementCV.toFixed(0) })}</div>
           )}
+          {capAuto && Number.isFinite(capValue) && capValue > 0 && elementCV != null && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45 }}>{tr("Capped at P99 = {cap} by default: this element's coefficient of variation is {cv}%. Clear the cap to run uncapped; the result says which.", { cap: capValue, cv: elementCV.toFixed(0) })}</div>}{/* TASKS.csv #1573 */}
           {/* TASKS.csv #266 — same toggle Best Intercepts / Compositing / Grade Statistics already have. */}
           {pxrfLeft > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("{n} pXRF reading(s) left out: the grades here come from lab assays only.", { n: pxrfLeft })}</div>}{/* #1673 */}
           {qaqcExcludedCount > 0 && (
@@ -653,6 +672,14 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
 
           {result && (
             <div style={{ padding: 10, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-strong)", display: "flex", flexDirection: "column", gap: 6 }}>
+              {result.supportCounts && result.blocksEstimated > 0 && (() => { // TASKS.csv #1573 — the support split first, in plain words
+                const sc = result.supportCounts, n = result.blocksEstimated, pct = Math.round((100 * sc.interpolated) / n);
+                const one = result.singleHoleCells || 0, dom = result.dominatedCells || 0;
+                const tail = one || dom ? " " + tr("{one} rest on one hole and {dom} effectively on one hole.", { one: one.toLocaleString(), dom: dom.toLocaleString() }) : "";
+                return sc.interpolated > 0
+                  ? <div style={{ fontWeight: 600 }}>{tr("{k} of {n} blocks ({pct}%) lie between holes (interpolated); {e} are extrapolated beyond the data.", { k: sc.interpolated.toLocaleString(), n: n.toLocaleString(), pct, e: sc.extrapolated.toLocaleString() })}{tail}</div>
+                  : <div style={{ fontWeight: 600, color: "var(--color-warn-text)" }}>{tr("None of these {n} blocks lies between holes: every one is extrapolated from the nearest holes.", { n: n.toLocaleString() })}{tail}</div>;
+              })()}
               <div>{tr("{samplePointCount} sample point(s) placed ({intervalCount} interval(s), {droppedCount} dropped — no collar/survey to place them{v}{v2}).", { samplePointCount: result.samplePointCount, intervalCount: result.intervalCount, droppedCount: result.droppedCount, v: result.beyondTraceCount ? tr(", {beyondTraceCount} of them deeper than the hole's trace", { beyondTraceCount: result.beyondTraceCount }) : "", v2: result.clampedCount ? tr("; {clampedCount} negative grade(s) clamped to zero", { clampedCount: result.clampedCount }) : "" })}</div>
               {/* TASKS.csv #571 */}
               {result.rawStats && (result.rawStats.duplicatesSkipped > 0 || result.rawStats.overlappingRows > 0) && (
@@ -727,7 +754,7 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
               {result.blocksEstimated > 0 && (
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
                   <input placeholder={modelName.trim() ? "" : resultName() /* #1737 — the name the result will get, not the form's current settings */} value={modelName} onChange={(e) => { setModelName(e.target.value); setAdded(false); setAddedSupport(false); }} style={{ ...inp, flex: 1, width: "auto" }} />
-                  <button onClick={addToProject} style={{ ...btn(true), padding: "7px 12px" }}>{added ? tr("Added ✓") : tr("Add as block model")}</button>
+                  <button onClick={addToProject} style={{ ...btn(true), padding: "7px 12px" }}>{added ? tr("Added ✓") : result.supportCounts ? tr("Add as block model ({pct}% interpolated)", { pct: Math.round((100 * result.supportCounts.interpolated) / Math.max(1, result.blocksEstimated)) }) : tr("Add as block model")}</button>{/* pct: TASKS.csv #1573 */}
                 </div>
               )}
               {/* TASKS.csv #92 — the index as its own block model. This IS the "where is this model

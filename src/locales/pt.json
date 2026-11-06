@@ -8315,5 +8315,12 @@
   "{msg} {v} Set its opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.": "{msg} {v} Defina a sua opacidade (ou um CRS de origem, se ficou no sítio errado) no separador Mapas.",
   "No label": "Sem rótulo",
   "Dip labels": "Rótulos de mergulho",
-  "The dip, in degrees, beside each symbol in the 3D view; labels that would overprint are hidden until you zoom in.": "O mergulho, em graus, junto a cada símbolo na vista 3D; os rótulos que se sobreporiam ficam escondidos até aproximar."
+  "The dip, in degrees, beside each symbol in the 3D view; labels that would overprint are hidden until you zoom in.": "O mergulho, em graus, junto a cada símbolo na vista 3D; os rótulos que se sobreporiam ficam escondidos até aproximar.",
+  "Capped at P99 = {cap} by default: this element's coefficient of variation is {cv}%. Clear the cap to run uncapped; the result says which.": "Limitado a P99 = {cap} por defeito: o coeficiente de variação deste elemento é {cv}%. Apague o limite para correr sem limite; o resultado diz qual.",
+  "{one} rest on one hole and {dom} effectively on one hole.": "{one} assentam num só furo e {dom} na prática num só.",
+  "{k} of {n} blocks ({pct}%) lie between holes (interpolated); {e} are extrapolated beyond the data.": "{k} de {n} blocos ({pct}%) ficam entre furos (interpolados); {e} são extrapolados para lá dos dados.",
+  "None of these {n} blocks lies between holes: every one is extrapolated from the nearest holes.": "Nenhum destes {n} blocos fica entre furos: todos são extrapolados a partir dos furos mais próximos.",
+  "Add as block model ({pct}% interpolated)": "Adicionar como modelo de blocos ({pct}% interpolado)",
+  "A hole counts only when it carries at least 5% of the weight": "Um furo só conta quando tem pelo menos 5% do peso",
+  "On Lawyers a block beside a 16 m bonanza intercept counted a second hole whose near-zero grades 48 m away carried a third of the weight; with this on, a hole with under 5 % of the inverse-distance weight is not a second hole, and the block waits for real support.": "Em Lawyers, um bloco junto a uma intersecção bonanza de 16 m contou um segundo furo cujos teores quase nulos a 48 m tinham um terço do peso; com isto ligado, um furo com menos de 5 % do peso de distância inversa não é um segundo furo e o bloco espera por suporte real."
 }

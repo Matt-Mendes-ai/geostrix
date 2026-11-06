@@ -8315,5 +8315,12 @@
   "{msg} {v} Set its opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.": "{msg} {v} Ajuste su opacidad (o un CRS de origen, si quedó en el lugar equivocado) en la pestaña Mapas.",
   "No label": "Sin etiqueta",
   "Dip labels": "Etiquetas de buzamiento",
-  "The dip, in degrees, beside each symbol in the 3D view; labels that would overprint are hidden until you zoom in.": "El buzamiento, en grados, junto a cada símbolo en la vista 3D; las etiquetas que se superpondrían se ocultan hasta que acerque."
+  "The dip, in degrees, beside each symbol in the 3D view; labels that would overprint are hidden until you zoom in.": "El buzamiento, en grados, junto a cada símbolo en la vista 3D; las etiquetas que se superpondrían se ocultan hasta que acerque.",
+  "Capped at P99 = {cap} by default: this element's coefficient of variation is {cv}%. Clear the cap to run uncapped; the result says which.": "Topado en P99 = {cap} por defecto: el coeficiente de variación de este elemento es {cv}%. Borre el tope para correr sin topar; el resultado dice cuál.",
+  "{one} rest on one hole and {dom} effectively on one hole.": "{one} se apoyan en un solo sondaje y {dom} en la práctica en uno solo.",
+  "{k} of {n} blocks ({pct}%) lie between holes (interpolated); {e} are extrapolated beyond the data.": "{k} de {n} bloques ({pct}%) están entre sondajes (interpolados); {e} están extrapolados más allá de los datos.",
+  "None of these {n} blocks lies between holes: every one is extrapolated from the nearest holes.": "Ninguno de estos {n} bloques está entre sondajes: todos se extrapolan desde los sondajes más cercanos.",
+  "Add as block model ({pct}% interpolated)": "Añadir como modelo de bloques ({pct}% interpolado)",
+  "A hole counts only when it carries at least 5% of the weight": "Un sondaje cuenta solo cuando aporta al menos el 5% del peso",
+  "On Lawyers a block beside a 16 m bonanza intercept counted a second hole whose near-zero grades 48 m away carried a third of the weight; with this on, a hole with under 5 % of the inverse-distance weight is not a second hole, and the block waits for real support.": "En Lawyers, un bloque junto a una intersección bonanza de 16 m contó un segundo sondaje cuyas leyes casi nulas a 48 m aportaban un tercio del peso; con esto activado, un sondaje con menos del 5 % del peso de distancia inversa no es un segundo sondaje y el bloque espera soporte real."
 }

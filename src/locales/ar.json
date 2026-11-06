@@ -8315,5 +8315,12 @@
   "{msg} {v} Set its opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.": "{msg} {v} اضبط شفافيته (أو نظام إحداثيات المصدر إن حطّ في المكان الخطأ) في تبويب الخرائط.",
   "No label": "بلا تسمية",
   "Dip labels": "تسميات الميل",
-  "The dip, in degrees, beside each symbol in the 3D view; labels that would overprint are hidden until you zoom in.": "الميل بالدرجات بجانب كل رمز في العرض ثلاثي الأبعاد؛ تُخفى التسميات المتداخلة حتى تقرّب."
+  "The dip, in degrees, beside each symbol in the 3D view; labels that would overprint are hidden until you zoom in.": "الميل بالدرجات بجانب كل رمز في العرض ثلاثي الأبعاد؛ تُخفى التسميات المتداخلة حتى تقرّب.",
+  "Capped at P99 = {cap} by default: this element's coefficient of variation is {cv}%. Clear the cap to run uncapped; the result says which.": "مقصوص عند P99 = {cap} افتراضيًا: معامل التباين لهذا العنصر {cv}%. امسح القصّ للتشغيل بلا قصّ؛ النتيجة تذكر أيهما.",
+  "{one} rest on one hole and {dom} effectively on one hole.": "{one} تستند إلى ثقب واحد و{dom} فعليًا إلى ثقب واحد.",
+  "{k} of {n} blocks ({pct}%) lie between holes (interpolated); {e} are extrapolated beyond the data.": "{k} من {n} كتلة ({pct}%) تقع بين الثقوب (مستكملة)؛ {e} مستقرأة خارج البيانات.",
+  "None of these {n} blocks lies between holes: every one is extrapolated from the nearest holes.": "لا تقع أي من هذه الكتل الـ{n} بين الثقوب: كل واحدة مستقرأة من أقرب الثقوب.",
+  "Add as block model ({pct}% interpolated)": "إضافة كنموذج كتل ({pct}% مستكمل)",
+  "A hole counts only when it carries at least 5% of the weight": "لا يُحسب الثقب إلا إذا حمل 5% على الأقل من الوزن",
+  "On Lawyers a block beside a 16 m bonanza intercept counted a second hole whose near-zero grades 48 m away carried a third of the weight; with this on, a hole with under 5 % of the inverse-distance weight is not a second hole, and the block waits for real support.": "في Lawyers عدّت كتلة بجانب تقاطع غني بطول 16 م ثقبًا ثانيًا حملت درجاته شبه الصفرية على بعد 48 م ثلث الوزن؛ مع تفعيل هذا، لا يُعد الثقب الذي يحمل أقل من 5% من وزن المسافة العكسية ثقبًا ثانيًا، وتنتظر الكتلة دعمًا حقيقيًا."
 }

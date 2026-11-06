@@ -147,7 +147,7 @@ export function estimateBlockModel(samplePoints, opts) {
   // TASKS.csv #709 — kriging needs a variogram (resolveVariogram), in the same frame the search works in
   const tw0 = method === "ok" ? withTrend(samplePoints, opts) : null;
   const variogram = method === "ok" ? resolveVariogram(tw0.pts, opts.variogram, cellSize) : null;
-  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, variogram, supportRef: opts.supportRef }; // supportRef: #1411
+  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, variogram, supportRef: opts.supportRef, materialHoles: !!opts.materialHoles }; // supportRef: #1411; materialHoles: #1573
   // TASKS.csv #91/#92 — support classification is opt-in and OFF by default: it widens the neighbour
   // search and adds per-cell work, so it must never be paid for by a caller that didn't ask. `bracketTol`
   // is half a cell, so bracketing has to be real at the scale the block model is drawn at.
@@ -300,6 +300,18 @@ function buildSampleIndex(samplePoints, searchRadius) {
 // value still taken from one hole — exactly what #258 exists to stop. `candidates` must be sorted by distance.
 // TASKS.csv #676 — a block whose dominant hole carries at least this share of the weight is effectively one hole's
 export const DOMINANT_SHARE = 0.95;
+// TASKS.csv #1573 (review #1497, Lawyers) — a "second hole" counts toward min distinct holes only when it carries a material
+// share of the weight: 21AGBDD013's near-zero grades 48 m away satisfied "2 holes" beside a 16 m bonanza intercept 23-39 m
+// down 21AGBDD040, and the block became 13.3 g/t on one hole's say-so. Material = at least 1 - DOMINANT_SHARE (5 %) of the
+// inverse-distance weight (length x 1 / d^power), the estimator's own weighting.
+export const MATERIAL_SHARE = 1 - DOMINANT_SHARE;
+export function materialHoles(used, power = 2) {
+  const w = new Map(); let total = 0;
+  for (const s of used) { const wi = (s.len ?? 1) / Math.pow(Math.max(s.d2, EXACT_D2), (power ?? 2) / 2); w.set(s.hole_id, (w.get(s.hole_id) || 0) + wi); total += wi; }
+  const out = new Set();
+  for (const [h, wi] of w) if (total > 0 && wi / total >= MATERIAL_SHARE - 1e-9) out.add(h);
+  return out;
+}
 // TASKS.csv #709 — maxPerHole: an explicit "max samples per hole" (Micromine's search setting); 0 / missing = only the
 // implicit cap from min distinct holes (#642). The smaller of the two applies.
 export function perHoleCap(maxSamples, minHoles, maxPerHole = 0) {
@@ -419,7 +431,7 @@ function makeNeighbourGatherer(samplePoints, opts = {}) {
 // opts: { method, searchRadius, minSamples, maxSamples, minHoles, lengthWeight, restrictToDomain }
 function makeCellEstimator(samplePoints, opts = {}) {
   const {
-    method = "idw2", minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0, restrictToDomain = false,
+    method = "idw2", minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0, restrictToDomain = false, materialHoles: wantMaterial = false, // materialHoles: #1573
   } = opts;
   const power = methodPower(method); // null => nearest-neighbour or MLS (handled below)
   // TASKS.csv #91/#92 — when support classification is asked for, it is computed from THIS SAME
@@ -460,8 +472,7 @@ function makeCellEstimator(samplePoints, opts = {}) {
     // TASKS.csv #258 — minimum DISTINCT drillholes. minSamples counts sample points, and a single hole
     // composited at 2 m supplies ~25 of them inside a 50 m radius, so it can never express "at least
     // two holes must see this block" — the first sanity constraint any resource practitioner applies.
-    const holes = new Set();
-    for (let i = 0; i < used.length; i++) holes.add(used[i].hole_id);
+    const holes = minHoles > 1 && wantMaterial ? materialHoles(used, power ?? 2) : new Set(used.map((s) => s.hole_id)); // #1573 — a hole with under 5 % of the weight is not a second hole
     if (holes.size < minHoles) return null;
 
     let value, mlsMode = null, okRes = null;
@@ -661,7 +672,7 @@ export function supportIndex({ nearest, nHoles, nOctants, searchRadius }) {
 // estimate was actually built from — pass the estimator's own opts through verbatim, plus `bracketTol`.
 export function makeSupportClassifier(samplePoints, opts = {}) {
   const {
-    searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0,
+    searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0, materialHoles: wantMaterial = false, // #1573
     restrictToDomain = false, bracketTol = 0,
   } = opts;
   // The WIDER neighbourhood used only for `dataBracketed` (see supportFrom). It must be an explicit,
@@ -689,8 +700,7 @@ export function makeSupportClassifier(samplePoints, opts = {}) {
       if (candidates.length < minSamples) return none;
     }
     const used = selectUsed(candidates, maxSamples, minHoles, maxPerHole); // #642 — the estimator's own selection
-    const holes = new Set();
-    for (let i = 0; i < used.length; i++) holes.add(used[i].hole_id);
+    const holes = minHoles > 1 && wantMaterial ? materialHoles(used, 2) : new Set(used.map((s) => s.hole_id)); // #1573 — the estimator's rule, so the support class describes the same estimate
     if (holes.size < minHoles) return none;
     return supportFrom(candidates, used, holes, cx, cy, cz, bracketTol, bracketMax, searchRadius);
   };
@@ -1018,7 +1028,7 @@ export function estimateDenseGrid(samplePoints, opts) {
   const twK = method === "ok" ? withTrend(samplePoints, opts) : null; // #709 — kriging works on grade shells too
   const variogram = method === "ok" ? resolveVariogram(twK.pts, opts.variogram, cellSize) : null;
   if (variogram) out.variogram = variogram;
-  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, variogram, supportRef: opts.supportRef }; // supportRef: #1411
+  const estOpts = { method, searchRadius, minSamples, maxSamples, minHoles, maxPerHole, lengthWeight, restrictToDomain, variogram, supportRef: opts.supportRef, materialHoles: !!opts.materialHoles }; // supportRef: #1411; materialHoles: #1573
   // TASKS.csv #91/#92 — opt-in per-node data-support classification, OFF by default so no existing
   // caller pays for it. When on, the grid carries two extra parallel arrays on the same
   // [ix + nx * (iy + ny * iz)] indexing as `values`, so a mesh extracted from this grid can be coloured
