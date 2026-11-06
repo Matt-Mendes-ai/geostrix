@@ -739,7 +739,7 @@ function voxelGeometryUnchanged(a, b) {
   return ((a.opacity ?? 0.85) < 1) === ((b.opacity ?? 0.85) < 1); // (a big model's transparent face mesh is built when it turns transparent: #904)
 }
 
-export default function ViewerModule({ mode = "view", visible = true }) {
+export default function ViewerModule({ mode = "view", visible = true, bare = false }) { // bare: #1979 — the viewport alone, beside the Geophysics sidebar
   const store = useStore();
   // TASKS.csv #336 — latest survey/layers for import notices. commitImportData is reached through the
   // multi-file queue's long-lived callback, whose closure can hold stale store values.
@@ -7180,7 +7180,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     onUndo: () => setInterpret((s) => ({ ...s, points: s.points.slice(0, -1) })), onCancel: stopInterpret, onDone: stopInterpret, onClose: () => { setInterpretOpen(false); stopInterpret(); } })}</Suspense>);
   const anomalyControls = <Suspense fallback={null}><SurfaceAnomalyControls cfg={layerStyles.surface_anomaly} setCfg={(cfg) => setLayerStyles((p) => ({ ...p, surface_anomaly: cfg }))} surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} mapLayers={mapLayers} thresholds={geochemThresholds} result={surfaceAnomaly} drawn={surfaceSamples} /* #1819 — the class CSV holds every sample */ /></Suspense>; // #1603 — also on the Surface Geology tab
   return (
-    <div style={{ display: visible ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, width: "100%" }}>
+    <div style={{ display: visible ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, width: "100%", order: bare ? 1 : 0 }}>
       {mode === "view" && (
         <ViewToolbar
           onLevelPlan={() => { if (!levelPlanZRange(tracesRef.current, voxelModels)) { setNotices((p) => [...p, notice("Nothing to cut yet: a level plan cuts drillholes and block models at an elevation.")]); return; } setLevelPlanOpen(true); }} /* #1782 */
@@ -7205,13 +7205,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           identifyOn={identify.on} onToggleIdentify={toggleIdentify}
           measureMode={measureMode} onToggleMeasure={toggleMeasureOnOff} onSwitchMeasureMode={switchMeasureMode} measurePts={measurePts} clearMeasure={clearMeasure}
           interpretOpen={!!interpretOpen} onInterpret={() => openInterpret(true)} /* TASKS.csv #1152 */
-          show={visible} paneProps={paneProps}
+          show={visible && !bare} paneProps={paneProps}
         />
       )}
       {/* TASKS.csv #458 — 3D Modelling ribbon: each modelling tool opens as a pane at the top of the sidebar
           (the generated surfaces and domains stay below it); the analysis plots open directly. */}
       {mode === "modelling" && (
-        <Ribbon show={visible} label="3D Modelling tools">
+        <Ribbon show={visible && !bare} label="3D Modelling tools">
           <RibbonGroup advanced label="Setup">
             <RibbonButton icon={Settings} label="Model settings" tone="model" title="Domain, intercept set, contact orientations, resolution, stiffness, search ellipsoid, anisotropy" {...paneProps("settings")} />
             <RibbonButton icon={Group} label="Litho groups" tone="model" title="Lump lithology codes into modelling units" {...paneProps("groups")} />
@@ -7254,10 +7254,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </Ribbon>
       )}
       {/* TASKS.csv #820 — Surface Geology ribbon: the mapping workflow (3D model building stays in 3D Modelling) */}
-      {mode === "surface" && <SurfaceRibbon show={visible} paneProps={paneProps} onStereonet={() => setStereonetOpen(true)} onModelIt={() => { pendingPaneRef.current = "mapmodel"; store.goToModule("modelling"); }} identifyOn={identify.on} onToggleIdentify={toggleIdentify} interpretOpen={interpretOpen} onInterpret={() => openInterpret(true)} onPolygons={() => openInterpret("polygon")} onStyleSamples={() => openLayerStyle("surface_samples", "Surface samples")} sampleCount={surfaceSamples.length} />}{/* #1439 */}
+      {mode === "surface" && <SurfaceRibbon show={visible && !bare} paneProps={paneProps} onStereonet={() => setStereonetOpen(true)} onModelIt={() => { pendingPaneRef.current = "mapmodel"; store.goToModule("modelling"); }} identifyOn={identify.on} onToggleIdentify={toggleIdentify} interpretOpen={interpretOpen} onInterpret={() => openInterpret(true)} onPolygons={() => openInterpret("polygon")} onStyleSamples={() => openLayerStyle("surface_samples", "Surface samples")} sampleCount={surfaceSamples.length} />}{/* #1439 */}
       {/* TASKS.csv #458 — Targeting ribbon */}
       {mode === "minedesign" && (
-        <Ribbon show={visible} label="Mine design tools">
+        <Ribbon show={visible && !bare} label="Mine design tools">
           <RibbonGroup label="Open pit">
             <RibbonButton icon={Pickaxe} label="Pit shell" tone="model" title="The pit that makes the most money at your prices and costs, from a block model" {...paneProps("pit")} />
             <RibbonButton advanced icon={Layers} label="Nested pits" tone="model" title="The shell at a series of revenue factors, valued at the entered price, with a schedule and an NPV per shell" {...paneProps("nested")} />{/* TASKS.csv #1875 */}
@@ -7274,7 +7274,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </Ribbon>
       )}
       {mode === "targeting" && (
-        <Ribbon show={visible} label="Targeting tools">
+        <Ribbon show={visible && !bare} label="Targeting tools">
           <RibbonGroup label="Targets">
             <RibbonButton advanced icon={Box} label="Voxel ranges" tone="view" title="Isolate a value band of a geophysical / block model" {...paneProps("ranges")} />
             <RibbonButton icon={Layers} label="Evidence overlay" tone="model" title="Where the evidence agrees: fuzzy overlay of rasters, map-layer distances and geochemistry; weights of evidence against known occurrences" {...paneProps("overlay")} />{/* TASKS.csv #851 */}
@@ -7289,8 +7289,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           </RibbonGroup>
         </Ribbon>
       )}
-      <div className="ge-body" style={{ width: "100%" }} onDragOver={(e) => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={handleDrop}>
-      <div className="ge-panel-outer" style={{ width: sidebarWidth, flexShrink: 0, display: "flex", flexDirection: "column", minHeight: 0, background: "var(--color-bg)", borderRight: "1px solid var(--color-border)" }}>
+      <div className="ge-body" style={{ width: "100%" }} onDragOver={(e) => { if (bare) return; e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={bare ? undefined : handleDrop}>
+      <div className="ge-panel-outer" style={{ width: sidebarWidth, flexShrink: 0, display: bare ? "none" : "flex", flexDirection: "column", minHeight: 0, background: "var(--color-bg)", borderRight: "1px solid var(--color-border)" }}>
       <div className="ge-panel" style={{ padding: "16px 14px", border: "none", width: "100%", flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
         {sidebarTab === "home" && (<>
         {/* TASKS.csv #458 — tool panes opened from the ribbon, above the data */}
@@ -8540,7 +8540,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       </>)}
       </div>
 
-      <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />
+      {!bare && <SidebarResizeHandle width={sidebarWidth} onResize={setSidebarWidth} />}
 
       {/* TASKS.csv #145 — sculpt.handleViewClick joins the same click chain as the section/measure/
           pick-hole tools; it is a no-op unless sculpt mode is on for a specific surface. */}

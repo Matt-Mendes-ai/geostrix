@@ -34,7 +34,7 @@ test("the Surface Geology ribbon carries Unit polygons, Interpret, Identify and 
   assert.match(parts, /export function SurfaceRibbon\(\{ show, paneProps, onStereonet, onModelIt, identifyOn, onToggleIdentify, interpretOpen, onInterpret, onPolygons, onStyleSamples, sampleCount = 0 \}\)/);
   for (const l of ["Unit polygons", "Interpret", "Identify", "Rock chips", "Geology map", "Outcrop structures", "Stereonet", "Model it"]) assert.ok(parts.includes(`label="${l}"`), l);
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /\{mode === "surface" && <SurfaceRibbon show=\{visible\}/);
+  assert.match(v, /\{mode === "surface" && <SurfaceRibbon show=\{visible && !bare\}/); // bare: #1979
   assert.ok(!v.includes('label="Surface geology tools"'), "the surface ribbon left ViewerModule");
   assert.match(v, /const openInterpret = \(kind\) => \{ if \(interpretOpen\) stopInterpret\(\); setInterpretOpen\(\(v\) => \(v === kind \? false : kind\)\); \};/);
   assert.match(v, /React\.createElement\(interpretOpen === "polygon" \? UnitPolygonPane : InterpretPane/);

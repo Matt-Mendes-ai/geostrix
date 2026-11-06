@@ -99,6 +99,8 @@ export default function App() {
   const undoSay = useCallback(() => say(undoMessage("undo", undo())), [undo]);
   const redoSay = useCallback(() => say(undoMessage("redo", redo())), [redo]);
   const [active, setActive] = useState("viewer");
+  const [geo3d, setGeo3d] = useState(false); // TASKS.csv #1979 — Geophysics shows the 3D View's viewport beside its sidebar
+  const viewerShown = !!VIEWER_MODES[active] || (active === "geophysics" && geo3d);
   const activeRef = useRef(active); activeRef.current = active; // #565 — the menu bridge is subscribed once
   const [ribbonEl, setRibbonEl] = useState(null); // TASKS.csv #458
   const [uiMode, setUiModeState] = useState(initialUiMode); // TASKS.csv #748
@@ -566,14 +568,14 @@ export default function App() {
             unmounts the project (the outer boundary in main.jsx is now only the last resort). */}
         <ErrorBoundary scope="module" label={tr("3D view")} onSave={saveProject}>
           {/* TASKS.csv #438 — hidden, it sees a frozen store value and skips every store write until shown */}
-          <FreezeStore frozen={!VIEWER_MODES[active]}>
-            <MemoViewerModule mode={VIEWER_MODES[active] || lastViewerModeRef.current} visible={!!VIEWER_MODES[active]} />
+          <FreezeStore frozen={!viewerShown}>
+            <MemoViewerModule mode={VIEWER_MODES[active] || lastViewerModeRef.current} visible={viewerShown} bare={!VIEWER_MODES[active]} />
           </FreezeStore>
         </ErrorBoundary>
         <ErrorBoundary scope="module" key={active} label={active} onSave={saveProject}>
           <Suspense fallback={<div style={{ padding: 20, color: "var(--color-text-muted)", fontSize: "var(--font-size-lg)" }}>{tr("Loading…")}</div>}>
             {active === "geochem" && <GeochemModule />}
-            {active === "geophysics" && <GeophysicsModule />}
+            {active === "geophysics" && <GeophysicsModule onMain3d={setGeo3d} />}
             {active === "maps" && <MapsModule />}
             {active === "layout" && <LayoutModule />}
           </Suspense>

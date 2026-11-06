@@ -1,4 +1,4 @@
-import React, { Suspense, useMemo, useRef, useState } from "react"; // Suspense: TASKS.csv #1425
+import React, { Suspense, useEffect, useMemo, useRef, useState } from "react"; // Suspense: TASKS.csv #1425
 import { ensureProjectCrs, ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615; export: #1021
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1152
 import { askAdoptCrs, projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
@@ -111,8 +111,20 @@ const FORMAT_REFERENCE = "CSV: x/y/z (or easting/northing/elevation, lon/lat) pl
 
 // TASKS.csv #749 — embedded: shown inside the Maps tab for one of its map panes (terrain, map layers, web layers,
 // boundaries, claims): no ribbon of its own (the Maps tab's ribbon picks the pane) and no main area.
-export default function GeophysicsModule({ embedded = false, forcePane = null } = {}) {
+export default function GeophysicsModule({ embedded = false, forcePane = null, onMain3d = null } = {}) {
   const [resultSlot, setResultSlot] = useState(null); // #1199
+  // TASKS.csv #1979 — Matt: "can we also have the view in the geophysics module?" The main area shows the 3D View's own viewport
+  // (App lays it beside this sidebar: the one scene, no second renderer) unless a pane has put results there (an inversion's
+  // or a DC/IP line's section), or the project has nothing to draw yet (the empty-state card then)
+  const [hasResults, setHasResults] = useState(false);
+  useEffect(() => {
+    if (!resultSlot) return undefined;
+    const check = () => setHasResults(resultSlot.childElementCount > 0);
+    check();
+    const mo = new MutationObserver(check);
+    mo.observe(resultSlot, { childList: true });
+    return () => mo.disconnect();
+  }, [resultSlot]);
   const [geoPaneState, setGeoPane] = useState("points"); // TASKS.csv #458 — the sidebar shows the tool picked on the ribbon
   const geoPane = forcePane || geoPaneState; // #749 — the Maps tab chooses the pane
   const geoBtn = (id) => ({ active: geoPane === id, onClick: () => setGeoPane(id) });
@@ -1343,10 +1355,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     if (max === null || v > max) max = v;
   }
 
+  const show3d = !embedded && !!onMain3d && !hasResults && (collars.length > 0 || rows.length > 0 || rasters.length > 0 || !!terrain || boundaries.length > 0 || voxelModels.length > 0 || dcipLines.length > 0 || (surfaceSamples || []).length > 0); // #1979
+  useEffect(() => { onMain3d?.(show3d); }, [onMain3d, show3d]);
+  useEffect(() => () => onMain3d?.(false), [onMain3d]); // leaving the tab: the viewport goes back to the 3D View
   return (
     <div
       className="ge-body"
-      style={embedded ? { flex: "0 0 auto", minWidth: 0 } : { width: "100%" }}
+      style={embedded || show3d ? { flex: "0 0 auto", minWidth: 0 } : { width: "100%" }}
       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
       onDrop={(e) => {
@@ -2229,7 +2244,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
 
       {!embedded && (<div
         className="ge-main"
-        style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14, color: "var(--color-text-muted)", border: dragOver ? "2px dashed var(--color-info)" : "2px dashed transparent", borderRadius: 8 }}
+        style={{ display: show3d ? "none" : "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 14, color: "var(--color-text-muted)", border: dragOver ? "2px dashed var(--color-info)" : "2px dashed transparent", borderRadius: 8 }}
       >
         {/* TASKS.csv #309 — this used to be a 40px faint icon over a TWELVE-LINE centre-aligned
             paragraph of format reference (GeoTIFF/GXF/.ply/.dxf/.xyz/UBC), which the design review
