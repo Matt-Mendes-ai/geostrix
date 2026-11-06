@@ -298,7 +298,7 @@ export default function EvidenceOverlayPane({ onClose }) {
     // #1563 — the drapes and block models over it in plan (the new raster is not in `rasters` yet)
     const box = [grid.x0 - grid.dx / 2, grid.yTop + grid.dy / 2 - grid.ny * grid.dy, grid.x0 - grid.dx / 2 + grid.nx * grid.dx, grid.yTop + grid.dy / 2];
     const cv = coveringLayers(box, rasters, voxelModels);
-    const text = floorZ != null ? tr("Added \"{name}\" to the map, flat at {z} m below the holes because the project has no terrain. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.", { name, z: floorZ }) : tr("Added \"{name}\" to the map (its values export as GeoTIFF from the Raster module).", { name });
+    const text = floorZ != null ? tr("Added \"{name}\" to the map, flat at elevation {z} m (below the deepest hole) because the project has no terrain. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.", { name, z: floorZ }) : tr("Added \"{name}\" to the map (its values export as GeoTIFF from the Raster module).", { name });
     setMsg(text); setCover(cv.rasters.length + cv.models.length ? { ...cv, forMsg: text } : null);
   };
   const toTif = async (which) => { const epsg = await ensureExportCrs(project); if (!epsg) return; /* #1021 */ const score = which === "posterior" ? result.wofe.post.prob : result.fuzzy; saveGeoTIFF(`${which === "posterior" ? "wofe_posterior" : "fuzzy_overlay"}.tif`, gridToGeoTIFF({ ...grid, bands: [{ values: score }], epsg })); };

@@ -8458,9 +8458,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {sidebarTab === "targeting" && (<>
         {toolPane === "ranges" && (<>
         {paneHeader("Voxel value ranges", Box, "view")}
-        <div className="ge-section-label">{tr("Geophysical voxel ranges")}</div>
+        <div className="ge-section-label">{tr("Voxel / block model ranges")}</div>
         {voxelModels.length === 0 ? (
-          <div style={{ padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", marginBottom: 12 }}>{tr("No voxel/block models loaded yet — import one from the Geophysics tab first, then come back here to isolate a value range (e.g. just a mag high, or an IP high band).")}</div>
+          <div style={{ padding: "8px 10px", background: "var(--color-bg-subtle)", border: "1px dashed var(--color-border-light)", borderRadius: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-muted)", marginBottom: 12 }}>{tr("No block model yet: estimate one from the assays (3D Modelling > Estimation) or import one (Geophysics > Block models), then isolate a value range here.")}</div>
         ) : (
           <div style={{ marginBottom: 12 }}>
             {voxelModels.map((model) => <VoxelRangeRow key={model.id} model={model} onUpdate={updateVoxelModel} onShell={makeVoxelShell} others={voxelModels} />)}{/* onShell: #1780 */}

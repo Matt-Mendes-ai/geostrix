@@ -8518,5 +8518,8 @@
   "No interval was generated from {n} samples, so the {v} layer is empty.{detail}": "No se generó ningún intervalo a partir de {n} muestras, así que la capa {v} está vacía.{detail}",
   "{unit} ({v})": "{unit} ({v})",
   "The assay intervals in the intercept at or above the cutoff": "Los intervalos de ensaye del intercepto iguales o superiores a la ley de corte",
-  "Samples ≥ cutoff": "Muestras ≥ corte"
+  "Samples ≥ cutoff": "Muestras ≥ corte",
+  "Added \"{name}\" to the map, flat at elevation {z} m (below the deepest hole) because the project has no terrain. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.": "Se agregó \"{name}\" al mapa, plano a la elevación {z} m (debajo del sondaje más profundo) porque el proyecto no tiene terreno. Cambie su elevación en Mapas; sus valores se exportan como GeoTIFF desde el módulo Ráster.",
+  "Voxel / block model ranges": "Rangos de vóxeles / modelos de bloques",
+  "No block model yet: estimate one from the assays (3D Modelling > Estimation) or import one (Geophysics > Block models), then isolate a value range here.": "Aún no hay modelo de bloques: estime uno a partir de los ensayes (Modelado 3D > Estimación) o importe uno (Geofísica > Modelos de bloques) y luego aísle aquí un rango de valores."
 }
