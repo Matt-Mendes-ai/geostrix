@@ -12,6 +12,25 @@ const num = (v) => (v == null || v === "" ? NaN : Number(v));
 
 // intercepts: [{ holeId, from, to }]; structures: the structure layer's rows ({ hole_id, depth, value, dip, azimuth })
 // -> { n, holes, picks, meanDip, meanDipDir, k, alpha95, noPreferred, types, tolM } (n 0: nothing found; k null for one pick)
+// TASKS.csv #1575 (review #1497, Lawyers) — when the oriented core contradicts the plane fitted to the intercept midpoints:
+// the angle between the two poles, and whether the core should win. Vn1a: 1,012 intercepts in 275 holes fitted a 1.7° / 255.5°
+// "midplane" across the district while the 109 oriented-core vein measurements at those intercepts averaged 81° / 228°
+// (k 3.1, α95 9°) - a vein class repeated in every prospect is not one vein, and the midpoints of a set do not define a plane.
+// The core wins when its mean is well defined (at least 3 measurements, α95 under 15°, a preferred orientation) and more than
+// 30° from the fitted plane.
+export const CORE_WINS_ANGLE = 30, CORE_WINS_ALPHA95 = 15;
+export function poleAngleDeg(dip1, dipDir1, dip2, dipDir2) {
+  const toN = (d, dd) => { const a = (d * Math.PI) / 180, b = (dd * Math.PI) / 180; return [Math.sin(b) * Math.sin(a), Math.cos(b) * Math.sin(a), Math.cos(a)]; };
+  const [n1, n2] = [toN(dip1, dipDir1), toN(dip2, dipDir2)];
+  return (Math.acos(Math.min(1, Math.abs(n1[0] * n2[0] + n1[1] * n2[1] + n1[2] * n2[2]))) * 180) / Math.PI;
+}
+export function coreAttitudeWins(fitted, logged, { minAngle = CORE_WINS_ANGLE, maxAlpha95 = CORE_WINS_ALPHA95 } = {}) {
+  if (!fitted || !Number.isFinite(fitted.dip) || !Number.isFinite(fitted.dipDir)) return null;
+  if (!logged || !(logged.n >= 3) || logged.noPreferred || !(logged.alpha95 < maxAlpha95)) return null;
+  const angle = poleAngleDeg(fitted.dip, fitted.dipDir, logged.meanDip, logged.meanDipDir);
+  return angle > minAngle ? { angle, dip: logged.meanDip, dipDir: logged.meanDipDir, n: logged.n, alpha95: logged.alpha95 } : null;
+}
+
 export function loggedVeinAttitude(intercepts, structures, { tolM = VEIN_PICK_TOL_M, veinValue = null } = {}) {
   const byHole = new Map();
   for (const i of intercepts || []) { if (!byHole.has(i.holeId)) byHole.set(i.holeId, []); byHole.get(i.holeId).push(i); }

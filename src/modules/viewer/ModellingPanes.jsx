@@ -914,8 +914,8 @@ export default function ModellingPanes(props) {
           <button
             onClick={() => runVeinModel(veinTarget)}
             disabled={!veinTarget || veinBusy}
-            title={tr("Build paired hangingwall/footwall surfaces plus a closed solid from the logged vein intervals (runs in-app)")}
-            aria-label={tr("Build paired hangingwall/footwall surfaces plus a closed solid from the logged vein intervals (runs in-app)")}
+            title={tr("Build paired hangingwall/footwall surfaces (and a closed solid when they do not cross) from the logged vein intervals (runs in-app)")}
+            aria-label={tr("Build paired hangingwall/footwall surfaces (and a closed solid when they do not cross) from the logged vein intervals (runs in-app)")}
             style={{ ...pBtn, width: "auto", minWidth: 30, marginBottom: 0, padding: "6px 9px", opacity: veinTarget && !veinBusy ? 1 : 0.5, cursor: veinTarget && !veinBusy ? "pointer" : "default" }}
           >{veinBusy ? <span style={{ fontSize: "var(--font-size-sm)" }}>…</span> : <Layers3 size={14} />}</button>
         </div>
@@ -931,7 +931,7 @@ export default function ModellingPanes(props) {
           <label style={{ ...miniField }} title={tr("Optional. Dip DIRECTION (not strike), 0-360. Only used when a dip is also entered.")}>{tr("Dip dir (°)")}<input type="number" min={0} max={360} value={veinDipDir} placeholder={tr("fit")} onChange={(e) => setVeinDipDir(e.target.value)} style={{ ...smallSel, width: "100%" }} />
           </label>
         </div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("0 = auto (derived from your own intercept spacing). Dip / dip direction blank = fitted from the data. Adds three surfaces: hangingwall, footwall, and a closed solid for volume. Between holes the shape and thickness are interpolated, so treat the result as an interpretation — a pinch-out or swell no hole intersected will not be in it.")}</div>
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("0 = auto (derived from your own intercept spacing). Dip / dip direction blank = fitted from the data, or taken from the oriented-core measurements at the intercepts when they contradict that fit. Adds a hangingwall and a footwall, and a closed solid for volume when the two do not cross. Between holes the shape and thickness are interpolated, so treat the result as an interpretation — a pinch-out or swell no hole intersected will not be in it.")}</div>
         {veinBusy && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-success-fg)", marginTop: -4, marginBottom: 8 }}>{tr("Building the vein pair…")}</div>}
 
         {/* TASKS.csv #142 — numeric implicit model (grade shell). Runs entirely in the browser (no

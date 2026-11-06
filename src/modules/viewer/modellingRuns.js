@@ -1807,12 +1807,18 @@ export function createModellingRuns(ctx, mcRef) {
         const { loggedVeinAttitude } = await import("../../lib/veinOrientations.js");
         logged = typed ? null : loggedVeinAttitude(used, layers.structure, { veinValue });
         const fromLogs = logged?.n ? `mean of ${logged.n} oriented-core vein measurement(s) at the intercepts` : null;
-        const model = buildVeinModel(used, {
+        let model = buildVeinModel(used, {
           cellSize: veinCellSize > 0 ? veinCellSize : 0,
           searchRadius: veinSearchRadius > 0 ? veinSearchRadius : 0,
           ...(typed ? { dip, dipDir } : {}),
           ...(fromLogs ? { fallbackAttitude: { dip: logged.meanDip, dipDir: logged.meanDipDir, source: fromLogs } } : {}),
         });
+        // TASKS.csv #1575 (review #1497, Lawyers) — a well-defined core attitude more than 30° from the midpoint plane wins: the
+        // walls are rebuilt on it and the notice says so (Vn1a: 81° / 228° from 109 measurements against a 1.7° / 255.5° midplane)
+        const { coreAttitudeWins } = await import("../../lib/veinOrientations.js");
+        const fitted0 = model.plane ? { dip: model.plane.dip, dipDir: model.plane.dipDir } : null;
+        const coreWins = !typed && model.plane?.attitudeSource === "fitted to intercept midpoints" ? coreAttitudeWins(fitted0, logged) : null;
+        if (coreWins) model = buildVeinModel(used, { cellSize: veinCellSize > 0 ? veinCellSize : 0, searchRadius: veinSearchRadius > 0 ? veinSearchRadius : 0, dip: coreWins.dip, dipDir: coreWins.dipDir });
 
         const toScene = (p) => apiToScene([p.x - o.x, p.y - o.y, p.z - o.z]);
         const makeMesh = (part, color, opacity) => {
@@ -1890,8 +1896,10 @@ export function createModellingRuns(ctx, mcRef) {
         if (holeCount && used.length / holeCount > 2.5) setNotices((p) => [...p, notice("\"{label}\": {used} intercepts in {holeCount} hole(s) — about {v} per hole. A single vein is cut once per hole, so this code is behaving like a vein SET or stockwork; the pair below is the average envelope of all of them, not one vein. To model one vein, log or filter it as its own code.", { label, used: used.length, holeCount, v: (used.length / holeCount).toFixed(1) })]);
         if (ck.nominalLabels) setNotices((p) => [...p, notice("\"{label}\" is near-vertical ({v}° dip), so \"hangingwall\" and \"footwall\" are nominal labels here — the two surfaces are simply the two walls of the structure.", { label, v: fmt(pl.dip, 0) })]);
         if (tca) setNotices((p) => [...p, notice("\"{label}\": the logged angle to core axis ({column} in {layer}) on {n} of {of} intercept(s) gives a TRUE thickness of {a}–{b} m (mean {c} m), against a modelled mean of {d} m.", { label, column: tca.column, layer: tca.layer, n: tca.n, of: tca.of, a: fmt(tca.min), b: fmt(tca.max), c: fmt(tca.mean), d: fmt(th.trueMean) })]); // #1739
+        // TASKS.csv #1575 — said last: the attitude the walls stand on, and the way to model one prospect's vein
+        if (coreWins) setNotices((p) => [...p, notice("\"{label}\": built on the oriented-core attitude {dip}° / {dipDir}° ({n} measurement(s) at the intercepts, α95 = {a}°), which is {angle}° from the plane fitted to the intercept midpoints ({fdip}° / {fdir}°). Midpoints spread across {holes} hole(s) do not define one vein; to model one prospect's vein, restrict the tool under Model settings › Domain.", { label, dip: fmt(coreWins.dip, 0), dipDir: fmt(coreWins.dipDir, 0), n: coreWins.n, a: fmt(coreWins.alpha95, 0), angle: fmt(coreWins.angle, 0), fdip: fmt(fitted0.dip, 0), fdir: fmt(fitted0.dipDir, 0), holes: new Set(used.map((i) => i.holeId)).size })]);
         // #1415 — last, so they are among the messages the sidebar keeps
-        if (logged?.n) {
+        if (logged?.n && !coreWins) {
           const spread = logged.k != null ? tr(", k = {k}, α95 = {a}°", { k: logged.k.toFixed(1), a: logged.alpha95.toFixed(0) }) : tr(", one measurement only");
           if (pl.attitudeSource === fromLogs) setNotices((p) => [...p, notice("\"{label}\": attitude {dip}° / {dipDir}° from {n} oriented-core measurement(s) at the intercepts ({types}; {holes} hole(s); within {tol} m){spread}. The intercept midpoints alone could not fix it.", { label, dip: fmt(pl.dip, 0), dipDir: fmt(pl.dipDir, 0), n: logged.n, types: logged.types.join(", "), holes: logged.holes, tol: logged.tolM, spread })]);
           else if (pl.attitudeSource === "fitted to intercept midpoints") {

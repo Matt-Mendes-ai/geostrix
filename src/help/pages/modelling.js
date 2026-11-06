@@ -274,7 +274,7 @@ export default [
     id: "vein-dyke",
     area: "3D Modelling",
     title: "Vein / dyke modelling",
-    summary: "Models a vein or dyke from the vein layer as a pair of contacts: each logged interval's from and to depths are its two walls. A midplane is fitted through the intercept midpoints and a true-thickness field is interpolated over it; the hangingwall and footwall are that midplane offset by half the thickness each way, so they cannot cross. It adds three surfaces (hangingwall, footwall and a closed solid for volume) and runs in-app, with no Python engine.",
+    summary: "Models a vein or dyke from the vein layer as a pair of contacts: each logged interval's from and to depths are its two walls. A midplane is fitted through the intercept midpoints and a true-thickness field is interpolated over it; the hangingwall and footwall are that midplane offset by half the thickness each way, so they cannot cross. It adds a hangingwall and a footwall, and a closed solid for volume when the two do not cross; when the oriented-core measurements at the intercepts contradict the fitted midplane by more than 30°, the walls are built on the core attitude and the notice says so. Runs in-app, with no Python engine.",
     notFor: [
       "Between holes the shape and thickness are interpolated. A pinch-out or a swell that no hole cut will not be in it.",
       "A code cut several times per hole is behaving like a vein set or stockwork; the pair is then an average envelope, not one vein. Log or filter the vein as its own code to model it.",
