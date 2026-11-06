@@ -8482,5 +8482,8 @@
   "\"{name}\" is {v} MB, about {rows} readings: too big to read whole on most computers. Check the columns and how many readings to keep below, then Import: the file is read in pieces and only the kept readings and columns are held.": "حجم \"{name}\" {v} ميغابايت، نحو {rows} قراءة: أكبر من أن يُقرأ كاملًا على معظم الحواسيب. راجع الأعمدة وعدد القراءات المحتفظ بها أدناه ثم استورد: يُقرأ الملف على أجزاء ولا يُحتفظ إلا بالقراءات والأعمدة المختارة.",
   "Reading {name}": "جارٍ قراءة {name}",
   "{n} zero or negative values are not on the log scale.": "{n} من القيم الصفرية أو السالبة ليست على المقياس اللوغاريتمي.",
-  "{n} of {m} samples have a value for half the elements or fewer (no multi-element analysis): the 90 % rule counts the other {k}.": "{n} من {m} عينة لها قيمة في نصف العناصر أو أقل (دون تحليل متعدد العناصر): قاعدة 90 % تحسب العينات الأخرى البالغ عددها {k}."
+  "{n} of {m} samples have a value for half the elements or fewer (no multi-element analysis): the 90 % rule counts the other {k}.": "{n} من {m} عينة لها قيمة في نصف العناصر أو أقل (دون تحليل متعدد العناصر): قاعدة 90 % تحسب العينات الأخرى البالغ عددها {k}.",
+  "Enter the mineralized structure's dip direction and dip (0-90°): no true width is shown until both are set.": "أدخل اتجاه الميل والميل للبنية الممعدنة (0-90°): لا يُعرض عرض حقيقي حتى يُحدَّد الاثنان.",
+  "Structure dip direction": "اتجاه ميل البنية",
+  "Structure dip": "ميل البنية"
 }

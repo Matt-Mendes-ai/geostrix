@@ -77,9 +77,15 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   // the mineralized structure's orientation, and there's no way to infer that reliably from assay
   // data alone, so silently guessing one would produce confidently-wrong numbers in a report. Once
   // enabled, the reported width is downholeLength × |ĥ·n̂| (see trueWidth.js for the derivation).
-  const [twEnabled, setTwEnabled] = useState(false);
-  const [twDipDir, setTwDipDir] = useState(90);
-  const [twDip, setTwDip] = useState(60);
+  const [twOn, setTwOn] = useState(false);
+  // TASKS.csv #1525 (review #1497, Lawyers) — the plane starts empty: a default 090/60 printed factors of 0.12-0.16 on the top intercepts
+  // from an orientation nobody entered (#264: no default numbers that read as facts). Widths appear once both are typed.
+  const [twDipDirText, setTwDipDirText] = useState("");
+  const [twDipText, setTwDipText] = useState("");
+  const twDipDir = twDipDirText.trim() === "" ? NaN : ((Number(twDipDirText) % 360) + 360) % 360;
+  const twDip = twDipText.trim() === "" ? NaN : Number(twDipText);
+  const twReady = Number.isFinite(twDipDir) && Number.isFinite(twDip) && twDip >= 0 && twDip <= 90;
+  const twEnabled = twOn && twReady; // every column, export and stamp below reads this
   // Desurveyed trace per hole, built once — trueWidth needs the hole's actual direction ACROSS each
   // intercept, which for a real surveyed (curved) hole differs from its collar orientation.
   const tracesByHole = useMemo(() => {
@@ -283,17 +289,18 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", padding: "7px 9px", background: twEnabled ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", border: `1px solid ${twEnabled ? "var(--color-selected-border)" : "var(--color-border)"}`, borderRadius: 6 }}>
             <label style={{ fontSize: "var(--font-size-sm)", color: collars?.length ? "var(--color-text)" : "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 5, cursor: collars?.length ? "pointer" : "default" }}
               title={collars?.length ? tr("Correct each intercept's downhole length to a true (perpendicular) thickness across the structure.") : tr("Needs collar (and ideally survey) data loaded to know each hole's orientation.")}>
-              <input type="checkbox" checked={twEnabled} disabled={!collars?.length} onChange={(e) => setTwEnabled(e.target.checked)} style={{ margin: 0 }} />{tr("True width")}</label>
-            {twEnabled && (
+              <input type="checkbox" checked={twOn} disabled={!collars?.length} onChange={(e) => setTwOn(e.target.checked)} style={{ margin: 0 }} />{tr("True width")}</label>
+            {twOn && (
               <>
-                <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 4 }} title={tr("Dip direction (dip azimuth) of the mineralized structure — 0=N, 90=E.")}>{tr("Structure dip dir")}<input type="number" step="any" value={twDipDir} onChange={(e) => setTwDipDir(((Number(e.target.value) || 0) % 360 + 360) % 360)} style={{ ...inp, width: 60 }} />
+                <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 4 }} title={tr("Dip direction (dip azimuth) of the mineralized structure — 0=N, 90=E.")}>{tr("Structure dip dir")}<input type="number" step="any" value={twDipDirText} onChange={(e) => setTwDipDirText(e.target.value)} style={{ ...inp, width: 60 }} aria-label={tr("Structure dip direction")} />
                 </label>
-                <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 4 }} title={tr("Dip of the mineralized structure, degrees below horizontal.")}>{tr("dip")}<input type="number" step="any" min="0" max="90" value={twDip} onChange={(e) => setTwDip(Math.max(0, Math.min(90, Number(e.target.value) || 0)))} style={{ ...inp, width: 55 }} />
+                <label style={{ ...fieldLabel, flexDirection: "row", alignItems: "center", gap: 4 }} title={tr("Dip of the mineralized structure, degrees below horizontal.")}>{tr("dip")}<input type="number" step="any" min="0" max="90" value={twDipText} onChange={(e) => setTwDipText(e.target.value)} style={{ ...inp, width: 55 }} aria-label={tr("Structure dip")} />
                 </label>
               </>
             )}
             {!collars?.length && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Import collars to enable.")}</span>}
             {twEnabled && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{tr("Width × |cos θ| to the structure's pole — a factor near 1 means a well-oriented hole.")}</span>}
+            {twOn && !twReady && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon-strong)" }}>{tr("Enter the mineralized structure's dip direction and dip (0-90°): no true width is shown until both are set.")}</span>}
           </div>
 
           {/* TASKS.csv #230 — host domain/lithology per intercept. */}

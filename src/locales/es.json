@@ -8482,5 +8482,8 @@
   "\"{name}\" is {v} MB, about {rows} readings: too big to read whole on most computers. Check the columns and how many readings to keep below, then Import: the file is read in pieces and only the kept readings and columns are held.": "\"{name}\" pesa {v} MB, unas {rows} lecturas: demasiado grande para leerlo entero en la mayoría de los equipos. Revise abajo las columnas y cuántas lecturas conservar, y luego Importar: el archivo se lee por partes y solo se guardan las lecturas y columnas conservadas.",
   "Reading {name}": "Leyendo {name}",
   "{n} zero or negative values are not on the log scale.": "{n} valores cero o negativos no están en la escala logarítmica.",
-  "{n} of {m} samples have a value for half the elements or fewer (no multi-element analysis): the 90 % rule counts the other {k}.": "{n} de {m} muestras tienen valor en la mitad de los elementos o menos (sin análisis multielemental): la regla del 90 % cuenta las otras {k}."
+  "{n} of {m} samples have a value for half the elements or fewer (no multi-element analysis): the 90 % rule counts the other {k}.": "{n} de {m} muestras tienen valor en la mitad de los elementos o menos (sin análisis multielemental): la regla del 90 % cuenta las otras {k}.",
+  "Enter the mineralized structure's dip direction and dip (0-90°): no true width is shown until both are set.": "Ingrese la dirección de buzamiento y el buzamiento de la estructura mineralizada (0-90°): no se muestra ancho verdadero hasta que ambos estén definidos.",
+  "Structure dip direction": "Dirección de buzamiento de la estructura",
+  "Structure dip": "Buzamiento de la estructura"
 }
