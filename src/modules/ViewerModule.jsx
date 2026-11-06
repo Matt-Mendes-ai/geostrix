@@ -417,11 +417,11 @@ function buildGridGroup(config) {
   if (config.mode === "3d") {
     const back = mkGrid(); // rotate XZ -> XY, forms the "north" wall
     back.rotation.x = Math.PI / 2;
-    back.position.set(0, size / 2, -size / 2);
+    back.position.set(0, -size / 2, -size / 2); // #1405 — below the ground grid (y 0 = the mean collar elevation), where the drilling is
     group.add(back);
     const side = mkGrid(); // rotate XZ -> ZY, forms the "west" wall
     side.rotation.z = Math.PI / 2;
-    side.position.set(-size / 2, size / 2, 0);
+    side.position.set(-size / 2, -size / 2, 0);
     group.add(side);
   }
   return group;
@@ -1036,6 +1036,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // TASKS.csv #1152 — interpretation lines: the pane, the drawing (on, the clicks, a counter a double-click bumps to end the
   // line, the survey a Geophysics button named); a ref for the mount-once handlers, the preview group made on first use
   const [interpretOpen, setInterpretOpen] = useState(false); // false | true (lines) | "polygon" (#1439)
+  const panelScrollRef = useRef(null); // #1406 — a ribbon pane opens at the top of the sidebar: scroll there so it is seen
   const [interpret, setInterpret] = useState({ on: false, points: [], finishSeq: 0, survey: null });
   const interpretRef = useRef(interpret); useEffect(() => { interpretRef.current = interpret; }, [interpret]);
   const interpretGroupRef = useRef(null);
@@ -1403,6 +1404,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // TASKS.csv #458 — the tool shown in the sidebar ("task pane") — picked from the ribbon; null = only the
   // tab's data. Targeting opens on its planned-holes pane (its main job). Reset when the tab changes.
   const [toolPane, setToolPane] = useState(mode === "targeting" ? "plan" : mode === "minedesign" ? "pit" : null);
+  useEffect(() => { if (toolPane || interpretOpen) panelScrollRef.current?.scrollTo?.({ top: 0 }); }, [toolPane, interpretOpen]);
   // TASKS.csv #820 — a pane to open in the NEXT tab (e.g. Surface Geology's "Model it" -> 3D Modelling's Model from map)
   const pendingPaneRef = useRef(null);
   const minePaneRef = useRef("pit"); // #1360 — the Mine Design pane last open
@@ -7296,7 +7298,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       )}
       <div className="ge-body" style={{ width: "100%" }} onDragOver={(e) => { if (bare) return; e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={bare ? undefined : handleDrop}>
       <div className="ge-panel-outer" style={{ width: sidebarWidth, flexShrink: 0, display: bare ? "none" : "flex", flexDirection: "column", minHeight: 0, background: "var(--color-bg)", borderRight: "1px solid var(--color-border)" }}>
-      <div className="ge-panel" style={{ padding: "16px 14px", border: "none", width: "100%", flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
+      <div className="ge-panel" ref={panelScrollRef} style={{ padding: "16px 14px", border: "none", width: "100%", flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
         {sidebarTab === "home" && (<>
         {/* TASKS.csv #458 — tool panes opened from the ribbon, above the data */}
         {interpretPane}
