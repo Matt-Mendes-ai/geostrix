@@ -8386,5 +8386,7 @@
   "Add a custom-layer track": "Agregar una pista de capa personalizada",
   "A custom layer as a track: its codes as a colour column, a numeric field as a bar": "Una capa personalizada como pista: sus códigos como columna de colores, un campo numérico como barra",
   "+ track": "+ pista",
-  "Remove track {v}": "Quitar la pista {v}"
+  "Remove track {v}": "Quitar la pista {v}",
+  "Which interval layers draw as ribbons beside each hole (custom layers only when ticked)": "Qué capas de intervalos se dibujan como cintas junto a cada sondaje (las capas personalizadas solo si están marcadas)",
+  "Ribbons {n} of {m}": "Cintas {n} de {m}"
 }

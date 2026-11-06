@@ -8386,5 +8386,7 @@
   "Add a custom-layer track": "Adicionar uma trilha de camada personalizada",
   "A custom layer as a track: its codes as a colour column, a numeric field as a bar": "Uma camada personalizada como trilha: seus códigos como coluna de cores, um campo numérico como barra",
   "+ track": "+ trilha",
-  "Remove track {v}": "Remover a trilha {v}"
+  "Remove track {v}": "Remover a trilha {v}",
+  "Which interval layers draw as ribbons beside each hole (custom layers only when ticked)": "Quais camadas de intervalos são desenhadas como fitas ao lado de cada furo (camadas personalizadas só quando marcadas)",
+  "Ribbons {n} of {m}": "Fitas {n} de {m}"
 }

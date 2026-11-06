@@ -8386,5 +8386,7 @@
   "Add a custom-layer track": "إضافة مسار طبقة مخصصة",
   "A custom layer as a track: its codes as a colour column, a numeric field as a bar": "طبقة مخصصة كمسار: رموزها كعمود ملون، وحقل رقمي كشريط",
   "+ track": "+ مسار",
-  "Remove track {v}": "إزالة المسار {v}"
+  "Remove track {v}": "إزالة المسار {v}",
+  "Which interval layers draw as ribbons beside each hole (custom layers only when ticked)": "أي طبقات الفترات تُرسم كأشرطة بجانب كل ثقب (الطبقات المخصصة فقط عند تحديدها)",
+  "Ribbons {n} of {m}": "الأشرطة {n} من {m}"
 }

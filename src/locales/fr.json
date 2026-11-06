@@ -8386,5 +8386,7 @@
   "Add a custom-layer track": "Ajouter une piste de couche personnalisée",
   "A custom layer as a track: its codes as a colour column, a numeric field as a bar": "Une couche personnalisée en piste : ses codes en colonne de couleurs, un champ numérique en barre",
   "+ track": "+ piste",
-  "Remove track {v}": "Retirer la piste {v}"
+  "Remove track {v}": "Retirer la piste {v}",
+  "Which interval layers draw as ribbons beside each hole (custom layers only when ticked)": "Quelles couches d'intervalles sont tracées en rubans le long de chaque sondage (couches personnalisées seulement si cochées)",
+  "Ribbons {n} of {m}": "Rubans {n} sur {m}"
 }

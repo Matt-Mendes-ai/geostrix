@@ -37,6 +37,18 @@ export function groupSectionLegend(items, ribbons = null) {
 
 // TASKS.csv #1637 — the interval layers' ribbons from left to right on a hole drawn downwards (SectionWindow offsets them 0, +w, -w,
 // +2w ... in first-seen order along each trace's normal, which points left on a descending trace). -> group names, e.g. Lithology.
+// TASKS.csv #1700 — the interval layers a section carries, one entry per ribbon: { key, label, custom } in first-seen order
+export function ribbonLayers(intervals) {
+  const seen = new Map();
+  for (const r of intervals || []) {
+    const k = r.layer || "_";
+    if (seen.has(k)) continue;
+    const label = String(r.label || ""), i = label.indexOf(": ");
+    seen.set(k, { key: k, label: i > 0 ? label.slice(0, i) : label, custom: k.startsWith("custom:") });
+  }
+  return [...seen.values()];
+}
+
 export function ribbonOrder(intervals) {
   const seen = [];
   for (const r of intervals || []) {

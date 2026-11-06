@@ -18,7 +18,8 @@ test("the elements shown in 3D open the log, in their order", () => {
 test("custom layers: a text layer as a colour column, a numeric field as a bar, added and removed from the header", () => {
   assert.match(src, /const \{ customLayers: allCustom = \[\] \} = useStore\(\);/);
   assert.match(src, /if \(!numFields\.includes\("value"\)\) out\.push\(\{ key: `\$\{l\.id\}:value`, layer: l, field: "value", numeric: false/);
-  assert.match(src, /kind: "bar", max: vals\.length \? arrMax\(vals\) : 0, minPos: pos\.length \? arrMin\(pos\) : 0, logOk: pos\.length > 0, scaleLabel: true/);
+  assert.match(src, /kind: "bar", max, minPos, lo, logOk: lo == null && pos\.length > 0 && max \/ minPos >= 10, scaleLabel: true/);
+  assert.match(src, /const lo = minPos > 0 && max \/ minPos < 2 && max > minPos \? minPos : null;/); // a narrow band over its own range
   assert.match(src, /kind: "fill", colorFn: \(v\) => customColour\(c\.layer, sty, \{ value: v \}\)/);
   assert.match(src, /from: depthOf\(r\) - 0\.25, to: depthOf\(r\) \+ 0\.25/); // a depth-only reading
   assert.match(src, /<option value="">\{tr\("\+ track"\)\}<\/option>/);

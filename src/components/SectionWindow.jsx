@@ -7,7 +7,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { sectionPaper } from "../lib/pageFormats.js"; // TASKS.csv #1143
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { placeLabels, leaderEnd, resolveLabels, labelWidth } from "../lib/sectionLabels.js"; // TASKS.csv #823
-import { groupSectionLegend, sectionAssayLegend, sectionMineralLegend, sectionModelLegend, rampRows, ribbonOrder } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped; #1475
+import { groupSectionLegend, sectionAssayLegend, sectionMineralLegend, sectionModelLegend, rampRows, ribbonOrder, ribbonLayers } from "../lib/sectionLegend.js"; // TASKS.csv #1128 — the key goes to Layout, grouped; #1475
 import { LAYER_META } from "../lib/layers.js"; // #1475 — the mineralization group name
 import { exportSvgMarkup, FIGURE_FONT } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { wrapText } from "../lib/figureFurniture.js";
@@ -43,7 +43,15 @@ const SECTION_FONTS = [
 ];
 
 export default function SectionWindow({ tabId = null, initial = null, onPopOut = null, onUnsaved = null }) {
-  const [data, setData] = useState(null);
+  const [rawData, setData] = useState(null);
+  // TASKS.csv #1700 (review #1645, Copley) — which interval layers draw as ribbons beside each hole: every built-in log unless
+  // unticked, a custom layer only when ticked (a Copley hole was a fan of 12 unlabelled ribbons: 7 logs + 6 custom layers).
+  // A per-user preference ({ layerKey: hidden }), kept in localStorage like the hole width.
+  const [ribbonPref, setRibbonPref] = useState(() => { try { const v = JSON.parse(localStorage.getItem("geostrix.sectionRibbons") || "null"); return v && typeof v === "object" ? v : {}; } catch { return {}; } });
+  const ribbonHidden = (k) => (ribbonPref[k] != null ? !!ribbonPref[k] : k.startsWith("custom:"));
+  const toggleRibbon = (k) => { const next = { ...ribbonPref, [k]: !ribbonHidden(k) }; setRibbonPref(next); try { localStorage.setItem("geostrix.sectionRibbons", JSON.stringify(next)); } catch { /* private window */ } };
+  const ribbonChoices = useMemo(() => ribbonLayers(rawData?.intervals), [rawData]);
+  const data = useMemo(() => (rawData?.intervals?.some((r) => ribbonHidden(r.layer || "_")) ? { ...rawData, intervals: rawData.intervals.filter((r) => !ribbonHidden(r.layer || "_")) } : rawData), [rawData, ribbonPref]);
   const [snapped, setSnapped] = useState(false);
   const [saved, setSaved] = useState(false);
   const svgRef = useRef(null);
@@ -395,6 +403,12 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
               <input type="range" min="0.05" max="1" step="0.05" value={structOpacity} onChange={(e) => setStructOpacity(e.target.value)} style={{ width: 70 }} aria-label={tr("Opacity of the structure symbols on the section")} />
             </label>
           )}
+          {ribbonChoices.length > 1 && <details style={{ position: "relative", fontSize: 11, color: "#55606e" }}>{/* #1700 */}
+            <summary style={{ cursor: "pointer", listStyle: "none", padding: "4px 8px", border: "1px solid #d9dce1", borderRadius: 6, background: "#f4f5f7" }} title={tr("Which interval layers draw as ribbons beside each hole (custom layers only when ticked)")}>{tr("Ribbons {n} of {m}", { n: ribbonChoices.filter((c) => !ribbonHidden(c.key)).length, m: ribbonChoices.length })}</summary>
+            <div style={{ position: "absolute", zIndex: 5, top: "100%", left: 0, marginTop: 4, background: "#ffffff", border: "1px solid #d9dce1", borderRadius: 6, padding: "6px 10px", display: "flex", flexDirection: "column", gap: 4, minWidth: 180, boxShadow: "0 4px 14px rgba(0,0,0,0.12)" }}>
+              {ribbonChoices.map((c) => <label key={c.key} style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}><input type="checkbox" checked={!ribbonHidden(c.key)} onChange={() => toggleRibbon(c.key)} />{c.label}</label>)}
+            </div>
+          </details>}
           <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("Width of the drillhole interval ribbons on the section, in pixels")}>
             {tr("Hole width")}
             <input type="number" min="1" max="20" step="1" value={holeWidth} onChange={(e) => setHoleWidth(e.target.value)} style={{ width: 40, fontSize: 11 }} aria-label={tr("Hole width")} />
@@ -656,6 +670,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
     ...niceTicks(minZ, maxZ, 8).map((z) => { const w = labelWidth(z.toFixed(0), fs(10)); return { x: PAD - 8 - w / 2, y: sz(z) + fs(3), w, h: fs(10) + 2 }; }),
     { x: W / 2, y: PAD - fs(3), w: W, h: PAD - fs(3) },
     { x: W / 2, y: H, w: W, h: PAD - 3 },
+    { x: fs(16), y: H / 2 + fs(60), w: fs(13), h: fs(120) }, // #1700 — the rotated "Elevation (m)" title: a grade label was drawn over it
   ];
   return (
     <svg ref={svgRef} fontFamily={textFont} viewBox={`0 0 ${W} ${totalH}`} width="100%" style={{ background: "#ffffff", borderRadius: 8, cursor: drawing ? "crosshair" : "default" }} onClick={handleClick} onMouseMove={handleMove} onMouseUp={handleUp} onMouseLeave={handleUp}>
@@ -821,7 +836,9 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
           return (
             <g key={i}>
               <line x1={bx0} y1={by0} x2={bx1} y2={by1} stroke={row.color} strokeWidth={Math.min(thick, 6)} strokeLinecap="butt"><title>{`${row.label} (${a.from}–${a.to} m)`}</title></line>
-              {labelledAssays.has(row) && <text x={bx1 + nx * 3} y={by1 + ny * 3 + 3} fill="#1a2028" fontSize={fs(9)} textAnchor={nx >= 0 ? "start" : "end"}>{a.u ? `${a.value} ${a.u} ${a.sym}` : a.value}</text>}{/* unit: #1475 */}
+              {/* TASKS.csv #1700 — the grade labels go through the collision pass with the depth and hole labels (they stacked on each
+                  other and ran over the elevation axis); unit: #1475 */}
+              {labelledAssays.has(row) && floatLabels.push({ key: `grade_${i}`, text: a.u ? `${a.value} ${a.u} ${a.sym}` : String(a.value), size: fs(9), fill: "#1a2028", prio: 2, cands: [{ x: bx1 + nx * 3, y: by1 + ny * 3 + 3, anchor: nx >= 0 ? "start" : "end" }, { x: bx1 + nx * 3, y: by1 + ny * 3 + 3 + fs(10), anchor: nx >= 0 ? "start" : "end" }, { x: bx1 + nx * 3, y: by1 + ny * 3 - fs(8), anchor: nx >= 0 ? "start" : "end" }] }) && null}
             </g>
           );
         }
