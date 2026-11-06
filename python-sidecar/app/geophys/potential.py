@@ -563,6 +563,19 @@ def drillhole_constraints(mesh, actv, points_local, tolerance, lower, upper):
     return lo, up, mref, hit, report
 
 
+def _forward_nonzero(method, mesh, actv, st, field, models):
+    """TASKS.csv #1982 — the predicted data of each full-mesh model (one value per mesh cell). The integral forward is
+    linear in the model, so the cells that are zero in every model add nothing: the simulation is built on the active cells
+    that are non-zero in at least one model, which gives the same numbers as the whole mesh. A plate on Woodjam's
+    20,000-station survey at 50 m cells walked every station against every below-ground cell and took about 6.5 minutes;
+    the cost is stations x non-zero cells now (a plate is hundreds to a few thousand cells). Returns user-unit arrays."""
+    use = actv & np.any(np.vstack([np.asarray(m) != 0 for m in models]), axis=0)
+    if not use.any():  # the body is above the terrain or outside the mesh: it predicts nothing
+        return [np.zeros(len(st)) for _ in models]
+    _, sim = _survey_and_sim(method, mesh, use, st, field, "forward_only")
+    return [_to_user(method, sim.dpred(np.asarray(m)[use])) for m in models]
+
+
 def run_job(req, progress, ram_cap_bytes):
     """Runs a forward or inversion job. `progress(dict)` is called with stage/iteration updates.
     Returns a JSON-serialisable result dict."""
@@ -600,13 +613,12 @@ def run_job(req, progress, ram_cap_bytes):
     if kind == "forward":
         # One or more plates in ONE job (a dip sweep is N plates): each job is a fresh process that pays the
         # SimPEG/numba import once (~9 s measured), so N separate jobs would cost N times that.
-        survey, sim = _survey_and_sim(method, mesh, actv, st, field, "forward_only")
         obs = np.asarray(req.get("observed") or [], dtype=float)
         if req.get("model"):
             # TASKS.csv #760 — a geology model (unit properties entered by the user) against the survey: no inversion
             progress({"stage": "forward", "message": "Placing the geology model on the mesh", "iter": 1, "maxIter": 1})
             mc = model_contrast(mesh, req["model"]["cells"], local)
-            pred = _to_user(method, sim.dpred(mc[actv]))
+            pred = _forward_nonzero(method, mesh, actv, st, field, [mc])[0]
             cells = np.asarray(req["model"]["cells"], dtype=float)
             want = float(np.sum(np.abs(cells[:, 6]) * cells[:, 3] * cells[:, 4] * cells[:, 5]))
             vol = mesh.cell_volumes
@@ -631,12 +643,12 @@ def run_job(req, progress, ram_cap_bytes):
             return out
         plates = req.get("plates") or [req["plate"]]
         runs = []
+        fracs = [plate_fraction(mesh, plate, local) for plate in plates]  # TASKS.csv #367 — fractional occupancy, not centre-in-plate
+        progress({"stage": "forward", "message": f"Forward model of {len(plates)} plate(s)", "iter": 1, "maxIter": len(plates)})
+        preds = _forward_nonzero(method, mesh, actv, st, field, [float(pl["contrast"]) * f for pl, f in zip(plates, fracs)])
         for k, plate in enumerate(plates):
-            # TASKS.csv #367 — fractional occupancy, not centre-in-plate (see plate_fraction).
-            frac = plate_fraction(mesh, plate, local)
-            full = float(plate["contrast"]) * frac
-            progress({"stage": "forward", "message": f"Forward model {k + 1} of {len(plates)}", "iter": k + 1, "maxIter": len(plates)})
-            pred = _to_user(method, sim.dpred(full[actv]))
+            frac = fracs[k]
+            pred = preds[k]
             vol = mesh.cell_volumes
             ideal = float(plate["strikeLength"]) * float(plate["dipExtent"]) * float(plate["thickness"])
             run = {"predicted": pred.tolist(), "plateCells": int((frac[actv] > 0).sum()), "dip": plate.get("dip"),
