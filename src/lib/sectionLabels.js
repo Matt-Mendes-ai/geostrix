@@ -16,7 +16,9 @@ export const labelWidth = (text, fontSize) => Math.ceil(String(text).length * fo
 
 const overlaps = (a, b, gap) => a.x - a.w / 2 < b.x + b.w / 2 + gap && b.x - b.w / 2 < a.x + a.w / 2 + gap && a.y - a.h < b.y + gap && b.y - b.h < a.y + gap; // x: centre, y: baseline
 
-export function placeLabels(items, { fontSize = 9, bounds = null, yBounds = null, fixed = {}, gap = 2, maxTiers = 12, avoid = [] } = {}) {
+// TASKS.csv #1536 (review #1497, Lawyers) — dropCrowded: a label with nowhere free is left out instead of overprinting its
+// natural spot (48 holes fanned from a few pads made one blot of names); the caller counts what is missing from the result.
+export function placeLabels(items, { fontSize = 9, bounds = null, yBounds = null, fixed = {}, gap = 2, maxTiers = 12, avoid = [], dropCrowded = false } = {}) {
   // avoid: boxes to keep clear that are not labels of ours (#1144: the elevation numbers in the left margin)
   const h = fontSize + 2, base = 6, out = [], placed = [...avoid];
   const clampX = (x, w) => (bounds ? Math.min(bounds[1] - w / 2, Math.max(bounds[0] + w / 2, x)) : x);
@@ -53,6 +55,7 @@ export function placeLabels(items, { fontSize = 9, bounds = null, yBounds = null
         }
       }
     }
+    if (!best && dropCrowded) continue; // #1536
     if (!best) best = { ...n, w, h, cost: 0 }; // nowhere free within reach: its natural spot (overlapping) rather than far away
     const box = { key: it.key, text: it.text, x: best.x, y: best.y, w, h, ax: it.ax, ay: it.ay, dir: it.dir, moved: false };
     const id = ideal(it);
@@ -101,6 +104,7 @@ export function resolveLabels(specs, obstacles = [], { gap = 1.5, bounds = null,
         const c = { ...c0, x: c0.x + dx * w, y: c0.y + dy * (s.size + 3) }, box = boxOf(c, s.text, s.size);
         if (inside(box) && !hit(box)) { pick = { c, box }; leaderFrom = { x: c0.x, y: c0.y - s.size / 2 }; break search; }
       }
+      if (!pick && s.optional) return; // #1536 — an end-of-hole depth or offset tag with no room anywhere near: left out, not overprinted
       if (!pick) pick = { c: c0, box: boxOf(c0, s.text, s.size) };
     }
     placed.push(pick.box);

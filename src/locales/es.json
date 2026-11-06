@@ -8544,5 +8544,8 @@
   " Downloads one more band.": " Descarga una banda más.",
   "2. Feature": "2. Rasgo",
   "{v} @ {azimuth}° grid, {h} in plan (Δelev {v2}{vert} m)": "{v} @ {azimuth}° de cuadrícula, {h} en planta (Δelev {v2}{vert} m)",
-  "Zoom to the holes (to include everything shown: right-click the view, Zoom to fit all)": "Zoom a los sondajes (para incluir todo lo que se muestra: clic derecho en la vista, Encuadrar todo)"
+  "Zoom to the holes (to include everything shown: right-click the view, Zoom to fit all)": "Zoom a los sondajes (para incluir todo lo que se muestra: clic derecho en la vista, Encuadrar todo)",
+  "Hole names, end-of-hole depths or offsets with nowhere free to go are left out rather than printed on top of each other. A narrower buffer (fewer holes), a higher VE, a smaller text size or dragging labels makes room; hover a hole for its name.": "Los nombres de sondajes, profundidades finales o desplazamientos sin espacio libre se omiten en lugar de imprimirse unos sobre otros. Un buffer más estrecho (menos sondajes), una exageración vertical mayor, un texto más pequeño o arrastrar etiquetas libera espacio; pase el cursor sobre un sondaje para ver su nombre.",
+  "1 label left out: no room": "1 etiqueta omitida: sin espacio",
+  "{n} labels left out: no room": "{n} etiquetas omitidas: sin espacio"
 }

@@ -8544,5 +8544,8 @@
   " Downloads one more band.": " يُنزّل نطاقًا إضافيًا.",
   "2. Feature": "2. السمة",
   "{v} @ {azimuth}° grid, {h} in plan (Δelev {v2}{vert} m)": "{v} @ {azimuth}° شبكي، {h} في المسقط (Δالمنسوب {v2}{vert} م)",
-  "Zoom to the holes (to include everything shown: right-click the view, Zoom to fit all)": "تكبير إلى الآبار (لتضمين كل ما هو معروض: انقر بزر الماوس الأيمن على العرض، ثم ملاءمة الكل في العرض)"
+  "Zoom to the holes (to include everything shown: right-click the view, Zoom to fit all)": "تكبير إلى الآبار (لتضمين كل ما هو معروض: انقر بزر الماوس الأيمن على العرض، ثم ملاءمة الكل في العرض)",
+  "Hole names, end-of-hole depths or offsets with nowhere free to go are left out rather than printed on top of each other. A narrower buffer (fewer holes), a higher VE, a smaller text size or dragging labels makes room; hover a hole for its name.": "تُحذف أسماء الآبار وأعماق نهاياتها والإزاحات التي لا تجد مكانًا فارغًا بدلًا من طباعتها فوق بعضها. يتيح نطاق أضيق (آبار أقل) أو مبالغة رأسية أكبر أو نص أصغر أو سحب التسميات مساحة أكبر؛ مرّر المؤشر فوق البئر لرؤية اسمه.",
+  "1 label left out: no room": "حُذفت تسمية واحدة: لا مكان",
+  "{n} labels left out: no room": "حُذفت {n} تسميات: لا مكان"
 }

@@ -8544,5 +8544,8 @@
   " Downloads one more band.": " Télécharge une bande de plus.",
   "2. Feature": "2. Absorption",
   "{v} @ {azimuth}° grid, {h} in plan (Δelev {v2}{vert} m)": "{v} @ {azimuth}° grille, {h} en plan (Δaltitude {v2}{vert} m)",
-  "Zoom to the holes (to include everything shown: right-click the view, Zoom to fit all)": "Zoom sur les sondages (pour inclure tout ce qui est affiché : clic droit dans la vue, Ajuster tout à la vue)"
+  "Zoom to the holes (to include everything shown: right-click the view, Zoom to fit all)": "Zoom sur les sondages (pour inclure tout ce qui est affiché : clic droit dans la vue, Ajuster tout à la vue)",
+  "Hole names, end-of-hole depths or offsets with nowhere free to go are left out rather than printed on top of each other. A narrower buffer (fewer holes), a higher VE, a smaller text size or dragging labels makes room; hover a hole for its name.": "Les noms de sondages, profondeurs finales ou décalages sans place libre sont omis plutôt qu’imprimés les uns sur les autres. Une zone tampon plus étroite (moins de sondages), une exagération verticale plus forte, un texte plus petit ou le déplacement des étiquettes libère de la place ; survolez un sondage pour voir son nom.",
+  "1 label left out: no room": "1 étiquette omise : pas de place",
+  "{n} labels left out: no room": "{n} étiquettes omises : pas de place"
 }

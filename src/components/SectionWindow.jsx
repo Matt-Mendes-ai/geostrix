@@ -108,6 +108,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // always; off) and the labels the geologist dragged ({ "<hole>|collar": { dx, dy } }, SVG units from the anchor). Saved
   // with the section (relayed to the main window like contacts), so a re-opened section and its Layout snapshot keep them.
   const [labels, setLabels] = useState({ mode: "collar", leaders: "auto", offsets: {} });
+  const [labelsLeftOut, setLabelsLeftOut] = useState(0); // #1536
   const changeLabels = (patch) => setLabels((p) => {
     const next = { ...p, ...patch };
     if (data?.id) sendSectionContacts({ id: data.id, labels: next });
@@ -334,6 +335,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
         <span>{data.title || tr("Cross-section")} <span style={{ color: "#65717e", fontSize: 11, marginLeft: 8 }}>{tr("azimuth {v}° · buffer ±{v2}m", { v: data.section?.azimuth?.toFixed(0), v2: data.section?.corridor })}</span></span>
         <span style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <span style={{ color: "#65717e", fontSize: 11 }}>{tr("{v} holes · {v2} intervals · {v3} points · {v4} structures{v5}{v6}", { v: data.holes?.length || 0, v2: data.intervals?.length || 0, v3: data.points?.length || 0, v4: data.planes?.length || 0, v5: data.elevationProfile?.length > 1 ? tr(" · terrain profile") : "", v6: data.voxelSlices?.length ? ` · ${data.voxelSlices.map((v) => v.name).join(", ")}` : "" })}{data.scatterCounts && (data.scatterCounts.geophys || data.scatterCounts.samples) ? tr(" · {g} geophysics points · {s} surface samples", { g: data.scatterCounts.geophys.toLocaleString(), s: data.scatterCounts.samples.toLocaleString() }) : ""}</span>
+          {labelsLeftOut > 0 && <span style={{ color: "#8a6a1f", fontSize: 11 }} title={tr("Hole names, end-of-hole depths or offsets with nowhere free to go are left out rather than printed on top of each other. A narrower buffer (fewer holes), a higher VE, a smaller text size or dragging labels makes room; hover a hole for its name.")}>{labelsLeftOut === 1 ? tr("1 label left out: no room") : tr("{n} labels left out: no room", { n: labelsLeftOut })}</span>}{/* #1536 */}
           {!drawing ? (
             <>
               {/* Unit picked BEFORE drawing starts — a contact is always a specific unit's upper
@@ -499,7 +501,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           </div>
         )}
         {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{v2}. Click the pencil again to finish; Save contacts keeps the changes.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}{editing?.kind === "outline" ? ` ${tr("Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.")}` : ""}</div>}
-        <SectionSVG textFont={textFont} textScale={printScale ?? textScale} /* #1090 — the print size while an export is drawn */ holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
+        <SectionSVG onLeftOut={printScale == null ? setLabelsLeftOut : null} textFont={textFont} textScale={printScale ?? textScale} /* #1090 — the print size while an export is drawn */ holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
           snap={snapOn && !planning ? targets : null} projectSnaps={projectSnaps} editingId={editingId} onEditPoints={editPoints} onCopyGhost={drawing || planning ? null : copyGhost}
           labels={labels} onMoveLabel={(key, off) => changeLabels({ offsets: { ...labels.offsets, [key]: off } })} /* #823 */ />
         <BlockModelKey slices={data.voxelSlices} />
@@ -513,7 +515,7 @@ function btnStyle(active) {
 }
 const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11.5 };
 
-function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onMoveLabel, onCopyGhost = null, projectSnaps = false }) {
+function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onLeftOut = null, onMoveLabel, onCopyGhost = null, projectSnaps = false }) {
   const plotClipId = `sectionPlotArea${useId().replace(/:/g, "")}`; // #1303 — a hidden tab's clip path would hide this one's drawing
   const fs = (n) => +(n * textScale).toFixed(2); // TASKS.csv #1129 — every label at the chosen text size
   // TASKS.csv #1134 — depth / EOH / offset / planned-hole labels are collected while the holes are drawn and placed in one
@@ -523,6 +525,10 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
   const dragRef = useRef(null); // #519 — the vertex being dragged (before the early return: a hook)
   const labelDragRef = useRef(null); // #823 — the label being dragged: { key, ax, ay, grabDx, grabDy }
   const [labelDrag, setLabelDrag] = useState(null); // its live offset while dragging: { key, dx, dy }
+  // TASKS.csv #1536 — labels left out for lack of room (hole names, EOH depths, offsets), counted while drawing, told to the toolbar after
+  const leftOutRef = useRef(0);
+  leftOutRef.current = 0;
+  useEffect(() => { onLeftOut?.(leftOutRef.current); });
   const { holes = [], section, intervals = [], points = [], planes = [], elevationProfile = null, voxelSlices = [], surfaceTraces = [], plannedHoles = [], title = "", sectionImages = [], scatter = [] } = data; // scatter: #1807
   // TASKS.csv #1090 — the margin and the title / axis text positions follow the text size: at 2x (or the print size the
   // exports use) the title and subtitle, and the tick labels and coordinates under the frame, overlapped
@@ -786,7 +792,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
             {runs && <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="#9aa5b3" strokeWidth="1" strokeDasharray="4 3"><title>{tr("{hole_id}: outside the ±{corridor} m buffer — projected onto the section, no data drawn here", { hole_id: h.hole_id, corridor: section.corridor })}</title></polyline>}
             {solid.map((seg, si) => <polyline key={si} points={seg.map((p) => p.join(",")).join(" ")} fill="none" stroke="#445064" strokeWidth="1.2"><title>{`${h.hole_id}${off ? tr(": {off} from the section line", { off }) : ""}`}</title></polyline>)}
             {/* TASKS.csv #897 — the offset in view, not only in the tooltip, when the hole is more than 5 m off the section */}
-            {off && Math.max(Math.abs(h.minOffset), Math.abs(h.maxOffset)) > 5 && (() => { const end = solid.length ? solid[solid.length - 1].at(-1) : pts.at(-1); if (end && inPlot(end)) floatLabels.push({ key: `off${hi}`, text: off, size: fs(9), fill: "#7a8494", prio: 2, cands: [{ x: end[0] + 4, y: end[1] + fs(10), anchor: "start" }, { x: end[0] - 4, y: end[1] + fs(10), anchor: "end" }, { x: end[0] + 4, y: end[1] + fs(21), anchor: "start" }, { x: end[0] - 4, y: end[1] + fs(21), anchor: "end" }, { x: end[0] + 6, y: end[1] - 4, anchor: "start" }] }); return null; })() /* #1134 */}
+            {off && Math.max(Math.abs(h.minOffset), Math.abs(h.maxOffset)) > 5 && (() => { const end = solid.length ? solid[solid.length - 1].at(-1) : pts.at(-1); if (end && inPlot(end)) floatLabels.push({ key: `off${hi}`, text: off, size: fs(9), fill: "#7a8494", prio: 2, optional: true /* #1536 */, cands: [{ x: end[0] + 4, y: end[1] + fs(10), anchor: "start" }, { x: end[0] - 4, y: end[1] + fs(10), anchor: "end" }, { x: end[0] + 4, y: end[1] + fs(21), anchor: "start" }, { x: end[0] - 4, y: end[1] + fs(21), anchor: "end" }, { x: end[0] + 6, y: end[1] - 4, anchor: "start" }] }); return null; })() /* #1134 */}
           </g>
         );
       })}
@@ -940,7 +946,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
         return (
           <g key={`dt${hi}`}>
             {marks}
-            {labels.mode !== "end" && labels.mode !== "both" && (() => { const ex = sx(along(last.x, last.y)), ey = sz(last.z); if (inPlot([ex, ey])) floatLabels.push({ key: `eoh${hi}`, text: tr("EOH {v} m", { v: Math.round(eoh) }), size: fs(9), fill: "#1a2028", prio: 2, cands: [{ x: ex, y: ey + fs(11), anchor: "middle" }, { x: ex + 6, y: ey + 3, anchor: "start" }, { x: ex - 6, y: ey + 3, anchor: "end" }, { x: ex, y: ey + fs(22), anchor: "middle" }] }); return null; })()}{/* #823: in the end-of-hole label otherwise; #1134: placed in the final pass */}
+            {labels.mode !== "end" && labels.mode !== "both" && (() => { const ex = sx(along(last.x, last.y)), ey = sz(last.z); if (inPlot([ex, ey])) floatLabels.push({ key: `eoh${hi}`, text: tr("EOH {v} m", { v: Math.round(eoh) }), size: fs(9), fill: "#1a2028", prio: 2, optional: true /* #1536 */, cands: [{ x: ex, y: ey + fs(11), anchor: "middle" }, { x: ex + 6, y: ey + 3, anchor: "start" }, { x: ex - 6, y: ey + 3, anchor: "end" }, { x: ex, y: ey + fs(22), anchor: "middle" }] }); return null; })()}{/* #823: in the end-of-hole label otherwise; #1134: placed in the final pass */}
           </g>
         );
       })}
@@ -1015,7 +1021,8 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
         });
         const fixed = { ...labels.offsets, ...(labelDrag ? { [labelDrag.key]: { dx: labelDrag.dx, dy: labelDrag.dy } } : {}) };
         const color = Object.fromEntries(items.map((it) => [it.key, it.color]));
-        const placed = placeLabels(items, { fontSize: fs(9), bounds: [4, W - 4], yBounds: [2, totalH - 2], fixed, avoid: axisLabelBoxes }); // the whole drawing: holes run past the plot frame
+        const placed = placeLabels(items, { fontSize: fs(9), bounds: [4, W - 4], yBounds: [2, totalH - 2], fixed, avoid: axisLabelBoxes, dropCrowded: true });
+        leftOutRef.current += items.length - placed.length; // #1536 // the whole drawing: holes run past the plot frame
         holeLabelBoxes = placed; // #1134 — obstacles for the other labels
         return (
           <g>
@@ -1042,7 +1049,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
       })()}
       {/* TASKS.csv #1134 — depth / EOH / offset / planned-hole labels: one collision pass, drawn last (over the ribbons) */}
       <g pointerEvents="none">
-        {resolveLabels(floatLabels, [...holeLabelBoxes, ...axisLabelBoxes], { bounds: [4, W - 4], yBounds: [2, totalH - 2] }).map((l) => <React.Fragment key={l.key}>{l.leaderFrom && <line x1={l.leaderFrom.x} y1={l.leaderFrom.y} x2={l.x} y2={l.y - l.size / 2} stroke="#7a8494" strokeWidth="0.5" /> /* #1144 — moved off its spot */}<text x={l.x} y={l.y} fill={l.fill} fontSize={l.size} fontWeight={l.weight} textAnchor={l.anchor}>{l.text}</text></React.Fragment>)}
+        {(() => { const rl = resolveLabels(floatLabels, [...holeLabelBoxes, ...axisLabelBoxes], { bounds: [4, W - 4], yBounds: [2, totalH - 2] }); leftOutRef.current += floatLabels.filter((l) => l.optional).length - rl.filter((l) => l.optional).length; return rl; })().map((l) => <React.Fragment key={l.key}>{l.leaderFrom && <line x1={l.leaderFrom.x} y1={l.leaderFrom.y} x2={l.x} y2={l.y - l.size / 2} stroke="#7a8494" strokeWidth="0.5" /> /* #1144 — moved off its spot */}<text x={l.x} y={l.y} fill={l.fill} fontSize={l.size} fontWeight={l.weight} textAnchor={l.anchor}>{l.text}</text></React.Fragment>)}
       </g>
       <text x={W / 2} y={H - fs(14)} fill="#55606e" fontSize={fs(11)} textAnchor="middle">{tr("Distance along section (m)")}</text>
       <text x={fs(16)} y={H / 2} fill="#55606e" fontSize={fs(11)} textAnchor="middle" transform={`rotate(-90 ${fs(16)} ${H / 2})`}>{tr("Elevation (m)")}</text>

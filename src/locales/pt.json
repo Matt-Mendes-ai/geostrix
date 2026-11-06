@@ -8544,5 +8544,8 @@
   " Downloads one more band.": " Baixa uma banda a mais.",
   "2. Feature": "2. Feição",
   "{v} @ {azimuth}° grid, {h} in plan (Δelev {v2}{vert} m)": "{v} @ {azimuth}° de quadrícula, {h} em planta (Δelev {v2}{vert} m)",
-  "Zoom to the holes (to include everything shown: right-click the view, Zoom to fit all)": "Zoom nos furos (para incluir tudo o que está visível: clique com o botão direito na vista, Enquadrar tudo)"
+  "Zoom to the holes (to include everything shown: right-click the view, Zoom to fit all)": "Zoom nos furos (para incluir tudo o que está visível: clique com o botão direito na vista, Enquadrar tudo)",
+  "Hole names, end-of-hole depths or offsets with nowhere free to go are left out rather than printed on top of each other. A narrower buffer (fewer holes), a higher VE, a smaller text size or dragging labels makes room; hover a hole for its name.": "Nomes de furos, profundidades finais ou afastamentos sem espaço livre são omitidos em vez de impressos uns sobre os outros. Um buffer mais estreito (menos furos), um exagero vertical maior, um texto menor ou arrastar rótulos abre espaço; passe o cursor sobre um furo para ver o nome.",
+  "1 label left out: no room": "1 rótulo omitido: sem espaço",
+  "{n} labels left out: no room": "{n} rótulos omitidos: sem espaço"
 }
