@@ -5181,9 +5181,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // TASKS.csv #1277 — the Hole labels dropdown redraws the labels only
   useEffect(() => { syncHoleLabels(layerGroupsRef.current?.hole_labels, holeLabelAnchorsRef.current, holeLabelMode, makeTextSprite); }, [holeLabelMode]);
   // #551 — declared AFTER the big effect: when both fire, the big one builds first and these then see unchanged inputs
-  useEffect(() => { if (!sameInputs(assayBuiltRef.current, assayInputs)) buildAssaySpheresRef.current(); }, assayInputs);
-  useEffect(() => { if (!sameInputs(geophysBuiltRef.current, geophysInputs)) buildGeophysPtsRef.current(); }, geophysInputs);
-  useEffect(() => { if (!sameInputs(surfaceBuiltRef.current, surfaceInputs)) buildSurfaceSamplesRef.current(); }, surfaceInputs);
+  // #1500 — not in a commit whose big build was deferred (buildDefer): the next render's big build builds these at its end
+  useEffect(() => { if (!buildDefer.skip() && !sameInputs(assayBuiltRef.current, assayInputs)) buildAssaySpheresRef.current(); }, assayInputs);
+  useEffect(() => { if (!buildDefer.skip() && !sameInputs(geophysBuiltRef.current, geophysInputs)) buildGeophysPtsRef.current(); }, geophysInputs);
+  useEffect(() => { if (!buildDefer.skip() && !sameInputs(surfaceBuiltRef.current, surfaceInputs)) buildSurfaceSamplesRef.current(); }, surfaceInputs);
 
   // ---------- TASKS.csv #52 — PERSIST GENERATED SURFACES THROUGH SAVE / OPEN / AUTOSAVE ----------
   //

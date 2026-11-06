@@ -23,3 +23,11 @@ test("the viewer marks in the UI-state restore and the custom-layer restore, and
   assert.ok(s.indexOf("buildDefer.mark();") < s.indexOf("buildDefer.skip()"));
   assert.ok(s.lastIndexOf("buildDefer.mark();") < s.indexOf("buildDefer.skip()"));
 });
+
+test("the assay, geophysics and surface-sample builders also skip a deferred commit; the big build that follows rebuilds them", () => {
+  const s = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  for (const [built, inputs, ref] of [["assayBuiltRef", "assayInputs", "buildAssaySpheresRef"], ["geophysBuiltRef", "geophysInputs", "buildGeophysPtsRef"], ["surfaceBuiltRef", "surfaceInputs", "buildSurfaceSamplesRef"]]) {
+    assert.ok(s.includes(`useEffect(() => { if (!buildDefer.skip() && !sameInputs(${built}.current, ${inputs})) ${ref}.current(); }, ${inputs});`), ref);
+  }
+  assert.ok(s.includes("buildAssaySpheresRef.current(); buildGeophysPtsRef.current(); buildSurfaceSamplesRef.current();"));
+});
