@@ -39,6 +39,7 @@ export function findOnTraceWorld(t, md) {
 // ~146,000 intervals, ~170 points per trace) those scans were a third of the per-interval loop. pts: desurveyed, md ascending.
 // -> { at(md): the same answer as findOnTrace, between(from, to): the same points as pts.filter(md within [from - 0.01, to + 0.01]) }
 export function traceLookup(pts) {
+  pts = pts || []; // #1981 — a hole without a trace (no survey depth) gets the empty lookup, not a crash
   const n = pts.length, md = new Float64Array(n);
   for (let i = 0; i < n; i++) md[i] = pts[i].md;
   // the first index whose md is >= v (n when none)

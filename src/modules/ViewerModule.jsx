@@ -4575,8 +4575,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const n = assayDisplayElements.length;
     const errors = [];
     collars.forEach((c) => {
-      const pts = traceOf.get(c.hole_id), look = traceLookup(pts); // look: #1500
-      if (!pts?.length) return;
+      const pts = traceOf.get(c.hole_id);
+      if (!pts?.length) return; // a hole without a trace: before the lookup (#1981)
+      const look = traceLookup(pts); // look: #1500
       try {
         // each selected element: its own hue and a small radial offset around the trace, so Au / Cu / Zn at one
         // depth stay separately visible (one element: no offset)
