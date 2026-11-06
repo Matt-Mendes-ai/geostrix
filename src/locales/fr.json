@@ -8488,5 +8488,7 @@
   "Structure dip": "Pendage de la structure",
   "It lies under {list} in plan.": "Il se trouve sous {list} en plan.",
   "Hide those {n}": "Masquer ces {n}",
-  "Hid {n} layer(s) over the score; show them again with their eyes in the 3D View.": "{n} couche(s) au-dessus du score masquée(s) ; réaffichez-les avec leur œil dans la Vue 3D."
+  "Hid {n} layer(s) over the score; show them again with their eyes in the 3D View.": "{n} couche(s) au-dessus du score masquée(s) ; réaffichez-les avec leur œil dans la Vue 3D.",
+  "{k} of the {n} classes: many values are equal, so some quantiles fell on the same value and were merged.": "{k} des {n} classes : beaucoup de valeurs sont égales, donc certains quantiles sont tombés sur la même valeur et ont été fusionnés.",
+  "{k} of the {n} classes: some class limits fell on the same value and were merged.": "{k} des {n} classes : certaines limites de classe sont tombées sur la même valeur et ont été fusionnées."
 }

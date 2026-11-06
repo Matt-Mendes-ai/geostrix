@@ -426,7 +426,19 @@ export function readableValues(values, minSig = 3) {
 }
 export function classifyBreaks(values, n, method = "equal") {
   const b = classifyBreaksRaw(values, n, method);
-  return b.length ? [b[0], ...readableValues(b).slice(1)] : b; // #1422 — the first break (the minimum) stays exact, as #1198 kept it
+  const r = b.length ? [b[0], ...readableValues(b).slice(1)] : b; // #1422 — the first break (the minimum) stays exact, as #1198 kept it
+  // TASKS.csv #1430 (review #1352, Silvertip) — a break equal to the one before makes an empty class: Quantile on a recovered
+  // susceptibility with most cells at the 0 bound gave 'to 0 | to 0 | to 5.66e-9 ...'. Equal breaks are merged; the editors say when
+  // fewer classes came out than were asked for (classCountNote).
+  return r.filter((v, i) => i === 0 || v > r[i - 1]);
+}
+// #1430 — the line an editor shows under Apply when the data could not hold `asked` distinct classes; "" otherwise
+export function classCountNote(breaks, asked, method) {
+  const want = Math.max(2, Math.min(64, Math.round(asked) || 5));
+  if (!breaks?.length || breaks.length >= want) return "";
+  return method === "quantile"
+    ? tr("{k} of the {n} classes: many values are equal, so some quantiles fell on the same value and were merged.", { k: breaks.length, n: want })
+    : tr("{k} of the {n} classes: some class limits fell on the same value and were merged.", { k: breaks.length, n: want });
 }
 function classifyBreaksRaw(values, n, method) {
   const nums = values.filter((v) => Number.isFinite(v)).sort((a, b) => a - b);

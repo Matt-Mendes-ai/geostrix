@@ -21,7 +21,7 @@ import { terrainElevationAt } from "../lib/inversion.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
 import { useStore } from "../lib/store.jsx";
-import { classifyBreaks, PALETTES, paletteColorsHex , colorForVoxelValue, readableValues /* #1422 */ } from "../lib/layers.js";
+import { classifyBreaks, PALETTES, paletteColorsHex , colorForVoxelValue, readableValues /* #1422 */, classCountNote /* #1430 */ } from "../lib/layers.js";
 import StopValueInput from "../components/StopValueInput.jsx"; // TASKS.csv #1422
 import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFArrayBuffer } from "../lib/raster.js";
 import { boundaryAreaHectares } from "../lib/geoprocessing.js";
@@ -2418,6 +2418,7 @@ function VoxelModelRow({ others = null, model, onUpdate, onRemove, onEvaluate, o
 function VoxelLegendEditor({ model, onUpdate }) {
   const [method, setMethod] = useState("equal");
   const [classCount, setClassCount] = useState(5);
+  const [classNote, setClassNote] = useState(""); // #1430
   // User request: "Can we have some gradient colour pallets options for the voxels legends? Get some
   // that are typically used in geophysics and name them with the suggested geophysical survey type
   // use." — see layers.js's PALETTES for the actual named ramps (Geosoft-style spectrum, rainbow,
@@ -2457,6 +2458,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
   };
   const applyClassify = () => {
     const breaks = classifyBreaks(shownValues(), classCount, method);
+    setClassNote(classCountNote(breaks, classCount, method));
     if (!breaks.length) return;
     const colors = paletteColorsHex(palette, breaks.length);
     setStops(breaks.map((v, i) => ({ value: v, color: colors[i] })), { colorMode: "discrete" });
@@ -2548,6 +2550,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
           <input type="number" min={2} max={64} value={classCount} onChange={(e) => setClassCount(Number(e.target.value))} style={{ ...numInput, width: 44, flex: "none" }} /* #1433 */ />
           <button onClick={applyClassify} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>{tr("Apply")}</button>
         </div>
+        {classNote && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 3 }}>{classNote}</div>} {/* #1430 */}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{tr("Generates {classCount} classes from this model's actual cell values and switches to classified (stepped) styling.", { classCount })}</div>
       </div>
     </div>

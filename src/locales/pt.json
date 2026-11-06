@@ -8488,5 +8488,7 @@
   "Structure dip": "Mergulho da estrutura",
   "It lies under {list} in plan.": "Fica sob {list} em planta.",
   "Hide those {n}": "Ocultar essas {n}",
-  "Hid {n} layer(s) over the score; show them again with their eyes in the 3D View.": "{n} camada(s) sobre a pontuação foram ocultadas; mostre-as de novo pelo olho na Vista 3D."
+  "Hid {n} layer(s) over the score; show them again with their eyes in the 3D View.": "{n} camada(s) sobre a pontuação foram ocultadas; mostre-as de novo pelo olho na Vista 3D.",
+  "{k} of the {n} classes: many values are equal, so some quantiles fell on the same value and were merged.": "{k} das {n} classes: muitos valores são iguais, então alguns quantis caíram no mesmo valor e foram unidos.",
+  "{k} of the {n} classes: some class limits fell on the same value and were merged.": "{k} das {n} classes: alguns limites de classe caíram no mesmo valor e foram unidos."
 }

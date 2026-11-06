@@ -1,7 +1,7 @@
 // TASKS.csv #1136 — moved out of ViewerModule (loaded on first use, not at startup)
 import React, { useState } from "react";
 import { CLIP_KEYS, numericClip } from "../lib/numericClip.js"; // TASKS.csv #1699
-import { minMax, classifyBreaks, paletteColorsHex, PALETTES, trimForBreaks, readableValues } from "../lib/layers.js"; // trimForBreaks: #1531; readableValues: #1422
+import { minMax, classifyBreaks, paletteColorsHex, PALETTES, trimForBreaks, readableValues, classCountNote } from "../lib/layers.js"; // trimForBreaks: #1531; readableValues: #1422
 import StopValueInput from "./StopValueInput.jsx"; // TASKS.csv #1422
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
@@ -15,6 +15,7 @@ import { t as tr } from "../lib/i18n.js";
 // so the two classification UIs in the app behave the same way rather than inventing a second idiom.
 export default function NumericSymbologyEditor({ layerKey, rows, sym, onChange }) {
   const [classCount, setClassCount] = useState(5);
+  const [classNote, setClassNote] = useState(""); // #1430
   const [method, setMethod] = useState("equal");
   // TASKS.csv #249 (colorblind-safety review) — defaults to the perceptually-uniform, colorblind-safe
   // viridis palette rather than the plain blue-red "default" ramp, so a new classification starts safe
@@ -30,6 +31,7 @@ export default function NumericSymbologyEditor({ layerKey, rows, sym, onChange }
   const trimmed = React.useMemo(() => trimForBreaks(values), [values]); // #1531
   const apply = () => {
     const breaks = classifyBreaks(trim ? trimForBreaks(values).values : values, classCount, method); // #1531
+    setClassNote(classCountNote(breaks, classCount, method)); // #1430
     if (!breaks.length) return;
     const colors = paletteColorsHex(palette, breaks.length);
     onChange({ stops: breaks.map((v, i) => ({ value: v, color: colors[i] })), colorMode: "discrete" });
@@ -67,6 +69,7 @@ export default function NumericSymbologyEditor({ layerKey, rows, sym, onChange }
             style={{ fontSize: "var(--font-size-xs)", color: "var(--color-danger-icon)", cursor: "pointer" }}>{tr("Reset")}</span>
         )}
       </div>
+      {classNote && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 3 }}>{classNote}</div>} {/* #1430 */}
       {(trimmed.below > 0 || trimmed.above > 0) && ( /* TASKS.csv #1531 */
         <label style={{ display: "flex", alignItems: "flex-start", gap: 5, fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4, marginBottom: 5, cursor: "pointer" }}>
           <input type="checkbox" checked={trim} onChange={(e) => setTrim(e.target.checked)} style={{ marginTop: 1 }} />

@@ -8488,5 +8488,7 @@
   "Structure dip": "Buzamiento de la estructura",
   "It lies under {list} in plan.": "Queda debajo de {list} en planta.",
   "Hide those {n}": "Ocultar esas {n}",
-  "Hid {n} layer(s) over the score; show them again with their eyes in the 3D View.": "Se ocultaron {n} capa(s) sobre el puntaje; vuelva a mostrarlas con su ojo en la Vista 3D."
+  "Hid {n} layer(s) over the score; show them again with their eyes in the 3D View.": "Se ocultaron {n} capa(s) sobre el puntaje; vuelva a mostrarlas con su ojo en la Vista 3D.",
+  "{k} of the {n} classes: many values are equal, so some quantiles fell on the same value and were merged.": "{k} de las {n} clases: muchos valores son iguales, así que algunos cuantiles cayeron en el mismo valor y se fusionaron.",
+  "{k} of the {n} classes: some class limits fell on the same value and were merged.": "{k} de las {n} clases: algunos límites de clase cayeron en el mismo valor y se fusionaron."
 }
