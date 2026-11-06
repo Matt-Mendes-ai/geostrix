@@ -24,6 +24,8 @@ The GeoStrix website: plain HTML + CSS, no build step, no framework, no cookies,
   `hero-woodjam-ztem.webp`, is the Woodjam sample's 3D ZTEM conductivity model (ARIS 41597); `og-woodjam-ztem.jpg` is the
   link-preview image (og:image) cropped from it at 1200×628 — JPEG, because LinkedIn doesn't reliably show WebP previews; `spectral-ferric.webp` / `spectral-truecolour.webp` are Matt's Fireweed project (the
   Sentinel-2 ferric-iron index beside true colour), which the captions say is not the sample project
+- `email/geostrix-owl.png` — the owl logo at 144×144 (transparent PNG, from `assets/GeoStrix_Logo.png`) for Matt's email
+  signature, which loads it from this exact URL — don't rename or move it
 - `fonts/` — Exo 2 (SIL OFL), served from here instead of Google Fonts
 - `img/flags/` — the language switcher's flags (Canada EN, Mexico ES — the most Spanish speakers, and
   the pages use Latin-American mining Spanish — Brazil PT, France FR, Saudi Arabia AR), from
