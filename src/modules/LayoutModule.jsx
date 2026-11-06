@@ -9,7 +9,7 @@ import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
 import { useStore } from "../lib/store.jsx";
 import PromptModal from "../components/PromptModal.jsx";
 import { minMax, LAYER_META } from "../lib/layers.js";
-import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633
+import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups, outcropLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633; outcropLegendGroup: #1437
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
 import { collarTableSlice, collarRowsThatFit, continuationTables } from "../lib/collarTable.js"; // TASKS.csv #1638
 import { fitDrillPlan, filterHoles } from "../lib/drillPlan.js"; // TASKS.csv #1639
@@ -97,6 +97,7 @@ export default function LayoutModule() {
     layers, collars, sections, project, survey, // survey: #1476
     surfaceSamples, boundaries, // TASKS.csv #907 — what "Fit the holes" fits when there are no holes
     mapLayers, surfaceSampleLegend, // TASKS.csv #948 — the Surface Geology map's legend groups
+    surfaceStructures, // TASKS.csv #1437 — the outcrop sets' legend group
     assays, assayElements, voxelModels, // TASKS.csv #725 — the legend loads assay classes and block-model keys too
     // TASKS.csv #101 — same "must survive the Viewer round-trip unmount" reasoning as elements/
     // layoutSelectRequest above: local state here would silently drop the grid's viewport binding
@@ -868,7 +869,7 @@ export default function LayoutModule() {
       ...assayLegendGroups({ assays, assayElements, assayVisible: theme.assayVisible !== false, assayDisplayElements: theme.assayDisplayElements || (theme.assayDisplayElement ? [theme.assayDisplayElement] : []), assayStyle: theme.assayStyle || {} }),
       ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), // #1236
       // TASKS.csv #948 — the Surface Geology map: surface samples as the 3D view colours them, map layers, boundaries
-      ...(surfaceSampleLegend ? [surfaceSampleLegend] : []), ...mapLayerLegendGroups(mapLayers), ...boundaryLegendGroups(boundaries),
+      ...(surfaceSampleLegend ? [surfaceSampleLegend] : []), ...(outcropLegendGroup({ surfaceStructures }) ? [outcropLegendGroup({ surfaceStructures })] : []) /* #1437 */, ...mapLayerLegendGroups(mapLayers), ...boundaryLegendGroups(boundaries),
     ];
     // #1633 — a long group keeps its most frequent entries and says how many it left out
     const items = legendGroupsToItems(capLegendGroups(groups, 12, (n) => tr("+ {n} more (fewer intervals; edit the legend to add them)", { n })));

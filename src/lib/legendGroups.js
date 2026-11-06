@@ -4,6 +4,7 @@
 // classes, and block models (classes as swatches, continuous models as a ramp from lib/legendScale.js).
 // Pure: callers pass their state (live viewer state, or a saved theme).
 import { LAYER_META, CATEGORICAL_SAFE_COLORS, colorForMedium } from "./layers.js";
+import { STRUCTURE_CLASS_COLORS, STRUCTURE_CLASS_LABELS } from "./mapLayers.js"; // TASKS.csv #1437
 import { legendScale } from "./legendScale.js";
 
 // the per-element identity hues of assay markers (moved from ViewerModule; TASKS.csv #306)
@@ -129,6 +130,18 @@ export function boundaryLegendGroups(boundaries) {
 }
 // samples: the drawn surface samples (with .medium); style: the layer's one-colour style, if any; anomalyGroup: the
 // anomaly map's group (anomalyLegendGroup) when it colours them
+// TASKS.csv #1437 (review #1352, Silvertip) — the outcrop structure sets had no legend entry: one row per class drawn (the disc
+// colours of sceneBuilders), in the class order, over the visible sets
+export function outcropLegendGroup({ surfaceStructures = [], visible = true } = {}) {
+  if (!visible) return null;
+  const counts = new Map();
+  for (const s of surfaceStructures || []) { if (s?.visible === false) continue; for (const r of s.rows || []) { const c = r.cls || "other"; counts.set(c, (counts.get(c) || 0) + 1); } }
+  if (!counts.size) return null;
+  const order = Object.keys(STRUCTURE_CLASS_COLORS);
+  const items = [...counts.keys()].sort((a, b) => order.indexOf(a) - order.indexOf(b)).map((c) => [STRUCTURE_CLASS_LABELS[c] || c, STRUCTURE_CLASS_COLORS[c] || STRUCTURE_CLASS_COLORS.other, { kind: "point" }]);
+  return { key: "outcrop_structures", label: "Outcrop structures", items };
+}
+
 export function surfaceSampleLegendGroup({ samples, visible = true, style = null, anomalyGroup = null }) {
   if (!visible || !(samples || []).length) return null;
   if (anomalyGroup) return { ...anomalyGroup, items: anomalyGroup.items.map(([l, c]) => [l, c, { kind: "point" }]) };

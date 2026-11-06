@@ -560,9 +560,12 @@ export function projectContactRibbon(line3d, orient, { depth = 300, rows = 12, m
 // Colour per structure class (#317) — the fault/bedding/foliation/contact/vein hues match
 // layers.js's STRUCT_COLORS for the downhole equivalents, so a surface bedding pick and a core
 // bedding pick read as the same kind of thing in one scene.
+// TASKS.csv #1437 (review #1352, Silvertip) — none of these is a surface-sample medium colour (layers.js MEDIUM_COLORS): bedding
+// was the stream-sediment blue, fault the rock-chip red and other the talus-fines grey, so a bedding disc seen from above was a
+// stream-sediment sphere; cleavage sat next to moss mat and contact next to heavy-mineral purple. Contacts are black on a map.
 export const STRUCTURE_CLASS_COLORS = {
-  fault: "#c0392b", bedding: "#4a7ab5", foliation: "#3a8a8a", cleavage: "#4aa06a",
-  contact: "#8a6fae", vein: "#e8dfc4", joint: "#c9863d", other: "#8a8578",
+  fault: "#b5179e", bedding: "#1d3557", foliation: "#007f7f", cleavage: "#9acd32",
+  contact: "#222222", vein: "#e8dfc4", joint: "#ff7f50", other: "#9aa5b1",
 };
 export const STRUCTURE_CLASS_LABELS = {
   fault: "Fault / shear", bedding: "Bedding", foliation: "Foliation", cleavage: "Cleavage",
