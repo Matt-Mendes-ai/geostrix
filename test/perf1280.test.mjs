@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-const read = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+const read = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url), "utf8").replace(/\r\n/g, "\n"); // CRLF on the CI checkout (autocrlf)
 
 test("#1280 both OMF imports go through the worker, with a fallback and their language", () => {
   assert.match(read("src/lib/sampleWoodjam.js"), /omfToProjectObjectsAsync\(/);
