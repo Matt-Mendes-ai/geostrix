@@ -186,7 +186,7 @@ export function estimateBlockModel(samplePoints, opts) {
         const r = est(cx, cy, cz);
         if (!r) { blocksSkipped++; if (wantSupport) supportCounts.unsupported++; continue; } // no estimate IS the unsupported class
         if (r.nHoles === 1) singleHoleCells++;
-        else if (r.domShare >= DOMINANT_SHARE) dominatedCells++; // #676
+        else if (method !== "nn" && r.domShare >= DOMINANT_SHARE) dominatedCells++; // #676; #1423 — not for NN, one sample always carries it all
         if (r.mlsMode) mlsCounts[r.mlsMode]++; // #516
         if (r.okMode) { okCounts[r.okMode]++; if (r.okNeg) okCounts.negativeWeights++; if (r.okFar) okCounts.beyondRange++; if (r.okClamp) okCounts.clampedNegative++; } // #709; #1027; #1412
         if (r.support) {
@@ -1060,7 +1060,7 @@ export function estimateDenseGrid(samplePoints, opts) {
         }
         if (!r) continue;
         if (r.nHoles === 1) singleHoleCells++;
-        else if (r.domShare >= DOMINANT_SHARE) dominatedCells++; // #676
+        else if (method !== "nn" && r.domShare >= DOMINANT_SHARE) dominatedCells++; // #676; #1423 — not for NN, one sample always carries it all
         values[rowBase + ix] = r.value;
         estimated++;
       }

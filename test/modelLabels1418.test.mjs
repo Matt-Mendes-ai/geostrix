@@ -17,5 +17,5 @@ test("the card names kriging variance and geoML; both notices pass an info level
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /\{ \.\.\.notice\("Added block model \\"\{name\}\\" \(\{cells\} cells\)\.", \{[^}]*\}\), level: "info"/);
   const r = readFileSync(new URL("../src/modules/viewer/modellingRuns.js", import.meta.url), "utf8");
-  assert.match(r, /\{ \.\.\.notice\("\\"\{label\}\\" data support[\s\S]*?v2: summarizeSupport\(surfCounts\) \}\), level: "info"/);
+  assert.match(r, /\{ \.\.\.notice\("\\"\{label\}\\" data support[\s\S]*?v2: summarizeSupport\(surfCounts\)[^}]*\}\), level: "info"/); // #1423 strips the summary's full stop
 });

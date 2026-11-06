@@ -961,7 +961,7 @@ export default function ModellingPanes(props) {
             TASKS.csv #674 — it said "no anisotropy", untrue since #650 lets the shell follow a structural trend. */}
         <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", marginBottom: 8, lineHeight: 1.45 }}>
           <strong>{tr("Not a resource estimate.")}</strong>{" "}{tr("This builds an interpolated envelope to help you visualize and target mineralization. It can follow a structural trend you choose; Ordinary kriging fits a variogram to the composites automatically (check it in the Variogram tool), and there is no classification, dilution or recovery. Nothing it produces is a Mineral Resource under NI 43-101 or JORC, and it must not be reported publicly as one.")}</div>
-        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Builds a wireframe envelope of everything at or above a cutoff grade directly from assay values — inverse-distance interpolation onto a grid, then an iso-surface at the cutoff. Runs in-app, no Python engine needed.")}{/* TASKS.csv #273 — this tool was a second, uncoupled interpolator that consumed none of the
+        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Builds a wireframe envelope of everything at or above a cutoff grade directly from assay values — interpolation onto a grid (by the method chosen below), then an iso-surface at the cutoff. Runs in-app, no Python engine needed.")}{/* TASKS.csv #273 — this tool was a second, uncoupled interpolator that consumed none of the
               shared search-ellipsoid/anisotropy/domain machinery. The domain and the anisotropy trend
               are now threaded through it (see runNumericModel); the search ellipsoid's minimum-neighbour
               filter deliberately still isn't, and the panel says so instead of leaving the difference
@@ -1096,7 +1096,7 @@ export default function ModellingPanes(props) {
               )}
               {/* TASKS.csv #292 — warn before the work, not after (pattern from #209). */}
               {!(numericSearchRadius > 0) && (
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>{tr("With no search radius, every grid cell is estimated from the whole dataset — the run can take a minute or more and the window will be unresponsive while it does. Set a real search radius unless you specifically want an unbounded first pass.")}</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginBottom: 8, lineHeight: 1.45 }}>{tr("With no search radius, every grid cell is estimated from the whole dataset — the run can take a minute or more (its progress and Cancel are in the status bar). Set a real search radius unless you specifically want an unbounded first pass.")}</div>
               )}
               <button
                 onClick={runNumericModel}
