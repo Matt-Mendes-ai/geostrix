@@ -79,7 +79,8 @@ export function guessXyzChannels(columns, rows) {
   const pick = (res, skip = () => false) => { for (const re of res) { const c = columns.find((col) => !skip(col) && re.test(lc(col)) && usable(col)); if (c) return c; } return ""; };
   const z = pick([/^(z|elev|elevation|alt|altitude|height|dem|gps_?elev|elev_?m)$/, /elev|altitude/]);
   // never a coordinate / time / quality channel ("elev" contains "lev", "station-x" contains "x"...)
-  const notValue = (c) => c === z || /^(x|y|z|e|n|east|north|easting|northing|lat|lon|long|latitude|longitude|line|fid|time|date|sat|sq|oper|unit|station.*)$|elev|alt/.test(lc(c));
+  // TASKS.csv #1351 — nor the base-station magnetometer: Aeroquest's "basemagf" (before MagN / MagU / MagP / MagS) was taken as the survey
+  const notValue = (c) => c === z || /^(x|y|z|e|n|east|north|easting|northing|lat|lon|long|latitude|longitude|line|fid|time|date|sat|sq|oper|unit|station.*)$|elev|alt|^base|base_?mag|^bmag|diurnal/.test(lc(c));
   const value = pick([/^cor|_cor|cor_|corr|level|lvl|tmi|resid|igrf|final/, /mag|grav|bouguer|^k$|^th$|^u$|^tc$|cps|ip_|^ip|res|chg|cond|vlf|value/], notValue);
   return { z, value };
 }

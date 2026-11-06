@@ -73,7 +73,7 @@ import { guessQualityColumn, filterSignalQuality, despikeAlongLines } from "../l
 import { vectorToBoundaryPolylines, claimsFromVector } from "../lib/boundaryImport.js"; // TASKS.csv #1035; claims per feature: #1970
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
 import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
-import { sniffTable, estimateRows, streamTableRows } from "../lib/streamTable.js"; // TASKS.csv #1351
+import { sniffTable, estimateRows, streamTableRows, streamXyzRows, headText } from "../lib/streamTable.js"; // TASKS.csv #1351
 import { useSetTaskProgress } from "../lib/store.jsx"; // TASKS.csv #1351
 // TASKS.csv #1351 — a point-survey CSV over this size is streamed and thinned on the way in instead of read whole
 const STREAM_FROM_BYTES = 150e6;
@@ -951,7 +951,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     const label = tr("Reading {name}", { name: p.fileName });
     setXyzPending((q) => (q ? { ...q, streaming: true } : q));
     try {
-      const { rows, seen } = await streamTableRows(st.file, { delimiter: st.delimiter, headers: st.headers, keep, every: st.keepEvery, skipLines: st.skipLines, onProgress: (f) => setTaskProgress?.({ label, pct: Math.round(f * 100) }) });
+      const onProgress = (f) => setTaskProgress?.({ label, pct: Math.round(f * 100) });
+      const { rows, seen } = st.kind === "xyz" // #1351 — a Geosoft .xyz, by parseXYZ's rules
+        ? await streamXyzRows(st.file, { columns: st.columns, keep, every: st.keepEvery, onProgress })
+        : await streamTableRows(st.file, { delimiter: st.delimiter, headers: st.headers, keep, every: st.keepEvery, skipLines: st.skipLines, onProgress });
       setTaskProgress?.(null);
       confirmImportXYZ(rows, st.keepEvery > 1 ? tr(" Kept 1 in {n} of the file's {seen} readings (read in pieces: it is {v} MB).", { n: st.keepEvery, seen: seen.toLocaleString(), v: (st.file.size / 1e6).toFixed(0) }) : tr(" Read in pieces ({seen} readings, {v} MB).", { seen: seen.toLocaleString(), v: (st.file.size / 1e6).toFixed(0) }));
     } catch (err) {
@@ -971,6 +974,15 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     if (!file) return;
     setXyzError(null);
     try {
+      if (file.size > STREAM_FROM_BYTES) { // TASKS.csv #1351 — header and sample from the first part; Import streams the rest, thinned
+        const head = await headText(file);
+        const { columns, rows: sample } = parseXYZ(head);
+        const g = guessXyzChannels(columns, sample), estimate = Math.round((sample.length / Math.max(1, head.length)) * file.size);
+        setXyzPending({ fileName: file.name, columns, rows: sample, xCol: guessColumn(columns, XY_NAME_HINTS.x), yCol: guessColumn(columns, XY_NAME_HINTS.y), zCol: g.z, valueCol: g.value, header: gemHeaderInfo(head), headerEpsg: gemHeaderEpsg(head), ...cleaningDefaults(columns),
+          stream: { file, kind: "xyz", columns, estimate, keepEvery: suggestKeepEvery(estimate, undefined, (layers.geophys_pts || []).length) } });
+        setXyzError({ info: true, text: tr("\"{name}\" is {v} MB, about {rows} readings: too big to read whole on most computers. Check the columns and how many readings to keep below, then Import: the file is read in pieces and only the kept readings and columns are held.", { name: file.name, v: (file.size / 1e6).toFixed(0), rows: estimate.toLocaleString() }) });
+        return;
+      }
       const text = await file.text();
       const { columns, rows: parsedRows } = parseXYZ(text);
       const g = guessXyzChannels(columns, parsedRows); // #600 — first guesses; the picker still shows every column

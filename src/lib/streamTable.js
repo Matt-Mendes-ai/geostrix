@@ -4,6 +4,7 @@
 // STREAMED: its header and first rows are read to choose the columns and estimate the reading count, then the whole file is read in
 // chunks, keeping every n-th data row and only the columns asked for, so neither the whole text nor 2.6 million row objects exist.
 // Pure apart from the Blob it is handed (File.stream() / Blob.slice, available in the renderer and in Node 18+).
+import { parseClock } from "./diurnal.js"; // the XYZ reader reads clock times as geosoft.js parseXYZ does
 
 const DELIMS = [",", "\t", ";", "|"];
 
@@ -84,4 +85,50 @@ export async function streamTableRows(blob, { delimiter, headers, keep = headers
   }
   if (rest) takeLine(rest.endsWith("\r") ? rest.slice(0, -1) : rest);
   return { rows, seen, kept: rows.length };
+}
+
+// TASKS.csv #1351 — a Geosoft .xyz too big to read whole (Poplar 706 MB, Aeroquest 256 MB), streamed by the same rules as
+// geosoft.js parseXYZ: "/" lines are headers / comments ("//" plain comments), "Line N" (or "Tie N") opens a flight line (kept as
+// _line), data tokens split on white space, "*" = no value, a clock time ("16:51:55.20") = seconds of the day, else a float.
+// columns: the header parseXYZ found on the file's first part; keep: the column names to keep (_line is always kept).
+// -> { rows: [{ _line, column: number | null }], seen, kept }
+export async function streamXyzRows(blob, { columns, keep = columns, every = 1, onProgress = null, signal = null, chunkBytes = 4 << 20 } = {}) {
+  const idx = keep.map((k) => columns.indexOf(k)).filter((i) => i >= 0), names = idx.map((i) => columns[i]);
+  const decoder = new TextDecoder("utf-8");
+  const rows = [], lineNames = new Map();
+  let seen = 0, current = null, rest = "";
+  const takeLine = (raw) => {
+    const t = raw.trim();
+    if (!t || t.charCodeAt(0) === 47 /* / */) return;
+    const lm = /^(Line|Tie)\s+(\S+)/i.exec(t);
+    if (lm) { let n = lineNames.get(lm[2]); if (n === undefined) { n = Array.from(lm[2]).join(""); lineNames.set(n, n); } current = n; return; }
+    if (seen++ % every !== 0) return;
+    const toks = t.split(/\s+/), r = { _line: current };
+    for (let j = 0; j < idx.length; j++) {
+      const tok = toks[idx[j]];
+      if (tok === undefined || tok === "*") { r[names[j]] = null; continue; }
+      const v = tok.indexOf(":") >= 0 ? parseClock(tok) : parseFloat(tok);
+      r[names[j]] = Number.isFinite(v) ? v : null;
+    }
+    rows.push(r);
+  };
+  for (let pos = 0; pos < blob.size; pos += chunkBytes) {
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    const buf = await blob.slice(pos, Math.min(blob.size, pos + chunkBytes)).arrayBuffer();
+    const text = rest + decoder.decode(buf, { stream: pos + chunkBytes < blob.size });
+    let st = 0, e;
+    while ((e = text.indexOf("\n", st)) >= 0) { takeLine(text.slice(st, e)); st = e + 1; }
+    rest = text.slice(st);
+    onProgress?.(Math.min(blob.size, pos + chunkBytes) / blob.size);
+  }
+  if (rest) takeLine(rest);
+  return { rows, seen, kept: rows.length };
+}
+
+// the first part of a file, cut after its last complete line, for a header and a sample
+export async function headText(blob, bytes = 512 * 1024) {
+  const t = await blob.slice(0, Math.min(blob.size, bytes)).text();
+  if (blob.size <= bytes) return t;
+  const cut = t.lastIndexOf("\n");
+  return cut > 0 ? t.slice(0, cut + 1) : t;
 }

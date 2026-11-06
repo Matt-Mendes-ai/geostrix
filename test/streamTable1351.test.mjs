@@ -66,3 +66,32 @@ test("the column guess on Poplar's 38 columns: no fluxgate step as the elevation
   assert.equal(guessGeophysColumns(["X", "Y", "Z", "TMI"]).z, "Z");
   assert.equal(guessGeophysColumns(["Easting", "Northing", "Elevation_Z", "Mag"]).z, "Elevation_Z");
 });
+
+test("a Geosoft .xyz streamed by parseXYZ's rules: the same rows as parseXYZ, every n-th, the picked columns and the line", async () => {
+  const { streamXyzRows, headText } = await import("../src/lib/streamTable.js");
+  const { parseXYZ } = await import("../src/lib/geosoft.js");
+  const head = "/ ----\n/ XYZ EXPORT [09/29/2006]\n/\n/        Line     Flight         utctime          x             y       ralt       galtf     MagP\n/============ ========== =============== ========== ============= ========== =========== ==========\n//Flight 2\n";
+  let body = "";
+  for (const line of ["10010", "10020"]) { body += `Line  ${line}\n`; for (let i = 0; i < 30; i++) body += `       ${line}          2     16:51:${String(10 + i).padStart(2, "0")}.20  ${343024 - i}.35    6211083.70      ${70 + i / 10}       1357.9   ${i === 3 ? "*" : (57028.2 + i).toFixed(1)}\n`; }
+  const text = head + body;
+  const ref = parseXYZ(text);
+  const all = await streamXyzRows(new Blob([text]), { columns: ref.columns, chunkBytes: 97 });
+  assert.equal(all.seen, 60);
+  assert.deepEqual(all.rows, ref.rows); // identical to the whole-file parser, across 97-byte chunks
+  const thin = await streamXyzRows(new Blob([text]), { columns: ref.columns, keep: ["x", "y", "MagP"], every: 7, chunkBytes: 200 });
+  assert.equal(thin.kept, 9);
+  assert.deepEqual(thin.rows[0], { _line: "10010", x: 343024.35, y: 6211083.7, MagP: 57028.2 });
+  assert.deepEqual(thin.rows[5], { _line: "10020", x: 343019.35, y: 6211083.7, MagP: 57033.2 }); // row 35 = line 10020, i = 5
+  const h = await headText(new Blob([text]), 300);
+  assert.ok(h.endsWith("\n") && h.length <= 300);
+});
+
+test("the XYZ channel guess skips the base-station magnetometer", async () => {
+  const { guessXyzChannels } = await import("../src/lib/geosoft.js");
+  const cols = ["Line", "Flight", "utctime", "x", "y", "ralt", "galtf", "bheight", "dtm", "basemagf", "MagN", "MagU", "MagP", "MagS"];
+  const rows = Array.from({ length: 20 }, (_, i) => Object.fromEntries(cols.map((c, j) => [c, 1000 + i * (j + 1)])));
+  const g = guessXyzChannels(cols, rows);
+  assert.notEqual(g.value, "basemagf");
+  assert.equal(g.value, "MagN");
+  assert.equal(guessXyzChannels(["x", "y", "base_mag", "tmi"], rows.map((r) => ({ x: r.x, y: r.y, base_mag: r.MagN, tmi: r.MagP }))).value, "tmi");
+});
