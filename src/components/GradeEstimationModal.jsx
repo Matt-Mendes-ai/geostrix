@@ -736,6 +736,10 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
               {result.mlsCounts && (result.mlsCounts.reduced + result.mlsCounts.idw) > 0 && (
                 <div style={{ color: "var(--color-text-secondary)" }}>{tr("MLS (linear): {full} block(s) with a full 3D trend{v}{v2}.", { full: result.mlsCounts.full.toLocaleString(), v: result.mlsCounts.reduced ? tr(", {reduced} with the trend fitted in the plane / line of their samples (e.g. holes on one section — nothing is known about the trend across it)", { reduced: result.mlsCounts.reduced.toLocaleString() }) : "", v2: result.mlsCounts.idw ? tr(", {idw} fell back to IDW² (their samples gave no direction to fit)", { idw: result.mlsCounts.idw.toLocaleString() }) : "" })}</div>
               )}
+              {/* TASKS.csv #1419 (review #1352, Silvertip) — MLS on mostly extrapolated blocks: the mean ran 87 % above nearest neighbour */}
+              {result.params?.method === "mls1" && result.supportCounts && result.blocksEstimated > 0 && result.supportCounts.extrapolated / result.blocksEstimated > 0.5 && (
+                <div style={{ color: "var(--color-warn-text)" }}>{tr("Moving least squares fits a linear trend through each block's samples, and {pct}% of these blocks lie beyond the holes: there the trend keeps rising or falling past the data (held only to the neighbourhood's highest and lowest values), which can lift the mean well above the samples'. Inverse distance or kriging keep the grade nearer the samples outside the drilling.", { pct: Math.round((100 * result.supportCounts.extrapolated) / result.blocksEstimated) })}</div>
+              )}
               {result.singleHoleCells > 0 && (
                 <div style={{ color: "var(--color-warn-text)" }}>
                   {tr("{singleHoleCells} of the estimated blocks ({v}%) were informed by only ONE drillhole — continuity there is asserted, not demonstrated. Raise \"Min distinct holes per block\" to exclude them.", { singleHoleCells: result.singleHoleCells.toLocaleString(), v: ((result.singleHoleCells / Math.max(1, result.blocksEstimated)) * 100).toFixed(0) })}</div>
