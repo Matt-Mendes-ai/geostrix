@@ -8485,5 +8485,8 @@
   "{n} of {m} samples have a value for half the elements or fewer (no multi-element analysis): the 90 % rule counts the other {k}.": "{n} des {m} échantillons ont une valeur pour la moitié des éléments ou moins (pas d’analyse multiélémentaire) : la règle des 90 % compte les {k} autres.",
   "Enter the mineralized structure's dip direction and dip (0-90°): no true width is shown until both are set.": "Saisissez la direction de pendage et le pendage de la structure minéralisée (0-90°) : aucune épaisseur vraie n’est affichée tant que les deux ne sont pas définis.",
   "Structure dip direction": "Direction de pendage de la structure",
-  "Structure dip": "Pendage de la structure"
+  "Structure dip": "Pendage de la structure",
+  "It lies under {list} in plan.": "Il se trouve sous {list} en plan.",
+  "Hide those {n}": "Masquer ces {n}",
+  "Hid {n} layer(s) over the score; show them again with their eyes in the 3D View.": "{n} couche(s) au-dessus du score masquée(s) ; réaffichez-les avec leur œil dans la Vue 3D."
 }

@@ -9,7 +9,7 @@ import { useStore } from "../lib/store.jsx";
 import { pickDefaultReachM, medianSiteSpacing } from "../lib/evidenceSources.js"; // TASKS.csv #1179; #1451
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1449 / #1450
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
-import { evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, isOverlayOutput } from "../lib/evidence.js";
+import { evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
 import { cachedEvidence, evidenceDeps, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457, #1560
 import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, structureCodes, structureParts, rasterFloorZ, elementsWithValues, numericLayerFields, layerFieldPoints, zoneCodes, zoneParts } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
 import { categoricalModels } from "../lib/geologyForward.js";
@@ -32,7 +32,7 @@ let nextId = 1;
 const DRILL_KINDS = new Set(["grade", "pxrf", "pick", "numeric", "zone"]); // TASKS.csv #1458 — evidence projected up from the holes
 
 export default function EvidenceOverlayPane({ onClose }) {
-  const { rasters = [], mapLayers = [], surfaceSamples = [], surfaceElements = [], terrain, collars = [], survey = [], assays = [], assayElements = [], layers: projectLayers, customLayers = [], voxelModels = [], project, addRaster, evidenceOverlay, setEvidenceOverlay, geophysSurveys = {} } = useStore();
+  const { rasters = [], mapLayers = [], surfaceSamples = [], surfaceElements = [], terrain, collars = [], survey = [], assays = [], assayElements = [], layers: projectLayers, customLayers = [], voxelModels = [], project, addRaster, updateRaster, updateVoxelModel, evidenceOverlay, setEvidenceOverlay, geophysSurveys = {} } = useStore();
   const units = useMemo(() => Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit])), [surfaceElements]);
   const assayUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const [layers, setLayers] = useState([]); // [{ id, kind, label, ref, shape, low, high, values }]
@@ -42,6 +42,7 @@ export default function EvidenceOverlayPane({ onClose }) {
   const [training, setTraining] = useState({ source: "none", layerId: "", symbol: assayElements[0]?.symbol || surfaceElements[0]?.symbol || "", min: "" });
   const [result, setResult] = useState(null);
   const [msg, setMsg] = useState(null);
+  const [cover, setCover] = useState(null); // #1563 — { rasters, models } over the score just sent to the map
   const cleanAssays = useMemo(() => excludeQAQC(assays), [assays]); // TASKS.csv #933: standards and blanks are not grades; #1673: nor pXRF
   // TASKS.csv #1723 (review #1645, Copley) — pXRF readings are screening numbers, not assays: two 0 m readings of 5,700 ppm Cu made two
   // barren collars Cu targets as strong as the mineralization. Lab grades only in "grade along the holes" and the occurrences;
@@ -294,7 +295,11 @@ export default function EvidenceOverlayPane({ onClose }) {
     addRaster({ name, bbox: [grid.x0 - grid.dx / 2, grid.yTop + grid.dy / 2 - grid.ny * grid.dy, grid.x0 - grid.dx / 2 + grid.nx * grid.dx, grid.yTop + grid.dy / 2], dataUrl: c.toDataURL("image/png"), drapeMode: terrain ? "terrain" : "flat", opacity: 0.75, ...(floorZ != null ? { elevation: floorZ } : {}),
       grid: { nx: grid.nx, ny: grid.ny, x0: grid.x0, yTop: grid.yTop, dx: grid.dx, dy: grid.dy, values: f32ToB64(score), valid, averagedBy: 1, sourceSize: [grid.nx, grid.ny] },
       params: { tool: which === "posterior" ? "weights of evidence (posterior probability)" : "fuzzy overlay", recipe, trainingPoints: trainingPoints.length, builtAt: new Date().toISOString() } }); // TASKS.csv #1003 — how it was made
-    setMsg(floorZ != null ? tr("Added \"{name}\" to the map, flat at {z} m below the holes because the project has no terrain. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.", { name, z: floorZ }) : tr("Added \"{name}\" to the map (its values export as GeoTIFF from the Raster module).", { name }));
+    // #1563 — the drapes and block models over it in plan (the new raster is not in `rasters` yet)
+    const box = [grid.x0 - grid.dx / 2, grid.yTop + grid.dy / 2 - grid.ny * grid.dy, grid.x0 - grid.dx / 2 + grid.nx * grid.dx, grid.yTop + grid.dy / 2];
+    const cv = coveringLayers(box, rasters, voxelModels);
+    const text = floorZ != null ? tr("Added \"{name}\" to the map, flat at {z} m below the holes because the project has no terrain. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.", { name, z: floorZ }) : tr("Added \"{name}\" to the map (its values export as GeoTIFF from the Raster module).", { name });
+    setMsg(text); setCover(cv.rasters.length + cv.models.length ? { ...cv, forMsg: text } : null);
   };
   const toTif = async (which) => { const epsg = await ensureExportCrs(project); if (!epsg) return; /* #1021 */ const score = which === "posterior" ? result.wofe.post.prob : result.fuzzy; saveGeoTIFF(`${which === "posterior" ? "wofe_posterior" : "fuzzy_overlay"}.tif`, gridToGeoTIFF({ ...grid, bands: [{ values: score }], epsg })); };
 
@@ -385,6 +390,13 @@ export default function EvidenceOverlayPane({ onClose }) {
         <button type="button" style={{ ...pBtn, ...(grid && layers.length ? null : { opacity: 0.5, cursor: "default" }) }} onClick={compute} disabled={!grid || !layers.length}>{tr("Compute")}</button>
         {grid && !layers.length && sources.length > 0 && <div style={note}>{tr("Add at least one evidence from the list above, then Compute.")}</div>}
         {msg && <div style={note}>{msg}</div>}
+        {msg && cover && cover.forMsg === msg && ( // #1563 — the score cannot be seen under these from here; one click hides them (the 3D View's eyes bring them back)
+          <div style={{ ...note, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <span>{tr("It lies under {list} in plan.", { list: [...cover.rasters, ...cover.models].map((x) => `\"${x.name}\"`).join(", ") })}</span>
+            <button type="button" style={{ ...sel, cursor: "pointer" }} onClick={() => { cover.rasters.forEach((r) => updateRaster(r.id, { visible: false })); cover.models.forEach((m) => updateVoxelModel(m.id, { visible: false })); setCover(null); setMsg(tr("Hid {n} layer(s) over the score; show them again with their eyes in the 3D View.", { n: cover.rasters.length + cover.models.length })); }}>
+              {tr("Hide those {n}", { n: cover.rasters.length + cover.models.length })}</button>
+          </div>
+        )}
         {result && (
           <>
             <div style={note}>{tr("Fuzzy score on {v} of {n} cells (the rest lack an evidence).", { v: result.nValid.toLocaleString(), n: result.n.toLocaleString() })}{result.fewPoints != null ? " " + tr("Only {k} occurrence cells: weights of evidence need at least 3.", { k: result.fewPoints }) : ""}</div>

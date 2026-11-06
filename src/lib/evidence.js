@@ -333,3 +333,20 @@ export function scoreImage(score, nx, ny) {
   }
   return { width: nx, height: ny, data };
 }
+
+// TASKS.csv #1563 (review #1497, Lawyers) — a score sent to the map lay under the opaque MVI block model and three geophysics drapes, and the
+// Targeting tab has no layer list: the visible rasters and block models whose plan footprint overlaps the score's box [x0, y0, x1, y1].
+// -> { rasters: [{ id, name }], models: [{ id, name }] }
+export function coveringLayers(box, rasters = [], voxelModels = []) {
+  const hit = (b) => b && b[0] < box[2] && b[2] > box[0] && b[1] < box[3] && b[3] > box[1];
+  const rasterBox = (r) => (Array.isArray(r.bbox) && r.bbox.length === 4 ? r.bbox : null);
+  const modelBox = (m) => {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const c of m.cells || []) { if (!Number.isFinite(c.x) || !Number.isFinite(c.y)) continue; const hx = (c.dx || 0) / 2, hy = (c.dy || 0) / 2; if (c.x - hx < x0) x0 = c.x - hx; if (c.y - hy < y0) y0 = c.y - hy; if (c.x + hx > x1) x1 = c.x + hx; if (c.y + hy > y1) y1 = c.y + hy; }
+    return x1 >= x0 && y1 >= y0 ? [x0, y0, x1, y1] : null;
+  };
+  return {
+    rasters: rasters.filter((r) => r.visible !== false && hit(rasterBox(r))).map((r) => ({ id: r.id, name: r.name })),
+    models: voxelModels.filter((m) => m.visible !== false && hit(modelBox(m))).map((m) => ({ id: m.id, name: m.name })),
+  };
+}

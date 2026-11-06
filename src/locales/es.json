@@ -8485,5 +8485,8 @@
   "{n} of {m} samples have a value for half the elements or fewer (no multi-element analysis): the 90 % rule counts the other {k}.": "{n} de {m} muestras tienen valor en la mitad de los elementos o menos (sin análisis multielemental): la regla del 90 % cuenta las otras {k}.",
   "Enter the mineralized structure's dip direction and dip (0-90°): no true width is shown until both are set.": "Ingrese la dirección de buzamiento y el buzamiento de la estructura mineralizada (0-90°): no se muestra ancho verdadero hasta que ambos estén definidos.",
   "Structure dip direction": "Dirección de buzamiento de la estructura",
-  "Structure dip": "Buzamiento de la estructura"
+  "Structure dip": "Buzamiento de la estructura",
+  "It lies under {list} in plan.": "Queda debajo de {list} en planta.",
+  "Hide those {n}": "Ocultar esas {n}",
+  "Hid {n} layer(s) over the score; show them again with their eyes in the 3D View.": "Se ocultaron {n} capa(s) sobre el puntaje; vuelva a mostrarlas con su ojo en la Vista 3D."
 }

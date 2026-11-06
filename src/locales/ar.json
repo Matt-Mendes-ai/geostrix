@@ -8485,5 +8485,8 @@
   "{n} of {m} samples have a value for half the elements or fewer (no multi-element analysis): the 90 % rule counts the other {k}.": "{n} من {m} عينة لها قيمة في نصف العناصر أو أقل (دون تحليل متعدد العناصر): قاعدة 90 % تحسب العينات الأخرى البالغ عددها {k}.",
   "Enter the mineralized structure's dip direction and dip (0-90°): no true width is shown until both are set.": "أدخل اتجاه الميل والميل للبنية الممعدنة (0-90°): لا يُعرض عرض حقيقي حتى يُحدَّد الاثنان.",
   "Structure dip direction": "اتجاه ميل البنية",
-  "Structure dip": "ميل البنية"
+  "Structure dip": "ميل البنية",
+  "It lies under {list} in plan.": "يقع تحت {list} في المسقط الأفقي.",
+  "Hide those {n}": "إخفاء هذه الـ {n}",
+  "Hid {n} layer(s) over the score; show them again with their eyes in the 3D View.": "أُخفيت {n} طبقة فوق الدرجة؛ أظهرها مجددًا بأيقونة العين في العرض ثلاثي الأبعاد."
 }
