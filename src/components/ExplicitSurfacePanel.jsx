@@ -20,7 +20,7 @@ import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv 
 import { faultNormalZ } from "../lib/explicitTrim.js"; // TASKS.csv #957
 import { supportShadeFactors, compactHull } from "../lib/explicitSupport.js"; // TASKS.csv #977
 import { downholeDipGuides, contactLikeTypes, guideTypeCounts } from "../lib/explicitDownhole.js"; // TASKS.csv #1002, #1037
-import { unitOf, contactOf, layerLabel, unitSummary, splitByElevation, nextLayer, seedPicksFromTops } from "../lib/explicitUnits.js"; // TASKS.csv #830 / #831 / #832; seed: #871
+import { unitOf, contactOf, layerLabel, unitSummary, splitByElevation, nextLayer, seedPicksFromTops, guessUnitFromName } from "../lib/explicitUnits.js"; // TASKS.csv #830 / #831 / #832; seed: #871
 import { stackOrder, thicknessBetween } from "../lib/stackOrder.js"; // TASKS.csv #873; thicknessBetween: #896
 import { inputKey, shapeFrame, onlyOneSection, explicitInputRows, INPUT_COLUMNS } from "../lib/explicitBuild.js"; // TASKS.csv #901; rows: #880
 import { saveFile } from "../lib/desktop.js"; // TASKS.csv #880
@@ -632,7 +632,8 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
     if (!n) return;
     const id = `expl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const palette = ["#e07b39", "#3b8ed0", "#5aa469", "#c94f7c", "#8e6bd3", "#c9a227"];
-    setDefs((p) => [...p, { id, name: n, color: palette[p.length % palette.length], picks: [], margin: null, resolution: 80, cutAtTerrain: true, shape: "auto", surfaceId: `impl_${Date.now()}_explicit_${Math.random().toString(36).slice(2, 6)}`, builtKey: null }]); // shape: #824; surfaceId set now (#828): a build never writes to the def, so it is never an Undo step
+    const guess = guessUnitFromName(n, [...defs.map(unitOf), ...(unitChoices || []), ...loggedUnits]); // #1376 — 'Top of X': X is the unit
+    setDefs((p) => [...p, { id, name: n, color: palette[p.length % palette.length], picks: [], margin: null, resolution: 80, cutAtTerrain: true, shape: "auto", surfaceId: `impl_${Date.now()}_explicit_${Math.random().toString(36).slice(2, 6)}`, builtKey: null, ...(guess ? { unit: guess.unit, contact: guess.contact } : {}) }]); // shape: #824; surfaceId set now (#828): a build never writes to the def, so it is never an Undo step
     setSelId(id);
     setPickFor(id);
   });

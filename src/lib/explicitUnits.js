@@ -109,3 +109,18 @@ export function explicitInterfacePoints(defs, sections, tags, { spacing = 25, se
   }
   return { used, lower };
 }
+
+// TASKS.csv #1376 (review #1352, Silvertip) — '+ New' > 'Top of McDame (explicit)' left the Unit as the surface's own name, so the
+// one-click 'Add the logged tops' stayed hidden until the geologist found the Unit select. A new name 'Top of X' / 'Base of X'
+// (also 'Bottom of', 'Upper / Lower contact of', with any '(…)' note after it) is matched against the units on offer, case-
+// insensitive: X itself, else the one unit that starts with X ('McDame' -> 'McDame carbonate'). -> { unit, contact } or null.
+export function guessUnitFromName(name, choices) {
+  const m = String(name || "").trim().match(/^(top|base|bottom|upper contact|lower contact)\s+of\s+(.+?)\s*(\(.*\))?$/i);
+  if (!m) return null;
+  const want = m[2].trim().toLowerCase(), list = [...new Set((choices || []).filter(Boolean).map(String))];
+  const exact = list.find((u) => u.toLowerCase() === want);
+  const starts = list.filter((u) => u.toLowerCase().startsWith(`${want} `));
+  const unit = exact || (starts.length === 1 ? starts[0] : null);
+  if (!unit) return null;
+  return { unit, contact: /^(base|bottom|lower contact)$/i.test(m[1]) ? "lower" : "upper" };
+}
