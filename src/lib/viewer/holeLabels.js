@@ -101,3 +101,10 @@ export function sampleLabelText(row, mode) {
   return null;
 }
 export const dipLabelText = (r) => (r && Number.isFinite(Number(r.dip)) ? String(Math.round(Number(r.dip))) : null);
+// the label items of the placed surface samples (scene coordinates), at most `cap` of them
+export function sampleLabelItems(rows, mode, { ox = 0, oy = 0, oz = 0 } = {}, cap = 2500) {
+  const items = [];
+  if (!mode || mode === "none") return items;
+  for (const row of rows || []) { if (items.length >= cap) break; const text = sampleLabelText(row, mode); if (text != null) items.push({ x: row.x - ox, y: row.z - oz, z: -(row.y - oy), text, tip: `${row.sample_id ?? ""}\n${text}` }); }
+  return items;
+}

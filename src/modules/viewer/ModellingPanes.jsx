@@ -23,6 +23,7 @@ import { tx } from "../../lib/i18nRich.js";
 import { groupOverlaps, groupOfCode } from "../../lib/lithoGroups.js"; // TASKS.csv #1685
 import { useStore } from "../../lib/store.jsx";
 import { numericLayerFields } from "../../lib/evidenceSources.js"; // TASKS.csv #1574 — the numeric fields of a log (intensity 1-3)
+import { checkedHoleCount } from "../../lib/modelArea.js"; // TASKS.csv #1546
 import { zoneAlphaPicks, customAlphaPicks } from "../../lib/alphaPicks.js"; // TASKS.csv #1686
 
 export default function ModellingPanes(props) {
@@ -90,6 +91,7 @@ export default function ModellingPanes(props) {
     mcodeDefaultRole,
     miniField,
     modelDomainId,
+    modelArea, setModelArea, // TASKS.csv #1546
     modelResolution,
     modellingCodeList,
     modellingCodes,
@@ -294,6 +296,15 @@ export default function ModellingPanes(props) {
         <select aria-label={tr("Model domain")} value={modelDomainId} onChange={(e) => setModelDomainId(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", marginBottom: 4 }}>
           <option value="">{tr("Whole property")}</option>
           {domains.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+        </select>
+        {/* TASKS.csv #1546 (review #1497, Lawyers) — one prospect, not the district: the tools read only the checked holes */}
+        <div className="ge-section-label" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8 }}>
+          <span>{tr("Model area")}</span>
+          <InfoButton title={tr("Model area")} width={280} text={tr("Which holes feed every modelling tool on this tab. 'Holes checked in the Holes list' models one prospect of a district on its own: the box and the cell size follow those holes' contacts instead of spanning prospects kilometres apart. Tick the holes under Holes in the 3D View sidebar ('Only these' on a prospect's holes).")} />
+        </div>
+        <select aria-label={tr("Model area")} value={modelArea || "all"} onChange={(e) => setModelArea(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
+          <option value="all">{tr("Whole property")}</option>
+          <option value="checked">{tr("Holes checked in the Holes list ({n} of {m})", { n: checkedHoleCount(collars, visibleHoles).checked, m: checkedHoleCount(collars, visibleHoles).all })}</option>
         </select>
         {/* TASKS.csv #52 (c) — named intercept sets. Sits with the Domain selector because it is the
             same kind of control: both narrow WHICH picks feed every tool below, one spatially and one

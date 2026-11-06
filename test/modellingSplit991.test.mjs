@@ -9,7 +9,7 @@ import fs from "node:fs";
 const src = (f) => fs.readFileSync(new URL(`../src/modules/${f}`, import.meta.url), "utf8");
 const vm = src("ViewerModule.jsx"), panes = src("viewer/ModellingPanes.jsx"), runs = src("viewer/modellingRuns.js"), hook = src("viewer/useModelling.js");
 // the names of a destructuring / shorthand-object body: comments removed, "a, b: c, d" -> a, d (a renamed key counts as its key)
-const names = (block) => new Set([...block.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "").matchAll(/([A-Za-z_$][\w$]*)\s*(?=[,}]|$)/gm)].map((m) => m[1]));
+const names = (block) => new Set([...block.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "").replace(/:\s*[A-Za-z_$][\w$.?]*/g, "") /* #1546 — `layers: modelLayers` passes `layers` */.matchAll(/([A-Za-z_$][\w$]*)\s*(?=[,}]|$)/gm)].map((m) => m[1]));
 const grab = (text, re, what) => { const m = text.match(re); assert.ok(m, `could not find ${what} — update this test with the code`); return names(m[1]); };
 
 test("#991 every prop ModellingPanes destructures is passed by ViewerModule, and nothing is passed that it does not read", () => {

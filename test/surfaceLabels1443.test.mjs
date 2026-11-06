@@ -53,7 +53,7 @@ test("wiring: two label groups decluttered each frame, the outcrop effect and th
   assert.match(v, /for \(const name of \["outcrop_labels", "sample_labels"\]\) \{ const lg = new THREE\.Group\(\)/);
   assert.match(v, /for \(const name of \["outcrop_labels", "sample_labels"\]\) \{ const lg = layerGroupsRef\.current\?\.\[name\]; if \(lg\?\.visible && lg\.children\.length\) \{ fitScreenLabels\(lg, camera, mount\.clientHeight\); declutterHoleLabels\(lg/);
   assert.match(v, /syncTextLabels\(lg, outcropLabelItems\(surfaceStructures, \{ origin: originRef\.current, terrain \}\), makeTextSprite, 0\)/);
-  assert.match(v, /const mode = layerStyles\.surface_samples\?\.label \|\| "none"/);
+  assert.match(v, /sampleLabelItems\(placedSurfaceSamples, layerStyles\.surface_samples\?\.label \|\| "none", \{ ox, oy, oz \}\)/); // the items come from the lib (ViewerModule's size cap)
   assert.match(v, /labelChoices: key === "surface_samples"/);
   const m = readFileSync(new URL("../src/components/LayerStyleModal.jsx", import.meta.url), "utf8");
   assert.match(m, /target\.labelChoices && \(/);

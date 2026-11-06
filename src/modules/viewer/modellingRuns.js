@@ -4,6 +4,7 @@
 import * as THREE from "three";
 import { baselineNotice, oneHoleDipNotice } from "../../lib/modelCheckBaseline.js"; // TASKS.csv #1687
 import { desurveyHole } from "../../lib/desurvey.js";
+import { missOverHalfCell } from "../../lib/modelArea.js"; // TASKS.csv #1546
 import { sanitizeMesh } from "../../lib/meshSanitize.js";
 import { checkAgainstLogs, unitVolumes, resampleWarpedBlock, capBlockAtGround } from "../../lib/modelCheck.js";
 import { pythonImplicitModel } from "../../lib/desktop.js";
@@ -422,7 +423,7 @@ export function createModellingRuns(ctx, mcRef) {
       // TASKS.csv #1171 — how far the mesh as drawn passes from the contact points it was fitted through. Not when it was clipped to a
       // domain, whose outside contacts it no longer reaches on purpose.
       const fit = clipDomain ? null : contactFit(spec.points.map((p) => apiToScene([p.x, p.y, p.z])).map((q) => [q.x, q.y, q.z]), sceneVerts.map((v) => [v.x, v.y, v.z]), faces);
-      if (fit) setNotices((p) => [...p, notice(fit.worst > 10 ? "\"{label}\" misses its {n} contact point(s) by {typical} m typically and {worst} m at worst, with mesh cells of about {cell} m. A finer Surface detail shrinks the cells; Surface query shows it hole by hole." : "\"{label}\" passes within {worst} m of its {n} contact point(s), with mesh cells of about {cell} m.", { label: spec.label, n: fit.n, typical: Math.round(fit.typical * 10) / 10, worst: Math.round(fit.worst * 10) / 10, cell: Math.round(fit.cell) })]);
+      if (fit) setNotices((p) => [...p, notice(fit.worst > 10 ? "\"{label}\" misses its {n} contact point(s) by {typical} m typically and {worst} m at worst, with mesh cells of about {cell} m. A finer Surface detail shrinks the cells; Surface query shows it hole by hole.{v}" : "\"{label}\" passes within {worst} m of its {n} contact point(s), with mesh cells of about {cell} m.", { label: spec.label, n: fit.n, typical: Math.round(fit.typical * 10) / 10, worst: Math.round(fit.worst * 10) / 10, cell: Math.round(fit.cell), v: missOverHalfCell(fit) ? tr(" The typical miss is more than half a cell: model a smaller area (Model settings › Model area, the holes of one prospect) before a finer detail.") : "" })]); // v: TASKS.csv #1546
       const geo = new THREE.BufferGeometry();
       geo.setAttribute("position", new THREE.Float32BufferAttribute(sceneVerts.flatMap((v) => [v.x, v.y, v.z]), 3));
       geo.setIndex(faces.flat());
