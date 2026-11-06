@@ -1,6 +1,38 @@
 // TASKS.csv #1966 — Geophysics tab pages of the offline help (see src/help/content.js for the page format)
 export default [
   {
+    id: "downhole-logs",
+    area: "Geophysics",
+    title: "Downhole logs",
+    related: ["point-survey", "block-models"],
+    summary: "Petrophysics from the drillholes: a downhole log (magnetic susceptibility, specific gravity, RQD, recovery, or a numeric column of a custom layer) as a box plot per logged code of a lithology, alteration or custom layer, and as a scatter against an assay element reading by reading with Spearman's rank correlation. Magnetite destruction in a phyllic or argillic zone shows as a low mag-susc class; pyrrhotite as mag susc rising with Fe or S.",
+    notFor: [
+      "It does not grid the log: 3D Modelling > Estimation and Grade shell take a downhole log as their source for a block model or a shell.",
+      "It reads the logs as imported: a susceptibility is not rescaled to SI, so compare classes within one project.",
+    ],
+    fields: [
+      { name: "Log", what: "The downhole log with three or more readings: Mag. susc., Specific gravity, RQD, Recovery, or a custom layer's numeric column. A depth-only reading is given 1 m of core, or the readings' own spacing when shorter.", choose: "Mag susc for alteration vectors and magnetite; SG for density contrasts and tonnage." },
+      { name: "By code of", what: "The categorical layer whose code at each reading groups it: lithology, alteration, veins, structural zones or a custom layer. Readings outside every interval of the layer group as (not logged).", choose: "Alteration for a porphyry vector, lithology for a lithology contrast." },
+      { name: "Log scale", what: "The box plot's and the scatter's axes in log10.", choose: "Keep it on for susceptibility, which spans decades; off for SG or RQD." },
+      { name: "Against element", what: "The assay element the log is compared with; each reading is paired with the assay interval of its hole that holds the reading's midpoint.", choose: "Fe or S for pyrrhotite and magnetite; the pathfinder you vector with." },
+    ],
+    warnings: [
+      { says: "No downhole log yet: import mag susc, SG, RQD or recovery readings as a drillhole layer (3D View > Add layer), or a custom layer with a numeric column.", means: "The project has no numeric downhole layer with three or more readings.", do: "Import the log on the 3D View tab." },
+      { says: "No code of {layer} has three or more readings of this log.", means: "The chosen layer's intervals hold too few readings.", do: "Pick another layer, or import the log for more holes." },
+      { says: "Fewer than three readings fall inside an assay interval of the same hole.", means: "The log and the assays do not overlap by hole and depth.", do: "Check the hole ids match between the log and the assays." },
+    ],
+    howto: {
+      sample: "Silvertip",
+      steps: [
+        "File > Open Sample Project > Silvertip (mag susc on every hole).",
+        "Geophysics tab > Downhole logs (Drillholes).",
+        "Log: Mag. susc.; By code of: Lithology; read the box plot - the median per rock type, highest first.",
+        "Against element: Fe; read the Spearman correlation and the scatter.",
+        "To grid the log, go to 3D Modelling > Estimation and pick Mag. susc. as the source.",
+      ],
+    },
+  },
+  {
     id: "block-models",
     area: "Geophysics",
     title: "Voxel / block models",

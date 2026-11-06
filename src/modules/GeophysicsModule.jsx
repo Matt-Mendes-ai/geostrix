@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { Suspense, useMemo, useRef, useState } from "react"; // Suspense: TASKS.csv #1425
 import { ensureProjectCrs, ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615; export: #1021
 import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565; requestModuleAction: #1152
 import { askAdoptCrs, projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
@@ -54,6 +54,8 @@ import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309
 import InversionPanel from "../components/InversionPanel.jsx"; // TASKS.csv #321 — SimPEG
 import DcipPanel from "../components/DcipPanel.jsx"; // TASKS.csv #322 — 2D DC resistivity / IP
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components/Ribbon.jsx"; // TASKS.csv #458
+import { Activity as RActivity } from "../components/icons.js"; // TASKS.csv #1425
+const DownholeLogsPane = React.lazy(() => import("../components/DownholeLogsPane.jsx")); // TASKS.csv #1425
 import { Zap as RZap, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "../components/icons.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
@@ -123,6 +125,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
     projectIsEmpty, setEpsg, // TASKS.csv #607
     addMapLayer, // TASKS.csv #544 — WFS polygons/lines with their attributes
     mapLayers, // TASKS.csv #815 — the fetch area of a project without drillholes
+    assays, assayElements, customLayers, // TASKS.csv #1425 — the downhole logs pane
   } = useStore();
   // TASKS.csv #323 — a block model's value along each hole, as a downhole layer ("On holes: <model>"). Numeric
   // models show as a bar track in the strip log beside the logs; discrete ones (a GemPy unit block) as units.
@@ -1360,6 +1363,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             <RibbonButton advanced icon={RPackage} label="OMF" tone="data" title="Import an Open Mining Format (.omf) file" {...geoBtn("omf")} />
             <RibbonButton advanced icon={RSettings2} label="Cell budget" tone="view" title="How many voxel cells the 3D view may draw" {...geoBtn("budget")} />
           </RibbonGroup>
+          <RibbonGroup label="Drillholes">{/* TASKS.csv #1425 */}
+            <RibbonButton icon={RActivity} label="Downhole logs" tone="analyse" title="Mag susc, SG, RQD, recovery or a numeric custom field by lithology / alteration code (box plot) and against an assay element (Spearman)" {...geoBtn("logs")} />
+          </RibbonGroup>
         </Ribbon>
         {/* Raster import UI itself lives in the Raster tab now — this banner only ever shows up if a
             .tif/.gxf was dropped directly on THIS tab (still supported, see onDrop above), so the
@@ -2033,6 +2039,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             below (both already accepted a maxCells parameter, just previously always the same
             hardcoded default). */}
         </>)}
+        {geoPane === "logs" && (<Suspense fallback={null}><DownholeLogsPane layers={layers} customLayers={customLayers} assays={assays} assayElements={assayElements} onClose={() => setGeoPane(null)} onEstimate={() => goToModule("modelling")} /></Suspense>)}{/* TASKS.csv #1425 */}
         {geoPane === "budget" && (<>
         <TaskPaneHeader title="3D view cell budget" icon={RSettings2} tone="view" />
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>{tr("3D view cell budget")}<InfoButton title={tr("3D view cell budget")} text={tr("A large OMF/UBC block model gets block-averaged down to this many cells before it's rendered, to keep the 3D view responsive. Higher = more detail but slower to render (especially on older/integrated GPUs) and more memory: about 0.4 GB per million cells, so it stops at {max} cells, above which GeoStrix can run out of memory. Only affects new imports, not models already in the project. Remembered on this computer.", { max: MAX_BLOCK_MODEL_BUDGET.toLocaleString() })} />
@@ -2192,7 +2199,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             if (boundaries.length) parts.push(tr("{boundaries} boundary(ies)", { boundaries: boundaries.length }));
             if (voxelModels.length) parts.push(tr("{n} block model(s)", { n: voxelModels.length })); // TASKS.csv #1176
             if (dcipLines.length) parts.push(tr("{n} DC/IP line(s)", { n: dcipLines.length }));
-            if (!parts.length) return tr("No geophysics data yet");
+            // TASKS.csv #1425 — a drill-only project has downhole geophysics: say so, and where it is used
+            const ms = (layers.magsusc || []).length, sg = (layers.sg || []).length;
+            if (!parts.length) return ms || sg ? tr("No surface geophysics yet; {ms} mag-susc and {sg} SG readings in the drillholes — see Downhole logs, or 3D Modelling > Estimation / Grade shell to grid them", { ms: ms.toLocaleString(), sg: sg.toLocaleString() }) : tr("No geophysics data yet");
             const joined = parts.length > 1 ? tr("{list} and {last}", { list: parts.slice(0, -1).join(", "), last: parts[parts.length - 1] }) : parts[0];
             return tr("{items} loaded", { items: joined });
           })()}

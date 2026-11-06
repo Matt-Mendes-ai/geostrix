@@ -12,6 +12,7 @@ export const PANE_HELP = {
   "Point survey (CSV / XYZ)": "point-survey",
   "Terrain (SRTM / DEM)": "terrain",
   "3D view cell budget": "cell-budget",
+  "Downhole logs": "downhole-logs", // TASKS.csv #1425
   "Open Mining Format (.omf)": "omf",
   // Maps
   "Boundaries": "boundaries",

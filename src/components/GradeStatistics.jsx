@@ -395,13 +395,13 @@ export function boxPlotScale(stats, logScale, x0, x1) {
   return { x: (v) => x0 + ((f(v) - f(low)) / span) * (x1 - x0), low, high };
 }
 
-function BoxPlots({ groups, domainLabel, logScale, unit }) {
+function BoxPlots({ groups, domainLabel, logScale, unit, fit = false }) { // fit: TASKS.csv #1425 — scaled to a narrow pane instead of clipped
   if (!groups.length) return null;
-  const w = 640, rowH = 34, padL = 90, padR = 20;
+  const w = fit ? 360 : 640, rowH = fit ? 26 : 34, padL = fit ? 110 : 90, padR = 20;
   const h = groups.length * rowH + 34;
   const { x, low, high } = boxPlotScale(groups.map((g) => g.stats), logScale, padL, w - padR); // TASKS.csv #1185
   return (
-    <svg width={w} height={h} style={{ maxWidth: "100%" }}>
+    <svg width={fit ? "100%" : w} height={fit ? undefined : h} viewBox={fit ? `0 0 ${w} ${h}` : undefined} style={{ maxWidth: "100%", display: "block" }}>
       {groups.map((g, i) => {
         const y = 10 + i * rowH + rowH / 2;
         const s = g.stats;
@@ -463,3 +463,4 @@ function ProbPlot({ prob, cap, domainLabel, unit }) {
     </svg>
   );
 }
+export { BoxPlots }; // TASKS.csv #1425 — the Downhole logs pane draws the same box plots

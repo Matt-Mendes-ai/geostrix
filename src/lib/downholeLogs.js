@@ -1,0 +1,55 @@
+// TASKS.csv #1425 / #1708 (reviews #1352 Silvertip, #1645 Copley) — petrophysics from the drillholes: a downhole log (mag susc, SG,
+// RQD, recovery, a custom numeric field) grouped by a logged code (lithology, alteration, a custom layer) as box statistics, and
+// against an assay element reading by reading (the reading's midpoint inside the assay interval of the same hole), with Spearman's
+// rank correlation. The log rows come in assay-shaped from numericSources.js sourceAssays(). Pure.
+import { quantileSorted } from "./arrayStats.js";
+import { correlate } from "./correlation.js";
+import { domainOfInterval } from "./domainLayers.js";
+import { valueIn } from "./geochem.js";
+
+export function boxStats(values) {
+  const s = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (!s.length) return null;
+  return { n: s.length, min: s[0], q1: quantileSorted(s, 0.25), median: quantileSorted(s, 0.5), q3: quantileSorted(s, 0.75), max: s[s.length - 1] };
+}
+
+// rows: assay-shaped log rows { hole_id, from, to, values: { [symbol]: v } }; domainRows: the categorical layer's intervals.
+// -> [{ key: code, stats, n }] by median descending, plus the readings outside every interval of the layer under "(not logged)"
+export const NOT_LOGGED = "(not logged)";
+export function logByCode(rows, symbol, domainRows, { minN = 3 } = {}) {
+  const codeOf = domainOfInterval(domainRows);
+  const groups = new Map();
+  for (const r of rows) {
+    const v = r.values?.[symbol];
+    if (!Number.isFinite(v)) continue;
+    const code = codeOf(r) ?? NOT_LOGGED;
+    (groups.get(code) || groups.set(code, []).get(code)).push(v);
+  }
+  const out = [];
+  for (const [key, vals] of groups) { const stats = boxStats(vals); if (stats && stats.n >= minN) out.push({ key, stats, n: stats.n }); }
+  return out.sort((a, b) => b.stats.median - a.stats.median || String(a.key).localeCompare(String(b.key)));
+}
+
+// the log against an assay element: each reading paired with the assay interval of its hole that holds its midpoint
+// -> { pairs: [[log, assay]], n, r (Spearman), rLog (Pearson of log10 values), unit }
+export function logVsAssay(rows, symbol, assays, element, elementUnits = {}) {
+  const byHole = new Map();
+  for (const a of assays || []) { if (a.source === "pXRF" || !Number.isFinite(a.from) || !Number.isFinite(a.to)) continue; (byHole.get(a.hole_id) || byHole.set(a.hole_id, []).get(a.hole_id)).push(a); }
+  byHole.forEach((l) => l.sort((x, y) => x.from - y.from));
+  const unit = elementUnits[element] || "ppm";
+  const pairs = [];
+  for (const r of rows) {
+    const v = r.values?.[symbol];
+    const list = byHole.get(r.hole_id);
+    if (!Number.isFinite(v) || !list) continue;
+    const mid = (r.from + r.to) / 2;
+    const hit = list.find((a) => mid >= a.from && mid < a.to);
+    if (!hit) continue;
+    const g = valueIn(hit, element, unit, elementUnits);
+    if (g == null || !Number.isFinite(g)) continue;
+    pairs.push([v, g]);
+  }
+  if (pairs.length < 3) return { pairs, n: pairs.length, r: NaN, rLog: NaN, unit };
+  const xs = pairs.map((p) => p[0]), ys = pairs.map((p) => p[1]);
+  return { pairs, n: pairs.length, r: correlate(xs, ys, "spearman").r, rLog: correlate(xs, ys, "log").r, unit };
+}
