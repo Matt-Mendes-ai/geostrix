@@ -999,9 +999,16 @@ export function surfaceAttrColumns(headers, rows, mapping = {}, elements = []) {
     return seen.size > 0;
   });
 }
+// TASKS.csv #1509 — Papa's dynamic typing reads an ISO timestamp cell ('2021-06-05T00:00:00.000Z') as a Date, and String(Date) is the
+// computer's LOCAL time: 'Fri Jun 04 2021 16:00:00 GMT-0800' in BC, the day before. A date at UTC midnight is kept as 'yyyy-mm-dd',
+// any other moment as the ISO text; whatever the computer's time zone.
+export function attrText(v) {
+  if (v instanceof Date) { if (Number.isNaN(v.getTime())) return ""; const iso = v.toISOString(); return iso.endsWith("T00:00:00.000Z") ? iso.slice(0, 10) : iso; }
+  return v == null ? "" : String(v).trim();
+}
 export function surfaceAttrs(row, cols) {
   const attrs = {};
-  cols.forEach((h) => { const v = row[h]; if (v != null && String(v).trim() !== "") attrs[h] = String(v).trim().slice(0, SURFACE_ATTR_MAX_CHARS); }); // #1822: a field note is read whole in Identify (was 60 characters)
+  cols.forEach((h) => { const t = attrText(row[h]); if (t !== "") attrs[h] = t.slice(0, SURFACE_ATTR_MAX_CHARS); }); // #1822: a field note is read whole in Identify (was 60 characters)
   return Object.keys(attrs).length ? { attrs } : {};
 }
 
