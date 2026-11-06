@@ -177,6 +177,7 @@ import { alphaOnlyFan, meanPole } from "../lib/sectionStructures.js"; // TASKS.c
 import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 import { useIdentify } from "./viewer/useIdentify.js"; // TASKS.csv #1324
+import { useBuildDefer } from "../lib/viewer/buildDefer.js"; // #1500
 const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
 const UnitPolygonPane = React.lazy(() => import("../components/UnitPolygonPane.jsx")); // TASKS.csv #1439
 
@@ -1773,6 +1774,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   // TASKS.csv #1527 (review #1497) — a remount of this view (a language change remounts the app; the store above it keeps the project)
   // started with no local layers, and this mirror wrote that [] over the store before the restore below could read it: every custom
   // layer was deleted, and autosave saved the loss. Nothing is written back until the restore has run once.
+  const buildDefer = useBuildDefer(); // #1500
   const customRestoredRef = useRef(false);
   useEffect(() => {
     if (!customRestoredRef.current) return;
@@ -1789,16 +1791,9 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   useEffect(() => {
     if (viewerUiStateSeq === lastHydratedSeq.current) return;
     lastHydratedSeq.current = viewerUiStateSeq;
-    // TASKS.csv #225 — both of these used to reset implicitly on every tab-switch-triggered
-    // unmount/remount; now that ViewerModule stays mounted persistently across View/Modelling/
-    // Targeting, that implicit reset never happens again unless done explicitly here, on the one
-    // signal (viewerUiStateSeq) that reliably means "a real New/Open project just happened", not just
-    // a tab switch. hasAutoFitRef: without this, a newly-opened project would keep the PREVIOUS
-    // project's camera framing forever instead of auto-fitting to its own data (see hasAutoFitRef's
-    // own comment at the geometry-rebuild effect for why it exists at all). camState: store.jsx
-    // deliberately sets lastCamState to null on newProject/loadProjectPayload specifically so a
-    // different project doesn't inherit a meaningless leftover camera position — respected here the
-    // same way the (now effectively mount-only-forever) initial camState.current setup already did.
+    buildDefer.mark();
+    // TASKS.csv #225 — the viewer stays mounted across tabs, so a real New/Open (viewerUiStateSeq) resets these explicitly:
+    // hasAutoFitRef, or a new project keeps the previous one's framing; camState, as store.jsx nulls lastCamState on load.
     hasAutoFitRef.current = false;
     if (!lastCamState) {
       camState.current = { theta: Math.PI / 4, phi: Math.PI / 3, radius: 600, target: new THREE.Vector3(0, 0, 0) };
@@ -1998,6 +1993,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     const localIds = new Set(customLayers.map((l) => l.id));
     const missing = (storeCustomLayers || []).filter((l) => !localIds.has(l.id));
     if (!missing.length) return;
+    buildDefer.mark();
     const root = sceneRef.current.getObjectByName("root");
     const rebuilt = missing.map((l) => {
       const group = new THREE.Group(); group.name = l.id;
@@ -4701,7 +4697,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   }, [layers]);
   useEffect(() => {
     const groups = layerGroupsRef.current;
-    if (!groups.litho) return;
+    if (!groups.litho || buildDefer.skip()) return; // #1500 — a restore just scheduled its state: build once, next render
     // TASKS.csv #131 — c.material?.map?.dispose?.() added alongside the existing geometry/material
     // disposal: every OTHER mesh type built into these groups uses a plain color-only material (no
     // .map), so this was a harmless no-op for all of them, but hole-label Sprites use a CanvasTexture
