@@ -292,7 +292,7 @@ export default function GeochemModule() {
       // other candidates this dedupe didn't pick, or a column the auto-detector missed entirely.
       // TASKS.csv #600 / #542 — the most complete column per element, an over-limit (ore-grade) column when one
       // exists, descriptive / error columns skipped, implausible default-% units corrected (pickElementColumns).
-      const elements = pickElementColumns(headers, data).map((e) => ({ ...e, mainHeader: e.header, checked: true }));
+      const elements = pickElementColumns(headers, data).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0 })); // #1389 — a column with no value in any row stays unticked
       setAssayModal({ file, fileName: file.name, format: "wide", isPxrf, headers, sampleRows: data.slice(0, 5), allRows: data, mapping: { hole_id: holeCol, from: fromCol, to: toCol }, qc: qcColumns(headers), methods: [], selectedMethod: null, elements, ...preset });
     }
   };
@@ -615,7 +615,7 @@ export default function GeochemModule() {
         // numeric column per element, over-limit column paired, descriptive columns skipped. The old
         // first-match dedupe took "au_cert_num" (a certificate number) as Au and "v_datum" as vanadium in an
         // MX soil export (ARIS 42648Z).
-        const elements = pickElementColumns(headers.filter((h) => !mappedCols.has(h)), data).map((e) => ({ ...e, mainHeader: e.header, checked: true }));
+        const elements = pickElementColumns(headers.filter((h) => !mappedCols.has(h)), data).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0 })); // #1389 — a column with no value in any row stays unticked
         // TASKS.csv #600 — a CRS tag column (srid_source / epsg...) with one recognised code pre-fills the Source CRS.
         const crsCol = headers.find((h) => /^(srid(_source)?|source_srid|epsg(_srid)?|source_epsg|crs_epsg)$/i.test(h.trim()));
         const codes = crsCol ? [...new Set(data.map((r) => Number(r[crsCol])).filter((v) => Number.isInteger(v) && v > 0))] : [];
@@ -636,7 +636,7 @@ export default function GeochemModule() {
   const openPublicImport = ({ headers, rows, entry, notes, checked }) => {
     const mapping = { x: "longitude", y: "latitude", z: rows.some((r) => String(r.elevation ?? "").trim() !== "") ? "elevation" : null, sample_id: "sample_id", medium: "medium" };
     const mapped = new Set(["longitude", "latitude", "elevation", "sample_id", "medium"]);
-    const elements = pickElementColumns(headers.filter((h) => !mapped.has(h)), rows).map((e) => ({ ...e, mainHeader: e.header, checked: true }));
+    const elements = pickElementColumns(headers.filter((h) => !mapped.has(h)), rows).map((e) => ({ ...e, mainHeader: e.header, checked: e.n > 0 })); // #1389 — a column with no value in any row stays unticked
     // a survey's other analyses of an element (Cu by AAS and by ICP-MS) are not sample attributes: only the chosen column is read
     const attrExclude = headers.filter((h) => !mapped.has(h) && isElementColumn(h));
     setPublicOpen(false);

@@ -124,7 +124,7 @@ export function pickElementColumns(headers, rows) {
         if (atCap / c.n >= 0.9) { overLimit = { header: c.header, unit: inferUnit(c.header, symbol), limit: main.max, n: c.n }; break; }
       }
     }
-    out.push({ symbol, header: main.header, unit, alts: sorted.slice(1).map((c) => c.header), overLimit });
+    out.push({ symbol, header: main.header, unit, alts: sorted.slice(1).map((c) => c.header), overLimit, n: main.n }); // n: #1389 — values in the chosen column
   });
   return out;
 }

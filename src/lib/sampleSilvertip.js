@@ -11,6 +11,9 @@ export const SILVERTIP_EPSG = 26909; // NAD83 / UTM zone 9N — the NAD83_9N_* c
 export const SILVERTIP_SURFACE = [["rocks.csv", "rock chip"], ["soils.csv", "soil"], ["streams.csv", "stream sediment"]];
 
 // <El>_ppm | <El>_pct columns -> [{ symbol, header, unit, checked }]
+// TASKS.csv #1389 (review #1352) — B, Hg, Pd and Pt are blank in every Silvertip assay row; an element with no value anywhere is
+// left out of the list, so it is not offered in every Geochem tool
+const withValues = (elements, rows) => elements.filter((e) => rows.some((r) => r.values?.[e.symbol] != null));
 const elementsOf = (fields) => fields.map((h) => { const m = /^([A-Z][a-z]?)_(ppm|pct)$/.exec(h); return m ? { symbol: m[1], header: h, unit: inferUnit(h, m[1]), checked: true } : null; }).filter(Boolean);
 
 // values as the Geochem importer reads them (#333): a negative number is the lab's below-detection code, <= -99 not assayed
@@ -34,7 +37,7 @@ export function silvertipAssays(text, srcFile = "assays.csv") {
     if (!hole || !Number.isFinite(from) || !Number.isFinite(to) || !(to > from)) continue;
     rows.push({ hole_id: hole, from, to, values: valuesOf(r, elements).values, source: "assay", srcFile, ...(r.sample_id ? { sample_id: String(r.sample_id).trim() } : {}) });
   }
-  return { rows, elements };
+  return { rows, elements: withValues(elements, rows) };
 }
 
 // rocks / soils / streams .csv (sample_id, x, y, z, medium, <El>_...) -> surface samples + element list
@@ -48,7 +51,7 @@ export function silvertipSurface(text, medium) {
     const { values, bdl } = valuesOf(r, elements);
     samples.push({ sample_id: String(r.sample_id || "").trim(), x, y, z: Number.isFinite(z) ? z : null, medium: String(r.medium || medium), values, ...(bdl.length ? { bdl } : {}) });
   }
-  return { samples, elements };
+  return { samples, elements: withValues(elements, samples) };
 }
 
 // readFile(relPath) -> File; store: { setAssays, setAssayElements, setSurfaceSamples, setSurfaceElements }. Returns notices.
