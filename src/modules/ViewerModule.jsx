@@ -1738,26 +1738,31 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     if (keys) keys.forEach((k) => walk(groups[k]));
     else for (const key in groups) walk(groups[key]);
   }, []);
+  const filteredKeysRef = useRef(new Set());
   const applyCategoryVisibility = useCallback(() => {
     const groups = layerGroupsRef.current;
-    CATEGORY_LAYER_KEYS.forEach((key) => {
+    const keys = CATEGORY_LAYER_KEYS.filter((key) => { const on = categoryFilter[key]?.size > 0, was = filteredKeysRef.current.has(key); filteredKeysRef.current[on ? "add" : "delete"](key); return on || was; }); // #1500
+    if (!keys.length) return;
+    keys.forEach((key) => {
       const g = groups[key];
       if (!g) return;
       const hidden = categoryFilter[key];
       eachLayerMember(g, (child) => { child.visible = !(hidden && hidden.has(String(child.userData?.catValue))); }); // #1540
     });
-    syncLayerBatches(CATEGORY_LAYER_KEYS); // TASKS.csv #312
+    syncLayerBatches(keys); // TASKS.csv #312
   }, [categoryFilter, syncLayerBatches]);
-  // TASKS.csv #227 (continuation) — the post-hoc half of baseColorForBuild above: walks each category
-  // layer's already-built children and repaints material.color from the REAL effectiveColor (which does
-  // check legendOverride), using the same catValue tag categoryFilter's own pass already relies on. A
-  // legendOverride edit (recolor one lithology code, say) becomes a per-mesh material.color.set() instead
-  // of a full geometry rebuild. Labels (tooltips) are NOT repainted here — they stay baked at build time
-  // and simply lag until the next real rebuild, a deliberately accepted, documented gap (tooltip text is
-  // not a perf-sensitive path the way color is; see this row's own notes for why).
+  // TASKS.csv #227 — the post-hoc half of baseColorForBuild: repaints built members from effectiveColor (legendOverride) by their
+  // catValue, so a legend colour edit is a material.color.set(), not a rebuild. Tooltip labels stay as built until the next rebuild.
+  const paintedKeysRef = useRef(new Set()); // #1500 — layers repainted off their build defaults; the others are skipped
   const applyLegendOverrideColors = useCallback(() => {
     const groups = layerGroupsRef.current;
-    CATEGORY_LAYER_KEYS.forEach((key) => {
+    const keys = CATEGORY_LAYER_KEYS.filter((key) => {
+      const needs = !!layerStyles[key]?.color || Object.values(legendOverride[key] || {}).some((o) => o?.color), was = paintedKeysRef.current.has(key);
+      paintedKeysRef.current[needs ? "add" : "delete"](key);
+      return needs || was;
+    });
+    if (!keys.length) return;
+    keys.forEach((key) => {
       const g = groups[key];
       if (!g) return;
       const single = layerStyles[key]?.color; // TASKS.csv #635 — a one-colour layer style wins over category colours
@@ -1766,8 +1771,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
         child.material.color.set(single || effectiveColor(key, child.userData.catValue));
       });
     });
-    syncLayerBatches(CATEGORY_LAYER_KEYS); // TASKS.csv #312 — repaint the batches' instanceColor from the objects just repainted
-  }, [effectiveColor, syncLayerBatches, layerStyles]);
+    syncLayerBatches(keys); // TASKS.csv #312 — repaint the batches' instanceColor from the objects just repainted
+  }, [effectiveColor, syncLayerBatches, layerStyles, legendOverride]);
 
   // ---------- project save/load: mirror custom layers (plain data) into the store, and
   // reconstruct three.js groups for any custom layers a loaded project brought in ----------
@@ -6042,8 +6047,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // (and only when) a legend color/label override is added/edited/removed.
   useEffect(() => { applyLegendOverrideColors(); }, [applyLegendOverrideColors]);
 
+  const holesHiddenRef = useRef(false); // #1500 — no hole hidden now or at the last pass: every member is already visible
   useEffect(() => {
     const groups = layerGroupsRef.current;
+    const anyHidden = Object.values(visibleHoles).some((v) => v === false);
+    if (!anyHidden && !holesHiddenRef.current) return;
+    holesHiddenRef.current = anyHidden;
     Object.values(groups).forEach((g) => {
       eachLayerMember(g, (child) => { // TASKS.csv #312 — an InstancedMesh batch has no tip of its own; its members are handled individually and mirrored by the sync below; #1540: reached through the batch
         const holeId = child.userData?.holeId ?? (child.userData?.tip || "").split("\n")[0]; // holeId: #1500

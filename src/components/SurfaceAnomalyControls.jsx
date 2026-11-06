@@ -19,7 +19,10 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
   const preset = PATHFINDER_PRESETS.find((p) => p.id === cfg.preset) || null; // #1322
   const have = new Set(surfaceElements.map((e) => e.symbol));
   const els = cfg.elements?.length ? cfg.elements : preset?.elements || [];
-  const gOpts = groupOptions(surfaceSamples, mapLayers);
+  // TASKS.csv #1500 — a scan of every sample's attributes (4,521 on Lawyers): it ran on every render of the 3D View, several times
+  // during an open; now once per data change, and only while the settings that list it are open
+  const showsGroups = open && cfg.mode !== "medium" && cfg.mode !== "field";
+  const gOpts = useMemo(() => (showsGroups ? groupOptions(surfaceSamples, mapLayers) : []), [showsGroups, surfaceSamples, mapLayers]);
   const modeValue = cfg.mode === "element" ? `el:${cfg.symbol || ""}` : cfg.mode === "field" ? `field:${cfg.field || ""}` : cfg.mode; // field: #1822
   const attrFields = useMemo(() => textAttrFields(surfaceSamples), [surfaceSamples]); // #1822
   // TASKS.csv #854 — the drawn samples with their class (and the hot-spot z, #853) as CSV
