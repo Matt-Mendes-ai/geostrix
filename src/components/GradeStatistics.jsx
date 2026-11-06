@@ -244,7 +244,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
                     const next = e.target.value;
                     setSource(next);
                     const els = next === "surface" ? surfaceElements : assayElements;
-                    setSymbolRaw(preferredElement(els.map((e) => e.symbol))); // #1678
+                    setSymbolRaw(els.some((e) => e.symbol === symbol) ? symbol : preferredElement(els.map((e) => e.symbol))); // #1678; #1523 — Au stays Au when the other source has it
                     setDomainKey("");
                   }}
                   style={{ ...sel, display: "block", marginTop: 4 }}

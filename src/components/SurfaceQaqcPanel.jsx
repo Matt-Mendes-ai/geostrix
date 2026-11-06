@@ -4,6 +4,7 @@
 // Lab certificates (ALS-style "Finalized" and "QC" CSVs) are read here; QC rows of a sample file arrive at import.
 // Maths in lib/surfaceQaqc.js; certified values are shared with the drillhole QA/QC (store.crmCertificates).
 import React, { useMemo, useRef, useState } from "react";
+import { preferredElement } from "../lib/preferredElement.js"; // TASKS.csv #1523
 import { X, Download } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
 import { parseLabCertificate, isLabCertificateText } from "../lib/labCertificate.js";
@@ -35,7 +36,7 @@ export default function SurfaceQaqcPanel({ onClose }) {
     const extra = [...new Set(records.flatMap((r) => Object.keys(r.values || {})))].filter((s) => !seen.has(s)).sort();
     return [...surfaceElements.map((e) => e.symbol), ...extra];
   }, [surfaceElements, records]);
-  const [symbol, setSymbol] = useState(elementList[0] || "");
+  const [symbol, setSymbol] = useState(() => preferredElement(elementList)); // #1523 — the commodity, not the first stored (S)
   const [tab, setTab] = useState("batches");
   const [stdCode, setStdCode] = useState(null);
   const [msg, setMsg] = useState(null);
