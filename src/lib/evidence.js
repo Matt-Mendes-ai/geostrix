@@ -230,16 +230,20 @@ export function weights(nB, nBD, N, ND) {
 // 1,387 m' of Vn4, nearly the whole area.
 export const MIN_SIDE = 5;
 export function bestCutoff(values, D, valid, { direction = "increasing", steps = 40 } = {}) {
-  const idx = [];
-  let nMissing = 0;
-  for (let k = 0; k < values.length; k++) if (valid[k]) { if (Number.isFinite(values[k])) idx.push(k); else nMissing++; }
-  const N = idx.length, ND = idx.reduce((c, k) => c + (D.has(k) ? 1 : 0), 0);
-  const sorted = idx.map((k) => values[k]).sort((a, b) => a - b);
+  // TASKS.csv #1562 — one numeric sort of the values and one of the occurrence cells' values, then each cutoff's counts by binary
+  // search: the same nB / nBD as counting every cell per cutoff (39 passes over 198,000 cells, ~0.7 s of a fuzzy OR's Compute)
+  const inD = cellMask(D, values.length);
+  let N = 0, ND = 0, nMissing = 0;
+  for (let k = 0; k < values.length; k++) if (valid[k]) { if (Number.isFinite(values[k])) { N++; ND += inD[k]; } else nMissing++; }
+  const sorted = new Float64Array(N), sortedD = new Float64Array(ND);
+  for (let k = 0, i = 0, j = 0; k < values.length; k++) if (valid[k] && Number.isFinite(values[k])) { sorted[i++] = values[k]; if (inD[k]) sortedD[j++] = values[k]; }
+  sorted.sort(); sortedD.sort();
   const table = [];
   for (let s = 1; s < steps; s++) {
     const q = s / steps, cutoff = sorted[Math.floor(q * (sorted.length - 1))];
-    let nB = 0, nBD = 0;
-    for (const k of idx) { const inB = direction === "increasing" ? values[k] >= cutoff : values[k] <= cutoff; if (inB) { nB++; if (D.has(k)) nBD++; } }
+    // increasing: B = value >= cutoff; decreasing: B = value <= cutoff
+    const nB = direction === "increasing" ? N - lowerBound(sorted, cutoff) : upperBound(sorted, cutoff);
+    const nBD = direction === "increasing" ? ND - lowerBound(sortedD, cutoff) : upperBound(sortedD, cutoff);
     const w = weights(nB, nBD, N, ND);
     if (w) table.push({ cutoff, quantile: q, ...w });
   }
@@ -281,10 +285,14 @@ export function posterior(layers, valid, N, ND) {
 // line, and the point interpolated on the jump ("50 % in 50 % of the area, Nd 1.0") is one no threshold gives. Then
 // `point` is null and `step` holds the two thresholds either side, with Nd at the one nearer the line (`at`).
 export function predictionArea(score, D, valid, steps = 200, { maxJump = 0.05 } = {}) {
-  const vals = [], train = [];
-  for (let k = 0; k < score.length; k++) if (valid[k] && Number.isFinite(score[k])) { vals.push(score[k]); if (D.has(k)) train.push(score[k]); }
-  if (!vals.length || !train.length) return null;
-  vals.sort((a, b) => a - b); train.sort((a, b) => a - b);
+  // #1562 — typed arrays and a numeric sort (the comparator sort of ~198,000 plain numbers was most of this)
+  const inD = cellMask(D, score.length);
+  let nv = 0, nt = 0;
+  for (let k = 0; k < score.length; k++) if (valid[k] && Number.isFinite(score[k])) { nv++; nt += inD[k]; }
+  if (!nv || !nt) return null;
+  const vals = new Float64Array(nv), train = new Float64Array(nt);
+  for (let k = 0, i = 0, j = 0; k < score.length; k++) if (valid[k] && Number.isFinite(score[k])) { vals[i++] = score[k]; if (inD[k]) train[j++] = score[k]; }
+  vals.sort(); train.sort();
   const curve = [];
   for (let s = 0; s <= steps; s++) {
     const t = vals[Math.min(vals.length - 1, Math.floor((s / steps) * (vals.length - 1)))];
@@ -308,6 +316,10 @@ export function predictionArea(score, D, valid, steps = 200, { maxJump = 0.05 } 
   return { curve, point, step, nTrain: train.length, nCells: vals.length };
 }
 function lowerBound(sorted, t) { let lo = 0, hi = sorted.length; while (lo < hi) { const m = (lo + hi) >> 1; if (sorted[m] < t) lo = m + 1; else hi = m; } return lo; }
+// a Set of cell indices as a 0 / 1 byte per cell (#1562: a lookup per cell, not a hash per cell)
+function cellMask(D, n) { const m = new Uint8Array(n); for (const k of D) if (k >= 0 && k < n) m[k] = 1; return m; }
+// the number of values <= t (#1562)
+function upperBound(sorted, t) { let lo = 0, hi = sorted.length; while (lo < hi) { const m = (lo + hi) >> 1; if (sorted[m] <= t) lo = m + 1; else hi = m; } return lo; }
 
 // ---------- a score grid as a raster drape (RGBA, 0 -> pale, 1 -> dark red; NaN transparent) ----------
 export function scoreImage(score, nx, ny) {
