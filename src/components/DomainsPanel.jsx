@@ -4,7 +4,7 @@
 import React, { useMemo, useState } from "react";
 import { X } from "./icons.js";
 import { useStore } from "../lib/store.jsx";
-import { usableElements, writeDomains, DOMAIN_ATTR } from "../lib/geochemDomains.js";
+import { elementCoverage, writeDomains, DOMAIN_ATTR } from "../lib/geochemDomains.js"; // elementCoverage: #1522
 import { geochemDomainsAsync } from "../lib/geochemDomainsClient.js"; // TASKS.csv #1797 — in a worker
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -25,7 +25,8 @@ export default function DomainsPanel({ onClose }) {
   const [medium, setMedium] = useState(() => { const n = new Map(); surfaceSamples.forEach((s) => n.set(s.medium, (n.get(s.medium) || 0) + 1)); return [...n.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "all"; });
   const [busy, setBusy] = useState(false);
   const subset = useMemo(() => (medium === "all" ? surfaceSamples : surfaceSamples.filter((s) => s.medium === medium)), [surfaceSamples, medium]);
-  const usable = useMemo(() => usableElements(subset, surfaceElements, units), [subset, surfaceElements, units]);
+  const coverage = useMemo(() => elementCoverage(subset, surfaceElements, units), [subset, surfaceElements, units]); // #1522
+  const usable = coverage.symbols;
   const [chosen, setChosen] = useState(null);
   const symbols = chosen || usable;
   const [k, setK] = useState(3);
@@ -68,6 +69,7 @@ export default function DomainsPanel({ onClose }) {
           </div>
           <div>
             <div style={label}>{tr("Elements ({n} of {m}; those with a value in 90 % of the samples are ticked)", { n: symbols.length, m: surfaceElements.length })}</div>
+            {coverage.setAside > 0 && coverage.base > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("{n} of {m} samples have a value for half the elements or fewer (no multi-element analysis): the 90 % rule counts the other {k}.", { n: coverage.setAside.toLocaleString(), m: subset.length.toLocaleString(), k: coverage.base.toLocaleString() })}</div>}
             <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 10px", fontSize: "var(--font-size-sm)" }}>
               {surfaceElements.map((e) => <label key={e.symbol} style={{ display: "flex", alignItems: "center", gap: 3, color: usable.includes(e.symbol) ? "var(--color-text)" : "var(--color-text-secondary)" }} title={usable.includes(e.symbol) ? undefined : tr("Missing or below zero in more than 10 % of the samples; those samples would be left out")}><input type="checkbox" checked={symbols.includes(e.symbol)} onChange={() => toggle(e.symbol)} />{e.symbol}</label>)}
             </div>

@@ -8481,5 +8481,6 @@
   "\"{name}\" is {v} MB and its first lines have no header GeoStrix can read (a delimited line of column names).": "حجم \"{name}\" {v} ميغابايت وليس في أسطره الأولى ترويسة يستطيع GeoStrix قراءتها (سطر مفصول بأسماء الأعمدة).",
   "\"{name}\" is {v} MB, about {rows} readings: too big to read whole on most computers. Check the columns and how many readings to keep below, then Import: the file is read in pieces and only the kept readings and columns are held.": "حجم \"{name}\" {v} ميغابايت، نحو {rows} قراءة: أكبر من أن يُقرأ كاملًا على معظم الحواسيب. راجع الأعمدة وعدد القراءات المحتفظ بها أدناه ثم استورد: يُقرأ الملف على أجزاء ولا يُحتفظ إلا بالقراءات والأعمدة المختارة.",
   "Reading {name}": "جارٍ قراءة {name}",
-  "{n} zero or negative values are not on the log scale.": "{n} من القيم الصفرية أو السالبة ليست على المقياس اللوغاريتمي."
+  "{n} zero or negative values are not on the log scale.": "{n} من القيم الصفرية أو السالبة ليست على المقياس اللوغاريتمي.",
+  "{n} of {m} samples have a value for half the elements or fewer (no multi-element analysis): the 90 % rule counts the other {k}.": "{n} من {m} عينة لها قيمة في نصف العناصر أو أقل (دون تحليل متعدد العناصر): قاعدة 90 % تحسب العينات الأخرى البالغ عددها {k}."
 }

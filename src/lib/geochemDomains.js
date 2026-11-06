@@ -12,11 +12,18 @@ import { valueIn } from "./geochem.js";
 import { median } from "./arrayStats.js"; // TASKS.csv #1114 — the true median (mean of the middle two)
 
 // elements with a positive value in at least `minCoverage` of the samples, in the project's order
+// TASKS.csv #1522 (review #1497, Lawyers) — the coverage is taken over the MULTI-ELEMENT samples (a value for more than half of the
+// elements): Lawyers' soils hold 422 of 3,243 with no ICP at all, which put every element at 87 % and the panel opened with 0 of 49
+// ticked and Run disabled. -> { symbols, base (the samples the rule was applied to), setAside (the others) }
+export function elementCoverage(samples, elements, units, minCoverage = 0.9) {
+  const has = elements.map((e) => samples.map((s) => valueIn(s, e.symbol, units[e.symbol] || "ppm", units) > 0));
+  const multi = samples.map((_, i) => has.reduce((c, col) => c + (col[i] ? 1 : 0), 0) > elements.length / 2);
+  const base = multi.reduce((c, m) => c + (m ? 1 : 0), 0);
+  const symbols = base ? elements.filter((e, j) => has[j].reduce((c, v, i) => c + (v && multi[i] ? 1 : 0), 0) / base >= minCoverage).map((e) => e.symbol) : [];
+  return { symbols, base, setAside: samples.length - base };
+}
 export function usableElements(samples, elements, units, minCoverage = 0.9) {
-  return elements.filter((e) => {
-    const n = samples.reduce((c, s) => c + (valueIn(s, e.symbol, units[e.symbol] || "ppm", units) > 0 ? 1 : 0), 0);
-    return samples.length > 0 && n / samples.length >= minCoverage;
-  }).map((e) => e.symbol);
+  return elementCoverage(samples, elements, units, minCoverage).symbols;
 }
 
 // clr per sample over `symbols` (all must be > 0): rows of log(x_i) - mean_i(log x). Samples missing one are skipped.

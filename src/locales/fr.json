@@ -8481,5 +8481,6 @@
   "\"{name}\" is {v} MB and its first lines have no header GeoStrix can read (a delimited line of column names).": "« {name} » fait {v} Mo et ses premières lignes n'ont pas d'en-tête lisible par GeoStrix (une ligne délimitée de noms de colonnes).",
   "\"{name}\" is {v} MB, about {rows} readings: too big to read whole on most computers. Check the columns and how many readings to keep below, then Import: the file is read in pieces and only the kept readings and columns are held.": "« {name} » fait {v} Mo, environ {rows} mesures : trop gros pour être lu en entier sur la plupart des ordinateurs. Vérifiez ci-dessous les colonnes et le nombre de mesures à garder, puis Importer : le fichier est lu par morceaux et seules les mesures et colonnes gardées sont conservées.",
   "Reading {name}": "Lecture de {name}",
-  "{n} zero or negative values are not on the log scale.": "{n} valeurs nulles ou négatives ne figurent pas sur l’échelle logarithmique."
+  "{n} zero or negative values are not on the log scale.": "{n} valeurs nulles ou négatives ne figurent pas sur l’échelle logarithmique.",
+  "{n} of {m} samples have a value for half the elements or fewer (no multi-element analysis): the 90 % rule counts the other {k}.": "{n} des {m} échantillons ont une valeur pour la moitié des éléments ou moins (pas d’analyse multiélémentaire) : la règle des 90 % compte les {k} autres."
 }
