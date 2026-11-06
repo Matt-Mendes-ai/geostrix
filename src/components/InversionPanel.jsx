@@ -741,8 +741,8 @@ function FitView({ last, method, mapSize = 78 }) {
         {/* TASKS.csv #367 — say how faithfully the mesh holds the plate (fractional cells keep its volume). */}
         {runs[0]?.thinnerThanCell && <div style={small}>{tr("The plate is thinner than a mesh cell, so it is represented by partly filled cells (modelled volume {v}% of the plate's true volume{v2}).", { v: Math.round((runs[0].volumeRatio || 0) * 100), v2: runs.length > 1 ? ` at ${runs[0].dip}°` : "" })}</div>}
         {result.body !== "model" && runs.some((r) => r.volumeRatio != null && r.volumeRatio < 0.9) && <div role="alert" style={{ ...small, color: "var(--color-danger-fg)" }}>{tr("Part of the plate lies above the ground surface or outside the mesh at some dips (modelled volume as low as {v}%) — those responses are for a smaller body than the one entered.", { v: Math.round(arrMin(runs.map((r) => r.volumeRatio ?? 1)) * 100) })}</div>}
-        {runs.length === 1 && <PointMaps stations={st} observed={obs} predicted={forwardMapValues(obs, runs[0]).predicted} unit={unit} size={mapSize} />}
-        {runs.length === 1 && Number.isFinite(runs[0].baseLevel) && <div style={small}>{tr("Predicted map shown with the base level ({baseLevel} {unit}) added, so it is on the data's level and the residual map is what the RMS above measures.", { baseLevel: runs[0].baseLevel.toFixed(2), unit })}</div>}
+        {runs.length === 1 && <PointMaps stations={st} observed={obs} predicted={forwardMapValues(obs, runs[0]).predicted} unit={unit} size={mapSize} predictedOnly={!!last.meta?.plannedGrid} />}
+        {runs.length === 1 && !last.meta?.plannedGrid && Number.isFinite(runs[0].baseLevel) && <div style={small}>{tr("Predicted map shown with the base level ({baseLevel} {unit}) added, so it is on the data's level and the residual map is what the RMS above measures.", { baseLevel: runs[0].baseLevel.toFixed(2), unit })}</div>}
       </div>
     );
   }
@@ -820,7 +820,7 @@ function DipSweep({ runs, unit }) {
 
 // Observed / predicted share one colour scale; residual is normalised by the uncertainty and diverging,
 // fixed at +-3 (visual-design review). Stations are drawn as dots, never gridded, so gaps stay visible.
-function PointMaps({ stations, observed, predicted, std, unit, size = 78 }) {
+function PointMaps({ stations, observed, predicted, std, unit, size = 78, predictedOnly = false }) { // predictedOnly: TASKS.csv #1710 — a planned grid has no observed values
   const refs = [useRef(null), useRef(null), useRef(null)];
   const resid = useMemo(() => observed.map((o, i) => (std ? (o - predicted[i]) / std[i] : o - predicted[i])), [observed, predicted, std]);
   const rScale = useMemo(() => residualScale(resid, !!std), [resid, std]); // #537 — ±3σ, or ±P98 |residual| in data units
@@ -829,7 +829,7 @@ function PointMaps({ stations, observed, predicted, std, unit, size = 78 }) {
     const x0 = arrMin(xs), x1 = arrMax(xs), y0 = arrMin(ys), y1 = arrMax(ys);
     const S = size, pad = 4;
     const sc = Math.min((S - 2 * pad) / (x1 - x0 || 1), (S - 2 * pad) / (y1 - y0 || 1));
-    const lo = Math.min(arrMin(observed), arrMin(predicted)), hi = Math.max(arrMax(observed), arrMax(predicted));
+    const lo = predictedOnly ? arrMin(predicted) : Math.min(arrMin(observed), arrMin(predicted)), hi = predictedOnly ? arrMax(predicted) : Math.max(arrMax(observed), arrMax(predicted));
     const seq = sequentialStops(lo, hi, 9).map((s) => s.color);
     const div = divergingStops(3, 9).map((s) => s.color);
     const seqC = (v) => seq[Math.max(0, Math.min(8, Math.round(((v - lo) / (hi - lo || 1)) * 8)))];
@@ -842,12 +842,12 @@ function PointMaps({ stations, observed, predicted, std, unit, size = 78 }) {
       const r = Math.max(1, Math.min(3, 200 / Math.sqrt(stations.length))) * Math.sqrt(S / 78);
       stations.forEach((p, i) => { ctx.fillStyle = col(vals[i]); ctx.beginPath(); ctx.arc(pad + (p[0] - x0) * sc, S - pad - (p[1] - y0) * sc, r, 0, Math.PI * 2); ctx.fill(); });
     });
-  }, [stations, observed, predicted, resid, rScale, size]); // #537 — std (via resid) was missing
+  }, [stations, observed, predicted, resid, rScale, size, predictedOnly]); // #537 — std (via resid) was missing
   const rms = (a) => Math.sqrt(a.reduce((s, v) => s + v * v, 0) / a.length);
   const small = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" };
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
-      {[[tr("Observed"), `${arrMin(observed).toFixed(1)}–${arrMax(observed).toFixed(1)} ${unit}`], [tr("Predicted"), `${arrMin(predicted).toFixed(1)}–${arrMax(predicted).toFixed(1)} ${unit}`], [std ? tr("Residual / σ") : tr("Residual"), std ? tr("RMS {v}, ±3 scale", { v: rms(resid).toFixed(2) }) : tr("RMS {v} {unit}, ±{rScale} scale", { v: rms(resid).toFixed(2), unit, rScale: rScale.toPrecision(2) })]].map(([t, cap], k) => (
+      {[[tr("Observed"), `${arrMin(observed).toFixed(1)}–${arrMax(observed).toFixed(1)} ${unit}`], [tr("Predicted"), `${arrMin(predicted).toFixed(1)}–${arrMax(predicted).toFixed(1)} ${unit}`], [std ? tr("Residual / σ") : tr("Residual"), std ? tr("RMS {v}, ±3 scale", { v: rms(resid).toFixed(2) }) : tr("RMS {v} {unit}, ±{rScale} scale", { v: rms(resid).toFixed(2), unit, rScale: rScale.toPrecision(2) })]].map(([t, cap], k) => predictedOnly && k !== 1 ? null : (
         <figure key={t} style={{ margin: 0, textAlign: "center" }}>
           <canvas ref={refs[k]} width={size} height={size} role="img" aria-label={tr("{t} map: {cap}", { t, cap })} style={{ border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)" }} />
           <figcaption style={small}>{t}<br />{cap}</figcaption>

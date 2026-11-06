@@ -36,4 +36,6 @@ test("the pane: the empty state lists what a survey allows, the planned grid sta
   assert.match(p, /Planned grid, no observed values: the predicted anomaly over the \{n\} stations runs from \{lo\} to \{hi\} \{unit\}/);
   assert.match(p, /Add the predicted anomaly as a survey/);
   assert.equal((p.match(/plannedGrid: planned\.on \? plannedGrid\.stats : null/g) || []).length, 2);
+  assert.match(p, /predictedOnly=\{!!last\.meta\?\.plannedGrid\}/); // only the Predicted map: there is nothing observed to compare
+  assert.match(p, /predictedOnly && k !== 1 \? null :/);
 });
