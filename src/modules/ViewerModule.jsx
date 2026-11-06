@@ -51,6 +51,7 @@ import { useMenuKeys } from "../lib/useMenuKeys.js"; // TASKS.csv #730
 import { t as tr } from "../lib/i18n.js";
 import EmptyViewerBody from "./viewer/EmptyViewerBody.jsx"; // TASKS.csv #1448
 import { featureCountText } from "../lib/featureCount.js"; // #1448 — "77 polygons", translated
+import { drillDepthBelowOrigin, gridWallHeight } from "../lib/viewer/gridDepth.js"; // #1405
 import { tx } from "../lib/i18nRich.js"; // TASKS.csv #786 // TASKS.csv #786 — "tr": this file uses t as a local name
 import { iconAction, activateOnKey } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 const AttributeTableModal = lazyModal(() => import("../components/AttributeTableModal.jsx"));  // TASKS.csv #301
@@ -406,7 +407,7 @@ function collarColorFor(bg) {
 // gridConfig changes. "ground" is the original flat XZ grid; "3d" adds two vertical wall grids
 // (rotated copies of the same GridHelper) forming an open corner/box, similar to the reference
 // grid frame in implicit-modelling tools — useful for judging depth/extent, not just plan position.
-function buildGridGroup(config) {
+function buildGridGroup(config, depth = 0) { // depth: #1405 — the drilling's depth below the origin
   const group = new THREE.Group(); group.name = "gridHelpers";
   if (!config.visible) return group;
   const size = Math.max(1, config.size) || 1000;
@@ -416,12 +417,13 @@ function buildGridGroup(config) {
   group.add(mkGrid()); // ground plane (XZ, y=0) — same as the original always-on grid
   if (config.mode === "3d") {
     const back = mkGrid(); // rotate XZ -> XY, forms the "north" wall
-    back.rotation.x = Math.PI / 2;
-    back.position.set(0, -size / 2, -size / 2); // #1405 — below the ground grid (y 0 = the mean collar elevation), where the drilling is
+    const h = gridWallHeight(size, divisions, depth); // #1405 — below the ground grid (y 0 = the mean collar elevation), as deep as the drilling
+    back.rotation.x = Math.PI / 2; back.scale.set(1, 1, h / size); // local z -> world -y after the turn
+    back.position.set(0, -h / 2, -size / 2);
     group.add(back);
     const side = mkGrid(); // rotate XZ -> ZY, forms the "west" wall
-    side.rotation.z = Math.PI / 2;
-    side.position.set(-size / 2, -size / 2, 0);
+    side.rotation.z = Math.PI / 2; side.scale.set(h / size, 1, 1); // local x -> world y
+    side.position.set(-size / 2, -h / 2, 0);
     group.add(side);
   }
   return group;
@@ -2814,10 +2816,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   useEffect(() => {
     if (!sceneRef.current) return;
     if (gridGroupRef.current) { sceneRef.current.remove(gridGroupRef.current); disposeThreeGroup(gridGroupRef.current); }
-    const group = buildGridGroup(gridConfig);
+    const group = buildGridGroup(gridConfig, drillDepthBelowOrigin(collars));
     sceneRef.current.add(group);
     gridGroupRef.current = group;
-  }, [gridConfig]);
+  }, [gridConfig, collars]);
 
   // ---------- TASKS.csv #650: "View" a structural trend — its ellipsoid, plane and major axis at the drilling's centre ----------
   const trendPreviewRef = useRef(null);
