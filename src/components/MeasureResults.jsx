@@ -1,5 +1,6 @@
 // TASKS.csv #1136 — moved out of ViewerModule (loaded on first use, not at startup)
 import React from "react";
+import { createPortal } from "react-dom"; // #1538
 import { X } from "./icons.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
@@ -54,8 +55,13 @@ function fmtArea(m2) {
 // kind of measurement is being taken. Switching pills clears any in-progress points (via
 // onSwitchMode/switchMeasureMode) rather than trying to reinterpret an existing polyline as a polygon
 // or vice versa, which would silently give a nonsense reading.
-export default function MeasureResults({ mode, pts, onClear, onSwitchMode }) {
-  const box = { display: "flex", alignItems: "center", gap: 10, marginLeft: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "5px 10px" };
+// TASKS.csv #1538 (review #1497, Lawyers) — rendered in the ribbon, the readout squeezed it: labels wrapped word by word and Export ran
+// over the Simple / Advanced switch at the default window size. It is a card over the bottom right of the view now, like Identify's.
+export default function MeasureResults(props) {
+  return typeof document === "undefined" ? <MeasureCard {...props} /> : createPortal(<MeasureCard {...props} />, document.body);
+}
+function MeasureCard({ mode, pts, onClear, onSwitchMode }) {
+  const box = { display: "flex", alignItems: "center", gap: 10, position: "fixed", right: 16, bottom: 40, zIndex: 30, maxWidth: "min(640px, 60vw)", flexWrap: "wrap", boxShadow: "0 4px 14px rgba(0,0,0,0.12)", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "5px 10px" };
   const clearBtn = { display: "flex", alignItems: "center", gap: 3, cursor: "pointer", color: "var(--color-danger-icon)", fontSize: "var(--font-size-sm)", flexShrink: 0 };
   const pillWrap = { display: "flex", alignItems: "center", gap: 2, background: "#e8eaed", borderRadius: 5, padding: 2, flexShrink: 0 };
   const pill = (active) => ({ padding: "2px 8px", borderRadius: 4, cursor: "pointer", fontSize: "var(--font-size-sm)", color: active ? "var(--color-text)" : "var(--color-text-faint)", background: active ? "var(--color-bg)" : "transparent", boxShadow: active ? "0 1px 2px rgba(0,0,0,0.1)" : "none" });
@@ -88,7 +94,7 @@ export default function MeasureResults({ mode, pts, onClear, onSwitchMode }) {
         <span><b style={{ color: "var(--color-text)" }}>{tr("Total in plan:")}</b> {fmtLen(totalPath)}</span>
         <span><b style={{ color: "var(--color-text)" }}>{tr("Total in 3D:")}</b> {fmtLen(total3d)}</span>
         {pts.length > 2 && <span><b style={{ color: "var(--color-text)" }}>{tr("Straight-line (3D):")}</b> {fmtLen(straight.dist3d)}</span>}
-        <span><b style={{ color: "var(--color-text)" }}>{tr("Last segment (3D):")}</b> {tr("{v} @ {azimuth}° (Δelev {v2}{vert} m)", { v: fmtLen(last.dist3d), azimuth: last.azimuth.toFixed(1), v2: last.vert >= 0 ? "+" : "", vert: last.vert.toFixed(1) })}</span>
+        <span><b style={{ color: "var(--color-text)" }}>{tr("Last segment (3D):")}</b> {tr("{v} @ {azimuth}° grid, {h} in plan (Δelev {v2}{vert} m)", { v: fmtLen(last.dist3d), azimuth: last.azimuth.toFixed(1), h: fmtLen(last.horiz), v2: last.vert >= 0 ? "+" : "", vert: last.vert.toFixed(1) }) /* #1471 — the bearing is grid north (atan2 of easting / northing), not true */}</span>
         <span style={{ color: "var(--color-text-muted)" }}>{tr("{pts} pt(s)", { pts: pts.length })}</span>
         <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={onClear} style={clearBtn}><X size={12} />{" "}{tr("Clear")}</span>
       </div>
