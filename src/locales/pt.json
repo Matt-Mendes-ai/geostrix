@@ -8406,5 +8406,21 @@
   "Add to altered": "Adicionar ao alterado",
   "Clear precursor": "Limpar precursor",
   "Clear altered": "Limpar alterado",
-  "Left out of the mass balance (calculated indices and equivalents, not concentrations): {list}": "Fora do balanço de massa (índices calculados e equivalentes, não concentrações): {list}"
+  "Left out of the mass balance (calculated indices and equivalents, not concentrations): {list}": "Fora do balanço de massa (índices calculados e equivalentes, não concentrações): {list}",
+  "A polygon needs at least three points.": "Um polígono precisa de pelo menos três pontos.",
+  "Added a {unit} polygon of {ha} ha to \"{layer}\".": "Adicionado um polígono de {unit} de {ha} ha a \"{layer}\".",
+  "Click the first corner of the unit.": "Clique no primeiro canto da unidade.",
+  "Draw a polygon": "Desenhar um polígono",
+  "Draw the outline of a map unit by clicking its corners in the 3D view (Top view works best); the last click joins the first. The polygons are a geology map layer with a unit field: it drapes on the terrain, exports as Shapefile or GeoPackage, prints in the Layout legend, and Model it can build a 3D model from it.": "Desenhe o contorno de uma unidade do mapa clicando nos seus cantos na vista 3D (a vista de topo funciona melhor); o último clique une-se ao primeiro. Os polígonos são uma camada de mapa geológico com um campo de unidade: drapeia sobre o terreno, exporta como Shapefile ou GeoPackage, imprime na legenda do Layout e Modelar pode construir um modelo 3D a partir dela.",
+  "Drawn geology layer": "Camada de geologia desenhada",
+  "Field data": "Dados de campo",
+  "Geology (drawn)": "Geologia (desenhada)",
+  "Name the unit before finishing the polygon.": "Nomeie a unidade antes de concluir o polígono.",
+  "Polygon note": "Nota do polígono",
+  "Polygons in \"{layer}\"": "Polígonos em \"{layer}\"",
+  "Remove polygon {v}": "Remover o polígono {v}",
+  "Rock chips": "Amostras de rocha",
+  "Unit (for example Basalt, Rhyolite)": "Unidade (por exemplo Basalto, Riolito)",
+  "Unit polygons": "Polígonos de unidades",
+  "{n} corner(s). Click to add a corner; double-click or Finish to close the polygon.": "{n} canto(s). Clique para adicionar um canto; duplo clique ou Concluir para fechar o polígono."
 }

@@ -46,6 +46,7 @@ export const PANE_HELP = {
   "Section by coordinates": "section-by-coordinates",
   "Slice series (fence sections)": "slice-series",
   "Interpretation lines": "interpretation-lines",
+  "Unit polygons": "unit-polygons", // TASKS.csv #1439
   // Surface Geology
   "Geology map": "geology-map",
   "Outcrop structures": "outcrop-structures",

@@ -151,7 +151,7 @@ import { PRECIOUS_METALS } from "../lib/geochem.js";
 // symbology editor load the first time they are shown (PlannedHoleTargeting, #119, now loads from PlannedHoleParts)
 const plannedPart = (name) => lazyModal(() => import("../components/PlannedHoleParts.jsx").then((m) => ({ default: m[name] })));
 const PlannedHoleAddForm = plannedPart("PlannedHoleAddForm"), PlannedHoleRow = plannedPart("PlannedHoleRow"), PlannedHoleChecks = plannedPart("PlannedHoleChecks");
-import { ViewToolbar, ContextItem, HoleRow, OrphanHoles, LayerRow, LayerQuickPanel, distToSegment, VoxelRangeRow, miniBtn, iconBtn, miniField, typedSectionInput } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1084 — moved out at the size cap
+import { ViewToolbar, SurfaceRibbon, ContextItem, HoleRow, OrphanHoles, LayerRow, LayerQuickPanel, distToSegment, VoxelRangeRow, miniBtn, iconBtn, miniField, typedSectionInput } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1084 — moved out at the size cap
 import { plannedTrace } from "../lib/holePlanning.js"; // TASKS.csv #119 - shared, Node-verified target math; plannedTrace: #524
 import { extractMapContacts, orientationAt, projectContactRibbon, thinLine, densifyLine } from "../lib/mapLayers.js"; // TASKS.csv #316-#318
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
@@ -178,6 +178,7 @@ import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 import { useIdentify } from "./viewer/useIdentify.js"; // TASKS.csv #1324
 const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
+const UnitPolygonPane = React.lazy(() => import("../components/UnitPolygonPane.jsx")); // TASKS.csv #1439
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -1029,7 +1030,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
   const [planTarget, setPlanTarget] = useState(null); // TASKS.csv #1456 — a target handed to the planned-hole form from Targeting
   // TASKS.csv #1152 — interpretation lines: the pane, the drawing (on, the clicks, a counter a double-click bumps to end the
   // line, the survey a Geophysics button named); a ref for the mount-once handlers, the preview group made on first use
-  const [interpretOpen, setInterpretOpen] = useState(false);
+  const [interpretOpen, setInterpretOpen] = useState(false); // false | true (lines) | "polygon" (#1439)
   const [interpret, setInterpret] = useState({ on: false, points: [], finishSeq: 0, survey: null });
   const interpretRef = useRef(interpret); useEffect(() => { interpretRef.current = interpret; }, [interpret]);
   const interpretGroupRef = useRef(null);
@@ -7188,6 +7189,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // wake the render loop from deep idle. Deliberately no dependency array.
   useEffect(() => { lastActivityRef.current = Date.now(); });
 
+  // TASKS.csv #1152 / #1439 — the interpretation-lines or unit-polygon pane, on the 3D View and the Surface Geology sidebars
+  const toggleIdentify = () => { if (identify.on) { identify.stop(); return; } setRectZoomMode(false); setSectionMode(false); sectionPts.current = []; setSectionPreview(null); setMeasureMode(null); setMeasurePts([]); identify.setOn(true); };
+  const openInterpret = (kind) => { if (interpretOpen) stopInterpret(); setInterpretOpen((v) => (v === kind ? false : kind)); };
+  const interpretPane = interpretOpen && (<Suspense fallback={null}>{React.createElement(interpretOpen === "polygon" ? UnitPolygonPane : InterpretPane, { drawing: interpret, presetSurvey: interpret.survey,
+    onStart: () => { setRectZoomMode(false); setSectionMode(false); setMeasureMode(null); setMeasurePts([]); setPickHoleMode(false); setInterpret((s) => ({ ...s, on: true, points: [] })); },
+    onUndo: () => setInterpret((s) => ({ ...s, points: s.points.slice(0, -1) })), onCancel: stopInterpret, onDone: stopInterpret, onClose: () => { setInterpretOpen(false); stopInterpret(); } })}</Suspense>);
   const anomalyControls = <Suspense fallback={null}><SurfaceAnomalyControls cfg={layerStyles.surface_anomaly} setCfg={(cfg) => setLayerStyles((p) => ({ ...p, surface_anomaly: cfg }))} surfaceSamples={surfaceSamples} surfaceElements={surfaceElements} mapLayers={mapLayers} thresholds={geochemThresholds} result={surfaceAnomaly} drawn={surfaceSamples} /* #1819 — the class CSV holds every sample */ /></Suspense>; // #1603 — also on the Surface Geology tab
   return (
     <div style={{ display: visible ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, width: "100%" }}>
@@ -7212,9 +7219,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           sectionMode={sectionMode}
           onToggleSection={() => { setRectZoomMode(false); setMeasureMode(null); setMeasurePts([]); setSectionMode((s) => !s); sectionPts.current = []; setSectionPreview(null); }}
           sectionCorridor={sectionCorridor} setSectionCorridor={setSectionCorridor}
-          identifyOn={identify.on} onToggleIdentify={() => { if (identify.on) { identify.stop(); return; } setRectZoomMode(false); setSectionMode(false); sectionPts.current = []; setSectionPreview(null); setMeasureMode(null); setMeasurePts([]); identify.setOn(true); }}
+          identifyOn={identify.on} onToggleIdentify={toggleIdentify}
           measureMode={measureMode} onToggleMeasure={toggleMeasureOnOff} onSwitchMeasureMode={switchMeasureMode} measurePts={measurePts} clearMeasure={clearMeasure}
-          interpretOpen={interpretOpen} onInterpret={() => { if (interpretOpen) stopInterpret(); setInterpretOpen((v) => !v); }} /* TASKS.csv #1152 */
+          interpretOpen={!!interpretOpen} onInterpret={() => openInterpret(true)} /* TASKS.csv #1152 */
           show={visible} paneProps={paneProps}
         />
       )}
@@ -7264,18 +7271,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </Ribbon>
       )}
       {/* TASKS.csv #820 — Surface Geology ribbon: the mapping workflow (3D model building stays in 3D Modelling) */}
-      {mode === "surface" && (
-        <Ribbon show={visible} label="Surface geology tools">
-          <RibbonGroup label="Geological mapping">
-            <RibbonButton icon={MapIcon} label="Geology map" tone="data" title="Geology map layers (GeoPackage / shapefile / MapInfo TAB): import, colour by unit, drape on the terrain" {...paneProps("sgMaps")} />
-            <RibbonButton icon={Compass} label="Outcrop structures" tone="data" title="Outcrop structure measurements (CSV / MapInfo points): bedding, foliation, faults, veins" {...paneProps("sgStructs")} />
-            <RibbonButton icon={Target} label="Stereonet" tone="analyse" title="Stereonet of the outcrop measurements (and any downhole structure picks)" onClick={() => setStereonetOpen(true)} />
-          </RibbonGroup>
-          <RibbonGroup label="Next step">
-            <RibbonButton icon={Mountain} label="Model it" tone="model" title="Build a 3D model from this map and these measurements: opens 3D Modelling > Model from map" onClick={() => { pendingPaneRef.current = "mapmodel"; store.goToModule("modelling"); }} />
-          </RibbonGroup>
-        </Ribbon>
-      )}
+      {mode === "surface" && <SurfaceRibbon show={visible} paneProps={paneProps} onStereonet={() => setStereonetOpen(true)} onModelIt={() => { pendingPaneRef.current = "mapmodel"; store.goToModule("modelling"); }} identifyOn={identify.on} onToggleIdentify={toggleIdentify} interpretOpen={interpretOpen} onInterpret={() => openInterpret(true)} onPolygons={() => openInterpret("polygon")} onStyleSamples={() => openLayerStyle("surface_samples", "Surface samples")} sampleCount={surfaceSamples.length} />}{/* #1439 */}
       {/* TASKS.csv #458 — Targeting ribbon */}
       {mode === "minedesign" && (
         <Ribbon show={visible} label="Mine design tools">
@@ -7315,10 +7311,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       <div className="ge-panel" style={{ padding: "16px 14px", border: "none", width: "100%", flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
         {sidebarTab === "home" && (<>
         {/* TASKS.csv #458 — tool panes opened from the ribbon, above the data */}
-        {interpretOpen && (<Suspense fallback={null}><InterpretPane drawing={interpret} presetSurvey={interpret.survey} /* TASKS.csv #1152 */
-          onStart={() => { setRectZoomMode(false); setSectionMode(false); setMeasureMode(null); setMeasurePts([]); setPickHoleMode(false); setInterpret((s) => ({ ...s, on: true, points: [] })); }}
-          onUndo={() => setInterpret((s) => ({ ...s, points: s.points.slice(0, -1) }))} onCancel={stopInterpret} onDone={stopInterpret}
-          onClose={() => { setInterpretOpen(false); stopInterpret(); }} /></Suspense>)}
+        {interpretPane}
         {toolPane === "sectionCoords" && (<>
         {paneHeader("Section by coordinates", Crosshair, "section")}
         {/* TASKS.csv #393 — a section typed as numbers (blank centre = centre of the drilling) */}
@@ -8432,6 +8425,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </>)}
 
         {sidebarTab === "surface" && (<>
+        {interpretPane}{/* #1439 */}
         {/* TASKS.csv #1597 (review #1497, Lawyers) — what else sits on the map, from this tab: the rasters, block models and samples
             that buried the rock chips could only be hidden from the 3D View sidebar */}
         {!toolPane && (rasters.length > 0 || voxelModels.length > 0 || surfaceSamples.length > 0) && (

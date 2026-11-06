@@ -8406,5 +8406,21 @@
   "Add to altered": "Ajouter à l'altéré",
   "Clear precursor": "Vider le précurseur",
   "Clear altered": "Vider l'altéré",
-  "Left out of the mass balance (calculated indices and equivalents, not concentrations): {list}": "Hors du bilan de masse (indices calculés et équivalents, pas des concentrations) : {list}"
+  "Left out of the mass balance (calculated indices and equivalents, not concentrations): {list}": "Hors du bilan de masse (indices calculés et équivalents, pas des concentrations) : {list}",
+  "A polygon needs at least three points.": "Un polygone a besoin d'au moins trois points.",
+  "Added a {unit} polygon of {ha} ha to \"{layer}\".": "Polygone {unit} de {ha} ha ajouté à « {layer} ».",
+  "Click the first corner of the unit.": "Cliquez sur le premier coin de l'unité.",
+  "Draw a polygon": "Tracer un polygone",
+  "Draw the outline of a map unit by clicking its corners in the 3D view (Top view works best); the last click joins the first. The polygons are a geology map layer with a unit field: it drapes on the terrain, exports as Shapefile or GeoPackage, prints in the Layout legend, and Model it can build a 3D model from it.": "Tracez le contour d'une unité de carte en cliquant sur ses coins dans la vue 3D (la vue de dessus convient le mieux) ; le dernier clic rejoint le premier. Les polygones forment une couche de carte géologique avec un champ d'unité : elle se drape sur le terrain, s'exporte en Shapefile ou GeoPackage, s'imprime dans la légende de la mise en page, et Modéliser peut en construire un modèle 3D.",
+  "Drawn geology layer": "Couche de géologie tracée",
+  "Field data": "Données de terrain",
+  "Geology (drawn)": "Géologie (tracée)",
+  "Name the unit before finishing the polygon.": "Nommez l'unité avant de terminer le polygone.",
+  "Polygon note": "Note du polygone",
+  "Polygons in \"{layer}\"": "Polygones dans « {layer} »",
+  "Remove polygon {v}": "Retirer le polygone {v}",
+  "Rock chips": "Échantillons de roche",
+  "Unit (for example Basalt, Rhyolite)": "Unité (par exemple Basalte, Rhyolite)",
+  "Unit polygons": "Polygones d'unités",
+  "{n} corner(s). Click to add a corner; double-click or Finish to close the polygon.": "{n} coin(s). Cliquez pour ajouter un coin ; double-clic ou Terminer pour fermer le polygone."
 }

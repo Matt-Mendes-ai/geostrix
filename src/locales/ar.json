@@ -8406,5 +8406,21 @@
   "Add to altered": "إضافة إلى المتحوّل",
   "Clear precursor": "مسح السليف",
   "Clear altered": "مسح المتحوّل",
-  "Left out of the mass balance (calculated indices and equivalents, not concentrations): {list}": "خارج موازنة الكتلة (مؤشرات محسوبة ومكافئات، وليست تراكيز): {list}"
+  "Left out of the mass balance (calculated indices and equivalents, not concentrations): {list}": "خارج موازنة الكتلة (مؤشرات محسوبة ومكافئات، وليست تراكيز): {list}",
+  "A polygon needs at least three points.": "يحتاج المضلع إلى ثلاث نقاط على الأقل.",
+  "Added a {unit} polygon of {ha} ha to \"{layer}\".": "أُضيف مضلع {unit} بمساحة {ha} هكتار إلى \"{layer}\".",
+  "Click the first corner of the unit.": "انقر على الزاوية الأولى للوحدة.",
+  "Draw a polygon": "رسم مضلع",
+  "Draw the outline of a map unit by clicking its corners in the 3D view (Top view works best); the last click joins the first. The polygons are a geology map layer with a unit field: it drapes on the terrain, exports as Shapefile or GeoPackage, prints in the Layout legend, and Model it can build a 3D model from it.": "ارسم حدود وحدة الخريطة بالنقر على زواياها في العرض ثلاثي الأبعاد (العرض العلوي هو الأنسب)؛ تلتحم النقرة الأخيرة بالأولى. المضلعات طبقة خريطة جيولوجية بحقل وحدة: تُسدل على التضاريس، وتُصدَّر كـ Shapefile أو GeoPackage، وتُطبع في مفتاح التخطيط، ويمكن لأداة النمذجة بناء نموذج ثلاثي الأبعاد منها.",
+  "Drawn geology layer": "طبقة الجيولوجيا المرسومة",
+  "Field data": "بيانات الميدان",
+  "Geology (drawn)": "جيولوجيا (مرسومة)",
+  "Name the unit before finishing the polygon.": "سمِّ الوحدة قبل إنهاء المضلع.",
+  "Polygon note": "ملاحظة المضلع",
+  "Polygons in \"{layer}\"": "المضلعات في \"{layer}\"",
+  "Remove polygon {v}": "إزالة المضلع {v}",
+  "Rock chips": "عينات الصخور",
+  "Unit (for example Basalt, Rhyolite)": "الوحدة (مثلاً بازلت، ريوليت)",
+  "Unit polygons": "مضلعات الوحدات",
+  "{n} corner(s). Click to add a corner; double-click or Finish to close the polygon.": "{n} زاوية. انقر لإضافة زاوية؛ انقر نقرًا مزدوجًا أو إنهاء لإغلاق المضلع."
 }

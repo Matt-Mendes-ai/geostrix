@@ -115,6 +115,39 @@ export default [
     related: ["section-by-coordinates", "slice-3d", "block-models", "section-correlation"],
   },
   {
+    id: "unit-polygons",
+    area: "Surface Geology",
+    title: "Unit polygons",
+    related: ["interpretation-lines", "geology-map", "map-layers"],
+    summary: "Draws the outline of a map unit by clicking its corners in the 3D view, usually in a top view over the terrain, an orthophoto or a geophysics image. The polygons are a geology map layer with a unit field, drawn in GeoStrix rather than imported, so Model it can build a 3D model from them.",
+    notFor: [
+      "It does not trace contacts automatically or snap to a raster: every corner is your click.",
+      "A unit polygon is a 2D map polygon. Faults, contacts and lineaments as lines are drawn with Interpret; contacts on a cross-section with the section window.",
+    ],
+    fields: [
+      { name: "Layer / New layer…", what: "The drawn geology layer the next polygon goes into, or a new one (named Geology (drawn) unless you type a name).", choose: "One layer per map keeps it easy to show, hide, style and export." },
+      { name: "Unit", what: "The unit name saved in the polygon's unit field and used for its colour; the list offers the units already on the map layers.", choose: "Use the names of your map legend, the same spelling every time, so one unit is one colour and one 3D unit." },
+      { name: "Note (optional)", what: "A note saved on the polygon.", choose: "Note what you saw that placed the boundary." },
+      { name: "Draw a polygon / Finish / Undo point / Cancel", what: "Draw a polygon starts clicking in the 3D view; each click adds a corner where it hits. Double-click or Finish closes the outline back to the first corner.", choose: "Click the corners in order around the unit; a polygon needs at least three." },
+      { name: "Polygons in \"{layer}\"", what: "The polygons of the chosen layer with their unit and area in hectares; the bin removes one. The whole layer is shown, hidden, styled and exported under Maps > Map layers.", choose: "Remove and redraw a polygon rather than leaving a wrong boundary." },
+    ],
+    warnings: [
+      { says: "A polygon needs at least three points.", means: "Finish was pressed with fewer than three corners.", do: "Click at least three corners in the 3D view." },
+      { says: "Name the unit before finishing the polygon.", means: "The Unit box is empty.", do: "Type the unit's name, then Finish." },
+      { says: "Click the first corner of the unit.", means: "Drawing is on and waiting for the first click.", do: "Click in the 3D view where the unit's outline starts." },
+    ],
+    howto: {
+      sample: "Perk-Rocky",
+      steps: [
+        "File > Open Sample Project > Perk-Rocky (geological mapping, no drillholes).",
+        "On the Surface Geology tab, press Unit polygons (Draw) and turn the view to a top view.",
+        "Choose New layer…, type the unit's name, press Draw a polygon and click the corners of one unit; double-click to close it.",
+        "Repeat for the next unit; Show, style or export the layer under Maps > Map layers.",
+        "Press Model it to build a 3D model from the drawn map and the outcrop measurements.",
+      ],
+    },
+  },
+  {
     id: "interpretation-lines",
     area: "3D View",
     title: "Interpretation lines",

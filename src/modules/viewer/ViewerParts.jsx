@@ -2,7 +2,7 @@
 // (test/viewerModuleSize1084.test.mjs). Unchanged code: ViewToolbar, ContextItem, HoleRow, LayerRow, LayerQuickPanel,
 // VoxelRangeRow, distToSegment and the shared sidebar styles, plus the two lazy modals only they use.
 import React, { useState, useRef, useEffect } from "react";
-import { Bookmark, BookmarkPlus, Camera, ChevronDown, ChevronUp, Database, Download, RefreshCw, Eye, EyeOff, FileBarChart2, Grid3x3, Info, LayoutTemplate, ListFilter, Maximize2, Milestone, PenTool, Pencil, Ruler, Scissors, ShieldAlert, TerminalSquare, Trash2, Upload, X, SquareSplitVertical, Rows3, Layers3, Crosshair } from "../../components/icons.js";
+import { Bookmark, BookmarkPlus, Camera, ChevronDown, ChevronUp, Database, Download, RefreshCw, Eye, EyeOff, FileBarChart2, Grid3x3, Info, LayoutTemplate, ListFilter, Maximize2, Milestone, PenTool, Pencil, Ruler, Scissors, ShieldAlert, TerminalSquare, Trash2, Upload, X, SquareSplitVertical, Rows3, Layers3, Crosshair, Map as MapIcon, Compass, Target, Mountain, Shapes, Palette } from "../../components/icons.js";
 import { Ribbon, RibbonGroup, RibbonButton, RIBBON_TONES } from "../../components/Ribbon.jsx";
 import HoverToolInfo from "../../components/HoverToolInfo.jsx";
 import VoxelRangeNumber from "../../components/VoxelRangeNumber.jsx"; // TASKS.csv #1208
@@ -233,6 +233,32 @@ export function ViewToolbar({
 }
 const popoverStyle = { position: "absolute", top: "calc(100% + 4px)", left: 0, width: 230, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 8, boxShadow: "0 6px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 50 };
 const popoverHeader = { display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.06em" };
+
+// TASKS.csv #1439 (review #1352, Silvertip) — the Surface Geology ribbon (moved here from ViewerModule, at its size cap): the
+// field data's tools beside the map and the outcrop measurements - Identify, the rock chips' style, interpretation lines and
+// unit polygons drawn in the app, so a geology map can be made here and Model it can use it.
+export function SurfaceRibbon({ show, paneProps, onStereonet, onModelIt, identifyOn, onToggleIdentify, interpretOpen, onInterpret, onPolygons, onStyleSamples, sampleCount = 0 }) {
+  return (
+    <Ribbon show={show} label="Surface geology tools">
+      <RibbonGroup label="Geological mapping">
+        <RibbonButton icon={MapIcon} label="Geology map" tone="data" title="Geology map layers (GeoPackage / shapefile / MapInfo TAB): import, colour by unit, drape on the terrain" {...paneProps("sgMaps")} />
+        <RibbonButton icon={Compass} label="Outcrop structures" tone="data" title="Outcrop structure measurements (CSV / MapInfo points): bedding, foliation, faults, veins" {...paneProps("sgStructs")} />
+        <RibbonButton icon={Target} label="Stereonet" tone="analyse" title="Stereonet of the outcrop measurements (and any downhole structure picks)" onClick={onStereonet} />
+      </RibbonGroup>
+      <RibbonGroup label="Draw">
+        <RibbonButton icon={Shapes} label="Unit polygons" tone="data" active={interpretOpen === "polygon"} title="Draw the outline of a map unit by clicking in the 3D view: a geology map layer with a unit field, which Model it can use" onClick={onPolygons} />
+        <RibbonButton icon={PenTool} label="Interpret" tone="analyse" active={interpretOpen === true} title="Draw faults, contacts and lineaments by clicking in the 3D view; each set of lines is a map layer" onClick={onInterpret} />
+      </RibbonGroup>
+      <RibbonGroup label="Field data">
+        <RibbonButton icon={Info} label="Identify" tone="analyse" active={identifyOn} title="Click anything in the 3D view to see which layer it belongs to and its details. Esc stops." onClick={onToggleIdentify} />
+        <RibbonButton icon={Palette} label="Rock chips" tone="view" disabled={!sampleCount} disabledReason="Import surface samples (rock chips, soils) on the Geochem tab first" title="Style the surface samples: colour, size, shape, labels; colour by element is in the sidebar" onClick={onStyleSamples} />
+      </RibbonGroup>
+      <RibbonGroup label="Next step">
+        <RibbonButton icon={Mountain} label="Model it" tone="model" title="Build a 3D model from this map and these measurements: opens 3D Modelling > Model from map" onClick={onModelIt} />
+      </RibbonGroup>
+    </Ribbon>
+  );
+}
 
 export function ContextItem({ label, onClick, disabled, title }) {
   if (disabled) {

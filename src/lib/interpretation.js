@@ -5,6 +5,8 @@
 // the project and saves with it. Each line records the survey it was drawn on, its type, a name, a confidence and its
 // length. Pure: no React, no three.js.
 import { median } from "./arrayStats.js";
+import { ringArea } from "./polygonRings.js"; // TASKS.csv #1439
+import { hashColor } from "./layers.js"; // #1439 — a drawn unit's colour
 
 export const INTERPRETATION_TYPES = [
   { value: "fault", label: "Fault", color: "#d7263d" },
@@ -112,6 +114,44 @@ export function updateInterpretationLine(layer, index, attrs) {
   if (index < 0 || index >= layer.features.length) return layer;
   const features = layer.features.map((f, i) => (i === index ? { ...f, attributes: { ...f.attributes, ...attrs } } : f));
   return withBbox({ ...layer, features });
+}
+
+// TASKS.csv #1439 (review #1352, Silvertip) — geology drawn in GeoStrix: unit polygons as a polygon map layer whose `unit` field
+// is what Model from map reads, so a map drawn here can be modelled like an imported one. Pure.
+export const isDrawnGeologyLayer = (l) => !!l?.drawnGeology;
+export function geologyPolygonLayer(name) {
+  return {
+    name: name || "Geology (drawn)", drawnGeology: true,
+    geomType: "polygon", features: [], fields: ["unit", "area_m2", "note"], bbox: null,
+    styleField: "unit", categories: [], lineWidthM: 2, opacity: 0.6, visible: true, drapeMode: "terrain", elevation: 0, showOutlines: true,
+  };
+}
+function withUnitBbox(layer) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const f of layer.features) for (const part of f.parts) for (const [x, y] of part) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  const counts = {};
+  for (const f of layer.features) counts[f.attributes.unit] = (counts[f.attributes.unit] || 0) + 1;
+  const kept = layer.categories.map((c) => ({ ...c, count: counts[c.value] || 0 }));
+  const fresh = Object.keys(counts).filter((u) => !kept.some((c) => c.value === u)).map((u) => ({ value: u, label: u, color: hashColor(u), outline: null, visible: true, count: counts[u] }));
+  return { ...layer, bbox: layer.features.length ? [x0, y0, x1, y1] : null, categories: [...kept, ...fresh] };
+}
+// points: [{ x, y, z? }] world, the corners in click order (a last click on the first corner is dropped); attrs: { unit, note }.
+// -> the layer with the closed polygon appended, or unchanged with fewer than three distinct corners.
+export function addUnitPolygon(layer, points, attrs = {}) {
+  let pts = points.filter((p, i) => i === 0 || Math.hypot(p.x - points[i - 1].x, p.y - points[i - 1].y) > 0.01);
+  if (pts.length > 3 && Math.hypot(pts[pts.length - 1].x - pts[0].x, pts[pts.length - 1].y - pts[0].y) <= 0.01) pts = pts.slice(0, -1);
+  if (pts.length < 3) return layer;
+  const ring = pts.map((p) => [r2(p.x), r2(p.y)]);
+  ring.push(ring[0]);
+  const unit = String(attrs.unit || "").trim() || "Unit";
+  const feature = { parts: [ring], attributes: { unit, area_m2: Math.round(ringArea(ring)), note: attrs.note || "" } };
+  const z = median(pts.map((p) => p.z));
+  const elevation = layer.features.length === 0 && Number.isFinite(z) ? r2(z) : layer.elevation;
+  return withUnitBbox({ ...layer, elevation, features: [...layer.features, feature] });
+}
+export function removeUnitPolygon(layer, index) {
+  if (index < 0 || index >= layer.features.length) return layer;
+  return withUnitBbox({ ...layer, features: layer.features.filter((_, i) => i !== index) });
 }
 
 // Two clicks at the same spot within `ms` (a double-click) end a line: the second click is not a vertex
