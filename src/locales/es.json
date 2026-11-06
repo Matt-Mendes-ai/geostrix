@@ -8550,5 +8550,10 @@
   "{n} labels left out: no room": "{n} etiquetas omitidas: sin espacio",
   "The interval layers and assay elements shown in the 3D View are offered here: turn one on there (Recovery %, or an element under Assays) to colour the plan by it": "Aquí se ofrecen las capas de intervalos y los elementos de ensaye que se muestran en la Vista 3D: active uno allí (Recuperación %, o un elemento en Ensayes) para colorear el plano con él",
   "Undo history is cleared, and moving back re-samples the terrain and raster images (a slightly larger box, slightly coarser cells).": "Se borra el historial de deshacer, y volver atrás remuestrea el terreno y las imágenes ráster (un recuadro algo mayor, celdas algo más gruesas).",
-  "NAD83 and WGS 84 are treated as the same datum in this move (no shift applied); today they differ by about 1–2 m in North America.": "NAD83 y WGS 84 se tratan como el mismo datum en este traslado (sin desplazamiento); hoy difieren en unos 1–2 m en América del Norte."
+  "NAD83 and WGS 84 are treated as the same datum in this move (no shift applied); today they differ by about 1–2 m in North America.": "NAD83 y WGS 84 se tratan como el mismo datum en este traslado (sin desplazamiento); hoy difieren en unos 1–2 m en América del Norte.",
+  "Common services": "Servicios comunes",
+  "Choose one, or type a URL below…": "Elija uno, o escriba una URL abajo…",
+  "WMS only": "solo WMS",
+  "Licence: {v}. Credit the publisher in figures you share.": "Licencia: {v}. Cite al editor en las figuras que comparta.",
+  "https://example.gov/geoserver/wfs": "https://example.gov/geoserver/wfs"
 }

@@ -8,6 +8,7 @@ import { buildLayer, autoColorFor } from "../lib/mapLayerBuild.js";
 import { autoCategories } from "../lib/mapLayers.js";
 import BasemapView from "./BasemapView.jsx";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { COMMON_WEB_SERVICES, presetService } from "../lib/webServices.js"; // TASKS.csv #1468
 
 // TASKS.csv #127 — "many exploration geologists pull government geological/geophysical WMS layers
 // (provincial bedrock geology, airborne mag WMS, claim-tenure WFS) directly in QGIS. GeoStrix has no
@@ -24,6 +25,8 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
   useFocusTrap(); // TASKS.csv #238
   const [service, setService] = useState("wms"); // "wms" | "wfs"
   const [url, setUrl] = useState("");
+  const [presetId, setPresetId] = useState(""); // #1468 — a common service picked from the list
+  const preset = COMMON_WEB_SERVICES.find((p) => p.id === presetId && (p.wms === url || p.wfs === url)) || null;
   const [loadingCaps, setLoadingCaps] = useState(false);
   const [capsError, setCapsError] = useState(null);
   const [layers, setLayers] = useState(null); // [{name,title,...}] once fetched
@@ -41,15 +44,18 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
 
   const selectedLayer = layers?.find((l) => l.name === selectedName) || null;
 
-  const fetchCapabilities = async () => {
-    if (!url.trim()) return;
+  // svc / u / want: a common service picked from the list (#1468), fetched at once with its layer chosen
+  const fetchCapabilities = async (svc = service, u = url, want = null) => {
+    if (!u.trim()) return;
     setLoadingCaps(true); setCapsError(null); setLayers(null); setSelectedName(""); setResult(null);
     try {
-      const found = service === "wms" ? await fetchWmsLayers(url.trim()) : await fetchWfsFeatureTypes(url.trim());
+      const found = svc === "wms" ? await fetchWmsLayers(u.trim()) : await fetchWfsFeatureTypes(u.trim());
       if (!found.length) { setCapsError(tr("No layers found in this service's capabilities — double check the URL.")); return; }
       setLayers(found);
-      if (service === "wms") {
-        const first = found[0];
+      const pick = want && found.find((l) => l.name === want);
+      if (pick) setSelectedName(pick.name);
+      if (svc === "wms") {
+        const first = pick || found[0];
         setBboxLonLat(defaultWmsArea(first.bboxLonLat, defaultBboxLonLat)); // #543 — the project area first
       }
     } catch (err) {
@@ -126,19 +132,28 @@ export default function AddWebLayerModal({ onClose, addRaster, addBoundary, addM
         </div>
         <div style={{ padding: 16, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75, lineHeight: 1.4 }}>{tr("Point this at a government/company OGC service URL (e.g. a provincial bedrock geology WMS, an airborne mag WMS, or a claim-tenure WFS) — the same kind of service you'd add in QGIS. WMS layers import as a raster drape for a chosen area; WFS layers import as a Map layer that keeps their attributes, or as boundary lines if you choose.")}</div>
+          {/* TASKS.csv #1468 — common open services: picking one fills the URL and lists its layer */}
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "var(--font-size-sm)" }}>{tr("Common services")}
+            <select value={preset ? presetId : ""} aria-label={tr("Common services")} style={{ ...sel, flex: 1 }}
+              onChange={(e) => { const p = COMMON_WEB_SERVICES.find((x) => x.id === e.target.value); if (!p) { setPresetId(""); return; } const s = presetService(p, service); setPresetId(p.id); setService(s); setUrl(p[s]); fetchCapabilities(s, p[s], p.layer); }}>
+              <option value="">{tr("Choose one, or type a URL below…")}</option>
+              {COMMON_WEB_SERVICES.map((p) => <option key={p.id} value={p.id}>{p.label}{p.wfs ? "" : ` (${tr("WMS only")})`}</option>)}
+            </select>
+          </label>
+          {preset && <div style={{ fontSize: "var(--font-size-sm)", opacity: 0.75 }}>{tr("Licence: {v}. Credit the publisher in figures you share.", { v: preset.licence })}</div>}
           <div style={{ display: "flex", gap: 8 }}>
-            <select value={service} onChange={(e) => { setService(e.target.value); setLayers(null); setSelectedName(""); setResult(null); setCapsError(null); }} style={{ ...sel, width: 100 }}>
+            <select value={service} onChange={(e) => { const s = e.target.value; setService(s); setLayers(null); setSelectedName(""); setResult(null); setCapsError(null); if (preset) { if (preset[s]) setUrl(preset[s]); else { setPresetId(""); setUrl(""); } } }} style={{ ...sel, width: 100 }}>
               <option value="wms">{tr("WMS")}</option>
               <option value="wfs">{tr("WFS")}</option>
             </select>
             <input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder={tr("https://example.gov/geoserver/wms")}
+              placeholder={service === "wfs" ? tr("https://example.gov/geoserver/wfs") : tr("https://example.gov/geoserver/wms")}
               style={{ ...inp, flex: 1 }}
               onKeyDown={(e) => { if (e.key === "Enter") fetchCapabilities(); }}
             />
-            <button onClick={fetchCapabilities} disabled={!url.trim() || loadingCaps} style={{ ...btn(true), width: "auto", padding: "0 12px", display: "flex", alignItems: "center", gap: 6, opacity: url.trim() && !loadingCaps ? 1 : 0.5 }}>
+            <button onClick={() => fetchCapabilities()} disabled={!url.trim() || loadingCaps} style={{ ...btn(true), width: "auto", padding: "0 12px", display: "flex", alignItems: "center", gap: 6, opacity: url.trim() && !loadingCaps ? 1 : 0.5 }}>
               {loadingCaps ? <Loader2 size={14} className="spin" /> : null}{" "}{tr("Fetch layers")}</button>
           </div>
           {capsError && <div style={{ fontSize: "var(--font-size-base)", color: "var(--color-danger-solid)" }}>{capsError}</div>}

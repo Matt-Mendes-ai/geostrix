@@ -8550,5 +8550,10 @@
   "{n} labels left out: no room": "حُذفت {n} تسميات: لا مكان",
   "The interval layers and assay elements shown in the 3D View are offered here: turn one on there (Recovery %, or an element under Assays) to colour the plan by it": "تُعرض هنا طبقات الفترات وعناصر التحليل الظاهرة في العرض ثلاثي الأبعاد: فعّل أحدها هناك (نسبة الاستخلاص %، أو عنصرًا ضمن التحاليل) لتلوين المسقط به",
   "Undo history is cleared, and moving back re-samples the terrain and raster images (a slightly larger box, slightly coarser cells).": "يُمسح سجل التراجع، والعودة تعيد أخذ عينات التضاريس والصور النقطية (إطار أكبر قليلًا وخلايا أخشن قليلًا).",
-  "NAD83 and WGS 84 are treated as the same datum in this move (no shift applied); today they differ by about 1–2 m in North America.": "يُعامَل NAD83 وWGS 84 كمرجع واحد في هذا النقل (دون إزاحة)؛ ويختلفان اليوم بنحو 1–2 م في أمريكا الشمالية."
+  "NAD83 and WGS 84 are treated as the same datum in this move (no shift applied); today they differ by about 1–2 m in North America.": "يُعامَل NAD83 وWGS 84 كمرجع واحد في هذا النقل (دون إزاحة)؛ ويختلفان اليوم بنحو 1–2 م في أمريكا الشمالية.",
+  "Common services": "خدمات شائعة",
+  "Choose one, or type a URL below…": "اختر واحدة، أو اكتب عنوان URL أدناه…",
+  "WMS only": "WMS فقط",
+  "Licence: {v}. Credit the publisher in figures you share.": "الترخيص: {v}. انسب البيانات إلى الناشر في الأشكال التي تشاركها.",
+  "https://example.gov/geoserver/wfs": "https://example.gov/geoserver/wfs"
 }

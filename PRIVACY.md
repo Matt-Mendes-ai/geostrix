@@ -45,7 +45,7 @@ GeoStrix only makes network requests as a direct result of features you use:
 | On startup (can be turned off in the Help menu), and via *Help → Check for Updates* | `github.com`, then `release-assets.githubusercontent.com` (GitHub's download server, which github.com redirects to) | Check whether a newer release exists, and download it if you choose to update |
 | You click *Install predictive modelling…* (3D Modelling tab → geoML models) | `github.com`, then `release-assets.githubusercontent.com` | Download the optional predictive-modelling add-on (its checksum is verified before it is installed) |
 | You connect to a database | The host **you** enter | Query your own PostgreSQL or MySQL / MariaDB database |
-| You add a WMS / WMTS / WFS layer | The server **you** enter | Fetch the layer you requested |
+| You add a WMS / WMTS / WFS layer | The server **you** enter, or the one you pick under *Common services* (`openmaps.gov.bc.ca`, `services.ga.gov.au`) | Fetch the layer you requested |
 
 These requests necessarily reveal your IP address to the operator of the service being contacted
 (OpenStreetMap, Amazon S3, GitHub, or a server you chose), in the same way that visiting any website
