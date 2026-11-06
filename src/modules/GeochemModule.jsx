@@ -23,7 +23,7 @@ import { qcRecordFromFileRow, emptySurfaceQc, looksLikeQcTypeColumn, mergeQcReco
 import { mapInChunks } from "../lib/mapInChunks.js"; // TASKS.csv #583
 import { detectLongAssay, pivotLongAssays, longAssayNote } from "../lib/longAssays.js"; // TASKS.csv #623
 import { isSurfaceSampleTable, SURFACE_XY_ALIASES } from "../lib/viewer/importHelpers.js"; // TASKS.csv #975
-import { assayFileSummary, removeAssayFile, removeAssayElement } from "../lib/geochem.js"; // TASKS.csv #624
+import { assayFileSummary, removeAssayFile, removeAssayElement, carbonateShare, VOLCANIC_DIAGRAMS } from "../lib/geochem.js"; // TASKS.csv #624; carbonateShare: #1392
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #624
 import GeochemPlot from "../components/GeochemPlot.jsx";
 import { lithologyBySample, lithologyCounts, NOT_LOGGED } from "../lib/sampleLithology.js"; // TASKS.csv #619
@@ -205,6 +205,9 @@ export default function GeochemModule() {
   return fn; }, [colorMode, colorEl, holeColors, lithColors, sampleLith, colorRange, elementUnits]);
 
   const diagram = ALL_DIAGRAMS[diagramId];
+  // TASKS.csv #1392 — a volcanic-protolith diagram on mostly calcareous samples says so (see carbonateShare)
+  const carbShare = useMemo(() => carbonateShare(assays, elementUnits), [assays, elementUnits]);
+  const carbonateNote = VOLCANIC_DIAGRAMS.includes(diagramId) && carbShare != null && carbShare > 1 / 3 ? tr("{pct} % of the samples hold 10 % Ca or more (carbonate rock): this diagram assumes a volcanic protolith, so read it with care here.", { pct: Math.round(carbShare * 100) }) : "";
   // #1519 — how many samples the diagram can place: computed once per diagram / sample set, not on every render (it projected
   // all 83,670 samples again in the caption and the export furniture)
   const plottedCount = useMemo(() => (diagram.spider ? plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length : plotted.filter((a) => diagram.project(a, elementUnits)).length), [diagram, plotted, elementUnits]);
@@ -824,7 +827,7 @@ export default function GeochemModule() {
       : [];
     const keyTitle = colorMode === "hole" ? "Hole" : colorMode === "lithology" ? "Lithology" : colorMode === "element" ? `${colorEl} (${colorRange?.log ? "log" : "linear"} scale)` : "";
     const pdx = partialDigestionFor(assayElements, diagram.requires); // #1518 — the warning travels with the exported figure
-    return geochemFurniture({ title: diagram.label, caption: pdx.length ? `${diagram.caption} ${tr("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pdx.map(([s, m]) => `${s} ${m}`).join(", ") })}` : diagram.caption, plotted: n, total: assays.length, spider: !!diagram.spider, hidden: lithFilter ? assays.length - plotted.length : null, keyTitle, keyItems, date: new Date().toISOString().slice(0, 10) }); // #1017 — in lib, tested
+    return geochemFurniture({ title: diagram.label, caption: (carbonateNote ? `${carbonateNote} ` : "") + (pdx.length ? `${diagram.caption} ${tr("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pdx.map(([s, m]) => `${s} ${m}`).join(", ") })}` : diagram.caption), plotted: n, total: assays.length, spider: !!diagram.spider, hidden: lithFilter ? assays.length - plotted.length : null, keyTitle, keyItems, date: new Date().toISOString().slice(0, 10) }); // #1017 — in lib, tested
   };
   const exportPlotSVG = () => {
     const svg = svgRef.current;
@@ -1066,6 +1069,7 @@ export default function GeochemModule() {
         </div>
 
         <div style={{ fontSize: 11, color: "#65717e", marginBottom: 10 }}>{tr(diagram.caption)}</div>
+        {carbonateNote && <div style={{ fontSize: 11, color: "var(--color-warn-text)", marginBottom: 10, lineHeight: 1.4 }}>{carbonateNote}</div>} {/* #1392 */}
         {(() => { const pd = partialDigestionFor(assayElements, diagram.requires); return pd.length ? <div style={{ fontSize: 11, color: "var(--color-warn-text)", marginBottom: 10, lineHeight: 1.4 }}>{tr("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pd.map(([s, m]) => `${s} ${m}`).join(", ") })}</div> : null; })()}{/* #1518 */}
 
         {assays.length > 0 && missingForDiagram.length > 0 && (

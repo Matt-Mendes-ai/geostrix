@@ -1073,3 +1073,14 @@ export function histogramWantsLog(stats) {
   if (!(pos > 0) || !(max > pos)) return false;
   return max / pos > 100 || (Number.isFinite(stats.cv) && stats.cv > 150);
 }
+
+// TASKS.csv #1392 (review #1352, Silvertip) — the Alteration Box Plot and the volcanic classifiers assume a volcanic protolith; on a
+// carbonate-hosted deposit (Silvertip's limestone and dolostone: CaO in the AI denominator) most samples pile at CCPI ~100 with no word.
+// The share of the samples with a Ca value that hold Ca >= 10 % (about 14 % CaO; a basalt is ~7 % Ca); null without Ca. Geochem
+// shows the caveat above a third (Silvertip: 47 % of the assays).
+export const VOLCANIC_DIAGRAMS = ["boxplot", "tas", "winchester", "afm", "jensen", "thnbyb", "tizry", "thhfta"];
+export function carbonateShare(samples, elementUnits) {
+  let n = 0, hi = 0;
+  for (const s of samples || []) { const v = s?.values?.Ca == null ? null : valueIn(s, "Ca", "%", elementUnits || {}); if (v == null || !Number.isFinite(v)) continue; n++; if (v >= 10) hi++; }
+  return n ? hi / n : null;
+}

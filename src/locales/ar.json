@@ -8492,5 +8492,6 @@
   "{k} of the {n} classes: many values are equal, so some quantiles fell on the same value and were merged.": "{k} من {n} فئات: كثير من القيم متساوية، فوقعت بعض المئينات على القيمة نفسها ودُمجت.",
   "{k} of the {n} classes: some class limits fell on the same value and were merged.": "{k} من {n} فئات: وقعت بعض حدود الفئات على القيمة نفسها ودُمجت.",
   "no values": "بلا قيم",
-  "This column is blank in every row of the file: left unticked so it does not appear in every element list.": "هذا العمود فارغ في كل صفوف الملف: تُرك دون تحديد كي لا يظهر في كل قائمة عناصر."
+  "This column is blank in every row of the file: left unticked so it does not appear in every element list.": "هذا العمود فارغ في كل صفوف الملف: تُرك دون تحديد كي لا يظهر في كل قائمة عناصر.",
+  "{pct} % of the samples hold 10 % Ca or more (carbonate rock): this diagram assumes a volcanic protolith, so read it with care here.": "{pct} % من العينات تحتوي على 10 % كالسيوم أو أكثر (صخر كربوناتي): يفترض هذا المخطط أصلًا بركانيًا، فاقرأه بحذر هنا."
 }
