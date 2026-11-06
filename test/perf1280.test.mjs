@@ -19,7 +19,7 @@ test("#1279 the capture encodes off the thread, and its result or failure still 
   const s = read("src/modules/ViewerModule.jsx");
   assert.match(s, /encoded: canvasPngDataUrl\(c\)/);
   assert.match(read("src/lib/canvasEncode.js"), /canvas\.toBlob\(/);
-  assert.doesNotMatch(s.slice(s.indexOf("function captureHiRes"), s.indexOf("function fitScreenLabels")), /toDataURL/);
+  assert.doesNotMatch(s.slice(s.indexOf("function captureHiRes"), s.indexOf("\n}\n", s.indexOf("function captureHiRes"))), /toDataURL/); // the function itself (fitScreenLabels moved to lib/viewer/textSprite.js, #1443)
   assert.match(s, /encoded\.then\(\(dataUrl\) => resolveViewportRender/);
   assert.match(s, /\(err\) => resolveViewportRender\(\{ requestId: req\.requestId, error: err\.message \}\)/);
 });

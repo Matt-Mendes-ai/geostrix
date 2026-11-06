@@ -396,6 +396,26 @@ export function syncSurfaceStructures(group, cache, surfaceStructures, { origin,
   });
 }
 
+// TASKS.csv #1443 — the dip label beside each disc of the sets that ask for one (set.labels === "dip"): the same anchor and
+// terrain snapping as the disc, so the number sits where the symbol is
+export function outcropLabelItems(surfaceStructures, { origin, terrain }) {
+  const { x: ox, y: oy, z: oz } = origin;
+  const items = [];
+  for (const set of surfaceStructures || []) {
+    if (set.labels !== "dip" || set.visible === false) continue;
+    const size = set.size ?? 25;
+    for (const r of set.rows || []) {
+      if (!Number.isFinite(r.dip) || !Number.isFinite(r.x) || !Number.isFinite(r.y)) continue;
+      let z = r.z;
+      if (terrain && (set.snapToTerrain !== false || z == null)) z = sampleTerrainElevation(terrain, r.x, r.y);
+      if (z == null) z = oz;
+      const lift = size * 0.5 * Math.sin((r.dip * Math.PI) / 180) + 0.5;
+      items.push({ x: r.x - ox, y: z - oz + lift + size * 0.35, z: -(r.y - oy), text: String(Math.round(r.dip)), tip: `${set.name || ""}\n${r.cls || "other"}: ${Math.round(r.dip)}° → ${Math.round(r.dipDir)}°` });
+    }
+  }
+  return items;
+}
+
 // ---------- rebuild OMF objects (TASKS.csv — Open Mining Format import) ----------
 // Own effect/group, same reasoning as the boundary/raster effects above. Unlike boundaries (always a
 // handful of vertices), an OMF point set/surface can be genuinely large (a real lithology wireframe

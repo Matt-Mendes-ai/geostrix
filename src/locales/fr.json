@@ -8312,5 +8312,8 @@
   "It sits {m} m above the raster(s) imported before, so they do not overlap.": "Il se place {m} m au-dessus du ou des rasters importés avant, pour qu'ils ne se chevauchent pas.",
   "Placed flat at {z} m: {depth} m below the ground level ({ground} m), as the file name's depth says; change Elev. on its card.": "Placé à plat à {z} m : {depth} m sous le niveau du sol ({ground} m), comme l'indique la profondeur du nom du fichier ; modifiez Élév. sur sa carte.",
   "Placed flat at {z} m, {m} m above the highest collar under it, so no hole top is hidden; change Elev. on its card.": "Placé à plat à {z} m, {m} m au-dessus du collet le plus haut dessous, pour qu'aucune tête de sondage ne soit cachée ; modifiez Élév. sur sa carte.",
-  "{msg} {v} Set its opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.": "{msg} {v} Réglez son opacité (ou un SCR source, s'il a atterri au mauvais endroit) dans l'onglet Cartes."
+  "{msg} {v} Set its opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.": "{msg} {v} Réglez son opacité (ou un SCR source, s'il a atterri au mauvais endroit) dans l'onglet Cartes.",
+  "No label": "Sans étiquette",
+  "Dip labels": "Étiquettes de pendage",
+  "The dip, in degrees, beside each symbol in the 3D view; labels that would overprint are hidden until you zoom in.": "Le pendage, en degrés, à côté de chaque symbole dans la vue 3D ; les étiquettes qui se chevaucheraient sont masquées jusqu'au zoom."
 }

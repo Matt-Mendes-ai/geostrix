@@ -76,3 +76,28 @@ export function declutterHoleLabels(group, camera, width, height, labelPx = 16, 
   const hidden = (sp) => sp.userData?.holeHidden === true;
   group.children.forEach((sp, i) => { sp.visible = !hidden(sp) && show[i] !== false; });
 }
+
+// TASKS.csv #1443 (review #1352, Silvertip) — labels that carry their own text: the dip beside each outcrop symbol and a sample's
+// id or one element's value beside each surface sample. Same sprites, same per-frame declutter as the hole labels.
+// items: [{ x, y, z (scene), text, tip? }]; lift: metres above the anchor.
+export function syncTextLabels(group, items, makeSprite, lift = 6) {
+  if (!group) return 0;
+  while (group.children.length) { const c = group.children.pop(); c.material?.map?.dispose?.(); c.material?.dispose?.(); c.geometry?.dispose?.(); }
+  for (const it of items || []) {
+    if (it.text == null || it.text === "") continue;
+    const sprite = makeSprite(String(it.text));
+    sprite.position.set(it.x, it.y + lift, it.z);
+    sprite.userData = { tip: it.tip || String(it.text) };
+    group.add(sprite);
+  }
+  return group.children.length;
+}
+const shortNum = (v) => (Math.abs(v) >= 100 ? String(Math.round(v)) : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 1 ? v.toFixed(2) : String(+v.toPrecision(2)));
+// mode: "none" | "id" | "el:<symbol>" -> the label text, or null when the sample has nothing to say
+export function sampleLabelText(row, mode) {
+  if (!row || !mode || mode === "none") return null;
+  if (mode === "id") { const id = row.sample_id; return id != null && String(id).trim() !== "" ? String(id) : null; }
+  if (mode.startsWith("el:")) { const v = Number(row.values?.[mode.slice(3)]); return Number.isFinite(v) ? shortNum(v) : null; }
+  return null;
+}
+export const dipLabelText = (r) => (r && Number.isFinite(Number(r.dip)) ? String(Math.round(Number(r.dip))) : null);

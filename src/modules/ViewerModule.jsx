@@ -158,10 +158,11 @@ import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellShown, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { assaySizeFor, assayPassesCutoff } from "../lib/viewer/assaySize.js"; // #1533 — moved out
 import { objectVisibilityBundle, applyObjectVisibility } from "../lib/viewer/themeObjects.js"; // TASKS.csv #1535
-import { syncHoleLabels, declutterHoleLabels, withEveryLabel } from "../lib/viewer/holeLabels.js"; // withEveryLabel: TASKS.csv #1770
+import { LABEL_PX, makeTextSprite, fitScreenLabels } from "../lib/viewer/textSprite.js"; // TASKS.csv #1443 — moved out of this file
+import { syncHoleLabels, declutterHoleLabels, withEveryLabel, syncTextLabels, sampleLabelText } from "../lib/viewer/holeLabels.js"; // withEveryLabel: TASKS.csv #1770; syncTextLabels / sampleLabelText: #1443
 import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // TASKS.csv #1500
 import { findOnTraceWorld, findOnTrace, traceLookup, pointInDomain, SOLID_SURFACE_TYPES, surfaceMadeAt } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #445 step 2; SOLID_SURFACE_TYPES: #804
-import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693
+import { syncRasterDrapes, syncBoundaries, syncMapLayers, syncSectionImages, syncSurfaceStructures, syncOmfObjects, syncTerrain, outcropLabelItems } from "../lib/viewer/sceneBuilders.js"; // TASKS.csv #693; outcropLabelItems: #1443
 import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.csv #795
 import { useModelling } from "./viewer/useModelling.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
@@ -279,36 +280,7 @@ function sortVoxelInstancesBackToFront(mesh, cells, camPos) {
 // scale from the camera and the viewport height so it is LABEL_PX tall on screen, for the live
 // perspective view and for orthographic captures alike. The text is also redrawn once the app font has
 // loaded: measureText used to run before 'Exo 2' was ready and bake in a fallback font and width.
-const LABEL_PX = 16;
-const LABEL_FONT = "600 32px 'Exo 2', system-ui, sans-serif";
-function makeTextSprite(text, { color = "#1a2028", bg = "rgba(255,255,255,0.85)" } = {}) {
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  const fontSize = 32, padX = 10, padY = 6;
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.minFilter = THREE.LinearFilter;
-  texture.generateMipmaps = false;
-  const material = new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true, sizeAttenuation: false });
-  const draw = () => {
-    ctx.font = LABEL_FONT;
-    const w = Math.ceil(ctx.measureText(text).width) + padX * 2, h = fontSize + padY * 2;
-    canvas.width = w; canvas.height = h;
-    ctx.font = LABEL_FONT;
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = color;
-    ctx.textBaseline = "middle";
-    ctx.fillText(text, padX, h / 2);
-    material.userData.labelAspect = w / h;
-    texture.needsUpdate = true;
-  };
-  draw();
-  if (document.fonts && !document.fonts.check(LABEL_FONT)) document.fonts.load(LABEL_FONT).then(() => { if (material.map) draw(); }).catch(() => {});
-  const sprite = new THREE.Sprite(material);
-  sprite.center.set(0.5, -0.35); // #379 — sit just above the collar on screen at any zoom, not on top of it
-  sprite.renderOrder = 999; // draw after (on top of) opaque geometry — depthTest:false already ignores occlusion, this just keeps draw order consistent across sprites
-  return sprite;
-}
+// LABEL_PX, makeTextSprite and fitScreenLabels: lib/viewer/textSprite.js (TASKS.csv #1443)
 // Scale every fixed-size label under `group` so it is LABEL_PX tall on a viewport `viewportH` px high.
 // Perspective (sizeAttenuation off): screen fraction = scale * P[5] / 2. Orthographic: three.js keeps
 // the scale in world units, so it is px * world-height-per-pixel.
@@ -339,16 +311,6 @@ function captureHiRes(renderer, cssW, cssH, draw, outW = cssW, outH = cssH, long
     return { encoded: canvasPngDataUrl(c), width: c.width, height: c.height }; // #1279
   } finally {
     if (resize) { renderer.setPixelRatio(oldPr); renderer.setSize(cssW, cssH, false); }
-  }
-}
-function fitScreenLabels(group, camera, viewportH) {
-  if (!group || !viewportH) return;
-  const s = camera.isPerspectiveCamera
-    ? (2 * LABEL_PX) / (viewportH * camera.projectionMatrix.elements[5])
-    : (LABEL_PX * (camera.top - camera.bottom)) / (camera.zoom * viewportH);
-  for (const sp of group.children) {
-    const a = sp.material?.userData?.labelAspect;
-    if (a) sp.scale.set(s * a, s, 1);
   }
 }
 
@@ -2258,6 +2220,8 @@ export default function ViewerModule({ mode = "view", visible = true }) {
     // get one: driven by its own toggle (holeLabelMode), built/cleared by the generic Object.values(groups)
     // loops the rebuild effect already uses, no special-casing needed there.
     const holeLabelGroup = new THREE.Group(); holeLabelGroup.name = "hole_labels"; root.add(holeLabelGroup); groups.hole_labels = holeLabelGroup;
+    // TASKS.csv #1443 — the dip labels of the outcrop sets and the id / value labels of the surface samples, decluttered like the hole labels
+    for (const name of ["outcrop_labels", "sample_labels"]) { const lg = new THREE.Group(); lg.name = name; root.add(lg); groups[name] = lg; }
     layerGroupsRef.current = groups;
     const implicitGroup = new THREE.Group(); implicitGroup.name = "implicit"; root.add(implicitGroup);
     implicitGroupRef.current = implicitGroup;
@@ -2685,6 +2649,7 @@ export default function ViewerModule({ mode = "view", visible = true }) {
       if (now - lastFrameAtRef.current >= interval) {
         resortTransparentVoxels(now);
         { const hl = layerGroupsRef.current?.hole_labels; if (hl?.visible && hl.children.length) { fitScreenLabels(hl, camera, mount.clientHeight); declutterHoleLabels(hl, camera, mount.clientWidth, mount.clientHeight); } }
+        for (const name of ["outcrop_labels", "sample_labels"]) { const lg = layerGroupsRef.current?.[name]; if (lg?.visible && lg.children.length) { fitScreenLabels(lg, camera, mount.clientHeight); declutterHoleLabels(lg, camera, mount.clientWidth, mount.clientHeight); } } // #1443
         { // TASKS.csv #1597 — surface-sample symbols are sized for the zoom they were built at: once the camera has settled (400 ms) a
           // factor of two away from it, they are rebuilt at the new size (never per frame, never mid-orbit)
           const sg = layerGroupsRef.current?.surface_samples;
@@ -4673,6 +4638,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     if (!g) return;
     surfaceBuiltRef.current = surfaceInputs;
     clearGroup(g);
+    { const lg0 = layerGroupsRef.current.sample_labels; if (lg0) syncTextLabels(lg0, [], makeTextSprite); } // #1443 — the labels go with the symbols
     // #228 — soil / rock-chip / stream-sediment samples, coloured by medium (one gradient would blend the media)
     if (!layerVisible.surface_samples || !placedSurfaceSamples.length) return;
     const { x: ox, y: oy, z: oz } = originRef.current;
@@ -4704,6 +4670,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       } catch (err) { errors.push(err.message); }
     });
     buildLayerBatches(g);
+    // TASKS.csv #1443 (review #1352, Silvertip) — a label beside each sample: its id or one element's value (the Style dialog's
+    // Label), at most 2,500 sprites; the per-frame declutter hides the ones that would overprint
+    { const lg = layerGroupsRef.current.sample_labels; if (lg) { const mode = layerStyles.surface_samples?.label || "none"; const items = []; if (mode !== "none") for (const row of placedSurfaceSamples) { if (items.length >= 2500) break; const text = sampleLabelText(row, mode); if (text != null) items.push({ x: row.x - ox, y: row.z - oz, z: -(row.y - oy), text, tip: `${row.sample_id ?? ""}\n${text}` }); } syncTextLabels(lg, items, makeTextSprite, Math.max(minR, 1.8) * 2); } }
     if (errors.length) setNotices((pv) => [...pv, errorNotice(tr("{errors} surface sample(s) failed to render: {v}", { errors: errors.length, v: errors.slice(0, 3).join(" · ") }))]);
   };
   const surfaceSymbolMppRef = useRef(NaN); // TASKS.csv #1597 — the metres-per-pixel the surface symbols were sized for
@@ -5605,7 +5574,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // ---------- rebuild surface structure symbols (TASKS.csv #317) ----------
   // moved to lib/viewer/sceneBuilders.js syncSurfaceStructures (TASKS.csv #693); its comments explain the build
-  useEffect(() => { if (surfStructGroupRef.current) syncSurfaceStructures(surfStructGroupRef.current, surfStructObjsRef.current, surfaceStructures, { origin: originRef.current, terrain }); }, [surfaceStructures, collars, terrain, rebuildSeq]);
+  useEffect(() => { if (surfStructGroupRef.current) { syncSurfaceStructures(surfStructGroupRef.current, surfStructObjsRef.current, surfaceStructures, { origin: originRef.current, terrain }); const lg = layerGroupsRef.current?.outcrop_labels; if (lg) syncTextLabels(lg, outcropLabelItems(surfaceStructures, { origin: originRef.current, terrain }), makeTextSprite, 0); /* #1443 */ } }, [surfaceStructures, collars, terrain, rebuildSeq]);
 
   // ---------- rebuild OMF objects (TASKS.csv — Open Mining Format import) ----------
   // moved to lib/viewer/sceneBuilders.js syncOmfObjects (TASKS.csv #693); its comments explain the build
@@ -6206,7 +6175,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const meta = LAYER_META[key], kind = styleKindFor(key);
     if (!kind) return;
     const sizeNote = kind === "interval" ? tr("Default tube radius {radius} m.", { radius: meta.radius }) : kind === "plane" ? tr("Default disc radius 6 m.") : meta?.numeric ? tr("By default the marker grows with the value; this scales all of them.") : null;
-    setStyleTarget({ key, kind, label: label || meta?.label || key, defaults: { opacity: kind === "interval" ? meta.opacity : kind === "plane" ? 0.55 : 1 }, sizeNote, colourKey: meta && !meta.numeric && key !== "geophys_pts" ? key : null });
+    setStyleTarget({ key, kind, label: label || meta?.label || key, defaults: { opacity: kind === "interval" ? meta.opacity : kind === "plane" ? 0.55 : 1 }, sizeNote, colourKey: meta && !meta.numeric && key !== "geophys_pts" ? key : null,
+      labelChoices: key === "surface_samples" ? [["none", tr("No label")], ["id", tr("Sample ID")], ...(surfaceElements || []).map((e) => [`el:${e.symbol}`, e.symbol])] : null }); // labelChoices: TASKS.csv #1443
   };
   const openCustomStyle = (l) => {
     const intervals = (l.rows || []).filter((r) => r.to != null && !isNaN(r.to)).length;

@@ -8312,5 +8312,8 @@
   "It sits {m} m above the raster(s) imported before, so they do not overlap.": "يقع على ارتفاع {m} م فوق الصور النقطية المستوردة قبله حتى لا تتداخل.",
   "Placed flat at {z} m: {depth} m below the ground level ({ground} m), as the file name's depth says; change Elev. on its card.": "وُضع مسطحًا عند {z} م: {depth} م تحت مستوى الأرض ({ground} م) كما يقول العمق في اسم الملف؛ غيّر الارتفاع في بطاقته.",
   "Placed flat at {z} m, {m} m above the highest collar under it, so no hole top is hidden; change Elev. on its card.": "وُضع مسطحًا عند {z} م، أعلى بـ {m} م من أعلى فوهة تحته حتى لا يُحجب رأس أي ثقب؛ غيّر الارتفاع في بطاقته.",
-  "{msg} {v} Set its opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.": "{msg} {v} اضبط شفافيته (أو نظام إحداثيات المصدر إن حطّ في المكان الخطأ) في تبويب الخرائط."
+  "{msg} {v} Set its opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.": "{msg} {v} اضبط شفافيته (أو نظام إحداثيات المصدر إن حطّ في المكان الخطأ) في تبويب الخرائط.",
+  "No label": "بلا تسمية",
+  "Dip labels": "تسميات الميل",
+  "The dip, in degrees, beside each symbol in the 3D view; labels that would overprint are hidden until you zoom in.": "الميل بالدرجات بجانب كل رمز في العرض ثلاثي الأبعاد؛ تُخفى التسميات المتداخلة حتى تقرّب."
 }

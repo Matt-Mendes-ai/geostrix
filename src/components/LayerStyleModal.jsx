@@ -45,6 +45,14 @@ export default function LayerStyleModal({ target, style, onChange, onReset, onCl
             {shapes.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
         </div>
+        {target.labelChoices && ( // TASKS.csv #1443 — a label beside each surface sample
+          <div style={row}>
+            <span style={lbl}>{tr("Label")}</span>
+            <select value={style?.label || "none"} onChange={(e) => onChange({ label: e.target.value })} aria-label={tr("Label")} style={{ flex: 1, padding: "4px 6px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg)", color: "var(--color-text)" }}>
+              {target.labelChoices.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+            </select>
+          </div>
+        )}
         <div style={row}>
           <span style={lbl}>{tr("Size")}</span>
           <input type="range" min={SIZE_MIN} max={SIZE_MAX} step={0.05} value={size} onChange={slide("size")} aria-label={tr("Size")} style={{ flex: 1 }} />

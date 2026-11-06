@@ -8312,5 +8312,8 @@
   "It sits {m} m above the raster(s) imported before, so they do not overlap.": "Fica {m} m acima do(s) raster(s) importado(s) antes, para não se sobreporem.",
   "Placed flat at {z} m: {depth} m below the ground level ({ground} m), as the file name's depth says; change Elev. on its card.": "Colocado plano a {z} m: {depth} m abaixo do nível do terreno ({ground} m), como diz a profundidade no nome do ficheiro; altere Elev. no seu cartão.",
   "Placed flat at {z} m, {m} m above the highest collar under it, so no hole top is hidden; change Elev. on its card.": "Colocado plano a {z} m, {m} m acima da boca de furo mais alta sob ele, para que o topo de nenhum furo fique escondido; altere Elev. no seu cartão.",
-  "{msg} {v} Set its opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.": "{msg} {v} Defina a sua opacidade (ou um CRS de origem, se ficou no sítio errado) no separador Mapas."
+  "{msg} {v} Set its opacity (or a Source CRS, if it landed in the wrong place) on the Maps tab.": "{msg} {v} Defina a sua opacidade (ou um CRS de origem, se ficou no sítio errado) no separador Mapas.",
+  "No label": "Sem rótulo",
+  "Dip labels": "Rótulos de mergulho",
+  "The dip, in degrees, beside each symbol in the 3D view; labels that would overprint are hidden until you zoom in.": "O mergulho, em graus, junto a cada símbolo na vista 3D; os rótulos que se sobreporiam ficam escondidos até aproximar."
 }

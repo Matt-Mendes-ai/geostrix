@@ -627,6 +627,10 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               <input type="checkbox" checked={s.snapToTerrain !== false} disabled={!terrain} onChange={(e) => updateSurfaceStructureSet(s.id, { snapToTerrain: e.target.checked })} />
               <span style={{ color: "var(--color-text-caption)" }} title={tr("GPS elevations are often tens of metres off the DEM; snapping sits every symbol on the ground. Off: rows with a recorded elevation use it.")}>{tr("Sit every measurement on the terrain")}</span>
             </label>
+            <label style={{ ...row, cursor: "pointer" }}>{/* TASKS.csv #1443 — the dip beside each symbol, the map convention */}
+              <input type="checkbox" checked={s.labels === "dip"} onChange={(e) => updateSurfaceStructureSet(s.id, { labels: e.target.checked ? "dip" : "none" })} />
+              <span style={{ color: "var(--color-text-caption)" }} title={tr("The dip, in degrees, beside each symbol in the 3D view; labels that would overprint are hidden until you zoom in.")}>{tr("Dip labels")}</span>
+            </label>
           </div>
         );
       })}
