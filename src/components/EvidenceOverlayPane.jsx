@@ -29,6 +29,7 @@ import { SURVEY_METHODS } from "../lib/geophysSurveys.js"; // TASKS.csv #1209
 const fmt = (v, d = 2) => (v == null || !Number.isFinite(v) ? "—" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 || v === 0 ? v.toFixed(d) : v.toPrecision(2)); // a small cutoff keeps its digits, not "-0.00"
 const numText = (v) => (Number.isFinite(v) ? String(+v.toPrecision(3)) : ""); // what a number input can hold
 let nextId = 1;
+const DRILL_KINDS = new Set(["grade", "pxrf", "pick", "numeric", "zone"]); // TASKS.csv #1458 — evidence projected up from the holes
 
 export default function EvidenceOverlayPane({ onClose }) {
   const { rasters = [], mapLayers = [], surfaceSamples = [], surfaceElements = [], terrain, collars = [], survey = [], assays = [], assayElements = [], layers: projectLayers, customLayers = [], voxelModels = [], project, addRaster, evidenceOverlay, setEvidenceOverlay, geophysSurveys = {} } = useStore();
@@ -59,6 +60,8 @@ export default function EvidenceOverlayPane({ onClose }) {
   // TASKS.csv #1727 (review #1645, Copley) — the grid around the drilling grows with the largest reach a drillhole evidence was given
   // (a 1,000 m reach ran into the edge of a box that ended 250 m past the outer holes), and a drill-only overlay says what it ranks
   const drillPad = useMemo(() => Math.max(DRILL_REACH_M, ...layers.filter((l) => l.kind === "grade" || l.kind === "pxrf").map((l) => Number(l.reach) || 0)), [layers]);
+  // TASKS.csv #1458 — the elevation range the drillhole evidence is projected from (the desurveyed traces)
+  const drillZ = useMemo(() => { let a = Infinity, b = -Infinity; for (const t of traces.values()) for (const p of t) { if (p.z < a) a = p.z; if (p.z > b) b = p.z; } return a <= b ? [a, b] : null; }, [traces]);
   const drillOnly = layers.length > 0 && layers.every((l) => l.kind === "grade" || l.kind === "pxrf" || l.kind === "pick" || l.kind === "numeric" || l.kind === "zone");
   // TASKS.csv #1728 — numeric downhole layers and numeric custom-layer fields along the holes; logged interval zones as distances
   const numericLayerSources = useMemo(() => {
@@ -285,7 +288,7 @@ export default function EvidenceOverlayPane({ onClose }) {
     const score = which === "posterior" ? result.wofe.post.prob : result.fuzzy;
     const img = scoreImage(score, grid.nx, grid.ny), c = document.createElement("canvas");
     c.width = img.width; c.height = img.height; c.getContext("2d").putImageData(new ImageData(img.data, img.width, img.height), 0, 0);
-    const name = which === "posterior" ? tr("Weights-of-evidence posterior ({n} occurrence cells)", { n: result.wofe.nD }) /* #1558: cells, not points */ : tr("Fuzzy overlay ({op}) of {n} evidence layers", { op: operator === "gamma" ? `gamma ${gamma}` : operator, n: layers.length });
+    const name = which === "posterior" ? tr("Plan-view weights-of-evidence posterior ({n} occurrence cells)", { n: result.wofe.nD }) /* #1558: cells, not points; plan view: #1458 */ : tr("Plan-view fuzzy overlay ({op}) of {n} evidence layers", { op: operator === "gamma" ? `gamma ${gamma}` : operator, n: layers.length });
     const valid = score.reduce((a, v) => a + (Number.isFinite(v) ? 1 : 0), 0);
     const floorZ = terrain ? null : rasterFloorZ(traces); // TASKS.csv #1204 — a sheet at the origin elevation cut through the holes and hid them from above
     addRaster({ name, bbox: [grid.x0 - grid.dx / 2, grid.yTop + grid.dy / 2 - grid.ny * grid.dy, grid.x0 - grid.dx / 2 + grid.nx * grid.dx, grid.yTop + grid.dy / 2], dataUrl: c.toDataURL("image/png"), drapeMode: terrain ? "terrain" : "flat", opacity: 0.75, ...(floorZ != null ? { elevation: floorZ } : {}),
@@ -299,6 +302,9 @@ export default function EvidenceOverlayPane({ onClose }) {
     <>
       <TaskPaneHeader title={tr("Evidence overlay")} helpId="evidence-overlay" icon={Layers} tone="model" onClose={onClose} />
       <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: "var(--font-size-sm)" }}>
+        {/* TASKS.csv #1458 (review #1352, Silvertip) — said plainly: the score ranks places in plan; a target 300-1,300 m deep gets its depth
+            from the holes and models themselves, not from this map */}
+        <div style={note}>{tr("Plan view: every evidence is one value per map cell. Drillhole grades, logged codes and block models are projected to the surface, so the score ranks places in plan; the depth to drill comes from the holes and models themselves.")}{drillZ && layers.some((l) => DRILL_KINDS.has(l.kind)) ? " " + tr("The drillhole evidence here comes from holes between {top} and {bottom} m RL.", { top: Math.round(drillZ[1]).toLocaleString(), bottom: Math.round(drillZ[0]).toLocaleString() }) : ""}</div>
         <div style={note}>{grid ? tr("Grid: {nx} × {ny} cells of {dx} × {dy} m{src}.", { nx: grid.nx, ny: grid.ny, dx: Math.round(grid.dx), dy: Math.round(grid.dy), src: grid.from === "terrain" ? tr(" (the terrain)") : gridArea === "samples" ? tr(" (the surface samples)") : gridArea === "drilling" ? tr(" (the drilling)") : gridArea === "model" ? tr(" (the block models)") : gridArea === "box" ? tr(" (the typed box)") : tr(" (the data's extent)") /* area: #1450 */ }) : tr("No grid yet: load terrain, a raster, a map layer or samples first.")}{grid && grid.from !== "terrain" && sampleCore.dropped > 0 ? tr(" {n} surface sample(s) far from the rest are outside it.", { n: sampleCore.dropped }) : ""}</div>
         {/* TASKS.csv #1450 — the area and the cell size the scores are computed on */}
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
@@ -339,7 +345,7 @@ export default function EvidenceOverlayPane({ onClose }) {
               return (<div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
                 <label style={row}>{tr("Elevation from (m)")}<input type="number" step="10" value={l.zMin ?? ""} placeholder={zr ? String(Math.round(zr[0])) : ""} onChange={(e) => setZ("zMin", e.target.value)} style={{ ...sel, width: 70 }} /></label>
                 <label style={row}>{tr("to (m)")}<input type="number" step="10" value={l.zMax ?? ""} placeholder={zr ? String(Math.round(zr[1])) : ""} onChange={(e) => setZ("zMax", e.target.value)} style={{ ...sel, width: 70 }} /></label>
-                {l.zMin == null && l.zMax == null && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)" }}>{tr("Whole column: every depth of the model counts. Set an elevation band to read one level.")}</span>}
+                {l.zMin == null && l.zMax == null && <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)" }}>{zr ? tr("Whole column: every depth of the model ({z0}–{z1} m RL) counts, projected to the map. Set an elevation band to read one level.", { z0: Math.round(zr[0]).toLocaleString(), z1: Math.round(zr[1]).toLocaleString() }) /* #1458 */ : tr("Whole column: every depth of the model counts. Set an elevation band to read one level.")}</span>}
               </div>);
             })()}
             {(l.kind === "element" || l.kind === "index" || l.kind === "survey" || l.kind === "grade" || l.kind === "pxrf" || l.kind === "numeric") && <label style={row}>{tr("Reach (m)")}<input type="number" min="10" step="50" value={l.reach} onChange={(e) => updateLayer(l.id, { reach: Math.max(10, Number(e.target.value) || reachOf(l, l.field === "medium" ? l.value : null)) }, true)} style={{ ...sel, width: 70 }} /></label>}

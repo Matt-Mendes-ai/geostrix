@@ -40,7 +40,7 @@ test("#1558 coverage: points in the grid, their cells, and the cells the mask dr
 test("wired: the pane counts the drop, names the raster by cells, shows the counts and the thin flag on each row", () => {
   const p = readFileSync(new URL("../src/components/EvidenceOverlayPane.jsx", import.meta.url), "utf8");
   assert.match(p, /out\.cover = trainingPoints\.length \? trainingCoverage\(grid, trainingPoints, valid\) : null;/);
-  assert.match(p, /Weights-of-evidence posterior \(\{n\} occurrence cells\)/);
+  assert.match(p, /Plan-view weights-of-evidence posterior \(\{n\} occurrence cells\)/); // plan view: #1458
   assert.match(p, /droppedShare > 0\.25 \? "var\(--color-warn-text\)"/);
   assert.match(p, /\{a\} of \{d\} occurrence cells inside the pattern \(\{b\} cells\)/);
   assert.match(p, /r\.thin \? " · " \+ tr\("thin: fewer than \{m\} occurrence cells on one side/);
