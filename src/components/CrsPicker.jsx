@@ -4,6 +4,8 @@
 import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { listSupportedCrs, crsName, loadEpsgRegistry } from "../lib/reproject.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { useStore } from "../lib/store.jsx"; // #1469 — the project CRS first
+import { rankCrs } from "../lib/crsSearch.js"; // #1469
 
 const MAX_SHOWN = 60;
 const CrsWorldMap = React.lazy(() => import("./CrsWorldMap.jsx")); // #1330
@@ -13,11 +15,8 @@ export default function CrsPicker({ value, onChange, label, height = 190, hideMa
   // TASKS.csv #834 — the verified list at once, the whole EPSG registry as soon as it has loaded
   const [all, setAll] = useState(listSupportedCrs);
   useEffect(() => { let alive = true; loadEpsgRegistry().then(() => { if (alive) setAll(listSupportedCrs()); }).catch(() => {}); return () => { alive = false; }; }, []);
-  const shown = useMemo(() => {
-    const words = q.toLowerCase().split(/\s+/).filter(Boolean);
-    const hits = words.length ? all.filter((c) => { const hay = `${c.name} epsg:${c.code} ${c.code}`.toLowerCase(); return words.every((w) => hay.includes(w)); }) : all;
-    return hits.slice(0, MAX_SHOWN);
-  }, [q, all]);
+  const projectEpsg = useStore()?.project?.epsg;
+  const shown = useMemo(() => rankCrs(all, q, [projectEpsg, value]).slice(0, MAX_SHOWN), [q, all, projectEpsg, value]); // #1469
   const current = value ? crsName(value) : null;
   return (
     <div>
