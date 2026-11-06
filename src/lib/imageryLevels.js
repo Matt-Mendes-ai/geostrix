@@ -21,3 +21,13 @@ export function planLatestFetch([lonMin, latMin, lonMax, latMax], level = "stand
   const pixelM = Math.max(nativeM, Math.max(w, h) / l.gridMax);
   return { pixelM, gridW: Math.max(1, Math.ceil(w / pixelM)), gridH: Math.max(1, Math.ceil(h / pixelM)), nativeLimited: pixelM === nativeM, level };
 }
+
+// TASKS.csv #1474 (review #1352, Silvertip) — NAIP was offered at 59.9°N 130.3°W and failed only after the catalogue search. NAIP is flown over
+// the contiguous USA; a coarse box around it says, with no network, whether a drawn area [lonMin, latMin, lonMax, latMax] can have any:
+// "outside" (no overlap), "partial" (part of it is outside), "inside".
+export const NAIP_BOX = [-125.0, 24.4, -66.9, 49.4];
+export function naipCoverage([lonMin, latMin, lonMax, latMax]) {
+  const [w, s, e, n] = NAIP_BOX;
+  if (lonMax < w || lonMin > e || latMax < s || latMin > n) return "outside";
+  return lonMin >= w && lonMax <= e && latMin >= s && latMax <= n ? "inside" : "partial";
+}

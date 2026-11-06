@@ -8536,5 +8536,8 @@
   " {noZ} had no elevation: drawn flat until a terrain is loaded (Maps > Terrain), then placed on it.": " {noZ} n’avaient pas d’altitude : dessinées à plat jusqu’au chargement d’un terrain (Cartes > Terrain), puis posées dessus.",
   "This is the Surface Geology tab: a geological map (polygons and lines from a shapefile, GeoPackage, KML or DXF) and outcrop structure measurements, drawn in 3D over the terrain and the drilling.": "Voici l’onglet Géologie de surface : une carte géologique (polygones et lignes d’un shapefile, GeoPackage, KML ou DXF) et des mesures structurales d’affleurement, dessinées en 3D sur le terrain et les sondages.",
   "Use {map} and {structures} on the ribbon, or drag the files onto this view. Surface samples come in through {geochem}; a terrain from {maps} lets the map and the measurements sit on the ground.": "Utilisez {map} et {structures} dans le ruban, ou glissez les fichiers sur cette vue. Les échantillons de surface arrivent par {geochem} ; un terrain depuis {maps} pose la carte et les mesures sur le sol.",
-  "Maps > Terrain": "Cartes > Terrain"
+  "Maps > Terrain": "Cartes > Terrain",
+  "This area is outside the contiguous USA, where NAIP is flown: choose Sentinel-2 (worldwide) instead.": "Cette zone est hors des États-Unis contigus, où NAIP est survolé : choisissez plutôt Sentinel-2 (mondial).",
+  "Outside the USA: NAIP has no imagery here.": "Hors des États-Unis : NAIP n’a pas d’images ici.",
+  "Part of this area is outside the USA: NAIP covers only the rest.": "Une partie de cette zone est hors des États-Unis : NAIP ne couvre que le reste."
 }

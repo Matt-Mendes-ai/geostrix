@@ -8536,5 +8536,8 @@
   " {noZ} had no elevation: drawn flat until a terrain is loaded (Maps > Terrain), then placed on it.": " {noZ} بلا منسوب: تُرسم مسطحة حتى تُحمَّل تضاريس (الخرائط > التضاريس)، ثم توضع عليها.",
   "This is the Surface Geology tab: a geological map (polygons and lines from a shapefile, GeoPackage, KML or DXF) and outcrop structure measurements, drawn in 3D over the terrain and the drilling.": "هذا تبويب الجيولوجيا السطحية: خريطة جيولوجية (مضلعات وخطوط من ملف shapefile أو GeoPackage أو KML أو DXF) وقياسات بنيوية للمكاشف، تُرسم ثلاثية الأبعاد فوق التضاريس والثقوب.",
   "Use {map} and {structures} on the ribbon, or drag the files onto this view. Surface samples come in through {geochem}; a terrain from {maps} lets the map and the measurements sit on the ground.": "استخدم {map} و{structures} في الشريط، أو اسحب الملفات إلى هذا العرض. تدخل العينات السطحية عبر {geochem}؛ والتضاريس من {maps} تجعل الخريطة والقياسات تستقر على الأرض.",
-  "Maps > Terrain": "الخرائط > التضاريس"
+  "Maps > Terrain": "الخرائط > التضاريس",
+  "This area is outside the contiguous USA, where NAIP is flown: choose Sentinel-2 (worldwide) instead.": "هذه المنطقة خارج الولايات المتحدة المتصلة حيث يُلتقط NAIP: اختر Sentinel-2 (عالمي) بدلًا منه.",
+  "Outside the USA: NAIP has no imagery here.": "خارج الولايات المتحدة: لا صور NAIP هنا.",
+  "Part of this area is outside the USA: NAIP covers only the rest.": "جزء من هذه المنطقة خارج الولايات المتحدة: يغطي NAIP الباقي فقط."
 }

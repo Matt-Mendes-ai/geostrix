@@ -9,7 +9,7 @@ import SpectralIndexModal from "../components/SpectralIndexModal.jsx"; // TASKS.
 import { useStore } from "../lib/store.jsx";
 import { buildRasterImport, gridToSurveyRows, rasterFromGrid, ternaryRaster, parseWorldFile } from "../lib/raster.js"; // parseWorldFile: TASKS.csv #1855
 import { b64ToF32, gridDeclination } from "../lib/inversion.js"; // TASKS.csv #373
-import { SAT_LEVELS, planLatestFetch } from "../lib/imageryLevels.js"; // TASKS.csv #781 / #837
+import { SAT_LEVELS, planLatestFetch, naipCoverage } from "../lib/imageryLevels.js"; // TASKS.csv #781 / #837; naipCoverage: #1474
 const NAIP_FINEST_M = 0.6; // lib/naipFetch.js, which stays out of this module until NAIP is fetched
 import { gridToGeoTIFF, saveGeoTIFF, safeFileName, rasterExportNote } from "../lib/gridExport.js"; // TASKS.csv #854; rasterExportNote: #1095
 import { toLonLat, crsName } from "../lib/reproject.js";
@@ -283,6 +283,8 @@ export default function RasterModule({ embedded = false } = {}) {
   openSpectralRef.current = openSpectral;
 
   const runSatFetch = async (bboxLonLat) => {
+    // #1474 — no catalogue search for an area NAIP cannot cover
+    if (satSource === "naip" && naipCoverage(bboxLonLat) === "outside") { setError({ info: false, text: tr("This area is outside the contiguous USA, where NAIP is flown: choose Sentinel-2 (worldwide) instead.") }); return; }
     setSatPickerOpen(false);
     setSatBusy(true);
     setSatProgress({ done: 0, total: 1 });
@@ -404,6 +406,7 @@ export default function RasterModule({ embedded = false } = {}) {
                     title={naip ? tr("Higher levels keep more of the aerial detail over a large area. A very high level over a small area reaches the imagery's own pixels.") : tr("Higher levels keep more of the 10 m detail over a large area. Sentinel-2 imagery has 10 m pixels: past that, a higher level adds nothing.")}>
                     {Object.entries(SAT_LEVELS).map(([k, l]) => <option key={k} value={k}>{tr("{label} resolution", { label: l.label })}</option>)}
                   </select>
+                  {naip && bbox && naipCoverage(bbox) !== "inside" && <span style={{ color: "var(--color-danger-icon-strong)" }}>{naipCoverage(bbox) === "outside" ? tr("Outside the USA: NAIP has no imagery here.") : tr("Part of this area is outside the USA: NAIP covers only the rest.")}</span>}{/* #1474 */}
                   {p && <span>{tr("~{v} m pixels · image {gridW} × {gridH} px{v3}", { gridW: p.gridW, gridH: p.gridH, v: naip ? (p.pixelM < 10 ? p.pixelM.toFixed(1) : Math.round(p.pixelM)) : Math.round(p.pixelM), v3: p.nativeLimited ? (naip ? tr(" · imagery's finest") : tr(" · imagery's finest (10 m)")) : "" })}</span>}
                 </span>
               );
