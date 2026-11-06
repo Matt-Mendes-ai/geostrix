@@ -463,6 +463,7 @@ export function createModellingRuns(ctx, mcRef) {
         // indistinguishable a month later.
         interceptSet: activeInterceptSetRef.current ? { name: activeInterceptSetRef.current.name, intercepts: (activeInterceptSetRef.current.ids || []).length } : null,
         extent: extent.map((v) => Math.round(v)),
+        extentOrigin: [originRef.current.x, originRef.current.y, originRef.current.z].map((v) => Math.round(v * 1000) / 1000), // #1378 — the extent in project coordinates = extent + this
         // TASKS.csv #318 — a mapped surface contact that fed this run, if any (set by runImplicitModel).
         ...(spec.params?.surfaceMapContact ? { surfaceMapContact: spec.params.surfaceMapContact } : {}),
         ...(spec.params?.orientationsAveraged ? { orientationsAveraged: spec.params.orientationsAveraged } : {}), // #765

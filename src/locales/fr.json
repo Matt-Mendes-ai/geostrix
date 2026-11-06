@@ -8555,5 +8555,17 @@
   "Choose one, or type a URL below…": "Choisissez-en un, ou saisissez une URL ci-dessous…",
   "WMS only": "WMS seulement",
   "Licence: {v}. Credit the publisher in figures you share.": "Licence : {v}. Citez l’éditeur dans les figures que vous partagez.",
-  "https://example.gov/geoserver/wfs": "https://example.gov/geoserver/wfs"
+  "https://example.gov/geoserver/wfs": "https://example.gov/geoserver/wfs",
+  "GemPy covariance at lag zero (c_o)": "Covariance GemPy au pas zéro (c_o)",
+  "GemPy potential-field range": "Portée du champ de potentiel GemPy",
+  "GemPy default range": "Portée par défaut de GemPy",
+  "Range multiplier": "Multiplicateur de portée",
+  "Engine precision": "Précision du moteur",
+  "Surface detail (octree level)": "Détail de la surface (niveau d’octree)",
+  "Contact points": "Points de contact",
+  "Orientations": "Orientations",
+  "Model grid (cells)": "Grille du modèle (cellules)",
+  "Model extent (project coordinates)": "Emprise du modèle (coordonnées du projet)",
+  "Model extent (solve frame: from the scene origin)": "Emprise du modèle (repère de calcul : depuis l’origine de la scène)",
+  "Model extent (solve frame: from the scene origin, warped by the trend)": "Emprise du modèle (repère de calcul : depuis l’origine de la scène, déformé par la tendance)"
 }

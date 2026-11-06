@@ -52,6 +52,7 @@ import { t as tr } from "../lib/i18n.js";
 import EmptyViewerBody from "./viewer/EmptyViewerBody.jsx"; // TASKS.csv #1448
 import { featureCountText } from "../lib/featureCount.js"; // #1448 — "77 polygons", translated
 import { drillDepthBelowOrigin, gridWallHeight } from "../lib/viewer/gridDepth.js"; // #1405
+import { paramRows } from "../lib/paramRows.js"; // #1378
 import { visibleSceneBox } from "../lib/viewer/fitAll.js"; // #1407
 import { tx } from "../lib/i18nRich.js"; // TASKS.csv #786 // TASKS.csv #786 — "tr": this file uses t as a local name
 import { iconAction, activateOnKey } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
@@ -8243,13 +8244,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                               cells: s.params.cellsEstimated.toLocaleString(), single: s.params.singleHoleCells ? tr(" ({n} from a single hole)", { n: s.params.singleHoleCells.toLocaleString() }) : "" })}</>
                           ) : (
                             <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "1px 8px" }}>
-                              {Object.entries(s.params).filter(([k, v]) => k !== "generatedAt" && k !== "builtAt" && k !== "importedAt" && v !== null && v !== undefined).map(([k, v]) => (
+                              {paramRows(s.params).map(({ key: k, label, text }) => ( /* #1378 */
                                 <React.Fragment key={k}>
-                                  <div style={{ color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>{k.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase())}</div>
+                                  <div style={{ color: "var(--color-text-muted)", whiteSpace: "nowrap" }}>{tr(label)}</div>
                                   {/* Objects (the #52 (c) intercept-set stamp, the #52 (d) truncation log) are
                                       printed rather than skipped: a parameter block that quietly omits half of
                                       what produced the surface is worse than a slightly ugly one. */}
-                                  <div style={{ wordBreak: "break-word" }}>{typeof v === "number" ? (Number.isInteger(v) ? v.toLocaleString() : v.toFixed(3)) : typeof v === "object" ? JSON.stringify(v) : String(v)}</div>
+                                  <div style={{ wordBreak: "break-word" }}>{text}</div>
                                 </React.Fragment>
                               ))}
                             </div>

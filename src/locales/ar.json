@@ -8555,5 +8555,17 @@
   "Choose one, or type a URL below…": "اختر واحدة، أو اكتب عنوان URL أدناه…",
   "WMS only": "WMS فقط",
   "Licence: {v}. Credit the publisher in figures you share.": "الترخيص: {v}. انسب البيانات إلى الناشر في الأشكال التي تشاركها.",
-  "https://example.gov/geoserver/wfs": "https://example.gov/geoserver/wfs"
+  "https://example.gov/geoserver/wfs": "https://example.gov/geoserver/wfs",
+  "GemPy covariance at lag zero (c_o)": "تغاير GemPy عند المسافة صفر (c_o)",
+  "GemPy potential-field range": "مدى حقل الجهد في GemPy",
+  "GemPy default range": "المدى الافتراضي في GemPy",
+  "Range multiplier": "مضاعف المدى",
+  "Engine precision": "دقة المحرك",
+  "Surface detail (octree level)": "تفاصيل السطح (مستوى الشجرة الثمانية)",
+  "Contact points": "نقاط التماس",
+  "Orientations": "الاتجاهات",
+  "Model grid (cells)": "شبكة النموذج (خلايا)",
+  "Model extent (project coordinates)": "امتداد النموذج (إحداثيات المشروع)",
+  "Model extent (solve frame: from the scene origin)": "امتداد النموذج (إطار الحل: من أصل المشهد)",
+  "Model extent (solve frame: from the scene origin, warped by the trend)": "امتداد النموذج (إطار الحل: من أصل المشهد، مشوَّه بالاتجاه)"
 }

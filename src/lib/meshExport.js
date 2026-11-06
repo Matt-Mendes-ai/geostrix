@@ -131,7 +131,8 @@ export function provenanceLines(name, provenance, extra = {}) {
     if (q.domain) out.push(`Model domain: ${q.domain}${q.clippedToDomain ? " (output mesh clipped to it)" : " (input points restricted to it)"}`);
     // #1053 — this is the solve grid's box relative to the scene origin (and, under a trend, in the warped frame): it
     // cannot be compared with the exported coordinates, so it says so; the mesh's own box is the "Mesh extent" line
-    if (q.extent) out.push(`Solve-grid extent (internal frame: relative to the scene origin${q.anisotropy ? ", in the trend's warped frame" : ""}; not the exported coordinates): ${q.extent.join(", ")}`);
+    if (q.extent && Array.isArray(q.extentOrigin) && !q.anisotropy) { const o = q.extentOrigin, e = q.extent, r = (v) => Math.round(v); out.push(`Solve-grid extent (project coordinates, #1378): E ${r(e[0] + o[0])}-${r(e[1] + o[0])}, N ${r(e[2] + o[1])}-${r(e[3] + o[1])}, Z ${r(e[4] + o[2])}-${r(e[5] + o[2])}`); }
+    else if (q.extent) out.push(`Solve-grid extent (internal frame: relative to the scene origin${q.anisotropy ? ", in the trend's warped frame" : ""}; not the exported coordinates): ${q.extent.join(", ")}`);
     if (q.samplePoints != null) out.push(`Sample points: ${q.samplePoints}${q.alteredSamplePoints != null ? ` (${q.alteredSamplePoints} inside the assemblage)` : ""}${q.cellsEstimated != null ? ` | cells estimated: ${q.cellsEstimated}` : ""}`);
     if (q.closure) out.push(`Closure mode: ${q.closure}${q.closure === "artificial" ? " (part of the boundary is the search-radius wall, NOT a logged boundary)" : ""}`);
     if (q.generatedAt) out.push(`Generated: ${q.generatedAt}`);
@@ -169,7 +170,7 @@ const PRINTED = new Set(["tool", "surface", "sourcePoints", "orientations", "tar
   "rmsOffReferencePlaneM", "trueThicknessMinM", "trueThicknessMaxM", "trueThicknessMeanM", "downholeThicknessMeanM", "intercepts", "cellSizeM", "cellSizeAuto",
   "searchRadiusM", "searchRadiusAuto", "gridCoarsened", "informedNodes", "minSeparationM", "pinchOut", "contactResidualRmsM", "contactResidualMaxM",
   "midplaneLooRmsM", "midplaneLooMaxM", "incoherentSheet", "nominalHwFwLabels", "relation", "resolution", "gempyRange", "gempyRangeDefault",
-  "gempyRangeMultiplier", "gempyCO", "method", "cellSizeCoarsened", "holeSpacingM", "anisotropy", "searchEllipsoid", "domain", "clippedToDomain", "extent",
+  "gempyRangeMultiplier", "gempyCO", "method", "cellSizeCoarsened", "holeSpacingM", "anisotropy", "searchEllipsoid", "domain", "clippedToDomain", "extent", "extentOrigin",
   "samplePoints", "alteredSamplePoints", "cellsEstimated", "closure", "generatedAt", "builtKey", "manuallyEdited", "edits", "editCount",
   "inputs", "runId"]); // #1101 — the run's points / orientations go to "Model inputs", not into the stamp
 
