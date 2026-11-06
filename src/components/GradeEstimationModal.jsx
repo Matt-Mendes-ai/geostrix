@@ -24,6 +24,7 @@ import { t as tr } from "../lib/i18n.js";
 import { holeSpacingSummary, zeroBlockAdvice } from "../lib/holeSpacing.js"; // TASKS.csv #1738
 import { topCompositesWithoutBlocks } from "../lib/shellSupport.js"; // TASKS.csv #1735 // TASKS.csv #786
 import { domainLayerChoices } from "../lib/domainLayers.js"; // TASKS.csv #1571
+import { numericSourceChoices, sourceAssays, logPoints, unlogValue } from "../lib/numericSources.js"; // TASKS.csv #1741 — a downhole log or a numeric layer field as the source
 import DomainCaps from "./DomainCaps.jsx"; // TASKS.csv #1571
 
 // TASKS.csv #117 — grade estimation into block models (not just display). Micromine-specialist AND
@@ -34,11 +35,19 @@ import DomainCaps from "./DomainCaps.jsx"; // TASKS.csv #1571
 // input — see lib/estimation.js's top comment for why kriging isn't offered here (needs a fitted
 // variogram as a genuine prerequisite, not just a harder formula dropped into the same loop).
 // checkedHoleIds (a Set, or null) and areaStrings (closed design strings): two more grid sources, TASKS.csv #1570
-export default function GradeEstimationModal({ assays: assaysIn, assayElements, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend = null, groundAt = null, groundSource = null, checkedHoleIds = null, areaStrings = [] }) { // groundAt: TASKS.csv #803; groundSource "terrain" | "collars": #1616
-  const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
+export default function GradeEstimationModal({ assays: assaysProp, assayElements: assayElementsProp, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend = null, groundAt = null, groundSource = null, checkedHoleIds = null, areaStrings = [] }) { // groundAt: TASKS.csv #803; groundSource "terrain" | "collars": #1616
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const { desurveyMethod, voxelModels, project, customLayers = [] } = useStore(); // TASKS.csv #135 — estimation samples must sit on the same trace the 3D view draws; customLayers: #1571
+  // TASKS.csv #1741 / #1708 (review #1645, Copley) — a numeric downhole log (mag susc, SG) or a numeric field of a custom layer (a SWIR
+  // wavelength, a chalcopyrite %) is estimated like a grade: its rows become assay-shaped intervals under one "element"
+  const [sourceKey, setSourceKey] = useState("assay");
+  const numericSources = useMemo(() => numericSourceChoices({ layers, customLayers }), [layers, customLayers]);
+  const source = useMemo(() => numericSources.find((s) => s.key === sourceKey) || null, [numericSources, sourceKey]);
+  const sourceData = useMemo(() => (source ? sourceAssays(source, { layers, customLayers }) : null), [source, layers, customLayers]);
+  const assaysIn = sourceData ? sourceData.assays : assaysProp, assayElements = sourceData ? sourceData.assayElements : assayElementsProp;
+  const [logValues, setLogValues] = useState(false); // log10 values: each block a geometric mean, the usual for susceptibility
+  const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
   const [symbol, setSymbol] = useState(symbols[0] || "Au");
@@ -308,6 +317,9 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
           shellInfo = { name: sh.name, samplesInside: points.length, samplesOutside: before - points.length };
         }
         if (!points.length) { setError(shellInfo ? tr("No {symbol} samples fall inside \"{name}\".", { symbol, name: shellInfo.name }) : tr("No sample points could be placed in 3D — check that holes have collars and (ideally) survey data.")); setRunning(false); return; }
+        let logInfo = null; // TASKS.csv #1741 — a geometric mean per block: interpolate log10 values, convert the blocks back below
+        if (logValues) logInfo = logPoints(points);
+        const estPts = logInfo ? logInfo.points : points; // the raw points stay for the checks and the composite statistics
         // TASKS.csv #292 — an unbounded search makes every sample a candidate for every block
         // (measured: 81 s of blocked main thread at 62,500 blocks x 5,000 points). 0 now means "cap at
         // the grid's own diagonal", which is a mathematical no-op but a real computational bound.
@@ -325,7 +337,7 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
           if (nn.length) supportRef = Math.max(2 * nn[nn.length >> 1], 2 * Math.max(cell3.dx, cell3.dy, cell3.dz));
         }
         const ac = new AbortController(); abortRef.current = ac;
-        const est = await runEstimation("block", points, {
+        const est = await runEstimation("block", estPts, {
           bounds, cellSize: cell3, maxBlocks: blockBudget, // #626; cell3 / bounds: the matched lattice (#724)
           method, searchRadius: searchRadius > 0 ? searchRadius : gridDiagonal, minSamples, maxSamples, maxPerHole, // maxPerHole: #709
           minHoles,                                              // TASKS.csv #258
@@ -338,11 +350,12 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
         }, { onProgress: (f) => setProgress(method === "nn" ? f : 0.8 * f), signal: ac.signal });
         // TASKS.csv #1051 — a nearest-neighbour model over the same grid, search, domains and trend (one sample per block,
         // so it is cheap): its mean over the same blocks is the declustered mean the estimate is checked against
-        const nnEst = method === "nn" ? est : await runEstimation("block", points, {
+        const nnEst = method === "nn" ? est : await runEstimation("block", estPts, {
           bounds, cellSize: cell3, maxBlocks: blockBudget, method: "nn", searchRadius: searchRadius > 0 ? searchRadius : gridDiagonal,
           minSamples: 1, maxSamples: 1, minHoles: 1, restrictToDomain: restrictToDomain && !!domainKey,
           ...(trend ? { trend: { basis: trendBasis(trend), scales: trendSearchScales(trend) } } : {}),
         }, { onProgress: (f) => setProgress(0.8 + 0.2 * f), signal: ac.signal });
+        if (logInfo) for (const g of nnEst === est ? [est] : [est, nnEst]) for (const c of g.cells) c.value = unlogValue(c.value); // #1741 — back to data units
         // TASKS.csv #404 — the parameters are captured AT RUN TIME (the form can be edited before
         // "Add to project"), and travel with the block model into the project file.
         let outsideArea = 0; // #1570 — set below when a design-string area drops blocks; params read it, so it is declared first
@@ -359,6 +372,7 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
           // domain fields, which #533's edit had left inside the comment above (estimates since then lacked them)
           unit, capUnit: cap != null ? unit : null, domain: domainChoice ? domainChoice.label : null, ...(domainRowsSel && Object.values(capByDomain).some((v) => Number(v) > 0) ? { capByDomain: Object.fromEntries(Object.entries(capByDomain).filter(([, v]) => Number(v) > 0).map(([k, v]) => [k, Number(v)])) } : {}), // #1571 restrictToDomain: restrictToDomain && !!domainKey,
           desurveyMethod: desurveyMethod || "minimum curvature", samplePoints: points.length, generatedAt: new Date().toISOString(),
+          ...(source ? { source: `${source.label} (${sourceData.assays.length} readings, values as logged)`, valueTransform: logInfo ? `log10 (each block a geometric mean; ${logInfo.belowFloor} value(s) at or below zero floored at ${logInfo.floor})` : "none", ...(sourceData.pointRows ? { pointSupportM: sourceData.pointSupport } : {}) } : {}), // #1741
         };
         if (est.mlsCounts) params.mlsBlocks = est.mlsCounts; // #516 — how the linear trend was fitted
         if (est.variogram) { params.variogram = { ...est.variogram, frame: trend ? `in the trend "${trend.name}" frame: the range is along its major axis` : "isotropic" }; params.krigingBlocks = est.okCounts; } // #709
@@ -468,6 +482,16 @@ export default function GradeEstimationModal({ assays: assaysIn, assayElements, 
 
         <div style={{ padding: 16, overflow: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+            {numericSources.length > 0 && <label style={fieldLabel} title={tr("Assays, or a numeric downhole log / a numeric field of a custom layer, estimated like a grade")}>{tr("Source")}{/* #1741 */}
+              <select value={sourceKey} onChange={(e) => { const k = e.target.value, s = numericSources.find((x) => x.key === k); setSourceKey(k); setSymbol(s ? s.symbol : (assayElementsProp[0]?.symbol || "Au")); setLogValues(!!s?.logScale); setCapValue(NaN); setResult(null); }} style={inp}>
+                <option value="assay">{tr("Assays")}</option>
+                {numericSources.map((s) => <option key={s.key} value={s.key}>{tr("{label} ({n} readings)", { label: s.label, n: s.n.toLocaleString() })}</option>)}
+              </select>
+            </label>}
+            {source && <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", paddingBottom: 6 }} title={tr("Interpolates log10 of the values and converts the blocks back, so each block is a geometric mean — the usual choice for susceptibility, which varies over decades. Values at or below zero are floored at half the smallest positive value.")}>
+              <input type="checkbox" checked={logValues} onChange={(e) => setLogValues(e.target.checked)} />{tr("Interpolate log10 values")}
+            </label>}
+            {sourceData && <div style={{ width: "100%", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("{n} readings from {label}, values as logged (the import does not rescale them){v}.", { n: sourceData.assays.length.toLocaleString(), label: source.label, v: sourceData.pointRows ? tr("; {p} depth-only readings are given {s} m of core each", { p: sourceData.pointRows.toLocaleString(), s: sourceData.pointSupport }) : "" })}</div>}
             <label style={fieldLabel}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbol(e.target.value); setCapValue(NaN); setResult(null); }} style={inp}>{/* #1736 — a cap belongs to its element */}
                 {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
               </select>

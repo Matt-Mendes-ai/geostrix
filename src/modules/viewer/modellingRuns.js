@@ -38,6 +38,7 @@ import { explicitInterfacePoints } from "../../lib/explicitUnits.js"; // TASKS.c
 import { pinchOutPoints } from "../../lib/pinchOut.js"; // TASKS.csv #1030
 import { fisherStats } from "../../lib/stereonet.js"; // TASKS.csv #1066
 import { captureInputs } from "../../lib/gempyInputs.js"; // TASKS.csv #1101
+import { findNumericSource, sourceAssays, logPoints, unlogGrid } from "../../lib/numericSources.js"; // TASKS.csv #1741 — a log or a numeric layer field as the grade-shell source
 
 // TASKS.csv #803 — the interpolated grid intersected with "below the terrain" (lib/groundCap.js), so a grade shell or
 // alteration envelope that reaches the surface closes ON the ground instead of in the air. toReal: grid frame ->
@@ -1941,11 +1942,15 @@ export function createModellingRuns(ctx, mcRef) {
   // the user alt-tabs away.
   const runNumericModel = () => {
     const anisotropy = trendWarp("gradeShell"); // TASKS.csv #650
-    const symbol = numericSymbol || assayElements[0]?.symbol;
+    // TASKS.csv #1741 / #1708 — numericSymbol may name a downhole log or a numeric layer field ("log:magsusc", "custom:<id>:<field>"):
+    // its rows stand in for the assays under one element, values as logged
+    const numSrc = findNumericSource(numericSymbol, { layers, customLayers });
+    const srcData = numSrc ? sourceAssays(numSrc, { layers, customLayers }) : null;
+    const symbol = numSrc ? numSrc.symbol : (numericSymbol || assayElements[0]?.symbol);
     if (!symbol) { setNotices((p) => [...p, notice("No assay elements loaded — import assays before running the numeric model.")]); return; }
     if (!collars.length) { setNotices((p) => [...p, noCollarsNotice(tr("the numeric model"), layers, assays)]); return; }
     if (!Number.isFinite(numericCutoff)) { setNotices((p) => [...p, notice("Enter a numeric cutoff grade.")]); return; }
-    const elementUnits = Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit]));
+    const elementUnits = Object.fromEntries((numSrc ? srcData.assayElements : assayElements).map((e) => [e.symbol, e.unit]));
     const unit = elementUnits[symbol] || "ppm";
     const label = `${symbol} > ${numericCutoff} ${unit} shell`;
     setNumericBusy(true);
@@ -1960,7 +1965,8 @@ export function createModellingRuns(ctx, mcRef) {
         // grade shell unfiltered; most got dropped downstream only because their synthetic hole_id has
         // no collar, which is luck rather than design — a field duplicate logged under its PARENT
         // hole's id was genuinely double-counted.
-        const srcAssays = numericIncludeQAQC ? assays : excludeQAQC(assays);
+        const srcRows = numSrc ? srcData.assays : assays; // #1741
+        const srcAssays = numericIncludeQAQC ? srcRows : excludeQAQC(srcRows);
         let intervals, rawStats = null;
         if (numericUseComposites) {
           // TASKS.csv #259 — high-grade capping. compositeDownhole has always accepted capValue and
@@ -2009,6 +2015,8 @@ export function createModellingRuns(ctx, mcRef) {
           ? { x: points.reduce((s, p) => s + p.x, 0) / points.length, y: points.reduce((s, p) => s + p.y, 0) / points.length, z: points.reduce((s, p) => s + p.z, 0) / points.length }
           : null;
         const gridPoints = anisotropy.enabled ? points.map((p) => anisoWarpPoint(p, gsCenter, gsBasis, gsScl)) : points;
+        const logInfo = numSrc?.logScale ? logPoints(gridPoints) : null; // #1741 — susceptibility is interpolated as log10 values (a geometric mean)
+        const estPoints = logInfo ? logInfo.points : gridPoints;
 
         // Grid extent: the sample points' own bounding box plus padding (not the collar box — assays
         // define where a grade shell can exist, and padding lets the shell close beyond the last hole).
@@ -2046,7 +2054,7 @@ export function createModellingRuns(ctx, mcRef) {
         }
         setNumericBudgetHint?.(null);
         const ac = new AbortController(); // TASKS.csv #520 — worker + status-bar progress and Cancel
-        const grid = await runEstimation("dense", gridPoints, {
+        const grid = await runEstimation("dense", estPoints, {
           bounds, cellSize: { dx: cs, dy: cs, dz: cs }, method: numericMethod,
           searchRadius: searchInGrid, minSamples: 1, maxSamples: 16, // #656
           minHoles: Math.max(1, numericMinHoles), // TASKS.csv #258
@@ -2059,6 +2067,7 @@ export function createModellingRuns(ctx, mcRef) {
             ? { variogram: { model: numericVariogram.model || "spherical", nugget: Number(numericVariogram.nugget), sill: Number(numericVariogram.sill), range: Number(numericVariogram.range) * (anisotropy.enabled ? gsScl.major : 1) } }
             : numericMethod === "ok" ? { variogram: { model: numericVariogram?.model || "spherical" } } : {}),
         }, { signal: ac.signal, onProgress: (f) => setTaskProgress?.({ label, pct: 20 + 60 * f, onCancel: () => ac.abort() }) });
+        if (logInfo) unlogGrid(grid); // #1741 — back to data units: the iso-surface at the cutoff is unchanged, each node a geometric mean
         // TASKS.csv #935 — kriging with a trend runs in the volume-keeping warp, so the variogram is fitted (and its range
         // read) in units where 1 m along the major axis is scales.major m: a 115 m range along the trend printed as "70 m"
         // at 3:2:1. The warp is a uniform rescaling of the block model's (trendSearchScales: major = 1), so the weights are

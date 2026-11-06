@@ -23,6 +23,7 @@ import { tx } from "../../lib/i18nRich.js";
 import { groupOverlaps, groupOfCode } from "../../lib/lithoGroups.js"; // TASKS.csv #1685
 import { useStore } from "../../lib/store.jsx";
 import { numericLayerFields } from "../../lib/evidenceSources.js"; // TASKS.csv #1574 — the numeric fields of a log (intensity 1-3)
+import { numericSourceChoices, findNumericSource, sourceAssays } from "../../lib/numericSources.js"; // TASKS.csv #1741 — logs and numeric layer fields as a grade-shell source
 import { checkedHoleCount } from "../../lib/modelArea.js"; // TASKS.csv #1546
 import { zoneAlphaPicks, customAlphaPicks } from "../../lib/alphaPicks.js"; // TASKS.csv #1686
 
@@ -262,6 +263,7 @@ export default function ModellingPanes(props) {
   // TASKS.csv #1574 (review #1497, Lawyers) — the alteration halo from the Alteration log OR a categorical custom layer, and only
   // the intervals whose numeric field is at or above a value (Silicification intensity >= 2)
   const { customLayers: customLayersAll = [], layers: storeLayers = {} } = useStore();
+  const numericSources = useMemo(() => numericSourceChoices({ layers, customLayers: customLayersAll }), [layers, customLayersAll]); // TASKS.csv #1741
   const [altSource, setAltSource] = useState({ layer: "alt", field: "", min: "" });
   const altCustomLayers = useMemo(() => customLayersAll.filter((c) => (c.rows || []).some((r) => r.value != null && r.value !== "" && !Number.isFinite(Number(r.value)))), [customLayersAll]);
   const altSourceRows = useMemo(() => (altSource.layer === "alt" ? storeLayers.alt || [] : altCustomLayers.find((c) => `custom:${c.id}` === altSource.layer)?.rows || []), [altSource.layer, storeLayers.alt, altCustomLayers]);
@@ -967,22 +969,26 @@ export default function ModellingPanes(props) {
           {" "}{tx("It honours the model domain and the structural trend chosen for grade shells (Model settings → Structural trends). It does {not} apply the search ellipsoid's minimum-neighbour filter — that exists to drop under-supported contact picks, and dropping isolated assays would delete grade rather than improve the shell.", { not: <strong>{tr("not")}</strong> })}</div>
         {(() => {
           const symbols = assayElements.map((e) => e.symbol);
-          const sym = numericSymbol || symbols[0] || "";
-          const unit = assayElements.find((e) => e.symbol === sym)?.unit || "ppm";
-          const canRun = symbols.length > 0 && collars.length > 0 && !numericBusy && Number.isFinite(numericCutoff);
+          const numSrc = findNumericSource(numericSymbol, { layers, customLayers: customLayersAll }); // #1741 — a downhole log or a numeric layer field
+          const sym = numericSymbol || symbols[0] || numericSources[0]?.key || "";
+          const unit = numSrc ? numSrc.unit : (assayElements.find((e) => e.symbol === sym)?.unit || "ppm");
+          const canRun = (symbols.length > 0 || numericSources.length > 0) && collars.length > 0 && !numericBusy && Number.isFinite(numericCutoff);
           return (
             <>
               <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                <label style={{ ...miniField }} title={tr("Assay element to model")}>{tr("Element")}<select value={sym} onChange={(e) => {
+                <label style={{ ...miniField }} title={tr("Assay element, downhole log or numeric layer field to model")}>{tr("Element")}<select value={sym} onChange={(e) => {
                     // TASKS.csv #1736 (review #1645, Copley) — a cap and a cutoff belong to their element: Au's 0.078 cap and Cu's 1000 cutoff were kept
                     // across a switch. The cap is cleared; the cutoff is proposed as the new element's P90 of lab assays (pXRF left out).
                     const next = e.target.value;
                     setNumericSymbol(next); setNumericCapValue(NaN);
-                    const v = (assays || []).filter((a) => a.source !== "pXRF").map((a) => a.values?.[next]).filter((x) => Number.isFinite(x) && x > 0).sort((x, y) => x - y);
+                    const ns = findNumericSource(next, { layers, customLayers: customLayersAll }); // #1741
+                    const rowsFor = ns ? sourceAssays(ns, { layers, customLayers: customLayersAll }).assays : (assays || []).filter((a) => a.source !== "pXRF");
+                    const v = rowsFor.map((a) => a.values?.[ns ? ns.symbol : next]).filter((x) => Number.isFinite(x) && x > 0).sort((x, y) => x - y);
                     if (v.length) setNumericCutoff(+v[Math.floor(0.9 * (v.length - 1))].toPrecision(3));
-                  }} style={{ ...smallSel, width: "100%" }} disabled={!symbols.length}>
-                    {symbols.length === 0 && <option value="">{tr("— no assays —")}</option>}
+                  }} style={{ ...smallSel, width: "100%" }} disabled={!symbols.length && !numericSources.length}>
+                    {symbols.length === 0 && numericSources.length === 0 && <option value="">{tr("— no assays —")}</option>}
                     {symbols.map((s) => <option key={s} value={s}>{s} ({assayElements.find((e) => e.symbol === s)?.unit || "ppm"})</option>)}
+                    {numericSources.length > 0 && <optgroup label={tr("Downhole logs and numeric layers")}>{numericSources.map((s) => <option key={s.key} value={s.key}>{s.label} ({s.unit})</option>)}</optgroup>}{/* #1741 */}
                   </select>
                 </label>
                 {/* TASKS.csv #270 (LOW-1) — every geologist and every press release says g/t, never ppm.
@@ -992,6 +998,7 @@ export default function ModellingPanes(props) {
                   <input type="number" step="any" value={numericCutoff} onChange={(e) => setNumericCutoff(e.target.value === "" ? NaN : Number(e.target.value))} style={{ ...smallSel, width: "100%" }} />
                 </label>
               </div>
+              {numSrc && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{numSrc.logScale ? tr("{label}: {n} readings, values as logged. Interpolated as log10 values (a geometric mean between readings); the cutoff is in the same units as the readings.", { label: numSrc.label, n: numSrc.n.toLocaleString() }) : tr("{label}: {n} readings, values as logged; the cutoff is in the same units.", { label: numSrc.label, n: numSrc.n.toLocaleString() })}</div>}{/* #1741 */}
               <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
                 <label style={{ ...miniField }} title={tr("Interpolation grid cell size (cubic). Smaller = smoother shell but more cells, within the block budget below.")}>{tr("Cell (m)")}<input type="number" min="0.5" step="any" value={numericCellSize} onChange={(e) => { setNumericCellSize(Math.max(0.5, Number(e.target.value) || 10)); setNumericBudgetHint(null); }} style={{ ...smallSel, width: "100%" }} />
                 </label>
@@ -1094,9 +1101,9 @@ export default function ModellingPanes(props) {
               <button
                 onClick={runNumericModel}
                 disabled={!canRun}
-                title={symbols.length ? (collars.length ? tr("Interpolate grades onto a grid and extract the cutoff iso-surface") : tr("Load collars first")) : tr("Import assays first")}
+                title={symbols.length || numericSources.length ? (collars.length ? tr("Interpolate grades onto a grid and extract the cutoff iso-surface") : tr("Load collars first")) : tr("Import assays first")}
                 style={{ ...pBtn, marginBottom: 8, opacity: canRun ? 1 : 0.5, cursor: canRun ? "pointer" : "default" }}
-              ><Shapes size={14} /> {numericBusy ? tr("Running…") : (sym ? tr("Generate {el} shell", { el: sym }) : tr("Generate grade shell"))}</button>
+              ><Shapes size={14} /> {numericBusy ? tr("Running…") : (sym ? tr("Generate {el} shell", { el: numSrc ? numSrc.label : sym }) : tr("Generate grade shell"))}</button>
             </>
           );
         })()}

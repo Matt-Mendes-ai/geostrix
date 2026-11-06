@@ -8372,5 +8372,15 @@
   "Planned grid": "شبكة مخططة",
   "predicted": "متنبأ",
   "Planned grid, no observed values: the predicted anomaly over the {n} stations runs from {lo} to {hi} {unit} (peak-to-peak {pp} {unit}). A survey is worth walking when that exceeds its noise and the diurnal residual by a clear margin.": "شبكة مخططة بلا قيم مرصودة: الشذوذ المتنبأ فوق {n} محطة يمتد من {lo} إلى {hi} {unit} (من القمة إلى القمة {pp} {unit}). يستحق المسح المشي عندما يتجاوز ذلك ضجيجه وبقايا التغيّر اليومي بهامش واضح.",
-  "Add the predicted anomaly as a survey": "إضافة الشذوذ المتنبأ كمسح"
+  "Add the predicted anomaly as a survey": "إضافة الشذوذ المتنبأ كمسح",
+  "Assays, or a numeric downhole log / a numeric field of a custom layer, estimated like a grade": "التحاليل، أو سجل رقمي لثقب الحفر / حقل رقمي من طبقة مخصصة، يُقدَّر كمحتوى",
+  "{label} ({n} readings)": "{label} ({n} قراءة)",
+  "Interpolates log10 of the values and converts the blocks back, so each block is a geometric mean — the usual choice for susceptibility, which varies over decades. Values at or below zero are floored at half the smallest positive value.": "يُجري الاستيفاء على log10 للقيم ويعيد تحويل الكتل، فتكون كل كتلة متوسطًا هندسيًا — الخيار المعتاد للقابلية المغناطيسية التي تتغير عبر مراتب عشرية. القيم الصفرية أو السالبة تُثبَّت عند نصف أصغر قيمة موجبة.",
+  "Interpolate log10 values": "استيفاء قيم log10",
+  "{n} readings from {label}, values as logged (the import does not rescale them){v}.": "{n} قراءة من {label}، القيم كما سُجلت (الاستيراد لا يعيد تحجيمها){v}.",
+  "; {p} depth-only readings are given {s} m of core each": "؛ {p} قراءة بعمق فقط تُعطى {s} م من اللب لكل منها",
+  "Assay element, downhole log or numeric layer field to model": "عنصر التحليل أو سجل ثقب الحفر أو حقل الطبقة الرقمي المراد نمذجته",
+  "Downhole logs and numeric layers": "سجلات ثقب الحفر والطبقات الرقمية",
+  "{label}: {n} readings, values as logged. Interpolated as log10 values (a geometric mean between readings); the cutoff is in the same units as the readings.": "{label}: {n} قراءة، القيم كما سُجلت. يُستوفى كقيم log10 (متوسط هندسي بين القراءات)؛ الحد بنفس وحدات القراءات.",
+  "{label}: {n} readings, values as logged; the cutoff is in the same units.": "{label}: {n} قراءة، القيم كما سُجلت؛ الحد بنفس الوحدات."
 }

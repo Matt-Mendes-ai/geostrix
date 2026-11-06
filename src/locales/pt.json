@@ -8372,5 +8372,15 @@
   "Planned grid": "Malha planeada",
   "predicted": "previsto",
   "Planned grid, no observed values: the predicted anomaly over the {n} stations runs from {lo} to {hi} {unit} (peak-to-peak {pp} {unit}). A survey is worth walking when that exceeds its noise and the diurnal residual by a clear margin.": "Malha planeada, sem valores observados: a anomalia prevista sobre as {n} estações vai de {lo} a {hi} {unit} (pico a pico {pp} {unit}). Um levantamento vale a pena quando isso excede claramente o seu ruído e o resíduo diurno.",
-  "Add the predicted anomaly as a survey": "Adicionar a anomalia prevista como levantamento"
+  "Add the predicted anomaly as a survey": "Adicionar a anomalia prevista como levantamento",
+  "Assays, or a numeric downhole log / a numeric field of a custom layer, estimated like a grade": "Análises, ou um log numérico de furo / um campo numérico de uma camada personalizada, estimado como um teor",
+  "{label} ({n} readings)": "{label} ({n} leituras)",
+  "Interpolates log10 of the values and converts the blocks back, so each block is a geometric mean — the usual choice for susceptibility, which varies over decades. Values at or below zero are floored at half the smallest positive value.": "Interpola o log10 dos valores e converte os blocos de volta, de modo que cada bloco é uma média geométrica — o usual para a susceptibilidade, que varia em ordens de grandeza. Valores iguais ou abaixo de zero são fixados na metade do menor valor positivo.",
+  "Interpolate log10 values": "Interpolar valores log10",
+  "{n} readings from {label}, values as logged (the import does not rescale them){v}.": "{n} leituras de {label}, valores como registrados (a importação não os reescala){v}.",
+  "; {p} depth-only readings are given {s} m of core each": "; {p} leituras só com profundidade recebem {s} m de testemunho cada",
+  "Assay element, downhole log or numeric layer field to model": "Elemento de análise, log de furo ou campo numérico de camada a modelar",
+  "Downhole logs and numeric layers": "Logs de furo e camadas numéricas",
+  "{label}: {n} readings, values as logged. Interpolated as log10 values (a geometric mean between readings); the cutoff is in the same units as the readings.": "{label}: {n} leituras, valores como registrados. Interpolado como valores log10 (uma média geométrica entre leituras); o corte está nas mesmas unidades das leituras.",
+  "{label}: {n} readings, values as logged; the cutoff is in the same units.": "{label}: {n} leituras, valores como registrados; o corte está nas mesmas unidades."
 }

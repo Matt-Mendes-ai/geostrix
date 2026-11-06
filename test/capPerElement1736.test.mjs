@@ -18,7 +18,8 @@ test("Estimation: models are named from the result's own element / method / cell
 
 test("Grade shell: the cap is cleared and the cutoff re-proposed (P90 of lab assays) on an element change", () => {
   assert.ok(panes.includes("setNumericSymbol(next); setNumericCapValue(NaN);"));
-  assert.ok(panes.includes('.filter((a) => a.source !== "pXRF").map((a) => a.values?.[next])'));
+  assert.ok(panes.includes('.filter((a) => a.source !== "pXRF");')); // #1741 — a downhole log stands in for the assays
+  assert.ok(panes.includes("rowsFor.map((a) => a.values?.[ns ? ns.symbol : next])"));
 });
 
 test("#1737 — the name box suggests the name the result will get, not the form's current settings", () => {

@@ -8372,5 +8372,15 @@
   "Planned grid": "Malla planificada",
   "predicted": "predicho",
   "Planned grid, no observed values: the predicted anomaly over the {n} stations runs from {lo} to {hi} {unit} (peak-to-peak {pp} {unit}). A survey is worth walking when that exceeds its noise and the diurnal residual by a clear margin.": "Malla planificada, sin valores observados: la anomalía predicha sobre las {n} estaciones va de {lo} a {hi} {unit} (pico a pico {pp} {unit}). Vale la pena caminar un levantamiento cuando eso supera con claridad su ruido y el residuo diurno.",
-  "Add the predicted anomaly as a survey": "Añadir la anomalía predicha como levantamiento"
+  "Add the predicted anomaly as a survey": "Añadir la anomalía predicha como levantamiento",
+  "Assays, or a numeric downhole log / a numeric field of a custom layer, estimated like a grade": "Ensayes, o un registro numérico de sondaje / un campo numérico de una capa personalizada, estimado como una ley",
+  "{label} ({n} readings)": "{label} ({n} lecturas)",
+  "Interpolates log10 of the values and converts the blocks back, so each block is a geometric mean — the usual choice for susceptibility, which varies over decades. Values at or below zero are floored at half the smallest positive value.": "Interpola el log10 de los valores y convierte los bloques de vuelta, de modo que cada bloque es una media geométrica — lo habitual para la susceptibilidad, que varía en órdenes de magnitud. Los valores iguales o menores que cero se fijan en la mitad del menor valor positivo.",
+  "Interpolate log10 values": "Interpolar valores log10",
+  "{n} readings from {label}, values as logged (the import does not rescale them){v}.": "{n} lecturas de {label}, valores tal como se registraron (la importación no los reescala){v}.",
+  "; {p} depth-only readings are given {s} m of core each": "; a {p} lecturas solo con profundidad se les asignan {s} m de testigo cada una",
+  "Assay element, downhole log or numeric layer field to model": "Elemento de ensaye, registro de sondaje o campo numérico de capa a modelar",
+  "Downhole logs and numeric layers": "Registros de sondaje y capas numéricas",
+  "{label}: {n} readings, values as logged. Interpolated as log10 values (a geometric mean between readings); the cutoff is in the same units as the readings.": "{label}: {n} lecturas, valores tal como se registraron. Interpolado como valores log10 (una media geométrica entre lecturas); el corte está en las mismas unidades que las lecturas.",
+  "{label}: {n} readings, values as logged; the cutoff is in the same units.": "{label}: {n} lecturas, valores tal como se registraron; el corte está en las mismas unidades."
 }
