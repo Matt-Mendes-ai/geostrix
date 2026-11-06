@@ -1782,6 +1782,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // started with no local layers, and this mirror wrote that [] over the store before the restore below could read it: every custom
   // layer was deleted, and autosave saved the loss. Nothing is written back until the restore has run once.
   const buildDefer = useBuildDefer(); // #1500
+  const deferRound = buildDefer.round; // #1980 — the effects that place objects by the scene origin run again after a deferred build
   const customRestoredRef = useRef(false);
   useEffect(() => {
     if (!customRestoredRef.current) return;
@@ -5535,15 +5536,15 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
   // ---------- rebuild raster drapes (TASKS.csv #24, #81) ----------
   // moved to lib/viewer/sceneBuilders.js syncRasterDrapes (TASKS.csv #693); its comments explain the build
-  useEffect(() => { if (rasterGroupRef.current) syncRasterDrapes(rasterGroupRef.current, rasterMeshesRef.current, rasters, { origin: originRef.current, terrain, renderer: rendererRef.current }); }, [rasters, collars, terrain, rebuildSeq]);
+  useEffect(() => { if (rasterGroupRef.current && !buildDefer.skip()) syncRasterDrapes(rasterGroupRef.current, rasterMeshesRef.current, rasters, { origin: originRef.current, terrain, renderer: rendererRef.current }); }, [rasters, collars, terrain, rebuildSeq, deferRound]);
 
   // ---------- rebuild boundary polylines (Geosoft .ply import) ----------
   // moved to lib/viewer/sceneBuilders.js syncBoundaries (TASKS.csv #693); its comments explain the build
-  useEffect(() => { if (boundaryGroupRef.current) syncBoundaries(boundaryGroupRef.current, boundaryLinesRef.current, boundaries, { origin: originRef.current, terrain }); }, [boundaries, collars, terrain, rebuildSeq]);
+  useEffect(() => { if (boundaryGroupRef.current && !buildDefer.skip()) syncBoundaries(boundaryGroupRef.current, boundaryLinesRef.current, boundaries, { origin: originRef.current, terrain }); }, [boundaries, collars, terrain, rebuildSeq, deferRound]);
 
   // ---------- rebuild draped map layers (TASKS.csv #316) ----------
   // moved to lib/viewer/sceneBuilders.js syncMapLayers (TASKS.csv #693); its comments explain the build
-  useEffect(() => { if (mapLayerGroupRef.current) syncMapLayers(mapLayerGroupRef.current, mapLayerMeshesRef.current, mapLayers, { origin: originRef.current, terrain, renderer: rendererRef.current }); }, [mapLayers, collars, terrain, rebuildSeq]);
+  useEffect(() => { if (mapLayerGroupRef.current && !buildDefer.skip()) syncMapLayers(mapLayerGroupRef.current, mapLayerMeshesRef.current, mapLayers, { origin: originRef.current, terrain, renderer: rendererRef.current }); }, [mapLayers, collars, terrain, rebuildSeq, deferRound]);
 
   // ---------- georeferenced section images (TASKS.csv #630) ----------
   // moved to lib/viewer/sceneBuilders.js syncSectionImages (TASKS.csv #693); its comments explain the build
@@ -5551,22 +5552,22 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // of it would cover the part being drawn)
   const [digitizeImageId, setDigitizeImageId] = useState(null);
   useEffect(() => {
-    if (sectionImageGroupRef.current) syncSectionImages(sectionImageGroupRef.current, sectionImageMeshesRef.current, sectionImages, { origin: originRef.current, renderer: rendererRef.current, onTextureLoad: () => { lastActivityRef.current = Date.now(); } });
+    if (sectionImageGroupRef.current && !buildDefer.skip()) syncSectionImages(sectionImageGroupRef.current, sectionImageMeshesRef.current, sectionImages, { origin: originRef.current, renderer: rendererRef.current, onTextureLoad: () => { lastActivityRef.current = Date.now(); } });
     if (digitizeImageId) Object.entries(sectionImageMeshesRef.current).forEach(([id, m]) => { if (id !== digitizeImageId) m.visible = false; });
     lastActivityRef.current = Date.now();
-  }, [sectionImages, collars, rebuildSeq, digitizeImageId]);
+  }, [sectionImages, collars, rebuildSeq, digitizeImageId, deferRound]);
 
   // ---------- rebuild surface structure symbols (TASKS.csv #317) ----------
   // moved to lib/viewer/sceneBuilders.js syncSurfaceStructures (TASKS.csv #693); its comments explain the build
-  useEffect(() => { if (surfStructGroupRef.current) { syncSurfaceStructures(surfStructGroupRef.current, surfStructObjsRef.current, surfaceStructures, { origin: originRef.current, terrain }); const lg = layerGroupsRef.current?.outcrop_labels; if (lg) syncTextLabels(lg, outcropLabelItems(surfaceStructures, { origin: originRef.current, terrain }), makeTextSprite, 0); /* #1443 */ } }, [surfaceStructures, collars, terrain, rebuildSeq]);
+  useEffect(() => { if (surfStructGroupRef.current && !buildDefer.skip()) { syncSurfaceStructures(surfStructGroupRef.current, surfStructObjsRef.current, surfaceStructures, { origin: originRef.current, terrain }); const lg = layerGroupsRef.current?.outcrop_labels; if (lg) syncTextLabels(lg, outcropLabelItems(surfaceStructures, { origin: originRef.current, terrain }), makeTextSprite, 0); /* #1443 */ } }, [surfaceStructures, collars, terrain, rebuildSeq, deferRound]);
 
   // ---------- rebuild OMF objects (TASKS.csv — Open Mining Format import) ----------
   // moved to lib/viewer/sceneBuilders.js syncOmfObjects (TASKS.csv #693); its comments explain the build
-  useEffect(() => { if (omfGroupRef.current) syncOmfObjects(omfGroupRef.current, omfMeshesRef.current, omfObjects, { origin: originRef.current }); }, [omfObjects, collars, rebuildSeq]);
+  useEffect(() => { if (omfGroupRef.current && !buildDefer.skip()) syncOmfObjects(omfGroupRef.current, omfMeshesRef.current, omfObjects, { origin: originRef.current }); }, [omfObjects, collars, rebuildSeq, deferRound]);
 
   // ---------- rebuild terrain surface (TASKS.csv #77) ----------
   // moved to lib/viewer/sceneBuilders.js syncTerrain (TASKS.csv #693); its comments explain the build
-  useEffect(() => { if (terrainGroupRef.current) terrainMeshRef.current = syncTerrain(terrainGroupRef.current, terrainMeshRef.current, terrain, { origin: originRef.current }); }, [terrain, collars, rebuildSeq]);
+  useEffect(() => { if (terrainGroupRef.current && !buildDefer.skip()) terrainMeshRef.current = syncTerrain(terrainGroupRef.current, terrainMeshRef.current, terrain, { origin: originRef.current }); }, [terrain, collars, rebuildSeq, deferRound]);
 
   // Keeps the locator mini-map's real-world position in sync with wherever the scene's origin actually
   // sits — same trigger set as the origin-computing effect above (collars/terrain changes, or a manual
@@ -5580,7 +5581,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const { x, y } = originRef.current;
     toLonLat(x, y, project?.epsg).then((ll) => { if (!cancelled) setProjectLonLat(ll); });
     return () => { cancelled = true; };
-  }, [collars, terrain, project?.epsg, rebuildSeq]);
+  }, [collars, terrain, project?.epsg, rebuildSeq, deferRound]);
 
   // ---- rebuild voxel / block models (TASKS.csv #27/#28) ----
   // One THREE.InstancedMesh per model, cheap to move/scale per-instance via instanceMatrix rather
@@ -5592,7 +5593,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // of a drag.
   useEffect(() => {
     const group = voxelGroupRef.current;
-    if (!group) return;
+    if (!group || buildDefer.skip()) return; // #1980
     const wantedIds = new Set(voxelModels.map((v) => v.id));
     Object.keys(voxelMeshesRef.current).forEach((id) => {
       if (!wantedIds.has(id)) {
@@ -5738,7 +5739,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       group.add(mesh);
       voxelMeshesRef.current[model.id] = mesh;
     });
-  }, [voxelModels, collars, slice3d.on]); // slice3d.on: #793
+  }, [voxelModels, collars, slice3d.on, deferRound]); // slice3d.on: #793; deferRound: #1980
 
   // TASKS.csv #188 — planned drillholes (drillhole planning/targeting module). A planned hole has no
   // downhole survey (it hasn't been drilled yet) — just a collar plus a single design azimuth/dip/
@@ -5753,7 +5754,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // x / y / z: before, they were only visible in their own section window (and in the CSV / DXF exports).
   useEffect(() => {
     const group = sectionStringsGroupRef.current;
-    if (!group) return;
+    if (!group || buildDefer.skip()) return; // #1980
     group.children.slice().forEach((ch) => { group.remove(ch); ch.geometry?.dispose(); ch.material?.dispose(); });
     if (!showSectionStrings) return;
     const { x: ox, y: oy, z: oz } = originRef.current;
@@ -5765,7 +5766,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       line.userData = { tip: `${c.unit} (${c.kind === "fault" ? "fault" : c.kind === "string" ? "string" : "upper contact"})\nsection: ${s.name}\n${pts.length} vertices` };
       group.add(line);
     }));
-  }, [sections, showSectionStrings]);
+  }, [sections, showSectionStrings, deferRound]);
 
   // TASKS.csv #1011 — Matt: "have the cross section display as on the 3d view so I can see it when looking from top. Have
   // it display as a thick line". Each saved section's line A -> B as a flat ribbon (WebGL draws every line 1 px wide, so a
@@ -5778,7 +5779,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // faces the line's left-hand normal), and the section's name at A and name′ at B as fixed-size screen labels.
   useEffect(() => {
     const group = sectionLinesGroupRef.current;
-    if (!group) return;
+    if (!group || buildDefer.skip()) return; // #1980
     group.children.slice().forEach((ch) => { group.remove(ch); ch.geometry?.dispose(); ch.material?.map?.dispose(); ch.material?.dispose(); }); // map: #1126 label textures
     if (!showSectionLines || !(sections || []).length) return;
     const { x: ox, y: oy, z: oz } = originRef.current;
@@ -5840,11 +5841,11 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       });
     });
     lastActivityRef.current = Date.now();
-  }, [sections, showSectionLines, terrain, collars]);
+  }, [sections, showSectionLines, terrain, collars, deferRound]);
 
   useEffect(() => {
     const group = plannedGroupRef.current;
-    if (!group) return;
+    if (!group || buildDefer.skip()) return; // #1980
     const wantedIds = new Set(plannedHoles.map((h) => h.id));
     Object.keys(plannedMeshesRef.current).forEach((id) => {
       if (!wantedIds.has(id)) {
@@ -5888,11 +5889,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       group.add(holeGroup);
       plannedMeshesRef.current[hole.id] = holeGroup;
     });
-  }, [plannedHoles]);
+  }, [plannedHoles, deferRound]);
 
   // TASKS.csv #1342 — Mine Design linework in the view, drawn over the rock so a line inside a block model stays in sight
   const designGroupRef = useRef(null);
   useEffect(() => {
+    if (buildDefer.skip()) return undefined; // #1980
     let live = true;
     const scene = sceneRef.current;
     if (!scene) return undefined;
@@ -5931,12 +5933,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       lastActivityRef.current = Date.now();
     });
     return () => { live = false; };
-  }, [designLines, collars]); // collars: they set the scene's origin
+  }, [designLines, collars, deferRound]); // collars: they set the scene's origin; deferRound: #1980
   // TASKS.csv #1876 — design strings in the view: a line (a loop when closed) and a dot per vertex, over the rock like the design lines
   const stringGroupRef = useRef(null);
   useEffect(() => {
     const scene = sceneRef.current;
-    if (!scene) return undefined;
+    if (!scene || buildDefer.skip()) return undefined; // #1980
     const clear = () => { const g = stringGroupRef.current; if (g) { scene.remove(g); g.traverse((o) => { o.geometry?.dispose(); o.material?.dispose(); }); stringGroupRef.current = null; } lastActivityRef.current = Date.now(); };
     clear();
     if (!designStrings.length) return undefined;
@@ -5955,7 +5957,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     stringGroupRef.current = g;
     lastActivityRef.current = Date.now();
     return undefined;
-  }, [designStrings, collars]); // collars: they set the scene's origin
+  }, [designStrings, collars, deferRound]); // collars: they set the scene's origin; deferRound: #1980
 
   // TASKS.csv #121 — measurement tool's own 3D visual: a solid line/polyline for distance mode (each
   // segment is a real placed measurement, unlike the dashed "planned/proposed" convention #188 uses),
