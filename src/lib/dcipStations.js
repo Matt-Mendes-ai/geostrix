@@ -57,7 +57,8 @@ function parseTable(lines) {
   const pick = (hs, re) => hs.findIndex((h) => re.test(n(h)));
   for (let i = 0; i < Math.min(lines.length, 40); i++) {
     const hs = split(lines[i]);
-    const si = pick(hs, /^(stn|station|sta|stat|stationm|chainage)$/), xi = pick(hs, /^(x|gridx|east|easting|utme|e|xutm|utmx)$/), yi = pick(hs, /^(y|gridy|north|northing|utmn|n|yutm|utmy)$/);
+    // xgrid / utmeasting / utmnorthing: a contractor's DCIP2D survey file (X_Grid, UTM_Easting, UTM_Northing, Elevation), #1348
+    const si = pick(hs, /^(stn|station|sta|stat|stationm|chainage|xgrid|distance|dist)$/), xi = pick(hs, /^(x|gridx|east|easting|utme|e|xutm|utmx|utmeasting|eastingutm)$/), yi = pick(hs, /^(y|gridy|north|northing|utmn|n|yutm|utmy|utmnorthing|northingutm)$/);
     if (si < 0 || xi < 0 || yi < 0) continue;
     const zi = pick(hs, /^(z|elev|elevation|alt|altitude|rl|height|elevm|zm)$/), li = pick(hs, /^(line|lineid|linename)$/);
     const stations = [];

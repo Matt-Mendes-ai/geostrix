@@ -29,6 +29,7 @@ import { percentile } from "../lib/sectionMerge.js";
 import { parseStationFile, matchStationLine, fitStationLine, stationGroundProfile, linePlacement } from "../lib/dcipStations.js";
 import { reprojectXY, getProj4DefSync } from "../lib/reproject.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { isDcip2dMeshText, looksLikeDcip2dModel, parseDcip2dMesh, parseDcip2dModel, parseDcip2dTopo, dcip2dSection, meshCore } from "../lib/ubc2d.js"; // TASKS.csv #1348
 
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 // TASKS.csv #581 — the IP inversion's own verdict (fitVerdict on its phi_d; older saved sections have no reachedTarget,
@@ -56,6 +57,52 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
   const [job, setJob] = useState(null);
   const [last, setLast] = useKeptState(keptScope, "dcip.last", null); // { result, geom, name, restored? }
   const [pick, setPick] = useKeptState(keptScope, "dcip.pick", "");
+  // TASKS.csv #1348 — a contractor's UBC-GIF DCIP2D inversion read as a section: { name, result, thick, sEnd, topElevation, pts, summary, placeNote }
+  const ubcRef = useRef(null);
+  const [ubc, setUbc] = useState(null);
+  const onUbcFiles = async (fileList) => {
+    try {
+      const files = [...(fileList || [])];
+      const texts = await Promise.all(files.map((f) => f.text()));
+      let meshText = null, conText = null, chgText = null, topo = null, stations = null, nameHint = "";
+      files.forEach((f, i) => {
+        const t = texts[i], n = f.name.toLowerCase();
+        if (isDcip2dMeshText(t)) { meshText = t; return; }
+        if (looksLikeDcip2dModel(t)) { if (/\.chg$/.test(n) || /ip/.test(n) && !/\.con$/.test(n)) chgText = t; else conText = t; return; }
+        const tp = parseDcip2dTopo(t);
+        if (tp) { topo = tp; nameHint = nameHint || f.name.replace(/[_ -]?topo.*$/i, "").replace(/\.[a-z0-9]+$/i, ""); return; }
+        try { const sf = parseStationFile(t, f.name); const key = Object.keys(sf.lines)[0]; if (key != null && sf.lines[key].length >= 2) { stations = sf.lines[key]; nameHint = nameHint || f.name.replace(/[_ -]?survey.*$/i, "").replace(/\.[a-z0-9]+$/i, ""); } } catch { /* not a station file */ }
+      });
+      if (!meshText) throw new Error(tr("Select the DCIP2D mesh (dcinv2d.msh) with its model file(s): the conductivity (.con) and / or chargeability (.chg) model."));
+      const mesh = parseDcip2dMesh(meshText);
+      const con = conText ? parseDcip2dModel(conText, mesh) : null, chg = chgText ? parseDcip2dModel(chgText, mesh) : null;
+      const topElevation = topo ? topo.topElevation : "";
+      const result = dcip2dSection({ mesh, con, chg, topElevation: Number(topElevation) || 0 });
+      const core = meshCore(mesh), sEnd = stations ? stations[stations.length - 1].s : topo ? topo.points[topo.points.length - 1][0] : core[1];
+      const ds = result.cells.ds.slice().sort((a, b) => a - b), thick = ds.length ? ds[ds.length >> 1] : 25;
+      let pts = { x0: "", y0: "", x1: "", y1: "" }, placeNote = tr("Type the line's coordinates at distance 0 and at {sEnd} m (project CRS), or include the line's station file (X_Grid, UTM Easting / Northing) in the selection.", { sEnd });
+      if (stations) { const fit = fitStationLine(stations); if (fit) { const r1 = (v) => String(+v.toFixed(1)); const at = (s) => [fit.start[0] + fit.u[0] * s * fit.scale, fit.start[1] + fit.u[1] * s * fit.scale]; const a = at(0), b = at(sEnd); pts = { x0: r1(a[0]), y0: r1(a[1]), x1: r1(b[0]), y1: r1(b[1]) }; placeNote = tr("Placed from {n} stations (azimuth {az}°, chaining scale {scale}); the coordinates are taken as the project's CRS.", { n: stations.length, az: fit.azimuth.toFixed(1), scale: fit.scale.toFixed(4) }); } }
+      const name = (nameHint || files.find((f) => !/^dcinv2d|^ipinv2d/i.test(f.name) && /\.msh$/i.test(f.name))?.name.replace(/\.msh$/i, "") || tr("DCIP2D section {n}", { n: dcipLines.length + 1 })).trim();
+      const rho = result.cells.resistivity.filter(Number.isFinite);
+      const summary = tr("{nx} x {nz} mesh: {cells} cells kept ({air} air and {padding} padding cells left out), {x0}–{x1} m along the line, mesh {depth} m deep{rho}{ip}{topo}.", { nx: mesh.nx, nz: mesh.nz, cells: result.counts.cells.toLocaleString(), air: result.counts.air.toLocaleString(), padding: result.counts.padding.toLocaleString(), x0: core[0], x1: core[1], depth: Math.round(mesh.z[mesh.nz]), rho: rho.length ? tr("; resistivity {lo}–{hi} ohm·m", { lo: sig3(arrMin(rho)), hi: sig3(arrMax(rho)) }) : "", ip: chg ? tr("; with chargeability") : "", topo: topo ? tr("; mesh top at {z} m from the topography file", { z: topo.topElevation }) : tr("; no topography file: enter the mesh top elevation") });
+      setUbc({ name, result, thick, sEnd, topElevation, pts, summary, placeNote, mesh, con, chg });
+      setMsg(null);
+    } catch (e) { setMsg({ ok: false, text: e.message }); }
+  };
+  const addUbcSection = () => {
+    if (!ubc) return;
+    const stored = lineFromTwoPoints({ s1: 0, x1: ubc.pts.x0, y1: ubc.pts.y0, s2: ubc.sEnd, x2: ubc.pts.x1, y2: ubc.pts.y1 });
+    if (!stored) { setMsg({ ok: false, text: tr("Place the line: the two points need x and y at distance 0 and at {sEnd} m.", { sEnd: ubc.sEnd }) }); return; }
+    if (!(Number(ubc.topElevation) || ubc.topElevation === "0")) { setMsg({ ok: false, text: tr("Enter the elevation of the mesh top (the topography file's first line gives it).") }); return; }
+    const result = dcip2dSection({ mesh: ubc.mesh, con: ubc.con, chg: ubc.chg, topElevation: Number(ubc.topElevation) });
+    const placement = { x0: stored.x0, y0: stored.y0, x1: stored.x1, y1: stored.y1, ground: "", scale: stored.scale || "", pts: null, stations: null };
+    const geomU = lineGeometry([stored.x0, stored.y0].map(Number), [stored.x1, stored.y1].map(Number), Number(stored.scale) || 1);
+    const thick = ubc.thick, name = ubc.name || tr("DCIP2D section {n}", { n: dcipLines.length + 1 }), ranAt = new Date().toISOString();
+    saveDcipLine({ name, readings: [], rho: [], ip: null, line: placement, opts: { cell: String(thick) }, savedAt: ranAt, section: { result: slimDcipResult(result), line: placement, opts: { cell: String(thick), imported: "UBC-GIF DCIP2D" }, ranAt } });
+    setLast({ result, geom: geomU, name, thick, obs: { readings: [], rho: [], ip: null }, imported: true });
+    setUbc(null);
+    setMsg({ ok: true, text: tr("{name}: {cells} section cells added to the project (UBC-GIF DCIP2D import). Send it to the 3D view with the buttons under the section.", { name, cells: result.counts.cells.toLocaleString() }) });
+  };
 
   useEffect(() => subscribeInversionJob((j) => setJob(j ? { ...j } : null)), []);
   useEffect(() => {
@@ -325,6 +372,21 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
         </div>
       )}
       <input ref={fileRef} type="file" multiple accept=".csv,.txt,.dat,.ipg,.arw,.gpx,.wpt" style={{ display: "none" }} onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
+      {/* TASKS.csv #1348 — a contractor's UBC-GIF DCIP2D inversion (dcinv2d.msh + dcinv2d.con / ipinv2d.chg), placed along its line */}
+      <button onClick={() => ubcRef.current?.click()} style={{ ...pBtn, marginTop: 6 }} title={tr("The mesh (dcinv2d.msh) with its conductivity (.con) and / or chargeability (.chg) model, the topography file (the mesh top elevation) and the line's station file (X_Grid, UTM Easting / Northing) to place it")}><Upload size={14} />{" "}{tr("Import a UBC DCIP2D inversion (mesh + model)…")}</button>
+      <input ref={ubcRef} type="file" multiple accept=".msh,.con,.chg,.txt,.dat,.csv,.mod" style={{ display: "none" }} onChange={(e) => { onUbcFiles(e.target.files); e.target.value = ""; }} />
+      {ubc && (
+        <div style={{ marginTop: 8, border: "1px solid var(--color-border)", borderRadius: 6, padding: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={small}>{ubc.summary}</div>
+          <div style={row}><span>{tr("Name")}</span><input value={ubc.name} onChange={(e) => setUbc((u) => ({ ...u, name: e.target.value }))} style={{ ...numInput, flex: 1, minWidth: 0 }} aria-label={tr("Section name")} /></div>
+          <div style={row} title={tr("The elevation of the mesh top (z = 0 of the mesh): the topography file's first line gives it; without one, type it")}><span>{tr("Mesh top elevation (m)")}</span><input type="number" step="any" value={ubc.topElevation} onChange={(e) => setUbc((u) => ({ ...u, topElevation: e.target.value }))} style={{ ...numInput, width: 90 }} aria-label={tr("Mesh top elevation (m)")} /></div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+            {[["x0", tr("X at 0 m")], ["y0", tr("Y at 0 m")], ["x1", tr("X at {s} m", { s: ubc.sEnd })], ["y1", tr("Y at {s} m", { s: ubc.sEnd })]].map(([k, l]) => <label key={k} style={row}><span>{l}</span><input value={ubc.pts[k]} onChange={(e) => setUbc((u) => ({ ...u, pts: { ...u.pts, [k]: e.target.value } }))} style={{ ...numInput, width: 90 }} aria-label={l} /></label>)}
+          </div>
+          <div style={small}>{ubc.placeNote}</div>
+          <div style={{ display: "flex", gap: 6 }}><button onClick={addUbcSection} style={{ ...pBtn, flex: 1, marginBottom: 0 }}>{tr("Add the section to the project")}</button><button onClick={() => setUbc(null)} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>{tr("Cancel")}</button></div>
+        </div>
+      )}
       {file && (
         <div style={{ marginTop: 8 }}>
           {FIELDS.map(([k, label]) => (
@@ -479,6 +541,7 @@ function SectionResult({ last, cutoff, epsg, pBtn, large = false }) {
   const doiFailed = !!doiFits?.some((v) => !(v <= 1.5)); // a reference run that did not fit makes the index meaningless
   const reach = useMemo(() => (c.doi && !doiFailed ? { doi: columnReach(c, (i) => c.doi[i] <= doiT), sup: columnReach(c, (i) => c.support[i] >= cutoff) } : null), [c, doiT, cutoff, doiFailed]);
   const verdict = fitVerdict(result);
+  const imported = result.imported || result.mesh?.imported || null; // TASKS.csv #1348 — a contractor's inversion: no fit to judge, no data kept
   const W = 320, H = 150;
   const s0 = arrMin(c.s.map((s, i) => s - c.ds[i] / 2)), s1 = arrMax(c.s.map((s, i) => s + c.ds[i] / 2));
   const z0 = arrMin(c.z.map((z, i) => z - c.dz[i] / 2)), z1 = arrMax(c.z.map((z, i) => z + c.dz[i] / 2));
@@ -487,9 +550,10 @@ function SectionResult({ last, cutoff, epsg, pBtn, large = false }) {
   return (
     <div style={{ marginTop: 10 }}>
       <div className="ge-section-label">{tr("Result — {name}", { name: last.name })}</div>
-      <div role="status" style={{ fontSize: "var(--font-size-sm)", color: verdict.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{tr("Resistivity: {text}", { text: verdict.shown })}</div>
+      {imported ? <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Imported {v} inversion: its fit and its data are not in the mesh and model files, so GeoStrix does not judge it; read the contractor's report for that.", { v: imported })}</div>
+      : <div role="status" style={{ fontSize: "var(--font-size-sm)", color: verdict.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{tr("Resistivity: {text}", { text: verdict.shown })}</div>}
       {/* TASKS.csv #581 — chargeability judged on its own, in its own colour (a good DC fit used to paint a failed IP fit as fine) */}
-      {result.ip && (() => { const iv = ipFitOf(result); return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: iv.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{tr("Chargeability: {verdict}", { verdict: iv.shown })}</div>; })()}
+      {result.ip && !imported && (() => { const iv = ipFitOf(result); return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: iv.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{tr("Chargeability: {verdict}", { verdict: iv.shown })}</div>; })()}
       {c.chargeability && (
         <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
           {["resistivity", "chargeability"].map((f) => <button key={f} onClick={() => setField(f)} style={{ fontSize: "var(--font-size-xs)", padding: "2px 8px", border: "1px solid var(--color-border)", borderRadius: 4, background: f === field ? "var(--color-selected-bg)" : "var(--color-bg)", cursor: "pointer" }}>{f === "resistivity" ? tr("Resistivity") : tr("Chargeability")}</button>)}
@@ -508,7 +572,7 @@ function SectionResult({ last, cutoff, epsg, pBtn, large = false }) {
       {reach && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>{tr("Dashed line = DOI index {doiT} (Oldenburg & Li; median over 5 columns): below it the resistivity follows the reference model, not the data. The data reach a median {median} m per column by the DOI index, {median2} m by the support cutoff ({cutoff}).{v}", { doiT, median: reach.doi.median.toFixed(0), median2: reach.sup.median.toFixed(0), cutoff, v: doiFits ? tr(" The two reference runs fit {v} the target{v2}.", { v: doiFits.map((v) => `${v.toFixed(2)}×`).join(" and "), v2: doiFits.some((v) => v < 0.5) ? tr(" — unequal fits inflate the index, so read the line as approximate") : "" }) : "" })}</div>}
       {doiFailed && <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-danger-fg)" }}>{tr("Depth-of-investigation check not shown: a reference run did not fit the data ({v} the target), so the index would measure that failure, not the depth the data reach.", { v: doiFits.map((v) => `${v.toFixed(2)}×`).join(" and ") })}</div>}
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>
-        {tr("{v} · {v2} m × {v3} m, vertical exaggeration {v4}× ·", { v: field === "resistivity" ? tr("{v}–{v2} ohm·m (log colours: dark red conductive → light blue resistive)", { v: sig3(arrMin(vals)), v2: sig3(arrMax(vals)) }) : `0–${sig3(arrMax(vals))} mV/V`, v2: (s1 - s0).toFixed(0), v3: (z1 - z0).toFixed(0), v4: (sz / sx).toFixed(1) })}{" "}<svg width="14" height="9" style={{ verticalAlign: "middle" }} aria-hidden="true"><rect width="14" height="9" fill={`url(#${hatchId})`} stroke={HATCH.line} strokeWidth="0.5" /></svg>{" "}{tr("hatched = barely seen by the data. {v}", { v: last.restored ? tr("Inverted {v} (kept in the project).", { v: last.restored.slice(0, 10) }) : tr("Added to Block models (3D, along the line).") })}
+        {tr("{v} · {v2} m × {v3} m, vertical exaggeration {v4}× ·", { v: field === "resistivity" ? tr("{v}–{v2} ohm·m (log colours: dark red conductive → light blue resistive)", { v: sig3(arrMin(vals)), v2: sig3(arrMax(vals)) }) : `0–${sig3(arrMax(vals))} mV/V`, v2: (s1 - s0).toFixed(0), v3: (z1 - z0).toFixed(0), v4: (sz / sx).toFixed(1) })}{" "}<svg width="14" height="9" style={{ verticalAlign: "middle" }} aria-hidden="true"><rect width="14" height="9" fill={`url(#${hatchId})`} stroke={HATCH.line} strokeWidth="0.5" /></svg>{" "}{tr("hatched = barely seen by the data. {v}", { v: imported ? tr("Imported from the contractor's files (kept in the project).") : last.restored ? tr("Inverted {v} (kept in the project).", { v: last.restored.slice(0, 10) }) : tr("Added to Block models (3D, along the line).") })}
       </div>
       <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
         <button onClick={() => exportCsv(last, epsg, cutoff)} style={{ ...pBtn, width: "auto", flex: 1 }} title={tr("Every section cell: distance, x / y (project CRS), elevation, size, values, support")}><Download size={14} />{" "}{tr("CSV")}</button>
@@ -526,7 +590,7 @@ function SectionResult({ last, cutoff, epsg, pBtn, large = false }) {
         ))}
       </div>
       {note && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>{note}</div>}
-      {last.obs && <DataFit obs={last.obs} result={result} />}
+      {last.obs && !imported && <DataFit obs={last.obs} result={result} />}
     </div>
   );
 }

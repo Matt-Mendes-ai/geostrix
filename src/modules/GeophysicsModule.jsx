@@ -33,6 +33,7 @@ import { fetchSRTMTerrain, collarGroundMisfit, findBetterUtmZone } from "../lib/
 import { fetchCopernicusTerrain } from "../lib/copernicusDem.js"; // TASKS.csv #814
 import { toLonLat, reprojectXY, crsName, pointTransform } from "../lib/reproject.js";
 import { omfToProjectObjectsAsync } from "../lib/omfImport.js"; // TASKS.csv #637; #1280
+import { isDcip2dMeshText } from "../lib/ubc2d.js"; // TASKS.csv #1348
 import { parseUBCMesh, isUBCMeshText, parseUBCModelStream, maskAirCells, ubcMeshToCells, cellValueRange, MAX_CELLS, planCoarsenFactors, coarsenUBCModel, coarsenRecord, wantsLogMean, MEAN_RULE } from "../lib/voxel.js"; // coarsenRecord: #1095
 import { parsePLYBoundary, parseXYZ, guessXyzChannels } from "../lib/geosoft.js";
 import { gridPairs, stationPlacer, nearestStationZ, looksLikeLocalGrid } from "../lib/gridFromStations.js"; // TASKS.csv #1326
@@ -1181,6 +1182,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       const meshText = await meshFile.text();
       const infoNotes = [];
       for (const modelFile of modelFiles) {
+      // TASKS.csv #1348 — a DCIP2D mesh (11 of ARIS 42641Z's lines) is not a 3D mesh: say where it goes
+      if (isDcip2dMeshText(meshText)) throw new Error(tr("This is a UBC DCIP2D (2D) mesh: import it with DC / IP > Import a UBC DCIP2D inversion (mesh + model), with its .con / .chg model and the line's topography and station files."));
       let mesh = parseUBCMesh(meshText);
       const modelName = modelFile.name.replace(/\.([a-z0-9]+)$/i, " ($1)"); // "MPD-2023_dcinv3d_r2i10 (res)" 
       // Read the model file as a stream rather than meshFile.text()-style whole-file-into-one-string —
