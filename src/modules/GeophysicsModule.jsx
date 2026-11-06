@@ -21,7 +21,8 @@ import { terrainElevationAt } from "../lib/inversion.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
 import { useStore } from "../lib/store.jsx";
-import { classifyBreaks, PALETTES, paletteColorsHex , colorForVoxelValue } from "../lib/layers.js";
+import { classifyBreaks, PALETTES, paletteColorsHex , colorForVoxelValue, readableValues /* #1422 */ } from "../lib/layers.js";
+import StopValueInput from "../components/StopValueInput.jsx"; // TASKS.csv #1422
 import { parseDEMFiles, buildRasterImport, terrainToGeoTIFFArrayBuffer } from "../lib/raster.js";
 import { boundaryAreaHectares } from "../lib/geoprocessing.js";
 import { saveFile, safeFileName } from "../lib/desktop.js"; // safeFileName: #1114
@@ -2426,6 +2427,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
   // OMF-imported legend, without re-running classification).
   const [palette, setPalette] = useState("viridis"); // TASKS.csv #382 — was the isoluminant blue-red
   const stops = model.stops || [];
+  const shown = useMemo(() => readableValues([...stops.map((s) => s.value), model.max]), [stops, model.max]); // #1422 — the stops (and the max) as read
 
   const setStops = (next, extra = {}) => onUpdate(model.id, { stops: next, ...extra });
 
@@ -2493,10 +2495,10 @@ function VoxelLegendEditor({ model, onUpdate }) {
         {stops.map((s, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
             <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(s.color) ? s.color : "#5a9bd4"} onChange={(e) => updateStop(i, { color: e.target.value })} style={{ width: 24, height: 20, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent", flexShrink: 0 }} />
-            <input type="number" value={s.value} onChange={(e) => updateStop(i, { value: Number(e.target.value) })} style={{ ...numInput, flex: 1 }} />
+            <StopValueInput value={s.value} shown={shown[i]} onCommit={(v) => updateStop(i, { value: v })} style={{ ...numInput, flex: 1 }} ariaLabel={tr("Value of colour stop {n}", { n: i + 1 })} />
             {model.colorMode === "discrete" && (
               <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", width: 60, flexShrink: 0 }}>
-                {i < stops.length - 1 ? `to ${(stops[i + 1].value)}` : tr("to {max} (max)", { max: model.max })}
+                {i < stops.length - 1 ? tr("to {v}", { v: shown[i + 1] }) : tr("to {max} (max)", { max: shown[stops.length] })}
               </span>
             )}
             <Trash2 aria-label={tr("Remove this colour stop")} title={tr("Remove this colour stop")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-muted)", flexShrink: 0 }} onClick={() => removeStop(i)} />
@@ -2518,11 +2520,12 @@ function VoxelLegendEditor({ model, onUpdate }) {
       <div style={{ marginTop: 10 }}>
         <div style={{ color: "var(--color-text-faint)", marginBottom: 4 }}>{tr("Colour palette")}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <select value={palette} onChange={(e) => setPalette(e.target.value)} style={{ ...numInput, flex: 1 }}>
-            {Object.entries(PALETTES).map(([key, p]) => <option key={key} value={key}>{p.label}</option>)}
+          <select value={palette} onChange={(e) => setPalette(e.target.value)} style={{ ...numInput, flex: 1 }} title={PALETTES[palette]?.label}>
+            {/* #1433 — the short name in the list (the full description widened the sidebar to 488 px); the full text on hover */}
+            {Object.entries(PALETTES).map(([key, p]) => <option key={key} value={key} title={p.label}>{p.label.split(" — ")[0]}</option>)}
           </select>
           {stops.length > 0 && (
-            <button onClick={recolorWithPalette} style={{ ...pBtn, width: "auto", marginBottom: 0 }} title={tr("Re-colour the existing stops with this palette, keeping their current values")}>{tr("Recolor")}</button>
+            <button onClick={recolorWithPalette} style={{ ...pBtn, width: "auto", marginBottom: 0 }} title={tr("Re-colour the existing stops with this palette, keeping their current values")}>{tr("Recolour")}</button>
           )}
         </div>
         <div style={{ display: "flex", gap: 2, marginTop: 4, height: 10, borderRadius: 3, overflow: "hidden" }}>
@@ -2542,7 +2545,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
                 right default for the clustered background + anomalous tail real survey data has. */}
             <option value="jenks">{tr("Natural breaks (Jenks)")}</option>
           </select>
-          <input type="number" min={2} max={64} value={classCount} onChange={(e) => setClassCount(Number(e.target.value))} style={{ ...numInput, width: 44 }} />
+          <input type="number" min={2} max={64} value={classCount} onChange={(e) => setClassCount(Number(e.target.value))} style={{ ...numInput, width: 44, flex: "none" }} /* #1433 */ />
           <button onClick={applyClassify} style={{ ...pBtn, width: "auto", marginBottom: 0 }}>{tr("Apply")}</button>
         </div>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 3, lineHeight: 1.4 }}>{tr("Generates {classCount} classes from this model's actual cell values and switches to classified (stepped) styling.", { classCount })}</div>
@@ -2552,4 +2555,4 @@ function VoxelLegendEditor({ model, onUpdate }) {
 }
 
 const pBtn ={ display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "8px 10px", marginBottom: 6, background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, color: "var(--color-text)", fontSize: "var(--font-size-base)", cursor: "pointer" };
-const numInput = { flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "3px 6px" };
+const numInput = { flex: 1, minWidth: 0 /* #1433 */, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, color: "var(--color-text)", fontSize: "var(--font-size-sm)", padding: "3px 6px" };

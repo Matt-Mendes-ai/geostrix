@@ -415,7 +415,20 @@ export function trimForBreaks(values, pLo = 0.01, pHi = 0.99) {
   const lo = at(pLo), hi = at(pHi), kept = nums.filter((v) => v >= lo && v <= hi);
   return { values: kept, lo, hi, below: nums.filter((v) => v < lo).length, above: nums.filter((v) => v > hi).length };
 }
+// TASKS.csv #1422 — readable class breaks and stop values: the fewest significant figures (3 at least, as #1198 gave Jenks) that keep
+// neighbouring values that differ apart. Rounding to a fixed number of significant figures keeps the order.
+export function readableValues(values, minSig = 3) {
+  for (let p = minSig; p <= 9; p++) {
+    const r = values.map((v) => (Number.isFinite(v) && v !== 0 ? Number(v.toPrecision(p)) : v));
+    if (r.every((x, i) => i === 0 || values[i] === values[i - 1] || x !== r[i - 1])) return r;
+  }
+  return values.slice();
+}
 export function classifyBreaks(values, n, method = "equal") {
+  const b = classifyBreaksRaw(values, n, method);
+  return b.length ? [b[0], ...readableValues(b).slice(1)] : b; // #1422 — the first break (the minimum) stays exact, as #1198 kept it
+}
+function classifyBreaksRaw(values, n, method) {
   const nums = values.filter((v) => Number.isFinite(v)).sort((a, b) => a - b);
   if (!nums.length) return [];
   // User report: "I tried adding 30 but it didn't work" — this used to silently clamp to 20 with zero
@@ -462,8 +475,8 @@ export function classifyBreaks(values, n, method = "equal") {
     // plus a long anomalous tail). Equal-interval puts nearly every sample in class 1 there, and
     // quantile splits the background into meaningless slices while lumping the whole anomaly together.
     // TASKS.csv #1198 — readable breaks, and no last "class" that starts at the maximum: 16-digit stops, and a fifth class holding one value
-    const sig3 = (v) => (v === 0 ? 0 : Number(v.toPrecision(3)));
-    return jenksBreaks(nums, count).filter((b, i) => i === 0 || b < nums[nums.length - 1]).map((b, i) => (i === 0 ? b : sig3(b)));
+    // #1422 — the rounding now happens in classifyBreaks for every method
+    return jenksBreaks(nums, count).filter((b, i) => i === 0 || b < nums[nums.length - 1]);
   } else {
     for (let i = 0; i < count; i++) breaks.push(min + (i / count) * (max - min));
   }

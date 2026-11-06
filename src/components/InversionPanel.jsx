@@ -399,7 +399,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   const lbl = { width: 104, flexShrink: 0 };
   const inp = { ...numInput, width: 78, flex: "none" };
   const step = (n, title, children) => (
-    <fieldset style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px 9px", margin: "8px 0 0" }}>
+    <fieldset style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "7px 9px 9px", margin: "8px 0 0", minWidth: 0 /* #1433 — a fieldset is min-content wide by default */ }}>
       <legend style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", padding: "0 4px" }}>{n}. {title}</legend>
       {children}
     </fieldset>

@@ -1,7 +1,8 @@
 // TASKS.csv #1136 — moved out of ViewerModule (loaded on first use, not at startup)
 import React, { useState } from "react";
 import { CLIP_KEYS, numericClip } from "../lib/numericClip.js"; // TASKS.csv #1699
-import { minMax, classifyBreaks, paletteColorsHex, PALETTES, trimForBreaks } from "../lib/layers.js"; // trimForBreaks: #1531
+import { minMax, classifyBreaks, paletteColorsHex, PALETTES, trimForBreaks, readableValues } from "../lib/layers.js"; // trimForBreaks: #1531; readableValues: #1422
+import StopValueInput from "./StopValueInput.jsx"; // TASKS.csv #1422
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
 
@@ -34,6 +35,7 @@ export default function NumericSymbologyEditor({ layerKey, rows, sym, onChange }
     onChange({ stops: breaks.map((v, i) => ({ value: v, color: colors[i] })), colorMode: "discrete" });
   };
   const stops = sym?.stops || [];
+  const shown = React.useMemo(() => readableValues(stops.map((s) => s.value)), [stops]); // #1422
   // TASKS.csv #1699 — which range the default ramp spans, and the switch to minimum-maximum
   const clip = React.useMemo(() => (CLIP_KEYS.includes(layerKey) ? numericClip(rows) : null), [layerKey, rows]);
   const f3 = (v) => String(+Number(v).toPrecision(3));
@@ -92,8 +94,8 @@ export default function NumericSymbologyEditor({ layerKey, rows, sym, onChange }
                 <input type="color" value={s.color}
                   onChange={(e) => { const next = stops.map((x, j) => j === i ? { ...x, color: e.target.value } : x); onChange({ ...sym, stops: next }); }}
                   style={{ width: 22, height: 16, padding: 0, border: "1px solid var(--color-border-light)", borderRadius: 3, background: "none", cursor: "pointer", flexShrink: 0 }} />
-                <input type="number" value={s.value}
-                  onChange={(e) => { const next = stops.map((x, j) => j === i ? { ...x, value: Number(e.target.value) } : x); onChange({ ...sym, stops: next }); }}
+                <StopValueInput value={s.value} shown={shown[i]}
+                  onCommit={(v) => { const next = stops.map((x, j) => j === i ? { ...x, value: v } : x); onChange({ ...sym, stops: next }); }}
                   title={tr("Lower bound of this class")}
                   style={{ flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "2px 4px", fontSize: "var(--font-size-sm)", color: "var(--color-text)" }} />
                 <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>&ge;</span>
