@@ -12,7 +12,7 @@
 // The job itself lives in lib/inversionJobs.js so it survives tab switches.
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import InResultArea from "./InResultArea.jsx"; // TASKS.csv #1199
-import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1174
+import { useKeptState, scopeOf, keptIn } from "../lib/keptState.js"; // TASKS.csv #1174; keptIn: #1431
 import { ChevronDown, ChevronRight, Activity, Square, Compass, Play, Gauge } from "./icons.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import InfoButton from "./InfoButton.jsx";
@@ -105,7 +105,12 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   const [planBusy, setPlanBusy] = useState(false);
   const [msg, setMsg] = useState(null);
   const [job, setJob] = useState(null);
-  const [lastResult, setLastResult] = useState(null); // { result, prepared, verdict }
+  // { result, prepared, verdict } — TASKS.csv #1431: kept per project, so leaving the pane (or the tab) and coming back shows the
+  // fit again. The run's own scope is written even when this pane closed before the run finished; a pane open again picks it up below.
+  const [lastResult, setLastResultState] = useKeptState(keptScope, "inversion.lastResult", null);
+  const scopeNow = useRef(keptScope);
+  scopeNow.current = keptScope;
+  const setLastResult = (v, scope = keptScope) => { keptIn(scope).set("inversion.lastResult", v); if (scope === scopeNow.current) setLastResultState(v); };
 
   useEffect(() => subscribeInversionJob((j) => setJob(j ? { ...j } : null)), []);
   useEffect(() => {
@@ -117,6 +122,11 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
 
   const M = METHODS[method];
   const running = job?.status?.state === "running";
+  useEffect(() => { // #1431 — a run that finished while another pane was open (onDone runs before the job's last emit)
+    if (running) return;
+    const kept = keptIn(keptScope).get("inversion.lastResult");
+    if (kept && kept !== lastResult) setLastResultState(kept);
+  }, [running, keptScope]);
   const xs = rows.map((r) => r.x), ys = rows.map((r) => r.y);
   const spacing = useMemo(() => (rows.length > 1 ? medianNearestSpacing(xs, ys) : null), [rows]);
   // TASKS.csv #1709 — stations that sit down the holes are not survey stations (Copley's susceptibility log was offered as 2,619 TMI stations)
