@@ -52,6 +52,7 @@ import { t as tr } from "../lib/i18n.js";
 import EmptyViewerBody from "./viewer/EmptyViewerBody.jsx"; // TASKS.csv #1448
 import { featureCountText } from "../lib/featureCount.js"; // #1448 — "77 polygons", translated
 import { drillDepthBelowOrigin, gridWallHeight } from "../lib/viewer/gridDepth.js"; // #1405
+import { visibleSceneBox } from "../lib/viewer/fitAll.js"; // #1407
 import { tx } from "../lib/i18nRich.js"; // TASKS.csv #786 // TASKS.csv #786 — "tr": this file uses t as a local name
 import { iconAction, activateOnKey } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 const AttributeTableModal = lazyModal(() => import("../components/AttributeTableModal.jsx"));  // TASKS.csv #301
@@ -2768,7 +2769,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     fitBox(new THREE.Box3().setFromObject(group));
   }, [fitBox, collars, layers]); // collars, layers: #1813
   const zoomToCustom = useCallback((id) => { const g = layerGroupsRef.current[id]; if (g && g.children.length) fitBox(new THREE.Box3().setFromObject(g)); }, [fitBox]);
-  const zoomToFitAll = () => fitView(lastTracesRef.current);
+  // TASKS.csv #1407 — everything shown (surface samples, map layers, terrain...), with the holes and block models as before
+  const zoomToFitAll = () => { const b = visibleSceneBox(sceneRef.current?.getObjectByName("root")); (lastTracesRef.current || []).forEach((pts) => pts.forEach((p) => b.expandByPoint(new THREE.Vector3(p.x, p.y, p.z)))); fitBox(b); };
   // TASKS.csv #1181 — the Fit button frames the drilling, as the opening view does: a 25 km mesh over 5 km of holes left them a few pixels. All of it stays on the right-click menu.
   const zoomToHoles = () => autoFitInitial(lastTracesRef.current, lastHoleTraceCountRef.current);
   // TASKS.csv #393 — zoom to one hole from the Holes list (its desurveyed trace, scene coords).
@@ -8639,7 +8641,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <div style={{ position: "absolute", top: 178, right: 12, display: "flex", flexDirection: "column", gap: 6 }}>{/* #1300 — 8 px below the compass card */}
           <button onClick={() => { camState.current.theta = 0; camState.current.phi = 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Top")}</button>{/* #1200 — north up, as a map */}
           <button onClick={() => { camState.current.phi = Math.PI - 0.02; cameraRef.current.__update(); }} style={miniBtn}>{tr("Bottom")}</button>
-          <button onClick={() => zoomToHoles()} style={miniBtn} title={tr("Zoom to the holes (to include the models too: right-click the view, Zoom to fit all)")} aria-label={tr("Zoom to the holes")}>{tr("Fit")}</button>{/* #567 — the keyboard / visible path the notices pointed to */}
+          <button onClick={() => zoomToHoles()} style={miniBtn} title={tr("Zoom to the holes (to include everything shown: right-click the view, Zoom to fit all)")} aria-label={tr("Zoom to the holes")}>{tr("Fit")}</button>{/* #567 — the keyboard / visible path the notices pointed to */}
         </div>
         {/* TASKS.csv #189 — the old "■ East ■ Elevation ■ North" text legend used to render here;
             replaced by axisGizmo (created above, rendered every frame via the same viewport/scissor

@@ -12,5 +12,5 @@ test("the opening fit takes the hole traces, counted before the block models are
 });
 test("nothing tightens the view afterwards", () => {
   for (const gone of ["applyLegibilityClamp", "reapplyOpeningFit", "densestCentre", "MIN_OPENING_TUBE_PX", "openingFitRef"]) assert.ok(!src.includes(gone), gone);
-  assert.match(src, /const zoomToFitAll = \(\) => fitView\(lastTracesRef\.current\)/);
+  assert.match(src, /const zoomToFitAll = \(\) => \{ const b = visibleSceneBox\(.*fitBox\(b\); \};/); // #1407: everything shown, plain fitBox
 });

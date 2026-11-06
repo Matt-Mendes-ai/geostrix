@@ -8543,5 +8543,6 @@
   "Leave out vegetation (NDVI above {max}, from {nir} and {red}): iron and clay ratios only mean something on exposed rock and soil, so the colours then compare rock with rock.{v}": "استبعاد الغطاء النباتي (NDVI فوق {max}، من {nir} و{red}): نسب الحديد والطين لا معنى لها إلا على الصخر والتربة المكشوفين، فتقارن الألوان عندها صخرًا بصخر.{v}",
   " Downloads one more band.": " يُنزّل نطاقًا إضافيًا.",
   "2. Feature": "2. السمة",
-  "{v} @ {azimuth}° grid, {h} in plan (Δelev {v2}{vert} m)": "{v} @ {azimuth}° شبكي، {h} في المسقط (Δالمنسوب {v2}{vert} م)"
+  "{v} @ {azimuth}° grid, {h} in plan (Δelev {v2}{vert} m)": "{v} @ {azimuth}° شبكي، {h} في المسقط (Δالمنسوب {v2}{vert} م)",
+  "Zoom to the holes (to include everything shown: right-click the view, Zoom to fit all)": "تكبير إلى الآبار (لتضمين كل ما هو معروض: انقر بزر الماوس الأيمن على العرض، ثم ملاءمة الكل في العرض)"
 }

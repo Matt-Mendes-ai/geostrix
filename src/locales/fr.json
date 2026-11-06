@@ -8543,5 +8543,6 @@
   "Leave out vegetation (NDVI above {max}, from {nir} and {red}): iron and clay ratios only mean something on exposed rock and soil, so the colours then compare rock with rock.{v}": "Exclure la végétation (NDVI supérieur à {max}, d'après {nir} et {red}) : les rapports de fer et d'argile n'ont de sens que sur la roche et le sol exposés, les couleurs comparent alors roche et roche.{v}",
   " Downloads one more band.": " Télécharge une bande de plus.",
   "2. Feature": "2. Absorption",
-  "{v} @ {azimuth}° grid, {h} in plan (Δelev {v2}{vert} m)": "{v} @ {azimuth}° grille, {h} en plan (Δaltitude {v2}{vert} m)"
+  "{v} @ {azimuth}° grid, {h} in plan (Δelev {v2}{vert} m)": "{v} @ {azimuth}° grille, {h} en plan (Δaltitude {v2}{vert} m)",
+  "Zoom to the holes (to include everything shown: right-click the view, Zoom to fit all)": "Zoom sur les sondages (pour inclure tout ce qui est affiché : clic droit dans la vue, Ajuster tout à la vue)"
 }
