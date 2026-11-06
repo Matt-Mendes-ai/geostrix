@@ -21,6 +21,15 @@ export const CALC_PRESETS = [
   { name: "NaAl", label: "Molar Na/Al (albite / sodic alteration)", expr: "(Na/22.990)/(Al/26.982)", needs: ["Na", "Al"], unitNote: "Na and Al in the same unit (both % or both ppm)" },
   { name: "CNKAl", label: "Molar (2Ca+Na+K)/Al", expr: "(2*Ca/40.078+Na/22.990+K/39.098)/(Al/26.982)", needs: ["Ca", "Na", "K", "Al"], unitNote: "Ca, Na, K and Al in the same unit" },
   { name: "CuAu", label: "Cu/Au ratio", expr: "Cu/Au", needs: ["Cu", "Au"], unitNote: "read in the stored units (Cu ppm / Au ppm gives the usual ratio); say the units with the result" },
+  // TASKS.csv #1526 (review #1497, Lawyers) — the presets were VMS and porphyry only. Not added: an As+Sb+Hg
+  // sum (in ppm As outweighs the others a hundredfold, so it is As) and Au + Ag/80 (a metal equivalent needs prices: Best intercepts asks)
+  { name: "AgAu", label: "Ag/Au ratio", expr: "Ag/Au", needs: ["Ag", "Au"], unitNote: "Ag and Au in the same unit (both ppm or g/t); where Au sits at its detection limit the ratio runs to thousands and means little" },
+  { name: "ZnPb", label: "Zn + Pb (combined grade)", expr: "Zn+Pb", needs: ["Zn", "Pb"], unitNote: "Zn and Pb in the same unit (both %): the combined grade lead-zinc intercepts are often quoted in" },
+  // Matt, 2026-11-06: "GeoStrix is made for any kind of deposit" — common ratios for other styles too, each named for what it measures
+  { name: "SrY", label: "Sr/Y (magma fertility)", expr: "Sr/Y", needs: ["Sr", "Y"], unitNote: "Sr and Y in the same unit (both ppm)" },
+  { name: "KRb", label: "K/Rb (pegmatite and granite fractionation)", expr: "K*10000/Rb", needs: ["K", "Rb"], unitNote: "K in %, Rb in ppm" },
+  { name: "NiCu", label: "Ni/Cu ratio", expr: "Ni/Cu", needs: ["Ni", "Cu"], unitNote: "Ni and Cu in the same unit" },
+  { name: "ThU", label: "Th/U ratio", expr: "Th/U", needs: ["Th", "U"], unitNote: "Th and U in the same unit (both ppm)" },
 ];
 
 // Returns { assays, element, computed, skipped, min, max } or throws with a readable message.

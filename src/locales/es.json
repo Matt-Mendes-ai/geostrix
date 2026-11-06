@@ -8499,5 +8499,17 @@
   "Import a point survey (CSV)…": "Importar un levantamiento de puntos (CSV)…",
   "A DC / IP line comes in through \"Import line (CSV / .dat)…\" in the sidebar: a CSV, or a contractor TDIP .dat / .ipg file.": "Una línea DC / IP entra por \"Importar línea (CSV / .dat)…\" en la barra lateral: un CSV o un archivo TDIP .dat / .ipg del contratista.",
   "Not read yet:": "Aún no se lee:",
-  "• Geosoft voxel (.geosoft_voxel): a proprietary binary with no public spec. Export the voxel from Oasis montaj as a CSV and use \"Import block model CSV…\" above.": "• Vóxel de Geosoft (.geosoft_voxel): un binario propietario sin especificación pública. Exporte el vóxel desde Oasis montaj como CSV y use \"Importar CSV de modelo de bloques…\" arriba."
+  "• Geosoft voxel (.geosoft_voxel): a proprietary binary with no public spec. Export the voxel from Oasis montaj as a CSV and use \"Import block model CSV…\" above.": "• Vóxel de Geosoft (.geosoft_voxel): un binario propietario sin especificación pública. Exporte el vóxel desde Oasis montaj como CSV y use \"Importar CSV de modelo de bloques…\" arriba.",
+  "Ag/Au ratio": "Razón Ag/Au",
+  "Ag and Au in the same unit (both ppm or g/t); where Au sits at its detection limit the ratio runs to thousands and means little": "Ag y Au en la misma unidad (ambos en ppm o g/t); donde el Au está en su límite de detección la razón llega a miles y significa poco",
+  "Zn + Pb (combined grade)": "Zn + Pb (ley combinada)",
+  "Zn and Pb in the same unit (both %): the combined grade lead-zinc intercepts are often quoted in": "Zn y Pb en la misma unidad (ambos en %): la ley combinada en que suelen informarse los intervalos de plomo-zinc",
+  "Sr/Y (magma fertility)": "Sr/Y (fertilidad del magma)",
+  "Sr and Y in the same unit (both ppm)": "Sr e Y en la misma unidad (ambos en ppm)",
+  "K/Rb (pegmatite and granite fractionation)": "K/Rb (fraccionamiento de pegmatitas y granitos)",
+  "K in %, Rb in ppm": "K en %, Rb en ppm",
+  "Ni/Cu ratio": "Razón Ni/Cu",
+  "Ni and Cu in the same unit": "Ni y Cu en la misma unidad",
+  "Th/U ratio": "Razón Th/U",
+  "Th and U in the same unit (both ppm)": "Th y U en la misma unidad (ambos en ppm)"
 }

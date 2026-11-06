@@ -8499,5 +8499,17 @@
   "Import a point survey (CSV)…": "استيراد مسح نقطي (CSV)…",
   "A DC / IP line comes in through \"Import line (CSV / .dat)…\" in the sidebar: a CSV, or a contractor TDIP .dat / .ipg file.": "يُستورد خط DC / IP عبر \"استيراد خط (CSV / .dat)…\" في الشريط الجانبي: ملف CSV أو ملف TDIP بصيغة .dat / .ipg من المقاول.",
   "Not read yet:": "غير مقروء بعد:",
-  "• Geosoft voxel (.geosoft_voxel): a proprietary binary with no public spec. Export the voxel from Oasis montaj as a CSV and use \"Import block model CSV…\" above.": "• فوكسل Geosoft (.geosoft_voxel): ملف ثنائي مملوك بلا مواصفة عامة. صدّر الفوكسل من Oasis montaj بصيغة CSV واستخدم \"استيراد CSV لنموذج الكتل…\" أعلاه."
+  "• Geosoft voxel (.geosoft_voxel): a proprietary binary with no public spec. Export the voxel from Oasis montaj as a CSV and use \"Import block model CSV…\" above.": "• فوكسل Geosoft (.geosoft_voxel): ملف ثنائي مملوك بلا مواصفة عامة. صدّر الفوكسل من Oasis montaj بصيغة CSV واستخدم \"استيراد CSV لنموذج الكتل…\" أعلاه.",
+  "Ag/Au ratio": "نسبة Ag/Au",
+  "Ag and Au in the same unit (both ppm or g/t); where Au sits at its detection limit the ratio runs to thousands and means little": "Ag وAu بالوحدة نفسها (كلاهما ppm أو g/t)؛ حيث يكون Au عند حد الكشف تبلغ النسبة الآلاف ولا تعني الكثير",
+  "Zn + Pb (combined grade)": "Zn + Pb (المحتوى المجمّع)",
+  "Zn and Pb in the same unit (both %): the combined grade lead-zinc intercepts are often quoted in": "Zn وPb بالوحدة نفسها (كلاهما %): المحتوى المجمّع الذي تُذكر به غالبًا مقاطع الرصاص والزنك",
+  "Sr/Y (magma fertility)": "Sr/Y (خصوبة الصهارة)",
+  "Sr and Y in the same unit (both ppm)": "Sr وY بالوحدة نفسها (كلاهما ppm)",
+  "K/Rb (pegmatite and granite fractionation)": "K/Rb (تمايز البغماتيت والغرانيت)",
+  "K in %, Rb in ppm": "K بالنسبة المئوية، Rb بوحدة ppm",
+  "Ni/Cu ratio": "نسبة Ni/Cu",
+  "Ni and Cu in the same unit": "Ni وCu بالوحدة نفسها",
+  "Th/U ratio": "نسبة Th/U",
+  "Th and U in the same unit (both ppm)": "Th وU بالوحدة نفسها (كلاهما ppm)"
 }

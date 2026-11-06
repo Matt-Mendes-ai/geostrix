@@ -8499,5 +8499,17 @@
   "Import a point survey (CSV)…": "Importer un levé de points (CSV)…",
   "A DC / IP line comes in through \"Import line (CSV / .dat)…\" in the sidebar: a CSV, or a contractor TDIP .dat / .ipg file.": "Une ligne DC / IP s’importe par « Importer une ligne (CSV / .dat)… » dans la barre latérale : un CSV, ou un fichier TDIP .dat / .ipg de l’entrepreneur.",
   "Not read yet:": "Pas encore lu :",
-  "• Geosoft voxel (.geosoft_voxel): a proprietary binary with no public spec. Export the voxel from Oasis montaj as a CSV and use \"Import block model CSV…\" above.": "• Voxel Geosoft (.geosoft_voxel) : un binaire propriétaire sans spécification publique. Exportez le voxel depuis Oasis montaj en CSV et utilisez « Importer un CSV de modèle de blocs… » ci-dessus."
+  "• Geosoft voxel (.geosoft_voxel): a proprietary binary with no public spec. Export the voxel from Oasis montaj as a CSV and use \"Import block model CSV…\" above.": "• Voxel Geosoft (.geosoft_voxel) : un binaire propriétaire sans spécification publique. Exportez le voxel depuis Oasis montaj en CSV et utilisez « Importer un CSV de modèle de blocs… » ci-dessus.",
+  "Ag/Au ratio": "Rapport Ag/Au",
+  "Ag and Au in the same unit (both ppm or g/t); where Au sits at its detection limit the ratio runs to thousands and means little": "Ag et Au dans la même unité (tous deux en ppm ou g/t) ; là où l’Au est à sa limite de détection, le rapport atteint des milliers et signifie peu",
+  "Zn + Pb (combined grade)": "Zn + Pb (teneur combinée)",
+  "Zn and Pb in the same unit (both %): the combined grade lead-zinc intercepts are often quoted in": "Zn et Pb dans la même unité (tous deux en %) : la teneur combinée dans laquelle on cite souvent les intersections plomb-zinc",
+  "Sr/Y (magma fertility)": "Sr/Y (fertilité du magma)",
+  "Sr and Y in the same unit (both ppm)": "Sr et Y dans la même unité (tous deux en ppm)",
+  "K/Rb (pegmatite and granite fractionation)": "K/Rb (fractionnement des pegmatites et granites)",
+  "K in %, Rb in ppm": "K en %, Rb en ppm",
+  "Ni/Cu ratio": "Rapport Ni/Cu",
+  "Ni and Cu in the same unit": "Ni et Cu dans la même unité",
+  "Th/U ratio": "Rapport Th/U",
+  "Th and U in the same unit (both ppm)": "Th et U dans la même unité (tous deux en ppm)"
 }
