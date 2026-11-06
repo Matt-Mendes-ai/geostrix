@@ -8495,5 +8495,9 @@
   "This column is blank in every row of the file: left unticked so it does not appear in every element list.": "Esta columna está vacía en todas las filas del archivo: queda sin marcar para que no aparezca en cada lista de elementos.",
   "{pct} % of the samples hold 10 % Ca or more (carbonate rock): this diagram assumes a volcanic protolith, so read it with care here.": "El {pct} % de las muestras tiene 10 % de Ca o más (roca carbonatada): este diagrama supone un protolito volcánico, así que léalo con cuidado aquí.",
   "The log reads {lo} to {hi}, median {med}: most likely {unit}.": "El registro va de {lo} a {hi}, mediana {med}: lo más probable es {unit}.",
-  "In {unit} the log reaches {v} SI, more than any rock (about {max} SI): check the unit.": "En {unit} el registro llega a {v} SI, más que cualquier roca (unos {max} SI): revise la unidad."
+  "In {unit} the log reaches {v} SI, more than any rock (about {max} SI): check the unit.": "En {unit} el registro llega a {v} SI, más que cualquier roca (unos {max} SI): revise la unidad.",
+  "Import a point survey (CSV)…": "Importar un levantamiento de puntos (CSV)…",
+  "A DC / IP line comes in through \"Import line (CSV / .dat)…\" in the sidebar: a CSV, or a contractor TDIP .dat / .ipg file.": "Una línea DC / IP entra por \"Importar línea (CSV / .dat)…\" en la barra lateral: un CSV o un archivo TDIP .dat / .ipg del contratista.",
+  "Not read yet:": "Aún no se lee:",
+  "• Geosoft voxel (.geosoft_voxel): a proprietary binary with no public spec. Export the voxel from Oasis montaj as a CSV and use \"Import block model CSV…\" above.": "• Vóxel de Geosoft (.geosoft_voxel): un binario propietario sin especificación pública. Exporte el vóxel desde Oasis montaj como CSV y use \"Importar CSV de modelo de bloques…\" arriba."
 }

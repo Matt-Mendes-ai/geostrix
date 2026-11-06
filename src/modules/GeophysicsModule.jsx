@@ -2230,9 +2230,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         ))}
 
         <div style={{ marginTop: 16, fontSize: "var(--font-size-base)", color: "var(--color-text-caption)", lineHeight: 1.6 }}>
-          <div style={{ color: "var(--color-text)", marginBottom: 6 }}>{tr("Also planned:")}</div>
-          <div>{tr("• Geosoft (compressed or not) and Surfer 6 / 7 binary grids (.grd) — read as a raster drape with values (Raster tab), like .gxf")}</div>
-          <div>{tr("• Geosoft voxel (.geosoft_voxel) — proprietary binary, no public spec (see the voxel section above for the CSV-based alternative that's supported instead)")}</div>
+          {/* #1434 — the .grd bullet went: Geosoft and Surfer .grd grids are read since v0.1.99 (Raster tab) */}
+          <div style={{ color: "var(--color-text)", marginBottom: 6 }}>{tr("Not read yet:")}</div>
+          <div>{tr("• Geosoft voxel (.geosoft_voxel): a proprietary binary with no public spec. Export the voxel from Oasis montaj as a CSV and use \"Import block model CSV…\" above.")}</div>
         </div>
         </>)}
       </div>
@@ -2275,12 +2275,15 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             const joined = parts.length > 1 ? tr("{list} and {last}", { list: parts.slice(0, -1).join(", "), last: parts[parts.length - 1] }) : parts[0];
             return tr("{items} loaded", { items: joined });
           })()}
-          actionLabel={tr("Import CSV…")}
-          onAction={() => fileInput.current?.click()}
+          // TASKS.csv #1434 (review #1352) — on DC / IP this card's 'Import CSV…' opened the point-survey importer; a line comes in through
+          // the sidebar's own button, so the card says that instead
+          actionLabel={geoPane === "dcip" ? null : geoPane === "points" ? tr("Import CSV…") : tr("Import a point survey (CSV)…")}
+          onAction={geoPane === "dcip" ? null : () => fileInput.current?.click()}
           actionTitle={tr("Pick a point-cloud CSV — x/y/z plus a value column")}
           secondary={<InfoButton title={tr("Every supported format")} width={430} text={tr(FORMAT_REFERENCE)} />}
           footnote={tr("Or drag a file straight onto this pane. Everything imported here renders in the 3D View alongside your drillholes.")}
         >
+          {geoPane === "dcip" && <div style={{ marginBottom: 12 }}>{tr("A DC / IP line comes in through \"Import line (CSV / .dat)…\" in the sidebar: a CSV, or a contractor TDIP .dat / .ipg file.")}</div>}
           <div style={{ marginBottom: 12 }}>{tr("Point-cloud surveys (mag, IP, gravity, radiometrics), gridded geophysics, terrain and boundary geometry. Drag a CSV, GeoTIFF, Geosoft")}{" "}<code>.gxf</code>, <code>.ply</code>/<code>.dxf</code>{" "}{tr("or")}{" "}<code>.xyz</code>{" "}{tr("here, or use the buttons on the left — the")}{" "}<b>i</b>{" "}{tr("beside the button lists exactly what each format does on import.")}</div>
         </EmptyState>
         </div>

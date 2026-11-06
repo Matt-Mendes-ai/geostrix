@@ -8495,5 +8495,9 @@
   "This column is blank in every row of the file: left unticked so it does not appear in every element list.": "هذا العمود فارغ في كل صفوف الملف: تُرك دون تحديد كي لا يظهر في كل قائمة عناصر.",
   "{pct} % of the samples hold 10 % Ca or more (carbonate rock): this diagram assumes a volcanic protolith, so read it with care here.": "{pct} % من العينات تحتوي على 10 % كالسيوم أو أكثر (صخر كربوناتي): يفترض هذا المخطط أصلًا بركانيًا، فاقرأه بحذر هنا.",
   "The log reads {lo} to {hi}, median {med}: most likely {unit}.": "يتراوح السجل بين {lo} و{hi}، والوسيط {med}: الأرجح أن الوحدة {unit}.",
-  "In {unit} the log reaches {v} SI, more than any rock (about {max} SI): check the unit.": "بوحدة {unit} يصل السجل إلى {v} SI، أكثر من أي صخر (نحو {max} SI): تحقق من الوحدة."
+  "In {unit} the log reaches {v} SI, more than any rock (about {max} SI): check the unit.": "بوحدة {unit} يصل السجل إلى {v} SI، أكثر من أي صخر (نحو {max} SI): تحقق من الوحدة.",
+  "Import a point survey (CSV)…": "استيراد مسح نقطي (CSV)…",
+  "A DC / IP line comes in through \"Import line (CSV / .dat)…\" in the sidebar: a CSV, or a contractor TDIP .dat / .ipg file.": "يُستورد خط DC / IP عبر \"استيراد خط (CSV / .dat)…\" في الشريط الجانبي: ملف CSV أو ملف TDIP بصيغة .dat / .ipg من المقاول.",
+  "Not read yet:": "غير مقروء بعد:",
+  "• Geosoft voxel (.geosoft_voxel): a proprietary binary with no public spec. Export the voxel from Oasis montaj as a CSV and use \"Import block model CSV…\" above.": "• فوكسل Geosoft (.geosoft_voxel): ملف ثنائي مملوك بلا مواصفة عامة. صدّر الفوكسل من Oasis montaj بصيغة CSV واستخدم \"استيراد CSV لنموذج الكتل…\" أعلاه."
 }
