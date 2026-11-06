@@ -53,6 +53,12 @@ export const CATEGORICAL_SAFE_COLORS = [
   "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7",
   "#332288", "#117733", "#44AA99", "#88CCEE", "#DDCC77", "#CC6677", "#AA4499", "#882255", "#999933",
 ];
+// TASKS.csv #1377 (review #1352, Silvertip) — every new lithology group was #8a7fbf, so two groups looked the same in the stack
+// list and the legend: the first palette colour no existing group uses (then a hash of the name)
+export function nextGroupColour(groups, name = "") {
+  const used = new Set((groups || []).map((g) => String(g?.color || "").toLowerCase()));
+  return CATEGORICAL_SAFE_COLORS.find((c) => !used.has(c.toLowerCase())) || hashColor(String(name || "group").toLowerCase());
+}
 const categoricalColorCache = new Map(); // namespace -> Map(code -> color), persists for the app session
 function categoricalSafeColor(namespace, key) {
   let cache = categoricalColorCache.get(namespace);

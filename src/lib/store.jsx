@@ -13,6 +13,7 @@ import { FIELD_KEYS, FIELDS, UNDO_KEYS, DIRTY_KEYS, PROJECT_VERSION, EMPTY_LAYER
 import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1975 */, autosaveRead, autosaveQuarantine, autosaveClear, dbConnect as dbConnectIpc, dbDisconnect as dbDisconnectIpc } from "./desktop.js";
 import { normalizeDesurveyMethod } from "./desurvey.js";
 import { readCellBudget, saveCellBudget } from "./estimationMeta.js"; // TASKS.csv #1970
+import { nextGroupColour } from "./layers.js"; // TASKS.csv #1377
 
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
@@ -484,7 +485,7 @@ export function StoreProvider({ children }) {
   const [explicitSurfaces, setExplicitSurfaces] = useState([]); // TASKS.csv #811
   const addLithoGroup = useCallback((group) => {
     const id = `lgrp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    setLithoGroups((p) => [...p, { name: "Group", color: "#8a7fbf", codes: [], ...group, id }]);
+    setLithoGroups((p) => [...p, { name: "Group", color: nextGroupColour(p, group?.name), codes: [], ...group, id }]); // #1377
     return id;
   }, []);
   // TASKS.csv #1685 — a code belongs to one group: codes given to this group leave every other group
