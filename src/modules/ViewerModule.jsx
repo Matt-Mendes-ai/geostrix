@@ -8966,7 +8966,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           groundSource={terrain ? "terrain" : collarGround(collars) ? "collars" : null}
           checkedHoleIds={new Set(collars.filter((c) => visibleHoles[c.hole_id] !== false).map((c) => c.hole_id))} // TASKS.csv #1570
           areaStrings={designStrings.filter((s) => s.closed && s.vertices.length > 2)}
-          onAddModel={(model) => { const id = addVoxelModel(model); setNotices((p) => [...p, notice("Added block model \"{name}\" ({cells} cells).", { name: model.name, cells: model.cells.length.toLocaleString() })]); return id; }}
+          onAddModel={(model) => { const id = addVoxelModel(model); setNotices((p) => [...p, { ...notice("Added block model \"{name}\" ({cells} cells).", { name: model.name, cells: model.cells.length.toLocaleString() }), level: "info" /* #1418 */ }]); return id; }}
           onClose={() => setGradeEstOpen(false)}
         />
       )}

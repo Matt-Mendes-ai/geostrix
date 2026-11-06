@@ -2346,7 +2346,8 @@ function VoxelModelRow({ others = null, model, onUpdate, onRemove, onEvaluate, o
   // #1842 — a model of named units (solids from surfaces, a GemPy block) is not a CSV and its codes are not grades
   const categorical = !!model.valueLabels;
   const sourceLabel = categorical && (model.source === "surfaces" || model.source === "gempy") ? tr("Modelled units") : model.source === "ubc" ? "UBC" : model.source === "omf" ? "OMF" : model.source === "simpeg" ? "SimPEG"
-    : String(model.source || "").startsWith("estimate-") ? "Estimate" : String(model.source || "").startsWith("support-index-") ? "Support index" : "CSV";
+    : String(model.source || "").startsWith("estimate-") ? tr("Estimate") : String(model.source || "").startsWith("support-index-") ? tr("Support index")
+    : model.source === "kriging-variance" ? tr("Kriging variance") : model.source === "geoml" ? "geoML" : "CSV"; // #1418 — kriging variance / geoML were "CSV"
   const p = model.params;
   const paramsTitle = p && p.tool === "Grade estimation"
     ? `${p.tool}: ${p.element}, ${p.method}, ${p.cellSizeM} m cells, search ${p.searchRadiusM} m${p.searchRadiusWasUnlimited ? " (unlimited, capped at grid diagonal)" : ""}, ${p.minSamples}-${p.maxSamples} samples, min ${p.minHoles} holes, ${p.composited ? `${p.compositeLengthM} m composites (min coverage ${Math.round((p.minCoverage || 0) * 100)}%)` : "raw intervals"}, cap ${p.capValue ?? "none"}, QAQC ${p.includeQAQC ? "included" : "excluded"}${p.domain ? `, domain ${p.domain}${p.restrictToDomain ? " (restricted)" : ""}` : ""}, desurvey ${p.desurveyMethod}, ${p.samplePoints} sample points, ${p.generatedAt}${p.value ? `. Values: ${p.value}` : ""}. Not a Mineral Resource estimate.`

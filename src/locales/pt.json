@@ -8567,5 +8567,7 @@
   "Model grid (cells)": "Malha do modelo (células)",
   "Model extent (project coordinates)": "Extensão do modelo (coordenadas do projeto)",
   "Model extent (solve frame: from the scene origin)": "Extensão do modelo (referencial de cálculo: a partir da origem da cena)",
-  "Model extent (solve frame: from the scene origin, warped by the trend)": "Extensão do modelo (referencial de cálculo: a partir da origem da cena, deformado pela tendência)"
+  "Model extent (solve frame: from the scene origin, warped by the trend)": "Extensão do modelo (referencial de cálculo: a partir da origem da cena, deformado pela tendência)",
+  "Support index": "Índice de suporte",
+  "Kriging variance": "Variância de krigagem"
 }

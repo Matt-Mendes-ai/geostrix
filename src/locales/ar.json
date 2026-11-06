@@ -8567,5 +8567,7 @@
   "Model grid (cells)": "شبكة النموذج (خلايا)",
   "Model extent (project coordinates)": "امتداد النموذج (إحداثيات المشروع)",
   "Model extent (solve frame: from the scene origin)": "امتداد النموذج (إطار الحل: من أصل المشهد)",
-  "Model extent (solve frame: from the scene origin, warped by the trend)": "امتداد النموذج (إطار الحل: من أصل المشهد، مشوَّه بالاتجاه)"
+  "Model extent (solve frame: from the scene origin, warped by the trend)": "امتداد النموذج (إطار الحل: من أصل المشهد، مشوَّه بالاتجاه)",
+  "Support index": "مؤشر الدعم",
+  "Kriging variance": "تباين الكريجنج"
 }
