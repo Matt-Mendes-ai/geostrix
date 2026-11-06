@@ -22,6 +22,7 @@ import { errorNotice } from "../../lib/notices.js";
 import { tx } from "../../lib/i18nRich.js";
 import { groupOverlaps, groupOfCode } from "../../lib/lithoGroups.js"; // TASKS.csv #1685
 import { useStore } from "../../lib/store.jsx";
+import { numericLayerFields } from "../../lib/evidenceSources.js"; // TASKS.csv #1574 — the numeric fields of a log (intensity 1-3)
 import { zoneAlphaPicks, customAlphaPicks } from "../../lib/alphaPicks.js"; // TASKS.csv #1686
 
 export default function ModellingPanes(props) {
@@ -256,6 +257,14 @@ export default function ModellingPanes(props) {
     return () => { live = false; };
   }, [toolPane, faultCandidates, layers.structure]);
   const [unitBody, setUnitBody] = useState({ iso: 0.5, largest: false, search: 0, cell: 0 }); // TASKS.csv #1340 — its own settings: a rock unit is not an alteration halo
+  // TASKS.csv #1574 (review #1497, Lawyers) — the alteration halo from the Alteration log OR a categorical custom layer, and only
+  // the intervals whose numeric field is at or above a value (Silicification intensity >= 2)
+  const { customLayers: customLayersAll = [], layers: storeLayers = {} } = useStore();
+  const [altSource, setAltSource] = useState({ layer: "alt", field: "", min: "" });
+  const altCustomLayers = useMemo(() => customLayersAll.filter((c) => (c.rows || []).some((r) => r.value != null && r.value !== "" && !Number.isFinite(Number(r.value)))), [customLayersAll]);
+  const altSourceRows = useMemo(() => (altSource.layer === "alt" ? storeLayers.alt || [] : altCustomLayers.find((c) => `custom:${c.id}` === altSource.layer)?.rows || []), [altSource.layer, storeLayers.alt, altCustomLayers]);
+  const altSourceCodes = useMemo(() => (altSource.layer === "alt" ? alt_units.filter((u) => !isNotLogged(u)) : [...new Set(altSourceRows.map((r) => String(r.value ?? "")).filter((v) => v && !isNotLogged(v)))].sort()), [altSource.layer, alt_units, altSourceRows]);
+  const altNumericFields = useMemo(() => numericLayerFields(altSourceRows, { min: 3 }).filter((f) => f !== "from" && f !== "to"), [altSourceRows]);
   const mcodesView = useMemo(() => ({ scene: sceneRef, groups: layerGroupsRef, camera: cameraRef, renderer: rendererRef, traces: tracesRef, activity: lastActivityRef, dragHook: viewDragHookRef }), [sceneRef, layerGroupsRef, cameraRef, rendererRef, tracesRef, lastActivityRef, viewDragHookRef]);
   const topsOfUnit = useCallback((unit) => {
     const runs = codedRuns(layers.litho || [], modellingCodes, mcGroupOf);
@@ -844,13 +853,37 @@ export default function ModellingPanes(props) {
             closed envelope with no assumed up-direction. Runs in-app, no sidecar. */}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Builds a closed halo envelope for one assemblage: every logged alteration interval becomes a 0/1 \"altered?\" sample down its hole, interpolated onto a grid, iso-surfaced at 0.5. Unlike the lithology/structural tools this makes no assumption about which way is \"up\" — a halo wraps its conduit rather than draping like a contact. Runs in-app, no Python engine needed.")}</div>
         {alt_units.some((u) => isNotLogged(u)) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("Not offered: {v} (intervals with no assemblage logged).", { v: alt_units.filter((u) => isNotLogged(u)).map((u) => `"${u}"`).join(", ") })}</div>}
+        {(altCustomLayers.length > 0 || altNumericFields.length > 0) && ( // TASKS.csv #1574 — which log, and an intensity floor
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+            {altCustomLayers.length > 0 && (
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+                <span style={{ flexShrink: 0 }}>{tr("Layer")}</span>
+                <select aria-label={tr("Alteration layer")} value={altSource.layer} onChange={(e) => { setAltSource({ layer: e.target.value, field: "", min: "" }); setAlterationTarget(""); }} style={{ flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)" }}>
+                  <option value="alt">{tr("Alteration")}</option>
+                  {altCustomLayers.map((c) => <option key={c.id} value={`custom:${c.id}`}>{tr("{name} (custom layer)", { name: c.name })}</option>)}
+                </select>
+              </label>
+            )}
+            {altNumericFields.length > 0 && (
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }} title={tr("Only the intervals whose field is at or above this value become altered samples; the rest count as unaltered, which is what closes the halo.")}>
+                <span style={{ flexShrink: 0 }}>{tr("Only where")}</span>
+                <select aria-label={tr("Intensity field")} value={altSource.field} onChange={(e) => setAltSource((s) => ({ ...s, field: e.target.value }))} style={{ flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)" }}>
+                  <option value="">{tr("(no filter)")}</option>
+                  {altNumericFields.map((f) => <option key={f} value={f}>{f}</option>)}
+                </select>
+                <span>≥</span>
+                <input type="number" step="any" aria-label={tr("At least")} value={altSource.min} disabled={!altSource.field} onChange={(e) => setAltSource((s) => ({ ...s, min: e.target.value }))} style={{ width: 64, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)" }} />
+              </label>
+            )}
+          </div>
+        )}
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <select aria-label={tr("Assemblage")} value={alterationTarget} onChange={(e) => setAlterationTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
-            <option value="">{tr("Choose an assemblage…")}</option>
-            {alt_units.filter((u) => !isNotLogged(u)).map((u) => <option key={u} value={u}>{u}</option>)}{/* #1740 — 'Unknown' is not an assemblage */}
+          <select aria-label={tr("Code")} value={alterationTarget} onChange={(e) => setAlterationTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>{/* "Code", not "Assemblage": #1574 — Lawyers' Alteration log holds oxidation forms */}
+            <option value="">{tr("Choose a code…")}</option>
+            {altSourceCodes.map((u) => <option key={u} value={u}>{u}</option>)}{/* #1740 — 'Unknown' is not an assemblage; #1574 — the chosen layer's codes */}
           </select>
           <button
-            onClick={() => runAlterationModel(alterationTarget)}
+            onClick={() => runAlterationModel(alterationTarget, {}, altSource.layer === "alt" && !altSource.field ? null : { layer: altSource.layer, field: altSource.field || null, min: altSource.field ? Number(altSource.min) : null })}
             disabled={!alterationTarget || alterationBusy}
             title={tr("Build a closed alteration-halo envelope from the logged intervals (runs in-app)")}
             aria-label={tr("Build a closed alteration-halo envelope from the logged intervals (runs in-app)")}

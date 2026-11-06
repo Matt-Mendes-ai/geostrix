@@ -1543,19 +1543,24 @@ export function createModellingRuns(ctx, mcRef) {
   // TASKS.csv #1333 — the same envelope for a modelling code ("mcode:NAME"): 1 inside the intervals with that code, 0 in every
   // other logged lithology interval, so several intervals per hole make one closed unit, which a surface through tops cannot.
   // bodyOpts: a modelling code's own settings, TASKS.csv #1340 — { iso, largest, search, cell }; a code is a rock unit, so it follows the geology trend
-  const runAlterationModel = (target, bodyOpts = {}) => {
+  // TASKS.csv #1574 (review #1497, Lawyers) — source: { layer: "alt" | "custom:<id>", field, min }: the halo can be built from a
+  // categorical custom layer (Lawyers' Silicification log, 2,753 intervals) and only from the intervals whose numeric field
+  // (intensity 1-3) is at or above a value; null = the Alteration layer as before
+  const runAlterationModel = (target, bodyOpts = {}, source = null) => {
     if (!target) return;
     const isCode = String(target).startsWith("mcode:");
+    const customSrc = !isCode && source?.layer?.startsWith("custom:") ? (customLayers || []).find((c) => String(c.id) === source.layer.slice(7)) || null : null;
+    const minField = !isCode && source?.field && Number.isFinite(Number(source.min)) ? { field: source.field, min: Number(source.min) } : null;
     const anisotropy = trendWarp(isCode ? "implicit" : "alteration"); // TASKS.csv #650
     const searchSetting = isCode ? bodyOpts.search || 0 : alterationSearchRadius, cellSetting = isCode ? bodyOpts.cell || 0 : alterationCellSize;
     const altValue = isCode ? String(target).slice(6) : target, sourceKey = isCode ? "litho" : "alt";
-    const isTargetRow = (r) => (isCode ? effectiveCode(r, modellingCodes, mcodeGroupOf) === altValue : r.value === altValue);
+    const isTargetRow = (r) => (isCode ? effectiveCode(r, modellingCodes, mcodeGroupOf) === altValue : String(r.value) === String(altValue) && (!minField || Number(r[minField.field]) >= minField.min)); // minField: #1574
     const traces = tracesRef.current;
     if (!traces.length) { setNotices((p) => [...p, noCollarsNotice(isCode ? tr("the unit body") : tr("the alteration model"), layers, assays)]); return; }
 
     const domain = domains.find((d) => d.id === modelDomainId);
     const o = originRef.current;
-    const label = isCode ? `Unit body: ${altValue}` : `Alteration halo: ${altValue}`;
+    const label = isCode ? `Unit body: ${altValue}` : `Alteration halo: ${customSrc ? `${customSrc.name} ` : ""}${altValue}${minField ? ` (${minField.field} ≥ ${minField.min})` : ""}`; // #1574
     setAlterationBusy(true);
     setTaskProgress?.({ label, pct: 20 });
     // Deferred exactly like runNumericModel (see its comment) so the busy state paints before the
@@ -1565,7 +1570,7 @@ export function createModellingRuns(ctx, mcRef) {
         const { marchingCubes } = await import("../../lib/marchingCubes.js"); // #476 — loaded on first use
         const { samplePointsFromIntervals } = await import("../../lib/estimation.js"); // #552 — on demand
         const { runEstimation } = await import("../../lib/estimationClient.js"); // #520 — the grid runs in a worker
-        const altRows = (layers[sourceKey] || []).filter((r) => r.hole_id != null && r.from != null && r.to != null && !isNaN(r.from) && !isNaN(r.to) && Number(r.to) > Number(r.from));
+        const altRows = ((customSrc ? customSrc.rows : layers[sourceKey]) || []).filter((r) => r.hole_id != null && r.from != null && r.to != null && !isNaN(r.from) && !isNaN(r.to) && Number(r.to) > Number(r.from)); // customSrc: #1574
         // TASKS.csv #52 (c) — an active intercept set restricts the TARGET picks only. The zeros (every
         // other logged alteration interval) are what close the envelope (#272), so filtering those by a
         // set the user built to describe the target would open the halo up instead of narrowing it.

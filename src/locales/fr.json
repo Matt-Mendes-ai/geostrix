@@ -8322,5 +8322,11 @@
   "None of these {n} blocks lies between holes: every one is extrapolated from the nearest holes.": "Aucun de ces {n} blocs ne se trouve entre des sondages : chacun est extrapolé depuis les sondages les plus proches.",
   "Add as block model ({pct}% interpolated)": "Ajouter comme modèle de blocs ({pct} % interpolé)",
   "A hole counts only when it carries at least 5% of the weight": "Un sondage ne compte que s'il porte au moins 5 % du poids",
-  "On Lawyers a block beside a 16 m bonanza intercept counted a second hole whose near-zero grades 48 m away carried a third of the weight; with this on, a hole with under 5 % of the inverse-distance weight is not a second hole, and the block waits for real support.": "À Lawyers, un bloc à côté d'une intersection bonanza de 16 m comptait un second sondage dont les teneurs quasi nulles à 48 m portaient un tiers du poids ; avec cette option, un sondage sous 5 % du poids inverse-distance n'est pas un second sondage et le bloc attend un vrai support."
+  "On Lawyers a block beside a 16 m bonanza intercept counted a second hole whose near-zero grades 48 m away carried a third of the weight; with this on, a hole with under 5 % of the inverse-distance weight is not a second hole, and the block waits for real support.": "À Lawyers, un bloc à côté d'une intersection bonanza de 16 m comptait un second sondage dont les teneurs quasi nulles à 48 m portaient un tiers du poids ; avec cette option, un sondage sous 5 % du poids inverse-distance n'est pas un second sondage et le bloc attend un vrai support.",
+  "Code": "Code",
+  "Alteration layer": "Couche d'altération",
+  "Only where": "Seulement où",
+  "Intensity field": "Champ d'intensité",
+  "(no filter)": "(aucun filtre)",
+  "Only the intervals whose field is at or above this value become altered samples; the rest count as unaltered, which is what closes the halo.": "Seuls les intervalles dont le champ atteint ou dépasse cette valeur deviennent des échantillons altérés ; les autres comptent comme non altérés, ce qui ferme le halo."
 }

@@ -8322,5 +8322,11 @@
   "None of these {n} blocks lies between holes: every one is extrapolated from the nearest holes.": "Ninguno de estos {n} bloques está entre sondajes: todos se extrapolan desde los sondajes más cercanos.",
   "Add as block model ({pct}% interpolated)": "Añadir como modelo de bloques ({pct}% interpolado)",
   "A hole counts only when it carries at least 5% of the weight": "Un sondaje cuenta solo cuando aporta al menos el 5% del peso",
-  "On Lawyers a block beside a 16 m bonanza intercept counted a second hole whose near-zero grades 48 m away carried a third of the weight; with this on, a hole with under 5 % of the inverse-distance weight is not a second hole, and the block waits for real support.": "En Lawyers, un bloque junto a una intersección bonanza de 16 m contó un segundo sondaje cuyas leyes casi nulas a 48 m aportaban un tercio del peso; con esto activado, un sondaje con menos del 5 % del peso de distancia inversa no es un segundo sondaje y el bloque espera soporte real."
+  "On Lawyers a block beside a 16 m bonanza intercept counted a second hole whose near-zero grades 48 m away carried a third of the weight; with this on, a hole with under 5 % of the inverse-distance weight is not a second hole, and the block waits for real support.": "En Lawyers, un bloque junto a una intersección bonanza de 16 m contó un segundo sondaje cuyas leyes casi nulas a 48 m aportaban un tercio del peso; con esto activado, un sondaje con menos del 5 % del peso de distancia inversa no es un segundo sondaje y el bloque espera soporte real.",
+  "Code": "Código",
+  "Alteration layer": "Capa de alteración",
+  "Only where": "Solo donde",
+  "Intensity field": "Campo de intensidad",
+  "(no filter)": "(sin filtro)",
+  "Only the intervals whose field is at or above this value become altered samples; the rest count as unaltered, which is what closes the halo.": "Solo los intervalos cuyo campo es igual o mayor que este valor se vuelven muestras alteradas; el resto cuenta como no alterado, que es lo que cierra el halo."
 }

@@ -8322,5 +8322,11 @@
   "None of these {n} blocks lies between holes: every one is extrapolated from the nearest holes.": "Nenhum destes {n} blocos fica entre furos: todos são extrapolados a partir dos furos mais próximos.",
   "Add as block model ({pct}% interpolated)": "Adicionar como modelo de blocos ({pct}% interpolado)",
   "A hole counts only when it carries at least 5% of the weight": "Um furo só conta quando tem pelo menos 5% do peso",
-  "On Lawyers a block beside a 16 m bonanza intercept counted a second hole whose near-zero grades 48 m away carried a third of the weight; with this on, a hole with under 5 % of the inverse-distance weight is not a second hole, and the block waits for real support.": "Em Lawyers, um bloco junto a uma intersecção bonanza de 16 m contou um segundo furo cujos teores quase nulos a 48 m tinham um terço do peso; com isto ligado, um furo com menos de 5 % do peso de distância inversa não é um segundo furo e o bloco espera por suporte real."
+  "On Lawyers a block beside a 16 m bonanza intercept counted a second hole whose near-zero grades 48 m away carried a third of the weight; with this on, a hole with under 5 % of the inverse-distance weight is not a second hole, and the block waits for real support.": "Em Lawyers, um bloco junto a uma intersecção bonanza de 16 m contou um segundo furo cujos teores quase nulos a 48 m tinham um terço do peso; com isto ligado, um furo com menos de 5 % do peso de distância inversa não é um segundo furo e o bloco espera por suporte real.",
+  "Code": "Código",
+  "Alteration layer": "Camada de alteração",
+  "Only where": "Só onde",
+  "Intensity field": "Campo de intensidade",
+  "(no filter)": "(sem filtro)",
+  "Only the intervals whose field is at or above this value become altered samples; the rest count as unaltered, which is what closes the halo.": "Só os intervalos cujo campo é igual ou superior a este valor se tornam amostras alteradas; os restantes contam como não alterados, que é o que fecha o halo."
 }
