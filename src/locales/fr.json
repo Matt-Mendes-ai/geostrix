@@ -8468,5 +8468,6 @@
   "The elevation of the mesh top (z = 0 of the mesh): the topography file's first line gives it; without one, type it": "L'altitude du sommet du maillage (z = 0 du maillage) : la première ligne du fichier de topographie la donne ; sans lui, saisissez-la",
   "This is a UBC DCIP2D (2D) mesh: import it with DC / IP > Import a UBC DCIP2D inversion (mesh + model), with its .con / .chg model and the line's topography and station files.": "Ceci est un maillage UBC DCIP2D (2D) : importez-le avec DC / IP > Importer une inversion UBC DCIP2D (maillage + modèle), avec son modèle .con / .chg et les fichiers de topographie et de stations de la ligne.",
   "Imported {v} inversion: its fit and its data are not in the mesh and model files, so GeoStrix does not judge it; read the contractor's report for that.": "Inversion {v} importée : son ajustement et ses données ne sont pas dans les fichiers de maillage et de modèle, donc GeoStrix ne la juge pas ; voyez le rapport de l'entrepreneur.",
-  "Imported from the contractor's files (kept in the project).": "Importée des fichiers de l'entrepreneur (conservée dans le projet)."
+  "Imported from the contractor's files (kept in the project).": "Importée des fichiers de l'entrepreneur (conservée dans le projet).",
+  "Centre on project": "Centrer sur le projet"
 }

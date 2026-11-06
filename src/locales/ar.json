@@ -8468,5 +8468,6 @@
   "The elevation of the mesh top (z = 0 of the mesh): the topography file's first line gives it; without one, type it": "ارتفاع قمة الشبكة (z = 0 للشبكة): يعطيه السطر الأول من ملف الطبوغرافيا؛ وبدونه اكتبه",
   "This is a UBC DCIP2D (2D) mesh: import it with DC / IP > Import a UBC DCIP2D inversion (mesh + model), with its .con / .chg model and the line's topography and station files.": "هذه شبكة UBC DCIP2D (ثنائية الأبعاد): استوردها عبر DC / IP > استيراد انعكاس UBC DCIP2D (شبكة + نموذج)، مع نموذج .con / .chg وملفي الطبوغرافيا والمحطات للخط.",
   "Imported {v} inversion: its fit and its data are not in the mesh and model files, so GeoStrix does not judge it; read the contractor's report for that.": "انعكاس {v} مستورد: ملاءمته وبياناته ليست في ملفي الشبكة والنموذج، لذلك لا يقيّمه GeoStrix؛ راجع تقرير المقاول.",
-  "Imported from the contractor's files (kept in the project).": "مستورد من ملفات المقاول (محفوظ في المشروع)."
+  "Imported from the contractor's files (kept in the project).": "مستورد من ملفات المقاول (محفوظ في المشروع).",
+  "Centre on project": "التوسيط على المشروع"
 }

@@ -8468,5 +8468,6 @@
   "The elevation of the mesh top (z = 0 of the mesh): the topography file's first line gives it; without one, type it": "La elevación del tope de la malla (z = 0 de la malla): la primera línea del archivo de topografía la indica; sin él, escríbala",
   "This is a UBC DCIP2D (2D) mesh: import it with DC / IP > Import a UBC DCIP2D inversion (mesh + model), with its .con / .chg model and the line's topography and station files.": "Esta es una malla UBC DCIP2D (2D): impórtela con DC / IP > Importar una inversión UBC DCIP2D (malla + modelo), con su modelo .con / .chg y los archivos de topografía y estaciones de la línea.",
   "Imported {v} inversion: its fit and its data are not in the mesh and model files, so GeoStrix does not judge it; read the contractor's report for that.": "Inversión {v} importada: su ajuste y sus datos no están en los archivos de malla y modelo, así que GeoStrix no la evalúa; consulte el informe del contratista.",
-  "Imported from the contractor's files (kept in the project).": "Importada de los archivos del contratista (guardada en el proyecto)."
+  "Imported from the contractor's files (kept in the project).": "Importada de los archivos del contratista (guardada en el proyecto).",
+  "Centre on project": "Centrar en el proyecto"
 }

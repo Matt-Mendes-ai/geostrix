@@ -229,9 +229,16 @@ export default function BasemapView({
     setOfflineDownloading(false);
   };
 
+  // TASKS.csv #1977 — Matt: "centre on project location" when fetching SRTM and imagery. The button panned to the project at the
+  // current zoom only (from far out it stayed far out): in a picker it now brings back the project's area as the picker opened it
+  // (fitted, not the area drawn since), in the Locate view the pin at no less than the opening zoom.
+  const canRecenter = (mode === "draw" && !!initialBboxLonLat) || (Number.isFinite(lon) && Number.isFinite(lat));
   const recenter = () => {
+    if (mode === "draw" && initialBboxLonLat) { fitToBbox(initialBboxLonLat); return; }
     if (!Number.isFinite(lon) || !Number.isFinite(lat)) return;
-    setCenter(lonLatToWorldPx(lon, lat, zoom));
+    const z = Math.max(zoom, 11);
+    setZoom(z);
+    setCenter(lonLatToWorldPx(lon, lat, z));
   };
 
   const screenToLonLat = (sx, sy) => {
@@ -268,7 +275,7 @@ export default function BasemapView({
   };
   const onMouseUp = () => { dragRef.current = null; };
 
-  const markerPx = mode === "locate" && center && Number.isFinite(lon) && Number.isFinite(lat)
+  const markerPx = center && Number.isFinite(lon) && Number.isFinite(lat) // #1977 — the project pin in the pickers too
     ? (() => { const p = lonLatToWorldPx(lon, lat, zoom); return { x: p.wx + offsetX, y: p.wy + offsetY }; })()
     : null;
 
@@ -290,8 +297,8 @@ export default function BasemapView({
           {mode === "draw" ? title : tr("Locate")}
         </div>
         <div style={{ display: "flex", gap: 6 }}>
-          {Number.isFinite(lon) && Number.isFinite(lat) && (
-            <button onClick={recenter} title={tr("Centre on project location")} style={iconBtnStyle}><Crosshair size={14} /></button>
+          {canRecenter && (
+            <button onClick={recenter} title={tr("Centre on project location")} style={{ ...iconBtnStyle, width: "auto", padding: "0 10px", gap: 6, fontSize: "var(--font-size-sm)" }}><Crosshair size={14} />{tr("Centre on project")}</button>
           )}
           <button onClick={onClose} title={tr("Close")} style={iconBtnStyle}><X size={18} /></button>
         </div>
