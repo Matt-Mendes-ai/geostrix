@@ -8480,5 +8480,6 @@
   "\"{fileName}\" — about {rows} readings, {columns} column(s), read in pieces (the first {n} rows are shown). Pick which columns to import as points:": "\"{fileName}\" — unas {rows} lecturas, {columns} columna(s), leído por partes (se muestran las primeras {n} filas). Elija qué columnas importar como puntos:",
   "\"{name}\" is {v} MB and its first lines have no header GeoStrix can read (a delimited line of column names).": "\"{name}\" pesa {v} MB y sus primeras líneas no tienen un encabezado que GeoStrix pueda leer (una línea delimitada con los nombres de las columnas).",
   "\"{name}\" is {v} MB, about {rows} readings: too big to read whole on most computers. Check the columns and how many readings to keep below, then Import: the file is read in pieces and only the kept readings and columns are held.": "\"{name}\" pesa {v} MB, unas {rows} lecturas: demasiado grande para leerlo entero en la mayoría de los equipos. Revise abajo las columnas y cuántas lecturas conservar, y luego Importar: el archivo se lee por partes y solo se guardan las lecturas y columnas conservadas.",
-  "Reading {name}": "Leyendo {name}"
+  "Reading {name}": "Leyendo {name}",
+  "{n} zero or negative values are not on the log scale.": "{n} valores cero o negativos no están en la escala logarítmica."
 }

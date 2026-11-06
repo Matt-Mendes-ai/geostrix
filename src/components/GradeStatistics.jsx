@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
-import { valueIn, resolvedSegments } from "../lib/geochem.js"; // resolvedSegments: #1099
+import { valueIn, resolvedSegments, histogramWantsLog } from "../lib/geochem.js"; // resolvedSegments: #1099; histogramWantsLog: #1524
 import { useStore } from "../lib/store.jsx";
 import { stampLines, withStamp, ASSAY_READING_RULES } from "../lib/provenance.js"; // TASKS.csv #1099
 import { version as APP_VERSION } from "../../package.json";
@@ -111,7 +111,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const [symbol, setSymbolRaw] = useState(() => preferredElement(assayElements.map((e) => e.symbol), "gradestats"));
   const setSymbol = (v) => { setSymbolRaw(v); rememberElement("gradestats", typeof v === "string" ? v : null); }; // #1678
   const [domainKey, setDomainKey] = useState("");
-  const [logScale, setLogScale] = useState(false);
+  const [logChoice, setLogChoice] = useState(null); // #1524 — { key, on }: a tick for this source and element; otherwise the data decides
   const [lengthWeighted, setLengthWeighted] = useState(true); // TASKS.csv #267
   // TASKS.csv #219 — QC samples (standards/blanks/duplicates) default OUT of grade statistics, same
   // as Best Intercepts/Compositing — a standard's own repeat-insertion grade shouldn't skew a domain's
@@ -183,6 +183,9 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const capWarn = useMemo(() => (capFx ? capWarningText(capFx.pctMetalRemoved, source === "assays" ? capAboveZone(resolvedSegments(statsAssays, symbol, elementUnits[symbol] || "ppm", elementUnits), capValue) : null) : ""), [capFx?.pctMetalRemoved, capValue, source, statsAssays, symbol, elementUnits]);
   const allValues = rows.map((r) => r.value);
   const overallStats = useMemo(() => computeStats(allValues, weightingActive ? rows.map((r) => r.weight) : null), [rows, allValues, weightingActive]);
+  const logKey = `${source}:${symbol}`;
+  const logScale = logChoice?.key === logKey ? logChoice.on : histogramWantsLog(overallStats); // #1524 — a skewed grade opens on log
+  const setLogScale = (on) => setLogChoice({ key: logKey, on });
 
   const histogram = useMemo(() => {
     if (!overallStats) return null;
@@ -199,7 +202,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
       if (i < 0) i = 0;
       bins[i]++;
     });
-    return { bins, min, max, binW, maxCount: arrMax(bins) };
+    return { bins, min, max, binW, maxCount: arrMax(bins), leftOut: allValues.length - vals.length }; // leftOut: #1524
   }, [allValues, logScale, overallStats]);
 
   const exportCSV = () => {
@@ -296,6 +299,7 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
               <div>
                 <div style={label}>{tr("Distribution — {symbol} ({v}){v2}", { symbol, v: elementUnits[symbol] || tr("ppm"), v2: logScale ? tr(", log₁₀ scale") : "" })}</div>
                 <Histogram data={histogram} unit={elementUnits[symbol] || "ppm"} logScale={logScale} />
+                {logScale && histogram?.leftOut > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("{n} zero or negative values are not on the log scale.", { n: histogram.leftOut.toLocaleString() })}</div>}
               </div>
 
               <div>

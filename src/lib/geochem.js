@@ -1056,3 +1056,13 @@ export function assayExportRows(assays, assayElements) {
   });
 }
 
+
+// TASKS.csv #1524 — open a grade histogram on the log scale when a linear one would be one bar: positive values spanning
+// more than two decades (the plot colour ramp's own log switch, #1091), or a CV above 150 %. Lawyers' Au: CV 962 %, 0.0025-136 ppm.
+// stats: { sorted (ascending), cv (%) } as Grade stats computes them
+export function histogramWantsLog(stats) {
+  if (!stats?.sorted?.length) return false;
+  const pos = stats.sorted.find((v) => v > 0), max = stats.sorted[stats.sorted.length - 1];
+  if (!(pos > 0) || !(max > pos)) return false;
+  return max / pos > 100 || (Number.isFinite(stats.cv) && stats.cv > 150);
+}

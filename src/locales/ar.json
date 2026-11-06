@@ -8480,5 +8480,6 @@
   "\"{fileName}\" — about {rows} readings, {columns} column(s), read in pieces (the first {n} rows are shown). Pick which columns to import as points:": "\"{fileName}\" — نحو {rows} قراءة، {columns} عمود، يُقرأ على أجزاء (تُعرض أول {n} صف). اختر الأعمدة التي تُستورد كنقاط:",
   "\"{name}\" is {v} MB and its first lines have no header GeoStrix can read (a delimited line of column names).": "حجم \"{name}\" {v} ميغابايت وليس في أسطره الأولى ترويسة يستطيع GeoStrix قراءتها (سطر مفصول بأسماء الأعمدة).",
   "\"{name}\" is {v} MB, about {rows} readings: too big to read whole on most computers. Check the columns and how many readings to keep below, then Import: the file is read in pieces and only the kept readings and columns are held.": "حجم \"{name}\" {v} ميغابايت، نحو {rows} قراءة: أكبر من أن يُقرأ كاملًا على معظم الحواسيب. راجع الأعمدة وعدد القراءات المحتفظ بها أدناه ثم استورد: يُقرأ الملف على أجزاء ولا يُحتفظ إلا بالقراءات والأعمدة المختارة.",
-  "Reading {name}": "جارٍ قراءة {name}"
+  "Reading {name}": "جارٍ قراءة {name}",
+  "{n} zero or negative values are not on the log scale.": "{n} من القيم الصفرية أو السالبة ليست على المقياس اللوغاريتمي."
 }
