@@ -24,9 +24,17 @@ function scaleOf(layer, field) {
   if (!byField) { byField = new Map(); cache.set(rows, byField); }
   let s = byField.get(field);
   if (s) return s;
-  let filled = 0, numeric = 0, lo = Infinity, hi = -Infinity;
-  for (const r of rows) { const v = r?.[field]; if (empty(v)) continue; filled++; const n = num(v); if (Number.isFinite(n)) { numeric++; if (n < lo) lo = n; if (n > hi) hi = n; } }
-  s = filled && numeric >= 0.8 * filled && hi > lo ? { numeric: true, min: lo, max: hi } : { numeric: false };
+  let filled = 0;
+  const vals = [];
+  for (const r of rows) { const v = r?.[field]; if (empty(v)) continue; filled++; const n = num(v); if (Number.isFinite(n)) vals.push(n); }
+  vals.sort((a, b) => a - b);
+  // TASKS.csv #1539 (review #1497, Lawyers) — the ramp spans the 2nd-98th percentile, on a log scale when that spans more than a
+  // decade (as the built-in numeric layers, #1699): Lawyers' vein % (median 2, p98 65, max 95) was one dark purple from min to max
+  const q = (p) => vals[Math.round(p * (vals.length - 1))];
+  let lo = vals.length ? q(0.02) : NaN, hi = vals.length ? q(0.98) : NaN;
+  if (!(hi > lo) && vals.length) { lo = vals[0]; hi = vals[vals.length - 1]; }
+  const log = lo > 0 && hi / lo > 10;
+  s = filled && vals.length >= 0.8 * filled && hi > lo ? { numeric: true, min: lo, max: hi, log, clipLo: lo > vals[0], clipHi: hi < vals[vals.length - 1] } : { numeric: false };
   byField.set(field, s);
   return s;
 }
@@ -34,11 +42,13 @@ function scaleOf(layer, field) {
 const fieldOf = (layer, layerStyles) => layerStyles?.[`custom:${layer?.id}`]?.colourBy || "value";
 
 // the colour of one row of a custom layer as its style says
+const rampT = (s, n) => (s.log ? (Math.log10(Math.max(n, s.min)) - Math.log10(s.min)) / (Math.log10(s.max) - Math.log10(s.min)) : (n - s.min) / (s.max - s.min));
+const rampColour = (s, n) => magColor(Math.min(1, Math.max(0, rampT(s, n))), 0, 1);
 export function customColour(layer, layerStyles, row) {
   const field = fieldOf(layer, layerStyles), v = row?.[field];
   if (empty(v)) return NO_VALUE_COLOUR;
   const s = scaleOf(layer, field);
-  if (s.numeric) { const n = num(v); return Number.isFinite(n) ? magColor(n, s.min, s.max) : NO_VALUE_COLOUR; }
+  if (s.numeric) { const n = num(v); return Number.isFinite(n) ? rampColour(s, n) : NO_VALUE_COLOUR; }
   return hashColor(v);
 }
 
@@ -51,8 +61,8 @@ export function customLegendGroups(customLayers, customVisible = {}, layerStyles
     if (st.color) { out.push({ key: `custom_${L.id}`, label, items: [[label, st.color]] }); continue; }
     const s = scaleOf(L, field);
     if (s.numeric) {
-      const colors = Array.from({ length: 17 }, (_, i) => magColor(s.min + (i / 16) * (s.max - s.min), s.min, s.max));
-      out.push({ key: `custom_${L.id}`, label, items: [], ramp: { kind: "ramp", log: false, min: s.min, max: s.max, minLabel: fmt(s.min), maxLabel: fmt(s.max), colors, ticks: [] } });
+      const colors = Array.from({ length: 17 }, (_, i) => magColor(i / 16, 0, 1));
+      out.push({ key: `custom_${L.id}`, label, items: [], ramp: { kind: "ramp", log: s.log, min: s.min, max: s.max, minLabel: `${s.clipLo ? "≤ " : ""}${fmt(s.min)}`, maxLabel: `${s.clipHi ? "≥ " : ""}${fmt(s.max)}`, colors, ticks: [] } }); // #1539
       continue;
     }
     const counts = new Map(); let none = 0;

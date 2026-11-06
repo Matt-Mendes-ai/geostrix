@@ -64,7 +64,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
   // #1404 — the legend is the "Colour holes by" layer (categories, or a numeric layer's colours at their values) plus the
   // structure symbols drawn on the plan; it used to list every layer whichever one filled the pierce points
   const legend = useMemo(() => {
-    const L = data.assayLegends?.[activeLayer] || planLegend(data.intervals, activeLayer, { numeric: !!LAYER_META[activeLayer]?.numeric }); // #1537 — an assay element: its classes or ramp
+    const L = data.assayLegends?.[activeLayer] || planLegend(data.intervals, activeLayer, { numeric: activeLayer.startsWith("custom:") ? "auto" : !!LAYER_META[activeLayer]?.numeric }); // #1537 — an assay element: its classes or ramp
     const structs = (data.legendItems || []).filter(([label]) => /^Structure/.test(label));
     return [...L.items.map(([n, c]) => [L.title ? `${L.title}: ${n}` : n, c]), ...structs];
   }, [data, activeLayer]);

@@ -132,7 +132,7 @@ import { numericClips, rampRange } from "../lib/numericClip.js"; // #1699
 import { unitShell, meshVolume, blockUnitStats } from "../lib/unitVolumes.js"; // TASKS.csv #517; blockUnitStats: #877
 const ModellingCodesPane = React.lazy(() => import("../components/ModellingCodesPane.jsx")); // TASKS.csv #599 — modelling view only, so loaded on demand (#476 budget)
 import { resolveLayerStyle, cleanLayerStyle, TUBE_SEGMENTS } from "../lib/layerStyle.js"; // TASKS.csv #635
-import { LAYER_META, colorForLithology, rqdColor, magColor, hashColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, mcodeRoleOf, isCrossCuttingRole, colorForMedium } from "../lib/layers.js";
+import { LAYER_META, colorForLithology, rqdColor, magColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, mcodeRoleOf, isCrossCuttingRole, colorForMedium } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
 import { sceneVertsToWorldFlat } from "../lib/meshFlat.js"; // TASKS.csv #600 — the exporters (meshExport.js) load on first export
 import { useSculpt } from "../lib/useSculpt.js"; // TASKS.csv #145 — manual surface editing
@@ -6680,9 +6680,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     customLayers.forEach((layer) => {
       if (!showCustomLayers) return;
       if (scope.showCustomLayers == null && customVisible[layer.id] === false) return;
+      const st = layerStyles[`custom:${layer.id}`], stI = resolveLayerStyle(st, "interval"), stP = resolveLayerStyle(st, "point"); // #1539 — the 3D view's colours
       layer.rows.filter((r) => holeIds.has(r.hole_id)).forEach((row) => {
-        const color = hashColor(row.value);
-        if (row.to != null && !isNaN(row.to)) intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${layer.name}: ${row.value}`, layer: `custom:${layer.id}` });
+        const iv = row.to != null && !isNaN(row.to), color = (iv ? stI.color || row.modelColor : stP.color) || customColour(layer, layerStyles, row);
+        if (iv) intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${layer.name}: ${row.value}`, layer: `custom:${layer.id}` });
         else if (row.depth != null && !isNaN(row.depth)) points.push({ hole_id: row.hole_id, md: row.depth, color, label: `${layer.name}: ${row.value}` });
       });
     });

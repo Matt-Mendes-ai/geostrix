@@ -10,6 +10,8 @@ export function planLegend(intervals, layer, { numeric = false } = {}) {
   const rows = (intervals || []).filter((iv) => iv.layer === layer);
   const split = (s) => { const t = String(s ?? ""), i = t.indexOf(": "); return i > 0 ? [t.slice(0, i), t.slice(i + 2)] : ["", t]; };
   const title = rows.length ? split(rows[0].label)[0] : "";
+  // TASKS.csv #1539 — "auto" (a custom layer): numeric when every value is a number (vein %), drawn on the ramp, else categories
+  if (numeric === "auto") numeric = rows.length > 0 && rows.every((iv) => { const t = split(iv.label)[1].trim(); return t !== "" && Number.isFinite(Number(t)); });
   if (numeric) {
     const pairs = rows.map((iv) => [Number(split(iv.label)[1]), iv.color]).filter(([v, c]) => Number.isFinite(v) && c).sort((a, b) => a[0] - b[0]);
     if (!pairs.length) return { title, items: [], numeric: true };

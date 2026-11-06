@@ -34,7 +34,7 @@ test("a numeric layer keys five of its drawn colours at their values, low to hig
 
 test("the window builds the legend from the chosen layer and declutters the hole ids", () => {
   const src = readFileSync(new URL("../src/components/LevelPlanWindow.jsx", import.meta.url), "utf8");
-  assert.match(src, /planLegend\(data\.intervals, activeLayer, \{ numeric: !!LAYER_META\[activeLayer\]\?\.numeric \}\)/);
+  assert.match(src, /planLegend\(data\.intervals, activeLayer, \{ numeric: activeLayer\.startsWith\("custom:"\) \? "auto" : !!LAYER_META\[activeLayer\]\?\.numeric \}\)/); // #1539: a custom layer is detected
   assert.match(src, /furniture: levelPlanFurniture\(legend\)/);
   assert.match(src, /\{labels && resolveLabels\(/);
   assert.doesNotMatch(src, /data\.legendItems\.slice\(0, 40\)/);
