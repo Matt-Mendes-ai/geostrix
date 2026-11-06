@@ -9,7 +9,7 @@ const loadLas = () => import("../las.js"); // TASKS.csv #492 — on demand
 const loadXlsx = () => import("../xlsx.js");
 const loadShapefile = () => import("../shapefile.js");
 import { num, isOverturnedValue, targetFromName, guessTargetFor, guessColumn, TARGET_SCHEMAS } from "../layers.js";
-import { parseTableFile, parseTableText } from "../tabular.js";
+const tabular = () => import("../tabular.js"); // TASKS.csv #1493 — the CSV engine (papaparse) loads with the first table, not at launch
 import { t as tr } from "../i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { checkGpkgSize } from "../gpkgSize.js"; // TASKS.csv #1716
 
@@ -176,7 +176,7 @@ export async function orderImportFiles(files) {
       try {
         const head = await f.slice(0, 65536).text();
         const firstLine = head.split(/\r?\n/).find((l) => l.trim() && !l.startsWith("#")) || "";
-        const headers = parseTableText(firstLine + "\n").headers;
+        const headers = (await tabular()).parseTableText(firstLine + "\n").headers; // #1493
         target = guessTargetFor(headers, f.name);
       } catch { /* keep the name guess */ }
     }
@@ -258,11 +258,11 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
   // through the same picker as a multi-layer .zip / .gpkg (#288), named by sheet. (A dropped workbook is
   // instead expanded into one queued file per sheet — useImportPipeline.handleDrop.)
   if (name.endsWith(".xlsx")) {
-    Promise.all([file.arrayBuffer(), loadXlsx()]).then(([buf, { xlsxToCsvFiles }]) => xlsxToCsvFiles(new Uint8Array(buf), file.name)).then((sheets) => {
+    Promise.all([file.arrayBuffer(), loadXlsx()]).then(([buf, { xlsxToCsvFiles }]) => xlsxToCsvFiles(new Uint8Array(buf), file.name)).then(async (sheets) => { // async: #1493
       if (!sheets.length) { onDone(null, "No sheet with a header row and data in this workbook."); return; }
       const pick = chosenLayer ? sheets.find((s) => s.sheet === chosenLayer) : sheets.length === 1 ? sheets[0] : null;
       if (!pick) { onDone(null, null, { layerOptions: sheets.map((s) => ({ name: s.sheet, count: s.rows, unit: "row" })) }); return; }
-      const t = parseTableText(pick.text);
+      const t = (await tabular()).parseTableText(pick.text); // #1493
       onDone(t.rows, null, { headers: t.headers, note: tr(" Sheet \"{sheet}\" of {name}.{v}", { sheet: pick.sheet, name: file.name, v: t.note ? ` ${t.note}` : "" }) });
     }).catch((err) => onDone(null, err.message));
     return;
@@ -341,7 +341,7 @@ export const loadGpkg = () => import("../gpkg.js");
 export function parseCSV(file, onDone) {
   // TASKS.csv #444 — the shared reader (lib/tabular.js): the same #284 comma-decimal handling and #404
   // stamp skipping as before, plus the Windows-1252 fallback for Excel exports.
-  parseTableFile(file).then((t) => onDone(t.rows, null, t.note ? ` ${t.note.trim()}` : ""), (err) => onDone(null, err.message));
+  tabular().then((m) => m.parseTableFile(file)).then((t) => onDone(t.rows, null, t.note ? ` ${t.note.trim()}` : ""), (err) => onDone(null, err.message)); // #1493
 }
 
 // TASKS.csv #1070 (review #1016, drillhole-database admin) — rows an importer leaves out, counted and said. An RQD file with
