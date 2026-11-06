@@ -34,6 +34,8 @@ import { t as tr } from "../lib/i18n.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709 // TASKS.csv #786
 import { SURVEY_METHODS, methodIsInvertible } from "../lib/geophysSurveys.js"; // TASKS.csv #1151
 import { terrainFromSurveyElevations } from "../lib/terrainFromPoints.js"; // TASKS.csv #1589
+import { defaultPlannedExtent, generatePlannedStations, DEFAULT_PLANNED } from "../lib/plannedGrid.js"; // TASKS.csv #1710
+import { replaceSurveyPoints, SURVEY_METHODS as SM } from "../lib/geophysSurveys.js"; // TASKS.csv #1710 — the predicted anomaly as a survey
 
 const METHODS = {
   mag: { label: "Magnetics (TMI)", unit: "nT", confirm: "These values are the total magnetic field in nT as measured (not RTP, not a derivative): either the anomaly, with the IGRF / regional field removed in processing, or the raw total field over an area small enough that its regional field is a plane, which Remove base level > Best-fit plane takes out. GeoStrix does not remove the IGRF itself.", property: "susceptibility (SI)", contrastLabel: "Susceptibility (SI)" },
@@ -52,8 +54,19 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   const allRows = useMemo(() => (layers.geophys_pts || []).filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y) && Number.isFinite(r.value)), [layers.geophys_pts]);
   const surveys = useMemo(() => Array.from(new Set(allRows.map((r) => r._src || "(unnamed import)"))), [allRows]);
   const [survey, setSurvey] = useKeptState(keptScope, "inversion.survey", "");
-  const activeSurvey = surveys.length === 1 ? surveys[0] : survey;
-  const rows = useMemo(() => (activeSurvey ? allRows.filter((r) => (r._src || "(unnamed import)") === activeSurvey) : []), [allRows, activeSurvey]);
+  const activeSurvey = surveys.length === 1 ? surveys[0] : survey; // (the planned grid stands in below, #1710)
+  const surveyRows = useMemo(() => (surveys.length === 1 || survey ? allRows.filter((r) => (r._src || "(unnamed import)") === (surveys.length === 1 ? surveys[0] : survey)) : []), [allRows, surveys, survey]);
+  // TASKS.csv #1710 (review #1645, Copley) — a planned station grid instead of a survey: a drilled prospect with no survey can
+  // forward-model its block model or a plate on the grid it would walk, before spending on the survey
+  const [planned, setPlanned] = useKeptState(keptScope, "inversion.planned", { on: false, open: false, xmin: "", ymin: "", xmax: "", ymax: "", ...DEFAULT_PLANNED });
+  const plannedExtent = useMemo(() => { const typed = [planned.xmin, planned.ymin, planned.xmax, planned.ymax].map(Number); return typed.every(Number.isFinite) && typed[2] > typed[0] && typed[3] > typed[1] ? { xmin: typed[0], ymin: typed[1], xmax: typed[2], ymax: typed[3] } : defaultPlannedExtent(collars); }, [planned.xmin, planned.ymin, planned.xmax, planned.ymax, collars]);
+  const plannedGrid = useMemo(() => {
+    if (!plannedExtent) return { rows: [], stats: null };
+    const zs = (collars || []).map((c) => Number(c.z)).filter(Number.isFinite), meanZ = zs.length ? zs.reduce((a, b) => a + b, 0) / zs.length : 0;
+    const groundAt = terrain ? (x, y) => { const g = terrainElevationAt(terrain, x, y); return Number.isFinite(g) ? g : meanZ; } : () => meanZ;
+    return generatePlannedStations({ ...plannedExtent, line: planned.line, station: planned.station, dir: planned.dir, height: planned.height }, groundAt);
+  }, [plannedExtent, planned.line, planned.station, planned.dir, planned.height, collars, terrain]);
+  const rows = planned.on ? plannedGrid.rows : surveyRows;
 
   const [open, setOpen] = useState(inPane);
   const [engine, setEngine] = useState(null); // null = checking, {ok, available, simpeg} otherwise
@@ -145,17 +158,19 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   // ---------- data preparation (all in the renderer; the sidecar only ever sees clean numbers) ----------
   const prepare = (kind) => {
     const problems = [];
+    const zModeEff = planned.on ? "sensor" : zMode; // #1710 — a planned grid's z is the ground plus the sensor height
+    if (planned.on && kind === "inversion") problems.push(tr("A planned grid has no measured values to invert: untick it, or import a survey."));
     if (!M) problems.push(tr("Choose magnetics or gravity."));
-    if (!confirmed) problems.push(tr("Confirm what the data values are."));
-    if (surveys.length > 1 && !activeSurvey) problems.push(tr("Choose which imported survey to model — several are loaded and they must not be mixed."));
-    if (!zMode) problems.push(tr("Say what the station z values mean."));
-    if (zMode === "ground" && !(num(sensorHeight) > 0)) problems.push(tr("Enter the sensor height above the ground elevation in the z column.")); // #1969
+    if (!confirmed && !planned.on) problems.push(tr("Confirm what the data values are."));
+    if (surveys.length > 1 && !activeSurvey && !planned.on) problems.push(tr("Choose which imported survey to model — several are loaded and they must not be mixed."));
+    if (!zModeEff) problems.push(tr("Say what the station z values mean."));
+    if (zModeEff === "ground" && !(num(sensorHeight) > 0)) problems.push(tr("Enter the sensor height above the ground elevation in the z column.")); // #1969
     // TASKS.csv #1969 — a derivative, a filtered product or another method is not the field this inverts: blocked, not only warned
     if (activeSurvey && geophysSurveys?.[activeSurvey]?.method && !methodIsInvertible(geophysSurveys[activeSurvey].method)) problems.push(tr("This survey is labelled {label}: only the measured total field and Bouguer gravity are inverted here. Change its Method in Point survey if the label is wrong.", { label: tr(SURVEY_METHODS[geophysSurveys[activeSurvey].method]?.label || geophysSurveys[activeSurvey].method) }));
     // TASKS.csv #1969 — the raw total field with nothing removed is not an anomaly: the run would model the Earth's field
     if (method === "mag" && baseLevel === "none" && rows.length) { const mean = rows.reduce((a, r) => a + r.value, 0) / rows.length; if (Math.abs(mean) > 10000) problems.push(tr("These values average {v} nT: the raw total field. With no base level removed the inversion would model the Earth's own field. Choose Best-fit plane under Remove base level, or remove the regional field in your processing first.", { v: Math.round(mean).toLocaleString() })); }
-    if (zMode === "drape" && !(num(sensorHeight) > 0)) problems.push(tr("Enter the sensor height above the terrain."));
-    if (zMode === "drape" && !terrain) problems.push(tr("A terrain surface is needed to drape the stations on."));
+    if (zModeEff === "drape" && !(num(sensorHeight) > 0)) problems.push(tr("Enter the sensor height above the terrain."));
+    if (zModeEff === "drape" && !terrain) problems.push(tr("A terrain surface is needed to drape the stations on."));
     if (kind === "inversion" && !terrain) problems.push(tr("An inversion needs a terrain surface (Maps > Terrain) to know which cells are underground."));
     if (crsIssue) problems.push(crsIssue);
     if (downhole?.isDownhole) problems.push(tr("These points are not survey stations: {pct}% of them sit more than 10 m below the {ground} (typically {med} m). A downhole log cannot be inverted as a surface survey; import it with the drillholes and use the drillhole-constraint option instead.", { pct: Math.round(100 * downhole.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(downhole.medianDropM) })); // #1709
@@ -180,7 +195,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     const stations = [], observed = [];
     idx.forEach((i) => {
       const r = rows[i];
-      const z = zMode === "sensor" ? r.z : zMode === "ground" ? r.z + num(sensorHeight) /* #1969 — a ground survey's z is the ground */ : terrainElevationAt(terrain, r.x, r.y) + num(sensorHeight);
+      const z = zModeEff === "sensor" ? r.z : zModeEff === "ground" ? r.z + num(sensorHeight) /* #1969 — a ground survey's z is the ground */ : terrainElevationAt(terrain, r.x, r.y) + num(sensorHeight);
       if (!Number.isFinite(z)) { dropped++; return; }
       stations.push([r.x, r.y, z]); observed.push(r.value);
     });
@@ -196,7 +211,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     const topo = terrain ? terrainPoints(terrain, box, 40000) : null;
     let dhMeta = null; // #323
     const request = {
-      method, kind, stations, stationsDraped: zMode === "drape", // #1173
+      method, kind, stations, stationsDraped: zModeEff === "drape", // #1173
       ...(topo ? { topo: topo.points } : {}),
       ...(method === "mag" ? { field: { strength: num(field.strength), inclination: num(field.inclination), declination: decl.grid } } : {}),
       mesh: { coreCell: cell, depth: num(mesh.depth), padCells: 6, padFactor: 1.3, ...(kind === "inversion" ? { type: mesh.type, ...(mesh.type === "octree" ? { octree: octreeSettings } : {}) } : {}) }, // #324 — the forward tool stays tensor
@@ -337,8 +352,8 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     if (!plates) { setMsg({ ok: false, text: tr("Fill in every plate field (centre, dip, dip direction, sizes and the contrast).") }); return; }
     const p = await doPlan("forward", { plates });
     if (!p) return;
-    const meta = { label: `${M.label} forward model`, surveyName: `${activeSurvey}: ${rows.length} stations`, ...p.meta }; // #364
-    const res = await startInversionJob(p.request, meta, { setTaskProgress, onDone: (result) => setLastResult({ result, prepared: p, verdict: null }) });
+    const meta = { label: `${M.label} forward model`, surveyName: `${planned.on ? tr("Planned grid") : activeSurvey}: ${rows.length} stations`, ...p.meta, plannedGrid: planned.on ? plannedGrid.stats : null }; // #364; plannedGrid: #1710
+    const res = await startInversionJob(p.request, meta, { setTaskProgress, onDone: (result) => setLastResult({ result, prepared: p, verdict: null, meta }) }); // meta: #1710
     if (!res.ok) setMsg({ ok: false, text: res.error });
   };
 
@@ -362,9 +377,9 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     if (method === "grav" && [num(geo.background), ...Object.values(props)].some((v) => !(v >= 1 && v <= 6))) { setMsg({ ok: false, text: tr("Densities are in g/cm³ (between 1 and 6) — check the values entered.") }); return; }
     const p = await doPlan("forward", { model: { cells: body.cells } });
     if (!p) return;
-    const meta = { label: `${M.label}: geology model "${geoModel.name}"`, surveyName: `${activeSurvey}: ${rows.length} stations`, ...p.meta };
+    const meta = { label: `${M.label}: geology model "${geoModel.name}"`, surveyName: `${planned.on ? tr("Planned grid") : activeSurvey}: ${rows.length} stations`, ...p.meta, plannedGrid: planned.on ? plannedGrid.stats : null }; // plannedGrid: #1710
     const geoInfo = { modelName: geoModel.name, units: body.units, background: num(geo.background), cellsSent: body.cells.length };
-    const res = await startInversionJob(p.request, meta, { setTaskProgress, onDone: (result) => setLastResult({ result, prepared: p, verdict: null, geo: geoInfo }) });
+    const res = await startInversionJob(p.request, meta, { setTaskProgress, onDone: (result) => setLastResult({ result, prepared: p, verdict: null, geo: geoInfo, meta }) }); // meta: #1710
     if (!res.ok) setMsg({ ok: false, text: res.error });
   };
 
@@ -413,8 +428,37 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
           {engine === null && <div style={small}>{tr("Starting the Python engine…")}</div>}
           {engine && !engine.ok && <div style={small}>{tr("Needs GeoStrix's Python engine, which could not be started (status bar: Py). The desktop app starts it when a feature needs it; if it never comes up, click \"Py\" in the status bar for what to check.")}</div>}
           {engine && engine.ok && !engine.available && <div style={small}>{tr("The running Python engine has no SimPEG — update GeoStrix to a version that includes it.")}</div>}
-          {engine?.available && !allRows.length && <div style={small}>{tr("Import a magnetic or gravity survey in Geophysics > Point survey first — x, y, z and the measured value per station.")}</div>}
+          {engine?.available && !allRows.length && !planned.on && <div style={small}>{/* TASKS.csv #1710 — what the pane can do, not one line pointing elsewhere */}
+            <div>{tr("No survey loaded. With a magnetic or gravity survey (Geophysics › Point survey: x, y, z and the measured value per station) you can:")}</div>
+            <ul style={{ margin: "4px 0 4px 16px", padding: 0 }}>
+              <li>{tr("invert it into a susceptibility or density model;")}</li>
+              <li>{tr("constrain that inversion with the {ms} mag-susc and {sg} SG log readings in the drillholes;", { ms: ((layers.magsusc || []).length).toLocaleString(), sg: ((layers.sg || []).length).toLocaleString() })}</li>
+              <li>{tr("test a body or a geology block model against it.")}</li>
+            </ul>
+            <div>{tr("To design that survey first, tick \"Forward model on a planned grid\" below: a block model given the log medians, or a plate, predicts the anomaly over the grid you would walk.")}</div>
+          </div>}
           {/* TASKS.csv #364 — one survey per model; imported surveys are never mixed. */}
+          {engine?.available && (<div style={{ fontSize: "var(--font-size-sm)", marginBottom: 6 }}>{/* #1710 — outside the survey-gated form, so a drill-only project can switch it on */}
+              {/* TASKS.csv #1710 — the planned grid the forward models below can run on instead of a survey */}
+              <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => setPlanned((p) => ({ ...p, open: !p.open }))} aria-expanded={!!planned.open} style={{ ...row, cursor: "pointer", marginTop: 8, color: "var(--color-text)" }}>
+                {planned.open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}{" "}{tr("Forward model on a planned grid")}</div>
+              {planned.open && (
+                <div style={{ marginLeft: 6, marginTop: 4 }}>
+                  <label style={{ ...row, cursor: "pointer" }}><input type="checkbox" checked={!!planned.on} onChange={(e) => { setPlanned((p) => ({ ...p, on: e.target.checked })); setPlan(null); }} /> <span style={{ fontSize: "var(--font-size-sm)" }}>{tr("Use a planned station grid instead of a survey")}</span></label>
+                  <div style={small}>{tr("Survey design before the survey: the body or geology model below is forward-modelled at these stations, {h} m above the ground{v}. Blank extent = the collars' box, padded.", { h: planned.height, v: terrain ? tr(" (the terrain)") : tr(" (the collars' mean elevation; load a terrain for real ground)") })}</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                    {["xmin", "ymin", "xmax", "ymax"].map((k) => <label key={k} style={{ ...small, display: "flex", alignItems: "center", gap: 4 }}>{k === "xmin" ? tr("E from") : k === "xmax" ? tr("E to") : k === "ymin" ? tr("N from") : tr("N to")}<input type="number" step="any" value={planned[k]} placeholder={plannedExtent ? String(plannedExtent[k]) : ""} onChange={(e) => setPlanned((p) => ({ ...p, [k]: e.target.value }))} aria-label={k} style={{ ...numInput, width: 90 }} /></label>)}
+                  </div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                    <label style={{ ...small, display: "flex", alignItems: "center", gap: 4 }}>{tr("Line spacing (m)")}<input type="number" min="1" step="any" value={planned.line} onChange={(e) => setPlanned((p) => ({ ...p, line: e.target.value }))} aria-label={tr("Line spacing (m)")} style={{ ...numInput, width: 64 }} /></label>
+                    <label style={{ ...small, display: "flex", alignItems: "center", gap: 4 }}>{tr("Station spacing (m)")}<input type="number" min="1" step="any" value={planned.station} onChange={(e) => setPlanned((p) => ({ ...p, station: e.target.value }))} aria-label={tr("Station spacing (m)")} style={{ ...numInput, width: 64 }} /></label>
+                    <label style={{ ...small, display: "flex", alignItems: "center", gap: 4 }}>{tr("Lines")}<select value={planned.dir} onChange={(e) => setPlanned((p) => ({ ...p, dir: e.target.value }))} aria-label={tr("Line direction")} style={numInput}><option value="NS">{tr("north–south")}</option><option value="EW">{tr("east–west")}</option></select></label>
+                    <label style={{ ...small, display: "flex", alignItems: "center", gap: 4 }}>{tr("Sensor height (m)")}<input type="number" min="0" step="any" value={planned.height} onChange={(e) => setPlanned((p) => ({ ...p, height: e.target.value }))} aria-label={tr("Planned sensor height (m)")} style={{ ...numInput, width: 56 }} /></label>
+                  </div>
+                  <div style={{ ...small, marginTop: 4 }}>{plannedGrid.stats ? tr("{n} stations on {lines} line(s) ({dir}), {per} per line{v}.", { n: plannedGrid.stats.n.toLocaleString(), lines: plannedGrid.stats.lines, dir: plannedGrid.stats.dir === "NS" ? tr("north–south") : tr("east–west"), per: plannedGrid.stats.perLine, v: plannedGrid.stats.capped ? tr(" — capped at {cap}; widen the spacings", { cap: (20000).toLocaleString() }) : "" }) : tr("Two collars, or a typed extent, are needed to lay out a grid.")}</div>
+                </div>
+              )}
+          </div>)}
           {engine?.available && surveys.length > 1 && (
             <label style={{ ...small, display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>{tr("Survey to model ({surveys} imported — they are never mixed)", { surveys: surveys.length })}<select value={survey} onChange={(e) => { setSurvey(e.target.value); setPlan(null); }} style={{ ...numInput, width: "100%" }}>
                 <option value="">{tr("— choose one —")}</option>
@@ -671,6 +715,8 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
 
 // ---------- "did it fit?" view ----------
 function FitView({ last, method, mapSize = 78 }) {
+  const { setLayers, updateGeophysSurvey } = useStore(); // TASKS.csv #1710 — the predicted anomaly as a survey
+  const [addedPlanned, setAddedPlanned] = useState(false);
   const { result, prepared, verdict, geo } = last;
   const unit = METHODS[result.method]?.unit || "";
   const st = prepared.stations, obs = result.observedUsed || prepared.observed; // #368 — after base-level removal
@@ -681,7 +727,16 @@ function FitView({ last, method, mapSize = 78 }) {
       <div style={{ marginTop: 10 }}>
         <div style={{ color: "var(--color-text)", fontSize: "var(--font-size-sm)" }}>{result.body === "model" ? tr("Geology model against the data") : tr("Forward model result")}</div>
         {result.body === "model" && runs[0] && <GeoModelFit run={runs[0]} rmsObserved={result.rmsObserved} geo={geo} unit={unit} />}
-        {runs.length === 1 && result.body !== "model" && <div style={small}>{tr("RMS of the data about its mean {v} {unit}; RMS left over after subtracting the plate's response and a best-fit base level of {v2} {unit}: {v3} {unit} ({plateCells} cells). The closer the second is to zero, the more of the anomaly this body explains.", { v: result.rmsObserved?.toFixed(2), unit, v2: runs[0].baseLevel?.toFixed(2), v3: runs[0].rmsResidual?.toFixed(2), plateCells: runs[0].plateCells })}</div>}
+        {last.meta?.plannedGrid && runs.length === 1 && (() => { // TASKS.csv #1710 — no observed values: the prediction is the answer
+          const pred = forwardMapValues(obs, runs[0]).predicted, fin = pred.filter(Number.isFinite), lo = fin.length ? Math.min(...fin) : NaN, hi = fin.length ? Math.max(...fin) : NaN;
+          const name = `${tr("Planned grid")}: ${tr("predicted")} ${method === "grav" ? "gz" : "TMI"}`;
+          const add = () => { const pts = st.map((s, i) => ({ x: s[0], y: s[1], z: s[2], value: pred[i], _src: name, line: `L${Math.round(s[0])}` })); setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, pts).rows })); updateGeophysSurvey(name, { method: method === "grav" ? "grav" : "mag", units: SM[method === "grav" ? "grav" : "mag"].units, predicted: true }); setAddedPlanned(true); };
+          return (<div style={small}>
+            {tr("Planned grid, no observed values: the predicted anomaly over the {n} stations runs from {lo} to {hi} {unit} (peak-to-peak {pp} {unit}). A survey is worth walking when that exceeds its noise and the diurnal residual by a clear margin.", { n: st.length.toLocaleString(), lo: Number.isFinite(lo) ? lo.toFixed(1) : "—", hi: Number.isFinite(hi) ? hi.toFixed(1) : "—", pp: Number.isFinite(hi - lo) ? (hi - lo).toFixed(1) : "—", unit })}
+            {" "}<button onClick={add} disabled={addedPlanned} style={{ ...small, cursor: "pointer", padding: "2px 8px", border: "1px solid var(--color-border)", borderRadius: 4, background: "var(--color-bg)" }}>{addedPlanned ? tr("Added ✓") : tr("Add the predicted anomaly as a survey")}</button>
+          </div>);
+        })()}
+        {!last.meta?.plannedGrid && runs.length === 1 && result.body !== "model" && <div style={small}>{tr("RMS of the data about its mean {v} {unit}; RMS left over after subtracting the plate's response and a best-fit base level of {v2} {unit}: {v3} {unit} ({plateCells} cells). The closer the second is to zero, the more of the anomaly this body explains.", { v: result.rmsObserved?.toFixed(2), unit, v2: runs[0].baseLevel?.toFixed(2), v3: runs[0].rmsResidual?.toFixed(2), plateCells: runs[0].plateCells })}</div>}
         {runs.length > 1 && <DipSweep runs={runs} unit={unit} />}
         {/* TASKS.csv #367 — say how faithfully the mesh holds the plate (fractional cells keep its volume). */}
         {runs[0]?.thinnerThanCell && <div style={small}>{tr("The plate is thinner than a mesh cell, so it is represented by partly filled cells (modelled volume {v}% of the plate's true volume{v2}).", { v: Math.round((runs[0].volumeRatio || 0) * 100), v2: runs.length > 1 ? ` at ${runs[0].dip}°` : "" })}</div>}
