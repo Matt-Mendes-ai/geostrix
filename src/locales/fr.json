@@ -8382,5 +8382,9 @@
   "Assay element, downhole log or numeric layer field to model": "Élément analysé, log de sondage ou champ numérique de couche à modéliser",
   "Downhole logs and numeric layers": "Logs de sondage et couches numériques",
   "{label}: {n} readings, values as logged. Interpolated as log10 values (a geometric mean between readings); the cutoff is in the same units as the readings.": "{label} : {n} mesures, valeurs telles que consignées. Interpolé en valeurs log10 (une moyenne géométrique entre mesures) ; la coupure est dans les mêmes unités que les mesures.",
-  "{label}: {n} readings, values as logged; the cutoff is in the same units.": "{label} : {n} mesures, valeurs telles que consignées ; la coupure est dans les mêmes unités."
+  "{label}: {n} readings, values as logged; the cutoff is in the same units.": "{label} : {n} mesures, valeurs telles que consignées ; la coupure est dans les mêmes unités.",
+  "Add a custom-layer track": "Ajouter une piste de couche personnalisée",
+  "A custom layer as a track: its codes as a colour column, a numeric field as a bar": "Une couche personnalisée en piste : ses codes en colonne de couleurs, un champ numérique en barre",
+  "+ track": "+ piste",
+  "Remove track {v}": "Retirer la piste {v}"
 }

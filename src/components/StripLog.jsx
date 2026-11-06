@@ -9,6 +9,9 @@ import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #1698 — the custom layers
+import { customColour } from "../lib/customColour.js"; // #1698 — the 3D view's colour of a custom code
+import { numericLayerFields } from "../lib/evidenceSources.js"; // #1698 — the numeric fields of a custom layer
 
 // TASKS.csv #133 — "Downhole strip logs (single-hole 1D graphic log: litho/alt/vein/assay columns
 // side by side)". A classic drill-logging display: one hole, depth running down the page, several
@@ -26,16 +29,19 @@ import { stripLogTextPt } from "../lib/atlas.js"; // TASKS.csv #1480 — the siz
 const DEPTH_COL_W = 50;
 const PAD_TOP = 40;
 
-export default function StripLog({ holeId, collars, layers, assays, assayElements, colorFor, labelFor, assayColor, onClose, modelledLayers = [], onAddToLayout = null }) {
+export default function StripLog({ holeId, collars, layers, assays, assayElements, colorFor, labelFor, assayColor, onClose, modelledLayers = [], onAddToLayout = null, shownElements = [] }) { // shownElements: TASKS.csv #1698
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const svgRef = useRef(null);
   const [pxPerMeter, setPxPerMeter] = useState(6);
   const symbols = assayElements.map((e) => e.symbol);
-  const [assaySymbol, setAssaySymbol] = useState(symbols[0] || "");
+  // TASKS.csv #1698 (review #1645, Copley) — the log opened on the first element of the file (Ag) while Cu and Au were on in 3D:
+  // the elements shown in 3D come first, in their order
+  const shownFirst = shownElements.filter((s) => symbols.includes(s));
+  const [assaySymbol, setAssaySymbol] = useState(shownFirst[0] || symbols[0] || "");
   // TASKS.csv #402 — up to two more element tracks, and a log scale (default): one 30 g/t sample on a
   // linear bar scaled to the hole maximum used to flatten every other sample to nothing.
-  const [extraSymbols, setExtraSymbols] = useState([]);
+  const [extraSymbols, setExtraSymbols] = useState(shownFirst.slice(1, 3)); // #1698 — the other elements on in 3D
   const [logScale, setLogScale] = useState(true);
   // TASKS.csv #1480 — a depth range: a 1,300 m hole cannot print readably on one page, an interval of it can
   const [rangeFrom, setRangeFrom] = useState("");
@@ -52,6 +58,36 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const geotech = useMemo(() => (layers.geotech || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from), [layers.geotech, holeId]);
   const recovery = useMemo(() => (layers.recovery || []).filter((r) => r.hole_id === holeId && Number.isFinite(Number(r.value))).sort((a, b) => a.from - b.from), [layers.recovery, holeId]); // #1400
   const structs = useMemo(() => holeStructures(layers.structure, holeId), [layers.structure, holeId]); // #1400
+  // TASKS.csv #1698 — custom layers as tracks on request ("+ track"): a text layer as a colour column (the 3D view's colours of its
+  // codes), a numeric field (a SWIR wavelength, a chalcopyrite %) as a bar; a depth-only row is drawn 0.5 m tall at its depth
+  const { customLayers: allCustom = [] } = useStore();
+  const customChoices = useMemo(() => {
+    const out = [];
+    for (const l of allCustom) {
+      const rows = l.rows || [];
+      if (rows[0]?.modelled || !rows.some((r) => r.hole_id === holeId)) continue;
+      const numFields = numericLayerFields(rows, { min: 3 }).filter((f) => f !== "from" && f !== "to" && f !== "modelColor");
+      if (!numFields.includes("value")) out.push({ key: `${l.id}:value`, layer: l, field: "value", numeric: false, label: String(l.name) });
+      for (const f of numFields) out.push({ key: `${l.id}:${f}`, layer: l, field: f, numeric: true, label: f === "value" ? String(l.name) : `${l.name} › ${f}` });
+    }
+    return out;
+  }, [allCustom, holeId]);
+  const [customTracks, setCustomTracks] = useState([]);
+  const customTrackDefs = useMemo(() => customTracks.map((k) => customChoices.find((c) => c.key === k)).filter(Boolean).map((c) => {
+    const depthOf = (r) => (Number.isFinite(Number(r.depth)) ? Number(r.depth) : Number(r.from));
+    const rows = (c.layer.rows || []).filter((r) => r.hole_id === holeId).map((r) => (Number(r.to) > Number(r.from) ? { ...r, from: Number(r.from), to: Number(r.to) } : { ...r, from: depthOf(r) - 0.25, to: depthOf(r) + 0.25 })).filter((r) => Number.isFinite(r.from) && Number.isFinite(r.to)).sort((a, b) => a.from - b.from);
+    const name = c.field === "value" ? String(c.layer.name) : c.field, short = name.length > 14 ? "…" + name.slice(-13) : name; // the tail: "Copley_2023_DH_SWIR_Halo" -> "...2023_DH_SWIR_Halo"
+    if (c.numeric) {
+      const rs = rows.filter((r) => Number.isFinite(Number(r[c.field]))).map((r) => ({ ...r, value: Number(r[c.field]) }));
+      const vals = rs.map((r) => r.value), pos = vals.filter((v) => v > 0);
+      const max = vals.length ? arrMax(vals) : 0, minPos = pos.length ? arrMin(pos) : 0;
+      // a narrow band (a white-mica wavelength, 2,195-2,215 nm) is drawn over its own min-max; a decade or more can take the log scale
+      const lo = minPos > 0 && max / minPos < 2 && max > minPos ? minPos : null;
+      return { key: `custom_${c.key}`, label: short, title: c.label, rows: rs, kind: "bar", max, minPos, lo, logOk: lo == null && pos.length > 0 && max / minPos >= 10, scaleLabel: true, colorOf: () => "#6b8e23" };
+    }
+    const sty = { [`custom:${c.layer.id}`]: { colourBy: "value" } };
+    return { key: `custom_${c.key}`, label: short, title: c.label, rows: rows.filter((r) => r.value != null && r.value !== ""), kind: "fill", colorFn: (v) => customColour(c.layer, sty, { value: v }), nameFn: null };
+  }), [customTracks, customChoices, holeId]);
   // TASKS.csv #1695 (review #1645, Copley) — the bars are the lab assays; the pXRF readings (zero-length screening points, drawn as 1 px
   // hairlines in the same colour before) get a track of their own, as dots
   const holeAssays = useMemo(() => assays.filter((a) => a.hole_id === holeId && a.source !== "pXRF" && Number.isFinite(a.from) && Number.isFinite(a.to)).sort((a, b) => a.from - b.from), [assays, holeId]); // finite: #1661 (a QC insert without depths)
@@ -104,7 +140,8 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     // point-style row (from = to) a thin line at its depth
     ...(mnlgy.length ? [{ key: "mnlgy", label: "Min.", title: "Mineralization", rows: mnlgy, kind: "fill", colorFn: (v) => fill("mnlgy", LAYER_META.mnlgy.colorFn, v), nameFn: nameOf("mnlgy") }] : []),
     ...((layers.structure || []).length ? [{ key: "structure", label: "Struct.", title: "Structure picks: each a tick at its alpha to the core axis (horizontal = 90°), a short mark at the edge without one", rows: structs, kind: "struct", colorFn: (v) => fill("structure", colorForStructure, v), nameFn: nameOf("structure") }] : []), // #1400
-    { key: "geotech", label: "RQD%", rows: geotech, kind: "bar", max: 100 },
+    ...(geotech.length ? [{ key: "geotech", label: "RQD%", rows: geotech, kind: "bar", max: 100 }] : []), // #1698 — only when the hole has RQD rows
+    ...customTrackDefs, // #1698
     ...((layers.recovery || []).length ? [{ key: "recovery", label: "Rec.%", title: "Recovery %", rows: recovery, kind: "bar", max: recoveryMax(recovery), scaleLabel: true, colorOf: () => "#5aa469" }] : []), // #1400 — beside RQD, over 100 % kept
     ...(shownSymbols.length ? shownSymbols : [""]).map((sym) => ({ key: `assay_${sym}`, sym, label: sym ? `${sym} (${elementUnits[sym] || "ppm"})` : "Assay", rows: holeAssays, kind: "assaybar" })),
     ...shownSymbols.filter((sym) => pxrfRange[sym] > 0).map((sym) => ({ key: `pxrf_${sym}`, sym, label: `${sym} pXRF`, rows: pxrfAssays, kind: "pxrfdots" })), // #1695
@@ -203,6 +240,11 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
               {symbols.filter((s) => s !== assaySymbol).map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           ))}
+          {customChoices.length > 0 && <select value="" onChange={(e) => { const k = e.target.value; if (k) setCustomTracks((p) => (p.includes(k) ? p : [...p, k])); }} style={selStyle} aria-label={tr("Add a custom-layer track")} title={tr("A custom layer as a track: its codes as a colour column, a numeric field as a bar")}>{/* #1698 */}
+            <option value="">{tr("+ track")}</option>
+            {customChoices.filter((c) => !customTracks.includes(c.key)).map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+          </select>}
+          {customTracks.map((k) => { const c = customChoices.find((x) => x.key === k); return c ? <span key={k} style={{ fontSize: 11, color: "#55606e", display: "inline-flex", alignItems: "center", gap: 3, border: "1px solid #d9dce1", borderRadius: 4, padding: "2px 6px" }}>{c.label}<X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Remove track {v}", { v: c.label })} size={11} style={{ cursor: "pointer" }} onClick={() => setCustomTracks((p) => p.filter((x) => x !== k))} /></span> : null; })}
           <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 5 }} title={tr("Log scale spreads trace-element grades and mag susc (a few high values no longer flatten the rest). Linear is proportional to the value.")}>
             <input type="checkbox" checked={logScale} onChange={(e) => setLogScale(e.target.checked)} />{" "}{tr("Log scale")}</label>
           <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 4 }} title={tr("Draw only these depths (blank: the whole hole); the exports and Add to Layout follow")}>{tr("Depth (m)")}<input type="number" min="0" step="any" value={rangeFrom} placeholder="0" onChange={(e) => setRangeFrom(e.target.value)} style={{ ...selStyle, width: 64 }} aria-label={tr("Depth range from (m)")} />–<input type="number" min="0" step="any" value={rangeTo} placeholder={String(+maxDepth.toFixed(1))} onChange={(e) => setRangeTo(e.target.value)} style={{ ...selStyle, width: 64 }} aria-label={tr("Depth range to (m)")} /></label>
@@ -253,11 +295,11 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                   ))}
                   {t.kind === "bar" && t.rows.map((r, i) => {
                     const lg = t.logOk && logScale; // #1400
-                    const w = (lg ? logFrac(Number(r.value), t.minPos, t.max) : t.max > 0 ? Math.max(0, Math.min(1, (Number(r.value) || 0) / t.max)) : 0) * (TRACK_W - 8);
+                    const w = (t.lo != null ? Math.max(0, Math.min(1, (Number(r.value) - t.lo) / (t.max - t.lo || 1))) : lg ? logFrac(Number(r.value), t.minPos, t.max) : t.max > 0 ? Math.max(0, Math.min(1, (Number(r.value) || 0) / t.max)) : 0) * (TRACK_W - 8); // t.lo: #1698
                     return <rect key={i} x={x0 + 2} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={(t.colorOf && t.colorOf(r)) || "#4a9be0"} opacity="0.75"><title>{`${r.from}-${r.to} m: ${Number(r.value).toPrecision(3)}`}</title></rect>;
                   })}
                   {t.kind === "bar" && t.scaleLabel && t.max > 0 && ( // #323 — each bar track's own full-scale value
-                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{t.logOk && logScale && t.minPos > 0 ? tr("log {minPos}–{max}", { minPos: t.minPos.toPrecision(2), max: t.max.toPrecision(3) }) : `0–${t.max.toPrecision(3)}`}</text>
+                    <text x={x0 + TRACK_W / 2} y={sy(d1) + 14} fontSize="8" textAnchor="middle" fill="#65717e">{t.lo != null ? `${t.lo.toPrecision(4)}–${t.max.toPrecision(4)}` : t.logOk && logScale && t.minPos > 0 ? tr("log {minPos}–{max}", { minPos: t.minPos.toPrecision(2), max: t.max.toPrecision(3) }) : `0–${t.max.toPrecision(3)}`}</text>
                   )}
                   {t.kind === "struct" && t.rows.map((s, i) => { // #1400
                     const cx = x0 + (TRACK_W - 6) / 2, y = sy(s.depth), tk = alphaTick(s.alpha, (TRACK_W - 6) / 2 - 4), c = t.colorFn(s.value);

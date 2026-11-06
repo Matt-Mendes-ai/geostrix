@@ -8382,5 +8382,9 @@
   "Assay element, downhole log or numeric layer field to model": "عنصر التحليل أو سجل ثقب الحفر أو حقل الطبقة الرقمي المراد نمذجته",
   "Downhole logs and numeric layers": "سجلات ثقب الحفر والطبقات الرقمية",
   "{label}: {n} readings, values as logged. Interpolated as log10 values (a geometric mean between readings); the cutoff is in the same units as the readings.": "{label}: {n} قراءة، القيم كما سُجلت. يُستوفى كقيم log10 (متوسط هندسي بين القراءات)؛ الحد بنفس وحدات القراءات.",
-  "{label}: {n} readings, values as logged; the cutoff is in the same units.": "{label}: {n} قراءة، القيم كما سُجلت؛ الحد بنفس الوحدات."
+  "{label}: {n} readings, values as logged; the cutoff is in the same units.": "{label}: {n} قراءة، القيم كما سُجلت؛ الحد بنفس الوحدات.",
+  "Add a custom-layer track": "إضافة مسار طبقة مخصصة",
+  "A custom layer as a track: its codes as a colour column, a numeric field as a bar": "طبقة مخصصة كمسار: رموزها كعمود ملون، وحقل رقمي كشريط",
+  "+ track": "+ مسار",
+  "Remove track {v}": "إزالة المسار {v}"
 }

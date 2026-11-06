@@ -8382,5 +8382,9 @@
   "Assay element, downhole log or numeric layer field to model": "Elemento de ensaye, registro de sondaje o campo numérico de capa a modelar",
   "Downhole logs and numeric layers": "Registros de sondaje y capas numéricas",
   "{label}: {n} readings, values as logged. Interpolated as log10 values (a geometric mean between readings); the cutoff is in the same units as the readings.": "{label}: {n} lecturas, valores tal como se registraron. Interpolado como valores log10 (una media geométrica entre lecturas); el corte está en las mismas unidades que las lecturas.",
-  "{label}: {n} readings, values as logged; the cutoff is in the same units.": "{label}: {n} lecturas, valores tal como se registraron; el corte está en las mismas unidades."
+  "{label}: {n} readings, values as logged; the cutoff is in the same units.": "{label}: {n} lecturas, valores tal como se registraron; el corte está en las mismas unidades.",
+  "Add a custom-layer track": "Agregar una pista de capa personalizada",
+  "A custom layer as a track: its codes as a colour column, a numeric field as a bar": "Una capa personalizada como pista: sus códigos como columna de colores, un campo numérico como barra",
+  "+ track": "+ pista",
+  "Remove track {v}": "Quitar la pista {v}"
 }

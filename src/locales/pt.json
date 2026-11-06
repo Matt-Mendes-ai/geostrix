@@ -8382,5 +8382,9 @@
   "Assay element, downhole log or numeric layer field to model": "Elemento de análise, log de furo ou campo numérico de camada a modelar",
   "Downhole logs and numeric layers": "Logs de furo e camadas numéricas",
   "{label}: {n} readings, values as logged. Interpolated as log10 values (a geometric mean between readings); the cutoff is in the same units as the readings.": "{label}: {n} leituras, valores como registrados. Interpolado como valores log10 (uma média geométrica entre leituras); o corte está nas mesmas unidades das leituras.",
-  "{label}: {n} readings, values as logged; the cutoff is in the same units.": "{label}: {n} leituras, valores como registrados; o corte está nas mesmas unidades."
+  "{label}: {n} readings, values as logged; the cutoff is in the same units.": "{label}: {n} leituras, valores como registrados; o corte está nas mesmas unidades.",
+  "Add a custom-layer track": "Adicionar uma trilha de camada personalizada",
+  "A custom layer as a track: its codes as a colour column, a numeric field as a bar": "Uma camada personalizada como trilha: seus códigos como coluna de cores, um campo numérico como barra",
+  "+ track": "+ trilha",
+  "Remove track {v}": "Remover a trilha {v}"
 }
