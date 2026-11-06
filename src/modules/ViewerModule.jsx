@@ -178,6 +178,7 @@ import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 import { useIdentify } from "./viewer/useIdentify.js"; // TASKS.csv #1324
 import { useBuildDefer } from "../lib/viewer/buildDefer.js"; // #1500
+import { lazyTip } from "../lib/viewer/lazyTip.js"; // #1500
 const IdentifyPanel = React.lazy(() => import("../components/IdentifyPanel.jsx"));
 const UnitPolygonPane = React.lazy(() => import("../components/UnitPolygonPane.jsx")); // TASKS.csv #1439
 
@@ -487,6 +488,7 @@ const PROTO_PILLAR = sharedProto(new THREE.CylinderGeometry(0.8, 0.8, 2, 12, 1, 
 const PROTO_SQUARE = sharedProto(new THREE.PlaneGeometry(1.8, 1.8), "square"); // ~ the disc's area
 const PIN_AXIS = new THREE.Vector3(0, 1, 0), dipPinDir = new THREE.Vector3(); // #1241 — PROTO_PRISM_4 runs up +Y from its base
 const INTERVAL_PROTO = { cylinder: PROTO_CYLINDER, smooth: PROTO_CYLINDER_16, square: PROTO_PRISM_4 };
+const UP_Y = new THREE.Vector3(0, 1, 0), DIR_TMP = new THREE.Vector3(); // #1500 — an interval's rotation without two new vectors each
 // TASKS.csv #1528 (review #1497, Lawyers) — the layers whose opacity is one number for every member (default: the layer's
 // own), so an Opacity change is applied in place; mineralization (0.85 intervals, 1 for points) and structures (discs + opaque
 // pins) still rebuild. One Opacity tick on Geotech froze Lawyers 19.9 s rebuilding every drillhole.
@@ -4595,7 +4597,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             const mesh = new PickStandIn(POINT_PROTO[shape] || PROTO_SPHERE_10, { color: assayColorFor(v, idx, style), transparent: op < 1, opacity: op, side: shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #1500
             mesh.scale.setScalar(assaySizeFor(v, ranges[sym], style)); // #306
             mesh.position.set(pt.x + offX, pt.y, pt.z + offZ);
-            mesh.userData = { tip: `${c.hole_id}\n${sym}: ${v} ${elementUnits[sym] || ""}${px ? " (pXRF)" : ""}\n${a.from.toFixed(0)}–${a.to.toFixed(0)} m`, row: a };
+            mesh.userData = lazyTip({ row: a, holeId: c.hole_id }, () => `${c.hole_id}\n${sym}: ${v} ${elementUnits[sym] || ""}${px ? " (pXRF)" : ""}\n${a.from.toFixed(0)}–${a.to.toFixed(0)} m`); // #1500
             g.add(mesh);
           });
         });
@@ -4936,30 +4938,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           if (!Number.isFinite(row.from) || !Number.isFinite(row.to)) return; // #613 — null (a blank "to" after a JSON round-trip) passed isNaN
           const p1 = look.at(row.from), p2 = look.at(row.to);
           const mid = look.between(row.from, row.to);
-          const vecs = [new THREE.Vector3(p1.x, p1.y, p1.z), ...mid.map((p) => new THREE.Vector3(p.x, p.y, p.z)), new THREE.Vector3(p2.x, p2.y, p2.z)];
-          if (vecs.length < 2) return;
-          // TASKS.csv #209 — perf fix, profiled not guessed. A real repro (400 holes x 60 litho
-          // intervals = 24,000 rows) froze the main thread for ~11.3s on import; instrumented timing
-          // (temporarily, since removed) showed 10.1s of that — 89% — was CatmullRomCurve3+TubeGeometry
-          // construction alone, ~0.42ms x 24,000 calls. The other candidate hot spots from this task's
-          // own notes (findOnTrace's linear scan, desurvey, mesh/material setup) measured under 800ms
-          // combined — comparatively negligible.
-          //
-          // TubeGeometry's cost comes from sampling a Frenet-ish frame along a curve, which is only
-          // actually needed when an interval spans a REAL bend in the hole's desurveyed trace. A first
-          // attempt gated the fast path on `mid.length === 0` (no internal ~3m-spaced sample point
-          // crossed) — wrong, and measurably WORSE (re-profiled at 13.1s, not better): that 3m spacing
-          // is just desurveyHole's arbitrary sampling resolution, not a proxy for curvature, so a
-          // perfectly straight hole with an ordinary 5m logging interval still crosses one of those grid
-          // points constantly and never took the fast path. The real question is whether p1/mid/p2 are
-          // actually colinear — checked directly below by measuring each mid point's perpendicular
-          // distance from the p1->p2 line — which correctly recognizes a straight interval as straight
-          // regardless of how many arbitrary sample points it happens to cross. Re-profiled after this
-          // correction: the 24,000-interval rebuild's single longest main-thread block went from ~10.9s
-          // to ~2.6s (see TASKS.csv #209's notes for the exact before/after numbers and the remaining-
-          // cost breakdown) on this fully-straight synthetic dataset — a real, measured ~4x win, not a
-          // guess — with a curved dataset (holes given a real per-station azimuth/dip change) confirmed
-          // to still route through the original curve-following TubeGeometry path unchanged.
+          // TASKS.csv #209 — CatmullRomCurve3 + TubeGeometry was 89% of a 24,000-interval build (~0.42 ms each), and is needed only
+          // where an interval spans a real bend: p1 / mid / p2 colinear within 5 cm takes the shared-cylinder path (the trace's ~3 m
+          // sample points are not a curvature test: gating on mid.length was measured worse). 10.9 s -> 2.6 s; see #209's notes.
           const straight = (() => {
             if (!mid.length) return true; // p1/p2 only, nothing to check
             const dx = p2.x - p1.x, dy = p2.y - p1.y, dz = p2.z - p1.z;
@@ -4990,8 +4971,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             mesh_ = new PickStandIn(geo, { color, transparent: st.opacity < 1, opacity: st.opacity }); // #1500 — never drawn itself (its batch is)
             mesh_.scale.set(radius, len, radius);
             mesh_.position.set(p1.x, p1.y, p1.z);
-            mesh_.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dx / len, dy / len, dz / len));
+            mesh_.quaternion.setFromUnitVectors(UP_Y, DIR_TMP.set(dx / len, dy / len, dz / len)); // #1500 — shared vectors
           } else {
+            const vecs = [new THREE.Vector3(p1.x, p1.y, p1.z), ...mid.map((p) => new THREE.Vector3(p.x, p.y, p.z)), new THREE.Vector3(p2.x, p2.y, p2.z)]; // #1500 — only here
             const curve = new THREE.CatmullRomCurve3(vecs);
             geo = new THREE.TubeGeometry(curve, Math.max(2, vecs.length * 2), radius, TUBE_SEGMENTS[st.shape], false);
             const color = st.color || (meta.numeric ? numericIntervalColor(groupKey, row.value) : baseColorForBuild(groupKey, row.value));
@@ -4999,13 +4981,9 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             mesh_ = new THREE.Mesh(geo, mat);
           }
           const mesh = mesh_;
-          const lbl = meta.numeric ? row.value : effectiveLabel(groupKey, row.value);
-          // TASKS.csv #208 — surface a mapped Description column (litho's new optional field, or any
-          // custom field named "description") in the hover tooltip alongside the other interval layers
-          // that share this same tube-building path — harmless no-op for rows that don't have one.
-          // TASKS.csv #227 (continuation) — catValue lets the post-hoc applyCategoryVisibility pass
-          // (below) decide this mesh's .visible without needing the original row data.
-          mesh.userData = { row, tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra}${meta.extraSuffix || ""})` : ""}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m${row.intensity ? ` · intensity ${row.intensity}` : ""}${Number.isFinite(row.alpha) ? ` · alpha ${row.alpha}°` : ""}${row.description ? `\n${row.description}` : ""}`, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }; // lithoRow: TASKS.csv #599 picking
+          // TASKS.csv #208 — a mapped Description in the tooltip; #227 — catValue for the category pass; #1500 — the tooltip made on first
+          // read (lazyTip), holeId for the visible-holes pass
+          mesh.userData = lazyTip({ row, holeId: c.hole_id, catValue: row.value, ...(groupKey === "litho" ? { lithoRow: row } : {}) }, () => `${c.hole_id}\n${meta.label}: ${meta.numeric ? row.value : effectiveLabel(groupKey, row.value)}${row.extra != null ? ` (${row.extra}${meta.extraSuffix || ""})` : ""}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m${row.intensity ? ` · intensity ${row.intensity}` : ""}${Number.isFinite(row.alpha) ? ` · alpha ${row.alpha}°` : ""}${row.description ? `\n${row.description}` : ""}`); // lithoRow: TASKS.csv #599 picking
           groups[groupKey].add(mesh);
          } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id} ${row.from}-${row.to}: ${err.message}`); }
         });
@@ -5036,8 +5014,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           const mesh = new PickStandIn(POINT_PROTO[st.shape], { color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // TASKS.csv #312 — shared prototype + scale; #635 style; #1500 a stand-in
           mesh.scale.setScalar(size * st.size);
           mesh.position.set(p.x, p.y, p.z);
-          const lbl = meta.numeric ? row.value : effectiveLabel(groupKey, row.value);
-          mesh.userData = { row, tip: `${c.hole_id}\n${meta.label}: ${lbl}${row.extra != null ? ` (${row.extra}%)` : ""}\n@ ${mid.toFixed(0)} m`, catValue: row.value };
+          mesh.userData = lazyTip({ row, holeId: c.hole_id, catValue: row.value }, () => `${c.hole_id}\n${meta.label}: ${meta.numeric ? row.value : effectiveLabel(groupKey, row.value)}${row.extra != null ? ` (${row.extra}%)` : ""}\n@ ${mid.toFixed(0)} m`); // #1500
           groups[groupKey].add(mesh);
          } catch (err) { buildErrors.push(`${groupKey} ${c.hole_id}: ${err.message}`); }
         });
@@ -5108,14 +5085,14 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             mesh.scale.set(1.6 * stI.size, len, 1.6 * stI.size);
             mesh.position.set(p1.x, p1.y, p1.z);
             mesh.quaternion.setFromUnitVectors(PIN_AXIS, dipPinDir.set(dx / len, dy / len, dz / len));
-            mesh.userData = { row, tip: `${c.hole_id}\n${layer.name}: ${row.value ?? "—"}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m` };
+            mesh.userData = lazyTip({ row, holeId: c.hole_id }, () => `${c.hole_id}\n${layer.name}: ${row.value ?? "—"}\n${row.from.toFixed(0)}–${row.to.toFixed(0)} m`); // #1500
             layer.group.add(mesh);
           } else if (row.depth != null && !isNaN(row.depth)) {
             const p = look.at(row.depth);
             const mesh = new PickStandIn(POINT_PROTO[stP.shape], { color: stP.color || customColour(layer, layerStyles, row), transparent: stP.opacity < 1, opacity: stP.opacity, side: stP.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // TASKS.csv #312 — shared prototype + scale; #635 style; #1500 a stand-in
             mesh.scale.setScalar(2.4 * stP.size);
             mesh.position.set(p.x, p.y, p.z);
-            mesh.userData = { row, tip: `${c.hole_id}\n${layer.name}: ${row.value ?? "—"}\n@ ${row.depth.toFixed(0)} m` };
+            mesh.userData = lazyTip({ row, holeId: c.hole_id }, () => `${c.hole_id}\n${layer.name}: ${row.value ?? "—"}\n@ ${row.depth.toFixed(0)} m`); // #1500
             layer.group.add(mesh);
           }
         });
