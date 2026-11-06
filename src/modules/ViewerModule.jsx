@@ -120,7 +120,7 @@ const DumpPane = React.lazy(() => import("../components/DumpPane.jsx")); // TASK
 const InterpretPane = React.lazy(() => import("../components/InterpretPane.jsx")); // TASKS.csv #1152
 const UndrilledZonesPane = React.lazy(() => import("../components/UndrilledZonesPane.jsx")); // TASKS.csv #1139 // TASKS.csv #851 — Targeting: fuzzy overlay / weights of evidence
 import { corridorRuns, mdInRuns } from "../lib/sectionCorridor.js"; // TASKS.csv #499
-import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut } from "../lib/levelPlan.js"; // TASKS.csv #525
+import { slabRuns, piercePoints, tracePolylines, pointAtMd, voxelPlanRects, meshPlanCut, planAssayLayers } from "../lib/levelPlan.js"; // TASKS.csv #525; #1537
 import { sliceReadoutText } from "../lib/sliceReadout.js";
 import { buildVectorFeatures as buildVectorFeaturesOf } from "../lib/viewer/vectorFeatures.js"; // TASKS.csv #1083
 import { isRepeatClick } from "../lib/interpretation.js"; // TASKS.csv #1152
@@ -7004,7 +7004,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const legendSeen = new Set(), legendItems = [];
     [...planIntervals, ...structures].forEach((r) => { const key = `${r.label}|${r.color}`; if (!legendSeen.has(key) && !/^(Geotech|Recovery|Specific gravity)/.test(r.label)) { legendSeen.add(key); legendItems.push([r.label, r.color]); } });
     legendItems.sort((a, b) => a[0].localeCompare(b[0]));
-    return { rl, half, holes, intervals: planIntervals, points: planPoints, structures, voxelSlices, surfaceCuts, planned, legendItems };
+    const pa = planAssayLayers(points, holes, assayLegendGroups({ assays, assayElements, assayVisible: true, assayDisplayElements, assayStyle }), (sym) => assays.map((a) => a.values[sym]).filter((v) => v != null)); // #1537
+    return { rl, half, holes, intervals: [...planIntervals, ...pa.intervals], assayLegends: pa.legends, points: planPoints, structures, voxelSlices, surfaceCuts, planned, legendItems };
   };
 
   // TASKS.csv — cross-section contact drawing. Every launched section is auto-registered in

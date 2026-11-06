@@ -8547,5 +8547,6 @@
   "Zoom to the holes (to include everything shown: right-click the view, Zoom to fit all)": "Zoom nos furos (para incluir tudo o que está visível: clique com o botão direito na vista, Enquadrar tudo)",
   "Hole names, end-of-hole depths or offsets with nowhere free to go are left out rather than printed on top of each other. A narrower buffer (fewer holes), a higher VE, a smaller text size or dragging labels makes room; hover a hole for its name.": "Nomes de furos, profundidades finais ou afastamentos sem espaço livre são omitidos em vez de impressos uns sobre os outros. Um buffer mais estreito (menos furos), um exagero vertical maior, um texto menor ou arrastar rótulos abre espaço; passe o cursor sobre um furo para ver o nome.",
   "1 label left out: no room": "1 rótulo omitido: sem espaço",
-  "{n} labels left out: no room": "{n} rótulos omitidos: sem espaço"
+  "{n} labels left out: no room": "{n} rótulos omitidos: sem espaço",
+  "The interval layers and assay elements shown in the 3D View are offered here: turn one on there (Recovery %, or an element under Assays) to colour the plan by it": "Aqui são oferecidas as camadas de intervalos e os elementos de análise mostrados na Vista 3D: ative um lá (Recuperação %, ou um elemento em Análises) para colorir a planta por ele"
 }

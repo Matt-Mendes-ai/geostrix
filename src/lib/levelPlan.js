@@ -7,6 +7,7 @@
 //   voxelPlanRects  block-model cells whose vertical extent contains the RL, as E/N rectangles
 //   meshPlanCut   a triangle mesh cut by the plane z = RL, as E/N segments (model surfaces, solids)
 // A trace is [{ md, x (E), y (N), z (elevation) }], as desurveyHole returns.
+import { magColor } from "./layers.js"; // #1537
 
 // md runs [[md0, md1], ...] where zmin <= z <= zmax, interpolated at the crossings
 export function slabRuns(trace, zmin, zmax) {
@@ -108,4 +109,46 @@ export function strikeDipSymbol(x, y, dip, dipDir, len = 6) {
     tick: [x, y, x + (len / 2.2) * Math.sin(d), y + (len / 2.2) * Math.cos(d)],
     label: `${Math.round(dip)}`,
   };
+}
+
+// TASKS.csv #1537 (review #1497, Lawyers) — 'Colour holes by' offered only logged intervals: for an Au-Ag project the plan that
+// matters is Au at the RL. Each assay element drawn in the 3D View becomes a choice ("assay:<sym>"): its sample intervals clipped
+// to the slab, and the pierce points filled by the sample at the RL. Colours: the element's grade classes when it has them (as in
+// 3D); otherwise a viridis ramp over that element's values in the whole project (2nd-98th percentile, log when they span more than
+// a decade), so the colours do not change with the RL. legends: { "assay:<sym>": { title, items: [[label, color]] } }.
+// points: buildPlanPayload's points ({ hole_id, color, assay: { sym, value, from, to, u } }); holes: [{ hole_id, trace, runs, pierce }]
+// (pierce points need .logs already); groups: assayLegendGroups' output; projectValues(sym) -> every value of that element.
+const fmt3 = (v) => String(+Number(v).toPrecision(3));
+export function assayRamp(values) {
+  const v = (values || []).map(Number).filter(Number.isFinite).sort((a, b) => a - b);
+  if (!v.length) return null;
+  const q = (p) => v[Math.min(v.length - 1, Math.max(0, Math.round(p * (v.length - 1))))];
+  let lo = q(0.02), hi = q(0.98);
+  if (!(hi > lo)) { lo = v[0]; hi = v[v.length - 1]; }
+  const log = lo > 0 && hi / lo > 10;
+  const t = (x) => (log ? (Math.log10(Math.max(x, lo)) - Math.log10(lo)) / (Math.log10(hi) - Math.log10(lo)) : hi > lo ? (x - lo) / (hi - lo) : 0);
+  const color = (x) => magColor(Math.min(1, Math.max(0, t(x))), 0, 1);
+  const at = (k) => (log ? 10 ** (Math.log10(lo) + (k / 4) * (Math.log10(hi) - Math.log10(lo))) : lo + (k / 4) * (hi - lo));
+  const items = [0, 1, 2, 3, 4].map((k) => [k === 0 ? `≤ ${fmt3(at(k))}` : k === 4 ? `≥ ${fmt3(at(k))}` : fmt3(at(k)), color(at(k))]);
+  return { lo, hi, log, color, items };
+}
+export function planAssayLayers(points, holes, groups, projectValues) {
+  const bySym = new Map();
+  for (const p of points || []) if (p.assay) { if (!bySym.has(p.assay.sym)) bySym.set(p.assay.sym, []); bySym.get(p.assay.sym).push(p); }
+  const holeOf = new Map((holes || []).map((h) => [h.hole_id, h]));
+  const intervals = [], legends = {};
+  for (const [sym, pts] of bySym) {
+    const layer = `assay:${sym}`, g = (groups || []).find((x) => x.key === `assay_${sym}`), unit = pts[0].assay.u || "";
+    const ramp = g?.grade ? null : assayRamp(projectValues ? projectValues(sym) : pts.map((p) => p.assay.value));
+    const colorOf = (p) => (ramp ? ramp.color(Number(p.assay.value)) : p.color);
+    legends[layer] = { title: unit ? `${sym} (${unit})` : sym, items: ramp ? ramp.items.map(([l, c]) => [unit ? `${l} ${unit}` : l, c]) : (g?.items || []).filter(([, c]) => c && c !== "transparent") };
+    for (const p of pts) {
+      const h = holeOf.get(p.hole_id); if (!h) continue;
+      const { from, to, value } = p.assay, color = colorOf(p), label = `${sym}: ${value}${unit ? ` ${unit}` : ""}`;
+      const parts = (h.runs || []).map(([a, b]) => [Math.max(from, a), Math.min(to, b)]).filter(([a, b]) => b - a > 1e-6);
+      if (parts.length) intervals.push({ hole_id: p.hole_id, layer, color, label, from, to, lines: tracePolylines(h.trace, parts) });
+      for (const pc of h.pierce || []) if (pc.md >= from && pc.md <= to && !(pc.logs || []).some((l) => l.layer === layer)) (pc.logs = pc.logs || []).push({ label, color, layer });
+    }
+  }
+  return { intervals, legends };
 }

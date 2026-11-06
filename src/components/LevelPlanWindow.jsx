@@ -64,7 +64,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
   // #1404 — the legend is the "Colour holes by" layer (categories, or a numeric layer's colours at their values) plus the
   // structure symbols drawn on the plan; it used to list every layer whichever one filled the pierce points
   const legend = useMemo(() => {
-    const L = planLegend(data.intervals, activeLayer, { numeric: !!LAYER_META[activeLayer]?.numeric });
+    const L = data.assayLegends?.[activeLayer] || planLegend(data.intervals, activeLayer, { numeric: !!LAYER_META[activeLayer]?.numeric }); // #1537 — an assay element: its classes or ramp
     const structs = (data.legendItems || []).filter(([label]) => /^Structure/.test(label));
     return [...L.items.map(([n, c]) => [L.title ? `${L.title}: ${n}` : n, c]), ...structs];
   }, [data, activeLayer]);
@@ -173,7 +173,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
           <input type="range" min={Math.floor(zRange[0])} max={Math.ceil(zRange[1])} step={1} value={rl} onChange={(e) => setRl(e.target.value)} style={{ width: 160 }} aria-label={tr("Plan elevation slider")} />
           <label style={ctrl} title={tr("Hole runs, logs, assays and structures within this distance above and below the RL are drawn")}>{tr("± slab (m)")}{" "}<input type="number" min={0.1} step="any" value={half} onChange={(e) => setHalf(e.target.value)} style={{ ...inp, width: 56 }} aria-label={tr("Slab half-width")} /></label>
           {layerKeys.length > 0 && (
-            <label style={ctrl} title={tr("The interval layers shown in the 3D View are offered here: turn a layer on there (Recovery %, for example) to colour the plan by it")}>{tr("Colour holes by")}<select value={activeLayer} onChange={(e) => setColourBy(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Colour holes by")}>
+            <label style={ctrl} title={tr("The interval layers and assay elements shown in the 3D View are offered here: turn one on there (Recovery %, or an element under Assays) to colour the plan by it")}>{tr("Colour holes by")}<select value={activeLayer} onChange={(e) => setColourBy(e.target.value)} style={{ ...inp, width: "auto" }} aria-label={tr("Colour holes by")}>
                 {layerKeys.map((k) => <option key={k} value={k}>{(data.intervals.find((iv) => iv.layer === k)?.label || k).split(":")[0]}</option>)}
               </select>
             </label>
@@ -212,7 +212,7 @@ export default function LevelPlanWindow({ build, zRange, defaultRl, onClose, onS
             <g key={`pc${h.hole_id}_${i}`}>
               {/* filled with the chosen log's colour at the RL (white: not logged there) */}
               <circle cx={X(pc.x)} cy={Y(pc.y)} r={4.6} fill={(pc.logs || []).find((l) => l.layer === activeLayer)?.color || "#ffffff"} stroke="#1a2028" strokeWidth={1.6}>
-                <title>{[tr("{hole_id} pierces {rl} m at {md} m", { hole_id: h.hole_id, rl, md: pc.md.toFixed(1) }), ...(pc.logs || []).map((l) => l.label), ...(pc.assays || [])].join("\n")}</title>
+                <title>{[tr("{hole_id} pierces {rl} m at {md} m", { hole_id: h.hole_id, rl, md: pc.md.toFixed(1) }), ...(pc.logs || []).filter((l) => !l.layer?.startsWith("assay:")).map((l) => l.label), ...(pc.assays || [])].join("\n")}</title>
               </circle>
             </g>
           )))}
