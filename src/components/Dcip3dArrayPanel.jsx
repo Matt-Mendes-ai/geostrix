@@ -7,11 +7,11 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Play, Box, Upload } from "./icons.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
 import { parseElectrodeArrayText, selectArrayReadings, buildArrayRequest, suggestArrayMesh, medianRelErrorPct, compareBlockModels } from "../lib/dcipArray.js";
-import { cells3d } from "../lib/dcip3d.js";
+import { voxel3dModels } from "../lib/dcip3d.js";
+import { voxKinds, addedText, VoxelChoice } from "./Dcip3dPanel.jsx"; // TASKS.csv #1978
 import { sidecarPlanDcip3d, ensureSidecarUp } from "../lib/desktop.js";
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
-import { logStops, sequentialStops, terrainElevationAt } from "../lib/inversion.js";
-import { percentile } from "../lib/sectionMerge.js";
+import { terrainElevationAt } from "../lib/inversion.js";
 import { version as APP_VERSION } from "../../package.json";
 import { t as tr } from "../lib/i18n.js";
 
@@ -25,7 +25,7 @@ export default function Dcip3dArrayPanel({ pBtn, numInput }) {
   const fileRef = useRef(null);
   const [file, setFile] = useState(null); // { name, parsed }
   const [readMsg, setReadMsg] = useState(null);
-  const [o, setO] = useState({ core: "", depth: "", step: 1, honour: true, fileErr: true, pct: "", floor: "", useIp: true, ipUnits: "ms", ipPct: "", ipFloor: "", maxIter: 12, cutoff: 0.02 });
+  const [o, setO] = useState({ core: "", depth: "", step: 1, honour: true, fileErr: true, pct: "", floor: "", useIp: true, ipUnits: "ms", ipPct: "", ipFloor: "", maxIter: 12, cutoff: 0.02, voxObserved: true, voxExtrapolated: false }); // vox*: #1978
   const [plan, setPlan] = useState(null);
   const [msg, setMsg] = useState(null);
   const [job, setJob] = useState(null);
@@ -64,6 +64,7 @@ export default function Dcip3dArrayPanel({ pBtn, numInput }) {
     if (!(num(o.pct) > 0) && !(num(o.floor) > 0)) p.push(tr("Enter the resistivity data uncertainty (% and / or a floor) — how far you trust each reading."));
     if (o.useIp && hasIp && !(num(o.ipPct) > 0) && !(num(o.ipFloor) > 0)) p.push(tr("Enter the chargeability uncertainty (% and / or a floor, in {u}).", { u: ipUnitLabel }));
     if (!(num(o.core !== "" ? o.core : sug.core) >= 5)) p.push(tr("The cell size must be at least 5 m."));
+    if (!voxKinds(o).length) p.push(tr("Tick Observed and / or Extrapolated under 3D voxels: with neither, the run would add no block model.")); // #1978
     if (o.ipUnits === "mVV" && !parsed?.mxWindowMs) p.push(tr("The file does not state its chargeability window, so ms cannot be converted to mV/V: keep ms."));
     return p;
   };
@@ -101,21 +102,15 @@ export default function Dcip3dArrayPanel({ pBtn, numInput }) {
         const cut = Number(o.cutoff) || 0, maxCell = 2 * req.mesh.core;
         const runParams = { ...params, fit: { phiD: result.phi_d, target: result.target, reachedTarget: result.reachedTarget, iterations: result.iterations, ...(result.ip ? { ip: { phiD: result.ip.phi_d, target: result.ip.target, reachedTarget: result.ip.reachedTarget, iterations: result.ip.iterations } } : {}) },
           solver: result.solver, versions: result.versions, runSeconds: Math.round(result.seconds), supportCutoff: cut, generatedAt: new Date().toISOString(), app: APP_VERSION };
-        const added = [], models = {};
-        for (const [field, method, property] of [["resistivity", "dc", "Resistivity (ohm·m)"], ["chargeability", "ip", `Chargeability (${ipUnitLabel})`]]) {
-          const cells = cells3d(result, field, { cutoff: cut, maxCell });
-          if (!cells.length) continue;
-          const v = cells.map((c) => c.value), lo = percentile(v, 0.02), hi = percentile(v, 0.98);
-          const model = { name: `${property} — 3D inversion of ${base}`, property, method: `${method}-3d`, source: "simpeg", colorMode: "continuous", cells,
-            min: lo, max: hi, stops: method === "dc" ? logStops(lo, hi) : sequentialStops(0, hi), threshold: method === "dc" ? lo : percentile(v, 0.75), opacity: 0.85, supportCutoff: cut, params: runParams };
-          addVoxelModelToTab(token, model);
-          models[field] = model;
-          added.push(`${cells.length.toLocaleString()} ${method === "dc" ? tr("resistivity") : tr("chargeability")}`);
-        }
+        // TASKS.csv #1978 — Observed and / or Extrapolated, as the 2D lines' "3D voxels"; the comparison below uses the observed one when made
+        const made = voxel3dModels(result, { cut, maxCell, kinds: voxKinds(o), params: runParams,
+          fields: [["resistivity", "dc", "Resistivity (ohm·m)", `Resistivity (ohm·m) — 3D inversion of ${base}`], ["chargeability", "ip", `Chargeability (${ipUnitLabel})`, `Chargeability (${ipUnitLabel}) — 3D inversion of ${base}`]] });
+        const models = {};
+        for (const m of made) { addVoxelModelToTab(token, m.model); if (!models[m.field] || m.kind === "observed") models[m.field] = m.model; }
         setMade(models);
         const fit = result.phi_d / result.target;
-        setMsg({ ok: true, text: tr("3D inversion done in {t}: resistivity misfit {fit}x the target{ip}; added {cells} blocks (support ≥ {cut}).", {
-          t: minutes(result.seconds), fit: fit.toFixed(2), ip: result.ip ? tr(", chargeability {f}x", { f: (result.ip.phi_d / result.ip.target).toFixed(2) }) : "", cells: added.join(" + "), cut }) + (fit > 1.5 ? " " + tr("The fit did not reach the target: more iterations, a smaller cell or a larger uncertainty, or bad readings the flags missed.") : "") });
+        setMsg({ ok: true, text: tr("3D inversion done in {t}: resistivity misfit {fit}x the target{ip}; added {cells}.", {
+          t: minutes(result.seconds), fit: fit.toFixed(2), ip: result.ip ? tr(", chargeability {f}x", { f: (result.ip.phi_d / result.ip.target).toFixed(2) }) : "", cells: addedText(made, cut) }) + (fit > 1.5 ? " " + tr("The fit did not reach the target: more iterations, a smaller cell or a larger uncertainty, or bad readings the flags missed.") : "") });
       },
     });
     if (!res.ok) setMsg({ ok: false, text: res.error });
@@ -183,6 +178,7 @@ export default function Dcip3dArrayPanel({ pBtn, numInput }) {
             </>
           )}
           <div style={row} title={tr("In each column, cells below the deepest one whose support (how much the data see it, 0-1) reaches this are left out of the block models: below that the values are the regularization's extrapolation, not data.")}><span style={lbl}>{tr("Support cutoff")}</span><input type="number" min={0} max={1} step={0.005} value={o.cutoff} onChange={(e) => set("cutoff", e.target.value)} style={inp} aria-label={tr("Support cutoff")} /></div>
+          <VoxelChoice o={o} setO={setO} lbl={lbl} row={row} />{/* #1978 */}
           <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
             <button onClick={estimate} disabled={running} style={{ ...pBtn, flex: 1, opacity: running ? 0.5 : 1 }}><Box size={14} />{" "}{tr("Estimate")}</button>
             <button onClick={run} disabled={running || !plan?.ok} title={plan ? "" : tr("Estimate first")} style={{ ...pBtn, flex: 1, opacity: running || !plan?.ok ? 0.5 : 1 }}><Play size={14} />{" "}{tr("Invert in 3D")}</button>

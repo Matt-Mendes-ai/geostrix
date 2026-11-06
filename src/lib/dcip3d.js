@@ -6,7 +6,8 @@
 // Pure: no React.
 import { lineGeometry, terrainProfile, slopeToHorizontalFromProfile, slopeToHorizontalFromStations, readingsToHorizontal, suggestModelDepth } from "./dcip.js";
 import { stationGroundProfile } from "./dcipStations.js";
-import { terrainElevationAt } from "./inversion.js";
+import { terrainElevationAt, logStops, sequentialStops } from "./inversion.js";
+import { percentile } from "./arrayStats.js";
 
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 function interp(pts, x) { // pts [[x, y]] sorted by x; held at the ends
@@ -142,10 +143,16 @@ export function build3dRequest(lines, terrain, { core, depth, step = 1, pct, flo
 // a grid at the smallest cell's width and a cell belongs to every column its footprint covers. The default cutoff is
 // 0.02 (the 2D default): on Woodjam's six lines 0.005 kept cells to 630 m below the electrodes against a 2D depth of
 // investigation of 150-240 m; 0.02 reached 390 m at most (review #918, measured on the half-space sensitivities).
-export function cells3d(result, field, { cutoff = 0.02, maxCell = Infinity } = {}) {
+export function cells3d(result, field, { cutoff = 0.02, maxCell = Infinity, all = false } = {}) {
   const c = result.cells, v = c[field];
   if (!v) return [];
   const n = v.length;
+  // TASKS.csv #1978 — all: every fine cell, the support cutoff not applied (the "Extrapolated" voxel)
+  if (all) {
+    const out = [];
+    for (let i = 0; i < n; i++) if (Math.max(c.dx[i], c.dy[i]) <= maxCell && Number.isFinite(v[i])) out.push({ x: c.x[i], y: c.y[i], z: c.z[i], dx: c.dx[i], dy: c.dy[i], dz: c.dz[i], value: v[i], support: c.support[i] });
+    return out;
+  }
   let step = Infinity;
   for (let i = 0; i < n; i++) step = Math.min(step, c.dx[i], c.dy[i]);
   if (!(step > 0) || !Number.isFinite(step)) step = 1;
@@ -170,6 +177,31 @@ export function cells3d(result, field, { cutoff = 0.02, maxCell = Infinity } = {
     if (Math.max(c.dx[i], c.dy[i]) > maxCell) continue;
     if (!(c.support[i] >= cutoff) && !colsOf(i).some((k) => deepest.has(k) && deepest.get(k) <= c.z[i])) continue;
     out.push({ x: c.x[i], y: c.y[i], z: c.z[i], dx: c.dx[i], dy: c.dy[i], dz: c.dz[i], value: v[i], support: c.support[i] });
+  }
+  return out;
+}
+
+// TASKS.csv #1978 — the 2D lines' "3D voxels" choice for a 3D run (Matt: the extrapolation to the whole model depth was 2D only).
+// Observed: each column cut below the deepest cell the data see (support at or above the cutoff). Extrapolated: every fine cell
+// down to the model depth, drawn see-through: below the depth of investigation the values are the regularization's, not data.
+// fields: [[field, method ("dc" | "ip"), property, name]]. Returns [{ kind, field, model }].
+export function voxel3dModels(result, { cut, maxCell, kinds = ["observed"], fields, params }) {
+  const out = [];
+  for (const [field, method, property, name] of fields) {
+    for (const kind of kinds) {
+      const obs = kind === "observed";
+      const cells = cells3d(result, field, obs ? { cutoff: cut, maxCell } : { all: true, maxCell });
+      if (!cells.length) continue;
+      const v = cells.map((c) => c.value), lo = percentile(v, 0.02), hi = percentile(v, 0.98);
+      out.push({ kind, field, model: {
+        name: obs ? name : `${name}, extrapolated to the model depth`, property, method: `${method}-3d`, source: "simpeg", colorMode: "continuous", cells,
+        min: lo, max: hi, stops: method === "dc" ? logStops(lo, hi) : sequentialStops(0, hi), threshold: method === "dc" ? lo : percentile(v, 0.75),
+        opacity: obs ? 0.85 : 0.6, supportCutoff: obs ? cut : 0,
+        params: obs ? { ...params, voxel: `cells within the depth of investigation (support cutoff ${cut})` }
+          : { ...params, supportCutoff: 0, voxel: "every fine cell of the model, down to the model depth: below the depth of investigation the values are the inversion's extrapolation, not data",
+            interpretation: "One smooth 3D model fitting the readings to the stated uncertainty. Every fine cell down to the model depth is kept, including those the data do not see (support below the cutoff): there the values are the regularization's extrapolation, a prediction to test, not a measurement. Each cell keeps its support." },
+      } });
+    }
   }
   return out;
 }

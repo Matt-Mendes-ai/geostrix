@@ -6,17 +6,35 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Play, Box } from "./icons.js";
 import { useStore, useSetTaskProgress } from "../lib/store.jsx";
-import { lineIn3d, suggest3d, build3dRequest, cells3d, linesHaveIp } from "../lib/dcip3d.js";
+import { lineIn3d, suggest3d, build3dRequest, voxel3dModels, linesHaveIp } from "../lib/dcip3d.js";
 import { sidecarPlanDcip3d, ensureSidecarUp } from "../lib/desktop.js";
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
-import { logStops, sequentialStops, ipFitOf, ipFitStored } from "../lib/inversion.js";
-import { percentile } from "../lib/sectionMerge.js";
+import { ipFitOf, ipFitStored } from "../lib/inversion.js";
 import { version as APP_VERSION } from "../../package.json";
 import { t as tr } from "../lib/i18n.js";
 
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 const minutes = (s) => (s < 90 ? tr("{s} s", { s: Math.round(s) }) : s < 5400 ? tr("{m} min", { m: Math.round(s / 60) }) : tr("{h} h", { h: (s / 3600).toFixed(1) }));
 const REASONS = { "not placed": "not placed", "slope distances need stations or a terrain": "slope distances need stations or a terrain", "no ground elevation (stations, terrain or a flat ground)": "no ground elevation (stations, terrain or a flat ground)" };
+
+// TASKS.csv #1978 — the 2D lines' "3D voxels" choice, for the 3D runs too (here and Dcip3dArrayPanel)
+export const voxKinds = (o) => [o.voxObserved !== false && "observed", o.voxExtrapolated && "extrapolated"].filter(Boolean);
+export function addedText(made, cut) {
+  return made.map((m) => {
+    const n = m.model.cells.length.toLocaleString(), what = m.field === "resistivity" ? tr("resistivity") : tr("chargeability");
+    return m.kind === "observed" ? tr("{n} {what} blocks (support ≥ {cut})", { n, what, cut }) : tr("{n} {what} blocks extrapolated to the model depth", { n, what });
+  }).join(" + ");
+}
+export function VoxelChoice({ o, setO, lbl, row }) {
+  return (
+    <div style={{ ...row, alignItems: "flex-start" }}><span style={lbl}>{tr("3D voxels")}</span>
+      <div style={{ display: "flex", flexDirection: "column", gap: 2, fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
+        <label title={tr("Only the cells within the depth of investigation (the support cutoff above): what the data actually see.")}><input type="checkbox" checked={o.voxObserved !== false} onChange={(e) => setO((p) => ({ ...p, voxObserved: e.target.checked }))} />{" "}{tr("Observed (the cells the data see)")}</label>
+        <label title={tr("Every cell of the model, down to the model depth. Below the depth of investigation the values come from the inversion's smoothing, not from the data: a prediction to test, not a measurement.")}><input type="checkbox" checked={!!o.voxExtrapolated} onChange={(e) => setO((p) => ({ ...p, voxExtrapolated: e.target.checked }))} />{" "}{tr("Extrapolated (the whole model, to its depth)")}</label>
+      </div>
+    </div>
+  );
+}
 
 export default function Dcip3dPanel({ pBtn, numInput }) {
   const { terrain, dcipLines, addVoxelModelToTab, getProjectToken } = useStore();
@@ -32,7 +50,7 @@ export default function Dcip3dPanel({ pBtn, numInput }) {
   const first = { pct: common("pct"), floor: common("floor"), ipPct: common("ipPct"), ipFloor: common("ipFloor") };
   const gfModes = [...new Set(chosen.map((p) => p.e.opts?.geomFactor || "flat"))];
   const errLines = (kind) => chosen.filter((p) => p.l.err && p.l.errKind === kind).map((p) => p.e.name);
-  const [o, setO] = useState({ core: "", depth: "", step: 1, pct: "", floor: "", ipPct: "", ipFloor: "", maxIter: 12, cutoff: 0.02 }); // cutoff: #926 — the 2D default
+  const [o, setO] = useState({ core: "", depth: "", step: 1, pct: "", floor: "", ipPct: "", ipFloor: "", maxIter: 12, cutoff: 0.02, voxObserved: true, voxExtrapolated: false }); // cutoff: #926 — the 2D default; vox*: #1978
   const set = (k, v) => { setO((p) => ({ ...p, [k]: v })); setPlan(null); };
   const val = (k, fallback) => (o[k] !== "" && o[k] != null ? o[k] : fallback);
   const withIp = linesHaveIp(chosen.map((p) => p.l)); // #929 — the request's own rule
@@ -63,6 +81,7 @@ export default function Dcip3dPanel({ pBtn, numInput }) {
     if (!(num(val("pct", first.pct)) > 0) && !(num(val("floor", first.floor)) > 0)) p.push(tr("Enter the resistivity data uncertainty (% and / or a floor) — how far you trust each reading."));
     if (withIp && !(num(val("ipPct", first.ipPct)) > 0) && !(num(val("ipFloor", first.ipFloor)) > 0)) p.push(tr("Enter the chargeability uncertainty (% and / or a floor in mV/V)."));
     if (!(num(val("core", sug.core)) >= 5)) p.push(tr("The cell size must be at least 5 m."));
+    if (!voxKinds(o).length) p.push(tr("Tick Observed and / or Extrapolated under 3D voxels: with neither, the run would add no block model.")); // #1978
     if (gfModes.length > 1) p.push(tr("The chosen lines differ in how their apparent resistivities were computed (flat-ground or draped geometric factor, in each line's options). Make them the same, or leave one kind out.")); // #929
     return p;
   };
@@ -94,17 +113,12 @@ export default function Dcip3dPanel({ pBtn, numInput }) {
         const cut = Number(o.cutoff) || 0, maxCell = 2 * req.mesh.core;
         const runParams = { ...params, fit: { phiD: result.phi_d, target: result.target, reachedTarget: result.reachedTarget, iterations: result.iterations, fitChoice: result.fitChoice, ...(result.ip ? { ip: { phiD: result.ip.phi_d, iterations: result.ip.iterations, ...ipFitStored(result) } } : {}) } /* #970 — the #682 rule */,
           solver: result.solver, versions: result.versions, runSeconds: Math.round(result.seconds), supportCutoff: cut, generatedAt: new Date().toISOString(), app: APP_VERSION };
-        const added = [];
-        for (const [field, method, property] of [["resistivity", "dc", "Resistivity (ohm·m)"], ["chargeability", "ip", "Chargeability (mV/V)"]]) {
-          const cells = cells3d(result, field, { cutoff: cut, maxCell });
-          if (!cells.length) continue;
-          const v = cells.map((c) => c.value), lo = percentile(v, 0.02), hi = percentile(v, 0.98);
-          addVoxelModelToTab(token, { name: `${property} — 3D inversion (${names.length} lines)`, property, method: `${method}-3d`, source: "simpeg", colorMode: "continuous", cells,
-            min: lo, max: hi, stops: method === "dc" ? logStops(lo, hi) : sequentialStops(0, hi), threshold: method === "dc" ? lo : percentile(v, 0.75), opacity: 0.85, supportCutoff: cut, params: runParams });
-          added.push(`${cells.length.toLocaleString()} ${method === "dc" ? tr("resistivity") : tr("chargeability")}`);
-        }
+        // TASKS.csv #1978 — Observed and / or Extrapolated, as the 2D lines' "3D voxels"
+        const made = voxel3dModels(result, { cut, maxCell, kinds: voxKinds(o), params: runParams,
+          fields: [["resistivity", "dc", "Resistivity (ohm·m)", `Resistivity (ohm·m) — 3D inversion (${names.length} lines)`], ["chargeability", "ip", "Chargeability (mV/V)", `Chargeability (mV/V) — 3D inversion (${names.length} lines)`]] });
+        made.forEach((m) => addVoxelModelToTab(token, m.model));
         const fit = result.phi_d / result.target;
-        setMsg({ ok: true, text: tr("3D inversion done in {t}: resistivity misfit {fit}x the target{ip}; added {cells} blocks (support ≥ {cut}).", { t: minutes(result.seconds), fit: fit.toFixed(2), ip: result.ip ? (ipFitOf(result).dcUnfitted ? tr(", chargeability {v}x but computed on a resistivity model that did not fit, so treat it as unfinished too", { v: (result.ip.phi_d / result.target).toFixed(2) }) : tr(", chargeability {v}x", { v: (result.ip.phi_d / result.target).toFixed(2) })) : "", cells: added.join(" + "), cut }) });
+        setMsg({ ok: true, text: tr("3D inversion done in {t}: resistivity misfit {fit}x the target{ip}; added {cells}.", { t: minutes(result.seconds), fit: fit.toFixed(2), ip: result.ip ? (ipFitOf(result).dcUnfitted ? tr(", chargeability {v}x but computed on a resistivity model that did not fit, so treat it as unfinished too", { v: (result.ip.phi_d / result.target).toFixed(2) }) : tr(", chargeability {v}x", { v: (result.ip.phi_d / result.target).toFixed(2) })) : "", cells: addedText(made, cut) }) });
       },
     });
     if (!res.ok) setMsg({ ok: false, text: res.error });
@@ -138,6 +152,7 @@ export default function Dcip3dPanel({ pBtn, numInput }) {
       {(errLines("rhoPct").length > 0 || (withIp && errLines("ipMvV").length > 0)) && <div style={{ ...small, marginTop: 4 }}>{tr("Each reading's floor is also at least its own error, from the error column of: {lines}.", { lines: [errLines("rhoPct").length ? tr("{names} (resistivity, %)", { names: errLines("rhoPct").join(", ") }) : "", withIp && errLines("ipMvV").length ? tr("{names} (chargeability, mV/V)", { names: errLines("ipMvV").join(", ") }) : ""].filter(Boolean).join("; ") })}</div>}
       {ipLeftOut && <div style={{ ...small, marginTop: 4, color: "var(--color-warn-text)" }}>{tr("Chargeability is left out of this run: {names} have no chargeability for every reading. Leave them out to invert IP in 3D.", { names: noIp.join(", ") })}</div>}
       <div style={row} title={tr("In each column, cells below the deepest one whose support (how much the data see it, 0-1) reaches this are left out of the block models: below that the values are the regularization's extrapolation, not data.")}><span style={lbl}>{tr("Support cutoff")}</span><input type="number" min={0} max={1} step={0.001} value={o.cutoff} onChange={(e) => setO((p) => ({ ...p, cutoff: e.target.value }))} style={inp} aria-label={tr("Support cutoff")} /></div>
+      <VoxelChoice o={o} setO={setO} lbl={lbl} row={row} />{/* #1978 */}
       <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
         <button onClick={estimate} disabled={running} style={{ ...pBtn, flex: 1, opacity: running ? 0.5 : 1 }}><Box size={14} />{" "}{tr("Estimate")}</button>
         <button onClick={run} disabled={running || !plan?.ok} title={plan ? "" : tr("Estimate first")} style={{ ...pBtn, flex: 1, opacity: running || !plan?.ok ? 0.5 : 1 }}><Play size={14} />{" "}{tr("Invert in 3D")}</button>
