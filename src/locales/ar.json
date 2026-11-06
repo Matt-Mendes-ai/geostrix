@@ -8569,5 +8569,6 @@
   "Model extent (solve frame: from the scene origin)": "امتداد النموذج (إطار الحل: من أصل المشهد)",
   "Model extent (solve frame: from the scene origin, warped by the trend)": "امتداد النموذج (إطار الحل: من أصل المشهد، مشوَّه بالاتجاه)",
   "Support index": "مؤشر الدعم",
-  "Kriging variance": "تباين الكريجنج"
+  "Kriging variance": "تباين الكريجنج",
+  "{v} m: past the furthest lag ({max} m), not measured": "{v} م: بعد أبعد مسافة ({max} م)، غير مَقيس"
 }

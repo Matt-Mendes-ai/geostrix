@@ -238,9 +238,11 @@ export function experimentalVariogram(points, opts = {}) {
     // Journel & Huijbregts' standard caution, surfaced rather than assumed: a lag with fewer than ~30
     // pairs is not a measurement, and a variogram should not be interpreted past about half the
     // field's extent. maxReliableLag is the largest lag that clears the 30-pair bar contiguously.
+    // TASKS.csv #1420 (review #1352, Silvertip) — counted from the first bin that has pairs: an empty first bin (no pairs
+    // that close, e.g. a horizontal direction between holes) made it '0 m' while the 21.6 m bin held 39 pairs
     maxReliableLag: (() => {
-      let last = 0;
-      for (const b of bins) { if (b.nPairs >= 30) last = b.lag; else break; }
+      let last = 0, started = false;
+      for (const b of bins) { if (!started && !(b.nPairs > 0)) continue; started = true; if (b.nPairs >= 30) last = b.lag; else break; }
       return last;
     })(),
   };
@@ -334,6 +336,8 @@ export function fitVariogramModel(bins, opts = {}) {
     nugget: best.nugget,
     sill: best.sill,
     range: best.range,
+    // TASKS.csv #1420 — the scan reaches 1.5x the furthest lag: a range past it was never measured (215.9 m on a 144 m axis)
+    maxLag: hMax, beyondData: best.range > hMax,
     // Fraction of the total sill that is pure nugget — the number that decides whether any smooth
     // interpolation of this variable is defensible at all.
     nuggetRatio: best.sill > 0 ? best.nugget / best.sill : null,

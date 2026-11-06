@@ -8569,5 +8569,6 @@
   "Model extent (solve frame: from the scene origin)": "Extensão do modelo (referencial de cálculo: a partir da origem da cena)",
   "Model extent (solve frame: from the scene origin, warped by the trend)": "Extensão do modelo (referencial de cálculo: a partir da origem da cena, deformado pela tendência)",
   "Support index": "Índice de suporte",
-  "Kriging variance": "Variância de krigagem"
+  "Kriging variance": "Variância de krigagem",
+  "{v} m: past the furthest lag ({max} m), not measured": "{v} m: além do último lag ({max} m), não medido"
 }
