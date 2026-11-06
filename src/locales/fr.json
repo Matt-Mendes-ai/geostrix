@@ -8511,5 +8511,12 @@
   "Ni/Cu ratio": "Rapport Ni/Cu",
   "Ni and Cu in the same unit": "Ni et Cu dans la même unité",
   "Th/U ratio": "Rapport Th/U",
-  "Th and U in the same unit (both ppm)": "Th et U dans la même unité (tous deux en ppm)"
+  "Th and U in the same unit (both ppm)": "Th et U dans la même unité (tous deux en ppm)",
+  "Catchments are computed from the project terrain: load a DEM or fetch SRTM / Copernicus terrain (Maps tab) over your sample area first, or build one offline from points or contours (Maps > Terrain > Terrain from points or contours…). A finer terrain (High or Very high detail) resolves small first-order catchments.": "Les bassins versants sont calculés à partir du terrain du projet : chargez un MNT ou récupérez un terrain SRTM / Copernicus (onglet Cartes) sur votre zone d’échantillonnage, ou construisez-en un hors ligne à partir de points ou de courbes de niveau (Cartes > Terrain > Terrain à partir de points ou de courbes…). Un terrain plus fin (détail Élevé ou Très élevé) résout les petits bassins de premier ordre.",
+  "Stream sites come from the terrain: load or fetch terrain over the area first, or build one offline from points or contours (Maps > Terrain).": "Les sites de cours d’eau viennent du terrain : chargez ou récupérez d’abord un terrain sur la zone, ou construisez-en un hors ligne à partir de points ou de courbes de niveau (Cartes > Terrain).",
+  "{v2}{v3} Screening level: protolith assumed.": "{v2}{v3} Niveau de dépistage : protolithe supposé.",
+  "No interval was generated from {n} samples, so the {v} layer is empty.{detail}": "Aucun intervalle n’a été généré à partir de {n} échantillons : la couche {v} est vide.{detail}",
+  "{unit} ({v})": "{unit} ({v})",
+  "The assay intervals in the intercept at or above the cutoff": "Les intervalles d’analyse de l’intersection égaux ou supérieurs à la teneur de coupure",
+  "Samples ≥ cutoff": "Échantillons ≥ coupure"
 }

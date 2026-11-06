@@ -157,7 +157,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
   }, [reportAssays, symbol, unit, elementUnits, cutoff, maxInternalDilution, minLength, minGradeLen, shownExtras, eqData, tracesByHole, twDipDir, twDip, domainByHole, rangeAvg, includeCutoff]);
   const incOn = includeCutoff !== "" && Number(includeCutoff) > cutoff; // #402
   const meqFor = (r) => (meqReady ? metalEquivalent({ [symbol]: r.avgGrade, ...r.extras }, meqMetals) : null);
-  const incText = (h) => `${h.length.toFixed(2)} m @ ${h.overRange ? ">=" : ""}${+h.avgGrade.toPrecision(6)} (${h.from.toFixed(2)}-${h.to.toFixed(2)})`;
+  const incText = (h) => `${h.length.toFixed(2)} m @ ${h.overRange ? ">=" : ""}${+h.avgGrade.toPrecision(4)} (${h.from.toFixed(2)}-${h.to.toFixed(2)})`;
 
   // "V1 (62%)" for a dominated intercept, "V1 62% · S5 38%" when it genuinely straddles — a report
   // that collapsed a contact-straddling intercept to just its dominant unit would hide exactly the
@@ -337,7 +337,7 @@ export default function BestIntercepts({ assays: assaysIn, assayElements, collar
                       ? <th key={c} style={th}>{tr("Including (≥ {includeCutoff})", { includeCutoff })}</th>
                       : <th key={c} style={th} title={metalEquivalentFormula(meqMetals)}>{tr("{symbol}Eq ({unit})", { symbol, unit })}</th>))}
                     {shownExtras.map((s) => <th key={s} style={th}>{tr("Avg {s} ({v})", { s, v: elementUnits[s] || tr("ppm") })}</th>)}
-                    <th style={th}>{tr("Assay intervals")}</th>
+                    <th style={th} title={tr("The assay intervals in the intercept at or above the cutoff")}>{tr("Samples ≥ cutoff")}</th>{/* #1393 — it counts those only */}
                   </tr>
                 </thead>
                 <tbody>

@@ -8511,5 +8511,12 @@
   "Ni/Cu ratio": "Razão Ni/Cu",
   "Ni and Cu in the same unit": "Ni e Cu na mesma unidade",
   "Th/U ratio": "Razão Th/U",
-  "Th and U in the same unit (both ppm)": "Th e U na mesma unidade (ambos em ppm)"
+  "Th and U in the same unit (both ppm)": "Th e U na mesma unidade (ambos em ppm)",
+  "Catchments are computed from the project terrain: load a DEM or fetch SRTM / Copernicus terrain (Maps tab) over your sample area first, or build one offline from points or contours (Maps > Terrain > Terrain from points or contours…). A finer terrain (High or Very high detail) resolves small first-order catchments.": "As bacias são calculadas a partir do terreno do projeto: carregue um DEM ou obtenha terreno SRTM / Copernicus (aba Mapas) sobre sua área de amostragem, ou construa um offline a partir de pontos ou curvas de nível (Mapas > Terreno > Terreno a partir de pontos ou curvas…). Um terreno mais fino (detalhe Alto ou Muito alto) resolve as pequenas bacias de primeira ordem.",
+  "Stream sites come from the terrain: load or fetch terrain over the area first, or build one offline from points or contours (Maps > Terrain).": "Os pontos de drenagem vêm do terreno: carregue ou obtenha terreno sobre a área primeiro, ou construa um offline a partir de pontos ou curvas de nível (Mapas > Terreno).",
+  "{v2}{v3} Screening level: protolith assumed.": "{v2}{v3} Nível de triagem: protólito suposto.",
+  "No interval was generated from {n} samples, so the {v} layer is empty.{detail}": "Nenhum intervalo foi gerado a partir de {n} amostras, então a camada {v} está vazia.{detail}",
+  "{unit} ({v})": "{unit} ({v})",
+  "The assay intervals in the intercept at or above the cutoff": "Os intervalos de análise da interseção iguais ou acima do teor de corte",
+  "Samples ≥ cutoff": "Amostras ≥ corte"
 }

@@ -143,7 +143,7 @@ export default function SurveyPlannerPanel({ onClose }) {
             </div>
           ) : (
             <div style={rowS}>
-              {!terrain ? <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Stream sites come from the terrain: load or fetch terrain over the area first (Maps tab).")}</div> : !route ? <div style={note}>{routeErr ? tr("Routing failed: {m}", { m: routeErr }) : tr("Routing the terrain…")}</div> : null}
+              {!terrain ? <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Stream sites come from the terrain: load or fetch terrain over the area first, or build one offline from points or contours (Maps > Terrain).")}</div> : !route ? <div style={note}>{routeErr ? tr("Routing failed: {m}", { m: routeErr }) : tr("Routing the terrain…")}</div> : null}
               <span style={ctl}>{tr("Strahler orders")}</span>
               {[1, 2, 3, 4].map((o) => <label key={o} style={{ ...ctl, display: "flex", alignItems: "center", gap: 3 }}><input type="checkbox" checked={streams.orders.includes(o)} onChange={(e) => setStreams((s) => ({ ...s, orders: e.target.checked ? [...s.orders, o].sort() : s.orders.filter((x) => x !== o) }))} />{o}</label>)}
               <label style={ctl}>{tr("Catchment from (km²)")}<input type="number" min="0.01" step="0.1" value={streams.minAreaKm2} onChange={(e) => setStreams((s) => ({ ...s, minAreaKm2: Math.max(0.01, Number(e.target.value) || 0.5) }))} style={inp} /></label>

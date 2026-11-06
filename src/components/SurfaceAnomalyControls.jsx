@@ -89,7 +89,8 @@ export default function SurfaceAnomalyControls({ cfg: cfg0, setCfg, surfaceSampl
           {cfg.mode !== "hotspot" && <label style={row}>{tr("Populations")}
             <select value={cfg.groupBy || ""} onChange={(e) => set({ groupBy: e.target.value || null })} style={{ ...selStyle, maxWidth: 190 }}>
               <option value="">{cfg.mode === "element" && cfg.scheme === "threshold" ? tr("As saved with the threshold") : tr("Sampling medium")}</option>
-              {gOpts.map((o) => <option key={o.value} value={o.value}>{o.kind === "column" ? tr("Column: {v}", { v: o.label }) : o.kind === "map" ? tr("Map: {v}", { v: o.label }) : tr(o.label)}</option>)}
+              {/* #1393 — the blank option IS 'Sampling medium' outside a saved threshold: not listed twice */}
+              {gOpts.filter((o) => o.value !== "medium" || (cfg.mode === "element" && cfg.scheme === "threshold")).map((o) => <option key={o.value} value={o.value}>{o.kind === "column" ? tr("Column: {v}", { v: o.label }) : o.kind === "map" ? tr("Map: {v}", { v: o.label }) : tr(o.label)}</option>)}
             </select>
           </label>}
           {cfg.mode !== "hotspot" && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>

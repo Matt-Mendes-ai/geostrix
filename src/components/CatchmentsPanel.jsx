@@ -93,7 +93,7 @@ export default function CatchmentsPanel({ onClose }) {
   const exportCsv = () => saveFile({ suggestedName: `catchments_${opts.symbol}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: toExportCsv(catchmentRows(a, { symbol: opts.symbol, unit, crs: crsCell(project) })) }); // #1083 — rows in lib, tested
 
   if (!terrain) return (
-    <Shell onClose={onClose}><div style={note}>{tr("Catchments are computed from the project terrain: load a DEM or fetch SRTM / Copernicus terrain (Maps tab) over your sample area first. A finer terrain (High or Very high detail) resolves small first-order catchments.")}</div></Shell>
+    <Shell onClose={onClose}><div style={note}>{tr("Catchments are computed from the project terrain: load a DEM or fetch SRTM / Copernicus terrain (Maps tab) over your sample area first, or build one offline from points or contours (Maps > Terrain > Terrain from points or contours…). A finer terrain (High or Very high detail) resolves small first-order catchments.")}</div></Shell>
   );
   return (
     <Shell onClose={onClose} sub={status === "routing" ? tr("Routing the terrain…") : status?.failed ? tr("Routing failed: {m}", { m: status.failed }) : route ? tr("Terrain {w} × {h} cells of {dx} × {dy} m, routed in {ms} ms; {f} cells raised to fill depressions.", { w: route.w, h: route.h, dx: Math.round(route.dx), dy: Math.round(route.dy), ms: status?.ms ?? "—", f: route.filledCells.toLocaleString() }) : ""}>

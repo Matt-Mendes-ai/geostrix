@@ -179,14 +179,16 @@ export default function GeochemModule() {
   // (6,297 samples: ~40 million value lookups per redraw, enough to freeze the tab); now once per change
   // TASKS.csv #1091 — the grade ramp (viridis, log-spaced when the values span two decades or more: gradeStops, #702);
   // it was a linear blue-red RGB blend over min-max, so a skewed Au or Cu put nearly every sample at the blue end
+  // TASKS.csv #1393 — the colour scale in the element's own unit (Pb held in % read '0.4 ... 120000 ppm (log)')
+  const colorUnit = (colorEl && elementUnits[colorEl]) || "ppm";
   const colorRange = useMemo(() => {
     if (colorMode !== "element" || !colorEl) return null;
-    const vals = assays.map((a) => valueIn(a, colorEl, "ppm", elementUnits)).filter((x) => x != null);
+    const vals = assays.map((a) => valueIn(a, colorEl, colorUnit, elementUnits)).filter((x) => x != null);
     if (!vals.length) return null;
     const pos = vals.filter((v) => v > 0), min = pos.length ? arrMin(pos) : arrMin(vals), max = arrMax(vals);
     const stops = gradeStops(min, max);
     return { min, max, stops, log: min > 0 && max / min >= 100 };
-  }, [colorMode, colorEl, assays, elementUnits]);
+  }, [colorMode, colorEl, colorUnit, assays, elementUnits]);
   // TASKS.csv #1519 — one function per colour choice (not per render), so the plot's cached points image is redrawn only when the
   // colours change: a new function every render redrew 83,670 points on any re-render of this tab
   const colorBy = useMemo(() => { const fn = (sample) => {
@@ -194,15 +196,15 @@ export default function GeochemModule() {
     if (colorMode === "hole") return holeColors[sample.hole_id] || "#55606e";
     if (colorMode === "lithology") return lithColors[sampleLith.get(sample) ?? NOT_LOGGED] || "#b8bec7";
     if (colorMode === "element" && colorEl) {
-      const v = valueIn(sample, colorEl, "ppm", elementUnits);
+      const v = valueIn(sample, colorEl, colorUnit, elementUnits);
       if (v == null || !colorRange) return "#eef1f4";
       return colorForVoxelValue({ stops: colorRange.stops, colorMode: "continuous" }, Math.max(colorRange.min, v)); // #1091
     }
     return "#4a9be0";
   };
   // with colour by element, the plot draws low values first and high values on top
-  fn.rank = colorMode === "element" && colorEl ? (sample) => valueIn(sample, colorEl, "ppm", elementUnits) ?? -Infinity : null;
-  return fn; }, [colorMode, colorEl, holeColors, lithColors, sampleLith, colorRange, elementUnits]);
+  fn.rank = colorMode === "element" && colorEl ? (sample) => valueIn(sample, colorEl, colorUnit, elementUnits) ?? -Infinity : null;
+  return fn; }, [colorMode, colorEl, colorUnit, holeColors, lithColors, sampleLith, colorRange, elementUnits]);
 
   const diagram = ALL_DIAGRAMS[diagramId];
   // TASKS.csv #1392 — a volcanic-protolith diagram on mostly calcareous samples says so (see carbonateShare)
@@ -802,11 +804,13 @@ export default function GeochemModule() {
     const runs = mergeClassRuns(rows); // #1513 — touching samples of one class: one interval
     if (pxrfLeft) setNotices((p) => [...p, notice("{n} pXRF reading(s) were left out of the classification: it uses lab assays only.", { n: pxrfLeft })]); // #1673
     replaceLayer(targetKey, runs);
-    const detail = altSetup ? tr(" {v}.{v2}{v3} Screening level: protolith assumed.", { v: Object.entries(counts).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${GEOCHEM_LABELS[k] || k} ${n}`).join(", "), v2: noProtolith ? tr(" {noProtolith} sample(s) not classified: no protolith (unmapped lithology code or no logged interval).", { noProtolith }) : "", v3: JSON.stringify(altSetup.boxes) === JSON.stringify(PROVISIONAL_ALTERATION_BOXES) ? tr(" Box limits are the PROVISIONAL defaults (not yet checked against Large et al. 2001).") : tr(" Box limits: your edited values.") }) : "";
+    // #1393 — with no class counted, ' {v}.' left a lone '.' ("layer. . 1339 sample(s) not classified")
+    const countList = Object.entries(counts).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${GEOCHEM_LABELS[k] || k} ${n}`).join(", ");
+    const detail = altSetup ? tr(countList ? " {v}.{v2}{v3} Screening level: protolith assumed." : "{v2}{v3} Screening level: protolith assumed.", { v: countList, v2: noProtolith ? tr(" {noProtolith} sample(s) not classified: no protolith (unmapped lithology code or no logged interval).", { noProtolith }) : "", v3: JSON.stringify(altSetup.boxes) === JSON.stringify(PROVISIONAL_ALTERATION_BOXES) ? tr(" Box limits are the PROVISIONAL defaults (not yet checked against Large et al. 2001).") : tr(" Box limits: your edited values.") }) : "";
     const sedN = Object.values(sedSkipped).reduce((s, n) => s + n, 0);
     const sedText = sedN ? tr(" {n} sample(s) in logged sedimentary or carbonate codes ({codes}) were not classified: this classifier is for volcanic rocks.", { n: sedN, codes: Object.entries(sedSkipped).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${k} ${n}`).join(", ") }) : "";
     const jensenText = methodKey === "litho_jensen" ? tr(" The classes are a simplified threshold split of the cation ternary, not the published Jensen fields.") : "";
-    setNotices((p) => [...p, notice("Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} Switch to 3D View to see it.", { rows: runs.length, n: rows.length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)"), detail: detail + sedText + jensenText })]);
+    setNotices((p) => [...p, notice(runs.length ? "Generated {rows} intervals from {n} samples → {v} layer (touching samples of one class are joined).{detail} Switch to 3D View to see it." : "No interval was generated from {n} samples, so the {v} layer is empty.{detail}", { rows: runs.length, n: rows.length, v: method.target === "litho" ? tr("Lithology (geochem)") : tr("Alteration (geochem)"), detail: detail + sedText + jensenText })]);
     { const pd = partialDigestionFor(assayElements, method.requires); if (pd.length) setNotices((p) => [...p, notice("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pd.map(([s, m]) => `${s} ${m}`).join(", ") })]); } // #1518
   };
 
@@ -823,7 +827,7 @@ export default function GeochemModule() {
     const n = plottedCount; // #1519
     const keyItems = colorMode === "hole" ? [...new Set(plotted.map((a) => a.hole_id))].map((h) => ({ label: String(h), color: holeColors[h] || "#55606e", shape: "dot" }))
       : colorMode === "lithology" ? lithCounts.filter(([k]) => !lithFilter || lithFilter.has(k)).map(([k]) => ({ label: k === NOT_LOGGED ? "not logged" : String(k), color: lithColors[k] || "#b8bec7", shape: "dot" }))
-      : colorMode === "element" && colorRange ? elementKey().map(({ v, color }) => ({ label: `${+v.toPrecision(3)} ppm`, color, shape: "dot" }))
+      : colorMode === "element" && colorRange ? elementKey().map(({ v, color }) => ({ label: `${+v.toPrecision(3)} ${colorUnit}`, color, shape: "dot" }))
       : [];
     const keyTitle = colorMode === "hole" ? "Hole" : colorMode === "lithology" ? "Lithology" : colorMode === "element" ? `${colorEl} (${colorRange?.log ? "log" : "linear"} scale)` : "";
     const pdx = partialDigestionFor(assayElements, diagram.requires); // #1518 — the warning travels with the exported figure
@@ -1032,7 +1036,7 @@ export default function GeochemModule() {
             {colorMode === "element" && colorRange && (
               <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-xs)", color: "#55606e" }} title={colorRange.log ? tr("Log scale: the values span two decades or more") : tr("Linear scale")}>
                 {elementKey().map(({ v, color }, i) => <span key={i} style={{ display: "flex", alignItems: "center", gap: 2 }}><span style={{ width: 9, height: 9, borderRadius: 5, background: color, border: "1px solid rgba(0,0,0,0.15)" }} />{+v.toPrecision(2)}</span>)}
-                <span>{tr("ppm ({v})", { v: colorRange.log ? tr("log") : tr("linear") })}</span>
+                <span>{tr("{unit} ({v})", { unit: colorUnit, v: colorRange.log ? tr("log") : tr("linear") })}</span>
               </span>
             )}
           </div>

@@ -377,8 +377,8 @@ function Histogram({ data, unit, logScale }) {
         );
       })}
       <line x1={padL} y1={10 + plotH} x2={padL + plotW} y2={10 + plotH} stroke="#c7ccd3" />
-      <text x={padL} y={h - 4} fontSize={fontSizes.xs} fill="#55606e">{(logScale ? Math.pow(10, data.min) : data.min).toFixed(logScale ? 3 : 2)}</text>
-      <text x={padL + plotW} y={h - 4} fontSize={fontSizes.xs} fill="#55606e" textAnchor="end">{(logScale ? Math.pow(10, data.max) : data.max).toFixed(logScale ? 3 : 2)} {unit}</text>
+      <text x={padL} y={h - 4} fontSize={fontSizes.xs} fill="#55606e">{logScale ? +Math.pow(10, data.min).toPrecision(3) /* #1393: 0.00004 read '0.000' */ : data.min.toFixed(2)}</text>
+      <text x={padL + plotW} y={h - 4} fontSize={fontSizes.xs} fill="#55606e" textAnchor="end">{logScale ? +Math.pow(10, data.max).toPrecision(3) : data.max.toFixed(2)} {unit}</text>
       <text x={4} y={16} fontSize={fontSizes.xs} fill="#55606e">{data.maxCount}</text>
     </svg>
   );
