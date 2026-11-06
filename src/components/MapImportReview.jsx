@@ -30,7 +30,7 @@ export default function MapImportReview({ rows, onCancel, onConfirm }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, padding: "14px 16px", borderBottom: "1px solid var(--color-border)" }}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600 }}>{tr("Choose what to import")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("These {n} tables are not all map layers. Only the ones that belong on this map are ticked.", { n: rows.length })}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr(rows.length === 1 ? "This table may not be a map layer: it is ticked only if it belongs on this map." : "These {n} tables are not all map layers. Only the ones that belong on this map are ticked.", { n: rows.length }) /* #1448 */}</div>
           </div>
           <button type="button" onClick={onCancel} aria-label={tr("Close")} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--color-text-secondary)", padding: 2 }}><X size={18} /></button>
         </div>
@@ -61,7 +61,7 @@ export default function MapImportReview({ rows, onCancel, onConfirm }) {
         </div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, padding: "12px 16px", borderTop: "1px solid var(--color-border)" }}>
           <button type="button" onClick={onCancel} style={{ padding: "7px 14px", borderRadius: 6, border: "1px solid var(--color-border)", background: "var(--color-bg)", cursor: "pointer", font: "inherit", color: "inherit" }}>{tr("Cancel")}</button>
-          <button type="button" onClick={() => onConfirm(on)} disabled={!count} style={{ padding: "7px 14px", borderRadius: 6, border: "none", background: "var(--color-primary)", color: "#fff", cursor: count ? "pointer" : "default", font: "inherit", fontWeight: 600 }}>{tr("Import {n} tables", { n: count })}</button>
+          <button type="button" onClick={() => onConfirm(on)} disabled={!count} style={{ padding: "7px 14px", borderRadius: 6, border: "none", background: "var(--color-primary)", color: "#fff", cursor: count ? "pointer" : "default", font: "inherit", fontWeight: 600 }}>{tr(count === 1 ? "Import 1 table" : "Import {n} tables", { n: count }) /* #1448 */}</button>
         </div>
       </div>
     </div>

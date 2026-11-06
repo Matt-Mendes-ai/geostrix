@@ -400,7 +400,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         + (out.skipped ? tr(" Skipped {skipped} row(s) missing coordinates or a valid 0–90° dip.", { skipped: out.skipped }) : "")
         + (out.derivedFromStrike ? tr(" {derivedFromStrike} dip direction(s) derived from strike by the right-hand rule.", { derivedFromStrike: out.derivedFromStrike }) : "")
         + (out.rhrMismatches ? tr(" {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.", { rhrMismatches: out.rhrMismatches }) : "")
-        + (noZ ? tr(" {noZ} had no elevation and sit on the terrain{v}.", { noZ, v: terrain ? "" : tr(" once one is loaded") }) : "")
+        + (noZ ? (terrain ? tr(" {noZ} had no elevation and sit on the terrain{v}.", { noZ, v: "" }) : tr(" {noZ} had no elevation: drawn flat until a terrain is loaded (Maps > Terrain), then placed on it.", { noZ })) : "") // #1448 — they were said to 'sit on the terrain' with none loaded
         + crsNote + northNote,
     });
     setPendingStruct(null);
@@ -442,7 +442,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
                 {l.visible !== false ? <Eye size={14} /> : <EyeOff size={14} />}
               </div>
               <div style={{ flex: 1, minWidth: 0, color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={`${l.name}\n${l.crsNote || ""}`}>{l.name}</div>
-              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{l.features.length} {l.geomType}</span>
+              <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{featureCountText(l.features.length, l.geomType) /* #1448 — was '710 polygon' */}</span>
               <Trash2 aria-label={tr("Remove map layer \"{name}\"", { name: l.name })} title={tr("Remove map layer \"{name}\"", { name: l.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: l.name }))) removeMapLayer(l.id); }} />
             </div>
             <label style={{ ...row, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
@@ -614,7 +614,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               {Object.entries(counts).map(([cls, n]) => (
                 <span key={cls} style={{ display: "flex", alignItems: "center", gap: 4, color: "var(--color-text-secondary)", fontSize: "var(--font-size-sm)" }}>
                   <span style={{ width: 9, height: 9, borderRadius: "50%", background: STRUCTURE_CLASS_COLORS[cls], border: "1px solid var(--color-border)" }} />
-                  {STRUCTURE_CLASS_LABELS[cls]} {n}
+                  {tr(STRUCTURE_CLASS_LABELS[cls]) /* #1448 */} {n}
                 </span>
               ))}
             </div>

@@ -612,7 +612,9 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
     <div className="ge-tabbar">
       {tabs.map((t) => {
         const isActive = t.id === activeTabId;
-        const label = isActive ? activeName : t.name;
+        // TASKS.csv #1448 — the default name is project data (English) but reads translated in the tab while it is still the default
+        const rawLabel = isActive ? activeName : t.name;
+        const label = !rawLabel || rawLabel === "Untitled project" ? tr("Untitled project") : rawLabel;
         const dirty = isActive ? activeDirty : t.dirty;
         return (
           // TASKS.csv #596 — the switch and the close are SIBLING buttons (the close X used to be a role=button
@@ -620,11 +622,11 @@ function WorkspaceTabBar({ tabs, activeTabId, activeDirty, activeName, onSwitch,
           <div key={t.id} className={`ge-tab ${isActive ? "active" : ""}`} title={label}>
             <button type="button" className="ge-tab-switch" onClick={() => onSwitch(t.id)}
               aria-current={isActive ? "true" : undefined} // TASKS.csv #388
-              aria-label={`${label || "Untitled project"}${dirty ? " (unsaved changes)" : ""}`}>
+              aria-label={`${label}${dirty ? " (unsaved changes)" : ""}`}>
               {dirty && <span className="ge-tab-dot" title={tr("Unsaved changes")} />}
-              <span className="ge-tab-label">{label || "Untitled project"}</span>
+              <span className="ge-tab-label">{label}</span>
             </button>
-            <button type="button" className="ge-tab-close" onClick={() => onClose(t.id)} title={tr("Close project")} aria-label={`Close ${label || "Untitled project"}`}>
+            <button type="button" className="ge-tab-close" onClick={() => onClose(t.id)} title={tr("Close project")} aria-label={`Close ${label}`}>
               <X size={12} aria-hidden="true" />
             </button>
           </div>
@@ -654,7 +656,7 @@ function StatusBar({ onEpsg, pyStatus, updater, onHelp, onPython }) {
   const pct = taskProgress ? Math.max(0, Math.min(100, Math.round(taskProgress.pct ?? 0))) : 0;
   return (
     <div className="ge-status">
-      <span>{project.name}</span>
+      <span>{!project.name || project.name === "Untitled project" ? tr("Untitled project") : project.name}</span>{/* #1448 */}
       <span>{tr("Holes:")} <span className="val">{collars.length}</span></span>
       <span>E <span className="val">{fmt(cursor.x)}</span></span>
       <span>N <span className="val">{fmt(cursor.y)}</span></span>

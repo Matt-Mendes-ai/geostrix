@@ -8521,5 +8521,20 @@
   "Samples ≥ cutoff": "Échantillons ≥ coupure",
   "Added \"{name}\" to the map, flat at elevation {z} m (below the deepest hole) because the project has no terrain. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.": "« {name} » ajouté à la carte, à plat à l’altitude {z} m (sous le sondage le plus profond) car le projet n’a pas de terrain. Changez son altitude dans Cartes ; ses valeurs s’exportent en GeoTIFF depuis le module Raster.",
   "Voxel / block model ranges": "Plages de voxels / modèles de blocs",
-  "No block model yet: estimate one from the assays (3D Modelling > Estimation) or import one (Geophysics > Block models), then isolate a value range here.": "Pas encore de modèle de blocs : estimez-en un à partir des analyses (Modélisation 3D > Estimation) ou importez-en un (Géophysique > Modèles de blocs), puis isolez ici une plage de valeurs."
+  "No block model yet: estimate one from the assays (3D Modelling > Estimation) or import one (Geophysics > Block models), then isolate a value range here.": "Pas encore de modèle de blocs : estimez-en un à partir des analyses (Modélisation 3D > Estimation) ou importez-en un (Géophysique > Modèles de blocs), puis isolez ici une plage de valeurs.",
+  "Fault / shear": "Faille / cisaillement",
+  "Bedding": "Litage",
+  "Foliation": "Foliation",
+  "Cleavage": "Schistosité",
+  "Contact / dyke": "Contact / dyke",
+  "Vein": "Veine",
+  "Joint / fracture": "Diaclase / fracture",
+  "Untitled project": "Projet sans titre",
+  "This table may not be a map layer: it is ticked only if it belongs on this map.": "Cette table n’est peut-être pas une couche de carte : elle n’est cochée que si elle appartient à cette carte.",
+  "Import 1 table": "Importer 1 table",
+  "{v} — {plotted} of {filtered} structure picks plotted ({picks} in all); 1 has no dip direction (alpha only, no beta)": "{v} — {plotted} des {filtered} mesures structurales tracées ({picks} en tout) ; 1 n’a pas de direction de pendage (alpha seul, pas de bêta)",
+  " {noZ} had no elevation: drawn flat until a terrain is loaded (Maps > Terrain), then placed on it.": " {noZ} n’avaient pas d’altitude : dessinées à plat jusqu’au chargement d’un terrain (Cartes > Terrain), puis posées dessus.",
+  "This is the Surface Geology tab: a geological map (polygons and lines from a shapefile, GeoPackage, KML or DXF) and outcrop structure measurements, drawn in 3D over the terrain and the drilling.": "Voici l’onglet Géologie de surface : une carte géologique (polygones et lignes d’un shapefile, GeoPackage, KML ou DXF) et des mesures structurales d’affleurement, dessinées en 3D sur le terrain et les sondages.",
+  "Use {map} and {structures} on the ribbon, or drag the files onto this view. Surface samples come in through {geochem}; a terrain from {maps} lets the map and the measurements sit on the ground.": "Utilisez {map} et {structures} dans le ruban, ou glissez les fichiers sur cette vue. Les échantillons de surface arrivent par {geochem} ; un terrain depuis {maps} pose la carte et les mesures sur le sol.",
+  "Maps > Terrain": "Cartes > Terrain"
 }

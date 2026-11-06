@@ -8521,5 +8521,20 @@
   "Samples ≥ cutoff": "Muestras ≥ corte",
   "Added \"{name}\" to the map, flat at elevation {z} m (below the deepest hole) because the project has no terrain. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.": "Se agregó \"{name}\" al mapa, plano a la elevación {z} m (debajo del sondaje más profundo) porque el proyecto no tiene terreno. Cambie su elevación en Mapas; sus valores se exportan como GeoTIFF desde el módulo Ráster.",
   "Voxel / block model ranges": "Rangos de vóxeles / modelos de bloques",
-  "No block model yet: estimate one from the assays (3D Modelling > Estimation) or import one (Geophysics > Block models), then isolate a value range here.": "Aún no hay modelo de bloques: estime uno a partir de los ensayes (Modelado 3D > Estimación) o importe uno (Geofísica > Modelos de bloques) y luego aísle aquí un rango de valores."
+  "No block model yet: estimate one from the assays (3D Modelling > Estimation) or import one (Geophysics > Block models), then isolate a value range here.": "Aún no hay modelo de bloques: estime uno a partir de los ensayes (Modelado 3D > Estimación) o importe uno (Geofísica > Modelos de bloques) y luego aísle aquí un rango de valores.",
+  "Fault / shear": "Falla / cizalla",
+  "Bedding": "Estratificación",
+  "Foliation": "Foliación",
+  "Cleavage": "Clivaje",
+  "Contact / dyke": "Contacto / dique",
+  "Vein": "Veta",
+  "Joint / fracture": "Diaclasa / fractura",
+  "Untitled project": "Proyecto sin título",
+  "This table may not be a map layer: it is ticked only if it belongs on this map.": "Esta tabla puede no ser una capa de mapa: solo queda marcada si pertenece a este mapa.",
+  "Import 1 table": "Importar 1 tabla",
+  "{v} — {plotted} of {filtered} structure picks plotted ({picks} in all); 1 has no dip direction (alpha only, no beta)": "{v} — {plotted} de {filtered} mediciones estructurales graficadas ({picks} en total); 1 no tiene dirección de buzamiento (solo alfa, sin beta)",
+  " {noZ} had no elevation: drawn flat until a terrain is loaded (Maps > Terrain), then placed on it.": " {noZ} no tenían elevación: se dibujan planas hasta que se cargue un terreno (Mapas > Terreno) y luego se colocan sobre él.",
+  "This is the Surface Geology tab: a geological map (polygons and lines from a shapefile, GeoPackage, KML or DXF) and outcrop structure measurements, drawn in 3D over the terrain and the drilling.": "Esta es la pestaña Geología de superficie: un mapa geológico (polígonos y líneas de un shapefile, GeoPackage, KML o DXF) y mediciones estructurales de afloramiento, dibujados en 3D sobre el terreno y los sondajes.",
+  "Use {map} and {structures} on the ribbon, or drag the files onto this view. Surface samples come in through {geochem}; a terrain from {maps} lets the map and the measurements sit on the ground.": "Use {map} y {structures} en la cinta, o arrastre los archivos a esta vista. Las muestras de superficie entran por {geochem}; un terreno desde {maps} permite que el mapa y las mediciones se apoyen en el suelo.",
+  "Maps > Terrain": "Mapas > Terreno"
 }

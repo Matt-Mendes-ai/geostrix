@@ -8521,5 +8521,20 @@
   "Samples ≥ cutoff": "عينات ≥ حد القطع",
   "Added \"{name}\" to the map, flat at elevation {z} m (below the deepest hole) because the project has no terrain. Change its elevation under Maps; its values export as GeoTIFF from the Raster module.": "أُضيف \"{name}\" إلى الخريطة مسطحًا عند منسوب {z} م (أسفل أعمق ثقب) لأن المشروع بلا تضاريس. غيّر منسوبه في الخرائط؛ تُصدَّر قيمه بصيغة GeoTIFF من وحدة النقطية.",
   "Voxel / block model ranges": "نطاقات الفوكسل / نماذج الكتل",
-  "No block model yet: estimate one from the assays (3D Modelling > Estimation) or import one (Geophysics > Block models), then isolate a value range here.": "لا يوجد نموذج كتل بعد: قدّر واحدًا من التحاليل (النمذجة ثلاثية الأبعاد > التقدير) أو استورد واحدًا (الجيوفيزياء > نماذج الكتل)، ثم اعزل هنا نطاق قيم."
+  "No block model yet: estimate one from the assays (3D Modelling > Estimation) or import one (Geophysics > Block models), then isolate a value range here.": "لا يوجد نموذج كتل بعد: قدّر واحدًا من التحاليل (النمذجة ثلاثية الأبعاد > التقدير) أو استورد واحدًا (الجيوفيزياء > نماذج الكتل)، ثم اعزل هنا نطاق قيم.",
+  "Fault / shear": "صدع / قص",
+  "Bedding": "تطبق",
+  "Foliation": "تورّق",
+  "Cleavage": "انفلاق",
+  "Contact / dyke": "تماس / قاطع",
+  "Vein": "عرق",
+  "Joint / fracture": "مفصل / كسر",
+  "Untitled project": "مشروع بلا عنوان",
+  "This table may not be a map layer: it is ticked only if it belongs on this map.": "قد لا يكون هذا الجدول طبقة خريطة: لا يُحدَّد إلا إذا كان ينتمي إلى هذه الخريطة.",
+  "Import 1 table": "استيراد جدول واحد",
+  "{v} — {plotted} of {filtered} structure picks plotted ({picks} in all); 1 has no dip direction (alpha only, no beta)": "{v} — رُسمت {plotted} من {filtered} قياسات بنيوية ({picks} إجمالًا)؛ قياس واحد بلا اتجاه ميل (ألفا فقط، دون بيتا)",
+  " {noZ} had no elevation: drawn flat until a terrain is loaded (Maps > Terrain), then placed on it.": " {noZ} بلا منسوب: تُرسم مسطحة حتى تُحمَّل تضاريس (الخرائط > التضاريس)، ثم توضع عليها.",
+  "This is the Surface Geology tab: a geological map (polygons and lines from a shapefile, GeoPackage, KML or DXF) and outcrop structure measurements, drawn in 3D over the terrain and the drilling.": "هذا تبويب الجيولوجيا السطحية: خريطة جيولوجية (مضلعات وخطوط من ملف shapefile أو GeoPackage أو KML أو DXF) وقياسات بنيوية للمكاشف، تُرسم ثلاثية الأبعاد فوق التضاريس والثقوب.",
+  "Use {map} and {structures} on the ribbon, or drag the files onto this view. Surface samples come in through {geochem}; a terrain from {maps} lets the map and the measurements sit on the ground.": "استخدم {map} و{structures} في الشريط، أو اسحب الملفات إلى هذا العرض. تدخل العينات السطحية عبر {geochem}؛ والتضاريس من {maps} تجعل الخريطة والقياسات تستقر على الأرض.",
+  "Maps > Terrain": "الخرائط > التضاريس"
 }

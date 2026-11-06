@@ -150,7 +150,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
           <div style={{ fontSize: 14, fontWeight: 600, color: "#1a2028" }}>
             {plotted === filtered.length
               ? tr("{v} — structure picks ({filtered}/{picks})", { v: view === "rose" ? tr("Rose diagram") : tr("Stereonet"), filtered: filtered.length, picks: picks.length })
-              : tr("{v} — {plotted} of {filtered} structure picks plotted ({picks} in all); {missing} have no dip direction (alpha only, no beta)", { v: view === "rose" ? tr("Rose diagram") : tr("Stereonet"), plotted: plotted.toLocaleString(), filtered: filtered.length.toLocaleString(), picks: picks.length.toLocaleString(), missing: (filtered.length - plotted).toLocaleString() })}{domainId && domains.length > 0 && (
+              : tr(filtered.length - plotted === 1 ? "{v} — {plotted} of {filtered} structure picks plotted ({picks} in all); 1 has no dip direction (alpha only, no beta)" : "{v} — {plotted} of {filtered} structure picks plotted ({picks} in all); {missing} have no dip direction (alpha only, no beta)", { /* #1448 */ v: view === "rose" ? tr("Rose diagram") : tr("Stereonet"), plotted: plotted.toLocaleString(), filtered: filtered.length.toLocaleString(), picks: picks.length.toLocaleString(), missing: (filtered.length - plotted).toLocaleString() })}{domainId && domains.length > 0 && (
               <span style={{ fontWeight: 400, fontSize: 11, color: "#7d3c98", marginLeft: 6 }}>{tr("· domain: {v}", { v: (domains.find((d) => d.id === domainId) || {}).name || domainId })}
               </span>
             )}

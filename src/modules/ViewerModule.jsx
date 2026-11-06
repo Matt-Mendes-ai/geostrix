@@ -49,6 +49,8 @@ import { pointInBoundary } from "../lib/pointInPolygon.js"; // TASKS.csv #903 �
 import { buildPickIndex, queryPickIndex } from "../lib/pickIndex.js"; // TASKS.csv #304 — object-level BVH for hover/click picking
 import { useMenuKeys } from "../lib/useMenuKeys.js"; // TASKS.csv #730
 import { t as tr } from "../lib/i18n.js";
+import EmptyViewerBody from "./viewer/EmptyViewerBody.jsx"; // TASKS.csv #1448
+import { featureCountText } from "../lib/featureCount.js"; // #1448 — "77 polygons", translated
 import { tx } from "../lib/i18nRich.js"; // TASKS.csv #786 // TASKS.csv #786 — "tr": this file uses t as a local name
 import { iconAction, activateOnKey } from "../lib/a11y.js"; // TASKS.csv #296 — keyboard-reachable icon-only controls
 const AttributeTableModal = lazyModal(() => import("../components/AttributeTableModal.jsx"));  // TASKS.csv #301
@@ -7769,7 +7771,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             "-", { label: tr("Colours, labels and draping — Surface Geology tab"), onClick: () => goToModule("surface") },
             { label: tr("Remove…"), onClick: () => { if (confirmDestructive(tr("Remove the map layer \"{name}\" from the project?", { name: l.name }))) removeMapLayer(l.id); } }])} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
             <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => updateMapLayer(l.id, { visible: l.visible === false })} title={`${l.visible === false ? tr("Show") : tr("Hide")} "${l.name}"${l.crsNote ? `\n${l.crsNote}` : ""}`} style={{ cursor: "pointer", flex: 1, fontSize: "var(--font-size-base)", color: l.visible === false ? "var(--color-text-disabled)" : "var(--color-text)", display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-              {l.visible === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({l.features.length} {l.geomType})</span>
+              {l.visible === false ? <EyeOff size={14} /> : <Eye size={14} />} <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.name}</span> <span style={{ color: "var(--color-text-muted)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>({featureCountText(l.features.length, l.geomType)})</span>
             </div>
             <Maximize2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { const m = mapLayerMeshesRef.current[l.id]; if (m) fitBox(new THREE.Box3().setFromObject(m)); }, tr("Zoom to map layer \"{name}\"", { name: l.name }))} />
             <Trash2 size={14} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove the map layer \"{name}\" from the project?", { name: l.name }))) removeMapLayer(l.id); }, tr("Remove map layer \"{name}\"", { name: l.name }))} />
@@ -8603,11 +8605,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             secondary={<>{sampleCards.slice(1).map((c, i) => <button key={c.id} type="button" onClick={() => loadSample(c.id)} disabled={sampleLoading} title={c.title} style={{ marginLeft: i ? 8 : 0, padding: "8px 14px", borderRadius: 6, border: "1px solid var(--color-accent)", background: "var(--color-bg)", color: "var(--color-accent-dark)", fontSize: "var(--font-size-base)", fontWeight: 600, cursor: sampleLoading ? "default" : "pointer", opacity: sampleLoading ? 0.6 : 1 }}>{c.label}</button>)}</>}
             footnote={sampleFootnote()}
           >
-            <>
-              <div style={{ marginBottom: 8 }}>{tx("This is the 3D view — drillhole traces in real world coordinates, with lithology, alteration, veining, geotech and assay data hung off them downhole. Everything starts from a {collar} file.", { collar: <b>{tr("collar")}</b> })}</div>
-              <div style={{ marginBottom: 8 }}>{tx("Use the {collars} button under {geometry} in the panel on the left (or File ▸ Import CSV, Ctrl+I), or drag a file straight onto this view. Collars: a CSV (or zipped shapefile / GeoPackage) with a hole ID and x/y/z — {cols}, plus optional {az}, {dip} and {len}. Column names are guessed for you (easting/northing/elevation and friends all work) and anything ambiguous opens a mapping dialog rather than importing wrong.", { collars: <b>{tr("Collars")}</b>, geometry: <b>{tr("Geometry")}</b>, cols: <code>hole_id, x, y, z</code>, az: <code>azimuth</code>, dip: <code>dip</code>, len: <code>length</code> })}</div>
-              <div style={{ marginBottom: 12 }}>{tx("Then add downhole survey stations, and any interval layers you have (lithology, alteration, veins, mineralization, geotech, mag susceptibility, structure). Assays live in the {geochem} tab; survey lines and geophysical grids in {geophysics}; GeoTIFFs, satellite imagery, terrain and map layers in {maps}. Coordinates are reprojected to the project CRS on import if the source CRS differs.", { geochem: <b>{tr("Geochem")}</b>, geophysics: <b>{tr("Geophysics")}</b>, maps: <b>{tr("Maps")}</b> })}</div>
-            </>
+            <EmptyViewerBody mode={mode} />{/* #1448 */}
           </EmptyState>
         )}
         <div style={{ position: "absolute", top: 12, right: 12, display: "flex", gap: 6 }}>
