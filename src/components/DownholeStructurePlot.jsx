@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
+import { findOriQualityLayer, oriQualityIndex, filterByQuality, qualityLevels, qualityNote } from "../lib/oriQuality.js"; // TASKS.csv #1545
 import { alphaAngle } from "../lib/stereonet.js";
 import { colorForStructure, colorForLithology } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
@@ -56,7 +57,7 @@ const deg1 = (v) => (Number.isFinite(Number(v)) ? +Number(v).toFixed(1) : v); //
 // side to see it would defeat the purpose of the view.
 const isOriented = (p) => p.dip != null && p.azimuth != null && p.dip !== "" && p.azimuth !== "" && !isNaN(p.dip) && !isNaN(p.azimuth); // #527
 
-export default function DownholeStructurePlot({ picks, holes, litho = [], onClose }) {
+export default function DownholeStructurePlot({ picks, holes, litho = [], onClose, customLayers = [] }) { // customLayers: TASKS.csv #1545
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
 
@@ -71,6 +72,9 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
   const [holeId, setHoleId] = useState(() => holeIds[0] || "");
   const [xMode, setXMode] = useState("alpha"); // "alpha" | "dip"
   const [typeFilter, setTypeFilter] = useState("all");
+  const [qualityMax, setQualityMax] = useState(""); // TASKS.csv #1545
+  const oriLayer = useMemo(() => findOriQualityLayer(customLayers), [customLayers]);
+  const qIndex = useMemo(() => (oriLayer ? oriQualityIndex(oriLayer) : null), [oriLayer]);
   const [showFreq, setShowFreq] = useState(true);
   const [binSize, setBinSize] = useState(10); // metres, for the frequency histogram
 
@@ -90,9 +94,10 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
     // and the hole's attitude only when it wasn't logged. Alpha-only picks (no orientation) are kept: they plot in
     // alpha mode as a dot with no tail, and always count in the frequency track.
     const measured = (p) => (p.alpha !== null && p.alpha !== "" && Number.isFinite(Number(p.alpha)) ? Number(p.alpha) : null);
-    const rows = (picks || [])
+    const byType = (picks || [])
       .filter((p) => p.hole_id === activeHole && p.depth != null && !isNaN(p.depth) && (isOriented(p) || measured(p) != null))
-      .filter((p) => typeFilter === "all" || (String(p.value || "").trim() || "(unlabeled)") === typeFilter)
+      .filter((p) => typeFilter === "all" || (String(p.value || "").trim() || "(unlabeled)") === typeFilter);
+    const rows = filterByQuality(byType, qualityMax === "" ? NaN : Number(qualityMax), qIndex).kept // #1545
       .map((p) => {
         const oriented = isOriented(p);
         return {
@@ -289,6 +294,14 @@ export default function DownholeStructurePlot({ picks, holes, litho = [], onClos
                 <option value="dip">{tr("True dip")}</option>
               </select>
             </label>
+            {oriLayer && ( // TASKS.csv #1545 — the orientation-line quality logged as an interval table (Lawyers' OriCore 1 / 2 / 3)
+              <label style={rowLabel} title={tr("The custom layer \"{name}\" logs the orientation-line quality per interval; a pick inside an interval above this quality is left out. Picks with no logged quality are kept.", { name: oriLayer.name })}>{tr("Orientation quality ≤")}<select value={qualityMax} onChange={(e) => setQualityMax(e.target.value)} style={sel} aria-label={tr("Orientation quality ≤")}>
+                  <option value="">{tr("Any quality")}</option>
+                  {qualityLevels(qIndex).map((q) => <option key={q} value={q}>{q}</option>)}
+                </select>
+              </label>
+            )}
+            {oriLayer && qualityMax !== "" && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{qualityNote(filterByQuality((picks || []).filter((p) => p.hole_id === activeHole), Number(qualityMax), qIndex), qualityMax, tr)}</div>}
             <label style={rowLabel}>{tr("Structure type")}<select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={sel}>
                 <option value="all">{tr("All types")}</option>
                 {types.map((t) => <option key={t} value={t}>{t}</option>)}

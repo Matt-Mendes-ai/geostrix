@@ -9002,6 +9002,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {stereonetOpen && (
         <StereonetModal
           picks={structurePicksWithHoleAttitude}
+          customLayers={storeCustomLayers || []} /* TASKS.csv #1545 — the orientation-line quality table */
           surfacePicks={(surfaceStructures || []).flatMap((st) => st.rows || []).filter((r) => Number.isFinite(r.dip) && Number.isFinite(r.dipDir)).map((r) => ({ value: r.type || r.cls || "structure", dip: r.dip, azimuth: r.dipDir, x: r.x, y: r.y, outcrop: true }))} // TASKS.csv #428; the file's type: #1440
           domains={domains}
           domainFilter={domainStereonetFilter}
@@ -9036,6 +9037,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {tadpoleOpen && (
         <DownholeStructurePlot
           picks={structurePicksWithHoleAttitude}
+          customLayers={storeCustomLayers || []} /* TASKS.csv #1545 */
           holes={holesForTadpole}
           litho={layers.litho || []}
           onClose={() => setTadpoleOpen(false)}

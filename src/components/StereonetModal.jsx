@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
+import { findOriQualityLayer, oriQualityIndex, filterByQuality, qualityLevels, qualityNote } from "../lib/oriQuality.js"; // TASKS.csv #1545
 import { projectPole, projectLowerHemisphere, greatCirclePoints, fisherStats, kambContourGrid, roseDiagramBins, DEFAULT_TERZAGHI_MAX_WEIGHT, fabricShape } from "../lib/stereonet.js";
 import { colorForStructure, PALETTES } from "../lib/layers.js";
 import { typeKeyOf, typeEntries } from "../lib/stereonetTypes.js"; // TASKS.csv #1440
@@ -35,7 +36,7 @@ const deg1 = (v) => (Number.isFinite(Number(v)) ? +Number(v).toFixed(1) : v); //
 // TASKS.csv #281 — `domains`/`domainFilter` add a SPATIAL filter alongside the existing type filter.
 // Both are optional props: the modal still works standalone with picks alone (domainFilter absent =
 // the domain control simply isn't offered), so nothing here depends on the caller having a scene.
-export default function StereonetModal({ picks: downholePicks, surfacePicks = [], onClose, onUseAsTrend, domains = [], domainFilter = null }) {
+export default function StereonetModal({ picks: downholePicks, surfacePicks = [], onClose, onUseAsTrend, domains = [], domainFilter = null, customLayers = [] }) { // customLayers: TASKS.csv #1545
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const [view, setView] = useState("stereonet"); // TASKS.csv #278 — "stereonet" | "rose"
@@ -43,6 +44,9 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
   const [showPoles, setShowPoles] = useState(true);
   const [showCircles, setShowCircles] = useState(false);
   const [typeFilter, setTypeFilter] = useState("all");
+  const [qualityMax, setQualityMax] = useState(""); // TASKS.csv #1545 — "" = any orientation-line quality
+  const oriLayer = useMemo(() => findOriQualityLayer(customLayers), [customLayers]);
+  const qIndex = useMemo(() => (oriLayer ? oriQualityIndex(oriLayer) : null), [oriLayer]);
   const [domainId, setDomainId] = useState(""); // TASKS.csv #281 — "" = whole property
   const [showMean, setShowMean] = useState(true); // TASKS.csv #236
   const [showContours, setShowContours] = useState(false); // TASKS.csv #141 follow-up (Kamb density)
@@ -77,10 +81,9 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
     return domainFilter(picks.filter((p) => !p.outcrop), domainId);
   }, [picks, domainId, domainFilter]);
 
-  const filtered = useMemo(() => {
-    if (typeFilter === "all") return domainScoped;
-    return domainScoped.filter((p) => typeKeyOf(p) === typeFilter);
-  }, [domainScoped, typeFilter]);
+  const typed = useMemo(() => (typeFilter === "all" ? domainScoped : domainScoped.filter((p) => typeKeyOf(p) === typeFilter)), [domainScoped, typeFilter]);
+  const qualityRes = useMemo(() => filterByQuality(typed, qualityMax === "" ? NaN : Number(qualityMax), qIndex), [typed, qualityMax, qIndex]); // #1545
+  const filtered = qualityRes.kept;
 
   // TASKS.csv #280 — Terzaghi option object, shared by every statistic below so the stereonet, the
   // contours, the rose and the numeric readout can never disagree about which correction is in force.
@@ -295,6 +298,14 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 </label>
               </>
             )}
+            {oriLayer && ( // TASKS.csv #1545 — the orientation-line quality logged as an interval table (Lawyers' OriCore 1 / 2 / 3)
+              <label style={rowLabel} title={tr("The custom layer \"{name}\" logs the orientation-line quality per interval; a pick inside an interval above this quality is left out. Picks with no logged quality are kept.", { name: oriLayer.name })}>{tr("Orientation quality ≤")}<select value={qualityMax} onChange={(e) => setQualityMax(e.target.value)} style={sel} aria-label={tr("Orientation quality ≤")}>
+                  <option value="">{tr("Any quality")}</option>
+                  {qualityLevels(qIndex).map((q) => <option key={q} value={q}>{q}</option>)}
+                </select>
+              </label>
+            )}
+            {oriLayer && qualityMax !== "" && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{qualityNote(qualityRes, qualityMax, tr)}</div>}
             <label style={rowLabel}>{tr("Structure type")}<select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} style={sel}>
                 <option value="all">{tr("All types")}</option>
                 {typeList.map((t) => <option key={t.key} value={t.key}>{both && t.core && t.outcrop ? tr("{type}: {core} core + {outcrop} outcrop", { type: t.label, core: t.core, outcrop: t.outcrop }) : both && t.outcrop ? tr("{type} (outcrop)", { type: t.label }) : t.label}</option>)}
