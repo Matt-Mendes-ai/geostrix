@@ -9,6 +9,10 @@ import { overlay, backdropProps } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #1521 — the logs, for "add by filter"
+import { domainLayerChoices, domainOfInterval } from "../lib/domainLayers.js"; // #1521
+import { holesMatching } from "../lib/holeFilter.js"; // #1521
+import { LAYER_META } from "../lib/layers.js"; // #1521
 import { isoconRows } from "../lib/analysisExports.js"; // TASKS.csv #1083
 
 // TASKS.csv #23 — Isocon / mass-balance calculator (Grant 1986; MacLean & Barrett 1993).
@@ -29,10 +33,14 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
   useFocusTrap(); // TASKS.csv #238
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
+  // TASKS.csv #1521 (review #1497, Lawyers) — a calculated element (an alteration index, a metal equivalent) is not a concentration: it
+  // stays out of the immobile list and the mass-balance table, and is named under the table
+  const calcSymbols = useMemo(() => assayElements.filter((e) => e.calculated).map((e) => e.symbol), [assayElements]);
+  const concSymbols = useMemo(() => assayElements.filter((e) => !e.calculated).map((e) => e.symbol), [assayElements]);
 
   const [precursorIds, setPrecursorIds] = useState(new Set());
   const [alteredIds, setAlteredIds] = useState(new Set());
-  const [immobile, setImmobile] = useState(new Set(symbols.filter((s) => DEFAULT_IMMOBILE.includes(s))));
+  const [immobile, setImmobile] = useState(new Set(concSymbols.filter((s) => DEFAULT_IMMOBILE.includes(s))));
   const [filterText, setFilterText] = useState("");
 
   const rowId = (a, i) => `${a.hole_id}|${a.from}|${a.to}|${i}`;
@@ -44,6 +52,30 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
   const toggle = (set, setSet, id) => {
     setSet((prev) => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next; });
   };
+  // TASKS.csv #1521 — a group built by a filter instead of one tick at a time (83,670 rows on Lawyers): a log code at the interval's
+  // midpoint (lithology, alteration, a custom layer), an element or index range, holes and a depth range; the matches are added to a group
+  const { layers = {}, customLayers = [] } = useStore();
+  const [flt, setFlt] = useState({ layer: "", code: "", sym: "", min: "", max: "", holes: "", from: "", to: "" });
+  const domainChoices = useMemo(() => domainLayerChoices(layers, customLayers, (k) => tr(LAYER_META[k]?.label || k)), [layers, customLayers]);
+  const domainRows = useMemo(() => domainChoices.find((c) => c.key === flt.layer)?.rows || null, [domainChoices, flt.layer]);
+  const codes = useMemo(() => (domainRows ? [...new Set(domainRows.map((r) => String(r.value ?? "")).filter(Boolean))].sort() : []), [domainRows]);
+  const matchIds = useMemo(() => {
+    const active = flt.code || flt.sym || flt.holes.trim() || flt.from !== "" || flt.to !== "";
+    if (!active) return [];
+    const codeOf = flt.code && domainRows ? domainOfInterval(domainRows) : null;
+    const lo = flt.min === "" ? -Infinity : Number(flt.min), hi = flt.max === "" ? Infinity : Number(flt.max);
+    const d0 = flt.from === "" ? -Infinity : Number(flt.from), d1 = flt.to === "" ? Infinity : Number(flt.to);
+    const holeOk = flt.holes.trim() ? new Set(holesMatching([...new Set(rows.map((r) => r.a.hole_id))], flt.holes)) : null;
+    return rows.filter(({ a }) => {
+      if (holeOk && !holeOk.has(a.hole_id)) return false;
+      const mid = (Number(a.from) + Number(a.to)) / 2;
+      if (Number.isFinite(mid) ? mid < d0 || mid > d1 : d0 !== -Infinity || d1 !== Infinity) return false;
+      if (codeOf && codeOf(a) !== flt.code) return false;
+      if (flt.sym) { const v = valueIn(a, flt.sym, elementUnits[flt.sym] || "ppm", elementUnits); if (v == null || !Number.isFinite(v) || v < lo || v > hi) return false; }
+      return true;
+    }).map((r) => r.id);
+  }, [rows, flt, domainRows, elementUnits]);
+  const addMatches = (setSet) => setSet((prev) => new Set([...prev, ...matchIds]));
 
   // Average each element (in ppm, via valueIn) across a selected group of intervals.
   const average = (idSet) => {
@@ -62,7 +94,7 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
 
   const result = useMemo(() => {
     if (!precursor || !altered) return null;
-    const immobileList = symbols.filter((s) => immobile.has(s) && precursor.values[s] != null && altered.values[s] != null && precursor.values[s] > 0);
+    const immobileList = concSymbols.filter((s) => immobile.has(s) && precursor.values[s] != null && altered.values[s] != null && precursor.values[s] > 0);
     if (!immobileList.length) return { error: "Pick at least one immobile element that has data in both groups." };
     const ratios = immobileList.map((s) => altered.values[s] / precursor.values[s]);
     const slope = ratios.reduce((s, r) => s + r, 0) / ratios.length;
@@ -70,7 +102,7 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
     // either the pairing is wrong or one of them wasn't actually immobile in this alteration system
     const spread = ratios.length > 1 ? Math.sqrt(ratios.reduce((s, r) => s + (r - slope) ** 2, 0) / ratios.length) / slope : 0;
     const bulkMassChangePct = (1 / slope - 1) * 100;
-    const table = symbols
+    const table = concSymbols // #1521 — no mass change for an index
       .filter((s) => precursor.values[s] != null && altered.values[s] != null && precursor.values[s] > 0)
       .map((s) => {
         const ratio = altered.values[s] / precursor.values[s];
@@ -79,7 +111,7 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
       })
       .sort((a, b) => a.pct - b.pct);
     return { slope, spread, bulkMassChangePct, table, immobileList };
-  }, [precursor, altered, immobile, symbols]);
+  }, [precursor, altered, immobile, concSymbols]);
 
   const exportCSV = () => {
     if (!result || result.error) return;
@@ -109,6 +141,30 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
             style={{ ...sel, width: "100%" }}
           />
 
+          <div style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6 }}>{/* TASKS.csv #1521 */}
+            <div style={label}>{tr("Add intervals by filter")}</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", fontSize: "var(--font-size-sm)" }}>
+              <select value={flt.layer} onChange={(e) => setFlt((f) => ({ ...f, layer: e.target.value, code: "" }))} style={sel} aria-label={tr("Layer")} title={tr("The log whose code at the interval's midpoint must match")}>
+                <option value="">{tr("— any layer —")}</option>{domainChoices.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </select>
+              {flt.layer && <select value={flt.code} onChange={(e) => setFlt((f) => ({ ...f, code: e.target.value }))} style={sel} aria-label={tr("Code")}><option value="">{tr("— any code —")}</option>{codes.map((v) => <option key={v} value={v}>{v}</option>)}</select>}
+              <select value={flt.sym} onChange={(e) => setFlt((f) => ({ ...f, sym: e.target.value }))} style={sel} aria-label={tr("Element")} title={tr("An element or index whose value must lie in the range")}>
+                <option value="">{tr("— any element —")}</option>{symbols.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+              {flt.sym && <><input type="number" step="any" placeholder={tr("min")} value={flt.min} onChange={(e) => setFlt((f) => ({ ...f, min: e.target.value }))} style={{ ...sel, width: 80 }} aria-label={tr("Minimum")} /><input type="number" step="any" placeholder={tr("max")} value={flt.max} onChange={(e) => setFlt((f) => ({ ...f, max: e.target.value }))} style={{ ...sel, width: 80 }} aria-label={tr("Maximum")} /><span style={{ color: "var(--color-text-muted)" }}>{elementUnits[flt.sym] || "ppm"}</span></>}
+              <input placeholder={tr("Holes (PS-26, GS-21)")} value={flt.holes} onChange={(e) => setFlt((f) => ({ ...f, holes: e.target.value }))} style={{ ...sel, width: 140 }} aria-label={tr("Holes")} />
+              <input type="number" step="any" placeholder={tr("from m")} value={flt.from} onChange={(e) => setFlt((f) => ({ ...f, from: e.target.value }))} style={{ ...sel, width: 80 }} aria-label={tr("Depth from (m)")} />
+              <input type="number" step="any" placeholder={tr("to m")} value={flt.to} onChange={(e) => setFlt((f) => ({ ...f, to: e.target.value }))} style={{ ...sel, width: 80 }} aria-label={tr("Depth to (m)")} />
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+              <span>{tr("{n} intervals match", { n: matchIds.length.toLocaleString() })}</span>
+              <button disabled={!matchIds.length} onClick={() => addMatches(setPrecursorIds)} style={{ ...sel, cursor: "pointer" }}>{tr("Add to precursor")}</button>
+              <button disabled={!matchIds.length} onClick={() => addMatches(setAlteredIds)} style={{ ...sel, cursor: "pointer" }}>{tr("Add to altered")}</button>
+              <button disabled={!precursorIds.size} onClick={() => setPrecursorIds(new Set())} style={{ ...sel, cursor: "pointer" }}>{tr("Clear precursor")}</button>
+              <button disabled={!alteredIds.size} onClick={() => setAlteredIds(new Set())} style={{ ...sel, cursor: "pointer" }}>{tr("Clear altered")}</button>
+            </div>
+          </div>
+
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <IntervalList title={tr("Precursor")} color="#8fd9ab" rows={filtered} idSet={precursorIds} onToggle={(id) => toggle(precursorIds, setPrecursorIds, id)} n={precursor?.n} />
             <IntervalList title={tr("Altered")} color="#e08a8a" rows={filtered} idSet={alteredIds} onToggle={(id) => toggle(alteredIds, setAlteredIds, id)} n={altered?.n} />
@@ -117,7 +173,7 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
           <div>
             <div style={label}>{tr("Immobile elements ({size} selected)", { size: immobile.size })}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {symbols.map((s) => (
+              {concSymbols.map((s) => (
                 <label key={s} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 8px", borderRadius: 5, background: immobile.has(s) ? "var(--color-success-bg)" : "var(--color-bg-subtle)", border: `1px solid ${immobile.has(s) ? "var(--color-success-border)" : "var(--color-border)"}`, fontSize: "var(--font-size-base)", color: immobile.has(s) ? "var(--color-success-text)" : "var(--color-text-secondary)", cursor: "pointer" }}>
                   <input type="checkbox" checked={immobile.has(s)} onChange={() => toggle(immobile, setImmobile, s)} style={{ display: "none" }} />
                   {s}
@@ -159,6 +215,7 @@ export default function IsoconTool({ assays, assayElements, onClose }) {
                   ))}
                 </tbody>
               </table>
+              {calcSymbols.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Left out of the mass balance (calculated indices and equivalents, not concentrations): {list}", { list: calcSymbols.join(", ") })}</div>}{/* #1521 */}
 
               <button onClick={exportCSV} style={{ ...btn(true), alignSelf: "flex-start", padding: "7px 14px", display: "flex", alignItems: "center", gap: 6 }}>
                 <Download size={14} />{" "}{tr("Export mass-balance table (CSV)")}</button>
