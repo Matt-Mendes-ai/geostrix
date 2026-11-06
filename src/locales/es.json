@@ -8493,5 +8493,7 @@
   "{k} of the {n} classes: some class limits fell on the same value and were merged.": "{k} de las {n} clases: algunos límites de clase cayeron en el mismo valor y se fusionaron.",
   "no values": "sin valores",
   "This column is blank in every row of the file: left unticked so it does not appear in every element list.": "Esta columna está vacía en todas las filas del archivo: queda sin marcar para que no aparezca en cada lista de elementos.",
-  "{pct} % of the samples hold 10 % Ca or more (carbonate rock): this diagram assumes a volcanic protolith, so read it with care here.": "El {pct} % de las muestras tiene 10 % de Ca o más (roca carbonatada): este diagrama supone un protolito volcánico, así que léalo con cuidado aquí."
+  "{pct} % of the samples hold 10 % Ca or more (carbonate rock): this diagram assumes a volcanic protolith, so read it with care here.": "El {pct} % de las muestras tiene 10 % de Ca o más (roca carbonatada): este diagrama supone un protolito volcánico, así que léalo con cuidado aquí.",
+  "The log reads {lo} to {hi}, median {med}: most likely {unit}.": "El registro va de {lo} a {hi}, mediana {med}: lo más probable es {unit}.",
+  "In {unit} the log reaches {v} SI, more than any rock (about {max} SI): check the unit.": "En {unit} el registro llega a {v} SI, más que cualquier roca (unos {max} SI): revise la unidad."
 }

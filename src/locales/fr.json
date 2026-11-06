@@ -8493,5 +8493,7 @@
   "{k} of the {n} classes: some class limits fell on the same value and were merged.": "{k} des {n} classes : certaines limites de classe sont tombées sur la même valeur et ont été fusionnées.",
   "no values": "aucune valeur",
   "This column is blank in every row of the file: left unticked so it does not appear in every element list.": "Cette colonne est vide sur toutes les lignes du fichier : laissée décochée pour qu’elle n’apparaisse pas dans chaque liste d’éléments.",
-  "{pct} % of the samples hold 10 % Ca or more (carbonate rock): this diagram assumes a volcanic protolith, so read it with care here.": "{pct} % des échantillons contiennent 10 % de Ca ou plus (roche carbonatée) : ce diagramme suppose un protolithe volcanique, lisez-le donc avec prudence ici."
+  "{pct} % of the samples hold 10 % Ca or more (carbonate rock): this diagram assumes a volcanic protolith, so read it with care here.": "{pct} % des échantillons contiennent 10 % de Ca ou plus (roche carbonatée) : ce diagramme suppose un protolithe volcanique, lisez-le donc avec prudence ici.",
+  "The log reads {lo} to {hi}, median {med}: most likely {unit}.": "La diagraphie va de {lo} à {hi}, médiane {med} : le plus probable est {unit}.",
+  "In {unit} the log reaches {v} SI, more than any rock (about {max} SI): check the unit.": "En {unit}, la diagraphie atteint {v} SI, plus qu’aucune roche (environ {max} SI) : vérifiez l’unité."
 }

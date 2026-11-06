@@ -28,7 +28,7 @@ import {
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
 import { orientationAt } from "../lib/mapLayers.js";
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
-import { constraintSamples, SUSC_UNITS } from "../lib/drillholeConstraints.js"; // TASKS.csv #323
+import { constraintSamples, SUSC_UNITS, suscUnitHint, PHYSICAL_MAX_SI } from "../lib/drillholeConstraints.js"; // TASKS.csv #323; suscUnitHint: #1435
 import { categoricalModels, modelUnits, unitMedians, modelBody } from "../lib/geologyForward.js"; // TASKS.csv #760
 import { t as tr } from "../lib/i18n.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709 // TASKS.csv #786
@@ -155,6 +155,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   // TASKS.csv #323 — the log layer that constrains this method, and its samples in model units
   const dhLayer = method === "grav" ? "sg" : "magsusc";
   const dhRows = layers[dhLayer] || [];
+  const suscHint = useMemo(() => (method === "mag" ? suscUnitHint(dhRows.map((r) => r.value)) : null), [method, dhRows]); // #1435
   const dhConstraintPoints = () => {
     if (!dhRows.length) return { problem: tr("Drillhole constraints need a {v} log layer — import one, or untick the constraints.", { v: method === "grav" ? tr("Specific gravity") : tr("Mag. susceptibility") }) };
     if (method === "mag" && !SUSC_UNITS[dh.units]) return { problem: tr("Say what units the susceptibility log is in.") };
@@ -600,6 +601,14 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                         <option value="">{tr("Choose…")}</option>
                         {Object.entries(SUSC_UNITS).map(([k, u]) => <option key={k} value={k}>{u.label}</option>)}
                       </select>
+                    </div>
+                  )}
+                  {method === "mag" && suscHint && ( // #1435 — what the readings say about their unit, and a log no rock could have
+                    <div style={{ ...small, marginTop: 2 }}>
+                      {tr("The log reads {lo} to {hi}, median {med}: most likely {unit}.", { lo: +suscHint.min.toPrecision(3), hi: +suscHint.max.toPrecision(3), med: +suscHint.median.toPrecision(3), unit: SUSC_UNITS[suscHint.likely].label })}
+                      {SUSC_UNITS[dh.units] && suscHint.max * SUSC_UNITS[dh.units].factor > PHYSICAL_MAX_SI && (
+                        <div style={{ color: "var(--color-danger-icon-strong)" }}>{tr("In {unit} the log reaches {v} SI, more than any rock (about {max} SI): check the unit.", { unit: SUSC_UNITS[dh.units].label, v: +(suscHint.max * SUSC_UNITS[dh.units].factor).toPrecision(3), max: PHYSICAL_MAX_SI })}</div>
+                      )}
                     </div>
                   )}
                   {method === "grav" && (

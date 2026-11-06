@@ -8493,5 +8493,7 @@
   "{k} of the {n} classes: some class limits fell on the same value and were merged.": "{k} من {n} فئات: وقعت بعض حدود الفئات على القيمة نفسها ودُمجت.",
   "no values": "بلا قيم",
   "This column is blank in every row of the file: left unticked so it does not appear in every element list.": "هذا العمود فارغ في كل صفوف الملف: تُرك دون تحديد كي لا يظهر في كل قائمة عناصر.",
-  "{pct} % of the samples hold 10 % Ca or more (carbonate rock): this diagram assumes a volcanic protolith, so read it with care here.": "{pct} % من العينات تحتوي على 10 % كالسيوم أو أكثر (صخر كربوناتي): يفترض هذا المخطط أصلًا بركانيًا، فاقرأه بحذر هنا."
+  "{pct} % of the samples hold 10 % Ca or more (carbonate rock): this diagram assumes a volcanic protolith, so read it with care here.": "{pct} % من العينات تحتوي على 10 % كالسيوم أو أكثر (صخر كربوناتي): يفترض هذا المخطط أصلًا بركانيًا، فاقرأه بحذر هنا.",
+  "The log reads {lo} to {hi}, median {med}: most likely {unit}.": "يتراوح السجل بين {lo} و{hi}، والوسيط {med}: الأرجح أن الوحدة {unit}.",
+  "In {unit} the log reaches {v} SI, more than any rock (about {max} SI): check the unit.": "بوحدة {unit} يصل السجل إلى {v} SI، أكثر من أي صخر (نحو {max} SI): تحقق من الوحدة."
 }
