@@ -8469,5 +8469,11 @@
   "This is a UBC DCIP2D (2D) mesh: import it with DC / IP > Import a UBC DCIP2D inversion (mesh + model), with its .con / .chg model and the line's topography and station files.": "Esta es una malla UBC DCIP2D (2D): impórtela con DC / IP > Importar una inversión UBC DCIP2D (malla + modelo), con su modelo .con / .chg y los archivos de topografía y estaciones de la línea.",
   "Imported {v} inversion: its fit and its data are not in the mesh and model files, so GeoStrix does not judge it; read the contractor's report for that.": "Inversión {v} importada: su ajuste y sus datos no están en los archivos de malla y modelo, así que GeoStrix no la evalúa; consulte el informe del contratista.",
   "Imported from the contractor's files (kept in the project).": "Importada de los archivos del contratista (guardada en el proyecto).",
-  "Centre on project": "Centrar en el proyecto"
+  "Centre on project": "Centrar en el proyecto",
+  " Read in pieces ({seen} readings, {v} MB).": " Leído por partes ({seen} lecturas, {v} MB).",
+  " Kept 1 in {n} of the file's {seen} readings (read in pieces: it is {v} MB).": " Se conservó 1 de cada {n} de las {seen} lecturas del archivo (leído por partes: pesa {v} MB).",
+  "\"{fileName}\" — about {rows} readings, {columns} column(s), read in pieces (the first {n} rows are shown). Pick which columns to import as points:": "\"{fileName}\" — unas {rows} lecturas, {columns} columna(s), leído por partes (se muestran las primeras {n} filas). Elija qué columnas importar como puntos:",
+  "\"{name}\" is {v} MB and its first lines have no header GeoStrix can read (a delimited line of column names).": "\"{name}\" pesa {v} MB y sus primeras líneas no tienen un encabezado que GeoStrix pueda leer (una línea delimitada con los nombres de las columnas).",
+  "\"{name}\" is {v} MB, about {rows} readings: too big to read whole on most computers. Check the columns and how many readings to keep below, then Import: the file is read in pieces and only the kept readings and columns are held.": "\"{name}\" pesa {v} MB, unas {rows} lecturas: demasiado grande para leerlo entero en la mayoría de los equipos. Revise abajo las columnas y cuántas lecturas conservar, y luego Importar: el archivo se lee por partes y solo se guardan las lecturas y columnas conservadas.",
+  "Reading {name}": "Leyendo {name}"
 }

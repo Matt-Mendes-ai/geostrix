@@ -8469,5 +8469,11 @@
   "This is a UBC DCIP2D (2D) mesh: import it with DC / IP > Import a UBC DCIP2D inversion (mesh + model), with its .con / .chg model and the line's topography and station files.": "Ceci est un maillage UBC DCIP2D (2D) : importez-le avec DC / IP > Importer une inversion UBC DCIP2D (maillage + modèle), avec son modèle .con / .chg et les fichiers de topographie et de stations de la ligne.",
   "Imported {v} inversion: its fit and its data are not in the mesh and model files, so GeoStrix does not judge it; read the contractor's report for that.": "Inversion {v} importée : son ajustement et ses données ne sont pas dans les fichiers de maillage et de modèle, donc GeoStrix ne la juge pas ; voyez le rapport de l'entrepreneur.",
   "Imported from the contractor's files (kept in the project).": "Importée des fichiers de l'entrepreneur (conservée dans le projet).",
-  "Centre on project": "Centrer sur le projet"
+  "Centre on project": "Centrer sur le projet",
+  " Read in pieces ({seen} readings, {v} MB).": " Lu par morceaux ({seen} mesures, {v} Mo).",
+  " Kept 1 in {n} of the file's {seen} readings (read in pieces: it is {v} MB).": " Gardé 1 mesure sur {n} des {seen} du fichier (lu par morceaux : il fait {v} Mo).",
+  "\"{fileName}\" — about {rows} readings, {columns} column(s), read in pieces (the first {n} rows are shown). Pick which columns to import as points:": "« {fileName} » — environ {rows} mesures, {columns} colonne(s), lu par morceaux (les {n} premières lignes sont affichées). Choisissez les colonnes à importer comme points :",
+  "\"{name}\" is {v} MB and its first lines have no header GeoStrix can read (a delimited line of column names).": "« {name} » fait {v} Mo et ses premières lignes n'ont pas d'en-tête lisible par GeoStrix (une ligne délimitée de noms de colonnes).",
+  "\"{name}\" is {v} MB, about {rows} readings: too big to read whole on most computers. Check the columns and how many readings to keep below, then Import: the file is read in pieces and only the kept readings and columns are held.": "« {name} » fait {v} Mo, environ {rows} mesures : trop gros pour être lu en entier sur la plupart des ordinateurs. Vérifiez ci-dessous les colonnes et le nombre de mesures à garder, puis Importer : le fichier est lu par morceaux et seules les mesures et colonnes gardées sont conservées.",
+  "Reading {name}": "Lecture de {name}"
 }

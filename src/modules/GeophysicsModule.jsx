@@ -73,6 +73,10 @@ import { guessQualityColumn, filterSignalQuality, despikeAlongLines } from "../l
 import { vectorToBoundaryPolylines, claimsFromVector } from "../lib/boundaryImport.js"; // TASKS.csv #1035; claims per feature: #1970
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
 import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
+import { sniffTable, estimateRows, streamTableRows } from "../lib/streamTable.js"; // TASKS.csv #1351
+import { useSetTaskProgress } from "../lib/store.jsx"; // TASKS.csv #1351
+// TASKS.csv #1351 — a point-survey CSV over this size is streamed and thinned on the way in instead of read whole
+const STREAM_FROM_BYTES = 150e6;
 import { usePrompt } from "../components/usePrompt.jsx"; // TASKS.csv #1779
 const GradeTonnageModal = lazyModal(() => import("../components/GradeTonnageModal.jsx")); // TASKS.csv #1052 — loaded when opened
 
@@ -300,10 +304,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       setError(tr("\"{name}\" looks like a BLOCK MODEL (cell indices / cell-centre columns{v}), not a point survey. Import it under Geophysics → Block models: the UBC mesh + model files (.msh + .mod) or OMF if you have them (streamed and reduced to fit the 3D view), or \"Block model CSV\" for smaller files.", { name: file.name, v: file.size > 50e6 ? tr(", {v} MB", { v: (file.size / 1e6).toFixed(0) }) : "" }));
       return;
     }
-    if (file.size > 150e6) {
-      setError(tr("\"{name}\" is {v} MB — too large to import as a point survey in one go (it would freeze GeoStrix). Thin it first (every n-th reading, or grid it), or import it as a grid (GeoTIFF / GXF) if it is gridded data.", { name: file.name, v: (file.size / 1e6).toFixed(0) }));
-      return;
-    }
+    if (file.size > STREAM_FROM_BYTES) { await openStreamedCsv(file, head); return; } // #1351 — was refused above 150 MB
     parseTableFile(file).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
         // TASKS.csv #484 — columns are matched on the words in each header (Easting_X, Raw_Mag_nT...), once per
@@ -931,6 +932,34 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
   const guessColumn = (columns, hints) => columns.find((c) => hints.some((h) => c.toLowerCase() === h)) || columns.find((c) => hints.some((h) => c.toLowerCase().includes(h))) || "";
   // TASKS.csv #1583 — the rover readings' signal quality (a GEM sq column) and an along-line despike, chosen in the picker:
   // a quality floor of 50 (the base-station reader's) when the file has such a column, the despike off until ticked
+  // TASKS.csv #1351 — a CSV too big to read whole: its header and first rows choose the columns, the reading count is estimated from
+  // their mean length, and the picker offers how many readings to keep (the batch import's own rule as the default); Import streams it
+  const setTaskProgress = useSetTaskProgress();
+  const openStreamedCsv = async (file) => {
+    const sn = sniffTable(await file.slice(0, 512 * 1024).text().catch(() => ""));
+    if (!sn || !sn.sample.length) { setError(tr("\"{name}\" is {v} MB and its first lines have no header GeoStrix can read (a delimited line of column names).", { name: file.name, v: (file.size / 1e6).toFixed(0) })); return; }
+    const estimate = estimateRows(file.size, sn), keepEvery = suggestKeepEvery(estimate, undefined, (layers.geophys_pts || []).length);
+    const cols = guessGeophysColumns(sn.headers);
+    setXyzPending({ fileName: file.name, columns: sn.headers, rows: sn.sample, source: "csv", xCol: cols.x, yCol: cols.y, zCol: cols.z, valueCol: cols.value, lineCol: cols.line, fidCol: cols.fid, labelCol: cols.label, ...cleaningDefaults(sn.headers),
+      stream: { file, delimiter: sn.delimiter, headers: sn.headers, skipLines: sn.headerLine + 1, estimate, keepEvery } });
+    setError({ info: true, text: tr("\"{name}\" is {v} MB, about {rows} readings: too big to read whole on most computers. Check the columns and how many readings to keep below, then Import: the file is read in pieces and only the kept readings and columns are held.", { name: file.name, v: (file.size / 1e6).toFixed(0), rows: estimate.toLocaleString() }) });
+  };
+  const confirmStreamed = async () => {
+    const p = xyzPending, st = p.stream;
+    if (!p.xCol || !p.yCol || !p.valueCol) { setXyzError({ info: false, text: tr("Pick an X, Y, and Value column before importing.") }); return; }
+    const keep = [...new Set([p.xCol, p.yCol, p.zCol, p.valueCol, p.lineCol, p.fidCol, p.labelCol, p.sqCol].filter(Boolean))];
+    const label = tr("Reading {name}", { name: p.fileName });
+    setXyzPending((q) => (q ? { ...q, streaming: true } : q));
+    try {
+      const { rows, seen } = await streamTableRows(st.file, { delimiter: st.delimiter, headers: st.headers, keep, every: st.keepEvery, skipLines: st.skipLines, onProgress: (f) => setTaskProgress?.({ label, pct: Math.round(f * 100) }) });
+      setTaskProgress?.(null);
+      confirmImportXYZ(rows, st.keepEvery > 1 ? tr(" Kept 1 in {n} of the file's {seen} readings (read in pieces: it is {v} MB).", { n: st.keepEvery, seen: seen.toLocaleString(), v: (st.file.size / 1e6).toFixed(0) }) : tr(" Read in pieces ({seen} readings, {v} MB).", { seen: seen.toLocaleString(), v: (st.file.size / 1e6).toFixed(0) }));
+    } catch (err) {
+      setTaskProgress?.(null);
+      setXyzPending((q) => (q ? { ...q, streaming: false } : q));
+      setXyzError({ info: false, text: tr("Could not read {name}: {message}", { name: p.fileName, message: err.message }) });
+    }
+  };
   const cleaningDefaults = (columns) => { const sqCol = guessQualityColumn(columns); return { sqCol, minQuality: sqCol ? 50 : 0, despike: false }; };
   const cleanRows = (rows, pending, valueOf, lineOf) => {
     const q = filterSignalQuality(rows, pending.sqCol, pending.minQuality);
@@ -1072,10 +1101,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       setXyzError({ info: false, text: tr("Could not read {name}: {message}", { name: file.name, message: err.message }) });
     }
   };
-  const confirmImportXYZ = () => {
+  const confirmImportXYZ = (streamedRows = null, streamNote = "") => {
     if (!xyzPending) return;
     if (xyzPending.batch) { confirmBatchXYZ(); return; } // #1329
-    const { fileName, rows: parsedRows, xCol, yCol, zCol, valueCol } = xyzPending;
+    if (xyzPending.stream && !Array.isArray(streamedRows)) { confirmStreamed(); return; } // #1351 — read the whole file first, thinned
+    const { fileName, xCol, yCol, zCol, valueCol } = xyzPending;
+    const parsedRows = Array.isArray(streamedRows) ? streamedRows : xyzPending.rows;
     if (!xCol || !yCol || !valueCol) {
       setXyzError({ info: false, text: tr("Pick an X, Y, and Value column before importing.") });
       return;
@@ -1105,7 +1136,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
       setXyzError({ info: false, text: tr("None of the {parsedRows} row(s) had usable values in the chosen columns (likely all \"*\"/no-data for this combination) — try different columns.", { parsedRows: parsedRows.length }) });
       return;
     }
-    let reprojectNote = "";
+    let reprojectNote = streamNote; // #1351
     // #1326 — the local grid first: its GPS file says what CRS the result is in
     const placed = xyzPending.grid;
     if (placed) {
@@ -1460,7 +1491,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
         )}
         {xyzPending && (
           <div style={{ marginTop: 8, padding: "10px 12px", background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-base)" }}>
-            <div style={{ color: "var(--color-text)", marginBottom: 8 }}>{tr("\"{fileName}\" — {rows} row(s), {columns} column(s). Pick which columns to import as points:", { fileName: xyzPending.fileName, rows: xyzPending.rows.length.toLocaleString(), columns: xyzPending.columns.length })}</div>
+            <div style={{ color: "var(--color-text)", marginBottom: 8 }}>{xyzPending.stream /* #1351 */ ? tr("\"{fileName}\" — about {rows} readings, {columns} column(s), read in pieces (the first {n} rows are shown). Pick which columns to import as points:", { fileName: xyzPending.fileName, rows: xyzPending.stream.estimate.toLocaleString(), columns: xyzPending.columns.length, n: xyzPending.rows.length.toLocaleString() }) : tr("\"{fileName}\" — {rows} row(s), {columns} column(s). Pick which columns to import as points:", { fileName: xyzPending.fileName, rows: xyzPending.rows.length.toLocaleString(), columns: xyzPending.columns.length })}</div>
             {[
               ["X", "xCol"], ["Y", "yCol"], [tr("Value"), "valueCol"], [tr("Z / elevation (optional)"), "zCol"],
             ].map(([label, key]) => (
@@ -1490,6 +1521,14 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
               <input type="checkbox" checked={!!xyzPending.despike} onChange={(e) => setXyzPending((p) => ({ ...p, despike: e.target.checked }))} />
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("drop readings more than 6 MAD from the running median along their line")}</span>
             </label>
+            {xyzPending.stream && ( /* TASKS.csv #1351 — how many readings of the big file to keep */
+              <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: "var(--font-size-sm)" }} title={tr("Every reading is one point in the 3D view, and hundreds of thousands make it slow and the project file large. Thinning keeps the map of the survey, but a short anomaly between kept readings is lost.")}>
+                <span style={{ color: "var(--color-text-faint)", width: 140, flexShrink: 0 }}>{tr("Keep")}</span>
+                <select value={xyzPending.stream.keepEvery} aria-label={tr("How many readings to keep")} onChange={(e) => setXyzPending((p) => ({ ...p, stream: { ...p.stream, keepEvery: Number(e.target.value) } }))} style={{ flex: 1, minWidth: 0 }}>
+                  {KEEP_CHOICES.map((n) => <option key={n} value={n}>{n === 1 ? tr("Every reading (about {rows} points)", { rows: xyzPending.stream.estimate.toLocaleString() }) : tr("1 in {n} (about {rows} points)", { n, rows: Math.round(xyzPending.stream.estimate / n).toLocaleString() })}</option>)}
+                </select>
+              </label>
+            )}
             {xyzPending.batch && (
               <div style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                 <div>{tr("{n} files, about {rows} readings. These columns apply to all of them; the first file is shown.", { n: xyzPending.batch.files.length, rows: xyzPending.batch.estimate.toLocaleString() })}{xyzPending.batch.gpsFiles.length ? ` ${tr("{n} GPS file(s) are used for the surveys named like them.", { n: xyzPending.batch.gpsFiles.length })}` : ""}</div>
@@ -1523,8 +1562,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null } 
             )}
             {xyzPending.source !== "csv" && !xyzPending.batch && diurnalApplies(xyzPending.valueCol, { instrument: xyzPending.header?.instrument, columns: xyzPending.columns }) /* #1586 — a magnetics step */ && <DiurnalCorrectionBox key={xyzPending.fileName} pending={xyzPending} setPending={setXyzPending} numInput={numInput} pBtn={pBtn} />}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-              <button onClick={confirmImportXYZ} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>
-                <Upload size={14} />{" "}{tr("Import")}</button>
+              <button onClick={() => confirmImportXYZ()} disabled={!!xyzPending.streaming} style={{ ...pBtn, marginBottom: 0, flex: 1, justifyContent: "center" }}>
+                {xyzPending.streaming ? <Loader2 size={14} className="spin" /> : <Upload size={14} />}{" "}{xyzPending.streaming ? tr("Reading…") : tr("Import")}</button>
               <button onClick={() => setXyzPending(null)} style={{ ...pBtn, marginBottom: 0, width: 90, justifyContent: "center", color: "var(--color-text-secondary)" }}>{tr("Cancel")}</button>
             </div>
           </div>

@@ -42,6 +42,9 @@ function pick(headers, role, taken) {
   let cands = free.filter((h) => headerWords(h).some((w) => r.words.includes(w)));
   if (role === "value") cands = cands.filter((h) => !headerWords(h).some((w) => NOT_VALUE.includes(w)));
   else if (role === "x" || role === "y") cands = cands.filter((h) => !headerWords(h).some((w) => ["id", "station", "stn", "line", "offset", "error", "err"].includes(w)));
+  // TASKS.csv #1351 — Poplar's airborne file: "ZFg_Step" (the fluxgate's Z component step) was taken as the elevation; a magnetometer
+  // component or gradient channel is never one
+  else if (role === "z") cands = cands.filter((h) => !headerWords(h).some((w) => ["fg", "fluxgate", "step", "comp", "component", "grad", "gradient", "gradiometer"].includes(w)));
   if (!cands.length) return { col: "", candidates: [] };
   if (role === "x" || role === "y") { // projected coordinates first; longitude/latitude only when that is all there is
     const projected = cands.filter((h) => !headerWords(h).some((w) => GEOGRAPHIC.includes(w)));
