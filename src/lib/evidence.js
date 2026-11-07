@@ -322,6 +322,25 @@ function cellMask(D, n) { const m = new Uint8Array(n); for (const k of D) if (k 
 function upperBound(sorted, t) { let lo = 0, hi = sorted.length; while (lo < hi) { const m = (lo + hi) >> 1; if (sorted[m] <= t) lo = m + 1; else hi = m; } return lo; }
 
 // ---------- a score grid as a raster drape (RGBA, 0 -> pale, 1 -> dark red; NaN transparent) ----------
+// TASKS.csv #1456 (review #1352, Silvertip) — the highest-scoring places of an overlay, to plan a hole to: the best cells, each at least
+// minSepM from those already taken (the 2nd-best cell is usually the best one's neighbour, the same target). Cell centres as the
+// grid places them (x0 + i dx, yTop - j dy). -> [{ i, j, x, y, score }], best first
+export function topCells(score, g, { n = 5, minSepM = null } = {}) {
+  if (!score || !g) return [];
+  const sep = minSepM > 0 ? minSepM : 5 * Math.max(g.dx, g.dy);
+  const idx = [];
+  for (let k = 0; k < score.length; k++) if (Number.isFinite(score[k])) idx.push(k);
+  idx.sort((a, b) => score[b] - score[a]);
+  const out = [];
+  for (const k of idx) {
+    const i = k % g.nx, j = Math.floor(k / g.nx), x = g.x0 + i * g.dx, y = g.yTop - j * g.dy;
+    if (out.some((c) => Math.hypot(c.x - x, c.y - y) < sep)) continue;
+    out.push({ i, j, x, y, score: score[k] });
+    if (out.length >= n) break;
+  }
+  return out;
+}
+
 export function scoreImage(score, nx, ny) {
   const data = new Uint8ClampedArray(nx * ny * 4);
   const stops = [[255, 255, 204], [254, 217, 118], [253, 141, 60], [227, 26, 28], [128, 0, 38]];

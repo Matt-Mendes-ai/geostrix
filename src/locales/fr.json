@@ -8623,5 +8623,10 @@
   "Subcrop from collars": "Sous-affleurement depuis les collets",
   "{name}: {n} point(s), {units} unit(s): the first logged unit under the overburden / casing / no recovery at the top of each hole, at the hole's position at that depth. A start for the map, not a mapped outcrop.": "{name} : {n} point(s), {units} unité(s) : la première unité décrite sous le mort-terrain / tubage / sans récupération en tête de chaque sondage, à la position du sondage à cette profondeur. Un point de départ pour la carte, pas un affleurement cartographié.",
   "{n} hole(s) have no logged unit under their cover and were left out.": "{n} sondage(s) n'ont pas d'unité décrite sous leur couverture et ont été laissés de côté.",
-  "A point map layer at each hole: the first logged unit under its overburden, casing or no recovery, coloured like the logs. It lists the hole and the depth of cover in its attributes.": "Une couche de points à chaque sondage : la première unité décrite sous le mort-terrain, le tubage ou sans récupération, colorée comme les journaux. Ses attributs donnent le sondage et l'épaisseur de couverture."
+  "A point map layer at each hole: the first logged unit under its overburden, casing or no recovery, coloured like the logs. It lists the hole and the depth of cover in its attributes.": "Une couche de points à chaque sondage : la première unité décrite sous le mort-terrain, le tubage ou sans récupération, colorée comme les journaux. Ses attributs donnent le sondage et l'épaisseur de couverture.",
+  "Distance to drilling (hole traces, in plan)": "Distance aux forages (tracés des sondages, en plan)",
+  "Highest posterior (at least {d} m apart):": "Postérieure la plus élevée (au moins {d} m d'écart) :",
+  "Highest fuzzy scores (at least {d} m apart):": "Scores flous les plus élevés (au moins {d} m d'écart) :",
+  "{k}. {score} at E {x}, N {y}": "{k}. {score} à E {x}, N {y}",
+  "Opens Planned holes with this easting and northing as the target; type the target elevation there (the score is in plan, it has no depth).": "Ouvre Sondages planifiés avec cet est et ce nord comme cible ; saisissez-y l'altitude de la cible (le score est en plan, il n'a pas de profondeur)."
 }

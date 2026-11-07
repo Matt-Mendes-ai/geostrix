@@ -8368,7 +8368,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
         </>)}
         {toolPane === "overlay" && ( // TASKS.csv #851
-          <Suspense fallback={null}><EvidenceOverlayPane onClose={() => setToolPane(null)} /></Suspense>
+          <Suspense fallback={null}><EvidenceOverlayPane onClose={() => setToolPane(null)} onPlanTo={(c) => { setPlanTarget({ x: c.x, y: c.y, z: c.z }); setToolPane("plan"); }} /* #1456 */ /></Suspense>
         )}
         {toolPane === "undrilled" && ( // TASKS.csv #1139
           <Suspense fallback={null}><UndrilledZonesPane solids={closedShellsForEstimation()} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} onPlanTo={(c) => { setPlanTarget({ x: c.x, y: c.y, z: c.z }); setToolPane("plan"); }} /* #1456 */ /></Suspense>

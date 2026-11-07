@@ -8623,5 +8623,10 @@
   "Subcrop from collars": "Subafloramento a partir dos colares",
   "{name}: {n} point(s), {units} unit(s): the first logged unit under the overburden / casing / no recovery at the top of each hole, at the hole's position at that depth. A start for the map, not a mapped outcrop.": "{name}: {n} ponto(s), {units} unidade(s): a primeira unidade descrita sob o capeamento / revestimento / sem recuperação no início de cada furo, na posição do furo nessa profundidade. Um ponto de partida para o mapa, não um afloramento mapeado.",
   "{n} hole(s) have no logged unit under their cover and were left out.": "{n} furo(s) não têm unidade descrita sob a cobertura e foram deixados de fora.",
-  "A point map layer at each hole: the first logged unit under its overburden, casing or no recovery, coloured like the logs. It lists the hole and the depth of cover in its attributes.": "Uma camada de pontos em cada furo: a primeira unidade descrita sob o capeamento, revestimento ou sem recuperação, com as cores dos perfis. Os atributos trazem o furo e a espessura da cobertura."
+  "A point map layer at each hole: the first logged unit under its overburden, casing or no recovery, coloured like the logs. It lists the hole and the depth of cover in its attributes.": "Uma camada de pontos em cada furo: a primeira unidade descrita sob o capeamento, revestimento ou sem recuperação, com as cores dos perfis. Os atributos trazem o furo e a espessura da cobertura.",
+  "Distance to drilling (hole traces, in plan)": "Distância à sondagem (traços dos furos, em planta)",
+  "Highest posterior (at least {d} m apart):": "Posterior mais alta (separados por pelo menos {d} m):",
+  "Highest fuzzy scores (at least {d} m apart):": "Maiores pontuações difusas (separadas por pelo menos {d} m):",
+  "{k}. {score} at E {x}, N {y}": "{k}. {score} em E {x}, N {y}",
+  "Opens Planned holes with this easting and northing as the target; type the target elevation there (the score is in plan, it has no depth).": "Abre Furos planejados com este leste e norte como alvo; digite lá a cota do alvo (a pontuação está em planta, não tem profundidade)."
 }

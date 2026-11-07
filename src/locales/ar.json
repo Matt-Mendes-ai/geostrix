@@ -8623,5 +8623,10 @@
   "Subcrop from collars": "التكشّف تحت الغطاء من فوهات الثقوب",
   "{name}: {n} point(s), {units} unit(s): the first logged unit under the overburden / casing / no recovery at the top of each hole, at the hole's position at that depth. A start for the map, not a mapped outcrop.": "{name}: {n} نقطة، {units} وحدة: أول وحدة مسجّلة تحت الغطاء / التغليف / عدم الاسترداد في أعلى كل ثقب، عند موضع الثقب في ذلك العمق. بداية للخريطة، وليست تكشّفًا مخرّطًا.",
   "{n} hole(s) have no logged unit under their cover and were left out.": "{n} ثقب ليس فيه وحدة مسجّلة تحت غطائه فاستُبعد.",
-  "A point map layer at each hole: the first logged unit under its overburden, casing or no recovery, coloured like the logs. It lists the hole and the depth of cover in its attributes.": "طبقة نقاط عند كل ثقب: أول وحدة مسجّلة تحت الغطاء أو التغليف أو عدم الاسترداد، ملوّنة كما في السجلات. وتذكر سماتها الثقب وعمق الغطاء."
+  "A point map layer at each hole: the first logged unit under its overburden, casing or no recovery, coloured like the logs. It lists the hole and the depth of cover in its attributes.": "طبقة نقاط عند كل ثقب: أول وحدة مسجّلة تحت الغطاء أو التغليف أو عدم الاسترداد، ملوّنة كما في السجلات. وتذكر سماتها الثقب وعمق الغطاء.",
+  "Distance to drilling (hole traces, in plan)": "المسافة إلى الحفر (مسارات الثقوب، في المسقط)",
+  "Highest posterior (at least {d} m apart):": "أعلى احتمال لاحق (بفاصل {d} م على الأقل):",
+  "Highest fuzzy scores (at least {d} m apart):": "أعلى درجات ضبابية (بفاصل {d} م على الأقل):",
+  "{k}. {score} at E {x}, N {y}": "{k}. {score} عند E {x}، N {y}",
+  "Opens Planned holes with this easting and northing as the target; type the target elevation there (the score is in plan, it has no depth).": "يفتح الثقوب المخططة مع هذا الشرق والشمال هدفًا؛ اكتب ارتفاع الهدف هناك (الدرجة في المسقط، ليس لها عمق)."
 }

@@ -173,6 +173,14 @@ export function structureCodes(rows, traces) {
   return [...counts.keys()].sort();
 }
 // the picks of one type as distanceEvidence parts (each a single point)
+// TASKS.csv #1456 (review #1352) — every hole trace in plan, for "distance to drilling": with it an overlay can ask for ground that is
+// anomalous AND untested. A vertical hole is its collar point; an angled one the line its trace makes on the map.
+export function drilledParts(traces) {
+  const out = [];
+  for (const t of traces?.values?.() || []) if (t?.length) out.push(t.map((p) => [p.x, p.y]));
+  return out;
+}
+
 export function structureParts(rows, code, traces) {
   const out = [];
   for (const r of rows || []) {

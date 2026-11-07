@@ -43,6 +43,7 @@ export function evidenceDeps(src, opts = {}, d = {}) {
       const k = src.ref.startsWith("coded:") ? src.ref.split(":")[1] : src.ref.split(":")[0]; return [d.projectLayers?.[k], ...holes];
     }
     case "zone": return [d.projectLayers?.[src.ref.slice(0, src.ref.indexOf(":"))], ...holes];
+    case "drilled": return holes; // #1456 — the traces only
     default: return [d.rasters, d.mapLayers, d.surfaceSamples, d.surfaceElements, d.assays, d.assayElements, d.voxelModels, d.geophysPts, d.structurePicks, d.projectLayers, d.customLayers, ...holes];
   }
 }

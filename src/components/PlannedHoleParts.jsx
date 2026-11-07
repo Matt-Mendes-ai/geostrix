@@ -73,7 +73,8 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
   useEffect(() => {
     if (!presetTarget || presetTarget === lastPreset.current) return;
     lastPreset.current = presetTarget;
-    setTarget({ x: Math.round(presetTarget.x * 10) / 10, y: Math.round(presetTarget.y * 10) / 10, z: Math.round(presetTarget.z * 10) / 10 });
+    const r = (v) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : ""); // #1456 — an overlay's place has no elevation: left blank to type
+    setTarget({ x: r(presetTarget.x), y: r(presetTarget.y), z: r(presetTarget.z) });
   }, [presetTarget]);
   const set = (k, v) => setDraft((p) => ({ ...p, [k]: v }));
   const lastAppliedPick = useRef(null);

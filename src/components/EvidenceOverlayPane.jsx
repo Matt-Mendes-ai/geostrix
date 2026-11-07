@@ -9,9 +9,10 @@ import { useStore } from "../lib/store.jsx";
 import { pickDefaultReachM, medianSiteSpacing } from "../lib/evidenceSources.js"; // TASKS.csv #1179; #1451
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1449 / #1450
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
+import { topCells } from "../lib/evidence.js"; // TASKS.csv #1456
 import { evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
 import { cachedEvidence, evidenceDeps, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457, #1560
-import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, structureCodes, structureParts, rasterFloorZ, elementsWithValues, numericLayerFields, layerFieldPoints, zoneCodes, zoneParts } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
+import { DRILL_REACH_M, surveyNames, surveyPoints, reachFromSpacing, reachFromNeighbours, voxelColumnEvidence, voxelZRange, holeTraces, holeGradePoints, structureCodes, structureParts, drilledParts /* #1456 */, rasterFloorZ, elementsWithValues, numericLayerFields, layerFieldPoints, zoneCodes, zoneParts } from "../lib/evidenceSources.js"; // numericLayerFields, layerFieldPoints, zoneCodes, zoneParts: TASKS.csv #1728 // TASKS.csv #1154; elementsWithValues: #1723
 import { categoricalModels } from "../lib/geologyForward.js";
 import { PATHFINDER_PRESETS } from "../lib/anomalyMap.js";
 import { valueIn } from "../lib/geochem.js";
@@ -31,7 +32,7 @@ const numText = (v) => (Number.isFinite(v) ? String(+v.toPrecision(3)) : ""); //
 let nextId = 1;
 const DRILL_KINDS = new Set(["grade", "pxrf", "pick", "numeric", "zone"]); // TASKS.csv #1458 — evidence projected up from the holes
 
-export default function EvidenceOverlayPane({ onClose }) {
+export default function EvidenceOverlayPane({ onClose, onPlanTo = null }) { // onPlanTo: #1456
   const { rasters = [], mapLayers = [], surfaceSamples = [], surfaceElements = [], terrain, collars = [], survey = [], assays = [], assayElements = [], layers: projectLayers, customLayers = [], voxelModels = [], project, addRaster, updateRaster, updateVoxelModel, evidenceOverlay, setEvidenceOverlay, geophysSurveys = {} } = useStore();
   const units = useMemo(() => Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit])), [surfaceElements]);
   const assayUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
@@ -142,6 +143,7 @@ export default function EvidenceOverlayPane({ onClose }) {
     if (traces.size) labElements.forEach((e) => out.push({ key: `grade:${e.symbol}`, label: tr("Drillholes: {sym} grade along the holes", { sym: e.symbol }), kind: "grade", ref: e.symbol })); // #1723: lab assays only
     if (traces.size) pxrfElements.forEach((e) => out.push({ key: `pxrf:${e.symbol}`, label: tr("Drillholes: {sym} pXRF along the holes (screening readings, not assays)", { sym: e.symbol }), kind: "pxrf", ref: e.symbol })); // #1723
     structureCodes(structurePicks, traces).forEach((code) => out.push({ key: `pick:${code}`, label: tr("Distance to logged structure: {code}", { code }), kind: "pick", ref: code }));
+    if (traces.size) out.push({ key: "drilled", label: tr("Distance to drilling (hole traces, in plan)"), kind: "drilled", ref: "traces" }); // #1456 — far from every hole = untested
     out.push(...numericLayerSources); // #1728
     out.push(...codedSources); // #1455 / #1728 — distance to a logged code, a mineral's percent
     return out;
@@ -163,6 +165,7 @@ export default function EvidenceOverlayPane({ onClose }) {
     }
     if (src.kind === "voxel") { const m = voxelModels.find((x) => (x.id ?? x.name) === src.ref); return m ? voxelColumnEvidence(grid, m, src.how, { zMin: opts.zMin, zMax: opts.zMax }) : null; } // #1831 — an elevation band
     if (src.kind === "pick") return distanceEvidence(grid, structureParts(structurePicks, src.ref, traces));
+    if (src.kind === "drilled") return distanceEvidence(grid, drilledParts(traces)); // #1456
     if (src.kind === "numeric") { const { rows, field } = numericRowsOf(src.ref); return pointEvidence(grid, layerFieldPoints(rows, field, traces), { maxDistance: opts.reach || DRILL_REACH_M }); } // #1728
     if (src.kind === "zone") { const i = src.ref.indexOf(":"); return distanceEvidence(grid, zoneParts(projectLayers?.[src.ref.slice(0, i)], src.ref.slice(i + 1), traces)); } // #1728 / #1455 — ref = layer:code
     if (src.kind === "survey") { const pts = surveyPoints(geophysPts, src.ref); return pointEvidence(grid, pts, { maxDistance: opts.reach || reachFromSpacing(pts, 4) }); }
@@ -190,6 +193,9 @@ export default function EvidenceOverlayPane({ onClose }) {
     finite.sort(); // TASKS.csv #1281 — one numeric sort of the typed copy, not a comparator sort per quantile (a third of the stall)
     const dec = src.kind === "distance" || src.kind === "pick" || src.kind === "zone", low = dec ? 0 : quantileSorted(finite, 0.1), high = src.kind === "pick" || src.kind === "zone" ? Math.max(3 * Math.max(grid.dx, grid.dy), pickDefaultReachM(quantileSorted(finite, 0.5), (medianSiteSpacing(collars) || 0) / 3)) /* #1451: one site spacing, at least 3 cells */ : dec ? quantileSorted(finite, 0.5) : quantileSorted(finite, 0.9); // #1179
     const log = (src.kind === "grade" || src.kind === "pxrf") && low > 0 && high > low; // #1555: a drill grade ramps on its logarithm (10th -> 90th percentile of a lognormal grade is otherwise flat over most of the holes)
+    // TASKS.csv #1456 — distance to drilling rises with distance: 0 on a trace, full membership from half the spacing between drill sites
+    // (the median, #1451; else the median distance over the grid), at least 3 cells — "untested" is the geologist's to set on the card
+    if (src.kind === "drilled") { const site = medianSiteSpacing(collars); const hi = Math.max(3 * Math.max(grid.dx, grid.dy), site ? site / 2 : quantileSorted(finite, 0.5)); setLayers((L) => [...L, { id: nextId++, ...src, shape: "increasing", low: 0, high: hi, log: false, lowText: "0", highText: numText(hi), field: "", value: "", reach: null, values }]); setResult(null); setMsg(null); return; }
     setLayers((L) => [...L, { id: nextId++, ...src, shape: dec ? "decreasing" : "increasing", low, high, log, lowText: numText(low), highText: numText(high), field: pick.field || "", value: pick.value ?? "", reach: pick.reach || reachOf(src), values }]);
     setResult(null); setMsg(null);
   };
@@ -405,6 +411,7 @@ export default function EvidenceOverlayPane({ onClose }) {
               <button type="button" style={pBtn} onClick={() => toMap("fuzzy")}>{tr("Fuzzy score → map")}</button>
               <button type="button" style={{ ...pBtn, display: "flex", alignItems: "center", gap: 4 }} onClick={() => toTif("fuzzy")}><Download size={12} />GeoTIFF</button>
             </div>
+            <TopPlaces score={result.fuzzy} grid={grid} onPlanTo={onPlanTo} note={note} pBtn={pBtn} /* #1456 */ />
             {result.wofe && (
               <>
                 <div style={{ color: "var(--color-text-secondary)", marginTop: 4 }}>{tr("Weights of evidence: {d} occurrence cells in {n} cells", { d: result.wofe.ND, n: result.wofe.N.toLocaleString() })}</div>
@@ -422,6 +429,7 @@ export default function EvidenceOverlayPane({ onClose }) {
                   <button type="button" style={pBtn} onClick={() => toMap("posterior")}>{tr("Posterior → map")}</button>
                   <button type="button" style={{ ...pBtn, display: "flex", alignItems: "center", gap: 4 }} onClick={() => toTif("posterior")}><Download size={12} />GeoTIFF</button>
                 </div>
+                <TopPlaces score={result.wofe.post.prob} grid={grid} onPlanTo={onPlanTo} note={note} pBtn={pBtn} posterior /* #1456 */ />
               </>
             )}
             {(result.pa || result.paPost) && <PAPlot fuzzy={result.pa} post={result.paPost} />}
@@ -435,6 +443,24 @@ export default function EvidenceOverlayPane({ onClose }) {
 }
 
 // prediction rate and occupied area against the score threshold rank; the P-A point where they cross
+// TASKS.csv #1456 (review #1352, Silvertip) — the overlay's best places as a short list, each one a click from a planned hole: the
+// target's easting / northing go to Planned holes; a plan-view score has no depth, so the target elevation is left for the geologist
+function TopPlaces({ score, grid, onPlanTo, note, pBtn, posterior = false }) {
+  const top = useMemo(() => topCells(score, grid, { n: 5 }), [score, grid]);
+  if (!top.length) return null;
+  return (
+    <div style={{ marginTop: 4 }}>
+      <div style={{ color: "var(--color-text-secondary)" }}>{posterior ? tr("Highest posterior (at least {d} m apart):", { d: Math.round(5 * Math.max(grid.dx, grid.dy)) }) : tr("Highest fuzzy scores (at least {d} m apart):", { d: Math.round(5 * Math.max(grid.dx, grid.dy)) })}</div>
+      {top.map((c, k) => (
+        <div key={k} style={{ ...note, display: "flex", alignItems: "center", gap: 6, color: "var(--color-text-secondary)" }}>
+          <span style={{ flex: 1, minWidth: 0 }}>{tr("{k}. {score} at E {x}, N {y}", { k: k + 1, score: fmt(c.score, 3), x: Math.round(c.x).toLocaleString(), y: Math.round(c.y).toLocaleString() })}</span>
+          {onPlanTo && <button type="button" style={{ ...pBtn, padding: "2px 7px", flexShrink: 0 }} onClick={() => onPlanTo({ x: c.x, y: c.y, z: null })} title={tr("Opens Planned holes with this easting and northing as the target; type the target elevation there (the score is in plan, it has no depth).")}>{tr("Plan a hole to here")}</button>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PAPlot({ fuzzy, post }) {
   const w = 280, h = 150, pl = 28, pr = 8, pt = 8, pb = 20;
   const X = (i, n) => pl + (i / (n - 1)) * (w - pl - pr), Y = (v) => h - pb - v * (h - pb - pt);
