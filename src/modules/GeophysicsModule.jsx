@@ -1005,8 +1005,19 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // surfaces become generic omfObjects (rendered by ViewerModule, visibility/color list below, same
   // pattern as boundaries above); volume elements (tensor-grid block models) convert straight into the
   // existing voxel cell shape and go through addVoxelModel, reusing that renderer rather than a new one.
+  // TASKS.csv #1596 — crop a block model to the drilled area (+ a buffer) before it is coarsened
+  const [omfCrop, setOmfCrop] = useState({ on: false, buffer: "500" });
+  const omfCropBox = () => {
+    if (!omfCrop.on) return null;
+    const b = Math.max(0, Number(omfCrop.buffer) || 0), pts = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y));
+    if (!pts.length) return null;
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const c of pts) { if (c.x < x0) x0 = c.x; if (c.x > x1) x1 = c.x; if (c.y < y0) y0 = c.y; if (c.y > y1) y1 = c.y; }
+    return { x0: x0 - b, x1: x1 + b, y0: y0 - b, y1: y1 + b };
+  };
   const importOmf = async (file, opts = {}) => { // opts: { attribute, volume, volumesOnly } — another attribute of one volume (#1970)
     if (!file) return;
+    { const crop = omfCropBox(); if (crop) opts = { ...opts, crop }; } // #1596
     setOmfError(null);
     setOmfBusy(true);
     try {
@@ -2296,6 +2307,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <TaskPaneHeader title="Open Mining Format (.omf)" icon={RPackage} tone="data" />
         <div className="ge-section-label" style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 5, marginBottom: 10 }}>{tr("Open Mining Format (.omf)")}<InfoButton title={tr("Open Mining Format (.omf)")} text={tr("Import an .omf project — exported from Oasis montaj/Geosoft, Leapfrog, or any other tool that supports the format. A single file can carry point sets, line sets (veins/faults/traces), triangulated surfaces (contacts/wireframes), and block models all together; each is routed to the right renderer automatically. Only OMF v1 is supported so far (the version most exporters, including Oasis montaj/Leapfrog, still actually produce) — v2 files are detected and reported rather than silently mishandled. Grid-based (non-triangulated) surfaces aren't implemented yet.")} />
         </div>
+        {/* TASKS.csv #1596 — keep the native cells where the holes are instead of coarsening the whole district */}
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", marginBottom: 6, flexWrap: "wrap", color: collars.length ? "var(--color-text)" : "var(--color-text-muted)" }}
+          title={tr("A block model larger than the cell budget is coarsened (its blocks merged) to fit. Cropping it first to the drilled area keeps its own cell size there, instead of merged blocks over the whole model.")}>
+          <input type="checkbox" checked={omfCrop.on && collars.length > 0} disabled={!collars.length} onChange={(e) => setOmfCrop((p) => ({ ...p, on: e.target.checked }))} />
+          {tr("Crop block models to the drillholes +")}
+          <input type="number" min="0" step="100" value={omfCrop.buffer} onChange={(e) => setOmfCrop((p) => ({ ...p, buffer: e.target.value }))} style={{ width: 64 }} aria-label={tr("Crop buffer around the drillholes (m)")} disabled={!collars.length} /> m
+        </label>
         <button onClick={() => omfInput.current.click()} style={pBtn} disabled={omfBusy}>
           {omfBusy ? <Loader2 size={14} className="spin" /> : <Box size={14} />} {omfBusy ? tr("Reading…") : tr("Import OMF (.omf)…")}
         </button>

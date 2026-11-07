@@ -356,9 +356,31 @@ function coarsenOmfTensorGrid(tensor_u, tensor_v, tensor_w, values, fu, fv, fw) 
   return { tensor_u: ctu, tensor_v: ctv, tensor_w: ctw, values: coarseValues };
 }
 
-export function omfVolumeToCells(vol, attributeName = null, maxCells = MAX_CELLS) {
-  const { origin, axis_u, axis_v, axis_w, attributes } = vol;
-  let { tensor_u, tensor_v, tensor_w } = vol;
+// TASKS.csv #1596 (review #1497, Lawyers) — a crop BEFORE the coarsening: Lawyers' 2.2 M-cell MVI arrived as 150 x 200 x 50 m blocks over
+// the whole 7.6 x 9.5 km district; cropped to the drilled area plus a buffer it keeps its native 50 x 50 x 25 m cells where the holes are.
+// crop: { x0, x1, y0, y1 } (world), the columns whose centre lies inside are kept. Only for a grid whose u / v axes run east / north
+// (either sign); a rotated grid is not cropped (said in the note). -> { tensor_u, tensor_v, values, origin, kept, of, note }
+export function cropOmfTensorGrid(vol, values, crop) {
+  const { origin, axis_u, axis_v, tensor_u, tensor_v, tensor_w } = vol;
+  const nu = tensor_u.length, nv = tensor_v.length, nw = tensor_w.length;
+  const aligned = Math.abs(Math.abs(axis_u[0]) - 1) < 1e-6 && Math.abs(axis_u[1]) < 1e-6 && Math.abs(axis_v[0]) < 1e-6 && Math.abs(Math.abs(axis_v[1]) - 1) < 1e-6;
+  if (!aligned) return { tensor_u, tensor_v, values, origin, kept: nu * nv * nw, of: nu * nv * nw, note: "rotated" };
+  const centres = (t) => { const out = []; let c = 0; for (const w of t) { out.push(c + w / 2); c += w; } return out; };
+  const range = (offs, o, a, lo, hi) => { let i0 = -1, i1 = -1; offs.forEach((off, i) => { const p = o + a * off; if (p >= lo && p <= hi) { if (i0 < 0) i0 = i; i1 = i; } }); return [i0, i1]; };
+  const [i0, i1] = range(centres(tensor_u), origin[0], axis_u[0], crop.x0, crop.x1);
+  const [j0, j1] = range(centres(tensor_v), origin[1], axis_v[1], crop.y0, crop.y1);
+  if (i0 < 0 || j0 < 0) return { tensor_u: [], tensor_v: [], values: new Float64Array(0), origin, kept: 0, of: nu * nv * nw, note: "outside" };
+  const cu = i1 - i0 + 1, cv = j1 - j0 + 1, out = new Float64Array(cu * cv * nw);
+  let o = 0;
+  for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const base = j * nw + i * nw * nv; for (let k = 0; k < nw; k++) out[o++] = values[base + k]; } // w fastest, then v, then u
+  const su = tensor_u.slice(0, i0).reduce((a, b) => a + b, 0), sv = tensor_v.slice(0, j0).reduce((a, b) => a + b, 0);
+  const newOrigin = [0, 1, 2].map((d) => origin[d] + axis_u[d] * su + axis_v[d] * sv);
+  return { tensor_u: tensor_u.slice(i0, i1 + 1), tensor_v: tensor_v.slice(j0, j1 + 1), values: out, origin: newOrigin, kept: cu * cv * nw, of: nu * nv * nw, note: null };
+}
+
+export function omfVolumeToCells(vol, attributeName = null, maxCells = MAX_CELLS, crop = null) {
+  const { axis_u, axis_v, axis_w, attributes } = vol;
+  let { origin, tensor_u, tensor_v, tensor_w } = vol;
   const numericAttrs = (attributes || []).filter((a) => a.kind === "numeric");
   const attrObj = attributeName ? numericAttrs.find((a) => a.name === attributeName) : numericAttrs[0];
   if (!attrObj) return { cells: [], attrName: null, availableAttrs: numericAttrs.map((a) => a.name), coarsenNote: null };
@@ -367,7 +389,15 @@ export function omfVolumeToCells(vol, attributeName = null, maxCells = MAX_CELLS
   // copy: the parsed attribute stays as read, so choosing it again starts from the file's own values.
   let values = Float64Array.from(attrObj.values);
   const air = maskAirCells(values);
-  let coarsenNote = null, coarsenedFrom = null;
+  let coarsenNote = null, coarsenedFrom = null, cropNote = null;
+  if (crop) { // #1596 — before the coarsening
+    const c = cropOmfTensorGrid({ origin, axis_u, axis_v, tensor_u, tensor_v, tensor_w }, values, crop);
+    if (c.note === "rotated") cropNote = tr("The grid is rotated, so it was not cropped.");
+    else if (c.note === "outside") cropNote = tr("No column of the model lies in the crop area, so nothing was kept.");
+    else cropNote = tr("Cropped to the drilled area: {kept} of {of} cells kept.", { kept: c.kept.toLocaleString(), of: c.of.toLocaleString() });
+    ({ tensor_u, tensor_v, values, origin } = c);
+    if (!tensor_u.length) return { cells: [], attrName: attrObj.name, availableAttrs: numericAttrs.map((a) => a.name), coarsenNote: null, cropNote, colormap: attrObj.colormap || null, air };
+  }
   const rawTotal = tensor_u.length * tensor_v.length * tensor_w.length;
   if (rawTotal > maxCells) {
     const shape = [tensor_u.length, tensor_v.length, tensor_w.length], fine = values; // #1095 — before averaging
@@ -401,7 +431,7 @@ export function omfVolumeToCells(vol, attributeName = null, maxCells = MAX_CELLS
       }
     }
   }
-  return { cells, attrName: attrObj.name, availableAttrs: numericAttrs.map((a) => a.name), coarsenNote, coarsenedFrom, colormap: attrObj.colormap || null, air };
+  return { cells, attrName: attrObj.name, availableAttrs: numericAttrs.map((a) => a.name), coarsenNote, coarsenedFrom, cropNote, colormap: attrObj.colormap || null, air };
 }
 
 export async function parseOMF(arrayBuffer) {

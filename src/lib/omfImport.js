@@ -21,7 +21,7 @@ export function omfToProjectObjectsAsync(arrayBuffer, maxCells, opts = {}) {
 // attribute: the cell attribute to show when a volume carries several (e.g. two inversion iterations); null = the first.
 // TASKS.csv #1970 — choices: each volume with more than one numeric attribute, the one shown and the others, so the pane can
 // offer the rest; volumesOnly: a re-import for another attribute leaves the points, lines and surfaces out (already imported).
-export async function omfToProjectObjects(arrayBuffer, maxCells, { attribute = null, volumesOnly = false, volume = null } = {}) {
+export async function omfToProjectObjects(arrayBuffer, maxCells, { attribute = null, volumesOnly = false, volume = null, crop = null } = {}) { // crop: #1596
   const project = await parseOMF(arrayBuffer);
   const omfObjects = [], voxelModels = [], skipped = [], notes = [], choices = [];
   for (const el of project.elements) {
@@ -34,7 +34,9 @@ export async function omfToProjectObjects(arrayBuffer, maxCells, { attribute = n
     } else if (el.kind === "volume") {
       // #159 — a large real block model is coarsened (block-averaged) to the cell budget so it can't hang the 3D view
       const pick = attribute && (el.attributes || []).some((a) => a.name === attribute) ? attribute : null;
-      const { cells, attrName, availableAttrs, coarsenNote, coarsenedFrom, colormap, air } = omfVolumeToCells(el, pick, maxCells);
+      const { cells, attrName, availableAttrs, coarsenNote, coarsenedFrom, cropNote, colormap, air } = omfVolumeToCells(el, pick, maxCells, crop);
+      if (cropNote) notes.push(`${el.name}: ${cropNote}`); // #1596
+      if (!cells.length && cropNote) continue; // #1596 — cropped away: the note says so
       if (!cells.length) {
         skipped.push(`${el.name} (volume has no numeric cell attribute to render${availableAttrs?.length ? ` — found: ${availableAttrs.join(", ")}, none usable` : ""})`);
         continue;

@@ -9114,5 +9114,11 @@
   "{n} readings inside a model cell the same hole crosses. Spearman rank correlation {r} (the same in any units); Pearson on log10 values {rLog}. Median of the log {a}, of the model {b}, each in its own unit.": "{n} قراءة داخل خلية من النموذج يعبرها الثقب نفسه. ارتباط سبيرمان للرتب {r} (هو نفسه بأي وحدات)؛ بيرسون على log10 {rLog}. وسيط السجل {a}، والنموذج {b}، كلٌّ بوحدته.",
   "The model hardly follows the logged values along the holes (|Spearman| under 0.2): its cells may be too coarse, or it images something the core does not record.": "بالكاد يتبع النموذج القيم المسجلة على امتداد الثقوب (|سبيرمان| أقل من 0.2): قد تكون خلاياه خشنة جداً، أو يصوّر شيئاً لا يسجله اللب.",
   "Fewer than three readings fall inside a cell of this model.": "أقل من ثلاث قراءات تقع داخل خلية من هذا النموذج.",
-  "To compare this log with a block model, evaluate the model onto the holes first (Block models > the model's drillhole icon); it then appears here.": "لمقارنة هذا السجل بنموذج كتل، قيّم النموذج على الثقوب أولاً (نماذج الكتل > أيقونة الثقب للنموذج)؛ ثم يظهر هنا."
+  "To compare this log with a block model, evaluate the model onto the holes first (Block models > the model's drillhole icon); it then appears here.": "لمقارنة هذا السجل بنموذج كتل، قيّم النموذج على الثقوب أولاً (نماذج الكتل > أيقونة الثقب للنموذج)؛ ثم يظهر هنا.",
+  "A block model larger than the cell budget is coarsened (its blocks merged) to fit. Cropping it first to the drilled area keeps its own cell size there, instead of merged blocks over the whole model.": "يُخشَّن نموذج الكتل الأكبر من ميزانية الخلايا (تُدمج كتله) ليتسع. قصّه أولاً إلى المنطقة المحفورة يبقي حجم خلاياه الأصلي هناك بدلاً من كتل مدمجة في النموذج كله.",
+  "Crop block models to the drillholes +": "قصّ نماذج الكتل إلى الثقوب +",
+  "Crop buffer around the drillholes (m)": "هامش القص حول الثقوب (م)",
+  "The grid is rotated, so it was not cropped.": "الشبكة مُدارة، لذا لم تُقص.",
+  "No column of the model lies in the crop area, so nothing was kept.": "لا يقع أي عمود من النموذج في منطقة القص، لذا لم يُحتفظ بشيء.",
+  "Cropped to the drilled area: {kept} of {of} cells kept.": "قُص إلى المنطقة المحفورة: احتُفظ بـ {kept} من {of} خلية."
 }
