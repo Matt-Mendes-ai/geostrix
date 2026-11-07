@@ -4,14 +4,14 @@
 // Distance-to-drilling, picked points and zones have ends set from the site spacing, not from these values: null (left as they are).
 import { quantileSorted } from "./arrayStats.js";
 
-export const RESETTABLE_KINDS = new Set(["element", "index", "survey", "grade", "pxrf", "numeric", "voxel", "raster", "distance"]);
+export const RESETTABLE_KINDS = new Set(["element", "index", "survey", "grade", "pxrf", "numeric", "voxel", "raster", "distance", "solid"]);
 // kind, values (any array, NaN = no value) -> { low, high, log } or null
 export function defaultEvidenceEnds(kind, values) {
   if (!RESETTABLE_KINDS.has(kind)) return null;
   const finite = Float64Array.from((values || []).filter(Number.isFinite));
   if (!finite.length) return null;
   finite.sort();
-  if (kind === "distance") return { low: 0, high: quantileSorted(finite, 0.5), log: false };
+  if (kind === "distance" || kind === "solid") return { low: 0, high: quantileSorted(finite, 0.5), log: false };
   const low = quantileSorted(finite, 0.1), high = quantileSorted(finite, 0.9);
   return { low, high, log: (kind === "grade" || kind === "pxrf") && low > 0 && high > low };
 }

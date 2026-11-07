@@ -9086,5 +9086,7 @@
   "Points the other way: the occurrences sit where this evidence is LOW (C/s {s}), but the card scores it favourable when high, so the fuzzy score counts it against them.": "تشير في الاتجاه المعاكس: تقع المكامن حيث يكون هذا الدليل منخفضاً (C/s {s})، لكن البطاقة تعدّه مواتياً عند الارتفاع، فتحسبه الدرجة الضبابية ضدها.",
   "Weak either way (|C/s| under 2).": "ضعيف في الاتجاهين (|C/s| أقل من 2).",
   "Make it favourable when high": "اجعله مواتياً عند الارتفاع",
-  "Make it favourable when low": "اجعله مواتياً عند الانخفاض"
+  "Make it favourable when low": "اجعله مواتياً عند الانخفاض",
+  "Distance in plan to the body: {name}": "المسافة في المسقط إلى الجسم: {name}",
+  "{n} raster(s) are pictures without values ({names}): a colour image has no numbers to score. Import the data grid (a single-band GeoTIFF, .grd or .gxf) to use it as evidence.": "{n} من النقوش النقطية صور بلا قيم ({names}): الصورة الملوّنة لا أرقام فيها للتقييم. استورد شبكة البيانات (GeoTIFF أحادي النطاق أو .grd أو .gxf) لاستخدامها دليلاً."
 }

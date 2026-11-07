@@ -41,7 +41,7 @@ test("wired: the source, its rising default, the lists and the plan hand-over wi
   assert.match(p, /<TopPlaces score=\{result\.wofe\.post\.prob\}/);
   assert.match(p, /onPlanTo\(\{ x: c\.x, y: c\.y, z: null \}\)/);
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.match(v, /<EvidenceOverlayPane onClose=\{\(\) => setToolPane\(null\)\} onPlanTo=/);
+  assert.match(v, /<EvidenceOverlayPane solids=\{implicitSurfaces\} solidMesh=\{[^}]*\} \/\* #1567 \*\/ onClose=\{\(\) => setToolPane\(null\)\} onPlanTo=/);
   const f = readFileSync(new URL("../src/components/PlannedHoleParts.jsx", import.meta.url), "utf8");
   assert.match(f, /Number\.isFinite\(v\) \? Math\.round\(v \* 10\) \/ 10 : ""/);
 });

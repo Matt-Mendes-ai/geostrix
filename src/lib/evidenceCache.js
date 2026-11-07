@@ -44,6 +44,7 @@ export function evidenceDeps(src, opts = {}, d = {}) {
     }
     case "zone": return [d.projectLayers?.[src.ref.slice(0, src.ref.indexOf(":"))], ...holes];
     case "drilled": return holes; // #1456 — the traces only
+    case "solid": { const s = (d.solids || []).find((x) => x.id === src.ref); return [s, s?.faceCount, s?.vertexCount]; } // #1567 — a rebuilt body is a new entry
     default: return [d.rasters, d.mapLayers, d.surfaceSamples, d.surfaceElements, d.assays, d.assayElements, d.voxelModels, d.geophysPts, d.structurePicks, d.projectLayers, d.customLayers, ...holes];
   }
 }

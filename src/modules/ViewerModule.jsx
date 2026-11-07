@@ -8392,7 +8392,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
 
         </>)}
         {toolPane === "overlay" && ( // TASKS.csv #851
-          <Suspense fallback={null}><EvidenceOverlayPane onClose={() => setToolPane(null)} onPlanTo={(c) => { setPlanTarget({ x: c.x, y: c.y, z: c.z }); setToolPane("plan"); }} /* #1456 */ /></Suspense>
+          <Suspense fallback={null}><EvidenceOverlayPane solids={implicitSurfaces} solidMesh={(id) => sceneVertsToWorldFlat(implicitMeshesRef.current[id]?.geometry, originRef.current)} /* #1567 */ onClose={() => setToolPane(null)} onPlanTo={(c) => { setPlanTarget({ x: c.x, y: c.y, z: c.z }); setToolPane("plan"); }} /* #1456 */ /></Suspense>
         )}
         {toolPane === "undrilled" && ( // TASKS.csv #1139
           <Suspense fallback={null}><UndrilledZonesPane solids={closedShellsForEstimation()} onAdd={addUndrilledSolid} onClose={() => setToolPane(null)} onPlanTo={(c) => { setPlanTarget({ x: c.x, y: c.y, z: c.z }); setToolPane("plan"); }} /* #1456 */ /></Suspense>

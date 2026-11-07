@@ -33,7 +33,9 @@ const numText = (v) => (Number.isFinite(v) ? String(+v.toPrecision(3)) : ""); //
 let nextId = 1;
 const DRILL_KINDS = new Set(["grade", "pxrf", "pick", "numeric", "zone"]); // TASKS.csv #1458 — evidence projected up from the holes
 
-export default function EvidenceOverlayPane({ onClose, onPlanTo = null }) { // onPlanTo: #1456
+import { SOLID_SURFACE_TYPES } from "../lib/viewer/modelHelpers.js"; // TASKS.csv #1567
+import { solidFootprintEvidence } from "../lib/evidence.js"; // TASKS.csv #1567
+export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids = [], solidMesh = null }) { // onPlanTo: #1456; solids, solidMesh: #1567
   const { rasters = [], mapLayers = [], surfaceSamples = [], surfaceElements = [], terrain, collars = [], survey = [], assays = [], assayElements = [], layers: projectLayers, customLayers = [], voxelModels = [], project, addRaster, updateRaster, updateVoxelModel, evidenceOverlay, setEvidenceOverlay, geophysSurveys = {} } = useStore();
   const units = useMemo(() => Object.fromEntries(surfaceElements.map((e) => [e.symbol, e.unit])), [surfaceElements]);
   const assayUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
@@ -145,15 +147,19 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null }) { // o
     if (traces.size) pxrfElements.forEach((e) => out.push({ key: `pxrf:${e.symbol}`, label: tr("Drillholes: {sym} pXRF along the holes (screening readings, not assays)", { sym: e.symbol }), kind: "pxrf", ref: e.symbol })); // #1723
     structureCodes(structurePicks, traces).forEach((code) => out.push({ key: `pick:${code}`, label: tr("Distance to logged structure: {code}", { code }), kind: "pick", ref: code }));
     if (traces.size) out.push({ key: "drilled", label: tr("Distance to drilling (hole traces, in plan)"), kind: "drilled", ref: "traces" }); // #1456 — far from every hole = untested
+    // #1567 — a modelled body (grade shell, envelope, imported isosurface): the distance in plan to its footprint
+    if (solidMesh) (solids || []).filter((s) => SOLID_SURFACE_TYPES.has(s.type)).forEach((s) => out.push({ key: `solid:${s.id}`, label: tr("Distance in plan to the body: {name}", { name: s.name }), kind: "solid", ref: s.id }));
     out.push(...numericLayerSources); // #1728
     out.push(...codedSources); // #1455 / #1728 — distance to a logged code, a mineral's percent
     return out;
-  }, [valueRasters, mapLayers, surfaceElements, geophysPts, voxelModels, traces, labElements, pxrfElements, structurePicks, numericLayerSources, codedSources]);
+  }, [valueRasters, mapLayers, surfaceElements, geophysPts, voxelModels, traces, labElements, pxrfElements, structurePicks, numericLayerSources, codedSources, solids, solidMesh]);
+  // #1567 — rasters that are pictures (RGB, no values) cannot be evidence: said, so three geophysics maps on screen and none in the list is explained
+  const pictureRasters = useMemo(() => rasters.filter((r) => !r.grid && !isOverlayOutput(r)), [rasters]);
 
   // #1457 — through the cache: a reopened pane, or the same layer added again, reuses values computed from the same grid and data
   const computeValues = (src, opts = {}) => (grid ? cachedEvidence(
     `${gridSignature(grid)}|${src.kind}|${src.ref}|${src.how || ""}|${opts.field || ""}|${opts.value ?? ""}|${opts.reach || ""}|${opts.zMin ?? ""}|${opts.zMax ?? ""}`,
-    evidenceDeps(src, opts, { rasters, mapLayers, surfaceSamples, surfaceElements, collars, survey, desurveyMethod: project?.desurveyMethod, assays, assayElements, voxelModels, geophysPts, structurePicks, projectLayers, customLayers }), // #1560: only what this source reads
+    evidenceDeps(src, opts, { rasters, mapLayers, surfaceSamples, surfaceElements, collars, survey, desurveyMethod: project?.desurveyMethod, assays, assayElements, voxelModels, geophysPts, structurePicks, projectLayers, customLayers, solids }), // #1560: only what this source reads
     () => computeValuesNow(src, opts),
   ) : null);
   const computeValuesNow = (src, opts = {}) => {
@@ -167,6 +173,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null }) { // o
     if (src.kind === "voxel") { const m = voxelModels.find((x) => (x.id ?? x.name) === src.ref); return m ? voxelColumnEvidence(grid, m, src.how, { zMin: opts.zMin, zMax: opts.zMax }) : null; } // #1831 — an elevation band
     if (src.kind === "pick") return distanceEvidence(grid, structureParts(structurePicks, src.ref, traces));
     if (src.kind === "drilled") return distanceEvidence(grid, drilledParts(traces)); // #1456
+    if (src.kind === "solid") { const m = solidMesh?.(src.ref); return m?.vertices?.length ? solidFootprintEvidence(grid, m.vertices, m.indices) : null; } // #1567
     if (src.kind === "numeric") { const { rows, field } = numericRowsOf(src.ref); return pointEvidence(grid, layerFieldPoints(rows, field, traces), { maxDistance: opts.reach || DRILL_REACH_M }); } // #1728
     if (src.kind === "zone") { const i = src.ref.indexOf(":"); return distanceEvidence(grid, zoneParts(projectLayers?.[src.ref.slice(0, i)], src.ref.slice(i + 1), traces)); } // #1728 / #1455 — ref = layer:code
     if (src.kind === "survey") { const pts = surveyPoints(geophysPts, src.ref); return pointEvidence(grid, pts, { maxDistance: opts.reach || reachFromSpacing(pts, 4) }); }
@@ -192,7 +199,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null }) { // o
     const finite = values.filter(Number.isFinite);
     if (!finite.length) { setMsg(tr("\"{name}\" has no values over the grid.", { name: src.label })); return; }
     finite.sort(); // TASKS.csv #1281 — one numeric sort of the typed copy, not a comparator sort per quantile (a third of the stall)
-    const dec = src.kind === "distance" || src.kind === "pick" || src.kind === "zone", low = dec ? 0 : quantileSorted(finite, 0.1), high = src.kind === "pick" || src.kind === "zone" ? Math.max(3 * Math.max(grid.dx, grid.dy), pickDefaultReachM(quantileSorted(finite, 0.5), (medianSiteSpacing(collars) || 0) / 3)) /* #1451: one site spacing, at least 3 cells */ : dec ? quantileSorted(finite, 0.5) : quantileSorted(finite, 0.9); // #1179
+    const dec = src.kind === "distance" || src.kind === "solid" /* #1567 */ || src.kind === "pick" || src.kind === "zone", low = dec ? 0 : quantileSorted(finite, 0.1), high = src.kind === "pick" || src.kind === "zone" ? Math.max(3 * Math.max(grid.dx, grid.dy), pickDefaultReachM(quantileSorted(finite, 0.5), (medianSiteSpacing(collars) || 0) / 3)) /* #1451: one site spacing, at least 3 cells */ : dec ? quantileSorted(finite, 0.5) : quantileSorted(finite, 0.9); // #1179
     const log = (src.kind === "grade" || src.kind === "pxrf") && low > 0 && high > low; // #1555: a drill grade ramps on its logarithm (10th -> 90th percentile of a lognormal grade is otherwise flat over most of the holes)
     // TASKS.csv #1456 — distance to drilling rises with distance: 0 on a trace, full membership from half the spacing between drill sites
     // (the median, #1451; else the median distance over the grid), at least 3 cells — "untested" is the geologist's to set on the card
@@ -349,6 +356,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null }) { // o
           <option value="">{tr("+ add evidence…")}</option>
           {sources.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
         </select>
+        {pictureRasters.length > 0 && <div style={note}>{tr("{n} raster(s) are pictures without values ({names}): a colour image has no numbers to score. Import the data grid (a single-band GeoTIFF, .grd or .gxf) to use it as evidence.", { n: pictureRasters.length, names: pictureRasters.slice(0, 3).map((r) => r.name).join(", ") + (pictureRasters.length > 3 ? ", …" : "") })}</div>}{/* #1567 */}
         {grid && !sources.length && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("Nothing in this project can be used as evidence yet. Evidence comes from a raster with values, a map layer, surface samples, a geophysics survey, a block model, assays or logged structures.")}</div>}
         {layers.map((l) => (
           <div key={l.id} style={{ border: "1px solid var(--color-border)", borderRadius: 6, padding: 6, display: "flex", flexDirection: "column", gap: 4 }}>

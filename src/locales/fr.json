@@ -9086,5 +9086,7 @@
   "Points the other way: the occurrences sit where this evidence is LOW (C/s {s}), but the card scores it favourable when high, so the fuzzy score counts it against them.": "Va dans l'autre sens : les occurrences se trouvent là où cette évidence est FAIBLE (C/s {s}), mais la fiche la note favorable quand élevée, donc le score flou la compte contre elles.",
   "Weak either way (|C/s| under 2).": "Faible dans un sens comme dans l'autre (|C/s| sous 2).",
   "Make it favourable when high": "La rendre favorable quand élevée",
-  "Make it favourable when low": "La rendre favorable quand faible"
+  "Make it favourable when low": "La rendre favorable quand faible",
+  "Distance in plan to the body: {name}": "Distance en plan au corps : {name}",
+  "{n} raster(s) are pictures without values ({names}): a colour image has no numbers to score. Import the data grid (a single-band GeoTIFF, .grd or .gxf) to use it as evidence.": "{n} raster(s) sont des images sans valeurs ({names}) : une image en couleur n'a pas de nombres à noter. Importez la grille de données (un GeoTIFF à une bande, .grd ou .gxf) pour l'utiliser comme évidence."
 }

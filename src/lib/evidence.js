@@ -87,6 +87,33 @@ export function distanceEvidence(g, parts) {
   if (!hit.some((h) => h)) return new Float32Array(n).fill(NaN);
   return squaredDistanceTransform(hit, g.nx, g.ny, g.dx, g.dy).map((d2) => Math.sqrt(d2));
 }
+// TASKS.csv #1567 (review #1497, Lawyers) — a modelled body (a grade shell, an envelope, an imported resistivity isosurface) as evidence:
+// the distance in plan from each cell to the body's footprint, 0 over it. Every triangle is laid flat and the cells whose centres it
+// covers are marked (and its corners, so a sliver narrower than a cell still marks one); then the same distance transform as a line.
+// positions: flat world [x, y, z, ...]; indices: triangle corners.
+export function solidFootprintEvidence(g, positions, indices) {
+  const n = g.nx * g.ny, hit = new Uint8Array(n);
+  const col = (x) => (x - g.x0) / g.dx, row = (y) => (g.yTop - y) / g.dy; // fractional cell index of a world point (cell centres at integers)
+  const mark = (i, j) => { if (i >= 0 && j >= 0 && i < g.nx && j < g.ny) hit[j * g.nx + i] = 1; };
+  const T = Math.floor((indices?.length || 0) / 3);
+  for (let t = 0; t < T; t++) {
+    const a = indices[3 * t] * 3, b = indices[3 * t + 1] * 3, c = indices[3 * t + 2] * 3;
+    const ax = col(positions[a]), ay = row(positions[a + 1]), bx = col(positions[b]), by = row(positions[b + 1]), cx = col(positions[c]), cy = row(positions[c + 1]);
+    if (![ax, ay, bx, by, cx, cy].every(Number.isFinite)) continue;
+    mark(Math.round(ax), Math.round(ay)); mark(Math.round(bx), Math.round(by)); mark(Math.round(cx), Math.round(cy));
+    const d = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+    if (Math.abs(d) < 1e-12) continue; // seen edge-on from above (a vertical wall): its corners are enough
+    const i0 = Math.max(0, Math.ceil(Math.min(ax, bx, cx))), i1 = Math.min(g.nx - 1, Math.floor(Math.max(ax, bx, cx)));
+    const j0 = Math.max(0, Math.ceil(Math.min(ay, by, cy))), j1 = Math.min(g.ny - 1, Math.floor(Math.max(ay, by, cy)));
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const w1 = ((bx - i) * (cy - j) - (by - j) * (cx - i)) / d, w2 = ((cx - i) * (ay - j) - (cy - j) * (ax - i)) / d, w3 = 1 - w1 - w2;
+      if (w1 >= -1e-9 && w2 >= -1e-9 && w3 >= -1e-9) hit[j * g.nx + i] = 1;
+    }
+  }
+  if (!hit.some((h) => h)) return new Float32Array(n).fill(NaN);
+  return squaredDistanceTransform(hit, g.nx, g.ny, g.dx, g.dy).map((d2) => Math.sqrt(d2));
+}
+
 // f = 0 on marked cells, +inf elsewhere; 1-D lower envelope of parabolas along rows (spacing dx) then columns (dy)
 export function squaredDistanceTransform(hit, nx, ny, dx, dy) {
   const INF = 1e30, f = new Float64Array(nx * ny);
