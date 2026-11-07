@@ -2526,7 +2526,13 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const VOXEL_SORT_INTERVAL_MS = 150;
     let lastVoxelSortAt = 0;
     const lastVoxelSortCamPos = new THREE.Vector3(NaN, NaN, NaN);
+    const voxelCamPrev = new THREE.Vector3(NaN, NaN, NaN);
+    let voxelCamMovedAt = 0;
     const resortTransparentVoxels = (now) => {
+      // TASKS.csv #1814 (review #1646, Kodiak) — sorted once the camera has stopped, not every 150 ms of an orbit: each sort rewrites and
+      // re-uploads every instance (76k blocks: ~5 MB), which stalled orbits 60-143 ms on Iris Xe. Mid-orbit the last order is drawn.
+      if (camera.position.distanceToSquared(voxelCamPrev) > 1e-8 || voxelCamPrev.x !== voxelCamPrev.x) { voxelCamMovedAt = now; voxelCamPrev.copy(camera.position); }
+      if (now - voxelCamMovedAt < VOXEL_SORT_INTERVAL_MS) return;
       if (now - lastVoxelSortAt < VOXEL_SORT_INTERVAL_MS) return;
       if (camera.position.distanceToSquared(lastVoxelSortCamPos) < 0.01) return; // camera hasn't moved meaningfully since the last sort
       let didWork = false;
