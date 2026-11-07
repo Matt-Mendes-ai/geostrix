@@ -9044,5 +9044,12 @@
   "Minimum dip for the rose": "أدنى ميل للوردة",
   "These samples' coordinates need the project's coordinate system: choose the one they are in.": "تحتاج إحداثيات هذه العينات إلى نظام إحداثيات المشروع: اختر النظام الذي كُتبت به.",
   "Import a geology map (Geology map) or draw its units (Unit polygons) first: Model it builds from map polygons with a unit field": "استورد أولًا خريطة جيولوجية (الخريطة الجيولوجية) أو ارسم وحداتها (مضلعات الوحدات): تبني «نمذجته» على مضلعات خريطة بحقل وحدة",
-  "Import a geological map (polygons with a unit attribute) in the Surface Geology tab first, or draw its units there (Unit polygons): the {n} outcrop measurement(s) are already loaded.": "استورد أولًا خريطة جيولوجية (مضلعات بسمة وحدة) في تبويب جيولوجيا السطح، أو ارسم وحداتها هناك (مضلعات الوحدات): القياسات الحقلية البالغة {n} محمّلة بالفعل."
+  "Import a geological map (polygons with a unit attribute) in the Surface Geology tab first, or draw its units there (Unit polygons): the {n} outcrop measurement(s) are already loaded.": "استورد أولًا خريطة جيولوجية (مضلعات بسمة وحدة) في تبويب جيولوجيا السطح، أو ارسم وحداتها هناك (مضلعات الوحدات): القياسات الحقلية البالغة {n} محمّلة بالفعل.",
+  "What an inversion needs": "ما يحتاجه القلب",
+  "Survey: {n} reading(s) loaded.": "المسح: {n} قراءة محمّلة.",
+  "Survey: none yet (Geophysics › Point survey: x, y, z and the value per station).": "المسح: لا يوجد بعد (الجيوفيزياء › مسح نقطي: x وy وz والقيمة لكل محطة).",
+  "Terrain: {name}.": "التضاريس: {name}.",
+  "loaded": "محمّلة",
+  "Terrain: none yet. An inversion needs one to know which cells are underground: fetch one, import a DEM, or make one from this project's samples and collars.": "التضاريس: لا توجد بعد. يحتاجها القلب ليعرف أي الخلايا تحت الأرض: اجلب واحدة، أو استورد نموذج ارتفاع رقمي، أو أنشئ واحدة من عينات هذا المشروع وفوهات ثقوبه.",
+  "Go to Maps › Terrain": "انتقل إلى الخرائط › التضاريس"
 }

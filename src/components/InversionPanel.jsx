@@ -36,6 +36,7 @@ import { SURVEY_METHODS, methodIsInvertible } from "../lib/geophysSurveys.js"; /
 import { terrainFromSurveyElevations } from "../lib/terrainFromPoints.js"; // TASKS.csv #1589
 import { defaultPlannedExtent, generatePlannedStations, DEFAULT_PLANNED } from "../lib/plannedGrid.js"; // TASKS.csv #1710
 import { replaceSurveyPoints, SURVEY_METHODS as SM } from "../lib/geophysSurveys.js"; // TASKS.csv #1710 — the predicted anomaly as a survey
+import { requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #1429
 
 const METHODS = {
   mag: { label: "Magnetics (TMI)", unit: "nT", confirm: "These values are the total magnetic field in nT as measured (not RTP, not a derivative): either the anomaly, with the IGRF / regional field removed in processing, or the raw total field over an area small enough that its regional field is a plane, which Remove base level > Best-fit plane takes out. GeoStrix does not remove the IGRF itself.", property: "susceptibility (SI)", contrastLabel: "Susceptibility (SI)" },
@@ -45,7 +46,7 @@ const METHODS = {
 const num = (v) => (v === "" || v == null ? NaN : Number(v));
 
 export default function InversionPanel({ pBtn, numInput, inPane = false, resultSlot = null }) { // inPane: TASKS.csv #458
-  const { layers, terrain, project, surfaceStructures, getProjectToken, addVoxelModelToTab, collars, survey: drillSurvey, desurveyMethod, geophysSurveys, voxelModels, addTerrain } = useStore(); // addTerrain: #1589
+  const { layers, terrain, project, surfaceStructures, getProjectToken, addVoxelModelToTab, collars, survey: drillSurvey, desurveyMethod, geophysSurveys, voxelModels, addTerrain, goToModule } = useStore(); // goToModule: #1429 // addTerrain: #1589
   const keptScope = scopeOf(getProjectToken()); // TASKS.csv #1284 — survives a tab switch
   const setTaskProgress = useSetTaskProgress();
   // TASKS.csv #364 — every imported point file lands in the one geophys_pts layer, so a mag survey and a
@@ -439,6 +440,16 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
           {engine === null && <div style={small}>{tr("Starting the Python engine…")}</div>}
           {engine && !engine.ok && <div style={small}>{tr("Needs GeoStrix's Python engine, which could not be started (status bar: Py). The desktop app starts it when a feature needs it; if it never comes up, click \"Py\" in the status bar for what to check.")}</div>}
           {engine && engine.ok && !engine.available && <div style={small}>{tr("The running Python engine has no SimPEG — update GeoStrix to a version that includes it.")}</div>}
+          {/* TASKS.csv #1429 (review #1352, Silvertip) — what an inversion needs, up front: the terrain was found missing only after Estimate */}
+          {engine?.available && (
+            <div aria-label={tr("What an inversion needs")} style={{ ...small, border: "1px solid var(--color-border)", borderRadius: 5, padding: "5px 7px", marginBottom: 6, display: "flex", flexDirection: "column", gap: 3 }}>
+              <div>{allRows.length ? "✓ " + tr("Survey: {n} reading(s) loaded.", { n: allRows.length.toLocaleString() }) : "○ " + tr("Survey: none yet (Geophysics › Point survey: x, y, z and the value per station).")}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                <span>{terrain ? "✓ " + tr("Terrain: {name}.", { name: terrain.name || tr("loaded") }) : "○ " + tr("Terrain: none yet. An inversion needs one to know which cells are underground: fetch one, import a DEM, or make one from this project's samples and collars.")}</span>
+                {!terrain && <button type="button" onClick={() => { goToModule("maps"); requestModuleAction("maps-terrain"); }} style={{ ...pBtn, width: "auto", padding: "2px 8px", margin: 0 }}>{tr("Go to Maps › Terrain")}</button>}
+              </div>
+            </div>
+          )}
           {engine?.available && !allRows.length && !planned.on && <div style={small}>{/* TASKS.csv #1710 — what the pane can do, not one line pointing elsewhere */}
             <div>{tr("No survey loaded. With a magnetic or gravity survey (Geophysics › Point survey: x, y, z and the measured value per station) you can:")}</div>
             <ul style={{ margin: "4px 0 4px 16px", padding: 0 }}>

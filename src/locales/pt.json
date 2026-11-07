@@ -9044,5 +9044,12 @@
   "Minimum dip for the rose": "Mergulho mínimo para a roseta",
   "These samples' coordinates need the project's coordinate system: choose the one they are in.": "As coordenadas destas amostras precisam do sistema de coordenadas do projeto: escolha o que elas usam.",
   "Import a geology map (Geology map) or draw its units (Unit polygons) first: Model it builds from map polygons with a unit field": "Primeiro importe um mapa geológico (Mapa geológico) ou desenhe suas unidades (Polígonos de unidades): Modelar parte de polígonos do mapa com um campo de unidade",
-  "Import a geological map (polygons with a unit attribute) in the Surface Geology tab first, or draw its units there (Unit polygons): the {n} outcrop measurement(s) are already loaded.": "Primeiro importe um mapa geológico (polígonos com um atributo de unidade) na aba Geologia de superfície, ou desenhe lá suas unidades (Polígonos de unidades): as {n} medições de afloramento já estão carregadas."
+  "Import a geological map (polygons with a unit attribute) in the Surface Geology tab first, or draw its units there (Unit polygons): the {n} outcrop measurement(s) are already loaded.": "Primeiro importe um mapa geológico (polígonos com um atributo de unidade) na aba Geologia de superfície, ou desenhe lá suas unidades (Polígonos de unidades): as {n} medições de afloramento já estão carregadas.",
+  "What an inversion needs": "O que uma inversão precisa",
+  "Survey: {n} reading(s) loaded.": "Levantamento: {n} leitura(s) carregada(s).",
+  "Survey: none yet (Geophysics › Point survey: x, y, z and the value per station).": "Levantamento: nenhum ainda (Geofísica › Levantamento pontual: x, y, z e o valor por estação).",
+  "Terrain: {name}.": "Terreno: {name}.",
+  "loaded": "carregado",
+  "Terrain: none yet. An inversion needs one to know which cells are underground: fetch one, import a DEM, or make one from this project's samples and collars.": "Terreno: nenhum ainda. Uma inversão precisa dele para saber quais células estão no subsolo: obtenha um, importe um MDE ou crie um a partir das amostras e bocas de furo deste projeto.",
+  "Go to Maps › Terrain": "Ir para Mapas › Terreno"
 }

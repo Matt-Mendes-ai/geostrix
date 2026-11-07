@@ -9044,5 +9044,12 @@
   "Minimum dip for the rose": "Pendage minimal pour la rosace",
   "These samples' coordinates need the project's coordinate system: choose the one they are in.": "Les coordonnées de ces échantillons ont besoin du système de coordonnées du projet : choisissez celui dans lequel elles sont.",
   "Import a geology map (Geology map) or draw its units (Unit polygons) first: Model it builds from map polygons with a unit field": "Importez d'abord une carte géologique (Carte géologique) ou dessinez ses unités (Polygones d'unités) : Modéliser part de polygones de carte avec un champ d'unité",
-  "Import a geological map (polygons with a unit attribute) in the Surface Geology tab first, or draw its units there (Unit polygons): the {n} outcrop measurement(s) are already loaded.": "Importez d'abord une carte géologique (polygones avec un attribut d'unité) dans l'onglet Géologie de surface, ou dessinez-y ses unités (Polygones d'unités) : les {n} mesures d'affleurement sont déjà chargées."
+  "Import a geological map (polygons with a unit attribute) in the Surface Geology tab first, or draw its units there (Unit polygons): the {n} outcrop measurement(s) are already loaded.": "Importez d'abord une carte géologique (polygones avec un attribut d'unité) dans l'onglet Géologie de surface, ou dessinez-y ses unités (Polygones d'unités) : les {n} mesures d'affleurement sont déjà chargées.",
+  "What an inversion needs": "Ce qu'il faut pour une inversion",
+  "Survey: {n} reading(s) loaded.": "Levé : {n} lecture(s) chargée(s).",
+  "Survey: none yet (Geophysics › Point survey: x, y, z and the value per station).": "Levé : aucun pour l'instant (Géophysique › Levé ponctuel : x, y, z et la valeur par station).",
+  "Terrain: {name}.": "Terrain : {name}.",
+  "loaded": "chargé",
+  "Terrain: none yet. An inversion needs one to know which cells are underground: fetch one, import a DEM, or make one from this project's samples and collars.": "Terrain : aucun pour l'instant. Une inversion en a besoin pour savoir quelles cellules sont sous terre : récupérez-en un, importez un MNT ou créez-en un à partir des échantillons et collets de ce projet.",
+  "Go to Maps › Terrain": "Aller à Cartes › Terrain"
 }

@@ -25,6 +25,7 @@ export default function MapsModule() {
   const { rasters = [], terrain, mapLayers = [], boundaries = [], project, surfaceSamples = [], collars = [] } = useStore(); // surfaceSamples: TASKS.csv #1792; collars: #1625
   const hasPlan = !!planDataExtent({ rasters, terrain, mapLayers, boundaries, collars, surfaceSamples }); // #1625 — a plan of it, else the card
   useModuleAction(["maps-crs"], () => setPane("crs")); // the Set project CRS menu item
+  useModuleAction(["maps-terrain"], () => setPane("terrain")); // TASKS.csv #1429 — the inversion pane's 'Go to Maps › Terrain'
   // TASKS.csv #1994 — a lidar file dropped on the 3D View or the Geophysics tab: the Terrain pane, which opens it
   useModuleAction(["maps-lidar"], (_a, p) => { setPane("terrain"); requestModuleAction("open-lidar", p); });
   const btn = (id, action) => ({ active: pane === id, onClick: () => { setPane(id); if (action) requestModuleAction(action); } });
