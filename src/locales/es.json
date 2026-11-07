@@ -8628,5 +8628,10 @@
   "Highest posterior (at least {d} m apart):": "Posterior más alta (separados al menos {d} m):",
   "Highest fuzzy scores (at least {d} m apart):": "Puntajes difusos más altos (separados al menos {d} m):",
   "{k}. {score} at E {x}, N {y}": "{k}. {score} en E {x}, N {y}",
-  "Opens Planned holes with this easting and northing as the target; type the target elevation there (the score is in plan, it has no depth).": "Abre Sondajes planificados con este este y norte como objetivo; escriba allí la cota del objetivo (el puntaje está en planta, no tiene profundidad)."
+  "Opens Planned holes with this easting and northing as the target; type the target elevation there (the score is in plan, it has no depth).": "Abre Sondajes planificados con este este y norte como objetivo; escriba allí la cota del objetivo (el puntaje está en planta, no tiene profundidad).",
+  "Holes by {field}": "Sondajes por {field}",
+  "(no value)": "(sin valor)",
+  "Colour holes by a collar field": "Colorear sondajes por un campo del collar",
+  "Colour holes: one colour": "Color de sondajes: uno solo",
+  "Colour holes by {field}": "Colorear sondajes por {field}"
 }

@@ -8628,5 +8628,10 @@
   "Highest posterior (at least {d} m apart):": "Posterior mais alta (separados por pelo menos {d} m):",
   "Highest fuzzy scores (at least {d} m apart):": "Maiores pontuações difusas (separadas por pelo menos {d} m):",
   "{k}. {score} at E {x}, N {y}": "{k}. {score} em E {x}, N {y}",
-  "Opens Planned holes with this easting and northing as the target; type the target elevation there (the score is in plan, it has no depth).": "Abre Furos planejados com este leste e norte como alvo; digite lá a cota do alvo (a pontuação está em planta, não tem profundidade)."
+  "Opens Planned holes with this easting and northing as the target; type the target elevation there (the score is in plan, it has no depth).": "Abre Furos planejados com este leste e norte como alvo; digite lá a cota do alvo (a pontuação está em planta, não tem profundidade).",
+  "Holes by {field}": "Furos por {field}",
+  "(no value)": "(sem valor)",
+  "Colour holes by a collar field": "Colorir furos por um campo do colar",
+  "Colour holes: one colour": "Cor dos furos: uma só",
+  "Colour holes by {field}": "Colorir furos por {field}"
 }

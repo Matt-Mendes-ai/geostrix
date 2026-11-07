@@ -8628,5 +8628,10 @@
   "Highest posterior (at least {d} m apart):": "أعلى احتمال لاحق (بفاصل {d} م على الأقل):",
   "Highest fuzzy scores (at least {d} m apart):": "أعلى درجات ضبابية (بفاصل {d} م على الأقل):",
   "{k}. {score} at E {x}, N {y}": "{k}. {score} عند E {x}، N {y}",
-  "Opens Planned holes with this easting and northing as the target; type the target elevation there (the score is in plan, it has no depth).": "يفتح الثقوب المخططة مع هذا الشرق والشمال هدفًا؛ اكتب ارتفاع الهدف هناك (الدرجة في المسقط، ليس لها عمق)."
+  "Opens Planned holes with this easting and northing as the target; type the target elevation there (the score is in plan, it has no depth).": "يفتح الثقوب المخططة مع هذا الشرق والشمال هدفًا؛ اكتب ارتفاع الهدف هناك (الدرجة في المسقط، ليس لها عمق).",
+  "Holes by {field}": "الثقوب حسب {field}",
+  "(no value)": "(بلا قيمة)",
+  "Colour holes by a collar field": "تلوين الثقوب حسب حقل من الفوهة",
+  "Colour holes: one colour": "لون الثقوب: لون واحد",
+  "Colour holes by {field}": "تلوين الثقوب حسب {field}"
 }

@@ -5,7 +5,7 @@ import { useMemo } from "react";
 
 const btn = { flex: 1, minWidth: 0, padding: "3px 4px", fontSize: "var(--font-size-xs)", background: "var(--color-bg)", color: "var(--color-text-secondary)", border: "1px solid var(--color-border)", borderRadius: 4, cursor: "pointer" };
 
-export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles, setVisibleHoles }) {
+export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles, setVisibleHoles, colourBy = "", setColourBy = null }) { // colourBy: #1504
   const ids = collars.map((c) => c.hole_id);
   const shown = collarsMatching(collars, filter).map((c) => c.hole_id); // #1504 — "drill_type=RC" picks by a collar field
   const choices = useMemo(() => collarAttrChoices(collars), [collars]);
@@ -20,6 +20,13 @@ export default function HoleFilterBar({ collars, filter, setFilter, visibleHoles
           style={{ width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 6px", fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>
           <option value="">{tr("By a collar field…")}</option>
           {choices.map((ch) => <optgroup key={ch.key} label={ch.key}>{ch.values.map((v) => <option key={v} value={`${ch.key}=${v.replace(/\s+/g, "_")}`}>{`${ch.key} = ${v}`}</option>)}</optgroup>)}
+        </select>
+      )}
+      {choices.length > 0 && setColourBy && ( /* TASKS.csv #1504 — colour the collars and traces by a collar field; the legend lists the values */
+        <select value={colourBy} aria-label={tr("Colour holes by a collar field")} onChange={(e) => setColourBy(e.target.value)}
+          style={{ width: "100%", boxSizing: "border-box", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 4, padding: "3px 6px", fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>
+          <option value="">{tr("Colour holes: one colour")}</option>
+          {choices.map((ch) => <option key={ch.key} value={ch.key}>{tr("Colour holes by {field}", { field: ch.key })}</option>)}
         </select>
       )}
       <div style={{ display: "flex", gap: 4 }}>

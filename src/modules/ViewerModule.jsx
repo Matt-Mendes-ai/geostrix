@@ -6,6 +6,7 @@ import { levelPlanZRange } from "../lib/viewer/levelPlanRange.js"; // TASKS.csv 
 import { sampleUserData, mappedOfSample } from "../lib/viewer/sampleTip.js"; // TASKS.csv #1821; #1500
 import HoleFilterBar from "./viewer/HoleFilterBar.jsx";
 import { collarsMatching } from "../lib/holeFilter.js"; // #1504
+import { holeColourScheme, applyHoleColours, holeColourLegendGroup } from "../lib/viewer/holeColours.js"; // #1504
 import FenceOptions from "./viewer/FenceOptions.jsx";
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js";
 import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } from "react";
@@ -780,6 +781,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   const [numericSymbology, setNumericSymbology] = useState({});
   const [visibleHoles, setVisibleHoles] = useState({});
   const [holeFilter, setHoleFilter] = useState(""); // TASKS.csv #222 — sidebar Holes list filter, UI-only (not persisted)
+  const [holeColourBy, setHoleColourBy] = useState(""); // TASKS.csv #1504 — a collar field the holes are coloured by ("" = none), UI-only
+  const holeScheme = useMemo(() => holeColourScheme(collars, holeColourBy), [collars, holeColourBy]);
   const [customLayers, setCustomLayers] = useState([]);
   const [customVisible, setCustomVisible] = useState({});
   const [assayVisible, setAssayVisible] = useState(true);
@@ -1019,6 +1022,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // effect (rebuild-all, raster drape, terrain, boundaries) to re-run against current state.
   const [rebuildSeq, setRebuildSeq] = useState(0);
   const [tracesSeq, setTracesSeq] = useState(0); // TASKS.csv #888 — bumped once the hole traces are rebuilt (a survey / collar / desurvey change)
+  const holeColouredRef = useRef(false); // TASKS.csv #1504 — skip the pass while nothing is or was coloured
 
   // Persistent locator mini-map (TASKS.csv, user request) — an OpenStreetMap orientation aid docked in
   // the viewport, toggled on/off, showing where the project's collars actually sit in the real world.
@@ -1768,6 +1772,14 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     if (collarMaterialRef.current) collarMaterialRef.current.color.setHex(collarColorFor(bgColor));
     lastActivityRef.current = Date.now(); // #441 wake the render loop
   }, [bgColor]);
+  // TASKS.csv #1504 — holes coloured by a collar field (lib/viewer/holeColours.js): a pass over the built litho group, after each rebuild
+  useEffect(() => {
+    const g = layerGroupsRef.current?.litho;
+    if (!g || (!holeScheme && !holeColouredRef.current)) return;
+    applyHoleColours(g, holeScheme, { collarMaterial: collarMaterialRef.current, collarsById: new Map(collars.map((c) => [String(c.hole_id), c])) });
+    holeColouredRef.current = !!holeScheme;
+    lastActivityRef.current = Date.now();
+  }, [holeScheme, tracesSeq]); // collars is in holeScheme; tracesSeq marks a rebuild
 
   // TASKS.csv #311 — world-origin axis lines on/off (see axisLinesRef). A plain .visible flip on
   // three already-built 2-vertex Lines: no geometry rebuild, nothing per frame.
@@ -1816,6 +1828,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     const outcrop = outcropLegendGroup({ surfaceStructures }); // TASKS.csv #1437 — the outcrop sets' classes
     if (outcrop) groups.push({ ...outcrop, label: tr(outcrop.label), items: outcrop.items.map(([l, c, o]) => [tr(l), c, o]) });
     groups.push(...mapLayerLegendGroups(mapLayers), ...boundaryLegendGroups(boundaries));
+    { const hg = holeColourLegendGroup(holeScheme, tr("Holes by {field}", { field: holeColourBy }), tr("(no value)")); if (hg) groups.unshift(hg); } // #1504
     const pushScale = (key, label, model, lo, hi) => groups.push(scaleLegendGroup(key, label, model, lo, hi));
     const gpts = layers?.geophys_pts || [];
     if (layerVisible.geophys_pts && gpts.length) {
@@ -1830,7 +1843,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       }
     }
     return groups;
-  }, [rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible]); // the last two: #1398; collars: #1813
+  }, [rasters, sampleLegendGroup, mapLayers, boundaries, layerStyles, figureOverlay.enabled, figureOverlay.legend, layerVisible, layers, categoryFilter, visibleHoles, effectiveLabel, effectiveColor, assayVisible, assayDisplayElements, assayStyle, assays, assayElements, voxelModels, geophysSurveys, geophysPtsStops, geophysPtsColorMode, geophysPtsMin, geophysPtsMax, numericLayerColor, isRowVisible, collars, customLayers, customVisible, holeScheme, holeColourBy]); // the last two: #1398; collars: #1813; holeScheme: #1504
 
   // TASKS.csv #453 — build the clipping planes from the slice settings over the drilled extent (hole
   // traces; the terrain bbox when there is no drilling). Vertical: across the azimuth line, position along
@@ -8412,7 +8425,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             {/* TASKS.csv #222 — a filter box, the other half of the audit's "no virtualization/filter"
                 finding; finding one hole by ID in a 200+ hole project by eye alone was the real
                 usability gap, not just the render cost (fixed separately via HoleRow's memoization). */}
-            {collars.length > 1 && <HoleFilterBar collars={collars} filter={holeFilter} setFilter={setHoleFilter} visibleHoles={visibleHoles} setVisibleHoles={setVisibleHoles} />}
+            {collars.length > 1 && <HoleFilterBar collars={collars} filter={holeFilter} setFilter={setHoleFilter} visibleHoles={visibleHoles} setVisibleHoles={setVisibleHoles} colourBy={holeColourBy} setColourBy={setHoleColourBy} /* #1504 */ />}
             {tickedShown(collars, holeFilter).map((c) => (
               <HoleRow key={c.hole_id} hole_id={c.hole_id} visible={visibleHoles[c.hole_id]} onToggle={toggleHole} onOpenStripLog={setStripLogHoleId} onSection={openHoleSection} onZoom={zoomToHole} />
             ))}
