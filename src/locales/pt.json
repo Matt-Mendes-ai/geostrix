@@ -9088,5 +9088,6 @@
   "Make it favourable when high": "Torná-la favorável quando alta",
   "Make it favourable when low": "Torná-la favorável quando baixa",
   "Distance in plan to the body: {name}": "Distância em planta ao corpo: {name}",
-  "{n} raster(s) are pictures without values ({names}): a colour image has no numbers to score. Import the data grid (a single-band GeoTIFF, .grd or .gxf) to use it as evidence.": "{n} raster(s) são imagens sem valores ({names}): uma imagem colorida não tem números para pontuar. Importe a grade de dados (um GeoTIFF de uma banda, .grd ou .gxf) para usá-la como evidência."
+  "{n} raster(s) are pictures without values ({names}): a colour image has no numbers to score. Import the data grid (a single-band GeoTIFF, .grd or .gxf) to use it as evidence.": "{n} raster(s) são imagens sem valores ({names}): uma imagem colorida não tem números para pontuar. Importe a grade de dados (um GeoTIFF de uma banda, .grd ou .gxf) para usá-la como evidência.",
+  "The blocks ({b} m) are coarser than the coverage distance ({c} m): a block counts as covered by where its centre falls, so the covered share and the smallest zones move with the block grid. Type a smaller block size if the unit's box allows it.": "Os blocos ({b} m) são mais grossos que a distância de cobertura ({c} m): um bloco conta como coberto conforme onde cai seu centro, então a fração coberta e as menores zonas mudam com a grade de blocos. Digite um tamanho de bloco menor se a caixa da unidade permitir."
 }

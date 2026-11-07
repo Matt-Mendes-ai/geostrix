@@ -9088,5 +9088,6 @@
   "Make it favourable when high": "اجعله مواتياً عند الارتفاع",
   "Make it favourable when low": "اجعله مواتياً عند الانخفاض",
   "Distance in plan to the body: {name}": "المسافة في المسقط إلى الجسم: {name}",
-  "{n} raster(s) are pictures without values ({names}): a colour image has no numbers to score. Import the data grid (a single-band GeoTIFF, .grd or .gxf) to use it as evidence.": "{n} من النقوش النقطية صور بلا قيم ({names}): الصورة الملوّنة لا أرقام فيها للتقييم. استورد شبكة البيانات (GeoTIFF أحادي النطاق أو .grd أو .gxf) لاستخدامها دليلاً."
+  "{n} raster(s) are pictures without values ({names}): a colour image has no numbers to score. Import the data grid (a single-band GeoTIFF, .grd or .gxf) to use it as evidence.": "{n} من النقوش النقطية صور بلا قيم ({names}): الصورة الملوّنة لا أرقام فيها للتقييم. استورد شبكة البيانات (GeoTIFF أحادي النطاق أو .grd أو .gxf) لاستخدامها دليلاً.",
+  "The blocks ({b} m) are coarser than the coverage distance ({c} m): a block counts as covered by where its centre falls, so the covered share and the smallest zones move with the block grid. Type a smaller block size if the unit's box allows it.": "الكتل ({b} م) أخشن من مسافة التغطية ({c} م): تُعدّ الكتلة مغطاة بحسب موضع مركزها، لذا تتغير النسبة المغطاة وأصغر المناطق مع شبكة الكتل. اكتب حجم كتلة أصغر إن سمح صندوق الوحدة بذلك."
 }

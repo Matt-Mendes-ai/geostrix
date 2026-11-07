@@ -36,13 +36,19 @@ export function meshBox(positions, pad = 0) {
 
 // A block size for the unit: about `target` blocks in its box, and no coarser than half the coverage distance when
 // that stays under `maxCells` (a block bigger than the distance makes the gaps' edges coarse)
+// TASKS.csv #1568 (review #1497, Lawyers) — when half the distance did not fit (a 5.3 x 6.2 x 0.9 km box at 12.5 m is 15 M blocks) the size
+// fell straight back to the box's own (50 m for a 25 m distance: every block 125,000 m3, and 'covered' decided by where the grid fell).
+// Now the finest size that fits the budget, from half the distance up: 25 m there (1.9 M blocks).
 export function defaultCellSize(positions, coverM, target = 300_000, maxCells = 2_000_000) {
   const e = meshBox(positions);
   let c = suggestCellSize(e, target);
   const half = coverM > 0 ? coverM / 2 : c;
   if (c > half) {
-    const n = Math.ceil((e[1] - e[0]) / half) * Math.ceil((e[3] - e[2]) / half) * Math.ceil((e[5] - e[4]) / half);
-    if (n <= maxCells) c = +half.toPrecision(3);
+    const count = (s) => Math.ceil((e[1] - e[0]) / s) * Math.ceil((e[3] - e[2]) / s) * Math.ceil((e[5] - e[4]) / s);
+    let s = Math.max(half, Math.cbrt(((e[1] - e[0]) * (e[3] - e[2]) * (e[5] - e[4])) / maxCells));
+    s = +s.toPrecision(3);
+    for (let k = 0; k < 60 && count(s) > maxCells; k++) s = +(s * 1.02).toPrecision(3);
+    if (s < c && count(s) <= maxCells) c = s;
   }
   return c;
 }

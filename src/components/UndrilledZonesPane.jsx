@@ -147,6 +147,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
             ))}
             {result.zones.length > 8 && <div style={note}>{tr("… and {n} more.", { n: result.zones.length - 8 })}</div>}
             <div style={note}>{tr(result.holes.planned ? "{drilled} drilled and {planned} planned holes; {b} m blocks, measured from each block's centre to the hole traces in 3D." : "{drilled} drilled holes; {b} m blocks, measured from each block's centre to the hole traces in 3D.", { drilled: result.holes.drilled, planned: result.holes.planned, b: +result.cellM.toFixed(2) })}</div>
+            {result.cellM > result.coverM && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("The blocks ({b} m) are coarser than the coverage distance ({c} m): a block counts as covered by where its centre falls, so the covered share and the smallest zones move with the block grid. Type a smaller block size if the unit's box allows it.", { b: +result.cellM.toFixed(2), c: result.coverM })}</div>}{/* #1568 */}
             {result.zones.length > 0 && <button onClick={add} style={{ ...pBtn, justifyContent: "center", marginBottom: 0 }}>{tr("Add the zones to the 3D view")}</button>}
           </div>
         )}
