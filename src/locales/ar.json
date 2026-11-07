@@ -9107,5 +9107,6 @@
   "'Subtract the IGRF field' needs the field computed for this survey's date: press 'Compute from IGRF-14 for the survey date'.": "يتطلب 'اطرح مجال IGRF' المجالَ محسوباً لتاريخ هذا المسح: اضغط 'الحساب من IGRF-14 لتاريخ المسح'.",
   "These values average {v} nT: the raw total field. The best-fit plane removes its level and tilt here, close to what subtracting the IGRF would do over a small area; over a larger one choose 'Subtract the IGRF field' instead.": "متوسط هذه القيم {v} نانوتسلا: المجال الكلي الخام. يزيل المستوى الأفضل ملاءمة مستواه وميله هنا، قريباً مما يفعله طرح IGRF في منطقة صغيرة؛ وفي منطقة أكبر اختر 'اطرح مجال IGRF'.",
   "Subtracted the IGRF-14 total field for {date} from every reading ({lo} to {hi} nT across the stations), then the remaining mean.": "طُرح المجال الكلي IGRF-14 لتاريخ {date} من كل قراءة ({lo} إلى {hi} نانوتسلا عبر المحطات)، ثم المتوسط المتبقي.",
-  "Subtract the IGRF field (computed above), then the mean": "اطرح مجال IGRF (المحسوب أعلاه) ثم المتوسط"
+  "Subtract the IGRF field (computed above), then the mean": "اطرح مجال IGRF (المحسوب أعلاه) ثم المتوسط",
+  "Log-normal distribution (positive values)": "توزيع لوغاريتمي طبيعي (قيم موجبة)"
 }

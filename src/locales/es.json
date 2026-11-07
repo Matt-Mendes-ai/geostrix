@@ -9107,5 +9107,6 @@
   "'Subtract the IGRF field' needs the field computed for this survey's date: press 'Compute from IGRF-14 for the survey date'.": "'Restar el campo IGRF' necesita el campo calculado para la fecha de este levantamiento: pulse 'Calcular desde IGRF-14 para la fecha del levantamiento'.",
   "These values average {v} nT: the raw total field. The best-fit plane removes its level and tilt here, close to what subtracting the IGRF would do over a small area; over a larger one choose 'Subtract the IGRF field' instead.": "Estos valores promedian {v} nT: el campo total bruto. El plano de mejor ajuste quita aquí su nivel e inclinación, parecido a restar el IGRF en un área pequeña; en una mayor elija 'Restar el campo IGRF'.",
   "Subtracted the IGRF-14 total field for {date} from every reading ({lo} to {hi} nT across the stations), then the remaining mean.": "Se restó el campo total IGRF-14 para {date} de cada lectura ({lo} a {hi} nT entre las estaciones) y luego la media restante.",
-  "Subtract the IGRF field (computed above), then the mean": "Restar el campo IGRF (calculado arriba) y luego la media"
+  "Subtract the IGRF field (computed above), then the mean": "Restar el campo IGRF (calculado arriba) y luego la media",
+  "Log-normal distribution (positive values)": "Distribución log-normal (valores positivos)"
 }

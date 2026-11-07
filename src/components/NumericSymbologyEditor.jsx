@@ -54,6 +54,7 @@ export default function NumericSymbologyEditor({ layerKey, rows, sym, onChange }
           <option value="log">{tr("Log-linear")}</option>
           <option value="quantile">{tr("Histogram equalization (quantile)")}</option>
           <option value="normal">{tr("Normal distribution")}</option>
+            <option value="lognormal">{tr("Log-normal distribution (positive values)")}</option>{/* #1594 */}
           {/* TASKS.csv #291 — QGIS parity, see GeophysicsModule's copy of this picker. */}
           <option value="jenks">{tr("Natural breaks (Jenks)")}</option>
         </select>

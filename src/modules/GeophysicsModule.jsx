@@ -2723,6 +2723,7 @@ function VoxelLegendEditor({ model, onUpdate }) {
             <option value="log">{tr("Log-linear")}</option>
             <option value="quantile">{tr("Histogram equalization (quantile)")}</option>
             <option value="normal">{tr("Normal distribution")}</option>
+            <option value="lognormal">{tr("Log-normal distribution (positive values)")}</option>{/* #1594 */}
             {/* TASKS.csv #291 — QGIS parity: natural breaks minimizes within-class variance, the
                 right default for the clustered background + anomalous tail real survey data has. */}
             <option value="jenks">{tr("Natural breaks (Jenks)")}</option>

@@ -431,10 +431,13 @@ export function trimForBreaks(values, pLo = 0.01, pHi = 0.99) {
 }
 // TASKS.csv #1422 — readable class breaks and stop values: the fewest significant figures (3 at least, as #1198 gave Jenks) that keep
 // neighbouring values that differ apart. Rounding to a fixed number of significant figures keeps the order.
+// TASKS.csv #1594 (review #1497, Lawyers) — two values that differ only past the 9th digit (the last stop and the model's max, the same
+// number computed twice: ...408922 vs ...408925) made it give up and print every value with 17 digits; they count as equal here.
+const nearlyEqual = (a, b) => a === b || (Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= 1e-9 * Math.max(Math.abs(a), Math.abs(b)));
 export function readableValues(values, minSig = 3) {
   for (let p = minSig; p <= 9; p++) {
     const r = values.map((v) => (Number.isFinite(v) && v !== 0 ? Number(v.toPrecision(p)) : v));
-    if (r.every((x, i) => i === 0 || values[i] === values[i - 1] || x !== r[i - 1])) return r;
+    if (r.every((x, i) => i === 0 || nearlyEqual(values[i], values[i - 1]) || x !== r[i - 1])) return r;
   }
   return values.slice();
 }
@@ -464,6 +467,7 @@ function classifyBreaksRaw(values, n, method) {
   // legend would use) — GeophysicsModule's input max attribute was raised to match.
   const count = Math.max(2, Math.min(64, Math.round(n) || 5));
   const min = nums[0], max = nums[nums.length - 1];
+  if (method === "lognormal" && !(min > 0)) method = "normal"; // #1594 — a zero or negative value has no logarithm
   const breaks = [];
   if (method === "quantile") {
     for (let i = 0; i < count; i++) breaks.push(nums[Math.floor((i / count) * (nums.length - 1))]);
@@ -492,6 +496,14 @@ function classifyBreaksRaw(values, n, method) {
       breaks.push(Math.min(max, Math.max(min, mean + z * std)));
     }
     breaks.sort((a, b) => a - b); // clamping can bunch extreme classes together; callers assume ascending order
+  } else if (method === "lognormal" && min > 0) {
+    // TASKS.csv #1594 — the normal method on the logarithm, for a strictly positive, skewed property (an MVI amplitude, a resistivity,
+    // a grade): on Lawyers' MVI the normal breaks clipped to the minimum and merged
+    const logs = nums.map(Math.log), mean = logs.reduce((a, b) => a + b, 0) / logs.length;
+    const std = Math.sqrt(logs.reduce((a, b) => a + (b - mean) ** 2, 0) / logs.length) || 1;
+    for (let i = 0; i < count; i++) breaks.push(Math.min(max, Math.max(min, Math.exp(mean + probit((i / count) * 0.9998 + 0.0001) * std))));
+    breaks[0] = min;
+    breaks.sort((a, b) => a - b);
   } else if (method === "jenks") {
     // TASKS.csv #291 (QGIS-specialist review) — true Fisher-Jenks natural breaks. The four methods
     // above were modelled on Oasis montaj's classification menu (see this function's own header
