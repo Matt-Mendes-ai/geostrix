@@ -9100,5 +9100,8 @@
   "Tonnage and mean grade above a series of cutoffs, for this result (an exploration target, not a Mineral Resource)": "Tonnage et teneur moyenne au-dessus d'une série de teneurs de coupure, pour ce résultat (une cible d'exploration, pas une Ressource minérale)",
   "Grade-tonnage…": "Teneur-tonnage…",
   "Metal (kg)": "Métal (kg)",
-  "Metal (troy oz)": "Métal (oz troy)"
+  "Metal (troy oz)": "Métal (oz troy)",
+  " along lines {l} m apart": " le long de lignes espacées de {l} m",
+  "≈ quarter line spacing": "≈ quart de l'espacement des lignes",
+  "Readings {s} m apart along lines {l} m apart: the model cannot resolve more than the line spacing allows, so the core cell follows the lines ({c} m, about a quarter of their spacing), and the readings are thinned to the same distance.": "Lectures tous les {s} m sur des lignes espacées de {l} m : le modèle ne résout pas plus que l'espacement des lignes ne le permet, donc la cellule centrale suit les lignes ({c} m, environ le quart de leur espacement) et les lectures sont éclaircies à la même distance."
 }

@@ -9100,5 +9100,8 @@
   "Tonnage and mean grade above a series of cutoffs, for this result (an exploration target, not a Mineral Resource)": "الحمولة ومتوسط المحتوى فوق سلسلة من حدود القطع لهذه النتيجة (هدف استكشافي، لا مورد معدني)",
   "Grade-tonnage…": "المحتوى-الحمولة…",
   "Metal (kg)": "المعدن (كغ)",
-  "Metal (troy oz)": "المعدن (أونصة تروي)"
+  "Metal (troy oz)": "المعدن (أونصة تروي)",
+  " along lines {l} m apart": " على خطوط متباعدة {l} م",
+  "≈ quarter line spacing": "≈ ربع المسافة بين الخطوط",
+  "Readings {s} m apart along lines {l} m apart: the model cannot resolve more than the line spacing allows, so the core cell follows the lines ({c} m, about a quarter of their spacing), and the readings are thinned to the same distance.": "قراءات كل {s} م على خطوط متباعدة {l} م: لا يستطيع النموذج تمييز أكثر مما تسمح به المسافة بين الخطوط، لذا تتبع الخلية الأساسية الخطوط ({c} م، نحو ربع تباعدها) وتُخفَّف القراءات إلى المسافة نفسها."
 }

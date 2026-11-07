@@ -37,6 +37,7 @@ import { terrainFromSurveyElevations } from "../lib/terrainFromPoints.js"; // TA
 import { defaultPlannedExtent, generatePlannedStations, DEFAULT_PLANNED } from "../lib/plannedGrid.js"; // TASKS.csv #1710
 import { replaceSurveyPoints, SURVEY_METHODS as SM } from "../lib/geophysSurveys.js"; // TASKS.csv #1710 — the predicted anomaly as a survey
 import { requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #1429
+import { coreCellHint } from "../lib/coreCellHint.js"; // TASKS.csv #1590
 
 const METHODS = {
   mag: { label: "Magnetics (TMI)", unit: "nT", confirm: "These values are the total magnetic field in nT as measured (not RTP, not a derivative): either the anomaly, with the IGRF / regional field removed in processing, or the raw total field over an area small enough that its regional field is a plane, which Remove base level > Best-fit plane takes out. GeoStrix does not remove the IGRF itself.", property: "susceptibility (SI)", contrastLabel: "Susceptibility (SI)" },
@@ -130,6 +131,10 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   }, [running, keptScope]);
   const xs = rows.map((r) => r.x), ys = rows.map((r) => r.y);
   const spacing = useMemo(() => (rows.length > 1 ? medianNearestSpacing(xs, ys) : null), [rows]);
+  // TASKS.csv #1590 (review #1497, Lawyers) — on line data the nearest neighbour is the next reading along the line (0.6 m on a walk-mag
+  // line), not the next line (96.5 m): '≈ half spacing' gave a 5 m core cell and Estimate then refused ~9.5 M cells. With lines much
+  // farther apart than the readings, the core cell follows the LINE spacing (about a quarter of it) and the readings are thinned to it.
+  const coreHint = useMemo(() => coreCellHint(rows, spacing), [rows, spacing]);
   // TASKS.csv #1709 — stations that sit down the holes are not survey stations (Copley's susceptibility log was offered as 2,619 TMI stations)
   const downhole = useMemo(() => downholeLikeness(rows, collars, terrain ? (x, y) => terrainElevationAt(terrain, x, y) : null), [rows, collars, terrain]);
   const crsIssue = crsProblem(project?.epsg);
@@ -494,7 +499,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
           )}
           {engine?.available && rows.length > 0 && (
             <>
-              <div style={small}>{tr("{rows} survey stations loaded{v}. SimPEG {simpeg}.", { rows: rows.length.toLocaleString(), v: spacing ? tr(", median spacing {spacing} m", { spacing: spacing.toFixed(spacing < 10 ? 1 : 0) }) : "", simpeg: engine.simpeg })}</div>
+              <div style={small}>{tr("{rows} survey stations loaded{v}. SimPEG {simpeg}.", { rows: rows.length.toLocaleString(), v: spacing ? tr(", median spacing {spacing} m", { spacing: spacing.toFixed(spacing < 10 ? 1 : 0) }) + (coreHint?.lineSpacing ? tr(" along lines {l} m apart", { l: Math.round(coreHint.lineSpacing) }) : "") : "", simpeg: engine.simpeg })}</div>
               {downhole?.isDownhole && <div style={{ ...small, color: "var(--color-warn-text)", marginBottom: 8 }}>{tr("These points are not survey stations: {pct}% of them sit more than 10 m below the {ground} (typically {med} m). A downhole log cannot be inverted as a surface survey; import it with the drillholes and use the drillhole-constraint option instead.", { pct: Math.round(100 * downhole.share), ground: terrain ? tr("terrain") : tr("nearest collar"), med: Math.round(downhole.medianDropM) })}</div>}{/* #1709 */}
               {step(1, tr("Data"), <>
                 <div role="radiogroup" aria-label={tr("Survey type")} style={{ display: "flex", gap: 10, marginTop: 4 }}>
@@ -555,8 +560,9 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                 <div style={row}><span style={lbl}>{tr("+ percent of value")}</span><input type="number" min={0} value={unc.percent} onChange={(e) => setUnc((p) => ({ ...p, percent: e.target.value }))} style={inp} /> %</div>
                 <div style={row} title={tr("Cell size in the core of the model. Around half the station spacing is usual; smaller cells cost memory (data x cells).")}>
                   <span style={lbl}>{tr("Core cell")}</span><input type="number" min={1} value={mesh.coreCell} onChange={(e) => setMesh((p) => ({ ...p, coreCell: e.target.value }))} style={inp} /> m
-                  {spacing && !mesh.coreCell && <button onClick={() => setMesh((p) => ({ ...p, coreCell: String(Math.max(5, Math.round(spacing / 2 / 5) * 5)) }))} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{tr("≈ half spacing")}</button>}
+                  {coreHint && !mesh.coreCell && <button onClick={() => { setMesh((p) => ({ ...p, coreCell: String(coreHint.cell) })); if (coreHint.lineSpacing && !(num(thin) > 0)) setThin(String(coreHint.cell)); }} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "2px 7px" }}>{coreHint.lineSpacing ? tr("≈ quarter line spacing") : tr("≈ half spacing")}</button>}
                 </div>
+                {coreHint?.lineSpacing && !mesh.coreCell && <div style={{ ...small, marginTop: -2, marginBottom: 4 }}>{tr("Readings {s} m apart along lines {l} m apart: the model cannot resolve more than the line spacing allows, so the core cell follows the lines ({c} m, about a quarter of their spacing), and the readings are thinned to the same distance.", { s: spacing.toFixed(spacing < 10 ? 1 : 0), l: Math.round(coreHint.lineSpacing), c: coreHint.cell })}</div>}{/* #1590 */}
                 <div style={row} title={tr("How deep below the stations the model extends. Potential-field data lose resolution quickly with depth.")}><span style={lbl}>{tr("Model depth")}</span><input type="number" min={1} value={mesh.depth} onChange={(e) => setMesh((p) => ({ ...p, depth: e.target.value }))} style={inp} /> m</div>
                 {/* TASKS.csv #324 — adaptive (octree) mesh */}
                 <div style={row} title={tr("Uniform: every model cell is the core cell size (the same as before). Adaptive (octree): the core cell only in the top layers under the survey, then 2x, never coarser than 4x inside the model (adjustable below) — typically 4-6x fewer cells, so 4-6x less memory, for larger areas or finer cells on a modest computer. The cost is coarser cells at depth, where the data resolve little anyway. An adaptive model exports as a cell list and UBC-GIF OcTree files, not as a UBC tensor mesh, OMF or GeoTIFF slices (those need one regular grid).")}>
