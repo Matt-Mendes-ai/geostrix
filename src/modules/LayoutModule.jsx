@@ -39,6 +39,8 @@ import { crsName } from "../lib/reproject.js"; // TASKS.csv #947
 import { projectCredits } from "../lib/credits.js"; // TASKS.csv #949
 import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1127 / #1128
 import { firstLegendGroups, rankLegendGroups, legendGroupCount } from "../lib/legendGroups.js"; // rank / count: #1482 // TASKS.csv #1224
+import { numericLayerLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #1482 — the RQD / recovery / SG / mag susc ramps
+import { numericClips, numericLayerColorFn } from "../lib/numericClip.js"; // TASKS.csv #1482
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 // (The page size used to be a fixed `const A4 = { w: 1123, h: 794 }` here; it is now per page — see
 // `A4` inside the component, kept under that name so every existing use follows the chosen format.)
@@ -868,6 +870,8 @@ export default function LayoutModule() {
       ...categoryLegendGroups({ keys: LEGEND_CATEGORY_KEYS, layers, layerVisible, placed: new Set((collars || []).map((c) => String(c.hole_id))) /* #1867 */, hidden: theme.categoryFilter || {}, visibleHoles: frameHoles ? { ...(theme.visibleHoles || {}), ...Object.fromEntries(collars.filter((c) => !frameHoles.has(c.hole_id)).map((c) => [c.hole_id, false])) } : theme.visibleHoles || {}, singleColor: Object.fromEntries(LEGEND_CATEGORY_KEYS.filter((k) => theme.layerStyles?.[k]?.color).map((k) => [k, theme.layerStyles[k].color])), labelFor, colorFor }), // #1288
       ...assayLegendGroups({ assays, assayElements, assayVisible: theme.assayVisible !== false, assayDisplayElements: theme.assayDisplayElements || (theme.assayDisplayElement ? [theme.assayDisplayElement] : []), assayStyle: theme.assayStyle || {} }),
       ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), // #1236
+      // TASKS.csv #1482 — the numeric logs the view colours its holes by (RQD, recovery, SG, mag susc), as the 3D legend shows them
+      ...(() => { const sym = theme.numericSymbology || viewerUiState?.numericSymbology || {}, clips = numericClips(layers); return numericLayerLegendGroups({ layers, layerVisible, colorOf: numericLayerColorFn(sym, clips), symbology: sym, clips }); })(),
       // TASKS.csv #948 — the Surface Geology map: surface samples as the 3D view colours them, map layers, boundaries
       ...(surfaceSampleLegend ? [surfaceSampleLegend] : []), ...(outcropLegendGroup({ surfaceStructures }) ? [outcropLegendGroup({ surfaceStructures })] : []) /* #1437 */, ...mapLayerLegendGroups(mapLayers), ...boundaryLegendGroups(boundaries),
     ];

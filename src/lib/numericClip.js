@@ -4,6 +4,7 @@
 // take the end colours and the key says so ('≤' / '≥'). Minimum to maximum stays a per-layer choice (symbology { fullRange: true }); a
 // layer with its own classes (stops) keeps them. RQD and recovery keep their fixed 0-100 % ramp.
 import { quantileLinear } from "./arrayStats.js";
+import { colorForVoxelValue, rqdColor, magColor } from "./layers.js"; // #1482
 
 export const CLIP_KEYS = ["sg", "magsusc"];
 const P_LO = 0.02, P_HI = 0.98;
@@ -27,4 +28,16 @@ export function rampRange(layerKey, sym, clips, range) {
   const c = clips?.[layerKey];
   if (!CLIP_KEYS.includes(layerKey) || sym?.fullRange || !c) return range;
   return { min: c.lo, max: c.hi, clipped: true };
+}
+
+// TASKS.csv #1482 — the colour of a numeric-log value as the 3D view draws it (ViewerModule's numericLayerColor), for Layout's
+// 'Load from view' legend: the layer's own classes or ramp when it has them, RQD / recovery's fixed ramp, else viridis over rampRange
+export function numericLayerColorFn(symbology = {}, clips = {}) {
+  return (layerKey, value, range) => {
+    const sym = symbology?.[layerKey];
+    if (sym?.stops?.length) return colorForVoxelValue({ stops: sym.stops, colorMode: sym.colorMode, min: range?.min, max: range?.max }, value);
+    if (layerKey === "geotech" || layerKey === "recovery") return rqdColor(value);
+    const r = rampRange(layerKey, sym, clips, range);
+    return magColor(value, r?.min ?? 0, r?.max ?? 0);
+  };
 }
