@@ -65,3 +65,8 @@ export function claimsFromVector(result, baseName, max = 300) {
     return { name: `${baseName} ${label}`, polylines: idx.map((i) => polylines[i]), closedFlags: idx.map((i) => closedFlags[i]), tenureNumber: tenure, expiryDate: expiryCol ? isoDateOf(at[expiryCol]) : "" };
   });
 }
+
+// TASKS.csv #1466 (review #1352, Silvertip) — a boundary that can stand for an area: at least one ring of three points or more that is not
+// flagged open. Contours, streams, survey lines and roads are open lines: the terrain / imagery area lists and Select by location skip them.
+// A contour layer (contourLevels) is never an area, even where a level closes on itself.
+export const isAreaBoundary = (b) => !(b?.contourLevels || []).length && (b?.polylines || []).some((l, i) => (l?.length || 0) >= 3 && b.closedFlags?.[i] !== false);

@@ -176,6 +176,7 @@ import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.c
 import { useModelling } from "./viewer/useModelling.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
 import { isMarkedQcRow } from "../lib/qaqcCore.js"; // TASKS.csv #601; qaqcCore: #1345
+import { isAreaBoundary } from "../lib/boundaryImport.js"; // TASKS.csv #1466
 import { loadGpkg, groupShapefileParts, codeList } from "../lib/viewer/importHelpers.js"; // TASKS.csv #445 step 3; groupShapefileParts #600; codeList #1650
 import { useImportPipeline } from "./viewer/useImportPipeline.js"; // TASKS.csv #445 step 3
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1034 — the drillhole tables' stamp
@@ -7293,7 +7294,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               <MapPin size={12} />{" "}{tr("Select by location")}</div>
             <select value={selectByLocationBoundaryId} onChange={(e) => setSelectByLocationBoundaryId(e.target.value)} style={{ width: "100%", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 6, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)", marginBottom: 5 }}>
               <option value="">{tr("— pick a boundary/claim —")}</option>
-              {boundaries.map((b) => <option key={b.id} value={b.id}>{b.name}{b.kind === "claim" ? tr(" (claim)") : ""}</option>)}
+              {boundaries.filter(isAreaBoundary).map((b) => <option key={b.id} value={b.id}>{b.name}{b.kind === "claim" ? tr(" (claim)") : ""}</option>)}{/* #1466 — not contours / open lines */}
             </select>
             <div style={{ display: "flex", gap: 6 }}>
               <button onClick={() => selectByLocation("isolate")} disabled={!selectByLocationBoundaryId} style={{ ...pBtn, flex: 1, marginBottom: 0, opacity: selectByLocationBoundaryId ? 1 : 0.5, cursor: selectByLocationBoundaryId ? "pointer" : "not-allowed" }} title={tr("Show only collars inside this boundary, hide every other hole")}>{tr("Isolate inside")}</button>

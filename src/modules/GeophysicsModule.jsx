@@ -71,7 +71,7 @@ import { voxelStretch, sortedShownValues } from "../lib/voxelStretch.js"; // TAS
 import { VoxelRangeRow } from "./viewer/ViewerParts.jsx"; // TASKS.csv #1780
 import { terrainFromBlockModel } from "../lib/terrainFromModel.js"; // TASKS.csv #1806
 import { guessQualityColumn, filterSignalQuality, despikeAlongLines } from "../lib/surveyClean.js"; // TASKS.csv #1583 // TASKS.csv #786
-import { vectorToBoundaryPolylines, claimsFromVector } from "../lib/boundaryImport.js"; // TASKS.csv #1035; claims per feature: #1970
+import { vectorToBoundaryPolylines, claimsFromVector, isAreaBoundary } from "../lib/boundaryImport.js"; // TASKS.csv #1035; claims per feature: #1970; isAreaBoundary: #1466
 import { clampCellBudget, MIN_CELL_BUDGET, MAX_BLOCK_MODEL_BUDGET } from "../lib/estimationMeta.js"; // TASKS.csv #1074
 import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
 import { sniffTable, estimateRows, streamTableRows, streamXyzRows, headText } from "../lib/streamTable.js"; // TASKS.csv #1351
@@ -613,6 +613,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     const sb = surfaceSampleBox(); // #845
     if (sb) jobs.push({ id: "surface_samples", label: tr("Around the surface samples"), xmin: sb[0], ymin: sb[1], xmax: sb[2], ymax: sb[3] });
     for (const b of boundaries) {
+      if (!isAreaBoundary(b)) continue; // #1466 — contours and other open lines are not an area
       const xs = [], ys = [];
       for (const loop of b.polylines || []) for (const p of loop) { xs.push(p.x); ys.push(p.y); }
       if (!xs.length) continue;

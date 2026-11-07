@@ -1,5 +1,6 @@
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { defaultDrapeElevation, rasterDrapeElevation, drapeElevationNote } from "../lib/drapeElevation.js"; // TASKS.csv #1856; rasterDrapeElevation: #1505
+import { isAreaBoundary } from "../lib/boundaryImport.js"; // TASKS.csv #1466
 import { ensureProjectCrs, ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615; export: #1021
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
@@ -232,6 +233,7 @@ export default function RasterModule({ embedded = false } = {}) {
       if (pts.length) { const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y), x0 = arrMin(xs), x1 = arrMax(xs), y0 = arrMin(ys), y1 = arrMax(ys), m = Math.max(500, 0.05 * Math.max(x1 - x0, y1 - y0)); jobs.push({ id: "surface_samples", label: tr("Around the surface samples"), xmin: x0 - m, xmax: x1 + m, ymin: y0 - m, ymax: y1 + m }); }
     }
     for (const b of boundaries) {
+      if (!isAreaBoundary(b)) continue; // #1466 — contours and other open lines are not an area
       const xs = [], ys = [];
       for (const loop of b.polylines || []) for (const p of loop) { xs.push(p.x); ys.push(p.y); }
       if (!xs.length) continue;
