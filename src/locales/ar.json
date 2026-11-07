@@ -9041,5 +9041,6 @@
   "\"{col}\" is not offered: it groups the samples by their chemistry, it does not tell surveys apart.": "\"{col}\" غير معروض: فهو يجمع العينات حسب كيميائها، ولا يميّز بين المسوح.",
   "Count only planes dipping at least this much: a near-flat plane's strike is poorly defined and can swamp a strike rose. 0 counts every plane.": "احسب فقط المستويات التي يبلغ ميلها هذا القدر على الأقل: اتجاه المستوى شبه الأفقي غير محدد جيدًا وقد يطغى على وردة الاتجاهات. 0 يحسب كل المستويات.",
   "Dips of at least (°)": "ميول لا تقل عن (°)",
-  "Minimum dip for the rose": "أدنى ميل للوردة"
+  "Minimum dip for the rose": "أدنى ميل للوردة",
+  "These samples' coordinates need the project's coordinate system: choose the one they are in.": "تحتاج إحداثيات هذه العينات إلى نظام إحداثيات المشروع: اختر النظام الذي كُتبت به."
 }

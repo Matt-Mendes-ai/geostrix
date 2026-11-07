@@ -9041,5 +9041,6 @@
   "\"{col}\" is not offered: it groups the samples by their chemistry, it does not tell surveys apart.": "\"{col}\" não é oferecido: agrupa as amostras pela química, não distingue levantamentos.",
   "Count only planes dipping at least this much: a near-flat plane's strike is poorly defined and can swamp a strike rose. 0 counts every plane.": "Conta só os planos que mergulham pelo menos isto: a direção de um plano quase horizontal é mal definida e pode dominar uma roseta de direções. 0 conta todos os planos.",
   "Dips of at least (°)": "Mergulhos de pelo menos (°)",
-  "Minimum dip for the rose": "Mergulho mínimo para a roseta"
+  "Minimum dip for the rose": "Mergulho mínimo para a roseta",
+  "These samples' coordinates need the project's coordinate system: choose the one they are in.": "As coordenadas destas amostras precisam do sistema de coordenadas do projeto: escolha o que elas usam."
 }

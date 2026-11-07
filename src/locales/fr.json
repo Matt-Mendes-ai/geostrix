@@ -9041,5 +9041,6 @@
   "\"{col}\" is not offered: it groups the samples by their chemistry, it does not tell surveys apart.": "« {col} » n'est pas proposé : il regroupe les échantillons par leur chimie, il ne distingue pas les campagnes.",
   "Count only planes dipping at least this much: a near-flat plane's strike is poorly defined and can swamp a strike rose. 0 counts every plane.": "Ne compte que les plans pendant d'au moins cette valeur : la direction d'un plan presque horizontal est mal définie et peut dominer une rosace des directions. 0 compte tous les plans.",
   "Dips of at least (°)": "Pendages d'au moins (°)",
-  "Minimum dip for the rose": "Pendage minimal pour la rosace"
+  "Minimum dip for the rose": "Pendage minimal pour la rosace",
+  "These samples' coordinates need the project's coordinate system: choose the one they are in.": "Les coordonnées de ces échantillons ont besoin du système de coordonnées du projet : choisissez celui dans lequel elles sont."
 }

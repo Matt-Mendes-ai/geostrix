@@ -74,6 +74,7 @@ import SampleGridPanel from "../components/SampleGridPanel.jsx"; // TASKS.csv #1
 import { methodColumnFor, methodsIn, partialDigestionFor } from "../lib/digestion.js"; // TASKS.csv #1518
 import { axisOf, xyDiagram } from "../lib/geochemXY.js"; // TASKS.csv #1678
 import { numericSourceChoices } from "../lib/numericSources.js"; // TASKS.csv #1678
+import { requestProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1445
 
 const KEY_MAX = 16; // TASKS.csv #1519 — the on-screen colour key's entries
 
@@ -671,7 +672,7 @@ export default function GeochemModule() {
     });
   };
 
-  const commitSurfaceImport = (modal) => {
+  const commitSurfaceImport = async (modal) => {
     const { allRows, mapping, elements, defaultMedium } = modal;
     const chosen = elements.filter((e) => e.checked);
     if (!mapping.x || !mapping.y) { setNotices((p) => [...p, errorNotice(tr("Map the X and Y columns."))]); return; }
@@ -697,6 +698,14 @@ export default function GeochemModule() {
     let toEpsg = project?.epsg ? Number(project.epsg) : null;
     // #1148 — where the rows are, in case they are in latitude / longitude: the metric CRS for that place is offered, not degrees
     const rowAt = allRows.map((r) => ({ lon: num(r[mapping.x]), lat: num(r[mapping.y]) })).find((q) => Number.isFinite(q.lon) && Number.isFinite(q.lat) && Math.abs(q.lon) <= 180 && Math.abs(q.lat) <= 90) || null;
+    // TASKS.csv #1445 (review #1352) — the dialog says 'GeoStrix asks on import' when the project CRS was never chosen, and nothing asked:
+    // rocks.csv came in with the project still 'CRS: not set'. Now it asks, as a collar import does, showing where the samples would land
+    // (projected coordinates; latitude / longitude goes through the adopt step below, #1148). 'Decide later' imports them as before.
+    if (project?.crsSet === false && !fromEpsg && !rowAt) {
+      const pts = allRows.slice(0, 2000).map((r) => ({ x: num(r[mapping.x]), y: num(r[mapping.y]) })).filter((q) => Number.isFinite(q.x) && Number.isFinite(q.y));
+      const picked = await requestProjectCrs(tr("These samples' coordinates need the project's coordinate system: choose the one they are in."), pts);
+      if (picked) toEpsg = Number(picked);
+    }
     const adopted = askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: toEpsg, declaredEpsg: fromEpsg, fileName: modal.fileName, at: rowAt }); // #607
     if (adopted) { setEpsg(adopted); toEpsg = adopted; setNotices((p) => [...p, notice("Project CRS set to {v} (EPSG:{adopted}) from {fileName}.", { v: crsName(adopted), adopted, fileName: modal.fileName })]); }
     const doReproject = fromEpsg && toEpsg && fromEpsg !== toEpsg;
