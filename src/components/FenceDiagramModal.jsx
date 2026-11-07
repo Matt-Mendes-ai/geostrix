@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { colorForLithology } from "../lib/layers.js";
-import { buildFencePanel, panelPointAtDepth, correlationBands } from "../lib/fence.js";
+import { buildFencePanel, panelPointAtDepth, correlationBands, stackCollarLabels } from "../lib/fence.js"; // stackCollarLabels: #1375
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -121,12 +121,20 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
     const sPad = Math.max(10, (panel.sRange.max - panel.sRange.min) * 0.06);
     const s0 = panel.sRange.min - sPad, s1 = panel.sRange.max + sPad;
     const zPad = Math.max(5, (panel.zRange.max - panel.zRange.min) * 0.05);
-    const z0 = panel.zRange.min - zPad, z1 = panel.zRange.max + zPad;
-    const sSpan = Math.max(1e-6, s1 - s0), zSpan = Math.max(1e-6, z1 - z0);
+    const z0 = panel.zRange.min - zPad;
+    let z1 = panel.zRange.max + zPad;
+    const sSpan = Math.max(1e-6, s1 - s0);
     // TRUE SCALE by default: one metre along section is one metre of elevation, so a 60° hole is drawn
     // at 60° and a geologist can measure a dip off the page. Vertical exaggeration is opt-in and
     // labelled on the diagram, because an unlabelled VE is how people misread dips off a section.
-    const sPerPx = Math.max(sSpan / PLOT_W, (zSpan * ve) / PLOT_H);
+    let sPerPx = Math.max(sSpan / PLOT_W, ((z1 - z0) * ve) / PLOT_H);
+    // TASKS.csv #1375 — room above the collars for a stack of fan-hole labels (19 px a label): Silvertip's four PAD42 labels ran up
+    // into the offset ribbon. The tallest stack, from the collars as drawn at the first scale.
+    const slots = stackCollarLabels(panel.holes.map((h) => ({ id: h.hole_id, x: h.pts[0].s / sPerPx, y: (-h.pts[0].z * ve) / sPerPx })));
+    const need = 26 + 19 * Math.max(0, ...Object.values(slots));
+    const topCollar = Math.max(...panel.holes.map((h) => h.pts[0].z));
+    const room = ((z1 - topCollar) * ve) / sPerPx;
+    if (room < need) { z1 += ((need - room) * sPerPx) / ve * 1.1; sPerPx = Math.max(sSpan / PLOT_W, ((z1 - z0) * ve) / PLOT_H); }
     const xFor = (s) => PAD_L + PLOT_W / 2 + (s - (s0 + s1) / 2) / sPerPx;
     const yFor = (z) => PAD_T + PLOT_H / 2 - ((z - (z0 + z1) / 2) * ve) / sPerPx;
     return { xFor, yFor, sPerPx, s0, s1, z0, z1 };
@@ -237,7 +245,8 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
               ))}
 
               {/* ---- each hole: its projected trace, then its lithology intervals as a column ---- */}
-              {view && panel && panel.holes.map((h) => {
+              {view && panel && (() => { const slots = stackCollarLabels(panel.holes.map((h) => ({ id: h.hole_id, x: view.xFor(h.pts[0].s), y: view.yFor(h.pts[0].z) }))); return panel.holes.map((h) => {
+                const lift = 19 * (slots[h.hole_id] || 0); // #1375 — fan holes from one collar: their labels stacked, not printed over each other
                 const rows = lithoByHole[h.hole_id] || [];
                 const over = h.maxAbsOffset > offsetLimit;
                 const traceD = h.pts.map((p, i) => `${i ? "L" : "M"} ${view.xFor(p.s)} ${view.yFor(p.z)}`).join(" ");
@@ -262,14 +271,14 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
                       );
                     })}
                     <circle cx={view.xFor(h.pts[0].s)} cy={view.yFor(h.pts[0].z)} r={2.6} fill="#1a2028" />
-                    <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 12} textAnchor="middle" fontSize={8.6} fill="#1a2028">{h.hole_id}</text>
+                    <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 12 - lift} textAnchor="middle" fontSize={8.6} fill="#1a2028">{h.hole_id}</text>
                     {/* Offset printed ON the diagram, per hole — the projection's error bar, not a footnote. */}
-                    <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 4} textAnchor="middle" fontSize={7.6} fill={over ? "#a8741a" : "#65717e"}>
+                    <text x={view.xFor(h.pts[0].s)} y={view.yFor(h.pts[0].z) - 4 - lift} textAnchor="middle" fontSize={7.6} fill={over ? "#a8741a" : "#65717e"}>
                       {h.maxAbsOffset < 0.05 ? tr("on section") : `${h.maxAbsOffset.toFixed(0)} m off`}
                     </text>
                   </g>
                 );
-              })}
+              }); })()}
             </svg>
           </div>
 

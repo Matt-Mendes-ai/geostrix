@@ -205,3 +205,17 @@ export function correlationBands(a, b, byHole) {
   });
   return out;
 }
+
+// TASKS.csv #1375 (review #1352, Silvertip) — fan holes share a collar, so their labels printed on top of each other (three PAD34 labels at
+// 710-711, 222-224). points: [{ id, x, y }] in screen px -> { id: slot }: labels within dx horizontally and dy vertically of one already
+// placed go one slot higher (the caller lifts each slot by a label's height), in the order given.
+export function stackCollarLabels(points, { dx = 40, dy = 12 } = {}) {
+  const slots = {}, placed = [];
+  for (const p of points) {
+    const near = placed.filter((q) => Math.abs(q.x - p.x) < dx && Math.abs(q.y - p.y) < dy);
+    const used = new Set(near.map((q) => slots[q.id]));
+    let s = 0; while (used.has(s)) s++;
+    slots[p.id] = s; placed.push(p);
+  }
+  return slots;
+}
