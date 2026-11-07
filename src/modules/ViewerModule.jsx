@@ -139,7 +139,7 @@ import { sceneVertsToWorldFlat } from "../lib/meshFlat.js"; // TASKS.csv #600 �
 import { useSculpt } from "../lib/useSculpt.js"; // TASKS.csv #145 — manual surface editing
 const SculptPanel = lazyModal(() => import("../components/SculptPanel.jsx")); // TASKS.csv #476 // TASKS.csv #145
 // TASKS.csv #142 — numeric (grade-shell) implicit model: composites/assays -> dense IDW grid -> marching cubes
-import { SUPPORT_COLORS, MAX_BLOCKS, clampCellBudget } from "../lib/estimationMeta.js"; // SUPPORT_*: TASKS.csv #91/#92; budget: #625
+import { SUPPORT_COLORS, MAX_BLOCKS, clampCellBudget, NUMERIC_CELL_DEFAULT } from "../lib/estimationMeta.js"; // SUPPORT_*: TASKS.csv #91/#92; budget: #625
 import { rectilinearGrid, buildExposedFaces } from "../lib/voxelFaces.js"; // TASKS.csv #793
 const SurfaceSolidsPanel = React.lazy(() => import("../components/SurfaceSolidsPanel.jsx")); // TASKS.csv #802 — loads when opened (startup budget)
 const ExplicitSurfacePanel = React.lazy(() => import("../components/ExplicitSurfacePanel.jsx")); // TASKS.csv #811 — loads when opened
@@ -1321,7 +1321,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // compositing mirrors GradeEstimationModal's useComposites/compositeLength pattern exactly.
   const [numericSymbol, setNumericSymbol] = useState("");
   const [numericCutoff, setNumericCutoff] = useState(1);
-  const [numericCellSize, setNumericCellSize] = useState(10);
+  const [numericCellSize, setNumericCellSize] = useState(NUMERIC_CELL_DEFAULT); // #1416
   // TASKS.csv #625 — the grade shell's block budget (a per-computer preference: what this machine can afford), and the
   // hint left by an over-budget run ({ needed, budget, cell, fit, fitMax })
   const [numericMaxBlocks, setNumericMaxBlocksState] = useState(() => { try { return Number(localStorage.getItem("geostrix.gradeShellBlockBudget")) || MAX_BLOCKS; } catch { return MAX_BLOCKS; } });
@@ -3774,7 +3774,7 @@ ${describeTrend(t)}` };
     modelResolution,
     numericCapValue,
     numericCellSize,
-    numericMaxBlocks, setNumericBudgetHint, // TASKS.csv #625
+    numericMaxBlocks, setNumericBudgetHint, setNumericCellSize, // TASKS.csv #625; setNumericCellSize: #1416
     numericCloseShell,
     numericCompositeLength,
     numericCutoff,

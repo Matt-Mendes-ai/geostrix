@@ -8606,5 +8606,11 @@
   "X–Y scatter (choose the axes)": "Nuage X–Y (choisissez les axes)",
   "{axis} axis": "Axe {axis}",
   "Downhole logs and custom fields (at each sample's depth)": "Diagraphies et champs personnalisés (à la profondeur de chaque échantillon)",
-  "Any two axes: assay elements, or a downhole log / custom-layer field read at each sample's mid-depth in the same hole.": "Deux axes au choix : éléments d'analyse, ou une diagraphie / un champ de couche personnalisée lu à la mi-profondeur de chaque échantillon dans le même sondage."
+  "Any two axes: assay elements, or a downhole log / custom-layer field read at each sample's mid-depth in the same hole.": "Deux axes au choix : éléments d'analyse, ou une diagraphie / un champ de couche personnalisée lu à la mi-profondeur de chaque échantillon dans le même sondage.",
+  "Cell size set to {fit} m: at the default {cs} m this extent needs {n} blocks, over the {budget}-block budget. A finer cell needs a larger block budget in the Grade shell pane.": "Taille de cellule fixée à {fit} m : avec les {cs} m par défaut cette emprise demande {n} blocs, au-delà du budget de {budget} blocs. Une cellule plus fine demande un budget plus grand dans le panneau Enveloppe de teneur.",
+  "fast, ~3 MB of memory": "rapide, ~3 Mo de mémoire",
+  "~20 s, ~13 MB of memory": "~20 s, ~13 Mo de mémoire",
+  "~40 s, ~26 MB of memory": "~40 s, ~26 Mo de mémoire",
+  "~2.5 min, ~65 MB of memory": "~2,5 min, ~65 Mo de mémoire",
+  "How many grid cells the grade shell may use. Bigger budgets allow smaller cells over a large area, at the cost of time and memory (the run stays cancellable from the status bar). The grade shell keeps one value per cell, so a million cells take far less memory here than a million blocks in a grade estimate, which keeps a full record for each. Remembered on this computer.": "Nombre de cellules de grille que l'enveloppe de teneur peut utiliser. Un budget plus grand permet des cellules plus petites sur une grande zone, au prix du temps et de la mémoire (le calcul reste annulable depuis la barre d'état). L'enveloppe garde une valeur par cellule : un million de cellules occupe donc bien moins de mémoire ici qu'un million de blocs dans une estimation de teneur, qui garde un enregistrement complet pour chacun. Mémorisé sur cet ordinateur."
 }

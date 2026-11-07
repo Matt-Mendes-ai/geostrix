@@ -8606,5 +8606,11 @@
   "X–Y scatter (choose the axes)": "Dispersão X–Y (escolha os eixos)",
   "{axis} axis": "Eixo {axis}",
   "Downhole logs and custom fields (at each sample's depth)": "Registros de furo e campos próprios (na profundidade de cada amostra)",
-  "Any two axes: assay elements, or a downhole log / custom-layer field read at each sample's mid-depth in the same hole.": "Quaisquer dois eixos: elementos de análise, ou um registro de furo / campo de camada própria lido na profundidade média de cada amostra no mesmo furo."
+  "Any two axes: assay elements, or a downhole log / custom-layer field read at each sample's mid-depth in the same hole.": "Quaisquer dois eixos: elementos de análise, ou um registro de furo / campo de camada própria lido na profundidade média de cada amostra no mesmo furo.",
+  "Cell size set to {fit} m: at the default {cs} m this extent needs {n} blocks, over the {budget}-block budget. A finer cell needs a larger block budget in the Grade shell pane.": "Tamanho de célula definido em {fit} m: com os {cs} m padrão esta extensão precisa de {n} blocos, acima do orçamento de {budget} blocos. Uma célula mais fina precisa de um orçamento maior no painel de Envoltória de teor.",
+  "fast, ~3 MB of memory": "rápido, ~3 MB de memória",
+  "~20 s, ~13 MB of memory": "~20 s, ~13 MB de memória",
+  "~40 s, ~26 MB of memory": "~40 s, ~26 MB de memória",
+  "~2.5 min, ~65 MB of memory": "~2,5 min, ~65 MB de memória",
+  "How many grid cells the grade shell may use. Bigger budgets allow smaller cells over a large area, at the cost of time and memory (the run stays cancellable from the status bar). The grade shell keeps one value per cell, so a million cells take far less memory here than a million blocks in a grade estimate, which keeps a full record for each. Remembered on this computer.": "Quantas células da grade a envoltória de teor pode usar. Orçamentos maiores permitem células menores numa área grande, à custa de tempo e memória (a execução pode ser cancelada pela barra de status). A envoltória guarda um valor por célula, então um milhão de células ocupa muito menos memória aqui do que um milhão de blocos numa estimativa de teor, que guarda um registro completo de cada um. Lembrado neste computador."
 }

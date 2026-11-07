@@ -11,7 +11,7 @@ import { pythonImplicitModel } from "../../lib/desktop.js";
 import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, spreadSummary, spreadColor, SPREAD_NOT_REPRODUCED } from "../../lib/surfaceSpread.js";
 import { colorForLithology, colorForAlteration, colorForStructure, minMax, roleForLithology, mcodeRoleOf } from "../../lib/layers.js";
 import { computeMeshVolume } from "../../lib/volumetrics.js";
-import { MAX_BLOCKS, SUPPORT_COLORS, MAX_BLOCK_BUDGET, gridBlockCount, cellToFit } from "../../lib/estimationMeta.js"; // budget: #625 // #552 — the estimator itself loads in the run functions
+import { MAX_BLOCKS, SUPPORT_COLORS, MAX_BLOCK_BUDGET, gridBlockCount, cellToFit, NUMERIC_CELL_DEFAULT } from "../../lib/estimationMeta.js"; // NUMERIC_CELL_DEFAULT: #1416; // budget: #625 // #552 — the estimator itself loads in the run functions
 import { compositeDownhole, rawSampleIntervals, capAudit, capAuditText } from "../../lib/geochem.js"; // capAudit: #533; rawSampleIntervals: #571
 import { excludeQAQC } from "../../lib/qaqc.js";
 import { errorNotice, notice, appendNotice } from "../../lib/notices.js";
@@ -91,6 +91,7 @@ export function createModellingRuns(ctx, mcRef) {
     numericCellSize,
     numericMaxBlocks, // TASKS.csv #625
     setNumericBudgetHint, // TASKS.csv #625
+    setNumericCellSize, // TASKS.csv #1416
     numericCloseShell,
     numericCompositeLength,
     numericCutoff,
@@ -2024,7 +2025,7 @@ export function createModellingRuns(ctx, mcRef) {
         const xr = minMax(gridPoints.map((p) => p.x)), yr = minMax(gridPoints.map((p) => p.y)), zr = minMax(gridPoints.map((p) => p.z));
         const pad = Math.max(0, numericPadding);
         const bounds = { xmin: xr.min - pad, xmax: xr.max + pad, ymin: yr.min - pad, ymax: yr.max + pad, zmin: zr.min - pad, zmax: zr.max + pad };
-        const cs = Math.max(0.5, numericCellSize);
+        let cs = Math.max(0.5, numericCellSize); // let: #1416
         // TASKS.csv #292 — the search radius is never allowed to be unbounded any more. An unlimited
         // search made every sample a candidate for every cell: measured at 62,500 cells x 5,000 points
         // that is 81 s of blocked main thread (250 s at the MAX_BLOCKS cap), versus 0.2 s with a real
@@ -2046,7 +2047,17 @@ export function createModellingRuns(ctx, mcRef) {
         // TASKS.csv #625 — the block budget is the user's (200,000 by default, up to 5 million); checked here, before
         // the worker starts, so an over-budget run says which cell size WOULD fit (the pane offers it as a button)
         const blockBudget = Math.min(MAX_BLOCK_BUDGET, Math.max(MAX_BLOCKS, Number(numericMaxBlocks) || MAX_BLOCKS));
-        const blocksNeeded = gridBlockCount(bounds, cs);
+        let blocksNeeded = gridBlockCount(bounds, cs);
+        // TASKS.csv #1416 (review #1352, Silvertip) — the untouched default (10 m) failed on Silvertip's three pads (2,152,305 blocks): as
+        // Grade estimation does, it now runs at the cell size that fits the budget and says so; a cell size the user chose still stops here
+        if (blocksNeeded > blockBudget && numericCellSize === NUMERIC_CELL_DEFAULT) {
+          const fit = cellToFit(bounds, blockBudget, cs);
+          // built here, not inside the updater: that runs later, after cs and blocksNeeded are reassigned below
+          const fitNotice = { ...notice("Cell size set to {fit} m: at the default {cs} m this extent needs {n} blocks, over the {budget}-block budget. A finer cell needs a larger block budget in the Grade shell pane.", { fit, cs, n: blocksNeeded.toLocaleString(), budget: blockBudget.toLocaleString() }), level: "info" };
+          setNotices((p) => [...p, fitNotice]);
+          setNumericCellSize?.(fit);
+          cs = fit; blocksNeeded = gridBlockCount(bounds, cs);
+        }
         if (blocksNeeded > blockBudget) {
           const fit = cellToFit(bounds, blockBudget, cs);
           const fitMax = cellToFit(bounds, MAX_BLOCK_BUDGET, cs);

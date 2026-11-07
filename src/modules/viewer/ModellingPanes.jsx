@@ -6,7 +6,7 @@
 // Babel scope analysis, not by hand); module imports are re-imported here.
 import { isNotLogged } from "../../lib/notLogged.js"; // TASKS.csv #1740
 import { Activity, Calculator, ChevronDown, ChevronRight, ChevronUp, Compass, Droplets, FileBarChart2, Gem, GitCompare, Group, Layers, Layers3, Milestone, Mountain, Settings, Shapes, Sparkles, Trash2, Waves, Waypoints, X, PenTool } from "../../components/icons.js";
-import { BLOCK_BUDGETS, ESTIMATION_METHODS, MAX_BLOCKS } from "../../lib/estimationMeta.js";
+import { BLOCK_BUDGETS, ESTIMATION_METHODS, gradeShellBudgetNote } from "../../lib/estimationMeta.js"; // gradeShellBudgetNote: #1416
 import InfoButton from "../../components/InfoButton.jsx";
 import { PRECIOUS_METALS } from "../../lib/geochem.js";
 import { Fragment, Suspense, useCallback, useEffect, useMemo, useState } from "react";
@@ -1085,10 +1085,10 @@ export default function ModellingPanes(props) {
               {/* TASKS.csv #625 — the block budget (grid cells the shell may use). Runs in a background worker with
                   progress and Cancel; measured ~18 s per million blocks on a mid-range laptop. */}
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}
-                title={tr("How many grid cells the grade shell may use. Bigger budgets allow smaller cells over a large area, at the cost of time and memory (the run stays cancellable from the status bar). Remembered on this computer.")}>
+                title={tr("How many grid cells the grade shell may use. Bigger budgets allow smaller cells over a large area, at the cost of time and memory (the run stays cancellable from the status bar). The grade shell keeps one value per cell, so a million cells take far less memory here than a million blocks in a grade estimate, which keeps a full record for each. Remembered on this computer.")}>
                 <span style={{ flexShrink: 0 }}>{tr("Block budget")}</span>
                 <select value={numericMaxBlocks} onChange={(e) => { setNumericMaxBlocks(Number(e.target.value)); setNumericBudgetHint(null); }} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Grade shell block budget")}>
-                  {BLOCK_BUDGETS.map((b) => <option key={b} value={b}>{tr("{b} blocks{v}", { b: b.toLocaleString(), v: b === MAX_BLOCKS ? tr(" (fast)") : b >= 5000000 ? tr(" (~2 min, ~70 MB)") : b >= 2000000 ? " (~40 s)" : " (~20 s)" })}</option>)}
+                  {BLOCK_BUDGETS.map((b) => <option key={b} value={b}>{tr("{b} blocks ({v})", { b: b.toLocaleString(), v: tr(gradeShellBudgetNote(b)) })}</option>)}
                 </select>
               </label>
               {numericBudgetHint && (

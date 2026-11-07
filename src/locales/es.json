@@ -8606,5 +8606,11 @@
   "X–Y scatter (choose the axes)": "Dispersión X–Y (elija los ejes)",
   "{axis} axis": "Eje {axis}",
   "Downhole logs and custom fields (at each sample's depth)": "Registros de pozo y campos propios (a la profundidad de cada muestra)",
-  "Any two axes: assay elements, or a downhole log / custom-layer field read at each sample's mid-depth in the same hole.": "Dos ejes cualesquiera: elementos de ensaye, o un registro de pozo / campo de capa propia leído a la profundidad media de cada muestra en el mismo sondaje."
+  "Any two axes: assay elements, or a downhole log / custom-layer field read at each sample's mid-depth in the same hole.": "Dos ejes cualesquiera: elementos de ensaye, o un registro de pozo / campo de capa propia leído a la profundidad media de cada muestra en el mismo sondaje.",
+  "Cell size set to {fit} m: at the default {cs} m this extent needs {n} blocks, over the {budget}-block budget. A finer cell needs a larger block budget in the Grade shell pane.": "Tamaño de celda fijado en {fit} m: con los {cs} m por defecto esta extensión necesita {n} bloques, por encima del presupuesto de {budget} bloques. Una celda más fina necesita un presupuesto mayor en el panel de Envolvente de ley.",
+  "fast, ~3 MB of memory": "rápido, ~3 MB de memoria",
+  "~20 s, ~13 MB of memory": "~20 s, ~13 MB de memoria",
+  "~40 s, ~26 MB of memory": "~40 s, ~26 MB de memoria",
+  "~2.5 min, ~65 MB of memory": "~2,5 min, ~65 MB de memoria",
+  "How many grid cells the grade shell may use. Bigger budgets allow smaller cells over a large area, at the cost of time and memory (the run stays cancellable from the status bar). The grade shell keeps one value per cell, so a million cells take far less memory here than a million blocks in a grade estimate, which keeps a full record for each. Remembered on this computer.": "Cuántas celdas de la grilla puede usar la envolvente de ley. Presupuestos mayores permiten celdas más pequeñas en un área grande, a costa de tiempo y memoria (la ejecución se puede cancelar desde la barra de estado). La envolvente guarda un valor por celda, así que un millón de celdas ocupa mucha menos memoria aquí que un millón de bloques en una estimación de ley, que guarda un registro completo de cada uno. Se recuerda en este equipo."
 }

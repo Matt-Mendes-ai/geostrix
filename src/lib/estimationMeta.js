@@ -28,6 +28,10 @@ const storageOr = (s) => s ?? (typeof localStorage !== "undefined" ? localStorag
 export function readCellBudget(storage) { try { return clampCellBudget(Number(storageOr(storage)?.getItem(CELL_BUDGET_KEY))); } catch { return null; } }
 export function saveCellBudget(v, storage) { try { const c = clampCellBudget(v), st = storageOr(storage); if (c == null) st?.removeItem(CELL_BUDGET_KEY); else st?.setItem(CELL_BUDGET_KEY, String(c)); } catch { /* session only */ } }
 export const blockModelBudgetNote = (b) => (b <= 200000 ? "fast, ~0.1 GB of memory" : b <= 1000000 ? "~40 s, ~0.4 GB of memory" : "~1.5 min, ~0.9 GB of memory");
+// TASKS.csv #1416 (review #1352) — the grade shell's budget menu in the same form, so the two menus read alike. Its grid is a
+// Float64 value per block plus a 5-byte support code and index (estimateDenseGrid): ~13 MB per million, not the block model's
+// ~0.4 GB. Times from #625: 1.09 million blocks 18 s, 2.7 million 51 s, 5 million ~150 s (radius 50 m; a larger search is slower).
+export const gradeShellBudgetNote = (b) => (b <= 200000 ? "fast, ~3 MB of memory" : b <= 1000000 ? "~20 s, ~13 MB of memory" : b <= 2000000 ? "~40 s, ~26 MB of memory" : "~2.5 min, ~65 MB of memory");
 // the grid a box needs at a cell size (the same rounding as estimation.js's gridDims), and the smallest cell (to
 // 0.5 m) that keeps a box within a budget
 export function gridBlockCount(bounds, cell) {
@@ -82,3 +86,5 @@ export function overlapBox(a, b) {
   const o = { xmin: Math.max(a.xmin, b.xmin), xmax: Math.min(a.xmax, b.xmax), ymin: Math.max(a.ymin, b.ymin), ymax: Math.min(a.ymax, b.ymax), zmin: Math.max(a.zmin, b.zmin), zmax: Math.min(a.zmax, b.zmax) };
   return o.xmin < o.xmax && o.ymin < o.ymax && o.zmin < o.zmax ? o : null;
 }
+// TASKS.csv #1416 — the grade shell's starting cell size (m): left at it, an over-budget run takes the cell size that fits instead
+export const NUMERIC_CELL_DEFAULT = 10;

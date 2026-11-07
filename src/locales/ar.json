@@ -8606,5 +8606,11 @@
   "X–Y scatter (choose the axes)": "مخطط انتشار X–Y (اختر المحورين)",
   "{axis} axis": "المحور {axis}",
   "Downhole logs and custom fields (at each sample's depth)": "سجلات البئر والحقول المخصّصة (عند عمق كل عينة)",
-  "Any two axes: assay elements, or a downhole log / custom-layer field read at each sample's mid-depth in the same hole.": "أي محورين: عناصر التحليل، أو سجل بئر / حقل طبقة مخصّصة يُقرأ عند منتصف عمق كل عينة في البئر نفسه."
+  "Any two axes: assay elements, or a downhole log / custom-layer field read at each sample's mid-depth in the same hole.": "أي محورين: عناصر التحليل، أو سجل بئر / حقل طبقة مخصّصة يُقرأ عند منتصف عمق كل عينة في البئر نفسه.",
+  "Cell size set to {fit} m: at the default {cs} m this extent needs {n} blocks, over the {budget}-block budget. A finer cell needs a larger block budget in the Grade shell pane.": "ضُبط حجم الخلية على {fit} م: بالحجم الافتراضي {cs} م يحتاج هذا الامتداد {n} كتلة، فوق ميزانية {budget} كتلة. تحتاج خلية أدق إلى ميزانية أكبر في لوحة غلاف المحتوى.",
+  "fast, ~3 MB of memory": "سريع، ~3 ميغابايت من الذاكرة",
+  "~20 s, ~13 MB of memory": "~20 ث، ~13 ميغابايت من الذاكرة",
+  "~40 s, ~26 MB of memory": "~40 ث، ~26 ميغابايت من الذاكرة",
+  "~2.5 min, ~65 MB of memory": "~2.5 دقيقة، ~65 ميغابايت من الذاكرة",
+  "How many grid cells the grade shell may use. Bigger budgets allow smaller cells over a large area, at the cost of time and memory (the run stays cancellable from the status bar). The grade shell keeps one value per cell, so a million cells take far less memory here than a million blocks in a grade estimate, which keeps a full record for each. Remembered on this computer.": "عدد خلايا الشبكة التي يمكن أن يستخدمها غلاف المحتوى. الميزانيات الأكبر تسمح بخلايا أصغر على مساحة كبيرة، على حساب الوقت والذاكرة (يمكن إلغاء التشغيل من شريط الحالة). يحتفظ الغلاف بقيمة واحدة لكل خلية، لذا يشغل مليون خلية هنا ذاكرة أقل بكثير من مليون كتلة في تقدير المحتوى، الذي يحتفظ بسجل كامل لكل منها. يُحفظ على هذا الحاسوب."
 }
