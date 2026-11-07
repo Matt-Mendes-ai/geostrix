@@ -14,6 +14,7 @@ export const PANE_HELP = {
   "3D view cell budget": "cell-budget",
   "Downhole logs": "downhole-logs", // TASKS.csv #1425
   "MT / AMT soundings (.edi)": "mt-soundings", // TASKS.csv #1989
+  "FDEM 1D (DUALEM, GEM-2)": "fdem-1d", // TASKS.csv #1986
   "Open Mining Format (.omf)": "omf",
   // Maps
   "Boundaries": "boundaries",

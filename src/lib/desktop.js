@@ -600,8 +600,11 @@ export const JOB_POLL_MAX_MISSES = 5;
 
 // TASKS.csv #1985 — Harmonica's potential-field tools (python-sidecar/app/geophys/pfields.py): { op: "euler" | "eqs", ... }. Started as a
 // job (its own process: Cancel frees it), polled once a second; onProgress gets the engine's { stage, message }. -> { ok, data } | { ok: false, error }
-export async function runPfieldsJob(request, { signal = null, onProgress = null } = {}) {
-  const start = await startSidecarJob("pfields", request);
+export const runPfieldsJob = (request, opts) => runSidecarJobKind("pfields", request, opts);
+// TASKS.csv #1986 — the 1D inversion of loop-loop FDEM soundings (python-sidecar/app/geophys/em1d.py), the same way
+export const runEm1dJob = (request, opts) => runSidecarJobKind("em1d", request, opts);
+async function runSidecarJobKind(kind, request, { signal = null, onProgress = null } = {}) {
+  const start = await startSidecarJob(kind, request);
   if (!start.ok) return { ok: false, error: start.status === 400 && /jobKind/i.test(start.error || "") ? tr("This Python engine is older than the app: restart GeoStrix so it starts the engine that came with it.") : start.error };
   const id = start.data.id;
   let misses = 0;

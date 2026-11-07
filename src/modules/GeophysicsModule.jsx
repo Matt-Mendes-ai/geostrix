@@ -59,8 +59,9 @@ import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components
 import { Activity as RActivity } from "../components/icons.js"; // TASKS.csv #1425
 const DownholeLogsPane = React.lazy(() => import("../components/DownholeLogsPane.jsx")); // TASKS.csv #1425
 const MtSoundingsPane = React.lazy(() => import("../components/MtSoundingsPane.jsx")); // TASKS.csv #1989
+const FdemPane = React.lazy(() => import("../components/FdemPane.jsx")); // TASKS.csv #1986
 const EqsGridBox = React.lazy(() => import("../components/EqsGridBox.jsx")); // TASKS.csv #1985
-import { Waves as RWaves /* #1989 */, Zap as RZap, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "../components/icons.js";
+import { Layers as RLayers /* #1986 */, Waves as RWaves /* #1989 */, Zap as RZap, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "../components/icons.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #603
@@ -135,6 +136,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const geoPane = forcePane || geoPaneState; // #749 — the Maps tab chooses the pane
   const geoBtn = (id) => ({ active: geoPane === id, onClick: () => setGeoPane(id) });
   const [mtDrop, setMtDrop] = useState(null); // TASKS.csv #1989 — .edi files dropped on the tab, for the MT pane
+  const [fdemDrop, setFdemDrop] = useState(null); // TASKS.csv #1986 — Aarhus Workbench .xyz exports dropped on the tab, for the FDEM pane
   const [eqsFor, setEqsFor] = useState(null); // TASKS.csv #1985 — the survey whose equivalent-source box is open
   const {
     layers, replaceLayer, goToModule, collars, rasters, addRaster, project, surfaceSamples, // #845 — the terrain picker over a samples-only project
@@ -1475,7 +1477,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         const tifs = files.filter((f) => /\.tiff?$/i.test(f.name));
         const gxfs = files.filter((f) => /\.gxf$/i.test(f.name));
         const plys = files.filter((f) => /\.(ply|dxf)$/i.test(f.name));
-        const xyzs = files.filter((f) => /\.xyz$/i.test(f.name));
+        // TASKS.csv #1986 — an Aarhus Workbench export ("/INFO" then a Workbench line) is FDEM soundings or models, not a Geosoft XYZ
+        const xyzAll = files.filter((f) => /\.xyz$/i.test(f.name)), wbs = [];
+        for (const f of xyzAll) { const head = await f.slice(0, 400).text().catch(() => ""); if (/^\s*\/INFO\s*[\r\n]+\s*\/[^\n]*Workbench/i.test(head)) wbs.push(f); }
+        const xyzs = xyzAll.filter((f) => !wbs.includes(f));
+        if (wbs.length) { setFdemDrop(wbs); setGeoPane("fdem"); }
         // TASKS.csv #603 — a closed format (Geosoft .gdb / binary .grd, .dwg, Access) says how to get it out; such
         // files used to be ignored here without a word
         const advice = files.map((f) => unreadableFormatAdvice(f.name)).filter(Boolean);
@@ -1525,6 +1531,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             <RibbonButton advanced icon={RMagnet} label="Inversion" tone="model" title="Magnetics / gravity inversion and forward modelling (SimPEG)" {...geoBtn("inversion")} />
             <RibbonButton advanced icon={RZap} label="DC / IP" tone="model" title="2D DC resistivity / IP line inversion (SimPEG)" {...geoBtn("dcip")} />
             <RibbonButton advanced icon={RWaves} label="MT / AMT" tone="data" title="MT / AMT soundings from EDI files: curves, pseudosections and approximate depths" {...geoBtn("mt")} />{/* TASKS.csv #1989 */}
+            <RibbonButton advanced icon={RLayers} label="FDEM 1D" tone="model" title="Ground loop-loop EM (DUALEM, GEM-2): conductivity against depth under each sounding, a 1D inversion" {...geoBtn("fdem")} />{/* TASKS.csv #1986 */}
           </RibbonGroup>
           {/* #749 — Terrain, map layers, web layers, boundaries and claims moved to the Maps tab */}
           <RibbonGroup label="Models">
@@ -1612,7 +1619,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     {Object.entries(Z_MEANINGS).map(([k, label]) => <option key={k} value={k}>{tr(label)}</option>)}{/* #1974 */}
                   </select>
                   {/* TASKS.csv #1985 — gridded on one level with equivalent sources (Harmonica, in the Python engine) */}
-                  {!["euler_depth", "mt_bostick", "lidar"].includes(meta.method) /* derived points at depth, not readings; lidar: #1994 */ && <button type="button" onClick={() => setEqsFor(eqsFor === sv.key ? null : sv.key)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Grid the readings on one level with equivalent sources (Harmonica): readings at different heights come out on a level surface, and a higher level continues the survey upward")}>{tr("Grid with equivalent sources…")}</button>}
+                  {!["euler_depth", "mt_bostick", "lidar", "em1d_cond"].includes(meta.method) /* derived points at depth, not readings; lidar: #1994; em1d_cond: #1986 */ && <button type="button" onClick={() => setEqsFor(eqsFor === sv.key ? null : sv.key)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Grid the readings on one level with equivalent sources (Harmonica): readings at different heights come out on a level surface, and a higher level continues the survey upward")}>{tr("Grid with equivalent sources…")}</button>}
                   {eqsFor === sv.key && <Suspense fallback={null}><EqsGridBox survey={sv.key} rows={rows} units={meta.units || ""} addRaster={addRaster} defaultElevation={defaultElevation} numInput={numInput} pBtn={pBtn} /></Suspense>}
                   {/* TASKS.csv #1152 — interpretation lines over this survey, drawn in the 3D view */}
                   <button type="button" onClick={() => { goToModule("viewer"); requestModuleAction("interpret-lines", { survey: sv.key }); }} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Draw faults, contacts and lineaments over this survey in the 3D view; they become a map layer")}>{tr("Draw interpretation lines…")}</button>
@@ -2233,6 +2240,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             hardcoded default). */}
         </>)}
         {geoPane === "mt" && (<Suspense fallback={null}><MtSoundingsPane layers={layers} setLayers={setLayers} geophysSurveys={geophysSurveys} updateGeophysSurvey={updateGeophysSurvey} project={project} setEpsg={setEpsg} projectIsEmpty={projectIsEmpty} pendingFiles={mtDrop} onPendingDone={() => setMtDrop(null)} onClose={() => setGeoPane(null)} /></Suspense>)}{/* TASKS.csv #1989 */}
+        {geoPane === "fdem" && (<Suspense fallback={null}><FdemPane layers={layers} setLayers={setLayers} geophysSurveys={geophysSurveys} updateGeophysSurvey={updateGeophysSurvey} project={project} setEpsg={setEpsg} projectIsEmpty={projectIsEmpty} pendingFiles={fdemDrop} onPendingDone={() => setFdemDrop(null)} onClose={() => setGeoPane(null)} /></Suspense>)}{/* TASKS.csv #1986 */}
         {geoPane === "logs" && (<Suspense fallback={null}><DownholeLogsPane layers={layers} customLayers={customLayers} assays={assays} assayElements={assayElements} onClose={() => setGeoPane(null)} onEstimate={() => goToModule("modelling")} /></Suspense>)}{/* TASKS.csv #1425 */}
         {geoPane === "budget" && (<>
         <TaskPaneHeader title="3D view cell budget" icon={RSettings2} tone="view" />

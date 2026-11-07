@@ -434,6 +434,48 @@ def _validate_pfields(req):
     raise HTTPException(400, "op must be 'euler' or 'eqs'.")
 
 
+# TASKS.csv #1986 — 1D inversion of loop-loop FDEM soundings (DUALEM, GEM-2, EM31 / EM34; app/geophys/em1d.py)
+EM1D_MAX_SOUNDINGS = 200_000
+
+
+def _validate_em1d(req):
+    coils = req.get("coils")
+    if not isinstance(coils, list) or not (1 <= len(coils) <= 20):
+        raise HTTPException(422, "coils must list 1 to 20 coil pairs.")
+    try:
+        for c in coils:
+            if c.get("geom") not in ("HCP", "VCP", "PRP") or not (0 < float(c["sep"]) <= 100) or not (10 <= float(c["freq"]) <= 1e6):
+                raise ValueError
+        h = float(req["height"])
+    except (KeyError, TypeError, ValueError, AttributeError):
+        raise HTTPException(422, "Each coil needs geom (HCP, VCP or PRP), sep (0-100 m) and freq (10 Hz-1 MHz); the request a height.")
+    if not (0 <= h <= 100):
+        raise HTTPException(400, "The sensor height must be 0-100 m.")
+    kind = req.get("kind")
+    if kind not in ("eca", "ppm"):
+        raise HTTPException(400, "kind must be 'eca' or 'ppm'.")
+    data = req.get("data")
+    width = len(coils) if kind == "eca" else 2 * len(coils)
+    if not isinstance(data, list) or not (1 <= len(data) <= EM1D_MAX_SOUNDINGS):
+        raise HTTPException(400, f"Between 1 and {EM1D_MAX_SOUNDINGS:,} soundings.")
+    if any(not isinstance(r, list) or len(r) != width or any(v is not None and not isinstance(v, (int, float)) for v in r) for r in data):
+        raise HTTPException(422, f"Each sounding must hold {width} numbers (null = missing).")
+    n = len(data)
+    for k in ("line", "x", "y"):
+        if req.get(k) is not None and (not isinstance(req[k], list) or len(req[k]) != n):
+            raise HTTPException(422, f"{k} must have one value per sounding.")
+    lay = req.get("layers") or {}
+    try:
+        nl, first, bottom = int(lay.get("n", 20)), float(lay.get("first", 0.2)), float(lay.get("bottom", 15.0))
+        rel, ab, lat = float(req.get("errRel", 0.1)), float(req.get("errAbs", 0.5)), float(req.get("lateral", 0.0))
+    except (TypeError, ValueError):
+        raise HTTPException(422, "layers, errRel, errAbs and lateral must be numbers.")
+    if not (2 <= nl <= 40 and 0 < first < bottom <= 500):
+        raise HTTPException(400, "2 to 40 layers, the first thinner than the bottom depth (at most 500 m).")
+    if not (0 <= rel <= 1 and ab >= 0 and (rel > 0 or ab > 0) and 0 <= lat <= 100):
+        raise HTTPException(400, "The relative error must be 0-1 and the absolute error >= 0 (not both 0); lateral 0-100.")
+
+
 @app.post("/v1/geophys/dcip3d/plan")
 def dcip3d_plan(req: dict = Body(...)):
     """TASKS.csv #643 — the mesh, matrix size, peak memory and a time estimate, before anything is started."""
@@ -505,8 +547,16 @@ def start_job(req: dict = Body(...)):
         if job_id is None:
             return _job_slot_busy(manager)
         return {"id": job_id}
+    if req.get("jobKind") == "em1d":  # TASKS.csv #1986
+        payload = req.get("request") or {}
+        _validate_em1d(payload)
+        from app.jobs import manager
+        job_id = manager.start("em1d", payload)
+        if job_id is None:
+            return _job_slot_busy(manager)
+        return {"id": job_id}
     if req.get("jobKind") != "potential":
-        raise HTTPException(400, "jobKind must be 'potential', 'implicit', 'dcip2d', 'dcip3d' or 'pfields'.")
+        raise HTTPException(400, "jobKind must be 'potential', 'implicit', 'dcip2d', 'dcip3d', 'pfields' or 'em1d'.")
     payload = req.get("request") or {}
     _validate_potential(payload)
     from app.geophys.potential import plan

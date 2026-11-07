@@ -38,6 +38,9 @@ jobs:
       - name: DC/IP 2D tests (#322)
         working-directory: python-sidecar
         run: python tests/test_dcip2d.py
+      - name: 1D FDEM tests (#1986)
+        working-directory: python-sidecar
+        run: python tests/test_em1d.py
       - name: Onlap orientation tests (#512)
         working-directory: python-sidecar
         run: python tests/test_implicit_dedupe.py

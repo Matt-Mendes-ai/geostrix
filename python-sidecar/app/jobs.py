@@ -100,6 +100,9 @@ def _child(kind, req, q, cap):
         elif kind == "pfields":  # TASKS.csv #1985 — Harmonica: Euler deconvolution, equivalent sources
             from app.geophys.pfields import run_job as run_pfields
             out = run_pfields(req, lambda ev: q.put(("progress", ev)))
+        elif kind == "em1d":  # TASKS.csv #1986 — 1D inversion of loop-loop FDEM soundings
+            from app.geophys.em1d import run_job as run_em1d
+            out = run_em1d(req, lambda ev: q.put(("progress", ev)))
         elif kind == "implicit":
             # TASKS.csv #355 — the same implicit_model() the synchronous endpoint runs, in this process.
             from fastapi import HTTPException

@@ -113,6 +113,13 @@ def main():
     r = run_job("potential", pot)
     cells = r.get("cells") or {}
     assert len(cells.get("value") or []) == len(cells.get("support") or []) > 0, "potential: no cells"
+
+    # TASKS.csv #1986 — 1D FDEM: three DUALEM-style soundings over a 10 mS/m ground (numba's parallel kernel must run frozen)
+    em = {"coils": [{"geom": g, "sep": s, "freq": 9000.0} for g, s in (("HCP", 1.0), ("PRP", 1.1), ("HCP", 2.0), ("PRP", 2.1), ("HCP", 4.0), ("PRP", 4.1))],
+          "height": 0.75, "kind": "eca", "data": [[5.4, 1.9, 7.6, 4.2, 8.6, 6.5]] * 3, "errRel": 0.1, "errAbs": 0.1,
+          "layers": {"n": 12, "first": 0.3, "bottom": 12.0}, "lateral": 1.0, "line": [0, 0, 0], "x": [0.0, 1.0, 2.0], "y": [0.0, 0.0, 0.0]}
+    r = run_job("em1d", em)
+    assert len(r.get("condMs") or []) == 3 and all(v is not None for v in r["condMs"][1]), f"em1d: {list(r)[:8]}"
     print("SMOKE PASSED")
 
 

@@ -30,3 +30,7 @@ libdlf==0.3.0
 harmonica==0.7.0
 verde==1.9.0
 boule==0.7.0
+
+# TASKS.csv #1986 — empymod (Apache-2.0, Werthmueller): 1D layered-earth EM forward modelling for loop-loop FDEM soundings
+# (DUALEM, GEM-2, EM31-style). Pulls scooby (MIT); numba / libdlf / scipy are already here. Pure-Python wheel.
+empymod==2.6.1

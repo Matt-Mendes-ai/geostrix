@@ -86,6 +86,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit 1 }
           venv\Scripts\python.exe tests/test_dcip2d.py
           if ($LASTEXITCODE -ne 0) { exit 1 }
+          venv\Scripts\python.exe tests/test_em1d.py
+          if ($LASTEXITCODE -ne 0) { exit 1 }
       - name: Freeze the Python sidecar
         run: npm run build:sidecar
       # TASKS.csv #557 — run the FROZEN engine, not just the venv it was built from. Freeze-only failures are
