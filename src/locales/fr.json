@@ -8949,5 +8949,19 @@
   "Centring each atlas page's map on its hole: {i} of {n}": "Centrage de la carte de chaque page de l'atlas sur son sondage : {i} sur {n}",
   "Centred the map on its hole on {n} of {t} atlas page(s), at the template's scale.": "Carte centrée sur son sondage sur {n} des {t} page(s) de l'atlas, à l'échelle du modèle.",
   "Cancelled: the other pages keep the template's map, with their hole marked.": "Annulé : les autres pages gardent la carte du modèle, avec leur sondage marqué.",
-  "{n} page(s) could not be captured and keep the template's map.": "{n} page(s) n'ont pas pu être capturées et gardent la carte du modèle."
+  "{n} page(s) could not be captured and keep the template's map.": "{n} page(s) n'ont pas pu être capturées et gardent la carte du modèle.",
+  "Drillhole contacts": "Contacts des sondages",
+  "Use the drillholes' logged contacts ({n} holes)": "Utiliser les contacts décrits dans les sondages ({n} sondages)",
+  "Give each logged code its map unit. Where a hole passes from one unit of the order to another, that depth is a contact for the same top as on the map.": "Donnez à chaque code décrit son unité de la carte. Là où un sondage passe d'une unité de l'ordre à une autre, cette profondeur est un contact pour le même toit que sur la carte.",
+  "{n} interval(s)": "{n} intervalle(s)",
+  "Map unit for {code}": "Unité de la carte pour {code}",
+  "not used": "non utilisé",
+  "{c} contact(s) in {h} hole(s) between units of the order.": "{c} contact(s) dans {h} sondage(s) entre unités de l'ordre.",
+  "No contact yet: no hole passes between two units of the order with these codes.": "Pas encore de contact : aucun sondage ne passe entre deux unités de l'ordre avec ces codes.",
+  "{g} more left out: over {m} m unlogged or not used between the two units.": "{g} de plus laissés de côté : plus de {m} m non décrits ou non utilisés entre les deux unités.",
+  " {h} of the contact points are logged contacts in {k} drillhole(s).": " {h} des points de contact sont des contacts décrits dans {k} sondage(s).",
+  " No logged contact between two units of the order was found in the drillholes.": " Aucun contact décrit entre deux unités de l'ordre n'a été trouvé dans les sondages.",
+  " {g} logged contact(s) left out: over {m} m unlogged or not used between the two units.": " {g} contact(s) décrit(s) laissé(s) de côté : plus de {m} m non décrits ou non utilisés entre les deux unités.",
+  " {g} logged contact(s) excluded in the Boundary intercepts table.": " {g} contact(s) décrit(s) exclu(s) dans le tableau des intercepts de contact.",
+  " {g} logged contact(s) on holes with no trace were skipped.": " {g} contact(s) décrit(s) sur des sondages sans tracé ont été ignorés."
 }

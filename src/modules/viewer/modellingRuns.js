@@ -1409,6 +1409,26 @@ export function createModellingRuns(ctx, mcRef) {
         for (const surface of tops) pointsOf.get(surface).push({ ...api(x, y, z), srcCode: `${a}|${b}` });
       }
     }
+    // TASKS.csv #1718 — the drillholes' logged contacts: the same tops as a map contact between those two units, at the contact's
+    // depth on the hole's trace; an intercept excluded in the Boundary intercepts table stays out
+    let holeN = 0, holeHoles = 0, holeGaps = 0, holeNoTrace = 0, holeExcluded = 0;
+    if (p.holeCodes && Object.values(p.holeCodes).some(Boolean)) {
+      const { holeContacts } = await import("../../lib/holeMapContacts.js");
+      const hc = holeContacts(layers.litho || [], p.holeCodes, (u) => rank.has(u));
+      const traces = tracesRef.current || [];
+      const used = new Set();
+      for (const c of hc.contacts) {
+        if (excludedIntercepts.includes(interceptId("litho", c.row))) { holeExcluded++; continue; }
+        const t = traces.find((tc) => tc.hole_id === c.hole_id);
+        const q = t?.pts?.length ? findOnTrace(t.pts, c.depth) : null;
+        if (!q) { holeNoTrace++; continue; }
+        const ry = Math.min(rank.get(c.upper), rank.get(c.lower)), ro = Math.max(rank.get(c.upper), rank.get(c.lower));
+        const tops = breaks.size ? [order[contactSurface(ry, ro, breaks)]] : mapRelation === "erode" ? order.slice(ry + 1, ro + 1) : [order[ro]];
+        for (const surface of tops) pointsOf.get(surface).push({ ...sceneToApi(q), srcCode: `${c.upper}|${c.lower}`, hole_id: c.hole_id, depth: c.depth });
+        holeN++; used.add(c.hole_id);
+      }
+      holeHoles = used.size; holeGaps = hc.gaps;
+    }
     // TASKS.csv #1309 — a measurement steers the package its rock is in: a fitted contact dip by its contact, bedding by the map unit under it
     const mapOrientationPackage = (m) => {
       if (m.younger != null && rank.has(m.younger) && rank.has(m.older)) return contactPackage(Math.min(rank.get(m.younger), rank.get(m.older)), Math.max(rank.get(m.younger), rank.get(m.older)), breaks); // the order may have been changed since the dip was fitted
@@ -1449,6 +1469,10 @@ export function createModellingRuns(ctx, mcRef) {
     }), (pinched.size ? tr(" Pinched out where the map shows them missing between their neighbours: {u}.", { u: [...pinched].join(", ") }) : "")
       + (unpinched.size ? tr(" Missing between their neighbours in places, but a conformable stack cannot pinch them out (choose Erosional for that): {u}.", { u: [...unpinched].join(", ") }) : "")
       + (estimatedIn.size ? tr(" No measurement in the package of: {u}. Their dip was estimated from their contact points.", { u: [...estimatedIn].join(", ") }) : "") // #1309
+      + (holeN ? tr(" {h} of the contact points are logged contacts in {k} drillhole(s).", { h: holeN, k: holeHoles }) : p.holeCodes ? tr(" No logged contact between two units of the order was found in the drillholes.") : "") // #1718
+      + (holeGaps ? tr(" {g} logged contact(s) left out: over {m} m unlogged or not used between the two units.", { g: holeGaps, m: 10 }) : "")
+      + (holeExcluded ? tr(" {g} logged contact(s) excluded in the Boundary intercepts table.", { g: holeExcluded }) : "")
+      + (holeNoTrace ? tr(" {g} logged contact(s) on holes with no trace were skipped.", { g: holeNoTrace }) : "")
       + (offTerrain ? tr(" {k} contact point(s) beyond the terrain were skipped.", { k: offTerrain }) : "") + (unused ? tr(" {k} contact(s) involve units outside the order.", { k: unused }) : ""))]); // appendNotice: #821
     await runSurfaceStack([...faultSpecs, ...specs], { relation: breaks.size ? "erode" : p.relation || stackRelation, aboveUnit: order[0], packages: new Set(specs.map((s) => s.package)).size }); // #1309
   };

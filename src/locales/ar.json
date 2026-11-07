@@ -8949,5 +8949,19 @@
   "Centring each atlas page's map on its hole: {i} of {n}": "توسيط خريطة كل صفحة من الأطلس على ثقبها: {i} من {n}",
   "Centred the map on its hole on {n} of {t} atlas page(s), at the template's scale.": "وُسِّطت الخريطة على ثقبها في {n} من {t} صفحة أطلس، بمقياس القالب.",
   "Cancelled: the other pages keep the template's map, with their hole marked.": "أُلغي: تحتفظ الصفحات الأخرى بخريطة القالب مع تعليم ثقبها.",
-  "{n} page(s) could not be captured and keep the template's map.": "تعذر التقاط {n} صفحة وتحتفظ بخريطة القالب."
+  "{n} page(s) could not be captured and keep the template's map.": "تعذر التقاط {n} صفحة وتحتفظ بخريطة القالب.",
+  "Drillhole contacts": "تماسات الثقوب",
+  "Use the drillholes' logged contacts ({n} holes)": "استخدام التماسات المسجلة في الثقوب ({n} ثقب)",
+  "Give each logged code its map unit. Where a hole passes from one unit of the order to another, that depth is a contact for the same top as on the map.": "أعطِ كل رمز مسجل وحدته على الخريطة. حيث ينتقل الثقب من وحدة في الترتيب إلى أخرى، يكون ذلك العمق تماسًا للسطح العلوي نفسه كما على الخريطة.",
+  "{n} interval(s)": "{n} فترة",
+  "Map unit for {code}": "وحدة الخريطة لـ {code}",
+  "not used": "غير مستخدم",
+  "{c} contact(s) in {h} hole(s) between units of the order.": "{c} تماس في {h} ثقب بين وحدات الترتيب.",
+  "No contact yet: no hole passes between two units of the order with these codes.": "لا تماس بعد: لا يمر أي ثقب بين وحدتين من الترتيب بهذه الرموز.",
+  "{g} more left out: over {m} m unlogged or not used between the two units.": "استُبعد {g} آخرون: أكثر من {m} م غير مسجلة أو غير مستخدمة بين الوحدتين.",
+  " {h} of the contact points are logged contacts in {k} drillhole(s).": " {h} من نقاط التماس تماسات مسجلة في {k} ثقب.",
+  " No logged contact between two units of the order was found in the drillholes.": " لم يُعثر في الثقوب على أي تماس مسجل بين وحدتين من الترتيب.",
+  " {g} logged contact(s) left out: over {m} m unlogged or not used between the two units.": " استُبعد {g} تماس مسجل: أكثر من {m} م غير مسجلة أو غير مستخدمة بين الوحدتين.",
+  " {g} logged contact(s) excluded in the Boundary intercepts table.": " {g} تماس مسجل مستبعد في جدول تقاطعات الحدود.",
+  " {g} logged contact(s) on holes with no trace were skipped.": " تُجوهل {g} تماس مسجل في ثقوب بلا مسار."
 }

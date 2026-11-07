@@ -8,12 +8,13 @@ import { ChevronUp, ChevronDown } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
 import { suggestPileOrder } from "../lib/pileOrder.js";
 import { terrainGroundAt } from "../lib/viewer/geomath.js";
+import { loggedCodes, suggestCodeUnits, holeContacts, MAX_GAP_M } from "../lib/holeMapContacts.js"; // TASKS.csv #1718
 
 const ROLES = ["stratigraphic", "intrusion", "cross-cutting", "other"];
 const roleLabel = (r) => ({ stratigraphic: tr("stratigraphic"), intrusion: tr("intrusion"), "cross-cutting": tr("cross-cutting"), other: tr("other (left out)") }[r] || r);
 const fieldsOf = (l) => l?.fields || Object.keys(l?.features?.[0]?.attributes || {});
 
-export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, busy, onRun, onBuildBodies, pBtn, smallSel, holeCount = 0 }) { // holeCount: #1718 // onBuildBodies: #821
+export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, busy, onRun, onBuildBodies, pBtn, smallSel, holeCount = 0, lithoRows = null }) { // holeCount: #1718 // onBuildBodies: #821
   const polys = (mapLayers || []).filter((l) => l.geomType === "polygon");
   const lines = (mapLayers || []).filter((l) => l.geomType === "line" || l.geomType === "polyline"); // the importer names them "polyline"
   const [layerId, setLayerId] = useState("");
@@ -92,12 +93,21 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const row = { display: "flex", alignItems: "center", gap: 6, marginBottom: 6 };
   const sel = { ...smallSel, flex: 1, minWidth: 0 };
 
+  // TASKS.csv #1718 — the drillholes' logged contacts beside the map's: each logged code a map unit (exact matches suggested), every
+  // change downhole between two units of the order a contact for the same top as on the map (lib/holeMapContacts.js)
+  const codes = useMemo(() => loggedCodes(lithoRows), [lithoRows]);
+  const mapUnits = useMemo(() => (suggestion?.units || []).map((u) => u.unit), [suggestion]);
+  const [codeEdit, setCodeEdit] = useState({});
+  const codeUnit = useMemo(() => ({ ...suggestCodeUnits(codes.map((c) => c.code), mapUnits), ...codeEdit }), [codes, mapUnits, codeEdit]);
+  const [useHolesChoice, setUseHoles] = useState(null);
+  const useHoles = useHolesChoice ?? Object.values(codeUnit).some(Boolean); // on when a code matches a unit
+  const holePreview = useMemo(() => (useHoles && lithoRows?.length ? holeContacts(lithoRows, codeUnit, (u) => order.includes(u)) : null), [useHoles, lithoRows, codeUnit, order]);
   // TASKS.csv #1718 (review #1645, Copley) — on a drilled prospect, say that the holes are not used here and where they are
   const holesNote = holeCount > 0 ? <div className="ge-holes-note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{tr("This tool builds from the map and the outcrop measurements only: the {n} drillhole(s) are not used. To fit the logged contacts and the mapped ones together, use Explicit surface: its \"From the geological map\" section adds the map contacts to the hole picks.", { n: holeCount })}</div> : null;
   if (!polys.length) return <>{holesNote}<div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Import a geological map (polygons with a unit attribute) and the outcrop measurements in the Surface Geology tab first.")}</div></>;
   return (
     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
-      {holesNote}
+      {holeCount > 0 && !codes.length && holesNote}
       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>
         {tr("Builds a stratigraphic model from the geological map and outcrop measurements alone: the map contacts on the terrain become the tops of units, the bedding and the contacts' own dips become orientations. The order below is a suggestion from the map — check it.")}
       </div>
@@ -164,7 +174,29 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
         <select value={relation} onChange={(e) => setRelation(e.target.value)} style={sel} aria-label={tr("Contact relation")}>
           <option value="onlap">{tr("Conformable (one shared field: units cannot pinch out)")}</option><option value="erode">{tr("Erosional (each unit truncates those below)")}</option>
         </select></div>}
-      <button onClick={() => onRun({ layer, field: unitField, order, breaks, bedding, planes, faults: faults.filter((f) => f.on).map((f) => ({ name: f.name, line: f.line, dip: f.dip, dipDir: f.dipDir })), relation, leftOut })}
+      {holeCount > 0 && codes.length > 0 && ( /* TASKS.csv #1718 */
+        <div style={{ margin: "8px 0", padding: 6, border: "1px solid var(--color-border)", borderRadius: 6 }} aria-label={tr("Drillhole contacts")}>
+          <label style={{ ...row, cursor: "pointer", color: "var(--color-text)" }}><input type="checkbox" checked={useHoles} onChange={(e) => setUseHoles(e.target.checked)} />{tr("Use the drillholes' logged contacts ({n} holes)", { n: holeCount })}</label>
+          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>{tr("Give each logged code its map unit. Where a hole passes from one unit of the order to another, that depth is a contact for the same top as on the map.")}</div>
+          {useHoles && (
+            <div style={{ maxHeight: 170, overflowY: "auto", marginBottom: 6 }}>
+              {codes.map(({ code, n }) => (
+                <div key={code} style={{ ...row, marginBottom: 3, fontSize: "var(--font-size-xs)" }}>
+                  <span style={{ width: 90, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={tr("{n} interval(s)", { n })}>{code} ({n})</span>
+                  <select value={codeUnit[code] || ""} onChange={(e) => setCodeEdit((p) => ({ ...p, [code]: e.target.value }))} style={sel} aria-label={tr("Map unit for {code}", { code })}>
+                    <option value="">{tr("not used")}</option>{mapUnits.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
+          {useHoles && holePreview && <div style={{ fontSize: "var(--font-size-xs)", color: holePreview.contacts.length ? "var(--color-text-muted)" : "var(--color-warn-text)", lineHeight: 1.4 }}>
+            {holePreview.contacts.length ? tr("{c} contact(s) in {h} hole(s) between units of the order.", { c: holePreview.contacts.length, h: holePreview.holes }) : tr("No contact yet: no hole passes between two units of the order with these codes.")}
+            {holePreview.gaps ? " " + tr("{g} more left out: over {m} m unlogged or not used between the two units.", { g: holePreview.gaps, m: MAX_GAP_M }) : ""}
+          </div>}
+        </div>
+      )}
+      <button onClick={() => onRun({ layer, field: unitField, order, breaks, bedding, planes, faults: faults.filter((f) => f.on).map((f) => ({ name: f.name, line: f.line, dip: f.dip, dipDir: f.dipDir })), relation, leftOut, holeCodes: useHoles && holeCount > 0 ? codeUnit : null })}
         disabled={busy || !groundAt || order.length < 2} style={{ ...pBtn, justifyContent: "center", opacity: busy || !groundAt || order.length < 2 ? 0.5 : 1 }}>
         {busy ? tr("Running…") : tr("Build the model (GemPy)")}
       </button>

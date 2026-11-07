@@ -8949,5 +8949,19 @@
   "Centring each atlas page's map on its hole: {i} of {n}": "Centralizando o mapa de cada página do atlas no seu furo: {i} de {n}",
   "Centred the map on its hole on {n} of {t} atlas page(s), at the template's scale.": "O mapa foi centralizado no seu furo em {n} de {t} página(s) do atlas, na escala do modelo.",
   "Cancelled: the other pages keep the template's map, with their hole marked.": "Cancelado: as outras páginas mantêm o mapa do modelo, com seu furo marcado.",
-  "{n} page(s) could not be captured and keep the template's map.": "{n} página(s) não puderam ser capturadas e mantêm o mapa do modelo."
+  "{n} page(s) could not be captured and keep the template's map.": "{n} página(s) não puderam ser capturadas e mantêm o mapa do modelo.",
+  "Drillhole contacts": "Contatos dos furos",
+  "Use the drillholes' logged contacts ({n} holes)": "Usar os contatos registrados nos furos ({n} furos)",
+  "Give each logged code its map unit. Where a hole passes from one unit of the order to another, that depth is a contact for the same top as on the map.": "Dê a cada código registrado sua unidade do mapa. Onde um furo passa de uma unidade da ordem para outra, essa profundidade é um contato para o mesmo topo que no mapa.",
+  "{n} interval(s)": "{n} intervalo(s)",
+  "Map unit for {code}": "Unidade do mapa para {code}",
+  "not used": "não usado",
+  "{c} contact(s) in {h} hole(s) between units of the order.": "{c} contato(s) em {h} furo(s) entre unidades da ordem.",
+  "No contact yet: no hole passes between two units of the order with these codes.": "Ainda sem contatos: nenhum furo passa entre duas unidades da ordem com estes códigos.",
+  "{g} more left out: over {m} m unlogged or not used between the two units.": "{g} a mais ficam de fora: mais de {m} m sem registro ou não usados entre as duas unidades.",
+  " {h} of the contact points are logged contacts in {k} drillhole(s).": " {h} dos pontos de contato são contatos registrados em {k} furo(s).",
+  " No logged contact between two units of the order was found in the drillholes.": " Nenhum contato registrado entre duas unidades da ordem foi encontrado nos furos.",
+  " {g} logged contact(s) left out: over {m} m unlogged or not used between the two units.": " {g} contato(s) registrado(s) ficam de fora: mais de {m} m sem registro ou não usados entre as duas unidades.",
+  " {g} logged contact(s) excluded in the Boundary intercepts table.": " {g} contato(s) registrado(s) excluído(s) na tabela de interceptos de contato.",
+  " {g} logged contact(s) on holes with no trace were skipped.": " {g} contato(s) registrado(s) em furos sem traço foram ignorados."
 }
