@@ -9027,5 +9027,12 @@
   "No Macrostrat tiles cover this area.": "Nenhum tile do Macrostrat cobre esta área.",
   "Macrostrat's compilation of geologic maps (CC BY 4.0) for the project area, and the map units at its centre with their original maps": "A compilação de mapas geológicos do Macrostrat (CC BY 4.0) para a área do projeto, e as unidades no seu centro com seus mapas originais",
   "Macrostrat geology…": "Geologia do Macrostrat…",
-  "Map: Macrostrat source {id}, which Macrostrat does not describe.": "Mapa: fonte {id} do Macrostrat, que o Macrostrat não descreve."
+  "Map: Macrostrat source {id}, which Macrostrat does not describe.": "Mapa: fonte {id} do Macrostrat, que o Macrostrat não descreve.",
+  "Asking Macrostrat for its lithology colours…": "Consultando o Macrostrat sobre suas cores de litologia…",
+  "Coloured {n} of {total} codes like Macrostrat's lithologies (CC BY 4.0): {list}. The others keep their colours.": "{n} de {total} códigos coloridos como as litologias do Macrostrat (CC BY 4.0): {list}. Os demais mantêm suas cores.",
+  "Colour each code like Macrostrat's lithology of the same name (from the code, its label or its logged description; data CC BY 4.0). Codes that match none keep their colour.": "Colore cada código como a litologia do Macrostrat de mesmo nome (pelo código, seu rótulo ou sua descrição registrada; dados CC BY 4.0). Códigos sem correspondência mantêm sua cor.",
+  "Macrostrat colours": "Cores do Macrostrat",
+  "Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours, from Macrostrat (CC BY 4.0). The others keep their colours.": "Colore as unidades cujo nome indica uma idade (Jurássico Superior, Eoceno ...) com as cores da escala de tempo internacional, do Macrostrat (CC BY 4.0). As demais mantêm suas cores.",
+  "\"{name}\": {n} of {total} units coloured by the time scale (Macrostrat, CC BY 4.0); the others keep their colours.": "\"{name}\": {n} de {total} unidades coloridas pela escala de tempo (Macrostrat, CC BY 4.0); as demais mantêm suas cores.",
+  "Time-scale colours": "Cores da escala de tempo"
 }

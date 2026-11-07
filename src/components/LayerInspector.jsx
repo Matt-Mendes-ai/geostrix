@@ -10,6 +10,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 import { inspectorColumns, inspectorCell } from "../lib/inspectorColumns.js"; // TASKS.csv #1402
+import { macrostratLithColours } from "../lib/macrostratColours.js"; // TASKS.csv #2005
 
 // TASKS.csv #123 — QGIS-specialist audit finding: "Themes save whole-view state per-project; there's
 // no reusable style definition (color ramp + classification + symbol) that travels between projects
@@ -32,6 +33,20 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
   useFocusTrap(); // TASKS.csv #238
   const [search, setSearch] = useState("");
   const [styleNotice, setStyleNotice] = useState(null);
+  // TASKS.csv #2005 — the lithology codes coloured like Macrostrat's lithologies (its list fetched once, when asked)
+  const macrostratColours = async () => {
+    setStyleNotice({ ok: true, text: tr("Asking Macrostrat for its lithology colours…") });
+    try {
+      const { fetchMacrostratLithologies } = await import("../lib/macrostratFetch.js");
+      const liths = await fetchMacrostratLithologies();
+      const desc = new Map();
+      for (const r of rows) if (r?.description) { const m = desc.get(r.value) || new Map(); m.set(r.description, (m.get(r.description) || 0) + 1); desc.set(r.value, m); }
+      const codes = categories.map(([value]) => ({ value, name: categoryLabel(legendOverride[value], meta, value), description: desc.has(value) ? [...desc.get(value)].sort((a, b) => b[1] - a[1])[0][0] : "" }));
+      const hits = macrostratLithColours(codes, liths);
+      hits.forEach((h) => onSetColor(h.value, h.color));
+      setStyleNotice({ ok: true, text: tr("Coloured {n} of {total} codes like Macrostrat's lithologies (CC BY 4.0): {list}. The others keep their colours.", { n: hits.length, total: codes.length, list: hits.slice(0, 12).map((h) => `${h.value} → ${h.lith}`).join(", ") + (hits.length > 12 ? ", …" : "") }) });
+    } catch (e) { setStyleNotice({ ok: false, text: tr("Macrostrat: {message}", { message: e.message }) }); }
+  };
   const styleFileInput = useRef(null);
   // TASKS.csv #1233 / #1402 — the columns follow the data: Hole for every hole-based layer, description, intensity, percent
   const columns = useMemo(() => inspectorColumns(layerKey, rows), [layerKey, rows]);
@@ -96,6 +111,7 @@ export default function LayerInspector({ layerKey, rows, meta, categoryFilter, n
                   <button onClick={() => exportLayerStyle(layerKey, meta, categories, legendOverride)} style={miniBtn} title={tr("Save this legend's colours/labels as a reusable file")}><Download size={12} style={{ marginRight: 4, verticalAlign: -1 }} />{tr("Export style")}</button>
                   <button onClick={() => styleFileInput.current.click()} style={miniBtn} title={tr("Apply a previously-exported style file to this legend")}><Upload size={12} style={{ marginRight: 4, verticalAlign: -1 }} />{tr("Import style")}</button>
                   <input ref={styleFileInput} type="file" accept=".json" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) importLayerStyle(f); e.target.value = ""; }} />
+                  {layerKey === "litho" && <button onClick={macrostratColours} style={miniBtn} title={tr("Colour each code like Macrostrat's lithology of the same name (from the code, its label or its logged description; data CC BY 4.0). Codes that match none keep their colour.")}>{tr("Macrostrat colours")}</button>}{/* TASKS.csv #2005 */}
                 </div>
                 {styleNotice && (
                   <div style={{ marginBottom: 10, padding: "6px 8px", background: styleNotice.ok ? "var(--color-bg-subtle)" : "var(--color-danger-bg)", border: `1px solid ${styleNotice.ok ? "var(--color-border)" : "var(--color-danger-border)"}`, borderRadius: 5, fontSize: "var(--font-size-sm)", color: styleNotice.ok ? "var(--color-text-secondary)" : "var(--color-danger-text)", lineHeight: 1.4 }}>

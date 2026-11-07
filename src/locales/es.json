@@ -9027,5 +9027,12 @@
   "No Macrostrat tiles cover this area.": "Ninguna tesela de Macrostrat cubre esta área.",
   "Macrostrat's compilation of geologic maps (CC BY 4.0) for the project area, and the map units at its centre with their original maps": "La compilación de mapas geológicos de Macrostrat (CC BY 4.0) para el área del proyecto, y las unidades en su centro con sus mapas originales",
   "Macrostrat geology…": "Geología de Macrostrat…",
-  "Map: Macrostrat source {id}, which Macrostrat does not describe.": "Mapa: fuente {id} de Macrostrat, que Macrostrat no describe."
+  "Map: Macrostrat source {id}, which Macrostrat does not describe.": "Mapa: fuente {id} de Macrostrat, que Macrostrat no describe.",
+  "Asking Macrostrat for its lithology colours…": "Consultando a Macrostrat sus colores de litología…",
+  "Coloured {n} of {total} codes like Macrostrat's lithologies (CC BY 4.0): {list}. The others keep their colours.": "Se colorearon {n} de {total} códigos como las litologías de Macrostrat (CC BY 4.0): {list}. Los demás conservan sus colores.",
+  "Colour each code like Macrostrat's lithology of the same name (from the code, its label or its logged description; data CC BY 4.0). Codes that match none keep their colour.": "Colorea cada código como la litología de Macrostrat del mismo nombre (según el código, su etiqueta o su descripción registrada; datos CC BY 4.0). Los códigos sin coincidencia conservan su color.",
+  "Macrostrat colours": "Colores de Macrostrat",
+  "Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours, from Macrostrat (CC BY 4.0). The others keep their colours.": "Colorea las unidades cuyo nombre indica una edad (Jurásico Tardío, Eoceno ...) con los colores de la escala de tiempo internacional, desde Macrostrat (CC BY 4.0). Las demás conservan sus colores.",
+  "\"{name}\": {n} of {total} units coloured by the time scale (Macrostrat, CC BY 4.0); the others keep their colours.": "\"{name}\": {n} de {total} unidades coloreadas según la escala de tiempo (Macrostrat, CC BY 4.0); las demás conservan sus colores.",
+  "Time-scale colours": "Colores de la escala de tiempo"
 }

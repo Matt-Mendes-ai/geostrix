@@ -9027,5 +9027,12 @@
   "No Macrostrat tiles cover this area.": "لا توجد بلاطات Macrostrat تغطي هذه المنطقة.",
   "Macrostrat's compilation of geologic maps (CC BY 4.0) for the project area, and the map units at its centre with their original maps": "تجميعة Macrostrat للخرائط الجيولوجية (CC BY 4.0) لمنطقة المشروع، ووحدات مركزها مع خرائطها الأصلية",
   "Macrostrat geology…": "جيولوجيا Macrostrat…",
-  "Map: Macrostrat source {id}, which Macrostrat does not describe.": "الخريطة: مصدر Macrostrat رقم {id}، الذي لا يصفه Macrostrat."
+  "Map: Macrostrat source {id}, which Macrostrat does not describe.": "الخريطة: مصدر Macrostrat رقم {id}، الذي لا يصفه Macrostrat.",
+  "Asking Macrostrat for its lithology colours…": "جارٍ سؤال Macrostrat عن ألوان الصخارة…",
+  "Coloured {n} of {total} codes like Macrostrat's lithologies (CC BY 4.0): {list}. The others keep their colours.": "لُوّن {n} من {total} رمزًا مثل صخاريات Macrostrat (CC BY 4.0): {list}. تحتفظ البقية بألوانها.",
+  "Colour each code like Macrostrat's lithology of the same name (from the code, its label or its logged description; data CC BY 4.0). Codes that match none keep their colour.": "لوّن كل رمز مثل صخارة Macrostrat التي تحمل الاسم نفسه (من الرمز أو تسميته أو وصفه المسجل؛ البيانات CC BY 4.0). تحتفظ الرموز غير المطابقة بلونها.",
+  "Macrostrat colours": "ألوان Macrostrat",
+  "Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours, from Macrostrat (CC BY 4.0). The others keep their colours.": "لوّن الوحدات التي يدل اسمها على عمر (الجوراسي المتأخر، الإيوسين ...) بألوان المقياس الزمني الدولي، من Macrostrat (CC BY 4.0). تحتفظ البقية بألوانها.",
+  "\"{name}\": {n} of {total} units coloured by the time scale (Macrostrat, CC BY 4.0); the others keep their colours.": "\"{name}\": لُوّنت {n} من {total} وحدة حسب المقياس الزمني (Macrostrat، CC BY 4.0)؛ تحتفظ البقية بألوانها.",
+  "Time-scale colours": "ألوان المقياس الزمني"
 }

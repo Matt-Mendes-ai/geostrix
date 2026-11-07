@@ -64,3 +64,28 @@ test("the hosts: only these two, through the main process, named in every privac
   const modal = read("src/components/MacrostratModal.jsx");
   assert.ok(modal.includes('name: "Macrostrat geology (CC BY 4.0)"') && modal.includes("credit: MACROSTRAT_CREDIT"));
 });
+
+test("colour lookups: lithology codes and age-named units, the most specific name winning, the rest untouched", async () => {
+  const { parseLithologies, macrostratLithColours, parseIntervals, timeScaleColours } = await import("../src/lib/macrostratColours.js");
+  const liths = parseLithologies({ success: { data: [{ name: "sandstone", color: "#ffff00" }, { name: "sand", color: "#ffcc00" }, { name: "limestone", color: "#0000ff" }, { name: "andesite", color: "#aa0000" }, { name: "quartz monzonite", color: "#ff99cc" }, { name: "monzonite", color: "#ff0099" }, { name: "tuff", color: "#cccc99" }, { name: "breccia", color: "#996633" }, { name: "no colour", color: "" }] } });
+  assert.equal(liths.length, 8);
+  const hits = macrostratLithColours([
+    { value: "LMST", name: "LMST", description: "" }, // abbreviation
+    { value: "AND", name: "AND", description: "" },
+    { value: "TFF", name: "TFF", description: "tuff breccia" }, // Copley: the code before the longer description word
+    { value: "QM", name: "Copley Lake phase", description: "quartz monzonite, pink, equigranular" }, // the description, the longer name wins
+    { value: "S2", name: "S2 — fine sandstone", description: "" }, // the label
+    { value: "OB", name: "Overburden", description: "sand and gravel" }, // a description word only: matches sand (left to the user to undo)
+    { value: "X9", name: "X9", description: "and then some" }, // 'and' inside a description is not andesite
+  ], liths);
+  const m = Object.fromEntries(hits.map((h) => [h.value, [h.lith, h.by]]));
+  assert.deepEqual(m.LMST, ["limestone", "code"]); assert.deepEqual(m.AND, ["andesite", "code"]);
+  assert.deepEqual(m.QM, ["quartz monzonite", "description"]); assert.deepEqual(m.S2, ["sandstone", "name"]);
+  assert.equal(m.X9, undefined);
+  assert.deepEqual(m.TFF, ["tuff", "code"], "the code before the longer description word (Copley: TFF came out as breccia)");
+  const ints = parseIntervals({ success: { data: [{ name: "Jurassic", color: "#34B2C9", b_age: 201.3, t_age: 145 }, { name: "Late Jurassic", color: "#B3E3EE", b_age: 163.5, t_age: 145 }, { name: "Eocene", color: "#FDB46C", b_age: 56, t_age: 33.9 }] } });
+  const ts = timeScaleColours([{ value: "Late Jurassic granite" }, { value: "Jurassic sediments" }, { value: "Unit 7", label: "Eocene volcanics" }, { value: "Quaternary till" }], ints);
+  assert.deepEqual(ts.map((t) => [t.value, t.interval]), [["Late Jurassic granite", "Late Jurassic"], ["Jurassic sediments", "Jurassic"], ["Unit 7", "Eocene"]]);
+  assert.ok(read("src/components/LayerInspector.jsx").includes('layerKey === "litho" && <button onClick={macrostratColours}'));
+  assert.ok(read("src/components/SurfaceMappingPanel.jsx").includes('tr("Time-scale colours")'));
+});
