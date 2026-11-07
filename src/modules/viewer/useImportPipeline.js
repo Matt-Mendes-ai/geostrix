@@ -535,8 +535,8 @@ export function useImportPipeline(ctx) {
       if (numeric) { const vals = rows.map((r) => r.value); setNumericRange((p) => ({ ...p, [target]: minMax(vals) })); } // not Math.min/max(...) — see layers.js's minMax comment
       // TASKS.csv #540 — what is wrong with these rows, said now (Data QC loads on demand: not in the startup bundle)
       const liveAtImport = importStateRef.current;
-      import("../../lib/dataQC.js").then(({ importCheckSummary }) => {
-        const msg = importCheckSummary(rows, liveAtImport.collars, liveAtImport.survey, `${LAYER_META[target].label} rows from ${fileName}`);
+      import("../../lib/dataQC.js").then(({ importCheckSummary, PLAUSIBLE_RANGE }) => {
+        const msg = importCheckSummary(rows, liveAtImport.collars, liveAtImport.survey, `${LAYER_META[target].label} rows from ${fileName}`, PLAUSIBLE_RANGE[target] || null); // #1508 — and values no rock has
         if (msg) setNotices((p) => [...p, msg]);
       }).catch(() => {});
       setNotices((p) => [...p, tr("Loaded {rows} rows into {label} from {fileName}.", { rows: rows.length, label: LAYER_META[target].label, fileName })

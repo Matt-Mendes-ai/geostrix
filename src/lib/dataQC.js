@@ -173,15 +173,19 @@ function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegEr
 // TASKS.csv #540 — what is wrong with the rows an import just committed, in one line for its notice (rows with a
 // blank / non-numeric to, from > to, negative depths, past the end of the hole, or a hole with no collar). Import
 // stays non-blocking; Data QC has the per-row list. O(rows); collars / survey give hole lengths.
-export function importCheckSummary(rows, collars, survey, label = "rows") {
+// TASKS.csv #1531 / #1508 — the plausible value range of a numeric interval layer, for Data QC and for the import notice
+export const PLAUSIBLE_RANGE = { geotech: { min: 0, max: 110 }, recovery: { min: 0, max: 110 }, sg: { min: 1, max: 6 } };
+// range (#1508): { min, max } of a plausible value: an SG of -7.27 went in with only 'Loaded 1240 rows'; Data QC listed it, the notice did not
+export function importCheckSummary(rows, collars, survey, label = "rows", range = null) {
   const collarIds = new Set((collars || []).map((c) => c.hole_id));
   const len = new Map();
   (collars || []).forEach((c) => { if (Number.isFinite(c.length)) len.set(c.hole_id, c.length); });
   (survey || []).forEach((s) => { if (Number.isFinite(s.depth)) len.set(s.hole_id, Math.max(s.depth, len.get(s.hole_id) ?? -Infinity)); });
-  let noTo = 0, swapped = 0, negative = 0, pastEoh = 0;
+  let noTo = 0, swapped = 0, negative = 0, pastEoh = 0, outside = 0, lo = Infinity, hi = -Infinity;
   const orphans = new Set();
   for (const r of rows || []) {
     if (collarIds.size && !collarIds.has(r.hole_id) && !isMarkedQcRow(r)) orphans.add(r.hole_id); // #1211 — a standard kept under its own name belongs to no hole
+    if (range && typeof r.value === "number" && Number.isFinite(r.value) && (r.value < range.min || r.value > range.max)) { outside++; lo = Math.min(lo, r.value); hi = Math.max(hi, r.value); } // #1508
     if (!Number.isFinite(r.from) || !Number.isFinite(r.to)) { noTo++; continue; }
     if (r.from > r.to) swapped++;
     if (r.from < 0 || r.to < 0) negative++;
@@ -193,6 +197,7 @@ export function importCheckSummary(rows, collars, survey, label = "rows") {
   if (swapped) parts.push(tr("{swapped} with from > to", { swapped }));
   if (negative) parts.push(tr("{negative} with a negative depth", { negative }));
   if (pastEoh) parts.push(tr("{pastEoh} past the end of their hole", { pastEoh }));
+  if (outside) parts.push(tr("{n} with a value outside the plausible {min}–{max} ({range}: a keying or unit error?)", { n: outside, min: range.min, max: range.max, range: lo === hi ? String(lo) : `${lo} … ${hi}` })); // #1508
   if (orphans.size) {
     const ex = [...orphans].slice(0, 3).map((id) => { const m = /Did you mean "([^"]+)"/.exec(didYouMean(collarIds, id)); return m ? `${id} — collar ${m[1]} exists` : id; });
     parts.push(tr("{size} hole id(s) with no collar ({ex}{v})", { size: orphans.size, ex: ex.join("; "), v: orphans.size > 3 ? "; …" : "" }));
@@ -519,9 +524,9 @@ export function runDataQC({ project, collars, survey, layers, boundaries, assays
     ...validateIntervalLayer(layers.vein || [], "Vein", collarIds, holeLengths, { gaps: false }),
     ...validateIntervalLayer(layers.breccia || [], "Breccia", collarIds, holeLengths, { gaps: false }), // #608
     ...validateIntervalLayer(layers.structzone || [], "Structural zones", collarIds, holeLengths, { gaps: false }), // #604: zones are logged where they occur
-    ...validateIntervalLayer(layers.geotech || [], "Geotech", collarIds, holeLengths, { range: { min: 0, max: 110 } }), // range: #1531
-    ...validateIntervalLayer(layers.recovery || [], "Recovery %", collarIds, holeLengths, { range: { min: 0, max: 110 } }),
-    ...validateIntervalLayer(layers.sg || [], "Specific gravity", collarIds, holeLengths, { gaps: false, range: { min: 1, max: 6 } }),
+    ...validateIntervalLayer(layers.geotech || [], "Geotech", collarIds, holeLengths, { range: PLAUSIBLE_RANGE.geotech }), // range: #1531
+    ...validateIntervalLayer(layers.recovery || [], "Recovery %", collarIds, holeLengths, { range: PLAUSIBLE_RANGE.recovery }),
+    ...validateIntervalLayer(layers.sg || [], "Specific gravity", collarIds, holeLengths, { gaps: false, range: PLAUSIBLE_RANGE.sg }),
     ...validateIntervalLayer(layers.litho_gc || [], "Litho (geochem-derived)", collarIds, holeLengths),
     ...validateIntervalLayer(layers.alt_gc || [], "Alteration (geochem-derived)", collarIds, holeLengths),
     ...validateAssays(assays || [], collarIds, holeLengths),

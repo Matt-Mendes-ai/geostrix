@@ -9063,5 +9063,6 @@
   "Delete the template \"{name}\" from this computer": "Supprimer le modèle « {name} » de cet ordinateur",
   "Delete the template \"{name}\" from this computer? Every project loses it.": "Supprimer le modèle « {name} » de cet ordinateur ? Tous les projets le perdent.",
   "{typed} m would put the grid lines {mm} mm apart on paper at this scale, too close to read: drawn every {step} m.": "{typed} m placerait les lignes du quadrillage à {mm} mm sur le papier à cette échelle, trop serrées pour être lues : tracées tous les {step} m.",
-  "Dropped on the map, only rasters (.tif, .gxf, .grd) import. {names}: use Boundaries, Terrain or Web layers above, or Surface Geology for a geology map.": "Déposés sur la carte, seuls les rasters (.tif, .gxf, .grd) sont importés. {names} : utilisez Limites, Terrain ou Couches web ci-dessus, ou Géologie de surface pour une carte géologique."
+  "Dropped on the map, only rasters (.tif, .gxf, .grd) import. {names}: use Boundaries, Terrain or Web layers above, or Surface Geology for a geology map.": "Déposés sur la carte, seuls les rasters (.tif, .gxf, .grd) sont importés. {names} : utilisez Limites, Terrain ou Couches web ci-dessus, ou Géologie de surface pour une carte géologique.",
+  "{n} with a value outside the plausible {min}–{max} ({range}: a keying or unit error?)": "{n} avec une valeur hors de la plage plausible {min}–{max} ({range} : une erreur de saisie ou d'unité ?)"
 }
