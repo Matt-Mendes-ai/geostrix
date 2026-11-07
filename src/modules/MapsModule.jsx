@@ -19,6 +19,7 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the 
 
 const GEO_PANES = new Set(["terrain", "web", "boundaries", "claims"]); // "maps" (geology map layers + outcrop structures) moved to the Surface Geology tab: #820
 const CRS_PANES = new Set(["crs", "layer", "file"]);
+const RASTER_DROP = /\.(tiff?|gxf|grd)$/i; // TASKS.csv #1507 — what RasterModule's own drop takes
 
 export default function MapsModule() {
   const [pane, setPane] = useState("raster");
@@ -28,6 +29,22 @@ export default function MapsModule() {
   useModuleAction(["maps-terrain"], () => setPane("terrain")); // TASKS.csv #1429 — the inversion pane's 'Go to Maps › Terrain'
   // TASKS.csv #1994 — a lidar file dropped on the 3D View or the Geophysics tab: the Terrain pane, which opens it
   useModuleAction(["maps-lidar"], (_a, p) => { setPane("terrain"); requestModuleAction("open-lidar", p); });
+  // TASKS.csv #1507 (review #1497, Lawyers) — a GeoTIFF dropped on the map (or the 'Nothing on the map yet' card) did nothing: only
+  // the raster sidebar took drops. The map takes them now: rasters go to the raster pane's import, other files are named there.
+  const [mapDrag, setMapDrag] = useState(false);
+  const mapDrop = {
+    onDragOver: (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files")) { e.preventDefault(); setMapDrag(true); } },
+    onDragLeave: (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setMapDrag(false); },
+    onDrop: (e) => {
+      e.preventDefault(); setMapDrag(false);
+      const all = Array.from(e.dataTransfer?.files || []);
+      if (!all.length) return;
+      const files = all.filter((f) => RASTER_DROP.test(f.name)), others = all.filter((f) => !RASTER_DROP.test(f.name)).map((f) => f.name);
+      setPane("raster");
+      requestModuleAction("import-raster-files", { files, others });
+    },
+  };
+  const dropOutline = mapDrag ? { outline: "2px dashed var(--color-accent)", outlineOffset: -6 } : null;
   const btn = (id, action) => ({ active: pane === id, onClick: () => { setPane(id); if (action) requestModuleAction(action); } });
 
   return (
@@ -56,9 +73,9 @@ export default function MapsModule() {
       {GEO_PANES.has(pane) && <GeophysicsModule embedded forcePane={pane} />}
       {CRS_PANES.has(pane) && <CartographyModule embedded forcePane={pane} />}
 
-      {!CRS_PANES.has(pane) && hasPlan && <div className="ge-main" style={{ position: "relative", padding: 0 }}><MapsPlanView /></div>}
+      {!CRS_PANES.has(pane) && hasPlan && <div className="ge-main" style={{ position: "relative", padding: 0, ...dropOutline }} {...mapDrop}><MapsPlanView /></div>}
       {!CRS_PANES.has(pane) && !hasPlan && (
-        <div className="ge-main" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="ge-main" style={{ display: "flex", alignItems: "center", justifyContent: "center", ...dropOutline }} {...mapDrop}>
           <EmptyState
             icon={<MapIcon size={18} />}
             headline={(() => {

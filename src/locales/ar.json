@@ -9062,5 +9062,6 @@
   "None yet. Keep one here with the drive icon beside a template saved in this project.": "لا شيء بعد. احفظ قالباً هنا بأيقونة القرص بجانب قالب محفوظ في هذا المشروع.",
   "Delete the template \"{name}\" from this computer": "احذف القالب \"{name}\" من هذا الحاسوب",
   "Delete the template \"{name}\" from this computer? Every project loses it.": "هل تحذف القالب \"{name}\" من هذا الحاسوب؟ ستفقده كل المشاريع.",
-  "{typed} m would put the grid lines {mm} mm apart on paper at this scale, too close to read: drawn every {step} m.": "{typed} م تجعل خطوط الشبكة على بعد {mm} مم على الورق بهذا المقياس، وهي متقاربة جداً للقراءة: رُسمت كل {step} م."
+  "{typed} m would put the grid lines {mm} mm apart on paper at this scale, too close to read: drawn every {step} m.": "{typed} م تجعل خطوط الشبكة على بعد {mm} مم على الورق بهذا المقياس، وهي متقاربة جداً للقراءة: رُسمت كل {step} م.",
+  "Dropped on the map, only rasters (.tif, .gxf, .grd) import. {names}: use Boundaries, Terrain or Web layers above, or Surface Geology for a geology map.": "عند الإفلات على الخريطة تُستورد النقوش النقطية فقط (.tif و.gxf و.grd). {names}: استخدم الحدود أو التضاريس أو الطبقات الشبكية أعلاه، أو الجيولوجيا السطحية لخريطة جيولوجية."
 }
