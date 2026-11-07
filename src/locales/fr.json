@@ -8600,5 +8600,7 @@
   "Your zoom in the 3D view framed about 1:{z}; the frame kept 1:{s}.": "Votre zoom dans la vue 3D cadrait environ 1:{z} ; le cadre a gardé 1:{s}.",
   "Use 1:{z}": "Utiliser 1:{z}",
   "Filter holes by a collar field": "Filtrer les sondages par un champ du collet",
-  "By a collar field…": "Par un champ du collet…"
+  "By a collar field…": "Par un champ du collet…",
+  "+ {n} more (the exported figure lists them all)": "+ {n} de plus (la figure exportée les liste tous)",
+  "{n} holes, one colour each: too many for a key here (the exported figure lists them; filter the holes to read one)": "{n} sondages, une couleur chacun : trop pour une légende ici (la figure exportée les liste ; filtrez les sondages pour en lire un)"
 }

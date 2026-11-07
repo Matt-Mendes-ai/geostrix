@@ -71,6 +71,8 @@ import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
 import SampleGridPanel from "../components/SampleGridPanel.jsx"; // TASKS.csv #1622
 import { methodColumnFor, methodsIn, partialDigestionFor } from "../lib/digestion.js"; // TASKS.csv #1518
 
+const KEY_MAX = 16; // TASKS.csv #1519 — the on-screen colour key's entries
+
 export default function GeochemModule() {
   const store = useStore();
   const keptScope = scopeOf(store.getProjectToken()); // TASKS.csv #1284 — survives a tab switch
@@ -167,6 +169,8 @@ export default function GeochemModule() {
   const lithOverride = viewerUiState?.legendOverride?.litho;
   const lithColors = useMemo(() => Object.fromEntries(lithCounts.map(([k]) => [k, k === NOT_LOGGED ? "#b8bec7" : lithOverride?.[k]?.color || colorForLithology(k)])), [lithCounts, lithOverride]);
   const plotted = useMemo(() => (lithFilter ? sourceRows.filter((a) => lithFilter.has(sampleLith.get(a) ?? NOT_LOGGED)) : sourceRows), [sourceRows, lithFilter, sampleLith]); // sourceRows: #1673
+  // TASKS.csv #1519 — the holes plotted, for the on-screen key of 'by hole' (only worked out in that mode: 83,670 samples on Lawyers)
+  const plottedHoles = useMemo(() => (colorMode === "hole" ? [...new Set(plotted.map((a) => a.hole_id))] : []), [colorMode, plotted]);
   const describeSample = (sm) => {
     const num = (v) => (Number.isFinite(Number(v)) ? Number(v).toFixed(2).replace(/\.?0+$/, "") : "?");
     return [
@@ -1039,6 +1043,18 @@ export default function GeochemModule() {
                 <span>{tr("{unit} ({v})", { unit: colorUnit, v: colorRange.log ? tr("log") : tr("linear") })}</span>
               </span>
             )}
+            {/* TASKS.csv #1519 (review #1497) — 'by hole' and 'by logged lithology' had no key on screen (the export had one) */}
+            {(colorMode === "lithology" || (colorMode === "hole" && plottedHoles.length <= KEY_MAX)) && (() => {
+              const items = colorMode === "hole" ? plottedHoles.map((h) => [String(h), holeColors[h] || "#55606e"])
+                : lithCounts.filter(([k]) => !lithFilter || lithFilter.has(k)).map(([k]) => [k === NOT_LOGGED ? tr("not logged") : String(k), lithColors[k] || "#b8bec7"]);
+              return (
+                <span style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6, fontSize: "var(--font-size-xs)", color: "#55606e", maxWidth: 520 }}>
+                  {items.slice(0, KEY_MAX).map(([label, color]) => <span key={label} style={{ display: "flex", alignItems: "center", gap: 2 }}><span style={{ width: 9, height: 9, borderRadius: 5, background: color, border: "1px solid rgba(0,0,0,0.15)" }} />{label}</span>)}
+                  {items.length > KEY_MAX && <span>{tr("+ {n} more (the exported figure lists them all)", { n: items.length - KEY_MAX })}</span>}
+                </span>
+              );
+            })()}
+            {colorMode === "hole" && plottedHoles.length > KEY_MAX && <span style={{ fontSize: "var(--font-size-xs)", color: "#55606e" }}>{tr("{n} holes, one colour each: too many for a key here (the exported figure lists them; filter the holes to read one)", { n: plottedHoles.length })}</span>}
           </div>
           {/* TASKS.csv #619 — filter by logged lithology (the 3D View's lithology log, matched by largest overlap) */}
           <div style={{ position: "relative", display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("Lithology:")}<button type="button" onClick={() => setLithMenuOpen((o) => !o)} disabled={!hasLithLog || !assays.length} aria-expanded={lithMenuOpen} aria-haspopup="true"

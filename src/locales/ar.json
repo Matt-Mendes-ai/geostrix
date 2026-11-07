@@ -8600,5 +8600,7 @@
   "Your zoom in the 3D view framed about 1:{z}; the frame kept 1:{s}.": "كان تكبيرك في العرض ثلاثي الأبعاد يؤطّر نحو 1:{z}؛ احتفظ الإطار بـ 1:{s}.",
   "Use 1:{z}": "استخدام 1:{z}",
   "Filter holes by a collar field": "تصفية الآبار حسب حقل في ملف الفوهات",
-  "By a collar field…": "حسب حقل الفوهة…"
+  "By a collar field…": "حسب حقل الفوهة…",
+  "+ {n} more (the exported figure lists them all)": "+ {n} أخرى (يسردها الشكل المُصدَّر كلها)",
+  "{n} holes, one colour each: too many for a key here (the exported figure lists them; filter the holes to read one)": "{n} بئرًا، لون لكل منها: أكثر من أن تُعرض في مفتاح هنا (يسردها الشكل المُصدَّر؛ صفِّ الآبار لقراءة واحد)"
 }
