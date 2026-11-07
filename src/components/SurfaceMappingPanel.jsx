@@ -257,14 +257,19 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       const refBox = held.length ? [Math.min(...held.map((b) => b[0])), Math.min(...held.map((b) => b[1])), Math.max(...held.map((b) => b[2])), Math.max(...held.map((b) => b[3]))] : null;
       const rows = classifyTables(tables, { toCommon, refBox });
       let keep = new Set(tables.map((t) => t.name));
+      // TASKS.csv #1720 (review #1645, Copley) — the review's state ({ rows, resolve }) stays referenced by React's previous render of this
+      // panel until it renders again, and the rows reach every parsed table: cancelling a 791 MB GeoPackage's review held 2.7 GB until an
+      // unrelated pane switch. The tables are emptied in place once the review is answered (the chosen ones are in the store by then).
+      const release = () => { for (const t of tables) { t.layers.length = 0; t.items.length = 0; } rows.length = 0; queued.length = 0; };
       if (needsImportReview(rows)) {
         const chosen = await new Promise((resolve) => setImportReview({ rows, resolve }));
         setImportReview(null);
         keep = chosen || new Set();
-        if (!chosen) { setBusy(false); setMapMsg(null); return; } // Cancel: nothing changes
+        if (!chosen) { release(); setBusy(false); setMapMsg(null); return; } // Cancel: nothing changes
         leftOut = tables.length - keep.size;
       }
       for (const t of tables) if (keep.has(t.name)) for (const q of t.items) addNow(q.parsed, q.sourceName, q.opts);
+      release();
     }
     // TASKS.csv #1248 — a file no branch above takes vanished without a word
     for (const f of files) if (/\.(csv|txt|xlsx|xls)$/i.test(f.name)) failed.push(tr("{name}: a table, not a map layer. Sample points with coordinates (rock, soil, stream) go in Geochem > Surface samples; structural measurements in Outcrop structures.", { name: f.name })); // #1600
