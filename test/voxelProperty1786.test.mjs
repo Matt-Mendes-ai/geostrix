@@ -19,7 +19,7 @@ test("#1786 whole name tokens: chg, res, con, sus, den; nothing else", () => {
 test("#1842 / #1786 the card: unit models labelled and without Grade-tonnage; 'Values are' for every values model", () => {
   const g = readFileSync(new URL("../src/modules/GeophysicsModule.jsx", import.meta.url), "utf8");
   assert.ok(g.includes('categorical && (model.source === "surfaces" || model.source === "gempy") ? tr("Modelled units")'));
-  assert.ok(g.includes('|| model.source === "simpeg" || categorical) && <Scale'));
+  assert.ok(g.includes('|| model.source === "simpeg" || categorical || /^support-index-|^kriging-variance$/.test(String(model.source || "")) /* #1577 */) && <Scale')) // #1577 — not on an index or a variance either;
   assert.ok(g.includes("{!categorical && ( // #1786"));
   assert.ok(g.includes("...(guessed ? { property: guessed } : {})"));
 });

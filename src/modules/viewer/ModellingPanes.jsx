@@ -21,6 +21,7 @@ import { t as tr } from "../../lib/i18n.js";
 import { errorNotice } from "../../lib/notices.js";
 import { tx } from "../../lib/i18nRich.js";
 import { groupOverlaps, groupOfCode } from "../../lib/lithoGroups.js"; // TASKS.csv #1685
+import GradeTonnageLauncher from "../../components/GradeTonnageLauncher.jsx"; // TASKS.csv #1577
 import { useStore } from "../../lib/store.jsx";
 import { numericLayerFields } from "../../lib/evidenceSources.js"; // TASKS.csv #1574 — the numeric fields of a log (intensity 1-3)
 import { numericSourceChoices, findNumericSource, sourceAssays } from "../../lib/numericSources.js"; // TASKS.csv #1741 — logs and numeric layer fields as a grade-shell source
@@ -490,6 +491,7 @@ export default function ModellingPanes(props) {
             the modal itself says so up front; see VariogramModal.jsx's header. */}
         <button onClick={() => setVariogramOpen(true)} disabled={!assayElements.length} style={{ ...pBtn, opacity: assayElements.length ? 1 : 0.5, marginBottom: 16 }}>
           <Activity size={14} />{" "}{tr("Variogram / spatial continuity…")}</button>
+        <GradeTonnageLauncher />{/* TASKS.csv #1577 */}
 
         {/* TASKS.csv #176 — lithology groups: lump codes logged differently for the same real unit
             (AND + BAS, SLT + GWK...) into one modelled unit. Same terse add/remove-list style as the

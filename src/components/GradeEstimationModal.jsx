@@ -27,6 +27,8 @@ import { topCompositesWithoutBlocks } from "../lib/shellSupport.js"; // TASKS.cs
 import { domainLayerChoices } from "../lib/domainLayers.js"; // TASKS.csv #1571
 import { numericSourceChoices, sourceAssays, logPoints, unlogValue } from "../lib/numericSources.js"; // TASKS.csv #1741 — a downhole log or a numeric layer field as the source
 import DomainCaps from "./DomainCaps.jsx"; // TASKS.csv #1571
+import { lazyModal } from "../lib/lazyModal.jsx";
+const GradeTonnageModal = lazyModal(() => import("./GradeTonnageModal.jsx")); // TASKS.csv #1577 — from the result, not only from Geophysics
 
 // TASKS.csv #117 — grade estimation into block models (not just display). Micromine-specialist AND
 // Leapfrog-specialist audits both independently flagged this as the top 3D-Modelling gap: GeoStrix
@@ -471,6 +473,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
   };
 
   const [added, setAdded] = useState(false);
+  const [gtOpen, setGtOpen] = useState(false); // TASKS.csv #1577
   const [addedSupport, setAddedSupport] = useState(false); // TASKS.csv #92
   // TASKS.csv #92 — same cells, `value` swapped for the 0–1 Data Support Index. Named explicitly so it
   // can never be mistaken for a grade model or for a statistical confidence surface once it is sitting
@@ -829,6 +832,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
               {result.blocksEstimated > 0 && (
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
                   <input placeholder={modelName.trim() ? "" : resultName() /* #1737 — the name the result will get, not the form's current settings */} value={modelName} onChange={(e) => { setModelName(e.target.value); setAdded(false); setAddedSupport(false); }} style={{ ...inp, flex: 1, width: "auto" }} />
+                  <button type="button" onClick={() => setGtOpen(true)} style={{ ...btn(false), padding: "7px 12px", width: "auto" }} title={tr("Tonnage and mean grade above a series of cutoffs, for this result (an exploration target, not a Mineral Resource)")}>{tr("Grade-tonnage…")}</button>{/* #1577 */}
                   <button onClick={addToProject} style={{ ...btn(true), padding: "7px 12px" }}>{added ? tr("Added ✓") : result.supportCounts ? tr("Add as block model ({pct}% interpolated)", { pct: Math.round((100 * result.supportCounts.interpolated) / Math.max(1, result.blocksEstimated)) }) : tr("Add as block model")}</button>{/* pct: TASKS.csv #1573 */}
                 </div>
               )}
@@ -853,6 +857,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
             </div>
           )}
 
+          {gtOpen && result && <GradeTonnageModal model={{ name: resultName(), source: `estimate-${result.params?.method || method}`, cells: result.cells, params: result.params }} epsg={project?.epsg ?? null} onClose={() => setGtOpen(false)} />}{/* #1577 */}
           {/* TASKS.csv #269 — the closing paragraph now names every assumption the estimate actually
               makes, not just the missing-kriging one. */}
           <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 6, padding: "8px 9px", lineHeight: 1.5 }}>

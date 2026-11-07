@@ -9092,5 +9092,13 @@
   "The blocks ({b} m) are coarser than the coverage distance ({c} m): a block counts as covered by where its centre falls, so the covered share and the smallest zones move with the block grid. Type a smaller block size if the unit's box allows it.": "الكتل ({b} م) أخشن من مسافة التغطية ({c} م): تُعدّ الكتلة مغطاة بحسب موضع مركزها، لذا تتغير النسبة المغطاة وأصغر المناطق مع شبكة الكتل. اكتب حجم كتلة أصغر إن سمح صندوق الوحدة بذلك.",
   "The fitted range ({range} m) is beyond the furthest reliable lag ({lag} m): it is extrapolated past the measured pairs, not read from them.": "المدى المُلاءم ({range} م) أبعد من آخر فاصل موثوق ({lag} م): إنه مستقرأ خارج الأزواج المقاسة، لا مقروء منها.",
   "No sill at the population variance: at the last reliable lags the variogram is {r}× it{v}. That points to a trend or mixed domains (several populations in one), not a stationary grade, so the range is not a correlation length. Estimate within a domain, or remove the trend, before trusting it.": "لا عتبة عند تباين المجتمع: عند آخر الفواصل الموثوقة يبلغ المتغير {r}× هذا التباين{v}. يشير ذلك إلى اتجاه أو مجالات مختلطة (عدة مجتمعات في واحد)، لا محتوى ثابت، فالمدى ليس طول ترابط. قدّر داخل مجال، أو أزل الاتجاه، قبل الوثوق به.",
-  " and still rising": " ولا يزال يرتفع"
+  " and still rising": " ولا يزال يرتفع",
+  "Block model for the grade-tonnage table": "نموذج الكتل لجدول المحتوى-الحمولة",
+  "Tonnage and mean grade above a series of cutoffs (an exploration target, not a Mineral Resource)": "الحمولة ومتوسط المحتوى فوق سلسلة من حدود القطع (هدف استكشافي، لا مورد معدني)",
+  "Grade-tonnage table…": "جدول المحتوى-الحمولة…",
+  "Grade-tonnage table: {name}…": "جدول المحتوى-الحمولة: {name}…",
+  "Tonnage and mean grade above a series of cutoffs, for this result (an exploration target, not a Mineral Resource)": "الحمولة ومتوسط المحتوى فوق سلسلة من حدود القطع لهذه النتيجة (هدف استكشافي، لا مورد معدني)",
+  "Grade-tonnage…": "المحتوى-الحمولة…",
+  "Metal (kg)": "المعدن (كغ)",
+  "Metal (troy oz)": "المعدن (أونصة تروي)"
 }

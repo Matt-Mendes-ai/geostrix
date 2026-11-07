@@ -12,6 +12,7 @@ import { saveFile } from "../lib/desktop.js";
 import { toExportCsv } from "../lib/tabular.js";
 import { stampLines, withStamp, NOT_A_RESOURCE } from "../lib/provenance.js";
 import { valueUnit, valueColumnName } from "../lib/blockModelExport.js";
+import { metalColumns } from "../lib/gradeTonnage.js"; // TASKS.csv #1577
 import { gradeTonnageTable, gradeTonnageRows, autoCutoffs, metalOf, sgSummary, EXPLORATION_TARGET_CAUTION, blocksInsideSolid, gradeTonnageByBench } from "../lib/gradeTonnage.js"; // blocksInsideSolid: #1949; gradeTonnageByBench: #1957
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1216
 import { version as APP_VERSION } from "../../package.json";
@@ -24,7 +25,8 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
   useEscapeKey(onClose);
   useFocusTrap();
   const unit = valueUnit(model), metal = metalOf(unit);
-  const [cutoffText, setCutoffText] = useState(() => autoCutoffs(model.cells).join(", "));
+  const element = model.params?.element || null, mcols = metalColumns(metal, element); // #1577 — kg and troy oz for a precious metal, t otherwise
+  const [cutoffText, setCutoffText] = useState(() => autoCutoffs(model.cells, { element, unit }).join(", "));
   const [density, setDensity] = useState("");
   const { layers, generatedSurfaces = [] } = useStore();
   // TASKS.csv #1949 (Vulcan review) — the table inside a chosen closed solid, by block centre or by the share of each block inside
@@ -59,7 +61,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
 
   const exportCsv = () => {
     const vname = valueColumnName(model);
-    const out = gradeTonnageRows(rows, { vname, density: rho, metal }); // #1017 — rows in lib, tested
+    const out = gradeTonnageRows(rows, { vname, density: rho, metal, columns: mcols }); // #1017 — rows in lib, tested; columns: #1577
     const stamp = stampLines({ tool: "Grade-tonnage table", version: APP_VERSION, epsg, params: [
       `Block model: ${model.name} (${model.cells.length} blocks, source ${model.source || "import"}) | value ${vname}${unit ? ` in ${unit}` : " (no unit stated)"}`,
       ...(solid ? [`Inside the solid: ${solid.name} | ${insideMode === "share" ? `each block counted by the share of it inside (2 x 2 x 2 sample points): ${inside.inside} wholly inside, ${inside.partial} partly, ${inside.outside} outside` : `blocks counted whole by their centre: ${inside.inside} inside, ${inside.outside} outside`}`] : []), // #1949
@@ -69,7 +71,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
       ...(hasSupport ? [interpOnly ? "Blocks: only those the estimate classed interpolated" : "Blocks: every estimated block; interpolated_pct / one_hole_pct give the volume share by support"] : []), // #1409
       EXPLORATION_TARGET_CAUTION,
     ] });
-    const benchOut = byBench && benchRows.length ? benchRows.map((r) => ({ bench_floor_rl: Math.round(r.floorRL * 100) / 100, cutoff: benchCut, blocks: r.blocks, volume_m3: Math.round(r.volumeM3), [`mean_${vname}`]: r.meanGrade == null ? "" : Number(r.meanGrade.toPrecision(5)), ...(rho ? { tonnes: Math.round(r.tonnes || 0) } : {}), ...(rho && metal ? { [`metal_${metal.unit}`]: r.metal == null ? "" : Math.round(r.metal) } : {}), ...(r.interpolatedShare != null ? { interpolated_pct: Math.round(r.interpolatedShare * 100) } : {}) })) : null; // #1957
+    const benchOut = byBench && benchRows.length ? benchRows.map((r) => ({ bench_floor_rl: Math.round(r.floorRL * 100) / 100, cutoff: benchCut, blocks: r.blocks, volume_m3: Math.round(r.volumeM3), [`mean_${vname}`]: r.meanGrade == null ? "" : Number(r.meanGrade.toPrecision(5)), ...(rho ? { tonnes: Math.round(r.tonnes || 0) } : {}), ...(rho && metal ? Object.fromEntries(mcols.map((c) => [c.key, r.metal == null ? "" : Number((r.metal * c.factor).toPrecision(6))])) : {}), /* #1577 */ ...(r.interpolatedShare != null ? { interpolated_pct: Math.round(r.interpolatedShare * 100) } : {}) })) : null; // #1957
     saveFile({ suggestedName: `${String(model.name).replace(/[^a-z0-9_-]+/gi, "_")}_grade_tonnage${solid ? "_inside_solid" : ""}${benchOut ? "_by_bench" : ""}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(benchOut || out), stamp) });
   };
 
@@ -109,13 +111,13 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
           <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10 }}>
             <thead><tr>
               <th style={th}>{tr("Bench floor (m)")}</th><th style={th}>{tr("Blocks")}</th><th style={th}>{tr("Volume (m³)")}</th><th style={th}>{tr("Mean grade")}</th>
-              {rho && <th style={th}>{tr("Tonnes")}</th>}{rho && metal && <th style={th}>{metal.unit === "g" ? tr("Metal (g)") : tr("Metal (t)")}</th>}
+              {rho && <th style={th}>{tr("Tonnes")}</th>}{rho && mcols.map((c) => <th key={c.key} style={th}>{tr(c.label)}</th>)}
               {hasSupport && <th style={th}>{tr("Interpolated")}</th>}
             </tr></thead>
             <tbody>{benchRows.map((r) => (
               <tr key={r.floorRL}>
                 <td style={td}>{fmt(r.floorRL, 1)}</td><td style={td}>{fmt(r.blocks, 1)}</td><td style={td}>{fmt(r.volumeM3)}</td><td style={td}>{sig(r.meanGrade)}</td>
-                {rho && <td style={td}>{fmt(r.tonnes)}</td>}{rho && metal && <td style={td}>{fmt(r.metal)}</td>}
+                {rho && <td style={td}>{fmt(r.tonnes)}</td>}{rho && mcols.map((c) => <td key={c.key} style={td}>{r.metal == null ? "—" : fmt(r.metal * c.factor, c.factor < 1e-2 && c.key !== "metal_oz" ? 1 : 0)}</td>)}
                 {hasSupport && <td style={td}>{r.interpolatedShare == null ? "—" : `${Math.round(r.interpolatedShare * 100)} %`}</td>}
               </tr>))}</tbody>
           </table>
@@ -124,13 +126,13 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
         <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10 }}>
           <thead><tr>
             <th style={th}>{tr("Cutoff")}</th><th style={th}>{tr("Blocks")}</th><th style={th}>{tr("Volume (m³)")}</th><th style={th}>{tr("Mean grade")}</th>
-            {rho && <th style={th}>{tr("Tonnes")}</th>}{rho && metal && <th style={th}>{metal.unit === "g" ? tr("Metal (g)") : tr("Metal (t)")}</th>}
+            {rho && <th style={th}>{tr("Tonnes")}</th>}{rho && mcols.map((c) => <th key={c.key} style={th}>{tr(c.label)}</th>)}
             {hasSupport && <th style={th} title={tr("Share of the volume in blocks the estimate classed interpolated (between holes, from at least two)")}>{tr("Interpolated")}</th>}
           </tr></thead>
           <tbody>{rows.map((r) => (
             <tr key={r.cutoff}>
               <td style={td}>{sig(r.cutoff)}</td><td style={td}>{fmt(r.blocks)}</td><td style={td}>{fmt(r.volumeM3)}</td><td style={td}>{sig(r.meanGrade)}</td>
-              {rho && <td style={td}>{fmt(r.tonnes)}</td>}{rho && metal && <td style={td}>{fmt(r.metal)}</td>}
+              {rho && <td style={td}>{fmt(r.tonnes)}</td>}{rho && mcols.map((c) => <td key={c.key} style={td}>{r.metal == null ? "—" : fmt(r.metal * c.factor, c.factor < 1e-2 && c.key !== "metal_oz" ? 1 : 0)}</td>)}
               {hasSupport && <td style={td}>{r.interpolatedShare == null ? "—" : `${Math.round(r.interpolatedShare * 100)} %`}</td>}
             </tr>))}</tbody>
         </table>

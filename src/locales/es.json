@@ -9092,5 +9092,13 @@
   "The blocks ({b} m) are coarser than the coverage distance ({c} m): a block counts as covered by where its centre falls, so the covered share and the smallest zones move with the block grid. Type a smaller block size if the unit's box allows it.": "Los bloques ({b} m) son más gruesos que la distancia de cobertura ({c} m): un bloque cuenta como cubierto según dónde cae su centro, así que la fracción cubierta y las zonas más pequeñas cambian con la grilla de bloques. Escriba un tamaño de bloque menor si la caja de la unidad lo permite.",
   "The fitted range ({range} m) is beyond the furthest reliable lag ({lag} m): it is extrapolated past the measured pairs, not read from them.": "El alcance ajustado ({range} m) está más allá del último lag confiable ({lag} m): se extrapola más allá de los pares medidos, no se lee de ellos.",
   "No sill at the population variance: at the last reliable lags the variogram is {r}× it{v}. That points to a trend or mixed domains (several populations in one), not a stationary grade, so the range is not a correlation length. Estimate within a domain, or remove the trend, before trusting it.": "Sin meseta en la varianza de la población: en los últimos lags confiables el variograma es {r}× esa varianza{v}. Eso apunta a una tendencia o dominios mezclados (varias poblaciones en una), no a una ley estacionaria, así que el alcance no es una longitud de correlación. Estime dentro de un dominio, o quite la tendencia, antes de confiar en él.",
-  " and still rising": " y sigue subiendo"
+  " and still rising": " y sigue subiendo",
+  "Block model for the grade-tonnage table": "Modelo de bloques para la tabla ley-tonelaje",
+  "Tonnage and mean grade above a series of cutoffs (an exploration target, not a Mineral Resource)": "Tonelaje y ley media sobre una serie de leyes de corte (un objetivo de exploración, no un Recurso Mineral)",
+  "Grade-tonnage table…": "Tabla ley-tonelaje…",
+  "Grade-tonnage table: {name}…": "Tabla ley-tonelaje: {name}…",
+  "Tonnage and mean grade above a series of cutoffs, for this result (an exploration target, not a Mineral Resource)": "Tonelaje y ley media sobre una serie de leyes de corte, para este resultado (un objetivo de exploración, no un Recurso Mineral)",
+  "Grade-tonnage…": "Ley-tonelaje…",
+  "Metal (kg)": "Metal (kg)",
+  "Metal (troy oz)": "Metal (oz troy)"
 }

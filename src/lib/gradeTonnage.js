@@ -18,10 +18,33 @@ export function metalOf(unit) {
   return null;
 }
 
-// cutoffs from the values themselves: 0 and the 25th / 50th / 75th / 90th / 95th percentiles, rounded to 2 significant digits
-export function autoCutoffs(cells) {
+// TASKS.csv #1577 (review #1497, Lawyers) — a precious metal's cutoffs are the round grades a geologist quotes (0.3, 0.5, 1, 2, 5 g/t),
+// not percentiles (Lawyers' Au estimate opened on 0.005 / 0.023 / 0.094 ppm); its metal is in kilograms and troy ounces, not grams
+// (152,623,885 g). A base metal in ppm is in tonnes of metal. A support index or a kriging variance is not a grade: no table.
+const PRECIOUS = new Set(["Au", "Ag", "Pt", "Pd"]);
+const TROY_OZ_G = 31.1034768;
+const ROUND_GPT = [0.1, 0.3, 0.5, 1, 2, 5, 10, 20];
+export const NOT_GRADE_SOURCE = /^support-index-|^kriging-variance$/;
+export const isGradeTonnageModel = (model) => !NOT_GRADE_SOURCE.test(String(model?.source || ""));
+const isPrecious = (element) => PRECIOUS.has(String(element || "").trim());
+// the metal columns to show / export: [{ key, label, factor }] applied to metalOf's amount (grams or tonnes); [] without a metal
+export function metalColumns(metal, element) {
+  if (!metal) return [];
+  if (metal.unit === "t") return [{ key: "metal_t", label: "Metal (t)", factor: 1 }];
+  if (isPrecious(element)) return [{ key: "metal_kg", label: "Metal (kg)", factor: 1e-3 }, { key: "metal_oz", label: "Metal (troy oz)", factor: 1 / TROY_OZ_G }];
+  return [{ key: "metal_t", label: "Metal (t)", factor: 1e-6 }];
+}
+
+// cutoffs from the values themselves: 0 and the 25th / 50th / 75th / 90th / 95th percentiles, rounded to 2 significant digits; for a
+// precious metal in g/t, ppm or ppb (#1577) 0 and the round grades up to the highest value, when at least two of them are reached
+export function autoCutoffs(cells, { element = null, unit = null } = {}) {
   const v = cells.map((c) => c.value).filter(Number.isFinite).sort((a, b) => a - b);
   if (!v.length) return [];
+  const u = String(unit || "").trim().toLowerCase(), scale = u === "ppb" ? 1000 : u === "g/t" || u === "ppm" || u === "gpt" ? 1 : null;
+  if (isPrecious(element) && scale) {
+    const top = v[v.length - 1], round = ROUND_GPT.map((g) => g * scale).filter((c) => c <= top);
+    if (round.length >= 2) return [0, ...round];
+  }
   const q = (p) => v[Math.min(v.length - 1, Math.max(0, Math.round(p * (v.length - 1))))];
   const r2 = (x) => (x === 0 ? 0 : Number(x.toPrecision(2)));
   return [...new Set([0, ...[0.25, 0.5, 0.75, 0.9, 0.95].map((p) => r2(q(p)))])].sort((a, b) => a - b);
@@ -104,9 +127,11 @@ export const EXPLORATION_TARGET_CAUTION = "Any tonnage and grade from this table
 
 // TASKS.csv #1017 — the grade-tonnage CSV rows (was inline in GradeTonnageModal.jsx). vname: the value column's name;
 // density: t/m3 or null (then no tonnes / metal columns); metal: { unit } when a metal column is wanted
-export function gradeTonnageRows(rows, { vname, density = null, metal = null }) {
+// columns (#1577): metalColumns(...) to write the metal as kg / troy oz / t instead of metalOf's own unit
+export function gradeTonnageRows(rows, { vname, density = null, metal = null, columns = null }) {
+  const mcol = (r) => (columns ? Object.fromEntries(columns.map((c) => [c.key, r.metal == null ? "" : Number((r.metal * c.factor).toPrecision(6))])) : { [`metal_${metal.unit}`]: r.metal == null ? "" : Math.round(r.metal) });
   return rows.map((r) => ({ cutoff: r.cutoff, blocks: r.blocks, volume_m3: Math.round(r.volumeM3), [`mean_${vname}`]: r.meanGrade == null ? "" : Number(r.meanGrade.toPrecision(5)),
-    ...(density ? { tonnes: Math.round(r.tonnes || 0) } : {}), ...(density && metal ? { [`metal_${metal.unit}`]: r.metal == null ? "" : Math.round(r.metal) } : {}),
+    ...(density ? { tonnes: Math.round(r.tonnes || 0) } : {}), ...(density && metal ? mcol(r) : {}),
     ...(r.interpolatedShare != null ? { interpolated_pct: Math.round(r.interpolatedShare * 100) } : {}), ...(r.singleHoleShare != null ? { one_hole_pct: Math.round(r.singleHoleShare * 100) } : {}) })); // #1409
 }
 

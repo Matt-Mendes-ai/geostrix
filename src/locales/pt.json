@@ -9092,5 +9092,13 @@
   "The blocks ({b} m) are coarser than the coverage distance ({c} m): a block counts as covered by where its centre falls, so the covered share and the smallest zones move with the block grid. Type a smaller block size if the unit's box allows it.": "Os blocos ({b} m) são mais grossos que a distância de cobertura ({c} m): um bloco conta como coberto conforme onde cai seu centro, então a fração coberta e as menores zonas mudam com a grade de blocos. Digite um tamanho de bloco menor se a caixa da unidade permitir.",
   "The fitted range ({range} m) is beyond the furthest reliable lag ({lag} m): it is extrapolated past the measured pairs, not read from them.": "O alcance ajustado ({range} m) está além do último lag confiável ({lag} m): é extrapolado além dos pares medidos, não lido deles.",
   "No sill at the population variance: at the last reliable lags the variogram is {r}× it{v}. That points to a trend or mixed domains (several populations in one), not a stationary grade, so the range is not a correlation length. Estimate within a domain, or remove the trend, before trusting it.": "Sem patamar na variância da população: nos últimos lags confiáveis o variograma é {r}× essa variância{v}. Isso aponta para uma tendência ou domínios misturados (várias populações em uma), não um teor estacionário, então o alcance não é um comprimento de correlação. Estime dentro de um domínio, ou remova a tendência, antes de confiar nele.",
-  " and still rising": " e continua subindo"
+  " and still rising": " e continua subindo",
+  "Block model for the grade-tonnage table": "Modelo de blocos para a tabela teor-tonelagem",
+  "Tonnage and mean grade above a series of cutoffs (an exploration target, not a Mineral Resource)": "Tonelagem e teor médio acima de uma série de teores de corte (um alvo de exploração, não um Recurso Mineral)",
+  "Grade-tonnage table…": "Tabela teor-tonelagem…",
+  "Grade-tonnage table: {name}…": "Tabela teor-tonelagem: {name}…",
+  "Tonnage and mean grade above a series of cutoffs, for this result (an exploration target, not a Mineral Resource)": "Tonelagem e teor médio acima de uma série de teores de corte, para este resultado (um alvo de exploração, não um Recurso Mineral)",
+  "Grade-tonnage…": "Teor-tonelagem…",
+  "Metal (kg)": "Metal (kg)",
+  "Metal (troy oz)": "Metal (oz troy)"
 }

@@ -13,7 +13,7 @@ test("Estimation: changing the element clears the cap and the old result; a capp
 
 test("Estimation: models are named from the result's own element / method / cell", () => {
   assert.ok(est.includes("p.element ? `${p.element} estimate (${p.method}, ${c}m${r})`")); // ${r}: the search radius, #1752
-  assert.equal(est.split("resultName()").length - 1, 4, "grade, support index and kriging variance models, and the name box's placeholder");
+  assert.equal(est.split("resultName()").length - 1, 5, "grade, support index and kriging variance models, the name box's placeholder, and the grade-tonnage table (#1577)");
 });
 
 test("Grade shell: the cap is cleared and the cutoff re-proposed (P90 of lab assays) on an element change", () => {
