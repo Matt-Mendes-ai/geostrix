@@ -8618,5 +8618,10 @@
   "{surface} (the base of {ovb})": "{surface} (la base de {ovb})",
   "{surface} (the base of {unit})": "{surface} (la base de {unit})",
   "Writes the level on the index contours in the 3D View (every fifth level of a regular series, every level of a few chosen ones); the other levels are drawn fainter.": "Écrit la valeur sur les courbes maîtresses dans la Vue 3D (un niveau sur cinq d'une série régulière, chaque niveau s'il y en a peu de choisis) ; les autres niveaux sont tracés plus pâles.",
-  "Label index contours": "Étiqueter les courbes maîtresses"
+  "Label index contours": "Étiqueter les courbes maîtresses",
+  "No hole has a logged unit under its overburden / casing to place.": "Aucun sondage n'a d'unité décrite sous son mort-terrain / tubage à placer.",
+  "Subcrop from collars": "Sous-affleurement depuis les collets",
+  "{name}: {n} point(s), {units} unit(s): the first logged unit under the overburden / casing / no recovery at the top of each hole, at the hole's position at that depth. A start for the map, not a mapped outcrop.": "{name} : {n} point(s), {units} unité(s) : la première unité décrite sous le mort-terrain / tubage / sans récupération en tête de chaque sondage, à la position du sondage à cette profondeur. Un point de départ pour la carte, pas un affleurement cartographié.",
+  "{n} hole(s) have no logged unit under their cover and were left out.": "{n} sondage(s) n'ont pas d'unité décrite sous leur couverture et ont été laissés de côté.",
+  "A point map layer at each hole: the first logged unit under its overburden, casing or no recovery, coloured like the logs. It lists the hole and the depth of cover in its attributes.": "Une couche de points à chaque sondage : la première unité décrite sous le mort-terrain, le tubage ou sans récupération, colorée comme les journaux. Ses attributs donnent le sondage et l'épaisseur de couverture."
 }

@@ -28,6 +28,8 @@ import MapImportReview from "./MapImportReview.jsx"; // TASKS.csv #1325
 import { classifyTables, needsImportReview, isCoveringPolygon } from "../lib/mapImportReview.js";
 import { CATEGORICAL_SAFE_COLORS } from "../lib/layers.js";
 import { saveFile } from "../lib/desktop.js";
+import { collarSubcrop, subcropLayer } from "../lib/collarSubcrop.js"; // TASKS.csv #1719
+import { categoryColor, LAYER_META } from "../lib/layers.js"; // TASKS.csv #1719 — the logs' own colours
 import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1021
 import { toExportCsv } from "../lib/tabular.js";
 import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
@@ -41,7 +43,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     project, terrain, projectIsEmpty, setEpsg, // #607
     mapLayers, addMapLayer, updateMapLayer, removeMapLayer,
     surfaceStructures, addSurfaceStructureSet, updateSurfaceStructureSet, removeSurfaceStructureSet,
-  collars = [], /* #1325 */ surfaceSamples = [], /* #1715 */ } = useStore();
+  collars = [], /* #1325 */ surfaceSamples = [], /* #1715 */ survey = [], layers = {}, desurveyMethod, viewerUiState, /* #1719 */ } = useStore();
   const mapInput = useRef(null);
   const qmlInput = useRef(null);
   const qmlTargetRef = useRef(null);
@@ -432,6 +434,21 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         onChange={(e) => { importMaps(e.target.files); e.target.value = ""; }} />
       <input ref={qmlInput} type="file" accept=".qml" style={{ display: "none" }}
         onChange={(e) => { applyQmlToLayer(e.target.files[0]); e.target.value = ""; }} />
+      {/* TASKS.csv #1719 (review #1645, Copley) — the collars' top-of-hole lithology as a starting map */}
+      {collars.length > 0 && (layers.litho || []).length > 0 && (
+        <button onClick={() => {
+          const pts = collarSubcrop({ collars, survey, litho: layers.litho, desurveyMethod });
+          if (!pts.length) { setMapMsg({ ok: false, text: tr("No hole has a logged unit under its overburden / casing to place.") }); return; }
+          const base = tr("Subcrop from collars");
+          let name = base; for (let k = 2; mapLayers.some((l) => l.name === name); k++) name = `${base} (${k})`;
+          const layer = subcropLayer(pts, name, (u) => categoryColor(viewerUiState?.legendOverride?.litho?.[u], LAYER_META.litho, u));
+          addMapLayer({ ...layer, drapeMode: terrain ? "terrain" : "file" });
+          const skipped = collars.length - pts.length;
+          setMapMsg({ ok: true, text: [tr("{name}: {n} point(s), {units} unit(s): the first logged unit under the overburden / casing / no recovery at the top of each hole, at the hole's position at that depth. A start for the map, not a mapped outcrop.", { name, n: pts.length, units: layer.categories.length }), skipped > 0 ? tr("{n} hole(s) have no logged unit under their cover and were left out.", { n: skipped }) : ""].filter(Boolean).join(" ") });
+        }} style={{ ...pBtn, marginTop: 6 }} title={tr("A point map layer at each hole: the first logged unit under its overburden, casing or no recovery, coloured like the logs. It lists the hole and the depth of cover in its attributes.")}>
+          <MapIcon size={14} /> {tr("Subcrop from collars")}
+        </button>
+      )}
       {msgBox(mapMsg)}
       {mapLayers.map((l) => {
         const legendOpen = !!openLegend[l.id];

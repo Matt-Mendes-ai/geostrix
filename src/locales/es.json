@@ -8618,5 +8618,10 @@
   "{surface} (the base of {ovb})": "{surface} (la base de {ovb})",
   "{surface} (the base of {unit})": "{surface} (la base de {unit})",
   "Writes the level on the index contours in the 3D View (every fifth level of a regular series, every level of a few chosen ones); the other levels are drawn fainter.": "Escribe el nivel en las curvas maestras en la Vista 3D (cada quinto nivel de una serie regular, cada nivel si son pocos elegidos); los demás niveles se dibujan más tenues.",
-  "Label index contours": "Rotular curvas maestras"
+  "Label index contours": "Rotular curvas maestras",
+  "No hole has a logged unit under its overburden / casing to place.": "Ningún sondaje tiene una unidad registrada bajo su sobrecarga / encamisado para ubicar.",
+  "Subcrop from collars": "Subafloramiento desde los collares",
+  "{name}: {n} point(s), {units} unit(s): the first logged unit under the overburden / casing / no recovery at the top of each hole, at the hole's position at that depth. A start for the map, not a mapped outcrop.": "{name}: {n} punto(s), {units} unidad(es): la primera unidad registrada bajo la sobrecarga / encamisado / sin recuperación en el inicio de cada sondaje, en la posición del sondaje a esa profundidad. Un punto de partida para el mapa, no un afloramiento mapeado.",
+  "{n} hole(s) have no logged unit under their cover and were left out.": "{n} sondaje(s) no tienen unidad registrada bajo su cobertura y se dejaron fuera.",
+  "A point map layer at each hole: the first logged unit under its overburden, casing or no recovery, coloured like the logs. It lists the hole and the depth of cover in its attributes.": "Una capa de puntos en cada sondaje: la primera unidad registrada bajo su sobrecarga, encamisado o sin recuperación, con los colores de los registros. Sus atributos indican el sondaje y el espesor de cobertura."
 }
