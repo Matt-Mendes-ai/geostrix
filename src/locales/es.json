@@ -8641,5 +8641,8 @@
   "Gridding method": "Método de grillado",
   "IDW keeps each sample's value at its node and fades to the neighbours' (bullseyes on lone highs). Minimum curvature bends a smooth surface through the samples; tension 0 is smoothest but overshoots between samples, 1 is a tent with no overshoot.": "IDW mantiene el valor de cada muestra en su nodo y se desvanece hacia los vecinos (ojos de buey en altos aislados). Curvatura mínima curva una superficie suave a través de las muestras; tensión 0 es la más suave pero sobrepasa entre muestras, 1 es una carpa sin sobrepaso.",
   "IDW": "IDW",
-  "Tension": "Tensión"
+  "Tension": "Tensión",
+  "no {sym} assays": "sin ensayes de {sym}",
+  "Assay tracks": "Pistas de ensayes",
+  "Assay track {n}": "Pista de ensaye {n}"
 }

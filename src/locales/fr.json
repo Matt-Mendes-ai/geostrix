@@ -8641,5 +8641,8 @@
   "Gridding method": "Méthode de maillage",
   "IDW keeps each sample's value at its node and fades to the neighbours' (bullseyes on lone highs). Minimum curvature bends a smooth surface through the samples; tension 0 is smoothest but overshoots between samples, 1 is a tent with no overshoot.": "L'IDW garde la valeur de chaque échantillon à son nœud et s'estompe vers les voisins (cibles sur les hauts isolés). La courbure minimale fait passer une surface lisse par les échantillons ; une tension de 0 est la plus lisse mais déborde entre les échantillons, 1 est une tente sans débordement.",
   "IDW": "IDW",
-  "Tension": "Tension"
+  "Tension": "Tension",
+  "no {sym} assays": "pas d'analyses en {sym}",
+  "Assay tracks": "Pistes d'analyses",
+  "Assay track {n}": "Piste d'analyse {n}"
 }

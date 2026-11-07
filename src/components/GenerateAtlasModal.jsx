@@ -11,13 +11,15 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 // template: every text/title element's {{token}} placeholders get filled in per hole/section, and one
 // new Layout page is created per item. See src/lib/atlas.js's own header comment for the deliberate
 // scope boundary (no per-item 3D viewport re-render — text + an optional per-hole strip-log image).
-export default function GenerateAtlasModal({ onClose, templateElements, collars, layers, legendOverride = null, sections, addLayoutPages, page = null }) { // legendOverride: #1092; page: #1478
+export default function GenerateAtlasModal({ onClose, templateElements, collars, layers, legendOverride = null, sections, addLayoutPages, page = null, assays = [], assayElements = [] }) { // legendOverride: #1092; page: #1478; assays: #1480
   useEscapeKey(onClose);
   useFocusTrap(); // TASKS.csv #238
   const [mode, setMode] = useState("hole"); // "hole" | "section"
   // TASKS.csv #1644 — a large project opens with nothing ticked (446 holes opened as 'Generate 446 pages')
   const [selectedIds, setSelectedIds] = useState(() => new Set(collars.length > 50 ? [] : collars.map((c) => c.hole_id)));
   const [includeStripLog, setIncludeStripLog] = useState(true);
+  const [assaySymbols, setAssaySymbols] = useState(["", "", ""]); // TASKS.csv #1480 — up to three assay tracks
+  const assayTracks = useMemo(() => { const syms = assaySymbols.filter(Boolean).filter((s, i, a) => a.indexOf(s) === i); return syms.length ? { assays, assaySymbols: syms, elementUnits: Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])) } : null; }, [assaySymbols, assays, assayElements]);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(null); // {done, total}
   const [result, setResult] = useState(null);
@@ -58,7 +60,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
         ? await (async () => {
             const out = [];
             for (let i = 0; i < chosen.length; i++) {
-              const [pg] = await generateAtlasPages({ mode, items: [chosen[i]], templateElements, collars, layers, includeStripLog, legendOverride, page });
+              const [pg] = await generateAtlasPages({ mode, items: [chosen[i]], templateElements, collars, layers, includeStripLog, legendOverride, page, assayTracks });
               out.push(pg);
               setProgress({ done: i + 1, total: chosen.length });
             }
@@ -106,6 +108,17 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
           {mode === "hole" && (
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }}>
               <input type="checkbox" checked={includeStripLog} onChange={(e) => setIncludeStripLog(e.target.checked)} />{tr("Add a strip log image (litho/alteration/vein/RQD%) to each page")}</label>
+          )}
+          {mode === "hole" && includeStripLog && assayElements.length > 0 && ( /* TASKS.csv #1480 — assay tracks on the strip log */
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", flexWrap: "wrap" }}>
+              <span>{tr("Assay tracks")}</span>
+              {[0, 1, 2].map((k) => (
+                <select key={k} value={assaySymbols[k]} aria-label={tr("Assay track {n}", { n: k + 1 })} onChange={(e) => setAssaySymbols((p) => p.map((s, j) => (j === k ? e.target.value : s)))} style={{ ...sel, flex: 1, minWidth: 80 }}>
+                  <option value="">{tr("none")}</option>
+                  {assayElements.map((e) => <option key={e.symbol} value={e.symbol}>{e.unit ? `${e.symbol} (${e.unit})` : e.symbol}</option>)}
+                </select>
+              ))}
+            </div>
           )}
           <div>
             <div style={{ ...labelStyle, display: "flex", justifyContent: "space-between" }}>

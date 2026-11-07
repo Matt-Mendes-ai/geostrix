@@ -8641,5 +8641,8 @@
   "Gridding method": "Método de gradeamento",
   "IDW keeps each sample's value at its node and fades to the neighbours' (bullseyes on lone highs). Minimum curvature bends a smooth surface through the samples; tension 0 is smoothest but overshoots between samples, 1 is a tent with no overshoot.": "IDW mantém o valor de cada amostra no seu nó e esmaece para os vizinhos (alvos em altos isolados). Curvatura mínima curva uma superfície suave através das amostras; tensão 0 é a mais suave mas ultrapassa entre amostras, 1 é uma tenda sem ultrapassagem.",
   "IDW": "IDW",
-  "Tension": "Tensão"
+  "Tension": "Tensão",
+  "no {sym} assays": "sem análises de {sym}",
+  "Assay tracks": "Trilhas de análises",
+  "Assay track {n}": "Trilha de análise {n}"
 }

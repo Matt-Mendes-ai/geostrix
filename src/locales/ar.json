@@ -8641,5 +8641,8 @@
   "Gridding method": "طريقة التشبيك",
   "IDW keeps each sample's value at its node and fades to the neighbours' (bullseyes on lone highs). Minimum curvature bends a smooth surface through the samples; tension 0 is smoothest but overshoots between samples, 1 is a tent with no overshoot.": "يحافظ IDW على قيمة كل عينة عند عقدتها ويتلاشى نحو الجيران (عيون ثور حول القمم المنفردة). أما الانحناء الأدنى فيمرّر سطحًا أملس عبر العينات؛ الشدّ 0 هو الأنعم لكنه يتجاوز بين العينات، و1 خيمة بلا تجاوز.",
   "IDW": "IDW",
-  "Tension": "الشدّ"
+  "Tension": "الشدّ",
+  "no {sym} assays": "لا تحاليل لـ {sym}",
+  "Assay tracks": "مسارات التحاليل",
+  "Assay track {n}": "مسار التحليل {n}"
 }

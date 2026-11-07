@@ -18,6 +18,7 @@ import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, colorForBrecc
 import { arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { FIGURE_FONT } from "./svgExport.js"; // TASKS.csv #1089
+import { valueIn } from "./geochem.js"; // TASKS.csv #1480 — assay tracks, in each element's own unit
 
 const TRACK_W = 90;
 const DEPTH_COL_W = 50;
@@ -45,6 +46,24 @@ function tickTrack(rows, x, sy, colorFn) {
     return `<line x1="${x}" y1="${y}" x2="${x + TRACK_W - 6}" y2="${y}" stroke="${color}" stroke-width="2.5"><title>${esc(r.value)} (${r.from}-${r.to} m)</title></line>`;
   }).join("");
 }
+// TASKS.csv #1480 (review #1352, Silvertip) — 'PAD34-003 with Zn' could not be built: an assay track per chosen element, the lab
+// assays only (pXRF screening readings are not assays, #1695), bars on a log scale over this hole's own range, as the strip-log
+// window draws them by default; the range is printed under the track
+function assayTrack(rows, x, sy, sym, unit, elementUnits, bottom) {
+  const vals = rows.map((r) => valueIn(r, sym, unit, elementUnits)).filter((v) => v != null && Number.isFinite(v));
+  const pos = vals.filter((v) => v > 0);
+  if (!pos.length) return `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 13}" font-size="8" text-anchor="middle" fill="#65717e">${esc(tr("no {sym} assays", { sym }))}</text>`;
+  let lo = Infinity, hi = -Infinity; for (const v of pos) { if (v < lo) lo = v; if (v > hi) hi = v; }
+  const frac = (v) => (!(v > 0) ? 0 : hi > lo ? Math.max(0.03, Math.min(1, (Math.log10(v) - Math.log10(lo)) / (Math.log10(hi) - Math.log10(lo)))) : 1);
+  return rows.map((r) => {
+    const v = valueIn(r, sym, unit, elementUnits);
+    if (v == null || !Number.isFinite(v)) return "";
+    const w = frac(v) * (TRACK_W - 10);
+    if (!(w > 0)) return "";
+    return `<rect x="${x + 2}" y="${sy(r.from)}" width="${w}" height="${Math.max(0.5, sy(r.to) - sy(r.from))}" fill="#c9863d" opacity="0.85"><title>${r.from}-${r.to} m: ${esc(String(v))} ${esc(unit)}</title></rect>`;
+  }).join("") + `<text x="${x + (TRACK_W - 6) / 2}" y="${bottom + 13}" font-size="8" text-anchor="middle" fill="#65717e">${esc(tr("log {minPos}–{max}", { minPos: lo.toPrecision(2), max: hi.toPrecision(2) }))}</text>`;
+}
+
 function barTrack(rows, x, sy, max) {
   return rows.map((r) => {
     const y0 = sy(r.from), y1 = sy(r.to);
@@ -61,7 +80,8 @@ function barTrack(rows, x, sy, max) {
 // TASKS.csv #1092 (review #1016) — legendOverride: the viewer's legend edits ({ layerKey: { value: { color, label } } },
 // the store's viewerUiState.legendOverride), so an Atlas strip log draws the colours and names the 3D legend and the
 // map viewport on the same page use. #402 did this for the strip-log modal only.
-export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride = null }) {
+// assays / assaySymbols / elementUnits (#1480): the project's assays and up to three elements to draw as tracks after the logs
+export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {} }) {
   const ov = (key, v) => legendOverride?.[key]?.[v];
   const colorOf = (key, fallback) => (v) => ov(key, v)?.color || fallback(v);
   const nameOf = (key, fallback) => (v) => ov(key, v)?.label || (fallback ? fallback(v) : v);
@@ -73,7 +93,9 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
   const structzone = (layers.structzone || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); // #604
   const geotech = (layers.geotech || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from);
   const mnlgy = (layers.mnlgy || []).filter((r) => r.hole_id === holeId).sort((a, b) => a.from - b.from); // #684
-  const maxDepth = Math.max(collar?.length || 0, arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(breccia.map((r) => r.to)), arrMax(structzone.map((r) => r.to)), arrMax(geotech.map((r) => r.to)), arrMax(mnlgy.map((r) => r.to)), 0);
+  const syms = (assaySymbols || []).filter(Boolean).slice(0, 3); // #1480
+  const holeAssays = syms.length ? (assays || []).filter((a) => a.hole_id === holeId && a.source !== "pXRF" && Number.isFinite(a.from) && Number.isFinite(a.to)).sort((a, b) => a.from - b.from) : [];
+  const maxDepth = Math.max(collar?.length || 0, arrMax(litho.map((r) => r.to)), arrMax(alt.map((r) => r.to)), arrMax(vein.map((r) => r.to)), arrMax(breccia.map((r) => r.to)), arrMax(structzone.map((r) => r.to)), arrMax(geotech.map((r) => r.to)), arrMax(mnlgy.map((r) => r.to)), 0, arrMax(holeAssays.map((a) => a.to))); // holeAssays: #1480
   if (maxDepth <= 0) return null;
 
   const pxPerMeter = Math.max(1, Math.min(8, 900 / maxDepth));
@@ -88,6 +110,8 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
     { label: "Min.", rows: mnlgy, kind: "fill", colorFn: colorOf("mnlgy", LAYER_META.mnlgy.colorFn), nameFn: nameOf("mnlgy") }, // #684 — intervals as blocks, from = to as a line
     { label: "RQD%", rows: geotech, kind: "bar", max: 100 },
   ].filter((t) => t.rows.length);
+  // #1480 — the chosen assay elements, always drawn (a hole with none says so under its track, so every page has the same columns)
+  syms.forEach((sym) => tracks.push({ label: `${sym} (${elementUnits[sym] || "ppm"})`, rows: holeAssays, kind: "assay", sym, unit: elementUnits[sym] || "ppm" }));
   if (!tracks.length) return null;
   const W = DEPTH_COL_W + tracks.length * TRACK_W + 10;
 
@@ -106,6 +130,7 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
     if (t.kind === "fill") body += fillTrack(t.rows, x, sy, t.colorFn, t.nameFn);
     else if (t.kind === "tick") body += tickTrack(t.rows, x, sy, t.colorFn);
     else if (t.kind === "bar") body += barTrack(t.rows, x, sy, t.max);
+    else if (t.kind === "assay") body += assayTrack(t.rows, x, sy, t.sym, t.unit, elementUnits, sy(maxDepth)); // #1480
     x += TRACK_W;
   });
 
@@ -120,8 +145,8 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
 
 // Rasterizes buildStripLogSvgMarkup's output into a PNG data URL, the same SVG->canvas->PNG technique
 // StripLog.jsx's own exportPNG button already uses. Returns null if the hole had nothing to draw.
-export async function buildStripLogDataUrl({ holeId, collars, layers, legendOverride = null }) {
-  const built = buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride }); // legendOverride: #1092
+export async function buildStripLogDataUrl({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {} }) {
+  const built = buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride, assays, assaySymbols, elementUnits }); // legendOverride: #1092; assays: #1480
   if (!built) return null;
   const { svg, width, height } = built;
   const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });

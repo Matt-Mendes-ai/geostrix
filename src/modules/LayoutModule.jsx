@@ -1506,6 +1506,7 @@ export default function LayoutModule() {
             sections={sections}
             addLayoutPages={addLayoutPages}
             page={A4}
+            assays={assays} assayElements={assayElements} /* #1480 — assay tracks on the strip logs */
           />
         )}
         {/* TASKS.csv #788 — the sheet is physical paper (rulers from the left, x in mm): it stays left-to-right in Arabic, or an RTL scroll would open on the page's right edge */}
