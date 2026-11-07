@@ -271,6 +271,9 @@ export default function ModellingPanes(props) {
   // TASKS.csv #1421 (review #1352, Silvertip) — a code logged only as zero-length points (POT) cannot make a halo: it failed with
   // 'indicator never crosses 0.5'. The logged metres per code, so those are shown disabled and say why.
   const altLoggedM = useMemo(() => { const m = new Map(); for (const r of altSourceRows) { const k = String(r.value ?? ""), len = Number(r.to) - Number(r.from); if (k && len > 0) m.set(k, (m.get(k) || 0) + len); } return m; }, [altSourceRows]);
+  // TASKS.csv #1553 (review #1497, Lawyers) — the Structures picker listed 27 types, VnGy and V1/V3 among them with no dip / dip
+  // direction, and 'Run' only then said there was nothing to model: each type with its picks and how many are oriented
+  const structCounts = useMemo(() => { const m = new Map(); for (const r of layers.structure || []) { const k = String(r.value ?? ""); const e = m.get(k) || { n: 0, k: 0 }; e.n++; if (Number.isFinite(Number(r.dip)) && Number.isFinite(Number(r.azimuth)) && r.dip !== null && r.azimuth !== null && r.dip !== "" && r.azimuth !== "") e.k++; m.set(k, e); } return m; }, [layers.structure]);
   const altNumericFields = useMemo(() => numericLayerFields(altSourceRows, { min: 3 }).filter((f) => f !== "from" && f !== "to"), [altSourceRows]);
   const mcodesView = useMemo(() => ({ scene: sceneRef, groups: layerGroupsRef, camera: cameraRef, renderer: rendererRef, traces: tracesRef, activity: lastActivityRef, dragHook: viewDragHookRef }), [sceneRef, layerGroupsRef, cameraRef, rendererRef, tracesRef, lastActivityRef, viewDragHookRef]);
   const topsOfUnit = useCallback((unit) => {
@@ -850,7 +853,7 @@ export default function ModellingPanes(props) {
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
           <select aria-label={tr("Structure type")} value={structuralTarget} onChange={(e) => setStructuralTarget(e.target.value)} style={{ width: 0, flex: 1, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "6px 8px", color: "var(--color-text)", fontSize: "var(--font-size-base)" }}>
             <option value="">{tr("Choose a structure type…")}</option>
-            {struct_types.map((u) => <option key={u} value={u}>{u}</option>)}
+            {struct_types.map((u) => { const c = structCounts.get(u) || { n: 0, k: 0 }; return <option key={u} value={u} disabled={!c.k}>{tr("{type} · {k} of {n} oriented", { type: u, k: c.k, n: c.n })}</option>; })}{/* #1553 */}
           </select>
           <button
             onClick={() => runStructuralModel(structuralTarget)}
