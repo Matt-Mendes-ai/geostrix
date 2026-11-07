@@ -34,7 +34,7 @@ test("no table on a support index or a kriging variance; reachable from the resu
   assert.equal(isGradeTonnageModel({ source: "support-index-ok" }), false);
   assert.equal(isGradeTonnageModel({ source: "kriging-variance" }), false);
   assert.equal(isGradeTonnageModel({ source: "estimate-ok" }), true);
-  assert.match(fs.readFileSync("src/modules/GeophysicsModule.jsx", "utf8"), /\/\^support-index-\|\^kriging-variance\$\/\.test\(String\(model\.source \|\| ""\)\) \/\* #1577 \*\//);
+  assert.match(fs.readFileSync("src/modules/GeophysicsModule.jsx", "utf8"), /offersGradeTonnage\(model, \{ categorical, geophysProperty/);
   assert.match(fs.readFileSync("src/components/GradeEstimationModal.jsx", "utf8"), /onClick=\{\(\) => setGtOpen\(true\)\}/);
   assert.match(fs.readFileSync("src/modules/viewer/ModellingPanes.jsx", "utf8"), /<GradeTonnageLauncher \/>/);
 });

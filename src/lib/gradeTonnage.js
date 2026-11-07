@@ -26,6 +26,18 @@ const TROY_OZ_G = 31.1034768;
 const ROUND_GPT = [0.1, 0.3, 0.5, 1, 2, 5, 10, 20];
 export const NOT_GRADE_SOURCE = /^support-index-|^kriging-variance$/;
 export const isGradeTonnageModel = (model) => !NOT_GRADE_SOURCE.test(String(model?.source || ""));
+// TASKS.csv #1592 (review #1497, Lawyers) — the block-model card's grade-tonnage icon: an OMF or UBC import whose values are 'Not stated'
+// is a geophysics model (Lawyers' MVI amplitude gave '81,156,250,000 m3 at mean grade 0.005'), so it gets a table only once the user
+// states its values as something other than a geophysical property ('Other…', e.g. 'Au g/t'). Estimates, geoML and other imports
+// (block-model CSVs, usually grades) keep it; geophysical properties, SimPEG, categorical models, indices and variances never had it.
+// geophysProperty: the card's list of physical properties (conductivity, susceptibility...).
+export function offersGradeTonnage(model, { categorical = false, geophysProperty = () => false } = {}) {
+  if (!model || categorical || !isGradeTonnageModel(model)) return false;
+  const src = String(model.source || "");
+  if (src === "simpeg" || geophysProperty(model.property)) return false;
+  if ((src === "omf" || src.startsWith("ubc")) && !model.property) return false;
+  return true;
+}
 const isPrecious = (element) => PRECIOUS.has(String(element || "").trim());
 // the metal columns to show / export: [{ key, label, factor }] applied to metalOf's amount (grams or tonnes); [] without a metal
 export function metalColumns(metal, element) {
