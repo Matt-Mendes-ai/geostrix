@@ -6,7 +6,7 @@ import { Activity } from "./icons.js";
 import { numericSourceChoices, sourceAssays } from "../lib/numericSources.js";
 import { domainLayerChoices } from "../lib/domainLayers.js";
 import { LAYER_META } from "../lib/layers.js";
-import { logByCode, logVsAssay, NOT_LOGGED } from "../lib/downholeLogs.js";
+import { logByCode, logVsAssay, logVsModel, NOT_LOGGED } from "../lib/downholeLogs.js"; // logVsModel: #1595
 import { BoxPlots } from "./GradeStatistics.jsx";
 import { smallSel } from "../lib/sidebarStyles.js";
 import { t as tr } from "../lib/i18n.js";
@@ -53,6 +53,11 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const vs = useMemo(() => (data && el ? logVsAssay(data.assays, data.symbol, assays, el, elementUnits) : null), [data, assays, el, elementUnits]);
   const unitOf = (u) => (u === "as logged" ? "" : u);
+  // TASKS.csv #1595 — against a block model evaluated onto the holes (Block models > Evaluate onto drillholes)
+  const onHoles = useMemo(() => customLayers.filter((l) => (l.rows || []).some((r) => r.modelled && r.numeric)) /* rows from Evaluate (the store's copy keeps only id / name / rows) */, [customLayers]);
+  const [modelLayerId, setModelLayerId] = useState("");
+  const modelLayer = onHoles.find((l) => String(l.id) === modelLayerId) || onHoles[0] || null;
+  const vm = useMemo(() => (data && modelLayer ? logVsModel(data.assays, data.symbol, modelLayer.rows) : null), [data, modelLayer]);
   return (
     <>
       <TaskPaneHeader title={tr("Downhole logs")} helpId="downhole-logs" icon={Activity} tone="analyse" onClose={onClose} />
@@ -92,6 +97,21 @@ export default function DownholeLogsPane({ layers, customLayers = [], assays = [
               ) : <div style={note}>{tr("Fewer than three readings fall inside an assay interval of the same hole.")}</div>}
             </>
           )}
+          {onHoles.length > 0 ? (
+            <>
+              <label style={{ ...row, marginTop: 8 }}>{tr("Against a model on the holes")}
+                <select value={modelLayer ? String(modelLayer.id) : ""} onChange={(e) => setModelLayerId(e.target.value)} style={{ ...smallSel, maxWidth: 190 }} aria-label={tr("Block model evaluated onto the holes")}>
+                  {onHoles.map((l) => <option key={l.id} value={String(l.id)}>{l.name}</option>)}
+                </select></label>
+              {vm && vm.n >= 3 ? (
+                <>
+                  <Scatter pairs={vm.pairs} xLabel={`${source.label}${unitOf(source.unit) ? ` (${unitOf(source.unit)})` : ""}`} yLabel={modelLayer.unit ? `${tr("Model")} (${modelLayer.unit})` : tr("Model")} logX={logScale} logY={logScale} />
+                  <div style={note}>{tr("{n} readings inside a model cell the same hole crosses. Spearman rank correlation {r} (the same in any units); Pearson on log10 values {rLog}. Median of the log {a}, of the model {b}, each in its own unit.", { n: vm.n.toLocaleString(), r: Number.isFinite(vm.r) ? vm.r.toFixed(2) : "—", rLog: Number.isFinite(vm.rLog) ? vm.rLog.toFixed(2) : "—", a: Number(vm.medianLog.toPrecision(3)).toLocaleString(), b: Number(vm.medianModel.toPrecision(3)).toLocaleString() })}</div>
+                  {Number.isFinite(vm.r) && Math.abs(vm.r) < 0.2 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("The model hardly follows the logged values along the holes (|Spearman| under 0.2): its cells may be too coarse, or it images something the core does not record.")}</div>}
+                </>
+              ) : <div style={note}>{tr("Fewer than three readings fall inside a cell of this model.")}</div>}
+            </>
+          ) : <div style={{ ...note, marginTop: 8 }}>{tr("To compare this log with a block model, evaluate the model onto the holes first (Block models > the model's drillhole icon); it then appears here.")}</div>}
           <div style={{ ...note, marginTop: 8 }}>{tr("To grid this log into a block model or shell it, use 3D Modelling > Estimation or Grade shell and pick it as the source.")}{onEstimate && <>{" "}<button type="button" onClick={onEstimate} style={{ ...smallSel, cursor: "pointer" }}>{tr("Open 3D Modelling")}</button></>}</div>
         </div>
       )}

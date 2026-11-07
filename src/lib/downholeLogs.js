@@ -53,3 +53,24 @@ export function logVsAssay(rows, symbol, assays, element, elementUnits = {}) {
   const xs = pairs.map((p) => p[0]), ys = pairs.map((p) => p[1]);
   return { pairs, n: pairs.length, r: correlate(xs, ys, "spearman").r, rLog: correlate(xs, ys, "log").r, unit };
 }
+
+// TASKS.csv #1595 (review #1497, Lawyers) — a log against a block model evaluated onto the holes ('On holes: <model>', GeophysicsModule
+// evaluateOnHoles): each reading paired with the model cell the hole crosses at its midpoint. The reviewer had to do this by hand for
+// the MVI amplitude against the 23,575 mag-susc readings (Spearman 0.04 over 1,486 pairs). Spearman is unaffected by the units (a log in
+// x10^-3 SI against a model in SI); the medians are each in their own unit. -> { pairs, n, r, rLog, medianLog, medianModel }
+export function logVsModel(rows, symbol, modelRows) {
+  const byHole = new Map();
+  for (const m of modelRows || []) { if (!Number.isFinite(m.from) || !Number.isFinite(m.to) || !Number.isFinite(Number(m.value))) continue; (byHole.get(m.hole_id) || byHole.set(m.hole_id, []).get(m.hole_id)).push(m); }
+  byHole.forEach((l) => l.sort((x, y) => x.from - y.from));
+  const pairs = [];
+  for (const r of rows || []) {
+    const v = r.values?.[symbol], list = byHole.get(r.hole_id);
+    if (!Number.isFinite(v) || !list) continue;
+    const mid = (r.from + r.to) / 2, hit = list.find((m) => mid >= m.from && mid < m.to);
+    if (hit) pairs.push([v, Number(hit.value)]);
+  }
+  const med = (a) => { if (!a.length) return NaN; const s2 = [...a].sort((x, y) => x - y), k = Math.floor(s2.length / 2); return s2.length % 2 ? s2[k] : (s2[k - 1] + s2[k]) / 2; };
+  if (pairs.length < 3) return { pairs, n: pairs.length, r: NaN, rLog: NaN, medianLog: NaN, medianModel: NaN };
+  const xs = pairs.map((p) => p[0]), ys = pairs.map((p) => p[1]);
+  return { pairs, n: pairs.length, r: correlate(xs, ys, "spearman").r, rLog: correlate(xs, ys, "log").r, medianLog: med(xs), medianModel: med(ys) };
+}
