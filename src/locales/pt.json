@@ -8592,5 +8592,8 @@
   "{n} whose angles could not be converted": "{n} cujos ângulos não puderam ser convertidos",
   "Weak clustering (k {k}): a broad set, spread about 45° or more around the mean.": "Agrupamento fraco (k {k}): um conjunto amplo, espalhado cerca de 45° ou mais em torno da média.",
   "Copied 1 element: Ctrl+V pastes it on any page.": "1 elemento copiado: Ctrl+V o cola em qualquer página.",
-  "Copied {n} elements: Ctrl+V pastes them on any page.": "{n} elementos copiados: Ctrl+V os cola em qualquer página."
+  "Copied {n} elements: Ctrl+V pastes them on any page.": "{n} elementos copiados: Ctrl+V os cola em qualquer página.",
+  "{n} intervals reference hole \"{hole_id}\", which has no matching collar.{v}": "{n} intervalos se referem ao furo \"{hole_id}\", que não tem boca de furo.{v}",
+  "{n} points reference hole \"{hole_id}\", which has no matching collar.{v}": "{n} pontos se referem ao furo \"{hole_id}\", que não tem boca de furo.{v}",
+  "{n} assay intervals reference hole \"{hole_id}\", which has no matching collar.{v}": "{n} intervalos de análise se referem ao furo \"{hole_id}\", que não tem boca de furo.{v}"
 }

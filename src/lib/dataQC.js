@@ -214,12 +214,13 @@ export function importCheckSummary(rows, collars, survey, label = "rows") {
 // the recovery of a 1.5 m run) and an SG of -7.27 passed, then drove the numeric legends and classes.
 function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps = true, range = null } = {}) {
   const issues = [];
+  const orphans = new Map(); // TASKS.csv #1663 — rows of holes with no collar, counted per hole
   let multiValued = 0; // #1532
   const byHole = new Map();
   rows.forEach((r) => {
     if (!byHole.has(r.hole_id)) byHole.set(r.hole_id, []);
     byHole.get(r.hole_id).push(r);
-    if (!collarIds.has(r.hole_id)) pushIssue(issues, "error", layerLabel, r.hole_id, tr("Interval references hole \"{hole_id}\", which has no matching collar.{v}", { hole_id: r.hole_id, v: didYouMean(collarIds, r.hole_id) }));
+    if (!collarIds.has(r.hole_id)) orphans.set(r.hole_id, (orphans.get(r.hole_id) || 0) + 1); // #1663 — once per hole, as #1275 did for survey
     if (!Number.isFinite(r.from) || !Number.isFinite(r.to)) {
       pushIssue(issues, "error", layerLabel, r.hole_id, tr("Interval has a non-numeric from/to ({from}–{to}).", { from: r.from, to: r.to }));
     } else if (r.from > r.to) {
@@ -279,14 +280,16 @@ function validateIntervalLayer(rows, layerLabel, collarIds, holeLengths, { gaps 
     });
   });
   if (multiValued) pushIssue(issues, "info", layerLabel, null, tr("{n} interval(s) repeat another's exact from–to with a different value: a log that records several values per run (e.g. vein types). Not counted as overlaps.", { n: multiValued }));
+  orphans.forEach((n, id) => pushIssue(issues, "error", layerLabel, id, n === 1 ? tr("Interval references hole \"{hole_id}\", which has no matching collar.{v}", { hole_id: id, v: didYouMean(collarIds, id) }) : tr("{n} intervals reference hole \"{hole_id}\", which has no matching collar.{v}", { n, hole_id: id, v: didYouMean(collarIds, id) })));
   return issues;
 }
 
 // ---- Point layers (mnlgy/magsusc) and structure ----
 function validatePointLayer(rows, layerLabel, collarIds, holeLengths) {
   const issues = [];
+  const orphans = new Map(); // TASKS.csv #1663 — rows of holes with no collar, counted per hole
   rows.forEach((r) => {
-    if (!collarIds.has(r.hole_id)) pushIssue(issues, "error", layerLabel, r.hole_id, tr("Point references hole \"{hole_id}\", which has no matching collar.{v}", { hole_id: r.hole_id, v: didYouMean(collarIds, r.hole_id) }));
+    if (!collarIds.has(r.hole_id)) orphans.set(r.hole_id, (orphans.get(r.hole_id) || 0) + 1); // #1663 — once per hole, as #1275 did for survey
     const depth = r.depth ?? r.from;
     if (!Number.isFinite(depth) || depth < 0) pushIssue(issues, "error", layerLabel, r.hole_id, tr("Point has an invalid depth ({depth}).", { depth }));
     const maxDepth = holeLengths.get(r.hole_id);
@@ -294,6 +297,7 @@ function validatePointLayer(rows, layerLabel, collarIds, holeLengths) {
       pushIssue(issues, "warning", layerLabel, r.hole_id, tr("Point at {depth}m extends past this hole's own recorded length/survey extent (~{maxDepth}m).", { depth, maxDepth: maxDepth.toFixed(0) }));
     }
   });
+  orphans.forEach((n, id) => pushIssue(issues, "error", layerLabel, id, n === 1 ? tr("Point references hole \"{hole_id}\", which has no matching collar.{v}", { hole_id: id, v: didYouMean(collarIds, id) }) : tr("{n} points reference hole \"{hole_id}\", which has no matching collar.{v}", { n, hole_id: id, v: didYouMean(collarIds, id) })));
   return issues;
 }
 
@@ -305,6 +309,7 @@ function validatePointLayer(rows, layerLabel, collarIds, holeLengths) {
 // no equivalent in the single-`value` interval layers above.
 function validateAssays(assays, collarIds, holeLengths) {
   const issues = [];
+  const orphans = new Map(); // TASKS.csv #1663 — rows of holes with no collar, counted per hole
   const byHole = new Map();
   // TASKS.csv #261 — over-range (">x") assays are lab placeholders awaiting a re-assay, not results.
   // parseAssayValue now preserves them AT the detection ceiling (it used to fabricate 1.5x the
@@ -324,7 +329,7 @@ function validateAssays(assays, collarIds, holeLengths) {
     // 'zero-length' and 551 'overlapping' warnings were all pXRF. They keep the per-row checks but are not intervals to overlap.
     const pxrf = a.source === "pXRF";
     if (!pxrf) { if (!byHole.has(a.hole_id)) byHole.set(a.hole_id, []); byHole.get(a.hole_id).push(a); }
-    if (!collarIds.has(a.hole_id)) pushIssue(issues, "error", "Assays", a.hole_id, tr("Assay interval references hole \"{hole_id}\", which has no matching collar.{v}", { hole_id: a.hole_id, v: didYouMean(collarIds, a.hole_id) }));
+    if (!collarIds.has(a.hole_id)) orphans.set(a.hole_id, (orphans.get(a.hole_id) || 0) + 1); // #1663 — once per hole, as #1275 did for survey
     if (!Number.isFinite(a.from) || !Number.isFinite(a.to)) {
       pushIssue(issues, "error", "Assays", a.hole_id, tr("Assay interval has a non-numeric from/to ({from}–{to}).", { from: a.from, to: a.to }));
     } else if (a.from > a.to) {
@@ -371,6 +376,7 @@ function validateAssays(assays, collarIds, holeLengths) {
       seen.add(key);
     });
   });
+  orphans.forEach((n, id) => pushIssue(issues, "error", "Assays", id, n === 1 ? tr("Assay interval references hole \"{hole_id}\", which has no matching collar.{v}", { hole_id: id, v: didYouMean(collarIds, id) }) : tr("{n} assay intervals reference hole \"{hole_id}\", which has no matching collar.{v}", { n, hole_id: id, v: didYouMean(collarIds, id) })));
   return issues;
 }
 
