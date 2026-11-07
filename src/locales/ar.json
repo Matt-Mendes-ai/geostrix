@@ -9076,5 +9076,10 @@
   "Or draw a cross-section in the 3D View first and use it here.": "أو ارسم مقطعاً عرضياً في العرض ثلاثي الأبعاد أولاً واستخدمه هنا.",
   "The section's own line, from its start, and the holes lying mainly inside its corridor (at least half of the hole). Tick or untick holes below as usual.": "خط المقطع نفسه من بدايته، وثقوب الحفر الواقعة في معظمها داخل ممره (نصف الثقب على الأقل). حدّد الثقوب أو ألغِ تحديدها أدناه كالمعتاد.",
   "Opened on {k} holes that lie within 100 m of a line fitted through them; {n} others are in the list below, unticked.": "فُتح على {k} ثقباً تقع ضمن 100 م من خط مُلاءم لها؛ والـ {n} الأخرى في القائمة أدناه غير محددة.",
-  "This project has {n} holes, so the panel opened along the latest saved section, on the holes in its corridor.": "يضم هذا المشروع {n} ثقباً، لذا فُتحت اللوحة على امتداد آخر مقطع محفوظ، على الثقوب الواقعة في ممره."
+  "This project has {n} holes, so the panel opened along the latest saved section, on the holes in its corridor.": "يضم هذا المشروع {n} ثقباً، لذا فُتحت اللوحة على امتداد آخر مقطع محفوظ، على الثقوب الواقعة في ممره.",
+  "\"{name}\" is not a closed solid ({n} open edges), so its inside is not defined.": "\"{name}\" ليس مجسماً مغلقاً ({n} حافة مفتوحة)، لذا داخله غير معرّف.",
+  "{name} — {v}": "{name} — {v}",
+  "Open meshes (no inside to search)": "شبكات مفتوحة (لا داخل للبحث فيه)",
+  "{name} (open: {n} edges)": "{name} (مفتوحة: {n} حافة)",
+  "An open mesh has no inside. For an imported isosurface cut off at its model's edge, make the shell from the block model itself (Targeting > Voxel ranges > Shell at this range), which closes along the grid's edge; for a unit, build it as a closed volume in 3D Modelling (unit volumes, an envelope, a vein solid, or a solid linked from section outlines).": "الشبكة المفتوحة لا داخل لها. لسطح متساوي القيمة مستورد مقطوع عند حافة نموذجه، اصنع الغلاف من نموذج الكتل نفسه (الاستهداف > نطاقات الفوكسل > غلاف عند هذا النطاق)، فهو ينغلق على حافة الشبكة؛ وللوحدة، ابنِها حجماً مغلقاً في النمذجة ثلاثية الأبعاد (أحجام الوحدات، أو غلاف، أو مجسم عرق، أو مجسم مربوط من حدود المقاطع)."
 }

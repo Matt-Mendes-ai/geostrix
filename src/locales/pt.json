@@ -9076,5 +9076,10 @@
   "Or draw a cross-section in the 3D View first and use it here.": "Ou desenhe primeiro uma seção na Vista 3D e use-a aqui.",
   "The section's own line, from its start, and the holes lying mainly inside its corridor (at least half of the hole). Tick or untick holes below as usual.": "A própria linha da seção, a partir do início, e os furos que ficam principalmente dentro do seu corredor (ao menos metade do furo). Marque ou desmarque furos abaixo como de costume.",
   "Opened on {k} holes that lie within 100 m of a line fitted through them; {n} others are in the list below, unticked.": "Aberto com {k} furos que ficam a até 100 m de uma linha ajustada a eles; os outros {n} estão na lista abaixo, desmarcados.",
-  "This project has {n} holes, so the panel opened along the latest saved section, on the holes in its corridor.": "Este projeto tem {n} furos, então o painel abriu ao longo da última seção salva, com os furos do seu corredor."
+  "This project has {n} holes, so the panel opened along the latest saved section, on the holes in its corridor.": "Este projeto tem {n} furos, então o painel abriu ao longo da última seção salva, com os furos do seu corredor.",
+  "\"{name}\" is not a closed solid ({n} open edges), so its inside is not defined.": "\"{name}\" não é um sólido fechado ({n} arestas abertas), então seu interior não está definido.",
+  "{name} — {v}": "{name} — {v}",
+  "Open meshes (no inside to search)": "Malhas abertas (sem interior para buscar)",
+  "{name} (open: {n} edges)": "{name} (aberta: {n} arestas)",
+  "An open mesh has no inside. For an imported isosurface cut off at its model's edge, make the shell from the block model itself (Targeting > Voxel ranges > Shell at this range), which closes along the grid's edge; for a unit, build it as a closed volume in 3D Modelling (unit volumes, an envelope, a vein solid, or a solid linked from section outlines).": "Uma malha aberta não tem interior. Para uma isossuperfície importada cortada na borda do seu modelo, faça o envelope a partir do próprio modelo de blocos (Alvos > Intervalos de voxels > Envelope neste intervalo), que se fecha na borda da grade; para uma unidade, construa-a como volume fechado em Modelagem 3D (volumes de unidade, um envelope, um sólido de veio ou um sólido ligado a partir de contornos de seção)."
 }

@@ -7,6 +7,7 @@ import { useStore } from "../lib/store.jsx";
 import { desurveyHole } from "../lib/desurvey.js";
 import { plannedTrace } from "../lib/holePlanning.js";
 import { isMeshClosed } from "../lib/meshQuery.js";
+import { solidChoices } from "../lib/solidChoices.js"; // TASKS.csv #1564
 import { unitShell } from "../lib/unitVolumes.js";
 import { undrilledZones, defaultCellSize } from "../lib/undrilledZones.js";
 import { collarGround } from "../lib/pitShell.js"; // TASKS.csv #1557 — the ground between the collars
@@ -17,6 +18,8 @@ import { t as tr } from "../lib/i18n.js";
 
 const row = { display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" };
 const note = { fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 };
+// #1564 — what to do with an open mesh: the routes GeoStrix has (there is no general 'close this mesh' tool)
+const OPEN_ROUTE = "An open mesh has no inside. For an imported isosurface cut off at its model's edge, make the shell from the block model itself (Targeting > Voxel ranges > Shell at this range), which closes along the grid's edge; for a unit, build it as a closed volume in 3D Modelling (unit volumes, an envelope, a vein solid, or a solid linked from section outlines).";
 const mm3 = (v) => (v >= 1e5 ? `${(v / 1e6).toFixed(2)} Mm³` : `${Math.round(v).toLocaleString()} m³`);
 
 // solids: [{ id, name, positions (world E, N, Z), indices }] (ViewerModule closedShellsForEstimation).
@@ -37,6 +40,9 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
   const [result, setResultState] = useState(() => lastResult);
   const setResult = (r) => { lastResult = r; setResultState(r); };
   const unit = solids.find((s) => s.id === unitId) || null;
+  // TASKS.csv #1564 — closed solids first with their volumes (two 'Au > 1 ppm shell' could not be told apart), open meshes apart and
+  // not selectable: Lawyers' 12 imported VLF isosurfaces were offered and each refused only after Run
+  const choices = solidChoices(solids);
   const autoCell = useMemo(() => (unit && coverM > 0 ? defaultCellSize(unit.positions, coverM) : null), [unit, coverM]);
   // TASKS.csv #1725 — a grade shell built from one hole, or mostly extrapolated: its undrilled parts are where it is least known
   const support = useMemo(() => (unit ? unitSupport(unit.params) : null), [unit]);
@@ -64,7 +70,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
   const run = () => {
     if (!unit) return;
     const closed = isMeshClosed(unit.positions, unit.indices);
-    if (!closed.closed) { setMsg({ ok: false, text: tr("\"{name}\" is not a closed solid ({n} open edges), so its inside is not defined. Close it first, or build the unit as a closed volume.", { name: unit.name, n: closed.boundaryEdges }) }); return; }
+    if (!closed.closed) { setMsg({ ok: false, text: tr("\"{name}\" is not a closed solid ({n} open edges), so its inside is not defined.", { name: unit.name, n: closed.boundaryEdges }) + " " + tr(OPEN_ROUTE, { n: 1 }) }); return; }
     setBusy(true); setMsg(null); setResult(null);
     setTimeout(() => { // let the busy state paint
       try {
@@ -107,8 +113,14 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
         {!collars.length && solids.length > 0 && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr(plannedHoles.length ? "No drillholes yet: every part of a unit is undrilled. The {n} planned hole(s) are the only coverage that can be counted." : "No drillholes yet: every part of a unit is undrilled. Plan holes (Targeting > Planned holes) and count them here to see what they would leave untested.", { n: plannedHoles.length })}</div>}{/* TASKS.csv #1833 — Kodiak: zero holes, said instead of a 0 % figure */}
         <select value={unitId} onChange={(e) => { setUnitId(e.target.value); setResult(null); }} style={{ ...smallSel, width: "100%" }} aria-label={tr("Modelled unit")}>
           <option value="">{tr("Modelled unit…")}</option>
-          {solids.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          {choices.closed.map((s) => <option key={s.id} value={s.id}>{tr("{name} — {v}", { name: s.name, v: mm3(s.volumeM3) })}</option>)}
+          {choices.open.length > 0 && (
+            <optgroup label={tr("Open meshes (no inside to search)")}>
+              {choices.open.map((s) => <option key={s.id} value={s.id} disabled>{tr("{name} (open: {n} edges)", { name: s.name, n: s.openEdges.toLocaleString() })}</option>)}
+            </optgroup>
+          )}
         </select>
+        {choices.open.length > 0 && <div style={note}>{tr(OPEN_ROUTE, { n: choices.open.length })}</div>}
         {supportText && <div style={{ ...note, color: "var(--color-warn-text)" }}>{supportText}</div>}{/* #1725 */}
         <label style={row} title={tr("A block of the unit counts as covered when a drillhole passes within this distance of it")}>{tr("Covered within (m of a hole)")}
           <input type="number" min="1" step="5" value={coverM} onChange={(e) => setCoverM(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: 70 }} /></label>
