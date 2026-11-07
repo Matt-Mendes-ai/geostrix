@@ -1290,8 +1290,20 @@ export function createModellingRuns(ctx, mcRef) {
       if (stackBreaks?.includes(u) && specs.length) breakAt.add(specs.length - 1);
     });
     breakAt.delete(specs.length - 1); // nothing below it
-    if (skipped.length) setNotices((p) => [...p, notice("Skipping from the stack (no top contacts it can use — no intervals, or every start is at a hole start or under casing, overburden, a cross-cutting or an older unit; the notes above say which): {skipped}.", { skipped: skipped.join(", ") }) /* #1370 */]);
-    if (specs.length < 2) { setNotices((p) => [...p, notice("Need at least 2 units with data to model a stack — add more units or check your lithology import.")]); return; }
+    // TASKS.csv #1370 (review #1352, Silvertip) — the youngest unit of a stack needs no top of its own: on Silvertip the Earn clastics
+    // start under overburden or at a hole start in every hole, and the stack's model is the top of McDame (Earn's base) down.
+    // Skipped, it is said as such; the rest are still the ones the run cannot use.
+    const youngestAt = unitNames.findIndex((_, i) => i !== ovbAt);
+    const youngestName = youngestAt >= 0 ? (targets[youngestAt] && typeof targets[youngestAt] === "object" ? targets[youngestAt].name : targets[youngestAt]) : null;
+    const youngestSkipped = youngestAt >= 0 && !specKey.has(unitNames[youngestAt]) && !!targets[youngestAt];
+    const otherSkipped = youngestSkipped ? skipped.slice(1) : skipped; // overburden is never in skipped, so the youngest is first
+    if (youngestSkipped) setNotices((p) => [...p, notice("{unit}: no top contacts it can use (the notes above say why). As the youngest unit of the stack it needs none: the stack is modelled from the top of the unit below it down.", { unit: youngestName })]);
+    if (otherSkipped.length) setNotices((p) => [...p, notice("Skipping from the stack (no top contacts it can use — no intervals, or every start is at a hole start or under casing, overburden, a cross-cutting or an older unit; the notes above say which): {skipped}.", { skipped: otherSkipped.join(", ") }) /* #1370 */]);
+    // one surface left because the youngest unit needs no top, or because overburden's base is folded into the unit under it (#1684):
+    // that contact is still a model — a stack of one is the same solve (runSurfaceModel is runSurfaceStack([spec]))
+    const oneContactOk = specs.length === 1 && (youngestSkipped || ovbAt >= 0);
+    if (oneContactOk) setNotices((p) => [...p, notice("One contact to model: {surface}. The stack has no second surface to keep it from crossing, so it is solved on its own.", { surface: ovbAt >= 0 && targets[ovbAt + 1] ? tr("{surface} (the base of {ovb})", { surface: specs[0].label, ovb: typeof targets[ovbAt] === "object" ? targets[ovbAt].name : targets[ovbAt] }) : youngestSkipped ? tr("{surface} (the base of {unit})", { surface: specs[0].label, unit: youngestName }) : specs[0].label })]);
+    if (specs.length < 2 && !oneContactOk) { setNotices((p) => [...p, notice("Need at least 2 units with data to model a stack — add more units or check your lithology import.")]); return; }
     noteUnmatchedDrawnContacts(specs);
     let packages = 0; // TASKS.csv #1309
     if (breakAt.size) {
