@@ -1950,7 +1950,7 @@ function crsText(epsg) {
   return name ? `${name} (EPSG:${epsg})` : `EPSG:${epsg}`;
 }
 function textContextFor(els, project, page, index, count, collars = null, credits = "") {
-  return { project: project?.name || "", date: new Date().toLocaleDateString(), page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg), credits, collars, els }; // collars: the #911 table; els: the #912 overview
+  return { project: project?.name || "", date: new Date().toLocaleDateString(), page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg), credits, collars, els, pageH: pagePx(pageFormatOf(page)).h }; // collars: the #911 table; els: the #912 overview; pageH: #1480
 }
 const fillText = (text, ctx) => (ctx && typeof text === "string" && text.includes("{") ? text.replace(PLACEHOLDER, (m, k) => (ctx[k] != null ? ctx[k] : m)) : text);
 
@@ -2117,26 +2117,35 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
       </div>
     );
   }
+  // TASKS.csv #1480 / #1637 — a long bound legend (a strip log's or a section's 40+ rows) ran past the page foot: it now flows into as many
+  // columns (up to 4) as it needs to end above the sheet's bottom margin, from the rows' printed heights
+  const legendCols = el.type === "legend" ? (() => {
+    const row = (it) => (it?.[2]?.heading ? printPx(printPt.small) + 8 : it?.[2]?.note ? printPx(printPt.caption) + 4 : it?.[2]?.ramp ? 44 : Math.max(17, printPx(printPt.small) + 5));
+    const est = 40 + (el.items || []).reduce((t, it) => t + row(it), 0), room = (ctx?.pageH || 794) - (Number(el.y) || 0) - 30;
+    return room > 80 ? Math.min(4, Math.max(1, Math.ceil(est / room))) : 1;
+  })() : 1;
   if (el.type === "legend") return (
-    <div style={{ ...wrap, background: "#fff", border: frameBorder(el, "1px solid #ccc"), padding: "8px 12px", minWidth: 150, width: el.w || undefined, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
+    <div style={{ ...wrap, background: "#fff", border: frameBorder(el, "1px solid #ccc"), padding: "8px 12px", minWidth: 150 * legendCols, width: legendCols > 1 ? undefined : el.w || undefined, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
       {handles}
       <div style={{ fontSize: printPx(printPt.body), fontWeight: 700, color: INK, marginBottom: 6, fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Legend")}</div>
+      <div style={legendCols > 1 ? { columnCount: legendCols, columnGap: 18 } : undefined}>
       {el.items.map(([name, color, opt], i) => opt?.heading ? ( /* TASKS.csv #725 — a group heading */
-        <div key={i} style={{ fontSize: printPx(printPt.small), fontWeight: 700, color: INK, margin: i ? "6px 0 2px" : "0 0 2px" }}>{name}</div>
+        <div key={i} style={{ fontSize: printPx(printPt.small), fontWeight: 700, color: INK, margin: i ? "6px 0 2px" : "0 0 2px", breakAfter: "avoid" /* #1480 — a heading never ends a column */ }}>{name}</div>
       ) : opt?.note ? ( /* TASKS.csv #1633 — what a capped group left out */
         <div key={i} style={{ fontSize: printPx(printPt.caption), fontStyle: "italic", color: "#55606e", margin: "0 0 3px 28px" }}>{name}</div>
       ) : opt?.ramp ? ( /* a block model's continuous scale */
-        <div key={i} style={{ marginBottom: 4 }}>
+        <div key={i} style={{ marginBottom: 4, breakInside: "avoid" }}>
           <div style={{ fontSize: printPx(printPt.small), fontWeight: 700, color: INK, marginTop: i ? 6 : 0 }}>{name}{opt.ramp.log ? tr(" · log scale") : ""}</div>
           <div style={{ height: 10, width: 150, border: "1px solid #999", background: `linear-gradient(to right, ${opt.ramp.colors.join(", ")})` }} />
           <div style={{ display: "flex", justifyContent: "space-between", width: 152, fontSize: printPx(printPt.small), color: INK }}><span>{opt.ramp.minLabel}</span><span>{opt.ramp.maxLabel}</span></div>
         </div>
       ) : (
-        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, breakInside: "avoid" /* #1480 — a row is never split between columns */ }}>
           <span style={{ width: 20, display: "inline-flex", justifyContent: "center", flexShrink: 0 }}><span style={{ ...swatchShape(opt?.kind, 14), background: color, opacity: opt?.opacity ?? 1 /* #1122 — the map layer's drape opacity */, display: "inline-block", border: opt?.kind === "line" ? "none" : "1px solid #999" }} /></span>{/* #948 — square / line / dot */}
           <span style={{ fontSize: printPx(printPt.small), color: INK }}>{name}</span>
         </div>
       ))}
+      </div>
     </div>
   );
   // TASKS.csv #911 — a table: live drillhole collars, or a static copy (Best intercepts' results). Print typography (pt),
