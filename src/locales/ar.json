@@ -8595,5 +8595,6 @@
   "Copied {n} elements: Ctrl+V pastes them on any page.": "نُسخ {n} عناصر: يلصقها Ctrl+V في أي صفحة.",
   "{n} intervals reference hole \"{hole_id}\", which has no matching collar.{v}": "{n} فترات تشير إلى البئر \"{hole_id}\"، الذي لا فوهة له.{v}",
   "{n} points reference hole \"{hole_id}\", which has no matching collar.{v}": "{n} نقاط تشير إلى البئر \"{hole_id}\"، الذي لا فوهة له.{v}",
-  "{n} assay intervals reference hole \"{hole_id}\", which has no matching collar.{v}": "{n} فترات تحليل تشير إلى البئر \"{hole_id}\"، الذي لا فوهة له.{v}"
+  "{n} assay intervals reference hole \"{hole_id}\", which has no matching collar.{v}": "{n} فترات تحليل تشير إلى البئر \"{hole_id}\"، الذي لا فوهة له.{v}",
+  "{n} more code(s) in {cols} on {m} interval(s) are not drawn (each interval is coloured by {first}); every code is kept on its interval as all_codes, which Identify lists. Hiding the first code in the legend shows such an interval in its next code's colour.": "{n} رمز إضافي في {cols} على {m} فترة لا يُرسم (تُلوَّن كل فترة حسب {first})؛ ويُحفظ كل رمز على فترته في all_codes الذي تعرضه أداة التعريف. إخفاء الرمز الأول في المفتاح يُظهر هذه الفترة بلون رمزها التالي."
 }

@@ -522,7 +522,7 @@ export function useImportPipeline(ctx) {
       let codesKept = 0, codesRows = 0;
       const rows = filledRows.map((raw) => {
         const r = numeric ? normNumericInterval(raw, mapping, customFields) : normInterval(raw, mapping, customFields);
-        if (sib) { const a = allCodesOf(raw, sib); if (a.extra) { r.all_codes = a.all; codesKept += a.extra; codesRows++; } }
+        if (sib) { const a = allCodesOf(raw, sib); if (a.extra) { r.all_codes = a.all; r.codes = a.codes; codesKept += a.extra; codesRows++; } } // codes: #1650
         const why = !r.hole_id ? "no hole id" : isNaN(r.from) ? "no from" : numeric && isNaN(r.value) ? "no value" : null;
         if (why) { dropped.push({ reason: why, example: why === "no from" ? raw[mapping.from] : why === "no value" ? raw[mapping.value] : null }); return null; }
         return { ...r, _src: fileName };
@@ -541,7 +541,7 @@ export function useImportPipeline(ctx) {
       }).catch(() => {});
       setNotices((p) => [...p, tr("Loaded {rows} rows into {label} from {fileName}.", { rows: rows.length, label: LAYER_META[target].label, fileName })
         + replaceNote(replaced, "rows") + skippedRowsText(dropped, allRows.length)
-        + (codesKept ? " " + tr("{n} more code(s) in {cols} on {m} interval(s) are not drawn (each interval is coloured by {first}); every code is kept on its interval as all_codes, which Identify lists.", { n: codesKept, m: codesRows, cols: `${sib.codes[0]}–${sib.codes[sib.codes.length - 1]}`, first: sib.first }) : "") // #1650
+        + (codesKept ? " " + tr("{n} more code(s) in {cols} on {m} interval(s) are not drawn (each interval is coloured by {first}); every code is kept on its interval as all_codes, which Identify lists. Hiding the first code in the legend shows such an interval in its next code's colour.", { n: codesKept, m: codesRows, cols: `${sib.codes[0]}–${sib.codes[sib.codes.length - 1]}`, first: sib.first }) : "") // #1650
         + (idsFilled ? " " + tr("{n} row(s) with a blank hole id took the hole id of the row above, their depths continuing it: check them if the file is laid out otherwise.", { n: idsFilled }) : "")]); // #1665
     }
     return true;

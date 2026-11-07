@@ -396,5 +396,15 @@ export function numberedSiblings(headers, valueCol, extraCol = null) {
 export function allCodesOf(raw, sib) {
   const part = (c, p) => { const v = String(raw?.[c] ?? "").trim(); if (!v) return null; const q = p ? String(raw?.[p] ?? "").trim() : ""; return q ? `${v} ${q}` : v; };
   const first = part(sib.first, sib.firstPct), rest = sib.codes.map((c, i) => part(c, sib.pcts[i])).filter(Boolean);
-  return { all: first || rest.length ? [first, ...rest].filter(Boolean).join(" · ") : null, extra: rest.length };
+  // #1650 — the plain codes too (no percentages): the category pass shows an interval while any of its minerals is shown
+  const code = (c) => { const v = String(raw?.[c] ?? "").trim(); return v || null; };
+  const codes = [code(sib.first), ...sib.codes.map(code)].filter(Boolean);
+  return { all: first || rest.length ? [first, ...rest].filter(Boolean).join(" · ") : null, extra: rest.length, codes };
+}
+// TASKS.csv #1650 — an interval's codes, first first: its stored list, else read back from all_codes ('PY 1 · CP 0.3' -> PY, CP; a
+// project imported before the list existed); [] for a one-code interval
+export function codeList(row) {
+  if (Array.isArray(row?.codes)) return row.codes;
+  if (!row?.all_codes) return [];
+  return String(row.all_codes).split(" · ").map((p) => p.trim().split(/\s+/)[0]).filter(Boolean);
 }

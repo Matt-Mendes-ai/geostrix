@@ -12,6 +12,6 @@ test("siblings of the mapped first code and its percentage", () => {
 });
 test("all codes of a row, and how many were past the first", () => {
   const s = numberedSiblings(headers, "Min_Code1", "Min_pct1");
-  assert.deepEqual(allCodesOf({ Min_Code1: "PY", Min_pct1: "1", Min_Code2: "CP", Min_pct2: "0.3", Min_Code3: "" }, s), { all: "PY 1 · CP 0.3", extra: 1 });
-  assert.deepEqual(allCodesOf({ Min_Code1: "PY", Min_pct1: "2" }, s), { all: "PY 2", extra: 0 });
+  assert.deepEqual(allCodesOf({ Min_Code1: "PY", Min_pct1: "1", Min_Code2: "CP", Min_pct2: "0.3", Min_Code3: "" }, s), { all: "PY 1 · CP 0.3", extra: 1, codes: ["PY", "CP"] }); // codes: #1650
+  assert.deepEqual(allCodesOf({ Min_Code1: "PY", Min_pct1: "2" }, s), { all: "PY 2", extra: 0, codes: ["PY"] });
 });

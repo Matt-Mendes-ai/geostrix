@@ -176,7 +176,7 @@ import { syncDrawLods, dropDrawLod } from "../lib/viewer/drawLod.js"; // TASKS.c
 import { useModelling } from "./viewer/useModelling.js";
 import { pBtn, smallSel } from "../lib/sidebarStyles.js"; // TASKS.csv #704 // TASKS.csv #445 step 2
 import { isMarkedQcRow } from "../lib/qaqcCore.js"; // TASKS.csv #601; qaqcCore: #1345
-import { loadGpkg, groupShapefileParts } from "../lib/viewer/importHelpers.js"; // TASKS.csv #445 step 3; groupShapefileParts #600
+import { loadGpkg, groupShapefileParts, codeList } from "../lib/viewer/importHelpers.js"; // TASKS.csv #445 step 3; groupShapefileParts #600; codeList #1650
 import { useImportPipeline } from "./viewer/useImportPipeline.js"; // TASKS.csv #445 step 3
 import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1034 — the drillhole tables' stamp
 import { alphaOnlyFan, meanPole } from "../lib/sectionStructures.js"; // TASKS.csv #1130 — alpha-only picks on sections
@@ -1632,11 +1632,17 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     keys.forEach((key) => {
       const g = groups[key];
       if (!g) return;
-      const hidden = categoryFilter[key];
-      eachLayerMember(g, (child) => { child.visible = !(hidden && hidden.has(String(child.userData?.catValue))); }); // #1540
+      const hidden = categoryFilter[key], single = layerStyles[key]?.color, known = new Set();
+      if (hidden?.size) eachLayerMember(g, (c) => known.add(String(c.userData?.catValue))); // the legend's categories: a code no interval starts with has no chip, so a filter hides it
+      eachLayerMember(g, (child) => { // #1540
+        // TASKS.csv #1650 — an interval logging several minerals (PY 1 · CP 0.3) stays while any of them is shown, in the first shown one's colour
+        const codes = codeList(child.userData?.row);
+        if (codes.length > 1) { const shown = codes.find((c) => (hidden?.size ? known.has(String(c)) && !hidden.has(String(c)) : true)); child.visible = shown != null; if (shown != null && !single && child.material?.color) child.material.color.set(effectiveColor(key, shown)); return; }
+        child.visible = !(hidden && hidden.has(String(child.userData?.catValue)));
+      });
     });
     syncLayerBatches(keys); // TASKS.csv #312
-  }, [categoryFilter, syncLayerBatches]);
+  }, [categoryFilter, syncLayerBatches, effectiveColor, layerStyles]);
   // TASKS.csv #227 — the post-hoc half of baseColorForBuild: repaints built members from effectiveColor (legendOverride) by their
   // catValue, so a legend colour edit is a material.color.set(), not a rebuild. Tooltip labels stay as built until the next rebuild.
   const paintedKeysRef = useRef(new Set()); // #1500 — layers repainted off their build defaults; the others are skipped
