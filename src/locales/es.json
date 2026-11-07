@@ -9123,5 +9123,13 @@
   "Cropped to the drilled area: {kept} of {of} cells kept.": "Recortado al área perforada: se conservaron {kept} de {of} celdas.",
   "no outcrop measurements imported — the contacts' own dips are used: {n} fitted from the map traces on this terrain": "no se importaron mediciones de afloramiento — se usan los buzamientos de los propios contactos: {n} ajustados de las trazas del mapa sobre este terreno",
   "No orientation to build from: no outcrop measurements, and no contact dip could be fitted from the map traces on this terrain (a contact needs enough relief along its trace). Import outcrop bedding or contact measurements in Surface Geology.": "No hay orientaciones para construir: no hay mediciones de afloramiento y no se pudo ajustar ningún buzamiento de contacto a partir de las trazas del mapa sobre este terreno (un contacto necesita relieve suficiente a lo largo de su traza). Importe estratificación o mediciones de contacto en Geología de superficie.",
-  "Flat for now: it drapes on the terrain once one is loaded.": "Plana por ahora: se drapea sobre el terreno en cuanto se cargue uno."
+  "Flat for now: it drapes on the terrain once one is loaded.": "Plana por ahora: se drapea sobre el terreno en cuanto se cargue uno.",
+  "does not reach the project: about {km} km north of it": "no llega al proyecto: a unos {km} km al norte de él",
+  "does not reach the project: about {km} km north-east of it": "no llega al proyecto: a unos {km} km al noreste de él",
+  "does not reach the project: about {km} km east of it": "no llega al proyecto: a unos {km} km al este de él",
+  "does not reach the project: about {km} km south-east of it": "no llega al proyecto: a unos {km} km al sureste de él",
+  "does not reach the project: about {km} km south of it": "no llega al proyecto: a unos {km} km al sur de él",
+  "does not reach the project: about {km} km south-west of it": "no llega al proyecto: a unos {km} km al suroeste de él",
+  "does not reach the project: about {km} km west of it": "no llega al proyecto: a unos {km} km al oeste de él",
+  "does not reach the project: about {km} km north-west of it": "no llega al proyecto: a unos {km} km al noroeste de él"
 }

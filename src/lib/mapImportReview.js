@@ -17,6 +17,16 @@ export function featuresBox(features) {
 const diag = (b) => Math.hypot(b[2] - b[0], b[3] - b[1]);
 const centre = (b) => [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2];
 const overlaps = (a, b) => a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1];
+// TASKS.csv #1607 (review #1497, Lawyers) — a table that does not reach the project: how far its box lies from the project's (the gap between
+// the two rectangles) and in which of 8 directions (0 = north, clockwise). The review saw a BC surficial sheet 'Regional or elsewhere ...
+// 252 km across', unticked but with nothing saying it lay about 500 km from the drilling: the wrong sheet downloaded.
+export function awayFrom(box, ref) {
+  if (!box || !ref || overlaps(box, ref)) return null;
+  const gx = Math.max(0, ref[0] - box[2], box[0] - ref[2]), gy = Math.max(0, ref[1] - box[3], box[1] - ref[3]);
+  const [bx, by] = centre(box), [rx, ry] = centre(ref);
+  const deg = ((Math.atan2(bx - rx, by - ry) * 180) / Math.PI + 360) % 360;
+  return { distM: Math.hypot(gx, gy), dir: Math.round(deg / 45) % 8 };
+}
 const union = (boxes) => [Math.min(...boxes.map((b) => b[0])), Math.min(...boxes.map((b) => b[1])), Math.max(...boxes.map((b) => b[2])), Math.max(...boxes.map((b) => b[3]))];
 
 const isGrid = (t) => /grid/i.test(t.name) || t.layers.some((l) => (l.fields || []).includes("Coord"));
@@ -49,7 +59,7 @@ export function classifyTables(tables, { toCommon, refBox = null }) {
     else cls = raw && main && overlaps(raw, main) && near(raw) ? "map" : "page"; // no CRS: real only if it sits on the data
     if (cls === "map" && isGrid(t)) cls = "grid";
     else if (cls === "map" && isLabels(t)) cls = "labels";
-    return { table: t, cls, box: box || raw, sizeM: (box || raw) ? diag(box || raw) : 0 };
+    return { table: t, cls, box: box || raw, sizeM: (box || raw) ? diag(box || raw) : 0, away: box && refBox ? awayFrom(box, refBox) : null }; // away: #1607
   });
 }
 

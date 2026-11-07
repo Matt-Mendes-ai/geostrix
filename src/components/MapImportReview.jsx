@@ -15,6 +15,9 @@ const CLASS_TEXT = () => ({
   regional: [tr("Regional or elsewhere"), tr("Location maps, much larger than your property or far from it. One of these zooms the view far out.")],
   page: [tr("No position on the map"), tr("Legends, scale bars, page frames and section drawings. Their coordinates are page or section units, so they would land far from your data.")],
 });
+// #1607 — where a table lies when it misses the project
+const AWAY = () => [tr("does not reach the project: about {km} km north of it"), tr("does not reach the project: about {km} km north-east of it"), tr("does not reach the project: about {km} km east of it"), tr("does not reach the project: about {km} km south-east of it"), tr("does not reach the project: about {km} km south of it"), tr("does not reach the project: about {km} km south-west of it"), tr("does not reach the project: about {km} km west of it"), tr("does not reach the project: about {km} km north-west of it")];
+const awayText = (a) => (a ? AWAY()[a.dir].replace("{km}", a.distM >= 10000 ? Math.round(a.distM / 1000).toLocaleString() : (a.distM / 1000).toFixed(1)) : "");
 const sizeText = (m) => (m >= 1000 ? tr("{v} km across", { v: (m / 1000).toFixed(m >= 10000 ? 0 : 1) }) : tr("{v} m across", { v: Math.round(m) }));
 
 export default function MapImportReview({ rows, onCancel, onConfirm }) {
@@ -51,7 +54,7 @@ export default function MapImportReview({ rows, onCancel, onConfirm }) {
                     <label key={r.table.name} style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 22, padding: "2px 0", fontSize: "var(--font-size-sm)" }}>
                       <input type="checkbox" checked={on.has(r.table.name)} onChange={(e) => flip([r.table.name], e.target.checked)} />
                       <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.table.name}>{r.table.name}</span>
-                      <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{r.table.layers.length === 1 ? featureCountText(n, r.table.layers[0].geomType) : tr("{n} features", { n: n.toLocaleString() })}{r.cls === "page" ? "" : ` · ${sizeText(r.sizeM)}`}</span>
+                      <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{r.table.layers.length === 1 ? featureCountText(n, r.table.layers[0].geomType) : tr("{n} features", { n: n.toLocaleString() })}{r.cls === "page" ? "" : ` · ${sizeText(r.sizeM)}`}{r.away ? <span style={{ color: "var(--color-warn-text)" }}>{` · ${awayText(r.away)}`}</span> : null}</span>
                     </label>
                   );
                 })}

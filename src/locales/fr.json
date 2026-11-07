@@ -9123,5 +9123,13 @@
   "Cropped to the drilled area: {kept} of {of} cells kept.": "Recadré sur la zone forée : {kept} cellules gardées sur {of}.",
   "no outcrop measurements imported — the contacts' own dips are used: {n} fitted from the map traces on this terrain": "aucune mesure d'affleurement importée — les pendages des contacts eux-mêmes sont utilisés : {n} ajustés à partir des traces de la carte sur ce terrain",
   "No orientation to build from: no outcrop measurements, and no contact dip could be fitted from the map traces on this terrain (a contact needs enough relief along its trace). Import outcrop bedding or contact measurements in Surface Geology.": "Aucune orientation pour construire : pas de mesures d'affleurement, et aucun pendage de contact n'a pu être ajusté à partir des traces de la carte sur ce terrain (un contact a besoin d'assez de relief le long de sa trace). Importez la stratification ou des mesures de contact dans Géologie de surface.",
-  "Flat for now: it drapes on the terrain once one is loaded.": "À plat pour l'instant : elle se drape sur le terrain dès qu'il y en a un."
+  "Flat for now: it drapes on the terrain once one is loaded.": "À plat pour l'instant : elle se drape sur le terrain dès qu'il y en a un.",
+  "does not reach the project: about {km} km north of it": "n'atteint pas le projet : à environ {km} km au nord de celui-ci",
+  "does not reach the project: about {km} km north-east of it": "n'atteint pas le projet : à environ {km} km au nord-est de celui-ci",
+  "does not reach the project: about {km} km east of it": "n'atteint pas le projet : à environ {km} km à l'est de celui-ci",
+  "does not reach the project: about {km} km south-east of it": "n'atteint pas le projet : à environ {km} km au sud-est de celui-ci",
+  "does not reach the project: about {km} km south of it": "n'atteint pas le projet : à environ {km} km au sud de celui-ci",
+  "does not reach the project: about {km} km south-west of it": "n'atteint pas le projet : à environ {km} km au sud-ouest de celui-ci",
+  "does not reach the project: about {km} km west of it": "n'atteint pas le projet : à environ {km} km à l'ouest de celui-ci",
+  "does not reach the project: about {km} km north-west of it": "n'atteint pas le projet : à environ {km} km au nord-ouest de celui-ci"
 }
