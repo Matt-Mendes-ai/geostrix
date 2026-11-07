@@ -939,12 +939,23 @@ export function schemaSatisfied(target, mapping) {
   if (schema.fields.some((f) => f.required && !mapping[f.key])) return false;
   return !schema.oneOf || schema.oneOf.some((keys) => keys.every((k) => mapping[k]));
 }
+// Logs with no built-in layer, named for what they hold: ask, as a custom layer. #600 (40958Z): a void / cavity log is not veins (its bare
+// "Type" column hit the vein rule); #1345: a UV fluorescence log is not lithology; #1502 (40958Z): Oxidation, Silicification and
+// OriCore (the core-orientation marks) were all guessed as Lithology from a generic code / description column.
+const CUSTOM_LOG_NAMES = /\b(voids?|cavit(y|ies))\b|fluoresc|\boxidation|\bweathering|silicif|\bori(ented)?[\s_-]*core\b|\boricore\b/i;
 export function guessTargetFor(headers, name) {
-  // #600 (40958Z) — a void / cavity log is not veins (its bare "Type" column hit the vein rule): ask, as custom
-  if (/\b(voids?|cavit(y|ies))\b/i.test(String(name || ""))) return "custom";
-  if (/fluoresc/i.test(String(name || ""))) return "custom"; // #1345 — a UV fluorescence log is not lithology
+  if (CUSTOM_LOG_NAMES.test(String(name || ""))) return "custom";
   const hint = targetFromName(name);
-  if (hint && schemaSatisfied(hint, guessMapping(hint, headers))) return hint;
+  if (hint) {
+    const m = guessMapping(hint, headers);
+    if (schemaSatisfied(hint, m)) return hint;
+    // TASKS.csv #1502 — the name is the stronger hint: a file shaped like the named layer (its hole and depth columns found) whose value
+    // column has a name GeoStrix does not know keeps that layer, and the dialog asks for the column (never committed unseen: the value
+    // is missing). Mineralization.csv with only a Description column went to Lithology, whose aliases include "description".
+    // A "structure" name on a file with a To column is an interval log (structural zones, #604: Copley's GEOLFROM / GEOLTO): the headers decide.
+    const interval = hint === "structure" && guessMapping("structzone", headers).to;
+    if (!interval && TARGET_SCHEMAS[hint]?.fields.every((f) => !f.required || f.key === "value" || m[f.key])) return hint;
+  }
   return guessTarget(headers);
 }
 export function getCol(row, keys) {

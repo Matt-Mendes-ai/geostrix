@@ -79,8 +79,9 @@ test("#605 sheet-name hints win only when that type's required columns map", () 
   // Generic From/To/Value columns read as litho on their own; the "Specific Gravity" sheet name makes them SG.
   assert.equal(guessTargetFor(["Hole_ID", "From", "To", "Value"], "assays.csv"), "litho");
   assert.equal(guessTargetFor(["Hole_ID", "From", "To", "Value"], "Book - Specific Gravity.csv"), "sg");
-  // A "Vein" name whose value column is not a vein alias ("Code") is declined, not forced.
-  assert.equal(guessTargetFor(["Hole_ID", "From", "To", "Code"], "Book - Vein.csv"), "litho");
+  // A "Vein" name whose value column is not a vein alias ("Code") keeps Veins since #1502 (the name is the stronger hint; the review's
+  // Mineralization.csv went to Lithology this way): the dialog opens with Value to pick, as the value is missing either way.
+  assert.equal(guessTargetFor(["Hole_ID", "From", "To", "Code"], "Book - Vein.csv"), "vein");
   // The hint is ignored when its columns cannot be mapped (a "Survey" name on a collar table).
   assert.equal(guessTargetFor(["Hole_ID", "Easting", "Northing", "Elevation"], "Book - Survey notes.csv"), "collars");
 });
