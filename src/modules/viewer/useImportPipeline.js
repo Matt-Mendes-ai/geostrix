@@ -736,8 +736,8 @@ export function useImportPipeline(ctx) {
       for (const f of files) {
         if (!isXlsxName(f.name)) { expanded.push(f); continue; }
         try {
-          const { xlsxToCsvFiles } = await import("../../lib/xlsx.js"); // #552
-          const sheets = await xlsxToCsvFiles(new Uint8Array(await f.arrayBuffer()), f.name);
+          const { xlsxToCsvFilesAsync } = await import("../../lib/xlsx.js"); // #552; in a worker: #1671
+          const sheets = await xlsxToCsvFilesAsync(new Uint8Array(await f.arrayBuffer()), f.name);
           setNotices((p) => [...p, notice("{name}: {sheets} sheet(s) with data — {v}. Each is imported like a CSV.", { name: f.name, sheets: sheets.length, v: sheets.map((s) => `${s.sheet} (${s.rows})`).join(", ") })]);
           sheets.forEach((s) => expanded.push(new File([s.text], s.name, { type: "text/csv" })));
         } catch (err) { setNotices((p) => [...p, errorNotice(tr("{name}: could not read the workbook ({message}).", { name: f.name, message: err.message }))]); }

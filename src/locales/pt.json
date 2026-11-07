@@ -9006,5 +9006,6 @@
   "{n} raw samples": "{n} amostras sem compositagem",
   "The sample mean is {pct}% {dir} the declustered mean: the drilling is clustered, so the sample mean is not the deposit's mean.": "A média das amostras está {pct}% {dir} a média desagrupada: a sondagem está agrupada, então a média das amostras não é a média do depósito.",
   "The nearest-neighbour model is a second pass over the same grid, search and domains, taking each block's closest sample: its mean is a declustered mean. The block means count only the blocks both models filled; the grey ticks show slices that hold samples.": "O modelo de vizinho mais próximo é uma segunda passagem sobre a mesma grade, busca e domínios, tomando a amostra mais próxima de cada bloco: sua média é uma média desagrupada. As médias de blocos contam só os blocos que ambos os modelos preencheram; as marcas cinzas mostram as fatias com amostras.",
-  ", counting the blocks within {r} m of the drilling…": ", contando os blocos a menos de {r} m da sondagem…"
+  ", counting the blocks within {r} m of the drilling…": ", contando os blocos a menos de {r} m da sondagem…",
+  "Importing \"{fileName}\"…": "Importando \"{fileName}\"…"
 }

@@ -93,14 +93,29 @@ export async function xlsxToCsvFiles(bytes, workbookName) {
   return out;
 }
 
+// TASKS.csv #1671 — xlsxToCsvFiles in a worker (lib/xlsx.worker.js) when one can start; on any failure the workbook is read here, so a
+// bad workbook's message is the same, in the interface language
+export async function xlsxToCsvFilesAsync(bytes, workbookName) {
+  if (typeof Worker === "undefined") return xlsxToCsvFiles(bytes, workbookName);
+  const viaWorker = await new Promise((resolve) => {
+    let w;
+    try { w = new Worker(new URL("./xlsx.worker.js", import.meta.url), { type: "module" }); } catch { resolve(null); return; }
+    w.onmessage = (e) => { w.terminate(); resolve(e.data.failed ? null : e.data.sheets); };
+    w.onerror = (e) => { e.preventDefault?.(); w.terminate(); resolve(null); };
+    w.postMessage({ bytes, name: workbookName });
+  });
+  return viaWorker || xlsxToCsvFiles(bytes, workbookName);
+}
+
 // A table file for an importer that takes ONE table (Geochem assays / surface samples): a CSV as before, or the
 // best sheet of a workbook — the sheet scoring highest on scoreHeaders(headers) (e.g. its element-column count),
 // the first sheet with data on a tie or zero. Same { rows, headers, note } shape as parseTableFile.
 export async function parseTableOrWorkbook(file, scoreHeaders = () => 0, opts = {}) {
   if (!isXlsxName(file.name)) return parseTableFile(file, opts); // opts.columnar: #611
-  const sheets = await xlsxToCsvFiles(new Uint8Array(await file.arrayBuffer()), file.name);
+  const sheets = await xlsxToCsvFilesAsync(new Uint8Array(await file.arrayBuffer()), file.name); // #1671 — off the UI thread
   if (!sheets.length) return { rows: [], headers: [], note: tr("No sheet with a header row and data in this workbook."), errors: [] };
-  const parsed = sheets.map((s) => ({ s, t: parseTableText(s.text) }));
+  // #1671 — each sheet's CSV parsed like a dropped CSV: in the tabular worker when it is big
+  const parsed = await Promise.all(sheets.map(async (s) => ({ s, t: typeof File !== "undefined" ? await parseTableFile(new File([s.text], s.name, { type: "text/csv" }), { columnar: false }) : parseTableText(s.text) })));
   let best = parsed[0], bestScore = scoreHeaders(best.t.headers);
   for (const p of parsed.slice(1)) { const sc = scoreHeaders(p.t.headers); if (sc > bestScore) { best = p; bestScore = sc; } }
   const others = sheets.length > 1 ? ` (${sheets.length} sheets with data; only this one is read here — drop the workbook in the 3D view for collars, surveys and logs)` : "";

@@ -9006,5 +9006,6 @@
   "{n} raw samples": "{n} عينة خام",
   "The sample mean is {pct}% {dir} the declustered mean: the drilling is clustered, so the sample mean is not the deposit's mean.": "متوسط العينات {pct}% {dir} المتوسط المفكّك: الحفر متجمّع، لذا فمتوسط العينات ليس متوسط الرواسب.",
   "The nearest-neighbour model is a second pass over the same grid, search and domains, taking each block's closest sample: its mean is a declustered mean. The block means count only the blocks both models filled; the grey ticks show slices that hold samples.": "نموذج الجار الأقرب تمريرة ثانية على الشبكة والبحث والمجالات نفسها، يأخذ أقرب عينة لكل كتلة: متوسطه متوسط مفكّك. تحسب متوسطات الكتل الكتل التي ملأها النموذجان فقط؛ وتُظهر العلامات الرمادية الشرائح التي تحوي عينات.",
-  ", counting the blocks within {r} m of the drilling…": "، جارٍ عدّ الكتل الواقعة ضمن {r} م من الحفر…"
+  ", counting the blocks within {r} m of the drilling…": "، جارٍ عدّ الكتل الواقعة ضمن {r} م من الحفر…",
+  "Importing \"{fileName}\"…": "جارٍ استيراد \"{fileName}\"…"
 }

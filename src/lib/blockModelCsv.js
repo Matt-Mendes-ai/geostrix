@@ -6,7 +6,8 @@
 // volume-weighted block average down to the budget instead of a refusal. Rotated models are still out of
 // scope (their centroids are in a local frame; say so rather than draw them in the wrong place). Pure.
 
-import { maskAirCells } from "./voxel.js"; // TASKS.csv #1662
+import { maskAirCells, wantsLogMean } from "./voxel.js"; // TASKS.csv #1662; wantsLogMean: #1671
+import { guessVoxelProperty } from "./voxelProperty.js"; // TASKS.csv #1671
 const norm = (h) => String(h ?? "").trim().toLowerCase().replace(/[\s\-.]+/g, "_").replace(/^_+|_+$/g, "");
 // TASKS.csv #659 — Micromine writes the block SIZES as _EAST / _NORTH / _RL beside the centroids EAST / NORTH / RL.
 // norm() strips that underscore, so the size columns collided with the centroids and were offered as attributes
@@ -207,4 +208,16 @@ export function coarsenBlockCells(cells, maxCells, { log = false } = {}) {
     out.push({ x: x0 + (kx + 0.5) * sx, y: y0 + (ky + 0.5) * sy, z: z0 + (kz + 0.5) * sz, dx: sx, dy: sy, dz: sz, value: log ? 10 ** (s / w) : s / w, coverage: Math.min(1, w / full) });
   }
   return { cells: out, factors: { fx: f[0], fy: f[1], fz: f[2] }, sourceM3, mergedM3: out.length * full };
+}
+
+// TASKS.csv #1671 — the Import of a mapped block-model CSV, per attribute: its cells, merged to maxCells (on the logs for a log-normal
+// property), as GeophysicsModule's importMappedBlockModel did on the UI thread. Runs in lib/blockModelCsv.worker.js.
+export function importBlockModelAttrs(rows, base, mapping, attrs, maxCells) {
+  return attrs.map((attr) => {
+    const { cells: raw, badRows, inferred, air } = blockModelCellsFromRows(rows, mapping, attr);
+    if (!raw.length) return { attr, empty: true };
+    const guessed = guessVoxelProperty(base, attr); // #1786
+    const logMean = wantsLogMean(raw.map((c) => c.value), guessed); // #1785
+    return { attr, raw: raw.length, badRows, inferred, air, guessed, logMean, ...coarsenBlockCells(raw, maxCells, { log: logMean }) };
+  });
 }

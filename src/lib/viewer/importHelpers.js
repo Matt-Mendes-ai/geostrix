@@ -258,7 +258,7 @@ export function parseVectorFile(file, onDone, chosenLayer = null) {
   // through the same picker as a multi-layer .zip / .gpkg (#288), named by sheet. (A dropped workbook is
   // instead expanded into one queued file per sheet — useImportPipeline.handleDrop.)
   if (name.endsWith(".xlsx")) {
-    Promise.all([file.arrayBuffer(), loadXlsx()]).then(([buf, { xlsxToCsvFiles }]) => xlsxToCsvFiles(new Uint8Array(buf), file.name)).then(async (sheets) => { // async: #1493
+    Promise.all([file.arrayBuffer(), loadXlsx()]).then(([buf, { xlsxToCsvFilesAsync }]) => xlsxToCsvFilesAsync(new Uint8Array(buf), file.name)) /* #1671 — in a worker */.then(async (sheets) => { // async: #1493
       if (!sheets.length) { onDone(null, "No sheet with a header row and data in this workbook."); return; }
       const pick = chosenLayer ? sheets.find((s) => s.sheet === chosenLayer) : sheets.length === 1 ? sheets[0] : null;
       if (!pick) { onDone(null, null, { layerOptions: sheets.map((s) => ({ name: s.sheet, count: s.rows, unit: "row" })) }); return; }

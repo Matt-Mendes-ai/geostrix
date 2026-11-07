@@ -9006,5 +9006,6 @@
   "{n} raw samples": "{n} échantillons bruts",
   "The sample mean is {pct}% {dir} the declustered mean: the drilling is clustered, so the sample mean is not the deposit's mean.": "La moyenne des échantillons est {pct} % {dir} la moyenne dégroupée : les sondages sont groupés, donc la moyenne des échantillons n'est pas celle du gisement.",
   "The nearest-neighbour model is a second pass over the same grid, search and domains, taking each block's closest sample: its mean is a declustered mean. The block means count only the blocks both models filled; the grey ticks show slices that hold samples.": "Le modèle du plus proche voisin est une deuxième passe sur la même grille, la même recherche et les mêmes domaines, prenant l'échantillon le plus proche de chaque bloc : sa moyenne est une moyenne dégroupée. Les moyennes de blocs ne comptent que les blocs remplis par les deux modèles ; les repères gris montrent les tranches qui contiennent des échantillons.",
-  ", counting the blocks within {r} m of the drilling…": ", décompte des blocs à moins de {r} m des sondages…"
+  ", counting the blocks within {r} m of the drilling…": ", décompte des blocs à moins de {r} m des sondages…",
+  "Importing \"{fileName}\"…": "Importation de « {fileName} »…"
 }

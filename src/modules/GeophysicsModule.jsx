@@ -4,7 +4,7 @@ import { useModuleAction, requestModuleAction } from "../lib/menuRequests.js"; /
 import { askAdoptCrs, projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
 import { gemHeaderEpsg, KEEP_CHOICES, suggestKeepEvery, everyNth, batchSurveyName, pairGpsFile } from "../lib/xyzBatch.js"; // TASKS.csv #1329
 import BlockModelMappingModal from "../components/BlockModelMappingModal.jsx"; // TASKS.csv #410
-import { guessBlockModelMapping, numericColumns, blockModelCellsFromRows, coarsenBlockCells } from "../lib/blockModelCsv.js";
+import { guessBlockModelMapping, numericColumns, importBlockModelAttrs } from "../lib/blockModelCsv.js"; // importBlockModelAttrs: #1671 (in a worker)
 import { parseTableFile, toExportCsv, skipPreamble } from "../lib/tabular.js"; // TASKS.csv #444; toExportCsv: #1094; skipPreamble: #1666
 import { guessGeophysColumns, rowsToGeophysPoints } from "../lib/geophysColumns.js"; // TASKS.csv #484
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
@@ -1412,22 +1412,35 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       .then((t) => {
         // TASKS.csv #410 — confirm the columns first (BlockModelMappingModal) instead of fixed synonyms.
         if (!t.rows.length) { setVoxelError({ info: false, text: tr("{name}: no rows.", { name: file.name }) }); return; }
-        setBmPending({ fileName: file.name, rows: t.rows, headers: t.headers, numeric: numericColumns(t.headers, t.rows), guess: guessBlockModelMapping(t.headers, t.rows), note: t.note });
+        setBmPending({ file, fileName: file.name, rows: t.rows, headers: t.headers, numeric: numericColumns(t.headers, t.rows), guess: guessBlockModelMapping(t.headers, t.rows), note: t.note });
       })
       .catch((err) => setVoxelError({ info: false, text: tr("Could not parse {name}: {message}", { name: file.name, message: err.message }) }));
   };
   // TASKS.csv #410 — one block model per chosen attribute; over the cell budget, volume-weighted merge.
-  const importMappedBlockModel = (mapping, attrs) => {
+  // TASKS.csv #1671 (review #1646, Kodiak) — the cells are built and merged in a worker (lib/blockModelCsv.worker.js reads the file again):
+  // Kodiak's 380,250-row model froze the window 2.05 s on Import. The same function runs here if no worker starts.
+  const blockModelAttrsAsync = async (p, base, mapping, attrs) => {
+    const here = () => importBlockModelAttrs(p.rows, base, mapping, attrs, effectiveMaxCells);
+    if (typeof Worker === "undefined" || !p.file) return here();
+    const buf = await p.file.arrayBuffer();
+    const out = await new Promise((resolve) => {
+      let w;
+      try { w = new Worker(new URL("../lib/blockModelCsv.worker.js", import.meta.url), { type: "module" }); } catch { resolve(null); return; }
+      w.onmessage = (e) => { w.terminate(); resolve(e.data.failed ? null : e.data.out); };
+      w.onerror = (e) => { e.preventDefault?.(); w.terminate(); resolve(null); };
+      w.postMessage({ buf, base, mapping, attrs, maxCells: effectiveMaxCells }, [buf]);
+    });
+    return out || here();
+  };
+  const importMappedBlockModel = async (mapping, attrs) => {
     const p = bmPending; setBmPending(null);
     if (!p) return;
     const base = p.fileName.replace(/\.csv$/i, "");
     const msgs = [];
-    attrs.forEach((attr) => {
-      const { cells: raw, badRows, inferred, air } = blockModelCellsFromRows(p.rows, mapping, attr); // air: #1662
-      if (!raw.length) { msgs.push(tr("{attr}: no usable rows (x/y/z and {attr} all need numbers).", { attr })); return; }
-      const guessed = guessVoxelProperty(base, attr); // #1786 — chg / res / con / sus / den in the names
-      const logMean = wantsLogMean(raw.map((c) => c.value), guessed); // #1785
-      const { cells, factors, sourceM3, mergedM3 } = coarsenBlockCells(raw, effectiveMaxCells, { log: logMean });
+    setVoxelError({ info: true, text: tr("Importing \"{fileName}\"…", { fileName: p.fileName }) });
+    const results = await blockModelAttrsAsync(p, base, mapping, attrs);
+    results.forEach(({ attr, empty, raw: rawCount, badRows, inferred, air, guessed, logMean, cells, factors, sourceM3, mergedM3 }) => {
+      if (empty) { msgs.push(tr("{attr}: no usable rows (x/y/z and {attr} all need numbers).", { attr })); return; }
       const { min, max } = cellValueRange(cells);
       // TASKS.csv #1662 — the UBC rule (#481): a positive property spanning two decades or more gets log-spaced colours and log-stepped sliders
       const logColours = isLogProperty(guessed, min, max); // #1786
@@ -1436,7 +1449,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       if (air) m += tr(", {n} block(s) at {v} (the value this model uses for air above the ground) left out", { n: air.count.toLocaleString(), v: Number(air.value).toExponential(2) }); // #1662
       if (logColours) m += tr(", log-spaced colours (the values span {d} decades)", { d: Math.log10(max / min).toFixed(1) });
       if (guessed) m += tr(", values read as {p} from the name (change it under Values are)", { p: tr(guessed) }); // #1786
-      if (factors) m += tr(" ({raw} merged {fx}×{fy}×{fz} to fit the {budget}-cell budget — volume-weighted means)", { raw: raw.length.toLocaleString(), fx: factors.fx, fy: factors.fy, fz: factors.fz, budget: effectiveMaxCells.toLocaleString() });
+      if (factors) m += tr(" ({raw} merged {fx}×{fy}×{fz} to fit the {budget}-cell budget — volume-weighted means)", { raw: rawCount.toLocaleString(), fx: factors.fx, fy: factors.fy, fz: factors.fz, budget: effectiveMaxCells.toLocaleString() });
       if (factors && logMean) m += tr(", merged on the logs (geometric means: a log-normal property)"); // #1785
       // TASKS.csv #943 — merged blocks are full cells: where the model did not fill them, they are larger than it
       if (factors && mergedM3 > sourceM3 * 1.005) m += tr(". The merged blocks are full cells and cover {pct}% more volume than the model's own blocks ({src} m³): each keeps the share it really holds (COVERAGE in the CSV, VTK and OMF exports; VOLUME_M3 in the CSV). Take volume and tonnage from those, or import the model without merging (raise the 3D view cell budget)", { pct: (((mergedM3 - sourceM3) / sourceM3) * 100).toFixed(0), src: Math.round(sourceM3).toLocaleString() });
