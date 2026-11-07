@@ -431,7 +431,39 @@ def _validate_pfields(req):
         if not (cell > 0 and e > w and nn > s and ((e - w) / cell + 1) * ((nn - s) / cell + 1) <= PFIELDS_MAX_GRID):
             raise HTTPException(400, f"The output grid must have positive cells and at most {PFIELDS_MAX_GRID:,} nodes.")
         return
-    raise HTTPException(400, "op must be 'euler' or 'eqs'.")
+    if op == "gravred":  # TASKS.csv #1985
+        try:
+            n = len(req["g"])
+            if any(len(req[k]) != n for k in ("lon", "lat", "height")):
+                raise ValueError
+            dens = float(req.get("density", 2670))
+        except (KeyError, TypeError, ValueError):
+            raise HTTPException(422, "Gravity reductions need lon, lat, height and g of the same length.")
+        if not (1 <= n <= PFIELDS_MAX_POINTS) or not (1000 <= dens <= 4000):
+            raise HTTPException(400, f"1 to {PFIELDS_MAX_POINTS:,} stations, and a density of 1,000-4,000 kg/m3.")
+        if req.get("input", "observed") not in ("observed", "freeair") or req.get("correction", "none") not in ("none", "plate", "topo"):
+            raise HTTPException(400, "input must be 'observed' or 'freeair'; correction 'none', 'plate' or 'topo'.")
+        if req.get("correction") == "topo":
+            t = req.get("terrain") or {}
+            try:
+                if int(t["nx"]) * int(t["ny"]) > PFIELDS_MAX_GRID or len(req["easting"]) != n or len(req["northing"]) != n:
+                    raise ValueError
+            except (KeyError, TypeError, ValueError):
+                raise HTTPException(422, "A topographic correction needs the terrain grid and each station's easting and northing.")
+        return
+    if op == "spline":  # TASKS.csv #1985
+        try:
+            n = len(req["x"])
+            if len(req["y"]) != n or len(req["value"]) != n:
+                raise ValueError
+            nx, ny, cell = int(req["nx"]), int(req["ny"]), float(req["cell"])
+            float(req["x0"]); float(req["yTop"])
+        except (KeyError, TypeError, ValueError):
+            raise HTTPException(422, "A spline needs x, y, value and the grid (nx, ny, cell, x0, yTop).")
+        if not (10 <= n <= PFIELDS_MAX_POINTS) or cell <= 0 or nx * ny > 1_000_000:
+            raise HTTPException(400, f"Between 10 and {PFIELDS_MAX_POINTS:,} readings, a positive cell and at most 1,000,000 nodes.")
+        return
+    raise HTTPException(400, "op must be 'euler', 'eqs', 'gravred' or 'spline'.")
 
 
 # TASKS.csv #1986 — 1D inversion of loop-loop FDEM soundings (DUALEM, GEM-2, EM31 / EM34; app/geophys/em1d.py)

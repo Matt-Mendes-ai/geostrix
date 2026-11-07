@@ -17,6 +17,9 @@ Two operations, run as a sidecar job in its own process (jobs.py), so their impo
   12.5 m block means to only 20 % of their spread; at 15 m (1.2 x 12.5) to 8.4 %, in the same time. The fit is reported against
   those block means, the data the solver is given; the readings' own spread inside a block (56 nT there) no grid of that cell shows.
 
+* "gravred" (#1985): normal gravity (Boule), free-air and Bouguer anomalies, the Bouguer plate or the terrain's prisms (Harmonica).
+* "spline" (#1985): Verde's biharmonic spline on block medians, the damping chosen by blocked cross-validation.
+
 Grids come in and go out as base64 float32, row 0 NORTH, NaN = no data (the app's raster.grid layout).
 """
 import base64
@@ -177,10 +180,123 @@ def eqs(req, progress):
             "within_block_rms": within, "depth": depth_m}
 
 
+# ---- TASKS.csv #1985 — gravity reductions (Boule normal gravity, Harmonica Bouguer / topography) ----------------------------------
+# Stations: longitude / latitude (degrees, for the normal gravity), height (m), gravity (mGal); easting / northing (m, the project
+# CRS) for the topography. input "observed": absolute gravity, the free-air anomaly is g - normal gravity AT the station (Boule's
+# closed form, Li & Goetze 2001: no free-air gradient needed); with heights above sea level (not the ellipsoid) that is the
+# classical free-air anomaly, the geoid undulation ignored. input "freeair": the values already are one.
+# correction "plate": the simple Bouguer plate 2 pi G rho h (Harmonica bouguer_correction; below sea level water against rock).
+# correction "topo": the gravity of every terrain node as a prism from sea level to the ground (Harmonica prism_layer, as its
+# topographic-correction tutorial), rock rho above sea level, water against rock below: a complete Bouguer anomaly over the
+# terrain's extent, and a station near its edge misses the masses beyond it (the nearest edge is returned).
+GRAVRED_MAX_PAIRS = 3e9  # stations x prisms
+
+
+def gravred(req, progress):
+    lon = np.asarray(req["lon"], float); lat = np.asarray(req["lat"], float); h = np.asarray(req["height"], float); g = np.asarray(req["g"], float)
+    n = g.size
+    density = float(req.get("density", 2670.0))
+    out = {}
+    if req.get("input", "observed") == "observed":
+        import boule as bl
+        progress({"stage": "normal", "message": "Normal gravity (Boule, WGS84)…"})
+        gamma = bl.WGS84.normal_gravity((lon, lat, h))
+        fa = g - gamma
+        out["normal"] = gamma.tolist()
+    else:
+        fa = g
+    out["freeAir"] = fa.tolist()
+    corr = req.get("correction", "none")
+    if corr == "plate":
+        import harmonica as hm
+        bc = hm.bouguer_correction(h, density_crust=density)
+        out["correctionMgal"] = np.asarray(bc).tolist()
+        out["bouguer"] = (fa - bc).tolist()
+    elif corr == "topo":
+        import harmonica as hm
+        t = req["terrain"]
+        topo, easting, northing = _grid(t)
+        npr = topo.size
+        if n * npr > GRAVRED_MAX_PAIRS:
+            raise ValueError(f"{n:,} stations x {npr:,} terrain nodes is too much to compute here: use a coarser terrain (Terrain detail) or fewer stations.")
+        tv = np.where(np.isfinite(topo.values), topo.values, 0.0)
+        topo = topo.copy(data=tv)
+        dens = np.where(tv >= 0, density, 1040.0 - density)
+        progress({"stage": "topography", "message": f"Gravity of the terrain ({npr:,} prisms) at {n:,} stations…"})
+        layer = hm.prism_layer((easting, northing), surface=topo, reference=0, properties={"density": dens})
+        e = np.asarray(req["easting"], float); nn = np.asarray(req["northing"], float)
+        gt = layer.prism_layer.gravity((e, nn, h), field="g_z", progressbar=False)
+        out["correctionMgal"] = np.asarray(gt).tolist()
+        out["bouguer"] = (fa - gt).tolist()
+        # how close a station is to the end of the terrain: the masses beyond it are not in the correction
+        x0, x1, y0, y1 = easting.min(), easting.max(), northing.min(), northing.max()
+        edge = np.minimum.reduce([e - x0, x1 - e, nn - y0, y1 - nn])
+        out["nearestEdgeM"] = float(np.min(edge)); out["medianEdgeM"] = float(np.median(edge))
+    out["density"] = density
+    progress({"stage": "done", "message": "Done."})
+    return out
+
+
+# ---- TASKS.csv #1985 — Verde spline gridding, the damping chosen by blocked cross-validation ------------------------------------
+# A biharmonic (thin-plate) spline of Green's functions (Sandwell 1987) fitted to the block medians of the readings (spacing = the
+# cell, Verde's recommended first step), the damping chosen by SplineCV among `dampings` with K-fold cross-validation on spatial
+# blocks (BlockKFold: neighbouring readings are not split between training and testing, so the score is not flattered). The dense
+# solve is N x N: past SPLINE_MAX_POINTS block medians the block size grows until they fit (said in the result).
+SPLINE_MAX_POINTS = 3000
+SPLINE_MAX_NODES = 1_000_000
+SPLINE_DAMPINGS = (1e-8, 1e-6, 1e-4, 1e-2, 1.0)
+
+
+def spline(req, progress):
+    import verde as vd
+    x = np.asarray(req["x"], float); y = np.asarray(req["y"], float); v = np.asarray(req["value"], float)
+    ok = np.isfinite(x) & np.isfinite(y) & np.isfinite(v)
+    x, y, v = x[ok], y[ok], v[ok]
+    nx, ny, cell = int(req["nx"]), int(req["ny"]), float(req["cell"])
+    if nx * ny > SPLINE_MAX_NODES:
+        raise ValueError(f"A spline grid of {nx * ny:,} nodes is over {SPLINE_MAX_NODES:,}: use a bigger cell.")
+    spacing = cell
+    progress({"stage": "reduce", "message": "Block medians…"})
+    for _ in range(40):
+        coords, data = vd.BlockReduce(np.median, spacing=spacing).filter((x, y), v)
+        if coords[0].size <= SPLINE_MAX_POINTS:
+            break
+        spacing *= 1.25
+    if coords[0].size < 10:
+        raise ValueError("Too few readings for a spline (fewer than 10 blocks).")
+    cv_spacing = float(req.get("cvSpacing") or 0) or 5 * spacing
+    # a survey small beside the CV block has too few blocks to split 5 ways (Verde refuses): halve the block, down to the block
+    # medians' own spacing, until there are at least 10; past that, fewer folds (2 at least)
+    def n_blocks(s):
+        return len(set(zip(np.floor(coords[0] / s).astype(np.int64).tolist(), np.floor(coords[1] / s).astype(np.int64).tolist())))
+    while cv_spacing > spacing and n_blocks(cv_spacing) < 10:
+        cv_spacing = max(spacing, cv_spacing / 2)
+    folds = min(5, n_blocks(cv_spacing))
+    if folds < 2:
+        raise ValueError("Too few readings for a spline: they fall in fewer than 2 blocks for cross-validation.")
+    cv = vd.BlockKFold(spacing=cv_spacing, n_splits=folds, shuffle=True, random_state=0)
+    progress({"stage": "cv", "message": f"Choosing the damping by blocked cross-validation ({coords[0].size:,} points, {len(SPLINE_DAMPINGS)} dampings x {folds} folds)…"})
+    spl = vd.SplineCV(dampings=SPLINE_DAMPINGS, cv=cv)
+    with warnings.catch_warnings():  # scikit-learn / Verde deprecation notices inside the cross-validation: nothing to act on
+        warnings.simplefilter("ignore", FutureWarning)
+        spl.fit(coords, data)
+    scores = [float(sc) for sc in np.asarray(spl.scores_)]
+    progress({"stage": "predict", "message": f"Predicting {nx * ny:,} nodes…"})
+    x0, ytop = float(req["x0"]), float(req["yTop"])
+    E, N = np.meshgrid(x0 + cell * np.arange(nx), ytop - cell * np.arange(ny))  # row 0 north
+    pred = spl.predict((E.ravel(), N.ravel()))
+    return {"values": _b64(pred), "damping": float(spl.damping_) if spl.damping_ is not None else None, "scores": scores, "dampings": list(SPLINE_DAMPINGS),
+            "score": max(scores), "points": int(coords[0].size), "readings": int(v.size), "blockM": spacing, "cvBlockM": cv_spacing, "folds": folds}
+
+
 def run_job(req, progress):
     op = req.get("op")
     if op == "euler":
         return euler(req, progress)
     if op == "eqs":
         return eqs(req, progress)
+    if op == "gravred":  # TASKS.csv #1985
+        return gravred(req, progress)
+    if op == "spline":  # TASKS.csv #1985
+        return spline(req, progress)
     raise ValueError(f"Unknown potential-field operation {op!r}")

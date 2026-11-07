@@ -120,6 +120,20 @@ def main():
           "layers": {"n": 12, "first": 0.3, "bottom": 12.0}, "lateral": 1.0, "line": [0, 0, 0], "x": [0.0, 1.0, 2.0], "y": [0.0, 0.0, 0.0]}
     r = run_job("em1d", em)
     assert len(r.get("condMs") or []) == 3 and all(v is not None for v in r["condMs"][1]), f"em1d: {list(r)[:8]}"
+
+    # TASKS.csv #1985 — Boule's normal gravity and Harmonica's prism layer (gravred), Verde's SplineCV (spline): frozen, they need
+    # their submodules and metadata; a flat 500 m terrain of 21 x 21 nodes at 1 km
+    import base64, struct
+    terr = {"nx": 21, "ny": 21, "dx": 1000.0, "dy": 1000.0, "x0": 0.0, "yTop": 20000.0,
+            "values": base64.b64encode(struct.pack("<441f", *([500.0] * 441))).decode()}
+    gr = {"op": "gravred", "input": "observed", "correction": "topo", "density": 2670, "lon": [18.5, 18.6], "lat": [-33.5, -33.6],
+          "height": [500.0, 500.0], "g": [979500.0, 979510.0], "terrain": terr, "easting": [10000.0, 11000.0], "northing": [10000.0, 9000.0]}
+    r = run_job("pfields", gr)
+    assert len(r.get("bouguer") or []) == 2 and 40 < r["correctionMgal"][0] < 56, f"gravred: {r.get('correctionMgal')}"
+    sp = {"op": "spline", "x": [float(i % 6) * 50 for i in range(36)], "y": [float(i // 6) * 50 for i in range(36)],
+          "value": [float(i % 6 + i // 6) for i in range(36)], "nx": 11, "ny": 11, "cell": 25.0, "x0": 0.0, "yTop": 250.0}
+    r = run_job("pfields", sp)
+    assert r.get("values") and r.get("points") == 36, f"spline: {list(r)[:8]}"
     print("SMOKE PASSED")
 
 

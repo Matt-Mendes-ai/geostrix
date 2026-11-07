@@ -61,6 +61,7 @@ const DownholeLogsPane = React.lazy(() => import("../components/DownholeLogsPane
 const MtSoundingsPane = React.lazy(() => import("../components/MtSoundingsPane.jsx")); // TASKS.csv #1989
 const FdemPane = React.lazy(() => import("../components/FdemPane.jsx")); // TASKS.csv #1986
 const EqsGridBox = React.lazy(() => import("../components/EqsGridBox.jsx")); // TASKS.csv #1985
+const GravityReductionBox = React.lazy(() => import("../components/GravityReductionBox.jsx")); // TASKS.csv #1985
 import { Layers as RLayers /* #1986 */, Waves as RWaves /* #1989 */, Zap as RZap, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "../components/icons.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
@@ -138,6 +139,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const [mtDrop, setMtDrop] = useState(null); // TASKS.csv #1989 — .edi files dropped on the tab, for the MT pane
   const [fdemDrop, setFdemDrop] = useState(null); // TASKS.csv #1986 — Aarhus Workbench .xyz exports dropped on the tab, for the FDEM pane
   const [eqsFor, setEqsFor] = useState(null); // TASKS.csv #1985 — the survey whose equivalent-source box is open
+  const [gravFor, setGravFor] = useState(null); // TASKS.csv #1985 — the survey whose gravity-reduction box is open
   const {
     layers, replaceLayer, goToModule, collars, rasters, addRaster, project, surfaceSamples, // #845 — the terrain picker over a samples-only project
     terrain, addTerrain, updateTerrain, removeTerrain,
@@ -1621,6 +1623,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                   {/* TASKS.csv #1985 — gridded on one level with equivalent sources (Harmonica, in the Python engine) */}
                   {!["euler_depth", "mt_bostick", "lidar", "em1d_cond"].includes(meta.method) /* derived points at depth, not readings; lidar: #1994; em1d_cond: #1986 */ && <button type="button" onClick={() => setEqsFor(eqsFor === sv.key ? null : sv.key)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Grid the readings on one level with equivalent sources (Harmonica): readings at different heights come out on a level surface, and a higher level continues the survey upward")}>{tr("Grid with equivalent sources…")}</button>}
                   {eqsFor === sv.key && <Suspense fallback={null}><EqsGridBox survey={sv.key} rows={rows} units={meta.units || ""} addRaster={addRaster} defaultElevation={defaultElevation} numInput={numInput} pBtn={pBtn} /></Suspense>}
+                  {/* TASKS.csv #1985 — free-air and Bouguer anomalies of a gravity survey (or of values that look like absolute gravity) */}
+                  {(["grav", "grav_fa"].includes(meta.method) || (Number.isFinite(sv.min) && sv.min > 900000)) && <button type="button" onClick={() => setGravFor(gravFor === sv.key ? null : sv.key)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Free-air anomaly (observed less normal gravity) and Bouguer anomaly (less the Bouguer plate or the terrain's gravity), in the Python engine")}><Scale size={14} />{tr("Gravity reductions…")}</button>}
+                  {gravFor === sv.key && <Suspense fallback={null}><GravityReductionBox survey={sv.key} rows={rows} epsg={project?.epsg} terrain={terrain} setLayers={setLayers} updateGeophysSurvey={updateGeophysSurvey} numInput={numInput} pBtn={pBtn} /></Suspense>}
                   {/* TASKS.csv #1152 — interpretation lines over this survey, drawn in the 3D view */}
                   <button type="button" onClick={() => { goToModule("viewer"); requestModuleAction("interpret-lines", { survey: sv.key }); }} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Draw faults, contacts and lineaments over this survey in the 3D view; they become a map layer")}>{tr("Draw interpretation lines…")}</button>
                   {(meta.zMeaning === "agl") && (

@@ -159,7 +159,7 @@ export default function MapsPlanView() {
 const fmtV = (x) => (Math.abs(x) > 0 && Math.abs(x) < 0.01 ? Number(x.toPrecision(2)).toString() : Number(x.toPrecision(3)).toLocaleString());
 function FigureLegend({ f, chip }) {
   const g = f.r.geochem, stops = f.r.colourStops, unit = g.unit || "";
-  const how = g.method === "mincurv" ? tr("minimum curvature, tension {t}", { t: g.tension }) : g.method === "natneigh" ? tr("natural neighbour") : tr("IDW power {pw}", { pw: g.power ?? 2 });
+  const how = g.method === "mincurv" ? tr("minimum curvature, tension {t}", { t: g.tension }) : g.method === "natneigh" ? tr("natural neighbour") : g.method === "spline" ? tr("spline") : tr("IDW power {pw}", { pw: g.power ?? 2 }); // #1985 spline
   const parts = [how, tr("{c} m cells", { c: g.cellM }), g.log ? tr("on log10 values") : null, g.blankM ? tr("blank beyond {d} m", { d: g.blankM }) : null].filter(Boolean);
   const grad = `linear-gradient(to right, ${stops.map((s, i) => `${s.color} ${Math.round((100 * i) / Math.max(1, stops.length - 1))}%`).join(", ")})`;
   return (

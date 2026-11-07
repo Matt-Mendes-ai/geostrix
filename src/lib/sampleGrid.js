@@ -39,7 +39,8 @@ export function suggestSampleGrid(points) {
 // method: "idw" (power), "mincurv" (tension 0-1, lib/minCurvature.js; capped at MINCURV_MAX_CELLS: a million cells take ~4 s) or
 // "natneigh" (natural neighbour, discrete Sibson: lib/naturalNeighbour.js; refused when the cell is far finer than the spacing)
 export const MINCURV_MAX_CELLS = 1_000_000;
-export function gridSamples(samples, symbol, { medium = "", log = false, cellM, power = 2, blankM = null, maxCells = 4_000_000, method = "idw", tension = 0.25 } = {}) {
+// the points, the cell, the node layout and the blanking distance every method shares -> plan | { error }
+function samplePlan(samples, symbol, { medium = "", log = false, cellM, blankM = null, maxCells = 4_000_000, method = "idw" } = {}) {
   const { points, n, nonPositive } = samplePoints(samples, symbol, { medium, log });
   if (points.length < 3) return { error: "few", n: points.length };
   const cell = Number(cellM) > 0 ? Number(cellM) : (suggestSampleGrid(points)?.cellM ?? 25);
@@ -53,7 +54,41 @@ export function gridSamples(samples, symbol, { medium = "", log = false, cellM, 
   const nx = Math.round((xmax - xmin) / cell), ny = Math.round((ymax - ymin) / cell);
   if (nx * ny > maxCells) return { error: "cells", nx, ny };
   if (method === "mincurv" && nx * ny > MINCURV_MAX_CELLS) return { error: "mincurvCells", nx, ny };
+  if (method === "spline" && nx * ny > SPLINE_MAX_CELLS) return { error: "splineCells", nx, ny };
   const blank = blankM == null || blankM === "" ? (suggestBlankingDistance(points)?.distance ?? Infinity) : Number(blankM) > 0 ? Number(blankM) : Infinity;
+  return { points, n, nonPositive, cell, xmin, ymin, xmax, ymax, nx, ny, blank, log };
+}
+// the finished grid in the unit: blanked beyond `blank` of a sample (the nearest-sample IDW pass is the mask), back from log10
+function sampleResult(plan, gridW, gridH, values, extra) {
+  const { points, n, nonPositive, cell, xmin, ymax, blank, log } = plan;
+  let valid = 0;
+  for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i])) { if (log) values[i] = 10 ** values[i]; valid++; }
+  return {
+    grid: { nx: gridW, ny: gridH, x0: xmin + cell / 2, yTop: ymax - cell / 2, dx: cell, dy: cell, values },
+    bbox: [xmin, ymax - gridH * cell, xmin + gridW * cell, ymax],
+    points: points.length, n, nonPositive, valid, blankM: Number.isFinite(blank) ? Math.round(blank) : null, cellM: cell, ...extra,
+  };
+}
+// TASKS.csv #1985 — Verde's spline runs in the Python engine (pfields "spline": block medians, the damping by blocked cross-validation):
+// splineRequest lays the grid out and gives the job's request; splineFinish blanks and un-logs the values the job returns
+export const SPLINE_MAX_CELLS = 1_000_000;
+export function splineRequest(samples, symbol, opts = {}) {
+  const plan = samplePlan(samples, symbol, { ...opts, method: "spline" });
+  if (plan.error) return plan;
+  const { points, cell, xmin, ymax, nx, ny } = plan;
+  return { plan, request: { op: "spline", x: points.map((p) => p.x), y: points.map((p) => p.y), value: points.map((p) => p.value), nx, ny, cell, x0: xmin + cell / 2, yTop: ymax - cell / 2 } };
+}
+export function splineFinish(plan, values, job = {}) {
+  const { points, cell, xmin, ymin, xmax, ymax, blank } = plan;
+  const mask = idwGrid(points, { xmin, ymin, xmax, ymax, cellSize: cell, power: 1, maxDistance: blank, maxPoints: 1 });
+  const v = Float32Array.from(values);
+  for (let i = 0; i < v.length; i++) if (!Number.isFinite(mask.values[i])) v[i] = NaN;
+  return sampleResult(plan, mask.gridW, mask.gridH, v, { method: "spline", damping: job.damping ?? null, cvScore: job.score ?? null, splinePoints: job.points ?? null, blockM: job.blockM ?? null, cvBlockM: job.cvBlockM ?? null });
+}
+export function gridSamples(samples, symbol, { medium = "", log = false, cellM, power = 2, blankM = null, maxCells = 4_000_000, method = "idw", tension = 0.25 } = {}) {
+  const plan = samplePlan(samples, symbol, { medium, log, cellM, blankM, maxCells, method });
+  if (plan.error) return plan;
+  const { points, cell, xmin, ymin, xmax, ymax, blank } = plan;
   let gridW, gridH, values, iterations = null;
   if (method === "natneigh") {
     // the same blanking as IDW, and given / received only within 3x the blanking distance of a sample (as minimum curvature)
@@ -78,13 +113,7 @@ export function gridSamples(samples, symbol, { medium = "", log = false, cellM, 
     values = mc.values; iterations = mc.iterations;
     for (let i = 0; i < values.length; i++) if (!Number.isFinite(mask.values[i])) values[i] = NaN;
   } else ({ gridW, gridH, values } = idwGrid(points, { xmin, ymin, xmax, ymax, cellSize: cell, power, maxDistance: blank }));
-  let valid = 0;
-  for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i])) { if (log) values[i] = 10 ** values[i]; valid++; }
-  return {
-    grid: { nx: gridW, ny: gridH, x0: xmin + cell / 2, yTop: ymax - cell / 2, dx: cell, dy: cell, values },
-    bbox: [xmin, ymax - gridH * cell, xmin + gridW * cell, ymax],
-    points: points.length, n, nonPositive, valid, blankM: Number.isFinite(blank) ? Math.round(blank) : null, cellM: cell, method, ...(method === "mincurv" ? { tension, iterations } : {}),
-  };
+  return sampleResult(plan, gridW, gridH, values, { method, ...(method === "mincurv" ? { tension, iterations } : {}) });
 }
 
 // TASKS.csv #1622 — contours of a gridded raster (any { nx, ny, x0, yTop, dx, dy } grid; blank nodes NaN stop the lines), with
@@ -139,5 +168,5 @@ export function colourFromStops(stops, v, log = false) {
 // the grid's parameters in a line for the figure's legend (English: the caller translates the parts)
 export function gridMethodParts(g) {
   if (!g) return null;
-  return { method: g.method === "mincurv" ? "mincurv" : g.method === "natneigh" ? "natneigh" : "idw", power: g.power, tension: g.tension, cellM: g.cellM, log: !!g.log, blankM: g.blankM, samples: g.samples, medium: g.medium, unit: g.unit, symbol: g.symbol };
+  return { method: ["mincurv", "natneigh", "spline"].includes(g.method) ? g.method : "idw", power: g.power, tension: g.tension, damping: g.damping, cvR2: g.cvR2, cellM: g.cellM, log: !!g.log, blankM: g.blankM, samples: g.samples, medium: g.medium, unit: g.unit, symbol: g.symbol };
 }
