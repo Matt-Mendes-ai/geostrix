@@ -1208,7 +1208,11 @@ export function StoreProvider({ children }) {
       if (open) { if (open.id !== activeTabId) switchToTab(open.id); return { ok: true, alreadyOpen: true }; }
     }
     try {
+      // TASKS.csv #1657 — the open's two costs as performance measures (DevTools > Performance, or performance.getEntriesByType("measure")),
+      // so a slow open can say which: the file's JSON.parse, then loadProjectPayload (expanding the compact tables, every collection set)
+      const tParse = performance.now();
       const data = JSON.parse(res.content);
+      performance.measure?.("GeoStrix: project JSON.parse", { start: tParse, detail: { bytes: res.content.length } });
       const check = checkProjectFile(data); // TASKS.csv #342
       if (!check.ok) return { ok: false, error: check.error };
       if (check.newer && !window.confirm(tr("This project was saved by a newer version of GeoStrix (file format {newer}; this version reads up to {reads}). Anything that newer version added will not be shown, and saving it here would remove it from the file for good.\n\nOpen it anyway? (Update GeoStrix to keep everything.)", { newer: check.newer, reads: PROJECT_VERSION }))) return { ok: false, cancelled: true };
@@ -1227,7 +1231,9 @@ export function StoreProvider({ children }) {
         ...(replaceEmpty ? [] : workspaceTabs.map((t) => (t.id === activeTabId ? { ...t, name: project?.name || t.name, payload: current, dirty: activeTabDirty } : t))),
         { id, name: displayName, payload: null, dirty: false, filePath: res.filePath || null }, // #553
       ]);
+      const tLoad = performance.now();
       loadProjectPayload(data, displayName);
+      performance.measure?.("GeoStrix: loadProjectPayload", { start: tLoad }); // #1657
       setActiveTabId(id);
       if (check.newer) newerFormatTabsRef.current.add(id);
       // TASKS.csv #340 — opening a project into a new tab no longer deletes the crash-recovery copy:
