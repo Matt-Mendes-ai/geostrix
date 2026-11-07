@@ -9037,5 +9037,6 @@
   "Time-scale colours": "ألوان المقياس الزمني",
   "{name}.TAB is a MapInfo wrapper around a shapefile: select {name}.shp with its .dbf and .prj too.": "{name}.TAB غلاف MapInfo حول ملف shapefile: اختر أيضًا {name}.shp مع ملفي ‎.dbf و‎.prj.",
   "{name}.TAB is a saved MapInfo query: it holds no data of its own.": "{name}.TAB استعلام MapInfo محفوظ: لا يحوي بيانات خاصة به.",
-  "{name}.TAB is linked to a {type} file that holds its data: import that table instead.": "{name}.TAB مرتبط بملف {type} يحوي بياناته: استورد ذلك الجدول بدلًا منه."
+  "{name}.TAB is linked to a {type} file that holds its data: import that table instead.": "{name}.TAB مرتبط بملف {type} يحوي بياناته: استورد ذلك الجدول بدلًا منه.",
+  "\"{col}\" is not offered: it groups the samples by their chemistry, it does not tell surveys apart.": "\"{col}\" غير معروض: فهو يجمع العينات حسب كيميائها، ولا يميّز بين المسوح."
 }

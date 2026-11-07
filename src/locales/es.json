@@ -9037,5 +9037,6 @@
   "Time-scale colours": "Colores de la escala de tiempo",
   "{name}.TAB is a MapInfo wrapper around a shapefile: select {name}.shp with its .dbf and .prj too.": "{name}.TAB es un contenedor de MapInfo para un shapefile: selecciona también {name}.shp con su .dbf y .prj.",
   "{name}.TAB is a saved MapInfo query: it holds no data of its own.": "{name}.TAB es una consulta guardada de MapInfo: no contiene datos propios.",
-  "{name}.TAB is linked to a {type} file that holds its data: import that table instead.": "{name}.TAB está vinculado a un archivo {type} que contiene sus datos: importa esa tabla en su lugar."
+  "{name}.TAB is linked to a {type} file that holds its data: import that table instead.": "{name}.TAB está vinculado a un archivo {type} que contiene sus datos: importa esa tabla en su lugar.",
+  "\"{col}\" is not offered: it groups the samples by their chemistry, it does not tell surveys apart.": "\"{col}\" no se ofrece: agrupa las muestras por su química, no distingue levantamientos."
 }

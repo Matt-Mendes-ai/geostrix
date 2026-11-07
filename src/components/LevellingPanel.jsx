@@ -13,6 +13,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps, sel, th, td, panel, header, rowBtn as btn } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js";
 import { t as tr } from "../lib/i18n.js";
+import { DOMAIN_ATTR } from "../lib/geochemDomains.js"; // TASKS.csv #1390
 
 const panelBox = panel({ width: "min(720px, 96vw)", maxHeight: "92vh" });
 const ctl = { fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" };
@@ -26,7 +27,11 @@ export default function LevellingPanel({ onClose }) {
   const { surfaceSamples, surfaceElements, setSurfaceSamples, setSurfaceElements } = useStore();
   const elements = useMemo(() => surfaceElements.filter((e) => !e.symbol.endsWith("_lev")), [surfaceElements]);
   const media = useMemo(() => [...new Set(surfaceSamples.map((s) => s.medium))], [surfaceSamples]);
-  const columns = useMemo(() => { const c = new Set(["source"]); surfaceSamples.forEach((s) => Object.keys(s.attrs || {}).forEach((k) => { if (!k.endsWith("_lev_basis")) c.add(k); })); return [...c]; }, [surfaceSamples]);
+  // TASKS.csv #1390 (review #1352, Silvertip) — the Domains tool's column is a population of the samples, not a survey: offered here, one
+  // k-means cluster of a soil program was 'levelled' against another (neighbouring samples taken as shared sites). Columns GeoStrix
+  // writes itself are left out.
+  const columns = useMemo(() => { const c = new Set(["source"]); surfaceSamples.forEach((s) => Object.keys(s.attrs || {}).forEach((k) => { if (!k.endsWith("_lev_basis") && k !== DOMAIN_ATTR) c.add(k); })); return [...c]; }, [surfaceSamples]);
+  const hasDomains = useMemo(() => surfaceSamples.some((s) => s.attrs && DOMAIN_ATTR in s.attrs), [surfaceSamples]);
   const [column, setColumn] = useState("source");
   const [medium, setMedium] = useState(media[0] || "");
   const lead = useLeadCommodity();
@@ -70,6 +75,7 @@ export default function LevellingPanel({ onClose }) {
             <label style={ctl}>{tr("Element")}<select value={symbol} onChange={(e) => { setSymbol(e.target.value); setMsg(null); }} style={{ ...sel, display: "block", marginTop: 4 }}>{elements.map((e) => <option key={e.symbol} value={e.symbol}>{e.symbol} ({e.unit})</option>)}</select></label>
             <label style={ctl}>{tr("Surveys told apart by")}<select value={column} onChange={(e) => { setColumn(e.target.value); setMsg(null); }} style={{ ...sel, display: "block", marginTop: 4 }}>{columns.map((c) => <option key={c} value={c}>{c}</option>)}</select></label>
           </div>
+          {hasDomains && <div style={note}>{tr("\"{col}\" is not offered: it groups the samples by their chemistry, it does not tell surveys apart.", { col: DOMAIN_ATTR })}</div>}
           {surveys.length < 2 ? (
             <div style={note}>{tr("These samples all belong to one survey under this column, so there is nothing to level. Public data carries a source column; for your own surveys, choose a column such as year, lab or batch.")}</div>
           ) : (<>
