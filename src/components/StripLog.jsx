@@ -1,5 +1,6 @@
 import { fillLanes } from "../lib/stripLanes.js"; // TASKS.csv #1254
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { lithoPatternMap, loadPatternTiles, patternDefs, patternFill, FGDC_PATTERNS, patternForUnit } from "../lib/lithoPatterns.js"; // TASKS.csv #1995
 import { X, Download } from "./icons.js";
 import { LAYER_META, UNIT_NAMES, colorForAlteration, colorForVein, colorForBreccia, colorForStructZone, colorForStructure } from "../lib/layers.js";
 import { logFrac, valueRange, recoveryMax, alphaTick, holeStructures } from "../lib/stripTracks.js"; // TASKS.csv #1400
@@ -29,7 +30,7 @@ import { stripLogTextPt } from "../lib/atlas.js"; // TASKS.csv #1480 — the siz
 const DEPTH_COL_W = 50;
 const PAD_TOP = 40;
 
-export default function StripLog({ holeId, collars, layers, assays, assayElements, colorFor, labelFor, assayColor, onClose, modelledLayers = [], onAddToLayout = null, shownElements = [] }) { // shownElements: TASKS.csv #1698
+export default function StripLog({ holeId, collars, layers, assays, assayElements, colorFor, labelFor, assayColor, onClose, modelledLayers = [], onAddToLayout = null, shownElements = [], patternOverride = null, onPatternChange = null }) { // shownElements: TASKS.csv #1698; pattern*: #1995
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const svgRef = useRef(null);
@@ -44,6 +45,19 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const [extraSymbols, setExtraSymbols] = useState(shownFirst.slice(1, 3)); // #1698 — the other elements on in 3D
   const [logScale, setLogScale] = useState(true);
   // TASKS.csv #1480 — a depth range: a 1,300 m hole cannot print readably on one page, an interval of it can
+  // TASKS.csv #1995 — FGDC lithology patterns over the litho colours: the choice is remembered on this computer
+  const [patternsOn, setPatternsOn] = useState(() => { try { return localStorage.getItem("geostrix.stripLog.patterns") !== "0"; } catch { return true; } });
+  const setPatterns = (on) => { setPatternsOn(on); try { localStorage.setItem("geostrix.stripLog.patterns", on ? "1" : "0"); } catch { /* private window */ } };
+  const lithoName = (v) => (labelFor ? labelFor("litho", v) : UNIT_NAMES[v] || v);
+  const patternByCode = useMemo(() => lithoPatternMap(layers.litho || [], lithoName, patternOverride), [layers.litho, patternOverride, labelFor]); // lithoName reads labelFor
+  const [tiles, setTiles] = useState({});
+  useEffect(() => {
+    if (!patternsOn) return undefined;
+    let live = true;
+    loadPatternTiles(Object.values(patternByCode).filter((c) => c != null)).then((t) => { if (live) setTiles(t); });
+    return () => { live = false; };
+  }, [patternsOn, patternByCode]);
+  const patternOf = (v) => (patternsOn && tiles[patternByCode[v]] ? patternByCode[v] : null);
   const [rangeFrom, setRangeFrom] = useState("");
   const [rangeTo, setRangeTo] = useState("");
   const shownSymbols = [assaySymbol, ...extraSymbols].filter(Boolean).filter((s, i, a) => a.indexOf(s) === i).slice(0, 3);
@@ -248,6 +262,8 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
           <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 5 }} title={tr("Log scale spreads trace-element grades and mag susc (a few high values no longer flatten the rest). Linear is proportional to the value.")}>
             <input type="checkbox" checked={logScale} onChange={(e) => setLogScale(e.target.checked)} />{" "}{tr("Log scale")}</label>
           <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 4 }} title={tr("Draw only these depths (blank: the whole hole); the exports and Add to Layout follow")}>{tr("Depth (m)")}<input type="number" min="0" step="any" value={rangeFrom} placeholder="0" onChange={(e) => setRangeFrom(e.target.value)} style={{ ...selStyle, width: 64 }} aria-label={tr("Depth range from (m)")} />–<input type="number" min="0" step="any" value={rangeTo} placeholder={String(+maxDepth.toFixed(1))} onChange={(e) => setRangeTo(e.target.value)} style={{ ...selStyle, width: 64 }} aria-label={tr("Depth range to (m)")} /></label>
+          {litho.length > 0 && <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 5 }} title={tr("FGDC lithology patterns over the lithology colours, as on printed logs")}>
+            <input type="checkbox" checked={patternsOn} onChange={(e) => setPatterns(e.target.checked)} />{" "}{tr("Patterns")}</label>}{/* TASKS.csv #1995 */}
           <label style={{ fontSize: 11, color: "#55606e", display: "flex", alignItems: "center", gap: 6 }}>{tr("Vertical scale (px/m)")}<input type="number" min="1" max="40" value={pxPerMeter} onChange={(e) => setPxPerMeter(Math.max(1, Math.min(40, Number(e.target.value) || 6)))} style={{ ...selStyle, width: 60 }} />
           </label>
           <div style={{ flex: 1 }} />
@@ -255,10 +271,33 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
           <button onClick={exportPNG} style={{ ...btn(false), padding: "6px 10px", display: "flex", alignItems: "center", gap: 5 }}><Download size={12} />{" "}{tr("PNG")}</button>
           {onAddToLayout && <button onClick={addToLayout} style={{ ...btn(false), padding: "6px 10px" }} title={tr("The log as drawn here (its tracks, depth axis and key) on the Layout page, with its colour tracks as a legend")}>{tr("Add to Layout")}</button>}
         </div>
+        {patternsOn && litho.length > 0 && ( /* TASKS.csv #1995 — each code's pattern, and a way to change it (saved with the project's legend) */
+          <details style={{ padding: "4px 16px", borderBottom: "1px solid #d9dce1", fontSize: 11, color: "#55606e" }}>
+            <summary style={{ cursor: "pointer" }}>{tr("Lithology patterns (FGDC): which pattern each code gets")}</summary>
+            <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "3px 8px", alignItems: "center", margin: "6px 0" }}>
+              {[...new Set(litho.map((r) => r.value))].map((v) => {
+                const auto = patternForUnit(v, lithoName(v), (layers.litho || []).find((r) => r.value === v && r.description)?.description);
+                const o = patternOverride?.[v]?.pattern;
+                return (
+                  <React.Fragment key={v}>
+                    <span title={lithoName(v)}>{v}</span>
+                    <select value={o === undefined || o === null ? "auto" : String(o)} aria-label={tr("Pattern for {code}", { code: v })} disabled={!onPatternChange} onChange={(e) => onPatternChange?.(v, e.target.value === "auto" ? null : e.target.value)} style={selStyle}>
+                      <option value="auto">{auto ? tr("Automatic: {v}", { v: `${auto} ${tr(FGDC_PATTERNS[auto])}` }) : tr("Automatic: none")}</option>
+                      <option value="">{tr("None (colour only)")}</option>
+                      {Object.entries(FGDC_PATTERNS).map(([c, n]) => <option key={c} value={c}>{`${c} ${tr(n)}`}</option>)}
+                    </select>
+                  </React.Fragment>
+                );
+              })}
+            </div>
+            <div>{tr("Patterns follow the FGDC geologic map standard (public domain). Automatic picks one from the code, its name or its logged description; a choice here is saved with the project and used by Atlas too.")}</div>
+          </details>
+        )}
         {pngNote && <div role="status" style={{ padding: "6px 16px", fontSize: 11, color: "#7a4a1f", background: "#fdf4e6", borderBottom: "1px solid #edd9b7" }}>{pngNote}</div>}
 
         <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
           <svg ref={svgRef} viewBox={`0 0 ${DEPTH_COL_W + tracks.length * TRACK_W + 40} ${H}`} width={DEPTH_COL_W + tracks.length * TRACK_W + 40} height={H} style={{ background: "#ffffff" }}>
+            {patternsOn && Object.keys(tiles).length > 0 && <defs dangerouslySetInnerHTML={{ __html: patternDefs(tiles) }} />}{/* #1995 — shapes only (lithoPatterns.sanitizeTile) */}
             {/* depth ticks */}
             {depthTicks(d0, d1, pxPerMeter).map((d, i) => (
               <g key={i}>
@@ -282,6 +321,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
                         <rect x={x0 + (r.lane || 0) * w} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={t.colorFn(r.value)} stroke={lanes > 1 ? "#fff" : undefined} strokeWidth={lanes > 1 ? 0.5 : undefined}>
                           {lanes > 1 && <title>{`${r.value}${Number.isFinite(r.extra) ? ` ${r.extra} %` : ""}, ${r.from}–${r.to} m`}</title>}
                         </rect>
+                        {t.key === "litho" && patternOf(r.value) && <rect x={x0} y={sy(r.from)} width={w} height={Math.max(0.5, sy(r.to) - sy(r.from))} fill={patternFill(patternOf(r.value), t.colorFn(r.value))} style={{ pointerEvents: "none" }} />}{/* #1995 — white lines on a dark colour */}
                         {(sy(r.to) - sy(r.from)) > 12 && (
                           <text x={x0 + (r.lane || 0) * w + w / 2} y={(sy(r.from) + sy(r.to)) / 2 + 3.5} fontSize="10" textAnchor="middle" fill="#1a2028" stroke="#ffffff" strokeWidth="2.5" paintOrder="stroke" strokeLinejoin="round" style={{ pointerEvents: "none" }}>{/* #1298 — 8 px on saturated fills */}
                             {String(t.nameFn ? t.nameFn(r.value) : r.value).slice(0, lanes > 1 ? 3 : 10)}

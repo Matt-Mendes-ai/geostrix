@@ -8837,6 +8837,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           assays={assays}
           assayElements={assayElements}
           colorFor={effectiveColor} labelFor={effectiveLabel} shownElements={assayDisplayElements} // #402; #1698
+          patternOverride={legendOverride.litho} onPatternChange={(v, p) => setLegendOverride((o) => ({ ...o, litho: { ...(o.litho || {}), [v]: { ...(o.litho?.[v] || {}), pattern: p } } }))} // #1995
           modelledLayers={customLayers.filter((l) => l.rows?.[0]?.modelled)} // TASKS.csv #356
           onAddToLayout={(img) => { addLayoutImage(img); goToModule("layout"); }} // #1480
           assayColor={(sym, v) => assayColorFor(v, Math.max(0, assayDisplayElements.indexOf(sym)), assayStyle[sym])}

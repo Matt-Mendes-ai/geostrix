@@ -123,7 +123,7 @@ export function makeRoomForStripLog(elements, box, { gap = 12, minKeep = 0.4, pa
 // the size its 9.5 px drawing text prints at, in points (96 px per inch, 72 pt per inch), once the drawing is scaled to `h`
 export const stripLogTextPt = (drawingHeight, h) => (drawingHeight > 0 ? (9.5 * (h / drawingHeight) * 72) / 96 : null);
 
-async function buildOneHolePage(holeId, templateElements, { collars, layers, includeStripLog, legendOverride, page, assayTracks = null }) { // assayTracks: #1480
+async function buildOneHolePage(holeId, templateElements, { collars, layers, includeStripLog, legendOverride, page, assayTracks = null, lithoPatterns = false }) { // assayTracks: #1480; lithoPatterns: #1995
   const values = holeAtlasValues(holeId, collars, layers);
   let elements = markHoleOnViewports(templateElements.map((el) => substituteElement(el, values)), collars.find((c) => c.hole_id === holeId)); // #1644
   let stripLogFailed = false, textPt = null, narrowed = 0, overlapping = 0;
@@ -131,7 +131,7 @@ async function buildOneHolePage(holeId, templateElements, { collars, layers, inc
     // TASKS.csv #1080 — one hole's strip log failing (a rasterize error) no longer aborts the whole atlas: its page is
     // added without the image and counted in the result notice
     let built = null;
-    try { built = await buildStripLogDataUrl({ holeId, collars, layers, legendOverride, ...(assayTracks || {}) }); } catch { stripLogFailed = true; } // legendOverride: #1092; assayTracks { assays, assaySymbols, elementUnits }: #1480
+    try { built = await buildStripLogDataUrl({ holeId, collars, layers, legendOverride, lithoPatterns, ...(assayTracks || {}) }); } catch { stripLogFailed = true; } // legendOverride: #1092; assayTracks { assays, assaySymbols, elementUnits }: #1480
     if (built) {
       const box = placeStripLog(elements, built.aspect, page || undefined);
       textPt = stripLogTextPt(built.height, box.h);
@@ -150,10 +150,10 @@ function buildOneSectionPage(section, templateElements) {
 
 // The main entry point — `mode` is "hole" or "section", `items` is the list of hole_ids or section
 // objects to generate one page each for. Returns [{name, elements}], ready for store.addLayoutPages().
-export async function generateAtlasPages({ mode, items, templateElements, collars, layers, includeStripLog, legendOverride = null, page = null, assayTracks = null }) {
+export async function generateAtlasPages({ mode, items, templateElements, collars, layers, includeStripLog, legendOverride = null, page = null, assayTracks = null, lithoPatterns = false }) {
   if (mode === "hole") {
     const pages = [];
-    for (const holeId of items) pages.push(await buildOneHolePage(holeId, templateElements, { collars, layers, includeStripLog, legendOverride, page, assayTracks }));
+    for (const holeId of items) pages.push(await buildOneHolePage(holeId, templateElements, { collars, layers, includeStripLog, legendOverride, page, assayTracks, lithoPatterns }));
     return pages;
   }
   return items.map((section) => buildOneSectionPage(section, templateElements));

@@ -19,6 +19,7 @@ import { arrMax } from "./arrayStats.js"; // TASKS.csv #371 — no Math.min/max(
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { FIGURE_FONT } from "./svgExport.js"; // TASKS.csv #1089
 import { valueIn } from "./geochem.js"; // TASKS.csv #1480 — assay tracks, in each element's own unit
+import { lithoPatternMap, loadPatternTiles, patternDefs, patternFill } from "./lithoPatterns.js"; // TASKS.csv #1995 — FGDC lithology patterns
 
 const TRACK_W = 90;
 const DEPTH_COL_W = 50;
@@ -29,13 +30,15 @@ function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").
 
 // TASKS.csv #1080 — the in-block label is cut to 14 characters BEFORE escaping: cutting after it left "&a" of "&amp;",
 // malformed XML the <img> rasterizer rejects ("Quartz vein & alteration")
-function fillTrack(rows, x, sy, colorFn, nameFn) {
+function fillTrack(rows, x, sy, colorFn, nameFn, patternOf = null) { // patternOf: #1995 — an FGDC pattern over the colour
   return rows.map((r) => {
     const y0 = sy(r.from), y1 = sy(r.to);
     const h = Math.max(1, y1 - y0);
     const color = colorFn ? colorFn(r.value) : "#8a94a3";
     const label = nameFn ? nameFn(r.value) : r.value;
+    const pat = patternOf ? patternOf(r.value) : null;
     return `<rect x="${x}" y="${y0}" width="${TRACK_W - 6}" height="${h}" fill="${color}" stroke="#ffffff" stroke-width="0.5"><title>${esc(label)} (${r.from}-${r.to} m)</title></rect>`
+      + (pat ? `<rect x="${x}" y="${y0}" width="${TRACK_W - 6}" height="${h}" fill="${patternFill(pat, color)}" pointer-events="none"/>` : "") // white lines on a dark colour
       + (h > 12 ? `<text x="${x + 4}" y="${y0 + h / 2 + 3.5}" font-size="10" fill="#1a2028" stroke="#ffffff" stroke-width="2.5" paint-order="stroke" stroke-linejoin="round">${esc(String(label).slice(0, 14))}</text>` : "");
   }).join("");
 }
@@ -81,7 +84,8 @@ function barTrack(rows, x, sy, max) {
 // the store's viewerUiState.legendOverride), so an Atlas strip log draws the colours and names the 3D legend and the
 // map viewport on the same page use. #402 did this for the strip-log modal only.
 // assays / assaySymbols / elementUnits (#1480): the project's assays and up to three elements to draw as tracks after the logs
-export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {} }) {
+// lithoPatterns (#1995): { byCode: { code: FGDC code | null }, tiles } — the lithology column drawn with its patterns
+export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {}, lithoPatterns = null }) {
   const ov = (key, v) => legendOverride?.[key]?.[v];
   const colorOf = (key, fallback) => (v) => ov(key, v)?.color || fallback(v);
   const nameOf = (key, fallback) => (v) => ov(key, v)?.label || (fallback ? fallback(v) : v);
@@ -127,7 +131,7 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
   tracks.forEach((t) => {
     body += `<text x="${x + 2}" y="16" font-size="10" font-weight="600" fill="#1a2028">${esc(t.label)}</text>`;
     body += `<rect x="${x}" y="${PAD_TOP - 2}" width="${TRACK_W - 6}" height="${sy(maxDepth) - PAD_TOP + 2}" fill="none" stroke="#c7ccd3" stroke-width="1"/>`;
-    if (t.kind === "fill") body += fillTrack(t.rows, x, sy, t.colorFn, t.nameFn);
+    if (t.kind === "fill") body += fillTrack(t.rows, x, sy, t.colorFn, t.nameFn, t.label === "Litho" && lithoPatterns ? (v) => (lithoPatterns.tiles[lithoPatterns.byCode[v]] ? lithoPatterns.byCode[v] : null) : null);
     else if (t.kind === "tick") body += tickTrack(t.rows, x, sy, t.colorFn);
     else if (t.kind === "bar") body += barTrack(t.rows, x, sy, t.max);
     else if (t.kind === "assay") body += assayTrack(t.rows, x, sy, t.sym, t.unit, elementUnits, sy(maxDepth)); // #1480
@@ -137,6 +141,7 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
   const title = `${esc(holeId)}${collar ? ` — ${maxDepth.toFixed(0)} m` : ""}`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H + 20}" width="${W}" height="${H + 20}" font-family="${FIGURE_FONT.replace(/"/g, "&quot;")}">` // #1089
     + `<rect x="0" y="0" width="${W}" height="${H + 20}" fill="#ffffff"/>`
+    + (lithoPatterns ? `<defs>${patternDefs(lithoPatterns.tiles)}</defs>` : "") // #1995
     + `<text x="4" y="20" font-size="12" font-weight="700" fill="#1a2028">${title}</text>`
     + `<g transform="translate(0,20)">${body}</g>`
     + `</svg>`;
@@ -145,8 +150,14 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
 
 // Rasterizes buildStripLogSvgMarkup's output into a PNG data URL, the same SVG->canvas->PNG technique
 // StripLog.jsx's own exportPNG button already uses. Returns null if the hole had nothing to draw.
-export async function buildStripLogDataUrl({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {} }) {
-  const built = buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride, assays, assaySymbols, elementUnits }); // legendOverride: #1092; assays: #1480
+export async function buildStripLogDataUrl({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {}, lithoPatterns = false }) { // lithoPatterns: #1995
+  let pats = null;
+  if (lithoPatterns && (layers.litho || []).length) { // #1995 — the project's codes (the same pattern on every page), then this hole's tiles
+    const byCode = lithoPatternMap(layers.litho, (v) => legendOverride?.litho?.[v]?.label || UNIT_NAMES[v] || v, legendOverride?.litho);
+    const here = [...new Set((layers.litho || []).filter((r) => r.hole_id === holeId).map((r) => byCode[r.value]).filter((c) => c != null))];
+    pats = { byCode, tiles: await loadPatternTiles(here) };
+  }
+  const built = buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride, assays, assaySymbols, elementUnits, lithoPatterns: pats }); // legendOverride: #1092; assays: #1480
   if (!built) return null;
   const { svg, width, height, pxPerMeter } = built;
   const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });

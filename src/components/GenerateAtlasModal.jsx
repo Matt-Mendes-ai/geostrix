@@ -18,6 +18,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
   // TASKS.csv #1644 — a large project opens with nothing ticked (446 holes opened as 'Generate 446 pages')
   const [selectedIds, setSelectedIds] = useState(() => new Set(collars.length > 50 ? [] : collars.map((c) => c.hole_id)));
   const [includeStripLog, setIncludeStripLog] = useState(true);
+  const [lithoPatterns, setLithoPatterns] = useState(true); // TASKS.csv #1995
   const [assaySymbols, setAssaySymbols] = useState(["", "", ""]); // TASKS.csv #1480 — up to three assay tracks
   const assayTracks = useMemo(() => { const syms = assaySymbols.filter(Boolean).filter((s, i, a) => a.indexOf(s) === i); return syms.length ? { assays, assaySymbols: syms, elementUnits: Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])) } : null; }, [assaySymbols, assays, assayElements]);
   const [busy, setBusy] = useState(false);
@@ -60,7 +61,7 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
         ? await (async () => {
             const out = [];
             for (let i = 0; i < chosen.length; i++) {
-              const [pg] = await generateAtlasPages({ mode, items: [chosen[i]], templateElements, collars, layers, includeStripLog, legendOverride, page, assayTracks });
+              const [pg] = await generateAtlasPages({ mode, items: [chosen[i]], templateElements, collars, layers, includeStripLog, legendOverride, page, assayTracks, lithoPatterns });
               out.push(pg);
               setProgress({ done: i + 1, total: chosen.length });
             }
@@ -108,6 +109,10 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
           {mode === "hole" && (
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }}>
               <input type="checkbox" checked={includeStripLog} onChange={(e) => setIncludeStripLog(e.target.checked)} />{tr("Add a strip log image (litho/alteration/vein/RQD%) to each page")}</label>
+          )}
+          {mode === "hole" && includeStripLog && ( /* TASKS.csv #1995 */
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }} title={tr("FGDC lithology patterns over the lithology colours, as on printed logs; set a code's pattern in the strip-log window")}>
+              <input type="checkbox" checked={lithoPatterns} onChange={(e) => setLithoPatterns(e.target.checked)} />{tr("Lithology patterns (FGDC)")}</label>
           )}
           {mode === "hole" && includeStripLog && assayElements.length > 0 && ( /* TASKS.csv #1480 — assay tracks on the strip log */
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", flexWrap: "wrap" }}>
