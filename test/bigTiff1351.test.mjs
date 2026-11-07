@@ -104,6 +104,7 @@ test("the Browser panel: a GeoTIFF over 200 MB is handed on by range, only a pat
   assert.match(m, /if \(!rangeReadable\.has\(full\)\) return \{ ok: false, error: "Open the file from the Browser panel first\." \};/);
   assert.match(m, /const RANGE_EXT = new Set\(\["\.tif", "\.tiff"\]\);/);
   assert.match(m, /length > RANGE_MAX_BYTES/);
+  assert.ok(m.includes("Import it with Geophysics > Point survey (or drop it on the Geophysics tab): big survey files are read in pieces there."), "a big line-data file points to the streamed import");
   const pre = readFileSync(new URL("../electron/preload.js", import.meta.url), "utf8");
   assert.ok(pre.includes('fsReadRange: (filePath, offset, length) => ipcRenderer.invoke("fs-read-range", { filePath, offset, length }),'));
   const p = readFileSync(new URL("../src/components/DbBrowserPanel.jsx", import.meta.url), "utf8");

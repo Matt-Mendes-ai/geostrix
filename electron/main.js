@@ -1310,6 +1310,8 @@ ipcMain.handle("fs-read-file", async (_e, { filePath }) => {
     const st = await fs.promises.stat(filePath);
     if (!st.isFile()) return { ok: false, error: "Not a file." };
     if (st.size > READ_MAX_BYTES && RANGE_EXT.has(ext)) { rangeReadable.add(path.resolve(String(filePath))); return { ok: true, big: true, size: st.size, name: path.basename(filePath) }; } // #1351
+    // #1351 — a big line-data file is not refused outright: Geophysics > Point survey reads it in pieces, keeping 1 reading in N
+    if (st.size > READ_MAX_BYTES && [".csv", ".txt", ".xyz", ".dat"].includes(ext)) return { ok: false, error: `${path.basename(filePath)} is ${(st.size / 1048576).toFixed(0)} MB — more than the Browser panel reads at once. Import it with Geophysics > Point survey (or drop it on the Geophysics tab): big survey files are read in pieces there.` };
     if (st.size > READ_MAX_BYTES) return { ok: false, error: `${path.basename(filePath)} is ${(st.size / 1048576).toFixed(0)} MB — over the ${READ_MAX_BYTES / 1048576} MB import limit. Crop or thin it first.` };
     const buf = await fs.promises.readFile(filePath);
     return { ok: true, data: buf, name: path.basename(filePath) };
