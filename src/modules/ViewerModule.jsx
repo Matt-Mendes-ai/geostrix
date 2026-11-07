@@ -8956,7 +8956,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {fenceOpen && (
         <FenceDiagramModal
           traces={tracesRef.current.map((t) => ({ hole_id: t.hole_id, md: t.pts.map((p) => p.md), wx: t.wx, wy: t.wy, wz: t.wz }))}
-          litho={layers.litho || []} labelFor={effectiveLabel} patternOverride={legendOverride.litho} // #1995
+          litho={layers.litho || []} labelFor={effectiveLabel} patternOverride={legendOverride.litho} sections={sections} // #1995; sections: #1552
           onClose={() => setFenceOpen(false)}
         />
       )}

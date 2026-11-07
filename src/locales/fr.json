@@ -9068,5 +9068,13 @@
   "Alteration style (optional)": "Style d'altération (facultatif)",
   "e.g. Oxidation": "p. ex. Oxydation",
   "Alteration style": "Style d'altération",
-  "A logging database with one table per style (oxidation, silicification…)? Name this file's style and its codes come in as 'Style: code' (Oxidation: Pchy), kept apart from another style's same code. Leave it blank to keep the codes as they are.": "Une base de description avec une table par style (oxydation, silicification…) ? Nommez le style de ce fichier et ses codes entrent sous la forme « Style : code » (Oxidation: Pchy), à part du même code d'un autre style. Laissez vide pour garder les codes tels quels."
+  "A logging database with one table per style (oxidation, silicification…)? Name this file's style and its codes come in as 'Style: code' (Oxidation: Pchy), kept apart from another style's same code. Leave it blank to keep the codes as they are.": "Une base de description avec une table par style (oxydation, silicification…) ? Nommez le style de ce fichier et ses codes entrent sous la forme « Style : code » (Oxidation: Pchy), à part du même code d'un autre style. Laissez vide pour garder les codes tels quels.",
+  "Along a saved section…": "Le long d'une coupe enregistrée…",
+  "Section": "Coupe",
+  "{name} (±{corridor} m)": "{name} (±{corridor} m)",
+  "Or draw the panel along a saved section.": "Ou tracez le panneau le long d'une coupe enregistrée.",
+  "Or draw a cross-section in the 3D View first and use it here.": "Ou tracez d'abord une coupe dans la Vue 3D et utilisez-la ici.",
+  "The section's own line, from its start, and the holes lying mainly inside its corridor (at least half of the hole). Tick or untick holes below as usual.": "La ligne de la coupe elle-même, depuis son début, et les sondages situés surtout dans son corridor (au moins la moitié du sondage). Cochez ou décochez les sondages ci-dessous comme d'habitude.",
+  "Opened on {k} holes that lie within 100 m of a line fitted through them; {n} others are in the list below, unticked.": "Ouvert sur {k} sondages situés à moins de 100 m d'une ligne ajustée sur eux ; les {n} autres sont dans la liste ci-dessous, non cochés.",
+  "This project has {n} holes, so the panel opened along the latest saved section, on the holes in its corridor.": "Ce projet compte {n} sondages : le panneau s'est ouvert le long de la dernière coupe enregistrée, sur les sondages de son corridor."
 }

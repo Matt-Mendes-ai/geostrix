@@ -9068,5 +9068,13 @@
   "Alteration style (optional)": "Estilo de alteración (opcional)",
   "e.g. Oxidation": "p. ej. Oxidación",
   "Alteration style": "Estilo de alteración",
-  "A logging database with one table per style (oxidation, silicification…)? Name this file's style and its codes come in as 'Style: code' (Oxidation: Pchy), kept apart from another style's same code. Leave it blank to keep the codes as they are.": "¿Una base de registro con una tabla por estilo (oxidación, silicificación…)? Nombre el estilo de este archivo y sus códigos entran como 'Estilo: código' (Oxidation: Pchy), separados del mismo código de otro estilo. Déjelo en blanco para conservar los códigos tal como están."
+  "A logging database with one table per style (oxidation, silicification…)? Name this file's style and its codes come in as 'Style: code' (Oxidation: Pchy), kept apart from another style's same code. Leave it blank to keep the codes as they are.": "¿Una base de registro con una tabla por estilo (oxidación, silicificación…)? Nombre el estilo de este archivo y sus códigos entran como 'Estilo: código' (Oxidation: Pchy), separados del mismo código de otro estilo. Déjelo en blanco para conservar los códigos tal como están.",
+  "Along a saved section…": "A lo largo de una sección guardada…",
+  "Section": "Sección",
+  "{name} (±{corridor} m)": "{name} (±{corridor} m)",
+  "Or draw the panel along a saved section.": "O dibuje el panel a lo largo de una sección guardada.",
+  "Or draw a cross-section in the 3D View first and use it here.": "O dibuje primero una sección en la Vista 3D y úsela aquí.",
+  "The section's own line, from its start, and the holes lying mainly inside its corridor (at least half of the hole). Tick or untick holes below as usual.": "La línea propia de la sección, desde su inicio, y los sondajes que están mayormente dentro de su corredor (al menos la mitad del sondaje). Marque o desmarque sondajes abajo como siempre.",
+  "Opened on {k} holes that lie within 100 m of a line fitted through them; {n} others are in the list below, unticked.": "Se abrió con {k} sondajes que quedan a menos de 100 m de una línea ajustada a ellos; los otros {n} están en la lista de abajo, sin marcar.",
+  "This project has {n} holes, so the panel opened along the latest saved section, on the holes in its corridor.": "Este proyecto tiene {n} sondajes, así que el panel se abrió a lo largo de la última sección guardada, con los sondajes de su corredor."
 }

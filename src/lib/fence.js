@@ -107,13 +107,66 @@ export function projectToLine(p, line) {
  * @param opts.azimuth  fixed section bearing in degrees; omit to fit the principal axis of the collars
  * @returns {{line, holes:[{hole_id, s, offset, maxAbsOffset, pts:[{md,s,z,offset}]}], sRange, zRange}}
  */
+// TASKS.csv #1552 (review #1497, Lawyers) — the panel opened on all 446 holes along a best-fit line through collars spread across the
+// district, and its line could not be placed. A saved cross-section (the 3D View's, {ax, ay, bx, by, corridor}) gives the line, from
+// its start (s = 0) towards its end, and its corridor picks the holes.
+export function lineFromSection(sec) {
+  const ax = Number(sec?.ax), ay = Number(sec?.ay), bx = Number(sec?.bx), by = Number(sec?.by);
+  const L = Math.hypot(bx - ax, by - ay);
+  if (![ax, ay, bx, by].every(Number.isFinite) || !(L > 0)) return null;
+  const dir = { x: (bx - ax) / L, y: (by - ay) / L };
+  return { origin: { x: ax, y: ay }, dir, azimuth: dirToAzimuth(dir.x, dir.y), length: L };
+}
+// the holes that lie mainly in the corridor: at least `share` of the trace's length within `corridor` m of the line and alongside it
+// (to `corridor` m past its ends). 'Any part of the hole' took 52 of Lawyers' holes for one ±100 m section, 35 of them crossing it
+// steeply and flagged as far off it; a fence draws the whole hole, so the hole should be mostly on the section.
+export function holesInCorridor(traces, line, corridor, share = 0.5) {
+  if (!line || !(corridor > 0)) return [];
+  const out = [];
+  const inside = (x, y) => { const pr = projectToLine({ x, y }, line); return Math.abs(pr.offset) <= corridor && pr.s >= -corridor && pr.s <= (line.length ?? Infinity) + corridor; };
+  for (const t of traces || []) {
+    if (!t?.wx?.length) continue;
+    if (t.wx.length === 1) { if (inside(t.wx[0], t.wy[0])) out.push(t.hole_id); continue; }
+    let tot = 0, inLen = 0;
+    for (let i = 0; i < t.wx.length - 1; i++) {
+      const seg = Math.hypot(t.wx[i + 1] - t.wx[i], t.wy[i + 1] - t.wy[i], t.wz[i + 1] - t.wz[i]);
+      tot += seg;
+      if (inside((t.wx[i] + t.wx[i + 1]) / 2, (t.wy[i] + t.wy[i + 1]) / 2)) inLen += seg; // a segment counts by its midpoint
+    }
+    if (tot > 0 ? inLen / tot >= share : inside(t.wx[0], t.wy[0])) out.push(t.hole_id);
+  }
+  return out;
+}
+// With more than FENCE_MANY holes the panel opens on those within `limit` m of the best-fit line through all of them, not on every
+// hole; the rest stay in the list to tick. -> { ids, trimmed }
+export const FENCE_MANY = 40;
+export function initialFenceSelection(traces, limit = 100) {
+  const usable = (traces || []).filter((t) => t?.wx?.length > 1);
+  const all = usable.map((t) => t.hole_id);
+  if (all.length <= FENCE_MANY) return { ids: all, trimmed: 0 };
+  // the panel refits its line through the holes it shows, so refit through those kept until no kept hole is beyond the limit
+  // (the first cut, against the line through all 446, left 9 of its 22 more than 100 m off the refitted line)
+  let cur = usable;
+  for (let k = 0; k < 8; k++) {
+    const p = buildFencePanel(cur);
+    const keep = new Set((p?.holes || []).filter((h) => h.maxAbsOffset <= limit).map((h) => h.hole_id));
+    if (keep.size < 2) break;
+    if (keep.size === cur.length) break;
+    cur = cur.filter((t) => keep.has(t.hole_id));
+  }
+  const ids = cur.map((t) => t.hole_id);
+  return ids.length >= 2 && ids.length < all.length ? { ids, trimmed: all.length - ids.length } : { ids: all, trimmed: 0 };
+}
+
 export function buildFencePanel(traces, opts = {}) {
   const usable = (traces || []).filter((t) => t && t.wx && t.wx.length > 0);
   if (usable.length < 1) return null;
   const collars = usable.map((t) => ({ x: t.wx[0], y: t.wy[0] }));
 
   let line;
-  if (opts.azimuth != null && Number.isFinite(opts.azimuth)) {
+  if (opts.line?.dir && opts.line?.origin) {
+    line = opts.line; // #1552 — a saved section's own line
+  } else if (opts.azimuth != null && Number.isFinite(opts.azimuth)) {
     // A typed azimuth still needs an origin; use the collar centroid so `s` stays centred on the data
     // rather than running off to some arbitrary coordinate.
     const mx = collars.reduce((a, c) => a + c.x, 0) / collars.length;

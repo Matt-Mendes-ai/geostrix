@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { colorForLithology } from "../lib/layers.js";
-import { buildFencePanel, panelPointAtDepth, correlationBands, stackCollarLabels } from "../lib/fence.js"; // stackCollarLabels: #1375
+import { buildFencePanel, panelPointAtDepth, correlationBands, stackCollarLabels, lineFromSection, holesInCorridor, initialFenceSelection, FENCE_MANY } from "../lib/fence.js"; // stackCollarLabels: #1375; section / corridor / initial: #1552
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -52,7 +52,7 @@ import { lithoPatternMap, loadPatternTiles, patternDefs, patternFill, sectionTil
 // matching up repeated units (fault repetition, interbedding) is a judgement this tool has no business
 // making silently, so it draws the one defensible band and leaves the rest to the geologist. They are
 // off by default for that reason.
-export default function FenceDiagramModal({ traces = [], litho = [], labelFor = null, patternOverride = null, onClose }) { // labelFor, patternOverride: #1995
+export default function FenceDiagramModal({ traces = [], litho = [], labelFor = null, patternOverride = null, sections = [], onClose }) { // labelFor, patternOverride: #1995; sections: #1552
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
 
@@ -60,8 +60,29 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
     () => (traces || []).filter((t) => t?.wx?.length).map((t) => t.hole_id).sort(),
     [traces]
   );
-  const [selected, setSelected] = useState(() => new Set(allIds));
-  const [azMode, setAzMode] = useState("fit"); // "fit" | "manual"
+  // TASKS.csv #1552 — more than 40 holes: open along the latest saved section (its corridor's holes) when there is one, else on the
+  // holes near a line fitted through them; never on every hole in the district
+  const usableSections = useMemo(() => (sections || []).filter((s) => lineFromSection(s)), [sections]);
+  const [initial] = useState(() => {
+    const many = (traces || []).filter((t) => t?.wx?.length > 1).length > FENCE_MANY;
+    const last = usableSections[usableSections.length - 1];
+    if (many && last) {
+      const ids = holesInCorridor(traces, lineFromSection(last), Number(last.corridor) || 100);
+      if (ids.length >= 2) return { ids, trimmed: 0, sectionId: last.id };
+    }
+    return initialFenceSelection(traces, 100);
+  });
+  const [selected, setSelected] = useState(() => new Set(initial.ids));
+  const [azMode, setAzMode] = useState(initial.sectionId ? "section" : "fit"); // "fit" | "manual" | "section" (#1552)
+  const [sectionId, setSectionId] = useState(initial.sectionId || "");
+  const pickSection = (id) => { // its line, and the holes in its corridor
+    const s = usableSections.find((x) => x.id === id) || usableSections[usableSections.length - 1];
+    if (!s) return;
+    setSectionId(s.id); setAzMode("section");
+    const ids = holesInCorridor(traces, lineFromSection(s), Number(s.corridor) || 100);
+    setSelected(new Set(ids));
+  };
+  const sectionLine = useMemo(() => (azMode === "section" ? lineFromSection(usableSections.find((x) => x.id === sectionId)) : null), [azMode, sectionId, usableSections]);
   const [manualAz, setManualAz] = useState("90");
   const [ve, setVe] = useState(1); // vertical exaggeration
   const [showBands, setShowBands] = useState(false);
@@ -80,9 +101,10 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
   );
 
   const panel = useMemo(() => {
+    if (sectionLine) return buildFencePanel(chosen, { line: sectionLine }); // #1552
     const az = azMode === "manual" ? Number(manualAz) : null;
     return buildFencePanel(chosen, Number.isFinite(az) ? { azimuth: az } : {});
-  }, [chosen, azMode, manualAz]);
+  }, [chosen, azMode, manualAz, sectionLine]);
 
   const lithoByHole = useMemo(() => {
     const m = {};
@@ -283,11 +305,25 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
           </div>
 
           <div style={{ width: 210, display: "flex", flexDirection: "column", gap: 9, maxHeight: "72vh", overflow: "auto" }}>
-            <label style={rowLabel} title={tr("Best fit is the principal (total-least-squares) axis of the selected collars — the line that minimizes perpendicular distance, and unlike a y-on-x regression it works for a north-south drill line and does not depend on how the map is rotated.")}>{tr("Section line")}<select value={azMode} onChange={(e) => setAzMode(e.target.value)} style={sel}>
+            <label style={rowLabel} title={tr("Best fit is the principal (total-least-squares) axis of the selected collars — the line that minimizes perpendicular distance, and unlike a y-on-x regression it works for a north-south drill line and does not depend on how the map is rotated.")}>{tr("Section line")}<select value={azMode} onChange={(e) => (e.target.value === "section" ? pickSection(sectionId) : setAzMode(e.target.value))} style={sel}>
                 <option value="fit">{tr("Best fit through collars")}</option>
                 <option value="manual">{tr("Fixed azimuth…")}</option>
+                {usableSections.length > 0 && <option value="section">{tr("Along a saved section…")}</option>}{/* #1552 */}
               </select>
             </label>
+            {azMode === "section" && (
+              <label style={rowLabel} title={tr("The section's own line, from its start, and the holes lying mainly inside its corridor (at least half of the hole). Tick or untick holes below as usual.")}>{tr("Section")}
+                <select value={sectionId} onChange={(e) => pickSection(e.target.value)} style={sel}>
+                  {usableSections.map((s) => <option key={s.id} value={s.id}>{tr("{name} (±{corridor} m)", { name: s.name || s.id, corridor: Number(s.corridor) || 100 })}</option>)}
+                </select>
+              </label>
+            )}
+            {initial.sectionId && azMode === "section" && sectionId === initial.sectionId && (
+              <div style={{ fontSize: 10.5, color: "#55606e", lineHeight: 1.4 }}>{tr("This project has {n} holes, so the panel opened along the latest saved section, on the holes in its corridor.", { n: allIds.length })}</div>
+            )}
+            {initial.trimmed > 0 && azMode === "fit" && (
+              <div style={{ fontSize: 10.5, color: "#55606e", lineHeight: 1.4 }}>{tr("Opened on {k} holes that lie within 100 m of a line fitted through them; {n} others are in the list below, unticked.", { k: initial.ids.length, n: initial.trimmed })}{usableSections.length ? " " + tr("Or draw the panel along a saved section.") : " " + tr("Or draw a cross-section in the 3D View first and use it here.")}</div>
+            )}
             {azMode === "manual" && (
               <label style={rowLabel}>{tr("Azimuth (°)")}<input value={manualAz} onChange={(e) => setManualAz(e.target.value)} style={sel} />
               </label>
@@ -321,7 +357,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
               <button onClick={() => setSelected(new Set(allIds))} style={miniBtn}>{tr("All")}</button>
               <button onClick={() => setSelected(new Set())} style={miniBtn}>{tr("None")}</button>
             </div>
-            <div style={{ maxHeight: 170, overflow: "auto", border: "1px solid #e0e3e8", borderRadius: 5, padding: "4px 6px" }}>
+            <div style={{ maxHeight: 170, minHeight: 90, flexShrink: 0, overflow: "auto", border: "1px solid #e0e3e8", borderRadius: 5, padding: "4px 6px" }}>{/* #1552 — it shrank to two rows when the column filled */}
               {allIds.map((id) => {
                 const h = panel?.holes.find((x) => x.hole_id === id);
                 const over = h && h.maxAbsOffset > offsetLimit;

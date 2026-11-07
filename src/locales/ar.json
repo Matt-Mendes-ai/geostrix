@@ -9068,5 +9068,13 @@
   "Alteration style (optional)": "نمط التحول (اختياري)",
   "e.g. Oxidation": "مثلاً: أكسدة",
   "Alteration style": "نمط التحول",
-  "A logging database with one table per style (oxidation, silicification…)? Name this file's style and its codes come in as 'Style: code' (Oxidation: Pchy), kept apart from another style's same code. Leave it blank to keep the codes as they are.": "قاعدة تسجيل بجدول لكل نمط (أكسدة، تسليك…)؟ سمِّ نمط هذا الملف فتدخل رموزه بصيغة 'النمط: الرمز' (Oxidation: Pchy)، منفصلة عن الرمز نفسه في نمط آخر. اتركه فارغاً لإبقاء الرموز كما هي."
+  "A logging database with one table per style (oxidation, silicification…)? Name this file's style and its codes come in as 'Style: code' (Oxidation: Pchy), kept apart from another style's same code. Leave it blank to keep the codes as they are.": "قاعدة تسجيل بجدول لكل نمط (أكسدة، تسليك…)؟ سمِّ نمط هذا الملف فتدخل رموزه بصيغة 'النمط: الرمز' (Oxidation: Pchy)، منفصلة عن الرمز نفسه في نمط آخر. اتركه فارغاً لإبقاء الرموز كما هي.",
+  "Along a saved section…": "على امتداد مقطع محفوظ…",
+  "Section": "المقطع",
+  "{name} (±{corridor} m)": "{name} (±{corridor} م)",
+  "Or draw the panel along a saved section.": "أو ارسم اللوحة على امتداد مقطع محفوظ.",
+  "Or draw a cross-section in the 3D View first and use it here.": "أو ارسم مقطعاً عرضياً في العرض ثلاثي الأبعاد أولاً واستخدمه هنا.",
+  "The section's own line, from its start, and the holes lying mainly inside its corridor (at least half of the hole). Tick or untick holes below as usual.": "خط المقطع نفسه من بدايته، وثقوب الحفر الواقعة في معظمها داخل ممره (نصف الثقب على الأقل). حدّد الثقوب أو ألغِ تحديدها أدناه كالمعتاد.",
+  "Opened on {k} holes that lie within 100 m of a line fitted through them; {n} others are in the list below, unticked.": "فُتح على {k} ثقباً تقع ضمن 100 م من خط مُلاءم لها؛ والـ {n} الأخرى في القائمة أدناه غير محددة.",
+  "This project has {n} holes, so the panel opened along the latest saved section, on the holes in its corridor.": "يضم هذا المشروع {n} ثقباً، لذا فُتحت اللوحة على امتداد آخر مقطع محفوظ، على الثقوب الواقعة في ممره."
 }

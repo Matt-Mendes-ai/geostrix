@@ -9068,5 +9068,13 @@
   "Alteration style (optional)": "Estilo de alteração (opcional)",
   "e.g. Oxidation": "ex.: Oxidação",
   "Alteration style": "Estilo de alteração",
-  "A logging database with one table per style (oxidation, silicification…)? Name this file's style and its codes come in as 'Style: code' (Oxidation: Pchy), kept apart from another style's same code. Leave it blank to keep the codes as they are.": "Um banco de descrição com uma tabela por estilo (oxidação, silicificação…)? Dê o estilo deste arquivo e seus códigos entram como 'Estilo: código' (Oxidation: Pchy), separados do mesmo código de outro estilo. Deixe em branco para manter os códigos como estão."
+  "A logging database with one table per style (oxidation, silicification…)? Name this file's style and its codes come in as 'Style: code' (Oxidation: Pchy), kept apart from another style's same code. Leave it blank to keep the codes as they are.": "Um banco de descrição com uma tabela por estilo (oxidação, silicificação…)? Dê o estilo deste arquivo e seus códigos entram como 'Estilo: código' (Oxidation: Pchy), separados do mesmo código de outro estilo. Deixe em branco para manter os códigos como estão.",
+  "Along a saved section…": "Ao longo de uma seção salva…",
+  "Section": "Seção",
+  "{name} (±{corridor} m)": "{name} (±{corridor} m)",
+  "Or draw the panel along a saved section.": "Ou desenhe o painel ao longo de uma seção salva.",
+  "Or draw a cross-section in the 3D View first and use it here.": "Ou desenhe primeiro uma seção na Vista 3D e use-a aqui.",
+  "The section's own line, from its start, and the holes lying mainly inside its corridor (at least half of the hole). Tick or untick holes below as usual.": "A própria linha da seção, a partir do início, e os furos que ficam principalmente dentro do seu corredor (ao menos metade do furo). Marque ou desmarque furos abaixo como de costume.",
+  "Opened on {k} holes that lie within 100 m of a line fitted through them; {n} others are in the list below, unticked.": "Aberto com {k} furos que ficam a até 100 m de uma linha ajustada a eles; os outros {n} estão na lista abaixo, desmarcados.",
+  "This project has {n} holes, so the panel opened along the latest saved section, on the holes in its corridor.": "Este projeto tem {n} furos, então o painel abriu ao longo da última seção salva, com os furos do seu corredor."
 }
