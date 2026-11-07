@@ -9061,5 +9061,6 @@
   "On this computer (every project)": "Neste computador (todos os projetos)",
   "None yet. Keep one here with the drive icon beside a template saved in this project.": "Nenhum ainda. Guarde um aqui com o ícone de disco ao lado de um modelo salvo neste projeto.",
   "Delete the template \"{name}\" from this computer": "Excluir o modelo \"{name}\" deste computador",
-  "Delete the template \"{name}\" from this computer? Every project loses it.": "Excluir o modelo \"{name}\" deste computador? Todos os projetos o perdem."
+  "Delete the template \"{name}\" from this computer? Every project loses it.": "Excluir o modelo \"{name}\" deste computador? Todos os projetos o perdem.",
+  "{typed} m would put the grid lines {mm} mm apart on paper at this scale, too close to read: drawn every {step} m.": "{typed} m poria as linhas da grade a {mm} mm no papel nesta escala, perto demais para ler: desenhadas a cada {step} m."
 }

@@ -19,6 +19,7 @@ import { collarTableSlice, collarRowsThatFit, continuationTables } from "../lib/
 import { fitDrillPlan, filterHoles } from "../lib/drillPlan.js"; // TASKS.csv #1639
 import DrillPlanElement, { drillPlanDrawing } from "../components/DrillPlanElement.jsx"; // TASKS.csv #1639
 import { withLiveScaleBars, relinkCopies, tieStarterFurniture, northRotationOf, insertScaleBar, scaleBarTargets, bindScaleBar } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
+import { legibleGridStep, keepLabelsApart } from "../lib/layoutGeometry.js"; // TASKS.csv #1488
 import { worldToVp, capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, holesInFrame, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText, sectionTextPt, sectionTextFactor, isDepthImage, depthScaleDenom, depthHeightForScale } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; sectionTextPt: #1485; section scale: #944
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
@@ -1654,7 +1655,7 @@ function UtmGridOverlay({ el, crs = "" }) {
   const corners = [[-W / 2, -H / 2], [W / 2, -H / 2], [W / 2, H / 2], [-W / 2, H / 2]].map(([u, v]) => [E0 + m * (u * cb - v * sb), N0 - m * (u * sb + v * cb)]);
   const eMin = Math.min(...corners.map((c) => c[0])), eMax = Math.max(...corners.map((c) => c[0]));
   const nMin = Math.min(...corners.map((c) => c[1])), nMax = Math.max(...corners.map((c) => c[1]));
-  const step = el.utmGridStep > 0 ? el.utmGridStep : niceGridStep(Math.max(eMax - eMin, nMax - nMin));
+  const step = legibleGridStep(el.utmGridStep > 0 ? el.utmGridStep : niceGridStep(Math.max(eMax - eMin, nMax - nMin)), m).step; // #1488 — never closer than 10 mm on paper
   // A line {p : n . p = c} (page px, centred) clipped to the frame; returns its two end points.
   const clip = (nx, ny, c) => {
     const pts = [];
@@ -1673,21 +1674,29 @@ function UtmGridOverlay({ el, crs = "" }) {
     if (seg) lines.push({ key: `n${n}`, seg, label: `${Math.round(n).toLocaleString()} N` });
   }
   const toPx = ([u, v]) => [u + W / 2, v + H / 2];
+  // #1488 — a label that would print over another (or over the grid's own note, bottom left) is left off; its line stays
+  const fpx = printPx(printPt.caption), estW = (s) => s.length * fpx * 0.56;
+  const gridNote = crs ? tr("Grid: {crs}, {step} m", { crs, step: step.toLocaleString() }) : tr("Grid: {step} m", { step: step.toLocaleString() });
+  const placed = lines.map((l) => {
+    const [a, b] = l.seg.map(toPx);
+    const lab = a[1] <= b[1] ? a : b; // label at the end nearer the top (or left) edge
+    return { a, b, x: Math.min(W - 2, Math.max(2, lab[0] + 2)), y: Math.min(H - 3, Math.max(9, lab[1] + 9)) };
+  });
+  const show = keepLabelsApart([{ x: 3, y: H - 3 - fpx, w: estW(gridNote), h: fpx }, ...placed.map((p, i) => ({ x: p.x, y: p.y - fpx, w: estW(lines[i].label), h: fpx }))]).slice(1);
   return (
     <svg width={W} height={H} style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-      {lines.map((l) => {
-        const [a, b] = l.seg.map(toPx);
-        const lab = a[1] <= b[1] ? a : b; // label at the end nearer the top (or left) edge
+      {lines.map((l, i) => {
+        const { a, b, x, y } = placed[i];
         return (
           <g key={l.key}>
             <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke="#1a2028" strokeOpacity="0.45" strokeWidth="0.6" />
-            <text x={Math.min(W - 2, Math.max(2, lab[0] + 2))} y={Math.min(H - 3, Math.max(9, lab[1] + 9))} fontSize={printPx(printPt.caption)} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif" style={{ paintOrder: "stroke", stroke: "#ffffff", strokeWidth: 2.5 }}>{l.label}</text>
+            {show[i] && <text x={x} y={y} fontSize={fpx} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif" style={{ paintOrder: "stroke", stroke: "#ffffff", strokeWidth: 2.5 }}>{l.label}</text>}
           </g>
         );
       })}
       {/* TASKS.csv #947 — which grid this is, once, in the corner */}
       <text x={3} y={H - 3} fontSize={printPx(printPt.caption)} fill="#1a2028" fontFamily="'Exo 2', system-ui, sans-serif" style={{ paintOrder: "stroke", stroke: "#ffffff", strokeWidth: 2.5 }}>
-        {crs ? tr("Grid: {crs}, {step} m", { crs, step: step.toLocaleString() }) : tr("Grid: {step} m", { step: step.toLocaleString() })}</text>
+        {gridNote}</text>
     </svg>
   );
 }
@@ -1829,6 +1838,10 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
         )}
       </label>
       {!gridOk && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6 }}>{tr("A UTM grid needs a top-down, true-scale capture.")}</div>}
+      {gridOk && sel.utmGrid && sel.utmGridStep > 0 && (() => { // TASKS.csv #1488 — a spacing too tight to read is drawn wider, and said so
+        const g = legibleGridStep(sel.utmGridStep, metresPerPagePx(sel));
+        return g.bumped ? <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{tr("{typed} m would put the grid lines {mm} mm apart on paper at this scale, too close to read: drawn every {step} m.", { typed: sel.utmGridStep.toLocaleString(), mm: g.mm.toFixed(1), step: g.step.toLocaleString() })}</div> : null;
+      })()}
       <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }}>{tr("Theme")}<select value={sel.themeId || ""} onChange={(e) => onRebind(e.target.value || null)} style={inp}>
           {/* TASKS.csv — "add a viewport with the current view, not only when saving a theme." A
               viewport can now exist with no bound theme at all (themeId: null) — "Refresh from theme"

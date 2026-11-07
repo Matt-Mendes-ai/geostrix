@@ -87,6 +87,30 @@ export function niceGridStep(span) {
   return [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) || 10 * mag;
 }
 
+// TASKS.csv #1488 (review #1352, Layout) — a typed UTM grid spacing of 30 m at 1:25,000 drew lines 1.2 mm apart on paper and
+// smeared every label into the frame's edge. The grid is drawn no closer than MIN_GRID_MM on paper: a tighter spacing is
+// raised to the next round step (1, 2, 2.5, 5 x 10^n) that clears it, and the sidebar says so. mPerPx: metres per page px.
+export const PAGE_PX_PER_MM = 96 / 25.4; // the Layout page is laid out at 96 px per inch
+export const MIN_GRID_MM = 10;
+export function legibleGridStep(step, mPerPx, minMm = MIN_GRID_MM) {
+  if (!(step > 0) || !(mPerPx > 0)) return { step, bumped: false, mm: null };
+  const mm = step / mPerPx / PAGE_PX_PER_MM;
+  const min = minMm * PAGE_PX_PER_MM * mPerPx;
+  if (step >= min * (1 - 1e-9)) return { step, bumped: false, mm };
+  const mag = 10 ** Math.floor(Math.log10(min));
+  return { step: [1, 2, 2.5, 5, 10].map((k) => k * mag).find((v) => v >= min * (1 - 1e-9)), bumped: true, mm };
+}
+// Labels that would print over one another: keep each only if its box clears every box kept before it (in order, so pass
+// the ones that must stay first). boxes: [{ x, y, w, h }] (page px) -> a parallel array of booleans.
+export function keepLabelsApart(boxes, pad = 2) {
+  const kept = [];
+  return boxes.map((b) => {
+    const hit = kept.some((k) => b.x < k.x + k.w + pad && k.x < b.x + b.w + pad && b.y < k.y + k.h + pad && k.y < b.y + b.h + pad);
+    if (!hit) kept.push(b);
+    return !hit;
+  });
+}
+
 // TASKS.csv #912 — page px of a viewport's image (from its centre: u right, v down) <-> world E / N, for a top-down,
 // true-scale capture (the UtmGridOverlay maths: screen-up points at bearing -azimuth). overviewPolygon: the corners of
 // `target`'s image in `overview`'s image px (from its top-left), or null when either is not such a capture.
