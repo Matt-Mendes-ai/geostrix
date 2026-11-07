@@ -59,6 +59,8 @@ import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import EmptyState, { emptyStateSecondaryBtn } from "../components/EmptyState.jsx"; // TASKS.csv #309
 
 const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
+// TASKS.csv #1678 — the X-Y scatter: its axes are chosen on the tab, so it is built there (lib/geochemXY.js); this stands in until they are
+const XY_ENTRY = { id: "xy", label: "X–Y scatter (choose the axes)", requires: [], xLabel: "", yLabel: "", xRange: [0, 1], yRange: [0, 1], project: () => null };
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { labAssays, isPxrfRow, sampleTypeClass } from "../lib/qaqc.js"; // TASKS.csv #1673; sampleTypeClass: #1661
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -70,6 +72,8 @@ import { version as APP_VERSION } from "../../package.json"; // TASKS.csv #1212
 import { useTabNotices } from "../lib/useTabNotices.js"; // TASKS.csv #1203
 import SampleGridPanel from "../components/SampleGridPanel.jsx"; // TASKS.csv #1622
 import { methodColumnFor, methodsIn, partialDigestionFor } from "../lib/digestion.js"; // TASKS.csv #1518
+import { axisOf, xyDiagram } from "../lib/geochemXY.js"; // TASKS.csv #1678
+import { numericSourceChoices } from "../lib/numericSources.js"; // TASKS.csv #1678
 
 const KEY_MAX = 16; // TASKS.csv #1519 — the on-screen colour key's entries
 
@@ -81,6 +85,8 @@ export default function GeochemModule() {
   const assayHoleIds = useMemo(() => new Set(assays.map((a) => a.hole_id)), [assays]);
 
   const [diagramId, setDiagramId] = useKeptState(keptScope, "geochem.diagramId", "boxplot");
+  const [xyX, setXyX] = useKeptState(keptScope, "geochem.xyX", ""); // #1678 — "el:Cu" or a numeric source key
+  const [xyY, setXyY] = useKeptState(keptScope, "geochem.xyY", "");
   const [colorMode, setColorMode] = useKeptState(keptScope, "geochem.colorMode", "hole"); // hole | element | lithology (#619) | uniform
   // TASKS.csv #619 — plot only samples from chosen logged lithologies (null = every sample)
   const [lithFilter, setLithFilter] = useKeptState(keptScope, "geochem.lithFilter", null); // null | Set of codes (NOT_LOGGED = samples with no log)
@@ -150,6 +156,15 @@ export default function GeochemModule() {
   const svgRef = useRef(null);
 
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
+  // TASKS.csv #1678 — the X-Y scatter's axes: elements, then the numeric downhole logs and custom-layer fields (read at each sample's depth)
+  const xyChoices = useMemo(() => numericSourceChoices({ layers: store.layers, customLayers: store.customLayers }), [store.layers, store.customLayers]);
+  const xyKeyX = xyX || (assayElements[0] ? `el:${assayElements[0].symbol}` : ""), xyKeyY = xyY || (assayElements[1] ? `el:${assayElements[1].symbol}` : "");
+  const xyDiag = useMemo(() => {
+    if (diagramId !== "xy") return null;
+    const choice = (key) => { if (!key) return null; if (key.startsWith("el:")) { const e = assayElements.find((x) => x.symbol === key.slice(3)); return e ? { kind: "element", symbol: e.symbol, unit: e.unit } : null; } return xyChoices.find((c) => c.key === key) || null; };
+    const ctx = { layers: store.layers, customLayers: store.customLayers };
+    return xyDiagram(axisOf(choice(xyKeyX), ctx), axisOf(choice(xyKeyY), ctx), sourceRows, elementUnits);
+  }, [diagramId, xyKeyX, xyKeyY, xyChoices, assayElements, sourceRows, elementUnits, store.layers, store.customLayers]);
   // TASKS.csv #1091 (review #1016, software artist) — holes from the colour-blind-safe categorical palette, in name order
   // (golden-angle HSL at one lightness put neighbouring hues at the same lightness, not dichromat-safe)
   const holeColors = useMemo(() => {
@@ -210,7 +225,7 @@ export default function GeochemModule() {
   fn.rank = colorMode === "element" && colorEl ? (sample) => valueIn(sample, colorEl, colorUnit, elementUnits) ?? -Infinity : null;
   return fn; }, [colorMode, colorEl, colorUnit, holeColors, lithColors, sampleLith, colorRange, elementUnits]);
 
-  const diagram = ALL_DIAGRAMS[diagramId];
+  const diagram = diagramId === "xy" ? xyDiag || XY_ENTRY : ALL_DIAGRAMS[diagramId]; // xy: #1678
   // TASKS.csv #1392 — a volcanic-protolith diagram on mostly calcareous samples says so (see carbonateShare)
   const carbShare = useMemo(() => carbonateShare(assays, elementUnits), [assays, elementUnits]);
   const carbonateNote = VOLCANIC_DIAGRAMS.includes(diagramId) && carbShare != null && carbShare > 1 / 3 ? tr("{pct} % of the samples hold 10 % Ca or more (carbonate rock): this diagram assumes a volcanic protolith, so read it with care here.", { pct: Math.round(carbShare * 100) }) : "";
@@ -1018,8 +1033,20 @@ export default function GeochemModule() {
       <div className="ge-main" style={{ display: "flex", flexDirection: "column", padding: 20, overflow: "auto" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
           <select aria-label={tr("Diagram")} value={diagramId} onChange={(e) => setDiagramId(e.target.value)} style={selectStyle}>
-            {Object.values(ALL_DIAGRAMS).map((d) => <option key={d.id} value={d.id}>{tr(d.label)}</option>)}
+            {[...Object.values(ALL_DIAGRAMS), XY_ENTRY].map((d) => <option key={d.id} value={d.id}>{tr(d.label)}</option>)}
           </select>
+          {diagramId === "xy" && ( /* TASKS.csv #1678 — the scatter's two axes */
+            <>
+              {[["X", xyKeyX, setXyX], ["Y", xyKeyY, setXyY]].map(([axis, value, set]) => (
+                <label key={axis} style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{axis}
+                  <select aria-label={tr("{axis} axis", { axis })} value={value} onChange={(e) => set(e.target.value)} style={{ ...selectStyle, padding: "5px 8px", maxWidth: 220 }}>
+                    <optgroup label={tr("Elements")}>{assayElements.map((e) => <option key={e.symbol} value={`el:${e.symbol}`}>{e.unit ? `${e.symbol} (${e.unit})` : e.symbol}</option>)}</optgroup>
+                    {xyChoices.length > 0 && <optgroup label={tr("Downhole logs and custom fields (at each sample's depth)")}>{xyChoices.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}</optgroup>}
+                  </select>
+                </label>
+              ))}
+            </>
+          )}
           {hasPxrf && ( /* TASKS.csv #1673 — which rows the plot uses */
             <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: "#55606e" }} title={tr("Portable XRF readings are screening numbers (zero-length points, 'not detected' zeros, a bad reading at 36,096 ppm Rb): plotted apart from the lab assays unless you choose both.")}>{tr("Samples:")}<select aria-label={tr("Samples plotted")} value={plotSource} onChange={(e) => setPlotSource(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
               <option value="lab">{tr("Lab assays")}</option><option value="pxrf">{tr("pXRF readings (screening)")}</option><option value="both">{tr("Lab + pXRF")}</option>
@@ -1125,7 +1152,7 @@ export default function GeochemModule() {
           </div>
         ) : (
           <div style={{ maxWidth: 680 }}>
-            <GeochemPlot diagramId={diagramId} samples={plotted} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} altBoxes={alterationBoxes?.boxes || PROVISIONAL_ALTERATION_BOXES} describe={describeSample} /> {/* plotted / describe: #619 */}
+            <GeochemPlot diagramId={diagramId} diagramOverride={diagramId === "xy" ? diagram : null} samples={plotted} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} altBoxes={alterationBoxes?.boxes || PROVISIONAL_ALTERATION_BOXES} describe={describeSample} /> {/* plotted / describe: #619 */}
             <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 8 }}>
               {tr("{v}{v2} Below-detection values substituted at half the detection limit.", { v: diagram.spider
                 ? tr("{n} of {assays} samples have at least one plottable element.", { n: plottedCount, assays: sourceRows.length })

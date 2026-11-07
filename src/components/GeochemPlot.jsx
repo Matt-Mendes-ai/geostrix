@@ -38,8 +38,8 @@ function PointsImage({ ordered, colorBy }) {
 }
 
 // describe(sample) -> lines for the hover tooltip (hole, depth, sample id, lithology: TASKS.csv #619)
-export default function GeochemPlot({ diagramId, samples, elementUnits, colorBy, svgRef, altBoxes = null, describe = null }) {
-  const diagram = DIAGRAMS[diagramId] || SPIDER_DIAGRAMS[diagramId];
+export default function GeochemPlot({ diagramId, samples, elementUnits, colorBy, svgRef, altBoxes = null, describe = null, diagramOverride = null }) {
+  const diagram = diagramOverride || DIAGRAMS[diagramId] || SPIDER_DIAGRAMS[diagramId]; // diagramOverride: #1678 — the X-Y scatter, built from its axes
   const localRef = useRef(null);
   const ref = svgRef || localRef;
 
@@ -390,7 +390,11 @@ function logTicks(min, max) {
 function fmtTick(t) {
   if (t === 0) return "0";
   const abs = Math.abs(t);
-  if (abs >= 1000 || abs < 0.001) return t.toExponential(0);
+  // TASKS.csv #1678 — a wavelength axis (2,190-2,215 nm) printed '2e+3' at every tick: exponents only for the decades of a log axis
+  // (and above a million); other large ticks as plain numbers to 0.1
+  if (abs >= 1000 && Math.abs(Math.log10(abs) - Math.round(Math.log10(abs))) < 1e-9) return t.toExponential(0);
+  if (abs >= 1e6 || abs < 0.001) return t.toExponential(2).replace(/\.?0+e/, "e");
+  if (abs >= 1000) return String(Math.round(t * 10) / 10);
   if (Number.isInteger(t)) return String(t);
   return t.toPrecision(4).replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
 }

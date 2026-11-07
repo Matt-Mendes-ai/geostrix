@@ -8602,5 +8602,9 @@
   "Filter holes by a collar field": "Filtrar furos por um campo da boca de furo",
   "By a collar field…": "Por um campo da boca de furo…",
   "+ {n} more (the exported figure lists them all)": "+ {n} mais (a figura exportada lista todos)",
-  "{n} holes, one colour each: too many for a key here (the exported figure lists them; filter the holes to read one)": "{n} furos, uma cor cada: demais para uma legenda aqui (a figura exportada os lista; filtre os furos para ler um)"
+  "{n} holes, one colour each: too many for a key here (the exported figure lists them; filter the holes to read one)": "{n} furos, uma cor cada: demais para uma legenda aqui (a figura exportada os lista; filtre os furos para ler um)",
+  "X–Y scatter (choose the axes)": "Dispersão X–Y (escolha os eixos)",
+  "{axis} axis": "Eixo {axis}",
+  "Downhole logs and custom fields (at each sample's depth)": "Registros de furo e campos próprios (na profundidade de cada amostra)",
+  "Any two axes: assay elements, or a downhole log / custom-layer field read at each sample's mid-depth in the same hole.": "Quaisquer dois eixos: elementos de análise, ou um registro de furo / campo de camada própria lido na profundidade média de cada amostra no mesmo furo."
 }

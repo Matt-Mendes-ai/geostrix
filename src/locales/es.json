@@ -8602,5 +8602,9 @@
   "Filter holes by a collar field": "Filtrar sondajes por un campo del collar",
   "By a collar field…": "Por un campo del collar…",
   "+ {n} more (the exported figure lists them all)": "+ {n} más (la figura exportada los lista todos)",
-  "{n} holes, one colour each: too many for a key here (the exported figure lists them; filter the holes to read one)": "{n} sondajes, un color cada uno: demasiados para una leyenda aquí (la figura exportada los lista; filtre los sondajes para leer uno)"
+  "{n} holes, one colour each: too many for a key here (the exported figure lists them; filter the holes to read one)": "{n} sondajes, un color cada uno: demasiados para una leyenda aquí (la figura exportada los lista; filtre los sondajes para leer uno)",
+  "X–Y scatter (choose the axes)": "Dispersión X–Y (elija los ejes)",
+  "{axis} axis": "Eje {axis}",
+  "Downhole logs and custom fields (at each sample's depth)": "Registros de pozo y campos propios (a la profundidad de cada muestra)",
+  "Any two axes: assay elements, or a downhole log / custom-layer field read at each sample's mid-depth in the same hole.": "Dos ejes cualesquiera: elementos de ensaye, o un registro de pozo / campo de capa propia leído a la profundidad media de cada muestra en el mismo sondaje."
 }

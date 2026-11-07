@@ -8602,5 +8602,9 @@
   "Filter holes by a collar field": "تصفية الآبار حسب حقل في ملف الفوهات",
   "By a collar field…": "حسب حقل الفوهة…",
   "+ {n} more (the exported figure lists them all)": "+ {n} أخرى (يسردها الشكل المُصدَّر كلها)",
-  "{n} holes, one colour each: too many for a key here (the exported figure lists them; filter the holes to read one)": "{n} بئرًا، لون لكل منها: أكثر من أن تُعرض في مفتاح هنا (يسردها الشكل المُصدَّر؛ صفِّ الآبار لقراءة واحد)"
+  "{n} holes, one colour each: too many for a key here (the exported figure lists them; filter the holes to read one)": "{n} بئرًا، لون لكل منها: أكثر من أن تُعرض في مفتاح هنا (يسردها الشكل المُصدَّر؛ صفِّ الآبار لقراءة واحد)",
+  "X–Y scatter (choose the axes)": "مخطط انتشار X–Y (اختر المحورين)",
+  "{axis} axis": "المحور {axis}",
+  "Downhole logs and custom fields (at each sample's depth)": "سجلات البئر والحقول المخصّصة (عند عمق كل عينة)",
+  "Any two axes: assay elements, or a downhole log / custom-layer field read at each sample's mid-depth in the same hole.": "أي محورين: عناصر التحليل، أو سجل بئر / حقل طبقة مخصّصة يُقرأ عند منتصف عمق كل عينة في البئر نفسه."
 }
