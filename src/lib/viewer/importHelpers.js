@@ -13,6 +13,22 @@ const tabular = () => import("../tabular.js"); // TASKS.csv #1493 — the CSV en
 import { t as tr } from "../i18n.js"; // TASKS.csv #786 — messages in the interface language
 import { checkGpkgSize } from "../gpkgSize.js"; // TASKS.csv #1716
 
+// TASKS.csv #1511 (review #1497, Lawyers) — a logging database with one table per alteration style (Oxidation.csv, Silicification.csv)
+// had nowhere to go but the one Alteration layer, where Oxidation's 'Pchy' (patchy oxidation) and Silicification's 'Pchy' (patchy
+// silica) became one category. An Alteration import may name its style; the file's codes then come in as 'Style: code'. The style is
+// read from a file name that names one (not a generic 'alteration' / 'alt' log); the dialog shows it and it can be cleared.
+const ALT_STYLES = [
+  [/oxid|limonit|goethit/i, "Oxidation"], [/silic|silica\b|quartz_?flood/i, "Silicification"], [/sericit/i, "Sericite"], [/chlorit/i, "Chlorite"],
+  [/carbonat|ankerit|dolomitiz/i, "Carbonate"], [/potass|k[-_ ]?spar|biotit/i, "Potassic"], [/argill|clay|kaolin/i, "Argillic"], [/propyl|epidot/i, "Propylitic"],
+  [/hematit/i, "Hematite"], [/albit/i, "Albite"], [/skarn|garnet/i, "Skarn"], [/tourmalin/i, "Tourmaline"], [/fuchsit|mariposit/i, "Fuchsite"], [/bleach/i, "Bleaching"],
+];
+export function alterationStyleFromName(fileName) {
+  const stem = String(fileName || "").replace(/ \(\d+ more queued\)$/, "").replace(/\.[^.]+$/, "");
+  for (const [re, name] of ALT_STYLES) if (re.test(stem)) return name;
+  return "";
+}
+export const styledAltValue = (style, value) => (String(style || "").trim() ? `${String(style).trim()}: ${value}` : value);
+
 export function normInterval(r, mapping, customFields) {
   return applyCustomFields({
     hole_id: String(r[mapping.hole_id] ?? "").trim(),

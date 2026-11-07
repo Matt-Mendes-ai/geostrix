@@ -9064,5 +9064,9 @@
   "Delete the template \"{name}\" from this computer? Every project loses it.": "¿Eliminar la plantilla \"{name}\" de esta computadora? Todos los proyectos la pierden.",
   "{typed} m would put the grid lines {mm} mm apart on paper at this scale, too close to read: drawn every {step} m.": "{typed} m pondría las líneas de la cuadrícula a {mm} mm en el papel a esta escala, demasiado juntas para leerse: se dibujan cada {step} m.",
   "Dropped on the map, only rasters (.tif, .gxf, .grd) import. {names}: use Boundaries, Terrain or Web layers above, or Surface Geology for a geology map.": "Al soltarlos sobre el mapa solo se importan rásters (.tif, .gxf, .grd). {names}: use Límites, Terreno o Capas web arriba, o Geología de superficie para un mapa geológico.",
-  "{n} with a value outside the plausible {min}–{max} ({range}: a keying or unit error?)": "{n} con un valor fuera del rango plausible {min}–{max} ({range}: ¿un error de digitación o de unidades?)"
+  "{n} with a value outside the plausible {min}–{max} ({range}: a keying or unit error?)": "{n} con un valor fuera del rango plausible {min}–{max} ({range}: ¿un error de digitación o de unidades?)",
+  "Alteration style (optional)": "Estilo de alteración (opcional)",
+  "e.g. Oxidation": "p. ej. Oxidación",
+  "Alteration style": "Estilo de alteración",
+  "A logging database with one table per style (oxidation, silicification…)? Name this file's style and its codes come in as 'Style: code' (Oxidation: Pchy), kept apart from another style's same code. Leave it blank to keep the codes as they are.": "¿Una base de registro con una tabla por estilo (oxidación, silicificación…)? Nombre el estilo de este archivo y sus códigos entran como 'Estilo: código' (Oxidation: Pchy), separados del mismo código de otro estilo. Déjelo en blanco para conservar los códigos tal como están."
 }

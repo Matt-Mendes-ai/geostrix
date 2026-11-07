@@ -4,6 +4,7 @@ import { crsName } from "../lib/reproject.js"; // TASKS.csv #488
 import SourceCrsField from "../components/SourceCrsField.jsx"; // TASKS.csv #488
 import { X } from "./icons.js";
 import { TARGET_SCHEMAS, guessMapping, LAYER_META } from "../lib/layers.js";
+import { alterationStyleFromName } from "../lib/viewer/importHelpers.js"; // TASKS.csv #1511
 import { AZIMUTH_REFS } from "../lib/azimuthRef.js"; // TASKS.csv #396
 import { fitSimilarity, parseControlPoints } from "../lib/localGrid.js"; // TASKS.csv #412
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -160,6 +161,17 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
                 </select>
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("If this dataset's own column already tags each row with its EPSG (e.g. a merged regional database export with rows in more than one UTM zone), map it here instead — each row is reprojected from its own value in that column. Rows with a blank or unrecognized value fall back to the Source CRS field above.")}</div>
               </div>
+            </div>
+          )}
+
+          {/* TASKS.csv #1511 — one table per alteration style: its codes come in as 'Style: code', apart from another style's same code */}
+          {modal.target === "alt" && (
+            <div style={{ marginTop: 14 }}>
+              <label style={label}>{tr("Alteration style (optional)")}
+                <input type="text" value={modal.altStyle ?? alterationStyleFromName(modal.fileName)} placeholder={tr("e.g. Oxidation")} onChange={(e) => onChange({ ...modal, altStyle: e.target.value })}
+                  style={{ display: "block", marginTop: 4, width: 220, fontSize: "var(--font-size-base)" }} aria-label={tr("Alteration style")} />
+              </label>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 4, lineHeight: 1.4 }}>{tr("A logging database with one table per style (oxidation, silicification…)? Name this file's style and its codes come in as 'Style: code' (Oxidation: Pchy), kept apart from another style's same code. Leave it blank to keep the codes as they are.")}</div>
             </div>
           )}
 

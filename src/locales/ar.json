@@ -9064,5 +9064,9 @@
   "Delete the template \"{name}\" from this computer? Every project loses it.": "هل تحذف القالب \"{name}\" من هذا الحاسوب؟ ستفقده كل المشاريع.",
   "{typed} m would put the grid lines {mm} mm apart on paper at this scale, too close to read: drawn every {step} m.": "{typed} م تجعل خطوط الشبكة على بعد {mm} مم على الورق بهذا المقياس، وهي متقاربة جداً للقراءة: رُسمت كل {step} م.",
   "Dropped on the map, only rasters (.tif, .gxf, .grd) import. {names}: use Boundaries, Terrain or Web layers above, or Surface Geology for a geology map.": "عند الإفلات على الخريطة تُستورد النقوش النقطية فقط (.tif و.gxf و.grd). {names}: استخدم الحدود أو التضاريس أو الطبقات الشبكية أعلاه، أو الجيولوجيا السطحية لخريطة جيولوجية.",
-  "{n} with a value outside the plausible {min}–{max} ({range}: a keying or unit error?)": "{n} بقيمة خارج النطاق المعقول {min}–{max} ({range}: خطأ إدخال أو وحدات؟)"
+  "{n} with a value outside the plausible {min}–{max} ({range}: a keying or unit error?)": "{n} بقيمة خارج النطاق المعقول {min}–{max} ({range}: خطأ إدخال أو وحدات؟)",
+  "Alteration style (optional)": "نمط التحول (اختياري)",
+  "e.g. Oxidation": "مثلاً: أكسدة",
+  "Alteration style": "نمط التحول",
+  "A logging database with one table per style (oxidation, silicification…)? Name this file's style and its codes come in as 'Style: code' (Oxidation: Pchy), kept apart from another style's same code. Leave it blank to keep the codes as they are.": "قاعدة تسجيل بجدول لكل نمط (أكسدة، تسليك…)؟ سمِّ نمط هذا الملف فتدخل رموزه بصيغة 'النمط: الرمز' (Oxidation: Pchy)، منفصلة عن الرمز نفسه في نمط آخر. اتركه فارغاً لإبقاء الرموز كما هي."
 }

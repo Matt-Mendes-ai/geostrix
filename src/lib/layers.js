@@ -650,7 +650,11 @@ export const TARGET_SCHEMAS = {
   // TASKS.csv #600 — the column names real logging exports use (acQuire / MX Deposit, seen in BC ARIS reports):
   // numbered primary columns (Alt1_Code, Min1_Code / Min_Code1, Vein1_Comp / Vein_Type1, MagSus1, Ave_Reading,
   // BulkDens_Calc, SG_D). Listed FIRST so the primary (1st) column wins over a later one.
-  alt: { label: "Alteration", fields: intervalFields(["alt1_code", "alt_code", "alt_assemblage", "alt_rx_min1_type", "alt_min1_type", "alt_min_1_type", "assemblage", "alteration"]) }, // alt_rx_min1_type: #1345 (acQuire)
+  alt: { label: "Alteration", fields: [
+    ...intervalFields(["alt1_code", "alt_code", "alt_assemblage", "alt_rx_min1_type", "alt_min1_type", "alt_min_1_type", "assemblage", "alteration"]), // alt_rx_min1_type: #1345 (acQuire)
+    // TASKS.csv #1511 — intensity as logged (text: "3", "W", "strong"), as structural zones keep it (#604)
+    { key: "intensity", label: "Intensity (optional)", required: false, aliases: ["alt1_intensity", "alt_intensity", "alt1_int", "alt_int", "alteration_intensity", "intensity"] },
+  ] },
   vein: { label: "Veins", fields: intervalFields(["vein1_comp", "vein_type1", "vein1_type", "vein_comp", "assemblage", "type", "vein_type", "type_code"]) }, // type_code: 40958Z "Vein type"
   breccia: { label: "Breccia", fields: intervalFields(["breccia_type", "brecc_type", "brx_type", "bx_type", "bx_class", "breccia", "assemblage", "genesis", "type"]) }, // TASKS.csv #608; bx_class: #1345
   // TASKS.csv #604 — structure logged as zones (from / to + code + intensity + alpha), Matt 2026-10-21: "keep it as
