@@ -14,6 +14,7 @@ import { errorNotice, notice } from "../../lib/notices.js";
 import { intervalEndIndex, intervalStartIndex, upperContactOf } from "../../lib/viewer/intervals.js";
 import { findOnTrace, interceptId } from "../../lib/viewer/modelHelpers.js";
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
+import { faultLikeName } from "../../lib/layers.js"; // TASKS.csv #1549
 
 const createRunsCache = { fn: null }; // TASKS.csv #697 — modellingRuns.js once loaded
 
@@ -85,7 +86,7 @@ export function useModelling(ctx) {
     (layers.structure || []).forEach((s) => {
       if (!Number.isFinite(s.dip) || !Number.isFinite(s.azimuth)) return;
       const key = `${s.value}|${s.structure_id || ""}`;
-      const e = m.get(key) || { key, type: s.value, id: s.structure_id || "", n: 0, faultLike: /flt|fault|shear|shz/i.test(`${s.value} ${s.structure_id || ""}`) };
+      const e = m.get(key) || { key, type: s.value, id: s.structure_id || "", n: 0, faultLike: faultLikeName(`${s.value} ${s.structure_id || ""}`) }; // #1549
       e.n++; m.set(key, e);
     });
     return [...m.values()].sort((a, b) => (b.faultLike - a.faultLike) || a.key.localeCompare(b.key));

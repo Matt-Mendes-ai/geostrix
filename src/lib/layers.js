@@ -59,6 +59,14 @@ export function nextGroupColour(groups, name = "") {
   const used = new Set((groups || []).map((g) => String(g?.color || "").toLowerCase()));
   return CATEGORICAL_SAFE_COLORS.find((c) => !used.has(c.toLowerCase())) || hashColor(String(name || "group").toLowerCase());
 }
+// TASKS.csv #1549 (review #1497, Lawyers) — the fault picker's 'Named as faults' group used /flt|fault|shear|shz/, so Lawyers' fault
+// zones fz-gc, fz-gr, fz-bx, fz-br and fz-sl fell under 'Other structure types'. The fault vocabulary of the lithology roles, as
+// whole tokens of a structure type or id ('fz-gc', 'SH', 'Fault zone'), plus fault / shear inside a word ('Shearzone').
+const FAULT_TOKENS = new Set(["fz", "flt", "fltz", "fault", "faults", "shear", "shz", "sh", "gouge", "gge"]);
+export function faultLikeName(text) {
+  const t = String(text || "").toLowerCase();
+  return /fault|shear/.test(t) || t.split(/[^a-z0-9]+/).some((w) => FAULT_TOKENS.has(w));
+}
 const categoricalColorCache = new Map(); // namespace -> Map(code -> color), persists for the app session
 function categoricalSafeColor(namespace, key) {
   let cache = categoricalColorCache.get(namespace);
