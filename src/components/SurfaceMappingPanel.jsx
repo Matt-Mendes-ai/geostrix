@@ -121,7 +121,10 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
       colourAt++;
       if (!qml && isCoveringPolygon(layer.name, layer.geomType)) layer = { ...layer, opacity: 0.08, showOutlines: true }; // #1325
       layersAdded++;
-      addMapLayer({ ...layer, drapeMode: terrain ? "terrain" : layer.hasZ && layer.geomType !== "polygon" ? "file" : "flat" }); // file: #1601 — points and lines at their own elevations
+      // file: #1601 — points and lines at their own elevations. TASKS.csv #1606 (review #1497, Lawyers) — with no terrain yet the layer is still
+      // 'terrain' (drawn flat at its elevation until one exists, sceneBuilders.syncMapLayers), so a terrain built later drapes it: as 'flat'
+      // it stayed at 1,834 m over the new terrain until 'Drape on terrain' was ticked on each card
+      addMapLayer({ ...layer, drapeMode: !terrain && layer.hasZ && layer.geomType !== "polygon" ? "file" : "terrain" });
       // TASKS.csv #1116 — whole phrases (the geometry name used to take an English "s")
       // #1716 — read in place: one line, counted against the whole table, not against the rows the R-tree returned
       if (parsed.inPlace) done.push(tr("{name}: {kept} of its {total} features lie near the project, read from the file in place; the rest, far from the holes and samples, were left out.", { name: layer.name, kept: layer.features.length.toLocaleString(), total: parsed.inPlace.total.toLocaleString() }));
@@ -486,7 +489,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
               <Trash2 aria-label={tr("Remove map layer \"{name}\"", { name: l.name })} title={tr("Remove map layer \"{name}\"", { name: l.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: l.name }))) removeMapLayer(l.id); }} />
             </div>
             <label style={{ ...row, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
-              <input type="checkbox" checked={l.drapeMode === "terrain" && !!terrain} disabled={!terrain}
+              <input type="checkbox" checked={l.drapeMode === "terrain" && !!terrain} disabled={!terrain} title={!terrain && l.drapeMode === "terrain" ? tr("Flat for now: it drapes on the terrain once one is loaded.") : undefined} /* #1606 */
                 onChange={(e) => updateMapLayer(l.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
               <span style={{ color: "var(--color-text-caption)" }}>{tr("Drape on terrain{v}", { v: !terrain ? tr(" (import or fetch a DEM first, or offline: Geophysics > Block models > Terrain from the model's top)") /* #1824 */ : "" })}</span>
             </label>
