@@ -8943,5 +8943,11 @@
   "{unit}, log scale": "{unit}، مقياس لوغاريتمي",
   "Figure legend": "مفتاح الشكل",
   "{n} {el} samples{m}, on the grid's colour scale": "{n} عينة {el}{m}، على مقياس ألوان الشبكة",
-  "Contours: {levels} {unit}": "خطوط الكنتور: {levels} {unit}"
+  "Contours: {levels} {unit}": "خطوط الكنتور: {levels} {unit}",
+  "Centre each page's map on its hole": "توسيط خريطة كل صفحة على ثقبها",
+  "Each page's top-down map is rendered again in the 3D View, centred on its hole at the template's scale: about a second per page. Off: every page shows the template's map, with its hole marked.": "تُعاد عرض خريطة كل صفحة من الأعلى في العرض ثلاثي الأبعاد، متوسطة على ثقبها بمقياس القالب: نحو ثانية لكل صفحة. عند الإيقاف: تُظهر كل صفحة خريطة القالب مع تعليم ثقبها.",
+  "Centring each atlas page's map on its hole: {i} of {n}": "توسيط خريطة كل صفحة من الأطلس على ثقبها: {i} من {n}",
+  "Centred the map on its hole on {n} of {t} atlas page(s), at the template's scale.": "وُسِّطت الخريطة على ثقبها في {n} من {t} صفحة أطلس، بمقياس القالب.",
+  "Cancelled: the other pages keep the template's map, with their hole marked.": "أُلغي: تحتفظ الصفحات الأخرى بخريطة القالب مع تعليم ثقبها.",
+  "{n} page(s) could not be captured and keep the template's map.": "تعذر التقاط {n} صفحة وتحتفظ بخريطة القالب."
 }

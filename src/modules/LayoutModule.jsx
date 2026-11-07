@@ -6,7 +6,7 @@ import { newTitleBlock, STOCK_TEMPLATES, stockTemplateElements, templateFile, pa
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import { savePDF, saveFile, exportPDFData, canvasPngBytes, sendSectionResnap } from "../lib/desktop.js"; // saveFile / exportPDFData: TASKS.csv #909 Export PNG; canvasPngBytes: #1040; sendSectionResnap: #1485
 import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
-import { useStore } from "../lib/store.jsx";
+import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskProgress: #1644
 import PromptModal from "../components/PromptModal.jsx";
 import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups, outcropLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633; outcropLegendGroup: #1437
@@ -113,7 +113,10 @@ export default function LayoutModule() {
     layoutPrintRequest, requestLayoutPrint, // TASKS.csv #908
     terrain, rasters, // TASKS.csv #949 — {credits}
     viewerUiState, // TASKS.csv #1092 — legendOverride for the Atlas strip logs
+    viewportBatchDone, setViewportBatchDone, // TASKS.csv #1644 — an atlas's maps centred on their holes
   } = useStore();
+  const setTaskProgress = useSetTaskProgress();
+  useEffect(() => { if (viewportBatchDone) setTaskProgress?.(null); }, [viewportBatchDone, setTaskProgress]);
   const [selected, setSelected] = useState(null);
   // TASKS.csv #398 — the active page's paper size in screen px (96 dpi); named A4 for the existing uses.
   const activePage = layoutPages.find((pg) => pg.id === activeLayoutPageId);
@@ -1007,6 +1010,16 @@ export default function LayoutModule() {
             <RibbonButton icon={ImageIcon} label="Export PNG" tone="output" title="Export the current page as a PNG image, at the resolution chosen in the page bar" onClick={() => requestLayoutPrint({ kind: "png", dpi: pngDpi })} />{/* TASKS.csv #909 */}{/* #511 — the page's own size / orientation, as Ctrl+P does (#398) */}
           </RibbonGroup>
         </Ribbon>
+        {viewportBatchDone && ( /* TASKS.csv #1644 */
+          <div role="status" style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 8, padding: "7px 10px", background: viewportBatchDone.failed ? "var(--color-warn-bg)" : "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, fontSize: "var(--font-size-sm)", lineHeight: 1.45 }}>
+            <span style={{ flex: 1 }}>{[
+              tr("Centred the map on its hole on {n} of {t} atlas page(s), at the template's scale.", { n: viewportBatchDone.done - viewportBatchDone.failed, t: viewportBatchDone.total }),
+              viewportBatchDone.cancelled ? tr("Cancelled: the other pages keep the template's map, with their hole marked.") : "",
+              viewportBatchDone.failed ? tr("{n} page(s) could not be captured and keep the template's map.", { n: viewportBatchDone.failed }) : "",
+            ].filter(Boolean).join(" ")}</span>
+            <button type="button" onClick={() => setViewportBatchDone(null)} aria-label={tr("Close")} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><X size={14} /></button>
+          </div>
+        )}
         <input ref={logoInput} type="file" accept="image/*" style={{ display: "none" }} onChange={onLogoFile} />
         <input ref={templateInput} type="file" accept=".json" style={{ display: "none" }} onChange={onTemplateFile} aria-label={tr("Import a layout template")} />{/* #1868 */}
         {themePickerFor === "new" && (

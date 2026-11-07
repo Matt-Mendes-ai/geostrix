@@ -11,7 +11,7 @@
 // silently dropped, so a property-overview visual still appears on every page even though it isn't
 // per-item.
 import { buildStripLogDataUrl } from "./striplogSvg.js";
-import { utmGridReady } from "./layoutGeometry.js"; // TASKS.csv #1644
+import { utmGridReady, metresPerPagePx } from "./layoutGeometry.js"; // TASKS.csv #1644
 
 // TASKS.csv #1644 (review #1497, Lawyers) — each hole marked on the template's map. The viewport is still the template's one capture
 // (see above), so a page used to show the district plan with nothing saying where its hole was (21AGBDD001 800 m off centre,
@@ -20,6 +20,24 @@ import { utmGridReady } from "./layoutGeometry.js"; // TASKS.csv #1644
 export function markHoleOnViewports(elements, collar) {
   if (!collar || !Number.isFinite(collar.x) || !Number.isFinite(collar.y)) return elements;
   return elements.map((el) => (el.type === "viewport" && utmGridReady(el) ? { ...el, markHole: { id: String(collar.hole_id), x: collar.x, y: collar.y } } : el));
+}
+
+// TASKS.csv #1644 — each page's map re-captured centred on its hole at the template's scale (store.jsx requestViewportBatch): one
+// request per marked top-down viewport, at the scale the template printed (its fixed scale, else what its capture measured), the
+// frame's own size (a strip log may have narrowed it: the map keeps its scale and shows less ground), the template's theme, or
+// for a theme-less capture the view it was taken with (its camera). pages: the generated pages; pageIds: their ids, in order.
+export function atlasRecaptureItems(pages, pageIds) {
+  const items = [];
+  pages.forEach((pg, i) => {
+    for (const el of pg.elements || []) {
+      if (el.type !== "viewport" || !el.markHole) continue;
+      const mpp = metresPerPagePx(el);
+      const scale = el.capturedFixedScale > 0 ? el.capturedFixedScale : el.fixedScale > 0 ? el.fixedScale : mpp ? Math.round(mpp / (0.0254 / 96)) : null;
+      if (!scale || !pageIds[i]) continue;
+      items.push({ pageId: pageIds[i], elementId: el.id, themeId: el.themeId || null, viewState: el.themeId ? null : el.viewState || null, fixedScale: scale, elementW: el.w, elementH: el.h, centreWorld: { x: el.markHole.x, y: el.markHole.y } });
+    }
+  });
+  return items;
 }
 
 // Tokens available to each atlas mode — shown in the UI so the user knows what to type into a text

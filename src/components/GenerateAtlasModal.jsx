@@ -3,7 +3,9 @@ import { X, LayoutGrid, Loader2 } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, panel, header, label as labelStyle, sel, btn } from "../lib/modalStyles.js";
-import { generateAtlasPages, HOLE_TOKENS, SECTION_TOKENS } from "../lib/atlas.js";
+import { generateAtlasPages, HOLE_TOKENS, SECTION_TOKENS, atlasRecaptureItems } from "../lib/atlas.js";
+import { useStore } from "../lib/store.jsx"; // TASKS.csv #1644
+import { utmGridReady } from "../lib/layoutGeometry.js"; // TASKS.csv #1644
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
@@ -18,6 +20,10 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
   // TASKS.csv #1644 — a large project opens with nothing ticked (446 holes opened as 'Generate 446 pages')
   const [selectedIds, setSelectedIds] = useState(() => new Set(collars.length > 50 ? [] : collars.map((c) => c.hole_id)));
   const [includeStripLog, setIncludeStripLog] = useState(true);
+  // TASKS.csv #1644 — each page's top-down map re-captured on its hole, at the template's scale (one 3D render per page)
+  const { requestViewportBatch } = useStore();
+  const hasPlanMap = templateElements.some((el) => el.type === "viewport" && utmGridReady(el));
+  const [centreMaps, setCentreMaps] = useState(true);
   const [lithoPatterns, setLithoPatterns] = useState(true); // TASKS.csv #1995
   const [assaySymbols, setAssaySymbols] = useState(["", "", ""]); // TASKS.csv #1480 — up to three assay tracks
   const assayTracks = useMemo(() => { const syms = assaySymbols.filter(Boolean).filter((s, i, a) => a.indexOf(s) === i); return syms.length ? { assays, assaySymbols: syms, elementUnits: Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])) } : null; }, [assaySymbols, assays, assayElements]);
@@ -72,7 +78,10 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
       const smallest = Math.min(...pages.map((pg) => pg.textPt).filter(Number.isFinite));
       const smallText = Number.isFinite(smallest) && smallest < 6 ? ` ${tr("The longest strip log prints its labels at about {pt} pt on this page: use a larger page, or the strip log window for a full-size log.", { pt: smallest.toFixed(1) })}` : "";
       const batch = `atlas_${Date.now()}`; // TASKS.csv #1636 — removable as one batch
-      addLayoutPages(pages.map((pg) => ({ ...pg, batch })));
+      const pageIds = addLayoutPages(pages.map((pg) => ({ ...pg, batch })));
+      // #1644 — then each page's map, centred on its hole: the 3D View renders them one by one and Layout comes back at the end
+      const recapture = mode === "hole" && centreMaps && hasPlanMap ? atlasRecaptureItems(pages, pageIds) : [];
+      if (recapture.length) { requestViewportBatch(recapture); onClose(); return; }
       const failed = pages.filter((pg) => pg.stripLogFailed).map((pg) => pg.name); // #1080
       // #1772 — what making room for the strip log did to the template's elements
       const narrowedPages = pages.filter((pg) => pg.narrowed > 0).length, coveredPages = pages.filter((pg) => pg.overlapping > 0).length;
@@ -106,6 +115,10 @@ export default function GenerateAtlasModal({ onClose, templateElements, collars,
               <option value="section">{tr("One page per section ({sections})", { sections: sections.length })}</option>
             </select>
           </div>
+          {mode === "hole" && hasPlanMap && ( /* TASKS.csv #1644 */
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }} title={tr("Each page's top-down map is rendered again in the 3D View, centred on its hole at the template's scale: about a second per page. Off: every page shows the template's map, with its hole marked.")}>
+              <input type="checkbox" checked={centreMaps} onChange={(e) => setCentreMaps(e.target.checked)} />{tr("Centre each page's map on its hole")}</label>
+          )}
           {mode === "hole" && (
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)" }}>
               <input type="checkbox" checked={includeStripLog} onChange={(e) => setIncludeStripLog(e.target.checked)} />{tr("Add a strip log image (litho/alteration/vein/RQD%) to each page")}</label>

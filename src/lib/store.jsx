@@ -764,8 +764,11 @@ export function StoreProvider({ children }) {
     const elementH = Number(opts.elementH) > 0 ? Number(opts.elementH) : null;
     // TASKS.csv #907 — "Fit the holes": the capture is centred on this world E / N instead of where the camera looked
     const centreWorld = opts.centreWorld && Number.isFinite(opts.centreWorld.x) && Number.isFinite(opts.centreWorld.y) ? { x: opts.centreWorld.x, y: opts.centreWorld.y } : null;
-    setViewportPendingRequest({ requestId, targetElementId, themeId, trueScale, interactive, fixedScale, elementW, elementH });
-    setViewportRenderRequest({ requestId, themeId, trueScale, interactive, fixedScale, elementW, elementH, centreWorld });
+    // TASKS.csv #1644 — an atlas batch: the element lives on another page (pageId), the template's own view settings are applied
+    // for a theme-less viewport (viewState: the camera it was captured with), and the 3D View shows the batch's progress
+    const targetPageId = opts.pageId || null, viewState = opts.viewState || null, batch = opts.batch || null;
+    setViewportPendingRequest({ requestId, targetElementId, themeId, trueScale, interactive, fixedScale, elementW, elementH, targetPageId });
+    setViewportRenderRequest({ requestId, themeId, trueScale, interactive, fixedScale, elementW, elementH, centreWorld, viewState, batch });
     setViewportRenderRequestSeq((s) => s + 1);
     return requestId;
   }, []);
@@ -786,6 +789,30 @@ export function StoreProvider({ children }) {
   const requestLayoutPrint = useCallback((opts = {}) => setLayoutPrintRequest({ seq: Date.now() + Math.random(), ...opts }), []);
 
   const addViewportToPage = (els, view) => tieStarterFurniture([...els, view], view);
+  // TASKS.csv #1644 (review #1497) — an atlas's maps re-captured one page at a time, each centred on its hole at the template's scale:
+  // a queue of { pageId, elementId, themeId, viewState, fixedScale, elementW, elementH, centreWorld }; each result is written to its
+  // own page and the next request goes out from the 3D View (no hop back to Layout in between); Layout is shown once at the end
+  const viewportBatchRef = useRef(null);
+  const [viewportBatchDone, setViewportBatchDone] = useState(null);
+  const issueBatchItem = (it, b) => requestViewportRender(it.themeId || null, it.elementId, true, false, { fixedScale: it.fixedScale, elementW: it.elementW, elementH: it.elementH, centreWorld: it.centreWorld, pageId: it.pageId, viewState: it.viewState || null, batch: { index: b.done + 1, total: b.total } });
+  const requestViewportBatch = useCallback((items) => {
+    if (!items?.length) return;
+    const b = { queue: items.slice(1), done: 0, total: items.length, failed: 0, cancelled: false };
+    viewportBatchRef.current = b;
+    issueBatchItem(items[0], b);
+    goToModule("viewer");
+  }, []);
+  const cancelViewportBatch = useCallback(() => { if (viewportBatchRef.current) viewportBatchRef.current.cancelled = true; }, []);
+  // -> true when the next capture of the batch went out (the caller stays on the 3D View)
+  const continueViewportBatch = (failed) => {
+    const b = viewportBatchRef.current;
+    if (!b) return false;
+    b.done++; if (failed) b.failed++;
+    if (!b.cancelled && b.queue.length) { issueBatchItem(b.queue.shift(), b); return true; }
+    viewportBatchRef.current = null;
+    setViewportBatchDone({ done: b.done, total: b.total, failed: b.failed, cancelled: b.cancelled, seq: Date.now() });
+    return false;
+  };
   // Applies a viewport render result to layoutElements as soon as it matches the outstanding pending
   // request, regardless of whether LayoutModule happens to be mounted right now, then hops back to
   // the Layout tab. Runs in StoreProvider, which is mounted for the whole app lifetime.
@@ -793,13 +820,16 @@ export function StoreProvider({ children }) {
     if (!viewportRenderResult || !viewportPendingRequest) return;
     if (viewportRenderResult.requestId !== viewportPendingRequest.requestId) return;
     const res = viewportRenderResult;
-    const { targetElementId, elementW: reqW, elementH: reqH } = viewportPendingRequest;
+    const { targetElementId, elementW: reqW, elementH: reqH, targetPageId } = viewportPendingRequest;
     setViewportPendingRequest(null);
+    // #1644 — an atlas page's element is written on its own page, not the active one
+    const applyEls = targetPageId ? (fn) => setLayoutPages((pages) => pages.map((p) => (p.id === targetPageId ? { ...p, elements: fn(p.elements) } : p))) : setLayoutElements;
 
     if (res.error) {
       if (targetElementId !== "new") {
-        setLayoutElements((els) => els.map((el) => el.id === targetElementId ? { ...el, refreshing: false } : el));
+        applyEls((els) => els.map((el) => el.id === targetElementId ? { ...el, refreshing: false } : el));
       }
+      if (continueViewportBatch(true)) return; // #1644
       goToModule("layout");
       return;
     }
@@ -818,7 +848,7 @@ export function StoreProvider({ children }) {
       }));
       setLayoutSelectRequest(id);
     } else {
-      setLayoutElements((els) => els.map((el) => el.id === targetElementId
+      applyEls((els) => els.map((el) => el.id === targetElementId
         ? { ...el, src: res.src, aspect, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, refreshing: false, viewState: res.viewState || null, samplesUnplaced: res.samplesUnplaced || 0, // viewState: #948; samplesUnplaced: #1864
             // TASKS.csv #906 — the capture was rendered at the frame's own aspect (reqW x reqH page px), so the frame keeps
             // the size the user gave it and the image fills it; capW / capH remember that size, and a later resize shows
@@ -828,8 +858,9 @@ export function StoreProvider({ children }) {
             ...capturedFrameFields(el, reqW, reqH, aspect, res.fixedScale), // #961 — tested in layoutGeometry
             capturedFixedScale: res.fixedScale || null, adjustZoomScale: res.zoomScale || null /* #1486 — 'Use the zoom' in the sidebar */ }
         : el));
-      setLayoutSelectRequest(targetElementId);
+      if (!targetPageId) setLayoutSelectRequest(targetElementId);
     }
+    if (continueViewportBatch(false)) return; // #1644 — the next atlas page
     goToModule("layout");
   }, [viewportRenderResultSeq]);
 
@@ -1661,6 +1692,7 @@ export function StoreProvider({ children }) {
     layoutPages, activeLayoutPageId, switchLayoutPage, addLayoutPage, addLayoutPages, renameLayoutPage, deleteLayoutPage, setLayoutPageFormat, sendLayoutElement, // sendLayoutElement: #1484
     layoutTemplates, addLayoutTemplate, renameLayoutTemplate, deleteLayoutTemplate,
     viewportRenderRequest, viewportRenderRequestSeq, requestViewportRender, viewportPendingRequest,
+    requestViewportBatch, cancelViewportBatch, viewportBatchDone, setViewportBatchDone, // TASKS.csv #1644
     viewportRenderResult, viewportRenderResultSeq, resolveViewportRender,
     layoutSelectRequest, setLayoutSelectRequest,
     layoutPrintRequest, requestLayoutPrint, // TASKS.csv #908

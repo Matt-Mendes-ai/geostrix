@@ -650,7 +650,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     lastCamState, setLastCamState,
     addLayoutImage, goToModule, requestViewportRender, // requestViewportRender: #1005
     themes, addTheme, renameTheme, deleteTheme,
-    viewportRenderRequest, viewportPendingRequest, resolveViewportRender,
+    viewportRenderRequest, viewportPendingRequest, resolveViewportRender, cancelViewportBatch, // cancel: #1644
     rasters, addRaster, updateRaster, removeRaster,
     boundaries, addBoundary, updateBoundary, removeBoundary,
     mapLayers, surfaceStructures, // TASKS.csv #316/#317
@@ -3059,7 +3059,7 @@ ${describeTrend(t)}` };
       worldHeightAtTarget, themeName: theme?.name, cameraAzimuthDeg, trueScale: !!req.trueScale, targetWorld, planView, fixedScale: orthoHalfH != null && req.fixedScale > 0 ? req.fixedScale : null, zoomScale, // zoomScale: #1486
       // TASKS.csv #948 — a "current view" capture has no theme to read its legend from: the view's own settings (the same
       // bundle a theme saves), kept on the viewport so Layout's "Load from view" works for it
-      viewState: theme ? null : liveViewBeforeRender,
+      viewState: theme ? null : (req.viewState || liveViewBeforeRender), // #1644 — an atlas page keeps its template's
       samplesUnplaced: unplacedForCaptureRef.current, // TASKS.csv #1864 — surface samples over a void of the terrain: in no frame
     }), (err) => resolveViewportRender({ requestId: req.requestId, error: err.message }));
     // Hopping back to "layout" now happens in store.jsx's own result-effect (right after it applies
@@ -3110,7 +3110,8 @@ ${describeTrend(t)}` };
     // entirely), and restoring it afterward is still correct — it's a no-op restore of the exact
     // state that's already live.
     const liveViewBeforeRender = liveViewBundleFromStoreRef.current();
-    if (theme) applyTheme(theme);
+    if (theme) applyTheme(theme); else if (req.viewState) applyTheme(req.viewState); // #1644 — the template viewport's own view (camera)
+    if (req.batch) setTaskProgress?.({ label: tr("Centring each atlas page's map on its hole: {i} of {n}", { i: req.batch.index, n: req.batch.total }), pct: Math.round((100 * (req.batch.index - 1)) / req.batch.total), onCancel: cancelViewportBatch });
     // TASKS.csv #198 (part 3) — interactive sessions skip the automatic timer entirely: the theme's
     // camera is now live on screen, the existing orbit/pan/zoom pointer handlers already work
     // unconditionally, and the user drives when capture actually happens via the banner below

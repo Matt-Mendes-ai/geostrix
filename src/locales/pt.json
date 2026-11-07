@@ -8943,5 +8943,11 @@
   "{unit}, log scale": "{unit}, escala log",
   "Figure legend": "Legenda da figura",
   "{n} {el} samples{m}, on the grid's colour scale": "{n} amostras de {el}{m}, na escala de cores da grade",
-  "Contours: {levels} {unit}": "Contornos: {levels} {unit}"
+  "Contours: {levels} {unit}": "Contornos: {levels} {unit}",
+  "Centre each page's map on its hole": "Centralizar o mapa de cada página no seu furo",
+  "Each page's top-down map is rendered again in the 3D View, centred on its hole at the template's scale: about a second per page. Off: every page shows the template's map, with its hole marked.": "O mapa em planta de cada página é renderizado novamente na Vista 3D, centralizado no seu furo na escala do modelo: cerca de um segundo por página. Desligado: cada página mostra o mapa do modelo, com seu furo marcado.",
+  "Centring each atlas page's map on its hole: {i} of {n}": "Centralizando o mapa de cada página do atlas no seu furo: {i} de {n}",
+  "Centred the map on its hole on {n} of {t} atlas page(s), at the template's scale.": "O mapa foi centralizado no seu furo em {n} de {t} página(s) do atlas, na escala do modelo.",
+  "Cancelled: the other pages keep the template's map, with their hole marked.": "Cancelado: as outras páginas mantêm o mapa do modelo, com seu furo marcado.",
+  "{n} page(s) could not be captured and keep the template's map.": "{n} página(s) não puderam ser capturadas e mantêm o mapa do modelo."
 }
