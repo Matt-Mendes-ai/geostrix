@@ -80,7 +80,9 @@ export function guessXyzChannels(columns, rows) {
   const z = pick([/^(z|elev|elevation|alt|altitude|height|dem|gps_?elev|elev_?m)$/, /elev|altitude/]);
   // never a coordinate / time / quality channel ("elev" contains "lev", "station-x" contains "x"...)
   // TASKS.csv #1351 — nor the base-station magnetometer: Aeroquest's "basemagf" (before MagN / MagU / MagP / MagS) was taken as the survey
-  const notValue = (c) => c === z || /^(x|y|z|e|n|east|north|easting|northing|lat|lon|long|latitude|longitude|line|fid|time|date|sat|sq|oper|unit|station.*)$|elev|alt|^base|base_?mag|^bmag|diurnal/.test(lc(c));
+  // TASKS.csv #1351 — nor the reference field: a column that IS the IGRF / DGRF model (or its declination / inclination) sat before TMI in
+  // Poplar's channels and was taken as the value ("igrf" stays in the first pattern for a residual like mag_igrf_removed)
+  const notValue = (c) => c === z || /^(x|y|z|e|n|east|north|easting|northing|lat|lon|long|latitude|longitude|line|fid|time|date|sat|sq|oper|unit|station.*)$|elev|alt|^base|base_?mag|^bmag|diurnal|^(igrf|dgrf)(_?(f|nt|total|field))?$|^(declin|inclin|declination|inclination)$/.test(lc(c));
   const value = pick([/^cor|_cor|cor_|corr|level|lvl|tmi|resid|igrf|final/, /mag|grav|bouguer|^k$|^th$|^u$|^tc$|cps|ip_|^ip|res|chg|cond|vlf|value/], notValue);
   return { z, value };
 }
@@ -149,6 +151,11 @@ function parseScintrex(text) {
   return rows.length ? { columns, rows } : null;
 }
 
+// TASKS.csv #1351 — a Geosoft "CSV EXPORT" saved as .XYZ (Poplar, 42711Z): the "/" header, "//" comments, "Line 10" and "*" nulls of an
+// XYZ, but every header and data line separated by commas. A line with a comma splits on commas (an empty field is a null); any other
+// on white space, as before. Numbers in these files never carry a comma.
+export const xyzTokens = (s) => (s.indexOf(",") >= 0 ? s.split(",").map((t) => t.trim()) : s.split(/\s+/));
+
 export function parseXYZ(text) {
   if (/^\s*\$\$DATA\$\$/.test(text)) { const d = parseDollarData(text); if (d) return d; } // #1326
   if (/^\/!\s*Mag_Data:/m.test(text)) { const d = parseScintrex(text); if (d) return d; }
@@ -170,12 +177,12 @@ export function parseXYZ(text) {
       const rest = trimmed.slice(1).trim();
       if (!rest) continue; // lone "/" comment line
       if (/^=+(\s+=+)*$/.test(rest)) continue; // "====...====" underline row
-      if (!columns) candidates.push(rest.split(/\s+/));
+      if (!columns) candidates.push(xyzTokens(rest)); // #1351: commas too
       continue;
     }
     const lineMatch = trimmed.match(/^Line\s+(\S+)/i);
     if (lineMatch) { currentLine = lineMatch[1]; continue; }
-    const toks = trimmed.split(/\s+/);
+    const toks = xyzTokens(trimmed); // #1351
     if (!columns) {
       if (!candidates.length) continue; // a data-shaped row before any header was seen — can't map columns, skip
       columns = [...candidates].reverse().find((c) => c.length === toks.length) || candidates[candidates.length - 1];
@@ -183,7 +190,7 @@ export function parseXYZ(text) {
     const row = { _line: currentLine };
     for (let i = 0; i < columns.length; i++) {
       const tok = toks[i];
-      if (tok === undefined || tok === "*") { row[columns[i]] = null; continue; }
+      if (tok === undefined || tok === "*" || tok === "") { row[columns[i]] = null; continue; } // "": an empty comma field (#1351)
       // TASKS.csv #610 — a clock time ("10:46:26.0") is seconds of the day; parseFloat read it as the hour (10)
       const v = tok.includes(":") ? parseClock(tok) : parseFloat(tok);
       row[columns[i]] = Number.isFinite(v) ? v : null;

@@ -5,6 +5,7 @@
 // chunks, keeping every n-th data row and only the columns asked for, so neither the whole text nor 2.6 million row objects exist.
 // Pure apart from the Blob it is handed (File.stream() / Blob.slice, available in the renderer and in Node 18+).
 import { parseClock } from "./diurnal.js"; // the XYZ reader reads clock times as geosoft.js parseXYZ does
+import { xyzTokens } from "./geosoft.js"; // TASKS.csv #1351 — comma-separated XYZ lines, as parseXYZ splits them
 
 const DELIMS = [",", "\t", ";", "|"];
 
@@ -103,10 +104,10 @@ export async function streamXyzRows(blob, { columns, keep = columns, every = 1, 
     const lm = /^(Line|Tie)\s+(\S+)/i.exec(t);
     if (lm) { let n = lineNames.get(lm[2]); if (n === undefined) { n = Array.from(lm[2]).join(""); lineNames.set(n, n); } current = n; return; }
     if (seen++ % every !== 0) return;
-    const toks = t.split(/\s+/), r = { _line: current };
+    const toks = xyzTokens(t), r = { _line: current }; // #1351
     for (let j = 0; j < idx.length; j++) {
       const tok = toks[idx[j]];
-      if (tok === undefined || tok === "*") { r[names[j]] = null; continue; }
+      if (tok === undefined || tok === "*" || tok === "") { r[names[j]] = null; continue; }
       const v = tok.indexOf(":") >= 0 ? parseClock(tok) : parseFloat(tok);
       r[names[j]] = Number.isFinite(v) ? v : null;
     }
