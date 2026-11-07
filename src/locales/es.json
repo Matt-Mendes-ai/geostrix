@@ -8639,7 +8639,6 @@
   "minimum curvature, tension {t}": "curvatura mínima, tensión {t}",
   "IDW power {pw}": "IDW potencia {pw}",
   "Gridding method": "Método de grillado",
-  "IDW keeps each sample's value at its node and fades to the neighbours' (bullseyes on lone highs). Minimum curvature bends a smooth surface through the samples; tension 0 is smoothest but overshoots between samples, 1 is a tent with no overshoot.": "IDW mantiene el valor de cada muestra en su nodo y se desvanece hacia los vecinos (ojos de buey en altos aislados). Curvatura mínima curva una superficie suave a través de las muestras; tensión 0 es la más suave pero sobrepasa entre muestras, 1 es una carpa sin sobrepaso.",
   "IDW": "IDW",
   "Tension": "Tensión",
   "no {sym} assays": "sin ensayes de {sym}",
@@ -8933,5 +8932,16 @@
   "A GPS height: check it against the terrain before trusting depths in 3D (a GPS height above the ellipsoid can differ from sea level by tens of metres; the USGS Indiana DUALEM files read 34 m under their DEM).": "Una altura GPS: compárela con el terreno antes de confiar en las profundidades en 3D (una altura GPS sobre el elipsoide puede diferir del nivel del mar en decenas de metros; los archivos DUALEM de Indiana del USGS leen 34 m por debajo de su MDE).",
   ", {n} within {r} m of the drilling (only those can be estimated, and only those count)": ", {n} a menos de {r} m de los sondajes (solo esos se pueden estimar, y solo esos cuentan)",
   "{reach} blocks lie within the search radius of the composites ({totalBlocks} in the grid's box, {nx}×{ny}×{nz}) — over the {limit}-block limit kept for a responsive in-app estimation pass. Use a larger cell size, a smaller search radius or a larger block budget.": "{reach} bloques están dentro del radio de búsqueda de los compósitos ({totalBlocks} en la caja de la grilla, {nx}×{ny}×{nz}) — sobre el límite de {limit} bloques fijado para una estimación ágil en la aplicación. Use un tamaño de celda mayor, un radio de búsqueda menor o un presupuesto de bloques mayor.",
-  "At this cell size the grid's box would be {totalBlocks} blocks ({nx}×{ny}×{nz}): too many to even mark which ones the composites reach. Use a larger cell size or a smaller extent.": "Con este tamaño de celda la caja de la grilla tendría {totalBlocks} bloques ({nx}×{ny}×{nz}): demasiados incluso para marcar cuáles alcanzan los compósitos. Use un tamaño de celda mayor o una extensión menor."
+  "At this cell size the grid's box would be {totalBlocks} blocks ({nx}×{ny}×{nz}): too many to even mark which ones the composites reach. Use a larger cell size or a smaller extent.": "Con este tamaño de celda la caja de la grilla tendría {totalBlocks} bloques ({nx}×{ny}×{nz}): demasiados incluso para marcar cuáles alcanzan los compósitos. Use un tamaño de celda mayor o una extensión menor.",
+  "Natural neighbour at this cell size is far finer than the sample spacing ({gridW}×{gridH} cells): use a bigger cell size.": "El vecino natural con este tamaño de celda es mucho más fino que el espaciado de las muestras ({gridW}×{gridH} celdas): use un tamaño de celda mayor.",
+  "natural neighbour": "vecino natural",
+  "Natural neighbour": "Vecino natural",
+  "IDW keeps each sample's value at its node and fades to the neighbours' (bullseyes on lone highs). Minimum curvature bends a smooth surface through the samples; tension 0 is smoothest but overshoots between samples, 1 is a tent with no overshoot. Natural neighbour weighs each sample by the area it would give up to the node: no bullseyes, no overshoot, a high spreads only as far as its neighbours.": "IDW mantiene el valor de cada muestra en su nodo y se desvanece hacia el de las vecinas (ojos de buey en altos aislados). La curvatura mínima curva una superficie suave a través de las muestras; tensión 0 es la más suave pero sobrepasa entre muestras, 1 es una carpa sin sobrepaso. El vecino natural pondera cada muestra por el área que cedería al nodo: sin ojos de buey, sin sobrepaso, un alto se extiende solo hasta sus vecinas.",
+  "on log10 values": "sobre valores log10",
+  "{c} m cells": "celdas de {c} m",
+  "blank beyond {d} m": "vacío a más de {d} m",
+  "{unit}, log scale": "{unit}, escala log",
+  "Figure legend": "Leyenda de la figura",
+  "{n} {el} samples{m}, on the grid's colour scale": "{n} muestras de {el}{m}, en la escala de color de la grilla",
+  "Contours: {levels} {unit}": "Contornos: {levels} {unit}"
 }

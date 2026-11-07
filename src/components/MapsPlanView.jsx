@@ -11,6 +11,7 @@ import { hillshadeValues } from "../lib/hillshade.js";
 import { drawMapLayer, mapStyleSignature, mapTextureSize } from "../lib/mapLayers.js";
 import { keyedCanvas } from "../lib/rasterKey.js";
 import { planDataExtent } from "../lib/mapsPlan.js";
+import { figureSamples, colourFromStops } from "../lib/sampleGrid.js"; // TASKS.csv #1622
 
 const imageCache = new Map(); // dataUrl (+ key colour) -> { img, ready }
 function cachedImage(url, keyColour, onReady) {
@@ -48,6 +49,16 @@ export default function MapsPlanView() {
   const [tick, setTick] = useState(0); // an image finished decoding
   const extent = useMemo(() => planDataExtent({ rasters, terrain, mapLayers, boundaries, collars, surfaceSamples }), [rasters, terrain, mapLayers, boundaries, collars, surfaceSamples]);
   const hill = useMemo(() => (terrain?.elevations?.length && terrain.gridW > 2 ? hillshadeCanvas(terrain) : null), [terrain]);
+  // TASKS.csv #1622 (review #1497) — a gridded surface-sample element in one figure: the top visible geochemistry grid, its samples
+  // drawn on top in the grid's own colours (a sample's colour against the grid around it shows what the gridding did), its contour
+  // layers, and a legend with the method and its parameters
+  const figure = useMemo(() => {
+    const r = [...rasters].reverse().find((x) => x.visible !== false && x.geochem && x.colourStops?.length);
+    if (!r) return null;
+    const contours = boundaries.filter((b) => b.visible !== false && b.contourLevels?.length && (b.sourceRaster === r.id || (!b.sourceRaster && String(b.name || "").startsWith(`${r.name} contours`))));
+    const levels = [...new Set(contours.flatMap((b) => b.contourLevels))].sort((a, b) => a - b);
+    return { r, pts: figureSamples(surfaceSamples, r.geochem), log: r.colourStyle?.stretch === "log", levels };
+  }, [rasters, boundaries, surfaceSamples]);
 
   useEffect(() => {
     const el = wrapRef.current;
@@ -94,9 +105,18 @@ export default function MapsPlanView() {
     });
     ctx.fillStyle = "rgba(90,96,104,0.55)";
     surfaceSamples.forEach((s) => { if (Number.isFinite(s.x)) ctx.fillRect(X(s.x) - 1, Y(s.y) - 1, 2, 2); });
+    if (figure) {
+      ctx.lineWidth = 0.8; ctx.strokeStyle = "rgba(20,24,30,0.85)";
+      const rad = Math.max(2.2, Math.min(4.5, 3 * Math.sqrt(30 / Math.max(1, v.mPerPx)))); // smaller when zoomed out
+      for (const q of figure.pts) {
+        const c = colourFromStops(figure.r.colourStops, q.v, figure.log);
+        if (!c) continue;
+        ctx.fillStyle = c; ctx.beginPath(); ctx.arc(X(q.x), Y(q.y), rad, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      }
+    }
     ctx.fillStyle = "#1a2028"; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1;
     collars.forEach((c) => { if (!Number.isFinite(c.x)) return; ctx.beginPath(); ctx.arc(X(c.x), Y(c.y), 2.6, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); });
-  }, [v?.cx, v?.cy, v?.mPerPx, size, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick]);
+  }, [v?.cx, v?.cy, v?.mPerPx, size, rasters, terrain, hill, mapLayers, boundaries, collars, surfaceSamples, tick, figure]);
 
   if (!extent || !v) return null;
   const sb = niceScaleBar(v.mPerPx, 140);
@@ -119,6 +139,7 @@ export default function MapsPlanView() {
     <div ref={wrapRef} className="ge-maps-plan" style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
       <canvas ref={canvasRef} style={{ width: size.w, height: size.h, display: "block", cursor: drag.current ? "grabbing" : "crosshair" }} aria-label={tr("Plan of the map data")}
         onWheel={onWheel} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={() => { onUp(); setCursor(null); }} onDoubleClick={fit} />
+      {figure && <FigureLegend f={figure} chip={chip} />}
       <div style={{ ...chip, left: 10, bottom: 10, display: "flex", flexDirection: "column", gap: 3 }}>
         <div style={{ width: sb.px, height: 5, background: "#1a2028" }} />
         <span>{sb.label}</span>
@@ -130,6 +151,30 @@ export default function MapsPlanView() {
       <div style={{ ...chip, right: 10, bottom: 10, fontVariantNumeric: "tabular-nums" }}>
         {cursor ? `E ${Math.round(cursor.x).toLocaleString()}  N ${Math.round(cursor.y).toLocaleString()}` : tr("Plan view · wheel to zoom, drag to pan, double-click to fit · drape and 3D in the 3D View")}
       </div>
+    </div>
+  );
+}
+
+// TASKS.csv #1622 — the figure's legend: the grid, how it was made, its colour scale in the unit, the samples and the contour levels
+const fmtV = (x) => (Math.abs(x) > 0 && Math.abs(x) < 0.01 ? Number(x.toPrecision(2)).toString() : Number(x.toPrecision(3)).toLocaleString());
+function FigureLegend({ f, chip }) {
+  const g = f.r.geochem, stops = f.r.colourStops, unit = g.unit || "";
+  const how = g.method === "mincurv" ? tr("minimum curvature, tension {t}", { t: g.tension }) : g.method === "natneigh" ? tr("natural neighbour") : tr("IDW power {pw}", { pw: g.power ?? 2 });
+  const parts = [how, tr("{c} m cells", { c: g.cellM }), g.log ? tr("on log10 values") : null, g.blankM ? tr("blank beyond {d} m", { d: g.blankM }) : null].filter(Boolean);
+  const grad = `linear-gradient(to right, ${stops.map((s, i) => `${s.color} ${Math.round((100 * i) / Math.max(1, stops.length - 1))}%`).join(", ")})`;
+  return (
+    <div style={{ ...chip, left: 10, bottom: 52, maxWidth: 300, display: "flex", flexDirection: "column", gap: 4, lineHeight: 1.35 }} aria-label={tr("Figure legend")}>
+      <span style={{ fontWeight: 700 }}>{f.r.name}</span>
+      <span style={{ fontSize: "var(--font-size-xs)" }}>{parts.join(" · ")}</span>
+      <div style={{ height: 9, background: grad, border: "1px solid rgba(0,0,0,0.25)" }} />
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", fontVariantNumeric: "tabular-nums" }}>
+        <span>{fmtV(stops[0].value)}</span><span>{f.log ? tr("{unit}, log scale", { unit }) : unit}</span><span>{fmtV(stops[stops.length - 1].value)}</span>
+      </div>
+      <span style={{ fontSize: "var(--font-size-xs)", display: "flex", alignItems: "center", gap: 5 }}>
+        <span style={{ width: 9, height: 9, borderRadius: "50%", border: "1px solid #14181e", background: stops[Math.floor(stops.length / 2)].color, flex: "0 0 auto" }} />
+        {tr("{n} {el} samples{m}, on the grid's colour scale", { n: f.pts.length.toLocaleString(), el: g.symbol, m: g.medium ? tr(" ({medium})", { medium: g.medium }) : "" })}
+      </span>
+      {f.levels.length > 0 && <span style={{ fontSize: "var(--font-size-xs)", display: "flex", alignItems: "center", gap: 5 }}><span style={{ width: 14, height: 0, borderTop: "2px solid #d62f2f", flex: "0 0 auto" }} />{tr("Contours: {levels} {unit}", { levels: f.levels.map(fmtV).join(", "), unit })}</span>}
     </div>
   );
 }

@@ -8,6 +8,7 @@
 // cannot be logged and are counted out.
 import { idwGrid, suggestBlankingDistance } from "./idw.js";
 import { minCurvatureGrid } from "./minCurvature.js"; // TASKS.csv #1622
+import { naturalNeighbourGrid } from "./naturalNeighbour.js"; // TASKS.csv #1622
 import { contourLevel } from "./contours.js";
 
 export const logByDefault = (unit) => /^(ppm|ppb|ppt|g\/t)$/i.test(String(unit || "").trim());
@@ -35,7 +36,8 @@ export function suggestSampleGrid(points) {
 }
 
 // -> { grid: { nx, ny, x0, yTop, dx, dy, values: Float32Array }, bbox, points, n, nonPositive, valid, blankM } or { error }
-// method: "idw" (power) or "mincurv" (tension 0-1, lib/minCurvature.js; capped at MINCURV_MAX_CELLS: a million cells take ~4 s)
+// method: "idw" (power), "mincurv" (tension 0-1, lib/minCurvature.js; capped at MINCURV_MAX_CELLS: a million cells take ~4 s) or
+// "natneigh" (natural neighbour, discrete Sibson: lib/naturalNeighbour.js; refused when the cell is far finer than the spacing)
 export const MINCURV_MAX_CELLS = 1_000_000;
 export function gridSamples(samples, symbol, { medium = "", log = false, cellM, power = 2, blankM = null, maxCells = 4_000_000, method = "idw", tension = 0.25 } = {}) {
   const { points, n, nonPositive } = samplePoints(samples, symbol, { medium, log });
@@ -53,7 +55,17 @@ export function gridSamples(samples, symbol, { medium = "", log = false, cellM, 
   if (method === "mincurv" && nx * ny > MINCURV_MAX_CELLS) return { error: "mincurvCells", nx, ny };
   const blank = blankM == null || blankM === "" ? (suggestBlankingDistance(points)?.distance ?? Infinity) : Number(blankM) > 0 ? Number(blankM) : Infinity;
   let gridW, gridH, values, iterations = null;
-  if (method === "mincurv") {
+  if (method === "natneigh") {
+    // the same blanking as IDW, and given / received only within 3x the blanking distance of a sample (as minimum curvature)
+    const mask = idwGrid(points, { xmin, ymin, xmax, ymax, cellSize: cell, power: 1, maxDistance: blank, maxPoints: 1 });
+    ({ gridW, gridH } = mask);
+    const near = Number.isFinite(blank) ? idwGrid(points, { xmin, ymin, xmax, ymax, cellSize: cell, power: 1, maxDistance: 3 * blank, maxPoints: 1 }) : null;
+    const active = near ? Uint8Array.from(near.values, (v) => (Number.isFinite(v) ? 1 : 0)) : null;
+    const nn = naturalNeighbourGrid(points.map((p) => ({ x: p.x, y: p.y, v: p.value })), { xmin, ymax, cell, nx: gridW, ny: gridH }, { active });
+    if (nn.error) return { error: "natneighWork", nx: gridW, ny: gridH };
+    values = nn.values;
+    for (let i = 0; i < values.length; i++) if (!Number.isFinite(mask.values[i])) values[i] = NaN;
+  } else if (method === "mincurv") {
     // the same blanking as IDW: a node with no sample within `blank` stays empty (the nearest-sample IDW pass is that mask)
     const mask = idwGrid(points, { xmin, ymin, xmax, ymax, cellSize: cell, power: 1, maxDistance: blank, maxPoints: 1 });
     ({ gridW, gridH } = mask);
@@ -93,4 +105,39 @@ export function suggestedContourLevels(values) {
 export function gridContours(grid, values, levels) {
   const nodes = gridNodes(grid, values);
   return (levels || []).map((level) => ({ level, polylines: contourLevel(nodes, level) })).filter((l) => l.polylines.length);
+}
+
+// TASKS.csv #1622 — the samples a geochemistry grid was made from, for drawing them on top of it in one figure (the Maps plan view):
+// the raster's element and medium, every sample with a value (zero / negative ones too: they were left out of a log grid, not out
+// of the survey). -> [{ x, y, v }]
+export function figureSamples(samples, geochem) {
+  const out = [];
+  if (!geochem?.symbol) return out;
+  for (const s of samples || []) {
+    if (geochem.medium && s.medium !== geochem.medium) continue;
+    const v = s.values?.[geochem.symbol];
+    if (Number.isFinite(v) && Number.isFinite(s.x) && Number.isFinite(s.y)) out.push({ x: s.x, y: s.y, v });
+  }
+  return out;
+}
+// a value's colour on a raster's legend stops (rasterColour.js rasterStops: log-spaced for a log stretch), clamped to the ends
+export function colourFromStops(stops, v, log = false) {
+  if (!stops?.length || !Number.isFinite(v)) return null;
+  const f = (x) => (log ? Math.log10(Math.max(x, 1e-12)) : x);
+  const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  if (v <= stops[0].value) return stops[0].color;
+  if (v >= stops[stops.length - 1].value) return stops[stops.length - 1].color;
+  for (let i = 0; i < stops.length - 1; i++) {
+    const a = stops[i], b = stops[i + 1];
+    if (v <= b.value) {
+      const t = (f(v) - f(a.value)) / (f(b.value) - f(a.value) || 1), ca = hex(a.color), cb = hex(b.color);
+      return `#${ca.map((c, k) => Math.round(c + (cb[k] - c) * t).toString(16).padStart(2, "0")).join("")}`;
+    }
+  }
+  return stops[stops.length - 1].color;
+}
+// the grid's parameters in a line for the figure's legend (English: the caller translates the parts)
+export function gridMethodParts(g) {
+  if (!g) return null;
+  return { method: g.method === "mincurv" ? "mincurv" : g.method === "natneigh" ? "natneigh" : "idw", power: g.power, tension: g.tension, cellM: g.cellM, log: !!g.log, blankM: g.blankM, samples: g.samples, medium: g.medium, unit: g.unit, symbol: g.symbol };
 }

@@ -8639,7 +8639,6 @@
   "minimum curvature, tension {t}": "courbure minimale, tension {t}",
   "IDW power {pw}": "IDW puissance {pw}",
   "Gridding method": "Méthode de maillage",
-  "IDW keeps each sample's value at its node and fades to the neighbours' (bullseyes on lone highs). Minimum curvature bends a smooth surface through the samples; tension 0 is smoothest but overshoots between samples, 1 is a tent with no overshoot.": "L'IDW garde la valeur de chaque échantillon à son nœud et s'estompe vers les voisins (cibles sur les hauts isolés). La courbure minimale fait passer une surface lisse par les échantillons ; une tension de 0 est la plus lisse mais déborde entre les échantillons, 1 est une tente sans débordement.",
   "IDW": "IDW",
   "Tension": "Tension",
   "no {sym} assays": "pas d'analyses en {sym}",
@@ -8933,5 +8932,16 @@
   "A GPS height: check it against the terrain before trusting depths in 3D (a GPS height above the ellipsoid can differ from sea level by tens of metres; the USGS Indiana DUALEM files read 34 m under their DEM).": "Une hauteur GPS : comparez-la au terrain avant de vous fier aux profondeurs en 3D (une hauteur GPS au-dessus de l'ellipsoïde peut différer du niveau de la mer de dizaines de mètres ; les fichiers DUALEM de l'Indiana de l'USGS lisent 34 m sous leur MNT).",
   ", {n} within {r} m of the drilling (only those can be estimated, and only those count)": ", {n} à moins de {r} m des sondages (seuls ceux-là peuvent être estimés, et seuls ceux-là comptent)",
   "{reach} blocks lie within the search radius of the composites ({totalBlocks} in the grid's box, {nx}×{ny}×{nz}) — over the {limit}-block limit kept for a responsive in-app estimation pass. Use a larger cell size, a smaller search radius or a larger block budget.": "{reach} blocs se trouvent dans le rayon de recherche des composites ({totalBlocks} dans la boîte de la grille, {nx}×{ny}×{nz}) — au-delà de la limite de {limit} blocs fixée pour une estimation réactive dans l'application. Utilisez une taille de cellule plus grande, un rayon de recherche plus petit ou un budget de blocs plus grand.",
-  "At this cell size the grid's box would be {totalBlocks} blocks ({nx}×{ny}×{nz}): too many to even mark which ones the composites reach. Use a larger cell size or a smaller extent.": "À cette taille de cellule la boîte de la grille ferait {totalBlocks} blocs ({nx}×{ny}×{nz}) : trop pour même marquer ceux qu'atteignent les composites. Utilisez une taille de cellule plus grande ou une étendue plus petite."
+  "At this cell size the grid's box would be {totalBlocks} blocks ({nx}×{ny}×{nz}): too many to even mark which ones the composites reach. Use a larger cell size or a smaller extent.": "À cette taille de cellule la boîte de la grille ferait {totalBlocks} blocs ({nx}×{ny}×{nz}) : trop pour même marquer ceux qu'atteignent les composites. Utilisez une taille de cellule plus grande ou une étendue plus petite.",
+  "Natural neighbour at this cell size is far finer than the sample spacing ({gridW}×{gridH} cells): use a bigger cell size.": "Le plus proche voisin naturel à cette taille de cellule est bien plus fin que l'espacement des échantillons ({gridW}×{gridH} cellules) : utilisez une taille de cellule plus grande.",
+  "natural neighbour": "voisin naturel",
+  "Natural neighbour": "Voisin naturel",
+  "IDW keeps each sample's value at its node and fades to the neighbours' (bullseyes on lone highs). Minimum curvature bends a smooth surface through the samples; tension 0 is smoothest but overshoots between samples, 1 is a tent with no overshoot. Natural neighbour weighs each sample by the area it would give up to the node: no bullseyes, no overshoot, a high spreads only as far as its neighbours.": "L'IDW garde la valeur de chaque échantillon à son nœud et s'estompe vers celle des voisins (œils-de-bœuf sur les hauts isolés). La courbure minimale courbe une surface lisse à travers les échantillons ; une tension de 0 est la plus lisse mais dépasse entre échantillons, 1 est une tente sans dépassement. Le voisin naturel pondère chaque échantillon par l'aire qu'il céderait au nœud : pas d'œils-de-bœuf, pas de dépassement, un haut ne s'étend que jusqu'à ses voisins.",
+  "on log10 values": "sur les valeurs log10",
+  "{c} m cells": "cellules de {c} m",
+  "blank beyond {d} m": "vide au-delà de {d} m",
+  "{unit}, log scale": "{unit}, échelle log",
+  "Figure legend": "Légende de la figure",
+  "{n} {el} samples{m}, on the grid's colour scale": "{n} échantillons de {el}{m}, sur l'échelle de couleur de la grille",
+  "Contours: {levels} {unit}": "Contours : {levels} {unit}"
 }
