@@ -93,3 +93,21 @@ export function cellToFitReach(points, bounds, radius, budget, from, opts = {}) 
   }
   return c;
 }
+
+// TASKS.csv #1579 (review #1497, Lawyers) — everything the Grade estimation dialog asks of the reach, in one call, for its worker
+// (lib/blockReach.worker.js): the reach counts and the fit searches froze the window 1.2-1.7 s on opening it on Lawyers (446 holes,
+// a 5 x 6 km box). traces: desurveyed holes [[{x, y, z}]]; cell3: { dx, dy, dz }; from: the cell size the fit searches start at;
+// fit10: also the smallest cell from 10 m (#1570, a box that changed). -> { reach, tooBig, fitCell, fitCellMax, fit10 } (null where
+// not asked or not needed; the fits only when the current cell is over the budget, as the dialog shows them).
+export function reachSummary({ traces, bounds, cell3, radius, budget, maxBudget = null, from, fitAllowed = true, fit10 = false }) {
+  const d = densifyTraces(traces, Math.min(cell3.dx, cell3.dy, cell3.dz, radius) / 2);
+  const opts = { margin: d.margin };
+  const r = blockReach(d.points, bounds, cell3, radius, opts);
+  const over = !!r.tooBig || r.reach > budget;
+  return {
+    reach: r.reach, tooBig: !!r.tooBig,
+    fitCell: over && fitAllowed ? cellToFitReach(d.points, bounds, radius, budget, from, opts) : null,
+    fitCellMax: over && fitAllowed && maxBudget != null && budget < maxBudget ? cellToFitReach(d.points, bounds, radius, maxBudget, from, opts) : null,
+    fit10: fit10 ? cellToFitReach(d.points, bounds, radius, budget, 10, opts) : null,
+  };
+}

@@ -67,9 +67,20 @@ export function controlLimits(values) {
 // correlations and classifications beside the lab assays (Copley: Spearman Cu-Mo 0.56 lab-only, 0.38 mixed; Pearson Rb-Sr 1.00 from one
 // bad reading). They are kept out of every grade tool, whatever its QC toggle says; the dialogs say how many were left out.
 export const isPxrfRow = (a) => a?.source === "pXRF";
-export const labAssays = (assays) => (assays || []).filter((a) => !isPxrfRow(a));
+// TASKS.csv #1579 — the same input array gives the same output array (default patterns), so the statistics cached per assay list
+// (geochem.js segmentSummary) are found again when a dialog reopens; the callers read these lists, never change them
+const labCache = new WeakMap(), regularCache = new WeakMap();
+export const labAssays = (assays) => {
+  if (!assays) return [];
+  let r = labCache.get(assays);
+  if (!r) labCache.set(assays, (r = assays.filter((a) => !isPxrfRow(a))));
+  return r;
+};
 export function excludeQAQC(assays, patterns = DEFAULT_QAQC_PATTERNS) {
-  return assays.filter((a) => !isPxrfRow(a) && classifyQAQCRow(a, patterns) === "regular");
+  const cache = patterns === DEFAULT_QAQC_PATTERNS ? regularCache : null;
+  let r = cache?.get(assays);
+  if (!r) { r = assays.filter((a) => !isPxrfRow(a) && classifyQAQCRow(a, patterns) === "regular"); cache?.set(assays, r); }
+  return r;
 }
 
 // TASKS.csv #400 — what is being left out, and why, so an exclusion is never silent: distinct ids per class.

@@ -84,7 +84,8 @@ test("the dialog's count from the traces is never below the composites' reach; t
 
 test("wired: the dialog's pre-check and grid line use the reach from the drill traces", () => {
   const m = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
-  assert.match(m, /blockReach\(reachPts\.points, bounds, cell3, reachRadius, \{ margin: reachPts\.margin \}\)/);
-  assert.match(m, /const overLimit = blocksInReach > blockBudget;/);
-  assert.match(m, /const c = fitTo\(blockBudget, 10\);/);
+  // #1579 — the reach and the fits come from the worker (reachSummary, tested in reachSummary1579); the dialog waits for them
+  assert.match(m, /const reachArgs = traceBounds\?\.traces\?\.length && reachRadius && bounds \? \{ traces: traceBounds\.traces,/);
+  assert.match(m, /const overLimit = !reachPending && blocksInReach > blockBudget;/);
+  assert.match(m, /reachClient\.current\.request\(\{ \.\.\.reachArgs, fitAllowed: false, fit10: true \}\)/);
 });

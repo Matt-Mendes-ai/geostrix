@@ -478,15 +478,29 @@ export function computeBestIntercepts(assays, symbol, unit, elementUnits, opts =
 // TASKS.csv #331 — shared by the intercept tools. Drops EXACT duplicate rows (same hole, from, to AND
 // values — the same rule #286 uses for compositing: two rows over one interval with DIFFERENT results are
 // a real conflict, not a double import) and groups the rest by hole.
+// TASKS.csv #1579 (review #1497, Lawyers) — an exact duplicate row: the same hole, depths and values. The values' JSON is built only for a
+// row that shares its hole and depths with an earlier one: a key of every row's JSON took ~1 s on Lawyers' 83,670 assays (49 elements),
+// and the estimation dialog paid it five times on opening.
+function duplicateCheck() {
+  const seen = new Map(); // "hole|from|to" -> the first row, then the values' JSON of every distinct row there
+  return (a) => {
+    const k = `${a.hole_id}|${a.from}|${a.to}`;
+    const prev = seen.get(k);
+    if (prev === undefined) { seen.set(k, a); return false; }
+    const list = Array.isArray(prev) ? prev : [JSON.stringify(prev.values ?? null)];
+    const j = JSON.stringify(a.values ?? null);
+    if (list.includes(j)) return true;
+    list.push(j); seen.set(k, list);
+    return false;
+  };
+}
 function groupAssayRowsByHole(assays) {
   const byHole = new Map();
-  const seen = new Set();
+  const isDuplicate = duplicateCheck();
   const stats = { duplicatesSkipped: 0, overlappingRows: 0, negativeValues: 0 };
   assays.forEach((a) => {
     if (a.from == null || a.to == null || !(a.to > a.from) || a.hole_id == null) return;
-    const key = `${a.hole_id}|${a.from}|${a.to}|${JSON.stringify(a.values ?? null)}`;
-    if (seen.has(key)) { stats.duplicatesSkipped++; return; }
-    seen.add(key);
+    if (isDuplicate(a)) { stats.duplicatesSkipped++; return; }
     if (!byHole.has(a.hole_id)) byHole.set(a.hole_id, []);
     byHole.get(a.hole_id).push(a);
   });
@@ -867,24 +881,36 @@ export function compositeDownhole(assays, symbol, unit, elementUnits, opts = {})
 // assayed, exact duplicate rows dropped), so the figures match what compositing / estimation actually used.
 // TASKS.csv #1099 — exported for Grade Statistics, so the panel where cap values are chosen counts the same samples as
 // the cap audit, compositing and estimation (Harry: 3,740 raw Au rows, 3,648 resolved samples). -> [{ hole_id, from, to, value }]
-export function resolvedSegments(assays, symbol, unit, elementUnits) {
-  const byHole = new Map(), seen = new Set();
-  (assays || []).forEach((a) => {
+// #1579 — cached per assay list (the same array: a new import or filter is a new array) and element: the cap buttons, the audit, its
+// warning and the dialog's automatic P99 read the same segments. Frozen: callers read them.
+const segmentCache = new WeakMap(); // assays -> Map("symbol|unit|native unit" -> { segs, byValue, total })
+function segmentSummary(assays, symbol, unit, elementUnits) {
+  const list = assays || [];
+  let m = segmentCache.get(list);
+  if (!m) segmentCache.set(list, (m = new Map()));
+  const key = `${symbol}|${unit}|${elementUnits?.[symbol] || "ppm"}`;
+  let hit = m.get(key);
+  if (hit) return hit;
+  const byHole = new Map(), isDuplicate = duplicateCheck();
+  list.forEach((a) => {
     if (a.from == null || a.to == null || a.to <= a.from || a.hole_id == null) return;
-    const key = `${a.hole_id}|${a.from}|${a.to}|${JSON.stringify(a.values ?? null)}`;
-    if (seen.has(key)) return;
-    seen.add(key);
+    if (isDuplicate(a)) return;
     let arr = byHole.get(a.hole_id);
     if (!arr) byHole.set(a.hole_id, (arr = []));
     arr.push(a);
   });
-  const out = [];
-  byHole.forEach((rows, hole_id) => resolveAssaySegments(rows, symbol, unit, elementUnits, null).forEach((s) => { if (s.value != null && s.to > s.from) out.push({ hole_id, from: s.from, to: s.to, value: s.value }); }));
-  return out;
+  const segs = [];
+  byHole.forEach((rows, hole_id) => resolveAssaySegments(rows, symbol, unit, elementUnits, null).forEach((s) => { if (s.value != null && s.to > s.from) segs.push(Object.freeze({ hole_id, from: s.from, to: s.to, value: s.value })); }));
+  const byValue = segs.map((s) => ({ value: s.value, len: s.to - s.from })).sort((a, b) => a.value - b.value);
+  hit = { segs: Object.freeze(segs), byValue, total: byValue.reduce((t, x) => t + x.len, 0) };
+  m.set(key, hit);
+  return hit;
 }
-const rawSegments = (assays, symbol, unit, elementUnits) => resolvedSegments(assays, symbol, unit, elementUnits).map((s) => ({ value: s.value, len: s.to - s.from }));
+export function resolvedSegments(assays, symbol, unit, elementUnits) {
+  return segmentSummary(assays, symbol, unit, elementUnits).segs;
+}
 export function capAudit(assays, symbol, unit, elementUnits, capValue) {
-  const segs = rawSegments(assays, symbol, unit, elementUnits);
+  const segs = segmentSummary(assays, symbol, unit, elementUnits).byValue;
   let metalBefore = 0, metalAfter = 0, nCapped = 0, lenCapped = 0;
   for (const s of segs) {
     metalBefore += s.value * s.len;
@@ -902,8 +928,7 @@ export function capAudit(assays, symbol, unit, elementUnits, capValue) {
 // the grade below which p% of the sampled LENGTH lies (a 10 m sample counts ten times a 1 m one) — what "cap at the
 // 97.5th percentile" means for unequal sample lengths. null when nothing is assayed.
 export function lengthWeightedPercentile(assays, symbol, unit, elementUnits, p) {
-  const segs = rawSegments(assays, symbol, unit, elementUnits).sort((a, b) => a.value - b.value);
-  const total = segs.reduce((t, s) => t + s.len, 0);
+  const { byValue: segs, total } = segmentSummary(assays, symbol, unit, elementUnits);
   if (!total) return null;
   const target = (p / 100) * total;
   let acc = 0;

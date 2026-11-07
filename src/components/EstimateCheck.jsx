@@ -13,7 +13,7 @@ import { version as APP_VERSION } from "../../package.json";
 const sig = (v) => (v == null || !Number.isFinite(v) ? "—" : Number(v.toPrecision(3)).toLocaleString());
 const AXES = [["x", "Easting"], ["y", "Northing"], ["z", "Elevation"]];
 
-export default function EstimateCheck({ cells, nnCells, points, unit, symbol, method, epsg = null }) {
+export default function EstimateCheck({ cells, nnCells, points, unit, symbol, method, epsg = null, composited = true }) { // composited: #1581 — raw assays are "samples", not composites
   const [axis, setAxis] = useState("x");
   const chk = useMemo(() => estimateCheck(cells, nnCells, points), [cells, nnCells, points]);
   const bins = useMemo(() => swath(cells, nnCells, points, axis), [cells, nnCells, points, axis]);
@@ -31,14 +31,14 @@ export default function EstimateCheck({ cells, nnCells, points, unit, symbol, me
     if (cur.length) segs.push(cur);
     return segs;
   };
-  const SERIES = [["composite", "#55606e", "", tr("composites (length-weighted)")], ["nn", "#2f6fe0", "5 3", tr("nearest neighbour")], ["estimate", "#c0392b", "", tr("estimate ({method})", { method })]];
+  const SERIES = [["composite", "#55606e", "", composited ? tr("composites (length-weighted)") : tr("samples (length-weighted)")], ["nn", "#2f6fe0", "5 3", tr("nearest neighbour")], ["estimate", "#c0392b", "", tr("estimate ({method})", { method })]];
 
   const exportCsv = () => {
     const rows = swathRows(bins, { axis, symbol }); // #1017 — rows in lib, tested
     const stamp = stampLines({ tool: "Estimate check (swath)", version: APP_VERSION, epsg, params: [
       `Element: ${symbol} (${unit}) | method ${method} | swath along ${axis === "x" ? "easting" : axis === "y" ? "northing" : "elevation"}`,
       `Over ${chk.estimate.n} blocks filled by both the estimate and the nearest-neighbour model (same grid and search)`,
-      `Means: composites ${sig(chk.composites.mean)} (length-weighted, ${chk.composites.n} composites) | nearest neighbour ${sig(chk.nn.mean)} | estimate ${sig(chk.estimate.mean)}`,
+      `Means: ${composited ? "composites" : "samples"} ${sig(chk.composites.mean)} (length-weighted, ${chk.composites.n} ${composited ? "composites" : "raw samples"}) | nearest neighbour ${sig(chk.nn.mean)} | estimate ${sig(chk.estimate.mean)}`,
     ] });
     saveFile({ suggestedName: `${symbol}_${method}_swath_${axis}.csv`.replace(/[^a-z0-9_.-]+/gi, "_"), filters: [{ name: "CSV", extensions: ["csv"] }], content: withStamp(toExportCsv(rows), stamp) });
   };
@@ -49,7 +49,7 @@ export default function EstimateCheck({ cells, nnCells, points, unit, symbol, me
       <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr("Check this estimate")}</div>
       <table style={{ borderCollapse: "collapse", marginBottom: 4 }}>
         <tbody>
-          <tr><td style={{ padding: "2px 8px 2px 0" }}>{tr("Composite mean (length-weighted, clustered)")}</td><td style={td}>{sig(chk.composites.mean)} {unit}</td><td style={{ ...td, color: "var(--color-text-secondary)" }}>{tr("{n} composites", { n: chk.composites.n.toLocaleString() })}</td></tr>
+          <tr><td style={{ padding: "2px 8px 2px 0" }}>{composited ? tr("Composite mean (length-weighted, clustered)") : tr("Sample mean (length-weighted, clustered)")}</td><td style={td}>{sig(chk.composites.mean)} {unit}</td><td style={{ ...td, color: "var(--color-text-secondary)" }}>{composited ? tr("{n} composites", { n: chk.composites.n.toLocaleString() }) : tr("{n} raw samples", { n: chk.composites.n.toLocaleString() })}</td></tr>
           <tr><td style={{ padding: "2px 8px 2px 0" }}>{tr("Nearest-neighbour mean (declustered)")}</td><td style={td}>{sig(chk.nn.mean)} {unit}</td><td style={{ ...td, color: "var(--color-text-secondary)" }} rowSpan={2}>{tr("over the same {n} blocks", { n: chk.estimate.n.toLocaleString() })}</td></tr>
           <tr><td style={{ padding: "2px 8px 2px 0" }}>{tr("Estimate mean ({method})", { method })}</td><td style={td}>{sig(chk.estimate.mean)} {unit}</td></tr>
         </tbody>
@@ -59,7 +59,7 @@ export default function EstimateCheck({ cells, nnCells, points, unit, symbol, me
           ? tr("The estimate's mean is {pct}% above the nearest-neighbour mean.", { pct: Math.abs(d).toFixed(1) })
           : tr("The estimate's mean is {pct}% below the nearest-neighbour mean.", { pct: Math.abs(d).toFixed(1) })}
         {far ? ` ${tr("A gap of 10% or more usually means the search or the weights favour one part of the data: compare the swaths below.")}` : ""}
-        {chk.nnVsCompositesPct != null && Math.abs(chk.nnVsCompositesPct) >= 5 ? ` ${tr("The composite mean is {pct}% {dir} the declustered mean: the drilling is clustered, so the composite mean is not the deposit's mean.", { pct: Math.abs(chk.nnVsCompositesPct).toFixed(0), dir: chk.nnVsCompositesPct > 0 ? tr("above") : tr("below") })}` : ""}
+        {chk.nnVsCompositesPct != null && Math.abs(chk.nnVsCompositesPct) >= 5 ? ` ${tr(composited ? "The composite mean is {pct}% {dir} the declustered mean: the drilling is clustered, so the composite mean is not the deposit's mean." : "The sample mean is {pct}% {dir} the declustered mean: the drilling is clustered, so the sample mean is not the deposit's mean.", { pct: Math.abs(chk.nnVsCompositesPct).toFixed(0), dir: chk.nnVsCompositesPct > 0 ? tr("above") : tr("below") })}` : ""}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "8px 0 4px" }} role="tablist" aria-label={tr("Swath direction")}>
         <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Swath along")}</span>
@@ -71,7 +71,7 @@ export default function EstimateCheck({ cells, nnCells, points, unit, symbol, me
       {bins.length > 0 && (
         <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={tr("Swath plot")} style={{ display: "block" }} dir="ltr">
           <line x1={L} y1={H - B} x2={W - R} y2={H - B} stroke="#94a1b0" /><line x1={L} y1={T} x2={L} y2={H - B} stroke="#94a1b0" />
-          {bins.map((b, i) => b.compositeN > 0 && <rect key={i} x={sx(b.from) + 1} y={H - B - 3} width={Math.max(1, sx(b.to) - sx(b.from) - 2)} height={3} fill="#c9d1db"><title>{tr("{n} composites", { n: b.compositeN })}</title></rect>)}
+          {bins.map((b, i) => b.compositeN > 0 && <rect key={i} x={sx(b.from) + 1} y={H - B - 3} width={Math.max(1, sx(b.to) - sx(b.from) - 2)} height={3} fill="#c9d1db"><title>{composited ? tr("{n} composites", { n: b.compositeN }) : tr("{n} raw samples", { n: b.compositeN })}</title></rect>)}
           {SERIES.map(([k, c, dash]) => line(k).map((seg, i) => seg.length > 1
             ? <polyline key={`${k}${i}`} fill="none" stroke={c} strokeWidth="2" strokeDasharray={dash || undefined} points={seg.join(" ")} />
             : <circle key={`${k}${i}`} cx={seg[0].split(",")[0]} cy={seg[0].split(",")[1]} r="2.5" fill={c} />))}
@@ -85,7 +85,7 @@ export default function EstimateCheck({ cells, nnCells, points, unit, symbol, me
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)" }}>
         {SERIES.map(([k, c, dash, label]) => <span key={k} style={{ display: "flex", alignItems: "center", gap: 4 }}><svg width="18" height="6" aria-hidden="true"><line x1="0" y1="3" x2="18" y2="3" stroke={c} strokeWidth="2" strokeDasharray={dash || undefined} /></svg>{label}</span>)}
       </div>
-      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5, marginTop: 4 }}>{tr("The nearest-neighbour model is a second pass over the same grid, search and domains, taking each block's closest composite: its mean is a declustered mean. The block means count only the blocks both models filled; the grey ticks show slices that hold composites.")}</div>
+      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.5, marginTop: 4 }}>{composited ? tr("The nearest-neighbour model is a second pass over the same grid, search and domains, taking each block's closest composite: its mean is a declustered mean. The block means count only the blocks both models filled; the grey ticks show slices that hold composites.") : tr("The nearest-neighbour model is a second pass over the same grid, search and domains, taking each block's closest sample: its mean is a declustered mean. The block means count only the blocks both models filled; the grey ticks show slices that hold samples.")}</div>
     </div>
   );
 }

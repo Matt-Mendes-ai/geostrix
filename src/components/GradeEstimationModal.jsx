@@ -9,7 +9,7 @@ import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266
 import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport } from "../lib/estimation.js";
 import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice, overlapBox } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
-import { blockReach, densifyTraces, cellToFitReach } from "../lib/blockReach.js"; // TASKS.csv #1416
+import { makeReachClient } from "../lib/blockReachClient.js"; // TASKS.csv #1416; in a worker: #1579
 import { desurveyHole } from "../lib/desurvey.js";
 import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #702
 import { LAYER_META } from "../lib/layers.js";
@@ -36,38 +36,45 @@ import DomainCaps from "./DomainCaps.jsx"; // TASKS.csv #1571
 // input — see lib/estimation.js's top comment for why kriging isn't offered here (needs a fitted
 // variogram as a genuine prerequisite, not just a harder formula dropped into the same loop).
 // checkedHoleIds (a Set, or null) and areaStrings (closed design strings): two more grid sources, TASKS.csv #1570
+// TASKS.csv #1580 (review #1497, Lawyers) — the dialog's settings come back when it is reopened in the session, per project: a reopen
+// started again on IDW, no cap, 50 m radius and an automatic cell. A value that no longer applies (an element, domain, volume or block
+// model not in the project, a cap kept for another element) starts at its default.
+const lastEstimateSettings = new Map(); // project key -> settings
+export const estimateSettingsKey = (project) => String(project?.id ?? project?.name ?? "");
 export default function GradeEstimationModal({ assays: assaysProp, assayElements: assayElementsProp, layers, collars, survey, onAddModel, onClose, volumeShells = [], trend = null, groundAt = null, groundSource = null, checkedHoleIds = null, areaStrings = [] }) { // groundAt: TASKS.csv #803; groundSource "terrain" | "collars": #1616
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const { desurveyMethod, voxelModels, project, customLayers = [] } = useStore(); // TASKS.csv #135 — estimation samples must sit on the same trace the 3D view draws; customLayers: #1571
   // TASKS.csv #1741 / #1708 (review #1645, Copley) — a numeric downhole log (mag susc, SG) or a numeric field of a custom layer (a SWIR
   // wavelength, a chalcopyrite %) is estimated like a grade: its rows become assay-shaped intervals under one "element"
-  const [sourceKey, setSourceKey] = useState("assay");
+  const saved = useRef(lastEstimateSettings.get(estimateSettingsKey(project)) || null).current; // #1580
+  const keep = (k, d, ok = () => true) => (saved && saved[k] !== undefined && ok(saved[k]) ? saved[k] : d);
+  const [sourceKey, setSourceKey] = useState(() => keep("sourceKey", "assay", (k) => k === "assay" || numericSourceChoices({ layers, customLayers }).some((x) => x.key === k)));
   const numericSources = useMemo(() => numericSourceChoices({ layers, customLayers }), [layers, customLayers]);
   const source = useMemo(() => numericSources.find((s) => s.key === sourceKey) || null, [numericSources, sourceKey]);
   const sourceData = useMemo(() => (source ? sourceAssays(source, { layers, customLayers }) : null), [source, layers, customLayers]);
   const assaysIn = sourceData ? sourceData.assays : assaysProp, assayElements = sourceData ? sourceData.assayElements : assayElementsProp;
-  const [logValues, setLogValues] = useState(false); // log10 values: each block a geometric mean, the usual for susceptibility
+  const [logValues, setLogValues] = useState(() => keep("logValues", false)); // log10 values: each block a geometric mean, the usual for susceptibility
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   const elementUnits = useMemo(() => Object.fromEntries(assayElements.map((e) => [e.symbol, e.unit])), [assayElements]);
   const symbols = assayElements.map((e) => e.symbol);
-  const [symbol, setSymbol] = useState(symbols[0] || "Au");
+  const [symbol, setSymbol] = useState(() => keep("symbol", symbols[0] || "Au", (v) => sourceKey !== "assay" || symbols.includes(v)));
   const unit = elementUnits[symbol] || "ppm";
 
-  const [useComposites, setUseComposites] = useState(true);
-  const [compositeLength, setCompositeLength] = useState(2);
+  const [useComposites, setUseComposites] = useState(() => keep("useComposites", true));
+  const [compositeLength, setCompositeLength] = useState(() => keep("compositeLength", 2));
   // TASKS.csv #262 — minCoverage was hardcoded at 0.5 here (and in the grade-shell tool), so a
   // half-missing-core composite silently counted as a full sample in the estimate with no way to
   // tighten it. Same control CompositingModal has always exposed, same 0.5 default (unchanged
   // behaviour until the user moves it).
-  const [minCoverage, setMinCoverage] = useState(0.5);
-  const [domainKey, setDomainKey] = useState("");
+  const [minCoverage, setMinCoverage] = useState(() => keep("minCoverage", 0.5));
+  const [domainKey, setDomainKey] = useState(() => keep("domainKey", "", (k) => !k || domainLayerChoices(layers, customLayers, (x) => x).some((c) => c.key === k)));
   // TASKS.csv #1413 (review #1352) — a layer of numbers (Silvertip's RQD %) is not a domain: every distinct value became one
   // TASKS.csv #1571 (review #1497, Lawyers) — every categorical interval layer, custom layers included (Lawyers' Min Domain), is a domain choice
   const domainChoices = useMemo(() => domainLayerChoices(layers, customLayers, (k) => tr(LAYER_META[k].label)), [layers, customLayers]);
   const domainChoice = domainChoices.find((c) => c.key === domainKey) || null;
   const domainRowsSel = domainChoice ? domainChoice.rows : null;
-  const [capByDomain, setCapByDomain] = useState({}); // TASKS.csv #1571 — { domain value: cap }, blank = the global cap
+  const [capByDomain, setCapByDomain] = useState(() => (saved && saved.symbol === symbol && saved.domainKey === domainKey ? saved.capByDomain || {} : {})); // TASKS.csv #1571 — { domain value: cap }, blank = the global cap
 
   // TASKS.csv #265 — a collar with no recorded length used to silently contribute 300 m of grid depth
   // (`c.z - (c.length || 300)`), which combined with minSamples:1 and a 50 m search radius meant the
@@ -146,34 +153,35 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
     return holes && Number.isFinite(xmin) ? { xmin, xmax, ymin, ymax, zmin, zmax, holes, traces } : null;
   }, [assays, collars, survey, desurveyMethod]);
 
-  const [padding, setPadding] = useState(25);
-  const [cellSize, setCellSize] = useState(10);
+  const [padding, setPadding] = useState(() => keep("padding", 25));
+  const [cellSize, setCellSize] = useState(() => keep("cellSize", 10));
   // TASKS.csv #724 — the grid: "data" (the drilling's box + padding, as before), "model:<id>" (an existing block model's
   // cell size and origin, so the estimate's centroids coincide with it), or "origin" (the cell size above on a typed origin)
-  const [gridMode, setGridMode] = useState("data");
-  const [originE, setOriginE] = useState(""); const [originN, setOriginN] = useState(""); const [originZ, setOriginZ] = useState("");
+  const [gridMode, setGridMode] = useState(() => keep("gridMode", "data", (g) => !g.startsWith("model:") || (voxelModels || []).some((m) => m.id === g.slice(6))));
+  const [originE, setOriginE] = useState(() => keep("originE", "")); const [originN, setOriginN] = useState(() => keep("originN", "")); const [originZ, setOriginZ] = useState(() => keep("originZ", ""));
   const latticeModels = useMemo(() => (voxelModels || []).map((m) => ({ m, L: blockModelLattice(m) })).filter((x) => x.L), [voxelModels]);
   // TASKS.csv #626 — block budget, as the grade shell's (#625): a per-computer preference, 200,000 by default
   const [blockBudget, setBlockBudgetState] = useState(() => { try { return Math.min(MAX_BLOCK_MODEL_BUDGET, Number(localStorage.getItem("geostrix.estimateBlockBudget")) || MAX_BLOCKS); } catch { return MAX_BLOCKS; } });
   const setBlockBudget = (v) => { setBlockBudgetState(v); try { localStorage.setItem("geostrix.estimateBlockBudget", String(v)); } catch { /* private window */ } };
-  const [method, setMethod] = useState("idw2");
+  const [method, setMethod] = useState(() => keep("method", "idw2"));
   // TASKS.csv #709 — ordinary kriging's variogram: blank = fitted to the composites at run time
-  const [vgModel, setVgModel] = useState("spherical");
-  const [vgNugget, setVgNugget] = useState(""), [vgSill, setVgSill] = useState(""), [vgRange, setVgRange] = useState("");
+  const sameElement = saved && saved.symbol === symbol; // a variogram and a cap belong to their element
+  const [vgModel, setVgModel] = useState(() => (sameElement ? keep("vgModel", "spherical") : "spherical"));
+  const [vgNugget, setVgNugget] = useState(() => (sameElement ? keep("vgNugget", "") : "")), [vgSill, setVgSill] = useState(() => (sameElement ? keep("vgSill", "") : "")), [vgRange, setVgRange] = useState(() => (sameElement ? keep("vgRange", "") : ""));
   const [addedKv, setAddedKv] = useState(false);
-  const [searchRadius, setSearchRadius] = useState(50);
-  const [minSamples, setMinSamples] = useState(1);
-  const [minHoles, setMinHoles] = useState(2);          // TASKS.csv #258
-  const [materialHoles, setMaterialHoles] = useState(true); // TASKS.csv #1573 — a second hole must carry at least 5 % of the weight
-  const [maxSamples, setMaxSamples] = useState(16);
-  const [maxPerHole, setMaxPerHole] = useState(0); // TASKS.csv #709 — 0 = no explicit cap
-  const [capValue, setCapValue] = useState(NaN);        // TASKS.csv #259
+  const [searchRadius, setSearchRadius] = useState(() => keep("searchRadius", 50));
+  const [minSamples, setMinSamples] = useState(() => keep("minSamples", 1));
+  const [minHoles, setMinHoles] = useState(() => keep("minHoles", 2));          // TASKS.csv #258
+  const [materialHoles, setMaterialHoles] = useState(() => keep("materialHoles", true)); // TASKS.csv #1573 — a second hole must carry at least 5 % of the weight
+  const [maxSamples, setMaxSamples] = useState(() => keep("maxSamples", 16));
+  const [maxPerHole, setMaxPerHole] = useState(() => keep("maxPerHole", 0)); // TASKS.csv #709 — 0 = no explicit cap
+  const [capValue, setCapValue] = useState(() => (sameElement ? keep("capValue", NaN) : NaN));        // TASKS.csv #259
   const capClearedFor = useRef(null); // TASKS.csv #1573 — the element whose default cap the user emptied: no refill
-  const [capAuto, setCapAuto] = useState(false);
-  const [includeQAQC, setIncludeQAQC] = useState(false); // TASKS.csv #266
-  const [restrictToDomain, setRestrictToDomain] = useState(false); // TASKS.csv #260
-  const [classifySupport, setClassifySupport] = useState(true); // TASKS.csv #91/#92
-  const [shellId, setShellId] = useState(""); // TASKS.csv #517 — restrict to a closed modelled volume ("" = none)
+  const [capAuto, setCapAuto] = useState(() => (sameElement ? keep("capAuto", false) : false));
+  const [includeQAQC, setIncludeQAQC] = useState(() => keep("includeQAQC", false)); // TASKS.csv #266
+  const [restrictToDomain, setRestrictToDomain] = useState(() => keep("restrictToDomain", false)); // TASKS.csv #260
+  const [classifySupport, setClassifySupport] = useState(() => keep("classifySupport", true)); // TASKS.csv #91/#92
+  const [shellId, setShellId] = useState(() => keep("shellId", "", (id) => !id || (volumeShells || []).some((v) => v.id === id))); // TASKS.csv #517 — restrict to a closed modelled volume ("" = none)
   // TASKS.csv #1570 (review #1497, Lawyers) — the grid spanned the whole district even when the estimate was restricted to one solid
   // (Lawyers: 100 x 116 x 17 blocks of 53.5 m, 99 % empty, the 0.3 g/t shell holding 131 of them). Restricted, the grid is the
   // solid's box where it overlaps the drilling's (the solid's own box when they do not overlap), so a prospect gets small blocks.
@@ -201,7 +209,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
     return { xmin: Math.min(...xs), xmax: Math.max(...xs), ymin: Math.min(...ys), ymax: Math.max(...ys), zmin: drillBox.zmin, zmax: drillBox.zmax, name: areaString.name };
   }, [areaString, drillBox]);
   const gridBox = shellBox ? (drillBox ? overlapBox(shellBox, drillBox) || shellBox : shellBox) : areaBox ? (overlapBox(areaBox, drillBox) || areaBox) : gridMode === "checked" && checkedBounds ? checkedBounds : drillBox;
-  const [belowGround, setBelowGround] = useState(true); // TASKS.csv #803 — drop blocks whose centre is above the terrain
+  const [belowGround, setBelowGround] = useState(() => keep("belowGround", true)); // TASKS.csv #803 — drop blocks whose centre is above the terrain
   const [modelName, setModelName] = useState("");
   const [result, setResult] = useState(null); // { cells, blocksEstimated, blocksSkipped, grid, samplePointCount, droppedCount } | null
   const [error, setError] = useState("");
@@ -251,30 +259,52 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
   // budget counts the blocks within the search radius of the drill traces (composites lie on them: never fewer than the run's),
   // not the box: Silvertip's three pads ~1 km apart made a 2.3 M-block box of which a few per cent can be estimated
   const reachRadius = searchRadius > 0 ? searchRadius : null;
-  const reachPts = useMemo(() => (traceBounds?.traces?.length && reachRadius ? densifyTraces(traceBounds.traces, Math.min(cell3.dx, cell3.dy, cell3.dz, reachRadius) / 2) : null), [traceBounds, reachRadius, cell3.dx, cell3.dy, cell3.dz]);
-  const reach = useMemo(() => {
-    if (!bounds || !reachPts) return null;
-    const r = blockReach(reachPts.points, bounds, cell3, reachRadius, { margin: reachPts.margin });
-    return { reach: r.reach, tooBig: !!r.tooBig };
-  }, [reachPts, bounds?.xmin, bounds?.xmax, bounds?.ymin, bounds?.ymax, bounds?.zmin, bounds?.zmax, cell3.dx, cell3.dy, cell3.dz, reachRadius]);
+  // TASKS.csv #1579 (review #1497, Lawyers) — the reach count and the cell-fit searches run in a worker (lib/blockReach.worker.js): on
+  // Lawyers (446 holes, a 5 x 6 km box) they froze the window 1.2-1.7 s when the dialog opened. Until the answer for the current
+  // grid comes back the dialog says it is counting, and Run waits.
+  const reachClient = useRef(null);
+  if (!reachClient.current) reachClient.current = makeReachClient();
+  useEffect(() => () => reachClient.current?.stop(), []);
+  const reachArgs = traceBounds?.traces?.length && reachRadius && bounds ? { traces: traceBounds.traces, bounds: { xmin: bounds.xmin, xmax: bounds.xmax, ymin: bounds.ymin, ymax: bounds.ymax, zmin: bounds.zmin, zmax: bounds.zmax }, cell3: { dx: cell3.dx, dy: cell3.dy, dz: cell3.dz }, radius: reachRadius, budget: blockBudget, maxBudget: MAX_BLOCK_MODEL_BUDGET, from: cellSize, fitAllowed: !matched } : null;
+  const reachKey = reachArgs ? JSON.stringify([reachArgs.bounds, reachArgs.cell3, reachRadius, blockBudget, cellSize, !!matched, traceBounds.traces.length]) : null;
+  const [reachState, setReachState] = useState(null); // { key, reach, tooBig, fitCell, fitCellMax }
+  useEffect(() => {
+    if (!reachArgs) return undefined;
+    let live = true;
+    const t = setTimeout(() => {
+      const { promise, latest } = reachClient.current.request(reachArgs);
+      promise.then((r) => { if (live && latest()) setReachState({ key: reachKey, ...r }); }).catch(() => { if (live && latest()) setReachState({ key: reachKey, reach: null, tooBig: false, failed: true }); });
+    }, 120); // typing a cell size or radius sends one request, not one per key
+    return () => { live = false; clearTimeout(t); };
+  }, [reachKey, traceBounds]);
+  const reachPending = !!reachArgs && reachState?.key !== reachKey;
+  const reach = reachArgs && !reachPending && reachState && !reachState.failed ? { reach: reachState.reach, tooBig: reachState.tooBig } : null;
   const blocksInReach = reach ? (reach.tooBig ? Infinity : reach.reach) : totalBlocksPreview;
-  const overLimit = blocksInReach > blockBudget; // #626; #1416 — the blocks in reach
+  const overLimit = !reachPending && blocksInReach > blockBudget; // #626; #1416 — the blocks in reach
   const cellLabel = matched ? (cell3.dx === cell3.dy && cell3.dy === cell3.dz ? cell3.dx : `${cell3.dx}×${cell3.dy}×${cell3.dz}`) : cellSize; // #724 — names say the real block size
-  const fitTo = (budget, from) => (reachPts ? cellToFitReach(reachPts.points, bounds, reachRadius, budget, from, { margin: reachPts.margin }) : cellToFit(bounds, budget, from));
-  const fitCell = useMemo(() => (overLimit && bounds && !matched ? fitTo(blockBudget, cellSize) : null), [overLimit, reachPts, blockBudget, cellSize, matched, bounds?.xmin, bounds?.xmax, bounds?.ymin, bounds?.ymax, bounds?.zmin, bounds?.zmax]);
-  const fitCellMax = useMemo(() => (overLimit && bounds && !matched && blockBudget < MAX_BLOCK_MODEL_BUDGET ? fitTo(MAX_BLOCK_MODEL_BUDGET, cellSize) : null), [overLimit, reachPts, blockBudget, cellSize, matched, bounds?.xmin, bounds?.xmax, bounds?.ymin, bounds?.ymax, bounds?.zmin, bounds?.zmax]);
+  const fitCell = overLimit && bounds && !matched ? (reachArgs ? reachState?.fitCell ?? null : cellToFit(bounds, blockBudget, cellSize)) : null;
+  const fitCellMax = overLimit && bounds && !matched && blockBudget < MAX_BLOCK_MODEL_BUDGET ? (reachArgs ? reachState?.fitCellMax ?? null : cellToFit(bounds, MAX_BLOCK_MODEL_BUDGET, cellSize)) : null;
   // TASKS.csv #1416 (review #1352) — the default 10 m cell could not run on Silvertip (2.3 M blocks over the budget, Run disabled): the
   // first time the grid is over the budget, before the cell size is touched, the cell that fits is filled in, and said
-  const cellTouched = useRef(false);
+  const cellTouched = useRef(!!(saved && saved.cellSize !== undefined)); // #1580 — a remembered cell is not refitted
   const [autoCell, setAutoCell] = useState(null);
   useEffect(() => { if (!cellTouched.current && fitCell) { cellTouched.current = true; setAutoCell(fitCell); setCellSize(fitCell); } }, [fitCell]);
   // #1570 — a restricting solid changes the box: a cell the dialog chose (not typed) is chosen again for it, 10 m when that fits
   useEffect(() => {
-    if (!bounds || matched || autoCell == null || cellSize !== autoCell) return;
-    const c = fitTo(blockBudget, 10); // #1416 — 10 m when its blocks in reach fit
-    if (c && c !== cellSize) { setAutoCell(c); setCellSize(c); }
+    if (!bounds || matched || autoCell == null || cellSize !== autoCell) return undefined;
+    let live = true;
+    const done = (c) => { if (live && c && c !== cellSize) { setAutoCell(c); setCellSize(c); } };
+    if (!reachArgs) { done(cellToFit(bounds, blockBudget, 10)); return undefined; } // #1416 — 10 m when its blocks in reach fit
+    const { promise } = reachClient.current.request({ ...reachArgs, fitAllowed: false, fit10: true });
+    promise.then((r) => done(r.fit10)).catch(() => {});
+    return () => { live = false; };
   }, [shellBox, areaBox, checkedBounds]); // #1570: any change of the box's source
 
+  // #1580 — what to restore next time: kept current every render, stored when the dialog closes
+  const remember = useRef(null);
+  remember.current = { sourceKey, logValues, symbol, useComposites, compositeLength, minCoverage, domainKey, capByDomain, padding, cellSize, gridMode, originE, originN, originZ, method, vgModel, vgNugget, vgSill, vgRange, searchRadius, minSamples, minHoles, materialHoles, maxSamples, maxPerHole, capValue, capAuto, includeQAQC, restrictToDomain, classifySupport, shellId, belowGround };
+  const settingsKey = estimateSettingsKey(project);
+  useEffect(() => () => { lastEstimateSettings.set(settingsKey, remember.current); }, [settingsKey]);
   // TASKS.csv #520 — the estimate runs in a worker: the window keeps repainting, shows progress and can be cancelled
   const [progress, setProgress] = useState(null); // 0..1 while running
   const abortRef = useRef(null);
@@ -669,7 +699,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
           </label>
           {gridPreview && (
             <div style={{ fontSize: "var(--font-size-sm)", color: overLimit ? "var(--color-danger-icon-strong)" : "var(--color-text-muted)" }}>{tr("Grid: {nx} × {ny} × {nz} = {totalBlocksPreview} blocks{v}", { nx: gridPreview.nx, ny: gridPreview.ny, nz: gridPreview.nz, totalBlocksPreview: totalBlocksPreview.toLocaleString(),
-              v: (reach && blocksInReach < totalBlocksPreview ? tr(", {n} within {r} m of the drilling (only those can be estimated, and only those count)", { n: Number.isFinite(blocksInReach) ? blocksInReach.toLocaleString() : "?", r: reachRadius }) : "") + (overLimit ? tr(" — over the {blockBudget}-block budget.", { blockBudget: blockBudget.toLocaleString() }) : "") })}
+              v: (reachPending ? tr(", counting the blocks within {r} m of the drilling…", { r: reachRadius }) : reach && blocksInReach < totalBlocksPreview ? tr(", {n} within {r} m of the drilling (only those can be estimated, and only those count)", { n: Number.isFinite(blocksInReach) ? blocksInReach.toLocaleString() : "?", r: reachRadius }) : "") + (overLimit ? tr(" — over the {blockBudget}-block budget.", { blockBudget: blockBudget.toLocaleString() }) : "") })}
               {overLimit && (
                 <span style={{ display: "inline-flex", gap: 6, marginLeft: 6, flexWrap: "wrap" }}>
                   <button type="button" onClick={() => { cellTouched.current = true; setCellSize(fitCell); }} style={{ ...btn(false), padding: "2px 8px" }}>{tr("Use {fitCell} m blocks", { fitCell })}</button>
@@ -702,7 +732,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
               {tr("{collarsWithoutDepth} of {collars} collar(s) have no recorded length and no survey record — they contribute nothing to the grid's depth extent.", { collarsWithoutDepth, collars: collars.length })}</div>
           )}
 
-          <button onClick={run} disabled={!bounds || overLimit || running || !symbol} style={{ ...btn(true), alignSelf: "flex-start", padding: "8px 16px", display: "flex", alignItems: "center", gap: 6, opacity: (!bounds || overLimit || !symbol) ? 0.5 : 1 }}>
+          <button onClick={run} disabled={!bounds || overLimit || reachPending || running || !symbol} style={{ ...btn(true), alignSelf: "flex-start", padding: "8px 16px", display: "flex", alignItems: "center", gap: 6, opacity: (!bounds || overLimit || !symbol) ? 0.5 : 1 }}>
             <Play size={14} /> {running ? tr("Running… {v}", { v: progress != null ? Math.round(progress * 100) + "%" : "" }) : tr("Run estimation")}
           </button>
           {running && <button type="button" onClick={cancelRun} style={{ ...btn(false), alignSelf: "flex-start", padding: "6px 14px" }}>{tr("Cancel")}</button>}
@@ -793,7 +823,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
                   <div style={{ marginTop: 5, color: "var(--color-text-muted)" }}>{tr("Only blocks whose informing composites bracket them on all three axes, from at least two holes, count as interpolated. Everything else with a value is being carried outward from the data rather than between it — a real number, but not an interpolation.")}</div>
                 </div>
               )}
-              {result.blocksEstimated > 0 && result.nnCells && <EstimateCheck cells={result.cells} nnCells={result.nnCells} points={result.checkPoints} unit={unit} symbol={symbol} method={result.params.method} epsg={project?.epsg ?? null} />}
+              {result.blocksEstimated > 0 && result.nnCells && <EstimateCheck cells={result.cells} nnCells={result.nnCells} points={result.checkPoints} unit={unit} symbol={symbol} method={result.params.method} epsg={project?.epsg ?? null} composited={result.params.composited !== false} />}
               {result.blocksEstimated > 0 && (
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
                   <input placeholder={modelName.trim() ? "" : resultName() /* #1737 — the name the result will get, not the form's current settings */} value={modelName} onChange={(e) => { setModelName(e.target.value); setAdded(false); setAddedSupport(false); }} style={{ ...inp, flex: 1, width: "auto" }} />

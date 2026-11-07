@@ -48,5 +48,5 @@ test("the modal: support split first, a P99 cap by default over CV 150 %, the Ad
   assert.match(m, /Add as block model \(\{pct\}% interpolated\)/);
   const e = readFileSync(new URL("../src/lib/estimation.js", import.meta.url), "utf8");
   assert.equal((e.match(/minHoles > 1 && wantMaterial \? materialHoles\(used, /g) || []).length, 2, "the estimator and the support classifier share the rule");
-  assert.match(m, /const \[materialHoles, setMaterialHoles\] = useState\(true\);/); // on by default in the dialog
+  assert.match(m, /const \[materialHoles, setMaterialHoles\] = useState\(\(\) => keep\("materialHoles", true\)\);/); // on by default in the dialog (#1580: or as last left)
 });
