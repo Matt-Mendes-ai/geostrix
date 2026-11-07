@@ -8713,5 +8713,8 @@
   "Reduction to the equator (RTE)": "الإرجاع إلى خط الاستواء (RTE)",
   "The grid is too small for worms: it needs at least four cells across.": "الشبكة أصغر من أن تُحسب لها الديدان: تحتاج أربع خلايا عرضاً على الأقل.",
   "Worms (edges at several heights)": "الديدان (حواف عند عدة ارتفاعات)",
-  "Worms (Hornby et al. 1999)": "الديدان (Hornby et al. 1999)"
+  "Worms (Hornby et al. 1999)": "الديدان (Hornby et al. 1999)",
+  "could not be read": "تعذّرت قراءته",
+  "{label} is {w} × {h} px with no smaller overview: reading it would decode {n} million values, about {min} minutes, over the {limit} million GeoStrix reads at once. Crop it to your area (gdal_translate -projwin) or add overviews (gdaladdo) in QGIS or GDAL first.": "{label} بحجم {w} × {h} بكسل بلا نظرة عامة أصغر: قراءته تفك {n} مليون قيمة، نحو {min} دقائق، فوق الـ {limit} مليون التي يقرأها GeoStrix دفعة واحدة. اقتطعه إلى منطقتك (gdal_translate -projwin) أو أضف له نظرات عامة (gdaladdo) في QGIS أو GDAL أولاً.",
+  "{name} is {mb} MB: it is read by parts, as a GeoTIFF, not whole.": "حجم {name} ‏{mb} ميغابايت: يُقرأ على أجزاء، كملف GeoTIFF، لا كاملاً."
 }

@@ -1274,6 +1274,27 @@ const READABLE_EXT = new Set([".csv", ".txt", ".tsv", ".xyz", ".dat", ".zip", ".
   ".las", ".xlsx", ".kml", ".kmz",
   ".tab", ".map", ".id"]); // TASKS.csv #818 / #819 — MapInfo TAB (.dat is above); the Perk-Rocky sample is MapInfo
 const READ_MAX_BYTES = 200 * 1024 * 1024;
+// TASKS.csv #1351 — a GeoTIFF over the limit is not read here: fs-read-file answers { big: true, size } and the renderer reads it by byte
+// ranges (only the header and the tiles a read needs, raster.js openTiff). Only a path fs-read-file has just passed, by every check
+// above, may be read by range; each read is at most RANGE_MAX_BYTES.
+const RANGE_EXT = new Set([".tif", ".tiff"]);
+const rangeReadable = new Set();
+const RANGE_MAX_BYTES = 64 * 1024 * 1024;
+ipcMain.handle("fs-read-range", async (_e, { filePath, offset, length }) => {
+  try {
+    const full = path.resolve(String(filePath || ""));
+    if (!rangeReadable.has(full)) return { ok: false, error: "Open the file from the Browser panel first." };
+    if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(length) || offset < 0 || length < 0 || length > RANGE_MAX_BYTES) return { ok: false, error: "Bad range." };
+    const fh = await fs.promises.open(full, "r");
+    try {
+      const buf = Buffer.alloc(length);
+      const { bytesRead } = await fh.read(buf, 0, length, offset);
+      return { ok: true, data: bytesRead === length ? buf : buf.subarray(0, bytesRead) };
+    } finally { await fh.close(); }
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+});
 ipcMain.handle("fs-read-file", async (_e, { filePath }) => {
   try {
     const ext = path.extname(String(filePath || "")).toLowerCase();
@@ -1288,6 +1309,7 @@ ipcMain.handle("fs-read-file", async (_e, { filePath }) => {
     if (!(await allowNetworkPath(filePath))) return { ok: false, error: "Network location not opened." };
     const st = await fs.promises.stat(filePath);
     if (!st.isFile()) return { ok: false, error: "Not a file." };
+    if (st.size > READ_MAX_BYTES && RANGE_EXT.has(ext)) { rangeReadable.add(path.resolve(String(filePath))); return { ok: true, big: true, size: st.size, name: path.basename(filePath) }; } // #1351
     if (st.size > READ_MAX_BYTES) return { ok: false, error: `${path.basename(filePath)} is ${(st.size / 1048576).toFixed(0)} MB — over the ${READ_MAX_BYTES / 1048576} MB import limit. Crop or thin it first.` };
     const buf = await fs.promises.readFile(filePath);
     return { ok: true, data: buf, name: path.basename(filePath) };

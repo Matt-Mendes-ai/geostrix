@@ -289,6 +289,22 @@ export async function fsReadFile(filePath) {
   if (!d) return { ok: false, error: "Folder browsing requires the desktop app." };
   return d.fsReadFile(filePath);
 }
+// TASKS.csv #1351 — a GeoTIFF over fs-read-file's 200 MB limit comes back as { big: true, size }: it is handed on as a file read by byte
+// ranges through the main process (raster.js openTiff reads only the header and the tiles it needs); reading it whole is refused.
+export function bigFileByRange(filePath, res) {
+  const name = res.name, size = res.size;
+  const whole = () => Promise.reject(new Error(tr("{name} is {mb} MB: it is read by parts, as a GeoTIFF, not whole.", { name, mb: Math.round(size / 1048576).toLocaleString() })));
+  return {
+    name, size, lastModified: Date.now(), type: "image/tiff", byRange: true,
+    readRange: async (offset, length) => {
+      const r = await d.fsReadRange(filePath, offset, length);
+      if (!r?.ok) throw new Error(r?.error || tr("could not be read"));
+      const u = r.data;
+      return u.buffer.slice(u.byteOffset, u.byteOffset + u.byteLength);
+    },
+    arrayBuffer: whole, text: whole,
+  };
+}
 // Reconstructs a browser File object from a main-process file read (see fsReadFile above) so a file
 // clicked in the Browser panel can be handed to the exact same parseVectorFile()/openImportModal()
 // path the existing "Import" toolbar buttons already use.

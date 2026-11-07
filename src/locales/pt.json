@@ -8713,5 +8713,8 @@
   "Reduction to the equator (RTE)": "Redução ao equador (RTE)",
   "The grid is too small for worms: it needs at least four cells across.": "A malha é pequena demais para worms: precisa de pelo menos quatro células de largura.",
   "Worms (edges at several heights)": "Worms (bordas em várias alturas)",
-  "Worms (Hornby et al. 1999)": "Worms (Hornby et al. 1999)"
+  "Worms (Hornby et al. 1999)": "Worms (Hornby et al. 1999)",
+  "could not be read": "não pôde ser lido",
+  "{label} is {w} × {h} px with no smaller overview: reading it would decode {n} million values, about {min} minutes, over the {limit} million GeoStrix reads at once. Crop it to your area (gdal_translate -projwin) or add overviews (gdaladdo) in QGIS or GDAL first.": "{label} tem {w} × {h} px sem uma visão geral menor: lê-lo decodificaria {n} milhões de valores, cerca de {min} minutos, acima dos {limit} milhões que o GeoStrix lê de uma vez. Recorte-o para sua área (gdal_translate -projwin) ou adicione visões gerais (gdaladdo) no QGIS ou GDAL antes.",
+  "{name} is {mb} MB: it is read by parts, as a GeoTIFF, not whole.": "{name} tem {mb} MB: é lido por partes, como GeoTIFF, não inteiro."
 }

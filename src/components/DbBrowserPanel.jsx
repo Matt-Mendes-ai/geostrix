@@ -3,7 +3,7 @@ import { useTablePull, ROW_WARN_THRESHOLD } from "../lib/useTablePull.js"; // TA
 import { profileProblem } from "../lib/dbProfiles.js"; // TASKS.csv #1267
 import TablePullConfirm from "./TablePullConfirm.jsx";
 import { ChevronRight, ChevronDown, Folder, FolderOpen, File, HardDrive, Star, Database, Loader2, Unplug, RefreshCw } from "./icons.js";
-import { fsListDir, fsListDrives, fsReadFile, readResultToFile, dbLiveListTables, dbPasswordStatus } from "../lib/desktop.js";
+import { fsListDir, fsListDrives, fsReadFile, readResultToFile, bigFileByRange, dbLiveListTables, dbPasswordStatus } from "../lib/desktop.js";
 import { useStore } from "../lib/store.jsx";
 import { useBrowserPanelPrefs } from "../lib/useBrowserPanelPrefs.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
@@ -47,7 +47,7 @@ export default function DbBrowserPanel({ onImportFile, onImportRows, onError }) 
   const handleFilePick = useCallback(async (entry) => {
     const res = await fsReadFile(entry.path);
     if (!res.ok) { onError?.(`${entry.name}: ${res.error || "could not be read."}`); return; } // #717 — was silent
-    const file = readResultToFile(res, res.name); // #346
+    const file = res.big ? bigFileByRange(entry.path, res) : readResultToFile(res, res.name); // #346; big: #1351 — a GeoTIFF over 200 MB, read by range
     noteRecentFolder(entry.path.slice(0, Math.max(0, entry.path.length - entry.name.length - 1)) || entry.path);
     onImportFile(file);
   }, [onImportFile, noteRecentFolder, onError]);

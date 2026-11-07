@@ -52,6 +52,7 @@ contextBridge.exposeInMainWorld("desktop", {
   fsListDir: (dirPath) => ipcRenderer.invoke("fs-list-dir", { dirPath }),
   fsListDrives: () => ipcRenderer.invoke("fs-list-drives"),
   fsReadFile: (filePath) => ipcRenderer.invoke("fs-read-file", { filePath }),
+  fsReadRange: (filePath, offset, length) => ipcRenderer.invoke("fs-read-range", { filePath, offset, length }), // TASKS.csv #1351
   // TASKS.csv #1716 — a big GeoPackage read in the main process: these take the File the user chose (input or drop), not a path, so
   // the renderer can only ever point them at a file the user picked; a File with no path on disk returns { ok: false }
   gpkgIndex: (file) => { const filePath = webUtils.getPathForFile(file); return filePath ? ipcRenderer.invoke("gpkg-index", { filePath }) : Promise.resolve({ ok: false, error: "no path" }); },

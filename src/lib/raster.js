@@ -17,7 +17,7 @@
 // the scene, so that path DOES reproject automatically when it can.
 import { inflateCapped, MB } from "./inflate.js"; // TASKS.csv #1347
 import { decodeGrd } from "./grdFormats.js"; // TASKS.csv #1347
-import { fromArrayBuffer } from "geotiff";
+import GeoTIFF, { fromArrayBuffer } from "geotiff"; // GeoTIFF.fromSource: #1351
 import { writeGeoTiff } from "./geotiffWrite.js"; // TASKS.csv #1038 — geotiff.js header, one loop for the pixels
 import { f32ToB64, b64ToF32 } from "./inversion.js"; // TASKS.csv #326 — compact grid values
 import { getProj4Def, getProj4DefSync, reprojectGrid, reprojectImageRGBA, bilinearSample, reprojectXY, guessEpsgFromPrjWkt } from "./reproject.js";
@@ -116,6 +116,7 @@ function rampColor(t) {
 // overview that fits, else refuses within milliseconds. A real 1 m LiDAR tile is 400 M samples: crop it, or
 // give it overviews (gdaladdo) / thin it (gdalwarp -tr), as the message says.
 export const MAX_DECODE_SAMPLES = 64_000_000;
+const MAX_EXPANSION = 200; // TASKS.csv #1351 — decoded bytes (4 per value) per byte of file a streamed read may expand to
 export async function readRastersCapped(tiff, image, opts = {}, label = "This GeoTIFF") {
   const fullW = image.getWidth(), fullH = image.getHeight(), bands = opts.samples?.length || image.getSamplesPerPixel() || 1; // samples: #807
   const [c0, r0, c1, r1] = opts.window || [0, 0, fullW, fullH];
@@ -137,7 +138,117 @@ export async function readRastersCapped(tiff, image, opts = {}, label = "This Ge
     if (n <= MAX_DECODE_SAMPLES && (!best || n > best.n)) best = { ov, win, n };
   }
   if (best) return best.ov.readRasters({ ...opts, window: best.win });
+  // TASKS.csv #1351 — no overview: a reduced read (width / height given, the OUTPUT under the limit) streams the tiles instead
+  // ...unless the file is far too small for what it claims: real images decode to ~1-10x their size (the 249 MB DTM to 3.7x), the #561
+  // bomb (49 KB claiming 20,000 x 20,000 px, every tile pointing at one deflated tile) to ~30,000x; that is refused below, undecoded
+  const fileSize = image.source?.fileSize ?? image.source?.arrayBuffer?.byteLength ?? tiff?.source?.fileSize ?? null;
+  const plausible = !(fileSize > 0) || need * 4 <= MAX_EXPANSION * fileSize;
+  if (plausible && opts.width > 0 && opts.height > 0 && opts.width * opts.height * bands <= MAX_DECODE_SAMPLES) return readTiledReduced(image, opts, label);
   throw new Error(tr("{label} is {v} × {v2} px{v3} — over the {v4} million-value limit GeoStrix decodes at once, with no smaller overview inside. Crop it to your area, or add overviews (gdaladdo) / thin it (gdalwarp -tr) in QGIS or GDAL first.", { label, v: (c1 - c0).toLocaleString(), v2: (r1 - r0).toLocaleString(), v3: bands > 1 ? tr(" × {bands} bands", { bands }) : "", v4: (MAX_DECODE_SAMPLES / 1e6).toFixed(0) }));
+}
+
+// ---------------- TASKS.csv #1351 — big GeoTIFFs: read by byte range, decoded a tile at a time ----------------
+// A 249 MB drone DTM (13,966 x 16,178 float32, 256 px deflate tiles, no overviews; 42290Z Eagle Lake) was refused by the decode
+// limit above, and every path first read the WHOLE file into memory (file.arrayBuffer()), so a 2.5 GB orthomosaic could not be
+// opened at all. Now the file is read by byte ranges (only the header and the tiles a read needs), and a reduced read of an image
+// with no overview walks its tiles one at a time, folding each into the output grid, so memory is the output plus one tile.
+// file: a Blob / File, or { name, size, readRange(offset, length) -> Promise<ArrayBuffer> } (the Browser panel's big files)
+export function rangedTiffSource(file) {
+  let whole = null; // a stand-in with only arrayBuffer() (bundled-sample loaders, tests): read once, then sliced
+  const read = typeof file.readRange === "function" ? (o, l) => file.readRange(o, l)
+    : typeof file.slice === "function" ? (o, l) => file.slice(o, o + l).arrayBuffer()
+      : async (o, l) => { whole = whole || await file.arrayBuffer(); return whole.slice(o, o + l); };
+  const size = Number(file.size) || Infinity;
+  return {
+    fetch: (slices) => Promise.all(slices.map((s) => read(s.offset, Math.max(0, Math.min(s.length, size - s.offset))))),
+    get fileSize() { return Number.isFinite(size) ? size : null; },
+    close: async () => {},
+  };
+}
+export const openTiff = (file) => GeoTIFF.fromSource(rangedTiffSource(file));
+
+// The decode budget of a streamed read: every tile the window touches is decompressed whole (all its bands when they are
+// interleaved). ~6 ms per 256 x 256 float tile here, so 600 million values is about a minute; a bigger read is refused at once
+// with the way out, before anything is decoded.
+export const MAX_STREAM_SAMPLES = 600_000_000;
+export function streamPlan(image, { window = null, samples = null } = {}) {
+  const W = image.getWidth(), H = image.getHeight(), spp = image.getSamplesPerPixel() || 1;
+  const tw = image.getTileWidth(), th = image.getTileHeight();
+  const [c0, r0, c1, r1] = window || [0, 0, W, H];
+  const tx0 = Math.floor(c0 / tw), tx1 = Math.floor((c1 - 1) / tw), ty0 = Math.floor(r0 / th), ty1 = Math.floor((r1 - 1) / th);
+  const tiles = (tx1 - tx0 + 1) * (ty1 - ty0 + 1);
+  const planar = image.planarConfiguration === 2;
+  const perTile = tw * th * (planar ? (samples ? samples.length : spp) : spp);
+  return { tiles, tw, th, tx0, tx1, ty0, ty1, c0, r0, c1, r1, decode: tiles * perTile };
+}
+// opts as readRasters: window, width, height, samples, resampleMethod ("bilinear" -> the mean of the valid source pixels in each
+// output cell; anything else -> the pixel nearest the cell's centre, geotiff.js's own default). Returns one Float32Array per band
+// (with .width / .height), an empty cell set to the file's no-data value, else NaN.
+export async function readTiledReduced(image, opts = {}, label = "This GeoTIFF") {
+  const W = image.getWidth(), H = image.getHeight(), spp = image.getSamplesPerPixel() || 1;
+  const bandIdx = opts.samples || Array.from({ length: spp }, (_, i) => i);
+  const plan = streamPlan(image, opts);
+  const { c0, r0, c1, r1, tw, th } = plan;
+  if (plan.decode > MAX_STREAM_SAMPLES) {
+    throw new Error(tr("{label} is {w} × {h} px with no smaller overview: reading it would decode {n} million values, about {min} minutes, over the {limit} million GeoStrix reads at once. Crop it to your area (gdal_translate -projwin) or add overviews (gdaladdo) in QGIS or GDAL first.", { label, w: W.toLocaleString(), h: H.toLocaleString(), n: Math.round(plan.decode / 1e6).toLocaleString(), min: Math.max(1, Math.round((plan.tiles * 7) / 60000)), limit: MAX_STREAM_SAMPLES / 1e6 }));
+  }
+  const ow = Math.max(1, Math.round(opts.width || c1 - c0)), oh = Math.max(1, Math.round(opts.height || r1 - r0));
+  const bx = (c1 - c0) / ow, by = (r1 - r0) / oh, nb = bandIdx.length, n = ow * oh;
+  let noData = null;
+  try { const nd = image.getGDALNoData(); if (Number.isFinite(nd)) noData = nd; } catch (_) { /* optional */ }
+  const valid = (v) => Number.isFinite(v) && (noData === null || v !== noData);
+  const avg = opts.resampleMethod === "bilinear" || opts.resampleMethod === "average";
+  const out = bandIdx.map(() => new Float32Array(n).fill(noData ?? NaN));
+  // float32 sums (a cell averages tens of values; float32 keeps ~7 digits) and 16-bit counts when a cell cannot reach 65,535: ~half the memory
+  const sum = avg ? bandIdx.map(() => new Float32Array(n)) : null, CountArray = Math.ceil(bx) * Math.ceil(by) < 65535 ? Uint16Array : Uint32Array, cnt = avg ? bandIdx.map(() => new CountArray(n)) : null;
+  // nearest: the source column / row each output column / row samples
+  const colOf = avg ? null : Int32Array.from({ length: ow }, (_, o) => Math.min(c1 - 1, c0 + Math.floor((o + 0.5) * bx)));
+  const rowOf = avg ? null : Int32Array.from({ length: oh }, (_, o) => Math.min(r1 - 1, r0 + Math.floor((o + 0.5) * by)));
+  for (let ty = plan.ty0; ty <= plan.ty1; ty++) {
+    const y0 = Math.max(r0, ty * th), y1 = Math.min(r1, (ty + 1) * th);
+    // nearest: skip a tile row no output row samples
+    const oy0 = avg ? 0 : Math.max(0, Math.ceil((y0 - r0) / by - 0.5)), oy1 = avg ? -1 : Math.min(oh - 1, Math.floor((y1 - r0) / by - 0.5 - 1e-9));
+    if (!avg && !(rowOf[Math.min(oh - 1, oy0)] >= y0 && rowOf[Math.min(oh - 1, oy0)] < y1)) continue;
+    for (let tx = plan.tx0; tx <= plan.tx1; tx++) {
+      const x0 = Math.max(c0, tx * tw), x1 = Math.min(c1, (tx + 1) * tw);
+      const ox0 = avg ? 0 : Math.max(0, Math.ceil((x0 - c0) / bx - 0.5));
+      if (!avg && !(ox0 < ow && colOf[ox0] >= x0 && colOf[ox0] < x1)) continue;
+      const tile = await image.readRasters({ window: [x0, y0, x1, y1], samples: bandIdx });
+      const w = x1 - x0;
+      if (avg) {
+        for (let y = y0; y < y1; y++) {
+          const oy = Math.min(oh - 1, Math.floor((y - r0) / by)), rowBase = oy * ow, tRow = (y - y0) * w;
+          for (let x = x0; x < x1; x++) {
+            const o = rowBase + Math.min(ow - 1, Math.floor((x - c0) / bx)), t = tRow + (x - x0);
+            for (let b = 0; b < nb; b++) { const v = tile[b][t]; if (valid(v)) { sum[b][o] += v; cnt[b][o]++; } }
+          }
+        }
+      } else {
+        for (let oy = oy0; oy <= oy1; oy++) {
+          const ty_ = rowOf[oy]; if (ty_ < y0 || ty_ >= y1) continue;
+          const tRow = (ty_ - y0) * w, rowBase = oy * ow;
+          for (let ox = ox0; ox < ow && colOf[ox] < x1; ox++) {
+            const t = tRow + (colOf[ox] - x0);
+            for (let b = 0; b < nb; b++) out[b][rowBase + ox] = tile[b][t];
+          }
+        }
+      }
+    }
+  }
+  if (avg) for (let b = 0; b < nb; b++) for (let o = 0; o < n; o++) if (cnt[b][o]) out[b][o] = sum[b][o] / cnt[b][o];
+  for (const a of out) { a.width = ow; a.height = oh; }
+  out.width = ow; out.height = oh;
+  return out;
+}
+// a band (row 0 north) shrunk to w x h by the mean of its valid values per cell (the texture from a streamed grid read)
+export function shrinkBand(band, bw, bh, w, h, isNoData = (v) => !Number.isFinite(v)) {
+  const out = new Float32Array(w * h).fill(NaN), sum = new Float64Array(w * h), cnt = new Uint32Array(w * h);
+  for (let y = 0; y < bh; y++) {
+    const oy = Math.min(h - 1, Math.floor((y * h) / bh));
+    for (let x = 0; x < bw; x++) { const v = band[y * bw + x]; if (isNoData(v)) continue; const o = oy * w + Math.min(w - 1, Math.floor((x * w) / bw)); sum[o] += v; cnt[o]++; }
+  }
+  for (let o = 0; o < out.length; o++) if (cnt[o]) out[o] = sum[o] / cnt[o];
+  return out;
 }
 
 // TASKS.csv #783 — `bandFn(bands, isNoData)` turns a multiband file into ONE band (a spectral index) before the
@@ -177,10 +288,9 @@ export async function decodeTiffImage(file, maxSide = FULL_DETAIL_SIZE) {
 }
 
 export async function parseGeoTIFF(file, { bandFn = null, samples = null, maxSide = MAX_TEXTURE_SIZE, worldFile = null } = {}) { // maxSide: #838; worldFile: #1855
-  const buf = await file.arrayBuffer();
   let tiff, image;
   try {
-    tiff = await fromArrayBuffer(buf);
+    tiff = await openTiff(file); // #1351 — by byte range, not the whole file in memory
     image = await tiff.getImage();
   } catch (err) {
     throw new Error(tr("Not a readable GeoTIFF ({message}).", { message: err.message }));
@@ -211,7 +321,14 @@ export async function parseGeoTIFF(file, { bandFn = null, samples = null, maxSid
   try { const nd = image.getGDALNoData(); if (Number.isFinite(nd)) noData0 = nd; } catch (_) { /* not all files have it */ }
   const isNoData0 = (v) => noData0 !== null && v === noData0;
   const sel = samples ? { samples } : {}; // #807
-  const read0 = await readRastersCapped(tiff, image, { width: outW, height: outH, ...sel }, `"${file.name}"`); // #561
+  // TASKS.csv #1351 — a single-band file too big to decode whole is read ONCE, at the value grid's size (the mean per cell), and the
+  // texture shrunk from that: two streamed passes over a 226-million-value DTM would cost twice the ~20 s
+  const oneBand = !bandFn && !samples && (image.getSamplesPerPixel() || 1) === 1;
+  const streamOnce = oneBand && srcW * srcH > MAX_DECODE_SAMPLES;
+  const pre = srcW * srcH <= 16_000_000 ? 1 : Math.max(srcW, srcH) / 4096;
+  const rw = Math.max(1, Math.round(srcW / pre)), rh = Math.max(1, Math.round(srcH / pre));
+  const gridRead = streamOnce ? await readRastersCapped(tiff, image, { width: rw, height: rh, resampleMethod: "bilinear" }, `"${file.name}"`) : null;
+  const read0 = gridRead ? [shrinkBand(gridRead[0], rw, rh, outW, outH, (v) => !Number.isFinite(v) || (noData0 !== null && v === noData0))] : await readRastersCapped(tiff, image, { width: outW, height: outH, ...sel }, `"${file.name}"`); // #561
   const sourceBands = read0.length;
   const rasters = bandFn ? [bandFn(read0, isNoData0)] : read0; // #783
   const bandCount = rasters.length;
@@ -269,9 +386,7 @@ export async function parseGeoTIFF(file, { bandFn = null, samples = null, maxSid
   if (bandCount === 1) {
     // Full resolution when it fits in ~64 MB of float32 (then BLOCK-AVERAGED by makeValueGrid); a larger
     // file is first read at 4096 on its longest side by geotiff's own resampling (nearest), then averaged.
-    const pre = srcW * srcH <= 16_000_000 ? 1 : Math.max(srcW, srcH) / 4096;
-    const rw = Math.max(1, Math.round(srcW / pre)), rh = Math.max(1, Math.round(srcH / pre));
-    const [band] = rw === outW && rh === outH ? rasters : await (async () => { const r = await readRastersCapped(tiff, image, { width: rw, height: rh, ...sel }, `"${file.name}"`); return bandFn ? [bandFn(r, isNoData0)] : r; })(); // #561; bandFn: #783
+    const [band] = gridRead ? gridRead : rw === outW && rh === outH ? rasters : await (async () => { const r = await readRastersCapped(tiff, image, { width: rw, height: rh, ...sel }, `"${file.name}"`); return bandFn ? [bandFn(r, isNoData0)] : r; })(); // #561; bandFn: #783
     const pw = (bbox[2] - bbox[0]) / rw, ph = (bbox[3] - bbox[1]) / rh; // pixel-area file: values sit at pixel centres
     grid = makeValueGrid(band, rw, rh, bbox[0] + pw / 2, bbox[3] - ph / 2, pw, ph, (v) => !Number.isFinite(v) || (noData !== null && v === noData));
     grid.sourceSize = [srcW, srcH];
@@ -350,10 +465,9 @@ function isGeographicGeoKeys(geoKeys) {
 // area.
 const DEM_READ_MAX = 800;
 async function readDemTile(file, crop = null, readMax = DEM_READ_MAX) {
-  const buf = await file.arrayBuffer();
   let tiff, image;
   try {
-    tiff = await fromArrayBuffer(buf);
+    tiff = await openTiff(file); // #1351 — by byte range
     image = await tiff.getImage();
   } catch (err) {
     throw new Error(tr("\"{name}\" is not a readable GeoTIFF ({message}).", { name: file.name, message: err.message }));
@@ -412,7 +526,7 @@ async function readDemTile(file, crop = null, readMax = DEM_READ_MAX) {
 // Just the georeferencing + CRS of a tile, without decoding pixels (#422: needed to express the crop area
 // in the tile's own CRS before reading).
 async function peekDemTile(file) {
-  const tiff = await fromArrayBuffer(await file.arrayBuffer());
+  const tiff = await openTiff(file); // #1351 — the header only
   const image = await tiff.getImage();
   let epsgTag = null;
   try { epsgTag = epsgFromGeoKeys(image.getGeoKeys()); /* #707 */ } catch (_) { /* optional */ }

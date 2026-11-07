@@ -1401,8 +1401,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         // DEM-looking tifs are batched into ONE importTerrain call so multiple adjacent tiles (e.g. two
         // SRTM tiles dropped together) mosaic into a single terrain surface instead of each replacing
         // the last — everything else keeps importing one file at a time as before.
-        const demTifs = tifs.filter((tif) => /dem|srtm|elev|terrain|topo/i.test(tif.name));
-        const drapeTifs = tifs.filter((tif) => !/dem|srtm|elev|terrain|topo/i.test(tif.name));
+        const demTifs = tifs.filter((tif) => /dem|dtm|dsm|srtm|elev|terrain|topo/i.test(tif.name)); // dtm / dsm: #1351 (a drone DTM)
+        const drapeTifs = tifs.filter((tif) => !/dem|dtm|dsm|srtm|elev|terrain|topo/i.test(tif.name));
         if (demTifs.length) importTerrain(demTifs);
         drapeTifs.forEach((tif) => importRaster(tif));
         gxfs.forEach((gxf) => importRaster(gxf));
