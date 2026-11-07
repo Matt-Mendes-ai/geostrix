@@ -290,7 +290,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null }) { // o
     if (D.size >= 3) {
       const rowsW = [], chosen = [];
       const N = nValid, ND = D.size; // #1556: the prior over the study area (every valid cell), not one layer's cells
-      layers.forEach((l) => { const bc = bestCutoff(l.values, D, valid, { direction: l.shape }); if (bc.best) rowsW.push({ label: l.label, nMissing: bc.nMissing, nCells: bc.N, ...bc.best, values: l.values, direction: l.shape }); });
+      layers.forEach((l) => { const bc = bestCutoff(l.values, D, valid, { direction: l.shape }); if (bc.best) rowsW.push({ id: l.id /* #1566 */, label: l.label, nMissing: bc.nMissing, nCells: bc.N, ...bc.best, values: l.values, direction: l.shape }); });
       // TASKS.csv #1559 — a layer whose best cutoff is thin (fewer than MIN_SIDE occurrence cells on a side) stays out of the posterior
       // when sound layers exist: its W- of -2.35 +/- 1.00 came from one cell. With no sound layer at all, every layer is used.
       const anySound = rowsW.some((r) => !r.thin);
@@ -427,12 +427,26 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null }) { // o
                 {result.cover && (result.cover.droppedCells > 0 || result.cover.inGrid < result.cover.points) && <div style={{ ...note, marginTop: 2, color: result.cover.droppedShare > 0.25 ? "var(--color-warn-text)" : undefined }}>{tr("{p} occurrence points in {c} cells; {d} cell(s) lie outside the area where every evidence has a value and are not used ({pct} %).{v}", { p: result.cover.points.toLocaleString(), c: result.cover.cells.toLocaleString(), d: result.cover.droppedCells.toLocaleString(), pct: Math.round(result.cover.droppedShare * 100), v: result.cover.inGrid < result.cover.points ? " " + tr("{m} point(s) are outside the grid.", { m: (result.cover.points - result.cover.inGrid).toLocaleString() }) : "" })}</div>}{/* #1558 */}
                 {result.wofe.anyMissing && <div style={{ ...note, marginTop: 2 }}>{tr("An evidence's weights come from the cells where it has a value; where it has none it adds nothing to the posterior (weight 0), so the score cannot reach past the drilled ground on drill evidence alone.")}</div>}{/* #1556 */}
                 {result.wofe.ND < 10 && <div style={{ color: "var(--color-warn-text)", marginTop: 2 }}>{tr("Fewer than 10 occurrence cells: the weights, the posterior and the prediction-area figures are not interpretable — read them as a sketch.")}</div>}{/* #1452 */}
-                {result.wofe.rows.map((r, i) => ( // wrapped lines, not a table: the sidebar is narrow
+                {result.wofe.rows.map((r, i) => { // wrapped lines, not a table: the sidebar is narrow
+                  // TASKS.csv #1566 (review #1497, Lawyers) — a negative contrast: the occurrences sit on the other side of the cutoff, so the
+                  // card's 'favourable when high' (or low) is the wrong way round for the fuzzy score. It was printed bold like strong
+                  // evidence. Its weights stay in the posterior (a negative W+ lowers the probability inside the pattern, as weights of
+                  // evidence intends); the card's direction is what to fix, one click.
+                  const against = !r.none && r.studC < 0, strongAgainst = against && r.studC <= -2;
+                  return (
                   <div key={i} style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4 }}>
                     <div style={{ color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.label}>{r.label}</div>
-                    <div style={{ color: "var(--color-text-secondary)", fontWeight: !r.none && Math.abs(r.studC) >= 2 ? 600 : 400 }}>{r.none ? tr("no usable cutoff") : (r.corrected ? tr("every occurrence inside the pattern: 0.5 added to the zero count · ") : "") + tr("cutoff {c} · W+ {wp} ± {sp} · W− {wm} ± {sm} · C/s {s}", { c: fmt(r.cutoff), wp: fmt(r.wPlus), sp: fmt(r.sPlus), wm: fmt(r.wMinus), sm: fmt(r.sMinus), s: fmt(r.studC, 1) })}{" · " + tr("{a} of {d} occurrence cells inside the pattern ({b} cells)", { a: r.nBD, d: r.nD, b: r.nB.toLocaleString() })}{r.thin ? " · " + tr("thin: fewer than {m} occurrence cells on one side, a weak basis for this weight", { m: MIN_SIDE }) + (r.used === false ? " · " + tr("left out of the posterior") : "") : ""}{/* #1559 */}{r.nMissing > 0 ? " · " + tr("on {n} cells with a value; {m} without count 0", { n: r.nCells.toLocaleString(), m: r.nMissing.toLocaleString() }) : ""}</div>
+                    <div style={{ color: against ? "var(--color-warn-text)" : "var(--color-text-secondary)", fontWeight: !r.none && r.studC >= 2 ? 600 : 400 }}>{r.none ? tr("no usable cutoff") : (r.corrected ? tr("every occurrence inside the pattern: 0.5 added to the zero count · ") : "") + tr("cutoff {c} · W+ {wp} ± {sp} · W− {wm} ± {sm} · C/s {s}", { c: fmt(r.cutoff), wp: fmt(r.wPlus), sp: fmt(r.sPlus), wm: fmt(r.wMinus), sm: fmt(r.sMinus), s: fmt(r.studC, 1) })}{" · " + tr("{a} of {d} occurrence cells inside the pattern ({b} cells)", { a: r.nBD, d: r.nD, b: r.nB.toLocaleString() })}{r.thin ? " · " + tr("thin: fewer than {m} occurrence cells on one side, a weak basis for this weight", { m: MIN_SIDE }) + (r.used === false ? " · " + tr("left out of the posterior") : "") : ""}{/* #1559 */}{r.nMissing > 0 ? " · " + tr("on {n} cells with a value; {m} without count 0", { n: r.nCells.toLocaleString(), m: r.nMissing.toLocaleString() }) : ""}</div>
+                    {against && (
+                      <div style={{ color: "var(--color-warn-text)" }}>
+                        {tr(r.direction === "decreasing" ? "Points the other way: the occurrences sit where this evidence is HIGH (C/s {s}), but the card scores it favourable when low, so the fuzzy score counts it against them." : "Points the other way: the occurrences sit where this evidence is LOW (C/s {s}), but the card scores it favourable when high, so the fuzzy score counts it against them.", { s: fmt(r.studC, 1) })}
+                        {strongAgainst ? "" : " " + tr("Weak either way (|C/s| under 2).")}{" "}
+                        <button type="button" style={linkBtn} onClick={() => { updateLayer(r.id, { shape: r.direction === "decreasing" ? "increasing" : "decreasing" }); setResult(null); }}>{tr(r.direction === "decreasing" ? "Make it favourable when high" : "Make it favourable when low")}</button>
+                      </div>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
                 <div style={{ ...note, color: result.wofe.post.ratio < 0.85 ? "var(--color-warn-text)" : undefined }}>{tr("Conditional independence check: the posterior predicts {e} occurrences for {d} known (ratio {r}).", { e: result.wofe.post.expected.toFixed(1), d: result.wofe.ND, r: result.wofe.post.ratio.toFixed(2) })}{result.wofe.post.ratio < 0.85 ? " " + tr("Under 0.85: the layers double-count each other; the posterior is too high.") : ""}</div>
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                   <button type="button" style={pBtn} onClick={() => toMap("posterior")}>{tr("Posterior → map")}</button>
