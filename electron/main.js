@@ -1013,6 +1013,19 @@ ipcMain.handle("remote-sensing-fetch", async (_e, { url, range = null, json = nu
   return { ok: res.ok, status: res.status, contentType: res.contentType, contentRange: res.contentRange, data: res.buffer };
 });
 
+// TASKS.csv #2005 — Macrostrat (Matt, 2026-11-07: GeoStrix may contact it): its geology map tiles (tiles.macrostrat.org, PNG) and
+// its API v2 (macrostrat.org: the map units at a point, their map sources). Data CC BY 4.0. GET only, only these two HTTPS hosts,
+// the #350 address checks on every hop, 16 MB, 60 s. Only when the user asks for the layer or the units.
+const MACROSTRAT_HOSTS = new Set(["macrostrat.org", "tiles.macrostrat.org"]);
+ipcMain.handle("macrostrat-fetch", async (_e, { url, binary = false } = {}) => {
+  let u;
+  try { u = new URL(String(url || "")); } catch { return { ok: false, status: 0, message: "Not a valid URL." }; }
+  if (u.protocol !== "https:" || !MACROSTRAT_HOSTS.has(u.hostname)) return { ok: false, status: 0, message: "GeoStrix only reads Macrostrat from macrostrat.org and tiles.macrostrat.org." };
+  const res = await guardedFetch(u.toString(), { timeoutMs: 60000, maxBytes: 16 * 1024 * 1024, allowHost: (h) => h.protocol === "https:" && MACROSTRAT_HOSTS.has(h.hostname) });
+  if (res.message) return { ok: false, status: res.status, message: res.message };
+  return { ok: res.ok, status: res.status, contentType: res.contentType, ...(binary ? { bytes: res.buffer } : { text: res.buffer.toString("utf8") }) };
+});
+
 // TASKS.csv #846 — the public geochemistry catalogue: a sample table for the project area from a government survey's
 // web service (BC RGS on the BC open map service, NGSA on Geoscience Australia's). GET only, only these HTTPS hosts
 // (each tested against real responses and its licence read), the #350 address checks on every hop, 64 MB, 120 s.

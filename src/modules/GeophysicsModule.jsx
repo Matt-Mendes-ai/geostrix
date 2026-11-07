@@ -20,6 +20,7 @@ import { SURVEY_METHODS, unitsForMethod, robustRange, SURVEY_METHOD_GROUPS, gues
 import { terrainElevationAt } from "../lib/inversion.js";
 import { downholeLikeness } from "../lib/downholeLikeness.js"; // TASKS.csv #1709
 import AddWebLayerModal from "../components/AddWebLayerModal.jsx";
+const MacrostratModal = React.lazy(() => import("../components/MacrostratModal.jsx")); // TASKS.csv #2005
 import { useStore } from "../lib/store.jsx";
 import { classifyBreaks, PALETTES, paletteColorsHex , colorForVoxelValue, readableValues /* #1422 */, classCountNote /* #1430 */ } from "../lib/layers.js";
 import StopValueInput from "../components/StopValueInput.jsx"; // TASKS.csv #1422
@@ -210,6 +211,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const [srtmSeedLonLat, setSrtmSeedLonLat] = useState(null); // { lon, lat } | null — TASKS.csv #200 "Locate" button
   const [srtmAreaOptions, setSrtmAreaOptions] = useState(null); // [{id, label, bboxLonLat}] | null — TASKS.csv #200
   const [webLayerModalOpen, setWebLayerModalOpen] = useState(false);
+  const [macrostratOpen, setMacrostratOpen] = useState(false); // TASKS.csv #2005
   const [webLayerDefaultBbox, setWebLayerDefaultBbox] = useState(null); // [lonMin,latMin,lonMax,latMax] | null — TASKS.csv #127
   const [voxelError, setVoxelError] = useState(null);
   const [bmPending, setBmPending] = useState(null); // TASKS.csv #410 — a parsed block-model CSV awaiting column confirmation
@@ -2171,6 +2173,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           setWebLayerDefaultBbox(await defaultSrtmBboxLonLat()); setWebLayerModalOpen(true);
         }} style={pBtn}>
           <Globe size={14} />{" "}{tr("Add web layer (WMS / WFS)…")}</button>
+        {/* TASKS.csv #2005 — Macrostrat's world geologic map (CC BY 4.0) for the project area, and the units at its centre */}
+        <button onClick={async () => {
+          if (project?.crsSet === false) { if (!(await ensureProjectCrs(project, tr("Web map layers are downloaded for the place your coordinates point to, so the project needs its coordinate system first.")))) return; }
+          setWebLayerDefaultBbox(await defaultSrtmBboxLonLat()); setMacrostratOpen(true);
+        }} style={pBtn} title={tr("Macrostrat's compilation of geologic maps (CC BY 4.0) for the project area, and the map units at its centre with their original maps")}>
+          <Globe size={14} />{" "}{tr("Macrostrat geology…")}</button>
+        {macrostratOpen && <React.Suspense fallback={null}><MacrostratModal onClose={() => setMacrostratOpen(false)} addRaster={addRaster} projectEpsg={project?.epsg} bboxLonLat={webLayerDefaultBbox} /></React.Suspense>}
 
         </>)}
         {geoPane === "claims" && (<>

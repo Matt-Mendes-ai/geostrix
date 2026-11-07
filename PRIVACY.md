@@ -45,6 +45,7 @@ GeoStrix only makes network requests as a direct result of features you use:
 | On startup (can be turned off in the Help menu), and via *Help → Check for Updates* | `github.com`, then `release-assets.githubusercontent.com` (GitHub's download server, which github.com redirects to) | Check whether a newer release exists, and download it if you choose to update |
 | You click *Install predictive modelling…* (3D Modelling tab → geoML models) | `github.com`, then `release-assets.githubusercontent.com` | Download the optional predictive-modelling add-on (its checksum is verified before it is installed) |
 | You connect to a database | The host **you** enter | Query your own PostgreSQL or MySQL / MariaDB database |
+| You fetch Macrostrat geology (Maps → Web layers), or the map units at the project centre | `tiles.macrostrat.org`, `macrostrat.org` | Fetch the geology map tiles for the project area and the units and map sources at one point (data CC BY 4.0) |
 | You add a WMS / WMTS / WFS layer | The server **you** enter, or the one you pick under *Common services* (`openmaps.gov.bc.ca`, `services.ga.gov.au`) | Fetch the layer you requested |
 
 These requests necessarily reveal your IP address to the operator of the service being contacted
@@ -56,8 +57,8 @@ is tied to your Tracestrack account. (Database and WMS / WFS servers receive the
 
 GeoStrix's built-in spell checker is turned off, so no spelling dictionary is ever downloaded.
 
-If you never use basemaps, terrain, satellite imagery, public geochemistry, updates, the add-on download, databases or
-WMS layers, GeoStrix makes no network connections at all.
+If you never use basemaps, terrain, satellite imagery, public geochemistry, Macrostrat geology, updates, the add-on download,
+databases or WMS layers, GeoStrix makes no network connections at all.
 
 ## The Python sidecar
 

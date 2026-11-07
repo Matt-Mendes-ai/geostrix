@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld("desktop", {
   fetchWebLayerUrl: (url) => ipcRenderer.invoke("fetch-web-layer", { url }),
   remoteSensingFetch: (req) => ipcRenderer.invoke("remote-sensing-fetch", req), // TASKS.csv #784
   geochemFetch: (req) => ipcRenderer.invoke("geochem-fetch", req), // TASKS.csv #846
+  macrostratFetch: (req) => ipcRenderer.invoke("macrostrat-fetch", req), // TASKS.csv #2005
   updaterCheck: () => ipcRenderer.invoke("updater-check"),
   updaterDownload: () => ipcRenderer.invoke("updater-download"),
   updaterInstall: () => ipcRenderer.invoke("updater-install"),

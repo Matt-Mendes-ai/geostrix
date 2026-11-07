@@ -382,6 +382,14 @@ export async function remoteSensingFetch(req) {
   } catch (e) { return { ok: false, status: 0, message: e.message }; }
 }
 
+// ---------- TASKS.csv #2005: Macrostrat (geology tiles and its API), main-process proxied ----------
+// { url, binary } -> { ok, status, text | bytes } | { ok: false, message }
+export async function macrostratFetch(req) {
+  if (d && d.macrostratFetch) return d.macrostratFetch(req);
+  try { const r = await fetch(req.url); return { ok: r.ok, status: r.status, ...(req.binary ? { bytes: new Uint8Array(await r.arrayBuffer()) } : { text: await r.text() }) }; } // browser / dev fallback
+  catch (e) { return { ok: false, status: 0, message: e.message }; }
+}
+
 // ---------- TASKS.csv #846: public geochemistry (a survey's web service, clipped to an area), main-process proxied ----------
 // { url } -> { ok, status, text } | { ok: false, message }
 export async function geochemFetch(req) {
