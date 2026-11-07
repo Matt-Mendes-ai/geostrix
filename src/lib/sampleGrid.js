@@ -7,6 +7,7 @@
 // element's unit, so it is coloured with the log stretch (#1857) and its legend and identify read in ppm. Zero / negative values
 // cannot be logged and are counted out.
 import { idwGrid, suggestBlankingDistance } from "./idw.js";
+import { minCurvatureGrid } from "./minCurvature.js"; // TASKS.csv #1622
 import { contourLevel } from "./contours.js";
 
 export const logByDefault = (unit) => /^(ppm|ppb|ppt|g\/t)$/i.test(String(unit || "").trim());
@@ -34,7 +35,9 @@ export function suggestSampleGrid(points) {
 }
 
 // -> { grid: { nx, ny, x0, yTop, dx, dy, values: Float32Array }, bbox, points, n, nonPositive, valid, blankM } or { error }
-export function gridSamples(samples, symbol, { medium = "", log = false, cellM, power = 2, blankM = null, maxCells = 4_000_000 } = {}) {
+// method: "idw" (power) or "mincurv" (tension 0-1, lib/minCurvature.js; capped at MINCURV_MAX_CELLS: a million cells take ~4 s)
+export const MINCURV_MAX_CELLS = 1_000_000;
+export function gridSamples(samples, symbol, { medium = "", log = false, cellM, power = 2, blankM = null, maxCells = 4_000_000, method = "idw", tension = 0.25 } = {}) {
   const { points, n, nonPositive } = samplePoints(samples, symbol, { medium, log });
   if (points.length < 3) return { error: "few", n: points.length };
   const cell = Number(cellM) > 0 ? Number(cellM) : (suggestSampleGrid(points)?.cellM ?? 25);
@@ -47,14 +50,28 @@ export function gridSamples(samples, symbol, { medium = "", log = false, cellM, 
   xmax = Math.ceil(xmax / cell) * cell + 1.5 * cell; ymax = Math.ceil(ymax / cell) * cell + 1.5 * cell;
   const nx = Math.round((xmax - xmin) / cell), ny = Math.round((ymax - ymin) / cell);
   if (nx * ny > maxCells) return { error: "cells", nx, ny };
+  if (method === "mincurv" && nx * ny > MINCURV_MAX_CELLS) return { error: "mincurvCells", nx, ny };
   const blank = blankM == null || blankM === "" ? (suggestBlankingDistance(points)?.distance ?? Infinity) : Number(blankM) > 0 ? Number(blankM) : Infinity;
-  const { gridW, gridH, values } = idwGrid(points, { xmin, ymin, xmax, ymax, cellSize: cell, power, maxDistance: blank });
+  let gridW, gridH, values, iterations = null;
+  if (method === "mincurv") {
+    // the same blanking as IDW: a node with no sample within `blank` stays empty (the nearest-sample IDW pass is that mask)
+    const mask = idwGrid(points, { xmin, ymin, xmax, ymax, cellSize: cell, power: 1, maxDistance: blank, maxPoints: 1 });
+    ({ gridW, gridH } = mask);
+    // solved only within 3x the blanking distance of a sample: the far field is blanked anyway and slow to converge. Lawyers' soil Au
+    // (54,040 cells, 50 m, blank 185 m): the whole box 2.1 s, within blank + 2 cells 0.6 s but up to 0.34 log10 off the whole-box
+    // surface at the edges of the sampled area, within 3x blank 0.83 s and 95% of the kept cells within 0.011 log10 (worst 0.11)
+    const near = Number.isFinite(blank) ? idwGrid(points, { xmin, ymin, xmax, ymax, cellSize: cell, power: 1, maxDistance: 3 * blank, maxPoints: 1 }) : null;
+    const active = near ? Uint8Array.from(near.values, (v) => (Number.isFinite(v) ? 1 : 0)) : null;
+    const mc = minCurvatureGrid(points.map((p) => ({ x: p.x, y: p.y, v: p.value })), { xmin, ymax, cell, nx: gridW, ny: gridH }, { tension, active });
+    values = mc.values; iterations = mc.iterations;
+    for (let i = 0; i < values.length; i++) if (!Number.isFinite(mask.values[i])) values[i] = NaN;
+  } else ({ gridW, gridH, values } = idwGrid(points, { xmin, ymin, xmax, ymax, cellSize: cell, power, maxDistance: blank }));
   let valid = 0;
   for (let i = 0; i < values.length; i++) if (Number.isFinite(values[i])) { if (log) values[i] = 10 ** values[i]; valid++; }
   return {
     grid: { nx: gridW, ny: gridH, x0: xmin + cell / 2, yTop: ymax - cell / 2, dx: cell, dy: cell, values },
     bbox: [xmin, ymax - gridH * cell, xmin + gridW * cell, ymax],
-    points: points.length, n, nonPositive, valid, blankM: Number.isFinite(blank) ? Math.round(blank) : null, cellM: cell,
+    points: points.length, n, nonPositive, valid, blankM: Number.isFinite(blank) ? Math.round(blank) : null, cellM: cell, method, ...(method === "mincurv" ? { tension, iterations } : {}),
   };
 }
 

@@ -8633,5 +8633,13 @@
   "(no value)": "(بلا قيمة)",
   "Colour holes by a collar field": "تلوين الثقوب حسب حقل من الفوهة",
   "Colour holes: one colour": "لون الثقوب: لون واحد",
-  "Colour holes by {field}": "تلوين الثقوب حسب {field}"
+  "Colour holes by {field}": "تلوين الثقوب حسب {field}",
+  "Minimum curvature takes grids up to {max} cells, and this one is {gridW}×{gridH}. Use a bigger cell size, or IDW.": "يقبل الانحناء الأدنى شبكات حتى {max} خلية، وهذه {gridW}×{gridH}. استخدم خلايا أكبر، أو IDW.",
+  "Gridded {el} ({unit}) from {n} sample(s){m} at {cell} m cells, {how}{lg}{bl}: {valid} of {cells} cells have a value. It is in Maps > GeoTIFF / GXF and the 3D View.": "تم تشبيك {el} ({unit}) من {n} عينة{m} بخلايا {cell} م، {how}{lg}{bl}: {valid} من {cells} خلية لها قيمة. وهو في الخرائط > GeoTIFF / GXF وفي العرض ثلاثي الأبعاد.",
+  "minimum curvature, tension {t}": "انحناء أدنى، شدّ {t}",
+  "IDW power {pw}": "IDW أُس {pw}",
+  "Gridding method": "طريقة التشبيك",
+  "IDW keeps each sample's value at its node and fades to the neighbours' (bullseyes on lone highs). Minimum curvature bends a smooth surface through the samples; tension 0 is smoothest but overshoots between samples, 1 is a tent with no overshoot.": "يحافظ IDW على قيمة كل عينة عند عقدتها ويتلاشى نحو الجيران (عيون ثور حول القمم المنفردة). أما الانحناء الأدنى فيمرّر سطحًا أملس عبر العينات؛ الشدّ 0 هو الأنعم لكنه يتجاوز بين العينات، و1 خيمة بلا تجاوز.",
+  "IDW": "IDW",
+  "Tension": "الشدّ"
 }

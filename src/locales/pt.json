@@ -8633,5 +8633,13 @@
   "(no value)": "(sem valor)",
   "Colour holes by a collar field": "Colorir furos por um campo do colar",
   "Colour holes: one colour": "Cor dos furos: uma só",
-  "Colour holes by {field}": "Colorir furos por {field}"
+  "Colour holes by {field}": "Colorir furos por {field}",
+  "Minimum curvature takes grids up to {max} cells, and this one is {gridW}×{gridH}. Use a bigger cell size, or IDW.": "Curvatura mínima aceita grades de até {max} células, e esta tem {gridW}×{gridH}. Use células maiores, ou IDW.",
+  "Gridded {el} ({unit}) from {n} sample(s){m} at {cell} m cells, {how}{lg}{bl}: {valid} of {cells} cells have a value. It is in Maps > GeoTIFF / GXF and the 3D View.": "{el} ({unit}) gradeado a partir de {n} amostra(s){m} com células de {cell} m, {how}{lg}{bl}: {valid} de {cells} células têm valor. Está em Mapas > GeoTIFF / GXF e na Vista 3D.",
+  "minimum curvature, tension {t}": "curvatura mínima, tensão {t}",
+  "IDW power {pw}": "IDW potência {pw}",
+  "Gridding method": "Método de gradeamento",
+  "IDW keeps each sample's value at its node and fades to the neighbours' (bullseyes on lone highs). Minimum curvature bends a smooth surface through the samples; tension 0 is smoothest but overshoots between samples, 1 is a tent with no overshoot.": "IDW mantém o valor de cada amostra no seu nó e esmaece para os vizinhos (alvos em altos isolados). Curvatura mínima curva uma superfície suave através das amostras; tensão 0 é a mais suave mas ultrapassa entre amostras, 1 é uma tenda sem ultrapassagem.",
+  "IDW": "IDW",
+  "Tension": "Tensão"
 }
