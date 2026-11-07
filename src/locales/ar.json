@@ -8698,5 +8698,20 @@
   "{unit}, the EDI standard's default": "{unit}، الافتراضي في معيار EDI",
   "MT / AMT: Niblett–Bostick resistivity (approximate depth)": "MT / AMT: مقاومية Niblett–Bostick (عمق تقريبي)",
   "MT / AMT soundings from EDI files: curves, pseudosections and approximate depths": "سبر MT / AMT من ملفات EDI: منحنيات ومقاطع كاذبة وأعماق تقريبية",
-  "Determinant": "المحدِّد"
+  "Determinant": "المحدِّد",
+  "Added \"{name}\": edges at {n} heights ({heights} m above the grid), {count} nodes. Each node holds the greatest height at which it is still an edge: an edge that stays put as the height grows is steep, one that walks sideways dips that way, and a deep-rooted one lasts to the greatest heights.": "أُضيف \"{name}\": حواف عند {n} ارتفاعات ({heights} م فوق الشبكة)، {count} عقدة. تحتفظ كل عقدة بأكبر ارتفاع تظل عنده حافة: الحافة التي لا تتحرك مع زيادة الارتفاع شديدة الميل، والتي تنتقل جانبياً تميل نحو ذلك الاتجاه، والعميقة الجذور تبقى حتى أكبر الارتفاعات.",
+  "Amplitude inclination ° (blank: 20° or the field's own if steeper)": "ميل السعة ° (فارغ: 20° أو ميل المجال إن كان أكبر)",
+  "Amplitude-correction inclination": "ميل تصحيح السعة",
+  "At an inclination of {inclination}° RTP is unstable (it amplifies noise along the declination); RTP for low latitudes, RTE, the tilt derivative or the analytic signal is the safer product here.": "عند ميل {inclination}° يكون الإرجاع إلى القطب غير مستقر (يضخّم الضوضاء على امتداد الانحراف)؛ والأكثر أماناً هنا الإرجاع إلى القطب للعروض المنخفضة أو الإرجاع إلى خط الاستواء أو مشتق الإمالة أو الإشارة التحليلية.",
+  "Edges at doubling heights of upward continuation (Hornby et al. 1999): crests of the horizontal gradient at each height. Run it on gravity, or on an RTP grid with the box ticked. Takes a few seconds on a large grid.": "حواف عند ارتفاعات استمرار علوي متضاعفة (Hornby et al. 1999): قمم التدرج الأفقي عند كل ارتفاع. شغّله على الجاذبية، أو على شبكة مُرجعة إلى القطب مع تحديد المربع. يستغرق بضع ثوانٍ على شبكة كبيرة.",
+  "For total-field magnetics, assuming induced magnetization (remanence breaks it). Unstable below ~20° inclination: use RTP for low latitudes, RTE, tilt or analytic signal there.": "للمغناطيسية الكلية، بافتراض مغنطة مستحثة (المغنطة المتبقية تفسدها). غير مستقر تحت ميل ~20°: استخدم هناك الإرجاع إلى القطب للعروض المنخفضة أو الإرجاع إلى خط الاستواء أو الإمالة أو الإشارة التحليلية.",
+  "Magnetic RTP grid: integrate it first (pseudo-gravity)": "شبكة مغناطيسية مُرجعة إلى القطب: كاملها أولاً (جاذبية زائفة)",
+  "No edges found in \"{name}\".": "لم تُعثر على حواف في \"{name}\".",
+  "RTP for low latitudes (amplitude-corrected)": "الإرجاع إلى القطب للعروض المنخفضة (مصحح السعة)",
+  "RTP whose amplitude comes from a steeper inclination (MacLeod, Jones & Dai 1993), so it stays bounded near the magnetic equator. Positions and shapes are RTP's; amplitudes come out lower. Assumes induced magnetization.": "إرجاع إلى القطب تؤخذ سعته من ميل أكبر (MacLeod, Jones & Dai 1993)، فيبقى محدوداً قرب خط الاستواء المغناطيسي. المواضع والأشكال هي نفسها؛ والسعات تخرج أقل. يفترض مغنطة مستحثة.",
+  "Reduction to the equator (Leu 1982): stable at any inclination. Magnetic bodies show as lows elongated along the declination; read the lows, or flip the colour ramp.": "الإرجاع إلى خط الاستواء (Leu 1982): مستقر عند أي ميل. تظهر الأجسام المغناطيسية كقيعان ممتدة على امتداد الانحراف؛ اقرأ القيعان، أو اعكس تدرج الألوان.",
+  "Reduction to the equator (RTE)": "الإرجاع إلى خط الاستواء (RTE)",
+  "The grid is too small for worms: it needs at least four cells across.": "الشبكة أصغر من أن تُحسب لها الديدان: تحتاج أربع خلايا عرضاً على الأقل.",
+  "Worms (edges at several heights)": "الديدان (حواف عند عدة ارتفاعات)",
+  "Worms (Hornby et al. 1999)": "الديدان (Hornby et al. 1999)"
 }

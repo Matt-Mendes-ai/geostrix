@@ -1,4 +1,5 @@
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { median } from "./arrayStats.js"; // TASKS.csv #1988 — worms
 // TASKS.csv #373 — potential-field grid filters on a raster's kept values (#326): reduction to the pole,
 // first vertical derivative, upward continuation (Fourier domain), and the tilt derivative and analytic
 // signal built from those derivatives. These, not inversion, are how most mag grids are read day to day;
@@ -163,7 +164,20 @@ export const FILTERS = {
   tilt: { label: "Tilt derivative", unitsOut: () => "degrees" },
   as: { label: "Analytic signal (3D)", unitsOut: (u) => `${u}/m` },
   tiltdepth: { label: "Tilt-depth (contact depths)", unitsOut: () => "m" }, // TASKS.csv #808
+  // TASKS.csv #1988 — the stable reductions at low magnetic latitude, and worms
+  rtpa: { label: "RTP for low latitudes (amplitude-corrected)", unitsOut: (u) => u, needsField: true },
+  rte: { label: "Reduction to the equator (RTE)", unitsOut: (u) => u, needsField: true },
+  worms: { label: "Worms (edges at several heights)", unitsOut: () => "m" },
 };
+
+// TASKS.csv #1988 — the amplitude-correction inclination of the low-latitude RTP: the one entered (never shallower than the
+// field's own), else the field's own when it is 20 degrees or steeper, else 20 degrees with the field's sign
+export function amplitudeInclination(I, entered = null) {
+  const e = entered === "" || entered == null ? NaN : Number(entered);
+  const sgn = I < 0 ? -1 : 1;
+  if (Number.isFinite(e)) return sgn * Math.max(Math.abs(I), Math.min(90, Math.abs(e)));
+  return sgn * Math.max(Math.abs(I), 20);
+}
 
 // grid: { nx, ny, dx, dy, values (north-first array) }. Returns { values: Float64Array (north-first, NaN =
 // no data), warning? }.
@@ -177,11 +191,35 @@ export function applyGridFilter(grid, kind, opts = {}) {
     return { values: applyOperator(P, nx, ny, (kx, ky, k) => [Math.exp(-k * h), 0], { keepLevel: true }) };
   }
   if (kind === "vd1") return { values: vd() };
+  // TASKS.csv #1988 — at low inclination RTP divides by Theta^2, which nearly vanishes for wavenumbers across the declination.
+  // RTE (Leu 1982, Geophysics 47, 445) reduces to the equator instead: Theta_eq^2 / Theta^2, Theta_eq = i cos(D - theta), which
+  // stays bounded (by 1 / cos^2 I) at any inclination; magnetic bodies then show as LOWS. The amplitude-corrected RTP
+  // (MacLeod, Jones & Dai 1993, Exploration Geophysics 24, 679) keeps RTP's phase but takes its amplitude from a steeper
+  // pseudo-inclination Ia: conj(Theta)^2 / (|Theta_a|^2 |Theta|^2), bounded by 1 / sin^2 Ia; with Ia = I it is RTP exactly.
+  if (kind === "rtpa" || kind === "rte") {
+    const Id = Number(opts.inclination), I = (Id * Math.PI) / 180, D = (Number(opts.declination) * Math.PI) / 180;
+    if (!Number.isFinite(I) || !Number.isFinite(D)) throw new Error(tr("Enter the field inclination and (grid) declination."));
+    const Ia = kind === "rtpa" ? (amplitudeInclination(Id, opts.amplitudeInclination) * Math.PI) / 180 : null;
+    const sI = Math.sin(I), cI = Math.cos(I), sD = Math.sin(D), cD = Math.cos(D);
+    const out = applyOperator(P, nx, ny, (kx, ky, k) => {
+      const dir = k === 0 ? 0 : (kx * sD + ky * cD) / k; // cos(D - theta)
+      const tr_ = sI, ti = cI * dir, mod2 = tr_ * tr_ + ti * ti; // |Theta|^2
+      if (mod2 < 1e-12) return [0, 0];
+      const cr = tr_ * tr_ - ti * ti, ci = -2 * tr_ * ti; // conj(Theta)^2
+      if (kind === "rtpa") {
+        const a2 = Math.sin(Ia) ** 2 + (Math.cos(Ia) * dir) ** 2;
+        return [cr / (a2 * mod2), ci / (a2 * mod2)];
+      }
+      const f = -(dir * dir) / (mod2 * mod2); // Theta_eq^2 = -cos^2(D - theta)
+      return k === 0 ? [0, 0] : [cr * f, ci * f];
+    }, { keepLevel: false });
+    return { values: out, amplitudeInclination: Ia != null ? +((Ia * 180) / Math.PI).toFixed(2) : null };
+  }
   if (kind === "rtp") {
     const I = (Number(opts.inclination) * Math.PI) / 180, D = (Number(opts.declination) * Math.PI) / 180;
     if (!Number.isFinite(I) || !Number.isFinite(D)) throw new Error(tr("Enter the field inclination and (grid) declination."));
     const warning = Math.abs(opts.inclination) < 20
-      ? tr("At an inclination of {inclination}° RTP is unstable (it amplifies noise along the declination); the tilt derivative or analytic signal is the safer product here.", { inclination: opts.inclination }) : null;
+      ? tr("At an inclination of {inclination}° RTP is unstable (it amplifies noise along the declination); RTP for low latitudes, RTE, the tilt derivative or the analytic signal is the safer product here.", { inclination: opts.inclination }) : null; // #1988
     const sI = Math.sin(I), cI = Math.cos(I), sD = Math.sin(D), cD = Math.cos(D);
     const out = applyOperator(P, nx, ny, (kx, ky, k) => {
       if (k === 0) return [1 / (sI * sI), 0];
@@ -205,6 +243,56 @@ export function applyGridFilter(grid, kind, opts = {}) {
     return { values: out };
   }
   throw new Error(tr("Unknown filter \"{kind}\".", { kind }));
+}
+
+// ---------------- TASKS.csv #1988 — worms (multiscale edges) ----------------
+// Hornby, Boschetti & Horowitz 1999 (Geophys. J. Int. 137, 175): continue the field upward to a ladder of heights, take the
+// total horizontal gradient at each, and keep its ridge crests: over a vertical contact the crests stay put as the height
+// grows, over a dipping one they walk down-dip, so where an edge still shows at a great height says how deep-rooted it is.
+// Crests by the Blakely & Simpson 1986 (Geophysics 51, 1494) test: a node greater than both neighbours along at least two of
+// the four directions (E-W, N-S and the diagonals), and above the median gradient of its level (the weak ones are noise).
+// Read on a gravity or a pseudo-gravity field: integrate = true takes the vertical integral of an RTP magnetic grid first
+// (1 / |k|, the pseudo-gravity up to a constant), since a magnetic field's own gradient crests sit off the edges.
+// heights: metres above the observation level; default the cell size doubling up to a quarter of the grid's smaller side
+// (at most 8 levels). Returns { values (north-first: the greatest height at which the node is a crest, NaN elsewhere),
+// levels: [{ h, count }], count }.
+export function wormHeights(cell, maxH) {
+  const hs = [];
+  for (let h = cell; h <= maxH && hs.length < 8; h *= 2) hs.push(+h.toPrecision(4));
+  return hs;
+}
+export function worms(grid, { heights = null, integrate = false } = {}) {
+  const { nx, ny, dx, dy, values } = grid;
+  const P = prepare(values, nx, ny, dx, dy);
+  const hs = heights && heights.length ? heights : wormHeights(Math.max(dx, dy), 0.25 * Math.min(nx * dx, ny * dy));
+  if (!hs.length) throw new Error(tr("The grid is too small for worms: it needs at least four cells across."));
+  const dkMin = (2 * Math.PI) / Math.min(P.W * P.dx, P.H * P.dy);
+  const out = new Float64Array(nx * ny).fill(NaN);
+  const levels = [];
+  const steps = [[1, 0], [0, 1], [1, 1], [1, -1]];
+  for (const h of hs) {
+    const g = applyOperator(P, nx, ny, (kx, ky, k) => {
+      const a = Math.exp(-k * h);
+      return [integrate ? (k > 0 ? a / Math.max(k, dkMin) : 0) : a, 0];
+    }, { keepLevel: false });
+    const { gx, gy } = horizontalGradient(g, nx, ny, dx, dy);
+    const t = new Float64Array(nx * ny);
+    for (let k = 0; k < t.length; k++) t[k] = Math.hypot(gx[k], gy[k]);
+    const mid = median(t), floor = Number.isFinite(mid) ? mid : Infinity; // #1114 — the one median
+    let count = 0;
+    for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) {
+      const k = j * nx + i, v = t[k];
+      if (!(v > floor)) continue;
+      let dirs = 0;
+      for (const [si, sj] of steps) {
+        const a = t[(j + sj) * nx + i + si], b = t[(j - sj) * nx + i - si];
+        if (v > a && v > b) dirs++;
+      }
+      if (dirs >= 2) { out[k] = h; count++; } // the loop runs upward, so a node keeps the greatest height it is a crest at
+    }
+    levels.push({ h, count });
+  }
+  return { values: out, levels, count: out.reduce((a, v) => a + (Number.isFinite(v) ? 1 : 0), 0) };
 }
 
 // ---------------- TASKS.csv #808 — depth estimates (from the #805 pyGMI review; written from the papers) ----------------

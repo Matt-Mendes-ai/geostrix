@@ -8698,5 +8698,20 @@
   "{unit}, the EDI standard's default": "{unit}, el valor por defecto del estándar EDI",
   "MT / AMT: Niblett–Bostick resistivity (approximate depth)": "MT / AMT: resistividad Niblett–Bostick (profundidad aproximada)",
   "MT / AMT soundings from EDI files: curves, pseudosections and approximate depths": "Sondeos MT / AMT desde archivos EDI: curvas, pseudosecciones y profundidades aproximadas",
-  "Determinant": "Determinante"
+  "Determinant": "Determinante",
+  "Added \"{name}\": edges at {n} heights ({heights} m above the grid), {count} nodes. Each node holds the greatest height at which it is still an edge: an edge that stays put as the height grows is steep, one that walks sideways dips that way, and a deep-rooted one lasts to the greatest heights.": "Se añadió \"{name}\": bordes a {n} alturas ({heights} m sobre la grilla), {count} nodos. Cada nodo guarda la mayor altura a la que sigue siendo un borde: un borde que no se mueve al subir la altura es subvertical, uno que se desplaza lateralmente buza hacia ese lado, y uno de raíz profunda persiste hasta las mayores alturas.",
+  "Amplitude inclination ° (blank: 20° or the field's own if steeper)": "Inclinación de amplitud ° (vacío: 20° o la del campo si es mayor)",
+  "Amplitude-correction inclination": "Inclinación de corrección de amplitud",
+  "At an inclination of {inclination}° RTP is unstable (it amplifies noise along the declination); RTP for low latitudes, RTE, the tilt derivative or the analytic signal is the safer product here.": "Con una inclinación de {inclination}° la RTP es inestable (amplifica el ruido a lo largo de la declinación); aquí son más seguras la RTP para latitudes bajas, la RTE, la derivada tilt o la señal analítica.",
+  "Edges at doubling heights of upward continuation (Hornby et al. 1999): crests of the horizontal gradient at each height. Run it on gravity, or on an RTP grid with the box ticked. Takes a few seconds on a large grid.": "Bordes a alturas de continuación ascendente que se duplican (Hornby et al. 1999): crestas del gradiente horizontal a cada altura. Úselo sobre gravimetría, o sobre una grilla RTP con la casilla marcada. Tarda unos segundos en una grilla grande.",
+  "For total-field magnetics, assuming induced magnetization (remanence breaks it). Unstable below ~20° inclination: use RTP for low latitudes, RTE, tilt or analytic signal there.": "Para magnetometría de campo total, suponiendo magnetización inducida (la remanencia la invalida). Inestable bajo ~20° de inclinación: use allí RTP para latitudes bajas, RTE, tilt o señal analítica.",
+  "Magnetic RTP grid: integrate it first (pseudo-gravity)": "Grilla magnética RTP: integrarla primero (pseudogravedad)",
+  "No edges found in \"{name}\".": "No se encontraron bordes en \"{name}\".",
+  "RTP for low latitudes (amplitude-corrected)": "RTP para latitudes bajas (amplitud corregida)",
+  "RTP whose amplitude comes from a steeper inclination (MacLeod, Jones & Dai 1993), so it stays bounded near the magnetic equator. Positions and shapes are RTP's; amplitudes come out lower. Assumes induced magnetization.": "RTP cuya amplitud proviene de una inclinación mayor (MacLeod, Jones & Dai 1993), de modo que se mantiene acotada cerca del ecuador magnético. Posiciones y formas son las de la RTP; las amplitudes salen menores. Supone magnetización inducida.",
+  "Reduction to the equator (Leu 1982): stable at any inclination. Magnetic bodies show as lows elongated along the declination; read the lows, or flip the colour ramp.": "Reducción al ecuador (Leu 1982): estable con cualquier inclinación. Los cuerpos magnéticos aparecen como bajos alargados según la declinación; lea los bajos, o invierta la rampa de colores.",
+  "Reduction to the equator (RTE)": "Reducción al ecuador (RTE)",
+  "The grid is too small for worms: it needs at least four cells across.": "La grilla es demasiado pequeña para worms: necesita al menos cuatro celdas de ancho.",
+  "Worms (edges at several heights)": "Worms (bordes a varias alturas)",
+  "Worms (Hornby et al. 1999)": "Worms (Hornby et al. 1999)"
 }

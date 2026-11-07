@@ -83,15 +83,15 @@ export default function RasterModule({ embedded = false } = {}) {
   // any earlier points made from the same grid, so doing it twice does not double the survey.
   // TASKS.csv #373 — potential-field filters on a grid's kept values; each result is a new raster
   const [filterFor, setFilterFor] = useState(null); // raster id whose filter form is open
-  const [filt, setFilt] = useState({ kind: "rtp", inclination: "", declination: "", height: "" });
+  const [filt, setFilt] = useState({ kind: "rtp", inclination: "", declination: "", height: "", amplitudeInclination: "", integrate: false }); // amplitudeInclination, integrate: #1988
   const [filtering, setFiltering] = useState(false);
   const [spectrum, setSpectrum] = useState(null); // TASKS.csv #808 — { rasterId, spec, fit } for the open grid
   const runFilter = async (r) => {
-    const { applyGridFilter, FILTERS, tiltDepth, radialSpectrum, fitSpectrumDepths } = await import("../lib/gridFilters.js"); // loaded on first use
+    const { applyGridFilter, FILTERS, tiltDepth, radialSpectrum, fitSpectrumDepths, worms } = await import("../lib/gridFilters.js"); // loaded on first use; worms: #1988
     const g = r.grid;
     const params = {};
     let declGrid = null;
-    if (filt.kind === "rtp") {
+    if (filt.kind === "rtp" || filt.kind === "rtpa" || filt.kind === "rte") { // rtpa, rte: #1988
       const I = Number(filt.inclination), D = Number(filt.declination);
       if (filt.inclination === "" || filt.declination === "" || !(Math.abs(I) <= 90) || !(Math.abs(D) <= 180)) { setError({ info: false, text: tr("RTP needs the field inclination and declination (true north) for the survey date and place — IGRF gives both.") }); return; }
       const cx = g.x0 + (g.dx * (g.nx - 1)) / 2, cy = g.yTop - (g.dy * (g.ny - 1)) / 2;
@@ -99,6 +99,7 @@ export default function RasterModule({ embedded = false } = {}) {
       if (!d) { setError({ info: false, text: tr("Could not compute grid convergence for this project CRS.") }); return; }
       declGrid = d.grid;
       Object.assign(params, { inclination: I, declinationTrue: D, declinationGrid: +d.grid.toFixed(3), gridConvergence: +d.convergence.toFixed(3) });
+      if (filt.kind === "rtpa" && filt.amplitudeInclination !== "") params.amplitudeInclination = Number(filt.amplitudeInclination);
     }
     if (filt.kind === "upward") {
       if (!(Number(filt.height) > 0)) { setError({ info: false, text: tr("Enter how many metres to continue upward.") }); return; }
@@ -114,6 +115,17 @@ export default function RasterModule({ embedded = false } = {}) {
         setSpectrum({ rasterId: r.id, spec, fit: fitSpectrumDepths(spec) });
         return;
       }
+      // TASKS.csv #1988 — worms: each node holds the greatest continuation height at which it is still an edge
+      if (filt.kind === "worms") {
+        const w = worms({ nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, values }, { integrate: !!filt.integrate });
+        if (!w.count) { setError({ info: false, text: tr("No edges found in \"{name}\".", { name: r.name }) }); return; }
+        const nr = rasterFromGrid({ name: `${r.name} — Worms (edge heights, m)`, values: w.values, nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, averagedBy: g.averagedBy || 1, sourceSize: g.sourceSize, elevation: r.elevation,
+          extra: { filter: { kind: "worms", label: "Worms (Hornby et al. 1999)", params: { heightsM: w.levels.map((l) => l.h), nodesPerHeight: w.levels.map((l) => l.count), integrated: !!filt.integrate }, sourceRaster: r.name, method: "upward continuation to each height, total horizontal gradient, crests by the Blakely & Simpson 1986 test (2 of 4 directions, above the level's median); the node keeps the greatest height (gridFilters.js worms)", at: new Date().toISOString() } } });
+        addRaster(nr);
+        setError({ info: true, text: tr("Added \"{name}\": edges at {n} heights ({heights} m above the grid), {count} nodes. Each node holds the greatest height at which it is still an edge: an edge that stays put as the height grows is steep, one that walks sideways dips that way, and a deep-rooted one lasts to the greatest heights.", { name: nr.name, n: w.levels.length, heights: w.levels.map((l) => l.h.toLocaleString()).join(", "), count: w.count.toLocaleString() }) });
+        setFilterFor(null);
+        return;
+      }
       if (filt.kind === "tiltdepth") {
         const td = tiltDepth({ nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, values });
         if (!td.count) { setError({ info: false, text: tr("No tilt zero-crossings with a usable depth in \"{name}\".", { name: r.name }) }); return; }
@@ -126,7 +138,8 @@ export default function RasterModule({ embedded = false } = {}) {
       }
       const out = applyGridFilter({ nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, values }, filt.kind, { ...params, declination: declGrid ?? undefined });
       const label = FILTERS[filt.kind].label;
-      const suffix = filt.kind === "rtp" ? ` (I ${params.inclination}°, D ${params.declinationTrue}° true)` : filt.kind === "upward" ? ` (+${params.height} m)` : "";
+      const suffix = filt.kind === "rtp" || filt.kind === "rte" ? ` (I ${params.inclination}°, D ${params.declinationTrue}° true)` : filt.kind === "rtpa" ? ` (I ${params.inclination}°, D ${params.declinationTrue}° true, Ia ${out.amplitudeInclination}°)` : filt.kind === "upward" ? ` (+${params.height} m)` : "";
+      if (filt.kind === "rtpa") params.amplitudeInclination = out.amplitudeInclination; // #1988 — the one used, recorded with the raster
       const nr = rasterFromGrid({ name: `${r.name} — ${label}${suffix}`, values: out.values, nx: g.nx, ny: g.ny, x0: g.x0, yTop: g.yTop, dx: g.dx, dy: g.dy, averagedBy: g.averagedBy || 1, sourceSize: g.sourceSize, elevation: r.elevation,
         extra: { filter: { kind: filt.kind, label, params, sourceRaster: r.name, method: "FFT on the kept grid: mean plane removed, gaps filled from neighbours, mirror-padded to >= 2x with a cosine taper (gridFilters.js)", at: new Date().toISOString() } } });
       addRaster(nr);
@@ -477,19 +490,32 @@ export default function RasterModule({ embedded = false } = {}) {
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <select value={filt.kind} onChange={(e) => setFilt((p) => ({ ...p, kind: e.target.value }))} style={{ ...numInput, flex: 1 }} aria-label={tr("Grid filter")}>
                     <option value="rtp">{tr("Reduction to the pole (RTP)")}</option>
+                    <option value="rtpa">{tr("RTP for low latitudes (amplitude-corrected)")}</option>{/* TASKS.csv #1988 */}
+                    <option value="rte">{tr("Reduction to the equator (RTE)")}</option>
                     <option value="vd1">{tr("First vertical derivative (1VD)")}</option>
                     <option value="tilt">{tr("Tilt derivative")}</option>
                     <option value="as">{tr("Analytic signal (3D)")}</option>
                     <option value="upward">{tr("Upward continuation")}</option>
                     <option value="tiltdepth">{tr("Tilt-depth (contact depths)")}</option>{/* TASKS.csv #808 */}
+                    <option value="worms">{tr("Worms (edges at several heights)")}</option>{/* TASKS.csv #1988 */}
                     <option value="spectrum">{tr("Power spectrum depths + matched filter")}</option>
                   </select>
                 </div>
-                {filt.kind === "rtp" && (
+                {(filt.kind === "rtp" || filt.kind === "rtpa" || filt.kind === "rte") && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
                     <input type="number" placeholder={tr("Inclination °")} value={filt.inclination} onChange={(e) => setFilt((p) => ({ ...p, inclination: e.target.value }))} style={numInput} aria-label={tr("Field inclination")} />
                     <input type="number" placeholder={tr("Declination ° (true)")} value={filt.declination} onChange={(e) => setFilt((p) => ({ ...p, declination: e.target.value }))} style={numInput} aria-label={tr("Field declination, true north")} />
                   </div>
+                )}
+                {filt.kind === "rtpa" && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                    <input type="number" min={0} max={90} placeholder={tr("Amplitude inclination ° (blank: 20° or the field's own if steeper)")} value={filt.amplitudeInclination} onChange={(e) => setFilt((p) => ({ ...p, amplitudeInclination: e.target.value }))} style={numInput} aria-label={tr("Amplitude-correction inclination")} />
+                  </div>
+                )}
+                {filt.kind === "worms" && (
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
+                    <input type="checkbox" checked={!!filt.integrate} onChange={(e) => setFilt((p) => ({ ...p, integrate: e.target.checked }))} />{tr("Magnetic RTP grid: integrate it first (pseudo-gravity)")}
+                  </label>
                 )}
                 {filt.kind === "upward" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
@@ -497,7 +523,10 @@ export default function RasterModule({ embedded = false } = {}) {
                   </div>
                 )}
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 5, lineHeight: 1.4 }}>
-                  {{ rtp: tr("For total-field magnetics, assuming induced magnetization (remanence breaks it). Unstable below ~20° inclination — use tilt or analytic signal there."), vd1: tr("Sharpens shallow sources; also amplifies noise."), tiltdepth: tr("Depth to the top of contacts along the tilt's zero contour: 1 / its horizontal gradient (Salem et al. 2007). Run it on an RTP grid; it assumes near-vertical contacts and reads depth below the sensor."), spectrum: tr("Radially averaged power spectrum: the slope of each straight segment gives the mean depth of a group of sources (Spector & Grant 1970). Deep and shallow segments are fitted for you; the matched filter then splits the grid into those two parts."), tilt: tr("Angle between vertical and horizontal gradients (±90°); zero-crossings trace source edges whatever the depth or amplitude."), as: tr("Peaks over source edges regardless of magnetization direction — the honest choice where remanence breaks RTP."), upward: tr("Smooths out shallow sources to show the deeper / regional field; the height is metres above the grid's observation level.") }[filt.kind]}
+                  {{ rtp: tr("For total-field magnetics, assuming induced magnetization (remanence breaks it). Unstable below ~20° inclination: use RTP for low latitudes, RTE, tilt or analytic signal there."),
+                     rtpa: tr("RTP whose amplitude comes from a steeper inclination (MacLeod, Jones & Dai 1993), so it stays bounded near the magnetic equator. Positions and shapes are RTP's; amplitudes come out lower. Assumes induced magnetization."), // #1988
+                     rte: tr("Reduction to the equator (Leu 1982): stable at any inclination. Magnetic bodies show as lows elongated along the declination; read the lows, or flip the colour ramp."),
+                     worms: tr("Edges at doubling heights of upward continuation (Hornby et al. 1999): crests of the horizontal gradient at each height. Run it on gravity, or on an RTP grid with the box ticked. Takes a few seconds on a large grid."), vd1: tr("Sharpens shallow sources; also amplifies noise."), tiltdepth: tr("Depth to the top of contacts along the tilt's zero contour: 1 / its horizontal gradient (Salem et al. 2007). Run it on an RTP grid; it assumes near-vertical contacts and reads depth below the sensor."), spectrum: tr("Radially averaged power spectrum: the slope of each straight segment gives the mean depth of a group of sources (Spector & Grant 1970). Deep and shallow segments are fitted for you; the matched filter then splits the grid into those two parts."), tilt: tr("Angle between vertical and horizontal gradients (±90°); zero-crossings trace source edges whatever the depth or amplitude."), as: tr("Peaks over source edges regardless of magnetization direction — the honest choice where remanence breaks RTP."), upward: tr("Smooths out shallow sources to show the deeper / regional field; the height is metres above the grid's observation level.") }[filt.kind]}
                 </div>
                 <button onClick={() => runFilter(r)} disabled={filtering} style={{ marginTop: 6, width: "100%", padding: "5px 8px", border: "1px solid var(--color-selected-border)", background: "var(--color-selected-bg)", color: "var(--color-primary)", borderRadius: 5, cursor: filtering ? "default" : "pointer", fontSize: "var(--font-size-sm)" }}>
                   {filtering ? tr("Filtering…") : filt.kind === "spectrum" ? tr("Compute the spectrum") : tr("Apply — adds a new raster")}

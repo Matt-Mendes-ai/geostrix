@@ -8698,5 +8698,20 @@
   "{unit}, the EDI standard's default": "{unit}, la valeur par défaut de la norme EDI",
   "MT / AMT: Niblett–Bostick resistivity (approximate depth)": "MT / AMT : résistivité Niblett–Bostick (profondeur approximative)",
   "MT / AMT soundings from EDI files: curves, pseudosections and approximate depths": "Sondages MT / AMT à partir de fichiers EDI : courbes, pseudo-sections et profondeurs approximatives",
-  "Determinant": "Déterminant"
+  "Determinant": "Déterminant",
+  "Added \"{name}\": edges at {n} heights ({heights} m above the grid), {count} nodes. Each node holds the greatest height at which it is still an edge: an edge that stays put as the height grows is steep, one that walks sideways dips that way, and a deep-rooted one lasts to the greatest heights.": "« {name} » ajouté : contours à {n} hauteurs ({heights} m au-dessus de la grille), {count} nœuds. Chaque nœud garde la plus grande hauteur à laquelle il est encore un contour : un contour qui ne bouge pas quand la hauteur augmente est subvertical, un contour qui se déplace latéralement plonge de ce côté, et un contour enraciné en profondeur persiste jusqu'aux plus grandes hauteurs.",
+  "Amplitude inclination ° (blank: 20° or the field's own if steeper)": "Inclinaison d'amplitude ° (vide : 20° ou celle du champ si plus forte)",
+  "Amplitude-correction inclination": "Inclinaison de correction d'amplitude",
+  "At an inclination of {inclination}° RTP is unstable (it amplifies noise along the declination); RTP for low latitudes, RTE, the tilt derivative or the analytic signal is the safer product here.": "À une inclinaison de {inclination}°, la RTP est instable (elle amplifie le bruit le long de la déclinaison) ; la RTP pour basses latitudes, la RTE, la dérivée tilt ou le signal analytique sont ici plus sûrs.",
+  "Edges at doubling heights of upward continuation (Hornby et al. 1999): crests of the horizontal gradient at each height. Run it on gravity, or on an RTP grid with the box ticked. Takes a few seconds on a large grid.": "Contours à des hauteurs de prolongement vers le haut qui doublent (Hornby et al. 1999) : crêtes du gradient horizontal à chaque hauteur. À lancer sur la gravimétrie, ou sur une grille RTP avec la case cochée. Prend quelques secondes sur une grande grille.",
+  "For total-field magnetics, assuming induced magnetization (remanence breaks it). Unstable below ~20° inclination: use RTP for low latitudes, RTE, tilt or analytic signal there.": "Pour la magnétométrie en champ total, en supposant une aimantation induite (la rémanence la fausse). Instable sous ~20° d'inclinaison : utilisez-y la RTP pour basses latitudes, la RTE, le tilt ou le signal analytique.",
+  "Magnetic RTP grid: integrate it first (pseudo-gravity)": "Grille magnétique RTP : l'intégrer d'abord (pseudo-gravité)",
+  "No edges found in \"{name}\".": "Aucun contour trouvé dans « {name} ».",
+  "RTP for low latitudes (amplitude-corrected)": "RTP pour basses latitudes (amplitude corrigée)",
+  "RTP whose amplitude comes from a steeper inclination (MacLeod, Jones & Dai 1993), so it stays bounded near the magnetic equator. Positions and shapes are RTP's; amplitudes come out lower. Assumes induced magnetization.": "RTP dont l'amplitude vient d'une inclinaison plus forte (MacLeod, Jones & Dai 1993), de sorte qu'elle reste bornée près de l'équateur magnétique. Positions et formes sont celles de la RTP ; les amplitudes sortent plus faibles. Suppose une aimantation induite.",
+  "Reduction to the equator (Leu 1982): stable at any inclination. Magnetic bodies show as lows elongated along the declination; read the lows, or flip the colour ramp.": "Réduction à l'équateur (Leu 1982) : stable à toute inclinaison. Les corps magnétiques apparaissent comme des creux allongés selon la déclinaison ; lisez les creux, ou inversez la palette.",
+  "Reduction to the equator (RTE)": "Réduction à l'équateur (RTE)",
+  "The grid is too small for worms: it needs at least four cells across.": "La grille est trop petite pour les worms : il faut au moins quatre cellules de large.",
+  "Worms (edges at several heights)": "Worms (contours à plusieurs hauteurs)",
+  "Worms (Hornby et al. 1999)": "Worms (Hornby et al. 1999)"
 }

@@ -8698,5 +8698,20 @@
   "{unit}, the EDI standard's default": "{unit}, o padrão do formato EDI",
   "MT / AMT: Niblett–Bostick resistivity (approximate depth)": "MT / AMT: resistividade Niblett–Bostick (profundidade aproximada)",
   "MT / AMT soundings from EDI files: curves, pseudosections and approximate depths": "Sondagens MT / AMT de arquivos EDI: curvas, pseudosseções e profundidades aproximadas",
-  "Determinant": "Determinante"
+  "Determinant": "Determinante",
+  "Added \"{name}\": edges at {n} heights ({heights} m above the grid), {count} nodes. Each node holds the greatest height at which it is still an edge: an edge that stays put as the height grows is steep, one that walks sideways dips that way, and a deep-rooted one lasts to the greatest heights.": "Adicionado \"{name}\": bordas em {n} alturas ({heights} m acima da malha), {count} nós. Cada nó guarda a maior altura em que ainda é uma borda: uma borda que não se move com a altura é subvertical, uma que se desloca lateralmente mergulha para esse lado, e uma de raiz profunda persiste até as maiores alturas.",
+  "Amplitude inclination ° (blank: 20° or the field's own if steeper)": "Inclinação de amplitude ° (vazio: 20° ou a do campo se maior)",
+  "Amplitude-correction inclination": "Inclinação de correção de amplitude",
+  "At an inclination of {inclination}° RTP is unstable (it amplifies noise along the declination); RTP for low latitudes, RTE, the tilt derivative or the analytic signal is the safer product here.": "Com inclinação de {inclination}° a RTP é instável (amplifica o ruído ao longo da declinação); aqui são mais seguras a RTP para baixas latitudes, a RTE, a derivada tilt ou o sinal analítico.",
+  "Edges at doubling heights of upward continuation (Hornby et al. 1999): crests of the horizontal gradient at each height. Run it on gravity, or on an RTP grid with the box ticked. Takes a few seconds on a large grid.": "Bordas em alturas de continuação para cima que dobram (Hornby et al. 1999): cristas do gradiente horizontal em cada altura. Use em gravimetria, ou numa malha RTP com a caixa marcada. Leva alguns segundos numa malha grande.",
+  "For total-field magnetics, assuming induced magnetization (remanence breaks it). Unstable below ~20° inclination: use RTP for low latitudes, RTE, tilt or analytic signal there.": "Para magnetometria de campo total, supondo magnetização induzida (a remanência a invalida). Instável abaixo de ~20° de inclinação: use lá RTP para baixas latitudes, RTE, tilt ou sinal analítico.",
+  "Magnetic RTP grid: integrate it first (pseudo-gravity)": "Malha magnética RTP: integrá-la antes (pseudogravidade)",
+  "No edges found in \"{name}\".": "Nenhuma borda encontrada em \"{name}\".",
+  "RTP for low latitudes (amplitude-corrected)": "RTP para baixas latitudes (amplitude corrigida)",
+  "RTP whose amplitude comes from a steeper inclination (MacLeod, Jones & Dai 1993), so it stays bounded near the magnetic equator. Positions and shapes are RTP's; amplitudes come out lower. Assumes induced magnetization.": "RTP cuja amplitude vem de uma inclinação maior (MacLeod, Jones & Dai 1993), de modo que permanece limitada perto do equador magnético. Posições e formas são as da RTP; as amplitudes saem menores. Supõe magnetização induzida.",
+  "Reduction to the equator (Leu 1982): stable at any inclination. Magnetic bodies show as lows elongated along the declination; read the lows, or flip the colour ramp.": "Redução ao equador (Leu 1982): estável em qualquer inclinação. Os corpos magnéticos aparecem como baixos alongados ao longo da declinação; leia os baixos, ou inverta a rampa de cores.",
+  "Reduction to the equator (RTE)": "Redução ao equador (RTE)",
+  "The grid is too small for worms: it needs at least four cells across.": "A malha é pequena demais para worms: precisa de pelo menos quatro células de largura.",
+  "Worms (edges at several heights)": "Worms (bordas em várias alturas)",
+  "Worms (Hornby et al. 1999)": "Worms (Hornby et al. 1999)"
 }
