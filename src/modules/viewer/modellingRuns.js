@@ -568,7 +568,7 @@ export function createModellingRuns(ctx, mcRef) {
         });
         setNotices((p) => [...p, notice(secGrids.length > 1 ? "Modelled units evaluated exactly on {secGrids} saved cross-sections ({v2}; {secApi} points in the same solve): open a section to see them behind the logged holes. Other sections show the model read from its block (coarser)." : "Modelled units evaluated exactly on {secGrids} saved cross-section ({v2}; {secApi} points in the same solve): open a section to see them behind the logged holes. Other sections show the model read from its block (coarser).", { secGrids: secGrids.length, v2: secGrids.map(({ sc, grid }) => `${sc.name} every ${Math.round(grid.dl)} m`).join(", "), secApi: secApi.length.toLocaleString() })]);
       }
-      setLastLithBlock({ ...(Object.keys(secResults).length ? { sections: secResults, aboveLabel: aboveText } : {}), ...(exact ? { intervals: evalRows.filter((q) => "modelled" in q).map((q) => ({ hole_id: q.hole_id, from: q.row.from, to: q.row.to, logged: q.row.value, modelled: q.modelled })) } : {}), block: lbBlock, ...(clipTerrain ? { cutAtTerrain: clipTerrain.name || "terrain" } : {}), units: specs.map((sp) => ({ name: sp.meshName, label: sp.meshName, color: sp.color })), origin: { ...originRef.current }, when: new Date().toLocaleTimeString(), title: `stack ${unitSpecs.map((sp) => sp.meshName).join(" over ")}${unitSpecs.length < specs.length ? `, ${specs.length - unitSpecs.length} fault(s)` : ""}`, matchedPct: chk.total ? Math.round((100 * chk.matched) / chk.total) : null });
+      setLastLithBlock({ ...(Object.keys(secResults).length ? { sections: secResults, aboveLabel: aboveText } : {}), ...(exact ? { intervals: evalRows.filter((q) => "modelled" in q).map((q) => ({ hole_id: q.hole_id, from: q.row.from, to: q.row.to, logged: q.row.value, modelled: q.modelled })) } : {}), block: lbBlock, ...(clipTerrain ? { cutAtTerrain: clipTerrain.name || "terrain" } : {}), units: specs.map((sp) => ({ name: sp.meshName, label: sp.meshName, color: sp.color })), origin: { ...originRef.current }, when: new Date().toLocaleTimeString(), title: `${unitSpecs.length > 1 ? `stack ${unitSpecs.map((sp) => sp.meshName).join(" over ")}` : unitSpecs[0]?.label || unitSpecs[0]?.meshName || ""}${unitSpecs.length < specs.length ? `, ${specs.length - unitSpecs.length} fault(s)` : ""}`, structural: trendTool === "structural", /* #1554 — "stack" only for several units; a structure run offers no unit volumes */ matchedPct: chk.total ? Math.round((100 * chk.matched) / chk.total) : null });
       // TASKS.csv #679 — the trend's scales multiply to 1 (trendScales: iso / max * iso / int * iso / min), so a warped
       // cell has the volume of its real-space parallelepiped; dividing by the product keeps that true if it ever isn't
       const warpDet = anisotropy.enabled ? anisoScl.major * anisoScl.semiMajor * anisoScl.minor : 1;
@@ -1506,7 +1506,7 @@ export function createModellingRuns(ctx, mcRef) {
         const t = traces.find((tc) => tc.hole_id === s.hole_id);
         if (!t) return;
         const p = findOnTrace(t.pts, s.depth);
-        if (p) points.push(sceneToApi(p));
+        if (p) points.push({ ...sceneToApi(p), hole_id: s.hole_id, depth: s.depth }); // #1548 — the pick check names the hole and depth, as for faults (#1225)
       });
       const orientations = structureRowsToOrientations(group, traces);
       if (!points.length || !orientations.length) { setNotices((p) => [...p, notice("Couldn't locate \"{name}\" picks along the hole traces.", { name })]); continue; }
