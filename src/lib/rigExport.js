@@ -11,6 +11,7 @@ import { reprojectXY } from "./reproject.js";
 import { azimuthToGridOffset, wrap360, setIgrfModule } from "./azimuthRef.js";
 import * as igrf from "./igrf.js"; // #552 — this module is loaded on demand, so it brings IGRF with it
 import { colors } from "./theme.js"; // TASKS.csv #1121
+import { missDistanceToTarget } from "./holePlanning.js"; // TASKS.csv #1459
 setIgrfModule(igrf);
 
 const r7 = (v) => (Number.isFinite(v) ? Number(v.toFixed(7)) : "");
@@ -24,6 +25,11 @@ export function rigRows(holes, epsg, isoDate, trace) {
     const tll = toe ? reprojectXY(toe.x, toe.y, epsg, 4326) : null;
     const mag = azimuthToGridOffset("magnetic", h.x, h.y, epsg, isoDate); // grid = magnetic + D + c
     const conv = mag?.convergence ?? azimuthToGridOffset("true", h.x, h.y, epsg)?.convergence;
+    // TASKS.csv #1459 (review #1352) — the design assumptions travel with the hole: an aim-off hole (Az 12 / Dip -80 for a
+    // target that is not on that line) reached the rig with no lift, drift or target, so nothing said why it was aimed so.
+    // Where the target falls along the planned (curved) trace, how far the hole runs past it and how close it passes.
+    const tgt = h.target && [h.target.x, h.target.y, h.target.z].every(Number.isFinite) ? h.target : null;
+    const hit = tgt && pts.length ? missDistanceToTarget(pts, tgt) : null;
     return {
       name: h.name || "", x: h.x, y: h.y, z: h.z,
       lat: r7(ll?.y), lon: r7(ll?.x),
@@ -36,6 +42,8 @@ export function rigRows(holes, epsg, isoDate, trace) {
       // TASKS.csv #1835 — where the collar's z came from (typed / picked on the view / a collar / solved on the terrain), and the target the hole was solved to (#1456 keeps it on the hole)
       z_source: h.zSource || "",
       target_x: h.target ? r2(h.target.x) : "", target_y: h.target ? r2(h.target.y) : "", target_z: h.target ? r2(h.target.z) : "",
+      lift_deg_per_100m: r2(Number(h.lift) || 0), drift_deg_per_100m: r2(Number(h.drift) || 0), // #1459 — lift > 0 flattens, drift > 0 turns clockwise
+      target_depth_m: hit ? r2(hit.md) : "", past_target_m: hit ? r2((Number(h.length) || 0) - hit.md) : "", target_miss_m: hit ? r2(hit.distance) : "",
       toe_x: toe ? r2(toe.x) : "", toe_y: toe ? r2(toe.y) : "", toe_z: toe ? r2(toe.z) : "",
       toe_lat: r7(tll?.y), toe_lon: r7(tll?.x),
       notes: h.notes || "",
@@ -49,6 +57,13 @@ export function rigRows(holes, epsg, isoDate, trace) {
   });
 }
 
+// #1459 — the lift / drift the aim allows for and the target, in words for the KML / GPX description (English: export text)
+function devText(r) {
+  const dev = r.lift_deg_per_100m || r.drift_deg_per_100m ? ` Aimed off for lift ${r.lift_deg_per_100m}°/100 m and drift ${r.drift_deg_per_100m}°/100 m.` : "";
+  const tg = r.target_depth_m !== "" ? ` Target (${r.target_x}, ${r.target_y}, ${r.target_z}) at ${r.target_depth_m} m, passed within ${r.target_miss_m} m; ${r.past_target_m} m past it.` : "";
+  return dev + tg;
+}
+
 const esc = (s) => String(s ?? "").replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&apos;" }[c]));
 
 // TASKS.csv #1121 — colors.planned as KML aabbggrr, for the trace and a tinted collar circle (Google Earth's default
@@ -57,7 +72,7 @@ const esc = (s) => String(s ?? "").replace(/[<>&"']/g, (c) => ({ "<": "&lt;", ">
 const KML_PLANNED = `ff${colors.planned.slice(5, 7)}${colors.planned.slice(3, 5)}${colors.planned.slice(1, 3)}`;
 export function rigKML(rows, docName) {
   const marks = rows.filter((r) => r.lat !== "" && r.lon !== "").map((r) => {
-    const desc = `Azimuth: ${r.azimuth_true !== "" ? `${r.azimuth_true}° true, ` : ""}${r.azimuth_magnetic !== "" ? `${r.azimuth_magnetic}° magnetic (${r.declination_date}), ` : ""}${r.azimuth_grid}° grid. Dip ${r.dip}°. Length ${r.length} m.${r.notes ? ` ${r.notes}` : ""}`;
+    const desc = `Azimuth: ${r.azimuth_true !== "" ? `${r.azimuth_true}° true, ` : ""}${r.azimuth_magnetic !== "" ? `${r.azimuth_magnetic}° magnetic (${r.declination_date}), ` : ""}${r.azimuth_grid}° grid. Dip ${r.dip}°. Length ${r.length} m.${devText(r)}${r.notes ? ` ${r.notes}` : ""}`;
     const line = r.toe_lat !== "" ? `
     <Placemark><name>${esc(r.name)} trace (plan)</name><styleUrl>#trace</styleUrl><LineString><tessellate>1</tessellate><coordinates>${(r.traceLonLat?.length > 1 ? r.traceLonLat : [[r.lon, r.lat], [r.toe_lon, r.toe_lat]]).map(([lo, la]) => `${lo},${la},0`).join(" ")}</coordinates></LineString></Placemark>` : "";
     return `
@@ -76,7 +91,7 @@ export function rigKML(rows, docName) {
 
 export function rigGPX(rows) {
   const wpts = rows.filter((r) => r.lat !== "" && r.lon !== "").map((r) =>
-    `  <wpt lat="${r.lat}" lon="${r.lon}"><ele>${r2(r.z)}</ele><name>${esc(r.name)}</name><desc>${esc(`Az ${r.azimuth_true !== "" ? `${r.azimuth_true} T / ` : ""}${r.azimuth_magnetic !== "" ? `${r.azimuth_magnetic} M / ` : ""}${r.azimuth_grid} G, dip ${r.dip}, ${r.length} m`)}</desc><sym>Flag</sym></wpt>`).join("\n");
+    `  <wpt lat="${r.lat}" lon="${r.lon}"><ele>${r2(r.z)}</ele><name>${esc(r.name)}</name><desc>${esc(`Az ${r.azimuth_true !== "" ? `${r.azimuth_true} T / ` : ""}${r.azimuth_magnetic !== "" ? `${r.azimuth_magnetic} M / ` : ""}${r.azimuth_grid} G, dip ${r.dip}, ${r.length} m${devText(r) ? `.${devText(r)}` : ""}`)}</desc><sym>Flag</sym></wpt>`).join("\n");
   // #1017 — each hole's planned trace in plan as a track, beside its collar waypoint
   const trks = rows.filter((r) => r.traceLonLat?.length > 1).map((r) => `  <trk><name>${esc(`${r.name} trace (plan)`)}</name><trkseg>${r.traceLonLat.map(([lo, la]) => `<trkpt lat="${la}" lon="${lo}"/>`).join("")}</trkseg></trk>`).join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>
