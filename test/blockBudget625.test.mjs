@@ -29,8 +29,11 @@ import { estimateBlockModel } from "../src/lib/estimation.js";
 test("#626 the block-model estimate honours maxBlocks too", () => {
   const pts = [{ x: 50, y: 50, z: 50, value: 1, hole_id: "A" }];
   const b = { xmin: 0, xmax: 300, ymin: 0, ymax: 300, zmin: 0, zmax: 300 };
-  assert.throws(() => estimateBlockModel(pts, { bounds: b, cellSize: { dx: 5, dy: 5, dz: 5 }, searchRadius: 10 }), /200,000-block limit/);
-  const r = estimateBlockModel(pts, { bounds: b, cellSize: { dx: 5, dy: 5, dz: 5 }, searchRadius: 10, maxBlocks: 1000000 });
+  // #1416 — with no radius every block of the box can be estimated, so the box counts; with one, only the blocks in reach count
+  assert.throws(() => estimateBlockModel(pts, { bounds: b, cellSize: { dx: 5, dy: 5, dz: 5 }, searchRadius: null }), /200,000-block limit/);
+  const inReach = estimateBlockModel(pts, { bounds: b, cellSize: { dx: 5, dy: 5, dz: 5 }, searchRadius: 10 });
+  assert.ok(inReach.blocksInReach < 100 && inReach.blocksEstimated > 0, "216,000 blocks in the box, a few dozen within 10 m of the sample");
+  const r = estimateBlockModel(pts, { bounds: b, cellSize: { dx: 5, dy: 5, dz: 5 }, searchRadius: null, maxBlocks: 1000000 });
   assert.equal(r.grid.nx * r.grid.ny * r.grid.nz, 216000);
   assert.ok(r.blocksEstimated > 0);
 });

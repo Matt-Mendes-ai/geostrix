@@ -14,6 +14,7 @@
 // still routinely used for early-stage/scoping estimates). The variogram-modelling UI now exists (#147, the Variogram
 // tool fits nugget / sill / range); TASKS.csv #709 adds ordinary kriging with it (method "ok", okEstimate below):
 // point kriging at the block centre with the nearest maxSamples composites, the kriging variance reported per block.
+import { blockReach, worldReach, gridShape } from "./blockReach.js"; // TASKS.csv #1416
 import { MAX_BLOCKS, MAX_BLOCK_BUDGET, SUPPORT_COLORS, ESTIMATION_METHODS } from "./estimationMeta.js"; // #552; budget: #625
 export { MAX_BLOCKS, SUPPORT_COLORS, ESTIMATION_METHODS };
 import { pointOnTrace } from "./desurvey.js";
@@ -141,7 +142,11 @@ function withTrend(samplePoints, opts) {
 
 export function estimateBlockModel(samplePoints, opts) {
   const { bounds, cellSize, method = "idw2", searchRadius = null, minSamples = 1, maxSamples = 16, minHoles = 1, maxPerHole = 0, lengthWeight = true, restrictToDomain = false } = opts;
-  const { dx, dy, dz, nx, ny, nz, totalBlocks } = gridDims(bounds, cellSize, opts.maxBlocks); // maxBlocks: #626
+  // TASKS.csv #1416 — the blocks any composite can reach (lib/blockReach.js): the budget counts them, the loop skips the rest
+  // (opts.noReach: the whole box, for the tests that hold the two equal)
+  const reachInfo = opts.noReach ? null : blockReach(samplePoints, bounds, cellSize, worldReach(searchRadius, opts.trend));
+  const { dx, dy, dz, nx, ny, nz, totalBlocks } = gridDims(bounds, cellSize, opts.maxBlocks, reachInfo); // maxBlocks: #626
+  const mask = reachInfo?.mask || null;
   if (!samplePoints.length) return { cells: [], blocksEstimated: 0, blocksSkipped: totalBlocks, singleHoleCells: 0 };
 
   // TASKS.csv #709 — kriging needs a variogram (resolveVariogram), in the same frame the search works in
@@ -163,7 +168,7 @@ export function estimateBlockModel(samplePoints, opts) {
   const asColumns = !!opts.columns;
   const cells = asColumns ? null : [];
   let n = 0;
-  const cap = asColumns ? totalBlocks : 0;
+  const cap = asColumns ? (mask ? reachInfo.reach : totalBlocks) : 0; // #1416 — sized to the reachable blocks
   const col = asColumns ? {
     x: new Float64Array(cap), y: new Float64Array(cap), z: new Float64Array(cap), value: new Float64Array(cap),
     nSamples: new Uint16Array(cap), nHoles: new Uint16Array(cap), holeShare: new Float64Array(cap).fill(NaN), // holeShare: #1617 (Float64: the cells built from columns equal the object cells)
@@ -181,7 +186,9 @@ export function estimateBlockModel(samplePoints, opts) {
     const cz = bounds.zmin + (iz + 0.5) * dz;
     for (let iy = 0; iy < ny; iy++) {
       const cy = bounds.ymin + (iy + 0.5) * dy;
+      const rowBase = nx * (iy + ny * iz);
       for (let ix = 0; ix < nx; ix++) {
+        if (mask && !mask[rowBase + ix]) { blocksSkipped++; if (wantSupport) supportCounts.unsupported++; continue; } // #1416 — out of every composite's reach: no search
         const cx = bounds.xmin + (ix + 0.5) * dx;
         const r = est(cx, cy, cz);
         if (!r) { blocksSkipped++; if (wantSupport) supportCounts.unsupported++; continue; } // no estimate IS the unsupported class
@@ -216,7 +223,7 @@ export function estimateBlockModel(samplePoints, opts) {
   }
   // #661 — trimmed to the blocks actually estimated (slice copies, so the spare capacity is freed with the originals)
   const columns = asColumns ? Object.fromEntries([["n", n], ["dx", dx], ["dy", dy], ["dz", dz], ...Object.entries(col).map(([k, a]) => [k, a.slice(0, n)])]) : null;
-  return { ...(asColumns ? { columns } : { cells }), blocksEstimated: asColumns ? n : cells.length, blocksSkipped, singleHoleCells, dominatedCells, grid: { nx, ny, nz }, supportCounts: wantSupport ? supportCounts : null, mlsCounts: method === "mls1" ? mlsCounts : null, ...(method === "ok" ? { okCounts, variogram } : {}) };
+  return { ...(asColumns ? { columns } : { cells }), blocksEstimated: asColumns ? n : cells.length, blocksSkipped, singleHoleCells, dominatedCells, grid: { nx, ny, nz }, blocksInReach: mask ? reachInfo.reach : totalBlocks, supportCounts: wantSupport ? supportCounts : null, mlsCounts: method === "mls1" ? mlsCounts : null, ...(method === "ok" ? { okCounts, variogram } : {}) };
 }
 
 // TASKS.csv #142 — the grid sizing + per-cell NN/IDW math shared by estimateBlockModel (sparse cell
@@ -224,13 +231,17 @@ export function estimateBlockModel(samplePoints, opts) {
 // so the two entry points can't drift apart: the numeric grade-shell tool must produce the SAME grade
 // at a given grid position that the block-model tool would, or the two would disagree about where a
 // cutoff envelope sits.
-function gridDims(bounds, cellSize, maxBlocks = MAX_BLOCKS) {
+function gridDims(bounds, cellSize, maxBlocks = MAX_BLOCKS, reach = null) {
   const limit = Math.min(MAX_BLOCK_BUDGET, Math.max(1, Number(maxBlocks) || MAX_BLOCKS)); // #625
-  const dx = Math.max(0.01, cellSize.dx), dy = Math.max(0.01, cellSize.dy), dz = Math.max(0.01, cellSize.dz);
-  const nx = Math.max(1, Math.round((bounds.xmax - bounds.xmin) / dx));
-  const ny = Math.max(1, Math.round((bounds.ymax - bounds.ymin) / dy));
-  const nz = Math.max(1, Math.round((bounds.zmax - bounds.zmin) / dz));
-  const totalBlocks = nx * ny * nz;
+  const { dx, dy, dz, nx, ny, nz, total: totalBlocks } = gridShape(bounds, cellSize);
+  // TASKS.csv #1416 — a block model holds only the blocks it estimates: its budget is the blocks within reach of a composite
+  if (reach?.tooBig) {
+    throw new Error(tr("At this cell size the grid's box would be {totalBlocks} blocks ({nx}×{ny}×{nz}): too many to even mark which ones the composites reach. Use a larger cell size or a smaller extent.", { totalBlocks: totalBlocks.toLocaleString(), nx, ny, nz }));
+  }
+  if (reach?.mask) {
+    if (reach.reach > limit) throw new Error(tr("{reach} blocks lie within the search radius of the composites ({totalBlocks} in the grid's box, {nx}×{ny}×{nz}) — over the {limit}-block limit kept for a responsive in-app estimation pass. Use a larger cell size, a smaller search radius or a larger block budget.", { reach: reach.reach.toLocaleString(), totalBlocks: totalBlocks.toLocaleString(), nx, ny, nz, limit: limit.toLocaleString() }));
+    return { dx, dy, dz, nx, ny, nz, totalBlocks };
+  }
   if (totalBlocks > limit) {
     throw new Error(tr("Block grid would be {totalBlocks} blocks ({nx}×{ny}×{nz}) — over the {limit}-block limit kept for a responsive in-app estimation pass. Use a larger cell size or a smaller extent.", { totalBlocks: totalBlocks.toLocaleString(), nx, ny, nz, limit: limit.toLocaleString() }));
   }
@@ -1034,6 +1045,9 @@ export function estimateDenseGrid(samplePoints, opts) {
   // [ix + nx * (iy + ny * iz)] indexing as `values`, so a mesh extracted from this grid can be coloured
   // by support with no second interpolation pass and no risk of the two disagreeing.
   const wantSupport = !!opts.support;
+  // TASKS.csv #1416 — nodes out of every sample's reach stay NaN without a search (the grid itself is kept whole: marching
+  // cubes needs every node, so the budget here is still the box's)
+  const denseMask = opts.noReach ? null : blockReach(samplePoints, bounds, { dx, dy, dz }, worldReach(searchRadius, opts.trend)).mask;
   const tw = twK || withTrend(samplePoints, opts); // #650
   const est0 = makeCellEstimator(tw.pts, { ...estOpts, support: wantSupport, bracketTol: Math.min(dx, dy, dz) / 2 });
   const est = tw.q ? (x, y, z) => est0(...tw.q(x, y, z)) : est0;
@@ -1049,7 +1063,7 @@ export function estimateDenseGrid(samplePoints, opts) {
       const rowBase = nx * (iy + ny * iz);
       for (let ix = 0; ix < nx; ix++) {
         const cx = origin.x + ix * dx;
-        const r = est(cx, cy, cz);
+        const r = denseMask && !denseMask[rowBase + ix] ? null : est(cx, cy, cz); // #1416
         if (wantSupport) {
           // A cell the estimator refused IS the unsupported class, by definition — no separate query.
           const sup = r && r.support;

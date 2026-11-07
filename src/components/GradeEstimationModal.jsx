@@ -9,6 +9,7 @@ import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266
 import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport } from "../lib/estimation.js";
 import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice, overlapBox } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
+import { blockReach, densifyTraces, cellToFitReach } from "../lib/blockReach.js"; // TASKS.csv #1416
 import { desurveyHole } from "../lib/desurvey.js";
 import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #702
 import { LAYER_META } from "../lib/layers.js";
@@ -129,18 +130,20 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
     const byHole = new Map();
     survey.forEach((s) => { if (!byHole.has(s.hole_id)) byHole.set(s.hole_id, []); byHole.get(s.hole_id).push(s); });
     let xmin = Infinity, ymin = Infinity, zmin = Infinity, xmax = -Infinity, ymax = -Infinity, zmax = -Infinity, holes = 0;
+    const traces = []; // TASKS.csv #1416 — for the blocks within reach of the drilling
     for (const c of collars) {
       if (assayed.size && !assayed.has(c.hole_id)) continue;
       let trace = [];
       try { trace = desurveyHole(c, byHole.get(c.hole_id) || [], desurveyMethod) || []; } catch { trace = []; }
       if (!trace.length) continue;
+      traces.push(trace);
       holes++;
       for (const p of trace) {
         if (p.x < xmin) xmin = p.x; if (p.x > xmax) xmax = p.x; if (p.y < ymin) ymin = p.y; if (p.y > ymax) ymax = p.y;
         if (p.z < zmin) zmin = p.z; if (p.z > zmax) zmax = p.z;
       }
     }
-    return holes && Number.isFinite(xmin) ? { xmin, xmax, ymin, ymax, zmin, zmax, holes } : null;
+    return holes && Number.isFinite(xmin) ? { xmin, xmax, ymin, ymax, zmin, zmax, holes, traces } : null;
   }, [assays, collars, survey, desurveyMethod]);
 
   const [padding, setPadding] = useState(25);
@@ -244,10 +247,22 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
   } : null;
   const totalBlocksPreview = gridPreview ? gridPreview.nx * gridPreview.ny * gridPreview.nz : 0;
   const gridDiagonalM = bounds ? Math.round(Math.hypot(bounds.xmax - bounds.xmin, bounds.ymax - bounds.ymin, bounds.zmax - bounds.zmin)) : 0; // #710: what radius 0 becomes
-  const overLimit = totalBlocksPreview > blockBudget; // #626
+  // TASKS.csv #1416 (review #1352, Silvertip) — the estimate keeps only the blocks a composite can reach (lib/blockReach.js), so the
+  // budget counts the blocks within the search radius of the drill traces (composites lie on them: never fewer than the run's),
+  // not the box: Silvertip's three pads ~1 km apart made a 2.3 M-block box of which a few per cent can be estimated
+  const reachRadius = searchRadius > 0 ? searchRadius : null;
+  const reachPts = useMemo(() => (traceBounds?.traces?.length && reachRadius ? densifyTraces(traceBounds.traces, Math.min(cell3.dx, cell3.dy, cell3.dz, reachRadius) / 2) : null), [traceBounds, reachRadius, cell3.dx, cell3.dy, cell3.dz]);
+  const reach = useMemo(() => {
+    if (!bounds || !reachPts) return null;
+    const r = blockReach(reachPts.points, bounds, cell3, reachRadius, { margin: reachPts.margin });
+    return { reach: r.reach, tooBig: !!r.tooBig };
+  }, [reachPts, bounds?.xmin, bounds?.xmax, bounds?.ymin, bounds?.ymax, bounds?.zmin, bounds?.zmax, cell3.dx, cell3.dy, cell3.dz, reachRadius]);
+  const blocksInReach = reach ? (reach.tooBig ? Infinity : reach.reach) : totalBlocksPreview;
+  const overLimit = blocksInReach > blockBudget; // #626; #1416 — the blocks in reach
   const cellLabel = matched ? (cell3.dx === cell3.dy && cell3.dy === cell3.dz ? cell3.dx : `${cell3.dx}×${cell3.dy}×${cell3.dz}`) : cellSize; // #724 — names say the real block size
-  const fitCell = overLimit && bounds && !matched ? cellToFit(bounds, blockBudget, cellSize) : null; // a matched model's cell size is not ours to change
-  const fitCellMax = overLimit && bounds && !matched && blockBudget < MAX_BLOCK_MODEL_BUDGET ? cellToFit(bounds, MAX_BLOCK_MODEL_BUDGET, cellSize) : null;
+  const fitTo = (budget, from) => (reachPts ? cellToFitReach(reachPts.points, bounds, reachRadius, budget, from, { margin: reachPts.margin }) : cellToFit(bounds, budget, from));
+  const fitCell = useMemo(() => (overLimit && bounds && !matched ? fitTo(blockBudget, cellSize) : null), [overLimit, reachPts, blockBudget, cellSize, matched, bounds?.xmin, bounds?.xmax, bounds?.ymin, bounds?.ymax, bounds?.zmin, bounds?.zmax]);
+  const fitCellMax = useMemo(() => (overLimit && bounds && !matched && blockBudget < MAX_BLOCK_MODEL_BUDGET ? fitTo(MAX_BLOCK_MODEL_BUDGET, cellSize) : null), [overLimit, reachPts, blockBudget, cellSize, matched, bounds?.xmin, bounds?.xmax, bounds?.ymin, bounds?.ymax, bounds?.zmin, bounds?.zmax]);
   // TASKS.csv #1416 (review #1352) — the default 10 m cell could not run on Silvertip (2.3 M blocks over the budget, Run disabled): the
   // first time the grid is over the budget, before the cell size is touched, the cell that fits is filled in, and said
   const cellTouched = useRef(false);
@@ -256,8 +271,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
   // #1570 — a restricting solid changes the box: a cell the dialog chose (not typed) is chosen again for it, 10 m when that fits
   useEffect(() => {
     if (!bounds || matched || autoCell == null || cellSize !== autoCell) return;
-    const blocksAt = (c) => ["x", "y", "z"].reduce((t, k) => t * Math.max(1, Math.round((bounds[`${k}max`] - bounds[`${k}min`]) / c)), 1);
-    const c = blocksAt(10) <= blockBudget ? 10 : cellToFit(bounds, blockBudget, 10);
+    const c = fitTo(blockBudget, 10); // #1416 — 10 m when its blocks in reach fit
     if (c && c !== cellSize) { setAutoCell(c); setCellSize(c); }
   }, [shellBox, areaBox, checkedBounds]); // #1570: any change of the box's source
 
@@ -654,7 +668,8 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
             </select>
           </label>
           {gridPreview && (
-            <div style={{ fontSize: "var(--font-size-sm)", color: overLimit ? "var(--color-danger-icon-strong)" : "var(--color-text-muted)" }}>{tr("Grid: {nx} × {ny} × {nz} = {totalBlocksPreview} blocks{v}", { nx: gridPreview.nx, ny: gridPreview.ny, nz: gridPreview.nz, totalBlocksPreview: totalBlocksPreview.toLocaleString(), v: overLimit ? tr(" — over the {blockBudget}-block budget.", { blockBudget: blockBudget.toLocaleString() }) : "" })}
+            <div style={{ fontSize: "var(--font-size-sm)", color: overLimit ? "var(--color-danger-icon-strong)" : "var(--color-text-muted)" }}>{tr("Grid: {nx} × {ny} × {nz} = {totalBlocksPreview} blocks{v}", { nx: gridPreview.nx, ny: gridPreview.ny, nz: gridPreview.nz, totalBlocksPreview: totalBlocksPreview.toLocaleString(),
+              v: (reach && blocksInReach < totalBlocksPreview ? tr(", {n} within {r} m of the drilling (only those can be estimated, and only those count)", { n: Number.isFinite(blocksInReach) ? blocksInReach.toLocaleString() : "?", r: reachRadius }) : "") + (overLimit ? tr(" — over the {blockBudget}-block budget.", { blockBudget: blockBudget.toLocaleString() }) : "") })}
               {overLimit && (
                 <span style={{ display: "inline-flex", gap: 6, marginLeft: 6, flexWrap: "wrap" }}>
                   <button type="button" onClick={() => { cellTouched.current = true; setCellSize(fitCell); }} style={{ ...btn(false), padding: "2px 8px" }}>{tr("Use {fitCell} m blocks", { fitCell })}</button>
