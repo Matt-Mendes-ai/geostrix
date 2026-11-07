@@ -8590,5 +8590,7 @@
   "{n} beta only (no alpha)": "{n} só beta (sem alfa)",
   "{n} with a dip but no dip direction": "{n} com mergulho mas sem direção de mergulho",
   "{n} whose angles could not be converted": "{n} cujos ângulos não puderam ser convertidos",
-  "Weak clustering (k {k}): a broad set, spread about 45° or more around the mean.": "Agrupamento fraco (k {k}): um conjunto amplo, espalhado cerca de 45° ou mais em torno da média."
+  "Weak clustering (k {k}): a broad set, spread about 45° or more around the mean.": "Agrupamento fraco (k {k}): um conjunto amplo, espalhado cerca de 45° ou mais em torno da média.",
+  "Copied 1 element: Ctrl+V pastes it on any page.": "1 elemento copiado: Ctrl+V o cola em qualquer página.",
+  "Copied {n} elements: Ctrl+V pastes them on any page.": "{n} elementos copiados: Ctrl+V os cola em qualquer página."
 }

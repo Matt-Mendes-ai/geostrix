@@ -8590,5 +8590,7 @@
   "{n} beta only (no alpha)": "{n} solo beta (sin alfa)",
   "{n} with a dip but no dip direction": "{n} con buzamiento pero sin dirección de buzamiento",
   "{n} whose angles could not be converted": "{n} cuyos ángulos no se pudieron convertir",
-  "Weak clustering (k {k}): a broad set, spread about 45° or more around the mean.": "Agrupamiento débil (k {k}): un conjunto amplio, disperso unos 45° o más alrededor de la media."
+  "Weak clustering (k {k}): a broad set, spread about 45° or more around the mean.": "Agrupamiento débil (k {k}): un conjunto amplio, disperso unos 45° o más alrededor de la media.",
+  "Copied 1 element: Ctrl+V pastes it on any page.": "1 elemento copiado: Ctrl+V lo pega en cualquier página.",
+  "Copied {n} elements: Ctrl+V pastes them on any page.": "{n} elementos copiados: Ctrl+V los pega en cualquier página."
 }

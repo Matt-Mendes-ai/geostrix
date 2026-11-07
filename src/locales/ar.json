@@ -8590,5 +8590,7 @@
   "{n} beta only (no alpha)": "{n} بيتا فقط (بلا ألفا)",
   "{n} with a dip but no dip direction": "{n} لها ميل دون اتجاه ميل",
   "{n} whose angles could not be converted": "{n} تعذّر تحويل زواياها",
-  "Weak clustering (k {k}): a broad set, spread about 45° or more around the mean.": "تجمّع ضعيف (k {k}): مجموعة واسعة متناثرة بنحو 45° أو أكثر حول المتوسط."
+  "Weak clustering (k {k}): a broad set, spread about 45° or more around the mean.": "تجمّع ضعيف (k {k}): مجموعة واسعة متناثرة بنحو 45° أو أكثر حول المتوسط.",
+  "Copied 1 element: Ctrl+V pastes it on any page.": "نُسخ عنصر واحد: يلصقه Ctrl+V في أي صفحة.",
+  "Copied {n} elements: Ctrl+V pastes them on any page.": "نُسخ {n} عناصر: يلصقها Ctrl+V في أي صفحة."
 }

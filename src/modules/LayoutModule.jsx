@@ -40,6 +40,7 @@ import { projectCredits } from "../lib/credits.js"; // TASKS.csv #949
 import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1127 / #1128
 import { firstLegendGroups, rankLegendGroups, legendGroupCount } from "../lib/legendGroups.js"; // rank / count: #1482 // TASKS.csv #1224
 import { numericLayerLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #1482 — the RQD / recovery / SG / mag susc ramps
+import { freeSpot } from "../lib/layoutPlace.js"; // TASKS.csv #1484 — new items into free space
 import { numericClips, numericLayerColorFn } from "../lib/numericClip.js"; // TASKS.csv #1482
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 // (The page size used to be a fixed `const A4 = { w: 1123, h: 794 }` here; it is now per page — see
@@ -74,6 +75,9 @@ function sortedCollars(collars) {
   if (!cs) { cs = [...collars].sort((a, b) => holeCollator.compare(String(a.hole_id), String(b.hole_id))); sortedCollarsCache.set(collars, cs); }
   return cs;
 }
+
+// TASKS.csv #1484 — Layout's own copy / paste buffer (elements as JSON), kept for the app session across pages and tabs
+let layoutClipboard = null;
 
 export default function LayoutModule() {
   const {
@@ -215,7 +219,6 @@ export default function LayoutModule() {
   const pageRef = useRef(null);
   const logoInput = useRef(null);
   const templateInput = useRef(null); // TASKS.csv #1868 — Import template
-  const importedSnapCount = useRef(0);
 
   // TASKS.csv #19 — more shapes/annotation tools. Rect/arrow/callout are click-to-place-then-adjust
   // (like every other element here); freehand is the odd one out — it needs to capture a drag
@@ -299,12 +302,13 @@ export default function LayoutModule() {
       replacing.forEach((img) => consumeLayoutImage(img.id));
       setSyncNotice(again ? tr("Snapshot taken again; adjusting its text once more for the plot scale…") : tr("Snapshot taken again with its text at print size, at the same plot scale."));
     }
+    const placedSoFar = [...elements]; // #1484 — each snapshot into the page's free space, not stacked at (90, 90)
     const additions = pendingLayoutImages.filter((img) => !replacing.includes(img)).map((img) => {
       const aspect = img.naturalW && img.naturalH ? img.naturalW / img.naturalH : 16 / 9;
       // TASKS.csv #1480 — a tall image (a strip log) fits the sheet's height too; it ran off the page at 700 px wide
       const maxH = A4.h - 160, w = Math.round(Math.min(maxW, 700, maxH * aspect));
       const h = Math.round(w / aspect);
-      const stagger = (importedSnapCount.current++ % 5) * 24;
+      const spot = freeSpot(placedSoFar, w, h, A4); placedSoFar.push({ ...spot, w, h });
       // worldWidthAtCaptureM (cross-section snapshots only — see SectionWindow.jsx's
       // snapshotToLayout) is the real-world horizontal span the image represented at its native
       // naturalW pixel width; carried through so a scale bar can be assigned to it below, the same
@@ -313,7 +317,7 @@ export default function LayoutModule() {
       // ViewerModule's buildSectionPayload): the exact {label,color} pairs actually drawn in this
       // section, so a legend bound to this image (see syncLegendFromView below) can match it
       // without needing a live theme, which a flattened snapshot doesn't have.
-      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.src, aspect, x: 90 + stagger, y: 90 + stagger, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, planMap: !!img.planMap /* #1864 */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null, sectionTabId: img.sectionTabId || null, textFactor: img.textFactor || 1 /* #1485 */ };
+      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.src, aspect, x: spot.x, y: spot.y, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, planMap: !!img.planMap /* #1864 */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null, sectionTabId: img.sectionTabId || null, textFactor: img.textFactor || 1 /* #1485 */ };
     });
     // TASKS.csv #1128 — a cross-section snapshot comes with its legend as a Layout element (movable, editable, bound to
     // the snapshot so "Sync" refreshes it), right of the image when it fits on the sheet, else below it
@@ -588,6 +592,7 @@ export default function LayoutModule() {
       const vp = views.find((v) => v.id === selected) || (views.length === 1 ? views[0] : null);
       if (vp) { base.boundTo = vp.id; base.rotation = northRotationOf(vp); }
     }
+    if (type === "text" || type === "north") Object.assign(base, freeSpot(elements, type === "text" ? 200 : 60, type === "text" ? 40 : 80, A4)); // #1484
     if (type === "legend") {
       // TASKS.csv #1224 — what the 3D view shows now, bound to the page's viewport if there is just one: a stock row on a printed figure says nothing true
       const only = elements.filter((el) => el.type === "viewport");
@@ -597,6 +602,7 @@ export default function LayoutModule() {
       base.items = items.length ? (left > 0 ? [...kept, [tr("+ {n} more group(s): Load from view adds them", { n: left }), null, { heading: true }]] : kept) : [["Item", "#55606e"]];
       const viewports = elements.filter((el) => el.type === "viewport");
       if (viewports.length === 1) base.boundViewportId = viewports[0].id;
+      Object.assign(base, freeSpot(elements, 220, Math.min(A4.h - 80, 30 + 15 * base.items.length), A4)); // #1484
     }
     // TASKS.csv #19 — shapes/annotation
     if (type === "rect") { base.w = 180; base.h = 110; base.stroke = "#1a2028"; base.strokeWidth = 2; base.fill = "#ffffff"; base.fillOpacity = 0; }
@@ -698,7 +704,7 @@ export default function LayoutModule() {
   const onLogoFile = (e) => {
     const f = e.target.files[0]; if (!f) return;
     const reader = new FileReader();
-    reader.onload = () => setElements((els) => [...els, { id: `logo_${Date.now()}`, type: "logo", x: 100, y: 100, src: reader.result, w: 160 }]);
+    reader.onload = () => setElements((els) => [...els, { id: `logo_${Date.now()}`, type: "logo", ...freeSpot(els, 160, 80, A4) /* #1484 */, src: reader.result, w: 160 }]);
     reader.readAsDataURL(f);
     e.target.value = "";
   };
@@ -745,6 +751,25 @@ export default function LayoutModule() {
     setSelected(copies[copies.length - 1].id);
     setMultiSelected(new Set(copies.length > 1 ? copies.map((c) => c.id) : []));
   };
+  // TASKS.csv #1484 — Ctrl+C / Ctrl+V, also between pages (the clipboard is module-level: it outlives a page switch or a trip to
+  // another tab). Pasted onto another page an element keeps its place; on the same page it lands 5 mm along, as Duplicate does.
+  const copySelected = () => {
+    const ids = selectionIds();
+    if (!ids.length) return false;
+    layoutClipboard = { pageId: activeLayoutPageId, els: JSON.parse(JSON.stringify(elements.filter((e) => ids.includes(e.id)))) };
+    setSyncNotice(tr(ids.length === 1 ? "Copied 1 element: Ctrl+V pastes it on any page." : "Copied {n} elements: Ctrl+V pastes them on any page.", { n: ids.length }));
+    return true;
+  };
+  const pasteClipboard = () => {
+    if (!layoutClipboard?.els?.length) return false;
+    const off = layoutClipboard.pageId === activeLayoutPageId ? Math.round(5 * PX_PER_MM) : 0;
+    const idMap = new Map(layoutClipboard.els.map((e) => [e.id, `${e.type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`]));
+    const copies = relinkCopies(layoutClipboard.els.map((e) => ({ ...e, id: idMap.get(e.id), x: e.x + off, y: e.y + off, locked: false })), idMap, false); // #924
+    setElements((els) => [...els, ...copies]);
+    setSelected(copies[copies.length - 1].id);
+    setMultiSelected(new Set(copies.length > 1 ? copies.map((c) => c.id) : []));
+    return true;
+  };
   const nudgeSelected = (dx, dy) => {
     const ids = new Set(selectionIds());
     if (!ids.size) return;
@@ -790,6 +815,8 @@ export default function LayoutModule() {
       const tag = active?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || active?.isContentEditable) return;
       if ((e.ctrlKey || e.metaKey) && (e.key === "d" || e.key === "D")) { if (selected) { e.preventDefault(); duplicateSelected(); } return; }
+      if ((e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C")) { if (copySelected()) e.preventDefault(); return; } // #1484
+      if ((e.ctrlKey || e.metaKey) && (e.key === "v" || e.key === "V")) { if (pasteClipboard()) e.preventDefault(); return; }
       if (e.key.startsWith("Arrow")) {
         if (!selected) return;
         e.preventDefault();
@@ -803,7 +830,7 @@ export default function LayoutModule() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selected, multiSelected, elements]);
+  }, [selected, multiSelected, elements, activeLayoutPageId]); // activeLayoutPageId: #1484
   // TASKS.csv #909 — dynamic text: {project} {date} {page} {pages} {pagename} {scale} in a title or text (QGIS's
   // expressions, the few a figure's title block needs); {scale} is the page's first fixed-scale viewport, else its
   // first true-scale one, else the approximate scale of the first viewport

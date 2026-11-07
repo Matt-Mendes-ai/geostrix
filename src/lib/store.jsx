@@ -14,6 +14,7 @@ import { saveFile, saveFileTo, openFile, autosaveWrite, autosaveWriteParts /* #1
 import { normalizeDesurveyMethod } from "./desurvey.js";
 import { readCellBudget, saveCellBudget } from "./estimationMeta.js"; // TASKS.csv #1970
 import { nextGroupColour } from "./layers.js"; // TASKS.csv #1377
+import { freeSpot } from "./layoutPlace.js"; // TASKS.csv #1484
 
 const StoreContext = createContext(null);
 export const useStore = () => useContext(StoreContext);
@@ -809,7 +810,7 @@ export function StoreProvider({ children }) {
       const id = `viewport_${Date.now()}`;
       setLayoutElements((els) => addViewportToPage(els, {
         id, type: "viewport", themeId: viewportPendingRequest.themeId,
-        x: 90, y: 90, w, h, capW: w, capH: h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, // capW / capH: #906
+        ...freeSpot(els, w, h) /* #1484 — the page's free space, not (90, 90) */, w, h, capW: w, capH: h, aspect, src: res.src, worldHeightAtTarget: res.worldHeightAtTarget, cameraAzimuthDeg: res.cameraAzimuthDeg, // capW / capH: #906
         trueScale: !!res.trueScale, targetWorld: res.targetWorld || null, planView: !!res.planView, // #399
         viewState: res.viewState || null, // #948 — a theme-less capture's own view settings, for its legend
         samplesUnplaced: res.samplesUnplaced || 0, // TASKS.csv #1864
