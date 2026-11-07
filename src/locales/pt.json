@@ -8598,5 +8598,7 @@
   "{n} assay intervals reference hole \"{hole_id}\", which has no matching collar.{v}": "{n} intervalos de análise se referem ao furo \"{hole_id}\", que não tem boca de furo.{v}",
   "{n} more code(s) in {cols} on {m} interval(s) are not drawn (each interval is coloured by {first}); every code is kept on its interval as all_codes, which Identify lists. Hiding the first code in the legend shows such an interval in its next code's colour.": "{n} código(s) a mais em {cols} em {m} intervalo(s) não são desenhados (cada intervalo é colorido por {first}); todos os códigos ficam no intervalo como all_codes, que Identificar lista. Ao ocultar o primeiro código na legenda, esse intervalo aparece na cor do código seguinte.",
   "Your zoom in the 3D view framed about 1:{z}; the frame kept 1:{s}.": "O seu zoom na vista 3D enquadrou cerca de 1:{z}; o quadro manteve 1:{s}.",
-  "Use 1:{z}": "Usar 1:{z}"
+  "Use 1:{z}": "Usar 1:{z}",
+  "Filter holes by a collar field": "Filtrar furos por um campo da boca de furo",
+  "By a collar field…": "Por um campo da boca de furo…"
 }

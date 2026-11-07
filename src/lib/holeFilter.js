@@ -15,3 +15,25 @@ export function visibilityPatch(visible, ids, listed, mode) {
 
 // TASKS.csv #1315 — the holes a tool should use when it follows the hole list. No entry means shown.
 export const tickedHoles = (rows, visible, key = "hole_id") => rows.filter((r) => visible?.[r[key]] !== false);
+
+// TASKS.csv #1504 (review #1497, Lawyers) — the collar file's other columns are kept on each hole (attrs: year, drill_type, zone,
+// status...), but nothing could pick holes by them. A filter term 'field=value' matches a collar attribute (field name and value
+// case-insensitive, the value as a whole word or the whole value); id terms match any one of them, attribute terms must all match.
+const norm = (v) => String(v ?? "").trim().toLowerCase().replace(/_/g, " "); // "_" stands for a space in a typed term
+export function collarsMatching(collars, filter) {
+  const terms = String(filter || "").split(/[,\s]+/).filter(Boolean);
+  const attrTerms = terms.filter((t) => t.includes("=")).map((t) => { const i = t.indexOf("="); return [norm(t.slice(0, i)), norm(t.slice(i + 1))]; }).filter(([k]) => k);
+  const idTerms = terms.filter((t) => !t.includes("=")).map(norm);
+  const attrOf = (c, k) => { const a = c?.attrs || {}; const key = Object.keys(a).find((x) => norm(x) === k); return key == null ? null : norm(a[key]); };
+  return (collars || []).filter((c) => {
+    const id = norm(c.hole_id);
+    if (idTerms.length && !idTerms.some((t) => id.includes(t))) return false;
+    return attrTerms.every(([k, v]) => { const got = attrOf(c, k); return got != null && (got === v || got.split(/[^a-z0-9.]+/).includes(v)); });
+  });
+}
+// The collar fields worth offering as a pick: 2 to 30 distinct values over the holes. -> [{ key, values: [...] }]
+export function collarAttrChoices(collars, maxValues = 30) {
+  const by = new Map();
+  for (const c of collars || []) for (const [k, v] of Object.entries(c?.attrs || {})) { const s = String(v ?? "").trim(); if (!s) continue; if (!by.has(k)) by.set(k, new Set()); if (by.get(k).size <= maxValues) by.get(k).add(s); }
+  return [...by.entries()].filter(([, s]) => s.size >= 2 && s.size <= maxValues).map(([key, s]) => ({ key, values: [...s].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })) }));
+}

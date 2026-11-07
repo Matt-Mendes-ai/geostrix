@@ -5,7 +5,7 @@ import { interceptsDisabledText, noCollarsNotice } from "../lib/noCollars.js"; /
 import { levelPlanZRange } from "../lib/viewer/levelPlanRange.js"; // TASKS.csv #1782
 import { sampleUserData, mappedOfSample } from "../lib/viewer/sampleTip.js"; // TASKS.csv #1821; #1500
 import HoleFilterBar from "./viewer/HoleFilterBar.jsx";
-import { holesMatching } from "../lib/holeFilter.js";
+import { collarsMatching } from "../lib/holeFilter.js"; // #1504
 import FenceOptions from "./viewer/FenceOptions.jsx";
 import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js";
 import React, { useRef, useEffect, useState, useCallback, useMemo, Suspense } from "react";
@@ -305,7 +305,7 @@ function sortVoxelInstancesBackToFront(mesh, cells, camPos) {
 const CAPTURE_LONG_PX = 3000;
 // TASKS.csv #906 — outW x outH (CSS px): the size the capture is drawn at, when it is not the canvas's own (a Layout
 // frame's aspect); the renderer goes back to cssW x cssH afterwards.
-const tickedShown = (collars, f) => { const k = new Set(holesMatching(collars.map((c) => c.hole_id), f)); return collars.filter((c) => k.has(c.hole_id)); };
+const tickedShown = (collars, f) => collarsMatching(collars, f); // #1504 — by id parts, or field=value
 function captureHiRes(renderer, cssW, cssH, draw, outW = cssW, outH = cssH, longPx = CAPTURE_LONG_PX) {
   const gl = renderer.getContext();
   const maxRb = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 4096;
