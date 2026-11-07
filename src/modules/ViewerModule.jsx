@@ -134,6 +134,7 @@ import { numericClips, rampRange } from "../lib/numericClip.js"; // #1699
 import { unitShell, meshVolume, blockUnitStats } from "../lib/unitVolumes.js"; // TASKS.csv #517; blockUnitStats: #877
 const ModellingCodesPane = React.lazy(() => import("../components/ModellingCodesPane.jsx")); // TASKS.csv #599 — modelling view only, so loaded on demand (#476 budget)
 import { resolveLayerStyle, cleanLayerStyle, TUBE_SEGMENTS } from "../lib/layerStyle.js"; // TASKS.csv #635
+import { lithoPatternMap, withSectionPatterns } from "../lib/lithoPatterns.js"; // #1995
 import { LAYER_META, colorForLithology, rqdColor, magColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, mcodeRoleOf, isCrossCuttingRole, colorForMedium } from "../lib/layers.js";
 import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
 import { sceneVertsToWorldFlat } from "../lib/meshFlat.js"; // TASKS.csv #600 — the exporters (meshExport.js) load on first export
@@ -6543,7 +6544,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         if (!holeIds.has(row.hole_id) || !isRowVisible(key, row)) return;
         const color = meta.numeric ? numericLayerColor(key, row.value, key === "sg" ? sgRange : { min: 0, max: 100 }) : effectiveColor(key, row.value);
         const label = meta.numeric ? row.value : effectiveLabel(key, row.value);
-        intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${meta.label}: ${label}`, layer: key }); // #392 — layer drives the ribbon offset
+        intervals.push({ hole_id: row.hole_id, from: row.from, to: row.to, color, label: `${meta.label}: ${label}`, layer: key, code: row.value }); // #392 — layer drives the ribbon offset
       });
     });
 
@@ -6626,7 +6627,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   };
 
   // TASKS.csv #1276 — the main process refuses a new section window past what this computer can hold
-  const openSectionOrSay = (payload) => openSectionWindow(payload).then((r) => { if (r?.refused) setNotices((p) => [...p, notice("{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.", { max: r.max })]); return r; });
+  const openSectionOrSay = (payload) => openSectionWindow(withSectionPatterns(payload, lithoPatternMap(layers.litho, (v) => effectiveLabel("litho", v), legendOverride.litho))).then((r) => { if (r?.refused) setNotices((p) => [...p, notice("{max} sections are open, the most this computer can hold comfortably. Close one to open this section: it stays in the Sections list.", { max: r.max })]); return r; });
   const buildSectionPayload = (a, b, corridor, scope = {}, secId = null) => {
     const azimuth = (Math.atan2(b.x - a.x, b.y - a.y) * 180 / Math.PI + 360) % 360;
     const holesInBand = tracesRef.current.filter((t) => visibleHoles[t.hole_id] !== false && t.wx.some((wx, i) => distToSegment(wx, t.wy[i], a.x, a.y, b.x, b.y) <= corridor));
@@ -8946,7 +8947,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       {fenceOpen && (
         <FenceDiagramModal
           traces={tracesRef.current.map((t) => ({ hole_id: t.hole_id, md: t.pts.map((p) => p.md), wx: t.wx, wy: t.wy, wz: t.wz }))}
-          litho={layers.litho || []}
+          litho={layers.litho || []} labelFor={effectiveLabel} patternOverride={legendOverride.litho} // #1995
           onClose={() => setFenceOpen(false)}
         />
       )}

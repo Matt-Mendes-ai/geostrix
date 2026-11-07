@@ -177,7 +177,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
   const furniture = () => stripLogFurniture({ holeId, collar, fromDepth: d0, maxDepth: d1, pxPerMeter, date: new Date().toISOString().slice(0, 10),
     tracks: tracks.filter((t) => t.kind === "fill" || t.kind === "struct").map((t) => { // struct: #1400
       const seen = [...new Set(t.rows.map((r) => r.value).filter((v) => v != null && v !== ""))];
-      return { title: t.title || t.label, items: seen.map((v) => ({ label: t.nameFn ? `${v} ${t.nameFn(v) !== v ? `(${t.nameFn(v)})` : ""}`.trim() : String(v), color: t.colorFn(v) })) };
+      return { title: t.title || t.label, items: seen.map((v) => ({ label: t.nameFn ? `${v} ${t.nameFn(v) !== v ? `(${t.nameFn(v)})` : ""}`.trim() : String(v), color: t.colorFn(v), ...(t.key === "litho" && patternOf(v) ? { pattern: patternFill(patternOf(v), t.colorFn(v)) } : {}) })) }; // pattern: #1995
     }) });
   // TASKS.csv #1480 (review #1352) — the strip log to Layout, as the section window, level plan and Best intercepts do: the same
   // figure as the SVG export (the chosen assay tracks, the depth axis and its metres, the collar caption and the colour-track
@@ -190,7 +190,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
     const legendItems = tracks.filter((t) => t.kind === "fill" || t.kind === "struct").flatMap((t) => {
       const seen = [...new Set(t.rows.map((r) => r.value).filter((v) => v != null && v !== ""))];
       const group = String(t.title || t.label).split(": ")[0]; // the legend splits a heading at its first ": " (the structure track's title has one)
-      return seen.map((v) => [`${group}: ${t.nameFn ? t.nameFn(v) : v}`, t.colorFn(v)]);
+      return seen.map((v) => (t.key === "litho" && patternOf(v) ? [`${group}: ${t.nameFn ? t.nameFn(v) : v}`, t.colorFn(v), null, patternOf(v)] : [`${group}: ${t.nameFn ? t.nameFn(v) : v}`, t.colorFn(v)])); // the pattern (4th): #1995
     });
     onAddToLayout({ label: `Strip log — ${holeId}` /* project data stays English */, src: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(markup)))}`, naturalW: fw, naturalH: fh, legendItems, depthHeightAtCaptureM: fh / pxPerMeter /* #1480 — Layout's depth scale */ });
     const ptAt = (h) => stripLogTextPt(h, Math.min(700 * (h / fw), 794 - 160)); // Layout: 700 px wide, at most the sheet height less margins (A4 landscape)

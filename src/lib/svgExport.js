@@ -59,6 +59,7 @@ export function exportSvgMarkup(svg, { background = "#ffffff", furniture = null,
         else { r.setAttribute("x", String(x0 + it.x)); r.setAttribute("y", String(top + it.y)); r.setAttribute("width", String(it.w)); r.setAttribute("height", String(it.h)); }
         r.setAttribute("fill", it.fill);
         g.appendChild(r);
+        if (it.overlay && it.shape !== "dot" && it.shape !== "line") { const o = r.cloneNode(); o.setAttribute("fill", it.overlay); g.appendChild(o); } // #1995 — a lithology pattern over the colour
       }
     }
     clone.appendChild(g);

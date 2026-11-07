@@ -13,6 +13,7 @@ import { exportSvgMarkup, FIGURE_FONT } from "../lib/svgExport.js"; // TASKS.csv
 import { wrapText } from "../lib/figureFurniture.js";
 import { signedOffset } from "../lib/sectionCorridor.js"; // TASKS.csv #1231
 import { colors, printPt, printPx, PLACED_W } from "../lib/theme.js"; // TASKS.csv #1121 — colors.planned, the planned-hole colour of every view; print scale: #1090
+import { loadPatternTiles, patternDefs, patternFill, sectionTilePx } from "../lib/lithoPatterns.js"; // TASKS.csv #1995
 import { flushSync } from "react-dom"; // TASKS.csv #1090 — render at print size for an export, synchronously
 
 const SECTION_W = 1100, SECTION_H = 660;
@@ -94,6 +95,18 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   // itself". The interval ribbons' width in px (a per-user preference, kept in localStorage), and the buffer typed here.
   const [holeWidth, setHoleWidthState] = useState(() => { try { const v = Number(localStorage.getItem("geostrix.sectionHoleWidth")); return v >= 1 && v <= 20 ? v : 5; } catch { return 5; } });
   const setHoleWidth = (v) => { const n = Math.max(1, Math.min(20, Number(v) || 5)); setHoleWidthState(n); try { localStorage.setItem("geostrix.sectionHoleWidth", String(n)); } catch { /* private window */ } };
+  // TASKS.csv #1995 — FGDC lithology patterns over the lithology ribbon (the strip log's per-code choice); off by default: a 5 px ribbon
+  // shows a sliver of a tile, so the box says to widen the holes. A per-user preference, like the hole width.
+  const [patternsOn, setPatternsOnState] = useState(() => { try { return localStorage.getItem("geostrix.sectionPatterns") === "1"; } catch { return false; } });
+  const setPatternsOn = (on) => { setPatternsOnState(on); try { localStorage.setItem("geostrix.sectionPatterns", on ? "1" : "0"); } catch { /* private window */ } };
+  const patternCodes = useMemo(() => [...new Set((rawData?.intervals || []).map((r) => r.pat).filter((c) => c != null))].sort(), [rawData]);
+  const [patternTiles, setPatternTiles] = useState({});
+  useEffect(() => {
+    if (!patternsOn || !patternCodes.length) return undefined;
+    let live = true;
+    loadPatternTiles(patternCodes).then((t) => { if (live) setPatternTiles(t); });
+    return () => { live = false; };
+  }, [patternsOn, patternCodes]);
   const [bufferDraft, setBufferDraft] = useState("");
   // TASKS.csv #1129 — "text font should also be editable": the section's font and text size (per user; the SVG / PNG /
   // PDF exports and the Layout snapshot carry them)
@@ -158,7 +171,10 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
   };
 
   // the legend rows for what is on screen: the model's units only while the model is shown (#759, #1043)
-  const shownLegendItems = data?.legendItems ? data.legendItems.filter(([label]) => showModel || !data.modelBackdrop || !label.startsWith("Model: ")) : null;
+  // #1995 — a lithology row keeps its pattern (4th element) only while the section draws patterns
+  // #1995 — and a ribbon hidden in the Ribbons list leaves the legend too (its group stayed listed, its rows drawn nowhere)
+  const hiddenGroups = ribbonChoices.filter((ch) => ribbonHidden(ch.key)).map((ch) => `${ch.label}: `);
+  const shownLegendItems = data?.legendItems ? data.legendItems.filter(([label]) => (showModel || !data.modelBackdrop || !label.startsWith("Model: ")) && !hiddenGroups.some((g) => String(label).startsWith(g))).map((it) => (it.length > 3 && !(patternsOn && patternTiles[it[3]]) ? [it[0], it[1]] : it)) : null;
 
   // TASKS.csv #1090 (review #1016, software artist) — an export is drawn at the text size that prints at printPt.caption
   // (7 pt) where Layout places it (PLACED_W page px for the 1,100 px figure); the smallest section label is fs(9). The
@@ -415,6 +431,9 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
             {tr("Hole width")}
             <input type="number" min="1" max="20" step="1" value={holeWidth} onChange={(e) => setHoleWidth(e.target.value)} style={{ width: 40, fontSize: 11 }} aria-label={tr("Hole width")} />
           </label>
+          {patternCodes.length > 0 && <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#55606e" }} title={tr("FGDC lithology patterns over the lithology ribbon, each code's pattern as in its strip log (chosen there). They read from a hole width of about 10 px.")}>
+            <input type="checkbox" checked={patternsOn} onChange={(e) => setPatternsOn(e.target.checked)} />{tr("Patterns")}
+          </label>}
           <button onClick={() => sendSectionContacts({ id: data.id, refresh: true })} title={tr("Redraw the surface traces, models and neighbouring sections' strings on this section from the main window (what you are drawing is kept).")} style={btnStyle(false)}>{tr("Refresh")}</button>
           <button onClick={saveContacts} disabled={!contacts.length && !drawing} style={{ ...btnStyle(saved), opacity: contacts.length || drawing ? 1 : 0.5 }}>
             <Save size={14} /> {saved ? tr("Saved ✓") : tr("Save contacts")}
@@ -501,7 +520,7 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
           </div>
         )}
         {editingId && <div style={{ fontSize: 11, color: "#b06a1f", marginBottom: 6 }}>{tr("Editing \"{v}\": drag a vertex to move it, Alt-click a vertex to delete it, click the line to insert one{v2}. Click the pencil again to finish; Save contacts keeps the changes.", { v: editing?.unit, v2: snapOn ? tr(" (snapping to holes)") : "" })}{editing?.kind === "outline" ? ` ${tr("Shift-click a vertex to make it the tie point: it is linked to the tie point of the outline on the next section.")}` : ""}</div>}
-        <SectionSVG onLeftOut={printScale == null ? setLabelsLeftOut : null} textFont={textFont} textScale={printScale ?? textScale} /* #1090 — the print size while an export is drawn */ holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
+        <SectionSVG patterns={patternsOn && Object.keys(patternTiles).length ? patternTiles : null} onLeftOut={printScale == null ? setLabelsLeftOut : null} textFont={textFont} textScale={printScale ?? textScale} /* #1090 — the print size while an export is drawn */ holeWidth={holeWidth} structOpacity={structOpacity} showSectionImages={showSectionImages} showModel={showModel} data={planAdded.length ? { ...data, plannedHoles: [...(data.plannedHoles || []), ...planAdded] } : data} svgRef={svgRef} contacts={contacts} drawing={drawing || planning} drawPoints={drawPoints} onAddPoint={(pt) => (planning ? addPlanPoint(pt) : setDrawPoints((p) => [...p, pt]))} vExag={vExag} geomRef={geomRef} planPts={planning ? planPts : []}
           snap={snapOn && !planning ? targets : null} projectSnaps={projectSnaps} editingId={editingId} onEditPoints={editPoints} onCopyGhost={drawing || planning ? null : copyGhost}
           labels={labels} onMoveLabel={(key, off) => changeLabels({ offsets: { ...labels.offsets, [key]: off } })} /* #823 */ />
         <BlockModelKey slices={data.voxelSlices} />
@@ -515,8 +534,8 @@ function btnStyle(active) {
 }
 const selectStyle = { padding: "5px 8px", background: "#f4f5f7", border: "1px solid #d9dce1", borderRadius: 6, color: "#1a2028", fontSize: 11.5 };
 
-function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onLeftOut = null, onMoveLabel, onCopyGhost = null, projectSnaps = false }) {
-  const plotClipId = `sectionPlotArea${useId().replace(/:/g, "")}`; // #1303 — a hidden tab's clip path would hide this one's drawing
+function SectionSVG({ patterns = null, textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidth = 5, structOpacity = 1, showSectionImages = true, showModel = true, data, svgRef, contacts, drawing, drawPoints, onAddPoint, vExag, geomRef, planPts = [], snap = null, editingId = null, onEditPoints, labels = { mode: "collar", leaders: "auto", offsets: {} }, onLeftOut = null, onMoveLabel, onCopyGhost = null, projectSnaps = false }) {
+  const plotClipId = `sectionPlotArea${useId().replace(/:/g, "")}`, patId = `${plotClipId}p`; // patId: #1995 // #1303 — a hidden tab's clip path would hide this one's drawing
   const fs = (n) => +(n * textScale).toFixed(2); // TASKS.csv #1129 — every label at the chosen text size
   // TASKS.csv #1134 — depth / EOH / offset / planned-hole labels are collected while the holes are drawn and placed in one
   // collision pass at the very end (resolveLabels), on top of the ribbons; holeLabelBoxes: the hole names, placed first
@@ -685,6 +704,7 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
       <defs>
         <clipPath id={plotClipId}><rect x={PAD} y={PAD} width={W - 2 * PAD} height={H - 2 * PAD} /></clipPath>
       </defs>
+      {patterns && <defs dangerouslySetInnerHTML={{ __html: patternDefs(patterns, sectionTilePx(holeWidth), patId) }} />}{/* #1995 — shapes only (lithoPatterns.sanitizeTile) */}
       <rect x={PAD} y={PAD} width={W - 2 * PAD} height={H - 2 * PAD} fill="#ffffff" stroke="#d9dce1" />
 
       {/* Geophysics voxel/block-model slice — drawn first (as a background), clipped to the section's
@@ -819,7 +839,9 @@ function SectionSVG({ textFont = SECTION_FONTS[0].stack, textScale = 1, holeWidt
         const x1 = sx(along(p1.x, p1.y)), y1 = sz(p1.z), x2 = sx(along(p2.x, p2.y)), y2 = sz(p2.z);
         const off = ribbonOffset[row.layer || "_"] || 0;
         const [nx, ny] = screenNormal(x1, y1, x2, y2);
-        return <line key={i} clipPath={`url(#${plotClipId})`} x1={x1 + nx * off} y1={y1 + ny * off} x2={x2 + nx * off} y2={y2 + ny * off} stroke={row.color} strokeWidth={holeWidth} strokeLinecap="butt"><title>{row.label}</title></line>; /* holeWidth: #1131 */
+        const seg = { x1: x1 + nx * off, y1: y1 + ny * off, x2: x2 + nx * off, y2: y2 + ny * off };
+        const pat = patterns && row.pat != null && patterns[row.pat] ? patternFill(row.pat, row.color, patId) : null; // #1995 — white lines on a dark colour
+        return <g key={i} clipPath={`url(#${plotClipId})`}><line {...seg} stroke={row.color} strokeWidth={holeWidth} strokeLinecap="butt"><title>{row.label}</title></line>{pat && <line {...seg} stroke={pat} strokeWidth={holeWidth} strokeLinecap="butt" style={{ pointerEvents: "none" }} />}</g>; /* holeWidth: #1131 */
       })}
 
       {/* TASKS.csv #392 — assays as grade bars perpendicular to the trace, beyond the ribbons, length

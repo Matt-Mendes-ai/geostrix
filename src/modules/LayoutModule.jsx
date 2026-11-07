@@ -4,6 +4,7 @@ import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv 
 import { MapPinned, Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock, LayoutTemplate, Download, Upload } from "../components/icons.js";
 import { newTitleBlock, STOCK_TEMPLATES, stockTemplateElements, templateFile, parseTemplateFile } from "../lib/layoutTitleBlock.js"; // TASKS.csv #1868
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
+import PatternSwatch from "../components/PatternSwatch.jsx"; // TASKS.csv #1995
 import { savePDF, saveFile, exportPDFData, canvasPngBytes, sendSectionResnap } from "../lib/desktop.js"; // saveFile / exportPDFData: TASKS.csv #909 Export PNG; canvasPngBytes: #1040; sendSectionResnap: #1485
 import { pdfOptions } from "../lib/pageFormats.js"; // TASKS.csv #511
 import { useStore, useSetTaskProgress } from "../lib/store.jsx"; // useSetTaskProgress: #1644
@@ -2191,7 +2192,7 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
         </div>
       ) : (
         <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3, breakInside: "avoid" /* #1480 — a row is never split between columns */ }}>
-          <span style={{ width: 20, display: "inline-flex", justifyContent: "center", flexShrink: 0 }}><span style={{ ...swatchShape(opt?.kind, 14), background: color, opacity: opt?.opacity ?? 1 /* #1122 — the map layer's drape opacity */, display: "inline-block", border: opt?.kind === "line" ? "none" : "1px solid #999" }} /></span>{/* #948 — square / line / dot */}
+          <span style={{ width: 20, display: "inline-flex", justifyContent: "center", flexShrink: 0 }}>{opt?.pattern != null ? <PatternSwatch code={opt.pattern} color={color} size={14} style={{ ...swatchShape(opt?.kind, 14), display: "inline-block", border: "1px solid #999" }} /> /* #1995 — the FGDC pattern the section / strip log draws */ : <span style={{ ...swatchShape(opt?.kind, 14), background: color, opacity: opt?.opacity ?? 1 /* #1122 — the map layer's drape opacity */, display: "inline-block", border: opt?.kind === "line" ? "none" : "1px solid #999" }} />}</span>{/* #948 — square / line / dot */}
           <span style={{ fontSize: printPx(printPt.small), color: INK }}>{name}</span>
         </div>
       ))}

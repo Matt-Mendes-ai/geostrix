@@ -47,7 +47,7 @@ export function furnitureLayout(furniture, width, { fontSize = 11, pad = 10, tex
     for (const it of k.items) {
       const label = String(it.label ?? ""), w = sw + 4 + label.length * CHAR_W * ks + 12;
       if (x > pad && x + w > pad + usable) { x = pad; y += lineH; }
-      items.push({ type: "swatch", x, y: y - sw + 1, w: sw, h: sw, fill: it.color || "#999999", shape: it.shape || "box" });
+      items.push({ type: "swatch", x, y: y - sw + 1, w: sw, h: sw, fill: it.color || "#999999", shape: it.shape || "box", ...(it.pattern ? { overlay: it.pattern } : {}) }); // overlay: #1995, a pattern fill drawn over the colour
       items.push({ type: "text", x: x + sw + 4, y, text: label, size: ks, weight: 400, fill: text });
       x += w;
     }
@@ -112,11 +112,11 @@ export function pngScaleFor(w, h, want = 2, maxSide = 32000) {
 
 // Fence diagram: the holes, the section bearing and how it was chosen, the exaggeration, the off-section flag, the
 // correlation-band caveat, the lithology key. colorOf(code) -> colour.
-export function fenceFurniture({ holeIds, azimuth, fitted, ve, offsetLimit, bands, codes = [], colorOf, date }) {
+export function fenceFurniture({ holeIds, azimuth, fitted, ve, offsetLimit, bands, codes = [], colorOf, patternOf = null, date }) { // patternOf: #1995, code -> a pattern fill
   return {
     title: `Fence diagram: ${holeIds.join(", ")}`,
     caption: [`Section bearing ${azimuth.toFixed(1)}° (${fitted ? "best fit through the collars" : "fixed"}) · vertical exaggeration ${ve}x · holes more than ${offsetLimit} m off the section flagged amber${bands ? " · shaded bands join the shallowest shared code between adjacent holes: an interpretation, not a measurement" : ""}`, `GeoStrix · ${date}`],
-    keys: codes.length ? [{ title: "Lithology", items: codes.map((c) => ({ label: c, color: colorOf(c) })) }] : [],
+    keys: codes.length ? [{ title: "Lithology", items: codes.map((c) => ({ label: c, color: colorOf(c), ...(patternOf?.(c) ? { pattern: patternOf(c) } : {}) })) }] : [],
   };
 }
 

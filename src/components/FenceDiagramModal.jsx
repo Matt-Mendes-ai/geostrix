@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { colorForLithology } from "../lib/layers.js";
 import { buildFencePanel, panelPointAtDepth, correlationBands } from "../lib/fence.js";
@@ -10,6 +10,7 @@ import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Spac
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
 import { fenceFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1017
+import { lithoPatternMap, loadPatternTiles, patternDefs, patternFill, sectionTilePx } from "../lib/lithoPatterns.js"; // TASKS.csv #1995
 
 // TASKS.csv #139 — FENCE / PANEL DIAGRAM (hole-to-hole lithology correlation along a drill line).
 //
@@ -51,7 +52,7 @@ import { fenceFurniture } from "../lib/figureFurniture.js"; // TASKS.csv #1017
 // matching up repeated units (fault repetition, interbedding) is a judgement this tool has no business
 // making silently, so it draws the one defensible band and leaves the rest to the geologist. They are
 // off by default for that reason.
-export default function FenceDiagramModal({ traces = [], litho = [], onClose }) {
+export default function FenceDiagramModal({ traces = [], litho = [], labelFor = null, patternOverride = null, onClose }) { // labelFor, patternOverride: #1995
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
 
@@ -66,6 +67,12 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
   const [showBands, setShowBands] = useState(false);
   const [offsetLimit, setOffsetLimit] = useState(100); // metres; beyond this a hole is flagged
   const [colWidth, setColWidth] = useState(9); // px half-width of each lithology column
+  // TASKS.csv #1995 — FGDC lithology patterns over the columns, each code's pattern as in the strip log (where it is chosen); a per-user
+  // preference, on by default like the strip log's
+  const [patternsOn, setPatternsOnState] = useState(() => { try { return localStorage.getItem("geostrix.fencePatterns") !== "0"; } catch { return true; } });
+  const setPatternsOn = (on) => { setPatternsOnState(on); try { localStorage.setItem("geostrix.fencePatterns", on ? "1" : "0"); } catch { /* private window */ } };
+  const patternByCode = useMemo(() => lithoPatternMap(litho, (v) => (labelFor ? labelFor("litho", v) : v), patternOverride), [litho, labelFor, patternOverride]);
+  const [tiles, setTiles] = useState({});
 
   const chosen = useMemo(
     () => (traces || []).filter((t) => t?.wx?.length > 1 && selected.has(t.hole_id)),
@@ -94,6 +101,14 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
     }));
     return Array.from(set).sort();
   }, [panel, lithoByHole]);
+  const fencePatternCodes = useMemo(() => [...new Set(codes.map((c) => patternByCode[c]).filter((p) => p != null))].sort().join(","), [codes, patternByCode]);
+  useEffect(() => {
+    if (!patternsOn || !fencePatternCodes) return undefined;
+    let live = true;
+    loadPatternTiles(fencePatternCodes.split(",").map(Number)).then((t) => { if (live) setTiles(t); });
+    return () => { live = false; };
+  }, [patternsOn, fencePatternCodes]);
+  const patternOf = (v) => { const p = patternByCode[v]; return patternsOn && p != null && tiles[p] ? patternFill(p, colorForLithology(v)) : null; };
 
   // ---- layout ----
   const PLOT_W = 760, PLOT_H = 430, RIBBON_H = 34;
@@ -133,7 +148,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
       suggestedName: "fence_diagram.svg",
       filters: [{ name: "SVG", extensions: ["svg"] }],
       // TASKS.csv #1048 — the title, the holes, the section line and the lithology key, drawn into the file
-      content: exportSvgMarkup(svgRef.current, { furniture: panel ? fenceFurniture({ holeIds: panel.holes.map((h) => h.hole_id), azimuth: panel.line.azimuth, fitted: azMode === "fit", ve, offsetLimit, bands: showBands, codes, colorOf: colorForLithology, date: new Date().toISOString().slice(0, 10) }) : null }).markup, encoding: "text", // #1017 — in lib, tested
+      content: exportSvgMarkup(svgRef.current, { furniture: panel ? fenceFurniture({ holeIds: panel.holes.map((h) => h.hole_id), azimuth: panel.line.azimuth, fitted: azMode === "fit", ve, offsetLimit, bands: showBands, codes, colorOf: colorForLithology, patternOf, date: new Date().toISOString().slice(0, 10) }) : null }).markup, encoding: "text", // #1017 — in lib, tested
     });
   };
 
@@ -175,6 +190,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
         <div style={{ display: "flex", gap: 16 }}>
           <div>
             <svg ref={svgRef} width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ background: "#fbfbfc", border: "1px solid #d9dce1", borderRadius: 8 }}>
+              {patternsOn && Object.keys(tiles).length > 0 && <defs dangerouslySetInnerHTML={{ __html: patternDefs(tiles, sectionTilePx(colWidth)) }} />}{/* #1995 — shapes only (lithoPatterns.sanitizeTile) */}
               <rect x={PAD_L} y={PAD_T} width={PLOT_W} height={PLOT_H} fill="#ffffff" stroke="#d9dce1" strokeWidth={1} />
               {view && zTicks.map((z) => (
                 <g key={`z${z}`}>
@@ -236,11 +252,13 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
                       // column follows the hole instead of standing vertically beside it.
                       const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1;
                       const nx = (-dy / L) * colWidth, ny = (dx / L) * colWidth;
+                      const quad = `M ${x1 + nx} ${y1 + ny} L ${x2 + nx} ${y2 + ny} L ${x2 - nx} ${y2 - ny} L ${x1 - nx} ${y1 - ny} Z`, pat = patternOf(r.value);
                       return (
-                        <path key={`i_${i}`}
-                          d={`M ${x1 + nx} ${y1 + ny} L ${x2 + nx} ${y2 + ny} L ${x2 - nx} ${y2 - ny} L ${x1 - nx} ${y1 - ny} Z`}
-                          fill={colorForLithology(r.value)} opacity={0.92} stroke="#ffffff" strokeWidth={0.3}
-                        ><title>{`${h.hole_id} — ${r.value}  ${r.from}–${r.to} m`}</title></path>
+                        <g key={`i_${i}`}>
+                          <path d={quad} fill={colorForLithology(r.value)} opacity={0.92} stroke="#ffffff" strokeWidth={0.3}
+                          ><title>{`${h.hole_id} — ${r.value}  ${r.from}–${r.to} m`}</title></path>
+                          {pat && <path d={quad} fill={pat} style={{ pointerEvents: "none" }} />}{/* #1995 — white lines on a dark colour */}
+                        </g>
                       );
                     })}
                     <circle cx={view.xFor(h.pts[0].s)} cy={view.yFor(h.pts[0].z)} r={2.6} fill="#1a2028" />
@@ -273,6 +291,9 @@ export default function FenceDiagramModal({ traces = [], litho = [], onClose }) 
                 {[5, 7, 9, 13, 18].map((v) => <option key={v} value={v}>{tr("{v} px", { v })}</option>)}
               </select>
             </label>
+            {fencePatternCodes && <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("FGDC lithology patterns over the columns, each code's pattern as in its strip log (chosen there).")}>
+              <input type="checkbox" checked={patternsOn} onChange={(e) => setPatternsOn(e.target.checked)} />{tr("Lithology patterns (FGDC)")}
+            </label>}
             <label style={{ ...rowLabel, flexDirection: "row", alignItems: "center", gap: 6 }} title={tr("Joins the shallowest occurrence of each shared lithology code between ADJACENT holes only. This is an interpretation, not a measurement — off by default.")}>
               <input type="checkbox" checked={showBands} onChange={(e) => setShowBands(e.target.checked)} />{" "}{tr("Correlation bands")}</label>
             <label style={rowLabel} title={tr("Holes whose maximum perpendicular distance from the section plane exceeds this are flagged amber on the diagram and in the list below.")}>{tr("Flag holes over")}<select value={offsetLimit} onChange={(e) => setOffsetLimit(Number(e.target.value))} style={sel}>

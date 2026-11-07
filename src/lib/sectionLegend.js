@@ -16,12 +16,12 @@ export function groupSectionLegend(items, ribbons = null) {
   const rows = (items || []).filter((it) => it && it[0] != null);
   if (rows.some((it) => it[2])) return rows;
   const groups = new Map(), long = new Map();
-  for (const [label, color] of rows) {
+  for (const [label, color, , pattern] of rows) {
     const s = String(label), i = s.indexOf(": ");
     const g = i > 0 ? s.slice(0, i) : "", name = i > 0 ? s.slice(i + 2) : s;
     if (!groups.has(g)) groups.set(g, []);
     if (name.length > LONG_VALUE) { long.set(g, (long.get(g) || 0) + 1); continue; }
-    groups.get(g).push([name, color]);
+    groups.get(g).push(pattern != null ? [name, color, { pattern }] : [name, color]); // #1995 — an FGDC pattern drawn over the colour
   }
   const where = (g) => { const n = ribbons?.length > 1 ? ribbons.indexOf(g) : -1; return n < 0 ? g : tr("{g} (ribbon {n} of {t}, from the left)", { g, n: n + 1, t: ribbons.length }); };
   const multi = groups.size > 1, out = [];

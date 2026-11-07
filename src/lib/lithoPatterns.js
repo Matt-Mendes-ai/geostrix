@@ -128,16 +128,46 @@ export async function loadPatternTiles(codes, fetcher = (url) => fetch(url).then
 // screen hardly shows. A tile is drawn 40 px across with its strokes doubled (0.44-1.2 px; twice that in a 2x PNG).
 export const PATTERN_TILE_PX = 40;
 export const PATTERN_STROKE_SCALE = 2;
-export function patternDefs(tiles, size = PATTERN_TILE_PX) {
+// size: the tile's width in px; a smaller tile keeps the 40 px tile's line widths (strokes scaled up by 40 / size), so a section's or a
+// legend swatch's lines stay visible. prefix: the ids' prefix, for an SVG that holds two tile sizes.
+export function patternDefs(tiles, size = PATTERN_TILE_PX, prefix = "fgdc") {
+  const k = PATTERN_STROKE_SCALE * Math.max(1, PATTERN_TILE_PX / size);
   return Object.entries(tiles).map(([c, t]) => {
     const [, , w, h] = t.viewBox, ph = (size * h) / w;
-    const head = (id) => `<pattern id="${id}" patternUnits="userSpaceOnUse" width="${size}" height="${+ph.toFixed(3)}" viewBox="${t.viewBox.join(" ")}">`;
-    const inner = t.inner.replace(/stroke-width:([\d.]+)/g, (m, v) => `stroke-width:${+(Number(v) * PATTERN_STROKE_SCALE).toFixed(3)}`);
-    return `${head(`fgdc-${c}`)}${inner}</pattern>${head(`fgdc-${c}-w`)}${inner.replace(/#000000\b|#000\b/g, "#ffffff")}</pattern>`;
+    const head = (id) => `<pattern id="${id}" patternUnits="userSpaceOnUse" width="${+size.toFixed(3)}" height="${+ph.toFixed(3)}" viewBox="${t.viewBox.join(" ")}">`;
+    const inner = t.inner.replace(/stroke-width:([\d.]+)/g, (m, v) => `stroke-width:${+(Number(v) * k).toFixed(3)}`);
+    return `${head(`${prefix}-${c}`)}${inner}</pattern>${head(`${prefix}-${c}-w`)}${inner.replace(/#000000\b|#000\b/g, "#ffffff")}</pattern>`;
   }).join("");
 }
 // the fill for a pattern over a background colour: white lines when the colour is dark (CIELAB L* under 45)
-export function patternFill(code, bg) {
+export function patternFill(code, bg, prefix = "fgdc") {
   const L = typeof bg === "string" && /^#[0-9a-f]{6}$/i.test(bg) ? labLightness(bg) : null;
-  return `url(#fgdc-${code}${L != null && L < 45 ? "-w" : ""})`;
+  return `url(#${prefix}-${code}${L != null && L < 45 ? "-w" : ""})`;
+}
+// a legend swatch as an SVG data URL: the colour with a size-px window of the strip log's 40 px tile over it (Layout's HTML legend).
+// A whole tile squeezed into 14 px merged its dots and dashes into a near-black square.
+export function patternSwatchUrl(tile, code, bg, size = 16) {
+  if (!tile) return null;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><defs>${patternDefs({ [code]: tile }, PATTERN_TILE_PX, "s")}</defs>`
+    + `<rect width="${size}" height="${size}" fill="${bg || "#ffffff"}"/><rect width="${size}" height="${size}" fill="${patternFill(code, bg, "s")}"/></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+// a section's tile: about three hole widths across (a 12 px ribbon, 36 px tiles), 12 to 40 px
+export const sectionTilePx = (holeWidth) => Math.max(12, Math.min(PATTERN_TILE_PX, 3 * (Number(holeWidth) || 5)));
+
+// TASKS.csv #1995 — a section's payload with each lithology interval's pattern (pat) and its legend rows' (a 4th element: the 3rd holds
+// the grouped legend's options, which groupSectionLegend fills from it). byCode: lithoPatternMap's result. The section window draws
+// them only when its Patterns box is ticked.
+export function withSectionPatterns(payload, byCode) {
+  if (!payload?.intervals || !byCode) return payload;
+  const byKey = new Map();
+  const intervals = payload.intervals.map((r) => {
+    const pat = r.layer === "litho" && r.code != null ? byCode[r.code] : null;
+    if (pat == null) return r;
+    byKey.set(`${r.label}|${r.color}`, pat);
+    return { ...r, pat };
+  });
+  if (!byKey.size) return payload;
+  const legendItems = payload.legendItems?.map((it) => { const p = byKey.get(`${it[0]}|${it[1]}`); return p != null ? [it[0], it[1], it[2] ?? null, p] : it; });
+  return { ...payload, intervals, ...(legendItems ? { legendItems } : {}) };
 }
