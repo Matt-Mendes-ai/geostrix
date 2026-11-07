@@ -285,6 +285,11 @@ export async function gpkgRead(file, opts) {
   if (!d?.gpkgRead) return { ok: false, error: "no path" };
   return d.gpkgRead(file, opts);
 }
+// TASKS.csv #1349 — the shapefile beside a picked MapInfo .TAB wrapper -> { ok, parts: { shp, shx?, dbf?, prj?, cpg? } (Uint8Array) }
+export async function tabSiblingShapefile(file) {
+  if (!d?.tabSiblingShapefile) return { ok: false, error: "no path" };
+  return d.tabSiblingShapefile(file);
+}
 export async function fsReadFile(filePath) {
   if (!d) return { ok: false, error: "Folder browsing requires the desktop app." };
   return d.fsReadFile(filePath);

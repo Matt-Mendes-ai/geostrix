@@ -1358,6 +1358,29 @@ ipcMain.handle("gpkg-read", async (_e, { filePath, table, bbox, max }) => {
   } catch (err) { return { ok: false, error: err.message }; }
 });
 
+// TASKS.csv #1349 — a MapInfo .TAB of Type SHAPEFILE is only a wrapper: its data is the shapefile of the same name beside it (ARIS
+// 41597Z's ZTEM lines, 42711Z's IP line paths). With the .TAB picked alone, its own folder's .shp / .shx / .dbf / .prj / .cpg of that
+// base name are read here: only those five, beside a .TAB the user picked (the preload resolves the path from the picked File), the
+// same location checks as a GeoPackage, 200 MB each.
+ipcMain.handle("tab-sibling-shapefile", async (_e, { filePath }) => {
+  try {
+    if (!filePath || path.extname(String(filePath)).toLowerCase() !== ".tab") return { ok: false, error: "Not a MapInfo .TAB." };
+    if (isNamespacedPath(filePath) || (await inProtectedFolder(filePath))) return { ok: false, error: "GeoStrix does not read files from this location." };
+    if (!(await allowNetworkPath(filePath))) return { ok: false, error: "Network location not opened." };
+    const dir = path.dirname(filePath), stem = path.basename(filePath, path.extname(filePath)).toLowerCase();
+    const want = new Set([".shp", ".shx", ".dbf", ".prj", ".cpg"]);
+    const out = {};
+    for (const name of await fs.promises.readdir(dir)) {
+      const ext = path.extname(name).toLowerCase();
+      if (!want.has(ext) || path.basename(name, path.extname(name)).toLowerCase() !== stem) continue;
+      const full = path.join(dir, name), st = await fs.promises.stat(full);
+      if (!st.isFile() || st.size > 200 * 1024 * 1024) continue;
+      out[ext.slice(1)] = await fs.promises.readFile(full);
+    }
+    return out.shp ? { ok: true, parts: out } : { ok: false, error: "No .shp of the same name beside it." };
+  } catch (err) { return { ok: false, error: err.message }; }
+});
+
 // TASKS.csv #293 — where the bundled sample_data/ folder actually lives at runtime. In a packaged
 // build it's shipped via electron-builder's extraResources (see package.json's build.extraResources),
 // which lands it at <resources>/sample_data; in a dev run (`npm run dev`) there's no resources dir, so

@@ -34,7 +34,7 @@ import { ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #102
 import { toExportCsv } from "../lib/tabular.js";
 import { checkGpkgSize } from "../lib/gpkgSize.js"; // TASKS.csv #1716
 import { readGeoPackageNear, GPKG_IN_PLACE_BYTES } from "../lib/gpkgInPlace.js"; // TASKS.csv #1716
-import { canReadGpkgInPlace } from "../lib/desktop.js";
+import { canReadGpkgInPlace, tabSiblingShapefile } from "../lib/desktop.js"; // tabSiblingShapefile: #1349
 import CoveringLayers from "./CoveringLayers.jsx"; // TASKS.csv #1823
 import { graduatedStyle, graduatedCategories, parseBreaks, isNumericField } from "../lib/mapGraduated.js"; // TASKS.csv #1600
 
@@ -195,7 +195,25 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     for (const g of Object.values(tabGroups)) {
       if (!g.tab) continue;
       try {
-        if (!g.map || !g.id) { tableOnly.push(g.name); continue; }
+        // TASKS.csv #1349 — a .TAB that only points at other data: a shapefile beside it (read: the .shp picked too, or from the .TAB's
+        // own folder), a saved query or a linked spreadsheet / database (said plainly; they used to be 'not supported' or 'no map objects')
+        if (!g.map || !g.id) {
+          const { parseTabHeader } = await import("../lib/mapinfoTab.js");
+          const type = parseTabHeader(new Uint8Array(await g.tab.arrayBuffer())).tableType;
+          if (type === "SHAPEFILE") {
+            if (Object.keys(looseShp).some((k) => k.toLowerCase() === g.name.toLowerCase() && looseShp[k].shp)) continue; // read below as a shapefile
+            const r = await tabSiblingShapefile(g.tab);
+            if (!r.ok) { failed.push(tr("{name}.TAB is a MapInfo wrapper around a shapefile: select {name}.shp with its .dbf and .prj too.", { name: g.name })); continue; }
+            const txt = (u) => (u ? new TextDecoder().decode(u) : null);
+            const p = parseShapefileParts({ shp: r.parts.shp, dbf: r.parts.dbf || null, cpg: txt(r.parts.cpg) }, 0, txt(r.parts.prj));
+            if (!r.parts.dbf) failed.push(tr("{name}.shp: no matching .dbf selected — imported without attributes, so it can't be styled by unit", { name: g.name }));
+            addParsed({ ...p, name: null, epsg: guessEpsgFromPrjWkt(p.prjWkt) }, g.name);
+            continue;
+          }
+          if (type === "QUERY") { failed.push(tr("{name}.TAB is a saved MapInfo query: it holds no data of its own.", { name: g.name })); continue; }
+          if (type && !["NATIVE", "LINKED", "DBF"].includes(type)) { failed.push(tr("{name}.TAB is linked to a {type} file that holds its data: import that table instead.", { name: g.name, type })); continue; }
+          tableOnly.push(g.name); continue;
+        }
         const { parseMapInfoTab } = await import("../lib/mapinfoTab.js");
         const bytes = async (f) => (f ? new Uint8Array(await f.arrayBuffer()) : null);
         const { layers } = parseMapInfoTab({ tab: await bytes(g.tab), map: await bytes(g.map), id: await bytes(g.id), dat: await bytes(g.dat), name: g.name });

@@ -57,6 +57,7 @@ contextBridge.exposeInMainWorld("desktop", {
   // TASKS.csv #1716 — a big GeoPackage read in the main process: these take the File the user chose (input or drop), not a path, so
   // the renderer can only ever point them at a file the user picked; a File with no path on disk returns { ok: false }
   gpkgIndex: (file) => { const filePath = webUtils.getPathForFile(file); return filePath ? ipcRenderer.invoke("gpkg-index", { filePath }) : Promise.resolve({ ok: false, error: "no path" }); },
+  tabSiblingShapefile: (file) => { const filePath = webUtils.getPathForFile(file); return filePath ? ipcRenderer.invoke("tab-sibling-shapefile", { filePath }) : Promise.resolve({ ok: false, error: "no path" }); }, // TASKS.csv #1349
   gpkgRead: (file, opts) => { const filePath = webUtils.getPathForFile(file); return filePath ? ipcRenderer.invoke("gpkg-read", { filePath, ...opts }) : Promise.resolve({ ok: false, error: "no path" }); },
   sampleDataPath: () => ipcRenderer.invoke("sample-data-path"),
   autosaveWrite: (payload) => ipcRenderer.invoke("autosave-write", payload),

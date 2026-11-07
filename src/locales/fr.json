@@ -9034,5 +9034,8 @@
   "Macrostrat colours": "Couleurs Macrostrat",
   "Colour the units whose name gives an age (Late Jurassic, Eocene ...) in the international time scale's colours, from Macrostrat (CC BY 4.0). The others keep their colours.": "Colore les unités dont le nom donne un âge (Jurassique supérieur, Éocène ...) avec les couleurs de l'échelle des temps internationale, d'après Macrostrat (CC BY 4.0). Les autres gardent leurs couleurs.",
   "\"{name}\": {n} of {total} units coloured by the time scale (Macrostrat, CC BY 4.0); the others keep their colours.": "« {name} » : {n} unités sur {total} colorées selon l'échelle des temps (Macrostrat, CC BY 4.0) ; les autres gardent leurs couleurs.",
-  "Time-scale colours": "Couleurs de l'échelle des temps"
+  "Time-scale colours": "Couleurs de l'échelle des temps",
+  "{name}.TAB is a MapInfo wrapper around a shapefile: select {name}.shp with its .dbf and .prj too.": "{name}.TAB est une enveloppe MapInfo autour d'un shapefile : sélectionnez aussi {name}.shp avec son .dbf et son .prj.",
+  "{name}.TAB is a saved MapInfo query: it holds no data of its own.": "{name}.TAB est une requête MapInfo enregistrée : elle ne contient aucune donnée propre.",
+  "{name}.TAB is linked to a {type} file that holds its data: import that table instead.": "{name}.TAB est lié à un fichier {type} qui contient ses données : importez plutôt cette table."
 }
