@@ -13,6 +13,11 @@ const fs = require("fs");
 const dns = require("dns");
 const { spawn } = require("child_process");
 const { guardedFetch, validTileIndex } = require("./netGuard.js"); // TASKS.csv #350
+// TASKS.csv #1983 — a Windows zone the bundled ICU cannot map (British Columbia's) left every time an hour behind: Node's TZ here,
+// and Chromium's override on each window below
+const { zoneOverride, applyToWebContents } = require("./timeZoneFix.js");
+const FORCED_TIME_ZONE = zoneOverride();
+if (FORCED_TIME_ZONE) process.env.TZ = FORCED_TIME_ZONE;
 const { writeFileAtomic, backupBeforeOverwrite } = require("./fileSafety.js"); // TASKS.csv #341 (quarantine now in autosave-quarantine, #475)
 const { autoUpdater } = require("electron-updater");
 
@@ -139,6 +144,7 @@ app.on("web-contents-created", (_e, contents) => {
   contents.on("will-redirect", guard);
   contents.on("will-attach-webview", (ev) => ev.preventDefault());
   contents.setWindowOpenHandler(openExternalOnly); // the section pop-out had no handler at all
+  if (FORCED_TIME_ZONE) applyToWebContents(contents, FORCED_TIME_ZONE); // #1983
 });
 
 // Optional local Python server for geoprocessing that's a better fit for Python's scientific stack
