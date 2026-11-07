@@ -258,6 +258,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // models and brings that model's card into view (and outlines it briefly)
   useModuleAction(["edit-block-model"], (_a, p) => {
     setGeoPane("voxel");
+    // TASKS.csv #1593 (review #1497, Lawyers) — 'Edit legend / classify / palette' landed on the cards with no legend open: the card opens
+    // its legend editor (a card that mounts after this, on the pane switch, reads the request when it mounts)
+    if (p?.id != null) { pendingLegend = { id: String(p.id), at: Date.now() }; window.dispatchEvent(new CustomEvent(OPEN_LEGEND_EVENT, { detail: { id: String(p.id) } })); }
     setTimeout(() => {
       const el = p?.id ? [...document.querySelectorAll(`[data-voxel-id="${CSS.escape(String(p.id))}"]`)].find((e) => e.offsetParent) : null; // the visible copy (the Maps tab can embed this module too)
       if (!el) return;
@@ -2486,11 +2489,24 @@ async function exportBlockModelVTK(model, epsg) {
 const VOXEL_PROPERTIES = ["Conductivity (S/m)", "Resistivity (ohm·m)", "Chargeability (mV/V)", "Chargeability (ms)", "Susceptibility (SI)", "Density (g/cc)", "Density contrast (g/cc)"];
 // TASKS.csv #1178 — a conductivity cutoff read "0" with 5,765 cells hidden: three significant figures, whatever the size
 export const sigFigs = (v) => (Number.isFinite(v) ? (v === 0 ? "0" : Number(v.toPrecision(3)).toLocaleString(undefined, { maximumSignificantDigits: 3 })) : "—");
+// #1593 — the 3D View's palette link opens one card's legend
+const OPEN_LEGEND_EVENT = "geostrix-open-voxel-legend";
+let pendingLegend = null; // { id, at }
+function useOpenLegendRequest(model, open) {
+  useEffect(() => {
+    const id = String(model.id);
+    if (pendingLegend && pendingLegend.id === id && Date.now() - pendingLegend.at < 5000) { pendingLegend = null; open(); }
+    const on = (e) => { if (e.detail?.id === id) { pendingLegend = null; open(); } };
+    window.addEventListener(OPEN_LEGEND_EVENT, on);
+    return () => window.removeEventListener(OPEN_LEGEND_EVENT, on);
+  }, [model.id]);
+}
 function VoxelModelRow({ others = null, model, onUpdate, onRemove, onEvaluate, onExportPackage, getEpsg, csvNames = "datamine", stampChoice = "auto", epsg = null, onShell = null, onTerrain = null }) {
   const [askPrompt, promptEl] = usePrompt(); // TASKS.csv #1779 — window.prompt throws in Electron
   const [gtOpen, setGtOpen] = useState(false); // TASKS.csv #1052
   const [displayOpacity, setDisplayOpacity] = useState(model.opacity ?? 0.85);
   const [legendOpen, setLegendOpen] = useState(false);
+  useOpenLegendRequest(model, () => setLegendOpen(true)); // #1593
   const opacityDebounceRef = useRef(null);
   // Opacity is debounced the same way as threshold — ViewerModule's voxel effect rebuilds the whole
   // InstancedMesh on ANY model field change (same brute-force-rebuild approach the raster/terrain
