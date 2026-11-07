@@ -9,6 +9,7 @@ import { useStore } from "../lib/store.jsx";
 import { pickDefaultReachM, medianSiteSpacing } from "../lib/evidenceSources.js"; // TASKS.csv #1179; #1451
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1449 / #1450
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
+import { defaultEvidenceEnds } from "../lib/evidenceEnds.js"; // TASKS.csv #1565
 import { topCells } from "../lib/evidence.js"; // TASKS.csv #1456
 import { evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
 import { cachedEvidence, evidenceDeps, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457, #1560
@@ -225,7 +226,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null }) { // o
       if (!src) { missing.push(l.label || l.key); return []; }
       const band = { zMin: Number.isFinite(l.zMin) ? l.zMin : null, zMax: Number.isFinite(l.zMax) ? l.zMax : null }; // #1831
       const values = computeValues(src, { field: l.field, value: l.value, reach: l.reach, ...band });
-      return values ? [{ id: nextId++, ...src, shape: l.shape, low: l.low, high: l.high, log: !!l.log, lowText: numText(l.low), highText: numText(l.high), field: l.field || "", value: l.value || "", reach: l.reach || reachOf(src), ...band, values }] : [];
+      return values ? [{ id: nextId++, ...src, shape: l.shape, low: l.low, high: l.high, log: !!l.log, lowText: numText(l.low), highText: numText(l.high), endsEdited: true /* #1565 — a saved card's ends were chosen */, field: l.field || "", value: l.value || "", reach: l.reach || reachOf(src), ...band, values }] : [];
     });
     setLayers(back);
     if (missing.length) setMsg(tr("Restored the saved overlay without {list}: not in this project any more.", { list: missing.join(", ") }));
@@ -243,7 +244,15 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null }) { // o
   const updateLayer = (id, patch, recompute = false) => setLayers((L) => L.map((l) => {
     if (l.id !== id) return l;
     const next = { ...l, ...patch };
-    if (recompute) { const v = computeValues(next, { field: next.field, value: next.value, reach: next.reach, zMin: next.zMin, zMax: next.zMax }); if (v) next.values = v; }
+    if (recompute) {
+      const v = computeValues(next, { field: next.field, value: next.value, reach: next.reach, zMin: next.zMin, zMax: next.zMax });
+      if (v) {
+        next.values = v;
+        // #1565 — new values, new default ends, unless the user typed one (endsEdited); the log ramp follows as on Add
+        const ends = next.endsEdited ? null : defaultEvidenceEnds(next.kind, v);
+        if (ends) Object.assign(next, { low: ends.low, high: ends.high, lowText: numText(ends.low), highText: numText(ends.high), ...(next.kind === "grade" || next.kind === "pxrf" ? { log: ends.log } : {}) });
+      }
+    }
     return next;
   }));
 
@@ -362,8 +371,8 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null }) { // o
             {(l.kind === "element" || l.kind === "index" || l.kind === "survey" || l.kind === "grade" || l.kind === "pxrf" || l.kind === "numeric") && <label style={row}>{tr("Reach (m)")}<input type="number" min="10" step="50" value={l.reach} onChange={(e) => updateLayer(l.id, { reach: Math.max(10, Number(e.target.value) || reachOf(l, l.field === "medium" ? l.value : null)) }, true)} style={{ ...sel, width: 70 }} /></label>}
             <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap" }}>
               <select value={l.shape} onChange={(e) => updateLayer(l.id, { shape: e.target.value })} style={sel} aria-label={tr("Membership")}><option value="increasing">{tr("favourable when high")}</option><option value="decreasing">{tr("favourable when low")}</option></select>
-              <label style={row}>{l.shape === "decreasing" ? "1" : "0"} ={" "}<input type="number" step="any" value={l.lowText} onChange={(e) => updateLayer(l.id, { lowText: e.target.value, low: e.target.value === "" ? NaN : Number(e.target.value) })} style={{ ...sel, width: 76 }} aria-label={l.shape === "decreasing" ? tr("Membership 1 at") : tr("Membership 0 at")} /></label>
-              <label style={row}>{l.shape === "decreasing" ? "0" : "1"} ={" "}<input type="number" step="any" value={l.highText} onChange={(e) => updateLayer(l.id, { highText: e.target.value, high: e.target.value === "" ? NaN : Number(e.target.value) })} style={{ ...sel, width: 76 }} aria-label={l.shape === "decreasing" ? tr("Membership 0 at") : tr("Membership 1 at")} /></label>
+              <label style={row}>{l.shape === "decreasing" ? "1" : "0"} ={" "}<input type="number" step="any" value={l.lowText} onChange={(e) => updateLayer(l.id, { lowText: e.target.value, low: e.target.value === "" ? NaN : Number(e.target.value), endsEdited: true /* #1565 */ })} style={{ ...sel, width: 76 }} aria-label={l.shape === "decreasing" ? tr("Membership 1 at") : tr("Membership 0 at")} /></label>
+              <label style={row}>{l.shape === "decreasing" ? "0" : "1"} ={" "}<input type="number" step="any" value={l.highText} onChange={(e) => updateLayer(l.id, { highText: e.target.value, high: e.target.value === "" ? NaN : Number(e.target.value), endsEdited: true /* #1565 */ })} style={{ ...sel, width: 76 }} aria-label={l.shape === "decreasing" ? tr("Membership 0 at") : tr("Membership 1 at")} /></label>
               {l.kind !== "distance" && l.kind !== "pick" && l.low > 0 && l.high > 0 && <label style={{ ...row, cursor: "pointer" }} title={tr("The ramp runs on the logarithm of the values: even steps in grade ratio, as a lognormal grade is spread. Off, it runs on the values and is flat over most of a skewed layer.")}><input type="checkbox" checked={!!l.log} onChange={(e) => updateLayer(l.id, { log: e.target.checked })} />{tr("log ramp")}</label>}{/* #1555 */}
             </div>
           </div>
