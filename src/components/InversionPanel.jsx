@@ -40,7 +40,7 @@ import { requestModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #1429
 import { coreCellHint } from "../lib/coreCellHint.js"; // TASKS.csv #1590
 
 const METHODS = {
-  mag: { label: "Magnetics (TMI)", unit: "nT", confirm: "These values are the total magnetic field in nT as measured (not RTP, not a derivative): either the anomaly, with the IGRF / regional field removed in processing, or the raw total field over an area small enough that its regional field is a plane, which Remove base level > Best-fit plane takes out. GeoStrix does not remove the IGRF itself.", property: "susceptibility (SI)", contrastLabel: "Susceptibility (SI)" },
+  mag: { label: "Magnetics (TMI)", unit: "nT", confirm: "These values are the total magnetic field in nT as measured (not RTP, not a derivative): either the anomaly, with the IGRF / regional field removed in processing, or the raw total field over an area small enough that its regional field is a plane, which Remove base level > Best-fit plane takes out. For the raw total field over a larger area, Remove base level > Subtract the IGRF field takes the computed IGRF-14 out first.", property: "susceptibility (SI)", contrastLabel: "Susceptibility (SI)" },
   grav: { label: "Gravity (gz)", unit: "mGal", confirm: "These values are Bouguer/residual gravity in mGal, positive over dense rock (terrain-corrected, regional removed).", property: "density contrast (g/cc)", contrastLabel: "Density contrast (g/cc)" },
 };
 
@@ -93,6 +93,10 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
   useEffect(() => {
     if ((labelled === "mag" || labelled === "grav") && labelled !== method) { setMethod(labelled); setConfirmed(false); setPlan(null); }
   }, [activeSurvey, labelled]);
+  // TASKS.csv #1591 (review #1497, Lawyers) — the statement of what the values are belongs to one survey: it stayed ticked when the
+  // survey changed (from the diurnal-corrected walk mag to another line set)
+  const surveySeen = useRef(activeSurvey);
+  useEffect(() => { if (surveySeen.current !== activeSurvey) { surveySeen.current = activeSurvey; setConfirmed(false); } }, [activeSurvey]);
   // TASKS.csv #323 — drillhole logs as constraints: mag susceptibility (units stated) or SG (background stated)
   const [dh, setDh] = useKeptState(keptScope, "inversion.dh", { on: false, units: "", background: "", tolerance: "" });
   const [adv, setAdv] = useKeptState(keptScope, "inversion.adv", { open: false, maxIter: 15, lx: 1, ly: 1, lz: 1, lower: "", upper: "", supportCutoff: 0.005 });
@@ -196,6 +200,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
       if (!(Math.abs(num(field.inclination)) <= 90)) problems.push(tr("Enter the field inclination."));
       if (!(Math.abs(num(field.declination)) <= 180)) problems.push(tr("Enter the field declination."));
     }
+    if (method === "mag" && baseLevel === "igrf" && !(field.igrfPlane && field.igrfPlane.date === field.date)) problems.push(tr("'Subtract the IGRF field' needs the field computed for this survey's date: press 'Compute from IGRF-14 for the survey date'.")); // #1591
     if (kind === "inversion" && !(num(unc.floor) > 0)) problems.push(tr("Enter the data uncertainty floor ({v}).", { v: M?.unit || "units" }));
     if (!(num(mesh.coreCell) >= 1)) problems.push(tr("Enter the core cell size."));
     if (!(num(mesh.depth) >= num(mesh.coreCell))) problems.push(tr("Enter the model depth (at least one cell)."));
@@ -210,11 +215,17 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     }
     let dropped = 0;
     const stations = [], observed = [];
+    // TASKS.csv #1591 — 'Subtract the IGRF field': the field computed below as a plane over the survey (three IGRF-14 evaluations; it
+    // changes ~9 nT over 3 km at Lawyers), taken from every reading before the remaining mean is removed
+    const P = method === "mag" && baseLevel === "igrf" && field.igrfPlane ? field.igrfPlane : null;
+    const igrfAt = (x, y) => P.f0 + P.fx * (x - P.x0) + P.fy * (y - P.y0);
+    let igrfSub = null;
     idx.forEach((i) => {
       const r = rows[i];
       const z = zModeEff === "sensor" ? r.z : zModeEff === "ground" ? r.z + num(sensorHeight) /* #1969 — a ground survey's z is the ground */ : terrainElevationAt(terrain, r.x, r.y) + num(sensorHeight);
       if (!Number.isFinite(z)) { dropped++; return; }
-      stations.push([r.x, r.y, z]); observed.push(r.value);
+      stations.push([r.x, r.y, z]);
+      if (P) { const g = igrfAt(r.x, r.y); observed.push(r.value - g); igrfSub = igrfSub ? { lo: Math.min(igrfSub.lo, g), hi: Math.max(igrfSub.hi, g) } : { lo: g, hi: g }; } else observed.push(r.value);
     });
     if (!stations.length) return { problems: [tr("No usable stations (none inside the terrain surface?).")] };
     const cx = stations.reduce((s, p) => s + p[0], 0) / stations.length;
@@ -240,7 +251,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
       if (method === "mag") request.magModel = magModel; // #770
       const lo = num(adv.lower), up = num(adv.upper);
       request.bounds = { ...(Number.isFinite(lo) ? { lower: lo } : {}), ...(Number.isFinite(up) ? { upper: up } : {}) };
-      request.baseLevel = baseLevel; // #368
+      request.baseLevel = baseLevel === "igrf" ? "mean" : baseLevel; // #368; igrf: subtracted above, then the mean (#1591)
       if (dh.on && method === "mag" && magModel === "vector") return { problems: [tr("Drillhole susceptibility logs can't constrain a vector (remanence) inversion — turn the constraints off, or choose induced magnetization.")] }; // #770
       if (dh.on) { // #323
         const cp = dhConstraintPoints();
@@ -253,7 +264,8 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     }
     const notes = [];
     // TASKS.csv #1196 — the confirm box says "anomaly"; a mean of 53,959 nT says raw total field. A warning, not a block: the field may be removed by the base level
-    if (method === "mag" && observed.length) { const mean = observed.reduce((a, b) => a + b, 0) / observed.length; if (Math.abs(mean) > 10000) notes.push(tr("These values average {v} nT: that looks like the raw total field, not an anomaly. Removing the mean leaves the regional gradient in the data. Consider the best-fit plane, or remove the regional field first.", { v: Math.round(mean).toLocaleString() })); }
+    if (method === "mag" && observed.length) { const mean = observed.reduce((a, b) => a + b, 0) / observed.length; if (Math.abs(mean) > 10000) notes.push(baseLevel === "plane" /* #1591 — it said 'Consider the best-fit plane' with the plane chosen */ ? tr("These values average {v} nT: the raw total field. The best-fit plane removes its level and tilt here, close to what subtracting the IGRF would do over a small area; over a larger one choose 'Subtract the IGRF field' instead.", { v: Math.round(mean).toLocaleString() }) : tr("These values average {v} nT: that looks like the raw total field, not an anomaly. Removing the mean leaves the regional gradient in the data. Consider the best-fit plane, or remove the regional field first.", { v: Math.round(mean).toLocaleString() })); }
+    if (igrfSub) notes.push(tr("Subtracted the IGRF-14 total field for {date} from every reading ({lo} to {hi} nT across the stations), then the remaining mean.", { date: field.igrfPlane.date, lo: Math.round(igrfSub.lo).toLocaleString(), hi: Math.round(igrfSub.hi).toLocaleString() })); // #1591
     if (dhMeta && (dhMeta.skipped.noTrace || dhMeta.skipped.badValue || dhMeta.skipped.beyondTrace)) notes.push(tr("Drillhole constraints: {samples} samples from {holes} hole(s); left out {noTrace} log row(s) with no collar/trace, {badValue} with no value, {beyondTrace} sample(s) beyond the surveyed hole length.", { samples: dhMeta.samples, holes: dhMeta.holes, noTrace: dhMeta.skipped.noTrace, badValue: dhMeta.skipped.badValue, beyondTrace: dhMeta.skipped.beyondTrace }));
     if (dropped) notes.push(tr("{dropped} station(s) fell outside the terrain and were left out.", { dropped }));
     if (topo && !topo.covers) notes.push(tr("The terrain does not cover the whole model mesh (padding included); cells beyond it follow the nearest terrain edge — load a larger terrain for an honest result near the edges."));
@@ -273,7 +285,11 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
     const hKm = zs.length ? zs.reduce((a, b) => a + b, 0) / zs.length / 1000 : 0;
     try {
       const f = igrfField(lon, lat, hKm, d);
-      setField((p) => ({ ...p, strength: f.total.toFixed(0), inclination: f.inclination.toFixed(2), declination: f.declination.toFixed(2),
+      // #1591 — the total field as a plane over the survey, for 'Subtract the IGRF field': two more evaluations 1 km east and north
+      const llE = await toLonLat(cx + 1000, cy, project.epsg), llN = await toLonLat(cx, cy + 1000, project.epsg);
+      const at = (q) => igrfField(q.lon ?? q[0], q.lat ?? q[1], hKm, d).total;
+      const igrfPlane = llE && llN ? { x0: cx, y0: cy, f0: f.total, fx: (at(llE) - f.total) / 1000, fy: (at(llN) - f.total) / 1000, date: field.date } : null;
+      setField((p) => ({ ...p, igrfPlane, strength: f.total.toFixed(0), inclination: f.inclination.toFixed(2), declination: f.declination.toFixed(2),
         source: `IGRF-14 for ${field.date} at ${lat.toFixed(3)}, ${lon.toFixed(3)}, ${Math.round(hKm * 1000)} m (survey centre)` }));
       setMsg({ ok: true, text: tr("Filled from IGRF-14 for {date}: {total} nT, inclination {inclination}°, declination {declination}° (true north). Check them against your survey report — the contractor's values win.", { date: field.date, total: f.total.toFixed(0), inclination: f.inclination.toFixed(2), declination: f.declination.toFixed(2) }) });
     } catch (e) { setMsg({ ok: false, text: e.message }); }
@@ -588,6 +604,7 @@ export default function InversionPanel({ pBtn, numInput, inPane = false, resultS
                     <option value="mean">{tr("Mean of the data")}</option>
                     <option value="plane">{tr("Best-fit plane (regional tilt)")}</option>
                     <option value="none">{tr("None (data already levelled)")}</option>
+                    {method === "mag" && <option value="igrf">{tr("Subtract the IGRF field (computed above), then the mean")}</option>}{/* #1591 */}
                   </select>
                 </div>
                 {/* TASKS.csv #770 — induced only, or a vector inversion when remanence is possible */}

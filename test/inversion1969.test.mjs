@@ -7,7 +7,7 @@ const src = readFileSync(new URL("../src/components/InversionPanel.jsx", import.
 
 test("#1969 the magnetics confirm box no longer says the IGRF is already removed, and says GeoStrix does not remove it", () => {
   assert.doesNotMatch(src, /the IGRF\/regional field has already been removed/);
-  assert.match(src, /GeoStrix does not remove the IGRF itself\./);
+  assert.match(src, /Remove base level > Subtract the IGRF field takes the computed IGRF-14 out first\./); // #1591 — GeoStrix can now subtract it
 });
 
 test("#1969 a ground survey's z plus a sensor height; a non-invertible method and the raw field with no base level are refused", () => {
