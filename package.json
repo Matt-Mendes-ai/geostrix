@@ -21,6 +21,7 @@
     "d3-delaunay": "^6.0.4",
     "electron-updater": "^6.8.9",
     "geotiff": "^3.0.5",
+    "laz-perf": "0.0.7",
     "lucide-react": "^0.383.0",
     "meshoptimizer": "1.2.0",
     "mysql2": "^3.24.2",

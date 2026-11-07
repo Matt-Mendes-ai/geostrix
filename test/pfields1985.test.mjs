@@ -37,7 +37,7 @@ test("the app: Euler in the grid filters, equivalent sources on each survey, one
   assert.match(r, /runPfieldsJob\(\{ op: "euler", nx: g\.nx, ny: g\.ny, dx: g\.dx, dy: g\.dy, x0: g\.x0, yTop: g\.yTop, values: g\.values, structural_index: Number\(filt\.si\), window: win, observation_elevation: 0 \}/);
   assert.match(r, /z: Number\.isFinite\(ground\) \? \+\(ground - d\.depth\[i\]\)\.toFixed\(1\) : null/);
   assert.ok(g.includes('const EqsGridBox = React.lazy(() => import("../components/EqsGridBox.jsx"));'));
-  assert.ok(g.includes('{!["euler_depth", "mt_bostick"].includes(meta.method) /* derived points at depth, not readings */ && <button'), "not offered on derived points");
+  assert.ok(g.includes('{!["euler_depth", "mt_bostick", "lidar"].includes(meta.method) /* derived points at depth, not readings; lidar: #1994 */ && <button'), "not offered on derived points (nor on a lidar cloud, #1994)");
   assert.match(box, /runPfieldsJob\(request, \{ signal: abort\.current\.signal/);
   assert.equal(SURVEY_METHODS.euler_depth.units, "m");
 });

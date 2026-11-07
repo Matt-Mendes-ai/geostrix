@@ -39,6 +39,7 @@ export const SURVEY_METHODS = {
   mt_phase: { label: "MT / AMT: phase", units: "°", group: "em" },
   euler_depth: { label: "Euler solutions: depth below the sensor", units: "m", group: "other" }, // TASKS.csv #1985
   mt_bostick: { label: "MT / AMT: Niblett–Bostick resistivity (approximate depth)", units: "log₁₀ Ω·m", group: "em" }, // TASKS.csv #1989 — points under each station
+  lidar: { label: "Lidar point cloud", units: "m", group: "other" }, // TASKS.csv #1994 — thinned returns of a LAS / LAZ / COPC file
   ip: { label: "IP chargeability", units: "mV/V", group: "el" },
   res: { label: "Resistivity", units: "Ω·m", group: "el" },
   sp: { label: "Self-potential", units: "mV", group: "el" },

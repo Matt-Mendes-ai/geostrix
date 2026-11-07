@@ -105,9 +105,10 @@ export default defineConfig({
           // (GeoPackage / SQL workspace). Returning undefined lets Rollup place them with their importers.
           // TASKS.csv #633 — and pdfjs-dist (PDF section images): ~460 KB that only a PDF opened in that dialog needs.
           // TASKS.csv #795 — and meshoptimizer (the drawing-copy simplifier: ~120 KB of WebAssembly, used in a worker).
+          // TASKS.csv #1994 — and laz-perf (LAZ decoding, ~300 KB with its WebAssembly): only the lidar worker uses it.
           // TASKS.csv #903 — and d3-delaunay with its delaunator / robust-predicates (~19 KB): Voronoi declustering and the
           // explicit surface's hull, both loaded on use since the 3D View's point-in-polygon moved out of geoprocessing.js.
-          if (/node_modules[\/](zstddec|lerc|pako|sql\.js|xml-utils|web-worker|@petamoriken|pdfjs-dist|meshoptimizer|d3-delaunay|delaunator|robust-predicates)[\/]/.test(id)) return undefined;
+          if (/node_modules[\/](zstddec|lerc|pako|sql\.js|xml-utils|web-worker|@petamoriken|pdfjs-dist|meshoptimizer|laz-perf|d3-delaunay|delaunator|robust-predicates)[\/]/.test(id)) return undefined;
           return "vendor";
         },
       },

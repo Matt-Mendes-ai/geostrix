@@ -4538,7 +4538,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       try {
         const { color: c0, t } = colorer.colorOf(row);
         const color = st.color || c0;
-        const mesh = new THREE.Mesh(proto, new THREE.MeshLambertMaterial({ color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide })); // #312
+        const mesh = new PickStandIn(proto, { color, transparent: st.opacity < 1, opacity: st.opacity, side: st.shape === "disc" ? THREE.DoubleSide : THREE.FrontSide }); // #312; #1994 — a stand-in (#1500): 83,000 lidar points, first frame 1.4 s as Meshes, 0.75 s so
         mesh.scale.setScalar((1.4 + 2.8 * t) * st.size);
         mesh.position.set(row.x - ox, row.z - oz, -(row.y - oy));
         mesh.userData = { row, tip: `${row._src || "Geophysics point"}${row.line != null ? ` · line ${row.line}` : ""}${row.fid != null ? ` · fid ${row.fid}` : ""}\n${row.label || "value"}: ${row.value}${geophysSurveys?.[row._src]?.units ? ` ${geophysSurveys[row._src].units}` : ""}\n${row.x.toFixed(0)}E ${row.y.toFixed(0)}N ${row.z.toFixed(0)}Z` };

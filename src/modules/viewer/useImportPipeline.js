@@ -710,8 +710,19 @@ export function useImportPipeline(ctx) {
     // TASKS.csv #1989 — MT / AMT soundings are read on the Geophysics tab, not here
     const ediNames = grouped.files.filter((f) => /\.edi$/i.test(f.name)).map((f) => f.name);
     if (ediNames.length) advised.push(notice("{names}: MT / AMT soundings are read on the Geophysics tab. Drop the .edi files there, or use Geophysics > MT / AMT.", { names: ediNames.slice(0, 4).join(", ") + (ediNames.length > 4 ? " …" : "") }));
+    // TASKS.csv #1994 — a lidar point cloud (.laz, or a binary .las starting "LASF"; a LAS well log is text) goes to the Geophysics tab
+    const lidarNames = [];
+    for (const f of grouped.files.filter((x) => /\.la[sz]$/i.test(x.name))) {
+      const b = /\.laz$/i.test(f.name) ? null : new Uint8Array(await f.slice(0, 4).arrayBuffer());
+      if (!b || (b[0] === 0x4c && b[1] === 0x41 && b[2] === 0x53 && b[3] === 0x46)) lidarNames.push(f.name);
+    }
+    if (lidarNames.length) {
+      files = files.filter((f) => !lidarNames.includes(f.name));
+      goToModule("maps"); requestModuleAction("maps-lidar", { file: grouped.files.find((f) => f.name === lidarNames[0]) }); // Maps > Terrain reads it
+      advised.push(notice(lidarNames.length > 1 ? "{names}: lidar point clouds, read in Maps > Terrain one at a time. The first is open there; drop the others there after it." : "{names}: a lidar point cloud, opened in Maps > Terrain.", { names: lidarNames.slice(0, 4).join(", ") + (lidarNames.length > 4 ? " …" : "") }));
+    }
     if (advised.length) setNotices((p) => [...p, ...advised]);
-    const skipped = grouped.files.length - files.length - direct.length - advised.length - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ + grouped.unmatched.length;
+    const skipped = grouped.files.length - files.length - direct.length - advised.length - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ - Math.max(0, lidarNames.length - 1) /* #1994 */ + grouped.unmatched.length;
     if (!files.length) {
       if (!direct.length && !advised.length) setNotices((p) => [...p, notice("Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, .las logs, GeoTIFF / .gxf grids and .dxf / .obj files can be dropped in directly.")]);
       else if (skipped) setNotices((p) => [...p, notice("{skipped} unrecognized file(s) skipped.", { skipped })]);

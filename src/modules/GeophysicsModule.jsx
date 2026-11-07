@@ -81,6 +81,9 @@ import { useSetTaskProgress } from "../lib/store.jsx"; // TASKS.csv #1351
 // TASKS.csv #1351 — a point-survey CSV over this size is streamed and thinned on the way in instead of read whole
 const STREAM_FROM_BYTES = 150e6;
 import { usePrompt } from "../components/usePrompt.jsx"; // TASKS.csv #1779
+import LidarImportBox from "../components/LidarImportBox.jsx"; // TASKS.csv #1994
+import { lidarResultToProject, CLASS_NAMES } from "../lib/lidar.js"; // TASKS.csv #1994 — small, and the box imports it anyway
+import { fillNoData } from "../lib/demFill.js"; // TASKS.csv #1994
 const GradeTonnageModal = lazyModal(() => import("../components/GradeTonnageModal.jsx")); // TASKS.csv #1052 — loaded when opened
 
 // TASKS.csv #309 — the format reference that USED to be this tab's entire empty state: a twelve-line
@@ -532,6 +535,96 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       setTerrainError({ info: false, text: err.message });
     } finally {
       setTerrainBusy(false);
+    }
+  };
+
+  // TASKS.csv #1994 — a lidar point cloud (LAS / LAZ / COPC): the header is read at once and shown with the choices; Import
+  // reads the points in a worker, then builds the terrain from the ground points and / or adds a thinned cloud as a point survey
+  const [lidarPending, setLidarPending] = useState(null); // { file, info, epsg }
+  const [lidarBusy, setLidarBusy] = useState(false);
+  const lidarInput = useRef(null);
+  // only the instance showing the Terrain pane (the Maps tab's) answers: the Geophysics tab may be mounted too
+  useModuleAction(["open-lidar"], (_a, p) => { if (forcePane === "terrain" && p?.file) openLidar(p.file); });
+  const openLidar = async (file) => {
+    if (!file) return;
+    setTerrainError(null);
+    try {
+      const { inspectLidarFile } = await import("../lib/lidarImport.js");
+      const info = await inspectLidarFile(file);
+      let epsg = project?.epsg;
+      if (info.crs.epsg) { const adopted = askAdoptCrs({ isEmpty: projectIsEmpty, currentEpsg: epsg, declaredEpsg: info.crs.epsg, fileName: file.name }); if (adopted) { setEpsg(adopted); epsg = adopted; } }
+      setLidarPending({ file, info, epsg });
+    } catch (err) {
+      setTerrainError({ info: false, text: tr("Could not read {name}: {message}", { name: file.name, message: err.message }) });
+    }
+  };
+  const confirmLidar = async ({ wantTerrain, wantCloud, target, cloudClasses, colourBy }) => {
+    const { file, info, epsg } = lidarPending, h = info.header, name = file.name.replace(/\.(copc\.)?la[sz]$/i, "");
+    if (wantTerrain && terrain && !window.confirm(tr("Replace the current terrain (\"{name}\") with \"{name2}\"? Only one terrain surface is supported at a time.", { name: terrain.name, name2: name }))) return;
+    setLidarBusy(true);
+    const label = tr("Reading {name}", { name: file.name }), t0 = Date.now();
+    try {
+      const L = await import("../lib/lidarImport.js");
+      const plan = await L.lidarCrsPlan(info, epsg);
+      if (plan.problem) throw new Error(plan.problem === "file" ? tr("Its coordinate system (EPSG:{code}) is not one GeoStrix can convert, so the points cannot be placed in this project's EPSG:{p}.", { code: plan.fileEpsg, p: epsg }) : tr("The project's coordinate system (EPSG:{code}) is not one GeoStrix can convert to.", { code: epsg }));
+      const toRead = L.pointsToRead(info), cell = L.lidarCellSize(h, terrainDetail, toRead);
+      const keepEvery = wantCloud ? Math.max(1, Math.floor(toRead / (4 * target))) : 1;
+      const res = await L.readLidarAsync(file, { cellSize: cell, keepEvery, maxCloud: 8 * target + 1, cloudClasses, wantCloud }, (f) => setTaskProgress?.({ label, pct: Math.round(f * 100) }));
+      setTaskProgress?.(null);
+      const out = lidarResultToProject(res, { reproject: plan.reproject, zFactor: plan.zFactor, hFactor: plan.hFactor, colourBy, src: file.name, wantTerrain });
+      const msg = [];
+      const secs = ((Date.now() - t0) / 1000).toFixed(1);
+      msg.push(res.read.kind === "COPC"
+        ? tr("Read \"{file}\" in {s} s: the first {d} of {levels} levels of its octree, {read} of {all} points.", { file: file.name, s: secs, d: res.read.maxDepth + 1, levels: res.read.levels, read: res.seen.toLocaleString(), all: res.read.allPoints.toLocaleString() })
+        : tr("Read all {n} points of \"{file}\" in {s} s.", { n: res.seen.toLocaleString(), file: file.name, s: secs }));
+      const top = Object.entries(res.classCounts).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([c, k]) => `${tr(CLASS_NAMES[c] || "Class {c}", { c })} ${k.toLocaleString()}`).join(", ");
+      if (top) msg.push(tr("Classes: {list}.", { list: top }));
+      if (res.noise || res.withheld) msg.push(tr("{noise} noise and {withheld} withheld point(s) left out.", { noise: res.noise.toLocaleString(), withheld: res.withheld.toLocaleString() }));
+      if (plan.reproject) msg.push(tr("Reprojected from EPSG:{a} to the project's EPSG:{b}.", { a: plan.fileEpsg, b: epsg }));
+      if (plan.noCrs) msg.push(tr("The file names no coordinate system: its coordinates were taken as the project's (EPSG:{code}).", { code: epsg }));
+      if (Math.abs(plan.zFactor - 1) > 1e-9) msg.push(tr("Heights multiplied by {f}: the file gives them in another unit than the project's.", { f: +plan.zFactor.toFixed(7) }));
+      if (wantTerrain) {
+        const sf = out.surface;
+        if (!out.terrain) msg.push(tr("No terrain: too few points to grid."));
+        else {
+          let built;
+          if (out.terrain.kind === "grid") {
+            const fill = fillNoData(out.terrain.values);
+            built = { bbox: out.terrain.bbox, gridW: out.terrain.gridW, gridH: out.terrain.gridH, elevations: fill.elevations, noDataMask: fill.noDataMask || null };
+          } else {
+            const { terrainFromPointsAsync } = await import("../lib/terrainFromPoints.js");
+            const t = await terrainFromPointsAsync({ points: out.terrain.points, lines: [] }, { gridMax: terrainDetail });
+            built = { bbox: t.bbox, gridW: t.gridW, gridH: t.gridH, elevations: t.elevations, noDataMask: t.noDataMask || null };
+          }
+          addTerrain({ name, ...built, source: { kind: "lidar ground", file: file.name, from: sf.from, cellM: +sf.cellM.toFixed(2), points: res.seen } });
+          msg.push(sf.from === "ground"
+            ? tr("Terrain \"{name}\": the mean of the ground points in {w}×{h} cells of {c} m.", { name, w: sf.gridW, h: sf.gridH, c: sf.cellM.toFixed(1) })
+            : tr("Terrain \"{name}\": the file has no ground-classified points, so each of the {w}×{h} cells of {c} m takes its lowest point. Where no pulse reached the ground (dense trees, roofs) that is the top of the trees or the roof.", { name, w: sf.gridW, h: sf.gridH, c: sf.cellM.toFixed(1) }));
+          if (sf.filled) msg.push(tr("{n} cell(s) with no ground point (under buildings, water, gaps between flight lines) were filled from their neighbours, up to {m} m away.", { n: sf.filled.toLocaleString(), m: Math.round(sf.fillM) }));
+          if (sf.empty) msg.push(tr("{n} cell(s) further than that are left out of the 3D surface.", { n: sf.empty.toLocaleString() }));
+          if (out.terrain.kind === "points") msg.push(tr("The cells were reprojected and triangulated onto a {w}×{h} grid in the project's coordinates.", { w: built.gridW, h: built.gridH }));
+        }
+      }
+      if (wantCloud) {
+        const { rows, every } = L.thinTo(out.rows, target);
+        if (!rows.length) msg.push(tr("No points for the 3D View: none of that kind in the file."));
+        else {
+          setLayers((l) => ({ ...l, geophys_pts: replaceSurveyPoints(l.geophys_pts, rows).rows }));
+          updateGeophysSurvey(file.name, { method: "lidar", units: colourBy === "elevation" ? (Math.abs(plan.zFactor - plan.zFile) < 1e-9 ? "m" : "") : "" });
+          const kept = keepEvery * every;
+          const what = colourBy === "intensity" ? tr("intensity") : colourBy === "class" ? tr("classification code") : tr("elevation");
+          msg.push(kept > 1
+            ? tr("Point cloud \"{file}\": {n} points in the 3D View (1 in {k} of those read), coloured by {what}.", { file: file.name, n: rows.length.toLocaleString(), k: kept.toLocaleString(), what })
+            : tr("Point cloud \"{file}\": all {n} points read are in the 3D View, coloured by {what}.", { file: file.name, n: rows.length.toLocaleString(), what }));
+        }
+      }
+      setLidarPending(null);
+      setTerrainError({ info: true, text: msg.join(" ") });
+    } catch (err) {
+      setTaskProgress?.(null);
+      setTerrainError({ info: false, text: tr("Could not read {name}: {message}", { name: file.name, message: err.message }) });
+    } finally {
+      setLidarBusy(false);
     }
   };
 
@@ -1370,7 +1463,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       style={embedded || show3d ? { flex: "0 0 auto", minWidth: 0 } : { width: "100%" }}
       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
       onDragLeave={() => setDragOver(false)}
-      onDrop={(e) => {
+      onDrop={async (e) => { // async: #1994 reads the first bytes of a .las (the files are taken before the first await)
         e.preventDefault(); setDragOver(false);
         const files = Array.from(e.dataTransfer.files || []);
         // Bug-hunt pass: this used to pick only the FIRST csv and FIRST tif via .find(), silently
@@ -1387,8 +1480,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         // files used to be ignored here without a word
         const advice = files.map((f) => unreadableFormatAdvice(f.name)).filter(Boolean);
         // TASKS.csv #1667 — every other file this tab does not read is named too (a UBC .msh / .den went nowhere without a word)
-        const other = files.filter((f) => !/\.(csv|tiff?|gxf|ply|dxf|xyz|edi)$/i.test(f.name) && !unreadableFormatAdvice(f.name)).map((f) => f.name);
-        if (other.length) advice.push(tr("Not imported from this drop: {names}. Dropped here, this tab reads CSV, GeoTIFF, GXF, XYZ, PLY / DXF and EDI (MT soundings); a UBC mesh and model go through Block models.", { names: other.slice(0, 6).join(", ") + (other.length > 6 ? " …" : "") }));
+        // TASKS.csv #1994 — a lidar cloud: .laz, or a .las starting with the LAS signature (a LAS well log is text, read in the 3D View)
+        const lasFiles = files.filter((f) => /\.la[sz]$/i.test(f.name));
+        const lidarFiles = [];
+        for (const f of lasFiles) { const b = new Uint8Array(await f.slice(0, 4).arrayBuffer()); if (/\.laz$/i.test(f.name) || (b[0] === 0x4c && b[1] === 0x41 && b[2] === 0x53 && b[3] === 0x46)) lidarFiles.push(f); else advice.push(tr("{name} is a LAS well log: drop it on the 3D View, which reads downhole logs.", { name: f.name })); }
+        if (lidarFiles.length) { if (geoPane === "terrain") openLidar(lidarFiles[0]); else { goToModule("maps"); requestModuleAction("maps-lidar", { file: lidarFiles[0] }); } if (lidarFiles.length > 1) advice.push(tr("Opened \"{name}\". Lidar files are imported one at a time: import it, then drop the next.", { name: lidarFiles[0].name })); }
+        const other = files.filter((f) => !/\.(csv|tiff?|gxf|ply|dxf|xyz|edi|las|laz)$/i.test(f.name) && !unreadableFormatAdvice(f.name)).map((f) => f.name);
+        if (other.length) advice.push(tr("Not imported from this drop: {names}. Dropped here, this tab reads CSV, GeoTIFF, GXF, XYZ, PLY / DXF, EDI (MT soundings) and LAS / LAZ lidar; a UBC mesh and model go through Block models.", { names: other.slice(0, 6).join(", ") + (other.length > 6 ? " …" : "") }));
         // TASKS.csv #1989 — MT / AMT soundings go to their own pane, which reads them
         const edis = files.filter((f) => /\.edi$/i.test(f.name));
         if (edis.length) { setMtDrop(edis); setGeoPane("mt"); }
@@ -1514,7 +1612,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                     {Object.entries(Z_MEANINGS).map(([k, label]) => <option key={k} value={k}>{tr(label)}</option>)}{/* #1974 */}
                   </select>
                   {/* TASKS.csv #1985 — gridded on one level with equivalent sources (Harmonica, in the Python engine) */}
-                  {!["euler_depth", "mt_bostick"].includes(meta.method) /* derived points at depth, not readings */ && <button type="button" onClick={() => setEqsFor(eqsFor === sv.key ? null : sv.key)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Grid the readings on one level with equivalent sources (Harmonica): readings at different heights come out on a level surface, and a higher level continues the survey upward")}>{tr("Grid with equivalent sources…")}</button>}
+                  {!["euler_depth", "mt_bostick", "lidar"].includes(meta.method) /* derived points at depth, not readings; lidar: #1994 */ && <button type="button" onClick={() => setEqsFor(eqsFor === sv.key ? null : sv.key)} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Grid the readings on one level with equivalent sources (Harmonica): readings at different heights come out on a level surface, and a higher level continues the survey upward")}>{tr("Grid with equivalent sources…")}</button>}
                   {eqsFor === sv.key && <Suspense fallback={null}><EqsGridBox survey={sv.key} rows={rows} units={meta.units || ""} addRaster={addRaster} defaultElevation={defaultElevation} numInput={numInput} pBtn={pBtn} /></Suspense>}
                   {/* TASKS.csv #1152 — interpretation lines over this survey, drawn in the 3D view */}
                   <button type="button" onClick={() => { goToModule("viewer"); requestModuleAction("interpret-lines", { survey: sv.key }); }} style={{ ...pBtn, marginTop: 5, marginBottom: 0 }} title={tr("Draw faults, contacts and lineaments over this survey in the 3D view; they become a map layer")}>{tr("Draw interpretation lines…")}</button>
@@ -1817,6 +1915,12 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           title={tr("Survey points (CSV, TXT or XYZ with X, Y and elevation) or contour lines and spot heights in a DXF: triangulated into a terrain, for a property with no elevation model")}>
           <Triangle size={14} /> {tr("Terrain from points or contours…")}
         </button>{/* TASKS.csv #894 */}
+        <button onClick={() => lidarInput.current.click()} style={{ ...pBtn, marginTop: 6 }} disabled={terrainBusy || lidarBusy}
+          title={tr("A lidar point cloud (LAS, LAZ or COPC): a terrain from its ground-classified points, and a thinned cloud in the 3D View")}>
+          <Mountain size={14} /> {tr("Lidar point cloud (LAS / LAZ)…")}
+        </button>{/* TASKS.csv #1994 */}
+        <input ref={lidarInput} type="file" accept=".las,.laz" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) openLidar(f); e.target.value = ""; }} />
+        {lidarPending && <LidarImportBox key={lidarPending.file.name + lidarPending.file.size} pending={lidarPending} projectEpsg={lidarPending.epsg} busy={lidarBusy} onImport={confirmLidar} onCancel={() => setLidarPending(null)} btn={pBtn} />}
         {projectZPoints.points.length >= 3 && (
           <button onClick={terrainFromProject} style={{ ...pBtn, marginTop: 6 }} disabled={terrainBusy}
             title={tr("Triangulates the elevations the project's surface samples and drill collars already carry: offline, no file needed. Only as good as those elevations (GPS heights are rough).")}>

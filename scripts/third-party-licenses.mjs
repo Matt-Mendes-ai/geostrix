@@ -22,6 +22,11 @@ function licenseText(dir) {
   } catch { return null; }
 }
 
+// TASKS.csv #1994 — a package published without its licence file (laz-perf): the upstream text kept in scripts/licence-texts
+function vendoredText(name) {
+  try { return readFileSync(path.join(ROOT, "scripts", "licence-texts", `${name.replace(/\//g, "__")}.txt`), "utf8").trim(); } catch { return null; }
+}
+
 function javascriptPackages() {
   const lock = JSON.parse(readFileSync(path.join(ROOT, "package-lock.json"), "utf8"));
   const pkgs = lock.packages || {};
@@ -57,7 +62,7 @@ function javascriptPackages() {
     let meta = {};
     try { meta = JSON.parse(readFileSync(path.join(ROOT, k, "package.json"), "utf8")); } catch { /* not installed here */ }
     const repo = typeof meta.repository === "string" ? meta.repository : meta.repository?.url;
-    return { name, version: p.version, license: p.license || meta.license || "see text", url: meta.homepage || (repo ? repo.replace(/^git\+/, "").replace(/\.git$/, "") : null), text: licenseText(path.join(ROOT, k)) };
+    return { name, version: p.version, license: p.license || meta.license || "see text", url: meta.homepage || (repo ? repo.replace(/^git\+/, "").replace(/\.git$/, "") : null), text: licenseText(path.join(ROOT, k)) ?? vendoredText(name) };
   }).sort((a, b) => a.name.localeCompare(b.name));
 }
 
