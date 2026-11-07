@@ -53,6 +53,12 @@ export function viewportScaleText(el) {
 export const isSectionImage = (el) => !!(el && el.type === "image" && el.worldWidthAtCaptureM > 0);
 export const sectionScaleDenom = (el) => (isSectionImage(el) && el.w > 0 ? el.worldWidthAtCaptureM / (el.w * M_PER_PAGE_PX) : null);
 export const sectionWidthForScale = (el, n) => el.worldWidthAtCaptureM / (n * M_PER_PAGE_PX);
+// TASKS.csv #1480 (review #1352) — a strip log (an image carrying depthHeightAtCaptureM: the metres of hole its full height spans at
+// its own px per metre, furniture included, since the whole drawing scales together): its depth scale on the page, and the height
+// that gives 1 : N (the width follows its aspect)
+export const isDepthImage = (el) => !!(el && el.type === "image" && el.depthHeightAtCaptureM > 0);
+export const depthScaleDenom = (el) => (isDepthImage(el) && el.h > 0 ? el.depthHeightAtCaptureM / (el.h * M_PER_PAGE_PX) : null);
+export const depthHeightForScale = (el, n) => el.depthHeightAtCaptureM / (n * M_PER_PAGE_PX);
 // "1 : 1,000 along the section" (+ the vertical exaggeration when it is not 1)
 export function sectionScaleText(el) {
   const d = sectionScaleDenom(el);

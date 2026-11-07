@@ -8644,5 +8644,11 @@
   "Tension": "Tension",
   "no {sym} assays": "pas d'analyses en {sym}",
   "Assay tracks": "Pistes d'analyses",
-  "Assay track {n}": "Piste d'analyse {n}"
+  "Assay track {n}": "Piste d'analyse {n}",
+  "Plot this strip log at an exact depth scale: its height is set so a metre of hole is 1/N of a metre on paper.": "Imprime ce log à une échelle de profondeur exacte : sa hauteur est réglée pour qu'un mètre de sondage fasse 1/N de mètre sur le papier.",
+  "Depth 1 :": "Profondeur 1 :",
+  "Strip log depth scale": "Échelle de profondeur du log",
+  "Strip log depth scale denominator": "Dénominateur de l'échelle de profondeur",
+  "{mm} mm of paper per 10 m of hole": "{mm} mm de papier pour 10 m de sondage",
+  "At this scale the log is taller than the page: a larger depth scale (1 : N with a bigger N) fits it, or a taller page.": "À cette échelle le log dépasse la hauteur de la page : une échelle plus petite (1 : N avec un N plus grand) le fait tenir, ou une page plus haute."
 }

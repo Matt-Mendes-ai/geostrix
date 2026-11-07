@@ -8644,5 +8644,11 @@
   "Tension": "الشدّ",
   "no {sym} assays": "لا تحاليل لـ {sym}",
   "Assay tracks": "مسارات التحاليل",
-  "Assay track {n}": "مسار التحليل {n}"
+  "Assay track {n}": "مسار التحليل {n}",
+  "Plot this strip log at an exact depth scale: its height is set so a metre of hole is 1/N of a metre on paper.": "اطبع هذا السجل بمقياس عمق دقيق: يُضبط ارتفاعه بحيث يكون متر من الثقب 1/N من المتر على الورق.",
+  "Depth 1 :": "العمق 1 :",
+  "Strip log depth scale": "مقياس عمق السجل",
+  "Strip log depth scale denominator": "مقام مقياس العمق",
+  "{mm} mm of paper per 10 m of hole": "{mm} مم من الورق لكل 10 م من الثقب",
+  "At this scale the log is taller than the page: a larger depth scale (1 : N with a bigger N) fits it, or a taller page.": "بهذا المقياس يكون السجل أطول من الصفحة: يناسبه مقياس أصغر (1 : N بقيمة N أكبر)، أو صفحة أطول."
 }

@@ -140,7 +140,7 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
     + `<text x="4" y="20" font-size="12" font-weight="700" fill="#1a2028">${title}</text>`
     + `<g transform="translate(0,20)">${body}</g>`
     + `</svg>`;
-  return { svg, width: W, height: H + 20 };
+  return { svg, width: W, height: H + 20, pxPerMeter }; // pxPerMeter: #1480, Layout's depth scale
 }
 
 // Rasterizes buildStripLogSvgMarkup's output into a PNG data URL, the same SVG->canvas->PNG technique
@@ -148,7 +148,7 @@ export function buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride
 export async function buildStripLogDataUrl({ holeId, collars, layers, legendOverride = null, assays = [], assaySymbols = [], elementUnits = {} }) {
   const built = buildStripLogSvgMarkup({ holeId, collars, layers, legendOverride, assays, assaySymbols, elementUnits }); // legendOverride: #1092; assays: #1480
   if (!built) return null;
-  const { svg, width, height } = built;
+  const { svg, width, height, pxPerMeter } = built;
   const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   try {
@@ -164,7 +164,7 @@ export async function buildStripLogDataUrl({ holeId, collars, layers, legendOver
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    return { dataUrl: canvas.toDataURL("image/png"), aspect: width / height, height }; // height: #1478, for the printed text size
+    return { dataUrl: canvas.toDataURL("image/png"), aspect: width / height, height, depthHeightAtCaptureM: height / pxPerMeter }; // height: #1478, for the printed text size; depth: #1480
   } finally {
     URL.revokeObjectURL(url);
   }

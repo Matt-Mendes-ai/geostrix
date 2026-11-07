@@ -178,7 +178,7 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
       const group = String(t.title || t.label).split(": ")[0]; // the legend splits a heading at its first ": " (the structure track's title has one)
       return seen.map((v) => [`${group}: ${t.nameFn ? t.nameFn(v) : v}`, t.colorFn(v)]);
     });
-    onAddToLayout({ label: `Strip log — ${holeId}` /* project data stays English */, src: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(markup)))}`, naturalW: fw, naturalH: fh, legendItems });
+    onAddToLayout({ label: `Strip log — ${holeId}` /* project data stays English */, src: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(markup)))}`, naturalW: fw, naturalH: fh, legendItems, depthHeightAtCaptureM: fh / pxPerMeter /* #1480 — Layout's depth scale */ });
     const ptAt = (h) => stripLogTextPt(h, Math.min(700 * (h / fw), 794 - 160)); // Layout: 700 px wide, at most the sheet height less margins (A4 landscape)
     const pt = ptAt(fh), pt1 = ptAt(fh - (d1 - d0) * (pxPerMeter - 1)); // the same log drawn at 1 px/m
     const wide = 700 * (fh / fw) <= 794 - 160; // Layout's 700 px width, not the sheet height, sets its size: many tracks

@@ -8644,5 +8644,11 @@
   "Tension": "Tensão",
   "no {sym} assays": "sem análises de {sym}",
   "Assay tracks": "Trilhas de análises",
-  "Assay track {n}": "Trilha de análise {n}"
+  "Assay track {n}": "Trilha de análise {n}",
+  "Plot this strip log at an exact depth scale: its height is set so a metre of hole is 1/N of a metre on paper.": "Imprime este perfil numa escala de profundidade exata: a altura é ajustada para que um metro de furo seja 1/N de metro no papel.",
+  "Depth 1 :": "Profundidade 1 :",
+  "Strip log depth scale": "Escala de profundidade do perfil",
+  "Strip log depth scale denominator": "Denominador da escala de profundidade",
+  "{mm} mm of paper per 10 m of hole": "{mm} mm de papel por 10 m de furo",
+  "At this scale the log is taller than the page: a larger depth scale (1 : N with a bigger N) fits it, or a taller page.": "Nesta escala o perfil é mais alto que a página: uma escala menor (1 : N com N maior) o faz caber, ou uma página mais alta."
 }

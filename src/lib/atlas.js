@@ -136,7 +136,7 @@ async function buildOneHolePage(holeId, templateElements, { collars, layers, inc
       const box = placeStripLog(elements, built.aspect, page || undefined);
       textPt = stripLogTextPt(built.height, box.h);
       ({ elements, narrowed, overlapping } = makeRoomForStripLog(elements, box, { pageW: (page || {}).w || 1123 })); // #1772
-      elements = [...elements, { id: `striplog_${holeId}_${Date.now()}`, type: "image", label: `Strip log — ${holeId}`, src: built.dataUrl, aspect: built.aspect, ...box }];
+      elements = [...elements, { id: `striplog_${holeId}_${Date.now()}`, type: "image", label: `Strip log — ${holeId}`, src: built.dataUrl, aspect: built.aspect, ...box, depthHeightAtCaptureM: built.depthHeightAtCaptureM ?? null /* #1480 */ }];
     }
   }
   return { name: substituteTokens("{{hole_id}}", values), elements, stripLogFailed, textPt, narrowed, overlapping };

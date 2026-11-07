@@ -15,7 +15,7 @@ import { collarTableSlice, collarRowsThatFit, continuationTables } from "../lib/
 import { fitDrillPlan, filterHoles } from "../lib/drillPlan.js"; // TASKS.csv #1639
 import DrillPlanElement, { drillPlanDrawing } from "../components/DrillPlanElement.jsx"; // TASKS.csv #1639
 import { withLiveScaleBars, relinkCopies, tieStarterFurniture, northRotationOf, insertScaleBar, scaleBarTargets, bindScaleBar } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
-import { worldToVp, capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, holesInFrame, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText, sectionTextPt, sectionTextFactor } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; sectionTextPt: #1485; section scale: #944
+import { worldToVp, capturedSize, metresPerPagePx, groundFrameSize, obliqueCapture, viewportScaleText, pageScaleText, utmGridReady, niceGridStep, overviewPolygon, holesInFrame, snapToGuides, sectionScaleDenom, sectionWidthForScale, sectionScaleText, sectionTextPt, sectionTextFactor, isDepthImage, depthScaleDenom, depthHeightForScale } from "../lib/layoutGeometry.js"; // TASKS.csv #961 / #946; sectionTextPt: #1485; section scale: #944
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
@@ -318,7 +318,7 @@ export default function LayoutModule() {
       // ViewerModule's buildSectionPayload): the exact {label,color} pairs actually drawn in this
       // section, so a legend bound to this image (see syncLegendFromView below) can match it
       // without needing a live theme, which a flattened snapshot doesn't have.
-      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.src, aspect, x: spot.x, y: spot.y, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, planMap: !!img.planMap /* #1864 */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null, sectionTabId: img.sectionTabId || null, textFactor: img.textFactor || 1 /* #1485 */ };
+      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.src, aspect, x: spot.x, y: spot.y, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, depthHeightAtCaptureM: img.depthHeightAtCaptureM ?? null /* #1480 */, planMap: !!img.planMap /* #1864 */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null, sectionTabId: img.sectionTabId || null, textFactor: img.textFactor || 1 /* #1485 */ };
     });
     // TASKS.csv #1128 — a cross-section snapshot comes with its legend as a Layout element (movable, editable, bound to
     // the snapshot so "Sync" refreshes it), right of the image when it fits on the sheet, else below it
@@ -1254,6 +1254,7 @@ export default function LayoutModule() {
                 section snapshots carry worldWidthAtCaptureM (see SectionWindow.jsx's snapshotToLayout)
                 only when they came from the pop-out's "Snapshot to Layout" button — a plain imported
                 photo or logo has no known real-world scale, so this stays hidden for those. */}
+            {isDepthImage(sel) && <DepthScaleControls sel={sel} pageH={A4.h} updateSelected={updateSelected} /> /* TASKS.csv #1480 */}
             {sel.type === "image" && sel.worldWidthAtCaptureM != null && (
               <>
                 <SectionScaleControls sel={sel} pageW={A4.w} pageH={A4.h} updateSelected={updateSelected} />
@@ -1686,6 +1687,41 @@ function TitleBlockControls({ sel, updateSelected }) {
         <button type="button" onClick={() => updateSelected({ rows: [...rows, ["Label", ""]] })} style={{ ...btn, padding: "2px 8px" }}>{tr("Add row")}</button>
         <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 4 }}>{tr("Size (pt)")}<input type="number" min="5" max="16" step="0.5" value={sel.fontPt || 8} onChange={(e) => updateSelected({ fontPt: Math.max(5, Math.min(16, Number(e.target.value) || 8)) })} style={{ ...small, width: 52 }} /></label>
       </div>
+    </div>
+  );
+}
+// TASKS.csv #1480 (review #1352) — a strip log at an exact depth scale: its height sized so a metre of hole is 1/N m of paper (the width
+// follows), and what that is in millimetres per 10 m, the way a printed log is read
+const DEPTH_PRESETS = [200, 500, 1000, 2000, 2500, 5000, 10000];
+function DepthScaleControls({ sel, pageH, updateSelected }) {
+  const [custom, setCustom] = useState(false);
+  const d = depthScaleDenom(sel), n = d ? Math.round(d) : 0;
+  const preset = DEPTH_PRESETS.find((p) => Math.abs(d - p) < 0.5);
+  const choice = custom ? "custom" : preset ? String(preset) : "";
+  const aspect = sel.aspect || (sel.naturalW && sel.naturalH ? sel.naturalW / sel.naturalH : 1);
+  const setScale = (k) => { if (!(k > 0)) return; const h = depthHeightForScale(sel, k); updateSelected({ h, w: h * aspect }); };
+  return (
+    <div style={{ marginTop: 4, marginBottom: 6 }}>
+      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 4 }}
+        title={tr("Plot this strip log at an exact depth scale: its height is set so a metre of hole is 1/N of a metre on paper.")}>{tr("Depth 1 :")}
+        <select value={choice} aria-label={tr("Strip log depth scale")} onChange={(e) => {
+          const v = e.target.value;
+          if (v === "custom") { setCustom(true); return; }
+          setCustom(false);
+          if (v) setScale(Number(v));
+        }} style={{ ...inp, flex: 1, marginTop: 0, marginBottom: 0, padding: "4px 6px", fontSize: "var(--font-size-sm)" }}>
+          <option value="">{tr("as sized (1 : {n})", { n: n.toLocaleString() })}</option>
+          {DEPTH_PRESETS.map((p) => <option key={p} value={String(p)}>{p.toLocaleString()}</option>)}
+          <option value="custom">{tr("custom…")}</option>
+        </select>
+        {choice === "custom" && (
+          <input type="number" min="1" step="any" defaultValue={n || ""} aria-label={tr("Strip log depth scale denominator")}
+            onBlur={(e) => setScale(Number(e.target.value))} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+            style={{ width: 72, fontSize: "var(--font-size-sm)" }} />
+        )}
+      </label>
+      {d > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{tr("{mm} mm of paper per 10 m of hole", { mm: +(10000 / d).toPrecision(3) })}</div>}
+      {sel.h > pageH && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("At this scale the log is taller than the page: a larger depth scale (1 : N with a bigger N) fits it, or a taller page.")}</div>}
     </div>
   );
 }
