@@ -60,6 +60,6 @@ test("the Layout wires the title block, multi-line text and template files", () 
   assert.ok(s.includes('addElement("titleblock")'));
   assert.ok(s.includes('whiteSpace: "pre-wrap" /* #1868 */'));
   assert.ok(s.includes("askPrompt(tr(\"Template name?\")"));
-  assert.ok(s.includes("addLayoutTemplate(name.trim(), elements, pageFormat)"));
+  assert.ok(s.includes("addLayoutTemplate(name.trim(), t.elements, pageFormat)")) // #1487 — through templateElements;
   assert.ok(s.includes("parseTemplateFile(text"));
 });

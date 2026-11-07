@@ -9051,5 +9051,15 @@
   "Terrain: {name}.": "التضاريس: {name}.",
   "loaded": "محمّلة",
   "Terrain: none yet. An inversion needs one to know which cells are underground: fetch one, import a DEM, or make one from this project's samples and collars.": "التضاريس: لا توجد بعد. يحتاجها القلب ليعرف أي الخلايا تحت الأرض: اجلب واحدة، أو استورد نموذج ارتفاع رقمي، أو أنشئ واحدة من عينات هذا المشروع وفوهات ثقوبه.",
-  "Go to Maps › Terrain": "انتقل إلى الخرائط › التضاريس"
+  "Go to Maps › Terrain": "انتقل إلى الخرائط › التضاريس",
+  "Saved the template \"{name}\" in this project: the page's layout without this project's pictures ({d} snapshot(s) left out, {v} viewport(s) kept as empty frames to refresh).": "حُفظ القالب \"{name}\" في هذا المشروع: تخطيط الصفحة بدون صور هذا المشروع (استُبعدت {d} لقطة، وبقيت {v} نافذة عرض إطارات فارغة للتحديث).",
+  "Saved the template \"{name}\" in this project.": "حُفظ القالب \"{name}\" في هذا المشروع.",
+  "Replaced the template \"{name}\" on this computer: every project now offers this version.": "استُبدل القالب \"{name}\" على هذا الحاسوب: تعرض كل المشاريع الآن هذه النسخة.",
+  "Kept the template \"{name}\" on this computer: every project offers it now.": "حُفظ القالب \"{name}\" على هذا الحاسوب: تعرضه كل المشاريع الآن.",
+  "Keep the template \"{name}\" on this computer, for every project": "احفظ القالب \"{name}\" على هذا الحاسوب لكل المشاريع",
+  "Templates on this computer": "القوالب على هذا الحاسوب",
+  "On this computer (every project)": "على هذا الحاسوب (كل المشاريع)",
+  "None yet. Keep one here with the drive icon beside a template saved in this project.": "لا شيء بعد. احفظ قالباً هنا بأيقونة القرص بجانب قالب محفوظ في هذا المشروع.",
+  "Delete the template \"{name}\" from this computer": "احذف القالب \"{name}\" من هذا الحاسوب",
+  "Delete the template \"{name}\" from this computer? Every project loses it.": "هل تحذف القالب \"{name}\" من هذا الحاسوب؟ ستفقده كل المشاريع."
 }

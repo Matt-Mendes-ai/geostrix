@@ -1594,6 +1594,26 @@ ipcMain.handle("take-launch-file", async () => {
   } catch (err) { return { ok: false, more, error: err.message }; }
 });
 
+// TASKS.csv #1487 — Layout templates kept on this computer for every project (a company title block, logo and furniture):
+// one JSON array in userData, never in a project file. The renderer validates each template as it reads it
+// (layoutTitleBlock.parseTemplateFile); here only the size, that it is a JSON array, and a write that cannot leave half a file.
+const COMPUTER_TEMPLATES_PATH = () => path.join(app.getPath("userData"), "layout-templates.json");
+const COMPUTER_TEMPLATES_MAX = 50 * 1024 * 1024;
+ipcMain.handle("computer-templates-read", async () => {
+  try {
+    const st = await fs.promises.stat(COMPUTER_TEMPLATES_PATH());
+    if (st.size > COMPUTER_TEMPLATES_MAX) return { ok: false, error: "The templates file on this computer is too large to read." };
+    return { ok: true, content: await fs.promises.readFile(COMPUTER_TEMPLATES_PATH(), "utf8") };
+  } catch (err) { return err.code === "ENOENT" ? { ok: true, content: "[]" } : { ok: false, error: err.message }; }
+});
+ipcMain.handle("computer-templates-write", async (_e, content) => {
+  if (typeof content !== "string" || content.length > COMPUTER_TEMPLATES_MAX) return { ok: false, error: "Those templates are too large to keep on this computer (50 MB)." };
+  try { if (!Array.isArray(JSON.parse(content))) throw new Error("not a list"); } catch { return { ok: false, error: "Not a list of layout templates." }; }
+  const tmp = COMPUTER_TEMPLATES_PATH() + ".tmp";
+  try { await fs.promises.writeFile(tmp, content, "utf8"); await fs.promises.rename(tmp, COMPUTER_TEMPLATES_PATH()); return { ok: true }; }
+  catch (err) { return { ok: false, error: err.message }; }
+});
+
 // TASKS.csv #591 — small app preferences that the main process needs before any window exists (userData/prefs.json)
 function prefsPath() { return path.join(app.getPath("userData"), "prefs.json"); }
 function readPrefs() { try { return JSON.parse(fs.readFileSync(prefsPath(), "utf8")) || {}; } catch { return {}; } }

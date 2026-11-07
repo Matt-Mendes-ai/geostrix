@@ -9051,5 +9051,15 @@
   "Terrain: {name}.": "Terreno: {name}.",
   "loaded": "carregado",
   "Terrain: none yet. An inversion needs one to know which cells are underground: fetch one, import a DEM, or make one from this project's samples and collars.": "Terreno: nenhum ainda. Uma inversão precisa dele para saber quais células estão no subsolo: obtenha um, importe um MDE ou crie um a partir das amostras e bocas de furo deste projeto.",
-  "Go to Maps › Terrain": "Ir para Mapas › Terreno"
+  "Go to Maps › Terrain": "Ir para Mapas › Terreno",
+  "Saved the template \"{name}\" in this project: the page's layout without this project's pictures ({d} snapshot(s) left out, {v} viewport(s) kept as empty frames to refresh).": "O modelo \"{name}\" foi salvo neste projeto: o leiaute da página sem as imagens deste projeto ({d} instantâneo(s) deixado(s) de fora, {v} vista(s) mantida(s) como molduras vazias para atualizar).",
+  "Saved the template \"{name}\" in this project.": "O modelo \"{name}\" foi salvo neste projeto.",
+  "Replaced the template \"{name}\" on this computer: every project now offers this version.": "O modelo \"{name}\" foi substituído neste computador: todos os projetos oferecem agora esta versão.",
+  "Kept the template \"{name}\" on this computer: every project offers it now.": "O modelo \"{name}\" foi guardado neste computador: todos os projetos o oferecem agora.",
+  "Keep the template \"{name}\" on this computer, for every project": "Guardar o modelo \"{name}\" neste computador, para todos os projetos",
+  "Templates on this computer": "Modelos neste computador",
+  "On this computer (every project)": "Neste computador (todos os projetos)",
+  "None yet. Keep one here with the drive icon beside a template saved in this project.": "Nenhum ainda. Guarde um aqui com o ícone de disco ao lado de um modelo salvo neste projeto.",
+  "Delete the template \"{name}\" from this computer": "Excluir o modelo \"{name}\" deste computador",
+  "Delete the template \"{name}\" from this computer? Every project loses it.": "Excluir o modelo \"{name}\" deste computador? Todos os projetos o perdem."
 }

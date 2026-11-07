@@ -1,8 +1,11 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Ribbon, RibbonGroup, RibbonButton } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
-import { MapPinned, Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock, LayoutTemplate, Download, Upload } from "../components/icons.js";
-import { newTitleBlock, STOCK_TEMPLATES, stockTemplateElements, templateFile, parseTemplateFile } from "../lib/layoutTitleBlock.js"; // TASKS.csv #1868
+import { MapPinned, Plus, X, Maximize2, Sheet, Image as ImageIcon, Type, Compass, Ruler, FileDown, MonitorPlay, RefreshCw, Grid3x3, Trash2, Square, ArrowUpRight, Pencil, MessageSquare, Save, FolderOpen, LogIn, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Camera, LayoutGrid, Lock, LayoutTemplate, Download, Upload, HardDrive } from "../components/icons.js";
+import { newTitleBlock, STOCK_TEMPLATES, stockTemplateElements, templateFile, parseTemplateFile, templateElements } from "../lib/layoutTitleBlock.js"; // TASKS.csv #1868; templateElements: #1487
+import ComputerTemplates from "../components/ComputerTemplates.jsx"; // TASKS.csv #1487
+import { keepTemplateOnComputer } from "../lib/computerTemplates.js"; // TASKS.csv #1487
+import { hasComputerTemplates } from "../lib/desktop.js"; // TASKS.csv #1487
 import GenerateAtlasModal from "../components/GenerateAtlasModal.jsx";
 import PatternSwatch from "../components/PatternSwatch.jsx"; // TASKS.csv #1995
 import { savePDF, saveFile, exportPDFData, canvasPngBytes, sendSectionResnap } from "../lib/desktop.js"; // saveFile / exportPDFData: TASKS.csv #909 Export PNG; canvasPngBytes: #1040; sendSectionResnap: #1485
@@ -679,8 +682,20 @@ export default function LayoutModule() {
   const saveAsTemplate = () => {
     askPrompt(tr("Template name?"), "", (name) => { // #1868 — the prompt's title was not translated
       if (!name || !name.trim()) return;
-      addLayoutTemplate(name.trim(), elements, pageFormat); // #1868 / #1487 — with its paper size and orientation
+      // #1868 / #1487 — with its paper size and orientation, and without this project's snapshots (templateElements)
+      const t = templateElements(elements);
+      addLayoutTemplate(name.trim(), t.elements, pageFormat);
+      setTemplatesOpen(true);
+      setTemplateMsg(t.dropped || t.cleared ? tr("Saved the template \"{name}\" in this project: the page's layout without this project's pictures ({d} snapshot(s) left out, {v} viewport(s) kept as empty frames to refresh).", { name: name.trim(), d: t.dropped, v: t.cleared }) : tr("Saved the template \"{name}\" in this project.", { name: name.trim() }));
     });
+  };
+  // TASKS.csv #1487 — a project template kept on this computer, for every project
+  const [computerTplKey, setComputerTplKey] = useState(0);
+  const keepOnComputer = async (tpl) => {
+    const r = await keepTemplateOnComputer(tpl);
+    if (!r.ok) { setTemplateMsg(r.error); return; }
+    setTemplateMsg(r.replaced ? tr("Replaced the template \"{name}\" on this computer: every project now offers this version.", { name: tpl.name }) : tr("Kept the template \"{name}\" on this computer: every project offers it now.", { name: tpl.name }));
+    setComputerTplKey((k) => k + 1);
   };
   const loadTemplate = (tpl) => {
     if (elements.length && !window.confirm(tr("Replace the current page with \"{name}\"? (Ctrl+Z undoes this.)", { name: tr(tpl.name) }))) return; // #1487 — layoutPages are in the undo history
@@ -1358,10 +1373,12 @@ export default function LayoutModule() {
                 <span role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => loadTemplate(t)} style={{ flex: 1, fontSize: "var(--font-size-base)", color: "var(--color-text)", cursor: "pointer" }}>{t.name}</span>
                 <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("{elements} el.", { elements: t.elements.length })}</span>
                 <Download role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} aria-label={tr("Export the template \"{name}\" as a file", { name: t.name })} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => exportTemplate(t)} />{/* #1868 */}
+                {hasComputerTemplates() && <HardDrive role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} aria-label={tr("Keep the template \"{name}\" on this computer, for every project", { name: t.name })} title={tr("Keep the template \"{name}\" on this computer, for every project", { name: t.name })} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => keepOnComputer(t)} />}{/* #1487 */}
                 <Trash2 role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-danger-icon)", flexShrink: 0 }} onClick={() => { if (confirmDestructive(tr("Delete template \"{name}\"?", { name: t.name }))) deleteLayoutTemplate(t.id); }} aria-label={tr("Delete template \"{name}\"", { name: t.name })} title={tr("Delete template \"{name}\"", { name: t.name })} />
               </div>
             ))}
           </div>
+            <ComputerTemplates onLoad={loadTemplate} refreshKey={computerTplKey} onMessage={setTemplateMsg} />{/* #1487 */}
             <div style={{ display: "flex", gap: 6, alignItems: "center", borderTop: "1px solid var(--color-border)", marginTop: 4, paddingTop: 6 }}>
               <button type="button" onClick={() => templateInput.current?.click()} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--font-size-sm)", padding: "3px 8px", border: "1px solid var(--color-border)", borderRadius: 5, background: "var(--color-bg-subtle)", color: "var(--color-text)", cursor: "pointer" }}><Upload size={12} /> {tr("Import template…")}</button>
             </div>

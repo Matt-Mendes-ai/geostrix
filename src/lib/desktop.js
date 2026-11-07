@@ -202,6 +202,16 @@ export async function copyText(text) {
   if (d?.copyText) return d.copyText(text);
   try { await navigator.clipboard.writeText(text); return { ok: true }; } catch (e) { return { ok: false, error: e.message }; }
 }
+// TASKS.csv #1487 — Layout templates kept on this computer (userData/layout-templates.json); the desktop app only
+export const hasComputerTemplates = () => !!d?.computerTemplatesRead;
+export async function computerTemplatesRead() {
+  if (d?.computerTemplatesRead) return d.computerTemplatesRead();
+  return { ok: false, error: "Keeping templates on this computer requires the desktop app." };
+}
+export async function computerTemplatesWrite(content) {
+  if (d?.computerTemplatesWrite) return d.computerTemplatesWrite(content);
+  return { ok: false, error: "Keeping templates on this computer requires the desktop app." };
+}
 export async function getSectionData() {
   return d?.getSectionData ? d.getSectionData() : null;
 }

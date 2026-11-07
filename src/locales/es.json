@@ -9051,5 +9051,15 @@
   "Terrain: {name}.": "Terreno: {name}.",
   "loaded": "cargado",
   "Terrain: none yet. An inversion needs one to know which cells are underground: fetch one, import a DEM, or make one from this project's samples and collars.": "Terreno: ninguno aún. Una inversión lo necesita para saber qué celdas están bajo tierra: obtén uno, importa un MDE o crea uno a partir de las muestras y collares de este proyecto.",
-  "Go to Maps › Terrain": "Ir a Mapas › Terreno"
+  "Go to Maps › Terrain": "Ir a Mapas › Terreno",
+  "Saved the template \"{name}\" in this project: the page's layout without this project's pictures ({d} snapshot(s) left out, {v} viewport(s) kept as empty frames to refresh).": "Se guardó la plantilla \"{name}\" en este proyecto: la disposición de la página sin las imágenes de este proyecto ({d} instantánea(s) omitida(s), {v} vista(s) conservada(s) como marcos vacíos para actualizar).",
+  "Saved the template \"{name}\" in this project.": "Se guardó la plantilla \"{name}\" en este proyecto.",
+  "Replaced the template \"{name}\" on this computer: every project now offers this version.": "Se reemplazó la plantilla \"{name}\" en esta computadora: todos los proyectos ofrecen ahora esta versión.",
+  "Kept the template \"{name}\" on this computer: every project offers it now.": "Se guardó la plantilla \"{name}\" en esta computadora: todos los proyectos la ofrecen ahora.",
+  "Keep the template \"{name}\" on this computer, for every project": "Guardar la plantilla \"{name}\" en esta computadora, para todos los proyectos",
+  "Templates on this computer": "Plantillas en esta computadora",
+  "On this computer (every project)": "En esta computadora (todos los proyectos)",
+  "None yet. Keep one here with the drive icon beside a template saved in this project.": "Ninguna todavía. Guarde una aquí con el icono de disco junto a una plantilla guardada en este proyecto.",
+  "Delete the template \"{name}\" from this computer": "Eliminar la plantilla \"{name}\" de esta computadora",
+  "Delete the template \"{name}\" from this computer? Every project loses it.": "¿Eliminar la plantilla \"{name}\" de esta computadora? Todos los proyectos la pierden."
 }

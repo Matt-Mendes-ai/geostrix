@@ -9051,5 +9051,15 @@
   "Terrain: {name}.": "Terrain : {name}.",
   "loaded": "chargé",
   "Terrain: none yet. An inversion needs one to know which cells are underground: fetch one, import a DEM, or make one from this project's samples and collars.": "Terrain : aucun pour l'instant. Une inversion en a besoin pour savoir quelles cellules sont sous terre : récupérez-en un, importez un MNT ou créez-en un à partir des échantillons et collets de ce projet.",
-  "Go to Maps › Terrain": "Aller à Cartes › Terrain"
+  "Go to Maps › Terrain": "Aller à Cartes › Terrain",
+  "Saved the template \"{name}\" in this project: the page's layout without this project's pictures ({d} snapshot(s) left out, {v} viewport(s) kept as empty frames to refresh).": "Modèle « {name} » enregistré dans ce projet : la mise en page sans les images de ce projet ({d} instantané(s) laissé(s) de côté, {v} vue(s) conservée(s) en cadres vides à actualiser).",
+  "Saved the template \"{name}\" in this project.": "Modèle « {name} » enregistré dans ce projet.",
+  "Replaced the template \"{name}\" on this computer: every project now offers this version.": "Modèle « {name} » remplacé sur cet ordinateur : tous les projets proposent maintenant cette version.",
+  "Kept the template \"{name}\" on this computer: every project offers it now.": "Modèle « {name} » conservé sur cet ordinateur : tous les projets le proposent maintenant.",
+  "Keep the template \"{name}\" on this computer, for every project": "Conserver le modèle « {name} » sur cet ordinateur, pour tous les projets",
+  "Templates on this computer": "Modèles sur cet ordinateur",
+  "On this computer (every project)": "Sur cet ordinateur (tous les projets)",
+  "None yet. Keep one here with the drive icon beside a template saved in this project.": "Aucun pour l'instant. Conservez-en un ici avec l'icône de disque à côté d'un modèle enregistré dans ce projet.",
+  "Delete the template \"{name}\" from this computer": "Supprimer le modèle « {name} » de cet ordinateur",
+  "Delete the template \"{name}\" from this computer? Every project loses it.": "Supprimer le modèle « {name} » de cet ordinateur ? Tous les projets le perdent."
 }

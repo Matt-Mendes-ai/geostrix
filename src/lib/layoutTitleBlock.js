@@ -69,3 +69,24 @@ export function parseTemplateFile(text, fallbackName = "Template") {
   const f = d.format && typeof d.format === "object" ? { size: String(d.format.size || ""), orientation: d.format.orientation === "portrait" ? "portrait" : "landscape" } : null;
   return { name: String(d.name || fallbackName).slice(0, 120), format: f, elements, dropped };
 }
+
+// TASKS.csv #1487 (review #1352, Layout) — a template is the page's furniture, not this project's pictures: a saved template
+// carried the 2.3 MB section snapshot it was made beside. A cross-section / plan-map snapshot (an image that came from the data)
+// is left out, and a viewport keeps its frame, place, size and settings but not its picture or the camera that took it, so
+// it shows '(not rendered yet)' until a refresh draws it from the project it is loaded into. Logos and pictures the user
+// added stay. Links to a left-out element are cleared. -> { elements, dropped (snapshots left out), cleared (viewport pictures) }
+const VIEWPORT_CAPTURE = ["src", "worldHeightAtTarget", "cameraAzimuthDeg", "targetWorld", "viewState", "samplesUnplaced", "markHole", "refreshing", "planView", "capturedFixedScale"];
+export const isDataSnapshot = (el) => el?.type === "image" && !!(el.sectionTabId || el.planMap || el.worldWidthAtCaptureM || el.legendItems?.length || el.depthHeightAtCaptureM);
+export function templateElements(elements) {
+  const list = Array.isArray(elements) ? elements : [];
+  const gone = new Set(list.filter(isDataSnapshot).map((el) => el.id));
+  const unlink = (v) => (v != null && gone.has(v) ? null : v);
+  let cleared = 0;
+  const out = list.filter((el) => !gone.has(el.id)).map((el) => {
+    const e = { ...el };
+    if (e.type === "viewport") { if (e.src) cleared++; for (const k of VIEWPORT_CAPTURE) delete e[k]; }
+    for (const k of ["boundTo", "overviewOf", "boundViewportId"]) if (k in e) e[k] = unlink(e[k]);
+    return e;
+  });
+  return { elements: out, dropped: gone.size, cleared };
+}

@@ -71,6 +71,8 @@ contextBridge.exposeInMainWorld("desktop", {
   popOutSectionTab: (payload) => ipcRenderer.invoke("section-tab-popout", payload),
   setSectionTabUnsaved: (id, unsaved, text) => ipcRenderer.send("section-tab-unsaved", id, unsaved, text), // TASKS.csv #1323
   copyText: (text) => ipcRenderer.invoke("copy-text", text), // TASKS.csv #589 — no web clipboard permission needed
+  computerTemplatesRead: () => ipcRenderer.invoke("computer-templates-read"), // TASKS.csv #1487
+  computerTemplatesWrite: (content) => ipcRenderer.invoke("computer-templates-write", content), // TASKS.csv #1487
   onSectionData: (cb) => { const h = (_e, d) => cb(d); ipcRenderer.on("section-data", h); return () => ipcRenderer.removeListener("section-data", h); },
   onMenu: (cb) => { const h = (_e, action) => cb(action); ipcRenderer.on("menu", h); return () => ipcRenderer.removeListener("menu", h); },
   takeLaunchFile: () => ipcRenderer.invoke("take-launch-file"), // TASKS.csv #914
