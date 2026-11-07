@@ -68,7 +68,7 @@ export const EMPTY_LAYERS = { litho: [], alt: [], vein: [], geotech: [], mnlgy: 
 // store, not in LayoutModule's own state: LayoutModule unmounts on every tab trip (including the one its own
 // "Add viewport"/"Refresh" force), which used to reset a real layout to this starter set.
 export const DEFAULT_LAYOUT_ELEMENTS = [
-  { id: "title", type: "title", x: 40, y: 30, text: "Untitled Section", w: 400 },
+  { id: "title", type: "title", x: 40, y: 30, text: "{project}", w: 400 }, // #1489 — was "Untitled Section" on every page, plan or section
   { id: "north", type: "north", x: 1000, y: 40 },
   { id: "scale", type: "scale", x: 40, y: 720, meters: 100 },
   // TASKS.csv #1224 — no stock legend here: "Lithology / Alteration / Fault" in made-up colours printed on figures of projects that have other units

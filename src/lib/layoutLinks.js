@@ -63,7 +63,23 @@ function liveNorth(el, els) {
 // TASKS.csv #1320 — the default page's scale bar and north arrow start tied to nothing: beside a view 10 km across the bar
 // still printed "100 m", wrong by 100 times. The first view placed on the page takes them. A bar from Add scale bar has its
 // own pxPerMeter, and a retyped length differs from the starter's 100 m: those were the user's choice and stay free.
+// TASKS.csv #1489 (review #1352) — a north arrow on a vertical-section page means nothing; a section snapshot that is the page's
+// view replaces the untouched starter arrow with the direction the section is seen in ("Looking N25°E": the section is drawn
+// with its start on the left, so the viewer faces its azimuth - 90°). English: it is page text, saved with the project.
+export function bearingText(az) {
+  const a = ((Math.round(Number(az)) % 360) + 360) % 360;
+  if (a === 0) return "N";
+  if (a === 90) return "E";
+  if (a === 180) return "S";
+  if (a === 270) return "W";
+  return a < 90 ? `N${a}°E` : a < 180 ? `S${180 - a}°E` : a < 270 ? `S${a - 180}°W` : `N${360 - a}°W`;
+}
+export const sectionLookText = (sectionAzimuth) => `Looking ${bearingText(Number(sectionAzimuth) - 90)}`;
 export function tieStarterFurniture(els, view, { bar: wantBar = true, north: wantNorth = true } = {}) {
+  if (wantNorth && view?.type === "image" && !view.planMap && Number.isFinite(view.sectionAzimuth)) {
+    const starter = els.find((el) => el.type === "north" && el.rotation == null && !el.boundTo);
+    if (starter) els = els.map((el) => (el === starter ? { id: `look_${view.id}`, type: "text", x: Math.max(0, (el.x || 0) - 60), y: el.y || 40, w: 160, text: sectionLookText(view.sectionAzimuth), boundTo: view.id } : el));
+  }
   const { w: imgW, h: imgH } = capturedSize(view);
   const ppm = view.type === "viewport" ? (view.worldHeightAtTarget && imgH ? imgH / view.worldHeightAtTarget : 0) : (view.worldWidthAtCaptureM && imgW ? imgW / view.worldWidthAtCaptureM : 0);
   const bar = wantBar && ppm > 0 ? els.find((el) => el.type === "scale" && !el.boundTo && !el.pxPerMeter && el.meters === 100) : null;

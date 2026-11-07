@@ -326,7 +326,7 @@ export default function LayoutModule() {
       // ViewerModule's buildSectionPayload): the exact {label,color} pairs actually drawn in this
       // section, so a legend bound to this image (see syncLegendFromView below) can match it
       // without needing a live theme, which a flattened snapshot doesn't have.
-      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.src, aspect, x: spot.x, y: spot.y, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, depthHeightAtCaptureM: img.depthHeightAtCaptureM ?? null /* #1480 */, planMap: !!img.planMap /* #1864 */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null, sectionTabId: img.sectionTabId || null, textFactor: img.textFactor || 1 /* #1485 */ };
+      return { id: img.id, type: "image", label: img.label || "Snapshot", src: img.src, aspect, x: spot.x, y: spot.y, w, h, worldWidthAtCaptureM: img.worldWidthAtCaptureM ?? null, verticalExaggeration: img.verticalExaggeration ?? null /* #944 */, sectionAzimuth: Number.isFinite(img.sectionAzimuth) ? img.sectionAzimuth : null /* #1489 */, depthHeightAtCaptureM: img.depthHeightAtCaptureM ?? null /* #1480 */, planMap: !!img.planMap /* #1864 */, naturalW: img.naturalW, naturalH: img.naturalH, legendItems: img.legendItems || null, sectionTabId: img.sectionTabId || null, textFactor: img.textFactor || 1 /* #1485 */ };
     });
     // TASKS.csv #1128 — a cross-section snapshot comes with its legend as a Layout element (movable, editable, bound to
     // the snapshot so "Sync" refreshes it), right of the image when it fits on the sheet, else below it
@@ -1149,7 +1149,7 @@ export default function LayoutModule() {
               return (<>
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Bound to")}<select value={sel.boundTo || ""} onChange={(e) => { const v = ts.find((t) => t.id === e.target.value); updateSelected(v ? bindScaleBar(sel, v) : { boundTo: null }); }} style={{ ...inp, marginTop: 4 }}>
                     <option value="">{tr("Nothing (a free bar)")}</option>
-                    {ts.map((v, i) => <option key={v.id} value={v.id}>{v.type === "drillplan" ? tr("Drill plan") : v.type === "viewport" ? (themes.find((t) => t.id === v.themeId)?.name || tr("Viewport {n}", { n: i + 1 })) : tr("{v} (cross-section)", { v: v.label || v.id })}</option>)}
+                    {ts.map((v) => <option key={v.id} value={v.id}>{v.type === "drillplan" ? tr("Drill plan") : v.type === "viewport" ? viewportName(v, elements.filter((e) => e.type === "viewport").findIndex((e) => e.id === v.id), themes) /* #1489 */ : tr("{v} (cross-section)", { v: v.label || v.id })}</option>)}
                   </select>
                 </label>
                 {!sel.boundTo && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Not tied to a view: its length is not a distance on any map of this page. Bind it to a view above (it then follows that view's scale).")}</div>}
@@ -1206,8 +1206,8 @@ export default function LayoutModule() {
                     the same colorForLithology/UNIT_NAMES the 3D viewer itself uses). */}
                 <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", display: "block", marginBottom: 6 }}>{tr("Bound viewport / cross-section")}<select value={sel.boundViewportId || ""} onChange={(e) => updateSelected({ boundViewportId: e.target.value || null })} style={{ ...inp, marginTop: 4 }}>
                     <option value="">{tr("— none —")}</option>
-                    {elements.filter((el) => el.type === "viewport").map((el) => (
-                      <option key={el.id} value={el.id}>{themes.find((t) => t.id === el.themeId)?.name || el.id}</option>
+                    {elements.filter((el) => el.type === "viewport").map((el, i) => (
+                      <option key={el.id} value={el.id}>{viewportName(el, i, themes)}</option>
                     ))}
                     {/* Cross-section snapshots (type "image") carry their own legendItems, computed
                         from exactly what was drawn in that section — see snapshotToLayout/
@@ -1261,7 +1261,7 @@ export default function LayoutModule() {
                   updateSelected(scale > 0 ? { fixedScale: scale, trueScale: true } : { fixedScale: 0 });
                   startViewportRender(sel.themeId, sel.id, scale > 0 ? true : sel.trueScale, { fixedScale: scale > 0 ? scale : 0, elementW: sel.w, elementH: sel.h, ...(sel.targetWorld ? { centreWorld: sel.targetWorld } : {}) });
                 }}
-                others={elements.filter((o) => o.type === "viewport" && o.id !== sel.id)}
+                others={elements.filter((o) => o.type === "viewport" && o.id !== sel.id)} allViewports={elements.filter((o) => o.type === "viewport")} /* #1489 — numbered by page order */
                 onSyncScaleBar={() => syncScaleBarForElement(sel, sel.worldHeightAtTarget, capturedSize(sel).h)}
                 onSyncNorth={() => {
                   // TASKS.csv #67 — same pattern as onSyncScaleBar just above: apply this viewport's
@@ -1411,9 +1411,9 @@ export default function LayoutModule() {
             the way a printed topo sheet's grid would, staying correct across refreshes/rebinds. */}
         <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", display: "block", marginBottom: 4 }}>{tr("Bind grid to viewport")}<select value={gridBoundViewportId} onChange={(e) => setGridBoundViewportId(e.target.value)} style={inp}>
             <option value="">{tr("None — free {gridMm}mm grid", { gridMm })}</option>
-            {elements.filter((el) => el.type === "viewport").map((el) => (
+            {elements.filter((el) => el.type === "viewport").map((el, i) => (
               <option key={el.id} value={el.id}>
-                {(themes.find((t) => t.id === el.themeId)?.name) || tr("Viewport")}{el.worldHeightAtTarget ? "" : tr(" (not rendered yet)")}
+                {viewportName(el, i, themes)}{el.worldHeightAtTarget ? "" : tr(" (not rendered yet)")}
               </option>
             ))}
           </select>
@@ -1646,6 +1646,13 @@ function Ruler2D({ axis, length, mmStep }) {
 // can be placed exactly. A perspective or oblique capture has no single metres-per-pixel, and a grid on
 // it would be a confident-looking fiction. Lines follow the capture's camera azimuth (a rotated map gets
 // rotated grid lines); labels sit where each line meets the frame.
+// TASKS.csv #1489 — one name for a viewport in every list (the legend binding showed 'viewport_1793684369148', the grid binding
+// two identical 'Viewport' entries, the overview list 'Viewport 1 (1 : 25,000)'): its theme's name or 'Viewport n' by its order
+// on the page, and the scale it was set to
+function viewportName(el, i, themes) {
+  const theme = (themes || []).find((t) => t.id === el.themeId)?.name;
+  return `${theme || tr("Viewport {n}", { n: i + 1 })}${el.fixedScale > 0 ? ` (1 : ${el.fixedScale.toLocaleString()})` : ""}`;
+}
 function UtmGridOverlay({ el, crs = "" }) {
   const W = el.w, H = el.h, m = el.worldHeightAtTarget / H; // metres per page px
   // screen-up points at bearing beta = -azimuth (see ViewerModule's cameraAzimuthDeg comment)
@@ -1813,7 +1820,7 @@ function SectionScaleControls({ sel, pageW, pageH, updateSelected }) {
   );
 }
 
-function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, onEnter, onFit, onRescale, onSyncScaleBar, onSyncNorth, syncNotice, others = [], hasHoles = true }) {
+function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, onEnter, onFit, onRescale, onSyncScaleBar, onSyncNorth, syncNotice, others = [], allViewports = [], hasHoles = true }) {
   // TASKS.csv #907 — the scale picker: a preset, "custom" (a typed 1:N), or free (whatever the 3D view frames)
   const [customScale, setCustomScale] = useState(false);
   const scaleChoice = customScale || (sel.fixedScale > 0 && !SCALE_PRESETS.includes(sel.fixedScale)) ? "custom" : sel.fixedScale > 0 ? String(sel.fixedScale) : "";
@@ -1896,7 +1903,7 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
         <label style={{ fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)" }} title={tr("Draw another viewport's ground extent on this one, as on an inset location map. Both need a top-down, true-scale capture.")}>{tr("Show the extent of")}
           <select value={sel.overviewOf || ""} onChange={(e) => updateSelected({ overviewOf: e.target.value || null })} style={inp}>
             <option value="">{tr("— none —")}</option>
-            {others.map((o, i) => <option key={o.id} value={o.id}>{tr("Viewport {n}", { n: i + 1 })}{o.fixedScale > 0 ? ` (1 : ${o.fixedScale.toLocaleString()})` : ""}</option>)}
+            {others.map((o) => <option key={o.id} value={o.id}>{viewportName(o, allViewports.findIndex((v) => v.id === o.id), themes)}</option>)}
           </select>
         </label>
       )}
@@ -2031,7 +2038,8 @@ function crsText(epsg) {
   return name ? `${name} (EPSG:${epsg})` : `EPSG:${epsg}`;
 }
 function textContextFor(els, project, page, index, count, collars = null, credits = "") {
-  return { project: project?.name || "", date: new Date().toLocaleDateString(), page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg), credits, collars, els, pageH: pagePx(pageFormatOf(page)).h }; // collars: the #911 table; els: the #912 overview; pageH: #1480
+  const today = new Date(), p2 = (v) => String(v).padStart(2, "0"); // #1489 — ISO: '11/2/2026' read as 11 February to many readers
+  return { project: project?.name || "", date: `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`, page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg), credits, collars, els, pageH: pagePx(pageFormatOf(page)).h }; // collars: the #911 table; els: the #912 overview; pageH: #1480
 }
 const fillText = (text, ctx) => (ctx && typeof text === "string" && text.includes("{") ? text.replace(PLACEHOLDER, (m, k) => (ctx[k] != null ? ctx[k] : m)) : text);
 

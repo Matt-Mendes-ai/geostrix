@@ -203,6 +203,8 @@ export default function SectionWindow({ tabId = null, initial = null, onPopOut =
       // bar the same way it already does for viewport snapshots (worldHeightAtTarget).
       worldWidthAtCaptureM: hScale ? dims.w / hScale : null,
       verticalExaggeration: vExag || 1, // TASKS.csv #944 — Layout states it beside the section's plot scale
+      // TASKS.csv #1489 — the section line's azimuth (start -> end), as the subtitle computes it, for 'Looking N..E' on the page
+      sectionAzimuth: data?.section ? Number(data.section.azimuth ?? ((Math.atan2(data.section.bx - data.section.ax, data.section.by - data.section.ay) * 180) / Math.PI + 360) % 360) : null,
       // User request ("the legend needs to update matching the cross section"): carry the exact
       // {label,color} pairs ViewerModule's buildSectionPayload already derived from this section's
       // own visible litho/alt/vein/structure data (see that function's `legendItems`) through to the
