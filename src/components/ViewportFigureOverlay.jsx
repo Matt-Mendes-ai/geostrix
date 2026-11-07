@@ -32,7 +32,7 @@
 //
 // 3. THE LEGEND SHOWS WHAT IS SWITCHED ON, NOT THE WHOLE PROJECT. See buildOverlayLegend in
 //    ViewerModule for the derivation and its one documented limit (it does not frustum-cull).
-import React, { useRef, useEffect, useCallback } from "react";
+import React, { useRef, useEffect, useCallback, useLayoutEffect, useState } from "react";
 import { metresPerPixelAtTarget, chooseScaleBar } from "../lib/figureScale.js";
 // TASKS.csv #305 — an SVG font-size PRESENTATION ATTRIBUTE cannot resolve a var(), so the scale-bar
 // labels below take the type scale in its JS-mirror form instead of "var(--font-size-sm)". Same
@@ -131,15 +131,40 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
     return () => { if (camSignalRef.current === updateBar) camSignalRef.current = null; };
   }, [camSignalRef, updateBar, showScale]);
 
+  // TASKS.csv #1534 (review #1497, Lawyers) — the legend ran under the scale-bar card (Mag. susc., Specific gravity behind it). After
+  // each layout it is measured against the scale bar (or the view's foot) and gives up one row at a time, the ramps last, into the
+  // '+ N more' line; it starts again from the full count when its contents, the view's height or the title / scale bar change.
+  const rootRef = useRef(null), legendRef = useRef(null), scaleRef = useRef(null);
+  const [fit, setFit] = useState({ items: MAX_LEGEND_ITEMS, ramps: 6 });
+  const [boxH, setBoxH] = useState(0);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(() => setBoxH(el.clientHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [config.enabled]); // the root exists only while the overlay is on
+  // a string, not the array: legendGroups may be a new array every render, and a reset on every render would never settle
+  const legendKey = (legendGroups || []).map((g) => `${g.key}:${(g.items || []).length}:${g.ramp ? 1 : 0}`).join("|");
+  useLayoutEffect(() => { setFit({ items: MAX_LEGEND_ITEMS, ramps: 6 }); }, [legendKey, boxH, config.title, config.legend, config.enabled, showScale]);
+  useLayoutEffect(() => {
+    const lg = legendRef.current;
+    if (!lg) return;
+    const limit = scaleRef.current ? scaleRef.current.getBoundingClientRect().top - 6 : (rootRef.current?.getBoundingClientRect().bottom ?? Infinity) - 12;
+    if (lg.getBoundingClientRect().bottom <= limit) return;
+    setFit((f) => (f.items > 1 ? { ...f, items: f.items - 1 } : f.ramps > 1 ? { ...f, ramps: f.ramps - 1 } : f)); // bounded: stops at 1 + 1
+  });
+
   if (!config.enabled) return null;
 
   // TASKS.csv #1398 (review #1352) — the rows are shared out between the groups in turn (allocateLegendRows), in their own order:
   // #381 sorted short groups first so grade classes were not pushed out, but that pushed Lithology, the colour of every hole, out
   // instead ("+ 51 more", no Lithology, on Silvertip). Each group's first row carries its heading; #843 alwaysHead, #948 kind.
-  const { rows: shown, total } = allocateLegendRows(legendGroups, MAX_LEGEND_ITEMS);
-  const hiddenCount = total - shown.length;
+  const { rows: shown, total } = allocateLegendRows(legendGroups, Math.min(MAX_LEGEND_ITEMS, fit.items));
   // TASKS.csv #381 — continuous keys (block models, geophysics points, #1398 the numeric hole layers): gradient bar + min/max
-  const ramps = (legendGroups || []).filter((g) => g.ramp).slice(0, 6);
+  const allRamps = (legendGroups || []).filter((g) => g.ramp);
+  const ramps = allRamps.slice(0, Math.min(6, fit.ramps));
+  const hiddenCount = total - shown.length + (allRamps.length - ramps.length); // #1534 — ramps left out are counted too
   const showLegend = config.legend && (shown.length > 0 || ramps.length > 0);
   const fmtR = (v) => (Math.abs(v) >= 1000 ? v.toFixed(0) : Math.abs(v) >= 10 ? v.toFixed(1) : Math.abs(v) >= 0.1 ? v.toFixed(2) : v.toPrecision(2));
   const showTitle = config.title && !!title;
@@ -148,14 +173,14 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
     // pointerEvents: none on every layer of this overlay. #304's hover picking and every orbit drag
     // go to the canvas underneath; an overlay that swallowed pointer events would break hovering
     // silently, which is exactly the failure this project's picking harness exists to catch.
-    <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }} aria-hidden="true">
+    <div ref={rootRef} style={{ position: "absolute", inset: 0, pointerEvents: "none" }} aria-hidden="true">
       {showTitle && (
         <div style={{ ...card, position: "absolute", top: 12, left: 12, maxWidth: 340, padding: "6px 11px", fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {title}
         </div>
       )}
       {showLegend && (
-        <div style={{ ...card, position: "absolute", top: showTitle ? 48 : 12, left: 12, padding: "7px 11px 8px", maxWidth: 250 }}>
+        <div ref={legendRef} style={{ ...card, position: "absolute", top: showTitle ? 48 : 12, left: 12, padding: "7px 11px 8px", maxWidth: 250 }}>
           <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--color-text-caption)", marginBottom: 5 }}>{tr("Legend")}</div>
           {shown.map((it, i) => (
             <React.Fragment key={`${it.group}|${it.label}|${i}`}>
@@ -189,7 +214,7 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
         </div>
       )}
       {showScale && (
-        <div style={{ ...card, position: "absolute", bottom: 12, left: SCALE_LEFT_PX, padding: "6px 9px 4px" }}>
+        <div ref={scaleRef} style={{ ...card, position: "absolute", bottom: 12, left: SCALE_LEFT_PX, padding: "6px 9px 4px" }}>
           <svg ref={barSvgRef} width={MAX_BAR_PX + 2} height="26" style={{ display: "block", overflow: "visible" }}>
             {/* Alternating half-bar, the same idiom Layout's own scale element draws. Colours are
                 hard-coded rather than var()-driven ONLY where the swatch must read as ink on paper;
