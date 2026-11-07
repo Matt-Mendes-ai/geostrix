@@ -1144,7 +1144,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     }).catch(() => {});
     return () => { alive = false; };
   }, [layerStyles.surface_anomaly, surfaceSamples, surfaceSamplesUnplaced, surfaceElementUnits, mapLayers, geochemThresholds]);
-  const mapAnchorKey = useMemo(() => JSON.stringify([(mapLayers || []).map((l) => l.bbox), (surfaceStructures || []).map((st) => st.rows?.length || 0)]), [mapLayers, surfaceStructures]);
+  // #1825 — the map layers anchor the view only when nothing before them in anchorBbox's order does: adding or removing one then rebuilt
+  // every object and refitted the camera on Kodiak (2,762 samples) for nothing
+  const mapAnchorUsed = !(terrain?.bbox || rasters?.[0]?.bbox || (boundaries || []).some((b) => b.polylines?.some((pl) => pl?.length)) || (omfObjects || []).some((o) => o.vertices?.length) || layers.geophys_pts?.length || placedSurfaceSamples.length);
+  const mapAnchorKey = useMemo(() => (mapAnchorUsed ? JSON.stringify([(mapLayers || []).map((l) => l.bbox), (surfaceStructures || []).map((st) => st.rows?.length || 0)]) : ""), [mapAnchorUsed, mapLayers, surfaceStructures]);
   // TASKS.csv #435 — same idea for terrain, raster drapes, boundaries and OMF objects: the geometry rebuild
   // reads them ONLY for its no-collar camera anchor, so it depends on this extent signature instead of the
   // objects themselves. updateTerrain({visible}) or a raster opacity change used to rebuild every interval.
