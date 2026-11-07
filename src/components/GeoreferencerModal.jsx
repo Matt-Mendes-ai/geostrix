@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from "react";
 import SourceCrsField from "./SourceCrsField.jsx"; // TASKS.csv #488
 import { X, Upload, Trash2, MapPin } from "./icons.js";
 import { fitAffine, residuals, georeferenceImage } from "../lib/georef.js";
-import { reprojectXY, getProj4DefSync } from "../lib/reproject.js"; // TASKS.csv #290
+import { reprojectXY, getProj4DefSync, isMetricProjectedEpsg } from "../lib/reproject.js"; // TASKS.csv #290; metric: #1628
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
@@ -42,8 +42,11 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
   const dispW = img ? Math.round(img.width * displayScale) : 0;
   const dispH = img ? Math.round(img.height * displayScale) : 0;
 
+  // TASKS.csv #1628 (review #1497, Lawyers) — the result is named after the file (every scan was 'Georeferenced scan')
+  const [fileStem, setFileStem] = useState("");
   const loadImage = async (file) => {
     setError(null);
+    setFileStem(String(file?.name || "").replace(/\.[^.]+$/, ""));
     if (/\.tiff?$/i.test(file.name)) { // TASKS.csv #1855 — decoded by geotiff.js, as the GeoTIFF import does
       try {
         const { decodeTiffImage } = await import("../lib/raster.js");
@@ -119,7 +122,7 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
       outCanvas.width = result.outW; outCanvas.height = result.outH;
       const octx = outCanvas.getContext("2d");
       octx.putImageData(new ImageData(result.data, result.outW, result.outH), 0, 0);
-      onImport({ name: "Georeferenced scan", bbox: result.bbox, dataUrl: outCanvas.toDataURL("image/png") });
+      onImport({ name: fileStem ? `${fileStem} (georeferenced)` : "Georeferenced scan", bbox: result.bbox, dataUrl: outCanvas.toDataURL("image/png") }); // #1628
     } catch (err) {
       setError(err.message);
     } finally {
@@ -194,7 +197,7 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
                         <td style={td}>{p.px}, {p.py}</td>
                         <td style={td}><input type="number" value={p.x} onChange={(e) => updatePoint(p.id, { x: e.target.value })} style={numInput} /></td>
                         <td style={td}><input type="number" value={p.y} onChange={(e) => updatePoint(p.id, { y: e.target.value })} style={numInput} /></td>
-                        <td style={{ ...td, color: r && r.error > (rmse || 0) * 2 ? "var(--color-danger-alt)" : "var(--color-text)" }}>{r ? r.error.toFixed(2) : "—"}</td>
+                        <td style={{ ...td, color: r && r.error > (rmse || 0) * 2 ? "var(--color-danger-alt)" : "var(--color-text)" }}>{r && fitResiduals.length > 3 ? r.error.toFixed(2) : "—" /* #1628 — no error to show with three points */}</td>
                         <td style={td}><Trash2 aria-label={tr("Remove this control point")} title={tr("Remove this control point")} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={() => removePoint(p.id)} /></td>
                       </tr>
                     );
@@ -203,7 +206,9 @@ export default function GeoreferencerModal({ onImport, onClose, projectEpsg }) {
               </table>
             )}
             {fit && (
-              <div style={{ fontSize: "var(--font-size-base)", color: rmse > 0 ? "var(--color-text-secondary)" : "var(--color-text-secondary)" }}>{tr("Transform fit — RMSE {rmse} world units.", { rmse: rmse.toFixed(2) })}{" "}{rmse > 0 && fitResiduals.some((r) => r.error > rmse * 3) && <span style={{ color: "var(--color-danger-alt)" }}>{tr("One or more points has a much larger error than the rest — double-check its pixel click and typed coordinates.")}</span>}
+              <div style={{ fontSize: "var(--font-size-base)", color: rmse > 0 ? "var(--color-text-secondary)" : "var(--color-text-secondary)" }}>{fitResiduals.length === 3 /* #1628 — an affine has 6 unknowns: three points fit it exactly, whatever they are */
+                ? tr("Exact fit: three points always fit this transform exactly, so they cannot show an error. Add a fourth point to check the others.")
+                : isMetricProjectedEpsg(projectEpsg) ? tr("Transform fit — RMSE {rmse} m.", { rmse: rmse.toFixed(2) }) : tr("Transform fit — RMSE {rmse} project units.", { rmse: rmse.toFixed(2) })}{" "}{rmse > 0 && fitResiduals.some((r) => r.error > rmse * 3) && <span style={{ color: "var(--color-danger-alt)" }}>{tr("One or more points has a much larger error than the rest — double-check its pixel click and typed coordinates.")}</span>}
               </div>
             )}
             {usablePoints.length > 0 && usablePoints.length < 3 && (
