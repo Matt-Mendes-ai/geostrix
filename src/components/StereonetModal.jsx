@@ -102,6 +102,17 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
   // TASKS.csv #1108 (review #1016) — picks with no dip or dip direction (alpha only, no beta) are in the type list and
   // filters but are not drawn and not in the statistics; the header said "1203/1203" while 849 were plotted
   const plotted = useMemo(() => filtered.filter((p) => !(p.dip == null || p.azimuth == null || isNaN(p.dip) || isNaN(p.azimuth))).length, [filtered]);
+  // TASKS.csv #1551 (review #1497, Lawyers) — '2,761 have no dip direction (alpha only, no beta)' counted 2,397 alpha-only picks,
+  // 363 with no angle at all and 1 beta-only together: each reason on its own
+  const unplotted = useMemo(() => {
+    const n = { alphaOnly: 0, betaOnly: 0, noAngles: 0, noDipDir: 0, other: 0 }, fin = (v) => v != null && v !== "" && Number.isFinite(Number(v));
+    for (const p of filtered) {
+      if (fin(p.dip) && fin(p.azimuth)) continue;
+      const a = fin(p.alpha), b = fin(p.beta);
+      if (a && !b) n.alphaOnly++; else if (b && !a) n.betaOnly++; else if (!a && !b) (fin(p.dip) ? n.noDipDir++ : n.noAngles++); else n.other++;
+    }
+    return n;
+  }, [filtered]);
 
   // TASKS.csv #141 follow-up — Kamb density grid over the SAME filtered subset the poles/circles/mean
   // use, and in the SAME projection, so a contour band sits exactly under the poles that produced it.
@@ -150,7 +161,8 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
           <div style={{ fontSize: 14, fontWeight: 600, color: "#1a2028" }}>
             {plotted === filtered.length
               ? tr("{v} — structure picks ({filtered}/{picks})", { v: view === "rose" ? tr("Rose diagram") : tr("Stereonet"), filtered: filtered.length, picks: picks.length })
-              : tr(filtered.length - plotted === 1 ? "{v} — {plotted} of {filtered} structure picks plotted ({picks} in all); 1 has no dip direction (alpha only, no beta)" : "{v} — {plotted} of {filtered} structure picks plotted ({picks} in all); {missing} have no dip direction (alpha only, no beta)", { /* #1448 */ v: view === "rose" ? tr("Rose diagram") : tr("Stereonet"), plotted: plotted.toLocaleString(), filtered: filtered.length.toLocaleString(), picks: picks.length.toLocaleString(), missing: (filtered.length - plotted).toLocaleString() })}{domainId && domains.length > 0 && (
+              : tr("{v} — {plotted} of {filtered} structure picks plotted ({picks} in all); not plotted: {why}", { /* #1448; #1551 — each reason apart */ v: view === "rose" ? tr("Rose diagram") : tr("Stereonet"), plotted: plotted.toLocaleString(), filtered: filtered.length.toLocaleString(), picks: picks.length.toLocaleString(),
+                why: [unplotted.alphaOnly && tr("{n} alpha only (no beta)", { n: unplotted.alphaOnly.toLocaleString() }), unplotted.noAngles && tr("{n} with no angles", { n: unplotted.noAngles.toLocaleString() }), unplotted.betaOnly && tr("{n} beta only (no alpha)", { n: unplotted.betaOnly.toLocaleString() }), unplotted.noDipDir && tr("{n} with a dip but no dip direction", { n: unplotted.noDipDir.toLocaleString() }), unplotted.other && tr("{n} whose angles could not be converted", { n: unplotted.other.toLocaleString() })].filter(Boolean).join(", ") })}{domainId && domains.length > 0 && (
               <span style={{ fontWeight: 400, fontSize: 11, color: "#7d3c98", marginLeft: 6 }}>{tr("· domain: {v}", { v: (domains.find((d) => d.id === domainId) || {}).name || domainId })}
               </span>
             )}
@@ -426,6 +438,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                       : fabric.shape === "cluster" ? (!(stats?.k >= 20) ? tr("Cluster — one dominant orientation, loosely defined (k {k}).", { k: Number.isFinite(stats?.k) ? stats.k.toFixed(1) : "?" }) : tr("Tight cluster — a single dominant orientation."))
                       : fabric.shape === "few" ? tr("Too few picks to judge the shape (fewer than 4) — the mean plane is only as good as these picks.")
                       : fabric.shape === "weak" ? tr("Weak / no preferred orientation — treat this mean with caution.")
+                      : stats?.k < 5 ? tr("Weak clustering (k {k}): a broad set, spread about 45° or more around the mean.", { k: stats.k.toFixed(1) }) /* #1551 */
                       : tr("Moderate clustering.")}
                   </span>
                 </div>

@@ -8583,5 +8583,12 @@
   "Build halo": "Construire le halo",
   "\"{altValue}\" is logged over only {m} m ({n} interval(s)), less than one {cell} m cell: too little of it for any cell to be half altered. A smaller cell size, or a code logged over more length, makes a halo.": "« {altValue} » n'est journalisé que sur {m} m ({n} intervalle(s)), moins qu'une cellule de {cell} m : trop peu pour qu'une cellule soit altérée à moitié. Une taille de cellule plus petite, ou un code journalisé sur plus de longueur, permet un halo.",
   "{type} · {k} of {n} oriented": "{type} · {k} sur {n} orientés",
-  "Rename…": "Renommer…"
+  "Rename…": "Renommer…",
+  "{v} — {plotted} of {filtered} structure picks plotted ({picks} in all); not plotted: {why}": "{v} — {plotted} sur {filtered} structures tracées ({picks} au total) ; non tracées : {why}",
+  "{n} alpha only (no beta)": "{n} alpha seul (sans bêta)",
+  "{n} with no angles": "{n} sans angles",
+  "{n} beta only (no alpha)": "{n} bêta seul (sans alpha)",
+  "{n} with a dip but no dip direction": "{n} avec un pendage mais sans direction de pendage",
+  "{n} whose angles could not be converted": "{n} dont les angles n'ont pas pu être convertis",
+  "Weak clustering (k {k}): a broad set, spread about 45° or more around the mean.": "Regroupement faible (k {k}) : un ensemble large, dispersé d'environ 45° ou plus autour de la moyenne."
 }

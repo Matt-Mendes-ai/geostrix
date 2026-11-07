@@ -8583,5 +8583,12 @@
   "Build halo": "بناء الهالة",
   "\"{altValue}\" is logged over only {m} m ({n} interval(s)), less than one {cell} m cell: too little of it for any cell to be half altered. A smaller cell size, or a code logged over more length, makes a halo.": "«{altValue}» مسجَّل على {m} م فقط ({n} فترة)، أقل من خلية واحدة بطول {cell} م: القدر قليل جدًا كي تصبح أي خلية متغيرة إلى النصف. حجم خلية أصغر، أو رمز مسجَّل على طول أكبر، يتيح بناء هالة.",
   "{type} · {k} of {n} oriented": "{type} · {k} من {n} موجَّهة",
-  "Rename…": "إعادة تسمية…"
+  "Rename…": "إعادة تسمية…",
+  "{v} — {plotted} of {filtered} structure picks plotted ({picks} in all); not plotted: {why}": "{v} — رُسم {plotted} من {filtered} قياسًا بنيويًا ({picks} إجمالًا)؛ لم يُرسم: {why}",
+  "{n} alpha only (no beta)": "{n} ألفا فقط (بلا بيتا)",
+  "{n} with no angles": "{n} بلا زوايا",
+  "{n} beta only (no alpha)": "{n} بيتا فقط (بلا ألفا)",
+  "{n} with a dip but no dip direction": "{n} لها ميل دون اتجاه ميل",
+  "{n} whose angles could not be converted": "{n} تعذّر تحويل زواياها",
+  "Weak clustering (k {k}): a broad set, spread about 45° or more around the mean.": "تجمّع ضعيف (k {k}): مجموعة واسعة متناثرة بنحو 45° أو أكثر حول المتوسط."
 }

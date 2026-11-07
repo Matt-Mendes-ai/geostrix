@@ -21,7 +21,7 @@ test("counts and classes go through the plural and translation helpers", () => {
 test("singular forms; the no-terrain outcrop line says what is drawn", () => {
   const r = read("../src/components/MapImportReview.jsx");
   assert.ok(r.includes('count === 1 ? "Import 1 table"') && r.includes('rows.length === 1 ? "This table may not be a map layer'));
-  assert.ok(read("../src/components/StereonetModal.jsx").includes("1 has no dip direction (alpha only, no beta)"));
+  assert.ok(read("../src/components/StereonetModal.jsx").includes("not plotted: {why}")); // #1551: the reasons counted apart, no plural to agree
   assert.ok(read("../src/components/SurfaceMappingPanel.jsx").includes(" {noZ} had no elevation: drawn flat until a terrain is loaded (Maps > Terrain), then placed on it."));
 });
 
