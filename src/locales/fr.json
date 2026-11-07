@@ -9038,5 +9038,8 @@
   "{name}.TAB is a MapInfo wrapper around a shapefile: select {name}.shp with its .dbf and .prj too.": "{name}.TAB est une enveloppe MapInfo autour d'un shapefile : sélectionnez aussi {name}.shp avec son .dbf et son .prj.",
   "{name}.TAB is a saved MapInfo query: it holds no data of its own.": "{name}.TAB est une requête MapInfo enregistrée : elle ne contient aucune donnée propre.",
   "{name}.TAB is linked to a {type} file that holds its data: import that table instead.": "{name}.TAB est lié à un fichier {type} qui contient ses données : importez plutôt cette table.",
-  "\"{col}\" is not offered: it groups the samples by their chemistry, it does not tell surveys apart.": "« {col} » n'est pas proposé : il regroupe les échantillons par leur chimie, il ne distingue pas les campagnes."
+  "\"{col}\" is not offered: it groups the samples by their chemistry, it does not tell surveys apart.": "« {col} » n'est pas proposé : il regroupe les échantillons par leur chimie, il ne distingue pas les campagnes.",
+  "Count only planes dipping at least this much: a near-flat plane's strike is poorly defined and can swamp a strike rose. 0 counts every plane.": "Ne compte que les plans pendant d'au moins cette valeur : la direction d'un plan presque horizontal est mal définie et peut dominer une rosace des directions. 0 compte tous les plans.",
+  "Dips of at least (°)": "Pendages d'au moins (°)",
+  "Minimum dip for the rose": "Pendage minimal pour la rosace"
 }

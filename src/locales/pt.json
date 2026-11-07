@@ -9038,5 +9038,8 @@
   "{name}.TAB is a MapInfo wrapper around a shapefile: select {name}.shp with its .dbf and .prj too.": "{name}.TAB é um invólucro do MapInfo para um shapefile: selecione também {name}.shp com seu .dbf e .prj.",
   "{name}.TAB is a saved MapInfo query: it holds no data of its own.": "{name}.TAB é uma consulta salva do MapInfo: não contém dados próprios.",
   "{name}.TAB is linked to a {type} file that holds its data: import that table instead.": "{name}.TAB está vinculado a um arquivo {type} que contém seus dados: importe essa tabela no lugar.",
-  "\"{col}\" is not offered: it groups the samples by their chemistry, it does not tell surveys apart.": "\"{col}\" não é oferecido: agrupa as amostras pela química, não distingue levantamentos."
+  "\"{col}\" is not offered: it groups the samples by their chemistry, it does not tell surveys apart.": "\"{col}\" não é oferecido: agrupa as amostras pela química, não distingue levantamentos.",
+  "Count only planes dipping at least this much: a near-flat plane's strike is poorly defined and can swamp a strike rose. 0 counts every plane.": "Conta só os planos que mergulham pelo menos isto: a direção de um plano quase horizontal é mal definida e pode dominar uma roseta de direções. 0 conta todos os planos.",
+  "Dips of at least (°)": "Mergulhos de pelo menos (°)",
+  "Minimum dip for the rose": "Mergulho mínimo para a roseta"
 }

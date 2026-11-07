@@ -63,7 +63,7 @@ export function stereonetFurniture(o) {
   const f1 = (v) => (Number.isFinite(v) ? v.toFixed(1) : "?"), s = o.stats;
   const caption = [];
   caption.push(o.view === "rose"
-    ? `Rose diagram of ${o.roseMode === "dipdir" ? "dip directions (0-360°)" : "strikes (bidirectional)"}, ${o.roseBin}° bins; petal area proportional to count${o.roseN != null ? `, n = ${o.roseN}` : ""}`
+    ? `Rose diagram of ${o.roseMode === "dipdir" ? "dip directions (0-360°)" : "strikes (bidirectional)"}, ${o.roseBin}° bins; petal area proportional to count${o.roseN != null ? `, n = ${o.roseN}` : ""}${o.roseMinDip > 0 ? `; planes dipping ${o.roseMinDip}° or more only` : ""}`
     : `${o.projection === "equalAngle" ? "Equal-angle (Wulff)" : "Equal-area (Schmidt)"} net, lower hemisphere, poles to planes`);
   const missing = o.filtered - o.plotted;
   caption.push(`n = ${o.plotted.toLocaleString("en-US")} of ${o.filtered.toLocaleString("en-US")} picks plotted (${o.total.toLocaleString("en-US")} in all)${missing > 0 ? `; ${missing} without a dip direction (alpha only) not plotted` : ""} · source: ${o.source === "downhole" ? "downhole picks" : o.source === "surface" ? "outcrop measurements" : "downhole and outcrop"} · type: ${!o.typeFilter || o.typeFilter === "all" ? "all" : o.typeFilter} · domain: ${o.domainName || "whole property"}`);

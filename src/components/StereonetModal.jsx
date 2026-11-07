@@ -53,6 +53,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
   const [terzaghiOn, setTerzaghiOn] = useState(false); // TASKS.csv #280
   const [roseMode, setRoseMode] = useState("strike"); // TASKS.csv #278
   const [roseBin, setRoseBin] = useState(10); // TASKS.csv #278
+  const [roseMinDip, setRoseMinDip] = useState(0); // TASKS.csv #1444 — strikes of steep planes only (0 = all)
   // TASKS.csv #428 — outcrop measurements (Geophysics > Surface structures) on the same net. #1440 — they carry the file's own
   // type text, so core "Bedding" and outcrop "Bedding" are one type (counted by source); with Both, outcrop poles are open.
   const [source, setSource] = useState(downholePicks.length ? "downhole" : "surface");
@@ -125,8 +126,8 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
 
   // TASKS.csv #278 — rose bins, only computed while that view is showing.
   const rose = useMemo(
-    () => (view === "rose" ? roseDiagramBins(filtered, { binSizeDeg: roseBin, mode: roseMode, terzaghi }) : null),
-    [filtered, view, roseBin, roseMode, terzaghi]
+    () => (view === "rose" ? roseDiagramBins(roseMinDip > 0 ? filtered.filter((p) => Number(p.dip) >= roseMinDip) : filtered, { binSizeDeg: roseBin, mode: roseMode, terzaghi }) : null),
+    [filtered, view, roseBin, roseMode, terzaghi, roseMinDip]
   );
 
   // TASKS.csv #279 — the girdle ("possible fold") interpretation already fired below but stopped
@@ -146,7 +147,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
     const svgEl = svgRef.current;
     if (!svgEl) return;
     // TASKS.csv #1068 — the caption and keys the dialog shows beside the net, drawn under it in the file
-    const furniture = stereonetFurniture({ view, projection, roseMode, roseBin, plotted, filtered: filtered.length, total: picks.length, source, typeFilter,
+    const furniture = stereonetFurniture({ view, projection, roseMode, roseBin, roseMinDip, plotted, filtered: filtered.length, total: picks.length, source, typeFilter,
       domainName: domainId ? (domains.find((d) => d.id === domainId) || {}).name || domainId : "", stats, shape: fabric?.shape, showMean, roseN: rose?.n,
       contour: showContours && view === "stereonet" ? contour : null, contourLevels: CONTOUR_LEVELS, contourColors: CONTOUR_COLORS,
       types: (typeFilter === "all" ? types : [typeFilter]).map((t) => ({ label: labelOf.get(t) ?? t, color: colorForStructure(labelOf.get(t) ?? t) })), date: new Date().toISOString().slice(0, 10) });
@@ -285,13 +286,16 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 <option value="rose">{tr("Rose diagram")}</option>
               </select>
             </label>
-            {view === "stereonet" && (
-              <label style={rowLabel}>{tr("Source")}<select value={source} onChange={(e) => setSource(e.target.value)} style={sel} aria-label={tr("Measurement source")}>
+            {/* TASKS.csv #1444 — Source in both plots (in rose mode it had gone: outcrop data needed it set before switching) */}
+            <label style={rowLabel}>{tr("Source")}<select value={source} onChange={(e) => setSource(e.target.value)} style={sel} aria-label={tr("Measurement source")}>
                   <option value="downhole" disabled={!downholePicks.length}>{tr("Downhole picks ({downholePicks})", { downholePicks: downholePicks.length })}</option>
                   <option value="surface" disabled={!surfacePicks.length}>{tr("Outcrop measurements ({surfacePicks})", { surfacePicks: surfacePicks.length })}</option>
                   <option value="both" disabled={!downholePicks.length || !surfacePicks.length}>{tr("Both")}</option>
                 </select>
-                {domainId && source !== "downhole" && <span style={{ fontSize: 10, color: "#b06a1f" }}>{tr("domain filter: downhole only")}</span>}{tr("Projection")}<select value={projection} onChange={(e) => setProjection(e.target.value)} style={sel}>
+                {domainId && source !== "downhole" && <span style={{ fontSize: 10, color: "#b06a1f" }}>{tr("domain filter: downhole only")}</span>}
+            </label>
+            {view === "stereonet" && (
+              <label style={rowLabel}>{tr("Projection")}<select value={projection} onChange={(e) => setProjection(e.target.value)} style={sel}>
                   <option value="equalArea">{tr("Equal-area (Schmidt)")}</option>
                   <option value="equalAngle">{tr("Equal-angle (Wulff)")}</option>
                 </select>
@@ -307,6 +311,10 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 <label style={rowLabel}>{tr("Bin size")}<select value={roseBin} onChange={(e) => setRoseBin(Number(e.target.value))} style={sel}>
                     {[5, 10, 15, 20, 30].map((b) => <option key={b} value={b}>{b}°</option>)}
                   </select>
+                </label>
+                {/* TASKS.csv #1444 — near-flat planes have no meaningful strike: on Silvertip the 14° bedding filled the strike rose */}
+                <label style={rowLabel} title={tr("Count only planes dipping at least this much: a near-flat plane's strike is poorly defined and can swamp a strike rose. 0 counts every plane.")}>{tr("Dips of at least (°)")}
+                  <input type="number" min="0" max="89" step="5" value={roseMinDip} onChange={(e) => setRoseMinDip(Math.max(0, Math.min(89, Number(e.target.value) || 0)))} style={sel} aria-label={tr("Minimum dip for the rose")} />
                 </label>
               </>
             )}
@@ -484,7 +492,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
           </div>
         </div>
 
-        {(types.length > 1 || both) && (
+        {view !== "rose" && (types.length > 1 || both) && ( /* #1444 — a rose is one colour */
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
             {typeList.map((t) => (
               <div key={t.key} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: "#55606e" }}>
@@ -544,7 +552,7 @@ function RoseDiagram({ svgRef, rose, size, pad }) {
       {/* Ring labels in COUNTS, not radius fractions — the radius is √-scaled, so a ring at half the
           radius is a quarter of the peak count and reading it as "half" would be wrong. */}
       {rose && [0.5, 1].map((f) => (
-        <text key={`rl_${f}`} x={CX + 3} y={CY - R * f - 2} fontSize={9} fill="#65717e">
+        <text key={`rl_${f}`} x={pt(15, R * f).x + 3} y={pt(15, R * f).y - 2} fontSize={9} fill="#65717e">{/* #1444 — clear of the N */}
           {(rose.maxCount * f * f).toFixed(rose.maxCount * f * f % 1 ? 1 : 0)}
         </text>
       ))}
