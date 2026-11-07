@@ -97,6 +97,14 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   // change downhole between two units of the order a contact for the same top as on the map (lib/holeMapContacts.js)
   const codes = useMemo(() => loggedCodes(lithoRows), [lithoRows]);
   const mapUnits = useMemo(() => (suggestion?.units || []).map((u) => u.unit), [suggestion]);
+  // TASKS.csv #1604 (review #1497, Lawyers) — the orientations the run will have, counted as the run counts them (on the terrain, with a
+  // dip and a dip direction): with none, Build was offered and the run then refused ('No orientations on the terrain')
+  const orientCount = useMemo(() => {
+    if (!groundAt) return null;
+    const ok = (m) => [m.dip, m.dipDir].every(Number.isFinite) && Number.isFinite(groundAt(m.x, m.y));
+    return { beds: bedding.filter(ok).length, planes: planes.filter(ok).length };
+  }, [bedding, planes, groundAt]);
+  const noOrient = orientCount && orientCount.beds + orientCount.planes === 0;
   const [codeEdit, setCodeEdit] = useState({});
   const codeUnit = useMemo(() => ({ ...suggestCodeUnits(codes.map((c) => c.code), mapUnits), ...codeEdit }), [codes, mapUnits, codeEdit]);
   const [useHolesChoice, setUseHoles] = useState(null);
@@ -122,7 +130,7 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
         <div style={{ marginBottom: 3 }}>{tr("Orientations from")}</div>
         {classCounts.length ? classCounts.map(([c, n]) => (
           <label key={c} style={{ marginRight: 8, cursor: "pointer", whiteSpace: "nowrap" }}><input type="checkbox" checked={classes.includes(c)} onChange={(e) => setClasses((p) => (e.target.checked ? [...p, c] : p.filter((x) => x !== c)))} /> {c} ({n})</label>
-        )) : <span style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("no outcrop measurements imported — the contacts' own dips are used")}</span>}
+        )) : <span style={{ fontSize: "var(--font-size-xs)", color: noOrient ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>{orientCount ? tr("no outcrop measurements imported — the contacts' own dips are used: {n} fitted from the map traces on this terrain", { n: orientCount.planes }) : tr("no outcrop measurements imported — the contacts' own dips are used")}</span>}{/* #1604 */}
       </div>
       <div style={row}><span style={{ width: 70, flexShrink: 0 }}>{tr("Faults")}</span>
         <select value={faultLayer?.id || ""} onChange={(e) => setFaultLayerId(e.target.value)} style={sel} aria-label={tr("Fault lines")}><option value="">{tr("(none)")}</option>{lines.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
@@ -198,9 +206,10 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
         </div>
       )}
       <button onClick={() => onRun({ layer, field: unitField, order, breaks, bedding, planes, faults: faults.filter((f) => f.on).map((f) => ({ name: f.name, line: f.line, dip: f.dip, dipDir: f.dipDir })), relation, leftOut, holeCodes: useHoles && holeCount > 0 ? codeUnit : null })}
-        disabled={busy || !groundAt || order.length < 2} style={{ ...pBtn, justifyContent: "center", opacity: busy || !groundAt || order.length < 2 ? 0.5 : 1 }}>
+        disabled={busy || !groundAt || order.length < 2 || noOrient} style={{ ...pBtn, justifyContent: "center", opacity: busy || !groundAt || order.length < 2 || noOrient ? 0.5 : 1 }}>
         {busy ? tr("Running…") : tr("Build the model (GemPy)")}
       </button>
+      {noOrient && <div role="status" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{tr("No orientation to build from: no outcrop measurements, and no contact dip could be fitted from the map traces on this terrain (a contact needs enough relief along its trace). Import outcrop bedding or contact measurements in Surface Geology.")}</div>}{/* #1604 */}
       {/* TASKS.csv #821 — intrusions as bodies */}
       <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 6, marginTop: 6 }}>
         <div style={{ fontWeight: 600, marginBottom: 4 }}>{tr("Intrusions as bodies")}</div>

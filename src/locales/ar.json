@@ -9120,5 +9120,7 @@
   "Crop buffer around the drillholes (m)": "هامش القص حول الثقوب (م)",
   "The grid is rotated, so it was not cropped.": "الشبكة مُدارة، لذا لم تُقص.",
   "No column of the model lies in the crop area, so nothing was kept.": "لا يقع أي عمود من النموذج في منطقة القص، لذا لم يُحتفظ بشيء.",
-  "Cropped to the drilled area: {kept} of {of} cells kept.": "قُص إلى المنطقة المحفورة: احتُفظ بـ {kept} من {of} خلية."
+  "Cropped to the drilled area: {kept} of {of} cells kept.": "قُص إلى المنطقة المحفورة: احتُفظ بـ {kept} من {of} خلية.",
+  "no outcrop measurements imported — the contacts' own dips are used: {n} fitted from the map traces on this terrain": "لم تُستورد قياسات مكاشف — تُستخدم ميول التلامسات نفسها: {n} مُلاءمة من آثار الخريطة على هذه التضاريس",
+  "No orientation to build from: no outcrop measurements, and no contact dip could be fitted from the map traces on this terrain (a contact needs enough relief along its trace). Import outcrop bedding or contact measurements in Surface Geology.": "لا توجد اتجاهات للبناء: لا قياسات مكاشف، ولم يمكن ملاءمة ميل أي تلامس من آثار الخريطة على هذه التضاريس (يحتاج التلامس تضاريس كافية على امتداد أثره). استورد التطبق أو قياسات التلامس في الجيولوجيا السطحية."
 }
