@@ -3,13 +3,11 @@
 // standardized per-hole or per-section report pages."
 //
 // Scope: text substitution ({{token}} placeholders in any text/title element, filled per hole/section)
-// plus an optional auto-generated strip-log image per hole (src/lib/striplogSvg.js). Deliberately does
-// NOT attempt a per-hole/per-section auto-recentered 3D "Viewport" snapshot — that needs a live camera
-// render per page (ViewerModule's own capture round-trip is inherently interactive/one-at-a-time, see
-// its own header comment), which doesn't fit an unattended batch pass; any existing Viewport element on
-// the template is carried through UNCHANGED (same captured image on every generated page) rather than
-// silently dropped, so a property-overview visual still appears on every page even though it isn't
-// per-item.
+// plus an optional auto-generated strip-log image per hole (src/lib/striplogSvg.js). Generating the pages
+// copies the template's Viewport elements unchanged (one capture needs a live 3D render); since TASKS.csv
+// #1644 a top-down true-scale map is then marked with its hole (markHoleOnViewports) and, by default,
+// re-captured centred on it at the template's scale, one page at a time, by store.jsx requestViewportBatch
+// (atlasRecaptureItems below lists the captures). Section pages and oblique maps keep the template's capture.
 import { buildStripLogDataUrl } from "./striplogSvg.js";
 import { utmGridReady, metresPerPagePx } from "./layoutGeometry.js"; // TASKS.csv #1644
 

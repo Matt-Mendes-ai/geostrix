@@ -11,8 +11,8 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 // TASKS.csv #130 — QGIS-Atlas-style batch page generation from the CURRENTLY ACTIVE page as a
 // template: every text/title element's {{token}} placeholders get filled in per hole/section, and one
-// new Layout page is created per item. See src/lib/atlas.js's own header comment for the deliberate
-// scope boundary (no per-item 3D viewport re-render — text + an optional per-hole strip-log image).
+// new Layout page is created per item, with an optional per-hole strip-log image; a top-down map is then
+// re-captured centred on each page's hole (TASKS.csv #1644, see src/lib/atlas.js's header).
 export default function GenerateAtlasModal({ onClose, templateElements, collars, layers, legendOverride = null, sections, addLayoutPages, page = null, assays = [], assayElements = [] }) { // legendOverride: #1092; page: #1478; assays: #1480
   useEscapeKey(onClose);
   useFocusTrap(); // TASKS.csv #238
