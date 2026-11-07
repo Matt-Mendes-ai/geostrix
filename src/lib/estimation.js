@@ -18,7 +18,7 @@ import { blockReach, worldReach, gridShape } from "./blockReach.js"; // TASKS.cs
 import { MAX_BLOCKS, MAX_BLOCK_BUDGET, SUPPORT_COLORS, ESTIMATION_METHODS } from "./estimationMeta.js"; // #552; budget: #625
 export { MAX_BLOCKS, SUPPORT_COLORS, ESTIMATION_METHODS };
 import { pointOnTrace } from "./desurvey.js";
-import { experimentalVariogram, fitVariogramModel, suggestLagDistance, suggestBetweenHoleLag, variogramModelValue } from "./variogram.js"; // #709; #1027
+import { experimentalVariogram, fitVariogramModel, suggestLagDistance, suggestBetweenHoleLag, variogramModelValue, variogramStationarity } from "./variogram.js"; // #709; #1027
 import { t as tr } from "./i18n.js"; // TASKS.csv #786 — messages in the interface language
 
 // Squared distance below which a query point counts as sitting ON a sample: every non-nearest-neighbour
@@ -127,7 +127,8 @@ function resolveVariogram(pts, given, cellSize) {
     const df = dv.nPairsUsed >= 30 ? fitVariogramModel(dv.bins, { model }) : null;
     if (df && df.sill > 0) { const ratio = Math.min(1, Math.max(0, df.nugget / df.sill)); nugget = ratio * fit.sill; nuggetFrom = { ratio: +ratio.toFixed(3), lagM: +dhLag.toFixed(2), pairs: dv.nPairsUsed, firstPairLagM: +ev.firstPairLag.toFixed(1) }; }
   }
-  return { model, nugget, sill: fit.sill, range: fit.range, fitted: true, lagM: +lag.toFixed(2), betweenHoleM, nuggetFrom };
+  const st = variogramStationarity(ev, fit); // #1576 — no sill, or a range past the measured lags
+  return { model, nugget, sill: fit.sill, range: fit.range, fitted: true, lagM: +lag.toFixed(2), betweenHoleM, nuggetFrom, stationarity: { noSill: st.noSill, rising: st.rising, endRatio: st.endRatio != null ? +st.endRatio.toFixed(2) : null, rangeBeyond: st.rangeBeyond, reliableLagM: st.reliableLagM != null ? +st.reliableLagM.toFixed(1) : null } };
 }
 
 function withTrend(samplePoints, opts) {

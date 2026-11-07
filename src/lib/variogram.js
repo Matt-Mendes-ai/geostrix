@@ -283,6 +283,29 @@ export function variogramModelValue(h, { model = "spherical", nugget = 0, sill =
 // ranges and solving the 2-parameter weighted normal equations exactly at each one. Weighted by pair
 // count (a lag built from 4,000 pairs should not count the same as one built from 12) — the standard
 // weighting, and the honest one given how fast pair counts fall off at long lags.
+// TASKS.csv #1576 (review #1497, Lawyers) — a fit is only a variogram if the data have a sill. On Lawyers' log Au at a 25 m lag the points
+// rose steadily past the population variance and the fitted range moved 2.3x with the composite length (Ag 130 m at 1 m, 293 m at 5 m),
+// with no warning beyond 'check it against the Variogram tool'. Two flags, over the reliable lags (30 pairs or more, up to maxReliableLag):
+//   noSill       the last three reliable lags average more than 15 % above the variance (Lawyers' log Au levels off at 1.27x): a trend or
+//                mixed domains; rising: and they still climb
+//   rangeBeyond  the fitted range lies past the furthest reliable lag: extrapolated, not measured
+// vg: experimentalVariogram's result; fit: fitVariogramModel's (or { range }). -> { noSill, rising, endRatio, rangeBeyond, reliableLagM }
+export function variogramStationarity(vg, fit) {
+  const out = { noSill: false, rising: false, endRatio: null, rangeBeyond: false, reliableLagM: null };
+  const variance = Number(vg?.variance);
+  const limit = vg?.maxReliableLag > 0 ? vg.maxReliableLag : Infinity;
+  const rel = (vg?.bins || []).filter((b) => b.nPairs >= 30 && b.gamma != null && Number.isFinite(b.h) && b.lag <= limit);
+  if (rel.length) out.reliableLagM = rel[rel.length - 1].h;
+  if (variance > 0 && rel.length >= 4) {
+    const last = rel.slice(-3), mean = last.reduce((s, b) => s + b.gamma, 0) / 3;
+    out.endRatio = mean / variance;
+    out.rising = last[2].gamma > last[0].gamma * 1.02 && last[1].gamma >= last[0].gamma * 0.98;
+    out.noSill = out.endRatio > 1.15;
+  }
+  if (fit?.range > 0 && out.reliableLagM > 0) out.rangeBeyond = fit.range > out.reliableLagM * 1.05;
+  return out;
+}
+
 export function fitVariogramModel(bins, opts = {}) {
   const model = opts.model || "spherical";
   const shape = (VARIOGRAM_MODELS[model] || VARIOGRAM_MODELS.spherical).shape;

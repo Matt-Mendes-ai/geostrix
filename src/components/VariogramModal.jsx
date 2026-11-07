@@ -7,8 +7,7 @@ import { samplePointsFromIntervals } from "../lib/estimation.js";
 import { desurveyHole } from "../lib/desurvey.js";
 import {
   experimentalVariogram, fitVariogramModel, variogramModelValue, VARIOGRAM_MODELS,
-  VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, suggestLagDistance, suggestBetweenHoleLag,
-} from "../lib/variogram.js";
+  VALUE_TRANSFORMS, applyValueTransform, groupPointsByDomain, suggestLagDistance, suggestBetweenHoleLag, variogramStationarity } from "../lib/variogram.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, backdropProps } from "../lib/modalStyles.js";
@@ -168,6 +167,7 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
 
   const nPairsLow = result && result.vg.bins.some((b) => b.nPairs > 0 && b.nPairs < 30);
   const fitWeak = result && result.fit && result.fit.rSquared != null && result.fit.rSquared < 0.5;
+  const stat = result ? variogramStationarity(result.vg, result.fit) : null; // TASKS.csv #1576
 
   return (
     <div style={overlay} {...backdropProps(onClose)}>
@@ -347,6 +347,9 @@ export default function VariogramModal({ assays, assayElements, layers, collars,
               {nPairsLow && (
                 <div style={noteBox("#fdf7ea", "#e2a63c")}>{tr("Some lag bins hold fewer than 30 pairs (shown in red). Below about 30 pairs a lag is not a measurement — Journel & Huijbregts' standard caution. Widen the lag distance, loosen the angular tolerance, or read only out to")}{" "}<b>{result.vg.maxReliableLag} m</b>{tr(", the furthest lag that clears 30 pairs contiguously.")}</div>
               )}
+
+              {stat?.noSill && <div style={noteBox("#fdf7ea", "#e2a63c")}>{tr("No sill at the population variance: at the last reliable lags the variogram is {r}× it{v}. That points to a trend or mixed domains (several populations in one), not a stationary grade, so the range is not a correlation length. Estimate within a domain, or remove the trend, before trusting it.", { r: stat.endRatio.toFixed(2), v: stat.rising ? tr(" and still rising") : "" })}</div>}{/* #1576 */}
+              {stat?.rangeBeyond && <div style={noteBox("#fdf7ea", "#e2a63c")}>{tr("The fitted range ({range} m) is beyond the furthest reliable lag ({lag} m): it is extrapolated past the measured pairs, not read from them.", { range: Math.round(result.fit.range), lag: Math.round(stat.reliableLagM) })}</div>}
 
               {fitWeak && (
                 <div style={noteBox("#fdf7ea", "#e2a63c")}>
