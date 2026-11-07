@@ -9131,5 +9131,8 @@
   "does not reach the project: about {km} km south of it": "no llega al proyecto: a unos {km} km al sur de él",
   "does not reach the project: about {km} km south-west of it": "no llega al proyecto: a unos {km} km al suroeste de él",
   "does not reach the project: about {km} km west of it": "no llega al proyecto: a unos {km} km al oeste de él",
-  "does not reach the project: about {km} km north-west of it": "no llega al proyecto: a unos {km} km al noroeste de él"
+  "does not reach the project: about {km} km north-west of it": "no llega al proyecto: a unos {km} km al noroeste de él",
+  "Its values are kept: export them, restyle them, or use them as targeting evidence from the raster's card.": "Sus valores se conservan: expórtelos, cambie su estilo o úselos como evidencia de prospección desde la tarjeta del ráster.",
+  "Aspect draped on the terrain: the direction each slope faces, in degrees clockwise from grid north (red north, yellow-green east, cyan south, blue-magenta west; grey flat). Its values are kept.": "Orientación drapeada sobre el terreno: la dirección a la que mira cada pendiente, en grados en sentido horario desde el norte de cuadrícula (rojo norte, verde amarillento este, cian sur, azul magenta oeste; gris plano). Sus valores se conservan.",
+  "Made from the terrain \"{name}\", which has since been replaced: it still shows that ground, draped on the new one. Remove it and make it again from the current terrain (Maps > Terrain > Hillshade, slope, aspect…).": "Hecho a partir del terreno \"{name}\", que ya fue reemplazado: sigue mostrando ese suelo, drapeado sobre el nuevo. Elimínelo y vuelva a hacerlo desde el terreno actual (Mapas > Terreno > Sombreado, pendiente, orientación…)."
 }

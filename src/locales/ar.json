@@ -9131,5 +9131,8 @@
   "does not reach the project: about {km} km south of it": "لا تصل إلى المشروع: على بعد نحو {km} كم جنوبها",
   "does not reach the project: about {km} km south-west of it": "لا تصل إلى المشروع: على بعد نحو {km} كم جنوب غربها",
   "does not reach the project: about {km} km west of it": "لا تصل إلى المشروع: على بعد نحو {km} كم غربها",
-  "does not reach the project: about {km} km north-west of it": "لا تصل إلى المشروع: على بعد نحو {km} كم شمال غربها"
+  "does not reach the project: about {km} km north-west of it": "لا تصل إلى المشروع: على بعد نحو {km} كم شمال غربها",
+  "Its values are kept: export them, restyle them, or use them as targeting evidence from the raster's card.": "قيمه محفوظة: صدّرها أو غيّر نمطها أو استخدمها دليلاً للاستهداف من بطاقة النقش النقطي.",
+  "Aspect draped on the terrain: the direction each slope faces, in degrees clockwise from grid north (red north, yellow-green east, cyan south, blue-magenta west; grey flat). Its values are kept.": "الاتجاه مكسوّاً على التضاريس: الجهة التي يواجهها كل منحدر، بالدرجات باتجاه عقارب الساعة من شمال الشبكة (أحمر شمال، أخضر مصفر شرق، سماوي جنوب، أزرق أرجواني غرب؛ رمادي مستوٍ). قيمه محفوظة.",
+  "Made from the terrain \"{name}\", which has since been replaced: it still shows that ground, draped on the new one. Remove it and make it again from the current terrain (Maps > Terrain > Hillshade, slope, aspect…).": "صُنع من التضاريس \"{name}\" التي استُبدلت منذ ذلك الحين: لا يزال يعرض تلك الأرض مكسوّاً على الجديدة. احذفه وأعد صنعه من التضاريس الحالية (الخرائط > التضاريس > التظليل والانحدار والاتجاه…)."
 }

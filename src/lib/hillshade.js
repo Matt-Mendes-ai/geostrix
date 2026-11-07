@@ -10,6 +10,7 @@
 // every other raster source already produces, so it drops into the existing raster pipeline (drape-on-
 // terrain, opacity) unchanged.
 import { decodeNoDataMask, isNoData } from "./demFill.js";
+import { bytesToB64 } from "./base64.js"; // TASKS.csv #1626
 
 // TASKS.csv #797 — a node is shown only when it and its 8 neighbours are real terrain: filled no-data (reprojection
 // edges, failed tiles, #421) would otherwise draw false slopes / shading along those borders.
@@ -166,5 +167,16 @@ export function terrainDerivativeToRasterInput({ bbox, gridW, gridH, elevations,
     for (let k = 0; k < v.length; k++) { const gv = Math.round(clamp01(v[k]) * 255); put(k, gv, gv, gv); }
   }
   ctx.putImageData(img, 0, 0);
-  return { name: name || `${kind}`, bbox, dataUrl: canvas.toDataURL("image/png"), scale };
+  // TASKS.csv #1626 (review #1497, Lawyers) — slope (degrees), aspect (degrees from grid north) and curvature (1/100 m) keep their values as a grid,
+  // like a gridded survey: exported as numbers, restyled, used as targeting evidence. They were pictures only ('white 0°, darkest grey 57°' was
+  // the only way to read a slope). The grid is node-registered on the terrain's own nodes; hidden edge cells and flat aspect are no data.
+  // A hillshade (0-1 shading) stays a picture.
+  let grid = null;
+  if (kind === "slope" || kind === "aspect" || kind === "curvature") {
+    const vals = new Float32Array(v.length);
+    let valid = 0;
+    for (let k = 0; k < v.length; k++) { const ok = Number.isFinite(v[k]) && !hide?.[k]; vals[k] = ok ? v[k] : NaN; if (ok) valid++; }
+    grid = { nx: gridW, ny: gridH, x0: xmin, yTop: ymax, dx: cx, dy: cy, values: bytesToB64(new Uint8Array(vals.buffer)), valid };
+  }
+  return { name: name || `${kind}`, bbox, dataUrl: canvas.toDataURL("image/png"), scale, ...(grid ? { grid } : {}) };
 }

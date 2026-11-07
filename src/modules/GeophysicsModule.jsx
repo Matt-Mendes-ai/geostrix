@@ -2055,8 +2055,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                       ? hillshadeToRasterInput(terrain, { azimuthDeg: hillshadeAzimuth, altitudeDeg: hillshadeAltitude, name: `hillshade_${terrain.name}` })
                       : terrainDerivativeToRasterInput(terrain, derivKind, { altitudeDeg: hillshadeAltitude, name: `${derivKind === "multi" ? "hillshade_multi" : derivKind}_${terrain.name}` });
                     const { scale, ...r } = raster;
-                    addRaster({ ...r, elevation: defaultElevation, drapeMode: "terrain" });
-                    if (scale) setTerrainError({ info: true, text: tr(derivKind === "slope" ? "Slope draped on the terrain: white 0°, darkest grey {max}° or steeper." : "Curvature draped on the terrain: red convex, blue concave, saturated at ±{max} (1/100 m).", { max: +scale.max.toPrecision(2) }) });
+                    // #1626 — which terrain it was made from, so a replaced terrain can say this one is stale; its unit for the value grid
+                    const unit = derivKind === "slope" ? "degrees" : derivKind === "aspect" ? "degrees from grid north" : derivKind === "curvature" ? "1/100 m" : null;
+                    addRaster({ ...r, elevation: defaultElevation, drapeMode: "terrain", terrainDerivative: { kind: derivKind, terrainId: terrain.id ?? null, terrainName: terrain.name || "", unit } });
+                    if (scale) setTerrainError({ info: true, text: tr(derivKind === "slope" ? "Slope draped on the terrain: white 0°, darkest grey {max}° or steeper." : "Curvature draped on the terrain: red convex, blue concave, saturated at ±{max} (1/100 m).", { max: +scale.max.toPrecision(2) }) + (r.grid ? " " + tr("Its values are kept: export them, restyle them, or use them as targeting evidence from the raster's card.") : "") });
+                    else setTerrainError(derivKind === "aspect" ? { info: true, text: tr("Aspect draped on the terrain: the direction each slope faces, in degrees clockwise from grid north (red north, yellow-green east, cyan south, blue-magenta west; grey flat). Its values are kept.") } : null); // #1626 — the previous product's message was left showing
                     setHillshadeOpen(false);
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}
