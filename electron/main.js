@@ -430,6 +430,9 @@ function createMainWindow() {
   // in-app window unconditionally and hand http/https off to the OS; anything else (file:, and any
   // other scheme a future link or a compromised page might try) is dropped silently rather than
   // passed to shell.openExternal, which on Windows would happily launch a registered handler.
+  // TASKS.csv #1984 — Matt: "can we have the app start at maximized window by default?" The 1440 x 900 above is the size it
+  // restores to.
+  mainWindow.maximize();
   mainWindow.webContents.setWindowOpenHandler(openExternalOnly); // #345 — shared with every window
   if (isDev) mainWindow.webContents.openDevTools({ mode: "detach" });
   // TASKS.csv #1672 (review #1645, Copley) — a renderer that dies (it ran out of memory on a log-axis bug) left a black window with no
