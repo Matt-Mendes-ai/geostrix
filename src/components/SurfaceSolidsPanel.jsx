@@ -12,6 +12,7 @@ import { SOLID_SURFACE_TYPES } from "../lib/viewer/modelHelpers.js"; // TASKS.cs
 import { unitOf, contactOf, layerLabel } from "../lib/explicitUnits.js"; // TASKS.csv #830
 import { stackOrder } from "../lib/stackOrder.js"; // TASKS.csv #873
 import { blockSourceKey } from "../lib/explicitLog.js"; // TASKS.csv #878
+import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js"; // TASKS.csv #1550
 
 const zStats = (pos) => {
   const zs = [];
@@ -23,6 +24,7 @@ const zStats = (pos) => {
 // surfaces: the Generated surfaces list; worldMesh(id) -> { positions (E, N, Z), indices, color } | null;
 // origin: the scene origin (the block is built in that offset frame, as GemPy's is); onBuilt(lastModel, summary)
 export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldMesh, origin, terrain, sampleGround, onBuilt, onError, onClose, pBtn, smallSel, numInput }) {
+  const runLabels = useMemo(() => surfaceOptionLabels(surfaces), [surfaces]); // #1550 — repeated runs carry their time, as in every dropdown
   // geometry and a default role for each surface, once per panel opening
   const items = useMemo(() => (surfaces || []).map((s) => {
     const m = worldMesh(s.id);
@@ -131,7 +133,7 @@ export default function SurfaceSolidsPanel({ surfaces, explicitDefs = [], worldM
             <option value="solid" disabled={!it.closed}>{tr("Solid (inside)")}</option>
             <option value="none">{tr("Not used")}</option>
           </select>
-          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={it.unit !== it.name ? tr("{name} — a contact of {unit}", { name: it.name, unit: it.unit }) : it.name}>{it.name}{it.older ? tr(" (an older run)") : ""}{it.unit !== it.name && <span style={{ color: "var(--color-text-muted)" }}> · {it.unit}</span>}</span>
+          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={it.unit !== it.name ? tr("{name} — a contact of {unit}", { name: it.name, unit: it.unit }) : it.name}>{runLabels.get(it.id) ?? it.name}{it.older ? tr(" (an older run)") : ""}{it.unit !== it.name && <span style={{ color: "var(--color-text-muted)" }}> · {it.unit}</span>}</span>
           <span style={{ color: "var(--color-text-faint)", fontSize: "var(--font-size-xs)", flexShrink: 0 }}>{it.steep || it.leaning ? <span title={it.steep ? tr("A wall, not a top: dips {d}°. Vertical columns meet it over a sliver of the box, so it cannot bound units here. For a vein or dyke use Vein solid from two surfaces.", { d: it.dip.toFixed(0) }) : tr("Dips {d}°: blocks coded from a top this steep are approximate near its edges. For a vein or dyke use Vein solid from two surfaces.", { d: it.dip.toFixed(0) })}>{tr("dips {d}°", { d: it.dip.toFixed(0) })}</span> : it.broken ? <span title={tr("Closed, but it crosses itself ({n} triangle pairs) or its faces point both ways, so it has no well-defined inside. Fix or rebuild it before using it as a solid.", { n: it.broken.selfIntersectingPairs })}>{tr("crosses itself")}</span> : it.closed ? tr("closed") : tr("open")}</span>
         </div>
       ))}

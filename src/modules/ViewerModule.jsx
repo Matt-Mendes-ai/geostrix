@@ -5395,7 +5395,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           const pos = geo?.attributes?.position?.array;
           const idx = geo?.index?.array;
           return {
-            id: s.id, name: s.name, type: s.type, closure: s.closure,
+            id: s.id, name: surfaceLabels.get(s.id) ?? s.name, type: s.type, closure: s.closure, // #1550
             relationships: s.relationships || [],
             positions: pos || [], indices: idx || [],
           };
@@ -5414,7 +5414,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         setTopologyBusy(false);
       }
     }, 40);
-  }, [implicitSurfaces]);
+  }, [implicitSurfaces, surfaceLabels]);
 
   // ---------- TASKS.csv #52 (d) — CROSS-CUTTING: truncate a surface against a dyke, split it on a fault ----------
   //
@@ -8027,6 +8027,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
             <div key={s.id} onContextMenu={(e) => openRowMenu(e, s.name, [ // TASKS.csv #635
               { label: s.visible ? "Hide" : "Show", onClick: () => toggleImplicitSurface(s.id) },
               { label: tr("Zoom to"), onClick: () => zoomToImplicitSurface(s.id) },
+              { label: tr("Rename…"), onClick: () => askPrompt("Rename surface:", s.name, (n) => { if (n?.trim()) setImplicitSurfaces((p) => p.map((x) => (x.id === s.id ? { ...x, name: n.trim() } : x))); }) }, // #1374
               { label: expanded ? "Close type & relationships" : "Type & relationships…", onClick: () => setExpandedSurfaceId(expanded ? null : s.id) },
               { label: tr("Style (colour, opacity)…"), onClick: () => setStyleTarget({ key: `surface:${s.id}`, kind: "surface", label: s.name, surfaceId: s.id, defaults: { opacity: surfaceBaseLook(implicitMeshesRef.current[s.id]).opacity } }) }, // #636
               { label: tr("Solid tools: clip by a surface, combine…"), onClick: () => setSolidToolsFor(s) }, // #1950 / #1951
@@ -8034,7 +8035,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
               style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border)", borderRadius: 6, marginBottom: 6 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
                 <div role="button" tabIndex={0} onKeyDown={activateOnKey} onClick={() => toggleImplicitSurface(s.id)} style={{ cursor: "pointer", color: s.visible ? "var(--color-accent)" : "var(--color-text-disabled)" }}>{s.visible ? <Eye size={14} /> : <EyeOff size={14} />}</div>
-                <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={tr("{vertexCount} vertices, {faceCount} faces", { vertexCount: s.vertexCount, faceCount: s.faceCount })}>{s.name}</div>
+                <div style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-base)", color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={tr("{vertexCount} vertices, {faceCount} faces", { vertexCount: s.vertexCount, faceCount: s.faceCount })}>{surfaceLabels.get(s.id) ?? s.name}</div>
                 {/* TASKS.csv #93 — version badge, only when this surface is actually part of a lineage,
                     so a project with no re-runs looks exactly as it did before. */}
                 {(() => {
@@ -9052,7 +9053,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         <SurfaceQueryModal
           surfaces={implicitSurfaces.map((s) => {
             const g = implicitMeshesRef.current[s.id]?.geometry;
-            return { id: s.id, name: s.name, positions: g?.attributes?.position?.array || null, indices: g?.index?.array || null };
+            return { id: s.id, name: surfaceLabels.get(s.id) ?? s.name, positions: g?.attributes?.position?.array || null, indices: g?.index?.array || null };
           }).filter((s) => s.positions && s.indices)}
           traces={tracesRef.current}
           sceneToWorld={(p) => { const o = originRef.current; return { x: p.x + o.x, y: o.y - p.z, z: p.y + o.z }; }}

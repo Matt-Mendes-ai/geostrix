@@ -24,6 +24,7 @@ import { unitOf, contactOf, layerLabel, unitSummary, splitByElevation, nextLayer
 import { stackOrder, thicknessBetween } from "../lib/stackOrder.js"; // TASKS.csv #873; thicknessBetween: #896
 import { inputKey, shapeFrame, onlyOneSection, explicitInputRows, INPUT_COLUMNS } from "../lib/explicitBuild.js"; // TASKS.csv #901; rows: #880
 import { saveFile } from "../lib/desktop.js"; // TASKS.csv #880
+import { surfaceOptionLabels } from "../lib/viewer/surfaceLabels.js"; // TASKS.csv #1550
 import { toCsv, FORMULA_LEAD, crsCell } from "../lib/tabular.js"; // TASKS.csv #1082; crsCell: #1053
 
 const MAX_POINTS = 800; // ~0.4 s to solve on a laptop (1,200 took 1.2 s); section lines are thinned to fit
@@ -161,6 +162,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
   // TASKS.csv #866 — holes picked more than once (on an inclined hole the stacked-point test cannot see it)
   const dupHoles = useMemo(() => { const m = new Map(); for (const p of def?.picks || []) if (p.hole_id) m.set(p.hole_id, (m.get(p.hole_id) || 0) + 1); return new Map([...m].filter(([, n]) => n > 1)); }, [def?.picks]);
   // TASKS.csv #861 — fault choices: every other generated surface (faults first); side names from the fault's normal
+  const surfaceNames = useMemo(() => surfaceOptionLabels(surfaces || []), [surfaces]); // TASKS.csv #1550
   const faultChoices = useMemo(() => (surfaces || []).filter((x) => x.id !== def?.surfaceId && x.visible !== false).sort((a, b) => (b.type === "fault") - (a.type === "fault")), [surfaces, def?.surfaceId]);
   const sideLabels = useMemo(() => {
     const m = def?.boundedBy && sc.meshes.current[def.boundedBy.surfaceId];
@@ -954,7 +956,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
           <div style={row}>
             <select value={def.boundedBy?.surfaceId || ""} onChange={(e) => update({ boundedBy: e.target.value ? { surfaceId: e.target.value, side: def.boundedBy?.side || 1 } : null })} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Trim at the fault")}>
               <option value="">{tr("Not trimmed at a fault")}</option>
-              {faultChoices.map((x) => <option key={x.id} value={x.id}>{x.type === "fault" ? `${x.name} · ${tr("fault")}` : x.name}</option>)}
+              {faultChoices.map((x) => <option key={x.id} value={x.id}>{x.type === "fault" ? `${surfaceNames.get(x.id) ?? x.name} · ${tr("fault")}` : surfaceNames.get(x.id) ?? x.name}</option>)}{/* #1550 */}
             </select>
           </div>
           {def.boundedBy && (<>

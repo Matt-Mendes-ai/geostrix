@@ -8582,5 +8582,6 @@
   "{code} (no logged length)": "{code} (aucune longueur journalisée)",
   "Build halo": "Construire le halo",
   "\"{altValue}\" is logged over only {m} m ({n} interval(s)), less than one {cell} m cell: too little of it for any cell to be half altered. A smaller cell size, or a code logged over more length, makes a halo.": "« {altValue} » n'est journalisé que sur {m} m ({n} intervalle(s)), moins qu'une cellule de {cell} m : trop peu pour qu'une cellule soit altérée à moitié. Une taille de cellule plus petite, ou un code journalisé sur plus de longueur, permet un halo.",
-  "{type} · {k} of {n} oriented": "{type} · {k} sur {n} orientés"
+  "{type} · {k} of {n} oriented": "{type} · {k} sur {n} orientés",
+  "Rename…": "Renommer…"
 }

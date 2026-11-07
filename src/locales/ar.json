@@ -8582,5 +8582,6 @@
   "{code} (no logged length)": "{code} (بلا طول مسجَّل)",
   "Build halo": "بناء الهالة",
   "\"{altValue}\" is logged over only {m} m ({n} interval(s)), less than one {cell} m cell: too little of it for any cell to be half altered. A smaller cell size, or a code logged over more length, makes a halo.": "«{altValue}» مسجَّل على {m} م فقط ({n} فترة)، أقل من خلية واحدة بطول {cell} م: القدر قليل جدًا كي تصبح أي خلية متغيرة إلى النصف. حجم خلية أصغر، أو رمز مسجَّل على طول أكبر، يتيح بناء هالة.",
-  "{type} · {k} of {n} oriented": "{type} · {k} من {n} موجَّهة"
+  "{type} · {k} of {n} oriented": "{type} · {k} من {n} موجَّهة",
+  "Rename…": "إعادة تسمية…"
 }
