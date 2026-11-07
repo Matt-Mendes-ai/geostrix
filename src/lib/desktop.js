@@ -598,6 +598,32 @@ export async function startSidecarJob(jobKind, request) {
 // Poll misses tolerated before a loop gives up (a busy machine can miss one 10 s status call).
 export const JOB_POLL_MAX_MISSES = 5;
 
+// TASKS.csv #1985 — Harmonica's potential-field tools (python-sidecar/app/geophys/pfields.py): { op: "euler" | "eqs", ... }. Started as a
+// job (its own process: Cancel frees it), polled once a second; onProgress gets the engine's { stage, message }. -> { ok, data } | { ok: false, error }
+export async function runPfieldsJob(request, { signal = null, onProgress = null } = {}) {
+  const start = await startSidecarJob("pfields", request);
+  if (!start.ok) return { ok: false, error: start.status === 400 && /jobKind/i.test(start.error || "") ? tr("This Python engine is older than the app: restart GeoStrix so it starts the engine that came with it.") : start.error };
+  const id = start.data.id;
+  let misses = 0;
+  for (;;) {
+    if (signal?.aborted) { await sidecarCancelJob(id); return { ok: false, cancelled: true, error: tr("Cancelled.") }; }
+    await new Promise((resolve) => { const t = setTimeout(resolve, 1000); signal?.addEventListener?.("abort", () => { clearTimeout(t); resolve(); }, { once: true }); });
+    if (signal?.aborted) continue;
+    const st = await sidecarJobStatus(id);
+    if (!st.ok) {
+      if (++misses < JOB_POLL_MAX_MISSES) continue;
+      await abandonSidecarJob(id);
+      return { ok: false, error: tr("Lost contact with the Python engine: {v}", { v: st.error }) };
+    }
+    misses = 0;
+    if (st.data.progress) onProgress?.(st.data.progress);
+    if (st.data.state === "done") break;
+    if (st.data.state === "cancelled") return { ok: false, cancelled: true, error: tr("Cancelled.") };
+    if (st.data.state === "failed") return { ok: false, error: st.data.error || tr("The job failed.") };
+  }
+  return sidecarJobResult(id);
+}
+
 export async function pythonHealth() {
   try {
     const res = await fetch(`${PY_SIDECAR_BASE}/health`, { signal: AbortSignal.timeout(2000) }); // #353: /health needs no token — never send it before the identity check

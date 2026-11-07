@@ -105,6 +105,9 @@ const args = [
   // --collect-submodules does not bundle — found when the first frozen build said "simpeg: null".
   "--copy-metadata", "simpeg", "--copy-metadata", "choclo", "--copy-metadata", "discretize",
   "--copy-metadata", "geoana", "--copy-metadata", "numba",
+  // TASKS.csv #1985 — Harmonica / Verde / Boule (pure Python) and the metadata they and xarray / pandas read at import
+  "--collect-submodules", "harmonica", "--collect-submodules", "verde", "--collect-submodules", "boule",
+  "--copy-metadata", "harmonica", "--copy-metadata", "verde", "--copy-metadata", "boule", "--copy-metadata", "xarray", "--copy-metadata", "pandas",
   "--collect-submodules", "app",
   "run_frozen.py",
 ];

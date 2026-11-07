@@ -97,6 +97,9 @@ def _child(kind, req, q, cap):
         elif kind == "dcip3d":  # TASKS.csv #643
             from app.geophys.dcip3d import run_job as run_dcip3d
             out = run_dcip3d(req, lambda ev: q.put(("progress", ev)), cap)
+        elif kind == "pfields":  # TASKS.csv #1985 — Harmonica: Euler deconvolution, equivalent sources
+            from app.geophys.pfields import run_job as run_pfields
+            out = run_pfields(req, lambda ev: q.put(("progress", ev)))
         elif kind == "implicit":
             # TASKS.csv #355 — the same implicit_model() the synchronous endpoint runs, in this process.
             from fastapi import HTTPException

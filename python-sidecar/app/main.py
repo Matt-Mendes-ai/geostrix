@@ -396,6 +396,44 @@ def _validate_dcip3d(req):
         raise HTTPException(400, "ipUse must hold true / false per reading, with at least one true.")
 
 
+# TASKS.csv #1985 — Euler deconvolution of a grid / equivalent-source gridding of a point survey (Harmonica, app/geophys/pfields.py)
+PFIELDS_MAX_GRID = 4_000_000
+PFIELDS_MAX_POINTS = 500_000
+
+
+def _validate_pfields(req):
+    op = req.get("op")
+    if op == "euler":
+        try:
+            nx, ny, dx, dy = int(req["nx"]), int(req["ny"]), float(req["dx"]), float(req["dy"])
+            win = float(req["window"])
+            float(req["x0"]); float(req["yTop"])
+        except (KeyError, TypeError, ValueError):
+            raise HTTPException(422, "Euler needs nx, ny, dx, dy, x0, yTop, values and window.")
+        if not (2 <= nx and 2 <= ny and nx * ny <= PFIELDS_MAX_GRID and dx > 0 and dy > 0):
+            raise HTTPException(400, f"The grid must be 2 x 2 to {PFIELDS_MAX_GRID:,} nodes with positive cells.")
+        if not (win >= 3 * max(dx, dy) and win <= 0.5 * max(nx * dx, ny * dy)):
+            raise HTTPException(400, "The window must be at least 3 cells and at most half the grid wide.")
+        if float(req.get("structural_index", 1)) not in (0.0, 0.5, 1.0, 2.0, 3.0):
+            raise HTTPException(400, "The structural index must be 0, 0.5, 1, 2 or 3.")
+        if not isinstance(req.get("values"), str):
+            raise HTTPException(422, "values must be base64 float32.")
+        return
+    if op == "eqs":
+        try:
+            n = len(req["x"])
+            cell, elev = float(req["cell"]), float(req["elevation"])
+            w, e, s, nn = (float(v) for v in req["region"])
+        except (KeyError, TypeError, ValueError):
+            raise HTTPException(422, "Equivalent sources need x, y, z, value, cell, elevation and region.")
+        if not (10 <= n <= PFIELDS_MAX_POINTS) or any(len(req[k]) != n for k in ("y", "z", "value")):
+            raise HTTPException(400, f"Between 10 and {PFIELDS_MAX_POINTS:,} readings, with x, y, z and value of the same length.")
+        if not (cell > 0 and e > w and nn > s and ((e - w) / cell + 1) * ((nn - s) / cell + 1) <= PFIELDS_MAX_GRID):
+            raise HTTPException(400, f"The output grid must have positive cells and at most {PFIELDS_MAX_GRID:,} nodes.")
+        return
+    raise HTTPException(400, "op must be 'euler' or 'eqs'.")
+
+
 @app.post("/v1/geophys/dcip3d/plan")
 def dcip3d_plan(req: dict = Body(...)):
     """TASKS.csv #643 — the mesh, matrix size, peak memory and a time estimate, before anything is started."""
@@ -459,8 +497,16 @@ def start_job(req: dict = Body(...)):
         if job_id is None:
             return _job_slot_busy(manager)
         return {"id": job_id, "plan": p}
+    if req.get("jobKind") == "pfields":  # TASKS.csv #1985
+        payload = req.get("request") or {}
+        _validate_pfields(payload)
+        from app.jobs import manager
+        job_id = manager.start("pfields", payload)
+        if job_id is None:
+            return _job_slot_busy(manager)
+        return {"id": job_id}
     if req.get("jobKind") != "potential":
-        raise HTTPException(400, "jobKind must be 'potential', 'implicit', 'dcip2d' or 'dcip3d'.")
+        raise HTTPException(400, "jobKind must be 'potential', 'implicit', 'dcip2d', 'dcip3d' or 'pfields'.")
     payload = req.get("request") or {}
     _validate_potential(payload)
     from app.geophys.potential import plan

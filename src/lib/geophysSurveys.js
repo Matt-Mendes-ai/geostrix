@@ -37,6 +37,7 @@ export const SURVEY_METHODS = {
   ztem_tipper: { label: "ZTEM: tipper (in-phase)", units: "ratio", group: "em" },
   mt_rho: { label: "MT / AMT: apparent resistivity", units: "Ω·m", group: "em" },
   mt_phase: { label: "MT / AMT: phase", units: "°", group: "em" },
+  euler_depth: { label: "Euler solutions: depth below the sensor", units: "m", group: "other" }, // TASKS.csv #1985
   mt_bostick: { label: "MT / AMT: Niblett–Bostick resistivity (approximate depth)", units: "log₁₀ Ω·m", group: "em" }, // TASKS.csv #1989 — points under each station
   ip: { label: "IP chargeability", units: "mV/V", group: "el" },
   res: { label: "Resistivity", units: "Ω·m", group: "el" },

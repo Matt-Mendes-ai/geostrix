@@ -4,6 +4,8 @@ import { isAreaBoundary } from "../lib/boundaryImport.js"; // TASKS.csv #1466
 import { ensureProjectCrs, ensureExportCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #615; export: #1021
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { projectEpsgChooser } from "../lib/adoptCrs.js"; // TASKS.csv #607
+import { runPfieldsJob } from "../lib/desktop.js"; // TASKS.csv #1985
+import { terrainElevationAt } from "../lib/inversion.js"; // TASKS.csv #1985 — Euler solutions under the terrain
 import React, { useMemo, useRef, useState } from "react";
 import { Image, Eye, EyeOff, Trash2, Loader2, Satellite, MapPinned, ScatterChart, SlidersHorizontal, Rainbow, Download } from "../components/icons.js";
 import SpectralIndexModal from "../components/SpectralIndexModal.jsx"; // TASKS.csv #783
@@ -78,12 +80,12 @@ function SpectrumPanel({ spectrum, onSplit }) {
 }
 
 export default function RasterModule({ embedded = false } = {}) {
-  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [], voxelModels = [] } = useStore(); // voxelModels: #1856 // projectIsEmpty/setEpsg: #607
+  const { rasters, addRaster, updateRaster, removeRaster, terrain, project, collars, boundaries, setLayers, projectIsEmpty, setEpsg, surfaceSamples = [], voxelModels = [], updateGeophysSurvey } = useStore(); // voxelModels: #1856 // projectIsEmpty/setEpsg: #607; updateGeophysSurvey: #1985
   // TASKS.csv #326 — a data grid's nodes as survey points (Geophysics -> Point cloud / Inversion). Replaces
   // any earlier points made from the same grid, so doing it twice does not double the survey.
   // TASKS.csv #373 — potential-field filters on a grid's kept values; each result is a new raster
   const [filterFor, setFilterFor] = useState(null); // raster id whose filter form is open
-  const [filt, setFilt] = useState({ kind: "rtp", inclination: "", declination: "", height: "", amplitudeInclination: "", integrate: false }); // amplitudeInclination, integrate: #1988
+  const [filt, setFilt] = useState({ kind: "rtp", inclination: "", declination: "", height: "", amplitudeInclination: "", integrate: false, si: "1", window: "" }); // amplitudeInclination, integrate: #1988; si, window: #1985
   const [filtering, setFiltering] = useState(false);
   const [spectrum, setSpectrum] = useState(null); // TASKS.csv #808 — { rasterId, spec, fit } for the open grid
   const runFilter = async (r) => {
@@ -113,6 +115,22 @@ export default function RasterModule({ embedded = false } = {}) {
       if (filt.kind === "spectrum") {
         const spec = radialSpectrum({ nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, values });
         setSpectrum({ rasterId: r.id, spec, fit: fitSpectrumDepths(spec) });
+        return;
+      }
+      // TASKS.csv #1985 — Euler deconvolution (Harmonica, in the Python engine): the solutions become a point survey coloured by depth
+      if (filt.kind === "euler") {
+        const win = Number(filt.window) > 0 ? Number(filt.window) : Math.round(10 * Math.max(g.dx, g.dy));
+        const r2 = await runPfieldsJob({ op: "euler", nx: g.nx, ny: g.ny, dx: g.dx, dy: g.dy, x0: g.x0, yTop: g.yTop, values: g.values, structural_index: Number(filt.si), window: win, observation_elevation: 0 }, { onProgress: (p) => setError({ info: true, text: p.message || tr("Working…") }) });
+        if (!r2.ok) { setError({ info: false, text: r2.error }); return; }
+        const d = r2.data, src = `${r.name} — Euler (SI ${d.structural_index}, ${win} m windows)`;
+        const rows = d.x.map((x, i) => {
+          const ground = terrain ? terrainElevationAt(terrain, x, d.y[i]) : NaN;
+          return { x, y: d.y[i], z: Number.isFinite(ground) ? +(ground - d.depth[i]).toFixed(1) : null, value: +d.depth[i].toFixed(1), depthSd: +d.depth_sd[i].toFixed(1), _src: src };
+        });
+        setLayers((l) => ({ ...l, geophys_pts: [...(l.geophys_pts || []).filter((p) => p._src !== src), ...rows] }));
+        updateGeophysSurvey(src, { method: "euler_depth", units: "m" });
+        setError({ info: true, text: d.count ? tr("Added the point survey \"{src}\": {n} solutions from {w} windows, depth {lo} to {hi} m below the grid's level (median {med} m){v}. Each kept solution lies inside its window and its depth is known to within 15 %. A depth is below the sensor: subtract the survey's height above ground for depth below ground.", { src, n: d.count.toLocaleString(), w: d.windows.toLocaleString(), lo: Math.round(Math.min(...d.depth)), hi: Math.round(Math.max(...d.depth)), med: Math.round([...d.depth].sort((a, b) => a - b)[d.depth.length >> 1]), v: terrain ? tr(", placed under the terrain in 3D") : tr("; with no terrain they have no elevation and show in plan only") }) : tr("No Euler solution passed the checks in \"{name}\": try another structural index or a larger window.", { name: r.name }) });
+        setFilterFor(null);
         return;
       }
       // TASKS.csv #1988 — worms: each node holds the greatest continuation height at which it is still an edge
@@ -498,6 +516,7 @@ export default function RasterModule({ embedded = false } = {}) {
                     <option value="upward">{tr("Upward continuation")}</option>
                     <option value="tiltdepth">{tr("Tilt-depth (contact depths)")}</option>{/* TASKS.csv #808 */}
                     <option value="worms">{tr("Worms (edges at several heights)")}</option>{/* TASKS.csv #1988 */}
+                    <option value="euler">{tr("Euler deconvolution (source depths)")}</option>{/* TASKS.csv #1985 */}
                     <option value="spectrum">{tr("Power spectrum depths + matched filter")}</option>
                   </select>
                 </div>
@@ -510,6 +529,17 @@ export default function RasterModule({ embedded = false } = {}) {
                 {filt.kind === "rtpa" && (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
                     <input type="number" min={0} max={90} placeholder={tr("Amplitude inclination ° (blank: 20° or the field's own if steeper)")} value={filt.amplitudeInclination} onChange={(e) => setFilt((p) => ({ ...p, amplitudeInclination: e.target.value }))} style={numInput} aria-label={tr("Amplitude-correction inclination")} />
+                  </div>
+                )}
+                {filt.kind === "euler" && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+                    <select value={filt.si} aria-label={tr("Structural index")} onChange={(e) => setFilt((p) => ({ ...p, si: e.target.value }))} style={{ ...numInput, flex: 2 }}>
+                      <option value="0">{tr("SI 0: magnetic contact")}</option>
+                      <option value="1">{tr("SI 1: magnetic dyke, sill or thin-sheet edge")}</option>
+                      <option value="2">{tr("SI 2: magnetic pipe; gravity sphere")}</option>
+                      <option value="3">{tr("SI 3: magnetic sphere (dipole)")}</option>
+                    </select>
+                    <input type="number" min="0" placeholder={tr("Window (m)")} value={filt.window} onChange={(e) => setFilt((p) => ({ ...p, window: e.target.value }))} style={{ ...numInput, flex: 1 }} aria-label={tr("Euler window size")} />
                   </div>
                 )}
                 {filt.kind === "worms" && (
@@ -526,6 +556,7 @@ export default function RasterModule({ embedded = false } = {}) {
                   {{ rtp: tr("For total-field magnetics, assuming induced magnetization (remanence breaks it). Unstable below ~20° inclination: use RTP for low latitudes, RTE, tilt or analytic signal there."),
                      rtpa: tr("RTP whose amplitude comes from a steeper inclination (MacLeod, Jones & Dai 1993), so it stays bounded near the magnetic equator. Positions and shapes are RTP's; amplitudes come out lower. Assumes induced magnetization."), // #1988
                      rte: tr("Reduction to the equator (Leu 1982): stable at any inclination. Magnetic bodies show as lows elongated along the declination; read the lows, or flip the colour ramp."),
+                     euler: tr("Source positions and depths from Euler's equation in sliding windows (Reid et al. 1990; Harmonica, in the Python engine). Run it on an RTP or gravity grid. The structural index is the source shape; the window should span an anomaly (blank: 10 cells). Takes a few seconds; the first run starts the engine."),
                      worms: tr("Edges at doubling heights of upward continuation (Hornby et al. 1999): crests of the horizontal gradient at each height. Run it on gravity, or on an RTP grid with the box ticked. Takes a few seconds on a large grid."), vd1: tr("Sharpens shallow sources; also amplifies noise."), tiltdepth: tr("Depth to the top of contacts along the tilt's zero contour: 1 / its horizontal gradient (Salem et al. 2007). Run it on an RTP grid; it assumes near-vertical contacts and reads depth below the sensor."), spectrum: tr("Radially averaged power spectrum: the slope of each straight segment gives the mean depth of a group of sources (Spector & Grant 1970). Deep and shallow segments are fitted for you; the matched filter then splits the grid into those two parts."), tilt: tr("Angle between vertical and horizontal gradients (±90°); zero-crossings trace source edges whatever the depth or amplitude."), as: tr("Peaks over source edges regardless of magnetization direction — the honest choice where remanence breaks RTP."), upward: tr("Smooths out shallow sources to show the deeper / regional field; the height is metres above the grid's observation level.") }[filt.kind]}
                 </div>
                 <button onClick={() => runFilter(r)} disabled={filtering} style={{ marginTop: 6, width: "100%", padding: "5px 8px", border: "1px solid var(--color-selected-border)", background: "var(--color-selected-bg)", color: "var(--color-primary)", borderRadius: 5, cursor: filtering ? "default" : "pointer", fontSize: "var(--font-size-sm)" }}>

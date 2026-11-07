@@ -23,3 +23,10 @@ geoana==0.8.1
 choclo==0.3.2
 pymatsolver==0.4.0
 libdlf==0.3.0
+
+# TASKS.csv #1985 — Harmonica (Euler deconvolution, equivalent sources), Verde (gridding), Boule (normal gravity): Fatiando a
+# Terra, BSD-3. Pulls xarray, pandas, scikit-learn, dask, xrft, pooch (all BSD / MIT / Apache; certifi MPL-2.0, unmodified).
+# Frozen: +48 MB (288 -> 336 MB, measured on a scratch build). Imported only inside a job's own process (~3 s).
+harmonica==0.7.0
+verde==1.9.0
+boule==0.7.0
