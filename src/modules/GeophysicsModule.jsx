@@ -1945,7 +1945,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                       closed.push(pl.length > 3 && Math.hypot(a.x - b.x, a.y - b.y) < 1e-6);
                       lineLevels.push(level);
                     }));
-                    addBoundary({ name: tr("{terrain} contours ({interval} m)", { terrain: terrain.name, interval: contourInterval }), polylines: lines, closedFlags: closed, contourLevels: lineLevels, useVertexZ: true, color: contourColor, drapeMode: "flat" });
+                    addBoundary({ name: tr("{terrain} contours ({interval} m)", { terrain: terrain.name, interval: contourInterval }), polylines: lines, closedFlags: closed, contourLevels: lineLevels, contourInterval: contourInterval, useVertexZ: true, color: contourColor, drapeMode: "flat" }); // contourInterval: #1466, its index contours
                     setContourMsg({ info: true, text: tr(levels.length === 1 ? "Generated {levels} contour level ({contourInterval} m interval) as one boundary.{v2}" : "Generated {levels} contour levels ({contourInterval} m interval) as one boundary.{v2}", { levels: levels.length, contourInterval, v2: truncated ? tr(" Stopped at the 200-level cap — use a larger interval for full coverage.") : "" }) });
                     setContourOpen(false);
                   }}
@@ -1999,6 +1999,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Colour")}</span>
               <input type="color" value={b.color || "#e2a63c"} onChange={(e) => updateBoundary(b.id, { color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent" }} />
             </div>
+            {(b.contourLevels || []).length > 0 && ( /* TASKS.csv #1466 / #1622 — a contour layer's labels in the 3D View */
+              <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: "pointer" }}
+                title={tr("Writes the level on the index contours in the 3D View (every fifth level of a regular series, every level of a few chosen ones); the other levels are drawn fainter.")}>
+                <input type="checkbox" checked={b.contourLabels !== false} onChange={(e) => updateBoundary(b.id, { contourLabels: e.target.checked })} />
+                <span style={{ color: "var(--color-text-caption)" }}>{tr("Label index contours")}</span>
+              </label>
+            )}
           </div>
         ))}
 

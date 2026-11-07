@@ -8616,5 +8616,7 @@
   "{unit}: no top contacts it can use (the notes above say why). As the youngest unit of the stack it needs none: the stack is modelled from the top of the unit below it down.": "{unit}: no tiene contactos de techo utilizables (las notas anteriores explican por qué). Como unidad más joven de la pila no los necesita: la pila se modela desde el techo de la unidad inferior hacia abajo.",
   "One contact to model: {surface}. The stack has no second surface to keep it from crossing, so it is solved on its own.": "Un contacto para modelar: {surface}. La pila no tiene una segunda superficie que impida cruces, así que se resuelve por sí solo.",
   "{surface} (the base of {ovb})": "{surface} (la base de {ovb})",
-  "{surface} (the base of {unit})": "{surface} (la base de {unit})"
+  "{surface} (the base of {unit})": "{surface} (la base de {unit})",
+  "Writes the level on the index contours in the 3D View (every fifth level of a regular series, every level of a few chosen ones); the other levels are drawn fainter.": "Escribe el nivel en las curvas maestras en la Vista 3D (cada quinto nivel de una serie regular, cada nivel si son pocos elegidos); los demás niveles se dibujan más tenues.",
+  "Label index contours": "Rotular curvas maestras"
 }

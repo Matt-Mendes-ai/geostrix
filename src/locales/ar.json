@@ -8616,5 +8616,7 @@
   "{unit}: no top contacts it can use (the notes above say why). As the youngest unit of the stack it needs none: the stack is modelled from the top of the unit below it down.": "{unit}: لا توجد ملامسات علوية صالحة للاستخدام (توضح الملاحظات أعلاه السبب). وبوصفها أحدث وحدة في التتابع فلا تحتاج إليها: يُنمذج التتابع بدءًا من سطح الوحدة التي تحتها نزولًا.",
   "One contact to model: {surface}. The stack has no second surface to keep it from crossing, so it is solved on its own.": "ملامس واحد للنمذجة: {surface}. لا يحتوي التتابع على سطح ثانٍ يمنع التقاطع، لذا يُحَل وحده.",
   "{surface} (the base of {ovb})": "{surface} (قاعدة {ovb})",
-  "{surface} (the base of {unit})": "{surface} (قاعدة {unit})"
+  "{surface} (the base of {unit})": "{surface} (قاعدة {unit})",
+  "Writes the level on the index contours in the 3D View (every fifth level of a regular series, every level of a few chosen ones); the other levels are drawn fainter.": "يكتب قيمة المستوى على خطوط الكنتور الرئيسية في العرض ثلاثي الأبعاد (كل خامس مستوى في سلسلة منتظمة، وكل مستوى إن كانت مستويات قليلة مختارة)؛ وتُرسم المستويات الأخرى بلون أخفت.",
+  "Label index contours": "تسمية خطوط الكنتور الرئيسية"
 }

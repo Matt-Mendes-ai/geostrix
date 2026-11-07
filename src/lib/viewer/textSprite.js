@@ -2,6 +2,7 @@
 // size cap, #1084). makeTextSprite draws the text on a canvas sprite that fitScreenLabels keeps LABEL_PX tall on screen; the
 // comments of both were written in ViewerModule and are kept as they were (TASKS.csv #379, #380).
 import * as THREE from "three";
+import { declutterHoleLabels } from "./holeLabels.js"; // #1466
 
 export const LABEL_PX = 16;
 const LABEL_FONT = "600 32px 'Exo 2', system-ui, sans-serif";
@@ -42,5 +43,18 @@ export function fitScreenLabels(group, camera, viewportH) {
   for (const sp of group.children) {
     const a = sp.material?.userData?.labelAspect;
     if (a) sp.scale.set(s * a, s, 1);
+  }
+}
+
+// TASKS.csv #1466 / #1622 — each visible contour layer's labels (the boundary group's child flagged userData.contourLabels): kept
+// LABEL_PX tall and, when `declutter`, thinned where they overlap, as the hole labels are
+export function fitContourLabels(boundaryGroup, camera, width, height, declutter = true) {
+  for (const g of boundaryGroup?.children || []) {
+    if (!g.visible) continue;
+    for (const c of g.children) {
+      if (!c.userData?.contourLabels || !c.children.length) continue;
+      fitScreenLabels(c, camera, height);
+      if (declutter) declutterHoleLabels(c, camera, width, height);
+    }
   }
 }

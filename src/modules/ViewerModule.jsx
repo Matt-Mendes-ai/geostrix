@@ -165,7 +165,7 @@ import { makeSurveyColorer } from "../lib/geophysSurveys.js"; // TASKS.csv #451
 import { searchEllipsoidBasis, searchEllipsoidDistSq, voxelCellShown, sampleTerrainElevation, terrainGroundAt } from "../lib/viewer/geomath.js"; // TASKS.csv #445
 import { assaySizeFor, assayPassesCutoff } from "../lib/viewer/assaySize.js"; // #1533 — moved out
 import { objectVisibilityBundle, applyObjectVisibility } from "../lib/viewer/themeObjects.js"; // TASKS.csv #1535
-import { LABEL_PX, makeTextSprite, fitScreenLabels } from "../lib/viewer/textSprite.js"; // TASKS.csv #1443 — moved out of this file
+import { LABEL_PX, makeTextSprite, fitScreenLabels, fitContourLabels } from "../lib/viewer/textSprite.js"; // TASKS.csv #1443 — moved out of this file; fitContourLabels: #1466
 import { restrictLayersToHoles } from "../lib/modelArea.js"; // TASKS.csv #1546
 import { syncHoleLabels, declutterHoleLabels, withEveryLabel, syncTextLabels, sampleLabelItems } from "../lib/viewer/holeLabels.js"; // withEveryLabel: TASKS.csv #1770; syncTextLabels / sampleLabelText: #1443
 import { PickStandIn, PICK_ONLY_LAYER } from "../lib/viewer/pickStandIn.js"; // TASKS.csv #1500
@@ -1926,7 +1926,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     if (rasterGroupRef.current) list.push(...rasterGroupRef.current.children);
     if (plannedGroupRef.current) list.push(...plannedGroupRef.current.children);
     if (implicitGroupRef.current) list.push(...implicitGroupRef.current.children);
-    if (boundaryGroupRef.current) list.push(...boundaryGroupRef.current.children.flatMap((g) => g.children || []));
+    if (boundaryGroupRef.current) list.push(...boundaryGroupRef.current.children.flatMap((g) => (g.children || []).filter((c) => !c.userData?.contourLabels))); // #1466: not its labels
     // TASKS.csv #312 — a layer group now also holds the InstancedMesh batches that DRAW its
     // children (see buildLayerBatches). Those are never pick targets: raycasting an InstancedMesh
     // would test every instance (undoing #304's whole win) and would answer with an instanceId
@@ -2563,6 +2563,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
           }
         }
         if (sectionLinesGroupRef.current?.children.length) fitScreenLabels(sectionLinesGroupRef.current, camera, mount.clientHeight); // #1126 — section end labels
+        fitContourLabels(boundaryGroupRef.current, camera, mount.clientWidth, mount.clientHeight); // #1466 / #1622
         renderer.setViewport(0, 0, mount.clientWidth, mount.clientHeight);
         renderer.setScissorTest(false);
         renderer.clippingPlanes = slicePlanesRef.current; // #453 — main scene only
@@ -2999,6 +3000,7 @@ ${describeTrend(t)}` };
         const hl = layerGroupsRef.current?.hole_labels;
         fitScreenLabels(hl, renderCamera, outH); // #379
         fitScreenLabels(sectionLinesGroupRef.current, renderCamera, outH); // #1126
+        fitContourLabels(boundaryGroupRef.current, renderCamera, outW, outH, false); // #1466 — sized for the capture; the live declutter kept
         renderer.clippingPlanes = slicePlanesRef.current; // #453 — the figure shows the slice you see
         // TASKS.csv #1770 — a drill plan labels every hole: the live view's declutter (#1294) must not hide one in the capture
         labelsOverlapping = withEveryLabel(hl, renderCamera, outW, outH, () => renderer.render(scene, renderCamera), LABEL_PX); // outW x outH: the frame fitScreenLabels sized the labels against (the canvas is that times the print pixel ratio)

@@ -10,6 +10,8 @@ import { drawMapLayer, mapStyleSignature, mapTextureSize, STRUCTURE_CLASS_COLORS
 import { decodeNoDataMask, isNoData } from "../demFill.js"; // TASKS.csv #421
 import { buildAdaptiveTerrain } from "../terrainMesh.js"; // TASKS.csv #796
 import { keyedCanvas } from "../rasterKey.js"; // TASKS.csv #1623
+import { contourLabelSpots, indexLevels } from "../contourLabels.js"; // TASKS.csv #1466 / #1622
+import { makeTextSprite } from "./textSprite.js"; // TASKS.csv #1466 / #1622
 
 // ---------- rebuild raster drapes (TASKS.csv #24, #81) ----------
 // Deliberately its own effect, not folded into the geometry-rebuild effect above: rasters come from
@@ -131,13 +133,20 @@ export function syncRasterDrapes(group, cache, rasters, { origin, terrain, rende
 // the whole boundary at once. Every loop is closed (LineLoop, not Line) even for source files that
 // don't explicitly repeat the first vertex — real samples are inconsistent about that, and a closed
 // loop is the more useful default for a property/survey boundary either way.
+// TASKS.csv #1466 / #1622 — a contour layer's group also holds its labels (userData.contourLabels: sprites, no geometry)
+function disposeBoundaryGroup(g) {
+  g.children.forEach((c) => {
+    if (c.userData?.contourLabels) c.children.forEach((sp) => { sp.material?.map?.dispose?.(); sp.material?.dispose?.(); });
+    else { c.geometry?.dispose?.(); c.material?.dispose?.(); }
+  });
+}
 export function syncBoundaries(group, cache, boundaries, { origin, terrain }) {
   const wantedIds = new Set(boundaries.map((b) => b.id));
   Object.keys(cache).forEach((id) => {
     if (!wantedIds.has(id)) {
       const g = cache[id];
       group.remove(g);
-      g.children.forEach((line) => { line.geometry.dispose(); line.material.dispose(); });
+      disposeBoundaryGroup(g);
       delete cache[id];
     }
   });
@@ -148,11 +157,17 @@ export function syncBoundaries(group, cache, boundaries, { origin, terrain }) {
     // samples: a few dozen), so this is cheap enough not to need the raster effect's more careful
     // geoKey-based reuse.
     let g = cache[b.id];
-    if (g) { group.remove(g); g.children.forEach((line) => { line.geometry.dispose(); line.material.dispose(); }); }
+    if (g) { group.remove(g); disposeBoundaryGroup(g); }
     g = new THREE.Group();
     const drapeOnTerrain = b.drapeMode === "terrain" && !!terrain;
     const elevation = b.elevation ?? oz;
     const material = new THREE.LineBasicMaterial({ color: b.color || "#e2a63c" });
+    // TASKS.csv #1466 / #1622 — a contour layer: the in-between levels drawn fainter than the index contours (lib/contourLabels.js),
+    // which carry the labels. A layer of a few chosen levels (a geochemistry grid's) has every level as an index contour.
+    const isContours = (b.contourLevels || []).length > 0;
+    const index = isContours ? indexLevels(b) : null;
+    const faint = isContours ? new THREE.LineBasicMaterial({ color: b.color || "#e2a63c", transparent: true, opacity: 0.45 }) : null;
+    const elevAt = (p) => (drapeOnTerrain ? sampleTerrainElevation(terrain, p.x, p.y) + (b.lift || 0) : (b.useVertexZ && Number.isFinite(p.z) ? p.z : elevation));
     (b.polylines || []).forEach((pts, pi) => {
       if (pts.length < 2) return;
       const positions = new Float32Array(pts.length * 3);
@@ -160,7 +175,7 @@ export function syncBoundaries(group, cache, boundaries, { origin, terrain }) {
         // TASKS.csv #408 — a 3D string (DXF with elevations) is drawn at its own vertex Z.
         // TASKS.csv #845 — b.lift (m): a draped line in a valley bottom (a stream) sits a little above the terrain mesh,
         // whose adaptive triangles (#796) can otherwise cover it between grid nodes
-        const el = drapeOnTerrain ? sampleTerrainElevation(terrain, p.x, p.y) + (b.lift || 0) : (b.useVertexZ && Number.isFinite(p.z) ? p.z : elevation);
+        const el = elevAt(p);
         positions[i * 3] = p.x - ox;
         positions[i * 3 + 1] = el - oz;
         positions[i * 3 + 2] = -(p.y - oy);
@@ -170,8 +185,21 @@ export function syncBoundaries(group, cache, boundaries, { origin, terrain }) {
       // TASKS.csv #408 — open strings stay open; only polylines flagged closed (or boundaries without
       // flags, i.e. every pre-#408 import) are drawn as loops.
       const isClosed = Array.isArray(b.closedFlags) ? !!b.closedFlags[pi] : true;
-      g.add(isClosed ? new THREE.LineLoop(geometry, material) : new THREE.Line(geometry, material));
+      const m = isContours && !index.has(Number(b.contourLevels[pi])) ? faint : material;
+      g.add(isClosed ? new THREE.LineLoop(geometry, m) : new THREE.Line(geometry, m));
     });
+    if (isContours && b.contourLabels !== false) {
+      const labels = new THREE.Group();
+      labels.userData = { contourLabels: true };
+      for (const s of contourLabelSpots(b)) {
+        const sp = makeTextSprite(s.text, { color: "#1a2028", bg: "rgba(255,255,255,0.8)" });
+        sp.center.set(0.5, 0.5); // on the line, not above it
+        sp.position.set(s.x - ox, elevAt(s) - oz + 1, -(s.y - oy));
+        sp.userData = { tip: s.text };
+        labels.add(sp);
+      }
+      g.add(labels);
+    }
     g.visible = b.visible !== false;
     group.add(g);
     cache[b.id] = g;
