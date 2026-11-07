@@ -7933,9 +7933,10 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         {lastLithBlock && (
           <div style={{ margin: "8px 0 4px", padding: "8px 10px", border: "1px solid var(--color-border)", borderRadius: 6, background: "var(--color-bg-subtle)", fontSize: "var(--font-size-sm)" }}>
             <div style={{ color: "var(--color-text)", marginBottom: 6 }}>{lastLithBlock.matchedPct != null ? tr("Last model ({title}, {when}) reproduces {pct}% of the logged metres.", { title: lastLithBlock.title, when: lastLithBlock.when, pct: lastLithBlock.matchedPct }) : tr("Last model ({title}, {when}).", { title: lastLithBlock.title, when: lastLithBlock.when })}</div>
+            {!lastLithBlock.structural && <>{/* #1554 */}
             <button onClick={addUnitVolumes} style={{ ...pBtn, marginBottom: 4 }} title={tr("Each modelled unit as a closed solid (its cells, closed at the model box): export as DXF / OBJ, volume / tonnage, cut on sections and plans, and a domain for grade estimation")}><Box size={14} />{" "}{tr("Add unit volumes (closed)")}</button>
             <button onClick={addLithBlockModel} style={{ ...pBtn, marginBottom: 4 }} title={tr("The model's units as a block model: 3D view, slice/cutoff controls and cross-sections, like any other block model. The space above every modelled top is left out.")}><Box size={14} />{" "}{tr("Add as block model")}</button>
-            <button onClick={addModelledLayer} style={{ ...pBtn, marginBottom: 0 }} title={tr("An interval layer with the unit the model puts at each logged litho interval — shown next to the logged litho in the strip log, and on the holes in 3D / sections.")}><Layers3 size={14} />{" "}{tr("Add \"modelled unit\" layer to holes")}</button>
+            <button onClick={addModelledLayer} style={{ ...pBtn, marginBottom: 0 }} title={tr("An interval layer with the unit the model puts at each logged litho interval — shown next to the logged litho in the strip log, and on the holes in 3D / sections.")}><Layers3 size={14} />{" "}{tr("Add \"modelled unit\" layer to holes")}</button></>}
           </div>
         )}
         <div className="ge-section-label" style={{ marginTop: 16 }}>{tr("Generated surfaces")}</div>
