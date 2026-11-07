@@ -33,6 +33,41 @@ export default [
     },
   },
   {
+    id: "mt-soundings",
+    area: "Geophysics",
+    title: "MT / AMT soundings (.edi)",
+    related: ["point-survey", "block-models", "dcip"],
+    summary: "Magnetotelluric and audio-MT soundings from EDI files, the plain-text format MT contractors deliver: apparent resistivity and phase against period for each station (xy, yx and the rotation-free determinant), a pseudosection per line, and a Niblett–Bostick depth transform drawn under the stations in 3D as a point survey. A first look at the data in depth; the contractor's 2D or 3D inversion is the model to interpret.",
+    notFor: [
+      "It does not invert the soundings: import the contractor's inverted model under Block models (UBC mesh and model, or a block-model CSV).",
+      "The depths are a 1D transform: under a 3D body (a conductor beside the station, a steep contact) they are wrong in place and value.",
+      "It reads impedance EDI files (>=MTSECT); spectra files (>=SPECTRASECT) must be exported as impedances first. Tipper and the time series are not read.",
+    ],
+    fields: [
+      { name: "Import EDI files", what: "Reads one or many .edi files into one survey, named after the files' PROSPECT, e.g. MT soundings (MPD). A station read again replaces its earlier copy, so lines can be imported one at a time. Dropping the files on the Geophysics tab does the same.", choose: "Import all the lines of a survey; the pseudosection is drawn per line." },
+      { name: "Units", what: "Impedances are in SI units (ohm) or in field units, (mV/km)/nT, the EDI default. When the file carries its own apparent resistivity (>RHOXY) the units are taken from it; otherwise from a note in >INFO, otherwise field units. The import message says which." },
+      { name: "Line", what: "The stations whose names start with the same line, e.g. 1100N for 1100N3550, in order along their best-fit direction. Names without a line are all one group." },
+      { name: "Pseudosection", what: "Stations along the line against period, short periods (shallow) at the top, coloured by log apparent resistivity (low resistivity red) or by phase (0 to 90 degrees). Click a column for its station.", choose: "Determinant for one rotation-free picture; xy and yx for the two modes when the strike is known." },
+      { name: "Station curves", what: "Apparent resistivity (log scale) and phase against period for the station: xy blue, yx red, determinant black. Phases are folded into 0 to 180 degrees: a uniform half-space reads 45 degrees; above 45 the ground gets more conductive with depth." },
+      { name: "Depth points in 3D", what: "Each frequency of the determinant turned into a resistivity at a depth (Niblett–Bostick: depth = square root of apparent resistivity over angular frequency times the permeability of free space), below the station's elevation from the EDI file. They are a point survey on the Point survey pane, coloured by log10 of the resistivity in ohm-metres." },
+    ],
+    warnings: [
+      { says: "{name} holds MT spectra (>=SPECTRASECT), not impedances: export it from the processing software as impedances (>=MTSECT), then import that.", means: "The file stores cross-power spectra, which need processing into impedances.", do: "Ask the contractor for the impedance EDI files, or export them from the processing software." },
+      { says: "{n} station(s) have no latitude / longitude or no elevation: their curves are here, with no points in 3D.", means: "A depth below an unknown position or surface is not a place.", do: "Check the LAT, LONG and ELEV lines of the files' >HEAD block." },
+      { says: "{n} reading(s) were left out of the depth transform: their phase is outside 0 to 90°.", means: "A phase outside the first quadrant has no 1D meaning (noise, or a 3D effect); those frequencies give no depth point.", do: "Nothing: their curves are still shown." },
+    ],
+    howto: {
+      sample: "a contractor's AMT survey (any project)",
+      steps: [
+        "Geophysics tab: drop the .edi files of the survey (or Geophysics > MT / AMT > Import EDI files).",
+        "If the project is empty, accept the UTM zone offered for the stations' latitude and longitude.",
+        "Pick a line; read the pseudosection of the determinant's apparent resistivity, then its phase.",
+        "Click a station to read its curves; xy and yx apart mean a 2D or 3D structure.",
+        "Turn to the 3D View: the depth points sit under the stations; import the contractor's inversion under Block models to compare.",
+      ],
+    },
+  },
+  {
     id: "block-models",
     area: "Geophysics",
     title: "Voxel / block models",

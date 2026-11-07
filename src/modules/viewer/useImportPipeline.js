@@ -707,8 +707,11 @@ export function useImportPipeline(ctx) {
     let files = grouped.files.filter((f) => /\.(csv|zip|gpkg|shp|kml|kmz|xlsx|las)$/i.test(f.name)); // kml/kmz: #424, xlsx: #605, las: #492
     // TASKS.csv #603 — a closed format (Geosoft .gdb / .grd, .dwg, Access) gets the way out, not "unrecognized"
     const advised = grouped.files.map((f) => unreadableFormatAdvice(f.name)).filter(Boolean);
+    // TASKS.csv #1989 — MT / AMT soundings are read on the Geophysics tab, not here
+    const ediNames = grouped.files.filter((f) => /\.edi$/i.test(f.name)).map((f) => f.name);
+    if (ediNames.length) advised.push(notice("{names}: MT / AMT soundings are read on the Geophysics tab. Drop the .edi files there, or use Geophysics > MT / AMT.", { names: ediNames.slice(0, 4).join(", ") + (ediNames.length > 4 ? " …" : "") }));
     if (advised.length) setNotices((p) => [...p, ...advised]);
-    const skipped = grouped.files.length - files.length - direct.length - advised.length + grouped.unmatched.length;
+    const skipped = grouped.files.length - files.length - direct.length - advised.length - Math.max(0, ediNames.length - 1) /* #1989: one notice for all of them */ + grouped.unmatched.length;
     if (!files.length) {
       if (!direct.length && !advised.length) setNotices((p) => [...p, notice("Only .csv, .xlsx, .zip (shapefile), .shp, .gpkg, .kml/.kmz, .las logs, GeoTIFF / .gxf grids and .dxf / .obj files can be dropped in directly.")]);
       else if (skipped) setNotices((p) => [...p, notice("{skipped} unrecognized file(s) skipped.", { skipped })]);

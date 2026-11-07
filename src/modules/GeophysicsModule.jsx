@@ -58,7 +58,8 @@ import DcipPanel from "../components/DcipPanel.jsx"; // TASKS.csv #322 — 2D DC
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { Activity as RActivity } from "../components/icons.js"; // TASKS.csv #1425
 const DownholeLogsPane = React.lazy(() => import("../components/DownholeLogsPane.jsx")); // TASKS.csv #1425
-import { Zap as RZap, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "../components/icons.js";
+const MtSoundingsPane = React.lazy(() => import("../components/MtSoundingsPane.jsx")); // TASKS.csv #1989
+import { Waves as RWaves /* #1989 */, Zap as RZap, Radar as RRadar, Magnet as RMagnet, Mountain as RMountain, Shapes as RShapes, Globe as RGlobe, Flag as RFlag, Settings2 as RSettings2, Package as RPackage, Box as RBox } from "../components/icons.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
 import { unreadableFormatAdvice } from "../lib/unreadableFormats.js"; // TASKS.csv #603
@@ -129,6 +130,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const [geoPaneState, setGeoPane] = useState("points"); // TASKS.csv #458 — the sidebar shows the tool picked on the ribbon
   const geoPane = forcePane || geoPaneState; // #749 — the Maps tab chooses the pane
   const geoBtn = (id) => ({ active: geoPane === id, onClick: () => setGeoPane(id) });
+  const [mtDrop, setMtDrop] = useState(null); // TASKS.csv #1989 — .edi files dropped on the tab, for the MT pane
   const {
     layers, replaceLayer, goToModule, collars, rasters, addRaster, project, surfaceSamples, // #845 — the terrain picker over a samples-only project
     terrain, addTerrain, updateTerrain, removeTerrain,
@@ -1383,8 +1385,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         // files used to be ignored here without a word
         const advice = files.map((f) => unreadableFormatAdvice(f.name)).filter(Boolean);
         // TASKS.csv #1667 — every other file this tab does not read is named too (a UBC .msh / .den went nowhere without a word)
-        const other = files.filter((f) => !/\.(csv|tiff?|gxf|ply|dxf|xyz)$/i.test(f.name) && !unreadableFormatAdvice(f.name)).map((f) => f.name);
-        if (other.length) advice.push(tr("Not imported from this drop: {names}. Dropped here, this tab reads CSV, GeoTIFF, GXF, XYZ and PLY / DXF; a UBC mesh and model go through Block models.", { names: other.slice(0, 6).join(", ") + (other.length > 6 ? " …" : "") }));
+        const other = files.filter((f) => !/\.(csv|tiff?|gxf|ply|dxf|xyz|edi)$/i.test(f.name) && !unreadableFormatAdvice(f.name)).map((f) => f.name);
+        if (other.length) advice.push(tr("Not imported from this drop: {names}. Dropped here, this tab reads CSV, GeoTIFF, GXF, XYZ, PLY / DXF and EDI (MT soundings); a UBC mesh and model go through Block models.", { names: other.slice(0, 6).join(", ") + (other.length > 6 ? " …" : "") }));
+        // TASKS.csv #1989 — MT / AMT soundings go to their own pane, which reads them
+        const edis = files.filter((f) => /\.edi$/i.test(f.name));
+        if (edis.length) { setMtDrop(edis); setGeoPane("mt"); }
         if (advice.length) setRasterError({ info: true, text: advice.join(" ") });
         // A dropped .tif is ambiguous between a raster drape (#24) and a DEM (#77) — both are plain
         // georeferenced GeoTIFFs, nothing in the file format itself says which. Heuristic: a filename
@@ -1419,6 +1424,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             <RibbonButton icon={RRadar} label="Point survey" tone="data" title="Import a mag / gravity / IP / radiometric point survey (CSV or Geosoft .xyz)" {...geoBtn("points")} />
             <RibbonButton advanced icon={RMagnet} label="Inversion" tone="model" title="Magnetics / gravity inversion and forward modelling (SimPEG)" {...geoBtn("inversion")} />
             <RibbonButton advanced icon={RZap} label="DC / IP" tone="model" title="2D DC resistivity / IP line inversion (SimPEG)" {...geoBtn("dcip")} />
+            <RibbonButton advanced icon={RWaves} label="MT / AMT" tone="data" title="MT / AMT soundings from EDI files: curves, pseudosections and approximate depths" {...geoBtn("mt")} />{/* TASKS.csv #1989 */}
           </RibbonGroup>
           {/* #749 — Terrain, map layers, web layers, boundaries and claims moved to the Maps tab */}
           <RibbonGroup label="Models">
@@ -2117,6 +2123,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
             below (both already accepted a maxCells parameter, just previously always the same
             hardcoded default). */}
         </>)}
+        {geoPane === "mt" && (<Suspense fallback={null}><MtSoundingsPane layers={layers} setLayers={setLayers} geophysSurveys={geophysSurveys} updateGeophysSurvey={updateGeophysSurvey} project={project} setEpsg={setEpsg} projectIsEmpty={projectIsEmpty} pendingFiles={mtDrop} onPendingDone={() => setMtDrop(null)} onClose={() => setGeoPane(null)} /></Suspense>)}{/* TASKS.csv #1989 */}
         {geoPane === "logs" && (<Suspense fallback={null}><DownholeLogsPane layers={layers} customLayers={customLayers} assays={assays} assayElements={assayElements} onClose={() => setGeoPane(null)} onEstimate={() => goToModule("modelling")} /></Suspense>)}{/* TASKS.csv #1425 */}
         {geoPane === "budget" && (<>
         <TaskPaneHeader title="3D view cell budget" icon={RSettings2} tone="view" />
