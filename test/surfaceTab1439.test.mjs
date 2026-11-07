@@ -31,7 +31,7 @@ test("a drawn geology layer: polygon map layer with a unit field; a polygon clos
 
 test("the Surface Geology ribbon carries Unit polygons, Interpret, Identify and Rock chips; the viewer mounts it and the pane", () => {
   const parts = readFileSync(new URL("../src/modules/viewer/ViewerParts.jsx", import.meta.url), "utf8");
-  assert.match(parts, /export function SurfaceRibbon\(\{ show, paneProps, onStereonet, onModelIt, identifyOn, onToggleIdentify, interpretOpen, onInterpret, onPolygons, onStyleSamples, sampleCount = 0 \}\)/);
+  assert.match(parts, /export function SurfaceRibbon\(\{ show, paneProps, onStereonet, onModelIt, mapPolygons = true, identifyOn, onToggleIdentify, interpretOpen, onInterpret, onPolygons, onStyleSamples, sampleCount = 0 \}\)/);
   for (const l of ["Unit polygons", "Interpret", "Identify", "Rock chips", "Geology map", "Outcrop structures", "Stereonet", "Model it"]) assert.ok(parts.includes(`label="${l}"`), l);
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
   assert.match(v, /\{mode === "surface" && <SurfaceRibbon show=\{visible && !bare\}/); // bare: #1979

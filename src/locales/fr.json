@@ -9042,5 +9042,7 @@
   "Count only planes dipping at least this much: a near-flat plane's strike is poorly defined and can swamp a strike rose. 0 counts every plane.": "Ne compte que les plans pendant d'au moins cette valeur : la direction d'un plan presque horizontal est mal définie et peut dominer une rosace des directions. 0 compte tous les plans.",
   "Dips of at least (°)": "Pendages d'au moins (°)",
   "Minimum dip for the rose": "Pendage minimal pour la rosace",
-  "These samples' coordinates need the project's coordinate system: choose the one they are in.": "Les coordonnées de ces échantillons ont besoin du système de coordonnées du projet : choisissez celui dans lequel elles sont."
+  "These samples' coordinates need the project's coordinate system: choose the one they are in.": "Les coordonnées de ces échantillons ont besoin du système de coordonnées du projet : choisissez celui dans lequel elles sont.",
+  "Import a geology map (Geology map) or draw its units (Unit polygons) first: Model it builds from map polygons with a unit field": "Importez d'abord une carte géologique (Carte géologique) ou dessinez ses unités (Polygones d'unités) : Modéliser part de polygones de carte avec un champ d'unité",
+  "Import a geological map (polygons with a unit attribute) in the Surface Geology tab first, or draw its units there (Unit polygons): the {n} outcrop measurement(s) are already loaded.": "Importez d'abord une carte géologique (polygones avec un attribut d'unité) dans l'onglet Géologie de surface, ou dessinez-y ses unités (Polygones d'unités) : les {n} mesures d'affleurement sont déjà chargées."
 }

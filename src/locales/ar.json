@@ -9042,5 +9042,7 @@
   "Count only planes dipping at least this much: a near-flat plane's strike is poorly defined and can swamp a strike rose. 0 counts every plane.": "احسب فقط المستويات التي يبلغ ميلها هذا القدر على الأقل: اتجاه المستوى شبه الأفقي غير محدد جيدًا وقد يطغى على وردة الاتجاهات. 0 يحسب كل المستويات.",
   "Dips of at least (°)": "ميول لا تقل عن (°)",
   "Minimum dip for the rose": "أدنى ميل للوردة",
-  "These samples' coordinates need the project's coordinate system: choose the one they are in.": "تحتاج إحداثيات هذه العينات إلى نظام إحداثيات المشروع: اختر النظام الذي كُتبت به."
+  "These samples' coordinates need the project's coordinate system: choose the one they are in.": "تحتاج إحداثيات هذه العينات إلى نظام إحداثيات المشروع: اختر النظام الذي كُتبت به.",
+  "Import a geology map (Geology map) or draw its units (Unit polygons) first: Model it builds from map polygons with a unit field": "استورد أولًا خريطة جيولوجية (الخريطة الجيولوجية) أو ارسم وحداتها (مضلعات الوحدات): تبني «نمذجته» على مضلعات خريطة بحقل وحدة",
+  "Import a geological map (polygons with a unit attribute) in the Surface Geology tab first, or draw its units there (Unit polygons): the {n} outcrop measurement(s) are already loaded.": "استورد أولًا خريطة جيولوجية (مضلعات بسمة وحدة) في تبويب جيولوجيا السطح، أو ارسم وحداتها هناك (مضلعات الوحدات): القياسات الحقلية البالغة {n} محمّلة بالفعل."
 }

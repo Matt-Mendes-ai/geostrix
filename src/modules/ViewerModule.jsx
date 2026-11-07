@@ -7178,7 +7178,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
         </Ribbon>
       )}
       {/* TASKS.csv #820 — Surface Geology ribbon: the mapping workflow (3D model building stays in 3D Modelling) */}
-      {mode === "surface" && <SurfaceRibbon show={visible && !bare} paneProps={paneProps} onStereonet={() => setStereonetOpen(true)} onModelIt={() => { pendingPaneRef.current = "mapmodel"; store.goToModule("modelling"); }} identifyOn={identify.on} onToggleIdentify={toggleIdentify} interpretOpen={interpretOpen} onInterpret={() => openInterpret(true)} onPolygons={() => openInterpret("polygon")} onStyleSamples={() => openLayerStyle("surface_samples", "Surface samples")} sampleCount={surfaceSamples.length} />}{/* #1439 */}
+      {mode === "surface" && <SurfaceRibbon show={visible && !bare} paneProps={paneProps} onStereonet={() => setStereonetOpen(true)} onModelIt={() => { pendingPaneRef.current = "mapmodel"; store.goToModule("modelling"); }} mapPolygons={(mapLayers || []).some((l) => l.geomType === "polygon")} /* #1447 */ identifyOn={identify.on} onToggleIdentify={toggleIdentify} interpretOpen={interpretOpen} onInterpret={() => openInterpret(true)} onPolygons={() => openInterpret("polygon")} onStyleSamples={() => openLayerStyle("surface_samples", "Surface samples")} sampleCount={surfaceSamples.length} />}{/* #1439 */}
       {/* TASKS.csv #458 — Targeting ribbon */}
       {mode === "minedesign" && (
         <Ribbon show={visible && !bare} label="Mine design tools">
@@ -8909,12 +8909,12 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           domains={domains}
           domainFilter={domainStereonetFilter}
           onClose={() => setStereonetOpen(false)}
-          onUseAsTrend={({ azimuth, dip }) => {
-            // TASKS.csv #650 — a new named trend from the mean plane (pitch 90 = down dip, the old behaviour)
-            const t = { ...cleanTrend({ name: `Stereonet mean (${dip.toFixed(0)}° → ${azimuth.toFixed(0)}°)`, dip: Math.round(dip * 10) / 10, dipAzimuth: Math.round(azimuth * 10) / 10, pitch: 90 }), id: `trend_${Date.now().toString(36)}` };
+          onUseAsTrend={({ azimuth, dip, terzaghi }) => {
+            // TASKS.csv #650 — a new named trend from the mean plane (pitch 90 = down dip, the old behaviour); #1446 — named with its weighting,
+            // and the user stays on the tab they were mapping in
+            const t = { ...cleanTrend({ name: `Stereonet mean${terzaghi ? " (Terzaghi-weighted)" : ""} (${dip.toFixed(0)}° → ${azimuth.toFixed(0)}°)`, dip: Math.round(dip * 10) / 10, dipAzimuth: Math.round(azimuth * 10) / 10, pitch: 90 }), id: `trend_${Date.now().toString(36)}` };
             setStructuralTrends((s) => ({ ...s, trends: [...(s.trends || []), t] }));
             setStereonetOpen(false);
-            goToModule("modelling");
             setNotices((p) => [...p, notice("Trend \"{name}\" added from the stereonet mean orientation — choose which models use it in 3D Modelling → Model settings → Structural trends.", { name: t.name })]);
           }}
         />

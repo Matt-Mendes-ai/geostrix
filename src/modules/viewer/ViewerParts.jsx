@@ -237,7 +237,7 @@ const popoverHeader = { display: "flex", alignItems: "center", justifyContent: "
 // TASKS.csv #1439 (review #1352, Silvertip) — the Surface Geology ribbon (moved here from ViewerModule, at its size cap): the
 // field data's tools beside the map and the outcrop measurements - Identify, the rock chips' style, interpretation lines and
 // unit polygons drawn in the app, so a geology map can be made here and Model it can use it.
-export function SurfaceRibbon({ show, paneProps, onStereonet, onModelIt, identifyOn, onToggleIdentify, interpretOpen, onInterpret, onPolygons, onStyleSamples, sampleCount = 0 }) {
+export function SurfaceRibbon({ show, paneProps, onStereonet, onModelIt, mapPolygons = true, identifyOn, onToggleIdentify, interpretOpen, onInterpret, onPolygons, onStyleSamples, sampleCount = 0 }) {
   return (
     <Ribbon show={show} label="Surface geology tools">
       <RibbonGroup label="Geological mapping">
@@ -254,7 +254,8 @@ export function SurfaceRibbon({ show, paneProps, onStereonet, onModelIt, identif
         <RibbonButton icon={Palette} label="Rock chips" tone="view" disabled={!sampleCount} disabledReason="Import surface samples (rock chips, soils) on the Geochem tab first" title="Style the surface samples: colour, size, shape, labels; colour by element is in the sidebar" onClick={onStyleSamples} />
       </RibbonGroup>
       <RibbonGroup label="Next step">
-        <RibbonButton icon={Mountain} label="Model it" tone="model" title="Build a 3D model from this map and these measurements: opens 3D Modelling > Model from map" onClick={onModelIt} />
+        <RibbonButton icon={Mountain} label="Model it" tone="model" title="Build a 3D model from this map and these measurements: opens 3D Modelling > Model from map" onClick={onModelIt}
+          disabled={!mapPolygons} disabledReason="Import a geology map (Geology map) or draw its units (Unit polygons) first: Model it builds from map polygons with a unit field" />{/* #1447 */}
       </RibbonGroup>
     </Ribbon>
   );

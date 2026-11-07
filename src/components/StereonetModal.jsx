@@ -468,7 +468,7 @@ export default function StereonetModal({ picks: downholePicks, surfacePicks = []
                 )}
                 {onUseAsTrend && (
                   <button
-                    onClick={() => { if (stats.noPreferred && !window.confirm(tr("These picks show no preferred orientation (k = {k}, at the level of random planes). Add their mean plane as a structural trend anyway?", { k: stats.k.toFixed(1) }))) return; onUseAsTrend({ azimuth: stats.meanDipDir, dip: stats.meanDip }); }} // #1066
+                    onClick={() => { if (stats.noPreferred && !window.confirm(tr("These picks show no preferred orientation (k = {k}, at the level of random planes). Add their mean plane as a structural trend anyway?", { k: stats.k.toFixed(1) }))) return; onUseAsTrend({ azimuth: stats.meanDipDir, dip: stats.meanDip, terzaghi: !!terzaghiOn }); }} // #1066; terzaghi: #1446 — the trend's name says which mean
                     disabled={isGirdle}
                     style={{ ...exportBtn, width: "100%", marginTop: 7, padding: "5px 8px", fontSize: 10.5, borderColor: "#a9c6e0", color: "#2f6fe0", opacity: isGirdle ? 0.5 : 1, cursor: isGirdle ? "not-allowed" : "pointer" }}
                     title={isGirdle ? tr("Disabled: this population is a girdle (a fold), so its mean plane is not a real orientation — pushing it to anisotropy would model a plane that exists nowhere. Filter to one fold limb first.") : tr("Add this mean plane as a new structural trend (Modelling tab > Trends): the plane only — pitch 90° (down dip) and ratios 3 : 2 : 1, to edit there")}

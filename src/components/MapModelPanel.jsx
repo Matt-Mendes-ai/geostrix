@@ -104,7 +104,8 @@ export default function MapModelPanel({ mapLayers, surfaceStructures, terrain, b
   const holePreview = useMemo(() => (useHoles && lithoRows?.length ? holeContacts(lithoRows, codeUnit, (u) => order.includes(u)) : null), [useHoles, lithoRows, codeUnit, order]);
   // TASKS.csv #1718 (review #1645, Copley) — on a drilled prospect, say that the holes are not used here and where they are
   const holesNote = holeCount > 0 ? <div className="ge-holes-note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>{tr("This tool builds from the map and the outcrop measurements only: the {n} drillhole(s) are not used. To fit the logged contacts and the mapped ones together, use Explicit surface: its \"From the geological map\" section adds the map contacts to the hole picks.", { n: holeCount })}</div> : null;
-  if (!polys.length) return <>{holesNote}<div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{tr("Import a geological map (polygons with a unit attribute) and the outcrop measurements in the Surface Geology tab first.")}</div></>;
+  // #1447 — only what is missing: Silvertip's 51 outcrop measurements were loaded and the message still asked for them
+  if (!polys.length) return <>{holesNote}<div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>{allRows.length ? tr("Import a geological map (polygons with a unit attribute) in the Surface Geology tab first, or draw its units there (Unit polygons): the {n} outcrop measurement(s) are already loaded.", { n: allRows.length.toLocaleString() }) : tr("Import a geological map (polygons with a unit attribute) and the outcrop measurements in the Surface Geology tab first.")}</div></>;
   return (
     <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
       {holeCount > 0 && !codes.length && holesNote}

@@ -9042,5 +9042,7 @@
   "Count only planes dipping at least this much: a near-flat plane's strike is poorly defined and can swamp a strike rose. 0 counts every plane.": "Conta só os planos que mergulham pelo menos isto: a direção de um plano quase horizontal é mal definida e pode dominar uma roseta de direções. 0 conta todos os planos.",
   "Dips of at least (°)": "Mergulhos de pelo menos (°)",
   "Minimum dip for the rose": "Mergulho mínimo para a roseta",
-  "These samples' coordinates need the project's coordinate system: choose the one they are in.": "As coordenadas destas amostras precisam do sistema de coordenadas do projeto: escolha o que elas usam."
+  "These samples' coordinates need the project's coordinate system: choose the one they are in.": "As coordenadas destas amostras precisam do sistema de coordenadas do projeto: escolha o que elas usam.",
+  "Import a geology map (Geology map) or draw its units (Unit polygons) first: Model it builds from map polygons with a unit field": "Primeiro importe um mapa geológico (Mapa geológico) ou desenhe suas unidades (Polígonos de unidades): Modelar parte de polígonos do mapa com um campo de unidade",
+  "Import a geological map (polygons with a unit attribute) in the Surface Geology tab first, or draw its units there (Unit polygons): the {n} outcrop measurement(s) are already loaded.": "Primeiro importe um mapa geológico (polígonos com um atributo de unidade) na aba Geologia de superfície, ou desenhe lá suas unidades (Polígonos de unidades): as {n} medições de afloramento já estão carregadas."
 }
