@@ -27,6 +27,7 @@ import { topCompositesWithoutBlocks } from "../lib/shellSupport.js"; // TASKS.cs
 import { domainLayerChoices } from "../lib/domainLayers.js"; // TASKS.csv #1571
 import { numericSourceChoices, sourceAssays, logPoints, unlogValue } from "../lib/numericSources.js"; // TASKS.csv #1741 — a downhole log or a numeric layer field as the source
 import DomainCaps from "./DomainCaps.jsx"; // TASKS.csv #1571
+import { solidChoices } from "../lib/solidChoices.js"; // TASKS.csv #1578
 import { lazyModal } from "../lib/lazyModal.jsx";
 const GradeTonnageModal = lazyModal(() => import("./GradeTonnageModal.jsx")); // TASKS.csv #1577 — from the result, not only from Geophysics
 
@@ -654,7 +655,12 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
           {volumeShells.length > 0 && (
             <label style={fieldLabel} title={tr("Only samples inside this closed solid inform the estimate, and only blocks whose centre is inside it are kept — e.g. Au inside the modelled DACT. Build unit volumes from an implicit model (3D Modelling, after a stack run: Add unit volumes).")}>{tr("Restrict to a modelled volume")}<select value={shellId} onChange={(e) => setShellId(e.target.value)} style={inp} aria-label={tr("Restrict to a modelled volume")}>
                 <option value="">{tr("— none (whole grid) —")}</option>
-                {volumeShells.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+                {/* TASKS.csv #1578 (review #1497, Lawyers) — closed solids with their volumes (two 'Au > 1 ppm shell' told apart), open meshes
+                    greyed with their open edges: the 12 VLF isosurfaces and an open shell were offered and refused only after Run */}
+                {(() => { const ch = solidChoices(volumeShells); return (<>
+                  {ch.closed.map((v) => <option key={v.id} value={v.id}>{tr("{name} — {v}", { name: v.name, v: v.volumeM3 >= 1e5 ? `${(v.volumeM3 / 1e6).toFixed(2)} Mm³` : `${Math.round(v.volumeM3).toLocaleString()} m³` })}</option>)}
+                  {ch.open.length > 0 && <optgroup label={tr("Open meshes (no inside to search)")}>{ch.open.map((v) => <option key={v.id} value={v.id} disabled>{tr("{name} (open: {n} edges)", { name: v.name, n: v.openEdges.toLocaleString() })}</option>)}</optgroup>}
+                </>); })()}
               </select>
             {/* TASKS.csv #896 — a unit volume is a count of model blocks: its boundary is stepped at that block size */}
             {(() => { const sh = volumeShells.find((v) => v.id === shellId); const c = Math.min(cell3.dx, cell3.dy, cell3.dz); return sh?.blockSizeM && c < sh.blockSizeM - 1e-6 ? <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4, marginTop: 4 }}>{tr("\"{name}\" was counted in {b} m blocks, so its boundary steps every {b} m. Estimating in {c} m blocks inside it does not place the contact any closer than {b} m: rebuild the unit volume at {c} m, or estimate in {b} m blocks.", { name: sh.name, b: sh.blockSizeM, c })}</div> : null; })()}
