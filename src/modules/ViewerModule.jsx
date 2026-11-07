@@ -61,7 +61,7 @@ import { createCompassRose } from "../components/CompassRose.js";
 import { createAxisGizmo } from "../components/AxisGizmo.js";
 import ViewportFigureOverlay, { MAX_LEGEND_ITEMS } from "../components/ViewportFigureOverlay.jsx"; // TASKS.csv #311 — in-viewport title/legend/scale-bar figure furniture
 import EmptyState from "../components/EmptyState.jsx"; // TASKS.csv #309 — the shared empty-state card, extracted from this file's own #294 card
-import { fixedScaleHalfHeight, captureLongPx } from "../lib/layoutGeometry.js";
+import { fixedScaleHalfHeight, captureLongPx, scaleForHalfHeight } from "../lib/layoutGeometry.js"; // scaleForHalfHeight: #1486
 import { worldHeightAtTargetM } from "../lib/figureScale.js"; // TASKS.csv #311 — the single shared metres-per-pixel derivation (Layout's scale bar uses it too)
 import SidebarResizeHandle from "../components/SidebarResizeHandle.jsx";
 import { useSidebarWidth } from "../lib/useSidebarWidth.js";
@@ -2956,6 +2956,7 @@ ${describeTrend(t)}` };
     let renderCamera = camera;
     let orthoCamera = null;
     let orthoHalfH = null; // #398
+    let zoomScale = null; // #1486 — the 1:N the user's zoom framed, for a fixed-scale frame in 'Enter & adjust view'
     if (!req.trueScale && frameAspect && (outW !== mountW || outH !== mountH)) {
       // a perspective capture at the frame's aspect: a clone of the live camera (same place, look and vertical field of
       // view), only its aspect differs - the live camera is never touched
@@ -2970,7 +2971,7 @@ ${describeTrend(t)}` };
       // TASKS.csv #398 — fixed plot scale: the Layout frame (elementW page px at 96 dpi) must show
       // N x its printed width of world, centred where the camera looks. #906: drawn at the frame's own aspect, so
       // its height shows N x the printed height too - the frame's size on the paper IS the ground it shows.
-      if (req.fixedScale > 0 && req.elementW > 0) halfH = fixedScaleHalfHeight(req.fixedScale, req.elementW, aspect); // #961 — tested in layoutGeometry
+      if (req.fixedScale > 0 && req.elementW > 0) { if (req.interactive) zoomScale = scaleForHalfHeight(halfH, req.elementW, aspect); halfH = fixedScaleHalfHeight(req.fixedScale, req.elementW, aspect); } // #961; #1486 — the zoom it replaces, offered back
       const halfW = halfH * aspect;
       orthoHalfH = halfH;
       orthoCamera = new THREE.OrthographicCamera(-halfW, halfW, halfH, -halfH, 0.1, camera.far); // #377 — ortho depth is linear; keep its own small near rather than the perspective one
@@ -3039,7 +3040,7 @@ ${describeTrend(t)}` };
     applyTheme(liveViewBeforeRender);
     encoded.then((dataUrl) => resolveViewportRender({
       requestId: req.requestId, src: dataUrl, naturalW: shotW, naturalH: shotH,
-      worldHeightAtTarget, themeName: theme?.name, cameraAzimuthDeg, trueScale: !!req.trueScale, targetWorld, planView, fixedScale: orthoHalfH != null && req.fixedScale > 0 ? req.fixedScale : null,
+      worldHeightAtTarget, themeName: theme?.name, cameraAzimuthDeg, trueScale: !!req.trueScale, targetWorld, planView, fixedScale: orthoHalfH != null && req.fixedScale > 0 ? req.fixedScale : null, zoomScale, // zoomScale: #1486
       // TASKS.csv #948 — a "current view" capture has no theme to read its legend from: the view's own settings (the same
       // bundle a theme saves), kept on the viewport so Layout's "Load from view" works for it
       viewState: theme ? null : liveViewBeforeRender,

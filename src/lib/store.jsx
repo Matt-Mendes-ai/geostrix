@@ -826,7 +826,7 @@ export function StoreProvider({ children }) {
             // (Before: the frame's height was rewritten to the 3D canvas's aspect on every refresh - #398 kept it unrounded
             // so 1:1000 did not become 1:998.) A request without a height (none left) falls back to that.
             ...capturedFrameFields(el, reqW, reqH, aspect, res.fixedScale), // #961 — tested in layoutGeometry
-            capturedFixedScale: res.fixedScale || null }
+            capturedFixedScale: res.fixedScale || null, adjustZoomScale: res.zoomScale || null /* #1486 — 'Use the zoom' in the sidebar */ }
         : el));
       setLayoutSelectRequest(targetElementId);
     }

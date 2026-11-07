@@ -11,6 +11,10 @@ export const capturedSize = (el) => ({ w: el.capW || el.w, h: el.capH || el.h })
 // #398 — the orthographic half-height that puts N x the frame's printed width of ground across a frame elementW page px
 // wide (ViewerModule's capture); the height follows from the frame's aspect
 export const fixedScaleHalfHeight = (fixedScale, elementW, aspect) => (fixedScale * elementW * M_PER_PAGE_PX) / 2 / aspect;
+// TASKS.csv #1486 — the other way: the 1:N a frame elementW page px wide shows when it holds 2 x halfH of world at this aspect (what the
+// user's zoom framed in 'Enter & adjust view' while a fixed scale ignored it), and that N rounded to two significant figures
+export const scaleForHalfHeight = (halfH, elementW, aspect) => (elementW > 0 && aspect > 0 ? (2 * halfH * aspect) / (elementW * M_PER_PAGE_PX) : null);
+export const roundScale = (n) => { if (!(n > 0)) return null; const p = 10 ** (Math.floor(Math.log10(n)) - 1); return Math.round(n / p) * p; };
 
 // #906 — the capW / capH (and, for an old request without a height, h) store.jsx writes when a capture comes back
 export function capturedFrameFields(el, reqW, reqH, aspect, fixedScale) {

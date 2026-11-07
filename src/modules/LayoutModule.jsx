@@ -41,6 +41,7 @@ import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1127
 import { firstLegendGroups, rankLegendGroups, legendGroupCount } from "../lib/legendGroups.js"; // rank / count: #1482 // TASKS.csv #1224
 import { numericLayerLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #1482 — the RQD / recovery / SG / mag susc ramps
 import { freeSpot } from "../lib/layoutPlace.js"; // TASKS.csv #1484 — new items into free space
+import { roundScale } from "../lib/layoutGeometry.js"; // TASKS.csv #1486
 import { numericClips, numericLayerColorFn } from "../lib/numericClip.js"; // TASKS.csv #1482
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
 // (The page size used to be a fixed `const A4 = { w: 1123, h: 794 }` here; it is now per page — see
@@ -1779,6 +1780,11 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
       <button onClick={onEnter} disabled={sel.refreshing} title={tr("Switch to the 3D View tab and interactively orbit/pan/zoom this viewport's camera, then bring the new angle back here")} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
         <LogIn size={14} />{" "}{tr("Enter & adjust view…")}</button>
       {sel.fixedScale > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: -4, marginBottom: 6, lineHeight: 1.4 }}>{tr("This frame has a fixed scale (1:{s}): in the 3D view only where you centre it is used, not the zoom. Set Scale to \"free (as framed)\" to use the zoom.", { s: Number(sel.fixedScale).toLocaleString() })}</div>}{/* TASKS.csv #1486 */}
+      {/* TASKS.csv #1486 — what the zoom in 'Enter & adjust view' framed, when it was far from the fixed scale: one click uses it */}
+      {sel.fixedScale > 0 && sel.adjustZoomScale > 0 && Math.abs(sel.adjustZoomScale / sel.fixedScale - 1) > 0.05 && (() => { const z = roundScale(sel.adjustZoomScale); return (
+        <div style={{ fontSize: "var(--font-size-sm)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Your zoom in the 3D view framed about 1:{z}; the frame kept 1:{s}.", { z: z.toLocaleString(), s: Number(sel.fixedScale).toLocaleString() })}{" "}
+          <button style={{ ...smallBtn, marginTop: 4 }} onClick={() => { updateSelected({ adjustZoomScale: null }); onRescale(z); }}>{tr("Use 1:{z}", { z: z.toLocaleString() })}</button>
+        </div>); })()}
       {/* TASKS.csv #69 — true-scale (orthographic) capture. Takes effect on the NEXT refresh, not
           retroactively on the image already captured — toggling it alone doesn't re-render. */}
       <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-base)", color: "var(--color-text-secondary)", marginBottom: 8, cursor: "pointer" }}>
