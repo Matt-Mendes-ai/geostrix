@@ -10,7 +10,7 @@ import { pickDefaultReachM, medianSiteSpacing } from "../lib/evidenceSources.js"
 import { drilledCollars } from "../lib/collarStatus.js"; // TASKS.csv #2097
 import { mainClusters } from "../lib/dataClusters.js"; // TASKS.csv #1449 / #1450
 import { quantileSorted } from "../lib/arrayStats.js"; // TASKS.csv #1281
-import { defaultEvidenceEnds } from "../lib/evidenceEnds.js"; // TASKS.csv #1565
+import { defaultEvidenceEnds, gradeEndsFromSamples } from "../lib/evidenceEnds.js"; // TASKS.csv #1565; gradeEndsFromSamples: #2099
 import { topCells } from "../lib/evidence.js"; // TASKS.csv #1456
 import { evidenceGrid, evidenceExtent, rasterEvidence, distanceEvidence, pointEvidence, sampleValues, membership, fuzzyCombine, FUZZY_OPERATORS, trainingCells, trainingCoverage, bestCutoff, MIN_SIDE, posterior, predictionArea, scoreImage, isOverlayOutput, coveringLayers } from "../lib/evidence.js"; // coveringLayers: #1563
 import { cachedEvidence, evidenceDeps, gridSignature } from "../lib/evidenceCache.js"; // TASKS.csv #1457, #1560
@@ -190,6 +190,8 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
   // the median nearest-neighbour distance (#1829 / #1561: the bounding box of seven soil grids gave Kodiak's 48 m soils 700 m)
   const reachOfMedium = (medium) => reachFromNeighbours(medium == null ? sampleCore.samples : sampleCore.samples.filter((s) => (s.medium || "") === medium));
   const reachOf = (src, medium = null) => (src.kind === "grade" || src.kind === "pxrf" || src.kind === "numeric" ? DRILL_REACH_M : src.kind === "survey" ? reachFromSpacing(surveyPoints(geophysPts, src.ref), 4) : reachOfMedium(medium));
+  // TASKS.csv #2099 — a drill-grade card's ends from the lab assays of its element (QC and pXRF excluded), length-weighted P50 / P95
+  const gradeEnds = (sym) => gradeEndsFromSamples(cleanAssays, (a) => valueIn(a, sym, assayUnits[sym] || "ppm", assayUnits));
   const addLayer = (key) => {
     const src = sources.find((s) => s.key === key); if (!src) return;
     // #1449 — sample evidence starts on the medium with the most samples when there are several (changeable on the card)
@@ -200,12 +202,17 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     const finite = values.filter(Number.isFinite);
     if (!finite.length) { setMsg(tr("\"{name}\" has no values over the grid.", { name: src.label })); return; }
     finite.sort(); // TASKS.csv #1281 — one numeric sort of the typed copy, not a comparator sort per quantile (a third of the stall)
-    const dec = src.kind === "distance" || src.kind === "solid" /* #1567 */ || src.kind === "pick" || src.kind === "zone", low = dec ? 0 : quantileSorted(finite, 0.1), high = src.kind === "pick" || src.kind === "zone" ? Math.max(3 * Math.max(grid.dx, grid.dy), pickDefaultReachM(quantileSorted(finite, 0.5), (medianSiteSpacing(collars) || 0) / 3)) /* #1451: one site spacing, at least 3 cells */ : dec ? quantileSorted(finite, 0.5) : quantileSorted(finite, 0.9); // #1179
-    const log = (src.kind === "grade" || src.kind === "pxrf") && low > 0 && high > low; // #1555: a drill grade ramps on its logarithm (10th -> 90th percentile of a lognormal grade is otherwise flat over most of the holes)
+    const dec = src.kind === "distance" || src.kind === "solid" /* #1567 */ || src.kind === "pick" || src.kind === "zone", low0 = dec ? 0 : quantileSorted(finite, 0.1), high0 = src.kind === "pick" || src.kind === "zone" ? Math.max(3 * Math.max(grid.dx, grid.dy), pickDefaultReachM(quantileSorted(finite, 0.5), (medianSiteSpacing(collars) || 0) / 3)) /* #1451: one site spacing, at least 3 cells */ : dec ? quantileSorted(finite, 0.5) : quantileSorted(finite, 0.9); // #1179
+    let low = low0, high = high0; // let: #2099 (a drill grade takes its assays' ends)
+    let log = (src.kind === "grade" || src.kind === "pxrf") && low > 0 && high > low; // #1555: a drill grade ramps on its logarithm (10th -> 90th percentile of a lognormal grade is otherwise flat over most of the holes)
+    // #2099 — where the ends came from, said on the card; a drill grade's from its assays
+    let endsFrom = dec ? null : { kind: "grid", q: [10, 90] };
+    const ge = src.kind === "grade" ? gradeEnds(src.ref) : null;
+    if (ge) { low = ge.low; high = ge.high; log = true; endsFrom = { kind: "assays", q: ge.q, n: ge.n }; }
     // TASKS.csv #1456 — distance to drilling rises with distance: 0 on a trace, full membership from half the spacing between drill sites
     // (the median, #1451; else the median distance over the grid), at least 3 cells — "untested" is the geologist's to set on the card
     if (src.kind === "drilled") { const site = medianSiteSpacing(collars); const hi = Math.max(3 * Math.max(grid.dx, grid.dy), site ? site / 2 : quantileSorted(finite, 0.5)); setLayers((L) => [...L, { id: nextId++, ...src, shape: "increasing", low: 0, high: hi, log: false, lowText: "0", highText: numText(hi), field: "", value: "", reach: null, values }]); setResult(null); setMsg(null); return; }
-    setLayers((L) => [...L, { id: nextId++, ...src, shape: dec ? "decreasing" : "increasing", low, high, log, lowText: numText(low), highText: numText(high), field: pick.field || "", value: pick.value ?? "", reach: pick.reach || reachOf(src), values }]);
+    setLayers((L) => [...L, { id: nextId++, ...src, shape: dec ? "decreasing" : "increasing", low, high, log, endsFrom, lowText: numText(low), highText: numText(high), field: pick.field || "", value: pick.value ?? "", reach: pick.reach || reachOf(src), values }]);
     setResult(null); setMsg(null);
   };
   // the grid changed under the layers (terrain loaded, a source removed): re-sample every evidence on the new grid
@@ -257,7 +264,8 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
       if (v) {
         next.values = v;
         // #1565 — new values, new default ends, unless the user typed one (endsEdited); the log ramp follows as on Add
-        const ends = next.endsEdited ? null : defaultEvidenceEnds(next.kind, v);
+        const ge = !next.endsEdited && next.kind === "grade" ? gradeEnds(next.ref) : null; // #2099 — the assays' ends do not move with the grid
+        const ends = next.endsEdited ? null : ge || defaultEvidenceEnds(next.kind, v);
         if (ends) Object.assign(next, { low: ends.low, high: ends.high, lowText: numText(ends.low), highText: numText(ends.high), ...(next.kind === "grade" || next.kind === "pxrf" ? { log: ends.log } : {}) });
       }
     }
@@ -387,6 +395,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
               <label style={row}>{l.shape === "decreasing" ? "0" : "1"} ={" "}<input type="number" step="any" value={l.highText} onChange={(e) => updateLayer(l.id, { highText: e.target.value, high: e.target.value === "" ? NaN : Number(e.target.value), endsEdited: true /* #1565 */ })} style={{ ...sel, width: 76 }} aria-label={l.shape === "decreasing" ? tr("Membership 0 at") : tr("Membership 1 at")} /></label>
               {l.kind !== "distance" && l.kind !== "pick" && l.low > 0 && l.high > 0 && <label style={{ ...row, cursor: "pointer" }} title={tr("The ramp runs on the logarithm of the values: even steps in grade ratio, as a lognormal grade is spread. Off, it runs on the values and is flat over most of a skewed layer.")}><input type="checkbox" checked={!!l.log} onChange={(e) => updateLayer(l.id, { log: e.target.checked })} />{tr("log ramp")}</label>}{/* #1555 */}
             </div>
+            {l.endsFrom && !l.endsEdited && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.35 }}>{l.endsFrom.kind === "assays" ? tr("Ends: the {a}th and {b}th percentile of the {n} {sym} assays (length-weighted, QC left out). Set them from your own cut-offs.", { a: l.endsFrom.q[0], b: l.endsFrom.q[1], n: l.endsFrom.n.toLocaleString(), sym: l.ref }) : tr("Ends: the {a}th and {b}th percentile of this evidence over the grid, not of your deposit. Set them from your own cut-offs.", { a: l.endsFrom.q[0], b: l.endsFrom.q[1] })}</div>}{/* #2099 */}
           </div>
         ))}
         {layers.length > 0 && (

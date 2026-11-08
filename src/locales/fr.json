@@ -9245,5 +9245,7 @@
   "No terrain is loaded: the Elev is the ground interpolated between the nearest collars (the flat plane through the data would have given {p} m). Check it before using it, or load a terrain.": "Aucun terrain chargé : l'Élév est le sol interpolé entre les collets les plus proches (le plan horizontal par les données aurait donné {p} m). Vérifiez-la avant de l'utiliser, ou chargez un terrain.",
   "no weight: no occurrence lies where this evidence has a value (0 of {nd} occurrence cells in its {n} cells)": "aucun poids : aucune occurrence ne se trouve là où cette évidence a une valeur (0 des {nd} cellules d'occurrence dans ses {n} cellules)",
   "no usable cutoff ({k} of the occurrence cells lie where this evidence has a value)": "aucun seuil utilisable ({k} des cellules d'occurrence se trouvent là où cette évidence a une valeur)",
-  "Weights of evidence: no card gives a weight with these {d} occurrence cells: {list}.": "Poids de l'évidence : aucune carte ne donne de poids avec ces {d} cellules d'occurrence : {list}."
+  "Weights of evidence: no card gives a weight with these {d} occurrence cells: {list}.": "Poids de l'évidence : aucune carte ne donne de poids avec ces {d} cellules d'occurrence : {list}.",
+  "Ends: the {a}th and {b}th percentile of the {n} {sym} assays (length-weighted, QC left out). Set them from your own cut-offs.": "Bornes : les {a}e et {b}e centiles des {n} analyses de {sym} (pondérés par la longueur, contrôles exclus). Fixez-les selon vos propres seuils.",
+  "Ends: the {a}th and {b}th percentile of this evidence over the grid, not of your deposit. Set them from your own cut-offs.": "Bornes : les {a}e et {b}e centiles de cette évidence sur la grille, pas de votre gisement. Fixez-les selon vos propres seuils."
 }

@@ -17,7 +17,7 @@ test("10th / 90th percentiles, ignoring empty cells; a distance runs 0 to the me
 
 test("the pane: recompute resets untouched ends; typing one, or a restored card, keeps them", () => {
   const s = fs.readFileSync("src/components/EvidenceOverlayPane.jsx", "utf8");
-  assert.match(s, /const ends = next\.endsEdited \? null : defaultEvidenceEnds\(next\.kind, v\);/);
+  assert.match(s, /const ends = next\.endsEdited \? null : ge \|\| defaultEvidenceEnds\(next\.kind, v\);/); // ge: #2099 — a drill grade's assay ends
   assert.equal((s.match(/endsEdited: true \/\* #1565 \*\//g) || []).length, 2);
   assert.match(s, /endsEdited: true \/\* #1565 — a saved card's ends were chosen \*\//);
 });
