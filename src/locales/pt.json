@@ -9242,5 +9242,8 @@
   "from below": "de baixo",
   "({n} of {m} classes)": "({n} de {m} classes)",
   "No terrain: the collar is placed where this line meets the ground interpolated between the nearest collars, {h} m from the target in plan. Check that elevation before using it, or load a terrain.": "Sem terreno: a boca fica onde esta linha corta o terreno interpolado entre as bocas mais próximas, a {h} m do alvo em planta. Confira essa elevação antes de usá-la, ou carregue um terreno.",
-  "No terrain is loaded: the Elev is the ground interpolated between the nearest collars (the flat plane through the data would have given {p} m). Check it before using it, or load a terrain.": "Nenhum terreno carregado: a Elev é o terreno interpolado entre as bocas mais próximas (o plano horizontal pelos dados teria dado {p} m). Confira antes de usar, ou carregue um terreno."
+  "No terrain is loaded: the Elev is the ground interpolated between the nearest collars (the flat plane through the data would have given {p} m). Check it before using it, or load a terrain.": "Nenhum terreno carregado: a Elev é o terreno interpolado entre as bocas mais próximas (o plano horizontal pelos dados teria dado {p} m). Confira antes de usar, ou carregue um terreno.",
+  "no weight: no occurrence lies where this evidence has a value (0 of {nd} occurrence cells in its {n} cells)": "sem peso: nenhuma ocorrência está onde esta evidência tem valor (0 de {nd} células de ocorrência em suas {n} células)",
+  "no usable cutoff ({k} of the occurrence cells lie where this evidence has a value)": "sem corte utilizável ({k} das células de ocorrência estão onde esta evidência tem valor)",
+  "Weights of evidence: no card gives a weight with these {d} occurrence cells: {list}.": "Pesos de evidência: nenhum cartão dá peso com estas {d} células de ocorrência: {list}."
 }

@@ -298,12 +298,15 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
     if (D.size >= 3) {
       const rowsW = [], chosen = [];
       const N = nValid, ND = D.size; // #1556: the prior over the study area (every valid cell), not one layer's cells
-      layers.forEach((l) => { const bc = bestCutoff(l.values, D, valid, { direction: l.shape }); if (bc.best) rowsW.push({ id: l.id /* #1566 */, label: l.label, nMissing: bc.nMissing, nCells: bc.N, ...bc.best, values: l.values, direction: l.shape }); });
+      // TASKS.csv #2098 (review #2013, Woodjam) — every card gets a row: one with no usable cutoff (no occurrence where it has a value: soils
+      // 10 km from the drilling) was left out without a word, and the 'no usable cutoff' text below could never show
+      layers.forEach((l) => { const bc = bestCutoff(l.values, D, valid, { direction: l.shape }); rowsW.push(bc.best ? { id: l.id /* #1566 */, label: l.label, nMissing: bc.nMissing, nCells: bc.N, ...bc.best, values: l.values, direction: l.shape } : { id: l.id, label: l.label, none: true, nCells: bc.N, ndHere: bc.ND, nMissing: bc.nMissing }); });
       // TASKS.csv #1559 — a layer whose best cutoff is thin (fewer than MIN_SIDE occurrence cells on a side) stays out of the posterior
       // when sound layers exist: its W- of -2.35 +/- 1.00 came from one cell. With no sound layer at all, every layer is used.
-      const anySound = rowsW.some((r) => !r.thin);
-      rowsW.forEach((r) => { r.used = !r.thin || !anySound; if (r.used) chosen.push({ values: r.values, cutoff: r.cutoff, direction: r.direction, wPlus: r.wPlus, wMinus: r.wMinus }); });
+      const anySound = rowsW.some((r) => !r.none && !r.thin);
+      rowsW.forEach((r) => { r.used = !r.none && (!r.thin || !anySound); if (r.used) chosen.push({ values: r.values, cutoff: r.cutoff, direction: r.direction, wPlus: r.wPlus, wMinus: r.wMinus }); });
       if (chosen.length) { const post = posterior(chosen, valid, N, ND); out.wofe = { rows: rowsW, N, ND, post, nD: D.size, anyMissing: rowsW.some((r) => r.nMissing > 0) }; out.paPost = predictionArea(post.prob, D, valid); }
+      else if (rowsW.length) out.wofeNone = { rows: rowsW, ND }; // #2098 — no card gave a weight: said, not silent
       out.pa = predictionArea(fuzzy, D, valid);
     } else if (trainingPoints.length) out.fewPoints = D.size;
     setResult(out); setMsg(null);
@@ -430,6 +433,9 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
               <button type="button" style={{ ...pBtn, display: "flex", alignItems: "center", gap: 4 }} onClick={() => toTif("fuzzy")}><Download size={12} />GeoTIFF</button>
             </div>
             <TopPlaces score={result.fuzzy} grid={grid} onPlanTo={onPlanTo} note={note} pBtn={pBtn} /* #1456 */ />
+            {!result.wofe && result.wofeNone && ( /* TASKS.csv #2098 */
+              <div style={{ ...note, color: "var(--color-warn-text)", marginTop: 4 }}>{tr("Weights of evidence: no card gives a weight with these {d} occurrence cells: {list}.", { d: result.wofeNone.ND, list: result.wofeNone.rows.map((r) => `${r.label} (${r.ndHere ?? 0} of them where it has a value)`).join("; ") })}</div>
+            )}
             {result.wofe && (
               <>
                 <div style={{ color: "var(--color-text-secondary)", marginTop: 4 }}>{tr("Weights of evidence: {d} occurrence cells in {n} cells", { d: result.wofe.ND, n: result.wofe.N.toLocaleString() })}</div>
@@ -445,7 +451,7 @@ export default function EvidenceOverlayPane({ onClose, onPlanTo = null, solids =
                   return (
                   <div key={i} style={{ fontSize: "var(--font-size-xs)", lineHeight: 1.4 }}>
                     <div style={{ color: "var(--color-text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.label}>{r.label}</div>
-                    <div style={{ color: against ? "var(--color-warn-text)" : "var(--color-text-secondary)", fontWeight: !r.none && r.studC >= 2 ? 600 : 400 }}>{r.none ? tr("no usable cutoff") : (r.corrected ? tr("every occurrence inside the pattern: 0.5 added to the zero count · ") : "") + tr("cutoff {c} · W+ {wp} ± {sp} · W− {wm} ± {sm} · C/s {s}", { c: fmt(r.cutoff), wp: fmt(r.wPlus), sp: fmt(r.sPlus), wm: fmt(r.wMinus), sm: fmt(r.sMinus), s: fmt(r.studC, 1) })}{" · " + tr("{a} of {d} occurrence cells inside the pattern ({b} cells)", { a: r.nBD, d: r.nD, b: r.nB.toLocaleString() })}{r.thin ? " · " + tr("thin: fewer than {m} occurrence cells on one side, a weak basis for this weight", { m: MIN_SIDE }) + (r.used === false ? " · " + tr("left out of the posterior") : "") : ""}{/* #1559 */}{r.nMissing > 0 ? " · " + tr("on {n} cells with a value; {m} without count 0", { n: r.nCells.toLocaleString(), m: r.nMissing.toLocaleString() }) : ""}</div>
+                    <div style={{ color: against ? "var(--color-warn-text)" : "var(--color-text-secondary)", fontWeight: !r.none && r.studC >= 2 ? 600 : 400 }}>{r.none ? (r.ndHere === 0 ? tr("no weight: no occurrence lies where this evidence has a value (0 of {nd} occurrence cells in its {n} cells)", { nd: result.wofe?.ND ?? "", n: (r.nCells ?? 0).toLocaleString() }) : tr("no usable cutoff ({k} of the occurrence cells lie where this evidence has a value)", { k: r.ndHere })) /* #2098 */ : (r.corrected ? tr("every occurrence inside the pattern: 0.5 added to the zero count · ") : "") + tr("cutoff {c} · W+ {wp} ± {sp} · W− {wm} ± {sm} · C/s {s}", { c: fmt(r.cutoff), wp: fmt(r.wPlus), sp: fmt(r.sPlus), wm: fmt(r.wMinus), sm: fmt(r.sMinus), s: fmt(r.studC, 1) })}{!r.none && " · " + tr("{a} of {d} occurrence cells inside the pattern ({b} cells)", { a: r.nBD, d: r.nD, b: r.nB.toLocaleString() })}{/* !r.none: #2098 */}{r.thin ? " · " + tr("thin: fewer than {m} occurrence cells on one side, a weak basis for this weight", { m: MIN_SIDE }) + (r.used === false ? " · " + tr("left out of the posterior") : "") : ""}{/* #1559 */}{r.nMissing > 0 ? " · " + tr("on {n} cells with a value; {m} without count 0", { n: r.nCells.toLocaleString(), m: r.nMissing.toLocaleString() }) : ""}</div>
                     {against && (
                       <div style={{ color: "var(--color-warn-text)" }}>
                         {tr(r.direction === "decreasing" ? "Points the other way: the occurrences sit where this evidence is HIGH (C/s {s}), but the card scores it favourable when low, so the fuzzy score counts it against them." : "Points the other way: the occurrences sit where this evidence is LOW (C/s {s}), but the card scores it favourable when high, so the fuzzy score counts it against them.", { s: fmt(r.studC, 1) })}
