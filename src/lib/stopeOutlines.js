@@ -71,19 +71,23 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
   for (let rl = from; rl < to - 1e-9; rl += levelH) {
     const top = Math.min(rl + levelH, to);
     const t = new Float64Array(N), m = new Float64Array(N), cover = new Float64Array(N); // cover: the slab height the blocks fill (#1919)
+    // TASKS.csv #2107 (review #2013, Woodjam) — the tonnes and metal of the BLOCKS at or above the cut-off, per column: 'Ore above
+    // cut-off' used to sum whole ore columns (a column whose mean passed brought its 2,805 ppm blocks along at a 3,000 ppm cut-off),
+    // so with no skin it equalled the diluted tonnes and dilution read 0 %
+    const tA = new Float64Array(N), mA = new Float64Array(N);
     for (const c of cells) {
       const q = col(c); if (q < 0) continue;
       const h = Math.min(c.z + c.dz / 2, top) - Math.max(c.z - c.dz / 2, rl);
       if (h <= 0) continue;
       const tt = h * area * (fin(c.coverage) ? c.coverage : 1) * density;
       t[q] += tt; if (fin(c.value)) m[q] += tt * c.value; cover[q] += h;
+      if (fin(c.value) && c.value >= cutoff) { tA[q] += tt; mA[q] += tt * c.value; } // #2107
     }
     let mask = new Uint8Array(N);
     const slabH = top - rl;
     for (let q = 0; q < N; q++) if (t[q] > 0 && m[q] / t[q] >= cutoff && cover[q] >= 0.5 * slabH - 1e-9) { mask[q] = 1; oreColumns++; } // half the slab at least (#1919)
     let shut = null;
     if (ceilingAt) { shut = new Uint8Array(N); for (let q = 0; q < N; q++) if (!openUnder(q, rl, top)) shut[q] = 1; for (let q = 0; q < N; q++) if (mask[q] && shut[q]) { mask[q] = 0; pitShut++; } } // #1964
-    const ore = mask;
     if (k > 1) mask = dilate(erode(mask, dE), dE); // opening: nothing thinner than the minimum width survives
     if (rS > 0) mask = dilate(mask, dS); // the skin
     if (shut) for (let q = 0; q < N; q++) if (mask[q] && shut[q]) { mask[q] = 0; pitSkin++; } // #1964 — no skin inside the pit either
@@ -109,7 +113,7 @@ export function stopeOutlines(model, { cutoff, levelH, zMin = null, zMax = null,
         if (i < i0) i0 = i; if (i > i1) i1 = i; if (j < j0) j0 = j; if (j > j1) j1 = j;
         // a column of the skin with no block in this slab: rock of unknown grade, counted at the density with no metal
         const tt = t[q] > 0 ? t[q] : (top - rl) * area * density;
-        tonnes += tt; metalU += m[q]; if (ore[q]) { oreT += t[q]; oreM += m[q]; }
+        tonnes += tt; metalU += m[q]; oreT += tA[q]; oreM += mA[q]; // #2107 — the blocks at or above the cut-off, wherever they sit in the stope
       }
       const extent = Math.max((i1 - i0 + 1) * dx, (j1 - j0 + 1) * dy);
       if (extent < minLength) continue;
