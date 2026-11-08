@@ -9164,5 +9164,11 @@
   "{label} (unsaved changes)": "{label} (تغييرات غير محفوظة)",
   "Close {label}": "إغلاق {label}",
   "Show the grades as % (ppm / 10,000) in the table, the Layout table and an extra CSV column. The cutoff stays in ppm.": "عرض المحتويات بالنسبة المئوية (ppm / 10,000) في الجدول وجدول التخطيط وعمود CSV إضافي. يبقى الحد الأدنى بوحدة ppm.",
-  "Show as %": "عرض بالنسبة المئوية"
+  "Show as %": "عرض بالنسبة المئوية",
+  "{n} point(s) outside the axes, not drawn ({where})": "{n} نقطة خارج المحاور، غير مرسومة ({where})",
+  "{n} above": "{n} أعلى",
+  "{n} below": "{n} أسفل",
+  "{n} right": "{n} يمينًا",
+  "{n} left": "{n} يسارًا",
+  "Comendite/Pantellerite": "كومنديت/بانتيليريت"
 }

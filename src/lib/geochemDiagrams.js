@@ -32,7 +32,10 @@ function tasFields() {
 function winchesterFields() {
   // drawn in log space by the renderer; these are boundary polylines in (Nb/Y, Zr/TiO2)
   return [
-    { name: "Rhyolite/Dacite", box: [[0.7, 0.02], [0.02, 0.1]] },
+    // TASKS.csv #1681 (review #1645, Copley) — the published diagram goes above Zr/TiO2 = 0.1 (rhyolite, and comendite / pantellerite at
+    // high Nb/Y); the axis stopped at 0.1 and 174 Copley points (up to 0.16) were not drawn
+    { name: "Rhyolite/Dacite", box: [[0.7, 0.02], [0.02, 1]] },
+    { name: "Comendite/Pantellerite", box: [[10, 0.1], [0.7, 1]] },
     { name: "Andesite", box: [[0.7, 0.008], [0.02, 0.02]] },
     { name: "Bas-And", box: [[0.7, 0.0025], [0.02, 0.008]] },
     { name: "Subalkaline basalt", box: [[0.7, 0.0001], [0.02, 0.0025]] },
@@ -83,7 +86,7 @@ export const DIAGRAMS = {
     requires: ["Zr", "Ti", "Nb", "Y"],
     xLabel: "Nb/Y", yLabel: "Zr/TiO₂",
     logX: true, logY: true,
-    xRange: [0.01, 10], yRange: [0.0001, 0.1],
+    xRange: [0.01, 10], yRange: [0.0001, 1], // to 1: #1681
     project: (s, u) => {
       const Zr = valueIn(s, "Zr", "ppm", u), Ti = valueIn(s, "Ti", "%", u), Nb = valueIn(s, "Nb", "ppm", u), Y = valueIn(s, "Y", "ppm", u);
       if ([Zr, Ti, Nb, Y].some((v) => v == null) || Y === 0 || Ti === 0) return null;

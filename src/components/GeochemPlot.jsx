@@ -120,6 +120,12 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef, altBoxes, describe })
   // #619 — on-plot points with their screen positions (the same filter the circles always had)
   // memoized: a hover re-renders only the ring + tooltip, not 6,000 circles (~49 ms per hover change before)
   const pts = useMemo(() => projected.filter((p) => !(p.x < xmin || p.x > xmax || p.y < ymin || p.y > ymax)).map((p) => ({ cx: sx(p.x), cy: sy(p.y), p })), [projected, xmin, xmax, ymin, ymax, lx, ly]);
+  // TASKS.csv #1681 — points beyond the axes are not drawn: say how many, and on which side, as the spider plot says what it hides
+  const offAxis = useMemo(() => {
+    const o = { above: 0, below: 0, left: 0, right: 0, n: 0 };
+    for (const p of projected) { if (!(p.x < xmin || p.x > xmax || p.y < ymin || p.y > ymax)) continue; o.n++; if (p.y > ymax) o.above++; else if (p.y < ymin) o.below++; else if (p.x > xmax) o.right++; else o.left++; }
+    return o;
+  }, [projected, xmin, xmax, ymin, ymax]);
   const dots = useMemo(() => pointsLayer(pts, colorBy), [pts, colorBy]); // #1519
   const { hover, onMove, onLeave } = usePointHover(svgRef, pts);
   const hp = hover ? pts[hover.i] : null;
@@ -132,6 +138,7 @@ function BinaryPlot({ diagram, projected, colorBy, svgRef, altBoxes, describe })
     <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} width="100%" style={{ background: "var(--color-bg)", borderRadius: 8, maxHeight: "72vh" }} onMouseMove={onMove} onMouseLeave={onLeave}>
       <rect x={PAD} y={PAD} width={W - 2 * PAD} height={H - 2 * PAD} fill="#ffffff" stroke="#d9dce1" />
 
+      {offAxis.n > 0 && <text x={W - PAD} y={PAD - 10} fill="#8a6a3a" fontSize={fontSizes.xs} textAnchor="end">{tr("{n} point(s) outside the axes, not drawn ({where})", { n: offAxis.n.toLocaleString(), where: [offAxis.above && tr("{n} above", { n: offAxis.above }), offAxis.below && tr("{n} below", { n: offAxis.below }), offAxis.right && tr("{n} right", { n: offAxis.right }), offAxis.left && tr("{n} left", { n: offAxis.left })].filter(Boolean).join(", ") })}</text>}
       {/* TASKS.csv #1379 — a classification diagram drawn without its fields says so on the plot */}
       {diagram.noFields && <text x={W - PAD - 6} y={PAD + 14} fill="#8a5a00" fontSize={fontSizes.xs} textAnchor="end">{tr("No fields drawn: compare with the published diagram")}</text>}
       {/* reference fields */}
