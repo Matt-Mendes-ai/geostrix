@@ -8850,7 +8850,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
           colorFor={effectiveColor} labelFor={effectiveLabel} shownElements={assayDisplayElements} // #402; #1698
           patternOverride={legendOverride.litho} onPatternChange={(v, p) => setLegendOverride((o) => ({ ...o, litho: { ...(o.litho || {}), [v]: { ...(o.litho?.[v] || {}), pattern: p } } }))} // #1995
           modelledLayers={customLayers.filter((l) => l.rows?.[0]?.modelled)} // TASKS.csv #356
-          onAddToLayout={(img) => { addLayoutImage(img); goToModule("layout"); }} // #1480
+          onAddToLayout={(img) => { addLayoutImage(img); goToModule("layout"); }} onAdvice={(t) => t && setNotices((p) => [...p, t])} // #1480; advice: #1641
           assayColor={(sym, v) => assayColorFor(v, Math.max(0, assayDisplayElements.indexOf(sym)), assayStyle[sym])}
           onClose={() => setStripLogHoleId(null)}
         />

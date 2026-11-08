@@ -9139,5 +9139,7 @@
   "Transform fit — RMSE {rmse} m.": "ملاءمة التحويل — جذر متوسط مربع الخطأ {rmse} م.",
   "Transform fit — RMSE {rmse} project units.": "ملاءمة التحويل — جذر متوسط مربع الخطأ {rmse} من وحدات المشروع.",
   "Project collars and layer extents": "فوهات المشروع وامتدادات الطبقات",
-  "Drawn at its own levels (each contour at its elevation).": "مرسوم عند مستوياته (كل خط كنتور عند ارتفاعه)."
+  "Drawn at its own levels (each contour at its elevation).": "مرسوم عند مستوياته (كل خط كنتور عند ارتفاعه).",
+  "Its labels print at about {pt} pt at this size: give it more height, or send a shorter depth range from the strip log window.": "تُطبع تسمياته بنحو {pt} نقطة بهذا الحجم: امنحه ارتفاعاً أكبر، أو أرسل نطاق عمق أقصر من نافذة السجل.",
+  "Its labels print at about {pt} pt.": "تُطبع تسمياته بنحو {pt} نقطة."
 }

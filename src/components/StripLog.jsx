@@ -30,7 +30,7 @@ import { stripLogTextPt } from "../lib/atlas.js"; // TASKS.csv #1480 — the siz
 const DEPTH_COL_W = 50;
 const PAD_TOP = 40;
 
-export default function StripLog({ holeId, collars, layers, assays, assayElements, colorFor, labelFor, assayColor, onClose, modelledLayers = [], onAddToLayout = null, shownElements = [], patternOverride = null, onPatternChange = null }) { // shownElements: TASKS.csv #1698; pattern*: #1995
+export default function StripLog({ holeId, collars, layers, assays, assayElements, colorFor, labelFor, assayColor, onClose, modelledLayers = [], onAddToLayout = null, onAdvice = null /* #1641 */, shownElements = [], patternOverride = null, onPatternChange = null }) { // shownElements: TASKS.csv #1698; pattern*: #1995
   useEscapeKey(onClose); // TASKS.csv #238
   useFocusTrap(); // TASKS.csv #238
   const svgRef = useRef(null);
@@ -192,15 +192,21 @@ export default function StripLog({ holeId, collars, layers, assays, assayElement
       const group = String(t.title || t.label).split(": ")[0]; // the legend splits a heading at its first ": " (the structure track's title has one)
       return seen.map((v) => (t.key === "litho" && patternOf(v) ? [`${group}: ${t.nameFn ? t.nameFn(v) : v}`, t.colorFn(v), null, patternOf(v)] : [`${group}: ${t.nameFn ? t.nameFn(v) : v}`, t.colorFn(v)])); // the pattern (4th): #1995
     });
-    onAddToLayout({ label: `Strip log — ${holeId}` /* project data stays English */, src: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(markup)))}`, naturalW: fw, naturalH: fh, legendItems, depthHeightAtCaptureM: fh / pxPerMeter /* #1480 — Layout's depth scale */ });
+    // TASKS.csv #1641 (review #1497, Lawyers) — a depth range is part of the label: two sends of 21AGBDD007 (whole hole, 100-250 m) were both 'Strip log — 21AGBDD007'
+    const rangeText = ranged ? `, ${Number(d0.toFixed(1))}-${Number(d1.toFixed(1))} m` : "";
+    onAddToLayout({ label: `Strip log — ${holeId}${rangeText}` /* project data stays English */, src: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(markup)))}`, naturalW: fw, naturalH: fh, legendItems, depthHeightAtCaptureM: fh / pxPerMeter /* #1480 — Layout's depth scale */ });
     const ptAt = (h) => stripLogTextPt(h, Math.min(700 * (h / fw), 794 - 160)); // Layout: 700 px wide, at most the sheet height less margins (A4 landscape)
     const pt = ptAt(fh), pt1 = ptAt(fh - (d1 - d0) * (pxPerMeter - 1)); // the same log drawn at 1 px/m
     const wide = 700 * (fh / fw) <= 794 - 160; // Layout's 700 px width, not the sheet height, sets its size: many tracks
-    setPngNote(pt == null || pt >= 6 ? "" : wide
+    const advice = (pt == null || pt >= 6 ? "" : wide
       ? tr("Sent to Layout. At the width Layout gives it, its labels print at about {pt} pt: drag its corner larger on the page, or draw fewer tracks.", { pt: pt.toFixed(1) })
       : pt1 >= 6
       ? tr("Sent to Layout. Its labels print at about {pt} pt there: lower the vertical scale (px/m) and send it again for a readable log.", { pt: pt.toFixed(1) })
       : tr("Sent to Layout. A {m} m log is too long to print readably on one page (labels about {pt} pt, {pt1} pt even at 1 px/m): set a shorter depth range, or use the SVG or PNG for a full-size log.", { m: Math.round(d1 - d0), pt: pt.toFixed(1), pt1: pt1.toFixed(1) }));
+    // #1641 — the window closes after a send (it stayed open behind Layout and was still there on the next visit to the 3D View); the
+    // advice about the printed text size goes with the image to Layout, as a notice there
+    onAdvice?.(advice);
+    onClose?.();
   };
   const exportSVG = () => {
     const svg = svgRef.current;

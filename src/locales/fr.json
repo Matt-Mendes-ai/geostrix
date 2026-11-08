@@ -9139,5 +9139,7 @@
   "Transform fit — RMSE {rmse} m.": "Ajustement de la transformation — RMSE {rmse} m.",
   "Transform fit — RMSE {rmse} project units.": "Ajustement de la transformation — RMSE {rmse} unités du projet.",
   "Project collars and layer extents": "Collets du projet et emprises des couches",
-  "Drawn at its own levels (each contour at its elevation).": "Dessiné à ses propres niveaux (chaque courbe à son altitude)."
+  "Drawn at its own levels (each contour at its elevation).": "Dessiné à ses propres niveaux (chaque courbe à son altitude).",
+  "Its labels print at about {pt} pt at this size: give it more height, or send a shorter depth range from the strip log window.": "Ses étiquettes s'impriment à environ {pt} pt à cette taille : donnez-lui plus de hauteur, ou envoyez un intervalle de profondeur plus court depuis la fenêtre du log.",
+  "Its labels print at about {pt} pt.": "Ses étiquettes s'impriment à environ {pt} pt."
 }

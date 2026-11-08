@@ -9,9 +9,9 @@ const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
 test("the strip log window sends the exported figure and its colour-track legend", () => {
   const src = read("src/components/StripLog.jsx");
   assert.match(src, /exportSvgMarkup\(svg, \{ furniture: furniture\(\) \}\);\s*const legendItems = tracks\.filter\(\(t\) => t\.kind === "fill" \|\| t\.kind === "struct"\)/);
-  assert.match(src, /onAddToLayout\(\{ label: `Strip log — \$\{holeId\}`/);
+  assert.match(src, /onAddToLayout\(\{ label: `Strip log — \$\{holeId\}\$\{rangeText\}`/);
   assert.match(src, /\{onAddToLayout && <button onClick=\{addToLayout\}/);
-  assert.match(read("src/modules/ViewerModule.jsx"), /onAddToLayout=\{\(img\) => \{ addLayoutImage\(img\); goToModule\("layout"\); \}\} \/\/ #1480/);
+  assert.match(read("src/modules/ViewerModule.jsx"), /onAddToLayout=\{\(img\) => \{ addLayoutImage\(img\); goToModule\("layout"\); \}\} onAdvice=/);
 });
 
 test("Layout caps a queued image at the sheet height", () => {

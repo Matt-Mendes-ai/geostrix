@@ -1771,6 +1771,12 @@ function DepthScaleControls({ sel, pageH, updateSelected }) {
         )}
       </label>
       {d > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", marginBottom: 4 }}>{tr("{mm} mm of paper per 10 m of hole", { mm: +(10000 / d).toPrecision(3) })}</div>}
+      {/* TASKS.csv #1641 — the size its 9.5 px labels print at here (the strip log window's advice used to stay behind in the 3D View) */}
+      {sel.naturalH > 0 && sel.h > 0 && (() => { const pt = (9.5 * (sel.h / sel.naturalH) * 72) / 96; return (
+        <div style={{ fontSize: "var(--font-size-xs)", color: pt < 6 ? "var(--color-warn-text)" : "var(--color-text-muted)", marginBottom: 4, lineHeight: 1.4 }}>{pt < 6
+          ? tr("Its labels print at about {pt} pt at this size: give it more height, or send a shorter depth range from the strip log window.", { pt: pt.toFixed(1) })
+          : tr("Its labels print at about {pt} pt.", { pt: pt.toFixed(1) })}</div>
+      ); })()}
       {sel.h > pageH && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", lineHeight: 1.4 }}>{tr("At this scale the log is taller than the page: a larger depth scale (1 : N with a bigger N) fits it, or a taller page.")}</div>}
     </div>
   );
