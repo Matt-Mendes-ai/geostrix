@@ -45,6 +45,7 @@ import DiurnalCorrectionBox from "../components/DiurnalCorrectionBox.jsx";
 import { parseDXF, dxfToBoundaries, dxfSkippedText } from "../lib/dxf.js";
 import { readKmlFile, kmlToProjectPolylines } from "../lib/kml.js"; // TASKS.csv #424
 import { parseShapefileZip, parseShapefileParts } from "../lib/shapefile.js";
+import { groupShapefileParts } from "../lib/viewer/importHelpers.js"; // TASKS.csv #2121 — a loose .shp with its .prj / .dbf / .cpg
 import { parseGeoPackage } from "../lib/gpkg.js";
 import { idwGridToRasterInput, suggestBlankingDistance } from "../lib/idw.js";
 import { hillshadeToRasterInput, terrainDerivativeToRasterInput } from "../lib/hillshade.js"; // derivatives: TASKS.csv #797
@@ -874,8 +875,13 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     // TASKS.csv #1035 — every part of every feature, reprojected from the file's own CRS (lib/boundaryImport.js)
     if (name.endsWith(".zip") || name.endsWith(".shp")) {
       const buf = await file.arrayBuffer();
-      const parsed = name.endsWith(".zip") ? await parseShapefileZip(buf) : parseShapefileParts({ shp: new Uint8Array(buf) });
-      return vectorToBoundaryPolylines(parsed, project?.epsg);
+      // TASKS.csv #2121 (review #2013, Woodjam) — a loose .shp is read with the .prj / .dbf / .cpg chosen beside it (groupShapefileParts
+      // in the import handlers), as the map-layer importer does: alone, a zone 9N file landed 409 km off as 'it states no CRS'
+      const parts = file.shpParts || {};
+      const parsed = name.endsWith(".zip") ? await parseShapefileZip(buf) : parseShapefileParts({ shp: new Uint8Array(buf), dbf: parts.dbf ? new Uint8Array(await parts.dbf.arrayBuffer()) : null, cpg: parts.cpg ? await parts.cpg.text() : null }, 0, parts.prj ? await parts.prj.text() : null);
+      const r = await vectorToBoundaryPolylines(parsed, project?.epsg);
+      if (name.endsWith(".shp") && !parts.prj && !parsed.prjWkt) r.note = tr("no .prj was read with it (select the .zip, or the .prj with the .shp): the coordinates were taken as EPSG:{dst}, check where it lies", { dst: project?.epsg });
+      return r;
     }
     if (name.endsWith(".gpkg")) {
       checkGpkgSize(file); // #1716
@@ -894,7 +900,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
     return null; // not a vector format this helper handles — caller falls back to .ply/.dxf
   }
   const importBoundaries = async (fileList) => {
-    const files = Array.from(fileList || []).filter(Boolean);
+    const files = groupShapefileParts(Array.from(fileList || []).filter(Boolean)).files; // #2121 — a .shp's .prj / .dbf / .cpg go with it
     if (!files.length) return;
     setBoundaryError(null);
     let imported = 0;
@@ -958,7 +964,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   const MAX_CLAIMS_PER_FILE = 300; // TASKS.csv #1970 — a province-wide tenure file is not a claim list for one property
   const claimStatusColor = (status) => status === "expired" ? "#d9534f" : status === "pending" ? "#e2a63c" : "#3ca65e";
   const importClaims = async (fileList) => {
-    const files = Array.from(fileList || []).filter(Boolean);
+    const files = groupShapefileParts(Array.from(fileList || []).filter(Boolean)).files; // #2121
     if (!files.length) return;
     setClaimMsg(null);
     let imported = 0;
@@ -2126,7 +2132,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <input
           ref={boundaryInput}
           type="file"
-          accept=".ply,.dxf,.zip,.shp,.gpkg,.kml,.kmz,.gpx,.geojson,.json"
+          accept=".ply,.dxf,.zip,.shp,.prj,.dbf,.shx,.cpg,.gpkg,.kml,.kmz,.gpx,.geojson,.json" /* .prj .dbf .shx .cpg: #2121 */
           multiple
           style={{ display: "none" }}
           onChange={(e) => { importBoundaries(e.target.files); e.target.value = ""; }}
@@ -2213,7 +2219,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <input
           ref={claimInput}
           type="file"
-          accept=".ply,.dxf,.zip,.shp,.gpkg,.kml,.kmz,.gpx,.geojson,.json"
+          accept=".ply,.dxf,.zip,.shp,.prj,.dbf,.shx,.cpg,.gpkg,.kml,.kmz,.gpx,.geojson,.json" /* .prj .dbf .shx .cpg: #2121 */
           multiple
           style={{ display: "none" }}
           onChange={(e) => { importClaims(e.target.files); e.target.value = ""; }}
