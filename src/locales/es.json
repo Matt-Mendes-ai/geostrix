@@ -9141,5 +9141,6 @@
   "Project collars and layer extents": "Collares del proyecto y extensiones de capas",
   "Drawn at its own levels (each contour at its elevation).": "Dibujado en sus propios niveles (cada curva a su elevación).",
   "Its labels print at about {pt} pt at this size: give it more height, or send a shorter depth range from the strip log window.": "Sus etiquetas se imprimen a unos {pt} pt a este tamaño: dele más altura, o envíe un rango de profundidad más corto desde la ventana del registro.",
-  "Its labels print at about {pt} pt.": "Sus etiquetas se imprimen a unos {pt} pt."
+  "Its labels print at about {pt} pt.": "Sus etiquetas se imprimen a unos {pt} pt.",
+  "{n} more assay file(s) follow in the Geochem import, one after another: {list}.": "{n} archivo(s) de ensayes más siguen en la importación de Geoquímica, uno tras otro: {list}."
 }

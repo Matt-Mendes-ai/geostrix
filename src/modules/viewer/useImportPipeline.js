@@ -630,9 +630,9 @@ export function useImportPipeline(ctx) {
     const files = assayHandoffRef.current.splice(0);
     if (!files.length) return;
     goToModule("geochem");
-    requestModuleAction("import-assay-file", { file: files[0] });
+    requestModuleAction("import-assay-file", { files }); // #1652 — all of them, in turn
     setNotices((p) => [...p, notice("{name} is assay data: it is open in the Geochem assay import, which asks which columns are elements.", { name: files[0].name }),
-      ...(files.length > 1 ? [notice("{n} more assay file(s) to import from the Geochem tab: {list}.", { n: files.length - 1, list: files.slice(1).map((f) => f.name).join(", ") })] : [])]);
+      ...(files.length > 1 ? [notice("{n} more assay file(s) follow in the Geochem import, one after another: {list}.", { n: files.length - 1, list: files.slice(1).map((f) => f.name).join(", ") })] : [])]);
   };
   const processImportQueue = useCallback(() => {
     const file = importQueueRef.current.shift();

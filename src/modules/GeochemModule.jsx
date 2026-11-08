@@ -1,6 +1,6 @@
 import { qcColumns, qcFields } from "../lib/assayQcColumns.js"; // TASKS.csv #1184
 import { zeroMeansMissing } from "../lib/missingElevation.js"; // TASKS.csv #1394
-import React, { useState, useRef, useMemo, Suspense } from "react";
+import React, { useState, useRef, useMemo, useEffect, Suspense } from "react";
 import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1284
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
 import { parseTableOrWorkbook, isXlsxName } from "../lib/xlsx.js"; // TASKS.csv #444 shared reader; #605 .xlsx
@@ -132,7 +132,10 @@ export default function GeochemModule() {
   // TASKS.csv #565 — File > Import CSV / Import Assays / Import pXRF
   useModuleAction(["import-assays", "import-pxrf"], (a) => (a === "import-pxrf" ? pxrfRef : fileRef).current?.click());
   // TASKS.csv #1350 — an assay file dropped on the 3D View (alone or in a drill folder) opens here, as if picked with Import
-  useModuleAction(["import-assay-file"], (_a, p) => { if (p?.file) handleFile(p.file, false); });
+  // TASKS.csv #1652 (review #1645, Copley) — every assay-like file of a 3D View drop, one after another (only the first was opened: the pXRF
+  // file got '1 more assay file(s) to import from the Geochem tab' and had to be found and dropped again), each routed by its name as
+  // this tab's own drop does (pxrf / xrf -> the pXRF import)
+  useModuleAction(["import-assay-file"], (_a, p) => { const fs = p?.files || (p?.file ? [p.file] : []); enqueueAssayFiles(fs); });
   // TASKS.csv #917 — assays straight from a database: this tab's Database button, or a table the 3D View's database
   // Browser panel recognized as assays and handed over
   const [dbOpen, setDbOpen] = useState(false);
@@ -254,8 +257,22 @@ export default function GeochemModule() {
   };
   // TASKS.csv #605 — an .xlsx gives its sheet with the most element columns (an MX "Assay Samples" sheet)
   const elementScore = (headers) => headers.filter((h) => isElementColumn(h)).length;
+  // #1652 — a queue of dropped / handed-over files: the next opens when the assay dialog closes (committed or cancelled), or at once
+  // when a file opens no dialog (an empty file, a surface-sample table goes to its own import)
+  const fileQueueRef = useRef([]);
+  const queueBusyRef = useRef(false);
+  const assayOpenRef = useRef(false);
+  const nextQueuedFile = () => {
+    if (queueBusyRef.current || assayOpenRef.current) return;
+    const f = fileQueueRef.current.shift();
+    if (!f) return;
+    queueBusyRef.current = true;
+    handleFile(f, /pxrf|xrf/i.test(f.name)).finally(() => { queueBusyRef.current = false; setTimeout(() => { if (!assayOpenRef.current) nextQueuedFile(); }, 0); });
+  };
+  const enqueueAssayFiles = (files) => { fileQueueRef.current.push(...files); nextQueuedFile(); };
+  useEffect(() => { assayOpenRef.current = !!assayModal; if (!assayModal) nextQueuedFile(); }, [assayModal]);
   const handleFile = (file, isPxrf, preset = null) => { // preset: #716 — dialog defaults for a known file
-    parseTableOrWorkbook(file, elementScore, { columnar: true }).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback; #611 big files held as columns
+    return parseTableOrWorkbook(file, elementScore, { columnar: true }).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback; #611 big files held as columns
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
         // TASKS.csv #284 — comma-decimal (European-locale) assay values parse as strings, which
         // Number()s to NaN and silently drops the sample. Same shared fix as the collar/interval
@@ -288,6 +305,7 @@ export default function GeochemModule() {
   };
 
   const openAssayModal = (file, headers, data, isPxrf, preset = null) => {
+    assayOpenRef.current = true; // #1652 — at once: the queue checks it before React has run the effect that would
     // TASKS.csv #600 (40958Z) — the shared column matcher: "To (m)" / "Hole ID" style headers, and no bare
     // substring match on a short alias ("to" inside any header that contains those two letters)
     const guess = (aliases) => guessColumn(headers, aliases);
@@ -796,7 +814,7 @@ export default function GeochemModule() {
     const skipped = e.dataTransfer.files.length - files.length;
     if (!files.length) { setNotices((p) => [...p, errorNotice(tr("Only .csv or .xlsx files can be dropped in directly."))]); return; }
     if (skipped) setNotices((p) => [...p, notice("{skipped} other file(s) skipped.", { skipped })]);
-    files.forEach((f) => handleFile(f, /pxrf|xrf/i.test(f.name)));
+    enqueueAssayFiles(files); // #1652 — one after another (several at once all opened the one dialog)
   };
 
   const runMethod = (methodKey, altSetup = null) => {

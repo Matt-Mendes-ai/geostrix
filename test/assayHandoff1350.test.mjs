@@ -11,9 +11,9 @@ test("the drop paths queue the assay file and hand it over", () => {
   assert.equal(pipe.split("assayHandoffRef.current.push(file)").length - 1, 2); // single file and folder queue
   assert.match(pipe, /assayHandoffRef\.current\.push\(file\); handOverAssays\(\);/); // a single file: at once
   assert.match(pipe, /importQueueTotalRef\.current = 0; handOverAssays\(\); return; \}/); // a folder: when the queue is done
-  assert.match(pipe, /goToModule\("geochem"\);\s*requestModuleAction\("import-assay-file", \{ file: files\[0\] \}\);/);
+  assert.match(pipe, /goToModule\("geochem"\);\s*requestModuleAction\("import-assay-file", \{ files \}\);/ /* #1652 — all of them */);
 });
 
 test("Geochem opens a handed-over file as if picked with Import", () => {
-  assert.match(geo, /useModuleAction\(\["import-assay-file"\], \(_a, p\) => \{ if \(p\?\.file\) handleFile\(p\.file, false\); \}\);/);
+  assert.match(geo, /useModuleAction\(\["import-assay-file"\], \(_a, p\) => \{ const fs = p\?\.files \|\| \(p\?\.file \? \[p\.file\] : \[\]\); enqueueAssayFiles\(fs\); \}\);/ /* #1652 */);
 });
