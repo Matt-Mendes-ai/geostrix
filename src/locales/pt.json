@@ -9238,5 +9238,6 @@
   " The solid was closed artificially at the search radius, so its volume is an assumption.": " O sólido foi fechado artificialmente no raio de busca, então seu volume é uma suposição.",
   "No two of these holes lie within {m} m of one line: they are on separate prospects or lines. Tick one prospect's holes, or draw the panel along a saved section.": "Não há dois destes furos a até {m} m de uma mesma linha: estão em alvos ou linhas diferentes. Marque os furos de um alvo, ou desenhe o painel ao longo de uma seção salva.",
   "{e} slab(s) with no hole or model cell are skipped.": "{e} faixa(s) sem furo nem célula de modelo são omitidas.",
-  "{e} slab(s) with no hole or model cell were skipped.": "{e} faixa(s) sem furo nem célula de modelo foram omitidas."
+  "{e} slab(s) with no hole or model cell were skipped.": "{e} faixa(s) sem furo nem célula de modelo foram omitidas.",
+  "from below": "de baixo"
 }

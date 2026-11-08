@@ -39,7 +39,12 @@ export function createCompassRose({ camStateRef, updateCamera, dragRef }) {
   };
 
   const ringGroup = new THREE.Group();
-  navScene.add(ringGroup);
+  // TASKS.csv #2038 (review #2013, Woodjam) — seen from below the scene is mirrored north-south (the Bottom view puts north at the bottom of
+  // the screen, as the axis gizmo shows), so the ring is mirrored too: flipGroup's z is the screen's vertical (the nav camera's up is -z).
+  // The letters are sprites, so they stay readable.
+  const flipGroup = new THREE.Group();
+  flipGroup.add(ringGroup);
+  navScene.add(flipGroup);
   const ringR = 1.6;
   ringGroup.add(new THREE.Mesh(new THREE.TorusGeometry(ringR, 0.03, 8, 48), new THREE.MeshBasicMaterial({ color: 0x3a4454 })));
 
@@ -79,6 +84,16 @@ export function createCompassRose({ camStateRef, updateCamera, dragRef }) {
 
   const pitchMarker = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 12), new THREE.MeshBasicMaterial({ color: 0x4a9be0 }));
   navScene.add(pitchMarker);
+  // #2038 — said in words when the view looks up from below
+  const belowLabel = (() => {
+    const c = document.createElement("canvas"); c.width = 256; c.height = 64;
+    const ctx = c.getContext("2d"), tex = new THREE.CanvasTexture(c);
+    drawWhenFontReady(40, () => { ctx.clearRect(0, 0, c.width, c.height); ctx.fillStyle = "#9a6a12"; ctx.font = LABEL_FONT(40); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(tr("from below"), 128, 34); tex.needsUpdate = true; });
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
+    sp.scale.set(1.6, 0.4, 1); sp.position.set(0, 0.06, 0.75); sp.visible = false;
+    navScene.add(sp);
+    return sp;
+  })();
 
   const navSize = 116, navMarginX = 12, navTop = 54; // bumped up from 100 to give the larger labels room
   const getRect = (mount) => ({ x: mount.clientWidth - navMarginX - navSize, y: navTop, w: navSize, h: navSize });
@@ -119,6 +134,8 @@ export function createCompassRose({ camStateRef, updateCamera, dragRef }) {
     const pitchDist = ringR * Math.max(0.06, Math.min(1, pitchT));
     pitchMarker.position.set(0, 0.05, -pitchDist);
     pitchMarker.material.color.set(lookingUpFromBelow ? 0xd4a24a : 0x4a9be0);
+    flipGroup.scale.z = lookingUpFromBelow ? -1 : 1; // #2038
+    belowLabel.visible = lookingUpFromBelow;
 
     const r = getRect(mount);
     const canvasH = mount.clientHeight;

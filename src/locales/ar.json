@@ -9238,5 +9238,6 @@
   " The solid was closed artificially at the search radius, so its volume is an assumption.": " أُغلق المجسم اصطناعياً عند نصف قطر البحث، لذا حجمه افتراض.",
   "No two of these holes lie within {m} m of one line: they are on separate prospects or lines. Tick one prospect's holes, or draw the panel along a saved section.": "لا يوجد ثقبان من هذه الثقوب ضمن {m} م من خط واحد: إنها في أهداف أو خطوط منفصلة. حدد ثقوب هدف واحد، أو ارسم اللوحة على طول مقطع محفوظ.",
   "{e} slab(s) with no hole or model cell are skipped.": "تُتخطى {e} شريحة بلا ثقب ولا خلية نموذج.",
-  "{e} slab(s) with no hole or model cell were skipped.": "تم تخطي {e} شريحة بلا ثقب ولا خلية نموذج."
+  "{e} slab(s) with no hole or model cell were skipped.": "تم تخطي {e} شريحة بلا ثقب ولا خلية نموذج.",
+  "from below": "من الأسفل"
 }
