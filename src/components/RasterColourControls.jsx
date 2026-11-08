@@ -11,6 +11,8 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
   const values = useMemo(() => b64ToF32(r.grid.values), [r.grid.values]);
   const range = r.colourRange || (() => { const { lo, hi } = rasterRange(values, style); return [lo, hi]; })();
   const [typed, setTyped] = useState({ min: "", max: "" });
+  // TASKS.csv #1630 (review #1497, Lawyers) — 'Typed range' filled the boxes with float32 noise (0.0005000000237487257, 1.1027064323425293)
+  const sig4 = (v) => (Number.isFinite(v) && v !== 0 ? Number(v.toPrecision(4)) : v);
   const apply = (patch) => {
     const next = { ...style, ...patch };
     onUpdate(r.id, rasterColourFields(values, r.grid.nx, r.grid.ny, next));
@@ -36,7 +38,7 @@ export default function RasterColourControls({ raster: r, onUpdate, inputStyle }
       </div>
       <div style={row}>
         <span style={lbl}>{tr("Stretch")}</span>
-        <select value={style.stretch} aria-label={tr("Colour stretch of \"{name}\"", { name: r.name })} onChange={(e) => { const stretch = e.target.value; apply(stretch === "custom" ? { stretch, min: range[0], max: range[1] } : { stretch }); }} style={inputStyle}>
+        <select value={style.stretch} aria-label={tr("Colour stretch of \"{name}\"", { name: r.name })} onChange={(e) => { const stretch = e.target.value; apply(stretch === "custom" ? { stretch, min: sig4(range[0]), max: sig4(range[1]) } : { stretch }); }} style={inputStyle}>
           <option value="p2-98">{tr("2-98% percentile clip")}</option>
           <option value="linear">{tr("Linear min-max")}</option>
           <option value="log">{decades > 1 ? tr("Log (suggested: the values span {n} decades)", { n: decades.toFixed(1) }) : tr("Log (positive values)")}</option>

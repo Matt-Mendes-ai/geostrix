@@ -113,7 +113,7 @@ export default function CartographyModule({ embedded = false, forcePane = null }
   // ---- reproject a file pane ----
   const [file, setFile] = useState(null); // CSV: { name, headers, rows, xCol, yCol }; #487 shapefile: { kind: "shp", name, bytes, layers }; GeoTIFF: { kind: "tif", name, bytes, epsg, width, height, bands }
   const [fileFrom, setFileFrom] = useState(null);
-  const [fileTo, setFileTo] = useState(null);
+  const [fileTo, setFileTo] = useState(() => (project?.crsSet !== false && project?.epsg ? project.epsg : null)); // #1630 — the project's CRS, the obvious target (was 'No CRS chosen')
   const pickFile = (f) => run(async () => {
     if (/\.zip$/i.test(f.name)) { // #487 — a zipped shapefile (one or more layers)
       const bytes = new Uint8Array(await f.arrayBuffer());

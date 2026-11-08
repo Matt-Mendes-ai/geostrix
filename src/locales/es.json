@@ -9138,5 +9138,6 @@
   "Exact fit: three points always fit this transform exactly, so they cannot show an error. Add a fourth point to check the others.": "Ajuste exacto: tres puntos siempre ajustan esta transformación exactamente, así que no pueden mostrar un error. Agregue un cuarto punto para comprobar los demás.",
   "Transform fit — RMSE {rmse} m.": "Ajuste de la transformación — RMSE {rmse} m.",
   "Transform fit — RMSE {rmse} project units.": "Ajuste de la transformación — RMSE {rmse} unidades del proyecto.",
-  "Project collars and layer extents": "Collares del proyecto y extensiones de capas"
+  "Project collars and layer extents": "Collares del proyecto y extensiones de capas",
+  "Drawn at its own levels (each contour at its elevation).": "Dibujado en sus propios niveles (cada curva a su elevación)."
 }

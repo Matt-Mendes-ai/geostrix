@@ -2146,6 +2146,9 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               <span style={{ color: "var(--color-text-muted)", flexShrink: 0 }}>{tr("{v} part(s)", { v: b.polylines?.length || 0 })}</span>
               <Trash2 aria-label={tr("Remove boundary \"{name}\"", { name: b.name })} title={tr("Remove boundary \"{name}\"", { name: b.name })} role="button" tabIndex={0} onKeyDown={activateOnKey} size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} onClick={() => { if (window.confirm(tr("Remove \"{name}\"?", { name: b.name }))) removeBoundary(b.id); }} />
             </div>
+            {b.useVertexZ ? ( /* TASKS.csv #1630 — a contour set is drawn at its own levels: 'Drape' and 'Elev. 0' did nothing */
+              <div style={{ marginTop: 7, color: "var(--color-text-caption)" }}>{tr("Drawn at its own levels (each contour at its elevation).")}</div>
+            ) : (<>
             <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 7, cursor: terrain ? "pointer" : "default", opacity: terrain ? 1 : 0.45 }}>
               <input type="checkbox" checked={b.drapeMode === "terrain"} disabled={!terrain}
                 onChange={(e) => updateBoundary(b.id, { drapeMode: e.target.checked ? "terrain" : "flat" })} />
@@ -2155,6 +2158,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Elev.")}</span>
               <input type="number" value={Math.round(b.elevation)} disabled={b.drapeMode === "terrain"} onChange={(e) => updateBoundary(b.id, { elevation: Number(e.target.value) })} style={numInput} />
             </div>
+            </>)}
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5 }}>
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Colour")}</span>
               <input type="color" value={b.color || "#e2a63c"} onChange={(e) => updateBoundary(b.id, { color: e.target.value })} style={{ width: 26, height: 22, padding: 0, border: "1px solid var(--color-border)", borderRadius: 4, background: "transparent" }} />
