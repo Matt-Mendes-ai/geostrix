@@ -158,6 +158,43 @@ export function initialFenceSelection(traces, limit = 100) {
   return ids.length >= 2 && ids.length < all.length ? { ids, trimmed: all.length - ids.length } : { ids: all, trimmed: 0 };
 }
 
+// TASKS.csv #2064 (review #2013, Woodjam) — 'Drop them from the panel': a fitted line (and a typed azimuth's origin, the collars' centre)
+// moves when holes leave, so the farthest hole is dropped and the line refitted, one at a time, until every kept hole is within `limit` m:
+// dropping every off-line hole at once against a line skewed by one far hole also dropped good ones. A saved section's line is fixed:
+// it only filters. Fewer than two holes left: null, and the caller says the holes lie apart (Woodjam's three prospects 3-5 km apart
+// left one proposed hole '165 m off'). -> { ids, dropped } | null
+export function dropOffLineSelection(traces, limit, opts = {}) {
+  const usable = (traces || []).filter((t) => t?.wx?.length > 1);
+  let cur = usable;
+  if (opts.line?.dir) {
+    const p = buildFencePanel(cur, opts);
+    const keep = new Set((p?.holes || []).filter((h) => h.maxAbsOffset <= limit).map((h) => h.hole_id));
+    cur = cur.filter((t) => keep.has(t.hole_id));
+  } else {
+    // which hole to drop: the one whose removal leaves the refitted line closest to every remaining hole (a far stray tilts the fit,
+    // so the farthest hole from the tilted line is often a good one); past LOO_MAX holes, the farthest, to stay fast
+    const LOO_MAX = 60;
+    const spread = (set) => { const p = buildFencePanel(set, opts); return (p?.holes || []).reduce((m, h) => Math.max(m, h.maxAbsOffset), 0); };
+    while (cur.length >= 2) {
+      const p = buildFencePanel(cur, opts);
+      const off = (p?.holes || []).filter((h) => h.maxAbsOffset > limit);
+      if (!off.length) break;
+      let drop;
+      if (cur.length > LOO_MAX) { // the farthest quarter of the off-line holes per refit: one at a time took 3.8 s over Woodjam's 544
+        const far = new Set(off.sort((a, b) => b.maxAbsOffset - a.maxAbsOffset).slice(0, Math.max(1, Math.ceil(off.length / 4))).map((h) => h.hole_id));
+        cur = cur.filter((t) => !far.has(t.hole_id)); continue;
+      }
+      {
+        let best = Infinity;
+        for (const t of cur) { const rest = cur.filter((u) => u !== t); const v = rest.length >= 2 ? spread(rest) : Infinity; if (v < best) { best = v; drop = t.hole_id; } }
+      }
+      if (drop == null) { cur = []; break; } // two holes still apart: nothing to keep (and no endless loop)
+      cur = cur.filter((t) => t.hole_id !== drop);
+    }
+  }
+  return cur.length >= 2 ? { ids: cur.map((t) => t.hole_id), dropped: usable.length - cur.length } : null;
+}
+
 export function buildFencePanel(traces, opts = {}) {
   const usable = (traces || []).filter((t) => t && t.wx && t.wx.length > 0);
   if (usable.length < 1) return null;
@@ -177,6 +214,12 @@ export function buildFencePanel(traces, opts = {}) {
     line = bestFitLine(collars);
     // One hole (or several stacked at one spot) has no principal axis. Fall back to due north rather
     // than returning null — a single-hole "fence" is a legitimate, if degenerate, thing to look at.
+    // TASKS.csv #2064 (review #2013, Woodjam) — one hole: the line follows its own trace in plan (collar to end of hole), so the hole
+    // lies on its section; due north left an inclined hole '165 m off' a section through its own collar
+    if (!line && usable.length === 1) {
+      const t = usable[0], n = t.wx.length - 1, dx = t.wx[n] - t.wx[0], dy = t.wy[n] - t.wy[0], L = Math.hypot(dx, dy);
+      if (L > 1) { const dir = { x: dx / L, y: dy / L }; line = { origin: { x: t.wx[0], y: t.wy[0] }, dir, azimuth: dirToAzimuth(dir.x, dir.y) }; }
+    }
     if (!line) line = { origin: { x: collars[0].x, y: collars[0].y }, dir: { x: 0, y: 1 }, azimuth: 0 };
   }
 

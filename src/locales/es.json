@@ -9235,5 +9235,6 @@
   "The cells at or above the cutoff have no estimated neighbours to close a surface against: tick \"Close shell artificially at the search-radius boundary\" (its volume is then an assumption), widen the search{v}.": "Las celdas en o sobre la ley de corte no tienen vecinas estimadas contra las que cerrar una superficie: marque \"Cerrar la envolvente artificialmente en el límite del radio de búsqueda\" (su volumen pasa a ser un supuesto), amplíe la búsqueda{v}.",
   ", or lower Min holes from {k} to 1": ", o baje Mín. sondajes de {k} a 1",
   "closed artificially": "cerrado artificialmente",
-  " The solid was closed artificially at the search radius, so its volume is an assumption.": " El sólido se cerró artificialmente en el radio de búsqueda, así que su volumen es un supuesto."
+  " The solid was closed artificially at the search radius, so its volume is an assumption.": " El sólido se cerró artificialmente en el radio de búsqueda, así que su volumen es un supuesto.",
+  "No two of these holes lie within {m} m of one line: they are on separate prospects or lines. Tick one prospect's holes, or draw the panel along a saved section.": "No hay dos de estos sondajes a menos de {m} m de una misma línea: están en prospectos o líneas distintos. Marque los sondajes de un prospecto, o dibuje el panel a lo largo de una sección guardada."
 }

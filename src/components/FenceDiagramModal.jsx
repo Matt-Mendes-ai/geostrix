@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
 import { colorForLithology } from "../lib/layers.js";
-import { buildFencePanel, panelPointAtDepth, correlationBands, stackCollarLabels, lineFromSection, holesInCorridor, initialFenceSelection, FENCE_MANY } from "../lib/fence.js"; // stackCollarLabels: #1375; section / corridor / initial: #1552
+import { buildFencePanel, panelPointAtDepth, correlationBands, stackCollarLabels, lineFromSection, holesInCorridor, initialFenceSelection, FENCE_MANY, dropOffLineSelection } from "../lib/fence.js"; // stackCollarLabels: #1375; section / corridor / initial: #1552
 import { saveFile } from "../lib/desktop.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -187,9 +187,15 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
     if (n.has(id)) n.delete(id); else n.add(id);
     return n;
   });
+  // TASKS.csv #2064 — refit while dropping, and never down to one hole
+  const [dropNote, setDropNote] = useState(null);
   const dropOffLine = () => {
     if (!panel) return;
-    setSelected(new Set(panel.holes.filter((h) => h.maxAbsOffset <= offsetLimit).map((h) => h.hole_id)));
+    const az = azMode === "manual" ? Number(manualAz) : null;
+    const r = dropOffLineSelection(chosen, offsetLimit, sectionLine ? { line: sectionLine } : Number.isFinite(az) ? { azimuth: az } : {});
+    if (!r) { setDropNote(tr("No two of these holes lie within {m} m of one line: they are on separate prospects or lines. Tick one prospect's holes, or draw the panel along a saved section.", { m: offsetLimit })); return; }
+    setDropNote(null);
+    setSelected(new Set(r.ids));
   };
 
   const offHoles = (panel?.holes || []).filter((h) => h.maxAbsOffset > offsetLimit);
@@ -348,7 +354,7 @@ export default function FenceDiagramModal({ traces = [], litho = [], labelFor = 
 
             {offHoles.length > 0 && (
               <div style={warnNote}>
-                {tr(offHoles.length === 1 ? "{offHoles} hole is more than {offsetLimit} m off the section plane and is drawn as if on it. Any contact correlated through it carries that much horizontal error." : "{offHoles} holes are more than {offsetLimit} m off the section plane and are drawn as if on it. Any contact correlated through them carries that much horizontal error.", { offHoles: offHoles.length, offsetLimit })}<button onClick={dropOffLine} style={{ ...miniBtn, marginTop: 5 }}>{tr("Drop them from the panel")}</button>
+                {tr(offHoles.length === 1 ? "{offHoles} hole is more than {offsetLimit} m off the section plane and is drawn as if on it. Any contact correlated through it carries that much horizontal error." : "{offHoles} holes are more than {offsetLimit} m off the section plane and are drawn as if on it. Any contact correlated through them carries that much horizontal error.", { offHoles: offHoles.length, offsetLimit })}<button onClick={dropOffLine} style={{ ...miniBtn, marginTop: 5 }}>{tr("Drop them from the panel")}</button>{dropNote && <div style={{ marginTop: 4 }}>{dropNote}</div>}{/* #2064 */}
               </div>
             )}
 
