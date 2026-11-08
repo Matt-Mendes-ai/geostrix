@@ -139,6 +139,29 @@ export function fitVerdict(result) {
   return { chi, level: "ok", ...join(say(n === 1 ? "Reached the target fit (misfit {x}x the target) in {n} iteration." : "Reached the target fit (misfit {x}x the target) in {n} iterations.", { n, x }), picked) };
 }
 
+// TASKS.csv #2072 (review #2013, Woodjam) — the model against the data: resistivities the data see (shown[i]) that sit far outside
+// the apparent-resistivity range are smoothing or noise artefacts, not resolved bodies. Line 3050E reached its target fit with a
+// 0.017 ohm·m column at 200 m (data 16-224 ohm·m, the readings over it 98-132) and 30 % of its observed cells outside the range;
+// the cell's own sensitivity is inflated by its own conductivity, so support alone cannot catch it. factor: 3 (1/3 to 3x).
+// -> { n (cells counted), below, above, lo, hi (the model's values among them), dataMin, dataMax, factor } or null (no data)
+export function outsideDataRange(values, dataValues, shown = null, factor = 3) {
+  const d = (dataValues || []).filter((v) => Number.isFinite(v) && v > 0);
+  if (!d.length || !values?.length) return null;
+  let dataMin = Infinity, dataMax = -Infinity;
+  for (const v of d) { if (v < dataMin) dataMin = v; if (v > dataMax) dataMax = v; }
+  const low = dataMin / factor, high = dataMax * factor;
+  let n = 0, below = 0, above = 0, lo = Infinity, hi = -Infinity;
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (!Number.isFinite(v) || (shown && !shown[i])) continue;
+    n++;
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+    if (v < low) below++; else if (v > high) above++;
+  }
+  return n ? { n, below, above, lo, hi, dataMin, dataMax, factor } : null;
+}
+
 // TASKS.csv #682 — the IP verdict: chargeability is a linearization about the recovered conductivity, so when the
 // resistivity model did not fit (under or close to the target), the IP fit is marked unfinished whatever its own misfit.
 // TASKS.csv #970 — moved here from DcipPanel so the 3D panel applies the same rule.

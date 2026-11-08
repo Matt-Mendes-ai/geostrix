@@ -14,7 +14,7 @@ import { parseRes2dinv } from "../lib/res2dinv.js"; // TASKS.csv #826
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #322 — a saved line (and its inversion) is not in Undo
 import { stampLines, withStamp } from "../lib/provenance.js";
 import { version as APP_VERSION } from "../../package.json";
-import { logStops, sequentialStops, divergingStops, fitVerdict, ipFitOf, ipFitStored } from "../lib/inversion.js"; // ipFitOf: #970, shared with the 3D panel
+import { logStops, sequentialStops, divergingStops, fitVerdict, ipFitOf, ipFitStored, outsideDataRange } from "../lib/inversion.js"; // ipFitOf: #970, shared with the 3D panel; outsideDataRange: #2072
 import { subscribeInversionJob, startInversionJob, cancelInversionJob } from "../lib/inversionJobs.js";
 import { pythonHealth, ensureSidecarUp, saveFile, safeFileName } from "../lib/desktop.js"; // safeFileName: #1114
 import { colorForVoxelValue } from "../lib/layers.js";
@@ -345,7 +345,7 @@ export default function DcipPanel({ pBtn, numInput, resultSlot = null }) {
         const runParams = { ...params, fit: { phiD: result.phi_d, target: result.target, reachedTarget: result.reachedTarget, iterations: result.history?.length }, versions: result.versions, generatedAt: new Date().toISOString(), runSeconds: Math.round(result.seconds) };
         // #683 follow-up — the observed and / or the extrapolated voxel, as chosen under "3D voxels"
         const kinds = [opts.voxObserved !== false && "observed", opts.voxExtrapolated && "extrapolated"].filter(Boolean);
-        lineVoxelModels(result, lineGeom, { name, thick: num(opts.cell), cut: Number(opts.supportCutoff) || 0, params: runParams, kinds }).forEach((m) => addVoxelModelToTab(token, m));
+        lineVoxelModels(result, lineGeom, { name, thick: num(opts.cell), cut: Number(opts.supportCutoff) || 0, params: runParams, kinds, dataRho: parsed.rho }).forEach((m) => addVoxelModelToTab(token, m)); // dataRho: #2072
       },
     });
     if (!res.ok) setMsg({ ok: false, text: res.error });
@@ -541,6 +541,9 @@ function SectionResult({ last, cutoff, epsg, pBtn, large = false }) {
   const doiFailed = !!doiFits?.some((v) => !(v <= 1.5)); // a reference run that did not fit makes the index meaningless
   const reach = useMemo(() => (c.doi && !doiFailed ? { doi: columnReach(c, (i) => c.doi[i] <= doiT), sup: columnReach(c, (i) => c.support[i] >= cutoff) } : null), [c, doiT, cutoff, doiFailed]);
   const verdict = fitVerdict(result);
+  // TASKS.csv #2072 — a fit to the data does not vouch for every cell: model resistivities the data see, far outside the data's own range
+  const rangeCheck = useMemo(() => (c.resistivity ? outsideDataRange(c.resistivity, last.obs?.rho, env.map((v) => v >= cutoff)) : null), [c, last.obs, env, cutoff]);
+  const outside = rangeCheck ? rangeCheck.below + rangeCheck.above : 0;
   const imported = result.imported || result.mesh?.imported || null; // TASKS.csv #1348 — a contractor's inversion: no fit to judge, no data kept
   const W = 320, H = 150;
   const s0 = arrMin(c.s.map((s, i) => s - c.ds[i] / 2)), s1 = arrMax(c.s.map((s, i) => s + c.ds[i] / 2));
@@ -552,6 +555,7 @@ function SectionResult({ last, cutoff, epsg, pBtn, large = false }) {
       <div className="ge-section-label">{tr("Result — {name}", { name: last.name })}</div>
       {imported ? <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Imported {v} inversion: its fit and its data are not in the mesh and model files, so GeoStrix does not judge it; read the contractor's report for that.", { v: imported })}</div>
       : <div role="status" style={{ fontSize: "var(--font-size-sm)", color: verdict.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{tr("Resistivity: {text}", { text: verdict.shown })}</div>}
+      {!imported && outside > 0 && <div role="alert" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)" }}>{tr("{k} of the {n} resistivity cells the data see are below 1/{f} or above {f}x the apparent-resistivity range ({a}–{b} ohm·m; the model holds {lo}–{hi}): smoothing or noise artefacts, not resolved bodies. The fit to the data does not vouch for them.", { k: outside.toLocaleString(), n: rangeCheck.n.toLocaleString(), f: rangeCheck.factor, a: sig3(rangeCheck.dataMin), b: sig3(rangeCheck.dataMax), lo: sig3(rangeCheck.lo), hi: sig3(rangeCheck.hi) })}</div>}{/* #2072 */}
       {/* TASKS.csv #581 — chargeability judged on its own, in its own colour (a good DC fit used to paint a failed IP fit as fine) */}
       {result.ip && !imported && (() => { const iv = ipFitOf(result); return <div role="status" style={{ fontSize: "var(--font-size-sm)", color: iv.level === "ok" ? "var(--color-text-secondary)" : "var(--color-danger-fg)" }}>{tr("Chargeability: {verdict}", { verdict: iv.shown })}</div>; })()}
       {c.chargeability && (
@@ -582,7 +586,7 @@ function SectionResult({ last, cutoff, epsg, pBtn, large = false }) {
       <div style={{ display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap" }}>
         {[["observed", tr("Add observed voxel")], ["extrapolated", tr("Add extrapolated voxel (to {v} m)", { v: (z1 - z0).toFixed(0) })]].map(([k, label]) => (
           <button key={k} onClick={() => {
-            const ms = lineVoxelModels(result, last.geom, { name: last.name, thick: last.thick || c.ds[0] || 10, cut: cutoff, params: { tool: "2D DC resistivity / IP inversion (SimPEG)", line: last.name, versions: result.versions, inverted: last.restored || "this session" }, kinds: [k] });
+            const ms = lineVoxelModels(result, last.geom, { name: last.name, thick: last.thick || c.ds[0] || 10, cut: cutoff, params: { tool: "2D DC resistivity / IP inversion (SimPEG)", line: last.name, versions: result.versions, inverted: last.restored || "this session" }, kinds: [k], dataRho: last.obs?.rho }); // dataRho: #2072
             ms.forEach((m) => addVoxelModel(m));
             setNote(tr("Added {v} to Block models.", { v: ms.map((m) => `"${m.name}"`).join(" and ") }));
           }} style={{ ...pBtn, width: "auto", flex: 1 }}
@@ -651,16 +655,21 @@ function DataFit({ obs, result }) {
 // TASKS.csv #683 follow-up — the 3D voxels of one inverted line. "observed": the cells within the depth of investigation
 // (the support envelope, #641), as before; "extrapolated": every cell to the model depth, shown in full, its colour range
 // from the 2nd-98th percentile so the deep cells pinned at the inversion's bounds do not wash the line out (#641).
-function lineVoxelModels(result, geom, { name, thick, cut, params, kinds }) {
+function lineVoxelModels(result, geom, { name, thick, cut, params, kinds, dataRho = null }) {
   const out = [];
   const seen = cut > 0 ? supportEnvelope(result.cells.s, result.cells.z, result.cells.support).map((v) => v >= cut) : null;
+  // TASKS.csv #2072 — the observed voxel's colour range from the cells the data see THEMSELVES (own support >= the cutoff), not the cells
+  // the column envelope keeps below them: Woodjam 3050E's range ran 0.017-1,385 ohm·m from cells at support 0.002-0.003
+  const own = cut > 0 && result.cells.support ? result.cells.support.map((v) => v >= cut) : null;
+  const rangeCheck = outsideDataRange(result.cells.resistivity, dataRho, seen);
   const props = [["resistivity", "dc", "Resistivity (ohm·m)", `DC line ${name}`]];
   if (result.cells.chargeability) props.push(["chargeability", "ip", "Chargeability (mV/V)", `IP line ${name}`]);
   for (const [field, method, property, lineLabel] of props) {
     const cells = sectionCells(result, geom, field, thick);
     for (const kind of kinds) {
       const all = cells.map((x) => x.value);
-      let vals = kind === "observed" && seen ? cells.filter((_, i) => seen[i]).map((x) => x.value) : all;
+      let vals = kind === "observed" && seen ? cells.filter((_, i) => (own || seen)[i]).map((x) => x.value) : all; // own: #2072
+      if (!vals.length && kind === "observed" && seen) vals = cells.filter((_, i) => seen[i]).map((x) => x.value);
       if (!vals.length) vals = all;
       let lo = arrMin(vals), hi = arrMax(vals);
       if (kind === "extrapolated") { lo = percentile(vals, 0.02); hi = percentile(vals, 0.98); }
@@ -674,7 +683,7 @@ function lineVoxelModels(result, geom, { name, thick, cut, params, kinds }) {
         supportCutoff: kind === "observed" ? cut : 0,
         ...(kind === "extrapolated" ? { opacity: 0.6 } : {}), // see-through: less reliable, and the observed voxel stays readable inside it
         name: kind === "observed" ? `${property} — ${lineLabel}` : `${property} — ${lineLabel}, extrapolated to the model depth`,
-        params: { ...params, voxel: kind === "observed" ? `cells within the depth of investigation (support cutoff ${cut})` : "every cell of the model: below the depth of investigation the values are the inversion's extrapolation, not data", ...(params.fit ? { fit: { ...params.fit, ...ipFit } } : {}) },
+        params: { ...params, voxel: kind === "observed" ? `cells within the depth of investigation (support cutoff ${cut})` : "every cell of the model: below the depth of investigation the values are the inversion's extrapolation, not data", ...(kind === "observed" && own ? { colourRange: "from the cells whose own support passes the cutoff" } : {}), ...(method === "dc" && rangeCheck && (rangeCheck.below || rangeCheck.above) ? { outsideDataRange: `${rangeCheck.below + rangeCheck.above} of ${rangeCheck.n} cells within the depth of investigation are below 1/${rangeCheck.factor} or above ${rangeCheck.factor}x the apparent-resistivity range ${+rangeCheck.dataMin.toPrecision(3)}-${+rangeCheck.dataMax.toPrecision(3)} ohm·m (model ${+rangeCheck.lo.toPrecision(3)}-${+rangeCheck.hi.toPrecision(3)}): smoothing or noise artefacts, not resolved bodies` } : {}), /* #2072 */ ...(params.fit ? { fit: { ...params.fit, ...ipFit } } : {}) },
       });
     }
   }
