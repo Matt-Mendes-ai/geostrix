@@ -115,8 +115,29 @@ export function skipPreamble(text, maxLines = 300) {
 // (#284).
 const QUOTED_COMMA_NUMBER = /"\s*[+-]?\d+(?:\.\d{3})*,\d+\s*"/;
 const ID_LIKE_VALUE_IN = /(^|[,;\t"\n])\s*0\d+\s*("|[,;\t\r\n]|$)/; // #1071 — a cheap test of the whole text
+// TASKS.csv #2017 (review #2013, Import) — a whitespace-aligned table (a contractor's n = 1 IP file, a Geosoft-style .dat export:
+// 'LINE STN GRID_X GRID_Y MX RHO') came in as ONE column, so no picker could map it. When the header has no comma, semicolon or tab
+// and splits into 3+ fields on runs of spaces, and most of the next lines split into the same number, the table is re-joined with
+// tabs. A quoted field (a name with spaces) is never guessed at.
+export function spaceTableToTabs(text) {
+  // decided on the first 200 kB, so a big comma file is not split into lines for nothing (performance first)
+  const lines = text.slice(0, 200_000).split(/\r?\n/);
+  const first = lines.findIndex((l) => l.trim());
+  if (first < 0) return null;
+  const head = lines[first];
+  if (/[,;\t"]/.test(head)) return null;
+  const width = head.trim().split(/\s+/).length;
+  if (width < 3) return null;
+  const sample = lines.slice(first + 1).filter((l) => l.trim()).slice(0, 50);
+  if (!sample.length || sample.some((l) => /[,;\t"]/.test(l))) return null;
+  const same = sample.filter((l) => l.trim().split(/\s+/).length === width).length;
+  if (same < 0.8 * sample.length) return null;
+  return text.split(/\r?\n/).map((l) => (l.trim() ? l.trim().split(/\s+/).join("\t") : "")).join("\n");
+}
 export function parseTableText(text, { comments = "#", columnar = false } = {}) {
   ({ text } = stripLeadingComments(text, comments)); // #720
+  const spaced = spaceTableToTabs(text); // #2017
+  if (spaced != null) text = spaced;
   let preamble = 0, banner = false;
   ({ text, skipped: preamble, banner } = skipPreamble(text)); // #1666; banner: #1665
   // TASKS.csv #611 — a big table can be held as COLUMNS (see parseTableColumns); null = not eligible, read as rows
@@ -132,7 +153,8 @@ export function parseTableText(text, { comments = "#", columnar = false } = {}) 
   const commaFree = res.meta.delimiter === "," && !QUOTED_COMMA_NUMBER.test(text);
   const { rows, note } = commaFree ? { rows: res.data, note: "" } : normalizeCommaDecimals(res.data);
   const pre = banner ? tr("The first row was a banner of group names over the field names: the second row is used as the header.") : preamble ? tr("Skipped {n} line(s) of notes above the header row.", { n: preamble }) : ""; // #1666; #1665
-  return { rows, headers: res.meta.fields || [], note: [note, pre].filter(Boolean).join(" "), errors: res.errors || [] };
+  const sp = spaced != null ? tr("Read as a space-separated table ({n} columns).", { n: (res.meta.fields || []).length }) : ""; // #2017
+  return { rows, headers: res.meta.fields || [], note: [note, pre, sp].filter(Boolean).join(" "), errors: res.errors || [] };
 }
 
 // TASKS.csv #611 — large assay exports held as columns. parseTableText's rows are one object per row, and a 60 MB

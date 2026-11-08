@@ -9262,5 +9262,6 @@
   " Of those, {dark} had a band at 1 or 2 of 255 (near black): a ratio there is noise and would take over the colour scale.": " من بينها، {dark} كان فيها نطاق بقيمة 1 أو 2 من 255 (قريب من الأسود): النسبة هناك ضجيج وستطغى على مقياس الألوان.",
   "+ {n} more row(s) do not fit on the sheet: move the legend up or left, or edit it": "+ {n} صف(وف) إضافية لا تتسع لها الورقة: حرّك وسيلة الإيضاح إلى الأعلى أو اليسار، أو عدّلها",
   " {a} of them has no survey or attitude and is drawn as an assumed vertical hole.": " {a} منها بلا مسح ولا اتجاه، ويُرسم ثقبًا رأسيًا مفترضًا.",
-  " {a} of them have no survey or attitude and are drawn as assumed vertical holes.": " {a} منها بلا مسح ولا اتجاه، وتُرسم ثقوبًا رأسية مفترضة."
+  " {a} of them have no survey or attitude and are drawn as assumed vertical holes.": " {a} منها بلا مسح ولا اتجاه، وتُرسم ثقوبًا رأسية مفترضة.",
+  "Read as a space-separated table ({n} columns).": "قُرئ جدولًا مفصولًا بالمسافات ({n} أعمدة)."
 }

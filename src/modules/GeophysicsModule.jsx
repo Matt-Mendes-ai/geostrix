@@ -1601,7 +1601,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
         <input
           ref={fileInput}
           type="file"
-          accept=".csv"
+          accept=".csv,.dat,.txt" /* #2017 — a contractor's space-aligned .dat table reads too */
           style={{ display: "none" }}
           onChange={(e) => { const f = e.target.files[0]; importFile(f); e.target.value = ""; }}
         />

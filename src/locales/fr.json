@@ -9262,5 +9262,6 @@
   " Of those, {dark} had a band at 1 or 2 of 255 (near black): a ratio there is noise and would take over the colour scale.": " Parmi eux, {dark} avaient une bande à 1 ou 2 sur 255 (presque noir) : un rapport y est du bruit et dominerait l'échelle de couleurs.",
   "+ {n} more row(s) do not fit on the sheet: move the legend up or left, or edit it": "+ {n} ligne(s) de plus ne tiennent pas sur la feuille : déplacez la légende vers le haut ou la gauche, ou modifiez-la",
   " {a} of them has no survey or attitude and is drawn as an assumed vertical hole.": " {a} d'entre eux n'a ni levé ni orientation et est dessiné comme un sondage vertical supposé.",
-  " {a} of them have no survey or attitude and are drawn as assumed vertical holes.": " {a} d'entre eux n'ont ni levé ni orientation et sont dessinés comme des sondages verticaux supposés."
+  " {a} of them have no survey or attitude and are drawn as assumed vertical holes.": " {a} d'entre eux n'ont ni levé ni orientation et sont dessinés comme des sondages verticaux supposés.",
+  "Read as a space-separated table ({n} columns).": "Lu comme un tableau séparé par des espaces ({n} colonnes)."
 }
