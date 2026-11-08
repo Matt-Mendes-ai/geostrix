@@ -43,3 +43,10 @@ test("the tonnage box offers both, stamps the source, and the viewer uses it", (
   assert.match(v, /<SurfaceTonnage s=\{s\}/);
   assert.match(v, /\{ \.\.\.s, density, densityFrom \}/);
 });
+
+test("the density captions round the layer's raw min / max to two decimals (#2068)", () => {
+  const c = read("src/modules/viewer/SurfaceTonnage.jsx");
+  assert.match(c, /const r2 = \(v\) => String\(\+Number\(v\)\.toFixed\(2\)\);/);
+  assert.match(c, /const range = \(s\) => `\$\{r2\(s\.min\)\}–\$\{r2\(s\.max\)\}`;/);
+  assert.match(c, /min: r2\(whole\.min\), max: r2\(whole\.max\)/);
+});

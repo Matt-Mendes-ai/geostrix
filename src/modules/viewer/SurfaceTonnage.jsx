@@ -9,7 +9,9 @@ import { computeTonnage } from "../../lib/volumetrics.js";
 import { sgSummary } from "../../lib/gradeTonnage.js";
 import { sgInsideSolid } from "../../lib/sgInSolid.js";
 
-const range = (s) => `${s.min}–${s.max}`;
+// TASKS.csv #2068 (review #2013, Woodjam) — sgSummary's min / max are the raw logged values (1.766666666666667): two decimals here
+const r2 = (v) => String(+Number(v).toFixed(2));
+const range = (s) => `${r2(s.min)}–${r2(s.max)}`;
 
 export default function SurfaceTonnage({ s, volumeM3, sgRows, traces, geometry, onDensity, smallSel }) {
   const whole = useMemo(() => sgSummary(sgRows), [sgRows]);
@@ -30,7 +32,7 @@ export default function SurfaceTonnage({ s, volumeM3, sgRows, traces, geometry, 
           {inside && <button type="button" style={btn} onClick={() => onDensity(inside.mean, { kind: "inside", ...inside })}
             title={tr("The length-weighted mean of the {n} Specific gravity intervals whose midpoints fall inside this solid ({range}).", { n: inside.n, range: range(inside) })}>{tr("Use the SG inside this solid ({v}, {n} intervals)", { v: inside.mean, n: inside.n })}</button>}
           <button type="button" style={btn} onClick={() => onDensity(whole.mean, { kind: "layer", ...whole })}
-            title={tr("The length-weighted mean of the Specific gravity layer: {n} rows, {min} to {max}. One value for every block.", { n: whole.n, min: whole.min, max: whole.max })}>{tr("Use the SG layer's mean ({v})", { v: whole.mean })}</button>
+            title={tr("The length-weighted mean of the Specific gravity layer: {n} rows, {min} to {max}. One value for every block.", { n: whole.n, min: r2(whole.min), max: r2(whole.max) })}>{tr("Use the SG layer's mean ({v})", { v: whole.mean })}</button>
           {!inside && <span style={muted}>{tr("No Specific gravity interval has its midpoint inside this solid.")}</span>}
         </div>
       )}
