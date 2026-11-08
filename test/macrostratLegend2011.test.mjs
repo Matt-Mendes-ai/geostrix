@@ -23,9 +23,9 @@ test("readVectorTile: layers, properties of every value type, packed and unpacke
   ]);
   const layers = readVectorTile(bytes);
   assert.deepEqual(layers.map((l) => [l.name, l.extent, l.features.length]), [["units", 4096, 2], ["lines", 4096, 1]]);
-  assert.deepEqual(layers[0].features[0], { id: null, type: "polygon", properties: { name: "Quaternary alluvium", legend_id: 76320, best_age_top: 2.588, color: "#F9F97F" } });
+  assert.deepEqual(layers[0].features[0], { id: null, type: "polygon", properties: { name: "Quaternary alluvium", legend_id: 76320, best_age_top: 2.588, color: "#F9F97F" }, geometry: [] }); // geometry: #2012 (the filler bytes are no command)
   assert.deepEqual(layers[0].features[1].properties, { name: "Tiedemann pluton", legend_id: 76320 });
-  assert.deepEqual(layers[1].features[0], { id: null, type: "line", properties: { type: "fault" } });
+  assert.deepEqual(layers[1].features[0], { id: null, type: "line", properties: { type: "fault" }, geometry: [] });
 });
 
 const unit = (p) => ({ id: null, type: "polygon", properties: p });

@@ -3,9 +3,10 @@
 import { macrostratFetch } from "./desktop.js";
 import { reprojectImageRGBA, getProj4DefSync } from "./reproject.js";
 import { wmsImageSize, wmsPixelMetres } from "./webLayers.js";
-import { MACROSTRAT_TILE_URL, MACROSTRAT_MVT_URL, MACROSTRAT_API, planMacrostratTiles, mercatorToLonLat, parseMacrostratUnits, parseMacrostratSources, tilePixelMetres, outputLongPx, macrostratLegend } from "./macrostrat.js"; // MVT / legend: #2011
+import { MACROSTRAT_TILE_URL, MACROSTRAT_MVT_URL, MACROSTRAT_API, MACROSTRAT_CREDIT, planMacrostratTiles, mercatorToLonLat, parseMacrostratUnits, parseMacrostratSources, tilePixelMetres, outputLongPx, macrostratLegend, macrostratUnitFeatures } from "./macrostrat.js"; // MVT / legend: #2011; unit features: #2012
 import { parseLithologies, parseIntervals } from "./macrostratColours.js";
 import { readVectorTile } from "./mvt.js"; // TASKS.csv #2011
+import { buildLayer } from "./mapLayerBuild.js"; // TASKS.csv #2012
 import { t as tr } from "./i18n.js";
 
 const decodeTile = async (res) => {
@@ -67,7 +68,7 @@ export async function fetchMacrostratUnits(lat, lng) {
 
 // TASKS.csv #2011 — the drape's legend: the map units in the vector tiles over the same area at the same zoom (the tiles the PNG drape
 // was drawn from), 1-10 kB each, two at a time through the main process. -> { units, lines, sources, zoom, tiles, failedTiles, fetched }
-export async function fetchMacrostratLegend({ bboxLonLat, onProgress }) {
+async function fetchMacrostratTiles(bboxLonLat, onProgress) {
   const plan = planMacrostratTiles(bboxLonLat);
   if (!plan) throw new Error(tr("No Macrostrat tiles cover this area."));
   const list = [];
@@ -81,14 +82,36 @@ export async function fetchMacrostratLegend({ bboxLonLat, onProgress }) {
       try {
         const res = await macrostratFetch({ url: MACROSTRAT_MVT_URL(plan.z, t.x, t.y), binary: true });
         if (!res.ok || !res.bytes) throw new Error(res.message || tr("Request failed (HTTP {status}).", { status: res.status }));
-        tiles.push(readVectorTile(new Uint8Array(res.bytes)));
+        tiles.push({ z: plan.z, x: t.x, y: t.y, layers: readVectorTile(new Uint8Array(res.bytes)) });
       } catch (e) { failed.push(e); }
       onProgress?.(++done, list.length);
     }
   };
   await Promise.all([worker(), worker()]);
   if (failed.length === list.length) throw failed[0];
-  return { ...macrostratLegend(tiles), zoom: plan.z, tiles: list.length, failedTiles: failed.length, fetched: new Date().toISOString().slice(0, 10) };
+  return { plan, count: list.length, tiles, failed };
+}
+export async function fetchMacrostratLegend({ bboxLonLat, onProgress }) {
+  const { plan, count, tiles, failed } = await fetchMacrostratTiles(bboxLonLat, onProgress);
+  return { ...macrostratLegend(tiles.map((t) => t.layers)), zoom: plan.z, tiles: count, failedTiles: failed.length, fetched: new Date().toISOString().slice(0, 10) };
+}
+
+// TASKS.csv #2012 — the units as a geology map layer (polygons with a unit field, Macrostrat's colours), reprojected into the project
+// CRS by buildLayer as an imported map is, so Surface Geology > Model it can carry them underground. -> { layer, polygons, units, ... }
+export async function fetchMacrostratMapLayer({ bboxLonLat, projectEpsg, onProgress }) {
+  if (!getProj4DefSync(4326) || !getProj4DefSync(projectEpsg)) throw new Error(tr("Can't reproject WGS84 into the project's EPSG:{projectEpsg} — unrecognized target CRS.", { projectEpsg }));
+  const { plan, count, tiles, failed } = await fetchMacrostratTiles(bboxLonLat, onProgress);
+  const { features, units, sources } = macrostratUnitFeatures(tiles, bboxLonLat);
+  if (!features.length) throw new Error(tr("Macrostrat has no map unit polygons in this area."));
+  const name = "Macrostrat geology (CC BY 4.0)";
+  const built = buildLayer({ name, geomType: "polygon", epsg: 4326, features }, { sourceName: name, projectEpsg, qml: null, sourceOverride: null });
+  if (!built?.features?.length) throw new Error(tr("Macrostrat has no map unit polygons in this area."));
+  const counts = {};
+  for (const f of built.features) counts[f.attributes.unit] = (counts[f.attributes.unit] || 0) + 1;
+  const categories = units.filter((u) => counts[u.unit]).map((u) => ({ value: u.unit, label: u.unit, color: u.color || "#777777", outline: null, visible: true, count: counts[u.unit] }));
+  const fetched = new Date().toISOString().slice(0, 10);
+  return { layer: { ...built, name, styleField: "unit", categories, lineWidthM: 2, credit: MACROSTRAT_CREDIT, macrostrat: { zoom: plan.z, tiles: count, failedTiles: failed.length, fetched, areaLonLat: bboxLonLat, sources } },
+    polygons: built.features.length, units: categories.length, zoom: plan.z, tiles: count, failedTiles: failed.length };
 }
 
 // TASKS.csv #2005 — the colour lists, fetched once per session when a button asks (lib/macrostratColours.js matches them)

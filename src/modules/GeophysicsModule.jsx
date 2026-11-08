@@ -2201,7 +2201,7 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           setWebLayerDefaultBbox(await defaultSrtmBboxLonLat()); setMacrostratOpen(true);
         }} style={pBtn} title={tr("Macrostrat's compilation of geologic maps (CC BY 4.0) for the project area, and the map units at its centre with their original maps")}>
           <Globe size={14} />{" "}{tr("Macrostrat geology…")}</button>
-        {macrostratOpen && <React.Suspense fallback={null}><MacrostratModal onClose={() => setMacrostratOpen(false)} addRaster={addRaster} projectEpsg={project?.epsg} bboxLonLat={webLayerDefaultBbox} /></React.Suspense>}
+        {macrostratOpen && <React.Suspense fallback={null}><MacrostratModal onClose={() => setMacrostratOpen(false)} addRaster={addRaster} addMapLayer={addMapLayer} /* #2012 */ projectEpsg={project?.epsg} bboxLonLat={webLayerDefaultBbox} /></React.Suspense>}
 
         </>)}
         {geoPane === "claims" && (<>

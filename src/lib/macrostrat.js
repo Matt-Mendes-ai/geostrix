@@ -85,6 +85,77 @@ export function macrostratLegend(tiles) {
   return { units: [...units.values()].sort(byAge), lines: [...lines].map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count), sources: [...sources.values()] };
 }
 
+// TASKS.csv #2012 (Matt: "use the Model It tool in surface geology for the macrostrat data") — the units as polygons for a map layer.
+// tile units -> longitude / latitude (tile z/x/y, `extent` units across a tile)
+export function tileToLonLat(z, x, y, extent, px, py) {
+  const n = 2 ** z;
+  return [((x + px / extent) / n) * 360 - 180, (Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + py / extent)) / n))) * 180) / Math.PI];
+}
+export const lonLatToTilePx = (z, x, y, extent, lon, lat) => [(lonToX(lon, z) - x) * extent, (latToY(lat, z) - y) * extent];
+// shoelace area of a ring (tile coordinates, y down: an exterior ring is positive per the MVT spec)
+export const ringArea2 = (ring) => { let s = 0; for (let i = 0; i < ring.length; i++) { const a = ring[i], b = ring[(i + 1) % ring.length]; s += a[0] * b[1] - b[0] * a[1]; } return s / 2; };
+// Sutherland-Hodgman: an open ring clipped to the box [x0, y0, x1, y1] -> an open ring ([] when nothing is left)
+export function clipRing(ring, [x0, y0, x1, y1]) {
+  const cross = (a, b, axis, v) => { const t = (v - a[axis]) / (b[axis] - a[axis]); return axis === 0 ? [v, a[1] + (b[1] - a[1]) * t] : [a[0] + (b[0] - a[0]) * t, v]; };
+  const edges = [[(p) => p[0] >= x0, 0, x0], [(p) => p[0] <= x1, 0, x1], [(p) => p[1] >= y0, 1, y0], [(p) => p[1] <= y1, 1, y1]];
+  let out = ring;
+  for (const [inside, axis, v] of edges) {
+    const inp = out;
+    out = [];
+    if (!inp.length) break;
+    let prev = inp[inp.length - 1];
+    for (const cur of inp) {
+      if (inside(cur)) { if (!inside(prev)) out.push(cross(prev, cur, axis, v)); out.push(cur); }
+      else if (inside(prev)) out.push(cross(prev, cur, axis, v));
+      prev = cur;
+    }
+  }
+  return out;
+}
+
+// tiles: [{ z, x, y, layers }] (layers: readVectorTile output) -> { features, units, sources }: polygon features in longitude /
+// latitude for buildLayer(), each with a `unit` field (the legend entry's name, told apart by its lithology when two entries share one),
+// its age, lithology, description, legend id and map. Each polygon is clipped to its own tile's square (the tiles overlap by a buffer,
+// which would double the boundaries) and to the area; a hole stays a further part of its polygon (the map is drawn even-odd). Pieces of
+// one unit in neighbouring tiles stay separate polygons: a seam between the same unit is not a contact, so Model it is not misled.
+export function macrostratUnitFeatures(tiles, bboxLonLat) {
+  const legend = macrostratLegend((tiles || []).map((t) => t.layers));
+  // the unit field: the legend entry's name; two entries with one name are told apart by lithology, then by age
+  const count = (fn) => { const m = new Map(); for (const u of legend.units) { const k = fn(u); m.set(k, (m.get(k) || 0) + 1); } return m; };
+  const byName = count((u) => u.name), withLith = (u) => (u.lith ? `${u.name} (${u.lith})` : u.name), byLith = count(withLith);
+  const unitName = (u) => (byName.get(u.name) === 1 ? u.name : byLith.get(withLith(u)) === 1 || !u.age ? withLith(u) : `${u.name} (${u.lith ? `${u.lith}, ` : ""}${u.age})`);
+  const unitOf = new Map(legend.units.map((u) => [u.id, { ...u, unit: unitName(u) }]));
+  const features = [];
+  for (const t of tiles || []) {
+    for (const l of t.layers || []) {
+      if (l.name !== "units") continue;
+      const ext = l.extent || 4096;
+      const [bx0, by0] = lonLatToTilePx(t.z, t.x, t.y, ext, bboxLonLat[0], bboxLonLat[3]), [bx1, by1] = lonLatToTilePx(t.z, t.x, t.y, ext, bboxLonLat[2], bboxLonLat[1]);
+      const box = [Math.max(0, bx0), Math.max(0, by0), Math.min(ext, bx1), Math.min(ext, by1)];
+      if (!(box[2] > box[0] && box[3] > box[1])) continue;
+      for (const f of l.features || []) {
+        if (f.type !== "polygon" || !f.geometry?.length) continue;
+        const p = f.properties || {};
+        const key = p.legend_id != null ? `L${p.legend_id}` : [String(p.name || p.strat_name || p.lith || "").trim(), p.age, p.lith, p.color].join("|");
+        const u = unitOf.get(key);
+        if (!u) continue;
+        let current = null;
+        for (const raw of f.geometry) {
+          const open = raw.length > 1 && raw[0][0] === raw[raw.length - 1][0] && raw[0][1] === raw[raw.length - 1][1] ? raw.slice(0, -1) : raw;
+          const outer = ringArea2(open) > 0;
+          const ring = clipRing(open, box);
+          if (ring.length < 3) { if (outer) current = null; continue; }
+          const ll = ring.map(([x, y]) => tileToLonLat(t.z, t.x, t.y, ext, x, y).map((v) => Math.round(v * 1e7) / 1e7));
+          ll.push(ll[0]);
+          if (outer) { current = { parts: [ll], attributes: { unit: u.unit, age: u.age, lith: u.lith, descrip: u.descrip, legend_id: p.legend_id ?? "", map: String(p.ref_title || p.ref_name || "").trim() } }; features.push(current); }
+          else if (current) current.parts.push(ll);
+        }
+      }
+    }
+  }
+  return { features, units: legend.units.map((u) => unitOf.get(u.id)), sources: legend.sources };
+}
+
 // /geologic_units/map?lat&lng -> the units there, finest map first ({ name, strat, lith, descrip, age, color, sourceId, scale })
 const SCALE_ORDER = { large: 0, medium: 1, small: 2, tiny: 3 };
 export function parseMacrostratUnits(json) {

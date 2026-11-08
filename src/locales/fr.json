@@ -9192,5 +9192,12 @@
   "The units in the {n} tiles the drape was drawn from (zoom {z}). Colours as Macrostrat lists them: the map adds relief shading, so the drape is darker in places.": "Les unités des {n} tuiles d'où le drapé a été tracé (zoom {z}). Couleurs telles que Macrostrat les liste : la carte ajoute un ombrage du relief, le drapé est donc plus sombre par endroits.",
   "{n} of {total} tiles could not be read: their units may be missing here.": "{n} tuiles sur {total} n'ont pas pu être lues : leurs unités peuvent manquer ici.",
   "Its legend lists {n} map units: open it under the layer, in Maps or in the 3D View's layer list.": "Sa légende liste {n} unités de carte : ouvrez-la sous la couche, dans Cartes ou dans la liste des couches de la Vue 3D.",
-  "Its legend could not be fetched ({message}): use \"Fetch the legend\" under the layer.": "Sa légende n'a pas pu être récupérée ({message}) : utilisez « Récupérer la légende » sous la couche."
+  "Its legend could not be fetched ({message}): use \"Fetch the legend\" under the layer.": "Sa légende n'a pas pu être récupérée ({message}) : utilisez « Récupérer la légende » sous la couche.",
+  "Fetching Macrostrat units…": "Récupération des unités Macrostrat…",
+  "Fetching Macrostrat units… {d} of {n}": "Récupération des unités Macrostrat… {d} sur {n}",
+  "Added \"Macrostrat geology (CC BY 4.0)\" as a map layer: {p} polygons of {u} units from {n} tiles at zoom {z}. It is listed under Surface Geology > Geology map, where Model it carries it underground; it drapes on the terrain in the 3D view.": "« Macrostrat geology (CC BY 4.0) » ajoutée comme couche de carte : {p} polygones de {u} unités à partir de {n} tuiles au zoom {z}. Elle figure sous Géologie de surface > Carte géologique, où Modéliser la prolonge en profondeur ; elle se drape sur le terrain dans la vue 3D.",
+  "{n} of {total} tiles could not be read: their polygons are missing.": "{n} tuiles sur {total} n'ont pas pu être lues : leurs polygones manquent.",
+  "The picture is the map as Macrostrat draws it, with relief shading. The map layer is its units as polygons: Model it, Identify and the legend can use them.": "L'image est la carte telle que Macrostrat la dessine, avec ombrage du relief. La couche de carte est ses unités en polygones : Modéliser, Identifier et la légende peuvent s'en servir.",
+  "Add the units as a map layer (for Model it)": "Ajouter les unités comme couche de carte (pour Modéliser)",
+  "Macrostrat has no map unit polygons in this area.": "Macrostrat n'a aucun polygone d'unité de carte dans cette zone."
 }
