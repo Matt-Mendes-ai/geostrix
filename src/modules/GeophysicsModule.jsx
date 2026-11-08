@@ -880,6 +880,11 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
       const parts = file.shpParts || {};
       const parsed = name.endsWith(".zip") ? await parseShapefileZip(buf) : parseShapefileParts({ shp: new Uint8Array(buf), dbf: parts.dbf ? new Uint8Array(await parts.dbf.arrayBuffer()) : null, cpg: parts.cpg ? await parts.cpg.text() : null }, 0, parts.prj ? await parts.prj.text() : null);
       const r = await vectorToBoundaryPolylines(parsed, project?.epsg);
+      // TASKS.csv #2122 (review #2013, Woodjam) — points are not a boundary or a claim: 8 collars became an empty '0 part(s)' boundary,
+      // 691 an empty 'Active' claim of 0 ha
+      if (!r.polylines.length) throw new Error(parsed.geomType === "point"
+        ? tr("it holds points, not lines or polygons: import collars in the 3D View, samples in Geochem, or any points as a map layer in Surface Geology.")
+        : tr("no lines or polygons were found in it."));
       if (name.endsWith(".shp") && !parts.prj && !parsed.prjWkt) r.note = tr("no .prj was read with it (select the .zip, or the .prj with the .shp): the coordinates were taken as EPSG:{dst}, check where it lies", { dst: project?.epsg });
       return r;
     }
@@ -977,6 +982,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
           addBoundary({ name: c.name, polylines: c.polylines, ...(c.closedFlags ? { closedFlags: c.closedFlags } : {}), elevation: defaultElevation, kind: "claim", status: "active", tenureNumber: c.tenureNumber || "", expiryDate: c.expiryDate || "", color: claimStatusColor("active") });
           imported++;
         };
+        // TASKS.csv #2122 — a claim is an area: a file of open lines (the 9 IP lines became nine 0 ha 'claims') goes to Boundaries instead
+        if (shapePolylines && (shapePolylines.multi || [shapePolylines]).every((p) => p.closedFlags?.length && p.closedFlags.every((f) => !f))) throw new Error(tr("it holds open lines, not polygons: a claim is an area. Import it as a boundary."));
         if (shapePolylines) {
           // TASKS.csv #1970 — a tenure file holds one feature per claim: one claim each (tenure number, name, good-to date from the
           // attributes), every GeoPackage table; a file of more than MAX_CLAIMS_PER_FILE features stays one claim and says so

@@ -9251,5 +9251,8 @@
   "Its {n} benched design(s) go too: {names}.": "تُزال معه تصاميمه المدرجة ({n}): {names}.",
   "The series runs on one grid sized for its largest factor ({c} m; the shell's was {s} m), so its factor-1 row ({a} t of ore) differs from the shell it was run from ({b} t).": "تعمل السلسلة على شبكة واحدة مقاسة لأكبر معامل فيها ({c} م؛ كانت شبكة الغلاف {s} م)، لذا يختلف صف المعامل 1 ({a} طن من الخام) عن الغلاف الذي شُغّلت منه ({b} طن).",
   "The series runs on one grid sized for its largest factor ({c} m; the shell's was {s} m), so its shells are not on the shell's own grid.": "تعمل السلسلة على شبكة واحدة مقاسة لأكبر معامل فيها ({c} م؛ كانت شبكة الغلاف {s} م)، لذا أغلفتها ليست على شبكة الغلاف الأصلية.",
-  "no .prj was read with it (select the .zip, or the .prj with the .shp): the coordinates were taken as EPSG:{dst}, check where it lies": "لم يُقرأ أي ملف .prj معه (اختر ملف .zip، أو ملف .prj مع .shp): أُخذت الإحداثيات على أنها EPSG:{dst}، تحقق من موقعه"
+  "no .prj was read with it (select the .zip, or the .prj with the .shp): the coordinates were taken as EPSG:{dst}, check where it lies": "لم يُقرأ أي ملف .prj معه (اختر ملف .zip، أو ملف .prj مع .shp): أُخذت الإحداثيات على أنها EPSG:{dst}، تحقق من موقعه",
+  "it holds points, not lines or polygons: import collars in the 3D View, samples in Geochem, or any points as a map layer in Surface Geology.": "يحتوي على نقاط لا على خطوط أو مضلعات: استورد الفوهات في العرض ثلاثي الأبعاد، والعينات في الكيمياء الجيولوجية، أو أي نقاط كطبقة خريطة في الجيولوجيا السطحية.",
+  "no lines or polygons were found in it.": "لم يُعثر فيه على خطوط أو مضلعات.",
+  "it holds open lines, not polygons: a claim is an area. Import it as a boundary.": "يحتوي على خطوط مفتوحة لا مضلعات: الامتياز مساحة. استورده كحد."
 }
