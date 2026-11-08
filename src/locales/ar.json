@@ -9142,5 +9142,8 @@
   "Drawn at its own levels (each contour at its elevation).": "مرسوم عند مستوياته (كل خط كنتور عند ارتفاعه).",
   "Its labels print at about {pt} pt at this size: give it more height, or send a shorter depth range from the strip log window.": "تُطبع تسمياته بنحو {pt} نقطة بهذا الحجم: امنحه ارتفاعاً أكبر، أو أرسل نطاق عمق أقصر من نافذة السجل.",
   "Its labels print at about {pt} pt.": "تُطبع تسمياته بنحو {pt} نقطة.",
-  "{n} more assay file(s) follow in the Geochem import, one after another: {list}.": "يليه {n} ملف تحاليل آخر في استيراد الجيوكيمياء، واحداً تلو الآخر: {list}."
+  "{n} more assay file(s) follow in the Geochem import, one after another: {list}.": "يليه {n} ملف تحاليل آخر في استيراد الجيوكيمياء، واحداً تلو الآخر: {list}.",
+  "Every reading has From = To ({n} rows): they are points on core, and import as points (Data QC treats pXRF readings as screening points).": "لكل قراءة «من» = «إلى» ({n} صف): إنها نقاط على اللب وتُستورد نقاطاً (يعامل فحص البيانات قراءات pXRF كنقاط فرز).",
+  "{col} looks like a To depth for each reading:": "يبدو {col} عمق «إلى» لكل قراءة:",
+  "Use {col} as To": "استخدم {col} كـ «إلى»"
 }

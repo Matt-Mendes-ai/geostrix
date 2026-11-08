@@ -7,6 +7,7 @@ import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay } from "../lib/modalStyles.js";
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
+import { pointReadings } from "../lib/pxrfPoints.js"; // TASKS.csv #1653
 
 export default function AssayImportModal({ modal, onChange, onCancel, onCommit, existingUnits = {} }) {
   useEscapeKey(onCancel); // TASKS.csv #238
@@ -75,6 +76,7 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
   const [addHeader, setAddHeader] = useState("");
 
   const setMapping = (key, col) => onChange({ ...modal, mapping: { ...modal.mapping, [key]: col } });
+  const pts = useMemo(() => (modal.isPxrf ? pointReadings(modal.allRows || [], modal.headers, modal.mapping) : { allPoints: false }), [modal.isPxrf, modal.allRows, modal.headers, modal.mapping]); // #1653
   const toggleEl = (sym) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, checked: !e.checked } : e) });
   const setUnit = (sym, unit) => onChange({ ...modal, elements: modal.elements.map((e) => e.symbol === sym ? { ...e, unit, unitChosen: true } : e) }); // unitChosen: #718
   // TASKS.csv #718 — a unit the header did not state, until the user picks one
@@ -128,6 +130,13 @@ export default function AssayImportModal({ modal, onChange, onCancel, onCommit, 
             </div>
           ))}
 
+          {/* TASKS.csv #1653 — pXRF points: every From equals its To */}
+          {modal.isPxrf && pts.allPoints && (
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", lineHeight: 1.45, marginTop: -2, marginBottom: 10 }}>
+              {tr("Every reading has From = To ({n} rows): they are points on core, and import as points (Data QC treats pXRF readings as screening points).", { n: pts.n.toLocaleString() })}
+              {pts.candidate && <>{" "}{tr("{col} looks like a To depth for each reading:", { col: pts.candidate })}{" "}<button type="button" onClick={() => setMapping("to", pts.candidate)} style={{ padding: "1px 8px", cursor: "pointer" }}>{tr("Use {col} as To", { col: pts.candidate })}</button></>}
+            </div>
+          )}
           {/* TASKS.csv #1184 — the columns QAQC runs on, where they can be seen and changed */}
           {modal.qc && (
             <details style={{ marginBottom: 10 }} open={QC_COLUMN_KEYS.some((k) => modal.qc[k])}>

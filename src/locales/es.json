@@ -9142,5 +9142,8 @@
   "Drawn at its own levels (each contour at its elevation).": "Dibujado en sus propios niveles (cada curva a su elevación).",
   "Its labels print at about {pt} pt at this size: give it more height, or send a shorter depth range from the strip log window.": "Sus etiquetas se imprimen a unos {pt} pt a este tamaño: dele más altura, o envíe un rango de profundidad más corto desde la ventana del registro.",
   "Its labels print at about {pt} pt.": "Sus etiquetas se imprimen a unos {pt} pt.",
-  "{n} more assay file(s) follow in the Geochem import, one after another: {list}.": "{n} archivo(s) de ensayes más siguen en la importación de Geoquímica, uno tras otro: {list}."
+  "{n} more assay file(s) follow in the Geochem import, one after another: {list}.": "{n} archivo(s) de ensayes más siguen en la importación de Geoquímica, uno tras otro: {list}.",
+  "Every reading has From = To ({n} rows): they are points on core, and import as points (Data QC treats pXRF readings as screening points).": "Cada lectura tiene Desde = Hasta ({n} filas): son puntos en el testigo y se importan como puntos (el control de datos trata las lecturas pXRF como puntos de cribado).",
+  "{col} looks like a To depth for each reading:": "{col} parece una profundidad Hasta para cada lectura:",
+  "Use {col} as To": "Usar {col} como Hasta"
 }
