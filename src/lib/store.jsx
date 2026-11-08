@@ -2,7 +2,8 @@ import { withGroupCodes } from "./lithoGroups.js"; // TASKS.csv #1685
 import { stylingTracker } from "./viewerDirty.js"; // TASKS.csv #1286
 import { defaultDrapeElevation } from "./drapeElevation.js"; // TASKS.csv #1823
 import { t as tr } from "./i18n.js"; // TASKS.csv #1285
-import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from "react"; // useMemo: #1679
+import { elementsWithValues } from "./presentElements.js"; // TASKS.csv #1679
 import { changedKeys } from "./undoLabels.js"; // TASKS.csv #1087
 import { capturedFrameFields } from "./layoutGeometry.js"; // TASKS.csv #906 / #961
 import { tieStarterFurniture, sendElementWithFurniture } from "./layoutLinks.js"; // TASKS.csv #1320, #1634
@@ -129,6 +130,7 @@ export function StoreProvider({ children }) {
   const [layers, setLayers] = useState({ ...EMPTY_LAYERS });
   const [assays, setAssays] = useState([]);
   const [assayElements, setAssayElements] = useState([]);
+  const presentAssayElements = useMemo(() => elementsWithValues(assayElements, assays), [assayElements, assays]); // TASKS.csv #1679
   // TASKS.csv #228 — surface geochemistry (soil/rock-chip/stream-sediment/talus-fines samples), the
   // single highest-value gap the mineral-exploration-specialist audit found: early-stage programs
   // very commonly run surface geochem before ever drilling, and until now the app had nowhere to put
@@ -1647,7 +1649,7 @@ export function StoreProvider({ children }) {
     survey, setSurvey,
     layers, setLayers, mergeLayer, replaceLayer,
     assays, setAssays,
-    assayElements, setAssayElements,
+    assayElements: presentAssayElements, setAssayElements, // #1679 — only the elements some assay row has a value for
     surfaceSamples, setSurfaceSamples,
     surfaceElements, setSurfaceElements,
     geochemThresholds, setGeochemThresholds, // TASKS.csv #841

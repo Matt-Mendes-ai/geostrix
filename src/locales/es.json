@@ -9156,5 +9156,8 @@
   "{name} could not be read: {error}": "No se pudo leer {name}: {error}",
   "For samples whose data come in two files (a field sheet and the lab's assay sheet): the other file's columns are added to these rows where the sample IDs match.": "Para muestras cuyos datos vienen en dos archivos (una hoja de campo y la hoja de ensayes del laboratorio): las columnas del otro archivo se añaden a estas filas donde coinciden los ID de muestra.",
   "Add columns from another file (by sample ID)…": "Añadir columnas de otro archivo (por ID de muestra)…",
-  "File to join by sample ID": "Archivo para unir por ID de muestra"
+  "File to join by sample ID": "Archivo para unir por ID de muestra",
+  "Empty on every row, so left unticked: {list} ({n} columns).": "Vacías en todas las filas, así que quedan sin marcar: {list} ({n} columnas).",
+  "No sample has {requires} all together (they may come from different files, e.g. a lab assay and a pXRF reading).": "Ninguna muestra tiene {requires} a la vez (pueden venir de archivos distintos, p. ej. un ensaye de laboratorio y una lectura pXRF).",
+  "None of these samples has {list}.": "Ninguna de estas muestras tiene {list}."
 }
