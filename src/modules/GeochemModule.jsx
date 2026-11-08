@@ -63,7 +63,7 @@ const ALL_DIAGRAMS = { ...DIAGRAMS, ...SPIDER_DIAGRAMS };
 // TASKS.csv #1678 — the X-Y scatter: its axes are chosen on the tab, so it is built there (lib/geochemXY.js); this stands in until they are
 const XY_ENTRY = { id: "xy", label: "X–Y scatter (choose the axes)", requires: [], xLabel: "", yLabel: "", xRange: [0, 1], yRange: [0, 1], project: () => null };
 import { arrMin, arrMax } from "../lib/arrayStats.js"; // TASKS.csv #371 — no Math.min/max(...spread)
-import { labAssays, isPxrfRow, sampleTypeClass } from "../lib/qaqc.js"; // TASKS.csv #1673; sampleTypeClass: #1661
+import { labAssays, isPxrfRow, sampleTypeClass, classifyQAQCRow } from "../lib/qaqc.js"; // TASKS.csv #1673; sampleTypeClass: #1661; classifyQAQCRow: #2027
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { toExportCsv } from "../lib/tabular.js"; // TASKS.csv #1022 — every exported CSV: all columns, formula cells escaped
 import { exportSvgMarkup } from "../lib/svgExport.js"; // TASKS.csv #1089 — font, size, no UI chrome
@@ -99,7 +99,13 @@ export default function GeochemModule() {
   // a word (2,095 points, 556 of them screening readings): the plots take one source, lab by default, pXRF or both on request
   const [plotSource, setPlotSource] = useKeptState(keptScope, "geochem.plotSource", "lab");
   const hasPxrf = useMemo(() => assays.some(isPxrfRow), [assays]);
-  const sourceRows = useMemo(() => (!hasPxrf || plotSource === "both" ? assays : assays.filter((a) => (plotSource === "pxrf" ? isPxrfRow(a) : !isPxrfRow(a)))), [assays, hasPxrf, plotSource]);
+  const sourceAll = useMemo(() => (!hasPxrf || plotSource === "both" ? assays : assays.filter((a) => (plotSource === "pxrf" ? isPxrfRow(a) : !isPxrfRow(a)))), [assays, hasPxrf, plotSource]);
+  // TASKS.csv #2027 (review #2013, Woodjam) — QC inserts (standards, blanks, duplicates) are not rocks: 109 CRM pulps and 56 blanks sat
+  // among the drill samples on every diagram ('1964 of 1964 samples plotted'). Left out by default, as Grade stats / Best intercepts /
+  // Compositing do (#219), with a tick to plot them.
+  const [plotQc, setPlotQc] = useKeptState(keptScope, "geochem.plotQc", false);
+  const qcInSource = useMemo(() => sourceAll.filter((a) => classifyQAQCRow(a) !== "regular").length, [sourceAll]);
+  const sourceRows = useMemo(() => (plotQc || !qcInSource ? sourceAll : sourceAll.filter((a) => classifyQAQCRow(a) === "regular")), [sourceAll, plotQc, qcInSource]);
   const [lithMenuOpen, setLithMenuOpen] = useState(false);
   const [colorElement, setColorElement] = useKeptState(keptScope, "geochem.colorElement", null);
   // TASKS.csv #1091 — the element to colour by: the one chosen, else Au, else the first. colorElement is set only when an
@@ -865,7 +871,8 @@ export default function GeochemModule() {
       (layers.litho || []).forEach((r) => { if (!lithoByHole.has(r.hole_id)) lithoByHole.set(r.hole_id, []); lithoByHole.get(r.hole_id).push(r); });
     }
     const counts = {};
-    const labRows = labAssays(assays), pxrfLeft = assays.length - labRows.length; // #1673 — a classification layer from lab assays only
+    const labAll = labAssays(assays), pxrfLeft = assays.length - labAll.length; // #1673 — a classification layer from lab assays only
+    const labRows = labAll.filter((a) => classifyQAQCRow(a) === "regular"), qcLeft = labAll.length - labRows.length; // #2027 — a standard or a blank is not a rock to classify (it made zero-length intervals on real holes)
     const rows = labRows.map((a) => {
       let opts;
       if (altSetup) {
@@ -881,6 +888,7 @@ export default function GeochemModule() {
     }).filter(Boolean);
     const runs = mergeClassRuns(rows); // #1513 — touching samples of one class: one interval
     if (pxrfLeft) setNotices((p) => [...p, notice("{n} pXRF reading(s) were left out of the classification: it uses lab assays only.", { n: pxrfLeft })]); // #1673
+    if (qcLeft) setNotices((p) => [...p, notice("{n} QC insert(s) (standards, blanks, duplicates) were left out of the classification: they are not rock samples.", { n: qcLeft })]); // #2027
     replaceLayer(targetKey, runs);
     // #1393 — with no class counted, ' {v}.' left a lone '.' ("layer. . 1339 sample(s) not classified")
     const countList = Object.entries(counts).sort((x, y) => y[1] - x[1]).map(([k, n]) => `${GEOCHEM_LABELS[k] || k} ${n}`).join(", ");
@@ -937,7 +945,7 @@ export default function GeochemModule() {
     img.src = url;
   };
   const exportProjectedCSV = () => {
-    const rows = diagramExportRows(assays, diagram, elementUnits); // #1083 — in lib, tested
+    const rows = diagramExportRows(plotted, diagram, elementUnits); // #1083 — in lib, tested; plotted: #2027 — the samples the diagram shows (QC inserts, the other source and the lithology filter as on screen)
     const csv = withStamp(toExportCsv(rows), stampLines({ tool: `Plot data: ${diagram.label || diagramId}`, version: APP_VERSION, params: [diagram.xLabel ? `x: ${diagram.xLabel}` : "", diagram.yLabel ? `y: ${diagram.yLabel}` : "", `Element units: ${Object.entries(elementUnits || {}).map(([k, v]) => `${k} ${v}`).join(", ")}`] })); // #1212
     saveFile({ suggestedName: `${diagramId}_projected.csv`, filters: [{ name: "CSV", extensions: ["csv"] }], content: csv });
   };
@@ -1115,6 +1123,11 @@ export default function GeochemModule() {
               <option value="lab">{tr("Lab assays")}</option><option value="pxrf">{tr("pXRF readings (screening)")}</option><option value="both">{tr("Lab + pXRF")}</option>
             </select></div>
           )}
+          {qcInSource > 0 && ( /* TASKS.csv #2027 */
+            <label style={{ display: "flex", gap: 5, alignItems: "center", fontSize: 11.5, color: "#55606e", cursor: "pointer" }} title={tr("Standards, blanks and duplicates are left out of the diagrams, as they are of the grade tools. Tick to plot them, e.g. to see where a standard falls.")}>
+              <input type="checkbox" checked={!!plotQc} onChange={(e) => setPlotQc(e.target.checked)} />{tr("Plot the {n} QC insert(s)", { n: qcInSource.toLocaleString() })}
+            </label>
+          )}
           <div style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 11.5, color: "#55606e" }}>{tr("Colour:")}<select aria-label={tr("Colour by")} value={colorMode} onChange={(e) => setColorMode(e.target.value)} style={{ ...selectStyle, padding: "5px 8px" }}>
               <option value="hole">{tr("by hole")}</option>
               <option value="element">{tr("by element")}</option>
@@ -1219,7 +1232,7 @@ export default function GeochemModule() {
             <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 8 }}>
               {tr("{v}{v2} Below-detection values substituted at half the detection limit.", { v: diagram.spider
                 ? tr("{n} of {assays} samples have at least one plottable element.", { n: plottedCount, assays: sourceRows.length })
-                : tr("{n} of {assays} samples plotted.", { n: plottedCount, assays: sourceRows.length }) + (plottedCount === 0 && sourceRows.length && !missingForDiagram.length && diagram.requires.length ? " " + ((absent) => (absent.length ? tr("None of these samples has {list}.", { list: absent.join(", ") }) : tr("No sample has {requires} all together (they may come from different files, e.g. a lab assay and a pXRF reading).", { requires: diagram.requires.join(", ") })))(diagram.requires.filter((sym) => !sourceRows.some((r) => Number.isFinite(r.values?.[sym])))) : ""), /* plottedCount: #1519; the reason for none: #1679 (Copley TAS: Si only in the pXRF, Na only in the lab assays) */ v2: (lithFilter ? tr(" {v} hidden by the lithology filter.", { v: sourceRows.length - plotted.length }) : "") + (hasPxrf && plotSource !== "both" ? " " + (plotSource === "pxrf" ? tr("{k} lab assay(s) left out: pXRF readings only.", { k: (assays.length - sourceRows.length).toLocaleString() }) : tr("{k} pXRF reading(s) left out: lab assays only.", { k: (assays.length - sourceRows.length).toLocaleString() })) : "") })}</div>
+                : tr("{n} of {assays} samples plotted.", { n: plottedCount, assays: sourceRows.length }) + (plottedCount === 0 && sourceRows.length && !missingForDiagram.length && diagram.requires.length ? " " + ((absent) => (absent.length ? tr("None of these samples has {list}.", { list: absent.join(", ") }) : tr("No sample has {requires} all together (they may come from different files, e.g. a lab assay and a pXRF reading).", { requires: diagram.requires.join(", ") })))(diagram.requires.filter((sym) => !sourceRows.some((r) => Number.isFinite(r.values?.[sym])))) : ""), /* plottedCount: #1519; the reason for none: #1679 (Copley TAS: Si only in the pXRF, Na only in the lab assays) */ v2: (lithFilter ? tr(" {v} hidden by the lithology filter.", { v: sourceRows.length - plotted.length }) : "") + (hasPxrf && plotSource !== "both" ? " " + (plotSource === "pxrf" ? tr("{k} lab assay(s) left out: pXRF readings only.", { k: (assays.length - sourceAll.length).toLocaleString() }) : tr("{k} pXRF reading(s) left out: lab assays only.", { k: (assays.length - sourceAll.length).toLocaleString() })) : "") + (qcInSource && !plotQc ? " " + tr("{k} QC insert(s) (standards, blanks, duplicates) left out.", { k: qcInSource.toLocaleString() }) : "") /* #2027 */ })}</div>
           </div>
         )}
       </div>
