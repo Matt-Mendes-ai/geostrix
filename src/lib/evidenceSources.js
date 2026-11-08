@@ -218,18 +218,31 @@ export function medianSiteSpacing(collars, padM = 25) {
 // (depth); both are placed on the hole trace.
 const ROW_KEYS = new Set(["hole_id", "from", "to", "depth", "_src", "id"]);
 // the fields of these rows with at least `min` finite numbers (a text code field is not one)
+// TASKS.csv #2049 (review #2013, 3D Modelling) — Woodjam's alteration intensity is stored as text ('1'..'5'), so the halo's 'Only where'
+// floor offered logged_tstamp (an Excel date), iteration and rank but not the intensity. A number written as text counts (when nearly every
+// filled value of the field is one), bookkeeping fields (time stamps, dates, iterations, ranks, ids) are left out, and an intensity field
+// comes first.
+const BOOKKEEPING_FIELD = /(^|[_\s-])(t?stamp|timestamp|date|time|iteration|iter|rank|objectid|object_?id|uuid|fid|id|year|version|row)$|^_/i;
+export const numericCell = (v) => (typeof v === "number" ? (Number.isFinite(v) ? v : null) : typeof v === "string" && /^\s*[-+]?\d+(\.\d+)?\s*$/.test(v) ? Number(v) : null);
 export function numericLayerFields(rows, { min = 5 } = {}) {
-  const counts = new Map();
-  for (const r of rows || []) for (const k of Object.keys(r)) { if (ROW_KEYS.has(k)) continue; const v = r[k]; if (typeof v === "number" && Number.isFinite(v)) counts.set(k, (counts.get(k) || 0) + 1); }
-  return [...counts].filter(([, n]) => n >= min).map(([k]) => k);
+  const counts = new Map(), filled = new Map();
+  for (const r of rows || []) for (const k of Object.keys(r)) {
+    if (ROW_KEYS.has(k) || BOOKKEEPING_FIELD.test(k)) continue;
+    const v = r[k];
+    if (v == null || v === "") continue;
+    filled.set(k, (filled.get(k) || 0) + 1);
+    if (numericCell(v) != null) counts.set(k, (counts.get(k) || 0) + 1);
+  }
+  const keys = [...counts].filter(([k, n]) => n >= min && n >= 0.9 * filled.get(k)).map(([k]) => k);
+  return keys.sort((a, b) => (/intensity|^int$|_int(_|$)/i.test(b) ? 1 : 0) - (/intensity|^int$|_int(_|$)/i.test(a) ? 1 : 0));
 }
 const rowDepth = (r) => { const from = Number(r.from), to = Number(r.to); if (Number.isFinite(from) && Number.isFinite(to)) return (from + to) / 2; const d = Number(r.depth); return Number.isFinite(d) ? d : NaN; };
 // one point per 25 m plan bin, the highest value in it (as holeGradePoints)
 export function layerFieldPoints(rows, field, traces, bin = GRADE_BIN_M) {
   const best = new Map();
   for (const r of rows || []) {
-    const t = traces.get(r.hole_id), d = rowDepth(r), v = r[field];
-    if (!t || !Number.isFinite(d) || typeof v !== "number" || !Number.isFinite(v)) continue;
+    const t = traces.get(r.hole_id), d = rowDepth(r), v = numericCell(r[field]); // #2049 — a number written as text too
+    if (!t || !Number.isFinite(d) || v == null) continue;
     const p = pointOnTrace(t, d), key = `${Math.floor(p.x / bin)},${Math.floor(p.y / bin)}`, was = best.get(key);
     if (!was || v > was.value) best.set(key, { x: p.x, y: p.y, value: v });
   }
