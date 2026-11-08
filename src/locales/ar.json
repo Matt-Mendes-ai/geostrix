@@ -9248,5 +9248,7 @@
   "Weights of evidence: no card gives a weight with these {d} occurrence cells: {list}.": "أوزان الأدلة: لا تعطي أي بطاقة وزناً مع خلايا الحالات هذه ({d}): {list}.",
   "Ends: the {a}th and {b}th percentile of the {n} {sym} assays (length-weighted, QC left out). Set them from your own cut-offs.": "الطرفان: المئين {a} والمئين {b} لتحاليل {sym} البالغة {n} (مرجحة بالطول، بدون عينات المراقبة). اضبطهما وفق حدودك الدنيا.",
   "Ends: the {a}th and {b}th percentile of this evidence over the grid, not of your deposit. Set them from your own cut-offs.": "الطرفان: المئين {a} والمئين {b} لهذا الدليل على الشبكة، لا لرواسبك. اضبطهما وفق حدودك الدنيا.",
-  "Its {n} benched design(s) go too: {names}.": "تُزال معه تصاميمه المدرجة ({n}): {names}."
+  "Its {n} benched design(s) go too: {names}.": "تُزال معه تصاميمه المدرجة ({n}): {names}.",
+  "The series runs on one grid sized for its largest factor ({c} m; the shell's was {s} m), so its factor-1 row ({a} t of ore) differs from the shell it was run from ({b} t).": "تعمل السلسلة على شبكة واحدة مقاسة لأكبر معامل فيها ({c} م؛ كانت شبكة الغلاف {s} م)، لذا يختلف صف المعامل 1 ({a} طن من الخام) عن الغلاف الذي شُغّلت منه ({b} طن).",
+  "The series runs on one grid sized for its largest factor ({c} m; the shell's was {s} m), so its shells are not on the shell's own grid.": "تعمل السلسلة على شبكة واحدة مقاسة لأكبر معامل فيها ({c} م؛ كانت شبكة الغلاف {s} م)، لذا أغلفتها ليست على شبكة الغلاف الأصلية."
 }

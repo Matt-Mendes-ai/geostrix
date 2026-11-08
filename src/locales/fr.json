@@ -9248,5 +9248,7 @@
   "Weights of evidence: no card gives a weight with these {d} occurrence cells: {list}.": "Poids de l'évidence : aucune carte ne donne de poids avec ces {d} cellules d'occurrence : {list}.",
   "Ends: the {a}th and {b}th percentile of the {n} {sym} assays (length-weighted, QC left out). Set them from your own cut-offs.": "Bornes : les {a}e et {b}e centiles des {n} analyses de {sym} (pondérés par la longueur, contrôles exclus). Fixez-les selon vos propres seuils.",
   "Ends: the {a}th and {b}th percentile of this evidence over the grid, not of your deposit. Set them from your own cut-offs.": "Bornes : les {a}e et {b}e centiles de cette évidence sur la grille, pas de votre gisement. Fixez-les selon vos propres seuils.",
-  "Its {n} benched design(s) go too: {names}.": "Ses {n} conception(s) en gradins partent aussi : {names}."
+  "Its {n} benched design(s) go too: {names}.": "Ses {n} conception(s) en gradins partent aussi : {names}.",
+  "The series runs on one grid sized for its largest factor ({c} m; the shell's was {s} m), so its factor-1 row ({a} t of ore) differs from the shell it was run from ({b} t).": "La série tourne sur une seule grille dimensionnée pour son plus grand facteur ({c} m ; celle de l'enveloppe était de {s} m) : sa ligne au facteur 1 ({a} t de minerai) diffère donc de l'enveloppe d'origine ({b} t).",
+  "The series runs on one grid sized for its largest factor ({c} m; the shell's was {s} m), so its shells are not on the shell's own grid.": "La série tourne sur une seule grille dimensionnée pour son plus grand facteur ({c} m ; celle de l'enveloppe était de {s} m) : ses enveloppes ne sont donc pas sur la grille de l'enveloppe d'origine."
 }

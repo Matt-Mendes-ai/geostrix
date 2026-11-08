@@ -9248,5 +9248,7 @@
   "Weights of evidence: no card gives a weight with these {d} occurrence cells: {list}.": "Pesos de evidencia: ninguna tarjeta da un peso con estas {d} celdas de ocurrencia: {list}.",
   "Ends: the {a}th and {b}th percentile of the {n} {sym} assays (length-weighted, QC left out). Set them from your own cut-offs.": "Extremos: los percentiles {a} y {b} de los {n} ensayes de {sym} (ponderados por longitud, sin controles). Fíjelos con sus propias leyes de corte.",
   "Ends: the {a}th and {b}th percentile of this evidence over the grid, not of your deposit. Set them from your own cut-offs.": "Extremos: los percentiles {a} y {b} de esta evidencia sobre la grilla, no de su depósito. Fíjelos con sus propias leyes de corte.",
-  "Its {n} benched design(s) go too: {names}.": "Sus {n} diseño(s) con bancos también se eliminan: {names}."
+  "Its {n} benched design(s) go too: {names}.": "Sus {n} diseño(s) con bancos también se eliminan: {names}.",
+  "The series runs on one grid sized for its largest factor ({c} m; the shell's was {s} m), so its factor-1 row ({a} t of ore) differs from the shell it was run from ({b} t).": "La serie corre sobre una sola grilla dimensionada para su mayor factor ({c} m; la de la envolvente era {s} m), así que su fila de factor 1 ({a} t de mineral) difiere de la envolvente de la que se corrió ({b} t).",
+  "The series runs on one grid sized for its largest factor ({c} m; the shell's was {s} m), so its shells are not on the shell's own grid.": "La serie corre sobre una sola grilla dimensionada para su mayor factor ({c} m; la de la envolvente era {s} m), así que sus envolventes no están en la grilla de la envolvente original."
 }

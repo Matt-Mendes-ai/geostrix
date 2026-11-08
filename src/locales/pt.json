@@ -9248,5 +9248,7 @@
   "Weights of evidence: no card gives a weight with these {d} occurrence cells: {list}.": "Pesos de evidência: nenhum cartão dá peso com estas {d} células de ocorrência: {list}.",
   "Ends: the {a}th and {b}th percentile of the {n} {sym} assays (length-weighted, QC left out). Set them from your own cut-offs.": "Extremos: os percentis {a} e {b} das {n} análises de {sym} (ponderados pelo comprimento, sem controles). Defina-os com seus próprios teores de corte.",
   "Ends: the {a}th and {b}th percentile of this evidence over the grid, not of your deposit. Set them from your own cut-offs.": "Extremos: os percentis {a} e {b} desta evidência sobre a grade, não do seu depósito. Defina-os com seus próprios teores de corte.",
-  "Its {n} benched design(s) go too: {names}.": "Seus {n} projeto(s) com bancadas também são removidos: {names}."
+  "Its {n} benched design(s) go too: {names}.": "Seus {n} projeto(s) com bancadas também são removidos: {names}.",
+  "The series runs on one grid sized for its largest factor ({c} m; the shell's was {s} m), so its factor-1 row ({a} t of ore) differs from the shell it was run from ({b} t).": "A série roda numa só grade dimensionada para o seu maior fator ({c} m; a da cava era {s} m), então a linha do fator 1 ({a} t de minério) difere da cava de origem ({b} t).",
+  "The series runs on one grid sized for its largest factor ({c} m; the shell's was {s} m), so its shells are not on the shell's own grid.": "A série roda numa só grade dimensionada para o seu maior fator ({c} m; a da cava era {s} m), então suas cavas não estão na grade da cava original."
 }

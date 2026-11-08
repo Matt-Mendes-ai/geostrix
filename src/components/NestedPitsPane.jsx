@@ -157,6 +157,14 @@ export default function NestedPitsPane({ surfaces = [], onAdd, onToggle, onRemov
           {res.bestMoney >= 0 && line(tr("Contained metal at it"), metalText(res.runs[res.bestMoney]))}
           {res.bestMoney >= 0 && inputs?.by && res.byMetalUnit && line(tr("Contained {el} at it", { el: byEl }), byMetalText(res.runs[res.bestMoney]))}{/* #1917 */}
           {line(tr("Grid cell"), `${res.cell.map((v) => Math.round(v * 10) / 10).join(" × ")} m`)}
+          {(() => { // TASKS.csv #2108 (review #2013, Woodjam) — the series' one grid is sized for its largest factor; when it is not the shell's, factor 1 differs from it
+            const sc = lastPit?.params?.gridCellM, rc = res.cell.map((v) => +v.toFixed(1));
+            if (!Array.isArray(sc) || sc.length !== 3 || sc.every((v, i) => Math.abs(v - rc[i]) <= 0.05 * Math.max(1, v))) return null;
+            const one = res.runs.find((r) => r.rf === 1), shellOre = lastPit.params?.oreTonnes;
+            return <div style={warn}>{one && Number.isFinite(shellOre)
+              ? tr("The series runs on one grid sized for its largest factor ({c} m; the shell's was {s} m), so its factor-1 row ({a} t of ore) differs from the shell it was run from ({b} t).", { c: rc.join(" × "), s: sc.join(" × "), a: big(one.oreT), b: big(shellOre) })
+              : tr("The series runs on one grid sized for its largest factor ({c} m; the shell's was {s} m), so its shells are not on the shell's own grid.", { c: rc.join(" × "), s: sc.join(" × ") })}</div>;
+          })()}
           {line(tr("Solved in"), `${res.seconds} s`)}
           {res.groundSource === "collars" && <div style={note}>{tr("The ground is interpolated between the collars, not a terrain.")}</div>}
           {res.groundSource === "model top" && <div style={note}>{tr("The ground is the top of the block model's columns, interpolated between them, not a terrain.")}</div>}{/* #1850 */}
