@@ -9305,5 +9305,6 @@
   "the collars' median elevation": "الارتفاع الوسيط للفوهات",
   "the top of {model}": "أعلى {model}",
   "the surface samples' median elevation": "الارتفاع الوسيط للعينات السطحية",
-  "no elevation known": "لا ارتفاع معروف"
+  "no elevation known": "لا ارتفاع معروف",
+  " Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Rename them in the file to class them.": " رموز النوع {codes} مصنفة «أخرى»: ليست رموز صدع أو بريشيا أو عرق أو تماس أو فاصل أو تطبق أو تورق أو انفصام يعرفها GeoStrix. أعد تسميتها في الملف لتصنيفها."
 }

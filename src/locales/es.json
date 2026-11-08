@@ -9305,5 +9305,6 @@
   "the collars' median elevation": "la elevación mediana de los collares",
   "the top of {model}": "el techo de {model}",
   "the surface samples' median elevation": "la elevación mediana de las muestras superficiales",
-  "no elevation known": "ninguna elevación conocida"
+  "no elevation known": "ninguna elevación conocida",
+  " Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Rename them in the file to class them.": " Los códigos de tipo {codes} se clasifican como Otro: no son un código de falla, brecha, veta, contacto, diaclasa, estratificación, foliación o clivaje que GeoStrix conozca. Renómbrelos en el archivo para clasificarlos."
 }

@@ -435,9 +435,24 @@ export function guessStructureColumns(headers) {
 }
 
 // Normalizes a structure type string to a short canonical class used for colouring and filtering.
+// TASKS.csv #2082 (review #2013, Surface Geology) — the drillhole logs' own abbreviations (FLT, FLTG, FLTBX, FRAC, CF, BRX…, BC acQuire style) all
+// fell into 'Other' because only whole words were tested: a code (or its first token) is read first, then the words as before.
+const CODE_CLASS = [
+  [/^(flt\w*|fz|flz|shr|shz|sz|gge|gouge)$/, "fault"],
+  [/^(bx|brx|bxx|brec\w*)$/, "breccia"],
+  [/^(vn|vns|qv|qtzv|vein\w*)$/, "vein"],
+  [/^(cf|con|cont|ctc|ctct)$/, "contact"],
+  [/^(frac\w*|fr|frx|jt|jnt|jts)$/, "joint"],
+  [/^(bd|bdg|bed\w*|ss0|s0)$/, "bedding"],
+  [/^(fol|fo|s1|s2)$/, "foliation"],
+  [/^(clv|clvg)$/, "cleavage"],
+];
 export function structureClass(t) {
   const s = String(t || "").toLowerCase();
+  const first = s.trim().split(/[^a-z0-9]+/).filter(Boolean)[0] || "";
+  for (const [re, cls] of CODE_CLASS) if (re.test(first)) return cls; // #2082
   if (/fault|shear/.test(s)) return "fault";
+  if (/breccia/.test(s)) return "breccia"; // #2082
   if (/bed/.test(s)) return "bedding";
   if (/foli|schist/.test(s)) return "foliation";
   if (/cleav/.test(s)) return "cleavage";
@@ -565,9 +580,9 @@ export function projectContactRibbon(line3d, orient, { depth = 300, rows = 12, m
 // stream-sediment sphere; cleavage sat next to moss mat and contact next to heavy-mineral purple. Contacts are black on a map.
 export const STRUCTURE_CLASS_COLORS = {
   fault: "#b5179e", bedding: "#1d3557", foliation: "#007f7f", cleavage: "#9acd32",
-  contact: "#222222", vein: "#e8dfc4", joint: "#ff7f50", other: "#9aa5b1",
+  contact: "#222222", vein: "#e8dfc4", joint: "#ff7f50", breccia: "#800000" /* #2082 */, other: "#9aa5b1",
 };
 export const STRUCTURE_CLASS_LABELS = {
   fault: "Fault / shear", bedding: "Bedding", foliation: "Foliation", cleavage: "Cleavage",
-  contact: "Contact / dyke", vein: "Vein", joint: "Joint / fracture", other: "Other",
+  contact: "Contact / dyke", vein: "Vein", joint: "Joint / fracture", breccia: "Breccia" /* #2082 */, other: "Other",
 };

@@ -422,6 +422,8 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
     if (typedSet) updateSurfaceStructureSet(typedSet.id, { rows: [...typedSet.rows, ...rows] });
     else addSurfaceStructureSet({ name: p.name, rows, snapToTerrain: true, azimuthRef: north.ref, ...(north.ref === "magnetic" ? { azimuthDate: north.date } : {}), ...(p.typed ? { typed: true } : {}) });
     const noZ = out.rows.filter((r) => r.z == null).length;
+    // TASKS.csv #2082 — the type codes no class knows: said, so 'Other' on the stereonet is not taken for nothing
+    const otherTypes = [...new Set(out.rows.filter((r) => r.cls === "other" && String(r.type || "").trim()).map((r) => String(r.type).trim()))];
     setStructMsg({
       ok: !out.skipped,
       text: tr("Imported {rows} measurement(s) from {name}.", { rows: out.rows.length, name: p.name })
@@ -429,6 +431,7 @@ export default function SurfaceMappingPanel({ pBtn, numInput, part = null }) { /
         + (out.derivedFromStrike ? tr(" {derivedFromStrike} dip direction(s) derived from strike by the right-hand rule.", { derivedFromStrike: out.derivedFromStrike }) : "")
         + (out.rhrMismatches ? tr(" {rhrMismatches} row(s) have a strike and dip direction that aren't 90° apart — the dip direction was used; check whether those strikes are left-hand-rule.", { rhrMismatches: out.rhrMismatches }) : "")
         + (noZ ? (terrain ? tr(" {noZ} had no elevation and sit on the terrain{v}.", { noZ, v: "" }) : tr(" {noZ} had no elevation: drawn flat until a terrain is loaded (Maps > Terrain), then placed on it.", { noZ })) : "") // #1448 — they were said to 'sit on the terrain' with none loaded
+        + (otherTypes.length ? tr(" Type code(s) {codes} are classed as Other: not a fault, breccia, vein, contact, joint, bedding, foliation or cleavage code GeoStrix knows. Rename them in the file to class them.", { codes: otherTypes.slice(0, 8).join(", ") + (otherTypes.length > 8 ? "…" : "") }) : "") // #2082
         + crsNote + northNote,
     });
     setPendingStruct(null);
