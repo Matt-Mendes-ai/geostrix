@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { X, Plus, Trash2, Save } from "./icons.js";
-import { holeDirection, calculatorReferenceLine, solveUnoriented, roundAzimuth } from "../lib/coreOrientation.js";
+import { holeDirection, calculatorReferenceLine, solveUnoriented, roundAzimuth, holesWithAttitude } from "../lib/coreOrientation.js"; // holesWithAttitude: #2051
 import { surveyAzimuthDipAt } from "../lib/desurvey.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
@@ -72,13 +72,19 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
 
   // Auto-fill hole azimuth/dip at the chosen depth from the survey, but leave the fields editable
   // (a planned hole, or one with no survey data yet, still needs manual entry to work at all).
+  // TASKS.csv #2051 — a hole whose attitude is unknown there clears the fields and says so (it kept the previous hole's)
+  const [holeNote, setHoleNote] = useState(null);
   const autoFillFromHole = (hId, d) => {
+    setHoleNote(null);
     const c = collars.find((c) => c.hole_id === hId);
     if (!c || d === "" || isNaN(Number(d))) return;
     const hs = (survey || []).filter((s) => s.hole_id === hId && !isNaN(s.depth));
     const r = surveyAzimuthDipAt(c, hs, Number(d));
-    if (r) { setAzimuth(String(r.azimuth.toFixed(1))); setDip(String(r.dip.toFixed(1))); }
+    if (r && Number.isFinite(r.azimuth) && Number.isFinite(r.dip)) { setAzimuth(String(r.azimuth.toFixed(1))); setDip(String(r.dip.toFixed(1))); }
+    else { setAzimuth(""); setDip(""); setHoleNote(tr("No survey or collar azimuth / dip for {hole} at {depth} m: enter the hole's attitude by hand.", { hole: hId, depth: d })); }
   };
+  const orientable = useMemo(() => holesWithAttitude(collars, survey), [collars, survey]);
+  const leftOut = collars.length - orientable.length;
 
   // TASKS.csv #428 — outcrop measurements (Geophysics > Surface structures) near the chosen collar can
   // be the calibration reference directly: the 10 nearest within 1 km, nearest first.
@@ -158,7 +164,7 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
             <div style={row}>
               <select aria-label={tr("Hole for the core orientation")} value={holeId} onChange={(e) => { setHoleId(e.target.value); autoFillFromHole(e.target.value, depth); }} style={sel}>
                 <option value="">{tr("Manual entry (no hole)")}</option>
-                {collars.map((c) => <option key={c.hole_id} value={c.hole_id}>{c.hole_id}</option>)}
+                {orientable.map((c) => <option key={c.hole_id} value={c.hole_id}>{c.hole_id}</option>)}{/* #2051 — holes with a known attitude */}
               </select>
               <input type="number" placeholder={tr("Depth (m)")} value={depth} onChange={(e) => { setDepth(e.target.value); if (holeId) autoFillFromHole(holeId, e.target.value); }} style={{ ...num, width: 90 }} />
             </div>
@@ -166,6 +172,8 @@ export default function CoreOrientationCalculator({ collars, survey, fieldStruct
               <input type="number" placeholder={tr("Hole azimuth (°)")} value={azimuth} onChange={(e) => setAzimuth(e.target.value)} style={num} />
               <input type="number" placeholder={tr("Hole dip below horiz. (0-90°)")} value={dip} onChange={(e) => setDip(e.target.value)} style={num} />
             </div>
+            {holeNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", color: "var(--color-warn-text)", marginTop: 4 }}>{holeNote}</div>}
+            {leftOut > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr(leftOut === 1 ? "1 collar with no survey and no azimuth / dip is not listed: use Manual entry for it." : "{n} collars with no survey and no azimuth / dip are not listed: use Manual entry for them.", { n: leftOut.toLocaleString() })}</div>}
             {/* TASKS.csv #497 — the bottom/top-of-hole toggle changed nothing (proved in test/core.test.mjs), so it is a note now */}
             <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>{tr("Measure both betas from the same scribed line (bottom- or top-of-hole, or any line) — the answer doesn't depend on which. Works for vertical holes too.")}</div>
 

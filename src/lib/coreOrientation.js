@@ -211,3 +211,12 @@ export function reorientAlphaBetaPicks(structure, collarAt, surveyByHole, holeId
   });
   return { rows: changed ? rows : structure, changed, newlyOriented, failed, maxChangeDeg, derived };
 }
+
+// TASKS.csv #2051 (review #2013, 3D Modelling) — the calculator's hole list held all 544 Woodjam collars, 534 of them district collars with
+// no survey and no azimuth / dip: picking one left the previous hole's attitude in the fields. -> the collars whose attitude is known:
+// survey stations, or a collar azimuth and dip.
+export function holesWithAttitude(collars, survey) {
+  const surveyed = new Set((survey || []).filter((s) => Number.isFinite(Number(s.azimuth)) && Number.isFinite(Number(s.dip))).map((s) => s.hole_id));
+  const has = (v) => v != null && v !== "" && Number.isFinite(Number(v));
+  return (collars || []).filter((c) => surveyed.has(c.hole_id) || (has(c.azimuth) && has(c.dip)));
+}
