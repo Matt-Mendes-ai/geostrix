@@ -144,9 +144,13 @@ export function terrainDerivativeToRasterInput({ bbox, gridW, gridH, elevations,
   const img = ctx.createImageData(gridW, gridH);
   let scale;
   const hide = edgeMask(noDataMask, gridW, gridH);
+  // TASKS.csv #2123 (review #2013, Maps) — the colour stretch comes from the cells that are drawn. Filled no-data corners (a reprojected
+  // terrain) sit at the mean elevation next to real nodes, an ~80° step the 98th percentile took for the ground: a 0-10° slope read
+  // 'darkest grey 53°' and drew almost white. edgeMask hides every node with a no-data neighbour, so its gradients never reach the picture.
+  const shown = hide ? v.filter((_, k) => !hide[k]) : v;
   const put = (k, r, g, b) => { img.data[k * 4] = r; img.data[k * 4 + 1] = g; img.data[k * 4 + 2] = b; img.data[k * 4 + 3] = hide?.[k] ? 0 : 255; };
   if (kind === "slope") {
-    const hi = Math.max(5, pctl(v, 0.98)); scale = { min: 0, max: hi };
+    const hi = Math.max(5, pctl(shown, 0.98)); scale = { min: 0, max: hi };
     for (let k = 0; k < v.length; k++) { const t = 1 - Math.min(1, v[k] / hi); const gv = Math.round(40 + 215 * t); put(k, gv, gv, gv); } // steep = dark
   } else if (kind === "aspect") {
     scale = null;
@@ -157,7 +161,7 @@ export function terrainDerivativeToRasterInput({ bbox, gridW, gridH, elevations,
       put(k, Math.round(60 + 170 * r), Math.round(60 + 170 * g), Math.round(60 + 170 * b));
     }
   } else if (kind === "curvature") {
-    const m = Math.max(1e-6, pctl(v.map(Math.abs), 0.98)); scale = { min: -m, max: m };
+    const m = Math.max(1e-6, pctl(shown.map(Math.abs), 0.98)); scale = { min: -m, max: m };
     for (let k = 0; k < v.length; k++) { // concave blue - flat white - convex red
       const t = Math.max(-1, Math.min(1, v[k] / m));
       put(k, t > 0 ? 255 : Math.round(255 * (1 + t)), Math.round(255 * (1 - Math.abs(t))), t < 0 ? 255 : Math.round(255 * (1 - t)));
