@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 const s = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
 
 test("each orientation value has its own source flag, starred on its own; the azimuth column says grid", () => {
-  assert.ok(s.includes("azFromSurvey: azS, dipFromSurvey: dipS, orientFromSurvey: azS || dipS"));
+  assert.ok(readFileSync(new URL("../src/lib/collarTable.js", import.meta.url), "utf8").includes("azFromSurvey: azS, dipFromSurvey: dipS, orientFromSurvey: azS || dipS")); // moved to lib/collarTable.js by #2133
   assert.ok(s.includes("star(f(c.azimuth, 0), c.azFromSurvey ?? c.orientFromSurvey)"));
   assert.ok(s.includes('tr("Azimuth (grid)")'));
 });

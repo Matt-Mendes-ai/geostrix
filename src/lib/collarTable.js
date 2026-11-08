@@ -31,3 +31,20 @@ export function continuationTables(el, total) {
   }
   return out;
 }
+
+// TASKS.csv #1483 / #1771 / #2133 — the collars for the Layout collar table and atlas, with their orientation filled from the shallowest
+// survey station where the collar record has none (flagged per value), and a collar azimuth that disagrees with that station by more
+// than half a degree carried as azSurvey (moved here from LayoutModule.jsx to be testable).
+export function collarsWithSurveyAttitude(collars, survey) {
+  const first = new Map();
+  for (const s of survey || []) { if (!Number.isFinite(s.depth)) continue; const f = first.get(s.hole_id); if (!f || s.depth < f.depth) first.set(s.hole_id, s); }
+  // TASKS.csv #1771 (review #1645, Copley) — each value flagged by its own source: Copley's collars have a dip but no azimuth, and both
+  // were starred 'from the survey' (COP-23-0005 printed the collar's -41 under that footnote, the gyro reads -46)
+  // TASKS.csv #2133 (review #2013, Woodjam) — a collar azimuth that disagrees with the hole's shallowest survey station by more than half a
+  // degree is flagged: Woodjam's collar sheet was true north (TF24-126: 200) imported as grid, the survey converted (198.74), and the
+  // table printed 200 under 'Azimuth (grid)'. Which is right is not the table's to decide; it shows the collar's value and says so.
+  const azOff = (a, b) => Math.abs((((a - b) % 360) + 540) % 360 - 180);
+  return (collars || []).map((c) => { const s = first.get(c.hole_id); if (!s) return c; const azS = !Number.isFinite(c.azimuth) && Number.isFinite(s.azimuth), dipS = !Number.isFinite(c.dip) && Number.isFinite(s.dip);
+    const azDiffers = Number.isFinite(c.azimuth) && Number.isFinite(s.azimuth) && azOff(c.azimuth, s.azimuth) > 0.5 ? s.azimuth : null;
+    return azS || dipS || azDiffers != null ? { ...c, azimuth: azS ? s.azimuth : c.azimuth, dip: dipS ? s.dip : c.dip, azFromSurvey: azS, dipFromSurvey: dipS, orientFromSurvey: azS || dipS, ...(azDiffers != null ? { azSurvey: azDiffers } : {}) } : c; });
+}
