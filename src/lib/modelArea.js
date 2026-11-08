@@ -10,6 +10,12 @@ export function restrictLayersToHoles(layers, visibleHoles) {
   return out;
 }
 
+// TASKS.csv #2059 (review #2013, Woodjam) — the same rule for a flat row list (assays, a log or a custom layer's rows): the grade
+// shell read every hole's assays whatever the Model area said, and gridded a 5 x 4 km property for one prospect's 3 holes
+export function restrictRowsToHoles(rows, visibleHoles) {
+  return (rows || []).filter((r) => r?.hole_id == null || !hidden(visibleHoles, r.hole_id));
+}
+
 export function checkedHoleCount(collars, visibleHoles) {
   const all = (collars || []).length;
   return { checked: (collars || []).filter((c) => !hidden(visibleHoles, c.hole_id)).length, all };

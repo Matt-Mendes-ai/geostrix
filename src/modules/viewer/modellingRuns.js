@@ -4,7 +4,7 @@
 import * as THREE from "three";
 import { baselineNotice, oneHoleDipNotice } from "../../lib/modelCheckBaseline.js"; // TASKS.csv #1687
 import { desurveyHole } from "../../lib/desurvey.js";
-import { missOverHalfCell } from "../../lib/modelArea.js"; // TASKS.csv #1546
+import { missOverHalfCell, restrictRowsToHoles, checkedHoleCount } from "../../lib/modelArea.js"; // TASKS.csv #1546; restrictRowsToHoles, checkedHoleCount: #2059
 import { sanitizeMesh } from "../../lib/meshSanitize.js";
 import { checkAgainstLogs, unitVolumes, resampleWarpedBlock, capBlockAtGround } from "../../lib/modelCheck.js";
 import { pythonImplicitModel } from "../../lib/desktop.js";
@@ -80,6 +80,7 @@ export function createModellingRuns(ctx, mcRef) {
     interceptInActiveSet,
     isSameProject,
     layers,
+    modelArea, visibleHoles, // TASKS.csv #2059
     lithoGroups,
     modellingCodes, // TASKS.csv #599
     mapConstraint,
@@ -2003,7 +2004,12 @@ export function createModellingRuns(ctx, mcRef) {
         // grade shell unfiltered; most got dropped downstream only because their synthetic hole_id has
         // no collar, which is luck rather than design — a field duplicate logged under its PARENT
         // hole's id was genuinely double-counted.
-        const srcRows = numSrc ? srcData.assays : assays; // #1741
+        // #2059 (review #2013, Woodjam) — Model area: the checked holes only, as the other modelling tools (#1546) read them. The
+        // shell composited all 8 assayed holes and gridded the 5 x 4 km property (cell refitted from 10 to 40.5 m) for 3 checked holes.
+        const inArea = modelArea === "checked";
+        const area = inArea ? checkedHoleCount(collars, visibleHoles) : null;
+        const srcRows = inArea ? restrictRowsToHoles(numSrc ? srcData.assays : assays, visibleHoles) : (numSrc ? srcData.assays : assays); // #1741
+        if (inArea && !srcRows.some((r) => r?.hole_id != null)) throw new Error(tr("None of the {n} hole(s) checked in the Holes list has {symbol} values (Model settings › Model area). Check the holes that hold them, or set Model area to Whole property.", { n: area.checked, symbol }));
         const srcAssays = numericIncludeQAQC ? srcRows : excludeQAQC(srcRows);
         let intervals, rawStats = null;
         if (numericUseComposites) {
@@ -2211,6 +2217,7 @@ export function createModellingRuns(ctx, mcRef) {
           // TASKS.csv #273 — the shared controls this tool now honours, recorded like every other param.
           anisotropy: anisotropy.enabled ? anisotropy.params : null,
           domain: gradeDomain ? gradeDomain.name : null,
+          modelArea: inArea ? `holes checked in the Holes list (${area.checked} of ${area.all})` : "whole property", // #2059
           samplePoints: points.length, cellsEstimated: grid.estimated, ...(gsVariogram ? { variogram: gsVariogram } : {}), // #709; #935 — range in m along the trend
           singleHoleCells: grid.singleHoleCells, meanGradeInShell,
           compositesInShell: inShell, // #1735 — { above, inside, outside, noData }: the at/above-cutoff composites against the shell
@@ -2227,6 +2234,8 @@ export function createModellingRuns(ctx, mcRef) {
         setImplicitSurfaces((p) => [...p, { id, name: label, visible: true, vertexCount: mc.vertices.length, faceCount: mc.faces.length, type: "mineralization_envelope", relationships: [], closure, params, surfaceSupportCounts: surfCounts, supportColored: false }]); // surfaceSupportCounts/supportColored: TASKS.csv #91
         setNotices((p) => [...p, notice("Added \"{label}\": {points} ({intervals}{v4}, {dropped} dropped{v5}, {above} at/above cutoff{v6}) → {nx}×{ny}×{nz} grid ({estimated} cells estimated, {skipped} outside the search radius{v7}{v8}) → {vertices} vertices / {faces} faces{v9}. Exploration target volume only — not a Mineral Resource.", { label, points: tr(points.length === 1 ? "{n} sample point" : "{n} sample points", { n: points.length }) /* #1116 */,
           intervals: numericUseComposites ? tr(intervals.length === 1 ? "{n} {len} m composite" : "{n} {len} m composites", { n: intervals.length, len: numericCompositeLength }) : tr(intervals.length === 1 ? "{n} raw interval" : "{n} raw intervals", { n: intervals.length }), v4: rawStats && (rawStats.duplicatesSkipped || rawStats.overlappingRows) ? tr(" after {duplicatesSkipped} exact duplicate(s) left out and {overlappingRows} overlapping row(s) resolved", { duplicatesSkipped: rawStats.duplicatesSkipped, overlappingRows: rawStats.overlappingRows }) : "", dropped, v5: beyondTrace ? tr(" ({beyondTrace} deeper than the hole's trace)", { beyondTrace }) : "", above, v6: clamped ? tr(clamped === 1 ? ", {clamped} negative grade clamped to zero" : ", {clamped} negative grades clamped to zero", { clamped }) : "", nx: grid.nx, ny: grid.ny, nz: grid.nz, estimated: grid.estimated.toLocaleString(), skipped: grid.skipped.toLocaleString(), v7: grid.singleHoleCells ? tr(", {singleHoleCells} informed by only ONE hole", { singleHoleCells: grid.singleHoleCells.toLocaleString() }) : "", v8: gsVariogram ? tr("; kriged with a {model} variogram {v}: nugget {v2}, sill {v3}, range {v4} m", { model: gsVariogram.model, v: gsVariogram.fitted ? tr("fitted to the samples") : tr("as entered"), v2: +gsVariogram.nugget.toPrecision(3), v3: +gsVariogram.sill.toPrecision(3), v4: Math.round(gsVariogram.range) }) + (anisotropy.enabled ? tr(" (along the trend \"{name}\")", { name: anisotropy.trend?.name || "" }) : "") : "" /* #935 */, vertices: mc.vertices.length.toLocaleString(), faces: mc.faces.length.toLocaleString(), v9: vol.watertight ? tr(", closed ({volumeM3} m³)", { volumeM3: vol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : tr(", open ({openEdgeCount} open edges — shell reaches the edge of the estimated region)", { openEdgeCount: vol.openEdgeCount }) })]);
+        // #2059 — which holes it was modelled from, when not all of them
+        if (inArea && area.checked < area.all) setNotices((p) => [...p, notice("\"{label}\" was modelled from the {n} hole(s) checked in the Holes list (Model settings › Model area); the other {m} were left out.", { label, n: area.checked, m: area.all - area.checked })]);
         // TASKS.csv #1735 — said after the result, in numbers: a shell that holds none of its own composites is not where the grade is
         if (inShell.above && inShell.inside < inShell.above) {
           const mh = Math.max(1, numericMinHoles);

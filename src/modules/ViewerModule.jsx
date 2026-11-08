@@ -3800,6 +3800,7 @@ ${describeTrend(t)}` };
     interceptInActiveSet,
     isSameProject,
     layers: modelLayers, // TASKS.csv #1546 — the checked holes only, when Model area says so
+    modelArea, visibleHoles, // TASKS.csv #2059 — the grade shell reads assays, not layers: it applies the area itself
     lithoGroups,
     modellingCodes, // TASKS.csv #599
     mapConstraint,
