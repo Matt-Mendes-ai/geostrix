@@ -184,7 +184,7 @@ export default function ViewportFigureOverlay({ config, title, legendGroups, cam
           <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: "var(--color-text-caption)", marginBottom: 5 }}>{tr("Legend")}</div>
           {shown.map((it, i) => (
             <React.Fragment key={`${it.group}|${it.label}|${i}`}>
-            {it.head && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 600, marginTop: i ? 4 : 0, marginBottom: 2 }}>{tr(it.group)}</div>}
+            {it.head && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", fontWeight: 600, marginTop: i ? 4 : 0, marginBottom: 2 }}>{tr(it.group)}{it.classesShown ? " " + tr("({n} of {m} classes)", { n: it.classesShown[0], m: it.classesShown[1] }) : ""}</div>}{/* classesShown: #2039 */}
             <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2.5 }}>
               <span style={{ width: 18, display: "inline-flex", justifyContent: "center", flexShrink: 0 }}><span style={{ borderRadius: 2, ...swatchShape(it.kind, 12), background: it.color, opacity: it.opacity ?? 1 /* #1122 */, border: it.kind === "line" ? "none" : "1px solid var(--color-border-light)" }} /></span>{/* #948 — square / line / dot */}
               <span style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={`${tr(it.group)}: ${it.label}`}>{it.label}</span>

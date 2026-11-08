@@ -267,6 +267,10 @@ export function allocateLegendRows(groups, max) {
   const gs = (groups || []).filter((g) => g.items?.length);
   const quota = gs.map(() => 0);
   let left = max, moved = true;
+  // TASKS.csv #2039 (review #2013, Woodjam) — a grade group (3-8 classes) is shown whole first, while the grade groups fit in half the rows:
+  // shared out one row at a time among ~12 groups, Cu kept only '> 8020 ppm' while its Low / Medium classes coloured nearly every marker
+  let gradeRows = 0;
+  gs.forEach((g, i) => { const n = g.items.length; if (g.grade && n <= 8 && gradeRows + n <= Math.floor(max / 2)) { quota[i] = n; left -= n; gradeRows += n; } });
   while (left > 0 && moved) {
     moved = false;
     for (let i = 0; i < gs.length && left > 0; i++) if (quota[i] < gs[i].items.length) { quota[i]++; left--; moved = true; }
@@ -281,6 +285,7 @@ export function allocateLegendRows(groups, max) {
     return g.items.slice(0, n);
   };
   const multi = gs.filter((_, i) => quota[i] > 0).length > 1, rows = [];
-  gs.forEach((g, i) => pick(g, quota[i]).forEach(([label, color, opt], k) => rows.push({ label, color, kind: opt?.kind, opacity: opt?.opacity, group: g.label, head: (multi || g.alwaysHead) && k === 0 })));
+  gs.forEach((g, i) => pick(g, quota[i]).forEach(([label, color, opt], k) => rows.push({ label, color, kind: opt?.kind, opacity: opt?.opacity, group: g.label, head: (multi || g.alwaysHead) && k === 0,
+    ...(k === 0 && g.grade && quota[i] < g.items.length ? { classesShown: [quota[i], g.items.length] } : {}) }))); // #2039 — a cut grade group says so
   return { rows, shown: rows.length, total: gs.reduce((n, g) => n + g.items.length, 0) };
 }

@@ -9239,5 +9239,6 @@
   "No two of these holes lie within {m} m of one line: they are on separate prospects or lines. Tick one prospect's holes, or draw the panel along a saved section.": "No hay dos de estos sondajes a menos de {m} m de una misma línea: están en prospectos o líneas distintos. Marque los sondajes de un prospecto, o dibuje el panel a lo largo de una sección guardada.",
   "{e} slab(s) with no hole or model cell are skipped.": "Se omiten {e} franja(s) sin sondaje ni celda de modelo.",
   "{e} slab(s) with no hole or model cell were skipped.": "Se omitieron {e} franja(s) sin sondaje ni celda de modelo.",
-  "from below": "desde abajo"
+  "from below": "desde abajo",
+  "({n} of {m} classes)": "({n} de {m} clases)"
 }
