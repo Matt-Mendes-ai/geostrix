@@ -99,8 +99,6 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
     return Number.isFinite(sd) && sd > 0 ? sd : null;
   };
   const collarsWithoutDepth = useMemo(() => collars.filter((c) => collarDepth(c) == null).length, [collars, surveyMaxDepth]);
-  // TASKS.csv #1738 (review #1645, Copley) — how far apart the holes are, under the radius and in a zero-block result
-  const spacing = useMemo(() => holeSpacingSummary(collars), [collars]);
   const collarBounds = useMemo(() => {
     if (!collars.length) return null;
     const xs = collars.map((c) => c.x), ys = collars.map((c) => c.y);
@@ -220,6 +218,12 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
 
   const qaqcExcludedCount = useMemo(() => assays.length - excludeQAQC(assays).length, [assays]);
   const srcAssays = useMemo(() => (includeQAQC ? assays : excludeQAQC(assays)), [assays, includeQAQC]);
+  // TASKS.csv #1738 (review #1645, Copley) — how far apart the holes are, under the radius and in a zero-block result
+  // TASKS.csv #2062 (review #2013, Woodjam) — over the holes that carry the chosen element, not every collar: 534 district collars with no
+  // assays made it '442 drill sites ... typically 82 m from the next' for an estimate informed by 8 holes in clusters 3-5 km apart
+  const assayedHoles = useMemo(() => { const s = new Set(); for (const a of srcAssays) if (Number.isFinite(a.values?.[symbol])) s.add(a.hole_id); return s; }, [srcAssays, symbol]);
+  const spacingCollars = useMemo(() => { const c = collars.filter((x) => assayedHoles.has(x.hole_id)); return c.length ? c : collars; }, [collars, assayedHoles]);
+  const spacing = useMemo(() => holeSpacingSummary(spacingCollars), [spacingCollars]);
 
   // TASKS.csv #259 — the selected element's coefficient of variation, the standard screen for "is this
   // distribution outlier-driven enough that estimating it uncapped will overstate grade?". Same
@@ -526,7 +530,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
         <div style={header}>
           <div>
             <div style={{ fontSize: "var(--font-size-lg)", color: "var(--color-accent-dark)", fontWeight: 600 }}>{tr("Grade estimation → block model")}</div>
-            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Nearest-neighbour, inverse-distance, moving-least-squares or ordinary-kriging interpolation from composited assays. {collars} holes, {assays} raw intervals loaded.", { collars: collars.length, assays: assays.length })}</div>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: 2 }}>{tr("Nearest-neighbour, inverse-distance, moving-least-squares or ordinary-kriging interpolation from composited assays. {collars} holes, {assays} raw intervals loaded.", { collars: collars.length, assays: assays.length })}{" "}{tr("{h} of the holes have {symbol} values{v}.", { h: assayedHoles.size, symbol, v: !includeQAQC && qaqcExcludedCount ? tr("; {q} QC sample(s) left out", { q: qaqcExcludedCount }) : "" })}{/* #2062 */}</div>
           </div>
           <X role="button" tabIndex={0} onKeyDown={activateOnKey} aria-label={tr("Close")} size={18} style={{ cursor: "pointer", color: "var(--color-text-secondary)" }} onClick={onClose} />
         </div>

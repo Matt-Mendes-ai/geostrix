@@ -9223,5 +9223,7 @@
   " ({hole_id} has no survey and no azimuth / dip: taken as a vertical hole)": " ({hole_id} n'a ni levé ni azimut / pendage : pris comme un sondage vertical)",
   "{n} collar(s) whose status is proposed are not counted as drilled holes: {list}.": "{n} collet(s) au statut proposé ne sont pas comptés comme sondages forés : {list}.",
   "{n} of the drilled holes have no survey and no azimuth / dip and are taken as vertical.": "{n} des sondages forés n'ont ni levé ni azimut / pendage et sont pris comme verticaux.",
-  "{n} collar(s) whose status is proposed are not counted.": "{n} collet(s) au statut proposé ne sont pas comptés."
+  "{n} collar(s) whose status is proposed are not counted.": "{n} collet(s) au statut proposé ne sont pas comptés.",
+  "{h} of the holes have {symbol} values{v}.": "{h} des sondages ont des valeurs de {symbol}{v}.",
+  "; {q} QC sample(s) left out": " ; {q} échantillon(s) de contrôle laissé(s) de côté"
 }

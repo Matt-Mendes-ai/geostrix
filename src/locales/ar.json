@@ -9223,5 +9223,7 @@
   " ({hole_id} has no survey and no azimuth / dip: taken as a vertical hole)": " ({hole_id} بلا مسح وبلا سمت / ميل: يُعامل كثقب عمودي)",
   "{n} collar(s) whose status is proposed are not counted as drilled holes: {list}.": "لا تُحتسب {n} فوهة (فوهات) حالتها مقترحة كثقوب محفورة: {list}.",
   "{n} of the drilled holes have no survey and no azimuth / dip and are taken as vertical.": "{n} من الثقوب المحفورة بلا مسح وبلا سمت / ميل وتُعامل كعمودية.",
-  "{n} collar(s) whose status is proposed are not counted.": "لا تُحتسب {n} فوهة (فوهات) حالتها مقترحة."
+  "{n} collar(s) whose status is proposed are not counted.": "لا تُحتسب {n} فوهة (فوهات) حالتها مقترحة.",
+  "{h} of the holes have {symbol} values{v}.": "{h} من الثقوب لديها قيم {symbol}{v}.",
+  "; {q} QC sample(s) left out": "؛ استُبعدت {q} عينة (عينات) مراقبة"
 }

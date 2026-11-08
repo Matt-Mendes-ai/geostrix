@@ -32,6 +32,6 @@ test("#1738 zero blocks with min 2 holes and a 50 m radius on 103 m spacing: hol
 
 test("#1738 the estimation dialog shows the spacing under the radius and the advice on a zero-block run", () => {
   const m = readFileSync(new URL("../src/components/GradeEstimationModal.jsx", import.meta.url), "utf8");
-  assert.ok(m.includes("holeSpacingSummary(collars)") && m.includes("zeroBlockAdvice({"));
+  assert.ok(m.includes("holeSpacingSummary(spacingCollars)") && m.includes("zeroBlockAdvice({")); // spacingCollars: the holes with the element (#2062)
   assert.ok(m.includes("No block has samples from {k} holes within {r} m"));
 });

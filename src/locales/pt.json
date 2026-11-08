@@ -9223,5 +9223,7 @@
   " ({hole_id} has no survey and no azimuth / dip: taken as a vertical hole)": " ({hole_id} não tem levantamento nem azimute / mergulho: tomado como furo vertical)",
   "{n} collar(s) whose status is proposed are not counted as drilled holes: {list}.": "{n} boca(s) com status proposto não são contadas como furos perfurados: {list}.",
   "{n} of the drilled holes have no survey and no azimuth / dip and are taken as vertical.": "{n} dos furos perfurados não têm levantamento nem azimute / mergulho e são tomados como verticais.",
-  "{n} collar(s) whose status is proposed are not counted.": "{n} boca(s) com status proposto não são contadas."
+  "{n} collar(s) whose status is proposed are not counted.": "{n} boca(s) com status proposto não são contadas.",
+  "{h} of the holes have {symbol} values{v}.": "{h} dos furos têm valores de {symbol}{v}.",
+  "; {q} QC sample(s) left out": "; {q} amostra(s) de controle de fora"
 }
