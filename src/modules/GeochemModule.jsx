@@ -77,6 +77,10 @@ import { axisOf, xyDiagram } from "../lib/geochemXY.js"; // TASKS.csv #1678
 import { numericSourceChoices } from "../lib/numericSources.js"; // TASKS.csv #1678
 import { requestProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1445
 import { flagColumns, flagQualifier, censoredSamples } from "../lib/assayFlags.js"; // TASKS.csv #2018
+import { groupShapefileParts, parseVectorFile } from "../lib/viewer/importHelpers.js"; // TASKS.csv #2016
+const VECTOR_FILE = /\.(shp|zip|gpkg|kml|kmz)$/i; // #2016 — sample points from GIS files
+const OWN_CRS = "(own CRS)"; // #2016 — sourceEpsgFrom when the CRS came from a .prj / GeoPackage SRS, not a column
+const SHP_GROUP = (list) => groupShapefileParts(list).files; // a .shp with its .dbf / .prj / .cpg as one file (#2121's rule)
 
 const KEY_MAX = 16; // TASKS.csv #1519 — the on-screen colour key's entries
 
@@ -284,8 +288,22 @@ export default function GeochemModule() {
   };
   const enqueueAssayFiles = (files) => { fileQueueRef.current.push(...files); nextQueuedFile(); };
   useEffect(() => { assayOpenRef.current = !!assayModal; if (!assayModal) nextQueuedFile(); }, [assayModal]);
+  // TASKS.csv #2016 — a table, or the rows of a point shapefile / GeoPackage / KML (read here, or already read by the 3D view's drop:
+  // file.parsedTable). Lines and polygons are not samples.
+  const readSampleTable = (file) => {
+    if (file.parsedTable) return Promise.resolve({ rows: file.parsedTable.rows, headers: file.parsedTable.headers, note: "" });
+    if (!VECTOR_FILE.test(file.name)) return parseTableOrWorkbook(file, elementScore, { columnar: true });
+    return new Promise((resolve, reject) => parseVectorFile(file, (rows, err, meta) => {
+      if (meta?.layerOptions) { reject(new Error(tr("it holds several layers: drop it on the 3D view to pick one."))); return; }
+      if (err || !rows?.length) { reject(new Error(err || tr("no rows found"))); return; }
+      if (meta?.vector?.geomType && meta.vector.geomType !== "point") { reject(new Error(tr("it holds lines or polygons, not sample points: import it as a map layer."))); return; }
+      file.parsedTable = { rows, headers: meta?.headers || Object.keys(rows[0]), sourceEpsg: meta?.detectedEpsg || null };
+      resolve({ rows, headers: file.parsedTable.headers, note: "" });
+    }));
+  };
   const handleFile = (file, isPxrf, preset = null) => { // preset: #716 — dialog defaults for a known file
-    return parseTableOrWorkbook(file, elementScore, { columnar: true }).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback; #611 big files held as columns
+    return readSampleTable(file).catch((e) => { setNotices((p) => [...p, errorNotice(tr("{name}: {error}", { name: file.name, error: e?.message || String(e) }))]); return { rows: [], headers: [], note: "", failed: true }; }).then((t) => {
+        if (t.failed) return; // TASKS.csv #444 — shared reader: comma decimals + encoding fallback; #611 big files held as columns
         const res = { data: t.rows, meta: { fields: t.headers }, note: t.note };
         // TASKS.csv #284 — comma-decimal (European-locale) assay values parse as strings, which
         // Number()s to NaN and silently drops the sample. Same shared fix as the collar/interval
@@ -647,7 +665,8 @@ export default function GeochemModule() {
   // already uses (see that branch's own TASKS.csv #210 comment for why the dedupe matters) — surface
   // sample lab exports have the same "more than one candidate column per element" problem.
   const handleSurfaceFile = (file) => {
-    parseTableOrWorkbook(file, elementScore, { columnar: true }).then((t) => { // TASKS.csv #444 — shared reader: comma decimals + encoding fallback; #611 big files held as columns
+    readSampleTable(file).catch((e) => { setNotices((p) => [...p, errorNotice(tr("{name}: {error}", { name: file.name, error: e?.message || String(e) }))]); return null; }).then((t) => { // #2016
+        if (!t) return; // TASKS.csv #444 — shared reader: comma decimals + encoding fallback; #611 big files held as columns
         const note = t.note ? ` ${t.note.trim()}` : ""; // TASKS.csv #284
         if (!t.rows.length) { setNotices((p) => [...p, errorNotice(tr("{name}: empty file.", { name: file.name }))]); return; }
         if (note) setNotices((p) => [...p, `${file.name}:${note}`]);
@@ -705,6 +724,8 @@ export default function GeochemModule() {
         const codes = crsCol ? [...new Set(data.map((r) => Number(r[crsCol])).filter((v) => Number.isInteger(v) && v > 0))] : [];
         let sourceEpsg = codes.length === 1 && crsName(codes[0]) ? String(codes[0]) : "";
         let sourceEpsgFrom = sourceEpsg ? crsCol : null;
+        const fileEpsg = file?.parsedTable?.sourceEpsg; // #2016 — a shapefile's .prj / a GeoPackage's SRS
+        if (!sourceEpsg && fileEpsg && crsName(fileEpsg)) { sourceEpsg = String(fileEpsg); sourceEpsgFrom = OWN_CRS; }
         // TASKS.csv #1149 — no easting / northing, but longitude / latitude columns: mapped, and in WGS 84 unless a CRS column says otherwise
         const ll = !mapping.x && !mapping.y ? lonLatColumns(headers, data) : null;
         if (ll) { mapping.x = ll.x; mapping.y = ll.y; if (!sourceEpsg) { sourceEpsg = "4326"; sourceEpsgFrom = `${ll.x} / ${ll.y}`; } }
@@ -862,9 +883,10 @@ export default function GeochemModule() {
   // button layout's own ordering — "Import assays" is the primary action, pXRF is the secondary one).
   const handleDrop = (e) => {
     e.preventDefault(); setDragOver(false);
-    const files = Array.from(e.dataTransfer.files || []).filter((f) => f.name.toLowerCase().endsWith(".csv") || isXlsxName(f.name)); // #605
+    // #2016 — a sample shapefile (with its .dbf / .prj / .cpg), GeoPackage or KML too
+    const files = SHP_GROUP(Array.from(e.dataTransfer.files || [])).filter((f) => f.name.toLowerCase().endsWith(".csv") || isXlsxName(f.name) || VECTOR_FILE.test(f.name)); // #605
     const skipped = e.dataTransfer.files.length - files.length;
-    if (!files.length) { setNotices((p) => [...p, errorNotice(tr("Only .csv or .xlsx files can be dropped in directly."))]); return; }
+    if (!files.length) { setNotices((p) => [...p, errorNotice(tr("Only .csv, .xlsx, shapefile (.shp / .zip), GeoPackage or KML files can be dropped in directly."))]); return; }
     if (skipped) setNotices((p) => [...p, notice("{skipped} other file(s) skipped.", { skipped })]);
     enqueueAssayFiles(files); // #1652 — one after another (several at once all opened the one dialog)
   };
@@ -1028,7 +1050,7 @@ export default function GeochemModule() {
         <input ref={certRef} type="file" accept=".csv" multiple style={{ display: "none" }} onChange={(e) => { handleCertificates(e.target.files); e.target.value = ""; }} />
         <input ref={fileRef} type="file" accept=".csv,.xlsx" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleFile(f, false); e.target.value = ""; }} />
         <input ref={pxrfRef} type="file" accept=".csv,.xlsx" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleFile(f, true); e.target.value = ""; }} />
-        <input ref={surfaceFileRef} type="file" accept=".csv,.xlsx" style={{ display: "none" }} onChange={(e) => { const f = e.target.files[0]; if (f) handleSurfaceFile(f); e.target.value = ""; }} />
+        <input ref={surfaceFileRef} type="file" multiple accept=".csv,.xlsx,.shp,.dbf,.prj,.cpg,.shx,.zip,.gpkg,.kml,.kmz" /* #2016 */ style={{ display: "none" }} onChange={(e) => { const f = SHP_GROUP(Array.from(e.target.files || []))[0]; if (f) handleSurfaceFile(f); e.target.value = ""; }} />
 
         <div className="ge-section-label">{tr("Assays & pXRF")}</div>
         <div style={{ fontSize: 11, color: "#65717e", margin: "10px 0 4px" }}>

@@ -119,7 +119,9 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
               value={modal.sourceEpsg || ""} onChange={(c) => onChange({ ...modal, sourceEpsg: c === "" ? "" : String(c), sourceEpsgFrom: null })}
               defaultText={crsUnset ? tr("The project CRS isn't chosen yet — pick these coordinates' CRS here, or GeoStrix asks on import") : tr("Same as project — {v}", { v: crsName(projectEpsg) || tr("EPSG:{v}", { v: projectEpsg ?? "?" }) })}
             />
-            {modal.sourceEpsgFrom && (
+            {modal.sourceEpsgFrom === "(own CRS)" ? ( /* TASKS.csv #2016 — from the shapefile's .prj / the GeoPackage's SRS */
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: -4, lineHeight: 1.4 }}>{tr("Read from the file's own CRS (its .prj or GeoPackage SRS) — check it. Samples are reprojected into the project CRS on import.")}</div>
+            ) : modal.sourceEpsgFrom && (
               <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)", marginTop: -4, lineHeight: 1.4 }}>{tr("Read from the file's \"{sourceEpsgFrom}\" column — check it. Samples are reprojected into the project CRS on import.", { sourceEpsgFrom: modal.sourceEpsgFrom })}</div>
             )}
           </div>

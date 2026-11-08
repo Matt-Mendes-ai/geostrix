@@ -9271,5 +9271,11 @@
   "1 of them holds a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.": "1 منها فيها قيمة دون حد الكشف ('<')، مرسومة عند نصف حد الكشف أو عند القيمة التي خزّنها الملف المصدر.",
   "{n} of them hold a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.": "{n} منها فيها قيمة دون حد الكشف ('<')، مرسومة عند نصف حد الكشف أو عند القيمة التي خزّنها الملف المصدر.",
   " Azimuths read from the {col} column ({north}).": " قُرئت السموت من العمود {col} ({north}).",
-  "true north, converted to grid": "الشمال الحقيقي، محوَّل إلى الشبكة"
+  "true north, converted to grid": "الشمال الحقيقي، محوَّل إلى الشبكة",
+  "it holds several layers: drop it on the 3D view to pick one.": "يحتوي على عدة طبقات: أفلته على العرض ثلاثي الأبعاد لاختيار واحدة.",
+  "no rows found": "لم يُعثر على صفوف",
+  "it holds lines or polygons, not sample points: import it as a map layer.": "يحتوي على خطوط أو مضلعات، لا نقاط عينات: استورده طبقةَ خريطة.",
+  "{name}: {error}": "{name}: {error}",
+  "Only .csv, .xlsx, shapefile (.shp / .zip), GeoPackage or KML files can be dropped in directly.": "لا يمكن إفلات سوى ملفات ‎.csv‎ و‎.xlsx‎ وملفات الأشكال (‎.shp / .zip‎) وGeoPackage وKML مباشرة.",
+  "Read from the file's own CRS (its .prj or GeoPackage SRS) — check it. Samples are reprojected into the project CRS on import.": "قُرئ من نظام إحداثيات الملف نفسه (ملف ‎.prj‎ أو SRS الخاص بـ GeoPackage): تحقّق منه. تُعاد إسقاط العينات إلى نظام إحداثيات المشروع عند الاستيراد."
 }

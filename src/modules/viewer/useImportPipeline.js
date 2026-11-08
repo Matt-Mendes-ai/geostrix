@@ -105,7 +105,7 @@ export function useImportPipeline(ctx) {
       if (isMapGeometry(meta) && forceTarget !== "custom") { sendToMapLayers(file, meta.vector); return; } // #609
       const headers = meta?.headers || Object.keys(data[0]);
       if (!forceTarget && looksLikeAssay(headers, file.name)) { // file.name: #1105
-        assayHandoffRef.current.push(file); handOverAssays(); // #1350
+        assayHandoffRef.current.push(assayHandoffOf(file, data, headers, meta)); handOverAssays(); // #1350; #2016
         return;
       }
       const target = forceTarget || guessTargetFor(headers, file.name); // #605: the file name as a hint
@@ -634,6 +634,12 @@ export function useImportPipeline(ctx) {
   // for someone who dropped the whole drill folder (42807Z). It is now handed to the Geochem assay import (which has the element
   // checklist) — at once for a single file, after the rest of the queue for a folder, so this view's own dialogs come first.
   const assayHandoffRef = useRef([]);
+  // TASKS.csv #2016 (review #2013, Import) — a point shapefile / GeoPackage / KML of samples was handed to Geochem as its File, which read the
+  // binary .shp as text ('0 elements recognized', NUL column names). Its rows are already read here: they go on with their headers and the
+  // CRS of its .prj / SRS (a CSV or workbook still goes as the File, which Geochem reads itself).
+  const assayHandoffOf = (file, rows, headers, meta) => (/\.(shp|zip|gpkg|kml|kmz)$/i.test(file.name) || meta?.vector
+    ? { name: file.name, parsedTable: { headers, rows, sourceEpsg: meta?.detectedEpsg || null } }
+    : file);
   const handOverAssays = () => {
     const files = assayHandoffRef.current.splice(0);
     if (!files.length) return;
@@ -659,7 +665,7 @@ export function useImportPipeline(ctx) {
       const headers = meta?.headers || Object.keys(data[0]);
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
       if (looksLikeAssay(headers, file.name)) { // file.name: #1105
-        assayHandoffRef.current.push(file); // #1350 — to the Geochem import when the queue is done
+        assayHandoffRef.current.push(assayHandoffOf(file, data, headers, meta)); // #1350 — to the Geochem import when the queue is done; #2016
         processImportQueue();
         return;
       }

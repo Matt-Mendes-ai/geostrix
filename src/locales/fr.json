@@ -9271,5 +9271,11 @@
   "1 of them holds a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.": "1 d'entre eux a une valeur sous la limite de détection ('<'), tracée à la moitié de la limite ou à la valeur que le fichier source a enregistrée.",
   "{n} of them hold a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.": "{n} d'entre eux ont une valeur sous la limite de détection ('<'), tracée à la moitié de la limite ou à la valeur que le fichier source a enregistrée.",
   " Azimuths read from the {col} column ({north}).": " Azimuts lus dans la colonne {col} ({north}).",
-  "true north, converted to grid": "nord vrai, converti au quadrillage"
+  "true north, converted to grid": "nord vrai, converti au quadrillage",
+  "it holds several layers: drop it on the 3D view to pick one.": "il contient plusieurs couches : déposez-le sur la vue 3D pour en choisir une.",
+  "no rows found": "aucune ligne trouvée",
+  "it holds lines or polygons, not sample points: import it as a map layer.": "il contient des lignes ou des polygones, pas des points d'échantillon : importez-le comme couche cartographique.",
+  "{name}: {error}": "{name} : {error}",
+  "Only .csv, .xlsx, shapefile (.shp / .zip), GeoPackage or KML files can be dropped in directly.": "Seuls les fichiers .csv, .xlsx, shapefile (.shp / .zip), GeoPackage ou KML peuvent être déposés directement.",
+  "Read from the file's own CRS (its .prj or GeoPackage SRS) — check it. Samples are reprojected into the project CRS on import.": "Lu dans le SCR propre au fichier (son .prj ou le SRS du GeoPackage) : vérifiez-le. Les échantillons sont reprojetés dans le SCR du projet à l'import."
 }
