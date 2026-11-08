@@ -9145,5 +9145,16 @@
   "{n} more assay file(s) follow in the Geochem import, one after another: {list}.": "يليه {n} ملف تحاليل آخر في استيراد الجيوكيمياء، واحداً تلو الآخر: {list}.",
   "Every reading has From = To ({n} rows): they are points on core, and import as points (Data QC treats pXRF readings as screening points).": "لكل قراءة «من» = «إلى» ({n} صف): إنها نقاط على اللب وتُستورد نقاطاً (يعامل فحص البيانات قراءات pXRF كنقاط فرز).",
   "{col} looks like a To depth for each reading:": "يبدو {col} عمق «إلى» لكل قراءة:",
-  "Use {col} as To": "استخدم {col} كـ «إلى»"
+  "Use {col} as To": "استخدم {col} كـ «إلى»",
+  "Your surface samples are used by Thresholds, Grade stats, Correlation, Calc. element, SQL, Domains, Catchments and Surface QAQC in the ribbon above, and are drawn in the 3D View and on the Maps tab.": "تُستخدم عيناتك السطحية في العتبات وإحصاءات المحتوى والارتباط والعنصر المحسوب وSQL والنطاقات ومستجمعات المياه وضبط جودة العينات السطحية في الشريط أعلاه، وتُرسم في العرض ثلاثي الأبعاد وفي تبويب الخرائط.",
+  "Map the Sample ID column first: the other file's rows are matched to these by it.": "حدّد عمود معرّف العينة أولًا: تُطابَق صفوف الملف الآخر مع هذه الصفوف بواسطته.",
+  "{name} has no sample ID column (sample_id, samp_num, sample number…), so its rows cannot be matched to these.": "لا يحتوي {name} على عمود لمعرّف العينة (sample_id أو samp_num أو sample number…)، لذا لا يمكن مطابقة صفوفه مع هذه الصفوف.",
+  "{name}: {added} column(s) added by sample ID (\"{a}\" = \"{b}\"); {matched} of {rows} samples matched.": "{name}: أُضيف {added} عمود حسب معرّف العينة (\"{a}\" = \"{b}\")؛ طوبقت {matched} من {rows} عينة.",
+  "{n} of its sample IDs are not in this file and were left out.": "{n} من معرّفات العينات فيه ليست في هذا الملف وتُركت جانبًا.",
+  "{n} blank cell(s) of the columns both files have were filled from it.": "مُلئت {n} خلية فارغة من الأعمدة الموجودة في الملفين منه.",
+  "{n} sample ID(s) appear more than once in it: the first row of each was used.": "يظهر {n} معرّف عينة أكثر من مرة فيه: استُخدم الصف الأول لكل منها.",
+  "{name} could not be read: {error}": "تعذّرت قراءة {name}: {error}",
+  "For samples whose data come in two files (a field sheet and the lab's assay sheet): the other file's columns are added to these rows where the sample IDs match.": "للعينات التي تأتي بياناتها في ملفين (ورقة ميدانية وورقة تحاليل المختبر): تُضاف أعمدة الملف الآخر إلى هذه الصفوف حيث تتطابق معرّفات العينات.",
+  "Add columns from another file (by sample ID)…": "إضافة أعمدة من ملف آخر (حسب معرّف العينة)…",
+  "File to join by sample ID": "ملف للربط حسب معرّف العينة"
 }

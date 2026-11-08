@@ -3,6 +3,7 @@ import { zeroMeansMissing } from "../lib/missingElevation.js"; // TASKS.csv #139
 import React, { useState, useRef, useMemo, useEffect, Suspense } from "react";
 import { useKeptState, scopeOf } from "../lib/keptState.js"; // TASKS.csv #1284
 import { useModuleAction } from "../lib/menuRequests.js"; // TASKS.csv #565
+import { joinBySampleId } from "../lib/surfaceJoin.js"; // TASKS.csv #1670
 import { parseTableOrWorkbook, isXlsxName } from "../lib/xlsx.js"; // TASKS.csv #444 shared reader; #605 .xlsx
 import { num, guessColumn, TARGET_SCHEMAS, colorForLithology, CATEGORICAL_SAFE_COLORS, hashColor, colorForVoxelValue } from "../lib/layers.js"; // colours: #1091
 import { gradeStops } from "../lib/inversion.js"; // TASKS.csv #1091 — the grade ramp block models use (#702) // TASKS.csv #508; guessColumn #600 — blank / "NA" -> NaN, never 0
@@ -77,6 +78,9 @@ import { numericSourceChoices } from "../lib/numericSources.js"; // TASKS.csv #1
 import { requestProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1445
 
 const KEY_MAX = 16; // TASKS.csv #1519 — the on-screen colour key's entries
+
+// TASKS.csv #1670 — the sample-number column of a surface table (the import and the join of a second file)
+const SURFACE_ID_ALIASES = ["sample_id", "sampleid", "samp_num", "sample_num", "sample_number", "samp_id", "sample", "sample_no"];
 
 export default function GeochemModule() {
   const store = useStore();
@@ -633,15 +637,35 @@ export default function GeochemModule() {
         openSurfaceRows(file, t.headers, t.rows); // #611 — a columnar row has no own keys: the headers come from the reader
     });
   };
+  // TASKS.csv #1670 (review #1646, Kodiak) — the second workbook of a soil program (field data + lab assays): its columns are added to these
+  // rows by sample ID, then the dialog is read again (elements, columns) keeping what was already chosen in it
+  const joinSurfaceFile = (file) => {
+    const m = surfaceModal;
+    if (!m) return;
+    const warn = (text) => setSurfaceModal((p) => p && { ...p, joinNote: { warn: true, text } });
+    if (!m.mapping.sample_id) { warn(tr("Map the Sample ID column first: the other file's rows are matched to these by it.")); return; }
+    parseTableOrWorkbook(file, elementScore, { columnar: true }).then((t) => {
+      const aid = guessColumn(t.headers, SURFACE_ID_ALIASES);
+      if (!t.rows.length || !aid) { warn(tr("{name} has no sample ID column (sample_id, samp_num, sample number…), so its rows cannot be matched to these.", { name: file.name })); return; }
+      const j = joinBySampleId({ headers: m.headers, rows: m.allRows, idCol: m.mapping.sample_id }, { headers: t.headers, rows: t.rows, idCol: aid });
+      const text = [
+        tr("{name}: {added} column(s) added by sample ID (\"{a}\" = \"{b}\"); {matched} of {rows} samples matched.", { name: file.name, added: j.added.length, a: aid, b: m.mapping.sample_id, matched: j.matched.toLocaleString(), rows: m.allRows.length.toLocaleString() }),
+        j.addOnly ? tr("{n} of its sample IDs are not in this file and were left out.", { n: j.addOnly.toLocaleString() }) : "",
+        j.filled ? tr("{n} blank cell(s) of the columns both files have were filled from it.", { n: j.filled.toLocaleString() }) : "",
+        j.addDuplicates ? tr("{n} sample ID(s) appear more than once in it: the first row of each was used.", { n: j.addDuplicates.toLocaleString() }) : "",
+      ].filter(Boolean).join(" ");
+      openSurfaceRows(m.file, j.headers, j.rows, { prev: m, joinNote: { warn: j.matched === 0, text } });
+    }).catch((e) => warn(tr("{name} could not be read: {error}", { name: file.name, error: e?.message || String(e) })));
+  };
   // the surface-sample import dialog for a table already read: from a file, or rows from a database (#975)
-  const openSurfaceRows = (file, headers, data) => {
+  const openSurfaceRows = (file, headers, data, keep = null) => { // keep: #1670 — { prev: the dialog before a join, joinNote }
         // TASKS.csv #600 (40958Z) — the shared matcher + MX-style names: e_utm / n_utm, elev_m, samp_num, samp_type
         const guess = (aliases) => guessColumn(headers, aliases);
         const mapping = {
           x: guess(SURFACE_XY_ALIASES.x),
           y: guess(SURFACE_XY_ALIASES.y),
           z: guess(["z", "elevation", "elev", "elev_m", "rl", "elev_dem_m"]),
-          sample_id: guess(["sample_id", "sampleid", "samp_num", "sample_num", "sample_number", "samp_id", "sample", "sample_no"]),
+          sample_id: guess(SURFACE_ID_ALIASES), // #1670: shared with the join below
           medium: guess(["medium", "sample_medium", "samp_type", "sample_type", "smpl_medium", "type"]),
           qcType: guess(["qc_type", "qctype", "qaqc_type", "qaqc", "sample_class", "qc_code_type", "control_type"]), // TASKS.csv #1794
         };
@@ -667,7 +691,15 @@ export default function GeochemModule() {
         // TASKS.csv #1149 — no easting / northing, but longitude / latitude columns: mapped, and in WGS 84 unless a CRS column says otherwise
         const ll = !mapping.x && !mapping.y ? lonLatColumns(headers, data) : null;
         if (ll) { mapping.x = ll.x; mapping.y = ll.y; if (!sourceEpsg) { sourceEpsg = "4326"; sourceEpsgFrom = `${ll.x} / ${ll.y}`; } }
-        setSurfaceModal({
+        const prev = keep?.prev; // #1670 — after a join: the choices already made in the dialog stand
+        setSurfaceModal(prev ? {
+          ...prev, headers, allRows: data,
+          mapping: { ...mapping, ...Object.fromEntries(Object.entries(prev.mapping).filter(([, v]) => v)) },
+          sourceEpsg: prev.sourceEpsg || sourceEpsg, sourceEpsgFrom: prev.sourceEpsg ? prev.sourceEpsgFrom : sourceEpsgFrom,
+          elements: [...elements.map((e) => { const o = prev.elements.find((x) => x.symbol === e.symbol); return o ? { ...e, checked: o.checked, unit: o.unit, header: headers.includes(o.header) ? o.header : e.header } : e; }),
+            ...prev.elements.filter((o) => !elements.some((e) => e.symbol === o.symbol))],
+          joinNote: keep.joinNote,
+        } : {
           file, fileName: file.name, headers, allRows: data,
           mapping, sourceEpsg, sourceEpsgFrom,
           defaultMedium: "soil", elements,
@@ -1174,7 +1206,7 @@ export default function GeochemModule() {
               footnote={tr("An assay CSV needs a hole ID, from/to depths and one column per element. A table with x/y (easting / northing) and no from/to opens as surface samples instead.")}
             >
               <div style={{ marginBottom: 12 }}>{tr("Ternary, bivariate and REE-spider diagrams over your assay or pXRF data, plus alteration indices, correlation matrices, QAQC and downhole compositing. Import a file to start plotting.")}</div>
-              {surfaceSamples.length > 0 && <div style={{ marginBottom: 12 }}>{tr("Your surface samples are used by Thresholds, Grade stats, Correlation, Calc. element, SQL, Domains, Catchments and Surface QAQC in the ribbon above, and are drawn on the Maps tab.")}</div>}{/* #1086 */}
+              {surfaceSamples.length > 0 && <div style={{ marginBottom: 12 }}>{tr("Your surface samples are used by Thresholds, Grade stats, Correlation, Calc. element, SQL, Domains, Catchments and Surface QAQC in the ribbon above, and are drawn in the 3D View and on the Maps tab.")}</div>}{/* #1086 */}
             </EmptyState>
           </div>
         ) : (
@@ -1216,6 +1248,7 @@ export default function GeochemModule() {
           onChange={setSurfaceModal}
           onCancel={() => setSurfaceModal(null)}
           onCommit={() => commitSurfaceImport(surfaceModal)}
+          onJoinFile={joinSurfaceFile}
           projectEpsg={project?.epsg}
         />
       )}

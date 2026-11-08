@@ -5,7 +5,7 @@
 // the element-column auto-detection/unit-inference helpers (isElementColumn/inferUnit, both reused
 // as-is from geochem.js) and this same left-column-mapping/right-element-checklist layout.
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #615
-import React, { useState } from "react";
+import React, { useRef, useState } from "react"; // useRef: #1670
 import { X } from "./icons.js";
 import { inferUnit, ELEMENT_SYMBOLS } from "../lib/geochem.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
@@ -20,7 +20,8 @@ import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 // stream waters are different measurements from active sediment and are kept as their own media (never ranked together)
 export const SURFACE_MEDIA = ["soil", "rock chip", "stream sediment", "moss mat", "heavy mineral concentrate", "BLEG", "stream water", "talus fines", "other"];
 
-export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit, projectEpsg }) {
+export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit, onJoinFile, projectEpsg }) { // onJoinFile: #1670
+  const joinRef = useRef(null);
   const crsUnset = useStore().project?.crsSet === false; // TASKS.csv #615
   useEscapeKey(onCancel);
   useFocusTrap(); // TASKS.csv #238
@@ -85,6 +86,15 @@ export default function SurfaceImportModal({ modal, onChange, onCancel, onCommit
               {modal.headers.map((h) => <option key={h} value={h}>{h}</option>)}
             </select>
           </div>
+          {/* TASKS.csv #1670 (review #1646, Kodiak) — a soil program's field sheet and assay sheet, joined here by sample ID */}
+          {onJoinFile && (
+            <div style={{ marginBottom: 10, marginInlineStart: 130 }}>
+              <button type="button" onClick={() => joinRef.current?.click()} style={{ ...sel, cursor: "pointer", background: "var(--color-bg-subtle)" }}
+                title={tr("For samples whose data come in two files (a field sheet and the lab's assay sheet): the other file's columns are added to these rows where the sample IDs match.")}>{tr("Add columns from another file (by sample ID)…")}</button>
+              <input ref={joinRef} type="file" accept=".csv,.txt,.xlsx,.xls" style={{ display: "none" }} aria-label={tr("File to join by sample ID")} onChange={(e) => { const f = e.target.files[0]; if (f) onJoinFile(f); e.target.value = ""; }} />
+              {modal.joinNote && <div role="status" style={{ fontSize: "var(--font-size-sm)", marginTop: 4, lineHeight: 1.4, color: modal.joinNote.warn ? "var(--color-warn-text)" : "var(--color-text-muted)" }}>{modal.joinNote.text}</div>}
+            </div>
+          )}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
             <div style={{ width: 120, fontSize: "var(--font-size-base)", color: "var(--color-text)" }}>{tr("Sample medium")}</div>
             <select value={modal.mapping.medium || ""} onChange={(e) => setMapping("medium", e.target.value)} style={{ ...sel, flex: 1 }}>

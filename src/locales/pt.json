@@ -9145,5 +9145,16 @@
   "{n} more assay file(s) follow in the Geochem import, one after another: {list}.": "Mais {n} arquivo(s) de análises seguem na importação de Geoquímica, um após o outro: {list}.",
   "Every reading has From = To ({n} rows): they are points on core, and import as points (Data QC treats pXRF readings as screening points).": "Cada leitura tem De = Até ({n} linhas): são pontos no testemunho e são importadas como pontos (o controle de dados trata leituras pXRF como pontos de triagem).",
   "{col} looks like a To depth for each reading:": "{col} parece uma profundidade Até para cada leitura:",
-  "Use {col} as To": "Usar {col} como Até"
+  "Use {col} as To": "Usar {col} como Até",
+  "Your surface samples are used by Thresholds, Grade stats, Correlation, Calc. element, SQL, Domains, Catchments and Surface QAQC in the ribbon above, and are drawn in the 3D View and on the Maps tab.": "Suas amostras de superfície são usadas por Limiares, Estatística de teores, Correlação, Elemento calc., SQL, Domínios, Bacias e QAQC de superfície na faixa acima, e aparecem na Visualização 3D e na aba Mapas.",
+  "Map the Sample ID column first: the other file's rows are matched to these by it.": "Primeiro mapeie a coluna ID da amostra: as linhas do outro arquivo são pareadas com estas por ela.",
+  "{name} has no sample ID column (sample_id, samp_num, sample number…), so its rows cannot be matched to these.": "{name} não tem coluna de ID da amostra (sample_id, samp_num, sample number…), então suas linhas não podem ser pareadas com estas.",
+  "{name}: {added} column(s) added by sample ID (\"{a}\" = \"{b}\"); {matched} of {rows} samples matched.": "{name}: {added} coluna(s) adicionada(s) por ID da amostra (\"{a}\" = \"{b}\"); {matched} de {rows} amostras pareadas.",
+  "{n} of its sample IDs are not in this file and were left out.": "{n} de seus IDs de amostra não estão neste arquivo e ficaram de fora.",
+  "{n} blank cell(s) of the columns both files have were filled from it.": "{n} célula(s) vazia(s) das colunas que os dois arquivos têm foram preenchidas com ele.",
+  "{n} sample ID(s) appear more than once in it: the first row of each was used.": "{n} ID(s) de amostra aparecem mais de uma vez nele: foi usada a primeira linha de cada um.",
+  "{name} could not be read: {error}": "Não foi possível ler {name}: {error}",
+  "For samples whose data come in two files (a field sheet and the lab's assay sheet): the other file's columns are added to these rows where the sample IDs match.": "Para amostras cujos dados vêm em dois arquivos (uma planilha de campo e a planilha de análises do laboratório): as colunas do outro arquivo são adicionadas a estas linhas onde os IDs de amostra coincidem.",
+  "Add columns from another file (by sample ID)…": "Adicionar colunas de outro arquivo (por ID da amostra)…",
+  "File to join by sample ID": "Arquivo para unir por ID da amostra"
 }
