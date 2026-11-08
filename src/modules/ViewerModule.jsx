@@ -137,7 +137,7 @@ const ModellingCodesPane = React.lazy(() => import("../components/ModellingCodes
 import { resolveLayerStyle, cleanLayerStyle, TUBE_SEGMENTS } from "../lib/layerStyle.js"; // TASKS.csv #635
 import { lithoPatternMap, withSectionPatterns } from "../lib/lithoPatterns.js"; // #1995
 import { LAYER_META, colorForLithology, rqdColor, magColor, distinctValues, minMax, colorForVoxelValue, makeVoxelColorResolverRGB, roleForLithology, mcodeRoleOf, isCrossCuttingRole, colorForMedium } from "../lib/layers.js";
-import { computeMeshVolume, computeTonnage } from "../lib/volumetrics.js";
+import { computeMeshVolume } from "../lib/volumetrics.js";
 import { sceneVertsToWorldFlat } from "../lib/meshFlat.js"; // TASKS.csv #600 — the exporters (meshExport.js) load on first export
 import { useSculpt } from "../lib/useSculpt.js"; // TASKS.csv #145 — manual surface editing
 const SculptPanel = lazyModal(() => import("../components/SculptPanel.jsx")); // TASKS.csv #476 // TASKS.csv #145
@@ -156,6 +156,7 @@ const voxelGridCache = new WeakMap();
 const voxelGridOf = (model) => { let G = voxelGridCache.get(model.cells); if (G === undefined) { G = rectilinearGrid(model.cells); voxelGridCache.set(model.cells, G); } return G; };
 import { PRECIOUS_METALS } from "../lib/geochem.js";
 import ClosureNote from "./viewer/ClosureNote.jsx"; // TASKS.csv #1689
+import SurfaceTonnage from "./viewer/SurfaceTonnage.jsx"; // TASKS.csv #1690
 // TASKS.csv #1136 — off the startup chunk: the Targeting tab's planned-hole parts, the measure readout and the numeric
 // symbology editor load the first time they are shown (PlannedHoleTargeting, #119, now loads from PlannedHoleParts)
 const plannedPart = (name) => lazyModal(() => import("../components/PlannedHoleParts.jsx").then((m) => ({ default: m[name] })));
@@ -4161,8 +4162,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
   // surface (not global) since different lithologies/mineralization styles in the same model can have
   // very different SG. Defaults to 2.7 t/m3 (a generic country-rock density) only as a starting point
   // to edit, not a real estimate — this app has no way to know the true SG.
-  const setSurfaceDensity = useCallback((id, density) => {
-    setImplicitSurfaces((p) => p.map((s) => s.id === id ? { ...s, density } : s));
+  const setSurfaceDensity = useCallback((id, density, densityFrom = null) => { // densityFrom: #1690 — which SG the value came from
+    setImplicitSurfaces((p) => p.map((s) => s.id === id ? { ...s, density, densityFrom } : s));
   }, []);
   const addSurfaceRelationship = useCallback((id, relation, targetId) => {
     if (!relation || !targetId || targetId === id) return;
@@ -8110,32 +8111,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                           <span style={{ color: "var(--color-text-muted)" }}>{" "}{tr("— not a resource grade (no dilution, no recovery, no declustering; it is the mean of the interpolated cells at or above the {cutoff} cutoff).", { cutoff: s.params.cutoff })}</span>
                         </div>
                       )}
-                      {/* TASKS.csv #264 — no more silent 2.7 prefill: a bold tonnage the user never
-                          authorised a density for is exactly the number that gets quoted. */}
-                      <label style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                        <span style={{ flexShrink: 0 }}>{tr("Density (t/m³ or g/cm³)")}</span>
-                        <input
-                          type="number" min={0} step={0.01} placeholder={tr("required")}
-                          value={s.density ?? ""}
-                          onChange={(e) => setSurfaceDensity(s.id, e.target.value === "" ? "" : Number(e.target.value))}
-                          style={{ ...smallSel, width: 70 }}
-                        />
-                      </label>
-                      {(() => {
-                        const tonnage = computeTonnage(expandedSurfaceVolume.volumeM3, Number(s.density));
-                        return tonnage != null ? (
-                          <>
-                            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text)" }}>{tr("Tonnage:")}{" "}<strong>{tonnage.toLocaleString(undefined, { maximumFractionDigits: 0 })} t</strong>
-                            </div>
-                            {/* TASKS.csv #269 — permanent, beside the figure, not buried in helper text. */}
-                            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", background: "var(--color-warn-bg)", border: "1px solid var(--color-warn-border)", borderRadius: 5, padding: "6px 7px", marginTop: 5, lineHeight: 1.45 }}>
-                              <strong>{tr("Exploration target volume only — not a Mineral Resource.")}</strong>{" "}{tr("Public disclosure of a tonnage requires an estimate prepared by a Qualified Person.")}{/* TASKS.csv #264 */}
-                              {" "}{tr("In-situ, dry, undiluted tonnes at the density you entered. No mining dilution, mining recovery, metallurgical recovery or moisture is applied. Bulk density here is a single assumed value, not a measured one — a real estimate uses measured SG by domain.")}</div>
-                          </>
-                        ) : (
-                          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("Enter a bulk density to compute tonnage — there is no default, because the tonnage is only as real as the density behind it.")}</div>
-                        );
-                      })()}
+                      <SurfaceTonnage s={s} volumeM3={expandedSurfaceVolume.volumeM3} sgRows={layers.sg} traces={tracesRef.current} geometry={implicitMeshesRef.current[s.id]?.geometry} onDensity={(d, from) => setSurfaceDensity(s.id, d, from)} smallSel={smallSel} />{/* #1690 */}
                       </>
                       )}
                       {/* TASKS.csv #270 (LOW-3) — the parameter block that produced this surface, so a
