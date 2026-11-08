@@ -9299,5 +9299,11 @@
   "{n} picks per hole": "{n} قياسات لكل ثقب",
   "{list}: these picks behave like a vein set or a fabric, not one surface. A surface solved through them is not a structure they define. Model them anyway?": "{list}: تتصرف هذه القياسات كمجموعة عروق أو نسيج، لا كسطح واحد. السطح المحلول عبرها ليس بنية تحددها. هل تنمذجها على أي حال؟",
   "Structure model cancelled before solving. For a vein set, its mean plane can be a structural trend (Stereonet > Add as structural trend), or give each structure its own name / ID.": "أُلغي النموذج البنيوي قبل الحل. لمجموعة عروق يمكن أن يكون مستواها المتوسط اتجاهًا بنيويًا (الإسقاط المجسامي > إضافة كاتجاه بنيوي)، أو أعطِ كل بنية اسمها / معرّفها.",
-  " {n} pair(s) of picks less than 0.5 m apart down the hole ({examples}{v}) — separate structures close together (veinlets of one interval) or a near-repeat; GemPy honours each, which stiffens the solve;": " {n} زوج/أزواج من القياسات تفصلها أقل من 0.5 م على طول الثقب ({examples}{v}): بنى منفصلة متقاربة (عريقات في مجال واحد) أو تكرار شبه مطابق؛ يحترم GemPy كلًا منها، ما يجعل الحل أكثر صلابة؛"
+  " {n} pair(s) of picks less than 0.5 m apart down the hole ({examples}{v}) — separate structures close together (veinlets of one interval) or a near-repeat; GemPy honours each, which stiffens the solve;": " {n} زوج/أزواج من القياسات تفصلها أقل من 0.5 م على طول الثقب ({examples}{v}): بنى منفصلة متقاربة (عريقات في مجال واحد) أو تكرار شبه مطابق؛ يحترم GemPy كلًا منها، ما يجعل الحل أكثر صلابة؛",
+  " Draped on the terrain.": " مُكسى على التضاريس.",
+  " Drawn flat at {z} m ({basis}), not on the ground: there is no terrain. Add one (Maps > Terrain) to drape it, or set its elevation on its card.": " مرسوم مسطحًا عند {z} م ({basis})، لا على سطح الأرض: لا توجد تضاريس. أضف واحدة (الخرائط > التضاريس) لكسوه بها، أو اضبط ارتفاعه في بطاقته.",
+  "the collars' median elevation": "الارتفاع الوسيط للفوهات",
+  "the top of {model}": "أعلى {model}",
+  "the surface samples' median elevation": "الارتفاع الوسيط للعينات السطحية",
+  "no elevation known": "لا ارتفاع معروف"
 }

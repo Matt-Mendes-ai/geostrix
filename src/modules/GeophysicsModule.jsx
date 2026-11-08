@@ -391,7 +391,8 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
   // Default drape elevation: average collar elevation if holes are loaded (drapes usually make most
   // sense roughly at surface/collar level), otherwise 0 — either way it's just a starting point, the
   // per-raster elevation slider below moves it.
-  const defaultElevation = useMemo(() => defaultDrapeElevation({ collars, voxelModels, surfaceSamples }).z, [collars, voxelModels, surfaceSamples]); // #1856
+  const drapeAt = useMemo(() => defaultDrapeElevation({ collars, voxelModels, surfaceSamples }), [collars, voxelModels, surfaceSamples]); // #2075 — and where it came from
+  const defaultElevation = drapeAt.z; // #1856
 
   // TASKS.csv — raster import UI itself moved to its own Raster module (user request); this stays
   // here ONLY so a .tif/.gxf dropped directly on the Geophysics tab (see onDrop below) still imports
@@ -1892,7 +1893,10 @@ export default function GeophysicsModule({ embedded = false, forcePane = null, o
                       name: `${label}${sliceTag} IDW ${idwCellSize} m${Number.isFinite(blank) ? `, blanked > ${Math.round(blank)} m` : ""}` }); // sliceTag: #1783
                     addRaster({ ...raster, elevation: defaultElevation, provenance: { tool: "IDW gridding", survey: idwKey, points: pts.length, cellM: idwCellSize, power: idwPower, blankingM: Number.isFinite(blank) ? Math.round(blank) : null, blankingBasis: idwBlank === "" && idwSuggest ? `1.5x / 2x the median ${idwSuggest.basis} (${idwSuggest.spacing.toFixed(1)} m)` : "entered" } });
                     const cells = raster.grid.nx * raster.grid.ny;
-                    setError({ info: true, text: tr("Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept, so the raster filters (RTP, derivatives…) work on it.", { idwKey, pts: pts.length.toLocaleString(), idwCellSize, valid: raster.grid.valid.toLocaleString(), cells: cells.toLocaleString(), v: Number.isFinite(blank) ? tr("; cells more than {v} m from any point are left empty", { v: Math.round(blank) }) : "" }) });
+                    // TASKS.csv #2075 (review #2013, Geophysics) — where the raster is drawn: Woodjam's n = 1 grid went flat at 965 m (the collars' median,
+                    // 10 km away) while its ground is 1,062-1,116 m, and nothing said so
+                    const where = terrain ? tr(" Draped on the terrain.") : tr(" Drawn flat at {z} m ({basis}), not on the ground: there is no terrain. Add one (Maps > Terrain) to drape it, or set its elevation on its card.", { z: Math.round(defaultElevation).toLocaleString(), basis: drapeAt.source === "collars" ? tr("the collars' median elevation") : drapeAt.source === "model" ? tr("the top of {model}", { model: drapeAt.model }) : drapeAt.source === "samples" ? tr("the surface samples' median elevation") : tr("no elevation known") });
+                    setError({ info: true, text: tr("Gridded \"{idwKey}\" ({pts} points) at {idwCellSize} m: {valid} of {cells} cells have a value{v}. The grid's values are kept, so the raster filters (RTP, derivatives…) work on it.", { idwKey, pts: pts.length.toLocaleString(), idwCellSize, valid: raster.grid.valid.toLocaleString(), cells: cells.toLocaleString(), v: Number.isFinite(blank) ? tr("; cells more than {v} m from any point are left empty", { v: Math.round(blank) }) : "" }) + where }); // where: #2075
                     setIdwOpen(false);
                   }}
                   style={{ ...pBtn, marginBottom: 0, justifyContent: "center" }}

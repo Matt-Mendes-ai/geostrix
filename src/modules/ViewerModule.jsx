@@ -1845,7 +1845,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     groups.push(...mapLayerLegendGroups(mapLayers), ...boundaryLegendGroups(boundaries));
     { const hg = holeColourLegendGroup(holeScheme, tr("Holes by {field}", { field: holeColourBy }), tr("(no value)")); if (hg) groups.unshift(hg); } // #1504
     const pushScale = (key, label, model, lo, hi) => groups.push(scaleLegendGroup(key, label, model, lo, hi));
-    const gpts = layers?.geophys_pts || [];
+    const gpts = (layers?.geophys_pts || []).filter((r) => Number.isFinite(r.z)); // #2075 — only the drawn points (no z: not drawn)
     if (layerVisible.geophys_pts && gpts.length) {
       const vals = gpts.map((r) => r.value).filter((v) => typeof v === "number" && Number.isFinite(v));
       if (vals.length) {

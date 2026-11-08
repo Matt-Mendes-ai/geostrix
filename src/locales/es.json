@@ -9299,5 +9299,11 @@
   "{n} picks per hole": "{n} mediciones por sondaje",
   "{list}: these picks behave like a vein set or a fabric, not one surface. A surface solved through them is not a structure they define. Model them anyway?": "{list}: estas mediciones se comportan como un conjunto de vetas o una fábrica, no como una superficie. Una superficie resuelta a través de ellas no es una estructura que definan. ¿Modelarlas de todos modos?",
   "Structure model cancelled before solving. For a vein set, its mean plane can be a structural trend (Stereonet > Add as structural trend), or give each structure its own name / ID.": "Modelo estructural cancelado antes de resolver. Para un conjunto de vetas, su plano medio puede ser una tendencia estructural (Estereograma > Agregar como tendencia estructural), o dé a cada estructura su propio nombre / ID.",
-  " {n} pair(s) of picks less than 0.5 m apart down the hole ({examples}{v}) — separate structures close together (veinlets of one interval) or a near-repeat; GemPy honours each, which stiffens the solve;": " {n} par(es) de mediciones a menos de 0,5 m en el sondaje ({examples}{v}): estructuras distintas muy juntas (vetillas de un mismo intervalo) o casi una repetición; GemPy respeta cada una, lo que rigidiza la solución;"
+  " {n} pair(s) of picks less than 0.5 m apart down the hole ({examples}{v}) — separate structures close together (veinlets of one interval) or a near-repeat; GemPy honours each, which stiffens the solve;": " {n} par(es) de mediciones a menos de 0,5 m en el sondaje ({examples}{v}): estructuras distintas muy juntas (vetillas de un mismo intervalo) o casi una repetición; GemPy respeta cada una, lo que rigidiza la solución;",
+  " Draped on the terrain.": " Drapeado sobre el terreno.",
+  " Drawn flat at {z} m ({basis}), not on the ground: there is no terrain. Add one (Maps > Terrain) to drape it, or set its elevation on its card.": " Dibujado plano a {z} m ({basis}), no sobre el terreno: no hay terreno. Agregue uno (Mapas > Terreno) para drapearlo, o fije su elevación en su tarjeta.",
+  "the collars' median elevation": "la elevación mediana de los collares",
+  "the top of {model}": "el techo de {model}",
+  "the surface samples' median elevation": "la elevación mediana de las muestras superficiales",
+  "no elevation known": "ninguna elevación conocida"
 }

@@ -9299,5 +9299,11 @@
   "{n} picks per hole": "{n} mesures par sondage",
   "{list}: these picks behave like a vein set or a fabric, not one surface. A surface solved through them is not a structure they define. Model them anyway?": "{list} : ces mesures se comportent comme un ensemble de veines ou une fabrique, pas comme une surface. Une surface résolue à travers elles n'est pas une structure qu'elles définissent. Les modéliser quand même ?",
   "Structure model cancelled before solving. For a vein set, its mean plane can be a structural trend (Stereonet > Add as structural trend), or give each structure its own name / ID.": "Modèle structural annulé avant la résolution. Pour un ensemble de veines, son plan moyen peut servir de tendance structurale (Stéréogramme > Ajouter comme tendance structurale), ou donnez à chaque structure son propre nom / ID.",
-  " {n} pair(s) of picks less than 0.5 m apart down the hole ({examples}{v}) — separate structures close together (veinlets of one interval) or a near-repeat; GemPy honours each, which stiffens the solve;": " {n} paire(s) de mesures à moins de 0,5 m le long du sondage ({examples}{v}) : des structures distinctes très proches (veinules d'un même intervalle) ou une quasi-répétition ; GemPy respecte chacune, ce qui raidit la résolution ;"
+  " {n} pair(s) of picks less than 0.5 m apart down the hole ({examples}{v}) — separate structures close together (veinlets of one interval) or a near-repeat; GemPy honours each, which stiffens the solve;": " {n} paire(s) de mesures à moins de 0,5 m le long du sondage ({examples}{v}) : des structures distinctes très proches (veinules d'un même intervalle) ou une quasi-répétition ; GemPy respecte chacune, ce qui raidit la résolution ;",
+  " Draped on the terrain.": " Drapé sur le terrain.",
+  " Drawn flat at {z} m ({basis}), not on the ground: there is no terrain. Add one (Maps > Terrain) to drape it, or set its elevation on its card.": " Dessiné à plat à {z} m ({basis}), pas sur le sol : il n'y a pas de terrain. Ajoutez-en un (Cartes > Terrain) pour le draper, ou réglez son élévation sur sa fiche.",
+  "the collars' median elevation": "l'élévation médiane des collets",
+  "the top of {model}": "le sommet de {model}",
+  "the surface samples' median elevation": "l'élévation médiane des échantillons de surface",
+  "no elevation known": "aucune élévation connue"
 }
