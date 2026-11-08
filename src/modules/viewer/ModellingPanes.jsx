@@ -25,6 +25,7 @@ import GradeTonnageLauncher from "../../components/GradeTonnageLauncher.jsx"; //
 import { useStore } from "../../lib/store.jsx";
 import { numericLayerFields } from "../../lib/evidenceSources.js"; // TASKS.csv #1574 — the numeric fields of a log (intensity 1-3)
 import { numericSourceChoices, findNumericSource, sourceAssays } from "../../lib/numericSources.js"; // TASKS.csv #1741 — logs and numeric layer fields as a grade-shell source
+import { excludeQAQC } from "../../lib/qaqc.js"; // TASKS.csv #2060 — the proposed cutoff without the QC inserts (this file loads lazily, so qaqc.js stays off the startup path)
 import { checkedHoleCount } from "../../lib/modelArea.js"; // TASKS.csv #1546
 import { zoneAlphaPicks, customAlphaPicks } from "../../lib/alphaPicks.js"; // TASKS.csv #1686
 
@@ -990,7 +991,8 @@ export default function ModellingPanes(props) {
                     const next = e.target.value;
                     setNumericSymbol(next); setNumericCapValue(NaN);
                     const ns = findNumericSource(next, { layers, customLayers: customLayersAll }); // #1741
-                    const rowsFor = ns ? sourceAssays(ns, { layers, customLayers: customLayersAll }).assays : (assays || []).filter((a) => a.source !== "pXRF");
+                    // #2060 (review #2013, Woodjam) — and without the QC inserts unless the pane includes them: Cu proposed 4470 ppm (a CRM's value), the drill samples' P90 is 4120
+                    const rowsFor = ns ? sourceAssays(ns, { layers, customLayers: customLayersAll }).assays : (numericIncludeQAQC ? (assays || []).filter((a) => a.source !== "pXRF") : excludeQAQC(assays || []));
                     const v = rowsFor.map((a) => a.values?.[ns ? ns.symbol : next]).filter((x) => Number.isFinite(x) && x > 0).sort((x, y) => x - y);
                     if (v.length) setNumericCutoff(+v[Math.floor(0.9 * (v.length - 1))].toPrecision(3));
                   }} style={{ ...smallSel, width: "100%" }} disabled={!symbols.length && !numericSources.length}>
