@@ -9182,5 +9182,15 @@
   "Density: the length-weighted mean of the whole Specific gravity layer, {n} intervals ({range}), not only those inside this solid.": "الكثافة: المتوسط الموزون بالطول لطبقة الوزن النوعي كلها، {n} فترة ({range})، لا الفترات داخل هذا المجسم وحدها.",
   "In-situ, dry, undiluted tonnes. No mining dilution, mining recovery, metallurgical recovery or moisture is applied. The density is one mean for the whole body: a real estimate models measured SG by domain.": "أطنان في الموقع، جافة، غير مخففة. لا يُطبق تخفيف تعديني ولا استخلاص تعديني ولا استخلاص فلزي ولا رطوبة. الكثافة متوسط واحد للجسم كله: التقدير الحقيقي ينمذج الوزن النوعي المقيس حسب النطاق.",
   "Enter a bulk density, or use the measured SG above, to compute tonnage — there is no default, because the tonnage is only as real as the density behind it.": "أدخل كثافة كلية، أو استخدم الوزن النوعي المقيس أعلاه، لحساب الحمولة — لا توجد قيمة افتراضية، لأن الحمولة لا تكون حقيقية إلا بقدر الكثافة التي وراءها.",
-  "{p} picks, {l} line": "{p} نقاط ملتقطة، {l} خط"
+  "{p} picks, {l} line": "{p} نقاط ملتقطة، {l} خط",
+  "Fetching the legend…": "جارٍ جلب مفتاح الخريطة…",
+  "Fetching the legend… {d} of {n}": "جارٍ جلب مفتاح الخريطة… {d} من {n}",
+  "Fetch the legend (which colour is which map unit)": "جلب مفتاح الخريطة (أي لون لأي وحدة خريطة)",
+  "Legend: {n} map units": "مفتاح الخريطة: {n} وحدة خريطة",
+  "Hide the legend": "إخفاء مفتاح الخريطة",
+  "Also drawn, as lines: {list}.": "مرسومة أيضًا كخطوط: {list}.",
+  "The units in the {n} tiles the drape was drawn from (zoom {z}). Colours as Macrostrat lists them: the map adds relief shading, so the drape is darker in places.": "الوحدات في المربعات الـ {n} التي رُسم منها الغطاء (تقريب {z}). الألوان كما تسردها Macrostrat: تضيف الخريطة تظليل التضاريس، لذا يبدو الغطاء أغمق في بعض المواضع.",
+  "{n} of {total} tiles could not be read: their units may be missing here.": "تعذّرت قراءة {n} من {total} مربعًا: قد تكون وحداتها مفقودة هنا.",
+  "Its legend lists {n} map units: open it under the layer, in Maps or in the 3D View's layer list.": "يسرد مفتاحها {n} وحدة خريطة: افتحه تحت الطبقة، في الخرائط أو في قائمة طبقات العرض ثلاثي الأبعاد.",
+  "Its legend could not be fetched ({message}): use \"Fetch the legend\" under the layer.": "تعذّر جلب مفتاحها ({message}): استخدم \"جلب مفتاح الخريطة\" تحت الطبقة."
 }

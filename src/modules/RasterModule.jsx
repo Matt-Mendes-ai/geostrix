@@ -32,6 +32,7 @@ import RasterColourControls from "../components/RasterColourControls.jsx"; // TA
 import GridContourControls from "../components/GridContourControls.jsx"; // TASKS.csv #1622
 import { gridCellText } from "../lib/raster.js"; // TASKS.csv #1242
 import { detectKeyColour } from "../lib/rasterKey.js"; // TASKS.csv #1623
+import RasterLegend from "../components/RasterLegend.jsx"; // TASKS.csv #2011
 
 // TASKS.csv — split out of the Geophysics module into its own tab (user request: "let's make a
 // separate Module for Raster, not within geophysics"). Geophysics had accumulated point-cloud/UBC
@@ -602,6 +603,7 @@ export default function RasterModule({ embedded = false } = {}) {
               <span style={{ color: "var(--color-text-faint)", width: 46, flexShrink: 0 }}>{tr("Opacity")}</span>
               <input type="range" min={0.1} max={1} step={0.05} value={r.opacity ?? 0.85} onChange={(e) => updateRaster(r.id, { opacity: Number(e.target.value) })} style={{ flex: 1 }} />
             </div>
+            <RasterLegend raster={r} updateRaster={updateRaster} />{/* TASKS.csv #2011 */}
           </div>
         ))}
       </div>

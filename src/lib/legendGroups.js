@@ -84,7 +84,18 @@ export function scaleLegendGroup(key, label, model, lo, hi) {
 }
 // TASKS.csv #1236 — a raster whose value range is known, as its ramp
 export function rasterLegendGroups(rasters) {
-  return (rasters || []).filter((r) => r.visible !== false && r.colourStops?.length > 1 && r.colourRange).map((r) => scaleLegendGroup(`raster_${r.id}`, r.colourStyle?.stretch === "equalise" ? `${r.name} (equalized)` : r.name, { colorMode: "continuous", stops: r.colourStops }, r.colourRange[0], r.colourRange[1]));
+  const groups = [];
+  for (const r of rasters || []) {
+    if (r.visible === false) continue;
+    if (r.colourStops?.length > 1 && r.colourRange) groups.push(scaleLegendGroup(`raster_${r.id}`, r.colourStyle?.stretch === "equalise" ? `${r.name} (equalized)` : r.name, { colorMode: "continuous", stops: r.colourStops }, r.colourRange[0], r.colourRange[1]));
+    // TASKS.csv #2011 — a Macrostrat geology drape: its map units as swatches, youngest first (as the legend under the layer lists them);
+    // the age is added when the name does not already say it; a unit Macrostrat gives no colour is grey, as the tiles draw it
+    else if (r.legend?.units?.length) {
+      const o = { kind: "fill", ...(Number.isFinite(r.opacity) && r.opacity < 1 ? { opacity: r.opacity } : {}) };
+      groups.push({ key: `raster_${r.id}`, label: r.name, items: r.legend.units.map((u) => [u.age && u.age !== "Age Unknown" && !u.name.toLowerCase().includes(u.age.toLowerCase()) ? `${u.name} (${u.age})` : u.name, u.color || "#777777", o]) });
+    }
+  }
+  return groups;
 }
 export function voxelLegendGroups(voxelModels) {
   const groups = [];

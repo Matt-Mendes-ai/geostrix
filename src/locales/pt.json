@@ -9182,5 +9182,15 @@
   "Density: the length-weighted mean of the whole Specific gravity layer, {n} intervals ({range}), not only those inside this solid.": "Densidade: a média ponderada pelo comprimento de toda a camada de densidade específica, {n} intervalos ({range}), não só os de dentro deste sólido.",
   "In-situ, dry, undiluted tonnes. No mining dilution, mining recovery, metallurgical recovery or moisture is applied. The density is one mean for the whole body: a real estimate models measured SG by domain.": "Toneladas in situ, secas e sem diluição. Não se aplica diluição de lavra, recuperação de lavra, recuperação metalúrgica nem umidade. A densidade é uma só média para todo o corpo: uma estimativa real modela a DE medida por domínio.",
   "Enter a bulk density, or use the measured SG above, to compute tonnage — there is no default, because the tonnage is only as real as the density behind it.": "Informe uma densidade aparente, ou use a DE medida acima, para calcular a tonelagem — não há valor padrão, porque a tonelagem só é tão real quanto a densidade por trás dela.",
-  "{p} picks, {l} line": "{p} picks, {l} linha"
+  "{p} picks, {l} line": "{p} picks, {l} linha",
+  "Fetching the legend…": "Buscando a legenda…",
+  "Fetching the legend… {d} of {n}": "Buscando a legenda… {d} de {n}",
+  "Fetch the legend (which colour is which map unit)": "Buscar a legenda (qual cor é qual unidade do mapa)",
+  "Legend: {n} map units": "Legenda: {n} unidades do mapa",
+  "Hide the legend": "Ocultar a legenda",
+  "Also drawn, as lines: {list}.": "Também desenhados, como linhas: {list}.",
+  "The units in the {n} tiles the drape was drawn from (zoom {z}). Colours as Macrostrat lists them: the map adds relief shading, so the drape is darker in places.": "As unidades nos {n} blocos a partir dos quais o drapeado foi desenhado (zoom {z}). Cores como a Macrostrat as lista: o mapa adiciona sombreamento de relevo, por isso o drapeado é mais escuro em alguns pontos.",
+  "{n} of {total} tiles could not be read: their units may be missing here.": "{n} de {total} blocos não puderam ser lidos: as unidades deles podem faltar aqui.",
+  "Its legend lists {n} map units: open it under the layer, in Maps or in the 3D View's layer list.": "A legenda lista {n} unidades do mapa: abra-a sob a camada, em Mapas ou na lista de camadas da Vista 3D.",
+  "Its legend could not be fetched ({message}): use \"Fetch the legend\" under the layer.": "Não foi possível buscar a legenda ({message}): use \"Buscar a legenda\" sob a camada."
 }

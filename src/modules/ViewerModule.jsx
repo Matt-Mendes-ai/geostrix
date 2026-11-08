@@ -157,6 +157,7 @@ const voxelGridOf = (model) => { let G = voxelGridCache.get(model.cells); if (G 
 import { PRECIOUS_METALS } from "../lib/geochem.js";
 import ClosureNote from "./viewer/ClosureNote.jsx"; // TASKS.csv #1689
 import SurfaceTonnage from "./viewer/SurfaceTonnage.jsx"; // TASKS.csv #1690
+import RasterLegend from "../components/RasterLegend.jsx"; // TASKS.csv #2011
 // TASKS.csv #1136 — off the startup chunk: the Targeting tab's planned-hole parts, the measure readout and the numeric
 // symbology editor load the first time they are shown (PlannedHoleTargeting, #119, now loads from PlannedHoleParts)
 const plannedPart = (name) => lazyModal(() => import("../components/PlannedHoleParts.jsx").then((m) => ({ default: m[name] })));
@@ -7436,8 +7437,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("maps"), tr("Edit or remove the terrain in the Maps tab"))} />
               </div>
             )}
-            {rasters.map((r) => (
-              <div key={r.id} onContextMenu={(e) => openRowMenu(e, r.name, [
+            {rasters.map((r) => (<React.Fragment key={r.id}>{/* fragment: #2011 — the legend under the row */}
+              <div onContextMenu={(e) => openRowMenu(e, r.name, [
                   { label: r.visible === false ? "Show" : "Hide", onClick: () => updateRaster(r.id, { visible: r.visible === false }) },
                   { label: tr("Zoom to"), onClick: () => zoomToObject(rasterMeshesRef.current[r.id]) },
                   "-", { label: tr("Drape and elevation — Maps tab"), onClick: () => goToModule("maps") },
@@ -7459,7 +7460,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                 <ArrowUpRight size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => goToModule("maps"), tr("Edit drape mode / elevation for this raster in the Raster tab"))} />
                 <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (confirmDestructive(tr("Remove raster \"{name}\"?", { name: r.name }))) removeRaster(r.id); }, tr("Remove raster \"{name}\"", { name: r.name }))} />{/* #1088 — confirmed like its menu's Remove… (rasters are not undoable) */}
               </div>
-            ))}
+              <RasterLegend raster={r} updateRaster={updateRaster} compact />
+            </React.Fragment>))}
             <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 10 }}>{tr("Managed under Maps: colours, drape and elevation.")}</div>
           </>
         )}

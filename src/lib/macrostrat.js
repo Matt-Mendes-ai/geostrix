@@ -52,6 +52,39 @@ export const tilePixelMetres = (z, lat, tileSize) => (40075016.686 * Math.cos((l
 // '~3 m pixels'), 256 px at least, longPx at most
 export const outputLongPx = (longSideM, srcPixelM, longPx = 1024) => Math.max(256, Math.min(longPx, Math.ceil(longSideM / srcPixelM)));
 
+// TASKS.csv #2011 (Matt: "need legend for macrostrat geology") — the same carto tiles as vectors (MVT, read by src/lib/mvt.js): every
+// polygon names its map unit, so the drape's legend is the set of units in the tiles it was drawn from — not a guess from the pixels
+// (the PNG tiles add relief shading: one unit is a thousand pixel colours, none equal to the unit's listed colour).
+export const MACROSTRAT_MVT_URL = (z, x, y) => `https://tiles.macrostrat.org/carto/${z}/${x}/${y}`;
+
+// tiles: readVectorTile() output, one entry per tile -> { units, lines, sources }. units: one row per Macrostrat legend_id (the same unit
+// in several tiles or polygons counted once), youngest first by its age model, units with no age last; colour null when Macrostrat gives
+// none (the carto tiles draw those grey). lines: the fault / fold lines by type. sources: the original maps' citations.
+export function macrostratLegend(tiles) {
+  const units = new Map(), lines = new Map(), sources = new Map();
+  const cite = (p) => [p.ref_authors && `${String(p.ref_authors).trim()} (${p.ref_year || "n.d."})`, p.ref_title, p.ref_source, p.ref_isbn || p.ref_url].map((s) => String(s || "").trim()).filter(Boolean).join(". ");
+  for (const layers of tiles || []) for (const l of layers || []) {
+    if (l.name === "units") {
+      for (const f of l.features || []) {
+        if (f.type !== "polygon") continue;
+        const p = f.properties || {}, name = String(p.name || p.strat_name || p.lith || "").trim();
+        if (!name) continue;
+        const key = p.legend_id != null ? `L${p.legend_id}` : [name, p.age, p.lith, p.color].join("|");
+        const seen = units.get(key);
+        if (seen) { seen.polygons++; continue; }
+        const top = Number(p.best_age_top), bottom = Number(p.best_age_bottom), source = cite(p);
+        if (source && p.source_id != null) sources.set(p.source_id, source);
+        units.set(key, { id: key, name, age: String(p.age || "").trim(), ma: Number.isFinite(top) && Number.isFinite(bottom) ? [bottom, top] : null, lith: String(p.lith || "").trim(), descrip: String(p.descrip || "").trim(),
+          color: /^#[0-9a-f]{6}$/i.test(p.color || "") ? p.color.toLowerCase() : null, sourceId: p.source_id ?? null, polygons: 1 });
+      }
+    } else if (l.name === "lines") {
+      for (const f of l.features || []) { const t = String(f.properties?.type || "").trim() || "line"; lines.set(t, (lines.get(t) || 0) + 1); }
+    }
+  }
+  const byAge = (a, b) => (a.ma && b.ma ? a.ma[1] - b.ma[1] || a.ma[0] - b.ma[0] : a.ma ? -1 : b.ma ? 1 : 0) || a.name.localeCompare(b.name);
+  return { units: [...units.values()].sort(byAge), lines: [...lines].map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count), sources: [...sources.values()] };
+}
+
 // /geologic_units/map?lat&lng -> the units there, finest map first ({ name, strat, lith, descrip, age, color, sourceId, scale })
 const SCALE_ORDER = { large: 0, medium: 1, small: 2, tiny: 3 };
 export function parseMacrostratUnits(json) {

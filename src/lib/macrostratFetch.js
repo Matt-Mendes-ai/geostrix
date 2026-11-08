@@ -3,8 +3,9 @@
 import { macrostratFetch } from "./desktop.js";
 import { reprojectImageRGBA, getProj4DefSync } from "./reproject.js";
 import { wmsImageSize, wmsPixelMetres } from "./webLayers.js";
-import { MACROSTRAT_TILE_URL, MACROSTRAT_API, planMacrostratTiles, mercatorToLonLat, parseMacrostratUnits, parseMacrostratSources, tilePixelMetres, outputLongPx } from "./macrostrat.js";
+import { MACROSTRAT_TILE_URL, MACROSTRAT_MVT_URL, MACROSTRAT_API, planMacrostratTiles, mercatorToLonLat, parseMacrostratUnits, parseMacrostratSources, tilePixelMetres, outputLongPx, macrostratLegend } from "./macrostrat.js"; // MVT / legend: #2011
 import { parseLithologies, parseIntervals } from "./macrostratColours.js";
+import { readVectorTile } from "./mvt.js"; // TASKS.csv #2011
 import { t as tr } from "./i18n.js";
 
 const decodeTile = async (res) => {
@@ -62,6 +63,32 @@ export async function fetchMacrostratUnits(lat, lng) {
     if (s.ok) sources = parseMacrostratSources(JSON.parse(s.text));
   }
   return units.map((u) => ({ ...u, source: sources[u.sourceId] || null }));
+}
+
+// TASKS.csv #2011 — the drape's legend: the map units in the vector tiles over the same area at the same zoom (the tiles the PNG drape
+// was drawn from), 1-10 kB each, two at a time through the main process. -> { units, lines, sources, zoom, tiles, failedTiles, fetched }
+export async function fetchMacrostratLegend({ bboxLonLat, onProgress }) {
+  const plan = planMacrostratTiles(bboxLonLat);
+  if (!plan) throw new Error(tr("No Macrostrat tiles cover this area."));
+  const list = [];
+  for (let y = plan.y0; y <= plan.y1; y++) for (let x = plan.x0; x <= plan.x1; x++) list.push({ x, y });
+  const tiles = [], failed = [];
+  let next = 0, done = 0;
+  onProgress?.(0, list.length);
+  const worker = async () => {
+    while (next < list.length) {
+      const t = list[next++];
+      try {
+        const res = await macrostratFetch({ url: MACROSTRAT_MVT_URL(plan.z, t.x, t.y), binary: true });
+        if (!res.ok || !res.bytes) throw new Error(res.message || tr("Request failed (HTTP {status}).", { status: res.status }));
+        tiles.push(readVectorTile(new Uint8Array(res.bytes)));
+      } catch (e) { failed.push(e); }
+      onProgress?.(++done, list.length);
+    }
+  };
+  await Promise.all([worker(), worker()]);
+  if (failed.length === list.length) throw failed[0];
+  return { ...macrostratLegend(tiles), zoom: plan.z, tiles: list.length, failedTiles: failed.length, fetched: new Date().toISOString().slice(0, 10) };
 }
 
 // TASKS.csv #2005 — the colour lists, fetched once per session when a button asks (lib/macrostratColours.js matches them)

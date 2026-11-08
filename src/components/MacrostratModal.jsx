@@ -6,7 +6,7 @@ import { X, Globe, Loader2 } from "./icons.js";
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { useFocusTrap } from "../lib/useFocusTrap.js";
 import { overlay, panel, header, btn } from "../lib/modalStyles.js";
-import { fetchMacrostratRaster, fetchMacrostratUnits } from "../lib/macrostratFetch.js";
+import { fetchMacrostratRaster, fetchMacrostratUnits, fetchMacrostratLegend } from "../lib/macrostratFetch.js"; // legend: #2011
 import { MACROSTRAT_CREDIT, MACROSTRAT_TILE_URL } from "../lib/macrostrat.js";
 import { t as tr } from "../lib/i18n.js";
 
@@ -23,9 +23,13 @@ export default function MacrostratModal({ onClose, addRaster, projectEpsg, bboxL
     setMsg(null); setBusy(tr("Fetching Macrostrat tiles…"));
     try {
       const r = await fetchMacrostratRaster({ bboxLonLat, projectEpsg, onProgress: (d, n) => setBusy(tr("Fetching Macrostrat tiles… {d} of {n}", { d, n })) });
-      addRaster({ name: "Macrostrat geology (CC BY 4.0)", bbox: r.bbox, dataUrl: r.dataUrl, opacity: 0.7,
+      // TASKS.csv #2011 — the legend from the same tiles as vectors; a failure here still adds the drape (the layer offers "Fetch the legend")
+      let legend = null, legendErr = null;
+      try { legend = await fetchMacrostratLegend({ bboxLonLat, onProgress: (d, n) => setBusy(tr("Fetching the legend… {d} of {n}", { d, n })) }); } catch (e) { legendErr = e.message; }
+      addRaster({ name: "Macrostrat geology (CC BY 4.0)", bbox: r.bbox, dataUrl: r.dataUrl, opacity: 0.7, ...(legend ? { legend } : {}),
         provenance: { tool: "Macrostrat geologic map tiles", source: MACROSTRAT_TILE_URL("{z}", "{x}", "{y}"), zoom: r.zoom, areaLonLat: bboxLonLat, credit: MACROSTRAT_CREDIT, fetched: new Date().toISOString().slice(0, 10) } });
-      setMsg({ ok: !r.failedTiles, text: tr("Added \"Macrostrat geology (CC BY 4.0)\" as a raster drape: {w} × {h} px, ~{m} m pixels, from {n} tiles at zoom {z}. Turn it off with its eye in GeoTIFF / GXF.", { w: r.width, h: r.height, m: Math.round(r.pixelM), n: r.tiles, z: r.zoom }) + (r.failedTiles ? " " + tr("{n} of {total} requests failed and are left transparent.", { n: r.failedTiles, total: r.tiles }) : "") });
+      setMsg({ ok: !r.failedTiles && !legendErr, text: tr("Added \"Macrostrat geology (CC BY 4.0)\" as a raster drape: {w} × {h} px, ~{m} m pixels, from {n} tiles at zoom {z}. Turn it off with its eye in GeoTIFF / GXF.", { w: r.width, h: r.height, m: Math.round(r.pixelM), n: r.tiles, z: r.zoom }) + (r.failedTiles ? " " + tr("{n} of {total} requests failed and are left transparent.", { n: r.failedTiles, total: r.tiles }) : "")
+        + " " + (legend ? tr("Its legend lists {n} map units: open it under the layer, in Maps or in the 3D View's layer list.", { n: legend.units.length }) : tr("Its legend could not be fetched ({message}): use \"Fetch the legend\" under the layer.", { message: legendErr })) });
     } catch (e) { setMsg({ ok: false, text: tr("Macrostrat: {message}", { message: e.message }) }); }
     setBusy(null);
   };

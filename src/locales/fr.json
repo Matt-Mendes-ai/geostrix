@@ -9182,5 +9182,15 @@
   "Density: the length-weighted mean of the whole Specific gravity layer, {n} intervals ({range}), not only those inside this solid.": "Densité : la moyenne pondérée par la longueur de toute la couche de densité spécifique, {n} intervalles ({range}), pas seulement ceux de ce solide.",
   "In-situ, dry, undiluted tonnes. No mining dilution, mining recovery, metallurgical recovery or moisture is applied. The density is one mean for the whole body: a real estimate models measured SG by domain.": "Tonnes in situ, sèches, non diluées. Aucune dilution minière, récupération minière, récupération métallurgique ni humidité n'est appliquée. La densité est une seule moyenne pour tout le corps : une vraie estimation modélise la densité mesurée par domaine.",
   "Enter a bulk density, or use the measured SG above, to compute tonnage — there is no default, because the tonnage is only as real as the density behind it.": "Saisissez une densité apparente, ou utilisez la densité mesurée ci-dessus, pour calculer le tonnage — il n'y a pas de valeur par défaut, car le tonnage n'est réel que si la densité derrière l'est.",
-  "{p} picks, {l} line": "{p} pointés, {l} ligne"
+  "{p} picks, {l} line": "{p} pointés, {l} ligne",
+  "Fetching the legend…": "Récupération de la légende…",
+  "Fetching the legend… {d} of {n}": "Récupération de la légende… {d} sur {n}",
+  "Fetch the legend (which colour is which map unit)": "Récupérer la légende (quelle couleur pour quelle unité de carte)",
+  "Legend: {n} map units": "Légende : {n} unités de carte",
+  "Hide the legend": "Masquer la légende",
+  "Also drawn, as lines: {list}.": "Également tracés, en lignes : {list}.",
+  "The units in the {n} tiles the drape was drawn from (zoom {z}). Colours as Macrostrat lists them: the map adds relief shading, so the drape is darker in places.": "Les unités des {n} tuiles d'où le drapé a été tracé (zoom {z}). Couleurs telles que Macrostrat les liste : la carte ajoute un ombrage du relief, le drapé est donc plus sombre par endroits.",
+  "{n} of {total} tiles could not be read: their units may be missing here.": "{n} tuiles sur {total} n'ont pas pu être lues : leurs unités peuvent manquer ici.",
+  "Its legend lists {n} map units: open it under the layer, in Maps or in the 3D View's layer list.": "Sa légende liste {n} unités de carte : ouvrez-la sous la couche, dans Cartes ou dans la liste des couches de la Vue 3D.",
+  "Its legend could not be fetched ({message}): use \"Fetch the legend\" under the layer.": "Sa légende n'a pas pu être récupérée ({message}) : utilisez « Récupérer la légende » sous la couche."
 }
