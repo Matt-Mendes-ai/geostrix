@@ -646,7 +646,7 @@ export const TARGET_SCHEMAS = {
     { key: "x", label: "Easting (X)", required: true, aliases: ["x", "easting", "east", "utm_e", "utme"] },
     { key: "y", label: "Northing (Y)", required: true, aliases: ["y", "northing", "north", "utm_n", "utmn"] },
     { key: "z", label: "Elevation (Z)", required: true, aliases: ["z", "elevation", "elev", "rl", "utm_z"] },
-    { key: "azimuth", label: "Azimuth (for straight holes w/ no survey)", required: false, aliases: ["azimuth", "azim_grid", "azi", "az", "brg", "bearing"] }, // az / brg / bearing: #546; azim_grid: GeoStrix's own collar export (#577) — exact, so it beats azim_true
+    { key: "azimuth", label: "Azimuth (for straight holes w/ no survey)", required: false, aliases: ["azimuth", "azim_grid", "azi", "az", "brg", "bearing", "collar_az", "hole_az"] }, // collar_az / hole_az: #1655 (acQuire's Collar_Az_D; 'az' alone matches a whole header only) // az / brg / bearing: #546; azim_grid: GeoStrix's own collar export (#577) — exact, so it beats azim_true
     { key: "dip", label: "Dip (for straight holes w/ no survey)", required: false, aliases: ["dip", "inclination", "incl"] }, // #605: inclination (MX-style collar sheets)
     { key: "length", label: "Hole length (optional)", required: false, aliases: ["length", "total_depth", "eoh", "max_depth", "hole_length", "actual depth", "actual_depth", "final_depth", "final depth", "depth"] }, // #600: "Actual depth" before a planned "Target depth"
   ], dipConvention: true },
@@ -1027,6 +1027,7 @@ export function mergeCollar(prev, incoming, overwrite) {
   const out = { ...prev };
   for (const [k, v] of Object.entries(incoming)) {
     if (missingCollarValue(v)) continue;
+    if (k === "attrs" && v && typeof v === "object") { out.attrs = mergeCollar(prev.attrs || {}, v, overwrite); continue; } // #1655 — kept columns merge one by one too
     if (overwrite || missingCollarValue(prev[k])) out[k] = v;
   }
   return out;
@@ -1053,6 +1054,21 @@ export function pickRankedCollarRows(rawRows, holeCol, headers) {
   return { rows: order.map((id) => best.get(id)), rankColumn, dropped: rawRows.length - order.length, holes: [...counts].filter(([, n]) => n > 1).map(([id]) => id) };
 }
 
+// TASKS.csv #1655 (review #1645, Copley) — the other fields a collar carries (an import's extra fields, the kept columns in attrs) are
+// compared too: re-importing 9 collars with PROSPECT / Drill_Purpose / STARTDATE added said '9 already present and identical' though
+// all three were then on every collar. -> [[label, before, after]] for each field either side has
+const collarExtraValues = (c) => {
+  const out = new Map();
+  for (const [k, v] of Object.entries(c || {})) if (k !== "hole_id" && k !== "attrs" && !k.startsWith("_") && !COLLAR_COMPARE_FIELDS.includes(k)) out.set(k, v);
+  for (const [k, v] of Object.entries(c?.attrs || {})) if (!out.has(k)) out.set(k, v);
+  return out;
+};
+function extraFieldsDiff(prev, r) {
+  const a = collarExtraValues(prev), b = collarExtraValues(r), fills = [], fields = [];
+  for (const [k, v] of b) { if (missingCollarValue(v)) continue; const p = a.get(k); if (missingCollarValue(p)) fills.push(k); else if (!sameCollarValue(p, v)) fields.push(k); }
+  return { fills, fields, before: Object.fromEntries(fields.map((k) => [k, a.get(k)])), after: Object.fromEntries(fields.map((k) => [k, b.get(k)])) };
+}
+
 export function diffCollarImport(existing, incoming) {
   const byId = new Map((existing || []).map((c) => [c.hole_id, c]));
   const newHoles = [], unchanged = [], changed = [], duplicatesInFile = [], filled = [];
@@ -1062,15 +1078,16 @@ export function diffCollarImport(existing, incoming) {
   for (const r of lastById.values()) {
     const prev = byId.get(r.hole_id);
     if (!prev) { newHoles.push(r.hole_id); continue; }
-    const fills = COLLAR_COMPARE_FIELDS.filter((k) => missingCollarValue(prev[k]) && !missingCollarValue(r[k]));
+    const ex = extraFieldsDiff(prev, r); // #1655
+    const fills = [...COLLAR_COMPARE_FIELDS.filter((k) => missingCollarValue(prev[k]) && !missingCollarValue(r[k])), ...ex.fills];
     if (fills.length) filled.push({ hole_id: r.hole_id, fields: fills });
-    const fields = COLLAR_COMPARE_FIELDS.filter((k) => !missingCollarValue(prev[k]) && !missingCollarValue(r[k]) && !sameCollarValue(prev[k], r[k]));
+    const fields = [...COLLAR_COMPARE_FIELDS.filter((k) => !missingCollarValue(prev[k]) && !missingCollarValue(r[k]) && !sameCollarValue(prev[k], r[k])), ...ex.fields];
     if (!fields.length) { if (!fills.length) unchanged.push(r.hole_id); continue; }
     const d = (k) => (Number.isFinite(prev[k]) && Number.isFinite(r[k]) ? r[k] - prev[k] : 0);
     changed.push({
       hole_id: r.hole_id, fields,
-      before: Object.fromEntries(fields.map((k) => [k, prev[k]])),
-      after: Object.fromEntries(fields.map((k) => [k, r[k]])),
+      before: { ...Object.fromEntries(fields.filter((k) => COLLAR_COMPARE_FIELDS.includes(k)).map((k) => [k, prev[k]])), ...ex.before },
+      after: { ...Object.fromEntries(fields.filter((k) => COLLAR_COMPARE_FIELDS.includes(k)).map((k) => [k, r[k]])), ...ex.after },
       shift: Math.hypot(d("x"), d("y"), d("z")),
     });
   }

@@ -416,7 +416,7 @@ export function useImportPipeline(ctx) {
       const parts = [];
       if (diff.newHoles.length) parts.push(tr("{newHoles} new", { newHoles: diff.newHoles.length }));
       if (diff.changed.length) parts.push(overwriteExisting ? tr("{changed} existing hole(s) updated with different values", { changed: diff.changed.length }) : tr("{changed} existing hole(s) left untouched (you chose not to overwrite)", { changed: diff.changed.length }));
-      if (diff.filled.length) parts.push(tr("{filled} existing hole(s) completed with values they did not have ({v})", { filled: diff.filled.length, v: [...new Set(diff.filled.flatMap((f) => f.fields))].join(", ") })); // #600
+      if (diff.filled.length) parts.push(tr("{filled} existing hole(s) completed with values they did not have ({v})", { filled: diff.filled.length, v: ((fs) => fs.slice(0, 8).join(", ") + (fs.length > 8 ? "…" : ""))([...new Set(diff.filled.flatMap((f) => f.fields))]) })); // #600; at most 8 names: #1655 (29 kept columns were all listed)
       if (diff.unchanged.length) parts.push(tr("{unchanged} already present and identical", { unchanged: diff.unchanged.length }));
       if (ranked.dropped) parts.push(tr("{holes} hole(s) had several location records ({dropped} extra rows) — kept the lowest \"{rankColumn}\" for each: {holes2}{v}", { holes: ranked.holes.length, dropped: ranked.dropped, rankColumn: ranked.rankColumn, holes2: ranked.holes.slice(0, 5).join(", "), v: ranked.holes.length > 5 ? ", …" : "" }));
       if (attrCols.length) parts.push(tr("{n} more column(s) kept with each hole (Identify shows them): {cols}", { n: attrCols.length, cols: attrCols.slice(0, 8).join(", ") + (attrCols.length > 8 ? "…" : "") })); // #1504
