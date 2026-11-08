@@ -110,7 +110,7 @@ export function useImportPipeline(ctx) {
       }
       const target = forceTarget || guessTargetFor(headers, file.name); // #605: the file name as a hint
       const ll = lonLatForCollars(target, guessMapping(target, headers), headers, data); // #1235
-      const mapping = ll ? ll.mapping : guessMapping(target, headers); // #426
+      const mapping = azColFor(target, headers, data, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
       const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
       setImportModal({ ...azRefFor(target, headers, data), file, fileName: file.name, headers, rowCount: data.length, sampleRows: data.slice(0, 5), allRows: data, target, mapping, ...(forceTarget ? {} : guardGuess(target, mapping, headers, data, file.name)), dipConvention: "neg_down", perRowEpsgCol, sourceEpsg: ll ? ll.sourceEpsg : meta?.detectedEpsg ? String(meta.detectedEpsg) : "" });
       if (meta?.note) setNotices((p) => [...p, `${file.name}:${meta.note}`]);
@@ -178,7 +178,7 @@ export function useImportPipeline(ctx) {
     }
     const target = guessTargetFor(headers, sourceName); // #605
     const ll = lonLatForCollars(target, guessMapping(target, headers), headers, rows); // #1235
-    const mapping = ll ? ll.mapping : guessMapping(target, headers); // #426
+    const mapping = azColFor(target, headers, rows, ll ? ll.mapping : guessMapping(target, headers)); // #426; #2015
     const perRowEpsgCol = guessColumn(headers, EPSG_COL_ALIASES);
     setImportModal({ dbSource, ...azRefFor(target, headers, rows), fileName: sourceName, headers, rowCount: rows.length, sampleRows: rows.slice(0, 5), allRows: rows, target, mapping, ...guardGuess(target, mapping, headers, rows, sourceName), dipConvention: "neg_down", perRowEpsgCol, ...(ll ? { sourceEpsg: ll.sourceEpsg } : {}) });
     setDbModalOpen(false);
@@ -216,6 +216,8 @@ export function useImportPipeline(ctx) {
     return ov ? { target: "custom", mapping: guessMapping("custom", headers), guessNote: ov } : { target, mapping };
   };
   const azRefFor = (target, headers, rows) => { const d = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, rows) : null; return d?.ref ? { azimuthRef: d.ref, azimuthRefFrom: d.col } : {}; };
+  // TASKS.csv #2015 — a survey sheet's corrected azimuth column (grid when filled, else true north) is the one read
+  const azColFor = (target, headers, rows, mapping) => { if (target !== "survey") return mapping; const d = detectAzimuthRef(headers, rows); return d?.azimuthCol ? { ...mapping, azimuth: d.azimuthCol } : mapping; };
   const commitImportData = (data) => {
     const { target, mapping, allRows, dipConvention, fileName: shownName, sourceEpsg, perRowEpsgCol, customFields, azimuthRef, azimuthDate, betaRefLine, azimuthGridEpsg, unseen = false, dbSource = null, reload = null } = data; // dbSource, reload: #1963 (reload: an object the collar diff is written to; no overwrite question)
     // TASKS.csv #1506 (review #1497) — the dialog's title carries the drop's queue count ("Min Domain.csv (10 more queued)"), and it
@@ -454,6 +456,7 @@ export function useImportPipeline(ctx) {
         + replaceNote(replaced, "survey")
         + (bad.length ? tr(" Skipped {bad} station(s) with a missing or non-numeric azimuth/dip ({v}).", { bad: bad.length, v: [...new Set(bad.map((r) => `${r.hole_id}@${r.depth}`))].slice(0, 5).join(", ") }) : "")
         + skippedRowsText(svDropped, allRows.length) + azs.note
+        + (data.azimuthRefFrom && mapping.azimuth === data.azimuthRefFrom ? tr(" Azimuths read from the {col} column ({north}).", { col: mapping.azimuth, north: azimuthRef === "true" ? tr("true north, converted to grid") : tr("grid north") }) : "") // #2015
         + (unseen && !azimuthRef && !azimuthGridEpsg ? tr(" Azimuths taken as grid north: the file does not say which north (import it on its own to choose true or magnetic north).") : "")]); // #1647
     } else if (target === "structure") {
       // TASKS.csv #719 — no sign convention for structure dips: the "negative = down" radio is shown only for collars and
@@ -663,18 +666,20 @@ export function useImportPipeline(ctx) {
       const target = guessTargetFor(headers, file.name); // #605
       const schema = TARGET_SCHEMAS[target];
       const queueLl = lonLatForCollars(target, guessMapping(target, headers), headers, data); // #1235
-      const mapping = queueLl ? queueLl.mapping : guessMapping(target, headers); // #426
+      const mapping = azColFor(target, headers, data, queueLl ? queueLl.mapping : guessMapping(target, headers)); // #426; #2015
       const missingRequired = schema.fields.filter((f) => f.required && !mapping[f.key]).concat(schemaSatisfied(target, mapping) || !schema.oneOf ? [] : [{ key: "oneOf", label: "From / To or Depth" }]); // #605
       // TASKS.csv #335 — only commit unseen when every REQUIRED column matched a header exactly (not
       // just by substring), and — for tables with a dip — when every dip in the file is <= 0, i.e.
       // actually consistent with the "negative = down" convention this path assumes. A positive-down
       // export (Datamine style) used to be committed silently and plotted every hole pointing up.
-      const exactRequired = schema.fields.filter((f) => f.required).every((f) => mapping[f.key] && guessColumnExact(headers, f.aliases) === mapping[f.key]);
+      // #2015 — the survey's corrected azimuth column, picked from the file's own north columns, counts as an exact match
+      const azColPicked = target === "survey" ? detectAzimuthRef(headers, data)?.azimuthCol : null;
+      const exactRequired = schema.fields.filter((f) => f.required).every((f) => mapping[f.key] && (guessColumnExact(headers, f.aliases) === mapping[f.key] || (f.key === "azimuth" && azColPicked && mapping.azimuth === azColPicked)));
       const dipCol = schema.dipConvention || target === "survey" ? mapping.dip : null;
       const dipsAgree = !dipCol || data.every((r) => { const d = Number(r[dipCol]); return r[dipCol] == null || r[dipCol] === "" || !Number.isFinite(d) || d <= 0; });
       // #1647 — a stated north: true is converted unseen; magnetic (needs a date) or a mix of norths opens the dialog
       const azDetected = AZ_TARGETS.has(target) ? detectAzimuthRef(headers, data) : null;
-      const azOk = !azDetected || (!azDetected.mixed && azDetected.ref !== "magnetic");
+      const azOk = !azDetected || (!azDetected.mixed && azDetected.ref !== "magnetic" && !azDetected.hint); // hint (#2015): gyros only, no corrected column: asked
       const guarded = guardGuess(target, mapping, headers, data, file.name); // #1649 — never unseen into another file's log
       const confident = target !== "custom" && !guarded.guessNote && missingRequired.length === 0 && exactRequired && dipsAgree && azOk;
       // TASKS.csv #609 — the file's own CRS (.prj / GeoPackage) and a per-row EPSG column, as openImportModal passes

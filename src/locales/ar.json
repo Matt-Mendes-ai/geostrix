@@ -9269,5 +9269,7 @@
   "{symbol} {n} over range": "{symbol} {n} فوق النطاق",
   "Below detection from the flag columns: {list} (the values kept as the file has them).": "دون حد الكشف بحسب أعمدة العلامات: {list} (القيم محفوظة كما وردت في الملف).",
   "1 of them holds a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.": "1 منها فيها قيمة دون حد الكشف ('<')، مرسومة عند نصف حد الكشف أو عند القيمة التي خزّنها الملف المصدر.",
-  "{n} of them hold a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.": "{n} منها فيها قيمة دون حد الكشف ('<')، مرسومة عند نصف حد الكشف أو عند القيمة التي خزّنها الملف المصدر."
+  "{n} of them hold a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.": "{n} منها فيها قيمة دون حد الكشف ('<')، مرسومة عند نصف حد الكشف أو عند القيمة التي خزّنها الملف المصدر.",
+  " Azimuths read from the {col} column ({north}).": " قُرئت السموت من العمود {col} ({north}).",
+  "true north, converted to grid": "الشمال الحقيقي، محوَّل إلى الشبكة"
 }

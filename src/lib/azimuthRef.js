@@ -41,9 +41,38 @@ const azRefOf = (v) => {
   if (/^(m|mn|mag|magnetic|magneticnorth)$/.test(s)) return "magnetic";
   return null;
 };
+// TASKS.csv #2015 (review #2013, Import) — an MX Deposit / acQuire survey sheet states its north through CORRECTED azimuth columns
+// (azimuth, azimuth_corrected_tn, azimuth_corrected_gn) and the instrument (gyro / compass), not an AZIMUTHTYPE column: Woodjam's
+// sheet went in as grid north 'the file does not say which north', and its true-north gyro azimuths turned 1.29°.
+// A filled grid column is read as grid north; else a filled true-north column is read and converted; a corrected column filled on
+// only some rows is a mix (the dialog asks); with neither, an instrument column of gyros only is a hint of true north (the dialog
+// opens with it pre-set; nothing is converted unseen). -> adds azimuthCol (the column to read) and hint.
+const GN_COLS = /^(azimuth|azi|az)[\s_-]*(corrected[\s_-]*)?(gn|grid)$|^grid[\s_-]*(azimuth|azi|az)$/i;
+const TN_COLS = /^(azimuth|azi|az)[\s_-]*(corrected[\s_-]*)?(tn|true)$|^true[\s_-]*(azimuth|azi|az)$/i;
+const INSTRUMENT_COLS = /^(instrument|survey[\s_-]*(tool|instrument|method|type)|tool|method)$/i;
+function correctedColumns(headers, rows) {
+  const hs = headers || [];
+  const filled = (c) => { let n = 0, all = 0; for (const r of rows || []) { all++; const v = r?.[c]; if (v != null && String(v).trim() !== "" && Number.isFinite(Number(v))) n++; } return { n, all }; };
+  for (const [re, ref] of [[GN_COLS, "grid"], [TN_COLS, "true"]]) {
+    const col = hs.find((h) => re.test(String(h).trim()));
+    if (!col) continue;
+    const { n, all } = filled(col);
+    if (!n) continue; // an empty corrected column says nothing
+    if (n < all) return { ref: null, col, mixed: true, azimuthCol: null, partial: { col, n, all } };
+    return { ref, col, mixed: false, azimuthCol: col };
+  }
+  const inst = hs.find((h) => INSTRUMENT_COLS.test(String(h).trim()));
+  if (inst) {
+    const kinds = new Set();
+    for (const r of rows || []) { const s = String(r?.[inst] ?? "").trim().toLowerCase(); if (s) kinds.add(/gyro/.test(s) ? "gyro" : "other"); }
+    if (kinds.size === 1 && kinds.has("gyro")) return { ref: "true", col: inst, mixed: false, hint: true };
+  }
+  return null;
+}
+
 export function detectAzimuthRef(headers, rows) {
   const col = (headers || []).find((h) => AZ_REF_COLS.includes(String(h).trim().toLowerCase()));
-  if (!col) return null;
+  if (!col) return correctedColumns(headers, rows); // #2015
   const seen = new Set();
   for (const r of rows || []) { const ref = azRefOf(r?.[col]); if (ref) seen.add(ref); }
   if (!seen.size) return null;

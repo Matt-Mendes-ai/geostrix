@@ -9269,5 +9269,7 @@
   "{symbol} {n} over range": "{symbol} {n} sobre el rango",
   "Below detection from the flag columns: {list} (the values kept as the file has them).": "Bajo el límite de detección según las columnas de bandera: {list} (los valores se conservan como están en el archivo).",
   "1 of them holds a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.": "1 de ellas tiene un valor bajo el límite de detección ('<'), graficado a la mitad del límite o al valor que guardó el archivo de origen.",
-  "{n} of them hold a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.": "{n} de ellas tienen un valor bajo el límite de detección ('<'), graficado a la mitad del límite o al valor que guardó el archivo de origen."
+  "{n} of them hold a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.": "{n} de ellas tienen un valor bajo el límite de detección ('<'), graficado a la mitad del límite o al valor que guardó el archivo de origen.",
+  " Azimuths read from the {col} column ({north}).": " Azimuts leídos de la columna {col} ({north}).",
+  "true north, converted to grid": "norte verdadero, convertido a cuadrícula"
 }
