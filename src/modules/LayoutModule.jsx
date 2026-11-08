@@ -55,7 +55,7 @@ const SCALE_BAR_PX = 180; // default/initial bar length (px) for a freshly-added
 const PX_PER_MM = 96 / 25.4; // matches the ~96dpi assumption used throughout Layout (scale bar, viewport scale estimate)
 const DEFAULT_PX_PER_METER = SCALE_BAR_PX / 100; // a plain "Add scale bar" starts at 100 m / 180 px, same as before this element gained a real px-per-metre ratio
 // TASKS.csv #907 — the plot scales exploration figures are drawn at (Matt: "set a scale eg 1:5000, 1:10000")
-const SCALE_PRESETS = [500, 1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000, 100000];
+const SCALE_PRESETS = [500, 1000, 2000, 2500, 5000, 10000, 20000, 25000, 50000, 100000, 250000, 500000, 1000000]; // 250k-1M: #2132 (a district fit read 'custom')
 
 // "Customize the scale bar by changing the number, but without changing the scale — if I change 200
 // to 300 the SIZE of the bar has to change." A scale element now carries pxPerMeter: how many on-page
@@ -463,7 +463,13 @@ export default function LayoutModule() {
     const need = Math.max(((u1 - u0) * 1.1) / frameWm, ((v1 - v0) * 1.1) / frameHm, 1);
     const mag = 10 ** Math.floor(Math.log10(need));
     const scale = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].map((m) => Math.round(m * mag)).find((n) => n >= need);
-    updateSelected({ fixedScale: scale, trueScale: true });
+    // TASKS.csv #2132 (review #2013, Woodjam) — what was fitted, kept on the viewport and shown under the Fit button while the scale is the
+    // fitted one: 534 district collars with no survey and no azimuth / dip (drawn as assumed vertical holes since #2014) took the fit to
+    // 1:500,000 with the 10 drilled holes as specks, and nothing said why. (A notice would be cleared by the refresh re-selecting the frame.)
+    const nHoles = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y)).length;
+    const surveyed = new Set((survey || []).map((s) => s.hole_id));
+    const assumed = (collars || []).filter((c) => Number.isFinite(c.x) && Number.isFinite(c.y) && !surveyed.has(c.hole_id) && (!Number.isFinite(c.azimuth) || !Number.isFinite(c.dip))).length;
+    updateSelected({ fixedScale: scale, trueScale: true, fitInfo: nHoles ? { scale, holes: nHoles, assumed } : null });
     startViewportRender(sel.themeId, sel.id, true, { fixedScale: scale, elementW: sel.w, elementH: sel.h, centreWorld });
   };
   // TASKS.csv #906 — a resize handle was pressed (see Handles / the resize branch of the drag effect above)
@@ -1921,6 +1927,12 @@ function ViewportControls({ sel, themes, updateSelected, onRefresh, onRebind, on
       )}
       <button onClick={onFit} disabled={sel.refreshing} title={hasHoles ? tr("Pick the round scale at which all the drillholes (or the surface samples / boundaries) fit this frame, centre the view on them, and refresh") : tr("Pick the round scale at which the visible block models (else the surface samples, map layers or boundaries) fit this frame, centre the view on them, and refresh")} style={{ ...pBtn, opacity: sel.refreshing ? 0.6 : 1 }}>
         <Maximize2 size={14} />{" "}{hasHoles ? tr("Fit the holes at a round scale") : tr("Fit the data at a round scale")}</button>
+      {sel.fitInfo && sel.fitInfo.scale === sel.fixedScale && ( /* TASKS.csv #2132 — what the fit framed */
+        <div style={{ fontSize: "var(--font-size-xs)", color: sel.fitInfo.assumed ? "var(--color-warn-text)" : "var(--color-text-muted)", marginBottom: 6, lineHeight: 1.4 }}>
+          {tr("Fitted {n} hole(s) at 1:{scale}.", { n: sel.fitInfo.holes.toLocaleString(), scale: sel.fitInfo.scale.toLocaleString() })}
+          {sel.fitInfo.assumed > 0 && " " + tr("{k} of them have no survey and no azimuth / dip (drawn as assumed vertical holes) and widen the frame; for the drilled holes only, set the scale by hand or remove those collars.", { k: sel.fitInfo.assumed.toLocaleString() })}
+        </div>
+      )}
       {sel.fixedScale > 0 && (
         <div style={{ fontSize: "var(--font-size-xs)", color: sel.capturedFixedScale === sel.fixedScale ? "var(--color-success-fg)" : "var(--color-warn-text)", marginBottom: 8, lineHeight: 1.4 }}>
           {sel.capturedFixedScale === sel.fixedScale
