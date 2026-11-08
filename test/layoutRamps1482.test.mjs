@@ -21,5 +21,5 @@ test("the view's numeric logs become ramp groups in the legend", () => {
   assert.ok(g.every((x) => x.ramp?.colors?.length === 17));
   assert.ok(legendGroupsToItems(g).length > 0);
   const s = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
-  assert.match(s, /return numericLayerLegendGroups\(\{ layers, layerVisible, colorOf: numericLayerColorFn\(sym, clips\), symbology: sym, clips \}\);/);
+  assert.match(s, /return numericLayerLegendGroups\(\{ layers: frameLayers, layerVisible, colorOf: numericLayerColorFn\(sym, clips\), symbology: sym, clips \}\);/);
 });

@@ -128,8 +128,13 @@ export function mapLayerLegendGroups(mapLayers) {
     // TASKS.csv #1157 — an interpretation layer carries every line type as a category: only the ones drawn are in the legend
     const graduated = !!l.styleBreaks?.length; // TASKS.csv #1600 - classes of a numeric field: empty ones left out, the highest kept when rows run short
     const cats = l.styleField ? (l.categories || []).filter((c) => c.visible !== false && !((l.interpretation || graduated) && !c.count)) : [];
-    const items = cats.length
-      ? cats.map((c) => [c.label ?? (c.value == null ? "(no value)" : String(c.value)), c.color, o])
+    // TASKS.csv #2134 — a layer with one class in all (the IP lines' RL 1200) is keyed by its name: '1200' meant nothing on a figure.
+    // Several bare-number classes say the attribute ('RL 1200'). allCategories: the layer's own list when a frame narrowed it.
+    const one = !graduated && cats.length === 1 && (l.allCategories || l.categories || []).length === 1;
+    const numeric = !graduated && cats.length > 1 && cats.every((c) => c.label == null && c.value != null && /^-?\d+(\.\d+)?$/.test(String(c.value)));
+    const items = one ? [[l.name || "map layer", cats[0].color, o]]
+      : cats.length
+      ? cats.map((c) => [c.label ?? (c.value == null ? "(no value)" : numeric ? `${l.styleField} ${c.value}` : String(c.value)), c.color, o])
       : [[l.name || "map layer", l.color || "#e2a63c", o]];
     groups.push({ key: `map_${l.id ?? i}`, label: l.name || "Map layer", items, ...(graduated && cats.length ? { grade: true } : {}) });
   });

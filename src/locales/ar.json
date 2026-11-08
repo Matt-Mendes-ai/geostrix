@@ -9259,5 +9259,8 @@
   " (the file is 8-bit; choose it under \"Pixel values\" if that is wrong)": " (الملف بدقة 8 بت؛ اختر القيمة من \"قيم البكسل\" إن كان ذلك خاطئًا)",
   "8-bit values are what a picture shows (an orthophoto, a scanned map, a screenshot) or raw sensor counts, not surface reflectance: the result ranks pixels against each other in this file only, and is not comparable with the sensor's index from a reflectance product.": "قيم 8 بت هي ما تعرضه الصورة (صورة جوية مصححة، أو خريطة ممسوحة ضوئيًا، أو لقطة شاشة) أو أعداد خام من المستشعر، وليست انعكاسية السطح: النتيجة ترتب البكسلات بعضها مقابل بعض داخل هذا الملف فقط، ولا تقارن بمؤشر المستشعر المحسوب من منتج انعكاسية.",
   "8-bit values: a picture or raw counts, not surface reflectance.": "قيم 8 بت: صورة أو أعداد خام، وليست انعكاسية السطح.",
-  " Of those, {dark} had a band at 1 or 2 of 255 (near black): a ratio there is noise and would take over the colour scale.": " من بينها، {dark} كان فيها نطاق بقيمة 1 أو 2 من 255 (قريب من الأسود): النسبة هناك ضجيج وستطغى على مقياس الألوان."
+  " Of those, {dark} had a band at 1 or 2 of 255 (near black): a ratio there is noise and would take over the colour scale.": " من بينها، {dark} كان فيها نطاق بقيمة 1 أو 2 من 255 (قريب من الأسود): النسبة هناك ضجيج وستطغى على مقياس الألوان.",
+  "+ {n} more row(s) do not fit on the sheet: move the legend up or left, or edit it": "+ {n} صف(وف) إضافية لا تتسع لها الورقة: حرّك وسيلة الإيضاح إلى الأعلى أو اليسار، أو عدّلها",
+  " {a} of them has no survey or attitude and is drawn as an assumed vertical hole.": " {a} منها بلا مسح ولا اتجاه، ويُرسم ثقبًا رأسيًا مفترضًا.",
+  " {a} of them have no survey or attitude and are drawn as assumed vertical holes.": " {a} منها بلا مسح ولا اتجاه، وتُرسم ثقوبًا رأسية مفترضة."
 }

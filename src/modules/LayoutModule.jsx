@@ -45,6 +45,9 @@ import { projectCredits } from "../lib/credits.js"; // TASKS.csv #949
 import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1127 / #1128
 import { firstLegendGroups, rankLegendGroups, legendGroupCount } from "../lib/legendGroups.js"; // rank / count: #1482 // TASKS.csv #1224
 import { numericLayerLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #1482 — the RQD / recovery / SG / mag susc ramps
+import { frameTest, samplesInFrame, mapLayersInFrame } from "../lib/legendFrame.js"; // TASKS.csv #2134
+import { legendFit } from "../lib/legendFit.js"; // TASKS.csv #2134
+import { holeAttitudeAssumed } from "../lib/desurvey.js"; // TASKS.csv #2134 — the notice counts the assumed-vertical holes
 import { freeSpot, placeCollarTable } from "../lib/layoutPlace.js"; // TASKS.csv #1484 — new items into free space; #2135 the collar table
 import { roundScale } from "../lib/layoutGeometry.js"; // TASKS.csv #1486
 import { numericClips, numericLayerColorFn } from "../lib/numericClip.js"; // TASKS.csv #1482
@@ -611,7 +614,7 @@ export default function LayoutModule() {
     if (type === "legend") {
       // TASKS.csv #1224 — what the 3D view shows now, bound to the page's viewport if there is just one: a stock row on a printed figure says nothing true
       const only = elements.filter((el) => el.type === "viewport");
-      const { items } = legendFromView(viewerUiState || {}, { frameHoles: only.length === 1 ? holesInFrame(only[0], collars) : null }); // #1633
+      const { items } = legendFromView(viewerUiState || {}, { frameHoles: only.length === 1 ? holesInFrame(only[0], collars) : null, frame: only.length === 1 ? frameTest(only[0]) : null }); // #1633; frame: #2134
       // the whole view can run off the page: Load from view brings the rest. #1482 — samples and grades first, and a line says what was left out
       const ranked = rankLegendGroups(items), kept = firstLegendGroups(ranked), left = legendGroupCount(ranked) - legendGroupCount(kept);
       base.items = items.length ? (left > 0 ? [...kept, [tr("+ {n} more group(s): Load from view adds them", { n: left }), null, { heading: true }]] : kept) : [["Item", "#55606e"]];
@@ -909,7 +912,21 @@ export default function LayoutModule() {
   // ACTUAL litho vocabulary in `layers.litho` (a theme only stores which units are hidden, not the
   // full unit list, since that list can grow after the theme was saved) to build the item list.
   // TASKS.csv #1633 — frameHoles (holesInFrame of the bound frame, or null): only the holes the frame shows give categories
-  const legendFromView = (theme, { frameHoles = null } = {}) => {
+  const legendFromView = (theme, { frameHoles = null, frame = null } = {}) => {
+    // TASKS.csv #2134 — the frame filters the surface samples and the map layers too: none inside drops the group, and the media /
+    // classes are those found inside
+    const sampleGroup = (() => {
+      if (!surfaceSampleLegend || !frame) return surfaceSampleLegend;
+      const inside = samplesInFrame(frame, surfaceSamples);
+      if (!inside.length) return null;
+      if (surfaceSampleLegend.key !== "surface_samples" || surfaceSampleLegend.items.length === 1) return surfaceSampleLegend;
+      const media = new Set(inside.map((s) => s.medium || "(no medium)"));
+      return { ...surfaceSampleLegend, items: surfaceSampleLegend.items.filter(([l]) => media.has(l)) };
+    })();
+    const shownMapLayers = mapLayersInFrame(frame, (mapLayers || []).map((l) => ({ ...l, allCategories: l.categories })));
+    // #2134 — the assay classes and numeric logs (RQD, SG, mag susc…) from the holes the frame shows: they were listed from every hole
+    const inFrame = (rows) => (frameHoles && Array.isArray(rows) ? rows.filter((r) => frameHoles.has(r.hole_id)) : rows);
+    const frameLayers = frameHoles ? Object.fromEntries(Object.entries(layers || {}).map(([k, v]) => [k, inFrame(v)])) : layers;
     // TASKS.csv #725 — everything the bound view draws, not only lithology: every categorical layer the theme shows
     // (minus its hidden categories and holes, with its label / colour overrides), its assay grade classes, and the
     // visible block models (classes, or a ramp) — the same builders as the 3D view's figure overlay.
@@ -919,12 +936,12 @@ export default function LayoutModule() {
     const layerVisible = { litho: true, ...(theme.layerVisible || {}) }; // a theme saved before a layer existed: lithology on, the rest off
     const groups = [
       ...categoryLegendGroups({ keys: LEGEND_CATEGORY_KEYS, layers, layerVisible, placed: new Set((collars || []).map((c) => String(c.hole_id))) /* #1867 */, hidden: theme.categoryFilter || {}, visibleHoles: frameHoles ? { ...(theme.visibleHoles || {}), ...Object.fromEntries(collars.filter((c) => !frameHoles.has(c.hole_id)).map((c) => [c.hole_id, false])) } : theme.visibleHoles || {}, singleColor: Object.fromEntries(LEGEND_CATEGORY_KEYS.filter((k) => theme.layerStyles?.[k]?.color).map((k) => [k, theme.layerStyles[k].color])), labelFor, colorFor }), // #1288
-      ...assayLegendGroups({ assays, assayElements, assayVisible: theme.assayVisible !== false, assayDisplayElements: theme.assayDisplayElements || (theme.assayDisplayElement ? [theme.assayDisplayElement] : []), assayStyle: theme.assayStyle || {} }),
+      ...assayLegendGroups({ assays: inFrame(assays), assayElements, assayVisible: theme.assayVisible !== false, assayDisplayElements: theme.assayDisplayElements || (theme.assayDisplayElement ? [theme.assayDisplayElement] : []), assayStyle: theme.assayStyle || {} }),
       ...voxelLegendGroups(voxelModels), ...rasterLegendGroups(rasters), // #1236
       // TASKS.csv #1482 — the numeric logs the view colours its holes by (RQD, recovery, SG, mag susc), as the 3D legend shows them
-      ...(() => { const sym = theme.numericSymbology || viewerUiState?.numericSymbology || {}, clips = numericClips(layers); return numericLayerLegendGroups({ layers, layerVisible, colorOf: numericLayerColorFn(sym, clips), symbology: sym, clips }); })(),
+      ...(() => { const sym = theme.numericSymbology || viewerUiState?.numericSymbology || {}, clips = numericClips(layers); return numericLayerLegendGroups({ layers: frameLayers, layerVisible, colorOf: numericLayerColorFn(sym, clips), symbology: sym, clips }); })(), // frameLayers: #2134 (the clips stay the whole project's, as the 3D view colours)
       // TASKS.csv #948 — the Surface Geology map: surface samples as the 3D view colours them, map layers, boundaries
-      ...(surfaceSampleLegend ? [surfaceSampleLegend] : []), ...(outcropLegendGroup({ surfaceStructures }) ? [outcropLegendGroup({ surfaceStructures })] : []) /* #1437 */, ...mapLayerLegendGroups(mapLayers), ...boundaryLegendGroups(boundaries),
+      ...(sampleGroup ? [sampleGroup] : []), ...(outcropLegendGroup({ surfaceStructures }) ? [outcropLegendGroup({ surfaceStructures })] : []) /* #1437 */, ...mapLayerLegendGroups(shownMapLayers), ...boundaryLegendGroups(boundaries),
     ];
     // #1633 — a long group keeps its most frequent entries and says how many it left out
     const items = legendGroupsToItems(capLegendGroups(groups, 12, (n) => tr("+ {n} more (fewer intervals; edit the legend to add them)", { n })));
@@ -954,11 +971,17 @@ export default function LayoutModule() {
     const theme = themes.find((t) => t.id === vp.themeId) || (!vp.themeId && vp.viewState ? { ...vp.viewState, name: tr("the current view") } : null);
     if (!theme) { setSyncNotice(tr("This viewport's saved theme could no longer be found (it may have been renamed or deleted) — rebind the viewport to a theme in its own panel, or resave that theme, then sync again.")); return; }
     const frameHoles = holesInFrame(vp, collars); // #1633 — a top-down true-scale frame: what it shows; else the whole view
-    const { groups, items } = legendFromView(theme, { frameHoles });
+    const { groups, items } = legendFromView(theme, { frameHoles, frame: frameTest(vp) }); // frame: #2134
     if (!items.length) { setElements((els) => els.map((el) => el.id === legendId ? { ...el, items: [] } : el)); setSyncNotice(tr("Nothing that view shows has a legend: no visible category layer, assay classes, block model, surface samples, map layer or boundary.")); return; }
     setElements((els) => els.map((el) => el.id === legendId ? { ...el, items } : el));
     setSyncNotice(tr(groups.length === 1 ? "Loaded {n} legend group from \"{name}\"." : "Loaded {n} legend groups from \"{name}\".", { n: groups.length, name: theme.name })
-      + (frameHoles ? tr(" Categories from the {h} of {all} holes inside the frame.", { h: frameHoles.size, all: collars.length }) : ""));
+      + (frameHoles ? tr(" Categories from the {h} of {all} holes inside the frame.", { h: frameHoles.size, all: collars.length }) : "")
+      + (() => { // #2134 — the collars with no survey or attitude are drawn as assumed vertical holes (#2014): say how many of those counted
+        if (!frameHoles?.size) return "";
+        const surveyed = new Set((survey || []).map((s) => s.hole_id));
+        const a = collars.filter((c) => frameHoles.has(c.hole_id) && holeAttitudeAssumed(c, surveyed.has(c.hole_id) ? [{}] : [])).length;
+        return a ? tr(a === 1 ? " {a} of them has no survey or attitude and is drawn as an assumed vertical hole." : " {a} of them have no survey or attitude and are drawn as assumed vertical holes.", { a }) : "";
+      })());
   };
 
   // TASKS.csv #78 — drag-and-drop as a consistent import method. Layout's own "asset" is an image
@@ -2054,7 +2077,7 @@ function crsText(epsg) {
 }
 function textContextFor(els, project, page, index, count, collars = null, credits = "") {
   const today = new Date(), p2 = (v) => String(v).padStart(2, "0"); // #1489 — ISO: '11/2/2026' read as 11 February to many readers
-  return { project: project?.name || "", date: `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`, page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg), credits, collars, els, pageH: pagePx(pageFormatOf(page)).h }; // collars: the #911 table; els: the #912 overview; pageH: #1480
+  return { project: project?.name || "", date: `${today.getFullYear()}-${p2(today.getMonth() + 1)}-${p2(today.getDate())}`, page: String(index + 1), pages: String(count), pagename: page?.name || "", scale: pageScaleText(els), crs: crsText(project?.epsg), credits, collars, els, pageH: pagePx(pageFormatOf(page)).h, pageW: pagePx(pageFormatOf(page)).w /* #2134 */ }; // collars: the #911 table; els: the #912 overview; pageH: #1480
 }
 const fillText = (text, ctx) => (ctx && typeof text === "string" && text.includes("{") ? text.replace(PLACEHOLDER, (m, k) => (ctx[k] != null ? ctx[k] : m)) : text);
 
@@ -2223,20 +2246,23 @@ function LayoutElement({ el, selected, multiSelected, onDown, print = false, onR
   }
   // TASKS.csv #1480 / #1637 — a long bound legend (a strip log's or a section's 40+ rows) ran past the page foot: it now flows into as many
   // columns (up to 4) as it needs to end above the sheet's bottom margin, from the rows' printed heights
-  const legendCols = el.type === "legend" ? (() => {
+  // TASKS.csv #2134 — held to the room right of the legend too; rows past the sheet are left out and counted
+  const legendLay = el.type === "legend" ? (() => {
     const row = (it) => (it?.[2]?.heading ? printPx(printPt.small) + 8 : it?.[2]?.note ? printPx(printPt.caption) + 4 : it?.[2]?.ramp ? 44 : Math.max(17, printPx(printPt.small) + 5));
-    const est = 40 + (el.items || []).reduce((t, it) => t + row(it), 0), room = (ctx?.pageH || 794) - (Number(el.y) || 0) - 30;
-    return room > 80 ? Math.min(4, Math.max(1, Math.ceil(est / room))) : 1;
-  })() : 1;
+    const labelW = (it) => (it?.[2]?.ramp ? 152 : String(it?.[0] ?? "").length * printPx(printPt.small) * 0.55);
+    return legendFit(el.items || [], { x: Number(el.x) || 0, y: Number(el.y) || 0, pageW: ctx?.pageW || 1123, pageH: ctx?.pageH || 794, rowH: row, labelW });
+  })() : { cols: 1, shown: 0, left: 0 };
+  const legendCols = legendLay.cols;
+  const legendItems = el.type === "legend" ? (legendLay.left ? [...(el.items || []).slice(0, legendLay.shown), [tr("+ {n} more row(s) do not fit on the sheet: move the legend up or left, or edit it", { n: legendLay.left }), null, { note: true }]] : el.items || []) : [];
   if (el.type === "legend") return (
     <div style={{ ...wrap, background: "#fff", border: frameBorder(el, "1px solid #ccc"), padding: "8px 12px", minWidth: 150 * legendCols, width: legendCols > 1 ? undefined : el.w || undefined, boxSizing: "border-box" }} onMouseDown={onDown} data-el-id={el.id} {...kb}>
       {handles}
       <div style={{ fontSize: printPx(printPt.body), fontWeight: 700, color: INK, marginBottom: 6, fontFamily: "'Exo 2', system-ui, sans-serif" }}>{tr("Legend")}</div>
       <div style={legendCols > 1 ? { columnCount: legendCols, columnGap: 18 } : undefined}>
-      {el.items.map(([name, color, opt], i) => opt?.heading ? ( /* TASKS.csv #725 — a group heading */
+      {legendItems.map(([name, color, opt], i) => opt?.heading ? ( /* TASKS.csv #725 — a group heading; legendItems: #2134 */
         <div key={i} style={{ fontSize: printPx(printPt.small), fontWeight: 700, color: INK, margin: i ? "6px 0 2px" : "0 0 2px", breakAfter: "avoid" /* #1480 — a heading never ends a column */ }}>{name}</div>
       ) : opt?.note ? ( /* TASKS.csv #1633 — what a capped group left out */
-        <div key={i} style={{ fontSize: printPx(printPt.caption), fontStyle: "italic", color: "#55606e", margin: "0 0 3px 28px" }}>{name}</div>
+        <div key={i} style={{ fontSize: printPx(printPt.caption), fontStyle: "italic", color: "#55606e", margin: "0 0 3px 28px", maxWidth: 200 /* #2134 — a long note wraps, it does not widen the legend past the sheet */ }}>{name}</div>
       ) : opt?.ramp ? ( /* a block model's continuous scale */
         <div key={i} style={{ marginBottom: 4, breakInside: "avoid" }}>
           <div style={{ fontSize: printPx(printPt.small), fontWeight: 700, color: INK, marginTop: i ? 6 : 0 }}>{name}{opt.ramp.log ? tr(" · log scale") : ""}</div>

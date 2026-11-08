@@ -9259,5 +9259,8 @@
   " (the file is 8-bit; choose it under \"Pixel values\" if that is wrong)": " (o arquivo é de 8 bits; escolha em \"Valores de pixel\" se estiver errado)",
   "8-bit values are what a picture shows (an orthophoto, a scanned map, a screenshot) or raw sensor counts, not surface reflectance: the result ranks pixels against each other in this file only, and is not comparable with the sensor's index from a reflectance product.": "Valores de 8 bits são o que uma imagem mostra (uma ortofoto, um mapa digitalizado, uma captura de tela) ou contagens brutas do sensor, não reflectância de superfície: o resultado ordena os pixels entre si apenas neste arquivo e não é comparável ao índice do sensor calculado a partir de um produto de reflectância.",
   "8-bit values: a picture or raw counts, not surface reflectance.": "Valores de 8 bits: uma imagem ou contagens brutas, não reflectância de superfície.",
-  " Of those, {dark} had a band at 1 or 2 of 255 (near black): a ratio there is noise and would take over the colour scale.": " Desses, {dark} tinham uma banda em 1 ou 2 de 255 (quase preto): ali uma razão é ruído e dominaria a escala de cores."
+  " Of those, {dark} had a band at 1 or 2 of 255 (near black): a ratio there is noise and would take over the colour scale.": " Desses, {dark} tinham uma banda em 1 ou 2 de 255 (quase preto): ali uma razão é ruído e dominaria a escala de cores.",
+  "+ {n} more row(s) do not fit on the sheet: move the legend up or left, or edit it": "+ {n} linha(s) a mais não cabem na folha: mova a legenda para cima ou para a esquerda, ou edite-a",
+  " {a} of them has no survey or attitude and is drawn as an assumed vertical hole.": " {a} deles não tem levantamento nem atitude e é desenhado como um furo vertical presumido.",
+  " {a} of them have no survey or attitude and are drawn as assumed vertical holes.": " {a} deles não têm levantamento nem atitude e são desenhados como furos verticais presumidos."
 }
