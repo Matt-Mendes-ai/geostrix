@@ -9240,5 +9240,7 @@
   "{e} slab(s) with no hole or model cell are skipped.": "{e} tranche(s) sans sondage ni cellule de modèle sont ignorées.",
   "{e} slab(s) with no hole or model cell were skipped.": "{e} tranche(s) sans sondage ni cellule de modèle ont été ignorées.",
   "from below": "vu de dessous",
-  "({n} of {m} classes)": "({n} classes sur {m})"
+  "({n} of {m} classes)": "({n} classes sur {m})",
+  "No terrain: the collar is placed where this line meets the ground interpolated between the nearest collars, {h} m from the target in plan. Check that elevation before using it, or load a terrain.": "Pas de terrain : le collet est placé là où cette ligne coupe le sol interpolé entre les collets les plus proches, à {h} m de la cible en plan. Vérifiez cette altitude avant de l'utiliser, ou chargez un terrain.",
+  "No terrain is loaded: the Elev is the ground interpolated between the nearest collars (the flat plane through the data would have given {p} m). Check it before using it, or load a terrain.": "Aucun terrain chargé : l'Élév est le sol interpolé entre les collets les plus proches (le plan horizontal par les données aurait donné {p} m). Vérifiez-la avant de l'utiliser, ou chargez un terrain."
 }

@@ -10,6 +10,7 @@ import { solveOrientationToTarget, plannedTrace, solveCollarForTarget, isShallow
 import { azimuthToGridOffset, loadIgrf, wrap360 } from "../lib/azimuthRef.js"; // TASKS.csv #1729
 import { planGeometryKey, drilledTraceIndex, isTargetModel, targetBandIndex, planChecks, COLLAR_ZONE_M } from "../lib/plannedHoleChecks.js"; // TASKS.csv #1039; COLLAR_ZONE_M: #1454
 import { piercePoints as surfacePierces } from "../lib/piercePoints.js"; // TASKS.csv #1009
+import { collarGround } from "../lib/pitShell.js"; // TASKS.csv #2100 — the ground between the collars when there is no terrain
 
 const PlannedHoleTargeting = lazyModal(() => import("./PlannedHoleTargeting.jsx")); // TASKS.csv #119
 // the same one-line wrapper ViewerModule keeps (see its plannedHoleTrace comment): holePlanning.plannedTrace builds every plan's trace
@@ -57,6 +58,10 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
   // TASKS.csv #1835 (review #1646, Kodiak) — where the collar's Elev came from, kept on the hole and written to the rig sheet
   // (z_source): a picked Elev is whatever the click hit (the top of an IP cell, there), and it reached the CSV / GPX unmarked
   const [zSource, setZSource] = useState("typed");
+  // TASKS.csv #2100 (review #2013, Woodjam) — no terrain: the ground interpolated between the nearest collars (as Undrilled zones, the pit
+  // and the dump already use, #1557 / #1616), before a flat plane: Woodjam's pick read 967 m where the collars around stand at 1,001-1,019 m
+  const collarZ = useMemo(() => (!groundAt && collars?.length ? collarGround(collars) : null), [groundAt, collars]);
+  const ground = groundAt || collarZ;
   const [collarNote, setCollarNote] = useState(null);
   // TASKS.csv #1729 (review #1645, Copley) — which north the typed azimuth is from. Stored holes stay grid (every check and the rig
   // sheet read grid); a true or magnetic entry is converted at the collar and kept beside it. Copley designs in true north: typed as
@@ -81,8 +86,9 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
   useEffect(() => {
     if (!pickedPoint || pickedPoint === lastAppliedPick.current) return;
     lastAppliedPick.current = pickedPoint;
-    setDraft((p) => ({ ...p, x: Math.round(pickedPoint.x * 10) / 10, y: Math.round(pickedPoint.y * 10) / 10, z: Math.round(pickedPoint.z * 10) / 10 }));
-    setZSource(`picked on the view (${pickedPoint.on || "a flat plane through the data"})`); setCollarNote(null); // #1835
+    const zc = !pickedPoint.on && collarZ ? collarZ(pickedPoint.x, pickedPoint.y) : NaN; // #2100 — the click hit nothing
+    setDraft((p) => ({ ...p, x: Math.round(pickedPoint.x * 10) / 10, y: Math.round(pickedPoint.y * 10) / 10, z: Math.round((Number.isFinite(zc) ? zc : pickedPoint.z) * 10) / 10 }));
+    setZSource(Number.isFinite(zc) ? "the ground interpolated between the nearest collars (no terrain)" : `picked on the view (${pickedPoint.on || "a flat plane through the data"})`); setCollarNote(null); // #1835
   }, [pickedPoint]);
   const applyFromCollar = (holeId) => {
     setFromCollarId(holeId);
@@ -103,15 +109,18 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
   };
   // TASKS.csv #1835 — the other way round: keep the dip and azimuth, move the collar to where that line through the target meets
   // the terrain (or the typed Elev when no terrain is loaded)
-  const collarReady = targetReady && Number(draft.dip) < 0 && !isNaN(Number(draft.azimuth)) && !!azOffset && (!!groundAt || (draft.z !== "" && !isNaN(Number(draft.z))));
+  const collarReady = targetReady && Number(draft.dip) < 0 && !isNaN(Number(draft.azimuth)) && !!azOffset && (!!ground || (draft.z !== "" && !isNaN(Number(draft.z)))); // ground: #2100
   const solveCollar = () => {
     if (!collarReady) return;
     const az = wrap360(Number(draft.azimuth) + azOffset.offset); // grid
-    const r = solveCollarForTarget({ x: Number(target.x), y: Number(target.y), z: Number(target.z) }, az, Number(draft.dip), { groundAt: groundAt || null, surfaceZ: draft.z === "" ? NaN : Number(draft.z) });
-    if (!r) { setCollarNote({ warn: true, text: groundAt ? tr("No collar: a line through the target at this dip does not reach the terrain (the target may be above the ground, or the line leaves the terrain).") : tr("No collar: with no terrain the typed Elev stands for the ground, and it must be above the target for a downward hole.") }); return; }
+    const r = solveCollarForTarget({ x: Number(target.x), y: Number(target.y), z: Number(target.z) }, az, Number(draft.dip), { groundAt: ground || null, surfaceZ: draft.z === "" ? NaN : Number(draft.z) }); // ground: #2100 — the collars' ground without a terrain
+    if (!r) { setCollarNote({ warn: true, text: ground ? tr("No collar: a line through the target at this dip does not reach the terrain (the target may be above the ground, or the line leaves the terrain).") : tr("No collar: with no terrain the typed Elev stands for the ground, and it must be above the target for a downward hole.") }); return; }
     setDraft((p) => ({ ...p, x: Math.round(r.x * 10) / 10, y: Math.round(r.y * 10) / 10, z: Math.round(r.z * 10) / 10, length: Math.round((r.length + PAST_TARGET_M) * 10) / 10 }));
-    setZSource(r.source === "terrain" ? "solved on the terrain" : "solved at the typed elevation");
-    setCollarNote({ warn: r.source !== "terrain", text: r.source === "terrain"
+    const onCollars = r.source === "terrain" && !groundAt; // #2100 — 'terrain' from the solver means the ground function it was given
+    setZSource(onCollars ? "solved on the ground interpolated between the collars (no terrain)" : r.source === "terrain" ? "solved on the terrain" : "solved at the typed elevation");
+    setCollarNote({ warn: r.source !== "terrain" || onCollars, text: onCollars
+      ? tr("No terrain: the collar is placed where this line meets the ground interpolated between the nearest collars, {h} m from the target in plan. Check that elevation before using it, or load a terrain.", { h: Math.round(r.horizontal) })
+      : r.source === "terrain"
       ? tr("Collar placed where this line meets the terrain, {h} m from the target in plan; the length runs {m} m past the target.", { h: Math.round(r.horizontal), m: PAST_TARGET_M })
       : tr("No terrain: the collar is placed at the typed Elev {z} m, {h} m from the target in plan. Check that elevation against the ground before using it.", { z: Math.round(r.z * 10) / 10, h: Math.round(r.horizontal) }) });
     setUpward(false);
@@ -170,7 +179,7 @@ export function PlannedHoleAddForm({ onAdd, pickMode, onStartPick, pickedPoint, 
         <button onClick={submit} disabled={!canAdd} style={{ ...miniBtn, flex: 1, background: canAdd ? "var(--color-selected-bg)" : "var(--color-bg-subtle)", borderColor: canAdd ? "var(--color-selected-border)" : "var(--color-border-light)", opacity: canAdd ? 1 : 0.5 }}>{tr("+ Add hole")}</button>
       </div>
       {/* TASKS.csv #1182 — with no terrain a click on empty space gets its Elev from a flat plane at the data's origin, and that value reached the rig sheet's CSV and GPX unmarked */}
-      {noTerrain && pickedPoint && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{tr("No terrain is loaded, so a picked Elev is whatever the click hit, or a flat plane through the data. Check it before using it, or load a terrain.")}</div>}
+      {noTerrain && pickedPoint && <div role="note" style={{ fontSize: "var(--font-size-xs)", color: "var(--color-warn-text)", marginTop: 4, lineHeight: 1.4 }}>{zSource.startsWith("the ground interpolated") ? tr("No terrain is loaded: the Elev is the ground interpolated between the nearest collars (the flat plane through the data would have given {p} m). Check it before using it, or load a terrain.", { p: Math.round(pickedPoint.z) }) : tr("No terrain is loaded, so a picked Elev is whatever the click hit, or a flat plane through the data. Check it before using it, or load a terrain.")}</div>}{/* #2100 */}
       <div style={{ borderTop: "1px solid var(--color-border)", marginTop: 7, paddingTop: 7 }}>
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 4 }}>{tr("Solve azimuth/dip/length to hit a target from the E/N/Elev above (the length runs {m} m past it; the target is kept on the hole)", { m: PAST_TARGET_M })}</div>
         <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>

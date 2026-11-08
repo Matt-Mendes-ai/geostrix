@@ -9240,5 +9240,7 @@
   "{e} slab(s) with no hole or model cell are skipped.": "{e} faixa(s) sem furo nem célula de modelo são omitidas.",
   "{e} slab(s) with no hole or model cell were skipped.": "{e} faixa(s) sem furo nem célula de modelo foram omitidas.",
   "from below": "de baixo",
-  "({n} of {m} classes)": "({n} de {m} classes)"
+  "({n} of {m} classes)": "({n} de {m} classes)",
+  "No terrain: the collar is placed where this line meets the ground interpolated between the nearest collars, {h} m from the target in plan. Check that elevation before using it, or load a terrain.": "Sem terreno: a boca fica onde esta linha corta o terreno interpolado entre as bocas mais próximas, a {h} m do alvo em planta. Confira essa elevação antes de usá-la, ou carregue um terreno.",
+  "No terrain is loaded: the Elev is the ground interpolated between the nearest collars (the flat plane through the data would have given {p} m). Check it before using it, or load a terrain.": "Nenhum terreno carregado: a Elev é o terreno interpolado entre as bocas mais próximas (o plano horizontal pelos dados teria dado {p} m). Confira antes de usar, ou carregue um terreno."
 }

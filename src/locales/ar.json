@@ -9240,5 +9240,7 @@
   "{e} slab(s) with no hole or model cell are skipped.": "تُتخطى {e} شريحة بلا ثقب ولا خلية نموذج.",
   "{e} slab(s) with no hole or model cell were skipped.": "تم تخطي {e} شريحة بلا ثقب ولا خلية نموذج.",
   "from below": "من الأسفل",
-  "({n} of {m} classes)": "({n} من {m} فئات)"
+  "({n} of {m} classes)": "({n} من {m} فئات)",
+  "No terrain: the collar is placed where this line meets the ground interpolated between the nearest collars, {h} m from the target in plan. Check that elevation before using it, or load a terrain.": "لا تضاريس: توضع الفوهة حيث يقطع هذا الخط الأرض المستوفاة بين أقرب الفوهات، على بعد {h} م من الهدف في المسقط. تحقق من هذا الارتفاع قبل استخدامه، أو حمّل تضاريس.",
+  "No terrain is loaded: the Elev is the ground interpolated between the nearest collars (the flat plane through the data would have given {p} m). Check it before using it, or load a terrain.": "لم تُحمّل تضاريس: الارتفاع هو الأرض المستوفاة بين أقرب الفوهات (كان المستوى الأفقي عبر البيانات سيعطي {p} م). تحقق منه قبل استخدامه، أو حمّل تضاريس."
 }
