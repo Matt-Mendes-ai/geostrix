@@ -617,6 +617,9 @@ export default function LayoutModule() {
     if (type === "rect") { base.w = 180; base.h = 110; base.stroke = "#1a2028"; base.strokeWidth = 2; base.fill = "#ffffff"; base.fillOpacity = 0; }
     if (type === "arrow") { base.length = 140; base.angle = 0; base.stroke = "#1a2028"; base.strokeWidth = 2.5; }
     if (type === "callout") { base.text = "Note"; base.w = 180; base.fill = "#fff9e0"; base.stroke = "#c9a227"; }
+    // TASKS.csv #1640 (review #1497, Lawyers) — the shapes too go into the page's free space (#1484 placed the views, text, north arrow and
+    // legend): a rectangle, an arrow and a callout all landed at (100, 100), on each other and on the plan
+    if (type === "rect" || type === "arrow" || type === "callout") Object.assign(base, freeSpot(elements, type === "arrow" ? base.length : base.w, type === "rect" ? base.h : type === "arrow" ? 30 : 60, A4));
     // TASKS.csv #911 — a drillhole collar table, live from the project's collars (static tables come from Best intercepts)
     if (type === "drillplan") { // TASKS.csv #1639 — every hole at a round scale
       Object.assign(base, { x: 60, y: 80, w: Math.min(760, A4.w - 120), h: Math.min(480, A4.h - 180), labels: "all", fontPt: 7, frameWidth: 1 });
