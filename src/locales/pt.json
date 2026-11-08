@@ -9263,5 +9263,11 @@
   "+ {n} more row(s) do not fit on the sheet: move the legend up or left, or edit it": "+ {n} linha(s) a mais não cabem na folha: mova a legenda para cima ou para a esquerda, ou edite-a",
   " {a} of them has no survey or attitude and is drawn as an assumed vertical hole.": " {a} deles não tem levantamento nem atitude e é desenhado como um furo vertical presumido.",
   " {a} of them have no survey or attitude and are drawn as assumed vertical holes.": " {a} deles não têm levantamento nem atitude e são desenhados como furos verticais presumidos.",
-  "Read as a space-separated table ({n} columns).": "Lido como tabela separada por espaços ({n} colunas)."
+  "Read as a space-separated table ({n} columns).": "Lido como tabela separada por espaços ({n} colunas).",
+  "Qualifiers from the flag columns: {list} (the values kept as the file has them).": "Qualificadores das colunas de sinalização: {list} (os valores mantidos como estão no arquivo).",
+  "{symbol} {n} below detection": "{symbol} {n} abaixo do limite de detecção",
+  "{symbol} {n} over range": "{symbol} {n} acima da faixa",
+  "Below detection from the flag columns: {list} (the values kept as the file has them).": "Abaixo do limite de detecção pelas colunas de sinalização: {list} (os valores mantidos como estão no arquivo).",
+  "1 of them holds a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.": "1 delas tem um valor abaixo do limite de detecção ('<'), plotado na metade do limite ou no valor que o arquivo de origem guardou.",
+  "{n} of them hold a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.": "{n} delas têm um valor abaixo do limite de detecção ('<'), plotado na metade do limite ou no valor que o arquivo de origem guardou."
 }

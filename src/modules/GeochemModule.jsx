@@ -76,6 +76,7 @@ import { methodColumnFor, methodsIn, partialDigestionFor } from "../lib/digestio
 import { axisOf, xyDiagram } from "../lib/geochemXY.js"; // TASKS.csv #1678
 import { numericSourceChoices } from "../lib/numericSources.js"; // TASKS.csv #1678
 import { requestProjectCrs } from "../lib/projectCrsRequest.js"; // TASKS.csv #1445
+import { flagColumns, flagQualifier, censoredSamples } from "../lib/assayFlags.js"; // TASKS.csv #2018
 
 const KEY_MAX = 16; // TASKS.csv #1519 — the on-screen colour key's entries
 
@@ -245,6 +246,8 @@ export default function GeochemModule() {
   const carbonateNote = VOLCANIC_DIAGRAMS.includes(diagramId) && carbShare != null && carbShare > 1 / 3 ? tr("{pct} % of the samples hold 10 % Ca or more (carbonate rock): this diagram assumes a volcanic protolith, so read it with care here.", { pct: Math.round(carbShare * 100) }) : "";
   // #1519 — how many samples the diagram can place: computed once per diagram / sample set, not on every render (it projected
   // all 83,670 samples again in the caption and the export furniture)
+  // TASKS.csv #2018 — the half-detection sentence counts the plotted samples that hold a '<' value for the diagram's elements
+  const censoredCount = useMemo(() => censoredSamples(plotted, diagram.spider ? diagram.order : diagram.requires), [plotted, diagram]);
   const plottedCount = useMemo(() => (diagram.spider ? plotted.filter((a) => reeProfile(a, elementUnits, diagram.order, diagram.norm).some((p) => p.value != null)).length : plotted.filter((a) => diagram.project(a, elementUnits)).length), [diagram, plotted, elementUnits]);
   const availableSymbols = new Set(assayElements.map((e) => e.symbol));
   const missingForDiagram = diagram.requires.filter((s) => !availableSymbols.has(s));
@@ -521,6 +524,9 @@ export default function GeochemModule() {
       blankBdl.set(sym, (blankBdl.get(sym) || 0) + 1);
       return read(`<${L.limit}`, sym, header);
     };
+    // TASKS.csv #2018 — a '<el>_flag' column beside an element (LDL / UDL) gives its rows their qualifier; the value is kept as the file has it
+    const flagCols = format === "wide" ? flagColumns(modal.headers || Object.keys(allRows[0] || {}), chosen) : new Map();
+    const flagged = new Map(); // symbol -> { lo, hi }
     if (format === "wide") {
       // TASKS.csv #583 — built in chunks that yield to the UI (190,000 rows x 12 elements was a 1.45 s freeze)
       if (allRows.length > 20000) setAssayModal((m) => (m ? { ...m, busy: true } : m));
@@ -547,6 +553,10 @@ export default function GeochemModule() {
             }
           }
           if (v == null && anyResult && isBlankAssayCell(cell)) ({ v, q } = blankAsBdl(e.symbol, e.header) || { v, q });
+          if (v != null && !q && flagCols.has(e.symbol)) { // #2018
+            const fq = flagQualifier(r[flagCols.get(e.symbol)]);
+            if (fq) { q = fq; const f = flagged.get(e.symbol) || { lo: 0, hi: 0 }; if (fq === "<") f.lo++; else f.hi++; flagged.set(e.symbol, f); }
+          }
           if (v != null) {
             values[e.symbol] = v;
             if (q) quals[e.symbol] = q;
@@ -620,6 +630,7 @@ export default function GeochemModule() {
       skippedNoDepth ? tr("{n} row(s) skipped: no hole id, or a blank / non-numeric from or to depth.", { n: skippedNoDepth }) : null, // #508
       qcNoDepth.standard + qcNoDepth.blank + qcNoDepth.duplicate ? tr("{n} QC insert(s) without depths kept for QAQC ({s} standard(s), {b} blank(s), {d} duplicate(s)).", { n: qcNoDepth.standard + qcNoDepth.blank + qcNoDepth.duplicate, s: qcNoDepth.standard, b: qcNoDepth.blank, d: qcNoDepth.duplicate }) : null, // #1661
       overLimitFilled.size ? tr("Over-limit samples filled from the ore-grade column: {list}.", { list: [...overLimitFilled].map(([sym, n]) => { const e = chosen.find((x) => x.symbol === sym); return tr("{symbol} {n} (at {limit} {unit} in \"{header}\", from \"{source}\")", { symbol: sym, n, limit: e.overLimit.limit, unit: e.unit, header: e.header, source: e.overLimit.header }); }).join("; ") }) : null, // #600 / #542
+      flagged.size ? tr("Qualifiers from the flag columns: {list} (the values kept as the file has them).", { list: [...flagged].map(([sym, f]) => [f.lo ? tr("{symbol} {n} below detection", { symbol: sym, n: f.lo.toLocaleString() }) : null, f.hi ? tr("{symbol} {n} over range", { symbol: sym, n: f.hi.toLocaleString() }) : null].filter(Boolean).join(", ")).join("; ") }) : null, // #2018
       blankBdl.size ? tr("Empty cells read as below detection: {list}; stored at half the limit and flagged '<'.", { list: [...blankBdl].map(([sym, n]) => { const L = blankLimits.get(sym); return tr(L.basis === "lt" ? "{symbol} {n} at <{limit} (the lab's most common '<' limit in the file)" : "{symbol} {n} at <{limit} (the lowest value reported — no '<' limit in the file)", { symbol: sym, n, limit: L.limit }); }).join("; ") }) : null, // #502
       blankNoLimit.size ? tr("No detection limit could be found for {list} (no '<' values and no reported values), so their empty cells stay not assayed.", { list: [...blankNoLimit].join(", ") }) : null,
       // #510 — same-interval rows in ONE file are kept, not merged: usually field / lab duplicates
@@ -771,6 +782,7 @@ export default function GeochemModule() {
     const parentCol = allHeaders.find((h) => /^(parent|orig(inal)?)[\s_-]*(sample)?[\s_-]*(id|no|number|#)?$|^dup(licate)?[\s_-]*of$/i.test(String(h).trim())) || null;
     const attrCols = surfaceAttrColumns(allHeaders, allRows, { ...mapping, parent: parentCol }, elements).filter((h) => !modal.attrExclude?.includes(h)); // TASKS.csv #841; attrExclude: #846
     const qcRecords = []; // TASKS.csv #842 — rows the sample-type column marks as standard / blank / duplicate
+    const flagCols = flagColumns(allHeaders, chosen), flaggedLo = new Map(); // TASKS.csv #2018 — '<el>_flag' = LDL: below detection
     const mappedRows = allRows.map((r) => {
       const values = {};
       const bdl = []; // TASKS.csv #841 — elements reported below detection (stored at half the limit), for the censored share
@@ -778,6 +790,7 @@ export default function GeochemModule() {
       chosen.forEach((e) => {
         const c = readAssayCell(r[e.header]);
         if (c.qualifier === "<") bdl.push(e.symbol);
+        else if (c.value != null && !c.qualifier && flagCols.has(e.symbol) && flagQualifier(r[flagCols.get(e.symbol)]) === "<") { bdl.push(e.symbol); flaggedLo.set(e.symbol, (flaggedLo.get(e.symbol) || 0) + 1); } // #2018
         if (c.value == null && r.zeroReported?.includes(e.header)) nd.push(e.symbol);
         if (c.kind === "neg_bdl") negBdl++; else if (c.kind === "neg_missing") negMissing++;
         const ox = oxideOfHeader(e.header); // TASKS.csv #403
@@ -830,6 +843,7 @@ export default function GeochemModule() {
       converted.length ? `Converted ${converted.map((e) => `${e.symbol} ${e.unit} → ${existingUnit[e.symbol]}`).join(", ")} to match the unit already used in this project.` : null,
       negBdl ? `${negBdl} negative value(s) read as below detection.` : null,
       negMissing ? `${negMissing} value(s) ≤ -99 treated as not assayed (no-data codes).` : null,
+      flaggedLo.size ? tr("Below detection from the flag columns: {list} (the values kept as the file has them).", { list: [...flaggedLo].map(([sym, n]) => `${sym} ${n.toLocaleString()}`).join(", ") }) : null, // #2018
       overLimitFilled.size ? `Over-limit samples filled from the ore-grade column: ${[...overLimitFilled].map(([sym, n]) => `${sym} ${n}`).join(", ")}.` : null,
       qcRecords.length ? `${qcRecords.length} QC insert(s) (${["standard", "blank", "duplicate"].map((k) => `${qcRecords.filter((q) => q.kind === k).length} ${k}`).join(", ")}) kept apart for Surface QA/QC, not as samples.` : null,
       noXY > 0 ? tr("{n} row(s) with no easting / northing were left out (not QC inserts: their type was not standard, blank or duplicate).", { n: noXY }) : null, // #1664
@@ -917,7 +931,7 @@ export default function GeochemModule() {
       : [];
     const keyTitle = colorMode === "hole" ? "Hole" : colorMode === "lithology" ? "Lithology" : colorMode === "element" ? `${colorEl} (${colorRange?.log ? "log" : "linear"} scale)` : "";
     const pdx = partialDigestionFor(assayElements, diagram.requires); // #1518 — the warning travels with the exported figure
-    return geochemFurniture({ title: diagram.label, caption: (carbonateNote ? `${carbonateNote} ` : "") + (pdx.length ? `${diagram.caption} ${tr("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pdx.map(([s, m]) => `${s} ${m}`).join(", ") })}` : diagram.caption), plotted: n, total: assays.length, spider: !!diagram.spider, hidden: lithFilter ? assays.length - plotted.length : null, keyTitle, keyItems, date: new Date().toISOString().slice(0, 10) }); // #1017 — in lib, tested
+    return geochemFurniture({ title: diagram.label, caption: (carbonateNote ? `${carbonateNote} ` : "") + (pdx.length ? `${diagram.caption} ${tr("Partial digestion: {list}. A four-acid or aqua-regia digestion does not fully dissolve zircon and other resistant minerals, so Zr and Hf (and partly Nb, Ta, Y and the REE) read low and the fields shift. Immobile-element diagrams and classifiers need a total (fusion / lithium-borate) digestion.", { list: pdx.map(([s, m]) => `${s} ${m}`).join(", ") })}` : diagram.caption), plotted: n, total: assays.length, spider: !!diagram.spider, hidden: lithFilter ? assays.length - plotted.length : null, keyTitle, keyItems, date: new Date().toISOString().slice(0, 10), censored: censoredCount }); // #1017 — in lib, tested; censored: #2018
   };
   const exportPlotSVG = () => {
     const svg = svgRef.current;
@@ -1230,7 +1244,7 @@ export default function GeochemModule() {
           <div style={{ maxWidth: 680 }}>
             <GeochemPlot diagramId={diagramId} diagramOverride={diagramId === "xy" ? diagram : null} samples={plotted} elementUnits={elementUnits} colorBy={colorBy} svgRef={svgRef} altBoxes={alterationBoxes?.boxes || PROVISIONAL_ALTERATION_BOXES} describe={describeSample} /> {/* plotted / describe: #619 */}
             <div style={{ fontSize: "var(--font-size-xs)", color: "#65717e", marginTop: 8 }}>
-              {tr("{v}{v2} Below-detection values substituted at half the detection limit.", { v: diagram.spider
+              {((o) => o.v + o.v2 + (censoredCount ? " " + tr(censoredCount === 1 ? "1 of them holds a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored." : "{n} of them hold a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.", { n: censoredCount.toLocaleString() }) : "") /* #2018 — only when there are some */)({ v: diagram.spider
                 ? tr("{n} of {assays} samples have at least one plottable element.", { n: plottedCount, assays: sourceRows.length })
                 : tr("{n} of {assays} samples plotted.", { n: plottedCount, assays: sourceRows.length }) + (plottedCount === 0 && sourceRows.length && !missingForDiagram.length && diagram.requires.length ? " " + ((absent) => (absent.length ? tr("None of these samples has {list}.", { list: absent.join(", ") }) : tr("No sample has {requires} all together (they may come from different files, e.g. a lab assay and a pXRF reading).", { requires: diagram.requires.join(", ") })))(diagram.requires.filter((sym) => !sourceRows.some((r) => Number.isFinite(r.values?.[sym])))) : ""), /* plottedCount: #1519; the reason for none: #1679 (Copley TAS: Si only in the pXRF, Na only in the lab assays) */ v2: (lithFilter ? tr(" {v} hidden by the lithology filter.", { v: sourceRows.length - plotted.length }) : "") + (hasPxrf && plotSource !== "both" ? " " + (plotSource === "pxrf" ? tr("{k} lab assay(s) left out: pXRF readings only.", { k: (assays.length - sourceAll.length).toLocaleString() }) : tr("{k} pXRF reading(s) left out: lab assays only.", { k: (assays.length - sourceAll.length).toLocaleString() })) : "") + (qcInSource && !plotQc ? " " + tr("{k} QC insert(s) (standards, blanks, duplicates) left out.", { k: qcInSource.toLocaleString() }) : "") /* #2027 */ })}</div>
           </div>

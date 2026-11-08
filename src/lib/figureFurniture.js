@@ -135,10 +135,12 @@ export function tadpoleFurniture({ hole, alpha, picks, types = [], typeColor, li
 // Geochemical diagram: the diagram's own caption, how many samples were plotted of how many (and how many the lithology
 // filter hid), the below-detection rule, the colour key (more than 40 entries: 39 and a "+n more" line).
 // hidden: samples hidden by the lithology filter, or null when no filter is on
-export function geochemFurniture({ title, caption, plotted, total, spider, hidden = null, keyTitle = "", keyItems = [], date }) {
+// censored (#2018): how many plotted samples hold a below-detection value; null (not counted) keeps the general sentence
+export function geochemFurniture({ title, caption, plotted, total, spider, hidden = null, keyTitle = "", keyItems = [], date, censored = null }) {
+  const bdl = censored == null ? " Below-detection values substituted at half the detection limit." : censored > 0 ? ` ${censored} of them hold a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.` : "";
   return {
     title,
-    caption: [caption, `${plotted} of ${total} samples ${spider ? "have at least one plottable element" : "plotted"}${hidden != null ? `; ${hidden} hidden by the lithology filter` : ""}. Below-detection values substituted at half the detection limit.`, `GeoStrix · ${date}`],
+    caption: [caption, `${plotted} of ${total} samples ${spider ? "have at least one plottable element" : "plotted"}${hidden != null ? `; ${hidden} hidden by the lithology filter` : ""}.${bdl}`, `GeoStrix · ${date}`],
     keys: keyItems.length ? [{ title: keyTitle, items: keyItems.length > 40 ? [...keyItems.slice(0, 39), { label: `+${keyItems.length - 39} more`, color: "#ffffff" }] : keyItems }] : [],
   };
 }

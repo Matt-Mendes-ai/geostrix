@@ -9263,5 +9263,11 @@
   "+ {n} more row(s) do not fit on the sheet: move the legend up or left, or edit it": "+ {n} صف(وف) إضافية لا تتسع لها الورقة: حرّك وسيلة الإيضاح إلى الأعلى أو اليسار، أو عدّلها",
   " {a} of them has no survey or attitude and is drawn as an assumed vertical hole.": " {a} منها بلا مسح ولا اتجاه، ويُرسم ثقبًا رأسيًا مفترضًا.",
   " {a} of them have no survey or attitude and are drawn as assumed vertical holes.": " {a} منها بلا مسح ولا اتجاه، وتُرسم ثقوبًا رأسية مفترضة.",
-  "Read as a space-separated table ({n} columns).": "قُرئ جدولًا مفصولًا بالمسافات ({n} أعمدة)."
+  "Read as a space-separated table ({n} columns).": "قُرئ جدولًا مفصولًا بالمسافات ({n} أعمدة).",
+  "Qualifiers from the flag columns: {list} (the values kept as the file has them).": "المؤهِّلات من أعمدة العلامات: {list} (القيم محفوظة كما وردت في الملف).",
+  "{symbol} {n} below detection": "{symbol} {n} دون حد الكشف",
+  "{symbol} {n} over range": "{symbol} {n} فوق النطاق",
+  "Below detection from the flag columns: {list} (the values kept as the file has them).": "دون حد الكشف بحسب أعمدة العلامات: {list} (القيم محفوظة كما وردت في الملف).",
+  "1 of them holds a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.": "1 منها فيها قيمة دون حد الكشف ('<')، مرسومة عند نصف حد الكشف أو عند القيمة التي خزّنها الملف المصدر.",
+  "{n} of them hold a below-detection value ('<'), plotted at half the detection limit or at the value the source file stored.": "{n} منها فيها قيمة دون حد الكشف ('<')، مرسومة عند نصف حد الكشف أو عند القيمة التي خزّنها الملف المصدر."
 }
