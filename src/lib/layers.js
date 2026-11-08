@@ -160,6 +160,12 @@ const ROLE_PATTERNS = [
   [/^(dyk|dyke|dike|dk)$/, "dyke"],
   [/^(vein|vn|qv|qtzv|qzv)$/, "vein"],
   [/^(nr|nrcv|norec|nrec|lost|core ?loss|void|cavity)$/, "no recovery"],
+  // TASKS.csv #1688 (review #1645, Copley) — hydrothermal / igneous breccia codes, fine-grained dyke codes (IFGD: intermediate fine-grained
+  // dyke; MFGD, FFGD), two- and three-letter *DK codes, and the common intrusive-rock codes (DIOR, GRDR, QFP, MZ, GD ...) were all
+  // 'stratigraphic', so every breccia contact in COP-23-0001 became a top of the host volcanics. Whole codes only; suggestions.
+  [/^(hybx|hbrx|hydbx|hydbrx|igbx|ibx)$/, "breccia"],
+  [/^[a-z]{2}gd$|^[a-z]{1,2}dk$/, "dyke"],
+  [/^(dior|diorite|grdr|grd|granodiorite|qfp|fp|qp|qfpp|mz|mzn|qmz|monzonite|gd|porph|porphyry|tonl|tonalite|syen|syenite)$/, "dyke"],
   // TASKS.csv #1541 (review #1497, Lawyers) — whole WORDS inside a longer code too: 'Felsic Dyke', 'Mafic Dyke', 'I-Mafic' (intrusive),
   // 'No Recovery', 'Sand' were all 'stratigraphic' and offered in the Strat. stack. Still not a prefix of a word ('FAULTED LMST' and
   // 'veined' stay units) and breccia stays whole-code only ('Volcanic Breccia' is a unit). Suggestions; Modelling codes changes them.
