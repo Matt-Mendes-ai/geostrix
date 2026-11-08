@@ -14,9 +14,9 @@ import { computeMeshVolume } from "../../lib/volumetrics.js";
 import { MAX_BLOCKS, SUPPORT_COLORS, MAX_BLOCK_BUDGET, gridBlockCount, cellToFit, NUMERIC_CELL_DEFAULT } from "../../lib/estimationMeta.js"; // NUMERIC_CELL_DEFAULT: #1416; // budget: #625 // #552 — the estimator itself loads in the run functions
 import { compositeDownhole, rawSampleIntervals, capAudit, capAuditText } from "../../lib/geochem.js"; // capAudit: #533; rawSampleIntervals: #571
 import { excludeQAQC } from "../../lib/qaqc.js";
-import { errorNotice, notice, appendNotice } from "../../lib/notices.js";
+import { errorNotice, notice, appendNotice, infoNotice } from "../../lib/notices.js"; // infoNotice: #2047
 import { noCollarsNotice } from "../../lib/noCollars.js"; // TASKS.csv #1841 — what is waiting for collars
-import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, autoBodyParams, mergedRuns, splitIntervalForSampling, spatialClusters, terrainGroundAt } from "../../lib/viewer/geomath.js";
+import { filterBySearchSupport, anisoWarpPoint, invScales, anisoWarpDirection, medianCollarSpacing, autoHaloParams, autoBodyParams, bodyCellPastRuns, mergedRuns, splitIntervalForSampling, spatialClusters, terrainGroundAt } from "../../lib/viewer/geomath.js";
 import { intervalEndIndex, intervalStartIndex, upperContactOf, mergeTouchingIntervals, depthKey } from "../../lib/viewer/intervals.js";
 import { codedRuns, topsForCode, codeInfo, withPileOrder, effectiveCode, inTargetUnit, startsBelowNonUnit, startsBelowOverburden, overburdenBases } from "../../lib/modellingCodes.js"; // TASKS.csv #599; #1367; #1684
 import { samplesInsideShell } from "../../lib/shellSupport.js"; // TASKS.csv #1735
@@ -1683,6 +1683,15 @@ export function createModellingRuns(ctx, mcRef) {
         let coarsened = false;
         while (cellsAt(cell) > MAX_BLOCKS * 0.75) { cell *= 1.5; coarsened = true; }
         if (radius < 1.5 * cell) { radiusRaisedFrom = radius; radius = 1.5 * cell; } // #1683 — a search under a cell and a half finds nothing at most nodes
+        // TASKS.csv #2047 — say it before the run, not after two minutes: the coarsened cell is thicker than any logged run of the code
+        const past = isCode ? bodyCellPastRuns(cell, autoB, coarsened) : null;
+        if (past) {
+          const km = (a) => +((a.max - a.min) / 1000).toFixed(1);
+          const msg = tr("\"{label}\": to stay under the grid limit the {cs} m cells would be coarsened to {cell} m, larger than the thickest logged run of {code} ({max} m). A body cannot be thinner than a cell, so it cannot follow the logged runs: after a long run it will most likely not appear, or appear where {code} was not logged. The {code} runs span {w} × {h} km: model a smaller area first (Model settings › Model area with the holes of one cluster checked, a domain, or an intercept set).", { label, cs: +cs.toFixed(1), cell: +cell.toFixed(1), code: altValue, max: +past.maxRunM.toFixed(1), w: km(xr), h: km(yr) });
+          if (!window.confirm(`${msg}
+
+${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg); stop.stopped = true; throw stop; }
+        }
         if (isCode && autoB.fromRuns && !(searchSetting > 0) && !(cellSetting > 0)) setNotices((p) => [...p, notice("\"{label}\": auto settings from the {n} logged run(s) of {code} (median {med} m, {max} m at most): {cs} m cells and a {r} m search{v}. The body follows the logged intervals; a larger search joins holes, but what it puts between them is an assumption.", { label, n: autoB.runs, code: altValue, med: +autoB.medianRunM.toFixed(1), max: +autoB.maxRunM.toFixed(1), cs: +cs.toFixed(1), r: Math.round(autoB.radius), v: coarsened ? tr(" (coarsened to {cell} m cells to stay under the grid limit, the search raised to {r2} m)", { cell: +cell.toFixed(1), r2: Math.round(radius) }) : "" })]);
 
         // TASKS.csv #520 — the grid runs in a worker: progress + Cancel on the status bar, the window keeps painting
@@ -1770,7 +1779,7 @@ export function createModellingRuns(ctx, mcRef) {
         if (closure === "artificial") setNotices((p) => [...p, notice(isCode ? "\"{label}\" closes partly against the search-radius boundary rather than a logged interval of another code, so its extent there reflects the {v} m search radius, not the data." : "\"{label}\" closes partly against the search-radius boundary rather than a logged alteration boundary, so its extent there reflects the {v} m search radius, not the data.", { label, v: Math.round(radius) })]);
         fitBox(new THREE.Box3().setFromObject(mesh));
       } catch (e) {
-        setNotices((p) => [...p, e?.cancelled ? notice(isCode ? "Unit body cancelled." : "Alteration halo cancelled.") : errorNotice(isCode ? tr("Unit body failed: {v}", { v: e.message || e }) : tr("Alteration halo failed: {v}", { v: e.message || e }))]);
+        setNotices((p) => [...p, e?.cancelled ? notice(isCode ? "Unit body cancelled." : "Alteration halo cancelled.") : e?.stopped ? infoNotice(tr("Unit body not built: {v}", { v: e.message })) /* #2047 */ : errorNotice(isCode ? tr("Unit body failed: {v}", { v: e.message || e }) : tr("Alteration halo failed: {v}", { v: e.message || e }))]);
       }
       setTaskProgress?.(null);
       setAlterationBusy(false);

@@ -181,6 +181,15 @@ export function autoBodyParams(runLengthsM, fallback) {
   return { cell, radius, spacing: fallback.spacing, medianRunM: med, maxRunM: max, runs: L.length, fromRuns: true };
 }
 
+// TASKS.csv #2047 (review #2013, Woodjam) — known BEFORE the grid runs: the grid limit coarsened a unit body's cells past the
+// thickest logged run of the code, so the body very likely cannot appear (it cannot be thinner than a cell). BX ran 129 s at
+// 43.2 m cells for runs of 3.5 m at most, then failed saying exactly that. Only when the cell was coarsened (a typed cell is the
+// user's choice) and the runs are known. -> { cell, maxRunM } or null
+export function bodyCellPastRuns(cell, autoB, coarsened) {
+  if (!coarsened || !autoB?.fromRuns || !(autoB.maxRunM > 0) || !(cell > autoB.maxRunM)) return null;
+  return { cell, maxRunM: autoB.maxRunM };
+}
+
 // Merge touching logged rows of one code into runs per hole. rows: [{ hole_id, from, to }] -> [{ hole_id, from, to }]
 export function mergedRuns(rows) {
   const byHole = new Map();
