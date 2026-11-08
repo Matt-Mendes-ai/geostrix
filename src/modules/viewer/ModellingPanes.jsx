@@ -268,7 +268,8 @@ export default function ModellingPanes(props) {
   const numericSources = useMemo(() => numericSourceChoices({ layers, customLayers: customLayersAll }), [layers, customLayersAll]); // TASKS.csv #1741
   const [altSource, setAltSource] = useState({ layer: "alt", field: "", min: "" });
   const altCustomLayers = useMemo(() => customLayersAll.filter((c) => (c.rows || []).some((r) => r.value != null && r.value !== "" && !Number.isFinite(Number(r.value)))), [customLayersAll]);
-  const altSourceRows = useMemo(() => (altSource.layer === "alt" ? storeLayers.alt || [] : altCustomLayers.find((c) => `custom:${c.id}` === altSource.layer)?.rows || []), [altSource.layer, storeLayers.alt, altCustomLayers]);
+  // TASKS.csv #2050 — the Vein log too: a vein SET (stockwork) is modelled as an envelope of where it occurs, floored on its density
+  const altSourceRows = useMemo(() => (altSource.layer === "alt" ? storeLayers.alt || [] : altSource.layer === "vein" ? storeLayers.vein || [] : altCustomLayers.find((c) => `custom:${c.id}` === altSource.layer)?.rows || []), [altSource.layer, storeLayers.alt, altCustomLayers]);
   const altSourceCodes = useMemo(() => (altSource.layer === "alt" ? alt_units.filter((u) => !isNotLogged(u)) : [...new Set(altSourceRows.map((r) => String(r.value ?? "")).filter((v) => v && !isNotLogged(v)))].sort()), [altSource.layer, alt_units, altSourceRows]);
   // TASKS.csv #1421 (review #1352, Silvertip) — a code logged only as zero-length points (POT) cannot make a halo: it failed with
   // 'indicator never crosses 0.5'. The logged metres per code, so those are shown disabled and say why.
@@ -881,13 +882,14 @@ export default function ModellingPanes(props) {
             closed envelope with no assumed up-direction. Runs in-app, no sidecar. */}
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 8, lineHeight: 1.4 }}>{tr("Builds a closed halo envelope for one assemblage: every logged alteration interval becomes a 0/1 \"altered?\" sample down its hole, interpolated onto a grid, iso-surfaced at 0.5. Unlike the lithology/structural tools this makes no assumption about which way is \"up\" — a halo wraps its conduit rather than draping like a contact. Runs in-app, no Python engine needed.")}</div>
         {alt_units.some((u) => isNotLogged(u)) && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 6 }}>{tr("Not offered: {v} (intervals with no assemblage logged).", { v: alt_units.filter((u) => isNotLogged(u)).map((u) => `"${u}"`).join(", ") })}</div>}
-        {(altCustomLayers.length > 0 || altNumericFields.length > 0) && ( // TASKS.csv #1574 — which log, and an intensity floor
+        {(altCustomLayers.length > 0 || altNumericFields.length > 0 || (storeLayers.vein || []).length > 0) && ( // TASKS.csv #1574 — which log, and an intensity floor; vein: #2050
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
-            {altCustomLayers.length > 0 && (
+            {(altCustomLayers.length > 0 || (storeLayers.vein || []).length > 0) && (
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>
                 <span style={{ flexShrink: 0 }}>{tr("Layer")}</span>
                 <select aria-label={tr("Alteration layer")} value={altSource.layer} onChange={(e) => { setAltSource({ layer: e.target.value, field: "", min: "" }); setAlterationTarget(""); }} style={{ flex: 1, minWidth: 0, background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: 5, padding: "4px 6px", color: "var(--color-text)" }}>
                   <option value="alt">{tr("Alteration")}</option>
+                  {(storeLayers.vein || []).length > 0 && <option value="vein">{tr("Veins (a vein set as an envelope)")}</option>}{/* #2050 */}
                   {altCustomLayers.map((c) => <option key={c.id} value={`custom:${c.id}`}>{tr("{name} (custom layer)", { name: c.name })}</option>)}
                 </select>
               </label>

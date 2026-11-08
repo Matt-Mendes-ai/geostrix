@@ -1594,14 +1594,14 @@ export function createModellingRuns(ctx, mcRef) {
     const minField = !isCode && source?.field && Number.isFinite(Number(source.min)) ? { field: source.field, min: Number(source.min) } : null;
     const anisotropy = trendWarp(isCode ? "implicit" : "alteration"); // TASKS.csv #650
     const searchSetting = isCode ? bodyOpts.search || 0 : alterationSearchRadius, cellSetting = isCode ? bodyOpts.cell || 0 : alterationCellSize;
-    const altValue = isCode ? String(target).slice(6) : target, sourceKey = isCode ? "litho" : "alt";
+    const altValue = isCode ? String(target).slice(6) : target, sourceKey = isCode ? "litho" : source?.layer === "vein" ? "vein" : "alt"; // vein: #2050
     const isTargetRow = (r) => (isCode ? effectiveCode(r, modellingCodes, mcodeGroupOf) === altValue : String(r.value) === String(altValue) && (!minField || Number(r[minField.field]) >= minField.min)); // minField: #1574
     const traces = tracesRef.current;
     if (!traces.length) { setNotices((p) => [...p, noCollarsNotice(isCode ? tr("the unit body") : tr("the alteration model"), layers, assays)]); return; }
 
     const domain = domains.find((d) => d.id === modelDomainId);
     const o = originRef.current;
-    const label = isCode ? `Unit body: ${altValue}` : `Alteration halo: ${customSrc ? `${customSrc.name} ` : ""}${altValue}${minField ? ` (${minField.field} ≥ ${minField.min})` : ""}`; // #1574
+    const label = isCode ? `Unit body: ${altValue}` : `${sourceKey === "vein" ? "Vein set envelope" : "Alteration halo"}: ${customSrc ? `${customSrc.name} ` : ""}${altValue}${minField ? ` (${minField.field} ≥ ${minField.min})` : ""}`; // #1574; vein: #2050
     setAlterationBusy(true);
     setTaskProgress?.({ label, pct: 20 });
     // Deferred exactly like runNumericModel (see its comment) so the busy state paints before the
@@ -1919,18 +1919,23 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // Footwall first, so the hangingwall can be created already declaring "is above" it — the
         // relationship #90's topology checker reads. The construction makes that true by definition;
         // declaring it means the checker can independently confirm it rather than take it on trust.
+        // TASKS.csv #2050 (review #2013, 3D Modelling) — #1414 kept the walls of a 'vein' that is a vein set and left out only its solid:
+        // Woodjam's qtz (75 intercepts in 7 holes, 10.7 per hole, midpoints 87.8 m RMS off one plane for a 0.13 m vein) still added a flat
+        // 1.6° midplane pair across clusters 3-5 km apart, two meaningless surfaces in the project. Such a code now adds nothing.
+        const setPerHole = used.length / Math.max(1, new Set(used.map((i) => i.holeId)).size);
+        if ((pl.rmsOffPlane != null && pl.rmsOffPlane > 10 * Math.max(th.trueMean || 0, 0.5)) || setPerHole > 2.5) {
+          setNotices((p) => [...p, notice("\"{label}\": no surface, solid or volume was made: the intercepts do not behave like one vein (midpoints {v} m RMS off one plane for a {v2} m mean thickness, {v3} intercepts in {holes} hole(s), {v4} per hole). This code is a vein SET or stockwork: split it into single veins (Modelling codes, intercept sets) and model each, or model the set as an envelope of where it occurs (Alteration > Layer: Veins, with its density as the floor when logged).", { label, v: pl.rmsOffPlane != null ? Number(pl.rmsOffPlane).toFixed(1) : "?", v2: Number(th.trueMean || 0).toFixed(2), v3: used.length, holes: new Set(used.map((i) => i.holeId)).size, v4: setPerHole.toFixed(1) })]);
+          return;
+        }
         const fwSurf = stamp(model.footwall, "footwall", 0x3d8ecf, 0.75, "vein_footwall");
         // Only declared for a vein flat enough for "above" to mean something VERTICALLY, which is how
         // topology.js's sidedness check reads it. On a near-vertical vein the two walls barely overlap
         // in plan and "above" would be a meaningless (and possibly falsely violated) claim.
         const aboveRel = pl.dip <= 75 ? [{ relation: "above", targetId: fwSurf.id }] : [];
         stamp(model.hangingwall, "hangingwall", 0xe08a3c, 0.75, "vein_hangingwall", aboveRel);
-        // TASKS.csv #1414 (review #1352) — Silvertip's MASS: 45 intercepts whose midpoints sit 89 m RMS off one plane, for a 0.54 m vein.
-        // A solid of that is the envelope of a vein set, and its volume means nothing: the walls are kept, the solid is not made.
-        const perHole = used.length / Math.max(1, new Set(used.map((i) => i.holeId)).size);
-        const notOneVein = (pl.rmsOffPlane != null && pl.rmsOffPlane > 10 * Math.max(th.trueMean || 0, 0.5)) || perHole > 2.5;
-        const solidVol = notOneVein ? null : stamp(model.solid, "solid", 0xb5477e, 0.45, "vein_solid").vol;
-        if (notOneVein) setNotices((p) => [...p, notice("\"{label}\": no solid and no volume were made — the intercepts do not behave like one vein (midpoints {v} m RMS off one plane for a {v2} m mean thickness, {v3} intercepts per hole). Split the code into single veins (Modelling codes, intercept sets) and model each.", { label, v: pl.rmsOffPlane != null ? Number(pl.rmsOffPlane).toFixed(1) : "?", v2: Number(th.trueMean || 0).toFixed(2), v3: perHole.toFixed(1) })]);
+        // TASKS.csv #1414 (review #1352) — a 'vein' that is a vein set makes no solid (its volume would mean nothing); since #2050 it stops
+        // before the walls too (the check above), so what reaches here is one vein.
+        const solidVol = stamp(model.solid, "solid", 0xb5477e, 0.45, "vein_solid").vol;
 
         const fmt = (n, d = 2) => Number(n).toFixed(d);
         setNotices((p) => [...p, notice("Added \"{label}\": {intercepts} paired intercept(s){v} → midplane {v2}° / {v3}° ({attitudeSource}), TRUE thickness {v4}–{v5} m (mean {v6} m; mean DOWNHOLE length {v7} m){v8} → {nu}×{nv} grid, {informedNodes} informed nodes, {v9} m cells, {v10} m search{v11}{v12}.", { label, intercepts: model.intercepts.length, v: unplaceable ? tr(", {unplaceable} unplaceable", { unplaceable }) : "", v2: fmt(pl.dip, 1), v3: fmt(pl.dipDir, 1), attitudeSource: pl.attitudeSource, v4: fmt(th.trueMin), v5: fmt(th.trueMax), v6: fmt(th.trueMean), v7: fmt(th.downholeMean), v8: th.refined ? tr(", thickness corrected against the local modelled normal") : "", nu: model.grid.nu, nv: model.grid.nv, informedNodes: model.grid.informedNodes.toLocaleString(), v9: fmt(model.grid.cellSize, 1), v10: fmt(model.grid.searchRadius, 0), v11: model.grid.coarsened ? tr(" (coarsened to stay under the grid limit)") : "", v12: solidVol?.watertight ? tr(". Solid {volumeM3} m³", { volumeM3: solidVol.volumeM3.toLocaleString(undefined, { maximumFractionDigits: 0 }) }) : "" })]);
@@ -1966,9 +1971,10 @@ ${tr("OK runs it anyway; Cancel stops here.")}`)) { const stop = new Error(msg);
         // #1415 — when the attitude was the problem, say whether the core had any vein measurements to offer
         const none = e?.attitude && logged && !logged.n ? ` ${tr("No oriented-core vein measurements lie within {tol} m of these intercepts.", { tol: logged.tolM })}` : "";
         setNotices((p) => [...p, errorNotice(tr("Vein model failed: {v}", { v: e.message || e }) + none)]);
+      } finally { // #2050 — also after the early stop below
+        setTaskProgress?.(null);
+        setVeinBusy(false);
       }
-      setTaskProgress?.(null);
-      setVeinBusy(false);
     }, 40);
   };
 

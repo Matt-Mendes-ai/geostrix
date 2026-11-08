@@ -9292,5 +9292,7 @@
   "1 collar with no survey and no azimuth / dip is not listed: use Manual entry for it.": "فوهة واحدة بلا مسح ولا سمت / ميل غير مدرجة: استخدم الإدخال اليدوي لها.",
   "{n} collars with no survey and no azimuth / dip are not listed: use Manual entry for them.": "{n} فوهة بلا مسح ولا سمت / ميل غير مدرجة: استخدم الإدخال اليدوي لها.",
   "Role: {role}, from its codes (Modelling codes, the implicit picker and the stack all read it).": "الدور: {role}، من رموزه (تقرؤه رموز النمذجة والمنتقي الضمني والتتابع).",
-  "Its name suggests {role}: set that in Modelling codes if it is what you mean.": "يوحي اسمه بـ {role}: اضبط ذلك في رموز النمذجة إن كان ما تقصده."
+  "Its name suggests {role}: set that in Modelling codes if it is what you mean.": "يوحي اسمه بـ {role}: اضبط ذلك في رموز النمذجة إن كان ما تقصده.",
+  "\"{label}\": no surface, solid or volume was made: the intercepts do not behave like one vein (midpoints {v} m RMS off one plane for a {v2} m mean thickness, {v3} intercepts in {holes} hole(s), {v4} per hole). This code is a vein SET or stockwork: split it into single veins (Modelling codes, intercept sets) and model each, or model the set as an envelope of where it occurs (Alteration > Layer: Veins, with its density as the floor when logged).": "\"{label}\": لم يُنشأ أي سطح أو مجسم أو حجم: لا تتصرف التقاطعات كعرق واحد (نقاط المنتصف على بعد {v} م RMS من مستوى واحد لسماكة متوسطة {v2} م، و{v3} تقاطعًا في {holes} ثقب، أي {v4} لكل ثقب). هذا الرمز مجموعة عروق أو شبكة عروق: قسّمه إلى عروق مفردة (رموز النمذجة، مجموعات التقاطعات) ونمذج كلًا منها، أو نمذج المجموعة كغلاف لمكان وجودها (التحول > الطبقة: العروق، مع كثافتها حدًا أدنى إن سُجّلت).",
+  "Veins (a vein set as an envelope)": "العروق (مجموعة عروق كغلاف)"
 }
