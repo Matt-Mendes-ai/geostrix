@@ -9233,5 +9233,7 @@
   "Try a lower cutoff, a larger search radius, or a smaller cell size.": "Essayez un seuil plus bas, un rayon de recherche plus grand ou une cellule plus petite.",
   "No {symbol} shell at {numericCutoff} {unit}: the grid has no surface to extract.": "Aucune enveloppe de {symbol} à {numericCutoff} {unit} : la grille n'a pas de surface à extraire.",
   "The cells at or above the cutoff have no estimated neighbours to close a surface against: tick \"Close shell artificially at the search-radius boundary\" (its volume is then an assumption), widen the search{v}.": "Les cellules au seuil ou au-dessus n'ont pas de voisines estimées contre lesquelles fermer une surface : cochez « Fermer artificiellement l'enveloppe à la limite du rayon de recherche » (son volume devient une hypothèse), élargissez la recherche{v}.",
-  ", or lower Min holes from {k} to 1": ", ou abaissez Min. sondages de {k} à 1"
+  ", or lower Min holes from {k} to 1": ", ou abaissez Min. sondages de {k} à 1",
+  "closed artificially": "fermé artificiellement",
+  " The solid was closed artificially at the search radius, so its volume is an assumption.": " Le solide a été fermé artificiellement au rayon de recherche : son volume est donc une hypothèse."
 }

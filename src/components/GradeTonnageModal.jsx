@@ -15,6 +15,7 @@ import { valueUnit, valueColumnName } from "../lib/blockModelExport.js";
 import { metalColumns } from "../lib/gradeTonnage.js"; // TASKS.csv #1577
 import { gradeTonnageTable, gradeTonnageRows, autoCutoffs, metalOf, sgSummary, EXPLORATION_TARGET_CAUTION, blocksInsideSolid, gradeTonnageByBench } from "../lib/gradeTonnage.js"; // blocksInsideSolid: #1949; gradeTonnageByBench: #1957
 import { useStore } from "../lib/store.jsx"; // TASKS.csv #1216
+import { isMeshClosed } from "../lib/meshQuery.js"; // TASKS.csv #2061
 import { version as APP_VERSION } from "../../package.json";
 
 const fmt = (v, d = 0) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString(undefined, { maximumFractionDigits: d }));
@@ -30,7 +31,10 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
   const [density, setDensity] = useState("");
   const { layers, generatedSurfaces = [] } = useStore();
   // TASKS.csv #1949 (Vulcan review) — the table inside a chosen closed solid, by block centre or by the share of each block inside
-  const solids = useMemo(() => generatedSurfaces.filter((s) => s.closure === "closed" && s.vertices?.length >= 12 && s.indices?.length >= 12), [generatedSurfaces]);
+  // TASKS.csv #2061 (review #2013, Woodjam) — any watertight solid, as the Estimation dialog's 'Restrict to a modelled volume' takes: only Mine
+  // Design solids carry closure 'closed', so an artificially closed grade shell (1.97 Mm³, watertight) was 'no closed solid in the project'
+  const solids = useMemo(() => generatedSurfaces.filter((s) => s.vertices?.length >= 12 && s.indices?.length >= 12 && (s.closure === "closed" || isMeshClosed(s.vertices, s.indices).closed)), [generatedSurfaces]);
+  const closureNote = (s) => (s?.closure === "artificial" ? tr(" The solid was closed artificially at the search radius, so its volume is an assumption.") : "");
   const [solidId, setSolidId] = useState("");
   const [insideMode, setInsideMode] = useState("centre");
   const solid = solids.find((s) => s.id === solidId) || null;
@@ -64,7 +68,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
     const out = gradeTonnageRows(rows, { vname, density: rho, metal, columns: mcols }); // #1017 — rows in lib, tested; columns: #1577
     const stamp = stampLines({ tool: "Grade-tonnage table", version: APP_VERSION, epsg, params: [
       `Block model: ${model.name} (${model.cells.length} blocks, source ${model.source || "import"}) | value ${vname}${unit ? ` in ${unit}` : " (no unit stated)"}`,
-      ...(solid ? [`Inside the solid: ${solid.name} | ${insideMode === "share" ? `each block counted by the share of it inside (2 x 2 x 2 sample points): ${inside.inside} wholly inside, ${inside.partial} partly, ${inside.outside} outside` : `blocks counted whole by their centre: ${inside.inside} inside, ${inside.outside} outside`}`] : []), // #1949
+      ...(solid ? [`Inside the solid: ${solid.name}${solid.closure === "artificial" ? " (closed artificially at the search radius: its volume is an assumption)" : ""} | ${insideMode === "share" ? `each block counted by the share of it inside (2 x 2 x 2 sample points): ${inside.inside} wholly inside, ${inside.partial} partly, ${inside.outside} outside` : `blocks counted whole by their centre: ${inside.inside} inside, ${inside.outside} outside`}`] : []), // #1949
       ...(byBench && benchRows.length ? [`By bench: ${benchH} m benches from a datum of ${Number(benchDatum) || 0} m, at the ${benchCut} ${unit || ""} cutoff; a block spanning two benches is split by its vertical overlap`] : []), // #1957
       `Density: ${rho ? (fromSg ? `${rho} t/m3, length-weighted mean of ${sgLayer.n} Specific gravity rows, ${sgLayer.min}-${sgLayer.max}${sgLayer.left ? `, ${sgLayer.left} outside 1-8 left out` : ""} (one value for every block)` : `${rho} t/m3, entered by the user (one value for every block)`) : "not entered: volumes only"}${merged ? " | merged blocks counted at their COVERAGE share" : ""}`,
       "Mean grade: volume-weighted over the blocks at or above the cutoff",
@@ -95,7 +99,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
         {/* TASKS.csv #1949 — inside a closed solid; #1957 — bench by bench */}
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 8, fontSize: "var(--font-size-sm)" }}>
           <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Inside the solid")}
-            <select value={solidId} onChange={(e) => setSolidId(e.target.value)} style={{ ...inp, maxWidth: 220 }} aria-label={tr("Solid to report inside")}><option value="">{solids.length ? tr("— the whole model —") : tr("— no closed solid in the project —")}</option>{solids.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+            <select value={solidId} onChange={(e) => setSolidId(e.target.value)} style={{ ...inp, maxWidth: 220 }} aria-label={tr("Solid to report inside")}><option value="">{solids.length ? tr("— the whole model —") : tr("— no closed solid in the project —")}</option>{solids.map((s) => <option key={s.id} value={s.id}>{s.name}{s.closure === "artificial" ? ` · ${tr("closed artificially")}` : ""}</option>)}</select></label>
           {solid && <label style={{ display: "flex", alignItems: "center", gap: 6 }}>{tr("Count")}
             <select value={insideMode} onChange={(e) => setInsideMode(e.target.value)} style={inp} aria-label={tr("How a block is counted inside")}><option value="centre">{tr("whole blocks by their centre")}</option><option value="share">{tr("the share of each block inside")}</option></select></label>}
           <label style={{ display: "flex", alignItems: "center", gap: 6 }}><input type="checkbox" checked={byBench} onChange={(e) => setByBench(e.target.checked)} />{tr("By bench")}</label>
@@ -105,7 +109,7 @@ export default function GradeTonnageModal({ model, epsg, onClose }) {
         </div>
         {solid && inside && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6, lineHeight: 1.5 }}>{insideMode === "share"
           ? tr("Inside \"{name}\": {a} block(s) wholly inside, {b} partly (counted by the share of each inside, from 2 × 2 × 2 sample points), {c} outside.", { name: solid.name, a: inside.inside, b: inside.partial, c: inside.outside })
-          : tr("Inside \"{name}\": {a} block(s) counted whole by their centre, {c} outside; a block the surface cuts is wholly in or wholly out here.", { name: solid.name, a: inside.inside, c: inside.outside })}</div>}
+          : tr("Inside \"{name}\": {a} block(s) counted whole by their centre, {c} outside; a block the surface cuts is wholly in or wholly out here.", { name: solid.name, a: inside.inside, c: inside.outside })}{closureNote(solid)}</div>}
         {byBench && !(Number(benchH) > 0) && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginBottom: 6 }}>{tr("Enter the bench height: the floors sit at the datum plus whole benches.")}</div>}
         {byBench && benchRows.length > 0 && (
           <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 10 }}>

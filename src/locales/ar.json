@@ -9233,5 +9233,7 @@
   "Try a lower cutoff, a larger search radius, or a smaller cell size.": "جرّب حداً أدنى أقل، أو نصف قطر بحث أكبر، أو خلية أصغر.",
   "No {symbol} shell at {numericCutoff} {unit}: the grid has no surface to extract.": "لا غلاف لـ{symbol} عند {numericCutoff} {unit}: لا سطح في الشبكة لاستخراجه.",
   "The cells at or above the cutoff have no estimated neighbours to close a surface against: tick \"Close shell artificially at the search-radius boundary\" (its volume is then an assumption), widen the search{v}.": "الخلايا عند الحد الأدنى أو فوقه ليست لها خلايا مجاورة مقدّرة يُغلق السطح عليها: حدد \"إغلاق الغلاف اصطناعيًا عند حد نصف قطر البحث\" (يصبح حجمه افتراضاً)، أو وسّع البحث{v}.",
-  ", or lower Min holes from {k} to 1": "، أو اخفض الحد الأدنى للثقوب من {k} إلى 1"
+  ", or lower Min holes from {k} to 1": "، أو اخفض الحد الأدنى للثقوب من {k} إلى 1",
+  "closed artificially": "مغلق اصطناعياً",
+  " The solid was closed artificially at the search radius, so its volume is an assumption.": " أُغلق المجسم اصطناعياً عند نصف قطر البحث، لذا حجمه افتراض."
 }

@@ -9233,5 +9233,7 @@
   "Try a lower cutoff, a larger search radius, or a smaller cell size.": "Tente um teor de corte menor, um raio de busca maior ou uma célula menor.",
   "No {symbol} shell at {numericCutoff} {unit}: the grid has no surface to extract.": "Nenhuma envoltória de {symbol} a {numericCutoff} {unit}: a grade não tem superfície a extrair.",
   "The cells at or above the cutoff have no estimated neighbours to close a surface against: tick \"Close shell artificially at the search-radius boundary\" (its volume is then an assumption), widen the search{v}.": "As células no teor de corte ou acima não têm vizinhas estimadas contra as quais fechar uma superfície: marque \"Fechar a envoltória artificialmente no limite do raio de busca\" (o volume passa a ser uma suposição), amplie a busca{v}.",
-  ", or lower Min holes from {k} to 1": ", ou baixe Mín. furos de {k} para 1"
+  ", or lower Min holes from {k} to 1": ", ou baixe Mín. furos de {k} para 1",
+  "closed artificially": "fechado artificialmente",
+  " The solid was closed artificially at the search radius, so its volume is an assumption.": " O sólido foi fechado artificialmente no raio de busca, então seu volume é uma suposição."
 }
