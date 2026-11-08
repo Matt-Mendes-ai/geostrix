@@ -61,6 +61,18 @@ function simplifyToBudget(lines, budget) {
   return { lines: res, tol };
 }
 
+// The section contacts that are hard lines of this explicit surface -> [{ section, pts }]. Shared with the surface picker's
+// label (TASKS.csv #1691), which counted only the lines drawn on section images and said '0 lines' for a surface built through one.
+export function sectionLinesOf(def, sections) {
+  const lines = [];
+  for (const s of sections || []) for (const c of s.contacts || []) {
+    if (c.unit !== def?.name || c.target === "unit" || c.isUpperContact === false || (c.kind && c.kind !== "contact")) continue; // target: #1193
+    const pts = (c.points || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite));
+    if (pts.length) lines.push({ section: s.name, pts });
+  }
+  return lines;
+}
+
 // extraLines (#817): further hard lines, [{ ref, src, pts }] - mapped contacts and their dip guides (explicitMapLines.js)
 // TASKS.csv #869 — maxPoints is now a real cap: over-long section lines and extra lines are simplified (Douglas-Peucker,
 // the smallest tolerance that fits; returned as lineTolM / extraTolM) instead of every vertex being kept, and a set that
@@ -68,12 +80,7 @@ function simplifyToBudget(lines, budget) {
 // for the caller to refuse the build with.
 export function explicitPoints(def, sections, { spacing = 10, maxPoints = 1200, hardMax = Math.round(maxPoints * 1.5), extraLines = [] } = {}) {
   const picks = (def?.picks || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite)).map((p) => ({ x: p.x, y: p.y, z: p.z, src: "pick", ref: p.id, ...(p.dir ? { dir: p.dir } : {}), ...(p.hole_id ? { hole: p.hole_id, md: p.md } : {}) })); // dir: #856; hole / md: #857 (named in the quality report)
-  const lines = [];
-  for (const s of sections || []) for (const c of s.contacts || []) {
-    if (c.unit !== def?.name || c.target === "unit" || c.isUpperContact === false || (c.kind && c.kind !== "contact")) continue; // target: #1193
-    const pts = (c.points || []).filter((p) => [p.x, p.y, p.z].every(Number.isFinite));
-    if (pts.length) lines.push({ section: s.name, pts });
-  }
+  const lines = sectionLinesOf(def, sections);
   // #869 — section-line vertices may use at most 3/4 of what the picks leave (the rest: extra lines and filling in)
   const vertsIn = lines.reduce((s, l) => s + l.pts.length, 0);
   const sl = simplifyToBudget(lines, Math.max(2 * lines.length, Math.floor((maxPoints - picks.length) * 0.75)));

@@ -6,7 +6,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Crosshair, Move, Undo2, Trash2, X as XIcon, Pencil } from "./icons.js";
 import { t as tr } from "../lib/i18n.js";
-import { LOO_MAX_POINTS, explicitPoints } from "../lib/explicitSurface.js";
+import { LOO_MAX_POINTS, explicitPoints, sectionLinesOf } from "../lib/explicitSurface.js"; // sectionLinesOf: #1691
 import { fitExplicitSurfaceAsync } from "../lib/explicitSurfaceClient.js"; // TASKS.csv #865
 import { tinSurface } from "../lib/tinSurface.js"; // TASKS.csv #1958
 import { findOnTraceWorld, traceDirWorld } from "../lib/viewer/modelHelpers.js";
@@ -868,7 +868,7 @@ export default function ExplicitSurfacePanel({ surfaces = [] /* #861 */, tracesS
       <div style={row}>
         <select value={def?.id || ""} onChange={(e) => { if (digDrawing) { finishLine(); setDigDrawing(false); showHover(null); } setSelId(e.target.value); setPickFor(null); }} disabled={!defs.length} style={{ ...smallSel, flex: 1, minWidth: 0 }} aria-label={tr("Explicit surface")}>
           {!defs.length && <option value="">{tr("No explicit surfaces yet")}</option>}
-          {defs.map((d) => <option key={d.id} value={d.id}>{d.name} ({tr("{p} picks, {l} lines", { p: d.picks.length, l: (d.lines || []).length })}){layerLabel(d) !== d.name ? ` · ${layerLabel(d)}` : ""}</option>)}
+          {defs.map((d) => { const l = (d.lines || []).length + sectionLinesOf(d, sections).length; /* section lines too: #1691 */ return <option key={d.id} value={d.id}>{d.name} ({tr(l === 1 ? "{p} picks, {l} line" : "{p} picks, {l} lines", { p: d.picks.length, l })}){layerLabel(d) !== d.name ? ` · ${layerLabel(d)}` : ""}</option>; })}
         </select>
         <button onClick={newSurface} style={{ ...pBtn, width: "auto", marginBottom: 0, padding: "5px 8px" }}>{tr("+ New")}</button>
       </div>
