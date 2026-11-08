@@ -9247,5 +9247,6 @@
   "no usable cutoff ({k} of the occurrence cells lie where this evidence has a value)": "sin corte utilizable ({k} de las celdas de ocurrencia están donde esta evidencia tiene valor)",
   "Weights of evidence: no card gives a weight with these {d} occurrence cells: {list}.": "Pesos de evidencia: ninguna tarjeta da un peso con estas {d} celdas de ocurrencia: {list}.",
   "Ends: the {a}th and {b}th percentile of the {n} {sym} assays (length-weighted, QC left out). Set them from your own cut-offs.": "Extremos: los percentiles {a} y {b} de los {n} ensayes de {sym} (ponderados por longitud, sin controles). Fíjelos con sus propias leyes de corte.",
-  "Ends: the {a}th and {b}th percentile of this evidence over the grid, not of your deposit. Set them from your own cut-offs.": "Extremos: los percentiles {a} y {b} de esta evidencia sobre la grilla, no de su depósito. Fíjelos con sus propias leyes de corte."
+  "Ends: the {a}th and {b}th percentile of this evidence over the grid, not of your deposit. Set them from your own cut-offs.": "Extremos: los percentiles {a} y {b} de esta evidencia sobre la grilla, no de su depósito. Fíjelos con sus propias leyes de corte.",
+  "Its {n} benched design(s) go too: {names}.": "Sus {n} diseño(s) con bancos también se eliminan: {names}."
 }

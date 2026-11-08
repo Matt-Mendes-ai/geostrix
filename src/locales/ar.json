@@ -9247,5 +9247,6 @@
   "no usable cutoff ({k} of the occurrence cells lie where this evidence has a value)": "لا حد قطع صالح ({k} من خلايا الحالات تقع حيث يكون لهذا الدليل قيمة)",
   "Weights of evidence: no card gives a weight with these {d} occurrence cells: {list}.": "أوزان الأدلة: لا تعطي أي بطاقة وزناً مع خلايا الحالات هذه ({d}): {list}.",
   "Ends: the {a}th and {b}th percentile of the {n} {sym} assays (length-weighted, QC left out). Set them from your own cut-offs.": "الطرفان: المئين {a} والمئين {b} لتحاليل {sym} البالغة {n} (مرجحة بالطول، بدون عينات المراقبة). اضبطهما وفق حدودك الدنيا.",
-  "Ends: the {a}th and {b}th percentile of this evidence over the grid, not of your deposit. Set them from your own cut-offs.": "الطرفان: المئين {a} والمئين {b} لهذا الدليل على الشبكة، لا لرواسبك. اضبطهما وفق حدودك الدنيا."
+  "Ends: the {a}th and {b}th percentile of this evidence over the grid, not of your deposit. Set them from your own cut-offs.": "الطرفان: المئين {a} والمئين {b} لهذا الدليل على الشبكة، لا لرواسبك. اضبطهما وفق حدودك الدنيا.",
+  "Its {n} benched design(s) go too: {names}.": "تُزال معه تصاميمه المدرجة ({n}): {names}."
 }
