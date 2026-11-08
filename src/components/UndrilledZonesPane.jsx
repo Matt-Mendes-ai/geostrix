@@ -122,6 +122,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
         </select>
         {choices.open.length > 0 && <div style={note}>{tr(OPEN_ROUTE, { n: choices.open.length })}</div>}
         {supportText && <div style={{ ...note, color: "var(--color-warn-text)" }}>{supportText}</div>}{/* #1725 */}
+        {unit && !support && unit.type === "geophysical_shell" && <div style={note}>{tr("\"{name}\" was cut from a block model that records no drillhole support per cell (an imported or geophysical model), so nothing here says how well drilled its shape is.", { name: unit.name })}</div>}{/* #2096 */}
         <label style={row} title={tr("A block of the unit counts as covered when a drillhole passes within this distance of it")}>{tr("Covered within (m of a hole)")}
           <input type="number" min="1" step="5" value={coverM} onChange={(e) => setCoverM(Math.max(0, Number(e.target.value) || 0))} style={{ ...smallSel, width: 70 }} /></label>
         <label style={row}>{tr("Block size (m)")}

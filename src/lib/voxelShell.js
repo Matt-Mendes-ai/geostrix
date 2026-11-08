@@ -46,7 +46,8 @@ export function latticeBodies(field, nx, ny, nz) {
 // lo / hi: the range (either may be -Infinity / Infinity / NaN for open); largestOnly (#1840): keep only the biggest body of the
 // range (by lattice nodes), the others turned outside before marching cubes. -> { positions (Float32Array, world E N Z),
 // indices (Uint32Array), volumeM3, cellsInside, cellVolumeM3, closingVertices, nodes: [nx, ny, nz], spacing: [dx, dy, dz],
-// coarsened, bodies (how many separate bodies the range has), keptShare (the kept body's share of the inside nodes) } | null
+// coarsened, bodies (how many separate bodies the range has), keptShare (the kept body's share of the inside nodes), support
+// ({ cellsEstimated, singleHoleCells?, supportCounts? } of the cells in the range when the model's cells record them, else null; #2096) } | null
 // (not a rectilinear model, or nothing in the range)
 export function voxelShell(model, { lo = -Infinity, hi = Infinity, largestOnly = false } = {}, { maxNodes = 1.5e6 } = {}) {
   const cells = model?.cells || [];
@@ -55,8 +56,18 @@ export function voxelShell(model, { lo = -Infinity, hi = Infinity, largestOnly =
   const L = Number.isFinite(lo) ? lo : -Infinity, H = Number.isFinite(hi) ? hi : Infinity;
   const inside = (v) => Number.isFinite(v) && v >= L && v <= H;
   let cellsInside = 0, cellVolumeM3 = 0;
-  for (const c of cells) if (inside(c.value)) { cellsInside++; cellVolumeM3 += c.dx * c.dy * c.dz; }
+  // TASKS.csv #2096 (review #2013, Woodjam) — the data support of the cells in the range, when the model is an estimate whose
+  // cells record it (estimation.js: nHoles per cell; support class when classified). Undrilled zones measured a Cu shell cut
+  // from a 97 %-one-hole IDW model and said nothing, because the shell's params carried no support for unitSupport() to read.
+  let singleHoleCells = 0, withHoles = 0, withSupport = 0;
+  const supportCounts = { interpolated: 0, extrapolated: 0, unsupported: 0 };
+  for (const c of cells) if (inside(c.value)) {
+    cellsInside++; cellVolumeM3 += c.dx * c.dy * c.dz;
+    if (Number.isFinite(c.nHoles)) { withHoles++; if (c.nHoles === 1) singleHoleCells++; }
+    if (c.support in supportCounts) { withSupport++; supportCounts[c.support]++; }
+  }
   if (!cellsInside) return null;
+  const support = withHoles || withSupport ? { cellsEstimated: cellsInside, ...(withHoles ? { singleHoleCells } : {}), ...(withSupport ? { supportCounts } : {}) } : null;
   // the lattice: the typical cell size per axis, coarsened together until the node count fits
   const diffs = (e) => Array.from({ length: e.length - 1 }, (_, i) => e[i + 1] - e[i]);
   let dx = median(diffs(G.ex)), dy = median(diffs(G.ey)), dz = median(diffs(G.ez));
@@ -99,5 +110,5 @@ export function voxelShell(model, { lo = -Infinity, hi = Infinity, largestOnly =
     const ax = positions[a], ay = positions[a + 1], az = positions[a + 2], bx = positions[b], by = positions[b + 1], bz = positions[b + 2], cx = positions[c], cy = positions[c + 1], cz = positions[c + 2];
     vol6 += ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx);
   }
-  return { positions, indices, volumeM3: Math.abs(vol6) / 6, cellsInside, cellVolumeM3, closingVertices: mc.closingVertices || 0, nodes: [nx, ny, nz], spacing: [dx, dy, dz], coarsened, bodies: B.sizes.length, keptShare };
+  return { positions, indices, volumeM3: Math.abs(vol6) / 6, cellsInside, cellVolumeM3, closingVertices: mc.closingVertices || 0, nodes: [nx, ny, nz], spacing: [dx, dy, dz], coarsened, bodies: B.sizes.length, keptShare, support }; // support: #2096
 }
