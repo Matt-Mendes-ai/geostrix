@@ -9254,5 +9254,10 @@
   "no .prj was read with it (select the .zip, or the .prj with the .shp): the coordinates were taken as EPSG:{dst}, check where it lies": "لم يُقرأ أي ملف .prj معه (اختر ملف .zip، أو ملف .prj مع .shp): أُخذت الإحداثيات على أنها EPSG:{dst}، تحقق من موقعه",
   "it holds points, not lines or polygons: import collars in the 3D View, samples in Geochem, or any points as a map layer in Surface Geology.": "يحتوي على نقاط لا على خطوط أو مضلعات: استورد الفوهات في العرض ثلاثي الأبعاد، والعينات في الكيمياء الجيولوجية، أو أي نقاط كطبقة خريطة في الجيولوجيا السطحية.",
   "no lines or polygons were found in it.": "لم يُعثر فيه على خطوط أو مضلعات.",
-  "it holds open lines, not polygons: a claim is an area. Import it as a boundary.": "يحتوي على خطوط مفتوحة لا مضلعات: الامتياز مساحة. استورده كحد."
+  "it holds open lines, not polygons: a claim is an area. Import it as a boundary.": "يحتوي على خطوط مفتوحة لا مضلعات: الامتياز مساحة. استورده كحد.",
+  "8-bit values 0-255 (a picture or raw DN, not reflectance)": "قيم 8 بت من 0 إلى 255 (صورة أو أعداد رقمية خام، وليست انعكاسية)",
+  " (the file is 8-bit; choose it under \"Pixel values\" if that is wrong)": " (الملف بدقة 8 بت؛ اختر القيمة من \"قيم البكسل\" إن كان ذلك خاطئًا)",
+  "8-bit values are what a picture shows (an orthophoto, a scanned map, a screenshot) or raw sensor counts, not surface reflectance: the result ranks pixels against each other in this file only, and is not comparable with the sensor's index from a reflectance product.": "قيم 8 بت هي ما تعرضه الصورة (صورة جوية مصححة، أو خريطة ممسوحة ضوئيًا، أو لقطة شاشة) أو أعداد خام من المستشعر، وليست انعكاسية السطح: النتيجة ترتب البكسلات بعضها مقابل بعض داخل هذا الملف فقط، ولا تقارن بمؤشر المستشعر المحسوب من منتج انعكاسية.",
+  "8-bit values: a picture or raw counts, not surface reflectance.": "قيم 8 بت: صورة أو أعداد خام، وليست انعكاسية السطح.",
+  " Of those, {dark} had a band at 1 or 2 of 255 (near black): a ratio there is noise and would take over the colour scale.": " من بينها، {dark} كان فيها نطاق بقيمة 1 أو 2 من 255 (قريب من الأسود): النسبة هناك ضجيج وستطغى على مقياس الألوان."
 }

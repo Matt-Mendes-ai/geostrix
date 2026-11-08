@@ -9254,5 +9254,10 @@
   "no .prj was read with it (select the .zip, or the .prj with the .shp): the coordinates were taken as EPSG:{dst}, check where it lies": "no se leyó ningún .prj con él (seleccione el .zip, o el .prj junto al .shp): las coordenadas se tomaron como EPSG:{dst}, revise dónde queda",
   "it holds points, not lines or polygons: import collars in the 3D View, samples in Geochem, or any points as a map layer in Surface Geology.": "contiene puntos, no líneas ni polígonos: importe collares en la Vista 3D, muestras en Geoquímica, o cualquier punto como capa de mapa en Geología de superficie.",
   "no lines or polygons were found in it.": "no se encontraron líneas ni polígonos en él.",
-  "it holds open lines, not polygons: a claim is an area. Import it as a boundary.": "contiene líneas abiertas, no polígonos: una concesión es un área. Impórtelo como límite."
+  "it holds open lines, not polygons: a claim is an area. Import it as a boundary.": "contiene líneas abiertas, no polígonos: una concesión es un área. Impórtelo como límite.",
+  "8-bit values 0-255 (a picture or raw DN, not reflectance)": "Valores de 8 bits 0-255 (una imagen o ND sin procesar, no reflectancia)",
+  " (the file is 8-bit; choose it under \"Pixel values\" if that is wrong)": " (el archivo es de 8 bits; elíjalo en \"Valores de píxel\" si no es correcto)",
+  "8-bit values are what a picture shows (an orthophoto, a scanned map, a screenshot) or raw sensor counts, not surface reflectance: the result ranks pixels against each other in this file only, and is not comparable with the sensor's index from a reflectance product.": "Los valores de 8 bits son lo que muestra una imagen (una ortofoto, un mapa escaneado, una captura de pantalla) o cuentas brutas del sensor, no reflectancia de superficie: el resultado ordena los píxeles entre sí solo en este archivo y no es comparable con el índice del sensor calculado sobre un producto de reflectancia.",
+  "8-bit values: a picture or raw counts, not surface reflectance.": "Valores de 8 bits: una imagen o cuentas brutas, no reflectancia de superficie.",
+  " Of those, {dark} had a band at 1 or 2 of 255 (near black): a ratio there is noise and would take over the colour scale.": " De ellos, {dark} tenían una banda en 1 o 2 de 255 (casi negro): ahí un cociente es ruido y dominaría la escala de colores."
 }

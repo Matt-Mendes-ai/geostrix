@@ -159,11 +159,16 @@ export const DN_ENCODINGS = {
   s2offset: { label: "Sentinel-2, processing baseline 04.00 or later (2022 on): (DN − 1000) ÷ 10,000", f: (v) => (v - 1000) / 10000 },
   landsatC2: { label: "Landsat Collection 2 Level-2: DN × 0.0000275 − 0.2", f: (v) => v * 0.0000275 - 0.2 },
   aster: { label: "ASTER AST_07XT: DN ÷ 1,000", f: (v) => v / 1000 },
+  // TASKS.csv #2124 (review #2013, Maps) — an 8-bit file (an orthophoto, a scanned map, a screenshot of a satellite viewer, or raw
+  // Landsat TM DN) holds display values or raw counts, not reflectance: no listed encoding fitted, the guess took DN ÷ 10,000 and
+  // the 1 % floor blanked 70 % of a picture. ÷ 255 keeps the ratios as they are and puts the dark floor at 2-3 counts (black only).
+  byte: { label: "8-bit values 0-255 (a picture or raw DN, not reflectance)", f: (v) => v / 255 },
 };
 // A guess from the values, said as a guess in the notice: values of 0-2 are reflectance; a Sentinel-2 file whose 1st
 // percentile is 1,000 or more carries the offset (without it dark water and shadow sit at tens to hundreds of DN); a
 // Landsat file whose 1st percentile is over 7,000 is Collection 2 Level-2 (zero reflectance is DN 7,273).
-export function detectEncoding(arrays, sensorKey) {
+export function detectEncoding(arrays, sensorKey, { bits = null } = {}) { // bits: the file's bits per sample (#2124)
+  if (bits === 8) return "byte";
   const s = [];
   for (const a of arrays) { const step = Math.max(1, Math.floor(a.length / 5000)); for (let i = 0; i < a.length; i += step) if (a[i] > 0 && Number.isFinite(a[i])) s.push(a[i]); }
   if (!s.length) return "reflectance";

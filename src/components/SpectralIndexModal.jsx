@@ -77,7 +77,9 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
       const image = await tiff.getImage();
       const bands = image.getSamplesPerPixel() || 1;
       if (bands < 2) { setError(tr("\"{name}\" has a single band: an index needs two or more. Import it as an ordinary raster instead.", { name: f.name })); setFile(null); return; }
-      setFile({ file: f, bands, width: image.getWidth(), height: image.getHeight() });
+      // #2124 — the bit depth: an 8-bit file is a picture or raw DN, not reflectance
+      let bits = null; try { bits = image.getBitsPerSample?.(0) ?? null; } catch { bits = null; }
+      setFile({ file: f, bands, width: image.getWidth(), height: image.getHeight(), bits });
       if (bands === 5 && sensor !== "aster_tir") pickSensor("aster_tir");
     } catch (e) {
       setError(tr("Not a readable GeoTIFF ({message}).", { message: e.message })); setFile(null);
@@ -98,21 +100,25 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
   // the index on a multiband File with `map` (role -> 1-based band), then into the project
   const makeIndex = async (theFile, map, sensorKey, sourceNote, vegOn) => {
     let blank = 0, total = 0, dark = 0, vegetated = 0, encUsed = null, encGuessed = false;
-    const title = isCustom ? `Index ${expr}` : `${preset.label}, ${(fetchMode ? IMAGERY_SOURCES[source].label : SENSORS[sensorKey].label).split(" (")[0]}`; // fetched ASTER is radiance, not emissivity
+    const bits = fetchMode ? null : file?.bits ?? null;
+    // #2124 — an 8-bit file is not the sensor's surface reflectance: the raster is named after the index and the file only
+    const byteFile = !fetchMode && reflective && (dnEnc === "byte" || (dnEnc === "auto" && bits === 8));
+    const title = isCustom ? `Index ${expr}` : byteFile ? `${preset.label}, 8-bit values` : `${preset.label}, ${(fetchMode ? IMAGERY_SOURCES[source].label : SENSORS[sensorKey].label).split(" (")[0]}`; // fetched ASTER is radiance, not emissivity
     const { raster, msg } = await buildRasterImport(theFile, {
       epsg, defaultElevation, sourceEpsg: fetchMode ? "" : sourceEpsg, name: `${title} — ${fetchMode ? `${scene.date} ${scene.id.split("_").slice(0, 2).join("_")}` : theFile.name}`,
       bandFn: (bands, isNoData) => {
         // #928 — a reflective file is converted to reflectance first (fetched scenes already are)
-        if (!fetchMode && reflective) { encGuessed = dnEnc === "auto"; encUsed = encGuessed ? detectEncoding(Object.values(map).map((b) => bands[Number(b) - 1]).filter(Boolean), sensorKey) : dnEnc; }
+        if (!fetchMode && reflective) { encGuessed = dnEnc === "auto"; encUsed = encGuessed ? detectEncoding(Object.values(map).map((b) => bands[Number(b) - 1]).filter(Boolean), sensorKey, { bits }) : dnEnc; }
         const r = evaluateIndex(bands, map, expr, { isNoData, floor: reflective ? "auto" : 0, veg: vegOn ? { nir: sens.nir, red: sens.red } : null, dnScale: sens.dnScale || 10000, encoding: encUsed }); ({ blank, dark, vegetated } = r); total = r.values.length; return r.values;
       },
     });
-    const masks = (dark ? tr(" Of those, {dark} had a band under 1% reflectance (dark forest, shadow): a ratio there is noise and would take over the colour scale.", { dark: dark.toLocaleString() }) : "")
+    const masks = (dark ? (encUsed === "byte" ? tr(" Of those, {dark} had a band at 1 or 2 of 255 (near black): a ratio there is noise and would take over the colour scale.", { dark: dark.toLocaleString() }) : tr(" Of those, {dark} had a band under 1% reflectance (dark forest, shadow): a ratio there is noise and would take over the colour scale.", { dark: dark.toLocaleString() })) : "") // #2124
       + (vegetated ? tr(vegetated === 1 ? " {vegetated} vegetated pixel (NDVI above {max}) was left out." : " {vegetated} vegetated pixels (NDVI above {max}) were left out.", { vegetated: vegetated.toLocaleString(), max: VEG_NDVI_MAX }) : "")
       + (reflective && maskVeg && !vegOn ? tr(" Vegetation was not masked: {v} not mapped to a file band.", { v: vegRoles.join(" / ") }) : "");
-    const note = tr(" Index {expr}{v}.{v2}{v3}{v4} An index is a ratio of surface signals, not a mineral map: vegetation, snow, water and shadow change it, and only exposed rock or soil means anything.", { expr, v: fetchMode ? "" : tr(" with {v}", { v: parsed.uses.map((r) => `${r} = band ${map[r]}`).join(", ") }), v2: sourceNote || "", v3: blank ? tr(blank === 1 ? " {blank} pixel is blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero)." : " {blank} pixels are blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero).", { blank: blank.toLocaleString(), v2: ((100 * blank) / Math.max(1, total)).toPrecision(2) }) + masks : masks, v4: isCustom ? "" : tr(" {what} Pixel size of the source: {pixel}.", { what: tr(preset.what), pixel: SENSORS[sensorKey].pixel }) });
-    const encNote = encUsed ? " " + tr("Pixel values read as: {v}{d}.", { v: tr(DN_ENCODINGS[encUsed].label), d: encGuessed ? tr(" (guessed from the values; choose it under \"Pixel values\" if that is wrong)") : "" }) : ""; // #928
-    onImport({ ...raster, spectralIndex: { expr, bands: map, sensor: isCustom ? null : sensorKey, preset: isCustom ? null : preset.id, ...(encUsed ? { encoding: encUsed } : {}), ...(fetchMode ? { scene: scene.id, date: scene.date } : {}) } }, msg + note + encNote);
+    const note = tr(" Index {expr}{v}.{v2}{v3}{v4} An index is a ratio of surface signals, not a mineral map: vegetation, snow, water and shadow change it, and only exposed rock or soil means anything.", { expr, v: fetchMode ? "" : tr(" with {v}", { v: parsed.uses.map((r) => `${r} = band ${map[r]}`).join(", ") }), v2: sourceNote || "", v3: blank ? tr(blank === 1 ? " {blank} pixel is blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero)." : " {blank} pixels are blank ({v2}%: masked, at 0 / nodata / negative, or a division by zero).", { blank: blank.toLocaleString(), v2: ((100 * blank) / Math.max(1, total)).toPrecision(2) }) + masks : masks, v4: isCustom ? "" : encUsed === "byte" ? " " + tr(preset.what) : tr(" {what} Pixel size of the source: {pixel}.", { what: tr(preset.what), pixel: SENSORS[sensorKey].pixel }) }); // #2124: not the sensor's pixel
+    const encNote = encUsed ? " " + tr("Pixel values read as: {v}{d}.", { v: tr(DN_ENCODINGS[encUsed].label), d: encGuessed ? tr(encUsed === "byte" ? " (the file is 8-bit; choose it under \"Pixel values\" if that is wrong)" : " (guessed from the values; choose it under \"Pixel values\" if that is wrong)") : "" }) : ""; // #928
+    const byteNote = encUsed === "byte" ? " " + tr("8-bit values are what a picture shows (an orthophoto, a scanned map, a screenshot) or raw sensor counts, not surface reflectance: the result ranks pixels against each other in this file only, and is not comparable with the sensor's index from a reflectance product.") : ""; // #2124
+    onImport({ ...raster, spectralIndex: { expr, bands: map, sensor: isCustom ? null : sensorKey, preset: isCustom ? null : preset.id, ...(encUsed ? { encoding: encUsed } : {}), ...(fetchMode ? { scene: scene.id, date: scene.date } : {}) } }, msg + note + encNote + byteNote);
   };
 
   const run = async () => {
@@ -179,7 +185,7 @@ export default function SpectralIndexModal({ epsg, defaultElevation, sourceEpsg,
               <div style={label}>{tr("1. Multiband GeoTIFF")}</div>
               <button onClick={() => fileInput.current.click()} style={{ ...btn(false), padding: "7px 12px", display: "inline-flex", alignItems: "center", gap: 6 }}><Upload size={14} /> {file ? tr("Choose another file…") : tr("Choose a file…")}</button>
               <input ref={fileInput} type="file" accept=".tif,.tiff" style={{ display: "none" }} onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); e.target.value = ""; }} />
-              {file && <div style={{ ...small, marginTop: 6 }}>{tr("{name}: {bands} bands, {width} × {height} px.", { name: file.file.name, bands: file.bands, width: file.width.toLocaleString(), height: file.height.toLocaleString() })}</div>}
+              {file && <div style={{ ...small, marginTop: 6 }}>{tr("{name}: {bands} bands, {width} × {height} px.", { name: file.file.name, bands: file.bands, width: file.width.toLocaleString(), height: file.height.toLocaleString() })}{file.bits === 8 && reflective ? " " + tr("8-bit values: a picture or raw counts, not surface reflectance.") : ""}</div>}
               {file && reflective && ( /* TASKS.csv #928 */
                 <label style={{ ...small, display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>{tr("Pixel values")}
                   <select value={dnEnc} onChange={(e) => setDnEnc(e.target.value)} style={{ flex: 1, minWidth: 0, fontSize: "var(--font-size-sm)" }} aria-label={tr("How the file's pixel values become reflectance")}>
