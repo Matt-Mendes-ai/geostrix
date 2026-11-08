@@ -65,7 +65,8 @@ test("#339 QC flags untraceable, assumed-length, upward and over-deep-survey hol
   const layers = { litho: [{ hole_id: "D", from: 150, to: 160, value: "AND" }] };
   const { issues } = runDataQC({ project: { epsg: 3156, name: "t" }, collars, survey, layers, boundaries: [], assays: [] });
   const has = (sev, id, re) => issues.some((i) => i.severity === sev && i.holeId === id && re.test(i.message));
-  assert.ok(has("error", "A", /cannot be traced/));
+  assert.ok(has("warning", "A", /ASSUMED vertical hole/)); // #2014 — was an error ("cannot be traced"): the hole is drawn vertical now
+  assert.ok(has("warning", "A", /ASSUMED 300 m/)); // #2014 — the length warning reaches an assumed-vertical hole too
   assert.ok(has("warning", "B", /ASSUMED 300 m/));
   assert.ok(has("warning", "C", /Survey goes to 120 m/));
   assert.ok(has("warning", "D", /Points upward/));

@@ -9199,5 +9199,8 @@
   "{n} of {total} tiles could not be read: their polygons are missing.": "No se pudieron leer {n} de {total} teselas: faltan sus polígonos.",
   "The picture is the map as Macrostrat draws it, with relief shading. The map layer is its units as polygons: Model it, Identify and the legend can use them.": "La imagen es el mapa tal como lo dibuja Macrostrat, con sombreado de relieve. La capa de mapa son sus unidades como polígonos: Modelarlo, Identificar y la leyenda pueden usarlas.",
   "Add the units as a map layer (for Model it)": "Añadir las unidades como capa de mapa (para Modelarlo)",
-  "Macrostrat has no map unit polygons in this area.": "Macrostrat no tiene polígonos de unidades de mapa en esta zona."
+  "Macrostrat has no map unit polygons in this area.": "Macrostrat no tiene polígonos de unidades de mapa en esta zona.",
+  "no azimuth / dip and no survey: drawn as an ASSUMED vertical hole": "sin azimut / inclinación y sin levantamiento: dibujado como un sondaje vertical SUPUESTO",
+  "{n} hole(s) have no azimuth / dip and no survey: drawn as ASSUMED vertical holes (a collar marker and a dashed stick of the hole length), flagged in Data QC": "{n} sondaje(s) no tienen azimut / inclinación ni levantamiento: dibujados como sondajes verticales SUPUESTOS (un marcador de collar y una línea discontinua del largo del sondaje), señalados en Control de datos",
+  "No survey rows and no collar azimuth/dip — drawn as an ASSUMED vertical hole (dashed in the 3D view), and every interval, assay and pick on it is placed on that assumption. Add the collar azimuth and dip, or a survey.": "Sin filas de levantamiento ni azimut/inclinación del collar — dibujado como un sondaje vertical SUPUESTO (discontinuo en la vista 3D), y cada intervalo, ensaye y marca en él se ubica con ese supuesto. Agregue el azimut y la inclinación del collar, o un levantamiento."
 }

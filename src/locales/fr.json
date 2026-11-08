@@ -9199,5 +9199,8 @@
   "{n} of {total} tiles could not be read: their polygons are missing.": "{n} tuiles sur {total} n'ont pas pu être lues : leurs polygones manquent.",
   "The picture is the map as Macrostrat draws it, with relief shading. The map layer is its units as polygons: Model it, Identify and the legend can use them.": "L'image est la carte telle que Macrostrat la dessine, avec ombrage du relief. La couche de carte est ses unités en polygones : Modéliser, Identifier et la légende peuvent s'en servir.",
   "Add the units as a map layer (for Model it)": "Ajouter les unités comme couche de carte (pour Modéliser)",
-  "Macrostrat has no map unit polygons in this area.": "Macrostrat n'a aucun polygone d'unité de carte dans cette zone."
+  "Macrostrat has no map unit polygons in this area.": "Macrostrat n'a aucun polygone d'unité de carte dans cette zone.",
+  "no azimuth / dip and no survey: drawn as an ASSUMED vertical hole": "sans azimut / pendage et sans levé : tracé comme un sondage vertical SUPPOSÉ",
+  "{n} hole(s) have no azimuth / dip and no survey: drawn as ASSUMED vertical holes (a collar marker and a dashed stick of the hole length), flagged in Data QC": "{n} sondage(s) n'ont ni azimut / pendage ni levé : tracés comme des sondages verticaux SUPPOSÉS (un repère de collet et un trait pointillé de la longueur du sondage), signalés dans le CQ des données",
+  "No survey rows and no collar azimuth/dip — drawn as an ASSUMED vertical hole (dashed in the 3D view), and every interval, assay and pick on it is placed on that assumption. Add the collar azimuth and dip, or a survey.": "Aucune ligne de levé et aucun azimut/pendage de collet — tracé comme un sondage vertical SUPPOSÉ (en pointillé dans la vue 3D), et chaque intervalle, teneur et pointé qu'il porte est placé selon cette hypothèse. Ajoutez l'azimut et le pendage du collet, ou un levé."
 }

@@ -140,10 +140,12 @@ function validateSurveyAndTrajectory(collars, survey, { doglegWarn = 3, doglegEr
   // TASKS.csv #339 — the straight-hole fallback has two silent failure modes (desurvey.js
   // stationsWithInclination): no collar azimuth/dip means the hole has NO trace at all (it and every
   // interval on it vanish from 3D, sections and modelling), and no length means it is drawn 300 m long.
+  // #2014 (review #2013, Woodjam) — such a hole is now drawn as an ASSUMED vertical hole (desurvey.js holeAttitudeAssumed), so this
+  // is a warning about an assumption, not an error about a hole that vanished; it was 534 errors on a 544-collar district compilation.
   const untraceable = noSurvey.filter((c) => !Number.isFinite(c.azimuth) || !Number.isFinite(c.dip));
-  untraceable.forEach((c) => pushIssue(issues, "error", "Survey", c.hole_id, tr("No survey rows and no collar azimuth/dip — this hole cannot be traced, so it and every interval, assay and pick on it are missing from the 3D view, sections and models.")));
+  untraceable.forEach((c) => pushIssue(issues, "warning", "Survey", c.hole_id, tr("No survey rows and no collar azimuth/dip — drawn as an ASSUMED vertical hole (dashed in the 3D view), and every interval, assay and pick on it is placed on that assumption. Add the collar azimuth and dip, or a survey.")));
   const traceable = noSurvey.filter((c) => !untraceable.includes(c));
-  traceable.filter((c) => !(Number.isFinite(c.length) && c.length > 0)).forEach((c) => pushIssue(issues, "warning", "Survey", c.hole_id, tr("No survey rows and no hole length — drawn as a straight hole of an ASSUMED 300 m. Add the end-of-hole depth to the collar file.")));
+  noSurvey.filter((c) => !(Number.isFinite(c.length) && c.length > 0)).forEach((c) => pushIssue(issues, "warning", "Survey", c.hole_id, tr("No survey rows and no hole length — drawn as a straight hole of an ASSUMED 300 m. Add the end-of-hole depth to the collar file.")));
   if (traceable.length) {
     pushIssue(issues, "info", "Survey", null, tr("{traceable} hole(s) have no survey data — using the straight-hole fallback (collar azimuth/dip/length). Real deviation, if any, isn't captured for {v}.", { traceable: traceable.length, v: traceable.length === 1 ? tr("this hole") : tr("these holes") }));
   }

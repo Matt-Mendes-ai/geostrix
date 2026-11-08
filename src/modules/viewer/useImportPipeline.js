@@ -13,7 +13,7 @@ import { useRef, useState, useCallback } from "react";
 import { errorNotice, notice, appendNotice } from "../../lib/notices.js"; // TASKS.csv #739 — caught errors show as errors whatever their wording
 import * as THREE from "three";
 import { reprojectXY, pointTransform, turnGridBearing, bearingTurn, crsName, guessEpsgFromPrjWkt } from "../../lib/reproject.js";
-import { surveyAzimuthDipAt } from "../../lib/desurvey.js";
+import { surveyAzimuthDipAt, holeAttitudeAssumed } from "../../lib/desurvey.js"; // holeAttitudeAssumed: #2014
 import { azimuthToGridOffset, wrap360, loadIgrf, detectAzimuthRef } from "../../lib/azimuthRef.js"; // loadIgrf: #552; detectAzimuthRef: #1647
 import { orientFromAlphaBeta, reorientAlphaBetaPicks } from "../../lib/coreOrientation.js";
 import { fitSimilarity, parseControlPoints, transformImportRows } from "../../lib/localGrid.js";
@@ -420,7 +420,12 @@ export function useImportPipeline(ctx) {
       if (diff.unchanged.length) parts.push(tr("{unchanged} already present and identical", { unchanged: diff.unchanged.length }));
       if (ranked.dropped) parts.push(tr("{holes} hole(s) had several location records ({dropped} extra rows) — kept the lowest \"{rankColumn}\" for each: {holes2}{v}", { holes: ranked.holes.length, dropped: ranked.dropped, rankColumn: ranked.rankColumn, holes2: ranked.holes.slice(0, 5).join(", "), v: ranked.holes.length > 5 ? ", …" : "" }));
       if (attrCols.length) parts.push(tr("{n} more column(s) kept with each hole (Identify shows them): {cols}", { n: attrCols.length, cols: attrCols.slice(0, 8).join(", ") + (attrCols.length > 8 ? "…" : "") })); // #1504
-      if (!(importStateRef.current.survey || []).length) parts.push(tr("no survey loaded, so each hole is drawn straight from its collar azimuth, dip and length")); // #1504
+      // #2014 (review #2013, Woodjam) — 534 of 544 district collars had no azimuth / dip column and no survey: they were counted
+      // ("Holes: 544") and never drawn, and this notice did not say so. They are now drawn as assumed vertical holes; say it here.
+      const surveyedHoles = new Set((importStateRef.current.survey || []).map((sv) => sv.hole_id));
+      const assumedVertical = applied.filter((c) => !surveyedHoles.has(c.hole_id) && holeAttitudeAssumed(c, []));
+      if (assumedVertical.length) parts.push(tr("{n} hole(s) have no azimuth / dip and no survey: drawn as ASSUMED vertical holes (a collar marker and a dashed stick of the hole length), flagged in Data QC", { n: assumedVertical.length }));
+      if (!surveyedHoles.size && assumedVertical.length < applied.length) parts.push(tr("no survey loaded, so each hole is drawn straight from its collar azimuth, dip and length")); // #1504
       if (diff.duplicatesInFile.length) parts.push(tr("{duplicatesInFile} duplicate hole_id row(s) WITHIN the file itself (the last row of each hole won: {v})", { duplicatesInFile: diff.duplicatesInFile.length, v: [...new Set(diff.duplicatesInFile)].slice(0, 5).join(", ") }));
       setNotices((p) => [...p, notice("Loaded {size} collars from {fileName}{v}.{reprojectNote}{note}", { size: new Set(rows.map((r) => r.hole_id)).size, fileName, v: parts.length ? ` — ${parts.join("; ")}` : "", reprojectNote, note: azc.note })]);
     } else if (target === "survey") {

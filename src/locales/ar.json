@@ -9199,5 +9199,8 @@
   "{n} of {total} tiles could not be read: their polygons are missing.": "تعذّرت قراءة {n} من {total} مربعًا: مضلعاتها مفقودة.",
   "The picture is the map as Macrostrat draws it, with relief shading. The map layer is its units as polygons: Model it, Identify and the legend can use them.": "الصورة هي الخريطة كما ترسمها Macrostrat مع تظليل التضاريس. طبقة الخريطة هي وحداتها كمضلعات: يمكن لأدوات النمذجة والتعريف ومفتاح الخريطة استخدامها.",
   "Add the units as a map layer (for Model it)": "إضافة الوحدات كطبقة خريطة (لأداة النمذجة)",
-  "Macrostrat has no map unit polygons in this area.": "لا توجد لدى Macrostrat مضلعات وحدات خريطة في هذه المنطقة."
+  "Macrostrat has no map unit polygons in this area.": "لا توجد لدى Macrostrat مضلعات وحدات خريطة في هذه المنطقة.",
+  "no azimuth / dip and no survey: drawn as an ASSUMED vertical hole": "بدون سمت / ميل وبدون مسح: مرسوم كثقب حفر عمودي مُفترَض",
+  "{n} hole(s) have no azimuth / dip and no survey: drawn as ASSUMED vertical holes (a collar marker and a dashed stick of the hole length), flagged in Data QC": "{n} ثقب (ثقوب) حفر بدون سمت / ميل وبدون مسح: مرسومة كثقوب حفر عمودية مُفترَضة (علامة فوهة وخط متقطع بطول الثقب)، ومُشار إليها في فحص جودة البيانات",
+  "No survey rows and no collar azimuth/dip — drawn as an ASSUMED vertical hole (dashed in the 3D view), and every interval, assay and pick on it is placed on that assumption. Add the collar azimuth and dip, or a survey.": "لا توجد صفوف مسح ولا سمت/ميل للفوهة — مرسوم كثقب حفر عمودي مُفترَض (متقطع في العرض ثلاثي الأبعاد)، وكل فترة وتحليل ونقطة عليه موضوعة على هذا الافتراض. أضف سمت الفوهة وميلها، أو مسحاً."
 }

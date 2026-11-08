@@ -28,7 +28,7 @@ import PromptModal from "../components/PromptModal.jsx";
 import { toLonLat, isMetricProjectedEpsg } from "../lib/reproject.js";
 import { mirrorCustomLayers } from "../lib/viewerDirty.js"; // #1656
 import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
-import { desurveyHole, surveyAzimuthDipAt } from "../lib/desurvey.js";
+import { desurveyHole, surveyAzimuthDipAt, holeAttitudeAssumed } from "../lib/desurvey.js"; // holeAttitudeAssumed: #2014
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
 import { blockToCells, modelledIntervals, ABOVE_TOPS, unitAt } from "../lib/modelCheck.js"; // TASKS.csv #356
 import { sectionGrid, sameLine, unpackUnits, sectionPixels, blockSpacing, sectionZRange } from "../lib/modelSection.js"; // TASKS.csv #759
@@ -4833,6 +4833,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       const hs = surveyByHole.get(c.hole_id) || [];
       const raw = desurveyHole(c, hs, desurveyMethod); // TASKS.csv #135
       if (!raw.length) return;
+      const assumedVertical = holeAttitudeAssumed(c, hs); // #2014 — no survey rows and no collar azimuth / dip: drawn as a vertical stick, dashed, and the tip says so
       const pts = raw.map((p) => ({ md: p.md, x: p.x - ox, y: p.z - oz, z: -(p.y - oy) })), look = traceLookup(pts); // look: #1500 — binary search instead of a scan per interval
       allTraces.push(pts);
       tracesRef.current = tracesRef.current.filter((t) => t.hole_id !== c.hole_id);
@@ -4842,10 +4843,13 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       const marker = new THREE.Mesh(PROTO_SPHERE_12, collarMaterialRef.current); // TASKS.csv #312 — shared prototype + scale (was SphereGeometry(3.2, 12, 12))
       marker.scale.setScalar(3.2);
       marker.position.set(pts[0].x, pts[0].y, pts[0].z);
-      marker.userData = { tip: `${c.hole_id}\ncollar`, collar: c }; // collar: #1504 — Identify lists its fields
+      marker.userData = { tip: `${c.hole_id}\ncollar${assumedVertical ? `\n${tr("no azimuth / dip and no survey: drawn as an ASSUMED vertical hole")}` : ""}`, collar: c }; // collar: #1504 — Identify lists its fields; #2014
       groups.litho.add(marker);
 
-      const traceLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((p) => new THREE.Vector3(p.x, p.y, p.z))), new THREE.LineBasicMaterial({ color: 0x445064, transparent: true, opacity: 0.5 }));
+      const traceLine = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map((p) => new THREE.Vector3(p.x, p.y, p.z))), assumedVertical
+        ? new THREE.LineDashedMaterial({ color: 0x445064, dashSize: 4, gapSize: 4, transparent: true, opacity: 0.5 }) // #2014 — dashed, like a planned hole: this stick is an assumption
+        : new THREE.LineBasicMaterial({ color: 0x445064, transparent: true, opacity: 0.5 }));
+      if (assumedVertical) traceLine.computeLineDistances();
       traceLine.userData = { holeId: c.hole_id }; // #1533
       groups.litho.add(traceLine);
 

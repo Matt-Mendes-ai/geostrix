@@ -26,7 +26,7 @@ test("wired: the import keeps them and says so; the marker carries its collar; I
   assert.match(p, /more column\(s\) kept with each hole/);
   assert.match(p, /no survey loaded, so each hole is drawn straight/);
   const v = readFileSync(new URL("../src/modules/ViewerModule.jsx", import.meta.url), "utf8");
-  assert.ok(v.includes("collar`, collar: c }; // collar: #1504"), "the collar marker carries its collar record");
+  assert.match(v, /, collar: c \}; \/\/ collar: #1504/, "the collar marker carries its collar record"); // the tip gained a #2014 suffix
   const i = readFileSync(new URL("../src/lib/viewer/identify.js", import.meta.url), "utf8");
   assert.match(i, /attributeFields\(c\.attrs, new Set\(\)\)/);
 });

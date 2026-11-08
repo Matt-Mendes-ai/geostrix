@@ -150,15 +150,30 @@ function segmentSamples(method, dMD, I1, Az1, I2, Az2) {
   return out;
 }
 
+// TASKS.csv #2014 (review #2013, Woodjam) — true when the hole has no survey rows and no collar azimuth / dip, so its
+// trace is an ASSUMED vertical hole (below). The viewer draws such a hole dashed and says so in its tip, the collar
+// import notice counts them, and Data QC rates each one a warning. The attitude itself stays unknown: surveyAzimuthDipAt
+// still returns null for it, so nothing structural (core-orientation maths, alpha / beta picks) is computed from a guess.
+export function holeAttitudeAssumed(collar, survey) {
+  if (survey && survey.length) return false;
+  return collar.azimuth == null || collar.dip == null || isNaN(collar.azimuth) || isNaN(collar.dip);
+}
+
 // Builds the {md, I (inclination from vertical), Az} station list desurveyHole/surveyAzimuthDipAt both
 // interpolate against — the "collar-only, no survey rows" straight-hole fallback lives here once so
 // both callers see the exact same effective survey.
-function stationsWithInclination(collar, survey) {
+// #2014 — `assumeVertical`: a collar with neither survey rows nor an azimuth / dip used to have NO trace at all, so the 534
+// collars of a district compilation (x / y / z / depth only) were imported, counted in the status bar and then never drawn
+// (nor fitted, nor found by Targeting's nearest-hole checks). Leapfrog and Micromine draw such a hole vertical; so does
+// GeoStrix now, for the trace only (holeAttitudeAssumed above tells everything else to say so).
+function stationsWithInclination(collar, survey, assumeVertical = false) {
   let stations = survey && survey.length ? [...survey].sort((a, b) => a.depth - b.depth) : [];
   if (!stations.length) {
-    if (collar.azimuth == null || collar.dip == null || isNaN(collar.azimuth) || isNaN(collar.dip)) return [];
+    const assumed = holeAttitudeAssumed(collar, survey);
+    if (assumed && !assumeVertical) return [];
+    const azimuth = assumed ? 0 : collar.azimuth, dip = assumed ? 90 : collar.dip;
     const md = collar.length && !isNaN(collar.length) ? collar.length : 300;
-    stations = [{ depth: 0, azimuth: collar.azimuth, dip: collar.dip }, { depth: md, azimuth: collar.azimuth, dip: collar.dip }];
+    stations = [{ depth: 0, azimuth, dip }, { depth: md, azimuth, dip }];
   }
   if (stations[0].depth > 0) stations.unshift({ depth: 0, azimuth: stations[0].azimuth, dip: stations[0].dip });
   // TASKS.csv #338 — carry the trace on to end of hole with the last surveyed attitude (Leapfrog/Micromine
@@ -214,7 +229,7 @@ export function surveyAzimuthDipAt(collar, survey, depth) {
 // trajectory, so they can be sampled freely without pulling the result off-method.
 export function desurveyHole(collar, survey, method) {
   const m = normalizeDesurveyMethod(method);
-  const withI = stationsWithInclination(collar, survey);
+  const withI = stationsWithInclination(collar, survey, true);
   if (!withI.length) return [];
   let N = 0, E = 0, TVD = 0;
   const pts = [{ md: withI[0].md, N: 0, E: 0, TVD: 0 }];
@@ -243,7 +258,7 @@ export function desurveyHole(collar, survey, method) {
 // method's own trajectory, this is the function that will catch it.
 export function desurveyStations(collar, survey, method) {
   const m = normalizeDesurveyMethod(method);
-  const withI = stationsWithInclination(collar, survey);
+  const withI = stationsWithInclination(collar, survey, true);
   if (!withI.length) return [];
   let N = 0, E = 0, TVD = 0;
   const out = [{ md: withI[0].md, x: collar.x, y: collar.y, z: collar.z }];
