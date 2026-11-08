@@ -3,7 +3,7 @@ import { X, Download } from "./icons.js";
 import { preferredElement, rememberElement } from "../lib/preferredElement.js"; // TASKS.csv #1678
 import { useLeadCommodity } from "../lib/useLeadCommodity.js"; // #1523 — the project's lead commodity
 import { customDomainOptions, isCategoricalLayer } from "../lib/customDomains.js"; // TASKS.csv #1678; #1515
-import { compositeDownhole, countDuplicateAssayIntervals, capAudit, capAuditText } from "../lib/geochem.js";
+import { compositeDownhole, countDuplicateAssayIntervals, capAudit, capAuditText, gradeUnitLabel } from "../lib/geochem.js"; // gradeUnitLabel: #1680
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import { excludeQAQC, labAssays } from "../lib/qaqc.js";
 import { stampLines, withStamp, ASSAY_READING_RULES } from "../lib/provenance.js"; // TASKS.csv #404
@@ -52,6 +52,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
   const [symbol, setSymbolRaw] = useState(() => preferredElement(symbols, "compositing", lead) || "Au");
   const setSymbol = (v) => { setSymbolRaw(v); rememberElement("compositing", typeof v === "string" ? v : null); }; // #1678 — kept for next time
   const unit = elementUnits[symbol] || "ppm";
+  const unitL = gradeUnitLabel(symbol, unit); // #1680 — the label (g/t for a precious metal in ppm); computations keep unit
   const [length, setLength] = useState(2);
   const [minCoverage, setMinCoverage] = useState(0.5);
   const [capValue, setCapValue] = useState("");
@@ -134,7 +135,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
           )}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
             <label style={fieldLabel}>{tr("Element")}<select value={symbol} onChange={(e) => setSymbol(e.target.value)} style={inp}>
-                {symbols.map((s) => <option key={s} value={s}>{s} ({elementUnits[s] || "ppm"})</option>)}
+                {symbols.map((s) => <option key={s} value={s}>{s} ({gradeUnitLabel(s, elementUnits[s])})</option>)}
               </select>
             </label>
             <label style={fieldLabel}>{tr("Composite length (m)")}<input type="number" step="any" min="0.1" value={length} onChange={(e) => setLength(Math.max(0.1, Number(e.target.value) || 2))} style={inp} />
@@ -145,7 +146,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
                 {customDomains.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}{/* #1678 */}
               </select>
             </label>
-            <label style={fieldLabel} title={tr("Cap any single raw sample's grade at this value before it's folded into a composite average — applied per-sample, before compositing, matching standard practice.")}>{tr("High-grade cap ({unit})", { unit })}<input type="number" step="any" min="0" placeholder={tr("none")} value={capValue} onChange={(e) => setCapValue(e.target.value)} style={inp} />
+            <label style={fieldLabel} title={tr("Cap any single raw sample's grade at this value before it's folded into a composite average — applied per-sample, before compositing, matching standard practice.")}>{tr("High-grade cap ({unit})", { unit: unitL })}<input type="number" step="any" min="0" placeholder={tr("none")} value={capValue} onChange={(e) => setCapValue(e.target.value)} style={inp} />
             </label>
             <div style={{ gridColumn: "1 / -1", flexBasis: "100%" }}>
               <CapAuditHint assays={compAssays} symbol={symbol} unit={unit} elementUnits={elementUnits} capValue={capValue === "" ? null : Number(capValue)} onSetCap={(v) => setCapValue(String(Number(v.toPrecision(4))))} />
@@ -167,7 +168,7 @@ export default function CompositingModal({ assays: assaysIn, assayElements, laye
                     <th style={th}>{tr("From")}</th>
                     <th style={th}>{tr("To")}</th>
                     <th style={th}>{tr("Length (m)")}</th>
-                    <th style={th}>{tr("Avg {symbol} ({unit})", { symbol, unit })}</th>
+                    <th style={th}>{tr("Avg {symbol} ({unit})", { symbol, unit: unitL })}</th>
                     <th style={th}>{tr("Coverage")}</th>
                     {domainKey && <th style={th}>{domainMeta.label}</th>}
                   </tr>

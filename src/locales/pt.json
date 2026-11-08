@@ -9162,5 +9162,7 @@
   "None of these samples has {list}.": "Nenhuma destas amostras tem {list}.",
   "Data included ({n})": "Dados incluídos ({n})",
   "{label} (unsaved changes)": "{label} (alterações não salvas)",
-  "Close {label}": "Fechar {label}"
+  "Close {label}": "Fechar {label}",
+  "Show the grades as % (ppm / 10,000) in the table, the Layout table and an extra CSV column. The cutoff stays in ppm.": "Mostrar os teores em % (ppm / 10 000) na tabela, na tabela do Layout e numa coluna CSV extra. O teor de corte continua em ppm.",
+  "Show as %": "Mostrar em %"
 }

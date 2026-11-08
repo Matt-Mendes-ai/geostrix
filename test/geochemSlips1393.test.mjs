@@ -13,7 +13,7 @@ test("1: no lone '.' when nothing was counted; no 'see it' for an empty layer", 
 
 test("2: Including rounds like the grade column; the count column says what it counts", () => {
   const b = read("../src/components/BestIntercepts.jsx");
-  assert.match(b, /\$\{\+h\.avgGrade\.toPrecision\(4\)\} \(/);
+  assert.match(b, /\$\{\+dg\(h\.avgGrade\)\.toPrecision\(4\)\} \(/); // dg: #1680 (shown in % on request)
   assert.ok(b.includes('tr("Samples ≥ cutoff")') && !b.includes('{tr("Assay intervals")}'));
 });
 

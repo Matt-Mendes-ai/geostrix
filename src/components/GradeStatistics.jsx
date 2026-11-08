@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { X, Download } from "./icons.js";
-import { valueIn, resolvedSegments, histogramWantsLog } from "../lib/geochem.js"; // resolvedSegments: #1099; histogramWantsLog: #1524
+import { valueIn, resolvedSegments, histogramWantsLog, gradeUnitLabel } from "../lib/geochem.js"; // gradeUnitLabel: #1680 // resolvedSegments: #1099; histogramWantsLog: #1524
 import { useStore } from "../lib/store.jsx";
 import { stampLines, withStamp, ASSAY_READING_RULES } from "../lib/provenance.js"; // TASKS.csv #1099
 import { version as APP_VERSION } from "../../package.json";
@@ -299,22 +299,22 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
           ) : (
             <>
               <div>
-                <div style={label}>{tr("Distribution — {symbol} ({v}){v2}", { symbol, v: elementUnits[symbol] || tr("ppm"), v2: logScale ? tr(", log₁₀ scale") : "" })}</div>
-                <Histogram data={histogram} unit={elementUnits[symbol] || "ppm"} logScale={logScale} />
+                <div style={label}>{tr("Distribution — {symbol} ({v}){v2}", { symbol, v: gradeUnitLabel(symbol, elementUnits[symbol]), v2: logScale ? tr(", log₁₀ scale") : "" })}</div>
+                <Histogram data={histogram} unit={gradeUnitLabel(symbol, elementUnits[symbol])} logScale={logScale} />
                 {logScale && histogram?.leftOut > 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-muted)" }}>{tr("{n} zero or negative values are not on the log scale.", { n: histogram.leftOut.toLocaleString() })}</div>}
               </div>
 
               <div>
                 <div style={label}>{tr("By domain — {groups} {v}", { groups: groups.length, v: tr(groups.length === 1 ? "group" : "groups") })}</div>
-                <BoxPlots groups={groups} domainLabel={domainLabel} logScale={logScale} unit={elementUnits[symbol] || "ppm"} />
+                <BoxPlots groups={groups} domainLabel={domainLabel} logScale={logScale} unit={gradeUnitLabel(symbol, elementUnits[symbol])} />
               </div>
 
               {/* TASKS.csv #1388 */}
               <div>
                 <div style={label}>{tr("Log-probability plot — {symbol} ({v}){v2}", { symbol, v: elementUnits[symbol] || tr("ppm"), v2: weightingActive ? tr(", length-weighted") : "" })}</div>
-                <ProbPlot prob={prob} cap={capFx ? capValue : null} domainLabel={domainLabel} unit={elementUnits[symbol] || "ppm"} />
+                <ProbPlot prob={prob} cap={capFx ? capValue : null} domainLabel={domainLabel} unit={gradeUnitLabel(symbol, elementUnits[symbol])} />
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)", marginTop: 4 }}>
-                  <span>{tr("P97.5 = {a}, P99 = {b} {unit} (the percentiles Compositing offers as caps)", { a: gradeText(prob.p975), b: gradeText(prob.p99), unit: elementUnits[symbol] || "ppm" })}</span>
+                  <span>{tr("P97.5 = {a}, P99 = {b} {unit} (the percentiles Compositing offers as caps)", { a: gradeText(prob.p975), b: gradeText(prob.p99), unit: gradeUnitLabel(symbol, elementUnits[symbol]) })}</span>
                   <label style={{ display: "flex", alignItems: "center", gap: 5 }}>{tr("Cap to test")}<input type="number" min="0" step="any" value={capTest} onChange={(e) => setCapTest(e.target.value)} style={{ ...sel, width: 80 }} aria-label={tr("Cap to test")} /></label>
                   {capFx && <span>{weightingActive ? tr("{above} of {n} samples above it; {pct}% of the metal (grade × length) removed", { above: capFx.above, n: capFx.n, pct: capFx.pctMetalRemoved.toFixed(1) }) : tr("{above} of {n} samples above it", { above: capFx.above, n: capFx.n })}</span>}
                 </div>

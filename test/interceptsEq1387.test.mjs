@@ -46,6 +46,6 @@ test("#1387 the dialog offers it once the equivalent is ready, and labels the gr
   const src = readFileSync(new URL("../src/components/BestIntercepts.jsx", import.meta.url), "utf8");
   assert.ok(src.includes("const onEq = cutOnEq && meqReady;"));
   assert.ok(src.includes("withMetalEquivalent(reportAssays, meqMetals, elementUnits)"));
-  assert.ok(src.includes('tr("Avg {symbol} ({unit})", { symbol: gradeSym, unit })'));
+  assert.ok(src.includes('tr("Avg {symbol} ({unit})", { symbol: gradeSym, unit: dispUnit })')); // dispUnit: #1680 (g/t, or % on request)
   assert.ok(src.includes("const meqCol = meqReady && !onEq;"));
 });

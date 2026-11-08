@@ -9162,5 +9162,7 @@
   "None of these samples has {list}.": "Aucun de ces échantillons n'a {list}.",
   "Data included ({n})": "Données incluses ({n})",
   "{label} (unsaved changes)": "{label} (modifications non enregistrées)",
-  "Close {label}": "Fermer {label}"
+  "Close {label}": "Fermer {label}",
+  "Show the grades as % (ppm / 10,000) in the table, the Layout table and an extra CSV column. The cutoff stays in ppm.": "Afficher les teneurs en % (ppm / 10 000) dans le tableau, le tableau de Mise en page et une colonne CSV en plus. La teneur de coupure reste en ppm.",
+  "Show as %": "Afficher en %"
 }

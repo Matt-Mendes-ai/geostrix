@@ -134,6 +134,9 @@ export function pickElementColumns(headers, rows) {
 // LABEL next to a cutoff/cap field - but a cutoff typed one order of magnitude out is a real risk, and
 // showing the unit the user actually thinks in is the cheapest way to reduce it.
 export const PRECIOUS_METALS = new Set(["Au", "Ag", "Pt", "Pd"]);
+// TASKS.csv #1680 (review #1645, Copley) — the unit a reader expects to see: a precious metal stored in ppm is labelled g/t (the same
+// number), everything else keeps its stored unit. Grade stats, Best intercepts and Compositing said 'Au (ppm)' where Estimation said g/t.
+export const gradeUnitLabel = (symbol, unit) => (PRECIOUS_METALS.has(symbol) && (unit || "ppm") === "ppm" ? "g/t" : unit || "ppm");
 
 // TASKS.csv #261 — qualifier handling for censored assay values.
 //   "<x"  below detection limit  -> x/2  (half-detection substitution: standard practice)
