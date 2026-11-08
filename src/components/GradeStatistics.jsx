@@ -94,6 +94,7 @@ function niceBinCount(n) {
   return Math.max(6, Math.min(24, Math.round(Math.log2(n) + 1)));
 }
 
+const HOLE_KEY = "__hole", HOLE_LITHO_KEY = "__hole_litho"; // TASKS.csv #2029 — built-in groupings (not a layer key)
 export default function GradeStatistics({ assays: assaysIn, assayElements, layers, surfaceSamples = [], surfaceElements = [], onClose }) {
   const assays = useMemo(() => labAssays(assaysIn), [assaysIn]), pxrfLeft = (assaysIn || []).length - assays.length; // #1673 — lab grades only
   useEscapeKey(onClose); // TASKS.csv #238
@@ -126,9 +127,11 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
   const customDomains = useMemo(() => (source === "assays" ? customDomainOptions(customLayers) : []), [customLayers, source]);
   const domainOptions = useMemo(() => (source === "assays" ? DOMAIN_LAYER_KEYS.filter((k) => (layers[k] || []).length > 0 && isCategoricalLayer(layers[k])) : []), [source, layers]); // #1515 — categories only
   const customDomain = customDomains.find((d) => d.key === domainKey) || null;
-  const domainRows = domainKey ? (customDomain ? customDomain.rows : layers[domainKey]) : null;
+  // TASKS.csv #2029 (review #2013, Geochem) — group by hole (and hole + lithology): a per-hole mean needed the SQL workspace
+  const byHole = domainKey === HOLE_KEY || domainKey === HOLE_LITHO_KEY;
+  const domainRows = domainKey === HOLE_KEY ? null : domainKey === HOLE_LITHO_KEY ? layers.litho : domainKey ? (customDomain ? customDomain.rows : layers[domainKey]) : null;
   const domainIdx = useMemo(() => (domainRows ? domainIndex(domainRows) : null), [domainRows]); // #1515
-  const domainName = (k) => customDomains.find((d) => d.key === k)?.label || LAYER_META[k]?.label || k; // #1678
+  const domainName = (k) => (k === HOLE_KEY ? "Hole" : k === HOLE_LITHO_KEY ? "Hole + lithology" : customDomains.find((d) => d.key === k)?.label || LAYER_META[k]?.label || k); // #1678; hole: #2029
   const domainLabel = (v) => (domainKey === "litho" ? (UNIT_NAMES[v] || v) : v === "All" || v === "(unclassified)" ? tr(v) : v); // #786: the two built-in group names
 
   // Per-sample {value, domain} pairs — every row that has a real numeric value for the selected
@@ -148,10 +151,11 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
     // logged twice (overlapping or repeated rows) counts once, negative lab codes are not assays. Raw rows counted the
     // repeats twice, so this panel's percentiles disagreed with the cap audit's.
     return resolvedSegments(statsAssays, symbol, elementUnits[symbol] || "ppm", elementUnits).map((s) => {
-      const domain = domainIdx ? domainAtMid(domainIdx, s.hole_id, s.from, s.to) : "All"; // #1515 — indexed
+      const lith = domainIdx ? domainAtMid(domainIdx, s.hole_id, s.from, s.to) : null; // #1515 — indexed
+      const domain = domainKey === HOLE_KEY ? s.hole_id : domainKey === HOLE_LITHO_KEY ? `${s.hole_id} · ${lith == null ? "(unclassified)" : lith}` : domainIdx ? lith : "All"; // #2029
       return { value: s.value, weight: s.to - s.from, domain }; // weight: #267
     });
-  }, [source, surfaceSamples, statsAssays, symbol, elementUnits, surfaceElementUnits, domainIdx]);
+  }, [source, surfaceSamples, statsAssays, symbol, elementUnits, surfaceElementUnits, domainIdx, domainKey]);
 
   // TASKS.csv #267 — weighting only applies to drillhole assays (surface samples have no interval
   // length), and only when every row in the group actually has a usable length.
@@ -166,8 +170,8 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
     return Array.from(byDomain.entries())
       .map(([key, rs]) => ({ key, stats: computeStats(rs.map((r) => r.value), weightingActive ? rs.map((r) => r.weight) : null) }))
       .filter((g) => g.stats)
-      .sort((a, b) => b.stats.n - a.stats.n);
-  }, [rows, weightingActive]);
+      .sort(byHole ? (a, b) => String(a.key).localeCompare(String(b.key), undefined, { numeric: true }) : (a, b) => b.stats.n - a.stats.n); // #2029 — holes in id order
+  }, [rows, weightingActive, byHole]);
 
   // TASKS.csv #1388 — the log-probability plot: each domain's points, and the cap candidates Compositing offers (the
   // length-weighted P97.5 and P99 of all the intervals) plus a cap to test, with what it would remove
@@ -269,6 +273,8 @@ export default function GradeStatistics({ assays: assaysIn, assayElements, layer
             {source === "assays" ? (
               <label style={{ fontSize: "var(--font-size-sm)", color: "var(--color-text-secondary)" }}>{tr("Domain (optional)")}<select value={domainKey} onChange={(e) => setDomainKey(e.target.value)} style={{ ...sel, display: "block", marginTop: 4 }}>
                   <option value="">{tr("— none, all intervals together —")}</option>
+                  <option value={HOLE_KEY}>{tr("Hole")}</option>{/* #2029 */}
+                  {(layers.litho || []).length > 0 && <option value={HOLE_LITHO_KEY}>{tr("Hole + lithology")}</option>}
                   {domainOptions.map((k) => <option key={k} value={k}>{LAYER_META[k].label}</option>)}
                   {customDomains.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}{/* #1678 */}
                 </select>

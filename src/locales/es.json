@@ -9280,5 +9280,6 @@
   "Read from the file's own CRS (its .prj or GeoPackage SRS) — check it. Samples are reprojected into the project CRS on import.": "Leído del SRC propio del archivo (su .prj o el SRS del GeoPackage): verifíquelo. Las muestras se reproyectan al SRC del proyecto al importar.",
   "{name} is already in Map layers as \"{layer}\" ({features}): not added again.": "{name} ya está en Capas de mapa como \"{layer}\" ({features}): no se agregó de nuevo.",
   "{name}: {features} added to Map layers, {crsNote}.": "{name}: {features} agregados a Capas de mapa, {crsNote}.",
-  "{names}: not a file the map or this import reads.": "{names}: no es un archivo que lean el mapa ni esta importación."
+  "{names}: not a file the map or this import reads.": "{names}: no es un archivo que lean el mapa ni esta importación.",
+  "Hole + lithology": "Sondaje + litología"
 }

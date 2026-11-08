@@ -9280,5 +9280,6 @@
   "Read from the file's own CRS (its .prj or GeoPackage SRS) — check it. Samples are reprojected into the project CRS on import.": "قُرئ من نظام إحداثيات الملف نفسه (ملف ‎.prj‎ أو SRS الخاص بـ GeoPackage): تحقّق منه. تُعاد إسقاط العينات إلى نظام إحداثيات المشروع عند الاستيراد.",
   "{name} is already in Map layers as \"{layer}\" ({features}): not added again.": "{name} موجود مسبقًا في طبقات الخريطة باسم \"{layer}\" ({features}): لم يُضف مرة أخرى.",
   "{name}: {features} added to Map layers, {crsNote}.": "{name}: أُضيفت {features} إلى طبقات الخريطة، {crsNote}.",
-  "{names}: not a file the map or this import reads.": "{names}: ليس ملفًا تقرؤه الخريطة أو هذا الاستيراد."
+  "{names}: not a file the map or this import reads.": "{names}: ليس ملفًا تقرؤه الخريطة أو هذا الاستيراد.",
+  "Hole + lithology": "الثقب + الصخارة"
 }
