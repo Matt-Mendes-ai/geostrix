@@ -9170,5 +9170,9 @@
   "{n} below": "{n} أسفل",
   "{n} right": "{n} يمينًا",
   "{n} left": "{n} يسارًا",
-  "Comendite/Pantellerite": "كومنديت/بانتيليريت"
+  "Comendite/Pantellerite": "كومنديت/بانتيليريت",
+  "This body was closed artificially.": "أُغلق هذا الجسم بشكل اصطناعي.",
+  "Part of its boundary is not a logged contact with another code — it is where the search radius ran out of intervals. Its volume therefore depends on the search radius, not only on the logs. Treat it as a picture of where the unit might extend, not a measured volume.": "جزء من حدوده ليس تماسًا مسجلًا مع رمز آخر، بل هو حيث نفدت فترات نصف قطر البحث. لذلك يعتمد حجمه على نصف قطر البحث لا على السجلات وحدها. اعتبره صورة لما قد تمتد إليه الوحدة، لا حجمًا مقيسًا.",
+  "This envelope was closed artificially.": "أُغلق هذا الغلاف بشكل اصطناعي.",
+  "Part of its boundary is not a logged alteration boundary — it is where the search radius ran out of intervals. Its volume therefore depends on the search radius, not only on the logs. Treat it as a picture of where the alteration might extend, not a measured volume.": "جزء من حدوده ليس حد تحول مسجلًا، بل هو حيث نفدت فترات نصف قطر البحث. لذلك يعتمد حجمه على نصف قطر البحث لا على السجلات وحدها. اعتبره صورة لما قد يمتد إليه التحول، لا حجمًا مقيسًا."
 }

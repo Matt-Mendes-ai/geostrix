@@ -155,6 +155,7 @@ const MODELLING_PANES = new Set(["mapmodel", "settings", "gradeEst", "explicit",
 const voxelGridCache = new WeakMap();
 const voxelGridOf = (model) => { let G = voxelGridCache.get(model.cells); if (G === undefined) { G = rectilinearGrid(model.cells); voxelGridCache.set(model.cells, G); } return G; };
 import { PRECIOUS_METALS } from "../lib/geochem.js";
+import ClosureNote from "./viewer/ClosureNote.jsx"; // TASKS.csv #1689
 // TASKS.csv #1136 — off the startup chunk: the Targeting tab's planned-hole parts, the measure readout and the numeric
 // symbology editor load the first time they are shown (PlannedHoleTargeting, #119, now loads from PlannedHoleParts)
 const plannedPart = (name) => lazyModal(() => import("../components/PlannedHoleParts.jsx").then((m) => ({ default: m[name] })));
@@ -8092,10 +8093,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
                       {/* TASKS.csv #257 — an ARTIFICIALLY closed shell is watertight, so the old
                           !watertight-only caution never fired for the single most misleading case in
                           the whole tool. Closure mode is recorded on the surface at generation time. */}
-                      {s.closure === "artificial" && (
-                        <div style={{ fontSize: "var(--font-size-xs)", color: "#a5691f", marginBottom: 6, lineHeight: 1.45 }}>
-                          <strong>{tr("This shell was closed artificially.")}</strong>{" "}{tr("Part of its boundary is not a grade boundary — it is where the search radius ran out of samples. The volume therefore depends on your search radius, not only on the data: doubling the search radius roughly multiplies the volume by eight. Treat it as a visualization of where grades might extend, not a measured volume.")}</div>
-                      )}
+                      {s.closure === "artificial" && <ClosureNote type={s.type} />}{/* #1689 — worded for the kind of body */}
                       {/* TASKS.csv #263 — the watertight test is a manifold test, not a connectivity
                           test: two disjoint balloons 200 m apart are each closed and report as one
                           volume. Union-find over the indexed mesh says how many bodies there really are. */}

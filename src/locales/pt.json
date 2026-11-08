@@ -9170,5 +9170,9 @@
   "{n} below": "{n} abaixo",
   "{n} right": "{n} à direita",
   "{n} left": "{n} à esquerda",
-  "Comendite/Pantellerite": "Comendito/Pantelerito"
+  "Comendite/Pantellerite": "Comendito/Pantelerito",
+  "This body was closed artificially.": "Este corpo foi fechado artificialmente.",
+  "Part of its boundary is not a logged contact with another code — it is where the search radius ran out of intervals. Its volume therefore depends on the search radius, not only on the logs. Treat it as a picture of where the unit might extend, not a measured volume.": "Parte do seu limite não é um contato descrito com outro código: é onde o raio de busca ficou sem intervalos. Por isso o volume depende do raio de busca, não só das descrições. Trate-o como uma imagem de até onde a unidade pode se estender, não como um volume medido.",
+  "This envelope was closed artificially.": "Este envelope foi fechado artificialmente.",
+  "Part of its boundary is not a logged alteration boundary — it is where the search radius ran out of intervals. Its volume therefore depends on the search radius, not only on the logs. Treat it as a picture of where the alteration might extend, not a measured volume.": "Parte do seu limite não é um limite de alteração descrito: é onde o raio de busca ficou sem intervalos. Por isso o volume depende do raio de busca, não só das descrições. Trate-o como uma imagem de até onde a alteração pode se estender, não como um volume medido."
 }
