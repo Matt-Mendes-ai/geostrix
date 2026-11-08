@@ -211,7 +211,8 @@ export default function RasterModule({ embedded = false } = {}) {
   // TASKS.csv #1507 — files dropped on the Maps tab's map (MapsModule): the rasters import as a drop on this sidebar does, the rest are named
   useModuleAction(["import-raster-files"], (_a, p) => {
     (p?.files || []).forEach((f) => importRaster(f));
-    if (p?.others?.length) setError({ info: true, text: tr("Dropped on the map, only rasters (.tif, .gxf, .grd) import. {names}: use Boundaries, Terrain or Web layers above, or Surface Geology for a geology map.", { names: p.others.slice(0, 3).join(", ") + (p.others.length > 3 ? "…" : "") }) });
+    if (p?.notes?.length && !p?.others?.length) setError({ info: true, text: p.notes.join(" ") }); // #2019 — the Map layers the drop added
+    else if (p?.others?.length) setError({ info: true, text: tr("Dropped on the map, only rasters (.tif, .gxf, .grd) import. {names}: use Boundaries, Terrain or Web layers above, or Surface Geology for a geology map.", { names: p.others.slice(0, 3).join(", ") + (p.others.length > 3 ? "…" : "") }) });
   });
   useModuleAction(["raster-satellite", "raster-georeference", "raster-spectral"], (a) => (a === "raster-satellite" ? openSatPickerRef.current?.() : a === "raster-spectral" ? openSpectralRef.current?.() : setGeorefOpen(true))); // #749 — the Maps tab's ribbon; spectral: #783
   const [sidebarWidth, setSidebarWidth] = useSidebarWidth();

@@ -16,14 +16,17 @@ import RasterModule from "./RasterModule.jsx";
 import GeophysicsModule from "./GeophysicsModule.jsx";
 import CartographyModule from "./CartographyModule.jsx";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786 — messages in the interface language
+import { groupShapefileParts, parseVectorFile } from "../lib/viewer/importHelpers.js"; // TASKS.csv #2019
+import { buildLayer, sameMapLayer, mapsDropRoutes } from "../lib/mapLayerBuild.js"; // TASKS.csv #2019
+import { guessEpsgFromPrjWkt } from "../lib/reproject.js";
+import { featureCountText } from "../lib/featureCount.js";
 
 const GEO_PANES = new Set(["terrain", "web", "boundaries", "claims"]); // "maps" (geology map layers + outcrop structures) moved to the Surface Geology tab: #820
 const CRS_PANES = new Set(["crs", "layer", "file"]);
-const RASTER_DROP = /\.(tiff?|gxf|grd)$/i; // TASKS.csv #1507 — what RasterModule's own drop takes
 
 export default function MapsModule() {
   const [pane, setPane] = useState("raster");
-  const { rasters = [], terrain, mapLayers = [], boundaries = [], project, surfaceSamples = [], collars = [] } = useStore(); // surfaceSamples: TASKS.csv #1792; collars: #1625
+  const { rasters = [], terrain, mapLayers = [], boundaries = [], project, surfaceSamples = [], collars = [], addMapLayer, goToModule } = useStore(); // surfaceSamples: TASKS.csv #1792; collars: #1625; addMapLayer / goToModule: #2019
   const hasPlan = !!planDataExtent({ rasters, terrain, mapLayers, boundaries, collars, surfaceSamples }); // #1625 — a plan of it, else the card
   useModuleAction(["maps-crs"], () => setPane("crs")); // the Set project CRS menu item
   useModuleAction(["maps-terrain"], () => setPane("terrain")); // TASKS.csv #1429 — the inversion pane's 'Go to Maps › Terrain'
@@ -35,13 +38,36 @@ export default function MapsModule() {
   const mapDrop = {
     onDragOver: (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files")) { e.preventDefault(); setMapDrag(true); } },
     onDragLeave: (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setMapDrag(false); },
-    onDrop: (e) => {
+    onDrop: async (e) => {
       e.preventDefault(); setMapDrag(false);
-      const all = Array.from(e.dataTransfer?.files || []);
+      // TASKS.csv #2019 (review #2013, Import) — only rasters imported here ('use Boundaries, Terrain or Web layers above') while the 3D view
+      // took the same shapefile: lines / polygons now become Map layers here; points, tables and multi-layer files open the 3D view's import
+      const grouped = groupShapefileParts(Array.from(e.dataTransfer?.files || []));
+      const all = grouped.files;
       if (!all.length) return;
-      const files = all.filter((f) => RASTER_DROP.test(f.name)), others = all.filter((f) => !RASTER_DROP.test(f.name)).map((f) => f.name);
+      const routes = mapsDropRoutes(all.map((f) => f.name)), byName = new Map(all.map((f) => [f.name, f]));
+      const files = routes.raster.map((n) => byName.get(n)), others = [...routes.other, ...grouped.unmatched.map((f) => f.name)];
+      const toViewer = routes.table.map((n) => byName.get(n)), notes = [];
+      const crsReady = !!project?.epsg && project?.crsSet !== false; // an unset project CRS: the 3D view's import adopts the file's (#607)
+      for (const n of routes.vector) {
+        const f = byName.get(n);
+        const got = crsReady ? await new Promise((res) => parseVectorFile(f, (rows, err, meta) => res({ err, meta }))) : null;
+        const vec = got?.meta?.vector;
+        if (!vec || got.err || got.meta?.layerOptions || !vec.geomType || vec.geomType === "point") { toViewer.push(f); continue; }
+        const layer = buildLayer({ ...vec, epsg: guessEpsgFromPrjWkt(vec.prjWkt) }, { sourceName: f.name.replace(/\.(shp|zip)$/i, ""), projectEpsg: project?.epsg, qml: null, sourceOverride: null });
+        if (!layer?.features?.length) { notes.push(tr("{name}: no usable line / polygon features.", { name: f.name })); continue; }
+        const twin = sameMapLayer(mapLayers, layer);
+        if (twin) { notes.push(tr("{name} is already in Map layers as \"{layer}\" ({features}): not added again.", { name: f.name, layer: twin.name, features: featureCountText(layer.features.length, layer.geomType) })); continue; }
+        addMapLayer({ ...layer, drapeMode: "terrain" });
+        notes.push(tr("{name}: {features} added to Map layers, {crsNote}.", { name: f.name, features: featureCountText(layer.features.length, layer.geomType), crsNote: layer.crsNote }));
+      }
+      if (toViewer.length) { // points (collars, samples), tables and layer pickers: the 3D view's import asks what they are
+        goToModule?.("viewer");
+        requestModuleAction("import-dropped-files", { files: [...files, ...toViewer], notes, others }); // the rasters of the same drop too: the 3D view imports them
+        return;
+      }
       setPane("raster");
-      requestModuleAction("import-raster-files", { files, others });
+      requestModuleAction("import-raster-files", { files, others, notes });
     },
   };
   const dropOutline = mapDrag ? { outline: "2px dashed var(--color-accent)", outlineOffset: -6 } : null;

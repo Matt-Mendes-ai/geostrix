@@ -19,7 +19,7 @@ import { orientFromAlphaBeta, reorientAlphaBetaPicks } from "../../lib/coreOrien
 import { fitSimilarity, parseControlPoints, transformImportRows } from "../../lib/localGrid.js";
 import { loadSampleFiles } from "../../lib/desktop.js";
 const isXlsxName = (name) => /\.xlsx$/i.test(String(name || "")); // TASKS.csv #605 (same test as xlsx.js; the reader itself loads on demand, #552)
-import { buildLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609
+import { buildLayer, sameMapLayer } from "../../lib/mapLayerBuild.js"; // TASKS.csv #609; sameMapLayer: #2019
 import { askAdoptCrs } from "../../lib/adoptCrs.js"; // TASKS.csv #607
 import { requestProjectCrs } from "../../lib/projectCrsRequest.js"; // TASKS.csv #615
 import { LAYER_META, TARGET_SCHEMAS, guessColumn, guessColumnExact, guessMapping, guessTargetFor, schemaSatisfied, num, replaceRowsByHole, keepDerivedPicks, isDerivedPick, replaceNote, EPSG_COL_ALIASES, diffCollarImport, mergeCollar, minMax, pickRankedCollarRows } from "../../lib/layers.js";
@@ -27,7 +27,7 @@ import { alterationStyleFromName, styledAltValue } from "../../lib/viewer/import
 import { fillDownHoleIds, numberedSiblings, allCodesOf, normInterval, applyCustomFields, normNumericInterval, normStructure, skippedRowsText, strikeStats, loadRaster, looksLikeAssay, isSurfaceSampleTable, parseVectorFile, groupShapefileParts, orderImportFiles } from "../../lib/viewer/importHelpers.js"; // groupShapefileParts / orderImportFiles: #600
 import { unreadableFormatAdvice } from "../../lib/unreadableFormats.js"; // TASKS.csv #603
 import { t as tr } from "../../lib/i18n.js"; // TASKS.csv #786
-import { requestModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917
+import { requestModuleAction, useModuleAction } from "../../lib/menuRequests.js"; // TASKS.csv #917; useModuleAction: #2019
 import { autoExtraFields, companionLayer } from "../../lib/viewer/autoExtras.js"; // TASKS.csv #1501
 import { surfaceAttrColumns, surfaceAttrs } from "../../lib/geochem.js"; // TASKS.csv #1504 — unmapped collar columns kept as attrs
 import { rasterDrapeElevation, drapeElevationNote } from "../../lib/drapeElevation.js"; // TASKS.csv #1505
@@ -91,10 +91,18 @@ export function useImportPipeline(ctx) {
     const sourceName = file.name.replace(/\.(shp|zip)$/i, "");
     const layer = buildLayer({ ...parsed, epsg: guessEpsgFromPrjWkt(parsed.prjWkt) }, { sourceName, projectEpsg: live.project?.epsg, qml: null, sourceOverride: null });
     if (!layer) { setNotices((p) => [...p, notice("{name}: no usable line / polygon features.", { name: file.name })]); return; }
+    const twin = sameMapLayer(live.mapLayers, layer); // #2019 — the same file again: not a second copy
+    if (twin) { setNotices((p) => [...p, notice("{name} is already in Map layers as \"{layer}\" ({features}): not added again.", { name: file.name, layer: twin.name, features: featureCountText(layer.features.length, layer.geomType) })]); return; }
     live.addMapLayer({ ...layer, drapeMode: "terrain" }); // #1606 — flat until a terrain exists, then draped (was 'flat' for good when imported before one)
     setNotices((p) => [...p, notice("{name}: {features} added to Map layers (left panel; remove or hide it there), {crsNote}{v2}. Lines and polygons are map data, not drillhole tables.", { name: file.name, features: featureCountText(layer.features.length, layer.geomType) /* #1116 */, crsNote: layer.crsNote, v2: live.terrain ? tr(", draped on the terrain") : "" })]);
   };
   const isMapGeometry = (meta) => meta?.vector && meta.vector.geomType && meta.vector.geomType !== "point";
+  // TASKS.csv #2019 — files dropped on the Maps tab that need this import (points, tables, layer pickers), with what Maps already did
+  useModuleAction(["import-dropped-files"], (_a, p) => {
+    const extra = [...(p?.notes || []), ...(p?.others?.length ? [notice("{names}: not a file the map or this import reads.", { names: p.others.slice(0, 4).join(", ") + (p.others.length > 4 ? "…" : "") })] : [])];
+    if (extra.length) setNotices((q) => [...q, ...extra]);
+    if (p?.files?.length) handleDrop({ preventDefault() {}, dataTransfer: { files: p.files } });
+  });
 
   const openImportModal = (file, forceTarget, chosenLayer = null) => {
     parseVectorFile(file, (data, err, meta) => {

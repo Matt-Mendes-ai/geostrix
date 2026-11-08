@@ -84,3 +84,26 @@ export function buildLayer(parsed, { sourceName, projectEpsg, qml, sourceOverrid
   };
 }
 
+
+// TASKS.csv #2019 (review #2013, Import) — the same IP-line shapefile dropped twice (the 3D view, then Maps) made two identical Map layers
+// with no word. -> the layer already in `mapLayers` that is this one again (same name, geometry type, feature count and extent), or null.
+export function sameMapLayer(mapLayers, layer) {
+  if (!layer) return null;
+  const box = (b) => (Array.isArray(b) ? b.map((v) => Math.round(v)).join(",") : "");
+  return (mapLayers || []).find((l) => (l.sourceName || l.name) === (layer.sourceName || layer.name) && l.geomType === layer.geomType
+    && (l.features || []).length === (layer.features || []).length && box(l.bbox) === box(layer.bbox)) || null;
+}
+
+// TASKS.csv #2019 — what a drop on the Maps tab's map does with each file: rasters to the raster import, GIS vector files read here
+// (lines / polygons become Map layers; points, tables and multi-layer files go to the 3D view's import, which has the mapping dialog
+// and the layer picker), drillhole tables to the 3D view, anything else named.
+export function mapsDropRoutes(names) {
+  const out = { raster: [], vector: [], table: [], other: [] };
+  for (const n of names || []) {
+    if (/\.(tiff?|gxf|grd)$/i.test(n)) out.raster.push(n);
+    else if (/\.(shp|zip|gpkg|kml|kmz)$/i.test(n)) out.vector.push(n);
+    else if (/\.(csv|xlsx|las|dxf)$/i.test(n)) out.table.push(n);
+    else out.other.push(n);
+  }
+  return out;
+}

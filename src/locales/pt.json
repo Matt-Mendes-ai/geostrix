@@ -9277,5 +9277,8 @@
   "it holds lines or polygons, not sample points: import it as a map layer.": "contém linhas ou polígonos, não pontos de amostra: importe-o como camada de mapa.",
   "{name}: {error}": "{name}: {error}",
   "Only .csv, .xlsx, shapefile (.shp / .zip), GeoPackage or KML files can be dropped in directly.": "Só é possível soltar diretamente arquivos .csv, .xlsx, shapefile (.shp / .zip), GeoPackage ou KML.",
-  "Read from the file's own CRS (its .prj or GeoPackage SRS) — check it. Samples are reprojected into the project CRS on import.": "Lido do SRC do próprio arquivo (o .prj ou o SRS do GeoPackage): confira. As amostras são reprojetadas para o SRC do projeto na importação."
+  "Read from the file's own CRS (its .prj or GeoPackage SRS) — check it. Samples are reprojected into the project CRS on import.": "Lido do SRC do próprio arquivo (o .prj ou o SRS do GeoPackage): confira. As amostras são reprojetadas para o SRC do projeto na importação.",
+  "{name} is already in Map layers as \"{layer}\" ({features}): not added again.": "{name} já está em Camadas do mapa como \"{layer}\" ({features}): não foi adicionado de novo.",
+  "{name}: {features} added to Map layers, {crsNote}.": "{name}: {features} adicionados a Camadas do mapa, {crsNote}.",
+  "{names}: not a file the map or this import reads.": "{names}: não é um arquivo que o mapa ou esta importação leia."
 }
