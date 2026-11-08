@@ -188,6 +188,7 @@ export function createModellingRuns(ctx, mcRef) {
       setNotices((p) => [...p, notice("Pick check before solving — {v} The run goes ahead as it is: fix or exclude these in the Boundary intercepts table if they are wrong.", { v: pickIssues.map((r) => [
         `${r.label}:`,
         r.duplicates ? tr(" {duplicates} pick(s) repeated at the same spot ({duplicateExamples}{v}) — GemPy honours every copy, which only slows and stiffens the solve;", { duplicates: r.duplicates, duplicateExamples: r.duplicateExamples.join(", "), v: r.duplicates > 3 ? "…" : "" }) : "",
+        r.close ? tr(" {n} pair(s) of picks less than 0.5 m apart down the hole ({examples}{v}) — separate structures close together (veinlets of one interval) or a near-repeat; GemPy honours each, which stiffens the solve;", { n: r.close, examples: r.closeExamples.join(", "), v: r.close > 3 ? "…" : "" }) : "", // #2048
         r.conflicts ? tr(" {conflicts} pair(s) of picks almost on top of each other but far apart in elevation ({conflictExamples}{v}) — the surface has to stand near-vertical there to honour both: usually a mis-picked or mislabelled contact, or the unit repeated by a fold or fault;", { conflicts: r.conflicts, conflictExamples: r.conflictExamples.join("; "), v: r.conflicts > 3 ? "…" : "" }) : "",
         r.orientations ? tr(" {orientations} of {orientationsTotal} orientation(s) differ by more than 45° from the plane through the contacts around them ({orientationExamples}{v}) — GemPy bends the surface between the two;", { orientations: r.orientations, orientationsTotal: r.orientationsTotal, orientationExamples: r.orientationExamples.join(", "), v: r.orientations > 3 ? "…" : "" }) : "",
       ].join("")).join(" ").replace(/;(?=\s|$)/g, ".") })]);
@@ -1532,6 +1533,18 @@ export function createModellingRuns(ctx, mcRef) {
       if (holes > 1) setNotices((p) => [...p, notice("All {rows} \"{structType}\" picks ({holes} holes) are modelled as ONE surface. If they belong to different {v}, map a structure name/ID column when importing the structure file and each will be modelled on its own.", { rows: rows.length, structType, holes, v: /flt|fault|shear/i.test(structType) ? tr("faults") : tr("structures") })]);
     } else {
       setNotices((p) => [...p, notice("Modelling {named} named \"{structType}\" structure(s) separately: {named2}{v}.", { named: named.length, structType, named2: named.join(", "), v: byId.has("") ? tr(", plus {n} pick(s) with no name as one more surface", { n: byId.get("").length }) : "" })]);
+    }
+    // TASKS.csv #2048 (review #2013, 3D Modelling) — Woodjam's 47 VEIN_Uniq stockwork picks (2 holes, k = 3.4) were solved as ONE GemPy
+    // surface for 15 s with the 'no preferred orientation' warning only afterwards; the stack has asked first since #1543. A group whose
+    // picks are as scattered as random planes, or that a hole cuts more than 2.5 times (a vein set), is asked about before the solve.
+    const setLike = [...byId].map(([id, group]) => {
+      const fs = group.length >= 4 ? fisherStats(group) : null, holes = new Set(group.map((s) => s.hole_id)).size, perHole = group.length / Math.max(1, holes);
+      const why = [fs?.noPreferred ? tr("no preferred orientation (k = {k})", { k: Number(fs.k).toFixed(1) }) : null, group.length >= 4 && perHole > 2.5 ? tr("{n} picks per hole", { n: perHole.toFixed(1) }) : null].filter(Boolean);
+      return why.length ? `"${id ? `${structType} — ${id}` : structType}" (${group.length} picks, ${why.join(", ")})` : null;
+    }).filter(Boolean);
+    if (setLike.length && !window.confirm(tr("{list}: these picks behave like a vein set or a fabric, not one surface. A surface solved through them is not a structure they define. Model them anyway?", { list: setLike.join("; ") }))) {
+      setNotices((p) => [...p, notice("Structure model cancelled before solving. For a vein set, its mean plane can be a structural trend (Stereonet > Add as structural trend), or give each structure its own name / ID.")]);
+      return;
     }
     // TASKS.csv #83 — a "structure" layer covers contacts, faults, shear zones, foliation, veins all
     // under one layer type (see sample_data's structure.csv), so this tool's own picked structType

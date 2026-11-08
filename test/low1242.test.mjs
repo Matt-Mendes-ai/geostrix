@@ -33,8 +33,9 @@ test("#1225 a pick on a hole is named by hole and depth", () => {
   const pts = [{ x: 0, y: 0, z: 0, hole_id: "MT23-118", depth: 100 }, { x: 0.5, y: 0, z: 0, hole_id: "MT23-118", depth: 100.5 }];
   const r = pickReport({ label: "Fault: FLT", points: pts, orientations: [] });
   assert.ok(r, "two picks almost on top of each other are reported");
-  assert.match(r.duplicateExamples[0], /MT23-118 at 100 m \/ MT23-118 at 100\.5 m/);
-  assert.ok(!/drawn contact/.test(r.duplicateExamples[0]));
+  // #2048 — 0.5 m apart at different depths: two close picks, not a repeat; still named by hole and depth
+  assert.match(r.closeExamples[0], /MT23-118 at 100 \/ 100\.5 m/);
+  assert.ok(!/drawn contact/.test(r.closeExamples[0]));
 });
 test("#1246 a map layer at no elevation is 2D in the shapefile; one with an elevation keeps z", () => {
   const layer = { geomType: "polygon", features: [{ parts: [[[0, 0], [10, 0], [10, 10], [0, 0]]], attributes: { a: 1 } }] };

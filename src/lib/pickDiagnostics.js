@@ -81,11 +81,16 @@ export function pickReport(spec, opts = {}) {
   if (pts.length > (opts.maxPoints ?? 5000)) return null; // a halo or grade shell's cloud, not picks
   const o = opts.origin || { x: 0, y: 0 }; // points are origin-relative in a model run: name real coordinates
   const where = (p) => (p.hole_id ? (Number.isFinite(p.depth) ? `${p.hole_id} at ${p.depth} m` : p.hole_id) : null) || `${p.srcCode === "surface map" ? "map contact" : "drawn contact"} at ${Math.round(p.x + o.x)} E ${Math.round(p.y + o.y)} N`;
-  const dup = duplicatePicks(pts), con = conflictingPicks(pts), ori = orientationConflicts(pts, ors);
-  if (!dup.length && !con.length && !ori.length) return null;
+  const near = duplicatePicks(pts), con = conflictingPicks(pts), ori = orientationConflicts(pts, ors);
+  // TASKS.csv #2050 / #2048 (review #2013) — a pair within 0.5 m at DIFFERENT logged depths is two picks close together (veinlets 0.22 m apart
+  // in one stockwork interval), not a row repeated: 'repeated at the same spot' was said of both
+  const sameSpot = ([i, j]) => !(pts[i].hole_id && pts[i].hole_id === pts[j].hole_id && Number.isFinite(pts[i].depth) && Number.isFinite(pts[j].depth) && Math.abs(pts[i].depth - pts[j].depth) >= 0.01);
+  const dup = near.filter(sameSpot), close = near.filter((pr) => !sameSpot(pr));
+  if (!near.length && !con.length && !ori.length) return null;
   return {
-    label: spec.label || spec.meshName, duplicates: dup.length, conflicts: con.length, orientations: ori.length, orientationsTotal: ors.length,
+    label: spec.label || spec.meshName, duplicates: dup.length, close: close.length, conflicts: con.length, orientations: ori.length, orientationsTotal: ors.length,
     duplicateExamples: dup.slice(0, 3).map(([i, j]) => (where(pts[i]) === where(pts[j]) ? where(pts[i]) : `${where(pts[i])} / ${where(pts[j])}`)),
+    closeExamples: close.slice(0, 3).map(([i, j]) => `${pts[i].hole_id} at ${pts[i].depth} / ${pts[j].depth} m`),
     conflictExamples: con.slice(0, 3).map((c) => `${where(pts[c.i])} / ${where(pts[c.j])} (${Math.round(c.h)} m apart, ${Math.round(c.dz)} m in elevation)`),
     orientationExamples: ori.slice(0, 3).map((q) => `${Math.round(q.angle)}° ${ors[q.index].hole_id ? `in ${ors[q.index].hole_id}` : "on a pick"} at ${Math.round(ors[q.index].z + (o.z || 0))} m elevation`),
   };
