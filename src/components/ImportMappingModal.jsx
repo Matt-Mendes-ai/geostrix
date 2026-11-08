@@ -13,6 +13,7 @@ import { overlay } from "../lib/modalStyles.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 import { activateOnKey } from "../lib/a11y.js"; // TASKS.csv #238 — Enter/Space on clickable non-button elements
 import { fieldNeedsNumber, columnHasNoNumbers } from "../lib/importChecks.js"; // TASKS.csv #1257
+import { customFromPrevious } from "../lib/viewer/customMapping.js"; // TASKS.csv #1654
 
 
 export default function ImportMappingModal({ modal, onChange, onCancel, onCommit, projectEpsg, replaceInfo = null }) { // replaceInfo: #1649
@@ -47,7 +48,10 @@ export default function ImportMappingModal({ modal, onChange, onCancel, onCommit
   const hasAbsoluteXY = schema.fields.some((f) => f.key === "x") && schema.fields.some((f) => f.key === "y");
   const setTarget = (target) => {
     // TASKS.csv #426 — re-guess the columns for the newly chosen type instead of clearing them all.
-    const mapping = guessMapping(target, modal.headers || []);
+    let mapping = guessMapping(target, modal.headers || []);
+    // TASKS.csv #1654 (review #1645, Copley) — 'Custom layer' forgot the guesses: Value went back to '— none —' (Rock_Oxidation was the
+    // guess), and a table of points (From = To on every row, the SWIR files) kept From / To instead of Depth
+    if (target === "custom") mapping = customFromPrevious(mapping, modal.mapping || {}, modal.allRows || modal.sampleRows || []);
     onChange({ ...modal, target, mapping });
   };
   const setMapping = (key, col) => onChange({ ...modal, mapping: { ...modal.mapping, [key]: col } });
