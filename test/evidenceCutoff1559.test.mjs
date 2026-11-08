@@ -44,6 +44,6 @@ test("wired: the pane counts the drop, names the raster by cells, shows the coun
   assert.match(p, /droppedShare > 0\.25 \? "var\(--color-warn-text\)"/);
   assert.match(p, /\{a\} of \{d\} occurrence cells inside the pattern \(\{b\} cells\)/);
   assert.match(p, /r\.thin \? " · " \+ tr\("thin: fewer than \{m\} occurrence cells on one side/);
-  assert.match(p, /r\.used = !r\.thin \|\| !anySound; if \(r\.used\) chosen\.push\(/, "a thin layer stays out of the posterior when sound layers exist");
+  assert.match(p, /r\.used = !r\.none && \(!r\.thin \|\| !anySound\); if \(r\.used\) chosen\.push\(/, "a thin layer stays out of the posterior when sound layers exist (and a card with no weight, #2098)");
   assert.match(p, /tr\("left out of the posterior"\)/);
 });
