@@ -1494,6 +1494,7 @@ export function StoreProvider({ children }) {
   const extraDirtyFields = extraDirtyValues(live); // #448: fields with track "dirty", plus EPSG / desurvey method
   // TASKS.csv #1286 — a recoloured legend or layer style is work: unsaved, autosaved, asked about on quit. Orbiting still is not.
   const stylingChanged = useRef(stylingTracker());
+  const markViewerUiBaseline = useCallback((s, seq) => stylingChanged.current.rebase(s, seq), []); // #1656
   useEffect(() => { if (stylingChanged.current(viewerUiState, viewerUiStateSeq)) setActiveTabDirty(true); }, [viewerUiState, viewerUiStateSeq]);
   useEffect(() => {
     const prev = extraDirtyBaseline.current;
@@ -1665,7 +1666,7 @@ export function StoreProvider({ children }) {
     interceptSets, addInterceptSet, renameInterceptSet, deleteInterceptSet, toggleInterceptInSet, setInterceptsInSet, // TASKS.csv #52 (c)
     sections, setSections, upsertSection, renameSection, deleteSection, setSectionContacts, setSectionLabels, updateSections, renameSectionsBulk,
     sectionGroups, addSectionGroup, deleteSectionGroup, deleteAllSections,
-    viewerUiState, setViewerUiState, viewerUiStateSeq,
+    viewerUiState, setViewerUiState, viewerUiStateSeq, markViewerUiBaseline, // markViewerUiBaseline: #1656
     gridBoundViewportId, setGridBoundViewportId, gridMeters, setGridMeters,
     lastCamState, setLastCamState,
     pendingLayoutImages, addLayoutImage, consumeLayoutImage,

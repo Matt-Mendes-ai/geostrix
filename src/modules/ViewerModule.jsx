@@ -26,6 +26,7 @@ import LocatorMap from "../components/LocatorMap.jsx";
 const BasemapView = lazyModal(() => import("../components/BasemapView.jsx"));  // TASKS.csv #301
 import PromptModal from "../components/PromptModal.jsx";
 import { toLonLat, isMetricProjectedEpsg } from "../lib/reproject.js";
+import { mirrorCustomLayers } from "../lib/viewerDirty.js"; // #1656
 import { useStore, useSetCursor, useSetTaskProgress } from "../lib/store.jsx";
 import { desurveyHole, surveyAzimuthDipAt } from "../lib/desurvey.js";
 import { confirmDestructive } from "../lib/confirmDestructive.js"; // TASKS.csv #386
@@ -647,7 +648,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     generatedSurfaces, setGeneratedSurfaces, modelDomains, setModelDomains, // TASKS.csv #52 — persisted implicit surfaces + domains
     getProjectToken, isSameProject, // TASKS.csv #466
     customLayers: storeCustomLayers, setCustomLayers: setStoreCustomLayers,
-    viewerUiState, setViewerUiState, viewerUiStateSeq,
+    viewerUiState, setViewerUiState, viewerUiStateSeq, markViewerUiBaseline,
     lastCamState, setLastCamState,
     addLayoutImage, goToModule, requestViewportRender, // requestViewportRender: #1005
     themes, addTheme, renameTheme, deleteTheme,
@@ -1687,7 +1688,7 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
     if (!customRestoredRef.current) return;
     // #478 — skip an empty-over-empty write: at startup it replaced [] with a new [] and the undo watcher
     // read that as an edit, marking an untouched project unsaved.
-    setStoreCustomLayers((prev) => (!customLayers.length && !(prev || []).length ? prev : customLayers.map(({ id, name, rows }) => ({ id, name, rows }))));
+    setStoreCustomLayers((prev) => mirrorCustomLayers(prev, customLayers)); // #1656 — unchanged: the same list
   }, [customLayers, setStoreCustomLayers]);
 
   // ---------- viewer UI state persistence (TASKS.csv #10) ----------
@@ -1695,10 +1696,13 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // viewerUiStateSeq is bumped by store.newProject/openProject specifically for this — it's the
   // signal that this isn't just another local edit echoing back, but an actual load event.
   const lastHydratedSeq = useRef(-1);
+  const [hydratedFor, setHydratedFor] = useState(-1); // #1656 — the project the local UI state below was read from
+  const baselineFor = useRef(-1);
   useEffect(() => {
     if (viewerUiStateSeq === lastHydratedSeq.current) return;
     lastHydratedSeq.current = viewerUiStateSeq;
     buildDefer.mark();
+    setHydratedFor(viewerUiStateSeq);
     // TASKS.csv #225 — the viewer stays mounted across tabs, so a real New/Open (viewerUiStateSeq) resets these explicitly:
     // hasAutoFitRef, or a new project keeps the previous one's framing; camState, as store.jsx nulls lastCamState on load.
     hasAutoFitRef.current = false;
@@ -1746,7 +1750,8 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
   // Push local UI state up to the store on every relevant change, so it's captured whenever
   // saveProject next runs. Sets aren't JSON-safe, so categoryFilter is serialized to arrays here.
   useEffect(() => {
-    setViewerUiState({
+    if (hydratedFor !== viewerUiStateSeq) return; // #1656 — still the previous project's values (it marked an opened file unsaved)
+    const ui = {
       layerVisible,
       categoryFilter: Object.fromEntries(Object.entries(categoryFilter).map(([k, v]) => [k, Array.from(v)])),
       numericRange,
@@ -1762,8 +1767,10 @@ export default function ViewerModule({ mode = "view", visible = true, bare = fal
       holeLabelMode,
       figureOverlay, // TASKS.csv #311
       layerStyles, // TASKS.csv #635
-    });
-  }, [layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, assaySource, gridConfig, bgColor, holeLabelMode, figureOverlay, layerStyles, setViewerUiState]);
+    };
+    setViewerUiState(ui);
+    if (baselineFor.current !== hydratedFor) { baselineFor.current = hydratedFor; markViewerUiBaseline?.(ui, hydratedFor); } // #1656 — this project's own styling
+  }, [hydratedFor, viewerUiStateSeq, layerVisible, categoryFilter, numericRange, legendOverride, numericSymbology, visibleHoles, customVisible, assayVisible, assayDisplayElements, assayStyle, assaySource, gridConfig, bgColor, holeLabelMode, figureOverlay, layerStyles, setViewerUiState, markViewerUiBaseline]);
 
   // Applies bgColor to the live three.js scene whenever it changes — separate from the push-to-store
   // effect above since this one needs sceneRef.current (set up in the big scene-setup effect further

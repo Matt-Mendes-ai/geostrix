@@ -11,7 +11,8 @@ test("#1181 Fit frames the holes, the full extent stays on the menu", () => {
   assert.equal(viewer.split('label={tr("Zoom to fit all")}').length - 1, 2);
 });
 test("#1287 one writer of viewerUiState", () => {
-  assert.equal(viewer.split("setViewerUiState({").length - 1, 1);
+  assert.equal(viewer.split(/setViewerUiState\((?!\))/).length - 1, 1); // #1656: setViewerUiState(ui), the object built just above it (a comment names setViewerUiState())
+  assert.ok(viewer.includes("setViewerUiState(ui);"));
   assert.ok(!viewer.includes("restoreLiveView"));
 });
 test("#1288 a theme carries the four settings, in all three places", () => {
