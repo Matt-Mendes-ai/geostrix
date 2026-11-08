@@ -6,7 +6,7 @@ import { compositeDownhole, rawSampleIntervals, PRECIOUS_METALS, capAudit, lengt
 import CapAuditHint from "./CapAuditHint.jsx"; // TASKS.csv #533
 import EstimateCheck from "./EstimateCheck.jsx"; // TASKS.csv #1051
 import { excludeQAQC, labAssays } from "../lib/qaqc.js"; // TASKS.csv #266
-import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport } from "../lib/estimation.js";
+import { samplePointsFromIntervals, MAX_BLOCKS, ESTIMATION_METHODS, SUPPORT_COLORS, summarizeSupport, retallyKeptCells } from "../lib/estimation.js"; // retallyKeptCells: #2106
 import { BLOCK_MODEL_BUDGETS, MAX_BLOCK_MODEL_BUDGET, blockModelBudgetNote, cellToFit, blockModelLattice, snapBoundsToLattice, overlapBox } from "../lib/estimationMeta.js"; // TASKS.csv #626; block-model budgets: #661
 import { runEstimation } from "../lib/estimationClient.js"; // TASKS.csv #520 — off the UI thread
 import { makeReachClient } from "../lib/blockReachClient.js"; // TASKS.csv #1416; in a worker: #1579
@@ -424,6 +424,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
         if (est.mlsCounts) params.mlsBlocks = est.mlsCounts; // #516 — how the linear trend was fitted
         if (est.variogram) { params.variogram = { ...est.variogram, frame: trend ? `in the trend "${trend.name}" frame: the range is along its major axis` : "isotropic" }; params.krigingBlocks = est.okCounts; } // #709
         if (est.dominatedCells) params.effectivelyOneHoleBlocks = est.dominatedCells; // #676 — 2+ holes, one with >= 95 % of the weight
+        est.blocksBeforeTrims = est.cells.length; // #2106
         if (inShell) { // #517
           const before = est.cells.length;
           est.cells = est.cells.filter((c) => inShell(c));
@@ -431,13 +432,7 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
           params.restrictedToVolume = `${shellInfo.name}: ${shellInfo.samplesInside} sample(s) inside used, ${shellInfo.samplesOutside} outside left out; ${before - est.cells.length} block(s) outside it dropped`;
           // TASKS.csv #1410 (review #1352) — the tallies describe the blocks kept, not the whole grid (they read "22 estimated" beside
           // "48 extrapolated, 190,032 unsupported"). Unsupported blocks have no cell, so inside or outside cannot be told: not counted.
-          if (est.supportCounts) {
-            const sc = { interpolated: 0, extrapolated: 0, unsupported: 0, searchLimited: 0 };
-            for (const c of est.cells) if (c.support in sc) sc[c.support]++;
-            sc.searchLimited = Math.min(est.supportCounts.searchLimited || 0, sc.extrapolated);
-            est.supportCounts = sc;
-          }
-          est.singleHoleCells = est.cells.filter((c) => c.nHoles === 1).length;
+          // The recount itself now runs once, after every trim (#2106, below).
         }
         // TASKS.csv #803 — Matt: "I can't get my grade shell block model to end at surface". The grid is padded around the
         // samples, so near the surface its top layers were in the air: a block whose centre is above the terrain is dropped
@@ -459,6 +454,14 @@ export default function GradeEstimationModal({ assays: assaysProp, assayElements
           params.cutAtTerrain = groundSource === "collars" ? `${cut} block(s) whose centre is above the ground interpolated between the collars dropped (no terrain)` : `${cut} block(s) whose centre is above the terrain dropped`; // #1616
           params.groundFrom = groundSource || "terrain";
           est.cutAboveGround = cut;
+        }
+        // TASKS.csv #2106 — every trim above (volume, area, terrain) drops blocks: recount the one-hole / dominated / support tallies from
+        // the blocks kept, or the one-hole share read 102 % on Woodjam after the terrain cut
+        if (est.cells.length !== est.blocksBeforeTrims) {
+          const t = retallyKeptCells(est.cells, { method, supportCounts: est.supportCounts, dropUnsupported: !!inShell });
+          est.singleHoleCells = t.singleHoleCells; est.dominatedCells = t.dominatedCells;
+          if (t.supportCounts) est.supportCounts = t.supportCounts;
+          if (est.dominatedCells) params.effectivelyOneHoleBlocks = est.dominatedCells; else delete params.effectivelyOneHoleBlocks;
         }
         // TASKS.csv #1735 (review #1645, Copley) — the highest composites with no estimated block within a cell of them: the
         // two-hole rule left the only Cu intercept without a block and put the copper 90-110 m away

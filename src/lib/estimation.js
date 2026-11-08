@@ -312,6 +312,23 @@ function buildSampleIndex(samplePoints, searchRadius) {
 // value still taken from one hole — exactly what #258 exists to stop. `candidates` must be sorted by distance.
 // TASKS.csv #676 — a block whose dominant hole carries at least this share of the weight is effectively one hole's
 export const DOMINANT_SHARE = 0.95;
+
+// TASKS.csv #2106 — the per-block tallies recounted from the blocks KEPT after the dialog's trims (a modelled volume, a design-string
+// area, the terrain). Only the volume trim recounted, so the terrain cut (on by default) left '15,416 of the estimated blocks (102%)
+// were informed by only ONE drillhole' beside 15,113 blocks on Woodjam. Unsupported blocks have no cell: their grid count is kept,
+// except after a volume trim (#1410: inside or outside cannot be told, so they are not counted). -> { singleHoleCells, dominatedCells,
+// supportCounts (or undefined when the run did not classify support) }
+export function retallyKeptCells(cells, { method, supportCounts, dropUnsupported = false } = {}) {
+  let singleHoleCells = 0, dominatedCells = 0;
+  const sc = supportCounts ? { interpolated: 0, extrapolated: 0, unsupported: dropUnsupported ? 0 : supportCounts.unsupported || 0, searchLimited: 0 } : undefined;
+  for (const c of cells) {
+    if (c.nHoles === 1) singleHoleCells++;
+    else if (method !== "nn" && c.nHoles > 1 && c.holeShare >= DOMINANT_SHARE) dominatedCells++;
+    if (sc && (c.support === SUPPORT_INTERPOLATED || c.support === SUPPORT_EXTRAPOLATED)) sc[c.support]++;
+  }
+  if (sc) sc.searchLimited = Math.min(supportCounts.searchLimited || 0, sc.extrapolated);
+  return { singleHoleCells, dominatedCells, supportCounts: sc };
+}
 // TASKS.csv #1573 (review #1497, Lawyers) — a "second hole" counts toward min distinct holes only when it carries a material
 // share of the weight: 21AGBDD013's near-zero grades 48 m away satisfied "2 holes" beside a 16 m bonanza intercept 23-39 m
 // down 21AGBDD040, and the block became 13.3 g/t on one hole's say-so. Material = at least 1 - DOMINANT_SHARE (5 %) of the
