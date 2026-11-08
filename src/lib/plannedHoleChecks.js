@@ -5,7 +5,8 @@
 //  - the drilled traces and the in-band blocks are each indexed ONCE (a hash grid), not per planned hole;
 //  - the panel keys its memo on the holes' geometry (planGeometryKey), so name / notes edits cost nothing.
 // Same answers as before: test/plannedHoleChecks1039.test.mjs compares them with the brute-force version.
-import { desurveyHole } from "./desurvey.js";
+import { desurveyHole, holeAttitudeAssumed } from "./desurvey.js"; // holeAttitudeAssumed: #2097
+import { drilledCollars } from "./collarStatus.js"; // #2097
 import { voxelCellSupported } from "./viewer/geomath.js";
 import { plannedTrace } from "./holePlanning.js";
 import { sortedShownValues } from "./voxelStretch.js"; // TASKS.csv #1832
@@ -17,13 +18,18 @@ export function planGeometryKey(plannedHoles) {
 
 // the drilled traces, desurveyed as the 3D view draws them (#135): a hash grid of `cell` metres, plus each hole's
 // points and bounding box for points farther away than the grid search reaches
+// TASKS.csv #2097 — collars marked proposed are left out (proposed: their ids); a hole with no survey and no azimuth / dip is in, as the
+// assumed vertical hole #2014 draws (assumed: their ids), so the checks can say so
 export function drilledTraceIndex(collars, survey, desurveyMethod, cell = 25) {
   const byHole = new Map();
   for (const s of survey || []) if (!isNaN(s.depth)) (byHole.get(s.hole_id) || byHole.set(s.hole_id, []).get(s.hole_id)).push(s);
-  const grid = new Map(), holes = [];
-  for (const c of collars || []) {
-    const pts = desurveyHole(c, byHole.get(c.hole_id) || [], desurveyMethod);
+  const grid = new Map(), holes = [], assumed = new Set();
+  const { collars: drilled, proposed } = drilledCollars(collars);
+  for (const c of drilled) {
+    const hs = byHole.get(c.hole_id) || [];
+    const pts = desurveyHole(c, hs, desurveyMethod);
     if (!pts.length) continue;
+    if (holeAttitudeAssumed(c, hs)) assumed.add(c.hole_id);
     const bb = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
     for (const p of pts) {
       const k = `${Math.floor(p.x / cell)},${Math.floor(p.y / cell)},${Math.floor(p.z / cell)}`;
@@ -32,7 +38,7 @@ export function drilledTraceIndex(collars, survey, desurveyMethod, cell = 25) {
     }
     holes.push({ hole_id: c.hole_id, pts, bb });
   }
-  return { grid, cell, holes, n: holes.length };
+  return { grid, cell, holes, n: holes.length, assumed, proposed };
 }
 const RINGS = 3;
 // the nearest drilled point to p: the grid cells within RINGS of p's cell (exact when the best is within RINGS cells),
@@ -106,7 +112,7 @@ export function planChecks(plannedHoles, drilled, targets, traceOf = plannedTrac
     let nearestReal = null;
     const c0 = pts[0], samePad = (drilled?.holes || []).filter((h) => h.pts[0] && Math.hypot(h.pts[0].x - c0.x, h.pts[0].y - c0.y, h.pts[0].z - c0.z) <= PAD_M).map((h) => h.hole_id);
     const skipMd = samePad.length ? COLLAR_ZONE_M : -Infinity;
-    if (drilled?.n) for (const p of pts) { if ((p.md ?? 0) < skipMd) continue; const { best, hole: h } = nearestDrilled(drilled, p); if (h != null && (!nearestReal || best < nearestReal.distance)) nearestReal = { hole_id: h, distance: best, md: p.md ?? 0 }; }
+    if (drilled?.n) for (const p of pts) { if ((p.md ?? 0) < skipMd) continue; const { best, hole: h } = nearestDrilled(drilled, p); if (h != null && (!nearestReal || best < nearestReal.distance)) nearestReal = { hole_id: h, distance: best, md: p.md ?? 0, assumed: !!drilled.assumed?.has(h) }; } // assumed: #2097
     const targetHits = (targets || []).map((t) => {
       let metres = 0;
       for (let i = 1; i < pts.length; i++) {

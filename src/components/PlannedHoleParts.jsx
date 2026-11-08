@@ -242,6 +242,7 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
       {voxelModels.length > 0 && !anyTargetModel && (
         <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 7, lineHeight: 1.4 }}>{tr("Narrow a voxel model's Min/Max range in Targeting > Voxel ranges to check planned holes against a target band.")}</div>
       )}
+      {drilled.proposed?.length > 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", marginBottom: 7, lineHeight: 1.4 }}>{tr("{n} collar(s) whose status is proposed are not counted as drilled holes: {list}.", { n: drilled.proposed.length, list: drilled.proposed.slice(0, 6).join(", ") + (drilled.proposed.length > 6 ? ` (+${drilled.proposed.length - 6})` : "") })}</div>}{/* #2097 */}
       {results.map(({ hole, nearestReal, samePad = [], targetHits }) => {
         const tooClose = nearestReal && nearestReal.distance < minSpacing;
         return (
@@ -249,7 +250,7 @@ export function PlannedHoleChecks({ plannedHoles, collars, survey, voxelModels, 
             <div style={{ color: "var(--color-text)", marginBottom: 2 }}>{hole.name || tr("Planned hole")}</div>
             {samePad.length > 0 && <div style={{ color: "var(--color-text-caption)" }}>{tr("Same pad as {holes}: the first {m} m are not compared.", { holes: samePad.join(", "), m: COLLAR_ZONE_M })}</div>}{/* #1454 */}
             {nearestReal ? (
-              <div style={{ color: tooClose ? "var(--color-danger-fg)" : "var(--color-text-caption)" }}>{tr("Nearest existing hole: {hole_id} — {distance} m{v}", { hole_id: nearestReal.hole_id, distance: nearestReal.distance.toFixed(1), v: tooClose ? tr(" (within the {minSpacing} m minimum)", { minSpacing }) : "" })}{nearestReal.md > 0 ? tr(", at {md} m down this hole", { md: Math.round(nearestReal.md) }) : ""}
+              <div style={{ color: tooClose ? "var(--color-danger-fg)" : "var(--color-text-caption)" }}>{tr("Nearest existing hole: {hole_id} — {distance} m{v}", { hole_id: nearestReal.hole_id, distance: nearestReal.distance.toFixed(1), v: tooClose ? tr(" (within the {minSpacing} m minimum)", { minSpacing }) : "" })}{nearestReal.md > 0 ? tr(", at {md} m down this hole", { md: Math.round(nearestReal.md) }) : ""}{nearestReal.assumed ? tr(" ({hole_id} has no survey and no azimuth / dip: taken as a vertical hole)", { hole_id: nearestReal.hole_id }) : ""}{/* #2097 */}
               </div>
             ) : (
               <div style={{ color: "var(--color-text-muted)" }}>{tr("No existing drilled holes to compare against.")}</div>

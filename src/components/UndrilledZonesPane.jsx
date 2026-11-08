@@ -4,7 +4,8 @@ import React, { useMemo, useState } from "react";
 import { Crosshair } from "./icons.js";
 import { TaskPaneHeader } from "./Ribbon.jsx";
 import { useStore } from "../lib/store.jsx";
-import { desurveyHole } from "../lib/desurvey.js";
+import { desurveyHole, holeAttitudeAssumed } from "../lib/desurvey.js"; // holeAttitudeAssumed: #2097
+import { drilledCollars } from "../lib/collarStatus.js"; // #2097
 import { plannedTrace } from "../lib/holePlanning.js";
 import { isMeshClosed } from "../lib/meshQuery.js";
 import { solidChoices } from "../lib/solidChoices.js"; // TASKS.csv #1564
@@ -57,14 +58,17 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
     const by = new Map();
     for (const s of survey) { if (!by.has(s.hole_id)) by.set(s.hole_id, []); by.get(s.hole_id).push(s); }
     const out = [];
-    for (const c of collars) {
+    const { collars: drilledList, proposed } = drilledCollars(collars); // #2097 — a collar marked proposed is not drilled ground
+    let assumed = 0;
+    for (const c of drilledList) {
       if (![c.x, c.y, c.z].every(Number.isFinite)) continue;
-      const t = desurveyHole(c, by.get(c.hole_id) || [], desurveyMethod);
-      if (t.length > 1) out.push(t);
+      const hs = by.get(c.hole_id) || [];
+      const t = desurveyHole(c, hs, desurveyMethod);
+      if (t.length > 1) { out.push(t); if (holeAttitudeAssumed(c, hs)) assumed++; }
     }
     const drilled = out.length;
     if (withPlanned) for (const h of plannedHoles) { const t = plannedTrace(h); if (t.length > 1) out.push(t); }
-    return { traces: out, drilled, planned: out.length - drilled };
+    return { traces: out, drilled, planned: out.length - drilled, assumed, proposed: proposed.length };
   };
 
   const run = () => {
@@ -95,7 +99,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
       tip: tr(r.zones.length === 1 ? "{name}\n{v} in 1 zone, {pct}% of the unit" : "{name}\n{v} in {n} zones, {pct}% of the unit", { name, v: mm3(volumeM3), n: r.zones.length, pct: ((100 * volumeM3) / (r.unitCells * r.cellVolume)).toFixed(1) }),
       // project data: English, like every other solid's params (#786)
       params: { tool: "undrilled zones (#1139)", unit: r.unitName, coverageDistanceM: r.coverM, blockSizeM: [0, 1, 2].map(() => +r.cellM.toFixed(2)) /* [dx, dy, dz] like a unit volume */, onlyHolesInsideUnit: r.insideOnly,
-        drilledHoles: r.holes.drilled, plannedHolesCounted: r.holes.planned, unitVolumeM3: Math.round(r.unitCells * r.cellVolume), volumeM3: Math.round(volumeM3),
+        drilledHoles: r.holes.drilled, plannedHolesCounted: r.holes.planned, ...(r.holes.assumed ? { drilledHolesAssumedVertical: r.holes.assumed } : {}), ...(r.holes.proposed ? { proposedCollarsLeftOut: r.holes.proposed } : {}), /* #2097 */ unitVolumeM3: Math.round(r.unitCells * r.cellVolume), volumeM3: Math.round(volumeM3),
         zones: r.zones.length, smallGapsLeftOut: r.ignored.zones, builtAt: new Date().toISOString(),
         note: `Blocks of the unit whose centre is more than ${r.coverM} m from every hole trace (3D distance to the desurveyed trace). Not covered by drilling, not a resource or a target ranking.` },
     });
@@ -147,7 +151,7 @@ export default function UndrilledZonesPane({ solids = [], onAdd, onClose, onPlan
               <div key={i} style={{ ...note, color: "var(--color-text-secondary)" }}>{onPlanTo && <button onClick={() => onPlanTo(z.target || z.centre)} style={planBtn} title={tr("Open Planned holes aimed at the zone's point farthest from the drilling: choose a collar, then Solve")}>{/* #1724 */}{tr("Plan a hole to here")}</button>}{tr("{i}. {v} around E {x}, N {y}, elevation {z}", { i: i + 1, v: mm3(z.volumeM3), x: Math.round(z.centre.x).toLocaleString(), y: Math.round(z.centre.y).toLocaleString(), z: Math.round(z.centre.z).toLocaleString() })}</div>
             ))}
             {result.zones.length > 8 && <div style={note}>{tr("… and {n} more.", { n: result.zones.length - 8 })}</div>}
-            <div style={note}>{tr(result.holes.planned ? "{drilled} drilled and {planned} planned holes; {b} m blocks, measured from each block's centre to the hole traces in 3D." : "{drilled} drilled holes; {b} m blocks, measured from each block's centre to the hole traces in 3D.", { drilled: result.holes.drilled, planned: result.holes.planned, b: +result.cellM.toFixed(2) })}</div>
+            <div style={note}>{tr(result.holes.planned ? "{drilled} drilled and {planned} planned holes; {b} m blocks, measured from each block's centre to the hole traces in 3D." : "{drilled} drilled holes; {b} m blocks, measured from each block's centre to the hole traces in 3D.", { drilled: result.holes.drilled, planned: result.holes.planned, b: +result.cellM.toFixed(2) })}{result.holes.assumed ? " " + tr("{n} of the drilled holes have no survey and no azimuth / dip and are taken as vertical.", { n: result.holes.assumed }) : ""}{result.holes.proposed ? " " + tr("{n} collar(s) whose status is proposed are not counted.", { n: result.holes.proposed }) : ""}</div>{/* #2097 */}
             {result.cellM > result.coverM && <div style={{ ...note, color: "var(--color-warn-text)" }}>{tr("The blocks ({b} m) are coarser than the coverage distance ({c} m): a block counts as covered by where its centre falls, so the covered share and the smallest zones move with the block grid. Type a smaller block size if the unit's box allows it.", { b: +result.cellM.toFixed(2), c: result.coverM })}</div>}{/* #1568 */}
             {result.zones.length > 0 && <button onClick={add} style={{ ...pBtn, justifyContent: "center", marginBottom: 0 }}>{tr("Add the zones to the 3D view")}</button>}
           </div>
