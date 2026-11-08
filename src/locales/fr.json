@@ -9281,5 +9281,11 @@
   "{name} is already in Map layers as \"{layer}\" ({features}): not added again.": "{name} est déjà dans les couches cartographiques sous « {layer} » ({features}) : pas ajouté une seconde fois.",
   "{name}: {features} added to Map layers, {crsNote}.": "{name} : {features} ajoutés aux couches cartographiques, {crsNote}.",
   "{names}: not a file the map or this import reads.": "{names} : ni la carte ni cet import ne lisent ce fichier.",
-  "Hole + lithology": "Sondage + lithologie"
+  "Hole + lithology": "Sondage + lithologie",
+  "One box fitted to my least-altered samples (by their logged alteration)": "Une boîte ajustée à mes échantillons les moins altérés (selon leur altération décrite)",
+  "Tick the logged alteration codes of the least-altered rock. Their samples' AI and CCPI (5th to 95th percentile) make the box every sample is compared with: for intrusive or other hosts that the volcanic boxes do not describe.": "Cochez les codes d'altération décrits de la roche la moins altérée. L'AI et le CCPI de leurs échantillons (5e au 95e centile) forment la boîte à laquelle chaque échantillon est comparé : pour les roches intrusives ou autres que les boîtes volcaniques ne décrivent pas.",
+  "Only {n} lab sample(s) with Na, K, Mg, Ca and Fe lie in the alteration logged {codes}: a least-altered box needs at least 5. Choose more codes, or a protolith.": "Seuls {n} échantillon(s) de laboratoire avec Na, K, Mg, Ca et Fe se trouvent dans l'altération décrite {codes} : une boîte la moins altérée en demande au moins 5. Choisissez plus de codes, ou un protolithe.",
+  " Least-altered box fitted to the {n} samples logged {codes}: AI {a0}–{a1}, CCPI {c0}–{c1} (5th to 95th percentile).": " Boîte la moins altérée ajustée aux {n} échantillons décrits {codes} : AI {a0}–{a1}, CCPI {c0}–{c1} (5e au 95e centile).",
+  " Screening level.": " Niveau de dépistage.",
+  "Ishikawa AI vs CCPI (Large et al. 2001), developed to vector VMS footwall alteration. In porphyry and other intrusion-hosted systems the AI-up trend is potassic (K-feldspar, biotite) or phyllic (sericite): the Molar K/Al vs Na/Al diagram tells them apart.": "AI d'Ishikawa vs CCPI (Large et al. 2001), conçu pour vectoriser l'altération du mur des SMV. Dans les porphyres et autres systèmes encaissés dans des intrusions, la tendance d'AI croissant est potassique (feldspath K, biotite) ou phyllique (séricite) : le diagramme K/Al vs Na/Al molaire les distingue."
 }

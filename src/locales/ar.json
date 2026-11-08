@@ -9281,5 +9281,11 @@
   "{name} is already in Map layers as \"{layer}\" ({features}): not added again.": "{name} موجود مسبقًا في طبقات الخريطة باسم \"{layer}\" ({features}): لم يُضف مرة أخرى.",
   "{name}: {features} added to Map layers, {crsNote}.": "{name}: أُضيفت {features} إلى طبقات الخريطة، {crsNote}.",
   "{names}: not a file the map or this import reads.": "{names}: ليس ملفًا تقرؤه الخريطة أو هذا الاستيراد.",
-  "Hole + lithology": "الثقب + الصخارة"
+  "Hole + lithology": "الثقب + الصخارة",
+  "One box fitted to my least-altered samples (by their logged alteration)": "صندوق واحد مُلاءَم لعيناتي الأقل تحولًا (بحسب التحول المسجَّل لها)",
+  "Tick the logged alteration codes of the least-altered rock. Their samples' AI and CCPI (5th to 95th percentile) make the box every sample is compared with: for intrusive or other hosts that the volcanic boxes do not describe.": "حدّد رموز التحول المسجَّلة للصخر الأقل تحولًا. يكوّن AI وCCPI لعيناتها (من المئين الخامس إلى الخامس والتسعين) الصندوق الذي تُقارن به كل عينة: للصخور المتداخلة أو غيرها مما لا تصفه الصناديق البركانية.",
+  "Only {n} lab sample(s) with Na, K, Mg, Ca and Fe lie in the alteration logged {codes}: a least-altered box needs at least 5. Choose more codes, or a protolith.": "لا تقع سوى {n} عينة/عينات مخبرية فيها Na وK وMg وCa وFe ضمن التحول المسجَّل {codes}: يحتاج صندوق الأقل تحولًا 5 عينات على الأقل. اختر رموزًا أكثر أو صخرًا أصليًا.",
+  " Least-altered box fitted to the {n} samples logged {codes}: AI {a0}–{a1}, CCPI {c0}–{c1} (5th to 95th percentile).": " صندوق الأقل تحولًا مُلاءَم لـ {n} عينة مسجَّلة {codes}: AI ‏{a0}–{a1}، CCPI ‏{c0}–{c1} (من المئين الخامس إلى الخامس والتسعين).",
+  " Screening level.": " مستوى فرز أولي.",
+  "Ishikawa AI vs CCPI (Large et al. 2001), developed to vector VMS footwall alteration. In porphyry and other intrusion-hosted systems the AI-up trend is potassic (K-feldspar, biotite) or phyllic (sericite): the Molar K/Al vs Na/Al diagram tells them apart.": "مؤشر Ishikawa AI مقابل CCPI (Large et al. 2001)، طُوّر لتوجيه تحول الجدار السفلي في رواسب VMS. في الأنظمة البورفيرية وغيرها المستضافة في صخور متداخلة يكون اتجاه ارتفاع AI بوتاسيًا (فلسبار البوتاسيوم، البيوتيت) أو فيليًا (السيريسيت): يميّز بينهما مخطط K/Al مقابل Na/Al المولي."
 }

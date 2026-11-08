@@ -5,18 +5,21 @@ import { iconAction } from "../lib/a11y.js"; // TASKS.csv #687
 // fig. 6) and are edited here; they are saved with the project. The classification itself is
 // lib/geochem.js classifyAlterationBox (tested).
 import React, { useMemo, useState } from "react";
-import { PROTOLITHS, PROVISIONAL_ALTERATION_BOXES, guessProtolith } from "../lib/geochemDiagrams.js";
+import { PROTOLITHS, PROVISIONAL_ALTERATION_BOXES, guessProtolith, FITTED_PROTOLITH } from "../lib/geochemDiagrams.js"; // fitted: #2028
 import { useEscapeKey } from "../lib/useEscapeKey.js";
 import { t as tr } from "../lib/i18n.js"; // TASKS.csv #786
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-export default function AlterationBoxModal({ saved, lithoCodes, onCancel, onRun }) {
+export default function AlterationBoxModal({ saved, lithoCodes, altCodes = [], onCancel, onRun }) { // altCodes: #2028
   useEscapeKey(onCancel);
   const [boxes, setBoxes] = useState(() => saved?.boxes || PROVISIONAL_ALTERATION_BOXES);
   const [source, setSource] = useState(saved?.source || "logged");
   const [map, setMap] = useState(() => Object.fromEntries(lithoCodes.map((c) => [c, saved?.map && c in saved.map ? saved.map[c] : guessProtolith(c)])));
   const provisional = useMemo(() => same(boxes, PROVISIONAL_ALTERATION_BOXES), [boxes]);
+  // TASKS.csv #2028 — the codes of the project's own least-altered rock (Unalt, Propy…): the box is fitted to those samples
+  const [fitCodes, setFitCodes] = useState(() => (saved?.fitCodes || altCodes.filter((c) => /^(unalt|fresh|least|lalt|none|na)$/i.test(c))).filter((c) => altCodes.includes(c)));
+  const fittedMode = source === FITTED_PROTOLITH;
   const setLimit = (p, axis, i, v) => setBoxes((b) => ({ ...b, [p]: { ...b[p], [axis]: b[p][axis].map((x, k) => (k === i ? Number(v) : x)) } }));
   const valid = PROTOLITHS.every((p) => boxes[p] && boxes[p].ai[0] < boxes[p].ai[1] && boxes[p].ccpi[0] < boxes[p].ccpi[1]);
   const num = { width: 52, padding: "2px 4px", border: "1px solid var(--color-border)", borderRadius: 4, fontSize: "var(--font-size-sm)", background: "var(--color-bg)", color: "var(--color-text)" };
@@ -34,8 +37,21 @@ export default function AlterationBoxModal({ saved, lithoCodes, onCancel, onRun 
         <select value={source} onChange={(e) => setSource(e.target.value)} aria-label={tr("Protolith source")} style={{ ...num, width: "100%", marginTop: 4 }}>
           <option value="logged">{tr("From the logged lithology at the sample (map the codes below)")}</option>
           {PROTOLITHS.map((p) => <option key={p} value={p}>{tr("Every sample is {p}", { p })}</option>)}
+          <option value={FITTED_PROTOLITH} disabled={!altCodes.length}>{tr("One box fitted to my least-altered samples (by their logged alteration)")}</option>{/* #2028 */}
         </select>
-        {source === "logged" && (
+        {fittedMode && (
+          <div style={{ marginTop: 6 }}>
+            <div style={small}>{tr("Tick the logged alteration codes of the least-altered rock. Their samples' AI and CCPI (5th to 95th percentile) make the box every sample is compared with: for intrusive or other hosts that the volcanic boxes do not describe.")}</div>
+            <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: "2px 12px" }}>
+              {altCodes.map((c) => (
+                <label key={c} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <input type="checkbox" checked={fitCodes.includes(c)} onChange={(e) => setFitCodes((f) => (e.target.checked ? [...f, c] : f.filter((x) => x !== c)))} />{c}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+        {source === "logged" && ( /* the code-by-code protolith map */
           <div style={{ marginTop: 6, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "3px 12px" }}>
             {lithoCodes.length === 0 && <div style={small}>{tr("No lithology logged on the assayed holes — choose one protolith above.")}</div>}
             {lithoCodes.map((c) => (
@@ -73,7 +89,7 @@ export default function AlterationBoxModal({ saved, lithoCodes, onCancel, onRun 
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
           <button onClick={onCancel} style={{ padding: "5px 12px" }}>{tr("Cancel")}</button>
-          <button disabled={!valid} onClick={() => onRun({ boxes, map, source })} style={{ padding: "5px 12px", fontWeight: 600, opacity: valid ? 1 : 0.5 }}>{tr("Classify")}</button>
+          <button disabled={!valid || (fittedMode && !fitCodes.length)} onClick={() => onRun({ boxes, map, source, fitCodes })} style={{ padding: "5px 12px", fontWeight: 600, opacity: valid && !(fittedMode && !fitCodes.length) ? 1 : 0.5 }}>{tr("Classify")}</button>
         </div>
       </div>
     </div>

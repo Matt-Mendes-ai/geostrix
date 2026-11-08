@@ -114,7 +114,7 @@ export const DIAGRAMS = {
   boxplot: {
     id: "boxplot",
     label: "Alteration Box Plot (Large et al. 2001)",
-    caption: "Ishikawa AI vs CCPI. Standard for VMS/epithermal alteration vectoring.",
+    caption: "Ishikawa AI vs CCPI (Large et al. 2001), developed to vector VMS footwall alteration. In porphyry and other intrusion-hosted systems the AI-up trend is potassic (K-feldspar, biotite) or phyllic (sericite): the Molar K/Al vs Na/Al diagram tells them apart.", // #2028 — not 'the standard' for every deposit style
     requires: ["Na", "K", "Mg", "Ca", "Fe"],
     xLabel: "CCPI = 100(MgO+FeOt)/(MgO+FeOt+Na₂O+K₂O)", yLabel: "AI = 100(K₂O+MgO)/(K₂O+MgO+Na₂O+CaO)",
     xRange: [0, 100], yRange: [0, 100],
@@ -304,7 +304,24 @@ export const PROVISIONAL_ALTERATION_BOXES = {
   andesite: { ai: [20, 60], ccpi: [40, 70] },
   basalt: { ai: [20, 55], ccpi: [55, 85] },
 };
-const PROTOLITH_SHORT = { rhyolite: "RHY", dacite: "DAC", andesite: "AND", basalt: "BAS" };
+const PROTOLITH_SHORT = { rhyolite: "RHY", dacite: "DAC", andesite: "AND", basalt: "BAS", fitted: "FIT" }; // fitted: #2028
+// TASKS.csv #2028 (review #2013, Geochem) — the four volcanic boxes were the only least-altered references: an intrusion-hosted project
+// (Woodjam: monzonite, monzodiorite, plagioclase porphyry) had to call its rocks andesite. No published least-altered box exists here for
+// intrusive rocks, so none is invented (#264): the box can instead be FITTED to the project's own least-altered samples (a logged
+// alteration code such as Unalt), from the 5th to the 95th percentile of their AI and CCPI. -> { ai, ccpi, n } or null under 5 samples.
+export const FITTED_PROTOLITH = "fitted";
+export function fitLeastAlteredBox(points) {
+  const ok = (points || []).filter((p) => Number.isFinite(p?.ai) && Number.isFinite(p?.ccpi));
+  if (ok.length < 5) return null;
+  const q = (arr, f) => { const s = [...arr].sort((a, b) => a - b), i = (s.length - 1) * f, lo = Math.floor(i); return s[lo] + (s[Math.min(s.length - 1, lo + 1)] - s[lo]) * (i - lo); };
+  const r1 = (v) => Math.round(v * 10) / 10;
+  const ai = ok.map((p) => p.ai), cc = ok.map((p) => p.ccpi);
+  return { ai: [r1(q(ai, 0.05)), r1(q(ai, 0.95))], ccpi: [r1(q(cc, 0.05)), r1(q(cc, 0.95))], n: ok.length };
+}
+// #2028 — the AI-up direction holds two alterations, potassic (K-feldspar, biotite) and phyllic (sericite). A split by molar K/Al at 2/3
+// (midway between the minerals) was tried and measured on Woodjam: whole-rock K/Al of the 429 samples logged Pot has a median of 0.30
+// (plagioclase keeps most of the Al), so every potassic sample would have been called phyllic. The trend keeps one name that says both;
+// how to split it is left as a decision (TASKS.csv #2145).
 // A starting guess from a logged code (editable per code in the app).
 // TASKS.csv #1517 (review #1497, Lawyers) — a sedimentary or cover code never guesses a volcanic protolith ('Sand' matched /and/ and became
 // andesite, dolomite /dol/ basalt); dolerite is named; 'Intermed' / intermediate / latite / trachyandesite guess andesite (83,426 of
@@ -327,7 +344,7 @@ export function classifyAlterationBox(ai, ccpi, protolith, boxes = PROVISIONAL_A
   const aiHi = ai > b.ai[1], aiLo = ai < b.ai[0], cHi = ccpi > b.ccpi[1], cLo = ccpi < b.ccpi[0];
   if (!aiHi && !aiLo && !cHi && !cLo) return `LA-${PROTOLITH_SHORT[protolith]}`;
   if (aiHi && cHi) return "CHL";   // up and right: chlorite-pyrite(-sericite), the footwall trend
-  if (aiHi) return "SER";          // up: sericite / K-feldspar
+  if (aiHi) return "SER";          // up: sericite / K-feldspar (phyllic or potassic, #2028)
   if (cHi && aiLo) return "EPI";   // down-right: epidote-calcite (diagenetic / regional)
   if (cHi) return "CARB";          // right: chlorite-carbonate
   if (aiLo) return "ALB";          // down: albite / Na-gain
@@ -405,8 +422,9 @@ export const GEOCHEM_METHODS = {
 };
 
 export const GEOCHEM_LABELS = {
-  SER: "Sericite/K-feldspar trend", CHL: "Chlorite-pyrite trend", EPI: "Epidote-calcite trend", FRESH: "Weak/fresh (older 50/50 quadrants)",
+  SER: "Sericite / K-feldspar trend (phyllic or potassic)" /* #2028 — the up trend of a porphyry is potassic as often as phyllic */, CHL: "Chlorite-pyrite trend", EPI: "Epidote-calcite trend", FRESH: "Weak/fresh (older 50/50 quadrants)",
   // TASKS.csv #503 — protolith-box classes (EPI is now 'epidote-calcite', the down-right trend)
+  "LA-FIT": "Least altered (box of your least-altered samples)", // #2028
   "LA-RHY": "Least altered (rhyolite box)", "LA-DAC": "Least altered (dacite box)", "LA-AND": "Least altered (andesite box)", "LA-BAS": "Least altered (basalt box)",
   CARB: "Chlorite-carbonate trend", ALB: "Albite / Na-gain trend", LOWCCPI: "Low CCPI (left of box)",
   KOM: "Komatiite", "THOL-FE": "Fe-tholeiite", "THOL-MAFIC": "Mg-tholeiite", "CA-BASALT": "Calc-alk. basalt",
