@@ -9290,5 +9290,7 @@
   "Ishikawa AI vs CCPI (Large et al. 2001), developed to vector VMS footwall alteration. In porphyry and other intrusion-hosted systems the AI-up trend is potassic (K-feldspar, biotite) or phyllic (sericite): the Molar K/Al vs Na/Al diagram tells them apart.": "مؤشر Ishikawa AI مقابل CCPI (Large et al. 2001)، طُوّر لتوجيه تحول الجدار السفلي في رواسب VMS. في الأنظمة البورفيرية وغيرها المستضافة في صخور متداخلة يكون اتجاه ارتفاع AI بوتاسيًا (فلسبار البوتاسيوم، البيوتيت) أو فيليًا (السيريسيت): يميّز بينهما مخطط K/Al مقابل Na/Al المولي.",
   "No survey or collar azimuth / dip for {hole} at {depth} m: enter the hole's attitude by hand.": "لا مسح ولا سمت / ميل للفوهة لـ {hole} عند {depth} م: أدخل اتجاه الثقب يدويًا.",
   "1 collar with no survey and no azimuth / dip is not listed: use Manual entry for it.": "فوهة واحدة بلا مسح ولا سمت / ميل غير مدرجة: استخدم الإدخال اليدوي لها.",
-  "{n} collars with no survey and no azimuth / dip are not listed: use Manual entry for them.": "{n} فوهة بلا مسح ولا سمت / ميل غير مدرجة: استخدم الإدخال اليدوي لها."
+  "{n} collars with no survey and no azimuth / dip are not listed: use Manual entry for them.": "{n} فوهة بلا مسح ولا سمت / ميل غير مدرجة: استخدم الإدخال اليدوي لها.",
+  "Role: {role}, from its codes (Modelling codes, the implicit picker and the stack all read it).": "الدور: {role}، من رموزه (تقرؤه رموز النمذجة والمنتقي الضمني والتتابع).",
+  "Its name suggests {role}: set that in Modelling codes if it is what you mean.": "يوحي اسمه بـ {role}: اضبط ذلك في رموز النمذجة إن كان ما تقصده."
 }

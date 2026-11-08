@@ -1146,3 +1146,23 @@ export function isOverturnedValue(v) {
 // TASKS.csv #1289 — what a category is drawn and called, given its override { color, label } and its layer's LAYER_META entry. One copy, for the view, the legend, the inspector and the style export.
 export function categoryColor(override, meta, value) { return override?.color || meta.colorFn(value); }
 export function categoryLabel(override, meta, value) { return override?.label || (meta.nameFn ? meta.nameFn(value) || value : value); }
+
+// TASKS.csv #2052 (review #2013, 3D Modelling) — a litho group's role came from its NAME in Modelling codes (a group called 'Intrusive' was
+// cross-cutting by the #1541 word rule) and from its MEMBERS in the stack and the implicit picker: the three disagreed. One rule now, from
+// the members: the role they all share; cross-cutting if any of them cross-cuts (the stack's rail); else stratigraphic. A name that is not
+// a group keeps the code rule. groupMcodeRole(name, groups) -> a Modelling codes role; groupNameHint(g) -> the role the name alone suggests
+// when it differs (shown as a suggestion, never applied).
+export function groupMemberRole(g) {
+  const roles = (g?.codes || []).map(roleForLithology);
+  if (!roles.length) return "stratigraphic";
+  if (new Set(roles).size === 1) return mcodeRoleOf(roles[0]);
+  return roles.some(isCrossCuttingRole) ? "cross-cutting" : "stratigraphic";
+}
+export function groupMcodeRole(name, groups) {
+  const g = (groups || []).find((x) => x?.name === name);
+  return g ? groupMemberRole(g) : mcodeRoleOf(roleForLithology(name));
+}
+export function groupNameHint(g) {
+  const byName = mcodeRoleOf(roleForLithology(g?.name));
+  return byName !== groupMemberRole(g) ? byName : null;
+}

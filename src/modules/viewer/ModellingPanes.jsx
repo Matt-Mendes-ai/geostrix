@@ -12,7 +12,7 @@ import { PRECIOUS_METALS } from "../../lib/geochem.js";
 import { Fragment, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { withChangeLog } from "../../lib/explicitLog.js"; // TASKS.csv #878
 import { activateOnKey, iconAction } from "../../lib/a11y.js";
-import { colorForLithology, isCrossCuttingRole, roleForLithology } from "../../lib/layers.js";
+import { colorForLithology, isCrossCuttingRole, roleForLithology, groupMemberRole, groupNameHint } from "../../lib/layers.js"; // group roles: #2052
 import { codedRuns, topsForCode, codeInfo, overburdenBases } from "../../lib/modellingCodes.js"; // TASKS.csv #871; #1684
 import { pBtn, smallSel } from "../../lib/sidebarStyles.js";
 import { sceneVertsToWorldFlat } from "../../lib/meshFlat.js";
@@ -557,6 +557,12 @@ export default function ModellingPanes(props) {
                 {!crossCuts && role === "overburden" && <span title={tr("Every member is overburden — modelled as an overburden_base surface")} style={{ fontSize: "var(--font-size-xs)", color: "#8a7860", background: "#eee6da", border: "1px solid #d9cdb8", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>{tr("OB")}</span>}
                 <Trash2 size={12} style={{ cursor: "pointer", color: "var(--color-text-secondary)", flexShrink: 0 }} {...iconAction(() => { if (window.confirm(tr("Delete lithology group \"{name}\"? Its codes stay in the log — they just stop being modelled together.", { name: g.name }))) removeLithoGroup(g.id); }, tr("Delete lithology group \"{name}\" (its codes stay in the log, just ungrouped)", { name: g.name }))} />
               </div>
+              {open && codesInGroup.length > 0 && ( /* TASKS.csv #2052 — one rule for the group's role, said here */
+                <div style={{ padding: "0 8px 6px", fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)", lineHeight: 1.4 }}>
+                  {tr("Role: {role}, from its codes (Modelling codes, the implicit picker and the stack all read it).", { role: tr(groupMemberRole(g)) })}
+                  {groupNameHint(g) && " " + tr("Its name suggests {role}: set that in Modelling codes if it is what you mean.", { role: tr(groupNameHint(g)) })}
+                </div>
+              )}
               {open && (
                 <div style={{ padding: "0 8px 8px", display: "flex", flexWrap: "wrap", gap: 4 }}>
                   {litho_units.length === 0 && <div style={{ fontSize: "var(--font-size-xs)", color: "var(--color-text-muted)" }}>{tr("No lithology codes loaded yet — import a litho CSV first.")}</div>}

@@ -9,7 +9,7 @@ import { sanitizeMesh } from "../../lib/meshSanitize.js";
 import { checkAgainstLogs, unitVolumes, resampleWarpedBlock, capBlockAtGround } from "../../lib/modelCheck.js";
 import { pythonImplicitModel } from "../../lib/desktop.js";
 import { makeRng, perturbPoints, perturbOrientation, pointsToMeshDistance, spreadSummary, spreadColor, SPREAD_NOT_REPRODUCED } from "../../lib/surfaceSpread.js";
-import { colorForLithology, colorForAlteration, colorForStructure, minMax, roleForLithology, mcodeRoleOf } from "../../lib/layers.js";
+import { colorForLithology, colorForAlteration, colorForStructure, minMax, roleForLithology, groupMcodeRole } from "../../lib/layers.js";
 import { computeMeshVolume } from "../../lib/volumetrics.js";
 import { MAX_BLOCKS, SUPPORT_COLORS, MAX_BLOCK_BUDGET, gridBlockCount, cellToFit, NUMERIC_CELL_DEFAULT } from "../../lib/estimationMeta.js"; // NUMERIC_CELL_DEFAULT: #1416; // budget: #625 // #552 — the estimator itself loads in the run functions
 import { compositeDownhole, rawSampleIntervals, capAudit, capAuditText } from "../../lib/geochem.js"; // capAudit: #533; rawSampleIntervals: #571
@@ -860,7 +860,7 @@ export function createModellingRuns(ctx, mcRef) {
   // only where the code starts directly below a younger stratigraphic unit (lib/modellingCodes.js), never at
   // a hole start, below an unlogged gap, below casing / overburden or below an intrusion / cross-cutting body
   // (#495). Roles default from the code (#496's old four-code table) and are set in the code list.
-  const mcodeDefaultRole = (name) => mcodeRoleOf(roleForLithology(name)); // #1369: veins cross-cut, no recovery is ignored
+  const mcodeDefaultRole = (name) => groupMcodeRole(name, lithoGroups); // #1369: veins cross-cut, no recovery is ignored; #2052: a group from its codes
   const mcodeGroupOf = (v) => (lithoGroups || []).find((g) => (g.codes || []).includes(v))?.name || null;
   // TASKS.csv #1684 — a stack unit's role, whatever kind of target names it (the same rule the surface type uses below)
   const unitRoleOf = (target) => {

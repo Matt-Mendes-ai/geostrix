@@ -9290,5 +9290,7 @@
   "Ishikawa AI vs CCPI (Large et al. 2001), developed to vector VMS footwall alteration. In porphyry and other intrusion-hosted systems the AI-up trend is potassic (K-feldspar, biotite) or phyllic (sericite): the Molar K/Al vs Na/Al diagram tells them apart.": "AI d'Ishikawa vs CCPI (Large et al. 2001), conçu pour vectoriser l'altération du mur des SMV. Dans les porphyres et autres systèmes encaissés dans des intrusions, la tendance d'AI croissant est potassique (feldspath K, biotite) ou phyllique (séricite) : le diagramme K/Al vs Na/Al molaire les distingue.",
   "No survey or collar azimuth / dip for {hole} at {depth} m: enter the hole's attitude by hand.": "Aucun levé ni azimut / pendage au collet pour {hole} à {depth} m : saisissez l'orientation du sondage à la main.",
   "1 collar with no survey and no azimuth / dip is not listed: use Manual entry for it.": "1 collet sans levé ni azimut / pendage n'est pas listé : utilisez la saisie manuelle.",
-  "{n} collars with no survey and no azimuth / dip are not listed: use Manual entry for them.": "{n} collets sans levé ni azimut / pendage ne sont pas listés : utilisez la saisie manuelle."
+  "{n} collars with no survey and no azimuth / dip are not listed: use Manual entry for them.": "{n} collets sans levé ni azimut / pendage ne sont pas listés : utilisez la saisie manuelle.",
+  "Role: {role}, from its codes (Modelling codes, the implicit picker and the stack all read it).": "Rôle : {role}, d'après ses codes (les codes de modélisation, le sélecteur implicite et la pile le lisent).",
+  "Its name suggests {role}: set that in Modelling codes if it is what you mean.": "Son nom suggère {role} : réglez-le dans les codes de modélisation si c'est ce que vous voulez."
 }
