@@ -39,7 +39,7 @@ test("the default length fits an A4 landscape sheet (794 px) from y 100", () => 
 
 test("wired", () => {
   const m = readFileSync(new URL("../src/modules/LayoutModule.jsx", import.meta.url), "utf8");
-  assert.match(m, /base\.maxRows = collarRowsThatFit\(A4\.h, base\.y, 7\)/);
+  assert.match(m, /Object\.assign\(base, placeCollarTable\(elements, A4, \{ w: 520, fontPt: 7, total: collars\.length \}\)\)/); // #2135: the sheet fit moved into placeCollarTable
   assert.match(m, /const sl = collarTableSlice\(cs, \{ firstRow: el\.firstRow, maxRows: el\.maxRows, filter: el\.holeFilter \}\);/);
   assert.match(m, /addLayoutPages\(conts\.map/);
   assert.doesNotMatch(m, /or add a second table/);

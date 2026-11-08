@@ -15,7 +15,7 @@ import PromptModal from "../components/PromptModal.jsx";
 import { minMax, LAYER_META } from "../lib/layers.js";
 import { categoryLegendGroups, assayLegendGroups, voxelLegendGroups, rasterLegendGroups, legendGroupsToItems, LEGEND_CATEGORY_KEYS, mapLayerLegendGroups, boundaryLegendGroups, swatchShape, capLegendGroups, outcropLegendGroup } from "../lib/legendGroups.js"; // TASKS.csv #725; #948; #1633; outcropLegendGroup: #1437
 import { niceScaleNumber } from "../lib/figureScale.js"; // TASKS.csv #311 — shared with the 3D viewport's scale bar
-import { collarTableSlice, collarRowsThatFit, continuationTables, collarsWithSurveyAttitude } from "../lib/collarTable.js"; // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
+import { collarTableSlice, continuationTables, collarsWithSurveyAttitude } from "../lib/collarTable.js"; // TASKS.csv #1638; collarsWithSurveyAttitude: #2133
 import { fitDrillPlan, filterHoles } from "../lib/drillPlan.js"; // TASKS.csv #1639
 import DrillPlanElement, { drillPlanDrawing } from "../components/DrillPlanElement.jsx"; // TASKS.csv #1639
 import { withLiveScaleBars, relinkCopies, tieStarterFurniture, northRotationOf, insertScaleBar, scaleBarTargets, bindScaleBar } from "../lib/layoutLinks.js"; // TASKS.csv #909 / #920 / #924 / #1632
@@ -45,7 +45,7 @@ import { projectCredits } from "../lib/credits.js"; // TASKS.csv #949
 import { groupSectionLegend } from "../lib/sectionLegend.js"; // TASKS.csv #1127 / #1128
 import { firstLegendGroups, rankLegendGroups, legendGroupCount } from "../lib/legendGroups.js"; // rank / count: #1482 // TASKS.csv #1224
 import { numericLayerLegendGroups } from "../lib/legendGroups.js"; // TASKS.csv #1482 — the RQD / recovery / SG / mag susc ramps
-import { freeSpot } from "../lib/layoutPlace.js"; // TASKS.csv #1484 — new items into free space
+import { freeSpot, placeCollarTable } from "../lib/layoutPlace.js"; // TASKS.csv #1484 — new items into free space; #2135 the collar table
 import { roundScale } from "../lib/layoutGeometry.js"; // TASKS.csv #1486
 import { numericClips, numericLayerColorFn } from "../lib/numericClip.js"; // TASKS.csv #1482
 import { categoryColor, categoryLabel } from "../lib/layers.js"; // TASKS.csv #1289
@@ -601,7 +601,7 @@ export default function LayoutModule() {
     if (type === "text") base.text = "Text", base.w = 200;
     if (type === "titleblock") Object.assign(base, newTitleBlock(id, Math.max(20, A4.w - 400), Math.max(20, A4.h - 260))); // TASKS.csv #1868 — bottom right
     if (type === "logo") logoInput.current.click();
-    if (type === "scale") { base.meters = 100; base.pxPerMeter = DEFAULT_PX_PER_METER; Object.assign(base, insertScaleBar(base, elements, selected)); base.y = Math.min(base.y, A4.h - 50); } // #1635 — bound to the selected / only view
+    if (type === "scale") { base.meters = 100; base.pxPerMeter = DEFAULT_PX_PER_METER; Object.assign(base, insertScaleBar(base, elements, selected)); if (!base.boundTo) Object.assign(base, freeSpot(elements, 260, 50, A4)); /* #2135 */ base.y = Math.min(base.y, A4.h - 50); } // #1635 — bound to the selected / only view
     if (type === "north") { // TASKS.csv #1632 — tied to the selected view, else the page's only view with a camera azimuth
       const views = elements.filter((el) => el.type === "viewport" && el.cameraAzimuthDeg != null);
       const vp = views.find((v) => v.id === selected) || (views.length === 1 ? views[0] : null);
@@ -629,9 +629,10 @@ export default function LayoutModule() {
     // TASKS.csv #911 — a drillhole collar table, live from the project's collars (static tables come from Best intercepts)
     if (type === "drillplan") { // TASKS.csv #1639 — every hole at a round scale
       Object.assign(base, { x: 60, y: 80, w: Math.min(760, A4.w - 120), h: Math.min(480, A4.h - 180), labels: "all", fontPt: 7, frameWidth: 1 });
+      Object.assign(base, freeSpot(elements, base.w, base.h, A4)); // #2135 — it landed at (60, 80) over the views
       Object.assign(base, fitDrillPlan(collars, base.w, base.h, SCALE_PRESETS) || { scale: 10000, centre: { x: 0, y: 0 } });
     }
-    if (type === "table") { base.source = "collars"; base.title = "Drillhole collars"; base.w = 520; base.fontPt = 7; base.maxRows = collarRowsThatFit(A4.h, base.y, 7); /* #1638 — fits the sheet */ base.frameWidth = 1; }
+    if (type === "table") { base.source = "collars"; base.title = "Drillhole collars"; base.w = 520; base.fontPt = 7; Object.assign(base, placeCollarTable(elements, A4, { w: 520, fontPt: 7, total: collars.length })); /* #1638 fits the sheet; #2135 free space */ base.frameWidth = 1; }
     if (type !== "logo") setElements((els) => [...els, base]);
     setSelected(type !== "logo" ? id : null);
   };

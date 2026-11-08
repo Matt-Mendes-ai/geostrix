@@ -21,6 +21,11 @@ export function collarRowsThatFit(pageH, y, fontPt = 7) {
   const r = rowPx(fontPt), overhead = 2 * r + printPx(fontPt + 2) * 1.2 + 4 + 12 + 24;
   return Math.max(5, Math.floor((pageH - y - overhead) / r));
 }
+// TASKS.csv #2135 — the height a table of `rows` collar rows draws at (the fit above without its bottom margin), so it can be placed
+export function collarTableHeight(rows, fontPt = 7) {
+  const r = rowPx(fontPt);
+  return Math.ceil(2 * r + printPx(fontPt + 2) * 1.2 + 4 + 12 + Math.max(1, rows) * r);
+}
 
 // The tables that carry on after `el` (same columns, filter and length), one per new page, at the top of the sheet.
 export function continuationTables(el, total) {
