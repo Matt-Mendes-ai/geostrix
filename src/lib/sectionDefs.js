@@ -80,11 +80,28 @@ export function fenceExtentPoints(models, traces, coverModels) {
   }
   return pts;
 }
-// How many sections those points make at this azimuth and width, before any is created
-export function fenceSectionCount(pts, azimuth, width) {
-  if (!pts.length) return 0;
+// TASKS.csv #2040 (review #2013, Woodjam) — the lines whose slab (± half the spacing) holds any of the points (drillhole trace vertices,
+// and the corners of the covered models' cells): three clusters of holes 3-5 km apart made 94 sections at 50 m, about 76 of them through
+// empty ground. traces (optional): a slab a trace SEGMENT crosses counts even with no vertex inside it (a long straight segment).
+// -> { lines: [{ t, name }], all (the lines over the whole extent), empty (skipped) }
+export function fenceLinesWithData(pts, azimuth, width, traces = null) {
+  if (!pts?.length) return { lines: [], all: 0, empty: 0 };
   const a = toRad(norm360(azimuth)), px = Math.cos(a), py = -Math.sin(a);
-  let lo = Infinity, hi = -Infinity;
-  for (const p of pts) { const t = p.x * px + p.y * py; if (t < lo) lo = t; if (t > hi) hi = t; }
-  return fenceLines(lo, hi, width, azimuth).length;
+  const ts = new Float64Array(pts.length);
+  for (let i = 0; i < pts.length; i++) ts[i] = pts[i].x * px + pts[i].y * py;
+  ts.sort();
+  const lines = fenceLines(ts[0], ts[ts.length - 1], width, azimuth), h = Math.max(1, width) / 2;
+  const any = (lo, hi) => { let l = 0, r = ts.length; while (l < r) { const m = (l + r) >> 1; if (ts[m] < lo) l = m + 1; else r = m; } return l < ts.length && ts[l] <= hi; };
+  const segs = [];
+  for (const t of traces || []) for (let i = 1; i < (t?.wx?.length || 0); i++) {
+    const u = t.wx[i - 1] * px + t.wy[i - 1] * py, v = t.wx[i] * px + t.wy[i] * py;
+    if (Math.abs(v - u) > 2 * h) segs.push([Math.min(u, v), Math.max(u, v)]); // shorter segments always have a vertex in any slab they cross
+  }
+  const crossed = (lo, hi) => segs.some(([u, v]) => u <= hi && v >= lo);
+  const kept = lines.filter((ln) => any(ln.t - h, ln.t + h) || crossed(ln.t - h, ln.t + h));
+  return { lines: kept, all: lines.length, empty: lines.length - kept.length };
+}
+// How many sections those points make at this azimuth and width, before any is created (#2040: the slabs with data only)
+export function fenceSectionCount(pts, azimuth, width, traces = null) {
+  return fenceLinesWithData(pts, azimuth, width, traces).lines.length;
 }

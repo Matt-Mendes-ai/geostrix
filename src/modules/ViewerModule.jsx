@@ -37,7 +37,7 @@ import { openSectionWindow, saveFile, copyText, loadSampleFiles } from "../lib/d
 import { sampleProjectName } from "../lib/sampleProjectName.js"; // TASKS.csv #1218
 import { sampleCardsFor, sampleFootnote } from "../lib/sampleCards.js"; // TASKS.csv #1346
 import { symbolRadiusByMedium } from "../lib/viewer/surfaceSymbols.js"; // TASKS.csv #1346
-import { sectionFromCentre, sectionThroughHole, fenceLines, fenceExtentPoints, fenceLabels } from "../lib/sectionDefs.js";
+import { sectionFromCentre, sectionThroughHole, fenceLinesWithData, fenceExtentPoints, fenceLabels } from "../lib/sectionDefs.js"; // fenceLinesWithData: #2040
 import { Ribbon, RibbonGroup, RibbonButton, TaskPaneHeader, PaneNotice } from "../components/Ribbon.jsx"; // TASKS.csv #458
 import { Pickaxe, Layers, Group, Droplets, Waves, Gem, Calculator, Settings, FileSpreadsheet, Globe, Spline, PenTool, Rows3, Crosshair, Target, SquareSplitVertical, Sparkles } from "../components/icons.js"; // TASKS.csv #445 step 4 — memoised lucide icons // #458 ribbon icons
 import { solidBounds, SOLID_IMPORT_EXTENSIONS, SOLID_FACE_WARN } from "../lib/solidImportMeta.js"; // TASKS.csv #148; #552 split
@@ -7091,8 +7091,8 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
     const alongPad = Math.max(5, (sMax - sMin) * 0.02);
     sMin -= alongPad; sMax += alongPad;
 
-    // TASKS.csv #393 — lines on round multiples of the spacing, as on a paper plan.
-    const lines = fenceLines(tMin, tMax, width, sliceSeriesAzimuth);
+    // TASKS.csv #393 — lines on round multiples of the spacing, as on a paper plan. #2040 — only the slabs that hold data
+    const { lines, empty: emptySlabs } = fenceLinesWithData(pts, sliceSeriesAzimuth, width, tracesRef.current);
     const n = lines.length;
     if (n > 50 && !window.confirm(tr("This will create {n} sections. Continue?", { n }))) return; // #1180
 
@@ -7108,6 +7108,7 @@ ${nVerts.toLocaleString()} vertices, ${nTris.toLocaleString()} triangles` };
       upsertSection({ id, name, ax: a.x, ay: a.y, bx: b.x, by: b.y, azimuth: sliceSeriesAzimuth, corridor: width / 2, contacts: [], groupId });
       created++;
     }
+    if (emptySlabs) setNotices((p) => [...p, notice("{e} slab(s) with no hole or model cell were skipped.", { e: emptySlabs })]); // #2040
     setNotices((p) => [...p, notice(created === 1 ? "Generated {created} section at azimuth {sliceSeriesAzimuth}° — in the Cross-sections list." : "Generated {created} sections spaced {width}m apart at azimuth {sliceSeriesAzimuth}° — grouped together in the Cross-sections list.", { created, width, sliceSeriesAzimuth: sliceSeriesAzimuth.toFixed(0) })]);
   }, [fenceCoverModels, sliceSeriesAzimuth, sliceSeriesWidth, voxelModels, upsertSection, addSectionGroup]);
 

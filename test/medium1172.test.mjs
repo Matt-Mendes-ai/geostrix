@@ -64,8 +64,8 @@ test("#1180 a fence covers the drilling unless asked for the models, and counts 
   assert.equal(fenceExtentPoints(models, traces, true).length, 6);
   assert.equal(fenceExtentPoints(models, [], false).length, 4, "no holes: the models");
   assert.equal(fenceExtentPoints([{ visible: false, cells: models[0].cells }], [], false).length, 0);
-  assert.ok(Math.abs(fenceSectionCount(onlyHoles, 0, 1000) - 6) <= 1, String(fenceSectionCount(onlyHoles, 0, 1000)));
-  assert.ok(fenceSectionCount(fenceExtentPoints(models, traces, true), 0, 1000) >= 25);
+  assert.ok(Math.abs(fenceSectionCount(onlyHoles, 0, 1000, traces) - 6) <= 1, String(fenceSectionCount(onlyHoles, 0, 1000, traces))); // traces: #2040 — the slabs the 5 km segment crosses
+  assert.ok(fenceSectionCount(fenceExtentPoints(models, traces, true), 0, 1000, traces) >= 6); // #2040 — the empty slabs between the hole and the model are not sections
   assert.equal(fenceSectionCount([], 0, 1000), 0);
   assert.match(read("src/modules/ViewerModule.jsx"), /n > 50 && !window\.confirm/);
 });
